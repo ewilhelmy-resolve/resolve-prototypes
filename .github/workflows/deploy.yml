@@ -7,7 +7,7 @@ on:
 
 env:
   IMAGE_NAME: ghcr.io/resolve-io/resolve-onboarding
-  DEPLOY_HOST: onboarding.resolve.io
+  DEPLOY_HOST: ec2-34-229-53-167.compute-1.amazonaws.com
   DEPLOY_USER: ec2-user
 
 jobs:
