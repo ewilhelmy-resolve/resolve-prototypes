@@ -8,6 +8,11 @@
     <!-- Chart.js for beautiful graphs -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     
+    <!-- Import Inter font -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+    
     <style>
         * {
             margin: 0;
@@ -16,8 +21,8 @@
         }
         
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-            background: #0A0A0F; /* Match main app dark background */
+            font-family: 'Inter', 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: #0B1E3C; /* Primary Background */
             color: #FFFFFF;
             height: 100vh;
             overflow: hidden;
@@ -26,8 +31,8 @@
         /* App Header Bar */
         .app-header {
             height: 56px;
-            background: #111118;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            background: rgba(11, 30, 60, 0.95);
+            border-bottom: 1px solid rgba(41, 197, 246, 0.2);
             display: flex;
             align-items: center;
             justify-content: space-between;
@@ -37,6 +42,7 @@
             left: 0;
             right: 0;
             z-index: 1000;
+            backdrop-filter: blur(10px);
         }
         
         .header-left {
@@ -50,13 +56,15 @@
             align-items: center;
             gap: 12px;
             font-size: 18px;
-            font-weight: 600;
-            color: #00D4FF;
+            font-weight: 700;
+            color: #009DFF;
         }
         
-        .app-logo svg {
-            width: 28px;
-            height: 28px;
+        .app-logo .logo-image {
+            height: 32px;
+            width: auto;
+            filter: brightness(0) invert(1);
+            opacity: 0.9;
         }
         
         .nav-links {
@@ -66,22 +74,25 @@
         
         .nav-link {
             padding: 8px 16px;
-            border-radius: 8px;
-            color: #8B8B9F;
+            border-radius: 12px;
+            color: #D1D5DB;
             text-decoration: none;
             font-size: 14px;
+            font-weight: 500;
             transition: all 0.2s ease;
             cursor: pointer;
         }
         
         .nav-link:hover {
-            background: rgba(255, 255, 255, 0.05);
+            background: rgba(209, 213, 219, 0.1);
             color: #FFFFFF;
+            box-shadow: 0 2px 8px rgba(0, 157, 255, 0.1);
         }
         
         .nav-link.active {
-            background: rgba(0, 212, 255, 0.1);
-            color: #00D4FF;
+            background: #3B82F6;
+            color: #FFFFFF;
+            box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
         }
         
         .header-right {
@@ -95,18 +106,20 @@
             align-items: center;
             gap: 8px;
             padding: 6px 12px;
-            background: rgba(0, 255, 127, 0.1);
-            border: 1px solid rgba(0, 255, 127, 0.2);
+            background: rgba(40, 183, 181, 0.1);
+            border: 1px solid rgba(40, 183, 181, 0.2);
             border-radius: 20px;
             font-size: 12px;
+            font-weight: 500;
         }
         
         .status-dot {
             width: 6px;
             height: 6px;
-            background: #00FF7F;
+            background: #28B7B5;
             border-radius: 50%;
             animation: pulse 2s infinite;
+            box-shadow: 0 0 10px rgba(40, 183, 181, 0.5);
         }
         
         @keyframes pulse {
@@ -186,8 +199,9 @@
             height: 100%;
             display: flex;
             flex-direction: column;
-            background: #111118;
-            border-right: 1px solid rgba(255, 255, 255, 0.1);
+            background: rgba(11, 30, 60, 0.5);
+            border-right: 1px solid rgba(41, 197, 246, 0.2);
+            backdrop-filter: blur(10px);
         }
         
         .dashboard-content {
@@ -200,16 +214,17 @@
         
         .dashboard-title {
             font-size: 32px;
-            font-weight: 600;
+            font-weight: 700;
             margin-bottom: 8px;
-            background: linear-gradient(135deg, #0066FF 0%, #00D4FF 100%);
+            background: linear-gradient(135deg, #009DFF 0%, #29C5F6 100%);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
         }
         
         .dashboard-subtitle {
-            color: #8B8B9F;
+            color: #D1D5DB;
             font-size: 16px;
+            font-weight: 400;
         }
         
         .stats-grid {
@@ -220,43 +235,46 @@
         }
         
         .stat-card {
-            background: #111118;
+            background: rgba(11, 30, 60, 0.5);
             padding: 24px;
             border-radius: 12px;
-            border: 1px solid rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(209, 213, 219, 0.2);
             transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
         }
         
         .stat-card:hover {
-            border-color: rgba(0, 212, 255, 0.3);
+            border-color: #D1D5DB;
             transform: translateY(-2px);
+            box-shadow: 0 8px 16px rgba(0, 157, 255, 0.1);
         }
         
         .stat-value {
             font-size: 2rem;
-            font-weight: bold;
-            color: #00D4FF;
+            font-weight: 700;
+            color: #29C5F6;
         }
         
         .stat-label {
             font-size: 0.9rem;
-            color: #8B8B9F;
+            color: #D1D5DB;
             margin-top: 0.5rem;
+            font-weight: 500;
         }
         
         /* Right side - Dashboard (4/5 of screen) */
         .right-panel {
             flex: 1;
             height: 100%;
-            background: #0A0A0F;
+            background: #0B1E3C;
             overflow-y: auto;
             padding: 32px;
         }
         
         .chat-header {
             padding: 16px;
-            background: #111118;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            background: rgba(11, 30, 60, 0.8);
+            border-bottom: 1px solid rgba(41, 197, 246, 0.2);
             display: flex;
             align-items: center;
             justify-content: space-between;
@@ -265,7 +283,7 @@
         .chat-title {
             font-size: 16px;
             font-weight: 600;
-            color: #00D4FF;
+            color: #009DFF;
             display: flex;
             align-items: center;
             gap: 8px;
@@ -273,14 +291,17 @@
         
         .chat-status {
             font-size: 12px;
-            color: #00FF7F;
+            color: #28B7B5;
+            font-weight: 500;
         }
         
         .chat-iframe {
             flex: 1;
             width: 100%;
             border: none;
-            background: #111118;
+            background: rgba(11, 30, 60, 0.3);
+            position: relative;
+            z-index: 1;
         }
         
         .loading-overlay {
@@ -289,7 +310,7 @@
             left: 0;
             right: 0;
             bottom: 0;
-            background: #0A0A0F;
+            background: #0B1E3C;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -305,10 +326,11 @@
         .spinner {
             width: 60px;
             height: 60px;
-            border: 3px solid rgba(255, 255, 255, 0.1);
-            border-top-color: #00D4FF;
+            border: 3px solid rgba(209, 213, 219, 0.2);
+            border-top-color: #28B7B5;
             border-radius: 50%;
             animation: spin 1s linear infinite;
+            box-shadow: 0 0 20px rgba(40, 183, 181, 0.3);
         }
         
         @keyframes spin {
@@ -317,11 +339,11 @@
         
         /* Automate Workflow Button */
         .automate-btn {
-            background: linear-gradient(135deg, #0066FF, #00D4FF);
-            color: white;
+            background: linear-gradient(135deg, #009DFF, #3B82F6);
+            color: #FFFFFF;
             padding: 14px 28px;
             border: none;
-            border-radius: 8px;
+            border-radius: 12px;
             font-size: 16px;
             font-weight: 600;
             cursor: pointer;
@@ -330,12 +352,13 @@
             align-items: center;
             gap: 8px;
             margin-bottom: 24px;
-            box-shadow: 0 4px 12px rgba(0, 212, 255, 0.2);
+            box-shadow: 0 4px 12px rgba(0, 157, 255, 0.3);
         }
         
         .automate-btn:hover {
             transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(0, 212, 255, 0.3);
+            box-shadow: 0 6px 20px rgba(0, 157, 255, 0.4);
+            background: linear-gradient(135deg, #3B82F6, #009DFF);
         }
         
         .automate-btn:active {
@@ -355,16 +378,17 @@
         }
         
         .chart-card {
-            background: #111118;
+            background: rgba(11, 30, 60, 0.5);
             padding: 24px;
             border-radius: 12px;
-            border: 1px solid rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(209, 213, 219, 0.2);
+            backdrop-filter: blur(10px);
         }
         
         .chart-title {
             font-size: 18px;
             font-weight: 600;
-            color: #00D4FF;
+            color: #009DFF;
             margin-bottom: 16px;
         }
         
@@ -397,9 +421,9 @@
         
         .integrations-title {
             font-size: 32px;
-            font-weight: 600;
+            font-weight: 700;
             margin-bottom: 8px;
-            background: linear-gradient(135deg, #0066FF 0%, #00D4FF 100%);
+            background: linear-gradient(135deg, #009DFF 0%, #29C5F6 100%);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
         }
@@ -417,16 +441,18 @@
         }
         
         .integration-card {
-            background: #111118;
+            background: rgba(11, 30, 60, 0.5);
             padding: 24px;
             border-radius: 12px;
-            border: 1px solid rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(209, 213, 219, 0.2);
             transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
         }
         
         .integration-card:hover {
-            border-color: rgba(0, 212, 255, 0.3);
+            border-color: #D1D5DB;
             transform: translateY(-2px);
+            box-shadow: 0 8px 16px rgba(0, 157, 255, 0.1);
         }
         
         .integration-header {
@@ -466,9 +492,9 @@
         }
         
         .status-connected {
-            background: rgba(0, 255, 127, 0.1);
-            color: #00FF7F;
-            border: 1px solid rgba(0, 255, 127, 0.2);
+            background: rgba(40, 183, 181, 0.1);
+            color: #28B7B5;
+            border: 1px solid rgba(40, 183, 181, 0.2);
         }
         
         .status-pending {
@@ -478,16 +504,17 @@
         }
         
         .status-available {
-            background: rgba(0, 212, 255, 0.1);
-            color: #00D4FF;
-            border: 1px solid rgba(0, 212, 255, 0.2);
+            background: rgba(0, 157, 255, 0.1);
+            color: #009DFF;
+            border: 1px solid rgba(0, 157, 255, 0.2);
         }
         
         .integration-details {
-            color: #8B8B9F;
+            color: #D1D5DB;
             font-size: 14px;
             line-height: 1.6;
             margin-bottom: 16px;
+            font-weight: 400;
         }
         
         .integration-config {
@@ -638,11 +665,7 @@
     <header class="app-header">
         <div class="header-left">
             <div class="app-logo">
-                <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="#00D4FF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                    <path d="M2 17L12 22L22 17" stroke="#00D4FF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                    <path d="M2 12L12 17L22 12" stroke="#00D4FF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                </svg>
+                <img src="logo.svg" alt="Resolve" class="logo-image">
                 <span>Resolve</span>
             </div>
             <nav class="nav-links">
@@ -698,8 +721,13 @@
                 id="baristaChat" 
                 class="chat-iframe"
                 src="https://resolvejarvisdev.espressive.com/v2/chat/"
-                allow="microphone; camera; clipboard-read; clipboard-write"
-                sandbox="allow-scripts allow-same-origin allow-forms allow-popups">
+                title="Jarvis AI Assistant Chat"
+                loading="eager"
+                allowfullscreen
+                allowtransparency="true"
+                allow="microphone; camera; clipboard-read; clipboard-write; geolocation; fullscreen; autoplay; payment; encrypted-media; picture-in-picture; speaker-selection; storage-access; accelerometer; gyroscope; magnetometer"
+                sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-modals allow-top-navigation-by-user-activation allow-downloads allow-presentation allow-storage-access-by-user-activation"
+                referrerpolicy="strict-origin-when-cross-origin">
             </iframe>
         </div>
         
@@ -720,11 +748,11 @@
                 
                 <!-- Onboarding Message (shown when no data) -->
                 <div id="onboardingMessage" class="onboarding-message" style="display: none;">
-                    <div class="onboarding-icon">📊</div>
-                    <h2 class="onboarding-title">Let's Get Your Analytics Started!</h2>
+                    <div class="onboarding-icon">🎯</div>
+                    <h2 class="onboarding-title">Welcome to Your Automation Command Center!</h2>
                     <p class="onboarding-text">
-                        We haven't analyzed any tickets yet. To unlock powerful insights and automation opportunities,<br>
-                        you can either upload your historical ticket data or connect to your ticketing system.
+                        To get started with AI-powered ticket automation, we need to analyze your ticket history.<br>
+                        This helps us identify patterns and automation opportunities unique to your organization.
                     </p>
                     <div class="onboarding-actions">
                         <label for="ticketFileUpload" class="onboarding-btn onboarding-btn-primary">
@@ -732,10 +760,15 @@
                             <span>Upload Ticket CSV</span>
                             <input type="file" id="ticketFileUpload" accept=".csv" style="display: none;" onchange="handleTicketUpload(this)">
                         </label>
-                        <button class="onboarding-btn onboarding-btn-secondary" onclick="navigateToIntegrations()">
+                        <button class="onboarding-btn onboarding-btn-secondary" onclick="navigateToIntegrations(true)">
                             <span>🔗</span>
-                            <span>Connect Integration</span>
+                            <span>Connect to Jira/ServiceNow</span>
                         </button>
+                    </div>
+                    <div style="margin-top: 24px; padding-top: 24px; border-top: 1px solid rgba(255,255,255,0.1);">
+                        <p style="font-size: 14px; color: #6B6B7F;">
+                            💡 <strong>Tip:</strong> Upload a CSV with columns like: ticket_id, title, status, priority, created_at, resolved_at
+                        </p>
                     </div>
                 </div>
                 
@@ -804,10 +837,9 @@
                         </div>
                         </div>
                     </div>
-                </div> <!-- End of dashboardContent -->
-                
-                <!-- Additional dashboard content can go here -->
-                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 24px; margin-top: 32px;">
+                    
+                    <!-- Additional dashboard content (only shown when data exists) -->
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 24px; margin-top: 32px;">
                     <div class="stat-card" style="padding: 32px;">
                         <h3 style="margin-bottom: 16px; color: #00D4FF;">Recent Activity</h3>
                         <div style="color: #8B8B9F; line-height: 1.8;">
@@ -847,6 +879,7 @@
                         </div>
                     </div>
                 </div>
+                </div> <!-- End of dashboardContent -->
             </div>
             
             <!-- Integrations View -->
@@ -856,145 +889,22 @@
                     <p class="integrations-subtitle">Manage your connected services and automation endpoints</p>
                 </div>
                 
-                <div class="integrations-grid">
-                    <!-- Resolve Integration -->
-                    <div class="integration-card">
-                        <div class="integration-header">
-                            <div class="integration-logo">
-                                <div class="integration-icon" style="background: linear-gradient(135deg, #0066FF, #00D4FF);">
-                                    ⚡
-                                </div>
-                                <div class="integration-name">Resolve Actions API</div>
-                            </div>
-                            <div class="integration-status status-connected" id="resolveStatus">Connected</div>
-                        </div>
-                        <div class="integration-details">
-                            Automatically sends learning data and automation events to the Resolve platform.
-                        </div>
-                        <div class="integration-config">
-                            <div class="config-item">
-                                <span class="config-label">Source:</span>
-                                <span class="config-value">Onboarding</span>
-                            </div>
-                            <div class="config-item">
-                                <span class="config-label">Default Action:</span>
-                                <span class="config-value">learn_data</span>
-                            </div>
-                            <div class="config-item">
-                                <span class="config-label">Endpoint:</span>
-                                <span class="config-value">actions-api-staging</span>
-                            </div>
-                            <div class="config-item">
-                                <span class="config-label">Last Event:</span>
-                                <span class="config-value" id="resolveLastEvent">Just now</span>
-                            </div>
-                        </div>
-                        <div class="integration-actions">
-                            <button class="integration-btn" onclick="testResolveConnection()">Test Connection</button>
-                            <button class="integration-btn primary" onclick="viewResolveEvents()">View Events</button>
-                        </div>
-                    </div>
-                    
-                    <!-- Jira Integration -->
-                    <div class="integration-card">
-                        <div class="integration-header">
-                            <div class="integration-logo">
-                                <div class="integration-icon" style="background: #0052CC;">
-                                    <svg width="24" height="24" viewBox="0 0 24 24" fill="white">
-                                        <path d="M11.571 11.429H0l5.714-5.714L11.429 0l5.714 5.714L11.429 11.429zM21.857 6.857h-10l5.714 5.714 5.715-5.714zM11.571 12.571H1.571l5.714 5.714L11.571 24l5.714-5.714-5.714-5.715z"/>
-                                    </svg>
-                                </div>
-                                <div class="integration-name">Jira</div>
-                            </div>
-                            <div class="integration-status status-connected">Connected</div>
-                        </div>
-                        <div class="integration-details">
-                            Sync tickets and automate issue management with your Jira instance.
-                        </div>
-                        <div class="integration-config">
-                            <div class="config-item">
-                                <span class="config-label">Instance:</span>
-                                <span class="config-value">resolve.atlassian.net</span>
-                            </div>
-                            <div class="config-item">
-                                <span class="config-label">Project:</span>
-                                <span class="config-value">RESOLVE-IT</span>
-                            </div>
-                            <div class="config-item">
-                                <span class="config-label">Sync Status:</span>
-                                <span class="config-value">Active</span>
-                            </div>
-                        </div>
-                        <div class="integration-actions">
-                            <button class="integration-btn">Configure</button>
-                            <button class="integration-btn primary">Sync Now</button>
-                        </div>
-                    </div>
-                    
-                    <!-- Slack Integration -->
-                    <div class="integration-card">
-                        <div class="integration-header">
-                            <div class="integration-logo">
-                                <div class="integration-icon" style="background: #4A154B;">
-                                    <svg width="24" height="24" viewBox="0 0 24 24" fill="white">
-                                        <path d="M5.042 15.165a2.528 2.528 0 0 1-2.52 2.523A2.528 2.528 0 0 1 0 15.165a2.527 2.527 0 0 1 2.522-2.52h2.52v2.52zM6.313 15.165a2.527 2.527 0 0 1 2.521-2.52 2.527 2.527 0 0 1 2.521 2.52v6.313A2.528 2.528 0 0 1 8.834 24a2.528 2.528 0 0 1-2.521-2.522v-6.313zM8.834 5.042a2.528 2.528 0 0 1-2.521-2.52A2.528 2.528 0 0 1 8.834 0a2.528 2.528 0 0 1 2.521 2.522v2.52H8.834zM8.834 6.313a2.528 2.528 0 0 1 2.521 2.521 2.528 2.528 0 0 1-2.521 2.521H2.522A2.528 2.528 0 0 1 0 8.834a2.528 2.528 0 0 1 2.522-2.521h6.312zM18.956 8.834a2.528 2.528 0 0 1 2.522-2.521A2.528 2.528 0 0 1 24 8.834a2.528 2.528 0 0 1-2.522 2.521h-2.522V8.834zM17.688 8.834a2.528 2.528 0 0 1-2.523 2.521 2.527 2.527 0 0 1-2.52-2.521V2.522A2.527 2.527 0 0 1 15.165 0a2.528 2.528 0 0 1 2.523 2.522v6.312zM15.165 18.956a2.528 2.528 0 0 1 2.523 2.522A2.528 2.528 0 0 1 15.165 24a2.527 2.527 0 0 1-2.52-2.522v-2.522h2.52zM15.165 17.688a2.527 2.527 0 0 1-2.52-2.523 2.526 2.526 0 0 1 2.52-2.52h6.313A2.527 2.527 0 0 1 24 15.165a2.528 2.528 0 0 1-2.522 2.523h-6.313z"/>
-                                    </svg>
-                                </div>
-                                <div class="integration-name">Slack</div>
-                            </div>
-                            <div class="integration-status status-connected">Connected</div>
-                        </div>
-                        <div class="integration-details">
-                            Send notifications and manage tickets directly from Slack channels.
-                        </div>
-                        <div class="integration-config">
-                            <div class="config-item">
-                                <span class="config-label">Workspace:</span>
-                                <span class="config-value">resolve-workspace</span>
-                            </div>
-                            <div class="config-item">
-                                <span class="config-label">Channel:</span>
-                                <span class="config-value">#it-support</span>
-                            </div>
-                            <div class="config-item">
-                                <span class="config-label">Bot Status:</span>
-                                <span class="config-value">Active</span>
-                            </div>
-                        </div>
-                        <div class="integration-actions">
-                            <button class="integration-btn">Settings</button>
-                            <button class="integration-btn primary">Test Message</button>
-                        </div>
-                    </div>
-                    
-                    <!-- ServiceNow Integration -->
-                    <div class="integration-card">
-                        <div class="integration-header">
-                            <div class="integration-logo">
-                                <div class="integration-icon" style="background: #81B366;">
-                                    📊
-                                </div>
-                                <div class="integration-name">ServiceNow</div>
-                            </div>
-                            <div class="integration-status status-available">Available</div>
-                        </div>
-                        <div class="integration-details">
-                            Connect to ServiceNow for enterprise-grade ITSM automation.
-                        </div>
-                        <div class="integration-config">
-                            <div class="config-item">
-                                <span class="config-label">Status:</span>
-                                <span class="config-value">Not configured</span>
-                            </div>
-                            <div class="config-item">
-                                <span class="config-label">Requirements:</span>
-                                <span class="config-value">API credentials needed</span>
-                            </div>
-                        </div>
-                        <div class="integration-actions">
-                            <button class="integration-btn primary">Connect</button>
-                        </div>
-                    </div>
+                <!-- Add New Integration Button -->
+                <div style="margin-bottom: 32px;">
+                    <button class="btn btn-primary" onclick="showIntegrationSetup()" style="background: linear-gradient(135deg, #0066FF, #00D4FF); padding: 12px 24px; border-radius: 8px; border: none; color: white; font-weight: 600; cursor: pointer;">
+                        <span style="margin-right: 8px;">➕</span>
+                        Add New Integration
+                    </button>
+                </div>
+                
+                <!-- Integration Setup Form (hidden by default) -->
+                <div id="integrationSetupContainer" class="integration-setup-panel" style="display: none; background: #111118; border-radius: 12px; padding: 32px; margin-bottom: 32px; border: 1px solid rgba(255, 255, 255, 0.1);">
+                    <!-- Will be populated when Add New Integration is clicked -->
+                </div>
+                
+                <!-- Connected Integrations Grid -->
+                <div class="integrations-grid" id="connectedIntegrations">
+                    <!-- Integration cards will be dynamically loaded here -->
                 </div>
             </div>
         </div>
@@ -1006,6 +916,7 @@
     
     <script type="module">
         import { resolveIntegration } from './components/resolve-integration.js';
+        import { IntegrationForm } from './components/integration-form.js';
         
         // Check if user is logged in
         const currentUser = sessionStorage.getItem('currentUser');
@@ -1096,12 +1007,15 @@
                     dashboardView.classList.add('hidden');
                     integrationsView.classList.add('active');
                     
+                    // Load connected integrations dynamically
+                    loadConnectedIntegrations();
+                    
                     // Check Resolve integration status
                     const status = await resolveIntegration.checkStatus();
                     const statusEl = document.getElementById('resolveStatus');
                     const lastEventEl = document.getElementById('resolveLastEvent');
                     
-                    if (status) {
+                    if (statusEl && status) {
                         statusEl.textContent = 'Connected';
                         statusEl.className = 'integration-status status-connected';
                     } else {
@@ -1317,14 +1231,343 @@
         }
         
         // Navigate to integrations
-        function navigateToIntegrations() {
+        function navigateToIntegrations(showSetup = false) {
             // Find and click the Integrations nav link
             const integrationsLink = Array.from(document.querySelectorAll('.nav-link'))
                 .find(link => link.textContent === 'Integrations');
             if (integrationsLink) {
                 integrationsLink.click();
+                
+                // If coming from dashboard onboarding, automatically show the setup form
+                if (showSetup) {
+                    setTimeout(() => {
+                        const setupButton = document.querySelector('button[onclick="showIntegrationSetup()"]');
+                        if (setupButton && setupButton.textContent.includes('Add New Integration')) {
+                            setupButton.click();
+                        }
+                    }, 100);
+                }
             }
         }
+        
+        // Make it available globally
+        window.navigateToIntegrations = navigateToIntegrations;
+        
+        // Show integration setup form
+        window.showIntegrationSetup = function(integrationType = null) {
+            const container = document.getElementById('integrationSetupContainer');
+            const button = event.target?.closest('button') || document.querySelector('button[onclick="showIntegrationSetup()"]');
+            
+            if (!integrationType && container.style.display === 'block') {
+                // Hide the form
+                container.style.display = 'none';
+                container.innerHTML = '';
+                if (button) button.innerHTML = '<span style="margin-right: 8px;">➕</span> Add New Integration';
+                return;
+            }
+            
+            // Show the form
+            container.style.display = 'block';
+            if (button) button.innerHTML = '<span style="margin-right: 8px;">✖</span> Cancel Setup';
+            
+            // If no type specified, show integration selector
+            if (!integrationType) {
+                container.innerHTML = `
+                    <h2 style="color: #00D4FF; margin-bottom: 24px;">Choose Your Integration</h2>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 24px;">
+                        <div class="integration-option-card" onclick="showIntegrationSetup('jira')" style="background: #1a1a24; padding: 24px; border-radius: 12px; border: 2px solid rgba(255, 255, 255, 0.1); cursor: pointer; transition: all 0.3s;">
+                            <div style="font-size: 48px; margin-bottom: 16px;">🎯</div>
+                            <h3 style="color: #fff; margin-bottom: 8px;">Jira</h3>
+                            <p style="color: #8B8B9F; font-size: 14px;">Connect to Jira Service Management</p>
+                            <div style="margin-top: 16px; display: flex; gap: 12px; font-size: 12px; color: #00D4FF;">
+                                <span>⚡ 2-min setup</span>
+                                <span>📊 Instant insights</span>
+                            </div>
+                        </div>
+                        <div class="integration-option-card" onclick="showIntegrationSetup('servicenow')" style="background: #1a1a24; padding: 24px; border-radius: 12px; border: 2px solid rgba(255, 255, 255, 0.1); cursor: pointer; transition: all 0.3s;">
+                            <div style="font-size: 48px; margin-bottom: 16px;">❄️</div>
+                            <h3 style="color: #fff; margin-bottom: 8px;">ServiceNow</h3>
+                            <p style="color: #8B8B9F; font-size: 14px;">Connect to ServiceNow instance</p>
+                            <div style="margin-top: 16px; display: flex; gap: 12px; font-size: 12px; color: #00D4FF;">
+                                <span>🏢 Full ITSM</span>
+                                <span>🔧 Advanced</span>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            } else if (integrationType === 'jira') {
+                // Show Jira configuration form
+                container.innerHTML = `
+                    <div style="margin-bottom: 24px;">
+                        <button onclick="showIntegrationSetup()" style="background: transparent; border: none; color: #8B8B9F; cursor: pointer; font-size: 14px;">
+                            ← Back to integrations
+                        </button>
+                    </div>
+                    <h2 style="color: #00D4FF; margin-bottom: 8px;">🎯 Connect to Jira</h2>
+                    <p style="color: #8B8B9F; margin-bottom: 32px;">Enter your Jira instance details to start syncing tickets</p>
+                    
+                    <div style="display: flex; flex-direction: column; gap: 24px;">
+                        <div>
+                            <label style="display: block; color: #fff; margin-bottom: 8px; font-size: 14px;">
+                                🌐 Jira Instance URL
+                            </label>
+                            <input type="text" id="jira-url" placeholder="https://company.atlassian.net" 
+                                style="width: 100%; padding: 12px; background: #0A0A0F; border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 8px; color: #fff;">
+                        </div>
+                        <div>
+                            <label style="display: block; color: #fff; margin-bottom: 8px; font-size: 14px;">
+                                📧 Email Address
+                            </label>
+                            <input type="email" id="jira-email" placeholder="admin@company.com"
+                                style="width: 100%; padding: 12px; background: #0A0A0F; border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 8px; color: #fff;">
+                        </div>
+                        <div>
+                            <label style="display: block; color: #fff; margin-bottom: 8px; font-size: 14px;">
+                                🔑 API Token
+                            </label>
+                            <input type="password" id="jira-token" placeholder="Enter your API token"
+                                style="width: 100%; padding: 12px; background: #0A0A0F; border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 8px; color: #fff;">
+                            <small style="color: #8B8B9F; font-size: 12px;">
+                                Need help? <a href="https://id.atlassian.com/manage-profile/security/api-tokens" target="_blank" style="color: #00D4FF;">Generate API token</a>
+                            </small>
+                        </div>
+                        <div style="display: flex; gap: 12px; margin-top: 16px;">
+                            <button onclick="saveJiraIntegration()" style="background: linear-gradient(135deg, #0066FF, #00D4FF); color: white; padding: 12px 24px; border: none; border-radius: 8px; font-weight: 600; cursor: pointer;">
+                                Connect to Jira
+                            </button>
+                            <button onclick="showIntegrationSetup()" style="background: transparent; color: #8B8B9F; padding: 12px 24px; border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 8px; cursor: pointer;">
+                                Cancel
+                            </button>
+                        </div>
+                    </div>
+                `;
+            } else if (integrationType === 'servicenow') {
+                // Show ServiceNow configuration form
+                container.innerHTML = `
+                    <div style="margin-bottom: 24px;">
+                        <button onclick="showIntegrationSetup()" style="background: transparent; border: none; color: #8B8B9F; cursor: pointer; font-size: 14px;">
+                            ← Back to integrations
+                        </button>
+                    </div>
+                    <h2 style="color: #00D4FF; margin-bottom: 8px;">❄️ Connect to ServiceNow</h2>
+                    <p style="color: #8B8B9F; margin-bottom: 32px;">Enter your ServiceNow instance details for enterprise ITSM</p>
+                    
+                    <div style="display: flex; flex-direction: column; gap: 24px;">
+                        <div>
+                            <label style="display: block; color: #fff; margin-bottom: 8px; font-size: 14px;">
+                                🌐 Instance Name
+                            </label>
+                            <input type="text" id="snow-instance" placeholder="company.service-now.com"
+                                style="width: 100%; padding: 12px; background: #0A0A0F; border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 8px; color: #fff;">
+                        </div>
+                        <div>
+                            <label style="display: block; color: #fff; margin-bottom: 8px; font-size: 14px;">
+                                👤 Username
+                            </label>
+                            <input type="text" id="snow-username" placeholder="admin"
+                                style="width: 100%; padding: 12px; background: #0A0A0F; border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 8px; color: #fff;">
+                        </div>
+                        <div>
+                            <label style="display: block; color: #fff; margin-bottom: 8px; font-size: 14px;">
+                                🔑 Password
+                            </label>
+                            <input type="password" id="snow-password" placeholder="Enter your password"
+                                style="width: 100%; padding: 12px; background: #0A0A0F; border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 8px; color: #fff;">
+                        </div>
+                        <div style="display: flex; gap: 12px; margin-top: 16px;">
+                            <button onclick="saveServiceNowIntegration()" style="background: linear-gradient(135deg, #0066FF, #00D4FF); color: white; padding: 12px 24px; border: none; border-radius: 8px; font-weight: 600; cursor: pointer;">
+                                Connect to ServiceNow
+                            </button>
+                            <button onclick="showIntegrationSetup()" style="background: transparent; color: #8B8B9F; padding: 12px 24px; border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 8px; cursor: pointer;">
+                                Cancel
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }
+        };
+        
+        // Save Jira integration
+        window.saveJiraIntegration = async function() {
+            const url = document.getElementById('jira-url').value;
+            const email = document.getElementById('jira-email').value;
+            const token = document.getElementById('jira-token').value;
+            
+            if (!url || !email || !token) {
+                alert('Please fill in all fields');
+                return;
+            }
+            
+            await handleIntegrationConnect({
+                type: 'jira',
+                url: url,
+                email: email,
+                apiToken: token
+            });
+        };
+        
+        // Save ServiceNow integration
+        window.saveServiceNowIntegration = async function() {
+            const instance = document.getElementById('snow-instance').value;
+            const username = document.getElementById('snow-username').value;
+            const password = document.getElementById('snow-password').value;
+            
+            if (!instance || !username || !password) {
+                alert('Please fill in all fields');
+                return;
+            }
+            
+            await handleIntegrationConnect({
+                type: 'servicenow',
+                instance: instance,
+                username: username,
+                password: password
+            });
+        };
+        
+        // Handle integration connection
+        async function handleIntegrationConnect(data) {
+            const token = localStorage.getItem('authToken');
+            
+            // Save integration to backend
+            const response = await fetch('/api/integrations/connect', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': token ? `Bearer ${token}` : ''
+                },
+                body: JSON.stringify(data)
+            });
+            
+            if (response.ok) {
+                // Refresh integrations list
+                await loadConnectedIntegrations();
+                
+                // Hide setup form
+                document.getElementById('integrationSetupContainer').style.display = 'none';
+                const button = document.querySelector('button[onclick="showIntegrationSetup()"]');
+                button.innerHTML = '<span style="margin-right: 8px;">➕</span> Add New Integration';
+                
+                // Show success message
+                alert(`✅ ${data.type} integration connected successfully!`);
+            } else {
+                alert('Failed to connect integration. Please check your credentials.');
+            }
+        }
+        
+        // Load connected integrations
+        async function loadConnectedIntegrations() {
+            const container = document.getElementById('connectedIntegrations');
+            const token = localStorage.getItem('authToken');
+            
+            // Get user's integrations from localStorage or backend
+            const userData = localStorage.getItem('currentUser');
+            const user = userData ? JSON.parse(userData) : {};
+            const integrations = user.integrations || {};
+            
+            // Clear current cards
+            container.innerHTML = '';
+            
+            // Always show Resolve integration
+            container.innerHTML += createIntegrationCard({
+                type: 'resolve',
+                name: 'Resolve Actions API',
+                icon: '⚡',
+                iconBg: 'linear-gradient(135deg, #0066FF, #00D4FF)',
+                status: 'connected',
+                details: 'Automatically sends learning data and automation events to the Resolve platform.',
+                config: {
+                    'Source': 'Onboarding',
+                    'Default Action': 'learn_data',
+                    'Last Event': 'Just now'
+                }
+            });
+            
+            // Add connected integrations
+            if (integrations.jira?.connected) {
+                container.innerHTML += createIntegrationCard({
+                    type: 'jira',
+                    name: 'Jira',
+                    icon: '🎯',
+                    iconBg: '#0052CC',
+                    status: 'connected',
+                    details: 'Sync tickets and automate issue management with your Jira instance.',
+                    config: {
+                        'Instance': integrations.jira.url || 'Not configured',
+                        'Project': 'RESOLVE-IT',
+                        'Sync Status': 'Active'
+                    }
+                });
+            }
+            
+            if (integrations.servicenow?.connected) {
+                container.innerHTML += createIntegrationCard({
+                    type: 'servicenow',
+                    name: 'ServiceNow',
+                    icon: '❄️',
+                    iconBg: '#0F2942',
+                    status: 'connected',
+                    details: 'Connect to your ServiceNow instance for enterprise ITSM.',
+                    config: {
+                        'Instance': integrations.servicenow.url || 'Not configured',
+                        'Environment': 'Production',
+                        'Sync Status': 'Active'
+                    }
+                });
+            }
+        }
+        
+        // Create integration card HTML
+        function createIntegrationCard(integration) {
+            const configItems = Object.entries(integration.config || {})
+                .map(([label, value]) => `
+                    <div class="config-item">
+                        <span class="config-label">${label}:</span>
+                        <span class="config-value">${value}</span>
+                    </div>
+                `).join('');
+            
+            return `
+                <div class="integration-card">
+                    <div class="integration-header">
+                        <div class="integration-logo">
+                            <div class="integration-icon" style="background: ${integration.iconBg};">
+                                ${integration.icon}
+                            </div>
+                            <div class="integration-name">${integration.name}</div>
+                        </div>
+                        <div class="integration-status status-${integration.status}">
+                            ${integration.status === 'connected' ? 'Connected' : 'Disconnected'}
+                        </div>
+                    </div>
+                    <div class="integration-details">${integration.details}</div>
+                    <div class="integration-config">${configItems}</div>
+                    <div class="integration-actions">
+                        <button class="integration-btn" onclick="configureIntegration('${integration.type}')">Configure</button>
+                        <button class="integration-btn primary" onclick="syncIntegration('${integration.type}')">
+                            ${integration.type === 'resolve' ? 'View Events' : 'Sync Now'}
+                        </button>
+                    </div>
+                </div>
+            `;
+        }
+        
+        // Configure integration
+        window.configureIntegration = function(type) {
+            // Show the integration setup form with pre-filled data
+            showIntegrationSetup();
+            // You could pre-select the integration type here
+        };
+        
+        // Sync integration
+        window.syncIntegration = async function(type) {
+            if (type === 'resolve') {
+                viewResolveEvents();
+            } else {
+                alert(`Syncing ${type} integration...`);
+                // Implement actual sync logic here
+            }
+        };
         
         // Send ticket data to Resolve system
         async function sendTicketDataToResolve(data) {

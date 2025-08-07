@@ -1,0 +1,11 @@
+ticket_id,title,description,status,priority,category,created_at,resolved_at,resolution_time_minutes
+TICK-001,Password Reset Request,User locked out of account,resolved,high,Password Reset,2024-01-15T10:00:00Z,2024-01-15T10:15:00Z,15
+TICK-002,Software Installation,Need Microsoft Teams installed,resolved,medium,Software,2024-01-16T09:30:00Z,2024-01-16T10:00:00Z,30
+TICK-003,VPN Connection Issue,Cannot connect to corporate VPN,resolved,high,Network,2024-01-17T14:00:00Z,2024-01-17T14:45:00Z,45
+TICK-004,Email Configuration,Setup Outlook on mobile,resolved,low,Email,2024-01-18T11:00:00Z,2024-01-18T11:20:00Z,20
+TICK-005,Account Access,Need access to SharePoint site,in_progress,medium,Access Management,2024-01-19T08:00:00Z,,
+TICK-006,Printer Not Working,HP printer not responding,resolved,low,Hardware,2024-01-19T13:00:00Z,2024-01-19T13:30:00Z,30
+TICK-007,New User Onboarding,Setup account for new employee,resolved,high,User Management,2024-01-20T09:00:00Z,2024-01-20T10:00:00Z,60
+TICK-008,Password Reset,Forgot password for CRM system,resolved,medium,Password Reset,2024-01-20T14:30:00Z,2024-01-20T14:45:00Z,15
+TICK-009,Software Update,Update Zoom to latest version,resolved,low,Software,2024-01-21T10:00:00Z,2024-01-21T10:15:00Z,15
+TICK-010,Network Slowness,Internet connection very slow,open,high,Network,2024-01-22T08:30:00Z,,

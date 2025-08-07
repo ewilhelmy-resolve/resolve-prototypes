@@ -332,10 +332,11 @@ function updateIntegrationSync(integrationType, ticketsImported) {
 // Initialize on module load
 initializeDatabase();
 
-// Check if we need to seed demo data for john@resolve.io
-if (!hasTicketData('john@resolve.io')) {
-  seedSampleData();
-}
+// Don't automatically seed data - let users upload their own
+// Commented out for production - uncomment for testing
+// if (!hasTicketData('john@resolve.io')) {
+//   seedSampleData();
+// }
 
 module.exports = {
   db,

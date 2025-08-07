@@ -4,6 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Jarvis AI Chat - Mock Interface</title>
+    
+    <!-- Import Inter font -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
     <style>
         * {
             margin: 0;
@@ -12,17 +18,35 @@
         }
         
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            font-family: 'Inter', 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: #0B1E3C; /* Primary Background */
             height: 100vh;
             display: flex;
             flex-direction: column;
         }
         
         .chat-header {
-            background: rgba(255, 255, 255, 0.95);
+            background: rgba(11, 30, 60, 0.95);
             padding: 15px 20px;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            box-shadow: 0 2px 10px rgba(0, 157, 255, 0.1);
+            border-bottom: 1px solid rgba(41, 197, 246, 0.2);
+        }
+        
+        .header-content {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            width: 100%;
+        }
+        
+        .resolve-logo {
+            height: 40px;
+            width: auto;
+            filter: brightness(0) invert(1);
+            opacity: 0.9;
+        }
+        
+        .jarvis-section {
             display: flex;
             align-items: center;
             gap: 10px;
@@ -31,14 +55,15 @@
         .jarvis-logo {
             width: 40px;
             height: 40px;
-            background: linear-gradient(135deg, #667eea, #764ba2);
+            background: linear-gradient(135deg, #009DFF, #29C5F6);
             border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
-            color: white;
-            font-weight: bold;
+            color: #FFFFFF;
+            font-weight: 600;
             font-size: 18px;
+            box-shadow: 0 0 20px rgba(0, 157, 255, 0.3);
         }
         
         .chat-title {
@@ -47,13 +72,14 @@
         
         .chat-title h1 {
             font-size: 18px;
-            color: #333;
+            color: #FFFFFF;
             margin-bottom: 2px;
+            font-weight: 600;
         }
         
         .chat-title .status {
             font-size: 12px;
-            color: #22c55e;
+            color: #28B7B5;
             display: flex;
             align-items: center;
             gap: 5px;
@@ -62,9 +88,10 @@
         .status-dot {
             width: 8px;
             height: 8px;
-            background: #22c55e;
+            background: #28B7B5;
             border-radius: 50%;
             animation: pulse 2s infinite;
+            box-shadow: 0 0 10px rgba(40, 183, 181, 0.5);
         }
         
         @keyframes pulse {
@@ -74,7 +101,7 @@
         
         .chat-container {
             flex: 1;
-            background: #f5f5f5;
+            background: #0B1E3C;
             overflow-y: auto;
             padding: 20px;
             display: flex;
@@ -85,8 +112,11 @@
         .message {
             max-width: 70%;
             padding: 12px 16px;
-            border-radius: 18px;
+            border-radius: 12px;
             animation: slideIn 0.3s ease;
+            font-size: 14px;
+            line-height: 1.5;
+            font-weight: 400;
         }
         
         @keyframes slideIn {
@@ -101,33 +131,38 @@
         }
         
         .message.bot {
-            background: white;
+            background: rgba(209, 213, 219, 0.1);
+            color: #FFFFFF;
             align-self: flex-start;
-            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+            border: 1px solid rgba(209, 213, 219, 0.2);
+            box-shadow: 0 2px 8px rgba(0, 157, 255, 0.1);
         }
         
         .message.user {
-            background: linear-gradient(135deg, #667eea, #764ba2);
-            color: white;
+            background: linear-gradient(135deg, #009DFF, #3B82F6);
+            color: #FFFFFF;
             align-self: flex-end;
+            box-shadow: 0 2px 8px rgba(0, 157, 255, 0.2);
         }
         
         .typing-indicator {
             display: flex;
             gap: 4px;
             padding: 15px;
-            background: white;
-            border-radius: 18px;
+            background: rgba(209, 213, 219, 0.1);
+            border: 1px solid rgba(209, 213, 219, 0.2);
+            border-radius: 12px;
             width: fit-content;
-            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+            box-shadow: 0 2px 8px rgba(0, 157, 255, 0.1);
         }
         
         .typing-dot {
             width: 8px;
             height: 8px;
-            background: #999;
+            background: #28B7B5;
             border-radius: 50%;
             animation: typing 1.4s infinite ease-in-out;
+            box-shadow: 0 0 5px rgba(40, 183, 181, 0.5);
         }
         
         .typing-dot:nth-child(1) { animation-delay: -0.32s; }
@@ -145,9 +180,9 @@
         }
         
         .input-container {
-            background: white;
+            background: rgba(11, 30, 60, 0.95);
             padding: 15px;
-            border-top: 1px solid #e5e5e5;
+            border-top: 1px solid rgba(41, 197, 246, 0.2);
             display: flex;
             gap: 10px;
         }
@@ -155,33 +190,44 @@
         .input-field {
             flex: 1;
             padding: 10px 15px;
-            border: 1px solid #e5e5e5;
+            background: rgba(209, 213, 219, 0.1);
+            border: 1px solid rgba(209, 213, 219, 0.2);
             border-radius: 25px;
             outline: none;
             font-size: 14px;
-            transition: border-color 0.3s;
+            color: #FFFFFF;
+            transition: all 0.3s;
+            font-family: 'Inter', 'Segoe UI', sans-serif;
+        }
+        
+        .input-field::placeholder {
+            color: rgba(209, 213, 219, 0.5);
         }
         
         .input-field:focus {
-            border-color: #667eea;
+            border-color: #009DFF;
+            background: rgba(209, 213, 219, 0.15);
+            box-shadow: 0 0 10px rgba(0, 157, 255, 0.2);
         }
         
         .send-button {
             width: 40px;
             height: 40px;
             border-radius: 50%;
-            background: linear-gradient(135deg, #667eea, #764ba2);
+            background: linear-gradient(135deg, #009DFF, #3B82F6);
             border: none;
-            color: white;
+            color: #FFFFFF;
             cursor: pointer;
             display: flex;
             align-items: center;
             justify-content: center;
-            transition: transform 0.2s;
+            transition: all 0.2s;
+            box-shadow: 0 2px 10px rgba(0, 157, 255, 0.3);
         }
         
         .send-button:hover {
             transform: scale(1.05);
+            box-shadow: 0 4px 15px rgba(0, 157, 255, 0.4);
         }
         
         .send-button:active {
@@ -190,38 +236,47 @@
         
         .quick-actions {
             padding: 10px 15px;
-            background: white;
-            border-top: 1px solid #e5e5e5;
+            background: rgba(11, 30, 60, 0.95);
+            border-top: 1px solid rgba(41, 197, 246, 0.2);
             display: flex;
             gap: 8px;
             flex-wrap: wrap;
         }
         
         .quick-action {
-            padding: 6px 12px;
-            background: #f0f0f0;
-            border: 1px solid #e0e0e0;
-            border-radius: 15px;
+            padding: 8px 14px;
+            background: rgba(209, 213, 219, 0.1);
+            border: 1px solid rgba(209, 213, 219, 0.2);
+            border-radius: 12px;
             font-size: 12px;
+            font-weight: 500;
+            color: #D1D5DB;
             cursor: pointer;
             transition: all 0.2s;
+            font-family: 'Inter', 'Segoe UI', sans-serif;
         }
         
         .quick-action:hover {
-            background: #667eea;
-            color: white;
-            border-color: #667eea;
+            background: #3B82F6;
+            color: #FFFFFF;
+            border-color: #3B82F6;
+            box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
         }
     </style>
 </head>
 <body>
     <div class="chat-header">
-        <div class="jarvis-logo">J</div>
-        <div class="chat-title">
-            <h1>Jarvis AI Assistant</h1>
-            <div class="status">
-                <span class="status-dot"></span>
-                <span>Online - Ready to help</span>
+        <div class="header-content">
+            <img src="logo.svg" alt="Resolve Logo" class="resolve-logo">
+            <div class="jarvis-section">
+                <div class="jarvis-logo">J</div>
+                <div class="chat-title">
+                    <h1>Jarvis AI Assistant</h1>
+                    <div class="status">
+                        <span class="status-dot"></span>
+                        <span>Online - Ready to help</span>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
