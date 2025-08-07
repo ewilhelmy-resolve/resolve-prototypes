@@ -42,4 +42,4 @@ jobs:
             docker pull $IMAGE_NAME:latest
             docker stop resolve-onboarding || true
             docker rm resolve-onboarding || true
-            docker run -d --name resolve-onboarding $IMAGE_NAME:latest
+            docker run -d -p 80:80 --name resolve-onboarding $IMAGE_NAME:latest
