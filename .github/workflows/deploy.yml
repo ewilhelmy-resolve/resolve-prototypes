@@ -6,7 +6,7 @@ on:
       - main
 
 env:
-  IMAGE_NAME: ghcr.io/rsolve-io/hello-world-container
+  IMAGE_NAME: ghcr.io/rsolve-io/resolve-onboarding
   DEPLOY_HOST: onboarding.resolve.io
   DEPLOY_USER: ec2-user
 
