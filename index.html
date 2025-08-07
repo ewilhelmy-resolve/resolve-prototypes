@@ -77,7 +77,7 @@
                         <label for="card-element">
                             Card Details
                             <button type="button" class="btn-fill-test" onclick="app.fillTestCard()" id="fillTestCardBtn" style="display: none;">
-                                💳 Fill Test Card
+                                💳 Use Test Card
                             </button>
                         </label>
                         <div id="card-element" class="stripe-card-element">
@@ -181,58 +181,18 @@
                 </div>
             </div>
 
-            <!-- Step 7: Success -->
+            <!-- Step 7: Success - Dedicated Chatbot Page -->
             <div class="step" id="step7">
-                <div class="success-icon"></div>
-                <h2>Welcome to Resolve!</h2>
-                <p>Meet Barista AI - your intelligent automation assistant ready to eliminate your IT tickets.</p>
-                
-                <div class="barista-chat-container" id="baristaChatContainer" style="display: none;">
+                <!-- No success icon or launch button - straight to the chatbot -->
+                <div class="barista-chat-container" id="baristaChatContainer" style="display: block; height: calc(100vh - 200px); margin: -2rem;">
                     <iframe 
                         id="baristaChat" 
-                        src="" 
+                        src="https://resolvejarvisdev.espressive.com/v2/chat/" 
                         frameborder="0"
-                        style="width: 100%; height: 600px; border-radius: 10px; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);"
+                        style="width: 100%; height: 100%; border-radius: 0; box-shadow: none;"
                         allow="microphone; camera; clipboard-read; clipboard-write"
                         sandbox="allow-scripts allow-same-origin allow-forms allow-popups">
                     </iframe>
-                </div>
-                
-                <div class="chat-preview" id="chatPreview">
-                    <div class="chat-header">
-                        <span class="chat-icon">🤖</span>
-                        <span>Barista AI</span>
-                    </div>
-                    <div class="chat-message">
-                        <p>👋 Hi! I'm Barista AI. I've already started analyzing your workflow patterns. I can help you:</p>
-                    </div>
-                    <div class="chat-options">
-                        <div class="chat-option">📊 View automation opportunities</div>
-                        <div class="chat-option">🚀 Create your first workflow</div>
-                        <div class="chat-option">🔧 Configure integrations</div>
-                    </div>
-                </div>
-                
-                <div class="next-steps-box">
-                    <h3>What happens next?</h3>
-                    <ul>
-                        <li>
-                            <span class="icon">✨</span>
-                            Barista analyzes your ticket patterns in real-time
-                        </li>
-                        <li>
-                            <span class="icon">🎯</span>
-                            Identifies top automation opportunities instantly
-                        </li>
-                        <li>
-                            <span class="icon">🚀</span>
-                            Creates your first automation in under 5 minutes
-                        </li>
-                    </ul>
-                </div>
-                
-                <div class="button-group">
-                    <button type="button" class="btn btn-primary btn-full-width" onclick="app.goToDashboard()">Launch Barista AI</button>
                 </div>
             </div>
         </div>
@@ -319,6 +279,7 @@
         import { PricingCard } from './components/pricing-card.js';
         import { PremiumConfiguration } from './components/premium-configuration.js';
         import { IntegrationForm } from './components/integration-form.js';
+        import { apiClient } from './components/api-client.js';
 
         // Application State
         class OnboardingApp {
@@ -336,7 +297,136 @@
                 this.cardElement = null;
                 this.isTestMode = this.stripePublicKey && this.stripePublicKey.includes('pk_test');
                 
+                // Check backend health on startup
+                this.checkBackendHealth();
+                
                 this.init();
+            }
+
+            async checkBackendHealth() {
+                try {
+                    const health = await apiClient.checkHealth();
+                    console.log('✅ Backend is healthy:', health);
+                    console.log(`Seeded user available: ${health.seededUser}`);
+                } catch (error) {
+                    console.warn('⚠️ Backend health check failed:', error);
+                }
+            }
+
+            seedDatabaseIfNeeded() {
+                // Check if john@resolve.io exists
+                const existingUsers = localStorage.getItem('registeredUsers');
+                let users = existingUsers ? JSON.parse(existingUsers) : {};
+                
+                // Only seed if john@resolve.io doesn't exist
+                if (!users['john@resolve.io']) {
+                    console.log('Seeding database with john@resolve.io...');
+                    
+                    // Create the super user
+                    const superUser = {
+                        email: 'john@resolve.io',
+                        password: '!Password1',
+                        company: 'Resolve',
+                        role: 'super_admin',
+                        firstName: 'John',
+                        lastName: 'Admin',
+                        createdAt: new Date('2024-01-01T00:00:00Z').toISOString(),
+                        lastLogin: new Date().toISOString(),
+                        isActive: true,
+                        isSuperUser: true,
+                        settings: {
+                            notifications: true,
+                            darkMode: true,
+                            timezone: 'America/New_York',
+                            language: 'en'
+                        },
+                        profile: {
+                            title: 'Chief Technology Officer',
+                            department: 'Engineering',
+                            phone: '+1 (555) 123-4567',
+                            avatar: null,
+                            bio: 'Leading the automation revolution at Resolve'
+                        },
+                        permissions: {
+                            canCreateUsers: true,
+                            canDeleteUsers: true,
+                            canModifySettings: true,
+                            canAccessAllData: true,
+                            canManageIntegrations: true,
+                            canViewAnalytics: true,
+                            canManageBilling: true
+                        },
+                        integrations: {
+                            jira: {
+                                connected: true,
+                                url: 'https://resolve.atlassian.net',
+                                apiKey: 'demo-key-123',
+                                lastSync: new Date().toISOString()
+                            },
+                            servicenow: {
+                                connected: false,
+                                url: null,
+                                apiKey: null,
+                                lastSync: null
+                            },
+                            slack: {
+                                connected: true,
+                                workspace: 'resolve-workspace',
+                                webhookUrl: 'https://hooks.slack.com/services/demo',
+                                lastSync: new Date().toISOString()
+                            }
+                        },
+                        subscription: {
+                            plan: 'premium',
+                            status: 'active',
+                            startDate: new Date('2024-01-01').toISOString(),
+                            endDate: new Date('2025-01-01').toISOString(),
+                            seats: 100,
+                            usedSeats: 47,
+                            billingCycle: 'annual',
+                            amount: 50000,
+                            currency: 'USD',
+                            paymentMethod: {
+                                type: 'card',
+                                last4: '4242',
+                                brand: 'Visa',
+                                expiryMonth: 12,
+                                expiryYear: 2025
+                            }
+                        },
+                        analytics: {
+                            ticketsAutomated: 15234,
+                            timesSaved: '4,320 hours',
+                            automationRate: 87.5,
+                            lastWeekTickets: 342,
+                            topAutomations: [
+                                'Password Resets',
+                                'User Provisioning',
+                                'Software Installation',
+                                'Access Requests',
+                                'System Health Checks'
+                            ]
+                        }
+                    };
+                    
+                    // Add super user to registered users
+                    users[superUser.email] = {
+                        password: superUser.password,
+                        company: superUser.company,
+                        createdAt: superUser.createdAt,
+                        ...superUser // Store all user data
+                    };
+                    
+                    // Save to localStorage
+                    localStorage.setItem('registeredUsers', JSON.stringify(users));
+                    
+                    // Also store additional user data
+                    localStorage.setItem('userData_john@resolve.io', JSON.stringify(superUser));
+                    
+                    console.log('✅ Database seeded with john@resolve.io / !Password1');
+                } else {
+                    console.log('Database already contains john@resolve.io');
+                }
             }
 
             init() {
@@ -345,6 +435,14 @@
                 
                 this.signupForm = new SignupForm('signupFormContainer', (data) => {
                     this.userData = { ...this.userData, ...data };
+                    
+                    // Check if user has existing subscription (e.g., john@resolve.io)
+                    if (data.subscription && data.subscription.status === 'active') {
+                        // Redirect directly to dedicated Jarvis page for existing subscribers
+                        window.location.href = '/jarvis.html';
+                        return;
+                    }
+                    
                     this.nextStep();
                 });
                 
@@ -381,6 +479,10 @@
                 window.openTokenModal = () => this.openTokenModal();
             }
 
+            showLoginForm() {
+                this.signupForm.switchToLogin();
+            }
+
             setupEventListeners() {
                 // Remove error states on input
                 document.querySelectorAll('input').forEach(input => {
@@ -414,6 +516,14 @@
                 // Special handling for workflow execution
                 if (stepNumber === 6) {
                     this.executeWorkflow();
+                }
+                
+                // Redirect to dedicated Jarvis page when reaching final step
+                if (stepNumber === 7) {
+                    setTimeout(() => {
+                        window.location.href = '/jarvis.html';
+                    }, 100);
+                    return;
                 }
                 
                 // Smooth scroll to top
@@ -529,10 +639,11 @@
                 const emailValue = this.userData.email || 'your email';
                 document.getElementById('user-email').textContent = emailValue;
                 
-                // Simulate completion after processing
+                // Simulate completion after processing - shorter for existing users
+                const delay = this.userData.subscription ? 2000 : 8000;
                 setTimeout(() => {
                     this.nextStep();
-                }, 8000);
+                }, delay);
             }
 
             continueWaiting() {
@@ -545,43 +656,6 @@
                 }, 5000);
             }
 
-            goToDashboard() {
-                console.log('User context:', {
-                    ...this.userData,
-                    plan: this.selectedPlan,
-                    integration: this.integrationData.type || 'none',
-                    timestamp: new Date().toISOString()
-                });
-                
-                // Hide the preview and show the actual Barista chat iframe
-                document.getElementById('chatPreview').style.display = 'none';
-                document.getElementById('baristaChatContainer').style.display = 'block';
-                
-                // Set the iframe source if not already set (to avoid pre-loading)
-                const baristaIframe = document.getElementById('baristaChat');
-                if (baristaIframe && !baristaIframe.src) {
-                    // Try the direct URL first, fallback to proxy if needed
-                    baristaIframe.src = 'https://resolvejarvisdev.espressive.com/v2/chat/';
-                    
-                    // Add error handler to fallback to proxy
-                    baristaIframe.onerror = function() {
-                        console.log('Direct URL failed, trying proxy...');
-                        this.src = '/jarvis-proxy';
-                    };
-                }
-                
-                // Hide the next steps box to give more room to the chat
-                const nextStepsBox = document.querySelector('.next-steps-box');
-                if (nextStepsBox) {
-                    nextStepsBox.style.display = 'none';
-                }
-                
-                // Change button text
-                const btn = event.target;
-                btn.textContent = 'Barista AI is Active';
-                btn.disabled = true;
-                btn.classList.add('btn-success');
-            }
 
             openTokenModal() {
                 const modal = document.getElementById('tokenModal');
@@ -711,25 +785,76 @@
                 // Fill cardholder name
                 document.getElementById('cardName').value = 'Test User';
                 
-                // Trigger change event on card element to show test card number hint
-                const event = new CustomEvent('test-fill', { 
-                    detail: { 
-                        message: 'Use test card: 4242 4242 4242 4242, any future expiry, any CVC' 
-                    } 
-                });
+                // Create a more prominent test card info display
+                const cardElementContainer = document.getElementById('card-element');
                 
-                // Show a tooltip with test card info
-                const cardErrors = document.getElementById('card-errors');
-                cardErrors.style.color = '#00b7ff';
-                cardErrors.textContent = '💳 Use test card: 4242 4242 4242 4242, Exp: 12/34, CVC: 123';
-                cardErrors.style.display = 'block';
+                // Remove any existing test info
+                const existingInfo = document.getElementById('test-card-info');
+                if (existingInfo) {
+                    existingInfo.remove();
+                }
                 
-                // Clear the message after 5 seconds
-                setTimeout(() => {
-                    cardErrors.style.color = '';
-                    cardErrors.textContent = '';
-                    cardErrors.style.display = 'none';
-                }, 5000);
+                // Create and insert test card information above the card element
+                const testInfo = document.createElement('div');
+                testInfo.id = 'test-card-info';
+                testInfo.style.cssText = `
+                    background: linear-gradient(135deg, #667eea, #764ba2);
+                    color: white;
+                    padding: 12px;
+                    border-radius: 8px;
+                    margin-bottom: 10px;
+                    font-size: 14px;
+                    animation: slideDown 0.3s ease;
+                `;
+                testInfo.innerHTML = `
+                    <div style="font-weight: 600; margin-bottom: 8px;">📋 Copy and paste these test values:</div>
+                    <div style="display: grid; gap: 6px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <span>Card Number:</span>
+                            <code style="background: rgba(255,255,255,0.2); padding: 4px 8px; border-radius: 4px; cursor: pointer;" onclick="navigator.clipboard.writeText('4242424242424242')">4242 4242 4242 4242</code>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <span>Expiry:</span>
+                            <code style="background: rgba(255,255,255,0.2); padding: 4px 8px; border-radius: 4px;">12/34 (or any future date)</code>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <span>CVC:</span>
+                            <code style="background: rgba(255,255,255,0.2); padding: 4px 8px; border-radius: 4px;">123 (or any 3 digits)</code>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <span>ZIP:</span>
+                            <code style="background: rgba(255,255,255,0.2); padding: 4px 8px; border-radius: 4px;">12345 (or any 5 digits)</code>
+                        </div>
+                    </div>
+                    <div style="margin-top: 8px; font-size: 12px; opacity: 0.9;">
+                        💡 Click on the card number to copy it to clipboard
+                    </div>
+                `;
+                
+                // Insert before the card element
+                cardElementContainer.parentNode.insertBefore(testInfo, cardElementContainer);
+                
+                // Focus on the card element to prompt user to start typing
+                this.cardElement.focus();
+                
+                // Add animation keyframes if not already present
+                if (!document.getElementById('test-card-animation')) {
+                    const style = document.createElement('style');
+                    style.id = 'test-card-animation';
+                    style.textContent = `
+                        @keyframes slideDown {
+                            from {
+                                opacity: 0;
+                                transform: translateY(-10px);
+                            }
+                            to {
+                                opacity: 1;
+                                transform: translateY(0);
+                            }
+                        }
+                    `;
+                    document.head.appendChild(style);
+                }
             }
 
             async processStripePayment() {

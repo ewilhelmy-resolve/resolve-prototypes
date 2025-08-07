@@ -1,0 +1,18 @@
+FROM node:18-alpine
+
+WORKDIR /app
+
+# Copy package files
+COPY package*.json ./
+
+# Install dependencies
+RUN npm install express body-parser cors || npm init -y && npm install express body-parser cors
+
+# Copy application files
+COPY . .
+
+# Expose port
+EXPOSE 9000
+
+# Run the backend server
+CMD ["node", "server-backend.js"]

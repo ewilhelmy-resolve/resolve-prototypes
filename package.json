@@ -3,7 +3,8 @@
   "version": "1.0.0",
   "description": "Resolve onboarding POC with Stripe integration",
   "scripts": {
-    "start": "node server.js",
+    "start": "node server-backend.js",
+    "start:proxy": "node server.js",
     "start:enhanced": "node server-enhanced.js",
     "test": "playwright test",
     "test:ui": "playwright test --ui",
@@ -13,7 +14,24 @@
     "@playwright/test": "^1.40.0"
   },
   "dependencies": {
-    "express": "^5.1.0",
+    "body-parser": "^2.2.0",
+    "cors": "^2.8.5",
+    "express": "^4.21.2",
     "http-proxy-middleware": "^3.0.5"
-  }
+  },
+  "main": "playwright.config.js",
+  "directories": {
+    "test": "tests"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/resolve-io/resolve-onboarding.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/resolve-io/resolve-onboarding/issues"
+  },
+  "homepage": "https://github.com/resolve-io/resolve-onboarding#readme"
 }

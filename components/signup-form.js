@@ -1,7 +1,10 @@
+import { apiClient } from './api-client.js';
+
 export class SignupForm {
     constructor(containerId, onSubmit) {
         this.container = document.getElementById(containerId);
         this.onSubmit = onSubmit;
+        this.isLoginMode = false;
         this.init();
     }
 
@@ -11,6 +14,14 @@ export class SignupForm {
     }
 
     render() {
+        if (this.isLoginMode) {
+            this.renderLogin();
+        } else {
+            this.renderSignup();
+        }
+    }
+
+    renderSignup() {
         this.container.innerHTML = `
             <form id="signupForm">
                 <div class="form-group">
@@ -35,6 +46,10 @@ export class SignupForm {
                     <button type="submit" class="btn btn-primary">Continue</button>
                 </div>
             </form>
+            
+            <div class="login-option">
+                <p>Already have an account? <button type="button" class="btn-link" id="loginLink">Log in here</button></p>
+            </div>
         `;
         
         this.form = this.container.querySelector('#signupForm');
@@ -43,16 +58,67 @@ export class SignupForm {
         this.passwordInput = this.form.querySelector('#password');
     }
 
+    renderLogin() {
+        this.container.innerHTML = `
+            <form id="loginForm">
+                <div class="form-group">
+                    <label for="loginEmail">Work Email</label>
+                    <input type="email" id="loginEmail" name="email" required placeholder="you@company.com">
+                    <span class="error-message">Please enter your email</span>
+                </div>
+                
+                <div class="form-group">
+                    <label for="loginPassword">Password</label>
+                    <input type="password" id="loginPassword" name="password" required placeholder="Enter your password">
+                    <span class="error-message">Please enter your password</span>
+                </div>
+                
+                <div class="button-group">
+                    <button type="submit" class="btn btn-primary">Log In</button>
+                </div>
+                
+                <div class="form-footer">
+                    <p>Don't have an account? <button type="button" class="btn-link" id="signupLink">Sign up</button></p>
+                </div>
+            </form>
+        `;
+        
+        this.form = this.container.querySelector('#loginForm');
+        this.emailInput = this.form.querySelector('#loginEmail');
+        this.passwordInput = this.form.querySelector('#loginPassword');
+    }
+
+    switchToLogin() {
+        this.isLoginMode = true;
+        this.render();
+        this.attachEventListeners();
+        
+        // Update the login option text
+        const loginOption = document.querySelector('.login-option');
+        if (loginOption) {
+            loginOption.innerHTML = '<p>Need to create an account? <button type="button" class="btn-link" onclick="app.signupForm.switchToSignup()">Sign up here</button></p>';
+        }
+    }
+
+    switchToSignup() {
+        this.isLoginMode = false;
+        this.render();
+        this.attachEventListeners();
+        
+        // Update the login option text
+        const loginOption = document.querySelector('.login-option');
+        if (loginOption) {
+            loginOption.innerHTML = '<p>Already have an account? <button type="button" class="btn-link" onclick="app.showLoginForm()">Log in here</button></p>';
+        }
+    }
+
     attachEventListeners() {
         this.form.addEventListener('submit', (e) => {
             e.preventDefault();
-            if (this.validate()) {
-                const formData = {
-                    email: this.emailInput.value,
-                    company: this.companyInput.value,
-                    password: this.passwordInput.value
-                };
-                this.onSubmit(formData);
+            if (this.isLoginMode) {
+                this.handleLogin();
+            } else {
+                this.handleSignup();
             }
         });
 
@@ -67,6 +133,88 @@ export class SignupForm {
                 }
             });
         });
+
+        // Handle login/signup switch buttons
+        const loginLink = document.getElementById('loginLink');
+        if (loginLink) {
+            loginLink.addEventListener('click', () => this.switchToLogin());
+        }
+
+        const signupLink = document.getElementById('signupLink');
+        if (signupLink) {
+            signupLink.addEventListener('click', () => this.switchToSignup());
+        }
+    }
+
+    async handleLogin() {
+        const email = this.emailInput.value;
+        const password = this.passwordInput.value;
+
+        if (!email || !password) {
+            if (!email) this.showError(this.emailInput);
+            if (!password) this.showError(this.passwordInput);
+            return;
+        }
+
+        try {
+            // Call backend API
+            const response = await apiClient.login(email, password);
+            
+            if (response.success) {
+                // Successful login
+                const userData = {
+                    email: response.user.email,
+                    company: response.user.company,
+                    ...response.user
+                };
+                
+                this.onSubmit(userData);
+            }
+        } catch (error) {
+            // Show error
+            this.showError(this.passwordInput);
+            const errorMsg = this.passwordInput.nextElementSibling;
+            if (errorMsg) {
+                errorMsg.textContent = error.message || 'Invalid email or password';
+                errorMsg.style.display = 'block';
+            }
+        }
+    }
+
+    async handleSignup() {
+        if (this.validate()) {
+            const formData = {
+                email: this.emailInput.value,
+                company: this.companyInput.value,
+                password: this.passwordInput.value
+            };
+
+            try {
+                // Call backend API
+                const response = await apiClient.signup(
+                    formData.email,
+                    formData.password,
+                    formData.company
+                );
+                
+                if (response.success) {
+                    const userData = {
+                        email: response.user.email,
+                        company: response.user.company,
+                        ...response.user
+                    };
+                    
+                    this.onSubmit(userData);
+                }
+            } catch (error) {
+                this.showError(this.emailInput);
+                const errorMsg = this.emailInput.nextElementSibling;
+                if (errorMsg) {
+                    errorMsg.textContent = error.message || 'An account with this email already exists';
+                    errorMsg.style.display = 'block';
+                }
+            }
+        }
     }
 
     validate() {
@@ -78,8 +226,8 @@ export class SignupForm {
             isValid = false;
         }
 
-        // Company validation
-        if (!this.companyInput.value) {
+        // Company validation (only for signup)
+        if (this.companyInput && !this.companyInput.value) {
             this.showError(this.companyInput);
             isValid = false;
         }
@@ -102,10 +250,17 @@ export class SignupForm {
     }
 
     getData() {
-        return {
-            email: this.emailInput.value,
-            company: this.companyInput.value,
-            password: this.passwordInput.value
-        };
+        if (this.isLoginMode) {
+            return {
+                email: this.emailInput.value,
+                password: this.passwordInput.value
+            };
+        } else {
+            return {
+                email: this.emailInput.value,
+                company: this.companyInput.value,
+                password: this.passwordInput.value
+            };
+        }
     }
 }

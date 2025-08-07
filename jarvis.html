@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jarvis AI - Resolve</title>
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: #000000;
+            color: #FFFFFF;
+            height: 100vh;
+            overflow: hidden;
+        }
+        
+        .chatbot-container {
+            width: 100%;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .chatbot-header {
+            background: linear-gradient(135deg, #0066FF 0%, #00D4FF 100%);
+            padding: 1rem 2rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: 0 2px 10px rgba(0, 102, 255, 0.3);
+        }
+        
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+        
+        .logo {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: white;
+        }
+        
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+        
+        .user-name {
+            font-size: 0.9rem;
+            opacity: 0.9;
+        }
+        
+        .logout-btn {
+            background: rgba(255, 255, 255, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 0.9rem;
+        }
+        
+        .logout-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+        
+        .chatbot-iframe {
+            flex: 1;
+            width: 100%;
+            border: none;
+            background: #0A0A0F;
+        }
+        
+        .loading-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: #0A0A0F;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+            transition: opacity 0.5s ease;
+        }
+        
+        .loading-overlay.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+        
+        .spinner {
+            width: 60px;
+            height: 60px;
+            border: 3px solid rgba(255, 255, 255, 0.1);
+            border-top-color: #00D4FF;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="chatbot-container">
+        <div class="chatbot-header">
+            <div class="header-left">
+                <span class="logo">🤖 Resolve</span>
+                <span>Jarvis AI Assistant</span>
+            </div>
+            <div class="user-info">
+                <span class="user-name" id="userName">Welcome</span>
+                <button class="logout-btn" onclick="logout()">Logout</button>
+            </div>
+        </div>
+        
+        <iframe 
+            id="baristaChat" 
+            class="chatbot-iframe"
+            src="https://resolvejarvisdev.espressive.com/v2/chat/"
+            allow="microphone; camera; clipboard-read; clipboard-write"
+            sandbox="allow-scripts allow-same-origin allow-forms allow-popups">
+        </iframe>
+        
+        <div class="loading-overlay" id="loadingOverlay">
+            <div class="spinner"></div>
+        </div>
+    </div>
+    
+    <script type="module">
+        // Check if user is logged in
+        const currentUser = sessionStorage.getItem('currentUser');
+        const authToken = sessionStorage.getItem('authToken');
+        
+        if (!authToken) {
+            // Redirect to login if not authenticated
+            window.location.href = '/';
+        } else if (currentUser) {
+            // Display user info
+            const user = JSON.parse(currentUser);
+            document.getElementById('userName').textContent = user.email || 'Welcome';
+        }
+        
+        // Hide loading overlay when iframe loads
+        document.getElementById('baristaChat').onload = function() {
+            setTimeout(() => {
+                document.getElementById('loadingOverlay').classList.add('hidden');
+            }, 500);
+        };
+        
+        // Handle logout
+        window.logout = async function() {
+            try {
+                // Call logout API
+                const response = await fetch('http://localhost:3001/api/logout', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`
+                    }
+                });
+                
+                // Clear session
+                sessionStorage.clear();
+                
+                // Redirect to login
+                window.location.href = '/';
+            } catch (error) {
+                console.error('Logout error:', error);
+                // Clear session anyway
+                sessionStorage.clear();
+                window.location.href = '/';
+            }
+        };
+    </script>
+</body>
+</html>

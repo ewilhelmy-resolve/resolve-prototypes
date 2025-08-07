@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Database Seeder - Resolve</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #0A0A0F 0%, #1a1a2e 100%);
+            color: #fff;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem;
+        }
+        
+        .container {
+            background: rgba(17, 17, 24, 0.95);
+            border-radius: 16px;
+            padding: 3rem;
+            max-width: 600px;
+            width: 100%;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        h1 {
+            font-size: 2rem;
+            margin-bottom: 1rem;
+            background: linear-gradient(135deg, #0066FF 0%, #00D4FF 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        
+        .description {
+            color: #8B8B9F;
+            margin-bottom: 2rem;
+            line-height: 1.6;
+        }
+        
+        .user-info {
+            background: rgba(0, 102, 255, 0.1);
+            border: 1px solid rgba(0, 102, 255, 0.3);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+        }
+        
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 0.5rem 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+        
+        .info-row:last-child {
+            border-bottom: none;
+        }
+        
+        .info-label {
+            color: #8B8B9F;
+            font-size: 0.9rem;
+        }
+        
+        .info-value {
+            color: #00D4FF;
+            font-family: 'Courier New', monospace;
+            font-weight: 600;
+        }
+        
+        .btn {
+            width: 100%;
+            padding: 1rem 2rem;
+            background: linear-gradient(135deg, #0066FF 0%, #00D4FF 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-bottom: 1rem;
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(0, 102, 255, 0.4);
+        }
+        
+        .btn:active {
+            transform: translateY(0);
+        }
+        
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.15);
+        }
+        
+        .status {
+            padding: 1rem;
+            border-radius: 8px;
+            margin-top: 1rem;
+            display: none;
+            animation: slideIn 0.3s ease;
+        }
+        
+        .status.success {
+            background: rgba(16, 185, 129, 0.1);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+            color: #10B981;
+            display: block;
+        }
+        
+        .status.error {
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            color: #EF4444;
+            display: block;
+        }
+        
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        .features {
+            margin-top: 2rem;
+            padding-top: 2rem;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .features h3 {
+            font-size: 1.2rem;
+            margin-bottom: 1rem;
+            color: #00D4FF;
+        }
+        
+        .features ul {
+            list-style: none;
+            padding: 0;
+        }
+        
+        .features li {
+            padding: 0.5rem 0;
+            color: #8B8B9F;
+        }
+        
+        .features li::before {
+            content: '✓ ';
+            color: #10B981;
+            font-weight: bold;
+            margin-right: 0.5rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 Database Seeder</h1>
+        <p class="description">
+            This utility will seed your local database with a super admin user account.
+            The account includes full permissions and sample data for testing.
+        </p>
+        
+        <div class="user-info">
+            <h2 style="margin-bottom: 1rem;">Super User Details</h2>
+            <div class="info-row">
+                <span class="info-label">Email:</span>
+                <span class="info-value">john@resolve.io</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Password:</span>
+                <span class="info-value">!Password1</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Company:</span>
+                <span class="info-value">Resolve</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Role:</span>
+                <span class="info-value">Super Admin</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Plan:</span>
+                <span class="info-value">Premium (100 seats)</span>
+            </div>
+        </div>
+        
+        <button class="btn" onclick="seedDatabase()">
+            🌱 Seed Database
+        </button>
+        
+        <button class="btn btn-secondary" onclick="viewDatabase()">
+            👁️ View Current Database
+        </button>
+        
+        <button class="btn btn-secondary" onclick="clearDatabase()">
+            🗑️ Clear Database
+        </button>
+        
+        <div id="status" class="status"></div>
+        
+        <div class="features">
+            <h3>What's Included:</h3>
+            <ul>
+                <li>Full super admin permissions</li>
+                <li>Premium subscription (active)</li>
+                <li>Jira integration (connected)</li>
+                <li>Slack integration (connected)</li>
+                <li>Sample analytics data</li>
+                <li>Complete user profile</li>
+                <li>Billing information</li>
+                <li>15,234 automated tickets</li>
+            </ul>
+        </div>
+    </div>
+    
+    <script src="seed-database.js"></script>
+    <script>
+        function seedDatabase() {
+            try {
+                // Load and execute the seeding script
+                const script = document.createElement('script');
+                script.src = 'seed-database.js?v=' + Date.now();
+                script.onload = function() {
+                    showStatus('✅ Database seeded successfully! Super user john@resolve.io created.', 'success');
+                };
+                script.onerror = function() {
+                    showStatus('❌ Error loading seed script', 'error');
+                };
+                document.head.appendChild(script);
+            } catch (error) {
+                showStatus('❌ Error: ' + error.message, 'error');
+            }
+        }
+        
+        function viewDatabase() {
+            try {
+                const users = localStorage.getItem('registeredUsers');
+                if (users) {
+                    const userObj = JSON.parse(users);
+                    const count = Object.keys(userObj).length;
+                    const userList = Object.keys(userObj).join(', ');
+                    showStatus(`📊 Database contains ${count} user(s): ${userList}`, 'success');
+                    console.log('Full database:', userObj);
+                } else {
+                    showStatus('📭 Database is empty', 'error');
+                }
+            } catch (error) {
+                showStatus('❌ Error reading database: ' + error.message, 'error');
+            }
+        }
+        
+        function clearDatabase() {
+            if (confirm('Are you sure you want to clear the entire database? This cannot be undone.')) {
+                try {
+                    localStorage.removeItem('registeredUsers');
+                    localStorage.removeItem('currentUser');
+                    localStorage.removeItem('userData_john@resolve.io');
+                    showStatus('🗑️ Database cleared successfully', 'success');
+                } catch (error) {
+                    showStatus('❌ Error clearing database: ' + error.message, 'error');
+                }
+            }
+        }
+        
+        function showStatus(message, type) {
+            const statusDiv = document.getElementById('status');
+            statusDiv.textContent = message;
+            statusDiv.className = 'status ' + type;
+            
+            // Auto-hide after 5 seconds
+            setTimeout(() => {
+                statusDiv.className = 'status';
+            }, 5000);
+        }
+    </script>
+</body>
+</html>

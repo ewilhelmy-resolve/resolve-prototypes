@@ -199,6 +199,47 @@ input.error {
     display: none;
 }
 
+/* Login option styling */
+.login-option {
+    text-align: center;
+    margin-top: 1.5rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.login-option p {
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 0.95rem;
+}
+
+.btn-link {
+    background: none;
+    border: none;
+    color: #00D4FF;
+    text-decoration: underline;
+    cursor: pointer;
+    font-size: inherit;
+    padding: 0;
+    margin: 0;
+    transition: color 0.3s ease;
+}
+
+.btn-link:hover {
+    color: #00FFD4;
+    text-shadow: 0 0 10px rgba(0, 212, 255, 0.5);
+}
+
+.form-footer {
+    text-align: center;
+    margin-top: 1rem;
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 0.9rem;
+}
+
+.form-footer .btn-link {
+    margin-left: 0.25rem;
+}
+
 /* Buttons */
 .btn {
     display: inline-block;
