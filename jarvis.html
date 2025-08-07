@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Jarvis AI - Resolve</title>
+    <title>Resolve - AI Automation Platform</title>
     
     <style>
         * {
@@ -14,71 +14,270 @@
         
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-            background: #000000;
+            background: #0A0A0F; /* Match main app dark background */
             color: #FFFFFF;
             height: 100vh;
             overflow: hidden;
         }
         
-        .chatbot-container {
-            width: 100%;
-            height: 100vh;
-            display: flex;
-            flex-direction: column;
-        }
-        
-        .chatbot-header {
-            background: linear-gradient(135deg, #0066FF 0%, #00D4FF 100%);
-            padding: 1rem 2rem;
+        /* App Header Bar */
+        .app-header {
+            height: 56px;
+            background: #111118;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
             display: flex;
             align-items: center;
             justify-content: space-between;
-            box-shadow: 0 2px 10px rgba(0, 102, 255, 0.3);
+            padding: 0 24px;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 1000;
         }
         
         .header-left {
             display: flex;
             align-items: center;
-            gap: 1rem;
+            gap: 32px;
         }
         
-        .logo {
-            font-size: 1.5rem;
-            font-weight: bold;
-            color: white;
+        .app-logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 18px;
+            font-weight: 600;
+            color: #00D4FF;
+        }
+        
+        .app-logo svg {
+            width: 28px;
+            height: 28px;
+        }
+        
+        .nav-links {
+            display: flex;
+            gap: 8px;
+        }
+        
+        .nav-link {
+            padding: 8px 16px;
+            border-radius: 8px;
+            color: #8B8B9F;
+            text-decoration: none;
+            font-size: 14px;
+            transition: all 0.2s ease;
+            cursor: pointer;
+        }
+        
+        .nav-link:hover {
+            background: rgba(255, 255, 255, 0.05);
+            color: #FFFFFF;
+        }
+        
+        .nav-link.active {
+            background: rgba(0, 212, 255, 0.1);
+            color: #00D4FF;
+        }
+        
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 24px;
+        }
+        
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 12px;
+            background: rgba(0, 255, 127, 0.1);
+            border: 1px solid rgba(0, 255, 127, 0.2);
+            border-radius: 20px;
+            font-size: 12px;
+        }
+        
+        .status-dot {
+            width: 6px;
+            height: 6px;
+            background: #00FF7F;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        
+        .user-menu {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        
+        .user-avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #0066FF, #00D4FF);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            font-weight: 600;
         }
         
         .user-info {
-            display: flex;
-            align-items: center;
-            gap: 1rem;
+            text-align: right;
         }
         
         .user-name {
-            font-size: 0.9rem;
-            opacity: 0.9;
+            font-size: 14px;
+            color: #FFFFFF;
         }
         
-        .logout-btn {
-            background: rgba(255, 255, 255, 0.2);
-            border: 1px solid rgba(255, 255, 255, 0.3);
-            color: white;
-            padding: 0.5rem 1rem;
-            border-radius: 5px;
+        .user-role {
+            font-size: 12px;
+            color: #8B8B9F;
+        }
+        
+        .header-actions {
+            display: flex;
+            gap: 12px;
+        }
+        
+        .icon-btn {
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+            background: transparent;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: #8B8B9F;
+            display: flex;
+            align-items: center;
+            justify-content: center;
             cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        
+        .icon-btn:hover {
+            background: rgba(255, 255, 255, 0.05);
+            border-color: rgba(255, 255, 255, 0.2);
+            color: #FFFFFF;
+        }
+        
+        /* Main container - below header */
+        .main-container {
+            width: 100%;
+            height: calc(100vh - 56px);
+            margin-top: 56px;
+            display: flex;
+        }
+        
+        /* Left side - Jarvis chat (1/5 of screen) */
+        .left-panel {
+            width: 20%;
+            min-width: 300px;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            background: #111118;
+            border-right: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .dashboard-content {
+            max-width: 1200px;
+        }
+        
+        .dashboard-header {
+            margin-bottom: 32px;
+        }
+        
+        .dashboard-title {
+            font-size: 32px;
+            font-weight: 600;
+            margin-bottom: 8px;
+            background: linear-gradient(135deg, #0066FF 0%, #00D4FF 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        
+        .dashboard-subtitle {
+            color: #8B8B9F;
+            font-size: 16px;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 24px;
+            margin-bottom: 32px;
+        }
+        
+        .stat-card {
+            background: #111118;
+            padding: 24px;
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
             transition: all 0.3s ease;
+        }
+        
+        .stat-card:hover {
+            border-color: rgba(0, 212, 255, 0.3);
+            transform: translateY(-2px);
+        }
+        
+        .stat-value {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #00D4FF;
+        }
+        
+        .stat-label {
             font-size: 0.9rem;
+            color: #8B8B9F;
+            margin-top: 0.5rem;
         }
         
-        .logout-btn:hover {
-            background: rgba(255, 255, 255, 0.3);
+        /* Right side - Dashboard (4/5 of screen) */
+        .right-panel {
+            flex: 1;
+            height: 100%;
+            background: #0A0A0F;
+            overflow-y: auto;
+            padding: 32px;
         }
         
-        .chatbot-iframe {
+        .chat-header {
+            padding: 16px;
+            background: #111118;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        
+        .chat-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #00D4FF;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .chat-status {
+            font-size: 12px;
+            color: #00FF7F;
+        }
+        
+        .chat-iframe {
             flex: 1;
             width: 100%;
             border: none;
-            background: #0A0A0F;
+            background: #111118;
         }
         
         .loading-overlay {
@@ -115,29 +314,149 @@
     </style>
 </head>
 <body>
-    <div class="chatbot-container">
-        <div class="chatbot-header">
-            <div class="header-left">
-                <span class="logo">🤖 Resolve</span>
-                <span>Jarvis AI Assistant</span>
+    <!-- App Header Bar -->
+    <header class="app-header">
+        <div class="header-left">
+            <div class="app-logo">
+                <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="#00D4FF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    <path d="M2 17L12 22L22 17" stroke="#00D4FF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    <path d="M2 12L12 17L22 12" stroke="#00D4FF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                <span>Resolve</span>
             </div>
-            <div class="user-info">
-                <span class="user-name" id="userName">Welcome</span>
-                <button class="logout-btn" onclick="logout()">Logout</button>
+            <nav class="nav-links">
+                <a class="nav-link active">Dashboard</a>
+                <a class="nav-link">Automations</a>
+                <a class="nav-link">Analytics</a>
+                <a class="nav-link">Integrations</a>
+                <a class="nav-link">Settings</a>
+            </nav>
+        </div>
+        <div class="header-right">
+            <div class="status-indicator">
+                <span class="status-dot"></span>
+                <span>All Systems Operational</span>
+            </div>
+            <div class="user-menu">
+                <div class="user-info">
+                    <div class="user-name" id="headerUserName">john@resolve.io</div>
+                    <div class="user-role">Administrator</div>
+                </div>
+                <div class="user-avatar">JR</div>
+            </div>
+            <div class="header-actions">
+                <button class="icon-btn" title="Notifications">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+                        <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+                    </svg>
+                </button>
+                <button class="icon-btn" onclick="logout()" title="Logout">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+                        <polyline points="16 17 21 12 16 7"/>
+                        <line x1="21" y1="12" x2="9" y2="12"/>
+                    </svg>
+                </button>
             </div>
         </div>
-        
-        <iframe 
-            id="baristaChat" 
-            class="chatbot-iframe"
-            src="https://resolvejarvisdev.espressive.com/v2/chat/"
-            allow="microphone; camera; clipboard-read; clipboard-write"
-            sandbox="allow-scripts allow-same-origin allow-forms allow-popups">
-        </iframe>
-        
-        <div class="loading-overlay" id="loadingOverlay">
-            <div class="spinner"></div>
+    </header>
+
+    <!-- Main Content Area -->
+    <div class="main-container">
+        <!-- Left Panel - Jarvis Chat -->
+        <div class="left-panel">
+            <div class="chat-header">
+                <div class="chat-title">
+                    <span>🤖</span>
+                    <span>Jarvis AI Assistant</span>
+                </div>
+                <div class="chat-status">● Online</div>
+            </div>
+            <iframe 
+                id="baristaChat" 
+                class="chat-iframe"
+                src="https://resolvejarvisdev.espressive.com/v2/chat/"
+                allow="microphone; camera; clipboard-read; clipboard-write"
+                sandbox="allow-scripts allow-same-origin allow-forms allow-popups">
+            </iframe>
         </div>
+        
+        <!-- Right Panel - Dashboard -->
+        <div class="right-panel">
+            <div class="dashboard-content">
+                <div class="dashboard-header">
+                    <h1 class="dashboard-title">Welcome to Your Command Center</h1>
+                    <p class="dashboard-subtitle">Monitor your automation performance and insights</p>
+                </div>
+                
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-value">15,234</div>
+                        <div class="stat-label">Tickets Automated</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value">87.5%</div>
+                        <div class="stat-label">Automation Rate</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value">4,320h</div>
+                        <div class="stat-label">Time Saved</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value">$126K</div>
+                        <div class="stat-label">Cost Savings</div>
+                    </div>
+                </div>
+                
+                <!-- Additional dashboard content can go here -->
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-top: 32px;">
+                    <div class="stat-card" style="padding: 32px;">
+                        <h3 style="margin-bottom: 16px; color: #00D4FF;">Recent Activity</h3>
+                        <div style="color: #8B8B9F; line-height: 1.8;">
+                            <div style="padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.05);">
+                                ✅ Password reset automated for user_384
+                            </div>
+                            <div style="padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.05);">
+                                ✅ Software deployment completed
+                            </div>
+                            <div style="padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.05);">
+                                ✅ Access request approved automatically
+                            </div>
+                            <div style="padding: 8px 0;">
+                                ✅ System health check passed
+                            </div>
+                        </div>
+                    </div>
+                    <div class="stat-card" style="padding: 32px;">
+                        <h3 style="margin-bottom: 16px; color: #00D4FF;">Top Automations</h3>
+                        <div style="color: #8B8B9F; line-height: 1.8;">
+                            <div style="padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.05); display: flex; justify-content: space-between;">
+                                <span>Password Resets</span>
+                                <span style="color: #00FF7F;">3,421</span>
+                            </div>
+                            <div style="padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.05); display: flex; justify-content: space-between;">
+                                <span>User Provisioning</span>
+                                <span style="color: #00FF7F;">2,156</span>
+                            </div>
+                            <div style="padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.05); display: flex; justify-content: space-between;">
+                                <span>Software Installation</span>
+                                <span style="color: #00FF7F;">1,893</span>
+                            </div>
+                            <div style="padding: 8px 0; display: flex; justify-content: space-between;">
+                                <span>Access Requests</span>
+                                <span style="color: #00FF7F;">1,245</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="spinner"></div>
     </div>
     
     <script type="module">
@@ -151,7 +470,12 @@
         } else if (currentUser) {
             // Display user info
             const user = JSON.parse(currentUser);
-            document.getElementById('userName').textContent = user.email || 'Welcome';
+            const email = user.email || 'Welcome';
+            document.getElementById('headerUserName').textContent = email;
+            
+            // Set user initials in avatar
+            const initials = email.split('@')[0].substring(0, 2).toUpperCase();
+            document.querySelector('.user-avatar').textContent = initials;
         }
         
         // Hide loading overlay when iframe loads
@@ -164,8 +488,13 @@
         // Handle logout
         window.logout = async function() {
             try {
+                // Determine API URL based on environment
+                const apiUrl = window.location.hostname === 'localhost' 
+                    ? 'http://localhost:3001/api/logout'
+                    : '/api/logout';
+                
                 // Call logout API
-                const response = await fetch('http://localhost:3001/api/logout', {
+                const response = await fetch(apiUrl, {
                     method: 'POST',
                     headers: {
                         'Authorization': `Bearer ${authToken}`
@@ -184,6 +513,26 @@
                 window.location.href = '/';
             }
         };
+        
+        // Handle navigation clicks
+        document.querySelectorAll('.nav-link').forEach(link => {
+            link.addEventListener('click', function(e) {
+                e.preventDefault();
+                // Remove active class from all links
+                document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
+                // Add active class to clicked link
+                this.classList.add('active');
+                
+                // Here you could handle navigation to different views
+                // For now, just log the click
+                console.log('Navigated to:', this.textContent);
+            });
+        });
     </script>
+    
+    <!-- Version indicator -->
+    <div style="position: fixed; bottom: 10px; right: 10px; font-size: 10px; color: rgba(255, 255, 255, 0.3); font-family: monospace; z-index: 9999;">
+        v1.0.2
+    </div>
 </body>
 </html>

@@ -1,10 +1,11 @@
 // API Client for backend communication
 export class ApiClient {
     constructor() {
-        // Use backend port 3001 for API calls
+        // Use backend port 3001 for API calls locally
+        // In production, use relative path /api which nginx proxies to backend
         this.baseURL = window.location.hostname === 'localhost' 
             ? 'http://localhost:3001' 
-            : window.location.origin;
+            : '';
         this.token = sessionStorage.getItem('authToken');
     }
 

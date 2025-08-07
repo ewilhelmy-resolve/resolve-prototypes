@@ -1,6 +1,6 @@
 FROM node:18-alpine
 
-# Install nginx and supervisor
+# Install nginx
 RUN apk add --no-cache nginx supervisor
 
 # Create app directory
