@@ -436,13 +436,18 @@
                 this.signupForm = new SignupForm('signupFormContainer', (data) => {
                     this.userData = { ...this.userData, ...data };
                     
-                    // Check if user has existing subscription (e.g., john@resolve.io)
-                    if (data.subscription && data.subscription.status === 'active') {
-                        // Redirect directly to dedicated Jarvis page for existing subscribers
+                    // Only redirect for users with COMPLETED onboarding (active subscription AND completed setup)
+                    if (data.subscription && 
+                        data.subscription.status === 'active' && 
+                        data.subscription.plan !== 'trial' &&
+                        data.integrations && 
+                        Object.keys(data.integrations).length > 0) {
+                        // Redirect directly to dedicated Jarvis page for existing subscribers with completed setup
                         window.location.href = '/jarvis.html';
                         return;
                     }
                     
+                    // New users or incomplete setups continue through onboarding
                     this.nextStep();
                 });
                 
@@ -518,11 +523,14 @@
                     this.executeWorkflow();
                 }
                 
-                // Redirect to dedicated Jarvis page when reaching final step
+                // At final step, mark onboarding complete and redirect
                 if (stepNumber === 7) {
-                    setTimeout(() => {
-                        window.location.href = '/jarvis.html';
-                    }, 100);
+                    // Mark user's onboarding as complete in backend
+                    this.completeOnboarding().then(() => {
+                        setTimeout(() => {
+                            window.location.href = '/jarvis.html';
+                        }, 100);
+                    });
                     return;
                 }
                 
@@ -625,6 +633,30 @@
 
                 if (isValid) {
                     this.nextStep();
+                }
+            }
+
+            async completeOnboarding() {
+                // Mark the user's onboarding as complete in the backend
+                try {
+                    const response = await apiClient.request('/complete-onboarding', {
+                        method: 'POST',
+                        body: JSON.stringify({
+                            userData: this.userData,
+                            selectedPlan: this.selectedPlan,
+                            premiumConfig: this.premiumConfig,
+                            integrationData: this.integrationData,
+                            paymentMethodId: this.paymentMethodId
+                        })
+                    });
+                    
+                    if (response.success) {
+                        // Update the user's subscription status
+                        sessionStorage.setItem('onboardingComplete', 'true');
+                    }
+                } catch (error) {
+                    console.error('Failed to complete onboarding:', error);
+                    // Continue anyway - user can be marked complete later
                 }
             }
 

@@ -22,6 +22,7 @@ COPY jarvis.html /usr/share/nginx/html/
 COPY jarvis-mock.html /usr/share/nginx/html/
 COPY iframe-proxy.html /usr/share/nginx/html/
 COPY test-styling.html /usr/share/nginx/html/
+COPY context-demo.html /usr/share/nginx/html/
 COPY logo.svg /usr/share/nginx/html/
 COPY components /usr/share/nginx/html/components/
 COPY styles /usr/share/nginx/html/styles/

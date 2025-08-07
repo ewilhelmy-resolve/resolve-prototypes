@@ -13,6 +13,9 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
     
+    <!-- Context-aware styles -->
+    <link rel="stylesheet" href="styles/jarvis-context.css">
+    
     <style>
         * {
             margin: 0;
@@ -660,7 +663,7 @@
         }
     </style>
 </head>
-<body>
+<body class="jarvis-context">
     <!-- App Header Bar -->
     <header class="app-header">
         <div class="header-left">
@@ -962,21 +965,31 @@
         // Handle logout
         window.logout = async function() {
             try {
+                const authToken = sessionStorage.getItem('authToken');
+                
                 // Determine API URL based on environment
                 const apiUrl = window.location.hostname === 'localhost' 
                     ? 'http://localhost:3001/api/logout'
                     : '/api/logout';
                 
-                // Call logout API
-                const response = await fetch(apiUrl, {
-                    method: 'POST',
-                    headers: {
-                        'Authorization': `Bearer ${authToken}`
+                // Call logout API if we have a token
+                if (authToken) {
+                    const response = await fetch(apiUrl, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${authToken}`
+                        }
+                    });
+                    
+                    if (!response.ok) {
+                        console.warn('Logout API call failed, but continuing with cleanup');
                     }
-                });
+                }
                 
                 // Clear session
                 sessionStorage.clear();
+                localStorage.clear();
                 
                 // Redirect to login
                 window.location.href = '/';
@@ -984,6 +997,7 @@
                 console.error('Logout error:', error);
                 // Clear session anyway
                 sessionStorage.clear();
+                localStorage.clear();
                 window.location.href = '/';
             }
         };

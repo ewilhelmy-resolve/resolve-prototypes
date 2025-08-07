@@ -178,7 +178,7 @@ app.post('/api/signup', (req, res) => {
     },
     subscription: {
       plan: 'trial',
-      status: 'active',
+      status: 'pending', // Changed to 'pending' to allow onboarding flow
       startDate: new Date().toISOString(),
       endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(), // 30 days
       seats: 5
@@ -233,6 +233,55 @@ app.get('/api/user/:email', (req, res) => {
 
   const { password: _, ...userWithoutPassword } = user;
   res.json(userWithoutPassword);
+});
+
+// Complete onboarding endpoint
+app.post('/api/complete-onboarding', (req, res) => {
+  const authHeader = req.headers.authorization;
+  
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+
+  const token = authHeader.substring(7);
+  const session = db.sessions[token];
+  
+  if (!session) {
+    return res.status(401).json({ error: 'Invalid session' });
+  }
+
+  const user = db.users[session.email];
+  
+  if (!user) {
+    return res.status(404).json({ error: 'User not found' });
+  }
+
+  // Update user's subscription status to active after completing onboarding
+  user.subscription.status = 'active';
+  user.onboardingComplete = true;
+  user.completedAt = new Date().toISOString();
+  
+  // Store integration and payment data if provided
+  const { selectedPlan, premiumConfig, integrationData, paymentMethodId } = req.body;
+  
+  if (selectedPlan) {
+    user.subscription.plan = selectedPlan;
+  }
+  
+  if (integrationData) {
+    user.integrations = user.integrations || {};
+    user.integrations[integrationData.type] = {
+      connected: true,
+      ...integrationData,
+      lastSync: new Date().toISOString()
+    };
+  }
+  
+  if (paymentMethodId) {
+    user.paymentMethodId = paymentMethodId;
+  }
+  
+  res.json({ success: true, message: 'Onboarding completed successfully' });
 });
 
 // Logout endpoint

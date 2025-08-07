@@ -1,0 +1,298 @@
+/* 
+ * Onboarding Context Override Styles
+ * Applied when components are rendered within the onboarding/marketing interface
+ * These maintain the original marketing aesthetic
+ */
+
+/* ============================================
+   ONBOARDING CONTEXT MARKER
+   Add class="onboarding-context" to containers in onboarding flow
+   ============================================ */
+
+.onboarding-context {
+    /* Marketing/Onboarding color palette - lighter, more welcoming */
+    --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    --primary-bg: #ffffff;
+    --secondary-bg: #f8f9fa;
+    --text-primary: #333333;
+    --text-secondary: #666666;
+    --border-color: #e0e0e0;
+    --shadow-color: rgba(0, 0, 0, 0.1);
+    
+    /* Spacing */
+    --spacing-xs: 8px;
+    --spacing-sm: 12px;
+    --spacing-md: 20px;
+    --spacing-lg: 32px;
+    --spacing-xl: 48px;
+}
+
+/* Base styles for onboarding context */
+.onboarding-context {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+    color: var(--text-primary);
+    background: var(--primary-bg);
+}
+
+/* Container styles */
+.onboarding-context .container,
+.onboarding-context .card,
+.onboarding-context .panel {
+    background: var(--primary-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 16px;
+    padding: var(--spacing-lg);
+    box-shadow: 0 4px 6px var(--shadow-color);
+}
+
+/* Integration cards in onboarding */
+.onboarding-context .integration-card {
+    background: var(--primary-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 16px;
+    padding: var(--spacing-lg);
+    margin-bottom: var(--spacing-md);
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.onboarding-context .integration-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
+}
+
+/* Headers in onboarding */
+.onboarding-context h1,
+.onboarding-context h2,
+.onboarding-context h3 {
+    color: var(--text-primary);
+    margin-bottom: var(--spacing-md);
+}
+
+.onboarding-context h1 {
+    font-size: 48px;
+    font-weight: 700;
+    background: var(--primary-gradient);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+/* Buttons in onboarding */
+.onboarding-context button,
+.onboarding-context .button,
+.onboarding-context .btn {
+    padding: var(--spacing-sm) var(--spacing-lg);
+    border-radius: 25px;
+    font-weight: 600;
+    transition: all 0.3s ease;
+    border: none;
+    cursor: pointer;
+}
+
+.onboarding-context .primary-button {
+    background: var(--primary-gradient);
+    color: white;
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+}
+
+.onboarding-context .primary-button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+}
+
+.onboarding-context .secondary-button {
+    background: var(--secondary-bg);
+    color: var(--text-primary);
+    border: 2px solid var(--border-color);
+}
+
+.onboarding-context .secondary-button:hover {
+    background: var(--border-color);
+}
+
+/* Forms in onboarding */
+.onboarding-context input,
+.onboarding-context textarea,
+.onboarding-context select {
+    width: 100%;
+    padding: var(--spacing-sm) var(--spacing-md);
+    border: 2px solid var(--border-color);
+    border-radius: 12px;
+    font-size: 16px;
+    transition: all 0.3s ease;
+    background: white;
+}
+
+.onboarding-context input:focus,
+.onboarding-context textarea:focus,
+.onboarding-context select:focus {
+    outline: none;
+    border-color: #667eea;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+/* Grid layouts */
+.onboarding-context .integrations-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: var(--spacing-lg);
+    padding: var(--spacing-lg) 0;
+}
+
+/* Status indicators */
+.onboarding-context .status-badge {
+    padding: 6px 16px;
+    border-radius: 20px;
+    font-size: 14px;
+    font-weight: 500;
+    display: inline-block;
+}
+
+.onboarding-context .status-active {
+    background: #e8f5e9;
+    color: #2e7d32;
+    border: 1px solid #4caf50;
+}
+
+.onboarding-context .status-pending {
+    background: #fff3e0;
+    color: #f57c00;
+    border: 1px solid #ff9800;
+}
+
+.onboarding-context .status-inactive {
+    background: #f5f5f5;
+    color: #757575;
+    border: 1px solid #bdbdbd;
+}
+
+/* Pricing cards */
+.onboarding-context .pricing-card {
+    background: white;
+    border: 2px solid var(--border-color);
+    border-radius: 20px;
+    padding: var(--spacing-xl);
+    text-align: center;
+    transition: all 0.3s ease;
+}
+
+.onboarding-context .pricing-card.featured {
+    border-color: #667eea;
+    transform: scale(1.05);
+    box-shadow: 0 12px 24px rgba(102, 126, 234, 0.2);
+}
+
+.onboarding-context .pricing-card:hover {
+    transform: translateY(-8px);
+    box-shadow: 0 16px 32px rgba(0, 0, 0, 0.1);
+}
+
+/* Progress indicators */
+.onboarding-context .progress-bar {
+    width: 100%;
+    height: 8px;
+    background: var(--secondary-bg);
+    border-radius: 4px;
+    overflow: hidden;
+    margin: var(--spacing-md) 0;
+}
+
+.onboarding-context .progress-fill {
+    height: 100%;
+    background: var(--primary-gradient);
+    border-radius: 4px;
+    transition: width 0.5s ease;
+}
+
+/* Responsive design for onboarding */
+@media (max-width: 768px) {
+    .onboarding-context .integrations-grid {
+        grid-template-columns: 1fr;
+        gap: var(--spacing-md);
+    }
+    
+    .onboarding-context h1 {
+        font-size: 32px;
+    }
+    
+    .onboarding-context .pricing-card.featured {
+        transform: scale(1);
+    }
+}
+
+/* Animations for onboarding */
+.onboarding-context .fade-in {
+    animation: onboardingFadeIn 0.5s ease;
+}
+
+@keyframes onboardingFadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.onboarding-context .slide-in {
+    animation: onboardingSlideIn 0.5s ease;
+}
+
+@keyframes onboardingSlideIn {
+    from {
+        opacity: 0;
+        transform: translateX(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+/* Feature lists */
+.onboarding-context .feature-list {
+    list-style: none;
+    padding: 0;
+    margin: var(--spacing-lg) 0;
+}
+
+.onboarding-context .feature-list li {
+    padding: var(--spacing-sm) 0;
+    padding-left: var(--spacing-lg);
+    position: relative;
+    color: var(--text-secondary);
+}
+
+.onboarding-context .feature-list li:before {
+    content: "✓";
+    position: absolute;
+    left: 0;
+    color: #4caf50;
+    font-weight: bold;
+}
+
+/* Call to action sections */
+.onboarding-context .cta-section {
+    background: var(--primary-gradient);
+    color: white;
+    padding: var(--spacing-xl);
+    border-radius: 20px;
+    text-align: center;
+    margin: var(--spacing-xl) 0;
+}
+
+.onboarding-context .cta-section h2 {
+    color: white;
+    margin-bottom: var(--spacing-lg);
+}
+
+.onboarding-context .cta-section .button {
+    background: white;
+    color: #667eea;
+}
+
+.onboarding-context .cta-section .button:hover {
+    background: #f8f9fa;
+}

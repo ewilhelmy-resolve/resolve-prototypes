@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Context-Aware Styling Demo</title>
+    
+    <!-- Import fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Context styles -->
+    <link rel="stylesheet" href="styles/jarvis-context.css">
+    <link rel="stylesheet" href="styles/onboarding-context.css">
+    
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Inter', 'Segoe UI', sans-serif;
+        }
+        
+        .demo-header {
+            background: #0B1E3C;
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
+        
+        .demo-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0;
+            min-height: calc(100vh - 80px);
+        }
+        
+        .context-section {
+            padding: 30px;
+            overflow-y: auto;
+        }
+        
+        .jarvis-context {
+            background: #0B1E3C;
+        }
+        
+        .onboarding-context {
+            background: #f8f9fa;
+        }
+        
+        .section-header {
+            margin-bottom: 30px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid currentColor;
+        }
+        
+        .jarvis-context .section-header {
+            color: #009DFF;
+            border-color: rgba(41, 197, 246, 0.2);
+        }
+        
+        .onboarding-context .section-header {
+            color: #667eea;
+            border-color: #e0e0e0;
+        }
+        
+        /* Example integration card styling */
+        .integration-card {
+            margin-bottom: 20px;
+        }
+        
+        .integration-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        
+        .integration-name {
+            font-size: 18px;
+            font-weight: 600;
+        }
+        
+        .integration-description {
+            margin-bottom: 15px;
+            line-height: 1.6;
+        }
+        
+        .integration-actions {
+            display: flex;
+            gap: 10px;
+        }
+        
+        @media (max-width: 1024px) {
+            .demo-container {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="demo-header">
+        <h1>Context-Aware Styling Demonstration</h1>
+        <p>Same components, different contexts - Jarvis vs Onboarding</p>
+    </div>
+    
+    <div class="demo-container">
+        <!-- Jarvis Context -->
+        <div class="context-section jarvis-context">
+            <h2 class="section-header">Jarvis Context</h2>
+            
+            <div class="integration-card">
+                <div class="integration-header">
+                    <span class="integration-name">Slack Integration</span>
+                    <span class="status-badge status-connected">Connected</span>
+                </div>
+                <p class="integration-description">
+                    Automate ticket creation from Slack messages and send notifications back to channels.
+                </p>
+                <div class="integration-actions">
+                    <button class="primary-button">Configure</button>
+                    <button class="button">Disconnect</button>
+                </div>
+            </div>
+            
+            <div class="integration-card">
+                <div class="integration-header">
+                    <span class="integration-name">Microsoft Teams</span>
+                    <span class="status-badge status-available">Available</span>
+                </div>
+                <p class="integration-description">
+                    Connect Teams for seamless collaboration and automated workflow triggers.
+                </p>
+                <div class="integration-actions">
+                    <button class="primary-button">Connect</button>
+                    <button class="button">Learn More</button>
+                </div>
+            </div>
+            
+            <div class="stat-card">
+                <div class="stat-value">1,247</div>
+                <div class="stat-label">Tickets Resolved</div>
+            </div>
+            
+            <div class="panel">
+                <h3>System Status</h3>
+                <ul>
+                    <li>API Response Time: 42ms</li>
+                    <li>Uptime: 99.98%</li>
+                    <li>Active Integrations: 5</li>
+                </ul>
+            </div>
+        </div>
+        
+        <!-- Onboarding Context -->
+        <div class="context-section onboarding-context">
+            <h2 class="section-header">Onboarding Context</h2>
+            
+            <div class="integration-card">
+                <div class="integration-header">
+                    <span class="integration-name">Slack Integration</span>
+                    <span class="status-badge status-active">Active</span>
+                </div>
+                <p class="integration-description">
+                    Automate ticket creation from Slack messages and send notifications back to channels.
+                </p>
+                <div class="integration-actions">
+                    <button class="primary-button">Get Started</button>
+                    <button class="secondary-button">View Demo</button>
+                </div>
+            </div>
+            
+            <div class="integration-card">
+                <div class="integration-header">
+                    <span class="integration-name">Microsoft Teams</span>
+                    <span class="status-badge status-pending">Coming Soon</span>
+                </div>
+                <p class="integration-description">
+                    Connect Teams for seamless collaboration and automated workflow triggers.
+                </p>
+                <div class="integration-actions">
+                    <button class="primary-button">Join Waitlist</button>
+                    <button class="secondary-button">Learn More</button>
+                </div>
+            </div>
+            
+            <div class="pricing-card">
+                <h3>Professional Plan</h3>
+                <div style="font-size: 36px; margin: 20px 0; font-weight: 700;">$99/mo</div>
+                <ul class="feature-list">
+                    <li>Unlimited integrations</li>
+                    <li>Advanced automation</li>
+                    <li>Priority support</li>
+                    <li>Custom workflows</li>
+                </ul>
+                <button class="primary-button" style="width: 100%; margin-top: 20px;">Start Free Trial</button>
+            </div>
+            
+            <div class="progress-bar">
+                <div class="progress-fill" style="width: 60%;"></div>
+            </div>
+            <p style="text-align: center; color: #666; margin-top: 10px;">Setup Progress: 60% Complete</p>
+        </div>
+    </div>
+</body>
+</html>
