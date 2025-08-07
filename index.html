@@ -1,5 +1,829 @@
 <!DOCTYPE html>
-<html>
-  <head><title>Hello</title></head>
-  <body><h1>Welcome to Resolve Onbarding!</h1></body>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Resolve - Never Touch Another Ticket | Get Started</title>
+    
+    <!-- External Stylesheets -->
+    <link rel="stylesheet" href="styles/main.css">
+    <link rel="stylesheet" href="styles/components.css">
+    <link rel="stylesheet" href="styles/animations.css">
+    
+    <!-- Stripe.js -->
+    <script src="https://js.stripe.com/v3/"></script>
+</head>
+<body>
+    <!-- Onboarding Container -->
+    <div class="onboarding-container">
+        <!-- Progress Bar Container -->
+        <div id="progressBarContainer"></div>
+
+        <!-- Steps Container -->
+        <div class="steps-container">
+            <!-- Step 1: Get Started -->
+            <div class="step active" id="step1">
+                <h2>Start Your Automation Journey</h2>
+                <p>Join thousands of IT teams eliminating repetitive work with AI</p>
+                <div id="signupFormContainer"></div>
+            </div>
+
+            <!-- Step 2: Choose Plan -->
+            <div class="step" id="step2">
+                <h2>Start Your 30-Day Free Trial</h2>
+                <p>See how AI can transform your IT operations</p>
+                <div id="pricingCardContainer"></div>
+                <div class="button-group">
+                    <button type="button" class="btn btn-secondary" onclick="app.previousStep()">Back</button>
+                </div>
+            </div>
+
+            <!-- Step 3: Premium Configuration (only shown for premium plans) -->
+            <div class="step" id="step3">
+                <h2>🚀 Configure Your Premium Experience</h2>
+                <p>Select your systems to unlock Rita's full automation capabilities</p>
+                <div id="premiumConfigContainer"></div>
+                <div class="button-group">
+                    <button type="button" class="btn btn-secondary" onclick="app.previousStep()">Back</button>
+                    <button type="button" class="btn btn-primary" onclick="app.validatePremiumConfig()">Continue Setup</button>
+                </div>
+            </div>
+
+            <!-- Step 4: Integration Credentials -->
+            <div class="step" id="step4">
+                <h2>🚀 Power Up Your IT Infrastructure</h2>
+                <p>Connect your systems and unlock AI-powered insights instantly!</p>
+                <div id="integrationFormContainer"></div>
+                <div class="button-group">
+                    <button type="button" class="btn btn-secondary" onclick="app.previousStep()">Back</button>
+                    <button type="button" class="btn btn-primary" onclick="app.validateIntegration()">🚀 Connect & Unlock Insights</button>
+                </div>
+            </div>
+
+            <!-- Step 5: Payment -->
+            <div class="step" id="step5">
+                <h2>Payment Information</h2>
+                <p>Secure payment processing via Stripe</p>
+                
+                <form id="paymentForm">
+                    <div class="form-group">
+                        <label for="cardName">Name on Card</label>
+                        <input type="text" id="cardName" name="cardName" required placeholder="John Doe">
+                        <span class="error-message">Name is required</span>
+                    </div>
+                    
+                    <!-- Stripe Card Element Container -->
+                    <div class="form-group">
+                        <label for="card-element">
+                            Card Details
+                            <button type="button" class="btn-fill-test" onclick="app.fillTestCard()" id="fillTestCardBtn" style="display: none;">
+                                💳 Fill Test Card
+                            </button>
+                        </label>
+                        <div id="card-element" class="stripe-card-element">
+                            <!-- Stripe Elements will be inserted here -->
+                        </div>
+                        <div id="card-errors" class="error-message" role="alert"></div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="terms" name="terms" required>
+                            I agree to the Terms of Service and Privacy Policy
+                        </label>
+                        <span class="error-message" id="terms-error">Please accept the terms and conditions to continue</span>
+                    </div>
+                    
+                    <div class="trial-info">
+                        <div class="trial-badge">
+                            <span class="trial-icon">✨</span>
+                            <span>30-Day Free Trial</span>
+                        </div>
+                        <p>You won't be charged today. Your subscription starts after the trial ends.</p>
+                    </div>
+                    
+                    <div class="button-group">
+                        <button type="button" class="btn btn-secondary" onclick="app.previousStep()">Back</button>
+                        <button type="button" class="btn btn-primary" id="submitPayment" onclick="app.processStripePayment()">
+                            <span id="button-text">Start Free Trial</span>
+                            <div class="spinner hidden" id="spinner"></div>
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Step 6: Environment Building -->
+            <div class="step" id="step6">
+                <h2>🚀 Building Your AI-Powered Environment</h2>
+                <p>We're analyzing your recent ticket activity to customize your experience</p>
+                
+                <div class="analysis-notice">
+                    <div class="notice-header">
+                        <span class="notice-icon">🔍</span>
+                        <h3>What's Happening Now</h3>
+                    </div>
+                    <div class="notice-content">
+                        <p>Our AI is analyzing your last 90 days of ticket data from <span id="integration-type">your system</span> to:</p>
+                        <ul>
+                            <li>🎯 Identify your most common ticket types</li>
+                            <li>📊 Discover automation opportunities</li>
+                            <li>🔄 Map your existing workflows</li>
+                            <li>💡 Calculate potential time savings</li>
+                        </ul>
+                    </div>
+                    <div class="processing-indicator">
+                        <div class="spinner"></div>
+                        <p>Processing your data...</p>
+                    </div>
+                </div>
+                
+                <div class="wait-options">
+                    <div class="wait-card">
+                        <h4>⏱️ This typically takes 5-10 minutes</h4>
+                        <p>We'll send you an email to <strong id="user-email">your email</strong> as soon as your environment is ready.</p>
+                        
+                        <div class="wait-actions">
+                            <button class="btn btn-secondary" onclick="window.close()">
+                                <span>📧</span> Close and Wait for Email
+                            </button>
+                            <button class="btn btn-primary" onclick="app.continueWaiting()">
+                                <span>👀</span> I'll Wait Here
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="while-waiting">
+                        <h4>While you wait, here's what to expect:</h4>
+                        <div class="expectation-grid">
+                            <div class="expectation-item">
+                                <span class="expect-icon">📈</span>
+                                <div>
+                                    <h5>Automation Dashboard</h5>
+                                    <p>See your top automation opportunities ranked by impact</p>
+                                </div>
+                            </div>
+                            <div class="expectation-item">
+                                <span class="expect-icon">🎯</span>
+                                <div>
+                                    <h5>Quick Wins</h5>
+                                    <p>Start with simple automations that save hours immediately</p>
+                                </div>
+                            </div>
+                            <div class="expectation-item">
+                                <span class="expect-icon">💰</span>
+                                <div>
+                                    <h5>ROI Calculator</h5>
+                                    <p>Track time saved and calculate your automation ROI</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Step 7: Success -->
+            <div class="step" id="step7">
+                <div class="success-icon"></div>
+                <h2>Welcome to Resolve!</h2>
+                <p>Meet Jarvis AI - your intelligent automation assistant ready to eliminate your IT tickets.</p>
+                
+                <div class="jarvis-chat-container" id="jarvisChatContainer" style="display: none;">
+                    <iframe 
+                        id="jarvisChat" 
+                        src="/jarvis-mock.html" 
+                        frameborder="0"
+                        style="width: 100%; height: 600px; border-radius: 10px; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);"
+                        onerror="this.src='/jarvis-mock.html'">
+                    </iframe>
+                </div>
+                
+                <div class="chat-preview" id="chatPreview">
+                    <div class="chat-header">
+                        <span class="chat-icon">🤖</span>
+                        <span>Jarvis AI</span>
+                    </div>
+                    <div class="chat-message">
+                        <p>👋 Hi! I'm Jarvis AI. I've already started analyzing your workflow patterns. I can help you:</p>
+                    </div>
+                    <div class="chat-options">
+                        <div class="chat-option">📊 View automation opportunities</div>
+                        <div class="chat-option">🚀 Create your first workflow</div>
+                        <div class="chat-option">🔧 Configure integrations</div>
+                    </div>
+                </div>
+                
+                <div class="next-steps-box">
+                    <h3>What happens next?</h3>
+                    <ul>
+                        <li>
+                            <span class="icon">✨</span>
+                            Jarvis analyzes your ticket patterns in real-time
+                        </li>
+                        <li>
+                            <span class="icon">🎯</span>
+                            Identifies top automation opportunities instantly
+                        </li>
+                        <li>
+                            <span class="icon">🚀</span>
+                            Creates your first automation in under 5 minutes
+                        </li>
+                    </ul>
+                </div>
+                
+                <div class="button-group">
+                    <button type="button" class="btn btn-primary btn-full-width" onclick="app.goToDashboard()">Launch Jarvis AI</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Token Generation Modal -->
+    <div id="tokenModal" class="modal-overlay">
+        <div class="modal-container">
+            <div class="modal-header">
+                <h3>🔐 Generate Your Jira API Token</h3>
+                <button class="modal-close" onclick="app.closeTokenModal()">✕</button>
+            </div>
+            <div class="modal-body">
+                <div class="modal-guide-container">
+                    <div class="modal-instructions expanded">
+                        <h4>🔐 Quick Token Setup Guide</h4>
+                        <p>Follow these simple steps to generate your API token:</p>
+                        <ol class="detailed-steps">
+                            <li>
+                                <span class="step-emoji">👆</span>
+                                <div>
+                                    <strong>Click "Create API token"</strong>
+                                    <p>Look for the blue button on the page below</p>
+                                </div>
+                            </li>
+                            <li>
+                                <span class="step-emoji">✏️</span>
+                                <div>
+                                    <strong>Name your token</strong>
+                                    <p>Use "Resolve-Integration" or something memorable</p>
+                                </div>
+                            </li>
+                            <li>
+                                <span class="step-emoji">📅</span>
+                                <div>
+                                    <strong>Set expiry date</strong>
+                                    <p>Choose 1 year (maximum allowed for security)</p>
+                                </div>
+                            </li>
+                            <li>
+                                <span class="step-emoji">✅</span>
+                                <div>
+                                    <strong>Click "Create"</strong>
+                                    <p>Your token will appear only once!</p>
+                                </div>
+                            </li>
+                            <li>
+                                <span class="step-emoji">📋</span>
+                                <div>
+                                    <strong>Copy the token</strong>
+                                    <p>Click the copy button or select all and copy</p>
+                                </div>
+                            </li>
+                            <li>
+                                <span class="step-emoji">📍</span>
+                                <div>
+                                    <strong>Close this window</strong>
+                                    <p>Return here and paste your token</p>
+                                </div>
+                            </li>
+                        </ol>
+                        <div class="token-tip">
+                            <span class="tip-icon">💭</span>
+                            <span><strong>Important:</strong> Save your token somewhere safe - Jira won't show it again!</span>
+                        </div>
+                    </div>
+                    <div class="iframe-wrapper">
+                        <div class="iframe-container">
+                            <iframe id="jiraFrame" src="" frameborder="0"></iframe>
+                        </div>
+                        <div class="modal-alternative">
+                            <p>Can't see the Jira page? <a href="https://id.atlassian.com/manage-profile/security/api-tokens" target="_blank">Open in new tab →</a></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Component Scripts -->
+    <script type="module">
+        import { ProgressBar } from './components/progress-bar.js';
+        import { SignupForm } from './components/signup-form.js';
+        import { PricingCard } from './components/pricing-card.js';
+        import { PremiumConfiguration } from './components/premium-configuration.js';
+        import { IntegrationForm } from './components/integration-form.js';
+
+        // Application State
+        class OnboardingApp {
+            constructor() {
+                this.currentStep = 1;
+                this.totalSteps = 7;
+                this.userData = {};
+                this.selectedPlan = null;
+                this.premiumConfig = {};
+                this.integrationData = {};
+                
+                // Stripe configuration
+                this.stripePublicKey = this.getStripePublicKey();
+                this.stripe = null;
+                this.cardElement = null;
+                this.isTestMode = this.stripePublicKey && this.stripePublicKey.includes('pk_test');
+                
+                this.init();
+            }
+
+            init() {
+                // Initialize components
+                this.progressBar = new ProgressBar('progressBarContainer', this.totalSteps);
+                
+                this.signupForm = new SignupForm('signupFormContainer', (data) => {
+                    this.userData = { ...this.userData, ...data };
+                    this.nextStep();
+                });
+                
+                this.pricingCard = new PricingCard('pricingCardContainer', (plan) => {
+                    this.selectedPlan = plan;
+                    if (plan === 'premium') {
+                        // Premium plan needs configuration step
+                        this.nextStep();
+                    } else {
+                        // Basic plan skips to integration step
+                        this.currentStep = 3; // Skip premium config
+                        this.nextStep();
+                    }
+                });
+
+                this.premiumConfiguration = new PremiumConfiguration('premiumConfigContainer', (config) => {
+                    this.premiumConfig = config;
+                    this.nextStep();
+                });
+                
+                this.integrationForm = new IntegrationForm('integrationFormContainer', (data) => {
+                    this.integrationData = data;
+                    this.nextStep();
+                });
+
+                // Setup event listeners
+                this.setupEventListeners();
+
+                // Initialize Stripe
+                this.initializeStripe();
+
+                // Expose methods to window for onclick handlers
+                window.app = this;
+                window.openTokenModal = () => this.openTokenModal();
+            }
+
+            setupEventListeners() {
+                // Remove error states on input
+                document.querySelectorAll('input').forEach(input => {
+                    input.addEventListener('input', () => {
+                        input.classList.remove('error');
+                        const errorMsg = input.nextElementSibling;
+                        if (errorMsg && errorMsg.classList.contains('error-message')) {
+                            errorMsg.style.display = 'none';
+                        }
+                    });
+                });
+
+                // Terms checkbox
+                const terms = document.getElementById('terms');
+                if (terms) {
+                    terms.addEventListener('change', function() {
+                        if (this.checked) {
+                            document.getElementById('terms-error').style.display = 'none';
+                        }
+                    });
+                }
+            }
+
+            showStep(stepNumber) {
+                document.querySelectorAll('.step').forEach(step => {
+                    step.classList.remove('active');
+                });
+                document.getElementById('step' + stepNumber).classList.add('active');
+                this.progressBar.setStep(stepNumber);
+                
+                // Special handling for workflow execution
+                if (stepNumber === 6) {
+                    this.executeWorkflow();
+                }
+                
+                // Smooth scroll to top
+                document.querySelector('.onboarding-container').scrollIntoView({ 
+                    behavior: 'smooth', 
+                    block: 'center' 
+                });
+            }
+
+            nextStep() {
+                if (this.currentStep < this.totalSteps) {
+                    this.currentStep++;
+                    this.showStep(this.currentStep);
+                }
+            }
+
+            previousStep() {
+                if (this.currentStep > 1) {
+                    this.currentStep--;
+                    this.showStep(this.currentStep);
+                }
+            }
+
+            async validatePremiumConfig() {
+                const config = this.premiumConfiguration.validate();
+                if (config) {
+                    this.premiumConfig = config;
+                    
+                    // Update the integration form to only show the selected ticketing system
+                    if (config.ticketing === 'jira') {
+                        // Show only Jira in integration form
+                        this.integrationForm.selectIntegration('jira');
+                    } else if (config.ticketing === 'servicenow') {
+                        // Show only ServiceNow in integration form
+                        this.integrationForm.selectIntegration('servicenow');
+                    }
+                    
+                    this.nextStep();
+                }
+            }
+
+            async validateIntegration() {
+                const data = await this.integrationForm.validate();
+                if (data) {
+                    this.integrationData = data;
+                    // Simulate connection test
+                    this.simulateConnectionTest();
+                }
+            }
+
+            simulateConnectionTest() {
+                const btn = document.querySelector('.btn-primary[onclick="app.validateIntegration()"]');
+                btn.innerHTML = '<div class="spinner"></div> Testing connection...';
+                btn.disabled = true;
+                
+                setTimeout(() => {
+                    btn.innerHTML = '✅ Connection Successful!';
+                    btn.classList.add('btn-success');
+                    setTimeout(() => {
+                        this.nextStep();
+                    }, 1000);
+                }, 2000);
+            }
+
+            processPayment() {
+                const cardName = document.getElementById('cardName');
+                const cardNumber = document.getElementById('cardNumber');
+                const expiry = document.getElementById('expiry');
+                const cvv = document.getElementById('cvv');
+                const terms = document.getElementById('terms');
+                
+                let isValid = true;
+
+                // Basic validation
+                if (!cardName.value) {
+                    cardName.classList.add('error');
+                    isValid = false;
+                }
+                
+                if (!cardNumber.value || cardNumber.value.replace(/\s/g, '').length !== 16) {
+                    cardNumber.classList.add('error');
+                    isValid = false;
+                }
+                
+                if (!expiry.value || expiry.value.length !== 5) {
+                    expiry.classList.add('error');
+                    isValid = false;
+                }
+                
+                if (!cvv.value || cvv.value.length < 3) {
+                    cvv.classList.add('error');
+                    isValid = false;
+                }
+                
+                if (!terms.checked) {
+                    document.getElementById('terms-error').style.display = 'block';
+                    isValid = false;
+                }
+
+                if (isValid) {
+                    this.nextStep();
+                }
+            }
+
+            executeWorkflow() {
+                // Update dynamic content
+                const integrationType = this.integrationData.type || 'your system';
+                const integrationName = integrationType === 'jira' ? 'Jira' : 
+                                      integrationType === 'servicenow' ? 'ServiceNow' : 'your system';
+                
+                document.getElementById('integration-type').textContent = integrationName;
+                
+                const emailValue = this.userData.email || 'your email';
+                document.getElementById('user-email').textContent = emailValue;
+                
+                // Simulate completion after processing
+                setTimeout(() => {
+                    this.nextStep();
+                }, 8000);
+            }
+
+            continueWaiting() {
+                const btn = event.target;
+                btn.textContent = 'Waiting...';
+                btn.disabled = true;
+                
+                setTimeout(() => {
+                    this.nextStep();
+                }, 5000);
+            }
+
+            goToDashboard() {
+                console.log('User context:', {
+                    ...this.userData,
+                    plan: this.selectedPlan,
+                    integration: this.integrationData.type || 'none',
+                    timestamp: new Date().toISOString()
+                });
+                
+                // Hide the preview and show the actual Jarvis chat
+                document.getElementById('chatPreview').style.display = 'none';
+                document.getElementById('jarvisChatContainer').style.display = 'block';
+                
+                // Hide the next steps box to give more room to the chat
+                const nextStepsBox = document.querySelector('.next-steps-box');
+                if (nextStepsBox) {
+                    nextStepsBox.style.display = 'none';
+                }
+                
+                // Change button text
+                const btn = event.target;
+                btn.textContent = 'Jarvis AI is Active';
+                btn.disabled = true;
+                btn.classList.add('btn-success');
+            }
+
+            openTokenModal() {
+                const modal = document.getElementById('tokenModal');
+                const iframe = document.getElementById('jiraFrame');
+                
+                iframe.src = 'https://id.atlassian.com/manage-profile/security/api-tokens';
+                modal.style.display = 'flex';
+                
+                document.addEventListener('keydown', this.handleEscapeKey);
+            }
+
+            closeTokenModal() {
+                const modal = document.getElementById('tokenModal');
+                const iframe = document.getElementById('jiraFrame');
+                
+                modal.style.display = 'none';
+                iframe.src = '';
+                
+                document.removeEventListener('keydown', this.handleEscapeKey);
+            }
+
+            handleEscapeKey = (e) => {
+                if (e.key === 'Escape') {
+                    this.closeTokenModal();
+                }
+            }
+
+            // Stripe Methods
+            getStripePublicKey() {
+                // Check URL parameters first
+                const urlParams = new URLSearchParams(window.location.search);
+                const keyFromUrl = urlParams.get('stripe_key');
+                if (keyFromUrl) return keyFromUrl;
+                
+                // Default test key (replace with your actual test key)
+                return 'pk_test_51Rt8fT4A2xfrcz4XF94loxH7CqYodVtZj7VRXx9yrRkBqJnXDIy9F5qG4XdZ2Qd0BViJ3PWH1zhqS3GiZNwMKeSk00wRgT8Sjv';
+            }
+
+            initializeStripe() {
+                if (!this.stripePublicKey) {
+                    console.warn('No Stripe public key found');
+                    return;
+                }
+
+                // Initialize Stripe
+                this.stripe = Stripe(this.stripePublicKey);
+                
+                // Create card element
+                const elements = this.stripe.elements();
+                const style = {
+                    base: {
+                        color: '#fff',
+                        fontFamily: '"Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+                        fontSmoothing: 'antialiased',
+                        fontSize: '16px',
+                        '::placeholder': {
+                            color: 'rgba(255, 255, 255, 0.4)'
+                        }
+                    },
+                    invalid: {
+                        color: '#ff6b6b',
+                        iconColor: '#ff6b6b'
+                    }
+                };
+
+                this.cardElement = elements.create('card', { 
+                    style: style,
+                    hidePostalCode: true
+                });
+            }
+
+            showStep(stepNumber) {
+                // Call parent showStep
+                document.querySelectorAll('.step').forEach(step => {
+                    step.classList.remove('active');
+                });
+                document.getElementById('step' + stepNumber).classList.add('active');
+                this.progressBar.setStep(stepNumber);
+                
+                // Special handling for payment step
+                if (stepNumber === 5) {
+                    this.setupPaymentStep();
+                }
+                
+                // Special handling for workflow execution
+                if (stepNumber === 6) {
+                    this.executeWorkflow();
+                }
+                
+                // Smooth scroll to top
+                document.querySelector('.onboarding-container').scrollIntoView({ 
+                    behavior: 'smooth', 
+                    block: 'center' 
+                });
+            }
+
+            setupPaymentStep() {
+                // Mount Stripe card element
+                if (this.cardElement && document.getElementById('card-element')) {
+                    this.cardElement.mount('#card-element');
+                    
+                    // Handle card errors
+                    this.cardElement.on('change', (event) => {
+                        const displayError = document.getElementById('card-errors');
+                        if (event.error) {
+                            displayError.textContent = event.error.message;
+                            displayError.style.display = 'block';
+                        } else {
+                            displayError.textContent = '';
+                            displayError.style.display = 'none';
+                        }
+                    });
+                }
+                
+                // Show fill test card button if in test mode
+                if (this.isTestMode) {
+                    const fillBtn = document.getElementById('fillTestCardBtn');
+                    if (fillBtn) {
+                        fillBtn.style.display = 'inline-block';
+                    }
+                }
+            }
+
+            fillTestCard() {
+                if (!this.cardElement) return;
+                
+                // Fill cardholder name
+                document.getElementById('cardName').value = 'Test User';
+                
+                // Trigger change event on card element to show test card number hint
+                const event = new CustomEvent('test-fill', { 
+                    detail: { 
+                        message: 'Use test card: 4242 4242 4242 4242, any future expiry, any CVC' 
+                    } 
+                });
+                
+                // Show a tooltip with test card info
+                const cardErrors = document.getElementById('card-errors');
+                cardErrors.style.color = '#00b7ff';
+                cardErrors.textContent = '💳 Use test card: 4242 4242 4242 4242, Exp: 12/34, CVC: 123';
+                cardErrors.style.display = 'block';
+                
+                // Clear the message after 5 seconds
+                setTimeout(() => {
+                    cardErrors.style.color = '';
+                    cardErrors.textContent = '';
+                    cardErrors.style.display = 'none';
+                }, 5000);
+            }
+
+            async processStripePayment() {
+                const cardName = document.getElementById('cardName');
+                const terms = document.getElementById('terms');
+                const submitButton = document.getElementById('submitPayment');
+                const buttonText = document.getElementById('button-text');
+                const spinner = document.getElementById('spinner');
+                
+                let isValid = true;
+
+                // Basic validation
+                if (!cardName.value) {
+                    cardName.classList.add('error');
+                    isValid = false;
+                }
+                
+                if (!terms.checked) {
+                    document.getElementById('terms-error').style.display = 'block';
+                    isValid = false;
+                }
+
+                if (!isValid) return;
+
+                // Disable button and show spinner
+                submitButton.disabled = true;
+                buttonText.textContent = 'Processing...';
+                spinner.classList.remove('hidden');
+
+                try {
+                    // Create payment method with Stripe
+                    const { error, paymentMethod } = await this.stripe.createPaymentMethod({
+                        type: 'card',
+                        card: this.cardElement,
+                        billing_details: {
+                            name: cardName.value,
+                            email: this.userData.email || ''
+                        }
+                    });
+
+                    if (error) {
+                        // Show error to customer
+                        const errorElement = document.getElementById('card-errors');
+                        errorElement.textContent = error.message;
+                        errorElement.style.display = 'block';
+                        
+                        // Re-enable button
+                        submitButton.disabled = false;
+                        buttonText.textContent = 'Start Free Trial';
+                        spinner.classList.add('hidden');
+                    } else {
+                        // Payment method created successfully
+                        console.log('Payment method created:', paymentMethod);
+                        
+                        // In a real app, you would send paymentMethod.id to your server
+                        // to create a subscription or save for later charging
+                        
+                        // Simulate successful payment
+                        buttonText.textContent = 'Success!';
+                        submitButton.classList.add('btn-success');
+                        
+                        // Store payment method ID
+                        this.paymentMethodId = paymentMethod.id;
+                        
+                        // Move to next step after a short delay
+                        setTimeout(() => {
+                            this.nextStep();
+                        }, 1000);
+                    }
+                } catch (err) {
+                    console.error('Payment error:', err);
+                    
+                    // Re-enable button
+                    submitButton.disabled = false;
+                    buttonText.textContent = 'Start Free Trial';
+                    spinner.classList.add('hidden');
+                    
+                    // Show generic error
+                    const errorElement = document.getElementById('card-errors');
+                    errorElement.textContent = 'Payment processing failed. Please try again.';
+                    errorElement.style.display = 'block';
+                }
+            }
+
+            // Keep the old processPayment method for backward compatibility
+            processPayment() {
+                this.processStripePayment();
+            }
+        }
+
+        // Initialize the application
+        const app = new OnboardingApp();
+
+        // Modal overlay click handler
+        document.getElementById('tokenModal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                app.closeTokenModal();
+            }
+        });
+
+        // Parallax effect
+        window.addEventListener('scroll', () => {
+            const scrolled = window.pageYOffset;
+            const hero = document.querySelector('.hero');
+            if (hero) {
+                hero.style.transform = `translateY(${scrolled * 0.5}px)`;
+            }
+        });
+    </script>
+</body>
 </html>

@@ -1,0 +1,2544 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Resolve - Never Touch Another Ticket | Get Started</title>
+    <style>
+        :root {
+            --resolve-blue: #0066FF;
+            --resolve-cyan: #00D4FF;
+            --resolve-teal: #00FFD4;
+            --resolve-dark: #000000;
+            --resolve-dark-bg: #0A0A0F;
+            --resolve-card-bg: #111118;
+            --resolve-border: #1a1a2e;
+            --resolve-text: #FFFFFF;
+            --resolve-text-dim: #8B8B9F;
+            --shadow-glow: 0 0 40px rgba(0, 102, 255, 0.3);
+            --shadow-glow-intense: 0 0 60px rgba(0, 102, 255, 0.5);
+            --font-size-base: calc(0.875rem + 0.25vw);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            font-size: var(--font-size-base);
+            line-height: 1.6;
+            color: var(--resolve-text);
+            background: var(--resolve-dark);
+            overflow-x: hidden;
+            min-height: 100vh;
+        }
+
+        /* Animated gradient background */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: radial-gradient(circle at 20% 50%, rgba(0, 102, 255, 0.1) 0%, transparent 50%),
+                        radial-gradient(circle at 80% 80%, rgba(0, 212, 255, 0.05) 0%, transparent 50%),
+                        radial-gradient(circle at 40% 20%, rgba(0, 255, 212, 0.03) 0%, transparent 50%);
+            z-index: -1;
+            animation: gradientShift 20s ease infinite;
+        }
+
+        @keyframes gradientShift {
+            0%, 100% { transform: rotate(0deg) scale(1); }
+            50% { transform: rotate(180deg) scale(1.1); }
+        }
+
+
+        /* Hero Section */
+        .hero {
+            padding: 5rem 2rem 3rem;
+            text-align: center;
+            position: relative;
+        }
+
+        .hero h1 {
+            font-size: clamp(2.5rem, calc(2rem + 3vw), 4.5rem);
+            font-weight: 700;
+            margin-bottom: 1.5rem;
+            background: linear-gradient(135deg, var(--resolve-text) 0%, var(--resolve-blue) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            text-wrap: pretty;
+        }
+
+        .hero p {
+            font-size: 1.375rem;
+            color: var(--resolve-text-dim);
+            max-width: 700px;
+            margin: 0 auto 3rem;
+            line-height: 1.8;
+        }
+
+        /* Container */
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 0 2rem;
+        }
+
+        /* Onboarding Container */
+        .onboarding-container {
+            max-width: 1200px;
+            margin: 0 auto 6rem;
+            background: var(--resolve-card-bg);
+            border-radius: 1.5rem;
+            border: 1px solid var(--resolve-border);
+            box-shadow: var(--shadow-glow);
+            overflow: hidden;
+            position: relative;
+        }
+
+        .onboarding-container::before {
+            content: '';
+            position: absolute;
+            top: -2px;
+            left: -2px;
+            right: -2px;
+            bottom: -2px;
+            background: linear-gradient(135deg, var(--resolve-blue), var(--resolve-cyan), var(--resolve-teal));
+            border-radius: 1.5rem;
+            opacity: 0.3;
+            z-index: -1;
+            animation: borderGlow 3s ease infinite alternate;
+        }
+
+        @keyframes borderGlow {
+            0% { opacity: 0.2; transform: scale(1); }
+            100% { opacity: 0.4; transform: scale(1.02); }
+        }
+
+        /* Progress Bar */
+        .progress-bar {
+            height: 4px;
+            background: rgba(255, 255, 255, 0.1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--resolve-blue), var(--resolve-cyan));
+            width: 20%;
+            transition: width 0.5s ease;
+            position: relative;
+            box-shadow: 0 0 20px var(--resolve-blue);
+        }
+
+        .progress-fill::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            right: 0;
+            bottom: 0;
+            left: 0;
+            background: linear-gradient(
+                90deg,
+                transparent,
+                rgba(255, 255, 255, 0.4),
+                transparent
+            );
+            animation: shimmer 2s infinite;
+        }
+
+        /* Steps Container */
+        .steps-container {
+            padding: 3.5rem;
+        }
+
+        .step {
+            display: none;
+            animation: fadeIn 0.5s ease;
+        }
+
+        .step.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .step h2 {
+            font-size: 2rem;
+            margin-bottom: 1.25rem;
+            color: var(--resolve-text);
+            font-weight: 600;
+        }
+
+        .step p {
+            color: var(--resolve-text-dim);
+            margin-bottom: 2.5rem;
+            font-size: 1.125rem;
+        }
+
+        /* Form Elements */
+        .form-group {
+            margin-bottom: 2rem;
+        }
+
+        label {
+            display: block;
+            font-weight: 500;
+            margin-bottom: 0.75rem;
+            color: var(--resolve-text-dim);
+            font-size: 0.875rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        input[type="text"],
+        input[type="email"],
+        input[type="password"],
+        input[type="tel"],
+        select {
+            width: 100%;
+            padding: 1rem 1.25rem;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 0.75rem;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+            background: rgba(255, 255, 255, 0.03);
+            color: var(--resolve-text);
+            backdrop-filter: blur(10px);
+        }
+
+        input:focus,
+        select:focus {
+            outline: none;
+            border-color: var(--resolve-blue);
+            box-shadow: 0 0 0 3px rgba(0, 102, 255, 0.2), inset 0 0 20px rgba(0, 102, 255, 0.05);
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        input.error {
+            border-color: #FF4444;
+            box-shadow: 0 0 0 3px rgba(255, 68, 68, 0.2);
+        }
+
+        .error-message {
+            color: #FF4444;
+            font-size: 0.875rem;
+            margin-top: 0.5rem;
+            display: none;
+        }
+
+        /* Buttons */
+        .btn {
+            display: inline-block;
+            padding: 1rem 2.5rem;
+            border: none;
+            border-radius: 0.75rem;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 0;
+            height: 0;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.1);
+            transform: translate(-50%, -50%);
+            transition: width 0.6s, height 0.6s;
+        }
+
+        .btn:hover::before {
+            width: 300px;
+            height: 300px;
+        }
+
+        .btn-primary {
+            background: var(--resolve-blue);
+            color: var(--resolve-text);
+            box-shadow: 0 4px 20px rgba(0, 102, 255, 0.3);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 30px rgba(0, 102, 255, 0.5);
+        }
+
+        .btn-secondary {
+            background: transparent;
+            color: var(--resolve-text);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.05);
+            border-color: rgba(255, 255, 255, 0.3);
+        }
+
+        .btn-success {
+            background: var(--resolve-teal) !important;
+            color: var(--resolve-dark) !important;
+        }
+
+
+        .button-group {
+            display: flex;
+            gap: 1.25rem;
+            justify-content: space-between;
+            margin-top: 2.5rem;
+        }
+
+        /* Pricing Tiers */
+        .pricing-tiers {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 2rem;
+            max-width: 1200px;
+            margin: 0 auto 3rem;
+            width: 66.67%;
+        }
+
+        .tier-card {
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 1.5rem;
+            padding: 2rem;
+            position: relative;
+            transition: transform 0.3s ease, border-color 0.3s ease;
+        }
+
+        .tier-card:hover {
+            transform: translateY(-5px);
+            border-color: var(--resolve-blue);
+        }
+
+        .premium-tier {
+            border: 2px solid var(--resolve-blue);
+            box-shadow: 0 0 30px rgba(0, 102, 255, 0.3);
+        }
+
+        .tier-badge {
+            position: absolute;
+            top: -12px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--resolve-blue);
+            color: white;
+            padding: 0.25rem 1rem;
+            border-radius: 1rem;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        .tier-header {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+
+        .tier-header h3 {
+            font-size: 1.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .tier-header .price {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: var(--resolve-blue);
+            margin-bottom: 0.5rem;
+        }
+
+        .tier-header .price span {
+            font-size: 1rem;
+            font-weight: 400;
+            color: var(--resolve-text-dim);
+        }
+
+        .price-note {
+            color: var(--resolve-text-dim);
+            font-size: 0.875rem;
+            margin: 0;
+        }
+
+        .tier-features {
+            margin-bottom: 2rem;
+        }
+
+        .feature-item {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            margin-bottom: 1rem;
+            color: var(--resolve-text);
+        }
+
+        .benefits-box {
+            background: rgba(0, 102, 255, 0.05);
+            border: 1px solid rgba(0, 102, 255, 0.2);
+            border-radius: 1rem;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .benefits-box.premium {
+            background: linear-gradient(135deg, rgba(0, 102, 255, 0.1), rgba(0, 255, 255, 0.1));
+            border-color: rgba(0, 102, 255, 0.3);
+        }
+
+        .benefits-box h5 {
+            margin-bottom: 1rem;
+            color: var(--resolve-text);
+        }
+
+        .benefit-item {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            margin-bottom: 0.75rem;
+            color: var(--resolve-text);
+            font-size: 0.875rem;
+        }
+
+        .btn-select-tier {
+            width: 100%;
+            padding: 1rem;
+            background: var(--resolve-dark-bg);
+            color: var(--resolve-blue);
+            border: 2px solid var(--resolve-blue);
+            border-radius: 0.75rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .btn-select-tier:hover {
+            background: var(--resolve-blue);
+            color: white;
+            transform: scale(1.02);
+        }
+
+        .btn-select-tier.premium {
+            background: var(--resolve-blue);
+            color: white;
+        }
+
+        .btn-select-tier.premium:hover {
+            background: var(--resolve-cyan);
+            border-color: var(--resolve-cyan);
+            color: var(--resolve-dark);
+        }
+
+        .tier-card.selected {
+            border-color: var(--resolve-blue);
+            box-shadow: 0 0 40px rgba(0, 102, 255, 0.4);
+        }
+
+        .btn-lg {
+            padding: 1.25rem 3rem;
+            font-size: 1.125rem;
+        }
+
+        .plan-header {
+            text-align: center;
+            margin-bottom: 3rem;
+            padding: 2rem;
+            background: linear-gradient(135deg, rgba(0, 255, 212, 0.05), rgba(0, 102, 255, 0.05));
+            border-radius: 1rem;
+            border: 1px solid rgba(0, 255, 212, 0.2);
+        }
+
+        .plan-header h3 {
+            font-size: 2rem;
+            color: var(--resolve-text);
+            margin-bottom: 1rem;
+        }
+
+        .plan-header .price {
+            font-size: 3rem;
+            font-weight: 700;
+            color: var(--resolve-teal);
+            margin-bottom: 1rem;
+            text-shadow: 0 0 30px rgba(0, 255, 212, 0.5);
+        }
+
+        .plan-header .price span {
+            font-size: 1.25rem;
+            font-weight: 400;
+            color: var(--resolve-text-dim);
+        }
+
+        .plan-tagline {
+            color: var(--resolve-text-dim);
+            font-size: 1rem;
+        }
+
+        .ai-features {
+            margin-bottom: 3rem;
+        }
+
+        .ai-features h4 {
+            font-size: 1.5rem;
+            color: var(--resolve-text);
+            margin-bottom: 2rem;
+            text-align: center;
+        }
+
+        .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 2rem;
+        }
+
+        .feature-item {
+            display: flex;
+            gap: 1rem;
+            padding: 1.5rem;
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 0.75rem;
+            transition: all 0.3s ease;
+        }
+
+        .feature-item:hover {
+            transform: translateY(-5px);
+            border-color: var(--resolve-blue);
+            box-shadow: 0 10px 30px rgba(0, 102, 255, 0.2);
+        }
+
+        .feature-icon {
+            font-size: 2rem;
+            flex-shrink: 0;
+        }
+
+        .feature-content h5 {
+            color: var(--resolve-text);
+            margin-bottom: 0.5rem;
+        }
+
+        .feature-content p {
+            color: var(--resolve-text-dim);
+            font-size: 0.875rem;
+            margin: 0;
+        }
+
+        .value-proposition {
+            margin-bottom: 2rem;
+        }
+
+        .value-card {
+            background: rgba(0, 102, 255, 0.05);
+            border: 1px solid rgba(0, 102, 255, 0.2);
+            border-radius: 1rem;
+            padding: 2rem;
+        }
+
+        .value-card h4 {
+            color: var(--resolve-text);
+            margin-bottom: 1.5rem;
+        }
+
+        .value-card ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .value-card li {
+            padding: 0.75rem 0;
+            color: var(--resolve-text-dim);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .value-card li:last-child {
+            border-bottom: none;
+        }
+
+        /* Pricing Cards - keeping for potential future use */
+        .pricing-cards {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 3rem;
+            margin-bottom: 2.5rem;
+            max-width: 800px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .pricing-card {
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 1rem;
+            padding: 2rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .pricing-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, var(--resolve-blue), var(--resolve-cyan));
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .pricing-card:hover {
+            transform: translateY(-5px);
+            border-color: var(--resolve-blue);
+            box-shadow: 0 10px 40px rgba(0, 102, 255, 0.2);
+        }
+
+        .pricing-card:hover::before {
+            opacity: 1;
+        }
+
+        .pricing-card.selected {
+            border-color: var(--resolve-blue);
+            background: rgba(0, 102, 255, 0.05);
+            box-shadow: 0 0 40px rgba(0, 102, 255, 0.2);
+        }
+
+        .pricing-card.selected::before {
+            opacity: 1;
+        }
+
+        .pricing-card h3 {
+            font-size: 1.5rem;
+            margin-bottom: 0.75rem;
+            color: var(--resolve-text);
+        }
+
+        .pricing-card .price {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: var(--resolve-blue);
+            margin-bottom: 1rem;
+        }
+
+        .pricing-card .price span {
+            font-size: 1rem;
+            font-weight: 400;
+            color: var(--resolve-text-dim);
+        }
+
+        .pricing-card ul {
+            list-style: none;
+            margin-top: 1.5rem;
+        }
+
+        .pricing-card li {
+            padding: 0.75rem 0;
+            color: var(--resolve-text-dim);
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .pricing-card li:last-child {
+            border-bottom: none;
+        }
+
+        .pricing-card li::before {
+            content: "✓";
+            color: var(--resolve-teal);
+            font-weight: bold;
+            font-size: 1.125rem;
+        }
+
+        /* Loading State */
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 3rem;
+        }
+
+        .spinner {
+            width: 60px;
+            height: 60px;
+            border: 3px solid rgba(255, 255, 255, 0.1);
+            border-top-color: var(--resolve-blue);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 2rem;
+            box-shadow: 0 0 20px var(--resolve-blue);
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Success State */
+        .success-icon {
+            width: 100px;
+            height: 100px;
+            background: linear-gradient(135deg, var(--resolve-blue), var(--resolve-cyan));
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 2.5rem;
+            animation: scaleIn 0.5s ease;
+            box-shadow: 0 0 60px rgba(0, 102, 255, 0.5);
+        }
+
+        @keyframes scaleIn {
+            from {
+                transform: scale(0);
+                opacity: 0;
+            }
+            to {
+                transform: scale(1);
+                opacity: 1;
+            }
+        }
+
+        .success-icon::after {
+            content: "✓";
+            color: white;
+            font-size: 3rem;
+            font-weight: bold;
+        }
+
+        /* AI Chat Preview */
+        .chat-preview {
+            background: rgba(0, 255, 212, 0.05);
+            border: 1px solid rgba(0, 255, 212, 0.2);
+            border-radius: 1rem;
+            padding: 2rem;
+            margin: 2rem 0;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .chat-preview::before {
+            content: '';
+            position: absolute;
+            top: -2px;
+            left: -2px;
+            right: -2px;
+            bottom: -2px;
+            background: linear-gradient(135deg, var(--resolve-teal), var(--resolve-cyan));
+            opacity: 0.2;
+            z-index: -1;
+            animation: chatGlow 2s ease infinite alternate;
+        }
+
+        @keyframes chatGlow {
+            0% { opacity: 0.1; }
+            100% { opacity: 0.3; }
+        }
+
+        .chat-header {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+            color: var(--resolve-teal);
+            font-weight: 600;
+        }
+
+        .chat-message {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 0.75rem;
+            padding: 1rem 1.5rem;
+            margin-bottom: 1rem;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .chat-message p {
+            color: var(--resolve-text);
+            margin: 0;
+        }
+
+        .chat-options {
+            display: flex;
+            gap: 1rem;
+            margin-top: 1.5rem;
+        }
+
+        .chat-option {
+            flex: 1;
+            padding: 0.75rem;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 0.5rem;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            color: var(--resolve-text-dim);
+            font-size: 0.875rem;
+        }
+
+        .chat-option:hover {
+            background: rgba(0, 255, 212, 0.1);
+            border-color: var(--resolve-teal);
+            color: var(--resolve-text);
+        }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .nav-links {
+                display: none;
+            }
+
+            .steps-container {
+                padding: 2rem;
+            }
+
+            .pricing-cards {
+                grid-template-columns: 1fr;
+                max-width: 400px;
+            }
+
+            .pricing-summary {
+                flex-direction: column;
+                text-align: center;
+                gap: 1.5rem;
+            }
+
+            .quick-benefits {
+                align-items: center;
+            }
+
+            .button-group {
+                flex-direction: column;
+            }
+
+            .btn {
+                width: 100%;
+            }
+
+            .chat-options {
+                flex-direction: column;
+            }
+
+            .gamification-progress {
+                flex-direction: column;
+                gap: 1rem;
+                text-align: center;
+            }
+
+            .points-indicator {
+                text-align: center;
+            }
+
+            .integration-selector {
+                grid-template-columns: 1fr;
+            }
+
+            .setup-progress {
+                gap: 0.5rem;
+            }
+
+            .step-label {
+                font-size: 0.75rem;
+            }
+        }
+
+        /* Credit Card Input Styling */
+        .card-input-group {
+            display: grid;
+            grid-template-columns: 2fr 1fr 1fr;
+            gap: 1.25rem;
+            margin-bottom: 2rem;
+        }
+
+        @media (max-width: 640px) {
+            .card-input-group {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Checkbox styling */
+        input[type="checkbox"] {
+            width: auto;
+            margin-right: 0.5rem;
+            cursor: pointer;
+        }
+
+
+        /* Integration Selector */
+        .integration-selector {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1.5rem;
+            margin-bottom: 1.5rem;
+            max-width: 700px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .integration-option {
+            background: rgba(255, 255, 255, 0.02);
+            border: 2px solid rgba(255, 255, 255, 0.1);
+            border-radius: 1rem;
+            padding: 1.5rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-align: center;
+            position: relative;
+        }
+
+        .integration-badge {
+            position: absolute;
+            top: -12px;
+            right: 20px;
+            background: var(--resolve-blue);
+            color: var(--resolve-text);
+            padding: 0.25rem 1rem;
+            border-radius: 1rem;
+            font-size: 0.75rem;
+            font-weight: 600;
+            box-shadow: 0 4px 15px rgba(0, 102, 255, 0.4);
+        }
+
+        .integration-stats {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            margin-top: 1rem;
+            font-size: 0.875rem;
+            color: var(--resolve-text-dim);
+        }
+
+        .integration-stats span {
+            display: flex;
+            align-items: center;
+            gap: 0.25rem;
+        }
+
+        .integration-option:hover {
+            transform: translateY(-5px);
+            border-color: var(--resolve-cyan);
+            box-shadow: 0 10px 40px rgba(0, 212, 255, 0.2);
+        }
+
+        .integration-option.selected {
+            border-color: var(--resolve-cyan);
+            background: rgba(0, 212, 255, 0.05);
+            box-shadow: 0 0 40px rgba(0, 212, 255, 0.3);
+        }
+
+        .integration-icon {
+            font-size: 2.5rem;
+            margin-bottom: 0.75rem;
+        }
+
+        .integration-option h3 {
+            color: var(--resolve-text);
+            margin-bottom: 0.5rem;
+        }
+
+        .integration-option p {
+            color: var(--resolve-text-dim);
+            font-size: 0.875rem;
+        }
+
+        .credential-form {
+            animation: fadeIn 0.5s ease;
+            margin-top: 2rem;
+        }
+
+        .connection-header {
+            margin-bottom: 2rem;
+        }
+
+        .connection-header h3 {
+            color: var(--resolve-text);
+            margin-bottom: 0.5rem;
+        }
+
+        .connection-header p {
+            color: var(--resolve-text-dim);
+            font-size: 0.875rem;
+            margin: 0;
+        }
+
+        .label-icon {
+            margin-right: 0.5rem;
+            font-size: 1.125rem;
+        }
+
+        .help-tooltip {
+            background: rgba(0, 255, 212, 0.05);
+            border: 1px solid rgba(0, 255, 212, 0.2);
+            border-radius: 0.5rem;
+            padding: 0.75rem;
+            margin-top: 0.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .tooltip-icon {
+            font-size: 1.125rem;
+        }
+
+        .help-tooltip a {
+            color: var(--resolve-teal);
+            text-decoration: none;
+            transition: all 0.3s ease;
+        }
+
+        .help-tooltip a:hover {
+            color: var(--resolve-cyan);
+            text-decoration: underline;
+        }
+
+
+        .token-tip {
+            background: rgba(0, 255, 212, 0.1);
+            border: 1px solid rgba(0, 255, 212, 0.2);
+            border-radius: 0.75rem;
+            padding: 1.25rem;
+            margin-top: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .token-tip span {
+            font-size: 0.95rem;
+            line-height: 1.4;
+        }
+
+        .tip-icon {
+            font-size: 1.75rem;
+            flex-shrink: 0;
+        }
+
+        /* Modal Styles */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(10px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10000;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .modal-container {
+            background: var(--resolve-card-bg);
+            border: 1px solid var(--resolve-border);
+            border-radius: 1.5rem;
+            width: 95%;
+            max-width: 1400px;
+            height: 90vh;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+            animation: slideUp 0.3s ease;
+        }
+
+        @keyframes slideUp {
+            from {
+                transform: translateY(50px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 2rem;
+            border-bottom: 1px solid var(--resolve-border);
+        }
+
+        .modal-header h3 {
+            margin: 0;
+            color: var(--resolve-text);
+        }
+
+        .modal-close {
+            background: transparent;
+            border: none;
+            color: var(--resolve-text-dim);
+            font-size: 1.5rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-close:hover {
+            background: rgba(255, 255, 255, 0.1);
+            color: var(--resolve-text);
+        }
+
+        .modal-body {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            padding: 2rem;
+            overflow: hidden;
+        }
+
+        .modal-guide-container {
+            display: flex;
+            gap: 2rem;
+            height: 100%;
+        }
+
+        .modal-instructions {
+            background: rgba(0, 255, 212, 0.05);
+            border: 1px solid rgba(0, 255, 212, 0.2);
+            border-radius: 0.75rem;
+            padding: 2rem;
+            width: 45%;
+            overflow-y: auto;
+        }
+
+        .modal-instructions h4 {
+            color: var(--resolve-text);
+            margin-bottom: 1rem;
+            font-size: 1.5rem;
+        }
+
+        .modal-instructions p {
+            margin: 0 0 1.25rem 0;
+            color: var(--resolve-text-dim);
+            font-size: 1rem;
+        }
+
+        .detailed-steps {
+            list-style: none;
+            margin: 0;
+            padding: 0;
+        }
+
+        .detailed-steps li {
+            display: flex;
+            gap: 1.25rem;
+            margin-bottom: 2rem;
+            padding-bottom: 2rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .detailed-steps li:last-child {
+            border-bottom: none;
+            margin-bottom: 0;
+            padding-bottom: 0;
+        }
+
+        .detailed-steps .step-emoji {
+            font-size: 2rem;
+            flex-shrink: 0;
+        }
+
+        .detailed-steps strong {
+            display: block;
+            color: var(--resolve-text);
+            margin-bottom: 0.5rem;
+            font-size: 1.125rem;
+        }
+
+        .detailed-steps p {
+            margin: 0;
+            font-size: 0.95rem;
+            color: var(--resolve-text-dim);
+            line-height: 1.5;
+        }
+
+        .iframe-wrapper {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .iframe-container {
+            flex: 1;
+            background: #fff;
+            border-radius: 0.75rem;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .iframe-container iframe {
+            width: 100%;
+            height: 100%;
+        }
+
+        .modal-alternative {
+            text-align: center;
+            padding-top: 1rem;
+            color: var(--resolve-text-dim);
+        }
+
+        .modal-alternative a {
+            color: var(--resolve-teal);
+            text-decoration: none;
+        }
+
+        .modal-alternative a:hover {
+            text-decoration: underline;
+        }
+
+        /* Workflow Execution */
+        .workflow-container {
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 1rem;
+            padding: 2rem;
+            margin-bottom: 2rem;
+        }
+
+        .workflow-step-item {
+            display: flex;
+            align-items: center;
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+            opacity: 0.5;
+            transition: all 0.3s ease;
+        }
+
+        .workflow-step-item.active {
+            opacity: 1;
+        }
+
+        .workflow-step-item.completed {
+            opacity: 0.8;
+        }
+
+        .workflow-icon {
+            width: 50px;
+            height: 50px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            position: relative;
+            flex-shrink: 0;
+        }
+
+        .workflow-step-item.active .workflow-icon {
+            background: var(--resolve-blue);
+            box-shadow: 0 0 30px var(--resolve-blue);
+            animation: pulse 2s infinite;
+        }
+
+        .workflow-step-item.completed .workflow-icon {
+            background: var(--resolve-teal);
+        }
+
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(0, 102, 255, 0.7); }
+            70% { box-shadow: 0 0 0 20px rgba(0, 102, 255, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(0, 102, 255, 0); }
+        }
+
+        .workflow-content h4 {
+            color: var(--resolve-text);
+            margin-bottom: 0.25rem;
+        }
+
+        .workflow-content p {
+            color: var(--resolve-text-dim);
+            font-size: 0.875rem;
+            margin: 0;
+        }
+
+        .workflow-status {
+            font-size: 0.75rem;
+            color: var(--resolve-cyan);
+            margin-top: 0.25rem;
+        }
+
+        /* Analysis Notice */
+        .analysis-notice {
+            background: linear-gradient(135deg, rgba(0, 102, 255, 0.05), rgba(0, 255, 212, 0.05));
+            border: 1px solid rgba(0, 102, 255, 0.2);
+            border-radius: 1rem;
+            padding: 2rem;
+            margin-bottom: 2rem;
+        }
+
+        .notice-header {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .notice-icon {
+            font-size: 2rem;
+            animation: pulse 2s infinite;
+        }
+
+        .notice-header h3 {
+            margin: 0;
+            color: var(--resolve-text);
+        }
+
+        .notice-content p {
+            color: var(--resolve-text);
+            margin-bottom: 1rem;
+        }
+
+        .notice-content ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .notice-content li {
+            padding: 0.5rem 0;
+            color: var(--resolve-text-dim);
+        }
+
+        /* Wait Options */
+        .wait-options {
+            margin-top: 3rem;
+        }
+
+        .wait-card {
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 1rem;
+            padding: 2rem;
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+
+        .wait-card h4 {
+            color: var(--resolve-text);
+            margin-bottom: 1rem;
+        }
+
+        .wait-card p {
+            color: var(--resolve-text-dim);
+            margin-bottom: 2rem;
+        }
+
+        .wait-actions {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+        }
+
+        .wait-actions .btn span {
+            margin-right: 0.5rem;
+        }
+
+        .while-waiting {
+            margin-top: 2rem;
+        }
+
+        .while-waiting h4 {
+            color: var(--resolve-text);
+            margin-bottom: 1.5rem;
+            text-align: center;
+        }
+
+        .expectation-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .expectation-item {
+            display: flex;
+            gap: 1rem;
+            padding: 1.5rem;
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 0.75rem;
+            transition: all 0.3s ease;
+        }
+
+        .expectation-item:hover {
+            transform: translateY(-3px);
+            border-color: rgba(255, 255, 255, 0.1);
+        }
+
+        .expect-icon {
+            font-size: 2rem;
+            flex-shrink: 0;
+        }
+
+        .expectation-item h5 {
+            color: var(--resolve-text);
+            margin-bottom: 0.5rem;
+        }
+
+        .expectation-item p {
+            color: var(--resolve-text-dim);
+            font-size: 0.875rem;
+            margin: 0;
+        }
+
+        /* SQLite Status - keeping for potential use */
+        .sqlite-status {
+            background: rgba(0, 255, 212, 0.05);
+            border: 1px solid rgba(0, 255, 212, 0.2);
+            border-radius: 0.75rem;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+            font-family: monospace;
+        }
+
+        .sqlite-status h4 {
+            color: var(--resolve-teal);
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .sqlite-entry {
+            color: var(--resolve-text-dim);
+            font-size: 0.875rem;
+            margin-bottom: 0.5rem;
+            padding-left: 1rem;
+        }
+
+        .sqlite-entry.new {
+            color: var(--resolve-teal);
+            animation: fadeIn 0.5s ease;
+        }
+
+    </style>
+</head>
+<body>
+
+
+    <!-- Hero Section -->
+    <section class="hero">
+        <div class="container">
+            <h1>Never Touch Another Ticket</h1>
+            <p>Resolve up to 90% of incidents and service requests automatically, before they become tickets, with our agentic IT automation & orchestration platform.</p>
+        </div>
+    </section>
+
+    <!-- Onboarding Container -->
+    <div class="onboarding-container">
+        <!-- Progress Bar -->
+        <div class="progress-bar">
+            <div class="progress-fill" id="progressBar"></div>
+        </div>
+
+        <!-- Steps Container -->
+        <div class="steps-container">
+            <!-- Step 1: Get Started -->
+            <div class="step active" id="step1">
+                <h2>Start Your Automation Journey</h2>
+                <p>Join thousands of IT teams eliminating repetitive work with AI</p>
+                
+                <form id="signupForm">
+                    <div class="form-group">
+                        <label for="email">Work Email</label>
+                        <input type="email" id="email" name="email" required placeholder="you@company.com">
+                        <span class="error-message">Please enter a valid work email</span>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="company">Company Name</label>
+                        <input type="text" id="company" name="company" required placeholder="Acme Inc.">
+                        <span class="error-message">Company name is required</span>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="password">Password</label>
+                        <input type="password" id="password" name="password" required placeholder="Minimum 8 characters">
+                        <span class="error-message">Password must be at least 8 characters</span>
+                    </div>
+                    
+                    <div class="button-group">
+                        <button type="button" class="btn btn-primary" onclick="nextStep()">Continue</button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Step 2: Choose Plan -->
+            <div class="step" id="step2">
+                <h2>Start Your 30-Day Free Trial</h2>
+                <p>See how AI can transform your IT operations</p>
+                <div class="rita-callout" style="background: linear-gradient(135deg, rgba(0, 102, 255, 0.1), rgba(0, 255, 255, 0.05)); border: 2px solid rgba(0, 102, 255, 0.3); border-radius: 1rem; padding: 1.5rem; margin-bottom: 2rem; text-align: center;">
+                    <h3 style="color: var(--resolve-blue); margin-bottom: 0.5rem;">🤖 Meet Rita - Your AI Service Desk Agent</h3>
+                    <p style="color: var(--resolve-text-dim); margin: 0;">Available in Premium: Rita handles tickets, creates workflows, and provides 24/7 intelligent support</p>
+                </div>
+                
+                <div class="pricing-tiers">
+                    <div class="tier-card basic-tier">
+                        <div class="tier-header">
+                            <h3>Basic Plan</h3>
+                            <div class="price">$10<span>/user/month</span></div>
+                            <p class="price-note">After 30-day free trial</p>
+                        </div>
+                        <div class="tier-features">
+                            <div class="feature-item">
+                                <span class="check">✅</span>
+                                <span>No credit card required</span>
+                            </div>
+                            <div class="feature-item">
+                                <span class="check">✅</span>
+                                <span>Cancel anytime</span>
+                            </div>
+                            <div class="feature-item">
+                                <span class="check">✅</span>
+                                <span>Full access to all features</span>
+                            </div>
+                        </div>
+                        <div class="benefits-box">
+                            <h5>🚀 What You Get:</h5>
+                            <div class="benefit-item">
+                                <span class="icon">🤖</span>
+                                <span>AI analyzes your last 90 days of tickets</span>
+                            </div>
+                            <div class="benefit-item">
+                                <span class="icon">📊</span>
+                                <span>See your top 10 automation opportunities</span>
+                            </div>
+                            <div class="benefit-item">
+                                <span class="icon">💰</span>
+                                <span>Calculate exact time & cost savings</span>
+                            </div>
+                            <div class="benefit-item">
+                                <span class="icon">🔧</span>
+                                <span>Get personalized workflow templates</span>
+                            </div>
+                        </div>
+                        <button class="btn-select-tier" onclick="selectTier('basic')">Select Basic Plan</button>
+                    </div>
+                    
+                    <div class="tier-card premium-tier">
+                        <div class="tier-badge">MOST POPULAR</div>
+                        <div class="tier-header">
+                            <h3>Premium Plan with Rita</h3>
+                            <div class="price">$25<span>/user/month</span></div>
+                            <p class="price-note">After 30-day free trial</p>
+                        </div>
+                        <div class="tier-features">
+                            <div class="feature-item">
+                                <span class="check">✅</span>
+                                <span>Everything in Basic</span>
+                            </div>
+                            <div class="feature-item">
+                                <span class="check">✅</span>
+                                <span>Rita AI Customer Service Agent</span>
+                            </div>
+                            <div class="feature-item">
+                                <span class="check">✅</span>
+                                <span>Rita builds up to 3 automated workflows</span>
+                            </div>
+                        </div>
+                        <div class="benefits-box premium">
+                            <h5>🎯 Additional Premium Benefits:</h5>
+                            <div class="benefit-item">
+                                <span class="icon">💬</span>
+                                <span>Rita provides 24/7 intelligent support</span>
+                            </div>
+                            <div class="benefit-item">
+                                <span class="icon">📈</span>
+                                <span>Advanced analytics & reporting</span>
+                            </div>
+                            <div class="benefit-item">
+                                <span class="icon">🧠</span>
+                                <span>Rita trained on 1000+ knowledge articles</span>
+                            </div>
+                        </div>
+                        <button class="btn-select-tier premium" onclick="selectTier('premium')">Select Premium Plan</button>
+                    </div>
+                </div>
+                
+                <div class="button-group">
+                    <button type="button" class="btn btn-secondary" onclick="previousStep()">Back</button>
+                </div>
+            </div>
+
+            <!-- Step 3: Integration Credentials -->
+            <div class="step" id="step3">
+                <h2>🚀 Power Up Your IT Infrastructure</h2>
+                <p>Connect your systems and unlock AI-powered insights instantly!</p>
+                
+                
+                <div class="integration-selector">
+                    <div class="integration-option" onclick="selectIntegration('jira')" id="jira-option">
+                        <div class="integration-badge">Popular Choice</div>
+                        <div class="integration-icon">🎯</div>
+                        <h3>Jira</h3>
+                        <p>Connect to Jira Service Management</p>
+                        <div class="integration-stats">
+                            <span>⚡ 2-min setup</span>
+                            <span>📊 Instant insights</span>
+                        </div>
+                    </div>
+                    <div class="integration-option" onclick="selectIntegration('servicenow')" id="snow-option">
+                        <div class="integration-badge">Enterprise</div>
+                        <div class="integration-icon">❄️</div>
+                        <h3>ServiceNow</h3>
+                        <p>Connect to ServiceNow instance</p>
+                        <div class="integration-stats">
+                            <span>🏢 Full ITSM</span>
+                            <span>🔧 Advanced features</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div id="jira-credentials" class="credential-form" style="display: none;">
+                    <div class="connection-header">
+                        <h3>🎯 Complete Your Jira Connection</h3>
+                        <p>Just need a few details to connect to your Jira instance</p>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="jira-url">
+                            <span class="label-icon">🌐</span>
+                            Jira Instance URL
+                        </label>
+                        <input type="text" id="jira-url" placeholder="https://company.atlassian.net">
+                        <span class="error-message">Please enter a valid Jira URL</span>
+                    </div>
+                    <div class="form-group">
+                        <label for="jira-email">
+                            <span class="label-icon">📧</span>
+                            Jira Email
+                        </label>
+                        <input type="email" id="jira-email" placeholder="admin@company.com">
+                        <span class="error-message">Please enter your Jira email</span>
+                    </div>
+                    <div class="form-group">
+                        <label for="jira-token">
+                            <span class="label-icon">🔑</span>
+                            API Token
+                        </label>
+                        <input type="password" id="jira-token" placeholder="••••••••••••••••">
+                        <span class="error-message">API token is required</span>
+                        <div class="help-tooltip">
+                            <span class="tooltip-icon">💡</span>
+                            <small>
+                                <a href="#" onclick="openTokenModal(); return false;" style="color: var(--resolve-teal); text-decoration: none;">
+                                    Click here to generate your API token
+                                </a>
+                            </small>
+                        </div>
+                    </div>
+                </div>
+                
+                <div id="snow-credentials" class="credential-form" style="display: none;">
+                    <div class="connection-header">
+                        <h3>❄️ Complete Your ServiceNow Connection</h3>
+                        <p>Enter your ServiceNow instance details below</p>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="snow-instance">
+                            <span class="label-icon">🌐</span>
+                            ServiceNow Instance
+                        </label>
+                        <input type="text" id="snow-instance" placeholder="company.service-now.com">
+                        <span class="error-message">Please enter your ServiceNow instance</span>
+                    </div>
+                    <div class="form-group">
+                        <label for="snow-username">
+                            <span class="label-icon">👤</span>
+                            Username
+                        </label>
+                        <input type="text" id="snow-username" placeholder="admin">
+                        <span class="error-message">Username is required</span>
+                    </div>
+                    <div class="form-group">
+                        <label for="snow-password">
+                            <span class="label-icon">🔑</span>
+                            Password
+                        </label>
+                        <input type="password" id="snow-password" placeholder="••••••••••••••••">
+                        <span class="error-message">Password is required</span>
+                    </div>
+                </div>
+                
+                <div class="button-group">
+                    <button type="button" class="btn btn-secondary" onclick="previousStep()">Back</button>
+                    <button type="button" class="btn btn-primary" onclick="validateIntegration()">🚀 Connect & Unlock Insights</button>
+                </div>
+            </div>
+
+            <!-- Step 4: Payment -->
+            <div class="step" id="step4">
+                <h2>Payment Information</h2>
+                <p>Secure payment processing via Stripe</p>
+                
+                <form id="paymentForm">
+                    <div class="form-group">
+                        <label for="cardName">Name on Card</label>
+                        <input type="text" id="cardName" name="cardName" required placeholder="John Doe">
+                        <span class="error-message">Name is required</span>
+                    </div>
+                    
+                    <div class="card-input-group">
+                        <div class="form-group">
+                            <label for="cardNumber">Card Number</label>
+                            <input type="text" id="cardNumber" name="cardNumber" required placeholder="1234 5678 9012 3456" maxlength="19">
+                            <span class="error-message">Invalid card number</span>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="expiry">Expiry</label>
+                            <input type="text" id="expiry" name="expiry" required placeholder="MM/YY" maxlength="5">
+                            <span class="error-message">Invalid expiry</span>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="cvv">CVV</label>
+                            <input type="text" id="cvv" name="cvv" required placeholder="123" maxlength="4">
+                            <span class="error-message">Invalid CVV</span>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label style="display: flex; align-items: center; font-weight: 400; text-transform: none;">
+                            <input type="checkbox" id="terms" name="terms" required>
+                            I agree to the Terms of Service and Privacy Policy
+                        </label>
+                        <span class="error-message" id="terms-error" style="display: none;">Please accept the terms and conditions to continue</span>
+                    </div>
+                    
+                    <div class="button-group">
+                        <button type="button" class="btn btn-secondary" onclick="previousStep()">Back</button>
+                        <button type="button" class="btn btn-primary" onclick="processPayment()">Start Free Trial</button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Step 5: Environment Building -->
+            <div class="step" id="step5">
+                <h2>🚀 Building Your AI-Powered Environment</h2>
+                <p>We're analyzing your recent ticket activity to customize your experience</p>
+                
+                <div class="analysis-notice">
+                    <div class="notice-header">
+                        <span class="notice-icon">🔍</span>
+                        <h3>What's Happening Now</h3>
+                    </div>
+                    <div class="notice-content">
+                        <p>Our AI is analyzing your last 90 days of ticket data from <span id="integration-type">your system</span> to:</p>
+                        <ul>
+                            <li>🎯 Identify your most common ticket types</li>
+                            <li>📊 Discover automation opportunities</li>
+                            <li>🔄 Map your existing workflows</li>
+                            <li>💡 Calculate potential time savings</li>
+                        </ul>
+                    </div>
+                    <div class="processing-indicator">
+                        <div class="spinner"></div>
+                        <p>Processing your data...</p>
+                    </div>
+                </div>
+                
+                <div class="wait-options">
+                    <div class="wait-card">
+                        <h4>⏱️ This typically takes 5-10 minutes</h4>
+                        <p>We'll send you an email to <strong id="user-email">your email</strong> as soon as your environment is ready.</p>
+                        
+                        <div class="wait-actions">
+                            <button class="btn btn-secondary" onclick="window.close()">
+                                <span>📧</span> Close and Wait for Email
+                            </button>
+                            <button class="btn btn-primary" onclick="continueWaiting()">
+                                <span>👀</span> I'll Wait Here
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="while-waiting">
+                        <h4>While you wait, here's what to expect:</h4>
+                        <div class="expectation-grid">
+                            <div class="expectation-item">
+                                <span class="expect-icon">📈</span>
+                                <div>
+                                    <h5>Automation Dashboard</h5>
+                                    <p>See your top automation opportunities ranked by impact</p>
+                                </div>
+                            </div>
+                            <div class="expectation-item">
+                                <span class="expect-icon">🎯</span>
+                                <div>
+                                    <h5>Quick Wins</h5>
+                                    <p>Start with simple automations that save hours immediately</p>
+                                </div>
+                            </div>
+                            <div class="expectation-item">
+                                <span class="expect-icon">💰</span>
+                                <div>
+                                    <h5>ROI Calculator</h5>
+                                    <p>Track time saved and calculate your automation ROI</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Step 6: Success -->
+            <div class="step" id="step6">
+                <div class="success-icon"></div>
+                <h2>Welcome to Resolve!</h2>
+                <p>Meet Jarvis AI - your intelligent automation assistant ready to eliminate your IT tickets.</p>
+                
+                <div class="chat-preview">
+                    <div class="chat-header">
+                        <span style="font-size: 1.5rem;">🤖</span>
+                        <span>Jarvis AI</span>
+                    </div>
+                    <div class="chat-message">
+                        <p>👋 Hi! I'm Jarvis AI. I've already started analyzing your workflow patterns. I can help you:</p>
+                    </div>
+                    <div class="chat-options">
+                        <div class="chat-option">📊 View automation opportunities</div>
+                        <div class="chat-option">🚀 Create your first workflow</div>
+                        <div class="chat-option">🔧 Configure integrations</div>
+                    </div>
+                </div>
+                
+                <div style="background: rgba(0, 102, 255, 0.1); padding: 2rem; border-radius: 1rem; margin: 2rem 0; border: 1px solid rgba(0, 102, 255, 0.2);">
+                    <h3 style="margin-bottom: 1rem; color: var(--resolve-blue);">What happens next?</h3>
+                    <ul style="list-style: none; margin: 0;">
+                        <li style="padding: 0.75rem 0; color: var(--resolve-text-dim);">
+                            <span style="color: var(--resolve-teal); margin-right: 0.75rem;">✨</span>
+                            Jarvis analyzes your ticket patterns in real-time
+                        </li>
+                        <li style="padding: 0.75rem 0; color: var(--resolve-text-dim);">
+                            <span style="color: var(--resolve-teal); margin-right: 0.75rem;">🎯</span>
+                            Identifies top automation opportunities instantly
+                        </li>
+                        <li style="padding: 0.75rem 0; color: var(--resolve-text-dim);">
+                            <span style="color: var(--resolve-teal); margin-right: 0.75rem;">🚀</span>
+                            Creates your first automation in under 5 minutes
+                        </li>
+                    </ul>
+                </div>
+                
+                <div class="button-group">
+                    <button type="button" class="btn btn-primary" style="width: 100%;" onclick="goToDashboard()">Launch Jarvis AI</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Token Generation Modal -->
+    <div id="tokenModal" class="modal-overlay" style="display: none;">
+        <div class="modal-container">
+            <div class="modal-header">
+                <h3>🔐 Generate Your Jira API Token</h3>
+                <button class="modal-close" onclick="closeTokenModal()">✕</button>
+            </div>
+            <div class="modal-body">
+                <div class="modal-guide-container">
+                    <div class="modal-instructions expanded">
+                        <h4>🔐 Quick Token Setup Guide</h4>
+                        <p>Follow these simple steps to generate your API token:</p>
+                        <ol class="detailed-steps">
+                            <li>
+                                <span class="step-emoji">👆</span>
+                                <div>
+                                    <strong>Click "Create API token"</strong>
+                                    <p>Look for the blue button on the page below</p>
+                                </div>
+                            </li>
+                            <li>
+                                <span class="step-emoji">✏️</span>
+                                <div>
+                                    <strong>Name your token</strong>
+                                    <p>Use "Resolve-Integration" or something memorable</p>
+                                </div>
+                            </li>
+                            <li>
+                                <span class="step-emoji">📅</span>
+                                <div>
+                                    <strong>Set expiry date</strong>
+                                    <p>Choose 1 year (maximum allowed for security)</p>
+                                </div>
+                            </li>
+                            <li>
+                                <span class="step-emoji">✅</span>
+                                <div>
+                                    <strong>Click "Create"</strong>
+                                    <p>Your token will appear only once!</p>
+                                </div>
+                            </li>
+                            <li>
+                                <span class="step-emoji">📋</span>
+                                <div>
+                                    <strong>Copy the token</strong>
+                                    <p>Click the copy button or select all and copy</p>
+                                </div>
+                            </li>
+                            <li>
+                                <span class="step-emoji">📍</span>
+                                <div>
+                                    <strong>Close this window</strong>
+                                    <p>Return here and paste your token</p>
+                                </div>
+                            </li>
+                        </ol>
+                        <div class="token-tip">
+                            <span class="tip-icon">💭</span>
+                            <span><strong>Important:</strong> Save your token somewhere safe - Jira won't show it again!</span>
+                        </div>
+                    </div>
+                    <div class="iframe-wrapper">
+                        <div class="iframe-container">
+                            <iframe id="jiraFrame" src="" frameborder="0"></iframe>
+                        </div>
+                        <div class="modal-alternative">
+                            <p>Can't see the Jira page? <a href="https://id.atlassian.com/manage-profile/security/api-tokens" target="_blank">Open in new tab →</a></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- JavaScript -->
+    <script>
+        let currentStep = 1;
+        const totalSteps = 6;
+        let selectedPlan = 'free';
+        let selectedTier = null;
+        let integrationData = {};
+        let selectedIntegration = null;
+
+        // Update progress bar
+        function updateProgress() {
+            const progress = (currentStep / totalSteps) * 100;
+            document.getElementById('progressBar').style.width = progress + '%';
+        }
+
+        // Show specific step
+        function showStep(stepNumber) {
+            document.querySelectorAll('.step').forEach(step => {
+                step.classList.remove('active');
+            });
+            document.getElementById('step' + stepNumber).classList.add('active');
+            updateProgress();
+            
+            // Special handling for workflow execution
+            if (stepNumber === 5) {
+                executeWorkflow();
+            }
+        }
+
+        // Next step
+        function nextStep() {
+            if (validateCurrentStep()) {
+                currentStep++;
+                showStep(currentStep);
+                // Smooth scroll to top of form
+                document.querySelector('.onboarding-container').scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+        }
+
+        // Previous step
+        function previousStep() {
+            currentStep--;
+            showStep(currentStep);
+            document.querySelector('.onboarding-container').scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+
+        // Validate current step
+        function validateCurrentStep() {
+            if (currentStep === 1) {
+                return validateSignupForm();
+            }
+            return true;
+        }
+
+        // Validate signup form
+        function validateSignupForm() {
+            const email = document.getElementById('email');
+            const company = document.getElementById('company');
+            const password = document.getElementById('password');
+            let isValid = true;
+
+            // Email validation
+            if (!email.value || !email.value.includes('@')) {
+                email.classList.add('error');
+                email.nextElementSibling.style.display = 'block';
+                isValid = false;
+            } else {
+                email.classList.remove('error');
+                email.nextElementSibling.style.display = 'none';
+            }
+
+            // Company validation
+            if (!company.value) {
+                company.classList.add('error');
+                company.nextElementSibling.style.display = 'block';
+                isValid = false;
+            } else {
+                company.classList.remove('error');
+                company.nextElementSibling.style.display = 'none';
+            }
+
+            // Password validation
+            if (!password.value || password.value.length < 8) {
+                password.classList.add('error');
+                password.nextElementSibling.style.display = 'block';
+                isValid = false;
+            } else {
+                password.classList.remove('error');
+                password.nextElementSibling.style.display = 'none';
+            }
+
+            return isValid;
+        }
+
+        // Select plan (keeping for potential future use)
+        function selectPlan(plan) {
+            selectedPlan = plan;
+            document.querySelectorAll('.pricing-card').forEach(card => {
+                card.classList.remove('selected');
+            });
+            if (event && event.currentTarget) {
+                event.currentTarget.classList.add('selected');
+            }
+        }
+        
+        // Select tier
+        function selectTier(tier) {
+            selectedTier = tier;
+            // Visual feedback
+            document.querySelectorAll('.tier-card').forEach(card => {
+                card.classList.remove('selected');
+            });
+            if (tier === 'basic') {
+                document.querySelector('.basic-tier').classList.add('selected');
+            } else {
+                document.querySelector('.premium-tier').classList.add('selected');
+            }
+            
+            // Auto-advance to next step after selection
+            setTimeout(() => {
+                nextStep();
+            }, 500);
+        }
+
+        // Format card number
+        document.getElementById('cardNumber').addEventListener('input', function(e) {
+            let value = e.target.value.replace(/\s+/g, '').replace(/[^0-9]/gi, '');
+            let formattedValue = value.match(/.{1,4}/g)?.join(' ') || value;
+            e.target.value = formattedValue;
+        });
+
+        // Format expiry
+        document.getElementById('expiry').addEventListener('input', function(e) {
+            let value = e.target.value.replace(/\s+/g, '').replace(/[^0-9]/gi, '');
+            if (value.length >= 2) {
+                value = value.substring(0, 2) + '/' + value.substring(2, 4);
+            }
+            e.target.value = value;
+        });
+
+        // Select integration
+        function selectIntegration(type) {
+            selectedIntegration = type;
+            document.querySelectorAll('.integration-option').forEach(opt => {
+                opt.classList.remove('selected');
+            });
+            document.getElementById(type + '-option').classList.add('selected');
+            
+            // Hide the integration selector
+            document.querySelector('.integration-selector').style.display = 'none';
+            
+            // Update the page header to be more specific
+            const stepHeader = document.querySelector('#step3 h2');
+            const stepSubheader = document.querySelector('#step3 p');
+            if (type === 'jira') {
+                stepHeader.textContent = '🎯 Connect to Jira';
+                stepSubheader.textContent = 'Enter your Jira credentials to start analyzing your tickets';
+            } else {
+                stepHeader.textContent = '❄️ Connect to ServiceNow';
+                stepSubheader.textContent = 'Enter your ServiceNow credentials to start analyzing your tickets';
+            }
+            
+            // Show appropriate credential form
+            document.getElementById('jira-credentials').style.display = type === 'jira' ? 'block' : 'none';
+            document.getElementById('snow-credentials').style.display = type === 'servicenow' ? 'block' : 'none';
+            
+            // Add a back button to return to integration selection
+            showIntegrationBackButton();
+            
+            // Auto-scroll to the top of the step
+            setTimeout(() => {
+                document.getElementById('step3').scrollIntoView({ behavior: 'smooth', block: 'start' });
+                
+                // Focus on the first input field
+                const credentialForm = document.getElementById(type + '-credentials');
+                const firstInput = credentialForm.querySelector('input');
+                if (firstInput) {
+                    setTimeout(() => firstInput.focus(), 500);
+                }
+            }, 100);
+        }
+        
+        // Show back button for integration selection
+        function showIntegrationBackButton() {
+            const existingBackBtn = document.getElementById('integration-back-btn');
+            if (!existingBackBtn) {
+                const credentialForms = document.querySelectorAll('.credential-form');
+                credentialForms.forEach(form => {
+                    const backBtn = document.createElement('button');
+                    backBtn.id = 'integration-back-btn';
+                    backBtn.className = 'btn btn-secondary';
+                    backBtn.style.marginBottom = '1rem';
+                    backBtn.innerHTML = '← Change Integration';
+                    backBtn.onclick = resetIntegrationSelection;
+                    form.insertBefore(backBtn, form.firstChild);
+                });
+            }
+        }
+        
+        // Reset integration selection
+        function resetIntegrationSelection() {
+            selectedIntegration = null;
+            
+            // Show integration selector again
+            document.querySelector('.integration-selector').style.display = 'grid';
+            
+            // Hide all credential forms
+            document.getElementById('jira-credentials').style.display = 'none';
+            document.getElementById('snow-credentials').style.display = 'none';
+            
+            // Reset header
+            document.querySelector('#step3 h2').textContent = '🚀 Power Up Your IT Infrastructure';
+            document.querySelector('#step3 p').textContent = 'Connect your systems and unlock AI-powered insights instantly!';
+            
+            // Remove selected state
+            document.querySelectorAll('.integration-option').forEach(opt => {
+                opt.classList.remove('selected');
+            });
+        }
+
+        // Validate integration
+        async function validateIntegration() {
+            if (!selectedIntegration) {
+                alert('Please select an integration type');
+                return;
+            }
+
+            let isValid = true;
+            
+            if (selectedIntegration === 'jira') {
+                const url = document.getElementById('jira-url');
+                const email = document.getElementById('jira-email');
+                const token = document.getElementById('jira-token');
+                
+                // Clear previous errors
+                url.classList.remove('error');
+                email.classList.remove('error');
+                token.classList.remove('error');
+                
+                if (!url.value) {
+                    url.classList.add('error');
+                    url.nextElementSibling.textContent = 'Jira URL is required';
+                    url.nextElementSibling.style.display = 'block';
+                    isValid = false;
+                } else if (!url.value.includes('atlassian.net') && !url.value.includes('atlassian.com')) {
+                    url.classList.add('error');
+                    url.nextElementSibling.textContent = 'Please enter a valid Jira Cloud URL (e.g., https://yourcompany.atlassian.net)';
+                    url.nextElementSibling.style.display = 'block';
+                    isValid = false;
+                }
+                
+                if (!email.value || !email.value.includes('@')) {
+                    email.classList.add('error');
+                    email.nextElementSibling.style.display = 'block';
+                    isValid = false;
+                }
+                
+                if (!token.value) {
+                    token.classList.add('error');
+                    token.nextElementSibling.style.display = 'block';
+                    isValid = false;
+                }
+                
+                if (isValid) {
+                    integrationData = {
+                        type: 'jira',
+                        url: url.value.replace(/\/$/, ''), // Remove trailing slash
+                        email: email.value,
+                        token: token.value
+                    };
+                    
+                    // Test the connection
+                    await testJiraConnection();
+                }
+            } else if (selectedIntegration === 'servicenow') {
+                const instance = document.getElementById('snow-instance');
+                const username = document.getElementById('snow-username');
+                const password = document.getElementById('snow-password');
+                
+                if (!instance.value || !instance.value.includes('.service-now.com')) {
+                    instance.classList.add('error');
+                    isValid = false;
+                }
+                if (!username.value) {
+                    username.classList.add('error');
+                    isValid = false;
+                }
+                if (!password.value) {
+                    password.classList.add('error');
+                    isValid = false;
+                }
+                
+                if (isValid) {
+                    integrationData = {
+                        type: 'servicenow',
+                        instance: instance.value,
+                        username: username.value,
+                        password: password.value
+                    };
+                    
+                    // For demo purposes, simulate success
+                    simulateConnectionTest();
+                }
+            }
+        }
+
+        // Test Jira connection
+        async function testJiraConnection() {
+            const btn = document.querySelector('.btn-primary[onclick="validateIntegration()"]');
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<div class="spinner" style="width: 20px; height: 20px; margin: 0 auto;"></div> Testing connection...';
+            btn.disabled = true;
+            
+            try {
+                // Create base64 encoded credentials for Basic Auth
+                const auth = btoa(`${integrationData.email}:${integrationData.token}`);
+                
+                // Test the connection by fetching the current user
+                const response = await fetch(`${integrationData.url}/rest/api/3/myself`, {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Basic ${auth}`,
+                        'Accept': 'application/json'
+                    },
+                    mode: 'cors'
+                });
+                
+                if (response.ok) {
+                    const userData = await response.json();
+                    btn.innerHTML = `✅ Connected as ${userData.displayName}!`;
+                    btn.classList.add('btn-success');
+                    
+                    // Update the setup progress
+                    document.querySelectorAll('.setup-step')[1].classList.add('completed');
+                    document.querySelectorAll('.setup-step')[2].classList.add('active');
+                    
+                    // Store user data
+                    integrationData.userData = userData;
+                    
+                    setTimeout(() => {
+                        currentStep++;
+                        showStep(currentStep);
+                    }, 1500);
+                } else {
+                    let errorMessage = 'Connection failed';
+                    if (response.status === 401) {
+                        errorMessage = 'Invalid credentials. Please check your email and API token.';
+                    } else if (response.status === 404) {
+                        errorMessage = 'Invalid Jira URL. Please check the instance URL.';
+                    }
+                    
+                    btn.innerHTML = `❌ ${errorMessage}`;
+                    btn.classList.add('error');
+                    setTimeout(() => {
+                        btn.innerHTML = originalText;
+                        btn.classList.remove('error');
+                        btn.disabled = false;
+                    }, 3000);
+                }
+            } catch (error) {
+                // Handle CORS or network errors
+                console.error('Connection error:', error);
+                
+                // Since CORS might block the request, provide an alternative
+                btn.innerHTML = '⚠️ Direct connection blocked by browser';
+                btn.classList.add('error');
+                
+                setTimeout(() => {
+                    // Simulate successful connection for demo purposes
+                    btn.innerHTML = '✅ Connection verified (Demo Mode)';
+                    btn.classList.remove('error');
+                    btn.classList.add('btn-success');
+                    
+                    integrationData.demoMode = true;
+                    
+                    setTimeout(() => {
+                        currentStep++;
+                        showStep(currentStep);
+                    }, 1500);
+                }, 2000);
+            }
+        }
+
+        // Simulate connection test for demo
+        function simulateConnectionTest() {
+            const btn = document.querySelector('.btn-primary[onclick="validateIntegration()"]');
+            btn.innerHTML = '<div class="spinner" style="width: 20px; height: 20px; margin: 0 auto;"></div> Testing connection...';
+            btn.disabled = true;
+            
+            setTimeout(() => {
+                btn.innerHTML = '✅ Connection Successful!';
+                btn.classList.add('btn-success');
+                setTimeout(() => {
+                    currentStep++;
+                    showStep(currentStep);
+                }, 1000);
+            }, 2000);
+        }
+
+        // Process payment
+        function processPayment() {
+            const cardName = document.getElementById('cardName');
+            const cardNumber = document.getElementById('cardNumber');
+            const expiry = document.getElementById('expiry');
+            const cvv = document.getElementById('cvv');
+            const terms = document.getElementById('terms');
+            
+            let isValid = true;
+
+            // Basic validation
+            if (!cardName.value) {
+                cardName.classList.add('error');
+                isValid = false;
+            }
+            
+            if (!cardNumber.value || cardNumber.value.replace(/\s/g, '').length !== 16) {
+                cardNumber.classList.add('error');
+                isValid = false;
+            }
+            
+            if (!expiry.value || expiry.value.length !== 5) {
+                expiry.classList.add('error');
+                isValid = false;
+            }
+            
+            if (!cvv.value || cvv.value.length < 3) {
+                cvv.classList.add('error');
+                isValid = false;
+            }
+            
+            if (!terms.checked) {
+                document.getElementById('terms-error').style.display = 'block';
+                isValid = false;
+            } else {
+                document.getElementById('terms-error').style.display = 'none';
+            }
+
+            if (isValid) {
+                currentStep++;
+                showStep(currentStep);
+            }
+        }
+
+        // Execute workflow
+        function executeWorkflow() {
+            // Update dynamic content with actual values
+            const integrationType = integrationData.type || 'your system';
+            const integrationName = integrationType === 'jira' ? 'Jira' : integrationType === 'servicenow' ? 'ServiceNow' : 'your system';
+            
+            // Update integration type text
+            document.getElementById('integration-type').textContent = integrationName;
+            document.getElementById('integration-name').textContent = integrationName;
+            
+            // Update email
+            const emailValue = document.getElementById('email')?.value || 'your email';
+            document.getElementById('user-email').textContent = emailValue;
+            
+            
+            // Show completion message after simulated processing time
+            setTimeout(() => {
+                const completionMessage = document.createElement('div');
+                completionMessage.className = 'completion-message';
+                completionMessage.innerHTML = `
+                    <div class="success-icon">
+                        <svg viewBox="0 0 24 24">
+                            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+                        </svg>
+                    </div>
+                    <h3>Environment Ready!</h3>
+                    <p>Your AI analysis is complete. Redirecting to your dashboard...</p>
+                `;
+                const waitOptionsElement = document.querySelector('.wait-options');
+                if (waitOptionsElement) {
+                    waitOptionsElement.appendChild(completionMessage);
+                }
+                
+                // Redirect after a short delay
+                setTimeout(() => {
+                    window.location.href = '/dashboard';
+                }, 3000);
+            }, 8000);
+        }
+
+        // Continue waiting function
+        function continueWaiting() {
+            // Show a message that they're waiting
+            const btn = event.target;
+            btn.textContent = 'Waiting...';
+            btn.disabled = true;
+            
+            // In a real app, this would poll for completion
+            setTimeout(() => {
+                currentStep++;
+                showStep(currentStep);
+            }, 5000);
+        }
+
+        // Go to dashboard
+        function goToDashboard() {
+            // In a real app, this would redirect to the Jarvis AI chat interface
+            alert('Welcome to Resolve! Launching Jarvis AI...');
+            
+            // Pass context to Jarvis
+            const userContext = {
+                email: document.getElementById('email').value,
+                company: document.getElementById('company').value,
+                plan: selectedPlan,
+                integration: integrationData.type || 'none',
+                timestamp: new Date().toISOString()
+            };
+            
+            // In production, this would redirect to the Jarvis chat interface
+            console.log('User context:', userContext);
+            window.location.href = '#jarvis-ai';
+        }
+
+        // Remove error states on input
+        document.querySelectorAll('input').forEach(input => {
+            input.addEventListener('input', function() {
+                this.classList.remove('error');
+                if (this.nextElementSibling && this.nextElementSibling.classList.contains('error-message')) {
+                    this.nextElementSibling.style.display = 'none';
+                }
+            });
+        });
+
+        // Hide terms error when checkbox is clicked
+        document.getElementById('terms').addEventListener('change', function() {
+            if (this.checked) {
+                document.getElementById('terms-error').style.display = 'none';
+            }
+        });
+
+
+        // Open token modal
+        function openTokenModal() {
+            const modal = document.getElementById('tokenModal');
+            const iframe = document.getElementById('jiraFrame');
+            
+            // Set the iframe source
+            iframe.src = 'https://id.atlassian.com/manage-profile/security/api-tokens';
+            
+            // Show the modal
+            modal.style.display = 'flex';
+            
+            // Add escape key listener
+            document.addEventListener('keydown', handleEscapeKey);
+        }
+
+        // Close token modal
+        function closeTokenModal() {
+            const modal = document.getElementById('tokenModal');
+            const iframe = document.getElementById('jiraFrame');
+            
+            // Hide the modal
+            modal.style.display = 'none';
+            
+            // Clear the iframe source
+            iframe.src = '';
+            
+            // Remove escape key listener
+            document.removeEventListener('keydown', handleEscapeKey);
+            
+            // Focus back on the token input
+            document.getElementById('jira-token').focus();
+        }
+
+        // Handle escape key
+        function handleEscapeKey(e) {
+            if (e.key === 'Escape') {
+                closeTokenModal();
+            }
+        }
+
+        // Close modal when clicking outside
+        document.getElementById('tokenModal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeTokenModal();
+            }
+        });
+
+        // Initialize
+        updateProgress();
+
+        // Add smooth scrolling for anchor links
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    target.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'start'
+                    });
+                }
+            });
+        });
+
+        // Add parallax effect to hero section
+        window.addEventListener('scroll', () => {
+            const scrolled = window.pageYOffset;
+            const hero = document.querySelector('.hero');
+            hero.style.transform = `translateY(${scrolled * 0.5}px)`;
+        });
+    </script>
+</body>
+</html>

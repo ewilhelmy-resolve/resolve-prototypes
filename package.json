@@ -1,0 +1,19 @@
+{
+  "name": "resolve-onboarding",
+  "version": "1.0.0",
+  "description": "Resolve onboarding POC with Stripe integration",
+  "scripts": {
+    "start": "node server.js",
+    "start:enhanced": "node server-enhanced.js",
+    "test": "playwright test",
+    "test:ui": "playwright test --ui",
+    "test:headed": "playwright test --headed"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.40.0"
+  },
+  "dependencies": {
+    "express": "^5.1.0",
+    "http-proxy-middleware": "^3.0.5"
+  }
+}
