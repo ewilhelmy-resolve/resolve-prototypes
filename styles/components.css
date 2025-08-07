@@ -1,5 +1,5 @@
-/* Jarvis Chat Container */
-.jarvis-chat-container {
+/* Barista Chat Container */
+.barista-chat-container {
     margin: 2rem 0;
     background: rgba(255, 255, 255, 0.02);
     border: 1px solid rgba(255, 255, 255, 0.1);
@@ -8,7 +8,7 @@
     animation: fadeIn 0.5s ease;
 }
 
-.jarvis-chat-container iframe {
+.barista-chat-container iframe {
     background: #fff;
     border-radius: 0.5rem;
 }

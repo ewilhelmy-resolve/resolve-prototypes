@@ -1819,15 +1819,26 @@
             <div class="step" id="step6">
                 <div class="success-icon"></div>
                 <h2>Welcome to Resolve!</h2>
-                <p>Meet Jarvis AI - your intelligent automation assistant ready to eliminate your IT tickets.</p>
+                <p>Meet Barista AI - your intelligent automation assistant ready to eliminate your IT tickets.</p>
                 
-                <div class="chat-preview">
+                <div class="barista-chat-container" id="baristaChatContainer" style="display: none;">
+                    <iframe 
+                        id="baristaChat" 
+                        src="" 
+                        frameborder="0"
+                        style="width: 100%; height: 600px; border-radius: 10px; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);"
+                        allow="microphone; camera; clipboard-read; clipboard-write"
+                        sandbox="allow-scripts allow-same-origin allow-forms allow-popups">
+                    </iframe>
+                </div>
+                
+                <div class="chat-preview" id="chatPreview">
                     <div class="chat-header">
                         <span style="font-size: 1.5rem;">🤖</span>
-                        <span>Jarvis AI</span>
+                        <span>Barista AI</span>
                     </div>
                     <div class="chat-message">
-                        <p>👋 Hi! I'm Jarvis AI. I've already started analyzing your workflow patterns. I can help you:</p>
+                        <p>👋 Hi! I'm Barista AI. I've already started analyzing your workflow patterns. I can help you:</p>
                     </div>
                     <div class="chat-options">
                         <div class="chat-option">📊 View automation opportunities</div>
@@ -1841,7 +1852,7 @@
                     <ul style="list-style: none; margin: 0;">
                         <li style="padding: 0.75rem 0; color: var(--resolve-text-dim);">
                             <span style="color: var(--resolve-teal); margin-right: 0.75rem;">✨</span>
-                            Jarvis analyzes your ticket patterns in real-time
+                            Barista analyzes your ticket patterns in real-time
                         </li>
                         <li style="padding: 0.75rem 0; color: var(--resolve-text-dim);">
                             <span style="color: var(--resolve-teal); margin-right: 0.75rem;">🎯</span>
@@ -1855,7 +1866,7 @@
                 </div>
                 
                 <div class="button-group">
-                    <button type="button" class="btn btn-primary" style="width: 100%;" onclick="goToDashboard()">Launch Jarvis AI</button>
+                    <button type="button" class="btn btn-primary" style="width: 100%;" onclick="goToDashboard()">Launch Barista AI</button>
                 </div>
             </div>
         </div>
@@ -2434,10 +2445,37 @@
 
         // Go to dashboard
         function goToDashboard() {
-            // In a real app, this would redirect to the Jarvis AI chat interface
-            alert('Welcome to Resolve! Launching Jarvis AI...');
+            // Hide the preview and show the actual Barista chat iframe
+            const chatPreview = document.getElementById('chatPreview');
+            const baristaChatContainer = document.getElementById('baristaChatContainer');
             
-            // Pass context to Jarvis
+            if (chatPreview) {
+                chatPreview.style.display = 'none';
+            }
+            if (baristaChatContainer) {
+                baristaChatContainer.style.display = 'block';
+            }
+            
+            // Set the iframe source if not already set (to avoid pre-loading)
+            const baristaIframe = document.getElementById('baristaChat');
+            if (baristaIframe && !baristaIframe.src) {
+                // Try the direct URL first, fallback to proxy if needed
+                baristaIframe.src = 'https://resolvejarvisdev.espressive.com/v2/chat/';
+                
+                // Add error handler to fallback to proxy
+                baristaIframe.onerror = function() {
+                    console.log('Direct URL failed, trying proxy...');
+                    this.src = '/jarvis-proxy';
+                };
+            }
+            
+            // Hide the next steps box
+            const nextStepsBox = document.querySelector('[style*="background: rgba(0, 102, 255, 0.1)"]');
+            if (nextStepsBox) {
+                nextStepsBox.style.display = 'none';
+            }
+            
+            // Pass context to Barista
             const userContext = {
                 email: document.getElementById('email').value,
                 company: document.getElementById('company').value,
@@ -2446,9 +2484,8 @@
                 timestamp: new Date().toISOString()
             };
             
-            // In production, this would redirect to the Jarvis chat interface
+            // Log user context for Barista
             console.log('User context:', userContext);
-            window.location.href = '#jarvis-ai';
         }
 
         // Remove error states on input
@@ -2540,5 +2577,7 @@
             hero.style.transform = `translateY(${scrolled * 0.5}px)`;
         });
     </script>
+
+    <!-- Barista chat is embedded as iframe above -->
 </body>
 </html>

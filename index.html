@@ -185,25 +185,26 @@
             <div class="step" id="step7">
                 <div class="success-icon"></div>
                 <h2>Welcome to Resolve!</h2>
-                <p>Meet Jarvis AI - your intelligent automation assistant ready to eliminate your IT tickets.</p>
+                <p>Meet Barista AI - your intelligent automation assistant ready to eliminate your IT tickets.</p>
                 
-                <div class="jarvis-chat-container" id="jarvisChatContainer" style="display: none;">
+                <div class="barista-chat-container" id="baristaChatContainer" style="display: none;">
                     <iframe 
-                        id="jarvisChat" 
-                        src="/jarvis-mock.html" 
+                        id="baristaChat" 
+                        src="" 
                         frameborder="0"
                         style="width: 100%; height: 600px; border-radius: 10px; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);"
-                        onerror="this.src='/jarvis-mock.html'">
+                        allow="microphone; camera; clipboard-read; clipboard-write"
+                        sandbox="allow-scripts allow-same-origin allow-forms allow-popups">
                     </iframe>
                 </div>
                 
                 <div class="chat-preview" id="chatPreview">
                     <div class="chat-header">
                         <span class="chat-icon">🤖</span>
-                        <span>Jarvis AI</span>
+                        <span>Barista AI</span>
                     </div>
                     <div class="chat-message">
-                        <p>👋 Hi! I'm Jarvis AI. I've already started analyzing your workflow patterns. I can help you:</p>
+                        <p>👋 Hi! I'm Barista AI. I've already started analyzing your workflow patterns. I can help you:</p>
                     </div>
                     <div class="chat-options">
                         <div class="chat-option">📊 View automation opportunities</div>
@@ -217,7 +218,7 @@
                     <ul>
                         <li>
                             <span class="icon">✨</span>
-                            Jarvis analyzes your ticket patterns in real-time
+                            Barista analyzes your ticket patterns in real-time
                         </li>
                         <li>
                             <span class="icon">🎯</span>
@@ -231,7 +232,7 @@
                 </div>
                 
                 <div class="button-group">
-                    <button type="button" class="btn btn-primary btn-full-width" onclick="app.goToDashboard()">Launch Jarvis AI</button>
+                    <button type="button" class="btn btn-primary btn-full-width" onclick="app.goToDashboard()">Launch Barista AI</button>
                 </div>
             </div>
         </div>
@@ -552,9 +553,22 @@
                     timestamp: new Date().toISOString()
                 });
                 
-                // Hide the preview and show the actual Jarvis chat
+                // Hide the preview and show the actual Barista chat iframe
                 document.getElementById('chatPreview').style.display = 'none';
-                document.getElementById('jarvisChatContainer').style.display = 'block';
+                document.getElementById('baristaChatContainer').style.display = 'block';
+                
+                // Set the iframe source if not already set (to avoid pre-loading)
+                const baristaIframe = document.getElementById('baristaChat');
+                if (baristaIframe && !baristaIframe.src) {
+                    // Try the direct URL first, fallback to proxy if needed
+                    baristaIframe.src = 'https://resolvejarvisdev.espressive.com/v2/chat/';
+                    
+                    // Add error handler to fallback to proxy
+                    baristaIframe.onerror = function() {
+                        console.log('Direct URL failed, trying proxy...');
+                        this.src = '/jarvis-proxy';
+                    };
+                }
                 
                 // Hide the next steps box to give more room to the chat
                 const nextStepsBox = document.querySelector('.next-steps-box');
@@ -564,7 +578,7 @@
                 
                 // Change button text
                 const btn = event.target;
-                btn.textContent = 'Jarvis AI is Active';
+                btn.textContent = 'Barista AI is Active';
                 btn.disabled = true;
                 btn.classList.add('btn-success');
             }
@@ -825,5 +839,7 @@
             }
         });
     </script>
+
+    <!-- Barista chat is embedded as iframe above -->
 </body>
 </html>
