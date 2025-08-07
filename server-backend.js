@@ -2,6 +2,7 @@ const express = require('express');
 const bodyParser = require('body-parser');
 const cors = require('cors');
 const path = require('path');
+const { getTicketStats, importTickets, hasTicketData, getIntegrationStatus, updateIntegrationSync } = require('./database');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -246,6 +247,34 @@ app.post('/api/logout', (req, res) => {
   res.json({ success: true });
 });
 
+// Integration webhook endpoint (for testing Resolve integration locally)
+app.post('/api/integration/resolve', (req, res) => {
+  const { source, user_email, action, ...data } = req.body;
+  
+  console.log('📡 Resolve Integration Event:', {
+    source,
+    user_email,
+    action,
+    timestamp: new Date().toISOString(),
+    data
+  });
+  
+  // Log specific actions
+  if (action === 'learn_data') {
+    console.log('🧠 Learning data from user:', user_email);
+  } else if (action === 'automate_workflow') {
+    console.log('⚡ Automation requested by:', user_email);
+  } else if (action === 'unlock_account') {
+    console.log('🔓 Account unlock requested for:', user_email);
+  }
+  
+  res.json({ 
+    success: true, 
+    message: 'Integration event processed',
+    event_id: Date.now().toString()
+  });
+});
+
 // List all users (admin only)
 app.get('/api/users', (req, res) => {
   const authHeader = req.headers.authorization;
@@ -267,6 +296,81 @@ app.get('/api/users', (req, res) => {
   });
   
   res.json(users);
+});
+
+// Get ticket statistics
+app.get('/api/tickets/stats', (req, res) => {
+  const authHeader = req.headers.authorization;
+  let userEmail = null;
+  
+  // Check if user is authenticated
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    const token = authHeader.substring(7);
+    const session = db.sessions[token];
+    if (session) {
+      userEmail = session.email;
+    }
+  }
+  
+  // Get stats from database
+  const stats = getTicketStats(userEmail);
+  
+  res.json({
+    success: true,
+    ...stats,
+    userEmail
+  });
+});
+
+// Import tickets from CSV or integration
+app.post('/api/tickets/import', (req, res) => {
+  const authHeader = req.headers.authorization;
+  
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+
+  const token = authHeader.substring(7);
+  const session = db.sessions[token];
+  
+  if (!session) {
+    return res.status(401).json({ error: 'Invalid session' });
+  }
+
+  const { tickets, source = 'manual' } = req.body;
+  
+  if (!tickets || !Array.isArray(tickets)) {
+    return res.status(400).json({ error: 'Invalid tickets data' });
+  }
+
+  const result = importTickets(tickets, source, session.email);
+  
+  if (result.success) {
+    // Update integration sync status if from integration
+    if (source !== 'manual') {
+      updateIntegrationSync(source, result.count);
+    }
+    
+    res.json({
+      success: true,
+      message: `Successfully imported ${result.count} tickets`,
+      count: result.count
+    });
+  } else {
+    res.status(500).json({ error: result.error });
+  }
+});
+
+// Get integration status
+app.get('/api/integrations/status', (req, res) => {
+  const integrations = getIntegrationStatus();
+  
+  res.json({
+    success: true,
+    integrations,
+    hasJiraConnection: integrations.some(i => i.integration_type === 'jira' && i.status === 'success'),
+    hasServiceNowConnection: integrations.some(i => i.integration_type === 'servicenow' && i.status === 'success')
+  });
 });
 
 // Serve index.html for all non-API routes

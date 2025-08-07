@@ -17,7 +17,8 @@
     "body-parser": "^2.2.0",
     "cors": "^2.8.5",
     "express": "^4.21.2",
-    "http-proxy-middleware": "^3.0.5"
+    "http-proxy-middleware": "^3.0.5",
+    "better-sqlite3": "^9.2.2"
   },
   "main": "playwright.config.js",
   "directories": {

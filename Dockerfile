@@ -1,7 +1,7 @@
 FROM node:18-alpine
 
-# Install nginx and supervisor
-RUN apk add --no-cache nginx supervisor
+# Install nginx, supervisor, and build dependencies for SQLite
+RUN apk add --no-cache nginx supervisor python3 make g++
 
 # Create app directory
 WORKDIR /app
@@ -12,8 +12,9 @@ COPY package*.json ./
 # Install dependencies
 RUN npm install --production
 
-# Copy backend server
+# Copy backend server and database module
 COPY server-backend.js ./
+COPY database.js ./
 
 # Copy frontend files to nginx
 COPY index.html /usr/share/nginx/html/
@@ -45,25 +46,29 @@ RUN echo 'server { \
     } \
 }' > /etc/nginx/http.d/default.conf
 
-# Create supervisor config
-RUN echo '[supervisord] \
-nodaemon=true \
-\
-[program:nginx] \
-command=nginx -g "daemon off;" \
-autostart=true \
-autorestart=true \
-\
-[program:backend] \
-command=node /app/server-backend.js \
-directory=/app \
-autostart=true \
-autorestart=true \
-environment=PORT="3001" \
-stdout_logfile=/dev/stdout \
-stdout_logfile_maxbytes=0 \
-stderr_logfile=/dev/stderr \
-stderr_logfile_maxbytes=0' > /etc/supervisord.conf
+# Create supervisor config with proper formatting
+RUN printf '[supervisord]\n\
+nodaemon=true\n\
+\n\
+[program:nginx]\n\
+command=nginx -g "daemon off;"\n\
+autostart=true\n\
+autorestart=true\n\
+stdout_logfile=/dev/stdout\n\
+stdout_logfile_maxbytes=0\n\
+stderr_logfile=/dev/stderr\n\
+stderr_logfile_maxbytes=0\n\
+\n\
+[program:backend]\n\
+command=node /app/server-backend.js\n\
+directory=/app\n\
+autostart=true\n\
+autorestart=true\n\
+environment=PORT="3001"\n\
+stdout_logfile=/dev/stdout\n\
+stdout_logfile_maxbytes=0\n\
+stderr_logfile=/dev/stderr\n\
+stderr_logfile_maxbytes=0\n' > /etc/supervisord.conf
 
 # Expose port 80
 EXPOSE 80

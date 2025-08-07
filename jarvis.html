@@ -5,6 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Resolve - AI Automation Platform</title>
     
+    <!-- Chart.js for beautiful graphs -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
     <style>
         * {
             margin: 0;
@@ -188,7 +191,7 @@
         }
         
         .dashboard-content {
-            max-width: 1200px;
+            width: 100%;
         }
         
         .dashboard-header {
@@ -311,6 +314,323 @@
         @keyframes spin {
             to { transform: rotate(360deg); }
         }
+        
+        /* Automate Workflow Button */
+        .automate-btn {
+            background: linear-gradient(135deg, #0066FF, #00D4FF);
+            color: white;
+            padding: 14px 28px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 24px;
+            box-shadow: 0 4px 12px rgba(0, 212, 255, 0.2);
+        }
+        
+        .automate-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 212, 255, 0.3);
+        }
+        
+        .automate-btn:active {
+            transform: translateY(0);
+        }
+        
+        /* Chart containers */
+        .charts-section {
+            margin-top: 32px;
+        }
+        
+        .charts-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
+            gap: 24px;
+            margin-bottom: 32px;
+        }
+        
+        .chart-card {
+            background: #111118;
+            padding: 24px;
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .chart-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #00D4FF;
+            margin-bottom: 16px;
+        }
+        
+        .chart-subtitle {
+            font-size: 12px;
+            color: #8B8B9F;
+            margin-bottom: 20px;
+        }
+        
+        .chart-container {
+            position: relative;
+            height: 300px;
+        }
+        
+        /* Integrations Page Styles */
+        .integrations-view {
+            display: none;
+            padding: 32px;
+            height: 100%;
+            overflow-y: auto;
+        }
+        
+        .integrations-view.active {
+            display: block;
+        }
+        
+        .integrations-header {
+            margin-bottom: 32px;
+        }
+        
+        .integrations-title {
+            font-size: 32px;
+            font-weight: 600;
+            margin-bottom: 8px;
+            background: linear-gradient(135deg, #0066FF 0%, #00D4FF 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        
+        .integrations-subtitle {
+            color: #8B8B9F;
+            font-size: 16px;
+        }
+        
+        .integrations-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 24px;
+            margin-bottom: 32px;
+        }
+        
+        .integration-card {
+            background: #111118;
+            padding: 24px;
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            transition: all 0.3s ease;
+        }
+        
+        .integration-card:hover {
+            border-color: rgba(0, 212, 255, 0.3);
+            transform: translateY(-2px);
+        }
+        
+        .integration-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 16px;
+        }
+        
+        .integration-logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        
+        .integration-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+        }
+        
+        .integration-name {
+            font-size: 18px;
+            font-weight: 600;
+            color: #FFFFFF;
+        }
+        
+        .integration-status {
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+        
+        .status-connected {
+            background: rgba(0, 255, 127, 0.1);
+            color: #00FF7F;
+            border: 1px solid rgba(0, 255, 127, 0.2);
+        }
+        
+        .status-pending {
+            background: rgba(255, 165, 0, 0.1);
+            color: #FFA500;
+            border: 1px solid rgba(255, 165, 0, 0.2);
+        }
+        
+        .status-available {
+            background: rgba(0, 212, 255, 0.1);
+            color: #00D4FF;
+            border: 1px solid rgba(0, 212, 255, 0.2);
+        }
+        
+        .integration-details {
+            color: #8B8B9F;
+            font-size: 14px;
+            line-height: 1.6;
+            margin-bottom: 16px;
+        }
+        
+        .integration-config {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 16px;
+        }
+        
+        .config-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 4px 0;
+            font-size: 13px;
+        }
+        
+        .config-label {
+            color: #8B8B9F;
+        }
+        
+        .config-value {
+            color: #00D4FF;
+            font-family: monospace;
+        }
+        
+        .integration-actions {
+            display: flex;
+            gap: 12px;
+        }
+        
+        .integration-btn {
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            background: transparent;
+            color: #8B8B9F;
+        }
+        
+        .integration-btn:hover {
+            border-color: #00D4FF;
+            color: #00D4FF;
+        }
+        
+        .integration-btn.primary {
+            background: linear-gradient(135deg, #0066FF, #00D4FF);
+            color: white;
+            border: none;
+        }
+        
+        .integration-btn.primary:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(0, 212, 255, 0.3);
+        }
+        
+        .dashboard-view {
+            display: block;
+        }
+        
+        .dashboard-view.hidden {
+            display: none;
+        }
+        
+        /* Onboarding Message Styles */
+        .onboarding-message {
+            background: linear-gradient(135deg, #111118 0%, #1a1a24 100%);
+            border: 2px dashed rgba(0, 212, 255, 0.3);
+            border-radius: 16px;
+            padding: 48px;
+            text-align: center;
+            margin: 32px auto;
+            max-width: 800px;
+        }
+        
+        .onboarding-icon {
+            font-size: 64px;
+            margin-bottom: 24px;
+            filter: grayscale(0.2);
+        }
+        
+        .onboarding-title {
+            font-size: 28px;
+            font-weight: 600;
+            color: #00D4FF;
+            margin-bottom: 16px;
+        }
+        
+        .onboarding-text {
+            font-size: 16px;
+            color: #8B8B9F;
+            margin-bottom: 32px;
+            line-height: 1.6;
+        }
+        
+        .onboarding-actions {
+            display: flex;
+            gap: 16px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+        
+        .onboarding-btn {
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .onboarding-btn-primary {
+            background: linear-gradient(135deg, #0066FF, #00D4FF);
+            color: white;
+            border: none;
+        }
+        
+        .onboarding-btn-secondary {
+            background: transparent;
+            color: #00D4FF;
+            border: 1px solid rgba(0, 212, 255, 0.3);
+        }
+        
+        .onboarding-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 212, 255, 0.2);
+        }
+        
+        .data-loading {
+            text-align: center;
+            padding: 32px;
+            color: #8B8B9F;
+        }
+        
+        .data-loading .spinner {
+            margin: 0 auto 16px;
+        }
     </style>
 </head>
 <body>
@@ -385,11 +705,49 @@
         
         <!-- Right Panel - Dashboard -->
         <div class="right-panel">
-            <div class="dashboard-content">
+            <!-- Dashboard View -->
+            <div class="dashboard-view dashboard-content">
                 <div class="dashboard-header">
                     <h1 class="dashboard-title">Welcome to Your Command Center</h1>
                     <p class="dashboard-subtitle">Monitor your automation performance and insights</p>
                 </div>
+                
+                <!-- Data Loading Indicator -->
+                <div id="dataLoadingIndicator" class="data-loading" style="display: none;">
+                    <div class="spinner"></div>
+                    <p>Loading your ticket analytics...</p>
+                </div>
+                
+                <!-- Onboarding Message (shown when no data) -->
+                <div id="onboardingMessage" class="onboarding-message" style="display: none;">
+                    <div class="onboarding-icon">📊</div>
+                    <h2 class="onboarding-title">Let's Get Your Analytics Started!</h2>
+                    <p class="onboarding-text">
+                        We haven't analyzed any tickets yet. To unlock powerful insights and automation opportunities,<br>
+                        you can either upload your historical ticket data or connect to your ticketing system.
+                    </p>
+                    <div class="onboarding-actions">
+                        <label for="ticketFileUpload" class="onboarding-btn onboarding-btn-primary">
+                            <span>📁</span>
+                            <span>Upload Ticket CSV</span>
+                            <input type="file" id="ticketFileUpload" accept=".csv" style="display: none;" onchange="handleTicketUpload(this)">
+                        </label>
+                        <button class="onboarding-btn onboarding-btn-secondary" onclick="navigateToIntegrations()">
+                            <span>🔗</span>
+                            <span>Connect Integration</span>
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Dashboard Content (shown when data exists) -->
+                <div id="dashboardContent" style="display: none;">
+                    <!-- Automate Workflow Button -->
+                    <button class="automate-btn" onclick="automateWorkflow()">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
+                        </svg>
+                        Automate Workflow
+                    </button>
                 
                 <div class="stats-grid">
                     <div class="stat-card">
@@ -410,8 +768,46 @@
                     </div>
                 </div>
                 
+                    <!-- Charts Section -->
+                    <div class="charts-section">
+                    <div class="charts-grid">
+                        <div class="chart-card">
+                            <h3 class="chart-title">Ticket Resolution Time</h3>
+                            <p class="chart-subtitle">Average time from ticket open to close (in hours)</p>
+                            <div class="chart-container">
+                                <canvas id="resolutionTimeChart"></canvas>
+                            </div>
+                        </div>
+                        <div class="chart-card">
+                            <h3 class="chart-title">Cost Savings Over Time</h3>
+                            <p class="chart-subtitle">Monthly savings from automation (in thousands)</p>
+                            <div class="chart-container">
+                                <canvas id="costSavingsChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="charts-grid">
+                        <div class="chart-card">
+                            <h3 class="chart-title">Ticket Volume by Status</h3>
+                            <p class="chart-subtitle">Distribution of tickets by current status</p>
+                            <div class="chart-container">
+                                <canvas id="ticketStatusChart"></canvas>
+                            </div>
+                        </div>
+                        <div class="chart-card">
+                            <h3 class="chart-title">Resolution Speed Trend</h3>
+                            <p class="chart-subtitle">How automation is improving response times</p>
+                            <div class="chart-container">
+                                <canvas id="speedTrendChart"></canvas>
+                            </div>
+                        </div>
+                        </div>
+                    </div>
+                </div> <!-- End of dashboardContent -->
+                
                 <!-- Additional dashboard content can go here -->
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-top: 32px;">
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 24px; margin-top: 32px;">
                     <div class="stat-card" style="padding: 32px;">
                         <h3 style="margin-bottom: 16px; color: #00D4FF;">Recent Activity</h3>
                         <div style="color: #8B8B9F; line-height: 1.8;">
@@ -452,6 +848,155 @@
                     </div>
                 </div>
             </div>
+            
+            <!-- Integrations View -->
+            <div class="integrations-view">
+                <div class="integrations-header">
+                    <h1 class="integrations-title">Integrations</h1>
+                    <p class="integrations-subtitle">Manage your connected services and automation endpoints</p>
+                </div>
+                
+                <div class="integrations-grid">
+                    <!-- Resolve Integration -->
+                    <div class="integration-card">
+                        <div class="integration-header">
+                            <div class="integration-logo">
+                                <div class="integration-icon" style="background: linear-gradient(135deg, #0066FF, #00D4FF);">
+                                    ⚡
+                                </div>
+                                <div class="integration-name">Resolve Actions API</div>
+                            </div>
+                            <div class="integration-status status-connected" id="resolveStatus">Connected</div>
+                        </div>
+                        <div class="integration-details">
+                            Automatically sends learning data and automation events to the Resolve platform.
+                        </div>
+                        <div class="integration-config">
+                            <div class="config-item">
+                                <span class="config-label">Source:</span>
+                                <span class="config-value">Onboarding</span>
+                            </div>
+                            <div class="config-item">
+                                <span class="config-label">Default Action:</span>
+                                <span class="config-value">learn_data</span>
+                            </div>
+                            <div class="config-item">
+                                <span class="config-label">Endpoint:</span>
+                                <span class="config-value">actions-api-staging</span>
+                            </div>
+                            <div class="config-item">
+                                <span class="config-label">Last Event:</span>
+                                <span class="config-value" id="resolveLastEvent">Just now</span>
+                            </div>
+                        </div>
+                        <div class="integration-actions">
+                            <button class="integration-btn" onclick="testResolveConnection()">Test Connection</button>
+                            <button class="integration-btn primary" onclick="viewResolveEvents()">View Events</button>
+                        </div>
+                    </div>
+                    
+                    <!-- Jira Integration -->
+                    <div class="integration-card">
+                        <div class="integration-header">
+                            <div class="integration-logo">
+                                <div class="integration-icon" style="background: #0052CC;">
+                                    <svg width="24" height="24" viewBox="0 0 24 24" fill="white">
+                                        <path d="M11.571 11.429H0l5.714-5.714L11.429 0l5.714 5.714L11.429 11.429zM21.857 6.857h-10l5.714 5.714 5.715-5.714zM11.571 12.571H1.571l5.714 5.714L11.571 24l5.714-5.714-5.714-5.715z"/>
+                                    </svg>
+                                </div>
+                                <div class="integration-name">Jira</div>
+                            </div>
+                            <div class="integration-status status-connected">Connected</div>
+                        </div>
+                        <div class="integration-details">
+                            Sync tickets and automate issue management with your Jira instance.
+                        </div>
+                        <div class="integration-config">
+                            <div class="config-item">
+                                <span class="config-label">Instance:</span>
+                                <span class="config-value">resolve.atlassian.net</span>
+                            </div>
+                            <div class="config-item">
+                                <span class="config-label">Project:</span>
+                                <span class="config-value">RESOLVE-IT</span>
+                            </div>
+                            <div class="config-item">
+                                <span class="config-label">Sync Status:</span>
+                                <span class="config-value">Active</span>
+                            </div>
+                        </div>
+                        <div class="integration-actions">
+                            <button class="integration-btn">Configure</button>
+                            <button class="integration-btn primary">Sync Now</button>
+                        </div>
+                    </div>
+                    
+                    <!-- Slack Integration -->
+                    <div class="integration-card">
+                        <div class="integration-header">
+                            <div class="integration-logo">
+                                <div class="integration-icon" style="background: #4A154B;">
+                                    <svg width="24" height="24" viewBox="0 0 24 24" fill="white">
+                                        <path d="M5.042 15.165a2.528 2.528 0 0 1-2.52 2.523A2.528 2.528 0 0 1 0 15.165a2.527 2.527 0 0 1 2.522-2.52h2.52v2.52zM6.313 15.165a2.527 2.527 0 0 1 2.521-2.52 2.527 2.527 0 0 1 2.521 2.52v6.313A2.528 2.528 0 0 1 8.834 24a2.528 2.528 0 0 1-2.521-2.522v-6.313zM8.834 5.042a2.528 2.528 0 0 1-2.521-2.52A2.528 2.528 0 0 1 8.834 0a2.528 2.528 0 0 1 2.521 2.522v2.52H8.834zM8.834 6.313a2.528 2.528 0 0 1 2.521 2.521 2.528 2.528 0 0 1-2.521 2.521H2.522A2.528 2.528 0 0 1 0 8.834a2.528 2.528 0 0 1 2.522-2.521h6.312zM18.956 8.834a2.528 2.528 0 0 1 2.522-2.521A2.528 2.528 0 0 1 24 8.834a2.528 2.528 0 0 1-2.522 2.521h-2.522V8.834zM17.688 8.834a2.528 2.528 0 0 1-2.523 2.521 2.527 2.527 0 0 1-2.52-2.521V2.522A2.527 2.527 0 0 1 15.165 0a2.528 2.528 0 0 1 2.523 2.522v6.312zM15.165 18.956a2.528 2.528 0 0 1 2.523 2.522A2.528 2.528 0 0 1 15.165 24a2.527 2.527 0 0 1-2.52-2.522v-2.522h2.52zM15.165 17.688a2.527 2.527 0 0 1-2.52-2.523 2.526 2.526 0 0 1 2.52-2.52h6.313A2.527 2.527 0 0 1 24 15.165a2.528 2.528 0 0 1-2.522 2.523h-6.313z"/>
+                                    </svg>
+                                </div>
+                                <div class="integration-name">Slack</div>
+                            </div>
+                            <div class="integration-status status-connected">Connected</div>
+                        </div>
+                        <div class="integration-details">
+                            Send notifications and manage tickets directly from Slack channels.
+                        </div>
+                        <div class="integration-config">
+                            <div class="config-item">
+                                <span class="config-label">Workspace:</span>
+                                <span class="config-value">resolve-workspace</span>
+                            </div>
+                            <div class="config-item">
+                                <span class="config-label">Channel:</span>
+                                <span class="config-value">#it-support</span>
+                            </div>
+                            <div class="config-item">
+                                <span class="config-label">Bot Status:</span>
+                                <span class="config-value">Active</span>
+                            </div>
+                        </div>
+                        <div class="integration-actions">
+                            <button class="integration-btn">Settings</button>
+                            <button class="integration-btn primary">Test Message</button>
+                        </div>
+                    </div>
+                    
+                    <!-- ServiceNow Integration -->
+                    <div class="integration-card">
+                        <div class="integration-header">
+                            <div class="integration-logo">
+                                <div class="integration-icon" style="background: #81B366;">
+                                    📊
+                                </div>
+                                <div class="integration-name">ServiceNow</div>
+                            </div>
+                            <div class="integration-status status-available">Available</div>
+                        </div>
+                        <div class="integration-details">
+                            Connect to ServiceNow for enterprise-grade ITSM automation.
+                        </div>
+                        <div class="integration-config">
+                            <div class="config-item">
+                                <span class="config-label">Status:</span>
+                                <span class="config-value">Not configured</span>
+                            </div>
+                            <div class="config-item">
+                                <span class="config-label">Requirements:</span>
+                                <span class="config-value">API credentials needed</span>
+                            </div>
+                        </div>
+                        <div class="integration-actions">
+                            <button class="integration-btn primary">Connect</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
     
@@ -460,6 +1005,8 @@
     </div>
     
     <script type="module">
+        import { resolveIntegration } from './components/resolve-integration.js';
+        
         // Check if user is logged in
         const currentUser = sessionStorage.getItem('currentUser');
         const authToken = sessionStorage.getItem('authToken');
@@ -476,6 +1023,22 @@
             // Set user initials in avatar
             const initials = email.split('@')[0].substring(0, 2).toUpperCase();
             document.querySelector('.user-avatar').textContent = initials;
+            
+            // Send learning data to Resolve integration
+            resolveIntegration.sendLearningData(email, {
+                company: user.company,
+                role: user.role,
+                subscription: user.subscription,
+                integrations: user.integrations,
+                login_time: new Date().toISOString()
+            }).then(result => {
+                if (result.success) {
+                    console.log('✅ Resolve integration: Learning data sent successfully');
+                    sessionStorage.setItem('lastResolveEvent', Date.now().toString());
+                } else {
+                    console.log('⚠️ Resolve integration: Failed to send learning data');
+                }
+            });
         }
         
         // Hide loading overlay when iframe loads
@@ -516,17 +1079,423 @@
         
         // Handle navigation clicks
         document.querySelectorAll('.nav-link').forEach(link => {
-            link.addEventListener('click', function(e) {
+            link.addEventListener('click', async function(e) {
                 e.preventDefault();
                 // Remove active class from all links
                 document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
                 // Add active class to clicked link
                 this.classList.add('active');
                 
-                // Here you could handle navigation to different views
-                // For now, just log the click
+                // Get view containers
+                const dashboardView = document.querySelector('.dashboard-view');
+                const integrationsView = document.querySelector('.integrations-view');
+                
+                // Handle navigation based on clicked item
+                if (this.textContent === 'Integrations') {
+                    // Show integrations view
+                    dashboardView.classList.add('hidden');
+                    integrationsView.classList.add('active');
+                    
+                    // Check Resolve integration status
+                    const status = await resolveIntegration.checkStatus();
+                    const statusEl = document.getElementById('resolveStatus');
+                    const lastEventEl = document.getElementById('resolveLastEvent');
+                    
+                    if (status) {
+                        statusEl.textContent = 'Connected';
+                        statusEl.className = 'integration-status status-connected';
+                    } else {
+                        statusEl.textContent = 'Checking...';
+                        statusEl.className = 'integration-status status-pending';
+                    }
+                    
+                    // Update last event time
+                    const lastEventTime = sessionStorage.getItem('lastResolveEvent');
+                    if (lastEventTime) {
+                        const timeDiff = Date.now() - parseInt(lastEventTime);
+                        const minutes = Math.floor(timeDiff / 60000);
+                        lastEventEl.textContent = minutes < 1 ? 'Just now' : `${minutes} minutes ago`;
+                    }
+                } else if (this.textContent === 'Dashboard') {
+                    // Show dashboard view
+                    dashboardView.classList.remove('hidden');
+                    integrationsView.classList.remove('active');
+                } else {
+                    // For other nav items, show dashboard by default
+                    dashboardView.classList.remove('hidden');
+                    integrationsView.classList.remove('active');
+                }
+                
                 console.log('Navigated to:', this.textContent);
             });
+        });
+        
+        // Automate Workflow function
+        window.automateWorkflow = async function() {
+            const user = currentUser ? JSON.parse(currentUser) : null;
+            const email = user?.email || 'unknown@resolve.io';
+            
+            // Send automation event to Resolve
+            const result = await resolveIntegration.sendAutomationEvent(email, 'general_workflow');
+            
+            if (result.success) {
+                alert('🚀 Workflow automation initiated! Our AI is analyzing your most common tickets and will suggest optimizations.\n\nAvailable Automations:\n• Password Reset\n• Account Unlock\n• Software Installation\n• Access Request\n• VPN Configuration');
+            } else {
+                alert('🚀 Workflow automation initiated locally!\n\nAvailable Automations:\n• Password Reset\n• Account Unlock\n• Software Installation\n• Access Request\n• VPN Configuration\n\n(Integration temporarily unavailable)');
+            }
+            
+            // This shows the automations/abilities that have been added to our chat agent
+        };
+        
+        // Integration functions
+        window.testResolveConnection = async function() {
+            const statusEl = document.getElementById('resolveStatus');
+            statusEl.textContent = 'Testing...';
+            statusEl.className = 'integration-status status-pending';
+            
+            const result = await resolveIntegration.checkStatus();
+            
+            if (result) {
+                statusEl.textContent = 'Connected';
+                statusEl.className = 'integration-status status-connected';
+                alert('✅ Connection successful!\n\nResolve Actions API is responding correctly.');
+            } else {
+                statusEl.textContent = 'Error';
+                statusEl.className = 'integration-status status-pending';
+                alert('⚠️ Connection test failed.\n\nThis is expected in local development due to CORS restrictions.\nIn production, the API will be accessible.');
+            }
+        };
+        
+        window.viewResolveEvents = function() {
+            const events = [
+                { action: 'learn_data', user: 'john@resolve.io', time: 'Just now' },
+                { action: 'automate_workflow', user: 'john@resolve.io', time: '2 mins ago' },
+                { action: 'unlock_account', user: 'test@resolve.io', time: '15 mins ago' },
+                { action: 'learn_data', user: 'admin@resolve.io', time: '1 hour ago' }
+            ];
+            
+            const eventList = events.map(e => 
+                `• ${e.action} - ${e.user} (${e.time})`
+            ).join('\n');
+            
+            alert(`Recent Resolve Events:\n\n${eventList}\n\nSource: Onboarding\nEndpoint: actions-api-staging`);
+        };
+        
+        // Check for ticket data and initialize dashboard
+        async function checkTicketData() {
+            const loadingIndicator = document.getElementById('dataLoadingIndicator');
+            const onboardingMessage = document.getElementById('onboardingMessage');
+            const dashboardContent = document.getElementById('dashboardContent');
+            
+            // Show loading
+            loadingIndicator.style.display = 'block';
+            onboardingMessage.style.display = 'none';
+            dashboardContent.style.display = 'none';
+            
+            try {
+                // Get authentication token from localStorage
+                const token = localStorage.getItem('authToken');
+                
+                // Fetch ticket stats from backend
+                const response = await fetch('/api/tickets/stats', {
+                    headers: {
+                        'Authorization': token ? `Bearer ${token}` : ''
+                    }
+                });
+                
+                const data = await response.json();
+                
+                // Hide loading
+                loadingIndicator.style.display = 'none';
+                
+                if (data.hasData) {
+                    // Show dashboard with data
+                    dashboardContent.style.display = 'block';
+                    
+                    // Update stats to show we have data
+                    updateDashboardStats(data.stats);
+                    
+                    // Trigger automation to send data to Resolve
+                    sendTicketDataToResolve(data);
+                } else {
+                    // Show onboarding message
+                    onboardingMessage.style.display = 'block';
+                }
+            } catch (error) {
+                console.error('Error fetching ticket data:', error);
+                
+                // Hide loading and show onboarding on error
+                loadingIndicator.style.display = 'none';
+                onboardingMessage.style.display = 'block';
+            }
+        }
+        
+        // Update dashboard statistics
+        function updateDashboardStats(stats) {
+            // Update stat cards with real data
+            const statCards = document.querySelectorAll('.stat-card');
+            if (statCards[0]) {
+                statCards[0].querySelector('.stat-value').textContent = 
+                    stats.total_tickets.toLocaleString();
+            }
+            if (statCards[1]) {
+                statCards[1].querySelector('.stat-value').textContent = 
+                    Math.round(stats.avg_resolution_time || 0) + ' min';
+            }
+            if (statCards[2]) {
+                statCards[2].querySelector('.stat-value').textContent = 
+                    stats.automation_rate + '%';
+            }
+            if (statCards[3]) {
+                statCards[3].querySelector('.stat-value').textContent = 
+                    '$' + (stats.total_cost_saved || 0).toLocaleString();
+            }
+        }
+        
+        // Handle ticket CSV upload
+        async function handleTicketUpload(input) {
+            const file = input.files[0];
+            if (!file) return;
+            
+            const reader = new FileReader();
+            reader.onload = async function(e) {
+                const csv = e.target.result;
+                const tickets = parseCSV(csv);
+                
+                // Send to backend
+                const token = localStorage.getItem('authToken');
+                const response = await fetch('/api/tickets/import', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': token ? `Bearer ${token}` : ''
+                    },
+                    body: JSON.stringify({
+                        tickets: tickets,
+                        source: 'csv_upload'
+                    })
+                });
+                
+                if (response.ok) {
+                    // Refresh dashboard
+                    await checkTicketData();
+                    
+                    // Show success message
+                    alert('Tickets imported successfully!');
+                } else {
+                    alert('Failed to import tickets. Please check your CSV format.');
+                }
+            };
+            reader.readAsText(file);
+        }
+        
+        // Parse CSV to ticket objects
+        function parseCSV(csv) {
+            const lines = csv.split('\n');
+            const headers = lines[0].split(',').map(h => h.trim());
+            const tickets = [];
+            
+            for (let i = 1; i < lines.length; i++) {
+                if (!lines[i].trim()) continue;
+                
+                const values = lines[i].split(',');
+                const ticket = {};
+                
+                headers.forEach((header, index) => {
+                    ticket[header.toLowerCase().replace(/\s+/g, '_')] = values[index]?.trim();
+                });
+                
+                // Map common fields
+                ticket.ticket_id = ticket.ticket_id || ticket.id || `IMPORT-${i}`;
+                ticket.title = ticket.title || ticket.subject || 'Imported Ticket';
+                ticket.status = ticket.status || 'open';
+                
+                tickets.push(ticket);
+            }
+            
+            return tickets;
+        }
+        
+        // Navigate to integrations
+        function navigateToIntegrations() {
+            // Find and click the Integrations nav link
+            const integrationsLink = Array.from(document.querySelectorAll('.nav-link'))
+                .find(link => link.textContent === 'Integrations');
+            if (integrationsLink) {
+                integrationsLink.click();
+            }
+        }
+        
+        // Send ticket data to Resolve system
+        async function sendTicketDataToResolve(data) {
+            // Import the Resolve integration
+            import('./components/resolve-integration.js').then(async (module) => {
+                const resolveIntegration = module.resolveIntegration;
+                
+                // Send ticket analytics to Resolve
+                const userEmail = data.userEmail || localStorage.getItem('userEmail') || 'user@resolve.io';
+                
+                const result = await resolveIntegration.sendEvent(
+                    userEmail,
+                    'ticket_data_sync',
+                    {
+                        total_tickets: data.stats.total_tickets,
+                        automated_tickets: data.stats.automated_tickets,
+                        automation_rate: data.stats.automation_rate,
+                        avg_resolution_time: data.stats.avg_resolution_time,
+                        categories: data.categories,
+                        recent_tickets: data.recentTickets,
+                        timestamp: new Date().toISOString()
+                    }
+                );
+                
+                if (result.success) {
+                    console.log('✅ Ticket data sent to Resolve successfully');
+                } else {
+                    console.log('⚠️ Failed to send ticket data to Resolve:', result.error);
+                }
+            });
+        }
+        
+        // Initialize Charts
+        window.addEventListener('DOMContentLoaded', function() {
+            // Check for ticket data first
+            checkTicketData();
+            const chartOptions = {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        labels: {
+                            color: '#8B8B9F'
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        grid: {
+                            color: 'rgba(255, 255, 255, 0.05)'
+                        },
+                        ticks: {
+                            color: '#8B8B9F'
+                        }
+                    },
+                    y: {
+                        grid: {
+                            color: 'rgba(255, 255, 255, 0.05)'
+                        },
+                        ticks: {
+                            color: '#8B8B9F'
+                        }
+                    }
+                }
+            };
+            
+            // Resolution Time Chart
+            const ctx1 = document.getElementById('resolutionTimeChart');
+            if (ctx1) {
+                window.resolutionChart = new Chart(ctx1, {
+                    type: 'line',
+                    data: {
+                        labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
+                        datasets: [{
+                            label: 'Manual Resolution',
+                            data: [48, 45, 47, 43, 44, 42, 40, 38, 36, 35, 33, 32],
+                            borderColor: '#FF6B6B',
+                            backgroundColor: 'rgba(255, 107, 107, 0.1)',
+                            tension: 0.4
+                        }, {
+                            label: 'AI-Automated',
+                            data: [8, 7, 6.5, 6, 5.5, 5, 4.5, 4, 3.5, 3, 2.5, 2],
+                            borderColor: '#00D4FF',
+                            backgroundColor: 'rgba(0, 212, 255, 0.1)',
+                            tension: 0.4
+                        }]
+                    },
+                    options: chartOptions
+                });
+            }
+            
+            // Cost Savings Chart
+            const ctx2 = document.getElementById('costSavingsChart');
+            if (ctx2) {
+                window.costChart = new Chart(ctx2, {
+                    type: 'bar',
+                    data: {
+                        labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
+                        datasets: [{
+                            label: 'Savings ($K)',
+                            data: [8, 9, 10, 11, 10, 12, 13, 12, 14, 13, 15, 16],
+                            backgroundColor: 'rgba(0, 212, 255, 0.6)',
+                            borderColor: '#00D4FF',
+                            borderWidth: 2
+                        }]
+                    },
+                    options: chartOptions
+                });
+            }
+            
+            // Ticket Status Chart
+            const ctx3 = document.getElementById('ticketStatusChart');
+            if (ctx3) {
+                window.volumeChart = new Chart(ctx3, {
+                    type: 'doughnut',
+                    data: {
+                        labels: ['Resolved', 'In Progress', 'Pending', 'Escalated'],
+                        datasets: [{
+                            data: [65, 20, 10, 5],
+                            backgroundColor: [
+                                '#00FF7F',
+                                '#00D4FF',
+                                '#FFA500',
+                                '#FF6B6B'
+                            ],
+                            borderWidth: 0
+                        }]
+                    },
+                    options: {
+                        ...chartOptions,
+                        scales: undefined
+                    }
+                });
+            }
+            
+            // Speed Trend Chart
+            const ctx4 = document.getElementById('speedTrendChart');
+            if (ctx4) {
+                window.speedChart = new Chart(ctx4, {
+                    type: 'bar',
+                    data: {
+                        labels: ['Password Reset', 'Access Request', 'Software Install', 'Account Unlock', 'VPN Issue', 'Email Setup'],
+                        datasets: [{
+                            label: 'Before Automation (hours)',
+                            data: [24, 48, 72, 12, 36, 24],
+                            backgroundColor: 'rgba(255, 107, 107, 0.6)',
+                            borderColor: '#FF6B6B',
+                            borderWidth: 2
+                        }, {
+                            label: 'After Automation (hours)',
+                            data: [0.5, 2, 4, 0.25, 1, 2],
+                            backgroundColor: 'rgba(0, 255, 127, 0.6)',
+                            borderColor: '#00FF7F',
+                            borderWidth: 2
+                        }]
+                    },
+                    options: {
+                        ...chartOptions,
+                        plugins: {
+                            ...chartOptions.plugins,
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        return context.dataset.label + ': ' + context.parsed.y + ' hours';
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            }
         });
     </script>
     
