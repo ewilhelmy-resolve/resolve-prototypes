@@ -23,8 +23,8 @@
         <div class="steps-container">
             <!-- Step 1: Get Started -->
             <div class="step active" id="step1">
-                <h2>Start Your Automation Journey</h2>
-                <p>Join thousands of IT teams eliminating repetitive work with AI</p>
+                <h2 id="authHeading">Start Your Automation Journey</h2>
+                <p id="authSubheading">Join thousands of IT teams eliminating repetitive work with AI</p>
                 <div id="signupFormContainer"></div>
             </div>
 
@@ -435,6 +435,13 @@
                 
                 this.signupForm = new SignupForm('signupFormContainer', (data) => {
                     this.userData = { ...this.userData, ...data };
+                    
+                    // Check if this is a login (user has lastLogin) vs signup
+                    if (data.lastLogin) {
+                        // This is a login - redirect to Jarvis page
+                        window.location.href = '/jarvis.html';
+                        return;
+                    }
                     
                     // Only redirect for users with COMPLETED onboarding (active subscription AND completed setup)
                     if (data.subscription && 

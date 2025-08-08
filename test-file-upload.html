@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>File Upload Test - Resolve Onboarding</title>
+    <link rel="stylesheet" href="/styles/main.css">
+    <link rel="stylesheet" href="/styles/components.css">
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 2rem;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 3rem;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .header p {
+            font-size: 1.2rem;
+            opacity: 0.9;
+        }
+
+        .card {
+            background: white;
+            border-radius: 12px;
+            padding: 2rem;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            margin-bottom: 2rem;
+        }
+
+        .instructions {
+            background: #f7fafc;
+            border-left: 4px solid #4299e1;
+            padding: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .instructions h3 {
+            color: #2d3748;
+            margin-top: 0;
+        }
+
+        .instructions ul {
+            color: #4a5568;
+            margin: 0.5rem 0;
+        }
+
+        .sample-data {
+            margin-top: 2rem;
+            padding: 1rem;
+            background: #edf2f7;
+            border-radius: 8px;
+        }
+
+        .sample-data h4 {
+            color: #2d3748;
+            margin-bottom: 1rem;
+        }
+
+        .sample-csv {
+            background: #2d3748;
+            color: #e2e8f0;
+            padding: 1rem;
+            border-radius: 6px;
+            font-family: monospace;
+            font-size: 0.875rem;
+            overflow-x: auto;
+        }
+
+        .download-btn {
+            display: inline-block;
+            margin-top: 1rem;
+            padding: 0.75rem 1.5rem;
+            background: #4299e1;
+            color: white;
+            text-decoration: none;
+            border-radius: 6px;
+            transition: background 0.3s ease;
+        }
+
+        .download-btn:hover {
+            background: #3182ce;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📁 CSV/ZIP File Upload System</h1>
+            <p>Upload your ticket data and access it via secure API</p>
+        </div>
+
+        <div class="card">
+            <div class="instructions">
+                <h3>📋 Instructions</h3>
+                <ul>
+                    <li>Upload CSV files containing your ticket data</li>
+                    <li>Upload ZIP archives containing multiple CSV files</li>
+                    <li>Maximum file size: 50MB</li>
+                    <li>After upload, you'll receive an API key for data access</li>
+                    <li>Use the API key to retrieve your data programmatically</li>
+                </ul>
+            </div>
+
+            <!-- File Upload Component -->
+            <file-upload></file-upload>
+
+            <div class="sample-data">
+                <h4>📝 Sample CSV Format</h4>
+                <div class="sample-csv">ticket_id,title,description,status,priority,category,created_at,resolved_at,cost_saved
+TKT-001,Password Reset,User forgot password,resolved,high,Password Reset,2024-01-15,2024-01-15,25.00
+TKT-002,Software Install,Need Slack installed,resolved,medium,Software,2024-01-16,2024-01-16,50.00
+TKT-003,VPN Issue,Cannot connect to VPN,open,high,Network,2024-01-17,,
+TKT-004,Email Setup,Configure email on phone,resolved,low,Email,2024-01-18,2024-01-18,35.00</div>
+                <a href="#" class="download-btn" onclick="downloadSampleCSV(); return false;">⬇️ Download Sample CSV</a>
+            </div>
+        </div>
+
+        <div class="card">
+            <h3>🔑 API Documentation</h3>
+            <p>Once you have your API key, you can access your data using the following endpoint:</p>
+            
+            <h4>Endpoint</h4>
+            <pre style="background: #2d3748; color: #e2e8f0; padding: 1rem; border-radius: 6px;">GET http://localhost:3001/api/tickets/data</pre>
+            
+            <h4>Headers</h4>
+            <pre style="background: #2d3748; color: #e2e8f0; padding: 1rem; border-radius: 6px;">{
+  "X-API-Key": "your-api-key-here",
+  "Content-Type": "application/json"
+}</pre>
+            
+            <h4>Query Parameters</h4>
+            <table style="width: 100%; border-collapse: collapse; margin-top: 1rem;">
+                <thead>
+                    <tr style="background: #edf2f7;">
+                        <th style="padding: 0.75rem; text-align: left; border-bottom: 2px solid #cbd5e0;">Parameter</th>
+                        <th style="padding: 0.75rem; text-align: left; border-bottom: 2px solid #cbd5e0;">Type</th>
+                        <th style="padding: 0.75rem; text-align: left; border-bottom: 2px solid #cbd5e0;">Description</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td style="padding: 0.75rem; border-bottom: 1px solid #e2e8f0;">start_date</td>
+                        <td style="padding: 0.75rem; border-bottom: 1px solid #e2e8f0;">string</td>
+                        <td style="padding: 0.75rem; border-bottom: 1px solid #e2e8f0;">Filter by start date (YYYY-MM-DD)</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 0.75rem; border-bottom: 1px solid #e2e8f0;">end_date</td>
+                        <td style="padding: 0.75rem; border-bottom: 1px solid #e2e8f0;">string</td>
+                        <td style="padding: 0.75rem; border-bottom: 1px solid #e2e8f0;">Filter by end date (YYYY-MM-DD)</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 0.75rem; border-bottom: 1px solid #e2e8f0;">status</td>
+                        <td style="padding: 0.75rem; border-bottom: 1px solid #e2e8f0;">string</td>
+                        <td style="padding: 0.75rem; border-bottom: 1px solid #e2e8f0;">Filter by status (open, closed, in_progress)</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 0.75rem; border-bottom: 1px solid #e2e8f0;">category</td>
+                        <td style="padding: 0.75rem; border-bottom: 1px solid #e2e8f0;">string</td>
+                        <td style="padding: 0.75rem; border-bottom: 1px solid #e2e8f0;">Filter by category</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 0.75rem; border-bottom: 1px solid #e2e8f0;">page</td>
+                        <td style="padding: 0.75rem; border-bottom: 1px solid #e2e8f0;">number</td>
+                        <td style="padding: 0.75rem; border-bottom: 1px solid #e2e8f0;">Page number (default: 1)</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 0.75rem;">limit</td>
+                        <td style="padding: 0.75rem;">number</td>
+                        <td style="padding: 0.75rem;">Results per page (default: 100, max: 1000)</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h4 style="margin-top: 2rem;">Example Request</h4>
+            <pre style="background: #2d3748; color: #e2e8f0; padding: 1rem; border-radius: 6px;">curl -X GET "http://localhost:3001/api/tickets/data?status=open&page=1&limit=50" \
+  -H "X-API-Key: rslv_your_api_key_here" \
+  -H "Content-Type: application/json"</pre>
+
+            <h4 style="margin-top: 2rem;">Example Response</h4>
+            <pre style="background: #2d3748; color: #e2e8f0; padding: 1rem; border-radius: 6px;">{
+  "success": true,
+  "data": [
+    {
+      "ticket_id": "TKT-001",
+      "title": "Password Reset",
+      "description": "User forgot password",
+      "status": "resolved",
+      "priority": "high",
+      "category": "Password Reset",
+      "created_at": "2024-01-15T10:00:00Z",
+      "resolved_at": "2024-01-15T10:15:00Z",
+      "cost_saved": 25.00
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 50,
+    "total": 234,
+    "totalPages": 5
+  }
+}</pre>
+        </div>
+    </div>
+
+    <script src="/components/file-upload.js"></script>
+    <script>
+        // Set a test email in sessionStorage for demo purposes
+        if (!sessionStorage.getItem('userEmail')) {
+            sessionStorage.setItem('userEmail', 'test@example.com');
+        }
+
+        function downloadSampleCSV() {
+            const csvContent = `ticket_id,title,description,status,priority,category,created_at,resolved_at,cost_saved,is_automated
+TKT-001,Password Reset,User forgot password,resolved,high,Password Reset,2024-01-15T10:00:00Z,2024-01-15T10:15:00Z,25.00,1
+TKT-002,Software Installation,Need Slack installed,resolved,medium,Software,2024-01-16T09:00:00Z,2024-01-16T09:30:00Z,50.00,1
+TKT-003,VPN Connection Issue,Cannot connect to VPN,open,high,Network,2024-01-17T14:00:00Z,,,0
+TKT-004,Email Configuration,Configure email on phone,resolved,low,Email,2024-01-18T11:00:00Z,2024-01-18T11:20:00Z,35.00,1
+TKT-005,Account Access,Cannot access SharePoint,resolved,high,Access Management,2024-01-19T08:00:00Z,2024-01-19T08:45:00Z,75.00,0
+TKT-006,Hardware Request,Need new monitor,in_progress,medium,Hardware,2024-01-20T10:00:00Z,,,0
+TKT-007,License Renewal,Adobe license expired,resolved,medium,Licensing,2024-01-21T09:00:00Z,2024-01-21T09:15:00Z,100.00,1
+TKT-008,System Performance,Computer running slow,resolved,low,Performance,2024-01-22T13:00:00Z,2024-01-22T14:00:00Z,60.00,0
+TKT-009,Printer Issue,Printer not working,resolved,low,Hardware,2024-01-23T15:00:00Z,2024-01-23T15:30:00Z,40.00,0
+TKT-010,Security Update,Install security patches,resolved,high,Security,2024-01-24T08:00:00Z,2024-01-24T08:30:00Z,80.00,1`;
+
+            const blob = new Blob([csvContent], { type: 'text/csv' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'sample-tickets.csv';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(url);
+        }
+    </script>
+</body>
+</html>

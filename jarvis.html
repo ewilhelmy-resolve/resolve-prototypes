@@ -209,6 +209,10 @@
         
         .dashboard-content {
             width: 100%;
+            flex: 1;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
         }
         
         .dashboard-header {
@@ -270,8 +274,10 @@
             flex: 1;
             height: 100%;
             background: #0B1E3C;
-            overflow-y: auto;
+            overflow: hidden;
             padding: 32px;
+            display: flex;
+            flex-direction: column;
         }
         
         .chat-header {
@@ -720,18 +726,8 @@
                 </div>
                 <div class="chat-status">● Online</div>
             </div>
-            <iframe 
-                id="baristaChat" 
-                class="chat-iframe"
-                src="https://resolvejarvisdev.espressive.com/v2/chat/"
-                title="Jarvis AI Assistant Chat"
-                loading="eager"
-                allowfullscreen
-                allowtransparency="true"
-                allow="microphone; camera; clipboard-read; clipboard-write; geolocation; fullscreen; autoplay; payment; encrypted-media; picture-in-picture; speaker-selection; storage-access; accelerometer; gyroscope; magnetometer"
-                sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-modals allow-top-navigation-by-user-activation allow-downloads allow-presentation allow-storage-access-by-user-activation"
-                referrerpolicy="strict-origin-when-cross-origin">
-            </iframe>
+            <!-- Espressive widget will be injected here -->
+            <div id="jarvis-chat-container" style="height: calc(100% - 56px);"></div>
         </div>
         
         <!-- Right Panel - Dashboard -->
@@ -777,13 +773,21 @@
                 
                 <!-- Dashboard Content (shown when data exists) -->
                 <div id="dashboardContent" style="display: none;">
-                    <!-- Automate Workflow Button -->
-                    <button class="automate-btn" onclick="automateWorkflow()">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
-                        </svg>
-                        Automate Workflow
-                    </button>
+                    <!-- Data Management Section -->
+                    <div class="data-management-section" style="background: rgba(0, 102, 255, 0.05); border: 1px solid rgba(0, 102, 255, 0.2); border-radius: 12px; padding: 20px; margin-bottom: 24px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                            <h3 style="color: #29C5F6; margin: 0;">📊 Your Uploaded Data</h3>
+                            <div>
+                                <button onclick="viewUploadedData()" style="background: #0066FF; color: white; border: none; padding: 8px 16px; border-radius: 6px; margin-right: 8px; cursor: pointer;">View Data</button>
+                                <button onclick="deleteUploadedData()" style="background: #FF4444; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer;">Delete All Data</button>
+                            </div>
+                        </div>
+                        <div id="dataStats" style="display: flex; gap: 20px; color: #8B8B9F;">
+                            <span>📁 <strong id="totalRecords">0</strong> Records</span>
+                            <span>📅 Last Updated: <strong id="lastUpdated">-</strong></span>
+                            <span>💾 Source: <strong id="dataSource">CSV Upload</strong></span>
+                        </div>
+                    </div>
                 
                 <div class="stats-grid">
                     <div class="stat-card">
@@ -882,6 +886,16 @@
                         </div>
                     </div>
                 </div>
+                
+                <!-- Automate Workflow Button (at the bottom) -->
+                <div style="margin-top: 32px; text-align: center;">
+                    <button class="automate-btn" onclick="automateWorkflow()" style="background: linear-gradient(135deg, #0066FF, #00D4FF); color: white; border: none; padding: 16px 32px; border-radius: 8px; font-size: 18px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 12px;">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
+                        </svg>
+                        Automate Workflow
+                    </button>
+                </div>
                 </div> <!-- End of dashboardContent -->
             </div>
             
@@ -955,12 +969,24 @@
             });
         }
         
-        // Hide loading overlay when iframe loads
-        document.getElementById('baristaChat').onload = function() {
-            setTimeout(() => {
-                document.getElementById('loadingOverlay').classList.add('hidden');
-            }, 500);
+        // Hide loading overlay when iframe loads or after timeout
+        const hideLoadingOverlay = () => {
+            const overlay = document.getElementById('loadingOverlay');
+            if (overlay) {
+                overlay.classList.add('hidden');
+            }
         };
+        
+        // Try to attach to iframe if it exists
+        const baristaFrame = document.getElementById('espressive-iframe');
+        if (baristaFrame) {
+            baristaFrame.onload = function() {
+                setTimeout(hideLoadingOverlay, 500);
+            };
+        }
+        
+        // Fallback: hide overlay after 2 seconds regardless
+        setTimeout(hideLoadingOverlay, 2000);
         
         // Handle logout
         window.logout = async function() {
@@ -1177,6 +1203,100 @@
             if (statCards[3]) {
                 statCards[3].querySelector('.stat-value').textContent = 
                     '$' + (stats.total_cost_saved || 0).toLocaleString();
+            }
+        }
+        
+        // View uploaded data
+        async function viewUploadedData() {
+            const authToken = sessionStorage.getItem('authToken');
+            if (!authToken) {
+                alert('Please log in to view data');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/tickets/view-data', {
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`
+                    }
+                });
+                
+                const result = await response.json();
+                
+                if (result.success && result.data && result.data.length > 0) {
+                    // Create a simple table view
+                    let tableHTML = '<table style="width: 100%; border-collapse: collapse; color: white;">';
+                    tableHTML += '<thead><tr style="background: rgba(0,102,255,0.2);">';
+                    tableHTML += '<th style="padding: 10px; border: 1px solid rgba(255,255,255,0.1);">Ticket ID</th>';
+                    tableHTML += '<th style="padding: 10px; border: 1px solid rgba(255,255,255,0.1);">Title</th>';
+                    tableHTML += '<th style="padding: 10px; border: 1px solid rgba(255,255,255,0.1);">Status</th>';
+                    tableHTML += '<th style="padding: 10px; border: 1px solid rgba(255,255,255,0.1);">Priority</th>';
+                    tableHTML += '<th style="padding: 10px; border: 1px solid rgba(255,255,255,0.1);">Created</th>';
+                    tableHTML += '</tr></thead><tbody>';
+                    
+                    result.data.forEach(ticket => {
+                        tableHTML += '<tr>';
+                        tableHTML += `<td style="padding: 8px; border: 1px solid rgba(255,255,255,0.1);">${ticket.ticket_id}</td>`;
+                        tableHTML += `<td style="padding: 8px; border: 1px solid rgba(255,255,255,0.1);">${ticket.title}</td>`;
+                        tableHTML += `<td style="padding: 8px; border: 1px solid rgba(255,255,255,0.1);">${ticket.status}</td>`;
+                        tableHTML += `<td style="padding: 8px; border: 1px solid rgba(255,255,255,0.1);">${ticket.priority}</td>`;
+                        tableHTML += `<td style="padding: 8px; border: 1px solid rgba(255,255,255,0.1);">${new Date(ticket.created_at).toLocaleDateString()}</td>`;
+                        tableHTML += '</tr>';
+                    });
+                    
+                    tableHTML += '</tbody></table>';
+                    tableHTML += `<p style="color: #8B8B9F; margin-top: 10px;">Showing ${result.showing} of ${result.total} records</p>`;
+                    
+                    // Show in a modal or alert
+                    const modal = document.createElement('div');
+                    modal.style.cssText = 'position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: #0B1E3C; border: 1px solid rgba(0,102,255,0.5); border-radius: 12px; padding: 24px; z-index: 10000; max-width: 90%; max-height: 80%; overflow: auto;';
+                    modal.innerHTML = `
+                        <h2 style="color: #29C5F6; margin-bottom: 20px;">Your Uploaded Ticket Data</h2>
+                        ${tableHTML}
+                        <button onclick="this.parentElement.remove()" style="margin-top: 20px; background: #0066FF; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer;">Close</button>
+                    `;
+                    document.body.appendChild(modal);
+                } else {
+                    alert('No data found. Please upload a CSV file first.');
+                }
+            } catch (error) {
+                console.error('Error fetching data:', error);
+                alert('Error loading data. Please try again.');
+            }
+        }
+        
+        // Delete uploaded data
+        async function deleteUploadedData() {
+            if (!confirm('Are you sure you want to delete all uploaded data? This cannot be undone.')) {
+                return;
+            }
+            
+            const authToken = sessionStorage.getItem('authToken');
+            if (!authToken) {
+                alert('Please log in to delete data');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/tickets/delete-all', {
+                    method: 'DELETE',
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`
+                    }
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    alert('All data has been deleted successfully.');
+                    // Refresh the page to show onboarding again
+                    checkTicketData();
+                } else {
+                    alert('Error deleting data. Please try again.');
+                }
+            } catch (error) {
+                console.error('Error deleting data:', error);
+                alert('Error deleting data. Please try again.');
             }
         }
         
@@ -1758,7 +1878,113 @@
     
     <!-- Version indicator -->
     <div style="position: fixed; bottom: 10px; right: 10px; font-size: 10px; color: rgba(255, 255, 255, 0.3); font-family: monospace; z-index: 9999;">
-        v1.0.2
+        v1.0.3
     </div>
+    
+    <!-- Espressive Widget Injection Script -->
+    <script>
+    /**
+     * Injects the Espressive chat widget into a container, wrapped in its own sized div.
+     */
+    function injectEspressiveWidget(options) {
+      const {
+        containerElement,
+        tenantUrl,
+        chatVersion,
+        channelParameters,
+        guestMode,
+        initialIntentId,
+      } = options;
+      
+      // Prevent duplicate injection
+      if (document.getElementById('espressive-container')) {
+        console.warn('Espressive container already exists on the page.');
+        return;
+      }
+
+      // Ensure a valid container is provided
+      if (!containerElement || !(containerElement instanceof HTMLElement)) {
+        console.error('A valid container element must be provided.');
+        return;
+      }
+
+      // Create the wrapper div
+      const wrapperDiv = document.createElement('div');
+      wrapperDiv.id = 'espressive-container';
+      wrapperDiv.style.width = '100%';
+      wrapperDiv.style.height = '100%';
+
+      // Construct the iframe URL
+      const params = new URLSearchParams({
+        client: 'widget',
+        chat_version: chatVersion,
+      });
+
+      if (guestMode) {
+        params.append('otc', guestMode);
+      }
+
+      if (initialIntentId) {
+        params.append('initial_intent_id', initialIntentId);
+      }
+
+      for (const key in channelParameters) {
+        if (Object.hasOwnProperty.call(channelParameters, key)) {
+          params.append(`widget.${key}`, channelParameters[key]);
+        }
+      }
+      params.append('widget.parent-origin', window.location.origin);
+      params.append('widget.iframe-origin', `https://${tenantUrl}`);
+      const iframeSrc = `https://${tenantUrl}/portal?${params.toString()}`;
+
+      // Create the iframe
+      const iframe = document.createElement('iframe');
+      iframe.src = iframeSrc;
+      iframe.id = 'espressive-iframe';
+      iframe.style.width = '100%';
+      iframe.style.height = '100%';
+      iframe.style.border = 'none';
+      iframe.style.background = 'rgba(11, 30, 60, 0.3)';
+      iframe.className = 'chat-iframe';
+      
+      // Apply permissions
+      iframe.allowFullscreen = true;
+      iframe.loading = 'eager';
+      iframe.allow = 'microphone; camera; clipboard-read; clipboard-write; geolocation; fullscreen; autoplay; payment; encrypted-media; picture-in-picture; speaker-selection; storage-access; accelerometer; gyroscope; magnetometer';
+      iframe.sandbox = 'allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-modals allow-top-navigation-by-user-activation allow-downloads allow-presentation allow-storage-access-by-user-activation';
+      iframe.referrerPolicy = 'strict-origin-when-cross-origin';
+
+      // Set initial intent ID as data attribute if provided
+      if (initialIntentId) {
+        iframe.dataset.initialIntentEid = initialIntentId;
+      }
+
+      // Assemble and inject
+      wrapperDiv.appendChild(iframe);
+      containerElement.appendChild(wrapperDiv);
+    }
+
+    // Wait for DOM to be ready then inject the widget
+    document.addEventListener('DOMContentLoaded', function() {
+        setTimeout(function() {
+            const chatContainer = document.querySelector('#jarvis-chat-container');
+            if (chatContainer) {
+                injectEspressiveWidget({
+                    containerElement: chatContainer,
+                    tenantUrl: 'resolvejarvisdev.espressive.com',
+                    chatVersion: 2,
+                    channelParameters: { 
+                        color: '#0082C8',  // Keeping original color
+                        usage: 'buildworkflow' 
+                    }, 
+                    guestMode: 'DOGAFLA',
+                });
+                console.log('Espressive widget injected successfully');
+            } else {
+                console.error('Chat container element not found');
+            }
+        }, 100);
+    });
+    </script>
 </body>
 </html>

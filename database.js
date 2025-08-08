@@ -52,9 +52,45 @@ function initializeDatabase() {
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
 
+    CREATE TABLE IF NOT EXISTS ticket_uploads (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_email TEXT NOT NULL,
+      filename TEXT NOT NULL,
+      csv_data BLOB NOT NULL,
+      row_count INTEGER,
+      upload_date DATETIME DEFAULT CURRENT_TIMESTAMP,
+      processing_status TEXT DEFAULT 'pending',
+      analysis_result TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS api_keys (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_email TEXT NOT NULL,
+      api_key TEXT UNIQUE NOT NULL,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      last_used DATETIME,
+      is_active BOOLEAN DEFAULT 1,
+      usage_count INTEGER DEFAULT 0,
+      rate_limit INTEGER DEFAULT 1000
+    );
+
+    CREATE TABLE IF NOT EXISTS api_requests (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      api_key TEXT NOT NULL,
+      endpoint TEXT NOT NULL,
+      method TEXT NOT NULL,
+      query_params TEXT,
+      response_status INTEGER,
+      request_time DATETIME DEFAULT CURRENT_TIMESTAMP,
+      response_time_ms INTEGER
+    );
+
     CREATE INDEX IF NOT EXISTS idx_tickets_status ON tickets(status);
     CREATE INDEX IF NOT EXISTS idx_tickets_created ON tickets(created_at);
     CREATE INDEX IF NOT EXISTS idx_tickets_user ON tickets(user_email);
+    CREATE INDEX IF NOT EXISTS idx_api_keys_key ON api_keys(api_key);
+    CREATE INDEX IF NOT EXISTS idx_api_keys_email ON api_keys(user_email);
   `);
 
   console.log('✅ Database initialized successfully');
@@ -333,6 +369,203 @@ function updateIntegrationSync(integrationType, ticketsImported) {
 initializeDatabase();
 
 // Don't automatically seed data - let users upload their own
+// Store uploaded CSV data as blob
+function storeTicketUpload(userEmail, filename, csvBuffer, rowCount = 0) {
+  try {
+    const stmt = db.prepare(`
+      INSERT INTO ticket_uploads (user_email, filename, csv_data, row_count, processing_status)
+      VALUES (?, ?, ?, ?, 'pending')
+    `);
+    
+    const result = stmt.run(userEmail, filename, csvBuffer, rowCount);
+    return result.lastInsertRowid;
+  } catch (error) {
+    console.error('Error storing ticket upload:', error);
+    throw error;
+  }
+}
+
+// Update upload processing status
+function updateUploadStatus(uploadId, status, analysisResult = null) {
+  try {
+    const stmt = db.prepare(`
+      UPDATE ticket_uploads 
+      SET processing_status = ?, analysis_result = ?
+      WHERE id = ?
+    `);
+    
+    stmt.run(status, analysisResult, uploadId);
+    return true;
+  } catch (error) {
+    console.error('Error updating upload status:', error);
+    return false;
+  }
+}
+
+// Get upload by ID
+function getUpload(uploadId) {
+  try {
+    const stmt = db.prepare('SELECT * FROM ticket_uploads WHERE id = ?');
+    return stmt.get(uploadId);
+  } catch (error) {
+    console.error('Error getting upload:', error);
+    return null;
+  }
+}
+
+// Generate API key
+function generateApiKey(userEmail) {
+  const crypto = require('crypto');
+  const apiKey = 'rslv_' + crypto.randomBytes(32).toString('hex');
+  
+  try {
+    // Check if user already has an API key
+    const existingKey = db.prepare('SELECT api_key FROM api_keys WHERE user_email = ? AND is_active = 1').get(userEmail);
+    if (existingKey) {
+      return existingKey.api_key;
+    }
+    
+    // Create new API key
+    const stmt = db.prepare(`
+      INSERT INTO api_keys (user_email, api_key)
+      VALUES (?, ?)
+    `);
+    
+    stmt.run(userEmail, apiKey);
+    return apiKey;
+  } catch (error) {
+    console.error('Error generating API key:', error);
+    throw error;
+  }
+}
+
+// Validate API key
+function validateApiKey(apiKey) {
+  try {
+    const stmt = db.prepare(`
+      SELECT user_email, is_active, rate_limit, usage_count
+      FROM api_keys 
+      WHERE api_key = ? AND is_active = 1
+    `);
+    
+    const result = stmt.get(apiKey);
+    
+    if (result) {
+      // Update last used timestamp and usage count
+      db.prepare(`
+        UPDATE api_keys 
+        SET last_used = CURRENT_TIMESTAMP, usage_count = usage_count + 1
+        WHERE api_key = ?
+      `).run(apiKey);
+    }
+    
+    return result;
+  } catch (error) {
+    console.error('Error validating API key:', error);
+    return null;
+  }
+}
+
+// Log API request
+function logApiRequest(apiKey, endpoint, method, queryParams, responseStatus, responseTimeMs) {
+  try {
+    const stmt = db.prepare(`
+      INSERT INTO api_requests (api_key, endpoint, method, query_params, response_status, response_time_ms)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `);
+    
+    stmt.run(apiKey, endpoint, method, JSON.stringify(queryParams), responseStatus, responseTimeMs);
+  } catch (error) {
+    console.error('Error logging API request:', error);
+  }
+}
+
+// Get uploaded data for API access
+function getUploadedData(userEmail, filters = {}) {
+  try {
+    let query = `
+      SELECT t.*
+      FROM tickets t
+      WHERE t.user_email = ?
+    `;
+    
+    const params = [userEmail];
+    
+    if (filters.start_date) {
+      query += ' AND DATE(t.created_at) >= ?';
+      params.push(filters.start_date);
+    }
+    
+    if (filters.end_date) {
+      query += ' AND DATE(t.created_at) <= ?';
+      params.push(filters.end_date);
+    }
+    
+    if (filters.status) {
+      query += ' AND t.status = ?';
+      params.push(filters.status);
+    }
+    
+    if (filters.category) {
+      query += ' AND t.category = ?';
+      params.push(filters.category);
+    }
+    
+    // Add pagination
+    const page = filters.page || 1;
+    const limit = filters.limit || 100;
+    const offset = (page - 1) * limit;
+    
+    query += ' ORDER BY t.created_at DESC LIMIT ? OFFSET ?';
+    params.push(limit, offset);
+    
+    const data = db.prepare(query).all(...params);
+    
+    // Get total count for pagination
+    let countQuery = `
+      SELECT COUNT(*) as total
+      FROM tickets t
+      WHERE t.user_email = ?
+    `;
+    const countParams = [userEmail];
+    
+    if (filters.start_date) {
+      countQuery += ' AND DATE(t.created_at) >= ?';
+      countParams.push(filters.start_date);
+    }
+    
+    if (filters.end_date) {
+      countQuery += ' AND DATE(t.created_at) <= ?';
+      countParams.push(filters.end_date);
+    }
+    
+    if (filters.status) {
+      countQuery += ' AND t.status = ?';
+      countParams.push(filters.status);
+    }
+    
+    if (filters.category) {
+      countQuery += ' AND t.category = ?';
+      countParams.push(filters.category);
+    }
+    
+    const count = db.prepare(countQuery).get(...countParams);
+    
+    return {
+      data,
+      pagination: {
+        page,
+        limit,
+        total: count.total,
+        totalPages: Math.ceil(count.total / limit)
+      }
+    };
+  } catch (error) {
+    console.error('Error getting uploaded data:', error);
+    throw error;
+  }
+}
+
 // Commented out for production - uncomment for testing
 // if (!hasTicketData('john@resolve.io')) {
 //   seedSampleData();
@@ -345,5 +578,12 @@ module.exports = {
   hasTicketData,
   getIntegrationStatus,
   updateIntegrationSync,
-  seedSampleData
+  seedSampleData,
+  storeTicketUpload,
+  updateUploadStatus,
+  getUpload,
+  generateApiKey,
+  validateApiKey,
+  logApiRequest,
+  getUploadedData
 };

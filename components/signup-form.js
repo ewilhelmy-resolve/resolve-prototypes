@@ -93,6 +93,16 @@ export class SignupForm {
         this.render();
         this.attachEventListeners();
         
+        // Update the heading text for login
+        const heading = document.getElementById('authHeading');
+        const subheading = document.getElementById('authSubheading');
+        if (heading) {
+            heading.textContent = 'Continue Your Automation Journey';
+        }
+        if (subheading) {
+            subheading.textContent = 'Welcome back! Your AI-powered automation awaits';
+        }
+        
         // Update the login option text
         const loginOption = document.querySelector('.login-option');
         if (loginOption) {
@@ -104,6 +114,16 @@ export class SignupForm {
         this.isLoginMode = false;
         this.render();
         this.attachEventListeners();
+        
+        // Update the heading text for signup
+        const heading = document.getElementById('authHeading');
+        const subheading = document.getElementById('authSubheading');
+        if (heading) {
+            heading.textContent = 'Start Your Automation Journey';
+        }
+        if (subheading) {
+            subheading.textContent = 'Join thousands of IT teams eliminating repetitive work with AI';
+        }
         
         // Update the login option text
         const loginOption = document.querySelector('.login-option');
