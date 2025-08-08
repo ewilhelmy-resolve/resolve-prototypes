@@ -1,10 +1,19 @@
-version: '3.8'
-
 services:
-  web:
-    build: .
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile.simple
     ports:
-      - "8081:80"
+      - "8082:8082"
+    environment:
+      - NODE_ENV=production
+      - PORT=8082
     volumes:
-      - .:/usr/share/nginx/html:ro
+      - ./data:/app/data
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8082/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s

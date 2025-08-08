@@ -5,7 +5,7 @@ test.describe('User launches Jarvis AI chat embedded in page', () => {
     console.log('\n🚀 Starting user journey: Launch embedded Jarvis chat\n');
     
     // User arrives at the onboarding page
-    await page.goto('http://localhost:8081/');
+    await page.goto('http://localhost:8082/');
     const initialUrl = page.url();
     console.log('✅ User lands on:', initialUrl);
     
@@ -17,49 +17,38 @@ test.describe('User launches Jarvis AI chat embedded in page', () => {
       }
     });
     
-    // User sees the success page with Launch button
+    // User sees the success page with embedded iframe
     await page.waitForSelector('#step7.active');
-    const launchButton = await page.locator('button:has-text("Launch Jarvis AI")');
-    await expect(launchButton).toBeVisible();
-    console.log('✅ User sees "Launch Jarvis AI" button on success page');
+    console.log('✅ User is on success page (Step 7)');
     
-    // Take screenshot before launching
+    // Take screenshot of the page
     await page.screenshot({ 
       path: 'tests/screenshots/user-journey-before-jarvis-launch.png',
       fullPage: true 
     });
-    
-    // User clicks to launch Jarvis
-    await launchButton.click();
-    console.log('✅ User clicks "Launch Jarvis AI" button');
     
     // CRITICAL: Verify we're still on the same page (no redirect!)
     const urlAfterClick = page.url();
     expect(urlAfterClick).toBe(initialUrl);
     console.log('✅ CONFIRMED: User is still on the same page - NO REDIRECT!');
     
-    // Verify the iframe appears
-    const jarvisIframe = await page.locator('#jarvisChat');
+    // Verify the iframe is already present (auto-loaded in step 7)
+    const jarvisIframe = await page.locator('#baristaChat');
     await expect(jarvisIframe).toBeVisible();
     console.log('✅ Jarvis chat iframe is now visible on the page');
     
     // Verify iframe is embedded with Jarvis URL
     const iframeSrc = await jarvisIframe.getAttribute('src');
-    // Accept either mock or proxy URL
-    expect(['/jarvis-mock.html', '/jarvis-proxy/'].includes(iframeSrc)).toBeTruthy();
+    // Should be the real Jarvis URL
+    expect(iframeSrc).toContain('resolvejarvisdev.espressive.com');
     console.log('✅ Iframe is loading Jarvis chat from:', iframeSrc);
     
     // Verify the container is displayed
-    const container = await page.locator('#jarvisChatContainer');
+    const container = await page.locator('#baristaChatContainer');
     await expect(container).toBeVisible();
     const containerDisplay = await container.evaluate(el => window.getComputedStyle(el).display);
     expect(containerDisplay).toBe('block');
     console.log('✅ Jarvis container is displayed (not hidden)');
-    
-    // Verify preview is hidden
-    const preview = await page.locator('#chatPreview');
-    await expect(preview).toBeHidden();
-    console.log('✅ Preview chat interface is hidden');
     
     // Wait for iframe to load content
     await page.waitForTimeout(3000);
@@ -91,7 +80,7 @@ test.describe('User launches Jarvis AI chat embedded in page', () => {
 
   test('user cannot navigate away from page when Jarvis is loaded', async ({ page }) => {
     // Navigate and launch Jarvis
-    await page.goto('http://localhost:8081/');
+    await page.goto('http://localhost:8082/');
     await page.evaluate(() => {
       if (window.app) {
         window.app.currentStep = 7;
@@ -99,20 +88,20 @@ test.describe('User launches Jarvis AI chat embedded in page', () => {
       }
     });
     
-    await page.click('button:has-text("Launch Jarvis AI")');
-    await page.waitForSelector('#jarvisChat');
+    // Step 7 auto-loads the iframe
+    await page.waitForSelector('#baristaChat');
     
     // Try to navigate away (non-blocking)
     const navigationPromise = page.goto('https://example.com').catch(() => {});
     
     // Wait a bit then navigate back to our page
     await page.waitForTimeout(1000);
-    await page.goto('http://localhost:8081/');
+    await page.goto('http://localhost:8082/');
     
     // Verify Jarvis iframe is part of OUR page structure
     const isJarvisPartOfOurPage = await page.evaluate(() => {
-      const iframe = document.getElementById('jarvisChat');
-      return iframe && iframe.parentElement.id === 'jarvisChatContainer';
+      const iframe = document.getElementById('baristaChat');
+      return iframe && iframe.parentElement.id === 'baristaChatContainer';
     });
     
     expect(isJarvisPartOfOurPage).toBe(true);

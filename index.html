@@ -12,6 +12,8 @@
     
     <!-- Stripe.js -->
     <script src="https://js.stripe.com/v3/"></script>
+    <!-- Analytics Tracker -->
+    <script src="analytics-tracker.js"></script>
 </head>
 <body>
     <!-- Onboarding Container -->
@@ -460,6 +462,17 @@
                 
                 this.pricingCard = new PricingCard('pricingCardContainer', (plan) => {
                     this.selectedPlan = plan;
+                    
+                    // Track tier selection
+                    if (window.ResolveAnalytics) {
+                        const price = plan === 'premium' ? 100 : 49;
+                        window.ResolveAnalytics.trackTierSelection(plan, price);
+                        window.ResolveAnalytics.trackOnboardingEvent('plan_selected', {
+                            plan: plan,
+                            price: price
+                        });
+                    }
+                    
                     if (plan === 'premium') {
                         // Premium plan needs configuration step
                         this.nextStep();
@@ -519,6 +532,26 @@
             }
 
             showStep(stepNumber) {
+                // Track funnel step completion and start
+                if (window.ResolveAnalytics) {
+                    // Complete previous step
+                    if (this.currentStep > 0) {
+                        const prevStepName = this.getStepName(this.currentStep);
+                        window.ResolveAnalytics.trackFunnelStep(prevStepName, this.currentStep, 'complete');
+                    }
+                    
+                    // Start new step
+                    const stepName = this.getStepName(stepNumber);
+                    window.ResolveAnalytics.trackFunnelStep(stepName, stepNumber, 'start');
+                    
+                    // Track onboarding progress
+                    window.ResolveAnalytics.trackOnboardingEvent('step_viewed', {
+                        step: stepNumber,
+                        stepName: stepName,
+                        plan: this.selectedPlan
+                    });
+                }
+                
                 document.querySelectorAll('.step').forEach(step => {
                     step.classList.remove('active');
                 });
@@ -557,9 +590,32 @@
 
             previousStep() {
                 if (this.currentStep > 1) {
+                    // Track step abandonment
+                    if (window.ResolveAnalytics) {
+                        const stepName = this.getStepName(this.currentStep);
+                        window.ResolveAnalytics.trackFunnelStep(stepName, this.currentStep, 'abandon');
+                        window.ResolveAnalytics.trackOnboardingEvent('step_back', {
+                            from: this.currentStep,
+                            to: this.currentStep - 1
+                        });
+                    }
+                    
                     this.currentStep--;
                     this.showStep(this.currentStep);
                 }
+            }
+            
+            getStepName(stepNumber) {
+                const stepNames = {
+                    1: 'signup',
+                    2: 'plan_selection',
+                    3: 'premium_config',
+                    4: 'integration',
+                    5: 'payment',
+                    6: 'environment_build',
+                    7: 'chatbot_launch'
+                };
+                return stepNames[stepNumber] || 'unknown';
             }
 
             async validatePremiumConfig() {
@@ -584,6 +640,16 @@
                 const data = await this.integrationForm.validate();
                 if (data) {
                     this.integrationData = data;
+                    
+                    // Track integration setup
+                    if (window.ResolveAnalytics) {
+                        window.ResolveAnalytics.trackIntegrationSetup(data.type || 'jira', true);
+                        window.ResolveAnalytics.trackOnboardingEvent('integration_configured', {
+                            type: data.type || 'jira',
+                            hasApiKey: !!data.apiToken
+                        });
+                    }
+                    
                     // Simulate connection test
                     this.simulateConnectionTest();
                 }

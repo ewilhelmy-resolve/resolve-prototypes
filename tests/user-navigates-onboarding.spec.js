@@ -1,8 +1,8 @@
-import { test, expect } from '@playwright/test';
+const { test, expect } = require('@playwright/test');
 
 test.describe('Resolve Onboarding Flow', () => {
   test('should load the homepage', async ({ page }) => {
-    await page.goto('http://localhost:8081/');
+    await page.goto('http://localhost:8082/');
     
     // Check if the page loads successfully
     await expect(page).toHaveTitle(/Resolve/i);
@@ -12,7 +12,7 @@ test.describe('Resolve Onboarding Flow', () => {
   });
 
   test('should have working navigation', async ({ page }) => {
-    await page.goto('http://localhost:8081/');
+    await page.goto('http://localhost:8082/');
     
     // Check for main container elements
     const container = page.locator('.onboarding-container');

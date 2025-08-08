@@ -184,7 +184,7 @@ export class SignupForm {
                 // Successful login
                 const userData = {
                     email: response.user.email,
-                    company: response.user.company,
+                    company: response.user.company_name || response.user.company,
                     ...response.user
                 };
                 

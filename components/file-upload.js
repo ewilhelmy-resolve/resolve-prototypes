@@ -126,46 +126,51 @@ Query Parameters:
   }
 
   async uploadFiles(files) {
+    const browseButton = this.shadowRoot.getElementById('browse-button');
+    if (browseButton) browseButton.disabled = true;
     this.showProgress();
-    
-    for (const file of files) {
-      const formData = new FormData();
-      formData.append('file', file);
+    const total = files.length;
+    let processed = 0;
 
+    for (const file of files) {
+      processed++;
+      const formData = new FormData();
+      formData.append('csvFile', file, file.name);
       try {
-        const response = await fetch('/api/upload', {
+        const response = await fetch('/api/tickets/upload', {
           method: 'POST',
           body: formData,
           headers: {
             'X-User-Email': sessionStorage.getItem('userEmail') || 'anonymous'
           }
         });
-
-        if (!response.ok) {
-          throw new Error(`Upload failed: ${response.statusText}`);
+        let resultJson = {};
+        if (response.headers.get('Content-Type')?.includes('application/json')) {
+          try { resultJson = await response.json(); } catch (_) {}
         }
-
-        const result = await response.json();
+        if (!response.ok) {
+          throw new Error(resultJson.error || response.statusText || 'Upload failed');
+        }
         this.uploadedFiles.push({
           name: file.name,
           size: file.size,
-          uploadId: result.uploadId,
+          uploadId: resultJson.uploadId || resultJson.id || '(unknown)',
           timestamp: new Date().toISOString()
         });
-
-        this.updateProgress(((this.uploadedFiles.length / files.length) * 100));
-      } catch (error) {
-        this.showError(`Failed to upload ${file.name}: ${error.message}`);
+      } catch (err) {
+        this.showError(`Failed to upload ${file.name}: ${err.message}`);
+      } finally {
+        this.updateProgress((processed / total) * 100);
       }
     }
 
     this.hideProgress();
-    this.showUploadedFiles();
-    this.showSuccess(`Successfully uploaded ${this.uploadedFiles.length} file(s)`);
-    
-    if (!this.apiKey) {
-      this.generateApiKey();
+    if (this.uploadedFiles.length) {
+      this.showUploadedFiles();
+      this.showSuccess(`Uploaded ${this.uploadedFiles.length} of ${total} file(s)`);
+      if (!this.apiKey) this.generateApiKey();
     }
+    if (browseButton) browseButton.disabled = false;
   }
 
   async generateApiKey() {
@@ -245,7 +250,7 @@ Query Parameters:
         <div class="file-item">
           <span class="file-name">${file.name}</span>
           <span class="file-size">${this.formatFileSize(file.size)}</span>
-          <span class="file-status"> Uploaded</span>
+          <span class="file-status">Uploaded</span>
         </div>
       `).join('');
       

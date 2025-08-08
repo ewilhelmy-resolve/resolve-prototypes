@@ -1,12 +1,8 @@
 // API Client for backend communication
 export class ApiClient {
     constructor() {
-        // Check if we're running through nginx (port 8080/8081) or directly (port 3000)
-        // If through nginx, use the proxy, otherwise direct to backend
-        const port = window.location.port;
-        this.baseURL = (port === '8080' || port === '8081' || port === '80' || !port) 
-            ? ''  // Use nginx proxy for Docker/production
-            : 'http://localhost:3001';  // Direct for local dev on port 3000
+        // Use the current origin for API calls (same server)
+        this.baseURL = '';  // Same origin, the server serves both frontend and API
         this.token = sessionStorage.getItem('authToken');
     }
 
@@ -42,7 +38,7 @@ export class ApiClient {
     }
 
     async login(email, password) {
-        const response = await this.request('/login', {
+        const response = await this.request('/auth/login', {
             method: 'POST',
             body: JSON.stringify({ email, password })
         });
@@ -50,6 +46,8 @@ export class ApiClient {
         if (response.token) {
             this.token = response.token;
             sessionStorage.setItem('authToken', response.token);
+            localStorage.setItem('authToken', response.token);  // Also store in localStorage for analytics
+            localStorage.setItem('userEmail', email);
             sessionStorage.setItem('currentUser', JSON.stringify(response.user));
         }
 
@@ -57,14 +55,22 @@ export class ApiClient {
     }
 
     async signup(email, password, company) {
-        const response = await this.request('/signup', {
+        const response = await this.request('/auth/signup', {
             method: 'POST',
-            body: JSON.stringify({ email, password, company })
+            body: JSON.stringify({ 
+                email, 
+                password, 
+                company_name: company,
+                phone: '',
+                tier: 'standard'
+            })
         });
 
         if (response.token) {
             this.token = response.token;
             sessionStorage.setItem('authToken', response.token);
+            localStorage.setItem('authToken', response.token);  // Also store in localStorage for analytics
+            localStorage.setItem('userEmail', email);
             sessionStorage.setItem('currentUser', JSON.stringify(response.user));
         }
 
@@ -72,13 +78,15 @@ export class ApiClient {
     }
 
     async logout() {
-        await this.request('/logout', {
+        await this.request('/auth/logout', {
             method: 'POST'
         });
 
         this.token = null;
         sessionStorage.removeItem('authToken');
         sessionStorage.removeItem('currentUser');
+        localStorage.removeItem('authToken');
+        localStorage.removeItem('userEmail');
     }
 
     async getUser(email) {

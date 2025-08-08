@@ -3,7 +3,7 @@ const { test, expect } = require('@playwright/test');
 test.describe('Stripe Payment Integration', () => {
   test('should show fill test card button and process payment', async ({ page, browserName }) => {
     // Navigate to the app
-    await page.goto('http://localhost:8081/');
+    await page.goto('http://localhost:8082/');
     
     // Wait for page to be fully loaded
     await page.waitForLoadState('networkidle');
@@ -130,7 +130,7 @@ test.describe('Stripe Payment Integration', () => {
   
   test('should validate Stripe test key is working', async ({ page }) => {
     // Navigate to the app
-    await page.goto('http://localhost:8081/');
+    await page.goto('http://localhost:8082/');
     
     // Wait for page to be fully loaded
     await page.waitForLoadState('networkidle');
@@ -154,7 +154,7 @@ test.describe('Stripe Payment Integration', () => {
   
   test('should show Stripe card element with proper styling', async ({ page }) => {
     // Navigate directly to payment step
-    await page.goto('http://localhost:8081/');
+    await page.goto('http://localhost:8082/');
     
     // Wait for page to be fully loaded
     await page.waitForLoadState('networkidle');

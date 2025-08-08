@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "description": "Resolve onboarding POC with Stripe integration",
   "scripts": {
-    "start": "node server-backend.js",
+    "start": "node server-enhanced.js",
     "start:proxy": "node server.js",
     "start:enhanced": "node server-enhanced.js",
     "test": "playwright test",
@@ -18,7 +18,8 @@
     "cors": "^2.8.5",
     "express": "^4.21.2",
     "http-proxy-middleware": "^3.0.5",
-    "better-sqlite3": "^9.2.2"
+    "multer": "^1.4.5-lts.1",
+    "sqlite3": "^5.1.7"
   },
   "main": "playwright.config.js",
   "directories": {

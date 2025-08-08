@@ -38,6 +38,10 @@ playwright-report/
 coverage/
 .nyc_output
 
+# Database files - DO NOT IGNORE
+# *.db files are tracked in this project
+# resolve-onboarding.db contains critical data
+
 # Environment variables
 .env
 .env.local

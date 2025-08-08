@@ -3,7 +3,7 @@ FROM node:18-alpine
 # Install dependencies for SQLite
 RUN apk add --no-cache python3 make g++ curl
 
-# Create app directory
+# Create app directory  
 WORKDIR /app
 
 # Copy package files
@@ -12,25 +12,10 @@ COPY package*.json ./
 # Install dependencies
 RUN npm ci --only=production
 
-# Copy application files
-COPY server-enhanced.js ./
-COPY database-sqlite.js ./
-COPY init-admin.js ./
+# Copy all application files
+COPY . .
 
-# Copy static files and components
-COPY index.html ./
-COPY jarvis.html ./
-COPY analytics-dashboard.html ./
-COPY analytics-login.html ./
-COPY analytics-tracker.js ./
-COPY logo.svg ./
-COPY components ./components/
-COPY styles ./styles/
-
-# Copy sample data
-COPY sample-tickets.csv ./
-
-# Create database directory
+# Create data directory for database
 RUN mkdir -p /app/data
 
 # Initialize database with admin user

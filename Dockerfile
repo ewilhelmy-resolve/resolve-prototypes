@@ -13,16 +13,15 @@ COPY package*.json ./
 RUN npm install --production
 
 # Copy backend server and database module
-COPY server-backend.js ./
-COPY database.js ./
+COPY server-enhanced.js ./
+COPY database-sqlite.js ./
 
 # Copy frontend files to nginx
 COPY index.html /usr/share/nginx/html/
 COPY jarvis.html /usr/share/nginx/html/
-COPY jarvis-mock.html /usr/share/nginx/html/
-COPY iframe-proxy.html /usr/share/nginx/html/
-COPY test-styling.html /usr/share/nginx/html/
-COPY context-demo.html /usr/share/nginx/html/
+COPY analytics-dashboard.html /usr/share/nginx/html/
+COPY analytics-login.html /usr/share/nginx/html/
+COPY analytics-tracker.js /usr/share/nginx/html/
 COPY logo.svg /usr/share/nginx/html/
 COPY components /usr/share/nginx/html/components/
 COPY styles /usr/share/nginx/html/styles/
@@ -64,7 +63,7 @@ stderr_logfile=/dev/stderr\n\
 stderr_logfile_maxbytes=0\n\
 \n\
 [program:backend]\n\
-command=node /app/server-backend.js\n\
+command=node /app/server-enhanced.js\n\
 directory=/app\n\
 autostart=true\n\
 autorestart=true\n\

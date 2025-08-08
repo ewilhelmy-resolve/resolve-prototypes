@@ -1,41 +1,108 @@
-# Local Testing with Docker
+# Docker Setup - Resolve Onboarding
+
+## Single Container Architecture
+
+This application runs as a **single Docker container** serving both the frontend and backend on port 8082.
 
 ## Quick Start
 
-### Using Docker Compose (Recommended)
 ```bash
-# Start the container
+# Build the container
+docker-compose build
+
+# Start the application
 docker-compose up -d
 
-# View the site at http://localhost:8080
+# Check status
+docker-compose ps
 
-# Stop the container
+# View logs
+docker-compose logs -f
+
+# Stop the application
 docker-compose down
 ```
 
-### Using Docker directly
+## Access Points
+
+- **Application**: http://localhost:8082
+- **Health Check**: http://localhost:8082/health
+- **API**: http://localhost:8082/api/*
+
+## Default Credentials
+
+- **Email**: john@resolve.io
+- **Password**: !Password1
+
+## Docker Files
+
+- `Dockerfile.simple` - Single container setup with Node.js
+- `docker-compose.yml` - Simple compose configuration
+- `data/` - Persistent volume for SQLite database
+
+## Testing CSV Upload
+
+1. Navigate to http://localhost:8082
+2. Click "Log in here"
+3. Enter credentials (john@resolve.io / !Password1)
+4. After login, click "Upload Ticket CSV"
+5. Select `sample-tickets.csv`
+6. Verify upload success
+
+## Container Features
+
+- **Port**: 8082
+- **Health Check**: Every 30s
+- **Auto-restart**: Unless stopped
+- **Persistent Data**: ./data volume
+- **Database**: SQLite with pre-seeded admin
+
+## Commands
+
 ```bash
-# Build the image
-docker build -t resolve-onboarding .
+# Rebuild container (after code changes)
+docker-compose build --no-cache
 
-# Run the container
-docker run -d -p 8080:80 --name resolve-onboarding resolve-onboarding
+# View container logs
+docker-compose logs app
 
-# View the site at http://localhost:8080
+# Execute command in container
+docker-compose exec app sh
 
-# Stop and remove the container
-docker stop resolve-onboarding
-docker rm resolve-onboarding
+# Run tests
+docker-compose exec app npm test
+
+# Reset database
+docker-compose down -v
+docker-compose up -d
 ```
 
-## Live Reload Development
+## Environment Variables
 
-The docker-compose.yml file includes volume mounting, so any changes you make to the HTML, CSS, or JS files will be reflected immediately when you refresh the browser.
+- `NODE_ENV=production`
+- `PORT=8082`
 
 ## Troubleshooting
 
-If port 8080 is already in use, you can change it in docker-compose.yml:
-```yaml
-ports:
-  - "8081:80"  # Change 8081 to any available port
+### Container won't start
+```bash
+docker-compose down
+docker system prune -f
+docker-compose build --no-cache
+docker-compose up -d
+```
+
+### Port already in use
+```bash
+# Find process using port
+lsof -i :8082
+# Or change port in docker-compose.yml
+```
+
+### Database issues
+```bash
+# Remove data volume and recreate
+rm -rf data/
+docker-compose down -v
+docker-compose up -d
 ```
