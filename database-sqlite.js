@@ -136,6 +136,22 @@ db.serialize(() => {
         timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
     )`);
 
+    // Webhook calls tracking
+    db.run(`CREATE TABLE IF NOT EXISTS webhook_calls (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        upload_id TEXT NOT NULL,
+        user_email TEXT NOT NULL,
+        webhook_url TEXT NOT NULL,
+        request_payload TEXT NOT NULL,
+        response_status INTEGER,
+        response_body TEXT,
+        success BOOLEAN DEFAULT 0,
+        error_message TEXT,
+        called_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (upload_id) REFERENCES csv_uploads(id),
+        FOREIGN KEY (user_email) REFERENCES users(email)
+    )`);
+
     console.log('✅ Database initialized successfully at:', dbPath);
 });
 
@@ -614,6 +630,71 @@ const analyticsOps = {
     }
 };
 
+// Webhook operations
+const webhookOps = {
+    logCall: (callData) => {
+        return new Promise((resolve, reject) => {
+            const { upload_id, user_email, webhook_url, request_payload, response_status, response_body, success, error_message } = callData;
+            db.run(
+                `INSERT INTO webhook_calls (upload_id, user_email, webhook_url, request_payload, response_status, response_body, success, error_message) 
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+                [upload_id, user_email, webhook_url, JSON.stringify(request_payload), response_status, response_body, success ? 1 : 0, error_message],
+                function(err) {
+                    if (err) reject(err);
+                    else resolve({ id: this.lastID });
+                }
+            );
+        });
+    },
+
+    getByUser: (user_email) => {
+        return new Promise((resolve, reject) => {
+            db.all(
+                `SELECT wc.*, cu.filename, cu.line_count 
+                 FROM webhook_calls wc 
+                 LEFT JOIN csv_uploads cu ON wc.upload_id = cu.id 
+                 WHERE wc.user_email = ? 
+                 ORDER BY wc.called_at DESC`,
+                [user_email],
+                (err, rows) => {
+                    if (err) reject(err);
+                    else {
+                        // Parse JSON request_payload for each row
+                        const parsed = rows.map(row => ({
+                            ...row,
+                            request_payload: JSON.parse(row.request_payload || '{}')
+                        }));
+                        resolve(parsed);
+                    }
+                }
+            );
+        });
+    },
+
+    getAll: () => {
+        return new Promise((resolve, reject) => {
+            db.all(
+                `SELECT wc.*, cu.filename, cu.line_count 
+                 FROM webhook_calls wc 
+                 LEFT JOIN csv_uploads cu ON wc.upload_id = cu.id 
+                 ORDER BY wc.called_at DESC`,
+                [],
+                (err, rows) => {
+                    if (err) reject(err);
+                    else {
+                        // Parse JSON request_payload for each row
+                        const parsed = rows.map(row => ({
+                            ...row,
+                            request_payload: JSON.parse(row.request_payload || '{}')
+                        }));
+                        resolve(parsed);
+                    }
+                }
+            );
+        });
+    }
+};
+
 module.exports = {
     db,
     users: userOps,
@@ -622,6 +703,7 @@ module.exports = {
     apiKeys: apiKeyOps,
     integrations: integrationOps,
     analytics: analyticsOps,
+    webhooks: webhookOps,
     
     // Utility function to close database
     close: () => {

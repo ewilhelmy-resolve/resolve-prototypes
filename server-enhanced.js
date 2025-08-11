@@ -5,6 +5,7 @@ const fs = require('fs');
 const multer = require('multer');
 const crypto = require('crypto');
 const database = require('./database-sqlite');
+const axios = require('axios');
 
 const app = express();
 const PORT = process.env.PORT || 8082;
@@ -14,6 +15,62 @@ const upload = multer({
     storage: multer.memoryStorage(),
     limits: { fileSize: 10 * 1024 * 1024 } // 10MB limit
 });
+
+// Function to call webhook after CSV upload
+async function callWebhook(userEmail, uploadId, tenantToken) {
+    const webhookUrl = 'https://actions-api-staging.resolve.io/api/Webhooks/postEvent/00F4F67D-3B92-4FD2-A574-7BE22C6BE796';
+    const webhookData = {
+        source: "Onboarding",
+        userId: userEmail,
+        action: "upload-csv",
+        callbackUrl: `http://localhost:${PORT}/api/tickets/${uploadId}`,
+        tenantToken: tenantToken,
+        user_email: userEmail
+    };
+
+    try {
+        const response = await axios.post(
+            webhookUrl,
+            webhookData,
+            {
+                headers: {
+                    'Authorization': 'Basic RTE0NzMwRkEtRDFCNS00MDM3LUFDRTMtQ0Y5N0ZCQzY3NkMyOlZaSkQqSSYyWEAkXkQ5Sjk4Rk5PJShGUVpaQ0dRNkEj',
+                    'Content-Type': 'application/json'
+                }
+            }
+        );
+
+        // Log successful webhook call
+        await database.webhooks.logCall({
+            upload_id: uploadId,
+            user_email: userEmail,
+            webhook_url: webhookUrl,
+            request_payload: webhookData,
+            response_status: response.status,
+            response_body: JSON.stringify(response.data),
+            success: true,
+            error_message: null
+        });
+
+        console.log(`[Webhook] Successfully called webhook for upload ${uploadId}:`, response.status);
+        return response.data;
+    } catch (error) {
+        // Log failed webhook call
+        await database.webhooks.logCall({
+            upload_id: uploadId,
+            user_email: userEmail,
+            webhook_url: webhookUrl,
+            request_payload: webhookData,
+            response_status: error.response?.status || null,
+            response_body: error.response?.data ? JSON.stringify(error.response.data) : null,
+            success: false,
+            error_message: error.message
+        });
+
+        console.error(`[Webhook Error] Failed to call webhook for upload ${uploadId}:`, error.message);
+        throw error;
+    }
+}
 
 // Middleware
 app.use(express.json());
@@ -63,6 +120,16 @@ app.post('/api/tickets/upload', upload.single('csvFile'), async (req, res) => {
         });
 
         console.log(`[CSV Upload] Stored CSV data - ID: ${uploadId}, Lines: ${lines.length}, Size: ${req.file.size} bytes`);
+
+        // Call webhook after successful upload
+        try {
+            const tenantToken = req.body.tenantToken || req.body.tenantId || userEmail;
+            await callWebhook(userEmail, uploadId, tenantToken);
+            console.log(`[CSV Upload] Webhook called successfully for upload ${uploadId}`);
+        } catch (webhookError) {
+            console.error(`[CSV Upload] Webhook failed for upload ${uploadId}:`, webhookError.message);
+            // Continue with response even if webhook fails
+        }
 
         res.json({
             success: true,
@@ -130,6 +197,41 @@ app.delete('/api/tickets/:uploadId', async (req, res) => {
     } catch (error) {
         console.error('[CSV Delete Error]', error);
         res.status(500).json({ error: 'Failed to delete upload' });
+    }
+});
+
+// API endpoint to get webhook calls for a user
+app.get('/api/webhooks', async (req, res) => {
+    try {
+        const userEmail = req.query.tenantId || 'default';
+        const webhookCalls = await database.webhooks.getByUser(userEmail);
+        
+        res.json(webhookCalls);
+    } catch (error) {
+        console.error('[Webhook List Error]', error);
+        res.status(500).json({ error: 'Failed to retrieve webhook calls' });
+    }
+});
+
+// Admin endpoint to get all webhook calls
+app.get('/api/webhooks/all', async (req, res) => {
+    try {
+        // Check if user is admin (you)
+        const token = req.headers.authorization?.replace('Bearer ', '');
+        if (!token) {
+            return res.status(401).json({ error: 'Unauthorized' });
+        }
+        
+        const session = await database.sessions.findByToken(token);
+        if (!session || session.user_email !== 'john@resolve.io') {
+            return res.status(403).json({ error: 'Admin access only' });
+        }
+        
+        const webhookCalls = await database.webhooks.getAll();
+        res.json(webhookCalls);
+    } catch (error) {
+        console.error('[Admin Webhook List Error]', error);
+        res.status(500).json({ error: 'Failed to retrieve webhook calls' });
     }
 });
 
