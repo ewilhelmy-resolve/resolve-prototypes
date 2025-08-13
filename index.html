@@ -10,8 +10,6 @@
     <link rel="stylesheet" href="styles/components.css">
     <link rel="stylesheet" href="styles/animations.css">
     
-    <!-- Stripe.js -->
-    <script src="https://js.stripe.com/v3/"></script>
     <!-- Analytics Tracker -->
     <script src="analytics-tracker.js"></script>
 </head>
@@ -30,92 +28,30 @@
                 <div id="signupFormContainer"></div>
             </div>
 
-            <!-- Step 2: Choose Plan -->
+            <!-- Step 2: Configure Knowledge Sources -->
             <div class="step" id="step2">
-                <h2>Start Your 30-Day Free Trial</h2>
-                <p>See how AI can transform your IT operations</p>
-                <div id="pricingCardContainer"></div>
+                <h2>Configure Your Knowledge Sources</h2>
+                <p>Select how you want to integrate your knowledge articles for AI-powered support</p>
+                <div id="knowledgeConfigContainer"></div>
                 <div class="button-group">
                     <button type="button" class="btn btn-secondary" onclick="app.previousStep()">Back</button>
+                    <button type="button" class="btn btn-primary" onclick="app.nextStep()">Continue</button>
                 </div>
             </div>
 
-            <!-- Step 3: Premium Configuration (only shown for premium plans) -->
+            <!-- Step 3: Configure ITSM Solution -->
             <div class="step" id="step3">
-                <h2>🚀 Configure Your Premium Experience</h2>
-                <p>Select your systems to unlock Rita's full automation capabilities</p>
-                <div id="premiumConfigContainer"></div>
+                <h2>Configure Your ITSM Solution</h2>
+                <p>Select your IT service management platform for ticket integration</p>
+                <div id="itsmConfigContainer"></div>
                 <div class="button-group">
                     <button type="button" class="btn btn-secondary" onclick="app.previousStep()">Back</button>
-                    <button type="button" class="btn btn-primary" onclick="app.validatePremiumConfig()">Continue Setup</button>
+                    <button type="button" class="btn btn-primary" onclick="app.nextStep()">Continue</button>
                 </div>
             </div>
 
-            <!-- Step 4: Integration Credentials -->
+            <!-- Step 4: Environment Building -->
             <div class="step" id="step4">
-                <h2>🚀 Power Up Your IT Infrastructure</h2>
-                <p>Connect your systems and unlock AI-powered insights instantly!</p>
-                <div id="integrationFormContainer"></div>
-                <div class="button-group">
-                    <button type="button" class="btn btn-secondary" onclick="app.previousStep()">Back</button>
-                    <button type="button" class="btn btn-primary" onclick="app.validateIntegration()">🚀 Connect & Unlock Insights</button>
-                </div>
-            </div>
-
-            <!-- Step 5: Payment -->
-            <div class="step" id="step5">
-                <h2>Payment Information</h2>
-                <p>Secure payment processing via Stripe</p>
-                
-                <form id="paymentForm">
-                    <div class="form-group">
-                        <label for="cardName">Name on Card</label>
-                        <input type="text" id="cardName" name="cardName" required placeholder="John Doe">
-                        <span class="error-message">Name is required</span>
-                    </div>
-                    
-                    <!-- Stripe Card Element Container -->
-                    <div class="form-group">
-                        <label for="card-element">
-                            Card Details
-                            <button type="button" class="btn-fill-test" onclick="app.fillTestCard()" id="fillTestCardBtn" style="display: none;">
-                                💳 Use Test Card
-                            </button>
-                        </label>
-                        <div id="card-element" class="stripe-card-element">
-                            <!-- Stripe Elements will be inserted here -->
-                        </div>
-                        <div id="card-errors" class="error-message" role="alert"></div>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label class="checkbox-label">
-                            <input type="checkbox" id="terms" name="terms" required>
-                            I agree to the Terms of Service and Privacy Policy
-                        </label>
-                        <span class="error-message" id="terms-error">Please accept the terms and conditions to continue</span>
-                    </div>
-                    
-                    <div class="trial-info">
-                        <div class="trial-badge">
-                            <span class="trial-icon">✨</span>
-                            <span>30-Day Free Trial</span>
-                        </div>
-                        <p>You won't be charged today. Your subscription starts after the trial ends.</p>
-                    </div>
-                    
-                    <div class="button-group">
-                        <button type="button" class="btn btn-secondary" onclick="app.previousStep()">Back</button>
-                        <button type="button" class="btn btn-primary" id="submitPayment" onclick="app.processStripePayment()">
-                            <span id="button-text">Start Free Trial</span>
-                            <div class="spinner hidden" id="spinner"></div>
-                        </button>
-                    </div>
-                </form>
-            </div>
-
-            <!-- Step 6: Environment Building -->
-            <div class="step" id="step6">
                 <h2>🚀 Building Your AI-Powered Environment</h2>
                 <p>We're analyzing your recent ticket activity to customize your experience</p>
                 
@@ -183,8 +119,8 @@
                 </div>
             </div>
 
-            <!-- Step 7: Success - Dedicated Chatbot Page -->
-            <div class="step" id="step7">
+            <!-- Step 5: Success - Dedicated Chatbot Page -->
+            <div class="step" id="step5">
                 <!-- No success icon or launch button - straight to the chatbot -->
                 <div class="barista-chat-container" id="baristaChatContainer" style="display: block; height: calc(100vh - 200px); margin: -2rem;">
                     <iframe 
@@ -278,26 +214,20 @@
     <script type="module">
         import { ProgressBar } from './components/progress-bar.js';
         import { SignupForm } from './components/signup-form.js';
-        import { PricingCard } from './components/pricing-card.js';
-        import { PremiumConfiguration } from './components/premium-configuration.js';
-        import { IntegrationForm } from './components/integration-form.js';
+        import { KnowledgeConfig } from './components/knowledge-config.js';
+        import { ItsmConfig } from './components/itsm-config.js';
+        import { JiraIntegration } from './components/jira-integration.js';
         import { apiClient } from './components/api-client.js';
 
         // Application State
         class OnboardingApp {
             constructor() {
                 this.currentStep = 1;
-                this.totalSteps = 7;
+                this.totalSteps = 5; // Reduced from 7 after removing pricing steps
                 this.userData = {};
-                this.selectedPlan = null;
-                this.premiumConfig = {};
+                this.knowledgeSource = null;
+                this.itsmSource = null;
                 this.integrationData = {};
-                
-                // Stripe configuration
-                this.stripePublicKey = this.getStripePublicKey();
-                this.stripe = null;
-                this.cardElement = null;
-                this.isTestMode = this.stripePublicKey && this.stripePublicKey.includes('pk_test');
                 
                 // Check backend health on startup
                 this.checkBackendHealth();
@@ -460,44 +390,38 @@
                     this.nextStep();
                 });
                 
-                this.pricingCard = new PricingCard('pricingCardContainer', (plan) => {
-                    this.selectedPlan = plan;
+                this.knowledgeConfig = new KnowledgeConfig('knowledgeConfigContainer', (config) => {
+                    this.knowledgeSource = config;
                     
-                    // Track tier selection
+                    // Track knowledge source selection
                     if (window.ResolveAnalytics) {
-                        const price = plan === 'premium' ? 100 : 49;
-                        window.ResolveAnalytics.trackTierSelection(plan, price);
-                        window.ResolveAnalytics.trackOnboardingEvent('plan_selected', {
-                            plan: plan,
-                            price: price
+                        window.ResolveAnalytics.trackOnboardingEvent('knowledge_source_selected', {
+                            source: config.source
                         });
                     }
                     
-                    if (plan === 'premium') {
-                        // Premium plan needs configuration step
-                        this.nextStep();
-                    } else {
-                        // Basic plan skips to integration step
-                        this.currentStep = 3; // Skip premium config
-                        this.nextStep();
+                    // Handle Jira integration flow
+                    if (config.source === 'jira' && config.requiresApiConfig) {
+                        this.showJiraIntegration();
+                    } else if (config.source === 'servicenow' && config.requiresApiConfig) {
+                        this.showServiceNowIntegration();
                     }
                 });
-
-                this.premiumConfiguration = new PremiumConfiguration('premiumConfigContainer', (config) => {
-                    this.premiumConfig = config;
-                    this.nextStep();
-                });
                 
-                this.integrationForm = new IntegrationForm('integrationFormContainer', (data) => {
-                    this.integrationData = data;
-                    this.nextStep();
+                this.itsmConfig = new ItsmConfig('itsmConfigContainer', (config) => {
+                    this.itsmSource = config;
+                    
+                    // Track ITSM selection
+                    if (window.ResolveAnalytics) {
+                        window.ResolveAnalytics.trackOnboardingEvent('itsm_source_selected', {
+                            source: config.source
+                        });
+                    }
                 });
 
                 // Setup event listeners
                 this.setupEventListeners();
 
-                // Initialize Stripe
-                this.initializeStripe();
 
                 // Expose methods to window for onclick handlers
                 window.app = this;
@@ -564,7 +488,7 @@
                 }
                 
                 // At final step, mark onboarding complete and redirect
-                if (stepNumber === 7) {
+                if (stepNumber === 5) {
                     // Mark user's onboarding as complete in backend
                     this.completeOnboarding().then(() => {
                         setTimeout(() => {
@@ -608,20 +532,18 @@
             getStepName(stepNumber) {
                 const stepNames = {
                     1: 'signup',
-                    2: 'plan_selection',
-                    3: 'premium_config',
-                    4: 'integration',
-                    5: 'payment',
-                    6: 'environment_build',
-                    7: 'chatbot_launch'
+                    2: 'knowledge_config',
+                    3: 'itsm_config',
+                    4: 'environment_build',
+                    5: 'chatbot_launch'
                 };
                 return stepNames[stepNumber] || 'unknown';
             }
 
-            async validatePremiumConfig() {
-                const config = this.premiumConfiguration.validate();
+            async validateKnowledgeConfig() {
+                const config = this.knowledgeConfig.validate();
                 if (config) {
-                    this.premiumConfig = config;
+                    this.knowledgeSource = config;
                     
                     // Update the integration form to only show the selected ticketing system
                     if (config.ticketing === 'jira') {
@@ -636,78 +558,8 @@
                 }
             }
 
-            async validateIntegration() {
-                const data = await this.integrationForm.validate();
-                if (data) {
-                    this.integrationData = data;
-                    
-                    // Track integration setup
-                    if (window.ResolveAnalytics) {
-                        window.ResolveAnalytics.trackIntegrationSetup(data.type || 'jira', true);
-                        window.ResolveAnalytics.trackOnboardingEvent('integration_configured', {
-                            type: data.type || 'jira',
-                            hasApiKey: !!data.apiToken
-                        });
-                    }
-                    
-                    // Simulate connection test
-                    this.simulateConnectionTest();
-                }
-            }
 
-            simulateConnectionTest() {
-                const btn = document.querySelector('.btn-primary[onclick="app.validateIntegration()"]');
-                btn.innerHTML = '<div class="spinner"></div> Testing connection...';
-                btn.disabled = true;
-                
-                setTimeout(() => {
-                    btn.innerHTML = '✅ Connection Successful!';
-                    btn.classList.add('btn-success');
-                    setTimeout(() => {
-                        this.nextStep();
-                    }, 1000);
-                }, 2000);
-            }
 
-            processPayment() {
-                const cardName = document.getElementById('cardName');
-                const cardNumber = document.getElementById('cardNumber');
-                const expiry = document.getElementById('expiry');
-                const cvv = document.getElementById('cvv');
-                const terms = document.getElementById('terms');
-                
-                let isValid = true;
-
-                // Basic validation
-                if (!cardName.value) {
-                    cardName.classList.add('error');
-                    isValid = false;
-                }
-                
-                if (!cardNumber.value || cardNumber.value.replace(/\s/g, '').length !== 16) {
-                    cardNumber.classList.add('error');
-                    isValid = false;
-                }
-                
-                if (!expiry.value || expiry.value.length !== 5) {
-                    expiry.classList.add('error');
-                    isValid = false;
-                }
-                
-                if (!cvv.value || cvv.value.length < 3) {
-                    cvv.classList.add('error');
-                    isValid = false;
-                }
-                
-                if (!terms.checked) {
-                    document.getElementById('terms-error').style.display = 'block';
-                    isValid = false;
-                }
-
-                if (isValid) {
-                    this.nextStep();
-                }
-            }
 
             async completeOnboarding() {
                 // Mark the user's onboarding as complete in the backend
@@ -788,48 +640,41 @@
                 }
             }
 
-            // Stripe Methods
-            getStripePublicKey() {
-                // Check URL parameters first
-                const urlParams = new URLSearchParams(window.location.search);
-                const keyFromUrl = urlParams.get('stripe_key');
-                if (keyFromUrl) return keyFromUrl;
+            showJiraIntegration() {
+                // Hide the current knowledge config step
+                const knowledgeContainer = document.getElementById('knowledgeConfigContainer');
+                const originalContent = knowledgeContainer.innerHTML;
                 
-                // Default test key (replace with your actual test key)
-                return 'pk_test_51Rt8fT4A2xfrcz4XF94loxH7CqYodVtZj7VRXx9yrRkBqJnXDIy9F5qG4XdZ2Qd0BViJ3PWH1zhqS3GiZNwMKeSk00wRgT8Sjv';
+                // Create a container for the Jira integration
+                knowledgeContainer.innerHTML = '<div id="jiraIntegrationContainer"></div>';
+                
+                // Initialize the Jira integration component
+                this.jiraIntegration = new JiraIntegration('jiraIntegrationContainer', (result) => {
+                    if (result.action === 'back') {
+                        // Go back to knowledge config
+                        knowledgeContainer.innerHTML = originalContent;
+                        this.knowledgeConfig = new KnowledgeConfig('knowledgeConfigContainer', (config) => {
+                            this.knowledgeSource = config;
+                            
+                            // Handle Jira integration flow
+                            if (config.source === 'jira' && config.requiresApiConfig) {
+                                this.showJiraIntegration();
+                            } else if (config.source === 'servicenow' && config.requiresApiConfig) {
+                                this.showServiceNowIntegration();
+                            }
+                        });
+                    } else if (result.action === 'complete') {
+                        // Integration complete, move to next step
+                        this.knowledgeSource = result;
+                        this.nextStep();
+                    }
+                });
             }
 
-            initializeStripe() {
-                if (!this.stripePublicKey) {
-                    console.warn('No Stripe public key found');
-                    return;
-                }
-
-                // Initialize Stripe
-                this.stripe = Stripe(this.stripePublicKey);
-                
-                // Create card element
-                const elements = this.stripe.elements();
-                const style = {
-                    base: {
-                        color: '#fff',
-                        fontFamily: '"Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
-                        fontSmoothing: 'antialiased',
-                        fontSize: '16px',
-                        '::placeholder': {
-                            color: 'rgba(255, 255, 255, 0.4)'
-                        }
-                    },
-                    invalid: {
-                        color: '#ff6b6b',
-                        iconColor: '#ff6b6b'
-                    }
-                };
-
-                this.cardElement = elements.create('card', { 
-                    style: style,
-                    hidePostalCode: true
-                });
+            showServiceNowIntegration() {
+                // Similar to Jira but for ServiceNow
+                // For now, just proceed to next step
+                this.nextStep();
             }
 
             showStep(stepNumber) {
@@ -840,13 +685,8 @@
                 document.getElementById('step' + stepNumber).classList.add('active');
                 this.progressBar.setStep(stepNumber);
                 
-                // Special handling for payment step
-                if (stepNumber === 5) {
-                    this.setupPaymentStep();
-                }
-                
                 // Special handling for workflow execution
-                if (stepNumber === 6) {
+                if (stepNumber === 4) {
                     this.executeWorkflow();
                 }
                 
@@ -857,197 +697,6 @@
                 });
             }
 
-            setupPaymentStep() {
-                // Mount Stripe card element
-                if (this.cardElement && document.getElementById('card-element')) {
-                    this.cardElement.mount('#card-element');
-                    
-                    // Handle card errors
-                    this.cardElement.on('change', (event) => {
-                        const displayError = document.getElementById('card-errors');
-                        if (event.error) {
-                            displayError.textContent = event.error.message;
-                            displayError.style.display = 'block';
-                        } else {
-                            displayError.textContent = '';
-                            displayError.style.display = 'none';
-                        }
-                    });
-                }
-                
-                // Show fill test card button if in test mode
-                if (this.isTestMode) {
-                    const fillBtn = document.getElementById('fillTestCardBtn');
-                    if (fillBtn) {
-                        fillBtn.style.display = 'inline-block';
-                    }
-                }
-            }
-
-            fillTestCard() {
-                if (!this.cardElement) return;
-                
-                // Fill cardholder name
-                document.getElementById('cardName').value = 'Test User';
-                
-                // Create a more prominent test card info display
-                const cardElementContainer = document.getElementById('card-element');
-                
-                // Remove any existing test info
-                const existingInfo = document.getElementById('test-card-info');
-                if (existingInfo) {
-                    existingInfo.remove();
-                }
-                
-                // Create and insert test card information above the card element
-                const testInfo = document.createElement('div');
-                testInfo.id = 'test-card-info';
-                testInfo.style.cssText = `
-                    background: linear-gradient(135deg, #667eea, #764ba2);
-                    color: white;
-                    padding: 12px;
-                    border-radius: 8px;
-                    margin-bottom: 10px;
-                    font-size: 14px;
-                    animation: slideDown 0.3s ease;
-                `;
-                testInfo.innerHTML = `
-                    <div style="font-weight: 600; margin-bottom: 8px;">📋 Copy and paste these test values:</div>
-                    <div style="display: grid; gap: 6px;">
-                        <div style="display: flex; justify-content: space-between; align-items: center;">
-                            <span>Card Number:</span>
-                            <code style="background: rgba(255,255,255,0.2); padding: 4px 8px; border-radius: 4px; cursor: pointer;" onclick="navigator.clipboard.writeText('4242424242424242')">4242 4242 4242 4242</code>
-                        </div>
-                        <div style="display: flex; justify-content: space-between; align-items: center;">
-                            <span>Expiry:</span>
-                            <code style="background: rgba(255,255,255,0.2); padding: 4px 8px; border-radius: 4px;">12/34 (or any future date)</code>
-                        </div>
-                        <div style="display: flex; justify-content: space-between; align-items: center;">
-                            <span>CVC:</span>
-                            <code style="background: rgba(255,255,255,0.2); padding: 4px 8px; border-radius: 4px;">123 (or any 3 digits)</code>
-                        </div>
-                        <div style="display: flex; justify-content: space-between; align-items: center;">
-                            <span>ZIP:</span>
-                            <code style="background: rgba(255,255,255,0.2); padding: 4px 8px; border-radius: 4px;">12345 (or any 5 digits)</code>
-                        </div>
-                    </div>
-                    <div style="margin-top: 8px; font-size: 12px; opacity: 0.9;">
-                        💡 Click on the card number to copy it to clipboard
-                    </div>
-                `;
-                
-                // Insert before the card element
-                cardElementContainer.parentNode.insertBefore(testInfo, cardElementContainer);
-                
-                // Focus on the card element to prompt user to start typing
-                this.cardElement.focus();
-                
-                // Add animation keyframes if not already present
-                if (!document.getElementById('test-card-animation')) {
-                    const style = document.createElement('style');
-                    style.id = 'test-card-animation';
-                    style.textContent = `
-                        @keyframes slideDown {
-                            from {
-                                opacity: 0;
-                                transform: translateY(-10px);
-                            }
-                            to {
-                                opacity: 1;
-                                transform: translateY(0);
-                            }
-                        }
-                    `;
-                    document.head.appendChild(style);
-                }
-            }
-
-            async processStripePayment() {
-                const cardName = document.getElementById('cardName');
-                const terms = document.getElementById('terms');
-                const submitButton = document.getElementById('submitPayment');
-                const buttonText = document.getElementById('button-text');
-                const spinner = document.getElementById('spinner');
-                
-                let isValid = true;
-
-                // Basic validation
-                if (!cardName.value) {
-                    cardName.classList.add('error');
-                    isValid = false;
-                }
-                
-                if (!terms.checked) {
-                    document.getElementById('terms-error').style.display = 'block';
-                    isValid = false;
-                }
-
-                if (!isValid) return;
-
-                // Disable button and show spinner
-                submitButton.disabled = true;
-                buttonText.textContent = 'Processing...';
-                spinner.classList.remove('hidden');
-
-                try {
-                    // Create payment method with Stripe
-                    const { error, paymentMethod } = await this.stripe.createPaymentMethod({
-                        type: 'card',
-                        card: this.cardElement,
-                        billing_details: {
-                            name: cardName.value,
-                            email: this.userData.email || ''
-                        }
-                    });
-
-                    if (error) {
-                        // Show error to customer
-                        const errorElement = document.getElementById('card-errors');
-                        errorElement.textContent = error.message;
-                        errorElement.style.display = 'block';
-                        
-                        // Re-enable button
-                        submitButton.disabled = false;
-                        buttonText.textContent = 'Start Free Trial';
-                        spinner.classList.add('hidden');
-                    } else {
-                        // Payment method created successfully
-                        console.log('Payment method created:', paymentMethod);
-                        
-                        // In a real app, you would send paymentMethod.id to your server
-                        // to create a subscription or save for later charging
-                        
-                        // Simulate successful payment
-                        buttonText.textContent = 'Success!';
-                        submitButton.classList.add('btn-success');
-                        
-                        // Store payment method ID
-                        this.paymentMethodId = paymentMethod.id;
-                        
-                        // Move to next step after a short delay
-                        setTimeout(() => {
-                            this.nextStep();
-                        }, 1000);
-                    }
-                } catch (err) {
-                    console.error('Payment error:', err);
-                    
-                    // Re-enable button
-                    submitButton.disabled = false;
-                    buttonText.textContent = 'Start Free Trial';
-                    spinner.classList.add('hidden');
-                    
-                    // Show generic error
-                    const errorElement = document.getElementById('card-errors');
-                    errorElement.textContent = 'Payment processing failed. Please try again.';
-                    errorElement.style.display = 'block';
-                }
-            }
-
-            // Keep the old processPayment method for backward compatibility
-            processPayment() {
-                this.processStripePayment();
-            }
         }
 
         // Initialize the application

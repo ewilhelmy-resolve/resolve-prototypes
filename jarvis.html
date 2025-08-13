@@ -1213,6 +1213,9 @@
                 <a class="nav-link">Integrations</a>
                 <a class="nav-link">Analytics</a>
                 <a class="nav-link">Settings</a>
+                <a class="nav-link admin-only" id="adminPortalLink" href="/admin-dashboard.html" style="display: none; background: linear-gradient(135deg, #dc3545, #c82333); color: white;">
+                    🔐 Admin Portal
+                </a>
             </nav>
         </div>
         <div class="header-right">
@@ -1845,6 +1848,13 @@
         // Handle navigation clicks
         document.querySelectorAll('.nav-link').forEach(link => {
             link.addEventListener('click', async function(e) {
+                // Special handling for admin portal link
+                if (this.id === 'adminPortalLink') {
+                    // Don't prevent default for admin portal link, let it navigate
+                    window.location.href = '/admin-dashboard.html';
+                    return;
+                }
+                
                 e.preventDefault();
                 // Remove active class from all links
                 document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
@@ -3692,8 +3702,77 @@
         loadWebhookCalls();
     };
 
+    // Check if user is admin and show/hide admin portal link
+    async function checkAdminAccess() {
+        try {
+            // Get the current user's email from local storage or session
+            const userEmail = localStorage.getItem('userEmail') || sessionStorage.getItem('userEmail');
+            const authToken = localStorage.getItem('authToken') || sessionStorage.getItem('authToken');
+            
+            // If no auth token, user is not logged in
+            if (!authToken) {
+                console.log('No auth token found, hiding admin link');
+                return;
+            }
+            
+            // Call the admin check endpoint
+            const response = await fetch('/api/admin/check', {
+                headers: {
+                    'Authorization': `Bearer ${authToken}`
+                }
+            });
+            
+            if (response.ok) {
+                const data = await response.json();
+                
+                // Show admin portal link only if user is admin (john@resolve.io)
+                const adminLink = document.getElementById('adminPortalLink');
+                if (adminLink) {
+                    if (data.isAdmin && data.email === 'john@resolve.io') {
+                        adminLink.style.display = 'inline-flex';
+                        adminLink.style.alignItems = 'center';
+                        adminLink.style.gap = '6px';
+                        console.log('Admin access confirmed, showing admin portal link');
+                        
+                        // Also update the user role display if they're an admin
+                        const userRole = document.querySelector('.user-role');
+                        if (userRole) {
+                            userRole.textContent = 'Administrator';
+                        }
+                    } else {
+                        adminLink.style.display = 'none';
+                        console.log('User is not admin, hiding admin portal link');
+                    }
+                }
+                
+                // Update the user name in the header
+                const headerUserName = document.getElementById('headerUserName');
+                if (headerUserName && data.email) {
+                    headerUserName.textContent = data.email;
+                    
+                    // Update avatar initials
+                    const userAvatar = document.querySelector('.user-avatar');
+                    if (userAvatar) {
+                        const initials = data.email.split('@')[0].substring(0, 2).toUpperCase();
+                        userAvatar.textContent = initials;
+                    }
+                }
+            }
+        } catch (error) {
+            console.error('Error checking admin access:', error);
+            // Hide admin link on error
+            const adminLink = document.getElementById('adminPortalLink');
+            if (adminLink) {
+                adminLink.style.display = 'none';
+            }
+        }
+    }
+
     // Wait for DOM to be ready then inject the widget
     document.addEventListener('DOMContentLoaded', function() {
+        // Check if user is admin and show admin portal link
+        checkAdminAccess();
+        
         setTimeout(function() {
             const chatContainer = document.querySelector('#jarvis-chat-container');
             if (chatContainer) {

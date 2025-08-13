@@ -4,8 +4,12 @@ const path = require('path');
 const fs = require('fs');
 const multer = require('multer');
 const crypto = require('crypto');
-const database = require('./database-sqlite');
 const axios = require('axios');
+
+// Select database based on environment
+const database = process.env.DATABASE_TYPE === 'postgresql' 
+  ? require('./database-postgres') 
+  : require('./database-sqlite');
 
 const app = express();
 const PORT = process.env.PORT || 8082;
@@ -85,8 +89,33 @@ app.use((req, res, next) => {
     next();
 });
 
+// Authentication middleware
+async function authenticateToken(req, res, next) {
+    const authHeader = req.headers['authorization'];
+    const token = authHeader && authHeader.split(' ')[1];
+    
+    if (!token) {
+        req.user = null;
+        return next();
+    }
+    
+    try {
+        const session = await database.sessions.findByToken(token);
+        if (session) {
+            req.user = { email: session.user_email };
+        } else {
+            req.user = null;
+        }
+    } catch (error) {
+        console.error('[Auth Middleware Error]', error);
+        req.user = null;
+    }
+    
+    next();
+}
+
 // API endpoint to upload and validate CSV
-app.post('/api/tickets/upload', upload.single('csvFile'), async (req, res) => {
+app.post('/api/tickets/upload', authenticateToken, upload.single('csvFile'), async (req, res) => {
     try {
         if (!req.file) {
             return res.status(400).json({ error: 'No file uploaded' });
@@ -107,7 +136,7 @@ app.post('/api/tickets/upload', upload.single('csvFile'), async (req, res) => {
 
         // Generate a unique ID for this upload
         const uploadId = crypto.randomBytes(16).toString('hex');
-        const userEmail = req.body.tenantId || 'default';
+        const userEmail = req.user?.email || req.body.tenantId || 'john@resolve.io';
         
         // Store in database
         await database.uploads.create({
@@ -333,6 +362,248 @@ app.post('/api/auth/logout', async (req, res) => {
     }
 });
 
+// Jira API validation endpoint - triggers automation engine
+app.post('/api/integrations/validate-jira', authenticateToken, async (req, res) => {
+    try {
+        const { url, email, token } = req.body;
+        
+        // Basic validation
+        if (!url || !email || !token) {
+            return res.status(400).json({ 
+                success: false, 
+                error: 'Missing required fields' 
+            });
+        }
+        
+        // Generate a unique webhook ID for this validation request
+        const webhookId = crypto.randomBytes(16).toString('hex');
+        const callbackUrl = `${process.env.BASE_URL || 'http://localhost:3000'}/api/integrations/callback/${webhookId}`;
+        
+        // Store pending validation in database with config
+        await database.pendingValidations.create({
+            webhook_id: webhookId,
+            user_email: req.user.email,
+            integration_type: 'jira',
+            config: JSON.stringify({
+                url: url,
+                email: email,
+                token: token
+            }),
+            status: 'pending',
+            created_at: new Date()
+        });
+        
+        // Encrypt sensitive data
+        const encryptedPayload = {
+            jira_url: Buffer.from(url).toString('base64'),
+            jira_email: Buffer.from(email).toString('base64'),
+            jira_token: Buffer.from(token).toString('base64')
+        };
+        
+        // Call automation engine
+        const automationPayload = {
+            source: "Onboarding",
+            user_email: req.user.email,
+            action: "integration_validation",
+            integration_type: "jira",
+            callbackUrl: callbackUrl,
+            tenantToken: process.env.TENANT_TOKEN || "default-tenant",
+            ...encryptedPayload
+        };
+        
+        console.log('[Automation Call] Sending validation request:', {
+            webhookId,
+            user: req.user.email,
+            callbackUrl
+        });
+        
+        const automationResponse = await fetch(
+            process.env.AUTOMATION_WEBHOOK_URL || 'https://actions-api-staging.resolve.io/api/Webhooks/postEvent/00F4F67D-3B92-4FD2-A574-7BE22C6BE796',
+            {
+                method: 'POST',
+                headers: {
+                    'Authorization': process.env.AUTOMATION_AUTH || 'Basic RTE0NzMwRkEtRDFCNS00MDM3LUFDRTMtQ0Y5N0ZCQzY3NkMyOlZaSkQqSSYyWEAkXkQ5Sjk4Rk5PJShGUVpaQ0dRNkEj',
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(automationPayload)
+            }
+        );
+        
+        if (automationResponse.ok) {
+            // Return webhook ID so frontend can poll for status
+            return res.json({ 
+                success: true,
+                webhookId: webhookId,
+                message: 'Validation request sent to automation engine',
+                status: 'pending'
+            });
+        } else {
+            const errorText = await automationResponse.text();
+            console.error('[Automation Error]', errorText);
+            return res.status(500).json({ 
+                success: false,
+                error: 'Failed to connect to automation service'
+            });
+        }
+    } catch (error) {
+        console.error('[Jira Validation Error]', error);
+        res.status(500).json({ 
+            success: false, 
+            error: 'Failed to process validation request' 
+        });
+    }
+});
+
+// Callback endpoint for automation engine results
+app.post('/api/integrations/callback/:webhookId', async (req, res) => {
+    try {
+        const { webhookId } = req.params;
+        const { status, message, userData, error } = req.body;
+        
+        console.log('[Automation Callback] Received:', {
+            webhookId,
+            status,
+            message
+        });
+        
+        // Update pending validation
+        const validation = await database.pendingValidations.findByWebhookId(webhookId);
+        if (!validation) {
+            return res.status(404).json({ error: 'Validation not found' });
+        }
+        
+        await database.pendingValidations.updateStatus(webhookId, {
+            status: status,
+            result: JSON.stringify({ message, userData, error }),
+            completed_at: new Date()
+        });
+        
+        // If successful, store the integration
+        if (status === 'success') {
+            // Retrieve original config from pending validation (already parsed in PostgreSQL)
+            const config = typeof validation.config === 'string' 
+                ? JSON.parse(validation.config) 
+                : validation.config || {};
+            
+            await database.integrations.create({
+                user_email: validation.user_email,
+                type: validation.integration_type,
+                config: JSON.stringify(config),
+                status: 'active'
+            });
+        }
+        
+        // Notify SSE client if connected
+        const sseClient = sseClients.get(webhookId);
+        if (sseClient) {
+            const data = {
+                status: status,
+                message: message,
+                userData: userData,
+                error: error,
+                completed: true
+            };
+            
+            sseClient.write(`data: ${JSON.stringify(data)}\n\n`);
+            console.log(`[SSE] Sent update to client for webhook ${webhookId}`);
+            
+            // Close SSE connection after sending final status
+            setTimeout(() => {
+                sseClient.end();
+                sseClients.delete(webhookId);
+            }, 1000);
+        }
+        
+        res.json({ success: true, message: 'Callback processed' });
+    } catch (error) {
+        console.error('[Callback Error]', error);
+        res.status(500).json({ error: 'Failed to process callback' });
+    }
+});
+
+// SSE connections storage
+const sseClients = new Map();
+
+// SSE endpoint for validation status updates
+app.get('/api/integrations/status-stream/:webhookId', async (req, res) => {
+    const { webhookId } = req.params;
+    const { token } = req.query;
+    
+    // Authenticate via query parameter for SSE
+    if (!token) {
+        return res.status(401).json({ error: 'Authentication required' });
+    }
+    
+    // Verify session token
+    let user;
+    try {
+        const session = await database.sessions.findByToken(token);
+        if (!session || new Date(session.expires_at) < new Date()) {
+            return res.status(401).json({ error: 'Invalid or expired token' });
+        }
+        
+        user = await database.users.findByEmail(session.user_email);
+        if (!user) {
+            return res.status(401).json({ error: 'User not found' });
+        }
+    } catch (error) {
+        return res.status(401).json({ error: 'Authentication failed' });
+    }
+    
+    try {
+        // Verify user owns this validation
+        const validation = await database.pendingValidations.findByWebhookId(webhookId);
+        if (!validation) {
+            return res.status(404).json({ error: 'Validation not found' });
+        }
+        
+        if (validation.user_email !== user.email) {
+            return res.status(403).json({ error: 'Unauthorized' });
+        }
+        
+        // Set up SSE headers
+        res.writeHead(200, {
+            'Content-Type': 'text/event-stream',
+            'Cache-Control': 'no-cache',
+            'Connection': 'keep-alive',
+            'Access-Control-Allow-Origin': '*'
+        });
+        
+        // Store client connection
+        sseClients.set(webhookId, res);
+        
+        // Send initial status (handle both string and parsed JSON)
+        const result = validation.result 
+            ? (typeof validation.result === 'string' ? JSON.parse(validation.result) : validation.result)
+            : null;
+        const data = {
+            status: validation.status,
+            message: result?.message,
+            userData: result?.userData,
+            error: result?.error,
+            completed: validation.status !== 'pending'
+        };
+        
+        res.write(`data: ${JSON.stringify(data)}\n\n`);
+        
+        // Keep connection alive with heartbeat
+        const heartbeat = setInterval(() => {
+            res.write(':heartbeat\n\n');
+        }, 30000);
+        
+        // Clean up on client disconnect
+        req.on('close', () => {
+            clearInterval(heartbeat);
+            sseClients.delete(webhookId);
+            console.log(`[SSE] Client disconnected for webhook ${webhookId}`);
+        });
+        
+    } catch (error) {
+        console.error('[SSE Error]', error);
+        res.status(500).json({ error: 'Failed to establish SSE connection' });
+    }
+});
+
 // API key management
 app.post('/api/keys/create', async (req, res) => {
     try {
@@ -511,6 +782,231 @@ app.get('/api/analytics/dashboard', async (req, res) => {
     }
 });
 
+// Check if current user is admin (for UI purposes)
+app.get('/api/admin/check', authenticateToken, async (req, res) => {
+    try {
+        const isAdmin = req.user?.email === 'john@resolve.io';
+        res.json({ 
+            isAdmin,
+            email: req.user?.email 
+        });
+    } catch (error) {
+        res.json({ isAdmin: false });
+    }
+});
+
+// Admin API endpoints
+app.post('/api/admin/login', async (req, res) => {
+    try {
+        const { email, password } = req.body;
+        
+        // Find user
+        const user = await database.users.findByEmail(email);
+        if (!user || user.password !== password) {
+            return res.status(401).json({ error: 'Invalid credentials' });
+        }
+        
+        // Check if user is admin (only john@resolve.io is admin)
+        const isAdmin = email === 'john@resolve.io';
+        if (!isAdmin) {
+            return res.status(403).json({ error: 'Admin access required' });
+        }
+        
+        // Create session
+        const sessionId = crypto.randomBytes(16).toString('hex');
+        const token = crypto.randomBytes(32).toString('hex');
+        const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+        
+        await database.sessions.create({
+            id: sessionId,
+            user_email: email,
+            token,
+            expires_at: expiresAt
+        });
+        
+        console.log(`[Admin Auth] Admin logged in: ${email}`);
+        
+        res.json({
+            success: true,
+            isAdmin: true,
+            user: { 
+                email: user.email, 
+                company_name: user.company_name, 
+                tier: user.tier
+            },
+            token
+        });
+    } catch (error) {
+        console.error('[Admin Login Error]', error);
+        res.status(500).json({ error: 'Failed to login' });
+    }
+});
+
+// Admin middleware to check if user is admin
+async function requireAdmin(req, res, next) {
+    const authHeader = req.headers['authorization'];
+    const token = authHeader && authHeader.split(' ')[1];
+    
+    if (!token) {
+        return res.status(401).json({ error: 'Authentication required' });
+    }
+    
+    try {
+        const session = await database.sessions.findByToken(token);
+        if (!session) {
+            return res.status(401).json({ error: 'Invalid token' });
+        }
+        
+        // Check if user is admin
+        if (session.user_email !== 'john@resolve.io') {
+            return res.status(403).json({ error: 'Admin access required' });
+        }
+        
+        req.admin = { email: session.user_email };
+        next();
+    } catch (error) {
+        console.error('[Admin Auth Error]', error);
+        res.status(500).json({ error: 'Authentication failed' });
+    }
+}
+
+// Get all customers (admin only)
+app.get('/api/admin/customers', requireAdmin, async (req, res) => {
+    try {
+        // Get all users except the admin
+        const customersQuery = `
+            SELECT 
+                u.email,
+                u.company_name,
+                u.tier,
+                u.created_at,
+                u.stripe_customer_id,
+                COUNT(DISTINCT cu.id) as uploadCount,
+                COUNT(DISTINCT ak.id) as apiKeyCount,
+                MAX(GREATEST(
+                    COALESCE(cu.uploaded_at, u.created_at),
+                    COALESCE(ak.last_used, u.created_at)
+                )) as lastActivity
+            FROM users u
+            LEFT JOIN csv_uploads cu ON u.email = cu.user_email
+            LEFT JOIN api_keys ak ON u.email = ak.user_email
+            WHERE u.email != 'john@resolve.io'
+            GROUP BY u.email, u.company_name, u.tier, u.created_at, u.stripe_customer_id
+            ORDER BY u.created_at DESC
+        `;
+        
+        const customers = await database.query(customersQuery);
+        
+        // Get statistics
+        const statsQuery = `
+            SELECT 
+                COUNT(*) as total,
+                SUM(CASE WHEN tier = 'premium' THEN 1 ELSE 0 END) as premiumCount,
+                SUM(CASE WHEN tier = 'enterprise' THEN 1 ELSE 0 END) as enterpriseCount,
+                SUM(CASE WHEN created_at >= NOW() - INTERVAL '7 days' THEN 1 ELSE 0 END) as newThisWeek
+            FROM users
+            WHERE email != 'john@resolve.io'
+        `;
+        
+        const stats = await database.query(statsQuery);
+        
+        // Get total uploads
+        const uploadsQuery = `
+            SELECT COUNT(*) as totalUploads
+            FROM csv_uploads
+        `;
+        
+        const uploads = await database.query(uploadsQuery);
+        
+        res.json({
+            success: true,
+            customers: customers.rows || customers,
+            statistics: {
+                total: parseInt(stats.rows?.[0]?.total || stats[0]?.total || 0),
+                premiumCount: parseInt(stats.rows?.[0]?.premiumcount || stats[0]?.premiumCount || 0),
+                enterpriseCount: parseInt(stats.rows?.[0]?.enterprisecount || stats[0]?.enterpriseCount || 0),
+                newThisWeek: parseInt(stats.rows?.[0]?.newthisweek || stats[0]?.newThisWeek || 0),
+                totalUploads: parseInt(uploads.rows?.[0]?.totaluploads || uploads[0]?.totalUploads || 0)
+            }
+        });
+    } catch (error) {
+        console.error('[Admin Customers Error]', error);
+        res.status(500).json({ error: 'Failed to fetch customers' });
+    }
+});
+
+// Export customers as CSV (admin only)
+app.get('/api/admin/customers/export', requireAdmin, async (req, res) => {
+    try {
+        const customersQuery = `
+            SELECT 
+                email,
+                company_name,
+                tier,
+                created_at,
+                phone
+            FROM users
+            WHERE email != 'john@resolve.io'
+            ORDER BY created_at DESC
+        `;
+        
+        const customers = await database.query(customersQuery);
+        const rows = customers.rows || customers;
+        
+        // Create CSV content
+        let csv = 'Email,Company,Tier,Signup Date,Phone\n';
+        rows.forEach(customer => {
+            csv += `"${customer.email}","${customer.company_name || ''}","${customer.tier}","${customer.created_at}","${customer.phone || ''}"\n`;
+        });
+        
+        res.setHeader('Content-Type', 'text/csv');
+        res.setHeader('Content-Disposition', 'attachment; filename="customers.csv"');
+        res.send(csv);
+    } catch (error) {
+        console.error('[Admin Export Error]', error);
+        res.status(500).json({ error: 'Failed to export customers' });
+    }
+});
+
+// Get customer details (admin only)
+app.get('/api/admin/customers/:email', requireAdmin, async (req, res) => {
+    try {
+        const { email } = req.params;
+        
+        // Get user details
+        const user = await database.users.findByEmail(decodeURIComponent(email));
+        if (!user) {
+            return res.status(404).json({ error: 'Customer not found' });
+        }
+        
+        // Get uploads
+        const uploads = await database.uploads.findByUser(email);
+        
+        // Get API keys
+        const apiKeys = await database.apiKeys.findByUser(email);
+        
+        // Get webhooks
+        const webhooks = await database.webhooks.getByUser(email);
+        
+        res.json({
+            success: true,
+            customer: user,
+            uploads,
+            apiKeys,
+            webhooks
+        });
+    } catch (error) {
+        console.error('[Admin Customer Details Error]', error);
+        res.status(500).json({ error: 'Failed to fetch customer details' });
+    }
+});
+
+// Special route for admin access portal (hidden from regular users)
+app.get('/admin-portal', (req, res) => {
+    // Serve the admin login page directly instead of redirecting
+    res.sendFile(path.join(__dirname, 'admin-login.html'));
+});
+
 // Serve static files from current directory
 app.use(express.static('.'));
 
@@ -636,12 +1132,18 @@ app.get('/jarvis-wrapper', (req, res) => {
 // Health check endpoint
 app.get('/health', (req, res) => {
     res.json({
-        status: 'ok',
-        proxy: 'active',
+        status: 'healthy',
+        timestamp: new Date().toISOString(),
+        environment: {
+            port: PORT,
+            automationConfigured: !!process.env.AUTOMATION_WEBHOOK_URL,
+            sseEnabled: true,
+            webhookEnabled: process.env.WEBHOOK_ENABLED === 'true'
+        },
         endpoints: [
-            '/jarvis-proxy - Main proxy endpoint',
-            '/jarvis-direct - Direct content fetch',
-            '/jarvis-wrapper - Iframe wrapper',
+            '/api/integrations/validate-jira - Jira validation',
+            '/api/integrations/status-stream/:id - SSE status updates',
+            '/api/integrations/callback/:id - Automation callbacks',
             '/jarvis.html - Jarvis AI Dashboard'
         ]
     });

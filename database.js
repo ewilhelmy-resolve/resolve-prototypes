@@ -52,6 +52,28 @@ function initializeDatabase() {
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
 
+    CREATE TABLE IF NOT EXISTS integrations (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_email TEXT NOT NULL,
+      type TEXT NOT NULL,
+      config TEXT NOT NULL,
+      status TEXT DEFAULT 'active',
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS pending_validations (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      webhook_id TEXT UNIQUE NOT NULL,
+      user_email TEXT NOT NULL,
+      integration_type TEXT NOT NULL,
+      config TEXT,
+      status TEXT DEFAULT 'pending',
+      result TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      completed_at DATETIME
+    );
+
     CREATE TABLE IF NOT EXISTS ticket_uploads (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       user_email TEXT NOT NULL,
@@ -566,6 +588,123 @@ function getUploadedData(userEmail, filters = {}) {
   }
 }
 
+// Pending validations management
+const pendingValidations = {
+  create: function(data) {
+    return new Promise((resolve, reject) => {
+      const stmt = db.prepare(`
+        INSERT INTO pending_validations (webhook_id, user_email, integration_type, config, status)
+        VALUES (?, ?, ?, ?, ?)
+      `);
+      
+      stmt.run(
+        data.webhook_id,
+        data.user_email,
+        data.integration_type,
+        data.config || null,
+        data.status || 'pending',
+        function(err) {
+          if (err) reject(err);
+          else resolve({ id: this.lastID, ...data });
+        }
+      );
+    });
+  },
+  
+  findByWebhookId: function(webhookId) {
+    return new Promise((resolve, reject) => {
+      db.get(
+        'SELECT * FROM pending_validations WHERE webhook_id = ?',
+        [webhookId],
+        (err, row) => {
+          if (err) reject(err);
+          else resolve(row);
+        }
+      );
+    });
+  },
+  
+  updateStatus: function(webhookId, updates) {
+    return new Promise((resolve, reject) => {
+      const setClause = [];
+      const values = [];
+      
+      if (updates.status) {
+        setClause.push('status = ?');
+        values.push(updates.status);
+      }
+      if (updates.result) {
+        setClause.push('result = ?');
+        values.push(updates.result);
+      }
+      if (updates.completed_at) {
+        setClause.push('completed_at = ?');
+        values.push(updates.completed_at);
+      }
+      
+      values.push(webhookId);
+      
+      db.run(
+        `UPDATE pending_validations SET ${setClause.join(', ')} WHERE webhook_id = ?`,
+        values,
+        function(err) {
+          if (err) reject(err);
+          else resolve({ changes: this.changes });
+        }
+      );
+    });
+  }
+};
+
+// Integration management functions
+const integrations = {
+  create: function(data) {
+    return new Promise((resolve, reject) => {
+      const stmt = db.prepare(`
+        INSERT INTO integrations (user_email, type, config, status)
+        VALUES (?, ?, ?, ?)
+      `);
+      
+      stmt.run(
+        data.user_email,
+        data.type,
+        data.config,
+        data.status || 'active',
+        function(err) {
+          if (err) reject(err);
+          else resolve({ id: this.lastID, ...data });
+        }
+      );
+    });
+  },
+  
+  findByUserAndType: function(userEmail, type) {
+    return new Promise((resolve, reject) => {
+      db.get(
+        'SELECT * FROM integrations WHERE user_email = ? AND type = ? ORDER BY created_at DESC LIMIT 1',
+        [userEmail, type],
+        (err, row) => {
+          if (err) reject(err);
+          else resolve(row);
+        }
+      );
+    });
+  },
+  
+  updateStatus: function(id, status) {
+    return new Promise((resolve, reject) => {
+      db.run(
+        'UPDATE integrations SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+        [status, id],
+        function(err) {
+          if (err) reject(err);
+          else resolve({ changes: this.changes });
+        }
+      );
+    });
+  }
+};
+
 // Commented out for production - uncomment for testing
 // if (!hasTicketData('john@resolve.io')) {
 //   seedSampleData();
@@ -585,5 +724,7 @@ module.exports = {
   generateApiKey,
   validateApiKey,
   logApiRequest,
-  getUploadedData
+  getUploadedData,
+  integrations,
+  pendingValidations
 };

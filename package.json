@@ -5,16 +5,18 @@
   "scripts": {
     "start": "node server-enhanced.js",
     "dev": "nodemon --watch . --ext js,html,css --ignore node_modules/ --ignore data/ server-enhanced.js",
-    "start:proxy": "node server.js",
-    "start:enhanced": "node server-enhanced.js",
-    "docker:build": "./update-container.sh",
-    "docker:dev": "docker-compose -f docker-compose.dev.yml up",
-    "docker:prod": "docker-compose up -d",
+    "docker:up": "docker-compose up -d",
+    "docker:dev": "BUILD_TARGET=development DEV_MOUNT=.:/app docker-compose up",
+    "docker:down": "docker-compose down",
     "docker:logs": "docker-compose logs -f",
-    "docker:stop": "docker-compose down",
+    "docker:rebuild": "docker-compose build --no-cache",
+    "docker:frontend": "docker-compose --profile frontend up -d",
+    "docker:clean": "docker-compose down -v && docker system prune -f",
     "test": "playwright test",
     "test:ui": "playwright test --ui",
-    "test:headed": "playwright test --headed"
+    "test:headed": "playwright test --headed",
+    "db:init": "node init-db.js",
+    "db:migrate": "node migrate-to-postgres.js"
   },
   "devDependencies": {
     "@playwright/test": "^1.40.0"
@@ -23,9 +25,12 @@
     "axios": "^1.6.0",
     "body-parser": "^2.2.0",
     "cors": "^2.8.5",
+    "eventsource": "^4.0.0",
     "express": "^4.21.2",
     "http-proxy-middleware": "^3.0.5",
     "multer": "^1.4.5-lts.1",
+    "nodemon": "^3.0.2",
+    "pg": "^8.11.3",
     "sqlite3": "^5.1.7"
   },
   "main": "playwright.config.js",
