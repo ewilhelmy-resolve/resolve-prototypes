@@ -1,11 +1,11 @@
-ticket_id,title,description,status,priority,category,created_at,resolved_at,resolution_time_minutes
-TICK-001,Password Reset Request,User locked out of account,resolved,high,Password Reset,2024-01-15T10:00:00Z,2024-01-15T10:15:00Z,15
-TICK-002,Software Installation,Need Microsoft Teams installed,resolved,medium,Software,2024-01-16T09:30:00Z,2024-01-16T10:00:00Z,30
-TICK-003,VPN Connection Issue,Cannot connect to corporate VPN,resolved,high,Network,2024-01-17T14:00:00Z,2024-01-17T14:45:00Z,45
-TICK-004,Email Configuration,Setup Outlook on mobile,resolved,low,Email,2024-01-18T11:00:00Z,2024-01-18T11:20:00Z,20
-TICK-005,Account Access,Need access to SharePoint site,in_progress,medium,Access Management,2024-01-19T08:00:00Z,,
-TICK-006,Printer Not Working,HP printer not responding,resolved,low,Hardware,2024-01-19T13:00:00Z,2024-01-19T13:30:00Z,30
-TICK-007,New User Onboarding,Setup account for new employee,resolved,high,User Management,2024-01-20T09:00:00Z,2024-01-20T10:00:00Z,60
-TICK-008,Password Reset,Forgot password for CRM system,resolved,medium,Password Reset,2024-01-20T14:30:00Z,2024-01-20T14:45:00Z,15
-TICK-009,Software Update,Update Zoom to latest version,resolved,low,Software,2024-01-21T10:00:00Z,2024-01-21T10:15:00Z,15
-TICK-010,Network Slowness,Internet connection very slow,open,high,Network,2024-01-22T08:30:00Z,,
+Ticket ID,Title,Priority,Status,Created Date,Category
+TICK-001,Cannot login to email,High,Open,2024-01-15,Access Issue
+TICK-002,Software installation request,Medium,In Progress,2024-01-16,Software
+TICK-003,Printer not working,Low,Open,2024-01-17,Hardware
+TICK-004,Need VPN access,High,Resolved,2024-01-18,Network
+TICK-005,Password reset required,Medium,Open,2024-01-19,Security
+TICK-006,Monitor flickering issue,Medium,In Progress,2024-01-20,Hardware
+TICK-007,Teams audio not working,High,Open,2024-01-21,Software
+TICK-008,Request for new laptop,Low,Pending,2024-01-22,Hardware
+TICK-009,Slow internet connection,Medium,Open,2024-01-23,Network
+TICK-010,Excel crashes frequently,High,In Progress,2024-01-24,Software

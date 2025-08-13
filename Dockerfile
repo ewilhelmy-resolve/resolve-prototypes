@@ -16,6 +16,7 @@ CMD ["npm", "run", "dev"]
 
 # Stage 3: Production Build
 FROM base AS production
+RUN apk add --no-cache curl
 COPY . .
 RUN addgroup -g 1001 -S nodejs && \
     adduser -S nodejs -u 1001 && \
