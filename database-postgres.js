@@ -1,5 +1,6 @@
 const { Pool } = require('pg');
 const crypto = require('crypto');
+const { runPostgreSQLMigrations } = require('./database-migrations');
 
 // Create PostgreSQL connection pool
 const pool = new Pool({
@@ -9,14 +10,24 @@ const pool = new Pool({
   connectionTimeoutMillis: 2000,
 });
 
-// Test database connection
-pool.query('SELECT NOW()', (err, res) => {
-  if (err) {
-    console.error('❌ Database connection failed:', err);
-  } else {
+// Initialize database with migrations
+async function initializeDatabase() {
+  try {
+    // Test connection
+    const res = await pool.query('SELECT NOW()');
     console.log('✅ Database connected successfully at:', res.rows[0].now);
+    
+    // Run migrations
+    await runPostgreSQLMigrations(pool);
+  } catch (err) {
+    console.error('❌ Database initialization failed:', err);
+    // Don't exit - let the app try to continue
+    // Some queries might still work if tables exist
   }
-});
+}
+
+// Initialize on startup
+initializeDatabase();
 
 // Helper function to handle database queries
 async function query(text, params) {

@@ -7,7 +7,11 @@ const db = new Database(dbPath);
 
 // Initialize database schema
 function initializeDatabase() {
-  // Create tickets table
+  const { runSQLiteMigrations } = require('./database-migrations');
+  runSQLiteMigrations(db);
+  return; // Early return - migrations handle everything
+  
+  // Legacy code below (kept for reference but not executed)
   db.exec(`
     CREATE TABLE IF NOT EXISTS tickets (
       id INTEGER PRIMARY KEY AUTOINCREMENT,

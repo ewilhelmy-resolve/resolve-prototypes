@@ -220,5 +220,5 @@ CREATE TRIGGER update_integrations_updated_at BEFORE UPDATE ON integrations
 
 -- Insert default admin user
 INSERT INTO users (email, password, company_name, tier) 
-VALUES ('john@resolve.io', '!Password1', 'Resolve Demo', 'premium')
+VALUES ('john@resolve.io', 'AdminPassword1', 'Resolve Demo', 'premium')
 ON CONFLICT (email) DO NOTHING;

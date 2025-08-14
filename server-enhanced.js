@@ -9,7 +9,7 @@ const axios = require('axios');
 // Select database based on environment
 const database = process.env.DATABASE_TYPE === 'postgresql' 
   ? require('./database-postgres') 
-  : require('./database-sqlite');
+  : require('./database');
 
 const app = express();
 const PORT = process.env.PORT || 8082;
