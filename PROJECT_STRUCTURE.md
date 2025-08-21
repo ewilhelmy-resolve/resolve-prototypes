@@ -7,8 +7,6 @@ resolve-onboarding/
 │
 ├── src/                        # Source code
 │   ├── server/                 # Server-side code
-│   │   ├── server.js          # Main server (moved to root for Docker)
-│   │   ├── server-enhanced.js # Enhanced server with additional features
 │   │   └── demo-journey.js    # Demo journey script
 │   │
 │   ├── client/                 # Client-side code
@@ -114,7 +112,7 @@ Certain files remain in the root for compatibility:
 ```bash
 npm install
 npm run dev
-# Visit http://localhost:8000
+# Visit http://localhost:8080
 ```
 
 ### Docker
@@ -131,7 +129,7 @@ npx playwright test --config=playwright.config.testcontainers.js
 ```
 
 ## Environment Variables
-- `PORT`: Server port (default: 8000, Docker: 8080)
+- `PORT`: Server port (default: 8080)
 - `NODE_ENV`: Environment (development/production/test)
 - `DATABASE_TYPE`: Database type (sqlite/postgres)
 - `DATABASE_PATH`: Path to SQLite database

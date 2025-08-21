@@ -11,7 +11,7 @@ RUN npm ci --only=production && \
 FROM base AS development
 RUN npm install
 COPY . .
-EXPOSE 8080
+EXPOSE 5000
 CMD ["npm", "run", "dev"]
 
 # Stage 3: Production Build
@@ -23,7 +23,7 @@ RUN addgroup -g 1001 -S nodejs && \
     mkdir -p /app/uploads && \
     chown -R nodejs:nodejs /app
 USER nodejs
-EXPOSE 8080
+EXPOSE 5000
 CMD ["node", "server.js"]
 
 # Stage 4: Test Runner - Use Ubuntu for Playwright compatibility

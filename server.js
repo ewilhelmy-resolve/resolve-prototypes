@@ -4,7 +4,7 @@ const fs = require('fs');
 const crypto = require('crypto');
 
 const app = express();
-const PORT = process.env.PORT || 8000;
+const PORT = process.env.PORT || 5000;
 
 // Body parser middleware
 app.use(express.json());

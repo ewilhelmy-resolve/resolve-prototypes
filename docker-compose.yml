@@ -7,10 +7,10 @@ services:
       dockerfile: Dockerfile
       target: production
     ports:
-      - "8082:8080"
+      - "5000:5000"
     environment:
       - NODE_ENV=production
-      - PORT=8080
+      - PORT=5000
       - DATABASE_URL=postgresql://resolve_user:resolve_pass@postgres:5432/resolve_onboarding
     volumes:
       - ./uploads:/app/uploads
@@ -20,7 +20,7 @@ services:
       postgres:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
       interval: 30s
       timeout: 3s
       retries: 3
