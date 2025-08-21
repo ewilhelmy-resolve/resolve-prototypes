@@ -77,22 +77,14 @@
                 <main class="chat-area">
                     <div class="chat-container">
                         <div class="chat-header">
-                            <h1 class="chat-title season-heading">Ask Rita</h1>
+                            <h1 class="chat-title season-heading">Ask Jarvis</h1>
                             <p class="chat-subtitle">
-                                Diagnose and resolve issues, then create automations to speed up future remediation
+                                Build and manage your automation workflows with AI assistance
                             </p>
                         </div>
 
-                        <div class="chat-input-container">
-                            <div class="chat-input-wrapper">
-                                <input type="text" placeholder="Ask me anything..." class="chat-input" id="chatInput" style="">
-                                <button class="send-button" onclick="sendChatMessage()">
-                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-                                        <path d="M22 2L11 13M22 2L15 22L11 13M22 2L2 11L11 13" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
-                                    </svg>
-                                </button>
-                            </div>
-                        </div>
+                        <!-- Jarvis Chat Container -->
+                        <div id="jarvis-chat-container" style="height: calc(100% - 120px); width: 100%;"></div>
                     </div>
                 </main>
 
@@ -101,9 +93,9 @@
                     <!-- Share Link Box -->
                     <div class="share-chats-box">
                         <div class="share-header">
-                            <h3 class="share-title">Share Rita</h3>
+                            <h3 class="share-title">Share Jarvis</h3>
                             <p class="share-description">
-                                Invite your team members to use Rita for faster support resolution.
+                                Invite your team members to use Jarvis for workflow automation.
                             </p>
                         </div>
                         <button class="share-all-btn" onclick="openShareModal()">
@@ -211,6 +203,73 @@
     </div>
 
     <script>
+        // Jarvis iframe injection function
+        function injectEspressiveWidget(options) {
+            const {
+                containerElement,
+                tenantUrl,
+                chatVersion,
+                channelParameters,
+                guestMode,
+                initialIntentId,
+            } = options;
+            
+            // Prevent duplicate injection
+            if (document.getElementById('espressive-container')) {
+                console.warn('Espressive container already exists on the page.');
+                return;
+            }
+
+            // Ensure a valid container is provided
+            if (!containerElement || !(containerElement instanceof HTMLElement)) {
+                console.error('A valid container element must be provided.');
+                return;
+            }
+
+            // Create the wrapper div
+            const wrapperDiv = document.createElement('div');
+            wrapperDiv.id = 'espressive-container';
+            wrapperDiv.style.width = '100%';
+            wrapperDiv.style.height = '100%';
+
+            // Construct the iframe URL
+            const params = new URLSearchParams({
+                client: 'widget',
+                chat_version: chatVersion,
+            });
+
+            if (guestMode) {
+                params.append('otc', guestMode);
+            }
+
+            if (initialIntentId) {
+                params.append('initial_intent_id', initialIntentId);
+            }
+
+            for (const key in channelParameters) {
+                if (Object.hasOwnProperty.call(channelParameters, key)) {
+                    params.append(`widget.${key}`, channelParameters[key]);
+                }
+            }
+            params.append('widget.parent-origin', window.location.origin);
+            params.append('widget.iframe-origin', `https://${tenantUrl}`);
+            const iframeSrc = `https://${tenantUrl}/portal?${params.toString()}`;
+
+            // Create the iframe
+            const iframe = document.createElement('iframe');
+            iframe.src = iframeSrc;
+            iframe.style.width = '100%';
+            iframe.style.height = '100%';
+            iframe.style.border = 'none';
+            iframe.allow = 'clipboard-write';
+
+            // Append iframe to the wrapper
+            wrapperDiv.appendChild(iframe);
+
+            // Append the wrapper to the container
+            containerElement.appendChild(wrapperDiv);
+        }
+
         // Check authentication on page load
         (function checkAuth() {
             // Authentication is now handled by server-side cookie
@@ -255,14 +314,27 @@
             }
         }
 
-        // Handle Enter key in chat input
+        // Initialize Jarvis widget on page load
         document.addEventListener('DOMContentLoaded', function() {
-            const input = document.getElementById('chatInput');
-            input.addEventListener('keypress', function(e) {
-                if (e.key === 'Enter') {
-                    sendChatMessage();
+            setTimeout(() => {
+                const chatContainer = document.getElementById('jarvis-chat-container');
+                if (chatContainer) {
+                    injectEspressiveWidget({
+                        containerElement: chatContainer,
+                        tenantUrl: 'resolvejarvisdev.espressive.com',
+                        chatVersion: 2,
+                        channelParameters: { 
+                            color: '#0082C8',
+                            usage: 'buildworkflow' 
+                        }, 
+                        guestMode: 'DOGAFLA',
+                        initialIntentId: '88d5a71b-8a62-4585-8e26-031f0dcfc016',
+                    });
+                    console.log('Jarvis widget injected successfully');
+                } else {
+                    console.error('Chat container element not found');
                 }
-            });
+            }, 100);
         });
         
         function openAddModal() {

@@ -22,15 +22,17 @@
                 
                 <div class="upload-section">
                     <div class="section-label">Upload knowledge articles</div>
+                    <p class="upload-description">Upload your knowledge articles, ticket data, or archives that will be served through the Resolve callback URL</p>
                     <button class="upload-button" onclick="document.getElementById('fileInput').click()">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
                             <polyline points="17 8 12 3 7 8"></polyline>
                             <line x1="12" y1="3" x2="12" y2="15"></line>
                         </svg>
-                        <span>Upload</span>
+                        <span id="uploadBtnText">Upload</span>
                     </button>
-                    <input type="file" id="fileInput" style="display: none;" accept=".csv,.txt,.pdf">
+                    <div id="uploadStatus" class="upload-status"></div>
+                    <input type="file" id="fileInput" style="display: none;" accept=".csv,.txt,.pdf,.zip,.json" multiple>
                 </div>
                 
                 <div class="divider-section">
@@ -178,16 +180,72 @@
             }
         });
         
-        document.getElementById('fileInput').addEventListener('change', function(e) {
+        document.getElementById('fileInput').addEventListener('change', async function(e) {
             if (e.target.files.length > 0) {
-                // Enable continue button when file is uploaded
-                const continueBtn = document.getElementById('continueBtn');
-                continueBtn.classList.remove('disabled');
-                continueBtn.classList.add('enabled');
-                
-                // Update button to show success
+                const files = Array.from(e.target.files);
                 const uploadBtn = document.querySelector('.upload-button');
-                uploadBtn.classList.add('success');
+                const uploadBtnText = document.getElementById('uploadBtnText');
+                const uploadStatus = document.getElementById('uploadStatus');
+                
+                // Show uploading state
+                uploadBtn.classList.add('uploading');
+                uploadBtnText.textContent = 'Uploading...';
+                uploadBtn.disabled = true;
+                
+                // Prepare form data
+                const formData = new FormData();
+                files.forEach(file => {
+                    formData.append('files', file);
+                });
+                
+                try {
+                    // Upload to server with Resolve callback integration
+                    const response = await fetch('/api/upload-knowledge', {
+                        method: 'POST',
+                        body: formData
+                    });
+                    
+                    if (response.ok) {
+                        const result = await response.json();
+                        
+                        // Show success state
+                        uploadBtn.classList.remove('uploading');
+                        uploadBtn.classList.add('success');
+                        uploadBtnText.textContent = 'Uploaded Successfully';
+                        
+                        // Display file names
+                        const fileNames = files.map(f => f.name).join(', ');
+                        uploadStatus.innerHTML = `<div class="upload-success">✓ Uploaded: ${fileNames}</div>`;
+                        
+                        // Enable continue button
+                        const continueBtn = document.getElementById('continueBtn');
+                        continueBtn.classList.remove('disabled');
+                        continueBtn.classList.add('enabled');
+                        
+                        // Store upload data for later use
+                        sessionStorage.setItem('uploadedKnowledge', JSON.stringify({
+                            files: fileNames,
+                            resolveCallbackUrl: result.callbackUrl,
+                            timestamp: new Date().toISOString()
+                        }));
+                    } else {
+                        throw new Error('Upload failed');
+                    }
+                } catch (error) {
+                    // Show error state
+                    uploadBtn.classList.remove('uploading');
+                    uploadBtn.classList.add('error');
+                    uploadBtnText.textContent = 'Upload Failed';
+                    uploadStatus.innerHTML = `<div class="upload-error">✗ Error: ${error.message}</div>`;
+                    
+                    // Reset after 3 seconds
+                    setTimeout(() => {
+                        uploadBtn.classList.remove('error', 'success');
+                        uploadBtnText.textContent = 'Upload';
+                        uploadBtn.disabled = false;
+                        uploadStatus.innerHTML = '';
+                    }, 3000);
+                }
             }
         });
     </script>

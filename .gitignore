@@ -55,6 +55,9 @@ coverage/
 temp/
 tmp/
 
+# Upload directories
+uploads/
+
 # Build outputs
 dist/
 build/
