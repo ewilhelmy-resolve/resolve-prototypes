@@ -63,7 +63,7 @@ jobs:
       run: docker-compose -f docker-compose.full.yml --profile test run test-runner
     
     - name: Upload Docker test results
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       if: always()
       with:
         name: docker-test-results
@@ -74,4 +74,5 @@ jobs:
     
     - name: Stop services
       if: always()
+
       run: docker-compose -f docker-compose.full.yml down -v
