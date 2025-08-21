@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sign In - Resolve</title>
+    <link rel="stylesheet" href="styles/fonts.css">
+    <link rel="stylesheet" href="styles/styles.css">
+</head>
+<body>
+    <div class="onboarding-container">
+        <div class="form-section">
+            <div class="form-container">
+                <div class="step-header">
+                    <div class="rt-Badge">Welcome Back</div>
+                    <div class="header-text">
+                        <h1 class="season-heading">Continue your automation journey</h1>
+                        <p>Sign in to access your Resolve dashboard.</p>
+                    </div>
+                </div>
+
+                <form class="onboarding-form" id="signin-form">
+                    <div class="form-field">
+                        <label for="email">Work email</label>
+                        <input type="email" id="email" name="email" class="rt-TextField-Input" placeholder="you@acme.com" required>
+                    </div>
+                    
+                    <div class="form-field">
+                        <label for="password">Password</label>
+                        <input type="password" id="password" name="password" class="rt-TextField-Input" placeholder="Enter password" required>
+                    </div>
+
+                    <div class="nav-buttons">
+                        <button type="button" class="rt-Button rt-variant-ghost" onclick="window.location.href='/'">Back to Signup</button>
+                        <button type="submit" class="rt-Button rt-variant-outline">Sign In</button>
+                    </div>
+                </form>
+
+                <div class="signin-footer" style="margin-top: 2rem; text-align: center; color: #666;">
+                    <p>Don't have an account? <a href="/" style="color: #0066ff; text-decoration: none;">Sign up here</a></p>
+                </div>
+            </div>
+        </div>
+
+        <div class="graphic-section">
+            <div class="background-workflow">
+                <div class="bg-workflow-node">
+                    <span class="bg-node-text">Trigger</span>
+                    <div class="bg-node-toggle"></div>
+                </div>
+                <div class="bg-workflow-node">
+                    <span class="bg-node-text">if-Else- if Else</span>
+                    <div class="bg-node-toggle"></div>
+                </div>
+                <div class="bg-workflow-node">
+                    <span class="bg-node-text">ActionName</span>
+                    <div class="bg-node-toggle"></div>
+                </div>
+                <div class="bg-workflow-node">
+                    <span class="bg-node-text">ActionName</span>
+                    <div class="bg-node-toggle"></div>
+                </div>
+                <div class="bg-workflow-node">
+                    <span class="bg-node-text">Trigger</span>
+                    <div class="bg-node-toggle"></div>
+                </div>
+            </div>
+
+            <div class="rita-container">
+                <div class="rita-chat-interface">
+                    <div class="rita-chat-content">
+                        <div class="rita-header">
+                            <h2 class="rita-title season-heading">Ask Rita</h2>
+                            <p class="rita-subtitle">How can I help you today?</p>
+                        </div>
+                        <div class="rita-input-container">
+                            <input type="text" class="rita-input" placeholder="Message Rita...">
+                            <button class="rita-send-btn">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M2 21l21-9L2 3v7l15 2-15 2v7z"/>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('signin-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const formData = {
+                email: document.getElementById('email').value,
+                password: document.getElementById('password').value
+            };
+
+            try {
+                const response = await fetch('/api/signin', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(formData)
+                });
+
+                const result = await response.json();
+
+                if (response.ok && result.success) {
+                    // Store user info only (token is now in secure cookie)
+                    localStorage.setItem('userSession', JSON.stringify(result.user));
+                    // Redirect to dashboard without token in URL
+                    window.location.href = '/dashboard';
+                } else {
+                    alert('Sign in failed: ' + (result.message || 'Invalid credentials'));
+                }
+            } catch (error) {
+                console.error('Sign in error:', error);
+                alert('Sign in failed. Please try again.');
+            }
+        });
+    </script>
+</body>
+</html>

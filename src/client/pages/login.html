@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - Resolve</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@radix-ui/themes@3.0.0/styles.css">
+    <link rel="stylesheet" href="/styles/fonts.css">
+    <link rel="stylesheet" href="/styles/styles.css">
+    <style>
+        .login-link {
+            text-align: center;
+            margin-top: 1.5rem;
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 14px;
+        }
+        .login-link a {
+            color: #9eb1ff;
+            text-decoration: none;
+            transition: color 0.2s ease;
+        }
+        .login-link a:hover {
+            color: #ffffff;
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="onboarding-container">
+        <div class="form-section">
+            <div class="form-container">
+                <div class="step-header">
+                    <div class="header-text">
+                        <h1 class="season-heading">Welcome back</h1>
+                        <p>Sign in to continue to your dashboard</p>
+                    </div>
+                </div>
+
+                <form class="onboarding-form" id="login-form">
+                    <div class="form-field">
+                        <label for="email">Work email</label>
+                        <input type="email" id="email" name="email" class="rt-TextField-Input" placeholder="you@acme.com" required>
+                    </div>
+                    
+                    <div class="form-field">
+                        <label for="password">Password</label>
+                        <input type="password" id="password" name="password" class="rt-TextField-Input" placeholder="Enter password" required>
+                    </div>
+                </form>
+
+                <div class="nav-buttons">
+                    <div></div>
+                    <button type="submit" class="rt-Button rt-variant-outline" onclick="handleLogin()">
+                        Sign In
+                    </button>
+                </div>
+
+                <div class="login-link">
+                    Don't have an account? <a href="/">Sign up</a>
+                </div>
+            </div>
+        </div>
+
+        <div class="graphic-section">
+            <div class="rita-container">
+                <div class="background-workflow">
+                    <div class="bg-workflow-node">
+                        <span class="bg-node-text">Workflow Automation</span>
+                        <div class="bg-node-toggle"></div>
+                    </div>
+                    <div class="bg-workflow-node">
+                        <span class="bg-node-text">Task Processing</span>
+                        <div class="bg-node-toggle"></div>
+                    </div>
+                    <div class="bg-workflow-node">
+                        <span class="bg-node-text">User Authentication</span>
+                        <div class="bg-node-toggle"></div>
+                    </div>
+                    <div class="bg-workflow-node">
+                        <span class="bg-node-text">Dashboard Access</span>
+                        <div class="bg-node-toggle"></div>
+                    </div>
+                    <div class="bg-workflow-node">
+                        <span class="bg-node-text">Rita AI</span>
+                        <div class="bg-node-toggle"></div>
+                    </div>
+                </div>
+
+                <div class="rita-chat-interface">
+                    <div class="rita-chat-content">
+                        <div class="rita-header">
+                            <h2 class="rita-title">Ask Rita</h2>
+                            <p class="rita-subtitle">Your AI automation assistant</p>
+                        </div>
+                        
+                        <div class="rita-input-container">
+                            <input type="text" class="rita-input" placeholder="Ask me anything..." disabled>
+                            <button class="rita-send-btn" disabled>
+                                <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                                    <path d="M14 2L7 9M14 2L10 14L7 9M14 2L2 7L7 9" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        async function handleLogin() {
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            
+            if (!email || !password) {
+                alert('Please enter both email and password');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/auth/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ email, password })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok && data.token) {
+                    // Store the token
+                    localStorage.setItem('authToken', data.token);
+                    localStorage.setItem('userEmail', email);
+                    
+                    // Redirect to dashboard
+                    window.location.href = '/pages/dashboard.html';
+                } else {
+                    alert(data.error || 'Login failed. Please check your credentials.');
+                }
+            } catch (error) {
+                console.error('Login error:', error);
+                alert('An error occurred during login. Please try again.');
+            }
+        }
+        
+        // Handle Enter key in form
+        document.getElementById('login-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            handleLogin();
+        });
+    </script>
+</body>
+</html>

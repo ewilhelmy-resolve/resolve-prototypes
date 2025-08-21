@@ -1,81 +1,52 @@
+version: '3.8'
+
 services:
-  # PostgreSQL Database
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: production
+    ports:
+      - "8082:8080"
+    environment:
+      - NODE_ENV=production
+      - PORT=8080
+      - DATABASE_TYPE=sqlite
+      - DATABASE_PATH=/app/database.db
+    volumes:
+      - ./uploads:/app/uploads
+      - ./database.db:/app/database.db
+    networks:
+      - resolve-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
+
   postgres:
     image: postgres:15-alpine
     environment:
       POSTGRES_DB: resolve_onboarding
       POSTGRES_USER: resolve_user
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-resolve_secure_pass_2024}
+      POSTGRES_PASSWORD: resolve_pass
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+      - ./src/database:/docker-entrypoint-initdb.d
     ports:
       - "5432:5432"
     networks:
       - resolve-network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U resolve_user -d resolve_onboarding"]
+      test: ["CMD-SHELL", "pg_isready -U resolve_user"]
       interval: 10s
       timeout: 5s
       retries: 5
 
-  # Main Application
-  app:
-    build:
-      context: .
-      dockerfile: Dockerfile
-      target: ${BUILD_TARGET:-production}
-    ports:
-      - "${APP_PORT:-8082}:8082"
-    environment:
-      NODE_ENV: ${NODE_ENV:-production}
-      PORT: 8082
-      DATABASE_URL: postgresql://resolve_user:${DB_PASSWORD:-resolve_secure_pass_2024}@postgres:5432/resolve_onboarding
-      DATABASE_TYPE: postgresql
-      WEBHOOK_ENABLED: ${WEBHOOK_ENABLED:-true}
-      JWT_SECRET: ${JWT_SECRET:-your-secret-key-change-in-production}
-    volumes:
-      - ./uploads:/app/uploads
-      - ${DEV_MOUNT:-/dev/null:/dev/null}
-    depends_on:
-      postgres:
-        condition: service_healthy
-    networks:
-      - resolve-network
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8082/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
-    restart: unless-stopped
-
-  # Nginx (Optional Frontend Server)
-  nginx:
-    image: nginx:alpine
-    ports:
-      - "${NGINX_PORT:-8080}:80"
-    volumes:
-      - ./nginx.conf:/etc/nginx/nginx.conf:ro
-      - ./index.html:/usr/share/nginx/html/index.html:ro
-      - ./jarvis.html:/usr/share/nginx/html/jarvis.html:ro
-      - ./analytics-dashboard.html:/usr/share/nginx/html/analytics-dashboard.html:ro
-      - ./analytics-login.html:/usr/share/nginx/html/analytics-login.html:ro
-      - ./components:/usr/share/nginx/html/components:ro
-      - ./styles:/usr/share/nginx/html/styles:ro
-      - ./logo.svg:/usr/share/nginx/html/logo.svg:ro
-    depends_on:
-      - app
-    networks:
-      - resolve-network
-    profiles:
-      - frontend
-    restart: unless-stopped
+volumes:
+  postgres_data:
 
 networks:
   resolve-network:
     driver: bridge
-
-volumes:
-  postgres_data:
-    driver: local

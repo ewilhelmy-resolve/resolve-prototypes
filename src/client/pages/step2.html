@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Resolve Onboarding - Step 2</title>
+    <link rel="stylesheet" href="/styles/fonts.css">
+    <link rel="stylesheet" href="/styles/styles.css">
+    <link rel="stylesheet" href="/styles/step2-styles.css">
+</head>
+<body>
+    <div class="onboarding-container">
+        <div class="form-section">
+            <div class="form-container">
+                <div class="step-header">
+                    <div class="rt-Badge">Step 2 of 2</div>
+                    <div class="header-text">
+                        <h1 class="season-heading">Configure your knowledge articles source</h1>
+                        <p>Get started by uploading your knowledge articles</p>
+                    </div>
+                </div>
+                
+                <div class="upload-section">
+                    <div class="section-label">Upload knowledge articles</div>
+                    <button class="upload-button" onclick="document.getElementById('fileInput').click()">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                            <polyline points="17 8 12 3 7 8"></polyline>
+                            <line x1="12" y1="3" x2="12" y2="15"></line>
+                        </svg>
+                        <span>Upload</span>
+                    </button>
+                    <input type="file" id="fileInput" style="display: none;" accept=".csv,.txt,.pdf">
+                </div>
+                
+                <div class="divider-section">
+                    <div class="divider-text">Or select one connection to sync your knowledge articles</div>
+                </div>
+                
+                <div class="connection-options">
+                    <div class="connection-card" onclick="toggleSelection(this, 'jira')">
+                        <div class="card-header">
+                            <div class="card-content">
+                                <h3 class="card-title">Jira Confluence</h3>
+                                <p class="card-description">Comprehensive API Integration</p>
+                            </div>
+                            <div class="card-radio">
+                                <input type="radio" name="integration">
+                            </div>
+                        </div>
+                        <div class="card-expanded">
+                            <div class="expanded-field">
+                                <input type="text" class="expanded-input" placeholder="URL">
+                            </div>
+                            <div class="expanded-field">
+                                <input type="text" class="expanded-input" placeholder="API Key">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="connection-card" onclick="toggleSelection(this, 'sharepoint')">
+                        <div class="card-header">
+                            <div class="card-content">
+                                <h3 class="card-title">Sharepoint</h3>
+                                <p class="card-description">Streamlined IT Service Workflows</p>
+                            </div>
+                            <div class="card-radio">
+                                <input type="radio" name="integration">
+                            </div>
+                        </div>
+                        <div class="card-expanded">
+                            <div class="expanded-field">
+                                <input type="text" class="expanded-input" placeholder="URL">
+                            </div>
+                            <div class="expanded-field">
+                                <input type="text" class="expanded-input" placeholder="API Key">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="connection-card" onclick="toggleSelection(this, 'servicenow')">
+                        <div class="card-header">
+                            <div class="card-content">
+                                <h3 class="card-title">ServiceNow Knowledge</h3>
+                                <p class="card-description">Optimized IT Service Processes</p>
+                            </div>
+                            <div class="card-radio">
+                                <input type="radio" name="integration">
+                            </div>
+                        </div>
+                        <div class="card-expanded">
+                            <div class="expanded-field">
+                                <input type="text" class="expanded-input" placeholder="URL">
+                            </div>
+                            <div class="expanded-field">
+                                <input type="text" class="expanded-input" placeholder="API Key">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="nav-buttons">
+                    <button class="rt-Button rt-variant-ghost" onclick="window.location.href='/'">Back</button>
+                    <div class="nav-buttons-right">
+                        <button class="rt-Button rt-variant-outline" onclick="window.location.href='/pages/completion.html'">Configure later</button>
+                        <button class="rt-Button rt-variant-outline disabled" id="continueBtn">Continue</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="graphic-section">
+            <div class="background-workflow">
+                <div class="bg-workflow-node">
+                    <span class="bg-node-text">Trigger</span>
+                    <div class="bg-node-toggle"></div>
+                </div>
+                <div class="bg-workflow-node">
+                    <span class="bg-node-text">if-Else- if Else</span>
+                    <div class="bg-node-toggle"></div>
+                </div>
+                <div class="bg-workflow-node">
+                    <span class="bg-node-text">ActionName</span>
+                    <div class="bg-node-toggle"></div>
+                </div>
+                <div class="bg-workflow-node">
+                    <span class="bg-node-text">ActionName</span>
+                    <div class="bg-node-toggle"></div>
+                </div>
+                <div class="bg-workflow-node">
+                    <span class="bg-node-text">Trigger</span>
+                    <div class="bg-node-toggle"></div>
+                </div>
+            </div>
+            
+            <div class="rita-container">
+                <div class="rita-chat-interface">
+                    <div class="rita-chat-content">
+                        <div class="rita-header">
+                            <h2 class="rita-title season-heading">Ask Rita</h2>
+                            <p class="rita-subtitle">How can I help you today?</p>
+                        </div>
+                        <div class="rita-input-container">
+                            <input type="text" id="ritaInput" class="rita-input" placeholder="Message Rita...">
+                            <button class="rita-send-btn">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M2 21l21-9L2 3v7l15 2-15 2v7z"/>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        function toggleSelection(card, type) {
+            // Clear all selections
+            document.querySelectorAll('.connection-card').forEach(c => {
+                c.classList.remove('selected', 'expanded');
+                c.querySelector('input[type="radio"]').checked = false;
+            });
+            
+            // Select and expand this card
+            card.classList.add('selected', 'expanded');
+            card.querySelector('input[type="radio"]').checked = true;
+            
+            // Enable continue button
+            const continueBtn = document.getElementById('continueBtn');
+            continueBtn.classList.remove('disabled');
+            continueBtn.classList.add('enabled');
+        }
+        
+        document.getElementById('continueBtn').addEventListener('click', function() {
+            if (this.classList.contains('enabled')) {
+                window.location.href = '/pages/completion.html';
+            }
+        });
+        
+        document.getElementById('fileInput').addEventListener('change', function(e) {
+            if (e.target.files.length > 0) {
+                // Enable continue button when file is uploaded
+                const continueBtn = document.getElementById('continueBtn');
+                continueBtn.classList.remove('disabled');
+                continueBtn.classList.add('enabled');
+                
+                // Update button to show success
+                const uploadBtn = document.querySelector('.upload-button');
+                uploadBtn.classList.add('success');
+            }
+        });
+    </script>
+</body>
+</html>

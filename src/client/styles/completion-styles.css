@@ -1,0 +1,227 @@
+/* Completion Page - Professional Loading Animation */
+
+.completion-container {
+    width: 100%;
+    max-width: 600px;
+    padding: 2rem;
+    position: relative;
+}
+
+/* Loading Section */
+.loading-section {
+    position: absolute;
+    top: -100px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 10;
+}
+
+.loading-spinner {
+    font-size: 14px;
+    color: rgba(255, 255, 255, 0.4);
+    animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 0.4; }
+    50% { opacity: 1; }
+}
+
+/* Content Section */
+.content-section {
+    text-align: center;
+}
+
+.header-text {
+    margin-bottom: 4rem;
+}
+
+.header-text h1 {
+    font-family: 'SeasonMix-Regular', serif;
+    font-size: 3rem;
+    font-weight: 400;
+    margin-bottom: 1rem;
+    line-height: 1.2;
+    background: linear-gradient(135deg, #ffffff 0%, #b8c5ff 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+.header-text p {
+    font-size: 1.125rem;
+    color: rgba(255, 255, 255, 0.6);
+    line-height: 1.6;
+    max-width: 500px;
+    margin: 0 auto;
+}
+
+/* Setup Steps */
+.setup-steps {
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+    margin-bottom: 3rem;
+}
+
+.step-item {
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+    padding: 1.5rem;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    transition: all 0.5s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+.step-item::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 0;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(91, 111, 255, 0.1), transparent);
+    transition: width 0.5s ease;
+}
+
+.step-item.active::before {
+    width: 100%;
+    animation: shimmer 2s ease-in-out infinite;
+}
+
+@keyframes shimmer {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(100%); }
+}
+
+.step-item.completed {
+    background: rgba(91, 111, 255, 0.05);
+    border-color: rgba(91, 111, 255, 0.3);
+}
+
+.step-item.active {
+    background: rgba(91, 111, 255, 0.08);
+    border-color: #5b6fff;
+    box-shadow: 0 0 20px rgba(91, 111, 255, 0.2);
+}
+
+/* Step Icon */
+.step-icon {
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255, 255, 255, 0.05);
+    border: 2px solid rgba(255, 255, 255, 0.1);
+    border-radius: 50%;
+    font-size: 20px;
+    transition: all 0.3s ease;
+    position: relative;
+}
+
+.step-item.completed .step-icon {
+    background: linear-gradient(135deg, #5b6fff 0%, #8b94ff 100%);
+    border-color: transparent;
+    color: white;
+}
+
+.step-item.active .step-icon {
+    border-color: #5b6fff;
+    background: transparent;
+}
+
+.step-text {
+    flex: 1;
+    font-size: 1.125rem;
+    color: rgba(255, 255, 255, 0.8);
+    text-align: left;
+}
+
+.step-item.completed .step-text {
+    color: #ffffff;
+}
+
+/* Spinner Animation */
+.spinner {
+    width: 24px;
+    height: 24px;
+    border: 3px solid rgba(91, 111, 255, 0.2);
+    border-top-color: #5b6fff;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* Progress Bar */
+.progress-bar {
+    width: 100%;
+    height: 6px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 3px;
+    overflow: hidden;
+    position: relative;
+}
+
+.progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #5b6fff 0%, #8b94ff 100%);
+    border-radius: 3px;
+    width: 33.33%;
+    transition: width 2s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+.progress-fill::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(
+        90deg,
+        transparent,
+        rgba(255, 255, 255, 0.3),
+        transparent
+    );
+    animation: progress-shimmer 2s linear infinite;
+}
+
+@keyframes progress-shimmer {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(100%); }
+}
+
+/* Responsive Design */
+@media (max-width: 640px) {
+    .header-text h1 {
+        font-size: 2rem;
+    }
+    
+    .step-item {
+        padding: 1rem;
+    }
+    
+    .step-text {
+        font-size: 1rem;
+    }
+}
+
+/* Success State */
+.success-animation {
+    animation: success-pulse 0.5s ease;
+}
+
+@keyframes success-pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.1); }
+    100% { transform: scale(1); }
+}

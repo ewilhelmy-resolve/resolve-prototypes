@@ -11,7 +11,7 @@ RUN npm ci --only=production && \
 FROM base AS development
 RUN npm install
 COPY . .
-EXPOSE 8082
+EXPOSE 8080
 CMD ["npm", "run", "dev"]
 
 # Stage 3: Production Build
@@ -23,8 +23,8 @@ RUN addgroup -g 1001 -S nodejs && \
     mkdir -p /app/uploads && \
     chown -R nodejs:nodejs /app
 USER nodejs
-EXPOSE 8082
-CMD ["node", "server-enhanced.js"]
+EXPOSE 8080
+CMD ["node", "server.js"]
 
 # Stage 4: Test Runner
 FROM node:18-alpine AS test

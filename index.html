@@ -3,727 +3,129 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Resolve - Never Touch Another Ticket | Get Started</title>
-    
-    <!-- External Stylesheets -->
-    <link rel="stylesheet" href="styles/main.css">
-    <link rel="stylesheet" href="styles/components.css">
-    <link rel="stylesheet" href="styles/animations.css">
-    
-    <!-- Analytics Tracker -->
-    <script src="analytics-tracker.js"></script>
+    <title>Resolve Onboarding</title>
+    <link rel="stylesheet" href="styles/fonts.css">
+    <link rel="stylesheet" href="styles/styles.css">
 </head>
 <body>
-    <!-- Onboarding Container -->
     <div class="onboarding-container">
-        <!-- Progress Bar Container -->
-        <div id="progressBarContainer"></div>
-
-        <!-- Steps Container -->
-        <div class="steps-container">
-            <!-- Step 1: Get Started -->
-            <div class="step active" id="step1">
-                <h2 id="authHeading">Start Your Automation Journey</h2>
-                <p id="authSubheading">Join thousands of IT teams eliminating repetitive work with AI</p>
-                <div id="signupFormContainer"></div>
-            </div>
-
-            <!-- Step 2: Configure Knowledge Sources -->
-            <div class="step" id="step2">
-                <h2>Configure Your Knowledge Sources</h2>
-                <p>Select how you want to integrate your knowledge articles for AI-powered support</p>
-                <div id="knowledgeConfigContainer"></div>
-                <div class="button-group">
-                    <button type="button" class="btn btn-secondary" onclick="app.previousStep()">Back</button>
-                    <button type="button" class="btn btn-primary" onclick="app.nextStep()">Continue</button>
-                </div>
-            </div>
-
-            <!-- Step 3: Configure ITSM Solution -->
-            <div class="step" id="step3">
-                <h2>Configure Your ITSM Solution</h2>
-                <p>Select your IT service management platform for ticket integration</p>
-                <div id="itsmConfigContainer"></div>
-                <div class="button-group">
-                    <button type="button" class="btn btn-secondary" onclick="app.previousStep()">Back</button>
-                    <button type="button" class="btn btn-primary" onclick="app.nextStep()">Continue</button>
-                </div>
-            </div>
-
-            <!-- Step 4: Environment Building -->
-            <div class="step" id="step4">
-                <h2>🚀 Building Your AI-Powered Environment</h2>
-                <p>We're analyzing your recent ticket activity to customize your experience</p>
-                
-                <div class="analysis-notice">
-                    <div class="notice-header">
-                        <span class="notice-icon">🔍</span>
-                        <h3>What's Happening Now</h3>
-                    </div>
-                    <div class="notice-content">
-                        <p>Our AI is analyzing your last 90 days of ticket data from <span id="integration-type">your system</span> to:</p>
-                        <ul>
-                            <li>🎯 Identify your most common ticket types</li>
-                            <li>📊 Discover automation opportunities</li>
-                            <li>🔄 Map your existing workflows</li>
-                            <li>💡 Calculate potential time savings</li>
-                        </ul>
-                    </div>
-                    <div class="processing-indicator">
-                        <div class="spinner"></div>
-                        <p>Processing your data...</p>
+        <div class="form-section">
+            <div class="form-container">
+                <div class="step-header">
+                    <div class="rt-Badge">Step 1 of 2</div>
+                    <div class="header-text">
+                        <h1 class="season-heading">Start your automation journey</h1>
+                        <p>Take 2 minutes to share your goals and challenges with IT automation.</p>
                     </div>
                 </div>
-                
-                <div class="wait-options">
-                    <div class="wait-card">
-                        <h4>⏱️ This typically takes 5-10 minutes</h4>
-                        <p>We'll send you an email to <strong id="user-email">your email</strong> as soon as your environment is ready.</p>
-                        
-                        <div class="wait-actions">
-                            <button class="btn btn-secondary" onclick="window.close()">
-                                <span>📧</span> Close and Wait for Email
-                            </button>
-                            <button class="btn btn-primary" onclick="app.continueWaiting()">
-                                <span>👀</span> I'll Wait Here
-                            </button>
-                        </div>
+
+                <form class="onboarding-form" id="signup-form">
+                    <div class="form-field">
+                        <label for="fullName">Full name</label>
+                        <input type="text" id="fullName" name="fullName" class="rt-TextField-Input" placeholder="First and last name" required>
                     </div>
                     
-                    <div class="while-waiting">
-                        <h4>While you wait, here's what to expect:</h4>
-                        <div class="expectation-grid">
-                            <div class="expectation-item">
-                                <span class="expect-icon">📈</span>
-                                <div>
-                                    <h5>Automation Dashboard</h5>
-                                    <p>See your top automation opportunities ranked by impact</p>
-                                </div>
-                            </div>
-                            <div class="expectation-item">
-                                <span class="expect-icon">🎯</span>
-                                <div>
-                                    <h5>Quick Wins</h5>
-                                    <p>Start with simple automations that save hours immediately</p>
-                                </div>
-                            </div>
-                            <div class="expectation-item">
-                                <span class="expect-icon">💰</span>
-                                <div>
-                                    <h5>ROI Calculator</h5>
-                                    <p>Track time saved and calculate your automation ROI</p>
-                                </div>
-                            </div>
-                        </div>
+                    <div class="form-field">
+                        <label for="email">Work email</label>
+                        <input type="email" id="email" name="email" class="rt-TextField-Input" placeholder="you@acme.com" required>
                     </div>
-                </div>
-            </div>
+                    
+                    <div class="form-field">
+                        <label for="company">Company name</label>
+                        <input type="text" id="company" name="company" class="rt-TextField-Input" placeholder="Acme" required>
+                    </div>
+                    
+                    <div class="form-field">
+                        <label for="password">Password</label>
+                        <input type="password" id="password" name="password" class="rt-TextField-Input" placeholder="Enter password" required>
+                    </div>
 
-            <!-- Step 5: Success - Dedicated Chatbot Page -->
-            <div class="step" id="step5">
-                <!-- No success icon or launch button - straight to the chatbot -->
-                <div class="barista-chat-container" id="baristaChatContainer" style="display: block; height: calc(100vh - 200px); margin: -2rem;">
-                    <iframe 
-                        id="baristaChat" 
-                        src="https://resolvejarvisdev.espressive.com/v2/chat/" 
-                        frameborder="0"
-                        style="width: 100%; height: 100%; border-radius: 0; box-shadow: none;"
-                        allow="microphone; camera; clipboard-read; clipboard-write"
-                        sandbox="allow-scripts allow-same-origin allow-forms allow-popups">
-                    </iframe>
+                    <div class="nav-buttons">
+                        <button type="submit" class="rt-Button rt-variant-outline">Continue</button>
+                    </div>
+                </form>
+
+                <div class="signup-footer" style="margin-top: 2rem; text-align: center; color: #666;">
+                    <p>Already have an account? <a href="/signin" style="color: #0066ff; text-decoration: none;">Sign in here</a></p>
                 </div>
             </div>
         </div>
-    </div>
 
-    <!-- Token Generation Modal -->
-    <div id="tokenModal" class="modal-overlay">
-        <div class="modal-container">
-            <div class="modal-header">
-                <h3>🔐 Generate Your Jira API Token</h3>
-                <button class="modal-close" onclick="app.closeTokenModal()">✕</button>
-            </div>
-            <div class="modal-body">
-                <div class="modal-guide-container">
-                    <div class="modal-instructions expanded">
-                        <h4>🔐 Quick Token Setup Guide</h4>
-                        <p>Follow these simple steps to generate your API token:</p>
-                        <ol class="detailed-steps">
-                            <li>
-                                <span class="step-emoji">👆</span>
-                                <div>
-                                    <strong>Click "Create API token"</strong>
-                                    <p>Look for the blue button on the page below</p>
-                                </div>
-                            </li>
-                            <li>
-                                <span class="step-emoji">✏️</span>
-                                <div>
-                                    <strong>Name your token</strong>
-                                    <p>Use "Resolve-Integration" or something memorable</p>
-                                </div>
-                            </li>
-                            <li>
-                                <span class="step-emoji">📅</span>
-                                <div>
-                                    <strong>Set expiry date</strong>
-                                    <p>Choose 1 year (maximum allowed for security)</p>
-                                </div>
-                            </li>
-                            <li>
-                                <span class="step-emoji">✅</span>
-                                <div>
-                                    <strong>Click "Create"</strong>
-                                    <p>Your token will appear only once!</p>
-                                </div>
-                            </li>
-                            <li>
-                                <span class="step-emoji">📋</span>
-                                <div>
-                                    <strong>Copy the token</strong>
-                                    <p>Click the copy button or select all and copy</p>
-                                </div>
-                            </li>
-                            <li>
-                                <span class="step-emoji">📍</span>
-                                <div>
-                                    <strong>Close this window</strong>
-                                    <p>Return here and paste your token</p>
-                                </div>
-                            </li>
-                        </ol>
-                        <div class="token-tip">
-                            <span class="tip-icon">💭</span>
-                            <span><strong>Important:</strong> Save your token somewhere safe - Jira won't show it again!</span>
-                        </div>
-                    </div>
-                    <div class="iframe-wrapper">
-                        <div class="iframe-container">
-                            <iframe id="jiraFrame" src="" frameborder="0"></iframe>
-                        </div>
-                        <div class="modal-alternative">
-                            <p>Can't see the Jira page? <a href="https://id.atlassian.com/manage-profile/security/api-tokens" target="_blank">Open in new tab →</a></p>
-                        </div>
-                    </div>
+        <div class="graphic-section">
+            <div class="background-workflow">
+                <div class="bg-workflow-node">
+                    <span class="bg-node-text">Trigger</span>
+                    <div class="bg-node-toggle"></div>
+                </div>
+                <div class="bg-workflow-node">
+                    <span class="bg-node-text">if-Else- if Else</span>
+                    <div class="bg-node-toggle"></div>
+                </div>
+                <div class="bg-workflow-node">
+                    <span class="bg-node-text">ActionName</span>
+                    <div class="bg-node-toggle"></div>
+                </div>
+                <div class="bg-workflow-node">
+                    <span class="bg-node-text">ActionName</span>
+                    <div class="bg-node-toggle"></div>
+                </div>
+                <div class="bg-workflow-node">
+                    <span class="bg-node-text">Trigger</span>
+                    <div class="bg-node-toggle"></div>
                 </div>
             </div>
-        </div>
-    </div>
-
-    <!-- Component Scripts -->
-    <script type="module">
-        import { ProgressBar } from './components/progress-bar.js';
-        import { SignupForm } from './components/signup-form.js';
-        import { KnowledgeConfig } from './components/knowledge-config.js';
-        import { ItsmConfig } from './components/itsm-config.js';
-        import { JiraIntegration } from './components/jira-integration.js';
-        import { apiClient } from './components/api-client.js';
-
-        // Application State
-        class OnboardingApp {
-            constructor() {
-                this.currentStep = 1;
-                this.totalSteps = 5; // Reduced from 7 after removing pricing steps
-                this.userData = {};
-                this.knowledgeSource = null;
-                this.itsmSource = null;
-                this.integrationData = {};
-                
-                // Check backend health on startup
-                this.checkBackendHealth();
-                
-                this.init();
-            }
-
-            async checkBackendHealth() {
-                try {
-                    const health = await apiClient.checkHealth();
-                    console.log('✅ Backend is healthy:', health);
-                    console.log(`Seeded user available: ${health.seededUser}`);
-                } catch (error) {
-                    console.warn('⚠️ Backend health check failed:', error);
-                }
-            }
-
-            seedDatabaseIfNeeded() {
-                // Check if john@resolve.io exists
-                const existingUsers = localStorage.getItem('registeredUsers');
-                let users = existingUsers ? JSON.parse(existingUsers) : {};
-                
-                // Only seed if john@resolve.io doesn't exist
-                if (!users['john@resolve.io']) {
-                    console.log('Seeding database with john@resolve.io...');
-                    
-                    // Create the super user
-                    const superUser = {
-                        email: 'john@resolve.io',
-                        password: '!Password1',
-                        company: 'Resolve',
-                        role: 'super_admin',
-                        firstName: 'John',
-                        lastName: 'Admin',
-                        createdAt: new Date('2024-01-01T00:00:00Z').toISOString(),
-                        lastLogin: new Date().toISOString(),
-                        isActive: true,
-                        isSuperUser: true,
-                        settings: {
-                            notifications: true,
-                            darkMode: true,
-                            timezone: 'America/New_York',
-                            language: 'en'
-                        },
-                        profile: {
-                            title: 'Chief Technology Officer',
-                            department: 'Engineering',
-                            phone: '+1 (555) 123-4567',
-                            avatar: null,
-                            bio: 'Leading the automation revolution at Resolve'
-                        },
-                        permissions: {
-                            canCreateUsers: true,
-                            canDeleteUsers: true,
-                            canModifySettings: true,
-                            canAccessAllData: true,
-                            canManageIntegrations: true,
-                            canViewAnalytics: true,
-                            canManageBilling: true
-                        },
-                        integrations: {
-                            jira: {
-                                connected: true,
-                                url: 'https://resolve.atlassian.net',
-                                apiKey: 'demo-key-123',
-                                lastSync: new Date().toISOString()
-                            },
-                            servicenow: {
-                                connected: false,
-                                url: null,
-                                apiKey: null,
-                                lastSync: null
-                            },
-                            slack: {
-                                connected: true,
-                                workspace: 'resolve-workspace',
-                                webhookUrl: 'https://hooks.slack.com/services/demo',
-                                lastSync: new Date().toISOString()
-                            }
-                        },
-                        subscription: {
-                            plan: 'premium',
-                            status: 'active',
-                            startDate: new Date('2024-01-01').toISOString(),
-                            endDate: new Date('2025-01-01').toISOString(),
-                            seats: 100,
-                            usedSeats: 47,
-                            billingCycle: 'annual',
-                            amount: 50000,
-                            currency: 'USD',
-                            paymentMethod: {
-                                type: 'card',
-                                last4: '4242',
-                                brand: 'Visa',
-                                expiryMonth: 12,
-                                expiryYear: 2025
-                            }
-                        },
-                        analytics: {
-                            ticketsAutomated: 15234,
-                            timesSaved: '4,320 hours',
-                            automationRate: 87.5,
-                            lastWeekTickets: 342,
-                            topAutomations: [
-                                'Password Resets',
-                                'User Provisioning',
-                                'Software Installation',
-                                'Access Requests',
-                                'System Health Checks'
-                            ]
-                        }
-                    };
-                    
-                    // Add super user to registered users
-                    users[superUser.email] = {
-                        password: superUser.password,
-                        company: superUser.company,
-                        createdAt: superUser.createdAt,
-                        ...superUser // Store all user data
-                    };
-                    
-                    // Save to localStorage
-                    localStorage.setItem('registeredUsers', JSON.stringify(users));
-                    
-                    // Also store additional user data
-                    localStorage.setItem('userData_john@resolve.io', JSON.stringify(superUser));
-                    
-                    console.log('✅ Database seeded with john@resolve.io / !Password1');
-                } else {
-                    console.log('Database already contains john@resolve.io');
-                }
-            }
-
-            init() {
-                // Initialize components
-                this.progressBar = new ProgressBar('progressBarContainer', this.totalSteps);
-                
-                this.signupForm = new SignupForm('signupFormContainer', (data) => {
-                    this.userData = { ...this.userData, ...data };
-                    
-                    // Check if this is a login (user has lastLogin) vs signup
-                    if (data.lastLogin) {
-                        // This is a login - redirect to Jarvis page
-                        window.location.href = '/jarvis.html';
-                        return;
-                    }
-                    
-                    // Only redirect for users with COMPLETED onboarding (active subscription AND completed setup)
-                    if (data.subscription && 
-                        data.subscription.status === 'active' && 
-                        data.subscription.plan !== 'trial' &&
-                        data.integrations && 
-                        Object.keys(data.integrations).length > 0) {
-                        // Redirect directly to dedicated Jarvis page for existing subscribers with completed setup
-                        window.location.href = '/jarvis.html';
-                        return;
-                    }
-                    
-                    // New users or incomplete setups continue through onboarding
-                    this.nextStep();
-                });
-                
-                this.knowledgeConfig = new KnowledgeConfig('knowledgeConfigContainer', (config) => {
-                    this.knowledgeSource = config;
-                    
-                    // Track knowledge source selection
-                    if (window.ResolveAnalytics) {
-                        window.ResolveAnalytics.trackOnboardingEvent('knowledge_source_selected', {
-                            source: config.source
-                        });
-                    }
-                    
-                    // Handle Jira integration flow
-                    if (config.source === 'jira' && config.requiresApiConfig) {
-                        this.showJiraIntegration();
-                    } else if (config.source === 'servicenow' && config.requiresApiConfig) {
-                        this.showServiceNowIntegration();
-                    }
-                });
-                
-                this.itsmConfig = new ItsmConfig('itsmConfigContainer', (config) => {
-                    this.itsmSource = config;
-                    
-                    // Track ITSM selection
-                    if (window.ResolveAnalytics) {
-                        window.ResolveAnalytics.trackOnboardingEvent('itsm_source_selected', {
-                            source: config.source
-                        });
-                    }
-                });
-
-                // Setup event listeners
-                this.setupEventListeners();
-
-
-                // Expose methods to window for onclick handlers
-                window.app = this;
-                window.openTokenModal = () => this.openTokenModal();
-            }
-
-            showLoginForm() {
-                this.signupForm.switchToLogin();
-            }
-
-            setupEventListeners() {
-                // Remove error states on input
-                document.querySelectorAll('input').forEach(input => {
-                    input.addEventListener('input', () => {
-                        input.classList.remove('error');
-                        const errorMsg = input.nextElementSibling;
-                        if (errorMsg && errorMsg.classList.contains('error-message')) {
-                            errorMsg.style.display = 'none';
-                        }
-                    });
-                });
-
-                // Terms checkbox
-                const terms = document.getElementById('terms');
-                if (terms) {
-                    terms.addEventListener('change', function() {
-                        if (this.checked) {
-                            document.getElementById('terms-error').style.display = 'none';
-                        }
-                    });
-                }
-            }
-
-            showStep(stepNumber) {
-                // Track funnel step completion and start
-                if (window.ResolveAnalytics) {
-                    // Complete previous step
-                    if (this.currentStep > 0) {
-                        const prevStepName = this.getStepName(this.currentStep);
-                        window.ResolveAnalytics.trackFunnelStep(prevStepName, this.currentStep, 'complete');
-                    }
-                    
-                    // Start new step
-                    const stepName = this.getStepName(stepNumber);
-                    window.ResolveAnalytics.trackFunnelStep(stepName, stepNumber, 'start');
-                    
-                    // Track onboarding progress
-                    window.ResolveAnalytics.trackOnboardingEvent('step_viewed', {
-                        step: stepNumber,
-                        stepName: stepName,
-                        plan: this.selectedPlan
-                    });
-                }
-                
-                document.querySelectorAll('.step').forEach(step => {
-                    step.classList.remove('active');
-                });
-                document.getElementById('step' + stepNumber).classList.add('active');
-                this.progressBar.setStep(stepNumber);
-                
-                // Special handling for workflow execution
-                if (stepNumber === 6) {
-                    this.executeWorkflow();
-                }
-                
-                // At final step, mark onboarding complete and redirect
-                if (stepNumber === 5) {
-                    // Mark user's onboarding as complete in backend
-                    this.completeOnboarding().then(() => {
-                        setTimeout(() => {
-                            window.location.href = '/jarvis.html';
-                        }, 100);
-                    });
-                    return;
-                }
-                
-                // Smooth scroll to top
-                document.querySelector('.onboarding-container').scrollIntoView({ 
-                    behavior: 'smooth', 
-                    block: 'center' 
-                });
-            }
-
-            nextStep() {
-                if (this.currentStep < this.totalSteps) {
-                    this.currentStep++;
-                    this.showStep(this.currentStep);
-                }
-            }
-
-            previousStep() {
-                if (this.currentStep > 1) {
-                    // Track step abandonment
-                    if (window.ResolveAnalytics) {
-                        const stepName = this.getStepName(this.currentStep);
-                        window.ResolveAnalytics.trackFunnelStep(stepName, this.currentStep, 'abandon');
-                        window.ResolveAnalytics.trackOnboardingEvent('step_back', {
-                            from: this.currentStep,
-                            to: this.currentStep - 1
-                        });
-                    }
-                    
-                    this.currentStep--;
-                    this.showStep(this.currentStep);
-                }
-            }
             
-            getStepName(stepNumber) {
-                const stepNames = {
-                    1: 'signup',
-                    2: 'knowledge_config',
-                    3: 'itsm_config',
-                    4: 'environment_build',
-                    5: 'chatbot_launch'
-                };
-                return stepNames[stepNumber] || 'unknown';
-            }
+            <div class="rita-container">
+                <div class="rita-chat-interface">
+                    <div class="rita-chat-content">
+                        <div class="rita-header">
+                            <h2 class="rita-title season-heading">Ask Rita</h2>
+                            <p class="rita-subtitle">How can I help you today?</p>
+                        </div>
+                        <div class="rita-input-container">
+                            <input type="text" class="rita-input" placeholder="Message Rita...">
+                            <button class="rita-send-btn">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M2 21l21-9L2 3v7l15 2-15 2v7z"/>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 
-            async validateKnowledgeConfig() {
-                const config = this.knowledgeConfig.validate();
-                if (config) {
-                    this.knowledgeSource = config;
-                    
-                    // Update the integration form to only show the selected ticketing system
-                    if (config.ticketing === 'jira') {
-                        // Show only Jira in integration form
-                        this.integrationForm.selectIntegration('jira');
-                    } else if (config.ticketing === 'servicenow') {
-                        // Show only ServiceNow in integration form
-                        this.integrationForm.selectIntegration('servicenow');
-                    }
-                    
-                    this.nextStep();
-                }
-            }
+    <script>
+        document.getElementById('signup-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const formData = {
+                name: document.getElementById('fullName').value,
+                email: document.getElementById('email').value,
+                company: document.getElementById('company').value,
+                password: document.getElementById('password').value
+            };
 
-
-
-
-            async completeOnboarding() {
-                // Mark the user's onboarding as complete in the backend
-                try {
-                    const response = await apiClient.request('/complete-onboarding', {
-                        method: 'POST',
-                        body: JSON.stringify({
-                            userData: this.userData,
-                            selectedPlan: this.selectedPlan,
-                            premiumConfig: this.premiumConfig,
-                            integrationData: this.integrationData,
-                            paymentMethodId: this.paymentMethodId
-                        })
-                    });
-                    
-                    if (response.success) {
-                        // Update the user's subscription status
-                        sessionStorage.setItem('onboardingComplete', 'true');
-                    }
-                } catch (error) {
-                    console.error('Failed to complete onboarding:', error);
-                    // Continue anyway - user can be marked complete later
-                }
-            }
-
-            executeWorkflow() {
-                // Update dynamic content
-                const integrationType = this.integrationData.type || 'your system';
-                const integrationName = integrationType === 'jira' ? 'Jira' : 
-                                      integrationType === 'servicenow' ? 'ServiceNow' : 'your system';
-                
-                document.getElementById('integration-type').textContent = integrationName;
-                
-                const emailValue = this.userData.email || 'your email';
-                document.getElementById('user-email').textContent = emailValue;
-                
-                // Simulate completion after processing - shorter for existing users
-                const delay = this.userData.subscription ? 2000 : 8000;
-                setTimeout(() => {
-                    this.nextStep();
-                }, delay);
-            }
-
-            continueWaiting() {
-                const btn = event.target;
-                btn.textContent = 'Waiting...';
-                btn.disabled = true;
-                
-                setTimeout(() => {
-                    this.nextStep();
-                }, 5000);
-            }
-
-
-            openTokenModal() {
-                const modal = document.getElementById('tokenModal');
-                const iframe = document.getElementById('jiraFrame');
-                
-                iframe.src = 'https://id.atlassian.com/manage-profile/security/api-tokens';
-                modal.style.display = 'flex';
-                
-                document.addEventListener('keydown', this.handleEscapeKey);
-            }
-
-            closeTokenModal() {
-                const modal = document.getElementById('tokenModal');
-                const iframe = document.getElementById('jiraFrame');
-                
-                modal.style.display = 'none';
-                iframe.src = '';
-                
-                document.removeEventListener('keydown', this.handleEscapeKey);
-            }
-
-            handleEscapeKey = (e) => {
-                if (e.key === 'Escape') {
-                    this.closeTokenModal();
-                }
-            }
-
-            showJiraIntegration() {
-                // Hide the current knowledge config step
-                const knowledgeContainer = document.getElementById('knowledgeConfigContainer');
-                const originalContent = knowledgeContainer.innerHTML;
-                
-                // Create a container for the Jira integration
-                knowledgeContainer.innerHTML = '<div id="jiraIntegrationContainer"></div>';
-                
-                // Initialize the Jira integration component
-                this.jiraIntegration = new JiraIntegration('jiraIntegrationContainer', (result) => {
-                    if (result.action === 'back') {
-                        // Go back to knowledge config
-                        knowledgeContainer.innerHTML = originalContent;
-                        this.knowledgeConfig = new KnowledgeConfig('knowledgeConfigContainer', (config) => {
-                            this.knowledgeSource = config;
-                            
-                            // Handle Jira integration flow
-                            if (config.source === 'jira' && config.requiresApiConfig) {
-                                this.showJiraIntegration();
-                            } else if (config.source === 'servicenow' && config.requiresApiConfig) {
-                                this.showServiceNowIntegration();
-                            }
-                        });
-                    } else if (result.action === 'complete') {
-                        // Integration complete, move to next step
-                        this.knowledgeSource = result;
-                        this.nextStep();
-                    }
+            try {
+                const response = await fetch('/api/register', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(formData)
                 });
-            }
 
-            showServiceNowIntegration() {
-                // Similar to Jira but for ServiceNow
-                // For now, just proceed to next step
-                this.nextStep();
-            }
-
-            showStep(stepNumber) {
-                // Call parent showStep
-                document.querySelectorAll('.step').forEach(step => {
-                    step.classList.remove('active');
-                });
-                document.getElementById('step' + stepNumber).classList.add('active');
-                this.progressBar.setStep(stepNumber);
-                
-                // Special handling for workflow execution
-                if (stepNumber === 4) {
-                    this.executeWorkflow();
+                if (response.ok) {
+                    window.location.href = '/pages/step2.html';
+                } else {
+                    alert('Registration failed. Please try again.');
                 }
-                
-                // Smooth scroll to top
-                document.querySelector('.onboarding-container').scrollIntoView({ 
-                    behavior: 'smooth', 
-                    block: 'center' 
-                });
-            }
-
-        }
-
-        // Initialize the application
-        const app = new OnboardingApp();
-
-        // Modal overlay click handler
-        document.getElementById('tokenModal').addEventListener('click', function(e) {
-            if (e.target === this) {
-                app.closeTokenModal();
-            }
-        });
-
-        // Parallax effect
-        window.addEventListener('scroll', () => {
-            const scrolled = window.pageYOffset;
-            const hero = document.querySelector('.hero');
-            if (hero) {
-                hero.style.transform = `translateY(${scrolled * 0.5}px)`;
+            } catch (error) {
+                console.error('Error:', error);
+                alert('An error occurred. Please try again.');
             }
         });
     </script>
-
-    <!-- Version indicator -->
-    <div style="position: fixed; bottom: 10px; right: 10px; font-size: 10px; color: rgba(255, 255, 255, 0.3); font-family: monospace; z-index: 9999;">
-        v1.0.2
-    </div>
-
-    <!-- Barista chat is embedded as iframe above -->
 </body>
 </html>

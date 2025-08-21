@@ -3,8 +3,10 @@
   "version": "1.0.0",
   "description": "Resolve onboarding POC with Stripe integration",
   "scripts": {
-    "start": "node server-enhanced.js",
-    "dev": "nodemon --watch . --ext js,html,css --ignore node_modules/ --ignore data/ server-enhanced.js",
+    "start": "node server.js",
+    "start:enhanced": "node src/server/server-enhanced.js",
+    "dev": "nodemon --watch . --ext js,html,css --ignore node_modules/ --ignore data/ --ignore uploads/ --ignore test-results/ server.js",
+    "dev:enhanced": "nodemon --watch . --ext js,html,css --ignore node_modules/ --ignore data/ --ignore uploads/ src/server/server-enhanced.js",
     "docker:up": "docker-compose up -d",
     "docker:dev": "BUILD_TARGET=development DEV_MOUNT=.:/app docker-compose up",
     "docker:down": "docker-compose down",
@@ -19,7 +21,7 @@
     "db:migrate": "node migrate-to-postgres.js"
   },
   "devDependencies": {
-    "@playwright/test": "^1.40.0"
+    "@playwright/test": "^1.55.0"
   },
   "dependencies": {
     "axios": "^1.6.0",
