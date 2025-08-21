@@ -40,7 +40,7 @@ services:
     networks:
       - resolve-network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U resolve_user"]
+      test: ["CMD-SHELL", "pg_isready -U resolve_user -d resolve_onboarding"]
       interval: 10s
       timeout: 5s
       retries: 5

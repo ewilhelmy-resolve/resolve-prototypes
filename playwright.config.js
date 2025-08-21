@@ -19,7 +19,7 @@ module.exports = defineConfig({
   /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
   use: {
     /* Base URL to use in actions like `await page.goto('/')`. */
-    baseURL: 'http://localhost:8082',
+    baseURL: 'http://localhost:5000',
     /* Collect trace when retrying the failed test. See https://playwright.dev/docs/trace-viewer */
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
@@ -46,8 +46,8 @@ module.exports = defineConfig({
 
   /* Run your local dev server before starting the tests */
   webServer: {
-    command: 'echo "Using existing Docker container on port 8082"',
-    port: 8082,
+    command: 'echo "Using existing Docker container on port 5000"',
+    port: 5000,
     reuseExistingServer: true,
     timeout: 120 * 1000,
   },
