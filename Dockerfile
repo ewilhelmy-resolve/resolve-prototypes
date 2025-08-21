@@ -26,12 +26,10 @@ USER nodejs
 EXPOSE 8080
 CMD ["node", "server.js"]
 
-# Stage 4: Test Runner
-FROM node:18-alpine AS test
+# Stage 4: Test Runner - Use Ubuntu for Playwright compatibility
+FROM mcr.microsoft.com/playwright:v1.55.0-noble AS test
 WORKDIR /app
 COPY package*.json ./
-RUN npm ci && \
-    npx playwright install-deps && \
-    npx playwright install
+RUN npm ci
 COPY . .
 CMD ["npm", "test"]
