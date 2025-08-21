@@ -7,7 +7,7 @@ const crypto = require('crypto');
 const axios = require('axios');
 
 // Select database based on environment
-const database = require('./database/postgres');
+const database = require('../database/postgres');
 
 const app = express();
 const PORT = process.env.PORT || 8082;

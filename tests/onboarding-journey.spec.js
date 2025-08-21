@@ -35,10 +35,10 @@ test.describe('Onboarding Journey', () => {
     // Try to fill the signup form
     try {
       // Look for form fields with more specific selectors
-      const nameField = page.locator('input[placeholder*="name" i], input[name="name"], input[placeholder*="first" i]').first();
-      const emailField = page.locator('input[placeholder*="@" i], input[type="email"], input[name="email"]').first();
-      const companyField = page.locator('input[placeholder*="company" i], input[placeholder*="acme" i], input[name="company"]').first();
-      const passwordField = page.locator('input[type="password"], input[name="password"]').first();
+      const nameField = page.locator('input#fullName, input[name="fullName"], input[placeholder*="name" i]').first();
+      const emailField = page.locator('input#email, input[type="email"], input[name="email"]').first();
+      const companyField = page.locator('input#company, input[name="company"], input[placeholder*="company" i]').first();
+      const passwordField = page.locator('input#password, input[type="password"], input[name="password"]').first();
       
       // Check if any fields are visible
       if (await nameField.isVisible()) {
@@ -121,15 +121,28 @@ test.describe('Onboarding Journey', () => {
     console.log('   ✅ Completion page loaded');
 
     // Wait for the setup to complete (loading spinner)
-    await page.waitForTimeout(3000);
+    await page.waitForTimeout(7000); // Wait for animation to complete
     console.log('   ✅ Setup process completed');
 
-    // After completion, navigate to dashboard
-    console.log('   ➡️ Navigating to dashboard');
-    await page.goto('/pages/dashboard.html');
+    // Click the "Continue to Dashboard" button (no auto-redirect anymore)
+    const continueToDashboard = page.locator('button:has-text("Continue to Dashboard")');
+    await expect(continueToDashboard).toBeVisible({ timeout: 10000 });
+    console.log('   ✅ Continue button appeared');
+    await continueToDashboard.click();
+    console.log('   ➡️ Clicked Continue to Dashboard');
 
     // ============= STEP 4: DASHBOARD - FINAL DESTINATION =============
     console.log('\n4️⃣ DASHBOARD - Onboarding Complete!');
+    
+    // Check if we were redirected to signin (due to authentication)
+    if (page.url().includes('signin')) {
+      console.log('   ℹ️ Redirected to signin - authenticating...');
+      // Sign in with the test user
+      await page.locator('input[type="email"]').fill(testUser.email);
+      await page.locator('input[type="password"]').fill(testUser.password);
+      await page.locator('button:has-text("Sign In")').click();
+      await page.waitForTimeout(2000);
+    }
     
     await expect(page).toHaveTitle(/Dashboard - Resolve/);
     await expect(page.locator('h1')).toContainText('Ask Rita');

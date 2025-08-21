@@ -11,13 +11,14 @@ services:
     environment:
       - NODE_ENV=production
       - PORT=8080
-      - DATABASE_TYPE=sqlite
-      - DATABASE_PATH=/app/database.db
+      - DATABASE_URL=postgresql://resolve_user:resolve_pass@postgres:5432/resolve_onboarding
     volumes:
       - ./uploads:/app/uploads
-      - ./database.db:/app/database.db
     networks:
       - resolve-network
+    depends_on:
+      postgres:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
       interval: 30s
