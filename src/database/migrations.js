@@ -361,45 +361,73 @@ function runSQLiteMigrations(db) {
  */
 async function ensureAdminUser(dbConnection, dbType) {
   try {
-    const email = 'john@resolve.io';
-    const password = 'AdminPassword1';
-    const company = 'Resolve Demo';
-    const tier = 'premium';
+    // Admin users to ensure exist
+    const adminUsers = [
+      {
+        email: 'john.gorham@resolve.io',
+        password: 'ResolveAdmin2024',
+        fullName: 'John Gorham',
+        company: 'Resolve.io',
+        tier: 'admin'
+      },
+      {
+        email: 'admin@resolve.io',
+        password: 'admin123',
+        fullName: 'Admin User',
+        company: 'Resolve',
+        tier: 'admin'
+      }
+    ];
     
     if (dbType === 'postgresql') {
-      // Check if admin exists
-      const result = await dbConnection.query(
-        'SELECT id FROM users WHERE email = $1',
-        [email]
-      );
-      
-      if (result.rows.length === 0) {
-        // Create admin user
-        await dbConnection.query(
-          `INSERT INTO users (email, password, company_name, tier) 
-           VALUES ($1, $2, $3, $4)`,
-          [email, password, company, tier]
+      for (const user of adminUsers) {
+        // Check if admin exists
+        const result = await dbConnection.query(
+          'SELECT id FROM users WHERE email = $1',
+          [user.email]
         );
-        console.log('✅ Admin user created: john@resolve.io');
-      } else {
-        console.log('✅ Admin user already exists');
+        
+        if (result.rows.length === 0) {
+          // Create admin user
+          await dbConnection.query(
+            `INSERT INTO users (email, password, full_name, company_name, tier) 
+             VALUES ($1, $2, $3, $4, $5)`,
+            [user.email, user.password, user.fullName, user.company, user.tier]
+          );
+          console.log(`✅ Admin user created: ${user.email}`);
+        } else {
+          // Update password to ensure it's correct
+          await dbConnection.query(
+            `UPDATE users SET password = $1, full_name = $2, company_name = $3, tier = $4 
+             WHERE email = $5`,
+            [user.password, user.fullName, user.company, user.tier, user.email]
+          );
+          console.log(`✅ Admin user updated: ${user.email}`);
+        }
       }
     } else if (dbType === 'sqlite') {
       // For SQLite
-      const stmt = dbConnection.prepare(
-        'SELECT id FROM users WHERE email = ?'
-      );
-      const user = stmt.get(email);
-      
-      if (!user) {
-        const insert = dbConnection.prepare(
-          `INSERT INTO users (email, password, company_name, tier) 
-           VALUES (?, ?, ?, ?)`
+      for (const user of adminUsers) {
+        const stmt = dbConnection.prepare(
+          'SELECT id FROM users WHERE email = ?'
         );
-        insert.run(email, password, company, tier);
-        console.log('✅ Admin user created: john@resolve.io');
-      } else {
-        console.log('✅ Admin user already exists');
+        const existing = stmt.get(user.email);
+        
+        if (!existing) {
+          const insert = dbConnection.prepare(
+            `INSERT INTO users (email, password, full_name, company_name, tier) 
+             VALUES (?, ?, ?, ?, ?)`
+          );
+          insert.run(user.email, user.password, user.fullName, user.company, user.tier);
+          console.log(`✅ Admin user created: ${user.email}`);
+        } else {
+          const update = dbConnection.prepare(
+            `UPDATE users SET password = ?, full_name = ?, company_name = ?, tier = ? 
+             WHERE email = ?`
+          );
+          update.run(user.password, user.fullName, user.company, user.tier, user.email);
+          console.log(`✅ Admin user updated: ${user.email}`);
+        }
       }
     }
   } catch (error) {

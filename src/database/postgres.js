@@ -544,6 +544,179 @@ const webhookOps = {
   }
 };
 
+// Workflow trigger tracking operations
+const workflowOps = {
+  async trackTrigger(triggerData) {
+    const { user_email, trigger_type, action, metadata, webhook_id, response_status, success, error_message } = triggerData;
+    const result = await query(
+      `INSERT INTO workflow_triggers 
+       (user_email, trigger_type, action, metadata, webhook_id, response_status, success, error_message) 
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8) 
+       RETURNING id`,
+      [user_email, trigger_type, action, JSON.stringify(metadata), webhook_id, response_status, success, error_message]
+    );
+    
+    // Update daily metrics
+    await this.updateDailyMetrics();
+    
+    return result.rows[0];
+  },
+
+  async updateDailyMetrics() {
+    // Get today's metrics
+    const today = new Date().toISOString().split('T')[0];
+    
+    // Calculate aggregated metrics for today
+    const metricsQuery = `
+      SELECT 
+        COUNT(*) as total_triggers,
+        COUNT(DISTINCT user_email) as unique_users,
+        SUM(CASE WHEN success = true THEN 1 ELSE 0 END) as successful_triggers,
+        SUM(CASE WHEN success = false THEN 1 ELSE 0 END) as failed_triggers,
+        json_object_agg(DISTINCT trigger_type, type_count) as triggers_by_type,
+        json_object_agg(DISTINCT action, action_count) as triggers_by_action
+      FROM (
+        SELECT 
+          user_email, 
+          trigger_type, 
+          action, 
+          success,
+          COUNT(*) OVER (PARTITION BY trigger_type) as type_count,
+          COUNT(*) OVER (PARTITION BY action) as action_count
+        FROM workflow_triggers
+        WHERE DATE(triggered_at) = $1
+      ) as daily_data
+    `;
+    
+    try {
+      const result = await query(metricsQuery, [today]);
+      const metrics = result.rows[0];
+      
+      // Upsert today's metrics
+      await query(
+        `INSERT INTO admin_metrics 
+         (metric_date, total_triggers, unique_users, successful_triggers, failed_triggers, triggers_by_type, triggers_by_action)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)
+         ON CONFLICT (metric_date) DO UPDATE SET
+           total_triggers = $2,
+           unique_users = $3,
+           successful_triggers = $4,
+           failed_triggers = $5,
+           triggers_by_type = $6,
+           triggers_by_action = $7,
+           updated_at = CURRENT_TIMESTAMP`,
+        [today, metrics.total_triggers || 0, metrics.unique_users || 0, 
+         metrics.successful_triggers || 0, metrics.failed_triggers || 0,
+         metrics.triggers_by_type || {}, metrics.triggers_by_action || {}]
+      );
+    } catch (error) {
+      console.error('Error updating daily metrics:', error);
+    }
+  },
+
+  async getAdminStats(dateRange = 30) {
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - dateRange);
+    
+    // Get overall stats
+    const statsQuery = `
+      SELECT 
+        COUNT(*) as total_triggers,
+        COUNT(DISTINCT user_email) as unique_users,
+        SUM(CASE WHEN success = true THEN 1 ELSE 0 END) as successful_triggers,
+        SUM(CASE WHEN success = false THEN 1 ELSE 0 END) as failed_triggers,
+        ROUND(AVG(CASE WHEN success = true THEN 100 ELSE 0 END), 2) as success_rate
+      FROM workflow_triggers
+      WHERE triggered_at >= $1
+    `;
+    
+    const stats = await query(statsQuery, [startDate]);
+    
+    // Get triggers by type
+    const typeQuery = `
+      SELECT trigger_type, COUNT(*) as count
+      FROM workflow_triggers
+      WHERE triggered_at >= $1
+      GROUP BY trigger_type
+      ORDER BY count DESC
+    `;
+    
+    const types = await query(typeQuery, [startDate]);
+    
+    // Get triggers by action
+    const actionQuery = `
+      SELECT action, COUNT(*) as count, 
+             SUM(CASE WHEN success = true THEN 1 ELSE 0 END) as successful
+      FROM workflow_triggers
+      WHERE triggered_at >= $1
+      GROUP BY action
+      ORDER BY count DESC
+    `;
+    
+    const actions = await query(actionQuery, [startDate]);
+    
+    // Get recent triggers
+    const recentQuery = `
+      SELECT * FROM workflow_triggers
+      ORDER BY triggered_at DESC
+      LIMIT 50
+    `;
+    
+    const recent = await query(recentQuery);
+    
+    // Get daily trends
+    const trendsQuery = `
+      SELECT 
+        DATE(triggered_at) as date,
+        COUNT(*) as triggers,
+        COUNT(DISTINCT user_email) as users,
+        SUM(CASE WHEN success = true THEN 1 ELSE 0 END) as successful
+      FROM workflow_triggers
+      WHERE triggered_at >= $1
+      GROUP BY DATE(triggered_at)
+      ORDER BY date DESC
+    `;
+    
+    const trends = await query(trendsQuery, [startDate]);
+    
+    // Get top users
+    const usersQuery = `
+      SELECT 
+        user_email,
+        COUNT(*) as trigger_count,
+        SUM(CASE WHEN success = true THEN 1 ELSE 0 END) as successful,
+        MAX(triggered_at) as last_activity
+      FROM workflow_triggers
+      WHERE triggered_at >= $1
+      GROUP BY user_email
+      ORDER BY trigger_count DESC
+      LIMIT 10
+    `;
+    
+    const topUsers = await query(usersQuery, [startDate]);
+    
+    return {
+      stats: stats.rows[0],
+      triggersByType: types.rows,
+      triggersByAction: actions.rows,
+      recentTriggers: recent.rows,
+      dailyTrends: trends.rows,
+      topUsers: topUsers.rows
+    };
+  },
+
+  async getUserActivity(user_email) {
+    const result = await query(
+      `SELECT * FROM workflow_triggers
+       WHERE user_email = $1
+       ORDER BY triggered_at DESC
+       LIMIT 100`,
+      [user_email]
+    );
+    return result.rows;
+  }
+};
+
 // Export all operations
 module.exports = {
   pool,
@@ -557,6 +730,7 @@ module.exports = {
   pendingValidations: pendingValidationsOps,
   analytics: analyticsOps,
   webhooks: webhookOps,
+  workflows: workflowOps,
   
   // Compatibility with existing code
   getTicketStats: ticketOps.getStats,

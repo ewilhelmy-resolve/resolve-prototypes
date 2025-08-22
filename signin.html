@@ -107,6 +107,8 @@
                 if (response.ok && result.success) {
                     // Store user info only (token is now in secure cookie)
                     localStorage.setItem('userSession', JSON.stringify(result.user));
+                    localStorage.setItem('userEmail', result.user.email);
+                    localStorage.setItem('sessionToken', 'active'); // Indicator for client-side checks
                     // Redirect to dashboard without token in URL
                     window.location.href = '/dashboard';
                 } else {

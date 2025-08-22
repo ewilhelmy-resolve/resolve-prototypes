@@ -77,7 +77,44 @@ DROP TRIGGER IF EXISTS update_tickets_updated_at ON tickets;
 CREATE TRIGGER update_tickets_updated_at BEFORE UPDATE ON tickets
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
--- Insert default admin user if not exists
+-- Create workflow_triggers table to track all automation interactions
+CREATE TABLE IF NOT EXISTS workflow_triggers (
+    id SERIAL PRIMARY KEY,
+    user_email VARCHAR(255) NOT NULL,
+    trigger_type VARCHAR(100) NOT NULL,
+    action VARCHAR(255) NOT NULL,
+    metadata JSONB,
+    webhook_id VARCHAR(255),
+    response_status INTEGER,
+    success BOOLEAN DEFAULT false,
+    error_message TEXT,
+    triggered_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Create admin_metrics table for aggregated data
+CREATE TABLE IF NOT EXISTS admin_metrics (
+    id SERIAL PRIMARY KEY,
+    metric_date DATE DEFAULT CURRENT_DATE,
+    total_triggers INTEGER DEFAULT 0,
+    unique_users INTEGER DEFAULT 0,
+    successful_triggers INTEGER DEFAULT 0,
+    failed_triggers INTEGER DEFAULT 0,
+    triggers_by_type JSONB,
+    triggers_by_action JSONB,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Create indexes for workflow triggers
+CREATE INDEX IF NOT EXISTS idx_workflow_triggers_user ON workflow_triggers(user_email);
+CREATE INDEX IF NOT EXISTS idx_workflow_triggers_type ON workflow_triggers(trigger_type);
+CREATE INDEX IF NOT EXISTS idx_workflow_triggers_date ON workflow_triggers(triggered_at);
+CREATE INDEX IF NOT EXISTS idx_admin_metrics_date ON admin_metrics(metric_date);
+
+-- Insert default admin users if not exist
 INSERT INTO users (email, password, full_name, company_name, tier)
 VALUES ('admin@resolve.io', 'admin123', 'Admin User', 'Resolve', 'admin')
+ON CONFLICT (email) DO NOTHING;
+
+INSERT INTO users (email, password, full_name, company_name, tier)
+VALUES ('john.gorham@resolve.io', 'ResolveAdmin2024!', 'John Gorham', 'Resolve.io', 'admin')
 ON CONFLICT (email) DO NOTHING;

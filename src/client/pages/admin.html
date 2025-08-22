@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Resolve Admin Dashboard - Workflow Triggers</title>
+    <link rel="stylesheet" href="/styles/admin-styles.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <div class="admin-container">
+        <header class="admin-header">
+            <div class="header-content">
+                <h1>Resolve.io Admin Dashboard</h1>
+                <div class="user-info">
+                    <span id="adminEmail"></span>
+                    <button id="logoutBtn" class="btn-logout">Logout</button>
+                </div>
+            </div>
+        </header>
+
+        <nav class="admin-nav">
+            <ul>
+                <li><a href="#overview" class="nav-link active">Overview</a></li>
+                <li><a href="#triggers" class="nav-link">Workflow Triggers</a></li>
+                <li><a href="#users" class="nav-link">User Activity</a></li>
+                <li><a href="#analytics" class="nav-link">Analytics</a></li>
+                <li><a href="#webhooks" class="nav-link">Webhook Logs</a></li>
+            </ul>
+        </nav>
+
+        <main class="admin-main">
+            <!-- Overview Section -->
+            <section id="overview" class="admin-section active">
+                <h2>Workflow Trigger Overview</h2>
+                
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-value" id="totalTriggers">0</div>
+                        <div class="stat-label">Total Triggers</div>
+                        <div class="stat-change" id="triggersChange">+0%</div>
+                    </div>
+                    
+                    <div class="stat-card">
+                        <div class="stat-value" id="uniqueUsers">0</div>
+                        <div class="stat-label">Active Users</div>
+                        <div class="stat-change" id="usersChange">+0%</div>
+                    </div>
+                    
+                    <div class="stat-card">
+                        <div class="stat-value" id="successRate">0%</div>
+                        <div class="stat-label">Success Rate</div>
+                        <div class="stat-change" id="successChange">+0%</div>
+                    </div>
+                    
+                    <div class="stat-card">
+                        <div class="stat-value" id="todayTriggers">0</div>
+                        <div class="stat-label">Today's Triggers</div>
+                        <div class="stat-change" id="todayChange">+0%</div>
+                    </div>
+                </div>
+
+                <div class="charts-grid">
+                    <div class="chart-container">
+                        <h3>Daily Trigger Trends</h3>
+                        <canvas id="trendsChart"></canvas>
+                    </div>
+                    
+                    <div class="chart-container">
+                        <h3>Triggers by Type</h3>
+                        <canvas id="typeChart"></canvas>
+                    </div>
+                </div>
+
+                <div class="top-users-container">
+                    <h3>Most Active Users</h3>
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>User Email</th>
+                                <th>Total Triggers</th>
+                                <th>Success Rate</th>
+                                <th>Last Activity</th>
+                            </tr>
+                        </thead>
+                        <tbody id="topUsersTable">
+                            <!-- Dynamic content -->
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- Workflow Triggers Section -->
+            <section id="triggers" class="admin-section">
+                <h2>Recent Workflow Triggers</h2>
+                
+                <div class="filters">
+                    <select id="triggerTypeFilter">
+                        <option value="">All Types</option>
+                        <option value="onboarding">Onboarding</option>
+                        <option value="integration">Integration</option>
+                        <option value="csv_upload">CSV Upload</option>
+                        <option value="validation">Validation</option>
+                    </select>
+                    
+                    <select id="statusFilter">
+                        <option value="">All Statuses</option>
+                        <option value="true">Successful</option>
+                        <option value="false">Failed</option>
+                    </select>
+                    
+                    <input type="date" id="dateFilter" />
+                    
+                    <button id="refreshTriggers" class="btn-refresh">Refresh</button>
+                </div>
+
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Timestamp</th>
+                            <th>User</th>
+                            <th>Type</th>
+                            <th>Action</th>
+                            <th>Status</th>
+                            <th>Response</th>
+                            <th>Details</th>
+                        </tr>
+                    </thead>
+                    <tbody id="triggersTable">
+                        <!-- Dynamic content -->
+                    </tbody>
+                </table>
+            </section>
+
+            <!-- User Activity Section -->
+            <section id="users" class="admin-section">
+                <h2>User Activity Details</h2>
+                
+                <div class="user-search">
+                    <input type="email" id="userEmailSearch" placeholder="Enter user email..." />
+                    <button id="searchUser" class="btn-search">Search</button>
+                </div>
+
+                <div id="userActivityContent">
+                    <!-- Dynamic user activity content -->
+                </div>
+            </section>
+
+            <!-- Analytics Section -->
+            <section id="analytics" class="admin-section">
+                <h2>Detailed Analytics</h2>
+                
+                <div class="analytics-controls">
+                    <select id="dateRange">
+                        <option value="7">Last 7 Days</option>
+                        <option value="30" selected>Last 30 Days</option>
+                        <option value="90">Last 90 Days</option>
+                    </select>
+                </div>
+
+                <div class="analytics-grid">
+                    <div class="analytics-card">
+                        <h3>Triggers by Action</h3>
+                        <canvas id="actionChart"></canvas>
+                    </div>
+                    
+                    <div class="analytics-card">
+                        <h3>Success vs Failure Trends</h3>
+                        <canvas id="successFailChart"></canvas>
+                    </div>
+                    
+                    <div class="analytics-card">
+                        <h3>Hourly Distribution</h3>
+                        <canvas id="hourlyChart"></canvas>
+                    </div>
+                    
+                    <div class="analytics-card">
+                        <h3>Weekly Pattern</h3>
+                        <canvas id="weeklyChart"></canvas>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Webhook Logs Section -->
+            <section id="webhooks" class="admin-section">
+                <h2>Webhook Call Logs</h2>
+                
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Timestamp</th>
+                            <th>User</th>
+                            <th>Upload File</th>
+                            <th>Status</th>
+                            <th>Response</th>
+                            <th>Error</th>
+                        </tr>
+                    </thead>
+                    <tbody id="webhooksTable">
+                        <!-- Dynamic content -->
+                    </tbody>
+                </table>
+            </section>
+        </main>
+    </div>
+
+    <!-- Detail Modal -->
+    <div id="detailModal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h3>Trigger Details</h3>
+            <div id="modalContent">
+                <!-- Dynamic content -->
+            </div>
+        </div>
+    </div>
+
+    <script src="/components/admin.js"></script>
+</body>
+</html>

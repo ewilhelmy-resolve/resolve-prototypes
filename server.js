@@ -91,6 +91,92 @@ app.use('/pages', (req, res, next) => {
     next();
 }, express.static(path.join(__dirname, 'src/client/pages')));
 
+// List of admin emails
+const ADMIN_EMAILS = ['john.gorham@resolve.io', 'admin@resolve.io'];
+
+// Admin middleware - check if user is admin
+function requireAdmin(req, res, next) {
+    const token = req.cookies?.sessionToken || 
+                  req.headers['authorization']?.replace('Bearer ', '') || 
+                  req.headers['x-session-token'];
+    
+    if (!token || !sessions[token]) {
+        // For HTML pages, redirect to signin
+        if (!req.path.startsWith('/api/')) {
+            return res.redirect('/signin');
+        }
+        return res.status(401).json({ 
+            success: false, 
+            message: 'Authentication required' 
+        });
+    }
+    
+    const user = sessions[token];
+    if (!ADMIN_EMAILS.includes(user.email)) {
+        // For HTML pages, show error
+        if (!req.path.startsWith('/api/')) {
+            return res.status(403).send(`
+                <!DOCTYPE html>
+                <html>
+                <head><title>Access Denied</title></head>
+                <body>
+                    <h1>Admin Access Required</h1>
+                    <p>You need admin privileges to access this page.</p>
+                    <p>Current user: ${user.email}</p>
+                    <a href="/dashboard">Return to Dashboard</a>
+                </body>
+                </html>
+            `);
+        }
+        return res.status(403).json({ 
+            success: false, 
+            message: 'Admin access required' 
+        });
+    }
+    
+    req.user = user;
+    next();
+}
+
+// Workflow tracking middleware
+function trackWorkflow(triggerType, action, metadata = {}) {
+    return (req, res, next) => {
+        // Get user info
+        const token = req.cookies?.sessionToken || 
+                      req.headers['authorization']?.replace('Bearer ', '') || 
+                      req.headers['x-session-token'];
+        const userEmail = sessions[token]?.email || 'anonymous';
+        
+        // Store original json method
+        const originalJson = res.json;
+        
+        // Override json method to capture response
+        res.json = function(data) {
+            // Track the workflow trigger
+            db.workflows.trackTrigger({
+                user_email: userEmail,
+                trigger_type: triggerType,
+                action: action,
+                metadata: {
+                    ...metadata,
+                    request_body: req.body,
+                    response_data: data
+                },
+                response_status: res.statusCode,
+                success: data.success || res.statusCode < 400,
+                error_message: data.error || data.message || null
+            }).catch(err => {
+                console.error('Error tracking workflow:', err);
+            });
+            
+            // Call original json method
+            return originalJson.call(this, data);
+        };
+        
+        next();
+    };
+}
+
 // Page routes
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'index.html'));
@@ -98,6 +184,10 @@ app.get('/', (req, res) => {
 
 app.get('/dashboard', requireAuth, (req, res) => {
     res.sendFile(path.join(__dirname, 'src/client/pages/dashboard.html'));
+});
+
+app.get('/admin', requireAdmin, (req, res) => {
+    res.sendFile(path.join(__dirname, 'src/client/pages/admin.html'));
 });
 
 app.get('/login', (req, res) => {
@@ -123,8 +213,71 @@ app.get('/signin', (req, res) => {
 // Simple in-memory storage for demonstration
 let users = [];
 
+// Initialize admin users from database on startup
+async function initializeAdminUsers() {
+    try {
+        // Query admin users from database
+        const result = await db.query(
+            `SELECT id, email, password, full_name, company_name, tier 
+             FROM users 
+             WHERE tier = 'admin'`
+        );
+        
+        // Add admin users to in-memory array
+        for (const dbUser of result.rows) {
+            const existingUser = users.find(u => u.email === dbUser.email);
+            if (!existingUser) {
+                users.push({
+                    id: dbUser.id.toString(),
+                    email: dbUser.email,
+                    password: dbUser.password,
+                    fullName: dbUser.full_name,
+                    companyName: dbUser.company_name,
+                    tier: dbUser.tier,
+                    createdAt: new Date().toISOString()
+                });
+                console.log(`📌 Admin user loaded: ${dbUser.email}`);
+            }
+        }
+        
+        // Ensure john.gorham@resolve.io is always available
+        const johnExists = users.find(u => u.email === 'john.gorham@resolve.io');
+        if (!johnExists) {
+            users.push({
+                id: Date.now().toString(),
+                email: 'john.gorham@resolve.io',
+                password: 'ResolveAdmin2024',
+                fullName: 'John Gorham',
+                companyName: 'Resolve.io',
+                tier: 'admin',
+                createdAt: new Date().toISOString()
+            });
+            console.log('📌 Admin user added: john.gorham@resolve.io');
+        }
+        
+        console.log(`✅ Loaded ${users.length} users into memory`);
+    } catch (error) {
+        console.error('Error initializing admin users:', error);
+        
+        // Fallback: ensure at least one admin exists in memory
+        users.push({
+            id: Date.now().toString(),
+            email: 'john.gorham@resolve.io',
+            password: 'ResolveAdmin2024',
+            fullName: 'John Gorham',
+            companyName: 'Resolve.io',
+            tier: 'admin',
+            createdAt: new Date().toISOString()
+        });
+        console.log('📌 Admin user added (fallback): john.gorham@resolve.io');
+    }
+}
+
+// Initialize admin users after a short delay to ensure DB is ready
+setTimeout(initializeAdminUsers, 2000);
+
 // API Routes
-app.post('/api/register', (req, res) => {
+app.post('/api/register', trackWorkflow('onboarding', 'user_registration'), (req, res) => {
     try {
         const { name, email, company, password, fullName, companyName } = req.body;
         
@@ -185,7 +338,7 @@ app.post('/api/register', (req, res) => {
 });
 
 // Signin endpoint
-app.post('/api/signin', (req, res) => {
+app.post('/api/signin', trackWorkflow('authentication', 'user_signin'), (req, res) => {
     try {
         const { email, password } = req.body;
         
@@ -329,7 +482,7 @@ const upload = multer({
 const csvDataStore = {};
 
 // Knowledge articles upload endpoint
-app.post('/api/upload-knowledge', upload.array('files', 10), async (req, res) => {
+app.post('/api/upload-knowledge', upload.array('files', 10), trackWorkflow('integration', 'csv_upload'), async (req, res) => {
     try {
         if (!req.files || req.files.length === 0) {
             return res.status(400).json({ 
@@ -485,12 +638,45 @@ app.post('/api/upload-knowledge', upload.array('files', 10), async (req, res) =>
                 if (webhookResponse.data) {
                     console.log(`[WEBHOOK] Response data:`, webhookResponse.data);
                 }
+                
+                // Track successful webhook trigger
+                await db.workflows.trackTrigger({
+                    user_email: userEmail,
+                    trigger_type: 'automation',
+                    action: 'webhook_triggered',
+                    metadata: {
+                        upload_id: callbackId,
+                        tickets_imported: ticketsImported,
+                        csv_row_count: csvContent.length,
+                        webhook_url: webhookUrl
+                    },
+                    webhook_id: callbackId,
+                    response_status: webhookResponse.status,
+                    success: true
+                });
             } catch (webhookError) {
                 // Log error but don't fail the upload
                 console.error('[WEBHOOK ERROR]', webhookError.message);
                 if (webhookError.response) {
                     console.error('[WEBHOOK ERROR] Response:', webhookError.response.data);
                 }
+                
+                // Track failed webhook trigger
+                await db.workflows.trackTrigger({
+                    user_email: userEmail,
+                    trigger_type: 'automation',
+                    action: 'webhook_failed',
+                    metadata: {
+                        upload_id: callbackId,
+                        tickets_imported: ticketsImported,
+                        csv_row_count: csvContent.length,
+                        webhook_url: webhookUrl
+                    },
+                    webhook_id: callbackId,
+                    response_status: webhookError.response?.status || 0,
+                    success: false,
+                    error_message: webhookError.message
+                });
             }
         }
 
@@ -582,6 +768,89 @@ app.get('/api/csv/callback/:id/download', (req, res) => {
     res.send(csvString);
     
     console.log(`[CSV DOWNLOAD] CSV file downloaded for callback ${callbackId}`);
+});
+
+// Admin API Routes
+app.get('/api/admin/stats', requireAdmin, async (req, res) => {
+    try {
+        const dateRange = parseInt(req.query.days) || 30;
+        const stats = await db.workflows.getAdminStats(dateRange);
+        res.json(stats);
+    } catch (error) {
+        console.error('Error getting admin stats:', error);
+        res.status(500).json({ 
+            success: false, 
+            message: 'Failed to load statistics' 
+        });
+    }
+});
+
+app.get('/api/admin/triggers', requireAdmin, async (req, res) => {
+    try {
+        const filters = {
+            type: req.query.type,
+            status: req.query.status,
+            date: req.query.date
+        };
+        
+        // For now, return recent triggers
+        const stats = await db.workflows.getAdminStats(30);
+        res.json(stats.recentTriggers || []);
+    } catch (error) {
+        console.error('Error getting triggers:', error);
+        res.status(500).json({ 
+            success: false, 
+            message: 'Failed to load triggers' 
+        });
+    }
+});
+
+app.get('/api/admin/user-activity', requireAdmin, async (req, res) => {
+    try {
+        const userEmail = req.query.email;
+        if (!userEmail) {
+            return res.status(400).json({ 
+                success: false, 
+                message: 'Email parameter required' 
+            });
+        }
+        
+        const activity = await db.workflows.getUserActivity(userEmail);
+        res.json(activity);
+    } catch (error) {
+        console.error('Error getting user activity:', error);
+        res.status(500).json({ 
+            success: false, 
+            message: 'Failed to load user activity' 
+        });
+    }
+});
+
+app.get('/api/admin/analytics', requireAdmin, async (req, res) => {
+    try {
+        const days = parseInt(req.query.days) || 30;
+        const analytics = await db.workflows.getAdminStats(days);
+        res.json(analytics);
+    } catch (error) {
+        console.error('Error getting analytics:', error);
+        res.status(500).json({ 
+            success: false, 
+            message: 'Failed to load analytics' 
+        });
+    }
+});
+
+app.get('/api/admin/webhooks', requireAdmin, async (req, res) => {
+    try {
+        const webhooks = await db.webhooks.getAll();
+        res.json(webhooks);
+    } catch (error) {
+        console.error('Error getting webhooks:', error);
+        res.status(500).json({ 
+            success: false, 
+            message: 'Failed to load webhook logs' 
+        });
+    }
 });
 
 // Health check
