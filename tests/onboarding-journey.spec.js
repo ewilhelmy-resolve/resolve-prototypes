@@ -80,7 +80,7 @@ test.describe('Onboarding Journey', () => {
     // Ensure we're on step 2 page
     await expect(page).toHaveURL(/step2\.html/);
     await expect(page).toHaveTitle(/Resolve Onboarding - Step 2/);
-    await expect(page.locator('h1')).toContainText(/Configure your knowledge articles source/i);
+    await expect(page.locator('h1')).toContainText(/Upload your knowledge articles sources/i);
     console.log('   ✅ Integration setup page loaded');
 
     // Verify integration options are available

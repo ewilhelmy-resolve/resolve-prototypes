@@ -15,87 +15,67 @@
                 <div class="step-header">
                     <div class="rt-Badge">Step 2 of 2</div>
                     <div class="header-text">
-                        <h1 class="season-heading">Configure your knowledge articles source</h1>
-                        <p>Get started by uploading your knowledge articles</p>
+                        <h1 class="season-heading">Upload your knowledge articles sources</h1>
+                        <p>Upload your knowledge base and unlock instant chat with your company's articles—in under 5 minutes.</p>
                     </div>
                 </div>
                 
-                <div class="upload-section">
-                    <div class="section-label">Upload knowledge articles</div>
-                    <p class="upload-description">Upload your knowledge articles, ticket data, or archives that will be served through the Resolve callback URL</p>
-                    <button class="upload-button" onclick="document.getElementById('fileInput').click()">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <div style="text-align: center; margin: 1.5rem 0 0;">
+                    <p style="font-size: 16px; font-weight: 400; color: rgba(255, 255, 255, 0.93); margin-bottom: 1rem;">
+                        Get started and upload your knowledge articles!
+                    </p>
+                    <button onclick="document.getElementById('fileInput').click()" 
+                            id="uploadBtn"
+                            style="width: 100%; height: 48px; padding: 0 20px; background: transparent; border: 1px solid rgba(90, 127, 255, 0.3); border-radius: 8px; color: #9eb1ff; font-size: 16px; font-weight: 400; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 10px; transition: 0.2s; margin-bottom: 36px;"
+                            onmouseover="this.style.background='rgba(51, 84, 250, 0.15)'; this.style.borderColor='rgba(90, 127, 255, 0.5)';"
+                            onmouseout="this.style.background='transparent'; this.style.borderColor='rgba(90, 127, 255, 0.3)';">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
                             <polyline points="17 8 12 3 7 8"></polyline>
                             <line x1="12" y1="3" x2="12" y2="15"></line>
                         </svg>
                         <span id="uploadBtnText">Upload</span>
                     </button>
-                    <div id="uploadStatus" class="upload-status"></div>
+                    <div id="uploadStatus" class="upload-status" style="margin: -30px 0 30px 0;"></div>
                     <input type="file" id="fileInput" style="display: none;" accept=".csv,.txt,.pdf,.zip,.json" multiple>
                 </div>
                 
-                <div class="divider-section">
-                    <div class="divider-text">Or select one connection to sync your knowledge articles</div>
-                </div>
-                
-                <div class="connection-options">
-                    <div class="connection-card" onclick="toggleSelection(this, 'jira')">
-                        <div class="card-header">
-                            <div class="card-content">
-                                <h3 class="card-title">Jira Confluence</h3>
-                                <p class="card-description">Comprehensive API Integration</p>
-                            </div>
-                            <div class="card-radio">
-                                <input type="radio" name="integration">
-                            </div>
-                        </div>
-                        <div class="card-expanded">
-                            <div class="expanded-field">
-                                <input type="text" class="expanded-input" placeholder="URL">
-                            </div>
-                            <div class="expanded-field">
-                                <input type="text" class="expanded-input" placeholder="API Key">
-                            </div>
-                        </div>
-                    </div>
+                <div style="width: 100%; margin: 0 0 2rem; border-radius: 12px; border: 1px solid rgba(0, 102, 255, 0.17); background: linear-gradient(135deg, #001433 0%, #002A69 100%); padding: 1.5rem;">
+                    <h3 style="font-size: 16px; font-weight: 500; color: rgba(255, 255, 255, 0.93); text-align: center; margin-bottom: 0.5rem;">
+                        Additional options
+                    </h3>
+                    <p style="font-size: 14px; color: rgba(255, 255, 255, 0.69); text-align: center; margin-bottom: 1.5rem;">
+                        You can connect these external sources anytime after setup in the app.
+                    </p>
                     
-                    <div class="connection-card" onclick="toggleSelection(this, 'sharepoint')">
-                        <div class="card-header">
-                            <div class="card-content">
-                                <h3 class="card-title">Sharepoint</h3>
-                                <p class="card-description">Streamlined IT Service Workflows</p>
+                    <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+                        <div style="border: 1px solid rgba(15, 137, 253, 0.25); border-radius: 6px; padding: 14px 16px; display: flex; align-items: center; gap: 14px; min-height: 68px;">
+                            <div style="width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                                <img src="/styles/icons/icon-jira.svg" alt="Jira" width="28" height="28" style="filter: brightness(1.2);">
                             </div>
-                            <div class="card-radio">
-                                <input type="radio" name="integration">
-                            </div>
-                        </div>
-                        <div class="card-expanded">
-                            <div class="expanded-field">
-                                <input type="text" class="expanded-input" placeholder="URL">
-                            </div>
-                            <div class="expanded-field">
-                                <input type="text" class="expanded-input" placeholder="API Key">
+                            <div style="flex: 1;">
+                                <div style="font-size: 14px; font-weight: 500; color: rgba(255, 255, 255, 0.93); margin-bottom: 2px;">Jira Confluence</div>
+                                <div style="font-size: 14px; color: rgba(255, 255, 255, 0.69); line-height: 1.3;">Comprehensive API Integration</div>
                             </div>
                         </div>
-                    </div>
-                    
-                    <div class="connection-card" onclick="toggleSelection(this, 'servicenow')">
-                        <div class="card-header">
-                            <div class="card-content">
-                                <h3 class="card-title">ServiceNow Knowledge</h3>
-                                <p class="card-description">Optimized IT Service Processes</p>
+                        
+                        <div style="border: 1px solid rgba(15, 137, 253, 0.25); border-radius: 6px; padding: 14px 16px; display: flex; align-items: center; gap: 14px; min-height: 68px;">
+                            <div style="width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                                <img src="/styles/icons/sharepoint.svg" alt="SharePoint" width="28" height="28" style="filter: brightness(1.2);">
                             </div>
-                            <div class="card-radio">
-                                <input type="radio" name="integration">
+                            <div style="flex: 1;">
+                                <div style="font-size: 14px; font-weight: 500; color: rgba(255, 255, 255, 0.93); margin-bottom: 2px;">Sharepoint</div>
+                                <div style="font-size: 14px; color: rgba(255, 255, 255, 0.69); line-height: 1.3;">Connect to Microsoft SharePoint libraries</div>
                             </div>
                         </div>
-                        <div class="card-expanded">
-                            <div class="expanded-field">
-                                <input type="text" class="expanded-input" placeholder="URL">
+                        
+                        <div style="border: 1px solid rgba(15, 137, 253, 0.25); border-radius: 6px; padding: 14px 16px; display: flex; align-items: center; gap: 14px; min-height: 68px;">
+                            <div style="width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                                <img src="/styles/icons/icon-servicenow.svg" alt="ServiceNow" width="28" height="28" style="filter: brightness(1.2);">
                             </div>
-                            <div class="expanded-field">
-                                <input type="text" class="expanded-input" placeholder="API Key">
+                            <div style="flex: 1;">
+                                <div style="font-size: 14px; font-weight: 500; color: rgba(255, 255, 255, 0.93); margin-bottom: 2px;">ServiceNow Knowledge</div>
+                                <div style="font-size: 14px; color: rgba(255, 255, 255, 0.69); line-height: 1.3;">Import IT service management knowledge</div>
                             </div>
                         </div>
                     </div>
@@ -103,9 +83,9 @@
                 
                 <div class="nav-buttons">
                     <button class="rt-Button rt-variant-ghost" onclick="window.location.href='/'">Back</button>
-                    <div class="nav-buttons-right">
-                        <button class="rt-Button rt-variant-outline" onclick="window.location.href='/pages/completion.html'">Configure later</button>
-                        <button class="rt-Button rt-variant-outline disabled" id="continueBtn">Continue</button>
+                    <div style="display: flex; align-items: center; gap: 1.5rem;">
+                        <span style="color: rgba(255, 255, 255, 0.6); font-size: 14px;">Skip for later</span>
+                        <button class="rt-Button rt-variant-outline" id="continueBtn">Continue</button>
                     </div>
                 </div>
             </div>
@@ -157,27 +137,9 @@
     </div>
     
     <script>
-        function toggleSelection(card, type) {
-            // Clear all selections
-            document.querySelectorAll('.connection-card').forEach(c => {
-                c.classList.remove('selected', 'expanded');
-                c.querySelector('input[type="radio"]').checked = false;
-            });
-            
-            // Select and expand this card
-            card.classList.add('selected', 'expanded');
-            card.querySelector('input[type="radio"]').checked = true;
-            
-            // Enable continue button
-            const continueBtn = document.getElementById('continueBtn');
-            continueBtn.classList.remove('disabled');
-            continueBtn.classList.add('enabled');
-        }
-        
+        // Continue button is enabled by default since configuration is optional
         document.getElementById('continueBtn').addEventListener('click', function() {
-            if (this.classList.contains('enabled')) {
-                window.location.href = '/pages/completion.html';
-            }
+            window.location.href = '/pages/completion.html';
         });
         
         document.getElementById('fileInput').addEventListener('change', async function(e) {
@@ -216,11 +178,6 @@
                         // Display file names
                         const fileNames = files.map(f => f.name).join(', ');
                         uploadStatus.innerHTML = `<div class="upload-success">✓ Uploaded: ${fileNames}</div>`;
-                        
-                        // Enable continue button
-                        const continueBtn = document.getElementById('continueBtn');
-                        continueBtn.classList.remove('disabled');
-                        continueBtn.classList.add('enabled');
                         
                         // Store upload data for later use
                         sessionStorage.setItem('uploadedKnowledge', JSON.stringify({
