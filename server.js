@@ -497,6 +497,7 @@ app.post('/api/upload-knowledge', upload.array('files', 10), trackWorkflow('inte
                       req.headers['x-session-token'];
         const userSession = sessions[token] || {};
         const userEmail = userSession.email || 'unknown@example.com';
+        const userId = userSession.id || null;
 
         // Process and validate CSV files
         const uploadedFiles = [];
@@ -554,6 +555,7 @@ app.post('/api/upload-knowledge', upload.array('files', 10), trackWorkflow('inte
             csvContent: csvContent,
             uploadedAt: new Date().toISOString(),
             userEmail: userEmail,
+            userId: userId,
             tenantToken: process.env.TENANT_TOKEN || 'default-tenant'
         };
 
@@ -609,17 +611,17 @@ app.post('/api/upload-knowledge', upload.array('files', 10), trackWorkflow('inte
                 const webhookPayload = {
                     source: 'Onboarding',
                     user_email: userEmail,
-                    action: 'uploaded-csv',  // Changed to match the curl example
-                    integration_type: 'jira', // Changed to match expected automation platform
+                    user_id: userId,
+                    action: 'uploaded-csv',
+                    integration_type: 'csv',
                     callbackUrl: callbackUrl,
                     tenantToken: process.env.TENANT_TOKEN || 'default-tenant',
-                    // Additional metadata for automation engine
+                    // Metadata for batch processing
                     metadata: {
-                        tickets_imported: ticketsImported,
-                        csv_row_count: csvContent.length,
-                        csv_files: uploadedFiles.filter(f => f.type === '.csv').map(f => f.originalName),
-                        database_status: 'completed',
-                        timestamp: new Date().toISOString()
+                        total_rows: csvContent.length,
+                        batch_size: 100,
+                        total_batches: Math.ceil(csvContent.length / 100),
+                        tickets_imported: ticketsImported
                     }
                 };
                 
@@ -713,6 +715,16 @@ app.get('/api/csv/callback/:id', (req, res) => {
         });
     }
     
+    // Support batch retrieval with query parameters
+    const batchSize = parseInt(req.query.batch_size) || 100;
+    const batchNumber = parseInt(req.query.batch) || 0;
+    const startIndex = batchNumber * batchSize;
+    const endIndex = startIndex + batchSize;
+    
+    // Get the batch of data
+    const batchData = data.csvContent.slice(startIndex, endIndex);
+    const totalBatches = Math.ceil(data.csvContent.length / batchSize);
+    
     // Return CSV data in JSON format for API consumption
     res.json({
         success: true,
@@ -720,7 +732,16 @@ app.get('/api/csv/callback/:id', (req, res) => {
         status: 'ready',
         tenantToken: data.tenantToken,
         userEmail: data.userEmail,
+        userId: data.userId,
         uploadedAt: data.uploadedAt,
+        batch_info: {
+            batch_number: batchNumber,
+            batch_size: batchSize,
+            total_batches: totalBatches,
+            total_rows: data.csvContent.length,
+            rows_in_batch: batchData.length,
+            has_more: batchNumber < totalBatches - 1
+        },
         files: data.files.map(f => ({
             name: f.originalName,
             size: f.size,
@@ -728,11 +749,11 @@ app.get('/api/csv/callback/:id', (req, res) => {
             validated: f.validated,
             rowCount: f.rowCount
         })),
-        csvData: data.csvContent,
-        message: 'CSV data ready for processing'
+        csvData: batchData,
+        message: `CSV batch ${batchNumber} of ${totalBatches - 1} ready for processing`
     });
     
-    console.log(`[CSV CALLBACK] Data served for callback ${callbackId}`);
+    console.log(`[CSV CALLBACK] Batch ${batchNumber} served for callback ${callbackId} (${batchData.length} rows)`);
 });
 
 // CSV callback endpoint - download as raw CSV
