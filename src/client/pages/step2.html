@@ -164,7 +164,8 @@
                     // Upload to server with Resolve callback integration
                     const response = await fetch('/api/upload-knowledge', {
                         method: 'POST',
-                        body: formData
+                        body: formData,
+                        credentials: 'include' // Include cookies with the request
                     });
                     
                     if (response.ok) {

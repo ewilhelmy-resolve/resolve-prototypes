@@ -302,9 +302,10 @@ app.post('/api/register', trackWorkflow('onboarding', 'user_registration'), (req
             });
         }
         
-        // Create user
+        // Create user with unique tenant ID
         const user = {
             id: Date.now().toString(),
+            tenantId: crypto.randomBytes(16).toString('hex'), // Generate unique tenant ID
             fullName: userName,
             email,
             companyName: userCompany,
@@ -363,6 +364,7 @@ app.post('/api/signin', trackWorkflow('authentication', 'user_signin'), (req, re
         const token = generateSessionToken();
         sessions[token] = {
             id: user.id,
+            tenantId: user.tenantId,
             fullName: user.fullName,
             email: user.email,
             companyName: user.companyName
@@ -498,6 +500,7 @@ app.post('/api/upload-knowledge', upload.array('files', 10), trackWorkflow('inte
         const userSession = sessions[token] || {};
         const userEmail = userSession.email || 'unknown@example.com';
         const userId = userSession.id || null;
+        const tenantId = userSession.tenantId || 'default-tenant';
 
         // Process and validate CSV files
         const uploadedFiles = [];
@@ -545,18 +548,20 @@ app.post('/api/upload-knowledge', upload.array('files', 10), trackWorkflow('inte
             uploadedFiles.push(fileInfo);
         }
 
-        // Generate unique callback ID and store data
+        // Generate unique callback ID and secure access token
         const callbackId = crypto.randomBytes(16).toString('hex');
+        const callbackToken = crypto.randomBytes(32).toString('hex'); // Secure token for accessing callback
         const callbackUrl = `${req.protocol}://${req.get('host')}/api/csv/callback/${callbackId}`;
         
-        // Store CSV data for callback retrieval
+        // Store CSV data for callback retrieval with access token
         csvDataStore[callbackId] = {
             files: uploadedFiles,
             csvContent: csvContent,
             uploadedAt: new Date().toISOString(),
             userEmail: userEmail,
             userId: userId,
-            tenantToken: process.env.TENANT_TOKEN || 'default-tenant'
+            tenantToken: tenantId,
+            accessToken: callbackToken // Store the access token
         };
 
         console.log(`[UPLOAD] Knowledge files uploaded by ${userEmail}:`, uploadedFiles.map(f => f.originalName));
@@ -615,7 +620,8 @@ app.post('/api/upload-knowledge', upload.array('files', 10), trackWorkflow('inte
                     action: 'uploaded-csv',
                     integration_type: 'csv',
                     callbackUrl: callbackUrl,
-                    tenantToken: process.env.TENANT_TOKEN || 'default-tenant',
+                    callbackToken: callbackToken, // Include access token for secure callback access
+                    tenantToken: tenantId,
                     // Metadata for batch processing
                     metadata: {
                         total_rows: csvContent.length,
@@ -712,6 +718,17 @@ app.get('/api/csv/callback/:id', (req, res) => {
         return res.status(404).json({
             success: false,
             message: 'Callback data not found or expired'
+        });
+    }
+    
+    // Verify bearer token for security
+    const authHeader = req.headers.authorization;
+    const token = authHeader && authHeader.startsWith('Bearer ') ? authHeader.substring(7) : null;
+    
+    if (!token || token !== data.accessToken) {
+        return res.status(401).json({
+            success: false,
+            message: 'Unauthorized: Invalid or missing bearer token'
         });
     }
     
