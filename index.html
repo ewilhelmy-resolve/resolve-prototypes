@@ -119,7 +119,8 @@
                 if (response.ok) {
                     window.location.href = '/pages/step2.html';
                 } else {
-                    alert('Registration failed. Please try again.');
+                    const errorData = await response.json();
+                    alert(errorData.message || 'Registration failed. Please try again.');
                 }
             } catch (error) {
                 console.error('Error:', error);
