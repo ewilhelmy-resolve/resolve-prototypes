@@ -145,7 +145,7 @@
         document.getElementById('fileInput').addEventListener('change', async function(e) {
             if (e.target.files.length > 0) {
                 const files = Array.from(e.target.files);
-                const uploadBtn = document.querySelector('.upload-button');
+                const uploadBtn = document.getElementById('uploadBtn');
                 const uploadBtnText = document.getElementById('uploadBtnText');
                 const uploadStatus = document.getElementById('uploadStatus');
                 
