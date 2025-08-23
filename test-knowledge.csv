@@ -1,4 +1,6 @@
-title,content,category
-"How to reset password","Navigate to settings and click on password reset","Account Management"
-"VPN Setup Guide","Install VPN client and enter provided credentials","Network"
-"Submit IT Ticket","Use the IT portal to submit new requests","Support"
+Title,Category,Content
+"How to reset password","Authentication","To reset your password, go to the login page and click 'Forgot Password'. Enter your email and follow the instructions sent to your inbox."
+"VPN Setup Guide","Network","To set up VPN access, download the VPN client from the IT portal and use your corporate credentials to authenticate."
+"Software Installation Policy","IT Policy","All software installations must be approved by IT department. Submit a ticket through the help desk portal."
+"Data Backup Procedures","Operations","All critical data should be backed up daily. Use the automated backup system or manually backup to the shared drive."
+"Security Best Practices","Security","Always lock your computer when away, use strong passwords, and enable two-factor authentication on all accounts."

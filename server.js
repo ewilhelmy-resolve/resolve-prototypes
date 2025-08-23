@@ -78,6 +78,7 @@ app.use(express.static('public'));
 
 // Serve client files
 app.use('/styles', express.static(path.join(__dirname, 'src/client/styles')));
+app.use('/styles/icons', express.static(path.join(__dirname, 'src/client/styles/icons'))); // Explicit icon route
 app.use('/components', express.static(path.join(__dirname, 'src/client/components')));
 app.use('/fonts', express.static(path.join(__dirname, 'public/fonts')));
 app.use('/images', express.static(path.join(__dirname, 'public/images')));
@@ -315,8 +316,27 @@ app.post('/api/register', trackWorkflow('onboarding', 'user_registration'), (req
         
         users.push(user);
         
+        // Automatically create session for new user
+        const token = generateSessionToken();
+        sessions[token] = {
+            id: user.id,
+            tenantId: user.tenantId,
+            fullName: user.fullName,
+            email: user.email,
+            companyName: user.companyName
+        };
+        
         console.log(`[SIGNUP] New user registered: ${email} from ${userCompany}`);
+        console.log(`[SESSION] Auto-created session for new user: ${email}`);
         console.log(`[DATABASE] Total users: ${users.length}`);
+        
+        // Set secure httpOnly cookie for the session
+        res.cookie('sessionToken', token, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'strict',
+            maxAge: 24 * 60 * 60 * 1000 // 24 hours
+        });
         
         res.json({ 
             success: true, 
