@@ -78,7 +78,7 @@ app.use(express.static('public'));
 
 // Serve client files
 app.use('/styles', express.static(path.join(__dirname, 'src/client/styles')));
-app.use('/styles/icons', express.static(path.join(__dirname, 'src/client/styles/icons'))); // Explicit icon route
+app.use('/styles/icons', express.static(path.join(__dirname, 'src/client/styles/icons'))); // Explicit icon route - v2
 app.use('/components', express.static(path.join(__dirname, 'src/client/components')));
 app.use('/fonts', express.static(path.join(__dirname, 'public/fonts')));
 app.use('/images', express.static(path.join(__dirname, 'public/images')));
