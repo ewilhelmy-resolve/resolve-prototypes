@@ -22,6 +22,7 @@
         <nav class="admin-nav">
             <ul>
                 <li><a href="#overview" class="nav-link active">Overview</a></li>
+                <li><a href="#user-management" class="nav-link">User Management</a></li>
                 <li><a href="#triggers" class="nav-link">Workflow Triggers</a></li>
                 <li><a href="#users" class="nav-link">User Activity</a></li>
                 <li><a href="#analytics" class="nav-link">Analytics</a></li>
@@ -87,6 +88,101 @@
                             <!-- Dynamic content -->
                         </tbody>
                     </table>
+                </div>
+            </section>
+
+            <!-- User Management Section -->
+            <section id="user-management" class="admin-section">
+                <h2>User Management</h2>
+                
+                <div class="user-controls">
+                    <div class="search-bar">
+                        <input type="text" id="userSearchInput" placeholder="Search by email or company...">
+                        <button id="searchUsersBtn" class="btn-primary">Search</button>
+                        <button id="clearSearchBtn" class="btn-secondary">Clear</button>
+                    </div>
+                    
+                    <div class="filter-controls">
+                        <select id="tierFilter">
+                            <option value="">All Tiers</option>
+                            <option value="standard">Standard</option>
+                            <option value="premium">Premium</option>
+                            <option value="enterprise">Enterprise</option>
+                        </select>
+                        
+                        <select id="sortBy">
+                            <option value="created_at">Registration Date</option>
+                            <option value="email">Email</option>
+                            <option value="company_name">Company</option>
+                            <option value="tier">Tier</option>
+                            <option value="updated_at">Last Updated</option>
+                        </select>
+                        
+                        <select id="sortOrder">
+                            <option value="desc">Newest First</option>
+                            <option value="asc">Oldest First</option>
+                        </select>
+                        
+                        <button id="refreshUsersBtn" class="btn-refresh">Refresh</button>
+                    </div>
+                </div>
+                
+                <div class="users-table-container">
+                    <table class="data-table" id="usersManagementTable">
+                        <thead>
+                            <tr>
+                                <th>Email</th>
+                                <th>Company</th>
+                                <th>Phone</th>
+                                <th>Tier</th>
+                                <th>Tickets</th>
+                                <th>Registered</th>
+                                <th>Last Login</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="usersTableBody">
+                            <!-- Dynamic content -->
+                        </tbody>
+                    </table>
+                </div>
+                
+                <!-- Edit User Modal -->
+                <div id="editUserModal" class="modal">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h3>Edit User</h3>
+                            <span class="close-modal">&times;</span>
+                        </div>
+                        <div class="modal-body">
+                            <form id="editUserForm">
+                                <div class="form-group">
+                                    <label>Email:</label>
+                                    <input type="email" id="editUserEmail" readonly>
+                                </div>
+                                <div class="form-group">
+                                    <label>Company Name:</label>
+                                    <input type="text" id="editCompanyName">
+                                </div>
+                                <div class="form-group">
+                                    <label>Phone:</label>
+                                    <input type="tel" id="editPhone">
+                                </div>
+                                <div class="form-group">
+                                    <label>Tier:</label>
+                                    <select id="editTier">
+                                        <option value="standard">Standard</option>
+                                        <option value="premium">Premium</option>
+                                        <option value="enterprise">Enterprise</option>
+                                    </select>
+                                </div>
+                                <div class="form-actions">
+                                    <button type="submit" class="btn-primary">Save Changes</button>
+                                    <button type="button" class="btn-secondary" id="cancelEdit">Cancel</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
                 </div>
             </section>
 

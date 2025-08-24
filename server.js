@@ -93,15 +93,38 @@ app.use('/pages', (req, res, next) => {
 }, express.static(path.join(__dirname, 'src/client/pages')));
 
 // List of admin emails
-const ADMIN_EMAILS = ['john.gorham@resolve.io', 'admin@resolve.io'];
+const ADMIN_EMAILS = ['admin@resolve.io', 'john.gorham@resolve.io'];
 
 // Admin middleware - check if user is admin
-function requireAdmin(req, res, next) {
+async function requireAdmin(req, res, next) {
     const token = req.cookies?.sessionToken || 
                   req.headers['authorization']?.replace('Bearer ', '') || 
                   req.headers['x-session-token'];
     
-    if (!token || !sessions[token]) {
+    // First check in-memory sessions
+    let user = sessions[token];
+    
+    // If not in memory, check database
+    if (!user && token) {
+        try {
+            const result = await db.query(
+                `SELECT u.* FROM users u 
+                 JOIN sessions s ON s.user_id = u.id 
+                 WHERE s.token = $1 AND s.expires_at > NOW()`,
+                [token]
+            );
+            
+            if (result.rows.length > 0) {
+                user = result.rows[0];
+                // Cache in memory for performance
+                sessions[token] = user;
+            }
+        } catch (error) {
+            console.error('Error checking session:', error);
+        }
+    }
+    
+    if (!user) {
         // For HTML pages, redirect to signin
         if (!req.path.startsWith('/api/')) {
             return res.redirect('/signin');
@@ -112,8 +135,8 @@ function requireAdmin(req, res, next) {
         });
     }
     
-    const user = sessions[token];
-    if (!ADMIN_EMAILS.includes(user.email)) {
+    // Check if user is admin (check both email and tier)
+    if (!ADMIN_EMAILS.includes(user.email) && user.tier !== 'admin') {
         // For HTML pages, show error
         if (!req.path.startsWith('/api/')) {
             return res.status(403).send(`
@@ -907,6 +930,179 @@ app.get('/api/admin/webhooks', requireAdmin, async (req, res) => {
         res.status(500).json({ 
             success: false, 
             message: 'Failed to load webhook logs' 
+        });
+    }
+});
+
+// User Management Routes
+app.get('/api/admin/users', requireAdmin, async (req, res) => {
+    try {
+        const { search, tier, sort = 'created_at', order = 'desc' } = req.query;
+        
+        let query = 'SELECT email, company_name, phone, tier, created_at, updated_at FROM users WHERE 1=1';
+        const params = [];
+        
+        if (search) {
+            query += ' AND (email LIKE ? OR company_name LIKE ?)';
+            params.push(`%${search}%`, `%${search}%`);
+        }
+        
+        if (tier) {
+            query += ' AND tier = ?';
+            params.push(tier);
+        }
+        
+        // Add sorting
+        const validSorts = ['email', 'company_name', 'tier', 'created_at', 'updated_at'];
+        const sortField = validSorts.includes(sort) ? sort : 'created_at';
+        const sortOrder = order === 'asc' ? 'ASC' : 'DESC';
+        query += ` ORDER BY ${sortField} ${sortOrder}`;
+        
+        const result = await db.query(query, params);
+        const users = result.rows || [];
+        
+        // Get additional stats for each user
+        for (let user of users) {
+            // Get ticket count for user
+            const ticketResult = await db.query(
+                'SELECT COUNT(*) as count FROM tickets t JOIN users u ON t.user_id = u.id WHERE u.email = $1',
+                [user.email]
+            );
+            user.ticket_count = ticketResult.rows[0]?.count || 0;
+            
+            // Get last login from sessions
+            const sessionResult = await db.query(
+                'SELECT created_at FROM sessions WHERE user_id = (SELECT id FROM users WHERE email = $1) ORDER BY created_at DESC LIMIT 1',
+                [user.email]
+            );
+            user.last_login = sessionResult.rows[0]?.created_at || null;
+        }
+        
+        res.json(users);
+    } catch (error) {
+        console.error('Error getting users:', error);
+        res.status(500).json({ 
+            success: false, 
+            message: 'Failed to load users' 
+        });
+    }
+});
+
+app.put('/api/admin/users/:email', requireAdmin, async (req, res) => {
+    try {
+        const { email } = req.params;
+        const { company_name, phone, tier } = req.body;
+        
+        // Validate tier
+        const validTiers = ['standard', 'premium', 'enterprise'];
+        if (tier && !validTiers.includes(tier)) {
+            return res.status(400).json({
+                success: false,
+                message: 'Invalid tier value'
+            });
+        }
+        
+        // Build update query for PostgreSQL
+        const updates = [];
+        const params = [];
+        let paramCount = 1;
+        
+        if (company_name !== undefined) {
+            updates.push(`company_name = $${paramCount++}`);
+            params.push(company_name);
+        }
+        
+        if (phone !== undefined) {
+            updates.push(`phone = $${paramCount++}`);
+            params.push(phone);
+        }
+        
+        if (tier !== undefined) {
+            updates.push(`tier = $${paramCount++}`);
+            params.push(tier);
+        }
+        
+        if (updates.length === 0) {
+            return res.status(400).json({
+                success: false,
+                message: 'No fields to update'
+            });
+        }
+        
+        updates.push('updated_at = CURRENT_TIMESTAMP');
+        params.push(email);
+        
+        const query = `UPDATE users SET ${updates.join(', ')} WHERE email = $${paramCount}`;
+        await db.query(query, params);
+        
+        res.json({ 
+            success: true, 
+            message: 'User updated successfully' 
+        });
+    } catch (error) {
+        console.error('Error updating user:', error);
+        res.status(500).json({ 
+            success: false, 
+            message: 'Failed to update user' 
+        });
+    }
+});
+
+app.delete('/api/admin/users/:email', requireAdmin, async (req, res) => {
+    try {
+        const { email } = req.params;
+        
+        // Don't allow deleting the admin user
+        if (email === 'john.gorham@resolve.io') {
+            return res.status(403).json({
+                success: false,
+                message: 'Cannot delete admin user'
+            });
+        }
+        
+        // Delete user and related data (PostgreSQL syntax)
+        // First get the user ID
+        const userResult = await db.query('SELECT id FROM users WHERE email = $1', [email]);
+        if (userResult.rows.length === 0) {
+            return res.status(404).json({
+                success: false,
+                message: 'User not found'
+            });
+        }
+        const userId = userResult.rows[0].id;
+        
+        // Delete related data using user_id
+        await db.query('DELETE FROM sessions WHERE user_id = $1', [userId]);
+        await db.query('DELETE FROM tickets WHERE user_id = $1', [userId]);
+        // For tables that might not have user_id, try using email
+        try {
+            await db.query('DELETE FROM csv_uploads WHERE user_email = $1', [email]);
+        } catch (e) {
+            // Table might not exist or might not have user_email column
+        }
+        try {
+            await db.query('DELETE FROM api_keys WHERE user_email = $1', [email]);
+        } catch (e) {
+            // Table might not exist or might not have user_email column
+        }
+        try {
+            await db.query('DELETE FROM integrations WHERE user_email = $1', [email]);
+        } catch (e) {
+            // Table might not exist or might not have user_email column
+        }
+        
+        // Finally delete the user
+        await db.query('DELETE FROM users WHERE id = $1', [userId]);
+        
+        res.json({ 
+            success: true, 
+            message: 'User deleted successfully' 
+        });
+    } catch (error) {
+        console.error('Error deleting user:', error);
+        res.status(500).json({ 
+            success: false, 
+            message: 'Failed to delete user' 
         });
     }
 });

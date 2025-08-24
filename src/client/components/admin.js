@@ -112,7 +112,10 @@ function setupNavigation() {
             link.classList.add('active');
             
             sections.forEach(s => s.classList.remove('active'));
-            document.getElementById(targetId).classList.add('active');
+            const targetSection = document.getElementById(targetId);
+            if (targetSection) {
+                targetSection.classList.add('active');
+            }
             
             // Load section data
             loadSectionData(targetId);
@@ -128,22 +131,95 @@ function setupEventListeners() {
         window.location.href = '/signin';
     });
     
+    // User Management Events
+    const searchUsersBtn = document.getElementById('searchUsersBtn');
+    if (searchUsersBtn) {
+        searchUsersBtn.addEventListener('click', loadUserManagementData);
+    }
+    
+    const clearSearchBtn = document.getElementById('clearSearchBtn');
+    if (clearSearchBtn) {
+        clearSearchBtn.addEventListener('click', () => {
+            document.getElementById('userSearchInput').value = '';
+            loadUserManagementData();
+        });
+    }
+    
+    const refreshUsersBtn = document.getElementById('refreshUsersBtn');
+    if (refreshUsersBtn) {
+        refreshUsersBtn.addEventListener('click', loadUserManagementData);
+    }
+    
+    const tierFilter = document.getElementById('tierFilter');
+    if (tierFilter) {
+        tierFilter.addEventListener('change', loadUserManagementData);
+    }
+    
+    const sortBy = document.getElementById('sortBy');
+    if (sortBy) {
+        sortBy.addEventListener('change', loadUserManagementData);
+    }
+    
+    const sortOrder = document.getElementById('sortOrder');
+    if (sortOrder) {
+        sortOrder.addEventListener('change', loadUserManagementData);
+    }
+    
+    // Edit User Modal
+    const editUserForm = document.getElementById('editUserForm');
+    if (editUserForm) {
+        editUserForm.addEventListener('submit', handleEditUser);
+    }
+    
+    const cancelEdit = document.getElementById('cancelEdit');
+    if (cancelEdit) {
+        cancelEdit.addEventListener('click', closeEditModal);
+    }
+    
+    const closeModalBtn = document.querySelector('.close-modal');
+    if (closeModalBtn) {
+        closeModalBtn.addEventListener('click', closeEditModal);
+    }
+    
     // Refresh triggers
-    document.getElementById('refreshTriggers').addEventListener('click', loadTriggersData);
+    const refreshTriggers = document.getElementById('refreshTriggers');
+    if (refreshTriggers) {
+        refreshTriggers.addEventListener('click', loadTriggersData);
+    }
     
     // User search
-    document.getElementById('searchUser').addEventListener('click', searchUserActivity);
+    const searchUser = document.getElementById('searchUser');
+    if (searchUser) {
+        searchUser.addEventListener('click', searchUserActivity);
+    }
     
     // Date range
-    document.getElementById('dateRange').addEventListener('change', loadAnalyticsData);
+    const dateRange = document.getElementById('dateRange');
+    if (dateRange) {
+        dateRange.addEventListener('change', loadAnalyticsData);
+    }
     
     // Filters
-    document.getElementById('triggerTypeFilter').addEventListener('change', filterTriggers);
-    document.getElementById('statusFilter').addEventListener('change', filterTriggers);
-    document.getElementById('dateFilter').addEventListener('change', filterTriggers);
+    const triggerTypeFilter = document.getElementById('triggerTypeFilter');
+    if (triggerTypeFilter) {
+        triggerTypeFilter.addEventListener('change', filterTriggers);
+    }
+    
+    const statusFilter = document.getElementById('statusFilter');
+    if (statusFilter) {
+        statusFilter.addEventListener('change', filterTriggers);
+    }
+    
+    const dateFilter = document.getElementById('dateFilter');
+    if (dateFilter) {
+        dateFilter.addEventListener('change', filterTriggers);
+    }
     
     // Modal close
-    document.querySelector('.close').addEventListener('click', closeModal);
+    const closeBtn = document.querySelector('.close');
+    if (closeBtn) {
+        closeBtn.addEventListener('click', closeModal);
+    }
 }
 
 // Load overview data
@@ -389,6 +465,9 @@ function updateTopUsersTable(users) {
 // Load section data
 async function loadSectionData(section) {
     switch(section) {
+        case 'user-management':
+            await loadUserManagementData();
+            break;
         case 'triggers':
             await loadTriggersData();
             break;
@@ -990,6 +1069,156 @@ function formatDateTime(dateString) {
 function showNotification(message, type) {
     // Implementation for notifications
     console.log(`${type}: ${message}`);
+}
+
+// User Management Functions
+async function loadUserManagementData() {
+    try {
+        const search = document.getElementById('userSearchInput')?.value || '';
+        const tier = document.getElementById('tierFilter')?.value || '';
+        const sort = document.getElementById('sortBy')?.value || 'created_at';
+        const order = document.getElementById('sortOrder')?.value || 'desc';
+        
+        const params = new URLSearchParams();
+        if (search) params.append('search', search);
+        if (tier) params.append('tier', tier);
+        params.append('sort', sort);
+        params.append('order', order);
+        
+        const response = await fetch(`/api/admin/users?${params}`, {
+            credentials: 'include'
+        });
+        
+        if (!response.ok) {
+            throw new Error('Failed to load users');
+        }
+        
+        const users = await response.json();
+        updateUsersTable(users);
+        
+    } catch (error) {
+        console.error('Error loading users:', error);
+        showNotification('Failed to load users', 'error');
+    }
+}
+
+function updateUsersTable(users) {
+    const tbody = document.getElementById('usersTableBody');
+    if (!tbody) return;
+    
+    tbody.innerHTML = '';
+    
+    if (!users || users.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="8">No users found</td></tr>';
+        return;
+    }
+    
+    users.forEach(user => {
+        const tierBadge = getTierBadge(user.tier);
+        const registeredDate = formatDate(user.created_at);
+        const lastLogin = user.last_login ? formatDate(user.last_login) : 'Never';
+        
+        tbody.innerHTML += `
+            <tr>
+                <td>${user.email}</td>
+                <td>${user.company_name || '-'}</td>
+                <td>${user.phone || '-'}</td>
+                <td>${tierBadge}</td>
+                <td>${user.ticket_count || 0}</td>
+                <td>${registeredDate}</td>
+                <td>${lastLogin}</td>
+                <td class="action-buttons">
+                    <button class="btn-edit" onclick="openEditModal('${user.email}', '${user.company_name || ''}', '${user.phone || ''}', '${user.tier}')">
+                        Edit
+                    </button>
+                    ${user.email !== 'john.gorham@resolve.io' ? 
+                        `<button class="btn-delete" onclick="deleteUser('${user.email}')">Delete</button>` : 
+                        '<span class="admin-badge">Admin</span>'}
+                </td>
+            </tr>
+        `;
+    });
+}
+
+function getTierBadge(tier) {
+    const tierColors = {
+        standard: 'tier-standard',
+        premium: 'tier-premium',
+        enterprise: 'tier-enterprise'
+    };
+    
+    return `<span class="tier-badge ${tierColors[tier] || 'tier-standard'}">${tier || 'standard'}</span>`;
+}
+
+function openEditModal(email, company, phone, tier) {
+    const modal = document.getElementById('editUserModal');
+    document.getElementById('editUserEmail').value = email;
+    document.getElementById('editCompanyName').value = company;
+    document.getElementById('editPhone').value = phone;
+    document.getElementById('editTier').value = tier;
+    
+    modal.style.display = 'block';
+}
+
+function closeEditModal() {
+    const modal = document.getElementById('editUserModal');
+    modal.style.display = 'none';
+}
+
+async function handleEditUser(e) {
+    e.preventDefault();
+    
+    const email = document.getElementById('editUserEmail').value;
+    const company_name = document.getElementById('editCompanyName').value;
+    const phone = document.getElementById('editPhone').value;
+    const tier = document.getElementById('editTier').value;
+    
+    try {
+        const response = await fetch(`/api/admin/users/${encodeURIComponent(email)}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            credentials: 'include',
+            body: JSON.stringify({ company_name, phone, tier })
+        });
+        
+        if (!response.ok) {
+            throw new Error('Failed to update user');
+        }
+        
+        showNotification('User updated successfully', 'success');
+        closeEditModal();
+        await loadUserManagementData();
+        
+    } catch (error) {
+        console.error('Error updating user:', error);
+        showNotification('Failed to update user', 'error');
+    }
+}
+
+async function deleteUser(email) {
+    if (!confirm(`Are you sure you want to delete user ${email}? This will also delete all their data.`)) {
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/api/admin/users/${encodeURIComponent(email)}`, {
+            method: 'DELETE',
+            credentials: 'include'
+        });
+        
+        if (!response.ok) {
+            throw new Error('Failed to delete user');
+        }
+        
+        showNotification('User deleted successfully', 'success');
+        await loadUserManagementData();
+        
+    } catch (error) {
+        console.error('Error deleting user:', error);
+        showNotification('Failed to delete user', 'error');
+    }
 }
 
 // Initialize on page load
