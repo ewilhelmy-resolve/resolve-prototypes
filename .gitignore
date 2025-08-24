@@ -23,6 +23,7 @@ lerna-debug.log*
 *.webp
 *.svg
 !logo.svg  # Exception for the application logo
+!src/client/styles/icons/*.svg  # Exception for integration icons
 *.ico
 tests/screenshots/
 screenshots/
