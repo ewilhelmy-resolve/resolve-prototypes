@@ -408,6 +408,10 @@
                             </div>
                         `;
                         
+                        // Make the item clickable
+                        articleItem.style.cursor = 'pointer';
+                        articleItem.onclick = () => showTicketDetails(ticket);
+                        
                         articlesList.appendChild(articleItem);
                     });
                     
@@ -658,6 +662,156 @@
         function openShareModal() {
             // Placeholder for modal functionality
             console.log('Opening share modal');
+        }
+        
+        // Function to show ticket details in a modal
+        function showTicketDetails(ticket) {
+            // Create modal overlay
+            const modalOverlay = document.createElement('div');
+            modalOverlay.style.cssText = `
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background: rgba(0, 0, 0, 0.7);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                z-index: 10000;
+                animation: fadeIn 0.2s ease-out;
+            `;
+            
+            // Create modal content
+            const modal = document.createElement('div');
+            modal.style.cssText = `
+                background: #1E1E2E;
+                border-radius: 12px;
+                padding: 32px;
+                max-width: 600px;
+                width: 90%;
+                max-height: 80vh;
+                overflow-y: auto;
+                box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+                animation: slideUp 0.3s ease-out;
+            `;
+            
+            // Determine priority color
+            const priorityColor = ticket.priority === 'High' ? '#FF6B6B' : 
+                                ticket.priority === 'Medium' ? '#FFB366' : 
+                                '#4ECDC4';
+            
+            modal.innerHTML = `
+                <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 24px;">
+                    <h2 style="color: #FFFFFF; font-size: 24px; margin: 0;">${escapeHtml(ticket.title || 'Untitled')}</h2>
+                    <button onclick="this.closest('div').parentElement.parentElement.remove()" style="
+                        background: transparent;
+                        border: none;
+                        color: #8B8B9F;
+                        font-size: 24px;
+                        cursor: pointer;
+                        padding: 0;
+                        width: 32px;
+                        height: 32px;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                    ">&times;</button>
+                </div>
+                
+                <div style="display: flex; gap: 12px; margin-bottom: 24px;">
+                    <span style="
+                        background: ${priorityColor}20;
+                        color: ${priorityColor};
+                        padding: 4px 12px;
+                        border-radius: 16px;
+                        font-size: 12px;
+                        font-weight: 600;
+                        text-transform: uppercase;
+                    ">${ticket.priority || 'Normal'}</span>
+                    <span style="
+                        background: #0066FF20;
+                        color: #0066FF;
+                        padding: 4px 12px;
+                        border-radius: 16px;
+                        font-size: 12px;
+                        font-weight: 600;
+                        text-transform: uppercase;
+                    ">${ticket.status || 'Open'}</span>
+                    ${ticket.metadata?.category ? `
+                        <span style="
+                            background: #00D4FF20;
+                            color: #00D4FF;
+                            padding: 4px 12px;
+                            border-radius: 16px;
+                            font-size: 12px;
+                            font-weight: 600;
+                            text-transform: uppercase;
+                        ">${ticket.metadata.category}</span>
+                    ` : ''}
+                </div>
+                
+                <div style="margin-bottom: 24px;">
+                    <h3 style="color: #8B8B9F; font-size: 12px; text-transform: uppercase; margin-bottom: 12px;">Description</h3>
+                    <p style="color: #FFFFFF; line-height: 1.6; white-space: pre-wrap;">${escapeHtml(ticket.description || 'No description available')}</p>
+                </div>
+                
+                ${ticket.metadata ? `
+                    <div style="margin-bottom: 24px;">
+                        <h3 style="color: #8B8B9F; font-size: 12px; text-transform: uppercase; margin-bottom: 12px;">Metadata</h3>
+                        <pre style="
+                            background: #121212;
+                            padding: 16px;
+                            border-radius: 8px;
+                            color: #00D4FF;
+                            font-size: 12px;
+                            overflow-x: auto;
+                        ">${JSON.stringify(ticket.metadata, null, 2)}</pre>
+                    </div>
+                ` : ''}
+                
+                <div style="display: flex; gap: 8px; font-size: 11px; color: #8B8B9F;">
+                    <span>ID: ${ticket.id}</span>
+                    ${ticket.external_id ? `<span>• External ID: ${ticket.external_id}</span>` : ''}
+                    <span>• Created: ${new Date(ticket.created_at).toLocaleString()}</span>
+                </div>
+            `;
+            
+            modalOverlay.appendChild(modal);
+            document.body.appendChild(modalOverlay);
+            
+            // Add animation styles if not present
+            if (!document.querySelector('#modal-animations')) {
+                const style = document.createElement('style');
+                style.id = 'modal-animations';
+                style.textContent = `
+                    @keyframes fadeIn {
+                        from { opacity: 0; }
+                        to { opacity: 1; }
+                    }
+                    @keyframes slideUp {
+                        from { transform: translateY(20px); opacity: 0; }
+                        to { transform: translateY(0); opacity: 1; }
+                    }
+                `;
+                document.head.appendChild(style);
+            }
+            
+            // Close on overlay click
+            modalOverlay.onclick = (e) => {
+                if (e.target === modalOverlay) {
+                    modalOverlay.remove();
+                }
+            };
+            
+            // Close on escape key
+            const escHandler = (e) => {
+                if (e.key === 'Escape') {
+                    modalOverlay.remove();
+                    document.removeEventListener('keydown', escHandler);
+                }
+            };
+            document.addEventListener('keydown', escHandler);
         }
     </script>
 </body>
