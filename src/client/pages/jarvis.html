@@ -171,6 +171,121 @@
             justify-content: center;
             font-size: 14px;
             font-weight: 600;
+            cursor: pointer;
+            position: relative;
+        }
+        
+        .user-dropdown {
+            position: absolute;
+            top: calc(100% + 10px);
+            right: 0;
+            background: #1E1E2E;
+            border: 1px solid rgba(139, 139, 159, 0.2);
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            min-width: 280px;
+            display: none;
+            z-index: 1000;
+        }
+        
+        .user-dropdown.active {
+            display: block;
+        }
+        
+        .dropdown-header {
+            padding: 16px;
+            border-bottom: 1px solid rgba(139, 139, 159, 0.2);
+        }
+        
+        .dropdown-user-info {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+        
+        .dropdown-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #0066FF, #00D4FF);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            font-weight: 600;
+            color: white;
+        }
+        
+        .dropdown-details {
+            flex: 1;
+        }
+        
+        .dropdown-name {
+            font-size: 14px;
+            color: #FFFFFF;
+            margin-bottom: 4px;
+        }
+        
+        .dropdown-email {
+            font-size: 12px;
+            color: #8B8B9F;
+        }
+        
+        .tenant-info {
+            background: rgba(0, 102, 255, 0.1);
+            border: 1px solid rgba(0, 102, 255, 0.2);
+            border-radius: 4px;
+            padding: 8px 12px;
+            margin-top: 8px;
+        }
+        
+        .tenant-label {
+            font-size: 10px;
+            color: #8B8B9F;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 4px;
+        }
+        
+        .tenant-id {
+            font-size: 11px;
+            font-family: 'Courier New', monospace;
+            color: #00D4FF;
+            word-break: break-all;
+            user-select: all;
+        }
+        
+        .dropdown-menu {
+            padding: 8px 0;
+        }
+        
+        .dropdown-item {
+            padding: 10px 16px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            color: #FFFFFF;
+            text-decoration: none;
+            transition: background 0.2s;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        
+        .dropdown-item:hover {
+            background: rgba(139, 139, 159, 0.1);
+        }
+        
+        .dropdown-item svg {
+            width: 16px;
+            height: 16px;
+            stroke: #8B8B9F;
+        }
+        
+        .dropdown-divider {
+            height: 1px;
+            background: rgba(139, 139, 159, 0.2);
+            margin: 8px 0;
         }
         
         .user-info {
@@ -1228,7 +1343,44 @@
                     <div class="user-name" id="headerUserName">john@resolve.io</div>
                     <div class="user-role">Administrator</div>
                 </div>
-                <div class="user-avatar">JR</div>
+                <div class="user-avatar" onclick="toggleUserDropdown()">
+                    <span>JR</span>
+                    <div class="user-dropdown" id="userDropdown">
+                        <div class="dropdown-header">
+                            <div class="dropdown-user-info">
+                                <div class="dropdown-avatar">
+                                    <span id="dropdownAvatar">JR</span>
+                                </div>
+                                <div class="dropdown-details">
+                                    <div class="dropdown-name" id="dropdownName">User Name</div>
+                                    <div class="dropdown-email" id="dropdownEmail">user@example.com</div>
+                                </div>
+                            </div>
+                            <div class="tenant-info">
+                                <div class="tenant-label">Tenant ID</div>
+                                <div class="tenant-id" id="tenantIdDisplay" title="Click to copy">Loading...</div>
+                            </div>
+                        </div>
+                        <div class="dropdown-menu">
+                            <a href="#" class="dropdown-item" onclick="copyTenantId(); return false;">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+                                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                                </svg>
+                                Copy Tenant ID
+                            </a>
+                            <div class="dropdown-divider"></div>
+                            <a href="#" class="dropdown-item" onclick="logout(); return false;">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+                                    <polyline points="16 17 21 12 16 7"/>
+                                    <line x1="21" y1="12" x2="9" y2="12"/>
+                                </svg>
+                                Sign Out
+                            </a>
+                        </div>
+                    </div>
+                </div>
             </div>
             <div class="header-actions">
                 <button class="icon-btn" title="Notifications" aria-label="View notifications">
@@ -3624,6 +3776,39 @@
             setTimeout(() => notification.remove(), 300);
         }, 3000);
     };
+    
+    // User dropdown functionality
+    window.toggleUserDropdown = function() {
+        const dropdown = document.getElementById('userDropdown');
+        dropdown.classList.toggle('active');
+    };
+    
+    // Close dropdown when clicking outside
+    document.addEventListener('click', function(event) {
+        const userAvatar = document.querySelector('.user-avatar');
+        const dropdown = document.getElementById('userDropdown');
+        
+        if (!userAvatar.contains(event.target)) {
+            dropdown.classList.remove('active');
+        }
+    });
+    
+    // Copy tenant ID to clipboard
+    window.copyTenantId = function() {
+        const tenantIdElement = document.getElementById('tenantIdDisplay');
+        const tenantId = tenantIdElement.textContent;
+        
+        if (tenantId && tenantId !== 'Loading...') {
+            navigator.clipboard.writeText(tenantId).then(() => {
+                showNotification('Tenant ID copied to clipboard', 'success');
+            }).catch(() => {
+                showNotification('Failed to copy tenant ID', 'error');
+            });
+        }
+        
+        // Close dropdown
+        document.getElementById('userDropdown').classList.remove('active');
+    };
 
     // Webhook calls functions
     window.loadWebhookCalls = async function() {
@@ -3751,10 +3936,39 @@
                     headerUserName.textContent = data.email;
                     
                     // Update avatar initials
-                    const userAvatar = document.querySelector('.user-avatar');
+                    const userAvatar = document.querySelector('.user-avatar > span');
+                    const dropdownAvatar = document.getElementById('dropdownAvatar');
                     if (userAvatar) {
                         const initials = data.email.split('@')[0].substring(0, 2).toUpperCase();
                         userAvatar.textContent = initials;
+                        if (dropdownAvatar) {
+                            dropdownAvatar.textContent = initials;
+                        }
+                    }
+                    
+                    // Update dropdown user info
+                    const dropdownName = document.getElementById('dropdownName');
+                    const dropdownEmail = document.getElementById('dropdownEmail');
+                    if (dropdownName) {
+                        dropdownName.textContent = data.fullName || data.email.split('@')[0];
+                    }
+                    if (dropdownEmail) {
+                        dropdownEmail.textContent = data.email;
+                    }
+                    
+                    // Update tenant ID display
+                    const tenantIdDisplay = document.getElementById('tenantIdDisplay');
+                    if (tenantIdDisplay && data.tenantId) {
+                        tenantIdDisplay.textContent = data.tenantId;
+                        tenantIdDisplay.title = 'Click to copy: ' + data.tenantId;
+                        
+                        // Store tenant ID in localStorage for Jarvis chat
+                        localStorage.setItem('userTenantId', data.tenantId);
+                        
+                        // Update current user object
+                        const currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
+                        currentUser.tenantId = data.tenantId;
+                        localStorage.setItem('currentUser', JSON.stringify(currentUser));
                     }
                 }
             }
@@ -3776,15 +3990,29 @@
         setTimeout(function() {
             const chatContainer = document.querySelector('#jarvis-chat-container');
             if (chatContainer) {
+                // Get customer tenant ID from session/localStorage
+                const currentUser = JSON.parse(localStorage.getItem('currentUser') || sessionStorage.getItem('currentUser') || '{}');
+                const userEmail = currentUser.email || localStorage.getItem('userEmail') || sessionStorage.getItem('userEmail') || 'default';
+                
+                // Use the actual tenant ID from the user session (UUID)
+                const tenantId = currentUser.tenantId || localStorage.getItem('userTenantId') || 'default-tenant';
+                
+                // Generate unique session ID
+                const sessionId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+                
+                console.log('Configuring Espressive widget with tenant_id:', tenantId, 'session_id:', sessionId);
+                
                 injectEspressiveWidget({
                     containerElement: chatContainer,
                     tenantUrl: 'resolvejarvisdev.espressive.com',
                     chatVersion: 2,
                     channelParameters: { 
+                        tenant_id: tenantId,  // Add customer's tenant ID
+                        session_id: sessionId,  // Add unique session ID
                         color: '#0082C8',  // Keeping original color
                         usage: 'buildworkflow' 
                     }, 
-                    guestMode: 'DOGAFLA',
+                    guestMode: 'DOGAFLA',  // tenant must have guest mode enabled
                     initialIntentId: '88d5a71b-8a62-4585-8e26-031f0dcfc016',
                 });
                 console.log('Espressive widget injected successfully');

@@ -4,7 +4,9 @@ const fs = require('fs');
 const crypto = require('crypto');
 const multer = require('multer');
 const axios = require('axios');
+const { v4: uuidv4 } = require('uuid');
 const db = require('./src/database/postgres');
+const { createMigrationMiddleware, isValidUUID } = require('./migrate-tenant-ids');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -269,6 +271,7 @@ async function initializeAdminUsers() {
         if (!johnExists) {
             users.push({
                 id: Date.now().toString(),
+                tenantId: uuidv4(), // Add tenant ID for admin user
                 email: 'john.gorham@resolve.io',
                 password: 'ResolveAdmin2024',
                 fullName: 'John Gorham',
@@ -279,6 +282,10 @@ async function initializeAdminUsers() {
             console.log('📌 Admin user added: john.gorham@resolve.io');
         }
         
+        // Migrate any users that don't have valid UUID tenant IDs
+        const migrationMiddleware = createMigrationMiddleware();
+        users = migrationMiddleware(users);
+        
         console.log(`✅ Loaded ${users.length} users into memory`);
     } catch (error) {
         console.error('Error initializing admin users:', error);
@@ -286,6 +293,7 @@ async function initializeAdminUsers() {
         // Fallback: ensure at least one admin exists in memory
         users.push({
             id: Date.now().toString(),
+            tenantId: uuidv4(), // Add tenant ID for fallback admin user
             email: 'john.gorham@resolve.io',
             password: 'ResolveAdmin2024',
             fullName: 'John Gorham',
@@ -326,10 +334,10 @@ app.post('/api/register', trackWorkflow('onboarding', 'user_registration'), (req
             });
         }
         
-        // Create user with unique tenant ID
+        // Create user with unique UUID tenant ID
         const user = {
             id: Date.now().toString(),
-            tenantId: crypto.randomBytes(16).toString('hex'), // Generate unique tenant ID
+            tenantId: uuidv4(), // Generate unique UUID for each user's tenant
             fullName: userName,
             email,
             companyName: userCompany,
@@ -442,6 +450,64 @@ app.post('/api/signin', trackWorkflow('authentication', 'user_signin'), (req, re
             message: 'Internal server error' 
         });
     }
+});
+
+// Get current user info endpoint
+app.get('/api/user/info', (req, res) => {
+    const token = req.cookies?.sessionToken ||
+                  req.headers['authorization']?.replace('Bearer ', '') || 
+                  req.headers['x-session-token'];
+    
+    if (!token || !sessions[token]) {
+        return res.status(401).json({ 
+            success: false, 
+            message: 'Not authenticated' 
+        });
+    }
+    
+    const session = sessions[token];
+    const user = users.find(u => u.email === session.email);
+    
+    if (!user) {
+        return res.status(404).json({ 
+            success: false, 
+            message: 'User not found' 
+        });
+    }
+    
+    res.json({
+        success: true,
+        email: user.email,
+        fullName: user.fullName,
+        tenantId: user.tenantId || session.tenantId,
+        companyName: user.companyName,
+        isAdmin: user.email === 'john.gorham@resolve.io'
+    });
+});
+
+// Admin check endpoint (compatibility)
+app.get('/api/admin/check', (req, res) => {
+    const token = req.cookies?.sessionToken ||
+                  req.headers['authorization']?.replace('Bearer ', '') || 
+                  req.headers['x-session-token'];
+    
+    if (!token || !sessions[token]) {
+        return res.status(401).json({ 
+            success: false, 
+            message: 'Not authenticated' 
+        });
+    }
+    
+    const session = sessions[token];
+    const user = users.find(u => u.email === session.email);
+    
+    res.json({
+        success: true,
+        email: session.email,
+        fullName: session.fullName || user?.fullName,
+        tenantId: session.tenantId || user?.tenantId,
+        isAdmin: session.email === 'john.gorham@resolve.io'
+    });
 });
 
 // Signout endpoint

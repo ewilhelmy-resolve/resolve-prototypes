@@ -39,8 +39,43 @@
                 </div>
                 <div class="header-right">
                     <button class="dashboard-btn">Dashboard</button>
-                    <div class="user-avatar">
+                    <div class="user-avatar" onclick="toggleUserDropdown()" style="cursor: pointer; position: relative;">
                         <span>Q</span>
+                        <div class="user-dropdown" id="userDropdown" style="display: none; position: absolute; top: calc(100% + 10px); right: 0; background: #1E1E2E; border: 1px solid rgba(139, 139, 159, 0.2); border-radius: 8px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3); min-width: 280px; z-index: 1000;">
+                            <div style="padding: 16px; border-bottom: 1px solid rgba(139, 139, 159, 0.2);">
+                                <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
+                                    <div style="width: 40px; height: 40px; border-radius: 50%; background: linear-gradient(135deg, #0066FF, #00D4FF); display: flex; align-items: center; justify-content: center; font-size: 16px; font-weight: 600; color: white;">
+                                        <span id="dropdownAvatar">Q</span>
+                                    </div>
+                                    <div style="flex: 1;">
+                                        <div id="dropdownName" style="font-size: 14px; color: #FFFFFF; margin-bottom: 4px;">User Name</div>
+                                        <div id="dropdownEmail" style="font-size: 12px; color: #8B8B9F;">user@example.com</div>
+                                    </div>
+                                </div>
+                                <div style="background: rgba(0, 102, 255, 0.1); border: 1px solid rgba(0, 102, 255, 0.2); border-radius: 4px; padding: 8px 12px;">
+                                    <div style="font-size: 10px; color: #8B8B9F; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px;">Tenant ID</div>
+                                    <div id="tenantIdDisplay" style="font-size: 11px; font-family: 'Courier New', monospace; color: #00D4FF; word-break: break-all; user-select: all;" title="Click to copy">Loading...</div>
+                                </div>
+                            </div>
+                            <div style="padding: 8px 0;">
+                                <a href="#" onclick="copyTenantId(); return false;" style="padding: 10px 16px; display: flex; align-items: center; gap: 12px; color: #FFFFFF; text-decoration: none; transition: background 0.2s; cursor: pointer; font-size: 14px;">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                        <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+                                        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                                    </svg>
+                                    Copy Tenant ID
+                                </a>
+                                <div style="height: 1px; background: rgba(139, 139, 159, 0.2); margin: 8px 0;"></div>
+                                <a href="#" onclick="logout(); return false;" style="padding: 10px 16px; display: flex; align-items: center; gap: 12px; color: #FFFFFF; text-decoration: none; transition: background 0.2s; cursor: pointer; font-size: 14px;">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+                                        <polyline points="16 17 21 12 16 7"/>
+                                        <line x1="21" y1="12" x2="9" y2="12"/>
+                                    </svg>
+                                    Sign Out
+                                </a>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </header>
@@ -283,17 +318,92 @@
                 window.history.replaceState({}, document.title, '/dashboard');
             }
             
-            // Load user info
+            // Load user info and get tenant ID
             const userSession = localStorage.getItem('userSession');
             if (userSession) {
                 const user = JSON.parse(userSession);
                 // Update user avatar with first letter of name
                 const avatar = document.querySelector('.user-avatar span');
+                const dropdownAvatar = document.getElementById('dropdownAvatar');
                 if (avatar && user.fullName) {
-                    avatar.textContent = user.fullName.charAt(0).toUpperCase();
+                    const initial = user.fullName.charAt(0).toUpperCase();
+                    avatar.textContent = initial;
+                    if (dropdownAvatar) {
+                        dropdownAvatar.textContent = initial;
+                    }
                 }
+                
+                // Update dropdown info
+                const dropdownName = document.getElementById('dropdownName');
+                const dropdownEmail = document.getElementById('dropdownEmail');
+                if (dropdownName) {
+                    dropdownName.textContent = user.fullName || user.email;
+                }
+                if (dropdownEmail) {
+                    dropdownEmail.textContent = user.email;
+                }
+                
+                // Fetch user info to get tenant ID
+                fetch('/api/user/info')
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success && data.tenantId) {
+                            // Update tenant ID display
+                            const tenantIdDisplay = document.getElementById('tenantIdDisplay');
+                            if (tenantIdDisplay) {
+                                tenantIdDisplay.textContent = data.tenantId;
+                                tenantIdDisplay.title = 'Click to copy: ' + data.tenantId;
+                            }
+                            
+                            // Store for Jarvis widget
+                            localStorage.setItem('userTenantId', data.tenantId);
+                            window.userTenantId = data.tenantId;
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error fetching user info:', error);
+                    });
             }
         })();
+        
+        // Dropdown functions
+        function toggleUserDropdown() {
+            const dropdown = document.getElementById('userDropdown');
+            dropdown.style.display = dropdown.style.display === 'none' ? 'block' : 'none';
+        }
+        
+        // Close dropdown when clicking outside
+        document.addEventListener('click', function(event) {
+            const userAvatar = document.querySelector('.user-avatar');
+            const dropdown = document.getElementById('userDropdown');
+            
+            if (!userAvatar.contains(event.target)) {
+                dropdown.style.display = 'none';
+            }
+        });
+        
+        function copyTenantId() {
+            const tenantIdElement = document.getElementById('tenantIdDisplay');
+            const tenantId = tenantIdElement.textContent;
+            
+            if (tenantId && tenantId !== 'Loading...') {
+                navigator.clipboard.writeText(tenantId).then(() => {
+                    alert('Tenant ID copied to clipboard');
+                }).catch(() => {
+                    alert('Failed to copy tenant ID');
+                });
+            }
+            
+            // Close dropdown
+            document.getElementById('userDropdown').style.display = 'none';
+        }
+        
+        function logout() {
+            localStorage.removeItem('userSession');
+            localStorage.removeItem('userTenantId');
+            sessionStorage.clear();
+            window.location.href = '/';
+        }
         
         function sendChatMessage() {
             const input = document.getElementById('chatInput');
@@ -319,18 +429,29 @@
             setTimeout(() => {
                 const chatContainer = document.getElementById('jarvis-chat-container');
                 if (chatContainer) {
-                    injectEspressiveWidget({
-                        containerElement: chatContainer,
-                        tenantUrl: 'resolvejarvisdev.espressive.com',
-                        chatVersion: 2,
-                        channelParameters: { 
-                            color: '#0082C8',
-                            usage: 'buildworkflow' 
-                        }, 
-                        guestMode: 'DOGAFLA',
-                        initialIntentId: '88d5a71b-8a62-4585-8e26-031f0dcfc016',
-                    });
-                    console.log('Jarvis widget injected successfully');
+                    // Wait a bit for tenant ID to be fetched
+                    setTimeout(() => {
+                        // Get tenant ID from localStorage or window
+                        const tenantId = window.userTenantId || localStorage.getItem('userTenantId') || 'default-tenant';
+                        const sessionId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+                        
+                        console.log('Initializing Jarvis with tenant ID:', tenantId);
+                        
+                        injectEspressiveWidget({
+                            containerElement: chatContainer,
+                            tenantUrl: 'resolvejarvisdev.espressive.com',
+                            chatVersion: 2,
+                            channelParameters: { 
+                                tenant_id: tenantId,  // Use actual UUID tenant ID
+                                session_id: sessionId,
+                                color: '#0082C8',
+                                usage: 'buildworkflow' 
+                            }, 
+                            guestMode: 'DOGAFLA',
+                            initialIntentId: '88d5a71b-8a62-4585-8e26-031f0dcfc016',
+                        });
+                        console.log('Jarvis widget injected successfully with tenant ID:', tenantId);
+                    }, 1500); // Wait for user info to be fetched
                 } else {
                     console.error('Chat container element not found');
                 }

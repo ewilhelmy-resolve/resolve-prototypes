@@ -16,7 +16,8 @@
     "test:ui": "playwright test --ui",
     "test:headed": "playwright test --headed",
     "db:init": "node init-db.js",
-    "db:migrate": "node migrate-to-postgres.js"
+    "db:migrate": "node migrate-to-postgres.js",
+    "migrate:tenants": "node migrate-tenant-ids.js"
   },
   "devDependencies": {
     "@playwright/test": "^1.55.0"
@@ -31,7 +32,7 @@
     "multer": "^1.4.5-lts.1",
     "nodemon": "^3.0.2",
     "pg": "^8.11.3",
-    "sqlite3": "^5.1.7"
+    "uuid": "^9.0.1"
   },
   "main": "playwright.config.js",
   "directories": {
