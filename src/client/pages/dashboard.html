@@ -443,11 +443,9 @@
                             chatVersion: 2,
                             channelParameters: { 
                                 tenant_id: tenantId,  // Use actual UUID tenant ID
-                                session_id: sessionId,
-                                color: '#0082C8',
-                                usage: 'buildworkflow' 
+                                session_id: sessionId
                             }, 
-                            guestMode: 'DOGAFLA',
+                            guestMode: 'DOGAFLA', // tenant must have guest mode enabled
                             initialIntentId: '88d5a71b-8a62-4585-8e26-031f0dcfc016',
                         });
                         console.log('Jarvis widget injected successfully with tenant ID:', tenantId);

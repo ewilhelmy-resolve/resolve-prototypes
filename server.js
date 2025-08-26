@@ -228,9 +228,6 @@ app.get('/completion', (req, res) => {
     res.sendFile(path.join(__dirname, 'src/client/pages/completion.html'));
 });
 
-app.get('/jarvis', (req, res) => {
-    res.sendFile(path.join(__dirname, 'src/client/pages/jarvis.html'));
-});
 
 app.get('/signin', (req, res) => {
     res.sendFile(path.join(__dirname, 'signin.html'));
