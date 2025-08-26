@@ -683,21 +683,59 @@ app.post('/api/upload-knowledge', upload.array('files', 10), trackWorkflow('inte
                 
                 for (const [index, row] of csvContent.entries()) {
                     try {
+                        // Dynamically determine title and description from CSV columns
+                        // Priority order for title: title, Title, subject, Subject, name, Name, first column
+                        const possibleTitleFields = ['title', 'Title', 'subject', 'Subject', 'name', 'Name', 'question', 'Question'];
+                        let title = 'Knowledge Item';
+                        for (const field of possibleTitleFields) {
+                            if (row[field]) {
+                                title = row[field];
+                                break;
+                            }
+                        }
+                        // If no standard title field, use first column value
+                        if (title === 'Knowledge Item' && Object.keys(row).length > 0) {
+                            title = row[Object.keys(row)[0]] || 'Knowledge Item';
+                        }
+                        
+                        // Priority order for description: content, Content, description, Description, answer, Answer, body, Body, second column
+                        const possibleDescFields = ['content', 'Content', 'description', 'Description', 'answer', 'Answer', 'body', 'Body', 'details', 'Details'];
+                        let description = '';
+                        for (const field of possibleDescFields) {
+                            if (row[field]) {
+                                description = row[field];
+                                break;
+                            }
+                        }
+                        // If no standard description field, use second column if it exists
+                        if (!description && Object.keys(row).length > 1) {
+                            description = row[Object.keys(row)[1]] || '';
+                        }
+                        
+                        // Store ALL CSV data in metadata for full flexibility
+                        const metadata = {
+                            ...row, // Include all original CSV fields
+                            _import_metadata: {
+                                source: 'csv_upload',
+                                user_email: userEmail,
+                                imported_at: new Date().toISOString(),
+                                original_row_number: index + 1
+                            }
+                        };
+                        
+                        // Determine priority from CSV if available
+                        const priority = row.priority || row.Priority || 'low';
+                        
                         await pool.query(
                             `INSERT INTO tickets (external_id, title, description, status, priority, metadata) 
                              VALUES ($1, $2, $3, $4, $5, $6)`,
                             [
                                 `KB-${Date.now()}-${index}`, // external_id
-                                row.title || row.Title || 'Knowledge Item', // title
-                                row.content || row.Content || row.description || '', // description
+                                title, // dynamically determined title
+                                description, // dynamically determined description
                                 'resolved', // status
-                                'low', // priority
-                                JSON.stringify({ // metadata
-                                    category: row.category || row.Category || 'Knowledge Base',
-                                    source: 'csv_upload',
-                                    user_email: userEmail,
-                                    imported_at: new Date().toISOString()
-                                })
+                                priority, // priority from CSV or default
+                                JSON.stringify(metadata) // ALL CSV data stored here
                             ]
                         );
                         ticketsImported++;

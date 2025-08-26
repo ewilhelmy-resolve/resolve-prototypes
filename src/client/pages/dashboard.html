@@ -758,15 +758,54 @@
                 
                 ${ticket.metadata ? `
                     <div style="margin-bottom: 24px;">
-                        <h3 style="color: #8B8B9F; font-size: 12px; text-transform: uppercase; margin-bottom: 12px;">Metadata</h3>
-                        <pre style="
+                        <h3 style="color: #8B8B9F; font-size: 12px; text-transform: uppercase; margin-bottom: 12px;">Additional Fields</h3>
+                        <div style="
                             background: #121212;
                             padding: 16px;
                             border-radius: 8px;
-                            color: #00D4FF;
-                            font-size: 12px;
-                            overflow-x: auto;
-                        ">${JSON.stringify(ticket.metadata, null, 2)}</pre>
+                            font-size: 13px;
+                        ">
+                            ${Object.entries(ticket.metadata)
+                                .filter(([key]) => !key.startsWith('_'))
+                                .map(([key, value]) => `
+                                    <div style="
+                                        display: flex;
+                                        margin-bottom: 8px;
+                                        padding-bottom: 8px;
+                                        border-bottom: 1px solid rgba(139, 139, 159, 0.1);
+                                    ">
+                                        <span style="
+                                            color: #8B8B9F;
+                                            min-width: 120px;
+                                            text-transform: capitalize;
+                                        ">${key}:</span>
+                                        <span style="
+                                            color: #FFFFFF;
+                                            flex: 1;
+                                            word-break: break-word;
+                                        ">${escapeHtml(String(value))}</span>
+                                    </div>
+                                `).join('')}
+                        </div>
+                        ${ticket.metadata._import_metadata ? `
+                            <details style="margin-top: 12px;">
+                                <summary style="
+                                    color: #8B8B9F;
+                                    font-size: 11px;
+                                    cursor: pointer;
+                                    padding: 4px 0;
+                                ">Import Details</summary>
+                                <pre style="
+                                    background: #0A0A0F;
+                                    padding: 8px;
+                                    border-radius: 4px;
+                                    color: #00D4FF;
+                                    font-size: 10px;
+                                    overflow-x: auto;
+                                    margin-top: 8px;
+                                ">${JSON.stringify(ticket.metadata._import_metadata, null, 2)}</pre>
+                            </details>
+                        ` : ''}
                     </div>
                 ` : ''}
                 
