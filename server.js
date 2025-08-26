@@ -573,10 +573,12 @@ const upload = multer({
         const allowedTypes = /csv|txt|pdf|zip|json/;
         const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
         const mimetype = allowedTypes.test(file.mimetype) || 
+                        file.mimetype === 'text/csv' ||
                         file.mimetype === 'application/zip' || 
                         file.mimetype === 'application/x-zip-compressed' ||
                         file.mimetype === 'text/plain' ||
-                        file.mimetype === 'application/json';
+                        file.mimetype === 'application/json' ||
+                        file.mimetype === 'application/pdf';
         
         if (mimetype && extname) {
             return cb(null, true);
@@ -877,6 +879,44 @@ app.get('/api/csv/callback/:id', (req, res) => {
     });
     
     console.log(`[CSV CALLBACK] Batch ${batchNumber} served for callback ${callbackId} (${batchData.length} rows)`);
+});
+
+// API endpoint to fetch tickets for knowledge base display
+app.get('/api/tickets', requireAuth, async (req, res) => {
+    try {
+        const limit = parseInt(req.query.limit) || 10;
+        const offset = parseInt(req.query.offset) || 0;
+        
+        // Fetch tickets from database
+        const result = await db.query(
+            `SELECT id, title, description, priority, status, metadata, created_at 
+             FROM tickets 
+             ORDER BY created_at DESC 
+             LIMIT $1 OFFSET $2`,
+            [limit, offset]
+        );
+        
+        // Get total count
+        const countResult = await db.query('SELECT COUNT(*) as total FROM tickets');
+        const total = parseInt(countResult.rows[0].total);
+        
+        res.json({
+            success: true,
+            tickets: result.rows,
+            pagination: {
+                total,
+                limit,
+                offset,
+                hasMore: offset + limit < total
+            }
+        });
+    } catch (error) {
+        console.error('Error fetching tickets:', error);
+        res.status(500).json({ 
+            success: false, 
+            message: 'Failed to fetch tickets' 
+        });
+    }
 });
 
 // CSV callback endpoint - download as raw CSV

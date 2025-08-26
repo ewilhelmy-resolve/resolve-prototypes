@@ -151,75 +151,15 @@
                         </div>
                         <h3 class="knowledge-title">Knowledge Base</h3>
                         <div class="knowledge-stats">
-                            <span class="stat-number">23</span>
+                            <span class="stat-number">0</span>
                             <span class="stat-label">Articles</span>
                         </div>
                     </div>
                     
-                    <div class="articles-list">
-                        <div class="article-item">
-                            <div class="article-icon">
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" stroke="currentColor" stroke-width="2"></path>
-                                    <polyline points="14,2 14,8 20,8" stroke="currentColor" stroke-width="2"></polyline>
-                                </svg>
-                            </div>
-                            <div class="article-content">
-                                <h4 class="article-title">Password Reset Procedures</h4>
-                                <p class="article-description">Step-by-step guide for resetting user passwords</p>
-                            </div>
-                        </div>
-                        
-                        <div class="article-item">
-                            <div class="article-icon">
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" stroke="currentColor" stroke-width="2"></path>
-                                    <polyline points="14,2 14,8 20,8" stroke="currentColor" stroke-width="2"></polyline>
-                                </svg>
-                            </div>
-                            <div class="article-content">
-                                <h4 class="article-title">Network Connectivity Issues</h4>
-                                <p class="article-description">Troubleshooting network connectivity problems</p>
-                            </div>
-                        </div>
-                        
-                        <div class="article-item">
-                            <div class="article-icon">
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" stroke="currentColor" stroke-width="2"></path>
-                                    <polyline points="14,2 14,8 20,8" stroke="currentColor" stroke-width="2"></polyline>
-                                </svg>
-                            </div>
-                            <div class="article-content">
-                                <h4 class="article-title">Software Installation Guide</h4>
-                                <p class="article-description">How to install and configure standard software</p>
-                            </div>
-                        </div>
-                        
-                        <div class="article-item">
-                            <div class="article-icon">
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" stroke="currentColor" stroke-width="2"></path>
-                                    <polyline points="14,2 14,8 20,8" stroke="currentColor" stroke-width="2"></polyline>
-                                </svg>
-                            </div>
-                            <div class="article-content">
-                                <h4 class="article-title">Email Configuration</h4>
-                                <p class="article-description">Setting up email clients and troubleshooting</p>
-                            </div>
-                        </div>
-                        
-                        <div class="article-item">
-                            <div class="article-icon">
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" stroke="currentColor" stroke-width="2"></path>
-                                    <polyline points="14,2 14,8 20,8" stroke="currentColor" stroke-width="2"></polyline>
-                                </svg>
-                            </div>
-                            <div class="article-content">
-                                <h4 class="article-title">VPN Access Setup</h4>
-                                <p class="article-description">Configuring VPN access for remote work</p>
-                            </div>
+                    <div class="articles-list" id="articles-list">
+                        <!-- Articles will be loaded dynamically -->
+                        <div class="loading-placeholder" style="padding: 20px; text-align: center; color: #8B8B9F;">
+                            Loading articles...
                         </div>
                     </div>
                     
@@ -424,8 +364,105 @@
             }
         }
 
+        // Function to load and display tickets in the Knowledge Base
+        async function loadKnowledgeBase() {
+            try {
+                const response = await fetch('/api/tickets?limit=5', {
+                    credentials: 'include'
+                });
+                
+                if (!response.ok) {
+                    throw new Error('Failed to fetch tickets');
+                }
+                
+                const data = await response.json();
+                const articlesList = document.getElementById('articles-list');
+                
+                if (data.success && data.tickets.length > 0) {
+                    // Clear loading placeholder
+                    articlesList.innerHTML = '';
+                    
+                    // Create article items for each ticket
+                    data.tickets.forEach(ticket => {
+                        const articleItem = document.createElement('div');
+                        articleItem.className = 'article-item';
+                        
+                        // Determine icon color based on priority
+                        const iconColor = ticket.priority === 'High' ? '#FF6B6B' : 
+                                        ticket.priority === 'Medium' ? '#FFB366' : 
+                                        '#4ECDC4';
+                        
+                        articleItem.innerHTML = `
+                            <div class="article-icon">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" stroke="${iconColor}" stroke-width="2"></path>
+                                    <polyline points="14,2 14,8 20,8" stroke="${iconColor}" stroke-width="2"></polyline>
+                                </svg>
+                            </div>
+                            <div class="article-content">
+                                <h4 class="article-title">${escapeHtml(ticket.title || 'Untitled')}</h4>
+                                <p class="article-description">${escapeHtml(truncateText(ticket.description || 'No description', 60))}</p>
+                                <div style="margin-top: 4px; font-size: 10px; color: #8B8B9F; text-transform: uppercase;">
+                                    ${ticket.metadata?.category || ticket.priority || 'General'} • ${ticket.status || 'Open'}
+                                </div>
+                            </div>
+                        `;
+                        
+                        articlesList.appendChild(articleItem);
+                    });
+                    
+                    // Update the count
+                    const statNumber = document.querySelector('.stat-number');
+                    if (statNumber) {
+                        statNumber.textContent = data.pagination.total;
+                    }
+                } else if (data.tickets.length === 0) {
+                    articlesList.innerHTML = `
+                        <div style="padding: 20px; text-align: center; color: #8B8B9F;">
+                            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" style="margin: 0 auto 12px; opacity: 0.5;">
+                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" stroke="currentColor" stroke-width="1.5"></path>
+                                <polyline points="14,2 14,8 20,8" stroke="currentColor" stroke-width="1.5"></polyline>
+                            </svg>
+                            <p>No articles yet</p>
+                            <p style="font-size: 12px; margin-top: 8px;">Upload CSV files to populate your knowledge base</p>
+                        </div>
+                    `;
+                    
+                    // Set count to 0
+                    const statNumber = document.querySelector('.stat-number');
+                    if (statNumber) {
+                        statNumber.textContent = '0';
+                    }
+                }
+            } catch (error) {
+                console.error('Error loading knowledge base:', error);
+                const articlesList = document.getElementById('articles-list');
+                articlesList.innerHTML = `
+                    <div style="padding: 20px; text-align: center; color: #FF6B6B;">
+                        <p>Failed to load articles</p>
+                        <p style="font-size: 12px; margin-top: 8px;">${error.message}</p>
+                    </div>
+                `;
+            }
+        }
+        
+        // Helper function to escape HTML
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+        
+        // Helper function to truncate text
+        function truncateText(text, maxLength) {
+            if (text.length <= maxLength) return text;
+            return text.substring(0, maxLength) + '...';
+        }
+        
         // Initialize Jarvis widget on page load
         document.addEventListener('DOMContentLoaded', function() {
+            // Load knowledge base articles
+            loadKnowledgeBase();
             setTimeout(() => {
                 const chatContainer = document.getElementById('jarvis-chat-container');
                 if (chatContainer) {
@@ -445,8 +482,7 @@
                                 tenant_id: tenantId,  // Use actual UUID tenant ID
                                 session_id: sessionId
                             }, 
-                            guestMode: 'DOGAFLA', // tenant must have guest mode enabled
-                            initialIntentId: '88d5a71b-8a62-4585-8e26-031f0dcfc016',
+                            guestMode: 'DOGAFLA' // tenant must have guest mode enabled
                         });
                         console.log('Jarvis widget injected successfully with tenant ID:', tenantId);
                     }, 1500); // Wait for user info to be fetched
@@ -564,14 +600,10 @@
                                 setTimeout(() => notification.remove(), 300);
                             }, 5000);
                             
-                            // Update knowledge base count if we have CSV data
-                            if (result.csvRowCount > 0) {
-                                const statNumber = document.querySelector('.stat-number');
-                                if (statNumber) {
-                                    const currentCount = parseInt(statNumber.textContent) || 23;
-                                    statNumber.textContent = currentCount + result.csvRowCount;
-                                }
-                            }
+                            // Reload the knowledge base to show new tickets
+                            setTimeout(() => {
+                                loadKnowledgeBase();
+                            }, 1000);
                             
                         } else {
                             throw new Error(`Upload failed: ${response.statusText}`);
