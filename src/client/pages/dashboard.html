@@ -457,8 +457,170 @@
         });
         
         function openAddModal() {
-            // Placeholder for modal functionality
-            console.log('Opening add knowledge modal');
+            // Create a hidden file input for CSV upload
+            const fileInput = document.createElement('input');
+            fileInput.type = 'file';
+            fileInput.multiple = true;
+            fileInput.accept = '.csv,.txt,.pdf,.zip,.json';
+            
+            // Handle file selection
+            fileInput.addEventListener('change', async function(e) {
+                if (e.target.files.length > 0) {
+                    const files = Array.from(e.target.files);
+                    
+                    // Show loading state in the Add More button
+                    const addButton = document.querySelector('.action-btn');
+                    const originalHTML = addButton.innerHTML;
+                    addButton.innerHTML = '<svg class="spinner" width="16" height="16" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2" fill="none" stroke-dasharray="31.4" stroke-dashoffset="10"></circle></svg> Uploading...';
+                    addButton.disabled = true;
+                    
+                    // Add spinner animation CSS if not exists
+                    if (!document.querySelector('#spinner-styles')) {
+                        const style = document.createElement('style');
+                        style.id = 'spinner-styles';
+                        style.textContent = `
+                            @keyframes spin { to { transform: rotate(360deg); } }
+                            .spinner { animation: spin 1s linear infinite; display: inline-block; }
+                        `;
+                        document.head.appendChild(style);
+                    }
+                    
+                    // Prepare form data
+                    const formData = new FormData();
+                    files.forEach(file => {
+                        formData.append('files', file);
+                    });
+                    
+                    try {
+                        // Upload to server with the same webhook integration as onboarding
+                        const response = await fetch('/api/upload-knowledge', {
+                            method: 'POST',
+                            body: formData,
+                            credentials: 'include' // Include cookies with the request
+                        });
+                        
+                        if (response.ok) {
+                            const result = await response.json();
+                            
+                            // Show success notification
+                            const notification = document.createElement('div');
+                            notification.style.cssText = `
+                                position: fixed;
+                                top: 20px;
+                                right: 20px;
+                                background: linear-gradient(135deg, #10B981, #059669);
+                                color: white;
+                                padding: 16px 24px;
+                                border-radius: 8px;
+                                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+                                z-index: 10000;
+                                display: flex;
+                                align-items: center;
+                                gap: 12px;
+                                animation: slideIn 0.3s ease-out;
+                            `;
+                            
+                            notification.innerHTML = `
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                                    <path d="M20 6L9 17L4 12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                </svg>
+                                <div>
+                                    <div style="font-weight: 600;">Upload Successful</div>
+                                    <div style="font-size: 12px; opacity: 0.9;">
+                                        ${files.length} file(s) uploaded • 
+                                        ${result.csvRowCount || 0} rows processed • 
+                                        ${result.ticketsImported || 0} tickets imported
+                                    </div>
+                                </div>
+                            `;
+                            
+                            // Add animation styles
+                            if (!document.querySelector('#notification-styles')) {
+                                const style = document.createElement('style');
+                                style.id = 'notification-styles';
+                                style.textContent = `
+                                    @keyframes slideIn {
+                                        from { transform: translateX(100%); opacity: 0; }
+                                        to { transform: translateX(0); opacity: 1; }
+                                    }
+                                `;
+                                document.head.appendChild(style);
+                            }
+                            
+                            document.body.appendChild(notification);
+                            
+                            // Log webhook details for debugging
+                            console.log('CSV Upload Success:', {
+                                callbackUrl: result.callbackUrl,
+                                webhookId: result.webhookId,
+                                csvRowCount: result.csvRowCount,
+                                ticketsImported: result.ticketsImported,
+                                files: files.map(f => f.name)
+                            });
+                            
+                            // Remove notification after 5 seconds
+                            setTimeout(() => {
+                                notification.style.animation = 'slideIn 0.3s ease-out reverse';
+                                setTimeout(() => notification.remove(), 300);
+                            }, 5000);
+                            
+                            // Update knowledge base count if we have CSV data
+                            if (result.csvRowCount > 0) {
+                                const statNumber = document.querySelector('.stat-number');
+                                if (statNumber) {
+                                    const currentCount = parseInt(statNumber.textContent) || 23;
+                                    statNumber.textContent = currentCount + result.csvRowCount;
+                                }
+                            }
+                            
+                        } else {
+                            throw new Error(`Upload failed: ${response.statusText}`);
+                        }
+                    } catch (error) {
+                        console.error('Upload error:', error);
+                        
+                        // Show error notification
+                        const notification = document.createElement('div');
+                        notification.style.cssText = `
+                            position: fixed;
+                            top: 20px;
+                            right: 20px;
+                            background: linear-gradient(135deg, #EF4444, #DC2626);
+                            color: white;
+                            padding: 16px 24px;
+                            border-radius: 8px;
+                            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+                            z-index: 10000;
+                            display: flex;
+                            align-items: center;
+                            gap: 12px;
+                        `;
+                        
+                        notification.innerHTML = `
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                                <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
+                                <path d="M12 8v4m0 4h.01" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                            </svg>
+                            <div>
+                                <div style="font-weight: 600;">Upload Failed</div>
+                                <div style="font-size: 12px; opacity: 0.9;">${error.message}</div>
+                            </div>
+                        `;
+                        
+                        document.body.appendChild(notification);
+                        
+                        // Remove notification after 5 seconds
+                        setTimeout(() => notification.remove(), 5000);
+                    } finally {
+                        // Restore button state
+                        addButton.innerHTML = originalHTML;
+                        addButton.disabled = false;
+                    }
+                }
+            });
+            
+            // Trigger file selection dialog
+            fileInput.click();
         }
         
         function openShareModal() {
