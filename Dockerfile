@@ -24,6 +24,8 @@ RUN addgroup -g 1001 -S nodejs && \
     chown -R nodejs:nodejs /app
 USER nodejs
 EXPOSE 5000
+# Increase Node.js memory limit to 2GB (default is ~512MB)
+ENV NODE_OPTIONS="--max-old-space-size=2048"
 CMD ["node", "server.js"]
 
 # Stage 4: Test Runner - Use Ubuntu for Playwright compatibility

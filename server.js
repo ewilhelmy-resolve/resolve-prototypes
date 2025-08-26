@@ -15,8 +15,21 @@ const PORT = process.env.PORT || 5000;
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Simple session storage (in production, use proper session management)
+// Simple session storage with automatic cleanup
 const sessions = {};
+const SESSION_TIMEOUT = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
+
+// Clean up expired sessions every hour
+setInterval(() => {
+    const now = Date.now();
+    Object.keys(sessions).forEach(token => {
+        if (sessions[token] && sessions[token].expiresAt && sessions[token].expiresAt < now) {
+            const email = sessions[token].email || 'unknown';
+            delete sessions[token];
+            console.log(`Cleaned up expired session for user: ${email}`);
+        }
+    });
+}, 60 * 60 * 1000); // Run every hour
 
 // Generate session token
 function generateSessionToken() {
@@ -351,7 +364,8 @@ app.post('/api/register', trackWorkflow('onboarding', 'user_registration'), (req
             tenantId: user.tenantId,
             fullName: user.fullName,
             email: user.email,
-            companyName: user.companyName
+            companyName: user.companyName,
+            expiresAt: Date.now() + SESSION_TIMEOUT
         };
         
         console.log(`[SIGNUP] New user registered: ${email} from ${userCompany}`);
@@ -415,7 +429,8 @@ app.post('/api/signin', trackWorkflow('authentication', 'user_signin'), (req, re
             tenantId: user.tenantId,
             fullName: user.fullName,
             email: user.email,
-            companyName: user.companyName
+            companyName: user.companyName,
+            expiresAt: Date.now() + SESSION_TIMEOUT
         };
         
         console.log(`[SIGNIN] User signed in: ${email}`);
