@@ -7,7 +7,7 @@ on:
 
 env:
   IMAGE_NAME: ghcr.io/resolve-io/resolve-onboarding
-  DEPLOY_HOST: ec2-34-229-53-167.compute-1.amazonaws.com
+  DEPLOY_HOST: ec2-54-147-199-139.compute-1.amazonaws.com
   DEPLOY_USER: ec2-user
 
 jobs:
@@ -48,6 +48,3 @@ jobs:
 #            docker stop resolve-onboarding || true
 #            docker rm resolve-onboarding || true
 #            docker run -d -p 80:80 --name resolve-onboarding $IMAGE_NAME:latest
-
-
-
