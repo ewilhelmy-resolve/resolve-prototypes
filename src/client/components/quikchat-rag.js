@@ -76,6 +76,46 @@ class QuikChatRAG {
         }
     }
     
+    async checkForMissedMessages() {
+        if (!this.conversationId) return;
+        
+        try {
+            // Get the timestamp of the last message we have
+            const messages = this.chat ? this.chat.messagesGet() : [];
+            const lastMessageTime = messages.length > 0 ? new Date().toISOString() : null;
+            
+            const url = lastMessageTime 
+                ? `/api/rag/conversation/${this.conversationId}/new-messages?since=${encodeURIComponent(lastMessageTime)}`
+                : `/api/rag/conversation/${this.conversationId}/new-messages`;
+                
+            const response = await fetch(url, {
+                headers: {
+                    'Authorization': 'Bearer active'
+                }
+            });
+            
+            if (response.ok) {
+                const data = await response.json();
+                if (data.messages && data.messages.length > 0) {
+                    console.log(`%c📬 Found ${data.messages.length} missed messages`, 'color: #2196F3; font-weight: bold');
+                    
+                    // Add missed messages to chat
+                    data.messages.forEach(msg => {
+                        if (msg.role === 'assistant' && this.chat) {
+                            // Check if we already have this message
+                            const existing = messages.find(m => m.text === msg.message);
+                            if (!existing) {
+                                this.chat.messageAddNew(msg.message, 'AI', 'left');
+                            }
+                        }
+                    });
+                }
+            }
+        } catch (error) {
+            console.error('Error checking for missed messages:', error);
+        }
+    }
+    
     connectToSSE() {
         if (!this.conversationId) return;
         
@@ -84,8 +124,25 @@ class QuikChatRAG {
             this.eventSource.close();
         }
         
+        console.log(`%c🔌 Connecting SSE for conversation: ${this.conversationId}`, 'color: #4CAF50; font-weight: bold');
+        
         // Create new SSE connection
         this.eventSource = new EventSource(`/api/rag/chat-stream/${this.conversationId}`);
+        
+        // Handle successful connection
+        this.eventSource.onopen = () => {
+            console.log('%c✅ SSE Connected', 'color: #4CAF50; font-weight: bold');
+            this.sseReconnectAttempts = 0;
+            
+            // Clear any message checking interval
+            if (this.messageCheckInterval) {
+                clearInterval(this.messageCheckInterval);
+                this.messageCheckInterval = null;
+            }
+            
+            // Check for any messages we might have missed
+            this.checkForMissedMessages();
+        };
         
         this.eventSource.onmessage = (event) => {
             const data = JSON.parse(event.data);
@@ -124,18 +181,40 @@ class QuikChatRAG {
         };
         
         this.eventSource.onerror = (error) => {
-            console.error('SSE connection error:', error);
-            // Reconnect after 5 seconds
-            setTimeout(() => {
-                if (this.conversationId) {
-                    this.connectToSSE();
+            console.error('%c❌ SSE connection error', 'color: #f44336; font-weight: bold', error);
+            
+            // EventSource will auto-reconnect, but we can help it
+            if (this.eventSource.readyState === EventSource.CLOSED) {
+                console.log('%c🔄 SSE connection closed, attempting reconnect...', 'color: #FF9800; font-weight: bold');
+                
+                // Start checking for messages while SSE is down (every 3 seconds)
+                if (!this.messageCheckInterval) {
+                    console.log('%c📮 Starting message check interval while SSE is down', 'color: #FF9800');
+                    this.messageCheckInterval = setInterval(() => {
+                        this.checkForMissedMessages();
+                    }, 3000);
                 }
-            }, 5000);
+                
+                // Exponential backoff for reconnection
+                this.sseReconnectAttempts = (this.sseReconnectAttempts || 0) + 1;
+                const delay = Math.min(1000 * Math.pow(2, this.sseReconnectAttempts - 1), 30000); // Max 30s
+                
+                console.log(`%c⏰ Reconnecting in ${delay/1000}s (attempt ${this.sseReconnectAttempts})`, 'color: #FF9800');
+                
+                setTimeout(() => {
+                    if (this.conversationId && (!this.eventSource || this.eventSource.readyState === EventSource.CLOSED)) {
+                        this.connectToSSE();
+                    }
+                }, delay);
+            }
         };
     }
 
     async loadConversationHistory() {
         if (!this.conversationId) return [];
+        
+        // Also check for any missed messages
+        this.checkForMissedMessages();
 
         try {
             const response = await fetch(`/api/rag/conversation/${this.conversationId}`, {

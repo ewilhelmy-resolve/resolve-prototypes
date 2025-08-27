@@ -497,7 +497,41 @@ function createRagRouter(db, sessions) {
         }
     });
     
-    // 6. Get Conversation History
+    // 6. Get new messages since last check (for polling)
+    router.get('/conversation/:conversation_id/new-messages', validateTenantMW, async (req, res) => {
+        try {
+            const { conversation_id } = req.params;
+            const { since } = req.query; // ISO timestamp of last message received
+            
+            // Get messages newer than 'since' timestamp
+            const query = since 
+                ? `SELECT * FROM rag_messages 
+                   WHERE conversation_id = $1 AND tenant_id = $2 AND created_at > $3
+                   ORDER BY created_at ASC`
+                : `SELECT * FROM rag_messages 
+                   WHERE conversation_id = $1 AND tenant_id = $2
+                   ORDER BY created_at DESC LIMIT 10`;
+            
+            const params = since 
+                ? [conversation_id, req.tenantId, since]
+                : [conversation_id, req.tenantId];
+                
+            const messagesResult = await db.query(query, params);
+            
+            res.json({
+                success: true,
+                messages: messagesResult.rows,
+                count: messagesResult.rows.length,
+                timestamp: new Date().toISOString()
+            });
+            
+        } catch (error) {
+            console.error('Get new messages error:', error);
+            res.status(500).json({ error: 'Unable to retrieve messages' });
+        }
+    });
+    
+    // 7. Get Conversation History
     router.get('/conversation/:conversation_id', validateTenantMW, async (req, res) => {
         try {
             const { conversation_id } = req.params;
