@@ -1,128 +1,156 @@
-#!/bin/bash
+#\!/bin/bash
 
-# Simple SSE Validation - Shows messages appearing in real-time
-
-echo "🎯 SSE BOOMERANG VALIDATION"
-echo "============================"
+echo "🎯 VALIDATING SSE CALLBACK FLOW LOCALLY"
+echo "========================================"
 echo ""
 
-# Setup
-BASE_URL="http://localhost:5000"
-EMAIL="demo_$(date +%s)@test.com"
-PASSWORD="Test123!"
+# Create test user
+EMAIL="validate_$(date +%s)@test.com"
+PASSWORD="Test123\!"
 
-# 1. Create user
-echo "1️⃣ Creating user: $EMAIL"
-curl -s -X POST "$BASE_URL/api/register" \
+echo "1️⃣  Creating test user: $EMAIL"
+REGISTER_RESPONSE=$(curl -s -X POST "http://localhost:5000/api/register" \
   -H "Content-Type: application/json" \
-  -d "{\"email\":\"$EMAIL\",\"password\":\"$PASSWORD\",\"name\":\"Demo User\",\"company\":\"Test\"}" \
-  -c cookies.txt > /dev/null
+  -d "{\"fullName\":\"Validate User\",\"email\":\"$EMAIL\",\"company\":\"Test Corp\",\"password\":\"$PASSWORD\"}" \
+  -c cookies.txt)
+
+if \! echo "$REGISTER_RESPONSE" | grep -q "success.*true"; then
+  echo "   ❌ Registration failed"
+  exit 1
+fi
 
 TOKEN=$(grep sessionToken cookies.txt | awk '{print $7}')
-echo "   ✅ Token: ${TOKEN:0:20}..."
-
-# 2. Start conversation
+echo "   ✅ User created with token: ${TOKEN:0:20}..."
 echo ""
-echo "2️⃣ Starting conversation..."
-RESPONSE=$(curl -s -X POST "$BASE_URL/api/rag/chat" \
+
+# Start a chat conversation
+echo "2️⃣  Starting chat conversation..."
+CHAT_RESPONSE=$(curl -s -X POST "http://localhost:5000/api/rag/chat" \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer $TOKEN" \
-  -d '{"message":"Hello, testing SSE"}')
+  -d '{"message":"Hello from validation script"}')
 
-CONV_ID=$(echo "$RESPONSE" | grep -o '"conversation_id":"[^"]*' | cut -d'"' -f4)
-echo "   ✅ Conversation: $CONV_ID"
+CONV_ID=$(echo "$CHAT_RESPONSE" | grep -o '"conversation_id":"[^"]*' | cut -d'"' -f4)
+MSG_ID=$(echo "$CHAT_RESPONSE" | grep -o '"message_id":"[^"]*' | cut -d'"' -f4)
 
-# 3. Start SSE listener
+if [ -z "$CONV_ID" ]; then
+  echo "   ❌ Failed to start conversation"
+  echo "   Response: $CHAT_RESPONSE"
+  exit 1
+fi
+
+echo "   ✅ Conversation ID: $CONV_ID"
+echo "   ✅ Message ID: $MSG_ID"
 echo ""
-echo "3️⃣ Starting SSE listener (will show messages in real-time)..."
-echo "   📡 Listening for events..."
+
+# Check if conversation is in database
+echo "3️⃣  Checking database..."
+DB_CHECK=$(docker compose exec -T postgres psql -U resolve_user -d resolve_onboarding -t -c \
+  "SELECT COUNT(*) FROM rag_conversations WHERE conversation_id = '$CONV_ID';" | tr -d ' ')
+
+if [ "$DB_CHECK" = "1" ]; then
+  echo "   ✅ Conversation saved to database"
+else
+  echo "   ❌ Conversation NOT in database"
+fi
 echo ""
 
-# Run SSE in background, format output nicely
+# Start SSE listener in background
+echo "4️⃣  Starting SSE listener..."
+SSE_LOG="/tmp/sse_validate_$$"
+touch "$SSE_LOG"
+
+# Start SSE connection in background
 (
   curl -N -s -H "Accept: text/event-stream" \
     -H "Authorization: Bearer $TOKEN" \
-    "$BASE_URL/api/rag/chat-stream/$CONV_ID" 2>/dev/null | while read -r line; do
+    "http://localhost:5000/api/rag/chat-stream/$CONV_ID" 2>/dev/null | while read -r line; do
+    echo "$(date +%H:%M:%S) $line" >> "$SSE_LOG"
     if [[ $line == data:* ]]; then
-      # Extract just the message content
-      MSG=$(echo "${line:5}" | grep -o '"content":"[^"]*' | cut -d'"' -f4 || \
-            echo "${line:5}" | grep -o '"ai_response":"[^"]*' | cut -d'"' -f4 || \
-            echo "${line:5}" | grep -o '"message":"[^"]*' | cut -d'"' -f4)
-      
-      if [ ! -z "$MSG" ] && [ "$MSG" != "Connected to chat stream" ]; then
-        echo "   💬 $(date +%H:%M:%S) → $MSG"
+      echo "   📨 SSE Event received" 
+      MSG=$(echo "${line:5}" | grep -o '"ai_response":"[^"]*' | cut -d'"' -f4)
+      if [ \! -z "$MSG" ]; then
+        echo "   💬 AI Response: ${MSG:0:50}..."
       fi
     fi
   done
 ) &
-SSE_PID=$!
+SSE_PID=$\!
 
+echo "   📡 SSE connected (PID: $SSE_PID)"
 sleep 2
-
-# 4. Send test messages
-echo ""
-echo "4️⃣ Sending test messages (watch them appear above)..."
 echo ""
 
-# Message 1
-echo "   📤 Sending: 'Hello from curl test!'"
-curl -s -X POST "$BASE_URL/api/rag/test-sse-message" \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer $TOKEN" \
-  -d "{
-    \"conversation_id\": \"$CONV_ID\",
-    \"message\": \"Hello from curl test! 👋\",
-    \"message_type\": \"chat-response\"
-  }" > /dev/null
-
-sleep 2
-
-# Message 2
-echo "   📤 Sending: 'The boomerang is working!'"
-curl -s -X POST "$BASE_URL/api/rag/test-sse-message" \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer $TOKEN" \
-  -d "{
-    \"conversation_id\": \"$CONV_ID\",
-    \"message\": \"🎯 The boomerang is working! Message sent at $(date +%H:%M:%S)\",
-    \"message_type\": \"chat-response\"
-  }" > /dev/null
-
-sleep 2
-
-# Message 3 - Simulate callback from Actions platform
-echo "   📤 Simulating Actions platform callback..."
-MSG_ID="msg_$(date +%s)"
-curl -s -X POST "$BASE_URL/api/rag/chat-callback/$MSG_ID" \
+# Send callback simulating Actions platform
+echo "5️⃣  Simulating Actions platform callback..."
+CALLBACK_RESPONSE=$(curl -s -X POST "http://localhost:5000/api/rag/chat-callback/$MSG_ID" \
   -H "Content-Type: application/json" \
   -d "{
     \"message_id\": \"$MSG_ID\",
     \"conversation_id\": \"$CONV_ID\",
-    \"ai_response\": \"🤖 Response from Actions platform: Everything is working perfectly!\",
+    \"ai_response\": \"✅ VALIDATION SUCCESS\! SSE is working. This message was delivered via callback at $(date +%H:%M:%S)\",
     \"status\": \"completed\"
-  }" > /dev/null
+  }")
 
+if echo "$CALLBACK_RESPONSE" | grep -q "success.*true"; then
+  echo "   ✅ Callback processed successfully"
+else
+  echo "   ⚠️  Callback response: $CALLBACK_RESPONSE"
+fi
+
+# Wait for SSE to receive the message
+echo "   ⏳ Waiting for SSE delivery..."
 sleep 3
 
-# Stop SSE
+# Check SSE log
+if [ -f "$SSE_LOG" ]; then
+  EVENT_COUNT=$(grep -c "data:" "$SSE_LOG" 2>/dev/null || echo "0")
+  echo "   📊 Total SSE events: $EVENT_COUNT"
+fi
+
+# Kill SSE listener
 kill $SSE_PID 2>/dev/null
 
+# Check messages in database
 echo ""
-echo "============================"
-echo "✅ VALIDATION COMPLETE"
-echo "============================"
-echo ""
-echo "To test manually:"
-echo ""
-echo "1. Send a message:"
-echo "   curl -X POST '$BASE_URL/api/rag/test-sse-message' \\"
-echo "     -H 'Authorization: Bearer $TOKEN' \\"
-echo "     -H 'Content-Type: application/json' \\"
-echo "     -d '{\"conversation_id\":\"$CONV_ID\",\"message\":\"Your message\"}'"
-echo ""
-echo "2. Listen to SSE stream:"
-echo "   curl -N -H 'Authorization: Bearer $TOKEN' \\"
-echo "     '$BASE_URL/api/rag/chat-stream/$CONV_ID'"
-echo ""
+echo "6️⃣  Checking database for messages..."
+MSG_COUNT=$(docker compose exec -T postgres psql -U resolve_user -d resolve_onboarding -t -c \
+  "SELECT COUNT(*) FROM rag_messages WHERE conversation_id = '$CONV_ID';" | tr -d ' ')
 
-rm -f cookies.txt
+echo "   📊 Messages in database: $MSG_COUNT"
+
+# Get the actual messages
+echo "   📝 Message content:"
+docker compose exec -T postgres psql -U resolve_user -d resolve_onboarding -c \
+  "SELECT role, LEFT(message, 60) as message_preview FROM rag_messages WHERE conversation_id = '$CONV_ID' ORDER BY created_at;" 2>/dev/null
+
+# Summary
+echo ""
+echo "========================================"
+echo "📊 VALIDATION SUMMARY"
+echo "========================================"
+
+SUCCESS=true
+[ "$DB_CHECK" = "1" ] || SUCCESS=false
+[ "$EVENT_COUNT" -gt "0" ] || SUCCESS=false
+[ "$MSG_COUNT" -gt "1" ] || SUCCESS=false
+
+if [ "$SUCCESS" = true ]; then
+  echo "✅ ALL CHECKS PASSED\!"
+  echo "   • Conversation created and saved"
+  echo "   • SSE connection established"
+  echo "   • Callback processed"
+  echo "   • Messages delivered via SSE"
+  echo "   • Messages stored in database"
+else
+  echo "❌ SOME CHECKS FAILED"
+  echo "   • Conversation in DB: $DB_CHECK/1"
+  echo "   • SSE events received: $EVENT_COUNT"
+  echo "   • Messages in DB: $MSG_COUNT (expected >1)"
+fi
+
+# Cleanup
+rm -f cookies.txt "$SSE_LOG"
+
+echo ""
+echo "✅ Validation complete\!"

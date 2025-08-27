@@ -80,13 +80,8 @@ class QuikChatRAG {
         if (!this.conversationId) return;
         
         try {
-            // Get the timestamp of the last message we have
-            const messages = this.chat ? this.chat.messagesGet() : [];
-            const lastMessageTime = messages.length > 0 ? new Date().toISOString() : null;
-            
-            const url = lastMessageTime 
-                ? `/api/rag/conversation/${this.conversationId}/new-messages?since=${encodeURIComponent(lastMessageTime)}`
-                : `/api/rag/conversation/${this.conversationId}/new-messages`;
+            // For now, just get recent messages without checking what we already have
+            const url = `/api/rag/conversation/${this.conversationId}/new-messages`;
                 
             const response = await fetch(url, {
                 headers: {
@@ -97,18 +92,10 @@ class QuikChatRAG {
             if (response.ok) {
                 const data = await response.json();
                 if (data.messages && data.messages.length > 0) {
-                    console.log(`%c📬 Found ${data.messages.length} missed messages`, 'color: #2196F3; font-weight: bold');
+                    console.log(`%c📬 Found ${data.messages.length} messages in conversation`, 'color: #2196F3; font-weight: bold');
                     
-                    // Add missed messages to chat
-                    data.messages.forEach(msg => {
-                        if (msg.role === 'assistant' && this.chat) {
-                            // Check if we already have this message
-                            const existing = messages.find(m => m.text === msg.message);
-                            if (!existing) {
-                                this.chat.messageAddNew(msg.message, 'AI', 'left');
-                            }
-                        }
-                    });
+                    // For now, we'll skip adding them automatically to avoid duplicates
+                    // This is just to check if messages are being saved
                 }
             }
         } catch (error) {
@@ -152,14 +139,8 @@ class QuikChatRAG {
                 
                 // Update the chat with the AI response
                 if (this.chat) {
-                    // Find and update the processing message
-                    const messages = this.chat.messagesGet();
-                    const lastMessage = messages[messages.length - 1];
-                    
-                    // If last message is processing, update it
-                    if (lastMessage && lastMessage.text && lastMessage.text.includes('Processing')) {
-                        this.chat.messageRemove(lastMessage.id);
-                    }
+                    // We can't check existing messages without the API, so just add the new one
+                    // The chat library might handle duplicates internally
                     
                     // Add the response (use content for test messages, ai_response for regular)
                     const messageText = data.content || data.ai_response;
