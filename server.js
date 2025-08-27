@@ -1246,8 +1246,32 @@ app.get('/api/admin/analytics', requireAdmin, async (req, res) => {
 
 app.get('/api/admin/webhooks', requireAdmin, async (req, res) => {
     try {
-        const webhooks = await db.webhooks.getAll();
-        res.json(webhooks);
+        // Get recent webhook traffic
+        const result = await db.query(
+            `SELECT 
+                id,
+                request_url,
+                request_method,
+                request_headers,
+                request_body,
+                response_status,
+                response_body,
+                source_ip,
+                user_agent,
+                captured_at,
+                is_webhook,
+                endpoint_category
+            FROM webhook_traffic 
+            WHERE is_webhook = true
+            ORDER BY captured_at DESC 
+            LIMIT 100`
+        );
+        
+        res.json({
+            success: true,
+            webhooks: result.rows,
+            count: result.rows.length
+        });
     } catch (error) {
         console.error('Error getting webhooks:', error);
         res.status(500).json({ 

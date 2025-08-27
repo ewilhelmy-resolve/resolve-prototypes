@@ -458,11 +458,22 @@ function createRagRouter(db, sessions) {
                         });
                         
                         // Send to all SSE clients for this tenant
+                        const clientCount = Object.keys(global.sseClients[dbTenantId]).length;
+                        console.log(`[CHAT CALLBACK] Found ${clientCount} SSE clients for tenant ${dbTenantId}`);
+                        
                         Object.values(global.sseClients[dbTenantId]).forEach(client => {
-                            client.write(`data: ${sseMessage}\n\n`);
+                            try {
+                                client.write(`data: ${sseMessage}\n\n`);
+                                console.log(`[CHAT CALLBACK] Successfully sent SSE event`);
+                            } catch (err) {
+                                console.error(`[CHAT CALLBACK] Failed to send SSE event:`, err.message);
+                            }
                         });
                         
-                        console.log(`[CHAT CALLBACK] Sent SSE event to tenant ${dbTenantId}`);
+                        console.log(`[CHAT CALLBACK] Sent SSE event to ${clientCount} clients for tenant ${dbTenantId}`);
+                    } else {
+                        console.log(`[CHAT CALLBACK] No SSE clients connected for tenant ${dbTenantId}`);
+                        console.log(`[CHAT CALLBACK] Available tenants:`, global.sseClients ? Object.keys(global.sseClients) : 'none');
                     }
                 } else {
                     console.log(`[CHAT CALLBACK] Conversation ${conversation_id} not found in database`);
@@ -565,6 +576,9 @@ function createRagRouter(db, sessions) {
         
         // Store this client connection
         global.sseClients[tenantId][clientId] = res;
+        
+        console.log(`[SSE] Client ${clientId} connected for tenant ${tenantId}, conversation ${conversation_id}`);
+        console.log(`[SSE] Total clients for tenant: ${Object.keys(global.sseClients[tenantId]).length}`);
         
         // Send initial connection message
         res.write(`data: ${JSON.stringify({
