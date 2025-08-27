@@ -128,14 +128,30 @@ async function captureWebhookTraffic(req, res, next) {
         
         res.json = function(body) {
             captureData.response_status = responseStatus;
-            captureData.response_body = JSON.stringify(body);
+            // Limit response body size to prevent memory issues
+            try {
+                const bodyStr = JSON.stringify(body);
+                captureData.response_body = bodyStr.length > 10000 
+                    ? bodyStr.substring(0, 10000) + '...[truncated]' 
+                    : bodyStr;
+            } catch (err) {
+                captureData.response_body = '[Error stringifying response]';
+            }
             saveWebhookTraffic(captureData);
             return originalJson.call(this, body);
         };
         
         res.send = function(body) {
             captureData.response_status = responseStatus;
-            captureData.response_body = typeof body === 'string' ? body : JSON.stringify(body);
+            // Limit response body size to prevent memory issues
+            try {
+                const bodyStr = typeof body === 'string' ? body : JSON.stringify(body);
+                captureData.response_body = bodyStr.length > 10000 
+                    ? bodyStr.substring(0, 10000) + '...[truncated]' 
+                    : bodyStr;
+            } catch (err) {
+                captureData.response_body = '[Error stringifying response]';
+            }
             saveWebhookTraffic(captureData);
             return originalSend.call(this, body);
         };
@@ -1251,8 +1267,19 @@ app.get('/api/admin/webhook-traffic', requireAdmin, async (req, res) => {
         
         const result = await db.query(query, params);
         
+        // Limit response body sizes to prevent memory issues
+        const sanitizedRows = result.rows.map(row => {
+            if (row.request_body && typeof row.request_body === 'string' && row.request_body.length > 5000) {
+                row.request_body = row.request_body.substring(0, 5000) + '...[truncated]';
+            }
+            if (row.response_body && typeof row.response_body === 'string' && row.response_body.length > 5000) {
+                row.response_body = row.response_body.substring(0, 5000) + '...[truncated]';
+            }
+            return row;
+        });
+        
         res.json({
-            traffic: result.rows,
+            traffic: sanitizedRows,
             total: totalCount,
             limit: parseInt(limit),
             offset: parseInt(offset)

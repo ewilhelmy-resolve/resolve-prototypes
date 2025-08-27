@@ -43,6 +43,13 @@ class MobileMenu {
     // Only create on dashboard pages
     if (!document.querySelector('.dashboard-layout')) return;
     
+    // Don't show hamburger if we're in a chat-only view
+    const hasSidebars = document.querySelector('.left-sidebar') || document.querySelector('.right-sidebar');
+    if (!hasSidebars) return;
+    
+    // Check if we're on mobile
+    if (window.innerWidth > 768) return;
+    
     this.menuToggle = document.createElement('button');
     this.menuToggle.className = 'mobile-menu-toggle';
     this.menuToggle.setAttribute('aria-label', 'Toggle menu');

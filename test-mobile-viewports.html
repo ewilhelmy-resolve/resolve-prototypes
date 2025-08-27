@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mobile Viewport Testing</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+            background: #f5f5f5;
+        }
+        .viewport-grid {
+            display: grid;
+            gap: 20px;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        }
+        .viewport-container {
+            background: white;
+            border-radius: 12px;
+            padding: 15px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .device-name {
+            font-weight: bold;
+            margin-bottom: 10px;
+            color: #333;
+        }
+        .device-specs {
+            font-size: 12px;
+            color: #666;
+            margin-bottom: 15px;
+        }
+        iframe {
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            width: 100%;
+            background: white;
+        }
+        .controls {
+            margin-bottom: 20px;
+            padding: 15px;
+            background: white;
+            border-radius: 8px;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        button {
+            padding: 8px 16px;
+            border: 1px solid #0066ff;
+            background: white;
+            color: #0066ff;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+        button:hover {
+            background: #0066ff;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <h1>Mobile Viewport Testing Dashboard</h1>
+    
+    <div class="controls">
+        <button onclick="loadPage('/dashboard')">Dashboard</button>
+        <button onclick="loadPage('/')">Landing</button>
+        <button onclick="loadPage('/signin')">Sign In</button>
+        <input type="text" id="customUrl" placeholder="Custom URL" style="flex: 1; padding: 8px; border: 1px solid #ddd; border-radius: 6px;">
+        <button onclick="loadCustom()">Load Custom</button>
+    </div>
+
+    <div class="viewport-grid">
+        <!-- iPhone SE (Small) -->
+        <div class="viewport-container">
+            <div class="device-name">iPhone SE (2020)</div>
+            <div class="device-specs">375 × 667 px</div>
+            <iframe class="device-frame" width="375" height="667" src="/dashboard"></iframe>
+        </div>
+
+        <!-- iPhone 12/13 (Standard) -->
+        <div class="viewport-container">
+            <div class="device-name">iPhone 12/13</div>
+            <div class="device-specs">390 × 844 px</div>
+            <iframe class="device-frame" width="390" height="844" src="/dashboard"></iframe>
+        </div>
+
+        <!-- iPhone 14 Plus (Large) -->
+        <div class="viewport-container">
+            <div class="device-name">iPhone 14 Plus</div>
+            <div class="device-specs">428 × 926 px</div>
+            <iframe class="device-frame" width="428" height="926" src="/dashboard"></iframe>
+        </div>
+
+        <!-- Samsung Galaxy S21 -->
+        <div class="viewport-container">
+            <div class="device-name">Samsung Galaxy S21</div>
+            <div class="device-specs">384 × 854 px</div>
+            <iframe class="device-frame" width="384" height="854" src="/dashboard"></iframe>
+        </div>
+
+        <!-- Google Pixel 5 -->
+        <div class="viewport-container">
+            <div class="device-name">Google Pixel 5</div>
+            <div class="device-specs">393 × 851 px</div>
+            <iframe class="device-frame" width="393" height="851" src="/dashboard"></iframe>
+        </div>
+
+        <!-- iPad Mini -->
+        <div class="viewport-container">
+            <div class="device-name">iPad Mini (Portrait)</div>
+            <div class="device-specs">768 × 1024 px</div>
+            <iframe class="device-frame" width="768" height="600" src="/dashboard"></iframe>
+        </div>
+
+        <!-- Landscape iPhone -->
+        <div class="viewport-container">
+            <div class="device-name">iPhone 12 (Landscape)</div>
+            <div class="device-specs">844 × 390 px</div>
+            <iframe class="device-frame" width="844" height="390" src="/dashboard"></iframe>
+        </div>
+
+        <!-- Small Android -->
+        <div class="viewport-container">
+            <div class="device-name">Small Android</div>
+            <div class="device-specs">360 × 640 px</div>
+            <iframe class="device-frame" width="360" height="640" src="/dashboard"></iframe>
+        </div>
+    </div>
+
+    <script>
+        function loadPage(url) {
+            const frames = document.querySelectorAll('.device-frame');
+            frames.forEach(frame => {
+                frame.src = url;
+            });
+        }
+
+        function loadCustom() {
+            const url = document.getElementById('customUrl').value;
+            if (url) {
+                loadPage(url);
+            }
+        }
+
+        // Refresh all frames
+        function refreshAll() {
+            const frames = document.querySelectorAll('.device-frame');
+            frames.forEach(frame => {
+                const src = frame.src;
+                frame.src = '';
+                setTimeout(() => {
+                    frame.src = src;
+                }, 100);
+            });
+        }
+    </script>
+</body>
+</html>
