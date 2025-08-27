@@ -14,9 +14,13 @@ const mobileDevices = [
 // Test each device
 mobileDevices.forEach(({ name, device }) => {
   test.describe(`Mobile Layout - ${name}`, () => {
-    test.use({ ...device });
+    // Cannot use test.use() inside describe blocks in Playwright
+    // test.use({ ...device });
 
-    test('validates dashboard mobile layout', async ({ page }) => {
+    test('validates dashboard mobile layout', async ({ browser }) => {
+      // Create a new context with the device settings
+      const context = await browser.newContext(device);
+      const page = await context.newPage();
       console.log(`\n📱 Testing ${name} - ${device.viewport.width}x${device.viewport.height}px`);
       
       // Navigate to dashboard
@@ -110,12 +114,19 @@ mobileDevices.forEach(({ name, device }) => {
           fullPage: true 
         });
       }
+      
+      // Clean up context
+      await context.close();
     });
 
-    test('validates mobile input interaction', async ({ page, browserName }) => {
+    test('validates mobile input interaction', async ({ browser, browserName }) => {
       if (browserName === 'webkit') {
         test.skip(); // Skip Safari for now
       }
+      
+      // Create a new context with the device settings
+      const context = await browser.newContext(device);
+      const page = await context.newPage();
       
       console.log(`\n⌨️ Testing input interaction on ${name}`);
       
@@ -137,9 +148,16 @@ mobileDevices.forEach(({ name, device }) => {
         const fontSizeValue = parseInt(fontSize);
         console.log(`   ${fontSizeValue >= 16 ? '✅' : '❌'} Font size prevents zoom: ${fontSizeValue >= 16}`);
       }
+      
+      // Clean up context
+      await context.close();
     });
 
-    test('validates landscape orientation', async ({ page }) => {
+    test('validates landscape orientation', async ({ browser }) => {
+      // Create a new context with the device settings
+      const context = await browser.newContext(device);
+      const page = await context.newPage();
+      
       if (device.viewport.width < device.viewport.height) {
         // Switch to landscape for phones
         await page.setViewportSize({
@@ -165,6 +183,9 @@ mobileDevices.forEach(({ name, device }) => {
           fullPage: true 
         });
       }
+      
+      // Clean up context
+      await context.close();
     });
   });
 });

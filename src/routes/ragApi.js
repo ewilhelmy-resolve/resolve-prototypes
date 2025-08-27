@@ -583,6 +583,90 @@ function createRagRouter(db, sessions) {
         });
     });
 
+    // 8. TEST ENDPOINT - Send test message directly to SSE stream
+    router.post('/test-sse-message', validateTenantMW, async (req, res) => {
+        try {
+            const { conversation_id, message, message_type = 'test' } = req.body;
+            const tenantId = req.tenantId;
+            
+            console.log('[TEST SSE] Sending test message to conversation:', conversation_id);
+            console.log('[TEST SSE] Tenant ID:', tenantId);
+            console.log('[TEST SSE] Message:', message);
+            
+            // Check if conversation exists
+            const conversation = await db.RAGConversations.findById(conversation_id);
+            if (!conversation) {
+                return res.status(404).json({ 
+                    error: 'Conversation not found',
+                    conversation_id: conversation_id 
+                });
+            }
+            
+            // Create a test message ID
+            const testMessageId = `test-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+            
+            // Check if we have SSE clients for this tenant
+            if (!global.sseClients || !global.sseClients[tenantId]) {
+                return res.status(400).json({ 
+                    error: 'No SSE clients connected for this tenant',
+                    tenant_id: tenantId,
+                    hint: 'Make sure the chat UI is open and connected to SSE stream' 
+                });
+            }
+            
+            // Prepare the SSE message
+            const sseMessage = JSON.stringify({
+                type: message_type === 'test' ? 'test-message' : 'chat-response',
+                conversation_id: conversation_id,
+                message_id: testMessageId,
+                content: message || 'This is a test message sent directly to SSE stream',
+                role: 'assistant',
+                timestamp: new Date().toISOString(),
+                is_test: true
+            });
+            
+            // Send to all SSE clients for this tenant
+            let clientCount = 0;
+            Object.values(global.sseClients[tenantId]).forEach(client => {
+                try {
+                    client.write(`data: ${sseMessage}\n\n`);
+                    clientCount++;
+                } catch (err) {
+                    console.error('[TEST SSE] Error sending to client:', err);
+                }
+            });
+            
+            console.log(`[TEST SSE] Message sent to ${clientCount} clients`);
+            
+            // Also optionally store in database if you want to test full flow
+            if (req.body.store_in_db) {
+                await db.query(
+                    `INSERT INTO rag_messages (id, conversation_id, role, content, metadata)
+                     VALUES ($1, $2, $3, $4, $5)`,
+                    [testMessageId, conversation_id, 'assistant', message, 
+                     JSON.stringify({ is_test: true, sent_via: 'test_endpoint' })]
+                );
+                console.log('[TEST SSE] Message also stored in database');
+            }
+            
+            res.json({ 
+                success: true,
+                message: `Test message sent to ${clientCount} SSE clients`,
+                message_id: testMessageId,
+                conversation_id: conversation_id,
+                tenant_id: tenantId,
+                clients_notified: clientCount
+            });
+            
+        } catch (error) {
+            console.error('[TEST SSE] Error:', error);
+            res.status(500).json({ 
+                error: 'Failed to send test message',
+                details: error.message 
+            });
+        }
+    });
+    
     // Debug route to catch any callback attempts that don't match
     router.post('/chat-callback/*', async (req, res) => {
         console.log('[CHAT CALLBACK DEBUG] Unmatched callback URL:', req.originalUrl);

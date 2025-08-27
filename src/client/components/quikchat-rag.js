@@ -44,6 +44,13 @@ class QuikChatRAG {
             if (data.conversation_id) {
                 this.conversationId = data.conversation_id;
                 
+                // Log conversation ID for testing
+                console.log('%c📋 Conversation ID:', 'color: #4CAF50; font-weight: bold', this.conversationId);
+                console.log('%cUse this ID in the admin panel SSE test tool', 'color: #666;');
+                
+                // Store in localStorage for easy access
+                localStorage.setItem('currentConversationId', this.conversationId);
+                
                 // Start SSE connection if not already connected
                 if (!this.eventSource) {
                     this.connectToSSE();
@@ -83,7 +90,9 @@ class QuikChatRAG {
         this.eventSource.onmessage = (event) => {
             const data = JSON.parse(event.data);
             
-            if (data.type === 'chat-response') {
+            if (data.type === 'chat-response' || data.type === 'test-message') {
+                console.log('%c📨 Received SSE message:', 'color: #2196F3; font-weight: bold', data);
+                
                 // Update the chat with the AI response
                 if (this.chat) {
                     // Find and update the processing message
@@ -95,8 +104,13 @@ class QuikChatRAG {
                         this.chat.messageRemove(lastMessage.id);
                     }
                     
-                    // Add the AI response
-                    this.chat.messageAddNew(data.ai_response, 'Assistant', 'left');
+                    // Add the response (use content for test messages, ai_response for regular)
+                    const messageText = data.content || data.ai_response;
+                    if (messageText) {
+                        // Add test indicator if it's a test message
+                        const displayText = data.is_test ? `🧪 [TEST] ${messageText}` : messageText;
+                        this.chat.messageAddNew(displayText, 'Assistant', 'left');
+                    }
                     
                     // Add sources if available
                     if (data.sources && data.sources.length > 0) {

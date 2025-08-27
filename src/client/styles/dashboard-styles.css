@@ -217,7 +217,19 @@ body { margin: 0px; padding: 0px; font-family: -apple-system, BlinkMacSystemFont
   .main-content { flex-direction: column; }
   .left-sidebar { width: 100%; min-width: auto; height: auto; max-height: 200px; padding: 16px; }
   .right-sidebar { display: none; }
-  .chat-container { padding: 20px 16px; }
+  .chat-container { padding: 20px 16px; background: white !important; }
   .chat-input-container { max-width: none; padding: 0px 16px; }
-  .chat-title { font-size: 32px; }
+  .chat-title { font-size: 32px; color: #1a1a1a !important; }
+  
+  /* Ensure proper text colors on mobile */
+  .chat-subtitle { color: rgba(0, 0, 0, 0.6) !important; }
+  .chat-area { background: white !important; }
+  body { background: white !important; }
+  
+  /* Fix header visibility on mobile */
+  .top-header { 
+    background: rgb(10, 10, 10) !important; 
+    color: white !important;
+  }
+  .logo-svg { color: white !important; }
 }

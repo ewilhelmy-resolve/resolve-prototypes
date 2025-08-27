@@ -433,6 +433,119 @@
                     </div>
                 </div>
             </section>
+            
+            <!-- SSE Test Section -->
+            <section class="admin-section" style="margin-top: 30px;">
+                <h2>🧪 SSE Stream Test</h2>
+                <p>Test the Server-Sent Events stream by sending messages directly to an active chat session.</p>
+                
+                <div class="test-sse-container" style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-top: 20px;">
+                    <div class="form-group">
+                        <label for="testConversationId">Conversation ID:</label>
+                        <input type="text" id="testConversationId" placeholder="Enter conversation ID from active chat" 
+                               style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px;">
+                        <small style="color: #666;">Get this from the browser console when a chat is active</small>
+                    </div>
+                    
+                    <div class="form-group" style="margin-top: 15px;">
+                        <label for="testMessage">Test Message:</label>
+                        <textarea id="testMessage" rows="3" 
+                                  placeholder="Enter test message to send via SSE"
+                                  style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px;">Hello! This is a test message sent directly to the SSE stream. The boomerang is working! 🎯</textarea>
+                    </div>
+                    
+                    <div class="form-group" style="margin-top: 15px;">
+                        <label>
+                            <input type="checkbox" id="storeInDb" checked>
+                            Store message in database
+                        </label>
+                    </div>
+                    
+                    <button onclick="sendTestSSEMessage()" class="btn btn-primary" 
+                            style="background: #4CAF50; color: white; padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; font-size: 16px;">
+                        📡 Send Test Message
+                    </button>
+                    
+                    <div id="sseTestResult" style="margin-top: 15px; padding: 15px; border-radius: 4px; display: none;"></div>
+                </div>
+                
+                <script>
+                    async function sendTestSSEMessage() {
+                        const conversationId = document.getElementById('testConversationId').value;
+                        const message = document.getElementById('testMessage').value;
+                        const storeInDb = document.getElementById('storeInDb').checked;
+                        const resultDiv = document.getElementById('sseTestResult');
+                        
+                        if (!conversationId) {
+                            resultDiv.style.display = 'block';
+                            resultDiv.style.background = '#ffebee';
+                            resultDiv.style.color = '#c62828';
+                            resultDiv.innerHTML = '❌ Please enter a conversation ID';
+                            return;
+                        }
+                        
+                        if (!message) {
+                            resultDiv.style.display = 'block';
+                            resultDiv.style.background = '#ffebee';
+                            resultDiv.style.color = '#c62828';
+                            resultDiv.innerHTML = '❌ Please enter a test message';
+                            return;
+                        }
+                        
+                        try {
+                            resultDiv.style.display = 'block';
+                            resultDiv.style.background = '#fff3cd';
+                            resultDiv.style.color = '#856404';
+                            resultDiv.innerHTML = '⏳ Sending test message...';
+                            
+                            const response = await fetch('/api/rag/test-sse-message', {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json'
+                                },
+                                body: JSON.stringify({
+                                    conversation_id: conversationId,
+                                    message: message,
+                                    message_type: 'chat-response',
+                                    store_in_db: storeInDb
+                                })
+                            });
+                            
+                            const data = await response.json();
+                            
+                            if (response.ok && data.success) {
+                                resultDiv.style.background = '#e8f5e9';
+                                resultDiv.style.color = '#2e7d32';
+                                resultDiv.innerHTML = `
+                                    ✅ <strong>Success!</strong><br>
+                                    Message sent to ${data.clients_notified} SSE client(s)<br>
+                                    Message ID: <code>${data.message_id}</code><br>
+                                    <small>Check the chat UI to see if the message appeared</small>
+                                `;
+                            } else {
+                                resultDiv.style.background = '#ffebee';
+                                resultDiv.style.color = '#c62828';
+                                resultDiv.innerHTML = `
+                                    ❌ <strong>Error:</strong> ${data.error || 'Failed to send message'}<br>
+                                    ${data.hint ? `<small>Hint: ${data.hint}</small>` : ''}
+                                `;
+                            }
+                        } catch (error) {
+                            resultDiv.style.display = 'block';
+                            resultDiv.style.background = '#ffebee';
+                            resultDiv.style.color = '#c62828';
+                            resultDiv.innerHTML = `❌ <strong>Network Error:</strong> ${error.message}`;
+                        }
+                    }
+                    
+                    // Helper to get conversation ID from console
+                    console.log('%c📝 To get conversation ID:', 'color: #4CAF50; font-weight: bold;');
+                    console.log('%c1. Open the chat in another tab', 'color: #666;');
+                    console.log('%c2. Send a message in the chat', 'color: #666;');
+                    console.log('%c3. Look for "Conversation ID:" in the console', 'color: #666;');
+                    console.log('%c4. Or run: localStorage.getItem("currentConversationId")', 'color: #666;');
+                </script>
+            </section>
         </main>
     </div>
 

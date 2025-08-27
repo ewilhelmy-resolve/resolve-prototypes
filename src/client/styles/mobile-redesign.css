@@ -299,21 +299,34 @@
   }
 }
 
-/* Dark mode support for mobile */
-@media (max-width: 768px) and (prefers-color-scheme: dark) {
+/* Force light mode on mobile for better readability */
+@media (max-width: 768px) {
+  /* Override any dark mode preferences on mobile */
   .dashboard-layout .chat-area {
-    background: #1a1a1a;
+    background: white !important;
   }
 
   #quikchat-container .quikchat-input-area {
-    background: #1a1a1a !important;
-    border-top-color: rgba(255, 255, 255, 0.1) !important;
+    background: white !important;
+    border-top-color: rgba(0, 0, 0, 0.1) !important;
   }
 
   #quikchat-container .quikchat-input-textbox {
-    background: rgba(255, 255, 255, 0.1) !important;
-    color: white !important;
-    border-color: rgba(255, 255, 255, 0.2) !important;
+    background: white !important;
+    color: #1a1a1a !important;
+    border-color: rgba(0, 0, 0, 0.2) !important;
+  }
+  
+  /* Ensure all text is dark on light backgrounds */
+  .chat-title,
+  .chat-subtitle,
+  .quikchat-message {
+    color: #1a1a1a !important;
+  }
+  
+  /* Fix placeholder text */
+  #quikchat-container .quikchat-input-textbox::placeholder {
+    color: rgba(0, 0, 0, 0.5) !important;
   }
 }
 

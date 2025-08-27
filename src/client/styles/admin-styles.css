@@ -938,3 +938,203 @@ body {
 .close-traffic-modal:hover {
     color: var(--text-primary);
 }
+
+/* Mobile Responsive Styles */
+@media (max-width: 768px) {
+    /* Force light mode on mobile - override all dark theme styles */
+    :root {
+        --text-primary: #1F2937 !important;  /* Dark text for light backgrounds */
+        --text-secondary: #6B7280 !important;
+        --dark-bg: #F9FAFB !important;
+        --card-bg: #FFFFFF !important;
+        --border-color: #E5E7EB !important;
+        --bg-primary: #FFFFFF !important;
+        --bg-secondary: #F3F4F6 !important;
+    }
+    
+    body {
+        background: #F9FAFB !important;
+        color: #1F2937 !important;
+    }
+    
+    .admin-header {
+        background: #FFFFFF !important;
+        border-bottom: 1px solid #E5E7EB !important;
+        color: #1F2937 !important;
+    }
+    
+    .admin-nav {
+        background: #FFFFFF !important;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+    
+    .admin-nav ul {
+        min-width: max-content;
+        padding: 0 1rem;
+        background: #FFFFFF !important;
+    }
+    
+    .nav-link {
+        color: #6B7280 !important;
+        padding: 0.75rem 1rem;
+        white-space: nowrap;
+    }
+    
+    .nav-link:hover,
+    .nav-link.active {
+        color: var(--primary-color) !important;
+    }
+    
+    /* Main content area */
+    .admin-main {
+        background: #F9FAFB !important;
+        color: #1F2937 !important;
+    }
+    
+    .section {
+        background: #FFFFFF !important;
+        color: #1F2937 !important;
+    }
+    
+    .section h2 {
+        color: #1F2937 !important;
+    }
+    
+    .data-table {
+        background: #FFFFFF !important;
+        color: #1F2937 !important;
+    }
+    
+    .data-table th {
+        background: #F9FAFB !important;
+        color: #1F2937 !important;
+    }
+    
+    .data-table td {
+        color: #6B7280 !important;
+    }
+    
+    .modal-content {
+        background: #FFFFFF !important;
+        color: #1F2937 !important;
+    }
+    
+    .form-group input,
+    .form-group select,
+    .filters select,
+    .filters input {
+        background: #FFFFFF !important;
+        color: #1F2937 !important;
+        border: 1px solid #E5E7EB !important;
+    }
+    
+    /* Stats cards */
+    .stat-card {
+        background: #FFFFFF !important;
+        border: 1px solid #E5E7EB !important;
+        color: #1F2937 !important;
+    }
+    
+    .stat-value {
+        color: #1F2937 !important;
+    }
+    
+    .stat-label {
+        color: #6B7280 !important;
+    }
+    
+    /* Charts */
+    .chart-container {
+        background: #FFFFFF !important;
+    }
+    
+    .chart-container h3 {
+        color: #1F2937 !important;
+    }
+    
+    /* Buttons */
+    .btn-primary {
+        background: var(--primary-color) !important;
+        color: white !important;
+    }
+    
+    .btn-secondary {
+        background: #F3F4F6 !important;
+        color: #1F2937 !important;
+        border: 1px solid #E5E7EB !important;
+    }
+    
+    .btn-logout {
+        background: #EF4444 !important;
+        color: white !important;
+    }
+    
+    /* Layout adjustments */
+    .admin-container {
+        padding: 0;
+    }
+    
+    .admin-main {
+        padding: 1rem;
+    }
+    
+    .header-content {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 1rem;
+    }
+    
+    .stats-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .table-container {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+    
+    .data-table {
+        min-width: 600px;
+    }
+    
+    .filters {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .filters select,
+    .filters input {
+        width: 100%;
+    }
+    
+    .filter-row {
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+    
+    .filter-row select {
+        width: 100%;
+    }
+    
+    /* Notification position */
+    .notification {
+        top: auto;
+        bottom: 20px;
+        right: 10px;
+        left: 10px;
+        max-width: none;
+    }
+    
+    /* Modal adjustments */
+    .modal-content {
+        width: 95%;
+        margin: 2.5%;
+        max-height: 90vh;
+    }
+    
+    .large-modal .modal-content {
+        width: 95%;
+        max-width: none;
+    }
+}
