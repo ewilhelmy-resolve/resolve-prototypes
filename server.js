@@ -91,16 +91,17 @@ function requireAuth(req, res, next) {
     next();
 }
 
-// Webhook Traffic Capture Middleware
+// Webhook Traffic Capture Middleware - Only captures callback/webhook traffic
 async function captureWebhookTraffic(req, res, next) {
-    // Determine if this is a webhook endpoint
-    const isWebhook = req.path.includes('webhook') || 
-                     req.path.includes('callback') || 
-                     req.path.includes('/api/rag/') ||
-                     req.path.includes('/api/admin/test-callback');
+    // Only capture callback and webhook endpoints
+    const isCallbackRoute = req.path.includes('callback') || 
+                           req.path.includes('webhook');
     
-    // Capture all API traffic for debugging
-    if (req.path.startsWith('/api/') || isWebhook) {
+    console.log(`[TRAFFIC CAPTURE] Path: ${req.path}, Is Callback: ${isCallbackRoute}`);
+    
+    // Only capture callback/webhook traffic
+    if (isCallbackRoute) {
+        console.log(`[TRAFFIC CAPTURE] Capturing: ${req.method} ${req.path}`);
         const captureData = {
             request_url: req.originalUrl || req.url,
             request_method: req.method,
@@ -110,7 +111,7 @@ async function captureWebhookTraffic(req, res, next) {
             request_params: req.params,
             source_ip: req.ip || req.connection.remoteAddress,
             user_agent: req.headers['user-agent'],
-            is_webhook: isWebhook,
+            is_webhook: true,  // Always true since we only capture callbacks/webhooks
             endpoint_category: determineEndpointCategory(req.path)
         };
         
@@ -145,16 +146,15 @@ async function captureWebhookTraffic(req, res, next) {
 
 function determineEndpointCategory(path) {
     if (path.includes('chat-callback')) return 'chat_callback';
+    if (path.includes('test-callback')) return 'test_callback';
     if (path.includes('callback')) return 'callback';
     if (path.includes('webhook')) return 'webhook';
-    if (path.includes('/rag/')) return 'rag_api';
-    if (path.includes('/admin/')) return 'admin';
-    if (path.includes('/api/')) return 'api';
-    return 'other';
+    return 'callback';
 }
 
 async function saveWebhookTraffic(data) {
     try {
+        console.log('[WEBHOOK TRAFFIC] Saving traffic log for:', data.request_url);
         await db.query(
             `INSERT INTO webhook_traffic 
             (request_url, request_method, request_headers, request_body, request_query, 

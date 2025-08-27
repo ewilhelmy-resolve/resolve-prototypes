@@ -27,7 +27,7 @@
                 <li><a href="#users" class="nav-link">User Activity</a></li>
                 <li><a href="#analytics" class="nav-link">Analytics</a></li>
                 <li><a href="#webhooks" class="nav-link">Webhook Logs</a></li>
-                <li><a href="#webhook-traffic" class="nav-link">All Traffic Logs</a></li>
+                <li><a href="#webhook-traffic" class="nav-link">Callback Traffic</a></li>
                 <li><a href="#settings" class="nav-link">System Settings</a></li>
             </ul>
         </nav>
@@ -302,18 +302,16 @@
 
             <!-- Webhook Traffic Logs Section -->
             <section id="webhook-traffic" class="admin-section">
-                <h2>All Traffic Logs (Debug View)</h2>
+                <h2>Callback & Webhook Traffic Monitor</h2>
                 
                 <div class="traffic-controls">
                     <div class="filter-row">
                         <select id="trafficCategoryFilter">
-                            <option value="all">All Categories</option>
+                            <option value="all">All Callbacks</option>
                             <option value="chat_callback">Chat Callbacks</option>
-                            <option value="callback">Callbacks</option>
+                            <option value="test_callback">Test Callbacks</option>
+                            <option value="callback">Other Callbacks</option>
                             <option value="webhook">Webhooks</option>
-                            <option value="rag_api">RAG API</option>
-                            <option value="admin">Admin</option>
-                            <option value="api">Other API</option>
                         </select>
                         
                         <select id="trafficMethodFilter">
@@ -335,7 +333,7 @@
                         </select>
                         
                         <label>
-                            <input type="checkbox" id="webhooksOnlyFilter"> Webhooks Only
+                            <input type="checkbox" id="webhooksOnlyFilter"> Failed Only
                         </label>
                     </div>
                     

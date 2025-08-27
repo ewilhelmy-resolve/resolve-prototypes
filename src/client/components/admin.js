@@ -176,7 +176,7 @@ async function loadWebhookTrafficData() {
     const category = document.getElementById('trafficCategoryFilter')?.value || 'all';
     const method = document.getElementById('trafficMethodFilter')?.value || 'all';
     const status = document.getElementById('trafficStatusFilter')?.value || '';
-    const webhooksOnly = document.getElementById('webhooksOnlyFilter')?.checked || false;
+    const failedOnly = document.getElementById('webhooksOnlyFilter')?.checked || false;
     const search = document.getElementById('trafficSearchInput')?.value || '';
     
     const offset = (trafficCurrentPage - 1) * trafficLimit;
@@ -188,8 +188,9 @@ async function loadWebhookTrafficData() {
             ...(category !== 'all' && { category }),
             ...(method !== 'all' && { method }),
             ...(status && { status }),
-            ...(webhooksOnly && { is_webhook: 'true' }),
-            ...(search && { search })
+            ...(failedOnly && { status: '400' }), // Show only 400+ errors
+            ...(search && { search }),
+            is_webhook: 'true' // Always filter for webhook/callback traffic
         });
         
         const response = await fetch(`/api/admin/webhook-traffic?${params}`, {
@@ -201,9 +202,9 @@ async function loadWebhookTrafficData() {
         const data = await response.json();
         
         // Update stats
-        document.getElementById('totalTrafficCount').textContent = `Total: ${data.total}`;
-        const webhookCount = data.traffic.filter(t => t.is_webhook).length;
-        document.getElementById('webhookTrafficCount').textContent = `Webhooks: ${webhookCount}`;
+        document.getElementById('totalTrafficCount').textContent = `Total Callbacks: ${data.total}`;
+        const successCount = data.traffic.filter(t => t.response_status < 400).length;
+        document.getElementById('webhookTrafficCount').textContent = `Successful: ${successCount}`;
         const failedCount = data.traffic.filter(t => t.response_status >= 400).length;
         document.getElementById('failedTrafficCount').textContent = `Failed: ${failedCount}`;
         
