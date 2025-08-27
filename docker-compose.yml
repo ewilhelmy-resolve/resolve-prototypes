@@ -2,7 +2,6 @@ version: '3.8'
 
 services:
   app:
-    image: ${IMAGE_NAME:-resolve-onboarding-app}:${IMAGE_TAG:-latest}
     build:
       context: .
       dockerfile: Dockerfile
@@ -14,7 +13,6 @@ services:
       - NODE_ENV=production
       - PORT=5000
       - DATABASE_URL=postgresql://resolve_user:resolve_pass@postgres:5432/resolve_onboarding
-      - NODE_OPTIONS=--max-old-space-size=2048
     volumes:
       - ./uploads:/app/uploads
     networks:
@@ -28,9 +26,6 @@ services:
       timeout: 3s
       retries: 3
       start_period: 10s
-    # Set memory limits to prevent container from consuming all available memory
-    mem_limit: 2g
-    mem_reservation: 1g
 
   postgres:
     image: postgres:15-alpine

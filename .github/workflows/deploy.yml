@@ -37,12 +37,13 @@ jobs:
           username: ${{ env.DEPLOY_USER }}
           key: ${{ secrets.DEPLOY_ONBOARDING_SSH_KEY }}
           script: |
-            export IMAGE_NAME=ghcr.io/resolve-io/resolve-onboarding
-            export IMAGE_TAG=latest
+            IMAGE_NAME=ghcr.io/resolve-io/resolve-onboarding
             echo "${{ secrets.ONBOARDING_GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
             cd /opt/onboarding
-            docker pull $IMAGE_NAME:$IMAGE_TAG
             docker-compose down
+            docker pull $IMAGE_NAME:latest
+            docker tag $IMAGE_NAME:latest onboarding_app:latest
+            docker image prune -f
             docker-compose up -d
 #            docker stop resolve-onboarding || true
 #            docker rm resolve-onboarding || true

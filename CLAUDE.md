@@ -36,6 +36,7 @@ When asked to validate a change, execute the following steps in order:
 - **No new commits or pushes should be created until all e2e tests pass**
 - When asked to "prepare a check-in," first re-run the e2e suite; do not proceed if any tests are failing
 - **Remember there is only one single docker-compose do not add new ones**
+- Do not mess with either the docker-compose.yml or the github action unless explicitly told to
 
 ### Environment Variables (Configurable Defaults)
 - `APP_SERVICE` = docker compose service name (default: `app`)
