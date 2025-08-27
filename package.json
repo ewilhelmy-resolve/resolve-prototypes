@@ -23,7 +23,7 @@
     "@playwright/test": "^1.55.0"
   },
   "dependencies": {
-    "axios": "^1.6.0",
+    "axios": "^1.11.0",
     "body-parser": "^2.2.0",
     "cors": "^2.8.5",
     "eventsource": "^4.0.0",
@@ -32,6 +32,8 @@
     "multer": "^1.4.5-lts.1",
     "nodemon": "^3.0.2",
     "pg": "^8.11.3",
+    "pgvector": "^0.2.1",
+    "quikchat": "^1.1.17",
     "uuid": "^9.0.1"
   },
   "main": "playwright.config.js",

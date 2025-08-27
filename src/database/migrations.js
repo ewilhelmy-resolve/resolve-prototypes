@@ -73,6 +73,19 @@ async function runPostgreSQLMigrations(pool) {
         if (error.message.includes('already exists') || 
             error.message.includes('duplicate key')) {
           skipCount++;
+        } else if (error.message.includes('extension "vector"') || 
+                   error.message.includes('vector.control')) {
+          // pgvector extension not installed - skip vector-related operations
+          console.warn('⚠️ pgvector extension not available - RAG vector features will be limited');
+          skipCount++;
+        } else if (error.message.includes('type "vector" does not exist')) {
+          // Vector type doesn't exist because pgvector isn't installed
+          console.warn('⚠️ Skipping vector table creation - pgvector not installed');
+          skipCount++;
+        } else if (error.message.includes('access method "ivfflat" does not exist')) {
+          // ivfflat index method not available without pgvector
+          console.warn('⚠️ Skipping vector index creation - pgvector not installed');
+          skipCount++;
         } else {
           console.error(`Migration error on statement: ${statement.substring(0, 50)}...`);
           console.error(error.message);

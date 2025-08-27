@@ -7,9 +7,16 @@ const axios = require('axios');
 const { v4: uuidv4 } = require('uuid');
 const db = require('./src/database/postgres');
 const { createMigrationMiddleware, isValidUUID } = require('./migrate-tenant-ids');
+const createRagRouter = require('./src/routes/ragApi');
+const { processWebhookRetryQueue } = require('./src/workers/webhookRetry');
+const { generateCallbackToken } = require('./src/utils/rag');
+const ResolveWebhook = require('./src/utils/resolve-webhook');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
+
+// Initialize ResolveWebhook instance
+const resolveWebhook = new ResolveWebhook();
 
 // Body parser middleware
 app.use(express.json());
@@ -768,45 +775,35 @@ app.post('/api/upload-knowledge', upload.array('files', 10), trackWorkflow('inte
         // NOW call Resolve webhook AFTER tickets are saved to database
         if (csvContent.length > 0 && ticketsImported > 0 && process.env.WEBHOOK_ENABLED !== 'false') {
             try {
-                const webhookUrl = process.env.AUTOMATION_WEBHOOK_URL || 
-                    'https://actions-api-staging.resolve.io/api/Webhooks/postEvent/00F4F67D-3B92-4FD2-A574-7BE22C6BE796';
-                const authHeader = process.env.AUTOMATION_AUTH || 
-                    'Basic RTE0NzMwRkEtRDFCNS00MDM3LUFDRTMtQ0Y5N0ZCQzY3NkMyOlZaSkQqSSYyWEAkXkQ5Sjk4Rk5PJShGUVpaQ0dRNkEj';
-                
-                // Updated payload with correct action and additional metadata
-                const webhookPayload = {
-                    source: 'Onboarding',
-                    user_email: userEmail,
-                    user_id: userId,
-                    action: 'uploaded-csv',
-                    integration_type: 'csv',
-                    callbackUrl: callbackUrl,
-                    callbackToken: callbackToken, // Include access token for secure callback access
-                    tenantToken: tenantId,
-                    // Metadata for batch processing
-                    metadata: {
-                        total_rows: csvContent.length,
-                        batch_size: 100,
-                        total_batches: Math.ceil(csvContent.length / 100),
-                        tickets_imported: ticketsImported
-                    }
-                };
-                
                 console.log(`[WEBHOOK] Calling automation platform after database save...`);
-                console.log(`[WEBHOOK] Payload:`, JSON.stringify(webhookPayload, null, 2));
                 
-                const webhookResponse = await axios.post(webhookUrl, webhookPayload, {
-                    headers: {
-                        'Authorization': authHeader,
-                        'Content-Type': 'application/json'
-                    },
-                    timeout: 10000 // 10 second timeout
+                // Use ResolveWebhook class to send CSV upload event
+                const webhookResponse = await resolveWebhook.sendCsvUploadEvent({
+                    userEmail: userEmail,
+                    userId: userId,
+                    tenantId: tenantId,
+                    callbackUrl: callbackUrl,
+                    callbackToken: callbackToken,
+                    csvContent: csvContent,
+                    ticketsImported: ticketsImported
                 });
                 
                 console.log(`[WEBHOOK] Automation platform response:`, webhookResponse.status);
                 if (webhookResponse.data) {
                     console.log(`[WEBHOOK] Response data:`, webhookResponse.data);
                 }
+                
+                // Track the CSV upload action
+                await resolveWebhook.trackAction({
+                    action: 'csv-upload',
+                    source: 'Onboarding_CSV',
+                    userEmail: userEmail,
+                    tenantId: tenantId,
+                    metadata: {
+                        rows_imported: ticketsImported,
+                        total_rows: csvContent.length
+                    }
+                });
                 
                 // Track successful webhook trigger
                 await db.workflows.trackTrigger({
@@ -1263,6 +1260,47 @@ app.delete('/api/admin/users/:email', requireAdmin, async (req, res) => {
     }
 });
 
+// Webhook proxy endpoint for client-side integration
+app.post('/api/webhook', requireAuth, async (req, res) => {
+    try {
+        const { source, action, ...additionalData } = req.body;
+        
+        // Use ResolveWebhook class for proxy event
+        const response = await resolveWebhook.sendProxyEvent({
+            source: source,
+            action: action,
+            userEmail: req.user.email,
+            tenantId: req.user.tenantId,
+            ...additionalData
+        });
+        
+        // Track the proxied action
+        await resolveWebhook.trackAction({
+            action: action,
+            source: source || 'Onboarding',
+            userEmail: req.user.email,
+            tenantId: req.user.tenantId,
+            metadata: additionalData
+        });
+        
+        res.json({ 
+            success: true, 
+            data: response.data 
+        });
+        
+    } catch (error) {
+        console.error('Webhook proxy error:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: 'Failed to send event' 
+        });
+    }
+});
+
+// Mount RAG API routes
+const ragRouter = createRagRouter(db, sessions);
+app.use('/api/rag', ragRouter);
+
 // Health check
 app.get('/health', (req, res) => {
     res.json({
@@ -1273,22 +1311,103 @@ app.get('/health', (req, res) => {
     });
 });
 
-// Catch-all route for SPA behavior
+// Define valid HTML routes
+const validHtmlRoutes = [
+    '/',
+    '/dashboard',
+    '/admin',
+    '/login',
+    '/signin',
+    '/step2',
+    '/completion'
+];
+
+// Catch-all route - properly handle 404s
 app.get('*', (req, res) => {
+    // Return 404 for API routes and static files
     if (req.path.startsWith('/api/') || 
         req.path.match(/\.(js|css|png|jpg|jpeg|gif|svg|ico|woff|woff2|ttf|otf|map|json)$/)) {
         return res.status(404).send('Not found');
     }
     
-    const indexPath = path.join(__dirname, 'index.html');
-    if (fs.existsSync(indexPath)) {
-        res.sendFile(indexPath);
+    // Check if the path is a valid HTML route
+    const requestedPath = req.path.replace(/\/$/, '') || '/'; // Normalize path
+    if (validHtmlRoutes.includes(requestedPath)) {
+        // Serve the appropriate page for valid routes
+        const indexPath = path.join(__dirname, 'index.html');
+        if (fs.existsSync(indexPath)) {
+            res.sendFile(indexPath);
+        } else {
+            res.sendFile(path.join(__dirname, 'src/client/pages/dashboard.html'));
+        }
     } else {
-        res.sendFile(path.join(__dirname, 'src/client/pages/dashboard.html'));
+        // Return 404 for any non-existent route
+        res.status(404).send(`
+            <!DOCTYPE html>
+            <html lang="en">
+            <head>
+                <meta charset="UTF-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <title>404 - Page Not Found</title>
+                <style>
+                    body {
+                        font-family: -apple-system, BlinkMacSystemFont, "SF Pro", sans-serif;
+                        display: flex;
+                        justify-content: center;
+                        align-items: center;
+                        height: 100vh;
+                        margin: 0;
+                        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                        color: white;
+                    }
+                    .error-container {
+                        text-align: center;
+                        padding: 2rem;
+                    }
+                    h1 {
+                        font-size: 6rem;
+                        margin: 0;
+                        font-weight: bold;
+                    }
+                    h2 {
+                        font-size: 2rem;
+                        margin: 1rem 0;
+                        font-weight: normal;
+                    }
+                    p {
+                        font-size: 1.2rem;
+                        opacity: 0.9;
+                    }
+                    a {
+                        display: inline-block;
+                        margin-top: 2rem;
+                        padding: 0.75rem 2rem;
+                        background: white;
+                        color: #667eea;
+                        text-decoration: none;
+                        border-radius: 25px;
+                        font-weight: 600;
+                        transition: transform 0.2s;
+                    }
+                    a:hover {
+                        transform: scale(1.05);
+                    }
+                </style>
+            </head>
+            <body>
+                <div class="error-container">
+                    <h1>404</h1>
+                    <h2>Page Not Found</h2>
+                    <p>The page you're looking for doesn't exist.</p>
+                    <a href="/">Go to Home</a>
+                </div>
+            </body>
+            </html>
+        `);
     }
 });
 
-app.listen(PORT, () => {
+app.listen(PORT, async () => {
     console.log(`
 ╔═══════════════════════════════════════════════════════════════╗
 ║  Resolve Onboarding Server                                   ║
@@ -1304,4 +1423,22 @@ app.listen(PORT, () => {
 ║  • /docs               - Documentation                       ║
 ╚═══════════════════════════════════════════════════════════════╝
     `);
+    
+    // Start webhook retry worker
+    setInterval(() => processWebhookRetryQueue(db), 60000); // Run every minute
+    console.log('RAG webhook retry worker started');
+    
+    // Generate callback tokens for existing tenants
+    try {
+        const tenants = await db.query('SELECT DISTINCT tenant_id FROM users WHERE tenant_id IS NOT NULL');
+        for (const tenant of tenants.rows) {
+            const existingToken = await db.query('SELECT callback_token FROM rag_tenant_tokens WHERE tenant_id = $1', [tenant.tenant_id]);
+            if (existingToken.rows.length === 0) {
+                await generateCallbackToken(db, tenant.tenant_id);
+                console.log(`Generated RAG callback token for tenant: ${tenant.tenant_id}`);
+            }
+        }
+    } catch (error) {
+        console.error('Error generating callback tokens:', error);
+    }
 });

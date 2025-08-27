@@ -7,6 +7,8 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@radix-ui/themes@3.0.0/styles.css">
     <link rel="stylesheet" href="/styles/fonts.css">
     <link rel="stylesheet" href="/styles/dashboard-styles.css">
+    <link rel="stylesheet" href="/quikchat.css">
+    <link rel="stylesheet" href="/quikchat-custom.css">
 </head>
 <body>
     <div class="rt-Theme" data-radius="medium" data-appearance="light">
@@ -112,14 +114,17 @@
                 <main class="chat-area">
                     <div class="chat-container">
                         <div class="chat-header">
-                            <h1 class="chat-title season-heading">Ask Jarvis</h1>
+                            <h1 class="chat-title season-heading">Ask Rita</h1>
                             <p class="chat-subtitle">
                                 Build and manage your automation workflows with AI assistance
                             </p>
                         </div>
 
-                        <!-- Jarvis Chat Container -->
-                        <div id="jarvis-chat-container" style="height: calc(100% - 120px); width: 100%;"></div>
+                        <!-- QuikChat Container (active) -->
+                        <div id="quikchat-container" style="height: calc(100% - 120px); width: 100%;"></div>
+                        
+                        <!-- Jarvis Chat Container (disabled for now) -->
+                        <div id="jarvis-chat-container" style="height: calc(100% - 120px); width: 100%; display: none;"></div>
                     </div>
                 </main>
 
@@ -128,9 +133,9 @@
                     <!-- Share Link Box -->
                     <div class="share-chats-box">
                         <div class="share-header">
-                            <h3 class="share-title">Share Jarvis</h3>
+                            <h3 class="share-title">Share Assistant</h3>
                             <p class="share-description">
-                                Invite your team members to use Jarvis for workflow automation.
+                                Invite your team members to use Ask Rita for workflow automation.
                             </p>
                         </div>
                         <button class="share-all-btn" onclick="openShareModal()">
@@ -178,7 +183,8 @@
     </div>
 
     <script>
-        // Jarvis iframe injection function
+        // Jarvis iframe injection function (disabled - using QuikChat now)
+        /* 
         function injectEspressiveWidget(options) {
             const {
                 containerElement,
@@ -244,6 +250,7 @@
             // Append the wrapper to the container
             containerElement.appendChild(wrapperDiv);
         }
+        */
 
         // Check authentication on page load
         (function checkAuth() {
@@ -478,6 +485,8 @@
                         
                         console.log('Initializing Jarvis with tenant ID:', tenantId);
                         
+                        // Commented out - using QuikChat now
+                        /*
                         injectEspressiveWidget({
                             containerElement: chatContainer,
                             tenantUrl: 'resolvejarvisdev.espressive.com',
@@ -489,6 +498,7 @@
                             guestMode: 'DOGAFLA' // tenant must have guest mode enabled
                         });
                         console.log('Jarvis widget injected successfully with tenant ID:', tenantId);
+                        */
                     }, 1500); // Wait for user info to be fetched
                 } else {
                     console.error('Chat container element not found');
@@ -852,6 +862,33 @@
             };
             document.addEventListener('keydown', escHandler);
         }
+    </script>
+    
+    <!-- QuikChat Scripts -->
+    <script src="/quikchat.js"></script>
+    <script src="/components/quikchat-rag.js"></script>
+    <script src="/components/chat-enhancements.js"></script>
+    <script>
+        // Initialize QuikChat when DOM is ready
+        document.addEventListener('DOMContentLoaded', () => {
+            // Initialize QuikChat RAG integration
+            const chatRAG = new QuikChatRAG('#quikchat-container');
+            chatRAG.init();
+            
+            // Store instance globally for debugging
+            window.chatInstance = chatRAG;
+            
+            // Initialize modern chat enhancements
+            setTimeout(() => {
+                if (!window.chatEnhancements) {
+                    window.chatEnhancements = new ChatEnhancements();
+                    window.chatEnhancements.init();
+                }
+            }, 500); // Small delay to ensure QuikChat is fully rendered
+            
+            // Comment out Jarvis initialization for now
+            // injectEspressiveWidget({ ... });
+        });
     </script>
 </body>
 </html>

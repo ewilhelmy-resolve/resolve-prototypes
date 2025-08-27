@@ -1,9 +1,8 @@
 // Resolve Integration API Client
 export class ResolveIntegration {
     constructor() {
-        // Resolve Actions API configuration
-        this.apiUrl = 'https://actions-api-staging.resolve.io/api/Webhooks/postEvent/00F4F67D-3B92-4FD2-A574-7BE22C6BE796';
-        this.authToken = 'Basic RTE0NzMwRkEtRDFCNS00MDM3LUFDRTMtQ0Y5N0ZCQzY3NkMyOlZaSkQqSSYyWEAkXkQ5Sjk4Rk5PJShGUVpaQ0dRNkEj';
+        // All API calls should go through backend
+        this.apiUrl = '/api/webhook'; // Backend endpoint
         this.source = 'Onboarding'; // Set source as Onboarding
     }
 
@@ -25,35 +24,22 @@ export class ResolveIntegration {
 
             console.log('Sending event to Resolve:', payload);
 
-            // DISABLED: Webhook to prevent CORS issues in local testing
-            // Returning mock success to keep app functional
-            console.log('Webhook disabled for local testing - returning mock success');
-            return { 
-                success: true, 
-                data: { 
-                    message: 'Mock response - webhook disabled',
-                    payload: payload 
-                }
-            };
-
-            /* ORIGINAL CODE - RE-ENABLE WHEN CORS IS FIXED
+            // Send to backend endpoint
             const response = await fetch(this.apiUrl, {
                 method: 'POST',
                 headers: {
-                    'Authorization': this.authToken,
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify(payload)
             });
 
             if (!response.ok) {
-                throw new Error(`Resolve API error: ${response.status} ${response.statusText}`);
+                throw new Error(`API error: ${response.status} ${response.statusText}`);
             }
 
             const data = await response.json().catch(() => ({}));
-            console.log('Resolve API response:', data);
+            console.log('API response:', data);
             return { success: true, data };
-            */
         } catch (error) {
             console.error('Failed to send event to Resolve:', error);
             return { success: false, error: error.message };
@@ -102,15 +88,9 @@ export class ResolveIntegration {
      */
     async checkStatus() {
         try {
-            // DISABLED: Always return true for local testing
-            console.log('Health check disabled - returning true for local testing');
-            return true;
-            
-            /* ORIGINAL CODE
             // Send a test event to check if integration is working
             const result = await this.sendEvent('test@resolve.io', 'health_check');
             return result.success;
-            */
         } catch (error) {
             console.error('Integration status check failed:', error);
             return false;

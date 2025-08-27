@@ -6,6 +6,109 @@
     <title>Sign In - Resolve</title>
     <link rel="stylesheet" href="styles/fonts.css">
     <link rel="stylesheet" href="styles/styles.css">
+    <style>
+        /* Toast Notification Styles */
+        .toast-notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            min-width: 300px;
+            max-width: 400px;
+            padding: 16px 20px;
+            background: linear-gradient(135deg, rgba(30, 35, 55, 0.95), rgba(20, 25, 45, 0.98));
+            backdrop-filter: blur(20px);
+            border-radius: 12px;
+            box-shadow: 
+                0 0 40px rgba(245, 101, 101, 0.15),
+                0 10px 40px rgba(0, 0, 0, 0.4),
+                inset 0 1px 0 rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(245, 101, 101, 0.3);
+            color: #fff;
+            z-index: 10000;
+            transform: translateX(420px);
+            opacity: 0;
+            transition: all 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+        }
+
+        .toast-notification.show {
+            transform: translateX(0);
+            opacity: 1;
+        }
+
+        .toast-notification.error {
+            border-color: rgba(245, 101, 101, 0.4);
+            box-shadow: 
+                0 0 50px rgba(245, 101, 101, 0.2),
+                0 15px 50px rgba(0, 0, 0, 0.5),
+                inset 0 1px 0 rgba(255, 255, 255, 0.15);
+        }
+
+        .toast-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 8px;
+        }
+
+        .toast-icon {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: rgba(245, 101, 101, 0.2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .toast-icon.error {
+            background: rgba(245, 101, 101, 0.2);
+            color: #f56565;
+        }
+
+        .toast-icon svg {
+            width: 12px;
+            height: 12px;
+        }
+
+        .toast-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: #f56565;
+            margin: 0;
+        }
+
+        .toast-message {
+            font-size: 13px;
+            color: rgba(255, 255, 255, 0.8);
+            line-height: 1.4;
+            margin-left: 32px;
+        }
+
+        .toast-close {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            background: none;
+            border: none;
+            color: rgba(255, 255, 255, 0.5);
+            cursor: pointer;
+            padding: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: color 0.2s;
+        }
+
+        .toast-close:hover {
+            color: rgba(255, 255, 255, 0.8);
+        }
+
+        .toast-close svg {
+            width: 14px;
+            height: 14px;
+        }
+    </style>
 </head>
 <body>
     <div class="onboarding-container">
@@ -68,7 +171,7 @@
                     <div class="rita-chat-content">
                         <div class="rita-header">
                             <h2 class="rita-title season-heading">Ask Rita</h2>
-                            <p class="rita-subtitle">How can I help you today?</p>
+                            <p class="rita-subtitle">Build and manage your automation workflows with AI assistance</p>
                         </div>
                         <div class="rita-input-container">
                             <input type="text" class="rita-input" placeholder="Message Rita..." disabled style="cursor: not-allowed;">
@@ -85,6 +188,51 @@
     </div>
 
     <script>
+        // Toast notification function
+        function showToast(title, message, type = 'error') {
+            // Remove any existing toasts
+            const existingToast = document.querySelector('.toast-notification');
+            if (existingToast) {
+                existingToast.remove();
+            }
+
+            // Create toast element
+            const toast = document.createElement('div');
+            toast.className = `toast-notification ${type}`;
+            toast.innerHTML = `
+                <button class="toast-close" onclick="this.parentElement.remove()">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M18 6L6 18M6 6l12 12"/>
+                    </svg>
+                </button>
+                <div class="toast-header">
+                    <div class="toast-icon ${type}">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M12 8v4m0 4h.01M12 2l10 18H2z"/>
+                        </svg>
+                    </div>
+                    <h3 class="toast-title">${title}</h3>
+                </div>
+                <div class="toast-message">${message}</div>
+            `;
+
+            // Add to body
+            document.body.appendChild(toast);
+
+            // Trigger animation
+            setTimeout(() => {
+                toast.classList.add('show');
+            }, 10);
+
+            // Auto remove after 5 seconds
+            setTimeout(() => {
+                toast.classList.remove('show');
+                setTimeout(() => {
+                    toast.remove();
+                }, 300);
+            }, 5000);
+        }
+
         document.getElementById('signin-form').addEventListener('submit', async (e) => {
             e.preventDefault();
             
@@ -112,11 +260,11 @@
                     // Redirect to dashboard without token in URL
                     window.location.href = '/dashboard';
                 } else {
-                    alert('Sign in failed: ' + (result.message || 'Invalid credentials'));
+                    showToast('Sign in failed', result.message || 'Invalid email or password', 'error');
                 }
             } catch (error) {
                 console.error('Sign in error:', error);
-                alert('Sign in failed. Please try again.');
+                showToast('Connection error', 'Unable to connect to server. Please try again.', 'error');
             }
         });
     </script>

@@ -1,0 +1,534 @@
+const express = require('express');
+const crypto = require('crypto');
+const axios = require('axios');
+const { validateTenant, validateCallbackToken, rateLimit } = require('../middleware/ragAuth');
+const { generateCallbackToken } = require('../utils/rag');
+const ResolveWebhook = require('../utils/resolve-webhook');
+
+function createRagRouter(db, sessions) {
+    const router = express.Router();
+    const validateTenantMW = validateTenant(sessions);
+    const validateCallbackTokenMW = validateCallbackToken(db);
+    const resolveWebhook = new ResolveWebhook();
+
+    // 1. Ingest Content (Triggers Actions Platform)
+    router.post('/ingest', validateTenantMW, rateLimit, async (req, res) => {
+        try {
+            const { documents } = req.body;
+            
+            if (!documents || !Array.isArray(documents) || documents.length === 0) {
+                return res.status(400).json({ error: 'Documents array required' });
+            }
+            
+            const results = [];
+            
+            for (const doc of documents) {
+                // Validate document size (50KB per document)
+                if (doc.content.length > parseInt(process.env.MAX_DOCUMENT_SIZE)) {
+                    results.push({ 
+                        error: 'Document exceeds 50KB limit',
+                        skipped: true 
+                    });
+                    continue;
+                }
+                
+                const docId = crypto.randomUUID();
+                const callbackId = crypto.randomBytes(16).toString('hex');
+                
+                // Get callback token for this tenant
+                const tokenResult = await db.query(
+                    'SELECT callback_token FROM rag_tenant_tokens WHERE tenant_id = $1',
+                    [req.tenantId]
+                );
+                
+                if (tokenResult.rows.length === 0) {
+                    // Generate token if doesn't exist
+                    await generateCallbackToken(db, req.tenantId);
+                }
+                
+                // Store in database
+                await db.query(
+                    `INSERT INTO rag_documents (tenant_id, document_id, callback_id, content, metadata, created_by) 
+                     VALUES ($1, $2, $3, $4, $5, $6)`,
+                    [req.tenantId, docId, callbackId, doc.content, doc.metadata || {}, req.userEmail]
+                );
+                
+                results.push({ document_id: docId, callback_id: callbackId });
+                
+                // Try to send webhook using ResolveWebhook class
+                try {
+                    await resolveWebhook.sendRagIngestEvent({
+                        tenantId: req.tenantId,
+                        documentId: docId,
+                        content: doc.content,
+                        metadata: doc.metadata,
+                        callbackUrl: `${process.env.APP_URL}/api/rag/callback/${callbackId}`
+                    });
+                    
+                    // Track the action
+                    await resolveWebhook.trackAction({
+                        action: 'rag-ingest',
+                        source: 'RAG_Ingest',
+                        userEmail: req.userEmail,
+                        tenantId: req.tenantId,
+                        metadata: {
+                            document_id: docId,
+                            content_length: doc.content.length
+                        }
+                    });
+                } catch (webhookError) {
+                    // Prepare webhook payload for retry queue
+                    const webhookPayload = {
+                        source: 'RAG_Ingest',
+                        action: 'vectorize-content',
+                        tenant_id: req.tenantId,
+                        document_id: docId,
+                        content: doc.content,
+                        metadata: doc.metadata,
+                        callback_url: `${process.env.APP_URL}/api/rag/callback/${callbackId}`,
+                        expected_response_format: {
+                            vectors: [
+                                {
+                                    chunk_text: "string",
+                                    embedding: "array of 1536 floats",
+                                    chunk_index: "number"
+                                }
+                            ]
+                        }
+                    };
+                    
+                    // Add to retry queue
+                    await db.query(
+                        `INSERT INTO rag_webhook_failures (tenant_id, webhook_type, payload, next_retry_at) 
+                         VALUES ($1, $2, $3, $4)`,
+                        [req.tenantId, 'ingest', JSON.stringify(webhookPayload), new Date(Date.now() + 60000)]
+                    );
+                    console.error('Webhook failed, added to retry queue:', webhookError.message);
+                }
+            }
+            
+            res.json({ success: true, documents: results });
+            
+        } catch (error) {
+            console.error('Ingest error:', error);
+            res.status(500).json({ error: 'Internal server error' });
+        }
+    });
+
+    // 2. Receive Vectorized Data (Callback from Actions Platform)
+    router.post('/callback/:callback_id', validateCallbackTokenMW, async (req, res) => {
+        try {
+            const { callback_id } = req.params;
+            const { document_id, vectors, tenant_id } = req.body;
+            
+            // Validate callback exists
+            const docResult = await db.query(
+                'SELECT * FROM rag_documents WHERE callback_id = $1 AND tenant_id = $2',
+                [callback_id, tenant_id]
+            );
+            
+            if (docResult.rows.length === 0) {
+                return res.status(404).json({ error: 'Invalid callback' });
+            }
+            
+            const doc = docResult.rows[0];
+            
+            // Store vectors with pgvector
+            for (const vector of vectors) {
+                // Validate embedding dimension
+                if (!Array.isArray(vector.embedding) || vector.embedding.length !== parseInt(process.env.VECTOR_DIMENSION)) {
+                    console.error(`Invalid embedding dimension: ${vector.embedding?.length}`);
+                    continue;
+                }
+                
+                await db.query(
+                    `INSERT INTO rag_vectors (tenant_id, document_id, chunk_text, embedding, chunk_index, metadata) 
+                     VALUES ($1, $2, $3, $4, $5, $6)`,
+                    [
+                        doc.tenant_id, 
+                        doc.document_id, 
+                        vector.chunk_text,
+                        JSON.stringify(vector.embedding), // pgvector accepts JSON array format
+                        vector.chunk_index,
+                        vector.metadata || {}
+                    ]
+                );
+            }
+            
+            // Update document status
+            await db.query(
+                'UPDATE rag_documents SET status = $1, updated_at = CURRENT_TIMESTAMP WHERE callback_id = $2',
+                ['vectorized', callback_id]
+            );
+            
+            // Track vectorization callback
+            await resolveWebhook.trackAction({
+                action: 'vectorization-callback',
+                source: 'RAG_Callback',
+                userEmail: 'actions-platform',
+                tenantId: tenant_id,
+                metadata: {
+                    document_id: document_id,
+                    vectors_stored: vectors.length
+                }
+            });
+            
+            res.json({ success: true, vectors_stored: vectors.length });
+            
+        } catch (error) {
+            console.error('Callback error:', error);
+            res.status(500).json({ error: 'Failed to store vectors' });
+        }
+    });
+
+    // 3. Vector Search (For Actions Platform)
+    router.post('/vector-search', validateCallbackTokenMW, async (req, res) => {
+        try {
+            const { query_embedding, tenant_id, limit = 5, threshold = 0.7 } = req.body;
+            
+            // Validate embedding
+            if (!Array.isArray(query_embedding) || query_embedding.length !== parseInt(process.env.VECTOR_DIMENSION)) {
+                return res.status(400).json({ 
+                    error: `Invalid embedding dimension. Expected ${process.env.VECTOR_DIMENSION}, got ${query_embedding?.length}` 
+                });
+            }
+            
+            // Perform vector similarity search using pgvector
+            const searchQuery = `
+                SELECT 
+                    document_id,
+                    chunk_text,
+                    chunk_index,
+                    metadata,
+                    1 - (embedding <=> $1::vector) as similarity
+                FROM rag_vectors
+                WHERE tenant_id = $2
+                    AND 1 - (embedding <=> $1::vector) > $3
+                ORDER BY embedding <=> $1::vector
+                LIMIT $4
+            `;
+            
+            const results = await db.query(searchQuery, [
+                JSON.stringify(query_embedding),
+                tenant_id,
+                threshold,
+                limit
+            ]);
+            
+            const searchResults = results.rows.map(row => ({
+                document_id: row.document_id,
+                chunk_text: row.chunk_text,
+                chunk_index: row.chunk_index,
+                similarity: row.similarity,
+                metadata: row.metadata
+            }));
+            
+            // Track vector search action
+            await resolveWebhook.trackAction({
+                action: 'vector-search',
+                source: 'RAG_VectorSearch',
+                userEmail: 'actions-platform',
+                tenantId: tenant_id,
+                metadata: {
+                    results_count: searchResults.length,
+                    threshold: threshold,
+                    limit: limit
+                }
+            });
+            
+            res.json({
+                success: true,
+                results: searchResults
+            });
+            
+        } catch (error) {
+            console.error('Vector search error:', error);
+            res.status(500).json({ error: 'Search failed' });
+        }
+    });
+
+    // 4. Chat (Fire-and-forget with callback)
+    router.post('/chat', validateTenantMW, rateLimit, async (req, res) => {
+        try {
+            const { message, conversation_id } = req.body;
+            
+            if (!message || message.length > 1000) {
+                return res.status(400).json({ error: 'Valid message required (max 1000 chars)' });
+            }
+            
+            let convId = conversation_id || crypto.randomUUID();
+            const messageId = crypto.randomUUID();
+            
+            // Generate callback token for this message
+            const callbackToken = crypto.randomBytes(32).toString('hex');
+            
+            // Store user message immediately
+            try {
+                // First ensure conversation exists
+                await db.query(
+                    `INSERT INTO rag_conversations (conversation_id, tenant_id, user_email, status) 
+                     VALUES ($1, $2, $3, $4) 
+                     ON CONFLICT (conversation_id) DO NOTHING`,
+                    [convId, req.tenantId, req.userEmail, 'active']
+                );
+                
+                // Store user message
+                await db.query(
+                    'INSERT INTO rag_messages (conversation_id, tenant_id, role, message) VALUES ($1, $2, $3, $4)',
+                    [convId, req.tenantId, 'user', message]
+                );
+                
+                // Store pending callback info
+                await db.query(
+                    `INSERT INTO rag_webhook_failures (tenant_id, webhook_type, payload, status) 
+                     VALUES ($1, $2, $3, $4)`,
+                    [req.tenantId, 'chat_callback', JSON.stringify({
+                        message_id: messageId,
+                        conversation_id: convId,
+                        callback_token: callbackToken
+                    }), 'pending']
+                );
+            } catch (dbErr) {
+                console.log('Database operation:', dbErr.message);
+            }
+            
+            // Fire webhook to Resolve platform (non-blocking)
+            const callbackUrl = `${process.env.APP_URL || 'http://localhost:5000'}/api/rag/chat-callback/${messageId}`;
+            
+            // Send to Resolve platform - fire and forget
+            resolveWebhook.sendProxyEvent({
+                source: 'onboarding',
+                action: 'process-chat-message',
+                userEmail: req.userEmail,
+                tenantId: req.tenantId,
+                conversation_id: convId,
+                message_id: messageId,
+                customer_message: message,
+                callback_url: callbackUrl,
+                callback_token: callbackToken,
+                timestamp: new Date().toISOString()
+            }).catch(err => {
+                console.error('Failed to send to Resolve platform:', err);
+            });
+            
+            // Immediately return processing message
+            res.json({
+                success: true,
+                conversation_id: convId,
+                message_id: messageId,
+                message: 'I\'m processing your message and will respond shortly...',
+                status: 'processing',
+                response_time_ms: Date.now() - Date.now()
+            });
+            
+        } catch (error) {
+            console.error('Chat error:', error);
+            res.status(500).json({ error: 'Service temporarily unavailable' });
+        }
+    });
+
+    // 5. Callback endpoint for Resolve platform to send AI response
+    router.post('/chat-callback/:message_id', async (req, res) => {
+        try {
+            const { message_id } = req.params;
+            const { 
+                conversation_id,
+                tenant_id,  // IMPORTANT: Resolve must send this back
+                ai_response, 
+                callback_token,
+                processing_time_ms,
+                sources = []
+            } = req.body;
+            
+            console.log(`[CHAT CALLBACK] Received response for message ${message_id}`);
+            
+            // Validate callback token (optional security check)
+            if (callback_token) {
+                const validationResult = await db.query(
+                    `SELECT * FROM rag_webhook_failures 
+                     WHERE webhook_type = 'chat_callback' 
+                     AND payload::jsonb->>'message_id' = $1 
+                     AND payload::jsonb->>'callback_token' = $2`,
+                    [message_id, callback_token]
+                );
+                
+                if (validationResult.rows.length === 0) {
+                    console.warn('[CHAT CALLBACK] Invalid callback token');
+                    return res.status(401).json({ error: 'Invalid callback token' });
+                }
+                
+                // Mark callback as completed
+                await db.query(
+                    `UPDATE rag_webhook_failures 
+                     SET status = 'completed', updated_at = CURRENT_TIMESTAMP 
+                     WHERE webhook_type = 'chat_callback' 
+                     AND payload::jsonb->>'message_id' = $1`,
+                    [message_id]
+                );
+            }
+            
+            // Store AI response in messages
+            if (conversation_id && ai_response) {
+                // Validate tenant_id matches conversation
+                const convResult = await db.query(
+                    'SELECT tenant_id FROM rag_conversations WHERE conversation_id = $1',
+                    [conversation_id]
+                );
+                
+                if (convResult.rows.length > 0) {
+                    const dbTenantId = convResult.rows[0].tenant_id;
+                    
+                    // SECURITY: Verify tenant_id matches
+                    if (tenant_id && dbTenantId !== tenant_id) {
+                        console.error(`[CHAT CALLBACK] Tenant mismatch! Expected ${dbTenantId}, got ${tenant_id}`);
+                        return res.status(403).json({ error: 'Tenant mismatch' });
+                    }
+                    
+                    // Store assistant response
+                    await db.query(
+                        'INSERT INTO rag_messages (conversation_id, tenant_id, role, message, response_time_ms) VALUES ($1, $2, $3, $4, $5)',
+                        [conversation_id, dbTenantId, 'assistant', ai_response, processing_time_ms || null]
+                    );
+                    
+                    console.log(`[CHAT CALLBACK] Stored AI response for conversation ${conversation_id}`);
+                    
+                    // Trigger SSE event for this tenant/conversation
+                    if (global.sseClients && global.sseClients[dbTenantId]) {
+                        const sseMessage = JSON.stringify({
+                            type: 'chat-response',
+                            conversation_id: conversation_id,
+                            message_id: message_id,
+                            ai_response: ai_response,
+                            sources: sources,
+                            timestamp: new Date().toISOString()
+                        });
+                        
+                        // Send to all SSE clients for this tenant
+                        Object.values(global.sseClients[dbTenantId]).forEach(client => {
+                            client.write(`data: ${sseMessage}\n\n`);
+                        });
+                        
+                        console.log(`[CHAT CALLBACK] Sent SSE event to tenant ${dbTenantId}`);
+                    }
+                }
+            }
+            
+            // Send success response back to Resolve
+            res.json({ 
+                success: true, 
+                message: 'Response received and stored',
+                message_id: message_id
+            });
+            
+        } catch (error) {
+            console.error('[CHAT CALLBACK] Error processing callback:', error);
+            res.status(500).json({ error: 'Failed to process callback' });
+        }
+    });
+    
+    // 6. Get Conversation History
+    router.get('/conversation/:conversation_id', validateTenantMW, async (req, res) => {
+        try {
+            const { conversation_id } = req.params;
+            
+            // Get conversation details
+            const convResult = await db.query(
+                'SELECT * FROM rag_conversations WHERE conversation_id = $1 AND tenant_id = $2',
+                [conversation_id, req.tenantId]
+            );
+            
+            if (convResult.rows.length === 0) {
+                return res.status(404).json({ error: 'Conversation not found' });
+            }
+            
+            // Get all messages
+            const messagesResult = await db.query(
+                'SELECT * FROM rag_messages WHERE conversation_id = $1 ORDER BY created_at ASC',
+                [conversation_id]
+            );
+            
+            // Track conversation history retrieval
+            await resolveWebhook.trackAction({
+                action: 'get-conversation',
+                source: 'RAG_History',
+                userEmail: req.userEmail,
+                tenantId: req.tenantId,
+                metadata: {
+                    conversation_id: conversation_id,
+                    message_count: messagesResult.rows.length
+                }
+            });
+            
+            res.json({
+                success: true,
+                conversation: convResult.rows[0],
+                messages: messagesResult.rows
+            });
+            
+        } catch (error) {
+            console.error('Get conversation error:', error);
+            res.status(500).json({ error: 'Unable to retrieve conversation' });
+        }
+    });
+    
+    // 7. SSE endpoint for real-time chat updates
+    router.get('/chat-stream/:conversation_id', validateTenantMW, async (req, res) => {
+        const { conversation_id } = req.params;
+        const tenantId = req.tenantId;
+        const clientId = crypto.randomUUID();
+        
+        // Validate conversation belongs to this tenant
+        const convResult = await db.query(
+            'SELECT * FROM rag_conversations WHERE conversation_id = $1 AND tenant_id = $2',
+            [conversation_id, tenantId]
+        );
+        
+        if (convResult.rows.length === 0) {
+            return res.status(404).json({ error: 'Conversation not found' });
+        }
+        
+        // Set SSE headers
+        res.writeHead(200, {
+            'Content-Type': 'text/event-stream',
+            'Cache-Control': 'no-cache',
+            'Connection': 'keep-alive',
+            'Access-Control-Allow-Origin': '*'
+        });
+        
+        // Initialize global SSE clients storage if not exists
+        if (!global.sseClients) {
+            global.sseClients = {};
+        }
+        if (!global.sseClients[tenantId]) {
+            global.sseClients[tenantId] = {};
+        }
+        
+        // Store this client connection
+        global.sseClients[tenantId][clientId] = res;
+        
+        // Send initial connection message
+        res.write(`data: ${JSON.stringify({
+            type: 'connected',
+            conversation_id: conversation_id,
+            message: 'Connected to chat stream'
+        })}\n\n`);
+        
+        // Send heartbeat every 30 seconds to keep connection alive
+        const heartbeatInterval = setInterval(() => {
+            res.write(`data: ${JSON.stringify({ type: 'heartbeat' })}\n\n`);
+        }, 30000);
+        
+        // Handle client disconnect
+        req.on('close', () => {
+            clearInterval(heartbeatInterval);
+            if (global.sseClients[tenantId]) {
+                delete global.sseClients[tenantId][clientId];
+                console.log(`[SSE] Client ${clientId} disconnected from tenant ${tenantId}`);
+            }
+        });
+    });
+
+    return router;
+}
+
+module.exports = createRagRouter;

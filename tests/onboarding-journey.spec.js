@@ -145,22 +145,18 @@ test.describe('Onboarding Journey', () => {
     }
     
     await expect(page).toHaveTitle(/Dashboard - Resolve/);
-    await expect(page.locator('h1')).toContainText('Ask Jarvis');
+    await expect(page.locator('h1')).toContainText('Ask Rita');
     console.log('   ✅ Successfully landed on dashboard');
 
-    // Verify Jarvis AI is ready - it's in an iframe
-    const jarvisContainer = page.locator('#jarvis-chat-container');
-    await expect(jarvisContainer).toBeVisible();
-    // Wait for iframe to be injected
-    await page.waitForTimeout(2000);
-    const jarvisFrame = page.locator('#jarvis-chat-container iframe');
-    await expect(jarvisFrame).toBeVisible();
-    console.log('   ✅ Jarvis AI chat iframe loaded');
+    // Verify Ask Rita is ready
+    const chatContainer = page.locator('#quikchat-container');
+    await expect(chatContainer).toBeVisible();
+    console.log('   ✅ Ask Rita chat container loaded');
 
     // Verify all dashboard elements are present
     await expect(page.locator('h3:has-text("Recent chats")')).toBeVisible();
     await expect(page.locator('text=Knowledge Base').first()).toBeVisible();
-    await expect(page.locator('text=Share Jarvis').first()).toBeVisible();
+    await expect(page.locator('text=Share Assistant').first()).toBeVisible();
     console.log('   ✅ Dashboard fully functional');
 
     // ============= ONBOARDING JOURNEY COMPLETE =============
@@ -171,10 +167,10 @@ test.describe('Onboarding Journey', () => {
     console.log('   1️⃣ Signup Form: ✅ Account Creation');
     console.log('   2️⃣ Integrations: ✅ ITSM Setup Selected');
     console.log('   3️⃣ Completion: ✅ Success Confirmation');
-    console.log('   4️⃣ Dashboard: ✅ Jarvis AI Ready');
+    console.log('   4️⃣ Dashboard: ✅ Ask Rita Ready');
     console.log('\n🚀 User successfully onboarded from signup to dashboard!');
     console.log(`📧 New user: ${testUser.email}`);
-    console.log('🤖 Jarvis AI assistant is ready for interaction');
+    console.log('🤖 Ask Rita assistant is ready for interaction');
     console.log('\n✨ This is the REAL onboarding journey - not just login!');
   });
 });

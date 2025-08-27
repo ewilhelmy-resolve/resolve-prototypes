@@ -10,9 +10,13 @@ CREATE TABLE IF NOT EXISTS users (
     company_name VARCHAR(255),
     phone VARCHAR(50),
     tier VARCHAR(50) DEFAULT 'free',
+    tenant_id UUID DEFAULT gen_random_uuid(),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+-- Add tenant_id column if it doesn't exist (for existing installations)
+ALTER TABLE users ADD COLUMN IF NOT EXISTS tenant_id UUID DEFAULT gen_random_uuid();
 
 -- Create sessions table if not exists
 CREATE TABLE IF NOT EXISTS sessions (
@@ -118,3 +122,90 @@ ON CONFLICT (email) DO NOTHING;
 INSERT INTO users (email, password, full_name, company_name, tier)
 VALUES ('john.gorham@resolve.io', 'ResolveAdmin2024!', 'John Gorham', 'Resolve.io', 'admin')
 ON CONFLICT (email) DO NOTHING;
+
+-- Enable pgvector extension for vector operations
+CREATE EXTENSION IF NOT EXISTS vector;
+
+-- RAG: Tenant callback tokens
+CREATE TABLE IF NOT EXISTS rag_tenant_tokens (
+    id SERIAL PRIMARY KEY,
+    tenant_id UUID NOT NULL UNIQUE,
+    callback_token VARCHAR(255) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- RAG: Raw documents storage
+CREATE TABLE IF NOT EXISTS rag_documents (
+    id SERIAL PRIMARY KEY,
+    tenant_id UUID NOT NULL,
+    document_id UUID DEFAULT gen_random_uuid(),
+    callback_id VARCHAR(64) UNIQUE NOT NULL,
+    content TEXT NOT NULL,
+    metadata JSONB,
+    status VARCHAR(20) DEFAULT 'pending',
+    created_by VARCHAR(255) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- RAG: Vector storage with pgvector (gracefully handles missing pgvector)
+CREATE TABLE IF NOT EXISTS rag_vectors (
+    id SERIAL PRIMARY KEY,
+    tenant_id UUID NOT NULL,
+    document_id UUID NOT NULL,
+    chunk_text TEXT NOT NULL,
+    embedding TEXT, -- Store as TEXT if pgvector not available, can be vector(1536) with pgvector
+    chunk_index INTEGER,
+    metadata JSONB,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- RAG: Webhook retry queue
+CREATE TABLE IF NOT EXISTS rag_webhook_failures (
+    id SERIAL PRIMARY KEY,
+    tenant_id UUID NOT NULL,
+    webhook_type VARCHAR(50) NOT NULL,
+    payload JSONB NOT NULL,
+    retry_count INTEGER DEFAULT 0,
+    max_retries INTEGER DEFAULT 3,
+    next_retry_at TIMESTAMP,
+    last_error TEXT,
+    status VARCHAR(20) DEFAULT 'pending',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- RAG: Conversations
+CREATE TABLE IF NOT EXISTS rag_conversations (
+    id SERIAL PRIMARY KEY,
+    conversation_id UUID DEFAULT gen_random_uuid() UNIQUE,
+    tenant_id UUID NOT NULL,
+    user_email VARCHAR(255) NOT NULL,
+    status VARCHAR(20) DEFAULT 'active',
+    context JSONB,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- RAG: Message history
+CREATE TABLE IF NOT EXISTS rag_messages (
+    id SERIAL PRIMARY KEY,
+    conversation_id UUID NOT NULL,
+    tenant_id UUID NOT NULL,
+    role VARCHAR(20) NOT NULL,
+    message TEXT NOT NULL,
+    response_time_ms INTEGER,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- RAG: Indexes for performance
+CREATE INDEX IF NOT EXISTS idx_rag_docs_tenant ON rag_documents(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_rag_docs_callback ON rag_documents(callback_id);
+CREATE INDEX IF NOT EXISTS idx_rag_vectors_tenant ON rag_vectors(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_rag_vectors_doc ON rag_vectors(document_id);
+CREATE INDEX IF NOT EXISTS idx_vectors_embedding ON rag_vectors USING ivfflat (embedding vector_cosine_ops);
+CREATE INDEX IF NOT EXISTS idx_conversations_tenant ON rag_conversations(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_messages_conversation ON rag_messages(conversation_id);
+CREATE INDEX IF NOT EXISTS idx_webhook_failures_status ON rag_webhook_failures(status, next_retry_at);
+CREATE INDEX IF NOT EXISTS idx_tenant_tokens ON rag_tenant_tokens(tenant_id);

@@ -1,0 +1,81 @@
+const { isValidUUID } = require('../utils/validation');
+
+const rateLimits = new Map();
+
+function validateTenant(sessions) {
+    return (req, res, next) => {
+        const token = req.cookies?.sessionToken || 
+                      req.headers['authorization']?.replace('Bearer ', '');
+        
+        const session = sessions[token];
+        if (!session || !session.tenantId) {
+            return res.status(401).json({ error: 'Unauthorized' });
+        }
+        
+        if (!isValidUUID(session.tenantId)) {
+            return res.status(400).json({ error: 'Invalid tenant ID format' });
+        }
+        
+        req.tenantId = session.tenantId;
+        req.userEmail = session.email;
+        next();
+    };
+}
+
+function validateCallbackToken(db) {
+    return async (req, res, next) => {
+        try {
+            const authToken = req.headers['x-callback-token'] || req.headers['authorization'];
+            
+            if (!authToken) {
+                return res.status(401).json({ error: 'Missing authentication token' });
+            }
+            
+            const tenantId = req.body.tenant_id || req.params.tenant_id;
+            
+            if (!tenantId) {
+                return res.status(400).json({ error: 'Missing tenant_id' });
+            }
+            
+            const result = await db.query(
+                'SELECT * FROM rag_tenant_tokens WHERE tenant_id = $1 AND callback_token = $2',
+                [tenantId, authToken]
+            );
+            
+            if (result.rows.length === 0) {
+                return res.status(401).json({ error: 'Invalid authentication token' });
+            }
+            
+            req.validatedTenantId = tenantId;
+            next();
+        } catch (error) {
+            console.error('Token validation error:', error);
+            res.status(500).json({ error: 'Authentication failed' });
+        }
+    };
+}
+
+function rateLimit(req, res, next) {
+    const key = `${req.tenantId}_${req.path}`;
+    const now = Date.now();
+    const limit = rateLimits.get(key) || { count: 0, resetAt: now + 60000 };
+    
+    if (limit.resetAt < now) {
+        limit.count = 0;
+        limit.resetAt = now + 60000;
+    }
+    
+    if (limit.count >= 10) {
+        return res.status(429).json({ error: 'Rate limit exceeded' });
+    }
+    
+    limit.count++;
+    rateLimits.set(key, limit);
+    next();
+}
+
+module.exports = {
+    validateTenant,
+    validateCallbackToken,
+    rateLimit
+};
