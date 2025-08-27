@@ -59,6 +59,115 @@ async function checkAdminAuth() {
     return true;
 }
 
+// System Settings Functions
+async function loadSystemSettings() {
+    try {
+        const response = await fetch('/api/admin/settings', {
+            method: 'GET',
+            credentials: 'include'
+        });
+        
+        if (!response.ok) {
+            throw new Error('Failed to load settings');
+        }
+        
+        const settings = await response.json();
+        
+        // Populate form fields
+        Object.keys(settings).forEach(key => {
+            const input = document.querySelector(`[name="${key}"]`);
+            if (input) {
+                input.value = settings[key];
+            }
+        });
+    } catch (error) {
+        console.error('Error loading settings:', error);
+        showNotification('Failed to load settings', 'error');
+    }
+}
+
+async function saveSystemSettings(formData) {
+    try {
+        const response = await fetch('/api/admin/settings', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            credentials: 'include',
+            body: JSON.stringify(Object.fromEntries(formData))
+        });
+        
+        if (!response.ok) {
+            throw new Error('Failed to save settings');
+        }
+        
+        showNotification('Settings saved successfully', 'success');
+        return true;
+    } catch (error) {
+        console.error('Error saving settings:', error);
+        showNotification('Failed to save settings', 'error');
+        return false;
+    }
+}
+
+async function testCallbackUrl() {
+    const testButton = document.getElementById('testCallbackUrl');
+    const resultDiv = document.getElementById('testResult');
+    
+    testButton.disabled = true;
+    resultDiv.className = 'test-result testing';
+    resultDiv.textContent = 'Testing connection...';
+    
+    try {
+        const response = await fetch('/api/admin/test-callback', {
+            method: 'POST',
+            credentials: 'include'
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            resultDiv.className = 'test-result success';
+            resultDiv.textContent = `✓ Callback URL is accessible: ${result.url}`;
+        } else {
+            resultDiv.className = 'test-result error';
+            resultDiv.textContent = `✗ Callback URL is not accessible: ${result.error}`;
+        }
+    } catch (error) {
+        resultDiv.className = 'test-result error';
+        resultDiv.textContent = `✗ Test failed: ${error.message}`;
+    } finally {
+        testButton.disabled = false;
+    }
+}
+
+function showNotification(message, type = 'info') {
+    // Create notification element
+    const notification = document.createElement('div');
+    notification.className = `notification ${type}`;
+    notification.textContent = message;
+    notification.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        padding: 15px 20px;
+        background: ${type === 'error' ? '#f44336' : type === 'success' ? '#4CAF50' : '#2196F3'};
+        color: white;
+        border-radius: 4px;
+        z-index: 10000;
+        animation: slideIn 0.3s ease;
+    `;
+    
+    // Add to body
+    document.body.appendChild(notification);
+    
+    // Remove after 3 seconds
+    setTimeout(() => {
+        notification.style.animation = 'slideOut 0.3s ease';
+        setTimeout(() => notification.remove(), 300);
+    }, 3000);
+}
+
 // Initialize dashboard
 async function initDashboard() {
     // Skip client-side auth check - server already validated
@@ -91,6 +200,35 @@ async function initDashboard() {
     
     // Set up event listeners
     setupEventListeners();
+    
+    // Setup settings form handlers
+    const settingsForm = document.getElementById('settingsForm');
+    if (settingsForm) {
+        settingsForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const formData = new FormData(settingsForm);
+            await saveSystemSettings(formData);
+        });
+    }
+    
+    const resetButton = document.getElementById('resetSettings');
+    if (resetButton) {
+        resetButton.addEventListener('click', async () => {
+            if (confirm('Reset all settings to default values?')) {
+                await fetch('/api/admin/settings/reset', {
+                    method: 'POST',
+                    credentials: 'include'
+                });
+                await loadSystemSettings();
+                showNotification('Settings reset to defaults', 'info');
+            }
+        });
+    }
+    
+    const testButton = document.getElementById('testCallbackUrl');
+    if (testButton) {
+        testButton.addEventListener('click', testCallbackUrl);
+    }
     
     // Start auto-refresh
     // Temporarily disabled to fix chart rendering issue
@@ -476,6 +614,9 @@ async function loadSectionData(section) {
             break;
         case 'webhooks':
             await loadWebhooksData();
+            break;
+        case 'settings':
+            await loadSystemSettings();
             break;
     }
 }

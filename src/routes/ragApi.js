@@ -55,6 +55,20 @@ function createRagRouter(db, sessions) {
                 
                 results.push({ document_id: docId, callback_id: callbackId });
                 
+                // Get app_url from database or use environment variable as fallback
+                let appUrl = process.env.APP_URL || 'http://localhost:5000';
+                try {
+                    const configResult = await db.query(
+                        'SELECT value FROM system_config WHERE key = $1',
+                        ['app_url']
+                    );
+                    if (configResult.rows.length > 0) {
+                        appUrl = configResult.rows[0].value;
+                    }
+                } catch (configError) {
+                    console.log('Using environment APP_URL:', appUrl);
+                }
+                
                 // Try to send webhook using ResolveWebhook class
                 try {
                     await resolveWebhook.sendRagIngestEvent({
@@ -62,7 +76,7 @@ function createRagRouter(db, sessions) {
                         documentId: docId,
                         content: doc.content,
                         metadata: doc.metadata,
-                        callbackUrl: `${process.env.APP_URL}/api/rag/callback/${callbackId}`
+                        callbackUrl: `${appUrl}/api/rag/callback/${callbackId}`
                     });
                     
                     // Track the action
@@ -85,7 +99,7 @@ function createRagRouter(db, sessions) {
                         document_id: docId,
                         content: doc.content,
                         metadata: doc.metadata,
-                        callback_url: `${process.env.APP_URL}/api/rag/callback/${callbackId}`,
+                        callback_url: `${appUrl}/api/rag/callback/${callbackId}`,
                         expected_response_format: {
                             vectors: [
                                 {
@@ -292,8 +306,22 @@ function createRagRouter(db, sessions) {
                 console.log('Database operation:', dbErr.message);
             }
             
+            // Get app_url from database or use environment variable as fallback
+            let appUrl = process.env.APP_URL || 'http://localhost:5000';
+            try {
+                const configResult = await db.query(
+                    'SELECT value FROM system_config WHERE key = $1',
+                    ['app_url']
+                );
+                if (configResult.rows.length > 0) {
+                    appUrl = configResult.rows[0].value;
+                }
+            } catch (configError) {
+                console.log('Using environment APP_URL:', appUrl);
+            }
+            
             // Fire webhook to Resolve platform (non-blocking)
-            const callbackUrl = `${process.env.APP_URL || 'http://localhost:5000'}/api/rag/chat-callback/${messageId}`;
+            const callbackUrl = `${appUrl}/api/rag/chat-callback/${messageId}`;
             
             // Send to Resolve platform - fire and forget
             resolveWebhook.sendProxyEvent({

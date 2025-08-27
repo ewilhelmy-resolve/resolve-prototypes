@@ -1087,6 +1087,153 @@ app.get('/api/admin/webhooks', requireAdmin, async (req, res) => {
     }
 });
 
+// System Settings Routes
+app.get('/api/admin/settings', requireAdmin, async (req, res) => {
+    try {
+        // Get all settings from system_config table
+        const result = await db.query(
+            'SELECT key, value FROM system_config ORDER BY key'
+        );
+        
+        // Convert to key-value object
+        const settings = {};
+        result.rows.forEach(row => {
+            settings[row.key] = row.value;
+        });
+        
+        // If no settings found, use defaults from environment
+        if (Object.keys(settings).length === 0) {
+            settings.app_url = process.env.APP_URL || 'http://localhost:5000';
+            settings.webhook_enabled = process.env.WEBHOOK_ENABLED || 'true';
+            settings.max_document_size = process.env.MAX_DOCUMENT_SIZE || '51200';
+            settings.vector_dimension = process.env.VECTOR_DIMENSION || '1536';
+        }
+        
+        res.json(settings);
+    } catch (error) {
+        console.error('Error loading settings:', error);
+        res.status(500).json({ 
+            success: false, 
+            message: 'Failed to load settings' 
+        });
+    }
+});
+
+app.post('/api/admin/settings', requireAdmin, async (req, res) => {
+    try {
+        const settings = req.body;
+        
+        // Validate settings
+        if (settings.app_url && !settings.app_url.match(/^https?:\/\/.+/)) {
+            return res.status(400).json({ 
+                success: false, 
+                message: 'Invalid URL format' 
+            });
+        }
+        
+        // Update each setting
+        for (const [key, value] of Object.entries(settings)) {
+            await db.query(
+                `INSERT INTO system_config (key, value) 
+                 VALUES ($1, $2) 
+                 ON CONFLICT (key) 
+                 DO UPDATE SET value = $2, updated_at = CURRENT_TIMESTAMP`,
+                [key, value]
+            );
+        }
+        
+        // Also update environment variables for current session
+        if (settings.app_url) process.env.APP_URL = settings.app_url;
+        if (settings.webhook_enabled) process.env.WEBHOOK_ENABLED = settings.webhook_enabled;
+        if (settings.max_document_size) process.env.MAX_DOCUMENT_SIZE = settings.max_document_size;
+        if (settings.vector_dimension) process.env.VECTOR_DIMENSION = settings.vector_dimension;
+        
+        res.json({ success: true, message: 'Settings saved successfully' });
+    } catch (error) {
+        console.error('Error saving settings:', error);
+        res.status(500).json({ 
+            success: false, 
+            message: 'Failed to save settings' 
+        });
+    }
+});
+
+app.post('/api/admin/settings/reset', requireAdmin, async (req, res) => {
+    try {
+        // Reset to default values
+        const defaults = {
+            app_url: 'http://localhost:5000',
+            webhook_enabled: 'true',
+            max_document_size: '51200',
+            vector_dimension: '1536'
+        };
+        
+        for (const [key, value] of Object.entries(defaults)) {
+            await db.query(
+                `INSERT INTO system_config (key, value, description) 
+                 VALUES ($1, $2, $3) 
+                 ON CONFLICT (key) 
+                 DO UPDATE SET value = $2, updated_at = CURRENT_TIMESTAMP`,
+                [key, value, getSettingDescription(key)]
+            );
+        }
+        
+        res.json({ success: true, message: 'Settings reset to defaults' });
+    } catch (error) {
+        console.error('Error resetting settings:', error);
+        res.status(500).json({ 
+            success: false, 
+            message: 'Failed to reset settings' 
+        });
+    }
+});
+
+app.post('/api/admin/test-callback', requireAdmin, async (req, res) => {
+    try {
+        // Get the current app_url setting
+        const result = await db.query(
+            'SELECT value FROM system_config WHERE key = $1',
+            ['app_url']
+        );
+        
+        const appUrl = result.rows[0]?.value || process.env.APP_URL || 'http://localhost:5000';
+        
+        // Try to make a simple test request to the URL
+        try {
+            const testUrl = `${appUrl}/health`;
+            const response = await axios.get(testUrl, { timeout: 5000 });
+            
+            res.json({ 
+                success: true, 
+                url: appUrl,
+                message: 'Callback URL is accessible'
+            });
+        } catch (testError) {
+            res.json({ 
+                success: false, 
+                url: appUrl,
+                error: `Cannot reach ${appUrl}: ${testError.message}`
+            });
+        }
+    } catch (error) {
+        console.error('Error testing callback URL:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: 'Failed to test callback URL' 
+        });
+    }
+});
+
+function getSettingDescription(key) {
+    const descriptions = {
+        app_url: 'Base URL for the application callbacks',
+        webhook_enabled: 'Enable/disable webhook functionality',
+        max_document_size: 'Maximum document size for RAG in bytes',
+        vector_dimension: 'Vector dimension for embeddings'
+    };
+    return descriptions[key] || '';
+}
+
 // User Management Routes
 app.get('/api/admin/users', requireAdmin, async (req, res) => {
     try {
