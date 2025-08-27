@@ -289,12 +289,17 @@ function createRagRouter(db, sessions) {
             // Store user message immediately
             try {
                 // First ensure conversation exists
-                await db.query(
+                console.log(`[CHAT] Creating conversation: ${convId}, Tenant: ${req.tenantId}, User: ${req.userEmail}`);
+                
+                const convResult = await db.query(
                     `INSERT INTO rag_conversations (conversation_id, tenant_id, user_email, status) 
                      VALUES ($1, $2, $3, $4) 
-                     ON CONFLICT (conversation_id) DO NOTHING`,
+                     ON CONFLICT (conversation_id) DO NOTHING
+                     RETURNING id`,
                     [convId, req.tenantId, req.userEmail, 'active']
                 );
+                
+                console.log(`[CHAT] Conversation insert result:`, convResult.rows);
                 
                 // Store user message
                 await db.query(
@@ -583,8 +588,8 @@ function createRagRouter(db, sessions) {
         });
     });
 
-    // 8. TEST ENDPOINT - Send test message directly to SSE stream
-    router.post('/test-sse-message', validateTenantMW, async (req, res) => {
+    // 8. TEST ENDPOINT - Removed, using real callbacks only
+    /* router.post('/test-sse-message', validateTenantMW, async (req, res) => {
         try {
             const { conversation_id, message, message_type = 'test' } = req.body;
             const tenantId = req.tenantId;
@@ -594,8 +599,12 @@ function createRagRouter(db, sessions) {
             console.log('[TEST SSE] Message:', message);
             
             // Check if conversation exists
-            const conversation = await db.RAGConversations.findById(conversation_id);
-            if (!conversation) {
+            const conversationResult = await db.query(
+                'SELECT id, conversation_id FROM rag_conversations WHERE conversation_id = $1',
+                [conversation_id]
+            );
+            
+            if (conversationResult.rows.length === 0) {
                 return res.status(404).json({ 
                     error: 'Conversation not found',
                     conversation_id: conversation_id 
@@ -641,10 +650,9 @@ function createRagRouter(db, sessions) {
             // Also optionally store in database if you want to test full flow
             if (req.body.store_in_db) {
                 await db.query(
-                    `INSERT INTO rag_messages (id, conversation_id, role, content, metadata)
-                     VALUES ($1, $2, $3, $4, $5)`,
-                    [testMessageId, conversation_id, 'assistant', message, 
-                     JSON.stringify({ is_test: true, sent_via: 'test_endpoint' })]
+                    `INSERT INTO rag_messages (conversation_id, tenant_id, role, message)
+                     VALUES ($1, $2, $3, $4)`,
+                    [conversation_id, tenantId, 'assistant', message]
                 );
                 console.log('[TEST SSE] Message also stored in database');
             }
@@ -665,7 +673,7 @@ function createRagRouter(db, sessions) {
                 details: error.message 
             });
         }
-    });
+    }); */
     
     // Debug route to catch any callback attempts that don't match
     router.post('/chat-callback/*', async (req, res) => {

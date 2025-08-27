@@ -435,7 +435,7 @@ async function initializeAdminUsers() {
 setTimeout(initializeAdminUsers, 2000);
 
 // API Routes
-app.post('/api/register', trackWorkflow('onboarding', 'user_registration'), (req, res) => {
+app.post('/api/register', trackWorkflow('onboarding', 'user_registration'), async (req, res) => {
     try {
         const { name, email, company, password, fullName, companyName } = req.body;
         
@@ -461,32 +461,47 @@ app.post('/api/register', trackWorkflow('onboarding', 'user_registration'), (req
         }
         
         // Create user with unique UUID tenant ID
-        const user = {
-            id: Date.now().toString(),
-            tenantId: uuidv4(), // Generate unique UUID for each user's tenant
-            fullName: userName,
-            email,
-            companyName: userCompany,
-            password, // In production, this should be hashed
-            createdAt: new Date().toISOString()
-        };
+        const tenantId = uuidv4();
         
-        users.push(user);
-        
-        // Automatically create session for new user
-        const token = generateSessionToken();
-        sessions[token] = {
-            id: user.id,
-            tenantId: user.tenantId,
-            fullName: user.fullName,
-            email: user.email,
-            companyName: user.companyName,
-            expiresAt: Date.now() + SESSION_TIMEOUT
-        };
-        
-        console.log(`[SIGNUP] New user registered: ${email} from ${userCompany}`);
-        console.log(`[SESSION] Auto-created session for new user: ${email}`);
-        console.log(`[DATABASE] Total users: ${users.length}`);
+        // Save to database first
+        try {
+            const result = await db.query(
+                `INSERT INTO users (email, password, full_name, company_name, tenant_id) 
+                 VALUES ($1, $2, $3, $4, $5) 
+                 RETURNING id, email, tenant_id`,
+                [email, password, userName, userCompany, tenantId]
+            );
+            
+            const dbUser = result.rows[0];
+            
+            // Create user object for in-memory storage
+            const user = {
+                id: dbUser.id.toString(),
+                tenantId: dbUser.tenant_id,
+                fullName: userName,
+                email,
+                companyName: userCompany,
+                password, // In production, this should be hashed
+                createdAt: new Date().toISOString()
+            };
+            
+            users.push(user);
+            
+            // Automatically create session for new user
+            const token = generateSessionToken();
+            sessions[token] = {
+                id: user.id,
+                tenantId: user.tenantId,
+                fullName: user.fullName,
+                email: user.email,
+                companyName: user.companyName,
+                expiresAt: Date.now() + SESSION_TIMEOUT
+            };
+            
+            console.log(`[SIGNUP] New user registered: ${email} from ${userCompany}`);
+            console.log(`[SESSION] Auto-created session for new user: ${email}`);
+            console.log(`[DATABASE] User saved with ID: ${user.id}, Tenant ID: ${user.tenantId}`);
+            console.log(`[DATABASE] Total users: ${users.length}`);
         
         // Set secure httpOnly cookie for the session
         res.cookie('sessionToken', token, {
@@ -507,6 +522,52 @@ app.post('/api/register', trackWorkflow('onboarding', 'user_registration'), (req
             }
         });
         
+        } catch (dbError) {
+            console.error('[SIGNUP ERROR] Database error:', dbError.message);
+            
+            // If DB save fails, still create user in memory for the session
+            const user = {
+                id: Date.now().toString(),
+                tenantId: tenantId,
+                fullName: userName,
+                email,
+                companyName: userCompany,
+                password,
+                createdAt: new Date().toISOString()
+            };
+            
+            users.push(user);
+            
+            // Create session anyway
+            const token = generateSessionToken();
+            sessions[token] = {
+                id: user.id,
+                tenantId: user.tenantId,
+                fullName: user.fullName,
+                email: user.email,
+                companyName: user.companyName,
+                expiresAt: Date.now() + SESSION_TIMEOUT
+            };
+            
+            res.cookie('sessionToken', token, {
+                httpOnly: true,
+                secure: process.env.NODE_ENV === 'production',
+                sameSite: 'strict',
+                maxAge: 24 * 60 * 60 * 1000
+            });
+            
+            res.json({ 
+                success: true,
+                message: 'Registration successful (temporary)',
+                userId: user.id,
+                user: {
+                    id: user.id,
+                    fullName: user.fullName,
+                    email: user.email,
+                    companyName: user.companyName
+                }
+            });
+        }
     } catch (error) {
         console.error('[SIGNUP ERROR]:', error);
         res.status(500).json({ 
