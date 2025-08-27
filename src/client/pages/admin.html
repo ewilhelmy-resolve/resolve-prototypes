@@ -27,6 +27,7 @@
                 <li><a href="#users" class="nav-link">User Activity</a></li>
                 <li><a href="#analytics" class="nav-link">Analytics</a></li>
                 <li><a href="#webhooks" class="nav-link">Webhook Logs</a></li>
+                <li><a href="#webhook-traffic" class="nav-link">All Traffic Logs</a></li>
                 <li><a href="#settings" class="nav-link">System Settings</a></li>
             </ul>
         </nav>
@@ -299,6 +300,85 @@
                 </table>
             </section>
 
+            <!-- Webhook Traffic Logs Section -->
+            <section id="webhook-traffic" class="admin-section">
+                <h2>All Traffic Logs (Debug View)</h2>
+                
+                <div class="traffic-controls">
+                    <div class="filter-row">
+                        <select id="trafficCategoryFilter">
+                            <option value="all">All Categories</option>
+                            <option value="chat_callback">Chat Callbacks</option>
+                            <option value="callback">Callbacks</option>
+                            <option value="webhook">Webhooks</option>
+                            <option value="rag_api">RAG API</option>
+                            <option value="admin">Admin</option>
+                            <option value="api">Other API</option>
+                        </select>
+                        
+                        <select id="trafficMethodFilter">
+                            <option value="all">All Methods</option>
+                            <option value="GET">GET</option>
+                            <option value="POST">POST</option>
+                            <option value="PUT">PUT</option>
+                            <option value="DELETE">DELETE</option>
+                        </select>
+                        
+                        <select id="trafficStatusFilter">
+                            <option value="">All Status</option>
+                            <option value="200">200 OK</option>
+                            <option value="201">201 Created</option>
+                            <option value="400">400 Bad Request</option>
+                            <option value="401">401 Unauthorized</option>
+                            <option value="404">404 Not Found</option>
+                            <option value="500">500 Server Error</option>
+                        </select>
+                        
+                        <label>
+                            <input type="checkbox" id="webhooksOnlyFilter"> Webhooks Only
+                        </label>
+                    </div>
+                    
+                    <div class="search-row">
+                        <input type="text" id="trafficSearchInput" placeholder="Search in URL, body, or response...">
+                        <button id="searchTrafficBtn" class="btn-primary">Search</button>
+                        <button id="refreshTrafficBtn" class="btn-refresh">Refresh</button>
+                        <button id="clearOldTrafficBtn" class="btn-danger">Clear Old Logs</button>
+                    </div>
+                </div>
+                
+                <div class="traffic-stats">
+                    <span id="totalTrafficCount">Total: 0</span>
+                    <span id="webhookTrafficCount">Webhooks: 0</span>
+                    <span id="failedTrafficCount">Failed: 0</span>
+                </div>
+                
+                <div class="traffic-table-container">
+                    <table class="data-table" id="trafficTable">
+                        <thead>
+                            <tr>
+                                <th>Time</th>
+                                <th>Method</th>
+                                <th>URL</th>
+                                <th>Category</th>
+                                <th>Status</th>
+                                <th>IP</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="trafficTableBody">
+                            <!-- Dynamic content -->
+                        </tbody>
+                    </table>
+                </div>
+                
+                <div class="pagination">
+                    <button id="trafficPrevPage" class="btn-secondary">Previous</button>
+                    <span id="trafficPageInfo">Page 1</span>
+                    <button id="trafficNextPage" class="btn-secondary">Next</button>
+                </div>
+            </section>
+
             <!-- System Settings Section -->
             <section id="settings" class="admin-section">
                 <h2>System Settings</h2>
@@ -358,6 +438,17 @@
         </main>
     </div>
 
+    <!-- Traffic Detail Modal -->
+    <div id="trafficDetailModal" class="modal">
+        <div class="modal-content large-modal">
+            <span class="close-traffic-modal">&times;</span>
+            <h3>Traffic Log Details</h3>
+            <div id="trafficModalContent">
+                <!-- Dynamic content -->
+            </div>
+        </div>
+    </div>
+    
     <!-- Detail Modal -->
     <div id="detailModal" class="modal">
         <div class="modal-content">

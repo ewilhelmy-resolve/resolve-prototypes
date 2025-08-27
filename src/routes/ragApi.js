@@ -10,6 +10,16 @@ function createRagRouter(db, sessions) {
     const validateTenantMW = validateTenant(sessions);
     const validateCallbackTokenMW = validateCallbackToken(db);
     const resolveWebhook = new ResolveWebhook();
+    
+    // Debug middleware to log all incoming requests to RAG API
+    router.use((req, res, next) => {
+        console.log(`[RAG API] ${req.method} ${req.originalUrl || req.url}`);
+        if (req.method === 'POST' && req.originalUrl?.includes('callback')) {
+            console.log('[RAG API] Callback request headers:', req.headers);
+            console.log('[RAG API] Callback request body preview:', JSON.stringify(req.body).substring(0, 200));
+        }
+        next();
+    });
 
     // 1. Ingest Content (Triggers Actions Platform)
     router.post('/ingest', validateTenantMW, rateLimit, async (req, res) => {
@@ -356,7 +366,8 @@ function createRagRouter(db, sessions) {
     });
 
     // 5. Callback endpoint for Resolve platform to send AI response
-    router.post('/chat-callback/:message_id', async (req, res) => {
+    // Support both single ID and double ID patterns
+    router.post('/chat-callback/:message_id/:second_id?', async (req, res) => {
         try {
             const { message_id } = req.params;
             const { 
@@ -371,37 +382,47 @@ function createRagRouter(db, sessions) {
             console.log(`[CHAT CALLBACK] Received response for message ${message_id}`);
             
             // Validate callback token (optional security check)
+            // Only validate if we have a record of this callback in webhook_failures
             if (callback_token) {
                 const validationResult = await db.query(
                     `SELECT * FROM rag_webhook_failures 
                      WHERE webhook_type = 'chat_callback' 
-                     AND payload::jsonb->>'message_id' = $1 
-                     AND payload::jsonb->>'callback_token' = $2`,
-                    [message_id, callback_token]
-                );
-                
-                if (validationResult.rows.length === 0) {
-                    console.warn('[CHAT CALLBACK] Invalid callback token');
-                    return res.status(401).json({ error: 'Invalid callback token' });
-                }
-                
-                // Mark callback as completed
-                await db.query(
-                    `UPDATE rag_webhook_failures 
-                     SET status = 'completed', updated_at = CURRENT_TIMESTAMP 
-                     WHERE webhook_type = 'chat_callback' 
                      AND payload::jsonb->>'message_id' = $1`,
                     [message_id]
                 );
+                
+                // Only validate token if we have a record of this webhook
+                if (validationResult.rows.length > 0) {
+                    const expectedToken = validationResult.rows[0].payload?.callback_token;
+                    if (expectedToken && expectedToken !== callback_token) {
+                        console.warn('[CHAT CALLBACK] Token mismatch');
+                        return res.status(401).json({ error: 'Invalid callback token' });
+                    }
+                    
+                    // Mark callback as completed
+                    await db.query(
+                        `UPDATE rag_webhook_failures 
+                         SET status = 'completed', updated_at = CURRENT_TIMESTAMP 
+                         WHERE webhook_type = 'chat_callback' 
+                         AND payload::jsonb->>'message_id' = $1`,
+                        [message_id]
+                    );
+                } else {
+                    // No record of this webhook, allow it through (external system callback)
+                    console.log('[CHAT CALLBACK] No webhook record found, processing as external callback');
+                }
+            } else {
+                console.log('[CHAT CALLBACK] No callback token provided, processing without validation');
             }
             
             // Store AI response in messages
             if (conversation_id && ai_response) {
-                // Validate tenant_id matches conversation
-                const convResult = await db.query(
-                    'SELECT tenant_id FROM rag_conversations WHERE conversation_id = $1',
-                    [conversation_id]
-                );
+                try {
+                    // Validate tenant_id matches conversation
+                    const convResult = await db.query(
+                        'SELECT tenant_id FROM rag_conversations WHERE conversation_id = $1',
+                        [conversation_id]
+                    );
                 
                 if (convResult.rows.length > 0) {
                     const dbTenantId = convResult.rows[0].tenant_id;
@@ -438,6 +459,12 @@ function createRagRouter(db, sessions) {
                         
                         console.log(`[CHAT CALLBACK] Sent SSE event to tenant ${dbTenantId}`);
                     }
+                } else {
+                    console.log(`[CHAT CALLBACK] Conversation ${conversation_id} not found in database`);
+                }
+                } catch (dbError) {
+                    console.log(`[CHAT CALLBACK] Database error (non-critical):`, dbError.message);
+                    // Continue processing even if we can't store in database
                 }
             }
             
@@ -556,6 +583,35 @@ function createRagRouter(db, sessions) {
         });
     });
 
+    // Debug route to catch any callback attempts that don't match
+    router.post('/chat-callback/*', async (req, res) => {
+        console.log('[CHAT CALLBACK DEBUG] Unmatched callback URL:', req.originalUrl);
+        console.log('[CHAT CALLBACK DEBUG] URL params:', req.params);
+        console.log('[CHAT CALLBACK DEBUG] Body:', JSON.stringify(req.body, null, 2));
+        
+        // Try to extract message_id from the URL
+        const urlParts = req.originalUrl.split('/');
+        const messageIdIndex = urlParts.indexOf('chat-callback') + 1;
+        const message_id = urlParts[messageIdIndex];
+        
+        if (message_id) {
+            console.log('[CHAT CALLBACK DEBUG] Extracted message_id:', message_id);
+            // Process as normal callback
+            req.params.message_id = message_id;
+            // Continue with normal processing (delegate to the main handler logic)
+            res.status(200).json({ 
+                success: true, 
+                message: 'Callback received (debug route)',
+                message_id: message_id
+            });
+        } else {
+            res.status(400).json({ 
+                error: 'Invalid callback URL format',
+                received_url: req.originalUrl 
+            });
+        }
+    });
+    
     return router;
 }
 

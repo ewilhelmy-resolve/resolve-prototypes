@@ -150,6 +150,30 @@ ON CONFLICT (key) DO NOTHING;
 -- Create index for quick lookups
 CREATE INDEX IF NOT EXISTS idx_system_config_key ON system_config(key);
 
+-- Create webhook traffic capture table for debugging
+CREATE TABLE IF NOT EXISTS webhook_traffic (
+    id SERIAL PRIMARY KEY,
+    request_url TEXT NOT NULL,
+    request_method VARCHAR(10) NOT NULL,
+    request_headers JSONB,
+    request_body TEXT,
+    request_query JSONB,
+    request_params JSONB,
+    response_status INTEGER,
+    response_body TEXT,
+    source_ip VARCHAR(45),
+    user_agent TEXT,
+    captured_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    is_webhook BOOLEAN DEFAULT false,
+    endpoint_category VARCHAR(50)
+);
+
+-- Create indexes for webhook traffic
+CREATE INDEX IF NOT EXISTS idx_webhook_traffic_captured_at ON webhook_traffic(captured_at DESC);
+CREATE INDEX IF NOT EXISTS idx_webhook_traffic_is_webhook ON webhook_traffic(is_webhook);
+CREATE INDEX IF NOT EXISTS idx_webhook_traffic_endpoint ON webhook_traffic(endpoint_category);
+CREATE INDEX IF NOT EXISTS idx_webhook_traffic_method ON webhook_traffic(request_method);
+
 -- Enable pgvector extension for vector operations
 CREATE EXTENSION IF NOT EXISTS vector;
 

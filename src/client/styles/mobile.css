@@ -4,7 +4,7 @@
 .mobile-menu-toggle {
   display: none;
   position: fixed;
-  top: 16px;
+  top: 70px; /* Position below the header */
   left: 16px;
   z-index: 1001;
   width: 40px;
@@ -17,6 +17,7 @@
   align-items: center;
   justify-content: center;
   transition: 0.3s;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
 }
 
 .mobile-menu-toggle:active {
@@ -172,6 +173,7 @@
     padding: 12px 16px;
     position: sticky;
     top: 0;
+    z-index: 900; /* Below mobile menu toggle */
   }
 
   .logo-svg {

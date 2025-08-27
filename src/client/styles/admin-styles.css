@@ -784,3 +784,157 @@ body {
         opacity: 0;
     }
 }
+
+/* Webhook Traffic Section */
+.traffic-controls {
+    background: var(--bg-secondary);
+    padding: 1.5rem;
+    border-radius: 0.5rem;
+    margin-bottom: 1.5rem;
+}
+
+.filter-row {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 1rem;
+    align-items: center;
+}
+
+.filter-row select {
+    padding: 0.5rem;
+    background: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    border-radius: 0.25rem;
+    color: var(--text-primary);
+}
+
+.filter-row label {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: var(--text-secondary);
+}
+
+.search-row {
+    display: flex;
+    gap: 1rem;
+}
+
+.search-row input {
+    flex: 1;
+    padding: 0.5rem;
+    background: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    border-radius: 0.25rem;
+    color: var(--text-primary);
+}
+
+.traffic-stats {
+    display: flex;
+    gap: 2rem;
+    padding: 1rem;
+    background: var(--bg-secondary);
+    border-radius: 0.5rem;
+    margin-bottom: 1rem;
+}
+
+.traffic-stats span {
+    font-weight: 500;
+    color: var(--text-primary);
+}
+
+.traffic-table-container {
+    overflow-x: auto;
+    margin-bottom: 1.5rem;
+}
+
+.url-cell {
+    max-width: 300px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.method-get { color: #4CAF50; font-weight: 500; }
+.method-post { color: #2196F3; font-weight: 500; }
+.method-put { color: #FF9800; font-weight: 500; }
+.method-delete { color: #f44336; font-weight: 500; }
+
+.category-badge {
+    padding: 0.25rem 0.5rem;
+    background: var(--primary-color);
+    color: white;
+    border-radius: 0.25rem;
+    font-size: 0.75rem;
+}
+
+.status-success { color: #4CAF50; font-weight: 500; }
+.status-warning { color: #FF9800; font-weight: 500; }
+.status-error { color: #f44336; font-weight: 500; }
+
+.pagination {
+    display: flex;
+    justify-content: center;
+    gap: 1rem;
+    align-items: center;
+}
+
+.btn-danger {
+    background: #f44336;
+    color: white;
+    border: none;
+    padding: 0.5rem 1rem;
+    border-radius: 0.25rem;
+    cursor: pointer;
+}
+
+.btn-danger:hover {
+    background: #da190b;
+}
+
+/* Traffic Detail Modal */
+.large-modal .modal-content {
+    max-width: 900px;
+    width: 90%;
+    max-height: 90vh;
+    overflow-y: auto;
+}
+
+.traffic-detail {
+    padding: 1rem;
+}
+
+.detail-section {
+    margin-bottom: 1.5rem;
+    padding: 1rem;
+    background: var(--bg-secondary);
+    border-radius: 0.5rem;
+}
+
+.detail-section h4 {
+    color: var(--primary-color);
+    margin-bottom: 1rem;
+}
+
+.detail-section pre {
+    background: var(--bg-primary);
+    padding: 1rem;
+    border-radius: 0.25rem;
+    overflow-x: auto;
+    font-size: 0.875rem;
+    line-height: 1.5;
+    color: var(--text-secondary);
+}
+
+.close-traffic-modal {
+    position: absolute;
+    right: 1rem;
+    top: 1rem;
+    font-size: 1.5rem;
+    color: var(--text-secondary);
+    cursor: pointer;
+}
+
+.close-traffic-modal:hover {
+    color: var(--text-primary);
+}

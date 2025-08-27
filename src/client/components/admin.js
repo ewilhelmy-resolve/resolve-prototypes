@@ -168,6 +168,256 @@ function showNotification(message, type = 'info') {
     }, 3000);
 }
 
+// Webhook Traffic Functions
+let trafficCurrentPage = 1;
+const trafficLimit = 50;
+
+async function loadWebhookTrafficData() {
+    const category = document.getElementById('trafficCategoryFilter')?.value || 'all';
+    const method = document.getElementById('trafficMethodFilter')?.value || 'all';
+    const status = document.getElementById('trafficStatusFilter')?.value || '';
+    const webhooksOnly = document.getElementById('webhooksOnlyFilter')?.checked || false;
+    const search = document.getElementById('trafficSearchInput')?.value || '';
+    
+    const offset = (trafficCurrentPage - 1) * trafficLimit;
+    
+    try {
+        const params = new URLSearchParams({
+            limit: trafficLimit,
+            offset: offset,
+            ...(category !== 'all' && { category }),
+            ...(method !== 'all' && { method }),
+            ...(status && { status }),
+            ...(webhooksOnly && { is_webhook: 'true' }),
+            ...(search && { search })
+        });
+        
+        const response = await fetch(`/api/admin/webhook-traffic?${params}`, {
+            credentials: 'include'
+        });
+        
+        if (!response.ok) throw new Error('Failed to load traffic data');
+        
+        const data = await response.json();
+        
+        // Update stats
+        document.getElementById('totalTrafficCount').textContent = `Total: ${data.total}`;
+        const webhookCount = data.traffic.filter(t => t.is_webhook).length;
+        document.getElementById('webhookTrafficCount').textContent = `Webhooks: ${webhookCount}`;
+        const failedCount = data.traffic.filter(t => t.response_status >= 400).length;
+        document.getElementById('failedTrafficCount').textContent = `Failed: ${failedCount}`;
+        
+        // Update table
+        const tbody = document.getElementById('trafficTableBody');
+        tbody.innerHTML = '';
+        
+        data.traffic.forEach(log => {
+            const row = tbody.insertRow();
+            const time = new Date(log.captured_at).toLocaleString();
+            const statusClass = log.response_status >= 400 ? 'status-error' : 
+                               log.response_status >= 300 ? 'status-warning' : 'status-success';
+            
+            row.innerHTML = `
+                <td>${time}</td>
+                <td><span class="method-${log.request_method.toLowerCase()}">${log.request_method}</span></td>
+                <td class="url-cell" title="${escapeHtml(log.request_url)}">${escapeHtml(log.request_url)}</td>
+                <td><span class="category-badge">${log.endpoint_category}</span></td>
+                <td><span class="${statusClass}">${log.response_status || 'N/A'}</span></td>
+                <td>${log.source_ip || 'N/A'}</td>
+                <td>
+                    <button class="btn-detail" onclick="viewTrafficDetail(${log.id})">View</button>
+                </td>
+            `;
+        });
+        
+        // Update pagination
+        const totalPages = Math.ceil(data.total / trafficLimit);
+        document.getElementById('trafficPageInfo').textContent = `Page ${trafficCurrentPage} of ${totalPages}`;
+        document.getElementById('trafficPrevPage').disabled = trafficCurrentPage === 1;
+        document.getElementById('trafficNextPage').disabled = trafficCurrentPage >= totalPages;
+        
+    } catch (error) {
+        console.error('Error loading traffic data:', error);
+        showNotification('Failed to load traffic data', 'error');
+    }
+}
+
+async function viewTrafficDetail(id) {
+    try {
+        const response = await fetch(`/api/admin/webhook-traffic/${id}`, {
+            credentials: 'include'
+        });
+        
+        if (!response.ok) throw new Error('Failed to load traffic detail');
+        
+        const log = await response.json();
+        
+        const modal = document.getElementById('trafficDetailModal');
+        const content = document.getElementById('trafficModalContent');
+        
+        // Format JSON with proper indentation
+        const formatJson = (obj) => {
+            try {
+                return JSON.stringify(obj, null, 2);
+            } catch {
+                return obj;
+            }
+        };
+        
+        content.innerHTML = `
+            <div class="traffic-detail">
+                <div class="detail-section">
+                    <h4>Request Information</h4>
+                    <p><strong>Time:</strong> ${new Date(log.captured_at).toLocaleString()}</p>
+                    <p><strong>Method:</strong> ${log.request_method}</p>
+                    <p><strong>URL:</strong> ${escapeHtml(log.request_url)}</p>
+                    <p><strong>Category:</strong> ${log.endpoint_category}</p>
+                    <p><strong>Is Webhook:</strong> ${log.is_webhook ? 'Yes' : 'No'}</p>
+                    <p><strong>Source IP:</strong> ${log.source_ip || 'N/A'}</p>
+                    <p><strong>User Agent:</strong> ${escapeHtml(log.user_agent || 'N/A')}</p>
+                </div>
+                
+                <div class="detail-section">
+                    <h4>Request Headers</h4>
+                    <pre>${escapeHtml(formatJson(log.request_headers))}</pre>
+                </div>
+                
+                <div class="detail-section">
+                    <h4>Request Body</h4>
+                    <pre>${escapeHtml(log.request_body || 'No body')}</pre>
+                </div>
+                
+                <div class="detail-section">
+                    <h4>Query Parameters</h4>
+                    <pre>${escapeHtml(formatJson(log.request_query || {}))}</pre>
+                </div>
+                
+                <div class="detail-section">
+                    <h4>Response</h4>
+                    <p><strong>Status:</strong> ${log.response_status || 'N/A'}</p>
+                    <pre>${escapeHtml(log.response_body || 'No response body')}</pre>
+                </div>
+            </div>
+        `;
+        
+        modal.style.display = 'block';
+    } catch (error) {
+        console.error('Error loading traffic detail:', error);
+        showNotification('Failed to load traffic detail', 'error');
+    }
+}
+
+function escapeHtml(text) {
+    const map = {
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#039;'
+    };
+    return text?.toString().replace(/[&<>"']/g, m => map[m]) || '';
+}
+
+// Make viewTrafficDetail globally accessible
+window.viewTrafficDetail = viewTrafficDetail;
+
+function setupWebhookTrafficHandlers() {
+    // Filter changes
+    const filters = ['trafficCategoryFilter', 'trafficMethodFilter', 'trafficStatusFilter', 'webhooksOnlyFilter'];
+    filters.forEach(id => {
+        const element = document.getElementById(id);
+        if (element) {
+            element.addEventListener('change', () => {
+                trafficCurrentPage = 1;
+                loadWebhookTrafficData();
+            });
+        }
+    });
+    
+    // Search
+    const searchBtn = document.getElementById('searchTrafficBtn');
+    if (searchBtn) {
+        searchBtn.addEventListener('click', () => {
+            trafficCurrentPage = 1;
+            loadWebhookTrafficData();
+        });
+    }
+    
+    const searchInput = document.getElementById('trafficSearchInput');
+    if (searchInput) {
+        searchInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                trafficCurrentPage = 1;
+                loadWebhookTrafficData();
+            }
+        });
+    }
+    
+    // Refresh
+    const refreshBtn = document.getElementById('refreshTrafficBtn');
+    if (refreshBtn) {
+        refreshBtn.addEventListener('click', loadWebhookTrafficData);
+    }
+    
+    // Clear old logs
+    const clearBtn = document.getElementById('clearOldTrafficBtn');
+    if (clearBtn) {
+        clearBtn.addEventListener('click', async () => {
+            if (confirm('Clear all traffic logs older than 1 day?')) {
+                try {
+                    const response = await fetch('/api/admin/webhook-traffic/clear', {
+                        method: 'DELETE',
+                        headers: { 'Content-Type': 'application/json' },
+                        credentials: 'include',
+                        body: JSON.stringify({ older_than_days: 1 })
+                    });
+                    
+                    const result = await response.json();
+                    showNotification(result.message || 'Logs cleared', 'success');
+                    loadWebhookTrafficData();
+                } catch (error) {
+                    showNotification('Failed to clear logs', 'error');
+                }
+            }
+        });
+    }
+    
+    // Pagination
+    const prevBtn = document.getElementById('trafficPrevPage');
+    if (prevBtn) {
+        prevBtn.addEventListener('click', () => {
+            if (trafficCurrentPage > 1) {
+                trafficCurrentPage--;
+                loadWebhookTrafficData();
+            }
+        });
+    }
+    
+    const nextBtn = document.getElementById('trafficNextPage');
+    if (nextBtn) {
+        nextBtn.addEventListener('click', () => {
+            trafficCurrentPage++;
+            loadWebhookTrafficData();
+        });
+    }
+    
+    // Modal close
+    const closeModal = document.querySelector('.close-traffic-modal');
+    if (closeModal) {
+        closeModal.addEventListener('click', () => {
+            document.getElementById('trafficDetailModal').style.display = 'none';
+        });
+    }
+    
+    // Close modal on outside click
+    window.addEventListener('click', (event) => {
+        const modal = document.getElementById('trafficDetailModal');
+        if (event.target === modal) {
+            modal.style.display = 'none';
+        }
+    });
+}
+
 // Initialize dashboard
 async function initDashboard() {
     // Skip client-side auth check - server already validated
@@ -200,6 +450,9 @@ async function initDashboard() {
     
     // Set up event listeners
     setupEventListeners();
+    
+    // Setup webhook traffic handlers
+    setupWebhookTrafficHandlers();
     
     // Setup settings form handlers
     const settingsForm = document.getElementById('settingsForm');
@@ -614,6 +867,9 @@ async function loadSectionData(section) {
             break;
         case 'webhooks':
             await loadWebhooksData();
+            break;
+        case 'webhook-traffic':
+            await loadWebhookTrafficData();
             break;
         case 'settings':
             await loadSystemSettings();

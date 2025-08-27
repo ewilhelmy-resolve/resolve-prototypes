@@ -18,8 +18,13 @@ const PORT = process.env.PORT || 5000;
 // Initialize ResolveWebhook instance
 const resolveWebhook = new ResolveWebhook();
 
-// Body parser middleware
-app.use(express.json());
+// Body parser middleware with text capture for logging
+app.use(express.json({
+    verify: (req, res, buf, encoding) => {
+        // Store raw body for webhook logging
+        req.rawBody = buf.toString('utf8');
+    }
+}));
 app.use(express.urlencoded({ extended: true }));
 
 // Simple session storage with automatic cleanup
@@ -85,6 +90,94 @@ function requireAuth(req, res, next) {
     req.user = sessions[token];
     next();
 }
+
+// Webhook Traffic Capture Middleware
+async function captureWebhookTraffic(req, res, next) {
+    // Determine if this is a webhook endpoint
+    const isWebhook = req.path.includes('webhook') || 
+                     req.path.includes('callback') || 
+                     req.path.includes('/api/rag/') ||
+                     req.path.includes('/api/admin/test-callback');
+    
+    // Capture all API traffic for debugging
+    if (req.path.startsWith('/api/') || isWebhook) {
+        const captureData = {
+            request_url: req.originalUrl || req.url,
+            request_method: req.method,
+            request_headers: req.headers,
+            request_body: req.rawBody || JSON.stringify(req.body),
+            request_query: req.query,
+            request_params: req.params,
+            source_ip: req.ip || req.connection.remoteAddress,
+            user_agent: req.headers['user-agent'],
+            is_webhook: isWebhook,
+            endpoint_category: determineEndpointCategory(req.path)
+        };
+        
+        // Store original res.json and res.send to capture response
+        const originalJson = res.json;
+        const originalSend = res.send;
+        const originalStatus = res.status;
+        let responseStatus = 200;
+        
+        res.status = function(code) {
+            responseStatus = code;
+            return originalStatus.call(this, code);
+        };
+        
+        res.json = function(body) {
+            captureData.response_status = responseStatus;
+            captureData.response_body = JSON.stringify(body);
+            saveWebhookTraffic(captureData);
+            return originalJson.call(this, body);
+        };
+        
+        res.send = function(body) {
+            captureData.response_status = responseStatus;
+            captureData.response_body = typeof body === 'string' ? body : JSON.stringify(body);
+            saveWebhookTraffic(captureData);
+            return originalSend.call(this, body);
+        };
+    }
+    
+    next();
+}
+
+function determineEndpointCategory(path) {
+    if (path.includes('chat-callback')) return 'chat_callback';
+    if (path.includes('callback')) return 'callback';
+    if (path.includes('webhook')) return 'webhook';
+    if (path.includes('/rag/')) return 'rag_api';
+    if (path.includes('/admin/')) return 'admin';
+    if (path.includes('/api/')) return 'api';
+    return 'other';
+}
+
+async function saveWebhookTraffic(data) {
+    try {
+        await db.query(
+            `INSERT INTO webhook_traffic 
+            (request_url, request_method, request_headers, request_body, request_query, 
+             request_params, response_status, response_body, source_ip, user_agent, 
+             is_webhook, endpoint_category) 
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
+            [data.request_url, data.request_method, data.request_headers, data.request_body,
+             data.request_query, data.request_params, data.response_status, data.response_body,
+             data.source_ip, data.user_agent, data.is_webhook, data.endpoint_category]
+        );
+        
+        // Keep only last 7 days of traffic logs
+        await db.query(
+            `DELETE FROM webhook_traffic 
+             WHERE captured_at < NOW() - INTERVAL '7 days'`
+        );
+    } catch (error) {
+        console.error('[WEBHOOK TRAFFIC] Error saving traffic log:', error.message);
+    }
+}
+
+// Apply webhook traffic capture middleware
+app.use(captureWebhookTraffic);
 
 // Middleware
 app.use((req, res, next) => {
@@ -1084,6 +1177,141 @@ app.get('/api/admin/webhooks', requireAdmin, async (req, res) => {
             success: false, 
             message: 'Failed to load webhook logs' 
         });
+    }
+});
+
+// Webhook Traffic Routes
+app.get('/api/admin/webhook-traffic', requireAdmin, async (req, res) => {
+    try {
+        const { 
+            limit = 100, 
+            offset = 0, 
+            category,
+            method,
+            status,
+            is_webhook,
+            search,
+            start_date,
+            end_date
+        } = req.query;
+        
+        let query = `
+            SELECT * FROM webhook_traffic 
+            WHERE 1=1
+        `;
+        const params = [];
+        let paramCount = 0;
+        
+        if (category && category !== 'all') {
+            params.push(category);
+            query += ` AND endpoint_category = $${++paramCount}`;
+        }
+        
+        if (method && method !== 'all') {
+            params.push(method);
+            query += ` AND request_method = $${++paramCount}`;
+        }
+        
+        if (status) {
+            params.push(parseInt(status));
+            query += ` AND response_status = $${++paramCount}`;
+        }
+        
+        if (is_webhook === 'true') {
+            query += ` AND is_webhook = true`;
+        }
+        
+        if (search) {
+            params.push(`%${search}%`);
+            const searchParam = `$${++paramCount}`;
+            query += ` AND (request_url ILIKE ${searchParam} OR request_body::text ILIKE ${searchParam} OR response_body::text ILIKE ${searchParam})`;
+        }
+        
+        if (start_date) {
+            params.push(start_date);
+            query += ` AND captured_at >= $${++paramCount}`;
+        }
+        
+        if (end_date) {
+            params.push(end_date);
+            query += ` AND captured_at <= $${++paramCount}`;
+        }
+        
+        // Get total count for pagination
+        const countQuery = query.replace('SELECT *', 'SELECT COUNT(*)');
+        const countResult = await db.query(countQuery, params);
+        const totalCount = parseInt(countResult.rows[0].count);
+        
+        // Add ordering and pagination
+        query += ` ORDER BY captured_at DESC`;
+        params.push(parseInt(limit));
+        query += ` LIMIT $${++paramCount}`;
+        params.push(parseInt(offset));
+        query += ` OFFSET $${++paramCount}`;
+        
+        const result = await db.query(query, params);
+        
+        res.json({
+            traffic: result.rows,
+            total: totalCount,
+            limit: parseInt(limit),
+            offset: parseInt(offset)
+        });
+    } catch (error) {
+        console.error('Error fetching webhook traffic:', error);
+        res.status(500).json({ 
+            success: false, 
+            message: 'Failed to fetch webhook traffic' 
+        });
+    }
+});
+
+app.get('/api/admin/webhook-traffic/:id', requireAdmin, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const result = await db.query(
+            'SELECT * FROM webhook_traffic WHERE id = $1',
+            [id]
+        );
+        
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: 'Traffic log not found' });
+        }
+        
+        res.json(result.rows[0]);
+    } catch (error) {
+        console.error('Error fetching traffic log:', error);
+        res.status(500).json({ error: 'Failed to fetch traffic log' });
+    }
+});
+
+app.delete('/api/admin/webhook-traffic/clear', requireAdmin, async (req, res) => {
+    try {
+        const { category, older_than_days = 0 } = req.body;
+        
+        let query = 'DELETE FROM webhook_traffic WHERE 1=1';
+        const params = [];
+        
+        if (category && category !== 'all') {
+            params.push(category);
+            query += ` AND endpoint_category = $${params.length}`;
+        }
+        
+        if (older_than_days > 0) {
+            params.push(older_than_days);
+            query += ` AND captured_at < NOW() - INTERVAL '${older_than_days} days'`;
+        }
+        
+        const result = await db.query(query, params);
+        
+        res.json({ 
+            success: true, 
+            deleted: result.rowCount,
+            message: `Deleted ${result.rowCount} traffic logs` 
+        });
+    } catch (error) {
+        console.error('Error clearing traffic logs:', error);
+        res.status(500).json({ error: 'Failed to clear traffic logs' });
     }
 });
 
