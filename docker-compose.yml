@@ -28,7 +28,7 @@ services:
       start_period: 10s
 
   postgres:
-    image: postgres:15-alpine
+    image: pgvector/pgvector:pg15
     environment:
       POSTGRES_DB: resolve_onboarding
       POSTGRES_USER: resolve_user

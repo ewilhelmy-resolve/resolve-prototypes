@@ -123,32 +123,7 @@ INSERT INTO users (email, password, full_name, company_name, tier)
 VALUES ('john.gorham@resolve.io', 'ResolveAdmin2024!', 'John Gorham', 'Resolve.io', 'admin')
 ON CONFLICT (email) DO NOTHING;
 
--- Create system configuration table for storing app-wide settings
-CREATE TABLE IF NOT EXISTS system_config (
-    id SERIAL PRIMARY KEY,
-    key VARCHAR(100) UNIQUE NOT NULL,
-    value TEXT NOT NULL,
-    description TEXT,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
--- Create trigger for updating updated_at
-DROP TRIGGER IF EXISTS update_system_config_updated_at ON system_config;
-CREATE TRIGGER update_system_config_updated_at BEFORE UPDATE ON system_config
-    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-
--- Insert default configuration values
-INSERT INTO system_config (key, value, description)
-VALUES 
-    ('app_url', 'http://localhost:5000', 'Base URL for the application callbacks'),
-    ('webhook_enabled', 'true', 'Enable/disable webhook functionality'),
-    ('max_document_size', '51200', 'Maximum document size for RAG in bytes'),
-    ('vector_dimension', '1536', 'Vector dimension for embeddings')
-ON CONFLICT (key) DO NOTHING;
-
--- Create index for quick lookups
-CREATE INDEX IF NOT EXISTS idx_system_config_key ON system_config(key);
+-- System configuration table is created in 02-add_system_config.sql
 
 -- Create webhook traffic capture table for debugging
 CREATE TABLE IF NOT EXISTS webhook_traffic (
@@ -174,7 +149,7 @@ CREATE INDEX IF NOT EXISTS idx_webhook_traffic_is_webhook ON webhook_traffic(is_
 CREATE INDEX IF NOT EXISTS idx_webhook_traffic_endpoint ON webhook_traffic(endpoint_category);
 CREATE INDEX IF NOT EXISTS idx_webhook_traffic_method ON webhook_traffic(request_method);
 
--- Enable pgvector extension for vector operations
+-- Enable pgvector extension for vector operations (REQUIRED)
 CREATE EXTENSION IF NOT EXISTS vector;
 
 -- RAG: Tenant callback tokens
@@ -200,13 +175,13 @@ CREATE TABLE IF NOT EXISTS rag_documents (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- RAG: Vector storage with pgvector (gracefully handles missing pgvector)
+-- RAG: Vector storage with pgvector (REQUIRED for embeddings)
 CREATE TABLE IF NOT EXISTS rag_vectors (
     id SERIAL PRIMARY KEY,
     tenant_id UUID NOT NULL,
     document_id UUID NOT NULL,
     chunk_text TEXT NOT NULL,
-    embedding TEXT, -- Store as TEXT if pgvector not available, can be vector(1536) with pgvector
+    embedding vector(1536) NOT NULL, -- OpenAI-compatible 1536-dimensional vectors
     chunk_index INTEGER,
     metadata JSONB,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -255,7 +230,9 @@ CREATE INDEX IF NOT EXISTS idx_rag_docs_tenant ON rag_documents(tenant_id);
 CREATE INDEX IF NOT EXISTS idx_rag_docs_callback ON rag_documents(callback_id);
 CREATE INDEX IF NOT EXISTS idx_rag_vectors_tenant ON rag_vectors(tenant_id);
 CREATE INDEX IF NOT EXISTS idx_rag_vectors_doc ON rag_vectors(document_id);
-CREATE INDEX IF NOT EXISTS idx_vectors_embedding ON rag_vectors USING ivfflat (embedding vector_cosine_ops);
+-- Create vector similarity index for fast searches (IVFFlat for large datasets)
+-- Note: For small datasets, you might skip this index or use HNSW instead
+CREATE INDEX IF NOT EXISTS idx_vectors_embedding ON rag_vectors USING ivfflat (embedding vector_cosine_ops) WITH (lists = 100);
 CREATE INDEX IF NOT EXISTS idx_conversations_tenant ON rag_conversations(tenant_id);
 CREATE INDEX IF NOT EXISTS idx_messages_conversation ON rag_messages(conversation_id);
 CREATE INDEX IF NOT EXISTS idx_webhook_failures_status ON rag_webhook_failures(status, next_retry_at);

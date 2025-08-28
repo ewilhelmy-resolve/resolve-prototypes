@@ -150,11 +150,12 @@ class QuikChatRAG {
                         this.chat.messageAddNew(displayText, 'Assistant', 'left');
                     }
                     
-                    // Add sources if available
-                    if (data.sources && data.sources.length > 0) {
-                        const sourcesText = 'Sources: ' + data.sources.join(', ');
-                        this.chat.messageAddNew(sourcesText, 'System', 'left');
-                    }
+                    // Sources are available in data.sources but not displayed in chat
+                    // to avoid cluttering the conversation
+                    // if (data.sources && data.sources.length > 0) {
+                    //     const sourcesText = 'Sources: ' + data.sources.join(', ');
+                    //     this.chat.messageAddNew(sourcesText, 'System', 'left');
+                    // }
                 }
             } else if (data.type === 'connected') {
                 console.log('Connected to chat stream:', data.conversation_id);
@@ -257,11 +258,12 @@ class QuikChatRAG {
             if (response.success) {
                 instance.messageAddNew(response.message, 'Assistant', 'left');
                 
-                // Add sources if available
-                if (response.sources && response.sources.length > 0) {
-                    const sourcesText = 'Sources: ' + response.sources.join(', ');
-                    instance.messageAddNew(sourcesText, 'System', 'left');
-                }
+                // Sources are available in response.sources but not displayed in chat
+                // to avoid cluttering the conversation
+                // if (response.sources && response.sources.length > 0) {
+                //     const sourcesText = 'Sources: ' + response.sources.join(', ');
+                //     instance.messageAddNew(sourcesText, 'System', 'left');
+                // }
                 
                 // Refresh chat history to show the new conversation or update existing
                 if (window.chatHistoryManager) {

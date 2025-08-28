@@ -14,56 +14,79 @@ async function runPostgreSQLMigrations(pool) {
   console.log('🔄 Running PostgreSQL database migrations...');
   
   try {
-    // Read the init.sql file
-    const initSQL = fs.readFileSync(path.join(__dirname, 'init.sql'), 'utf8');
+    // Get all SQL files in order
+    const sqlFiles = fs.readdirSync(__dirname)
+      .filter(file => file.endsWith('.sql'))
+      .sort(); // Ensures files are run in order (01-, 02-, etc.)
     
-    // Special handling for PostgreSQL statements
-    // Functions need special parsing
-    const statements = [];
-    const lines = initSQL.split('\n');
-    let currentStatement = '';
-    let inFunction = false;
+    console.log(`Found ${sqlFiles.length} SQL migration files:`, sqlFiles);
     
-    for (const line of lines) {
-      // Skip comments
-      if (line.trim().startsWith('--')) continue;
+    let totalSuccess = 0;
+    let totalSkipped = 0;
+    
+    // Run each SQL file
+    for (const sqlFile of sqlFiles) {
+      console.log(`Running migration: ${sqlFile}`);
+      const sqlContent = fs.readFileSync(path.join(__dirname, sqlFile), 'utf8');
+    
+      // Special handling for PostgreSQL statements
+      // Functions and DO blocks need special parsing
+      const statements = [];
+      const lines = sqlContent.split('\n');
+      let currentStatement = '';
+      let inSpecialBlock = false;
+      let blockType = null;
       
-      // Check for function start
-      if (line.includes('CREATE OR REPLACE FUNCTION') || line.includes('CREATE FUNCTION')) {
-        inFunction = true;
-      }
-      
-      currentStatement += line + '\n';
-      
-      // Check for statement end
-      if (inFunction) {
-        // Functions end with $$ language
-        if (line.includes("$$ language") || line.includes("$$ LANGUAGE")) {
-          statements.push(currentStatement.trim());
-          currentStatement = '';
-          inFunction = false;
+      for (const line of lines) {
+        // Skip comment-only lines
+        if (line.trim().startsWith('--') && !currentStatement.trim()) continue;
+        
+        // Check for function or DO block start
+        if (line.includes('CREATE OR REPLACE FUNCTION') || line.includes('CREATE FUNCTION')) {
+          inSpecialBlock = true;
+          blockType = 'function';
+        } else if (line.trim().startsWith('DO $$')) {
+          inSpecialBlock = true;
+          blockType = 'do';
         }
-      } else {
-        // Normal statements end with ;
-        if (line.trim().endsWith(';')) {
-          statements.push(currentStatement.trim());
-          currentStatement = '';
+        
+        currentStatement += line + '\n';
+        
+        // Check for statement end
+        if (inSpecialBlock) {
+          // Functions end with $$ language, DO blocks end with $$;
+          if (blockType === 'function' && (line.includes("$$ language") || line.includes("$$ LANGUAGE"))) {
+            statements.push(currentStatement.trim());
+            currentStatement = '';
+            inSpecialBlock = false;
+            blockType = null;
+          } else if (blockType === 'do' && line.trim().endsWith('$$;')) {
+            statements.push(currentStatement.trim());
+            currentStatement = '';
+            inSpecialBlock = false;
+            blockType = null;
+          }
+        } else {
+          // Normal statements end with ;
+          if (line.trim().endsWith(';')) {
+            statements.push(currentStatement.trim());
+            currentStatement = '';
+          }
         }
       }
-    }
     
     // Add any remaining statement
     if (currentStatement.trim()) {
       statements.push(currentStatement.trim());
     }
     
-    // Filter out empty statements
-    const validStatements = statements.filter(s => s.length > 0);
+      // Filter out empty statements
+      const validStatements = statements.filter(s => s.length > 0);
     
-    let successCount = 0;
-    let skipCount = 0;
-    
-    for (const statement of validStatements) {
+      let successCount = 0;
+      let skipCount = 0;
+      
+      for (const statement of validStatements) {
       try {
         // Don't add semicolon - statement already has it
         await pool.query(statement);
@@ -94,7 +117,12 @@ async function runPostgreSQLMigrations(pool) {
       }
     }
     
-    console.log(`✅ PostgreSQL migrations complete: ${successCount} executed, ${skipCount} skipped`);
+      console.log(`  ✅ ${sqlFile}: ${successCount} executed, ${skipCount} skipped`);
+      totalSuccess += successCount;
+      totalSkipped += skipCount;
+    }
+    
+    console.log(`✅ PostgreSQL migrations complete: ${totalSuccess} total executed, ${totalSkipped} total skipped`);
     
     // Ensure admin user exists
     await ensureAdminUser(pool, 'postgresql');

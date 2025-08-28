@@ -82,7 +82,7 @@ function createKnowledgeRouter(db, sessions) {
                             type: 'knowledge-article'
                         },
                         req.userEmail || 'actions-platform',
-                        'pending-vectorization'
+                        'pending'  // Changed from 'pending-vectorization' to fit VARCHAR(20)
                     ]
                 );
                 
@@ -156,7 +156,7 @@ function createKnowledgeRouter(db, sessions) {
             
             // Build search query with tenant isolation
             let searchQuery = `
-                SELECT DISTINCT
+                SELECT
                     v.document_id,
                     v.chunk_text,
                     v.chunk_index,
@@ -375,8 +375,10 @@ function createKnowledgeRouter(db, sessions) {
             }
             
             if (status) {
+                // Map status values for compatibility
+                const mappedStatus = status === 'pending-vectorization' ? 'pending' : status;
                 query += ` AND status = $${queryParams.length + 1}`;
-                queryParams.push(status);
+                queryParams.push(mappedStatus);
             }
             
             query += ` ORDER BY created_at DESC LIMIT $${queryParams.length + 1} OFFSET $${queryParams.length + 2}`;
