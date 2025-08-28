@@ -56,7 +56,7 @@ class ChatHistoryManager {
             // Remove "No recent chats" message if it exists
             const noChatsMessage = chatsSection.querySelector('.no-chats');
             if (noChatsMessage) {
-                noChatsMessage.style.display = 'none';
+                noChatsMessage.classList.add('hidden');
             }
 
             // Create chat list container
@@ -72,7 +72,7 @@ class ChatHistoryManager {
             // Show "No recent chats" if no conversations
             const noChatsMessage = chatsSection.querySelector('.no-chats');
             if (noChatsMessage) {
-                noChatsMessage.style.display = 'block';
+                noChatsMessage.classList.remove('hidden');
             } else {
                 chatsList.innerHTML = '<div class="no-chats"><p>No recent chats</p></div>';
             }
@@ -83,6 +83,9 @@ class ChatHistoryManager {
         this.conversations.forEach(conv => {
             const chatItem = document.createElement('div');
             chatItem.className = 'chat-item';
+            if (this.currentConversationId === conv.conversation_id) {
+                chatItem.classList.add('active');
+            }
             chatItem.dataset.conversationId = conv.conversation_id;
             
             // Format the last message preview
@@ -113,36 +116,7 @@ class ChatHistoryManager {
                 </div>
             `;
             
-            // Style the chat item
-            chatItem.style.cssText = `
-                padding: 12px 16px;
-                margin: 4px 8px;
-                border-radius: 8px;
-                cursor: pointer;
-                transition: all 0.2s;
-                border: 1px solid rgba(0, 0, 0, 0.08);
-                background: rgba(255, 255, 255, 0.95);
-                box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
-                position: relative;
-            `;
-            
-            // Add hover effect
-            chatItem.onmouseover = () => {
-                if (!chatItem.classList.contains('active')) {
-                    chatItem.style.background = 'rgb(255, 255, 255)';
-                    chatItem.style.border = '1px solid rgba(78, 205, 196, 0.2)';
-                    chatItem.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.08)';
-                    chatItem.style.transform = 'translateY(-1px)';
-                }
-            };
-            chatItem.onmouseout = () => {
-                if (chatItem.dataset.conversationId !== this.currentConversationId) {
-                    chatItem.style.background = 'rgba(255, 255, 255, 0.95)';
-                    chatItem.style.border = '1px solid rgba(0, 0, 0, 0.08)';
-                    chatItem.style.boxShadow = '0 1px 2px rgba(0, 0, 0, 0.04)';
-                    chatItem.style.transform = 'translateY(0)';
-                }
-            };
+            // No inline styles - rely on CSS classes
             
             // Add click handler for the chat item (not the delete button)
             chatItem.onclick = (e) => {
@@ -162,78 +136,7 @@ class ChatHistoryManager {
             chatsList.appendChild(chatItem);
         });
 
-        // Style the chat item content
-        const style = document.createElement('style');
-        style.textContent = `
-            .chat-item-content {
-                display: flex;
-                flex-direction: column;
-                gap: 6px;
-                width: 100%;
-            }
-            .chat-item-header {
-                display: flex;
-                justify-content: space-between;
-                align-items: center;
-                gap: 8px;
-            }
-            .chat-item-title {
-                font-size: 14px;
-                color: rgb(26, 26, 26);
-                font-weight: 500;
-                overflow: hidden;
-                text-overflow: ellipsis;
-                white-space: nowrap;
-                flex: 1;
-                line-height: 1.3;
-            }
-            .chat-delete-btn {
-                background: transparent;
-                border: none;
-                color: rgba(0, 0, 0, 0.4);
-                cursor: pointer;
-                padding: 4px;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                border-radius: 4px;
-                opacity: 0;
-                transition: all 0.2s;
-            }
-            .chat-item:hover .chat-delete-btn {
-                opacity: 1;
-            }
-            .chat-delete-btn:hover {
-                background: rgba(239, 68, 68, 0.1);
-                color: #EF4444;
-            }
-            .chat-item-meta {
-                display: flex;
-                justify-content: space-between;
-                font-size: 12px;
-                color: rgba(0, 0, 0, 0.6);
-                margin-top: 2px;
-            }
-            .chat-item-count {
-                color: rgba(0, 0, 0, 0.5);
-                text-transform: uppercase;
-                font-size: 10px;
-                font-weight: 500;
-            }
-            .chat-item.active {
-                background: rgb(255, 255, 255) !important;
-                border: 1px solid rgba(78, 205, 196, 0.4) !important;
-                box-shadow: 0 2px 8px rgba(78, 205, 196, 0.15) !important;
-            }
-            .chat-item.active .chat-item-title {
-                color: rgb(26, 26, 26);
-                font-weight: 600;
-            }
-        `;
-        if (!document.querySelector('#chat-history-styles')) {
-            style.id = 'chat-history-styles';
-            document.head.appendChild(style);
-        }
+        // Styles are now managed in CSS files
     }
 
     formatTimestamp(timestamp) {
@@ -269,18 +172,18 @@ class ChatHistoryManager {
         const modalOverlay = document.createElement('div');
         modalOverlay.className = 'modal-overlay';
         modalOverlay.innerHTML = `
-            <div class="modal-content" style="max-width: 420px;">
+            <div class="modal-content delete-modal">
                 <div class="modal-header">
                     <h3 class="modal-title">Delete Conversation</h3>
                 </div>
                 <div class="modal-body">
-                    <p style="margin: 0; color: rgba(0, 0, 0, 0.7); font-size: 15px;">
+                    <p class="delete-modal-text">
                         Are you sure you want to delete this conversation? This action cannot be undone.
                     </p>
                 </div>
                 <div class="modal-footer">
                     <button class="modal-btn secondary" data-action="cancel">Cancel</button>
-                    <button class="modal-btn primary" data-action="delete" style="background: linear-gradient(135deg, #dc2626, #ef4444);">
+                    <button class="modal-btn primary delete-btn" data-action="delete">
                         Delete
                     </button>
                 </div>
@@ -360,28 +263,20 @@ class ChatHistoryManager {
     }
     
     showErrorMessage(message) {
-        // Create a styled error notification instead of alert
+        // Create error notification without inline styles
         const notification = document.createElement('div');
         notification.className = 'error-notification';
-        notification.style.cssText = `
-            position: fixed;
-            bottom: 20px;
-            right: 20px;
-            background: #ef4444;
-            color: white;
-            padding: 12px 20px;
-            border-radius: 8px;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-            font-size: 14px;
-            z-index: 10000;
-            animation: slideIn 0.3s ease;
-        `;
         notification.textContent = message;
         
         document.body.appendChild(notification);
         
+        // Add show animation
+        requestAnimationFrame(() => {
+            notification.classList.add('show');
+        });
+        
         setTimeout(() => {
-            notification.style.animation = 'slideOut 0.3s ease';
+            notification.classList.remove('show');
             setTimeout(() => notification.remove(), 300);
         }, 3000);
     }
@@ -394,15 +289,8 @@ class ChatHistoryManager {
         document.querySelectorAll('.chat-item').forEach(item => {
             if (item.dataset.conversationId === conversationId) {
                 item.classList.add('active');
-                item.style.background = 'rgb(255, 255, 255)';
-                item.style.border = '1px solid rgba(78, 205, 196, 0.4)';
-                item.style.boxShadow = '0 2px 8px rgba(78, 205, 196, 0.15)';
             } else {
                 item.classList.remove('active');
-                item.style.background = 'rgba(255, 255, 255, 0.95)';
-                item.style.border = '1px solid rgba(0, 0, 0, 0.08)';
-                item.style.boxShadow = '0 1px 2px rgba(0, 0, 0, 0.04)';
-                item.style.transform = 'translateY(0)';
             }
         });
         
@@ -422,20 +310,40 @@ class ChatHistoryManager {
             
             // Clear current chat and load messages
             if (window.chatInstance && window.chatInstance.chat) {
-                // Clear existing messages
-                window.chatInstance.chat.messagesClear();
+                // Clear existing messages using historyClear
+                if (window.chatInstance.chat.historyClear) {
+                    window.chatInstance.chat.historyClear();
+                } else {
+                    // Fallback: manually clear the messages area
+                    const messagesArea = document.querySelector('.quikchat-messages-area');
+                    if (messagesArea) {
+                        messagesArea.innerHTML = '';
+                    }
+                }
                 
-                // Set the conversation ID
+                // Set the conversation ID in the chatInstance
                 window.chatInstance.conversationId = conversationId;
+                localStorage.setItem('currentConversationId', conversationId);
+                
+                // Reconnect SSE for this conversation
+                if (window.chatInstance.eventSource) {
+                    window.chatInstance.eventSource.close();
+                }
+                window.chatInstance.connectToSSE();
                 
                 // Load messages into chat
-                data.messages.forEach(msg => {
-                    const alignment = msg.role === 'user' ? 'right' : 'left';
-                    const author = msg.role === 'user' ? 'You' : 'Assistant';
-                    window.chatInstance.chat.messageAddNew(msg.message, author, alignment);
-                });
-                
-                console.log(`[Chat History] Loaded ${data.messages.length} messages`);
+                if (data.messages && data.messages.length > 0) {
+                    data.messages.forEach(msg => {
+                        const alignment = msg.role === 'user' ? 'right' : 'left';
+                        const author = msg.role === 'user' ? 'You' : 'Assistant';
+                        window.chatInstance.chat.messageAddNew(msg.message, author, alignment);
+                    });
+                    console.log(`[Chat History] Loaded ${data.messages.length} messages`);
+                } else {
+                    // No messages in this conversation, show continuation message
+                    window.chatInstance.chat.messageAddNew('Continue your conversation...', 'Assistant', 'left');
+                    console.log('[Chat History] Loaded empty conversation');
+                }
             }
         } catch (error) {
             console.error('[Chat History] Error loading conversation:', error);
@@ -449,14 +357,29 @@ class ChatHistoryManager {
         // Clear active states
         document.querySelectorAll('.chat-item').forEach(item => {
             item.classList.remove('active');
-            item.style.background = 'transparent';
-            item.style.border = '1px solid transparent';
         });
         
         // Clear chat and reset conversation ID
         if (window.chatInstance) {
+            // Close existing SSE connection
+            if (window.chatInstance.eventSource) {
+                window.chatInstance.eventSource.close();
+                window.chatInstance.eventSource = null;
+            }
+            
+            // Clear the conversation
             window.chatInstance.clearConversation();
+            
+            // Clear localStorage
+            localStorage.removeItem('currentConversationId');
+            
+            console.log('[Chat History] New chat started');
         }
+        
+        // Reload conversations to refresh the list after a short delay
+        setTimeout(() => {
+            this.loadRecentConversations();
+        }, 500);
     }
 
     startAutoRefresh(interval = 30000) {
@@ -483,6 +406,13 @@ class ChatHistoryManager {
 
     init() {
         console.log('[Chat History] Initializing...');
+        
+        // Check if there's a current conversation in localStorage
+        const currentConvId = localStorage.getItem('currentConversationId');
+        if (currentConvId) {
+            this.currentConversationId = currentConvId;
+            console.log(`[Chat History] Found current conversation: ${currentConvId}`);
+        }
         
         // Load initial conversations
         this.loadRecentConversations();

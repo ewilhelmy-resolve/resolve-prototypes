@@ -389,14 +389,14 @@ body {
 
 .rita-send-btn {
   position: absolute;
-  right: 6px;
-  top: 50%;
-  transform: translateY(-50%);
+  right: 8px;
+  bottom: 11px; /* Changed from top: 50% to bottom positioning */
+  transform: none; /* Removed translateY */
   background: linear-gradient(135deg, rgba(47, 98, 255, 0.9), rgba(51, 84, 250, 0.9));
   border: 1px solid rgba(47, 98, 255, 0.3);
-  border-radius: 6px;
-  width: 32px;
-  height: 32px;
+  border-radius: 4px; /* Changed to more squared corners */
+  width: 22px; /* Changed to 22x22px */
+  height: 22px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -406,7 +406,7 @@ body {
 }
 
 .rita-send-btn:hover {
-  transform: translateY(-50%) scale(1.05);
+  transform: scale(1.05); /* Removed translateY */
   background: linear-gradient(135deg, rgba(47, 98, 255, 1), rgba(51, 84, 250, 1));
   box-shadow: 0 4px 15px rgba(47, 98, 255, 0.3);
 }

@@ -262,6 +262,13 @@ class QuikChatRAG {
                     const sourcesText = 'Sources: ' + response.sources.join(', ');
                     instance.messageAddNew(sourcesText, 'System', 'left');
                 }
+                
+                // Refresh chat history to show the new conversation or update existing
+                if (window.chatHistoryManager) {
+                    setTimeout(() => {
+                        window.chatHistoryManager.loadRecentConversations();
+                    }, 1000);
+                }
             } else {
                 instance.messageAddNew(response.message, 'Assistant', 'left');
             }
@@ -287,17 +294,23 @@ class QuikChatRAG {
 
     async loadHistoryIfExists() {
         const urlParams = new URLSearchParams(window.location.search);
-        const convId = urlParams.get('conversation');
+        let convId = urlParams.get('conversation');
+        
+        // If no URL param, check localStorage for last conversation
+        if (!convId) {
+            convId = localStorage.getItem('currentConversationId');
+        }
         
         if (convId) {
             this.conversationId = convId;
-            const history = await this.loadConversationHistory();
+            console.log(`[QuikChatRAG] Loading conversation: ${convId}`);
             
-            history.forEach(msg => {
-                const alignment = msg.role === 'user' ? 'right' : 'left';
-                const author = msg.role === 'user' ? 'You' : 'Assistant';
-                this.chat.messageAddNew(msg.message, author, alignment);
-            });
+            // Don't reload history here - let the ChatHistoryManager handle it
+            // Just set up the SSE connection
+            this.connectToSSE();
+        } else {
+            // No existing conversation, clear the greeting and show fresh one
+            console.log('[QuikChatRAG] No existing conversation found');
         }
     }
 
@@ -313,7 +326,21 @@ class QuikChatRAG {
     clearConversation() {
         this.conversationId = null;
         if (this.chat) {
-            this.chat.messagesClear();
+            // Clear messages using historyClear
+            if (this.chat.historyClear) {
+                this.chat.historyClear();
+                // Also clear the visual messages
+                const messagesArea = document.querySelector('.quikchat-messages-area');
+                if (messagesArea) {
+                    messagesArea.innerHTML = '';
+                }
+            } else {
+                // Fallback: manually clear the messages area
+                const messagesArea = document.querySelector('.quikchat-messages-area');
+                if (messagesArea) {
+                    messagesArea.innerHTML = '';
+                }
+            }
             // Re-add greeting
             this.chat.messageAddNew('Hello! How can I help you today?', 'Assistant', 'left');
         }
