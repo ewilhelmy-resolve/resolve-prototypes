@@ -874,6 +874,7 @@
     <script src="/components/quikchat-rag.js"></script>
     <script src="/components/chat-enhancements.js"></script>
     <script src="/components/mobile-menu.js"></script>
+    <script src="/components/chat-history.js"></script>
     <script>
         // Initialize QuikChat when DOM is ready
         document.addEventListener('DOMContentLoaded', () => {
@@ -891,6 +892,14 @@
                     window.chatEnhancements.init();
                 }
             }, 500); // Small delay to ensure QuikChat is fully rendered
+            
+            // Initialize chat history manager
+            setTimeout(() => {
+                if (!window.chatHistoryManager) {
+                    window.chatHistoryManager = new ChatHistoryManager();
+                    window.chatHistoryManager.init();
+                }
+            }, 1000); // Delay to ensure QuikChat is ready
             
             // Comment out Jarvis initialization for now
             // injectEspressiveWidget({ ... });

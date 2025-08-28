@@ -34,9 +34,19 @@ function createRagRouter(db, sessions) {
             
             for (const doc of documents) {
                 // Validate document size (50KB per document)
-                if (doc.content.length > parseInt(process.env.MAX_DOCUMENT_SIZE)) {
+                const maxSize = parseInt(process.env.MAX_DOCUMENT_SIZE) || 51200; // Default to 50KB
+                if (doc.content && doc.content.length > maxSize) {
                     results.push({ 
                         error: 'Document exceeds 50KB limit',
+                        skipped: true 
+                    });
+                    continue;
+                }
+                
+                // Ensure doc has content
+                if (!doc.content) {
+                    results.push({ 
+                        error: 'Document missing content',
                         skipped: true 
                     });
                     continue;
@@ -160,8 +170,9 @@ function createRagRouter(db, sessions) {
             // Store vectors with pgvector
             for (const vector of vectors) {
                 // Validate embedding dimension
-                if (!Array.isArray(vector.embedding) || vector.embedding.length !== parseInt(process.env.VECTOR_DIMENSION)) {
-                    console.error(`Invalid embedding dimension: ${vector.embedding?.length}`);
+                const expectedDimension = parseInt(process.env.VECTOR_DIMENSION) || 1536; // Default to OpenAI dimension
+                if (!Array.isArray(vector.embedding) || vector.embedding.length !== expectedDimension) {
+                    console.error(`Invalid embedding dimension: ${vector.embedding?.length}, expected: ${expectedDimension}`);
                     continue;
                 }
                 
@@ -211,9 +222,10 @@ function createRagRouter(db, sessions) {
             const { query_embedding, tenant_id, limit = 5, threshold = 0.7 } = req.body;
             
             // Validate embedding
-            if (!Array.isArray(query_embedding) || query_embedding.length !== parseInt(process.env.VECTOR_DIMENSION)) {
+            const expectedDimension = parseInt(process.env.VECTOR_DIMENSION) || 1536;
+            if (!Array.isArray(query_embedding) || query_embedding.length !== expectedDimension) {
                 return res.status(400).json({ 
-                    error: `Invalid embedding dimension. Expected ${process.env.VECTOR_DIMENSION}, got ${query_embedding?.length}` 
+                    error: `Invalid embedding dimension. Expected ${expectedDimension}, got ${query_embedding?.length}` 
                 });
             }
             
@@ -576,11 +588,52 @@ function createRagRouter(db, sessions) {
         }
     });
     
-    // 7. SSE endpoint for real-time chat updates
+    // 7. Delete Conversation
+    router.delete('/conversation/:conversation_id', validateTenantMW, async (req, res) => {
+        try {
+            const { conversation_id } = req.params;
+            
+            console.log(`[DELETE CONVERSATION] User ${req.userEmail} deleting conversation ${conversation_id}`);
+            
+            // Verify the conversation belongs to this user
+            const convResult = await db.query(
+                'SELECT * FROM rag_conversations WHERE conversation_id = $1 AND tenant_id = $2 AND user_email = $3',
+                [conversation_id, req.tenantId, req.userEmail]
+            );
+            
+            if (convResult.rows.length === 0) {
+                return res.status(404).json({ error: 'Conversation not found or access denied' });
+            }
+            
+            // Delete all messages first (due to foreign key constraint)
+            await db.query(
+                'DELETE FROM rag_messages WHERE conversation_id = $1',
+                [conversation_id]
+            );
+            
+            // Delete the conversation
+            await db.query(
+                'DELETE FROM rag_conversations WHERE conversation_id = $1',
+                [conversation_id]
+            );
+            
+            console.log(`[DELETE CONVERSATION] Successfully deleted conversation ${conversation_id}`);
+            
+            res.json({ success: true, message: 'Conversation deleted successfully' });
+            
+        } catch (error) {
+            console.error('Delete conversation error:', error);
+            res.status(500).json({ error: 'Unable to delete conversation' });
+        }
+    });
+    
+    // 8. SSE endpoint for real-time chat updates
     router.get('/chat-stream/:conversation_id', validateTenantMW, async (req, res) => {
         const { conversation_id } = req.params;
         const tenantId = req.tenantId;
         const clientId = crypto.randomUUID();
+        
+        console.log(`[SSE] New connection request for conversation: ${conversation_id}, tenant: ${tenantId}`);
         
         // Validate conversation belongs to this tenant
         const convResult = await db.query(
@@ -621,10 +674,15 @@ function createRagRouter(db, sessions) {
             message: 'Connected to chat stream'
         })}\n\n`);
         
-        // Send heartbeat every 30 seconds to keep connection alive
+        // Send heartbeat every 15 seconds to keep connection alive (more aggressive to prevent timeouts)
         const heartbeatInterval = setInterval(() => {
-            res.write(`data: ${JSON.stringify({ type: 'heartbeat' })}\n\n`);
-        }, 30000);
+            try {
+                res.write(`data: ${JSON.stringify({ type: 'heartbeat', timestamp: new Date().toISOString() })}\n\n`);
+            } catch (error) {
+                console.error(`[SSE] Error sending heartbeat to client ${clientId}:`, error);
+                clearInterval(heartbeatInterval);
+            }
+        }, 15000);
         
         // Handle client disconnect
         req.on('close', () => {
@@ -749,6 +807,132 @@ function createRagRouter(db, sessions) {
                 error: 'Invalid callback URL format',
                 received_url: req.originalUrl 
             });
+        }
+    });
+
+    // 9. Get recent conversations for the current user
+    router.get('/recent-conversations', validateTenantMW, async (req, res) => {
+        try {
+            const limit = parseInt(req.query.limit) || 10;
+            const offset = parseInt(req.query.offset) || 0;
+            
+            console.log('[RECENT CHATS] Request details:', {
+                tenantId: req.tenantId,
+                userEmail: req.userEmail,
+                limit,
+                offset
+            });
+
+            // Get recent conversations with their latest message
+            const query = `
+                SELECT DISTINCT
+                    c.conversation_id,
+                    c.created_at as conversation_created_at,
+                    c.updated_at as conversation_updated_at,
+                    (
+                        SELECT m.message 
+                        FROM rag_messages m 
+                        WHERE m.conversation_id = c.conversation_id 
+                        AND m.role = 'user'
+                        ORDER BY m.created_at DESC 
+                        LIMIT 1
+                    ) as last_user_message,
+                    (
+                        SELECT m.created_at 
+                        FROM rag_messages m 
+                        WHERE m.conversation_id = c.conversation_id 
+                        ORDER BY m.created_at DESC 
+                        LIMIT 1
+                    ) as last_message_time,
+                    (
+                        SELECT COUNT(*) 
+                        FROM rag_messages m 
+                        WHERE m.conversation_id = c.conversation_id
+                    ) as message_count
+                FROM rag_conversations c
+                WHERE c.tenant_id = $1 
+                AND c.user_email = $2
+                AND c.status = 'active'
+                ORDER BY c.updated_at DESC
+                LIMIT $3 OFFSET $4
+            `;
+
+            const result = await db.query(query, [req.tenantId, req.userEmail, limit, offset]);
+            
+            console.log('[RECENT CHATS] Query result rows:', result.rows.length);
+            if (result.rows.length > 0) {
+                console.log('[RECENT CHATS] Sample conversation:', result.rows[0]);
+            }
+
+            // Get total count for pagination
+            const countResult = await db.query(
+                `SELECT COUNT(*) as total 
+                 FROM rag_conversations 
+                 WHERE tenant_id = $1 AND user_email = $2 AND status = 'active'`,
+                [req.tenantId, req.userEmail]
+            );
+            
+            console.log('[RECENT CHATS] Total conversations:', countResult.rows[0]?.total || 0);
+
+            const conversations = result.rows.map(row => ({
+                conversation_id: row.conversation_id,
+                created_at: row.conversation_created_at,
+                updated_at: row.conversation_updated_at,
+                last_user_message: row.last_user_message || 'New conversation',
+                last_message_time: row.last_message_time,
+                message_count: parseInt(row.message_count) || 0,
+                preview: row.last_user_message ? 
+                    (row.last_user_message.length > 60 ? 
+                        row.last_user_message.substring(0, 60) + '...' : 
+                        row.last_user_message) : 
+                    'New conversation'
+            }));
+
+            res.json({
+                success: true,
+                conversations: conversations,
+                pagination: {
+                    limit: limit,
+                    offset: offset,
+                    total: parseInt(countResult.rows[0].total),
+                    has_more: offset + limit < parseInt(countResult.rows[0].total)
+                }
+            });
+
+        } catch (error) {
+            console.error('Error fetching recent conversations:', error);
+            res.status(500).json({ 
+                success: false, 
+                error: 'Failed to fetch conversations' 
+            });
+        }
+    });
+
+    // 10. Delete a conversation
+    router.delete('/conversation/:conversationId', validateTenantMW, async (req, res) => {
+        try {
+            const { conversationId } = req.params;
+
+            // Verify ownership
+            const ownerCheck = await db.query(
+                'SELECT 1 FROM rag_conversations WHERE conversation_id = $1 AND user_id = $2 AND tenant_id = $3',
+                [conversationId, req.user.id, req.tenant.id]
+            );
+
+            if (ownerCheck.rows.length === 0) {
+                return res.status(403).json({ error: 'Access denied' });
+            }
+
+            // Delete messages first (due to foreign key)
+            await db.query('DELETE FROM rag_messages WHERE conversation_id = $1', [conversationId]);
+            
+            // Delete conversation
+            await db.query('DELETE FROM rag_conversations WHERE conversation_id = $1', [conversationId]);
+
+            res.json({ success: true, message: 'Conversation deleted successfully' });
+        } catch (error) {
+            console.error('Error deleting conversation:', error);
+            res.status(500).json({ error: 'Failed to delete conversation' });
         }
     });
     

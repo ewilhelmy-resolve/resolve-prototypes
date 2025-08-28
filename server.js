@@ -370,7 +370,7 @@ async function initializeAdminUsers() {
     try {
         // Query admin users from database
         const result = await db.query(
-            `SELECT id, email, password, full_name, company_name, tier 
+            `SELECT id, email, password, full_name, company_name, tier, tenant_id 
              FROM users 
              WHERE tier = 'admin'`
         );
@@ -381,6 +381,7 @@ async function initializeAdminUsers() {
             if (!existingUser) {
                 users.push({
                     id: dbUser.id.toString(),
+                    tenantId: dbUser.tenant_id,
                     email: dbUser.email,
                     password: dbUser.password,
                     fullName: dbUser.full_name,
@@ -388,7 +389,7 @@ async function initializeAdminUsers() {
                     tier: dbUser.tier,
                     createdAt: new Date().toISOString()
                 });
-                console.log(`📌 Admin user loaded: ${dbUser.email}`);
+                console.log(`📌 Admin user loaded: ${dbUser.email} with tenant: ${dbUser.tenant_id}`);
             }
         }
         
@@ -578,7 +579,7 @@ app.post('/api/register', trackWorkflow('onboarding', 'user_registration'), asyn
 });
 
 // Signin endpoint
-app.post('/api/signin', trackWorkflow('authentication', 'user_signin'), (req, res) => {
+app.post('/api/signin', trackWorkflow('authentication', 'user_signin'), async (req, res) => {
     try {
         const { email, password } = req.body;
         
@@ -590,8 +591,33 @@ app.post('/api/signin', trackWorkflow('authentication', 'user_signin'), (req, re
             });
         }
         
-        // Find user
-        const user = users.find(u => u.email === email && u.password === password);
+        // First check in-memory users
+        let user = users.find(u => u.email === email && u.password === password);
+        
+        // If not found in memory, check database
+        if (!user) {
+            const dbResult = await db.query(
+                'SELECT id, tenant_id, email, password, full_name, company_name, tier FROM users WHERE email = $1 AND password = $2',
+                [email, password]
+            );
+            
+            if (dbResult.rows.length > 0) {
+                const dbUser = dbResult.rows[0];
+                user = {
+                    id: dbUser.id.toString(),
+                    tenantId: dbUser.tenant_id,
+                    email: dbUser.email,
+                    password: dbUser.password,
+                    fullName: dbUser.full_name,
+                    companyName: dbUser.company_name,
+                    tier: dbUser.tier || 'user'
+                };
+                
+                // Add to in-memory users for faster subsequent access
+                users.push(user);
+            }
+        }
+        
         if (!user) {
             return res.status(401).json({ 
                 success: false, 
@@ -655,6 +681,12 @@ app.get('/api/user/info', (req, res) => {
     }
     
     const session = sessions[token];
+    
+    console.log('[USER INFO] Session details:', {
+        email: session.email,
+        tenantId: session.tenantId,
+        companyName: session.companyName
+    });
     const user = users.find(u => u.email === session.email);
     
     if (!user) {

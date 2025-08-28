@@ -103,7 +103,7 @@
   }
 }
 
-/* QuikChat Mobile Optimizations */
+/* QuikChat container responsive layout - removed duplicate rules */
 @media (max-width: 768px) {
   /* QuikChat container full width */
   #quikchat-container {
@@ -123,66 +123,7 @@
     -webkit-overflow-scrolling: touch !important;
   }
 
-  /* Input area fixed at bottom */
-  #quikchat-container .quikchat-input-area {
-    position: sticky !important;
-    bottom: 0 !important;
-    left: 0 !important;
-    right: 0 !important;
-    background: white !important;
-    border-top: 1px solid rgba(0, 0, 0, 0.1) !important;
-    padding: 12px !important;
-    display: flex !important;
-    align-items: center !important;
-    gap: 8px !important;
-    z-index: 50 !important;
-  }
-
-  /* Input field with integrated button */
-  #quikchat-container .quikchat-input-wrapper {
-    position: relative !important;
-    flex: 1 !important;
-    display: flex !important;
-    align-items: center !important;
-  }
-
-  #quikchat-container .quikchat-input-textbox {
-    width: 100% !important;
-    min-height: 48px !important;
-    padding: 12px 52px 12px 16px !important;
-    font-size: 16px !important;
-    border: 2px solid rgba(0, 102, 255, 0.2) !important;
-    border-radius: 24px !important;
-    background: rgba(255, 255, 255, 0.95) !important;
-    resize: none !important;
-    box-sizing: border-box !important;
-  }
-
-  /* Send button properly positioned inside input */
-  #quikchat-container .quikchat-input-send-btn {
-    position: absolute !important;
-    right: 6px !important;
-    top: 50% !important;
-    transform: translateY(-50%) !important;
-    width: 36px !important;
-    height: 36px !important;
-    min-width: 36px !important;
-    min-height: 36px !important;
-    border-radius: 18px !important;
-    background: linear-gradient(135deg, #0066FF, #0088FF) !important;
-    border: none !important;
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    color: white !important;
-    font-size: 0 !important;
-    padding: 0 !important;
-    margin: 0 !important;
-    cursor: pointer !important;
-    z-index: 2 !important;
-    box-shadow: 0 2px 4px rgba(0, 102, 255, 0.2) !important;
-  }
-
+  /* Send button arrow icon */
   #quikchat-container .quikchat-input-send-btn::before {
     content: "→" !important;
     font-size: 20px !important;
@@ -190,11 +131,6 @@
     font-weight: bold !important;
     display: block !important;
     line-height: 1 !important;
-  }
-
-  /* Remove any conflicting styles */
-  #quikchat-container .quikchat-input-send-btn::after {
-    display: none !important;
   }
 }
 

@@ -254,19 +254,12 @@
 }
 
 @media (max-width: 768px) {
+    /* Only title size adjustment for mobile */
     #quikchat-container .quikchat-title-area {
         font-size: 32px !important;
     }
     
-    #quikchat-container .quikchat-messages-area,
-    #quikchat-container .quikchat-input-area {
+    #quikchat-container .quikchat-messages-area {
         max-width: 100% !important;
-        padding: 0 16px !important;
-    }
-    
-    #quikchat-container .quikchat-input-textbox {
-        font-size: 14px !important;
-        height: 40px !important;
-        padding: 8px 45px 8px 16px !important;
     }
 }

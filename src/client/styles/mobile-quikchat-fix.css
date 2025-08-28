@@ -1,144 +1,71 @@
-/* Mobile-specific QuikChat fixes */
+/* Simplified QuikChat styles - consistent across all screen sizes */
 
-/* Fix send button positioning on mobile */
-@media (max-width: 768px) {
-  /* Fix the input container to use proper relative positioning */
-  #quikchat-container .quikchat-input-area {
-    position: relative !important;
-    padding: 12px !important;
-    background: white !important;
-    border-top: 1px solid rgba(0, 0, 0, 0.1) !important;
-  }
-
-  /* Input wrapper to contain the textbox and button properly */
-  #quikchat-container .quikchat-input-textbox {
-    padding-right: 50px !important; /* Make room for the button inside */
-    width: 100% !important;
-    font-size: 16px !important; /* Prevent iOS zoom */
-    min-height: 48px !important;
-    box-sizing: border-box !important;
-  }
-
-  /* Fix send button to be inside the input field */
-  #quikchat-container .quikchat-input-send-btn {
-    position: absolute !important;
-    right: 20px !important;
-    bottom: 18px !important;
-    top: auto !important;
-    transform: none !important;
-    width: 36px !important;
-    height: 36px !important;
-    min-width: 36px !important;
-    border-radius: 8px !important;
-    background: linear-gradient(135deg, #0066FF, #0088FF) !important;
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    z-index: 10 !important;
-  }
-
-  /* Ensure button stays in the right position when textarea expands */
-  #quikchat-container .quikchat-input-area.expanded .quikchat-input-send-btn {
-    bottom: 18px !important; /* Keep at bottom of input area */
-  }
-
-  /* Fix for when textarea has multiple lines */
-  #quikchat-container .quikchat-input-textbox:focus + .quikchat-input-send-btn,
-  #quikchat-container .quikchat-input-area:has(.quikchat-input-textbox:not(:placeholder-shown)) .quikchat-input-send-btn {
-    bottom: 18px !important; /* Maintain consistent position */
-  }
+/* Base styles for input area - applied universally */
+#quikchat-container .quikchat-input-area {
+  position: relative !important;
+  padding: 12px !important;
+  background: white !important;
+  border-top: 1px solid rgba(0, 0, 0, 0.1) !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
 }
 
-/* Very small screens */
-@media (max-width: 480px) {
-  #quikchat-container .quikchat-input-send-btn {
-    right: 16px !important;
-    bottom: 16px !important;
-    width: 32px !important;
-    height: 32px !important;
-    min-width: 32px !important;
-  }
-
-  #quikchat-container .quikchat-input-textbox {
-    padding-right: 48px !important;
-    min-height: 44px !important;
-  }
+/* Input wrapper with consistent styling */
+#quikchat-container .quikchat-input-wrapper {
+  position: relative !important;
+  flex: 1 !important;
+  display: flex !important;
+  align-items: center !important;
 }
 
-/* iOS-specific fixes */
+/* Input textbox with room for button */
+#quikchat-container .quikchat-input-textbox {
+  width: 100% !important;
+  padding: 12px 52px 12px 16px !important;
+  font-size: 16px !important;
+  min-height: 48px !important;
+  box-sizing: border-box !important;
+  border: 2px solid rgba(0, 102, 255, 0.2) !important;
+  border-radius: 24px !important;
+  background: rgba(255, 255, 255, 0.95) !important;
+  resize: none !important;
+}
+
+/* Send button positioned inside input field */
+#quikchat-container .quikchat-input-send-btn {
+  position: absolute !important;
+  right: 6px !important;
+  top: 50% !important;
+  transform: translateY(-50%) !important;
+  width: 36px !important;
+  height: 36px !important;
+  min-width: 36px !important;
+  border-radius: 18px !important;
+  background: linear-gradient(135deg, #0066FF, #0088FF) !important;
+  border: none !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  color: white !important;
+  z-index: 10 !important;
+  box-shadow: 0 2px 4px rgba(0, 102, 255, 0.2) !important;
+  cursor: pointer !important;
+}
+
+
+/* iOS safe area support */
 @supports (-webkit-touch-callout: none) {
   #quikchat-container .quikchat-input-area {
     padding-bottom: env(safe-area-inset-bottom) !important;
   }
-
-  /* Ensure button is properly positioned on iOS */
-  #quikchat-container .quikchat-input-send-btn {
-    position: fixed !important;
-    right: 20px !important;
-    bottom: calc(16px + env(safe-area-inset-bottom)) !important;
-    z-index: 1000 !important;
-  }
-
-  /* When keyboard is shown on iOS */
-  @media (max-height: 500px) {
-    #quikchat-container .quikchat-input-send-btn {
-      position: absolute !important;
-      bottom: 16px !important;
-    }
-  }
 }
 
-/* Alternative approach using flexbox for better mobile layout */
-@media (max-width: 768px) {
-  /* Create a proper input group */
-  #quikchat-container .quikchat-input-area {
-    display: flex !important;
-    align-items: flex-end !important;
-    gap: 8px !important;
-    padding: 12px !important;
-    background: white !important;
-    position: sticky !important;
-    bottom: 0 !important;
-    z-index: 100 !important;
-    border-top: 1px solid rgba(0, 0, 0, 0.1) !important;
-  }
 
-  /* Reset absolute positioning approach and use flex */
-  #quikchat-container .quikchat-input-wrapper {
-    position: relative !important;
-    flex: 1 !important;
-    display: flex !important;
-    align-items: flex-end !important;
-  }
-
-  /* Input takes full width minus button */
-  #quikchat-container .quikchat-input-textbox {
-    flex: 1 !important;
-    margin-right: 0 !important;
-    padding-right: 50px !important; /* Space for absolute button */
-  }
-
-  /* Button positioned inside the input field */
-  #quikchat-container .quikchat-input-send-btn {
-    position: absolute !important;
-    right: 8px !important;
-    bottom: 8px !important;
-    margin: 0 !important;
-  }
-}
-
-/* Touch-friendly adjustments */
+/* Touch-friendly minimum sizes for mobile devices */
 @media (hover: none) and (pointer: coarse) {
   #quikchat-container .quikchat-input-send-btn {
     min-width: 44px !important;
     min-height: 44px !important;
-    width: 44px !important;
-    height: 44px !important;
-  }
-
-  #quikchat-container .quikchat-input-textbox {
-    padding-right: 56px !important;
-    min-height: 48px !important;
-    font-size: 16px !important;
   }
 }
