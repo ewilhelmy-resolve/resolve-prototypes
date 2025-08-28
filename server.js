@@ -8,6 +8,7 @@ const { v4: uuidv4 } = require('uuid');
 const db = require('./src/database/postgres');
 const { createMigrationMiddleware, isValidUUID } = require('./migrate-tenant-ids');
 const createRagRouter = require('./src/routes/ragApi');
+const createKnowledgeRouter = require('./src/routes/knowledge');
 const { processWebhookRetryQueue } = require('./src/workers/webhookRetry');
 const { generateCallbackToken } = require('./src/utils/rag');
 const ResolveWebhook = require('./src/utils/resolve-webhook');
@@ -1819,6 +1820,10 @@ app.post('/api/webhook', requireAuth, async (req, res) => {
 // Mount RAG API routes
 const ragRouter = createRagRouter(db, sessions);
 app.use('/api/rag', ragRouter);
+
+// Mount Knowledge API routes
+const knowledgeRouter = createKnowledgeRouter(db, sessions);
+app.use('/api', knowledgeRouter);
 
 // Health check
 app.get('/health', (req, res) => {

@@ -59,6 +59,9 @@
     overflow-x: hidden;
     min-height: 0;
     scroll-behavior: smooth;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
 }
 
 /* Scrollbar styling */
@@ -87,26 +90,38 @@
     line-height: 1.5;
     padding: 12px 16px;
     margin-bottom: 12px;
-    border-radius: 16px;
-    max-width: 70%;
-}
-
-/* User messages (right aligned) */
-#quikchat-container .quikchat-message.right {
-    background: rgba(0, 102, 255, 0.1);
-    border: 1px solid rgba(0, 102, 255, 0.2);
-    color: #1A1A1A;
-    margin-left: auto;
+    border-radius: 12px;
+    width: 100%;
+    max-width: 100%;
     text-align: left;
+    word-wrap: break-word;
+    box-sizing: border-box;
 }
 
-/* Assistant messages (left aligned) */
-#quikchat-container .quikchat-message.left {
-    background: rgba(255, 255, 255, 0.9);
-    border: 1px solid rgba(0, 0, 0, 0.1);
+/* User messages (full width with grey background) */
+#quikchat-container .quikchat-message.right,
+#quikchat-container .quikchat-message[aria-label*="Message from You"] {
+    background: rgba(245, 247, 250, 0.95) !important;
+    border: 1px solid rgba(220, 225, 230, 0.5) !important;
     color: #1A1A1A;
-    margin-right: auto;
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+    margin-left: 0;
+    margin-right: 0;
+    text-align: left;
+    width: 100%;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+/* Assistant messages (full width white background) */
+#quikchat-container .quikchat-message.left,
+#quikchat-container .quikchat-message[aria-label*="Message from Assistant"] {
+    background: rgba(255, 255, 255, 0.95) !important;
+    border: 1px solid rgba(0, 0, 0, 0.08) !important;
+    color: #1A1A1A;
+    margin-left: 0;
+    margin-right: 0;
+    text-align: left;
+    width: 100%;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
 }
 
 /* Input area container */
@@ -213,6 +228,52 @@
     font-size: 14px;
     color: white;
     font-weight: bold;
+}
+
+/* Override QuikChat alignment classes and ensure full width */
+#quikchat-container .quikchat-message.right-singleline,
+#quikchat-container .quikchat-message.right-multiline,
+#quikchat-container .quikchat-right-singleline,
+#quikchat-container .quikchat-right-multiline,
+#quikchat-container .quikchat-message-content {
+    text-align: left !important;
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+    max-width: 100% !important;
+    width: 100% !important;
+    display: block !important;
+}
+
+/* User label styling */
+#quikchat-container .quikchat-user-label {
+    text-align: left !important;
+    font-size: 12px;
+    font-weight: 600;
+    color: rgba(0, 0, 0, 0.6);
+    margin-bottom: 4px;
+}
+
+/* Force message styling with higher specificity */
+#quikchat-container .quikchat-messages-area .quikchat-message[aria-label*="You"] {
+    background: rgba(245, 247, 250, 0.95) !important;
+    border: 1px solid rgba(220, 225, 230, 0.5) !important;
+    padding: 12px 16px !important;
+    border-radius: 12px !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 0 12px 0 !important;
+    box-sizing: border-box !important;
+}
+
+#quikchat-container .quikchat-messages-area .quikchat-message[aria-label*="Assistant"] {
+    background: rgba(255, 255, 255, 0.95) !important;
+    border: 1px solid rgba(0, 0, 0, 0.08) !important;
+    padding: 12px 16px !important;
+    border-radius: 12px !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 0 12px 0 !important;
+    box-sizing: border-box !important;
 }
 
 /* Hide default QuikChat themes */
