@@ -139,8 +139,11 @@ class QuikChatRAG {
                 
                 // Update the chat with the AI response
                 if (this.chat) {
-                    // We can't check existing messages without the API, so just add the new one
-                    // The chat library might handle duplicates internally
+                    // Remove any typing indicator first
+                    if (this.currentTypingId) {
+                        this.chat.messageRemove(this.currentTypingId);
+                        this.currentTypingId = null;
+                    }
                     
                     // Add the response (use content for test messages, ai_response for regular)
                     const messageText = data.content || data.ai_response;
@@ -245,14 +248,45 @@ class QuikChatRAG {
             // Add user message immediately
             instance.messageAddNew(message, 'You', 'right');
             
-            // Show typing indicator
-            const typingId = instance.messageAddNew('Thinking...', 'Assistant', 'left');
+            // Show animated typing indicator using animated text
+            let dotCount = 0;
+            const typingMessages = [
+                'Thinking',
+                'Thinking.',
+                'Thinking..',
+                'Thinking...'
+            ];
+            
+            const typingId = instance.messageAddNew(typingMessages[0], 'Assistant', 'left');
+            
+            // Animate the dots
+            const typingInterval = setInterval(() => {
+                dotCount = (dotCount + 1) % 4;
+                if (this.currentTypingId === typingId && instance.messageUpdate) {
+                    instance.messageUpdate(typingId, typingMessages[dotCount]);
+                } else if (instance.messages && instance.messages[typingId]) {
+                    // Fallback: update the message directly if messageUpdate doesn't exist
+                    const messageElement = document.querySelector(`[data-message-id="${typingId}"] .quikchat-message-text`);
+                    if (messageElement) {
+                        messageElement.textContent = typingMessages[dotCount];
+                    }
+                }
+            }, 400);
+            
+            // Store typing ID and interval for SSE handler to remove if needed
+            this.currentTypingId = typingId;
+            this.currentTypingInterval = typingInterval;
             
             // Send to RAG API
             const response = await this.sendToRAG(message);
             
-            // Remove typing indicator
-            instance.messageRemove(typingId);
+            // Remove typing indicator (if SSE hasn't already removed it)
+            if (this.currentTypingId === typingId) {
+                clearInterval(typingInterval);
+                instance.messageRemove(typingId);
+                this.currentTypingId = null;
+                this.currentTypingInterval = null;
+            }
             
             // Add assistant response
             if (response.success) {

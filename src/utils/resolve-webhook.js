@@ -102,6 +102,27 @@ class ResolveWebhook {
     }
 
     /**
+     * Send document processing event to actions platform
+     * @param {Object} params - Event parameters
+     * @returns {Promise} Response from the API
+     */
+    async sendDocumentProcessingEvent(params) {
+        const payload = {
+            source: params.source || 'onboarding',
+            action: params.action || 'document-processing',
+            document_id: params.document_id,
+            document_url: params.document_url,
+            callback_url: params.callback_url,
+            callback_token: params.callback_token,
+            file_type: params.file_type,
+            file_size: params.file_size,
+            original_filename: params.original_filename
+        };
+
+        return await this.sendEvent(payload);
+    }
+
+    /**
      * Send RAG chat event
      * @param {Object} params - Event parameters
      * @returns {Promise} Response from the API

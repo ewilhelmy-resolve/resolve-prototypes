@@ -19,10 +19,17 @@ async function processWebhookRetryQueue(db) {
             );
             
             try {
+                const payload = JSON.parse(webhook.payload);
+                
+                // Check if this is a document processing webhook
+                if (webhook.webhook_type === 'document-processing') {
+                    console.log(`[WEBHOOK RETRY] Retrying document processing for document ${payload.document_id}`);
+                }
+                
                 // Retry webhook
                 await axios.post(
                     process.env.AUTOMATION_WEBHOOK_URL,
-                    JSON.parse(webhook.payload),
+                    payload,
                     {
                         headers: {
                             'Authorization': process.env.AUTOMATION_AUTH,

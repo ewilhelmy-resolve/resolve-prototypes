@@ -1821,6 +1821,11 @@ app.post('/api/webhook', requireAuth, async (req, res) => {
 const ragRouter = createRagRouter(db, sessions);
 app.use('/api/rag', ragRouter);
 
+// Document API routes
+const createDocumentRouter = require('./src/routes/documentApi');
+const documentRouter = createDocumentRouter(db);
+app.use('/api/documents', documentRouter);
+
 // Mount Knowledge API routes
 const knowledgeRouter = createKnowledgeRouter(db, sessions);
 app.use('/api', knowledgeRouter);

@@ -1,9 +1,18 @@
 const express = require('express');
 const crypto = require('crypto');
 const axios = require('axios');
+const multer = require('multer');
 const { validateTenant, validateCallbackToken, rateLimit } = require('../middleware/ragAuth');
 const { generateCallbackToken } = require('../utils/rag');
 const ResolveWebhook = require('../utils/resolve-webhook');
+
+// Configure multer for in-memory file storage
+const upload = multer({
+    storage: multer.memoryStorage(),
+    limits: {
+        fileSize: 100 * 1024 * 1024 // 100MB limit
+    }
+});
 
 function createRagRouter(db, sessions) {
     const router = express.Router();
@@ -19,6 +28,129 @@ function createRagRouter(db, sessions) {
             console.log('[RAG API] Callback request body preview:', JSON.stringify(req.body).substring(0, 200));
         }
         next();
+    });
+
+    // 1a. Document Upload Endpoint (stores binary files)
+    router.post('/upload-document', validateTenantMW, rateLimit, upload.single('document'), async (req, res) => {
+        try {
+            // Check if file was uploaded
+            if (!req.file) {
+                return res.status(400).json({ error: 'No document uploaded' });
+            }
+            
+            const uploadedFile = req.file;
+            
+            // Validate file size (100MB max per requirements)
+            const maxSize = 100 * 1024 * 1024; // 100MB
+            if (uploadedFile.size > maxSize) {
+                return res.status(400).json({ error: 'File exceeds 100MB limit' });
+            }
+            
+            // Extract file type from originalname (multer property)
+            const fileExt = uploadedFile.originalname.split('.').pop().toLowerCase();
+            const supportedTypes = ['pdf','doc','docx','ppt','pptx','xls','xlsx','rtf','html','htm','csv','txt','jpg','jpeg','png','gif','bmp','tiff','webp','odt','ods','odp','epub','md','xml','json','tex','xps','mobi','svg','docm','dotx','pptm','xlsm','xlsb','vsdx','vsd','pub','mht','mhtml','eml','msg'];
+            
+            if (!supportedTypes.includes(fileExt)) {
+                return res.status(400).json({ error: `Unsupported file type: ${fileExt}` });
+            }
+            
+            // Generate IDs and tokens
+            const documentId = crypto.randomUUID();
+            const callbackToken = crypto.randomBytes(32).toString('hex');
+            const tokenExpiresAt = new Date(Date.now() + 3600000); // 1 hour TTL
+            
+            // Store document in database with binary data
+            // Note: content column is required, set it to filename for now
+            await db.query(
+                `INSERT INTO rag_documents (
+                    tenant_id, document_id, content, file_data, file_type, file_size, 
+                    original_filename, callback_token, token_expires_at, 
+                    status, created_by, callback_id
+                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
+                [
+                    req.tenantId,
+                    documentId,
+                    `Document: ${uploadedFile.originalname}`, // Placeholder content
+                    uploadedFile.buffer, // Binary data from multer memory storage
+                    fileExt,
+                    uploadedFile.size,
+                    uploadedFile.originalname,
+                    callbackToken,
+                    tokenExpiresAt,
+                    'processing',
+                    req.userEmail,
+                    crypto.randomBytes(16).toString('hex') // callback_id for compatibility
+                ]
+            );
+            
+            // Get app URL
+            let appUrl = process.env.APP_URL || 'http://localhost:5000';
+            try {
+                const configResult = await db.query(
+                    'SELECT value FROM system_config WHERE key = $1',
+                    ['app_url']
+                );
+                if (configResult.rows.length > 0) {
+                    appUrl = configResult.rows[0].value;
+                }
+            } catch (configError) {
+                console.log('Using environment APP_URL:', appUrl);
+            }
+            
+            // Send webhook to actions platform for document processing
+            try {
+                await resolveWebhook.sendDocumentProcessingEvent({
+                    source: 'onboarding',
+                    action: 'document-processing',
+                    document_id: documentId,
+                    document_url: `${appUrl}/api/documents/${documentId}`,
+                    callback_url: `${appUrl}/api/rag/document-callback/${documentId}`,
+                    callback_token: callbackToken,
+                    file_type: fileExt,
+                    file_size: uploadedFile.size,
+                    original_filename: uploadedFile.originalname
+                });
+                
+                // Track the action
+                await resolveWebhook.trackAction({
+                    action: 'document-upload',
+                    source: 'RAG_Document',
+                    userEmail: req.userEmail,
+                    tenantId: req.tenantId,
+                    metadata: {
+                        document_id: documentId,
+                        file_type: fileExt,
+                        file_size: uploadedFile.size
+                    }
+                });
+            } catch (webhookError) {
+                // Add to retry queue
+                await db.query(
+                    `INSERT INTO rag_webhook_failures (tenant_id, webhook_type, payload, next_retry_at) 
+                     VALUES ($1, $2, $3, $4)`,
+                    [req.tenantId, 'document-processing', JSON.stringify({
+                        source: 'onboarding',
+                        action: 'document-processing',
+                        document_id: documentId,
+                        document_url: `${appUrl}/api/documents/${documentId}`,
+                        callback_url: `${appUrl}/api/rag/document-callback/${documentId}`,
+                        callback_token: callbackToken
+                    }), new Date(Date.now() + 60000)]
+                );
+                console.error('Document processing webhook failed, added to retry queue:', webhookError.message);
+            }
+            
+            res.json({
+                success: true,
+                document_id: documentId,
+                status: 'processing',
+                message: 'Document uploaded and sent for processing'
+            });
+            
+        } catch (error) {
+            console.error('Document upload error:', error);
+            res.status(500).json({ error: 'Failed to upload document' });
+        }
     });
 
     // 1. Ingest Content (Triggers Actions Platform)
@@ -382,6 +514,93 @@ function createRagRouter(db, sessions) {
         }
     });
 
+    // 4b. Document Processing Callback (receives processed markdown from actions platform)
+    router.post('/document-callback/:document_id', async (req, res) => {
+        try {
+            const { document_id } = req.params;
+            const { tenant_id, markdown } = req.body;
+            
+            // Validate callback token from Authorization header
+            const authHeader = req.headers['authorization'];
+            if (!authHeader || !authHeader.startsWith('Bearer ')) {
+                return res.status(401).json({ error: 'Missing or invalid authorization header' });
+            }
+            
+            const providedToken = authHeader.replace('Bearer ', '');
+            
+            console.log(`[DOCUMENT CALLBACK] Received callback for document ${document_id}`);
+            
+            // Validate document exists and token matches
+            const docResult = await db.query(
+                `SELECT callback_token, token_expires_at, tenant_id 
+                 FROM rag_documents 
+                 WHERE document_id = $1`,
+                [document_id]
+            );
+            
+            if (docResult.rows.length === 0) {
+                return res.status(404).json({ error: 'Document not found' });
+            }
+            
+            const doc = docResult.rows[0];
+            
+            // Check token expiry
+            if (doc.token_expires_at && new Date() > new Date(doc.token_expires_at)) {
+                return res.status(401).json({ error: 'Callback token expired' });
+            }
+            
+            // Validate token
+            if (doc.callback_token !== providedToken) {
+                console.warn(`[DOCUMENT CALLBACK] Token mismatch for document ${document_id}`);
+                return res.status(401).json({ error: 'Invalid callback token' });
+            }
+            
+            // Validate tenant_id matches
+            if (tenant_id && doc.tenant_id !== tenant_id) {
+                console.warn(`[DOCUMENT CALLBACK] Tenant mismatch for document ${document_id}`);
+                return res.status(403).json({ error: 'Tenant mismatch' });
+            }
+            
+            // Update document with processed markdown
+            await db.query(
+                `UPDATE rag_documents 
+                 SET processed_markdown = $1, 
+                     status = $2, 
+                     updated_at = CURRENT_TIMESTAMP,
+                     callback_token = NULL,
+                     token_expires_at = NULL
+                 WHERE document_id = $3`,
+                [markdown, 'ready', document_id]
+            );
+            
+            console.log(`[DOCUMENT CALLBACK] Successfully updated document ${document_id} with processed markdown`);
+            
+            // Track the callback
+            const ResolveWebhook = require('../utils/resolve-webhook');
+            const resolveWebhook = new ResolveWebhook();
+            await resolveWebhook.trackAction({
+                action: 'document-processing-callback',
+                source: 'RAG_DocumentCallback',
+                userEmail: 'actions-platform',
+                tenantId: doc.tenant_id,
+                metadata: {
+                    document_id: document_id,
+                    markdown_length: markdown?.length || 0
+                }
+            });
+            
+            res.json({
+                success: true,
+                message: 'Document processed successfully',
+                document_id: document_id
+            });
+            
+        } catch (error) {
+            console.error('[DOCUMENT CALLBACK] Error:', error);
+            res.status(500).json({ error: 'Failed to process callback' });
+        }
+    });
+    
     // 5. Callback endpoint for Resolve platform to send AI response
     // Support both single ID and double ID patterns
     router.post('/chat-callback/:message_id/:second_id?', async (req, res) => {
@@ -810,6 +1029,172 @@ function createRagRouter(db, sessions) {
         }
     });
 
+    // 8a. List all documents for a tenant
+    router.get('/documents', validateTenantMW, async (req, res) => {
+        try {
+            const { limit = 50, offset = 0 } = req.query;
+            
+            // Get documents for this tenant
+            const result = await db.query(
+                `SELECT document_id, original_filename, file_type, file_size, 
+                        status, created_at, updated_at,
+                        CASE WHEN processed_markdown IS NOT NULL THEN true ELSE false END as has_markdown
+                 FROM rag_documents 
+                 WHERE tenant_id = $1 
+                 AND original_filename IS NOT NULL
+                 ORDER BY created_at DESC
+                 LIMIT $2 OFFSET $3`,
+                [req.tenantId, limit, offset]
+            );
+            
+            res.json({
+                success: true,
+                documents: result.rows
+            });
+            
+        } catch (error) {
+            console.error('List documents error:', error);
+            res.status(500).json({ error: 'Failed to list documents' });
+        }
+    });
+    
+    // 8b. Get document status
+    router.get('/document-status/:document_id', validateTenantMW, async (req, res) => {
+        try {
+            const { document_id } = req.params;
+            
+            // Get document status
+            const result = await db.query(
+                `SELECT document_id, original_filename, file_type, file_size, 
+                        status, created_at, updated_at,
+                        CASE WHEN processed_markdown IS NOT NULL THEN true ELSE false END as has_markdown
+                 FROM rag_documents 
+                 WHERE document_id = $1 AND tenant_id = $2`,
+                [document_id, req.tenantId]
+            );
+            
+            if (result.rows.length === 0) {
+                return res.status(404).json({ error: 'Document not found' });
+            }
+            
+            const doc = result.rows[0];
+            
+            // Check for failed webhook retries
+            const retryResult = await db.query(
+                `SELECT status, retry_count, max_retries, last_error 
+                 FROM rag_webhook_failures 
+                 WHERE webhook_type = 'document-processing' 
+                 AND payload::jsonb->>'document_id' = $1
+                 ORDER BY created_at DESC LIMIT 1`,
+                [document_id]
+            );
+            
+            if (retryResult.rows.length > 0) {
+                doc.webhook_status = retryResult.rows[0];
+            }
+            
+            res.json({
+                success: true,
+                document: doc
+            });
+            
+        } catch (error) {
+            console.error('Get document status error:', error);
+            res.status(500).json({ error: 'Failed to get document status' });
+        }
+    });
+    
+    // 8c. Retry failed document processing
+    router.post('/document-retry/:document_id', validateTenantMW, async (req, res) => {
+        try {
+            const { document_id } = req.params;
+            
+            // Verify document exists and belongs to tenant
+            const docResult = await db.query(
+                'SELECT * FROM rag_documents WHERE document_id = $1 AND tenant_id = $2',
+                [document_id, req.tenantId]
+            );
+            
+            if (docResult.rows.length === 0) {
+                return res.status(404).json({ error: 'Document not found' });
+            }
+            
+            const doc = docResult.rows[0];
+            
+            // Generate new callback token
+            const newCallbackToken = crypto.randomBytes(32).toString('hex');
+            const tokenExpiresAt = new Date(Date.now() + 3600000); // 1 hour TTL
+            
+            // Update document with new token
+            await db.query(
+                `UPDATE rag_documents 
+                 SET callback_token = $1, token_expires_at = $2, status = 'processing' 
+                 WHERE document_id = $3`,
+                [newCallbackToken, tokenExpiresAt, document_id]
+            );
+            
+            // Get app URL
+            let appUrl = process.env.APP_URL || 'http://localhost:5000';
+            try {
+                const configResult = await db.query(
+                    'SELECT value FROM system_config WHERE key = $1',
+                    ['app_url']
+                );
+                if (configResult.rows.length > 0) {
+                    appUrl = configResult.rows[0].value;
+                }
+            } catch (configError) {
+                console.log('Using environment APP_URL:', appUrl);
+            }
+            
+            // Retry webhook to actions platform
+            try {
+                await resolveWebhook.sendDocumentProcessingEvent({
+                    source: 'onboarding',
+                    action: 'document-processing',
+                    document_id: document_id,
+                    document_url: `${appUrl}/api/documents/${document_id}`,
+                    callback_url: `${appUrl}/api/rag/document-callback/${document_id}`,
+                    callback_token: newCallbackToken,
+                    file_type: doc.file_type,
+                    file_size: doc.file_size,
+                    original_filename: doc.original_filename
+                });
+                
+                res.json({
+                    success: true,
+                    message: 'Document resubmitted for processing',
+                    document_id: document_id
+                });
+                
+            } catch (webhookError) {
+                // Add to retry queue
+                await db.query(
+                    `INSERT INTO rag_webhook_failures (tenant_id, webhook_type, payload, next_retry_at) 
+                     VALUES ($1, $2, $3, $4)`,
+                    [req.tenantId, 'document-processing', JSON.stringify({
+                        source: 'onboarding',
+                        action: 'document-processing',
+                        document_id: document_id,
+                        document_url: `${appUrl}/api/documents/${document_id}`,
+                        callback_url: `${appUrl}/api/rag/document-callback/${document_id}`,
+                        callback_token: newCallbackToken
+                    }), new Date(Date.now() + 60000)]
+                );
+                
+                res.json({
+                    success: true,
+                    message: 'Document added to retry queue',
+                    document_id: document_id
+                });
+            }
+            
+        } catch (error) {
+            console.error('Document retry error:', error);
+            res.status(500).json({ error: 'Failed to retry document processing' });
+        }
+    });
+    
     // 9. Get recent conversations for the current user
     router.get('/recent-conversations', validateTenantMW, async (req, res) => {
         try {
@@ -933,6 +1318,39 @@ function createRagRouter(db, sessions) {
         } catch (error) {
             console.error('Error deleting conversation:', error);
             res.status(500).json({ error: 'Failed to delete conversation' });
+        }
+    });
+    
+    // Delete document
+    router.delete('/document/:documentId', validateTenantMW, async (req, res) => {
+        const { documentId } = req.params;
+        const { tenantId } = req;
+        
+        try {
+            // Delete the document from database
+            const result = await db.query(
+                'DELETE FROM rag_documents WHERE document_id = $1 AND tenant_id = $2',
+                [documentId, tenantId]
+            );
+            
+            if (result.rowCount > 0) {
+                console.log(`Document ${documentId} deleted successfully for tenant ${tenantId}`);
+                res.json({ 
+                    success: true, 
+                    message: 'Document deleted successfully'
+                });
+            } else {
+                res.status(404).json({ 
+                    success: false, 
+                    error: 'Document not found'
+                });
+            }
+        } catch (error) {
+            console.error('Error deleting document:', error);
+            res.status(500).json({ 
+                success: false,
+                error: 'Failed to delete document' 
+            });
         }
     });
     
