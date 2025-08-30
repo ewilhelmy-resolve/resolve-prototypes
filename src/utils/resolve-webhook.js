@@ -110,9 +110,13 @@ class ResolveWebhook {
         const payload = {
             source: params.source || 'onboarding',
             action: params.action || 'document-processing',
+            tenant_id: params.tenant_id,
             document_id: params.document_id,
             document_url: params.document_url,
-            callback_url: params.callback_url,
+            // Support both legacy callback_url and new separate URLs
+            callback_url: params.callback_url, // Keep for backward compatibility
+            markdown_callback_url: params.markdown_callback_url || params.callback_url,
+            vector_callback_url: params.vector_callback_url || params.callback_url?.replace('/document-callback/', '/callback/'),
             callback_token: params.callback_token,
             file_type: params.file_type,
             file_size: params.file_size,

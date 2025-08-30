@@ -137,6 +137,19 @@ function createKnowledgeRouter(db, sessions) {
                 if (result.rows.length === 0) {
                     return res.status(401).json({ error: 'Invalid callback token' });
                 }
+            } else if (sessionToken) {
+                // Validate session token and ensure tenant isolation
+                const session = sessions[sessionToken];
+                
+                if (!session) {
+                    return res.status(401).json({ error: 'Invalid session' });
+                }
+                
+                // CRITICAL: Verify the session's tenant ID matches the requested tenant ID
+                if (session.tenantId !== tenantId) {
+                    console.log(`[SECURITY] Tenant isolation violation blocked: Session tenant ${session.tenantId} tried to access tenant ${tenantId}`);
+                    return res.status(403).json({ error: 'Access denied - tenant isolation violation' });
+                }
             }
             const { 
                 query_embedding, 

@@ -1,0 +1,598 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Knowledge Base Card Mockup</title>
+    <style>
+        @import url('/fonts/fonts.css');
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "SF Pro", "Segoe UI", Roboto, sans-serif;
+            background: rgba(248, 250, 252, 0.5);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 480px;
+            width: 100%;
+        }
+
+        .knowledge-card {
+            background: rgb(255, 255, 255);
+            border: 1px solid rgba(0, 0, 0, 0.08);
+            border-radius: 8px;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+            overflow: hidden;
+            transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+        }
+
+        .knowledge-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+            border-color: rgba(78, 205, 196, 0.2);
+        }
+
+        .card-header {
+            background: transparent;
+            padding: 24px 24px 20px 24px;
+            border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+        }
+
+        .card-header-content {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .card-icon {
+            width: 32px;
+            height: 32px;
+            background: rgba(78, 205, 196, 0.1);
+            border: 1px solid rgba(78, 205, 196, 0.2);
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            flex-shrink: 0;
+        }
+
+        .card-title-section {
+            flex: 1;
+        }
+
+        .card-title {
+            font-family: -apple-system, BlinkMacSystemFont, "SF Pro", sans-serif;
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 4px;
+            color: rgb(26, 26, 26);
+            letter-spacing: -0.01em;
+        }
+
+        .card-subtitle {
+            font-size: 13px;
+            color: rgba(0, 0, 0, 0.5);
+            font-family: -apple-system, BlinkMacSystemFont, "SF Pro", sans-serif;
+            line-height: 1.4;
+        }
+
+        .card-body {
+            padding: 24px;
+        }
+
+        .upload-area {
+            border: 2px dashed rgba(0, 0, 0, 0.08);
+            border-radius: 6px;
+            padding: 24px;
+            text-align: center;
+            transition: all 0.2s ease;
+            cursor: pointer;
+            background: rgba(248, 250, 252, 0.3);
+        }
+
+        .upload-area:hover {
+            border-color: rgba(78, 205, 196, 0.3);
+            background: rgba(248, 250, 252, 0.8);
+        }
+
+        .upload-area.dragging {
+            border-color: rgb(78, 205, 196);
+            background: rgba(78, 205, 196, 0.05);
+            transform: scale(1.01);
+        }
+
+        .upload-icon {
+            width: 48px;
+            height: 48px;
+            margin: 0 auto 12px;
+            background: rgba(78, 205, 196, 0.1);
+            border: 1px solid rgba(78, 205, 196, 0.2);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+        }
+
+        .upload-text {
+            color: rgb(26, 26, 26);
+            font-size: 14px;
+            margin-bottom: 8px;
+            font-weight: 500;
+        }
+
+        .upload-hint {
+            color: rgba(0, 0, 0, 0.5);
+            font-size: 12px;
+        }
+
+        .supported-formats {
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid rgba(0, 0, 0, 0.08);
+        }
+
+        .formats-title {
+            font-size: 12px;
+            font-weight: 600;
+            color: rgba(0, 0, 0, 0.5);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 12px;
+            font-family: "Season Sans", -apple-system, BlinkMacSystemFont, "SF Pro", sans-serif;
+        }
+
+        .format-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .format-tag {
+            background: rgba(248, 250, 252, 0.95);
+            color: rgb(26, 26, 26);
+            border: 1px solid rgba(0, 0, 0, 0.08);
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+
+        .documents-list {
+            margin-top: 24px;
+        }
+
+        .document-item {
+            background: rgba(255, 255, 255, 0.95);
+            border: 1px solid rgba(0, 0, 0, 0.08);
+            border-radius: 8px;
+            padding: 12px 16px;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            transition: all 0.2s ease;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+        }
+
+        .document-item:hover {
+            background: rgb(255, 255, 255);
+            border-color: rgba(78, 205, 196, 0.2);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+            transform: translateY(-1px);
+        }
+
+        .document-info {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .document-icon {
+            width: 36px;
+            height: 36px;
+            background: rgba(248, 250, 252, 0.95);
+            border: 1px solid rgba(0, 0, 0, 0.08);
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+        }
+
+        .document-details {
+            flex: 1;
+        }
+
+        .document-name {
+            font-size: 14px;
+            font-weight: 500;
+            color: rgb(26, 26, 26);
+            margin-bottom: 2px;
+        }
+
+        .document-meta {
+            font-size: 12px;
+            color: rgba(0, 0, 0, 0.5);
+        }
+
+        .document-status {
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .status-ready {
+            background: rgba(0, 255, 136, 0.1);
+            border: 1px solid rgba(0, 255, 136, 0.3);
+            color: rgb(0, 150, 50);
+        }
+
+        .status-processing {
+            background: rgba(255, 193, 7, 0.1);
+            border: 1px solid rgba(255, 193, 7, 0.3);
+            color: rgb(180, 120, 0);
+        }
+
+        .status-error {
+            background: rgba(255, 0, 0, 0.1);
+            border: 1px solid rgba(255, 0, 0, 0.3);
+            color: rgb(200, 0, 0);
+        }
+
+        .manage-button {
+            background: linear-gradient(135deg, rgb(0, 102, 255), rgb(78, 205, 196));
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 600;
+            font-family: "Season Sans", -apple-system, BlinkMacSystemFont, "SF Pro", sans-serif;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            width: 100%;
+            margin-top: 20px;
+        }
+
+        .manage-button:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(0, 102, 255, 0.3);
+        }
+
+        .stats-row {
+            display: flex;
+            gap: 16px;
+            margin-top: 20px;
+            padding: 20px;
+            background: rgba(248, 250, 252, 0.5);
+            border-radius: 8px;
+            border: 1px solid rgba(0, 0, 0, 0.05);
+        }
+
+        .stat-item {
+            flex: 1;
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 24px;
+            font-weight: 600;
+            background: linear-gradient(135deg, rgb(0, 102, 255), rgb(78, 205, 196));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            font-family: "Season Sans", -apple-system, BlinkMacSystemFont, "SF Pro", sans-serif;
+        }
+
+        .stat-label {
+            font-size: 12px;
+            color: rgba(0, 0, 0, 0.5);
+            margin-top: 4px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        /* File input hidden */
+        input[type="file"] {
+            display: none;
+        }
+
+        /* Loading state */
+        .loading-spinner {
+            display: none;
+            width: 20px;
+            height: 20px;
+            border: 2px solid rgba(0, 0, 0, 0.08);
+            border-top-color: rgb(78, 205, 196);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .upload-area.uploading .upload-icon {
+            display: none;
+        }
+
+        .upload-area.uploading .loading-spinner {
+            display: block;
+            margin: 0 auto 16px;
+        }
+        /* Progress indicator */
+        .progress-bar {
+            height: 4px;
+            background: rgba(0, 0, 0, 0.05);
+            border-radius: 2px;
+            overflow: hidden;
+            margin-top: 8px;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, rgb(78, 205, 196), rgb(0, 102, 255));
+            width: 0%;
+            transition: width 0.3s ease;
+            border-radius: 2px;
+        }
+
+        /* Empty state */
+        .empty-state {
+            text-align: center;
+            padding: 40px;
+            color: rgba(0, 0, 0, 0.5);
+        }
+
+        .empty-icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+            opacity: 0.3;
+        }
+
+        /* Action buttons */
+        .action-buttons {
+            display: flex;
+            gap: 12px;
+            margin-top: 16px;
+        }
+
+        .action-button {
+            flex: 1;
+            padding: 10px 16px;
+            background: rgba(255, 255, 255, 0.95);
+            border: 1px solid rgba(0, 0, 0, 0.08);
+            border-radius: 6px;
+            color: rgb(26, 26, 26);
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-align: center;
+        }
+
+        .action-button:hover {
+            background: rgb(255, 255, 255);
+            border-color: rgba(78, 205, 196, 0.3);
+            transform: translateY(-1px);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+        }
+
+        .action-button.primary {
+            background: linear-gradient(135deg, rgb(0, 102, 255), rgb(78, 205, 196));
+            color: white;
+            border: none;
+        }
+
+        .action-button.primary:hover {
+            box-shadow: 0 4px 12px rgba(0, 102, 255, 0.3);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="knowledge-card">
+            <div class="card-header">
+                <div class="card-header-content">
+                    <div class="card-icon">📚</div>
+                    <div class="card-title-section">
+                        <h2 class="card-title">Knowledge Base</h2>
+                        <p class="card-subtitle">Upload and manage your documentation</p>
+                    </div>
+                    <div style="margin-left: auto;">
+                        <span style="background: rgba(0, 255, 136, 0.1); border: 1px solid rgba(0, 255, 136, 0.3); border-radius: 4px; padding: 4px 8px; font-size: 11px; color: rgb(0, 150, 50); font-family: 'SF Mono', Monaco, monospace;">11 Articles</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="card-body">
+                <!-- Upload Area -->
+                <div class="upload-area" id="uploadArea">
+                    <div class="upload-icon">⬆️</div>
+                    <div class="loading-spinner"></div>
+                    <p class="upload-text">Drop files here or click to upload</p>
+                    <p class="upload-hint">Maximum file size: 100MB</p>
+                </div>
+                <input type="file" id="fileInput" accept=".pdf,.doc,.docx,.txt,.md,.html" multiple>
+
+                <!-- Stats -->
+                <div class="stats-row">
+                    <div class="stat-item">
+                        <div class="stat-value">11</div>
+                        <div class="stat-label">Articles</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value">350</div>
+                        <div class="stat-label">Vectors</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value">89%</div>
+                        <div class="stat-label">Accuracy</div>
+                    </div>
+                </div>
+
+                <!-- Documents List -->
+                <div class="documents-list">
+                    <div class="document-item">
+                        <div class="document-info">
+                            <div class="document-icon">📄</div>
+                            <div class="document-details">
+                                <div class="document-name">Employee Handbook.pdf</div>
+                                <div class="document-meta">1.2MB • 45 chunks • Updated 2 hours ago</div>
+                            </div>
+                        </div>
+                        <span class="document-status status-ready">Ready</span>
+                    </div>
+                    
+                    <div class="document-item">
+                        <div class="document-info">
+                            <div class="document-icon">📄</div>
+                            <div class="document-details">
+                                <div class="document-name">IT Security Policies.docx</div>
+                                <div class="document-meta">856KB • Processing...</div>
+                                <div class="progress-bar">
+                                    <div class="progress-fill" style="width: 65%;"></div>
+                                </div>
+                            </div>
+                        </div>
+                        <span class="document-status status-processing">Processing</span>
+                    </div>
+                    
+                    <div class="document-item">
+                        <div class="document-info">
+                            <div class="document-icon">📄</div>
+                            <div class="document-details">
+                                <div class="document-name">Onboarding Checklist.md</div>
+                                <div class="document-meta">124KB • 12 chunks • Updated yesterday</div>
+                            </div>
+                        </div>
+                        <span class="document-status status-ready">Ready</span>
+                    </div>
+                </div>
+
+                <!-- Supported Formats -->
+                <div class="supported-formats">
+                    <div class="formats-title">Supported Formats</div>
+                    <div class="format-tags">
+                        <span class="format-tag">PDF</span>
+                        <span class="format-tag">DOC/DOCX</span>
+                        <span class="format-tag">TXT</span>
+                        <span class="format-tag">MD</span>
+                        <span class="format-tag">HTML</span>
+                        <span class="format-tag">RTF</span>
+                    </div>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="action-buttons">
+                    <button class="action-button">View All</button>
+                    <button class="action-button primary">Manage Knowledge Base</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Get elements
+        const uploadArea = document.getElementById('uploadArea');
+        const fileInput = document.getElementById('fileInput');
+
+        // Click to upload
+        uploadArea.addEventListener('click', () => {
+            fileInput.click();
+        });
+
+        // Drag and drop events
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('dragging');
+        });
+
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.classList.remove('dragging');
+        });
+
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('dragging');
+            
+            const files = e.dataTransfer.files;
+            handleFiles(files);
+        });
+
+        // File input change
+        fileInput.addEventListener('change', (e) => {
+            handleFiles(e.target.files);
+        });
+
+        // Handle files
+        function handleFiles(files) {
+            if (files.length === 0) return;
+            
+            // Show uploading state
+            uploadArea.classList.add('uploading');
+            
+            // Simulate upload
+            setTimeout(() => {
+                uploadArea.classList.remove('uploading');
+                alert(`Uploaded ${files.length} file(s):\n${Array.from(files).map(f => f.name).join('\n')}`);
+                
+                // Reset file input
+                fileInput.value = '';
+            }, 2000);
+        }
+
+        // Action button clicks
+        document.querySelectorAll('.action-button').forEach(button => {
+            button.addEventListener('click', () => {
+                if (button.classList.contains('primary')) {
+                    alert('Opening knowledge base management...');
+                } else {
+                    alert('Viewing all documents...');
+                }
+            });
+        });
+
+        // Animate progress bar
+        setTimeout(() => {
+            const progressFill = document.querySelector('.progress-fill');
+            if (progressFill) {
+                let progress = 65;
+                const interval = setInterval(() => {
+                    progress += Math.random() * 5;
+                    if (progress >= 100) {
+                        progress = 100;
+                        clearInterval(interval);
+                        // Update status after completion
+                        setTimeout(() => {
+                            const processingItem = progressFill.closest('.document-item');
+                            const statusBadge = processingItem.querySelector('.document-status');
+                            statusBadge.textContent = 'Ready';
+                            statusBadge.className = 'document-status status-ready';
+                            progressFill.parentElement.style.display = 'none';
+                            const meta = processingItem.querySelector('.document-meta');
+                            meta.textContent = '856KB • 38 chunks • Just now';
+                        }, 500);
+                    }
+                    progressFill.style.width = progress + '%';
+                }, 500);
+            }
+        }, 2000);
+    </script>
+</body>
+</html>

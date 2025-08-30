@@ -112,6 +112,27 @@ test.describe('Chat Channels - Multi-Conversation Flow', () => {
     await chatInput.press('Enter');
     console.log(`   📤 Sent: "${message1}"`);
     
+    // ============= VERIFY LOADING INDICATOR =============
+    console.log('   🔄 Checking for "Rita is thinking" loading indicator...');
+    
+    // Wait for the loading indicator to appear
+    const loadingIndicator = page.locator('.system-loading-indicator');
+    await expect(loadingIndicator).toBeVisible({ timeout: 2000 });
+    
+    // Verify the loading text
+    const loadingText = page.locator('.loading-text');
+    await expect(loadingText).toHaveText('Rita is thinking');
+    
+    // Verify the animated dots
+    const loadingDots = page.locator('.loading-dots .dot');
+    await expect(loadingDots).toHaveCount(3);
+    
+    // Verify it's not in a message card (system-level indicator)
+    const notInCard = await page.locator('.quikchat-message .system-loading-indicator').count();
+    expect(notInCard).toBe(0);
+    
+    console.log('   ✅ Loading indicator verified: "Rita is thinking" with 3 animated dots');
+    
     // Wait for the message to appear in chat
     await page.waitForTimeout(2000);
     
@@ -171,6 +192,11 @@ test.describe('Chat Channels - Multi-Conversation Flow', () => {
           
           // Wait for SSE to deliver the message
           await page.waitForTimeout(2000);
+          
+          // Verify loading indicator is removed when response arrives
+          const loadingIndicatorGone = page.locator('.system-loading-indicator');
+          await expect(loadingIndicatorGone).not.toBeVisible({ timeout: 3000 });
+          console.log('   ✅ Loading indicator removed after response');
           
           // Check if assistant message appears
           const assistantMessage = page.locator('.quikchat-message-text').filter({ 

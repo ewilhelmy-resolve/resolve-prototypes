@@ -5,6 +5,8 @@ class ChatHistoryManager {
         this.conversations = [];
         this.sessionToken = this.getSessionToken();
         this.refreshInterval = null;
+        this.reloadTimeout = null;
+        this.lastReloadTime = 0;
     }
 
     getSessionToken() {
@@ -18,14 +20,32 @@ class ChatHistoryManager {
         return null;
     }
 
-    async loadRecentConversations() {
+    async loadRecentConversations(force = false) {
+        // Prevent rapid reloads unless forced
+        const now = Date.now();
+        if (!force && (now - this.lastReloadTime) < 1000) {
+            console.log('[Chat History] Skipping reload - too soon');
+            return this.conversations;
+        }
+        this.lastReloadTime = now;
+        
         try {
             console.log('[Chat History] Loading recent conversations...');
             const response = await fetch('/api/rag/recent-conversations?limit=20', {
                 headers: {
                     'Authorization': `Bearer ${this.sessionToken}`
-                }
+                },
+                credentials: 'include' // Include cookies for auth
             });
+
+            if (response.status === 401 || response.status === 403) {
+                console.error('[Chat History] Authentication failed - stopping refresh');
+                // Stop auto-refresh
+                this.stopAutoRefresh();
+                // Redirect to login
+                window.location.href = '/signin';
+                return [];
+            }
 
             if (!response.ok) {
                 throw new Error(`Failed to load conversations: ${response.status}`);
@@ -34,6 +54,12 @@ class ChatHistoryManager {
             const data = await response.json();
             this.conversations = data.conversations || [];
             console.log(`[Chat History] Loaded ${this.conversations.length} conversations`);
+            
+            // Check if current conversation is in the list
+            if (this.currentConversationId) {
+                const hasCurrentConv = this.conversations.some(c => c.conversation_id === this.currentConversationId);
+                console.log(`[Chat History] Current conversation ${this.currentConversationId} in list: ${hasCurrentConv}`);
+            }
             
             this.renderConversationList();
             return this.conversations;
@@ -378,22 +404,52 @@ class ChatHistoryManager {
         
         // Reload conversations to refresh the list after a short delay
         setTimeout(() => {
-            this.loadRecentConversations();
+            this.loadRecentConversations(true);
         }, 500);
+    }
+    
+    // Method to be called when a new conversation is created
+    onConversationCreated(conversationId) {
+        console.log(`[Chat History] New conversation created: ${conversationId}`);
+        this.currentConversationId = conversationId;
+        
+        // Reload the conversation list after a short delay to ensure it's saved
+        setTimeout(() => {
+            this.loadRecentConversations(true);
+        }, 1500);
     }
 
     startAutoRefresh(interval = 30000) {
-        // Clear existing interval if any
+        // Clear existing interval if any (for compatibility)
         if (this.refreshInterval) {
             clearInterval(this.refreshInterval);
+            this.refreshInterval = null;
         }
         
-        // Set up new interval
-        this.refreshInterval = setInterval(() => {
-            this.loadRecentConversations();
-        }, interval);
+        // Instead of polling, we rely on SSE for real-time updates
+        // The QuikChatRAG component handles SSE connections
+        console.log('[Chat History] Real-time updates via SSE (no polling)');
         
-        console.log(`[Chat History] Auto-refresh started (every ${interval/1000}s)`);
+        // Listen for conversation updates from SSE
+        if (!this.sseListenerAttached) {
+            // Custom event that QuikChatRAG can dispatch
+            window.addEventListener('rag-conversation-updated', (event) => {
+                console.log('[Chat History] Conversation updated via SSE');
+                // Debounce the reload to avoid multiple rapid refreshes
+                if (this.reloadTimeout) {
+                    clearTimeout(this.reloadTimeout);
+                }
+                this.reloadTimeout = setTimeout(() => {
+                    this.loadRecentConversations();
+                }, 1000);
+            });
+            
+            // Mark that we've attached the listener
+            this.sseListenerAttached = true;
+        }
+        
+        // Do one initial load
+        this.loadRecentConversations();
     }
 
     stopAutoRefresh() {
@@ -414,16 +470,13 @@ class ChatHistoryManager {
             console.log(`[Chat History] Found current conversation: ${currentConvId}`);
         }
         
-        // Load initial conversations
-        this.loadRecentConversations();
-        
         // Set up new chat button handler
         const newChatBtn = document.querySelector('.new-chat-btn');
         if (newChatBtn) {
             newChatBtn.addEventListener('click', () => this.handleNewChat());
         }
         
-        // Start auto-refresh
+        // Start auto-refresh (which includes initial load)
         this.startAutoRefresh(30000); // Refresh every 30 seconds
         
         // Listen for new messages to refresh the list
@@ -431,10 +484,8 @@ class ChatHistoryManager {
             const originalSendToRAG = window.chatInstance.sendToRAG.bind(window.chatInstance);
             window.chatInstance.sendToRAG = async (message) => {
                 const result = await originalSendToRAG(message);
-                // Refresh conversation list after sending a message
-                setTimeout(() => {
-                    this.loadRecentConversations();
-                }, 2000);
+                // Don't reload here - let onConversationCreated handle it
+                // This prevents duplicate reloads
                 return result;
             };
         }

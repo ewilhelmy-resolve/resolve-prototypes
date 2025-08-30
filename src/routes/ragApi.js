@@ -56,8 +56,9 @@ function createRagRouter(db, sessions) {
             
             // Generate IDs and tokens
             const documentId = crypto.randomUUID();
+            const callbackId = crypto.randomBytes(16).toString('hex');
             const callbackToken = crypto.randomBytes(32).toString('hex');
-            const tokenExpiresAt = new Date(Date.now() + 3600000); // 1 hour TTL
+            // No expiry - tokens are permanent for document processing
             
             // Store document in database with binary data
             // Note: content column is required, set it to filename for now
@@ -76,10 +77,10 @@ function createRagRouter(db, sessions) {
                     uploadedFile.size,
                     uploadedFile.originalname,
                     callbackToken,
-                    tokenExpiresAt,
+                    null, // No expiry for document tokens
                     'processing',
                     req.userEmail,
-                    crypto.randomBytes(16).toString('hex') // callback_id for compatibility
+                    callbackId
                 ]
             );
             
@@ -102,9 +103,12 @@ function createRagRouter(db, sessions) {
                 await resolveWebhook.sendDocumentProcessingEvent({
                     source: 'onboarding',
                     action: 'document-processing',
+                    tenant_id: req.tenantId,
                     document_id: documentId,
                     document_url: `${appUrl}/api/documents/${documentId}`,
-                    callback_url: `${appUrl}/api/rag/document-callback/${documentId}`,
+                    callback_url: `${appUrl}/api/rag/document-callback/${documentId}`, // Legacy
+                    markdown_callback_url: `${appUrl}/api/rag/document-callback/${documentId}`,
+                    vector_callback_url: `${appUrl}/api/rag/callback/${callbackId}`,
                     callback_token: callbackToken,
                     file_type: fileExt,
                     file_size: uploadedFile.size,
@@ -138,6 +142,30 @@ function createRagRouter(db, sessions) {
                     }), new Date(Date.now() + 60000)]
                 );
                 console.error('Document processing webhook failed, added to retry queue:', webhookError.message);
+            }
+            
+            // Emit SSE event for document upload
+            if (global.knowledgeSSEClients && global.knowledgeSSEClients[req.tenantId]) {
+                const sseMessage = JSON.stringify({
+                    type: 'document-uploaded',
+                    document_id: documentId,
+                    status: 'processing',
+                    metadata: {
+                        filename: uploadedFile.originalname,
+                        file_type: fileExt,
+                        file_size: uploadedFile.size,
+                        timestamp: new Date().toISOString()
+                    }
+                });
+                
+                Object.values(global.knowledgeSSEClients[req.tenantId]).forEach(client => {
+                    try {
+                        client.write(`data: ${sseMessage}\n\n`);
+                        console.log(`[UPLOAD] Sent SSE event for document ${documentId}`);
+                    } catch (err) {
+                        console.error(`[UPLOAD] Failed to send SSE event:`, err.message);
+                    }
+                });
             }
             
             res.json({
@@ -282,19 +310,38 @@ function createRagRouter(db, sessions) {
     });
 
     // 2. Receive Vectorized Data (Callback from Actions Platform)
-    router.post('/callback/:callback_id', validateCallbackTokenMW, async (req, res) => {
+    router.post('/callback/:callback_id', async (req, res) => {
         try {
             const { callback_id } = req.params;
             const { document_id, vectors, tenant_id } = req.body;
             
-            // Validate callback exists
+            // Validate callback token from X-Callback-Token header
+            const callbackToken = req.headers['x-callback-token'];
+            if (!callbackToken) {
+                return res.status(401).json({ error: 'Missing X-Callback-Token header' });
+            }
+            
+            console.log(`[VECTOR CALLBACK] Received callback for document ${document_id}, callback_id ${callback_id}`);
+            
+            // Validate callback exists and token matches
             const docResult = await db.query(
-                'SELECT * FROM rag_documents WHERE callback_id = $1 AND tenant_id = $2',
-                [callback_id, tenant_id]
+                'SELECT * FROM rag_documents WHERE callback_id = $1 AND tenant_id = $2 AND callback_token = $3',
+                [callback_id, tenant_id, callbackToken]
             );
             
             if (docResult.rows.length === 0) {
-                return res.status(404).json({ error: 'Invalid callback' });
+                // Check if it's a token mismatch or invalid callback
+                const checkResult = await db.query(
+                    'SELECT callback_token FROM rag_documents WHERE callback_id = $1 AND tenant_id = $2',
+                    [callback_id, tenant_id]
+                );
+                
+                if (checkResult.rows.length === 0) {
+                    return res.status(404).json({ error: 'Invalid callback ID or tenant' });
+                } else {
+                    console.warn(`[VECTOR CALLBACK] Token mismatch for callback ${callback_id}`);
+                    return res.status(401).json({ error: 'Invalid callback token' });
+                }
             }
             
             const doc = docResult.rows[0];
@@ -328,6 +375,28 @@ function createRagRouter(db, sessions) {
                 ['vectorized', callback_id]
             );
             
+            // Emit SSE event for vectorization complete
+            if (global.knowledgeSSEClients && global.knowledgeSSEClients[doc.tenant_id]) {
+                const sseMessage = JSON.stringify({
+                    type: 'document-vectorized',
+                    document_id: doc.document_id,
+                    status: 'vectorized',
+                    metadata: {
+                        vector_count: vectors.length,
+                        timestamp: new Date().toISOString()
+                    }
+                });
+                
+                Object.values(global.knowledgeSSEClients[doc.tenant_id]).forEach(client => {
+                    try {
+                        client.write(`data: ${sseMessage}\n\n`);
+                        console.log(`[VECTOR CALLBACK] Sent SSE event for document ${doc.document_id}`);
+                    } catch (err) {
+                        console.error(`[VECTOR CALLBACK] Failed to send SSE event:`, err.message);
+                    }
+                });
+            }
+            
             // Track vectorization callback
             await resolveWebhook.trackAction({
                 action: 'vectorization-callback',
@@ -351,7 +420,8 @@ function createRagRouter(db, sessions) {
     // 3. Vector Search (For Actions Platform)
     router.post('/vector-search', validateCallbackTokenMW, async (req, res) => {
         try {
-            const { query_embedding, tenant_id, limit = 5, threshold = 0.7 } = req.body;
+            const { query_embedding, tenant_id, limit = 5, threshold = 0.7, filters } = req.body;
+            const startTime = Date.now();
             
             // Validate embedding
             const expectedDimension = parseInt(process.env.VECTOR_DIMENSION) || 1536;
@@ -391,6 +461,28 @@ function createRagRouter(db, sessions) {
                 metadata: row.metadata
             }));
             
+            const executionTime = Date.now() - startTime;
+            
+            // Log search to vector_search_logs table
+            try {
+                await db.query(
+                    `INSERT INTO vector_search_logs 
+                     (tenant_id, query_vector, result_count, threshold, execution_time_ms, filters_applied)
+                     VALUES ($1, $2, $3, $4, $5, $6)`,
+                    [
+                        tenant_id,
+                        JSON.stringify(query_embedding),
+                        searchResults.length,
+                        threshold,
+                        executionTime,
+                        filters ? JSON.stringify(filters) : null
+                    ]
+                );
+            } catch (logError) {
+                // Don't fail the search if logging fails
+                console.error('Failed to log vector search:', logError);
+            }
+            
             // Track vector search action
             await resolveWebhook.trackAction({
                 action: 'vector-search',
@@ -400,13 +492,15 @@ function createRagRouter(db, sessions) {
                 metadata: {
                     results_count: searchResults.length,
                     threshold: threshold,
-                    limit: limit
+                    limit: limit,
+                    execution_time_ms: executionTime
                 }
             });
             
             res.json({
                 success: true,
-                results: searchResults
+                results: searchResults,
+                execution_time_ms: executionTime
             });
             
         } catch (error) {
@@ -544,10 +638,8 @@ function createRagRouter(db, sessions) {
             
             const doc = docResult.rows[0];
             
-            // Check token expiry
-            if (doc.token_expires_at && new Date() > new Date(doc.token_expires_at)) {
-                return res.status(401).json({ error: 'Callback token expired' });
-            }
+            // No expiry check - document tokens are permanent
+            // This allows external systems to process documents at any time
             
             // Validate token
             if (doc.callback_token !== providedToken) {
@@ -562,18 +654,39 @@ function createRagRouter(db, sessions) {
             }
             
             // Update document with processed markdown
+            // Keep the callback token for future reprocessing or external system access
             await db.query(
                 `UPDATE rag_documents 
                  SET processed_markdown = $1, 
                      status = $2, 
-                     updated_at = CURRENT_TIMESTAMP,
-                     callback_token = NULL,
-                     token_expires_at = NULL
+                     updated_at = CURRENT_TIMESTAMP
                  WHERE document_id = $3`,
                 [markdown, 'ready', document_id]
             );
             
             console.log(`[DOCUMENT CALLBACK] Successfully updated document ${document_id} with processed markdown`);
+            
+            // Emit SSE event for document status update
+            if (global.knowledgeSSEClients && global.knowledgeSSEClients[doc.tenant_id]) {
+                const sseMessage = JSON.stringify({
+                    type: 'document-status',
+                    document_id: document_id,
+                    status: 'ready',
+                    metadata: {
+                        markdown_length: markdown?.length || 0,
+                        timestamp: new Date().toISOString()
+                    }
+                });
+                
+                Object.values(global.knowledgeSSEClients[doc.tenant_id]).forEach(client => {
+                    try {
+                        client.write(`data: ${sseMessage}\n\n`);
+                        console.log(`[DOCUMENT CALLBACK] Sent SSE event for document ${document_id}`);
+                    } catch (err) {
+                        console.error(`[DOCUMENT CALLBACK] Failed to send SSE event:`, err.message);
+                    }
+                });
+            }
             
             // Track the callback
             const ResolveWebhook = require('../utils/resolve-webhook');
@@ -598,6 +711,42 @@ function createRagRouter(db, sessions) {
         } catch (error) {
             console.error('[DOCUMENT CALLBACK] Error:', error);
             res.status(500).json({ error: 'Failed to process callback' });
+        }
+    });
+    
+    // Add endpoint to view document content
+    router.get('/document/:document_id/view', validateTenantMW, async (req, res) => {
+        try {
+            const { document_id } = req.params;
+            
+            // Get document with processed markdown or original content
+            const result = await db.query(
+                `SELECT 
+                    document_id,
+                    original_filename,
+                    COALESCE(processed_markdown, content) as display_content,
+                    processed_markdown IS NOT NULL as is_processed,
+                    status,
+                    file_type,
+                    created_at,
+                    metadata
+                FROM rag_documents 
+                WHERE document_id = $1 AND tenant_id = $2`,
+                [document_id, req.tenantId]
+            );
+            
+            if (result.rows.length === 0) {
+                return res.status(404).json({ error: 'Document not found' });
+            }
+            
+            res.json({
+                success: true,
+                document: result.rows[0]
+            });
+            
+        } catch (error) {
+            console.error('Error viewing document:', error);
+            res.status(500).json({ error: 'Failed to retrieve document' });
         }
     });
     
@@ -913,6 +1062,61 @@ function createRagRouter(db, sessions) {
         });
     });
 
+    // 9. SSE endpoint for knowledge base updates
+    router.get('/knowledge-stream', validateTenantMW, async (req, res) => {
+        const tenantId = req.tenantId;
+        const clientId = crypto.randomUUID();
+        
+        console.log(`[KNOWLEDGE SSE] New connection request for tenant: ${tenantId}`);
+        
+        // Set SSE headers
+        res.writeHead(200, {
+            'Content-Type': 'text/event-stream',
+            'Cache-Control': 'no-cache',
+            'Connection': 'keep-alive',
+            'Access-Control-Allow-Origin': '*'
+        });
+        
+        // Initialize global knowledge SSE clients storage if not exists
+        if (!global.knowledgeSSEClients) {
+            global.knowledgeSSEClients = {};
+        }
+        if (!global.knowledgeSSEClients[tenantId]) {
+            global.knowledgeSSEClients[tenantId] = {};
+        }
+        
+        // Store this client connection
+        global.knowledgeSSEClients[tenantId][clientId] = res;
+        
+        console.log(`[KNOWLEDGE SSE] Client ${clientId} connected for tenant ${tenantId}`);
+        console.log(`[KNOWLEDGE SSE] Total clients for tenant: ${Object.keys(global.knowledgeSSEClients[tenantId]).length}`);
+        
+        // Send initial connection message
+        res.write(`data: ${JSON.stringify({
+            type: 'connected',
+            message: 'Connected to knowledge base stream'
+        })}\n\n`);
+        
+        // Send heartbeat every 15 seconds to keep connection alive
+        const heartbeatInterval = setInterval(() => {
+            try {
+                res.write(`data: ${JSON.stringify({ type: 'heartbeat', timestamp: new Date().toISOString() })}\n\n`);
+            } catch (error) {
+                console.error(`[KNOWLEDGE SSE] Error sending heartbeat to client ${clientId}:`, error);
+                clearInterval(heartbeatInterval);
+            }
+        }, 15000);
+        
+        // Handle client disconnect
+        req.on('close', () => {
+            clearInterval(heartbeatInterval);
+            if (global.knowledgeSSEClients[tenantId]) {
+                delete global.knowledgeSSEClients[tenantId][clientId];
+                console.log(`[KNOWLEDGE SSE] Client ${clientId} disconnected from tenant ${tenantId}`);
+            }
+        });
+    });
+
     // 8. TEST ENDPOINT - Removed, using real callbacks only
     /* router.post('/test-sse-message', validateTenantMW, async (req, res) => {
         try {
@@ -1123,14 +1327,14 @@ function createRagRouter(db, sessions) {
             
             // Generate new callback token
             const newCallbackToken = crypto.randomBytes(32).toString('hex');
-            const tokenExpiresAt = new Date(Date.now() + 3600000); // 1 hour TTL
+            // No expiry - tokens are permanent for document processing
             
-            // Update document with new token
+            // Update document with new token but keep it permanent
             await db.query(
                 `UPDATE rag_documents 
-                 SET callback_token = $1, token_expires_at = $2, status = 'processing' 
-                 WHERE document_id = $3`,
-                [newCallbackToken, tokenExpiresAt, document_id]
+                 SET callback_token = $1, token_expires_at = NULL, status = 'processing' 
+                 WHERE document_id = $2`,
+                [newCallbackToken, document_id]
             );
             
             // Get app URL
@@ -1351,6 +1555,190 @@ function createRagRouter(db, sessions) {
                 success: false,
                 error: 'Failed to delete document' 
             });
+        }
+    });
+
+    // New endpoint: GET /api/tenant/:tenantId/documents/:documentId/markdown
+    // Retrieve processed markdown for viewing
+    router.get('/tenant/:tenantId/documents/:documentId/markdown', validateTenantMW, async (req, res) => {
+        try {
+            const { tenantId, documentId } = req.params;
+            
+            // Verify tenant access
+            if (req.tenantId !== tenantId) {
+                return res.status(403).json({ error: 'Access denied' });
+            }
+            
+            // Retrieve processed markdown
+            const result = await db.query(
+                `SELECT 
+                    document_id,
+                    processed_markdown,
+                    original_filename,
+                    file_type,
+                    updated_at as processed_at,
+                    status
+                 FROM rag_documents 
+                 WHERE tenant_id = $1 AND document_id = $2`,
+                [tenantId, documentId]
+            );
+            
+            if (result.rows.length === 0) {
+                return res.status(404).json({ error: 'Document not found' });
+            }
+            
+            const doc = result.rows[0];
+            
+            if (!doc.processed_markdown) {
+                return res.status(400).json({ 
+                    error: 'Document not yet processed',
+                    status: doc.status 
+                });
+            }
+            
+            res.json({
+                document_id: doc.document_id,
+                markdown_content: doc.processed_markdown,
+                original_filename: doc.original_filename,
+                file_type: doc.file_type,
+                processed_at: doc.processed_at
+            });
+            
+        } catch (error) {
+            console.error('[MARKDOWN ENDPOINT] Error:', error);
+            res.status(500).json({ error: 'Failed to retrieve markdown' });
+        }
+    });
+
+    // New endpoint: GET /api/tenant/:tenantId/vectors/stats
+    // Get vector storage statistics
+    router.get('/tenant/:tenantId/vectors/stats', validateTenantMW, async (req, res) => {
+        try {
+            const { tenantId } = req.params;
+            
+            // Verify tenant access
+            if (req.tenantId !== tenantId) {
+                return res.status(403).json({ error: 'Access denied' });
+            }
+            
+            // Get document count
+            const docCountResult = await db.query(
+                'SELECT COUNT(*) as total_documents FROM rag_documents WHERE tenant_id = $1',
+                [tenantId]
+            );
+            
+            // Get vector count and stats
+            const vectorStatsResult = await db.query(
+                `SELECT 
+                    COUNT(*) as total_vectors,
+                    COUNT(DISTINCT document_id) as documents_with_vectors,
+                    AVG(CHAR_LENGTH(chunk_text)) as avg_chunk_size,
+                    MAX(created_at) as last_indexed
+                 FROM rag_vectors 
+                 WHERE tenant_id = $1`,
+                [tenantId]
+            );
+            
+            // Get storage size estimate (rough calculation)
+            const storageSizeResult = await db.query(
+                `SELECT 
+                    pg_size_pretty(
+                        COALESCE(SUM(pg_column_size(embedding)), 0) + 
+                        COALESCE(SUM(pg_column_size(chunk_text)), 0)
+                    ) as storage_size
+                 FROM rag_vectors 
+                 WHERE tenant_id = $1`,
+                [tenantId]
+            );
+            
+            const docCount = parseInt(docCountResult.rows[0].total_documents);
+            const vectorStats = vectorStatsResult.rows[0];
+            const vectorCount = parseInt(vectorStats.total_vectors);
+            const docsWithVectors = parseInt(vectorStats.documents_with_vectors);
+            
+            res.json({
+                tenant_id: tenantId,
+                total_documents: docCount,
+                total_vectors: vectorCount,
+                documents_with_vectors: docsWithVectors,
+                average_vectors_per_document: docsWithVectors > 0 ? Math.round(vectorCount / docsWithVectors) : 0,
+                average_chunk_size: Math.round(vectorStats.avg_chunk_size || 0),
+                storage_size: storageSizeResult.rows[0].storage_size,
+                index_status: vectorCount > 0 ? 'active' : 'empty',
+                last_indexed: vectorStats.last_indexed
+            });
+            
+        } catch (error) {
+            console.error('[VECTOR STATS] Error:', error);
+            res.status(500).json({ error: 'Failed to retrieve statistics' });
+        }
+    });
+
+    // New endpoint: DELETE /api/tenant/:tenantId/vectors/document/:documentId
+    // Remove all vectors for a specific document
+    router.delete('/tenant/:tenantId/vectors/document/:documentId', validateTenantMW, async (req, res) => {
+        try {
+            const { tenantId, documentId } = req.params;
+            
+            // Verify tenant access
+            if (req.tenantId !== tenantId) {
+                return res.status(403).json({ error: 'Access denied' });
+            }
+            
+            // Get count before deletion for reporting
+            const countResult = await db.query(
+                'SELECT COUNT(*) as vector_count FROM rag_vectors WHERE tenant_id = $1 AND document_id = $2',
+                [tenantId, documentId]
+            );
+            
+            const vectorCount = parseInt(countResult.rows[0].vector_count);
+            
+            if (vectorCount === 0) {
+                return res.status(404).json({ 
+                    error: 'No vectors found for this document' 
+                });
+            }
+            
+            // Get storage size before deletion
+            const sizeResult = await db.query(
+                `SELECT 
+                    pg_size_pretty(
+                        COALESCE(SUM(pg_column_size(embedding)), 0) + 
+                        COALESCE(SUM(pg_column_size(chunk_text)), 0)
+                    ) as storage_size
+                 FROM rag_vectors 
+                 WHERE tenant_id = $1 AND document_id = $2`,
+                [tenantId, documentId]
+            );
+            
+            // Delete vectors
+            await db.query(
+                'DELETE FROM rag_vectors WHERE tenant_id = $1 AND document_id = $2',
+                [tenantId, documentId]
+            );
+            
+            // Update document status
+            await db.query(
+                `UPDATE rag_documents 
+                 SET status = 'vectors_deleted', 
+                     updated_at = CURRENT_TIMESTAMP 
+                 WHERE tenant_id = $1 AND document_id = $2`,
+                [tenantId, documentId]
+            );
+            
+            // Log the deletion
+            console.log(`[VECTOR DELETE] Deleted ${vectorCount} vectors for document ${documentId}`);
+            
+            res.json({
+                success: true,
+                document_id: documentId,
+                vectors_deleted: vectorCount,
+                space_freed: sizeResult.rows[0].storage_size
+            });
+            
+        } catch (error) {
+            console.error('[VECTOR DELETE] Error:', error);
+            res.status(500).json({ error: 'Failed to delete vectors' });
         }
     });
     

@@ -34,10 +34,15 @@ node_modules/
 .yarn-integrity
 
 # Testing
+tests/test-results/
+tests/playwright-report/
 test-results/
 playwright-report/
 coverage/
 .nyc_output
+tests/fixtures/test-data-*.csv
+tests/fixtures/*.log
+tests/fixtures/*.txt
 
 # Database files - DO NOT IGNORE
 # *.db files are tracked in this project

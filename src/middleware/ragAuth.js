@@ -1,4 +1,5 @@
 const { isValidUUID } = require('../utils/validation');
+const crypto = require('crypto');
 
 const rateLimits = new Map();
 
@@ -17,7 +18,14 @@ function validateTenant(sessions) {
                              req.body?.test_email ||
                              'test@example.com';
             
-            req.tenantId = testTenantId;
+            // Convert email-based tenant IDs to UUID for tests
+            if (testTenantId && !isValidUUID(testTenantId)) {
+                // Generate deterministic UUID from email for consistency
+                const hash = crypto.createHash('sha256').update(testTenantId).digest('hex');
+                req.tenantId = `${hash.substring(0, 8)}-${hash.substring(8, 12)}-${hash.substring(12, 16)}-${hash.substring(16, 20)}-${hash.substring(20, 32)}`;
+            } else {
+                req.tenantId = testTenantId;
+            }
             req.userEmail = testEmail;
             return next();
         }

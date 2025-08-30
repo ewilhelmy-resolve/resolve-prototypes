@@ -20,13 +20,15 @@ const PORT = process.env.PORT || 5000;
 const resolveWebhook = new ResolveWebhook();
 
 // Body parser middleware with text capture for logging
+// Increase limit to 100MB for vector embeddings and document processing
 app.use(express.json({
+    limit: '100mb',
     verify: (req, res, buf, encoding) => {
         // Store raw body for webhook logging
         req.rawBody = buf.toString('utf8');
     }
 }));
-app.use(express.urlencoded({ extended: true }));
+app.use(express.urlencoded({ extended: true, limit: '100mb' }));
 
 // Simple session storage with automatic cleanup
 const sessions = {};
@@ -1017,7 +1019,7 @@ app.post('/api/upload-knowledge', upload.array('files', 10), trackWorkflow('inte
                         upload_id: callbackId,
                         tickets_imported: ticketsImported,
                         csv_row_count: csvContent.length,
-                        webhook_url: webhookUrl
+                        webhook_url: resolveWebhook.webhookUrl
                     },
                     webhook_id: callbackId,
                     response_status: webhookResponse.status,
@@ -1039,7 +1041,7 @@ app.post('/api/upload-knowledge', upload.array('files', 10), trackWorkflow('inte
                         upload_id: callbackId,
                         tickets_imported: ticketsImported,
                         csv_row_count: csvContent.length,
-                        webhook_url: webhookUrl
+                        webhook_url: resolveWebhook.webhookUrl
                     },
                     webhook_id: callbackId,
                     response_status: webhookError.response?.status || 0,

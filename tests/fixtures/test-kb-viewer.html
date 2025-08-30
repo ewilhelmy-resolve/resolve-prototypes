@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Knowledge Base Viewer Test</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        h1 {
+            color: #333;
+        }
+        .info {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .document-list {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .doc-item {
+            padding: 15px;
+            border: 1px solid #e0e0e0;
+            margin: 10px 0;
+            border-radius: 4px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .doc-item:hover {
+            background: #f9f9f9;
+        }
+        .view-btn {
+            background: #4ECDC4;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .view-btn:hover {
+            background: #3CBCB4;
+        }
+        .status {
+            font-size: 12px;
+            padding: 2px 8px;
+            border-radius: 3px;
+            display: inline-block;
+        }
+        .status-ready { background: #d4edda; color: #155724; }
+        .status-processing { background: #fff3cd; color: #856404; }
+        .status-failed { background: #f8d7da; color: #721c24; }
+        .status-vectorized { background: #cce5ff; color: #004085; }
+    </style>
+</head>
+<body>
+    <h1>🔍 Knowledge Base Document Viewer</h1>
+    
+    <div class="info">
+        <h2>How to Use the Knowledge Base Viewer</h2>
+        <p>The system now includes a simple document viewer that allows you to see the content of your knowledge base articles.</p>
+        
+        <h3>Features Added:</h3>
+        <ul>
+            <li>✅ <strong>View Button</strong> - Each document in the dashboard now has a "View" button</li>
+            <li>✅ <strong>Document Modal</strong> - Opens a clean modal showing the document content</li>
+            <li>✅ <strong>Markdown Rendering</strong> - Basic markdown formatting for processed documents</li>
+            <li>✅ <strong>Metadata Display</strong> - Shows status, file type, and creation date</li>
+            <li>✅ <strong>API Endpoint</strong> - New endpoint at <code>/api/rag/document/{id}/view</code></li>
+        </ul>
+        
+        <h3>What You Can View:</h3>
+        <ul>
+            <li>📄 <strong>Processed Documents</strong> - If the Actions platform has processed the document, you'll see formatted markdown</li>
+            <li>📝 <strong>Raw Content</strong> - If not yet processed, you'll see the original content</li>
+            <li>🔄 <strong>Status Indicators</strong> - Visual cues showing if a document is ready, processing, or failed</li>
+        </ul>
+    </div>
+    
+    <div class="document-list">
+        <h2>Sample Documents in Your Knowledge Base</h2>
+        <div id="documents"></div>
+    </div>
+    
+    <script>
+        // Show sample documents from the database
+        const sampleDocs = [
+            {
+                id: '76ea2185-b4f7-4592-865a-1a6cd27e301d',
+                filename: 'KB0012345_How_to_Reset_Your_SSO_Password.html',
+                status: 'ready',
+                has_markdown: true,
+                desc: 'This document has been processed and contains formatted markdown'
+            },
+            {
+                id: '5c38e4aa-287f-42e0-8a0a-7b63681deeec',
+                filename: 'critical-info.md',
+                status: 'processing',
+                has_markdown: false,
+                desc: 'Currently being processed by the Actions platform'
+            },
+            {
+                id: '63a8e677-018f-43c8-8694-d4f20ffd8bc2',
+                filename: 'Article from initial ingest',
+                status: 'vectorized',
+                has_markdown: false,
+                desc: 'Vectorized for RAG search capabilities'
+            }
+        ];
+        
+        const container = document.getElementById('documents');
+        sampleDocs.forEach(doc => {
+            const div = document.createElement('div');
+            div.className = 'doc-item';
+            div.innerHTML = `
+                <div>
+                    <strong>${doc.filename}</strong><br>
+                    <small>${doc.desc}</small><br>
+                    <span class="status status-${doc.status}">${doc.status.toUpperCase()}</span>
+                    ${doc.has_markdown ? '<span style="margin-left: 10px; color: green;">✓ Has Processed Content</span>' : ''}
+                </div>
+                <div>
+                    <button class="view-btn" onclick="alert('To view this document:\\n1. Go to http://localhost:5000\\n2. Sign in to the dashboard\\n3. Click the View button next to document: ${doc.filename}')">
+                        View Instructions
+                    </button>
+                </div>
+            `;
+            container.appendChild(div);
+        });
+    </script>
+    
+    <div class="info" style="margin-top: 30px;">
+        <h3>🚀 Next Steps</h3>
+        <p>To see the viewer in action:</p>
+        <ol>
+            <li>Navigate to <a href="http://localhost:5000" target="_blank">http://localhost:5000</a></li>
+            <li>Sign in to your dashboard</li>
+            <li>Look for the Knowledge Base section</li>
+            <li>Click the <strong>View</strong> button next to any document</li>
+            <li>The modal will open showing the document content</li>
+        </ol>
+        
+        <h3>💡 Future Enhancements (if needed):</h3>
+        <ul>
+            <li>Enhanced markdown editor (Milkdown) - Would require 5-7 days of work</li>
+            <li>Advanced document components (PRPViewer, etc.) - High effort</li>
+            <li>Print/Download/Copy buttons - Can be added quickly if needed</li>
+            <li>Dark mode support - Can be added with Tailwind CSS</li>
+            <li>Collapsible sections - For better document organization</li>
+        </ul>
+    </div>
+</body>
+</html>

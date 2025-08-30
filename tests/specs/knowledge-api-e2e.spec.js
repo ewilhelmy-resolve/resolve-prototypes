@@ -82,9 +82,20 @@ test.describe('Knowledge API - Real E2E Flow', () => {
     const cookies = await page.context().cookies();
     const sessionToken = cookies.find(c => c.name === 'sessionToken')?.value;
     
-    // For testing, we'll use a test tenant ID that we can control
-    // In production, this would come from the user's actual data
-    const tenantId = uuidv4();
+    // Get the actual tenant ID from the user's session
+    const userInfoResponse = await request.get('/api/user/info', {
+      headers: {
+        'Cookie': `sessionToken=${sessionToken}`,
+        'Authorization': `Bearer ${sessionToken}`
+      }
+    });
+    
+    if (!userInfoResponse.ok()) {
+      throw new Error('Failed to get user info');
+    }
+    
+    const userInfo = await userInfoResponse.json();
+    const tenantId = userInfo.tenantId;
     
     console.log(`   ✅ User logged in with session`);
     console.log(`   Tenant ID: ${tenantId}`);
@@ -289,7 +300,17 @@ test.describe('Knowledge API - Real E2E Flow', () => {
     
     const otherCookies = await page.context().cookies();
     const otherSessionToken = otherCookies.find(c => c.name === 'sessionToken')?.value;
-    const otherTenantId = uuidv4();
+    
+    // Get the actual tenant ID for the second user
+    const otherUserInfoResponse = await request.get('/api/user/info', {
+      headers: {
+        'Cookie': `sessionToken=${otherSessionToken}`,
+        'Authorization': `Bearer ${otherSessionToken}`
+      }
+    });
+    
+    const otherUserInfo = await otherUserInfoResponse.json();
+    const otherTenantId = otherUserInfo.tenantId;
     
     console.log(`   Created second user in tenant: ${otherTenantId}`);
     
@@ -316,7 +337,47 @@ test.describe('Knowledge API - Real E2E Flow', () => {
       console.log('   ✅ Tenant isolation verified - Cross-tenant access blocked');
     } else {
       console.log('   ❌ SECURITY ISSUE: Cross-tenant access was allowed!');
-      expect(crossTenantResponse.status()).toBeOneOf([401, 403]);
+      expect([401, 403]).toContain(crossTenantResponse.status());
+    }
+
+    // ============= STEP 7.5: Document Viewer Validation =============
+    console.log('\n📚 Step 7.5: Document Viewer Functionality');
+    
+    // Test the document viewer endpoint directly
+    if (uploadedArticles.length > 0) {
+      const docToView = uploadedArticles[0];
+      
+      const viewResponse = await request.get(
+        `/api/rag/document/${docToView.article_id}/view`,
+        {
+          headers: {
+            'Authorization': `Bearer ${sessionToken}`,
+            'Cookie': `sessionToken=${sessionToken}`
+          }
+        }
+      );
+      
+      expect(viewResponse.ok()).toBeTruthy();
+      const viewData = await viewResponse.json();
+      
+      expect(viewData.success).toBe(true);
+      expect(viewData.document).toBeDefined();
+      expect(viewData.document.document_id).toBe(docToView.article_id);
+      // The original_filename might be null for programmatically created documents
+      const displayName = viewData.document.original_filename || viewData.document.document_id;
+      console.log(`   ✅ Document viewer API returns document: "${displayName}"`);
+      
+      // Verify the document has display content
+      expect(viewData.document.display_content).toBeDefined();
+      const hasContent = viewData.document.display_content && viewData.document.display_content.length > 0;
+      console.log(`   ✅ Document has ${hasContent ? 'viewable content' : 'no content yet'}`);
+      
+      // Check if document has been processed
+      if (viewData.document.is_processed) {
+        console.log('   ✅ Document has processed markdown for enhanced viewing');
+      } else {
+        console.log('   ℹ️ Document showing raw content (not yet processed)');
+      }
     }
 
     // ============= STEP 8: Cleanup =============
@@ -347,6 +408,7 @@ test.describe('Knowledge API - Real E2E Flow', () => {
     console.log('   ✅ Actions platform processes and vectorizes content');
     console.log('   ✅ Vectors stored via system callbacks (no user session)');
     console.log('   ✅ Users can search their knowledge base');
+    console.log('   ✅ Document viewer API provides content access');
     console.log('   ✅ Tenant isolation enforced');
   });
 

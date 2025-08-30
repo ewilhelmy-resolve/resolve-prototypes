@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard Knowledge Base Widget - Resolve</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+            background: #ffffff;
+            padding: 20px;
+            color: #1a1a1a;
+        }
+
+        /* Container to show widget in context */
+        .dashboard-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: flex;
+            gap: 24px;
+        }
+
+        .right-sidebar {
+            width: 350px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        /* Knowledge Base Widget - Compact for Dashboard */
+        .kb-widget {
+            background: #ffffff;
+            border: 1px solid rgba(0, 0, 0, 0.08);
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+        }
+
+        .widget-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 16px;
+        }
+
+        .widget-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: #1a1a1a;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .widget-icon {
+            width: 20px;
+            height: 20px;
+            background: #4ecdc41a;
+            border: 1px solid #4ecdc433;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+        }
+
+        .widget-badge {
+            background: #00ff881a;
+            border: 1px solid #00ff884d;
+            border-radius: 4px;
+            padding: 2px 6px;
+            font-size: 10px;
+            color: #009632;
+            font-family: 'Courier New', monospace;
+        }
+
+        /* Compact Upload Area */
+        .widget-upload {
+            border: 2px dashed rgba(0, 0, 0, 0.08);
+            border-radius: 6px;
+            padding: 16px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            background: #f8fafc4d;
+            margin-bottom: 16px;
+        }
+
+        .widget-upload:hover {
+            border-color: #4ecdc44d;
+            background: #f8fafccc;
+        }
+
+        .widget-upload-icon {
+            font-size: 20px;
+            margin-bottom: 8px;
+        }
+
+        .widget-upload-text {
+            font-size: 12px;
+            color: #1a1a1a;
+            font-weight: 500;
+            margin-bottom: 4px;
+        }
+
+        .widget-upload-hint {
+            font-size: 11px;
+            color: #666;
+        }
+
+        /* Compact Stats Row */
+        .widget-stats {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+            padding: 12px;
+            background: #f8fafc7f;
+            border-radius: 6px;
+            margin-bottom: 16px;
+        }
+
+        .widget-stat {
+            text-align: center;
+        }
+
+        .widget-stat-value {
+            font-size: 18px;
+            font-weight: 600;
+            color: #0066ff;
+            display: block;
+        }
+
+        .widget-stat-label {
+            font-size: 10px;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+            margin-top: 2px;
+        }
+
+        /* Recent Documents - Compact List */
+        .widget-recent {
+            margin-bottom: 16px;
+        }
+
+        .widget-section-title {
+            font-size: 11px;
+            font-weight: 600;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 8px;
+        }
+
+        .widget-doc-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 8px;
+            margin-bottom: 4px;
+            background: #f8fafc7f;
+            border-radius: 4px;
+            font-size: 12px;
+            transition: background 0.2s;
+        }
+
+        .widget-doc-item:hover {
+            background: #f8fafccc;
+        }
+
+        .widget-doc-name {
+            flex: 1;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            color: #1a1a1a;
+        }
+
+        .widget-doc-status {
+            font-size: 10px;
+            padding: 2px 4px;
+            border-radius: 2px;
+            text-transform: uppercase;
+            font-weight: 600;
+        }
+
+        .status-ready {
+            background: #00ff881a;
+            color: #009632;
+        }
+
+        .status-processing {
+            background: #ffc1071a;
+            color: #b47800;
+        }
+
+        /* Manage Button */
+        .widget-manage-btn {
+            width: 100%;
+            padding: 8px 12px;
+            background: linear-gradient(135deg, #0066ff, #4ecdc4);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .widget-manage-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 2px 8px rgba(0, 102, 255, 0.3);
+        }
+
+        /* Main content area placeholder */
+        .main-content {
+            flex: 1;
+            background: #f8fafc;
+            border-radius: 8px;
+            padding: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #666;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="dashboard-container">
+        <!-- Main Content Area (placeholder) -->
+        <div class="main-content">
+            Chat Interface Area
+        </div>
+
+        <!-- Right Sidebar -->
+        <div class="right-sidebar">
+            <!-- Knowledge Base Widget -->
+            <div class="kb-widget">
+                <div class="widget-header">
+                    <div class="widget-title">
+                        <div class="widget-icon">📚</div>
+                        Knowledge Base
+                    </div>
+                    <span class="widget-badge">11 Articles</span>
+                </div>
+
+                <!-- Upload Area -->
+                <div class="widget-upload" onclick="handleUploadClick()">
+                    <div class="widget-upload-icon">⬆️</div>
+                    <div class="widget-upload-text">Drop files or click to upload</div>
+                    <div class="widget-upload-hint">PDF, DOC, TXT, MD • Max 100MB</div>
+                </div>
+
+                <!-- Stats -->
+                <div class="widget-stats">
+                    <div class="widget-stat">
+                        <span class="widget-stat-value">11</span>
+                        <span class="widget-stat-label">Articles</span>
+                    </div>
+                    <div class="widget-stat">
+                        <span class="widget-stat-value">350</span>
+                        <span class="widget-stat-label">Vectors</span>
+                    </div>
+                    <div class="widget-stat">
+                        <span class="widget-stat-value">89%</span>
+                        <span class="widget-stat-label">Accuracy</span>
+                    </div>
+                </div>
+
+                <!-- Recent Documents -->
+                <div class="widget-recent">
+                    <div class="widget-section-title">Recent</div>
+                    <div class="widget-doc-item">
+                        <span class="widget-doc-name">Employee Handbook.pdf</span>
+                        <span class="widget-doc-status status-ready">Ready</span>
+                    </div>
+                    <div class="widget-doc-item">
+                        <span class="widget-doc-name">IT Security Policies.docx</span>
+                        <span class="widget-doc-status status-processing">Processing</span>
+                    </div>
+                    <div class="widget-doc-item">
+                        <span class="widget-doc-name">Onboarding Checklist.md</span>
+                        <span class="widget-doc-status status-ready">Ready</span>
+                    </div>
+                </div>
+
+                <!-- Manage Button -->
+                <button class="widget-manage-btn" onclick="openKnowledgeManagement()">
+                    Manage Knowledge Base →
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function handleUploadClick() {
+            alert('Opening file picker...');
+        }
+
+        function openKnowledgeManagement() {
+            alert('Navigating to /knowledge management page...');
+            // In real app: window.location.href = '/knowledge';
+        }
+
+        // Drag and drop for the upload area
+        const uploadArea = document.querySelector('.widget-upload');
+        
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.style.borderColor = '#4ecdc4';
+            uploadArea.style.background = '#4ecdc40d';
+        });
+
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.style.borderColor = 'rgba(0, 0, 0, 0.08)';
+            uploadArea.style.background = '#f8fafc4d';
+        });
+
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.style.borderColor = 'rgba(0, 0, 0, 0.08)';
+            uploadArea.style.background = '#f8fafc4d';
+            
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                alert(`Uploading ${files.length} file(s)...`);
+            }
+        });
+    </script>
+</body>
+</html>

@@ -42,6 +42,7 @@ class QuikChatRAG {
             
             // Store conversation ID and message ID
             if (data.conversation_id) {
+                const isNewConversation = !this.conversationId;
                 this.conversationId = data.conversation_id;
                 
                 // Log conversation ID for testing
@@ -50,6 +51,15 @@ class QuikChatRAG {
                 
                 // Store in localStorage for easy access
                 localStorage.setItem('currentConversationId', this.conversationId);
+                
+                // Update ChatHistoryManager when a new conversation is created
+                if (window.chatHistoryManager) {
+                    if (isNewConversation) {
+                        window.chatHistoryManager.onConversationCreated(this.conversationId);
+                    } else {
+                        window.chatHistoryManager.currentConversationId = this.conversationId;
+                    }
+                }
                 
                 // Start SSE connection if not already connected
                 if (!this.eventSource) {
@@ -77,7 +87,7 @@ class QuikChatRAG {
     }
     
     async checkForMissedMessages() {
-        if (!this.conversationId) return;
+        if (!this.conversationId || this.isAuthError) return;
         
         try {
             // For now, just get recent messages without checking what we already have
@@ -86,8 +96,22 @@ class QuikChatRAG {
             const response = await fetch(url, {
                 headers: {
                     'Authorization': 'Bearer active'
-                }
+                },
+                credentials: 'include' // Include cookies for auth
             });
+            
+            if (response.status === 401 || response.status === 403) {
+                console.error('%c🚫 Authentication failed - stopping message checks', 'color: #f44336; font-weight: bold');
+                this.isAuthError = true;
+                // Clear the interval
+                if (this.messageCheckInterval) {
+                    clearInterval(this.messageCheckInterval);
+                    this.messageCheckInterval = null;
+                }
+                // Redirect to login
+                window.location.href = '/signin';
+                return;
+            }
             
             if (response.ok) {
                 const data = await response.json();
@@ -101,6 +125,61 @@ class QuikChatRAG {
         } catch (error) {
             console.error('Error checking for missed messages:', error);
         }
+    }
+    
+    showLoadingIndicator(chatInstance) {
+        // Create system-level loading indicator (not in a card)
+        const loadingIndicator = document.createElement('div');
+        loadingIndicator.className = 'system-loading-indicator';
+        loadingIndicator.innerHTML = `
+            <div class="loading-content">
+                <span class="loading-text">Rita is thinking</span>
+                <div class="loading-dots">
+                    <span class="dot"></span>
+                    <span class="dot"></span>
+                    <span class="dot"></span>
+                </div>
+            </div>
+        `;
+        
+        // Add to messages area but not as a QuikChat message
+        const messagesArea = document.querySelector('.quikchat-messages-area');
+        if (messagesArea) {
+            messagesArea.appendChild(loadingIndicator);
+            this.currentLoadingIndicator = loadingIndicator;
+            
+            // Scroll to show the indicator
+            messagesArea.scrollTo({
+                top: messagesArea.scrollHeight,
+                behavior: 'smooth'
+            });
+        }
+    }
+    
+    removeLoadingIndicator(chatInstance) {
+        if (this.currentLoadingIndicator && this.currentLoadingIndicator.parentNode) {
+            this.currentLoadingIndicator.remove();
+            this.currentLoadingIndicator = null;
+        }
+    }
+    
+    stopSSE() {
+        // Close the EventSource connection
+        if (this.eventSource) {
+            this.eventSource.close();
+            this.eventSource = null;
+        }
+        
+        // Clear any intervals
+        if (this.messageCheckInterval) {
+            clearInterval(this.messageCheckInterval);
+            this.messageCheckInterval = null;
+        }
+        
+        // Reset reconnection attempts
+        this.sseReconnectAttempts = 0;
+        
+        console.log('%c🛑 SSE connection stopped', 'color: #FF9800; font-weight: bold');
     }
     
     connectToSSE() {
@@ -139,11 +218,8 @@ class QuikChatRAG {
                 
                 // Update the chat with the AI response
                 if (this.chat) {
-                    // Remove any typing indicator first
-                    if (this.currentTypingId) {
-                        this.chat.messageRemove(this.currentTypingId);
-                        this.currentTypingId = null;
-                    }
+                    // Remove loading indicator first
+                    this.removeLoadingIndicator(this.chat);
                     
                     // Add the response (use content for test messages, ai_response for regular)
                     const messageText = data.content || data.ai_response;
@@ -151,6 +227,15 @@ class QuikChatRAG {
                         // Add test indicator if it's a test message
                         const displayText = data.is_test ? `🧪 [TEST] ${messageText}` : messageText;
                         this.chat.messageAddNew(displayText, 'Assistant', 'left');
+                        
+                        // Emit event for chat history to update
+                        window.dispatchEvent(new CustomEvent('rag-conversation-updated', {
+                            detail: { 
+                                conversationId: this.conversationId,
+                                messageType: 'assistant',
+                                message: messageText
+                            }
+                        }));
                     }
                     
                     // Sources are available in data.sources but not displayed in chat
@@ -168,12 +253,26 @@ class QuikChatRAG {
         this.eventSource.onerror = (error) => {
             console.error('%c❌ SSE connection error', 'color: #f44336; font-weight: bold', error);
             
+            // Check if this is an authentication error
+            if (this.isAuthError) {
+                console.error('%c🚫 Authentication failed - stopping SSE reconnection attempts', 'color: #f44336; font-weight: bold');
+                this.stopSSE();
+                // Clear any intervals
+                if (this.messageCheckInterval) {
+                    clearInterval(this.messageCheckInterval);
+                    this.messageCheckInterval = null;
+                }
+                // Redirect to login page
+                window.location.href = '/signin';
+                return;
+            }
+            
             // EventSource will auto-reconnect, but we can help it
             if (this.eventSource.readyState === EventSource.CLOSED) {
                 console.log('%c🔄 SSE connection closed, attempting reconnect...', 'color: #FF9800; font-weight: bold');
                 
                 // Start checking for messages while SSE is down (every 3 seconds)
-                if (!this.messageCheckInterval) {
+                if (!this.messageCheckInterval && !this.isAuthError) {
                     console.log('%c📮 Starting message check interval while SSE is down', 'color: #FF9800');
                     this.messageCheckInterval = setInterval(() => {
                         this.checkForMissedMessages();
@@ -184,10 +283,17 @@ class QuikChatRAG {
                 this.sseReconnectAttempts = (this.sseReconnectAttempts || 0) + 1;
                 const delay = Math.min(1000 * Math.pow(2, this.sseReconnectAttempts - 1), 30000); // Max 30s
                 
+                // Limit reconnection attempts
+                if (this.sseReconnectAttempts > 5) {
+                    console.error('%c⛔ Max SSE reconnection attempts reached', 'color: #f44336; font-weight: bold');
+                    this.stopSSE();
+                    return;
+                }
+                
                 console.log(`%c⏰ Reconnecting in ${delay/1000}s (attempt ${this.sseReconnectAttempts})`, 'color: #FF9800');
                 
                 setTimeout(() => {
-                    if (this.conversationId && (!this.eventSource || this.eventSource.readyState === EventSource.CLOSED)) {
+                    if (this.conversationId && (!this.eventSource || this.eventSource.readyState === EventSource.CLOSED) && !this.isAuthError) {
                         this.connectToSSE();
                     }
                 }, delay);
@@ -248,49 +354,23 @@ class QuikChatRAG {
             // Add user message immediately
             instance.messageAddNew(message, 'You', 'right');
             
-            // Show animated typing indicator using animated text
-            let dotCount = 0;
-            const typingMessages = [
-                'Thinking',
-                'Thinking.',
-                'Thinking..',
-                'Thinking...'
-            ];
-            
-            const typingId = instance.messageAddNew(typingMessages[0], 'Assistant', 'left');
-            
-            // Animate the dots
-            const typingInterval = setInterval(() => {
-                dotCount = (dotCount + 1) % 4;
-                if (this.currentTypingId === typingId && instance.messageUpdate) {
-                    instance.messageUpdate(typingId, typingMessages[dotCount]);
-                } else if (instance.messages && instance.messages[typingId]) {
-                    // Fallback: update the message directly if messageUpdate doesn't exist
-                    const messageElement = document.querySelector(`[data-message-id="${typingId}"] .quikchat-message-text`);
-                    if (messageElement) {
-                        messageElement.textContent = typingMessages[dotCount];
-                    }
-                }
-            }, 400);
-            
-            // Store typing ID and interval for SSE handler to remove if needed
-            this.currentTypingId = typingId;
-            this.currentTypingInterval = typingInterval;
+            // Show animated loading indicator immediately
+            this.showLoadingIndicator(instance);
             
             // Send to RAG API
             const response = await this.sendToRAG(message);
             
-            // Remove typing indicator (if SSE hasn't already removed it)
-            if (this.currentTypingId === typingId) {
-                clearInterval(typingInterval);
-                instance.messageRemove(typingId);
-                this.currentTypingId = null;
-                this.currentTypingInterval = null;
-            }
-            
-            // Add assistant response
+            // Handle response
             if (response.success) {
-                instance.messageAddNew(response.message, 'Assistant', 'left');
+                // Check if this is just a processing message
+                if (response.message.includes('processing your message')) {
+                    // Keep the loading indicator visible - it will be removed when real response arrives via SSE
+                    console.log('Keeping loading indicator for processing message');
+                } else {
+                    // Real response received, remove loading indicator and show message
+                    this.removeLoadingIndicator(instance);
+                    instance.messageAddNew(response.message, 'Assistant', 'left');
+                }
                 
                 // Sources are available in response.sources but not displayed in chat
                 // to avoid cluttering the conversation
@@ -306,6 +386,8 @@ class QuikChatRAG {
                     }, 1000);
                 }
             } else {
+                // Error case - remove loading indicator and show error message
+                this.removeLoadingIndicator(instance);
                 instance.messageAddNew(response.message, 'Assistant', 'left');
             }
         }, {

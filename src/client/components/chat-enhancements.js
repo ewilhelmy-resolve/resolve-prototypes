@@ -6,7 +6,7 @@ class ChatEnhancements {
         this.messagesArea = null;
         this.inputArea = null;
         this.minHeight = 44; // Approx 2 lines
-        this.maxHeight = 428; // 17 lines: 16px font * 1.5 line-height * 17 + padding
+        this.maxHeight = 340; // Max height matching CSS
         this.lineHeight = 24; // 16px * 1.5 line-height
     }
 

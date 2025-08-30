@@ -9,6 +9,7 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@radix-ui/themes@3.0.0/styles.css">
     <link rel="stylesheet" href="/styles/fonts.css">
     <link rel="stylesheet" href="/styles/dashboard-styles.css">
+    <link rel="stylesheet" href="/styles/article-item.css">
     <link rel="stylesheet" href="/quikchat.css">
     <link rel="stylesheet" href="/dashboard-chat.css">
 </head>
@@ -151,33 +152,51 @@
                         </button>
                     </div>
                     
-                    <div class="knowledge-header">
-                        <div class="knowledge-status">
-                            <div class="status-indicator connected"></div>
-                            <span>Connected</span>
+                    <!-- Knowledge Base Widget -->
+                    <div class="knowledge-widget" style="padding: 20px; background: rgba(255, 255, 255, 0.95); border: 1px solid rgba(0, 0, 0, 0.08); border-radius: 8px; margin-bottom: 20px; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);">
+                        <div class="knowledge-header" style="margin-bottom: 16px;">
+                            <h3 class="share-title">Knowledge Base</h3>
                         </div>
-                        <h3 class="knowledge-title">Knowledge Base</h3>
-                        <div class="knowledge-stats">
-                            <span class="stat-number">0</span>
-                            <span class="stat-label">Articles</span>
+                        
+                        <!-- Upload Area -->
+                        <div class="knowledge-upload" onclick="handleUpload()" style="box-sizing: border-box; width: 100%; background: rgba(248, 250, 252, 0.5); border: 2px dashed rgba(0, 0, 0, 0.08); border-radius: 8px; padding: 16px; text-align: center; cursor: pointer; transition: all 0.2s ease; margin-bottom: 16px;" 
+             onmouseover="this.style.background='rgba(248, 250, 252, 0.8)'; this.style.borderColor='rgba(78, 205, 196, 0.3)';" 
+             onmouseout="this.style.background='rgba(248, 250, 252, 0.5)'; this.style.borderColor='rgba(0, 0, 0, 0.08)';">
+                            <div class="upload-text" style="font-size: 12px; color: rgb(26, 26, 26); font-weight: 500; margin-bottom: 4px;">Drop files or click to upload</div>
+                            <div class="upload-hint" style="font-size: 11px; color: rgba(0, 0, 0, 0.5);">PDF, DOC, TXT, MD • Max 100MB</div>
                         </div>
-                    </div>
-                    
-                    <div class="articles-list" id="articles-list">
-                        <!-- Articles will be loaded dynamically -->
-                        <div class="loading-placeholder" style="padding: 20px; text-align: center; color: #8B8B9F;">
-                            Loading articles...
+                        
+                        <!-- Stats Grid -->
+                        <div class="knowledge-stats" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; padding: 12px; background: rgba(248, 250, 252, 0.8); border-radius: 6px; margin-bottom: 16px;">
+                            <div class="stat-item" style="text-align: center;">
+                                <span class="stat-value" style="font-size: 18px; font-weight: 600; color: rgb(0, 102, 255); display: block;">11</span>
+                                <span class="stat-label" style="font-size: 10px; color: rgba(0, 0, 0, 0.5); text-transform: uppercase; letter-spacing: 0.3px; margin-top: 2px;">Articles</span>
+                            </div>
+                            <div class="stat-item" style="text-align: center;">
+                                <span class="stat-value" style="font-size: 18px; font-weight: 600; color: rgb(0, 102, 255); display: block;">350</span>
+                                <span class="stat-label" style="font-size: 10px; color: rgba(0, 0, 0, 0.5); text-transform: uppercase; letter-spacing: 0.3px; margin-top: 2px;">Vectors</span>
+                            </div>
+                            <div class="stat-item" style="text-align: center;">
+                                <span class="stat-value" style="font-size: 18px; font-weight: 600; color: rgb(0, 102, 255); display: block;">89%</span>
+                                <span class="stat-label" style="font-size: 10px; color: rgba(0, 0, 0, 0.5); text-transform: uppercase; letter-spacing: 0.3px; margin-top: 2px;">Accuracy</span>
+                            </div>
                         </div>
-                    </div>
-                    
-                    <div class="knowledge-actions">
-                        <button class="action-btn" onclick="openAddModal()">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                                <path d="M12 2V22M2 12H22" stroke="currentColor" stroke-width="2" stroke-linecap="round"></path>
-                            </svg>
-                            Add more
+                        
+                        <!-- Recent Documents -->
+                        <div class="knowledge-recent" style="margin-bottom: 16px;">
+                            <div class="section-title" style="font-size: 11px; color: rgba(0, 0, 0, 0.5); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; font-weight: 600;">RECENT UPLOADS</div>
+                            <div id="recentUploadsContainer"></div>
+                        </div>
+                        
+                        <!-- Articles List (Hidden container for loadKnowledgeBase function) -->
+                        <div id="articles-list" style="display: none;"></div>
+                        
+                        <!-- Manage Button -->
+                        <button class="knowledge-manage-btn" onclick="openKnowledgeManagement()" style="width: 100%; padding: 10px 16px; background: rgb(255, 255, 255); border: 1px solid rgba(0, 102, 255, 0.2); border-radius: 8px; color: rgb(0, 102, 255); font-size: 14px; font-weight: 500; display: flex; align-items: center; justify-content: center; gap: 8px; cursor: pointer; transition: all 0.2s ease;"
+                onmouseover="this.style.background='rgba(0, 102, 255, 0.05)'; this.style.borderColor='rgb(0, 102, 255)'; this.style.boxShadow='0 2px 8px rgba(0, 102, 255, 0.15)';"
+                onmouseout="this.style.background='rgb(255, 255, 255)'; this.style.borderColor='rgba(0, 102, 255, 0.2)'; this.style.boxShadow='none';">
+                            Manage Knowledge Base →
                         </button>
-                        <a href="/manage" class="action-btn secondary" style="text-decoration: none; display: inline-flex; align-items: center; justify-content: center;">Manage</a>
                     </div>
                 </aside>
             </div>
@@ -499,6 +518,7 @@
                     const result = await response.json();
                     if (result.documents && result.documents.length > 0) {
                         const articlesList = document.getElementById('articles-list');
+                        const articleItem = new ArticleItem();
                         
                         // Remove loading placeholder if it exists
                         const loadingPlaceholder = articlesList.querySelector('.loading-placeholder');
@@ -506,67 +526,17 @@
                             loadingPlaceholder.remove();
                         }
                         
-                        // Add each document to the list
+                        // Add each document to the list using the component
                         result.documents.forEach(doc => {
-                            const docItem = document.createElement('div');
-                            docItem.className = 'article-item';
-                            docItem.style.cssText = 'cursor: pointer; display: flex; align-items: center;';
-                            docItem.setAttribute('data-document-id', doc.document_id);
-                            
-                            // Determine color based on status
-                            let strokeColor = '#4ECDC4'; // default/ready
-                            let statusText = 'READY';
-                            let statusColor = '#4ECDC4';
-                            let description = 'Ready';
-                            
-                            if (doc.status === 'processing') {
-                                strokeColor = '#FFC107';
-                                statusText = 'PROCESSING';
-                                statusColor = '#FFC107';
-                                description = 'Processing...';
-                                docItem.classList.add('processing');
-                                docItem.style.opacity = '0.8';
-                            } else if (doc.status === 'failed') {
-                                strokeColor = '#FF6B6B';
-                                statusText = 'FAILED';
-                                statusColor = '#FF6B6B';
-                                description = 'Processing failed';
-                                docItem.classList.add('failed');
-                            }
-                            
-                            // Truncate filename if too long
-                            const filename = doc.original_filename || doc.document_id;
-                            const displayName = filename.length > 25 ? filename.substring(0, 22) + '...' : filename;
-                            
-                            docItem.innerHTML = `
-                                <div class="article-icon">
-                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" stroke="${strokeColor}" stroke-width="2"></path>
-                                        <polyline points="14,2 14,8 20,8" stroke="${strokeColor}" stroke-width="2"></polyline>
-                                    </svg>
-                                </div>
-                                <div class="article-content" style="flex: 1;">
-                                    <h4 class="article-title" title="${escapeHtml(filename)}">${escapeHtml(displayName)}</h4>
-                                    <p class="article-description">${description}</p>
-                                    <div style="margin-top: 4px; font-size: 10px; color: ${statusColor}; text-transform: uppercase;">
-                                        ${statusText}
-                                    </div>
-                                </div>
-                                <button onclick="deleteDocument('${doc.document_id}')" style="
-                                    background: transparent;
-                                    border: none;
-                                    color: #FF6B6B;
-                                    cursor: pointer;
-                                    padding: 4px;
-                                    margin-left: 8px;
-                                    opacity: 0.7;
-                                    transition: opacity 0.2s;
-                                " onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.7'" title="Delete document">
-                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                                        <path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6h14zM10 11v6M14 11v6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                                    </svg>
-                                </button>
-                            `;
+                            const docItem = articleItem.createElement({
+                                documentId: doc.document_id,
+                                filename: doc.original_filename || doc.document_id,
+                                status: doc.status || 'ready',
+                                showDeleteButton: true,
+                                showRetryButton: doc.status === 'failed',
+                                onDelete: (docId) => deleteDocument(docId),
+                                onRetry: (docId, element) => retryDocument(docId, element)
+                            });
                             
                             articlesList.appendChild(docItem);
                             
@@ -589,11 +559,138 @@
             }
         }
         
+        // Function to load recent uploads (last 3 documents)
+        async function updateKnowledgeStats() {
+            try {
+                // Fetch actual stats from the backend
+                const response = await fetch('/api/rag/stats', {
+                    credentials: 'include'
+                });
+                
+                if (response.ok) {
+                    const stats = await response.json();
+                    
+                    // Update the UI with real numbers
+                    const articlesElement = document.querySelector('.knowledge-stats .stat:nth-child(1) .value');
+                    const vectorsElement = document.querySelector('.knowledge-stats .stat:nth-child(2) .value');
+                    const accuracyElement = document.querySelector('.knowledge-stats .stat:nth-child(3) .value');
+                    
+                    if (articlesElement) articlesElement.textContent = stats.document_count || '0';
+                    if (vectorsElement) vectorsElement.textContent = stats.vector_count || '0';
+                    if (accuracyElement) accuracyElement.textContent = `${stats.coverage_percentage || '0'}%`;
+                    
+                    console.log('📊 Updated knowledge stats:', stats);
+                }
+            } catch (error) {
+                console.error('Error updating knowledge stats:', error);
+            }
+        }
+
+        async function loadRecentUploads() {
+            const recentUploadsContainer = document.getElementById('recentUploadsContainer');
+            if (!recentUploadsContainer) return;
+            
+            try {
+                const response = await fetch('/api/rag/documents', {
+                    credentials: 'include'
+                });
+                
+                if (response.ok) {
+                    const result = await response.json();
+                    if (result.documents && result.documents.length > 0) {
+                        const articleItem = new ArticleItem();
+                        
+                        // Clear container
+                        recentUploadsContainer.innerHTML = '';
+                        
+                        // Sort by created_at descending (most recent first) and take only first 3
+                        const recentDocs = result.documents
+                            .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+                            .slice(0, 3);
+                        
+                        // Render each document
+                        recentDocs.forEach(doc => {
+                            const itemElement = articleItem.createElement({
+                                documentId: doc.document_id,
+                                filename: doc.original_filename || doc.document_id,
+                                status: doc.status || 'ready',
+                                customDescription: doc.status === 'processing' ? 'Processing...' : 'Ready',
+                                showDeleteButton: false,  // No delete button
+                                showRetryButton: false,
+                                onClick: (docId, element) => {
+                                    viewDocument(docId);
+                                }
+                            });
+                            
+                            // Make it more compact with correct icon spacing
+                            itemElement.style.padding = '8px';  // Outer padding
+                            itemElement.style.marginBottom = '4px';
+                            
+                            // Fix icon alignment and spacing
+                            const iconElement = itemElement.querySelector('.article-icon');
+                            if (iconElement) {
+                                // Remove internal padding and center icon vertically
+                                iconElement.style.paddingTop = '0';
+                                iconElement.style.alignItems = 'center';
+                                iconElement.style.height = 'auto';
+                                iconElement.style.marginTop = '0';
+                                // Set icon width and margins for balanced spacing
+                                iconElement.style.width = '16px';  // Icon width
+                                iconElement.style.marginLeft = '-4px';  // Partial offset to avoid touching border
+                                iconElement.style.marginRight = '0px';  // Results in ~12px total spacing
+                            }
+                            
+                            // Add dynamic text truncation for title
+                            const titleElement = itemElement.querySelector('.article-title');
+                            if (titleElement) {
+                                titleElement.style.whiteSpace = 'nowrap';
+                                titleElement.style.overflow = 'hidden';
+                                titleElement.style.textOverflow = 'ellipsis';
+                                titleElement.style.maxWidth = 'calc(100% - 28px)'; // Account for icon + spacing
+                            }
+                            
+                            // Add dynamic text truncation for description
+                            const descElement = itemElement.querySelector('.article-description');
+                            if (descElement) {
+                                descElement.style.whiteSpace = 'nowrap';
+                                descElement.style.overflow = 'hidden';
+                                descElement.style.textOverflow = 'ellipsis';
+                                descElement.style.maxWidth = 'calc(100% - 28px)'; // Same as title
+                            }
+                            
+                            // Hide the status text line to keep it 2 lines
+                            const statusElement = itemElement.querySelector('.article-status');
+                            if (statusElement) {
+                                statusElement.style.display = 'none';
+                            }
+                            
+                            recentUploadsContainer.appendChild(itemElement);
+                        });
+                        
+                        // Update the stats grid with real counts
+                        const statValue = document.querySelector('.knowledge-stats .stat-value');
+                        if (statValue) {
+                            statValue.textContent = result.documents.length;
+                        }
+                    }
+                }
+            } catch (error) {
+                console.error('Error loading recent uploads:', error);
+            }
+        }
+        
         document.addEventListener('DOMContentLoaded', function() {
             // Load knowledge base articles
             loadKnowledgeBase();
             // Also load RAG documents
             loadRagDocuments();
+            // Load recent uploads for the knowledge widget
+            loadRecentUploads();
+            // Load knowledge stats with real numbers
+            updateKnowledgeStats();
+            // Setup SSE for real-time knowledge base updates
+            setupDocumentStatusSSE();
+            
             setTimeout(() => {
                 const chatContainer = document.getElementById('jarvis-chat-container');
                 if (chatContainer) {
@@ -636,55 +733,21 @@
                 if (response.ok) {
                     const result = await response.json();
                     const doc = result.document;
+                    const articleItem = new ArticleItem();
                     
                     // Update UI based on status
                     if (doc.status === 'ready') {
-                        itemElement.classList.remove('processing');
-                        itemElement.classList.add('ready');
-                        itemElement.style.opacity = '1';
-                        
-                        // Update the icon color to green
-                        const svg = itemElement.querySelector('.article-icon svg');
-                        if (svg) {
-                            svg.querySelectorAll('path, polyline').forEach(el => {
-                                el.setAttribute('stroke', '#4ECDC4');
-                            });
-                        }
-                        
-                        // Update the description and status
-                        const description = itemElement.querySelector('.article-description');
-                        if (description) {
-                            description.textContent = 'Document processed successfully';
-                        }
-                        
-                        const statusDiv = itemElement.querySelector('.article-content > div:last-child');
-                        if (statusDiv) {
-                            statusDiv.style.color = '#4ECDC4';
-                            statusDiv.textContent = 'READY';
-                        }
+                        articleItem.updateStatus(itemElement, 'ready', 'Document processed successfully');
                     } else if (doc.status === 'failed') {
-                        itemElement.classList.remove('processing');
-                        itemElement.classList.add('failed');
-                        itemElement.style.opacity = '1';
+                        articleItem.updateStatus(itemElement, 'failed');
                         
-                        // Update the icon color to red
-                        const svg = itemElement.querySelector('.article-icon svg');
-                        if (svg) {
-                            svg.querySelectorAll('path, polyline').forEach(el => {
-                                el.setAttribute('stroke', '#FF6B6B');
-                            });
-                        }
-                        
-                        // Update the description and status
-                        const description = itemElement.querySelector('.article-description');
-                        if (description) {
-                            description.textContent = 'Processing failed';
-                        }
-                        
-                        const statusDiv = itemElement.querySelector('.article-content > div:last-child');
-                        if (statusDiv) {
-                            statusDiv.style.color = '#FF6B6B';
-                            statusDiv.innerHTML = 'FAILED <button onclick="retryDocument(\'' + documentId + '\', this.closest(\'.article-item\'))" style="margin-left: 8px; padding: 2px 8px; background: #FF6B6B; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 10px;">RETRY</button>';
+                        // Add retry handler to the new retry button
+                        const retryBtn = itemElement.querySelector('[data-action="retry"]');
+                        if (retryBtn) {
+                            retryBtn.onclick = (e) => {
+                                e.stopPropagation();
+                                retryDocument(documentId, itemElement);
+                            };
                         }
                     } else {
                         // Still processing, check again
@@ -770,6 +833,9 @@
                                 }
                             }
                         }
+                        
+                        // Refresh the recent uploads list
+                        setTimeout(() => loadRecentUploads(), 350);
                         
                         // Show success notification
                         const notification = document.createElement('div');
@@ -866,6 +932,352 @@
             }
         }
         
+        function handleUpload() {
+            // Create file input and trigger click
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.multiple = false; // Single file upload per plan requirement
+            input.accept = '.pdf,.doc,.docx,.txt,.md,.html,.csv,.jpg,.jpeg,.png,.gif,.bmp,.tiff,.webp,.odt,.ods,.odp,.epub,.xml,.json,.tex,.xps,.mobi,.svg,.docm,.dotx,.pptm,.xlsm,.xlsb,.vsdx,.vsd,.pub,.mht,.mhtml,.eml,.msg';
+            input.onchange = async (e) => {
+                const files = e.target.files;
+                if (files.length > 0) {
+                    console.log('Selected file:', files[0]);
+                    // Process the file directly
+                    await uploadDocument(files[0]);
+                }
+            };
+            input.click();
+        }
+        
+        // Document status monitoring with SSE
+        let documentStatusSSE = null;
+        const documentStatusMonitors = new Map(); // Track which documents we're monitoring
+        let knowledgeSSERetryCount = 0;
+        const MAX_KNOWLEDGE_SSE_RETRIES = 3;
+        
+        function setupDocumentStatusSSE() {
+            // Use the same SSE connection pattern as chat
+            // Connect to a knowledge base events stream
+            if (documentStatusSSE) {
+                return;
+            }
+            
+            // Get tenant ID from the page or session
+            const tenantId = window.tenantId || document.querySelector('[data-tenant-id]')?.dataset.tenantId;
+            
+            // Create SSE connection for knowledge base updates
+            // Using similar pattern to chat-stream
+            documentStatusSSE = new EventSource('/api/rag/knowledge-stream');
+            
+            documentStatusSSE.onopen = () => {
+                console.log('📡 Knowledge base SSE connected');
+                // Reset retry count on successful connection
+                knowledgeSSERetryCount = 0;
+            };
+            
+            documentStatusSSE.onmessage = (event) => {
+                try {
+                    const data = JSON.parse(event.data);
+                    
+                    // Handle different event types
+                    if (data.type === 'document-status' || data.type === 'document-vectorized') {
+                        updateDocumentUI(data.document_id, data.status, data.metadata);
+                        // Update stats when vectorization is complete
+                        if (data.status === 'vectorized') {
+                            updateKnowledgeStats();
+                        }
+                    } else if (data.type === 'document-uploaded') {
+                        // Refresh recent uploads
+                        loadRecentUploads();
+                        updateKnowledgeStats();
+                    } else if (data.type === 'document-processed') {
+                        updateDocumentUI(data.document_id, 'ready', data);
+                        // Update stats
+                        updateKnowledgeStats();
+                    } else if (data.type === 'connected') {
+                        console.log('📚 Connected to knowledge base stream');
+                    } else if (data.type === 'heartbeat') {
+                        // Ignore heartbeat messages
+                    }
+                } catch (error) {
+                    console.error('Error processing knowledge update:', error);
+                }
+            };
+            
+            documentStatusSSE.onerror = (error) => {
+                console.error('Knowledge SSE error:', error);
+                
+                // Check if this is an authentication error by attempting a test request
+                fetch('/api/rag/stats', { credentials: 'include' })
+                    .then(response => {
+                        if (response.status === 401 || response.status === 403) {
+                            console.error('🚫 Authentication failed - redirecting to signin');
+                            // Close the SSE connection
+                            if (documentStatusSSE) {
+                                documentStatusSSE.close();
+                                documentStatusSSE = null;
+                            }
+                            // Redirect to signin page
+                            window.location.href = '/signin';
+                        } else {
+                            // Not an auth error, try to reconnect with exponential backoff
+                            knowledgeSSERetryCount++;
+                            if (knowledgeSSERetryCount <= MAX_KNOWLEDGE_SSE_RETRIES && documentStatusSSE) {
+                                const delay = Math.min(5000 * Math.pow(2, knowledgeSSERetryCount - 1), 30000);
+                                console.log(`⏰ Knowledge SSE reconnecting in ${delay/1000}s (attempt ${knowledgeSSERetryCount}/${MAX_KNOWLEDGE_SSE_RETRIES})`);
+                                setTimeout(() => {
+                                    documentStatusSSE = null;
+                                    setupDocumentStatusSSE();
+                                }, delay);
+                            } else {
+                                console.error(`⛔ Max Knowledge SSE reconnection attempts reached (${MAX_KNOWLEDGE_SSE_RETRIES})`);
+                                if (documentStatusSSE) {
+                                    documentStatusSSE.close();
+                                    documentStatusSSE = null;
+                                }
+                            }
+                        }
+                    })
+                    .catch(err => {
+                        console.error('Error checking auth status:', err);
+                        // On network error, try to reconnect with retry limit
+                        knowledgeSSERetryCount++;
+                        if (knowledgeSSERetryCount <= MAX_KNOWLEDGE_SSE_RETRIES && documentStatusSSE) {
+                            const delay = Math.min(5000 * Math.pow(2, knowledgeSSERetryCount - 1), 30000);
+                            console.log(`⏰ Knowledge SSE reconnecting after network error in ${delay/1000}s (attempt ${knowledgeSSERetryCount}/${MAX_KNOWLEDGE_SSE_RETRIES})`);
+                            setTimeout(() => {
+                                documentStatusSSE = null;
+                                setupDocumentStatusSSE();
+                            }, delay);
+                        } else {
+                            console.error(`⛔ Max Knowledge SSE reconnection attempts reached (${MAX_KNOWLEDGE_SSE_RETRIES})`);
+                            if (documentStatusSSE) {
+                                documentStatusSSE.close();
+                                documentStatusSSE = null;
+                            }
+                        }
+                    });
+            };
+        }
+        
+        function monitorDocumentStatus(documentId, element) {
+            // Add to monitoring list
+            documentStatusMonitors.set(documentId, element);
+            
+            // Ensure SSE is connected
+            if (!documentStatusSSE || documentStatusSSE.readyState === EventSource.CLOSED) {
+                setupDocumentStatusSSE();
+            }
+            
+            // Do an immediate status check
+            checkDocumentStatus(documentId, element);
+        }
+        
+        async function checkDocumentStatus(documentId, element) {
+            try {
+                const response = await fetch(`/api/rag/document-status/${documentId}`, {
+                    credentials: 'include'
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    updateDocumentUI(documentId, data.status, data);
+                }
+            } catch (error) {
+                console.error('Error checking document status:', error);
+            }
+        }
+        
+        function updateDocumentUI(documentId, status, metadata) {
+            const element = documentStatusMonitors.get(documentId);
+            if (!element) return;
+            
+            // Update the status in the UI element
+            const statusElement = element.querySelector('.status-indicator');
+            if (statusElement) {
+                statusElement.textContent = status;
+                statusElement.className = `status-indicator status-${status}`;
+            }
+            
+            // If completed or failed, stop monitoring
+            if (status === 'completed' || status === 'failed') {
+                documentStatusMonitors.delete(documentId);
+                
+                // Stop polling if no more documents to monitor
+                if (documentStatusMonitors.size === 0 && documentPollingInterval) {
+                    clearInterval(documentPollingInterval);
+                    documentPollingInterval = null;
+                    console.log('📋 Document monitoring complete');
+                }
+                
+                // Update button states
+                const retryButton = element.querySelector('.retry-button');
+                if (retryButton) {
+                    retryButton.style.display = status === 'failed' ? 'inline-block' : 'none';
+                }
+            }
+        }
+        
+        // Helper function to show error modal
+        function showErrorModal(title, message) {
+            // Remove any existing modal
+            const existingModal = document.getElementById('error-modal');
+            if (existingModal) {
+                existingModal.remove();
+            }
+            
+            // Create modal HTML
+            const modalHTML = `
+                <div id="error-modal" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.5); display: flex; align-items: center; justify-content: center; z-index: 10000;">
+                    <div style="background: white; border-radius: 12px; padding: 24px; max-width: 450px; width: 90%; box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3); animation: slideIn 0.3s ease;">
+                        <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 16px;">
+                            <svg width="24" height="24" fill="none" viewBox="0 0 24 24" stroke="#ef4444" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            <h3 style="margin: 0; font-size: 18px; font-weight: 600; color: #1f2937;">${title}</h3>
+                        </div>
+                        <p style="margin: 0 0 20px 0; color: #6b7280; line-height: 1.5;">${message}</p>
+                        <button onclick="document.getElementById('error-modal').remove()" style="width: 100%; padding: 10px 16px; background: #3b82f6; color: white; border: none; border-radius: 8px; font-size: 14px; font-weight: 500; cursor: pointer; transition: background 0.2s;" 
+                                onmouseover="this.style.background='#2563eb'" 
+                                onmouseout="this.style.background='#3b82f6'">
+                            Understood
+                        </button>
+                    </div>
+                </div>
+            `;
+            
+            // Add modal to page
+            document.body.insertAdjacentHTML('beforeend', modalHTML);
+            
+            // Add animation CSS if not exists
+            if (!document.querySelector('#modal-animation-styles')) {
+                const style = document.createElement('style');
+                style.id = 'modal-animation-styles';
+                style.textContent = `
+                    @keyframes slideIn {
+                        from { transform: translateY(-20px); opacity: 0; }
+                        to { transform: translateY(0); opacity: 1; }
+                    }
+                `;
+                document.head.appendChild(style);
+            }
+        }
+        
+        async function uploadDocument(file) {
+            // Show loading state in the upload area
+            const uploadButton = document.querySelector('.knowledge-upload');
+            if (uploadButton) {
+                uploadButton.style.opacity = '0.6';
+                uploadButton.style.pointerEvents = 'none';
+                uploadButton.innerHTML = `
+                    <div style="display: flex; align-items: center; justify-content: center; gap: 8px;">
+                        <svg class="spinner" width="16" height="16" viewBox="0 0 24 24">
+                            <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2" fill="none" stroke-dasharray="31.4" stroke-dashoffset="10"></circle>
+                        </svg>
+                        <span>Uploading...</span>
+                    </div>
+                `;
+            }
+            
+            // Add spinner animation CSS if not exists
+            if (!document.querySelector('#spinner-styles')) {
+                const style = document.createElement('style');
+                style.id = 'spinner-styles';
+                style.textContent = `
+                    @keyframes spin { to { transform: rotate(360deg); } }
+                    .spinner { animation: spin 1s linear infinite; display: inline-block; }
+                `;
+                document.head.appendChild(style);
+            }
+            
+            // Prepare form data - single file upload
+            const formData = new FormData();
+            formData.append('document', file); // Single file as 'document'
+            
+            try {
+                // Upload document to RAG API
+                const response = await fetch('/api/rag/upload-document', {
+                    method: 'POST',
+                    body: formData,
+                    credentials: 'include' // Include cookies with the request
+                });
+                
+                if (response.ok) {
+                    const result = await response.json();
+                    
+                    // Update knowledge base UI to show processing status
+                    const articlesList = document.getElementById('articles-list');
+                    if (articlesList) {
+                        // Remove loading placeholder if it exists
+                        const loadingPlaceholder = articlesList.querySelector('.loading-placeholder');
+                        if (loadingPlaceholder) {
+                            loadingPlaceholder.remove();
+                        }
+                        
+                        // Create new article item using the component
+                        const articleItem = new ArticleItem();
+                        const newItem = articleItem.createElement({
+                            documentId: result.document_id,
+                            filename: file.name,
+                            status: 'uploading',
+                            showDeleteButton: true,
+                            onDelete: (docId) => deleteDocument(docId)
+                        });
+                        
+                        articlesList.insertBefore(newItem, articlesList.firstChild);
+                        
+                        // Update the article count
+                        const statNumber = document.querySelector('.stat-number');
+                        if (statNumber) {
+                            const currentCount = parseInt(statNumber.textContent) || 0;
+                            statNumber.textContent = currentCount + 1;
+                        }
+                        
+                        // Monitor document status with SSE
+                        monitorDocumentStatus(result.document_id, newItem);
+                    }
+                    
+                    // Update recent uploads
+                    await loadRecentUploads();
+                    
+                    console.log('Document uploaded successfully:', result.document_id);
+                } else {
+                    const errorText = await response.text();
+                    console.error('Upload failed:', errorText);
+                    
+                    // Parse error message if it's JSON
+                    let errorMessage = errorText;
+                    try {
+                        const errorJson = JSON.parse(errorText);
+                        errorMessage = errorJson.error || errorJson.message || errorText;
+                    } catch (e) {
+                        // Not JSON, use as-is
+                    }
+                    
+                    showErrorModal('Upload Failed', errorMessage);
+                }
+            } catch (error) {
+                console.error('Error uploading document:', error);
+                showErrorModal('Upload Error', 'Failed to upload document. Please check your connection and try again.');
+            } finally {
+                // Restore upload button
+                if (uploadButton) {
+                    uploadButton.style.opacity = '1';
+                    uploadButton.style.pointerEvents = 'auto';
+                    uploadButton.innerHTML = `
+                        <div class="upload-text">Drop files or click to upload</div>
+                        <div class="upload-hint">PDF, DOC, TXT, MD • Max 100MB</div>
+                    `;
+                }
+            }
+        }
+        
+        function openKnowledgeManagement() {
+            console.log('Opening knowledge management page...');
+            // Navigate to /manage or open modal
+            window.location.href = '/manage';
+        }
+        
         function openAddModal() {
             // Create a hidden file input for document upload
             const fileInput = document.createElement('input');
@@ -920,45 +1332,16 @@
                                     loadingPlaceholder.remove();
                                 }
                                 
-                                // Create new article item matching the existing format
-                                const newItem = document.createElement('div');
-                                newItem.className = 'article-item processing';
-                                newItem.style.cssText = 'cursor: pointer; opacity: 0.8; display: flex; align-items: center;';
-                                newItem.setAttribute('data-document-id', result.document_id);
+                                // Create new article item using the component
+                                const articleItem = new ArticleItem();
+                                const newItem = articleItem.createElement({
+                                    documentId: result.document_id,
+                                    filename: files[0].name,
+                                    status: 'uploading',
+                                    showDeleteButton: true,
+                                    onDelete: (docId) => deleteDocument(docId)
+                                });
                                 
-                                // Truncate filename if too long
-                                const filename = files[0].name;
-                                const displayName = filename.length > 25 ? filename.substring(0, 22) + '...' : filename;
-                                
-                                newItem.innerHTML = `
-                                    <div class="article-icon">
-                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" stroke="#FFC107" stroke-width="2"></path>
-                                            <polyline points="14,2 14,8 20,8" stroke="#FFC107" stroke-width="2"></polyline>
-                                        </svg>
-                                    </div>
-                                    <div class="article-content" style="flex: 1;">
-                                        <h4 class="article-title" title="${escapeHtml(filename)}">${escapeHtml(displayName)}</h4>
-                                        <p class="article-description">Uploading...</p>
-                                        <div style="margin-top: 4px; font-size: 10px; color: #FFC107; text-transform: uppercase;">
-                                            PROCESSING
-                                        </div>
-                                    </div>
-                                    <button onclick="deleteDocument('${result.document_id}')" style="
-                                        background: transparent;
-                                        border: none;
-                                        color: #FF6B6B;
-                                        cursor: pointer;
-                                        padding: 4px;
-                                        margin-left: 8px;
-                                        opacity: 0.7;
-                                        transition: opacity 0.2s;
-                                    " onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.7'" title="Delete document">
-                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                                            <path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6h14zM10 11v6M14 11v6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                                        </svg>
-                                    </button>
-                                `;
                                 articlesList.insertBefore(newItem, articlesList.firstChild);
                                 
                                 // Update the article count
@@ -967,6 +1350,9 @@
                                     const currentCount = parseInt(statNumber.textContent) || 0;
                                     statNumber.textContent = currentCount + 1;
                                 }
+                                
+                                // Refresh the recent uploads list to show the new document at the top
+                                loadRecentUploads();
                                 
                                 // Poll for status updates
                                 if (result.document_id) {
@@ -1282,10 +1668,187 @@
             };
             document.addEventListener('keydown', escHandler);
         }
+        
+        // Document viewer function for knowledge base articles
+        async function viewDocument(documentId) {
+            try {
+                // Fetch document content from API
+                const response = await fetch(`/api/rag/document/${documentId}/view`, {
+                    credentials: 'include'
+                });
+                
+                if (!response.ok) {
+                    throw new Error('Failed to load document');
+                }
+                
+                const data = await response.json();
+                const doc = data.document;
+                
+                // Create modal overlay
+                const modalOverlay = document.createElement('div');
+                modalOverlay.id = 'documentViewerModal';
+                modalOverlay.style.cssText = `
+                    position: fixed;
+                    top: 0;
+                    left: 0;
+                    right: 0;
+                    bottom: 0;
+                    background: rgba(0, 0, 0, 0.7);
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    z-index: 10000;
+                    animation: fadeIn 0.2s ease-out;
+                `;
+                
+                // Create modal content
+                const modal = document.createElement('div');
+                modal.style.cssText = `
+                    background: white;
+                    border-radius: 12px;
+                    max-width: 900px;
+                    width: 90%;
+                    max-height: 80vh;
+                    display: flex;
+                    flex-direction: column;
+                    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+                    animation: slideUp 0.2s ease-out;
+                `;
+                
+                // Format the date
+                const createdDate = new Date(doc.created_at).toLocaleDateString('en-US', {
+                    year: 'numeric',
+                    month: 'short',
+                    day: 'numeric'
+                });
+                
+                // Determine status color
+                const statusColors = {
+                    ready: '#28a745',
+                    processing: '#ffc107',
+                    failed: '#dc3545',
+                    vectorized: '#17a2b8'
+                };
+                const statusColor = statusColors[doc.status] || '#6c757d';
+                
+                // Create modal HTML
+                modal.innerHTML = `
+                    <div style="padding: 24px; border-bottom: 1px solid #e0e0e0;">
+                        <div style="display: flex; justify-content: space-between; align-items: start;">
+                            <div>
+                                <h2 id="documentTitle" style="margin: 0; color: #333; font-size: 24px;">
+                                    ${doc.original_filename || 'Document'}
+                                </h2>
+                                <div id="documentMeta" style="margin-top: 8px; color: #666; font-size: 14px;">
+                                    <span style="
+                                        background: ${statusColor}; 
+                                        color: white; 
+                                        padding: 2px 8px; 
+                                        border-radius: 4px;
+                                        font-size: 12px;
+                                        margin-right: 10px;
+                                    ">${doc.status.toUpperCase()}</span>
+                                    ${doc.is_processed ? '<span style="color: #28a745;">✓ Processed</span> • ' : ''}
+                                    ${doc.file_type ? `<span>${doc.file_type}</span> • ` : ''}
+                                    <span>${createdDate}</span>
+                                </div>
+                            </div>
+                            <button onclick="this.closest('#documentViewerModal').remove()" style="
+                                background: transparent;
+                                border: none;
+                                font-size: 24px;
+                                cursor: pointer;
+                                color: #666;
+                                padding: 0;
+                                width: 32px;
+                                height: 32px;
+                                display: flex;
+                                align-items: center;
+                                justify-content: center;
+                                border-radius: 4px;
+                                transition: background 0.2s;
+                            " onmouseover="this.style.background='#f0f0f0'" onmouseout="this.style.background='transparent'">
+                                ×
+                            </button>
+                        </div>
+                    </div>
+                    <div id="documentContent" style="
+                        padding: 24px;
+                        overflow-y: auto;
+                        flex: 1;
+                        font-size: 15px;
+                        line-height: 1.6;
+                        color: #333;
+                    ">
+                        ${formatDocumentContent(doc.display_content)}
+                    </div>
+                `;
+                
+                modalOverlay.appendChild(modal);
+                document.body.appendChild(modalOverlay);
+                
+                // Close on background click
+                modalOverlay.addEventListener('click', (e) => {
+                    if (e.target === modalOverlay) {
+                        modalOverlay.remove();
+                    }
+                });
+                
+                // Close on ESC key
+                const escHandler = (e) => {
+                    if (e.key === 'Escape') {
+                        modalOverlay.remove();
+                        document.removeEventListener('keydown', escHandler);
+                    }
+                };
+                document.addEventListener('keydown', escHandler);
+                
+            } catch (error) {
+                console.error('Error viewing document:', error);
+                alert('Failed to load document. Please try again.');
+            }
+        }
+        
+        // Helper function to format document content
+        function formatDocumentContent(content) {
+            if (!content) return '<p style="color: #999;">No content available</p>';
+            
+            // Basic markdown-style formatting
+            let formatted = content
+                // Headers
+                .replace(/^### (.*?)$/gm, '<h3 style="margin: 16px 0 8px 0; color: #333;">$1</h3>')
+                .replace(/^## (.*?)$/gm, '<h2 style="margin: 20px 0 10px 0; color: #333;">$1</h2>')
+                .replace(/^# (.*?)$/gm, '<h1 style="margin: 24px 0 12px 0; color: #333;">$1</h1>')
+                // Bold
+                .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                // Lists
+                .replace(/^- (.*?)$/gm, '<li>$1</li>')
+                .replace(/^(\d+)\. (.*?)$/gm, '<li>$2</li>')
+                // Code blocks
+                .replace(/```([\s\S]*?)```/g, '<pre style="background: #f5f5f5; padding: 12px; border-radius: 4px; overflow-x: auto;"><code>$1</code></pre>')
+                // Inline code
+                .replace(/`([^`]+)`/g, '<code style="background: #f5f5f5; padding: 2px 4px; border-radius: 2px;">$1</code>')
+                // Line breaks
+                .replace(/\n\n/g, '</p><p>')
+                .replace(/\n/g, '<br>');
+            
+            // Wrap in paragraph tags if not already formatted
+            if (!formatted.includes('<p>') && !formatted.includes('<h')) {
+                formatted = `<p>${formatted}</p>`;
+            }
+            
+            // Wrap consecutive <li> tags in <ul>
+            formatted = formatted.replace(/(<li>.*?<\/li>\s*)+/g, (match) => {
+                return `<ul style="margin: 8px 0; padding-left: 24px;">${match}</ul>`;
+            });
+            
+            return formatted;
+        }
     </script>
     
     <!-- QuikChat Scripts -->
     <script src="/quikchat.js"></script>
+    <script src="/components/article-item.js"></script>
     <script src="/components/quikchat-rag.js"></script>
     <script src="/components/chat-enhancements.js"></script>
     <script src="/components/mobile-menu.js"></script>
