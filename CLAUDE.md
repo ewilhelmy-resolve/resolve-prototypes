@@ -37,6 +37,7 @@ When asked to validate a change, execute the following steps in order:
 - When asked to "prepare a check-in," first re-run the e2e suite; do not proceed if any tests are failing
 - **Remember there is only one single docker-compose do not add new ones**
 - Do not mess with either the docker-compose.yml or the github action unless explicitly told to
+- **All screenshots from Playwright MCP should be saved to `.playwright-mcp/` directory (ignored by git)**
 
 ### Environment Variables (Configurable Defaults)
 - `APP_SERVICE` = docker compose service name (default: `app`)

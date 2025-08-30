@@ -9,15 +9,41 @@ model: claude-3-5-sonnet-20241022
 
 Execute the complete E2E test suite following the validation workflow from CLAUDE.md.
 
+## IMPORTANT: Docker Application Requirements
+This is a Docker-based application. The app MUST be running in Docker for tests to work.
+
 ## Validation Steps
 
-### 1. Pre-flight Check
+### 1. Ensure Docker is Running
+```bash
+# Check if Docker daemon is running
+docker version >/dev/null 2>&1 || (echo "❌ Docker is not running! Please start Docker first." && exit 1)
+```
+
+### 2. Build and Start Application
+```bash
+# Build and start the application
+docker compose build --pull
+docker compose up -d
+
+# Wait for services to be healthy (max 30 seconds)
+for i in {1..30}; do
+  if docker compose ps | grep -q "(healthy)"; then
+    echo "✅ Services are healthy"
+    break
+  fi
+  echo "Waiting for services to be healthy... ($i/30)"
+  sleep 1
+done
+```
+
+### 3. Verify Services Health
 ```bash
 docker compose ps
 ```
-Ensure app and postgres show `(healthy)` status.
+Ensure both `app` and `postgres` show `(healthy)` status.
 
-### 2. Run Test Suite
+### 4. Run Test Suite
 ```bash
 npm test
 ```

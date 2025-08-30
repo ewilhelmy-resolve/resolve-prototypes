@@ -18,7 +18,8 @@ test.describe('Mobile Layout Validation', () => {
       console.log(`\n📱 Testing ${name} - ${width}x${height}px\n`);
       
       // Navigate to landing page
-      await page.goto('/', { waitUntil: 'networkidle' });
+      await page.goto('/', { timeout: 10000 });
+      await page.waitForSelector('input[name="email"]', { timeout: 10000 });
       
       // Check viewport meta tag
       const viewportMeta = await page.locator('meta[name="viewport"]').getAttribute('content');

@@ -27,6 +27,7 @@ lerna-debug.log*
 *.ico
 tests/screenshots/
 screenshots/
+.playwright-mcp/
 
 # Node.js
 node_modules/

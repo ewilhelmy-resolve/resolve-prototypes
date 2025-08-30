@@ -418,10 +418,52 @@ function createRagRouter(db, sessions) {
     });
 
     // 3. Vector Search (For Actions Platform)
-    router.post('/vector-search', validateCallbackTokenMW, async (req, res) => {
+    // Can be called with either tenant callback token OR message callback token
+    router.post('/vector-search', async (req, res) => {
         try {
-            const { query_embedding, tenant_id, limit = 5, threshold = 0.7, filters } = req.body;
+            const { query_embedding, tenant_id, limit = 5, threshold = 0.7, filters, message_id } = req.body;
             const startTime = Date.now();
+            
+            // Get token from header
+            const authToken = req.headers['x-callback-token'] || req.headers['authorization']?.replace('Bearer ', '');
+            
+            if (!authToken) {
+                return res.status(401).json({ error: 'Missing authentication token' });
+            }
+            
+            // Check if it's a tenant token OR a message callback token
+            let validAuth = false;
+            
+            // First check tenant tokens
+            const tenantTokenResult = await db.query(
+                'SELECT * FROM rag_tenant_tokens WHERE tenant_id = $1 AND callback_token = $2',
+                [tenant_id, authToken]
+            );
+            
+            if (tenantTokenResult.rows.length > 0) {
+                validAuth = true;
+            } else if (message_id) {
+                // Check if it's a valid message callback token
+                const messageResult = await db.query(
+                    `SELECT * FROM rag_webhook_failures 
+                     WHERE webhook_type = 'chat_callback' 
+                     AND payload::jsonb->>'message_id' = $1
+                     AND payload::jsonb->>'callback_token' = $2`,
+                    [message_id, authToken]
+                );
+                
+                if (messageResult.rows.length > 0) {
+                    // Verify tenant_id matches
+                    const msgTenantId = messageResult.rows[0].tenant_id;
+                    if (msgTenantId === tenant_id) {
+                        validAuth = true;
+                    }
+                }
+            }
+            
+            if (!validAuth) {
+                return res.status(401).json({ error: 'Invalid authentication token' });
+            }
             
             // Validate embedding
             const expectedDimension = parseInt(process.env.VECTOR_DIMENSION) || 1536;
@@ -575,8 +617,10 @@ function createRagRouter(db, sessions) {
             
             // Fire webhook to Resolve platform (non-blocking)
             const callbackUrl = `${appUrl}/api/rag/chat-callback/${messageId}`;
+            const vectorSearchUrl = `${appUrl}/api/rag/vector-search`;
             
             // Send to Resolve platform - fire and forget
+            // The callback_token can be used for BOTH the chat callback AND vector searches
             resolveWebhook.sendProxyEvent({
                 source: 'onboarding',
                 action: 'process-chat-message',
@@ -586,7 +630,8 @@ function createRagRouter(db, sessions) {
                 message_id: messageId,
                 customer_message: message,
                 callback_url: callbackUrl,
-                callback_token: callbackToken,
+                callback_token: callbackToken,  // Use this same token for vector searches
+                vector_search_url: vectorSearchUrl,
                 timestamp: new Date().toISOString()
             }).catch(err => {
                 console.error('Failed to send to Resolve platform:', err);

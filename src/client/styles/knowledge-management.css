@@ -1,0 +1,566 @@
+.knowledge-management-container {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    background: #ffffff;
+    font-family: "Season Sans", -apple-system, BlinkMacSystemFont, "SF Pro", sans-serif;
+}
+
+.km-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 24px 32px;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+    background: #ffffff;
+}
+
+.km-title {
+    font-size: 28px;
+    font-weight: 400;
+    color: #1a1a1a;
+    margin: 0;
+    font-family: "Season Mix", -apple-system, BlinkMacSystemFont, "SF Pro", sans-serif;
+}
+
+.km-stats-bar {
+    display: flex;
+    gap: 16px;
+    padding: 24px 32px;
+    background: #f8fafc;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.km-stat-card {
+    flex: 1;
+    padding: 20px;
+    background: white;
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    border-radius: 12px;
+    text-align: center;
+    transition: all 0.2s;
+}
+
+.km-stat-card:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    transform: translateY(-2px);
+}
+
+.km-stat-value {
+    font-size: 24px;
+    font-weight: 600;
+    color: #1a1a1a;
+    margin-bottom: 8px;
+    font-family: "Season Sans", -apple-system, BlinkMacSystemFont, "SF Pro", sans-serif;
+}
+
+.km-stat-label {
+    font-size: 13px;
+    color: #666;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-family: "Season Sans", -apple-system, BlinkMacSystemFont, "SF Pro", sans-serif;
+}
+
+.km-toolbar {
+    display: flex;
+    justify-content: flex-start;
+    align-items: center;
+    padding: 20px 32px;
+    background: white;
+    border-bottom: 2px solid #3182ce;
+    gap: 16px;
+}
+
+.km-toolbar-left {
+    display: flex;
+    gap: 16px;
+    align-items: center;
+    flex: 1;
+}
+
+.km-search-container {
+    position: relative;
+    width: 240px;
+    max-width: 240px;
+    flex-shrink: 0;
+    margin-right: 20px;
+}
+
+.km-search-icon {
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #666;
+}
+
+.km-search-input {
+    width: 100%;
+    max-width: 240px;
+    padding: 8px 12px 8px 36px;
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    border-radius: 6px;
+    font-size: 14px;
+    background: white;
+    transition: all 0.2s;
+    font-family: "Season Sans", -apple-system, BlinkMacSystemFont, "SF Pro", sans-serif;
+    box-sizing: border-box;
+}
+
+.km-search-input:focus {
+    outline: none;
+    border-color: #0066ff;
+    box-shadow: 0 0 0 3px rgba(0, 102, 255, 0.1);
+}
+
+.km-filter-select {
+    padding: 8px 12px;
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    border-radius: 6px;
+    font-size: 14px;
+    background: white;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-family: "Season Sans", -apple-system, BlinkMacSystemFont, "SF Pro", sans-serif;
+    min-width: 130px;
+    margin-right: 12px;
+}
+
+.km-filter-select:hover {
+    border-color: rgba(0, 0, 0, 0.2);
+}
+
+.km-filter-select:focus {
+    outline: none;
+    border-color: #0066ff;
+    box-shadow: 0 0 0 3px rgba(0, 102, 255, 0.1);
+}
+
+
+.km-bulk-actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 0 32px;
+    height: 0;
+    background: #f0f7ff;
+    border-bottom: 1px solid #d4e6ff;
+    overflow: hidden;
+    transition: all 0.3s;
+}
+
+.km-bulk-actions.active {
+    height: 56px;
+    padding: 12px 32px;
+}
+
+.km-bulk-text {
+    font-size: 14px;
+    font-weight: 500;
+    color: #1a1a1a;
+    margin-right: 16px;
+    font-family: "Season Sans", -apple-system, BlinkMacSystemFont, "SF Pro", sans-serif;
+}
+
+.km-bulk-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    background: white;
+    border: 1px solid rgba(0, 0, 0, 0.2);
+    border-radius: 6px;
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-family: "Season Sans", -apple-system, BlinkMacSystemFont, "SF Pro", sans-serif;
+}
+
+.km-bulk-btn:hover {
+    background: #f8fafc;
+    transform: translateY(-1px);
+}
+
+.km-bulk-btn-danger {
+    color: #c80000;
+    border-color: rgba(200, 0, 0, 0.3);
+}
+
+.km-bulk-btn-danger:hover {
+    background: rgba(200, 0, 0, 0.05);
+}
+
+.km-table-container {
+    flex: 1;
+    overflow-x: auto;
+    overflow-y: auto;
+    background: white;
+}
+
+.km-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-family: "Season Sans", -apple-system, BlinkMacSystemFont, "SF Pro", sans-serif;
+}
+
+.km-th {
+    padding: 12px 16px;
+    text-align: left;
+    font-size: 12px;
+    font-weight: 600;
+    color: #666;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    border-bottom: 2px solid rgba(0, 0, 0, 0.08);
+    background: #f8fafc;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+
+.km-th-sortable {
+    cursor: pointer;
+    user-select: none;
+    transition: color 0.2s;
+}
+
+.km-th-sortable:hover {
+    color: #0066ff;
+}
+
+.km-sort-icon {
+    margin-left: 4px;
+    vertical-align: middle;
+    opacity: 0.3;
+    transition: opacity 0.2s;
+}
+
+.km-sort-icon.active {
+    opacity: 1;
+    color: #0066ff;
+}
+
+.km-th-checkbox {
+    width: 40px;
+    padding: 12px 8px;
+}
+
+.km-th-actions {
+    width: 140px;
+    text-align: center;
+}
+
+.km-tr {
+    border-bottom: 1px solid rgba(0, 0, 0, 0.04);
+    transition: all 0.2s;
+    cursor: pointer;
+}
+
+.km-tr:hover {
+    background: #f8fafc;
+}
+
+.km-tr.selected {
+    background: rgba(78, 205, 196, 0.08);
+}
+
+.km-td {
+    padding: 16px;
+    font-size: 14px;
+    color: #1a1a1a;
+}
+
+.km-td-checkbox {
+    width: 40px;
+    padding: 16px 8px;
+}
+
+.km-td-name {
+    font-weight: 500;
+}
+
+.km-doc-name {
+    color: #0066ff;
+    text-decoration: none;
+    transition: color 0.2s;
+}
+
+.km-doc-name:hover {
+    color: #0052cc;
+    text-decoration: underline;
+}
+
+.km-checkbox {
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+}
+
+.km-type-badge {
+    display: inline-block;
+    padding: 4px 8px;
+    background: rgba(0, 0, 0, 0.05);
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.km-status-badge {
+    display: inline-block;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.km-status-ready {
+    color: #009632;
+    background: rgba(0, 255, 136, 0.1);
+}
+
+.km-status-processing {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.km-status-text {
+    color: #b47800;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.km-progress-bar {
+    width: 60px;
+    height: 4px;
+    background: rgba(255, 193, 7, 0.2);
+    border-radius: 2px;
+    overflow: hidden;
+}
+
+.km-progress-fill {
+    height: 100%;
+    background: #ffc107;
+    transition: width 0.3s;
+}
+
+.km-progress-text {
+    font-size: 11px;
+    color: #b47800;
+    font-weight: 600;
+}
+
+.km-status-error {
+    color: #c80000;
+    background: rgba(255, 0, 0, 0.1);
+}
+
+.km-accuracy {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.km-accuracy-value {
+    font-size: 13px;
+    font-weight: 600;
+    color: #1a1a1a;
+}
+
+.km-accuracy-bar {
+    width: 60px;
+    height: 3px;
+    background: rgba(0, 0, 0, 0.1);
+    border-radius: 2px;
+    overflow: hidden;
+}
+
+.km-accuracy-fill {
+    height: 100%;
+    background: linear-gradient(to right, #4ecdc4, #0066ff);
+    transition: width 0.3s;
+}
+
+.km-td-actions {
+    text-align: center;
+}
+
+.km-actions {
+    display: flex;
+    gap: 4px;
+    justify-content: center;
+}
+
+.km-action-btn {
+    padding: 6px;
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s;
+    color: #666;
+}
+
+.km-action-btn:hover {
+    background: rgba(0, 0, 0, 0.05);
+    border-color: rgba(0, 0, 0, 0.1);
+}
+
+.km-action-btn-danger:hover {
+    color: #c80000;
+    background: rgba(200, 0, 0, 0.05);
+    border-color: rgba(200, 0, 0, 0.2);
+}
+
+.km-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 32px;
+    background: white;
+    border-top: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.km-footer-info {
+    font-size: 14px;
+    color: #666;
+    font-family: "Season Sans", -apple-system, BlinkMacSystemFont, "SF Pro", sans-serif;
+}
+
+.km-pagination {
+    display: flex;
+    gap: 4px;
+    align-items: center;
+}
+
+.km-page-btn,
+.km-page-number {
+    padding: 6px 10px;
+    background: white;
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    border-radius: 4px;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.2s;
+    color: #666;
+    font-family: "Season Sans", -apple-system, BlinkMacSystemFont, "SF Pro", sans-serif;
+}
+
+.km-page-btn:hover:not(:disabled),
+.km-page-number:hover {
+    background: #f8fafc;
+    border-color: rgba(0, 0, 0, 0.2);
+}
+
+.km-page-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.km-page-number.active {
+    background: #0066ff;
+    color: white;
+    border-color: #0066ff;
+}
+
+@media (max-width: 1200px) {
+    .km-stats-bar {
+        flex-wrap: wrap;
+    }
+    
+    .km-stat-card {
+        flex: 1 1 calc(50% - 8px);
+        min-width: 200px;
+    }
+}
+
+@media (max-width: 768px) {
+    .km-header {
+        flex-direction: column;
+        gap: 16px;
+        align-items: flex-start;
+    }
+    
+    .km-toolbar {
+        flex-direction: column;
+        gap: 12px;
+        padding: 16px 20px;
+    }
+    
+    .km-toolbar-left {
+        width: 100%;
+        flex-direction: column;
+        gap: 12px;
+    }
+    
+    .km-search-container {
+        width: 100%;
+    }
+    
+    .km-filter-select {
+        width: 100%;
+        min-width: unset;
+    }
+    
+    .km-stat-card {
+        flex: 1 1 100%;
+    }
+    
+    .km-table-container {
+        overflow-x: scroll;
+    }
+}
+
+/* Animations */
+@keyframes slideIn {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+@keyframes slideOut {
+    from {
+        transform: translateX(0);
+        opacity: 1;
+    }
+    to {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes slideUp {
+    from {
+        transform: translateY(20px);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+.km-notification {
+    font-family: "Season Sans", -apple-system, BlinkMacSystemFont, "SF Pro", sans-serif;
+    font-size: 14px;
+    font-weight: 500;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+EOF < /dev/null

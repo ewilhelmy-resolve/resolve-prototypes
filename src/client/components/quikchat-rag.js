@@ -45,9 +45,7 @@ class QuikChatRAG {
                 const isNewConversation = !this.conversationId;
                 this.conversationId = data.conversation_id;
                 
-                // Log conversation ID for testing
-                console.log('%c📋 Conversation ID:', 'color: #4CAF50; font-weight: bold', this.conversationId);
-                console.log('%cUse this ID in the admin panel SSE test tool', 'color: #666;');
+                // Store conversation ID for testing
                 
                 // Store in localStorage for easy access
                 localStorage.setItem('currentConversationId', this.conversationId);
@@ -116,7 +114,7 @@ class QuikChatRAG {
             if (response.ok) {
                 const data = await response.json();
                 if (data.messages && data.messages.length > 0) {
-                    console.log(`%c📬 Found ${data.messages.length} messages in conversation`, 'color: #2196F3; font-weight: bold');
+                    // Found messages in conversation
                     
                     // For now, we'll skip adding them automatically to avoid duplicates
                     // This is just to check if messages are being saved
@@ -179,7 +177,7 @@ class QuikChatRAG {
         // Reset reconnection attempts
         this.sseReconnectAttempts = 0;
         
-        console.log('%c🛑 SSE connection stopped', 'color: #FF9800; font-weight: bold');
+        // SSE connection stopped
     }
     
     connectToSSE() {
@@ -190,14 +188,14 @@ class QuikChatRAG {
             this.eventSource.close();
         }
         
-        console.log(`%c🔌 Connecting SSE for conversation: ${this.conversationId}`, 'color: #4CAF50; font-weight: bold');
+        // Connecting SSE for conversation
         
         // Create new SSE connection
         this.eventSource = new EventSource(`/api/rag/chat-stream/${this.conversationId}`);
         
         // Handle successful connection
         this.eventSource.onopen = () => {
-            console.log('%c✅ SSE Connected', 'color: #4CAF50; font-weight: bold');
+            // SSE Connected
             this.sseReconnectAttempts = 0;
             
             // Clear any message checking interval
@@ -214,7 +212,7 @@ class QuikChatRAG {
             const data = JSON.parse(event.data);
             
             if (data.type === 'chat-response' || data.type === 'test-message') {
-                console.log('%c📨 Received SSE message:', 'color: #2196F3; font-weight: bold', data);
+                // Received SSE message
                 
                 // Update the chat with the AI response
                 if (this.chat) {
@@ -246,7 +244,7 @@ class QuikChatRAG {
                     // }
                 }
             } else if (data.type === 'connected') {
-                console.log('Connected to chat stream:', data.conversation_id);
+                // Connected to chat stream
             }
         };
         
@@ -269,11 +267,11 @@ class QuikChatRAG {
             
             // EventSource will auto-reconnect, but we can help it
             if (this.eventSource.readyState === EventSource.CLOSED) {
-                console.log('%c🔄 SSE connection closed, attempting reconnect...', 'color: #FF9800; font-weight: bold');
+                // SSE connection closed, attempting reconnect
                 
                 // Start checking for messages while SSE is down (every 3 seconds)
                 if (!this.messageCheckInterval && !this.isAuthError) {
-                    console.log('%c📮 Starting message check interval while SSE is down', 'color: #FF9800');
+                    // Starting message check interval while SSE is down
                     this.messageCheckInterval = setInterval(() => {
                         this.checkForMissedMessages();
                     }, 3000);
@@ -290,7 +288,7 @@ class QuikChatRAG {
                     return;
                 }
                 
-                console.log(`%c⏰ Reconnecting in ${delay/1000}s (attempt ${this.sseReconnectAttempts})`, 'color: #FF9800');
+                // Reconnecting with exponential backoff
                 
                 setTimeout(() => {
                     if (this.conversationId && (!this.eventSource || this.eventSource.readyState === EventSource.CLOSED) && !this.isAuthError) {
@@ -421,14 +419,14 @@ class QuikChatRAG {
         
         if (convId) {
             this.conversationId = convId;
-            console.log(`[QuikChatRAG] Loading conversation: ${convId}`);
+            // Loading conversation from localStorage
             
             // Don't reload history here - let the ChatHistoryManager handle it
             // Just set up the SSE connection
             this.connectToSSE();
         } else {
             // No existing conversation, clear the greeting and show fresh one
-            console.log('[QuikChatRAG] No existing conversation found');
+            // No existing conversation found
         }
     }
 

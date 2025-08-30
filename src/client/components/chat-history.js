@@ -30,7 +30,7 @@ class ChatHistoryManager {
         this.lastReloadTime = now;
         
         try {
-            console.log('[Chat History] Loading recent conversations...');
+            // Load recent conversations
             const response = await fetch('/api/rag/recent-conversations?limit=20', {
                 headers: {
                     'Authorization': `Bearer ${this.sessionToken}`
@@ -53,12 +53,12 @@ class ChatHistoryManager {
 
             const data = await response.json();
             this.conversations = data.conversations || [];
-            console.log(`[Chat History] Loaded ${this.conversations.length} conversations`);
+            // Successfully loaded conversations
             
             // Check if current conversation is in the list
             if (this.currentConversationId) {
                 const hasCurrentConv = this.conversations.some(c => c.conversation_id === this.currentConversationId);
-                console.log(`[Chat History] Current conversation ${this.currentConversationId} in list: ${hasCurrentConv}`);
+                // Current conversation status checked
             }
             
             this.renderConversationList();
@@ -428,13 +428,13 @@ class ChatHistoryManager {
         
         // Instead of polling, we rely on SSE for real-time updates
         // The QuikChatRAG component handles SSE connections
-        console.log('[Chat History] Real-time updates via SSE (no polling)');
+        // Real-time updates via SSE (no polling)
         
         // Listen for conversation updates from SSE
         if (!this.sseListenerAttached) {
             // Custom event that QuikChatRAG can dispatch
             window.addEventListener('rag-conversation-updated', (event) => {
-                console.log('[Chat History] Conversation updated via SSE');
+                // Conversation updated via SSE
                 // Debounce the reload to avoid multiple rapid refreshes
                 if (this.reloadTimeout) {
                     clearTimeout(this.reloadTimeout);
@@ -461,13 +461,13 @@ class ChatHistoryManager {
     }
 
     init() {
-        console.log('[Chat History] Initializing...');
+        // Initialize chat history
         
         // Check if there's a current conversation in localStorage
         const currentConvId = localStorage.getItem('currentConversationId');
         if (currentConvId) {
             this.currentConversationId = currentConvId;
-            console.log(`[Chat History] Found current conversation: ${currentConvId}`);
+            // Found current conversation in localStorage
         }
         
         // Set up new chat button handler
@@ -490,7 +490,7 @@ class ChatHistoryManager {
             };
         }
         
-        console.log('[Chat History] Initialization complete');
+        // Initialization complete
     }
 }
 

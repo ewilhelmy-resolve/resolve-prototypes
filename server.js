@@ -86,8 +86,8 @@ function requireAuth(req, res, next) {
                 message: 'Authentication required' 
             });
         }
-        // For page routes, redirect to signin
-        return res.redirect('/signin');
+        // For page routes, redirect to login
+        return res.redirect('/login');
     }
     
     req.user = sessions[token];
@@ -342,6 +342,10 @@ app.get('/', (req, res) => {
 
 app.get('/dashboard', requireAuth, (req, res) => {
     res.sendFile(path.join(__dirname, 'src/client/pages/dashboard.html'));
+});
+
+app.get('/knowledge', requireAuth, (req, res) => {
+    res.sendFile(path.join(__dirname, 'src/client/pages/knowledge.html'));
 });
 
 app.get('/admin', requireAdmin, (req, res) => {

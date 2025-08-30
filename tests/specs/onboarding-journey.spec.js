@@ -120,8 +120,8 @@ test.describe('Onboarding Journey', () => {
     await expect(page.locator('h1')).toContainText(/Setting up your experience/i);
     console.log('   ✅ Completion page loaded');
 
-    // Wait for the setup to complete (loading spinner)
-    await page.waitForTimeout(7000); // Wait for animation to complete
+    // Wait for the setup to complete (loading spinner) with reduced timeout
+    await page.waitForTimeout(3000); // Wait for animation to complete
     console.log('   ✅ Setup process completed');
 
     // Click the "Continue to Dashboard" button (no auto-redirect anymore)

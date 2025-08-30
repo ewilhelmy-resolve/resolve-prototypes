@@ -9,6 +9,7 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@radix-ui/themes@3.0.0/styles.css">
     <link rel="stylesheet" href="/styles/fonts.css">
     <link rel="stylesheet" href="/styles/dashboard-styles.css">
+    <link rel="stylesheet" href="/styles/action-button.css">
     <link rel="stylesheet" href="/styles/article-item.css">
     <link rel="stylesheet" href="/quikchat.css">
     <link rel="stylesheet" href="/dashboard-chat.css">
@@ -43,7 +44,9 @@
                     </div>
                 </div>
                 <div class="header-right">
-                    <button class="dashboard-btn">Dashboard</button>
+                    <button class="action-btn action-btn-secondary action-btn-small dashboard-btn">
+                        <span class="action-btn-text">Dashboard</span>
+                    </button>
                     <div class="user-avatar" onclick="toggleUserDropdown()" style="cursor: pointer; position: relative;">
                         <span>Q</span>
                         <div class="user-dropdown" id="userDropdown" style="display: none; position: absolute; top: calc(100% + 10px); right: 0; background: #1E1E2E; border: 1px solid rgba(139, 139, 159, 0.2); border-radius: 8px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3); min-width: 280px; z-index: 1000;">
@@ -97,12 +100,14 @@
                         <input type="text" placeholder="Search" class="search-input" style="">
                     </div>
                     
-                    <button class="new-chat-btn">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
-                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
-                        </svg>
-                        New chat
+                    <button class="action-btn action-btn-primary action-btn-medium action-btn-full new-chat-btn">
+                        <span class="action-btn-icon">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+                                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+                            </svg>
+                        </span>
+                        <span class="action-btn-text">New chat</span>
                     </button>
 
                     <div class="chats-section">
@@ -192,10 +197,8 @@
                         <div id="articles-list" style="display: none;"></div>
                         
                         <!-- Manage Button -->
-                        <button class="knowledge-manage-btn" onclick="openKnowledgeManagement()" style="width: 100%; padding: 10px 16px; background: rgb(255, 255, 255); border: 1px solid rgba(0, 102, 255, 0.2); border-radius: 8px; color: rgb(0, 102, 255); font-size: 14px; font-weight: 500; display: flex; align-items: center; justify-content: center; gap: 8px; cursor: pointer; transition: all 0.2s ease;"
-                onmouseover="this.style.background='rgba(0, 102, 255, 0.05)'; this.style.borderColor='rgb(0, 102, 255)'; this.style.boxShadow='0 2px 8px rgba(0, 102, 255, 0.15)';"
-                onmouseout="this.style.background='rgb(255, 255, 255)'; this.style.borderColor='rgba(0, 102, 255, 0.2)'; this.style.boxShadow='none';">
-                            Manage Knowledge Base →
+                        <button class="action-btn action-btn-primary action-btn-medium action-btn-full knowledge-manage-btn" onclick="openKnowledgeManagement()">
+                            <span class="action-btn-text">Manage Knowledge Base →</span>
                         </button>
                     </div>
                 </aside>
@@ -562,8 +565,11 @@
         // Function to load recent uploads (last 3 documents)
         async function updateKnowledgeStats() {
             try {
-                // Fetch actual stats from the backend
-                const response = await fetch('/api/rag/stats', {
+                // Get tenant ID
+                const tenantId = window.userTenantId || localStorage.getItem('userTenantId') || 'default-tenant';
+                
+                // Fetch actual stats from the backend with tenant ID
+                const response = await fetch(`/api/rag/tenant/${tenantId}/vectors/stats`, {
                     credentials: 'include'
                 });
                 
@@ -578,11 +584,9 @@
                     if (articlesElement) articlesElement.textContent = stats.document_count || '0';
                     if (vectorsElement) vectorsElement.textContent = stats.vector_count || '0';
                     if (accuracyElement) accuracyElement.textContent = `${stats.coverage_percentage || '0'}%`;
-                    
-                    console.log('📊 Updated knowledge stats:', stats);
                 }
             } catch (error) {
-                console.error('Error updating knowledge stats:', error);
+                // Silently handle error - stats are non-critical
             }
         }
 
@@ -970,7 +974,6 @@
             documentStatusSSE = new EventSource('/api/rag/knowledge-stream');
             
             documentStatusSSE.onopen = () => {
-                console.log('📡 Knowledge base SSE connected');
                 // Reset retry count on successful connection
                 knowledgeSSERetryCount = 0;
             };
@@ -988,7 +991,6 @@
                         }
                         // Refresh document list when status is 'ready' (document processed)
                         if (data.status === 'ready') {
-                            console.log('📄 Document ready, refreshing uploads list');
                             loadRecentUploads();
                             loadRagDocuments();
                             updateKnowledgeStats();
@@ -1001,9 +1003,7 @@
                         updateDocumentUI(data.document_id, 'ready', data);
                         // Update stats
                         updateKnowledgeStats();
-                    } else if (data.type === 'connected') {
-                        console.log('📚 Connected to knowledge base stream');
-                    } else if (data.type === 'heartbeat') {
+                    } else if (data.type === 'connected' || data.type === 'heartbeat') {
                         // Ignore heartbeat messages
                     }
                 } catch (error) {
@@ -1012,10 +1012,11 @@
             };
             
             documentStatusSSE.onerror = (error) => {
-                console.error('Knowledge SSE error:', error);
+                // Silently handle SSE errors - try to reconnect
                 
                 // Check if this is an authentication error by attempting a test request
-                fetch('/api/rag/stats', { credentials: 'include' })
+                const tenantId = window.userTenantId || localStorage.getItem('userTenantId') || 'default-tenant';
+                fetch(`/api/rag/tenant/${tenantId}/vectors/stats`, { credentials: 'include' })
                     .then(response => {
                         if (response.status === 401 || response.status === 403) {
                             console.error('🚫 Authentication failed - redirecting to signin');
@@ -1031,13 +1032,11 @@
                             knowledgeSSERetryCount++;
                             if (knowledgeSSERetryCount <= MAX_KNOWLEDGE_SSE_RETRIES && documentStatusSSE) {
                                 const delay = Math.min(5000 * Math.pow(2, knowledgeSSERetryCount - 1), 30000);
-                                console.log(`⏰ Knowledge SSE reconnecting in ${delay/1000}s (attempt ${knowledgeSSERetryCount}/${MAX_KNOWLEDGE_SSE_RETRIES})`);
                                 setTimeout(() => {
                                     documentStatusSSE = null;
                                     setupDocumentStatusSSE();
                                 }, delay);
                             } else {
-                                console.error(`⛔ Max Knowledge SSE reconnection attempts reached (${MAX_KNOWLEDGE_SSE_RETRIES})`);
                                 if (documentStatusSSE) {
                                     documentStatusSSE.close();
                                     documentStatusSSE = null;
@@ -1051,7 +1050,6 @@
                         knowledgeSSERetryCount++;
                         if (knowledgeSSERetryCount <= MAX_KNOWLEDGE_SSE_RETRIES && documentStatusSSE) {
                             const delay = Math.min(5000 * Math.pow(2, knowledgeSSERetryCount - 1), 30000);
-                            console.log(`⏰ Knowledge SSE reconnecting after network error in ${delay/1000}s (attempt ${knowledgeSSERetryCount}/${MAX_KNOWLEDGE_SSE_RETRIES})`);
                             setTimeout(() => {
                                 documentStatusSSE = null;
                                 setupDocumentStatusSSE();
@@ -1281,8 +1279,8 @@
         
         function openKnowledgeManagement() {
             console.log('Opening knowledge management page...');
-            // Navigate to /manage or open modal
-            window.location.href = '/manage';
+            // Navigate to knowledge management page
+            window.location.href = '/knowledge';
         }
         
         function openAddModal() {
@@ -1854,6 +1852,7 @@
     </script>
     
     <!-- QuikChat Scripts -->
+    <script src="/components/action-button.js"></script>
     <script src="/quikchat.js"></script>
     <script src="/components/article-item.js"></script>
     <script src="/components/quikchat-rag.js"></script>

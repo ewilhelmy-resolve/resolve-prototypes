@@ -1,17 +1,11 @@
-const { test, expect } = require('@playwright/test');
+const { test, expect } = require('../fixtures/base-test');
 
 test.describe('Document Viewer', () => {
-  test('validates knowledge base document viewer functionality', async ({ page }) => {
+  test('validates knowledge base document viewer functionality', async ({ authenticatedPage: page }) => {
     console.log('\n📚 TESTING DOCUMENT VIEWER\n');
     
-    // 1. Sign in as admin
-    console.log('1️⃣ Signing in as admin...');
-    await page.goto('http://localhost:5000/signin');
-    await page.fill('input[type="email"]', 'admin@resolve.io');
-    await page.fill('input[type="password"]', 'admin123');
-    await page.click('button[type="submit"]');
-    await page.waitForURL('**/dashboard');
-    console.log('   ✅ Signed in successfully\n');
+    // authenticatedPage fixture already signed us in as admin
+    console.log('1️⃣ Already authenticated as admin\n');
     
     // 2. Check for Knowledge Base section
     console.log('2️⃣ Looking for Knowledge Base section...');
