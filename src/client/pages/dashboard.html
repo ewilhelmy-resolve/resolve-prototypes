@@ -986,6 +986,13 @@
                         if (data.status === 'vectorized') {
                             updateKnowledgeStats();
                         }
+                        // Refresh document list when status is 'ready' (document processed)
+                        if (data.status === 'ready') {
+                            console.log('📄 Document ready, refreshing uploads list');
+                            loadRecentUploads();
+                            loadRagDocuments();
+                            updateKnowledgeStats();
+                        }
                     } else if (data.type === 'document-uploaded') {
                         // Refresh recent uploads
                         loadRecentUploads();
@@ -1099,8 +1106,8 @@
                 statusElement.className = `status-indicator status-${status}`;
             }
             
-            // If completed or failed, stop monitoring
-            if (status === 'completed' || status === 'failed') {
+            // If ready, completed, vectorized or failed, stop monitoring
+            if (status === 'ready' || status === 'completed' || status === 'vectorized' || status === 'failed') {
                 documentStatusMonitors.delete(documentId);
                 
                 // Stop polling if no more documents to monitor

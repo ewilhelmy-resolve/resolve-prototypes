@@ -678,14 +678,19 @@ function createRagRouter(db, sessions) {
                     }
                 });
                 
+                const clientCount = Object.keys(global.knowledgeSSEClients[doc.tenant_id]).length;
+                console.log(`[DOCUMENT CALLBACK] Broadcasting SSE to ${clientCount} clients for tenant ${doc.tenant_id}`);
+                
                 Object.values(global.knowledgeSSEClients[doc.tenant_id]).forEach(client => {
                     try {
                         client.write(`data: ${sseMessage}\n\n`);
-                        console.log(`[DOCUMENT CALLBACK] Sent SSE event for document ${document_id}`);
+                        console.log(`[DOCUMENT CALLBACK] Successfully sent SSE event for document ${document_id} with status 'ready'`);
                     } catch (err) {
                         console.error(`[DOCUMENT CALLBACK] Failed to send SSE event:`, err.message);
                     }
                 });
+            } else {
+                console.warn(`[DOCUMENT CALLBACK] No SSE clients connected for tenant ${doc.tenant_id} - cannot send update for document ${document_id}`);
             }
             
             // Track the callback
