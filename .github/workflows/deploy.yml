@@ -45,8 +45,8 @@ jobs:
             docker-compose down
             
             # Pull the postgres image first to ensure we get ankane/pgvector
-            echo "Pulling ankane/pgvector image..."
-            docker pull ankane/pgvector:latest
+            echo "Pulling ankane/pgvector:pg15 image..."
+            docker pull ankane/pgvector:pg15
             
             # Pull app image
             docker pull $IMAGE_NAME:latest
@@ -69,13 +69,23 @@ jobs:
             
             # Create pgvector extension (ankane/pgvector has it pre-installed)
             echo "Creating pgvector extension in database..."
-            docker-compose exec -T postgres psql -U resolve_user -d resolve_onboarding -c "CREATE EXTENSION IF NOT EXISTS vector;" || echo "Warning: Could not create extension, may already exist"
+            if docker-compose exec -T postgres psql -U resolve_user -d resolve_onboarding -c "CREATE EXTENSION IF NOT EXISTS vector;"; then
+              echo "✅ Extension created successfully"
+            else
+              echo "❌ Failed to create extension - checking if files exist..."
+              docker-compose exec -T postgres sh -c "ls -la /usr/share/postgresql/*/extension/vector* 2>/dev/null || echo 'No vector files in /usr/share'"
+              docker-compose exec -T postgres sh -c "ls -la /usr/local/share/postgresql/extension/vector* 2>/dev/null || echo 'No vector files in /usr/local/share'"
+              exit 1
+            fi
             
             # Verify pgvector is working
             echo "Verifying pgvector installation..."
-            docker-compose exec -T postgres psql -U resolve_user -d resolve_onboarding -c "SELECT extname, extversion FROM pg_extension WHERE extname = 'vector';"
-            docker-compose exec -T postgres psql -U resolve_user -d resolve_onboarding -c "SELECT '[1,2,3]'::vector as test;"
-            echo "✅ pgvector successfully installed!"
+            if docker-compose exec -T postgres psql -U resolve_user -d resolve_onboarding -c "SELECT '[1,2,3]'::vector as test;"; then
+              echo "✅ pgvector successfully installed and working!"
+            else
+              echo "❌ pgvector test failed!"
+              exit 1
+            fi
 #            docker stop resolve-onboarding || true
 #            docker rm resolve-onboarding || true
 #            docker run -d -p 80:80 --name resolve-onboarding $IMAGE_NAME:latest
