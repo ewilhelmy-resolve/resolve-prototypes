@@ -41,27 +41,23 @@ jobs:
             echo "${{ secrets.ONBOARDING_GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
             cd /opt/onboarding
             
-            # COMPLETE RESET - Remove everything and start fresh
-            echo "🔄 PERFORMING COMPLETE RESET OF POSTGRES WITH PGVECTOR"
+            # COMPLETE RESET - Build custom postgres with pgvector
+            echo "🔄 BUILDING CUSTOM POSTGRES WITH PGVECTOR FROM SOURCE"
             
             # Stop and remove ALL containers and volumes
             docker-compose down -v
             
-            # Remove any cached postgres images to force fresh pull
-            docker rmi ankane/pgvector:latest 2>/dev/null || true
-            docker rmi ankane/pgvector:pg15 2>/dev/null || true
-            docker rmi pgvector/pgvector:pg15 2>/dev/null || true
-            
-            # Pull the CORRECT pgvector image
-            echo "Pulling official pgvector/pgvector:pg15 image..."
-            docker pull pgvector/pgvector:pg15
+            # Remove any cached postgres images to force rebuild
+            docker rmi onboarding-postgres:latest 2>/dev/null || true
+            docker rmi onboarding_postgres:latest 2>/dev/null || true
             
             # Pull app image
             docker pull $IMAGE_NAME:latest
             docker tag $IMAGE_NAME:latest onboarding_app:latest
             docker image prune -f
             
-            # Start with fresh postgres container
+            # Build and start containers (postgres will be built from Dockerfile.postgres)
+            docker-compose build postgres
             docker-compose up -d
             
             # Wait for postgres to be fully ready
@@ -95,8 +91,10 @@ jobs:
               
               (async () => {
                 const hashedPassword = await bcrypt.hash('admin123', 10);
+                // First ensure is_admin column exists
+                await pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS is_admin BOOLEAN DEFAULT FALSE');
                 await pool.query(
-                  'INSERT INTO users (email, hashed_password, name, is_admin, created_at) VALUES (\$1, \$2, \$3, true, NOW()) ON CONFLICT (email) DO UPDATE SET is_admin = true',
+                  'INSERT INTO users (email, password, full_name, is_admin, created_at) VALUES (\$1, \$2, \$3, true, NOW()) ON CONFLICT (email) DO UPDATE SET is_admin = true, full_name = \$3',
                   ['admin@resolve.io', hashedPassword, 'Admin User']
                 );
                 console.log('✅ Admin user created/updated: admin@resolve.io');
