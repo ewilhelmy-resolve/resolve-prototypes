@@ -317,7 +317,7 @@ function createKnowledgeRouter(db, sessions) {
                     `INSERT INTO rag_vectors (
                         tenant_id, document_id, chunk_text, embedding, 
                         chunk_index, metadata
-                    ) VALUES ($1, $2, $3, $4::vector(${expectedDimension}), $5, $6)`,
+                    ) VALUES ($1, $2, $3, $4::vector, $5, $6)`,
                     [
                         tenantId,
                         doc.document_id,

@@ -360,7 +360,7 @@ function createRagRouter(db, sessions) {
                 
                 await db.query(
                     `INSERT INTO rag_vectors (tenant_id, document_id, chunk_text, embedding, chunk_index, metadata) 
-                     VALUES ($1, $2, $3, $4::vector(${expectedDimension}), $5, $6)`,
+                     VALUES ($1, $2, $3, $4::vector, $5, $6)`,
                     [
                         doc.tenant_id, 
                         doc.document_id, 
@@ -1857,7 +1857,7 @@ function createRagRouter(db, sessions) {
                 
                 await db.query(
                     `INSERT INTO rag_vectors (tenant_id, document_id, chunk_text, embedding, chunk_index, metadata)
-                     VALUES ($1, $2, $3, $4::vector(${expectedDimension}), $5, $6)`,
+                     VALUES ($1, $2, $3, $4::vector, $5, $6)`,
                     [
                         tenant_id,
                         document_id,
