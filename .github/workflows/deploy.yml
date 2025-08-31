@@ -44,9 +44,8 @@ jobs:
             # Stop and remove containers
             docker-compose down
             
-            # Pull the ankane/pgvector image which has pgvector pre-installed
-            echo "Pulling PostgreSQL image with pgvector..."
-            docker pull ankane/pgvector
+            # Don't pull any specific image - let docker-compose handle it
+            echo "Docker-compose will pull the image specified in docker-compose.yml"
             
             # Pull app image
             docker pull $IMAGE_NAME:latest
@@ -66,6 +65,11 @@ jobs:
               echo "Waiting... ($i/30)"
               sleep 2
             done
+            
+            # Fix potential path issues by creating symlinks if needed
+            echo "Fixing potential path issues..."
+            docker-compose exec -T postgres sh -c "if [ -d /usr/share/postgresql/15/extension ] && [ ! -d /usr/local/share/postgresql/extension ]; then mkdir -p /usr/local/share/postgresql && ln -s /usr/share/postgresql/15/extension /usr/local/share/postgresql/extension && echo 'Created symlink for extensions'; fi" || true
+            docker-compose exec -T postgres sh -c "if [ -f /usr/lib/postgresql/15/lib/vector.so ] && [ ! -f /usr/local/lib/postgresql/vector.so ]; then mkdir -p /usr/local/lib/postgresql && ln -s /usr/lib/postgresql/15/lib/vector.so /usr/local/lib/postgresql/vector.so && echo 'Created symlink for vector.so'; fi" || true
             
             # Create pgvector extension
             echo "Creating pgvector extension..."
