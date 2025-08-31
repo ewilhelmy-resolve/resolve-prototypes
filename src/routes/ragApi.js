@@ -486,11 +486,11 @@ function createRagRouter(db, sessions) {
                     chunk_text,
                     chunk_index,
                     metadata,
-                    1 - (embedding <=> $1::vector(${expectedDimension})) as similarity
+                    1 - (embedding <=> $1::vector) as similarity
                 FROM rag_vectors
                 WHERE tenant_id = $2
-                    AND 1 - (embedding <=> $1::vector(${expectedDimension})) > $3
-                ORDER BY embedding <=> $1::vector(${expectedDimension})
+                    AND 1 - (embedding <=> $1::vector) > $3
+                ORDER BY embedding <=> $1::vector
                 LIMIT $4
             `;
             
@@ -516,7 +516,7 @@ function createRagRouter(db, sessions) {
                 await db.query(
                     `INSERT INTO vector_search_logs 
                      (tenant_id, query_vector, result_count, threshold, execution_time_ms, filters_applied)
-                     VALUES ($1, $2::vector(${expectedDimension}), $3, $4, $5, $6)`,
+                     VALUES ($1, $2::vector, $3, $4, $5, $6)`,
                     [
                         tenant_id,
                         vectorString,
