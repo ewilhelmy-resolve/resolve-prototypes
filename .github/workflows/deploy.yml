@@ -41,16 +41,31 @@ jobs:
             echo "${{ secrets.ONBOARDING_GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
             cd /opt/onboarding
             docker-compose down
+            
+            # Pull the latest pgvector image to ensure we have pgvector binaries
+            docker pull pgvector/pgvector:pg15
+            
             docker pull $IMAGE_NAME:latest
             docker tag $IMAGE_NAME:latest onboarding_app:latest
             docker image prune -f
+            
+            # Force recreate postgres container with pgvector image
+            docker-compose up -d --force-recreate postgres
+            sleep 15  # Wait for postgres to be ready
+            
+            # Now start the app
             docker-compose up -d
             
             # Ensure pgvector is installed (for existing databases)
-            sleep 10  # Wait for containers to be ready
+            sleep 10  # Wait for final readiness
             echo "Ensuring pgvector extension is installed..."
             # Use resolve_user which is the superuser in our setup
             docker-compose exec -T postgres psql -U resolve_user -d resolve_onboarding -c "CREATE EXTENSION IF NOT EXISTS vector;" || true
+            
+            # Verify pgvector is working
+            echo "Verifying pgvector installation..."
+            docker-compose exec -T postgres psql -U resolve_user -d resolve_onboarding -c "SELECT extname, extversion FROM pg_extension WHERE extname = 'vector';" || echo "Warning: Could not verify pgvector"
+            docker-compose exec -T postgres psql -U resolve_user -d resolve_onboarding -c "SELECT '[1,2,3]'::vector as test;" || echo "Warning: Vector operations not working"
 #            docker stop resolve-onboarding || true
 #            docker rm resolve-onboarding || true
 #            docker run -d -p 80:80 --name resolve-onboarding $IMAGE_NAME:latest
