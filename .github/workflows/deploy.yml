@@ -44,12 +44,9 @@ jobs:
             # Stop and remove containers
             docker-compose down
             
-            # Remove the postgres container and image to force fresh pull
-            docker rm -f onboarding-postgres-1 || true
-            docker rmi pgvector/pgvector:pg15 || true
-            
-            # Pull fresh pgvector image
-            docker pull pgvector/pgvector:pg15
+            # Pull the ankane/pgvector image which has pgvector pre-installed
+            echo "Pulling PostgreSQL image with pgvector..."
+            docker pull ankane/pgvector
             
             # Pull app image
             docker pull $IMAGE_NAME:latest
@@ -70,30 +67,15 @@ jobs:
               sleep 2
             done
             
-            # Check if pgvector binaries are available in the container
-            echo "Checking for pgvector files in container..."
-            docker-compose exec -T postgres ls -la /usr/share/postgresql/*/extension/vector* || echo "No vector files in /usr/share"
-            docker-compose exec -T postgres ls -la /usr/local/share/postgresql/extension/vector* || echo "No vector files in /usr/local/share"
+            # Create pgvector extension
+            echo "Creating pgvector extension..."
+            docker-compose exec -T postgres psql -U resolve_user -d resolve_onboarding -c "CREATE EXTENSION IF NOT EXISTS vector;"
             
-            # Try to install pgvector extension
-            echo "Attempting to create pgvector extension..."
-            docker-compose exec -T postgres psql -U resolve_user -d resolve_onboarding -c "CREATE EXTENSION IF NOT EXISTS vector;" || echo "Failed to create extension"
-            
-            # Check what extensions are available
-            echo "Available extensions:"
-            docker-compose exec -T postgres psql -U resolve_user -d resolve_onboarding -c "SELECT name FROM pg_available_extensions WHERE name LIKE '%vector%';" || true
-            
-            # If pgvector is still not available, install it manually in the container
-            if ! docker-compose exec -T postgres psql -U resolve_user -d resolve_onboarding -c "SELECT '[1,2,3]'::vector" 2>/dev/null; then
-              echo "pgvector not found, installing manually in container..."
-              docker-compose exec -T postgres bash -c "apt-get update && apt-get install -y build-essential postgresql-server-dev-15 git && cd /tmp && git clone https://github.com/pgvector/pgvector.git && cd pgvector && make && make install" || echo "Manual installation failed"
-              docker-compose exec -T postgres psql -U resolve_user -d resolve_onboarding -c "CREATE EXTENSION IF NOT EXISTS vector;" || echo "Extension creation failed"
-            fi
-            
-            # Final verification
-            echo "Final pgvector status:"
-            docker-compose exec -T postgres psql -U resolve_user -d resolve_onboarding -c "SELECT extname, extversion FROM pg_extension WHERE extname = 'vector';" || echo "No pgvector extension"
-            docker-compose exec -T postgres psql -U resolve_user -d resolve_onboarding -c "SELECT '[1,2,3]'::vector as test;" || echo "Vector operations still not working"
+            # Verify pgvector is working
+            echo "Verifying pgvector installation..."
+            docker-compose exec -T postgres psql -U resolve_user -d resolve_onboarding -c "SELECT extname, extversion FROM pg_extension WHERE extname = 'vector';"
+            docker-compose exec -T postgres psql -U resolve_user -d resolve_onboarding -c "SELECT '[1,2,3]'::vector as test;"
+            echo "✅ pgvector successfully installed!"
 #            docker stop resolve-onboarding || true
 #            docker rm resolve-onboarding || true
 #            docker run -d -p 80:80 --name resolve-onboarding $IMAGE_NAME:latest
