@@ -1,23 +1,21 @@
 #!/bin/bash
 
 # Fix pgvector in production database
-# This script should be run once on the production server
+# This script should be run once on the production server from /opt/onboarding
 
 echo "🔧 Fixing pgvector extension in production database..."
 
-# Get the container name (it might be onboarding_postgres_1 or onboarding-postgres-1)
-POSTGRES_CONTAINER=$(docker ps --format "table {{.Names}}" | grep postgres | head -1)
+cd /opt/onboarding
 
-if [ -z "$POSTGRES_CONTAINER" ]; then
-    echo "❌ PostgreSQL container not found!"
+# Check if docker-compose file exists
+if [ ! -f "docker-compose.yml" ]; then
+    echo "❌ docker-compose.yml not found! Make sure you're in /opt/onboarding"
     exit 1
 fi
 
-echo "📦 Found PostgreSQL container: $POSTGRES_CONTAINER"
-
-# Install pgvector extension as superuser
+# Install pgvector extension as superuser using docker-compose
 echo "🔄 Installing pgvector extension..."
-docker exec -i $POSTGRES_CONTAINER psql -U postgres -d resolve_onboarding << EOF
+docker-compose exec -T postgres psql -U postgres -d resolve_onboarding << EOF
 -- Create extension as superuser
 CREATE EXTENSION IF NOT EXISTS vector;
 

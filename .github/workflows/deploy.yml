@@ -48,11 +48,10 @@ jobs:
             
             # Ensure pgvector is installed (for existing databases)
             sleep 10  # Wait for containers to be ready
-            POSTGRES_CONTAINER=$(docker ps --format "table {{.Names}}" | grep postgres | head -1)
-            if [ ! -z "$POSTGRES_CONTAINER" ]; then
-              echo "Ensuring pgvector extension is installed..."
-              docker exec -i $POSTGRES_CONTAINER psql -U postgres -d resolve_onboarding -c "CREATE EXTENSION IF NOT EXISTS vector;" || true
-            fi
+            echo "Ensuring pgvector extension is installed..."
+            docker-compose exec -T postgres psql -U postgres -d resolve_onboarding -c "CREATE EXTENSION IF NOT EXISTS vector;" || true
+            docker-compose exec -T postgres psql -U postgres -d resolve_onboarding -c "GRANT ALL ON SCHEMA public TO resolve_user;" || true
+            docker-compose exec -T postgres psql -U postgres -d resolve_onboarding -c "GRANT USAGE ON TYPE vector TO resolve_user;" || true
 #            docker stop resolve-onboarding || true
 #            docker rm resolve-onboarding || true
 #            docker run -d -p 80:80 --name resolve-onboarding $IMAGE_NAME:latest
