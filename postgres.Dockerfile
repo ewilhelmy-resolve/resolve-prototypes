@@ -4,13 +4,17 @@ FROM postgres:15-alpine AS builder
 # Install build dependencies
 RUN apk add --no-cache git make gcc musl-dev postgresql15-dev
 
-# Build pgvector
+# Build pgvector - ignore LLVM bitcode errors since we only need the .so file
 WORKDIR /tmp
 RUN git clone --branch v0.5.1 https://github.com/pgvector/pgvector.git && \
     cd pgvector && \
     make clean && \
-    make OPTFLAGS="" && \
-    make OPTFLAGS="" install
+    (make OPTFLAGS="" || true) && \
+    mkdir -p /usr/local/share/postgresql/extension && \
+    mkdir -p /usr/local/lib/postgresql && \
+    cp vector.so /usr/local/lib/postgresql/ && \
+    cp sql/vector--*.sql /usr/local/share/postgresql/extension/ && \
+    cp vector.control /usr/local/share/postgresql/extension/
 
 # Final stage
 FROM postgres:15-alpine
