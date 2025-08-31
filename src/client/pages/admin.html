@@ -431,6 +431,62 @@
                             <div id="testResult" class="test-result"></div>
                         </div>
                     </div>
+                    
+                    <div class="settings-card">
+                        <h3>🔍 Vector Database Status (pgvector)</h3>
+                        <div class="pgvector-status">
+                            <p>Check if pgvector extension is properly installed for RAG/vector search functionality:</p>
+                            <button id="checkPgvector" class="btn-test">Check pgvector Status</button>
+                            <div id="pgvectorResult" class="test-result" style="margin-top: 15px;"></div>
+                            
+                            <div id="pgvectorDetails" style="display: none; margin-top: 20px;">
+                                <h4>Diagnostics Details:</h4>
+                                <div class="diagnostics-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 10px;">
+                                    <div class="diagnostic-item">
+                                        <strong>Extension Installed:</strong>
+                                        <span id="pgvectorInstalled" class="status-badge">Checking...</span>
+                                    </div>
+                                    <div class="diagnostic-item">
+                                        <strong>Version:</strong>
+                                        <span id="pgvectorVersion">-</span>
+                                    </div>
+                                    <div class="diagnostic-item">
+                                        <strong>Vector Type Available:</strong>
+                                        <span id="vectorTypeExists" class="status-badge">Checking...</span>
+                                    </div>
+                                    <div class="diagnostic-item">
+                                        <strong>Operations Working:</strong>
+                                        <span id="vectorOperations" class="status-badge">Checking...</span>
+                                    </div>
+                                    <div class="diagnostic-item">
+                                        <strong>Total Vectors:</strong>
+                                        <span id="totalVectorCount">-</span>
+                                    </div>
+                                    <div class="diagnostic-item">
+                                        <strong>Active Tenants:</strong>
+                                        <span id="activeTenantCount">-</span>
+                                    </div>
+                                </div>
+                                
+                                <div id="pgvectorErrors" style="display: none; margin-top: 15px; padding: 15px; background: #fef2f2; border: 1px solid #fecaca; border-radius: 6px;">
+                                    <h4 style="color: #dc2626; margin-top: 0;">⚠️ Issues Detected:</h4>
+                                    <ul id="pgvectorErrorsList" style="margin: 10px 0; padding-left: 20px;"></ul>
+                                    <div id="pgvectorFixInstructions" style="margin-top: 10px; padding: 10px; background: white; border-radius: 4px;">
+                                        <strong>To fix:</strong>
+                                        <code style="display: block; margin-top: 5px; padding: 8px; background: #f3f4f6; border-radius: 4px;">
+                                            CREATE EXTENSION IF NOT EXISTS vector;
+                                        </code>
+                                    </div>
+                                </div>
+                                
+                                <div style="margin-top: 15px;">
+                                    <button id="fixPgvector" class="btn-warning" style="display: none;">
+                                        🔧 Attempt Auto-Fix
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </section>
             
@@ -572,5 +628,159 @@
     </div>
 
     <script src="/components/admin.js"></script>
+    
+    <!-- pgvector Diagnostics Script -->
+    <script>
+        // pgvector Status Check
+        document.getElementById('checkPgvector')?.addEventListener('click', async function() {
+            const button = this;
+            const resultDiv = document.getElementById('pgvectorResult');
+            const detailsDiv = document.getElementById('pgvectorDetails');
+            
+            button.disabled = true;
+            button.textContent = 'Checking...';
+            resultDiv.innerHTML = '<span style="color: #3b82f6;">🔄 Running diagnostics...</span>';
+            
+            try {
+                const response = await fetch('/api/admin/diagnostics/pgvector-status', {
+                    headers: {
+                        'Authorization': `Bearer ${localStorage.getItem('sessionToken')}`
+                    }
+                });
+                
+                if (!response.ok) {
+                    throw new Error('Failed to fetch pgvector status');
+                }
+                
+                const data = await response.json();
+                console.log('pgvector diagnostics:', data);
+                
+                // Update UI with results
+                detailsDiv.style.display = 'block';
+                
+                // Update status badges
+                updateStatusBadge('pgvectorInstalled', data.checks.extension_installed);
+                updateStatusBadge('vectorTypeExists', data.checks.vector_type_exists);
+                updateStatusBadge('vectorOperations', data.checks.vector_operations_work);
+                
+                // Update version
+                document.getElementById('pgvectorVersion').textContent = 
+                    data.checks.extension_version || 'Not installed';
+                
+                // Update statistics
+                if (data.vector_statistics) {
+                    const totalVectors = data.vector_statistics.top_tenants
+                        .reduce((sum, t) => sum + parseInt(t.count), 0);
+                    document.getElementById('totalVectorCount').textContent = totalVectors.toLocaleString();
+                    document.getElementById('activeTenantCount').textContent = 
+                        data.vector_statistics.total_tenants || '0';
+                }
+                
+                // Check for issues
+                const issues = [];
+                if (!data.checks.extension_installed) {
+                    issues.push('pgvector extension is not installed');
+                }
+                if (!data.checks.vector_type_exists) {
+                    issues.push('Vector type is not available');
+                }
+                if (!data.checks.vector_operations_work) {
+                    issues.push('Vector operations are not working');
+                }
+                
+                if (issues.length > 0) {
+                    document.getElementById('pgvectorErrors').style.display = 'block';
+                    const errorsList = document.getElementById('pgvectorErrorsList');
+                    errorsList.innerHTML = issues.map(issue => `<li>${issue}</li>`).join('');
+                    document.getElementById('fixPgvector').style.display = 'inline-block';
+                    resultDiv.innerHTML = '<span style="color: #dc2626;">❌ Issues detected with pgvector</span>';
+                } else {
+                    document.getElementById('pgvectorErrors').style.display = 'none';
+                    resultDiv.innerHTML = '<span style="color: #10b981;">✅ pgvector is working correctly</span>';
+                }
+                
+            } catch (error) {
+                console.error('pgvector check error:', error);
+                resultDiv.innerHTML = `<span style="color: #dc2626;">❌ Error: ${error.message}</span>`;
+            } finally {
+                button.disabled = false;
+                button.textContent = 'Check pgvector Status';
+            }
+        });
+        
+        // Attempt auto-fix
+        document.getElementById('fixPgvector')?.addEventListener('click', async function() {
+            if (!confirm('This will attempt to install pgvector extension. Continue?')) {
+                return;
+            }
+            
+            const button = this;
+            button.disabled = true;
+            button.textContent = 'Attempting fix...';
+            
+            try {
+                const response = await fetch('/api/admin/diagnostics/fix-pgvector', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${localStorage.getItem('sessionToken')}`
+                    }
+                });
+                
+                const data = await response.json();
+                console.log('Fix attempt result:', data);
+                
+                if (data.final_status?.pgvector_installed) {
+                    alert('✅ pgvector has been successfully installed!');
+                    // Re-run the check
+                    document.getElementById('checkPgvector').click();
+                } else {
+                    alert('⚠️ Could not install pgvector automatically. Manual installation required.\n\nConnect to your database and run:\nCREATE EXTENSION IF NOT EXISTS vector;');
+                }
+                
+            } catch (error) {
+                console.error('Fix attempt error:', error);
+                alert('Error attempting fix: ' + error.message);
+            } finally {
+                button.disabled = false;
+                button.textContent = '🔧 Attempt Auto-Fix';
+            }
+        });
+        
+        function updateStatusBadge(elementId, status) {
+            const element = document.getElementById(elementId);
+            if (element) {
+                if (status) {
+                    element.textContent = '✅ Yes';
+                    element.style.color = '#10b981';
+                } else {
+                    element.textContent = '❌ No';
+                    element.style.color = '#dc2626';
+                }
+            }
+        }
+        
+        // Auto-check on page load if in settings section
+        window.addEventListener('load', function() {
+            if (window.location.hash === '#settings') {
+                setTimeout(() => {
+                    document.getElementById('checkPgvector')?.click();
+                }, 1000);
+            }
+        });
+        
+        // Check when switching to settings tab
+        document.querySelectorAll('.nav-link').forEach(link => {
+            link.addEventListener('click', function() {
+                if (this.getAttribute('href') === '#settings') {
+                    setTimeout(() => {
+                        const pgvectorDetails = document.getElementById('pgvectorDetails');
+                        if (pgvectorDetails && pgvectorDetails.style.display === 'none') {
+                            document.getElementById('checkPgvector')?.click();
+                        }
+                    }, 500);
+                }
+            });
+        });
+    </script>
 </body>
 </html>

@@ -557,20 +557,53 @@ function createRagRouter(db, sessions) {
                 message: error.message,
                 code: error.code,
                 detail: error.detail,
-                query: error.query
+                query: error.query,
+                stack: error.stack
             });
+            
+            // Log detailed error to database for admin review
+            try {
+                await db.query(
+                    `INSERT INTO vector_search_logs 
+                     (tenant_id, query_vector, result_count, threshold, execution_time_ms, filters_applied, error_message, error_code)
+                     VALUES ($1, NULL, -1, $2, $3, $4, $5, $6)`,
+                    [
+                        tenant_id,
+                        threshold,
+                        Date.now() - startTime,
+                        filters ? JSON.stringify(filters) : null,
+                        JSON.stringify({
+                            message: error.message,
+                            code: error.code,
+                            detail: error.detail,
+                            hint: error.hint,
+                            stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+                        }),
+                        error.code || 'UNKNOWN'
+                    ]
+                );
+            } catch (logErr) {
+                console.error('Failed to log error:', logErr);
+            }
             
             // Provide more informative error response
             const errorResponse = {
                 error: 'Search failed',
-                message: error.message
+                message: error.message,
+                timestamp: new Date().toISOString(),
+                request_id: message_id || crypto.randomUUID()
             };
             
             // Add specific error details for common issues
-            if (error.message?.includes('vector') || error.message?.includes('operator')) {
+            if (error.message?.includes('type "vector" does not exist')) {
+                errorResponse.hint = 'pgvector extension not installed or enabled in database';
+                errorResponse.solution = 'Run: CREATE EXTENSION IF NOT EXISTS vector;';
+            } else if (error.message?.includes('vector') || error.message?.includes('operator')) {
                 errorResponse.hint = 'Vector type casting issue - please check embedding format';
             } else if (error.code === '22P02') {
                 errorResponse.hint = 'Invalid input syntax for vector type';
+            } else if (error.code === '42883') {
+                errorResponse.hint = 'pgvector extension missing - vector type not recognized';
             }
             
             res.status(500).json(errorResponse);

@@ -1832,6 +1832,10 @@ const createDocumentRouter = require('./src/routes/documentApi');
 const documentRouter = createDocumentRouter(db);
 app.use('/api/documents', documentRouter);
 
+// Admin Diagnostics routes (for debugging pgvector issues)
+const adminDiagnosticsRouter = require('./src/routes/adminDiagnostics');
+app.use('/api/admin/diagnostics', adminDiagnosticsRouter);
+
 // Mount Knowledge API routes
 const knowledgeRouter = createKnowledgeRouter(db, sessions);
 app.use('/api', knowledgeRouter);
@@ -1943,6 +1947,10 @@ app.get('*', (req, res) => {
 });
 
 app.listen(PORT, async () => {
+    // Initialize pgvector on startup
+    const { initializePgvector } = require('./src/database/init-pgvector');
+    await initializePgvector();
+    
     console.log(`
 ╔═══════════════════════════════════════════════════════════════╗
 ║  Resolve Onboarding Server                                   ║
