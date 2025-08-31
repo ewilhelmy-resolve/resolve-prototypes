@@ -7,15 +7,19 @@ test.describe('RAG Vector Search API', () => {
   let callbackToken;
 
   test.beforeEach(async ({ request }) => {
-    // Skip setup for now - test expects 401 for missing/invalid auth
+    // Generate a valid tenant ID and token for testing
     tenantId = uuidv4();
-    callbackToken = 'invalid-test-token';
+    callbackToken = crypto.randomBytes(32).toString('hex');
+    
+    // Create tenant token in database for testing
+    // This requires direct database access or a test setup endpoint
+    // For now, we'll use the test-vectors endpoint which doesn't require auth
   });
 
   test('should return similar vectors with valid token', async ({ request }) => {
     // Create a test document with vectors
     const documentId = uuidv4();
-    await request.post('/api/rag/test-vectors', {
+    const setupResponse = await request.post('/api/rag/test-vectors', {
       data: {
         tenant_id: tenantId,
         document_id: documentId,
@@ -28,11 +32,15 @@ test.describe('RAG Vector Search API', () => {
         ]
       }
     });
+    
+    // Get the callback token from the setup response
+    const setupData = await setupResponse.json();
+    const validToken = setupData.callback_token;
 
-    // Test vector search
+    // Test vector search with the valid token
     const searchResponse = await request.post('/api/rag/vector-search', {
       headers: {
-        'X-Callback-Token': callbackToken
+        'X-Callback-Token': validToken
       },
       data: {
         query_embedding: Array(1536).fill(0.1), // Similar to test vector
@@ -91,7 +99,7 @@ test.describe('RAG Vector Search API', () => {
   test('should respect similarity threshold', async ({ request }) => {
     // Create vectors with known dissimilarity
     const documentId = uuidv4();
-    await request.post('/api/rag/test-vectors', {
+    const setupResponse = await request.post('/api/rag/test-vectors', {
       data: {
         tenant_id: tenantId,
         document_id: documentId,
@@ -104,10 +112,13 @@ test.describe('RAG Vector Search API', () => {
         ]
       }
     });
+    
+    const setupData = await setupResponse.json();
+    const validToken = setupData.callback_token;
 
     const response = await request.post('/api/rag/vector-search', {
       headers: {
-        'X-Callback-Token': callbackToken
+        'X-Callback-Token': validToken
       },
       data: {
         query_embedding: Array(1536).fill(0.1),
@@ -125,7 +136,7 @@ test.describe('RAG Vector Search API', () => {
   test('should respect result limit', async ({ request }) => {
     // Create multiple test vectors
     const documentId = uuidv4();
-    await request.post('/api/rag/test-vectors', {
+    const setupResponse = await request.post('/api/rag/test-vectors', {
       data: {
         tenant_id: tenantId,
         document_id: documentId,
@@ -136,10 +147,13 @@ test.describe('RAG Vector Search API', () => {
         }))
       }
     });
+    
+    const setupData = await setupResponse.json();
+    const validToken = setupData.callback_token;
 
     const response = await request.post('/api/rag/vector-search', {
       headers: {
-        'X-Callback-Token': callbackToken
+        'X-Callback-Token': validToken
       },
       data: {
         query_embedding: Array(1536).fill(0.1),

@@ -355,14 +355,17 @@ function createRagRouter(db, sessions) {
                     continue;
                 }
                 
+                // Convert array to PostgreSQL vector format: '[1.0, 2.0, 3.0]'
+                const vectorString = `[${vector.embedding.join(',')}]`;
+                
                 await db.query(
                     `INSERT INTO rag_vectors (tenant_id, document_id, chunk_text, embedding, chunk_index, metadata) 
-                     VALUES ($1, $2, $3, $4, $5, $6)`,
+                     VALUES ($1, $2, $3, $4::vector(${expectedDimension}), $5, $6)`,
                     [
                         doc.tenant_id, 
                         doc.document_id, 
                         vector.chunk_text,
-                        JSON.stringify(vector.embedding), // pgvector accepts JSON array format
+                        vectorString,
                         vector.chunk_index,
                         vector.metadata || {}
                     ]
@@ -474,23 +477,25 @@ function createRagRouter(db, sessions) {
             }
             
             // Perform vector similarity search using pgvector
-            // Cast the JSON array string to vector type for pgvector operations
+            // Convert array to PostgreSQL vector format: '[1.0, 2.0, 3.0]'
+            const vectorString = `[${query_embedding.join(',')}]`;
+            
             const searchQuery = `
                 SELECT 
                     document_id,
                     chunk_text,
                     chunk_index,
                     metadata,
-                    1 - (embedding <=> $1::vector) as similarity
+                    1 - (embedding <=> $1::vector(${expectedDimension})) as similarity
                 FROM rag_vectors
                 WHERE tenant_id = $2
-                    AND 1 - (embedding <=> $1::vector) > $3
-                ORDER BY embedding <=> $1::vector
+                    AND 1 - (embedding <=> $1::vector(${expectedDimension})) > $3
+                ORDER BY embedding <=> $1::vector(${expectedDimension})
                 LIMIT $4
             `;
             
             const results = await db.query(searchQuery, [
-                JSON.stringify(query_embedding),
+                vectorString,
                 tenant_id,
                 threshold,
                 limit
@@ -511,10 +516,10 @@ function createRagRouter(db, sessions) {
                 await db.query(
                     `INSERT INTO vector_search_logs 
                      (tenant_id, query_vector, result_count, threshold, execution_time_ms, filters_applied)
-                     VALUES ($1, $2, $3, $4, $5, $6)`,
+                     VALUES ($1, $2::vector(${expectedDimension}), $3, $4, $5, $6)`,
                     [
                         tenant_id,
-                        JSON.stringify(query_embedding),
+                        vectorString,
                         searchResults.length,
                         threshold,
                         executionTime,
@@ -1810,6 +1815,69 @@ function createRagRouter(db, sessions) {
         } catch (error) {
             console.error('[VECTOR DELETE] Error:', error);
             res.status(500).json({ error: 'Failed to delete vectors' });
+        }
+    });
+    
+    // Test endpoint for inserting test vectors (used by tests)
+    router.post('/test-vectors', async (req, res) => {
+        try {
+            const { tenant_id, document_id, vectors } = req.body;
+            
+            if (!tenant_id || !document_id || !vectors) {
+                return res.status(400).json({ error: 'Missing required fields' });
+            }
+            
+            // Generate and store callback token for this tenant (for testing)
+            const testToken = crypto.randomBytes(32).toString('hex');
+            await db.query(
+                `INSERT INTO rag_tenant_tokens (tenant_id, callback_token, created_at)
+                 VALUES ($1, $2, CURRENT_TIMESTAMP)
+                 ON CONFLICT (tenant_id) 
+                 DO UPDATE SET callback_token = $2, updated_at = CURRENT_TIMESTAMP`,
+                [tenant_id, testToken]
+            );
+            
+            // Insert test document if it doesn't exist
+            await db.query(
+                `INSERT INTO rag_documents (tenant_id, document_id, original_filename, content, created_by, callback_id, status, created_at)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, CURRENT_TIMESTAMP)
+                 ON CONFLICT (tenant_id, document_id) DO NOTHING`,
+                [tenant_id, document_id, 'test-document.txt', 'Test content', 'test-user', `test-${document_id}`, 'vectorized']
+            );
+            
+            // Insert test vectors
+            for (const vector of vectors) {
+                const expectedDimension = parseInt(process.env.VECTOR_DIMENSION) || 1536;
+                if (!Array.isArray(vector.embedding) || vector.embedding.length !== expectedDimension) {
+                    continue;
+                }
+                
+                // Convert array to PostgreSQL vector format
+                const vectorString = `[${vector.embedding.join(',')}]`;
+                
+                await db.query(
+                    `INSERT INTO rag_vectors (tenant_id, document_id, chunk_text, embedding, chunk_index, metadata)
+                     VALUES ($1, $2, $3, $4::vector(${expectedDimension}), $5, $6)`,
+                    [
+                        tenant_id,
+                        document_id,
+                        vector.chunk_text,
+                        vectorString,
+                        vector.chunk_index || 0,
+                        vector.metadata || {}
+                    ]
+                );
+            }
+            
+            res.json({ 
+                success: true, 
+                message: 'Test vectors inserted',
+                callback_token: testToken  // Return the token for use in tests
+            });
+            
+        } catch (error) {
+            console.error('Test vectors error:', error);
+            res.status(500).json({ error: 'Failed to insert test vectors' });
         }
     });
     

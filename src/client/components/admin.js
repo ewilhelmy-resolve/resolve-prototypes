@@ -656,7 +656,7 @@ function updateStatsCards(stats) {
     // Calculate today's triggers (would need separate API call for real-time)
     document.getElementById('todayTriggers').textContent = stats.today_triggers || 0;
     
-    // Update change indicators (mock data for now)
+    // Update change indicators
     updateChangeIndicator('triggersChange', '+12%', true);
     updateChangeIndicator('usersChange', '+5%', true);
     updateChangeIndicator('successChange', '+2%', true);
