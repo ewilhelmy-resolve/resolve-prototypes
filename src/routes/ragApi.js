@@ -423,9 +423,10 @@ function createRagRouter(db, sessions) {
     // 3. Vector Search (For Actions Platform)
     // Can be called with either tenant callback token OR message callback token
     router.post('/vector-search', async (req, res) => {
+        const startTime = Date.now();
+        const { query_embedding, tenant_id, limit = 5, threshold = 0.7, filters, message_id } = req.body;
+        
         try {
-            const { query_embedding, tenant_id, limit = 5, threshold = 0.7, filters, message_id } = req.body;
-            const startTime = Date.now();
             
             // Get token from header
             const authToken = req.headers['x-callback-token'] || req.headers['authorization']?.replace('Bearer ', '');

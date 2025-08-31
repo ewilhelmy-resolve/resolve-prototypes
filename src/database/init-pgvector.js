@@ -1,13 +1,15 @@
 const { Pool } = require('pg');
 
 const db = new Pool({
-    connectionString: process.env.DATABASE_URL || 'postgresql://testuser:testpass@postgres:5432/resolve_onboarding'
+    connectionString: process.env.DATABASE_URL || 'postgresql://resolve_user:resolve_pass@postgres:5432/resolve_onboarding'
 });
 
 async function ensurePgvectorInstalled() {
     console.log('[PGVECTOR INIT] Checking pgvector installation...');
     
+    let client;
     try {
+        client = await db.connect();
         // First check if extension exists
         const extensionCheck = await db.query(
             "SELECT * FROM pg_extension WHERE extname = 'vector'"
@@ -53,6 +55,10 @@ async function ensurePgvectorInstalled() {
     } catch (error) {
         console.error('[PGVECTOR INIT] Error during pgvector check:', error.message);
         return false;
+    } finally {
+        if (client) {
+            client.release();
+        }
     }
 }
 

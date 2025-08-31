@@ -1947,9 +1947,14 @@ app.get('*', (req, res) => {
 });
 
 app.listen(PORT, async () => {
-    // Initialize pgvector on startup
-    const { initializePgvector } = require('./src/database/init-pgvector');
-    await initializePgvector();
+    // Initialize pgvector on startup (non-blocking)
+    try {
+        const { initializePgvector } = require('./src/database/init-pgvector');
+        await initializePgvector();
+    } catch (error) {
+        console.error('[PGVECTOR INIT] Failed to initialize pgvector:', error.message);
+        // Don't crash the app, just log the error
+    }
     
     console.log(`
 ╔═══════════════════════════════════════════════════════════════╗
