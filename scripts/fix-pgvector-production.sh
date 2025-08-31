@@ -13,13 +13,13 @@ if [ ! -f "docker-compose.yml" ]; then
     exit 1
 fi
 
-# Install pgvector extension as superuser using docker-compose
+# Install pgvector extension using resolve_user (which is superuser in our setup)
 echo "🔄 Installing pgvector extension..."
-docker-compose exec -T postgres psql -U postgres -d resolve_onboarding << EOF
--- Create extension as superuser
+docker-compose exec -T postgres psql -U resolve_user -d resolve_onboarding << EOF
+-- Create extension (resolve_user has superuser privileges)
 CREATE EXTENSION IF NOT EXISTS vector;
 
--- Grant permissions to resolve_user
+-- Verify permissions
 GRANT ALL ON SCHEMA public TO resolve_user;
 GRANT USAGE ON TYPE vector TO resolve_user;
 
@@ -32,7 +32,7 @@ if [ $? -eq 0 ]; then
     
     # Test vector operations
     echo "🧪 Testing vector operations..."
-    docker exec -i $POSTGRES_CONTAINER psql -U resolve_user -d resolve_onboarding << EOF
+    docker-compose exec -T postgres psql -U resolve_user -d resolve_onboarding << EOF
 SELECT '[1,2,3]'::vector as test_vector;
 EOF
     
@@ -47,4 +47,4 @@ else
 fi
 
 echo "🔍 Current extensions:"
-docker exec -i $POSTGRES_CONTAINER psql -U resolve_user -d resolve_onboarding -c "\dx"
+docker-compose exec -T postgres psql -U resolve_user -d resolve_onboarding -c "\dx"
