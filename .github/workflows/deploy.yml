@@ -130,9 +130,9 @@ jobs:
             
             # Install pgvector manually in the running container
             echo "Installing pgvector extension manually..."
-            docker-compose exec -T postgres bash << 'INSTALL_EOF'
-            apt-get update
-            apt-get install -y build-essential postgresql-server-dev-15 git
+            docker-compose exec -T postgres sh << 'INSTALL_EOF'
+            apk update
+            apk add --no-cache git make gcc musl-dev postgresql15-dev
             cd /tmp
             git clone --branch v0.5.1 https://github.com/pgvector/pgvector.git
             cd pgvector
@@ -146,7 +146,7 @@ jobs:
             
             # Recreate admin user
             echo "Creating admin@resolve.io user..."
-            docker-compose exec -T app node -e "
+            docker-compose exec -T app sh -c "npm install bcryptjs && node -e \"
               const bcrypt = require('bcryptjs');
               const { Pool } = require('pg');
               const pool = new Pool({ connectionString: process.env.DATABASE_URL });
@@ -162,7 +162,7 @@ jobs:
                 console.log('✅ Admin user created/updated: admin@resolve.io');
                 await pool.end();
               })();
-            " || echo "Note: Admin user creation attempted"
+            \"" || echo "Note: Admin user creation attempted"
             
             # Verify pgvector is working
             echo "Verifying pgvector installation..."
