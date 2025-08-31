@@ -474,6 +474,7 @@ function createRagRouter(db, sessions) {
             }
             
             // Perform vector similarity search using pgvector
+            // Cast the JSON array string to vector type for pgvector operations
             const searchQuery = `
                 SELECT 
                     document_id,
@@ -547,7 +548,27 @@ function createRagRouter(db, sessions) {
             
         } catch (error) {
             console.error('Vector search error:', error);
-            res.status(500).json({ error: 'Search failed' });
+            console.error('Vector search error details:', {
+                message: error.message,
+                code: error.code,
+                detail: error.detail,
+                query: error.query
+            });
+            
+            // Provide more informative error response
+            const errorResponse = {
+                error: 'Search failed',
+                message: error.message
+            };
+            
+            // Add specific error details for common issues
+            if (error.message?.includes('vector') || error.message?.includes('operator')) {
+                errorResponse.hint = 'Vector type casting issue - please check embedding format';
+            } else if (error.code === '22P02') {
+                errorResponse.hint = 'Invalid input syntax for vector type';
+            }
+            
+            res.status(500).json(errorResponse);
         }
     });
 
