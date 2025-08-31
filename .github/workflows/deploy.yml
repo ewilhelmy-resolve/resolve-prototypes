@@ -44,8 +44,9 @@ jobs:
             # Stop and remove containers
             docker-compose down
             
-            # Don't pull any specific image - let docker-compose handle it
-            echo "Docker-compose will pull the image specified in docker-compose.yml"
+            # Pull the postgres image first to ensure we get ankane/pgvector
+            echo "Pulling ankane/pgvector image..."
+            docker pull ankane/pgvector:latest
             
             # Pull app image
             docker pull $IMAGE_NAME:latest
@@ -66,14 +67,9 @@ jobs:
               sleep 2
             done
             
-            # Fix potential path issues by creating symlinks if needed
-            echo "Fixing potential path issues..."
-            docker-compose exec -T postgres sh -c "if [ -d /usr/share/postgresql/15/extension ] && [ ! -d /usr/local/share/postgresql/extension ]; then mkdir -p /usr/local/share/postgresql && ln -s /usr/share/postgresql/15/extension /usr/local/share/postgresql/extension && echo 'Created symlink for extensions'; fi" || true
-            docker-compose exec -T postgres sh -c "if [ -f /usr/lib/postgresql/15/lib/vector.so ] && [ ! -f /usr/local/lib/postgresql/vector.so ]; then mkdir -p /usr/local/lib/postgresql && ln -s /usr/lib/postgresql/15/lib/vector.so /usr/local/lib/postgresql/vector.so && echo 'Created symlink for vector.so'; fi" || true
-            
-            # Create pgvector extension
-            echo "Creating pgvector extension..."
-            docker-compose exec -T postgres psql -U resolve_user -d resolve_onboarding -c "CREATE EXTENSION IF NOT EXISTS vector;"
+            # Create pgvector extension (ankane/pgvector has it pre-installed)
+            echo "Creating pgvector extension in database..."
+            docker-compose exec -T postgres psql -U resolve_user -d resolve_onboarding -c "CREATE EXTENSION IF NOT EXISTS vector;" || echo "Warning: Could not create extension, may already exist"
             
             # Verify pgvector is working
             echo "Verifying pgvector installation..."
