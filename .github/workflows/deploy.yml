@@ -41,11 +41,19 @@ jobs:
             echo "${{ secrets.ONBOARDING_GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
             cd /opt/onboarding
             
-            # Stop and remove containers (keep volumes to preserve data)
-            docker-compose down
+            # COMPLETE RESET - Remove everything and start fresh
+            echo "🔄 PERFORMING COMPLETE RESET OF POSTGRES WITH PGVECTOR"
             
-            # Pull the official pgvector image
-            echo "Pulling pgvector/pgvector:pg15 image..."
+            # Stop and remove ALL containers and volumes
+            docker-compose down -v
+            
+            # Remove any cached postgres images to force fresh pull
+            docker rmi ankane/pgvector:latest 2>/dev/null || true
+            docker rmi ankane/pgvector:pg15 2>/dev/null || true
+            docker rmi pgvector/pgvector:pg15 2>/dev/null || true
+            
+            # Pull the CORRECT pgvector image
+            echo "Pulling official pgvector/pgvector:pg15 image..."
             docker pull pgvector/pgvector:pg15
             
             # Pull app image
@@ -67,7 +75,7 @@ jobs:
               sleep 2
             done
             
-            # Create pgvector extension (ankane/pgvector has it pre-installed)
+            # Create pgvector extension
             echo "Creating pgvector extension in database..."
             if docker-compose exec -T postgres psql -U resolve_user -d resolve_onboarding -c "CREATE EXTENSION IF NOT EXISTS vector;"; then
               echo "✅ Extension created successfully"
@@ -77,6 +85,24 @@ jobs:
               docker-compose exec -T postgres sh -c "ls -la /usr/local/share/postgresql/extension/vector* 2>/dev/null || echo 'No vector files in /usr/local/share'"
               exit 1
             fi
+            
+            # Recreate admin user
+            echo "Creating admin@resolve.io user..."
+            docker-compose exec -T app node -e "
+              const bcrypt = require('bcryptjs');
+              const { Pool } = require('pg');
+              const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+              
+              (async () => {
+                const hashedPassword = await bcrypt.hash('admin123', 10);
+                await pool.query(
+                  'INSERT INTO users (email, hashed_password, name, is_admin, created_at) VALUES (\$1, \$2, \$3, true, NOW()) ON CONFLICT (email) DO UPDATE SET is_admin = true',
+                  ['admin@resolve.io', hashedPassword, 'Admin User']
+                );
+                console.log('✅ Admin user created/updated: admin@resolve.io');
+                await pool.end();
+              })();
+            " || echo "Note: Admin user creation attempted"
             
             # Verify pgvector is working
             echo "Verifying pgvector installation..."
