@@ -46,9 +46,9 @@ jobs:
             docker pull $IMAGE_NAME:latest
             docker tag $IMAGE_NAME:latest onboarding_app:latest
             
-            # Create docker-compose.yml for Supabase configuration (no local postgres)
+            # Remove old docker-compose.yml and create new one for Supabase configuration (no local postgres)
+            rm -f docker-compose.yml
             cat > docker-compose.yml << EOF
-            version: '3.8'
             services:
               app:
                 image: onboarding_app:latest
