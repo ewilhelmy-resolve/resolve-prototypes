@@ -1108,11 +1108,9 @@
             if (status === 'ready' || status === 'completed' || status === 'vectorized' || status === 'failed') {
                 documentStatusMonitors.delete(documentId);
                 
-                // Stop polling if no more documents to monitor
-                if (documentStatusMonitors.size === 0 && documentPollingInterval) {
-                    clearInterval(documentPollingInterval);
-                    documentPollingInterval = null;
-                    console.log('📋 Document monitoring complete');
+                // Log when monitoring is complete for this document
+                if (documentStatusMonitors.size === 0) {
+                    console.log('📋 All document monitoring complete');
                 }
                 
                 // Update button states
