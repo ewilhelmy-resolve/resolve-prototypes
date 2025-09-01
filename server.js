@@ -1466,6 +1466,141 @@ app.delete('/api/admin/webhook-traffic/clear', requireAdmin, async (req, res) =>
     }
 });
 
+// Admin Diagnostics Routes
+app.get('/api/admin/diagnostics', requireAdmin, async (req, res) => {
+    try {
+        // Check environment variables
+        const envStatus = {
+            DATABASE_URL: !!process.env.DATABASE_URL,
+            JWT_SECRET: !!process.env.JWT_SECRET,
+            AUTOMATION_WEBHOOK_URL: !!process.env.AUTOMATION_WEBHOOK_URL,
+            AUTOMATION_AUTH: !!process.env.AUTOMATION_AUTH,
+            NODE_ENV: process.env.NODE_ENV || 'not set',
+            APP_URL: process.env.APP_URL || 'not set',
+            WEBHOOK_ENABLED: process.env.WEBHOOK_ENABLED || 'not set'
+        };
+
+        // Test database connection
+        let dbStatus = { connected: false, error: null };
+        try {
+            const result = await db.query('SELECT NOW()');
+            dbStatus.connected = true;
+            dbStatus.timestamp = result.rows[0].now;
+        } catch (error) {
+            dbStatus.error = error.message;
+        }
+
+        // Check RAG tables
+        let ragStatus = { 
+            hasDocumentsTable: false, 
+            hasVectorsTable: false,
+            hasPgVector: false,
+            documentCount: 0,
+            vectorCount: 0
+        };
+        
+        try {
+            // Check pgvector extension
+            const extResult = await db.query("SELECT COUNT(*) FROM pg_extension WHERE extname = 'vector'");
+            ragStatus.hasPgVector = extResult.rows[0].count > 0;
+
+            // Check tables exist
+            const tablesResult = await db.query(`
+                SELECT table_name 
+                FROM information_schema.tables 
+                WHERE table_schema = 'public' 
+                AND table_name IN ('rag_documents', 'rag_vectors')
+            `);
+            
+            tablesResult.rows.forEach(row => {
+                if (row.table_name === 'rag_documents') ragStatus.hasDocumentsTable = true;
+                if (row.table_name === 'rag_vectors') ragStatus.hasVectorsTable = true;
+            });
+
+            // Get counts if tables exist
+            if (ragStatus.hasDocumentsTable) {
+                const docCount = await db.query('SELECT COUNT(*) FROM rag_documents');
+                ragStatus.documentCount = parseInt(docCount.rows[0].count);
+            }
+            
+            if (ragStatus.hasVectorsTable) {
+                const vecCount = await db.query('SELECT COUNT(*) FROM rag_vectors');
+                ragStatus.vectorCount = parseInt(vecCount.rows[0].count);
+            }
+        } catch (error) {
+            ragStatus.error = error.message;
+        }
+
+        res.json({
+            success: true,
+            env: envStatus,
+            database: dbStatus,
+            rag: ragStatus,
+            timestamp: new Date().toISOString()
+        });
+    } catch (error) {
+        console.error('Diagnostics error:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: error.message,
+            stack: process.env.NODE_ENV !== 'production' ? error.stack : undefined
+        });
+    }
+});
+
+app.get('/api/admin/logs', requireAdmin, async (req, res) => {
+    try {
+        const { level = 'all', limit = 100 } = req.query;
+        
+        // In production, you'd fetch from a logging service or database
+        // For now, return recent errors from application
+        const logs = [];
+        
+        // Add any recent database errors
+        try {
+            const errorLogs = await db.query(`
+                SELECT 'Database' as source, error_message, created_at 
+                FROM rag_webhook_failures 
+                ORDER BY created_at DESC 
+                LIMIT 20
+            `);
+            
+            errorLogs.rows.forEach(row => {
+                logs.push({
+                    level: 'error',
+                    source: row.source,
+                    message: row.error_message,
+                    timestamp: row.created_at
+                });
+            });
+        } catch (err) {
+            logs.push({
+                level: 'error',
+                source: 'System',
+                message: `Failed to fetch database logs: ${err.message}`,
+                timestamp: new Date()
+            });
+        }
+
+        // Filter by level if specified
+        const filteredLogs = level === 'all' 
+            ? logs 
+            : logs.filter(log => log.level === level);
+
+        res.json({
+            success: true,
+            logs: filteredLogs.slice(0, limit),
+            count: filteredLogs.length
+        });
+    } catch (error) {
+        console.error('Logs fetch error:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: error.message 
+        });
+    }
+});
+
 // System Settings Routes
 app.get('/api/admin/settings', requireAdmin, async (req, res) => {
     try {

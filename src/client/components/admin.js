@@ -875,6 +875,9 @@ async function loadSectionData(section) {
         case 'settings':
             await loadSystemSettings();
             break;
+        case 'logs':
+            await loadSystemLogs();
+            break;
     }
 }
 
@@ -1467,6 +1470,160 @@ function formatDateTime(dateString) {
 function showNotification(message, type) {
     // Implementation for notifications
     console.log(`${type}: ${message}`);
+}
+
+// System Logs Functions
+async function loadSystemLogs() {
+    try {
+        // Load diagnostics
+        const diagResponse = await fetch('/api/admin/diagnostics', {
+            credentials: 'include'
+        });
+        
+        if (diagResponse.ok) {
+            const diagnostics = await diagResponse.json();
+            displayDiagnostics(diagnostics);
+        }
+        
+        // Load logs
+        await refreshLogs();
+    } catch (error) {
+        console.error('Error loading system logs:', error);
+    }
+}
+
+function displayDiagnostics(data) {
+    // Display environment variables status
+    const envStatus = document.getElementById('envStatus');
+    if (envStatus) {
+        const envHtml = Object.entries(data.env || {}).map(([key, value]) => {
+            const isSet = value === true || (value && value !== 'not set');
+            return `
+                <div class="env-var-status ${isSet ? 'success' : 'error'}">
+                    <span>${key}</span>
+                    <span>${isSet ? '✓ Set' : '✗ Not Set'}</span>
+                </div>
+            `;
+        }).join('');
+        envStatus.innerHTML = envHtml;
+    }
+    
+    // Display database status
+    const dbStatus = document.getElementById('dbStatus');
+    if (dbStatus) {
+        if (data.database?.connected) {
+            dbStatus.innerHTML = `
+                <div class="status-success">✓ Database Connected</div>
+                <div style="margin-top: 10px; color: #666;">
+                    Last check: ${new Date(data.database.timestamp).toLocaleString()}
+                </div>
+            `;
+        } else {
+            dbStatus.innerHTML = `
+                <div class="status-error">✗ Database Connection Failed</div>
+                <div style="margin-top: 10px; color: #dc3545;">
+                    Error: ${data.database?.error || 'Unknown error'}
+                </div>
+            `;
+        }
+    }
+    
+    // Display RAG system status
+    const ragStatus = document.getElementById('ragStatus');
+    if (ragStatus) {
+        const rag = data.rag || {};
+        ragStatus.innerHTML = `
+            <div class="rag-status-grid">
+                <div class="env-var-status ${rag.hasPgVector ? 'success' : 'error'}">
+                    <span>PgVector Extension</span>
+                    <span>${rag.hasPgVector ? '✓ Installed' : '✗ Not Found'}</span>
+                </div>
+                <div class="env-var-status ${rag.hasDocumentsTable ? 'success' : 'error'}">
+                    <span>Documents Table</span>
+                    <span>${rag.hasDocumentsTable ? '✓ Exists' : '✗ Missing'}</span>
+                </div>
+                <div class="env-var-status ${rag.hasVectorsTable ? 'success' : 'error'}">
+                    <span>Vectors Table</span>
+                    <span>${rag.hasVectorsTable ? '✓ Exists' : '✗ Missing'}</span>
+                </div>
+                ${rag.hasDocumentsTable ? `
+                    <div class="env-var-status success">
+                        <span>Documents</span>
+                        <span>${rag.documentCount || 0}</span>
+                    </div>
+                ` : ''}
+                ${rag.hasVectorsTable ? `
+                    <div class="env-var-status success">
+                        <span>Vectors</span>
+                        <span>${rag.vectorCount || 0}</span>
+                    </div>
+                ` : ''}
+                ${rag.error ? `
+                    <div class="env-var-status error" style="grid-column: 1 / -1;">
+                        <span>Error: ${rag.error}</span>
+                    </div>
+                ` : ''}
+            </div>
+        `;
+    }
+}
+
+async function refreshLogs() {
+    try {
+        const level = document.getElementById('logLevel')?.value || 'all';
+        const response = await fetch(`/api/admin/logs?level=${level}&limit=100`, {
+            credentials: 'include'
+        });
+        
+        if (response.ok) {
+            const data = await response.json();
+            displayLogs(data.logs || []);
+        }
+    } catch (error) {
+        console.error('Error fetching logs:', error);
+    }
+}
+
+function displayLogs(logs) {
+    const errorLogs = document.getElementById('errorLogs');
+    if (!errorLogs) return;
+    
+    if (logs.length === 0) {
+        errorLogs.innerHTML = '<div style="color: #666;">No logs found</div>';
+        return;
+    }
+    
+    const logsHtml = logs.map(log => {
+        const timestamp = new Date(log.timestamp).toLocaleString();
+        return `
+            <div class="log-entry ${log.level}">
+                <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                    <span style="color: #aaa;">[${timestamp}]</span>
+                    <span style="color: #888;">${log.source || 'System'}</span>
+                </div>
+                <div>${escapeHtml(log.message)}</div>
+            </div>
+        `;
+    }).join('');
+    
+    errorLogs.innerHTML = logsHtml;
+}
+
+function filterLogs(level) {
+    refreshLogs();
+}
+
+async function clearLogs() {
+    if (confirm('Are you sure you want to clear all logs?')) {
+        // In a real implementation, this would clear logs from the server
+        document.getElementById('errorLogs').innerHTML = '<div style="color: #666;">Logs cleared</div>';
+    }
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
 }
 
 // User Management Functions

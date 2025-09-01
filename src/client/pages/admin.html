@@ -26,6 +26,7 @@
                 <li><a href="#triggers" class="nav-link">Workflow Triggers</a></li>
                 <li><a href="#users" class="nav-link">User Activity</a></li>
                 <li><a href="#analytics" class="nav-link">Analytics</a></li>
+                <li><a href="#logs" class="nav-link">System Logs</a></li>
                 <li><a href="#webhooks" class="nav-link">Webhook Logs</a></li>
                 <li><a href="#webhook-traffic" class="nav-link">Callback Traffic</a></li>
                 <li><a href="#settings" class="nav-link">System Settings</a></li>
@@ -275,6 +276,55 @@
                     <div class="analytics-card">
                         <h3>Weekly Pattern</h3>
                         <canvas id="weeklyChart"></canvas>
+                    </div>
+                </div>
+            </section>
+
+            <!-- System Logs Section -->
+            <section id="logs" class="admin-section">
+                <h2>System Logs & Diagnostics</h2>
+                
+                <div class="logs-container">
+                    <!-- Environment Status -->
+                    <div class="diagnostics-card">
+                        <h3>Environment Variables Status</h3>
+                        <div id="envStatus" class="env-status-grid">
+                            <div class="status-loading">Checking environment...</div>
+                        </div>
+                    </div>
+
+                    <!-- Database Connection Status -->
+                    <div class="diagnostics-card">
+                        <h3>Database Connection</h3>
+                        <div id="dbStatus" class="db-status">
+                            <div class="status-loading">Testing connection...</div>
+                        </div>
+                    </div>
+
+                    <!-- Recent Errors -->
+                    <div class="diagnostics-card full-width">
+                        <h3>Recent Application Errors</h3>
+                        <div class="logs-controls">
+                            <button onclick="refreshLogs()" class="btn btn-secondary">Refresh Logs</button>
+                            <button onclick="clearLogs()" class="btn btn-danger">Clear Logs</button>
+                            <select id="logLevel" onchange="filterLogs(this.value)">
+                                <option value="all">All Levels</option>
+                                <option value="error">Errors Only</option>
+                                <option value="warn">Warnings</option>
+                                <option value="info">Info</option>
+                            </select>
+                        </div>
+                        <div id="errorLogs" class="error-logs">
+                            <div class="status-loading">Loading logs...</div>
+                        </div>
+                    </div>
+
+                    <!-- RAG System Status -->
+                    <div class="diagnostics-card">
+                        <h3>RAG System Status</h3>
+                        <div id="ragStatus" class="rag-status">
+                            <div class="status-loading">Checking RAG system...</div>
+                        </div>
                     </div>
                 </div>
             </section>
