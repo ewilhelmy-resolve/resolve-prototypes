@@ -61,11 +61,25 @@ This document chronicles the extensive troubleshooting process for installing pg
 - **Result**: Works locally (pgvector 0.8.0), fails on EC2 with same error
 - **Problem**: Even specific versions don't have pgvector installed on EC2
 
-### 8. Final Solution: Runtime Installation
+### 8. Runtime Installation Attempt
 - **Approach**: Use standard `postgres:15` + install pgvector after container starts
 - **Implementation**: Install build tools and compile pgvector inside the running container
 - **Challenge**: postgres:15 uses Alpine Linux (apk, not apt-get)
-- **Status**: In progress - fixing Alpine package manager commands
+- **Result**: FAILED - Same clang-19 error, `make install` fails even though .so file is built
+- **Error**: `make: clang-19: No such file or directory` when trying to install
+- **Problem**: Even manual compilation in container fails due to LLVM bitcode generation
+
+### 9. Custom Dockerfile with Build Workaround (Local Success)
+- **Approach**: Build custom postgres image with pgvector, ignore LLVM errors
+- **Implementation**: 
+  ```dockerfile
+  FROM postgres:15-alpine AS builder
+  RUN apk add git make gcc musl-dev postgresql15-dev
+  RUN git clone pgvector && (make || true) && cp files manually
+  ```
+- **Local Result**: SUCCESS! Works perfectly in local Docker
+- **Production Result**: NOT DEPLOYED - Would need to push custom image to registry
+- **Problem**: Production deployment only uses docker-compose.yml, not Dockerfiles
 
 ## Core Issues Discovered
 
@@ -113,28 +127,46 @@ We kept repeating these steps:
 - Verify image contents, don't assume
 - Use specific version tags for reproducibility
 
-## The Solution That Should Work
+## Final Resolution: Split Strategy
 
-### Runtime Compilation Approach
-```bash
-# 1. Use standard PostgreSQL image (works everywhere)
-image: postgres:15
+### For Local Development ✅
+- **Solution**: Use `pgvector/pgvector:pg15` Docker image
+- **Status**: WORKING PERFECTLY
+- **Version**: pgvector 0.8.0
+- **Why it works**: Pre-built image has pgvector for x86_64 architecture
 
-# 2. After container starts, install build tools
-apk add --no-cache git make gcc musl-dev postgresql15-dev
+### For Production ❌  
+- **Current Problem**: Same Docker image fails on EC2 (missing pgvector)
+- **Root Cause**: Architecture mismatch or image registry issues
+- **Attempted Solutions**: All 9 approaches failed
 
-# 3. Compile pgvector from source (guaranteed compatibility)
-git clone --branch v0.5.1 https://github.com/pgvector/pgvector.git
-cd pgvector && make && make install
+## Recommended Production Solutions
 
-# 4. Create extension in database
-CREATE EXTENSION IF NOT EXISTS vector;
+### Option 1: AWS RDS PostgreSQL (Best for Enterprise)
+```yaml
+# Use managed PostgreSQL with pgvector pre-installed
+DATABASE_URL: postgresql://user:pass@your-rds.amazonaws.com:5432/db
 ```
+- **Pros**: pgvector works immediately, managed, scalable, backed up
+- **Cons**: Additional cost (~$20-50/month)
+- **Setup**: RDS PostgreSQL 15.3+ has pgvector extension available
 
-### Why This Works
-- **No architecture dependency**: Compiles for the exact server
-- **No image trust issues**: We control the installation
-- **Guaranteed compatibility**: Built on the actual runtime environment
+### Option 2: External PostgreSQL on EC2
+```bash
+# Separate EC2 instance with PostgreSQL + pgvector
+sudo yum install postgresql15-server postgresql15-contrib
+# Install pgvector from source or package
+```
+- **Pros**: Full control, can compile pgvector properly
+- **Cons**: Need to manage another server
+
+### Option 3: PostgreSQL Outside Container (Same EC2)
+```bash
+# Install PostgreSQL directly on host, not in Docker
+# Connect from Docker app to host PostgreSQL
+```
+- **Pros**: Avoids Docker complexity for database
+- **Cons**: Mixes containerized and non-containerized services
 
 ## Commands for Debugging
 

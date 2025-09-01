@@ -1947,6 +1947,18 @@ app.get('*', (req, res) => {
 });
 
 app.listen(PORT, async () => {
+    // Run database migrations on startup
+    try {
+        console.log('🚀 Running database migrations on startup...');
+        const { runPostgreSQLMigrations } = require('./src/database/migrations');
+        const pool = require('./src/database/postgres');
+        await runPostgreSQLMigrations(pool);
+        console.log('✅ Database migrations completed successfully');
+    } catch (error) {
+        console.error('[MIGRATION ERROR] Failed to run migrations:', error.message);
+        // Log but don't crash - app might still work with existing schema
+    }
+    
     // Initialize pgvector on startup (non-blocking)
     try {
         const { initializePgvector } = require('./src/database/init-pgvector');

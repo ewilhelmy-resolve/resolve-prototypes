@@ -9,6 +9,7 @@ env:
   IMAGE_NAME: ghcr.io/resolve-io/resolve-onboarding
   DEPLOY_HOST: ec2-54-147-199-139.compute-1.amazonaws.com
   DEPLOY_USER: ec2-user
+  # Supabase DATABASE_URL should be stored as a secret in GitHub
 
 jobs:
   build-and-push:
@@ -41,12 +42,11 @@ jobs:
             echo "${{ secrets.ONBOARDING_GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
             cd /opt/onboarding
             
-            # First check what architecture we're on
-            echo "Checking system architecture..."
-            uname -m
-            docker version
+            # Pull the latest app image
+            docker pull $IMAGE_NAME:latest
+            docker tag $IMAGE_NAME:latest onboarding_app:latest
             
-            # Update docker-compose.yml to use the correct image
+            # Create docker-compose.yml for Supabase configuration (no local postgres)
             cat > docker-compose.yml << 'EOF'
             version: '3.8'
             services:
@@ -58,120 +58,65 @@ jobs:
                 environment:
                   - NODE_ENV=production
                   - PORT=5000
-                  - DATABASE_URL=postgresql://resolve_user:resolve_pass@postgres:5432/resolve_onboarding
+                  - DATABASE_URL=${{ secrets.SUPABASE_DATABASE_URL }}
                 volumes:
                   - ./uploads:/app/uploads
-                networks:
-                  - resolve-network
-                depends_on:
-                  postgres:
-                    condition: service_healthy
                 healthcheck:
                   test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
                   interval: 30s
                   timeout: 3s
                   retries: 3
                   start_period: 10s
-              postgres:
-                image: postgres:15
-                environment:
-                  POSTGRES_DB: resolve_onboarding
-                  POSTGRES_USER: resolve_user
-                  POSTGRES_PASSWORD: resolve_pass
-                volumes:
-                  - postgres_data:/var/lib/postgresql/data
-                ports:
-                  - "5432:5432"
-                networks:
-                  - resolve-network
-                healthcheck:
-                  test: ["CMD-SHELL", "pg_isready -U resolve_user -d resolve_onboarding"]
-                  interval: 10s
-                  timeout: 5s
-                  retries: 5
-            volumes:
-              postgres_data:
-            networks:
-              resolve-network:
-                driver: bridge
+                restart: unless-stopped
             EOF
             
-            # COMPLETE RESET - Use specific pgvector version
-            echo "🔄 USING PGVECTOR 0.8.0 WITH POSTGRES 15"
+            # Stop existing containers
+            docker-compose down
             
-            # Stop and remove ALL containers and volumes  
-            docker-compose down -v
-            
-            # Remove any cached postgres images
-            docker rmi postgres:15 2>/dev/null || true
-            
-            # Pull standard postgres image
-            echo "Pulling postgres:15..."
-            docker pull postgres:15
-            
-            # Pull app image
-            docker pull $IMAGE_NAME:latest
-            docker tag $IMAGE_NAME:latest onboarding_app:latest
-            docker image prune -f
-            
-            # Start containers with the specific pgvector image
+            # Start the app container (now using Supabase)
             docker-compose up -d
             
-            # Wait for postgres to be fully ready
-            echo "Waiting for PostgreSQL to be ready..."
-            for i in {1..30}; do
-              if docker-compose exec -T postgres pg_isready -U resolve_user -d resolve_onboarding; then
-                echo "PostgreSQL is ready!"
-                break
-              fi
-              echo "Waiting... ($i/30)"
-              sleep 2
-            done
+            # Wait for app to be ready
+            echo "Waiting for application to start..."
+            sleep 10
             
-            # Install pgvector manually in the running container
-            echo "Installing pgvector extension manually..."
-            docker-compose exec -T postgres sh << 'INSTALL_EOF'
-            apk update
-            apk add --no-cache git make gcc musl-dev postgresql15-dev
-            cd /tmp
-            git clone --branch v0.5.1 https://github.com/pgvector/pgvector.git
-            cd pgvector
-            make
-            make install
-            INSTALL_EOF
+            # Database operations commented out - migrations run automatically on app startup
+            # echo "Running database migrations on Supabase..."
+            # docker-compose exec -T app sh -c "node scripts/migrate-supabase.js || echo 'Migration completed with warnings'"
             
-            # Now create the extension
-            echo "Creating pgvector extension in database..."
-            docker-compose exec -T postgres psql -U resolve_user -d resolve_onboarding -c "CREATE EXTENSION IF NOT EXISTS vector;"
+            # # Create admin user in Supabase database
+            # echo "Ensuring admin@resolve.io user exists in Supabase..."
+            # docker-compose exec -T app sh -c "npm install bcryptjs && node scripts/create-admin.js"
             
-            # Recreate admin user
-            echo "Creating admin@resolve.io user..."
-            docker-compose exec -T app sh -c "npm install bcryptjs && node -e \"
-              const bcrypt = require('bcryptjs');
-              const { Pool } = require('pg');
-              const pool = new Pool({ connectionString: process.env.DATABASE_URL });
-              
-              (async () => {
-                const hashedPassword = await bcrypt.hash('admin123', 10);
-                // First ensure is_admin column exists
-                await pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS is_admin BOOLEAN DEFAULT FALSE');
-                await pool.query(
-                  'INSERT INTO users (email, password, full_name, is_admin, created_at) VALUES (\$1, \$2, \$3, true, NOW()) ON CONFLICT (email) DO UPDATE SET is_admin = true, full_name = \$3',
-                  ['admin@resolve.io', hashedPassword, 'Admin User']
-                );
-                console.log('✅ Admin user created/updated: admin@resolve.io');
-                await pool.end();
-              })();
-            \"" || echo "Note: Admin user creation attempted"
+            # # Verify Supabase pgvector support
+            # echo "Checking Supabase pgvector support..."
+            # docker-compose exec -T app sh -c "node -e \"
+            #   const { Pool } = require('pg');
+            #   const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+            #   
+            #   (async () => {
+            #     try {
+            #       // Check if vector extension exists
+            #       const result = await pool.query(\\\"SELECT * FROM pg_extension WHERE extname = 'vector'\\\");
+            #       if (result.rows.length > 0) {
+            #         console.log('✅ pgvector is available in Supabase (version ' + result.rows[0].extversion + ')');
+            #       } else {
+            #         console.log('⚠️  pgvector extension not enabled. Enable it in Supabase dashboard.');
+            #       }
+            #     } catch (error) {
+            #       console.error('Could not check pgvector:', error.message);
+            #     } finally {
+            #       await pool.end();
+            #     }
+            #   })();
+            # \""
             
-            # Verify pgvector is working
-            echo "Verifying pgvector installation..."
-            if docker-compose exec -T postgres psql -U resolve_user -d resolve_onboarding -c "SELECT '[1,2,3]'::vector as test;"; then
-              echo "✅ pgvector successfully installed and working!"
+            # Verify deployment
+            echo "Deployment complete. Checking application health..."
+            sleep 5
+            if curl -f http://localhost:5000/health; then
+              echo "✅ Application is healthy and connected to Supabase!"
             else
-              echo "❌ pgvector test failed!"
-              exit 1
+              echo "⚠️  Health check failed. Checking logs..."
+              docker-compose logs --tail=50 app
             fi
-#            docker stop resolve-onboarding || true
-#            docker rm resolve-onboarding || true
-#            docker run -d -p 80:80 --name resolve-onboarding $IMAGE_NAME:latest

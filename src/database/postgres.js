@@ -5,9 +5,25 @@ const { runPostgreSQLMigrations } = require('./migrations');
 // Create PostgreSQL connection pool
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL || 'postgresql://resolve_user:resolve_secure_pass_2024@localhost:5432/resolve_onboarding',
-  max: 20,
-  idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 2000,
+  max: 10, // Reduced for Supabase pooler
+  idleTimeoutMillis: 10000, // Reduced to 10 seconds for Supabase
+  connectionTimeoutMillis: 5000,
+  // Force IPv4 and SSL for Supabase
+  ssl: process.env.DATABASE_URL && process.env.DATABASE_URL.includes('supabase') 
+    ? { rejectUnauthorized: false } 
+    : false,
+  // Supabase pooler settings
+  keepAlive: false, // Don't keep connections alive with pooler
+  allowExitOnIdle: true
+});
+
+// Handle pool errors gracefully
+pool.on('error', (err, client) => {
+  if (err.code === 'XX000' && err.message.includes('db_termination')) {
+    console.warn('⚠️ Database connection terminated by pooler - this is expected with Supabase');
+  } else {
+    console.error('Unexpected database pool error:', err);
+  }
 });
 
 // Initialize database with migrations
@@ -17,8 +33,8 @@ async function initializeDatabase() {
     const res = await pool.query('SELECT NOW()');
     console.log('✅ Database connected successfully at:', res.rows[0].now);
     
-    // Run migrations
-    await runPostgreSQLMigrations(pool);
+    // Don't run migrations here - they're run from server.js startup
+    // await runPostgreSQLMigrations(pool);
   } catch (err) {
     console.error('❌ Database initialization failed:', err);
     // Don't exit - let the app try to continue

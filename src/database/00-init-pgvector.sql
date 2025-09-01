@@ -5,11 +5,15 @@
 -- This will work because it runs during docker-entrypoint-initdb.d initialization
 CREATE EXTENSION IF NOT EXISTS vector;
 
--- Grant necessary privileges to resolve_user
-GRANT ALL ON SCHEMA public TO resolve_user;
-
--- Ensure resolve_user can use vector type
-GRANT USAGE ON TYPE vector TO resolve_user;
+-- Skip permission grants for Supabase (running as postgres user)
+-- In Supabase, we connect as the postgres user which already has all permissions
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'resolve_user') THEN
+        GRANT ALL ON SCHEMA public TO resolve_user;
+        GRANT USAGE ON TYPE vector TO resolve_user;
+    END IF;
+END $$;
 
 -- Log success
 DO $$
