@@ -46,10 +46,15 @@ jobs:
             docker pull $IMAGE_NAME:latest
             docker tag $IMAGE_NAME:latest onboarding_app:latest
             
-            # Use sudo to remove old docker-compose.yml and create new one
-            sudo rm -f docker-compose.yml
-            sudo tee docker-compose.yml > /dev/null << EOF
-            services:
+            # Stop ALL containers and clean up completely
+            docker-compose down --remove-orphans || true
+            docker stop $(docker ps -q) 2>/dev/null || true
+            
+            # Backup and recreate docker-compose.yml
+            sudo cp docker-compose.yml docker-compose.yml.bak 2>/dev/null || true
+            
+            # Create simple docker-compose.yml with ONLY the app
+            echo 'services:
               app:
                 image: onboarding_app:latest
                 ports:
@@ -58,14 +63,6 @@ jobs:
                 environment:
                   - NODE_ENV=production
                   - PORT=5000
-                  - DATABASE_URL=${{ secrets.DATABASE_URL }}
-                  - JWT_SECRET=${{ secrets.JWT_SECRET }}
-                  - AUTOMATION_WEBHOOK_URL=${{ secrets.AUTOMATION_WEBHOOK_URL }}
-                  - AUTOMATION_AUTH=${{ secrets.AUTOMATION_AUTH }}
-                  - WEBHOOK_ENABLED=true
-                  - APP_URL=https://onboarding.resolve.io
-                  - MAX_DOCUMENT_SIZE=51200
-                  - VECTOR_DIMENSION=1536
                 volumes:
                   - ./uploads:/app/uploads
                 healthcheck:
@@ -74,13 +71,9 @@ jobs:
                   timeout: 3s
                   retries: 3
                   start_period: 10s
-                restart: unless-stopped
-            EOF
+                restart: unless-stopped' | sudo tee docker-compose.yml > /dev/null
             
-            # Stop existing containers
-            docker-compose down
-            
-            # Start the app container (now using Supabase)
+            # Start the app container
             docker-compose up -d
             
             # Wait for app to be ready
