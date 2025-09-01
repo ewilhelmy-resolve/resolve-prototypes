@@ -948,6 +948,9 @@ function createRagRouter(db, sessions) {
                     );
                     
                     console.log(`[CHAT CALLBACK] Stored AI response for conversation ${conversation_id}`);
+                    console.log(`[CHAT CALLBACK] Checking SSE clients for tenant ${dbTenantId}`);
+                    console.log(`[CHAT CALLBACK] global.sseClients exists:`, !!global.sseClients);
+                    console.log(`[CHAT CALLBACK] Available tenants:`, global.sseClients ? Object.keys(global.sseClients) : 'none');
                     
                     // Trigger SSE event for this tenant/conversation
                     if (global.sseClients && global.sseClients[dbTenantId]) {
@@ -1179,6 +1182,7 @@ function createRagRouter(db, sessions) {
         
         console.log(`[SSE] Client ${clientId} connected for tenant ${tenantId}, conversation ${conversation_id}`);
         console.log(`[SSE] Total clients for tenant: ${Object.keys(global.sseClients[tenantId]).length}`);
+        console.log(`[SSE] All registered tenants:`, Object.keys(global.sseClients));
         
         // Send initial connection message
         res.write(`data: ${JSON.stringify({
