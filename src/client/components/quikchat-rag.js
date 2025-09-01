@@ -418,12 +418,31 @@ class QuikChatRAG {
         }
         
         if (convId) {
-            this.conversationId = convId;
-            // Loading conversation from localStorage
-            
-            // Don't reload history here - let the ChatHistoryManager handle it
-            // Just set up the SSE connection
-            this.connectToSSE();
+            // Validate that this conversation ID actually exists before trying to connect
+            try {
+                const response = await fetch(`/api/rag/conversation/${convId}/validate`, {
+                    method: 'GET',
+                    credentials: 'include'
+                });
+                
+                if (response.ok) {
+                    this.conversationId = convId;
+                    // Loading conversation from localStorage
+                    
+                    // Don't reload history here - let the ChatHistoryManager handle it
+                    // Just set up the SSE connection
+                    this.connectToSSE();
+                } else {
+                    // Invalid conversation ID, clear it
+                    console.log('Invalid conversation ID, clearing from localStorage');
+                    localStorage.removeItem('currentConversationId');
+                    this.conversationId = null;
+                }
+            } catch (error) {
+                console.error('Error validating conversation:', error);
+                localStorage.removeItem('currentConversationId');
+                this.conversationId = null;
+            }
         } else {
             // No existing conversation, clear the greeting and show fresh one
             // No existing conversation found

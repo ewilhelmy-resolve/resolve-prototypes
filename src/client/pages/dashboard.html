@@ -1175,7 +1175,7 @@
                 uploadButton.style.opacity = '0.6';
                 uploadButton.style.pointerEvents = 'none';
                 uploadButton.innerHTML = `
-                    <div style="display: flex; align-items: center; justify-content: center; gap: 8px;">
+                    <div style="display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 12px; color: rgb(26, 26, 26); font-weight: 500;">
                         <svg class="spinner" width="16" height="16" viewBox="0 0 24 24">
                             <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2" fill="none" stroke-dasharray="31.4" stroke-dashoffset="10"></circle>
                         </svg>
@@ -1270,8 +1270,8 @@
                     uploadButton.style.opacity = '1';
                     uploadButton.style.pointerEvents = 'auto';
                     uploadButton.innerHTML = `
-                        <div class="upload-text">Drop files or click to upload</div>
-                        <div class="upload-hint">PDF, DOC, TXT, MD • Max 100MB</div>
+                        <div class="upload-text" style="font-size: 12px; color: rgb(26, 26, 26); font-weight: 500; margin-bottom: 4px;">Drop files or click to upload</div>
+                        <div class="upload-hint" style="font-size: 11px; color: rgba(0, 0, 0, 0.5);">PDF, DOC, TXT, MD • Max 100MB</div>
                     `;
                 }
             }

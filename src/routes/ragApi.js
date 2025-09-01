@@ -372,15 +372,16 @@ function createRagRouter(db, sessions) {
                 );
             }
             
-            // Update document status
+            // Update document status to ready (was vectorized)
             await db.query(
-                'UPDATE rag_documents SET status = $1, updated_at = CURRENT_TIMESTAMP WHERE callback_id = $2',
-                ['vectorized', callback_id]
+                'UPDATE rag_documents SET status = $1, is_processed = true, updated_at = CURRENT_TIMESTAMP WHERE callback_id = $2',
+                ['ready', callback_id]
             );
             
             // Emit SSE event for vectorization complete
             if (global.knowledgeSSEClients && global.knowledgeSSEClients[doc.tenant_id]) {
-                const sseMessage = JSON.stringify({
+                // Send two events - one for vectorized, one for ready
+                const vectorizedMessage = JSON.stringify({
                     type: 'document-vectorized',
                     document_id: doc.document_id,
                     status: 'vectorized',
@@ -390,10 +391,22 @@ function createRagRouter(db, sessions) {
                     }
                 });
                 
+                const readyMessage = JSON.stringify({
+                    type: 'document-status',
+                    document_id: doc.document_id,
+                    status: 'ready',
+                    metadata: {
+                        vector_count: vectors.length,
+                        filename: doc.original_filename,
+                        timestamp: new Date().toISOString()
+                    }
+                });
+                
                 Object.values(global.knowledgeSSEClients[doc.tenant_id]).forEach(client => {
                     try {
-                        client.write(`data: ${sseMessage}\n\n`);
-                        console.log(`[VECTOR CALLBACK] Sent SSE event for document ${doc.document_id}`);
+                        client.write(`data: ${vectorizedMessage}\n\n`);
+                        client.write(`data: ${readyMessage}\n\n`);
+                        console.log(`[VECTOR CALLBACK] Sent SSE events for document ${doc.document_id}`);
                     } catch (err) {
                         console.error(`[VECTOR CALLBACK] Failed to send SSE event:`, err.message);
                     }
@@ -1018,6 +1031,28 @@ function createRagRouter(db, sessions) {
         } catch (error) {
             console.error('Get new messages error:', error);
             res.status(500).json({ error: 'Unable to retrieve messages' });
+        }
+    });
+    
+    // 6b. Validate conversation endpoint (must be before general conversation route)
+    router.get('/conversation/:conversation_id/validate', validateTenantMW, async (req, res) => {
+        const { conversation_id } = req.params;
+        const tenantId = req.tenantId;
+        
+        try {
+            const result = await db.query(
+                'SELECT conversation_id FROM rag_conversations WHERE conversation_id = $1 AND tenant_id = $2',
+                [conversation_id, tenantId]
+            );
+            
+            if (result.rows.length > 0) {
+                res.json({ valid: true, conversation_id: conversation_id });
+            } else {
+                res.status(404).json({ valid: false, error: 'Conversation not found' });
+            }
+        } catch (error) {
+            console.error('Conversation validation error:', error);
+            res.status(500).json({ valid: false, error: 'Validation failed' });
         }
     });
     
