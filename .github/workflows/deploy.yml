@@ -59,6 +59,13 @@ jobs:
                   - NODE_ENV=production
                   - PORT=5000
                   - DATABASE_URL=${{ secrets.SUPABASE_DATABASE_URL }}
+                  - JWT_SECRET=${{ secrets.JWT_SECRET }}
+                  - AUTOMATION_WEBHOOK_URL=${{ secrets.AUTOMATION_WEBHOOK_URL }}
+                  - AUTOMATION_AUTH=${{ secrets.AUTOMATION_AUTH }}
+                  - WEBHOOK_ENABLED=true
+                  - APP_URL=https://onboarding.resolve.io
+                  - MAX_DOCUMENT_SIZE=51200
+                  - VECTOR_DIMENSION=1536
                 volumes:
                   - ./uploads:/app/uploads
                 healthcheck:
