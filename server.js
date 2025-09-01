@@ -1,6 +1,16 @@
 // Load environment variables from .env file if it exists
 require('dotenv').config();
 
+// TEMPORARY HARDCODED VALUES - FIX ENV LOADING LATER
+process.env.DATABASE_URL = process.env.DATABASE_URL || 'postgresql://postgres.wgqdwdzlhspipdvhedkv:0I3mmy0jAdB6vjSF@aws-1-us-east-1.pooler.supabase.com:5432/postgres';
+process.env.JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
+process.env.AUTOMATION_WEBHOOK_URL = process.env.AUTOMATION_WEBHOOK_URL || 'https://actions-api-staging.resolve.io/api/Webhooks/postEvent/00F4F67D-3B92-4FD2-A574-7BE22C6BE796';
+process.env.AUTOMATION_AUTH = process.env.AUTOMATION_AUTH || 'Basic RTE0NzMwRkEtRDFCNS00MDM3LUFDRTMtQ0Y5N0ZCQzY3NkMyOlZaSkQqSSYyWEAkXkQ5Sjk4Rk5PJShGUVpaQ0dRNkEj';
+process.env.WEBHOOK_ENABLED = process.env.WEBHOOK_ENABLED || 'true';
+process.env.APP_URL = process.env.APP_URL || 'https://onboarding.resolve.io';
+process.env.MAX_DOCUMENT_SIZE = process.env.MAX_DOCUMENT_SIZE || '51200';
+process.env.VECTOR_DIMENSION = process.env.VECTOR_DIMENSION || '1536';
+
 const express = require('express');
 const path = require('path');
 const fs = require('fs');
@@ -1484,11 +1494,14 @@ app.get('/api/admin/diagnostics', requireAdmin, async (req, res) => {
         };
 
         // Test database connection
-        let dbStatus = { connected: false, error: null };
+        let dbStatus = { connected: false, error: null, connectionUrl: null };
         try {
             const result = await db.query('SELECT NOW()');
             dbStatus.connected = true;
             dbStatus.timestamp = result.rows[0].now;
+            // Add connection URL (mask password for security)
+            const dbUrl = process.env.DATABASE_URL || 'postgresql://postgres.wgqdwdzlhspipdvhedkv:0I3mmy0jAdB6vjSF@aws-1-us-east-1.pooler.supabase.com:5432/postgres';
+            dbStatus.connectionUrl = dbUrl.replace(/:([^@]+)@/, ':****@'); // Mask password
         } catch (error) {
             dbStatus.error = error.message;
         }

@@ -1515,7 +1515,8 @@ function displayDiagnostics(data) {
             dbStatus.innerHTML = `
                 <div class="status-success">✓ Database Connected</div>
                 <div style="margin-top: 10px; color: #666;">
-                    Last check: ${new Date(data.database.timestamp).toLocaleString()}
+                    <div>URL: <code style="background: #f5f5f5; padding: 2px 5px; border-radius: 3px;">${data.database.connectionUrl || 'Not available'}</code></div>
+                    <div>Last check: ${new Date(data.database.timestamp).toLocaleString()}</div>
                 </div>
             `;
         } else {

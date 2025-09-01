@@ -2,14 +2,17 @@ const { Pool } = require('pg');
 const crypto = require('crypto');
 const { runPostgreSQLMigrations } = require('./migrations');
 
+// TEMPORARY HARDCODED VALUES - FIX ENV LOADING LATER
+const DATABASE_URL = process.env.DATABASE_URL || 'postgresql://postgres.wgqdwdzlhspipdvhedkv:0I3mmy0jAdB6vjSF@aws-1-us-east-1.pooler.supabase.com:5432/postgres';
+
 // Create PostgreSQL connection pool
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL || 'postgresql://resolve_user:resolve_secure_pass_2024@localhost:5432/resolve_onboarding',
+  connectionString: DATABASE_URL,
   max: 10, // Reduced for Supabase pooler
   idleTimeoutMillis: 10000, // Reduced to 10 seconds for Supabase
   connectionTimeoutMillis: 5000,
   // Force IPv4 and SSL for Supabase
-  ssl: process.env.DATABASE_URL && process.env.DATABASE_URL.includes('supabase') 
+  ssl: DATABASE_URL.includes('supabase') 
     ? { rejectUnauthorized: false } 
     : false,
   // Supabase pooler settings
