@@ -36,6 +36,7 @@ const resolveWebhook = new ResolveWebhook();
 // Increase limit to 100MB for vector embeddings and document processing
 app.use(express.json({
     limit: '100mb',
+    strict: false, // Allow more lenient JSON parsing
     verify: (req, res, buf, encoding) => {
         // Store raw body for webhook logging
         req.rawBody = buf.toString('utf8');
