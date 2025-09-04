@@ -8,10 +8,11 @@
 const { test: base, expect } = require('@playwright/test');
 
 // Default test configuration
-const BASE_URL = process.env.BASE_URL || 'http://localhost:5000';
+// Use dynamic URL from test containers global setup
+const BASE_URL = process.env.TEST_BASE_URL || process.env.BASE_URL || 'http://localhost:5000';
 const ADMIN_CREDENTIALS = {
   email: 'admin@resolve.io',
-  password: 'admin123'
+  password: 'admin123'  // Using original password for tests
 };
 
 /**
@@ -47,20 +48,21 @@ const test = base.extend({
  * @param {Page} page - Playwright page object
  */
 async function signInAsAdmin(page) {
-  await page.goto(`${BASE_URL}/login`, { timeout: 10000 });
+  // Fast login - no logging, no waiting
+  await page.goto(`${BASE_URL}/login`, { waitUntil: 'domcontentloaded' });
   await page.fill('#email', ADMIN_CREDENTIALS.email);
   await page.fill('#password', ADMIN_CREDENTIALS.password);
   await page.click('button[type="submit"]');
   
-  // Wait for navigation with timeout
+  // Just wait for URL change
   try {
-    await page.waitForURL('**/dashboard', { timeout: 10000 });
-    // Wait for specific element instead of networkidle to avoid hanging
-    await page.waitForSelector('#welcomeUser, .welcome-user, h1', { timeout: 5000 });
-  } catch (error) {
-    console.error('Failed to navigate to dashboard after sign in:', error.message);
-    throw error;
+    await page.waitForURL('**/dashboard', { timeout: 2000 });
+  } catch {
+    // If not on dashboard, we're stuck - fail fast
+    throw new Error('Login failed - not redirected to dashboard');
   }
+  
+  // Done - we're on dashboard
 }
 
 /**
@@ -69,18 +71,11 @@ async function signInAsAdmin(page) {
  * @param {Object} credentials - { email, password }
  */
 async function signIn(page, credentials) {
-  await page.goto(`${BASE_URL}/signin`, { timeout: 10000 });
-  await page.fill('input[type="email"]', credentials.email);
-  await page.fill('input[type="password"]', credentials.password);
+  await page.goto(`${BASE_URL}/login`, { waitUntil: 'domcontentloaded' });
+  await page.fill('#email', credentials.email);
+  await page.fill('#password', credentials.password);
   await page.click('button[type="submit"]');
-  
-  try {
-    await page.waitForURL('**/dashboard', { timeout: 10000 });
-    await page.waitForSelector('#welcomeUser, .welcome-user, h1', { timeout: 5000 });
-  } catch (error) {
-    console.error('Failed to navigate to dashboard after sign in:', error.message);
-    throw error;
-  }
+  await page.waitForURL('**/dashboard', { timeout: 2000 });
 }
 
 /**
@@ -184,7 +179,7 @@ async function navigateToDashboardSection(page, section) {
   await page.waitForTimeout(1000);
 }
 
-// Export the extended test fixture and utilities
+// Export everything - both the extended test and the original for compatibility
 module.exports = {
   test,
   expect,
@@ -203,3 +198,6 @@ module.exports = {
   BASE_URL,
   ADMIN_CREDENTIALS
 };
+
+// Also export as named exports for better compatibility
+module.exports.default = test;

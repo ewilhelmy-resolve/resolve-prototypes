@@ -114,14 +114,9 @@ CREATE INDEX IF NOT EXISTS idx_workflow_triggers_type ON workflow_triggers(trigg
 CREATE INDEX IF NOT EXISTS idx_workflow_triggers_date ON workflow_triggers(triggered_at);
 CREATE INDEX IF NOT EXISTS idx_admin_metrics_date ON admin_metrics(metric_date);
 
--- Insert default admin users if not exist
-INSERT INTO users (email, password, full_name, company_name, tier)
-VALUES ('admin@resolve.io', 'admin123', 'Admin User', 'Resolve', 'admin')
-ON CONFLICT (email) DO NOTHING;
-
-INSERT INTO users (email, password, full_name, company_name, tier)
-VALUES ('john.gorham@resolve.io', 'ResolveAdmin2024!', 'John Gorham', 'Resolve.io', 'admin')
-ON CONFLICT (email) DO NOTHING;
+-- SECURITY NOTE: Default admin users will be created with hashed passwords via migration script
+-- These plaintext password inserts are removed for security
+-- Run migrate-passwords.js after database initialization to create secure admin accounts
 
 -- System configuration table is created in 02-add_system_config.sql
 

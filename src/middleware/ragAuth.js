@@ -1,10 +1,12 @@
 const { isValidUUID } = require('../utils/validation');
 const crypto = require('crypto');
+const { tenantLimiter } = require('./rateLimiter');
+const authService = require('../services/authService');
 
 const rateLimits = new Map();
 
 function validateTenant(sessions) {
-    return (req, res, next) => {
+    return async (req, res, next) => {
         const token = req.cookies?.sessionToken || 
                       req.headers['authorization']?.replace('Bearer ', '');
         
@@ -30,9 +32,22 @@ function validateTenant(sessions) {
             return next();
         }
         
-        const session = sessions[token];
-        if (!session || !session.tenantId) {
-            return res.status(401).json({ error: 'Unauthorized' });
+        // Use authService to validate the session
+        if (!token) {
+            console.log('[RAG Auth] No token found in request');
+            return res.status(401).json({ error: 'Unauthorized - No token' });
+        }
+        
+        const session = await authService.getSession(token);
+        
+        if (!session) {
+            console.log('[RAG Auth] No session found for token:', token.substring(0, 10) + '...');
+            return res.status(401).json({ error: 'Unauthorized - Invalid session' });
+        }
+        
+        if (!session.tenantId) {
+            console.log('[RAG Auth] Session exists but no tenantId:', session);
+            return res.status(401).json({ error: 'Unauthorized - No tenant' });
         }
         
         if (!isValidUUID(session.tenantId)) {
@@ -78,23 +93,10 @@ function validateCallbackToken(db) {
     };
 }
 
+// Legacy rate limiter - now using enhanced tenantLimiter from rateLimiter.js
 function rateLimit(req, res, next) {
-    const key = `${req.tenantId}_${req.path}`;
-    const now = Date.now();
-    const limit = rateLimits.get(key) || { count: 0, resetAt: now + 60000 };
-    
-    if (limit.resetAt < now) {
-        limit.count = 0;
-        limit.resetAt = now + 60000;
-    }
-    
-    if (limit.count >= 10) {
-        return res.status(429).json({ error: 'Rate limit exceeded' });
-    }
-    
-    limit.count++;
-    rateLimits.set(key, limit);
-    next();
+    // Use the new tenant limiter with RAG-specific limits
+    return tenantLimiter(20)(req, res, next); // 20 requests per window for RAG endpoints
 }
 
 module.exports = {

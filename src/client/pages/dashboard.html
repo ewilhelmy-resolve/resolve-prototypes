@@ -47,7 +47,7 @@
                     <button class="action-btn action-btn-secondary action-btn-small dashboard-btn">
                         <span class="action-btn-text">Dashboard</span>
                     </button>
-                    <div class="user-avatar" onclick="toggleUserDropdown()" style="cursor: pointer; position: relative;">
+                    <div class="user-avatar" id="user-avatar-toggle" style="cursor: pointer; position: relative;">
                         <span>Q</span>
                         <div class="user-dropdown" id="userDropdown" style="display: none; position: absolute; top: calc(100% + 10px); right: 0; background: #1E1E2E; border: 1px solid rgba(139, 139, 159, 0.2); border-radius: 8px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3); min-width: 280px; z-index: 1000;">
                             <div style="padding: 16px; border-bottom: 1px solid rgba(139, 139, 159, 0.2);">
@@ -66,7 +66,7 @@
                                 </div>
                             </div>
                             <div style="padding: 8px 0;">
-                                <a href="#" onclick="copyTenantId(); return false;" style="padding: 10px 16px; display: flex; align-items: center; gap: 12px; color: #FFFFFF; text-decoration: none; transition: background 0.2s; cursor: pointer; font-size: 14px;">
+                                <a href="#" id="copy-tenant-link" style="padding: 10px 16px; display: flex; align-items: center; gap: 12px; color: #FFFFFF; text-decoration: none; transition: background 0.2s; cursor: pointer; font-size: 14px;">
                                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                                         <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
                                         <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
@@ -74,7 +74,7 @@
                                     Copy Tenant ID
                                 </a>
                                 <div style="height: 1px; background: rgba(139, 139, 159, 0.2); margin: 8px 0;"></div>
-                                <a href="#" onclick="logout(); return false;" style="padding: 10px 16px; display: flex; align-items: center; gap: 12px; color: #FFFFFF; text-decoration: none; transition: background 0.2s; cursor: pointer; font-size: 14px;">
+                                <a href="#" id="logout-link" style="padding: 10px 16px; display: flex; align-items: center; gap: 12px; color: #FFFFFF; text-decoration: none; transition: background 0.2s; cursor: pointer; font-size: 14px;">
                                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                                         <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
                                         <polyline points="16 17 21 12 16 7"/>
@@ -146,7 +146,7 @@
                                 Invite your team members to use Ask Rita for workflow automation.
                             </p>
                         </div>
-                        <button class="share-all-btn" onclick="openShareModal()">
+                        <button class="share-all-btn" id="share-all-btn">
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
                                 <path d="M18 8C19.6569 8 21 6.65685 21 5C21 3.34315 19.6569 2 18 2C16.3431 2 15 3.34315 15 5C15 6.65685 16.3431 8 18 8Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
                                 <path d="M6 15C7.65685 15 9 13.6569 9 12C9 10.3431 7.65685 9 6 9C4.34315 9 3 10.3431 3 12C3 13.6569 4.34315 15 6 15Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
@@ -164,7 +164,7 @@
                         </div>
                         
                         <!-- Upload Area -->
-                        <div class="knowledge-upload" onclick="handleUpload()" style="box-sizing: border-box; width: 100%; background: rgba(248, 250, 252, 0.5); border: 2px dashed rgba(0, 0, 0, 0.08); border-radius: 8px; padding: 16px; text-align: center; cursor: pointer; transition: all 0.2s ease; margin-bottom: 16px;" 
+                        <div class="knowledge-upload" id="knowledge-upload-area" style="box-sizing: border-box; width: 100%; background: rgba(248, 250, 252, 0.5); border: 2px dashed rgba(0, 0, 0, 0.08); border-radius: 8px; padding: 16px; text-align: center; cursor: pointer; transition: all 0.2s ease; margin-bottom: 16px;" 
              onmouseover="this.style.background='rgba(248, 250, 252, 0.8)'; this.style.borderColor='rgba(78, 205, 196, 0.3)';" 
              onmouseout="this.style.background='rgba(248, 250, 252, 0.5)'; this.style.borderColor='rgba(0, 0, 0, 0.08)';">
                             <div class="upload-text" style="font-size: 12px; color: rgb(26, 26, 26); font-weight: 500; margin-bottom: 4px;">Drop files or click to upload</div>
@@ -197,7 +197,7 @@
                         <div id="articles-list" style="display: none;"></div>
                         
                         <!-- Manage Button -->
-                        <button class="action-btn action-btn-primary action-btn-medium action-btn-full knowledge-manage-btn" onclick="openKnowledgeManagement()">
+                        <button class="action-btn action-btn-primary action-btn-medium action-btn-full knowledge-manage-btn" id="knowledge-manage-btn">
                             <span class="action-btn-text">Manage Knowledge Base →</span>
                         </button>
                     </div>
@@ -792,7 +792,7 @@
                         </p>
                     </div>
                     <div class="modal-footer" style="padding: 20px 24px; gap: 12px;">
-                        <button class="modal-btn secondary" onclick="this.closest('.modal-overlay').remove()">
+                        <button class="modal-btn secondary modal-close-generic">
                             Cancel
                         </button>
                         <button class="modal-btn primary" style="background: #FF6B6B;" id="confirmDelete">
@@ -1014,54 +1014,58 @@
             documentStatusSSE.onerror = (error) => {
                 // Silently handle SSE errors - try to reconnect
                 
-                // Check if this is an authentication error by attempting a test request
-                const tenantId = window.userTenantId || localStorage.getItem('userTenantId') || 'default-tenant';
-                fetch(`/api/rag/tenant/${tenantId}/vectors/stats`, { credentials: 'include' })
-                    .then(response => {
-                        if (response.status === 401 || response.status === 403) {
-                            console.error('🚫 Authentication failed - redirecting to signin');
-                            // Close the SSE connection
-                            if (documentStatusSSE) {
-                                documentStatusSSE.close();
-                                documentStatusSSE = null;
+                // Only check auth if we've had multiple failures
+                knowledgeSSERetryCount++;
+                if (knowledgeSSERetryCount > 2) {
+                    // After multiple failures, check if this is an authentication error
+                    const tenantId = window.userTenantId || localStorage.getItem('userTenantId') || 'default-tenant';
+                    fetch(`/api/rag/tenant/${tenantId}/vectors/stats`, { credentials: 'include' })
+                        .then(response => {
+                            if (response.status === 401 || response.status === 403) {
+                                console.error('🚫 Authentication failed after multiple retries - redirecting to signin');
+                                // Close the SSE connection
+                                if (documentStatusSSE) {
+                                    documentStatusSSE.close();
+                                    documentStatusSSE = null;
+                                }
+                                // Redirect to signin page
+                                window.location.href = '/signin';
+                            } else {
+                                // Not an auth error, try to reconnect with exponential backoff
+                                if (knowledgeSSERetryCount <= MAX_KNOWLEDGE_SSE_RETRIES && documentStatusSSE) {
+                                    const delay = Math.min(5000 * Math.pow(2, knowledgeSSERetryCount - 1), 30000);
+                                    setTimeout(() => {
+                                        documentStatusSSE = null;
+                                        setupDocumentStatusSSE();
+                                    }, delay);
+                                }
                             }
-                            // Redirect to signin page
-                            window.location.href = '/signin';
-                        } else {
-                            // Not an auth error, try to reconnect with exponential backoff
-                            knowledgeSSERetryCount++;
+                        })
+                        .catch(() => {
+                            // Network error, try to reconnect
                             if (knowledgeSSERetryCount <= MAX_KNOWLEDGE_SSE_RETRIES && documentStatusSSE) {
                                 const delay = Math.min(5000 * Math.pow(2, knowledgeSSERetryCount - 1), 30000);
                                 setTimeout(() => {
                                     documentStatusSSE = null;
                                     setupDocumentStatusSSE();
                                 }, delay);
-                            } else {
-                                if (documentStatusSSE) {
-                                    documentStatusSSE.close();
-                                    documentStatusSSE = null;
-                                }
                             }
+                        });
+                } else {
+                    // First couple failures, just retry without auth check
+                    if (knowledgeSSERetryCount <= MAX_KNOWLEDGE_SSE_RETRIES && documentStatusSSE) {
+                        const delay = Math.min(5000 * Math.pow(2, knowledgeSSERetryCount - 1), 30000);
+                        setTimeout(() => {
+                            documentStatusSSE = null;
+                            setupDocumentStatusSSE();
+                        }, delay);
+                    } else {
+                        if (documentStatusSSE) {
+                            documentStatusSSE.close();
+                            documentStatusSSE = null;
                         }
-                    })
-                    .catch(err => {
-                        console.error('Error checking auth status:', err);
-                        // On network error, try to reconnect with retry limit
-                        knowledgeSSERetryCount++;
-                        if (knowledgeSSERetryCount <= MAX_KNOWLEDGE_SSE_RETRIES && documentStatusSSE) {
-                            const delay = Math.min(5000 * Math.pow(2, knowledgeSSERetryCount - 1), 30000);
-                            setTimeout(() => {
-                                documentStatusSSE = null;
-                                setupDocumentStatusSSE();
-                            }, delay);
-                        } else {
-                            console.error(`⛔ Max Knowledge SSE reconnection attempts reached (${MAX_KNOWLEDGE_SSE_RETRIES})`);
-                            if (documentStatusSSE) {
-                                documentStatusSSE.close();
-                                documentStatusSSE = null;
-                            }
-                        }
-                    });
+                    }
+                }
             };
         }
         
@@ -1140,7 +1144,7 @@
                             <h3 style="margin: 0; font-size: 18px; font-weight: 600; color: #1f2937;">${title}</h3>
                         </div>
                         <p style="margin: 0 0 20px 0; color: #6b7280; line-height: 1.5;">${message}</p>
-                        <button onclick="document.getElementById('error-modal').remove()" style="width: 100%; padding: 10px 16px; background: #3b82f6; color: white; border: none; border-radius: 8px; font-size: 14px; font-weight: 500; cursor: pointer; transition: background 0.2s;" 
+                        <button data-close-error-modal style="width: 100%; padding: 10px 16px; background: #3b82f6; color: white; border: none; border-radius: 8px; font-size: 14px; font-weight: 500; cursor: pointer; transition: background 0.2s;" 
                                 onmouseover="this.style.background='#2563eb'" 
                                 onmouseout="this.style.background='#3b82f6'">
                             Understood
@@ -1523,7 +1527,7 @@
             modal.innerHTML = `
                 <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 24px;">
                     <h2 style="color: #FFFFFF; font-size: 24px; margin: 0;">${escapeHtml(ticket.title || 'Untitled')}</h2>
-                    <button onclick="this.closest('div').parentElement.parentElement.remove()" style="
+                    <button data-close-parent-modal style="
                         background: transparent;
                         border: none;
                         color: #8B8B9F;
@@ -1756,7 +1760,7 @@
                                     <span>${createdDate}</span>
                                 </div>
                             </div>
-                            <button onclick="this.closest('#documentViewerModal').remove()" style="
+                            <button data-close-doc-viewer style="
                                 background: transparent;
                                 border: none;
                                 font-size: 24px;
@@ -1858,6 +1862,86 @@
     <script src="/components/mobile-menu.js"></script>
     <script src="/components/chat-history.js"></script>
     <script>
+        // Add event listeners to replace inline onclick handlers
+        document.addEventListener('DOMContentLoaded', () => {
+            // User avatar dropdown toggle
+            const userAvatar = document.getElementById('user-avatar-toggle');
+            if (userAvatar) {
+                userAvatar.addEventListener('click', toggleUserDropdown);
+            }
+
+            // Copy tenant ID link
+            const copyTenantLink = document.getElementById('copy-tenant-link');
+            if (copyTenantLink) {
+                copyTenantLink.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    copyTenantId();
+                });
+            }
+
+            // Logout link
+            const logoutLink = document.getElementById('logout-link');
+            if (logoutLink) {
+                logoutLink.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    logout();
+                });
+            }
+
+            // Share all button
+            const shareAllBtn = document.getElementById('share-all-btn');
+            if (shareAllBtn) {
+                shareAllBtn.addEventListener('click', openShareModal);
+            }
+
+            // Knowledge upload area
+            const knowledgeUpload = document.getElementById('knowledge-upload-area');
+            if (knowledgeUpload) {
+                knowledgeUpload.addEventListener('click', handleUpload);
+            }
+
+            // Knowledge management button
+            const knowledgeManageBtn = document.getElementById('knowledge-manage-btn');
+            if (knowledgeManageBtn) {
+                knowledgeManageBtn.addEventListener('click', openKnowledgeManagement);
+            }
+
+            // Generic modal close buttons
+            document.addEventListener('click', (e) => {
+                // Close modal overlay buttons
+                if (e.target.classList.contains('modal-close-generic')) {
+                    const modalOverlay = e.target.closest('.modal-overlay');
+                    if (modalOverlay) {
+                        modalOverlay.remove();
+                    }
+                }
+
+                // Close error modal button
+                if (e.target.hasAttribute('data-close-error-modal')) {
+                    const errorModal = document.getElementById('error-modal');
+                    if (errorModal) {
+                        errorModal.remove();
+                    }
+                }
+
+                // Close parent modal button
+                if (e.target.hasAttribute('data-close-parent-modal')) {
+                    const parentModal = e.target.closest('div').parentElement.parentElement;
+                    if (parentModal) {
+                        parentModal.remove();
+                    }
+                }
+
+                // Close document viewer modal
+                if (e.target.hasAttribute('data-close-doc-viewer')) {
+                    const docViewerModal = e.target.closest('#documentViewerModal');
+                    if (docViewerModal) {
+                        docViewerModal.remove();
+                    }
+                }
+            });
+        });
+
         // Initialize QuikChat when DOM is ready
         document.addEventListener('DOMContentLoaded', () => {
             // Initialize QuikChat RAG integration

@@ -1,8 +1,14 @@
-const { test, expect } = require('../fixtures/base-test');
+const { test, expect } = require('@playwright/test');
+const { signInAsAdmin, BASE_URL } = require('../fixtures/base-test');
 
 test.describe('Dashboard', () => {
-  test('should load the dashboard page', async ({ authenticatedPage: page }) => {
-    // Already authenticated via fixture, so we're on the dashboard
+  test.beforeEach(async ({ page }) => {
+    // Authenticate before each test
+    await signInAsAdmin(page);
+  });
+
+  test('should load the dashboard page', async ({ page }) => {
+    // Already authenticated via beforeEach
     
     // Check page title
     await expect(page).toHaveTitle(/Dashboard - Resolve/);
@@ -21,7 +27,7 @@ test.describe('Dashboard', () => {
     await expect(page.locator('h3:has-text("Knowledge Base")')).toBeVisible();
   });
 
-  test('should have working chat input', async ({ authenticatedPage: page }) => {
+  test('should have working chat input', async ({ page }) => {
     // Already authenticated via fixture
     
     // Type in chat input
@@ -89,7 +95,7 @@ test.describe('Dashboard', () => {
     }
   });
 
-  test('should have functional header elements', async ({ authenticatedPage: page }) => {
+  test('should have functional header elements', async ({ page }) => {
     // Already authenticated via fixture
     
     // Check for logo (SVG)
@@ -105,7 +111,7 @@ test.describe('Dashboard', () => {
     await expect(page.locator('.user-avatar')).toBeVisible();
   });
 
-  test('should have Share Rita section', async ({ authenticatedPage: page }) => {
+  test('should have Share Rita section', async ({ page }) => {
     // Already authenticated via fixture
     
     // Check for Share Rita section

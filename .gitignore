@@ -13,6 +13,7 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 lerna-debug.log*
+logs/
 
 # Screenshots and images
 *.png
@@ -44,6 +45,7 @@ coverage/
 tests/fixtures/test-data-*.csv
 tests/fixtures/*.log
 tests/fixtures/*.txt
+tests/.test-containers.json
 
 # Database files - DO NOT IGNORE
 # *.db files are tracked in this project
@@ -79,4 +81,21 @@ out/
 *cookie*.txt
 admin_page.html
 test-webhook-payload.js
-tests/test-data-*.csvdocker-compose.override.yml
+tests/test-data-*.csv
+docker-compose.override.yml
+
+# Test scripts in root directory (should be in scripts/)
+/test-*.js
+/debug-*.js
+/validate-*.js
+/quick-*.js
+/dc-*.js
+/fix-*.js
+/migrate-*.js
+/run-*.js
+
+# Test output files
+*.test.json
+redis-test-user.json
+test-output.txt
+test-results.json

@@ -1,43 +1,15 @@
-const { Pool } = require('pg');
 const crypto = require('crypto');
 const { runPostgreSQLMigrations } = require('./migrations');
-
-// TEMPORARY HARDCODED VALUES - FIX ENV LOADING LATER
-const DATABASE_URL = process.env.DATABASE_URL || 'postgresql://postgres.wgqdwdzlhspipdvhedkv:0I3mmy0jAdB6vjSF@aws-1-us-east-1.pooler.supabase.com:5432/postgres';
-
-// Create PostgreSQL connection pool
-const pool = new Pool({
-  connectionString: DATABASE_URL,
-  max: 10, // Reduced for Supabase pooler
-  idleTimeoutMillis: 10000, // Reduced to 10 seconds for Supabase
-  connectionTimeoutMillis: 5000,
-  // Force IPv4 and SSL for Supabase
-  ssl: DATABASE_URL.includes('supabase') 
-    ? { rejectUnauthorized: false } 
-    : false,
-  // Supabase pooler settings
-  keepAlive: false, // Don't keep connections alive with pooler
-  allowExitOnIdle: true
-});
-
-// Handle pool errors gracefully
-pool.on('error', (err, client) => {
-  if (err.code === 'XX000' && err.message.includes('db_termination')) {
-    console.warn('⚠️ Database connection terminated by pooler - this is expected with Supabase');
-  } else {
-    console.error('Unexpected database pool error:', err);
-  }
-});
+const dbConnection = require('./connection');
 
 // Initialize database with migrations
 async function initializeDatabase() {
   try {
-    // Test connection
-    const res = await pool.query('SELECT NOW()');
-    console.log('✅ Database connected successfully at:', res.rows[0].now);
+    // Connect using the new connection layer
+    await dbConnection.connect();
     
     // Don't run migrations here - they're run from server.js startup
-    // await runPostgreSQLMigrations(pool);
+    // await runPostgreSQLMigrations(dbConnection.pool);
   } catch (err) {
     console.error('❌ Database initialization failed:', err);
     // Don't exit - let the app try to continue
@@ -48,16 +20,17 @@ async function initializeDatabase() {
 // Initialize on startup
 initializeDatabase();
 
-// Helper function to handle database queries
+// Helper function to handle database queries - use the connection layer
 async function query(text, params) {
-  try {
-    const result = await pool.query(text, params);
-    return result;
-  } catch (error) {
-    console.error('Database query error:', error);
-    throw error;
-  }
+  return await dbConnection.query(text, params);
 }
+
+// Expose the pool for backward compatibility
+const pool = {
+  query: dbConnection.query.bind(dbConnection),
+  connect: () => dbConnection.pool.connect(),
+  end: () => dbConnection.close()
+};
 
 // User operations
 const userOps = {
@@ -163,55 +136,50 @@ const ticketOps = {
   },
 
   async importTickets(tickets, source = 'manual', userEmail = null) {
-    const client = await pool.connect();
     try {
-      await client.query('BEGIN');
-      
-      for (const ticket of tickets) {
-        await client.query(
-          `INSERT INTO tickets (
-            ticket_id, title, description, status, priority, category,
-            created_at, resolved_at, resolution_time_minutes, cost_saved,
-            assigned_to, resolved_by, is_automated, automation_type, source, user_email
-          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
-          ON CONFLICT (ticket_id) DO UPDATE SET
-            title = EXCLUDED.title,
-            description = EXCLUDED.description,
-            status = EXCLUDED.status,
-            priority = EXCLUDED.priority,
-            category = EXCLUDED.category,
-            resolved_at = EXCLUDED.resolved_at,
-            resolution_time_minutes = EXCLUDED.resolution_time_minutes,
-            cost_saved = EXCLUDED.cost_saved`,
-          [
-            ticket.ticket_id,
-            ticket.title,
-            ticket.description || null,
-            ticket.status || 'open',
-            ticket.priority || 'medium',
-            ticket.category || 'General',
-            ticket.created_at || new Date(),
-            ticket.resolved_at || null,
-            ticket.resolution_time_minutes || null,
-            ticket.cost_saved || null,
-            ticket.assigned_to || null,
-            ticket.resolved_by || null,
-            ticket.is_automated || false,
-            ticket.automation_type || null,
-            source,
-            userEmail || ticket.user_email || null
-          ]
-        );
-      }
-      
-      await client.query('COMMIT');
-      return { success: true, count: tickets.length };
+      return await dbConnection.transaction(async (client) => {
+        for (const ticket of tickets) {
+          await client.query(
+            `INSERT INTO tickets (
+              ticket_id, title, description, status, priority, category,
+              created_at, resolved_at, resolution_time_minutes, cost_saved,
+              assigned_to, resolved_by, is_automated, automation_type, source, user_email
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+            ON CONFLICT (ticket_id) DO UPDATE SET
+              title = EXCLUDED.title,
+              description = EXCLUDED.description,
+              status = EXCLUDED.status,
+              priority = EXCLUDED.priority,
+              category = EXCLUDED.category,
+              resolved_at = EXCLUDED.resolved_at,
+              resolution_time_minutes = EXCLUDED.resolution_time_minutes,
+              cost_saved = EXCLUDED.cost_saved`,
+            [
+              ticket.ticket_id,
+              ticket.title,
+              ticket.description || null,
+              ticket.status || 'open',
+              ticket.priority || 'medium',
+              ticket.category || 'General',
+              ticket.created_at || new Date(),
+              ticket.resolved_at || null,
+              ticket.resolution_time_minutes || null,
+              ticket.cost_saved || null,
+              ticket.assigned_to || null,
+              ticket.resolved_by || null,
+              ticket.is_automated || false,
+              ticket.automation_type || null,
+              source,
+              userEmail || ticket.user_email || null
+            ]
+          );
+        }
+        
+        return { success: true, count: tickets.length };
+      });
     } catch (error) {
-      await client.query('ROLLBACK');
       console.error('Error importing tickets:', error);
       return { success: false, error: error.message };
-    } finally {
-      client.release();
     }
   },
 
@@ -762,6 +730,6 @@ module.exports = {
   
   // Utility function to close database
   async close() {
-    await pool.end();
+    await dbConnection.close();
   }
 };

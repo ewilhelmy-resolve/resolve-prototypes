@@ -1,4 +1,5 @@
-const { test, expect } = require('../fixtures/base-test');
+const { test, expect } = require('@playwright/test');
+const { signInAsAdmin, BASE_URL, ADMIN_CREDENTIALS } = require('../fixtures/base-test');
 
 test.describe('Login Form Enter Key', () => {
   test('should submit login form when pressing Enter', async ({ page, browserName }) => {

@@ -413,7 +413,7 @@ async function ensureAdminUser(dbConnection, dbType) {
       },
       {
         email: 'admin@resolve.io',
-        password: 'admin123',
+        password: '$2b$10$D.uCFMXDzXT47Ej1mM.4R.R6PzGg47rNZBWLaoy/40i3UadhnI2JW', // admin123 bcrypt hash
         fullName: 'Admin User',
         company: 'Resolve',
         tier: 'admin'

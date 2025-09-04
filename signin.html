@@ -128,17 +128,17 @@
                 <form class="onboarding-form" id="signin-form">
                     <div class="form-field">
                         <label for="email">Work email</label>
-                        <input type="email" id="email" name="email" class="rt-TextField-Input" placeholder="you@acme.com" required>
+                        <input type="email" id="email" name="email" data-testid="email-input" class="rt-TextField-Input" placeholder="you@acme.com" required>
                     </div>
                     
                     <div class="form-field">
                         <label for="password">Password</label>
-                        <input type="password" id="password" name="password" class="rt-TextField-Input" placeholder="Enter password" required>
+                        <input type="password" id="password" name="password" data-testid="password-input" class="rt-TextField-Input" placeholder="Enter password" required>
                     </div>
 
                     <div class="nav-buttons">
-                        <button type="button" class="rt-Button rt-variant-ghost" onclick="window.location.href='/'">Back to Signup</button>
-                        <button type="submit" class="rt-Button rt-variant-outline">Sign In</button>
+                        <button type="button" class="rt-Button rt-variant-ghost" id="back-to-signup">Back to Signup</button>
+                        <button type="submit" data-testid="signin-button" class="rt-Button rt-variant-outline">Sign In</button>
                     </div>
                 </form>
 
@@ -203,7 +203,7 @@
             const toast = document.createElement('div');
             toast.className = `toast-notification ${type}`;
             toast.innerHTML = `
-                <button class="toast-close" onclick="this.parentElement.remove()">
+                <button class="toast-close">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M18 6L6 18M6 6l12 12"/>
                     </svg>
@@ -236,6 +236,21 @@
             }, 5000);
         }
 
+        // Add event listener for back to signup button
+        document.getElementById('back-to-signup').addEventListener('click', () => {
+            window.location.href = '/';
+        });
+
+        // Add event delegation for toast close buttons
+        document.addEventListener('click', (e) => {
+            if (e.target.closest('.toast-close')) {
+                const toast = e.target.closest('.toast-notification');
+                if (toast) {
+                    toast.remove();
+                }
+            }
+        });
+
         document.getElementById('signin-form').addEventListener('submit', async (e) => {
             e.preventDefault();
             
@@ -245,11 +260,12 @@
             };
 
             try {
-                const response = await fetch('/api/signin', {
+                const response = await fetch('/api/auth/signin', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                     },
+                    credentials: 'include',  // Include cookies in request
                     body: JSON.stringify(formData)
                 });
 

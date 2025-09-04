@@ -1,10 +1,16 @@
-const { test, expect, sendChatMessage } = require('../fixtures/base-test');
+const { test, expect } = require('@playwright/test');
+const { signInAsAdmin, sendChatMessage, BASE_URL } = require('../fixtures/base-test');
 
 test.describe('Chat History Enhanced UI Tests', () => {
-    test('Verify all UI improvements: visibility, delete, and active states', async ({ authenticatedPage: page }) => {
+    test.beforeEach(async ({ page }) => {
+        // Authenticate before each test
+        await signInAsAdmin(page);
+    });
+
+    test('Verify all UI improvements: visibility, delete, and active states', async ({ page }) => {
         console.log('🧪 Testing Chat History UI Enhancements');
         
-        // Already logged in via authenticatedPage fixture
+        // Already logged in via beforeEach
         console.log('✅ Already authenticated as admin');
         
         // Wait for chat interface to load
@@ -123,7 +129,7 @@ test.describe('Chat History Enhanced UI Tests', () => {
         console.log('\n✅ All UI enhancement tests passed!');
     });
     
-    test('Quick delete operation test', async ({ authenticatedPage: page }) => {
+    test('Quick delete operation test', async ({ page }) => {
         console.log('🧪 Testing Quick Delete Functionality');
         
         // Create a message to ensure we have something to delete

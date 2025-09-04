@@ -1,10 +1,16 @@
-const { test, expect } = require('../fixtures/base-test');
+const { test, expect } = require('@playwright/test');
+const { signInAsAdmin, BASE_URL, ADMIN_CREDENTIALS } = require('../fixtures/base-test');
 
 test.describe('Document Viewer', () => {
-  test('validates knowledge base document viewer functionality', async ({ authenticatedPage: page }) => {
+  test.beforeEach(async ({ page }) => {
+    // Authenticate before each test
+    await signInAsAdmin(page);
+  });
+
+  test('validates knowledge base document viewer functionality', async ({ page }) => {
     console.log('\n📚 TESTING DOCUMENT VIEWER\n');
     
-    // authenticatedPage fixture already signed us in as admin
+    // Already authenticated via beforeEach
     console.log('1️⃣ Already authenticated as admin\n');
     
     // 2. Check for Knowledge Base section

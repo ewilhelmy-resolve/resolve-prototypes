@@ -1,7 +1,89 @@
 const express = require('express');
 const crypto = require('crypto');
+const { body, param, validationResult } = require('express-validator');
 const { validateTenant, validateCallbackToken, rateLimit } = require('../middleware/ragAuth');
 const { generateCallbackToken } = require('../utils/rag');
+const authService = require('../services/authService');
+const { 
+    isValidUUID, 
+    sanitizeHtml, 
+    containsSqlInjection,
+    validateFileUpload 
+} = require('../utils/validation');
+
+// Enhanced validation middleware
+const validateKnowledgeIngestion = [
+    param('tenantId')
+        .isUUID(4)
+        .withMessage('Invalid tenant ID format'),
+    body('articles')
+        .isArray({ min: 1, max: 100 })
+        .withMessage('Articles must be an array with 1-100 items'),
+    body('articles.*.title')
+        .isLength({ min: 1, max: 500 })
+        .withMessage('Article title must be 1-500 characters')
+        .custom((value) => {
+            if (containsSqlInjection(value)) {
+                throw new Error('Invalid characters in title');
+            }
+            return true;
+        }),
+    body('articles.*.content')
+        .isLength({ min: 1, max: 102400 })
+        .withMessage('Article content must be 1-100KB')
+        .custom((value) => {
+            if (containsSqlInjection(value)) {
+                throw new Error('Invalid characters in content');
+            }
+            return true;
+        }),
+    body('articles.*.category')
+        .optional()
+        .isLength({ max: 100 })
+        .withMessage('Category must be less than 100 characters')
+        .custom((value) => {
+            if (value && containsSqlInjection(value)) {
+                throw new Error('Invalid characters in category');
+            }
+            return true;
+        }),
+    body('articles.*.tags')
+        .optional()
+        .isArray({ max: 20 })
+        .withMessage('Tags must be an array with max 20 items'),
+    body('articles.*.tags.*')
+        .optional()
+        .isLength({ max: 50 })
+        .withMessage('Each tag must be less than 50 characters')
+];
+
+const validateCallbackRequest = [
+    param('callbackId')
+        .isLength({ min: 32, max: 64 })
+        .matches(/^[a-f0-9]+$/)
+        .withMessage('Invalid callback ID format'),
+    body('vectors')
+        .optional()
+        .isArray({ max: 1000 })
+        .withMessage('Vectors must be an array with max 1000 items'),
+    body('error')
+        .optional()
+        .isLength({ max: 1000 })
+        .withMessage('Error message too long')
+];
+
+// Handle validation errors
+const handleValidationErrors = (req, res, next) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+        console.log(`[SECURITY] Validation failed: ${JSON.stringify(errors.array())}`);
+        return res.status(400).json({ 
+            error: 'Validation failed',
+            details: errors.array()
+        });
+    }
+    next();
+};
 
 function createKnowledgeRouter(db, sessions) {
     const router = express.Router();
@@ -14,8 +96,13 @@ function createKnowledgeRouter(db, sessions) {
         next();
     });
 
-    // 1. Ingest knowledge articles with tenant isolation
-    router.post('/tenant/:tenantId/knowledge', validateTenantMW, rateLimit, async (req, res) => {
+    // 1. Ingest knowledge articles with tenant isolation and enhanced validation
+    router.post('/tenant/:tenantId/knowledge', 
+        validateKnowledgeIngestion, 
+        handleValidationErrors,
+        validateTenantMW, 
+        rateLimit, 
+        async (req, res) => {
         try {
             // Use the tenant ID from the authenticated session, not from URL
             // The URL tenant ID is for routing/namespacing only
@@ -29,18 +116,7 @@ function createKnowledgeRouter(db, sessions) {
             const results = [];
             
             for (const article of articles) {
-                // Validate article size (100KB per article for knowledge base)
-                const maxSize = parseInt(process.env.MAX_KNOWLEDGE_SIZE) || 102400;
-                if (article.content && article.content.length > maxSize) {
-                    results.push({ 
-                        error: 'Article exceeds 100KB limit',
-                        title: article.title,
-                        skipped: true 
-                    });
-                    continue;
-                }
-                
-                // Ensure article has required fields
+                // Additional security validation (express-validator already ran)
                 if (!article.content || !article.title) {
                     results.push({ 
                         error: 'Article missing title or content',
@@ -48,6 +124,30 @@ function createKnowledgeRouter(db, sessions) {
                     });
                     continue;
                 }
+                
+                // Sanitize inputs to prevent XSS
+                const sanitizedTitle = sanitizeHtml(article.title.trim());
+                const sanitizedContent = article.content.trim();
+                const sanitizedCategory = article.category ? sanitizeHtml(article.category.trim()) : 'knowledge';
+                
+                // Validate content size after sanitization
+                const maxSize = parseInt(process.env.MAX_KNOWLEDGE_SIZE) || 102400;
+                if (sanitizedContent.length > maxSize) {
+                    results.push({ 
+                        error: 'Article exceeds 100KB limit after processing',
+                        title: sanitizedTitle,
+                        skipped: true 
+                    });
+                    continue;
+                }
+                
+                // Sanitize tags array
+                const sanitizedTags = Array.isArray(article.tags) 
+                    ? article.tags
+                        .slice(0, 20) // Limit to 20 tags
+                        .map(tag => sanitizeHtml(String(tag).trim()))
+                        .filter(tag => tag.length > 0 && tag.length <= 50)
+                    : [];
                 
                 const articleId = crypto.randomUUID();
                 const callbackId = crypto.randomBytes(16).toString('hex');
@@ -62,7 +162,7 @@ function createKnowledgeRouter(db, sessions) {
                     await generateCallbackToken(db, tenantId);
                 }
                 
-                // Store knowledge article
+                // Store knowledge article with sanitized data
                 await db.query(
                     `INSERT INTO rag_documents (
                         tenant_id, document_id, callback_id, content, metadata, 
@@ -72,14 +172,16 @@ function createKnowledgeRouter(db, sessions) {
                         tenantId, 
                         articleId, 
                         callbackId, 
-                        article.content, 
+                        sanitizedContent, 
                         {
                             ...article.metadata,
-                            title: article.title,
-                            category: article.category || 'knowledge',
-                            tags: article.tags || [],
-                            source: article.source || 'actions-platform',
-                            type: 'knowledge-article'
+                            title: sanitizedTitle,
+                            category: sanitizedCategory,
+                            tags: sanitizedTags,
+                            source: sanitizeHtml(article.source || 'actions-platform'),
+                            type: 'knowledge-article',
+                            originalTitle: article.title, // Keep original for reference
+                            processedAt: new Date().toISOString()
                         },
                         req.userEmail || 'actions-platform',
                         'pending'  // Changed from 'pending-vectorization' to fit VARCHAR(20)
@@ -89,7 +191,7 @@ function createKnowledgeRouter(db, sessions) {
                 results.push({ 
                     article_id: articleId, 
                     callback_id: callbackId,
-                    title: article.title,
+                    title: sanitizedTitle,
                     status: 'accepted'
                 });
                 
@@ -139,7 +241,7 @@ function createKnowledgeRouter(db, sessions) {
                 }
             } else if (sessionToken) {
                 // Validate session token and ensure tenant isolation
-                const session = sessions[sessionToken];
+                const session = await authService.getSession(sessionToken);
                 
                 if (!session) {
                     return res.status(401).json({ error: 'Invalid session' });
