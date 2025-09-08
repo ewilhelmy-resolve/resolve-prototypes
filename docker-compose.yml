@@ -10,11 +10,7 @@ services:
     environment:
       - NODE_ENV=development
       - PORT=5000
-      - POSTGRES_HOST=postgres
-      - POSTGRES_PORT=5432
-      - POSTGRES_DB=resolve_db
-      - POSTGRES_USER=resolve_user
-      - POSTGRES_PASSWORD=resolve123
+      # Database URL from .env will be used to connect to Supabase
     volumes:
       - ./uploads:/app/uploads
     healthcheck:
@@ -23,29 +19,29 @@ services:
       timeout: 3s
       retries: 3
       start_period: 10s
-    depends_on:
-      postgres:
-        condition: service_healthy
+    # No local database dependency - connects to Supabase
     env_file:
       - .env
 
-  postgres:
-    image: ankane/pgvector:latest
-    ports:
-      - "5432:5432"
-    environment:
-      - POSTGRES_DB=resolve_db
-      - POSTGRES_USER=resolve_user
-      - POSTGRES_PASSWORD=resolve123
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-      - ./src/database:/docker-entrypoint-initdb.d
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U resolve_user -d resolve_db"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 10s
+  # Local PostgreSQL is disabled - using Supabase cloud database
+  # Uncomment below to use local PostgreSQL instead of Supabase
+  # postgres:
+  #   image: ankane/pgvector:latest
+  #   ports:
+  #     - "5432:5432"
+  #   environment:
+  #     - POSTGRES_DB=resolve_db
+  #     - POSTGRES_USER=resolve_user
+  #     - POSTGRES_PASSWORD=resolve123
+  #   volumes:
+  #     - postgres_data:/var/lib/postgresql/data
+  #     - ./src/database:/docker-entrypoint-initdb.d
+  #   healthcheck:
+  #     test: ["CMD-SHELL", "pg_isready -U resolve_user -d resolve_db"]
+  #     interval: 10s
+  #     timeout: 5s
+  #     retries: 5
+  #     start_period: 10s
 
 volumes:
   postgres_data:

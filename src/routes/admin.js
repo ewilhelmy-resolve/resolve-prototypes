@@ -348,8 +348,12 @@ router.get('/diagnostics', requireAdmin, async (req, res) => {
       dbStatus.connected = true;
       dbStatus.timestamp = result.rows[0].now;
       // Add connection URL (mask password for security)
-      const dbUrl = process.env.DATABASE_URL || 'postgresql://postgres.wgqdwdzlhspipdvhedkv:0I3mmy0jAdB6vjSF@aws-1-us-east-1.pooler.supabase.com:5432/postgres';
-      dbStatus.connectionUrl = dbUrl.replace(/:([^@]+)@/, ':****@'); // Mask password
+      const dbUrl = process.env.DATABASE_URL;
+      if (dbUrl) {
+        dbStatus.connectionUrl = dbUrl.replace(/:([^@]+)@/, ':****@'); // Mask password
+      } else {
+        dbStatus.connectionUrl = 'No DATABASE_URL configured';
+      }
     } catch (error) {
       dbStatus.error = error.message;
     }
