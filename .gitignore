@@ -52,7 +52,7 @@ tests/.test-containers.json
 # resolve-onboarding.db contains critical data
 
 # Environment variables
-.env
+# .env is tracked for CI/CD process - DO NOT IGNORE
 .env.local
 .env.development.local
 .env.test.local

@@ -219,7 +219,6 @@ class TenantManagement {
 
     async loadUsers() {
         try {
-            const token = localStorage.getItem('sessionToken');
             const params = new URLSearchParams({
                 page: this.currentPage,
                 pageSize: this.pageSize,
@@ -230,9 +229,7 @@ class TenantManagement {
             });
 
             const response = await fetch(`/api/tenants/${this.tenantId}/users?${params}`, {
-                headers: {
-                    'Authorization': `Bearer ${token}`
-                }
+                credentials: 'include'  // Include cookies in request
             });
 
             if (!response.ok) {
@@ -510,13 +507,12 @@ class TenantManagement {
 
     async createUser(userData) {
         try {
-            const token = localStorage.getItem('sessionToken');
             const response = await fetch(`/api/tenants/${this.tenantId}/users`, {
                 method: 'POST',
                 headers: {
-                    'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/json'
                 },
+                credentials: 'include',  // Include cookies in request
                 body: JSON.stringify(userData)
             });
 
@@ -541,12 +537,9 @@ class TenantManagement {
 
     async resetPassword(userId) {
         try {
-            const token = localStorage.getItem('sessionToken');
             const response = await fetch(`/api/tenants/${this.tenantId}/users/${userId}/reset-password`, {
                 method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${token}`
-                }
+                credentials: 'include'  // Include cookies in request
             });
 
             const data = await response.json();
@@ -664,12 +657,9 @@ class TenantManagement {
 
     async performDeleteUser(userId) {
         try {
-            const token = localStorage.getItem('sessionToken');
             const response = await fetch(`/api/tenants/${this.tenantId}/users/${userId}`, {
                 method: 'DELETE',
-                headers: {
-                    'Authorization': `Bearer ${token}`
-                }
+                credentials: 'include'  // Include cookies in request
             });
 
             if (!response.ok) {

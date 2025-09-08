@@ -7,6 +7,7 @@
     <link rel="stylesheet" href="/styles/fonts.css">
     <link rel="stylesheet" href="/styles/typography.css">
     <link rel="stylesheet" href="/styles/base.css">
+    <link rel="stylesheet" href="/styles/table.css">
     <link rel="stylesheet" href="/styles/admin-styles.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
@@ -79,15 +80,15 @@
                     </div>
                 </div>
 
-                <div class="top-users-container">
-                    <h3>Most Active Users</h3>
+                <div class="table-container">
+                    <h3 style="margin-bottom: 16px;">Most Active Users</h3>
                     <table class="data-table">
                         <thead>
                             <tr>
-                                <th>User Email</th>
-                                <th>Total Triggers</th>
-                                <th>Success Rate</th>
-                                <th>Last Activity</th>
+                                <th class="table-th">User Email</th>
+                                <th class="table-th">Total Triggers</th>
+                                <th class="table-th">Success Rate</th>
+                                <th class="table-th">Last Activity</th>
                             </tr>
                         </thead>
                         <tbody id="topUsersTable">
@@ -133,18 +134,18 @@
                     </div>
                 </div>
                 
-                <div class="users-table-container">
+                <div class="table-container">
                     <table class="data-table" id="usersManagementTable">
                         <thead>
                             <tr>
-                                <th>Email</th>
-                                <th>Company</th>
-                                <th>Phone</th>
-                                <th>Tier</th>
-                                <th>Tickets</th>
-                                <th>Registered</th>
-                                <th>Last Login</th>
-                                <th>Actions</th>
+                                <th class="table-th">Email</th>
+                                <th class="table-th">Company</th>
+                                <th class="table-th">Phone</th>
+                                <th class="table-th">Tier</th>
+                                <th class="table-th">Tickets</th>
+                                <th class="table-th">Registered</th>
+                                <th class="table-th">Last Login</th>
+                                <th class="table-th table-th-actions">Actions</th>
                             </tr>
                         </thead>
                         <tbody id="usersTableBody">
@@ -216,22 +217,24 @@
                     <button id="refreshTriggers" class="btn-refresh">Refresh</button>
                 </div>
 
-                <table class="data-table">
-                    <thead>
-                        <tr>
-                            <th>Timestamp</th>
-                            <th>User</th>
-                            <th>Type</th>
-                            <th>Action</th>
-                            <th>Status</th>
-                            <th>Response</th>
-                            <th>Details</th>
-                        </tr>
-                    </thead>
-                    <tbody id="triggersTable">
-                        <!-- Dynamic content -->
-                    </tbody>
-                </table>
+                <div class="table-container">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th class="table-th">Timestamp</th>
+                                <th class="table-th">User</th>
+                                <th class="table-th">Type</th>
+                                <th class="table-th">Action</th>
+                                <th class="table-th">Status</th>
+                                <th class="table-th">Response</th>
+                                <th class="table-th">Details</th>
+                            </tr>
+                        </thead>
+                        <tbody id="triggersTable">
+                            <!-- Dynamic content -->
+                        </tbody>
+                    </table>
+                </div>
             </section>
 
             <!-- User Activity Section -->
@@ -336,21 +339,23 @@
             <section id="webhooks" class="admin-section">
                 <h2>Webhook Call Logs</h2>
                 
-                <table class="data-table">
-                    <thead>
-                        <tr>
-                            <th>Timestamp</th>
-                            <th>User</th>
-                            <th>Upload File</th>
-                            <th>Status</th>
-                            <th>Response</th>
-                            <th>Error</th>
-                        </tr>
-                    </thead>
-                    <tbody id="webhooksTable">
-                        <!-- Dynamic content -->
-                    </tbody>
-                </table>
+                <div class="table-container">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th class="table-th">Timestamp</th>
+                                <th class="table-th">User</th>
+                                <th class="table-th">Upload File</th>
+                                <th class="table-th">Status</th>
+                                <th class="table-th">Response</th>
+                                <th class="table-th">Error</th>
+                            </tr>
+                        </thead>
+                        <tbody id="webhooksTable">
+                            <!-- Dynamic content -->
+                        </tbody>
+                    </table>
+                </div>
             </section>
 
             <!-- Webhook Traffic Logs Section -->
@@ -404,17 +409,17 @@
                     <span id="failedTrafficCount">Failed: 0</span>
                 </div>
                 
-                <div class="traffic-table-container">
+                <div class="table-container">
                     <table class="data-table" id="trafficTable">
                         <thead>
                             <tr>
-                                <th>Time</th>
-                                <th>Method</th>
-                                <th>URL</th>
-                                <th>Category</th>
-                                <th>Status</th>
-                                <th>IP</th>
-                                <th>Actions</th>
+                                <th class="table-th">Time</th>
+                                <th class="table-th">Method</th>
+                                <th class="table-th">URL</th>
+                                <th class="table-th">Category</th>
+                                <th class="table-th">Status</th>
+                                <th class="table-th">IP</th>
+                                <th class="table-th table-th-actions">Actions</th>
                             </tr>
                         </thead>
                         <tbody id="trafficTableBody">

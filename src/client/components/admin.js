@@ -834,7 +834,12 @@ function updateTopUsersTable(users) {
     tbody.innerHTML = '';
     
     if (!users || users.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="4">No user data available</td></tr>';
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="4" class="table-empty-state">
+                    <p class="table-empty-subtitle">No user data available</p>
+                </td>
+            </tr>`;
         return;
     }
     
@@ -844,11 +849,19 @@ function updateTopUsersTable(users) {
             : 0;
         
         tbody.innerHTML += `
-            <tr>
-                <td>${user.user_email}</td>
-                <td>${user.trigger_count}</td>
-                <td>${successRate}%</td>
-                <td>${formatDateTime(user.last_activity)}</td>
+            <tr class="table-tr">
+                <td class="table-td table-td-primary">
+                    <span class="table-link">${user.user_email}</span>
+                </td>
+                <td class="table-td">${user.trigger_count}</td>
+                <td class="table-td">
+                    <span class="table-status-badge ${successRate >= 80 ? 'table-status-ready' : successRate >= 50 ? 'table-status-text' : 'table-status-error'}">
+                        ${successRate}%
+                    </span>
+                </td>
+                <td class="table-td">
+                    <span class="table-text-secondary">${formatDateTime(user.last_activity)}</span>
+                </td>
             </tr>
         `;
     });
@@ -1410,19 +1423,36 @@ function updateWebhooksTable(webhooks) {
     tbody.innerHTML = '';
     
     if (!webhooks || webhooks.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="6">No webhook calls found</td></tr>';
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="6" class="table-empty-state">
+                    <p class="table-empty-subtitle">No webhook calls found</p>
+                </td>
+            </tr>`;
         return;
     }
     
     webhooks.forEach(webhook => {
         tbody.innerHTML += `
-            <tr>
-                <td>${formatDateTime(webhook.called_at)}</td>
-                <td>${webhook.user_email}</td>
-                <td>${webhook.filename || '-'}</td>
-                <td>${webhook.response_status || '-'}</td>
-                <td>${webhook.success ? 'Success' : 'Failed'}</td>
-                <td>${webhook.error_message || '-'}</td>
+            <tr class="table-tr">
+                <td class="table-td">
+                    <span class="table-text-secondary">${formatDateTime(webhook.called_at)}</span>
+                </td>
+                <td class="table-td table-td-primary">
+                    <span class="table-link">${webhook.user_email}</span>
+                </td>
+                <td class="table-td">
+                    <span class="table-text-secondary">${webhook.filename || '-'}</span>
+                </td>
+                <td class="table-td">${webhook.response_status || '-'}</td>
+                <td class="table-td">
+                    <span class="table-status-badge ${webhook.success ? 'table-status-ready' : 'table-status-error'}">
+                        ${webhook.success ? 'Success' : 'Failed'}
+                    </span>
+                </td>
+                <td class="table-td">
+                    <span class="table-text-secondary">${webhook.error_message || '-'}</span>
+                </td>
             </tr>
         `;
     });
@@ -1665,7 +1695,19 @@ function updateUsersTable(users) {
     tbody.innerHTML = '';
     
     if (!users || users.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="8">No users found</td></tr>';
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="8" class="table-empty-state">
+                    <div class="table-empty-icon">
+                        <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                            <circle cx="12" cy="7" r="4"/>
+                        </svg>
+                    </div>
+                    <h3 class="table-empty-title">No users found</h3>
+                    <p class="table-empty-subtitle">Try adjusting your filters or search criteria</p>
+                </td>
+            </tr>`;
         return;
     }
     
@@ -1675,21 +1717,33 @@ function updateUsersTable(users) {
         const lastLogin = user.last_login ? formatDate(user.last_login) : 'Never';
         
         tbody.innerHTML += `
-            <tr>
-                <td>${user.email}</td>
-                <td>${user.company_name || '-'}</td>
-                <td>${user.phone || '-'}</td>
-                <td>${tierBadge}</td>
-                <td>${user.ticket_count || 0}</td>
-                <td>${registeredDate}</td>
-                <td>${lastLogin}</td>
-                <td class="action-buttons">
-                    <button class="btn-edit" onclick="openEditModal('${user.email}', '${user.company_name || ''}', '${user.phone || ''}', '${user.tier}')">
-                        Edit
-                    </button>
-                    ${user.email !== 'john.gorham@resolve.io' ? 
-                        `<button class="btn-delete" onclick="deleteUser('${user.email}')">Delete</button>` : 
-                        '<span class="admin-badge">Admin</span>'}
+            <tr class="table-tr">
+                <td class="table-td table-td-primary">
+                    <span class="table-link">${user.email}</span>
+                </td>
+                <td class="table-td">
+                    <span class="table-text-secondary">${user.company_name || '-'}</span>
+                </td>
+                <td class="table-td">
+                    <span class="table-text-secondary">${user.phone || '-'}</span>
+                </td>
+                <td class="table-td">${tierBadge}</td>
+                <td class="table-td">${user.ticket_count || 0}</td>
+                <td class="table-td">
+                    <span class="table-text-secondary">${registeredDate}</span>
+                </td>
+                <td class="table-td">
+                    <span class="table-text-secondary">${lastLogin}</span>
+                </td>
+                <td class="table-td table-td-actions">
+                    <div class="table-actions">
+                        <button class="table-action-btn" onclick="openEditModal('${user.email}', '${user.company_name || ''}', '${user.phone || ''}', '${user.tier}')">
+                            <span class="action-btn-text">Edit</span>
+                        </button>
+                        ${user.email !== 'john.gorham@resolve.io' ? 
+                            `<button class="table-action-btn table-action-btn-danger" onclick="deleteUser('${user.email}')"><span class="action-btn-text">Delete</span></button>` : 
+                            '<span class="table-status-badge table-status-ready">Admin</span>'}
+                    </div>
                 </td>
             </tr>
         `;
@@ -1698,12 +1752,12 @@ function updateUsersTable(users) {
 
 function getTierBadge(tier) {
     const tierColors = {
-        standard: 'tier-standard',
-        premium: 'tier-premium',
-        enterprise: 'tier-enterprise'
+        standard: 'table-status-badge',
+        premium: 'table-status-badge table-status-ready',
+        enterprise: 'table-status-badge table-status-text'
     };
     
-    return `<span class="tier-badge ${tierColors[tier] || 'tier-standard'}">${tier || 'standard'}</span>`;
+    return `<span class="${tierColors[tier] || 'table-status-badge'}">${tier || 'standard'}</span>`;
 }
 
 function openEditModal(email, company, phone, tier) {
