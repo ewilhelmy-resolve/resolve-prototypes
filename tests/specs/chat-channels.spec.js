@@ -1,4 +1,4 @@
-const { test, expect } = require('@playwright/test');
+const { test, expect, signInAsAdmin, waitForElement } = require('../fixtures/simple-base');
 
 // Configure to always record video for debugging
 test.use({

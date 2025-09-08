@@ -202,7 +202,10 @@ router.post('/signin', authLimiter, validateSignin, handleValidationErrors, asyn
         id: user.id,
         fullName: user.full_name,
         email: user.email,
-        companyName: user.company_name
+        companyName: user.company_name,
+        tenantId: user.tenant_id,
+        role: user.role || 'user',
+        status: user.status || 'active'
       }
     });
     
@@ -294,6 +297,84 @@ router.post('/password-reset', passwordResetLimiter, validatePasswordReset, hand
     res.status(500).json({
       success: false,
       message: 'Internal server error'
+    });
+  }
+});
+
+// New password reset endpoint for user management
+router.post('/reset-password', passwordResetLimiter, async (req, res) => {
+  try {
+    const { token, password } = req.body;
+
+    if (!token || !password) {
+      return res.status(400).json({ 
+        success: false,
+        error: 'Token and password are required' 
+      });
+    }
+
+    // Validate password strength
+    if (!isStrongPassword(password)) {
+      const feedback = getPasswordStrengthFeedback(password);
+      return res.status(400).json({ 
+        success: false,
+        error: `Password requirements not met: ${feedback.join(', ')}`
+      });
+    }
+
+    // Get the database connection from app locals
+    const db = req.app.locals.db;
+
+    // Find valid reset token
+    const tokenResult = await db.query(
+      `SELECT user_id FROM password_reset_tokens 
+       WHERE token = $1 AND expires_at > NOW() AND used = false`,
+      [token]
+    );
+
+    if (tokenResult.rows.length === 0) {
+      return res.status(400).json({ 
+        success: false,
+        error: 'Invalid or expired reset token' 
+      });
+    }
+
+    const userId = tokenResult.rows[0].user_id;
+
+    // Hash the new password
+    const hashedPassword = await authService.hashPassword(password);
+
+    // Update user password
+    await db.query(
+      'UPDATE users SET password = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2',
+      [hashedPassword, userId]
+    );
+
+    // Mark token as used
+    await db.query(
+      'UPDATE password_reset_tokens SET used = true WHERE token = $1',
+      [token]
+    );
+
+    // If user was invited, update status to active
+    await db.query(
+      `UPDATE users SET status = 'active' 
+       WHERE id = $1 AND status = 'invited'`,
+      [userId]
+    );
+
+    console.log(`[AUTH] Password reset completed for user ID: ${userId}`);
+
+    res.json({ 
+      success: true,
+      message: 'Password reset successfully' 
+    });
+
+  } catch (error) {
+    console.error('[AUTH] Password reset error:', error);
+    res.status(500).json({ 
+      success: false,
+      error: 'Failed to reset password' 
     });
   }
 });

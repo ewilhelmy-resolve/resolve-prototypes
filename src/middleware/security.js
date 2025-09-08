@@ -21,6 +21,9 @@ function setupSecurity(app) {
       "'unsafe-inline'", // Consider using nonces instead of unsafe-inline
       "'unsafe-eval'" // Only if needed for dynamic script evaluation
     ],
+    scriptSrcAttr: [
+      "'unsafe-inline'" // Required for inline event handlers like onclick
+    ],
     fontSrc: [
       "'self'", 
       "https://fonts.gstatic.com",

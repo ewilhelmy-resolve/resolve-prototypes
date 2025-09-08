@@ -1,5 +1,5 @@
 ---
-description: Run complete E2E test suite with validation workflow
+description: Run complete E2E test suite with Docker isolation
 argument-hint: 
 allowed-tools: bash
 model: claude-3-5-sonnet-20241022
@@ -7,85 +7,94 @@ model: claude-3-5-sonnet-20241022
 
 # Run All E2E Tests
 
-Execute the complete E2E test suite following the validation workflow from CLAUDE.md.
+## ⚠️ CRITICAL: Node 22 + WSL2 Issue
 
-## IMPORTANT: Docker Application Requirements
-This is a Docker-based application. The app MUST be running in Docker for tests to work.
+**Playwright hangs on Node 22 in WSL2**. Tests MUST be run using the Docker solution.
 
-## Validation Steps
+## The ONE Way to Run Tests
 
-### 1. Ensure Docker is Running
 ```bash
-# Check if Docker daemon is running
-docker version >/dev/null 2>&1 || (echo "❌ Docker is not running! Please start Docker first." && exit 1)
-```
-
-### 2. Build and Start Application
-```bash
-# Build and start the application
-docker compose build --pull
-docker compose up -d
-
-# Wait for services to be healthy (max 30 seconds)
-for i in {1..30}; do
-  if docker compose ps | grep -q "(healthy)"; then
-    echo "✅ Services are healthy"
-    break
-  fi
-  echo "Waiting for services to be healthy... ($i/30)"
-  sleep 1
-done
-```
-
-### 3. Verify Services Health
-```bash
-docker compose ps
-```
-Ensure both `app` and `postgres` show `(healthy)` status.
-
-### 4. Run Test Suite
-```bash
+# From project root:
 npm test
+
+# OR from tests directory:
+cd tests && ./run-tests.sh
 ```
 
-### 3. Report Results
+## What This Does
 
-#### Success Criteria
-- ALL 16 test specs must pass
-- No timeouts or hanging tests
-- Clean test execution
+1. **Builds test runner image** with Node 20 (where Playwright works)
+2. **Runs each test spec** in its own isolated environment:
+   - Separate PostgreSQL container with pgvector
+   - Separate app container on random port
+   - Complete isolation between tests
+3. **Runs tests in parallel** for blazing fast execution
+4. **Cleans up automatically** after completion
 
-#### If ALL tests pass:
+## DO NOT
+
+- Run `npm test` directly on WSL2 with Node 22 (it will hang)
+- Create alternative test runners
+- Add new test approaches
+- Use different configurations
+- Try to "fix" or work around this in other ways
+
+## Expected Output
+
+### Success:
 ```
-✅ ALL E2E TESTS PASSED
-- Total: 16 test files
-- Status: Ready for commit
+🚀 Running tests in Docker to avoid Playwright/WSL issues...
+Building test runner image...
+Running test: dashboard...
+  ✅ dashboard passed
+Running test: onboarding-journey...
+  ✅ onboarding-journey passed
+[... all tests ...]
+✅ All tests complete!
 ```
 
-#### If ANY test fails:
+### Failure:
 ```
-❌ E2E TESTS FAILED
-- Failed: [list failed tests]
-- DO NOT COMMIT
-- Run 'npm run test:report' for details
+❌ Test failed: [test-name]
+Check logs with: docker logs test-[test-name]-[id]
 ```
 
 ## Test Coverage
 
-**Critical Tests** (must always pass):
+**Total**: ~20 test spec files
+
+**Critical Tests**:
 - onboarding-journey.spec.js
-- chat-channels.spec.js  
-- knowledge-api-e2e.spec.js
-- rag-vectorization.spec.js
+- dashboard.spec.js
+- knowledge-management.spec.js
+- user-management.spec.js
 
 **Feature Tests**:
-- Chat UI (5 tests)
-- Mobile (2 tests)
-- Documents (3 tests)
-- Real-time (3 tests)
+- Chat functionality
+- Document upload/viewer
+- Mobile validation
+- SSE real-time updates
 
-## Quick Actions
+## Troubleshooting
 
-- View HTML report: `npm run test:report`
-- Clean artifacts: `npm run test:clean`
-- Run with UI: `npm run test:ui`
+### Docker Not Running
+```bash
+# Start Docker daemon
+sudo service docker start  # WSL2
+```
+
+### Clean Up Stuck Containers
+```bash
+docker ps -aq --filter "name=test-" | xargs -r docker rm -f
+```
+
+### View Test Logs
+```bash
+docker logs $(docker ps -aq --filter name=test-worker)
+```
+
+## The Golden Rule
+
+**There is exactly ONE way to run tests: `npm test` (or `cd tests && ./run-tests.sh`)**
+
+This is not optional. The Playwright module literally hangs on `require()` with Node 22 in WSL2. The Docker solution bypasses this completely by using Node 20 in containers.

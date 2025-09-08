@@ -93,6 +93,8 @@ class RedisSessionService {
       companyName: user.company_name,
       tenantId: user.tenant_id,
       tier: user.tier,
+      role: user.role || 'user',
+      status: user.status || 'active',
       createdAt: Date.now(),
       expiresAt: Date.now() + this.sessionTimeout,
     };

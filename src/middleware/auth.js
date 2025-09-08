@@ -35,8 +35,8 @@ async function authenticate(req, res, next) {
         error: 'Authentication required' 
       });
     }
-    // For page routes, redirect to login
-    return res.redirect('/login');
+    // For page routes, redirect to signin
+    return res.redirect('/signin');
   }
 
   const session = await authService.getSession(token);
@@ -49,16 +49,24 @@ async function authenticate(req, res, next) {
         error: 'Invalid or expired session' 
       });
     }
-    // For page routes, redirect to login
-    return res.redirect('/login');
+    // For page routes, redirect to signin
+    return res.redirect('/signin');
   }
 
+  // Log session details for debugging
+  console.log('[AUTH] Session details:', {
+    userEmail: session.email,
+    role: session.role,
+    token: token
+  });
+  
   // Add session information to request object
-  req.session = session;
-  req.user = session; // Alias for backward compatibility
+  req.session = { ...session }; // Create a new object to avoid mutation
+  req.user = { ...session }; // Alias for backward compatibility
   req.userId = session.userId;
   req.tenantId = session.tenantId;
   req.userEmail = session.email;
+  req.userRole = session.role;
   
   next();
 }
@@ -94,6 +102,55 @@ function checkAdminStatus(req, res, next) {
     }
     // For HTML pages, redirect to signin with error message
     return res.redirect('/signin?error=admin_required');
+  }
+
+  next();
+}
+
+/**
+ * Check if user has tenant admin role
+ * Must be used after authenticate()
+ */
+function requireTenantAdmin(req, res, next) {
+  // If no session exists, run authentication first
+  if (!req.session) {
+    return authenticate(req, res, (authError) => {
+      if (authError) return next(authError);
+      // After authentication, check tenant admin status
+      return checkTenantAdminStatus(req, res, next);
+    });
+  }
+  
+  return checkTenantAdminStatus(req, res, next);
+}
+
+/**
+ * Helper function to check tenant admin status
+ */
+function checkTenantAdminStatus(req, res, next) {
+  // Log request details
+  console.log('[AUTH] Checking tenant admin access:', {
+    session: req.session,
+    userRole: req.userRole,
+    path: req.path
+  });
+  
+  // Check role from session
+  if (!req.session || !req.userRole || req.userRole !== 'tenant-admin') {
+    console.log('[AUTH] Access denied - Session details:', {
+      role: req.userRole,
+      session: req.session
+    });
+    
+    // For API routes, return JSON error
+    if (req.path.startsWith('/api/')) {
+      return res.status(403).json({ 
+        success: false,
+        error: 'Tenant admin access required' 
+      });
+    }
+    // For HTML pages, redirect to dashboard with error message
+    return res.redirect('/dashboard?error=admin_required');
   }
 
   next();
@@ -172,6 +229,7 @@ function extractUserInfo(req) {
 module.exports = {
   authenticate,
   requireAdmin,
+  requireTenantAdmin,
   optionalAuth,
   requireAuthForFiles,
   requireAuth, // Legacy compatibility

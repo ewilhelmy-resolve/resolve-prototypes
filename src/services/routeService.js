@@ -12,7 +12,9 @@ class RouteService {
       '/login',
       '/signin',
       '/step2',
-      '/completion'
+      '/completion',
+      '/knowledge',
+      '/users'
     ];
   }
 
@@ -116,11 +118,11 @@ class RouteService {
       '/knowledge': (req, res) => {
         res.sendFile(path.join(baseDir, 'src/client/pages/knowledge.html'));
       },
+      '/users': (req, res) => {
+        res.sendFile(path.join(baseDir, 'src/client/pages/users.html'));
+      },
       '/admin': (req, res) => {
         res.sendFile(path.join(baseDir, 'src/client/pages/admin.html'));
-      },
-      '/login': (req, res) => {
-        res.sendFile(path.join(baseDir, 'src/client/pages/login.html'));
       },
       '/step2': (req, res) => {
         res.sendFile(path.join(baseDir, 'src/client/pages/step2.html'));

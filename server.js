@@ -27,7 +27,8 @@ const {
   authenticate,
   requireAdmin,
   requireAuth,
-  requireAuthForFiles
+  requireAuthForFiles,
+  requireTenantAdmin
 } = require('./src/middleware/auth');
 const { 
   apiLimiter, 
@@ -86,6 +87,7 @@ app.use(express.static('public'));
 app.use('/styles', express.static(path.join(__dirname, 'src/client/styles')));
 app.use('/styles/icons', express.static(path.join(__dirname, 'src/client/styles/icons')));
 app.use('/components', express.static(path.join(__dirname, 'src/client/components')));
+app.use('/js', express.static(path.join(__dirname, 'src/client/js')));
 app.use('/fonts', express.static(path.join(__dirname, 'public/fonts')));
 app.use('/images', express.static(path.join(__dirname, 'public/images')));
 app.use('/pages', requireAuthForFiles, express.static(path.join(__dirname, 'src/client/pages')));
@@ -120,10 +122,19 @@ app.get('/', pageRoutes['/']);
 app.get('/dashboard', requireAuth, pageRoutes['/dashboard']);
 app.get('/knowledge', requireAuth, pageRoutes['/knowledge']);
 app.get('/admin', requireAdmin, pageRoutes['/admin']);
-app.get('/login', pageRoutes['/login']);
 app.get('/step2', pageRoutes['/step2']);
 app.get('/completion', pageRoutes['/completion']);
 app.get('/signin', pageRoutes['/signin']);
+
+// User management pages (tenant admin only)
+app.get('/users', requireAuth, requireTenantAdmin, (req, res) => {
+  res.sendFile(path.join(__dirname, 'src/client/pages/users.html'));
+});
+
+// Password reset page (public)
+app.get('/auth/reset', (req, res) => {
+  res.sendFile(path.join(__dirname, 'src/client/pages/reset-password.html'));
+});
 
 // Mount organized route modules with workflow tracking
 app.use('/api/auth', trackWorkflow('authentication', 'auth_endpoint'), authRoutes);
@@ -147,6 +158,11 @@ app.use('/api/documents', documentRouter);
 
 const knowledgeRouter = createKnowledgeRouter(db, sessions);
 app.use('/api', knowledgeRouter);
+
+// User management routes
+const createUsersRouter = require('./src/routes/users');
+const usersRouter = createUsersRouter(db);
+app.use('/', usersRouter);
 
 // Admin Diagnostics routes
 app.use('/api/admin/diagnostics/pgvector', adminDiagnosticsRouter);

@@ -6,4 +6,3 @@ docker-compose.yml
 .dockerignore
 README.md
 deploy.sh
-tests

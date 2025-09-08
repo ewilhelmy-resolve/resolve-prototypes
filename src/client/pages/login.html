@@ -311,6 +311,10 @@
                     // Store user info
                     localStorage.setItem('userSession', JSON.stringify(data.user));
                     localStorage.setItem('userEmail', email);
+                    localStorage.setItem('userName', data.user.fullName || email.split('@')[0]);
+                    localStorage.setItem('userTenantId', data.user.tenantId || '');
+                    localStorage.setItem('userRole', data.user.role || 'user');
+                    localStorage.setItem('sessionToken', 'active'); // Indicate session is active
                     
                     // Redirect to dashboard
                     window.location.href = '/dashboard';

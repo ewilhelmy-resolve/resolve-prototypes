@@ -55,9 +55,25 @@
     --spacing-xxl: 3rem;
     
     /* Typography */
-    --font-primary: -apple-system, BlinkMacSystemFont, 'SF Pro', 'Segoe UI', Roboto, sans-serif;
-    --font-heading: 'Season Mix', var(--font-primary);
-    --font-mono: 'IBM Plex Mono', monospace;
+    --font-fallback: -apple-system, BlinkMacSystemFont, 'SF Pro', 'Segoe UI', Roboto, sans-serif;
+    --font-primary: 'Season Sans', var(--font-fallback);
+    --font-heading: 'Season Mix', var(--font-fallback);
+    --font-mono: 'SF Mono', 'Monaco', 'Courier New', monospace;
+    
+    /* Font Weights */
+    --font-weight-regular: 400;
+    --font-weight-medium: 500;
+    --font-weight-semibold: 600;
+    
+    /* Font Sizes */
+    --font-size-xs: 11px;
+    --font-size-sm: 12px;
+    --font-size-base: 14px;
+    --font-size-md: 16px;
+    --font-size-lg: 20px;
+    --font-size-xl: 24px;
+    --font-size-2xl: 32px;
+    --font-size-3xl: 48px;
     
     /* Sizing */
     --input-height: 40px;

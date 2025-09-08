@@ -23,17 +23,22 @@ COPY . .
 # Add any build commands here
 # RUN npm run build
 
-# Production runtime stage
-FROM node:18-alpine AS production
+# Production runtime stage  
+FROM mcr.microsoft.com/playwright:v1.38.1-focal AS production
 
-# Create non-root user
-RUN addgroup -g 1001 -S nodejs && \
-    adduser -S nodejs -u 1001
+# Set Playwright browser path
+ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
+# Disable rate limiting for tests
+ENV DISABLE_RATE_LIMIT=true
+
+# Create non-root user (Ubuntu style)
+RUN groupadd -g 1001 nodejs && \
+    useradd -m -u 1001 -g nodejs nodejs
 
 WORKDIR /app
 
-# Copy production dependencies
-COPY --from=production-deps --chown=nodejs:nodejs /app/node_modules ./node_modules
+# Copy ALL dependencies (including dev) for testing capability
+COPY --from=dev-deps --chown=nodejs:nodejs /app/node_modules ./node_modules
 
 # Copy application code
 COPY --chown=nodejs:nodejs . .

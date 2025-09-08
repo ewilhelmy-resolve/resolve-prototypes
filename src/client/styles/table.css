@@ -1,0 +1,555 @@
+/* Generic reusable table component */
+.table-container {
+    flex: 1;
+    overflow-x: hidden;
+    overflow-y: auto;
+    background: white;
+}
+
+.data-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-family: "Season Sans", -apple-system, BlinkMacSystemFont, "SF Pro", sans-serif;
+    table-layout: fixed;
+}
+
+.table-th {
+    padding: 12px 16px;
+    text-align: left;
+    font-size: 12px;
+    font-weight: 600;
+    color: #666;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    border-bottom: 2px solid rgba(0, 0, 0, 0.08);
+    background: #f8fafc;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+
+.table-th-sortable {
+    cursor: pointer;
+    user-select: none;
+    transition: color 0.2s;
+}
+
+.table-th-sortable:hover {
+    color: #0066ff;
+}
+
+.table-sort-icon {
+    margin-left: 4px;
+    vertical-align: middle;
+    opacity: 0.3;
+    transition: opacity 0.2s;
+}
+
+.table-sort-icon.active {
+    opacity: 1;
+    color: #0066ff;
+}
+
+.table-th-checkbox {
+    width: 40px;
+    padding: 12px 8px;
+}
+
+.table-th-actions {
+    width: 140px;
+    text-align: center;
+}
+
+.table-tr {
+    border-bottom: 1px solid rgba(0, 0, 0, 0.04);
+    transition: all 0.2s;
+    cursor: pointer;
+}
+
+.table-tr:hover {
+    background: #f8fafc;
+}
+
+.table-tr.selected {
+    background: rgba(78, 205, 196, 0.08);
+}
+
+.table-td {
+    padding: 16px;
+    font-size: 14px;
+    color: #1a1a1a;
+}
+
+.table-td-checkbox {
+    width: 40px;
+    padding: 16px 8px;
+}
+
+.table-td-primary {
+    font-weight: 500;
+}
+
+.table-link {
+    color: #0066ff;
+    text-decoration: none;
+    transition: color 0.2s;
+}
+
+.table-link:hover {
+    color: #0052cc;
+    text-decoration: underline;
+}
+
+.table-checkbox {
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+}
+
+.table-td-actions {
+    text-align: center;
+}
+
+.table-actions {
+    display: flex;
+    gap: 4px;
+    justify-content: center;
+}
+
+.table-action-btn {
+    padding: 6px;
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s;
+    color: #666;
+}
+
+.table-action-btn:hover {
+    background: rgba(0, 0, 0, 0.05);
+    border-color: rgba(0, 0, 0, 0.1);
+}
+
+.table-action-btn-danger:hover {
+    color: #c80000;
+    background: rgba(200, 0, 0, 0.05);
+    border-color: rgba(200, 0, 0, 0.2);
+}
+
+.table-empty-state {
+    text-align: center;
+    padding: 64px 32px;
+    color: #666;
+}
+
+.table-empty-icon {
+    width: 64px;
+    height: 64px;
+    margin: 0 auto 16px;
+    opacity: 0.3;
+}
+
+.table-empty-title {
+    font-size: 18px;
+    font-weight: 500;
+    color: #1a1a1a;
+    margin: 0 0 8px;
+}
+
+.table-empty-subtitle {
+    font-size: 14px;
+    color: #666;
+    margin: 0 0 24px;
+}
+
+.table-text-secondary {
+    color: #666;
+}
+
+.table-cell-content {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+/* Type and status badges */
+.table-type-badge {
+    display: inline-block;
+    padding: 4px 8px;
+    background: rgba(0, 0, 0, 0.05);
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.table-status-badge {
+    display: inline-block;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.table-status-ready {
+    color: #009632;
+    background: rgba(0, 255, 136, 0.1);
+}
+
+.table-status-processing {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.table-status-text {
+    color: #b47800;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.table-progress-bar {
+    width: 60px;
+    height: 4px;
+    background: rgba(255, 193, 7, 0.2);
+    border-radius: 2px;
+    overflow: hidden;
+}
+
+.table-progress-fill {
+    height: 100%;
+    background: #ffc107;
+    transition: width 0.3s;
+}
+
+.table-progress-text {
+    font-size: 11px;
+    color: #b47800;
+    font-weight: 600;
+}
+
+.table-status-error {
+    color: #c80000;
+    background: rgba(255, 0, 0, 0.1);
+}
+
+/* Accuracy display */
+.table-accuracy {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.table-accuracy-value {
+    font-size: 13px;
+    font-weight: 600;
+    color: #1a1a1a;
+}
+
+.table-accuracy-bar {
+    width: 60px;
+    height: 3px;
+    background: rgba(0, 0, 0, 0.1);
+    border-radius: 2px;
+    overflow: hidden;
+}
+
+.table-accuracy-fill {
+    height: 100%;
+    background: linear-gradient(to right, #4ecdc4, #0066ff);
+    transition: width 0.3s;
+}
+
+/* Data Grid Layout Components */
+.data-grid-container {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    background: #ffffff;
+    font-family: "Season Sans", -apple-system, BlinkMacSystemFont, "SF Pro", sans-serif;
+}
+
+.data-grid-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 24px 32px;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+    background: #ffffff;
+}
+
+.data-grid-title {
+    font-size: 28px;
+    font-weight: 400;
+    color: #1a1a1a;
+    margin: 0;
+    font-family: "Season Mix", -apple-system, BlinkMacSystemFont, "SF Pro", sans-serif;
+}
+
+.data-grid-stats-bar {
+    display: flex;
+    gap: 16px;
+    padding: 24px 32px;
+    background: #f8fafc;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.data-grid-stat-card {
+    flex: 1;
+    padding: 20px;
+    background: white;
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    border-radius: 12px;
+    text-align: center;
+    transition: all 0.2s;
+}
+
+.data-grid-stat-card:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    transform: translateY(-2px);
+}
+
+.data-grid-stat-value {
+    font-size: 24px;
+    font-weight: 600;
+    color: #1a1a1a;
+    margin-bottom: 8px;
+    font-family: "Season Sans", -apple-system, BlinkMacSystemFont, "SF Pro", sans-serif;
+}
+
+.data-grid-stat-label {
+    font-size: 13px;
+    color: #666;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-family: "Season Sans", -apple-system, BlinkMacSystemFont, "SF Pro", sans-serif;
+}
+
+.data-grid-toolbar {
+    display: flex;
+    justify-content: flex-start;
+    align-items: center;
+    padding: 20px 32px;
+    background: white;
+    border-bottom: 2px solid #3182ce;
+    gap: 16px;
+}
+
+.data-grid-toolbar-left {
+    display: flex;
+    gap: 16px;
+    align-items: center;
+    flex: 1;
+}
+
+.data-grid-search-container {
+    position: relative;
+    width: 240px;
+    max-width: 240px;
+    flex-shrink: 0;
+    margin-right: 20px;
+}
+
+.data-grid-search-icon {
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #666;
+}
+
+.data-grid-search-input {
+    width: 100%;
+    max-width: 240px;
+    padding: 8px 12px 8px 36px;
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    border-radius: 6px;
+    font-size: 14px;
+    background: white;
+    transition: all 0.2s;
+    font-family: "Season Sans", -apple-system, BlinkMacSystemFont, "SF Pro", sans-serif;
+    box-sizing: border-box;
+}
+
+.data-grid-search-input:focus {
+    outline: none;
+    border-color: #0066ff;
+    box-shadow: 0 0 0 3px rgba(0, 102, 255, 0.1);
+}
+
+.data-grid-filter-select {
+    padding: 8px 12px;
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    border-radius: 6px;
+    font-size: 14px;
+    background: white;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-family: "Season Sans", -apple-system, BlinkMacSystemFont, "SF Pro", sans-serif;
+    min-width: 130px;
+    margin-right: 12px;
+}
+
+.data-grid-filter-select:hover {
+    border-color: rgba(0, 0, 0, 0.2);
+}
+
+.data-grid-filter-select:focus {
+    outline: none;
+    border-color: #0066ff;
+    box-shadow: 0 0 0 3px rgba(0, 102, 255, 0.1);
+}
+
+.data-grid-bulk-actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 0 32px;
+    height: 0;
+    background: #f0f7ff;
+    border-bottom: 1px solid #d4e6ff;
+    overflow: hidden;
+    transition: all 0.3s;
+}
+
+.data-grid-bulk-actions.active {
+    height: 56px;
+    padding: 12px 32px;
+}
+
+.data-grid-bulk-count {
+    font-size: 14px;
+    font-weight: 500;
+    color: #1a1a1a;
+    margin-right: 16px;
+    font-family: "Season Sans", -apple-system, BlinkMacSystemFont, "SF Pro", sans-serif;
+}
+
+.data-grid-bulk-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    background: white;
+    border: 1px solid rgba(0, 0, 0, 0.2);
+    border-radius: 6px;
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-family: "Season Sans", -apple-system, BlinkMacSystemFont, "SF Pro", sans-serif;
+}
+
+.data-grid-bulk-btn:hover {
+    background: #f8fafc;
+    transform: translateY(-1px);
+}
+
+.data-grid-bulk-btn-danger {
+    color: #c80000;
+    border-color: rgba(200, 0, 0, 0.3);
+}
+
+.data-grid-bulk-btn-danger:hover {
+    background: rgba(200, 0, 0, 0.05);
+}
+
+.data-grid-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 32px;
+    background: white;
+    border-top: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.data-grid-footer-info {
+    font-size: 14px;
+    color: #666;
+    font-family: "Season Sans", -apple-system, BlinkMacSystemFont, "SF Pro", sans-serif;
+}
+
+.data-grid-pagination {
+    display: flex;
+    gap: 4px;
+    align-items: center;
+}
+
+.data-grid-pagination-btn,
+.data-grid-pagination-info {
+    padding: 6px 10px;
+    background: white;
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    border-radius: 4px;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.2s;
+    color: #666;
+    font-family: "Season Sans", -apple-system, BlinkMacSystemFont, "SF Pro", sans-serif;
+}
+
+.data-grid-pagination-btn:hover:not(:disabled) {
+    background: #f8fafc;
+    border-color: rgba(0, 0, 0, 0.2);
+}
+
+.data-grid-pagination-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.data-grid-pagination-info {
+    cursor: default;
+    background: transparent;
+    border: none;
+}
+
+/* Mobile responsiveness */
+@media (max-width: 1200px) {
+    .data-grid-stats-bar {
+        flex-wrap: wrap;
+    }
+    
+    .data-grid-stat-card {
+        flex: 1 1 calc(50% - 8px);
+        min-width: 200px;
+    }
+}
+
+@media (max-width: 768px) {
+    .table-container {
+        overflow-x: scroll;
+    }
+    
+    .data-grid-header {
+        flex-direction: column;
+        gap: 16px;
+        align-items: flex-start;
+    }
+    
+    .data-grid-toolbar {
+        flex-direction: column;
+        gap: 12px;
+        padding: 16px 20px;
+    }
+    
+    .data-grid-toolbar-left {
+        width: 100%;
+        flex-direction: column;
+        gap: 12px;
+    }
+    
+    .data-grid-search-container {
+        width: 100%;
+    }
+    
+    .data-grid-filter-select {
+        width: 100%;
+        min-width: unset;
+    }
+    
+    .data-grid-stat-card {
+        flex: 1 1 100%;
+    }
+}

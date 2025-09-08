@@ -5,7 +5,7 @@ const config = require('../config');
 const store = new Map();
 
 // General API rate limiter
-const apiLimiter = rateLimit({
+const apiLimiter = process.env.DISABLE_RATE_LIMIT === 'true' ? (req, res, next) => next() : rateLimit({
   windowMs: config.rateLimit.windowMs, // 15 minutes
   max: config.rateLimit.maxRequests, // 100 requests per windowMs
   message: 'Too many requests from this IP, please try again later.',
@@ -21,7 +21,7 @@ const apiLimiter = rateLimit({
 });
 
 // Strict auth rate limiter - much more restrictive for login attempts
-const authLimiter = rateLimit({
+const authLimiter = process.env.DISABLE_RATE_LIMIT === 'true' ? (req, res, next) => next() : rateLimit({
   windowMs: config.rateLimit.windowMs, // 15 minutes
   max: config.rateLimit.authMaxRequests, // 5 attempts per window
   message: 'Too many authentication attempts.',

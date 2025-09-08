@@ -1,0 +1,250 @@
+/**
+ * Typography System
+ * Centralized font styles for the entire application
+ * Ensures consistent typography across all pages including admin
+ */
+
+/* ============================================
+   Font Face Definitions
+   ============================================ */
+@font-face {
+    font-family: "Season Mix";
+    src: url("/fonts/SeasonMix-Regular.otf") format("opentype");
+    font-weight: 400;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: "Season Sans";
+    src: url("/fonts/SeasonSans-Regular.otf") format("opentype");
+    font-weight: 400;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: "Season Sans";
+    src: url("/fonts/SeasonSans-Medium.otf") format("opentype");
+    font-weight: 500;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: "Season Sans";
+    src: url("/fonts/SeasonSans-SemiBold.otf") format("opentype");
+    font-weight: 600;
+    font-style: normal;
+    font-display: swap;
+}
+
+/* ============================================
+   Typography Classes
+   ============================================ */
+
+/* Headings */
+.heading-1 {
+    font-family: var(--font-heading);
+    font-size: var(--font-size-3xl);
+    font-weight: var(--font-weight-regular);
+    line-height: 1.2;
+}
+
+.heading-2 {
+    font-family: var(--font-heading);
+    font-size: var(--font-size-2xl);
+    font-weight: var(--font-weight-regular);
+    line-height: 1.3;
+}
+
+.heading-3 {
+    font-family: var(--font-heading);
+    font-size: var(--font-size-xl);
+    font-weight: var(--font-weight-regular);
+    line-height: 1.4;
+}
+
+.heading-4 {
+    font-family: var(--font-primary);
+    font-size: var(--font-size-lg);
+    font-weight: var(--font-weight-semibold);
+    line-height: 1.4;
+}
+
+.heading-5 {
+    font-family: var(--font-primary);
+    font-size: var(--font-size-md);
+    font-weight: var(--font-weight-semibold);
+    line-height: 1.5;
+}
+
+/* Body Text */
+.body-large {
+    font-family: var(--font-primary);
+    font-size: var(--font-size-md);
+    font-weight: var(--font-weight-regular);
+    line-height: 1.6;
+}
+
+.body-regular {
+    font-family: var(--font-primary);
+    font-size: var(--font-size-base);
+    font-weight: var(--font-weight-regular);
+    line-height: 1.5;
+}
+
+.body-small {
+    font-family: var(--font-primary);
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-regular);
+    line-height: 1.5;
+}
+
+.body-xs {
+    font-family: var(--font-primary);
+    font-size: var(--font-size-xs);
+    font-weight: var(--font-weight-regular);
+    line-height: 1.4;
+}
+
+/* Labels and UI Text */
+.label-large {
+    font-family: var(--font-primary);
+    font-size: var(--font-size-base);
+    font-weight: var(--font-weight-medium);
+    line-height: 1.3;
+    letter-spacing: 0.02em;
+}
+
+.label-regular {
+    font-family: var(--font-primary);
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-medium);
+    line-height: 1.3;
+    letter-spacing: 0.03em;
+}
+
+.label-small {
+    font-family: var(--font-primary);
+    font-size: var(--font-size-xs);
+    font-weight: var(--font-weight-medium);
+    line-height: 1.3;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+/* Code and Monospace */
+.code-large {
+    font-family: var(--font-mono);
+    font-size: var(--font-size-base);
+    font-weight: var(--font-weight-regular);
+    line-height: 1.5;
+}
+
+.code-regular {
+    font-family: var(--font-mono);
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-regular);
+    line-height: 1.5;
+}
+
+.code-small {
+    font-family: var(--font-mono);
+    font-size: var(--font-size-xs);
+    font-weight: var(--font-weight-regular);
+    line-height: 1.4;
+}
+
+/* Legacy Class Support (for backwards compatibility) */
+.season-heading {
+    font-family: var(--font-heading);
+    font-weight: var(--font-weight-regular);
+    font-style: normal;
+}
+
+.season-sans {
+    font-family: var(--font-primary);
+    font-style: normal;
+}
+
+.season-sans-medium {
+    font-family: var(--font-primary);
+    font-weight: var(--font-weight-medium);
+    font-style: normal;
+}
+
+.season-sans-semibold {
+    font-family: var(--font-primary);
+    font-weight: var(--font-weight-semibold);
+    font-style: normal;
+}
+
+/* ============================================
+   Global Typography Resets
+   ============================================ */
+body {
+    font-family: var(--font-primary);
+    font-size: var(--font-size-base);
+    font-weight: var(--font-weight-regular);
+    line-height: 1.5;
+}
+
+h1, h2, h3, h4, h5, h6 {
+    margin: 0;
+    font-weight: inherit;
+}
+
+h1 {
+    font-family: var(--font-heading);
+    font-size: var(--font-size-3xl);
+    font-weight: var(--font-weight-regular);
+}
+
+h2 {
+    font-family: var(--font-heading);
+    font-size: var(--font-size-2xl);
+    font-weight: var(--font-weight-regular);
+}
+
+h3 {
+    font-family: var(--font-heading);
+    font-size: var(--font-size-xl);
+    font-weight: var(--font-weight-regular);
+}
+
+h4 {
+    font-family: var(--font-primary);
+    font-size: var(--font-size-lg);
+    font-weight: var(--font-weight-semibold);
+}
+
+h5 {
+    font-family: var(--font-primary);
+    font-size: var(--font-size-md);
+    font-weight: var(--font-weight-semibold);
+}
+
+h6 {
+    font-family: var(--font-primary);
+    font-size: var(--font-size-base);
+    font-weight: var(--font-weight-semibold);
+}
+
+p {
+    margin: 0;
+}
+
+code, pre {
+    font-family: var(--font-mono);
+}
+
+button {
+    font-family: inherit;
+    font-size: inherit;
+}
+
+input, textarea, select {
+    font-family: inherit;
+    font-size: inherit;
+}

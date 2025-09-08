@@ -1,5 +1,4 @@
-const { test, expect } = require('@playwright/test');
-const { signInAsAdmin, BASE_URL, ADMIN_CREDENTIALS } = require('../fixtures/base-test');
+const { test, expect, signInAsAdmin } = require('../fixtures/simple-base');
 
 test.describe('Document Viewer', () => {
   test.beforeEach(async ({ page }) => {

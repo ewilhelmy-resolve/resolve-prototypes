@@ -96,7 +96,7 @@ class AuthService {
     }
     
     const result = await db.query(
-      'SELECT id, email, password, full_name, company_name, tenant_id, tier FROM users WHERE email = $1',
+      'SELECT id, email, password, full_name, company_name, tenant_id, tier, role, status FROM users WHERE email = $1',
       [email]
     );
     
@@ -106,6 +106,18 @@ class AuthService {
     }
     
     const user = result.rows[0];
+    
+    // Check if user is disabled
+    if (user.status === 'disabled') {
+      throw new Error('Account is disabled. Please contact your administrator.');
+    }
+    
+    // Ensure role is set
+    user.role = user.role || 'user';
+    
+    // Log authentication attempt
+    console.log('[AUTH] User authentication:', { email: user.email, role: user.role });
+    
     const validPassword = await this.verifyPassword(password, user.password);
     
     if (!validPassword) {
@@ -115,6 +127,12 @@ class AuthService {
     
     // Clear failed attempts on successful login
     this.clearFailedAttempts(email);
+    
+    // Update last login time
+    await db.query(
+      'UPDATE users SET last_login_at = CURRENT_TIMESTAMP WHERE id = $1',
+      [user.id]
+    );
     
     // Don't return password hash
     delete user.password;
@@ -140,12 +158,14 @@ class AuthService {
         companyName: user.company_name,
         tenantId: user.tenant_id,
         tier: user.tier,
+        role: user.role || 'user',
+        status: user.status || 'active',
         createdAt: Date.now(),
         expiresAt: Date.now() + this.sessionTimeout,
       };
       
       this.sessions.set(token, session);
-      console.log(`[SESSION] Created session for user: ${user.email}`);
+      console.log(`[SESSION] Created session for user: ${user.email} with role: ${session.role}`);
       return { token, session };
     }
   }

@@ -1,10 +1,10 @@
-const { test, expect } = require('@playwright/test');
+const { test, expect } = require('../fixtures/simple-base');
 const path = require('path');
 const fs = require('fs');
 
 test.describe('Document Upload Functionality', () => {
   test('validates document upload flow and webhook integration', async ({ page, request }) => {
-  test.setTimeout(180000); // 3 minutes total timeout for end-to-end test // 2 minutes total timeout
+    test.setTimeout(180000); // 3 minutes total timeout for end-to-end test
     console.log('\n📤 TESTING DOCUMENT UPLOAD FLOW\n');
 
     // 1. Sign in and navigate to dashboard
@@ -99,7 +99,13 @@ test.describe('Document Upload Functionality', () => {
       content: 'This is a test document for upload validation.'
     };
     
-    const testFilePath = path.join(process.cwd(), 'tests/fixtures/test-data', testDoc.name);
+    // Ensure test-data directory exists
+    const testDataDir = path.join(process.cwd(), 'tests/fixtures/test-data');
+    if (!fs.existsSync(testDataDir)) {
+      fs.mkdirSync(testDataDir, { recursive: true });
+    }
+    
+    const testFilePath = path.join(testDataDir, testDoc.name);
     fs.writeFileSync(testFilePath, testDoc.content);
     console.log('   ✅ Test document created\n');
     
@@ -228,7 +234,9 @@ test.describe('Document Upload Functionality', () => {
     
     // 8. Clean up
     console.log('8️⃣ Cleaning up...');
-    fs.unlinkSync(testFilePath);
+    if (fs.existsSync(testFilePath)) {
+      fs.unlinkSync(testFilePath);
+    }
     console.log('   ✅ Test document cleaned up\n');
     
     console.log('✅ DOCUMENT UPLOAD TEST COMPLETED SUCCESSFULLY!\n');

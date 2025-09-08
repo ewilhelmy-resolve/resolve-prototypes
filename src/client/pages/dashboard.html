@@ -47,6 +47,37 @@
                     <button class="action-btn action-btn-secondary action-btn-small dashboard-btn">
                         <span class="action-btn-text">Dashboard</span>
                     </button>
+                    <button class="action-btn action-btn-secondary action-btn-small" onclick="window.location.href='/knowledge'">
+                        <span class="action-btn-text">Knowledge</span>
+                    </button>
+                    <button id="users-nav-btn" class="action-btn action-btn-secondary action-btn-small" onclick="window.location.href='/users'" data-testid="users-button">
+                        <span class="action-btn-text">Users</span>
+                    </button>
+                    <script>
+                    function updateUserButton() {
+                        const userStr = localStorage.getItem('userSession');
+                        const btn = document.getElementById('users-nav-btn');
+                        
+                        if (!btn) return;
+                        
+                        try {
+                            const user = JSON.parse(userStr || '{}');
+                            btn.style.display = user.role === 'tenant-admin' ? 'flex' : 'none';
+                        } catch (err) {
+                            btn.style.display = 'none';
+                        }
+                    }
+                    
+                    // Check on initial load
+                    updateUserButton();
+                    
+                    // Check when storage changes
+                    window.addEventListener('storage', updateUserButton);
+                    
+                    // Poll for changes (fallback)
+                    const pollId = setInterval(updateUserButton, 100);
+                    setTimeout(() => clearInterval(pollId), 2000); // Stop polling after 2s
+                    </script>
                     <div class="user-avatar" id="user-avatar-toggle" style="cursor: pointer; position: relative;">
                         <span>Q</span>
                         <div class="user-dropdown" id="userDropdown" style="display: none; position: absolute; top: calc(100% + 10px); right: 0; background: #1E1E2E; border: 1px solid rgba(139, 139, 159, 0.2); border-radius: 8px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3); min-width: 280px; z-index: 1000;">
@@ -291,6 +322,16 @@
             
             // Load user info and get tenant ID
             const userSession = localStorage.getItem('userSession');
+            const userRole = localStorage.getItem('userRole');
+            
+            // Show Users button for admin users
+            if (userRole === 'tenant-admin') {
+                const usersNavBtn = document.getElementById('users-nav-btn');
+                if (usersNavBtn) {
+                    usersNavBtn.style.display = 'block';
+                }
+            }
+            
             if (userSession) {
                 const user = JSON.parse(userSession);
                 // Update user avatar with first letter of name

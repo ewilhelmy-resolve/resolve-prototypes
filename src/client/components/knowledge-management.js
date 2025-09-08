@@ -14,7 +14,7 @@ class KnowledgeManagementGrid {
 
     showLoadingState() {
         this.container.innerHTML = `
-            <div class="knowledge-management-container">
+            <div class="data-grid-container">
                 <div style="padding: 40px; text-align: center;">
                     <h2>Loading Knowledge Base...</h2>
                 </div>
@@ -158,7 +158,7 @@ class KnowledgeManagementGrid {
 
     render() {
         this.container.innerHTML = `
-            <div class="knowledge-management-container">
+            <div class="data-grid-container">
                 ${this.renderHeader()}
                 ${this.renderStatsBar()}
                 ${this.renderToolbar()}
@@ -226,27 +226,20 @@ class KnowledgeManagementGrid {
 
     renderToolbar() {
         return `
-            <div class="km-toolbar">
-                <div class="km-toolbar-left">
-                    <div class="km-search-container">
-                        <svg class="km-search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <div class="data-grid-toolbar">
+                <div class="data-grid-toolbar-left">
+                    <div class="data-grid-search-container">
+                        <svg class="data-grid-search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <circle cx="11" cy="11" r="8"/>
                             <path d="M21 21l-4.35-4.35"/>
                         </svg>
-                        <input type="text" class="km-search-input" placeholder="Search documents..." onkeyup="kmGrid.handleSearch(this.value)">
+                        <input type="text" class="data-grid-search-input" placeholder="Search documents..." onkeyup="kmGrid.handleSearch(this.value)">
                     </div>
-                    <select class="km-filter-select" onchange="kmGrid.handleStatusFilter(this.value)">
+                    <select class="data-grid-filter-select" onchange="kmGrid.handleStatusFilter(this.value)">
                         <option value="all">All Status</option>
                         <option value="ready">Ready</option>
                         <option value="processing">Processing</option>
                         <option value="error">Error</option>
-                    </select>
-                    <select class="km-filter-select" onchange="kmGrid.handleTypeFilter(this.value)">
-                        <option value="all">All Types</option>
-                        <option value="PDF">PDF</option>
-                        <option value="DOCX">DOCX</option>
-                        <option value="TXT">TXT</option>
-                        <option value="MD">Markdown</option>
                     </select>
                 </div>
             </div>
@@ -256,16 +249,16 @@ class KnowledgeManagementGrid {
     renderBulkActions() {
         const selectedCount = this.selectedDocuments.size;
         return `
-            <div class="km-bulk-actions ${selectedCount > 0 ? 'active' : ''}">
-                <span class="km-bulk-text">${selectedCount} selected</span>
-                <button class="km-bulk-btn" onclick="kmGrid.bulkReprocess()">
+            <div class="data-grid-bulk-actions ${selectedCount > 0 ? 'active' : ''}">
+                <span class="data-grid-bulk-count">${selectedCount} selected</span>
+                <button class="data-grid-bulk-btn" onclick="kmGrid.bulkReprocess()">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <polyline points="23 4 23 10 17 10"/>
                         <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
                     </svg>
                     Reprocess
                 </button>
-                <button class="km-bulk-btn km-bulk-btn-danger" onclick="kmGrid.bulkDelete()">
+                <button class="data-grid-bulk-btn data-grid-bulk-btn-danger" onclick="kmGrid.bulkDelete()">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <polyline points="3 6 5 6 21 6"/>
                         <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
@@ -281,46 +274,34 @@ class KnowledgeManagementGrid {
         const sortedDocs = this.getSortedDocuments(filteredDocs);
         
         return `
-            <div class="km-table-container">
-                <table class="km-table">
+            <div class="table-container">
+                <table class="data-table">
                     <thead>
                         <tr>
-                            <th class="km-th km-th-checkbox">
-                                <input type="checkbox" class="km-checkbox" onchange="kmGrid.toggleSelectAll(this.checked)">
+                            <th class="table-th table-th-checkbox">
+                                <input type="checkbox" class="table-checkbox" onchange="kmGrid.toggleSelectAll(this.checked)">
                             </th>
-                            <th class="km-th km-th-sortable" onclick="kmGrid.handleSort('name')">
+                            <th class="table-th table-th-sortable" onclick="kmGrid.handleSort('name')" style="width: 40%; min-width: 200px;">
                                 Document Name
                                 ${this.renderSortIcon('name')}
                             </th>
-                            <th class="km-th km-th-sortable" onclick="kmGrid.handleSort('type')">
-                                Type
-                                ${this.renderSortIcon('type')}
-                            </th>
-                            <th class="km-th km-th-sortable" onclick="kmGrid.handleSort('status')">
+                            <th class="table-th table-th-sortable" onclick="kmGrid.handleSort('status')" style="width: 15%; min-width: 100px;">
                                 Status
                                 ${this.renderSortIcon('status')}
                             </th>
-                            <th class="km-th km-th-sortable" onclick="kmGrid.handleSort('chunks')">
-                                Chunks
-                                ${this.renderSortIcon('chunks')}
-                            </th>
-                            <th class="km-th km-th-sortable" onclick="kmGrid.handleSort('size')">
+                            <th class="table-th table-th-sortable" onclick="kmGrid.handleSort('size')" style="width: 15%; min-width: 80px;">
                                 Size
                                 ${this.renderSortIcon('size')}
                             </th>
-                            <th class="km-th km-th-sortable" onclick="kmGrid.handleSort('queries')">
+                            <th class="table-th table-th-sortable" onclick="kmGrid.handleSort('queries')" style="width: 10%; min-width: 80px;">
                                 Queries
                                 ${this.renderSortIcon('queries')}
                             </th>
-                            <th class="km-th km-th-sortable" onclick="kmGrid.handleSort('accuracy')">
-                                Accuracy
-                                ${this.renderSortIcon('accuracy')}
-                            </th>
-                            <th class="km-th km-th-sortable" onclick="kmGrid.handleSort('lastModified')">
+                            <th class="table-th table-th-sortable" onclick="kmGrid.handleSort('lastModified')" style="width: 15%; min-width: 120px;">
                                 Last Modified
                                 ${this.renderSortIcon('lastModified')}
                             </th>
-                            <th class="km-th km-th-actions">Actions</th>
+                            <th class="table-th table-th-actions" style="width: 120px; min-width: 120px;">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -334,48 +315,39 @@ class KnowledgeManagementGrid {
     renderTableRow(doc) {
         const isSelected = this.selectedDocuments.has(doc.id);
         return `
-            <tr class="km-tr ${isSelected ? 'selected' : ''}" onclick="kmGrid.handleRowClick(event, '${doc.id}')">
-                <td class="km-td km-td-checkbox">
-                    <input type="checkbox" class="km-checkbox" ${isSelected ? 'checked' : ''} 
+            <tr class="table-tr ${isSelected ? 'selected' : ''}" onclick="kmGrid.handleRowClick(event, '${doc.id}')">
+                <td class="table-td table-td-checkbox">
+                    <input type="checkbox" class="table-checkbox" ${isSelected ? 'checked' : ''} 
                            onclick="event.stopPropagation()" 
                            onchange="kmGrid.toggleDocumentSelection('${doc.id}')">
                 </td>
-                <td class="km-td km-td-name">
-                    <div class="km-doc-name">${doc.name}</div>
-                </td>
-                <td class="km-td">
-                    <span class="km-type-badge">${doc.type}</span>
-                </td>
-                <td class="km-td">
-                    ${this.renderStatus(doc)}
-                </td>
-                <td class="km-td">${doc.chunks}</td>
-                <td class="km-td">${doc.size}</td>
-                <td class="km-td">${doc.queries}</td>
-                <td class="km-td">
-                    <div class="km-accuracy">
-                        <span class="km-accuracy-value">${doc.accuracy}%</span>
-                        <div class="km-accuracy-bar">
-                            <div class="km-accuracy-fill" style="width: ${doc.accuracy}%"></div>
-                        </div>
+                <td class="table-td table-td-primary" style="width: 40%; min-width: 200px;">
+                    <div class="table-link" style="display: flex; align-items: center; gap: 8px;">
+                        <span style="flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${doc.name}</span>
+                        <span class="table-type-badge" style="font-size: 10px; padding: 2px 6px; flex-shrink: 0;">${doc.type}</span>
                     </div>
                 </td>
-                <td class="km-td">${this.formatDate(doc.lastModified)}</td>
-                <td class="km-td km-td-actions">
-                    <div class="km-actions">
-                        <button class="km-action-btn" title="View" onclick="event.stopPropagation(); kmGrid.viewDocument('${doc.id}')">
+                <td class="table-td" style="width: 15%; min-width: 100px;">
+                    ${this.renderStatus(doc)}
+                </td>
+                <td class="table-td" style="width: 15%; min-width: 80px;">${doc.size}</td>
+                <td class="table-td" style="width: 10%; min-width: 80px;">${doc.queries}</td>
+                <td class="table-td" style="width: 15%; min-width: 120px;">${this.formatDate(doc.lastModified)}</td>
+                <td class="table-td table-td-actions" style="width: 120px; min-width: 120px;">
+                    <div class="table-actions">
+                        <button class="table-action-btn" title="View" onclick="event.stopPropagation(); kmGrid.viewDocument('${doc.id}')">
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                 <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
                                 <circle cx="12" cy="12" r="3"/>
                             </svg>
                         </button>
-                        <button class="km-action-btn" title="Reprocess" onclick="event.stopPropagation(); kmGrid.reprocessDocument('${doc.id}')">
+                        <button class="table-action-btn" title="Reprocess" onclick="event.stopPropagation(); kmGrid.reprocessDocument('${doc.id}')">
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                 <polyline points="23 4 23 10 17 10"/>
                                 <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
                             </svg>
                         </button>
-                        <button class="km-action-btn km-action-btn-danger" title="Delete" onclick="event.stopPropagation(); kmGrid.deleteDocument('${doc.id}')">
+                        <button class="table-action-btn table-action-btn-danger" title="Delete" onclick="event.stopPropagation(); kmGrid.deleteDocument('${doc.id}')">
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                 <polyline points="3 6 5 6 21 6"/>
                                 <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
@@ -390,49 +362,48 @@ class KnowledgeManagementGrid {
     renderStatus(doc) {
         if (doc.status === 'processing') {
             return `
-                <div class="km-status km-status-processing">
-                    <span class="km-status-text">Processing</span>
-                    <div class="km-progress-bar">
-                        <div class="km-progress-fill" style="width: ${doc.progress || 0}%"></div>
+                <div class="table-status-badge table-status-processing">
+                    <span class="table-status-text">Processing</span>
+                    <div class="table-progress-bar">
+                        <div class="table-progress-fill" style="width: ${doc.progress || 0}%"></div>
                     </div>
-                    <span class="km-progress-text">${doc.progress || 0}%</span>
+                    <span class="table-progress-text">${doc.progress || 0}%</span>
                 </div>
             `;
         }
         
-        const statusClass = `km-status-${doc.status}`;
+        const statusClass = `table-status-${doc.status}`;
         const statusText = doc.status.charAt(0).toUpperCase() + doc.status.slice(1);
-        return `<span class="km-status-badge ${statusClass}">${statusText}</span>`;
+        return `<span class="table-status-badge ${statusClass}">${statusText}</span>`;
     }
 
     renderSortIcon(column) {
         if (this.currentSort.column !== column) {
-            return '<svg class="km-sort-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 15l5 5 5-5"/><path d="M7 9l5-5 5 5"/></svg>';
+            return '<svg class="table-sort-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 15l5 5 5-5"/><path d="M7 9l5-5 5 5"/></svg>';
         }
         
         if (this.currentSort.direction === 'asc') {
-            return '<svg class="km-sort-icon active" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 14l5-5 5 5"/></svg>';
+            return '<svg class="table-sort-icon active" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 14l5-5 5 5"/></svg>';
         } else {
-            return '<svg class="km-sort-icon active" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 10l5 5 5-5"/></svg>';
+            return '<svg class="table-sort-icon active" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 10l5 5 5-5"/></svg>';
         }
     }
 
     renderFooter() {
         const filteredCount = this.getFilteredDocuments().length;
         return `
-            <div class="km-footer">
-                <div class="km-footer-info">
+            <div class="data-grid-footer">
+                <div class="data-grid-footer-info">
                     Showing 1-${Math.min(8, filteredCount)} of ${filteredCount} documents
                 </div>
-                <div class="km-pagination">
-                    <button class="km-page-btn" disabled>
+                <div class="data-grid-pagination">
+                    <button class="data-grid-pagination-btn" disabled>
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <polyline points="15 18 9 12 15 6"/>
                         </svg>
                     </button>
-                    <button class="km-page-number active">1</button>
-                    <button class="km-page-number">2</button>
-                    <button class="km-page-btn">
+                    <span class="data-grid-pagination-info">Page 1</span>
+                    <button class="data-grid-pagination-btn">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <polyline points="9 18 15 12 9 6"/>
                         </svg>
