@@ -1,0 +1,490 @@
+<!-- Left Sidebar - Chats -->
+<aside class="left-sidebar">
+    <div class="search-container">
+        <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none">
+            <circle cx="11" cy="11" r="8" stroke="currentColor" stroke-width="2"></circle>
+            <path d="M21 21L16.65 16.65" stroke="currentColor" stroke-width="2"></path>
+        </svg>
+        <input type="text" placeholder="Search" class="search-input" style="">
+    </div>
+    
+    <!-- Menu Items Container - No Gap -->
+    <div class="sidebar-menu-items-container">
+        <!-- Analytics Menu Item (Disabled) -->
+        <div class="sidebar-menu-item disabled">
+            <svg class="menu-icon" width="20" height="20" viewBox="0 0 24 24" fill="none">
+                <path d="M3 3v18h18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M18.7 8l-5.1 5.2-2.8-2.7L7 14.3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            <span class="menu-text">Analytics</span>
+            <span class="coming-soon-badge">Coming Soon</span>
+        </div>
+        
+        <!-- Knowledge Menu Item -->
+        <div class="sidebar-menu-item" onclick="debounceNavigation('/knowledge', this)">
+            <svg class="menu-icon" width="20" height="20" viewBox="0 0 24 24" fill="none">
+                <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            <span class="menu-text">Knowledge</span>
+        </div>
+        
+        <!-- Users Menu Item -->
+        <div class="sidebar-menu-item" onclick="debounceNavigation('/users', this)">
+            <svg class="menu-icon" width="20" height="20" viewBox="0 0 24 24" fill="none">
+                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <circle cx="9" cy="7" r="4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M23 21v-2a4 4 0 0 0-3-3.87" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M16 3.13a4 4 0 0 1 0 7.75" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            <span class="menu-text">Users</span>
+        </div>
+    </div>
+    
+    <button class="action-btn action-btn-primary action-btn-medium action-btn-full new-chat-btn">
+        <span class="action-btn-icon">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+            </svg>
+        </span>
+        <span class="action-btn-text">New chat</span>
+    </button>
+
+    <div class="chats-section">
+        <h3 class="section-title">Recent chats</h3>
+        <div class="no-chats">
+            <p>No recent chats</p>
+        </div>
+    </div>
+</aside>
+
+<script>
+// Left Sidebar Chat History Component - Self-contained
+(function() {
+    'use strict';
+
+    // Simple Chat History Manager for Left Sidebar
+    class LeftSidebarChatHistory {
+        constructor() {
+            // Check if we're on the dashboard and a conversation was requested
+            if (window.location.pathname === '/dashboard') {
+                // Check for requested conversation (will be cleared by main chat-history.js)
+                this.currentConversationId = localStorage.getItem('currentConversationId');
+            } else {
+                this.currentConversationId = null;
+            }
+            this.conversations = [];
+            this.sessionToken = this.getSessionToken();
+            this.refreshInterval = null;
+            this.reloadTimeout = null;
+            this.lastReloadTime = 0;
+            this.activeRequests = new Map(); // Track active API requests
+        }
+
+        getSessionToken() {
+            const cookies = document.cookie.split(';');
+            for (let cookie of cookies) {
+                const [name, value] = cookie.trim().split('=');
+                if (name === 'sessionToken') {
+                    return decodeURIComponent(value);
+                }
+            }
+            return null;
+        }
+
+        async loadRecentConversations(force = false) {
+            const requestKey = 'left-sidebar-conversations';
+            
+            // STRONGEST API PROTECTION: Check if request is already in progress
+            if (this.activeRequests.has(requestKey)) {
+                console.log('[Left Sidebar] BLOCKED: Recent conversations request already in progress');
+                return this.activeRequests.get(requestKey);
+            }
+            
+            // Prevent rapid reloads unless forced (increased to 5 seconds for sidebar)
+            const now = Date.now();
+            if (!force && (now - this.lastReloadTime) < 5000) {
+                console.log('[Left Sidebar] BLOCKED: Reload too soon (5s protection)');
+                return this.conversations;
+            }
+            this.lastReloadTime = now;
+            
+            try {
+                // Load recent conversations with request tracking
+                const requestPromise = fetch('/api/rag/recent-conversations?limit=20', {
+                    headers: {
+                        'Authorization': `Bearer ${this.sessionToken}`
+                    },
+                    credentials: 'include'
+                });
+                
+                // Track this request
+                this.activeRequests.set(requestKey, requestPromise);
+                
+                const response = await requestPromise;
+
+                if (response.status === 401 || response.status === 403) {
+                    console.log('[Left Sidebar] Authentication failed - stopping refresh');
+                    return [];
+                }
+
+                if (!response.ok) {
+                    throw new Error(`Failed to load conversations: ${response.status}`);
+                }
+
+                const data = await response.json();
+                this.conversations = data.conversations || [];
+                this.renderConversationList();
+                return this.conversations;
+            } catch (error) {
+                console.error('[Left Sidebar] Error loading conversations:', error);
+                return [];
+            } finally {
+                // Clean up request tracking
+                this.activeRequests.delete(requestKey);
+            }
+        }
+
+        renderConversationList() {
+            const chatsSection = document.querySelector('.chats-section');
+            if (!chatsSection) {
+                console.warn('[Left Sidebar] Chat section not found');
+                return;
+            }
+
+            // Find or create the container for chat items
+            let chatsList = chatsSection.querySelector('.chats-list');
+            if (!chatsList) {
+                // Remove "No recent chats" message if it exists
+                const noChatsMessage = chatsSection.querySelector('.no-chats');
+                if (noChatsMessage) {
+                    noChatsMessage.style.display = 'none';
+                }
+
+                // Create chat list container
+                chatsList = document.createElement('div');
+                chatsList.className = 'chats-list';
+                chatsSection.appendChild(chatsList);
+            }
+
+            // Clear existing items
+            chatsList.innerHTML = '';
+
+            if (this.conversations.length === 0) {
+                // Show "No recent chats" if no conversations
+                const noChatsMessage = chatsSection.querySelector('.no-chats');
+                if (noChatsMessage) {
+                    noChatsMessage.style.display = 'block';
+                }
+                return;
+            }
+
+            // Render each conversation
+            this.conversations.forEach(conv => {
+                const chatItem = document.createElement('div');
+                chatItem.className = 'chat-item';
+                // Add active class if this is the currently loaded conversation
+                if (window.location.pathname === '/dashboard' && 
+                    this.currentConversationId && 
+                    this.currentConversationId === conv.conversation_id) {
+                    chatItem.classList.add('active');
+                }
+                chatItem.dataset.conversationId = conv.conversation_id;
+                
+                // Format the last message preview
+                const lastMessage = conv.last_user_message || 'New conversation';
+                const truncatedMessage = lastMessage.length > 50 
+                    ? lastMessage.substring(0, 47) + '...' 
+                    : lastMessage;
+                
+                // Format timestamp
+                const timestamp = conv.last_message_time 
+                    ? this.formatTimestamp(conv.last_message_time)
+                    : '';
+                
+                chatItem.innerHTML = `
+                    <div class="chat-item-content">
+                        <div class="chat-item-header">
+                            <div class="chat-item-title">${truncatedMessage}</div>
+                        </div>
+                        <div class="chat-item-meta">
+                            <span class="chat-item-time">${timestamp}</span>
+                            <span class="chat-item-count">${conv.message_count || 0} messages</span>
+                        </div>
+                    </div>
+                `;
+                
+                // Add click handler to navigate to dashboard with this conversation
+                chatItem.onclick = () => {
+                    // Prevent rapid clicking
+                    if (chatItem.dataset.navigating === 'true') {
+                        return;
+                    }
+                    chatItem.dataset.navigating = 'true';
+                    
+                    // Store conversation ID and navigate to dashboard
+                    localStorage.setItem('currentConversationId', conv.conversation_id);
+                    window.location.href = '/dashboard';
+                };
+                
+                chatsList.appendChild(chatItem);
+            });
+        }
+
+        formatTimestamp(timestamp) {
+            const date = new Date(timestamp);
+            const now = new Date();
+            const diff = now - date;
+            
+            // Less than 1 minute
+            if (diff < 60000) {
+                return 'Just now';
+            }
+            // Less than 1 hour
+            if (diff < 3600000) {
+                const minutes = Math.floor(diff / 60000);
+                return `${minutes}m ago`;
+            }
+            // Less than 24 hours
+            if (diff < 86400000) {
+                const hours = Math.floor(diff / 3600000);
+                return `${hours}h ago`;
+            }
+            // Less than 7 days
+            if (diff < 604800000) {
+                const days = Math.floor(diff / 86400000);
+                return `${days}d ago`;
+            }
+            // Default to date
+            return date.toLocaleDateString();
+        }
+
+        handleNewChat() {
+            console.log('[Left Sidebar] Creating new chat - navigating to dashboard');
+            // Clear current conversation and navigate to dashboard
+            localStorage.removeItem('currentConversationId');
+            this.currentConversationId = null;
+            
+            // If already on dashboard, just clear active states
+            if (window.location.pathname === '/dashboard') {
+                document.querySelectorAll('.chat-item.active').forEach(item => {
+                    item.classList.remove('active');
+                });
+            } else {
+                window.location.href = '/dashboard';
+            }
+        }
+        
+        setActiveConversation(conversationId) {
+            // Update the active conversation and UI
+            this.currentConversationId = conversationId;
+            
+            // Update active states in the UI
+            document.querySelectorAll('.chat-item').forEach(item => {
+                if (item.dataset.conversationId === conversationId) {
+                    item.classList.add('active');
+                } else {
+                    item.classList.remove('active');
+                }
+            });
+        }
+
+        init() {
+            // Set up new chat button handler
+            const newChatBtn = document.querySelector('.new-chat-btn');
+            if (newChatBtn) {
+                newChatBtn.addEventListener('click', () => this.handleNewChat());
+            }
+            
+            // Load conversations initially
+            this.loadRecentConversations();
+            
+            // Refresh periodically (less frequently since it's just for display)
+            this.refreshInterval = setInterval(() => {
+                this.loadRecentConversations();
+            }, 60000); // Every minute
+        }
+    }
+
+    // Global navigation debouncing
+    window.navigationDebounce = {};
+    
+    function debounceNavigation(url, element) {
+        // Prevent rapid navigation
+        if (element.dataset.navigating === 'true') {
+            return;
+        }
+        
+        // Global debounce check
+        const now = Date.now();
+        if (window.navigationDebounce.lastNavigation && (now - window.navigationDebounce.lastNavigation) < 300) {
+            console.log('[Navigation] Debouncing rapid navigation attempt');
+            return;
+        }
+        
+        window.navigationDebounce.lastNavigation = now;
+        element.dataset.navigating = 'true';
+        
+        // Navigate
+        window.location.href = url;
+    }
+    
+    // Function to set active menu item based on current page
+    function setActiveMenuItem() {
+        const currentPath = window.location.pathname;
+        const menuItems = document.querySelectorAll('.sidebar-menu-item');
+        
+        menuItems.forEach(item => {
+            const onclick = item.getAttribute('onclick');
+            if (onclick) {
+                // Extract the path from the onclick attribute - handle both old and new patterns
+                let itemPath = null;
+                const oldMatch = onclick.match(/window\.location\.href='([^']+)'/);
+                const newMatch = onclick.match(/debounceNavigation\('([^']+)'/);
+                
+                if (oldMatch && oldMatch[1]) {
+                    itemPath = oldMatch[1];
+                } else if (newMatch && newMatch[1]) {
+                    itemPath = newMatch[1];
+                }
+                
+                if (itemPath) {
+                    // Check if current path matches or starts with item path
+                    if (currentPath === itemPath || currentPath.startsWith(itemPath + '/')) {
+                        item.classList.add('active');
+                    } else {
+                        item.classList.remove('active');
+                    }
+                }
+            }
+        });
+    }
+
+    // Initialize when DOM is ready
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', () => {
+            const leftSidebarChat = new LeftSidebarChatHistory();
+            leftSidebarChat.init();
+            
+            // Show/hide Users menu based on role
+            updateUsersMenuVisibility();
+            
+            // Set active menu item
+            setActiveMenuItem();
+        });
+    } else {
+        // DOM is already ready
+        const leftSidebarChat = new LeftSidebarChatHistory();
+        leftSidebarChat.init();
+        
+        // Show/hide Users menu based on role
+        updateUsersMenuVisibility();
+        
+        // Set active menu item
+        setActiveMenuItem();
+    }
+    
+    // Function to update Users menu visibility based on role
+    function updateUsersMenuVisibility() {
+        // Select the Users menu item by its onclick attribute
+        const usersMenuItem = document.querySelector('.sidebar-menu-item[onclick*="/users"]');
+        if (!usersMenuItem) return;
+        
+        // Check user role from localStorage
+        const userStr = localStorage.getItem('userSession');
+        try {
+            const user = JSON.parse(userStr || '{}');
+            usersMenuItem.style.display = user.role === 'tenant-admin' ? 'flex' : 'none';
+        } catch (err) {
+            // Also check cookie-based auth
+            fetch('/api/user/info', { credentials: 'include' })
+                .then(res => res.json())
+                .then(data => {
+                    usersMenuItem.style.display = data.isAdmin ? 'flex' : 'none';
+                })
+                .catch(() => {
+                    usersMenuItem.style.display = 'none';
+                });
+        }
+    }
+})();
+</script>
+
+<style>
+/* Knowledge Menu Item Styles */
+.sidebar-menu-items-container {
+    display: flex;
+    flex-direction: column;
+    gap: 0 !important;
+    margin: 0 -24px;
+}
+
+.sidebar-menu-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    height: 44px;
+    padding: 0 24px 0 27px;
+    margin: 0;
+    background: transparent;
+    border: none;
+    border-left: 3px solid transparent;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    border-radius: 0;
+    text-decoration: none;
+    color: #374151;
+    box-sizing: border-box;
+    position: relative;
+}
+
+.sidebar-menu-item:hover:not(.disabled),
+.sidebar-menu-item.active {
+    background: linear-gradient(135deg, rgba(0, 102, 255, 0.08), rgba(0, 136, 255, 0.05));
+    border: none;
+    border-left: 3px solid rgb(0, 102, 255);
+    box-shadow: inset 0 0 0 1px rgba(0, 102, 255, 0.1);
+    padding-left: 24px;
+}
+
+.sidebar-menu-item.disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
+}
+
+.sidebar-menu-item.disabled .menu-text {
+    color: #9CA3AF;
+}
+
+.sidebar-menu-item.disabled .menu-icon {
+    color: #9CA3AF;
+}
+
+.sidebar-menu-item .menu-icon {
+    flex-shrink: 0;
+    color: #6B7280;
+}
+
+.sidebar-menu-item .menu-text {
+    font-family: 'Season Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+    font-size: 16px;
+    font-weight: 500;
+    color: #374151;
+    flex: 1;
+}
+
+.coming-soon-badge {
+    font-family: 'Season Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 2px 6px;
+    background: rgba(0, 102, 255, 0.1);
+    color: #0066FF;
+    border-radius: 4px;
+    margin-left: auto;
+}
+</style>

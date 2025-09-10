@@ -178,7 +178,22 @@ router.post('/upload-knowledge', uploadLimiter, upload.array('files', 10), async
     // Generate unique callback ID and secure access token
     const callbackId = crypto.randomBytes(16).toString('hex');
     const callbackToken = crypto.randomBytes(32).toString('hex'); // Secure token for accessing callback
-    const callbackUrl = `${req.protocol}://${req.get('host')}/api/csv/callback/${callbackId}`;
+    
+    // Get app_url from database or use environment variable as fallback
+    let appUrl = process.env.APP_URL || `${req.protocol}://${req.get('host')}`;
+    try {
+      const configResult = await db.query(
+        'SELECT value FROM system_config WHERE key = $1',
+        ['app_url']
+      );
+      if (configResult.rows.length > 0) {
+        appUrl = configResult.rows[0].value;
+      }
+    } catch (configError) {
+      console.log('[API] Using fallback app URL:', appUrl);
+    }
+    
+    const callbackUrl = `${appUrl}/api/csv/callback/${callbackId}`;
     
     // Store CSV data for callback retrieval with access token
     csvDataStore[callbackId] = {

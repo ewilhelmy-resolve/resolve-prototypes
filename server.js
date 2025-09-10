@@ -49,6 +49,10 @@ const adminDiagnosticsRouter = require('./src/routes/adminDiagnostics');
 const app = express();
 const PORT = process.env.PORT || 5000;
 
+// Configure EJS as the view engine
+app.set('view engine', 'ejs');
+app.set('views', path.join(__dirname, 'src/client/views'));
+
 // Initialize ResolveWebhook instance
 const resolveWebhook = new ResolveWebhook();
 
@@ -119,8 +123,18 @@ app.get('/health', async (req, res) => {
 // Page routes
 const pageRoutes = routeService.getPageRoutes();
 app.get('/', pageRoutes['/']);
-app.get('/dashboard', requireAuth, pageRoutes['/dashboard']);
-app.get('/knowledge', requireAuth, pageRoutes['/knowledge']);
+app.get('/dashboard', requireAuth, (req, res) => {
+  res.render('dashboard', { currentPage: 'dashboard' });
+});
+app.get('/knowledge', requireAuth, (req, res) => {
+  console.log('[KNOWLEDGE ROUTE] User accessing knowledge page:', req.userEmail);
+  try {
+    res.render('knowledge', { currentPage: 'knowledge' });
+  } catch (error) {
+    console.error('[KNOWLEDGE ROUTE] Error rendering knowledge page:', error);
+    res.status(500).send('Error loading knowledge page');
+  }
+});
 app.get('/admin', requireAdmin, pageRoutes['/admin']);
 app.get('/step2', pageRoutes['/step2']);
 app.get('/completion', pageRoutes['/completion']);
@@ -128,7 +142,7 @@ app.get('/signin', pageRoutes['/signin']);
 
 // User management pages (tenant admin only)
 app.get('/users', requireAuth, requireTenantAdmin, (req, res) => {
-  res.sendFile(path.join(__dirname, 'src/client/pages/users.html'));
+  res.render('users', { currentPage: 'users' });
 });
 
 // Password reset page (public)

@@ -6,12 +6,16 @@ const config = require('../config');
  * Supports multiple token sources: cookies, Authorization header, and x-session-token header
  */
 async function authenticate(req, res, next) {
+  console.log('[AUTH DEBUG] Authenticating request to:', req.path);
+  console.log('[AUTH DEBUG] Cookies:', req.cookies ? Object.keys(req.cookies) : 'none');
+  
   // Check multiple auth methods in order of preference
   let token = null;
 
   // 1. Check cookie (most secure for web apps)
   if (req.cookies?.sessionToken) {
     token = req.cookies.sessionToken;
+    console.log('[AUTH DEBUG] Found session token in cookie');
   }
   
   // 2. Check Authorization header (standard for APIs)
@@ -28,6 +32,7 @@ async function authenticate(req, res, next) {
   }
 
   if (!token) {
+    console.log('[AUTH DEBUG] No token found, redirecting to signin');
     // For API routes, return JSON error
     if (req.path.startsWith('/api/')) {
       return res.status(401).json({ 

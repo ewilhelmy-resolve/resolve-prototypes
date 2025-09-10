@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+    <title>Tenant Management - Resolve</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@radix-ui/themes@3.0.0/styles.css">
+    <link rel="stylesheet" href="/styles/fonts.css">
+    <link rel="stylesheet" href="/styles/dashboard-styles.css">
+    <link rel="stylesheet" href="/styles/action-button.css">
+    <link rel="stylesheet" href="/styles/knowledge-management.css">
+    <link rel="stylesheet" href="/styles/table.css">
+    <link rel="stylesheet" href="/styles/tenant-management.css">
+    <link rel="stylesheet" href="/quikchat.css">
+    <link rel="stylesheet" href="/dashboard-chat.css">
+</head>
+<body>
+    <div class="rt-Theme" data-radius="medium" data-appearance="light">
+        <div class="dashboard-layout">
+            <!-- Include Header Partial -->
+            <%- include('partials/header', { currentPage: 'users' }) %>
+
+            <!-- Main Content -->
+            <div class="main-content">
+                <!-- Include Left Sidebar Partial -->
+                <%- include('partials/left-sidebar') %>
+
+                <!-- Center - Users Content Area -->
+                <main class="chat-area" style="flex: 1; overflow: hidden; background: #f8fafc;">
+                    <div style="height: 100%; width: 100%; padding: 24px; box-sizing: border-box;">
+                        <div style="background: white; border-radius: 12px; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1), 0 1px 2px rgba(0, 0, 0, 0.06); height: 100%; display: flex; flex-direction: column; overflow: hidden;">
+                            <div id="usersContainer" style="flex: 1; overflow: auto; padding: 24px;">
+                                <!-- User Management Grid will be rendered here -->
+                            </div>
+                        </div>
+                    </div>
+                </main>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Container -->
+    <div id="toastContainer" style="position: fixed; top: 20px; right: 20px; z-index: 10000;"></div>
+
+    <!-- Scripts -->
+    <script src="/components/action-button.js?v=2"></script>
+    <script src="/components/tenant-management.js?v=1"></script>
+    <script>
+        // Check authentication and role
+        async function checkAuth() {
+            // The app uses cookie-based auth, server already verified access
+            // Just fetch user info to populate UI
+            try {
+                const response = await fetch('/api/user/info', {
+                    credentials: 'include'
+                });
+                
+                if (!response.ok) {
+                    console.error('Failed to get user info');
+                    // Don't redirect - server already handled auth
+                    return;
+                }
+                
+                const data = await response.json();
+                const userEmail = data.email;
+                const userName = data.fullName;
+                const userTenantId = data.tenantId;
+                const userRole = data.isAdmin ? 'tenant-admin' : 'user';
+
+                // Update UI with user info
+                const initial = userName ? userName.charAt(0).toUpperCase() : userEmail.charAt(0).toUpperCase();
+                
+                // Update elements if they exist
+                const userInitialEl = document.getElementById('userInitial');
+                if (userInitialEl) userInitialEl.textContent = initial;
+                
+                const dropdownAvatarEl = document.getElementById('dropdownAvatar');
+                if (dropdownAvatarEl) dropdownAvatarEl.textContent = initial;
+                
+                const dropdownNameEl = document.getElementById('dropdownName');
+                if (dropdownNameEl) dropdownNameEl.textContent = userName || 'User';
+                
+                const dropdownEmailEl = document.getElementById('dropdownEmail');
+                if (dropdownEmailEl) dropdownEmailEl.textContent = userEmail;
+                
+                const tenantIdDisplayEl = document.getElementById('tenantIdDisplay');
+                if (tenantIdDisplayEl) tenantIdDisplayEl.textContent = userTenantId || 'Not Available';
+
+                // Initialize tenant management
+                if (window.TenantManagement) {
+                    window.tenantManagement = new TenantManagement(userTenantId);
+                }
+            } catch (error) {
+                console.error('Auth check failed:', error);
+                // Don't redirect - server already handled auth
+            }
+        }
+
+        function toggleUserDropdown() {
+            const dropdown = document.getElementById('userDropdown');
+            dropdown.style.display = dropdown.style.display === 'none' ? 'block' : 'none';
+            
+            // Close on click outside
+            if (dropdown.style.display === 'block') {
+                setTimeout(() => {
+                    document.addEventListener('click', function closeDropdown(e) {
+                        if (!e.target.closest('.user-avatar')) {
+                            dropdown.style.display = 'none';
+                            document.removeEventListener('click', closeDropdown);
+                        }
+                    });
+                }, 0);
+            }
+        }
+
+        function copyTenantId() {
+            const tenantId = document.getElementById('tenantIdDisplay').textContent;
+            if (tenantId && tenantId !== 'Not Available' && tenantId !== 'Loading...') {
+                navigator.clipboard.writeText(tenantId).then(() => {
+                    showToast('Tenant ID copied to clipboard', 'success');
+                }).catch(() => {
+                    showToast('Failed to copy Tenant ID', 'error');
+                });
+            }
+        }
+
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            toast.className = `toast toast-${type}`;
+            toast.style.cssText = `
+                background: ${type === 'success' ? '#10B981' : type === 'error' ? '#EF4444' : '#3B82F6'};
+                color: white;
+                padding: 12px 20px;
+                border-radius: 8px;
+                margin-bottom: 10px;
+                box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+                animation: slideIn 0.3s ease;
+            `;
+            toast.textContent = message;
+            container.appendChild(toast);
+            
+            setTimeout(() => {
+                toast.style.animation = 'slideOut 0.3s ease';
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+
+        async function logout() {
+            const token = localStorage.getItem('sessionToken');
+            
+            try {
+                await fetch('/api/logout', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+            } catch (error) {
+                console.error('Logout error:', error);
+            }
+            
+            // Clear local storage
+            localStorage.clear();
+            
+            // Redirect to signin
+            window.location.href = '/signin';
+        }
+
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', checkAuth);
+
+        // Add animation styles
+        const style = document.createElement('style');
+        style.textContent = `
+            @keyframes slideIn {
+                from { transform: translateX(100%); opacity: 0; }
+                to { transform: translateX(0); opacity: 1; }
+            }
+            @keyframes slideOut {
+                from { transform: translateX(0); opacity: 1; }
+                to { transform: translateX(100%); opacity: 0; }
+            }
+        `;
+        document.head.appendChild(style);
+    </script>
+</body>
+</html>
