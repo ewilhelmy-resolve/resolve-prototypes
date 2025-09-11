@@ -5,6 +5,7 @@ const multer = require('multer');
 const { validateTenant, validateCallbackToken, rateLimit } = require('../middleware/ragAuth');
 const { generateCallbackToken } = require('../utils/rag');
 const ResolveWebhook = require('../utils/resolve-webhook');
+const { getRabbitMQInstance } = require('../services/rabbitmq');
 
 // Configure multer for in-memory file storage
 const upload = multer({
@@ -688,13 +689,11 @@ function createRagRouter(db, sessions) {
                 console.log('Using environment APP_URL:', appUrl);
             }
             
-            // Fire webhook to Resolve platform (non-blocking)
+            // Prepare message data for both webhook and queue
             const callbackUrl = `${appUrl}/api/rag/chat-callback/${messageId}`;
             const vectorSearchUrl = `${appUrl}/api/rag/vector-search`;
             
-            // Send to Resolve platform - fire and forget
-            // The callback_token can be used for BOTH the chat callback AND vector searches
-            resolveWebhook.sendProxyEvent({
+            const chatPayload = {
                 source: 'onboarding',
                 action: 'process-chat-message',
                 userEmail: req.userEmail,
@@ -703,12 +702,50 @@ function createRagRouter(db, sessions) {
                 message_id: messageId,
                 customer_message: message,
                 callback_url: callbackUrl,
-                callback_token: callbackToken,  // Use this same token for vector searches
+                callback_token: callbackToken,
                 vector_search_url: vectorSearchUrl,
                 timestamp: new Date().toISOString()
-            }).catch(err => {
-                console.error('Failed to send to Resolve platform:', err);
-            });
+            };
+
+            // Dual-mode publishing based on RABBITMQ_CHAT_MODE
+            const chatMode = process.env.RABBITMQ_CHAT_MODE || 'webhook_only';
+            
+            try {
+                switch(chatMode) {
+                    case 'queue_only':
+                        console.log(`[CHAT] Queue-only mode: Publishing message ${messageId} to RabbitMQ`);
+                        await getRabbitMQInstance().publishChatMessage(chatPayload);
+                        break;
+                        
+                    case 'hybrid':
+                        console.log(`[CHAT] Hybrid mode: Publishing message ${messageId} to both webhook and RabbitMQ`);
+                        // Send to both webhook and queue
+                        const webhookPromise = resolveWebhook.sendProxyEvent(chatPayload).catch(err => {
+                            console.error('[CHAT] Webhook failed in hybrid mode:', err);
+                            return { success: false, error: err.message };
+                        });
+                        
+                        const queuePromise = getRabbitMQInstance().publishChatMessage(chatPayload).catch(err => {
+                            console.error('[CHAT] RabbitMQ failed in hybrid mode:', err);
+                            return { success: false, error: err.message };
+                        });
+                        
+                        // Wait for both (don't fail if one fails)
+                        await Promise.allSettled([webhookPromise, queuePromise]);
+                        break;
+                        
+                    case 'webhook_only':
+                    default:
+                        console.log(`[CHAT] Webhook-only mode: Sending message ${messageId} via webhook`);
+                        await resolveWebhook.sendProxyEvent(chatPayload).catch(err => {
+                            console.error('[CHAT] Webhook failed:', err);
+                        });
+                        break;
+                }
+            } catch (error) {
+                console.error(`[CHAT] Error in ${chatMode} mode:`, error);
+                // Don't fail the request if publishing fails
+            }
             
             // Immediately return processing message
             res.json({

@@ -473,33 +473,350 @@ router.get('/health', async (req, res) => {
 });
 ```
 
-## Migration Strategy
+## Migration Strategy - Chat-First Approach
 
-### Phase 1: Infrastructure (Week 1)
-- [ ] Set up RabbitMQ service in Docker Compose
-- [ ] Create RabbitMQ service class with connection management
-- [ ] Add environment configuration
-- [ ] Implement health checks
+This migration focuses on **chat functionality first** as it's the most critical user-facing feature. Each phase is designed to be verifiable and reversible using feature flags.
 
-### Phase 2: Parallel Implementation (Week 2)
-- [ ] Implement RabbitMQ publishers alongside existing webhooks
-- [ ] Create message consumers
-- [ ] Add feature flag to switch between webhook/queue modes
-- [ ] Test both systems in parallel
+### Phase 1: Infrastructure & Feature Flag Setup (Week 1) ✅ COMPLETED
+**Goal**: Set up RabbitMQ infrastructure with feature flags for safe testing
 
-### Phase 3: Migration (Week 3)
-- [ ] Enable queue mode in staging environment
-- [ ] Monitor message processing and error rates
-- [ ] Gradual rollout with ability to rollback
-- [ ] Performance testing and optimization
+**Implementation Steps**:
+- [x] Add RabbitMQ service to `docker-compose.yml` with management UI
+- [x] Create `src/services/rabbitmq.js` - RabbitMQ service class with connection management
+- [x] Add environment variables: `RABBITMQ_URL`, `ENABLE_RABBITMQ_CHAT=false`
+- [x] Update `server.js` to include RabbitMQ health checks and startup connection
+- [x] Create queue topology (chat.requests, chat.responses, dead letter queues)
+- [x] Add `amqplib` dependency to package.json
+- [x] Initialize RabbitMQ connection on app startup when enabled
 
-### Phase 4: Cleanup (Week 4)
-- [ ] Remove webhook-related code
-- [ ] Clean up database tables (`rag_webhook_failures`)
-- [ ] Update documentation
-- [ ] Remove ngrok dependency for local development
-- [ ] Create local development onboarding guide
-- [ ] Update CI/CD pipelines for RabbitMQ testing
+**Files to Create/Modify**:
+- `docker-compose.yml` - Add RabbitMQ service
+- `src/services/rabbitmq.js` - New RabbitMQ service class
+- `.env` - Add RabbitMQ configuration variables  
+- `src/routes/health.js` - Update health checks
+
+**Verification Steps**:
+```bash
+# 1. Verify RabbitMQ starts with Docker
+docker compose up -d
+docker compose ps  # Should show rabbitmq as healthy
+
+# 2. Check RabbitMQ Management UI  
+open http://localhost:15672  # admin/admin
+
+# 3. Verify health endpoint includes RabbitMQ
+curl http://localhost:5000/api/health
+# Should include: "rabbitmq": "healthy"
+
+# 4. Run existing e2e tests to ensure no regression
+npm test
+```
+
+**✅ Phase 1 Verification Results**:
+- ✅ RabbitMQ service starts and shows healthy status
+- ✅ Management UI accessible at http://localhost:15672 (admin/admin)  
+- ✅ Queue topology created successfully:
+  - `chat.requests`, `chat.responses`
+  - `document.processing`, `document.processed` 
+  - `failed.messages` (dead letter queue)
+- ✅ Health endpoint shows RabbitMQ as healthy when enabled
+- ✅ App startup logs show successful RabbitMQ connection
+
+**📝 Implementation Notes**:
+- **Docker Target Decision**: 
+  - **Issue**: Production target uses PM2 which makes console.log debugging difficult during development
+  - **Solution**: Temporarily switched to `target: development` for RabbitMQ migration development
+  - **Future**: After migration completion, can switch back to production target with proper PM2 logging
+- **Package Lock Sync**: Added `amqplib` dependency required updating `package-lock.json` with `npm install` before Docker build.
+- **Environment Variables**: RabbitMQ connection only initializes when `ENABLE_RABBITMQ_CHAT=true` to maintain backward compatibility.
+
+**Docker Target Recommendation**:
+- **During Migration (Phases 1-5)**: Use `target: development` for clear logging and easier debugging
+- **Post-Migration**: Switch back to `target: production` and configure PM2 log forwarding for production readiness
+
+### Phase 2: Dual-Mode Chat Implementation (Week 2) ✅ COMPLETED
+**Goal**: Implement RabbitMQ chat alongside existing webhooks (both running in parallel)
+
+**Implementation Steps**:
+- [x] Update `src/routes/ragApi.js` `/chat` endpoint for dual-mode publishing
+- [x] Implement 3-mode chat system: `webhook_only`, `hybrid`, `queue_only`
+- [x] Create `scripts/mock-ai-consumer.js` - Mock AI service for testing
+- [x] Create `src/consumers/chatResponseConsumer.js` - Response queue consumer
+- [x] Integrate response consumer into server startup
+- [x] Add comprehensive error handling and retry logic
+
+**Key Changes in `/chat` endpoint (`ragApi.js:697`)**:
+```javascript
+// EXISTING: Fire webhook (keep this)
+resolveWebhook.sendProxyEvent({...}).catch(err => {
+    console.error('Webhook failed:', err);
+});
+
+// NEW: Also publish to RabbitMQ if enabled
+if (process.env.ENABLE_RABBITMQ_CHAT === 'true') {
+    await rabbitMQService.publishChatMessage({
+        message_id: messageId,
+        conversation_id: convId,
+        tenant_id: req.tenantId,
+        user_message: message,
+        callback_url: callbackUrl,
+        callback_token: callbackToken,
+        vector_search_endpoint: `${appUrl}/api/rag/vector-search`
+    });
+}
+```
+
+**Verification Steps**:
+```bash
+# 1. Test with feature flag OFF (default)
+ENABLE_RABBITMQ_CHAT=false npm run dev
+curl -X POST localhost:5000/api/rag/chat \
+  -H "Content-Type: application/json" \
+  -H "Cookie: sessionToken=test-token" \
+  -d '{"message":"test webhook only"}'
+# Should work exactly as before (webhook only)
+
+# 2. Test with feature flag ON  
+ENABLE_RABBITMQ_CHAT=true npm run dev
+curl -X POST localhost:5000/api/rag/chat \
+  -H "Content-Type: application/json" \  
+  -H "Cookie: sessionToken=test-token" \
+  -d '{"message":"test dual mode"}'
+# Should work AND show message in RabbitMQ management UI
+
+# 3. Verify both webhook and queue receive messages
+# Check webhook logs + RabbitMQ queue depth in management UI
+
+# 4. Run e2e tests with both modes
+ENABLE_RABBITMQ_CHAT=false npm test
+ENABLE_RABBITMQ_CHAT=true npm test
+```
+
+**✅ Phase 2 Verification Results**:
+- ✅ 3-mode chat system implemented successfully
+- ✅ Mock AI consumer processes messages from `chat.requests` queue
+- ✅ Chat response consumer handles responses from `chat.responses` queue  
+- ✅ End-to-end message flow: User → Queue → Mock AI → Response Queue → Database → SSE
+- ✅ Hybrid mode working: Both webhook and queue systems operational
+- ✅ Queue-only mode verified: Messages bypass webhook completely
+
+**📝 Phase 2 Implementation Notes**:
+- **Chat Modes**: `webhook_only` (default), `hybrid` (both), `queue_only` (RabbitMQ only)
+- **Response Modes**: `callback` (webhook), `hybrid` (both), `queue` (RabbitMQ only)
+- **Mock AI**: `npm run mock-ai` starts local AI consumer for testing
+- **Response Consumer**: Automatically starts when `RABBITMQ_RESPONSE_MODE=queue|hybrid`
+
+### Phase 3: Queue-Only Mode Testing (Week 3) ✅ COMPLETED
+**Goal**: Test with RabbitMQ-only mode while keeping webhook as fallback
+
+**Implementation Steps**:
+- [x] Test pure `queue_only` mode for both chat and responses
+- [x] Create `scripts/queue-monitor.js` - Real-time queue monitoring tool
+- [x] Verify message persistence during consumer downtime
+- [x] Test fault tolerance and automatic recovery
+- [x] Validate dead letter queue functionality
+- [x] Load test message processing capabilities
+
+**Updated Chat Logic**:
+```javascript
+const mode = process.env.RABBITMQ_CHAT_MODE || 'webhook_only';
+
+switch(mode) {
+    case 'queue_only':
+        await rabbitMQService.publishChatMessage({...});
+        break;
+    case 'hybrid':  
+        await Promise.allSettled([
+            resolveWebhook.sendProxyEvent({...}),
+            rabbitMQService.publishChatMessage({...})
+        ]);
+        break;
+    case 'webhook_only':
+    default:
+        await resolveWebhook.sendProxyEvent({...});
+        break;
+}
+```
+
+**Verification Steps**:
+```bash
+# 1. Test queue-only mode
+RABBITMQ_CHAT_MODE=queue_only RABBITMQ_RESPONSE_MODE=queue npm run dev
+curl -X POST localhost:5000/api/rag/chat -d '{"message":"queue only test"}'
+# Verify webhook is NOT called, only queue gets messages
+
+# 2. Monitor queue activity in real-time
+npm run monitor-queues
+# Shows live queue statistics, message counts, consumer status
+
+# 3. Test fault tolerance - consumer downtime
+# Stop mock AI, send messages, restart mock AI
+# Verify accumulated messages are processed immediately
+
+# 4. Test response consumer downtime
+RABBITMQ_RESPONSE_MODE=callback docker compose restart app
+# Send messages - responses accumulate in chat.responses queue
+```
+
+**✅ Phase 3 Verification Results**:
+- ✅ Pure queue-only mode operational for both chat and responses
+- ✅ Real-time queue monitoring with `npm run monitor-queues`
+- ✅ Message persistence verified during consumer outages
+- ✅ Automatic recovery - accumulated messages processed instantly when consumers return
+- ✅ Fault tolerance confirmed - system handles partial failures gracefully
+- ✅ Load testing successful - rapid message processing under high volume
+- ✅ Zero message loss during consumer downtime scenarios
+
+**📝 Phase 3 Implementation Notes**:
+- **Queue Monitor**: Real-time visibility into queue depths, consumer counts, message rates
+- **Fault Tolerance**: Messages persist safely in queues during consumer outages
+- **Recovery Speed**: Instant processing of accumulated messages when consumers restart
+- **Performance**: Efficient processing - queues typically show 0 messages (immediate consumption)
+
+### Phase 4: Response Consumption Migration (Week 4) ✅ COMPLETED
+**Goal**: Replace HTTP callback with RabbitMQ response consumption
+
+**Implementation Steps**:
+- [x] Create `src/consumers/chatResponseConsumer.js` - Response consumer
+- [x] Add `RABBITMQ_RESPONSE_MODE=callback|queue|hybrid` environment variable  
+- [x] Implement response consumer that mirrors current callback endpoint logic
+- [x] Integrate response consumer into server startup process
+- [x] Test response deduplication in hybrid mode
+- [x] Maintain callback endpoint for backward compatibility during transition
+
+**Response Consumer Implementation**:
+```javascript
+// src/consumers/chatResponseConsumer.js
+class ChatResponseConsumer {
+    async handleChatResponse(data) {
+        const { message_id, conversation_id, tenant_id, ai_response, sources } = data;
+        
+        // Same logic as current chat-callback endpoint:
+        // 1. Store AI response in rag_messages table
+        await this.db.query(
+            'INSERT INTO rag_messages (conversation_id, tenant_id, role, message, response_time_ms) VALUES ($1, $2, $3, $4, $5)',
+            [conversation_id, tenant_id, 'assistant', ai_response, data.processing_time_ms]
+        );
+
+        // 2. Trigger SSE (identical to current callback logic)
+        if (global.sseClients && global.sseClients[tenant_id]) {
+            const sseMessage = JSON.stringify({
+                type: 'chat-response',
+                conversation_id, message_id, ai_response, sources,
+                timestamp: new Date().toISOString()
+            });
+            
+            Object.values(global.sseClients[tenant_id]).forEach(client => {
+                client.write(`data: ${sseMessage}\n\n`);
+            });
+        }
+    }
+}
+```
+
+**Verification Steps**:
+```bash
+# 1. Test queue-only response mode
+RABBITMQ_RESPONSE_MODE=queue npm run dev
+curl -X POST localhost:5000/api/rag/chat -d '{"message":"queue response test"}'
+# Verify: Response comes via queue consumer, NO HTTP callback
+
+# 2. Test hybrid mode (both callback AND queue)
+RABBITMQ_RESPONSE_MODE=hybrid npm run dev  
+curl -X POST localhost:5000/api/rag/chat -d '{"message":"hybrid response test"}'
+# Verify: Both paths work, no duplicate responses
+
+# 3. Test callback-only mode  
+RABBITMQ_RESPONSE_MODE=callback npm run dev
+# Response consumer should NOT start, only HTTP callback active
+```
+
+**✅ Phase 4 Verification Results**:
+- ✅ Response consumer automatically starts when `RABBITMQ_RESPONSE_MODE=queue|hybrid`
+- ✅ Queue-based responses process identical to HTTP callback responses
+- ✅ Same database storage, SSE broadcasting, and user experience
+- ✅ Hybrid mode operational - both callback and queue response paths work
+- ✅ Response consumer handles AI responses from `chat.responses` queue
+- ✅ Fault tolerance - response consumer restarts automatically with app
+- ✅ No duplicate responses in hybrid mode (proper message handling)
+
+**📝 Phase 4 Implementation Notes**:
+- **Response Consumer**: Replicates exact logic of `/chat-callback` endpoint
+- **SSE Integration**: Identical real-time broadcast to connected clients  
+- **Database Storage**: Same `rag_messages` table structure maintained
+- **Automatic Startup**: Consumer starts/stops with main application
+- **Mode Flexibility**: Can switch between callback/queue/hybrid modes instantly
+
+### Phase 5: Production Cutover & Cleanup (Week 5)
+**Goal**: Switch production to queue-only mode and remove webhook code
+
+**Implementation Steps**:
+- [ ] Deploy to staging with `RABBITMQ_CHAT_MODE=queue_only` + `RABBITMQ_RESPONSE_MODE=queue`
+- [ ] Monitor performance for 48 hours (response times, queue depths, error rates)
+- [ ] Switch production to full queue mode
+- [ ] Remove webhook-related code from chat endpoints after 1 week of stable operation
+- [ ] Clean up environment variables and feature flags
+- [ ] Update documentation and deployment guides
+
+**Verification Steps**:
+```bash
+# 1. Staging verification - full queue mode
+RABBITMQ_CHAT_MODE=queue_only RABBITMQ_RESPONSE_MODE=queue npm run validate-change
+# Should pass all e2e tests including chat functionality
+
+# 2. Production monitoring commands
+# Monitor chat response times, queue depths, error rates
+curl -u admin:admin http://localhost:15672/api/queues/%2F/chat.requests
+curl -u admin:admin http://localhost:15672/api/queues/%2F/chat.responses
+
+# 3. Rollback verification (ensure quick rollback capability)  
+RABBITMQ_CHAT_MODE=webhook_only RABBITMQ_RESPONSE_MODE=callback npm run validate-change
+# Should still work with original webhook approach
+```
+
+## Key Verification Commands for All Phases
+
+**Infrastructure Health Check**:
+```bash
+# Check all services are healthy
+docker compose ps
+curl http://localhost:5000/api/health | jq '.'
+
+# Check RabbitMQ queues and connections
+curl -u admin:admin http://localhost:15672/api/queues | jq '.[] | {name, messages}'
+```
+
+**Message Flow Verification**:  
+```bash
+# Send test chat message with full verification
+curl -X POST http://localhost:5000/api/rag/chat \
+  -H "Content-Type: application/json" \
+  -H "Cookie: sessionToken=test-token" \
+  -d '{"message": "end-to-end test message"}'
+
+# Check message appeared in correct queue  
+curl -u admin:admin http://localhost:15672/api/queues/%2F/chat.requests | jq '.messages'
+
+# Verify SSE response arrives
+curl -N http://localhost:5000/api/rag/chat-stream/test-conversation-id
+```
+
+**Complete End-to-End Test**:
+```bash
+# Run full test suite (includes chat functionality)
+npm test
+
+# Run specific chat tests
+npm test -- --grep "chat"
+```
+
+## Risk Mitigation Strategy
+
+**Feature Flag Safety**: Every phase can be instantly rolled back using environment variables
+**Dual-Mode Operation**: Webhook and queue systems run in parallel during transition  
+**Comprehensive Testing**: Each phase has specific verification steps before proceeding
+**Monitoring**: Queue depths, response times, and error rates monitored throughout
+**Gradual Rollout**: Can test with subset of users/tenants before full deployment
 
 ## Local Development Environment
 

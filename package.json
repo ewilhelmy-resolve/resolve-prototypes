@@ -24,7 +24,9 @@
     "db:init": "node init-db.js",
     "db:migrate": "node migrate-to-postgres.js",
     "migrate:tenants": "node migrate-tenant-ids.js",
-    "migrate:production": "node scripts/migrate-to-production.js"
+    "migrate:production": "node scripts/migrate-to-production.js",
+    "mock-ai": "node scripts/mock-ai-consumer.js",
+    "monitor-queues": "node scripts/queue-monitor.js"
   },
   "devDependencies": {
     "@playwright/test": "^1.38.1",
@@ -35,6 +37,7 @@
     "testcontainers": "^11.5.1"
   },
   "dependencies": {
+    "amqplib": "^0.10.3",
     "axios": "^1.11.0",
     "bcrypt": "^6.0.0",
     "body-parser": "^2.2.0",

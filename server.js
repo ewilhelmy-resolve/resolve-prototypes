@@ -16,6 +16,8 @@ const db = require('./src/database/postgres');
 const serverService = require('./src/services/serverService');
 const routeService = require('./src/services/routeService');
 const ResolveWebhook = require('./src/utils/resolve-webhook');
+const { getRabbitMQInstance } = require('./src/services/rabbitmq');
+const ChatResponseConsumer = require('./src/consumers/chatResponseConsumer');
 
 // Import middleware
 const setupSecurity = require('./src/middleware/security');
@@ -98,26 +100,49 @@ app.use('/pages', requireAuthForFiles, express.static(path.join(__dirname, 'src/
 
 // Health check endpoint (no auth required)
 app.get('/health', async (req, res) => {
+  const health = {
+    status: 'healthy',
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime(),
+    environment: config.nodeEnv,
+    version: process.env.npm_package_version || '1.0.0',
+    port: PORT,
+    usersCount: serverService.getUsersCount(),
+    services: {}
+  };
+
   try {
     // Check database connection
     await db.query('SELECT 1');
-    
-    res.json({
-      status: 'healthy',
-      timestamp: new Date().toISOString(),
-      uptime: process.uptime(),
-      environment: config.nodeEnv,
-      version: process.env.npm_package_version || '1.0.0',
-      port: PORT,
-      usersCount: serverService.getUsersCount()
-    });
+    health.services.database = 'healthy';
   } catch (error) {
-    res.status(503).json({
-      status: 'unhealthy',
-      error: 'Database connection failed',
-      timestamp: new Date().toISOString(),
-    });
+    health.services.database = 'unhealthy';
+    health.status = 'unhealthy';
+    health.error = 'Database connection failed';
   }
+
+  try {
+    // Check RabbitMQ connection (only if enabled)
+    if (process.env.ENABLE_RABBITMQ_CHAT === 'true') {
+      const rabbitMQ = getRabbitMQInstance();
+      const rabbitMQHealth = await rabbitMQ.getHealthStatus();
+      health.services.rabbitmq = rabbitMQHealth.status;
+      
+      if (rabbitMQHealth.status !== 'healthy') {
+        health.status = 'unhealthy';
+        health.services.rabbitmq_details = rabbitMQHealth;
+      }
+    } else {
+      health.services.rabbitmq = 'disabled';
+    }
+  } catch (error) {
+    health.services.rabbitmq = 'unhealthy';
+    health.services.rabbitmq_error = error.message;
+    // Don't mark overall health as unhealthy if RabbitMQ is not critical yet
+  }
+
+  const statusCode = health.status === 'healthy' ? 200 : 503;
+  res.status(statusCode).json(health);
 });
 
 // Page routes
@@ -222,6 +247,30 @@ async function startServer() {
   try {
     // Initialize server services
     await serverService.initialize();
+    
+    // Initialize RabbitMQ if enabled
+    if (process.env.ENABLE_RABBITMQ_CHAT === 'true') {
+      console.log('[STARTUP] RabbitMQ chat enabled, connecting...');
+      try {
+        const rabbitMQ = getRabbitMQInstance();
+        await rabbitMQ.connect();
+        console.log('[STARTUP] ✅ RabbitMQ connected successfully');
+        
+        // Start chat response consumer for queue-based responses
+        if (process.env.RABBITMQ_RESPONSE_MODE === 'queue' || process.env.RABBITMQ_RESPONSE_MODE === 'hybrid') {
+          console.log('[STARTUP] Starting chat response consumer...');
+          const chatResponseConsumer = new ChatResponseConsumer(db);
+          await chatResponseConsumer.start();
+          console.log('[STARTUP] ✅ Chat response consumer started');
+        }
+        
+      } catch (rabbitError) {
+        console.error('[STARTUP] ❌ RabbitMQ connection failed:', rabbitError.message);
+        console.error('[STARTUP] App will continue without RabbitMQ');
+      }
+    } else {
+      console.log('[STARTUP] RabbitMQ chat disabled (ENABLE_RABBITMQ_CHAT=false)');
+    }
     
     // Start listening
     const server = app.listen(PORT, () => {
