@@ -1229,6 +1229,11 @@ function createRagRouter(db, sessions) {
             message: 'Connected to chat stream'
         })}\n\n`);
         
+        // CRITICAL: Flush the response to trigger browser onopen event
+        if (res.flush) {
+            res.flush();
+        }
+        
         // Send heartbeat every 15 seconds to keep connection alive (more aggressive to prevent timeouts)
         const heartbeatInterval = setInterval(() => {
             try {

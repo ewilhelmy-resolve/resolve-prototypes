@@ -52,11 +52,11 @@ class ChatResponseConsumer {
         }
 
         // Validate required fields
-        const { message_id, conversation_id, tenant_id, ai_response } = data;
-        if (!message_id || !conversation_id || !tenant_id || !ai_response) {
+        const { message_id, conversation_id, tenant_id, response } = data;
+        if (!message_id || !conversation_id || !tenant_id || !response) {
             console.error('[CHAT RESPONSE CONSUMER] ❌ Missing required fields, discarding poison message:', {
                 message_id, conversation_id, tenant_id, 
-                has_ai_response: !!ai_response,
+                has_ai_response: !!response,
                 content: message.content.toString().substring(0, 200)
             });
             // ACK to remove invalid message and prevent infinite loops
@@ -72,18 +72,21 @@ class ChatResponseConsumer {
             // Store AI response in database (same logic as current callback endpoint)
             await this.db.query(
                 'INSERT INTO rag_messages (conversation_id, tenant_id, role, message, response_time_ms) VALUES ($1, $2, $3, $4, $5)',
-                [conversation_id, tenant_id, 'assistant', ai_response, processing_time_ms || null]
+                [conversation_id, tenant_id, 'assistant', response, processing_time_ms || null]
             );
 
             console.log(`[CHAT RESPONSE CONSUMER] 💾 Stored AI response in database`);
 
             // Trigger SSE event (identical to current callback logic)
+            console.log(`[CHAT RESPONSE CONSUMER] 🔍 Looking for SSE clients - tenant_id: ${tenant_id}`);
+            console.log(`[CHAT RESPONSE CONSUMER] 🔍 Available SSE tenants:`, global.sseClients ? Object.keys(global.sseClients) : 'none');
+            
             if (global.sseClients && global.sseClients[tenant_id]) {
                 const sseMessage = JSON.stringify({
                     type: 'chat-response',
                     conversation_id: conversation_id,
                     message_id: message_id,
-                    ai_response: ai_response,
+                    ai_response: response,
                     sources: sources,
                     timestamp: new Date().toISOString()
                 });
@@ -94,6 +97,11 @@ class ChatResponseConsumer {
                 Object.values(global.sseClients[tenant_id]).forEach(client => {
                     try {
                         client.write(`data: ${sseMessage}\n\n`);
+                        // CRITICAL: Flush the response to ensure immediate delivery
+                        if (client.flush) {
+                            client.flush();
+                        }
+                        console.log(`[CHAT RESPONSE CONSUMER] 📤 SSE message sent and flushed`);
                     } catch (err) {
                         console.error(`[CHAT RESPONSE CONSUMER] Failed to send SSE:`, err.message);
                     }

@@ -181,21 +181,38 @@ class QuikChatRAG {
     }
     
     connectToSSE() {
-        if (!this.conversationId) return;
+        if (!this.conversationId) {
+            console.error('[SSE] ❌ Cannot connect - no conversation ID');
+            return;
+        }
         
         // Close existing connection if any
         if (this.eventSource) {
             this.eventSource.close();
         }
         
-        // Connecting SSE for conversation
+        console.log('[SSE] 🔌 Attempting to connect SSE for conversation:', this.conversationId);
         
         // Create new SSE connection
-        this.eventSource = new EventSource(`/api/rag/chat-stream/${this.conversationId}`);
+        const sseUrl = `/api/rag/chat-stream/${this.conversationId}`;
+        console.log('[SSE] 📡 SSE URL:', sseUrl);
+        
+        try {
+            // Add credentials to SSE connection
+            this.eventSource = new EventSource(sseUrl, {
+                withCredentials: true
+            });
+            console.log('[SSE] 🚀 EventSource created with credentials, readyState:', this.eventSource.readyState);
+        } catch (error) {
+            console.error('[SSE] ❌ Failed to create EventSource:', error);
+            return;
+        }
         
         // Handle successful connection
         this.eventSource.onopen = () => {
-            // SSE Connected
+            console.log('[SSE] ✅ SSE connection opened successfully');
+            console.log('[SSE] 🔗 Connection readyState:', this.eventSource.readyState);
+            console.log('[SSE] 📍 Connection URL:', this.eventSource.url);
             this.sseReconnectAttempts = 0;
             
             // Clear any message checking interval
@@ -209,10 +226,19 @@ class QuikChatRAG {
         };
         
         this.eventSource.onmessage = (event) => {
-            const data = JSON.parse(event.data);
+            console.log('[SSE] 📨 Received SSE message:', event.data);
+            
+            let data;
+            try {
+                data = JSON.parse(event.data);
+                console.log('[SSE] 📋 Parsed SSE data:', data);
+            } catch (error) {
+                console.error('[SSE] ❌ Failed to parse SSE message:', error);
+                return;
+            }
             
             if (data.type === 'chat-response' || data.type === 'test-message') {
-                // Received SSE message
+                console.log('[SSE] 🤖 Processing chat-response message');
                 
                 // Update the chat with the AI response
                 if (this.chat) {
@@ -221,9 +247,12 @@ class QuikChatRAG {
                     
                     // Add the response (use content for test messages, ai_response for regular)
                     const messageText = data.content || data.ai_response;
+                    console.log('[SSE] 💬 Message text to display:', messageText);
+                    
                     if (messageText) {
                         // Add test indicator if it's a test message
                         const displayText = data.is_test ? `🧪 [TEST] ${messageText}` : messageText;
+                        console.log('[SSE] 📝 Adding message to chat:', displayText);
                         this.chat.messageAddNew(displayText, 'Assistant', 'left');
                         
                         // Emit event for chat history to update
@@ -234,6 +263,8 @@ class QuikChatRAG {
                                 message: messageText
                             }
                         }));
+                    } else {
+                        console.warn('[SSE] ⚠️ No message text found in SSE data');
                     }
                     
                     // Sources are available in data.sources but not displayed in chat
@@ -242,9 +273,15 @@ class QuikChatRAG {
                     //     const sourcesText = 'Sources: ' + data.sources.join(', ');
                     //     this.chat.messageAddNew(sourcesText, 'System', 'left');
                     // }
+                } else {
+                    console.error('[SSE] ❌ Chat instance not available');
                 }
             } else if (data.type === 'connected') {
-                // Connected to chat stream
+                console.log('[SSE] ✅ Connected to chat stream');
+            } else if (data.type === 'heartbeat') {
+                console.log('[SSE] 💓 Heartbeat received');
+            } else {
+                console.log('[SSE] 🔍 Unknown message type:', data.type);
             }
         };
         
