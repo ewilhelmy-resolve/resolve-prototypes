@@ -37,18 +37,37 @@ class ChatResponseConsumer {
     async handleChatResponse(message) {
         if (!message) return;
 
+        let data;
         try {
-            const data = JSON.parse(message.content.toString());
-            console.log(`[CHAT RESPONSE CONSUMER] 📥 Processing response for message ${data.message_id}`);
+            data = JSON.parse(message.content.toString());
+        } catch (parseError) {
+            console.error('[CHAT RESPONSE CONSUMER] ❌ Invalid JSON, discarding poison message:', {
+                error: parseError.message,
+                content: message.content.toString().substring(0, 200), // Log first 200 chars
+                headers: message.properties.headers
+            });
+            // ACK to remove malformed message and prevent infinite loops
+            this.rabbitMQ.channel.ack(message);
+            return;
+        }
 
-            const { 
-                message_id, 
-                conversation_id, 
-                tenant_id, 
-                ai_response, 
-                sources = [],
-                processing_time_ms 
-            } = data;
+        // Validate required fields
+        const { message_id, conversation_id, tenant_id, ai_response } = data;
+        if (!message_id || !conversation_id || !tenant_id || !ai_response) {
+            console.error('[CHAT RESPONSE CONSUMER] ❌ Missing required fields, discarding poison message:', {
+                message_id, conversation_id, tenant_id, 
+                has_ai_response: !!ai_response,
+                content: message.content.toString().substring(0, 200)
+            });
+            // ACK to remove invalid message and prevent infinite loops
+            this.rabbitMQ.channel.ack(message);
+            return;
+        }
+
+        try {
+            console.log(`[CHAT RESPONSE CONSUMER] 📥 Processing response for message ${message_id}`);
+
+            const { sources = [], processing_time_ms } = data;
 
             // Store AI response in database (same logic as current callback endpoint)
             await this.db.query(
@@ -88,11 +107,15 @@ class ChatResponseConsumer {
             console.log(`[CHAT RESPONSE CONSUMER] ✅ Response processing complete`);
 
         } catch (error) {
-            console.error('[CHAT RESPONSE CONSUMER] ❌ Error processing response:', error);
-            console.error('[CHAT RESPONSE CONSUMER] Raw message:', message.content.toString());
+            console.error('[CHAT RESPONSE CONSUMER] ❌ Error processing valid message:', {
+                error: error.message,
+                message_id, conversation_id, tenant_id
+            });
             
-            // Reject and requeue the message (will go to dead letter queue after max retries)
-            this.rabbitMQ.channel.nack(message, false, true);
+            // For valid structure but processing errors (DB issues, etc.), 
+            // we could retry, but for now ACK to prevent infinite loops
+            // In production you might want to check error.code for retryable errors
+            this.rabbitMQ.channel.ack(message);
         }
     }
 

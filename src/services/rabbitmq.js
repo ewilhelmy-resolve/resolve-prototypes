@@ -7,16 +7,11 @@ class RabbitMQService {
         this.url = process.env.RABBITMQ_URL || 'amqp://admin:admin@localhost:5672';
         this.isConnected = false;
         this.exchanges = {
-            chat: 'chat.exchange',
-            document: 'document.exchange',
-            dlx: 'dlx.exchange'
+            chat: 'chat.exchange'
         };
         this.queues = {
             chatRequests: 'chat.requests',
-            chatResponses: 'chat.responses',
-            documentProcessing: 'document.processing',
-            documentProcessed: 'document.processed',
-            failedMessages: 'failed.messages'
+            chatResponses: 'chat.responses'
         };
     }
 
@@ -47,35 +42,39 @@ class RabbitMQService {
 
     async setupTopology() {
         try {
-            // Declare exchanges
-            await this.channel.assertExchange(this.exchanges.chat, 'topic', { durable: true });
-            await this.channel.assertExchange(this.exchanges.document, 'topic', { durable: true });
-            await this.channel.assertExchange(this.exchanges.dlx, 'direct', { durable: true });
+            // Declare exchanges - use passive mode to check if they exist first
+            try {
+                await this.channel.checkExchange(this.exchanges.chat);
+                console.log(`[RabbitMQ] Exchange ${this.exchanges.chat} already exists`);
+            } catch (error) {
+                await this.channel.assertExchange(this.exchanges.chat, 'topic', { durable: true });
+                console.log(`[RabbitMQ] Created exchange ${this.exchanges.chat}`);
+            }
 
-            // Queue configuration with dead letter setup
+            // Simple queue configuration without dead letter setup
             const queueConfig = {
-                durable: true,
-                arguments: {
-                    'x-dead-letter-exchange': this.exchanges.dlx,
-                    'x-message-ttl': 300000  // 5 minutes TTL
-                }
+                durable: true
             };
 
-            // Declare main queues
-            await this.channel.assertQueue(this.queues.chatRequests, queueConfig);
-            await this.channel.assertQueue(this.queues.chatResponses, queueConfig);
-            await this.channel.assertQueue(this.queues.documentProcessing, queueConfig);
-            await this.channel.assertQueue(this.queues.documentProcessed, queueConfig);
-            
-            // Dead letter queue (no TTL)
-            await this.channel.assertQueue(this.queues.failedMessages, { durable: true });
+            // Declare main queues - check if they exist first
+            const queuesToCheck = [
+                { name: this.queues.chatRequests, config: queueConfig },
+                { name: this.queues.chatResponses, config: queueConfig }
+            ];
+
+            for (const queue of queuesToCheck) {
+                try {
+                    await this.channel.checkQueue(queue.name);
+                    console.log(`[RabbitMQ] Queue ${queue.name} already exists`);
+                } catch (error) {
+                    await this.channel.assertQueue(queue.name, queue.config);
+                    console.log(`[RabbitMQ] Created queue ${queue.name}`);
+                }
+            }
 
             // Bind queues to exchanges
             await this.channel.bindQueue(this.queues.chatRequests, this.exchanges.chat, 'chat.process');
             await this.channel.bindQueue(this.queues.chatResponses, this.exchanges.chat, 'chat.response');
-            await this.channel.bindQueue(this.queues.documentProcessing, this.exchanges.document, 'document.process');
-            await this.channel.bindQueue(this.queues.documentProcessed, this.exchanges.document, 'document.response');
-            await this.channel.bindQueue(this.queues.failedMessages, this.exchanges.dlx, 'failed');
 
             console.log('[RabbitMQ] Queue topology setup complete');
         } catch (error) {
@@ -148,53 +147,6 @@ class RabbitMQService {
         }
     }
 
-    async publishDocumentProcessing(documentData, options = {}) {
-        try {
-            if (!this.isConnected || !this.channel) {
-                throw new Error('RabbitMQ not connected');
-            }
-
-            const message = {
-                document_id: documentData.document_id,
-                tenant_id: documentData.tenant_id,
-                document_url: documentData.document_url,
-                file_type: documentData.file_type,
-                file_size: documentData.file_size,
-                original_filename: documentData.original_filename,
-                user_email: documentData.user_email,
-                timestamp: new Date().toISOString(),
-                ...documentData
-            };
-
-            const publishOptions = {
-                persistent: true,
-                messageId: documentData.document_id,
-                headers: {
-                    'tenant-id': documentData.tenant_id,
-                    'document-type': documentData.file_type
-                },
-                ...options
-            };
-
-            const success = this.channel.publish(
-                this.exchanges.document,
-                'document.process',
-                Buffer.from(JSON.stringify(message)),
-                publishOptions
-            );
-
-            if (success) {
-                console.log(`[RabbitMQ] Document processing message published: ${documentData.document_id}`);
-            } else {
-                throw new Error('Failed to publish document message to channel');
-            }
-
-            return { success: true, documentId: documentData.document_id };
-        } catch (error) {
-            console.error('[RabbitMQ] Failed to publish document processing message:', error.message);
-            throw error;
-        }
-    }
 
     async getQueueInfo(queueName) {
         try {

@@ -704,7 +704,8 @@ function createRagRouter(db, sessions) {
                 callback_url: callbackUrl,
                 callback_token: callbackToken,
                 vector_search_url: vectorSearchUrl,
-                timestamp: new Date().toISOString()
+                timestamp: new Date().toISOString(),
+                queue_name: 'chat.responses',
             };
 
             // Dual-mode publishing based on RABBITMQ_CHAT_MODE
