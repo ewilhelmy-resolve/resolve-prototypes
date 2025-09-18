@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+    <title>Knowledge Management - Resolve</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@radix-ui/themes@3.0.0/styles.css">
+    <link rel="stylesheet" href="/styles/fonts.css">
+    <link rel="stylesheet" href="/styles/dashboard-styles.css">
+    <link rel="stylesheet" href="/styles/action-button.css">
+    <link rel="stylesheet" href="/styles/knowledge-management.css">
+    <link rel="stylesheet" href="/styles/table.css">
+    <link rel="stylesheet" href="/quikchat.css">
+    <link rel="stylesheet" href="/dashboard-chat.css">
+</head>
+<body>
+    <div class="rt-Theme" data-radius="medium" data-appearance="light">
+        <div class="dashboard-layout">
+            <!-- Include Header Partial -->
+            <%- include('partials/header', { currentPage: 'knowledge' }) %>
+
+            <!-- Main Content -->
+            <div class="main-content">
+                <!-- Include Left Sidebar Partial -->
+                <%- include('partials/left-sidebar') %>
+
+                <!-- Center - Knowledge Content Area -->
+                <main class="chat-area" style="flex: 1; overflow: hidden; background: #f8fafc;">
+                    <div style="height: 100%; width: 100%; padding: 24px; box-sizing: border-box;">
+                        <div style="background: white; border-radius: 12px; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1), 0 1px 2px rgba(0, 0, 0, 0.06); height: 100%; display: flex; flex-direction: column; overflow: hidden;">
+                            <div id="knowledgeContainer" style="flex: 1; overflow: auto; padding: 24px;">
+                                <!-- Knowledge Management Grid will be rendered here -->
+                            </div>
+                        </div>
+                    </div>
+                </main>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="/components/action-button.js?v=2"></script>
+    <script src="/components/knowledge-management.js?v=2"></script>
+    <script>
+        // Check authentication
+        async function checkAuth() {
+            // Get tenant ID - the dashboard stores it as 'userTenantId'
+            let tenantId = localStorage.getItem('userTenantId') || localStorage.getItem('tenantId');
+            
+            // The app uses cookie-based authentication, not localStorage tokens
+            // First try to get user info from the server
+            try {
+                const response = await fetch('/api/user/info', {
+                    credentials: 'include' // This sends cookies
+                });
+
+                if (!response.ok) {
+                    console.log('User info request failed');
+                    // Don't redirect - server already checked auth
+                    // window.location.href = '/signin';
+                    return false;
+                }
+
+                const data = await response.json();
+                
+                // Store tenant ID if we got it from server
+                if (data.tenantId) {
+                    tenantId = data.tenantId;
+                    localStorage.setItem('userTenantId', data.tenantId);
+                    window.userTenantId = data.tenantId;
+                }
+                
+                // Update user info in header
+                const userInitial = data.email ? data.email.charAt(0).toUpperCase() : 'U';
+                document.getElementById('userInitial').textContent = userInitial;
+                document.getElementById('dropdownAvatar').textContent = userInitial;
+                document.getElementById('dropdownName').textContent = data.company || data.email || 'User';
+                document.getElementById('dropdownEmail').textContent = data.email || '';
+                document.getElementById('tenantIdDisplay').textContent = tenantId || 'N/A';
+
+                return true;
+            } catch (error) {
+                console.error('Auth check failed:', error);
+                // Don't redirect - server already checked auth
+                // window.location.href = '/signin';
+                return false;
+            }
+        }
+
+        // Initialize Knowledge Management Grid
+        let kmGrid;
+        
+        async function initializeKnowledgeGrid() {
+            // Skip client-side auth check since server already validated
+            // The page wouldn't render if user wasn't authenticated
+            const isAuthenticated = true; // await checkAuth();
+            
+            if (isAuthenticated) {
+                // Still call checkAuth to populate user info, but don't redirect
+                checkAuth().catch(console.error);
+                
+                const container = document.getElementById('knowledgeContainer');
+                kmGrid = new KnowledgeManagementGrid(container);
+                // Make kmGrid available globally for button handlers
+                window.kmGrid = kmGrid;
+            }
+        }
+
+        // User dropdown functions
+        function toggleUserDropdown() {
+            const dropdown = document.getElementById('userDropdown');
+            dropdown.style.display = dropdown.style.display === 'none' ? 'block' : 'none';
+        }
+
+        function copyTenantId() {
+            const tenantId = localStorage.getItem('tenantId');
+            if (tenantId) {
+                navigator.clipboard.writeText(tenantId).then(() => {
+                    console.log('Tenant ID copied to clipboard');
+                });
+            }
+        }
+
+        function logout() {
+            // Clear all auth-related localStorage items
+            localStorage.removeItem('userToken');
+            localStorage.removeItem('tenantId');
+            localStorage.removeItem('userTenantId');
+            localStorage.removeItem('userSession');
+            
+            // Logout through the server to clear cookies
+            fetch('/api/logout', { 
+                method: 'POST',
+                credentials: 'include'
+            }).finally(() => {
+                window.location.href = '/signin';
+            });
+        }
+
+        // Close dropdown when clicking outside
+        document.addEventListener('click', function(event) {
+            const dropdown = document.getElementById('userDropdown');
+            const userAvatar = document.querySelector('.user-avatar');
+            
+            if (!userAvatar.contains(event.target)) {
+                dropdown.style.display = 'none';
+            }
+        });
+
+        // Initialize on DOM ready
+        document.addEventListener('DOMContentLoaded', initializeKnowledgeGrid);
+    </script>
+</body>
+</html>

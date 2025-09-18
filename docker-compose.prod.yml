@@ -1,0 +1,61 @@
+# Production environment - Application services only
+# Databases and external services are managed separately
+version: '3.8'
+
+services:
+  # API Server
+  api-server:
+    build:
+      context: ./packages/api-server
+      dockerfile: Dockerfile
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      # External database connections
+      DATABASE_URL: ${DATABASE_URL}
+      RABBITMQ_URL: ${RABBITMQ_URL}
+      REDIS_URL: ${REDIS_URL}
+      # Keycloak configuration
+      KEYCLOAK_URL: ${KEYCLOAK_URL}
+      KEYCLOAK_REALM: ${KEYCLOAK_REALM}
+      # Automation webhook
+      AUTOMATION_WEBHOOK_URL: ${AUTOMATION_WEBHOOK_URL}
+      AUTOMATION_AUTH: ${AUTOMATION_AUTH}
+      # Client configuration
+      CLIENT_URL: ${CLIENT_URL:-https://yourapp.com}
+    restart: unless-stopped
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Frontend with Nginx
+  frontend:
+    build:
+      context: ./packages/client
+      dockerfile: Dockerfile
+    environment:
+      VITE_KEYCLOAK_URL: ${KEYCLOAK_URL}
+      VITE_KEYCLOAK_REALM: ${KEYCLOAK_REALM}
+      VITE_KEYCLOAK_CLIENT_ID: ${KEYCLOAK_CLIENT_ID}
+      VITE_API_URL: ""  # Use relative URLs (handled by nginx proxy)
+    depends_on:
+      api-server:
+        condition: service_healthy
+    ports:
+      - "${PORT:-80}:80"
+    restart: unless-stopped
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+networks:
+  app-network:
+    driver: bridge

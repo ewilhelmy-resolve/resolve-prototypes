@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+    <title>Sign In - Resolve</title>
+    <link rel="stylesheet" href="styles/fonts.css">
+    <link rel="stylesheet" href="styles/styles.css">
+    <link rel="stylesheet" href="styles/mobile.css">
+    <style>
+        /* Toast Notification Styles */
+        .toast-notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            min-width: 300px;
+            max-width: 400px;
+            padding: 16px 20px;
+            background: linear-gradient(135deg, rgba(30, 35, 55, 0.95), rgba(20, 25, 45, 0.98));
+            backdrop-filter: blur(20px);
+            border-radius: 12px;
+            box-shadow: 
+                0 0 40px rgba(245, 101, 101, 0.15),
+                0 10px 40px rgba(0, 0, 0, 0.4),
+                inset 0 1px 0 rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(245, 101, 101, 0.3);
+            color: #fff;
+            z-index: 10000;
+            transform: translateX(420px);
+            opacity: 0;
+            transition: all 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+        }
+
+        .toast-notification.show {
+            transform: translateX(0);
+            opacity: 1;
+        }
+
+        .toast-notification.error {
+            border-color: rgba(245, 101, 101, 0.4);
+            box-shadow: 
+                0 0 50px rgba(245, 101, 101, 0.2),
+                0 15px 50px rgba(0, 0, 0, 0.5),
+                inset 0 1px 0 rgba(255, 255, 255, 0.15);
+        }
+
+        .toast-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 8px;
+        }
+
+        .toast-icon {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: rgba(245, 101, 101, 0.2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .toast-icon.error {
+            background: rgba(245, 101, 101, 0.2);
+            color: #f56565;
+        }
+
+        .toast-icon svg {
+            width: 12px;
+            height: 12px;
+        }
+
+        .toast-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: #f56565;
+            margin: 0;
+        }
+
+        .toast-message {
+            font-size: 13px;
+            color: rgba(255, 255, 255, 0.8);
+            line-height: 1.4;
+            margin-left: 32px;
+        }
+
+        .toast-close {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            background: none;
+            border: none;
+            color: rgba(255, 255, 255, 0.5);
+            cursor: pointer;
+            padding: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: color 0.2s;
+        }
+
+        .toast-close:hover {
+            color: rgba(255, 255, 255, 0.8);
+        }
+
+        .toast-close svg {
+            width: 14px;
+            height: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="onboarding-container">
+        <div class="form-section">
+            <div class="form-container">
+                <div class="step-header">
+                    <div class="rt-Badge">Welcome Back</div>
+                    <div class="header-text">
+                        <h1 class="season-heading">Continue your automation journey</h1>
+                        <p>Sign in to access your Resolve dashboard.</p>
+                    </div>
+                </div>
+
+                <form class="onboarding-form" id="signin-form">
+                    <div class="form-field">
+                        <label for="email">Work email</label>
+                        <input type="email" id="email" name="email" data-testid="email-input" class="rt-TextField-Input" placeholder="you@acme.com" required>
+                    </div>
+                    
+                    <div class="form-field">
+                        <label for="password">Password</label>
+                        <input type="password" id="password" name="password" data-testid="password-input" class="rt-TextField-Input" placeholder="Enter password" required>
+                    </div>
+
+                    <div class="nav-buttons">
+                        <button type="button" class="rt-Button rt-variant-ghost" id="back-to-signup">Back to Signup</button>
+                        <button type="submit" data-testid="signin-button" class="rt-Button rt-variant-outline">Sign In</button>
+                    </div>
+                </form>
+
+            </div>
+        </div>
+
+        <div class="graphic-section">
+            <div class="background-workflow">
+                <div class="bg-workflow-node">
+                    <span class="bg-node-text">Trigger</span>
+                    <div class="bg-node-toggle"></div>
+                </div>
+                <div class="bg-workflow-node">
+                    <span class="bg-node-text">if-Else- if Else</span>
+                    <div class="bg-node-toggle"></div>
+                </div>
+                <div class="bg-workflow-node">
+                    <span class="bg-node-text">ActionName</span>
+                    <div class="bg-node-toggle"></div>
+                </div>
+                <div class="bg-workflow-node">
+                    <span class="bg-node-text">ActionName</span>
+                    <div class="bg-node-toggle"></div>
+                </div>
+                <div class="bg-workflow-node">
+                    <span class="bg-node-text">Trigger</span>
+                    <div class="bg-node-toggle"></div>
+                </div>
+            </div>
+
+            <div class="rita-container">
+                <div class="rita-chat-interface">
+                    <div class="rita-chat-content">
+                        <div class="rita-header">
+                            <h2 class="rita-title season-heading">Ask Rita</h2>
+                            <p class="rita-subtitle">Build and manage your automation workflows with AI assistance</p>
+                        </div>
+                        <div class="rita-input-container">
+                            <input type="text" class="rita-input" placeholder="Message Rita..." disabled style="cursor: not-allowed;">
+                            <button class="rita-send-btn" disabled style="cursor: not-allowed;">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M2 21l21-9L2 3v7l15 2-15 2v7z"/>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Toast notification function
+        function showToast(title, message, type = 'error') {
+            // Remove any existing toasts
+            const existingToast = document.querySelector('.toast-notification');
+            if (existingToast) {
+                existingToast.remove();
+            }
+
+            // Create toast element
+            const toast = document.createElement('div');
+            toast.className = `toast-notification ${type}`;
+            toast.innerHTML = `
+                <button class="toast-close">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M18 6L6 18M6 6l12 12"/>
+                    </svg>
+                </button>
+                <div class="toast-header">
+                    <div class="toast-icon ${type}">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M12 8v4m0 4h.01M12 2l10 18H2z"/>
+                        </svg>
+                    </div>
+                    <h3 class="toast-title">${title}</h3>
+                </div>
+                <div class="toast-message">${message}</div>
+            `;
+
+            // Add to body
+            document.body.appendChild(toast);
+
+            // Trigger animation
+            setTimeout(() => {
+                toast.classList.add('show');
+            }, 10);
+
+            // Auto remove after 5 seconds
+            setTimeout(() => {
+                toast.classList.remove('show');
+                setTimeout(() => {
+                    toast.remove();
+                }, 300);
+            }, 5000);
+        }
+
+        // Add event listener for back to signup button
+        document.getElementById('back-to-signup').addEventListener('click', () => {
+            window.location.href = '/';
+        });
+
+        // Add event delegation for toast close buttons
+        document.addEventListener('click', (e) => {
+            if (e.target.closest('.toast-close')) {
+                const toast = e.target.closest('.toast-notification');
+                if (toast) {
+                    toast.remove();
+                }
+            }
+        });
+
+        document.getElementById('signin-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const formData = {
+                email: document.getElementById('email').value,
+                password: document.getElementById('password').value
+            };
+
+            try {
+                const response = await fetch('/api/auth/signin', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    credentials: 'include',  // Include cookies in request
+                    body: JSON.stringify(formData)
+                });
+
+                const result = await response.json();
+
+                if (response.ok && result.success) {
+                    // Store user info only (token is now in secure cookie)
+                    localStorage.setItem('userSession', JSON.stringify(result.user));
+                    localStorage.setItem('userEmail', result.user.email);
+                    localStorage.setItem('sessionToken', 'active'); // Indicator for client-side checks
+                    // Redirect to dashboard without token in URL
+                    window.location.href = '/dashboard';
+                } else {
+                    showToast('Sign in failed', result.message || 'Invalid email or password', 'error');
+                }
+            } catch (error) {
+                console.error('Sign in error:', error);
+                showToast('Connection error', 'Unable to connect to server. Please try again.', 'error');
+            }
+        });
+    </script>
+</body>
+</html>

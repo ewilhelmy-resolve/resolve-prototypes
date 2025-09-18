@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+    <title>Setting up your experience - Resolve</title>
+    <link rel="stylesheet" href="/styles/fonts.css">
+    <link rel="stylesheet" href="/styles/styles.css">
+    <link rel="stylesheet" href="/styles/completion-styles.css">
+    <link rel="stylesheet" href="/styles/mobile.css">
+    <style>
+        /* Page specific styles */
+        body {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .completion-container {
+            width: 100%;
+            max-width: 600px;
+            padding: 2rem;
+            text-align: center;
+        }
+
+        .loading-indicator {
+            font-size: 13px;
+            color: rgba(255, 255, 255, 0.5);
+            margin-bottom: 3rem;
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 0.5; }
+            50% { opacity: 1; }
+        }
+
+        .header-text {
+            margin-bottom: 3rem;
+        }
+
+        .header-text h1 {
+            font-size: 2.5rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+            line-height: 1.2;
+        }
+
+        .header-text p {
+            font-size: 1.125rem;
+            color: rgba(255, 255, 255, 0.7);
+            line-height: 1.5;
+            max-width: 450px;
+            margin: 0 auto;
+        }
+
+        .setup-steps {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            max-width: 400px;
+            margin: 0 auto 2rem;
+            text-align: left;
+        }
+
+        .step-item {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            padding: 1rem;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            transition: all 0.3s ease;
+        }
+
+        .step-item.active {
+            background: rgba(14, 192, 192, 0.08);
+            border-color: rgba(14, 192, 192, 0.5);
+            animation: neonPulse 2s ease-in-out infinite;
+        }
+
+        @keyframes neonPulse {
+            0%, 100% { 
+                box-shadow: 0 0 10px rgba(14, 192, 192, 0.2);
+            }
+            50% { 
+                box-shadow: 0 0 25px rgba(14, 192, 192, 0.4);
+            }
+        }
+
+        .step-item.completed {
+            background: rgba(14, 192, 192, 0.15) !important;
+            border-color: #0EC0C0 !important;
+            box-shadow: 0 0 20px rgba(14, 192, 192, 0.3);
+        }
+
+        .step-icon {
+            width: 24px;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+        }
+
+        .step-item.completed .step-icon {
+            color: #0EC0C0;
+        }
+
+        .step-item.active .step-icon {
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .step-text {
+            flex: 1;
+            font-size: 15px;
+            color: rgba(255, 255, 255, 0.9);
+        }
+
+        .progress-dots {
+            display: flex;
+            justify-content: center;
+            gap: 0.5rem;
+            margin-top: 3rem;
+        }
+
+        .dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.2);
+            transition: all 0.3s ease;
+        }
+
+        .dot.active {
+            background: rgba(255, 255, 255, 0.8);
+            animation: dotPulse 1.5s ease-in-out infinite;
+        }
+
+        @keyframes dotPulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.3); }
+        }
+
+        /* Button styles */
+        .rt-Button {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0.75rem 2rem;
+            font-size: 1rem;
+            font-weight: 500;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-decoration: none;
+            border: none;
+            background: transparent;
+        }
+
+        .rt-Button.rt-variant-outline {
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            color: white;
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .rt-Button.rt-variant-outline:hover {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: rgba(255, 255, 255, 0.5);
+        }
+    </style>
+</head>
+<body>
+    <div class="completion-container">
+        <div class="loading-indicator">Loading...</div>
+        
+        <div class="header-text">
+            <h1>Setting up your experience</h1>
+            <p>Connect your ticketing data to see which support tasks can be automated and time saved</p>
+        </div>
+
+        <div class="setup-steps">
+            <div class="step-item completed" id="step1">
+                <div class="step-icon">✓</div>
+                <div class="step-text">Setting up your account</div>
+            </div>
+
+            <div class="step-item active" id="step2">
+                <div class="step-icon">⟳</div>
+                <div class="step-text">Adding knowledge base articles</div>
+            </div>
+
+            <div class="step-item" id="step3">
+                <div class="step-icon"></div>
+                <div class="step-text">Setting up Rita</div>
+            </div>
+        </div>
+
+        <div class="progress-dots">
+            <div class="dot active"></div>
+            <div class="dot"></div>
+            <div class="dot"></div>
+        </div>
+
+        <!-- Continue button that appears after setup completes -->
+        <div id="continueSection" style="display: none; margin-top: 2rem;">
+            <button class="rt-Button rt-variant-outline" onclick="window.location.href='/dashboard'" style="padding: 0.75rem 2rem; font-size: 1rem;">
+                Continue to Dashboard
+            </button>
+        </div>
+    </div>
+
+    <script>
+        let currentStep = 2;
+        const steps = [
+            document.getElementById('step1'),
+            document.getElementById('step2'),
+            document.getElementById('step3')
+        ];
+        const dots = document.querySelectorAll('.dot');
+
+        function updateStep() {
+            if (currentStep <= 3) {
+                // Update current step
+                steps[currentStep - 1].classList.remove('active');
+                steps[currentStep - 1].classList.add('completed');
+                steps[currentStep - 1].querySelector('.step-icon').textContent = '✓';
+                
+                // Update dots
+                dots.forEach((dot, index) => {
+                    dot.classList.toggle('active', index === currentStep - 1);
+                });
+                
+                // Move to next step
+                if (currentStep < 3) {
+                    steps[currentStep].classList.add('active');
+                    steps[currentStep].querySelector('.step-icon').textContent = '⟳';
+                    currentStep++;
+                    setTimeout(updateStep, 2000);
+                } else {
+                    // All complete - show continue button instead of auto-redirect
+                    setTimeout(() => {
+                        // Hide loading indicator
+                        document.querySelector('.loading-indicator').style.display = 'none';
+                        // Show continue button
+                        document.getElementById('continueSection').style.display = 'block';
+                    }, 1500);
+                }
+            }
+        }
+
+        // Start the animation after page loads
+        setTimeout(updateStep, 2000);
+    </script>
+</body>
+</html>

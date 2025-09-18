@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - Resolve</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@radix-ui/themes@3.0.0/styles.css">
+    <link rel="stylesheet" href="/styles/fonts.css">
+    <link rel="stylesheet" href="/styles/styles.css">
+    <style>
+        /* Modal Styles */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(8px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+            z-index: 1000;
+        }
+
+        .modal-overlay.show {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .modal-content {
+            background: linear-gradient(135deg, #0d1637 0%, #1a2549 100%);
+            border-radius: 16px;
+            width: 90%;
+            max-width: 400px;
+            padding: 0;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+            transform: scale(0.9);
+            transition: transform 0.3s ease;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .modal-overlay.show .modal-content {
+            transform: scale(1);
+        }
+
+        .modal-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 24px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .modal-title {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            font-size: 20px;
+            color: #ffffff;
+            margin: 0;
+            font-weight: 600;
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            color: rgba(255, 255, 255, 0.5);
+            cursor: pointer;
+            padding: 4px;
+            transition: all 0.2s ease;
+            font-size: 24px;
+            line-height: 1;
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 4px;
+        }
+
+        .modal-close:hover {
+            color: rgba(255, 255, 255, 0.9);
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .modal-body {
+            padding: 24px;
+            color: rgba(255, 255, 255, 0.8);
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            font-size: 15px;
+            line-height: 1.5;
+        }
+
+        .modal-footer {
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            gap: 12px;
+            padding: 20px 24px;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .modal-btn {
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            border: none;
+        }
+
+        .modal-btn.primary {
+            background: linear-gradient(135deg, rgba(47, 98, 255, 0.9), rgba(51, 84, 250, 0.9));
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .modal-btn.primary:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(47, 98, 255, 0.4);
+            background: linear-gradient(135deg, rgba(47, 98, 255, 1), rgba(51, 84, 250, 1));
+        }
+
+        /* Alert icon styles */
+        .modal-icon {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 48px;
+            height: 48px;
+            background: rgba(239, 68, 68, 0.15);
+            border-radius: 50%;
+            margin: 0 auto 16px;
+        }
+
+        .modal-icon svg {
+            width: 24px;
+            height: 24px;
+            fill: #ef4444;
+        }
+        
+        .login-link {
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 14px;
+        }
+        .login-link a {
+            color: #9eb1ff;
+            text-decoration: none;
+            transition: color 0.2s ease;
+        }
+        .login-link a:hover {
+            color: #ffffff;
+            text-decoration: underline;
+        }
+        /* Ensure nav-buttons properly aligns items */
+        .nav-buttons {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            width: 100%;
+            margin-top: 1.5rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="onboarding-container">
+        <div class="form-section">
+            <div class="form-container">
+                <div class="step-header">
+                    <div class="header-text">
+                        <h1 class="season-heading">Welcome back</h1>
+                        <p>Sign in to continue to your dashboard</p>
+                    </div>
+                </div>
+
+                <form class="onboarding-form" id="login-form">
+                    <div class="form-field">
+                        <label for="email">Work email</label>
+                        <input type="email" id="email" name="email" data-testid="email-input" class="rt-TextField-Input" placeholder="you@acme.com">
+                    </div>
+                    
+                    <div class="form-field">
+                        <label for="password">Password</label>
+                        <input type="password" id="password" name="password" data-testid="password-input" class="rt-TextField-Input" placeholder="Enter password">
+                    </div>
+
+                    <div class="nav-buttons">
+                        <div class="login-link" style="margin: 0; display: flex; align-items: center;">
+                            Don't have an account? <a href="/" style="margin-left: 5px;">Sign up</a>
+                        </div>
+                        <button type="submit" data-testid="signin-button" class="rt-Button rt-variant-outline">
+                            Sign In
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <div class="graphic-section">
+            <div class="rita-container">
+                <div class="background-workflow">
+                    <div class="bg-workflow-node">
+                        <span class="bg-node-text">Workflow Automation</span>
+                        <div class="bg-node-toggle"></div>
+                    </div>
+                    <div class="bg-workflow-node">
+                        <span class="bg-node-text">Task Processing</span>
+                        <div class="bg-node-toggle"></div>
+                    </div>
+                    <div class="bg-workflow-node">
+                        <span class="bg-node-text">User Authentication</span>
+                        <div class="bg-node-toggle"></div>
+                    </div>
+                    <div class="bg-workflow-node">
+                        <span class="bg-node-text">Dashboard Access</span>
+                        <div class="bg-node-toggle"></div>
+                    </div>
+                    <div class="bg-workflow-node">
+                        <span class="bg-node-text">Rita AI</span>
+                        <div class="bg-node-toggle"></div>
+                    </div>
+                </div>
+
+                <div class="rita-chat-interface">
+                    <div class="rita-chat-content">
+                        <div class="rita-header">
+                            <h2 class="rita-title">Ask Rita</h2>
+                            <p class="rita-subtitle">Your AI automation assistant</p>
+                        </div>
+                        
+                        <div class="rita-input-container">
+                            <input type="text" class="rita-input" placeholder="Ask me anything..." disabled>
+                            <button class="rita-send-btn" disabled>
+                                <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                                    <path d="M14 2L7 9M14 2L10 14L7 9M14 2L2 7L7 9" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Validation Modal -->
+    <div id="validationModal" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">Required Information</h3>
+                <button class="modal-close" id="modal-close-btn">×</button>
+            </div>
+            <div class="modal-body">
+                <div class="modal-icon">
+                    <svg viewBox="0 0 24 24">
+                        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/>
+                    </svg>
+                </div>
+                <p id="modalMessage" style="text-align: center;">Please enter both email and password to sign in.</p>
+            </div>
+            <div class="modal-footer">
+                <button class="modal-btn primary" id="modal-ok-btn">OK</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Add event listeners for modal buttons
+        document.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('modal-close-btn').addEventListener('click', closeModal);
+            document.getElementById('modal-ok-btn').addEventListener('click', closeModal);
+        });
+
+        function showModal(message) {
+            const modal = document.getElementById('validationModal');
+            const modalMessage = document.getElementById('modalMessage');
+            modalMessage.textContent = message;
+            modal.classList.add('show');
+        }
+
+        function closeModal() {
+            const modal = document.getElementById('validationModal');
+            modal.classList.remove('show');
+        }
+
+        async function handleLogin() {
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            
+            if (!email || !password) {
+                showModal('Please enter both email and password to sign in.');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/auth/signin', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    credentials: 'include',  // Include cookies in request
+                    body: JSON.stringify({ email, password })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok && data.success) {
+                    // Store user info
+                    localStorage.setItem('userSession', JSON.stringify(data.user));
+                    localStorage.setItem('userEmail', email);
+                    localStorage.setItem('userName', data.user.fullName || email.split('@')[0]);
+                    localStorage.setItem('userTenantId', data.user.tenantId || '');
+                    localStorage.setItem('userRole', data.user.role || 'user');
+                    localStorage.setItem('sessionToken', 'active'); // Indicate session is active
+                    
+                    // Redirect to dashboard
+                    window.location.href = '/dashboard';
+                } else {
+                    // Show the server's error message
+                    showModal(data.message || 'Invalid email or password');
+                }
+            } catch (error) {
+                console.error('Login error:', error);
+                showModal('An error occurred during login. Please try again.');
+            }
+        }
+        
+        // Set up event listeners when DOM is ready
+        document.addEventListener('DOMContentLoaded', () => {
+            // Handle Enter key in form
+            const loginForm = document.getElementById('login-form');
+            if (loginForm) {
+                loginForm.addEventListener('submit', (e) => {
+                    e.preventDefault();
+                    handleLogin();
+                });
+            }
+
+            // Close modal when clicking outside
+            const validationModal = document.getElementById('validationModal');
+            if (validationModal) {
+                validationModal.addEventListener('click', (e) => {
+                    if (e.target === validationModal) {
+                        closeModal();
+                    }
+                });
+            }
+
+            // Close modal with Escape key
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape') {
+                    closeModal();
+                }
+            });
+        });
+    </script>
+</body>
+</html>

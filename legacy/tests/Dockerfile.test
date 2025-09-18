@@ -1,0 +1,69 @@
+# Test-specific Dockerfile with Playwright
+FROM mcr.microsoft.com/playwright:v1.38.1-focal
+
+# Install Node.js 20 (where Playwright works properly)
+RUN apt-get update && apt-get install -y curl && \
+    curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
+    apt-get install -y nodejs && \
+    apt-get clean && rm -rf /var/lib/apt/lists/*
+
+# Create app directory
+WORKDIR /app
+
+# Copy package files
+COPY package*.json ./
+
+# Install dependencies (including dev dependencies for testing)
+RUN npm ci
+
+# Copy application code
+COPY . .
+
+# Create test admin setup script
+RUN echo '#!/bin/bash\n\
+# Wait for database\n\
+until node -e "const { Client } = require('\''pg'\''); const client = new Client({ host: process.env.POSTGRES_HOST, port: process.env.POSTGRES_PORT, database: process.env.POSTGRES_DB, user: process.env.POSTGRES_USER, password: process.env.POSTGRES_PASSWORD }); client.connect().then(() => { console.log('\''DB ready'\''); client.end(); process.exit(0); }).catch(() => process.exit(1));" 2>/dev/null; do\n\
+  echo "Waiting for database..."\n\
+  sleep 2\n\
+done\n\
+\n\
+# Run migrations\n\
+for sql in src/database/*.sql; do\n\
+  if [[ "$sql" != *"99-create-admin-user.sql"* ]]; then\n\
+    PGPASSWORD=$POSTGRES_PASSWORD psql -h $POSTGRES_HOST -U $POSTGRES_USER -d $POSTGRES_DB -f "$sql" 2>/dev/null || true\n\
+  fi\n\
+done\n\
+\n\
+# Create test admin user with known password\n\
+node -e "\n\
+const bcrypt = require('\''bcrypt'\'');\n\
+const { Client } = require('\''pg'\'');\n\
+async function createAdmin() {\n\
+  const client = new Client({\n\
+    host: process.env.POSTGRES_HOST,\n\
+    port: process.env.POSTGRES_PORT,\n\
+    database: process.env.POSTGRES_DB,\n\
+    user: process.env.POSTGRES_USER,\n\
+    password: process.env.POSTGRES_PASSWORD\n\
+  });\n\
+  await client.connect();\n\
+  const hash = await bcrypt.hash('\''admin123'\'', 10);\n\
+  await client.query(\n\
+    '\''INSERT INTO users (email, password, full_name, tenant_id, role, status) VALUES ($1, $2, $3, $4, $5, $6) ON CONFLICT (email) DO UPDATE SET password = $2'\'',\n\
+    ['\''admin@test.com'\'', hash, '\''Test Admin'\'', '\''test-tenant-id'\'', '\''tenant-admin'\'', '\''active'\'']\n\
+  );\n\
+  console.log('\''Test admin created'\'');\n\
+  await client.end();\n\
+}\n\
+createAdmin().catch(console.error);\n\
+"\n\
+\n\
+# Start the app\n\
+exec node server.js\n\
+' > /app/start-test.sh && chmod +x /app/start-test.sh
+
+# Expose port
+EXPOSE 5000
+
+# Start script that sets up DB and runs app
+CMD ["/app/start-test.sh"]

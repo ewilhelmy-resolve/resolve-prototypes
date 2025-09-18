@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+    <title>Resolve Onboarding - Step 2</title>
+    <link rel="stylesheet" href="/styles/fonts.css">
+    <link rel="stylesheet" href="/styles/styles.css">
+    <link rel="stylesheet" href="/styles/step2-styles.css">
+    <link rel="stylesheet" href="/styles/mobile.css">
+</head>
+<body>
+    <div class="onboarding-container">
+        <div class="form-section">
+            <div class="form-container">
+                <div class="step-header">
+                    <div class="rt-Badge">Step 2 of 2</div>
+                    <div class="header-text">
+                        <h1 class="season-heading">Upload your knowledge articles sources</h1>
+                        <p>Upload your knowledge base and unlock instant chat with your company's articles—in under 5 minutes.</p>
+                    </div>
+                </div>
+                
+                <div style="text-align: center; margin: 1.5rem 0 0;">
+                    <p style="font-size: 16px; font-weight: 400; color: rgba(255, 255, 255, 0.93); margin-bottom: 1rem;">
+                        Get started and upload your knowledge articles!
+                    </p>
+                    <button onclick="document.getElementById('fileInput').click()" 
+                            id="uploadBtn"
+                            style="width: 100%; height: 48px; padding: 0 20px; background: transparent; border: 1px solid rgba(90, 127, 255, 0.3); border-radius: 8px; color: #9eb1ff; font-size: 16px; font-weight: 400; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 10px; transition: 0.2s; margin-bottom: 36px;"
+                            onmouseover="this.style.background='rgba(51, 84, 250, 0.15)'; this.style.borderColor='rgba(90, 127, 255, 0.5)';"
+                            onmouseout="this.style.background='transparent'; this.style.borderColor='rgba(90, 127, 255, 0.3)';">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                            <polyline points="17 8 12 3 7 8"></polyline>
+                            <line x1="12" y1="3" x2="12" y2="15"></line>
+                        </svg>
+                        <span id="uploadBtnText">Upload</span>
+                    </button>
+                    <div id="uploadStatus" class="upload-status" style="margin: -30px 0 30px 0;"></div>
+                    <input type="file" id="fileInput" style="display: none;" accept=".csv,.txt,.pdf,.zip,.json" multiple>
+                </div>
+                
+                <div style="width: 100%; margin: 0 0 2rem; border-radius: 12px; border: 1px solid rgba(0, 102, 255, 0.17); background: linear-gradient(135deg, #001433 0%, #002A69 100%); padding: 1.5rem;">
+                    <h3 style="font-size: 16px; font-weight: 500; color: rgba(255, 255, 255, 0.93); text-align: center; margin-bottom: 0.5rem;">
+                        Additional options
+                    </h3>
+                    <p style="font-size: 14px; color: rgba(255, 255, 255, 0.69); text-align: center; margin-bottom: 1.5rem;">
+                        You can connect these external sources anytime after setup in the app.
+                    </p>
+                    
+                    <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+                        <div style="border: 1px solid rgba(15, 137, 253, 0.25); border-radius: 6px; padding: 14px 16px; display: flex; align-items: center; gap: 14px; min-height: 68px;">
+                            <div style="width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                                <img src="/styles/icons/icon-jira.svg" alt="Jira" width="28" height="28" style="filter: brightness(1.2);">
+                            </div>
+                            <div style="flex: 1;">
+                                <div style="font-size: 14px; font-weight: 500; color: rgba(255, 255, 255, 0.93); margin-bottom: 2px;">Jira Confluence</div>
+                                <div style="font-size: 14px; color: rgba(255, 255, 255, 0.69); line-height: 1.3;">Comprehensive API Integration</div>
+                            </div>
+                        </div>
+                        
+                        <div style="border: 1px solid rgba(15, 137, 253, 0.25); border-radius: 6px; padding: 14px 16px; display: flex; align-items: center; gap: 14px; min-height: 68px;">
+                            <div style="width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                                <img src="/styles/icons/sharepoint.svg" alt="SharePoint" width="28" height="28" style="filter: brightness(1.2);">
+                            </div>
+                            <div style="flex: 1;">
+                                <div style="font-size: 14px; font-weight: 500; color: rgba(255, 255, 255, 0.93); margin-bottom: 2px;">Sharepoint</div>
+                                <div style="font-size: 14px; color: rgba(255, 255, 255, 0.69); line-height: 1.3;">Connect to Microsoft SharePoint libraries</div>
+                            </div>
+                        </div>
+                        
+                        <div style="border: 1px solid rgba(15, 137, 253, 0.25); border-radius: 6px; padding: 14px 16px; display: flex; align-items: center; gap: 14px; min-height: 68px;">
+                            <div style="width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                                <img src="/styles/icons/icon-servicenow.svg" alt="ServiceNow" width="28" height="28" style="filter: brightness(1.2);">
+                            </div>
+                            <div style="flex: 1;">
+                                <div style="font-size: 14px; font-weight: 500; color: rgba(255, 255, 255, 0.93); margin-bottom: 2px;">ServiceNow Knowledge</div>
+                                <div style="font-size: 14px; color: rgba(255, 255, 255, 0.69); line-height: 1.3;">Import IT service management knowledge</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="nav-buttons">
+                    <button class="rt-Button rt-variant-ghost" onclick="window.location.href='/'">Back</button>
+                    <div style="display: flex; align-items: center; gap: 1.5rem;">
+                        <span style="color: rgba(255, 255, 255, 0.6); font-size: 14px;">Skip for later</span>
+                        <button class="rt-Button rt-variant-outline" id="continueBtn">Continue</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="graphic-section">
+            <div class="background-workflow">
+                <div class="bg-workflow-node">
+                    <span class="bg-node-text">Trigger</span>
+                    <div class="bg-node-toggle"></div>
+                </div>
+                <div class="bg-workflow-node">
+                    <span class="bg-node-text">if-Else- if Else</span>
+                    <div class="bg-node-toggle"></div>
+                </div>
+                <div class="bg-workflow-node">
+                    <span class="bg-node-text">ActionName</span>
+                    <div class="bg-node-toggle"></div>
+                </div>
+                <div class="bg-workflow-node">
+                    <span class="bg-node-text">ActionName</span>
+                    <div class="bg-node-toggle"></div>
+                </div>
+                <div class="bg-workflow-node">
+                    <span class="bg-node-text">Trigger</span>
+                    <div class="bg-node-toggle"></div>
+                </div>
+            </div>
+            
+            <div class="rita-container">
+                <div class="rita-chat-interface">
+                    <div class="rita-chat-content">
+                        <div class="rita-header">
+                            <h2 class="rita-title season-heading">Ask Rita</h2>
+                            <p class="rita-subtitle">How can I help you today?</p>
+                        </div>
+                        <div class="rita-input-container">
+                            <input type="text" id="ritaInput" class="rita-input" placeholder="Message Rita..." disabled style="cursor: not-allowed;">
+                            <button class="rita-send-btn" disabled style="cursor: not-allowed;">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M2 21l21-9L2 3v7l15 2-15 2v7z"/>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // Continue button is enabled by default since configuration is optional
+        document.getElementById('continueBtn').addEventListener('click', function() {
+            window.location.href = '/pages/completion.html';
+        });
+        
+        document.getElementById('fileInput').addEventListener('change', async function(e) {
+            if (e.target.files.length > 0) {
+                const files = Array.from(e.target.files);
+                const uploadBtn = document.getElementById('uploadBtn');
+                const uploadBtnText = document.getElementById('uploadBtnText');
+                const uploadStatus = document.getElementById('uploadStatus');
+                
+                // Show uploading state
+                uploadBtn.classList.add('uploading');
+                uploadBtnText.textContent = 'Uploading...';
+                uploadBtn.disabled = true;
+                
+                // Prepare form data
+                const formData = new FormData();
+                files.forEach(file => {
+                    formData.append('files', file);
+                });
+                
+                try {
+                    // Upload to server with Resolve callback integration
+                    const response = await fetch('/api/upload-knowledge', {
+                        method: 'POST',
+                        body: formData,
+                        credentials: 'include' // Include cookies with the request
+                    });
+                    
+                    if (response.ok) {
+                        const result = await response.json();
+                        
+                        // Show success state
+                        uploadBtn.classList.remove('uploading');
+                        uploadBtn.classList.add('success');
+                        uploadBtnText.textContent = 'Uploaded Successfully';
+                        
+                        // Display file names
+                        const fileNames = files.map(f => f.name).join(', ');
+                        uploadStatus.innerHTML = `<div class="upload-success">✓ Uploaded: ${fileNames}</div>`;
+                        
+                        // Store upload data for later use
+                        sessionStorage.setItem('uploadedKnowledge', JSON.stringify({
+                            files: fileNames,
+                            resolveCallbackUrl: result.callbackUrl,
+                            timestamp: new Date().toISOString()
+                        }));
+                    } else {
+                        throw new Error('Upload failed');
+                    }
+                } catch (error) {
+                    // Show error state
+                    uploadBtn.classList.remove('uploading');
+                    uploadBtn.classList.add('error');
+                    uploadBtnText.textContent = 'Upload Failed';
+                    uploadStatus.innerHTML = `<div class="upload-error">✗ Error: ${error.message}</div>`;
+                    
+                    // Reset after 3 seconds
+                    setTimeout(() => {
+                        uploadBtn.classList.remove('error', 'success');
+                        uploadBtnText.textContent = 'Upload';
+                        uploadBtn.disabled = false;
+                        uploadStatus.innerHTML = '';
+                    }, 3000);
+                }
+            }
+        });
+    </script>
+</body>
+</html>

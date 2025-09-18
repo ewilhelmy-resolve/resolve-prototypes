@@ -1,0 +1,448 @@
+:root {
+    --resolve-blue: #0066FF;
+    --resolve-cyan: #00D4FF;
+    --resolve-teal: #00FFD4;
+    --resolve-dark: #000000;
+    --resolve-dark-bg: #0A0A0F;
+    --resolve-card-bg: #111118;
+    --resolve-border: #1a1a2e;
+    --resolve-text: #FFFFFF;
+    --resolve-text-dim: #8B8B9F;
+    --shadow-glow: 0 0 40px rgba(0, 102, 255, 0.3);
+    --shadow-glow-intense: 0 0 60px rgba(0, 102, 255, 0.5);
+    --font-size-base: calc(0.875rem + 0.25vw);
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    font-size: var(--font-size-base);
+    line-height: 1.6;
+    color: var(--resolve-text);
+    background: var(--resolve-dark);
+    overflow-x: hidden;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem;
+}
+
+/* Animated gradient background */
+body::before {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: radial-gradient(circle at 20% 50%, rgba(0, 102, 255, 0.1) 0%, transparent 50%),
+                radial-gradient(circle at 80% 80%, rgba(0, 212, 255, 0.05) 0%, transparent 50%),
+                radial-gradient(circle at 40% 20%, rgba(0, 255, 212, 0.03) 0%, transparent 50%);
+    z-index: -1;
+    animation: gradientShift 20s ease infinite;
+}
+
+/* Hero Section */
+.hero {
+    padding: 5rem 2rem 3rem;
+    text-align: center;
+    position: relative;
+}
+
+.hero h1 {
+    font-size: clamp(2.5rem, calc(2rem + 3vw), 4.5rem);
+    font-weight: 700;
+    margin-bottom: 1.5rem;
+    background: linear-gradient(135deg, var(--resolve-text) 0%, var(--resolve-blue) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    text-wrap: pretty;
+}
+
+.hero p {
+    font-size: 1.375rem;
+    color: var(--resolve-text-dim);
+    max-width: 700px;
+    margin: 0 auto 3rem;
+    line-height: 1.8;
+}
+
+/* Page Wrapper */
+.page-wrapper {
+    width: 100%;
+    max-width: 1400px;
+    padding: 0 2rem;
+}
+
+/* Container */
+.container {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 0 2rem;
+}
+
+/* Onboarding Container */
+.onboarding-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    background: var(--resolve-card-bg);
+    border-radius: 1.5rem;
+    border: 1px solid var(--resolve-border);
+    box-shadow: var(--shadow-glow);
+    overflow: hidden;
+    position: relative;
+    width: 100%;
+}
+
+.onboarding-container::before {
+    content: '';
+    position: absolute;
+    top: -2px;
+    left: -2px;
+    right: -2px;
+    bottom: -2px;
+    background: linear-gradient(135deg, var(--resolve-blue), var(--resolve-cyan), var(--resolve-teal));
+    border-radius: 1.5rem;
+    opacity: 0.3;
+    z-index: -1;
+    animation: borderGlow 3s ease infinite alternate;
+}
+
+/* Steps Container */
+.steps-container {
+    padding: 3.5rem;
+}
+
+.step {
+    display: none;
+    animation: fadeIn 0.5s ease;
+}
+
+.step.active {
+    display: block;
+}
+
+.step h2 {
+    font-size: 2rem;
+    margin-bottom: 1.25rem;
+    color: var(--resolve-text);
+    font-weight: 600;
+}
+
+.step p {
+    color: var(--resolve-text-dim);
+    margin-bottom: 2.5rem;
+    font-size: 1.125rem;
+}
+
+/* Ensure step 2 fits on one page */
+#step2 {
+    max-height: calc(100vh - 200px);
+    overflow-y: auto;
+}
+
+/* Form Elements */
+.form-group {
+    margin-bottom: 2rem;
+}
+
+label {
+    display: block;
+    font-weight: 500;
+    margin-bottom: 0.75rem;
+    color: var(--resolve-text-dim);
+    font-size: 0.875rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input[type="tel"],
+select {
+    width: 100%;
+    padding: 1rem 1.25rem;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 0.75rem;
+    font-size: 1rem;
+    transition: all 0.3s ease;
+    background: rgba(255, 255, 255, 0.03);
+    color: var(--resolve-text);
+    backdrop-filter: blur(10px);
+}
+
+input:focus,
+select:focus {
+    outline: none;
+    border-color: var(--resolve-blue);
+    box-shadow: 0 0 0 3px rgba(0, 102, 255, 0.2), inset 0 0 20px rgba(0, 102, 255, 0.05);
+    background: rgba(255, 255, 255, 0.05);
+}
+
+input.error {
+    border-color: #FF4444;
+    box-shadow: 0 0 0 3px rgba(255, 68, 68, 0.2);
+}
+
+.error-message {
+    color: #FF4444;
+    font-size: 0.875rem;
+    margin-top: 0.5rem;
+    display: none;
+}
+
+/* Login option styling */
+.login-option {
+    text-align: center;
+    margin-top: 1.5rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.login-option p {
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 0.95rem;
+}
+
+.btn-link {
+    background: none;
+    border: none;
+    color: #00D4FF;
+    text-decoration: underline;
+    cursor: pointer;
+    font-size: inherit;
+    padding: 0;
+    margin: 0;
+    transition: color 0.3s ease;
+}
+
+.btn-link:hover {
+    color: #00FFD4;
+    text-shadow: 0 0 10px rgba(0, 212, 255, 0.5);
+}
+
+.form-footer {
+    text-align: center;
+    margin-top: 1rem;
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 0.9rem;
+}
+
+.form-footer .btn-link {
+    margin-left: 0.25rem;
+}
+
+/* Buttons */
+.btn {
+    display: inline-block;
+    padding: 1rem 2.5rem;
+    border: none;
+    border-radius: 0.75rem;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    text-decoration: none;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+}
+
+.btn::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 0;
+    height: 0;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.1);
+    transform: translate(-50%, -50%);
+    transition: width 0.6s, height 0.6s;
+}
+
+.btn:hover::before {
+    width: 300px;
+    height: 300px;
+}
+
+.btn-primary {
+    background: var(--resolve-blue);
+    color: var(--resolve-text);
+    box-shadow: 0 4px 20px rgba(0, 102, 255, 0.3);
+}
+
+.btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 30px rgba(0, 102, 255, 0.5);
+}
+
+.btn-secondary {
+    background: transparent;
+    color: var(--resolve-text);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.btn-secondary:hover {
+    background: rgba(255, 255, 255, 0.05);
+    border-color: rgba(255, 255, 255, 0.3);
+}
+
+.btn-success {
+    background: var(--resolve-teal) !important;
+    color: var(--resolve-dark) !important;
+}
+
+.button-group {
+    display: flex;
+    gap: 1.25rem;
+    justify-content: space-between;
+    margin-top: 2.5rem;
+}
+
+.btn-lg {
+    padding: 1.25rem 3rem;
+    font-size: 1.125rem;
+}
+
+/* Loading State */
+.loading {
+    display: none;
+    text-align: center;
+    padding: 3rem;
+}
+
+.spinner {
+    width: 60px;
+    height: 60px;
+    border: 3px solid rgba(255, 255, 255, 0.1);
+    border-top-color: var(--resolve-blue);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin: 0 auto 2rem;
+    box-shadow: 0 0 20px var(--resolve-blue);
+}
+
+/* Success State */
+.success-icon {
+    width: 100px;
+    height: 100px;
+    background: linear-gradient(135deg, var(--resolve-blue), var(--resolve-cyan));
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 2.5rem;
+    animation: scaleIn 0.5s ease;
+    box-shadow: 0 0 60px rgba(0, 102, 255, 0.5);
+}
+
+.success-icon::after {
+    content: "✓";
+    color: white;
+    font-size: 3rem;
+    font-weight: bold;
+}
+
+/* Credit Card Input Styling */
+.card-input-group {
+    display: grid;
+    grid-template-columns: 2fr 1fr 1fr;
+    gap: 1.25rem;
+    margin-bottom: 2rem;
+}
+
+/* Checkbox styling */
+input[type="checkbox"] {
+    width: auto;
+    margin-right: 0.5rem;
+    cursor: pointer;
+}
+
+/* Ensure proper sizing on larger screens */
+@media (min-width: 1200px) {
+    .pricing-tiers {
+        max-width: 1000px;
+    }
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .nav-links {
+        display: none;
+    }
+
+    .steps-container {
+        padding: 2rem;
+    }
+
+    .pricing-cards {
+        grid-template-columns: 1fr;
+        max-width: 400px;
+    }
+    
+    .pricing-tiers {
+        grid-template-columns: 1fr;
+        max-width: 500px;
+        gap: 2rem;
+        padding: 0 1rem;
+    }
+
+    .pricing-summary {
+        flex-direction: column;
+        text-align: center;
+        gap: 1.5rem;
+    }
+
+    .quick-benefits {
+        align-items: center;
+    }
+
+    .button-group {
+        flex-direction: column;
+    }
+
+    .btn {
+        width: 100%;
+    }
+
+    .chat-options {
+        flex-direction: column;
+    }
+
+    .gamification-progress {
+        flex-direction: column;
+        gap: 1rem;
+        text-align: center;
+    }
+
+    .points-indicator {
+        text-align: center;
+    }
+
+    .integration-selector {
+        grid-template-columns: 1fr;
+    }
+
+    .setup-progress {
+        gap: 0.5rem;
+    }
+
+    .step-label {
+        font-size: 0.75rem;
+    }
+}
+
+@media (max-width: 640px) {
+    .card-input-group {
+        grid-template-columns: 1fr;
+    }
+}

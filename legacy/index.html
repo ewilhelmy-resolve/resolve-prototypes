@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+    <title>Resolve Onboarding</title>
+    <link rel="stylesheet" href="styles/fonts.css">
+    <link rel="stylesheet" href="styles/styles.css">
+    <link rel="stylesheet" href="styles/mobile.css">
+    <link rel="stylesheet" href="styles/mobile-rita.css">
+    <style>
+        /* Modal Styles */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(8px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+            z-index: 1000;
+        }
+
+        .modal-overlay.show {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .modal-content {
+            background: linear-gradient(135deg, #0d1637 0%, #1a2549 100%);
+            border-radius: 16px;
+            width: 90%;
+            max-width: 400px;
+            padding: 0;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+            transform: scale(0.9);
+            transition: transform 0.3s ease;
+        }
+
+        .modal-overlay.show .modal-content {
+            transform: scale(1);
+        }
+
+        .modal-header {
+            padding: 24px 24px 16px 24px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-title {
+            color: #00D4FF;
+            font-size: 20px;
+            font-weight: 600;
+            margin: 0;
+        }
+
+        .modal-close {
+            background: transparent;
+            border: none;
+            color: rgba(255, 255, 255, 0.6);
+            font-size: 32px;
+            cursor: pointer;
+            line-height: 1;
+            padding: 0;
+            transition: color 0.2s;
+        }
+
+        .modal-close:hover {
+            color: #fff;
+        }
+
+        .modal-body {
+            padding: 24px;
+            color: rgba(255, 255, 255, 0.9);
+            font-size: 15px;
+            line-height: 1.6;
+        }
+
+        .modal-icon {
+            width: 48px;
+            height: 48px;
+            margin: 0 auto 16px auto;
+            fill: #FF6B6B;
+        }
+
+        .modal-footer {
+            padding: 16px 24px 24px 24px;
+            display: flex;
+            justify-content: center;
+            gap: 12px;
+        }
+
+        .modal-btn {
+            padding: 10px 24px;
+            border-radius: 8px;
+            border: none;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .modal-btn.primary {
+            background: linear-gradient(135deg, #00D4FF 0%, #007EFF 100%);
+            color: white;
+        }
+
+        .modal-btn.primary:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(0, 212, 255, 0.3);
+        }
+    </style>
+</head>
+<body>
+    <div class="onboarding-container">
+        <div class="form-section">
+            <div class="form-container">
+                <div class="step-header">
+                    <div class="rt-Badge">Step 1 of 2</div>
+                    <div class="header-text">
+                        <h1 class="season-heading">Start your automation journey</h1>
+                        <p>Take 2 minutes to share your goals and challenges with IT automation.</p>
+                    </div>
+                </div>
+
+                <form class="onboarding-form" id="signup-form">
+                    <div class="form-field">
+                        <label for="fullName">Full name</label>
+                        <input type="text" id="fullName" name="fullName" class="rt-TextField-Input" placeholder="First and last name" required>
+                    </div>
+                    
+                    <div class="form-field">
+                        <label for="email">Work email</label>
+                        <input type="email" id="email" name="email" class="rt-TextField-Input" placeholder="you@acme.com" required>
+                    </div>
+                    
+                    <div class="form-field">
+                        <label for="company">Company name</label>
+                        <input type="text" id="company" name="company" class="rt-TextField-Input" placeholder="Acme" required>
+                    </div>
+                    
+                    <div class="form-field">
+                        <label for="password">Password</label>
+                        <input type="password" id="password" name="password" class="rt-TextField-Input" placeholder="Enter password" required>
+                    </div>
+
+                    <div class="nav-buttons" style="display: flex; justify-content: space-between; align-items: center; margin-top: 2rem;">
+                        <div class="signin-link" style="color: #666; display: flex; flex-direction: column; align-items: flex-start;">
+                            <span>Already have an account?</span>
+                            <a href="/signin" style="color: #0066ff; text-decoration: none;">Sign in here</a>
+                        </div>
+                        <button type="submit" class="rt-Button rt-variant-outline">Continue</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <div class="graphic-section">
+            <div class="background-workflow">
+                <div class="bg-workflow-node">
+                    <span class="bg-node-text">Trigger</span>
+                    <div class="bg-node-toggle"></div>
+                </div>
+                <div class="bg-workflow-node">
+                    <span class="bg-node-text">if-Else- if Else</span>
+                    <div class="bg-node-toggle"></div>
+                </div>
+                <div class="bg-workflow-node">
+                    <span class="bg-node-text">ActionName</span>
+                    <div class="bg-node-toggle"></div>
+                </div>
+                <div class="bg-workflow-node">
+                    <span class="bg-node-text">ActionName</span>
+                    <div class="bg-node-toggle"></div>
+                </div>
+                <div class="bg-workflow-node">
+                    <span class="bg-node-text">Trigger</span>
+                    <div class="bg-node-toggle"></div>
+                </div>
+            </div>
+            
+            <div class="rita-container">
+                <div class="rita-chat-interface">
+                    <div class="rita-chat-content">
+                        <div class="rita-header">
+                            <h2 class="rita-title season-heading">Ask Rita</h2>
+                            <p class="rita-subtitle">How can I help you today?</p>
+                        </div>
+                        <div class="rita-input-container">
+                            <input type="text" class="rita-input" placeholder="Message Rita..." disabled style="cursor: not-allowed;">
+                            <button class="rita-send-btn" disabled style="cursor: not-allowed;">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M2 21l21-9L2 3v7l15 2-15 2v7z"/>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Validation Modal -->
+    <div id="validationModal" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">Required Information</h3>
+                <button class="modal-close" id="modal-close-btn">×</button>
+            </div>
+            <div class="modal-body">
+                <div class="modal-icon">
+                    <svg viewBox="0 0 24 24">
+                        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/>
+                    </svg>
+                </div>
+                <p id="modalMessage" style="text-align: center;">Please fill in all required fields.</p>
+            </div>
+            <div class="modal-footer">
+                <button class="modal-btn primary" id="modal-ok-btn">OK</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Add event listeners for modal buttons
+        document.getElementById('modal-close-btn').addEventListener('click', closeModal);
+        document.getElementById('modal-ok-btn').addEventListener('click', closeModal);
+
+        function showModal(message) {
+            const modal = document.getElementById('validationModal');
+            const modalMessage = document.getElementById('modalMessage');
+            modalMessage.textContent = message;
+            modal.classList.add('show');
+        }
+
+        function closeModal() {
+            const modal = document.getElementById('validationModal');
+            modal.classList.remove('show');
+        }
+
+        document.getElementById('signup-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const formData = {
+                name: document.getElementById('fullName').value,
+                email: document.getElementById('email').value,
+                company: document.getElementById('company').value,
+                password: document.getElementById('password').value
+            };
+
+            // Client-side validation
+            if (!formData.name || !formData.email || !formData.company || !formData.password) {
+                showModal('Please fill in all required fields.');
+                return;
+            }
+
+            // Validate email format
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!emailRegex.test(formData.email)) {
+                showModal('Please enter a valid email address.');
+                return;
+            }
+
+            // Validate password length
+            if (formData.password.length < 6) {
+                showModal('Password must be at least 6 characters long.');
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/auth/register', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    credentials: 'include',  // Include cookies in request
+                    body: JSON.stringify(formData)
+                });
+
+                if (response.ok) {
+                    window.location.href = '/pages/step2.html';
+                } else {
+                    const errorData = await response.json();
+                    showModal(errorData.message || 'Registration failed. Please try again.');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                showModal('An error occurred. Please try again.');
+            }
+        });
+    </script>
+</body>
+</html>

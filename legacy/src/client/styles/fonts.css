@@ -1,0 +1,86 @@
+@font-face {
+  font-family: "Season Mix";
+  src: url("/fonts/SeasonMix-Regular.otf") format("opentype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Season Mix";
+  src: url("/fonts/SeasonMix-RegularItalic.otf") format("opentype");
+  font-weight: 400;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Season Sans";
+  src: url("/fonts/SeasonSans-Regular.otf") format("opentype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Season Sans";
+  src: url("/fonts/SeasonSans-RegularItalic.otf") format("opentype");
+  font-weight: 400;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Season Sans";
+  src: url("/fonts/SeasonSans-Medium.otf") format("opentype");
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Season Sans";
+  src: url("/fonts/SeasonSans-MediumItalic.otf") format("opentype");
+  font-weight: 500;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Season Sans";
+  src: url("/fonts/SeasonSans-SemiBold.otf") format("opentype");
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Season Sans";
+  src: url("/fonts/SeasonSans-SemiBoldItalic.otf") format("opentype");
+  font-weight: 600;
+  font-style: italic;
+  font-display: swap;
+}
+
+.season-heading {
+  font-family: "Season Mix", -apple-system, BlinkMacSystemFont, "SF Pro", sans-serif;
+  font-weight: 400;
+  font-style: normal;
+}
+
+.season-sans {
+  font-family: "Season Sans", -apple-system, BlinkMacSystemFont, "SF Pro", sans-serif;
+  font-style: normal;
+}
+
+.season-sans-medium {
+  font-family: "Season Sans", -apple-system, BlinkMacSystemFont, "SF Pro", sans-serif;
+  font-weight: 500;
+  font-style: normal;
+}
+
+.season-sans-semibold {
+  font-family: "Season Sans", -apple-system, BlinkMacSystemFont, "SF Pro", sans-serif;
+  font-weight: 600;
+  font-style: normal;
+}

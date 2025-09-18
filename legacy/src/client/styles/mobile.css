@@ -1,0 +1,378 @@
+/* Mobile Responsive Styles - Preserve Desktop, Enhance Mobile */
+
+/* Mobile Navigation Toggle */
+.mobile-menu-toggle {
+  display: none;
+  position: fixed;
+  top: 70px; /* Position below the header */
+  left: 16px;
+  z-index: 1001;
+  width: 40px;
+  height: 40px;
+  background: rgba(10, 10, 10, 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  color: white;
+  cursor: pointer;
+  align-items: center;
+  justify-content: center;
+  transition: 0.3s;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.mobile-menu-toggle:active {
+  transform: scale(0.95);
+}
+
+.mobile-overlay {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 999;
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+
+.mobile-overlay.active {
+  opacity: 1;
+}
+
+/* Tablet Styles (iPad, etc.) */
+@media (max-width: 1024px) {
+  .onboarding-container {
+    padding: 1.5rem;
+    gap: 2rem;
+  }
+
+  .graphic-section {
+    flex: 0 0 400px;
+    height: 500px;
+  }
+
+  .rita-chat-interface {
+    width: 350px;
+    height: 320px;
+  }
+}
+
+/* Mobile Landscape and Small Tablets */
+@media (max-width: 768px) {
+  /* Fix body scrolling */
+  body {
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Landing/Login Pages */
+  .onboarding-container {
+    flex-direction: column;
+    min-height: auto;
+    padding: 1rem;
+    gap: 1.5rem;
+  }
+
+  .onboarding-container::before {
+    width: 100%;
+    height: 200px;
+    left: 0;
+    top: 20%;
+  }
+
+  .form-section {
+    max-width: 100%;
+    width: 100%;
+  }
+
+  .form-container {
+    padding: 1.5rem;
+  }
+
+  .onboarding-form {
+    max-width: 100%;
+  }
+
+  /* Hide graphic section on mobile or make it smaller */
+  .graphic-section {
+    display: none; /* Hide complex graphics on mobile */
+  }
+
+  /* Dashboard Mobile Layout */
+  .dashboard-layout {
+    height: auto;
+    min-height: 100vh;
+  }
+
+  .main-content {
+    flex-direction: column;
+    height: auto;
+  }
+
+  /* Mobile Menu Toggle */
+  .mobile-menu-toggle {
+    display: flex;
+  }
+
+  /* Transform sidebars into slide-out menus */
+  .left-sidebar,
+  .right-sidebar {
+    position: fixed;
+    top: 0;
+    height: 100vh;
+    width: 85%;
+    max-width: 320px;
+    z-index: 1000;
+    transform: translateX(-100%);
+    transition: transform 0.3s ease;
+    box-shadow: 2px 0 12px rgba(0, 0, 0, 0.15);
+  }
+
+  .right-sidebar {
+    left: auto;
+    right: 0;
+    transform: translateX(100%);
+  }
+
+  .left-sidebar.active {
+    transform: translateX(0);
+  }
+
+  .right-sidebar.active {
+    transform: translateX(0);
+  }
+
+  /* Show overlay when sidebar is active */
+  body.sidebar-open .mobile-overlay {
+    display: block;
+  }
+
+  /* Chat area takes full width */
+  .chat-area {
+    width: 100%;
+    min-height: calc(100vh - 60px);
+  }
+
+  .chat-container {
+    padding: 20px 15px;
+  }
+
+  .chat-title {
+    font-size: 32px;
+  }
+
+  .chat-input-container {
+    padding: 0 15px;
+  }
+
+  /* Header adjustments */
+  .top-header {
+    padding: 12px 16px;
+    position: sticky;
+    top: 0;
+    z-index: 900; /* Below mobile menu toggle */
+  }
+
+  .logo-svg {
+    height: 16px;
+  }
+
+  .trial-badge {
+    display: none; /* Hide on mobile to save space */
+  }
+
+  /* User dropdown mobile positioning */
+  .user-dropdown {
+    position: fixed !important;
+    top: 60px !important;
+    right: 10px !important;
+    left: 10px !important;
+    width: auto !important;
+    max-width: 400px !important;
+  }
+}
+
+/* Mobile Portrait */
+@media (max-width: 480px) {
+  /* Form adjustments */
+  .rt-TextField-Input {
+    height: 48px; /* Larger touch targets */
+    font-size: 16px; /* Prevent zoom on iOS */
+  }
+
+  .rt-Button {
+    height: 44px;
+    min-width: 100px;
+  }
+
+  .nav-buttons {
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .signin-link {
+    align-items: center !important;
+    text-align: center;
+    width: 100%;
+  }
+
+  /* Step 2 and other pages */
+  .integration-form {
+    padding: 1rem;
+  }
+
+  .goals-section {
+    padding: 1rem;
+  }
+
+  .checkbox-group {
+    gap: 0.75rem;
+  }
+
+  /* Chat interface mobile */
+  .chat-header {
+    padding: 0 1rem;
+  }
+
+  .chat-title {
+    font-size: 28px;
+  }
+
+  .chat-subtitle {
+    font-size: 14px;
+  }
+
+  .chat-input {
+    height: 48px;
+    font-size: 16px; /* Prevent iOS zoom */
+  }
+
+  /* Modal adjustments */
+  .modal-content {
+    width: 95%;
+    margin: 10px;
+    max-height: 90vh;
+  }
+
+  .modal-body {
+    padding: 16px;
+  }
+
+  /* Dashboard buttons */
+  .dashboard-btn {
+    padding: 8px 12px;
+    font-size: 13px;
+  }
+
+  /* New chat button full width */
+  .new-chat-btn {
+    height: 48px;
+    font-size: 15px;
+  }
+}
+
+/* Very small devices */
+@media (max-width: 360px) {
+  .chat-title {
+    font-size: 24px;
+  }
+
+  .header-text h1 {
+    font-size: 24px;
+  }
+
+  .form-container {
+    padding: 1rem;
+  }
+}
+
+/* Touch-friendly adjustments for all mobile devices */
+@media (hover: none) and (pointer: coarse) {
+  /* Increase all clickable areas */
+  button, .rt-Button, .dashboard-btn, .action-btn {
+    min-height: 44px;
+  }
+
+  /* Remove hover effects that don't work on touch */
+  .rt-Button:hover,
+  .dashboard-btn:hover,
+  .action-btn:hover {
+    transform: none;
+  }
+
+  /* Add active states for better feedback */
+  .rt-Button:active,
+  .dashboard-btn:active {
+    opacity: 0.8;
+    transform: scale(0.98);
+  }
+
+  /* Ensure inputs don't zoom on iOS */
+  input[type="text"],
+  input[type="email"],
+  input[type="password"],
+  textarea,
+  select {
+    font-size: 16px !important;
+  }
+}
+
+/* Landscape mobile adjustments */
+@media (max-height: 500px) and (orientation: landscape) {
+  .chat-container {
+    padding: 10px;
+  }
+
+  .chat-title {
+    font-size: 24px;
+    margin-bottom: 8px;
+  }
+
+  .chat-header {
+    margin-bottom: 10px;
+  }
+}
+
+/* High-DPI displays */
+@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+  /* Ensure borders look crisp */
+  .rt-TextField-Input,
+  .dashboard-btn,
+  .rt-Button {
+    border-width: 0.5px;
+  }
+}
+
+/* iOS-specific fixes */
+@supports (-webkit-touch-callout: none) {
+  /* Fix iOS rubber-band scrolling */
+  .left-sidebar,
+  .right-sidebar {
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Fix iOS input zoom */
+  input, textarea, select {
+    font-size: 16px !important;
+  }
+}
+
+/* Safe area insets for notched devices */
+@supports (padding: max(0px)) {
+  .top-header {
+    padding-top: max(16px, env(safe-area-inset-top));
+  }
+
+  .left-sidebar,
+  .right-sidebar {
+    padding-top: max(24px, env(safe-area-inset-top));
+    padding-bottom: max(24px, env(safe-area-inset-bottom));
+  }
+
+  .chat-input-container {
+    padding-bottom: max(20px, env(safe-area-inset-bottom));
+  }
+}

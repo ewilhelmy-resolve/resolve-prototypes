@@ -1,0 +1,241 @@
+import amqp from 'amqplib';
+import { withOrgContext } from '../config/database.js';
+import { getSSEService } from './sse.js';
+import { queueLogger, logError, PerformanceTimer } from '../config/logger.js';
+
+export class RabbitMQService {
+  private connection: any = null;
+  private channel: any = null;
+  private readonly queueName: string;
+
+  constructor() {
+    this.queueName = process.env.QUEUE_NAME || 'chat.responses';
+  }
+
+  async connect(): Promise<void> {
+    const timer = new PerformanceTimer(queueLogger, 'rabbitmq-connect');
+    try {
+      const rabbitUrl = process.env.RABBITMQ_URL || 'amqp://guest:guest@localhost:5672';
+      queueLogger.info({ url: rabbitUrl }, 'Connecting to RabbitMQ...');
+
+      this.connection = await amqp.connect(rabbitUrl);
+      this.channel = await this.connection.createChannel();
+
+      // Assert queue exists
+      await this.channel.assertQueue(this.queueName, {
+        durable: true
+      });
+
+      timer.end({ queueName: this.queueName, success: true });
+      queueLogger.info({ queueName: this.queueName }, 'RabbitMQ connected successfully');
+    } catch (error) {
+      timer.end({ success: false });
+      logError(queueLogger, error as Error, { operation: 'rabbitmq-connect' });
+      throw error;
+    }
+  }
+
+  async startConsumer(): Promise<void> {
+    if (!this.channel) {
+      throw new Error('RabbitMQ channel not initialized');
+    }
+
+    queueLogger.info({ queueName: this.queueName }, 'Starting RabbitMQ consumer...');
+
+    await this.channel.consume(this.queueName, async (message: any) => {
+      if (!message) return;
+
+      const timer = new PerformanceTimer(queueLogger, 'message-processing');
+      try {
+        const content = JSON.parse(message.content.toString());
+        queueLogger.info({
+          messageId: content.message_id,
+          organizationId: content.organization_id,
+          status: content.status
+        }, 'Received message from queue');
+
+        await this.processMessage(content);
+
+        // Acknowledge message
+        this.channel?.ack(message);
+        timer.end({
+          messageId: content.message_id,
+          status: content.status,
+          success: true
+        });
+        queueLogger.info({
+          messageId: content.message_id
+        }, 'Message processed successfully');
+
+      } catch (error) {
+        timer.end({ success: false });
+        logError(queueLogger, error as Error, { operation: 'message-processing' });
+
+        // Reject message and don't requeue to avoid infinite loops
+        this.channel?.nack(message, false, false);
+      }
+    });
+  }
+
+  private async processMessage(payload: any): Promise<void> {
+    const {
+      message_id,
+      conversation_id,
+      tenant_id: organization_id, // Remap tenant_id from external service to organization_id
+      user_id,
+      response
+    } = payload;
+
+    const messageLogger = queueLogger.child({
+      messageId: message_id,
+      conversationId: conversation_id,
+      organizationId: organization_id,
+      userId: user_id
+    });
+
+    if (!message_id || !organization_id || !user_id || !conversation_id) {
+      messageLogger.error({ payload }, 'Invalid message payload: missing required fields (message_id, tenant_id, user_id, conversation_id)');
+      throw new Error('Invalid message payload: missing required fields');
+    }
+
+    messageLogger.info('Processing message');
+    const sseService = getSSEService();
+
+    // Process message with organization context
+    await withOrgContext(user_id, organization_id, async (client) => {
+      // Verify message exists and belongs to the correct organization
+      const messageCheck = await client.query(
+        'SELECT id FROM messages WHERE id = $1 AND organization_id = $2',
+        [message_id, organization_id]
+      );
+
+      if (messageCheck.rows.length === 0) {
+        throw new Error(`Message ${message_id} not found or doesn't belong to organization ${organization_id}`);
+      }
+
+      // Update original user message status to completed
+      await client.query(`
+        UPDATE messages
+        SET status = $1, processed_at = $2
+        WHERE id = $3
+      `, ['completed', new Date(), message_id]);
+
+      // Create new assistant message with the response
+      const assistantMessageResult = await client.query(`
+        INSERT INTO messages (organization_id, conversation_id, user_id, message, role, status, created_at)
+        VALUES ($1, $2, $3, $4, 'assistant', 'completed', NOW())
+        RETURNING id
+      `, [organization_id, conversation_id, user_id, response]);
+
+      const assistantMessageId = assistantMessageResult.rows[0].id;
+
+      // Log the message processing for audit trail
+      await client.query(`
+        INSERT INTO audit_logs (organization_id, user_id, action, resource_type, resource_id, metadata)
+        VALUES ($1, $2, 'assistant_message_created', 'message', $3, $4)
+      `, [
+        organization_id,
+        user_id,
+        assistantMessageId,
+        JSON.stringify({
+          original_user_message_id: message_id,
+          response_length: response?.length || 0,
+          conversation_id: conversation_id
+        })
+      ]);
+
+      messageLogger.info({ newStatus: 'completed' }, 'Database update completed');
+
+      // Send SSE events to user about both message updates
+      try {
+        // Event for user message completion
+        sseService.sendToUser(user_id, organization_id, {
+          type: 'message_update',
+          data: {
+            messageId: message_id,
+            status: 'completed' as any,
+            responseContent: undefined,
+            errorMessage: undefined,
+            processedAt: new Date().toISOString()
+          }
+        });
+
+        // Event for new assistant message
+        sseService.sendToUser(user_id, organization_id, {
+          type: 'new_message',
+          data: {
+            messageId: assistantMessageId,
+            content: response,
+            userId: user_id,
+            createdAt: new Date().toISOString()
+          }
+        });
+
+        messageLogger.info({ eventType: 'message_update_and_new_message' }, 'SSE events sent to user');
+      } catch (sseError) {
+        messageLogger.warn({
+          error: sseError instanceof Error ? sseError.message : String(sseError)
+        }, 'Failed to send SSE event');
+        // Don't throw here - SSE failure shouldn't prevent message processing
+      }
+    });
+
+    messageLogger.info({ finalStatus: 'completed' }, 'Message processing completed successfully');
+  }
+
+  async close(): Promise<void> {
+    try {
+      if (this.channel) {
+        await this.channel.close();
+        queueLogger.info('RabbitMQ channel closed');
+      }
+      if (this.connection) {
+        await this.connection.close();
+        queueLogger.info('RabbitMQ connection closed');
+      }
+    } catch (error) {
+      logError(queueLogger, error as Error, { operation: 'rabbitmq-close' });
+    }
+  }
+
+  async publishMessage(queueName: string, message: any): Promise<void> {
+    const timer = new PerformanceTimer(queueLogger, 'publish-message');
+    try {
+      if (!this.channel) {
+        throw new Error('RabbitMQ channel not initialized');
+      }
+
+      await this.channel.assertQueue(queueName, { durable: true });
+
+      const messageBuffer = Buffer.from(JSON.stringify(message));
+      this.channel.sendToQueue(queueName, messageBuffer, {
+        persistent: true
+      });
+
+      timer.end({
+        queueName,
+        messageSize: messageBuffer.length,
+        success: true
+      });
+      queueLogger.info({
+        queueName,
+        messageId: message.message_id,
+        messageSize: messageBuffer.length
+      }, 'Message published to queue');
+    } catch (error) {
+      timer.end({ success: false });
+      logError(queueLogger, error as Error, { operation: 'publish-message', queueName });
+      throw error;
+    }
+  }
+}
+
+// Singleton instance
+let rabbitmqService: RabbitMQService | null = null;
+
+export const getRabbitMQService = (): RabbitMQService => {
+  if (!rabbitmqService) {
+    rabbitmqService = new RabbitMQService();
+  }
+  return rabbitmqService;
+};
