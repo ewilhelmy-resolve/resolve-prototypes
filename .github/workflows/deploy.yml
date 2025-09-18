@@ -3,7 +3,7 @@ name: Build and Deploy
 on:
   push:
     branches:
-      - main
+      - mainx
 
 env:
   IMAGE_NAME: ghcr.io/resolve-io/resolve-onboarding

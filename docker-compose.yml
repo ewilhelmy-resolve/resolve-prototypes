@@ -1,69 +1,64 @@
+# Development environment - Infrastructure services only
+# Run the client and api-server locally for development
+version: '3.8'
+
 services:
-  app:
-    build:
-      context: .
-      dockerfile: Dockerfile
-      target: development
-    ports:
-      - "5000:5000"
+  postgres:
+    image: postgres:15-alpine
     environment:
-      - NODE_ENV=development
-      - PORT=5000
-      # Database URL from .env will be used to connect to Supabase
+      POSTGRES_DB: onboarding
+      POSTGRES_USER: rita
+      POSTGRES_PASSWORD: rita
+    ports:
+      - "5432:5432"
     volumes:
-      - ./uploads:/app/uploads
+      - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD", "node", "-e", "require('http').get('http://localhost:5000/health', (res) => { process.exit(res.statusCode === 200 ? 0 : 1); })"]
+      test: ["CMD-SHELL", "pg_isready -U rita -d onboarding"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
       interval: 30s
-      timeout: 3s
+      timeout: 10s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
       retries: 3
-      start_period: 10s
-    # depends_on:
-      # rabbitmq:
-        # condition: service_healthy
-    # No local database dependency - connects to Supabase
-    env_file:
-      - .env
 
-  # rabbitmq:
-    # image: rabbitmq:3.12-management-alpine
-    # container_name: resolve-rabbitmq
-    # ports:
-      # - "5672:5672"    # AMQP protocol port
-      # - "15672:15672"  # Management UI port
-    # environment:
-      # RABBITMQ_DEFAULT_USER: admin
-      # RABBITMQ_DEFAULT_PASS: admin
-      # RABBITMQ_DEFAULT_VHOST: /
-    # volumes:
-      # - rabbitmq_data:/var/lib/rabbitmq
-    # healthcheck:
-      # test: ["CMD", "rabbitmq-diagnostics", "ping"]
-      # interval: 10s
-      # timeout: 5s
-      # retries: 3
-      # start_period: 30s
-
-  # Local PostgreSQL is disabled - using Supabase cloud database
-  # Uncomment below to use local PostgreSQL instead of Supabase
-  # postgres:
-  #   image: ankane/pgvector:latest
-  #   ports:
-  #     - "5432:5432"
-  #   environment:
-  #     - POSTGRES_DB=resolve_db
-  #     - POSTGRES_USER=resolve_user
-  #     - POSTGRES_PASSWORD=resolve123
-  #   volumes:
-  #     - postgres_data:/var/lib/postgresql/data
-  #     - ./src/database:/docker-entrypoint-initdb.d
-  #   healthcheck:
-  #     test: ["CMD-SHELL", "pg_isready -U resolve_user -d resolve_db"]
-  #     interval: 10s
-  #     timeout: 5s
-  #     retries: 5
-  #     start_period: 10s
+  keycloak:
+    image: quay.io/keycloak/keycloak:24.0.4
+    environment:
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: admin
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./keycloak/realm-export.json:/opt/keycloak/data/import/realm-export.json
+    command: start-dev --import-realm
 
 volumes:
   postgres_data:
   rabbitmq_data:
+  redis_data:

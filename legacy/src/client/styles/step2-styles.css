@@ -1,0 +1,231 @@
+.upload-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  width: 100%;
+  max-width: 521px;
+  margin: 0 auto;
+}
+
+.upload-title {
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 24px;
+  color: rgba(255, 255, 255, 0.93);
+  margin-bottom: 0.5rem;
+  text-align: center;
+}
+
+.additional-options-container {
+  width: 100%;
+  max-width: 521px;
+  margin: 36px auto 1rem;
+  border-radius: 8px;
+  border: 1px solid rgba(0, 102, 255, 0.17);
+  background: rgba(0, 102, 255, 0.20);
+  display: flex;
+  padding: 12px;
+  flex-direction: column;
+  align-items: flex-start;
+  align-self: stretch;
+}
+
+.additional-options-title {
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 24px;
+  color: rgba(255, 255, 255, 0.93);
+  margin-bottom: 0.5rem;
+  text-align: center;
+}
+
+.additional-options-subtitle {
+  font-size: 14px;
+  line-height: 20px;
+  color: rgba(255, 255, 255, 0.69);
+  text-align: center;
+}
+
+.section-label {
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 20px;
+  color: rgba(255, 255, 255, 0.69);
+}
+
+.upload-button {
+  width: 100%;
+  height: 48px;
+  padding: 0 16px;
+  background: rgba(51, 84, 250, 0.09);
+  border: 1px solid rgba(90, 127, 255, 0.19);
+  border-radius: 8px;
+  color: #9eb1ff;
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 24px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: 0.2s;
+}
+
+.upload-button:hover {
+  background: rgba(51, 84, 250, 0.15);
+  border-color: rgba(90, 127, 255, 0.3);
+}
+
+.upload-button svg {
+  width: 16px;
+  height: 16px;
+}
+
+.divider-section {
+  width: 100%;
+  max-width: 521px;
+  margin: 1rem auto;
+}
+
+.divider-text {
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 20px;
+  color: rgba(255, 255, 255, 0.69);
+}
+
+.connection-options {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  width: 100%;
+  margin-top: 1rem;
+}
+
+.connection-card {
+  background: transparent;
+  border: 1px solid rgba(15, 137, 253, 0.25);
+  border-radius: 6px;
+  padding: 14px 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 68px;
+}
+
+.card-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  background: rgba(90, 127, 255, 0.1);
+  flex-shrink: 0;
+}
+
+.card-icon img {
+  width: 24px;
+  height: 24px;
+  filter: brightness(1.2);
+}
+
+.card-content {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+}
+
+.card-title {
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 20px;
+  color: rgba(255, 255, 255, 0.93);
+}
+
+.card-description {
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 20px;
+  color: rgba(255, 255, 255, 0.69);
+}
+
+
+.nav-buttons-right {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.rt-Button.disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.rt-Button.disabled:hover {
+  background: transparent;
+}
+
+.upload-description {
+  font-size: 13px;
+  line-height: 18px;
+  color: rgba(255, 255, 255, 0.6);
+  margin-bottom: 0.5rem;
+}
+
+.upload-button.uploading {
+  background: rgba(51, 84, 250, 0.2);
+  border-color: rgba(90, 127, 255, 0.4);
+  cursor: wait;
+}
+
+.upload-button.success {
+  border-color: rgba(0, 255, 163, 0.3);
+  background: rgba(0, 255, 163, 0.1);
+  color: #00ffa3;
+}
+
+.upload-button.error {
+  border-color: rgba(255, 0, 0, 0.3);
+  background: rgba(255, 0, 0, 0.1);
+  color: #ff6b6b;
+}
+
+.upload-status {
+  font-size: 13px;
+  line-height: 18px;
+  margin-top: 0.5rem;
+}
+
+.upload-success {
+  color: #00ffa3;
+  padding: 0.5rem;
+  background: rgba(0, 255, 163, 0.1);
+  border-radius: 4px;
+  border: 1px solid rgba(0, 255, 163, 0.2);
+}
+
+.upload-error {
+  color: #ff6b6b;
+  padding: 0.5rem;
+  background: rgba(255, 0, 0, 0.1);
+  border-radius: 4px;
+  border: 1px solid rgba(255, 0, 0, 0.2);
+}
+
+@media (max-width: 768px) {
+  .connection-options {
+    min-height: auto;
+  }
+  .nav-buttons-right {
+    flex-direction: column;
+    gap: 0.5rem;
+    width: 100%;
+  }
+  .nav-buttons-right button {
+    width: 100%;
+  }
+}

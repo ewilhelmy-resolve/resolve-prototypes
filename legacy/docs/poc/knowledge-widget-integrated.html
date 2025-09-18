@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Knowledge Base Widget - Integrated with Dashboard Styles</title>
+    <!-- Using existing dashboard styles -->
+    <link rel="stylesheet" href="/styles/dashboard-styles.css">
+    <style>
+        /* Additional styles specific to knowledge widget using existing patterns */
+        
+        /* Knowledge widget container - follows chat-item pattern */
+        .knowledge-widget {
+            padding: 20px;
+            background: rgba(255, 255, 255, 0.95);
+            border: 1px solid rgba(0, 0, 0, 0.08);
+            border-radius: 8px;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+            margin-bottom: 20px;
+        }
+        
+        /* Widget header - follows chat-item-header pattern */
+        .knowledge-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+        
+        /* Widget title - follows chat-item-title pattern */
+        .knowledge-title {
+            font-size: 14px;
+            color: rgb(26, 26, 26);
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .knowledge-icon {
+            width: 24px;
+            height: 24px;
+            background: rgba(78, 205, 196, 0.1);
+            border: 1px solid rgba(78, 205, 196, 0.2);
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+        }
+        
+        /* Badge - matches trial-badge style */
+        .knowledge-badge {
+            background: rgba(0, 255, 136, 0.1);
+            border: 1px solid rgba(0, 255, 136, 0.3);
+            border-radius: 4px;
+            padding: 2px 6px;
+            font-size: 10px;
+            color: rgb(0, 255, 136);
+            font-family: "SF Mono", Monaco, monospace;
+        }
+        
+        /* Upload area - follows search-input pattern */
+        .knowledge-upload {
+            width: 100%;
+            background: rgba(255, 255, 255, 0.8);
+            border: 2px dashed rgba(0, 0, 0, 0.15);
+            border-radius: 8px;
+            padding: 16px;
+            text-align: center;
+            cursor: pointer;
+            transition: 0.2s;
+            margin-bottom: 16px;
+        }
+        
+        .knowledge-upload:hover {
+            border-color: rgba(78, 205, 196, 0.5);
+            background: rgb(255, 255, 255);
+            box-shadow: rgba(78, 205, 196, 0.1) 0px 0px 0px 3px;
+        }
+        
+        .upload-icon {
+            font-size: 20px;
+            margin-bottom: 8px;
+        }
+        
+        .upload-text {
+            font-size: 12px;
+            color: rgb(26, 26, 26);
+            font-weight: 500;
+            margin-bottom: 4px;
+        }
+        
+        .upload-hint {
+            font-size: 11px;
+            color: rgba(0, 0, 0, 0.4);
+        }
+        
+        /* Stats grid */
+        .knowledge-stats {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+            padding: 12px;
+            background: rgba(248, 250, 252, 0.8);
+            border-radius: 6px;
+            margin-bottom: 16px;
+        }
+        
+        .stat-item {
+            text-align: center;
+        }
+        
+        .stat-value {
+            font-size: 18px;
+            font-weight: 600;
+            color: rgb(0, 102, 255);
+            display: block;
+        }
+        
+        .stat-label {
+            font-size: 10px;
+            color: rgba(0, 0, 0, 0.5);
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+            margin-top: 2px;
+        }
+        
+        /* Recent documents section */
+        .knowledge-recent {
+            margin-bottom: 16px;
+        }
+        
+        /* Document item - follows chat-item pattern but simpler */
+        .knowledge-doc {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 8px 12px;
+            margin-bottom: 4px;
+            background: rgba(248, 250, 252, 0.8);
+            border-radius: 6px;
+            font-size: 12px;
+            transition: all 0.2s ease;
+        }
+        
+        .knowledge-doc:hover {
+            background: rgba(255, 255, 255, 0.95);
+            transform: translateX(2px);
+        }
+        
+        .doc-name {
+            flex: 1;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            color: rgb(26, 26, 26);
+            font-weight: 500;
+        }
+        
+        .doc-status {
+            font-size: 10px;
+            padding: 2px 4px;
+            border-radius: 2px;
+            text-transform: uppercase;
+            font-weight: 600;
+        }
+        
+        .status-ready {
+            background: rgba(0, 255, 136, 0.1);
+            color: rgb(0, 150, 50);
+        }
+        
+        .status-processing {
+            background: rgba(255, 193, 7, 0.1);
+            color: rgb(180, 120, 0);
+        }
+        
+        /* Manage button - follows new-chat-btn pattern */
+        .knowledge-manage-btn {
+            width: 100%;
+            height: 40px;
+            background: linear-gradient(135deg, rgb(0, 102, 255), rgb(78, 205, 196));
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-size: 13px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: 0 2px 6px rgba(0, 102, 255, 0.08);
+        }
+        
+        .knowledge-manage-btn:hover {
+            box-shadow: 0 4px 12px rgba(0, 102, 255, 0.15);
+            transform: translateY(-1px);
+        }
+    </style>
+</head>
+<body>
+    <!-- This shows how the widget fits in the dashboard structure -->
+    <div class="dashboard-layout">
+        <div class="main-content">
+            <!-- Main chat area would be here -->
+            <div style="flex: 1; padding: 40px; text-align: center; color: #666;">
+                Main Chat Interface
+            </div>
+            
+            <!-- Right Sidebar - matching existing right-sidebar class -->
+            <div class="right-sidebar">
+                
+                <!-- Knowledge Base Widget -->
+                <div class="knowledge-widget">
+                    <div class="knowledge-header">
+                        <div class="knowledge-title">
+                            <div class="knowledge-icon">📚</div>
+                            Knowledge Base
+                        </div>
+                        <span class="knowledge-badge">11 Articles</span>
+                    </div>
+                    
+                    <!-- Upload Area -->
+                    <div class="knowledge-upload" onclick="handleUpload()">
+                        <div class="upload-icon">⬆️</div>
+                        <div class="upload-text">Drop files or click to upload</div>
+                        <div class="upload-hint">PDF, DOC, TXT, MD • Max 100MB</div>
+                    </div>
+                    
+                    <!-- Stats Grid -->
+                    <div class="knowledge-stats">
+                        <div class="stat-item">
+                            <span class="stat-value">11</span>
+                            <span class="stat-label">Articles</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-value">350</span>
+                            <span class="stat-label">Vectors</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-value">89%</span>
+                            <span class="stat-label">Accuracy</span>
+                        </div>
+                    </div>
+                    
+                    <!-- Recent Documents -->
+                    <div class="knowledge-recent">
+                        <div class="section-title">RECENT UPLOADS</div>
+                        <div class="knowledge-doc">
+                            <span class="doc-name">Employee Handbook.pdf</span>
+                            <span class="doc-status status-ready">Ready</span>
+                        </div>
+                        <div class="knowledge-doc">
+                            <span class="doc-name">IT Security Policies.docx</span>
+                            <span class="doc-status status-processing">Processing</span>
+                        </div>
+                        <div class="knowledge-doc">
+                            <span class="doc-name">Onboarding Checklist.md</span>
+                            <span class="doc-status status-ready">Ready</span>
+                        </div>
+                    </div>
+                    
+                    <!-- Manage Button -->
+                    <button class="knowledge-manage-btn" onclick="openKnowledgeManagement()">
+                        Manage Knowledge Base →
+                    </button>
+                </div>
+                
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // Drag and drop functionality
+        const uploadArea = document.querySelector('.knowledge-upload');
+        
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.style.borderColor = 'rgba(78, 205, 196, 0.5)';
+            uploadArea.style.background = 'rgb(255, 255, 255)';
+        });
+        
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.style.borderColor = 'rgba(0, 0, 0, 0.15)';
+            uploadArea.style.background = 'rgba(255, 255, 255, 0.8)';
+        });
+        
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.style.borderColor = 'rgba(0, 0, 0, 0.15)';
+            uploadArea.style.background = 'rgba(255, 255, 255, 0.8)';
+            
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                console.log('Uploading files:', files);
+                // Handle file upload
+            }
+        });
+        
+        function handleUpload() {
+            // Create file input and trigger click
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.multiple = true;
+            input.accept = '.pdf,.doc,.docx,.txt,.md,.html';
+            input.onchange = (e) => {
+                const files = e.target.files;
+                if (files.length > 0) {
+                    console.log('Selected files:', files);
+                    // Handle file upload
+                }
+            };
+            input.click();
+        }
+        
+        function openKnowledgeManagement() {
+            console.log('Opening knowledge management page...');
+            // Navigate to /knowledge or open modal
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,78 @@
+{
+  "name": "resolve-onboarding",
+  "version": "1.0.0",
+  "description": "Resolve onboarding POC with Stripe integration",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon --watch . --ext js,html,css --ignore node_modules/ --ignore data/ --ignore uploads/ --ignore tests/ server.js",
+    "prod": "pm2 start ecosystem.config.js --env production",
+    "prod:stop": "pm2 delete resolve-app",
+    "prod:restart": "pm2 restart resolve-app",
+    "prod:reload": "pm2 reload resolve-app",
+    "prod:logs": "pm2 logs resolve-app",
+    "prod:monit": "pm2 monit",
+    "docker:up": "docker-compose up -d",
+    "docker:dev": "BUILD_TARGET=development DEV_MOUNT=.:/app docker-compose up",
+    "docker:down": "docker-compose down",
+    "docker:logs": "docker-compose logs -f",
+    "docker:rebuild": "docker-compose build --no-cache",
+    "docker:frontend": "docker-compose --profile frontend up -d",
+    "docker:clean": "docker-compose down -v && docker system prune -f",
+    "test": "echo '⚠️  WARNING: Tests must use isolated containers!' && echo 'Run: ./tests/run-tests.sh' && exit 1",
+    "test:isolated": "./tests/run-tests.sh",
+    "test:unsafe": "echo '❌ DANGER: This would hit production database!' && exit 1",
+    "db:init": "node init-db.js",
+    "db:migrate": "node migrate-to-postgres.js",
+    "migrate:tenants": "node migrate-tenant-ids.js",
+    "migrate:production": "node scripts/migrate-to-production.js",
+    "mock-ai": "node scripts/mock-ai-consumer.js",
+    "monitor-queues": "node scripts/queue-monitor.js"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.38.1",
+    "@testcontainers/postgresql": "^11.5.1",
+    "jest": "^29.7.0",
+    "puppeteer": "^24.19.0",
+    "supertest": "^7.1.4",
+    "testcontainers": "^11.5.1"
+  },
+  "dependencies": {
+    "amqplib": "^0.10.3",
+    "axios": "^1.11.0",
+    "bcrypt": "^6.0.0",
+    "body-parser": "^2.2.0",
+    "compression": "^1.8.1",
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.1",
+    "ejs": "^3.1.10",
+    "eventsource": "^4.0.0",
+    "express": "^4.21.2",
+    "express-rate-limit": "^6.7.0",
+    "express-validator": "^7.2.1",
+    "helmet": "^8.1.0",
+    "http-proxy-middleware": "^3.0.5",
+    "multer": "^1.4.5-lts.1",
+    "nodemon": "^3.0.2",
+    "pg": "^8.11.3",
+    "pgvector": "^0.2.1",
+    "pm2": "^5.3.0",
+    "quikchat": "^1.1.17",
+    "redis": "^5.8.2",
+    "uuid": "^9.0.1"
+  },
+  "main": "playwright.config.js",
+  "directories": {
+    "test": "tests"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/resolve-io/resolve-onboarding.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/resolve-io/resolve-onboarding/issues"
+  },
+  "homepage": "https://github.com/resolve-io/resolve-onboarding#readme"
+}

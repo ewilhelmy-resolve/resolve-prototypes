@@ -1,0 +1,921 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Knowledge Management - Resolve</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+            background: #ffffff;
+            color: #1a1a1a;
+            min-height: 100vh;
+        }
+
+
+        /* Main Container */
+        .main-container {
+            display: flex;
+            flex-direction: column;
+            padding: 24px;
+            background: #f8fafc;
+            min-height: 100vh;
+        }
+
+        /* Page Header */
+        .page-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+        }
+
+        .page-title {
+            font-size: 24px;
+            font-weight: 600;
+            color: #1a1a1a;
+        }
+
+        .page-actions {
+            display: flex;
+            gap: 12px;
+        }
+
+        .btn-primary {
+            padding: 10px 20px;
+            background: linear-gradient(135deg, #0066ff, #4ecdc4);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(0, 102, 255, 0.3);
+        }
+
+        .btn-secondary {
+            padding: 10px 20px;
+            background: #ffffff;
+            color: #1a1a1a;
+            border: 1px solid rgba(0, 0, 0, 0.08);
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-secondary:hover {
+            background: #f8fafc;
+            border-color: #4ecdc433;
+        }
+
+        /* Stats Bar */
+        .stats-bar {
+            display: flex;
+            gap: 24px;
+            padding: 20px;
+            background: #ffffff;
+            border: 1px solid rgba(0, 0, 0, 0.08);
+            border-radius: 8px;
+            margin-bottom: 24px;
+        }
+
+        .stat-item {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 0 20px;
+            border-right: 1px solid rgba(0, 0, 0, 0.08);
+        }
+
+        .stat-item:last-child {
+            border-right: none;
+        }
+
+        .stat-value {
+            font-size: 28px;
+            font-weight: 600;
+            color: #0066ff;
+            margin-bottom: 4px;
+        }
+
+        .stat-label {
+            font-size: 12px;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        /* Toolbar */
+        .toolbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+            padding: 12px 16px;
+            background: #ffffff;
+            border: 1px solid rgba(0, 0, 0, 0.08);
+            border-radius: 8px;
+        }
+
+        .toolbar-left {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
+
+        .search-box {
+            position: relative;
+            width: 300px;
+        }
+
+        .search-input {
+            width: 100%;
+            padding: 8px 12px 8px 36px;
+            background: #f8fafc;
+            border: 1px solid rgba(0, 0, 0, 0.08);
+            border-radius: 6px;
+            font-size: 13px;
+            transition: all 0.2s;
+        }
+
+        .search-input:focus {
+            outline: none;
+            background: #ffffff;
+            border-color: #4ecdc44d;
+            box-shadow: 0 0 0 3px #4ecdc40d;
+        }
+
+        .search-icon {
+            position: absolute;
+            left: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #666;
+            font-size: 14px;
+        }
+
+        .filter-dropdown {
+            padding: 8px 12px;
+            background: #ffffff;
+            border: 1px solid rgba(0, 0, 0, 0.08);
+            border-radius: 6px;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .filter-dropdown:hover {
+            border-color: #4ecdc44d;
+        }
+
+        .toolbar-right {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .view-toggle {
+            display: flex;
+            background: #f8fafc;
+            border: 1px solid rgba(0, 0, 0, 0.08);
+            border-radius: 6px;
+            overflow: hidden;
+        }
+
+        .view-btn {
+            padding: 6px 12px;
+            background: transparent;
+            border: none;
+            font-size: 16px;
+            cursor: pointer;
+            color: #666;
+            transition: all 0.2s;
+        }
+
+        .view-btn.active {
+            background: #ffffff;
+            color: #0066ff;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+
+        /* Data Grid */
+        .data-grid-container {
+            flex: 1;
+            background: #ffffff;
+            border: 1px solid rgba(0, 0, 0, 0.08);
+            border-radius: 8px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .data-grid {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+
+        .data-grid thead {
+            background: #f8fafc;
+            border-bottom: 2px solid rgba(0, 0, 0, 0.08);
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        .data-grid th {
+            padding: 14px 16px;
+            text-align: left;
+            font-weight: 600;
+            color: #1a1a1a;
+            text-transform: uppercase;
+            font-size: 11px;
+            letter-spacing: 0.5px;
+            cursor: pointer;
+            user-select: none;
+            position: relative;
+        }
+
+        .data-grid th:hover {
+            background: #f0f4f8;
+        }
+
+        .sort-icon {
+            position: absolute;
+            right: 8px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #999;
+            font-size: 10px;
+        }
+
+        .data-grid tbody {
+            overflow-y: auto;
+        }
+
+        .data-grid tr {
+            border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+            transition: all 0.2s;
+        }
+
+        .data-grid tbody tr:hover {
+            background: #f8fafccc;
+        }
+
+        .data-grid tbody tr.selected {
+            background: #0066ff0a;
+        }
+
+        .data-grid td {
+            padding: 12px 16px;
+            color: #333;
+        }
+
+        /* Checkbox column */
+        .checkbox-cell {
+            width: 40px;
+            text-align: center;
+        }
+
+        .checkbox-cell input[type="checkbox"] {
+            width: 16px;
+            height: 16px;
+            cursor: pointer;
+        }
+
+        /* Status badges */
+        .status-badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .status-ready {
+            background: #00ff881a;
+            color: #009632;
+        }
+
+        .status-processing {
+            background: #ffc1071a;
+            color: #b47800;
+        }
+
+        .status-error {
+            background: #ff00001a;
+            color: #c80000;
+        }
+
+        /* Progress bar for processing */
+        .progress-container {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .progress-bar {
+            flex: 1;
+            height: 4px;
+            background: rgba(0, 0, 0, 0.1);
+            border-radius: 2px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: #4ecdc4;
+            transition: width 0.3s;
+        }
+
+        .progress-text {
+            font-size: 11px;
+            color: #666;
+            min-width: 35px;
+        }
+
+        /* Actions column */
+        .actions-cell {
+            display: flex;
+            gap: 4px;
+        }
+
+        .action-btn {
+            padding: 4px 8px;
+            background: transparent;
+            border: 1px solid transparent;
+            border-radius: 4px;
+            font-size: 16px;
+            cursor: pointer;
+            color: #666;
+            transition: all 0.2s;
+        }
+
+        .action-btn:hover {
+            background: #f8fafc;
+            border-color: rgba(0, 0, 0, 0.08);
+        }
+
+        .action-btn.delete:hover {
+            background: #ff00000a;
+            border-color: #ff00003d;
+            color: #c80000;
+        }
+
+        /* Footer with pagination */
+        .grid-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 16px;
+            background: #f8fafc;
+            border-top: 1px solid rgba(0, 0, 0, 0.08);
+        }
+
+        .items-info {
+            font-size: 12px;
+            color: #666;
+        }
+
+        .pagination {
+            display: flex;
+            gap: 4px;
+            align-items: center;
+        }
+
+        .page-btn {
+            padding: 6px 10px;
+            background: #ffffff;
+            border: 1px solid rgba(0, 0, 0, 0.08);
+            border-radius: 4px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+            min-width: 32px;
+            text-align: center;
+        }
+
+        .page-btn:hover:not(:disabled) {
+            background: #f8fafc;
+            border-color: #4ecdc44d;
+        }
+
+        .page-btn.active {
+            background: #0066ff;
+            color: white;
+            border-color: #0066ff;
+        }
+
+        .page-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        /* Bulk actions bar */
+        .bulk-actions {
+            display: none;
+            padding: 12px 16px;
+            background: #0066ff0a;
+            border: 1px solid #0066ff33;
+            border-radius: 6px;
+            margin-bottom: 16px;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .bulk-actions.active {
+            display: flex;
+        }
+
+        .bulk-info {
+            font-size: 13px;
+            color: #0066ff;
+            font-weight: 500;
+        }
+
+        .bulk-buttons {
+            display: flex;
+            gap: 8px;
+        }
+
+        .bulk-btn {
+            padding: 6px 12px;
+            background: #ffffff;
+            border: 1px solid rgba(0, 0, 0, 0.08);
+            border-radius: 4px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .bulk-btn:hover {
+            background: #f8fafc;
+            border-color: #4ecdc44d;
+        }
+
+        .bulk-btn.danger {
+            color: #c80000;
+            border-color: #ff00003d;
+        }
+
+        .bulk-btn.danger:hover {
+            background: #ff00000a;
+        }
+
+        /* Empty state */
+        .empty-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 60px;
+            color: #666;
+        }
+
+        .empty-icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+            opacity: 0.3;
+        }
+
+        .empty-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #333;
+        }
+
+        .empty-text {
+            font-size: 13px;
+            text-align: center;
+            max-width: 300px;
+            line-height: 1.5;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Main Container -->
+    <div class="main-container">
+        <!-- Page Header -->
+        <div class="page-header">
+            <h1 class="page-title">Knowledge Base Management</h1>
+            <div class="page-actions">
+                <button class="btn-primary">
+                    <span>📤</span>
+                    <span>Upload Documents</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Stats Bar -->
+        <div class="stats-bar">
+            <div class="stat-item">
+                <span class="stat-value">11</span>
+                <span class="stat-label">Total Documents</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-value">350</span>
+                <span class="stat-label">Total Vectors</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-value">15.8 MB</span>
+                <span class="stat-label">Storage Used</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-value">89%</span>
+                <span class="stat-label">Avg. Accuracy</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-value">1,247</span>
+                <span class="stat-label">Queries Answered</span>
+            </div>
+        </div>
+
+        <!-- Bulk Actions Bar -->
+        <div class="bulk-actions" id="bulkActions">
+            <div class="bulk-info">
+                <span id="selectedCount">0</span> items selected
+            </div>
+            <div class="bulk-buttons">
+                <button class="bulk-btn">Reprocess</button>
+                <button class="bulk-btn">Export</button>
+                <button class="bulk-btn danger">Delete</button>
+            </div>
+        </div>
+
+        <!-- Toolbar -->
+        <div class="toolbar">
+            <div class="toolbar-left">
+                <div class="search-box">
+                    <span class="search-icon">🔍</span>
+                    <input type="text" class="search-input" placeholder="Search documents...">
+                </div>
+                <select class="filter-dropdown">
+                    <option>All Status</option>
+                    <option>Ready</option>
+                    <option>Processing</option>
+                    <option>Error</option>
+                </select>
+                <select class="filter-dropdown">
+                    <option>All Types</option>
+                    <option>PDF</option>
+                    <option>DOC/DOCX</option>
+                    <option>TXT</option>
+                    <option>MD</option>
+                </select>
+            </div>
+            <div class="toolbar-right">
+                <div class="view-toggle">
+                    <button class="view-btn active" title="Grid View">⊞</button>
+                    <button class="view-btn" title="List View">☰</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Data Grid -->
+        <div class="data-grid-container">
+            <table class="data-grid">
+                <thead>
+                    <tr>
+                        <th class="checkbox-cell">
+                            <input type="checkbox" id="selectAll">
+                        </th>
+                        <th>
+                            Document Name
+                            <span class="sort-icon">↕</span>
+                        </th>
+                        <th>
+                            Type
+                            <span class="sort-icon">↕</span>
+                        </th>
+                        <th>
+                            Status
+                            <span class="sort-icon">↕</span>
+                        </th>
+                        <th>
+                            Chunks
+                            <span class="sort-icon">↕</span>
+                        </th>
+                        <th>
+                            Size
+                            <span class="sort-icon">↕</span>
+                        </th>
+                        <th>
+                            Queries
+                            <span class="sort-icon">↕</span>
+                        </th>
+                        <th>
+                            Accuracy
+                            <span class="sort-icon">↕</span>
+                        </th>
+                        <th>
+                            Last Modified
+                            <span class="sort-icon">↕</span>
+                        </th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td class="checkbox-cell">
+                            <input type="checkbox" class="row-checkbox">
+                        </td>
+                        <td><strong>Employee Handbook.pdf</strong></td>
+                        <td>PDF</td>
+                        <td><span class="status-badge status-ready">Ready</span></td>
+                        <td>45</td>
+                        <td>1.2 MB</td>
+                        <td>156</td>
+                        <td>94%</td>
+                        <td>2 hours ago</td>
+                        <td class="actions-cell">
+                            <button class="action-btn" title="View">👁</button>
+                            <button class="action-btn" title="Download">📥</button>
+                            <button class="action-btn" title="Reprocess">🔄</button>
+                            <button class="action-btn delete" title="Delete">🗑</button>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="checkbox-cell">
+                            <input type="checkbox" class="row-checkbox">
+                        </td>
+                        <td><strong>IT Security Policies.docx</strong></td>
+                        <td>DOCX</td>
+                        <td>
+                            <div class="progress-container">
+                                <span class="status-badge status-processing">Processing</span>
+                                <div class="progress-bar">
+                                    <div class="progress-fill" style="width: 65%;"></div>
+                                </div>
+                                <span class="progress-text">65%</span>
+                            </div>
+                        </td>
+                        <td>-</td>
+                        <td>856 KB</td>
+                        <td>0</td>
+                        <td>-</td>
+                        <td>10 minutes ago</td>
+                        <td class="actions-cell">
+                            <button class="action-btn" title="View" disabled>👁</button>
+                            <button class="action-btn" title="Download">📥</button>
+                            <button class="action-btn" title="Cancel">⏹</button>
+                            <button class="action-btn delete" title="Delete">🗑</button>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="checkbox-cell">
+                            <input type="checkbox" class="row-checkbox">
+                        </td>
+                        <td><strong>Onboarding Checklist.md</strong></td>
+                        <td>MD</td>
+                        <td><span class="status-badge status-ready">Ready</span></td>
+                        <td>12</td>
+                        <td>124 KB</td>
+                        <td>89</td>
+                        <td>91%</td>
+                        <td>Yesterday</td>
+                        <td class="actions-cell">
+                            <button class="action-btn" title="View">👁</button>
+                            <button class="action-btn" title="Download">📥</button>
+                            <button class="action-btn" title="Reprocess">🔄</button>
+                            <button class="action-btn delete" title="Delete">🗑</button>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="checkbox-cell">
+                            <input type="checkbox" class="row-checkbox">
+                        </td>
+                        <td><strong>Product Documentation.pdf</strong></td>
+                        <td>PDF</td>
+                        <td><span class="status-badge status-ready">Ready</span></td>
+                        <td>89</td>
+                        <td>3.4 MB</td>
+                        <td>423</td>
+                        <td>96%</td>
+                        <td>2 days ago</td>
+                        <td class="actions-cell">
+                            <button class="action-btn" title="View">👁</button>
+                            <button class="action-btn" title="Download">📥</button>
+                            <button class="action-btn" title="Reprocess">🔄</button>
+                            <button class="action-btn delete" title="Delete">🗑</button>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="checkbox-cell">
+                            <input type="checkbox" class="row-checkbox">
+                        </td>
+                        <td><strong>FAQ Database.txt</strong></td>
+                        <td>TXT</td>
+                        <td><span class="status-badge status-ready">Ready</span></td>
+                        <td>23</td>
+                        <td>45 KB</td>
+                        <td>201</td>
+                        <td>88%</td>
+                        <td>3 days ago</td>
+                        <td class="actions-cell">
+                            <button class="action-btn" title="View">👁</button>
+                            <button class="action-btn" title="Download">📥</button>
+                            <button class="action-btn" title="Reprocess">🔄</button>
+                            <button class="action-btn delete" title="Delete">🗑</button>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="checkbox-cell">
+                            <input type="checkbox" class="row-checkbox">
+                        </td>
+                        <td><strong>Training Manual.pdf</strong></td>
+                        <td>PDF</td>
+                        <td><span class="status-badge status-ready">Ready</span></td>
+                        <td>67</td>
+                        <td>2.1 MB</td>
+                        <td>145</td>
+                        <td>92%</td>
+                        <td>5 days ago</td>
+                        <td class="actions-cell">
+                            <button class="action-btn" title="View">👁</button>
+                            <button class="action-btn" title="Download">📥</button>
+                            <button class="action-btn" title="Reprocess">🔄</button>
+                            <button class="action-btn delete" title="Delete">🗑</button>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="checkbox-cell">
+                            <input type="checkbox" class="row-checkbox">
+                        </td>
+                        <td><strong>Company Policies.docx</strong></td>
+                        <td>DOCX</td>
+                        <td><span class="status-badge status-ready">Ready</span></td>
+                        <td>34</td>
+                        <td>567 KB</td>
+                        <td>78</td>
+                        <td>85%</td>
+                        <td>1 week ago</td>
+                        <td class="actions-cell">
+                            <button class="action-btn" title="View">👁</button>
+                            <button class="action-btn" title="Download">📥</button>
+                            <button class="action-btn" title="Reprocess">🔄</button>
+                            <button class="action-btn delete" title="Delete">🗑</button>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="checkbox-cell">
+                            <input type="checkbox" class="row-checkbox">
+                        </td>
+                        <td><strong>API Documentation.md</strong></td>
+                        <td>MD</td>
+                        <td><span class="status-badge status-ready">Ready</span></td>
+                        <td>56</td>
+                        <td>234 KB</td>
+                        <td>312</td>
+                        <td>93%</td>
+                        <td>2 weeks ago</td>
+                        <td class="actions-cell">
+                            <button class="action-btn" title="View">👁</button>
+                            <button class="action-btn" title="Download">📥</button>
+                            <button class="action-btn" title="Reprocess">🔄</button>
+                            <button class="action-btn delete" title="Delete">🗑</button>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <!-- Footer with pagination -->
+            <div class="grid-footer">
+                <div class="items-info">
+                    Showing 1-8 of 11 documents
+                </div>
+                <div class="pagination">
+                    <button class="page-btn" disabled>←</button>
+                    <button class="page-btn active">1</button>
+                    <button class="page-btn">2</button>
+                    <button class="page-btn">→</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Select all checkbox
+        const selectAll = document.getElementById('selectAll');
+        const rowCheckboxes = document.querySelectorAll('.row-checkbox');
+        const bulkActions = document.getElementById('bulkActions');
+        const selectedCount = document.getElementById('selectedCount');
+
+        selectAll.addEventListener('change', function() {
+            rowCheckboxes.forEach(checkbox => {
+                checkbox.checked = this.checked;
+            });
+            updateBulkActions();
+        });
+
+        rowCheckboxes.forEach(checkbox => {
+            checkbox.addEventListener('change', updateBulkActions);
+        });
+
+        function updateBulkActions() {
+            const checkedBoxes = document.querySelectorAll('.row-checkbox:checked');
+            const count = checkedBoxes.length;
+            
+            if (count > 0) {
+                bulkActions.classList.add('active');
+                selectedCount.textContent = count;
+            } else {
+                bulkActions.classList.remove('active');
+            }
+            
+            // Update select all checkbox state
+            if (count === rowCheckboxes.length) {
+                selectAll.checked = true;
+                selectAll.indeterminate = false;
+            } else if (count === 0) {
+                selectAll.checked = false;
+                selectAll.indeterminate = false;
+            } else {
+                selectAll.checked = false;
+                selectAll.indeterminate = true;
+            }
+        }
+
+        // Row selection on click
+        document.querySelectorAll('.data-grid tbody tr').forEach(row => {
+            row.addEventListener('click', function(e) {
+                // Don't select if clicking on checkbox or action buttons
+                if (e.target.type === 'checkbox' || e.target.classList.contains('action-btn')) {
+                    return;
+                }
+                
+                // Toggle selected class
+                this.classList.toggle('selected');
+                
+                // Toggle checkbox
+                const checkbox = this.querySelector('.row-checkbox');
+                if (checkbox) {
+                    checkbox.checked = !checkbox.checked;
+                    updateBulkActions();
+                }
+            });
+        });
+
+        // Sorting
+        document.querySelectorAll('.data-grid th').forEach(header => {
+            if (!header.classList.contains('checkbox-cell') && header.textContent !== 'Actions') {
+                header.addEventListener('click', function() {
+                    console.log('Sorting by:', this.textContent);
+                });
+            }
+        });
+
+        // Action buttons
+        document.querySelectorAll('.action-btn').forEach(btn => {
+            btn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                const action = this.title;
+                console.log('Action:', action);
+            });
+        });
+
+        // Animate progress bars
+        document.querySelectorAll('.progress-fill').forEach(bar => {
+            const width = bar.style.width;
+            bar.style.width = '0';
+            setTimeout(() => {
+                bar.style.width = width;
+            }, 100);
+        });
+
+        // Search functionality
+        const searchInput = document.querySelector('.search-input');
+        searchInput.addEventListener('input', function() {
+            console.log('Searching for:', this.value);
+        });
+
+        // View toggle
+        document.querySelectorAll('.view-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                document.querySelectorAll('.view-btn').forEach(b => b.classList.remove('active'));
+                this.classList.add('active');
+            });
+        });
+    </script>
+</body>
+</html>

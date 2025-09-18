@@ -1,0 +1,6 @@
+product_name,issue_type,customer_email,resolution_steps,date_reported,severity
+"Login Button","Bug","customer1@example.com","Clear browser cache and cookies then retry login","2025-08-20","High"
+"Payment Gateway","Feature Request","customer2@example.com","Scheduled for Q2 2025 release","2025-08-21","Medium"
+"Mobile App","Performance","customer3@example.com","Update to version 2.5.1 for performance improvements","2025-08-22","Low"
+"API Documentation","Documentation","developer@example.com","Updated docs available at docs.example.com/api","2025-08-23","Low"
+"Database Connection","Critical Bug","admin@example.com","Restart database service and check connection pool settings","2025-08-24","Critical"
