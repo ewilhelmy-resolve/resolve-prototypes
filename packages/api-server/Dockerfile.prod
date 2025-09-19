@@ -1,5 +1,5 @@
-# Production runtime - expects pre-built artifacts
-FROM node:20-alpine AS production
+# Production runtime - expects pre-built artifacts from GitHub Actions
+FROM node:20-alpine
 
 # Install curl for health checks
 RUN apk add --no-cache curl
@@ -18,8 +18,8 @@ COPY package*.json ./
 RUN npm ci --only=production --legacy-peer-deps && \
     npm cache clean --force
 
-# Copy built application from builder stage
-COPY --from=builder /app/dist ./dist
+# Copy pre-built application (built in GitHub Actions)
+COPY dist ./dist
 
 # Change ownership to nodejs user
 RUN chown -R nodejs:nodejs /app

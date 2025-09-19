@@ -1,11 +1,13 @@
-# Production environment - Uses pre-built images from GitHub Container Registry
-# External services (database, RabbitMQ, Redis, Keycloak) are managed separately
+# Production environment - Application services only
+# Databases and external services are managed separately
 version: '3.8'
 
 services:
   # API Server
   api-server:
-    image: ${CONTAINER_REGISTRY:-ghcr.io}/${GITHUB_REPOSITORY_OWNER:-resolve-io}/${IMAGE_PREFIX:-rita}-api-server:${TAG:-latest}
+    build:
+      context: ./packages/api-server
+      dockerfile: Dockerfile
     environment:
       NODE_ENV: production
       PORT: 3000
@@ -33,7 +35,9 @@ services:
 
   # Frontend with Nginx
   frontend:
-    image: ${CONTAINER_REGISTRY:-ghcr.io}/${GITHUB_REPOSITORY_OWNER:-resolve-io}/${IMAGE_PREFIX:-rita}-frontend:${TAG:-latest}
+    build:
+      context: ./packages/client
+      dockerfile: Dockerfile
     environment:
       VITE_KEYCLOAK_URL: ${KEYCLOAK_URL}
       VITE_KEYCLOAK_REALM: ${KEYCLOAK_REALM}
