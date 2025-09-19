@@ -4,27 +4,29 @@
 **Project**: Rita Go Frontend Enhancement
 **Branch**: `feature/figma`
 **Documentation Date**: 2025-09-19
-**Status**: Planning Phase
+**Status**: Implementation Ready
 
 ---
 
 ## 🎯 Objective
 
-Integrate Figma-to-React conversion capabilities into the Rita Go frontend using shadcn/ui design system and Figma plugin to streamline the design-to-development workflow.
+Integrate Figma-to-React conversion capabilities into the Rita Go frontend using **Figma Premium + Code** and shadcn/ui design system to streamline the design-to-development workflow.
 
-**Core Philosophy**: **No Manual Styling Approach**
+**Core Philosophy**: **No Manual Styling Approach with Figma Premium**
 - Focus on semantic HTML structure and accessibility
-- Let Figma plugin handle all visual styling automatically
+- Let Figma Premium Code generation handle all visual styling automatically
 - Eliminate manual CSS/Tailwind class writing
-- Achieve 3x faster development through automation
+- Achieve faster Claude Code development through automation
+- Leverage company Figma Premium subscription for enterprise-grade workflow
 
 ## 📋 Requirements Analysis
 
 ### Prerequisites
-- [x] Valid shadcn design Premium Package license key
-- [ ] API key from supported AI platform (Claude 3.5 Sonnet recommended)
+- [x] Figma Premium + Code subscription (company-provided)
 - [x] Existing shadcn/ui setup in Rita Go
 - [x] Figma access for design files
+- [ ] Optional: shadcn design Premium Package (for advanced features)
+- [ ] Optional: AI API key (for AI-powered conversion)
 
 ### Current Rita Go Setup
 - ✅ React 18+ with TypeScript 5+
@@ -38,16 +40,19 @@ Integrate Figma-to-React conversion capabilities into the Rita Go frontend using
 ## 🛠 Installation & Configuration Plan
 
 ### Phase 1: Environment Setup
-- [ ] **1.1** Create `.env.local` with shadcn design license key
-- [ ] **1.2** Update `components.json` with registry configuration
-- [ ] **1.3** Install shadcn design styles: `npx shadcn@latest add @shadcndesign/styles`
-- [ ] **1.4** Verify CLI integration with existing shadcn setup
+- [x] **1.1** Set up optional `.env.local` for enhanced features
+- [x] **1.2** Update `components.json` with aliases and configuration
+- [x] **1.3** Verify shadcn CLI integration with existing setup
+- [ ] **1.4** Access company Figma Premium + Code subscription
 
-### Phase 2: Figma Plugin Configuration
-- [ ] **2.1** Install Figma plugin from shadcn design
-- [ ] **2.2** Configure plugin with license key
-- [ ] **2.3** Set up AI API key (Claude 3.5 Sonnet)
-- [ ] **2.4** Test plugin with sample design (10 free uses available)
+### Phase 2: Figma Integration Setup
+- [ ] **2.1** Set up Figma Dev Mode access
+- [ ] **2.2** Install recommended Figma-to-React plugins:
+  - Figma to Code (built-in with Premium)
+  - Figma to React
+  - Design Tokens (for Tailwind)
+- [ ] **2.3** Configure plugins for shadcn/ui + Tailwind output
+- [ ] **2.4** Test conversion with sample design
 
 ### Phase 3: Workflow Integration
 - [ ] **3.1** Create design system documentation
@@ -85,22 +90,24 @@ packages/client/
 
 ## 🔧 Technical Configuration
 
-### Environment Variables (Temporary Local Setup)
+### Environment Variables (Optional Enhanced Features)
 ```bash
-# TEMPORARY - Local Development Only
-# TODO: Migrate to GitHub Repository Secrets
+# OPTIONAL - For enhanced AI-powered features only
+# Primary workflow uses Figma Premium + Code (no keys required)
 
-# shadcn design license key
+# Optional: shadcn design license key (for premium blocks)
 SHADCN_DESIGN_LICENSE_KEY=your_license_key_here
 
-# AI API key (Claude 3.5 Sonnet recommended)
+# Optional: AI API key (for AI-powered conversion)
 ANTHROPIC_API_KEY=your_anthropic_key_here
 ```
 
+**Primary Workflow**: Uses **Figma Premium + Code** (company subscription)
+**Enhanced Workflow**: Add keys above for additional AI features
+
 **Future Migration Plan**:
-- Move secrets to GitHub Repository Secrets for CI/CD
-- Use environment-specific configuration for different deployment stages
-- Implement secure secret management for production
+- Move any used secrets to GitHub Repository Secrets for CI/CD
+- Maintain Figma Premium as primary conversion method
 
 ### components.json Updates
 ```json
@@ -144,22 +151,27 @@ ANTHROPIC_API_KEY=your_anthropic_key_here
 
 ---
 
-## 🚀 CLI Commands Reference
+## 🚀 Commands Reference
 
-### Installation Commands
+### Primary Workflow (Figma Premium + Code)
 ```bash
-# Install shadcn design styles
+# No CLI commands needed - use Figma interface directly
+# 1. Open design in Figma
+# 2. Use Dev Mode to inspect
+# 3. Generate code with built-in Code feature
+# 4. Copy to src/components/figma/generated/
+```
+
+### Enhanced Workflow (Optional shadcn Design)
+```bash
+# Install shadcn design styles (if licensed)
 npx shadcn@latest add @shadcndesign/styles
 
-# Install individual pro blocks
+# Install individual pro blocks (if licensed)
 npx shadcn@latest add @shadcndesign/hero-section-1
-npx shadcn@latest add @shadcndesign/feature-section-1
 
 # Search available components
-npx shadcn@latest search @shadcndesign --query "hero"
-
-# View component details
-npx shadcn@latest view @shadcndesign/tagline
+npx shadcn@latest search --query "hero"
 ```
 
 ### Development Commands
@@ -205,16 +217,18 @@ npm run test:a11y
 
 ## 🔄 No-Styling Workflow Process
 
-1. **Design Phase (Figma)**
+1. **Design Phase (Figma Premium)**
    - Create pixel-perfect designs with proper semantic structure
    - Use meaningful layer names (semantic HTML elements)
    - Apply design system tokens (colors, spacing, typography)
    - Focus on accessibility and user experience
+   - Set up design in company Figma workspace
 
-2. **Zero-Touch Conversion Phase**
-   - Use Figma plugin to generate React + Tailwind code
+2. **Zero-Touch Conversion Phase (Figma Code)**
+   - Use Figma Dev Mode to inspect design specifications
+   - Generate React + Tailwind code with built-in Code feature
    - **DO NOT modify generated styles manually**
-   - Accept AI-generated styling decisions
+   - Accept Figma-generated styling decisions
    - Only review for semantic correctness
 
 3. **Semantic Enhancement Phase**
@@ -242,23 +256,32 @@ npm run test:a11y
 
 ---
 
-## 📊 Success Metrics (No-Styling Approach)
+## 📊 Success Metrics (Figma Premium Workflow)
 
-- **Development Speed**: 3x faster component development (no manual styling)
-- **Design Fidelity**: 100% pixel-perfect implementation from Figma
+- **Development Speed**: Faster Claude Code development (no manual styling)
+- **Design Fidelity**: 100% pixel-perfect implementation from Figma Premium
 - **Code Quality**: Zero custom CSS, pure TypeScript + generated Tailwind
 - **Accessibility**: Enhanced semantic HTML + ARIA compliance
 - **Developer Experience**: Zero style debugging, focus on functionality
-- **Consistency**: 100% design system adherence via Figma tokens
+- **Enterprise Integration**: Seamless company Figma workspace integration
+- **Cost Efficiency**: Leverage existing company Figma Premium subscription
 - **Performance**: Optimized generated code, no style conflicts
 
 ---
 
 ## 🔗 Resources
 
+### Primary Resources (Figma Premium)
+- [Figma Dev Mode Documentation](https://help.figma.com/hc/en-us/articles/15023124644247-Guide-to-Dev-Mode)
+- [Figma Code Generation](https://help.figma.com/hc/en-us/articles/15023063214743-Figma-for-VS-Code)
+- [Figma Design Tokens](https://help.figma.com/hc/en-us/articles/15339657135383-Figma-Tokens)
+
+### Enhanced Resources (Optional)
 - [shadcn Design Plugin Documentation](https://www.shadcndesign.com/docs/plugin)
 - [Pro Blocks Documentation](https://www.shadcndesign.com/docs/pro-blocks)
-- [Rita Go Architecture Guidelines](./CLAUDE.md)
+
+### Project Resources
+- [Rita Go Architecture Guidelines](../../CLAUDE.md)
 - [Component-Based Architecture Best Practices](./src/components/README.md)
 
 ---
