@@ -224,7 +224,7 @@ router.post('/:conversationId/messages', authenticateUser, async (req, res) => {
       const webhookResponse = await axios.post(process.env.AUTOMATION_WEBHOOK_URL!, webhookPayload, {
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${process.env.AUTOMATION_AUTH}`
+          'Authorization': `Basic ${process.env.AUTOMATION_AUTH}`
         },
         timeout: 5000
       });
