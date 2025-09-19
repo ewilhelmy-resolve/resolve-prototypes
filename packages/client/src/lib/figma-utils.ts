@@ -106,7 +106,7 @@ export function logFigmaConversion(
  * ⚠️ DEPRECATED - Manual style merging violates no-styling principle
  * Figma designs should contain all Rita Go theme elements
  */
-export function mergeWithRitaTheme(figmaStyles: any, ritaTheme: any = {}): any {
+export function mergeWithRitaTheme(figmaStyles: any, _ritaTheme: any = {}): any {
   console.warn('mergeWithRitaTheme is deprecated. Use complete Figma designs with Rita theme.')
   return figmaStyles
 }

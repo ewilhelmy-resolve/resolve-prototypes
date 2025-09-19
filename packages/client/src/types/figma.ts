@@ -5,7 +5,7 @@
  * integration with Rita Go architecture.
  */
 
-import type { ReactNode, ComponentProps } from 'react'
+import type { ReactNode } from 'react'
 
 /**
  * Base interface for all Figma-generated components

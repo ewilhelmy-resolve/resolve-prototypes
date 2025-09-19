@@ -1,5 +1,3 @@
-import React from 'react'
-import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { NoArticlesCard } from '@/components/figma'
 // Conditional import: Only load Pro Block styles when using Pro Block components
