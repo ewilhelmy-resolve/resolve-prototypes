@@ -78,7 +78,7 @@ jobs:
         with:
           context: ${{ matrix.service.path }}
           file: ${{ matrix.service.path }}/Dockerfile.prod
-          push: ${{ github.ref == 'refs/heads/main' }}  # Only push on main branch
+          push: ${{ github.ref == 'refs/heads/main' || github.ref == 'refs/heads/feature/test-build-workflow' }}  # Push on main and test branch
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
