@@ -10,23 +10,23 @@
 
 ## 🎯 Objective
 
-Integrate Figma-to-React conversion capabilities into the Rita Go frontend using **Figma Premium + Code** and shadcn/ui design system to streamline the design-to-development workflow.
+Integrate Figma-to-React conversion capabilities into the Rita Go frontend using **shadcn Design Figma Plugin** and shadcn/ui design system to streamline the design-to-development workflow.
 
-**Core Philosophy**: **No Manual Styling Approach with Figma Premium**
+**Core Philosophy**: **No Manual Styling Approach with shadcn Design Plugin**
 - Focus on semantic HTML structure and accessibility
-- Let Figma Premium Code generation handle all visual styling automatically
+- Let shadcn Design plugin handle all visual styling automatically through AI
 - Eliminate manual CSS/Tailwind class writing
-- Achieve faster Claude Code development through automation
-- Leverage company Figma Premium subscription for enterprise-grade workflow
+- Achieve faster Claude Code development through automated conversion
+- Perfect integration with existing shadcn/ui components in Rita Go
 
 ## 📋 Requirements Analysis
 
 ### Prerequisites
-- [x] Figma Premium + Code subscription (company-provided)
-- [x] Existing shadcn/ui setup in Rita Go
 - [x] Figma access for design files
-- [ ] Optional: shadcn design Premium Package (for advanced features)
-- [ ] Optional: AI API key (for AI-powered conversion)
+- [x] Existing shadcn/ui setup in Rita Go
+- [ ] **shadcn Design Premium License** (required for plugin)
+- [ ] **AI API key** (Claude 3.5 Sonnet recommended)
+- [ ] **shadcn/ui Figma Kit** (recommended for consistent designs)
 
 ### Current Rita Go Setup
 - ✅ React 18+ with TypeScript 5+
@@ -45,14 +45,12 @@ Integrate Figma-to-React conversion capabilities into the Rita Go frontend using
 - [x] **1.3** Verify shadcn CLI integration with existing setup
 - [ ] **1.4** Access company Figma Premium + Code subscription
 
-### Phase 2: Figma Integration Setup
-- [ ] **2.1** Set up Figma Dev Mode access
-- [ ] **2.2** Install recommended Figma-to-React plugins:
-  - Figma to Code (built-in with Premium)
-  - Figma to React
-  - Design Tokens (for Tailwind)
-- [ ] **2.3** Configure plugins for shadcn/ui + Tailwind output
-- [ ] **2.4** Test conversion with sample design
+### Phase 2: shadcn Design Plugin Setup
+- [ ] **2.1** Install shadcn Design Figma Plugin
+- [ ] **2.2** Configure plugin with license key and AI API key
+- [ ] **2.3** Download and set up shadcn/ui Figma Kit
+- [ ] **2.4** Train UX person on plugin workflow
+- [ ] **2.5** Test conversion with sample design
 
 ### Phase 3: Workflow Integration
 - [ ] **3.1** Create design system documentation
@@ -90,24 +88,23 @@ packages/client/
 
 ## 🔧 Technical Configuration
 
-### Environment Variables (Optional Enhanced Features)
+### Environment Variables (Required for shadcn Design Plugin)
 ```bash
-# OPTIONAL - For enhanced AI-powered features only
-# Primary workflow uses Figma Premium + Code (no keys required)
+# REQUIRED - For shadcn Design Figma Plugin workflow
 
-# Optional: shadcn design license key (for premium blocks)
+# shadcn design license key (required for plugin)
 SHADCN_DESIGN_LICENSE_KEY=your_license_key_here
 
-# Optional: AI API key (for AI-powered conversion)
+# AI API key (Claude 3.5 Sonnet recommended for best results)
 ANTHROPIC_API_KEY=your_anthropic_key_here
 ```
 
-**Primary Workflow**: Uses **Figma Premium + Code** (company subscription)
-**Enhanced Workflow**: Add keys above for additional AI features
+**Plugin Workflow**: Uses **shadcn Design Figma Plugin** with AI conversion
+**Free Tier**: 10 free conversions available for testing
 
 **Future Migration Plan**:
-- Move any used secrets to GitHub Repository Secrets for CI/CD
-- Maintain Figma Premium as primary conversion method
+- Move secrets to GitHub Repository Secrets for CI/CD
+- Set up team access with shared license key
 
 ### components.json Updates
 ```json
@@ -153,16 +150,27 @@ ANTHROPIC_API_KEY=your_anthropic_key_here
 
 ## 🚀 Commands Reference
 
-### Primary Workflow (Figma Premium + Code)
+### Primary Workflow (shadcn Design Plugin CLI)
 ```bash
-# No CLI commands needed - use Figma interface directly
-# 1. Open design in Figma
-# 2. Use Dev Mode to inspect
-# 3. Generate code with built-in Code feature
-# 4. Copy to src/components/figma/generated/
+# 👩‍🎨 UX Person (in Figma):
+# 1. Open shadcn Design plugin
+# 2. Select design frame/component
+# 3. Choose Claude 3.5 Sonnet AI model
+# 4. Generate component
+# 5. Click "Copy CLI" to get installation command
+# 6. Share CLI command with Frontend team
+
+# 👨‍💻 Frontend Developer (in Rita Go):
+cd packages/client
+
+# 7. Run CLI command shared by UX person
+npx shadcn@latest add @shadcndesign/custom-component-name
+
+# 8. Component automatically installed to src/components/ui/
+# 9. Import and use like any shadcn/ui component
 ```
 
-### Enhanced Workflow (Optional shadcn Design)
+### Enhanced Workflow (shadcn Pro Blocks)
 ```bash
 # Install shadcn design styles (if licensed)
 npx shadcn@latest add @shadcndesign/styles
@@ -171,7 +179,7 @@ npx shadcn@latest add @shadcndesign/styles
 npx shadcn@latest add @shadcndesign/hero-section-1
 
 # Search available components
-npx shadcn@latest search --query "hero"
+npx shadcn@latest search @shadcndesign --query "hero"
 ```
 
 ### Development Commands
@@ -215,57 +223,135 @@ npm run test:a11y
 
 ---
 
-## 🔄 No-Styling Workflow Process
+## 🔄 CLI-First Workflow: UX → Developer Handoff
 
-1. **Design Phase (Figma Premium)**
-   - Create pixel-perfect designs with proper semantic structure
-   - Use meaningful layer names (semantic HTML elements)
-   - Apply design system tokens (colors, spacing, typography)
-   - Focus on accessibility and user experience
-   - Set up design in company Figma workspace
+### **The Complete UX → Developer Flow**
 
-2. **Zero-Touch Conversion Phase (Figma Code)**
-   - Use Figma Dev Mode to inspect design specifications
-   - Generate React + Tailwind code with built-in Code feature
-   - **DO NOT modify generated styles manually**
-   - Accept Figma-generated styling decisions
-   - Only review for semantic correctness
+## **👩‍🎨 UX Person Workflow (Figma)**
 
-3. **Semantic Enhancement Phase**
-   - Add proper TypeScript interfaces
-   - Enhance accessibility attributes (ARIA, roles)
-   - Add enterprise compliance data attributes
-   - Ensure semantic HTML structure
+### **1. Design Phase**
+```
+📐 Create designs using shadcn/ui Figma Kit
+📝 Use semantic layer names (<button>, <card>, <h2>, etc.)
+🎨 Apply design system tokens (colors, spacing, typography)
+♿ Focus on accessibility and user experience
+🧩 Design modular components for better AI conversion
+```
 
-4. **Integration Phase (No Style Changes)**
-   - Place component in appropriate directory
-   - Update imports and exports
-   - **NO manual CSS/Tailwind modifications**
-   - Test component functionality only
+### **2. Plugin Generation Phase**
+```
+🔌 Open shadcn Design plugin in Figma
+🎯 Select design frame or component
+🤖 Choose Claude 3.5 Sonnet AI model
+⚡ Generate component (Custom or Pro Block)
+```
 
-5. **Quality Assurance (Structure-Focused)**
-   - Validate semantic HTML structure
-   - Test accessibility with screen readers
-   - Verify TypeScript compliance
-   - Check enterprise security attributes
+### **3. Handoff to Developer**
+**Option A: Custom Components** (from your specific design)
+```bash
+# Plugin generates custom CLI command
+npx shadcn@latest add @shadcndesign/your-custom-login-form
+```
 
-6. **Deployment (Style-Agnostic)**
-   - Merge semantic and functional changes only
-   - Deploy without visual QA concerns
-   - Monitor performance and accessibility metrics
+**Option B: Pro Blocks** (pre-built components)
+```bash
+# Plugin provides standard pro block command
+npx shadcn@latest add @shadcndesign/hero-section-1
+```
+
+**📨 UX shares CLI command with Frontend team**
 
 ---
 
-## 📊 Success Metrics (Figma Premium Workflow)
+## **👨‍💻 Frontend Developer Workflow (Rita Go)**
 
-- **Development Speed**: Faster Claude Code development (no manual styling)
-- **Design Fidelity**: 100% pixel-perfect implementation from Figma Premium
-- **Code Quality**: Zero custom CSS, pure TypeScript + generated Tailwind
-- **Accessibility**: Enhanced semantic HTML + ARIA compliance
-- **Developer Experience**: Zero style debugging, focus on functionality
-- **Enterprise Integration**: Seamless company Figma workspace integration
-- **Cost Efficiency**: Leverage existing company Figma Premium subscription
-- **Performance**: Optimized generated code, no style conflicts
+### **1. Component Installation (One Command)**
+```bash
+# Developer receives CLI command from UX person
+# Example: UX says "Install this custom button component"
+
+cd packages/client
+npx shadcn@latest add @shadcndesign/custom-button-variant
+
+# ✅ Component automatically installed to src/components/ui/
+# ✅ TypeScript types included
+# ✅ Proper imports configured
+# ✅ Follows shadcn/ui conventions
+```
+
+### **2. Integration & Usage**
+```tsx
+// Import like any shadcn/ui component
+import { CustomButtonVariant } from '@/components/ui/custom-button-variant'
+
+// Use in Rita Go application
+export function LoginPage() {
+  return (
+    <div>
+      <CustomButtonVariant variant="primary" size="lg">
+        Sign In
+      </CustomButtonVariant>
+    </div>
+  )
+}
+```
+
+### **3. Enhancement Phase (Optional)**
+```typescript
+// Add enterprise compliance attributes
+<CustomButtonVariant
+  variant="primary"
+  data-testid="login-button"
+  aria-label="Sign in to Rita Go"
+  data-soc2-compliant="true"
+>
+  Sign In
+</CustomButtonVariant>
+```
+
+### **4. Quality Assurance**
+- ✅ **No manual styling needed** - component comes production-ready
+- ✅ **TypeScript compliance** - types included automatically
+- ✅ **Accessibility** - enhance ARIA attributes if needed
+- ✅ **Testing** - add data-testid for automated tests
+
+---
+
+## **🎯 Component Organization Strategy**
+
+### **Simplified Structure** (No custom figma/ directory needed)
+```
+src/components/
+├── ui/                          # All shadcn/ui components
+│   ├── button.tsx              # Standard shadcn/ui
+│   ├── card.tsx                # Standard shadcn/ui
+│   ├── custom-login-form.tsx   # Generated via CLI
+│   ├── hero-section-1.tsx      # Pro block via CLI
+│   └── rita-dashboard.tsx      # Custom Rita component
+├── layouts/                     # Rita Go layouts
+├── auth/                       # Rita Go auth components
+└── chat/                       # Rita Go chat components
+```
+
+### **Benefits of CLI Approach**
+- ✅ **Zero manual file copying** - automatic installation
+- ✅ **Proper dependency management** - CLI handles imports
+- ✅ **TypeScript types included** - no manual type definitions
+- ✅ **Follows shadcn/ui conventions** - consistent with existing setup
+- ✅ **Version management** - CLI handles updates
+
+---
+
+## 📊 Success Metrics (CLI-First Workflow)
+
+- **Development Speed**: One-command component installation (CLI automation)
+- **Design Fidelity**: 100% pixel-perfect shadcn/ui component implementation
+- **Code Quality**: Production-ready components with TypeScript types included
+- **Team Efficiency**: Simple UX → FE handoff via CLI commands
+- **Developer Experience**: Zero manual file management, automatic dependency handling
+- **Workflow Simplicity**: No complex directory structures or manual copying
+- **Design Consistency**: Built-in shadcn/ui design system adherence
+- **Maintainability**: Standard shadcn/ui conventions for all generated components
 
 ---
 
@@ -283,6 +369,33 @@ npm run test:a11y
 ### Project Resources
 - [Rita Go Architecture Guidelines](../../CLAUDE.md)
 - [Component-Based Architecture Best Practices](./src/components/README.md)
+
+---
+
+## 📋 Quick Reference for Team
+
+### **For UX Person:**
+1. Design using shadcn/ui Figma Kit
+2. Use semantic layer names (`<button>`, `<card>`, etc.)
+3. Open shadcn Design plugin → Generate component
+4. Click "Copy CLI" → Share command with Frontend team
+
+### **For Frontend Developer:**
+1. Receive CLI command from UX person
+2. Run: `npx shadcn@latest add @shadcndesign/component-name`
+3. Import: `import { ComponentName } from '@/components/ui/component-name'`
+4. Use in Rita Go application
+
+### **Communication Template:**
+```
+UX Person → Frontend Team:
+"Hey team, please install this new login form component:
+
+npx shadcn@latest add @shadcndesign/custom-login-form
+
+You can then import it as:
+import { CustomLoginForm } from '@/components/ui/custom-login-form'
+```
 
 ---
 

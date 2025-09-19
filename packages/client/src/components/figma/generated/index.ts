@@ -2,13 +2,13 @@
  * Generated Figma Components
  *
  * This directory contains components directly generated from
- * Figma Premium + Code. These should not be manually edited.
+ * shadcn Design Figma Plugin. These should not be manually edited.
  *
  * Workflow:
- * 1. Design in company Figma Premium workspace
- * 2. Use Figma Dev Mode to inspect
- * 3. Generate code with Figma's built-in Code feature
- * 4. Place generated components here
+ * 1. UX person designs using shadcn/ui Figma Kit
+ * 2. UX person uses shadcn Design plugin to generate code
+ * 3. Frontend team places generated components here
+ * 4. NO manual style modifications allowed
  *
  * To customize a component:
  * 1. Copy it to the 'customized' directory
