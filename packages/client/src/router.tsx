@@ -3,6 +3,7 @@ import { RootLayout } from './components/layouts/RootLayout';
 import { LoginPage } from './pages/LoginPage';
 import { ChatPage } from './pages/ChatPage';
 import { FilesPage } from './pages/FilesPage';
+import FigmaTestPage from './pages/FigmaTestPage';
 import { ProtectedRoute } from './components/auth/ProtectedRoute';
 
 const router = createBrowserRouter([
@@ -29,6 +30,10 @@ const router = createBrowserRouter([
             <FilesPage />
           </ProtectedRoute>
         )
+      },
+      {
+        path: '/figma-test',
+        element: <FigmaTestPage />
       },
       {
         path: '/',
