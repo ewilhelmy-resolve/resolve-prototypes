@@ -1,10 +1,10 @@
-# Project-Wide Instructions
+# Rita Project Instructions
 
 ## Default Agent Behavior
 
-For ALL development tasks in this project, use the enterprise frontend development approach defined in the `fe-enterprise-agent`. This applies to:
+For ALL development tasks in the Rita project, use the enterprise frontend development approach defined in the `fe-enterprise-agent`. This applies specifically to Rita Go (`packages/client/`) development:
 
-- All React component development
+- All React component development in Rita Go
 - All TypeScript interface definitions
 - All frontend architecture decisions
 - All UI/UX implementation work
@@ -34,7 +34,7 @@ For ALL development tasks in this project, use the enterprise frontend developme
 ### 4. Real-Time Communication
 - Server-Sent Events (SSE) for unidirectional updates
 - EventSource API with automatic reconnection
-- Rita → Actions → Rabbit → Rita message flow pattern
+- Rita Go → Actions → Rabbit → Rita Go message flow pattern
 
 ### 5. Technical Stack Standards
 - React 18+ with TypeScript 5+
@@ -61,4 +61,4 @@ For ALL development tasks in this project, use the enterprise frontend developme
 - Audit logging for all user actions
 - Role-based access control from platform APIs
 
-Unless explicitly stated otherwise, ALL frontend development should follow these enterprise standards automatically.
+Unless explicitly stated otherwise, ALL Rita Go frontend development should follow these enterprise standards automatically.
