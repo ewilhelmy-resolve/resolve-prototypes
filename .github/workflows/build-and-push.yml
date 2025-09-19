@@ -11,7 +11,6 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_PREFIX: ghcr.io/resolve-io/rita
 
 jobs:
   build-and-push:
@@ -25,10 +24,10 @@ jobs:
         service:
           - name: api-server
             path: packages/api-server
-            image: ${{ env.IMAGE_PREFIX }}-api-server
+            image: ghcr.io/resolve-io/rita-api-server
           - name: frontend
             path: packages/client
-            image: ${{ env.IMAGE_PREFIX }}-frontend
+            image: ghcr.io/resolve-io/rita-frontend
 
     steps:
       - name: Checkout code
