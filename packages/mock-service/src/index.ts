@@ -212,7 +212,7 @@ app.post('/webhook', async (req, res) => {
 
     // Check authorization
     const authHeader = req.headers.authorization;
-    const expectedAuth = `Bearer ${process.env.AUTOMATION_AUTH}`;
+    const expectedAuth = `Basic ${process.env.AUTOMATION_AUTH}`;
 
     if (authHeader !== expectedAuth) {
       contextLogger.warn('Webhook authentication failed', {
