@@ -1,9 +1,12 @@
 import React from 'react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { HeroSection1 } from '@/components/pro-blocks/landing-page/hero-sections/hero-section-1'
+// Conditional import: Only load Pro Block styles when using Pro Block components
+import '../styles/pro-blocks.css'
 
 /**
- * Figma Integration Test Page
+ * Figma-to-React Integration Demo
  *
  * This page demonstrates the shadcn Design CLI workflow:
  * 1. UX person generates component via Figma plugin
@@ -14,147 +17,75 @@ export default function FigmaTestPage() {
   return (
     <div className="container mx-auto p-6 space-y-8">
       <div className="text-center space-y-4">
-        <h1 className="text-4xl font-bold">Figma Integration Test</h1>
+        <h1 className="text-4xl font-bold">Figma-to-React Integration</h1>
         <p className="text-lg text-muted-foreground">
-          Testing shadcn Design Pro Block CLI workflow
+          No manual styling workflow using shadcn Design Pro Blocks
         </p>
       </div>
 
-      {/* Current Status Section */}
+      {/* CLI Commands for Developers */}
       <Card>
         <CardHeader>
-          <CardTitle>🚀 CLI Workflow Status</CardTitle>
+          <CardTitle>💻 For Frontend Developers</CardTitle>
           <CardDescription>
-            Testing Pro Block installation and integration
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="p-4 border rounded-lg">
-              <h3 className="font-semibold text-green-600">✅ Ready</h3>
-              <ul className="text-sm space-y-1 mt-2">
-                <li>• Registry configured in components.json</li>
-                <li>• Environment variables set</li>
-                <li>• CLI recognizes @shadcndesign registry</li>
-                <li>• Integration infrastructure complete</li>
-              </ul>
-            </div>
-            <div className="p-4 border rounded-lg">
-              <h3 className="font-semibold text-amber-600">⚠️ Pending</h3>
-              <ul className="text-sm space-y-1 mt-2">
-                <li>• License key authentication</li>
-                <li>• Pro Block component installation</li>
-                <li>• End-to-end workflow validation</li>
-              </ul>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Test Commands Section */}
-      <Card>
-        <CardHeader>
-          <CardTitle>🛠 Test Commands</CardTitle>
-          <CardDescription>
-            Commands to validate the CLI workflow
+            How to install Pro Block components via CLI
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="bg-gray-100 p-4 rounded-lg">
-            <h4 className="font-semibold mb-2">1. Search Pro Blocks:</h4>
+            <h4 className="font-semibold mb-2">Search for components:</h4>
             <code className="block bg-black text-green-400 p-2 rounded text-sm">
               npx shadcn@latest search @shadcndesign --query "hero"
             </code>
           </div>
 
           <div className="bg-gray-100 p-4 rounded-lg">
-            <h4 className="font-semibold mb-2">2. Install Hero Section:</h4>
+            <h4 className="font-semibold mb-2">Install a Pro Block:</h4>
             <code className="block bg-black text-green-400 p-2 rounded text-sm">
               npx shadcn@latest add @shadcndesign/hero-section-1
             </code>
           </div>
 
           <div className="bg-gray-100 p-4 rounded-lg">
-            <h4 className="font-semibold mb-2">3. Install Styles:</h4>
+            <h4 className="font-semibold mb-2">Import component and styles:</h4>
+            <code className="block bg-black text-green-400 p-2 rounded text-sm mb-2">
+              import {"{ HeroSection1 }"} from '@/components/pro-blocks/landing-page/hero-sections/hero-section-1'
+            </code>
             <code className="block bg-black text-green-400 p-2 rounded text-sm">
-              npx shadcn@latest add @shadcndesign/styles
+              import '../styles/pro-blocks.css' // Only when using Pro Blocks
             </code>
           </div>
         </CardContent>
       </Card>
 
-      {/* Pro Block Component Demo */}
+      {/* UX Person Workflow */}
       <Card>
         <CardHeader>
-          <CardTitle>✅ Pro Block Component Successfully Installed!</CardTitle>
+          <CardTitle>🎨 For UX/Design Team</CardTitle>
           <CardDescription>
-            hero-section-1 installed via CLI and working perfectly
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="bg-gray-50 rounded-lg p-4 mb-4">
-            <p className="text-sm font-mono text-green-600">
-              ✅ npx shadcn@latest add @shadcndesign/hero-section-1
-            </p>
-            <p className="text-sm font-mono mt-1">
-              📁 Created: src/components/pro-blocks/landing-page/hero-sections/hero-section-1.tsx
-            </p>
-            <p className="text-sm font-mono mt-1">
-              📦 Import: import {"{ HeroSection1 }"} from '@/components/pro-blocks/landing-page/hero-sections/hero-section-1'
-            </p>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Pro Block Verification */}
-      <Card>
-        <CardHeader>
-          <CardTitle>🔍 Pro Block Component Verification</CardTitle>
-          <CardDescription>
-            How to verify you're using an authentic shadcn Design Pro Block
+            How to generate components from Figma and handoff to developers
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="bg-blue-50 p-4 rounded-lg">
-            <h4 className="font-semibold mb-2">✅ Pro Block Verification Checklist:</h4>
-            <ul className="space-y-2 text-sm">
-              <li>• <strong>File Path:</strong> <code>src/components/pro-blocks/landing-page/hero-sections/hero-section-1.tsx</code></li>
-              <li>• <strong>CLI Command Used:</strong> <code>npx shadcn@latest add @shadcndesign/hero-section-1</code></li>
-              <li>• <strong>Registry Source:</strong> <code>@shadcndesign</code> (authenticated with license key)</li>
-              <li>• <strong>Component Type:</strong> <code>registry:block</code> (confirmed in CLI search results)</li>
-              <li>• <strong>Dependencies Created:</strong> Tagline component also generated</li>
-            </ul>
+            <h4 className="font-semibold mb-2">📋 UX Workflow (Figma Plugin):</h4>
+            <ol className="space-y-2 text-sm">
+              <li>1. Design using shadcn/ui Figma Kit components</li>
+              <li>2. Open <strong>shadcn Design</strong> plugin in Figma</li>
+              <li>3. Select your component/frame → Choose AI model</li>
+              <li>4. Click "Generate" → Click "Copy CLI"</li>
+              <li>5. Share CLI command with Frontend team</li>
+            </ol>
           </div>
 
           <div className="bg-green-50 p-4 rounded-lg">
-            <h4 className="font-semibold mb-2">📋 Evidence of Pro Block Usage:</h4>
+            <h4 className="font-semibold mb-2">📨 Handoff Communication:</h4>
             <div className="space-y-2 text-sm">
-              <p><strong>Search Result:</strong> Found in CLI search with type "registry:block"</p>
-              <p><strong>Installation:</strong> Required valid SHADCNDESIGN_LICENSE_KEY</p>
-              <p><strong>File Structure:</strong> Created in pro-blocks directory (not standard ui directory)</p>
-              <p><strong>Component Quality:</strong> Professional-grade with proper semantic structure</p>
-            </div>
-          </div>
-
-          <div className="bg-yellow-50 p-4 rounded-lg">
-            <h4 className="font-semibold mb-2">🆚 Difference from Free Components:</h4>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-              <div>
-                <p><strong>Free shadcn/ui:</strong></p>
-                <ul className="list-disc list-inside space-y-1">
-                  <li>Path: <code>src/components/ui/</code></li>
-                  <li>Registry: <code>@shadcn/ui</code></li>
-                  <li>No license required</li>
-                </ul>
-              </div>
-              <div>
-                <p><strong>Pro Blocks:</strong></p>
-                <ul className="list-disc list-inside space-y-1">
-                  <li>Path: <code>src/components/pro-blocks/</code></li>
-                  <li>Registry: <code>@shadcndesign</code></li>
-                  <li>License key required</li>
-                </ul>
-              </div>
+              <p><strong>Example message to developers:</strong></p>
+              <p className="font-mono bg-white p-2 rounded border">
+                "Hey team, please install this new hero section:<br/>
+                npx shadcn@latest add @shadcndesign/custom-hero-v2"
+              </p>
             </div>
           </div>
         </CardContent>
@@ -185,7 +116,7 @@ export default function FigmaTestPage() {
               <ol className="text-sm space-y-1">
                 <li>1. Receive CLI command from UX</li>
                 <li>2. Run: <code>npx shadcn@latest add @shadcndesign/component</code></li>
-                <li>3. Import: <code>import Component from '@/components/ui/component'</code></li>
+                <li>3. Import: <code>import {"{ Component }"} from '@/components/pro-blocks/...'</code></li>
                 <li>4. Use in Rita Go application</li>
                 <li>5. Zero manual styling needed!</li>
               </ol>
@@ -194,47 +125,41 @@ export default function FigmaTestPage() {
         </CardContent>
       </Card>
 
-      {/* Verification Commands */}
+      {/* Live Pro Block Demo */}
       <Card>
         <CardHeader>
-          <CardTitle>🔍 Verify Pro Block Installation</CardTitle>
+          <CardTitle>🎯 Live Pro Block Demo</CardTitle>
           <CardDescription>
-            Run these commands to confirm Pro Block is properly installed
+            Zero manual styling - Pro Block component working out of the box
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="bg-gray-100 p-4 rounded-lg">
-            <h4 className="font-semibold mb-2">1. Check Pro Block File Exists:</h4>
-            <code className="block bg-black text-green-400 p-2 rounded text-sm">
-              ls -la src/components/pro-blocks/landing-page/hero-sections/hero-section-1.tsx
-            </code>
-          </div>
-
-          <div className="bg-gray-100 p-4 rounded-lg">
-            <h4 className="font-semibold mb-2">2. View Pro Block Content:</h4>
-            <code className="block bg-black text-green-400 p-2 rounded text-sm">
-              head -20 src/components/pro-blocks/landing-page/hero-sections/hero-section-1.tsx
-            </code>
-          </div>
-
-          <div className="bg-gray-100 p-4 rounded-lg">
-            <h4 className="font-semibold mb-2">3. Search for Pro Blocks Directory:</h4>
-            <code className="block bg-black text-green-400 p-2 rounded text-sm">
-              find src/components -name "*pro-blocks*" -type d
-            </code>
+        <CardContent>
+          <div className="border rounded-lg overflow-hidden bg-white">
+            <HeroSection1 />
           </div>
         </CardContent>
       </Card>
 
-      {/* Action Buttons */}
-      <div className="flex gap-4 justify-center">
-        <Button variant="default" size="lg">
-          🧪 Run CLI Test Commands
-        </Button>
-        <Button variant="outline" size="lg">
-          📖 View Integration Documentation
-        </Button>
-      </div>
+      {/* Pending: Figma Plugin Setup */}
+      <Card>
+        <CardHeader>
+          <CardTitle>⚠️ Pending: Figma Plugin Installation</CardTitle>
+          <CardDescription>
+            Next step to complete the full workflow
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="bg-amber-50 p-4 rounded-lg">
+            <h4 className="font-semibold mb-2">🔧 Required Setup:</h4>
+            <ul className="space-y-2 text-sm">
+              <li>• Install <strong>shadcn Design</strong> plugin in Figma</li>
+              <li>• Configure plugin with license key and AI API key</li>
+              <li>• Test component generation from actual Figma design</li>
+              <li>• Validate complete UX → Developer handoff process</li>
+            </ul>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   )
 }
