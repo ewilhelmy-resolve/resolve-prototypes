@@ -21,10 +21,5 @@
     "design-system": "@/components/design-system",
     "figma-utils": "@/lib/figma-utils"
   },
-  "registries": {
-    "shadcndesign": {
-      "url": "https://api.shadcndesign.com",
-      "token": "${SHADCN_DESIGN_LICENSE_KEY}"
-    }
-  }
+  "registries": {}
 }

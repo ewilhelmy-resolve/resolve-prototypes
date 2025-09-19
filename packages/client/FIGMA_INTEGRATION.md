@@ -85,14 +85,22 @@ packages/client/
 
 ## 🔧 Technical Configuration
 
-### Environment Variables (.env.local)
+### Environment Variables (Temporary Local Setup)
 ```bash
+# TEMPORARY - Local Development Only
+# TODO: Migrate to GitHub Repository Secrets
+
 # shadcn design license key
 SHADCN_DESIGN_LICENSE_KEY=your_license_key_here
 
 # AI API key (Claude 3.5 Sonnet recommended)
 ANTHROPIC_API_KEY=your_anthropic_key_here
 ```
+
+**Future Migration Plan**:
+- Move secrets to GitHub Repository Secrets for CI/CD
+- Use environment-specific configuration for different deployment stages
+- Implement secure secret management for production
 
 ### components.json Updates
 ```json
