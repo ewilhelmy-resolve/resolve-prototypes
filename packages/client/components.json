@@ -16,7 +16,15 @@
     "utils": "@/lib/utils",
     "ui": "@/components/ui",
     "lib": "@/lib",
-    "hooks": "@/hooks"
+    "hooks": "@/hooks",
+    "figma": "@/components/figma",
+    "design-system": "@/components/design-system",
+    "figma-utils": "@/lib/figma-utils"
   },
-  "registries": {}
+  "registries": {
+    "shadcndesign": {
+      "url": "https://api.shadcndesign.com",
+      "token": "${SHADCN_DESIGN_LICENSE_KEY}"
+    }
+  }
 }

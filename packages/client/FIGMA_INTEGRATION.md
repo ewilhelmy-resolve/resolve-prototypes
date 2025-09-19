@@ -12,6 +12,12 @@
 
 Integrate Figma-to-React conversion capabilities into the Rita Go frontend using shadcn/ui design system and Figma plugin to streamline the design-to-development workflow.
 
+**Core Philosophy**: **No Manual Styling Approach**
+- Focus on semantic HTML structure and accessibility
+- Let Figma plugin handle all visual styling automatically
+- Eliminate manual CSS/Tailwind class writing
+- Achieve 3x faster development through automation
+
 ## 📋 Requirements Analysis
 
 ### Prerequisites
@@ -102,20 +108,31 @@ ANTHROPIC_API_KEY=your_anthropic_key_here
 
 ---
 
-## 🎨 Design System Guidelines
+## 🎨 Design System Guidelines - No Manual Styling Approach
 
-### Figma Layer Naming Conventions
-- **Containers**: `Container`, `Wrapper`, `Section`
-- **Layout**: `Flex`, `Grid`, `Stack`
-- **Interactive**: `Button`, `Input`, `Link`
-- **Content**: `Heading`, `Text`, `Image`
-- **Status**: `Loading`, `Error`, `Success`
+### Core Principles
+1. **Semantic First**: Focus on HTML structure and meaning
+2. **Zero Custom CSS**: Let Figma plugin generate all styles
+3. **Accessibility by Design**: Proper semantic elements and ARIA
+4. **Component Composition**: Build complex UIs from simple primitives
 
-### Component Categories
-1. **UI Primitives** (Button, Input, Card)
-2. **Layout Components** (Header, Sidebar, Grid)
-3. **Feature Components** (Chat, Files, Auth)
-4. **Page Templates** (Dashboard, Settings)
+### Figma Layer Naming Conventions (Semantic-Focused)
+- **Semantic Elements**: `<main>`, `<header>`, `<nav>`, `<section>`, `<article>`
+- **Interactive Elements**: `<button>`, `<input>`, `<a>`, `<form>`
+- **Content Structure**: `<h1>`, `<h2>`, `<p>`, `<ul>`, `<ol>`
+- **Data Display**: `<table>`, `<dl>`, `<figure>`, `<blockquote>`
+
+### No-Styling Workflow
+1. **Design in Figma**: Create pixel-perfect designs with proper spacing/colors
+2. **Generate with Plugin**: Let AI convert to semantic React + Tailwind
+3. **Zero Manual Styling**: Accept generated code without modification
+4. **Semantic Enhancement**: Only add accessibility and data attributes
+
+### Component Categories (Semantic-Focused)
+1. **Semantic Primitives** (`<button>`, `<input>`, `<card>`)
+2. **Layout Semantics** (`<header>`, `<main>`, `<aside>`)
+3. **Feature Semantics** (Chat interface, File manager, Auth forms)
+4. **Page Semantics** (Dashboard layout, Settings page)
 
 ---
 
@@ -178,42 +195,54 @@ npm run test:a11y
 
 ---
 
-## 🔄 Workflow Process
+## 🔄 No-Styling Workflow Process
 
-1. **Design Phase**
-   - Create/update design in Figma
-   - Apply naming conventions
-   - Use design system variables
+1. **Design Phase (Figma)**
+   - Create pixel-perfect designs with proper semantic structure
+   - Use meaningful layer names (semantic HTML elements)
+   - Apply design system tokens (colors, spacing, typography)
+   - Focus on accessibility and user experience
 
-2. **Conversion Phase**
-   - Use Figma plugin to generate React code
-   - Review generated TypeScript interfaces
-   - Validate accessibility attributes
+2. **Zero-Touch Conversion Phase**
+   - Use Figma plugin to generate React + Tailwind code
+   - **DO NOT modify generated styles manually**
+   - Accept AI-generated styling decisions
+   - Only review for semantic correctness
 
-3. **Integration Phase**
+3. **Semantic Enhancement Phase**
+   - Add proper TypeScript interfaces
+   - Enhance accessibility attributes (ARIA, roles)
+   - Add enterprise compliance data attributes
+   - Ensure semantic HTML structure
+
+4. **Integration Phase (No Style Changes)**
    - Place component in appropriate directory
    - Update imports and exports
-   - Test component in isolation
+   - **NO manual CSS/Tailwind modifications**
+   - Test component functionality only
 
-4. **Quality Assurance**
-   - Run automated tests
-   - Perform accessibility audit
-   - Review code with team
+5. **Quality Assurance (Structure-Focused)**
+   - Validate semantic HTML structure
+   - Test accessibility with screen readers
+   - Verify TypeScript compliance
+   - Check enterprise security attributes
 
-5. **Deployment**
-   - Merge to main branch
-   - Deploy to staging environment
-   - Monitor performance metrics
+6. **Deployment (Style-Agnostic)**
+   - Merge semantic and functional changes only
+   - Deploy without visual QA concerns
+   - Monitor performance and accessibility metrics
 
 ---
 
-## 📊 Success Metrics
+## 📊 Success Metrics (No-Styling Approach)
 
-- **Development Speed**: 50% reduction in component development time
-- **Design Consistency**: 100% adherence to design system
-- **Code Quality**: Maintain current TypeScript strict mode compliance
-- **Accessibility**: Maintain WCAG 2.1 AA compliance
-- **Performance**: No degradation in Lighthouse scores
+- **Development Speed**: 3x faster component development (no manual styling)
+- **Design Fidelity**: 100% pixel-perfect implementation from Figma
+- **Code Quality**: Zero custom CSS, pure TypeScript + generated Tailwind
+- **Accessibility**: Enhanced semantic HTML + ARIA compliance
+- **Developer Experience**: Zero style debugging, focus on functionality
+- **Consistency**: 100% design system adherence via Figma tokens
+- **Performance**: Optimized generated code, no style conflicts
 
 ---
 
