@@ -15,6 +15,7 @@
       "webOrigins": [
         "http://localhost:5173",
         "http://localhost",
+        "http://localhost:80",
         "https://42fe514478f3.ngrok-free.app"
       ],
       "standardFlowEnabled": true,

@@ -85,7 +85,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         setAuthenticated(auth);
         setToken(keycloak.token);
 
-        if (auth) {
+        if (auth && keycloak.token) {
           try {
             console.log('Loading user profile...');
             const profile = await keycloak.loadUserProfile();
@@ -114,10 +114,15 @@ export function AuthProvider({ children }: AuthProviderProps) {
       console.log('Keycloak onAuthSuccess fired, token:', !!keycloak.token);
       setAuthenticated(true);
       setToken(keycloak.token);
-      keycloak.loadUserProfile().then(profile => {
-        setUserProfile(profile);
-        syncTokenToCreateSessionCookie(keycloak);
-      });
+      if (keycloak.token) {
+        keycloak.loadUserProfile().then(profile => {
+          setUserProfile(profile);
+          syncTokenToCreateSessionCookie(keycloak);
+        }).catch(error => {
+          console.warn('Profile loading failed in onAuthSuccess:', error);
+          syncTokenToCreateSessionCookie(keycloak);
+        });
+      }
     };
 
     keycloak.onAuthError = (error) => {

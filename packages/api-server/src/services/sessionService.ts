@@ -6,8 +6,8 @@ import { pool } from '../config/database.js';
 // Keycloak configuration from environment variables (same as middleware)
 const KEYCLOAK_URL = process.env.KEYCLOAK_URL || 'http://localhost:8080';
 const KEYCLOAK_REALM = process.env.KEYCLOAK_REALM || 'rita-chat-realm';
-const KEYCLOAK_ISSUER = `${KEYCLOAK_URL}/realms/${KEYCLOAK_REALM}`;
-const JWKS = jose.createRemoteJWKSet(new URL(`${KEYCLOAK_ISSUER}/protocol/openid-connect/certs`));
+const KEYCLOAK_ISSUER = process.env.KEYCLOAK_ISSUER || `${KEYCLOAK_URL}/realms/${KEYCLOAK_REALM}`;
+const JWKS = jose.createRemoteJWKSet(new URL(`${KEYCLOAK_URL}/realms/${KEYCLOAK_REALM}/protocol/openid-connect/certs`));
 
 export class SessionService {
   private sessionStore = getSessionStore();

@@ -21,7 +21,7 @@ const createTransports = () => {
   const transports = [];
 
   // Always add console transport in development
-  if (process.env.NODE_ENV !== 'production') {
+  // if (process.env.NODE_ENV !== 'production') {
     transports.push({
       target: 'pino-pretty',
       options: {
@@ -31,7 +31,7 @@ const createTransports = () => {
         messageFormat: '[{correlationId}] {msg}'
       }
     });
-  }
+  // }
 
   // Add file transport with rotation if possible
   try {
