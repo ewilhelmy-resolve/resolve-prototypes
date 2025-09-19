@@ -108,3 +108,5 @@ rabbitmq_data/
 redis_data/
 
 ngrok.yml
+.mcp.json
+.claude/settings.local.json
