@@ -9,11 +9,11 @@ import { Textarea } from '../components/ui/textarea';
 import { Skeleton } from '../components/ui/skeleton';
 import { ChatLayout } from '../components/layouts/ChatLayout';
 import { SidebarToggle } from '../components/chat/ConversationSidebar';
-import { MessageSquare, Send, LogOut, Wifi, WifiOff, User, Bot, FileText, Plus } from 'lucide-react';
+import { Send, LogOut, FileText, Plus } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 const ChatDemo: React.FC = () => {
-  const { isConnected, connect, disconnect, reconnect, latestUpdate } = useSSEContext();
+  const { latestUpdate } = useSSEContext();
   const { logout } = useAuth();
   const { toggleSidebar } = useUIStore();
   const [inputValue, setInputValue] = useState('');

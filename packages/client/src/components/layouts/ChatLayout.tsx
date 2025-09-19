@@ -1,6 +1,5 @@
 import React from 'react';
 import { ConversationSidebar } from '../chat/ConversationSidebar';
-import { useUIStore } from '../../stores/uiStore';
 import { cn } from '../../lib/utils';
 import { Button } from '../ui/button';
 import { Plus } from 'lucide-react';
@@ -71,7 +70,6 @@ function KnowledgePanel() {
 }
 
 export function ChatLayout({ children }: ChatLayoutProps) {
-  const { isSidebarOpen } = useUIStore();
 
   // Split children into header and content
   const childrenArray = React.Children.toArray(children);
