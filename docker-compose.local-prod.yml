@@ -1,8 +1,73 @@
-# Production environment - Application services only
-# Databases and external services are managed separately
+# Local Production Environment - Complete stack for testing
+# Includes both infrastructure and application services
 version: '3.8'
 
 services:
+  # Infrastructure Services
+  postgres:
+    image: pgvector/pgvector:pg15
+    environment:
+      POSTGRES_DB: onboarding
+      POSTGRES_USER: rita
+      POSTGRES_PASSWORD: rita
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U rita -d onboarding"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - app-network
+
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    networks:
+      - app-network
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    networks:
+      - app-network
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:24.0.4
+    environment:
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: admin
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./keycloak/realm-export.json:/opt/keycloak/data/import/realm-export.json
+    command: start-dev --import-realm
+    networks:
+      - app-network
+
+  # Application Services
   # API Server
   api-server:
     build:
@@ -11,19 +76,29 @@ services:
     environment:
       NODE_ENV: production
       PORT: 3000
-      # External database connections
-      DATABASE_URL: ${DATABASE_URL}
-      RABBITMQ_URL: ${RABBITMQ_URL}
-      REDIS_URL: ${REDIS_URL}
-      # Keycloak configuration
-      KEYCLOAK_URL: ${KEYCLOAK_URL}
-      KEYCLOAK_REALM: ${KEYCLOAK_REALM}
-      KEYCLOAK_ISSUER: ${KEYCLOAK_ISSUER}
+      # Internal Docker connections
+      DATABASE_URL: postgresql://rita:rita@postgres:5432/onboarding
+      RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672
+      REDIS_URL: redis://redis:6379
+      # Keycloak configuration - using Docker service name for internal API communication
+      KEYCLOAK_URL: http://keycloak:8080
+      KEYCLOAK_REALM: rita-chat-realm
+      # Override issuer to match what frontend sees (localhost for browser access)
+      KEYCLOAK_ISSUER: http://localhost:8080/realms/rita-chat-realm
       # Automation webhook
-      AUTOMATION_WEBHOOK_URL: ${AUTOMATION_WEBHOOK_URL}
-      AUTOMATION_AUTH: ${AUTOMATION_AUTH}
+      AUTOMATION_WEBHOOK_URL: ${AUTOMATION_WEBHOOK_URL:-https://external-service.com/webhook}
+      AUTOMATION_AUTH: ${AUTOMATION_AUTH:-your-secret-token}
       # Client configuration
-      CLIENT_URL: ${CLIENT_URL:-https://yourapp.com}
+      CLIENT_URL: http://localhost
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      keycloak:
+        condition: service_started
     restart: unless-stopped
     networks:
       - app-network
@@ -39,9 +114,9 @@ services:
       context: ./packages/client
       dockerfile: Dockerfile
     environment:
-      VITE_KEYCLOAK_URL: ${KEYCLOAK_URL}
-      VITE_KEYCLOAK_REALM: ${KEYCLOAK_REALM}
-      VITE_KEYCLOAK_CLIENT_ID: ${KEYCLOAK_CLIENT_ID}
+      VITE_KEYCLOAK_URL: http://localhost:8080
+      VITE_KEYCLOAK_REALM: rita-chat-realm
+      VITE_KEYCLOAK_CLIENT_ID: rita-chat-client
       VITE_API_URL: ""  # Use relative URLs (handled by nginx proxy)
     depends_on:
       api-server:
@@ -57,7 +132,11 @@ services:
       timeout: 10s
       retries: 3
 
+volumes:
+  postgres_data:
+  rabbitmq_data:
+  redis_data:
+
 networks:
   app-network:
-    name: resolve-onboarding_default
-    external: true
+    driver: bridge
