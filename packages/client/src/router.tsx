@@ -4,6 +4,7 @@ import { LoginPage } from './pages/LoginPage';
 import { ChatPage } from './pages/ChatPage';
 import { FilesPage } from './pages/FilesPage';
 import FigmaTestPage from './pages/FigmaTestPage';
+import FigmaLoginPage from './test/login/FigmaLoginPage';
 import { ProtectedRoute } from './components/auth/ProtectedRoute';
 
 const router = createBrowserRouter([
@@ -34,6 +35,10 @@ const router = createBrowserRouter([
       {
         path: '/figma-test',
         element: <FigmaTestPage />
+      },
+      {
+        path: '/figma-login-poc',
+        element: <FigmaLoginPage />
       },
       {
         path: '/',

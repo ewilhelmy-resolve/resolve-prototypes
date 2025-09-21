@@ -1,0 +1,221 @@
+/*
+ * Figma POC Styling - Rita AI Interface
+ * These styles demonstrate the final design
+ * In production, these come from Figma-generated components
+ */
+
+/* Rita AI Interface Container */
+.rita-ai-container {
+  max-width: 400px;
+  width: 100%;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 16px;
+  padding: 2rem;
+  color: white;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+}
+
+/* Rita Branding */
+.rita-branding {
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+.rita-branding h2 {
+  margin: 0 0 0.5rem 0;
+  font-size: 2rem;
+  font-weight: bold;
+  background: linear-gradient(45deg, #fff, #e2e8f0);
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.rita-subtitle {
+  margin: 0;
+  opacity: 0.9;
+  font-size: 1rem;
+}
+
+/* Chat Interface */
+.rita-chat-interface {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  padding: 1rem;
+  margin-bottom: 1.5rem;
+  backdrop-filter: blur(10px);
+}
+
+.chat-message {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.chat-message:last-of-type {
+  margin-bottom: 0;
+}
+
+.user-message {
+  flex-direction: row-reverse;
+}
+
+.message-avatar {
+  width: 32px;
+  height: 32px;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1rem;
+  flex-shrink: 0;
+}
+
+.message-content {
+  background: rgba(255, 255, 255, 0.15);
+  padding: 0.75rem;
+  border-radius: 8px;
+  flex: 1;
+}
+
+.message-content p {
+  margin: 0;
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+
+.user-message .message-content {
+  background: rgba(255, 255, 255, 0.25);
+}
+
+/* Chat Input */
+.chat-input-area {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+
+.rita-input {
+  flex: 1;
+  background: rgba(255, 255, 255, 0.2);
+  border: none;
+  border-radius: 8px;
+  padding: 0.75rem;
+  color: white;
+  placeholder-color: rgba(255, 255, 255, 0.7);
+}
+
+.rita-input::placeholder {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.rita-send-btn {
+  background: rgba(255, 255, 255, 0.3);
+  border: none;
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+  color: white;
+  cursor: pointer;
+  font-weight: bold;
+  transition: background 0.2s;
+}
+
+.rita-send-btn:hover {
+  background: rgba(255, 255, 255, 0.4);
+}
+
+/* Workflow Visualization */
+.workflow-visualization {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.workflow-node {
+  background: rgba(255, 255, 255, 0.2);
+  padding: 0.5rem 1rem;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  white-space: nowrap;
+  transition: all 0.3s ease;
+}
+
+.workflow-node.active {
+  background: rgba(52, 211, 153, 0.8);
+  animation: pulse 2s infinite;
+}
+
+.workflow-node.processing {
+  background: rgba(251, 191, 36, 0.8);
+  animation: processing 1.5s infinite;
+}
+
+.workflow-connector {
+  color: rgba(255, 255, 255, 0.6);
+  font-weight: bold;
+}
+
+/* Animations */
+@keyframes pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.8; transform: scale(1.05); }
+}
+
+@keyframes processing {
+  0%, 100% { opacity: 0.8; }
+  50% { opacity: 1; }
+}
+
+/* Development Notes */
+.dev-notes {
+  position: fixed;
+  bottom: 20px;
+  left: 20px;
+  background: #fff;
+  border: 1px solid #ddd;
+  padding: 1rem;
+  border-radius: 8px;
+  max-width: 400px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  z-index: 100;
+}
+
+.dev-notes h4 {
+  margin: 0 0 0.5rem 0;
+  color: #333;
+  font-size: 1rem;
+}
+
+.dev-notes ul {
+  margin: 0;
+  padding-left: 1.2rem;
+}
+
+.dev-notes li {
+  font-size: 0.85rem;
+  color: #666;
+  margin-bottom: 0.25rem;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .rita-custom-overlay {
+    position: relative;
+    top: 0;
+    right: 0;
+    margin: 1rem;
+    max-width: none;
+  }
+
+  .dev-notes {
+    position: relative;
+    bottom: 0;
+    left: 0;
+    margin: 1rem;
+    max-width: none;
+  }
+}
