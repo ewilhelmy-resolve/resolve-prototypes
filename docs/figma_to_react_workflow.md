@@ -1,29 +1,40 @@
 # Figma-to-React Development Workflow
-**Rita Go Frontend - Design System Integration Guide**
+**Rita Go Frontend - Design-to-Production System**
 
 ---
 
 ## 🎯 **Overview**
 
-This document describes the established workflow for converting Figma designs directly to React components in Rita Go, eliminating manual styling and accelerating frontend development.
+This document establishes the **recommended workflow** for all production page development in Rita Go. This Figma-to-React process eliminates manual styling, ensures design consistency, and creates zero friction between design and development teams.
+
+### **Design-to-Production Approach**
+We encourage using components generated through the Design-to-Production Figma process for all production pages in `packages/client/src/pages/`.
 
 ### **Core Strategy**
-**80% Pro Blocks + 20% Custom Components** - Leverage existing shadcn Design Pro Blocks for common UI patterns while creating only Rita-specific components in Figma.
+**Pro Blocks Foundation + Custom Figma Components** - Build upon shadcn Design Pro Blocks for common UI patterns while creating Rita-specific components through Figma's Design-to-Code workflow.
+
+### **Zero Manual Styling Principle**
+**Recommended**: Use Figma-generated components and Pro Blocks instead of writing custom CSS
+**Benefits**: Faster development, design consistency, and easier maintenance
 
 ### **Key Benefits**
-- **No Manual Styling**: All visual styling comes from Figma-generated or Pro Block components
-- **CLI-First Workflow**: Components installed via command line in seconds
+- **100% Design Accuracy**: Direct Figma-to-code conversion eliminates manual interpretation errors
+- **Zero Manual Styling**: All visual styling comes from Figma-generated or Pro Block components
+- **CLI-First Workflow**: Components installed via command line for rapid development
 - **Enterprise Compliance**: SOC2/WCAG 2.1 AA standards built-in
-- **Design Consistency**: Unified component library approach
+- **Design Consistency**: Unified component library approach with single source of truth
 - **Accelerated Development**: Significantly faster than traditional manual component creation
+- **Maintainable Codebase**: Reduces styling inconsistencies and technical debt
+- **Zero Friction**: Direct design-to-code pipeline eliminates translation errors
+- **Pixel-Perfect Implementation**: AI-generated components match Figma designs exactly
 
 ---
 
 ## 🏗️ **Architecture**
 
-### **Component Distribution**
+### **Component Sources**
 
-#### **80% Pro Blocks (shadcn Design Components)**
+#### **Pro Blocks (shadcn Design Components)**
 Pre-built, production-ready components for common UI patterns:
 ```bash
 # Authentication & Forms
@@ -37,29 +48,73 @@ npx shadcn@latest add @shadcndesign/two-column-1    # Page layouts
 npx shadcn@latest add @shadcndesign/header-1        # Navigation headers
 ```
 
-#### **20% Custom Rita Components (Figma-generated)**
+#### **Custom Rita Components (Figma-generated)**
 Rita-specific components created in Figma and converted to React:
 ```bash
-# Rita-specific components only
+# Rita-specific components
 npx shadcn add [rita-interface-url]    # Chat interface mockup
 npx shadcn add [workflow-node-url]     # Workflow visualization
 npx shadcn add [rita-branding-url]     # Brand elements
 ```
 
-### **Directory Structure**
+### **Production Directory Structure**
 ```
 src/
 ├── components/
-│   ├── pro-blocks/           # 80% - shadcn Design Pro Blocks
-│   │   ├── application/
-│   │   ├── layout/
-│   │   └── navigation/
-│   └── figma/generated/      # 20% - Custom Rita components
-│       ├── RitaInterface.tsx
-│       ├── WorkflowNode.tsx
-│       └── RitaBranding.tsx
-└── pages/                    # Production pages using both
-    └── LoginPage.tsx
+│   ├── ui/                   # 80% - shadcn/ui + Pro Blocks
+│   │   ├── button.tsx        # Standard shadcn/ui
+│   │   ├── input.tsx         # Standard shadcn/ui
+│   │   └── [pro-block].tsx   # Pro Blocks via CLI
+│   └── figma/generated/      # 20% - Custom Rita components via Figma
+│       ├── RitaInterface.tsx # Generated via Figma plugin
+│       ├── WorkflowNode.tsx  # Generated via Figma plugin
+│       └── StepBadge.tsx     # Generated via Figma plugin
+├── pages/                    # 🚨 PRODUCTION PAGES - FIGMA COMPONENTS ONLY
+│   ├── LoginPage.tsx         # Uses Figma + Pro Block components
+│   ├── DashboardPage.tsx     # Uses Figma + Pro Block components
+│   └── OnboardingPage.tsx    # Uses Figma + Pro Block components
+└── test/                     # POC and development testing
+    └── login/
+        └── FigmaLoginPage.tsx # Migration POC example
+```
+
+### **Design-to-Production Workflow**
+
+```
+┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
+│   UX Designer   │    │  Figma Plugin    │    │ Frontend Dev    │
+│                 │    │                  │    │                 │
+│ 1. Design Rita- │───▶│ 2. Convert with  │───▶│ 3. Install via  │
+│    specific UI  │    │    Claude 3.5    │    │    CLI command  │
+│    in Figma     │    │    Sonnet AI     │    │                 │
+└─────────────────┘    └──────────────────┘    └─────────────────┘
+         │                                               │
+         │                                               ▼
+         │                                      ┌─────────────────┐
+         │                                      │   Rita Go App   │
+         │                                      │                 │
+         │                                      │ 4. Components   │
+         │                                      │    integrated   │
+         │                                      │    & deployed   │
+         │                                      └─────────────────┘
+         │                                               │
+         │               ┌──────────────────┐            │
+         └──────────────▶│  Figma Source    │◀───────────┘
+                         │  of Truth        │
+                         │                  │  5. Design updates
+                         │ • Brand colors   │     trigger new
+                         │ • Typography     │     CLI installs
+                         │ • Components     │
+                         └──────────────────┘
+
+Key Principles:
+• Pro Blocks for common UI patterns (buttons, forms, layouts)
+• Figma-generated components for Rita-specific designs
+• CLI installation eliminates manual file transfers
+• Figma remains single source of truth for all designs
+• 100% accurate design-to-code conversion with no interpretation errors
+• Zero friction between design handoff and development
+• Design updates require new CLI install and deployment cycle
 ```
 
 ---
@@ -67,7 +122,7 @@ src/
 ## 🔄 **Development Workflow**
 
 ### **UX/Design Person Workflow**
-1. **Design Only Rita-Specific Components** (20% of total work)
+1. **Design Rita-Specific Components**
    - Skip common UI patterns (buttons, inputs, forms) - use Pro Blocks instead
    - Focus on: Rita AI interface, workflow visualization, custom branding
 
@@ -82,7 +137,7 @@ src/
    - No manual file transfers or design specifications needed
 
 ### **Frontend Developer Workflow**
-1. **Install Pro Blocks** (5 minutes)
+1. **Install Pro Blocks**
    ```bash
    # Install common UI components
    npx shadcn@latest add @shadcndesign/sign-in-1
@@ -90,14 +145,14 @@ src/
    npx shadcn@latest add @shadcndesign/input-field-1
    ```
 
-2. **Install Custom Components** (2 minutes)
+2. **Install Custom Components**
    ```bash
    # Install Rita-specific components from UX
    npx shadcn add [rita-interface-url]
    npx shadcn add [workflow-node-url]
    ```
 
-3. **Assemble Page** (30 minutes)
+3. **Assemble Page**
    ```tsx
    import { SignIn1 } from '@/components/pro-blocks/application/sign-in/sign-in-1'
    import { RitaInterface } from '@/components/figma/generated'
@@ -105,8 +160,8 @@ src/
    export default function LoginPage() {
      return (
        <div className="page-container">
-         <SignIn1 />              {/* 80% Pro Block */}
-         <RitaInterface />        {/* 20% Custom */}
+         <SignIn1 />              {/* Pro Block foundation */}
+         <RitaInterface />        {/* Rita-specific component */}
        </div>
      )
    }
@@ -142,23 +197,23 @@ ANTHROPIC_FIGMA_API_KEY=your-anthropic-key
 
 ## 📏 **Code Standards**
 
-### **Do's**
-- ✅ Use Pro Blocks for 80% of UI components
-- ✅ Create custom Figma components only for Rita-specific elements
-- ✅ Install all components via CLI commands
+### **Recommended Practices**
+- ✅ Use Pro Blocks for common UI components
+- ✅ Create custom Figma components for Rita-specific elements
+- ✅ Install components via CLI commands
 - ✅ Follow conditional CSS import pattern for Pro Blocks
 - ✅ Maintain TypeScript strict mode compliance
 
-### **Don'ts**
-- ❌ Create manual CSS for common UI patterns
-- ❌ Modify existing Pro Block components
-- ❌ Add styles to global CSS files for component-specific styling
-- ❌ Skip accessibility attributes
-- ❌ Override Pro Block styling manually
+### **Practices to Avoid**
+- ⚠️ Creating manual CSS for common UI patterns
+- ⚠️ Modifying existing Pro Block components
+- ⚠️ Adding styles to global CSS files for component-specific styling
+- ⚠️ Skipping accessibility attributes
+- ⚠️ Overriding Pro Block styling manually
 
 ### **Example Implementation**
 ```tsx
-// ✅ Good: Using Pro Blocks + Custom Components
+// ✅ Recommended: Using Pro Blocks + Custom Components
 import { SignIn1 } from '@/components/pro-blocks/application/sign-in/sign-in-1'
 import { RitaInterface } from '@/components/figma/generated'
 import '../styles/conditional-pro-blocks.css'  // Only when Pro Blocks used
@@ -172,9 +227,9 @@ export default function LoginPage() {
   )
 }
 
-// ❌ Bad: Manual styling
-<div className="custom-login-form">  {/* Manual CSS creation */}
-  <div className="form-header">      {/* Manual styling */}
+// ⚠️ Consider alternatives: Manual styling
+<div className="custom-login-form">  {/* Consider using Pro Blocks instead */}
+  <div className="form-header">      {/* Or Figma-generated components */}
 ```
 
 ---
@@ -273,16 +328,16 @@ Located at: `src/test/login/FigmaLoginPage.tsx`
 
 ## 📈 **Results & Benefits**
 
-### **Proven Outcomes**
+### **Expected Outcomes**
 - **Development Speed**: CLI-based component installation vs manual creation
-- **Code Quality**: Zero manual CSS, full TypeScript coverage
+- **Code Quality**: Reduced manual CSS, improved TypeScript coverage
 - **Design Consistency**: Unified component library approach
 - **Maintainability**: Single source of truth from Figma designs
 - **Team Efficiency**: Clear separation of concerns between UX and Frontend
 
 ### **Team Impact**
-- **UX Focus**: Design only Rita-specific components (20% workload reduction)
-- **Frontend Focus**: Integration and functionality (80% less UI work)
+- **UX Focus**: Design Rita-specific components while leveraging Pro Blocks
+- **Frontend Focus**: Integration and functionality with less UI implementation work
 - **Faster Iterations**: CLI-based component updates enable rapid prototyping
 
 ---
@@ -291,4 +346,4 @@ Located at: `src/test/login/FigmaLoginPage.tsx`
 
 This workflow has been validated with a complete login page POC and is ready for implementation across all Rita Go pages. The approach scales from simple forms to complex dashboard interfaces while maintaining design consistency and development speed.
 
-**Next Implementation**: Apply this same pattern to dashboard pages, onboarding flows, and chat interfaces using the established 80% Pro Blocks + 20% Custom Components strategy.
+**Next Implementation**: Apply this same pattern to dashboard pages, onboarding flows, and chat interfaces using the established Pro Blocks foundation with custom Rita components strategy.
