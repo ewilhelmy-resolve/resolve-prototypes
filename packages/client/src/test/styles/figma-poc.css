@@ -1,0 +1,593 @@
+/*
+ * Legacy HTML → React Migration Styles
+ * PROVISIONAL styles replicating legacy design exactly
+ * Will be replaced with Figma-generated components
+ */
+
+/* Main Container - matches legacy exactly */
+.onboarding-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 2rem;
+  gap: 3rem;
+  position: relative;
+  background: linear-gradient(135deg, #000000 0%, #0d1637 50%, #1a2549 100%);
+  color: #ffffff;
+  overflow: hidden;
+}
+
+.onboarding-container::before {
+  content: "";
+  position: absolute;
+  width: 1414px;
+  height: 372px;
+  left: -67px;
+  top: 60%;
+  background: radial-gradient(50% 50%, rgba(0, 102, 255, 0.3) 0%, transparent 70%);
+  border-radius: 50%;
+  filter: blur(100px);
+  pointer-events: none;
+}
+
+/* Form Section - Left Column */
+.form-section {
+  flex: 1;
+  max-width: 641px;
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: 16px;
+  padding: 1rem;
+  border: 1px solid rgba(47, 98, 255, 0.1);
+}
+
+.form-container {
+  padding: 2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+/* Step Header */
+.step-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.5rem;
+  text-align: center;
+}
+
+.step-badge {
+  padding: 0.25rem 0.75rem;
+  border-radius: 3px;
+  font-size: 12px;
+  letter-spacing: 0.04px;
+  border: 1px solid rgba(0, 52, 220, 0.2);
+  color: rgba(0, 43, 183, 0.77);
+  background: transparent;
+}
+
+.header-text {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.header-text h1.main-heading {
+  font-size: 28px;
+  font-weight: 400;
+  line-height: 30px;
+  letter-spacing: -0.1px;
+  color: #ffffff;
+  font-family: "Season Mix", -apple-system, BlinkMacSystemFont, "SF Pro", sans-serif;
+  margin: 0;
+}
+
+.header-text p {
+  font-size: 14px;
+  font-weight: 300;
+  line-height: 20px;
+  color: rgba(255, 255, 255, 0.7);
+  margin: 0;
+}
+
+/* Form Styling */
+.onboarding-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  width: 100%;
+  max-width: 521px;
+  margin: 0 auto;
+}
+
+.form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.form-field label {
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 24px;
+  color: #ffffff;
+}
+
+/* Override shadcn input styles to match legacy */
+.form-field input {
+  width: 100%;
+  height: 40px;
+  padding: 0.5rem 1rem;
+  background: rgba(51, 84, 250, 0.09) !important;
+  border: 1px solid rgba(47, 98, 255, 0.06) !important;
+  border-radius: 8px !important;
+  color: #ffffff !important;
+  font-size: 16px;
+  line-height: 24px;
+  transition: 0.2s;
+}
+
+.form-field input::placeholder {
+  color: rgba(255, 255, 255, 0.39) !important;
+}
+
+.form-field input:focus {
+  outline: none !important;
+  border-color: rgba(47, 98, 255, 0.3) !important;
+  background: rgba(51, 84, 250, 0.15) !important;
+  box-shadow: none !important;
+}
+
+/* Navigation Buttons */
+.nav-buttons {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 2rem;
+}
+
+.signin-link {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.signin-link span {
+  font-size: 14px;
+  margin-bottom: 0.25rem;
+}
+
+.signin-link a {
+  color: #9eb1ff;
+  text-decoration: none;
+  font-weight: 400;
+  transition: 0.2s;
+}
+
+.signin-link a:hover {
+  color: #ffffff;
+}
+
+/* Override shadcn button to match legacy */
+.nav-buttons button {
+  padding: 0.5rem 1.5rem !important;
+  border-radius: 24px !important;
+  font-size: 14px !important;
+  font-weight: 400 !important;
+  line-height: 20px !important;
+  color: #ffffff !important;
+  border: 1px solid #ffffff !important;
+  opacity: 0.92 !important;
+  background: transparent !important;
+  transition: 0.2s !important;
+}
+
+.nav-buttons button:hover {
+  background: rgba(255, 255, 255, 0.1) !important;
+  opacity: 1 !important;
+}
+
+/* Graphic Section - Right Column - matches legacy exactly */
+.graphic-section {
+  flex: 0 0 467px;
+  height: 600px;
+  background: #0d1637;
+  border-radius: 16px;
+  overflow: hidden;
+  position: relative;
+}
+
+.rita-container {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px;
+}
+
+/* Workflow Background - matches legacy positioning */
+.workflow-background {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0.4;
+  z-index: 1;
+}
+
+.workflow-node {
+  position: absolute;
+  background: rgba(0, 117, 255, 0.15);
+  border: 1px solid rgba(0, 102, 255, 0.3);
+  border-radius: 8px;
+  padding: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-width: 160px;
+  height: 50px;
+}
+
+.workflow-node:nth-child(1) {
+  top: 30px;
+  right: 60px;
+  width: 180px;
+}
+
+.workflow-node:nth-child(2) {
+  top: 120px;
+  left: 40px;
+  width: 240px;
+  background: rgba(0, 255, 163, 0.15);
+  border-color: rgba(0, 255, 163, 0.3);
+}
+
+.workflow-node:nth-child(3) {
+  top: 200px;
+  right: 20px;
+  width: 160px;
+}
+
+.workflow-node:nth-child(4) {
+  bottom: 180px;
+  left: 60px;
+  width: 160px;
+}
+
+.workflow-node:nth-child(5) {
+  bottom: 100px;
+  right: 40px;
+  width: 140px;
+  background: rgba(132, 74, 255, 0.15);
+  border-color: rgba(132, 74, 255, 0.3);
+}
+
+.node-text {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 9px;
+  color: rgba(255, 255, 255, 0.5);
+  line-height: 1.2;
+}
+
+.node-toggle {
+  width: 24px;
+  height: 14px;
+  background: rgba(0, 102, 255, 0.4);
+  border-radius: 20px;
+  position: relative;
+}
+
+.node-toggle::after {
+  content: "";
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 10px;
+  height: 10px;
+  background: #0066ff;
+  border-radius: 50%;
+}
+
+/* Rita Chat Interface - matches legacy exactly */
+.rita-chat-container {
+  position: relative;
+  z-index: 3;
+  background: rgba(4, 14, 39, 0.95);
+  backdrop-filter: blur(20px);
+  border: 2px solid #0066ff;
+  border-radius: 24px;
+  width: 400px;
+  height: 355px;
+}
+
+.rita-chat-content {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 30px 30px;
+  gap: 60px;
+}
+
+.rita-header {
+  text-align: center;
+  animation: fadeInDown 1s ease-out;
+}
+
+@keyframes fadeInDown {
+  0% {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.rita-title {
+  font-size: 48px;
+  color: #ffffff;
+  text-align: center;
+  line-height: 1.2;
+  margin: 0 0 12px 0;
+  font-family: "Season Mix", -apple-system, BlinkMacSystemFont, "SF Pro", sans-serif;
+  font-weight: 400;
+}
+
+.rita-subtitle {
+  font-size: 16px;
+  color: rgba(255, 255, 255, 0.7);
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro", "Segoe UI", Roboto, sans-serif;
+  animation: fadeIn 1s ease-out 0.5s both;
+}
+
+@keyframes fadeIn {
+  0% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+.rita-input-area {
+  width: 100%;
+  position: relative;
+  animation: slideInUp 1s ease-out 1s both;
+}
+
+@keyframes slideInUp {
+  0% {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.rita-input {
+  width: 100%;
+  height: 44px;
+  background: rgba(51, 84, 250, 0.09);
+  border: 1px solid rgba(47, 98, 255, 0.2);
+  border-radius: 8px;
+  padding: 10px 50px 10px 16px;
+  color: rgba(255, 255, 255, 0.9);
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro", "Segoe UI", Roboto, sans-serif;
+  font-size: 14px;
+  line-height: 24px;
+  transition: 0.3s;
+}
+
+.rita-input::placeholder {
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.rita-input:focus {
+  outline: none;
+  border-color: rgba(47, 98, 255, 0.4);
+  background: rgba(51, 84, 250, 0.15);
+  box-shadow: 0 0 20px rgba(47, 98, 255, 0.2);
+}
+
+.rita-input:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.rita-send-button {
+  position: absolute;
+  right: 8px;
+  bottom: 11px;
+  background: linear-gradient(135deg, rgba(47, 98, 255, 0.9), rgba(51, 84, 250, 0.9));
+  border: 1px solid rgba(47, 98, 255, 0.3);
+  border-radius: 4px;
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  cursor: not-allowed;
+  transition: 0.3s;
+}
+
+.rita-send-button:disabled {
+  opacity: 0.5;
+}
+
+.rita-send-button:hover:not(:disabled) {
+  transform: scale(1.05);
+  background: linear-gradient(135deg, rgba(47, 98, 255, 1), rgba(51, 84, 250, 1));
+  box-shadow: 0 4px 15px rgba(47, 98, 255, 0.3);
+}
+
+/* Modal Styles */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modal-content {
+  background: linear-gradient(135deg, #0d1637 0%, #1a2549 100%);
+  border-radius: 16px;
+  width: 90%;
+  max-width: 400px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+}
+
+.modal-header {
+  padding: 24px 24px 16px 24px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.modal-title {
+  color: #00D4FF;
+  font-size: 20px;
+  font-weight: 600;
+  margin: 0;
+}
+
+.modal-close {
+  background: transparent;
+  border: none;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 32px;
+  cursor: pointer;
+  line-height: 1;
+  padding: 0;
+  transition: color 0.2s;
+}
+
+.modal-close:hover {
+  color: #fff;
+}
+
+.modal-body {
+  padding: 24px;
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 15px;
+  line-height: 1.6;
+}
+
+.modal-icon {
+  width: 48px;
+  height: 48px;
+  margin: 0 auto 16px auto;
+  fill: #FF6B6B;
+}
+
+.modal-footer {
+  padding: 16px 24px 24px 24px;
+  display: flex;
+  justify-content: center;
+}
+
+.modal-button {
+  background: linear-gradient(135deg, #00D4FF 0%, #007EFF 100%) !important;
+  color: white !important;
+  border: none !important;
+  padding: 10px 24px !important;
+  border-radius: 8px !important;
+}
+
+.modal-button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 212, 255, 0.3);
+}
+
+/* Responsive Design - matches legacy */
+@media (max-width: 1200px) {
+  .onboarding-container {
+    flex-direction: column;
+    gap: 2rem;
+  }
+  .graphic-section {
+    width: 100%;
+    max-width: 467px;
+  }
+}
+
+@media (max-width: 768px) {
+  .form-container {
+    padding: 1.5rem;
+  }
+  .workflow-node {
+    width: 200px;
+  }
+  .graphic-section {
+    height: 400px;
+  }
+}
+
+/* Development Notes */
+.dev-notes {
+  position: fixed;
+  bottom: 20px;
+  left: 20px;
+  background: #fff;
+  border: 1px solid #ddd;
+  padding: 1rem;
+  border-radius: 8px;
+  max-width: 400px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  z-index: 100;
+}
+
+.dev-notes h4 {
+  margin: 0 0 0.5rem 0;
+  color: #333;
+  font-size: 1rem;
+}
+
+.dev-notes ul {
+  margin: 0;
+  padding-left: 1.2rem;
+}
+
+.dev-notes li {
+  font-size: 0.85rem;
+  color: #666;
+  margin-bottom: 0.25rem;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .rita-custom-overlay {
+    position: relative;
+    top: 0;
+    right: 0;
+    margin: 1rem;
+    max-width: none;
+  }
+
+  .dev-notes {
+    position: relative;
+    bottom: 0;
+    left: 0;
+    margin: 1rem;
+    max-width: none;
+  }
+}
