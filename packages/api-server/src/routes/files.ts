@@ -3,8 +3,10 @@ import multer from 'multer';
 import { authenticateUser } from '../middleware/auth.js';
 import { AuthenticatedRequest } from '../types/express.js';
 import { withOrgContext } from '../config/database.js';
+import { WebhookService } from '../services/WebhookService.js';
 
 const router = express.Router();
+const webhookService = new WebhookService();
 
 // Configure multer for memory storage (files stored in memory temporarily)
 const upload = multer({
@@ -248,6 +250,90 @@ router.get('/', authenticateUser, async (req, res) => {
   } catch (error) {
     console.error('Error fetching documents:', error);
     res.status(500).json({ error: 'Failed to fetch documents' });
+  }
+});
+
+// Send document for processing (optional webhook trigger)
+router.post('/:documentId/process', authenticateUser, async (req, res) => {
+  const authReq = req as AuthenticatedRequest;
+  try {
+    const { documentId } = req.params;
+    const { enable_processing = false } = req.body;
+
+    if (!enable_processing) {
+      return res.status(400).json({
+        error: 'Document processing not requested. Set enable_processing: true to trigger processing.'
+      });
+    }
+
+    // Get document details
+    const document = await withOrgContext(
+      authReq.user.id,
+      authReq.user.activeOrganizationId,
+      async (client) => {
+        const documentResult = await client.query(`
+          SELECT d.id, d.file_name, d.file_size, d.mime_type, d.status
+          FROM documents d
+          WHERE d.id = $1 AND d.organization_id = $2 AND d.user_id = $3 AND d.status = 'uploaded'
+        `, [documentId, authReq.user.activeOrganizationId, authReq.user.id]);
+
+        if (documentResult.rows.length === 0) {
+          return null;
+        }
+
+        return documentResult.rows[0];
+      }
+    );
+
+    if (!document) {
+      return res.status(404).json({ error: 'Document not found or not uploadable' });
+    }
+
+    // Generate document URL for webhook
+    const baseUrl = process.env.APP_URL || `${req.protocol}://${req.get('host')}`;
+    const documentUrl = `${baseUrl}/api/files/${documentId}/download`;
+
+    // Send document processing webhook
+    const webhookResponse = await webhookService.sendDocumentEvent({
+      organizationId: authReq.user.activeOrganizationId,
+      userId: authReq.user.id,
+      userEmail: authReq.user.email,
+      documentId: documentId,
+      documentUrl: documentUrl,
+      fileType: document.mime_type,
+      fileSize: document.file_size,
+      originalFilename: document.file_name
+    });
+
+    if (webhookResponse.success) {
+      // Update document status to processing
+      await withOrgContext(
+        authReq.user.id,
+        authReq.user.activeOrganizationId,
+        async (client) => {
+          await client.query(
+            'UPDATE documents SET status = $1, updated_at = NOW() WHERE id = $2',
+            ['processing', documentId]
+          );
+        }
+      );
+
+      res.json({
+        success: true,
+        message: 'Document sent for processing',
+        document_id: documentId
+      });
+    } else {
+      res.status(500).json({
+        success: false,
+        error: 'Failed to send document for processing',
+        details: webhookResponse.error
+      });
+    }
+
+  } catch (error) {
+    console.error('Error processing document:', error);
+    res.status(500).json({ error: 'Failed to process document' });
   }
 });
 

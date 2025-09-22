@@ -27,6 +27,14 @@ jobs:
         cd packages/api-server && npm ci
         cd ../client && npm ci
         cd ../mock-service && npm ci
+
+    - name: Type check (all packages)
+      run: npm run type-check
+
+    - name: Run API server unit tests
+      run: |
+        cd packages/api-server
+        npm run test:run
     
     - name: Install Playwright browsers
       run: cd packages/client && npx playwright install --with-deps chromium
@@ -102,4 +110,3 @@ jobs:
     - name: Stop services
       if: always()
       run: docker compose down -v
-

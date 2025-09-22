@@ -1,0 +1,57 @@
+// WebhookService types for Rita project
+// Maps organization_id to tenant_id for webhook platform compatibility
+
+export interface BaseWebhookPayload {
+  source: string;
+  action: string;
+  user_email?: string;
+  user_id?: string;
+  tenant_id: string; // Webhook platform expects tenant_id (maps to organization_id)
+  timestamp?: string;
+}
+
+export interface MessageWebhookPayload extends BaseWebhookPayload {
+  source: 'rita-chat';
+  action: 'message_created';
+  conversation_id: string;
+  customer_message: string;
+  message_id: string;
+  document_ids?: string[];
+}
+
+export interface DocumentProcessingPayload extends BaseWebhookPayload {
+  source: 'rita-documents';
+  action: 'document_uploaded';
+  document_id: string;
+  document_url: string;
+  file_type: string;
+  file_size: number;
+  original_filename: string;
+}
+
+export interface WebhookResponse {
+  success: boolean;
+  data?: any;
+  status: number;
+  error?: string;
+}
+
+export interface WebhookConfig {
+  url: string;
+  authHeader: string;
+  timeout: number;
+  retryAttempts: number;
+  retryDelay: number;
+}
+
+export interface WebhookError extends Error {
+  status?: number;
+  response?: any;
+  isRetryable: boolean;
+}
+
+// Union type for all webhook payloads
+export type WebhookPayload =
+  | MessageWebhookPayload
+  | DocumentProcessingPayload
+  | (BaseWebhookPayload & Record<string, any>);

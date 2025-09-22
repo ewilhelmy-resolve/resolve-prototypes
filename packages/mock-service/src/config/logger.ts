@@ -47,7 +47,7 @@ const createTransports = () => {
       }
     });
   } catch (error) {
-    console.warn('Could not create rotating file transport, using console only:', error.message);
+    console.warn('Could not create rotating file transport, using console only:', error instanceof Error ? error.message : String(error));
   }
 
   return transports;
@@ -96,6 +96,9 @@ export const createContextLogger = (
     messageId?: string;
     organizationId?: string;
     userId?: string;
+    tenantId?: string;
+    conversationId?: string;
+    documentId?: string;
   }
 ) => {
   return baseLogger.child({

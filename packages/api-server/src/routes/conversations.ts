@@ -2,9 +2,10 @@ import express from 'express';
 import { authenticateUser } from '../middleware/auth.js';
 import { AuthenticatedRequest } from '../types/express.js';
 import { withOrgContext } from '../config/database.js';
-import axios from 'axios';
+import { WebhookService } from '../services/WebhookService.js';
 
 const router = express.Router();
+const webhookService = new WebhookService();
 
 // Create a new conversation
 router.post('/', authenticateUser, async (req, res) => {
@@ -206,59 +207,39 @@ router.post('/:conversationId/messages', authenticateUser, async (req, res) => {
       }
     );
 
-    // Send webhook to external service
-    try {
-      const webhookPayload = {
-        source: 'rita-chat',
-        action: 'message_created',
-        user_email: authReq.user.email,
-        user_id: authReq.user.id,
-        tenant_id: authReq.user.activeOrganizationId,
-        conversation_id: conversationId,
-        customer_message: result.message,
-        message_id: result.id,
-        document_ids: document_ids,
-        timestamp: result.created_at
-      };
+    // Send webhook to external service using WebhookService
+    const webhookResponse = await webhookService.sendMessageEvent({
+      organizationId: authReq.user.activeOrganizationId,
+      userId: authReq.user.id,
+      userEmail: authReq.user.email,
+      conversationId: conversationId,
+      messageId: result.id,
+      customerMessage: result.message,
+      documentIds: document_ids,
+      createdAt: result.created_at
+    });
 
-      const webhookResponse = await axios.post(process.env.AUTOMATION_WEBHOOK_URL!, webhookPayload, {
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Basic ${process.env.AUTOMATION_AUTH}`
-        },
-        timeout: 5000
-      });
-
-      // Update message status to sent
-      await withOrgContext(
-        authReq.user.id,
-        authReq.user.activeOrganizationId,
-        async (client) => {
+    // Update message status based on webhook response
+    await withOrgContext(
+      authReq.user.id,
+      authReq.user.activeOrganizationId,
+      async (client) => {
+        if (webhookResponse.success) {
           await client.query(
             'UPDATE messages SET status = $1, sent_at = NOW() WHERE id = $2',
             ['sent', result.id]
           );
-        }
-      );
-
-      console.log(`📤 Webhook sent successfully for message ${result.id}`);
-
-    } catch (webhookError) {
-      console.error('Webhook error:', webhookError);
-
-      // Update message status to failed
-      await withOrgContext(
-        authReq.user.id,
-        authReq.user.activeOrganizationId,
-        async (client) => {
+          console.log(`📤 Webhook sent successfully for message ${result.id}`);
+        } else {
           await client.query(`
             UPDATE messages
             SET status = $1, error_message = $2
             WHERE id = $3
-          `, ['failed', (webhookError as Error).message, result.id]);
+          `, ['failed', webhookResponse.error || 'Webhook failed', result.id]);
+          console.error(`📤 Webhook failed for message ${result.id}:`, webhookResponse.error);
         }
-      );
-    }
+      }
+    );
 
     res.status(201).json({
       message: {

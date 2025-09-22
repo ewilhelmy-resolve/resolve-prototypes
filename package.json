@@ -11,7 +11,7 @@
     "test": "cd packages/client && npm run test",
     "build": "cd packages/api-server && npm run build && cd ../client && npm run build",
     "lint": "cd packages/api-server && npm run lint && cd ../client && npm run lint",
-    "type-check": "cd packages/api-server && npm run type-check && cd ../client && npm run type-check"
+    "type-check": "cd packages/api-server && npm run type-check && cd ../client && npm run type-check && cd ../mock-service && npm run type-check"
   },
   "devDependencies": {
     "dotenv-cli": "^7.4.2"
