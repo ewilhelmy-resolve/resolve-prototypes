@@ -267,6 +267,14 @@ jobs:
              echo "⏳ Waiting for services to start..."
              sleep 30
 
+             # Check container status and logs before health checks
+             echo "🔍 Checking container status..."
+             docker-compose ps
+             echo "📋 API Server logs:"
+             docker-compose logs --tail=30 api-server
+             echo "📋 Frontend logs:"
+             docker-compose logs --tail=30 frontend
+
              # Health checks
              echo "🏥 Running health checks..."
              if curl -f http://localhost/health 2>/dev/null; then
