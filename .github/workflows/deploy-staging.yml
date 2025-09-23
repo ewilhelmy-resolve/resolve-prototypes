@@ -19,6 +19,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Validate staging secrets
+        shell: bash
         run: |
           echo "🔍 Validating required staging secrets..."
 
