@@ -166,6 +166,11 @@ jobs:
              sudo mkdir -p /opt/rita-staging
              cd /opt/rita-staging
 
+             # Stop onboarding deployment if running (to free up port 80)
+             echo "🛑 Stopping onboarding deployment..."
+             cd /opt/onboarding && docker-compose down --remove-orphans || true
+             cd /opt/rita-staging
+
              # Clean up old Rita images to free space
              echo "🧹 Cleaning up old Rita images..."
              docker rmi $(docker images "ghcr.io/resolve-io/rita-*" -q) 2>/dev/null || true
