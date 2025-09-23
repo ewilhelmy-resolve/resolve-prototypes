@@ -19,10 +19,10 @@ import {
   TooltipTrigger,
 } from '../ui/tooltip';
 import { Skeleton } from '../ui/skeleton';
-import { useConversationStore } from '../../stores/conversationStore';
-import { useUIStore } from '../../stores/uiStore';
-import { useConversations, useUpdateConversation, useDeleteConversation } from '../../hooks/api/useConversations';
-import { cn } from '../../lib/utils';
+import { useConversationStore } from '@/stores/conversationStore.ts';
+import { useUIStore } from '@/stores/uiStore.ts';
+import { useConversations, useUpdateConversation, useDeleteConversation } from '@/hooks/api/useConversations.ts';
+import { cn } from '@/lib/utils.ts';
 import {
   MessageSquare,
   Plus,
@@ -34,8 +34,9 @@ import {
   Clock,
   Hash,
   Users,
-  User
+  User, LogOut
 } from 'lucide-react';
+import {useAuth} from "@/contexts/AuthContext.tsx";
 
 interface ConversationItemProps {
   conversation: {
@@ -211,6 +212,7 @@ function ConversationItem({ conversation, isActive, onClick }: ConversationItemP
 
 export function ConversationSidebar() {
   const [searchQuery, setSearchQuery] = useState('');
+  const { userProfile, logout } = useAuth();
 
   const { isSidebarOpen, toggleSidebar } = useUIStore();
   const { conversations, currentConversationId, setCurrentConversation, clearCurrentConversation } = useConversationStore();
@@ -351,16 +353,39 @@ export function ConversationSidebar() {
             )}
           </div>
 
-          {/* User Profile Section - Pinned at bottom */}
-          <div className="mt-auto p-4">
+          <div className="mt-auto p-4 border-t border-gray-200">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center">
-                <User className="w-5 h-5 text-gray-500" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="font-bold text-gray-900 truncate text-sm">Fred Johnson</div>
-                <div className="text-xs text-gray-600 truncate">fred@acme.com</div>
-              </div>
+              {userProfile ? (
+                <>
+                  <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
+                    <User className="w-5 h-5 text-blue-600" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="font-bold text-gray-900 truncate text-sm">{userProfile.firstName} {userProfile.lastName}</div>
+                    <div className="text-xs text-gray-600 truncate">{userProfile.email}</div>
+                  </div>
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-gray-500 hover:text-gray-900" onClick={logout}>
+                          <LogOut className="h-4 w-4" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Logout</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                </>
+              ) : (
+                <>
+                  <Skeleton className="w-10 h-10 rounded-full" />
+                  <div className="flex-1 space-y-1">
+                    <Skeleton className="h-4 w-3/4" />
+                    <Skeleton className="h-3 w-1/2" />
+                  </div>
+                </>
+              )}
             </div>
           </div>
         </div>
