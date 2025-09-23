@@ -210,7 +210,7 @@ jobs:
 
              # Create staging docker-compose.yml
              echo "📝 Creating staging docker-compose.yml..."
-             cat > docker-compose.yml << 'EOF'
+             sudo tee docker-compose.yml > /dev/null << 'EOF'
              version: '3.8'
 
              services:
