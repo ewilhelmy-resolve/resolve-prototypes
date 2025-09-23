@@ -32,14 +32,12 @@ jobs:
           # Backend infrastructure secrets (only check if deployment is enabled)
           # [ -z "${{ secrets.STAGING_DATABASE_URL }}" ] && missing_secrets+=("STAGING_DATABASE_URL")
           # [ -z "${{ secrets.STAGING_RABBITMQ_URL }}" ] && missing_secrets+=("STAGING_RABBITMQ_URL")
-          # [ -z "${{ secrets.STAGING_REDIS_URL }}" ] && missing_secrets+=("STAGING_REDIS_URL")
           # [ -z "${{ secrets.STAGING_KEYCLOAK_URL }}" ] && missing_secrets+=("STAGING_KEYCLOAK_URL")
           # [ -z "${{ secrets.STAGING_KEYCLOAK_REALM }}" ] && missing_secrets+=("STAGING_KEYCLOAK_REALM")
-          # [ -z "${{ secrets.STAGING_KEYCLOAK_ISSUER }}" ] && missing_secrets+=("STAGING_KEYCLOAK_ISSUER")
           # [ -z "${{ secrets.STAGING_AUTOMATION_WEBHOOK_URL }}" ] && missing_secrets+=("STAGING_AUTOMATION_WEBHOOK_URL")
           # [ -z "${{ secrets.STAGING_AUTOMATION_AUTH }}" ] && missing_secrets+=("STAGING_AUTOMATION_AUTH")
           # [ -z "${{ secrets.STAGING_CLIENT_URL }}" ] && missing_secrets+=("STAGING_CLIENT_URL")
-          # [ -z "${{ secrets.STAGING_DEPLOY_SSH_KEY }}" ] && missing_secrets+=("STAGING_DEPLOY_SSH_KEY")
+          # [ -z "${{ secrets.DEPLOY_ONBOARDING_SSH_KEY }}" ] && missing_secrets+=("DEPLOY_ONBOARDING_SSH_KEY")
 
           if [ ${#missing_secrets[@]} -ne 0 ]; then
             echo "❌ Missing required secrets:"
@@ -147,7 +145,7 @@ jobs:
   #       with:
   #         host: ${{ env.DEPLOY_HOST }}
   #         username: ${{ env.DEPLOY_USER }}
-  #         key: ${{ secrets.STAGING_DEPLOY_SSH_KEY }}
+  #         key: ${{ secrets.DEPLOY_ONBOARDING_SSH_KEY }}
   #         script: |
   #           set -e
   #
