@@ -2,9 +2,7 @@ import { useEffect, useState } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { Button } from '../components/ui/button';
-import { Card } from '../components/ui/card';
-import { MessageSquare, CheckCircle, XCircle, Loader2, ArrowRight } from 'lucide-react';
-import { cn } from '../lib/utils';
+import { CheckCircle, XCircle, Loader2, ArrowRight } from 'lucide-react';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || '';
 

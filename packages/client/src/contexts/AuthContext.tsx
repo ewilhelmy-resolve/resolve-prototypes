@@ -148,7 +148,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
   }, [syncTokenToCreateSessionCookie]);
 
   const login = useCallback(() => {
-    keycloak.login();
+    keycloak.login({
+      redirectUri: window.location.origin + '/chat'
+    });
   }, []);
 
   const logout = useCallback(() => {
