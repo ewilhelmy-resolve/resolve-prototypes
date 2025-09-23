@@ -99,6 +99,8 @@ export const createContextLogger = (
     tenantId?: string;
     conversationId?: string;
     documentId?: string;
+    email?: string;
+    pendingUserId?: string;
   }
 ) => {
   return baseLogger.child({
