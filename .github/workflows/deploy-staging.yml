@@ -162,7 +162,8 @@ jobs:
              # Login to registry
              echo "${{ secrets.GITHUB_TOKEN }}" | docker login ${{ env.REGISTRY }} -u ${{ github.actor }} --password-stdin
 
-             # Navigate to deployment directory
+             # Create and navigate to deployment directory
+             sudo mkdir -p /opt/rita-staging
              cd /opt/rita-staging
 
              # Pull new images
