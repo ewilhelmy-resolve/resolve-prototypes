@@ -1,5 +1,6 @@
 import express from 'express';
 import cors from 'cors';
+import axios from 'axios';
 import { config } from 'dotenv';
 import { resolve } from 'path';
 import { connect, Channel, ChannelModel } from 'amqplib';
@@ -35,7 +36,15 @@ const MOCK_CONFIG = {
   successRate: parseInt(process.env.MOCK_SUCCESS_RATE || '90'),
   // RabbitMQ configuration
   queueName: process.env.QUEUE_NAME || 'chat.responses',
-  rabbitUrl: process.env.RABBITMQ_URL || 'amqp://guest:guest@localhost:5672'
+  rabbitUrl: process.env.RABBITMQ_URL || 'amqp://guest:guest@localhost:5672',
+  // Keycloak configuration
+  keycloak: {
+    baseUrl: process.env.KEYCLOAK_URL || 'http://localhost:8080',
+    realm: process.env.KEYCLOAK_REALM || 'resolve',
+    adminUser: process.env.KEYCLOAK_ADMIN || 'admin',
+    adminPassword: process.env.KEYCLOAK_ADMIN_PASSWORD || 'admin',
+    clientId: process.env.KEYCLOAK_CLIENT_ID || 'rita-client'
+  }
 };
 
 // Base webhook payload shared by all webhook types
@@ -69,8 +78,21 @@ interface DocumentWebhookPayload extends BaseWebhookPayload {
   original_filename: string;
 }
 
+// Signup webhook payload for rita-signup
+interface SignupWebhookPayload extends BaseWebhookPayload {
+  source: 'rita-signup';
+  action: 'user_signup';
+  first_name: string;
+  last_name: string;
+  company: string;
+  password: string;
+  verification_token: string;
+  verification_url: string;
+  pending_user_id: string;
+}
+
 // Union type for all webhook payloads
-type WebhookPayload = MessageWebhookPayload | DocumentWebhookPayload | BaseWebhookPayload;
+type WebhookPayload = MessageWebhookPayload | DocumentWebhookPayload | SignupWebhookPayload | BaseWebhookPayload;
 
 interface MockResponse {
   message_id: string;
@@ -130,6 +152,113 @@ async function publishResponse(response: MockResponse): Promise<void> {
   } catch (error) {
     timer.end({ success: false });
     logError(contextLogger, error as Error, { operation: 'publish-response' });
+    throw error;
+  }
+}
+
+// Keycloak Admin API functions
+let keycloakAdminToken: string | null = null;
+let tokenExpiresAt: number = 0;
+
+async function getKeycloakAdminToken(): Promise<string> {
+  const timer = new PerformanceTimer(webhookLogger, 'keycloak-admin-token');
+
+  // Return cached token if still valid (with 30 second buffer)
+  if (keycloakAdminToken && Date.now() < tokenExpiresAt - 30000) {
+    timer.end({ cached: true, success: true });
+    return keycloakAdminToken;
+  }
+
+  try {
+    const response = await axios.post(
+      `${MOCK_CONFIG.keycloak.baseUrl}/realms/master/protocol/openid-connect/token`,
+      new URLSearchParams({
+        grant_type: 'password',
+        client_id: 'admin-cli',
+        username: MOCK_CONFIG.keycloak.adminUser,
+        password: MOCK_CONFIG.keycloak.adminPassword
+      }),
+      {
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded'
+        }
+      }
+    );
+
+    keycloakAdminToken = response.data.access_token;
+    tokenExpiresAt = Date.now() + (response.data.expires_in * 1000);
+
+    timer.end({ cached: false, success: true });
+    return keycloakAdminToken;
+  } catch (error) {
+    timer.end({ success: false });
+    logError(webhookLogger, error as Error, { operation: 'keycloak-admin-token' });
+    throw new Error('Failed to get Keycloak admin token');
+  }
+}
+
+async function createKeycloakUser(signupData: SignupWebhookPayload): Promise<string> {
+  const timer = new PerformanceTimer(webhookLogger, 'create-keycloak-user');
+  const contextLogger = createContextLogger(webhookLogger, generateCorrelationId(), {
+    email: signupData.user_email,
+    pendingUserId: signupData.pending_user_id
+  });
+
+  try {
+    const adminToken = await getKeycloakAdminToken();
+
+    const userData = {
+      username: signupData.user_email,
+      email: signupData.user_email,
+      firstName: signupData.first_name,
+      lastName: signupData.last_name,
+      enabled: true,
+      emailVerified: true, // Mark as verified for local development testing
+      credentials: [{
+        type: 'password',
+        value: signupData.password,
+        temporary: false
+      }],
+      attributes: {
+        company: [signupData.company],
+        pendingUserId: [signupData.pending_user_id],
+        verificationToken: [signupData.verification_token]
+      }
+    };
+
+    const response = await axios.post(
+      `${MOCK_CONFIG.keycloak.baseUrl}/admin/realms/${MOCK_CONFIG.keycloak.realm}/users`,
+      userData,
+      {
+        headers: {
+          'Authorization': `Bearer ${adminToken}`,
+          'Content-Type': 'application/json'
+        }
+      }
+    );
+
+    // Extract user ID from Location header
+    const locationHeader = response.headers.location;
+    const userId = locationHeader ? locationHeader.split('/').pop() : 'unknown';
+
+    timer.end({
+      email: signupData.user_email,
+      keycloakUserId: userId,
+      success: true
+    });
+
+    contextLogger.info({
+      keycloakUserId: userId,
+      keycloakRealm: MOCK_CONFIG.keycloak.realm
+    }, 'Keycloak user created successfully');
+
+    return userId;
+  } catch (error) {
+    timer.end({ success: false });
+    logError(contextLogger, error as Error, {
+      operation: 'create-keycloak-user',
+      keycloakRealm: MOCK_CONFIG.keycloak.realm
+    });
     throw error;
   }
 }
@@ -284,6 +413,41 @@ app.post('/webhook', async (req, res) => {
         });
       }
 
+    } else if (payload.source === 'rita-signup' && payload.action === 'user_signup') {
+      const signupPayload = payload as SignupWebhookPayload;
+
+      const contextLogger = createContextLogger(webhookLogger, correlationId, {
+        email: signupPayload.user_email,
+        pendingUserId: signupPayload.pending_user_id,
+        tenantId: signupPayload.tenant_id
+      });
+
+      contextLogger.info({
+        source: signupPayload.source,
+        action: signupPayload.action,
+        user_email: signupPayload.user_email,
+        first_name: signupPayload.first_name,
+        last_name: signupPayload.last_name,
+        company: signupPayload.company,
+        pending_user_id: signupPayload.pending_user_id,
+        verification_url: signupPayload.verification_url
+      }, 'Received signup webhook');
+
+      // Validate signup-specific required fields
+      if (!signupPayload.user_email || !signupPayload.first_name || !signupPayload.last_name || !signupPayload.company || !signupPayload.password || !signupPayload.verification_token) {
+        contextLogger.warn({
+          hasEmail: !!signupPayload.user_email,
+          hasFirstName: !!signupPayload.first_name,
+          hasLastName: !!signupPayload.last_name,
+          hasCompany: !!signupPayload.company,
+          hasPassword: !!signupPayload.password,
+          hasVerificationToken: !!signupPayload.verification_token
+        }, 'Signup webhook validation failed - missing required fields');
+        return res.status(400).json({
+          error: 'Missing required fields for signup webhook: user_email, first_name, last_name, company, password, verification_token'
+        });
+      }
+
     } else {
       const errorLogger = createContextLogger(webhookLogger, correlationId);
       // Avoid accessing properties on a value narrowed to never by referencing raw body as BaseWebhookPayload
@@ -304,12 +468,18 @@ app.post('/webhook', async (req, res) => {
 
     // Check authorization
     const authHeader = req.headers.authorization;
-    const expectedAuth = `Basic ${process.env.AUTOMATION_AUTH}`;
+    const expectedAuth = process.env.AUTOMATION_AUTH;
 
-    if (authHeader !== expectedAuth) {
+    // Handle both "Basic token" and "token" formats
+    const receivedToken = authHeader?.startsWith('Basic ')
+      ? authHeader.substring(6)
+      : authHeader;
+
+    if (receivedToken !== expectedAuth) {
       contextLogger.warn({
         hasAuthHeader: !!authHeader,
-        authHeaderPrefix: authHeader?.substring(0, 10) + '...'
+        authHeaderPrefix: authHeader?.substring(0, 10) + '...',
+        expectedAuth: expectedAuth?.substring(0, 10) + '...'
       }, 'Webhook authentication failed');
       return res.status(401).json({ error: 'Unauthorized' });
     }
@@ -407,6 +577,57 @@ app.post('/webhook', async (req, res) => {
         document_id: documentPayload.document_id,
         status: 'acknowledged'
       });
+
+    } else if (payload.source === 'rita-signup') {
+      // Signup processing - create Keycloak user and log verification URL
+      const signupPayload = payload as SignupWebhookPayload;
+      timer.end({
+        email: signupPayload.user_email,
+        pendingUserId: signupPayload.pending_user_id,
+        success: true
+      });
+
+      try {
+        // Create user in Keycloak
+        const keycloakUserId = await createKeycloakUser(signupPayload);
+
+        contextLogger.info({
+          email: signupPayload.user_email,
+          keycloakUserId,
+          verification_url: signupPayload.verification_url,
+          pending_user_id: signupPayload.pending_user_id
+        }, '🎉 SIGNUP SUCCESS: Keycloak user created');
+
+        // Log verification URL prominently for testing
+        console.log('\n' + '='.repeat(80));
+        console.log('📧 MOCK EMAIL VERIFICATION');
+        console.log('='.repeat(80));
+        console.log(`To: ${signupPayload.user_email}`);
+        console.log(`Name: ${signupPayload.first_name} ${signupPayload.last_name}`);
+        console.log(`Company: ${signupPayload.company}`);
+        console.log('');
+        console.log('Click here to verify your email:');
+        console.log(`${signupPayload.verification_url}`);
+        console.log('');
+        console.log('(In production, this would be sent via email)');
+        console.log('='.repeat(80) + '\n');
+
+        res.status(200).json({
+          message: 'Signup webhook processed successfully',
+          keycloak_user_id: keycloakUserId,
+          email: signupPayload.user_email,
+          status: 'user_created_and_email_logged'
+        });
+
+      } catch (error) {
+        logError(contextLogger, error as Error, { operation: 'signup-processing' });
+
+        res.status(200).json({
+          message: 'Signup webhook received but user creation failed',
+          error: error instanceof Error ? error.message : 'Unknown error',
+          status: 'failed_but_acknowledged'
+        });
+      }
     }
 
   } catch (error) {

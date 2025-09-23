@@ -1,9 +1,108 @@
 import express from 'express';
+import crypto from 'crypto';
 import { getSessionService } from '../services/sessionService.js';
+import { WebhookService } from '../services/WebhookService.js';
+import { pool } from '../config/database.js';
 import { logger } from '../config/logger.js';
 
 const router = express.Router();
 const sessionService = getSessionService();
+const webhookService = new WebhookService();
+
+/**
+ * Signup endpoint - Creates a pending user and triggers webhook for email verification
+ * POST /auth/signup
+ * Body: { name: string, email: string }
+ */
+router.post('/signup', async (req, res) => {
+  try {
+    const { firstName, lastName, email, company, password } = req.body;
+
+    if (!firstName || !lastName || !email || !company || !password) {
+      return res.status(400).json({
+        error: 'First name, last name, email, company, and password are required'
+      });
+    }
+
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return res.status(400).json({
+        error: 'Invalid email format'
+      });
+    }
+
+    // Check if user already exists
+    const existingUserResult = await pool.query(
+      'SELECT user_id FROM user_profiles WHERE email = $1',
+      [email]
+    );
+
+    if (existingUserResult.rows.length > 0) {
+      return res.status(400).json({
+        error: 'An account with this email already exists'
+      });
+    }
+
+    // Check if there's already a pending signup for this email
+    const existingPendingResult = await pool.query(
+      'SELECT id FROM pending_users WHERE email = $1',
+      [email]
+    );
+
+    if (existingPendingResult.rows.length > 0) {
+      // Delete the existing pending user so they can sign up again
+      await pool.query('DELETE FROM pending_users WHERE email = $1', [email]);
+    }
+
+    // Generate verification token and expiration (24 hours)
+    const verificationToken = crypto.randomBytes(32).toString('hex');
+    const tokenExpiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+
+    // Create pending user
+    const pendingUserResult = await pool.query(
+      `INSERT INTO pending_users (email, first_name, last_name, company, password, verification_token, token_expires_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id`,
+      [email, firstName, lastName, company, password, verificationToken, tokenExpiresAt]
+    );
+
+    const pendingUserId = pendingUserResult.rows[0].id;
+
+    // Trigger webhook to platform for Keycloak user creation and email sending
+    await webhookService.sendGenericEvent({
+      organizationId: 'pending', // Temporary org ID for pending users
+      userEmail: email,
+      source: 'rita-signup',
+      action: 'user_signup',
+      additionalData: {
+        first_name: firstName,
+        last_name: lastName,
+        company,
+        password,
+        verification_token: verificationToken,
+        verification_url: `${process.env.CLIENT_URL || 'http://localhost:5173'}/verify-email?token=${verificationToken}`,
+        pending_user_id: pendingUserId
+      }
+    });
+
+    logger.info({
+      email,
+      pendingUserId,
+      tokenExpiresAt
+    }, 'User signup initiated, verification email triggered');
+
+    res.json({
+      success: true,
+      message: 'Signup successful. Please check your email for verification instructions.'
+    });
+
+  } catch (error) {
+    logger.error({ error }, 'Signup failed');
+    res.status(500).json({
+      error: 'Signup failed. Please try again.'
+    });
+  }
+});
 
 /**
  * Login endpoint - Creates a session cookie from a Keycloak access token.
@@ -125,6 +224,80 @@ router.delete('/logout-all', async (req, res) => {
     res.setHeader('Set-Cookie', destroyCookie);
     res.status(500).json({
       error: 'Failed to logout from all devices, but current session has been cleared.'
+    });
+  }
+});
+
+/**
+ * Email verification endpoint - Verifies signup token and marks user as ready for Keycloak signin
+ * POST /auth/verify-email
+ * Body: { token: string }
+ */
+router.post('/verify-email', async (req, res) => {
+  try {
+    const { token } = req.body;
+
+    if (!token) {
+      return res.status(400).json({
+        error: 'Verification token is required'
+      });
+    }
+
+    // Find pending user by token
+    const pendingUserResult = await pool.query(
+      'SELECT id, email, first_name, last_name, token_expires_at FROM pending_users WHERE verification_token = $1',
+      [token]
+    );
+
+    if (pendingUserResult.rows.length === 0) {
+      return res.status(400).json({
+        error: 'Invalid or expired verification token'
+      });
+    }
+
+    const pendingUser = pendingUserResult.rows[0];
+
+    // Check if token has expired
+    if (new Date() > new Date(pendingUser.token_expires_at)) {
+      // Clean up expired token
+      await pool.query('DELETE FROM pending_users WHERE id = $1', [pendingUser.id]);
+      return res.status(400).json({
+        error: 'Verification token has expired. Please sign up again.'
+      });
+    }
+
+    // Check if user already exists (someone might have been created in the meantime)
+    const existingUserResult = await pool.query(
+      'SELECT user_id FROM user_profiles WHERE email = $1',
+      [pendingUser.email]
+    );
+
+    if (existingUserResult.rows.length > 0) {
+      // Clean up pending user since they already exist
+      await pool.query('DELETE FROM pending_users WHERE id = $1', [pendingUser.id]);
+      return res.status(400).json({
+        error: 'An account with this email already exists. Please sign in instead.'
+      });
+    }
+
+    // Remove the pending user record (verification complete)
+    await pool.query('DELETE FROM pending_users WHERE id = $1', [pendingUser.id]);
+
+    logger.info({
+      email: pendingUser.email,
+      pendingUserId: pendingUser.id
+    }, 'Email verification successful, user ready for Keycloak signin');
+
+    res.json({
+      success: true,
+      message: 'Email verified successfully. You can now sign in.',
+      email: pendingUser.email
+    });
+
+  } catch (error) {
+    logger.error({ error }, 'Email verification failed');
+    res.status(500).json({
+      error: 'Email verification failed. Please try again.'
     });
   }
 });

@@ -1,12 +1,60 @@
 import { Navigate } from 'react-router-dom';
+import { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { Button } from '../components/ui/button';
 import { Card } from '../components/ui/card';
-import { MessageSquare, LogIn, Loader2, Sparkles } from 'lucide-react';
+import { Input } from '../components/ui/input';
+import { MessageSquare, Loader2, Sparkles, UserPlus } from 'lucide-react';
 import { cn } from '../lib/utils';
+
+const API_BASE_URL = import.meta.env.VITE_API_URL || '';
 
 export function LoginPage() {
   const { authenticated, login, loading } = useAuth();
+  const [signupForm, setSignupForm] = useState({
+    firstName: '',
+    lastName: '',
+    email: '',
+    company: '',
+    password: ''
+  });
+  const [signupLoading, setSignupLoading] = useState(false);
+  const [signupMessage, setSignupMessage] = useState<string | null>(null);
+  const [signupError, setSignupError] = useState<string | null>(null);
+
+  const handleSignup = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSignupLoading(true);
+    setSignupError(null);
+    setSignupMessage(null);
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/auth/signup`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(signupForm),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Signup failed');
+      }
+
+      setSignupMessage(data.message);
+      setSignupForm({
+        firstName: '',
+        lastName: '',
+        email: '',
+        company: '',
+        password: ''
+      });
+    } catch (error) {
+      setSignupError(error instanceof Error ? error.message : 'Signup failed');
+    } finally {
+      setSignupLoading(false);
+    }
+  };
 
   // Redirect if already logged in
   if (authenticated && !loading) {
@@ -34,7 +82,7 @@ export function LoginPage() {
       </div>
 
       <div className="relative w-full max-w-md">
-        <Card className="border-0 shadow-2xl backdrop-blur-sm bg-card/95 p-8 space-y-8">
+        <Card className="border-0 shadow-2xl backdrop-blur-sm bg-card/95 p-8 space-y-6">
           {/* Header */}
           <div className="text-center space-y-4">
             <div className="flex justify-center">
@@ -53,34 +101,113 @@ export function LoginPage() {
               <div className="flex items-center justify-center gap-1">
                 <Sparkles className="h-4 w-4 text-primary" />
                 <p className="text-muted-foreground text-sm">
-                  Welcome to the future of chat
+                  Join the future of chat
                 </p>
               </div>
             </div>
           </div>
 
-          {/* Login Button */}
-          <Button
-            onClick={login}
-            className={cn(
-              "w-full h-12 text-base font-medium transition-all duration-200",
-              "bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary",
-              "shadow-lg shadow-primary/25 hover:shadow-xl hover:shadow-primary/30"
+          {/* Signup Form */}
+          <div className="space-y-4">
+            {signupMessage && (
+              <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
+                <p className="text-sm text-green-800">{signupMessage}</p>
+              </div>
             )}
-          >
-            <div className="flex items-center gap-2">
-              <LogIn className="h-5 w-5" />
-              <span>Sign In with Keycloak</span>
-            </div>
-          </Button>
-        </Card>
 
-        {/* Footer */}
-        <div className="text-center mt-8">
-          <p className="text-xs text-muted-foreground">
-            You will be redirected to the official login page.
-          </p>
-        </div>
+            {signupError && (
+              <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
+                <p className="text-sm text-red-800">{signupError}</p>
+              </div>
+            )}
+
+            <form onSubmit={handleSignup} className="space-y-4">
+              <div className="grid grid-cols-2 gap-3">
+                <Input
+                  type="text"
+                  placeholder="First Name"
+                  value={signupForm.firstName}
+                  onChange={(e) => setSignupForm(prev => ({ ...prev, firstName: e.target.value }))}
+                  required
+                  disabled={signupLoading}
+                  className="h-11"
+                />
+                <Input
+                  type="text"
+                  placeholder="Last Name"
+                  value={signupForm.lastName}
+                  onChange={(e) => setSignupForm(prev => ({ ...prev, lastName: e.target.value }))}
+                  required
+                  disabled={signupLoading}
+                  className="h-11"
+                />
+              </div>
+              <Input
+                type="email"
+                placeholder="Email Address"
+                value={signupForm.email}
+                onChange={(e) => setSignupForm(prev => ({ ...prev, email: e.target.value }))}
+                required
+                disabled={signupLoading}
+                className="h-11"
+              />
+              <Input
+                type="text"
+                placeholder="Company"
+                value={signupForm.company}
+                onChange={(e) => setSignupForm(prev => ({ ...prev, company: e.target.value }))}
+                required
+                disabled={signupLoading}
+                className="h-11"
+              />
+              <Input
+                type="password"
+                placeholder="Password"
+                value={signupForm.password}
+                onChange={(e) => setSignupForm(prev => ({ ...prev, password: e.target.value }))}
+                required
+                disabled={signupLoading}
+                className="h-11"
+              />
+              <Button
+                type="submit"
+                disabled={signupLoading}
+                className={cn(
+                  "w-full h-12 text-base font-medium transition-all duration-200",
+                  "bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary",
+                  "shadow-lg shadow-primary/25 hover:shadow-xl hover:shadow-primary/30"
+                )}
+              >
+                {signupLoading ? (
+                  <div className="flex items-center gap-2">
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                    <span>Creating Account...</span>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <UserPlus className="h-5 w-5" />
+                    <span>Create Account</span>
+                  </div>
+                )}
+              </Button>
+            </form>
+
+            <div className="text-center space-y-2">
+              <p className="text-xs text-muted-foreground">
+                Your account will be created and you can sign in immediately.
+              </p>
+              <p className="text-sm text-muted-foreground">
+                Already have an account?{' '}
+                <button
+                  onClick={login}
+                  className="text-primary hover:underline font-medium"
+                >
+                  Sign in
+                </button>
+              </p>
+            </div>
+          </div>
+        </Card>
       </div>
     </div>
   );

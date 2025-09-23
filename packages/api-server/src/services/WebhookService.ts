@@ -15,7 +15,7 @@ export class WebhookService {
   constructor(config?: Partial<WebhookConfig>) {
     this.config = {
       url: config?.url || process.env.AUTOMATION_WEBHOOK_URL ||
-        'https://actions-api-staging.resolve.io/api/Webhooks/postEvent/00F4F67D-3B92-4FD2-A574-7BE22C6BE796',
+        'http://localhost:3001/webhook',
       authHeader: config?.authHeader || process.env.AUTOMATION_AUTH ||
         'Basic RTE0NzMwRkEtRDFCNS00MDM3LUFDRTMtQ0Y5N0ZCQzY3NkMyOlZaSkQqSSYyWEAkXkQ5Sjk4Rk5PJShGUVpaQ0dRNkEj',
       timeout: config?.timeout || 10000,

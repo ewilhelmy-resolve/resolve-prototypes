@@ -1,6 +1,7 @@
 import { createBrowserRouter, RouterProvider } from 'react-router-dom';
 import { RootLayout } from './components/layouts/RootLayout';
 import { LoginPage } from './pages/LoginPage';
+import { VerifyEmailPage } from './pages/VerifyEmailPage';
 import { ChatPage } from './pages/ChatPage';
 import { FilesPage } from './pages/FilesPage';
 import FigmaTestPage from './pages/FigmaTestPage';
@@ -15,6 +16,10 @@ const router = createBrowserRouter([
       {
         path: '/login',
         element: <LoginPage />
+      },
+      {
+        path: '/verify-email',
+        element: <VerifyEmailPage />
       },
       {
         path: '/chat',
