@@ -4,6 +4,7 @@ import { LoginPage } from './pages/LoginPage';
 import { VerifyEmailPage } from './pages/VerifyEmailPage';
 import { ChatPage } from './pages/ChatPage';
 import { FilesPage } from './pages/FilesPage';
+import { NotFoundPage } from './pages/NotFoundPage';
 import FigmaTestPage from './pages/FigmaTestPage';
 import FigmaLoginPage from './test/login/FigmaLoginPage';
 import { ProtectedRoute } from './components/auth/ProtectedRoute';
@@ -60,6 +61,10 @@ const router = createBrowserRouter([
             <ChatPage />
           </ProtectedRoute>
         )
+      },
+      {
+        path: '*',
+        element: <NotFoundPage />
       }
     ]
   }
