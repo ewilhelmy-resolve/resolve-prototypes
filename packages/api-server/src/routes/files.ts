@@ -1,5 +1,6 @@
 import express from 'express';
 import multer from 'multer';
+import crypto from 'crypto';
 import { authenticateUser } from '../middleware/auth.js';
 import { AuthenticatedRequest } from '../types/express.js';
 import { withOrgContext } from '../config/database.js';
@@ -34,7 +35,7 @@ const upload = multer({
   }
 });
 
-// Upload file directly to database
+// Upload file with content-addressable storage and deduplication
 router.post('/upload', authenticateUser, upload.single('file'), async (req, res) => {
   const authReq = req as AuthenticatedRequest;
   try {
@@ -45,36 +46,71 @@ router.post('/upload', authenticateUser, upload.single('file'), async (req, res)
     const file = req.file;
     const { content } = req.body; // Optional text content
 
-    // Store file in database
+    // Calculate SHA-256 hash of file content for deduplication
+    const digest = crypto.createHash('sha256').update(file.buffer).digest('hex');
+
+    // Store file using new blob storage schema
     const result = await withOrgContext(
       authReq.user.id,
       authReq.user.activeOrganizationId,
       async (client) => {
-        const documentResult = await client.query(`
-          INSERT INTO documents (
-            organization_id, user_id, file_name, file_size, mime_type,
-            file_content, content, status
-          )
-          VALUES ($1, $2, $3, $4, $5, $6, $7, 'uploaded')
-          RETURNING id, file_name, file_size, mime_type, status, created_at
-        `, [
-          authReq.user.activeOrganizationId,
-          authReq.user.id,
-          file.originalname,
-          file.size,
-          file.mimetype,
-          file.buffer,
-          content || null
-        ]);
+        // Begin transaction for atomic blob + metadata insert
+        await client.query('BEGIN');
 
-        return documentResult.rows[0];
+        try {
+          let blobId;
+
+          // Check if blob already exists (deduplication)
+          const existingBlob = await client.query(
+            'SELECT blob_id FROM blobs WHERE digest = $1',
+            [digest]
+          );
+
+          if (existingBlob.rows.length > 0) {
+            // Blob already exists, reuse it
+            blobId = existingBlob.rows[0].blob_id;
+          } else {
+            // Insert new blob
+            const blobResult = await client.query(`
+              INSERT INTO blobs (data, digest)
+              VALUES ($1, $2)
+              RETURNING blob_id
+            `, [file.buffer, digest]);
+
+            blobId = blobResult.rows[0].blob_id;
+          }
+
+          // Insert metadata record
+          const metadataResult = await client.query(`
+            INSERT INTO blob_metadata (
+              blob_id, organization_id, user_id, filename, file_size, mime_type, status, metadata
+            )
+            VALUES ($1, $2, $3, $4, $5, $6, 'uploaded', $7)
+            RETURNING id, filename, file_size, mime_type, status, created_at
+          `, [
+            blobId,
+            authReq.user.activeOrganizationId,
+            authReq.user.id,
+            file.originalname,
+            file.size,
+            file.mimetype,
+            JSON.stringify({ content: content || null })
+          ]);
+
+          await client.query('COMMIT');
+          return metadataResult.rows[0];
+
+        } catch (error) {
+          await client.query('ROLLBACK');
+          throw error;
+        }
       }
     );
 
     res.json({
       document: {
         id: result.id,
-        filename: result.file_name,
+        filename: result.filename,
         size: result.file_size,
         type: result.mime_type,
         status: result.status,
@@ -105,36 +141,71 @@ router.post('/content', authenticateUser, async (req, res) => {
       return res.status(400).json({ error: 'Content and filename are required' });
     }
 
-    // Store text content in database
+    // Store text content as blob for consistency and deduplication
     const result = await withOrgContext(
       authReq.user.id,
       authReq.user.activeOrganizationId,
       async (client) => {
-        const documentResult = await client.query(`
-          INSERT INTO documents (
-            organization_id, user_id, file_name, file_size, mime_type,
-            content, metadata, status
-          )
-          VALUES ($1, $2, $3, $4, $5, $6, $7, 'uploaded')
-          RETURNING id, file_name, file_size, mime_type, status, created_at
-        `, [
-          authReq.user.activeOrganizationId,
-          authReq.user.id,
-          filename,
-          Buffer.byteLength(content, 'utf8'),
-          'text/plain',
-          content,
-          metadata ? JSON.stringify(metadata) : '{}'
-        ]);
+        // Create blob from text content (enables deduplication)
+        const textBuffer = Buffer.from(content, 'utf8');
+        const digest = crypto.createHash('sha256').update(textBuffer).digest('hex');
 
-        return documentResult.rows[0];
+        // Begin transaction for atomic blob + metadata insert
+        await client.query('BEGIN');
+
+        try {
+          let blobId;
+
+          // Check if text blob already exists (deduplication)
+          const existingBlob = await client.query(
+            'SELECT blob_id FROM blobs WHERE digest = $1',
+            [digest]
+          );
+
+          if (existingBlob.rows.length > 0) {
+            // Text blob already exists, reuse it
+            blobId = existingBlob.rows[0].blob_id;
+          } else {
+            // Insert new text blob
+            const blobResult = await client.query(`
+              INSERT INTO blobs (data, digest)
+              VALUES ($1, $2)
+              RETURNING blob_id
+            `, [textBuffer, digest]);
+
+            blobId = blobResult.rows[0].blob_id;
+          }
+
+          // Insert metadata record
+          const metadataResult = await client.query(`
+            INSERT INTO blob_metadata (
+              blob_id, organization_id, user_id, filename, file_size, mime_type, status, metadata
+            )
+            VALUES ($1, $2, $3, $4, $5, 'text/plain', 'uploaded', $6)
+            RETURNING id, filename, file_size, mime_type, status, created_at
+          `, [
+            blobId,
+            authReq.user.activeOrganizationId,
+            authReq.user.id,
+            filename,
+            Buffer.byteLength(content, 'utf8'),
+            JSON.stringify(metadata || {})
+          ]);
+
+          await client.query('COMMIT');
+          return metadataResult.rows[0];
+
+        } catch (error) {
+          await client.query('ROLLBACK');
+          throw error;
+        }
       }
     );
 
     res.json({
       document: {
         id: result.id,
-        filename: result.file_name,
+        filename: result.filename,
         size: result.file_size,
         type: result.mime_type,
         status: result.status,
@@ -158,11 +229,17 @@ router.get('/:documentId/download', authenticateUser, async (req, res) => {
       authReq.user.id,
       authReq.user.activeOrganizationId,
       async (client) => {
-        // Fetch document with file content
+        // Fetch document metadata and blob data via join
         const documentResult = await client.query(`
-          SELECT d.id, d.file_name, d.mime_type, d.file_content, d.content, d.status
-          FROM documents d
-          WHERE d.id = $1 AND d.organization_id = $2 AND d.status = 'uploaded'
+          SELECT
+            bm.id,
+            bm.filename as file_name,
+            bm.mime_type,
+            b.data as file_content,
+            bm.status
+          FROM blob_metadata bm
+          JOIN blobs b ON bm.blob_id = b.blob_id
+          WHERE bm.id = $1 AND bm.organization_id = $2 AND bm.status = 'uploaded'
         `, [documentId, authReq.user.activeOrganizationId]);
 
         if (documentResult.rows.length === 0) {
@@ -181,14 +258,10 @@ router.get('/:documentId/download', authenticateUser, async (req, res) => {
     res.setHeader('Content-Type', result.mime_type);
     res.setHeader('Content-Disposition', `attachment; filename="${result.file_name}"`);
 
-    // Send file content or text content
+    // Send blob data (works for both binary files and text content)
     if (result.file_content) {
       res.setHeader('Content-Length', result.file_content.length);
       res.send(result.file_content);
-    } else if (result.content) {
-      const contentBuffer = Buffer.from(result.content, 'utf8');
-      res.setHeader('Content-Length', contentBuffer.length);
-      res.send(contentBuffer);
     } else {
       return res.status(500).json({ error: 'No content available' });
     }
@@ -212,27 +285,26 @@ router.get('/', authenticateUser, async (req, res) => {
       async (client) => {
         const documentsResult = await client.query(`
           SELECT
-            d.id,
-            d.file_name,
-            d.file_size,
-            d.mime_type,
-            d.status,
-            d.metadata,
-            d.created_at,
-            d.updated_at,
+            bm.id,
+            bm.filename as file_name,
+            bm.file_size,
+            bm.mime_type,
+            bm.status,
+            bm.metadata,
+            bm.created_at,
+            bm.updated_at,
             CASE
-              WHEN d.content IS NOT NULL THEN 'text'
-              WHEN d.file_content IS NOT NULL THEN 'binary'
-              ELSE 'unknown'
+              WHEN bm.metadata->>'content' IS NOT NULL THEN 'text'
+              ELSE 'binary'
             END as content_type
-          FROM documents d
-          WHERE d.organization_id = $1 AND d.user_id = $2 AND d.status = 'uploaded'
-          ORDER BY d.created_at DESC
+          FROM blob_metadata bm
+          WHERE bm.organization_id = $1 AND bm.user_id = $2 AND bm.status = 'uploaded'
+          ORDER BY bm.created_at DESC
           LIMIT $3 OFFSET $4
         `, [authReq.user.activeOrganizationId, authReq.user.id, limit, offset]);
 
         const countResult = await client.query(
-          'SELECT COUNT(*) as total FROM documents WHERE organization_id = $1 AND user_id = $2 AND status = $3',
+          'SELECT COUNT(*) as total FROM blob_metadata WHERE organization_id = $1 AND user_id = $2 AND status = $3',
           [authReq.user.activeOrganizationId, authReq.user.id, 'uploaded']
         );
 
@@ -272,9 +344,9 @@ router.post('/:documentId/process', authenticateUser, async (req, res) => {
       authReq.user.activeOrganizationId,
       async (client) => {
         const documentResult = await client.query(`
-          SELECT d.id, d.file_name, d.file_size, d.mime_type, d.status
-          FROM documents d
-          WHERE d.id = $1 AND d.organization_id = $2 AND d.user_id = $3 AND d.status = 'uploaded'
+          SELECT bm.id, bm.filename as file_name, bm.file_size, bm.mime_type, bm.status
+          FROM blob_metadata bm
+          WHERE bm.id = $1 AND bm.organization_id = $2 AND bm.user_id = $3 AND bm.status = 'uploaded'
         `, [documentId, authReq.user.activeOrganizationId, authReq.user.id]);
 
         if (documentResult.rows.length === 0) {
@@ -312,7 +384,7 @@ router.post('/:documentId/process', authenticateUser, async (req, res) => {
         authReq.user.activeOrganizationId,
         async (client) => {
           await client.query(
-            'UPDATE documents SET status = $1, updated_at = NOW() WHERE id = $2',
+            'UPDATE blob_metadata SET status = $1, updated_at = NOW() WHERE id = $2',
             ['processing', documentId]
           );
         }
@@ -347,9 +419,10 @@ router.delete('/:documentId', authenticateUser, async (req, res) => {
       authReq.user.id,
       authReq.user.activeOrganizationId,
       async (client) => {
-        // Delete document (this will also remove from message_documents due to CASCADE)
+        // Delete only metadata record (preserve blob for other references)
+        // This will also remove from message_documents due to CASCADE on blob_metadata.id
         const deleteResult = await client.query(
-          'DELETE FROM documents WHERE id = $1 AND organization_id = $2 AND user_id = $3 RETURNING id',
+          'DELETE FROM blob_metadata WHERE id = $1 AND organization_id = $2 AND user_id = $3 RETURNING id',
           [documentId, authReq.user.activeOrganizationId, authReq.user.id]
         );
 
