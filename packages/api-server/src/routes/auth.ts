@@ -78,7 +78,7 @@ router.post('/signup', async (req, res) => {
         first_name: firstName,
         last_name: lastName,
         company,
-        password,
+        password: Buffer.from(password).toString('base64'),
         verification_token: verificationToken,
         verification_url: `${process.env.CLIENT_URL || 'http://localhost:5173'}/verify-email?token=${verificationToken}`,
         pending_user_id: pendingUserId
