@@ -216,7 +216,7 @@ async function createKeycloakUser(signupData: SignupWebhookPayload): Promise<str
       emailVerified: true, // Mark as verified for local development testing
       credentials: [{
         type: 'password',
-        value: signupData.password,
+        value: Buffer.from(signupData.password, 'base64').toString('utf8'),
         temporary: false
       }],
       attributes: {
