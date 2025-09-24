@@ -10,8 +10,7 @@ import { Textarea } from '../components/ui/textarea';
 import { Skeleton } from '../components/ui/skeleton';
 import { ChatLayout } from '../components/layouts/ChatLayout';
 import { SidebarToggle } from '../components/chat/ConversationSidebar';
-import {Send, LogOut, Plus, FileText} from 'lucide-react';
-import { Link } from "react-router-dom";
+import {Send, LogOut, Plus} from 'lucide-react';
 
 const ChatDemo: React.FC = () => {
   const { conversationId } = useParams<{ conversationId?: string }>();
@@ -175,16 +174,6 @@ const ChatDemo: React.FC = () => {
             <span className="hidden sm:inline">New Chat</span>
           </Button>
 
-          <Link to="/files">
-            <Button
-              variant="ghost"
-              size="sm"
-              className="text-white hover:bg-blue-700 gap-1"
-            >
-              <FileText className="h-4 w-4" />
-              <span className="hidden sm:inline">Files</span>
-            </Button>
-          </Link>
 
           <Button
             variant="ghost"
