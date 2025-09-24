@@ -107,6 +107,31 @@ router.post('/upload', authenticateUser, upload.single('file'), async (req, res)
       }
     );
 
+    // Generate document URL for webhook
+    const baseUrl = process.env.APP_URL || `${req.protocol}://${req.get('host')}`;
+    const documentUrl = `${baseUrl}/api/files/${result.id}/download`;
+
+    // Send document upload webhook
+    try {
+      const webhookResponse = await webhookService.sendDocumentEvent({
+        organizationId: authReq.user.activeOrganizationId,
+        userId: authReq.user.id,
+        userEmail: authReq.user.email,
+        documentId: result.id.toString(),
+        documentUrl: documentUrl,
+        fileType: result.mime_type,
+        fileSize: result.file_size,
+        originalFilename: result.filename
+      });
+
+      if (!webhookResponse.success) {
+        console.error('Webhook failed for uploaded document:', webhookResponse.error);
+      }
+    } catch (webhookError) {
+      console.error('Error sending upload webhook:', webhookError);
+      // Continue with the upload response even if webhook fails
+    }
+
     res.json({
       document: {
         id: result.id,
