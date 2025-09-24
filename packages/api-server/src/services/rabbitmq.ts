@@ -85,9 +85,40 @@ export class RabbitMQService {
       message_id,
       conversation_id,
       tenant_id: organization_id, // Remap tenant_id from external service to organization_id
-      user_id,
+      user_id: payload_user_id,
       response
     } = payload;
+
+    // Validate minimum required fields
+    if (!message_id || !organization_id || !conversation_id) {
+      const messageLogger = queueLogger.child({
+        messageId: message_id,
+        conversationId: conversation_id,
+        organizationId: organization_id
+      });
+      messageLogger.error({ payload }, 'Invalid message payload: missing required fields (message_id, tenant_id, conversation_id)');
+      throw new Error('Invalid message payload: missing required fields');
+    }
+
+    // If user_id is missing, fetch it from the conversation
+    let user_id = payload_user_id;
+    if (!user_id) {
+      const client = await pool.connect();
+      try {
+        const conversationResult = await client.query(
+          'SELECT user_id FROM conversations WHERE id = $1 AND organization_id = $2',
+          [conversation_id, organization_id]
+        );
+
+        if (conversationResult.rows.length === 0) {
+          throw new Error(`Conversation ${conversation_id} not found or doesn't belong to organization ${organization_id}`);
+        }
+
+        user_id = conversationResult.rows[0].user_id;
+      } finally {
+        client.release();
+      }
+    }
 
     const messageLogger = queueLogger.child({
       messageId: message_id,
@@ -96,12 +127,7 @@ export class RabbitMQService {
       userId: user_id
     });
 
-    if (!message_id || !organization_id || !user_id || !conversation_id) {
-      messageLogger.error({ payload }, 'Invalid message payload: missing required fields (message_id, tenant_id, user_id, conversation_id)');
-      throw new Error('Invalid message payload: missing required fields');
-    }
-
-    messageLogger.info('Processing message');
+    messageLogger.info({ userIdSource: payload_user_id ? 'payload' : 'conversation' }, 'Processing message');
     const sseService = getSSEService();
 
     // Process message with organization context
