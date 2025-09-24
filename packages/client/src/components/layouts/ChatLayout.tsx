@@ -1,6 +1,7 @@
 import React from 'react';
+import { useLocation, Link } from 'react-router-dom';
 import { ConversationSidebar } from '../chat/ConversationSidebar';
-import { cn } from '../../lib/utils';
+import { cn } from '@/lib/utils.ts';
 import { Button } from '../ui/button';
 import { Plus } from 'lucide-react';
 
@@ -27,8 +28,10 @@ function KnowledgePanel() {
 
       <div className="flex-1 p-4">
         <div className="mb-6">
-          <h3 className="font-semibold text-gray-900 mb-1">Knowledge base</h3>
-          <p className="text-sm text-gray-600">23 Articles</p>
+          <Link to="/files" className="block hover:bg-gray-50 rounded p-2 -mx-2 transition-colors">
+            <h3 className="font-semibold text-gray-900 mb-1">Knowledge base</h3>
+            <p className="text-sm text-gray-600">23 Articles</p>
+          </Link>
         </div>
 
         <div className="space-y-3">
@@ -39,7 +42,7 @@ function KnowledgePanel() {
             { title: "Two-factor authentication setup", time: "1 hour ago" },
             { title: "Phishing awareness guide", time: "1 hour ago" },
           ].map((article, index) => (
-            <div key={index} className="flex items-start gap-3 p-2 rounded-lg border border-gray-200 hover:bg-gray-50 cursor-pointer">
+            <Link key={index} to="/files" className="flex items-start gap-3 p-2 rounded-lg border border-gray-200 hover:bg-gray-50 cursor-pointer transition-colors">
               <svg className="w-4 h-4 text-gray-400 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
               </svg>
@@ -47,29 +50,35 @@ function KnowledgePanel() {
                 <p className="text-sm font-medium text-gray-900 truncate">{article.title}</p>
                 <p className="text-xs text-blue-600 mt-1">{article.time}</p>
               </div>
-            </div>
+            </Link>
           ))}
         </div>
       </div>
 
       <div className="p-4 border-t border-gray-200 space-y-2">
-        <Button variant="outline" size="sm" className="w-full bg-transparent border-blue-300 text-blue-700 hover:bg-blue-50">
-          <Plus className="w-4 h-4 mr-2" />
-          Add more
-        </Button>
-        <Button variant="outline" size="sm" className="w-full bg-transparent border-blue-300 text-blue-700 hover:bg-blue-50">
-          <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-          </svg>
-          Manage
-        </Button>
+        <Link to="/files">
+          <Button variant="outline" size="sm" className="w-full bg-transparent border-blue-300 text-blue-700 hover:bg-blue-50">
+            <Plus className="w-4 h-4 mr-2" />
+            Add more
+          </Button>
+        </Link>
+        <Link to="/files">
+          <Button variant="outline" size="sm" className="w-full bg-transparent border-blue-300 text-blue-700 hover:bg-blue-50">
+            <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+            Manage
+          </Button>
+        </Link>
       </div>
     </div>
   );
 }
 
 export function ChatLayout({ children }: ChatLayoutProps) {
+  const location = useLocation();
+  const isFilesPage = location.pathname === '/files';
 
   // Split children into header and content
   const childrenArray = React.Children.toArray(children);
@@ -96,8 +105,8 @@ export function ChatLayout({ children }: ChatLayoutProps) {
           {mainContent}
         </div>
 
-        {/* Right Sidebar - Knowledge Panel */}
-        <KnowledgePanel />
+        {/* Right Sidebar - Knowledge Panel - Hidden on Files page */}
+        {!isFilesPage && <KnowledgePanel />}
       </div>
     </div>
   );

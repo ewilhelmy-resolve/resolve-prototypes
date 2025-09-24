@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { conversationApi } from '../../services/api'
-import { useConversationStore } from '../../stores/conversationStore'
-import type { Conversation, Message } from '../../stores/conversationStore'
+import { conversationApi } from '@/services/api.ts'
+import { useConversationStore } from '@/stores/conversationStore.ts'
+import type { Conversation, Message } from '@/stores/conversationStore.ts'
 
 // Query keys
 export const conversationKeys = {
@@ -65,7 +65,8 @@ export function useConversationMessages(conversationId: string | null) {
       return messages
     },
     enabled: !!conversationId,
-    staleTime: 1000 * 30, // 30 seconds
+    staleTime: 0, // we always want to fetch the latest messages
+    refetchOnMount: true,
   })
 }
 

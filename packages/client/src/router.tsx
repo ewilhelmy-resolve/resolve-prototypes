@@ -30,6 +30,14 @@ const router = createBrowserRouter([
         )
       },
       {
+        path: '/chat/:conversationId',
+        element: (
+          <ProtectedRoute>
+            <ChatPage />
+          </ProtectedRoute>
+        )
+      },
+      {
         path: '/files',
         element: (
           <ProtectedRoute>

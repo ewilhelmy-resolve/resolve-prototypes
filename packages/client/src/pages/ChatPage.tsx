@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 import { SSEProvider, useSSEContext } from '../contexts/SSEContext';
 import { useAuth } from '../contexts/AuthContext';
 import { useConversationStore } from '../stores/conversationStore';
@@ -13,6 +14,8 @@ import {Send, LogOut, Plus, FileText} from 'lucide-react';
 import { Link } from "react-router-dom";
 
 const ChatDemo: React.FC = () => {
+  const { conversationId } = useParams<{ conversationId?: string }>();
+  const navigate = useNavigate();
   const { latestUpdate } = useSSEContext();
   const { logout } = useAuth();
   const { toggleSidebar } = useUIStore();
@@ -26,6 +29,7 @@ const ChatDemo: React.FC = () => {
     isSending,
     updateMessage,
     clearCurrentConversation,
+    setCurrentConversation,
   } = useConversationStore();
 
   // Queries and mutations
@@ -33,6 +37,15 @@ const ChatDemo: React.FC = () => {
   const { isLoading: messagesLoading } = useConversationMessages(currentConversationId);
   const createConversationMutation = useCreateConversation();
   const sendMessageMutation = useSendMessage();
+
+  // Sync URL parameter with conversation store
+  useEffect(() => {
+    if (conversationId && conversationId !== currentConversationId) {
+      setCurrentConversation(conversationId);
+    } else if (!conversationId && currentConversationId) {
+      setCurrentConversation(null);
+    }
+  }, [conversationId, currentConversationId, setCurrentConversation]);
 
   // Handle SSE message updates
   useEffect(() => {
@@ -45,13 +58,18 @@ const ChatDemo: React.FC = () => {
     }
   }, [latestUpdate, updateMessage]);
 
+  const handleNewChat = () => {
+    clearCurrentConversation();
+    navigate('/chat');
+  };
+
   // Handle keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       // Ctrl+K or Cmd+K for new chat
       if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
         e.preventDefault();
-        clearCurrentConversation();
+        handleNewChat();
       }
       // Ctrl+B or Cmd+B for toggle sidebar
       if ((e.ctrlKey || e.metaKey) && e.key === 'b') {
@@ -62,7 +80,7 @@ const ChatDemo: React.FC = () => {
 
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [clearCurrentConversation, toggleSidebar]);
+  }, [handleNewChat, toggleSidebar]);
 
   // Auto-scroll to bottom when messages change
   useEffect(() => {
@@ -86,6 +104,8 @@ const ChatDemo: React.FC = () => {
           title: messageContent.substring(0, 50) + (messageContent.length > 50 ? '...' : '')
         });
         conversationId = conversation.id;
+        // Navigate to the new conversation URL
+        navigate(`/chat/${conversationId}`);
       }
 
       // Send message
@@ -148,7 +168,7 @@ const ChatDemo: React.FC = () => {
           <Button
             variant="ghost"
             size="sm"
-            onClick={clearCurrentConversation}
+            onClick={handleNewChat}
             className="text-white hover:bg-blue-700 gap-1"
           >
             <Plus className="h-4 w-4" />
@@ -183,7 +203,7 @@ const ChatDemo: React.FC = () => {
 
         {/* Messages Area */}
         <div className="flex-1 overflow-y-auto p-4">
-          {messagesLoading ? (
+          {messagesLoading || (currentConversationId && messages.length === 0) ? (
             <div className="max-w-4xl mx-auto space-y-4">
               {[...Array(3)].map((_, i) => (
                 <div key={i} className="flex items-start gap-3">
@@ -198,7 +218,7 @@ const ChatDemo: React.FC = () => {
                 </div>
               ))}
             </div>
-          ) : messages.length === 0 ? (
+          ) : !currentConversationId || messages.length === 0 ? (
             <div className="h-full flex items-center justify-center">
               <div className="text-center max-w-md">
                 <h1 className="text-3xl font-semibold text-gray-900 mb-2">Ask Rita</h1>

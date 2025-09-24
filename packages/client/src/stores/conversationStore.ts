@@ -53,7 +53,7 @@ export const useConversationStore = create<ConversationState>()(
 
       // Actions
       setCurrentConversation: (conversationId) =>
-        set({ currentConversationId: conversationId }),
+        set({ currentConversationId: conversationId, messages: [] }),
 
       setConversations: (conversations) =>
         set({ conversations }),
