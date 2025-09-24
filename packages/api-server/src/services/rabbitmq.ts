@@ -1,5 +1,5 @@
 import amqp from 'amqplib';
-import { withOrgContext } from '../config/database.js';
+import { withOrgContext, pool } from '../config/database.js';
 import { getSSEService } from './sse.js';
 import { queueLogger, logError, PerformanceTimer } from '../config/logger.js';
 
@@ -70,6 +70,9 @@ export class RabbitMQService {
       } catch (error) {
         timer.end({ success: false });
         logError(queueLogger, error as Error, { operation: 'message-processing' });
+
+        // Store the failure in the database
+        await this.storeMessageFailure(message, error as Error);
 
         // Reject message and don't requeue to avoid infinite loops
         this.channel?.nack(message, false, false);
@@ -181,6 +184,56 @@ export class RabbitMQService {
     });
 
     messageLogger.info({ finalStatus: 'completed' }, 'Message processing completed successfully');
+  }
+
+  private async storeMessageFailure(message: any, error: Error): Promise<void> {
+    try {
+      const content = JSON.parse(message.content.toString());
+      const {
+        message_id,
+        tenant_id: organization_id,
+        user_id,
+        conversation_id
+      } = content;
+
+      // Generate a unique message ID if not present
+      const messageId = message_id || `failed_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      const tenantId = organization_id || null;
+
+      const client = await pool.connect();
+      try {
+        await client.query(`
+          INSERT INTO message_processing_failures (
+            tenant_id, message_id, queue_name, message_payload,
+            error_message, error_type, processing_status, original_received_at
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+        `, [
+          tenantId,
+          messageId,
+          this.queueName,
+          JSON.stringify(content),
+          error.message,
+          error.name || 'UnknownError',
+          'failed',
+          new Date()
+        ]);
+
+        queueLogger.info({
+          messageId,
+          tenantId,
+          errorType: error.name || 'UnknownError',
+          queueName: this.queueName
+        }, 'Message failure stored in database');
+
+      } finally {
+        client.release();
+      }
+    } catch (storeError) {
+      queueLogger.error({
+        error: storeError instanceof Error ? storeError.message : String(storeError),
+        originalError: error.message
+      }, 'Failed to store message failure in database');
+    }
   }
 
   async close(): Promise<void> {
