@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { useFiles, useUploadFile, useDownloadFile, FileDocument } from '../hooks/api/useFiles';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from '../hooks/useAuth';
 import { useConversationStore } from '../stores/conversationStore';
 import { Button } from '../components/ui/button';
 import { Card, CardContent } from '../components/ui/card';

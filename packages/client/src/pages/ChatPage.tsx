@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { SSEProvider, useSSEContext } from '../contexts/SSEContext';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from '../hooks/useAuth';
 import { useConversationStore } from '../stores/conversationStore';
 import { useUIStore } from '../stores/uiStore';
 import { useConversations, useConversationMessages, useCreateConversation, useSendMessage } from '../hooks/api/useConversations';

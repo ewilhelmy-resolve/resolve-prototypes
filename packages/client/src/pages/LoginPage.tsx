@@ -1,6 +1,6 @@
 import { Navigate, useLocation } from 'react-router-dom';
 import { useState } from 'react';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from '../hooks/useAuth';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Loader2 } from 'lucide-react';
@@ -192,7 +192,7 @@ export function LoginPage() {
                 <p className="text-sm text-muted-foreground">
                   Already have an account?{' '}
                   <button
-                    onClick={login}
+                    onClick={() => login()}
                     className="text-blue-400 hover:underline font-medium"
                   >
                     Sign in
