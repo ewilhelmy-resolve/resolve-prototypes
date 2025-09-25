@@ -1,0 +1,49 @@
+/**
+ * useChatNavigation - Handle chat navigation and routing logic
+ *
+ * Separates navigation concerns from UI components, providing clean
+ * navigation actions and URL synchronization for the chat interface.
+ */
+
+import { useEffect } from 'react'
+import { useNavigate, useParams } from 'react-router-dom'
+import { useConversationStore } from '@/stores/conversationStore'
+
+export interface ChatNavigationState {
+  currentConversationId: string | null
+  handleNewChat: () => void
+  handleConversationClick: (conversationId: string) => void
+}
+
+/**
+ * Custom hook for handling chat navigation and URL synchronization
+ */
+export const useChatNavigation = (): ChatNavigationState => {
+  const navigate = useNavigate()
+  const { conversationId } = useParams<{ conversationId?: string }>()
+  const { currentConversationId, clearCurrentConversation, setCurrentConversation } = useConversationStore()
+
+  // Sync URL parameter with conversation store
+  useEffect(() => {
+    if (conversationId && conversationId !== currentConversationId) {
+      setCurrentConversation(conversationId)
+    } else if (!conversationId && currentConversationId) {
+      setCurrentConversation(null)
+    }
+  }, [conversationId, currentConversationId, setCurrentConversation])
+
+  const handleNewChat = () => {
+    clearCurrentConversation()
+    navigate('/v1')
+  }
+
+  const handleConversationClick = (conversationId: string) => {
+    navigate(`/v1/${conversationId}`)
+  }
+
+  return {
+    currentConversationId,
+    handleNewChat,
+    handleConversationClick,
+  }
+}
