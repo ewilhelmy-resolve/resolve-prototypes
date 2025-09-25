@@ -149,7 +149,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   const login = useCallback(() => {
     keycloak.login({
-      redirectUri: window.location.origin + '/chat'
+      redirectUri: window.location.href
     });
   }, []);
 

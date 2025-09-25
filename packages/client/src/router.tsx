@@ -12,6 +12,14 @@ import { ProtectedRoute } from './components/auth/ProtectedRoute';
 
 const router = createBrowserRouter([
   {
+    path: '/v1',
+    element: <ChatUIv1 />
+  },
+  {
+    path: '/v1/:conversationId',
+    element: <ChatUIv1 />
+  },
+  {
     path: '/',
     element: <RootLayout />,
     children: [
@@ -58,22 +66,6 @@ const router = createBrowserRouter([
       {
         path: '/chatbot-test',
         element: <ChatbotPage />
-      },
-      {
-        path: '/v1',
-        element: (
-          <ProtectedRoute>
-            <ChatUIv1 />
-          </ProtectedRoute>
-        )
-      },
-      {
-        path: '/v1/:conversationId',
-        element: (
-          <ProtectedRoute>
-            <ChatUIv1 />
-          </ProtectedRoute>
-        )
       },
       {
         path: '/',
