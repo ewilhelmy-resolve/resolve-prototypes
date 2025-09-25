@@ -17,6 +17,9 @@ import { Card } from "@/components/ui/card"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import { Skeleton } from "@/components/ui/skeleton"
 
+// Enhanced Chat Components (shadcn AI Chatbot inspired)
+// import { EnhancedChatContainer } from "@/components/chat/EnhancedChatContainer"
+
 // Icons from Lucide React
 import {
   MessageCirclePlus,

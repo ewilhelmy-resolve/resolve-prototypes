@@ -11,7 +11,7 @@ This document establishes the **recommended workflow** for all production page d
 We encourage using components generated through the Design-to-Production Figma process for all production pages in `packages/client/src/pages/`.
 
 ### **Core Strategy**
-**Pro Blocks Foundation + Custom Figma Components** - Build upon shadcn Design Pro Blocks for common UI patterns while creating Rita-specific components through Figma's Design-to-Code workflow.
+**Pro Blocks Foundation + AI Chatbot Enhancements + Custom Figma Components** - Build upon shadcn Design Pro Blocks and AI Chatbot interface components for common UI patterns while creating Rita-specific components through Figma's Design-to-Code workflow.
 
 ### **Zero Manual Styling Principle**
 **Recommended**: Use Figma-generated components and Pro Blocks instead of writing custom CSS
@@ -46,7 +46,20 @@ npx shadcn@latest add @shadcndesign/modal-1         # Modals and dialogs
 # Layout & Navigation
 npx shadcn@latest add @shadcndesign/two-column-1    # Page layouts
 npx shadcn@latest add @shadcndesign/header-1        # Navigation headers
+
+# AI Chat Interface Components (shadcn AI Chatbot Block)
+# Note: Enhanced manually in Rita due to registry limitations
+# See: src/components/chat/EnhancedChatMessage.tsx
+# See: src/components/chat/EnhancedChatContainer.tsx
 ```
+
+#### **AI Chatbot Enhancements (shadcn AI Chatbot Inspired)**
+Enhanced chat interface components inspired by shadcn AI Chatbot block:
+- **Professional message bubbles** with proper spacing and avatars
+- **Streaming animation effects** for character-by-character typing
+- **Enhanced status indicators** with icons and smooth animations
+- **Better mobile responsiveness** and accessibility
+- **Smart scroll management** that doesn't interfere with user scrolling
 
 #### **Custom Rita Components (Figma-generated)**
 Rita-specific components created in Figma and converted to React:
@@ -61,18 +74,22 @@ npx shadcn add [rita-branding-url]     # Brand elements
 ```
 src/
 ├── components/
-│   ├── ui/                   # 80% - shadcn/ui + Pro Blocks
+│   ├── ui/                   # 70% - shadcn/ui + Pro Blocks
 │   │   ├── button.tsx        # Standard shadcn/ui
 │   │   ├── input.tsx         # Standard shadcn/ui
 │   │   └── [pro-block].tsx   # Pro Blocks via CLI
+│   ├── chat/                 # 10% - Enhanced AI Chat Components
+│   │   ├── EnhancedChatMessage.tsx    # Inspired by shadcn AI Chatbot
+│   │   └── EnhancedChatContainer.tsx  # Professional message bubbles & streaming
 │   └── figma/generated/      # 20% - Custom Rita components via Figma
 │       ├── RitaInterface.tsx # Generated via Figma plugin
 │       ├── WorkflowNode.tsx  # Generated via Figma plugin
 │       └── StepBadge.tsx     # Generated via Figma plugin
-├── pages/                    # 🚨 PRODUCTION PAGES - FIGMA COMPONENTS ONLY
-│   ├── LoginPage.tsx         # Uses Figma + Pro Block components
-│   ├── DashboardPage.tsx     # Uses Figma + Pro Block components
-│   └── OnboardingPage.tsx    # Uses Figma + Pro Block components
+├── pages/                    # 🚨 PRODUCTION PAGES - ENHANCED COMPONENTS
+│   ├── LoginPage.tsx         # Uses Pro Block + enhanced components
+│   ├── ChatPage.tsx          # Uses Enhanced Chat + Figma components
+│   ├── DashboardPage.tsx     # Uses Pro Block + enhanced components
+│   └── OnboardingPage.tsx    # Uses Pro Block + enhanced components
 └── test/                     # POC and development testing
     └── login/
         └── FigmaLoginPage.tsx # Migration POC example
