@@ -8,25 +8,48 @@ import { NotFoundPage } from './pages/NotFoundPage';
 import FigmaTestPage from './pages/FigmaTestPage';
 import FigmaLoginPage from './test/login/FigmaLoginPage';
 import ChatbotPage from './test/chatbot/ChatbotPage';
-import RitaLayout from './components/RitaLayout';
+import ChatV1Page from './pages/ChatV1Page';
+import FilesV1Page from './pages/FilesV1Page';
 import { ProtectedRoute } from './components/auth/ProtectedRoute';
 
 const router = createBrowserRouter([
+  // V1 Routes - Modern Rita Architecture
   {
     path: '/v1',
-    element: (
-      <ProtectedRoute>
-        <RitaLayout />
-      </ProtectedRoute>
-    )
-  },
-  {
-    path: '/v1/:conversationId',
-    element: (
-      <ProtectedRoute>
-        <RitaLayout />
-      </ProtectedRoute>
-    )
+    children: [
+      {
+        path: '',
+        element: (
+          <ProtectedRoute>
+            <ChatV1Page />
+          </ProtectedRoute>
+        )
+      },
+      {
+        path: 'chat',
+        element: (
+          <ProtectedRoute>
+            <ChatV1Page />
+          </ProtectedRoute>
+        )
+      },
+      {
+        path: 'chat/:conversationId',
+        element: (
+          <ProtectedRoute>
+            <ChatV1Page />
+          </ProtectedRoute>
+        )
+      },
+      {
+        path: 'files',
+        element: (
+          <ProtectedRoute>
+            <FilesV1Page />
+          </ProtectedRoute>
+        )
+      }
+    ]
   },
   {
     path: '/',
