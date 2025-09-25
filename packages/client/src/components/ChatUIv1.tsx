@@ -4,21 +4,18 @@ import React, { useState, useEffect, useRef } from "react"
 import { useParams, useNavigate } from 'react-router-dom'
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar"
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import { Textarea } from "@/components/ui/textarea"
 import { Skeleton } from "@/components/ui/skeleton"
-import { MessageCirclePlus, LayoutGrid, Newspaper, Ticket, User, Search, Share2, LifeBuoy, Zap, Paperclip, SendHorizontal, Plus, PanelLeft, Send, LogOut } from "lucide-react"
+import { MessageCirclePlus, LayoutGrid, Newspaper, Ticket, User, Search, Share2, Zap, SendHorizontal, Plus, PanelLeft, LogOut } from "lucide-react"
 
 // Import existing functionality
 import { SSEProvider, useSSEContext } from '../contexts/SSEContext'
-import { useAuth } from '../contexts/AuthContext'
+import { useAuth } from '../hooks/useAuth'
 import { useConversationStore } from '../stores/conversationStore'
 import { useUIStore } from '../stores/uiStore'
 import { useConversations, useConversationMessages, useCreateConversation, useSendMessage } from '../hooks/api/useConversations'
-import { useUploadFile } from '../hooks/api/useFiles'
 
 const RitaChatInterface: React.FC = () => {
   const { conversationId } = useParams<{ conversationId?: string }>()
@@ -30,7 +27,6 @@ const RitaChatInterface: React.FC = () => {
   const [searchValue, setSearchValue] = useState("")
   const [messageValue, setMessageValue] = useState("")
   const messagesEndRef = useRef<HTMLDivElement>(null)
-  const fileInputRef = useRef<HTMLInputElement>(null)
 
   // Store state
   const {
@@ -47,7 +43,6 @@ const RitaChatInterface: React.FC = () => {
   const { isLoading: messagesLoading } = useConversationMessages(currentConversationId)
   const createConversationMutation = useCreateConversation()
   const sendMessageMutation = useSendMessage()
-  const uploadFileMutation = useUploadFile()
 
   // Sync URL parameter with conversation store
   useEffect(() => {
@@ -145,113 +140,59 @@ const RitaChatInterface: React.FC = () => {
     }
   }
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    e.preventDefault()
-    if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0]
-      uploadFileMutation.mutate(file)
-    }
-  }
-
-  const openFileSelector = () => {
-    fileInputRef.current?.click()
-  }
 
   return (
-    <SidebarProvider>
-      <div className="flex min-h-screen w-full">
-        {/* Mobile Navigation */}
-        <nav className="bg-primary border-b px-6 h-16 flex items-center justify-between w-full lg:hidden">
-          <div className="flex items-center gap-4">
-            <div className="w-[100px] h-[19px]">
-              <svg className="w-full h-full">
-                <circle cx="50" cy="10" r="8" fill="currentColor" />
-              </svg>
-            </div>
-            <span className="text-white text-lg font-medium">Rita GO</span>
+    <div className="h-dvh flex flex-col">
+      {/* Top Header Bar - Unstyled */}
+      <div className="border-b px-6 py-3 flex-shrink-0">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <svg width="100" height="19" viewBox="0 0 100 19" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M96.0801 3.875H93.7709C93.5371 3.875 93.3617 4.04852 93.3617 4.27987V5.08961C93.3324 5.08961 93.3325 5.08961 93.3325 5.08961H91.6079C91.4909 5.08961 91.374 5.14745 91.2863 5.23421L89.9125 6.88261H82.7803C82.5465 6.88261 82.3711 7.05613 82.3711 7.28751C82.3711 7.51887 82.5465 7.69238 82.7803 7.69238H89.854H90.0879C90.2048 7.69238 90.3217 7.63454 90.4094 7.54779L91.7832 5.89935H93.3325C93.3617 5.89935 93.3617 5.89935 93.3617 5.89935V6.5645C93.3617 6.79585 93.5371 6.96937 93.7709 6.96937H96.0801C96.3139 6.96937 96.4893 6.79585 96.4893 6.5645V4.27987C96.4893 4.04852 96.3139 3.875 96.0801 3.875ZM95.6709 6.15963H94.2094V4.71366H95.6709V6.15963Z" fill="currentColor"></path>
+            </svg>
+            <span className="text-sm">Rita GO</span>
           </div>
-          <Sheet>
-            <SheetTrigger asChild>
-              <Button variant="ghost" size="icon" className="text-white">
-                <PanelLeft className="h-4 w-4" />
-              </Button>
-            </SheetTrigger>
-            <SheetContent side="left" className="w-[300px] sm:w-[400px]">
-              <nav className="flex flex-col gap-4">
-                <Button variant="ghost" className="justify-start text-primary">
-                  Settings
-                </Button>
-                <Button variant="ghost" size="icon" onClick={handleNewChat}>
-                  <MessageCirclePlus className="h-4 w-4" />
-                </Button>
-                <Button variant="ghost" size="icon">
-                  <Share2 className="h-4 w-4" />
-                </Button>
-                <Button variant="ghost" size="icon">
-                  <LifeBuoy className="h-4 w-4" />
-                </Button>
-                <Button variant="outline" className="justify-start">
-                  <Zap className="h-4 w-4 mr-2" />
-                  Upgrade
-                </Button>
-              </nav>
-            </SheetContent>
-          </Sheet>
-        </nav>
 
-        {/* Desktop Navigation */}
-        <div className="hidden lg:block">
-          <nav className="bg-primary border-b px-6 h-16 flex items-center justify-between w-full">
-            <div className="flex items-center gap-4">
-              <div className="w-[100px] h-[19px]">
-                <svg className="w-full h-full">
-                  <circle cx="50" cy="10" r="8" fill="currentColor" />
-                </svg>
-              </div>
-              <span className="text-white text-lg font-medium">Rita GO</span>
-              <Button variant="ghost" size="icon" className="w-7 h-7 rounded-md">
-                <PanelLeft className="h-4 w-4 text-background" />
-              </Button>
-            </div>
-            <div className="flex items-center gap-4">
-              <div className="flex items-center gap-1">
-                <Button variant="ghost" className="px-3 py-2.5 rounded-md text-primary">
-                  Settings
-                </Button>
-                <Button variant="ghost" size="icon" className="w-9 h-9" onClick={handleNewChat}>
-                  <MessageCirclePlus className="h-4 w-4" />
-                </Button>
-                <Button variant="ghost" size="icon" className="w-9 h-9">
-                  <Share2 className="h-4 w-4" />
-                </Button>
-                <Button variant="ghost" size="icon" className="w-9 h-9">
-                  <LifeBuoy className="h-4 w-4" />
-                </Button>
-              </div>
-              <Button variant="outline" className="h-9">
-                <Zap className="h-4 w-4 mr-2" />
-                Upgrade
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleSignOut}
-                className="text-white hover:bg-blue-700 gap-1"
-              >
-                <LogOut className="h-4 w-4" />
-                <span className="hidden sm:inline">Sign Out</span>
-              </Button>
-              <Avatar className="w-10 h-10">
-                <AvatarFallback className="bg-primary-foreground text-primary">GP</AvatarFallback>
-              </Avatar>
-            </div>
-          </nav>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleNewChat}
+            >
+              <Plus className="h-4 w-4" />
+              <span className="hidden sm:inline">New Chat</span>
+            </Button>
+
+            <Button variant="outline" size="sm">
+              <Zap className="h-4 w-4 mr-2" />
+              Upgrade
+            </Button>
+
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleSignOut}
+            >
+              <LogOut className="h-4 w-4" />
+              <span className="hidden sm:inline">Sign Out</span>
+            </Button>
+          </div>
         </div>
+      </div>
 
-        <div className="flex flex-1">
+      {/* Main Content Area */}
+      <div className="flex-1 flex">
+        <SidebarProvider>
+          <div className="flex h-full w-full overflow-hidden">
           {/* Sidebar */}
           <Sidebar className="hidden lg:block bg-sidebar border-r">
             <SidebarHeader className="p-4">
+              <div className="px-2 flex items-center gap-2 mb-3">
+                <SidebarTrigger>
+                  <PanelLeft className="h-4 w-4" />
+                </SidebarTrigger>
+                <span className="text-sm font-medium">Menu</span>
+              </div>
               <div className="px-2">
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -344,144 +285,128 @@ const RitaChatInterface: React.FC = () => {
           </Sidebar>
 
           {/* Main Chat Area */}
-          <main className="flex-1 bg-background">
-            <div className="p-2 h-full">
-              <div className="bg-white border border-neutral-100 h-full flex flex-col">
-                {/* Messages Area */}
-                <div className="flex-1 flex flex-col">
-                  {messagesLoading || (currentConversationId && messages.length === 0) ? (
-                    <div className="flex-1 p-4">
-                      <div className="max-w-4xl mx-auto space-y-4">
-                        {[...Array(3)].map((_, i) => (
-                          <div key={i} className="flex items-start gap-3">
-                            <Skeleton className="w-8 h-8 rounded-full" />
-                            <div className="flex-1 space-y-2">
-                              <div className="flex items-center gap-2">
-                                <Skeleton className="h-4 w-16" />
-                                <Skeleton className="h-3 w-12" />
-                              </div>
-                              <Skeleton className="h-12 w-full rounded-lg" />
-                            </div>
+          <main className="flex-1 bg-background flex flex-col">
+            <div className="flex flex-col flex-1">
+              {/* Messages Area */}
+              <div className="flex-1 overflow-y-auto p-4">
+                {messagesLoading || (currentConversationId && messages.length === 0) ? (
+                  <div className="max-w-4xl mx-auto space-y-4">
+                    {[...Array(3)].map((_, i) => (
+                      <div key={i} className="flex items-start gap-3">
+                        <Skeleton className="w-8 h-8 rounded-full" />
+                        <div className="flex-1 space-y-2">
+                          <div className="flex items-center gap-2">
+                            <Skeleton className="h-4 w-16" />
+                            <Skeleton className="h-3 w-12" />
                           </div>
-                        ))}
+                          <Skeleton className="h-12 w-full rounded-lg" />
+                        </div>
                       </div>
-                    </div>
-                  ) : !currentConversationId || messages.length === 0 ? (
-                    <div className="flex-1 flex flex-col items-center justify-center p-4">
-                      <div className="text-center space-y-2.5 mb-[100px]">
-                        <h1 className="text-5xl font-medium text-foreground font-serif">Ask Rita</h1>
-                        <p className="text-base text-foreground">Diagnose and resolve issues, then create automations to speed up future remediation</p>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="flex-1 overflow-y-auto p-4">
-                      <div className="max-w-4xl mx-auto space-y-4">
-                        {messages.map((message, index) => (
-                          <div
-                            key={message.id}
-                            className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'} animate-in fade-in slide-in-from-bottom-1`}
-                            style={{ animationDelay: `${index * 100}ms`, animationFillMode: 'both' }}
-                          >
-                            <div className={`max-w-[85%] ${message.role === 'user' ? 'ml-auto' : ''}`}>
-                              <div className="min-w-0">
-                                <div className={`flex items-center gap-2 mb-2 ${message.role === 'user' ? 'justify-end' : ''}`}>
-                                  <span className="text-sm font-semibold">
-                                    {message.role === 'user' ? 'You' : 'Rita'}
-                                  </span>
-                                  <span className="text-xs text-muted-foreground/70 font-medium">
-                                    {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                  </span>
-                                </div>
-                                {message.role === 'user' ? (
-                                  <div className="text-sm rounded-2xl px-4 py-3" style={{ backgroundColor: '#F7F9FF' }}>
-                                    <p className="leading-relaxed text-gray-800">{message.message}</p>
-                                  </div>
-                                ) : (
-                                  <div className="text-sm">
-                                    <p className="leading-relaxed text-gray-800">{message.message}</p>
-                                  </div>
-                                )}
-
-                                {/* Status indicator for user messages */}
-                                {message.role === 'user' && message.status !== 'completed' && (
-                                  <div className={`mt-3 flex items-center gap-2 text-xs ${message.role === 'user' ? 'justify-end' : ''}`}>
-                                    <div className={`px-2 py-1 rounded-full flex items-center gap-1.5 ${
-                                      message.status === 'failed'
-                                        ? 'bg-red-50 text-red-700 dark:bg-red-950/50 dark:text-red-400'
-                                        : 'bg-blue-50 text-blue-700 dark:bg-blue-950/50 dark:text-blue-400'
-                                    }`}>
-                                      {message.status === 'sending' && (
-                                        <>
-                                          <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
-                                          <span className="font-medium">Sending...</span>
-                                        </>
-                                      )}
-                                      {message.status === 'pending' && (
-                                        <>
-                                          <div className="w-2 h-2 bg-yellow-500 rounded-full animate-pulse"></div>
-                                          <span className="font-medium">Waiting for response...</span>
-                                        </>
-                                      )}
-                                      {message.status === 'processing' && (
-                                        <>
-                                          <div className="w-2 h-2 bg-green-500 rounded-full animate-bounce"></div>
-                                          <span className="font-medium">Processing...</span>
-                                        </>
-                                      )}
-                                      {message.status === 'failed' && (
-                                        <>
-                                          <div className="w-2 h-2 bg-red-500 rounded-full"></div>
-                                          <span className="font-medium">
-                                            Failed to send {message.error_message && `- ${message.error_message}`}
-                                          </span>
-                                        </>
-                                      )}
-                                    </div>
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                        ))}
-                        <div ref={messagesEndRef} />
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                {/* Input Area */}
-                <div className="p-3 border border-input rounded-md mx-3 mb-3">
-                  <div className="text-sm text-muted-foreground mb-2.5">Ask me anything...</div>
-                  <div className="flex items-center justify-between">
-                    <Textarea
-                      value={messageValue}
-                      onChange={(e) => setMessageValue(e.target.value)}
-                      onKeyPress={handleKeyPress}
-                      placeholder=""
-                      className="flex-1 resize-none min-h-[40px] max-h-[120px] border-0 p-0 focus:ring-0 shadow-none"
-                      rows={1}
-                      disabled={isSending}
-                    />
-                    <div className="flex items-center gap-2">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="w-9 h-9"
-                        onClick={openFileSelector}
-                        disabled={uploadFileMutation.isPending}
-                      >
-                        <Paperclip className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        size="icon"
-                        className="w-9 h-9"
-                        onClick={handleSendMessage}
-                        disabled={!messageValue.trim() || isSending}
-                      >
-                        <SendHorizontal className="h-4 w-4" />
-                      </Button>
+                    ))}
+                  </div>
+                ) : !currentConversationId || messages.length === 0 ? (
+                  <div className="h-full flex items-center justify-center">
+                    <div className="text-center max-w-lg mx-auto">
+                      <h1 className="text-5xl font-medium text-foreground font-serif mb-4">Ask Rita</h1>
+                      <p className="text-base text-foreground leading-relaxed">
+                        Diagnose and resolve issues, then create automations to speed up future remediation
+                      </p>
                     </div>
                   </div>
+                ) : (
+                  <div className="max-w-4xl mx-auto space-y-4">
+                    {messages.map((message, index) => (
+                      <div
+                        key={message.id}
+                        className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'} animate-in fade-in slide-in-from-bottom-1`}
+                        style={{ animationDelay: `${index * 100}ms`, animationFillMode: 'both' }}
+                      >
+                        <div className={`max-w-[85%] ${message.role === 'user' ? 'ml-auto' : ''}`}>
+                          <div className="min-w-0">
+                            <div className={`flex items-center gap-2 mb-2 ${message.role === 'user' ? 'justify-end' : ''}`}>
+                              <span className="text-sm font-semibold">
+                                {message.role === 'user' ? 'You' : 'Rita'}
+                              </span>
+                              <span className="text-xs text-muted-foreground/70 font-medium">
+                                {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                              </span>
+                            </div>
+                            {message.role === 'user' ? (
+                              <div className="text-sm rounded-2xl px-4 py-3" style={{ backgroundColor: '#F7F9FF' }}>
+                                <p className="leading-relaxed text-gray-800">{message.message}</p>
+                              </div>
+                            ) : (
+                              <div className="text-sm">
+                                <p className="leading-relaxed text-gray-800">{message.message}</p>
+                              </div>
+                            )}
+
+                            {/* Status indicator for user messages */}
+                            {message.role === 'user' && message.status !== 'completed' && (
+                              <div className={`mt-3 flex items-center gap-2 text-xs ${message.role === 'user' ? 'justify-end' : ''}`}>
+                                <div className={`px-2 py-1 rounded-full flex items-center gap-1.5 ${
+                                  message.status === 'failed'
+                                    ? 'bg-red-50 text-red-700 dark:bg-red-950/50 dark:text-red-400'
+                                    : 'bg-blue-50 text-blue-700 dark:bg-blue-950/50 dark:text-blue-400'
+                                }`}>
+                                  {message.status === 'sending' && (
+                                    <>
+                                      <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
+                                      <span className="font-medium">Sending...</span>
+                                    </>
+                                  )}
+                                  {message.status === 'pending' && (
+                                    <>
+                                      <div className="w-2 h-2 bg-yellow-500 rounded-full animate-pulse"></div>
+                                      <span className="font-medium">Waiting for response...</span>
+                                    </>
+                                  )}
+                                  {message.status === 'processing' && (
+                                    <>
+                                      <div className="w-2 h-2 bg-green-500 rounded-full animate-bounce"></div>
+                                      <span className="font-medium">Processing...</span>
+                                    </>
+                                  )}
+                                  {message.status === 'failed' && (
+                                    <>
+                                      <div className="w-2 h-2 bg-red-500 rounded-full"></div>
+                                      <span className="font-medium">
+                                        Failed to send {message.error_message && `- ${message.error_message}`}
+                                      </span>
+                                    </>
+                                  )}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                    <div ref={messagesEndRef} />
+                  </div>
+                )}
+              </div>
+
+              {/* Input Area */}
+              <div className="p-4 border-t border-gray-200 bg-white">
+                <div className="flex items-center gap-2">
+                  <Textarea
+                    value={messageValue}
+                    onChange={(e) => setMessageValue(e.target.value)}
+                    onKeyPress={handleKeyPress}
+                    placeholder="Ask me anything..."
+                    className="flex-1 resize-none min-h-[40px] max-h-[120px] border-gray-300 focus:border-blue-500 focus:ring-blue-500"
+                    rows={1}
+                    disabled={isSending}
+                  />
+                  <Button
+                    onClick={handleSendMessage}
+                    disabled={!messageValue.trim() || isSending}
+                    size="sm"
+                    className="shrink-0"
+                  >
+                    <SendHorizontal className="w-4 h-4" />
+                  </Button>
                 </div>
               </div>
             </div>
@@ -554,39 +479,9 @@ const RitaChatInterface: React.FC = () => {
             </div>
           </div>
         </div>
-
-        {/* Hidden file input */}
-        <input
-          ref={fileInputRef}
-          type="file"
-          className="hidden"
-          onChange={handleFileUpload}
-          accept=".jpg,.jpeg,.png,.gif,.webp,.pdf,.txt,.md,.doc,.docx,.xls,.xlsx"
-          disabled={uploadFileMutation.isPending}
-        />
-
-        {/* Upload status messages */}
-        {uploadFileMutation.isError && (
-          <div className="fixed bottom-4 right-4 p-3 bg-red-50 border border-red-200 rounded-md max-w-sm z-50">
-            <div className="flex items-center gap-2 text-red-700">
-              <div className="w-2 h-2 bg-red-500 rounded-full"></div>
-              <span className="text-sm">
-                {uploadFileMutation.error?.message || 'Upload failed'}
-              </span>
-            </div>
-          </div>
-        )}
-
-        {uploadFileMutation.isSuccess && (
-          <div className="fixed bottom-4 right-4 p-3 bg-green-50 border border-green-200 rounded-md max-w-sm z-50">
-            <div className="flex items-center gap-2 text-green-700">
-              <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-              <span className="text-sm">File uploaded successfully!</span>
-            </div>
-          </div>
-        )}
+      </SidebarProvider>
       </div>
-    </SidebarProvider>
+    </div>
   )
 }
 
