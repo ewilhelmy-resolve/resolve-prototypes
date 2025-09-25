@@ -1,5 +1,5 @@
 import amqp from 'amqplib';
-import { withOrgContext } from '../config/database.js';
+import { withOrgContext, pool } from '../config/database.js';
 import { getSSEService } from './sse.js';
 import { queueLogger, logError, PerformanceTimer } from '../config/logger.js';
 
@@ -71,6 +71,9 @@ export class RabbitMQService {
         timer.end({ success: false });
         logError(queueLogger, error as Error, { operation: 'message-processing' });
 
+        // Store the failure in the database
+        await this.storeMessageFailure(message, error as Error);
+
         // Reject message and don't requeue to avoid infinite loops
         this.channel?.nack(message, false, false);
       }
@@ -82,9 +85,40 @@ export class RabbitMQService {
       message_id,
       conversation_id,
       tenant_id: organization_id, // Remap tenant_id from external service to organization_id
-      user_id,
+      user_id: payload_user_id,
       response
     } = payload;
+
+    // Validate minimum required fields
+    if (!message_id || !organization_id || !conversation_id) {
+      const messageLogger = queueLogger.child({
+        messageId: message_id,
+        conversationId: conversation_id,
+        organizationId: organization_id
+      });
+      messageLogger.error({ payload }, 'Invalid message payload: missing required fields (message_id, tenant_id, conversation_id)');
+      throw new Error('Invalid message payload: missing required fields');
+    }
+
+    // If user_id is missing, fetch it from the conversation
+    let user_id = payload_user_id;
+    if (!user_id) {
+      const client = await pool.connect();
+      try {
+        const conversationResult = await client.query(
+          'SELECT user_id FROM conversations WHERE id = $1 AND organization_id = $2',
+          [conversation_id, organization_id]
+        );
+
+        if (conversationResult.rows.length === 0) {
+          throw new Error(`Conversation ${conversation_id} not found or doesn't belong to organization ${organization_id}`);
+        }
+
+        user_id = conversationResult.rows[0].user_id;
+      } finally {
+        client.release();
+      }
+    }
 
     const messageLogger = queueLogger.child({
       messageId: message_id,
@@ -93,12 +127,7 @@ export class RabbitMQService {
       userId: user_id
     });
 
-    if (!message_id || !organization_id || !user_id || !conversation_id) {
-      messageLogger.error({ payload }, 'Invalid message payload: missing required fields (message_id, tenant_id, user_id, conversation_id)');
-      throw new Error('Invalid message payload: missing required fields');
-    }
-
-    messageLogger.info('Processing message');
+    messageLogger.info({ userIdSource: payload_user_id ? 'payload' : 'conversation' }, 'Processing message');
     const sseService = getSSEService();
 
     // Process message with organization context
@@ -181,6 +210,56 @@ export class RabbitMQService {
     });
 
     messageLogger.info({ finalStatus: 'completed' }, 'Message processing completed successfully');
+  }
+
+  private async storeMessageFailure(message: any, error: Error): Promise<void> {
+    try {
+      const content = JSON.parse(message.content.toString());
+      const {
+        message_id,
+        tenant_id: organization_id,
+        user_id,
+        conversation_id
+      } = content;
+
+      // Generate a unique message ID if not present
+      const messageId = message_id || `failed_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      const tenantId = organization_id || null;
+
+      const client = await pool.connect();
+      try {
+        await client.query(`
+          INSERT INTO message_processing_failures (
+            tenant_id, message_id, queue_name, message_payload,
+            error_message, error_type, processing_status, original_received_at
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+        `, [
+          tenantId,
+          messageId,
+          this.queueName,
+          JSON.stringify(content),
+          error.message,
+          error.name || 'UnknownError',
+          'failed',
+          new Date()
+        ]);
+
+        queueLogger.info({
+          messageId,
+          tenantId,
+          errorType: error.name || 'UnknownError',
+          queueName: this.queueName
+        }, 'Message failure stored in database');
+
+      } finally {
+        client.release();
+      }
+    } catch (storeError) {
+      queueLogger.error({
+        error: storeError instanceof Error ? storeError.message : String(storeError),
+        originalError: error.message
+      }, 'Failed to store message failure in database');
+    }
   }
 
   async close(): Promise<void> {

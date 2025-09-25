@@ -52,6 +52,8 @@ services:
     environment:
       KEYCLOAK_ADMIN: admin
       KEYCLOAK_ADMIN_PASSWORD: admin
+      KC_HOSTNAME_URL: http://localhost:8080
+      KC_HOSTNAME_ADMIN_URL: http://localhost:8080
     ports:
       - "8080:8080"
     volumes:

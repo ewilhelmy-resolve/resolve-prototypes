@@ -6,6 +6,16 @@ import { WebhookService } from '../WebhookService.js';
 vi.mock('axios');
 const mockedAxios = vi.mocked(axios, true);
 
+// Mock database module
+vi.mock('../../config/database.js', () => ({
+  pool: {
+    connect: vi.fn(() => ({
+      query: vi.fn(),
+      release: vi.fn()
+    }))
+  }
+}));
+
 describe('WebhookService', () => {
   let webhookService: WebhookService;
 

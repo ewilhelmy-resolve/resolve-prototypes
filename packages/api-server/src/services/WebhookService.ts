@@ -1,4 +1,5 @@
 import axios, { AxiosResponse } from 'axios';
+import { pool } from '../config/database.js';
 import {
   WebhookPayload,
   WebhookResponse,
@@ -153,6 +154,8 @@ export class WebhookService {
 
         // Don't retry if it's not a retryable error or if this is the last attempt
         if (!webhookError.isRetryable || attempt === this.config.retryAttempts) {
+          // Store failure for non-retryable errors or after all retries exhausted
+          await this.storeWebhookFailure(payload, webhookError, attempt);
           break;
         }
 
@@ -192,6 +195,51 @@ export class WebhookService {
     }
 
     return webhookError;
+  }
+
+  /**
+   * Store webhook failure in database
+   */
+  private async storeWebhookFailure(
+    payload: WebhookPayload,
+    error: WebhookError | null,
+    retryCount: number
+  ): Promise<void> {
+    try {
+      const client = await pool.connect();
+      try {
+        await client.query(`
+          INSERT INTO rag_webhook_failures (
+            tenant_id, webhook_type, payload, retry_count, max_retries,
+            last_error, status, created_at
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
+        `, [
+          payload.tenant_id || null,
+          payload.action,
+          JSON.stringify(payload),
+          retryCount,
+          this.config.retryAttempts,
+          error?.message || 'Unknown error',
+          error?.isRetryable ? 'failed' : 'dead_letter'
+        ]);
+
+        console.log(`[WebhookService] Webhook failure stored in database`, {
+          tenant_id: payload.tenant_id,
+          webhook_type: payload.action,
+          retry_count: retryCount,
+          error_message: error?.message
+        });
+
+      } finally {
+        client.release();
+      }
+    } catch (storeError) {
+      console.error(`[WebhookService] Failed to store webhook failure in database:`, {
+        error: storeError instanceof Error ? storeError.message : String(storeError),
+        original_error: error?.message,
+        webhook_action: payload.action
+      });
+    }
   }
 
   /**
