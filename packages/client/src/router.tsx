@@ -7,9 +7,50 @@ import { FilesPage } from './pages/FilesPage';
 import { NotFoundPage } from './pages/NotFoundPage';
 import FigmaTestPage from './pages/FigmaTestPage';
 import FigmaLoginPage from './test/login/FigmaLoginPage';
+import ChatbotPage from './test/chatbot/ChatbotPage';
+import ChatV1Page from './pages/ChatV1Page';
+import FilesV1Page from './pages/FilesV1Page';
 import { ProtectedRoute } from './components/auth/ProtectedRoute';
 
 const router = createBrowserRouter([
+  // V1 Routes - Modern Rita Architecture
+  {
+    path: '/v1',
+    children: [
+      {
+        path: '',
+        element: (
+          <ProtectedRoute>
+            <ChatV1Page />
+          </ProtectedRoute>
+        )
+      },
+      {
+        path: 'chat',
+        element: (
+          <ProtectedRoute>
+            <ChatV1Page />
+          </ProtectedRoute>
+        )
+      },
+      {
+        path: 'chat/:conversationId',
+        element: (
+          <ProtectedRoute>
+            <ChatV1Page />
+          </ProtectedRoute>
+        )
+      },
+      {
+        path: 'files',
+        element: (
+          <ProtectedRoute>
+            <FilesV1Page />
+          </ProtectedRoute>
+        )
+      }
+    ]
+  },
   {
     path: '/',
     element: <RootLayout />,
@@ -53,6 +94,10 @@ const router = createBrowserRouter([
       {
         path: '/figma-login-poc',
         element: <FigmaLoginPage />
+      },
+      {
+        path: '/chatbot-test',
+        element: <ChatbotPage />
       },
       {
         path: '/',

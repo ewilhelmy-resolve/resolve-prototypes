@@ -28,6 +28,8 @@ The Rita project uses the **fe-enterprise-agent** as the default for ALL fronten
 - **React Hook Form** with **Zod** validation
 - **Radix UI** for accessible component primitives
 - **Tailwind CSS** for utility-first styling
+- **shadcn/ui** for component library foundation
+- **Figma-to-shadcn** for design system implementation
 
 ### Code Standards
 - All components must include proper TypeScript interfaces
@@ -38,6 +40,82 @@ The Rita project uses the **fe-enterprise-agent** as the default for ALL fronten
 - All components must be tested for accessibility compliance
 
 **Note**: These standards apply to all developers working on this project and are enforced automatically through the fe-enterprise-agent configuration.
+
+### UI Component Strategy (Figma-to-shadcn)
+
+Rita Go uses a **Figma-to-shadcn workflow** for implementing UX designs:
+
+#### Installing Design System Components
+When UX provides Figma-to-shadcn component URLs:
+
+1. **Attempt shadcn CLI Installation**:
+   ```bash
+   cd packages/client
+   npx shadcn add https://[figma-to-shadcn-url].json
+   ```
+
+2. **Manual Installation** (recommended for reliability):
+   ```bash
+   # Download and inspect component definition
+   curl -s https://[figma-to-shadcn-url].json
+
+   # Extract the component code from the JSON
+   # Create src/components/[ComponentName].tsx with the code
+   # Update router.tsx to use the new component
+   ```
+
+#### What Happened with RitaLayout
+The current RitaLayout was installed following this process:
+
+1. **URL Provided**: `https://rdhlrr8yducbb6dq.public.blob.vercel-storage.com/figma-to-shadcn/RitaLayout-nC4xjmqj08N0LSWPCC3rHEHG2azW4y.json`
+2. **CLI Installation Issues**: The `npx shadcn add` command had path detection issues
+3. **Manual Installation**: Downloaded the JSON, extracted the component code, created `src/components/RitaLayout.tsx`
+4. **Router Integration**: Updated `/v1` routes to use `<RitaLayout />` with `<ProtectedRoute>`
+
+#### Handling Future UX Updates
+
+**For Component Updates**:
+1. **New URL from UX**: Download the updated component JSON
+2. **Compare Changes**: Use git diff to see what changed in the component code
+3. **Update Component**: Replace the old component code with new version
+4. **Test Integration**: Ensure routing and authentication still work
+5. **Commit Changes**: Document what was updated from UX
+
+**For New Components**:
+1. Follow the same installation process
+2. Create new component file in `src/components/`
+3. Integrate with existing routing/authentication as needed
+
+**Version Control Strategy**:
+- Each UX update gets its own commit with clear message
+- Document the source URL in component comments
+- Keep track of component version/date for future reference
+
+3. **Component Integration**:
+   - Components are pre-built with proper responsive design
+   - Include mobile-first breakpoints and accessibility features
+   - Follow established layout patterns (sticky inputs, proper height constraints)
+   - Integrate with existing authentication and routing systems
+
+#### Layout Architecture
+Current implementation uses:
+- **RitaLayout**: Main application layout from Figma design
+- **Responsive Design**: Mobile sheet navigation, desktop sidebars
+- **Proper Height Management**: `min-h-screen` with flex layouts preventing scroll issues
+- **Component-Based**: Modular sections (sidebar, main content, right panel)
+
+#### Integration Example
+```typescript
+// Route integration with authentication
+{
+  path: '/v1',
+  element: (
+    <ProtectedRoute>
+      <RitaLayout />
+    </ProtectedRoute>
+  )
+}
+```
 
 ## Development Workflow
 
