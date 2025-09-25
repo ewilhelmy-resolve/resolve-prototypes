@@ -69,13 +69,21 @@ export default function RitaLayoutView({
   handleMessageChange,
   handleKeyPress,
 
-  // File upload
+  // File upload (for chat messages)
   handleFileUpload,
   openFileSelector,
   uploadStatus,
 
+  // Knowledge base
+  handleDocumentUpload,
+  openDocumentSelector,
+  navigateToKnowledgeArticles,
+  // navigateToFiles, // Not currently used
+  documentUploadStatus,
+
   // Refs
   fileInputRef,
+  documentInputRef,
   messagesEndRef,
 }: RitaLayoutViewProps) {
   return (
@@ -189,7 +197,11 @@ export default function RitaLayoutView({
             <div className="px-4">
               <h4 className="text-xs font-semibold text-muted-foreground mb-2">MANAGE</h4>
               <div className="space-y-1">
-                <Button variant="ghost" className="w-full justify-start h-8">
+                <Button
+                  variant="ghost"
+                  className="w-full justify-start h-8"
+                  onClick={navigateToKnowledgeArticles}
+                >
                   <Newspaper className="h-4 w-4 mr-2" />
                   <span className="text-sm">Knowledge articles</span>
                 </Button>
@@ -398,7 +410,14 @@ export default function RitaLayoutView({
           <div className="flex-1 p-4">
             <div className="mb-6">
               <h3 className="font-semibold text-gray-900 mb-1">Knowledge base</h3>
-              <Button variant="outline" size="icon" className="float-right -mt-6">
+              <Button
+                variant="outline"
+                size="icon"
+                className="float-right -mt-6"
+                onClick={openDocumentSelector}
+                disabled={documentUploadStatus.isUploading}
+                title="Add knowledge base articles"
+              >
                 <Plus className="h-4 w-4" />
               </Button>
             </div>
@@ -438,9 +457,13 @@ export default function RitaLayoutView({
                   <h3 className="text-xl font-medium font-serif">No Articles Found</h3>
                   <p className="text-sm text-muted-foreground">Add your knowledge base articles and unlock instant chat with your company's articles.</p>
                 </div>
-                <Button variant="secondary">
+                <Button
+                  variant="secondary"
+                  onClick={openDocumentSelector}
+                  disabled={documentUploadStatus.isUploading}
+                >
                   <Plus className="h-4 w-4 mr-2" />
-                  Add Articles
+                  {documentUploadStatus.isUploading ? 'Uploading...' : 'Add Articles'}
                 </Button>
               </Card>
             </div>
@@ -475,6 +498,37 @@ export default function RitaLayoutView({
           <div className="flex items-center gap-2 text-green-700">
             <div className="w-2 h-2 bg-green-500 rounded-full"></div>
             <span className="text-sm">File uploaded successfully!</span>
+          </div>
+        </div>
+      )}
+
+      {/* Hidden document input for knowledge base */}
+      <input
+        ref={documentInputRef}
+        type="file"
+        className="hidden"
+        onChange={handleDocumentUpload}
+        accept=".jpg,.jpeg,.png,.gif,.webp,.pdf,.txt,.md,.doc,.docx,.xls,.xlsx"
+        disabled={documentUploadStatus.isUploading}
+      />
+
+      {/* Document upload status messages */}
+      {documentUploadStatus.isError && (
+        <div className="fixed bottom-4 left-4 p-3 bg-red-50 border border-red-200 rounded-md max-w-sm z-50">
+          <div className="flex items-center gap-2 text-red-700">
+            <div className="w-2 h-2 bg-red-500 rounded-full"></div>
+            <span className="text-sm">
+              {documentUploadStatus.error?.message || 'Document upload failed'}
+            </span>
+          </div>
+        </div>
+      )}
+
+      {documentUploadStatus.isSuccess && (
+        <div className="fixed bottom-4 left-4 p-3 bg-green-50 border border-green-200 rounded-md max-w-sm z-50">
+          <div className="flex items-center gap-2 text-green-700">
+            <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+            <span className="text-sm">Knowledge article uploaded successfully!</span>
           </div>
         </div>
       )}

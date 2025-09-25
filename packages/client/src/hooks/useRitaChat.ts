@@ -12,6 +12,7 @@ import { useMessageHandler } from './useMessageHandler'
 import { useConversationManager } from './useConversationManager'
 import { useFileUpload } from './useFileUpload'
 import { useChatSearch } from './useChatSearch'
+import { useKnowledgeBase } from './useKnowledgeBase'
 
 export interface RitaChatState {
   // Conversation state
@@ -37,7 +38,7 @@ export interface RitaChatState {
   handleMessageChange: (value: string) => void
   handleKeyPress: (e: React.KeyboardEvent<HTMLTextAreaElement>) => void
 
-  // File upload
+  // File upload (for chat messages)
   handleFileUpload: (e: React.ChangeEvent<HTMLInputElement>) => void
   openFileSelector: () => void
   uploadStatus: {
@@ -47,8 +48,21 @@ export interface RitaChatState {
     error?: any
   }
 
+  // Knowledge base
+  handleDocumentUpload: (e: React.ChangeEvent<HTMLInputElement>) => void
+  openDocumentSelector: () => void
+  navigateToKnowledgeArticles: () => void
+  navigateToFiles: () => void
+  documentUploadStatus: {
+    isUploading: boolean
+    isError: boolean
+    isSuccess: boolean
+    error?: any
+  }
+
   // Refs
   fileInputRef: React.RefObject<HTMLInputElement>
+  documentInputRef: React.RefObject<HTMLInputElement>
   messagesEndRef: React.RefObject<HTMLDivElement>
 }
 
@@ -65,6 +79,7 @@ export const useRitaChat = (): RitaChatState => {
   const conversationManager = useConversationManager()
   const fileUpload = useFileUpload(fileInputRef)
   const search = useChatSearch(conversationManager.conversations)
+  const knowledgeBase = useKnowledgeBase()
 
   return {
     // Conversation state
@@ -94,7 +109,7 @@ export const useRitaChat = (): RitaChatState => {
     // Search actions
     handleSearchChange: search.handleSearchChange,
 
-    // File upload
+    // File upload (for chat messages)
     handleFileUpload: fileUpload.handleFileUpload,
     openFileSelector: fileUpload.openFileSelector,
     uploadStatus: {
@@ -104,8 +119,21 @@ export const useRitaChat = (): RitaChatState => {
       error: fileUpload.error,
     },
 
+    // Knowledge base
+    handleDocumentUpload: knowledgeBase.handleDocumentUpload,
+    openDocumentSelector: knowledgeBase.openDocumentSelector,
+    navigateToKnowledgeArticles: knowledgeBase.navigateToKnowledgeArticles,
+    navigateToFiles: knowledgeBase.navigateToFiles,
+    documentUploadStatus: {
+      isUploading: knowledgeBase.isUploading,
+      isError: knowledgeBase.isError,
+      isSuccess: knowledgeBase.isSuccess,
+      error: knowledgeBase.error,
+    },
+
     // Refs
     fileInputRef,
+    documentInputRef: knowledgeBase.documentInputRef,
     messagesEndRef,
   }
 }
