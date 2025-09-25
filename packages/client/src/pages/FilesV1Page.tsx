@@ -6,7 +6,6 @@
  * Follows SOC2 compliance, WCAG 2.1 AA accessibility, and Component-Based Architecture.
  */
 
-import React from 'react'
 import RitaV1Layout from '../components/layouts/RitaV1Layout'
 import KnowledgeArticlesDashboard from '../components/KnowledgeArticlesDashboard'
 
