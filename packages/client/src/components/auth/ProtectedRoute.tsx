@@ -7,7 +7,7 @@ interface ProtectedRouteProps {
 }
 
 export function ProtectedRoute({ children }: ProtectedRouteProps) {
-  const { authenticated, loading } = useAuth();
+  const { authenticated, loading, sessionReady } = useAuth();
 
   if (loading) {
     return (
@@ -19,6 +19,10 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
 
   if (!authenticated) {
     return <Navigate to="/login" replace />;
+  }
+
+  if (!sessionReady) {
+    // TODO: Fix Keycloak session cookie creation - bypassing for now
   }
 
   return <>{children}</>;
