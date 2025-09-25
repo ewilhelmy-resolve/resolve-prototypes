@@ -34,11 +34,11 @@ export const useChatNavigation = (): ChatNavigationState => {
 
   const handleNewChat = () => {
     clearCurrentConversation()
-    navigate('/v1')
+    navigate('/v1/chat')
   }
 
   const handleConversationClick = (conversationId: string) => {
-    navigate(`/v1/${conversationId}`)
+    navigate(`/v1/chat/${conversationId}`)
   }
 
   return {
