@@ -7,8 +7,7 @@ import { FilesPage } from './pages/FilesPage';
 import FigmaTestPage from './pages/FigmaTestPage';
 import FigmaLoginPage from './test/login/FigmaLoginPage';
 import ChatbotPage from './test/chatbot/ChatbotPage';
-import RitaLayout from './components/RitaLayout';
-import RitaLayoutWithChat from './components/RitaLayoutWithChat';
+import ChatUIv1 from './components/ChatUIv1';
 import { ProtectedRoute } from './components/auth/ProtectedRoute';
 
 const router = createBrowserRouter([
@@ -61,22 +60,18 @@ const router = createBrowserRouter([
         element: <ChatbotPage />
       },
       {
-        path: '/rita-layout',
-        element: <RitaLayout />
-      },
-      {
-        path: '/rita-chat',
+        path: '/v1',
         element: (
           <ProtectedRoute>
-            <RitaLayoutWithChat />
+            <ChatUIv1 />
           </ProtectedRoute>
         )
       },
       {
-        path: '/rita-chat/:conversationId',
+        path: '/v1/:conversationId',
         element: (
           <ProtectedRoute>
-            <RitaLayoutWithChat />
+            <ChatUIv1 />
           </ProtectedRoute>
         )
       },

@@ -18,6 +18,7 @@ import { useAuth } from '../contexts/AuthContext'
 import { useConversationStore } from '../stores/conversationStore'
 import { useUIStore } from '../stores/uiStore'
 import { useConversations, useConversationMessages, useCreateConversation, useSendMessage } from '../hooks/api/useConversations'
+import { useUploadFile } from '../hooks/api/useFiles'
 
 const RitaChatInterface: React.FC = () => {
   const { conversationId } = useParams<{ conversationId?: string }>()
@@ -29,6 +30,7 @@ const RitaChatInterface: React.FC = () => {
   const [searchValue, setSearchValue] = useState("")
   const [messageValue, setMessageValue] = useState("")
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   // Store state
   const {
@@ -45,6 +47,7 @@ const RitaChatInterface: React.FC = () => {
   const { isLoading: messagesLoading } = useConversationMessages(currentConversationId)
   const createConversationMutation = useCreateConversation()
   const sendMessageMutation = useSendMessage()
+  const uploadFileMutation = useUploadFile()
 
   // Sync URL parameter with conversation store
   useEffect(() => {
@@ -68,7 +71,7 @@ const RitaChatInterface: React.FC = () => {
 
   const handleNewChat = () => {
     clearCurrentConversation()
-    navigate('/rita-layout')
+    navigate('/v1')
   }
 
   // Handle keyboard shortcuts
@@ -113,7 +116,7 @@ const RitaChatInterface: React.FC = () => {
         })
         conversationId = conversation.id
         // Navigate to the new conversation URL
-        navigate(`/rita-layout/${conversationId}`)
+        navigate(`/v1/${conversationId}`)
       }
 
       // Send message
@@ -140,6 +143,18 @@ const RitaChatInterface: React.FC = () => {
     } catch (error) {
       console.error('Failed to sign out:', error)
     }
+  }
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    e.preventDefault()
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0]
+      uploadFileMutation.mutate(file)
+    }
+  }
+
+  const openFileSelector = () => {
+    fileInputRef.current?.click()
   }
 
   return (
@@ -448,7 +463,13 @@ const RitaChatInterface: React.FC = () => {
                       disabled={isSending}
                     />
                     <div className="flex items-center gap-2">
-                      <Button variant="ghost" size="icon" className="w-9 h-9">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="w-9 h-9"
+                        onClick={openFileSelector}
+                        disabled={uploadFileMutation.isPending}
+                      >
                         <Paperclip className="h-4 w-4" />
                       </Button>
                       <Button
@@ -533,15 +554,46 @@ const RitaChatInterface: React.FC = () => {
             </div>
           </div>
         </div>
+
+        {/* Hidden file input */}
+        <input
+          ref={fileInputRef}
+          type="file"
+          className="hidden"
+          onChange={handleFileUpload}
+          accept=".jpg,.jpeg,.png,.gif,.webp,.pdf,.txt,.md,.doc,.docx,.xls,.xlsx"
+          disabled={uploadFileMutation.isPending}
+        />
+
+        {/* Upload status messages */}
+        {uploadFileMutation.isError && (
+          <div className="fixed bottom-4 right-4 p-3 bg-red-50 border border-red-200 rounded-md max-w-sm z-50">
+            <div className="flex items-center gap-2 text-red-700">
+              <div className="w-2 h-2 bg-red-500 rounded-full"></div>
+              <span className="text-sm">
+                {uploadFileMutation.error?.message || 'Upload failed'}
+              </span>
+            </div>
+          </div>
+        )}
+
+        {uploadFileMutation.isSuccess && (
+          <div className="fixed bottom-4 right-4 p-3 bg-green-50 border border-green-200 rounded-md max-w-sm z-50">
+            <div className="flex items-center gap-2 text-green-700">
+              <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+              <span className="text-sm">File uploaded successfully!</span>
+            </div>
+          </div>
+        )}
       </div>
     </SidebarProvider>
   )
 }
 
-export default function RitaLayoutWithChat() {
+export default function ChatUIv1() {
   const { authenticated, loading, sessionReady } = useAuth()
 
-  console.log('RitaLayoutWithChat render - authenticated:', authenticated, 'loading:', loading, 'sessionReady:', sessionReady, 'SSE enabled:', authenticated && !loading && sessionReady)
+  console.log('ChatUIv1 render - authenticated:', authenticated, 'loading:', loading, 'sessionReady:', sessionReady, 'SSE enabled:', authenticated && !loading && sessionReady)
 
   return (
     <SSEProvider
