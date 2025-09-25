@@ -33,11 +33,15 @@ import {
   Plus,
   PanelLeft,
   File,
-  FileText
+  FileText,
+  LogOut
 } from "lucide-react"
 
 // Custom hooks and types
 import type { RitaChatState } from "@/hooks/useRitaChat"
+import { useAuth } from "@/hooks/useAuth"
+import { ResolveLogo } from "@/components/ui/ResolveLogo"
+import { useState } from "react"
 
 export interface RitaLayoutViewProps extends RitaChatState {
   // Any additional UI-specific props can go here
@@ -91,15 +95,28 @@ export default function RitaLayoutView({
   documentInputRef,
   messagesEndRef,
 }: RitaLayoutViewProps) {
+  const { logout } = useAuth()
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
+
+  const handleSignOut = async () => {
+    try {
+      logout()
+    } catch (error) {
+      console.error('Failed to sign out:', error)
+    }
+  }
+
+  const toggleSidebar = () => {
+    setSidebarCollapsed(!sidebarCollapsed)
+  }
+
   return (
     <div className="h-screen flex flex-col bg-gray-50">
       {/* Mobile Navigation */}
       <nav className="bg-primary border-b px-6 py-3 flex items-center justify-between w-full lg:hidden flex-shrink-0">
         <div className="flex items-center gap-4">
           <div className="w-[100px] h-[19px]">
-            <svg className="w-full h-full">
-              <circle cx="50" cy="10" r="8" fill="currentColor" />
-            </svg>
+            <ResolveLogo />
           </div>
           <span className="text-white text-lg font-medium">Rita GO</span>
         </div>
@@ -136,12 +153,10 @@ export default function RitaLayoutView({
       <nav className="bg-primary border-b px-6 py-3 items-center justify-between w-full hidden lg:flex flex-shrink-0">
         <div className="flex items-center gap-4">
           <div className="w-[100px] h-[19px]">
-            <svg className="w-full h-full">
-              <circle cx="50" cy="10" r="8" fill="currentColor" />
-            </svg>
+            <ResolveLogo />
           </div>
           <span className="text-white text-lg font-medium">Rita GO</span>
-          <Button variant="ghost" size="icon" className="w-7 h-7 rounded-md">
+          <Button variant="ghost" size="icon" className="w-7 h-7 rounded-md" onClick={toggleSidebar}>
             <PanelLeft className="h-4 w-4 text-background" />
           </Button>
         </div>
@@ -167,7 +182,8 @@ export default function RitaLayoutView({
           <Avatar className="w-10 h-10">
             <AvatarFallback className="bg-primary-foreground text-primary">GP</AvatarFallback>
           </Avatar>
-          <Button variant="ghost" className="px-3 py-2.5 rounded-md text-white">
+          <Button variant="ghost" className="px-3 py-2.5 rounded-md text-white" onClick={handleSignOut}>
+            <LogOut className="h-4 w-4 mr-2" />
             Logout
           </Button>
         </div>
@@ -176,7 +192,7 @@ export default function RitaLayoutView({
       {/* Content area with sidebars below header */}
       <div className="flex-1 flex overflow-hidden">
         {/* Left Sidebar */}
-        <div className="w-64 bg-white border-r border-gray-200 flex flex-col hidden lg:flex">
+        <div className={`${sidebarCollapsed ? 'w-0' : 'w-64'} bg-white border-r border-gray-200 flex flex-col hidden lg:flex transition-all duration-300 overflow-hidden`}>
           <div className="p-4">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -496,11 +512,11 @@ export default function RitaLayoutView({
                     >
                       <div className="flex-shrink-0">
                         {file.type?.includes('pdf') ? (
-                          <FileText className="h-5 w-5 text-red-600" />
+                          <FileText className="h-5 w-5 text-muted-foreground" />
                         ) : file.type?.includes('text') ? (
-                          <FileText className="h-5 w-5 text-blue-600" />
+                          <FileText className="h-5 w-5 text-muted-foreground" />
                         ) : (
-                          <File className="h-5 w-5 text-gray-600" />
+                          <File className="h-5 w-5 text-muted-foreground" />
                         )}
                       </div>
                       <div className="flex-1 min-w-0">
