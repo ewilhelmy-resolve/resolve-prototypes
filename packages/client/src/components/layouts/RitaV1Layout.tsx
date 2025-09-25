@@ -273,142 +273,144 @@ export default function RitaV1Layout({ children, activePage = 'chat' }: RitaV1La
           {children}
         </main>
 
-        {/* Right Sidebar */}
-        <div className="w-80 bg-white border-l border-gray-200 flex flex-col hidden lg:flex">
-          <div className="p-4 border-b border-gray-200">
-            <h2 className="font-semibold text-gray-900 mb-2">Share Rita</h2>
-            <p className="text-sm text-gray-600 mb-3">
-              Invite teammates to use Rita and resolve support faster.
-            </p>
-            <Button className="w-full">
-              <Share2 className="h-4 w-4 mr-2" />
-              Share
-            </Button>
-          </div>
-
-          <div className="flex-1 p-4">
-            <div className="mb-6">
-              <h3 className="font-semibold text-gray-900 mb-1">Knowledge base</h3>
-              <Button
-                variant="outline"
-                size="icon"
-                className="float-right -mt-6"
-                onClick={openDocumentSelector}
-                disabled={documentUploadIsUploading}
-                title="Add knowledge base articles"
-              >
-                <Plus className="h-4 w-4" />
+        {/* Right Sidebar - Only show on chat page */}
+        {activePage === 'chat' && (
+          <div className="w-80 bg-white border-l border-gray-200 flex flex-col hidden lg:flex">
+            <div className="p-4 border-b border-gray-200">
+              <h2 className="font-semibold text-gray-900 mb-2">Share Rita</h2>
+              <p className="text-sm text-gray-600 mb-3">
+                Invite teammates to use Rita and resolve support faster.
+              </p>
+              <Button className="w-full">
+                <Share2 className="h-4 w-4 mr-2" />
+                Share
               </Button>
             </div>
 
-            <div className="space-y-3">
-              <div className="flex gap-3">
-                <Card className="flex-1 p-3 border">
-                  <div className="space-y-0">
-                    <h3 className="text-2xl font-medium font-serif">{knowledgeBaseFilesLoading ? '-' : totalKnowledgeBaseFiles}</h3>
-                    <p className="text-sm text-muted-foreground">Articles</p>
-                  </div>
-                </Card>
-                <Card className="flex-1 p-3 border">
-                  <div className="space-y-0">
-                    <h3 className="text-2xl font-medium font-serif text-card-foreground">0</h3>
-                    <p className="text-sm text-muted-foreground">Vectors</p>
-                  </div>
-                </Card>
-                <Card className="flex-1 p-3 border">
-                  <div className="space-y-0">
-                    <h3 className="text-2xl font-medium font-serif text-card-foreground">0%</h3>
-                    <p className="text-sm text-muted-foreground">Accuracy</p>
-                  </div>
-                </Card>
+            <div className="flex-1 p-4">
+              <div className="mb-6">
+                <h3 className="font-semibold text-gray-900 mb-1">Knowledge base</h3>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="float-right -mt-6"
+                  onClick={openDocumentSelector}
+                  disabled={documentUploadIsUploading}
+                  title="Add knowledge base articles"
+                >
+                  <Plus className="h-4 w-4" />
+                </Button>
               </div>
 
-              <div className="flex items-center gap-1">
-                <span className="text-sm">{knowledgeBaseFilesLoading ? '-' : totalKnowledgeBaseFiles}</span>
-                <span className="text-sm text-muted-foreground">recent articles</span>
-              </div>
-
-              {knowledgeBaseFilesLoading ? (
-                <Card className="p-4 border rounded-lg">
-                  <div className="space-y-3">
-                    {[...Array(3)].map((_, i) => (
-                      <div key={i} className="flex items-center gap-3">
-                        <Skeleton className="w-8 h-8 rounded" />
-                        <div className="flex-1">
-                          <Skeleton className="h-4 w-3/4 mb-1" />
-                          <Skeleton className="h-3 w-1/2" />
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </Card>
-              ) : knowledgeBaseFiles.length === 0 ? (
-                <Card className="p-6 border rounded-lg text-center space-y-6">
-                  <div className="w-12 h-12 bg-card border rounded-md flex items-center justify-center mx-auto">
-                    <Newspaper className="h-6 w-6" />
-                  </div>
-                  <div className="space-y-2">
-                    <h3 className="text-xl font-medium font-serif">No Articles Found</h3>
-                    <p className="text-sm text-muted-foreground">Add your knowledge base articles and unlock instant chat with your company's articles.</p>
-                  </div>
-                  <Button
-                    variant="outline"
-                    onClick={openDocumentSelector}
-                    disabled={documentUploadIsUploading}
-                    className="gap-2"
-                  >
-                    <Plus className="h-4 w-4" />
-                    Add Article
-                  </Button>
-                </Card>
-              ) : (
-                <Card className="p-4 border rounded-lg">
-                  <div className="space-y-3">
-                    {knowledgeBaseFiles.slice(0, 3).map((file) => (
-                      <div key={file.id} className="flex items-center gap-3">
-                        <div className="w-8 h-8 bg-card border rounded flex items-center justify-center">
-                          <FileText className="h-4 w-4 text-card-foreground" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium truncate">{file.filename}</p>
-                          <p className="text-xs text-muted-foreground">
-                            {file.created_at?.toLocaleDateString() || 'Recently added'}
-                          </p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                  {knowledgeBaseFiles.length > 3 && (
-                    <div className="mt-3 pt-3 border-t border-border">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="w-full text-xs text-muted-foreground hover:text-foreground"
-                        onClick={navigateToKnowledgeArticles}
-                      >
-                        View all {totalKnowledgeBaseFiles} articles
-                      </Button>
+              <div className="space-y-3">
+                <div className="flex gap-3">
+                  <Card className="flex-1 p-3 border">
+                    <div className="space-y-0">
+                      <h3 className="text-2xl font-medium font-serif">{knowledgeBaseFilesLoading ? '-' : totalKnowledgeBaseFiles}</h3>
+                      <p className="text-sm text-muted-foreground">Articles</p>
                     </div>
-                  )}
-                </Card>
-              )}
-            </div>
-          </div>
+                  </Card>
+                  <Card className="flex-1 p-3 border">
+                    <div className="space-y-0">
+                      <h3 className="text-2xl font-medium font-serif text-card-foreground">0</h3>
+                      <p className="text-sm text-muted-foreground">Vectors</p>
+                    </div>
+                  </Card>
+                  <Card className="flex-1 p-3 border">
+                    <div className="space-y-0">
+                      <h3 className="text-2xl font-medium font-serif text-card-foreground">0%</h3>
+                      <p className="text-sm text-muted-foreground">Accuracy</p>
+                    </div>
+                  </Card>
+                </div>
 
-          {/* Help Section */}
-          <div className="p-4 border-t border-gray-200">
-            <div className="space-y-2">
-              <Button variant="ghost" size="sm" className="w-full justify-start gap-3">
-                <LifeBuoy className="h-4 w-4" />
-                Help & Support
-              </Button>
-              <Button variant="ghost" size="sm" className="w-full justify-start gap-3">
-                <Zap className="h-4 w-4" />
-                What's New
-              </Button>
+                <div className="flex items-center gap-1">
+                  <span className="text-sm">{knowledgeBaseFilesLoading ? '-' : totalKnowledgeBaseFiles}</span>
+                  <span className="text-sm text-muted-foreground">recent articles</span>
+                </div>
+
+                {knowledgeBaseFilesLoading ? (
+                  <Card className="p-4 border rounded-lg">
+                    <div className="space-y-3">
+                      {[...Array(3)].map((_, i) => (
+                        <div key={i} className="flex items-center gap-3">
+                          <Skeleton className="w-8 h-8 rounded" />
+                          <div className="flex-1">
+                            <Skeleton className="h-4 w-3/4 mb-1" />
+                            <Skeleton className="h-3 w-1/2" />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </Card>
+                ) : knowledgeBaseFiles.length === 0 ? (
+                  <Card className="p-6 border rounded-lg text-center space-y-6">
+                    <div className="w-12 h-12 bg-card border rounded-md flex items-center justify-center mx-auto">
+                      <Newspaper className="h-6 w-6" />
+                    </div>
+                    <div className="space-y-2">
+                      <h3 className="text-xl font-medium font-serif">No Articles Found</h3>
+                      <p className="text-sm text-muted-foreground">Add your knowledge base articles and unlock instant chat with your company's articles.</p>
+                    </div>
+                    <Button
+                      variant="outline"
+                      onClick={openDocumentSelector}
+                      disabled={documentUploadIsUploading}
+                      className="gap-2"
+                    >
+                      <Plus className="h-4 w-4" />
+                      Add Article
+                    </Button>
+                  </Card>
+                ) : (
+                  <Card className="p-4 border rounded-lg">
+                    <div className="space-y-3">
+                      {knowledgeBaseFiles.slice(0, 3).map((file) => (
+                        <div key={file.id} className="flex items-center gap-3">
+                          <div className="w-8 h-8 bg-card border rounded flex items-center justify-center">
+                            <FileText className="h-4 w-4 text-card-foreground" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium truncate">{file.filename}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {file.created_at?.toLocaleDateString() || 'Recently added'}
+                            </p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    {knowledgeBaseFiles.length > 3 && (
+                      <div className="mt-3 pt-3 border-t border-border">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="w-full text-xs text-muted-foreground hover:text-foreground"
+                          onClick={navigateToKnowledgeArticles}
+                        >
+                          View all {totalKnowledgeBaseFiles} articles
+                        </Button>
+                      </div>
+                    )}
+                  </Card>
+                )}
+              </div>
+            </div>
+
+            {/* Help Section */}
+            <div className="p-4 border-t border-gray-200">
+              <div className="space-y-2">
+                <Button variant="ghost" size="sm" className="w-full justify-start gap-3">
+                  <LifeBuoy className="h-4 w-4" />
+                  Help & Support
+                </Button>
+                <Button variant="ghost" size="sm" className="w-full justify-start gap-3">
+                  <Zap className="h-4 w-4" />
+                  What's New
+                </Button>
+              </div>
             </div>
           </div>
-        </div>
+        )}
       </div>
 
       {/* Hidden file input for document upload */}
