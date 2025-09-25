@@ -31,7 +31,9 @@ import {
   Paperclip,
   SendHorizontal,
   Plus,
-  PanelLeft
+  PanelLeft,
+  File,
+  FileText
 } from "lucide-react"
 
 // Custom hooks and types
@@ -80,6 +82,9 @@ export default function RitaLayoutView({
   navigateToKnowledgeArticles,
   // navigateToFiles, // Not currently used
   documentUploadStatus,
+  knowledgeBaseFiles,
+  knowledgeBaseFilesLoading,
+  totalKnowledgeBaseFiles,
 
   // Refs
   fileInputRef,
@@ -426,7 +431,7 @@ export default function RitaLayoutView({
               <div className="flex gap-3">
                 <Card className="flex-1 p-3 border">
                   <div className="space-y-0">
-                    <h3 className="text-2xl font-medium font-serif">0</h3>
+                    <h3 className="text-2xl font-medium font-serif">{knowledgeBaseFilesLoading ? '-' : totalKnowledgeBaseFiles}</h3>
                     <p className="text-sm text-muted-foreground">Articles</p>
                   </div>
                 </Card>
@@ -445,27 +450,81 @@ export default function RitaLayoutView({
               </div>
 
               <div className="flex items-center gap-1">
-                <span className="text-sm">0</span>
+                <span className="text-sm">{knowledgeBaseFilesLoading ? '-' : totalKnowledgeBaseFiles}</span>
                 <span className="text-sm text-muted-foreground">recent articles</span>
               </div>
 
-              <Card className="p-6 border rounded-lg text-center space-y-6">
-                <div className="w-12 h-12 bg-card border rounded-md flex items-center justify-center mx-auto">
-                  <Newspaper className="h-6 w-6" />
-                </div>
+{knowledgeBaseFilesLoading ? (
+                <Card className="p-4 border rounded-lg">
+                  <div className="space-y-3">
+                    {[...Array(3)].map((_, i) => (
+                      <div key={i} className="flex items-center gap-3">
+                        <Skeleton className="w-8 h-8 rounded" />
+                        <div className="flex-1">
+                          <Skeleton className="h-4 w-3/4 mb-1" />
+                          <Skeleton className="h-3 w-1/2" />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </Card>
+              ) : knowledgeBaseFiles.length === 0 ? (
+                <Card className="p-6 border rounded-lg text-center space-y-6">
+                  <div className="w-12 h-12 bg-card border rounded-md flex items-center justify-center mx-auto">
+                    <Newspaper className="h-6 w-6" />
+                  </div>
+                  <div className="space-y-2">
+                    <h3 className="text-xl font-medium font-serif">No Articles Found</h3>
+                    <p className="text-sm text-muted-foreground">Add your knowledge base articles and unlock instant chat with your company's articles.</p>
+                  </div>
+                  <Button
+                    variant="secondary"
+                    onClick={openDocumentSelector}
+                    disabled={documentUploadStatus.isUploading}
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    {documentUploadStatus.isUploading ? 'Uploading...' : 'Add Articles'}
+                  </Button>
+                </Card>
+              ) : (
                 <div className="space-y-2">
-                  <h3 className="text-xl font-medium font-serif">No Articles Found</h3>
-                  <p className="text-sm text-muted-foreground">Add your knowledge base articles and unlock instant chat with your company's articles.</p>
+                  {knowledgeBaseFiles.slice(0, 5).map((file) => (
+                    <div
+                      key={file.id}
+                      className="flex items-center gap-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer"
+                      onClick={navigateToKnowledgeArticles}
+                    >
+                      <div className="flex-shrink-0">
+                        {file.type?.includes('pdf') ? (
+                          <FileText className="h-5 w-5 text-red-600" />
+                        ) : file.type?.includes('text') ? (
+                          <FileText className="h-5 w-5 text-blue-600" />
+                        ) : (
+                          <File className="h-5 w-5 text-gray-600" />
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-gray-900 truncate">
+                          {file.filename}
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          {file.created_at?.toLocaleDateString()} • {Math.round(file.size / 1024)}KB
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                  {knowledgeBaseFiles.length > 5 && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="w-full mt-2"
+                      onClick={navigateToKnowledgeArticles}
+                    >
+                      View all {knowledgeBaseFiles.length} articles
+                    </Button>
+                  )}
                 </div>
-                <Button
-                  variant="secondary"
-                  onClick={openDocumentSelector}
-                  disabled={documentUploadStatus.isUploading}
-                >
-                  <Plus className="h-4 w-4 mr-2" />
-                  {documentUploadStatus.isUploading ? 'Uploading...' : 'Add Articles'}
-                </Button>
-              </Card>
+              )}
             </div>
           </div>
         </div>

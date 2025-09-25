@@ -7,7 +7,7 @@
 
 import { useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useUploadFile } from '@/hooks/api/useFiles'
+import { useUploadFile, useFiles, type FileDocument } from '@/hooks/api/useFiles'
 
 export interface KnowledgeBaseState {
   // Upload state
@@ -15,6 +15,11 @@ export interface KnowledgeBaseState {
   isError: boolean
   isSuccess: boolean
   error: any
+
+  // Files state
+  files: FileDocument[]
+  filesLoading: boolean
+  totalFiles: number
 
   // Upload actions
   handleDocumentUpload: (e: React.ChangeEvent<HTMLInputElement>) => void
@@ -35,6 +40,7 @@ export const useKnowledgeBase = (): KnowledgeBaseState => {
   const documentInputRef = useRef<HTMLInputElement>(null)
   const navigate = useNavigate()
   const uploadFileMutation = useUploadFile()
+  const { data: filesData, isLoading: filesLoading } = useFiles()
 
   const handleDocumentUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     e.preventDefault()
@@ -62,6 +68,11 @@ export const useKnowledgeBase = (): KnowledgeBaseState => {
     isError: uploadFileMutation.isError,
     isSuccess: uploadFileMutation.isSuccess,
     error: uploadFileMutation.error,
+
+    // Files state
+    files: filesData?.documents || [],
+    filesLoading,
+    totalFiles: filesData?.total || 0,
 
     // Upload actions
     handleDocumentUpload,

@@ -59,6 +59,9 @@ export interface RitaChatState {
     isSuccess: boolean
     error?: any
   }
+  knowledgeBaseFiles: any[]
+  knowledgeBaseFilesLoading: boolean
+  totalKnowledgeBaseFiles: number
 
   // Refs
   fileInputRef: React.RefObject<HTMLInputElement>
@@ -130,6 +133,9 @@ export const useRitaChat = (): RitaChatState => {
       isSuccess: knowledgeBase.isSuccess,
       error: knowledgeBase.error,
     },
+    knowledgeBaseFiles: knowledgeBase.files,
+    knowledgeBaseFilesLoading: knowledgeBase.filesLoading,
+    totalKnowledgeBaseFiles: knowledgeBase.totalFiles,
 
     // Refs
     fileInputRef,
