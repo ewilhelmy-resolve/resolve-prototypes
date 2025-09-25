@@ -5,16 +5,57 @@
  * with the chat content component for clean separation of concerns.
  */
 
+import { useEffect } from 'react'
+import { useParams } from 'react-router-dom'
+import { SSEProvider, useSSEContext } from '../contexts/SSEContext'
+import { useAuth } from '../hooks/useAuth'
+import { useConversationStore } from '../stores/conversationStore'
 import RitaV1Layout from '../components/layouts/RitaV1Layout'
 import ChatV1Content from '../components/chat/ChatV1Content'
 import { useRitaChat } from '../hooks/useRitaChat'
 
-export default function ChatV1Page() {
+const ChatV1Demo: React.FC = () => {
+  const { conversationId } = useParams<{ conversationId?: string }>()
+  const { latestUpdate } = useSSEContext()
+  const { updateMessage, setCurrentConversation } = useConversationStore()
   const ritaChatState = useRitaChat()
+
+  // Sync URL parameter with conversation store
+  useEffect(() => {
+    if (conversationId && conversationId !== ritaChatState.currentConversationId) {
+      setCurrentConversation(conversationId)
+    } else if (!conversationId && ritaChatState.currentConversationId) {
+      setCurrentConversation(null)
+    }
+  }, [conversationId, ritaChatState.currentConversationId, setCurrentConversation])
+
+  // Handle SSE message updates
+  useEffect(() => {
+    if (latestUpdate) {
+      console.log('Applying SSE update to store:', latestUpdate)
+      updateMessage(latestUpdate.messageId, {
+        status: latestUpdate.status,
+        error_message: latestUpdate.errorMessage,
+      })
+    }
+  }, [latestUpdate, updateMessage])
 
   return (
     <RitaV1Layout activePage="chat">
       <ChatV1Content {...ritaChatState} />
     </RitaV1Layout>
+  )
+}
+
+export default function ChatV1Page() {
+  const { authenticated, loading, sessionReady } = useAuth()
+
+  return (
+    <SSEProvider
+      apiUrl=""
+      enabled={authenticated && !loading && sessionReady}
+    >
+      <ChatV1Demo />
+    </SSEProvider>
   )
 }
