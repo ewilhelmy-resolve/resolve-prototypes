@@ -17,24 +17,98 @@
 
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect, useRef } from "react"
+import { useNavigate, useParams } from "react-router-dom"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
+import { Skeleton } from "@/components/ui/skeleton"
 import { MessageCirclePlus, LayoutGrid, Newspaper, Ticket, User, Search, Share2, LifeBuoy, Zap, Paperclip, SendHorizontal, Plus, PanelLeft } from "lucide-react"
+
+// Import conversation functionality
+import { useConversationStore } from "@/stores/conversationStore"
+import { useConversations, useCreateConversation, useSendMessage, useConversationMessages } from "@/hooks/api/useConversations"
+import { useUploadFile } from "@/hooks/api/useFiles"
 
 export default function RitaLayout() {
   const [searchValue, setSearchValue] = useState("")
   const [messageValue, setMessageValue] = useState("")
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const messagesEndRef = useRef<HTMLDivElement>(null)
 
-  const handleSendMessage = () => {
-    if (!messageValue.trim()) return
+  // Navigation and conversation state
+  const navigate = useNavigate()
+  const { conversationId } = useParams<{ conversationId?: string }>()
+  const { conversations, currentConversationId, clearCurrentConversation, setCurrentConversation, messages, isSending } = useConversationStore()
+  const { data: fetchedConversations, isLoading: conversationsLoading } = useConversations()
+  const { isLoading: messagesLoading } = useConversationMessages(currentConversationId)
+  const createConversationMutation = useCreateConversation()
+  const sendMessageMutation = useSendMessage()
+  const uploadFileMutation = useUploadFile()
 
-    // TODO: Implement message sending logic
-    console.log('Sending message:', messageValue)
+  // Use fetched conversations if available, fallback to store
+  const conversationList = fetchedConversations || conversations
+
+  // Filter conversations based on search
+  const filteredConversations = conversationList.filter(conv =>
+    conv.title.toLowerCase().includes(searchValue.toLowerCase())
+  )
+
+  // Sync URL parameter with conversation store
+  useEffect(() => {
+    if (conversationId && conversationId !== currentConversationId) {
+      setCurrentConversation(conversationId)
+    } else if (!conversationId && currentConversationId) {
+      setCurrentConversation(null)
+    }
+  }, [conversationId, currentConversationId, setCurrentConversation])
+
+  // Auto-scroll to bottom when messages change
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [messages])
+
+  const handleNewChat = () => {
+    clearCurrentConversation()
+    navigate('/v1')
+  }
+
+  const handleConversationClick = (conversationId: string) => {
+    navigate(`/v1/${conversationId}`)
+  }
+
+  const handleSendMessage = async () => {
+    if (!messageValue.trim() || isSending) return
+
+    const messageContent = messageValue
+    const tempId = `msg_${Date.now()}`
+
     setMessageValue("")
+
+    try {
+      let conversationId = currentConversationId
+
+      // Create conversation if we don't have one
+      if (!conversationId) {
+        const conversation = await createConversationMutation.mutateAsync({
+          title: messageContent.substring(0, 50) + (messageContent.length > 50 ? '...' : '')
+        })
+        conversationId = conversation.id
+        // Navigate to the new conversation URL
+        navigate(`/v1/${conversationId}`)
+      }
+
+      // Send message
+      await sendMessageMutation.mutateAsync({
+        conversationId,
+        content: messageContent,
+        tempId,
+      })
+    } catch (error) {
+      console.error('Failed to send message:', error)
+    }
   }
 
   const handleKeyPress = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -42,6 +116,18 @@ export default function RitaLayout() {
       e.preventDefault()
       handleSendMessage()
     }
+  }
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    e.preventDefault()
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0]
+      uploadFileMutation.mutate(file)
+    }
+  }
+
+  const openFileSelector = () => {
+    fileInputRef.current?.click()
   }
 
   return (
@@ -134,7 +220,7 @@ export default function RitaLayout() {
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Search"
+                placeholder="Search conversations..."
                 value={searchValue}
                 onChange={(e) => setSearchValue(e.target.value)}
                 className="pl-9 h-9 bg-background border-input"
@@ -143,7 +229,7 @@ export default function RitaLayout() {
           </div>
           <div className="flex-1 overflow-y-auto">
             <div className="p-4 space-y-4">
-              <Button className="w-full justify-start">
+              <Button className="w-full justify-start" onClick={handleNewChat}>
                 <MessageCirclePlus className="h-4 w-4 mr-2" />
                 New chat
               </Button>
@@ -172,21 +258,42 @@ export default function RitaLayout() {
             <div className="px-4 mt-6">
               <h4 className="text-xs font-semibold text-muted-foreground mb-2">RECENT CHATS</h4>
               <div className="space-y-1">
-                <Button variant="ghost" className="w-full justify-start h-8">
-                  <span className="text-sm">Password reset articles</span>
-                </Button>
-                <Button variant="secondary" className="w-full justify-start h-8">
-                  <span className="text-sm">VPN Connection Troubleshooting</span>
-                </Button>
-                <Button variant="ghost" className="w-full justify-start h-8">
-                  <span className="text-sm">Two-factor authentication setup</span>
-                </Button>
-                <Button variant="ghost" className="w-full justify-start h-8">
-                  <span className="text-sm">Phishing awareness guide</span>
-                </Button>
-                <Button variant="ghost" className="w-full justify-start h-8">
-                  <span className="text-sm">Email Configuration Setup</span>
-                </Button>
+                {conversationsLoading ? (
+                  // Loading skeleton
+                  <div className="space-y-1">
+                    {[...Array(5)].map((_, i) => (
+                      <div key={i} className="p-2 rounded-lg">
+                        <Skeleton className="h-4 w-3/4 mb-1" />
+                        <Skeleton className="h-3 w-1/2" />
+                      </div>
+                    ))}
+                  </div>
+                ) : filteredConversations.length === 0 ? (
+                  // Empty state
+                  <div className="text-center py-4">
+                    <p className="text-xs text-muted-foreground">No conversations yet</p>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="mt-2 text-xs h-7"
+                      onClick={handleNewChat}
+                    >
+                      Start your first chat
+                    </Button>
+                  </div>
+                ) : (
+                  // Conversation list
+                  filteredConversations.map((conversation) => (
+                    <Button
+                      key={conversation.id}
+                      variant={conversation.id === currentConversationId ? "secondary" : "ghost"}
+                      className="w-full justify-start h-8 text-left"
+                      onClick={() => handleConversationClick(conversation.id)}
+                    >
+                      <span className="text-sm truncate">{conversation.title}</span>
+                    </Button>
+                  ))
+                )}
               </div>
             </div>
           </div>
@@ -195,12 +302,100 @@ export default function RitaLayout() {
         {/* Main Content */}
         <main className="flex-1 flex flex-col bg-white">
           <div className="flex-1 overflow-y-auto p-4">
-            <div className="max-w-4xl mx-auto flex flex-col items-center justify-center min-h-full">
-              <div className="text-center space-y-2.5">
-                <h1 className="text-5xl font-medium text-foreground font-serif">Ask Rita</h1>
-                <p className="text-base text-foreground">Diagnose and resolve issues, then create automations to speed up future remediation</p>
+            {messagesLoading || (currentConversationId && messages.length === 0) ? (
+              <div className="max-w-4xl mx-auto space-y-4">
+                {[...Array(3)].map((_, i) => (
+                  <div key={i} className="flex items-start gap-3">
+                    <Skeleton className="w-8 h-8 rounded-full" />
+                    <div className="flex-1 space-y-2">
+                      <div className="flex items-center gap-2">
+                        <Skeleton className="h-4 w-16" />
+                        <Skeleton className="h-3 w-12" />
+                      </div>
+                      <Skeleton className="h-12 w-full rounded-lg" />
+                    </div>
+                  </div>
+                ))}
               </div>
-            </div>
+            ) : !currentConversationId || messages.length === 0 ? (
+              <div className="max-w-4xl mx-auto flex flex-col items-center justify-center min-h-full">
+                <div className="text-center space-y-2.5">
+                  <h1 className="text-5xl font-medium text-foreground font-serif">Ask Rita</h1>
+                  <p className="text-base text-foreground">Diagnose and resolve issues, then create automations to speed up future remediation</p>
+                </div>
+              </div>
+            ) : (
+              <div className="max-w-4xl mx-auto space-y-4">
+                {messages.map((message, index) => (
+                  <div
+                    key={message.id}
+                    className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'} animate-in fade-in slide-in-from-bottom-1`}
+                    style={{ animationDelay: `${index * 100}ms`, animationFillMode: 'both' }}
+                  >
+                    <div className={`max-w-[85%] ${message.role === 'user' ? 'ml-auto' : ''}`}>
+                      <div className="min-w-0">
+                        <div className={`flex items-center gap-2 mb-2 ${message.role === 'user' ? 'justify-end' : ''}`}>
+                          <span className="text-sm font-semibold">
+                            {message.role === 'user' ? 'You' : 'Rita'}
+                          </span>
+                          <span className="text-xs text-muted-foreground/70 font-medium">
+                            {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          </span>
+                        </div>
+                        {message.role === 'user' ? (
+                          <div className="text-sm rounded-2xl px-4 py-3" style={{ backgroundColor: '#F7F9FF' }}>
+                            <p className="leading-relaxed text-gray-800">{message.message}</p>
+                          </div>
+                        ) : (
+                          <div className="text-sm">
+                            <p className="leading-relaxed text-gray-800">{message.message}</p>
+                          </div>
+                        )}
+
+                        {/* Status indicator for user messages */}
+                        {message.role === 'user' && message.status !== 'completed' && (
+                          <div className={`mt-3 flex items-center gap-2 text-xs ${message.role === 'user' ? 'justify-end' : ''}`}>
+                            <div className={`px-2 py-1 rounded-full flex items-center gap-1.5 ${
+                              message.status === 'failed'
+                                ? 'bg-red-50 text-red-700 dark:bg-red-950/50 dark:text-red-400'
+                                : 'bg-blue-50 text-blue-700 dark:bg-blue-950/50 dark:text-blue-400'
+                            }`}>
+                              {message.status === 'sending' && (
+                                <>
+                                  <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
+                                  <span className="font-medium">Sending...</span>
+                                </>
+                              )}
+                              {message.status === 'pending' && (
+                                <>
+                                  <div className="w-2 h-2 bg-yellow-500 rounded-full animate-pulse"></div>
+                                  <span className="font-medium">Waiting for response...</span>
+                                </>
+                              )}
+                              {message.status === 'processing' && (
+                                <>
+                                  <div className="w-2 h-2 bg-green-500 rounded-full animate-bounce"></div>
+                                  <span className="font-medium">Processing...</span>
+                                </>
+                              )}
+                              {message.status === 'failed' && (
+                                <>
+                                  <div className="w-2 h-2 bg-red-500 rounded-full"></div>
+                                  <span className="font-medium">
+                                    Failed to send {message.error_message && `- ${message.error_message}`}
+                                  </span>
+                                </>
+                              )}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+                <div ref={messagesEndRef} />
+              </div>
+            )}
           </div>
           <div className="p-4 border-t border-gray-200 bg-white">
             <div className="max-w-4xl mx-auto">
@@ -211,6 +406,7 @@ export default function RitaLayout() {
                   onKeyDown={handleKeyPress}
                   placeholder="Ask me anything..."
                   aria-label="Message input"
+                  disabled={isSending}
                   className="flex-1 resize-none min-h-[40px] max-h-[120px] border border-gray-300 rounded-md px-3 py-2 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                   rows={1}
                 />
@@ -218,6 +414,8 @@ export default function RitaLayout() {
                   variant="ghost"
                   size="icon"
                   className="w-9 h-9"
+                  onClick={openFileSelector}
+                  disabled={uploadFileMutation.isPending}
                   aria-label="Attach file"
                 >
                   <Paperclip className="h-4 w-4" />
@@ -226,7 +424,7 @@ export default function RitaLayout() {
                   size="icon"
                   className="w-9 h-9"
                   onClick={handleSendMessage}
-                  disabled={!messageValue.trim()}
+                  disabled={!messageValue.trim() || isSending}
                   aria-label="Send message"
                 >
                   <SendHorizontal className="h-4 w-4" />
@@ -301,6 +499,37 @@ export default function RitaLayout() {
           </div>
         </div>
       </div>
+
+      {/* Hidden file input */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        className="hidden"
+        onChange={handleFileUpload}
+        accept=".jpg,.jpeg,.png,.gif,.webp,.pdf,.txt,.md,.doc,.docx,.xls,.xlsx"
+        disabled={uploadFileMutation.isPending}
+      />
+
+      {/* Upload status messages */}
+      {uploadFileMutation.isError && (
+        <div className="fixed bottom-4 right-4 p-3 bg-red-50 border border-red-200 rounded-md max-w-sm z-50">
+          <div className="flex items-center gap-2 text-red-700">
+            <div className="w-2 h-2 bg-red-500 rounded-full"></div>
+            <span className="text-sm">
+              {uploadFileMutation.error?.message || 'Upload failed'}
+            </span>
+          </div>
+        </div>
+      )}
+
+      {uploadFileMutation.isSuccess && (
+        <div className="fixed bottom-4 right-4 p-3 bg-green-50 border border-green-200 rounded-md max-w-sm z-50">
+          <div className="flex items-center gap-2 text-green-700">
+            <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+            <span className="text-sm">File uploaded successfully!</span>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
