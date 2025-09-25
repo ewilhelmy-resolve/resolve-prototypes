@@ -61,7 +61,8 @@ export class WebhookService {
     organizationId: string;
     userId: string;
     userEmail: string;
-    documentId: string;
+    blobMetadataId: string;
+    blobId: string;
     documentUrl: string;
     fileType: string;
     fileSize: number;
@@ -73,7 +74,8 @@ export class WebhookService {
       user_email: params.userEmail,
       user_id: params.userId,
       tenant_id: params.organizationId, // Map organization_id to tenant_id
-      document_id: params.documentId,
+      blob_metadata_id: params.blobMetadataId,
+      blob_id: params.blobId,
       document_url: params.documentUrl,
       file_type: params.fileType,
       file_size: params.fileSize,

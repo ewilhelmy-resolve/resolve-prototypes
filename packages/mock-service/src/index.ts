@@ -71,7 +71,8 @@ interface MessageWebhookPayload extends BaseWebhookPayload {
 interface DocumentWebhookPayload extends BaseWebhookPayload {
   source: 'rita-documents';
   action: 'document_uploaded';
-  document_id: string;
+  blob_metadata_id: string; // blob_metadata.id
+  blob_id: string; // blobs.blob_id
   document_url: string;
   file_type: string;
   file_size: number;
@@ -385,7 +386,8 @@ app.post('/webhook', async (req, res) => {
       const documentPayload = payload as DocumentWebhookPayload;
 
       const contextLogger = createContextLogger(webhookLogger, correlationId, {
-        documentId: documentPayload.document_id,
+        blobMetadataId: documentPayload.blob_metadata_id,
+        blobId: documentPayload.blob_id,
         tenantId: documentPayload.tenant_id,
         userId: documentPayload.user_id
       });
@@ -394,7 +396,8 @@ app.post('/webhook', async (req, res) => {
         source: documentPayload.source,
         action: documentPayload.action,
         user_email: documentPayload.user_email,
-        document_id: documentPayload.document_id,
+        blob_metadata_id: documentPayload.blob_metadata_id,
+        blob_id: documentPayload.blob_id,
         document_url: documentPayload.document_url,
         file_type: documentPayload.file_type,
         file_size: documentPayload.file_size,
@@ -402,14 +405,15 @@ app.post('/webhook', async (req, res) => {
       }, 'Received document webhook');
 
       // Validate document-specific required fields
-      if (!documentPayload.document_id || !documentPayload.document_url || !documentPayload.file_type) {
+      if (!documentPayload.blob_metadata_id || !documentPayload.blob_id || !documentPayload.document_url || !documentPayload.file_type) {
         contextLogger.warn({
-          hasDocumentId: !!documentPayload.document_id,
+          hasBlobMetadataId: !!documentPayload.blob_metadata_id,
+          hasBlobId: !!documentPayload.blob_id,
           hasDocumentUrl: !!documentPayload.document_url,
           hasFileType: !!documentPayload.file_type
         }, 'Document webhook validation failed - missing required fields');
         return res.status(400).json({
-          error: 'Missing required fields for document webhook: document_id, document_url, file_type'
+          error: 'Missing required fields for document webhook: blob_metadata_id, blob_id, document_url, file_type'
         });
       }
 
@@ -559,12 +563,14 @@ app.post('/webhook', async (req, res) => {
       // Document processing - just log as placeholder
       const documentPayload = payload as DocumentWebhookPayload;
       timer.end({
-        documentId: documentPayload.document_id,
+        blobMetadataId: documentPayload.blob_metadata_id,
+        blobId: documentPayload.blob_id,
         success: true
       });
 
       contextLogger.info({
-        document_id: documentPayload.document_id,
+        blob_metadata_id: documentPayload.blob_metadata_id,
+        blob_id: documentPayload.blob_id,
         document_url: documentPayload.document_url,
         file_type: documentPayload.file_type,
         file_size: documentPayload.file_size,
@@ -574,7 +580,8 @@ app.post('/webhook', async (req, res) => {
 
       res.status(200).json({
         message: 'Document webhook received and logged (placeholder implementation)',
-        document_id: documentPayload.document_id,
+        blob_metadata_id: documentPayload.blob_metadata_id,
+        blob_id: documentPayload.blob_id,
         status: 'acknowledged'
       });
 

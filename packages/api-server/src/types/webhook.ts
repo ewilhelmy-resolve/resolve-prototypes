@@ -22,7 +22,8 @@ export interface MessageWebhookPayload extends BaseWebhookPayload {
 export interface DocumentProcessingPayload extends BaseWebhookPayload {
   source: 'rita-documents';
   action: 'document_uploaded';
-  document_id: string;
+  blob_metadata_id: string; // blob_metadata.id
+  blob_id: string; // blobs.blob_id
   document_url: string;
   file_type: string;
   file_size: number;

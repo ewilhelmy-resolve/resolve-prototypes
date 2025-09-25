@@ -9,11 +9,14 @@ import { WebhookService } from '../services/WebhookService.js';
 const router = express.Router();
 const webhookService = new WebhookService();
 
+// Default file size limit: 100MB in KB
+const DEFAULT_FILE_SIZE_LIMIT_KB = '102400';
+
 // Configure multer for memory storage (files stored in memory temporarily)
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: {
-    fileSize: parseInt(process.env.FILE_SIZE_LIMIT_KB || '50') * 1024, // 50KB default
+    fileSize: parseInt(process.env.FILE_SIZE_LIMIT_KB || DEFAULT_FILE_SIZE_LIMIT_KB) * 1024, // 100MB default
   },
   fileFilter: (req, file, cb) => {
     // Validate content type
@@ -86,7 +89,7 @@ router.post('/upload', authenticateUser, upload.single('file'), async (req, res)
               blob_id, organization_id, user_id, filename, file_size, mime_type, status, metadata
             )
             VALUES ($1, $2, $3, $4, $5, $6, 'uploaded', $7)
-            RETURNING id, filename, file_size, mime_type, status, created_at
+            RETURNING id, blob_id, filename, file_size, mime_type, status, created_at
           `, [
             blobId,
             authReq.user.activeOrganizationId,
@@ -117,7 +120,8 @@ router.post('/upload', authenticateUser, upload.single('file'), async (req, res)
         organizationId: authReq.user.activeOrganizationId,
         userId: authReq.user.id,
         userEmail: authReq.user.email,
-        documentId: result.id.toString(),
+        blobMetadataId: result.id.toString(),
+        blobId: result.blob_id.toString(),
         documentUrl: documentUrl,
         fileType: result.mime_type,
         fileSize: result.file_size,
@@ -147,7 +151,7 @@ router.post('/upload', authenticateUser, upload.single('file'), async (req, res)
     console.error('Error uploading file:', error);
     if (error instanceof multer.MulterError) {
       if (error.code === 'LIMIT_FILE_SIZE') {
-        const limitKB = parseInt(process.env.FILE_SIZE_LIMIT_KB || '50');
+        const limitKB = parseInt(process.env.FILE_SIZE_LIMIT_KB || DEFAULT_FILE_SIZE_LIMIT_KB);
         return res.status(400).json({ error: `File size exceeds ${limitKB}KB limit` });
       }
       return res.status(400).json({ error: error.message });
@@ -207,7 +211,7 @@ router.post('/content', authenticateUser, async (req, res) => {
               blob_id, organization_id, user_id, filename, file_size, mime_type, status, metadata
             )
             VALUES ($1, $2, $3, $4, $5, 'text/plain', 'uploaded', $6)
-            RETURNING id, filename, file_size, mime_type, status, created_at
+            RETURNING id, blob_id, filename, file_size, mime_type, status, created_at
           `, [
             blobId,
             authReq.user.activeOrganizationId,
@@ -390,12 +394,32 @@ router.post('/:documentId/process', authenticateUser, async (req, res) => {
     const baseUrl = process.env.APP_URL || `${req.protocol}://${req.get('host')}`;
     const documentUrl = `${baseUrl}/api/files/${documentId}/download`;
 
+    // Get blob_id for the document
+    const documentWithBlob = await withOrgContext(
+      authReq.user.id,
+      authReq.user.activeOrganizationId,
+      async (client) => {
+        const result = await client.query(`
+          SELECT bm.blob_id
+          FROM blob_metadata bm
+          WHERE bm.id = $1 AND bm.organization_id = $2 AND bm.user_id = $3
+        `, [documentId, authReq.user.activeOrganizationId, authReq.user.id]);
+
+        return result.rows[0]?.blob_id || null;
+      }
+    );
+
+    if (!documentWithBlob) {
+      return res.status(404).json({ error: 'Document blob not found' });
+    }
+
     // Send document processing webhook
     const webhookResponse = await webhookService.sendDocumentEvent({
       organizationId: authReq.user.activeOrganizationId,
       userId: authReq.user.id,
       userEmail: authReq.user.email,
-      documentId: documentId,
+      blobMetadataId: documentId,
+      blobId: documentWithBlob,
       documentUrl: documentUrl,
       fileType: document.mime_type,
       fileSize: document.file_size,
