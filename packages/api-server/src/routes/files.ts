@@ -38,8 +38,34 @@ const upload = multer({
   }
 });
 
+// Helper function to format file size limit
+const formatFileSize = (sizeKB: number): string => {
+  if (sizeKB >= 1024) {
+    const sizeMB = sizeKB / 1024;
+    return sizeMB % 1 === 0 ? `${sizeMB}MB` : `${sizeMB.toFixed(1)}MB`;
+  }
+  return `${sizeKB}KB`;
+};
+
+// Create a wrapper that catches MulterError
+const handleUpload = (req: express.Request, res: express.Response, next: express.NextFunction) => {
+  upload.single('file')(req, res, (err) => {
+    if (err instanceof multer.MulterError) {
+      if (err.code === 'LIMIT_FILE_SIZE') {
+        const limitKB = parseInt(process.env.FILE_SIZE_LIMIT_KB || DEFAULT_FILE_SIZE_LIMIT_KB);
+        const formattedLimit = formatFileSize(limitKB);
+        return res.status(400).json({ error: `File size exceeds ${formattedLimit} limit` });
+      }
+      return res.status(400).json({ error: err.message });
+    } else if (err) {
+      return res.status(500).json({ error: 'Failed to upload file' });
+    }
+    next();
+  });
+};
+
 // Upload file with content-addressable storage and deduplication
-router.post('/upload', authenticateUser, upload.single('file'), async (req, res) => {
+router.post('/upload', authenticateUser, handleUpload, async (req, res) => {
   const authReq = req as AuthenticatedRequest;
   try {
     if (!req.file) {
@@ -149,13 +175,6 @@ router.post('/upload', authenticateUser, upload.single('file'), async (req, res)
 
   } catch (error) {
     console.error('Error uploading file:', error);
-    if (error instanceof multer.MulterError) {
-      if (error.code === 'LIMIT_FILE_SIZE') {
-        const limitKB = parseInt(process.env.FILE_SIZE_LIMIT_KB || DEFAULT_FILE_SIZE_LIMIT_KB);
-        return res.status(400).json({ error: `File size exceeds ${limitKB}KB limit` });
-      }
-      return res.status(400).json({ error: error.message });
-    }
     res.status(500).json({ error: 'Failed to upload file' });
   }
 });
