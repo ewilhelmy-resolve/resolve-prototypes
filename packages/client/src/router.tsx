@@ -9,16 +9,25 @@ import FigmaTestPage from './pages/FigmaTestPage';
 import FigmaLoginPage from './test/login/FigmaLoginPage';
 import ChatbotPage from './test/chatbot/ChatbotPage';
 import ChatUIv1 from './components/ChatUIv1';
+import RitaLayout from './components/RitaLayout';
 import { ProtectedRoute } from './components/auth/ProtectedRoute';
 
 const router = createBrowserRouter([
   {
     path: '/v1',
-    element: <ChatUIv1 />
+    element: (
+      <ProtectedRoute>
+        <RitaLayout />
+      </ProtectedRoute>
+    )
   },
   {
     path: '/v1/:conversationId',
-    element: <ChatUIv1 />
+    element: (
+      <ProtectedRoute>
+        <RitaLayout />
+      </ProtectedRoute>
+    )
   },
   {
     path: '/',
