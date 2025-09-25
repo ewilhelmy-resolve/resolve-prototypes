@@ -55,7 +55,7 @@ export const useMessageHandler = (messagesEndRef: React.RefObject<HTMLDivElement
         })
         conversationId = conversation.id
         // Navigate to the new conversation URL
-        navigate(`/v1/${conversationId}`)
+        navigate(`/v1/chat/${conversationId}`)
       }
 
       // Send message
