@@ -1,3 +1,17 @@
+/**
+ * RitaLayout Component
+ *
+ * Source: Figma-to-shadcn design system
+ * URL: https://rdhlrr8yducbb6dq.public.blob.vercel-storage.com/figma-to-shadcn/RitaLayout-nC4xjmqj08N0LSWPCC3rHEHG2azW4y.json
+ * Installed: 2025-09-25
+ *
+ * Professional layout component with:
+ * - Responsive design (mobile sheet navigation, desktop sidebars)
+ * - Proper height management (min-h-screen, sticky input positioning)
+ * - Component-based architecture (sidebar, main content, right panel)
+ * - Built-in accessibility and mobile-first breakpoints
+ */
+
 "use client"
 
 import { useState } from "react"
