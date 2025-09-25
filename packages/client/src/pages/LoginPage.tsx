@@ -8,7 +8,7 @@ import { Loader2 } from 'lucide-react';
 const API_BASE_URL = import.meta.env.VITE_API_URL || '';
 
 export function LoginPage() {
-  const { authenticated, login, loading } = useAuth();
+  const { authenticated, login, loading, sessionReady } = useAuth();
   const [signupForm, setSignupForm] = useState({
     firstName: '',
     lastName: '',
@@ -54,8 +54,8 @@ export function LoginPage() {
     }
   };
 
-  // Redirect if already logged in
-  if (authenticated && !loading) {
+  // Redirect if already logged in and session is ready
+  if (authenticated && sessionReady && !loading) {
     return <Navigate to="/chat" replace />;
   }
 
@@ -69,6 +69,11 @@ export function LoginPage() {
         </div>
       </div>
     );
+  }
+
+  // If authenticated but session not ready, proceed anyway (temporary workaround)
+  if (authenticated && !sessionReady) {
+    return <Navigate to="/chat" replace />;
   }
 
   return (
