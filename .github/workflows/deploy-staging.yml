@@ -229,7 +229,6 @@ jobs:
                  environment:
                    NODE_ENV: production
                    PORT: 3000
-                   FILE_SIZE_LIMIT_KB: ${{ secrets.STAGING_FILE_SIZE_LIMIT_KB }}
                    DATABASE_URL: ${{ secrets.STAGING_DATABASE_URL }}
                    RABBITMQ_URL: ${{ secrets.STAGING_RABBITMQ_URL }}
                    REDIS_URL: ${{ secrets.STAGING_REDIS_URL }}
@@ -253,8 +252,6 @@ jobs:
                  image: rita-frontend:staging
                  ports:
                    - "80:80"
-                 environment:
-                   FILE_SIZE_LIMIT_KB: ${{ secrets.STAGING_FILE_SIZE_LIMIT_KB }}
                  depends_on:
                    - api-server
                  healthcheck:
