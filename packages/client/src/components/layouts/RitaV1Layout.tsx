@@ -9,6 +9,7 @@
  */
 
 import React, { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
@@ -42,13 +43,14 @@ import type { Conversation } from "@/stores/conversationStore"
 export interface RitaV1LayoutProps {
   children: React.ReactNode
   /** Current active page for navigation highlighting */
-  activePage?: 'chat' | 'files' | 'automations' | 'tickets'
+  activePage?: 'chat' | 'files' | 'automations' | 'tickets' | 'users'
 }
 
 export default function RitaV1Layout({ children, activePage = 'chat' }: RitaV1LayoutProps) {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [searchValue, setSearchValue] = useState('')
   const { logout } = useAuth()
+  const navigate = useNavigate()
 
   // Navigation hooks
   const { handleNewChat, handleConversationClick, currentConversationId } = useChatNavigation()
@@ -87,6 +89,10 @@ export default function RitaV1Layout({ children, activePage = 'chat' }: RitaV1La
 
   const handleSearchChange = (value: string) => {
     setSearchValue(value)
+  }
+
+  const navigateToUsers = () => {
+    navigate('/v1/users')
   }
 
   return (
@@ -219,7 +225,11 @@ export default function RitaV1Layout({ children, activePage = 'chat' }: RitaV1La
                   <Ticket className="h-4 w-4 mr-2" />
                   <span className="text-sm">Tickets</span>
                 </Button>
-                <Button variant="ghost" className="w-full justify-start h-8">
+                <Button
+                  variant={activePage === 'users' ? 'secondary' : 'ghost'}
+                  className="w-full justify-start h-8"
+                  onClick={navigateToUsers}
+                >
                   <User className="h-4 w-4 mr-2" />
                   <span className="text-sm">Users</span>
                 </Button>
