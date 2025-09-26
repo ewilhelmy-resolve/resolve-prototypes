@@ -3,7 +3,7 @@
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
-import { Copy, X } from "lucide-react"
+import { Copy } from "lucide-react"
 import { useState } from "react"
 
 interface ShareDialogProps {
@@ -44,12 +44,6 @@ export default function ShareDialog({ open, onOpenChange, shareUrl = "http://rit
           </Button>
         </div>
         
-        <button
-          onClick={() => onOpenChange(false)}
-          className="absolute top-6 right-6 w-4 h-4 opacity-70 hover:opacity-100 transition-opacity"
-        >
-          <X className="h-4 w-4 text-foreground" />
-        </button>
       </DialogContent>
     </Dialog>
   )

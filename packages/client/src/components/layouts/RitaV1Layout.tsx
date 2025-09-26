@@ -81,7 +81,9 @@ export default function RitaV1Layout({ children, activePage = 'chat' }: RitaV1La
   const { shouldShowModal: shouldShowFirstTimeModal, markModalAsShown } = useFirstTimeLogin()
   const [isShareDialogOpen, setIsShareDialogOpen] = useState(false)
 
-  const filteredConversations = conversations
+  const filteredConversations = conversations.filter(conversation =>
+    conversation.title.toLowerCase().includes(searchValue.toLowerCase())
+  )
 
   const handleSignOut = async () => {
     try {
