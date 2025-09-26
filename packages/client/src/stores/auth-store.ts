@@ -149,7 +149,7 @@ const useAuthStore = create<AuthStore>()(
 
           try {
             await authManager.login({
-              redirectUri: `${window.location.origin}${redirectPath || '/chat'}`
+              redirectUri: `${window.location.origin}${redirectPath || '/v1/chat'}`
             });
           } catch (error) {
             console.error('AuthStore: Login failed:', error);
