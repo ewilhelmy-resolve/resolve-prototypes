@@ -1,4 +1,4 @@
-import { createBrowserRouter, RouterProvider } from 'react-router-dom';
+import { createBrowserRouter, RouterProvider, Navigate } from 'react-router-dom';
 import { RootLayout } from './components/layouts/RootLayout';
 import { LoginPage } from './pages/LoginPage';
 import { VerifyEmailPage } from './pages/VerifyEmailPage';
@@ -14,17 +14,18 @@ import UsersV1Page from './pages/UsersV1Page';
 import { ProtectedRoute } from './components/auth/ProtectedRoute';
 
 const router = createBrowserRouter([
-  // V1 Routes - Modern Rita Architecture
+  // Root redirect - make v1 the default experience
+  {
+    path: '/',
+    element: <Navigate to="/v1/chat" replace />
+  },
+  // V1 Routes - Modern Rita Architecture (default experience)
   {
     path: '/v1',
     children: [
       {
         path: '',
-        element: (
-          <ProtectedRoute>
-            <ChatV1Page />
-          </ProtectedRoute>
-        )
+        element: <Navigate to="/v1/chat" replace />
       },
       {
         path: 'chat',
@@ -60,6 +61,7 @@ const router = createBrowserRouter([
       }
     ]
   },
+  // Legacy routes and auth pages
   {
     path: '/',
     element: <RootLayout />,
@@ -107,14 +109,6 @@ const router = createBrowserRouter([
       {
         path: '/chatbot-test',
         element: <ChatbotPage />
-      },
-      {
-        path: '/',
-        element: (
-          <ProtectedRoute>
-            <ChatPage />
-          </ProtectedRoute>
-        )
       },
       {
         path: '*',
