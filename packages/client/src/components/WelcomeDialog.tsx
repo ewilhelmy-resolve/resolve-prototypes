@@ -7,9 +7,10 @@ import { TestTube, Download, Upload, FileSpreadsheet, FolderSync, X } from "luci
 interface WelcomeDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
+  onUploadFiles?: () => void
 }
 
-export default function WelcomeDialog({ open, onOpenChange }: WelcomeDialogProps) {
+export default function WelcomeDialog({ open, onOpenChange, onUploadFiles }: WelcomeDialogProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="w-[547px] p-6 bg-background border border-border rounded-lg">
@@ -64,7 +65,14 @@ export default function WelcomeDialog({ open, onOpenChange }: WelcomeDialogProps
                     <div className="w-4 h-4 bg-gray-300 rounded"></div>
                   </div>
                 </div>
-                <Button variant="secondary" size="sm">
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => {
+                    onUploadFiles?.()
+                    onOpenChange(false) // Close welcome modal after triggering upload
+                  }}
+                >
                   <Upload className="w-4 h-4" />
                   Upload files
                 </Button>

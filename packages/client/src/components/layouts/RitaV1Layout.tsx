@@ -384,7 +384,11 @@ export default function RitaV1Layout({ children, activePage = 'chat' }: RitaV1La
                   <Card className="p-4 border rounded-lg">
                     <div className="space-y-3">
                       {knowledgeBaseFiles.slice(0, 3).map((file) => (
-                        <div key={file.id} className="flex items-center gap-3">
+                        <div
+                          key={file.id}
+                          className="flex items-center gap-3 cursor-pointer hover:bg-muted/50 rounded-md p-2 -m-2 transition-colors"
+                          onClick={() => navigate('/v1/files')}
+                        >
                           <div className="w-8 h-8 bg-card border rounded flex items-center justify-center">
                             <FileText className="h-4 w-4 text-card-foreground" />
                           </div>
@@ -450,6 +454,7 @@ export default function RitaV1Layout({ children, activePage = 'chat' }: RitaV1La
             markModalAsShown()
           }
         }}
+        onUploadFiles={openDocumentSelector}
       />
 
       {/* Share Dialog - Shows only when share button is clicked */}
