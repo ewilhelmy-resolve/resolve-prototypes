@@ -1,14 +1,17 @@
 /**
- * RitaV1Layout - Shared layout component for Rita v1 interface
+ * RitaV1Layout - Modern shared layout component with Figma design
  *
- * This component provides the common layout structure matching the original RitaLayoutView:
- * - Top Navigation: Mobile and desktop nav with Rita GO branding
+ * This component provides the new layout structure based on the RitaUpload Figma design:
+ * - Top Navigation: Modern nav with Rita GO branding
  * - Left Sidebar: Navigation, search, and conversations
  * - Main Content: Children (page-specific content)
- * - Right Sidebar: Knowledge base and share panel
+ * - Right Sidebar: Knowledge base and share panel (chat page only)
  */
 
+"use client"
+
 import React, { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
@@ -28,7 +31,8 @@ import {
   Plus,
   PanelLeft,
   FileText,
-  LogOut
+  LogOut,
+  Menu,
 } from "lucide-react"
 
 // Custom hooks and types
@@ -36,19 +40,23 @@ import { useAuth } from "@/hooks/useAuth"
 import { useKnowledgeBase } from "@/hooks/useKnowledgeBase"
 import { useChatNavigation } from "@/hooks/useChatNavigation"
 import { useConversations } from "@/hooks/api/useConversations"
+import { useFirstTimeLogin } from "@/hooks/useFirstTimeLogin"
 import { ResolveLogo } from "@/components/ui/ResolveLogo"
+import ShareDialog from "@/components/ShareDialog"
+import WelcomeDialog from "@/components/WelcomeDialog"
 import type { Conversation } from "@/stores/conversationStore"
 
 export interface RitaV1LayoutProps {
   children: React.ReactNode
   /** Current active page for navigation highlighting */
-  activePage?: 'chat' | 'files' | 'automations' | 'tickets'
+  activePage?: 'chat' | 'files' | 'automations' | 'tickets' | 'users'
 }
 
 export default function RitaV1Layout({ children, activePage = 'chat' }: RitaV1LayoutProps) {
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [searchValue, setSearchValue] = useState('')
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const { logout } = useAuth()
+  const navigate = useNavigate()
 
   // Navigation hooks
   const { handleNewChat, handleConversationClick, currentConversationId } = useChatNavigation()
@@ -71,7 +79,15 @@ export default function RitaV1Layout({ children, activePage = 'chat' }: RitaV1La
   // Conversations for sidebar
   const { data: conversationsData, isLoading: conversationsLoading } = useConversations()
   const conversations = conversationsData || []
-  const filteredConversations = conversations
+
+  // First-time login and share modal state
+  const { shouldShowModal: shouldShowFirstTimeModal, markModalAsShown } = useFirstTimeLogin()
+  const [isShareDialogOpen, setIsShareDialogOpen] = useState(false)
+
+  // Filter conversations based on search
+  const filteredConversations = conversations.filter(conversation =>
+    conversation.title.toLowerCase().includes(searchValue.toLowerCase())
+  )
 
   const handleSignOut = async () => {
     try {
@@ -81,152 +97,157 @@ export default function RitaV1Layout({ children, activePage = 'chat' }: RitaV1La
     }
   }
 
-  const toggleSidebar = () => {
-    setSidebarCollapsed(!sidebarCollapsed)
-  }
-
   const handleSearchChange = (value: string) => {
     setSearchValue(value)
   }
 
+  const navigateToUsers = () => {
+    navigate('/v1/users')
+  }
+
+  const toggleSidebar = () => {
+    setSidebarCollapsed(!sidebarCollapsed)
+  }
+
   return (
-    <div className="h-screen flex flex-col bg-gray-50">
-      {/* Mobile Navigation */}
-      <nav className="bg-primary border-b px-6 py-3 flex items-center justify-between w-full lg:hidden flex-shrink-0">
-        <div className="flex items-center gap-4">
-          <div className="w-[100px] h-[19px]">
-            <ResolveLogo />
-          </div>
-          <span className="text-white text-lg font-medium">Rita GO</span>
-        </div>
-        <Sheet>
-          <SheetTrigger asChild>
-            <Button variant="ghost" size="icon" className="text-white">
+    <div className="min-h-screen bg-background">
+      {/* Top Navigation */}
+      <nav className="h-16 bg-primary border-b border-border px-6 shadow-sm">
+        <div className="container mx-auto flex justify-between items-center h-full">
+          <div className="flex items-center gap-4">
+            <div className="w-[100px] h-5">
+              <ResolveLogo />
+            </div>
+            <span className="text-lg font-medium text-white">Rita GO</span>
+            <Sheet>
+              <SheetTrigger asChild className="md:hidden">
+                <Button variant="ghost" size="icon" className="w-7 h-7 text-white">
+                  <Menu className="h-4 w-4" />
+                </Button>
+              </SheetTrigger>
+              <SheetContent side="left" className="w-64">
+                <div className="flex flex-col gap-4 mt-8">
+                  <Button variant="ghost" size="icon" onClick={() => setIsShareDialogOpen(true)}>
+                    <Share2 className="h-4 w-4" />
+                  </Button>
+                  <Button variant="ghost" size="icon">
+                    <LifeBuoy className="h-4 w-4" />
+                  </Button>
+                  <Button variant="outline" className="justify-start" onClick={handleSignOut}>
+                    <LogOut className="h-4 w-4 mr-2" />
+                    Logout
+                  </Button>
+                </div>
+              </SheetContent>
+            </Sheet>
+            <Button variant="ghost" size="icon" className="hidden md:flex w-7 h-7 text-white" onClick={toggleSidebar}>
               <PanelLeft className="h-4 w-4" />
             </Button>
-          </SheetTrigger>
-          <SheetContent side="left" className="w-[300px] sm:w-[400px]">
-            <nav className="flex flex-col gap-4">
-              <Button variant="ghost" className="justify-start text-primary">
-                Settings
-              </Button>
-              <Button variant="ghost" size="icon">
+          </div>
+          <div className="flex items-center gap-4">
+            <div className="hidden md:flex items-center gap-1">
+              <Button variant="ghost" size="icon" className="text-white" onClick={handleNewChat}>
                 <MessageCirclePlus className="h-4 w-4" />
               </Button>
-              <Button variant="ghost" size="icon">
+              <Button variant="ghost" size="icon" className="text-white" onClick={() => setIsShareDialogOpen(true)}>
                 <Share2 className="h-4 w-4" />
               </Button>
-              <Button variant="ghost" size="icon">
+              <Button variant="ghost" size="icon" className="text-white">
                 <LifeBuoy className="h-4 w-4" />
               </Button>
-              <Button variant="outline" className="justify-start">
-                <Zap className="h-4 w-4 mr-2" />
-                Upgrade
-              </Button>
-            </nav>
-          </SheetContent>
-        </Sheet>
-      </nav>
-
-      {/* Desktop Navigation */}
-      <nav className="bg-primary border-b px-6 py-3 items-center justify-between w-full hidden lg:flex flex-shrink-0">
-        <div className="flex items-center gap-4">
-          <div className="w-[100px] h-[19px]">
-            <ResolveLogo />
-          </div>
-          <span className="text-white text-lg font-medium">Rita GO</span>
-          <Button variant="ghost" size="icon" className="w-7 h-7 rounded-md" onClick={toggleSidebar}>
-            <PanelLeft className="h-4 w-4 text-background" />
-          </Button>
-        </div>
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-1">
-            <Button variant="ghost" className="px-3 py-2.5 rounded-md text-white">
-              Settings
-            </Button>
-            <Button variant="ghost" size="icon" className="w-9 h-9 text-white">
-              <MessageCirclePlus className="h-4 w-4" />
-            </Button>
-            <Button variant="ghost" size="icon" className="w-9 h-9 text-white">
-              <Share2 className="h-4 w-4" />
-            </Button>
-            <Button variant="ghost" size="icon" className="w-9 h-9 text-white">
-              <LifeBuoy className="h-4 w-4" />
+            </div>
+            <Avatar className="w-10 h-10">
+              <AvatarFallback className="bg-primary-foreground text-primary">
+                CS
+              </AvatarFallback>
+            </Avatar>
+            <Button variant="ghost" className="hidden md:flex px-3 py-2.5 rounded-md text-white" onClick={handleSignOut}>
+              <LogOut className="h-4 w-4 mr-2" />
+              Logout
             </Button>
           </div>
-          <Button variant="outline" className="h-9 bg-transparent border-white text-white hover:bg-white hover:text-primary">
-            <Zap className="h-4 w-4 mr-2" />
-            Upgrade
-          </Button>
-          <Avatar className="w-10 h-10">
-            <AvatarFallback className="bg-primary-foreground text-primary">GP</AvatarFallback>
-          </Avatar>
-          <Button variant="ghost" className="px-3 py-2.5 rounded-md text-white" onClick={handleSignOut}>
-            <LogOut className="h-4 w-4 mr-2" />
-            Logout
-          </Button>
         </div>
       </nav>
 
-      {/* Content area with sidebars below header */}
-      <div className="flex-1 flex overflow-hidden">
-        {/* Left Sidebar */}
-        <div className={`${sidebarCollapsed ? 'w-0' : 'w-64'} bg-white border-r border-gray-200 flex flex-col hidden lg:flex transition-all duration-300 overflow-hidden`}>
-          <div className="p-4">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Search conversations..."
-                value={searchValue}
-                onChange={(e) => handleSearchChange(e.target.value)}
-                className="pl-9 h-9 bg-background border-input"
-              />
+      <div className="flex">
+        {/* Sidebar - Hidden on mobile, toggle on desktop */}
+        <div className={`${sidebarCollapsed ? 'w-0' : 'w-[235px]'} h-[calc(100vh-4rem)] bg-sidebar border-r border-sidebar-border transition-all duration-300 overflow-hidden hidden md:flex flex-col`}>
+          {/* Sidebar Header with Search */}
+          <div className="p-4 bg-sidebar">
+            <div className="px-2">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search"
+                  value={searchValue}
+                  onChange={(e) => handleSearchChange(e.target.value)}
+                  className="pl-9 h-9 bg-background border-input shadow-sm"
+                />
+              </div>
             </div>
           </div>
-          <div className="flex-1 overflow-y-auto">
-            <div className="p-4 space-y-4">
-              <Button
-                className="w-full justify-start"
-                onClick={handleNewChat}
-                variant={activePage === 'chat' ? 'default' : 'ghost'}
-              >
-                <MessageCirclePlus className="h-4 w-4 mr-2" />
-                New chat
-              </Button>
-              <Button
-                variant="ghost"
-                className="w-full justify-start"
-              >
-                <LayoutGrid className="h-4 w-4 mr-2" />
-                Dashboard
-              </Button>
-            </div>
-            <div className="px-4">
-              <h4 className="text-xs font-semibold text-muted-foreground mb-2">MANAGE</h4>
+
+          {/* Sidebar Content */}
+          <div className="flex-1 p-2 overflow-y-auto">
+            {/* Main Navigation */}
+            <div className="mb-4">
               <div className="space-y-1">
                 <Button
-                  variant={activePage === 'files' ? 'secondary' : 'ghost'}
-                  className="w-full justify-start h-8"
-                  onClick={navigateToKnowledgeArticles}
+                  variant={activePage === 'chat' ? 'default' : 'ghost'}
+                  className="w-full justify-start"
+                  onClick={handleNewChat}
                 >
-                  <Newspaper className="h-4 w-4 mr-2" />
-                  <span className="text-sm">Knowledge articles</span>
+                  <MessageCirclePlus className="h-4 w-4 mr-2" />
+                  <span>New chat</span>
                 </Button>
-                <Button
-                  variant={activePage === 'tickets' ? 'secondary' : 'ghost'}
-                  className="w-full justify-start h-8"
-                >
-                  <Ticket className="h-4 w-4 mr-2" />
-                  <span className="text-sm">Tickets</span>
-                </Button>
-                <Button variant="ghost" className="w-full justify-start h-8">
-                  <User className="h-4 w-4 mr-2" />
-                  <span className="text-sm">Users</span>
+                <Button variant="ghost" className="w-full justify-start">
+                  <LayoutGrid className="h-4 w-4 mr-2" />
+                  <span>Dashboard</span>
                 </Button>
               </div>
             </div>
-            <div className="px-4 mt-6">
-              <h4 className="text-xs font-semibold text-muted-foreground mb-2">RECENT CHATS</h4>
+
+            {/* Manage Section */}
+            <div className="mb-6">
+              <div className="px-2 mb-2">
+                <span className="text-xs opacity-70 text-sidebar-foreground font-semibold">
+                  Manage
+                </span>
+              </div>
+              <div className="space-y-1">
+                <Button
+                  variant={activePage === 'files' ? 'secondary' : 'ghost'}
+                  className="w-full justify-start"
+                  onClick={navigateToKnowledgeArticles}
+                >
+                  <Newspaper className="h-4 w-4 mr-2" />
+                  <span>Knowledge articles</span>
+                </Button>
+                <Button
+                  variant={activePage === 'tickets' ? 'secondary' : 'ghost'}
+                  className="w-full justify-start"
+                >
+                  <Ticket className="h-4 w-4 mr-2" />
+                  <span>Tickets</span>
+                </Button>
+                <Button
+                  variant={activePage === 'users' ? 'secondary' : 'ghost'}
+                  className="w-full justify-start"
+                  onClick={navigateToUsers}
+                >
+                  <User className="h-4 w-4 mr-2" />
+                  <span>Users</span>
+                </Button>
+              </div>
+            </div>
+
+            {/* Recent Chats Section */}
+            <div>
+              <div className="px-2 mb-2">
+                <span className="text-xs opacity-70 text-sidebar-foreground font-semibold">
+                  Recent chats
+                </span>
+              </div>
               <div className="space-y-1">
                 {conversationsLoading ? (
                   // Loading skeleton
@@ -269,8 +290,10 @@ export default function RitaV1Layout({ children, activePage = 'chat' }: RitaV1La
         </div>
 
         {/* Main Content */}
-        <main className="flex-1 flex flex-col bg-white">
-          {children}
+        <main className="flex-1 bg-background">
+          <div className="h-[calc(100vh-4rem)] w-full">
+            {children}
+          </div>
         </main>
 
         {/* Right Sidebar - Only show on chat page */}
@@ -281,7 +304,7 @@ export default function RitaV1Layout({ children, activePage = 'chat' }: RitaV1La
               <p className="text-sm text-gray-600 mb-3">
                 Invite teammates to use Rita and resolve support faster.
               </p>
-              <Button className="w-full">
+              <Button className="w-full" onClick={() => setIsShareDialogOpen(true)}>
                 <Share2 className="h-4 w-4 mr-2" />
                 Share
               </Button>
@@ -366,7 +389,11 @@ export default function RitaV1Layout({ children, activePage = 'chat' }: RitaV1La
                   <Card className="p-4 border rounded-lg">
                     <div className="space-y-3">
                       {knowledgeBaseFiles.slice(0, 3).map((file) => (
-                        <div key={file.id} className="flex items-center gap-3">
+                        <div
+                          key={file.id}
+                          className="flex items-center gap-3 cursor-pointer hover:bg-muted/50 rounded-md p-2 -m-2 transition-colors"
+                          onClick={() => navigate('/v1/files')}
+                        >
                           <div className="w-8 h-8 bg-card border rounded flex items-center justify-center">
                             <FileText className="h-4 w-4 text-card-foreground" />
                           </div>
@@ -422,6 +449,23 @@ export default function RitaV1Layout({ children, activePage = 'chat' }: RitaV1La
         accept=".jpg,.jpeg,.png,.gif,.webp,.pdf,.txt,.md,.doc,.docx,.xls,.xlsx"
         disabled={documentUploadIsUploading}
         multiple={false}
+      />
+
+      {/* Welcome Dialog - Shows only on first login */}
+      <WelcomeDialog
+        open={shouldShowFirstTimeModal}
+        onOpenChange={(open) => {
+          if (!open) {
+            markModalAsShown()
+          }
+        }}
+        onUploadFiles={openDocumentSelector}
+      />
+
+      {/* Share Dialog - Shows only when share button is clicked */}
+      <ShareDialog
+        open={isShareDialogOpen}
+        onOpenChange={setIsShareDialogOpen}
       />
 
       {/* Upload status messages */}

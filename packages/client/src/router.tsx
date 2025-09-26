@@ -10,6 +10,7 @@ import FigmaLoginPage from './test/login/FigmaLoginPage';
 import ChatbotPage from './test/chatbot/ChatbotPage';
 import ChatV1Page from './pages/ChatV1Page';
 import FilesV1Page from './pages/FilesV1Page';
+import UsersV1Page from './pages/UsersV1Page';
 import { ProtectedRoute } from './components/auth/ProtectedRoute';
 
 const router = createBrowserRouter([
@@ -46,6 +47,14 @@ const router = createBrowserRouter([
         element: (
           <ProtectedRoute>
             <FilesV1Page />
+          </ProtectedRoute>
+        )
+      },
+      {
+        path: 'users',
+        element: (
+          <ProtectedRoute>
+            <UsersV1Page />
           </ProtectedRoute>
         )
       }
