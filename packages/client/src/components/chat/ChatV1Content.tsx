@@ -57,7 +57,7 @@ export default function ChatV1Content({
 }: ChatV1ContentProps) {
 
   return (
-    <>
+    <div className="h-full flex flex-col">
       {/* Messages Area */}
       <div className="flex-1 overflow-y-auto p-4">
         {messagesLoading || (currentConversationId && messages.length === 0) ? (
@@ -203,6 +203,6 @@ export default function ChatV1Content({
         disabled={uploadStatus.isUploading}
         multiple={false}
       />
-    </>
+    </div>
   )
 }
