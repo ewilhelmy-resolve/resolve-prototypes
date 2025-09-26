@@ -147,7 +147,7 @@ export default function RitaV1Layout({ children, activePage = 'chat' }: RitaV1La
           </div>
           <div className="flex items-center gap-4">
             <div className="hidden md:flex items-center gap-1">
-              <Button variant="ghost" size="icon" className="text-white">
+              <Button variant="ghost" size="icon" className="text-white" onClick={handleNewChat}>
                 <MessageCirclePlus className="h-4 w-4" />
               </Button>
               <Button variant="ghost" size="icon" className="text-white" onClick={() => setIsShareDialogOpen(true)}>
