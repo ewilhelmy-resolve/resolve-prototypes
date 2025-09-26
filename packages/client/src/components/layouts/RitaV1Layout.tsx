@@ -37,7 +37,10 @@ import { useAuth } from "@/hooks/useAuth"
 import { useKnowledgeBase } from "@/hooks/useKnowledgeBase"
 import { useChatNavigation } from "@/hooks/useChatNavigation"
 import { useConversations } from "@/hooks/api/useConversations"
+import { useFirstTimeLogin } from "@/hooks/useFirstTimeLogin"
 import { ResolveLogo } from "@/components/ui/ResolveLogo"
+import ShareDialog from "@/components/ShareDialog"
+import WelcomeDialog from "@/components/WelcomeDialog"
 import type { Conversation } from "@/stores/conversationStore"
 
 export interface RitaV1LayoutProps {
@@ -73,6 +76,11 @@ export default function RitaV1Layout({ children, activePage = 'chat' }: RitaV1La
   // Conversations for sidebar
   const { data: conversationsData, isLoading: conversationsLoading } = useConversations()
   const conversations = conversationsData || []
+
+  // First-time login and share modal state
+  const { shouldShowModal: shouldShowFirstTimeModal, markModalAsShown } = useFirstTimeLogin()
+  const [isShareDialogOpen, setIsShareDialogOpen] = useState(false)
+
   const filteredConversations = conversations
 
   const handleSignOut = async () => {
@@ -119,7 +127,7 @@ export default function RitaV1Layout({ children, activePage = 'chat' }: RitaV1La
               <Button variant="ghost" size="icon">
                 <MessageCirclePlus className="h-4 w-4" />
               </Button>
-              <Button variant="ghost" size="icon">
+              <Button variant="ghost" size="icon" onClick={() => setIsShareDialogOpen(true)}>
                 <Share2 className="h-4 w-4" />
               </Button>
               <Button variant="ghost" size="icon">
@@ -153,7 +161,7 @@ export default function RitaV1Layout({ children, activePage = 'chat' }: RitaV1La
             <Button variant="ghost" size="icon" className="w-9 h-9 text-white">
               <MessageCirclePlus className="h-4 w-4" />
             </Button>
-            <Button variant="ghost" size="icon" className="w-9 h-9 text-white">
+            <Button variant="ghost" size="icon" className="w-9 h-9 text-white" onClick={() => setIsShareDialogOpen(true)}>
               <Share2 className="h-4 w-4" />
             </Button>
             <Button variant="ghost" size="icon" className="w-9 h-9 text-white">
@@ -291,7 +299,7 @@ export default function RitaV1Layout({ children, activePage = 'chat' }: RitaV1La
               <p className="text-sm text-gray-600 mb-3">
                 Invite teammates to use Rita and resolve support faster.
               </p>
-              <Button className="w-full">
+              <Button className="w-full" onClick={() => setIsShareDialogOpen(true)}>
                 <Share2 className="h-4 w-4 mr-2" />
                 Share
               </Button>
@@ -432,6 +440,22 @@ export default function RitaV1Layout({ children, activePage = 'chat' }: RitaV1La
         accept=".jpg,.jpeg,.png,.gif,.webp,.pdf,.txt,.md,.doc,.docx,.xls,.xlsx"
         disabled={documentUploadIsUploading}
         multiple={false}
+      />
+
+      {/* Welcome Dialog - Shows only on first login */}
+      <WelcomeDialog
+        open={shouldShowFirstTimeModal}
+        onOpenChange={(open) => {
+          if (!open) {
+            markModalAsShown()
+          }
+        }}
+      />
+
+      {/* Share Dialog - Shows only when share button is clicked */}
+      <ShareDialog
+        open={isShareDialogOpen}
+        onOpenChange={setIsShareDialogOpen}
       />
 
       {/* Upload status messages */}
