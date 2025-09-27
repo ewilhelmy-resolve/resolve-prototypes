@@ -3,6 +3,8 @@ import { RootLayout } from './components/layouts/RootLayout';
 import { LoginPage } from './pages/LoginPage';
 import { VerifyEmailPage } from './pages/VerifyEmailPage';
 import { NotFoundPage } from './pages/NotFoundPage';
+import ContactPage from './pages/ContactPage';
+import HelpPage from './pages/HelpPage';
 import ChatV1Page from './pages/ChatV1Page';
 import FilesV1Page from './pages/FilesV1Page';
 import UsersV1Page from './pages/UsersV1Page';
@@ -10,59 +12,93 @@ import SettingsV1Page from './pages/SettingsV1Page';
 import { ProtectedRoute } from './components/auth/ProtectedRoute';
 
 const router = createBrowserRouter([
-  // Root redirect - make v1 the default experience
+  // Root redirect
   {
     path: '/',
-    element: <Navigate to="/v1/chat" replace />
+    element: <Navigate to="/chat" replace />
   },
-  // V1 Routes - Modern Rita Architecture (default experience)
+  // Main application routes
   {
-    path: '/v1',
-    children: [
-      {
-        path: '',
-        element: <Navigate to="/v1/chat" replace />
-      },
-      {
-        path: 'chat',
-        element: (
-          <ProtectedRoute>
-            <ChatV1Page />
-          </ProtectedRoute>
-        )
-      },
-      {
-        path: 'chat/:conversationId',
-        element: (
-          <ProtectedRoute>
-            <ChatV1Page />
-          </ProtectedRoute>
-        )
-      },
-      {
-        path: 'files',
-        element: (
-          <ProtectedRoute>
-            <FilesV1Page />
-          </ProtectedRoute>
-        )
-      },
-      {
-        path: 'users',
-        element: (
-          <ProtectedRoute>
-            <UsersV1Page />
-          </ProtectedRoute>
-        )
-      }
-    ]
+    path: '/chat',
+    element: (
+      <ProtectedRoute>
+        <ChatV1Page />
+      </ProtectedRoute>
+    )
   },
-  // Settings route with unique layout
+  {
+    path: '/chat/:conversationId',
+    element: (
+      <ProtectedRoute>
+        <ChatV1Page />
+      </ProtectedRoute>
+    )
+  },
+  {
+    path: '/content',
+    element: (
+      <ProtectedRoute>
+        <FilesV1Page />
+      </ProtectedRoute>
+    )
+  },
+  {
+    path: '/users',
+    element: (
+      <ProtectedRoute>
+        <UsersV1Page />
+      </ProtectedRoute>
+    )
+  },
   {
     path: '/settings',
     element: (
       <ProtectedRoute>
         <SettingsV1Page />
+      </ProtectedRoute>
+    )
+  },
+  // Placeholder routes - to be implemented with UX designs
+  {
+    path: '/account',
+    element: (
+      <ProtectedRoute>
+        {/* Account settings - awaiting UX design */}
+        <div>Account settings page (coming soon)</div>
+      </ProtectedRoute>
+    )
+  },
+  {
+    path: '/contact',
+    element: (
+      <ProtectedRoute>
+        <ContactPage />
+      </ProtectedRoute>
+    )
+  },
+  {
+    path: '/help',
+    element: (
+      <ProtectedRoute>
+        <HelpPage />
+      </ProtectedRoute>
+    )
+  },
+  {
+    path: '/payment',
+    element: (
+      <ProtectedRoute>
+        {/* Payment management - awaiting UX design */}
+        <div>Payment management (coming soon)</div>
+      </ProtectedRoute>
+    )
+  },
+  {
+    path: '/analytics',
+    element: (
+      <ProtectedRoute>
+        {/* Analytics dashboard - future feature */}
+        <div>Analytics dashboard (future feature)</div>
       </ProtectedRoute>
     )
   },
