@@ -2,12 +2,7 @@ import { createBrowserRouter, RouterProvider, Navigate } from 'react-router-dom'
 import { RootLayout } from './components/layouts/RootLayout';
 import { LoginPage } from './pages/LoginPage';
 import { VerifyEmailPage } from './pages/VerifyEmailPage';
-import { ChatPage } from './pages/ChatPage';
-import { FilesPage } from './pages/FilesPage';
 import { NotFoundPage } from './pages/NotFoundPage';
-import FigmaTestPage from './pages/FigmaTestPage';
-import FigmaLoginPage from './test/login/FigmaLoginPage';
-import ChatbotPage from './test/chatbot/ChatbotPage';
 import ChatV1Page from './pages/ChatV1Page';
 import FilesV1Page from './pages/FilesV1Page';
 import UsersV1Page from './pages/UsersV1Page';
@@ -71,7 +66,7 @@ const router = createBrowserRouter([
       </ProtectedRoute>
     )
   },
-  // Legacy routes and auth pages
+  // Auth and utility pages
   {
     path: '/',
     element: <RootLayout />,
@@ -83,42 +78,6 @@ const router = createBrowserRouter([
       {
         path: '/verify-email',
         element: <VerifyEmailPage />
-      },
-      {
-        path: '/chat',
-        element: (
-          <ProtectedRoute>
-            <ChatPage />
-          </ProtectedRoute>
-        )
-      },
-      {
-        path: '/chat/:conversationId',
-        element: (
-          <ProtectedRoute>
-            <ChatPage />
-          </ProtectedRoute>
-        )
-      },
-      {
-        path: '/files',
-        element: (
-          <ProtectedRoute>
-            <FilesPage />
-          </ProtectedRoute>
-        )
-      },
-      {
-        path: '/figma-test',
-        element: <FigmaTestPage />
-      },
-      {
-        path: '/figma-login-poc',
-        element: <FigmaLoginPage />
-      },
-      {
-        path: '/chatbot-test',
-        element: <ChatbotPage />
       },
       {
         path: '*',
