@@ -1,5 +1,6 @@
 "use client"
 
+import { useNavigate } from 'react-router-dom'
 import { ArrowLeft } from "lucide-react"
 import {
   Sidebar,
@@ -16,6 +17,13 @@ import {
 import ConnectionSources from "./ConnectionSources"
 
 export default function RitaSettingsLayout() {
+  const navigate = useNavigate()
+
+  const handleBackToApp = () => {
+    // Navigate to root, which will redirect to the default app route
+    navigate('/')
+  }
+
   return (
     <SidebarProvider defaultOpen={true}>
       <div className="flex min-h-screen w-full">
@@ -23,7 +31,10 @@ export default function RitaSettingsLayout() {
           <SidebarHeader className="p-2">
             <SidebarMenu>
               <SidebarMenuItem>
-                <SidebarMenuButton className="flex items-center gap-2 p-2 h-8 rounded-md">
+                <SidebarMenuButton
+                  className="flex items-center gap-2 p-2 h-8 rounded-md cursor-pointer"
+                  onClick={handleBackToApp}
+                >
                   <ArrowLeft className="h-4 w-4" />
                   <span className="text-sm">Settings</span>
                 </SidebarMenuButton>
