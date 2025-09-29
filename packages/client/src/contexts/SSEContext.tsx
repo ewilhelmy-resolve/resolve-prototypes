@@ -57,13 +57,15 @@ export const SSEProvider: React.FC<SSEProviderProps> = ({
         return newUpdates;
       });
     } else if (event.type === 'new_message') {
-      // Handle new assistant messages
+      // Handle new assistant messages with hybrid data
       const { addMessage, currentConversationId } = useConversationStore.getState();
 
       const newMessage: Message = {
         id: event.data.messageId,
-        message: event.data.content,
-        role: 'assistant',
+        role: event.data.role || 'assistant',
+        message: event.data.message || '',
+        metadata: event.data.metadata,
+        response_group_id: event.data.response_group_id,
         timestamp: new Date(event.data.createdAt),
         conversation_id: currentConversationId || '',
         status: 'completed'

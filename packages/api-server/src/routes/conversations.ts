@@ -118,6 +118,8 @@ router.get('/:conversationId/messages', authenticateUser, async (req, res) => {
             m.created_at,
             m.processed_at,
             m.error_message,
+            m.metadata,
+            m.response_group_id,
             up.email as user_email,
             COALESCE(
               json_agg(
@@ -134,8 +136,8 @@ router.get('/:conversationId/messages', authenticateUser, async (req, res) => {
           LEFT JOIN message_documents md ON m.id = md.message_id
           LEFT JOIN documents d ON md.document_id = d.id
           WHERE m.conversation_id = $1 AND m.organization_id = $2
-          GROUP BY m.id, m.message, m.role, m.response_content, m.status, m.created_at, m.processed_at, m.error_message, up.email
-          ORDER BY m.created_at ASC
+          GROUP BY m.id, m.message, m.role, m.response_content, m.status, m.created_at, m.processed_at, m.error_message, m.metadata, m.response_group_id, up.email
+          ORDER BY m.created_at ASC, m.id ASC
           LIMIT $3 OFFSET $4
         `, [conversationId, authReq.user.activeOrganizationId, limit, offset]);
 

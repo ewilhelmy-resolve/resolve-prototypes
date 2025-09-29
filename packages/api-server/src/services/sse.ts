@@ -24,7 +24,10 @@ export interface NewMessageEvent {
   type: 'new_message';
   data: {
     messageId: string;
-    content: string;
+    role: 'user' | 'assistant';
+    message: string;
+    metadata?: any;
+    response_group_id?: string;
     userId: string;
     createdAt: string;
   };

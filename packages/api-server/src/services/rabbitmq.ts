@@ -86,7 +86,9 @@ export class RabbitMQService {
       conversation_id,
       tenant_id: organization_id, // Remap tenant_id from external service to organization_id
       user_id: payload_user_id,
-      response
+      response,
+      metadata,           // NEW: Optional metadata for rich message types
+      response_group_id   // NEW: Optional group ID for multi-part responses
     } = payload;
 
     // Validate minimum required fields
@@ -149,12 +151,12 @@ export class RabbitMQService {
         WHERE id = $3
       `, ['completed', new Date(), message_id]);
 
-      // Create new assistant message with the response
+      // Create new assistant message with the response and hybrid data
       const assistantMessageResult = await client.query(`
-        INSERT INTO messages (organization_id, conversation_id, user_id, message, role, status, created_at)
-        VALUES ($1, $2, $3, $4, 'assistant', 'completed', NOW())
+        INSERT INTO messages (organization_id, conversation_id, user_id, message, metadata, response_group_id, role, status, created_at)
+        VALUES ($1, $2, $3, $4, $5, $6, 'assistant', 'completed', NOW())
         RETURNING id
-      `, [organization_id, conversation_id, user_id, response]);
+      `, [organization_id, conversation_id, user_id, response, metadata ? JSON.stringify(metadata) : null, response_group_id]);
 
       const assistantMessageId = assistantMessageResult.rows[0].id;
 
@@ -189,12 +191,15 @@ export class RabbitMQService {
           }
         });
 
-        // Event for new assistant message
+        // Event for new assistant message with hybrid data
         sseService.sendToUser(user_id, organization_id, {
           type: 'new_message',
           data: {
             messageId: assistantMessageId,
-            content: response,
+            role: 'assistant',
+            message: response,
+            metadata: metadata,
+            response_group_id: response_group_id,
             userId: user_id,
             createdAt: new Date().toISOString()
           }

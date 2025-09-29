@@ -57,6 +57,8 @@ export function useConversationMessages(conversationId: string | null) {
         conversation_id: msg.conversation_id,
         status: msg.status,
         error_message: msg.error_message,
+        metadata: msg.metadata,
+        response_group_id: msg.response_group_id,
       }))
 
       // Update store
@@ -121,6 +123,8 @@ export function useSendMessage() {
           conversation_id: response.message.conversation_id,
           status: response.message.status,
           error_message: response.message.error_message,
+          metadata: response.message.metadata,
+          response_group_id: response.message.response_group_id,
         }
 
         return { message, tempId: data.tempId }

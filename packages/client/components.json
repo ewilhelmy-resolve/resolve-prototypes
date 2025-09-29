@@ -16,10 +16,7 @@
     "utils": "@/lib/utils",
     "ui": "@/components/ui",
     "lib": "@/lib",
-    "hooks": "@/hooks",
-    "figma": "@/components/figma",
-    "design-system": "@/components/design-system",
-    "figma-utils": "@/lib/figma-utils"
+    "hooks": "@/hooks"
   },
   "registries": {
     "@shadcndesign": {
@@ -27,6 +24,7 @@
       "headers": {
         "X-License-Key": "${SHADCNDESIGN_LICENSE_KEY}"
       }
-    }
+    },
+    "@ai-elements": "https://registry.ai-sdk.dev/{name}.json"
   }
 }

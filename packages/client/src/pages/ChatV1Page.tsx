@@ -1,8 +1,9 @@
 /**
- * ChatV1Page - Modern chat page using shared RitaV1Layout
+ * ChatV1Page - Modern chat page using shared RitaV1Layout and ai-elements
  *
  * This is the next-generation Rita chat interface using the new shared layout structure
- * with the chat content component for clean separation of concerns.
+ * with the ai-elements chat components for enhanced UX, markdown support, and modern
+ * chat features including file attachments, action buttons, and professional styling.
  */
 
 import { useEffect } from 'react'
@@ -11,7 +12,7 @@ import { SSEProvider, useSSEContext } from '../contexts/SSEContext'
 import { useAuth } from '../hooks/useAuth'
 import { useConversationStore } from '../stores/conversationStore'
 import RitaV1Layout from '../components/layouts/RitaV1Layout'
-import ChatV1Content from '../components/chat/ChatV1Content'
+import ChatV1ContentAI from '../components/chat/ChatV1ContentAI'
 import { useRitaChat } from '../hooks/useRitaChat'
 
 const ChatV1Demo: React.FC = () => {
@@ -42,7 +43,7 @@ const ChatV1Demo: React.FC = () => {
 
   return (
     <RitaV1Layout activePage="chat">
-      <ChatV1Content {...ritaChatState} />
+      <ChatV1ContentAI {...ritaChatState} />
     </RitaV1Layout>
   )
 }
