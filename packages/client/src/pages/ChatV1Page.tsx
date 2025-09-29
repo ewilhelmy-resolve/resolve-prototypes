@@ -12,7 +12,7 @@ import { SSEProvider, useSSEContext } from '../contexts/SSEContext'
 import { useAuth } from '../hooks/useAuth'
 import { useConversationStore } from '../stores/conversationStore'
 import RitaV1Layout from '../components/layouts/RitaV1Layout'
-import ChatV1ContentAI from '../components/chat/ChatV1ContentAI'
+import ChatV1Content from '../components/chat/ChatV1Content.tsx'
 import { useRitaChat } from '../hooks/useRitaChat'
 
 const ChatV1Demo: React.FC = () => {
@@ -43,7 +43,7 @@ const ChatV1Demo: React.FC = () => {
 
   return (
     <RitaV1Layout activePage="chat">
-      <ChatV1ContentAI {...ritaChatState} />
+      <ChatV1Content {...ritaChatState} />
     </RitaV1Layout>
   )
 }
