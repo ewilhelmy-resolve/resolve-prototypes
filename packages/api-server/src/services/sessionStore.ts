@@ -151,52 +151,13 @@ class InMemorySessionStore implements SessionStore {
   }
 }
 
-// Redis session store for production (future implementation)
-class RedisSessionStore implements SessionStore {
-  // TODO: Implement Redis-based session store for production
-
-  async createSession(data: CreateSessionData): Promise<Session> {
-    throw new Error('Redis session store not implemented yet');
-  }
-
-  async getSession(sessionId: string): Promise<Session | null> {
-    throw new Error('Redis session store not implemented yet');
-  }
-
-  async updateSession(sessionId: string, updates: Partial<Session>): Promise<Session | null> {
-    throw new Error('Redis session store not implemented yet');
-  }
-
-  async deleteSession(sessionId: string): Promise<boolean> {
-    throw new Error('Redis session store not implemented yet');
-  }
-
-  async deleteUserSessions(userId: string): Promise<number> {
-    throw new Error('Redis session store not implemented yet');
-  }
-
-  async refreshSessionAccess(sessionId: string): Promise<Session | null> {
-    throw new Error('Redis session store not implemented yet');
-  }
-
-  async cleanupExpiredSessions(): Promise<number> {
-    throw new Error('Redis session store not implemented yet');
-  }
-}
-
 // Session store factory
 let sessionStore: SessionStore;
 
 export function getSessionStore(): SessionStore {
   if (!sessionStore) {
-    const useRedis = process.env.SESSION_STORE === 'redis' && process.env.NODE_ENV === 'production';
-
-    if (useRedis) {
-      sessionStore = new RedisSessionStore();
-    } else {
-      sessionStore = new InMemorySessionStore();
-      console.log('Using in-memory session store (development mode)');
-    }
+    sessionStore = new InMemorySessionStore();
+    console.log('Using in-memory session store');
   }
 
   return sessionStore;

@@ -1,6 +1,5 @@
 # Production environment - Uses pre-built images from GitHub Container Registry
-# External services (database, RabbitMQ, Redis, Keycloak) are managed separately
-version: '3.8'
+# External services (database, RabbitMQ, Keycloak) are managed separately
 
 services:
   # API Server
@@ -12,7 +11,6 @@ services:
       # External database connections
       DATABASE_URL: ${DATABASE_URL}
       RABBITMQ_URL: ${RABBITMQ_URL}
-      REDIS_URL: ${REDIS_URL}
       # Keycloak configuration
       KEYCLOAK_URL: ${KEYCLOAK_URL}
       KEYCLOAK_REALM: ${KEYCLOAK_REALM}
