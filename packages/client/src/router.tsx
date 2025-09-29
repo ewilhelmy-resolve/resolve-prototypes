@@ -2,12 +2,9 @@ import { createBrowserRouter, RouterProvider, Navigate } from 'react-router-dom'
 import { RootLayout } from './components/layouts/RootLayout';
 import { LoginPage } from './pages/LoginPage';
 import { VerifyEmailPage } from './pages/VerifyEmailPage';
-import { ChatPage } from './pages/ChatPage';
-import { FilesPage } from './pages/FilesPage';
 import { NotFoundPage } from './pages/NotFoundPage';
-import FigmaTestPage from './pages/FigmaTestPage';
-import FigmaLoginPage from './test/login/FigmaLoginPage';
-import ChatbotPage from './test/chatbot/ChatbotPage';
+import ContactPage from './pages/ContactPage';
+import HelpPage from './pages/HelpPage';
 import ChatV1Page from './pages/ChatV1Page';
 import FilesV1Page from './pages/FilesV1Page';
 import UsersV1Page from './pages/UsersV1Page';
@@ -15,54 +12,44 @@ import SettingsV1Page from './pages/SettingsV1Page';
 import { ProtectedRoute } from './components/auth/ProtectedRoute';
 
 const router = createBrowserRouter([
-  // Root redirect - make v1 the default experience
+  // Root redirect
   {
     path: '/',
-    element: <Navigate to="/v1/chat" replace />
+    element: <Navigate to="/chat" replace />
   },
-  // V1 Routes - Modern Rita Architecture (default experience)
+  // Main application routes
   {
-    path: '/v1',
-    children: [
-      {
-        path: '',
-        element: <Navigate to="/v1/chat" replace />
-      },
-      {
-        path: 'chat',
-        element: (
-          <ProtectedRoute>
-            <ChatV1Page />
-          </ProtectedRoute>
-        )
-      },
-      {
-        path: 'chat/:conversationId',
-        element: (
-          <ProtectedRoute>
-            <ChatV1Page />
-          </ProtectedRoute>
-        )
-      },
-      {
-        path: 'files',
-        element: (
-          <ProtectedRoute>
-            <FilesV1Page />
-          </ProtectedRoute>
-        )
-      },
-      {
-        path: 'users',
-        element: (
-          <ProtectedRoute>
-            <UsersV1Page />
-          </ProtectedRoute>
-        )
-      }
-    ]
+    path: '/chat',
+    element: (
+      <ProtectedRoute>
+        <ChatV1Page />
+      </ProtectedRoute>
+    )
   },
-  // Settings route with unique layout
+  {
+    path: '/chat/:conversationId',
+    element: (
+      <ProtectedRoute>
+        <ChatV1Page />
+      </ProtectedRoute>
+    )
+  },
+  {
+    path: '/content',
+    element: (
+      <ProtectedRoute>
+        <FilesV1Page />
+      </ProtectedRoute>
+    )
+  },
+  {
+    path: '/users',
+    element: (
+      <ProtectedRoute>
+        <UsersV1Page />
+      </ProtectedRoute>
+    )
+  },
   {
     path: '/settings',
     element: (
@@ -71,7 +58,51 @@ const router = createBrowserRouter([
       </ProtectedRoute>
     )
   },
-  // Legacy routes and auth pages
+  // Placeholder routes - to be implemented with UX designs
+  {
+    path: '/account',
+    element: (
+      <ProtectedRoute>
+        {/* Account settings - awaiting UX design */}
+        <div>Account settings page (coming soon)</div>
+      </ProtectedRoute>
+    )
+  },
+  {
+    path: '/contact',
+    element: (
+      <ProtectedRoute>
+        <ContactPage />
+      </ProtectedRoute>
+    )
+  },
+  {
+    path: '/help',
+    element: (
+      <ProtectedRoute>
+        <HelpPage />
+      </ProtectedRoute>
+    )
+  },
+  {
+    path: '/payment',
+    element: (
+      <ProtectedRoute>
+        {/* Payment management - awaiting UX design */}
+        <div>Payment management (coming soon)</div>
+      </ProtectedRoute>
+    )
+  },
+  {
+    path: '/analytics',
+    element: (
+      <ProtectedRoute>
+        {/* Analytics dashboard - future feature */}
+        <div>Analytics dashboard (future feature)</div>
+      </ProtectedRoute>
+    )
+  },
+  // Auth and utility pages
   {
     path: '/',
     element: <RootLayout />,
@@ -83,42 +114,6 @@ const router = createBrowserRouter([
       {
         path: '/verify-email',
         element: <VerifyEmailPage />
-      },
-      {
-        path: '/chat',
-        element: (
-          <ProtectedRoute>
-            <ChatPage />
-          </ProtectedRoute>
-        )
-      },
-      {
-        path: '/chat/:conversationId',
-        element: (
-          <ProtectedRoute>
-            <ChatPage />
-          </ProtectedRoute>
-        )
-      },
-      {
-        path: '/files',
-        element: (
-          <ProtectedRoute>
-            <FilesPage />
-          </ProtectedRoute>
-        )
-      },
-      {
-        path: '/figma-test',
-        element: <FigmaTestPage />
-      },
-      {
-        path: '/figma-login-poc',
-        element: <FigmaLoginPage />
-      },
-      {
-        path: '/chatbot-test',
-        element: <ChatbotPage />
       },
       {
         path: '*',

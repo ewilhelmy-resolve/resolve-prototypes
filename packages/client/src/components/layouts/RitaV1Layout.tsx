@@ -102,7 +102,7 @@ export default function RitaV1Layout({ children, activePage = 'chat' }: RitaV1La
   }
 
   const navigateToUsers = () => {
-    navigate('/v1/users')
+    navigate('/users')
   }
 
   const toggleSidebar = () => {
@@ -210,7 +210,7 @@ export default function RitaV1Layout({ children, activePage = 'chat' }: RitaV1La
                 <Button
                   variant={activePage === 'files' ? 'secondary' : 'ghost'}
                   className="w-full justify-start"
-                  onClick={navigateToKnowledgeArticles}
+                  onClick={() => navigate('/content')}
                 >
                   <Newspaper className="h-4 w-4 mr-2" />
                   <span>Knowledge articles</span>
@@ -384,7 +384,7 @@ export default function RitaV1Layout({ children, activePage = 'chat' }: RitaV1La
                         <div
                           key={file.id}
                           className="flex items-center gap-3 cursor-pointer hover:bg-muted/50 rounded-md p-2 -m-2 transition-colors"
-                          onClick={() => navigate('/v1/files')}
+                          onClick={() => navigate('/content')}
                         >
                           <div className="w-8 h-8 bg-card border rounded flex items-center justify-center">
                             <FileText className="h-4 w-4 text-card-foreground" />

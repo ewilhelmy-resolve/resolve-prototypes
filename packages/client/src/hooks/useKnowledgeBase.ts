@@ -55,11 +55,11 @@ export const useKnowledgeBase = (): KnowledgeBaseState => {
   }
 
   const navigateToKnowledgeArticles = () => {
-    navigate('/v1/files')
+    navigate('/content')
   }
 
   const navigateToFiles = () => {
-    navigate('/v1/files')
+    navigate('/content')
   }
 
   return {

@@ -66,7 +66,7 @@ const RitaChatInterface: React.FC = () => {
 
   const handleNewChat = () => {
     clearCurrentConversation()
-    navigate('/v1')
+    navigate('/chat')
   }
 
   // Handle keyboard shortcuts
@@ -111,7 +111,7 @@ const RitaChatInterface: React.FC = () => {
         })
         conversationId = conversation.id
         // Navigate to the new conversation URL
-        navigate(`/v1/${conversationId}`)
+        navigate(`/chat/${conversationId}`)
       }
 
       // Send message
