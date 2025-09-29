@@ -320,7 +320,8 @@ export default function ChatV1ContentAI({
   return (
     <div className="h-full flex flex-col">
       <Conversation className="flex-1">
-        <ConversationContent>
+        <ConversationContent className="p-4">
+          <div className="max-w-4xl mx-auto">
           {messagesLoading || (currentConversationId && chatMessages.length === 0) ? (
             <div className="flex items-center justify-center h-full">
               <Loader size={24} />
@@ -357,6 +358,7 @@ export default function ChatV1ContentAI({
               {(chatStatus === 'submitted' || chatStatus === 'streaming') && <Loader />}
             </>
           )}
+          </div>
         </ConversationContent>
         <ConversationScrollButton />
       </Conversation>
