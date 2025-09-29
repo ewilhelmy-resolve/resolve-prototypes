@@ -109,10 +109,18 @@ const mapRitaStatusToChatStatus = (
 
   // Check if we're waiting for AI response after user sent a message
   const lastMessage = messages[messages.length - 1]
-  if (lastMessage &&
-      lastMessage.role === 'user' &&
-      lastMessage.status === 'completed') {
-    return 'streaming' // Show loader while waiting for AI response
+  if (lastMessage && lastMessage.role === 'user') {
+    // Find if there are any assistant messages after this user message
+    const hasAssistantResponseAfter = messages.some(msg =>
+      msg.role === 'assistant' &&
+      msg.timestamp > lastMessage.timestamp
+    )
+
+
+    // If no assistant response yet and user message is sent, keep loader
+    if (!hasAssistantResponseAfter && lastMessage.status === 'sent') {
+      return 'streaming' // Show loader while waiting for AI response
+    }
   }
 
   // Check if last message failed

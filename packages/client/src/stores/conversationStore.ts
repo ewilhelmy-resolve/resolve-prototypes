@@ -8,7 +8,7 @@ export interface Message {
   message: string  // Keep existing column for text content
   timestamp: Date
   conversation_id: string
-  status: 'pending' | 'processing' | 'completed' | 'failed' | 'sending'
+  status: 'pending' | 'processing' | 'completed' | 'failed' | 'sending' | 'sent'
   error_message?: string
 
   // NEW: Hybrid approach - metadata for rich types, grouping for UI
