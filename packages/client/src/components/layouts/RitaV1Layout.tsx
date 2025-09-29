@@ -14,7 +14,7 @@ import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import AccountDropdown from "@/components/AccountDropdown"
 import { Card } from "@/components/ui/card"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -156,15 +156,7 @@ export default function RitaV1Layout({ children, activePage = 'chat' }: RitaV1La
                 <LifeBuoy className="h-4 w-4" />
               </Button>
             </div>
-            <Avatar className="w-10 h-10">
-              <AvatarFallback className="bg-primary-foreground text-primary">
-                CS
-              </AvatarFallback>
-            </Avatar>
-            <Button variant="ghost" className="hidden md:flex px-3 py-2.5 rounded-md text-white" onClick={handleSignOut}>
-              <LogOut className="h-4 w-4 mr-2" />
-              Logout
-            </Button>
+            <AccountDropdown onSignOut={handleSignOut} />
           </div>
         </div>
       </nav>
