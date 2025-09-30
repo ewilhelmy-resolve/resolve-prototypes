@@ -123,7 +123,7 @@ async function connectRabbitMQ(): Promise<void> {
     rabbitConnection = await connect(MOCK_CONFIG.rabbitUrl);
     rabbitChannel = await rabbitConnection.createChannel();
 
-    await rabbitChannel.assertQueue(MOCK_CONFIG.queueName, { durable: false });
+    await rabbitChannel.assertQueue(MOCK_CONFIG.queueName, { durable: true });
     timer.end({ queueName: MOCK_CONFIG.queueName, success: true });
     rabbitLogger.info({ queueName: MOCK_CONFIG.queueName }, 'Connected to RabbitMQ successfully');
   } catch (error) {

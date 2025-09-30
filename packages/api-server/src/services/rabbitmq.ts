@@ -23,7 +23,7 @@ export class RabbitMQService {
 
       // Assert queue exists
       await this.channel.assertQueue(this.queueName, {
-        durable: false
+        durable: true
       });
 
       timer.end({ queueName: this.queueName, success: true });
@@ -287,7 +287,7 @@ export class RabbitMQService {
         throw new Error('RabbitMQ channel not initialized');
       }
 
-      await this.channel.assertQueue(queueName, { durable: false });
+      await this.channel.assertQueue(queueName, { durable: true });
 
       const messageBuffer = Buffer.from(JSON.stringify(message));
       this.channel.sendToQueue(queueName, messageBuffer, {
