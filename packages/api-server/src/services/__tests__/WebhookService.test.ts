@@ -77,6 +77,56 @@ describe('WebhookService', () => {
       );
     });
 
+    it('should send message webhook with transcript successfully', async () => {
+      const mockResponse = {
+        status: 200,
+        data: { success: true }
+      };
+      mockedAxios.post.mockResolvedValueOnce(mockResponse);
+
+      const transcript = [
+        { role: 'user', content: 'Hello' },
+        { role: 'assistant', content: 'Hi there!' },
+        { role: 'user', content: 'How are you?' }
+      ];
+
+      const result = await webhookService.sendMessageEvent({
+        organizationId: 'org-123',
+        userId: 'user-456',
+        userEmail: 'test@example.com',
+        conversationId: 'conv-789',
+        messageId: 'msg-101',
+        customerMessage: 'How are you?',
+        documentIds: ['doc-1'],
+        transcript: transcript
+      });
+
+      expect(result.success).toBe(true);
+      expect(result.status).toBe(200);
+      expect(mockedAxios.post).toHaveBeenCalledWith(
+        'https://test-webhook.example.com',
+        expect.objectContaining({
+          source: 'rita-chat',
+          action: 'message_created',
+          tenant_id: 'org-123',
+          user_email: 'test@example.com',
+          user_id: 'user-456',
+          conversation_id: 'conv-789',
+          message_id: 'msg-101',
+          customer_message: 'How are you?',
+          document_ids: ['doc-1'],
+          transcript: transcript
+        }),
+        expect.objectContaining({
+          headers: {
+            'Authorization': 'Basic test-auth',
+            'Content-Type': 'application/json'
+          },
+          timeout: 5000
+        })
+      );
+    });
+
     it('should handle webhook failure with retry', async () => {
       const mockError = {
         response: {
