@@ -37,6 +37,7 @@ export class WebhookService {
     customerMessage: string;
     documentIds?: string[];
     createdAt?: Date;
+    transcript?: Array<{ role: string; content: string }>;
   }): Promise<WebhookResponse> {
     const payload: MessageWebhookPayload = {
       source: 'rita-chat',
@@ -48,6 +49,7 @@ export class WebhookService {
       customer_message: params.customerMessage,
       message_id: params.messageId,
       document_ids: params.documentIds || [],
+      transcript: params.transcript,
       timestamp: (params.createdAt || new Date()).toISOString()
     };
 

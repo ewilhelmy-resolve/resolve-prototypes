@@ -66,6 +66,7 @@ interface MessageWebhookPayload extends BaseWebhookPayload {
   customer_message: string;
   message_id: string;
   document_ids?: string[];
+  transcript?: Array<{ role: string; content: string }>;
 }
 
 // Document webhook payload for rita-documents
@@ -922,6 +923,13 @@ app.post('/webhook', async (req, res) => {
         documentCount: messagePayload.document_ids?.length || 0,
         conversationId: messagePayload.conversation_id
       }, 'Received message webhook');
+
+      // Log full webhook payload with transcript
+      console.log('\n' + '═'.repeat(100));
+      console.log('📨 WEBHOOK PAYLOAD RECEIVED');
+      console.log('═'.repeat(100));
+      console.log(JSON.stringify(messagePayload, null, 2));
+      console.log('═'.repeat(100) + '\n');
 
       // Validate message-specific required fields
       if (!messagePayload.message_id || !messagePayload.conversation_id || !messagePayload.customer_message) {
