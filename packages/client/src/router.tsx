@@ -9,6 +9,7 @@ import ChatV1Page from './pages/ChatV1Page';
 import FilesV1Page from './pages/FilesV1Page';
 import UsersV1Page from './pages/UsersV1Page';
 import SettingsV1Page from './pages/SettingsV1Page';
+import ConnectionSourceDetailPage from './pages/ConnectionSourceDetailPage';
 import { ProtectedRoute } from './components/auth/ProtectedRoute';
 
 const router = createBrowserRouter([
@@ -55,6 +56,14 @@ const router = createBrowserRouter([
     element: (
       <ProtectedRoute>
         <SettingsV1Page />
+      </ProtectedRoute>
+    )
+  },
+  {
+    path: '/connections/:sourceId',
+    element: (
+      <ProtectedRoute>
+        <ConnectionSourceDetailPage />
       </ProtectedRoute>
     )
   },

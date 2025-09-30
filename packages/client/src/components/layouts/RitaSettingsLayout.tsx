@@ -1,5 +1,6 @@
 "use client"
 
+import { ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ArrowLeft } from "lucide-react"
 import {
@@ -14,9 +15,12 @@ import {
   SidebarMenuItem,
   SidebarProvider,
 } from "@/components/ui/sidebar"
-import ConnectionSources from "./ConnectionSources"
 
-export default function RitaSettingsLayout() {
+interface RitaSettingsLayoutProps {
+  children?: ReactNode;
+}
+
+export default function RitaSettingsLayout({ children }: RitaSettingsLayoutProps) {
   const navigate = useNavigate()
 
   const handleBackToApp = () => {
@@ -27,7 +31,7 @@ export default function RitaSettingsLayout() {
   return (
     <SidebarProvider defaultOpen={true}>
       <div className="flex min-h-screen w-full">
-        <Sidebar className="bg-sidebar border-r">
+        <Sidebar className="flex w-64 flex-col items-start self-stretch">
           <SidebarHeader className="p-2">
             <SidebarMenu>
               <SidebarMenuItem>
@@ -50,6 +54,11 @@ export default function RitaSettingsLayout() {
                     <span className="text-sm">Profile</span>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
+                <SidebarMenuItem>
+                  <SidebarMenuButton className="p-2 h-8 rounded-md" isActive>
+                    <span className="text-sm">Connection Sources</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
               </SidebarMenu>
             </SidebarGroup>
 
@@ -63,18 +72,13 @@ export default function RitaSettingsLayout() {
                     <span className="text-sm">Users</span>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
-                <SidebarMenuItem>
-                  <SidebarMenuButton className="p-2 h-8 rounded-md" isActive>
-                    <span className="text-sm">Connection Sources</span>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
               </SidebarMenu>
             </SidebarGroup>
           </SidebarContent>
         </Sidebar>
 
         <SidebarInset>
-          <ConnectionSources />
+          {children}
         </SidebarInset>
       </div>
     </SidebarProvider>

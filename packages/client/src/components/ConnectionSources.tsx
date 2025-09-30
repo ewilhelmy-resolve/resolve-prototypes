@@ -1,9 +1,11 @@
 "use client"
 
-import { Button } from "@/components/ui/button"
+import { Link } from "react-router-dom"
 import { Badge } from "@/components/ui/badge"
 import { Card } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
+import { CONNECTION_SOURCES, STATUS } from "@/constants/connectionSources"
+import { CircleCheck, CircleOffIcon } from "lucide-react"
 
 export default function ConnectionSources() {
   return (
@@ -19,70 +21,43 @@ export default function ConnectionSources() {
         <Separator />
 
         <div className="flex flex-col gap-6">
-          <Card className="p-4 border border-border bg-popover">
-            <div className="flex justify-between items-center">
-              <div className="flex flex-col gap-2">
-                <div className="flex flex-col">
-                  <p className="text-base font-bold text-foreground">Atlassian Confluence</p>
-                  <p className="text-sm text-foreground">Status: Not connected</p>
-                  <p className="text-sm text-foreground">Last sync: —</p>
+          {CONNECTION_SOURCES.map((source) => (
+            <Link key={source.id} to={`/connections/${source.id}`} className="block">
+              <Card className="p-4 border border-border bg-popover hover:bg-accent transition-colors cursor-pointer">
+                <div className="flex justify-between items-center">
+                  <div className="flex flex-col gap-2">
+                    <div className="flex flex-col">
+                      <p className="text-base font-bold text-foreground">{source.title}</p>
+                      {source.lastSync && (
+                        <p className="text-sm text-foreground">Last sync: {source.lastSync}</p>
+                      )}
+                      {source.description && (
+                        <p className="text-sm text-foreground">{source.description}</p>
+                      )}
+                    </div>
+                    <div className="flex gap-2">
+                      {source.badges.map((badge) => (
+                        <Badge key={badge} variant="secondary">{badge}</Badge>
+                      ))}
+                    </div>
+                  </div>
+                  {
+                    source.status === STATUS.NOT_CONNECTED ? (
+                      <Badge variant="outline" className="flex items-center gap-1">
+                        <CircleOffIcon className="h-4 w-4 text-muted-foreground" />
+                        {source.status}
+                      </Badge>
+                    ) : (
+                      <Badge variant="outline" className="flex items-center gap-1 border-green-500">
+                        <CircleCheck className="h-4 w-4 text-green-500" />
+                        {source.status}
+                      </Badge>
+                    )
+                  }
                 </div>
-                <div className="flex gap-2">
-                  <Badge variant="secondary">Knowledge</Badge>
-                </div>
-              </div>
-              <Button variant="secondary">Connect</Button>
-            </div>
-          </Card>
-
-          <Card className="p-4 border border-border bg-popover">
-            <div className="flex justify-between items-center">
-              <div className="flex flex-col gap-2">
-                <div className="flex flex-col">
-                  <p className="text-base font-bold text-foreground">Microsoft SharePoint</p>
-                  <p className="text-sm text-foreground">Status: Not connected</p>
-                  <p className="text-sm text-foreground">Last sync: —</p>
-                </div>
-                <div className="flex gap-2">
-                  <Badge variant="secondary">Knowledge</Badge>
-                </div>
-              </div>
-              <Button variant="secondary">Connect</Button>
-            </div>
-          </Card>
-
-          <Card className="p-4 border border-border bg-popover">
-            <div className="flex justify-between items-center">
-              <div className="flex flex-col gap-2">
-                <div className="flex flex-col">
-                  <p className="text-base font-bold text-foreground">ServiceNow</p>
-                  <p className="text-sm text-foreground">Status: Not connected</p>
-                  <p className="text-sm text-foreground">Last sync: —</p>
-                </div>
-                <div className="flex gap-2">
-                  <Badge variant="secondary">Knowledge</Badge>
-                  <Badge variant="secondary">Ticketing</Badge>
-                </div>
-              </div>
-              <Button variant="secondary">Connect</Button>
-            </div>
-          </Card>
-
-          <Card className="p-4 border border-border bg-popover">
-            <div className="flex justify-between items-center">
-              <div className="flex flex-col gap-2">
-                <div className="flex flex-col">
-                  <p className="text-base font-bold text-foreground">Web Search (LGA)</p>
-                  <p className="text-sm text-foreground">Status: Enabled</p>
-                  <p className="text-sm text-foreground">Use web results to supplement answers when knowledge isn't found.</p>
-                </div>
-                <div className="flex gap-2">
-                  <Badge variant="secondary">Knowledge</Badge>
-                </div>
-              </div>
-              <Button variant="secondary">Enabled</Button>
-            </div>
-          </Card>
+              </Card>
+            </Link>
+          ))}
         </div>
       </div>
     </div>
