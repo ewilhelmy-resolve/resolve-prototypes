@@ -1,19 +1,19 @@
-import express from 'express';
-import cors from 'cors';
+import { randomUUID } from 'node:crypto';
+import { resolve } from 'node:path';
+import { type Channel, type ChannelModel, connect } from 'amqplib';
 import axios from 'axios';
+import cors from 'cors';
 import { config } from 'dotenv';
-import { resolve } from 'path';
-import { randomUUID } from 'crypto';
-import { connect, Channel, ChannelModel } from 'amqplib';
+import express from 'express';
 import {
-  logger,
-  webhookLogger,
-  rabbitLogger,
   configLogger,
-  generateCorrelationId,
   createContextLogger,
+  generateCorrelationId,
+  logError,
+  logger,
   PerformanceTimer,
-  logError
+  rabbitLogger,
+  webhookLogger
 } from './config/logger.js';
 
 
@@ -32,9 +32,9 @@ const MOCK_CONFIG = {
   // Response scenarios: 'success', 'failure', 'timeout', 'processing'
   defaultScenario: process.env.MOCK_SCENARIO || 'success',
   // Response delays in milliseconds
-  responseDelay: parseInt(process.env.MOCK_DELAY || '2000'),
+  responseDelay: parseInt(process.env.MOCK_DELAY || '2000', 10),
   // Success rate (0-100)
-  successRate: parseInt(process.env.MOCK_SUCCESS_RATE || '90'),
+  successRate: parseInt(process.env.MOCK_SUCCESS_RATE || '90', 10),
   // RabbitMQ configuration
   queueName: process.env.QUEUE_NAME || 'chat.responses',
   rabbitUrl: process.env.RABBITMQ_URL || 'amqp://guest:guest@localhost:5672',
@@ -285,7 +285,7 @@ function generateMockResponse(payload: WebhookPayload, scenario?: string): MockR
   // Generate a unique response group ID for this multi-part response (UUID format)
   const responseGroupId = randomUUID();
 
-  let parts: MessagePart[] = [];
+  const parts: MessagePart[] = [];
 
   // Check for test trigger words first
   if (content.startsWith('test1')) {
@@ -868,7 +868,7 @@ This is a basic response format. Set \`MOCK_SCENARIO\` environment variable to g
 }
 
 // Health check
-app.get('/health', (req, res) => {
+app.get('/health', (_req, res) => {
   const correlationId = generateCorrelationId();
   const contextLogger = createContextLogger(logger, correlationId);
 
@@ -918,7 +918,7 @@ app.post('/webhook', async (req, res) => {
         source: messagePayload.source,
         action: messagePayload.action,
         user_email: messagePayload.user_email,
-        content: messagePayload.customer_message?.substring(0, 50) + '...',
+        content: `${messagePayload.customer_message?.substring(0, 50)}...`,
         documentCount: messagePayload.document_ids?.length || 0,
         conversationId: messagePayload.conversation_id
       }, 'Received message webhook');
@@ -1035,8 +1035,8 @@ app.post('/webhook', async (req, res) => {
     if (receivedToken !== expectedAuth) {
       contextLogger.warn({
         hasAuthHeader: !!authHeader,
-        authHeaderPrefix: authHeader?.substring(0, 10) + '...',
-        expectedAuth: expectedAuth?.substring(0, 10) + '...'
+        authHeaderPrefix: `${authHeader?.substring(0, 10)}...`,
+        expectedAuth: `${expectedAuth?.substring(0, 10)}...`
       }, 'Webhook authentication failed');
       return res.status(401).json({ error: 'Unauthorized' });
     }
@@ -1181,7 +1181,7 @@ app.post('/webhook', async (req, res) => {
         console.log(`${signupPayload.verification_url}`);
         console.log('');
         console.log('(In production, this would be sent via email)');
-        console.log('='.repeat(80) + '\n');
+        console.log(`${'='.repeat(80)}\n`);
 
         res.status(200).json({
           message: 'Signup webhook processed successfully',
@@ -1211,7 +1211,7 @@ app.post('/webhook', async (req, res) => {
 
 
 // Configuration endpoint
-app.get('/config', (req, res) => {
+app.get('/config', (_req, res) => {
   const correlationId = generateCorrelationId();
   const contextLogger = createContextLogger(configLogger, correlationId);
 

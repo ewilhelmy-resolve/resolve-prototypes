@@ -2,7 +2,7 @@ import type Keycloak from 'keycloak-js';
 import type { KeycloakLoginOptions, KeycloakLogoutOptions } from 'keycloak-js';
 import mitt, { type Emitter } from 'mitt';
 import keycloak from './keycloak';
-import { AuthError, AuthResult, AuthEventPayload } from '../types/auth';
+import { AuthError, type AuthResult, type AuthEventPayload } from '../types/auth';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || '';
 

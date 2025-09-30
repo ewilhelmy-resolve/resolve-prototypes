@@ -1,6 +1,8 @@
 "use client"
 
-import React, { useState, useEffect, useRef } from "react"
+import type React from "react"
+import {useCallback} from "react"
+import { useState, useEffect, useRef } from "react"
 import { useParams, useNavigate } from 'react-router-dom'
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -64,10 +66,10 @@ const RitaChatInterface: React.FC = () => {
     }
   }, [latestUpdate, updateMessage])
 
-  const handleNewChat = () => {
+  const handleNewChat = useCallback(() => {
     clearCurrentConversation()
     navigate('/chat')
-  }
+  }, [clearCurrentConversation, navigate]);
 
   // Handle keyboard shortcuts
   useEffect(() => {
@@ -89,7 +91,8 @@ const RitaChatInterface: React.FC = () => {
   }, [handleNewChat, toggleSidebar])
 
   // Auto-scroll to bottom when messages change
-  useEffect(() => {
+  // biome-ignore lint/correctness/useExhaustiveDependencies: needed for scroll
+    useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
 

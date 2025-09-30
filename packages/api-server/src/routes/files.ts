@@ -1,10 +1,10 @@
+import crypto from 'node:crypto';
 import express from 'express';
 import multer from 'multer';
-import crypto from 'crypto';
-import { authenticateUser } from '../middleware/auth.js';
-import { AuthenticatedRequest } from '../types/express.js';
 import { withOrgContext } from '../config/database.js';
+import { authenticateUser } from '../middleware/auth.js';
 import { WebhookService } from '../services/WebhookService.js';
+import type { AuthenticatedRequest } from '../types/express.js';
 
 const router = express.Router();
 const webhookService = new WebhookService();
@@ -16,9 +16,9 @@ const DEFAULT_FILE_SIZE_LIMIT_KB = '102400';
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: {
-    fileSize: parseInt(process.env.FILE_SIZE_LIMIT_KB || DEFAULT_FILE_SIZE_LIMIT_KB) * 1024, // 100MB default
+    fileSize: parseInt(process.env.FILE_SIZE_LIMIT_KB || DEFAULT_FILE_SIZE_LIMIT_KB, 10) * 1024, // 100MB default
   },
-  fileFilter: (req, file, cb) => {
+  fileFilter: (_req, file, cb) => {
     // Validate content type
     const allowedTypes = [
       'image/jpeg', 'image/png', 'image/gif', 'image/webp',
@@ -52,7 +52,7 @@ const handleUpload = (req: express.Request, res: express.Response, next: express
   upload.single('file')(req, res, (err) => {
     if (err instanceof multer.MulterError) {
       if (err.code === 'LIMIT_FILE_SIZE') {
-        const limitKB = parseInt(process.env.FILE_SIZE_LIMIT_KB || DEFAULT_FILE_SIZE_LIMIT_KB);
+        const limitKB = parseInt(process.env.FILE_SIZE_LIMIT_KB || DEFAULT_FILE_SIZE_LIMIT_KB, 10);
         const formattedLimit = formatFileSize(limitKB);
         return res.status(400).json({ error: `File size exceeds ${formattedLimit} limit` });
       }
@@ -87,7 +87,7 @@ router.post('/upload', authenticateUser, handleUpload, async (req, res) => {
         await client.query('BEGIN');
 
         try {
-          let blobId;
+          let blobId: string;
 
           // Check if blob already exists (deduplication)
           const existingBlob = await client.query(
@@ -202,7 +202,7 @@ router.post('/content', authenticateUser, async (req, res) => {
         await client.query('BEGIN');
 
         try {
-          let blobId;
+          let blobId: string;
 
           // Check if text blob already exists (deduplication)
           const existingBlob = await client.query(
@@ -324,8 +324,8 @@ router.get('/:documentId/download', authenticateUser, async (req, res) => {
 router.get('/', authenticateUser, async (req, res) => {
   const authReq = req as AuthenticatedRequest;
   try {
-    const limit = parseInt(req.query.limit as string) || 50;
-    const offset = parseInt(req.query.offset as string) || 0;
+    const limit = parseInt(req.query.limit as string, 10) || 50;
+    const offset = parseInt(req.query.offset as string, 10) || 0;
 
     const result = await withOrgContext(
       authReq.user.id,
@@ -358,7 +358,7 @@ router.get('/', authenticateUser, async (req, res) => {
 
         return {
           documents: documentsResult.rows,
-          total: parseInt(countResult.rows[0].total),
+          total: parseInt(countResult.rows[0].total, 10),
           limit,
           offset
         };

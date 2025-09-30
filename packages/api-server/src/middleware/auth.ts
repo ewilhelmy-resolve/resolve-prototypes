@@ -1,7 +1,7 @@
-import { Request, Response, NextFunction } from 'express';
+import type { NextFunction, Request, Response } from 'express';
 import * as jose from 'jose';
-import { getSessionService } from '../services/sessionService.js';
 import { logger } from '../config/logger.js';
+import { getSessionService } from '../services/sessionService.js';
 
 // Keycloak configuration from environment variables
 const KEYCLOAK_URL = process.env.KEYCLOAK_URL || 'http://localhost:8080';
@@ -34,7 +34,7 @@ export const authenticateUser = async (
       const token = authHeader.substring(7);
       const payload = await validateKeycloakToken(token);
 
-      if (payload && payload.sub) {
+      if (payload?.sub) {
         // JIT User Provisioning - find or create user from Keycloak token
         const sessionService = getSessionService();
         try {

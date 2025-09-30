@@ -1,7 +1,7 @@
 import express from 'express';
-import { authenticateUser } from '../middleware/auth.js';
-import { AuthenticatedRequest } from '../types/express.js';
 import { pool } from '../config/database.js';
+import { authenticateUser } from '../middleware/auth.js';
+import type { AuthenticatedRequest } from '../types/express.js';
 
 const router = express.Router();
 

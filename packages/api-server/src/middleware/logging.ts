@@ -1,6 +1,6 @@
-import { Request, Response, NextFunction } from 'express';
+import type { NextFunction, Request, Response } from 'express';
 import pinoHttp from 'pino-http';
-import { logger, generateCorrelationId, createContextLogger } from '../config/logger.js';
+import { createContextLogger, generateCorrelationId, logger } from '../config/logger.js';
 
 // Custom request logging middleware with correlation ID
 export const requestLoggingMiddleware = pinoHttp({
@@ -9,7 +9,7 @@ export const requestLoggingMiddleware = pinoHttp({
   genReqId: () => generateCorrelationId(),
 
   // Customize request logging
-  customLogLevel: (req, res, err) => {
+  customLogLevel: (_req, res, err) => {
     if (res.statusCode >= 400 && res.statusCode < 500) {
       return 'warn';
     } else if (res.statusCode >= 500 || err) {
@@ -64,7 +64,7 @@ export const requestLoggingMiddleware = pinoHttp({
 });
 
 // Middleware to add user context to logs
-export const addUserContextToLogs = (req: Request, res: Response, next: NextFunction) => {
+export const addUserContextToLogs = (req: Request, _res: Response, next: NextFunction) => {
   // This runs after authentication middleware
   if (req.log && (req as any).user) {
     const user = (req as any).user;
@@ -118,7 +118,7 @@ export const errorLoggingMiddleware = (
   err: Error,
   req: Request,
   res: Response,
-  next: NextFunction
+  _next: NextFunction
 ) => {
   // Log error with full context
   const errorContext = {
@@ -168,7 +168,7 @@ export const errorLoggingMiddleware = (
 };
 
 // Health check logging (minimal logging for health checks)
-export const healthCheckLoggingMiddleware = (req: Request, res: Response, next: NextFunction) => {
+export const healthCheckLoggingMiddleware = (req: Request, _res: Response, next: NextFunction) => {
   // Skip detailed logging for health checks
   if (req.path === '/health') {
     req.log = logger.child({

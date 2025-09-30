@@ -10,7 +10,8 @@
 
 "use client"
 
-import React, { useState } from 'react'
+import type React from 'react'
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -381,21 +382,22 @@ export default function RitaV1Layout({ children, activePage = 'chat' }: RitaV1La
                   <Card className="p-4 border rounded-lg">
                     <div className="space-y-3">
                       {knowledgeBaseFiles.slice(0, 3).map((file) => (
-                        <div
+                        <Button
                           key={file.id}
-                          className="flex items-center gap-3 cursor-pointer hover:bg-muted/50 rounded-md p-2 -m-2 transition-colors"
+                          variant="ghost"
+                          className="flex items-center gap-3 h-auto w-full justify-start p-2 hover:bg-muted/50"
                           onClick={() => navigate('/content')}
                         >
                           <div className="w-8 h-8 bg-card border rounded flex items-center justify-center">
                             <FileText className="h-4 w-4 text-card-foreground" />
                           </div>
-                          <div className="flex-1 min-w-0">
+                          <div className="flex-1 min-w-0 text-left">
                             <p className="text-sm font-medium truncate">{file.filename}</p>
                             <p className="text-xs text-muted-foreground">
                               {file.created_at?.toLocaleDateString() || 'Recently added'}
                             </p>
                           </div>
-                        </div>
+                        </Button>
                       ))}
                     </div>
                     {knowledgeBaseFiles.length > 3 && (

@@ -4,6 +4,8 @@
  * TypeScript types for Figma-generated components and
  * integration with Rita Go architecture.
  */
+/** biome-ignore-all lint/complexity/noBannedTypes: temp */
+/** biome-ignore-all lint/suspicious/noExplicitAny: temp */
 
 import type { ReactNode } from 'react'
 

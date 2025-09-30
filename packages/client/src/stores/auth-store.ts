@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { immer } from 'zustand/middleware/immer';
 import { authManager } from '../services/auth-manager';
-import { AuthError, AuthStore } from '../types/auth';
+import { AuthError, type AuthStore } from '../types/auth';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || '';
 
@@ -287,7 +287,7 @@ const useAuthStore = create<AuthStore>()(
           }
 
           // Exponential backoff
-          const delay = Math.pow(2, state.retryCount) * 1000;
+          const delay = 2 ** state.retryCount * 1000;
           await new Promise(resolve => setTimeout(resolve, delay));
 
           set((state) => {

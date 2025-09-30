@@ -11,6 +11,7 @@ export interface FileUploadState {
   isUploading: boolean
   isError: boolean
   isSuccess: boolean
+  // biome-ignore lint/suspicious/noExplicitAny: temporal
   error: any
   handleFileUpload: (e: React.ChangeEvent<HTMLInputElement>) => void
   openFileSelector: () => void
@@ -24,7 +25,7 @@ export const useFileUpload = (fileInputRef: React.RefObject<HTMLInputElement>): 
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     e.preventDefault()
-    if (e.target.files && e.target.files[0]) {
+    if (e.target.files?.[0]) {
       const file = e.target.files[0]
       uploadFileMutation.mutate(file)
     }

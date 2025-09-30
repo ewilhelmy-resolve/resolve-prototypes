@@ -1,7 +1,7 @@
 import amqp from 'amqplib';
-import { withOrgContext, pool } from '../config/database.js';
+import { pool, withOrgContext } from '../config/database.js';
+import { logError, PerformanceTimer, queueLogger } from '../config/logger.js';
 import { getSSEService } from './sse.js';
-import { queueLogger, logError, PerformanceTimer } from '../config/logger.js';
 
 export class RabbitMQService {
   private connection: any = null;
@@ -223,8 +223,6 @@ export class RabbitMQService {
       const {
         message_id,
         tenant_id: organization_id,
-        user_id,
-        conversation_id
       } = content;
 
       // Generate a unique message ID if not present

@@ -1,7 +1,7 @@
 import * as jose from 'jose';
-import { getSessionStore, Session, CreateSessionData } from './sessionStore.js';
-import { logger } from '../config/logger.js';
 import { pool } from '../config/database.js';
+import { logger } from '../config/logger.js';
+import { type CreateSessionData, getSessionStore, type Session } from './sessionStore.js';
 
 // Keycloak configuration from environment variables (same as middleware)
 const KEYCLOAK_URL = process.env.KEYCLOAK_URL || 'http://localhost:8080';
@@ -50,9 +50,10 @@ export class SessionService {
   }
 
   private async findOrCreateUser(tokenPayload: jose.JWTPayload): Promise<{ id: string; email: string; activeOrganizationId: string; }> {
+    // biome-ignore lint/style/noNonNullAssertion: must be non-null
     const keycloakId = tokenPayload.sub!;
     const email = tokenPayload.email as string;
-    // Future: extract user name from token
+    // Future: extract username from token
     // const givenName = (tokenPayload.given_name as string) || '';
     // const familyName = (tokenPayload.family_name as string) || '';
     // const name = (tokenPayload.name as string) || `${givenName} ${familyName}`.trim();

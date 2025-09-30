@@ -6,8 +6,9 @@
  * and all the same features as the legacy files page.
  */
 
-import React, { useState, useRef } from 'react';
-import { useFiles, useUploadFile, useDownloadFile, FileDocument } from '../hooks/api/useFiles';
+import type React from 'react';
+import { useState, useRef } from 'react';
+import { useFiles, useUploadFile, useDownloadFile, type FileDocument } from '../hooks/api/useFiles';
 import { Button } from '../components/ui/button';
 import { Card, CardContent } from '../components/ui/card';
 import { Input } from '../components/ui/input';
@@ -32,7 +33,7 @@ const formatFileSize = (bytes: number): string => {
   const k = 1024;
   const sizes = ['Bytes', 'KB', 'MB', 'GB'];
   const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  return parseFloat((bytes / k ** i).toFixed(2)) + ' ' + sizes[i];
 };
 
 export default function FilesV1Content() {

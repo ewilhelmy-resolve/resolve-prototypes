@@ -5,7 +5,7 @@ export class AuthError extends Error {
     public code: AuthErrorCode,
     message: string,
     public cause?: unknown,
-    public retryable = false
+    // public retryable = false
   ) {
     super(message);
     this.name = 'AuthError';
@@ -86,13 +86,13 @@ export type AuthStore = AuthState & AuthActions;
 export interface AuthEventPayload extends Record<string | symbol, unknown> {
   'auth:success': AuthResult;
   'auth:error': AuthError;
-  'auth:force-logout': void;
+  'auth:force-logout': undefined;
   'token:refreshed': {
     token: string;
     refreshToken: string;
     tokenExpiry: number;
   };
-  'token:expired': void;
-  'session:ready': void;
+  'token:expired': undefined;
+  'session:ready': undefined;
   'session:error': Error;
 }

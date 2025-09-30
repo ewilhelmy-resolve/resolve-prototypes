@@ -1,13 +1,13 @@
-import axios, { AxiosResponse } from 'axios';
+import axios, { type AxiosResponse } from 'axios';
 import { pool } from '../config/database.js';
-import {
-  WebhookPayload,
-  WebhookResponse,
+import type {
+  BaseWebhookPayload,
+  DocumentProcessingPayload,
+  MessageWebhookPayload,
   WebhookConfig,
   WebhookError,
-  MessageWebhookPayload,
-  DocumentProcessingPayload,
-  BaseWebhookPayload
+  WebhookPayload,
+  WebhookResponse
 } from '../types/webhook.js';
 
 export class WebhookService {

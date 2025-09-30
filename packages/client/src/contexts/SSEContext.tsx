@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useCallback, useState } from 'react';
+import type React from 'react';
+import { createContext, useContext, useCallback, useState } from 'react';
 import { useSSE } from '../hooks/useSSE';
 import { useConversationStore } from '../stores/conversationStore';
 import type { SSEEvent } from '../services/EventSourceSSEClient';

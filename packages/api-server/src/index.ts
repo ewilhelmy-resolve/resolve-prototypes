@@ -1,24 +1,22 @@
-import express from 'express';
 import cors from 'cors';
-import { authenticateUser } from './middleware/auth.js';
-
-import authRoutes from './routes/auth.js';
-import organizationRoutes from './routes/organizations.js';
-import messageRoutes from './routes/messages.js';
-import conversationRoutes from './routes/conversations.js';
-import filesRoutes from './routes/files.js';
-import sseRoutes from './routes/sse.js';
-import { getRabbitMQService } from './services/rabbitmq.js';
-import { getSSEService } from './services/sse.js';
-import { destroySessionStore } from './services/sessionStore.js';
+import express from 'express';
 import { logger } from './config/logger.js';
+import { authenticateUser } from './middleware/auth.js';
 import {
-  requestLoggingMiddleware,
   addUserContextToLogs,
   errorLoggingMiddleware,
   healthCheckLoggingMiddleware,
-  logApiOperation
+  logApiOperation,
+  requestLoggingMiddleware
 } from './middleware/logging.js';
+import authRoutes from './routes/auth.js';
+import conversationRoutes from './routes/conversations.js';
+import filesRoutes from './routes/files.js';
+import organizationRoutes from './routes/organizations.js';
+import sseRoutes from './routes/sse.js';
+import { getRabbitMQService } from './services/rabbitmq.js';
+import { destroySessionStore } from './services/sessionStore.js';
+import { getSSEService } from './services/sse.js';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -37,7 +35,7 @@ app.use(cors({
 app.use(express.json());
 
 // Health check endpoint
-app.get('/health', (req, res) => {
+app.get('/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
@@ -91,7 +89,6 @@ app.get('/test-sse', (req, res) => {
 // Protected routes (require authentication)
 app.use('/api/organizations', authenticateUser, addUserContextToLogs, organizationRoutes);
 app.use('/api/conversations', authenticateUser, addUserContextToLogs, conversationRoutes);
-app.use('/api/messages', authenticateUser, addUserContextToLogs, messageRoutes);
 app.use('/api/files', authenticateUser, addUserContextToLogs, filesRoutes);
 app.use('/api/sse', authenticateUser, addUserContextToLogs, sseRoutes);
 app.get('/api/profile', authenticateUser, addUserContextToLogs, logApiOperation('get-profile'), (req: any, res) => {
@@ -159,7 +156,7 @@ app.listen(PORT, async () => {
   // Initialize services
   try {
     // Initialize SSE service
-    const sseService = getSSEService();
+    getSSEService();
     logger.info('SSE service initialized successfully');
 
     // Initialize RabbitMQ consumer

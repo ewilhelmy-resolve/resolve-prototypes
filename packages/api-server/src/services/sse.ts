@@ -1,5 +1,5 @@
-import { Response } from 'express';
-import { logger, createChildLogger } from '../config/logger.js';
+import type { Response } from 'express';
+import { createChildLogger } from '../config/logger.js';
 
 export interface SSEConnection {
   id: string;
@@ -241,7 +241,7 @@ export class SSEService {
     }
 
     // Close all connections gracefully
-    this.connections.forEach((connection, connectionId) => {
+    this.connections.forEach((_connection, connectionId) => {
       this.sendToConnection(connectionId, {
         type: 'server_shutdown',
         data: { message: 'Server is shutting down', timestamp: new Date().toISOString() }

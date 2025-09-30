@@ -1,8 +1,8 @@
 import express from 'express';
-import { authenticateUser } from '../middleware/auth.js';
-import { AuthenticatedRequest } from '../types/express.js';
 import { withOrgContext } from '../config/database.js';
+import { authenticateUser } from '../middleware/auth.js';
 import { WebhookService } from '../services/WebhookService.js';
+import type { AuthenticatedRequest } from '../types/express.js';
 
 const router = express.Router();
 const webhookService = new WebhookService();
@@ -43,8 +43,8 @@ router.post('/', authenticateUser, async (req, res) => {
 router.get('/', authenticateUser, async (req, res) => {
   const authReq = req as AuthenticatedRequest;
   try {
-    const limit = parseInt(req.query.limit as string) || 100;
-    const offset = parseInt(req.query.offset as string) || 0;
+    const limit = parseInt(req.query.limit as string, 10) || 100;
+    const offset = parseInt(req.query.offset as string, 10) || 0;
 
     const result = await withOrgContext(
       authReq.user.id,
@@ -71,7 +71,7 @@ router.get('/', authenticateUser, async (req, res) => {
 
         return {
           conversations: conversationsResult.rows,
-          total: parseInt(countResult.rows[0].total),
+          total: parseInt(countResult.rows[0].total, 10),
           limit,
           offset
         };
@@ -91,8 +91,8 @@ router.get('/:conversationId/messages', authenticateUser, async (req, res) => {
   const authReq = req as AuthenticatedRequest;
   try {
     const { conversationId } = req.params;
-    const limit = parseInt(req.query.limit as string) || 100;
-    const offset = parseInt(req.query.offset as string) || 0;
+    const limit = parseInt(req.query.limit as string, 10) || 100;
+    const offset = parseInt(req.query.offset as string, 10) || 0;
 
     const result = await withOrgContext(
       authReq.user.id,
@@ -193,7 +193,7 @@ router.post('/:conversationId/messages', authenticateUser, async (req, res) => {
 
         // Link documents if provided
         if (document_ids.length > 0) {
-          const documentValues = document_ids.map((docId: string, index: number) =>
+          const documentValues = document_ids.map((_docId: string, index: number) =>
             `($${index * 2 + 1}, $${index * 2 + 2})`
           ).join(', ');
 

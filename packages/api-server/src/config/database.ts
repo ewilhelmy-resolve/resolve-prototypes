@@ -1,5 +1,5 @@
 import { Pool } from 'pg';
-import { dbLogger, PerformanceTimer, logError } from './logger.js';
+import { dbLogger, logError, PerformanceTimer } from './logger.js';
 
 const databaseUrl = process.env.DATABASE_URL;
 
@@ -19,7 +19,7 @@ const poolConfig = {
 export const pool = new Pool(poolConfig);
 
 // Log pool events
-pool.on('connect', (client) => {
+pool.on('connect', (_client) => {
   dbLogger.debug('New client connected to database pool');
 });
 
@@ -66,11 +66,11 @@ export const withOrgContext = async <T>(
 
     await client.query('COMMIT');
 
-    const duration = timer.end({
-      userId,
-      organizationId,
-      success: true
-    });
+    // const duration = timer.end({
+    //   userId,
+    //   organizationId,
+    //   success: true
+    // });
 
     contextLogger.info('Transaction completed successfully');
     return result;
