@@ -11,9 +11,18 @@
     "test": "cd packages/client && npm run test",
     "build": "cd packages/api-server && npm run build && cd ../client && npm run build",
     "lint": "cd packages/api-server && npm run lint && cd ../client && npm run lint",
-    "type-check": "cd packages/api-server && npm run type-check && cd ../client && npm run type-check && cd ../mock-service && npm run type-check"
+    "type-check": "cd packages/api-server && npm run type-check && cd ../client && npm run type-check && cd ../mock-service && npm run type-check",
+    "prepare": "husky"
   },
   "devDependencies": {
-    "dotenv-cli": "^7.4.2"
+    "@biomejs/biome": "^2.2.4",
+    "dotenv-cli": "^7.4.2",
+    "husky": "^9.1.7",
+    "lint-staged": "^16.2.3"
+  },
+  "lint-staged": {
+    "*.{js,ts,cjs,mjs,jsx,tsx,json,jsonc}": [
+      "biome check --write --no-errors-on-unmatched --files-ignore-unknown=true"
+    ]
   }
 }
