@@ -114,7 +114,7 @@ export default function RitaV1Layout({ children, activePage = 'chat' }: RitaV1La
     <div className="min-h-screen bg-background">
       {/* Top Navigation */}
       <nav className="h-16 bg-primary border-b border-border px-6 shadow-sm">
-        <div className="container mx-auto flex justify-between items-center h-full">
+        <div className="flex justify-between items-center h-full">
           <div className="flex items-center gap-4">
             <div className="w-[100px] h-5">
               <ResolveLogo />
@@ -291,7 +291,7 @@ export default function RitaV1Layout({ children, activePage = 'chat' }: RitaV1La
 
         {/* Right Sidebar - Only show on chat page */}
         {activePage === 'chat' && (
-          <div className="w-80 bg-white border-l border-gray-200 flex flex-col hidden lg:flex">
+          <div className="w-80 bg-white border-l border-gray-200 flex-col hidden lg:flex">
             <div className="p-4 border-b border-gray-200">
               <h2 className="font-semibold text-gray-900 mb-2">Share Rita</h2>
               <p className="text-sm text-gray-600 mb-3">
