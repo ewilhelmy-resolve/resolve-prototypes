@@ -182,6 +182,20 @@ router.post('/:conversationId/messages', authenticateUser, async (req, res) => {
           throw new Error('Conversation not found or access denied');
         }
 
+        // Fetch existing messages for transcript (before creating new message)
+        const transcriptResult = await client.query(`
+          SELECT role, message
+          FROM messages
+          WHERE conversation_id = $1 AND organization_id = $2
+          ORDER BY created_at ASC, id ASC
+        `, [conversationId, authReq.user.activeOrganizationId]);
+
+        // Build transcript array from existing messages
+        const transcript = transcriptResult.rows.map((row: any) => ({
+          role: row.role,
+          content: row.message
+        }));
+
         // Create message in database
         const messageResult = await client.query(`
           INSERT INTO messages (organization_id, conversation_id, user_id, message, role, status)
@@ -205,9 +219,27 @@ router.post('/:conversationId/messages', authenticateUser, async (req, res) => {
           `, documentParams);
         }
 
-        return message;
+        return { message, transcript };
       }
     );
+
+    // Truncate transcript to 10,000 characters
+    let truncatedTranscript = result.transcript;
+    const transcriptJson = JSON.stringify(result.transcript);
+    if (transcriptJson.length > 10000) {
+      // If transcript is too long, truncate and try to keep complete messages
+      let charCount = 2; // Account for []
+      truncatedTranscript = [];
+      for (const entry of result.transcript) {
+        const entryJson = JSON.stringify(entry);
+        if (charCount + entryJson.length + 1 <= 10000) { // +1 for comma
+          truncatedTranscript.push(entry);
+          charCount += entryJson.length + 1;
+        } else {
+          break;
+        }
+      }
+    }
 
     // Send webhook to external service using WebhookService
     const webhookResponse = await webhookService.sendMessageEvent({
@@ -215,10 +247,11 @@ router.post('/:conversationId/messages', authenticateUser, async (req, res) => {
       userId: authReq.user.id,
       userEmail: authReq.user.email,
       conversationId: conversationId,
-      messageId: result.id,
-      customerMessage: result.message,
+      messageId: result.message.id,
+      customerMessage: result.message.message,
       documentIds: document_ids,
-      createdAt: result.created_at
+      createdAt: result.message.created_at,
+      transcript: truncatedTranscript
     });
 
     // Update message status based on webhook response
@@ -229,23 +262,23 @@ router.post('/:conversationId/messages', authenticateUser, async (req, res) => {
         if (webhookResponse.success) {
           await client.query(
             'UPDATE messages SET status = $1, sent_at = NOW() WHERE id = $2',
-            ['sent', result.id]
+            ['sent', result.message.id]
           );
-          console.log(`📤 Webhook sent successfully for message ${result.id}`);
+          console.log(`📤 Webhook sent successfully for message ${result.message.id}`);
         } else {
           await client.query(`
             UPDATE messages
             SET status = $1, error_message = $2
             WHERE id = $3
-          `, ['failed', webhookResponse.error || 'Webhook failed', result.id]);
-          console.error(`📤 Webhook failed for message ${result.id}:`, webhookResponse.error);
+          `, ['failed', webhookResponse.error || 'Webhook failed', result.message.id]);
+          console.error(`📤 Webhook failed for message ${result.message.id}:`, webhookResponse.error);
         }
       }
     );
 
     res.status(201).json({
       message: {
-        ...result,
+        ...result.message,
         document_ids: document_ids
       }
     });
