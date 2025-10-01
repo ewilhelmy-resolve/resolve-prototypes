@@ -2,7 +2,7 @@ import { useParams, Navigate, Link } from 'react-router-dom';
 import RitaSettingsLayout from '@/components/layouts/RitaSettingsLayout';
 import { VALID_SOURCE_IDS, getSourceById } from '@/constants/connectionSources';
 import { Breadcrumb, BreadcrumbItem, BreadcrumbList, BreadcrumbSeparator } from '@/components/ui/breadcrumb';
-import { ConnectionStatusBadge } from '@/components/ConnectionStatusBadge';
+import { ConnectionStatusBadge } from '@/components/settings/ConnectionStatusBadge';
 import { Button } from '@/components/ui/button';
 import { ConfluenceForm, SharePointForm, ServiceNowForm, WebSearchForm } from '@/components/connection-forms';
 
