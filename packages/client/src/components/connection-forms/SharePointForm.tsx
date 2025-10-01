@@ -2,6 +2,7 @@ import { useForm } from 'react-hook-form';
 import { Input } from '@/components/ui/input';
 import FormSection from './FormSection';
 import FormField from './FormField';
+import ConnectionsForm from './ConnectionsForm';
 
 export interface SharePointFormData {
   tenantId: string;
@@ -18,7 +19,7 @@ export function SharePointForm({ onSubmit }: SharePointFormProps) {
   const { register, handleSubmit, formState: { errors } } = useForm<SharePointFormData>();
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-8 w-full" id="connection-form">
+    <ConnectionsForm handleSubmit={handleSubmit(onSubmit)} id="connection-form">
       {/* Authentication */}
       <FormSection title='Authentication'>
            {/* Tenant ID */}
@@ -60,6 +61,6 @@ export function SharePointForm({ onSubmit }: SharePointFormProps) {
             />
           </FormField>
       </FormSection>
-    </form>
+    </ConnectionsForm>
   );
 }

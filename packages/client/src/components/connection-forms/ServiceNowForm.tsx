@@ -2,6 +2,7 @@ import { useForm } from 'react-hook-form';
 import { Input } from '@/components/ui/input';
 import FormSection from './FormSection';
 import FormField from './FormField';
+import ConnectionsForm from './ConnectionsForm';
 
 export interface ServiceNowFormData {
   instanceUrl: string;
@@ -17,7 +18,7 @@ export function ServiceNowForm({ onSubmit }: ServiceNowFormProps) {
   const { register, handleSubmit, formState: { errors } } = useForm<ServiceNowFormData>();
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-8 w-full" id="connection-form">
+    <ConnectionsForm handleSubmit={handleSubmit(onSubmit)} id="connection-form">
       {/* Authentication */}
       <FormSection title="Authentication">
            {/* Instance URL */}
@@ -51,6 +52,6 @@ export function ServiceNowForm({ onSubmit }: ServiceNowFormProps) {
           </FormField>
 
       </FormSection>
-    </form>
+    </ConnectionsForm>
   );
 }
