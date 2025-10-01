@@ -94,11 +94,6 @@ export function MultiSelectComboBox({
     let count = 0
     let used = 0
 
-    const takeWouldFit = (w: number, addGap: boolean) => {
-      const need = (addGap && count > 0 ? GAP : 0) + w
-      return used + need <= remaining
-    }
-
     // Greedy fit with reservation for "+(n-count)"
     while (count < n) {
       // Width for this next badge
