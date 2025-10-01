@@ -30,57 +30,60 @@ export default function RitaSettingsLayout({ children }: RitaSettingsLayoutProps
 
   return (
     <SidebarProvider defaultOpen={true}>
-      <div className="flex min-h-screen w-full">
-        <Sidebar className="flex w-64 flex-col items-start self-stretch">
-          <SidebarHeader className="p-2">
+      <div className="flex min-h-svh w-full">
+      <Sidebar>
+        <SidebarHeader className="p-2">
+          <SidebarMenu>
+            <SidebarMenuItem>
+              <SidebarMenuButton
+                className="flex items-center gap-2 p-2 h-8 rounded-md cursor-pointer"
+                onClick={handleBackToApp}
+              >
+                <ArrowLeft className="h-4 w-4" />
+                <span className="text-sm">Settings</span>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          </SidebarMenu>
+        </SidebarHeader>
+
+        <SidebarContent>
+          <SidebarGroup className="p-2">
             <SidebarMenu>
               <SidebarMenuItem>
-                <SidebarMenuButton
-                  className="flex items-center gap-2 p-2 h-8 rounded-md cursor-pointer"
-                  onClick={handleBackToApp}
-                >
-                  <ArrowLeft className="h-4 w-4" />
-                  <span className="text-sm">Settings</span>
+                <SidebarMenuButton className="p-2 h-8 rounded-md">
+                  <span className="text-sm">Profile</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton className="p-2 h-8 rounded-md" isActive>
+                  <span className="text-sm">Connection Sources</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
             </SidebarMenu>
-          </SidebarHeader>
+          </SidebarGroup>
 
-          <SidebarContent>
-            <SidebarGroup className="p-2">
-              <SidebarMenu>
-                <SidebarMenuItem>
-                  <SidebarMenuButton className="p-2 h-8 rounded-md">
-                    <span className="text-sm">Profile</span>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-                <SidebarMenuItem>
-                  <SidebarMenuButton className="p-2 h-8 rounded-md" isActive>
-                    <span className="text-sm">Connection Sources</span>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              </SidebarMenu>
-            </SidebarGroup>
+          <SidebarGroup className="p-2">
+            <SidebarGroupLabel className="px-2 h-8 text-xs opacity-70">
+              Admin
+            </SidebarGroupLabel>
+            <SidebarMenu>
+              <SidebarMenuItem>
+                <SidebarMenuButton className="p-2 h-8 rounded-md">
+                  <span className="text-sm">Users</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            </SidebarMenu>
+          </SidebarGroup>
+        </SidebarContent>
+      </Sidebar>
 
-            <SidebarGroup className="p-2">
-              <SidebarGroupLabel className="px-2 h-8 text-xs opacity-70">
-                Admin
-              </SidebarGroupLabel>
-              <SidebarMenu>
-                <SidebarMenuItem>
-                  <SidebarMenuButton className="p-2 h-8 rounded-md">
-                    <span className="text-sm">Users</span>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              </SidebarMenu>
-            </SidebarGroup>
-          </SidebarContent>
-        </Sidebar>
-
-        <SidebarInset>
+      <SidebarInset className='p-6 flex flex-col items-center'>
+        <div className="w-full max-w-7xl">
           {children}
-        </SidebarInset>
+        </div>
+      </SidebarInset>
       </div>
     </SidebarProvider>
+    
   )
 }

@@ -23,7 +23,7 @@ export const CONNECTION_SOURCES: ConnectionSource[] = [
     badges: ['Knowledge'],
    },
   {
-    id: 'microsoft-sharepoint',
+    id: 'sharepoint',
     title: 'SharePoint',
     status: STATUS.NOT_CONNECTED,
     lastSync: '—',
@@ -46,3 +46,8 @@ export const CONNECTION_SOURCES: ConnectionSource[] = [
 ];
 
 export const VALID_SOURCE_IDS = CONNECTION_SOURCES.map(source => source.id);
+
+// Helper function to get source by ID
+export const getSourceById = (id: string): ConnectionSource | undefined => {
+  return CONNECTION_SOURCES.find(source => source.id === id);
+};
