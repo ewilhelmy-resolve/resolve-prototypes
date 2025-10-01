@@ -78,9 +78,9 @@ export default function RitaSettingsLayout({ children }: RitaSettingsLayoutProps
       </Sidebar>
 
       <SidebarInset className='p-6 flex flex-col items-center'>
-        <div className="w-full max-w-7xl">
+        <main className="w-full max-w-7xl">
           {children}
-        </div>
+        </main>
       </SidebarInset>
       </div>
     </SidebarProvider>

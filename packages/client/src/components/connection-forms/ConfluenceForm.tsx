@@ -1,6 +1,6 @@
-import { useForm } from 'react-hook-form';
+import { useForm, Controller } from 'react-hook-form';
 import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { MultiSelectComboBox, type Option } from '@/components/ui/multi-select-combobox';
 import FormSection from './FormSection';
 import FormField from './FormField';
 import ConnectionsForm from './ConnectionsForm';
@@ -9,15 +9,25 @@ export interface ConfluenceFormData {
   url: string;
   email: string;
   token: string;
-  spaces?: string;
+  spaces?: string[];
 }
 
 interface ConfluenceFormProps {
   onSubmit: (data: ConfluenceFormData) => void;
 }
 
+const CONFLUENCE_SPACES: Option[] = [
+  { label: "Architecture Team", value: "architecture" },
+  { label: "Knowledge Base", value: "knowledge" },
+  { label: "Engineering", value: "engineering" },
+  { label: "Product Team", value: "product" },
+  { label: "Sales and Marketing", value: "sales" },
+  { label: "Design", value: "design" },
+  { label: "IT", value: "it" },
+];
+
 export function ConfluenceForm({ onSubmit }: ConfluenceFormProps) {
-  const { register, handleSubmit, formState: { errors } } = useForm<ConfluenceFormData>();
+  const { register, handleSubmit, control, formState: { errors } } = useForm<ConfluenceFormData>();
 
   return (
     <ConnectionsForm handleSubmit={handleSubmit(onSubmit)} id="connection-form">
@@ -57,16 +67,22 @@ export function ConfluenceForm({ onSubmit }: ConfluenceFormProps) {
       {/* Preferences */}
       <FormSection title="Preferences">
         <FormField label="Spaces" errors={errors} name="spaces">
-          <Select>
-            <SelectTrigger id="spaces">
-              <SelectValue placeholder="Choose a space" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="engineering">Engineering</SelectItem>
-              <SelectItem value="design">Design</SelectItem>
-              <SelectItem value="it">IT</SelectItem>
-            </SelectContent>
-          </Select>
+          <Controller
+            name="spaces"
+            control={control}
+            defaultValue={[]}
+            render={({ field }) => (
+              <MultiSelectComboBox
+                id="spaces"
+                options={CONFLUENCE_SPACES}
+                value={field.value}
+                onChange={field.onChange}
+                placeholder="Choose spaces..."
+                searchPlaceholder="Search spaces..."
+                emptyText="No spaces found."
+              />
+            )}
+          />
         </FormField>
       </FormSection>
     </ConnectionsForm>

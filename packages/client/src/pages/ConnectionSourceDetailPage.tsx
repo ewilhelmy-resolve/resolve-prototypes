@@ -47,7 +47,7 @@ export default function ConnectionSourceDetailPage() {
 
   return (
     <RitaSettingsLayout>
-      <div className="flex-1 inline-flex flex-col items-start gap-8  w-full">
+      <div className="flex-1 inline-flex flex-col items-start gap-8  w-full max-w-4xl">
         {/* Top block */}
         <div className="self-stretch flex flex-col items-start gap-8">
           {/* Breadcrumbs */}
