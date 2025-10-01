@@ -58,7 +58,7 @@ export function MultiSelectComboBox({
   const [visibleCount, setVisibleCount] = React.useState<number>(selectedOptions.length)
 
   const GAP = 8 // matches gap-2
-  const PADDING_BUFFER = 8 // tiny safety margin
+  const PADDING_BUFFER = 10 // tiny safety margin
 
   const measurePlusWidth = React.useCallback((n: number) => {
     const el = plusMeasureRef.current
