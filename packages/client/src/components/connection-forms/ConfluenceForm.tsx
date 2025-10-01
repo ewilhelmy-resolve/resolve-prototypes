@@ -2,6 +2,7 @@ import { useForm } from 'react-hook-form';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import FormSectionTitle from './FormSectionTitle';
 
 interface ConfluenceFormData {
   url: string;
@@ -21,12 +22,7 @@ export function ConfluenceForm({ onSubmit }: ConfluenceFormProps) {
     <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-8 w-full" id="connection-form">
       {/* Authentication */}
       <section className="self-stretch rounded-lg flex flex-col items-start gap-4">
-        <div className="inline-flex items-center gap-2">
-          <h2 className="text-xl leading-7 font-semibold tracking-[-0.01em] text-foreground">
-            Authentication
-          </h2>
-        </div>
-
+        <FormSectionTitle title="Authentication" />
         <div className="self-stretch flex flex-col items-start gap-4">
           {/* URL */}
           <div className="self-stretch flex flex-col items-start gap-2">
@@ -69,11 +65,7 @@ export function ConfluenceForm({ onSubmit }: ConfluenceFormProps) {
       {/* Preferences */}
       <section className="self-stretch rounded-lg flex flex-col items-start gap-4">
         <div className="flex flex-col gap-4 self-stretch rounded-lg">
-          <div className="inline-flex items-center gap-2">
-            <h2 className="text-xl leading-7 font-semibold tracking-[-0.01em] text-foreground">
-              Preferences
-            </h2>
-          </div>
+          <FormSectionTitle title="Preferences" />
           <div className="self-stretch flex flex-col items-start gap-4">
             <div className="self-stretch flex flex-col items-start gap-2">
               <Label htmlFor="spaces">Spaces</Label>

@@ -1,6 +1,7 @@
 import { useForm } from 'react-hook-form';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import FormSectionTitle from './FormSectionTitle';
 
 interface ServiceNowFormData {
   instanceUrl: string;
@@ -19,11 +20,7 @@ export function ServiceNowForm({ onSubmit }: ServiceNowFormProps) {
     <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-8 w-full" id="connection-form">
       {/* Authentication */}
       <section className="self-stretch rounded-lg flex flex-col items-start gap-4">
-        <div className="inline-flex items-center gap-2">
-          <h2 className="text-xl leading-7 font-semibold tracking-[-0.01em] text-foreground">
-            Authentication
-          </h2>
-        </div>
+      <FormSectionTitle title="Authentication" />
 
         <div className="self-stretch flex flex-col items-start gap-4">
           {/* Instance URL */}
