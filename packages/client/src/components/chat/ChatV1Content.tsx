@@ -37,12 +37,7 @@ import {
 import { Actions, Action } from '@/components/ai-elements/actions'
 import { Response } from '@/components/ai-elements/response'
 import { Loader } from '@/components/ai-elements/loader'
-import {
-  Sources,
-  SourcesContent,
-  SourcesTrigger,
-  Source,
-} from '@/components/ai-elements/sources'
+import { Citations } from '@/components/citations'
 import {
   Task,
   TaskContent,
@@ -173,14 +168,11 @@ function GroupedMessage({ message, onCopy, isCopied }: {
 
               case 'sources':
                 return (
-                  <Sources key={part.id}>
-                    <SourcesTrigger count={part.metadata?.sources?.length || 0} />
-                    <SourcesContent>
-                      {part.metadata?.sources?.map((source: any, i: number) => (
-                        <Source key={i} href={source.url} title={source.title} />
-                      ))}
-                    </SourcesContent>
-                  </Sources>
+                  <Citations
+                    key={part.id}
+                    sources={part.metadata?.sources || []}
+                    messageId={part.id}
+                  />
                 )
 
               case 'tasks':
