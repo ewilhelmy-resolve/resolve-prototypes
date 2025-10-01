@@ -1,9 +1,9 @@
 import { useForm } from 'react-hook-form';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import FormSectionTitle from './FormSectionTitle';
+import FormSection from './FormSection';
+import FormField from './FormField';
 
-interface ServiceNowFormData {
+export interface ServiceNowFormData {
   instanceUrl: string;
   username: string;
   password: string;
@@ -19,47 +19,38 @@ export function ServiceNowForm({ onSubmit }: ServiceNowFormProps) {
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-8 w-full" id="connection-form">
       {/* Authentication */}
-      <section className="self-stretch rounded-lg flex flex-col items-start gap-4">
-      <FormSectionTitle title="Authentication" />
-
-        <div className="self-stretch flex flex-col items-start gap-4">
-          {/* Instance URL */}
-          <div className="self-stretch flex flex-col items-start gap-2">
-            <Label htmlFor="instance-url">Instance URL</Label>
-            <Input
-              id="instance-url"
-              type="url"
-              placeholder="https://your-instance.service-now.com"
-              {...register('instanceUrl', { required: 'Instance URL is required' })}
-            />
-            {errors.instanceUrl && <p className="text-sm text-destructive">{errors.instanceUrl.message}</p>}
-          </div>
+      <FormSection title="Authentication">
+           {/* Instance URL */}
+           <FormField label="Instance URL" errors={errors} name="instanceUrl">
+             <Input
+               id="instance-url"
+               type="url"
+               placeholder="https://your-instance.service-now.com"
+               {...register('instanceUrl', { required: 'Instance URL is required' })}
+             />
+           </FormField>
 
           {/* Username */}
-          <div className="self-stretch flex flex-col items-start gap-2">
-            <Label htmlFor="username">Username</Label>
+          <FormField label="Username" errors={errors} name="username">
             <Input
               id="username"
               type="text"
               placeholder="your-username"
               {...register('username', { required: 'Username is required' })}
             />
-            {errors.username && <p className="text-sm text-destructive">{errors.username.message}</p>}
-          </div>
+          </FormField>
 
           {/* Password */}
-          <div className="self-stretch flex flex-col items-start gap-2">
-            <Label htmlFor="password">Password</Label>
+          <FormField label="Password" errors={errors} name="password">
             <Input
               id="password"
               type="password"
               placeholder="••••••••"
               {...register('password', { required: 'Password is required' })}
             />
-            {errors.password && <p className="text-sm text-destructive">{errors.password.message}</p>}
-          </div>
-        </div>
-      </section>
+          </FormField>
+
+      </FormSection>
     </form>
   );
 }

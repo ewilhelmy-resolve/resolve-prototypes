@@ -65,7 +65,7 @@ export default function ConnectionSourceDetailPage() {
           {/* Title row */}
           <div className="self-stretch inline-flex items-center gap-2">
             <div className="flex flex-1 items-center gap-2">
-              <h1 className="text-2xl leading-8 font-semibold tracking-[-0.01em] text-foreground">
+              <h1 className="text-2xl leading-8 tracking-[-0.01em] text-foreground">
                 {sourceTitle}
               </h1>
               <ConnectionStatusBadge status={source.status} />
