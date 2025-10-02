@@ -56,9 +56,9 @@ function parseCitationMarkers(text: string): {
   const segments: Array<{ type: 'text' | 'citation'; content: string; index?: number }> = []
 
   let lastIndex = 0
-  let match: RegExpExecArray | null
+  let match: RegExpExecArray | null = citationRegex.exec(text)
 
-  while ((match = citationRegex.exec(text)) !== null) {
+  while (match !== null) {
     // Add text before citation
     if (match.index > lastIndex) {
       segments.push({
@@ -75,6 +75,7 @@ function parseCitationMarkers(text: string): {
     })
 
     lastIndex = match.index + match[0].length
+    match = citationRegex.exec(text)
   }
 
   // Add remaining text
