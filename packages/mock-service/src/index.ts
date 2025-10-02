@@ -606,7 +606,7 @@ Hover interactions provide instant access to information without requiring expli
 
 Tooltip-style hover cards are particularly effective for inline references, allowing readers to quickly preview source information while maintaining reading flow. The interaction feels natural and requires minimal user effort.
 
-Hover over the badge below (showing "interaction-design.org +2") to see the hover card with carousel navigation.`
+Hover over the inline badge (showing "interaction-design.org +2") to see the hover card with carousel navigation.`
     });
     parts.push({
       type: 'sources',

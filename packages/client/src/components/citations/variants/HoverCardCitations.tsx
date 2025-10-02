@@ -56,8 +56,8 @@ export function HoverCardCitations({
   const sourceUrls = sources.map(source => source.url)
 
   return (
-    <div
-      className={cn('not-prose mb-4 inline-flex items-center gap-1', className)}
+    <span
+      className={cn('not-prose inline-flex items-center gap-1', className)}
       data-message-id={messageId}
     >
       <InlineCitation>
@@ -125,6 +125,6 @@ export function HoverCardCitations({
           </InlineCitationCardBody>
         </InlineCitationCard>
       </InlineCitation>
-    </div>
+    </span>
   )
 }
