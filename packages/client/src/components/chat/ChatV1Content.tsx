@@ -61,7 +61,6 @@ import type {
   SimpleChatMessage,
   GroupedChatMessage,
 } from '@/stores/conversationStore'
-import { getMessageType } from '@/stores/conversationStore'
 import { useConversationStore } from '@/stores/conversationStore'
 
 export interface ChatV1ContentProps {
@@ -156,53 +155,50 @@ function GroupedMessage({ message, onCopy, isCopied }: {
     <Message from={message.role}>
       <div className="flex flex-col w-full">
         <MessageContent variant="flat">
-          {message.parts.map((part) => {
-            const type = getMessageType({ metadata: part.metadata } as RitaMessage)
+          {message.parts.map((part) => (
+            <Fragment key={part.id}>
+              {/* Render reasoning if present */}
+              {part.metadata?.reasoning && (
+                <Reasoning isStreaming={Boolean(part.metadata.reasoning.streaming)}>
+                  <ReasoningTrigger />
+                  <ReasoningContent>{part.metadata.reasoning.content}</ReasoningContent>
+                </Reasoning>
+              )}
 
-            switch (type) {
-              case 'reasoning':
-                return (
-                  <Reasoning key={part.id} isStreaming={Boolean(part.metadata?.reasoning?.streaming)}>
-                    <ReasoningTrigger />
-                    <ReasoningContent>{part.metadata?.reasoning?.content}</ReasoningContent>
-                  </Reasoning>
-                )
+              {/* Render text content if present */}
+              {part.message && part.message.trim().length > 0 && (
+                <Response>{part.message}</Response>
+              )}
 
-              case 'text':
-                return <Response key={part.id}>{part.message}</Response>
-
-              case 'sources':
-                return (
-                  <Sources key={part.id}>
-                    <SourcesTrigger count={part.metadata?.sources?.length || 0} />
-                    <SourcesContent>
-                      {part.metadata?.sources?.map((source: any, i: number) => (
-                        <Source key={i} href={source.url} title={source.title} />
-                      ))}
-                    </SourcesContent>
-                  </Sources>
-                )
-
-              case 'tasks':
-                return (
-                  <div key={part.id} className="mt-4 space-y-2">
-                    {part.metadata?.tasks?.map((task: any, i: number) => (
-                      <Task key={i} defaultOpen={task.defaultOpen || i === 0}>
-                        <TaskTrigger title={task.title} />
-                        <TaskContent>
-                          {task.items.map((item: string, j: number) => (
-                            <TaskItem key={j}>{item}</TaskItem>
-                          ))}
-                        </TaskContent>
-                      </Task>
+              {/* Render sources if present */}
+              {part.metadata?.sources && (
+                <Sources>
+                  <SourcesTrigger count={part.metadata.sources.length || 0} />
+                  <SourcesContent>
+                    {part.metadata.sources.map((source: any, i: number) => (
+                      <Source key={i} href={source.url} title={source.title} />
                     ))}
-                  </div>
-                )
+                  </SourcesContent>
+                </Sources>
+              )}
 
-              default:
-                return null
-            }
-          })}
+              {/* Render tasks if present */}
+              {part.metadata?.tasks && (
+                <div className="mt-4 space-y-2">
+                  {part.metadata.tasks.map((task: any, i: number) => (
+                    <Task key={i} defaultOpen={task.defaultOpen || i === 0}>
+                      <TaskTrigger title={task.title} />
+                      <TaskContent>
+                        {task.items.map((item: string, j: number) => (
+                          <TaskItem key={j}>{item}</TaskItem>
+                        ))}
+                      </TaskContent>
+                    </Task>
+                  ))}
+                </div>
+              )}
+            </Fragment>
+          ))}
         </MessageContent>
 
         {/* Show copy action only if there's text content to copy */}
@@ -226,18 +222,20 @@ function SimpleMessage({ message, onCopy, isCopied }: {
 }) {
   return (
     <Message from={message.role}>
-      <MessageContent variant={message.role === 'assistant' ? 'flat' : 'contained'}>
-        <Response>{message.message}</Response>
-      </MessageContent>
+      <div className="flex flex-col w-full">
+        <MessageContent variant={message.role === 'assistant' ? 'flat' : 'contained'}>
+          <Response>{message.message}</Response>
+        </MessageContent>
 
-      {/* Show copy action only for assistant messages with text content */}
-      {message.role === 'assistant' && hasSimpleCopyableContent(message) && (
-        <Actions className="mt-2">
-          <Action onClick={() => onCopy(message.message, message.id)} tooltip="Copy message">
-            {isCopied ? <CheckIcon className="size-3" /> : <CopyIcon className="size-3" />}
-          </Action>
-        </Actions>
-      )}
+        {/* Show copy action only for assistant messages with text content */}
+        {message.role === 'assistant' && hasSimpleCopyableContent(message) && (
+          <Actions className="mt-2">
+            <Action onClick={() => onCopy(message.message, message.id)} tooltip="Copy message">
+              {isCopied ? <CheckIcon className="size-3" /> : <CopyIcon className="size-3" />}
+            </Action>
+          </Actions>
+        )}
+      </div>
     </Message>
   )
 }
@@ -306,7 +304,7 @@ export default function ChatV1Content({
       toast.success('Message copied to clipboard')
       // Reset copied state after 2 seconds (same as ai-elements pattern)
       setTimeout(() => setCopiedMessageId(null), 2000)
-    } catch (error) {
+    } catch (_error) {
       toast.error('Failed to copy message')
     }
   }, [])

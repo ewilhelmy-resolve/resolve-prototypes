@@ -90,14 +90,39 @@ export function groupMessages(flatMessages: Message[]): ChatMessage[] {
     } else {
       // Standalone message - check if we have pending groups to flush
       flushCompletedGroups(groups, grouped)
-      grouped.push({
-        id: message.id,
-        role: message.role,
-        message: message.message,
-        metadata: message.metadata,
-        isGroup: false,
-        timestamp: message.timestamp
-      } as SimpleChatMessage)
+
+      // Check if message has metadata (reasoning, sources, tasks) - treat as single-part group
+      const hasMetadata = message.metadata && (
+        message.metadata.reasoning ||
+        message.metadata.sources ||
+        message.metadata.tasks ||
+        message.metadata.files
+      )
+
+      if (hasMetadata) {
+        // Treat as a group with single part to enable GroupedMessage rendering
+        grouped.push({
+          id: message.id,
+          role: message.role,
+          isGroup: true,
+          parts: [{
+            id: message.id,
+            message: message.message,
+            metadata: message.metadata
+          }],
+          timestamp: message.timestamp
+        } as GroupedChatMessage)
+      } else {
+        // Simple text-only message
+        grouped.push({
+          id: message.id,
+          role: message.role,
+          message: message.message,
+          metadata: message.metadata,
+          isGroup: false,
+          timestamp: message.timestamp
+        } as SimpleChatMessage)
+      }
     }
   }
 
