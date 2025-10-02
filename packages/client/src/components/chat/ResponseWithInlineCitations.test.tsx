@@ -172,8 +172,8 @@ describe('ResponseWithInlineCitations', () => {
 
       const badges = container.querySelectorAll('[data-slot="badge"]')
       expect(badges).toHaveLength(1)
-      // Should render "Doc" when no URL available
-      expect(badges[0]).toHaveTextContent('Doc')
+      // Should render "See 1 source" when no URL available
+      expect(badges[0]).toHaveTextContent('See 1 source')
     })
 
     it('handles citation with URL only (no blob_id)', () => {
@@ -222,9 +222,9 @@ describe('ResponseWithInlineCitations', () => {
 
       const badges = container.querySelectorAll('[data-slot="badge"]')
       expect(badges).toHaveLength(3)
-      expect(badges[0]).toHaveTextContent('Doc')
+      expect(badges[0]).toHaveTextContent('See 1 source')
       expect(badges[1]).toHaveTextContent('example.com')
-      expect(badges[2]).toHaveTextContent('Doc')
+      expect(badges[2]).toHaveTextContent('See 1 source')
     })
   })
 })

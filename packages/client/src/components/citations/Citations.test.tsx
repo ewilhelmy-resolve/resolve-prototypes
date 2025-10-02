@@ -28,9 +28,9 @@ describe('Citations', () => {
     expect(container.firstChild).toBeNull()
   })
 
-  it('filters out invalid sources without url or title', () => {
+  it('filters out invalid sources without url/blob_id or title', () => {
     const invalidSources = [
-      { url: '', title: 'No URL' },
+      { url: '', title: 'No URL or blob_id' },
       { url: 'https://example.com', title: '' },
       { url: 'https://valid.com', title: 'Valid Source' },
     ] as CitationSource[]
@@ -42,6 +42,21 @@ describe('Citations', () => {
     )
 
     // Should still render component with 1 valid source
+    expect(container.firstChild).toBeInTheDocument()
+  })
+
+  it('accepts sources with blob_id but no URL', () => {
+    const sourcesWithBlobOnly = [
+      { title: 'Internal Document', blob_id: 'blob_test_123' },
+    ] as CitationSource[]
+
+    const { container } = render(
+      <CitationProvider>
+        <Citations sources={sourcesWithBlobOnly} messageId="test-blob-valid" />
+      </CitationProvider>
+    )
+
+    // Should render with blob_id-only source
     expect(container.firstChild).toBeInTheDocument()
   })
 
@@ -104,6 +119,29 @@ describe('Citations', () => {
 
     await waitFor(() => {
       // Should use modal variant despite context being collapsible-list
+      expect(screen.getByText(/Used 2 source/)).toBeInTheDocument()
+    })
+  })
+
+  it('renders variant from metadata (simulating backend metadata flow)', async () => {
+    // Simulate how ChatV1Content passes metadata.citation_variant to Citations
+    const metadata = {
+      sources: mockSources,
+      citation_variant: 'right-panel' as const
+    }
+
+    render(
+      <CitationProvider defaultVariant="collapsible-list">
+        <Citations
+          sources={metadata.sources}
+          variant={metadata.citation_variant}
+          messageId="test-metadata"
+        />
+      </CitationProvider>
+    )
+
+    await waitFor(() => {
+      // Should render right-panel variant from metadata
       expect(screen.getByText(/Used 2 source/)).toBeInTheDocument()
     })
   })

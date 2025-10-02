@@ -32,6 +32,7 @@ import {
   DialogDescription,
 } from '@/components/ui/dialog'
 import { Streamdown } from 'streamdown'
+import { ExternalLinkIcon } from 'lucide-react'
 
 export interface ResponseWithInlineCitationsProps {
   /** Message text with citation markers */
@@ -224,13 +225,6 @@ export function ResponseWithInlineCitations({
                     </p>
                   ) : null}
 
-                  {/* Optional description if provided */}
-                  {source.description && (
-                    <p className="text-sm text-muted-foreground">
-                      {source.description}
-                    </p>
-                  )}
-
                   {/* Action links */}
                   <div className="flex flex-col gap-2 pt-2">
                     {/* View source link - only show if URL exists */}
@@ -251,7 +245,8 @@ export function ResponseWithInlineCitations({
                           })
                         }}
                       >
-                        View source →
+                        View source
+                        <ExternalLinkIcon className="h-3 w-3" />
                       </a>
                     )}
 

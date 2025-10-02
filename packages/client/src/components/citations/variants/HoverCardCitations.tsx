@@ -39,44 +39,26 @@ import {
   DialogDescription,
 } from '@/components/ui/dialog'
 import { Streamdown } from 'streamdown'
+import { ExternalLinkIcon } from 'lucide-react'
 
 /**
- * Mock document loading function
- * In production, this would fetch the document content from the API using blob_id
+ * Load document content from blob API
  */
 async function loadDocument(blob_id: string): Promise<string> {
-  // Simulate API call delay
-  await new Promise(resolve => setTimeout(resolve, 500))
+  try {
+    // Fetch from mock service blob endpoint
+    const response = await fetch(`http://localhost:3001/blobs/${blob_id}`)
 
-  // Return mock markdown content
-  return `# Document: ${blob_id}
+    if (!response.ok) {
+      throw new Error(`Failed to load document: ${response.statusText}`)
+    }
 
-## Overview
-This is a mock document loaded using blob_id: \`${blob_id}\`
-
-In production, this would fetch the actual document content from your storage service.
-
-## Features
-- Full markdown support
-- **Bold text** and *italic text*
-- Code blocks
-- Lists and tables
-
-### Code Example
-\`\`\`typescript
-// Example code
-const data = await fetchDocument(blob_id)
-console.log(data)
-\`\`\`
-
-### Table Example
-| Feature | Status |
-|---------|--------|
-| Markdown | ✅ |
-| Images | ✅ |
-| Code | ✅ |
-
-> This is a blockquote with important information.`
+    const data = await response.json()
+    return data.content || 'Document content not available'
+  } catch (error) {
+    console.error('Error loading document from blob API:', error)
+    throw error
+  }
 }
 
 /**
@@ -176,27 +158,28 @@ export function HoverCardCitations({
                   </div>
                 )}
 
-                {/* Action links */}
+                {/* Action links - show only one link per source */}
                 <div className="flex flex-col gap-2 pt-2">
-                  <a
-                    href={sources[0].url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-xs text-primary hover:underline inline-flex items-center gap-1"
-                    onClick={() => {
-                      console.log('Citation clicked:', {
-                        messageId,
-                        sourceUrl: sources[0].url,
-                        sourceTitle: sources[0].title,
-                        variant: 'hover-card',
-                        timestamp: new Date().toISOString(),
-                      })
-                    }}
-                  >
-                    View source →
-                  </a>
-
-                  {sources[0].blob_id && (
+                  {sources[0].url ? (
+                    <a
+                      href={sources[0].url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-xs text-primary hover:underline inline-flex items-center gap-1"
+                      onClick={() => {
+                        console.log('Citation clicked:', {
+                          messageId,
+                          sourceUrl: sources[0].url,
+                          sourceTitle: sources[0].title,
+                          variant: 'hover-card',
+                          timestamp: new Date().toISOString(),
+                        })
+                      }}
+                    >
+                      View source
+                      <ExternalLinkIcon className="h-3 w-3" />
+                    </a>
+                  ) : sources[0].blob_id ? (
                     <button
                       type="button"
                       onClick={() => handleViewFullDocument(sources[0])}
@@ -204,7 +187,7 @@ export function HoverCardCitations({
                     >
                       View full document →
                     </button>
-                  )}
+                  ) : null}
                 </div>
               </div>
             ) : (
@@ -241,28 +224,29 @@ export function HoverCardCitations({
                         </div>
                       )}
 
-                      {/* Action links */}
+                      {/* Action links - show only one link per source */}
                       <div className="flex flex-col gap-2 mt-2">
-                        <a
-                          href={source.url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-xs text-primary hover:underline inline-flex items-center gap-1"
-                          onClick={() => {
-                            // Audit logging for citation clicks
-                            console.log('Citation clicked:', {
-                              messageId,
-                              sourceUrl: source.url,
-                              sourceTitle: source.title,
-                              variant: 'hover-card',
-                              timestamp: new Date().toISOString(),
-                            })
-                          }}
-                        >
-                          View source →
-                        </a>
-
-                        {source.blob_id && (
+                        {source.url ? (
+                          <a
+                            href={source.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-xs text-primary hover:underline inline-flex items-center gap-1"
+                            onClick={() => {
+                              // Audit logging for citation clicks
+                              console.log('Citation clicked:', {
+                                messageId,
+                                sourceUrl: source.url,
+                                sourceTitle: source.title,
+                                variant: 'hover-card',
+                                timestamp: new Date().toISOString(),
+                              })
+                            }}
+                          >
+                            View source
+                            <ExternalLinkIcon className="h-3 w-3" />
+                          </a>
+                        ) : source.blob_id ? (
                           <button
                             type="button"
                             onClick={() => handleViewFullDocument(source)}
@@ -270,7 +254,7 @@ export function HoverCardCitations({
                           >
                             View full document →
                           </button>
-                        )}
+                        ) : null}
                       </div>
                     </InlineCitationCarouselItem>
                   ))}

@@ -62,8 +62,7 @@ export const InlineCitationCardTrigger = ({
   className,
   ...props
 }: InlineCitationCardTriggerProps) => {
-  // Try to parse URL, fall back to "Doc" if invalid or missing
-  let displayText = "Doc";
+  let displayText = "See sources";
 
   if (sources.length > 0 && sources[0]) {
     try {
@@ -73,8 +72,10 @@ export const InlineCitationCardTrigger = ({
         displayText += ` +${sources.length - 1}`;
       }
     } catch {
-      // Invalid URL, use default
-      displayText = sources.length > 1 ? `Doc +${sources.length - 1}` : "Doc";
+      // Invalid URL or blob_id-only source
+      displayText = sources.length === 1
+        ? "See 1 source"
+        : `See ${sources.length} sources`;
     }
   }
 

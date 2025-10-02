@@ -512,73 +512,138 @@ This tests the complete grouped message functionality.`
       type: 'text',
       text: `## Citation Examples Demonstration
 
-This response demonstrates all citation formats and UI variants available in Rita:
+This response demonstrates all citation UI variants available in Rita:
 
-### Citation Formats
-- **Minimal**: Just URL and title
-- **With Snippet**: Includes preview text
-- **With Full Document**: Has blob_id for viewing complete content
+### UI Variants Demonstrated Below
+1. **hover-card**: Default inline interaction with badges
+2. **modal**: Focused overlay display
+3. **right-panel**: Side-by-side reading experience
+4. **collapsible-list**: Expandable list view
+5. **inline**: Citation markers embedded in text
 
-### UI Variants
-- **hover-card**: Default inline interaction
-- **modal**: Focused overlay display
-- **right-panel**: Side-by-side reading
-- **collapsible-list**: Expandable list view
+Each section below uses a different citation variant.`
+    });
 
-Each citation below demonstrates a different combination.`
+    // 1. Hover-card variant
+    parts.push({
+      type: 'text',
+      text: `### 1. Hover-Card Variant
+Inline citation badges with hover interaction.`
     });
     parts.push({
       type: 'sources',
+      metadata: { citation_variant: 'hover-card' },
       sources: [
         {
           url: 'https://docs.resolve.com/quick-reference',
-          title: 'Quick Reference Guide',
-          citation_variant: 'hover-card'
+          title: 'Quick Reference Guide'
         },
         {
-          url: 'https://docs.resolve.com/rita/automation',
           title: 'Rita Automation Documentation',
           snippet: '...this is the quote you\'re looking for...',
-          blob_id: 'blob_automation_guide_v2024',
-          citation_variant: 'hover-card'
+          blob_id: 'blob_automation_guide_v2024'
+        }
+      ]
+    });
+
+    // 2. Modal variant
+    parts.push({
+      type: 'text',
+      text: `### 2. Modal Variant
+Citations displayed in a focused modal overlay. Click "View full document" to see the complete 824-line guide with Mermaid diagrams.`
+    });
+    parts.push({
+      type: 'sources',
+      metadata: { citation_variant: 'modal' },
+      sources: [
+        {
+          title: 'Rita Automation Implementation Guide',
+          snippet: '...comprehensive guide covering architecture, deployment, and best practices for enterprise automation...',
+          blob_id: 'blob_automation_guide_v2024'
         },
         {
           url: 'https://research.enterprise.com/patterns',
           title: 'Enterprise Architecture Patterns',
-          snippet: '...scalable patterns for microservices, event-driven systems, and distributed processing...',
-          blob_id: 'blob_architecture_patterns_2024',
-          citation_variant: 'modal'
+          snippet: '...scalable patterns for microservices, event-driven systems, and distributed processing...'
+        }
+      ]
+    });
+
+    // 3. Right-panel variant
+    parts.push({
+      type: 'text',
+      text: `### 3. Right-Panel Variant
+Side-by-side reading with sources in a right panel. Both sources use the same 824-line document with Mermaid diagrams.`
+    });
+    parts.push({
+      type: 'sources',
+      metadata: { citation_variant: 'right-panel' },
+      sources: [
+        {
+          title: 'Rita Automation Implementation Guide',
+          snippet: '...comprehensive guide covering architecture, deployment, and best practices for enterprise automation...',
+          blob_id: 'blob_automation_guide_v2024'
         },
         {
-          url: 'https://security.compliance.guide/wcag',
-          title: 'WCAG 2.1 AA Implementation Guide',
-          snippet: '...comprehensive accessibility standards for web content...',
-          blob_id: 'blob_wcag_guide_2024',
-          citation_variant: 'right-panel'
+          title: 'Rita Automation Implementation Guide (Copy 2)',
+          snippet: '...same comprehensive guide with architecture diagrams and deployment instructions...',
+          blob_id: 'blob_automation_guide_v2024'
+        }
+      ]
+    });
+
+    // 4. Collapsible-list variant
+    parts.push({
+      type: 'text',
+      text: `### 4. Collapsible-List Variant
+Traditional expandable list view of citations.`
+    });
+    parts.push({
+      type: 'sources',
+      metadata: { citation_variant: 'collapsible-list' },
+      sources: [
+        {
+          title: 'Rita Automation Implementation Guide',
+          snippet: '...comprehensive guide covering architecture, deployment, and best practices...',
+          blob_id: 'blob_automation_guide_v2024'
         },
         {
-          url: 'https://compliance.guide/soc2',
-          title: 'SOC 2 Type II Requirements',
-          blob_id: 'blob_soc2_guide_2024',
-          citation_variant: 'right-panel'
+          url: 'https://research.enterprise.com/patterns',
+          title: 'Enterprise Architecture Patterns',
+          snippet: '...scalable patterns for microservices, event-driven systems...'
+        },
+        {
+          title: 'Production Security Hardening Guide',
+          snippet: '...defense-in-depth strategies with network segmentation and access controls...',
+          blob_id: 'blob_security_hardening_2024'
         },
         {
           url: 'https://monitoring.observability.com/guide',
           title: 'Production Monitoring Guide',
           snippet: '...effective monitoring and observability strategies...',
-          citation_variant: 'collapsible-list'
+          blob_id: 'blob_monitoring_guide_2024'
+        },
+        {
+          title: 'WCAG 2.1 AA Implementation Guide',
+          snippet: '...comprehensive accessibility standards for web content and applications...',
+          blob_id: 'blob_wcag_guide_2024'
+        },
+        {
+          url: 'https://compliance.guide/soc2',
+          title: 'SOC 2 Type II Compliance Requirements',
+          snippet: '...security, availability, processing integrity, confidentiality, and privacy controls...',
+          blob_id: 'blob_soc2_guide_2024'
         }
       ]
     });
-  } else if (content.toLowerCase().startsWith('regular citations') || content.toLowerCase().startsWith('default citations')) {
-    // Regular/default example showing out-of-the-box behavior with snippet + blob_id
+
+    // 5. Inline citations variant
     parts.push({
       type: 'text',
-      text: `## Default Citation Behavior
+      text: `### 5. Inline Citations
+Citation markers embedded directly in the text for academic-style referencing.
 
-This demonstrates the regular out-of-the-box citation behavior with snippets and full document access.
-
-According to recent research [1], enterprise automation requires careful planning [2]. Security best practices [3] must be followed from the start.`
+According to recent research [1], enterprise automation requires careful architectural planning [2]. Security considerations [3] must be addressed from the beginning, with comprehensive monitoring [4] throughout the lifecycle.`
     });
     parts.push({
       type: 'sources',
@@ -589,7 +654,8 @@ According to recent research [1], enterprise automation requires careful plannin
           blob_id: 'blob_automation_guide_v2024'
         },
         {
-          title: 'Enterprise Automation Patterns',
+          url: 'https://research.enterprise.com/patterns',
+          title: 'Enterprise Architecture Patterns',
           snippet: '...scalable patterns for microservices, event-driven systems, and distributed processing...',
           blob_id: 'blob_architecture_patterns_2024'
         },
@@ -597,6 +663,48 @@ According to recent research [1], enterprise automation requires careful plannin
           title: 'Production Security Hardening Guide',
           snippet: '...defense-in-depth strategies with network segmentation, access controls, and encryption...',
           blob_id: 'blob_security_hardening_2024'
+        },
+        {
+          url: 'https://monitoring.observability.com/guide',
+          title: 'Production Monitoring Best Practices',
+          snippet: '...effective monitoring and observability strategies for production systems...',
+          blob_id: 'blob_monitoring_guide_2024'
+        }
+      ]
+    });
+  } else if (content.toLowerCase().startsWith('regular citations') || content.toLowerCase().startsWith('default citations')) {
+    // Regular/default example showing hover-card with navigation between multiple citations
+    parts.push({
+      type: 'text',
+      text: `## Default Citation Behavior
+
+This demonstrates the regular out-of-the-box citation behavior with hover cards at the end.
+
+According to recent research, enterprise automation requires careful architectural planning. Security best practices must be followed from the start, with comprehensive monitoring throughout the implementation lifecycle. The hover card below allows you to navigate between multiple citation sources.`
+    });
+    parts.push({
+      type: 'sources',
+      metadata: { citation_variant: 'hover-card' },
+      sources: [
+        {
+          title: 'Rita Automation Implementation Guide',
+          snippet: '...comprehensive guide covering architecture, deployment, and best practices for enterprise automation...',
+          blob_id: 'blob_automation_guide_v2024'
+        },
+        {
+          url: 'https://research.enterprise.com/patterns',
+          title: 'Enterprise Architecture Patterns',
+          snippet: '...scalable patterns for microservices, event-driven systems, and distributed processing...'
+        },
+        {
+          title: 'Production Security Hardening Guide',
+          snippet: '...defense-in-depth strategies with network segmentation, access controls, and encryption...',
+          blob_id: 'blob_security_hardening_2024'
+        },
+        {
+          title: 'Monitoring and Observability Guide',
+          snippet: '...effective strategies for production monitoring and incident response...',
+          blob_id: 'blob_monitoring_guide_2024'
         }
       ]
     });
@@ -981,9 +1089,9 @@ This is a basic response format. Set \`MOCK_SCENARIO\` environment variable to g
         metadata[part.type] = { content: part.text, state: part.state };
       } else if (part.type === 'sources') {
         metadata.sources = part.sources;
-        // Include citation_variant if provided at the sources level (optional)
-        if (part.citation_variant) {
-          metadata.citation_variant = part.citation_variant;
+        // Include any additional metadata (like citation_variant)
+        if (part.metadata) {
+          Object.assign(metadata, part.metadata);
         }
       } else {
         metadata[part.type] = part[part.type];

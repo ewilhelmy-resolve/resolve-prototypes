@@ -20,12 +20,10 @@ import { useCitationVariant } from '@/contexts/CitationContext'
  * Citation source data structure
  */
 export interface CitationSource {
-  /** Source URL */
-  url: string
+  /** Source URL (optional if blob_id provided) */
+  url?: string
   /** Source title/label */
   title: string
-  /** Optional description for the source */
-  description?: string
   /** Optional markdown content for the source */
   content?: string
   /** Optional snippet/quote excerpt to display */
@@ -113,9 +111,9 @@ export function Citations({ sources, className, messageId, variant: variantProp 
     return null
   }
 
-  // Validate sources
+  // Validate sources - must have title and either url or blob_id
   const validSources = sources.filter(
-    source => source && source.url && source.title
+    source => source && source.title && (source.url || source.blob_id)
   )
 
   if (validSources.length === 0) {
