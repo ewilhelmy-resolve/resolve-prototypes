@@ -120,7 +120,7 @@ export function HoverCardCitations({
   }
 
   // Extract URLs for the badge trigger
-  const sourceUrls = sources.map(source => source.url)
+  const sourceUrls = sources.map(source => source.url).filter((url): url is string => Boolean(url))
 
   return (
     <>

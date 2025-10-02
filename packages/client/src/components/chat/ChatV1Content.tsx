@@ -147,11 +147,6 @@ function GroupedMessage({ message, onCopy, isCopied }: {
   onCopy: (text: string, messageId: string) => void,
   isCopied: boolean
 }) {
-  // Extract all sources from the grouped message for inline citations
-  const allSources = message.parts
-    .filter(part => part.metadata?.sources)
-    .flatMap(part => part.metadata?.sources || [])
-
   return (
     <Message from={message.role}>
       <div className="flex flex-col w-full">
