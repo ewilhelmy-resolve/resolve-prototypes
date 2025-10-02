@@ -38,6 +38,7 @@ import { Actions, Action } from '@/components/ai-elements/actions'
 import { Response } from '@/components/ai-elements/response'
 import { Loader } from '@/components/ai-elements/loader'
 import { Citations } from '@/components/citations'
+import { ResponseWithInlineCitations } from './ResponseWithInlineCitations'
 import {
   Task,
   TaskContent,
@@ -147,6 +148,16 @@ function GroupedMessage({ message, onCopy, isCopied }: {
   onCopy: (text: string, messageId: string) => void,
   isCopied: boolean
 }) {
+  // Extract all sources from the grouped message for inline citations
+  const allSources = message.parts
+    .filter(part => part.metadata?.sources)
+    .flatMap(part => part.metadata?.sources || [])
+
+  // Check if any text part has inline citation markers
+  const hasInlineCitations = message.parts.some(part =>
+    !part.metadata?.sources && part.message && part.message.includes('[') && allSources.length > 0
+  )
+
   return (
     <Message from={message.role}>
       <div className="flex flex-col w-full">
@@ -164,14 +175,31 @@ function GroupedMessage({ message, onCopy, isCopied }: {
                 )
 
               case 'text':
+                // Use inline citations if sources are available and text contains markers
+                if (allSources.length > 0 && part.message.includes('[')) {
+                  return (
+                    <ResponseWithInlineCitations
+                      key={part.id}
+                      sources={allSources}
+                      messageId={part.id}
+                    >
+                      {part.message}
+                    </ResponseWithInlineCitations>
+                  )
+                }
                 return <Response key={part.id}>{part.message}</Response>
 
               case 'sources':
+                // Skip rendering sources separately if inline citations are being used
+                if (hasInlineCitations) {
+                  return null
+                }
                 return (
                   <Citations
                     key={part.id}
                     sources={part.metadata?.sources || []}
                     messageId={part.id}
+                    variant={part.metadata?.citationVariant}
                   />
                 )
 

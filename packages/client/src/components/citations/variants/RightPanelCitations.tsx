@@ -51,25 +51,22 @@ export function RightPanelCitations({
   const [open, setOpen] = useState(false)
 
   return (
-    <Sheet open={open} onOpenChange={setOpen}>
-      <SheetTrigger asChild>
-        <Button
-          variant="ghost"
-          size="sm"
-          className={cn(
-            'not-prose mb-4 text-primary text-xs font-medium',
-            'flex items-center gap-2',
-            className
-          )}
-          data-message-id={messageId}
-          aria-label={`View ${sources.length} source${sources.length !== 1 ? 's' : ''}`}
-        >
-          <BookIcon className="h-4 w-4" aria-hidden="true" />
-          <span>
-            Used {sources.length} source{sources.length !== 1 ? 's' : ''}
-          </span>
-        </Button>
-      </SheetTrigger>
+    <div className={cn('not-prose mb-4', className)}>
+      <Sheet open={open} onOpenChange={setOpen}>
+        <SheetTrigger asChild>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="text-primary text-xs font-medium flex items-center gap-2"
+            data-message-id={messageId}
+            aria-label={`View ${sources.length} source${sources.length !== 1 ? 's' : ''}`}
+          >
+            <BookIcon className="h-4 w-4" aria-hidden="true" />
+            <span>
+              Used {sources.length} source{sources.length !== 1 ? 's' : ''}
+            </span>
+          </Button>
+        </SheetTrigger>
 
       <SheetContent side="right" className="w-full sm:max-w-md">
         <SheetHeader>
@@ -129,5 +126,6 @@ export function RightPanelCitations({
         </div>
       </SheetContent>
     </Sheet>
+    </div>
   )
 }

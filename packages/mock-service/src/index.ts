@@ -536,6 +536,108 @@ This tests the complete grouped message functionality.`
         }
       ]
     });
+  } else if (content.startsWith('inline') || content.startsWith('test-inline')) {
+    // test-inline: Text with inline citation markers [1], [2], [3]
+    parts.push({
+      type: 'text',
+      text: `## Inline Citations Demo
+
+According to recent research [1], artificial intelligence has shown remarkable progress in natural language processing. This breakthrough has been documented extensively in academic literature [2] and industry reports [3].
+
+The field continues to evolve rapidly, with new models achieving state-of-the-art results on benchmark tasks. These advancements are particularly notable in areas such as machine translation, text summarization, and question answering.`
+    });
+    parts.push({
+      type: 'sources',
+      sources: [
+        { url: 'https://arxiv.org/ai-progress-2024', title: 'AI Progress in Natural Language Processing' },
+        { url: 'https://journals.ai/nlp-breakthroughs', title: 'Recent NLP Breakthroughs' },
+        { url: 'https://industry-reports.com/ai-2024', title: '2024 AI Industry Report' }
+      ]
+    });
+  } else if (content.toLowerCase().startsWith('modal')) {
+    // modal: Test modal citation variant
+    parts.push({
+      type: 'text',
+      text: `## Modal Citations Demo
+
+Modal dialogs provide a focused viewing experience by overlaying the entire screen with a backdrop. This approach is particularly effective when users need to concentrate on reference materials without distraction from the main content.
+
+Research shows that modal interfaces can improve user engagement when displaying detailed information. The centered layout and backdrop help draw attention to the content while maintaining context through the visible underlying page.
+
+Click "Used 3 sources" below to see the modal citation display.`
+    });
+    parts.push({
+      type: 'sources',
+      sources: [
+        { url: 'https://uxdesign.cc/modal-best-practices-2024', title: 'Modal Interface Best Practices' },
+        { url: 'https://research.ux/focused-reading-patterns', title: 'Focused Reading Patterns Study' },
+        { url: 'https://docs.modal-design.com/engagement-metrics', title: 'User Engagement with Modal Dialogs' }
+      ],
+      citationVariant: 'modal'
+    });
+  } else if (content.toLowerCase().startsWith('right-panel') || content.toLowerCase().startsWith('right panel')) {
+    // right-panel: Test right-panel citation variant
+    parts.push({
+      type: 'text',
+      text: `## Right Panel Citations Demo
+
+Side panels offer contextual reference while keeping the main content visible. This pattern is commonly used in modern web applications to provide additional information without navigating away from the current view.
+
+The right-aligned panel design allows users to read sources while maintaining their position in the conversation. This side-by-side layout is particularly valuable for fact-checking and cross-referencing during active discussions.
+
+Click "Used 3 sources" below to see the right panel slide out from the side.`
+    });
+    parts.push({
+      type: 'sources',
+      sources: [
+        { url: 'https://patterns.ux/side-panel-navigation', title: 'Side Panel Navigation Patterns' },
+        { url: 'https://webdesign.modern/split-screen-layouts', title: 'Modern Split-Screen Layouts' },
+        { url: 'https://research.ui/contextual-information-display', title: 'Contextual Information Display Research' }
+      ],
+      citationVariant: 'right-panel'
+    });
+  } else if (content.toLowerCase().startsWith('hover-card') || content.toLowerCase().startsWith('hover card')) {
+    // hover-card: Test hover-card citation variant
+    parts.push({
+      type: 'text',
+      text: `## Hover Card Citations Demo
+
+Hover interactions provide instant access to information without requiring explicit clicks. This pattern reduces cognitive load by offering contextual details on demand through simple mouse movement.
+
+Tooltip-style hover cards are particularly effective for inline references, allowing readers to quickly preview source information while maintaining reading flow. The interaction feels natural and requires minimal user effort.
+
+Hover over the badge below (showing "interaction-design.org +2") to see the hover card with carousel navigation.`
+    });
+    parts.push({
+      type: 'sources',
+      sources: [
+        { url: 'https://interaction-design.org/hover-patterns', title: 'Hover Interaction Design Patterns' },
+        { url: 'https://cognitive-ux.research/tooltip-effectiveness', title: 'Cognitive Benefits of Tooltips' },
+        { url: 'https://ux-patterns.com/inline-preview-cards', title: 'Inline Preview Cards Best Practices' }
+      ],
+      citationVariant: 'hover-card'
+    });
+  } else if (content.toLowerCase().startsWith('collapsible-list') || content.toLowerCase().startsWith('collapsible list')) {
+    // collapsible-list: Test collapsible-list citation variant (baseline)
+    parts.push({
+      type: 'text',
+      text: `## Collapsible List Citations Demo
+
+Collapsible lists serve as the baseline citation display by providing a simple expand/collapse mechanism. This familiar interaction pattern has been used successfully across web applications for years.
+
+The collapsed state keeps the interface clean, while the expanded view reveals all sources at once. This approach balances information density with usability, making it ideal as a default implementation.
+
+Click "Used 3 sources" below to expand the collapsible list.`
+    });
+    parts.push({
+      type: 'sources',
+      sources: [
+        { url: 'https://ux-baseline.com/accordion-patterns', title: 'Accordion and Collapsible Patterns' },
+        { url: 'https://web-standards.org/disclosure-widgets', title: 'Disclosure Widget Design Standards' },
+        { url: 'https://accessibility-research.org/expand-collapse', title: 'Accessible Expand/Collapse Controls' }
+      ],
+      citationVariant: 'collapsible-list'
+    });
   } else {
     // Default scenario - fall back to original logic
     const useScenario = scenario || MOCK_CONFIG.defaultScenario;
@@ -853,13 +955,27 @@ This is a basic response format. Set \`MOCK_SCENARIO\` environment variable to g
       });
     } else {
       // Metadata-based response (reasoning, sources, tasks)
+      const metadata: any = {};
+
+      if (part.type === 'reasoning') {
+        metadata[part.type] = { content: part.text, state: part.state };
+      } else if (part.type === 'sources') {
+        metadata[part.type] = part[part.type];
+        // Include citationVariant if provided
+        if (part.citationVariant) {
+          metadata.citationVariant = part.citationVariant;
+        }
+      } else {
+        metadata[part.type] = part[part.type];
+      }
+
       responses.push({
         message_id: messagePayload.message_id,
         conversation_id: messagePayload.conversation_id,
         tenant_id: messagePayload.tenant_id,
         user_id: messagePayload.user_id,
         response: '', // Empty text content for metadata-only messages
-        metadata: { [part.type]: part.type === 'reasoning' ? { content: part.text, state: part.state } : part[part.type] },
+        metadata,
         response_group_id: responseGroupId
       });
     }

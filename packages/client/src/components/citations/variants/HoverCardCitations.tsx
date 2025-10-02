@@ -61,7 +61,7 @@ export function HoverCardCitations({
     >
       <InlineCitation>
         <InlineCitationCard>
-          <InlineCitationCardTrigger sources={sourceUrls} />
+          <InlineCitationCardTrigger sources={sourceUrls} className="cursor-pointer" />
 
           <InlineCitationCardBody>
             {sources.length === 1 ? (

@@ -24,6 +24,8 @@ export interface CitationSource {
   url: string
   /** Source title/label */
   title: string
+  /** Optional description for the source */
+  description?: string
 }
 
 /**
@@ -36,6 +38,8 @@ export interface CitationsProps {
   className?: string
   /** Optional message ID for analytics/audit logging */
   messageId?: string
+  /** Optional variant override (overrides context) */
+  variant?: 'collapsible-list' | 'modal' | 'right-panel' | 'hover-card'
 }
 
 // Lazy load variant components for code splitting
@@ -94,8 +98,9 @@ function CitationsLoading() {
  * />
  * ```
  */
-export function Citations({ sources, className, messageId }: CitationsProps) {
-  const variant = useCitationVariant()
+export function Citations({ sources, className, messageId, variant: variantProp }: CitationsProps) {
+  const contextVariant = useCitationVariant()
+  const variant = variantProp || contextVariant
 
   // Handle empty state
   if (!sources || sources.length === 0) {

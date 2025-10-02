@@ -22,7 +22,9 @@ export interface Message {
     sources?: Array<{
       url: string
       title: string
+      description?: string
     }>
+    citationVariant?: 'collapsible-list' | 'modal' | 'right-panel' | 'hover-card'
     tasks?: Array<{
       title: string
       items: string[]

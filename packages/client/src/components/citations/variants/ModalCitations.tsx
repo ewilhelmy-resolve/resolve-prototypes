@@ -51,25 +51,22 @@ export function ModalCitations({
   const [open, setOpen] = useState(false)
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button
-          variant="ghost"
-          size="sm"
-          className={cn(
-            'not-prose mb-4 text-primary text-xs font-medium',
-            'flex items-center gap-2',
-            className
-          )}
-          data-message-id={messageId}
-          aria-label={`View ${sources.length} source${sources.length !== 1 ? 's' : ''}`}
-        >
-          <BookIcon className="h-4 w-4" aria-hidden="true" />
-          <span>
-            Used {sources.length} source{sources.length !== 1 ? 's' : ''}
-          </span>
-        </Button>
-      </DialogTrigger>
+    <div className={cn('not-prose mb-4', className)}>
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogTrigger asChild>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="text-primary text-xs font-medium flex items-center gap-2"
+            data-message-id={messageId}
+            aria-label={`View ${sources.length} source${sources.length !== 1 ? 's' : ''}`}
+          >
+            <BookIcon className="h-4 w-4" aria-hidden="true" />
+            <span>
+              Used {sources.length} source{sources.length !== 1 ? 's' : ''}
+            </span>
+          </Button>
+        </DialogTrigger>
 
       <DialogContent className="max-w-2xl max-h-[80vh] flex flex-col">
         <DialogHeader>
@@ -128,5 +125,6 @@ export function ModalCitations({
         </div>
       </DialogContent>
     </Dialog>
+    </div>
   )
 }
