@@ -15,6 +15,7 @@ import {
   rabbitLogger,
   webhookLogger
 } from './config/logger.js';
+import { getBlobContent, blobExists, listBlobIds } from './blob-storage.js';
 
 
 // Load environment from root .env file
@@ -505,183 +506,126 @@ This tests the complete grouped message functionality.`
         { url: 'https://docs.resolve.com/test9', title: 'Test9 Combination Guide' }
       ]
     });
-  } else if (content.startsWith('inline with snippet')) {
-    // NEW: Inline citations with snippets
+  } else if (content.toLowerCase().startsWith('show all citations')) {
+    // Consolidated citation examples demonstrating all formats and variants
     parts.push({
       type: 'text',
-      text: `## Inline Citations with Snippets
+      text: `## Citation Examples Demonstration
 
-Research shows that AI models benefit from large-scale training data [1]. Recent breakthroughs have demonstrated remarkable performance improvements [2]. The field continues to evolve rapidly with new architectures [3].
+This response demonstrates all citation formats and UI variants available in Rita:
 
-These advancements are reshaping how we approach machine learning problems.`
+### Citation Formats
+- **Minimal**: Just URL and title
+- **With Snippet**: Includes preview text
+- **With Full Document**: Has blob_id for viewing complete content
+
+### UI Variants
+- **hover-card**: Default inline interaction
+- **modal**: Focused overlay display
+- **right-panel**: Side-by-side reading
+- **collapsible-list**: Expandable list view
+
+Each citation below demonstrates a different combination.`
     });
     parts.push({
       type: 'sources',
       sources: [
         {
-          url: 'https://arxiv.org/training-data-2024',
-          title: 'Large-Scale Training Data for AI Models',
-          snippet: '...training on diverse datasets leads to better generalization and improved performance across tasks...'
+          url: 'https://docs.resolve.com/quick-reference',
+          title: 'Quick Reference Guide',
+          citation_variant: 'hover-card'
         },
         {
-          url: 'https://research.ai/breakthroughs-2024',
-          title: 'AI Performance Breakthroughs 2024',
-          snippet: '...transformer architectures achieved state-of-the-art results on benchmark evaluations...'
+          url: 'https://docs.resolve.com/rita/automation',
+          title: 'Rita Automation Documentation',
+          snippet: '...this is the quote you\'re looking for...',
+          blob_id: 'blob_automation_guide_v2024',
+          citation_variant: 'hover-card'
         },
         {
-          url: 'https://ml-journal.com/new-architectures',
-          title: 'Novel Neural Network Architectures',
-          snippet: '...attention mechanisms combined with efficient computation enable faster training and inference...'
+          url: 'https://research.enterprise.com/patterns',
+          title: 'Enterprise Architecture Patterns',
+          snippet: '...scalable patterns for microservices, event-driven systems, and distributed processing...',
+          blob_id: 'blob_architecture_patterns_2024',
+          citation_variant: 'modal'
+        },
+        {
+          url: 'https://security.compliance.guide/wcag',
+          title: 'WCAG 2.1 AA Implementation Guide',
+          snippet: '...comprehensive accessibility standards for web content...',
+          blob_id: 'blob_wcag_guide_2024',
+          citation_variant: 'right-panel'
+        },
+        {
+          url: 'https://compliance.guide/soc2',
+          title: 'SOC 2 Type II Requirements',
+          blob_id: 'blob_soc2_guide_2024',
+          citation_variant: 'right-panel'
+        },
+        {
+          url: 'https://monitoring.observability.com/guide',
+          title: 'Production Monitoring Guide',
+          snippet: '...effective monitoring and observability strategies...',
+          citation_variant: 'collapsible-list'
         }
       ]
     });
-  } else if (content.startsWith('inline without snippet')) {
-    // NEW: Inline citations without snippets (show URLs instead)
+  } else if (content.toLowerCase().startsWith('regular citations') || content.toLowerCase().startsWith('default citations')) {
+    // Regular/default example showing out-of-the-box behavior with snippet + blob_id
     parts.push({
       type: 'text',
-      text: `## Inline Citations without Snippets
+      text: `## Default Citation Behavior
 
-Enterprise security requires multi-layered defense strategies [1]. Compliance frameworks guide implementation [2]. Regular audits ensure ongoing adherence [3].
+This demonstrates the regular out-of-the-box citation behavior with snippets and full document access.
 
-These practices form the foundation of modern cybersecurity.`
+According to recent research [1], enterprise automation requires careful planning [2]. Security best practices [3] must be followed from the start.`
     });
     parts.push({
       type: 'sources',
       sources: [
         {
-          url: 'https://security.enterprise.com/defense-strategies',
-          title: 'Multi-Layered Defense Strategies'
-        },
-        {
-          url: 'https://compliance.gov/frameworks',
-          title: 'Security Compliance Frameworks'
-        },
-        {
-          url: 'https://audit.security.org/best-practices',
-          title: 'Security Audit Best Practices'
-        }
-      ]
-    });
-  } else if (content.startsWith('inline with blob')) {
-    // NEW: Inline citations with blob_id for full document viewing
-    parts.push({
-      type: 'text',
-      text: `## Inline Citations with Full Documents
-
-The comprehensive automation guide [1] details implementation strategies. Architecture patterns [2] provide proven solutions for scaling.
-
-Click "View full document" to read the complete technical specifications.`
-    });
-    parts.push({
-      type: 'sources',
-      sources: [
-        {
-          url: 'https://docs.resolve.com/automation-guide',
           title: 'Rita Automation Implementation Guide',
           snippet: '...comprehensive guide covering architecture, deployment, and best practices for enterprise automation...',
           blob_id: 'blob_automation_guide_v2024'
         },
         {
-          url: 'https://docs.resolve.com/architecture-patterns',
-          title: 'Enterprise Architecture Patterns',
+          title: 'Enterprise Automation Patterns',
           snippet: '...scalable patterns for microservices, event-driven systems, and distributed processing...',
           blob_id: 'blob_architecture_patterns_2024'
-        }
-      ]
-    });
-  } else if (content.startsWith('inline mixed')) {
-    // NEW: Mixed inline citations (some with snippet, some without, some with blob_id)
-    parts.push({
-      type: 'text',
-      text: `## Mixed Inline Citations
-
-Cloud infrastructure [1] enables scalability. Kubernetes orchestration [2] manages containers efficiently. Security hardening [3] protects production systems. Monitoring tools [4] provide visibility.
-
-This demonstrates different citation types working together seamlessly.`
-    });
-    parts.push({
-      type: 'sources',
-      sources: [
-        {
-          url: 'https://cloud.providers.com/infrastructure',
-          title: 'Cloud Infrastructure Fundamentals',
-          snippet: '...elastic compute resources scale on demand to handle varying workloads efficiently...'
         },
         {
-          url: 'https://kubernetes.io/docs/orchestration',
-          title: 'Kubernetes Container Orchestration'
-          // No snippet - will show URL
-        },
-        {
-          url: 'https://security.hardening.org/guide',
           title: 'Production Security Hardening Guide',
           snippet: '...defense-in-depth strategies with network segmentation, access controls, and encryption...',
           blob_id: 'blob_security_hardening_2024'
-        },
-        {
-          url: 'https://monitoring.observability.com/tools',
-          title: 'Production Monitoring and Observability',
-          blob_id: 'blob_monitoring_guide_2024'
-          // Has blob_id but no snippet - will show URL with doc option
         }
       ]
     });
-  } else if (content.startsWith('modal override')) {
-    // NEW: Force modal variant via citation_variant override
+  } else if (content.toLowerCase().startsWith('simple citations') || content.toLowerCase().startsWith('basic citations')) {
+    // Shorter example with just URL and title
     parts.push({
       type: 'text',
-      text: `## Modal Citation Override
+      text: `## Simple Citations
 
-This response forces the modal citation variant through API override, ignoring the default hover-card behavior configured in the frontend.
+Basic citation format with just URL and title, no snippets or full documents.
 
-The modal provides a focused viewing experience for multiple sources.`
+Here are some helpful resources [1] [2] [3] for getting started with Rita.`
     });
     parts.push({
       type: 'sources',
       sources: [
         {
-          url: 'https://ux-research.com/modal-effectiveness',
-          title: 'Modal Dialog Effectiveness Study',
-          snippet: '...modal overlays increase focus and reduce cognitive load when viewing detailed content...'
+          url: 'https://docs.resolve.com/getting-started',
+          title: 'Getting Started with Rita'
         },
         {
-          url: 'https://design-patterns.org/modal-best-practices',
-          title: 'Modal Design Best Practices',
-          snippet: '...centered layout with backdrop improves user attention and engagement metrics...'
+          url: 'https://docs.resolve.com/tutorials',
+          title: 'Rita Tutorials and Examples'
         },
         {
-          url: 'https://accessibility.guide/modal-wcag',
-          title: 'Accessible Modal Implementation',
-          snippet: '...proper focus management and keyboard navigation ensure modals work for all users...'
+          url: 'https://docs.resolve.com/api-reference',
+          title: 'Rita API Reference'
         }
-      ],
-      citation_variant: 'modal'
-    });
-  } else if (content.startsWith('right-panel override')) {
-    // NEW: Force right-panel variant via citation_variant override
-    parts.push({
-      type: 'text',
-      text: `## Right Panel Citation Override
-
-This response forces the right panel citation variant, overriding the default hover-card behavior.
-
-The side panel allows reading sources while maintaining conversation context.`
-    });
-    parts.push({
-      type: 'sources',
-      sources: [
-        {
-          url: 'https://ux-patterns.com/side-panel-design',
-          title: 'Side Panel Design Patterns',
-          snippet: '...side panels preserve main content visibility while providing auxiliary information access...'
-        },
-        {
-          url: 'https://interaction-design.org/split-view',
-          title: 'Split View Interaction Design',
-          snippet: '...split layouts enable simultaneous viewing of primary and secondary content streams...'
-        }
-      ],
-      citation_variant: 'right-panel'
+      ]
     });
   } else if (content.startsWith('test10')) {
     // test10: Reasoning + tasks
@@ -713,876 +657,6 @@ The side panel allows reading sources while maintaining conversation context.`
           ]
         }
       ]
-    });
-  } else if (content.startsWith('inline') || content.startsWith('test-inline')) {
-    // test-inline: Text with inline citation markers [1], [2], [3]
-    parts.push({
-      type: 'text',
-      text: `## Inline Citations Demo
-
-According to recent research [1], artificial intelligence has shown remarkable progress in natural language processing. This breakthrough has been documented extensively in academic literature [2] and industry reports [3].
-
-The field continues to evolve rapidly, with new models achieving state-of-the-art results on benchmark tasks. These advancements are particularly notable in areas such as machine translation, text summarization, and question answering.`
-    });
-    parts.push({
-      type: 'sources',
-      sources: [
-        { url: 'https://arxiv.org/ai-progress-2024', title: 'AI Progress in Natural Language Processing' },
-        { url: 'https://journals.ai/nlp-breakthroughs', title: 'Recent NLP Breakthroughs' },
-        { url: 'https://industry-reports.com/ai-2024', title: '2024 AI Industry Report' }
-      ]
-    });
-  } else if (content.toLowerCase().startsWith('modal') && !content.toLowerCase().includes('article')) {
-    // modal: Test modal citation variant (generic, without article content)
-    parts.push({
-      type: 'text',
-      text: `## Modal Citations Demo
-
-Modal dialogs provide a focused viewing experience by overlaying the entire screen with a backdrop. This approach is particularly effective when users need to concentrate on reference materials without distraction from the main content.
-
-Research shows that modal interfaces can improve user engagement when displaying detailed information. The centered layout and backdrop help draw attention to the content while maintaining context through the visible underlying page.
-
-Click "Used 3 sources" below to see the modal citation display.`
-    });
-    parts.push({
-      type: 'sources',
-      sources: [
-        { url: 'https://uxdesign.cc/modal-best-practices-2024', title: 'Modal Interface Best Practices' },
-        { url: 'https://research.ux/focused-reading-patterns', title: 'Focused Reading Patterns Study' },
-        { url: 'https://docs.modal-design.com/engagement-metrics', title: 'User Engagement with Modal Dialogs' }
-      ],
-      citation_variant: 'modal'
-    });
-  } else if ((content.toLowerCase().startsWith('right-panel') || content.toLowerCase().startsWith('right panel')) && !content.toLowerCase().includes('article')) {
-    // right-panel: Test right-panel citation variant
-    parts.push({
-      type: 'text',
-      text: `## Right Panel Citations Demo
-
-Side panels offer contextual reference while keeping the main content visible. This pattern is commonly used in modern web applications to provide additional information without navigating away from the current view.
-
-The right-aligned panel design allows users to read sources while maintaining their position in the conversation. This side-by-side layout is particularly valuable for fact-checking and cross-referencing during active discussions.
-
-Click "Used 3 sources" below to see the right panel slide out from the side.`
-    });
-    parts.push({
-      type: 'sources',
-      sources: [
-        { url: 'https://patterns.ux/side-panel-navigation', title: 'Side Panel Navigation Patterns' },
-        { url: 'https://webdesign.modern/split-screen-layouts', title: 'Modern Split-Screen Layouts' },
-        { url: 'https://research.ui/contextual-information-display', title: 'Contextual Information Display Research' }
-      ],
-      citation_variant: 'right-panel'
-    });
-  } else if (content.toLowerCase().startsWith('hover-card') || content.toLowerCase().startsWith('hover card')) {
-    // hover-card: Test hover-card citation variant with inline markers
-    parts.push({
-      type: 'text',
-      text: `## Hover Card Citations Demo
-
-Hover interactions provide instant access to information without requiring explicit clicks [1]. This pattern reduces cognitive load by offering contextual details on demand through simple mouse movement [2].
-
-Tooltip-style hover cards are particularly effective for inline references [3], allowing readers to quickly preview source information while maintaining reading flow. The interaction feels natural and requires minimal user effort.
-
-Hover over any inline badge (like [1] above) to see the hover card with source information.`
-    });
-    parts.push({
-      type: 'sources',
-      sources: [
-        { url: 'https://interaction-design.org/hover-patterns', title: 'Hover Interaction Design Patterns' },
-        { url: 'https://cognitive-ux.research/tooltip-effectiveness', title: 'Cognitive Benefits of Tooltips' },
-        { url: 'https://ux-patterns.com/inline-preview-cards', title: 'Inline Preview Cards Best Practices' }
-      ]
-    });
-  } else if (content.toLowerCase().startsWith('collapsible-list') || content.toLowerCase().startsWith('collapsible list')) {
-    // collapsible-list: Test collapsible-list citation variant (baseline)
-    parts.push({
-      type: 'text',
-      text: `## Collapsible List Citations Demo
-
-Collapsible lists serve as the baseline citation display by providing a simple expand/collapse mechanism. This familiar interaction pattern has been used successfully across web applications for years.
-
-The collapsed state keeps the interface clean, while the expanded view reveals all sources at once. This approach balances information density with usability, making it ideal as a default implementation.
-
-Click "Used 3 sources" below to expand the collapsible list.`
-    });
-    parts.push({
-      type: 'sources',
-      sources: [
-        { url: 'https://ux-baseline.com/accordion-patterns', title: 'Accordion and Collapsible Patterns' },
-        { url: 'https://web-standards.org/disclosure-widgets', title: 'Disclosure Widget Design Standards' },
-        { url: 'https://accessibility-research.org/expand-collapse', title: 'Accessible Expand/Collapse Controls' }
-      ],
-      citation_variant: 'collapsible-list'
-    });
-  } else if (content.toLowerCase().includes('modal') && content.toLowerCase().includes('article')) {
-    // modal with article: Test modal with large markdown content
-    parts.push({
-      type: 'text',
-      text: `## Modal with Article Content
-
-This demo showcases the modal citation variant displaying full markdown articles with complex formatting including headings, tables, lists, and code blocks.
-
-The modal provides a focused reading experience ideal for longer reference materials. When users need to dive deep into source documentation, the modal overlay removes distractions and centers attention on the content.
-
-Click "Used 2 sources" below to view detailed technical articles in the modal.`
-    });
-    parts.push({
-      type: 'sources',
-      sources: [
-        {
-          url: 'https://docs.resolve.com/rita/automation-guide',
-          title: 'Rita Automation Guide - Complete Reference',
-          content: `# Rita Automation System
-
-## Overview
-
-The Rita automation system provides enterprise-grade workflow automation with **SOC2 Type II compliance** and comprehensive audit logging.
-
-## Architecture Components
-
-| Component | Purpose | Technology Stack |
-|-----------|---------|-----------------|
-| API Server | REST endpoints | Node.js, Express |
-| Queue System | Async processing | RabbitMQ |
-| Database | Persistent storage | PostgreSQL |
-| Client | React UI | React 18, TypeScript |
-
-## Getting Started
-
-### Installation
-
-\`\`\`bash
-npm install @resolve/rita-client
-npm install @resolve/rita-api
-\`\`\`
-
-### Configuration
-
-1. **Environment Setup**: Configure your \`.env\` file
-2. **Database Migration**: Run \`npm run migrate\`
-3. **Start Services**: Use \`docker compose up -d\`
-
-## Key Features
-
-### Workflow Automation
-
-- **Trigger-based execution** - Execute workflows based on events
-- **Conditional logic** - Complex decision trees and branching
-- **Error handling** - Automatic retry with exponential backoff
-- **Monitoring** - Real-time status tracking and alerting
-
-### Security & Compliance
-
-The platform implements industry-standard security practices:
-
-- 🔒 **Encryption**: AES-256 for data at rest, TLS 1.3 for transit
-- 🔐 **Authentication**: OAuth 2.0 with Keycloak integration
-- 📊 **Audit Logs**: Comprehensive activity tracking
-- ✅ **SOC2 Compliance**: Full Type II certification
-
-## Performance Metrics
-
-Our automation system handles enterprise-scale workloads:
-
-| Metric | Value | Notes |
-|--------|-------|-------|
-| Throughput | 10,000 tasks/sec | Peak load capacity |
-| Latency | < 50ms | P95 response time |
-| Availability | 99.99% | SLA guarantee |
-| Scalability | Horizontal | Auto-scaling enabled |
-
-## Best Practices
-
-### Error Handling
-
-\`\`\`typescript
-try {
-  await executeWorkflow(params)
-} catch (error) {
-  logger.error('Workflow failed', { error, workflowId })
-  await retry(executeWorkflow, params, { maxRetries: 3 })
-}
-\`\`\`
-
-### Monitoring
-
-Set up comprehensive monitoring with:
-
-- **Health checks**: Every 30 seconds
-- **Metrics collection**: Prometheus + Grafana
-- **Alerting**: PagerDuty integration
-- **Log aggregation**: ELK stack
-
-## Advanced Topics
-
-### Custom Workflow Development
-
-Create custom workflows using our TypeScript SDK:
-
-\`\`\`typescript
-import { Workflow, Task } from '@resolve/rita-sdk'
-
-const workflow = new Workflow({
-  name: 'data-processing',
-  triggers: ['file.uploaded'],
-  tasks: [
-    new Task.Validate(),
-    new Task.Transform(),
-    new Task.Store()
-  ]
-})
-\`\`\`
-
-### Integration Patterns
-
-Rita supports multiple integration patterns:
-
-1. **RESTful APIs** - Standard HTTP endpoints
-2. **GraphQL** - Flexible query language
-3. **Webhooks** - Event-driven notifications
-4. **SSE** - Real-time updates via Server-Sent Events
-
-> 💡 **Pro Tip**: Use webhooks for asynchronous workflows and SSE for real-time UI updates.
-
-## Troubleshooting
-
-Common issues and solutions:
-
-| Issue | Cause | Solution |
-|-------|-------|----------|
-| Queue backup | High load | Scale workers horizontally |
-| Slow queries | Missing indexes | Run query optimizer |
-| Auth failures | Token expiration | Implement token refresh |
-
-## Support
-
-- 📚 **Documentation**: https://docs.resolve.com
-- 💬 **Community**: https://community.resolve.com
-- 📧 **Enterprise Support**: support@resolve.com`
-        },
-        {
-          url: 'https://research.automation/enterprise-patterns-2024',
-          title: 'Enterprise Automation Patterns 2024',
-          content: `# Enterprise Automation Patterns
-
-## Executive Summary
-
-This comprehensive study analyzes enterprise automation patterns across **500+ organizations** implementing workflow automation at scale.
-
-## Methodology
-
-### Research Approach
-
-| Phase | Activities | Duration |
-|-------|-----------|----------|
-| Discovery | Stakeholder interviews | 3 months |
-| Analysis | Pattern identification | 2 months |
-| Validation | Case studies | 4 months |
-
-## Key Findings
-
-### Pattern Categories
-
-1. **Event-Driven Architecture**
-   - Decoupled components
-   - Asynchronous processing
-   - High scalability
-   - Complex debugging
-
-2. **Orchestration vs Choreography**
-   - **Orchestration**: Central coordinator
-   - **Choreography**: Distributed coordination
-   - Trade-offs in complexity and resilience
-
-3. **Error Recovery Strategies**
-   - **Retry with backoff**: 87% adoption
-   - **Dead letter queues**: 72% adoption
-   - **Circuit breakers**: 65% adoption
-   - **Compensation transactions**: 43% adoption
-
-## Implementation Statistics
-
-\`\`\`
-Technology Adoption (2024):
-━━━━━━━━━━━━━━━━━━━━━━━━━━
-RabbitMQ:    ████████████████ 45%
-Apache Kafka: ███████████████ 42%
-AWS SQS:     ████████ 23%
-Azure Service Bus: ████ 18%
-\`\`\`
-
-### Success Metrics
-
-Companies implementing automation patterns reported:
-
-- ⬆️ **67% increase** in operational efficiency
-- ⬇️ **54% reduction** in manual errors
-- ⬆️ **89% improvement** in response times
-- ⬇️ **41% decrease** in operational costs
-
-## Architectural Patterns
-
-### The Saga Pattern
-
-For distributed transactions:
-
-\`\`\`typescript
-class OrderSaga {
-  async execute() {
-    await reserveInventory()
-    await processPayment()
-    await scheduleShipping()
-  }
-
-  async compensate() {
-    await refundPayment()
-    await releaseInventory()
-  }
-}
-\`\`\`
-
-### Event Sourcing
-
-Benefits and trade-offs:
-
-| Aspect | Benefit | Trade-off |
-|--------|---------|-----------|
-| Audit trail | Complete history | Storage costs |
-| Time travel | Debug past states | Complexity |
-| Replay | Rebuild state | Processing time |
-
-## Security Considerations
-
-### Zero Trust Architecture
-
-- **Verify explicitly**: Authenticate every request
-- **Least privilege**: Minimum necessary access
-- **Assume breach**: Continuous monitoring
-
-### Encryption Strategy
-
-\`\`\`
-Data Protection Layers:
-┌────────────────────────┐
-│ Application Level      │ ← End-to-end encryption
-├────────────────────────┤
-│ Transport Level        │ ← TLS 1.3
-├────────────────────────┤
-│ Storage Level          │ ← AES-256
-└────────────────────────┘
-\`\`\`
-
-## Conclusion
-
-Enterprise automation requires careful pattern selection based on:
-
-- **Scale requirements**
-- **Latency constraints**
-- **Consistency needs**
-- **Operational complexity tolerance**
-
-The most successful implementations combine multiple patterns adapted to specific use cases rather than applying a one-size-fits-all approach.`
-        }
-      ],
-      citation_variant: 'modal'
-    });
-  } else if (content.toLowerCase().includes('right') && content.toLowerCase().includes('panel') && content.toLowerCase().includes('article')) {
-    // right-panel with article: Test right panel with large markdown content
-    parts.push({
-      type: 'text',
-      text: `## Right Panel with Article Content
-
-This demonstration features the right panel citation variant with comprehensive markdown articles. The side-by-side layout allows you to reference documentation while continuing to read the conversation.
-
-The right panel excels at providing contextual information without interrupting the user's current flow. It's particularly effective for technical documentation where users frequently cross-reference specifications.
-
-Click "Used 2 sources" below to open the side panel with detailed technical references.`
-    });
-    parts.push({
-      type: 'sources',
-      sources: [
-        {
-          url: 'https://docs.accessibility.org/wcag-2.1-aa-implementation',
-          title: 'WCAG 2.1 AA Implementation Guide',
-          content: `# WCAG 2.1 AA Compliance
-
-## Introduction
-
-Web Content Accessibility Guidelines (WCAG) 2.1 Level AA provides the framework for creating accessible web experiences that work for users with diverse abilities.
-
-## Core Principles (POUR)
-
-| Principle | Description | Key Requirements |
-|-----------|-------------|------------------|
-| **Perceivable** | Information must be presentable | Alt text, captions, color contrast |
-| **Operable** | UI components must be usable | Keyboard navigation, sufficient time |
-| **Understandable** | Content must be clear | Readable text, predictable behavior |
-| **Robust** | Content works across technologies | Valid markup, compatibility |
-
-## Level AA Requirements
-
-### Visual Requirements
-
-#### Color Contrast
-
-- **Normal text**: Minimum 4.5:1 contrast ratio
-- **Large text** (18pt+): Minimum 3:1 contrast ratio
-- **UI components**: 3:1 for interactive elements
-
-\`\`\`css
-/* Good contrast example */
-.text-primary {
-  color: #1a1a1a;        /* Near black */
-  background: #ffffff;    /* White */
-  /* Contrast ratio: 19.56:1 ✅ */
-}
-
-.button-primary {
-  color: #ffffff;
-  background: #0066cc;    /* Blue */
-  /* Contrast ratio: 4.55:1 ✅ */
-}
-\`\`\`
-
-#### Text Resizing
-
-Users must be able to resize text up to **200%** without loss of content or functionality.
-
-### Keyboard Accessibility
-
-#### Focus Management
-
-All interactive elements must be keyboard accessible:
-
-\`\`\`typescript
-// Proper focus trap in modal
-function Modal({ children, onClose }) {
-  const firstFocusable = useRef<HTMLElement>()
-  const lastFocusable = useRef<HTMLElement>()
-
-  useEffect(() => {
-    firstFocusable.current?.focus()
-
-    const handleTab = (e: KeyboardEvent) => {
-      if (e.key === 'Tab') {
-        // Trap focus within modal
-        trapFocus(e, firstFocusable, lastFocusable)
-      }
-    }
-
-    document.addEventListener('keydown', handleTab)
-    return () => document.removeEventListener('keydown', handleTab)
-  }, [])
-
-  return <div role="dialog" aria-modal="true">{children}</div>
-}
-\`\`\`
-
-#### Skip Links
-
-Provide skip navigation for keyboard users:
-
-\`\`\`html
-<a href="#main-content" class="skip-link">
-  Skip to main content
-</a>
-\`\`\`
-
-### ARIA Implementation
-
-#### Semantic HTML First
-
-Use native HTML elements when possible:
-
-| Instead of | Use |
-|------------|-----|
-| \`<div onclick="...">\` | \`<button>\` |
-| \`<div>\` for navigation | \`<nav>\` |
-| \`<div>\` for lists | \`<ul>\`, \`<ol>\` |
-
-#### ARIA Roles and Properties
-
-\`\`\`tsx
-// Accessible dropdown
-<div role="combobox" aria-expanded={isOpen} aria-haspopup="listbox">
-  <input
-    type="text"
-    aria-label="Search options"
-    aria-autocomplete="list"
-    aria-controls="listbox-id"
-  />
-  <ul role="listbox" id="listbox-id">
-    <li role="option" aria-selected={isSelected}>
-      Option 1
-    </li>
-  </ul>
-</div>
-\`\`\`
-
-## Form Accessibility
-
-### Labels and Instructions
-
-Every form input must have:
-
-1. **Visible label**: \`<label>\` element
-2. **Clear purpose**: Descriptive text
-3. **Error identification**: Specific error messages
-4. **Help text**: Additional guidance when needed
-
-\`\`\`tsx
-<div>
-  <label htmlFor="email">
-    Email Address <span aria-label="required">*</span>
-  </label>
-  <input
-    id="email"
-    type="email"
-    aria-required="true"
-    aria-invalid={hasError}
-    aria-describedby="email-error email-help"
-  />
-  <div id="email-help">We'll never share your email</div>
-  {hasError && (
-    <div id="email-error" role="alert">
-      Please enter a valid email address
-    </div>
-  )}
-</div>
-\`\`\`
-
-## Testing Checklist
-
-### Automated Testing
-
-| Tool | Purpose | Coverage |
-|------|---------|----------|
-| axe-core | Rule-based checking | ~57% WCAG |
-| WAVE | Visual feedback | Basic issues |
-| Lighthouse | Chrome DevTools | Performance + A11y |
-
-### Manual Testing
-
-- ✅ **Keyboard navigation**: Tab through entire interface
-- ✅ **Screen reader**: Test with NVDA/JAWS (Windows) or VoiceOver (Mac)
-- ✅ **Color contrast**: Use contrast checker tools
-- ✅ **Zoom testing**: Test at 200% zoom
-- ✅ **Focus indicators**: Verify visible focus states
-
-## Common Patterns
-
-### Accessible Modal Dialog
-
-\`\`\`typescript
-interface ModalProps {
-  isOpen: boolean
-  onClose: () => void
-  title: string
-  children: React.ReactNode
-}
-
-function AccessibleModal({ isOpen, onClose, title, children }: ModalProps) {
-  return (
-    <Dialog
-      open={isOpen}
-      onClose={onClose}
-      aria-labelledby="modal-title"
-      aria-describedby="modal-description"
-    >
-      <div role="document">
-        <h2 id="modal-title">{title}</h2>
-        <div id="modal-description">
-          {children}
-        </div>
-        <button onClick={onClose} aria-label="Close dialog">
-          ×
-        </button>
-      </div>
-    </Dialog>
-  )
-}
-\`\`\`
-
-### Accessible Data Table
-
-\`\`\`html
-<table>
-  <caption>User Activity Report</caption>
-  <thead>
-    <tr>
-      <th scope="col">Name</th>
-      <th scope="col">Email</th>
-      <th scope="col">Last Login</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr>
-      <th scope="row">John Doe</th>
-      <td>john@example.com</td>
-      <td><time datetime="2024-01-15">Jan 15, 2024</time></td>
-    </tr>
-  </tbody>
-</table>
-\`\`\`
-
-## Resources
-
-- **W3C WCAG 2.1**: https://www.w3.org/WAI/WCAG21/quickref/
-- **MDN Accessibility**: https://developer.mozilla.org/en-US/docs/Web/Accessibility
-- **WebAIM**: https://webaim.org/resources/`
-        },
-        {
-          url: 'https://soc2.compliance.guide/type-ii-requirements',
-          title: 'SOC 2 Type II Requirements & Implementation',
-          content: `# SOC 2 Type II Compliance
-
-## Overview
-
-Service Organization Control (SOC) 2 Type II examines both the **design** and **operational effectiveness** of security controls over time (typically 6-12 months).
-
-## Trust Services Criteria
-
-### Security (Required)
-
-The foundation of SOC 2 compliance:
-
-\`\`\`
-Security Control Framework:
-┌─────────────────────────────────┐
-│ Access Controls                 │
-│ ├─ Authentication              │
-│ ├─ Authorization               │
-│ └─ Least Privilege             │
-├─────────────────────────────────┤
-│ Change Management               │
-│ ├─ Code review process         │
-│ ├─ Deployment procedures       │
-│ └─ Rollback capabilities       │
-├─────────────────────────────────┤
-│ Incident Response               │
-│ ├─ Detection systems           │
-│ ├─ Response procedures         │
-│ └─ Post-incident review        │
-└─────────────────────────────────┘
-\`\`\`
-
-### Additional Criteria (Optional)
-
-| Criterion | Focus Area | Key Controls |
-|-----------|------------|--------------|
-| **Availability** | System uptime | Monitoring, redundancy, disaster recovery |
-| **Processing Integrity** | Data accuracy | Validation, error handling, reconciliation |
-| **Confidentiality** | Data protection | Encryption, access controls, DLP |
-| **Privacy** | PII handling | Consent management, data rights, retention |
-
-## Implementation Requirements
-
-### Access Control Implementation
-
-\`\`\`typescript
-// Multi-factor authentication
-class AuthenticationService {
-  async authenticate(credentials: Credentials): Promise<AuthToken> {
-    // 1. Verify username/password
-    const user = await this.verifyCredentials(credentials)
-
-    // 2. Require MFA
-    if (!user.mfaVerified) {
-      throw new MFARequiredError()
-    }
-
-    // 3. Generate session token
-    const token = await this.generateToken(user, {
-      expiresIn: '8h',
-      refreshable: true
-    })
-
-    // 4. Audit log
-    await this.auditLog.record({
-      event: 'user.authenticated',
-      userId: user.id,
-      timestamp: new Date(),
-      ipAddress: credentials.ipAddress,
-      userAgent: credentials.userAgent
-    })
-
-    return token
-  }
-}
-\`\`\`
-
-### Audit Logging
-
-Comprehensive logging requirements:
-
-| Log Type | Required Fields | Retention |
-|----------|----------------|-----------|
-| Authentication | User ID, timestamp, IP, result | 1 year |
-| Authorization | User, resource, action, result | 1 year |
-| Data Access | User, data type, timestamp | 7 years |
-| Configuration | Change type, user, before/after | 7 years |
-| Security Events | Event type, severity, details | 7 years |
-
-### Encryption Standards
-
-\`\`\`typescript
-// Data encryption implementation
-class EncryptionService {
-  // Data at rest
-  encryptAtRest(data: Buffer): EncryptedData {
-    return {
-      ciphertext: aes256gcm.encrypt(data, this.dataKey),
-      algorithm: 'AES-256-GCM',
-      keyId: this.dataKey.id
-    }
-  }
-
-  // Data in transit
-  tlsConfig(): TLSConfig {
-    return {
-      minVersion: 'TLSv1.3',
-      ciphers: [
-        'TLS_AES_256_GCM_SHA384',
-        'TLS_AES_128_GCM_SHA256'
-      ],
-      honorCipherOrder: true,
-      requireCertificate: true
-    }
-  }
-}
-\`\`\`
-
-## Monitoring & Alerting
-
-### Real-time Monitoring
-
-\`\`\`yaml
-# Monitoring configuration
-monitoring:
-  metrics:
-    - name: authentication_failures
-      threshold: 5
-      window: 5m
-      severity: high
-
-    - name: unauthorized_access_attempts
-      threshold: 3
-      window: 1m
-      severity: critical
-
-    - name: data_access_unusual_volume
-      threshold: 1000
-      window: 1h
-      severity: medium
-
-  alerts:
-    - type: email
-      recipients: [security-team@company.com]
-
-    - type: pagerduty
-      severity: [critical, high]
-
-    - type: slack
-      channel: '#security-alerts'
-\`\`\`
-
-### Incident Response
-
-Response time requirements:
-
-| Severity | Response Time | Resolution Time |
-|----------|---------------|-----------------|
-| Critical | < 15 minutes | < 4 hours |
-| High | < 1 hour | < 24 hours |
-| Medium | < 4 hours | < 5 days |
-| Low | < 24 hours | < 30 days |
-
-## Audit Evidence
-
-### Documentation Requirements
-
-1. **Policies & Procedures**
-   - Information security policy
-   - Access control procedures
-   - Incident response plan
-   - Business continuity plan
-
-2. **Technical Evidence**
-   - System configurations
-   - Access control lists
-   - Audit logs
-   - Vulnerability scans
-   - Penetration test results
-
-3. **Operational Evidence**
-   - Security awareness training records
-   - Background check documentation
-   - Vendor management records
-   - Change management tickets
-
-## Continuous Compliance
-
-### Quarterly Reviews
-
-\`\`\`markdown
-## Q1 2024 Compliance Review Checklist
-
-- [ ] User access review (all systems)
-- [ ] Privileged access verification
-- [ ] Security awareness training completion
-- [ ] Vulnerability management report
-- [ ] Incident response test results
-- [ ] Backup and recovery validation
-- [ ] Third-party audit findings review
-- [ ] Policy updates and acknowledgments
-\`\`\`
-
-### Automation Opportunities
-
-| Process | Automation | Tool |
-|---------|------------|------|
-| Access reviews | Quarterly automated | Okta, Azure AD |
-| Vulnerability scanning | Continuous | Qualys, Nessus |
-| Log analysis | Real-time | Splunk, ELK |
-| Compliance reporting | Monthly | Vanta, Drata |
-
-## Common Pitfalls
-
-⚠️ **Insufficient audit logging**: Ensure all security-relevant events are logged
-
-⚠️ **Missing evidence**: Document everything - if it's not documented, it didn't happen
-
-⚠️ **Scope creep**: Clearly define system boundaries and maintain consistency
-
-⚠️ **Manual processes**: Automate controls where possible to reduce human error
-
-## Certification Timeline
-
-\`\`\`
-SOC 2 Type II Timeline:
-┌────────────────────────────────────────────┐
-│ Months 1-3: Preparation                    │
-│ ├─ Gap assessment                          │
-│ ├─ Control implementation                  │
-│ └─ Documentation                           │
-├────────────────────────────────────────────┤
-│ Months 4-9: Observation Period             │
-│ ├─ Controls operating                      │
-│ ├─ Evidence collection                     │
-│ └─ Continuous monitoring                   │
-├────────────────────────────────────────────┤
-│ Months 10-12: Audit                        │
-│ ├─ Evidence review                         │
-│ ├─ Control testing                         │
-│ └─ Report issuance                         │
-└────────────────────────────────────────────┘
-\`\`\`
-
-Total timeline: **12-18 months** from initiation to report`
-        }
-      ],
-      citation_variant: 'right-panel'
     });
   } else {
     // Default scenario - fall back to original logic
@@ -1906,8 +980,8 @@ This is a basic response format. Set \`MOCK_SCENARIO\` environment variable to g
       if (part.type === 'reasoning') {
         metadata[part.type] = { content: part.text, state: part.state };
       } else if (part.type === 'sources') {
-        metadata[part.type] = part[part.type];
-        // Include citation_variant if provided
+        metadata.sources = part.sources;
+        // Include citation_variant if provided at the sources level (optional)
         if (part.citation_variant) {
           metadata.citation_variant = part.citation_variant;
         }
@@ -1942,6 +1016,58 @@ app.get('/health', (_req, res) => {
     service: 'rita-mock-automation',
     timestamp: new Date().toISOString(),
     config: MOCK_CONFIG
+  });
+});
+
+// Blob content endpoint
+app.get('/blobs/:blob_id', (req, res) => {
+  const correlationId = generateCorrelationId();
+  const contextLogger = createContextLogger(logger, correlationId, {
+    blobId: req.params.blob_id
+  });
+
+  const { blob_id } = req.params;
+
+  contextLogger.info({}, 'Blob content requested');
+
+  if (!blobExists(blob_id)) {
+    contextLogger.warn({}, 'Blob not found');
+    return res.status(404).json({
+      error: 'Blob not found',
+      blob_id
+    });
+  }
+
+  const blobContent = getBlobContent(blob_id);
+
+  if (!blobContent) {
+    contextLogger.error({}, 'Blob exists but content retrieval failed');
+    return res.status(500).json({
+      error: 'Failed to retrieve blob content',
+      blob_id
+    });
+  }
+
+  contextLogger.info({
+    contentType: blobContent.content_type,
+    contentLength: blobContent.content.length
+  }, 'Blob content retrieved successfully');
+
+  res.json(blobContent);
+});
+
+// List all available blobs
+app.get('/blobs', (_req, res) => {
+  const correlationId = generateCorrelationId();
+  const contextLogger = createContextLogger(logger, correlationId);
+
+  contextLogger.info({}, 'Blob list requested');
+
+  const blobIds = listBlobIds();
+
+  res.json({
+    blobs: blobIds,
+    count: blobIds.length
   });
 });
 

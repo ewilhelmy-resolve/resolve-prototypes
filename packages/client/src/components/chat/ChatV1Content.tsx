@@ -194,6 +194,7 @@ function GroupedMessage({ message, onCopy, isCopied }: {
                 if (hasInlineCitations) {
                   return null
                 }
+
                 return (
                   <Citations
                     key={part.id}

@@ -136,4 +136,95 @@ describe('ResponseWithInlineCitations', () => {
     const text = screen.getByText(/Start/)
     expect(text.textContent).toContain('Start')
   })
+
+  describe('Blob ID Support', () => {
+    it('renders citation with blob_id and snippet', () => {
+      const sourcesWithBlob: CitationSource[] = [
+        {
+          title: 'Technical Documentation',
+          snippet: '...comprehensive guide...',
+          blob_id: 'blob_test_doc_2024'
+        }
+      ]
+
+      render(
+        <ResponseWithInlineCitations sources={sourcesWithBlob} messageId="test-blob-1">
+          Reference [1] shows details.
+        </ResponseWithInlineCitations>
+      )
+
+      expect(screen.getByText(/Reference/)).toBeInTheDocument()
+    })
+
+    it('handles citation with only blob_id (no URL)', () => {
+      const sourcesWithBlobOnly: CitationSource[] = [
+        {
+          title: 'Internal Document',
+          blob_id: 'blob_internal_2024'
+        }
+      ]
+
+      const { container } = render(
+        <ResponseWithInlineCitations sources={sourcesWithBlobOnly} messageId="test-blob-2">
+          Internal doc [1] reference.
+        </ResponseWithInlineCitations>
+      )
+
+      const badges = container.querySelectorAll('[data-slot="badge"]')
+      expect(badges).toHaveLength(1)
+      // Should render "Doc" when no URL available
+      expect(badges[0]).toHaveTextContent('Doc')
+    })
+
+    it('handles citation with URL only (no blob_id)', () => {
+      const sourcesWithUrlOnly: CitationSource[] = [
+        {
+          url: 'https://external.com/article',
+          title: 'External Article',
+          snippet: '...external content...'
+        }
+      ]
+
+      const { container } = render(
+        <ResponseWithInlineCitations sources={sourcesWithUrlOnly} messageId="test-blob-3">
+          External ref [1] here.
+        </ResponseWithInlineCitations>
+      )
+
+      const badges = container.querySelectorAll('[data-slot="badge"]')
+      expect(badges).toHaveLength(1)
+      expect(badges[0]).toHaveTextContent('external.com')
+    })
+
+    it('handles mixed citations (some with blob_id, some with URL)', () => {
+      const mixedSources: CitationSource[] = [
+        {
+          title: 'Internal Guide',
+          snippet: '...internal...',
+          blob_id: 'blob_guide_2024'
+        },
+        {
+          url: 'https://example.com/external',
+          title: 'External Resource',
+          snippet: '...external...'
+        },
+        {
+          title: 'Another Internal',
+          blob_id: 'blob_another_2024'
+        }
+      ]
+
+      const { container } = render(
+        <ResponseWithInlineCitations sources={mixedSources} messageId="test-blob-4">
+          References [1] and [2] and [3].
+        </ResponseWithInlineCitations>
+      )
+
+      const badges = container.querySelectorAll('[data-slot="badge"]')
+      expect(badges).toHaveLength(3)
+      expect(badges[0]).toHaveTextContent('Doc')
+      expect(badges[1]).toHaveTextContent('example.com')
+      expect(badges[2]).toHaveTextContent('Doc')
+    })
+  })
 })

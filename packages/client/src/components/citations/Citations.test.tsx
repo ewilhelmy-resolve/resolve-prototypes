@@ -274,4 +274,91 @@ const test = () => console.log('test')
       expect(screen.getByText(/Used 1 source/)).toBeInTheDocument()
     })
   })
+
+  describe('Blob ID Support', () => {
+    it('handles sources with blob_id for full document access', async () => {
+      const sourcesWithBlob: CitationSource[] = [
+        {
+          title: 'Technical Documentation',
+          snippet: '...comprehensive guide...',
+          blob_id: 'blob_test_doc_2024'
+        }
+      ]
+
+      render(
+        <CitationProvider>
+          <Citations sources={sourcesWithBlob} messageId="test-blob-1" />
+        </CitationProvider>
+      )
+
+      await waitFor(() => {
+        expect(screen.getByText(/Used 1 source/)).toBeInTheDocument()
+      })
+    })
+
+    it('handles sources with only blob_id (no URL)', async () => {
+      const sourcesWithBlobOnly: CitationSource[] = [
+        {
+          title: 'Internal Document',
+          blob_id: 'blob_internal_2024'
+        }
+      ]
+
+      render(
+        <CitationProvider>
+          <Citations sources={sourcesWithBlobOnly} messageId="test-blob-2" />
+        </CitationProvider>
+      )
+
+      await waitFor(() => {
+        expect(screen.getByText(/Used 1 source/)).toBeInTheDocument()
+      })
+    })
+
+    it('handles mixed sources (URL and blob_id)', async () => {
+      const mixedSources: CitationSource[] = [
+        {
+          url: 'https://external.com/article',
+          title: 'External Article',
+          snippet: '...external...'
+        },
+        {
+          title: 'Internal Guide',
+          snippet: '...internal...',
+          blob_id: 'blob_guide_2024'
+        }
+      ]
+
+      render(
+        <CitationProvider>
+          <Citations sources={mixedSources} messageId="test-blob-3" />
+        </CitationProvider>
+      )
+
+      await waitFor(() => {
+        expect(screen.getByText(/Used 2 sources/)).toBeInTheDocument()
+      })
+    })
+
+    it('handles sources with both URL and blob_id', async () => {
+      const sourcesWithBoth: CitationSource[] = [
+        {
+          url: 'https://docs.example.com/guide',
+          title: 'Complete Guide',
+          snippet: '...guide excerpt...',
+          blob_id: 'blob_complete_guide_2024'
+        }
+      ]
+
+      render(
+        <CitationProvider>
+          <Citations sources={sourcesWithBoth} messageId="test-blob-4" />
+        </CitationProvider>
+      )
+
+      await waitFor(() => {
+        expect(screen.getByText(/Used 1 source/)).toBeInTheDocument()
+      })
+    })
+  })
 })

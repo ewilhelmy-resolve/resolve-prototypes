@@ -102,42 +102,23 @@ function parseCitationMarkers(text: string): {
  * ```
  */
 /**
- * Mock document loading function
- * In production, this would fetch the document content from the API using blob_id
+ * Load document content from blob API
  */
 async function loadDocument(blob_id: string): Promise<string> {
-  // Simulate API call delay
-  await new Promise(resolve => setTimeout(resolve, 500))
+  try {
+    // Fetch from mock service blob endpoint
+    const response = await fetch(`http://localhost:3001/blobs/${blob_id}`)
 
-  // Return mock markdown content
-  return `# Document: ${blob_id}
+    if (!response.ok) {
+      throw new Error(`Failed to load document: ${response.statusText}`)
+    }
 
-## Overview
-This is a mock document loaded using blob_id: \`${blob_id}\`
-
-In production, this would fetch the actual document content from your storage service.
-
-## Features
-- Full markdown support
-- **Bold text** and *italic text*
-- Code blocks
-- Lists and tables
-
-### Code Example
-\`\`\`typescript
-// Example code
-const data = await fetchDocument(blob_id)
-console.log(data)
-\`\`\`
-
-### Table Example
-| Feature | Status |
-|---------|--------|
-| Markdown | ✅ |
-| Images | ✅ |
-| Code | ✅ |
-
-> This is a blockquote with important information.`
+    const data = await response.json()
+    return data.content || 'Document content not available'
+  } catch (error) {
+    console.error('Error loading document from blob API:', error)
+    throw error
+  }
 }
 
 export function ResponseWithInlineCitations({
@@ -220,7 +201,7 @@ export function ResponseWithInlineCitations({
         return (
           <InlineCitation key={idx}>
             <InlineCitationCard>
-              <InlineCitationCardTrigger sources={[source.url]} />
+              <InlineCitationCardTrigger sources={source.url ? [source.url] : []} />
               <InlineCitationCardBody>
                 <div className="p-4 space-y-2">
                   {/* Title as header */}
@@ -228,16 +209,20 @@ export function ResponseWithInlineCitations({
                     {source.title}
                   </h4>
 
-                  {/* Show snippet if present, otherwise show URL */}
+                  {/* Show snippet if present, otherwise show URL or blob info */}
                   {source.snippet ? (
                     <blockquote className="text-sm text-muted-foreground italic border-l-2 border-muted pl-3 py-1">
                       {source.snippet}
                     </blockquote>
-                  ) : (
+                  ) : source.url ? (
                     <p className="text-xs text-muted-foreground break-all">
                       {source.url}
                     </p>
-                  )}
+                  ) : source.blob_id ? (
+                    <p className="text-xs text-muted-foreground">
+                      Full document available
+                    </p>
+                  ) : null}
 
                   {/* Optional description if provided */}
                   {source.description && (
@@ -248,25 +233,27 @@ export function ResponseWithInlineCitations({
 
                   {/* Action links */}
                   <div className="flex flex-col gap-2 pt-2">
-                    {/* View source link */}
-                    <a
-                      href={source.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-xs text-primary hover:underline inline-flex items-center gap-1"
-                      onClick={() => {
-                        // Audit logging
-                        console.log('Inline citation clicked:', {
-                          messageId,
-                          sourceUrl: source.url,
-                          sourceTitle: source.title,
-                          citationIndex: segment.index,
-                          timestamp: new Date().toISOString(),
-                        })
-                      }}
-                    >
-                      View source →
-                    </a>
+                    {/* View source link - only show if URL exists */}
+                    {source.url && (
+                      <a
+                        href={source.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-xs text-primary hover:underline inline-flex items-center gap-1"
+                        onClick={() => {
+                          // Audit logging
+                          console.log('Inline citation clicked:', {
+                            messageId,
+                            sourceUrl: source.url,
+                            sourceTitle: source.title,
+                            citationIndex: segment.index,
+                            timestamp: new Date().toISOString(),
+                          })
+                        }}
+                      >
+                        View source →
+                      </a>
+                    )}
 
                     {/* View full document button if blob_id exists */}
                     {source.blob_id && (
