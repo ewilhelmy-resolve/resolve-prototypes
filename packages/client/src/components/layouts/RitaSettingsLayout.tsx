@@ -78,7 +78,7 @@ export default function RitaSettingsLayout({
 				</SidebarContent>
 			</Sidebar>
 
-			<SidebarInset className="flex flex-col items-start w-full md:ml-[calc(var(--sidebar-width)-5rem)]">
+			<SidebarInset className="flex flex-col items-start w-full md:ml-[calc(var(--sidebar-width)-6rem)]">
 				<main className="w-full p-6">{children}</main>
 			</SidebarInset>
 		</SidebarProvider>
