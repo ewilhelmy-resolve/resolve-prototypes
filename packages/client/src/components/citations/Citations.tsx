@@ -26,6 +26,8 @@ export interface CitationSource {
   title: string
   /** Optional description for the source */
   description?: string
+  /** Optional markdown content for the source */
+  content?: string
 }
 
 /**

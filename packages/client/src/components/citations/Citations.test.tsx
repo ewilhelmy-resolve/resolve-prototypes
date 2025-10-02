@@ -11,12 +11,20 @@ describe('Citations', () => {
   ]
 
   it('renders nothing when sources array is empty', () => {
-    const { container } = render(<Citations sources={[]} />)
+    const { container } = render(
+      <CitationProvider>
+        <Citations sources={[]} />
+      </CitationProvider>
+    )
     expect(container.firstChild).toBeNull()
   })
 
   it('renders nothing when sources is undefined', () => {
-    const { container } = render(<Citations sources={undefined as any} />)
+    const { container } = render(
+      <CitationProvider>
+        <Citations sources={undefined as any} />
+      </CitationProvider>
+    )
     expect(container.firstChild).toBeNull()
   })
 
@@ -27,7 +35,11 @@ describe('Citations', () => {
       { url: 'https://valid.com', title: 'Valid Source' },
     ] as CitationSource[]
 
-    const { container } = render(<Citations sources={invalidSources} />)
+    const { container } = render(
+      <CitationProvider>
+        <Citations sources={invalidSources} messageId="test-invalid" />
+      </CitationProvider>
+    )
 
     // Should still render component with 1 valid source
     expect(container.firstChild).toBeInTheDocument()
@@ -166,6 +178,100 @@ describe('Citations', () => {
 
     await waitFor(() => {
       expect(screen.getByText(/Used 3 sources/)).toBeInTheDocument()
+    })
+  })
+
+  it('renders markdown content when provided in modal variant', async () => {
+    const sourcesWithContent = [
+      {
+        url: 'https://example.com/article',
+        title: 'Test Article',
+        content: '# Heading\n\nThis is **bold** text with a [link](https://example.com).'
+      }
+    ]
+
+    render(
+      <CitationProvider defaultVariant="modal">
+        <Citations sources={sourcesWithContent} messageId="test-content-1" />
+      </CitationProvider>
+    )
+
+    await waitFor(() => {
+      expect(screen.getByText(/Used 1 source/)).toBeInTheDocument()
+    })
+  })
+
+  it('renders markdown content when provided in right-panel variant', async () => {
+    const sourcesWithContent = [
+      {
+        url: 'https://example.com/guide',
+        title: 'Implementation Guide',
+        content: '## Overview\n\n- Item 1\n- Item 2\n\n```bash\nnpm install\n```'
+      }
+    ]
+
+    render(
+      <CitationProvider defaultVariant="right-panel">
+        <Citations sources={sourcesWithContent} messageId="test-content-2" />
+      </CitationProvider>
+    )
+
+    await waitFor(() => {
+      expect(screen.getByText(/Used 1 source/)).toBeInTheDocument()
+    })
+  })
+
+  it('handles mixed sources with and without content', async () => {
+    const mixedSources = [
+      {
+        url: 'https://example.com/with-content',
+        title: 'Article with Content',
+        content: '# Article\n\nFull article text here.'
+      },
+      {
+        url: 'https://example.com/no-content',
+        title: 'Link Only'
+      }
+    ]
+
+    render(
+      <CitationProvider defaultVariant="modal">
+        <Citations sources={mixedSources} messageId="test-mixed" />
+      </CitationProvider>
+    )
+
+    await waitFor(() => {
+      expect(screen.getByText(/Used 2 sources/)).toBeInTheDocument()
+    })
+  })
+
+  it('supports complex markdown with tables and code blocks', async () => {
+    const complexSource = [
+      {
+        url: 'https://example.com/complex',
+        title: 'Complex Documentation',
+        content: `# Documentation
+
+| Feature | Status |
+|---------|--------|
+| Tables  | ✅     |
+| Code    | ✅     |
+
+\`\`\`typescript
+const test = () => console.log('test')
+\`\`\`
+`
+      }
+    ]
+
+    render(
+      <CitationProvider defaultVariant="modal">
+        <Citations sources={complexSource} messageId="test-complex" />
+      </CitationProvider>
+    )
+
+    await waitFor(() => {
+      expect(screen.getByText(/Used 1 source/)).toBeInTheDocument()
     })
   })
 })

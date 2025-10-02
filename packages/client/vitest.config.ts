@@ -15,4 +15,14 @@ export default defineConfig({
       '@': path.resolve(__dirname, './src'),
     },
   },
+  // Handle CSS imports from dependencies
+  optimizeDeps: {
+    include: ['katex'],
+  },
+  // Mock CSS modules
+  css: {
+    modules: {
+      classNameStrategy: 'non-scoped' as const,
+    },
+  },
 })

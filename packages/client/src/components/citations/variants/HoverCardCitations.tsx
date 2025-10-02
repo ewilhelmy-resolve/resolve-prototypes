@@ -27,6 +27,7 @@ import {
   InlineCitationCarouselNext,
   InlineCitationSource,
 } from '@/components/ai-elements/inline-citation'
+import { Response } from '@/components/ai-elements/response'
 import { cn } from '@/lib/utils'
 import type { CitationsProps } from '../Citations'
 
@@ -66,11 +67,16 @@ export function HoverCardCitations({
           <InlineCitationCardBody>
             {sources.length === 1 ? (
               // Single source - no carousel needed
-              <div className="p-4">
+              <div className="p-4 space-y-3">
                 <InlineCitationSource
                   title={sources[0].title}
                   url={sources[0].url}
                 />
+                {sources[0].content && (
+                  <div className="prose prose-xs dark:prose-invert max-w-none border-t border-border pt-3">
+                    <Response>{sources[0].content}</Response>
+                  </div>
+                )}
               </div>
             ) : (
               // Multiple sources - use carousel
@@ -88,6 +94,11 @@ export function HoverCardCitations({
                         title={source.title}
                         url={source.url}
                       />
+                      {source.content && (
+                        <div className="prose prose-xs dark:prose-invert max-w-none border-t border-border pt-3 mt-3">
+                          <Response>{source.content}</Response>
+                        </div>
+                      )}
                       <a
                         href={source.url}
                         target="_blank"

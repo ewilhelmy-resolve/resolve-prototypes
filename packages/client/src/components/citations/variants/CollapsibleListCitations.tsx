@@ -18,6 +18,7 @@ import {
   SourcesTrigger,
   Source,
 } from '@/components/ai-elements/sources'
+import { Response } from '@/components/ai-elements/response'
 import type { CitationsProps } from '../Citations'
 
 /**
@@ -47,11 +48,17 @@ export function CollapsibleListCitations({
       <SourcesTrigger count={sources.length} />
       <SourcesContent>
         {sources.map((source, index) => (
-          <Source
-            key={`${messageId}-${index}`}
-            href={source.url}
-            title={source.title}
-          />
+          <div key={`${messageId}-${index}`} className="space-y-2">
+            <Source
+              href={source.url}
+              title={source.title}
+            />
+            {source.content && (
+              <div className="pl-6 prose prose-sm dark:prose-invert max-w-none">
+                <Response>{source.content}</Response>
+              </div>
+            )}
+          </div>
         ))}
       </SourcesContent>
     </Sources>

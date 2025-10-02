@@ -554,8 +554,8 @@ The field continues to evolve rapidly, with new models achieving state-of-the-ar
         { url: 'https://industry-reports.com/ai-2024', title: '2024 AI Industry Report' }
       ]
     });
-  } else if (content.toLowerCase().startsWith('modal')) {
-    // modal: Test modal citation variant
+  } else if (content.toLowerCase().startsWith('modal') && !content.toLowerCase().includes('article')) {
+    // modal: Test modal citation variant (generic, without article content)
     parts.push({
       type: 'text',
       text: `## Modal Citations Demo
@@ -575,7 +575,7 @@ Click "Used 3 sources" below to see the modal citation display.`
       ],
       citationVariant: 'modal'
     });
-  } else if (content.toLowerCase().startsWith('right-panel') || content.toLowerCase().startsWith('right panel')) {
+  } else if ((content.toLowerCase().startsWith('right-panel') || content.toLowerCase().startsWith('right panel')) && !content.toLowerCase().includes('article')) {
     // right-panel: Test right-panel citation variant
     parts.push({
       type: 'text',
@@ -637,6 +637,775 @@ Click "Used 3 sources" below to expand the collapsible list.`
         { url: 'https://accessibility-research.org/expand-collapse', title: 'Accessible Expand/Collapse Controls' }
       ],
       citationVariant: 'collapsible-list'
+    });
+  } else if (content.toLowerCase().includes('modal') && content.toLowerCase().includes('article')) {
+    // modal with article: Test modal with large markdown content
+    parts.push({
+      type: 'text',
+      text: `## Modal with Article Content
+
+This demo showcases the modal citation variant displaying full markdown articles with complex formatting including headings, tables, lists, and code blocks.
+
+The modal provides a focused reading experience ideal for longer reference materials. When users need to dive deep into source documentation, the modal overlay removes distractions and centers attention on the content.
+
+Click "Used 2 sources" below to view detailed technical articles in the modal.`
+    });
+    parts.push({
+      type: 'sources',
+      sources: [
+        {
+          url: 'https://docs.resolve.com/rita/automation-guide',
+          title: 'Rita Automation Guide - Complete Reference',
+          content: `# Rita Automation System
+
+## Overview
+
+The Rita automation system provides enterprise-grade workflow automation with **SOC2 Type II compliance** and comprehensive audit logging.
+
+## Architecture Components
+
+| Component | Purpose | Technology Stack |
+|-----------|---------|-----------------|
+| API Server | REST endpoints | Node.js, Express |
+| Queue System | Async processing | RabbitMQ |
+| Database | Persistent storage | PostgreSQL |
+| Client | React UI | React 18, TypeScript |
+
+## Getting Started
+
+### Installation
+
+\`\`\`bash
+npm install @resolve/rita-client
+npm install @resolve/rita-api
+\`\`\`
+
+### Configuration
+
+1. **Environment Setup**: Configure your \`.env\` file
+2. **Database Migration**: Run \`npm run migrate\`
+3. **Start Services**: Use \`docker compose up -d\`
+
+## Key Features
+
+### Workflow Automation
+
+- **Trigger-based execution** - Execute workflows based on events
+- **Conditional logic** - Complex decision trees and branching
+- **Error handling** - Automatic retry with exponential backoff
+- **Monitoring** - Real-time status tracking and alerting
+
+### Security & Compliance
+
+The platform implements industry-standard security practices:
+
+- 🔒 **Encryption**: AES-256 for data at rest, TLS 1.3 for transit
+- 🔐 **Authentication**: OAuth 2.0 with Keycloak integration
+- 📊 **Audit Logs**: Comprehensive activity tracking
+- ✅ **SOC2 Compliance**: Full Type II certification
+
+## Performance Metrics
+
+Our automation system handles enterprise-scale workloads:
+
+| Metric | Value | Notes |
+|--------|-------|-------|
+| Throughput | 10,000 tasks/sec | Peak load capacity |
+| Latency | < 50ms | P95 response time |
+| Availability | 99.99% | SLA guarantee |
+| Scalability | Horizontal | Auto-scaling enabled |
+
+## Best Practices
+
+### Error Handling
+
+\`\`\`typescript
+try {
+  await executeWorkflow(params)
+} catch (error) {
+  logger.error('Workflow failed', { error, workflowId })
+  await retry(executeWorkflow, params, { maxRetries: 3 })
+}
+\`\`\`
+
+### Monitoring
+
+Set up comprehensive monitoring with:
+
+- **Health checks**: Every 30 seconds
+- **Metrics collection**: Prometheus + Grafana
+- **Alerting**: PagerDuty integration
+- **Log aggregation**: ELK stack
+
+## Advanced Topics
+
+### Custom Workflow Development
+
+Create custom workflows using our TypeScript SDK:
+
+\`\`\`typescript
+import { Workflow, Task } from '@resolve/rita-sdk'
+
+const workflow = new Workflow({
+  name: 'data-processing',
+  triggers: ['file.uploaded'],
+  tasks: [
+    new Task.Validate(),
+    new Task.Transform(),
+    new Task.Store()
+  ]
+})
+\`\`\`
+
+### Integration Patterns
+
+Rita supports multiple integration patterns:
+
+1. **RESTful APIs** - Standard HTTP endpoints
+2. **GraphQL** - Flexible query language
+3. **Webhooks** - Event-driven notifications
+4. **SSE** - Real-time updates via Server-Sent Events
+
+> 💡 **Pro Tip**: Use webhooks for asynchronous workflows and SSE for real-time UI updates.
+
+## Troubleshooting
+
+Common issues and solutions:
+
+| Issue | Cause | Solution |
+|-------|-------|----------|
+| Queue backup | High load | Scale workers horizontally |
+| Slow queries | Missing indexes | Run query optimizer |
+| Auth failures | Token expiration | Implement token refresh |
+
+## Support
+
+- 📚 **Documentation**: https://docs.resolve.com
+- 💬 **Community**: https://community.resolve.com
+- 📧 **Enterprise Support**: support@resolve.com`
+        },
+        {
+          url: 'https://research.automation/enterprise-patterns-2024',
+          title: 'Enterprise Automation Patterns 2024',
+          content: `# Enterprise Automation Patterns
+
+## Executive Summary
+
+This comprehensive study analyzes enterprise automation patterns across **500+ organizations** implementing workflow automation at scale.
+
+## Methodology
+
+### Research Approach
+
+| Phase | Activities | Duration |
+|-------|-----------|----------|
+| Discovery | Stakeholder interviews | 3 months |
+| Analysis | Pattern identification | 2 months |
+| Validation | Case studies | 4 months |
+
+## Key Findings
+
+### Pattern Categories
+
+1. **Event-Driven Architecture**
+   - Decoupled components
+   - Asynchronous processing
+   - High scalability
+   - Complex debugging
+
+2. **Orchestration vs Choreography**
+   - **Orchestration**: Central coordinator
+   - **Choreography**: Distributed coordination
+   - Trade-offs in complexity and resilience
+
+3. **Error Recovery Strategies**
+   - **Retry with backoff**: 87% adoption
+   - **Dead letter queues**: 72% adoption
+   - **Circuit breakers**: 65% adoption
+   - **Compensation transactions**: 43% adoption
+
+## Implementation Statistics
+
+\`\`\`
+Technology Adoption (2024):
+━━━━━━━━━━━━━━━━━━━━━━━━━━
+RabbitMQ:    ████████████████ 45%
+Apache Kafka: ███████████████ 42%
+AWS SQS:     ████████ 23%
+Azure Service Bus: ████ 18%
+\`\`\`
+
+### Success Metrics
+
+Companies implementing automation patterns reported:
+
+- ⬆️ **67% increase** in operational efficiency
+- ⬇️ **54% reduction** in manual errors
+- ⬆️ **89% improvement** in response times
+- ⬇️ **41% decrease** in operational costs
+
+## Architectural Patterns
+
+### The Saga Pattern
+
+For distributed transactions:
+
+\`\`\`typescript
+class OrderSaga {
+  async execute() {
+    await reserveInventory()
+    await processPayment()
+    await scheduleShipping()
+  }
+
+  async compensate() {
+    await refundPayment()
+    await releaseInventory()
+  }
+}
+\`\`\`
+
+### Event Sourcing
+
+Benefits and trade-offs:
+
+| Aspect | Benefit | Trade-off |
+|--------|---------|-----------|
+| Audit trail | Complete history | Storage costs |
+| Time travel | Debug past states | Complexity |
+| Replay | Rebuild state | Processing time |
+
+## Security Considerations
+
+### Zero Trust Architecture
+
+- **Verify explicitly**: Authenticate every request
+- **Least privilege**: Minimum necessary access
+- **Assume breach**: Continuous monitoring
+
+### Encryption Strategy
+
+\`\`\`
+Data Protection Layers:
+┌────────────────────────┐
+│ Application Level      │ ← End-to-end encryption
+├────────────────────────┤
+│ Transport Level        │ ← TLS 1.3
+├────────────────────────┤
+│ Storage Level          │ ← AES-256
+└────────────────────────┘
+\`\`\`
+
+## Conclusion
+
+Enterprise automation requires careful pattern selection based on:
+
+- **Scale requirements**
+- **Latency constraints**
+- **Consistency needs**
+- **Operational complexity tolerance**
+
+The most successful implementations combine multiple patterns adapted to specific use cases rather than applying a one-size-fits-all approach.`
+        }
+      ],
+      citationVariant: 'modal'
+    });
+  } else if (content.toLowerCase().includes('right') && content.toLowerCase().includes('panel') && content.toLowerCase().includes('article')) {
+    // right-panel with article: Test right panel with large markdown content
+    parts.push({
+      type: 'text',
+      text: `## Right Panel with Article Content
+
+This demonstration features the right panel citation variant with comprehensive markdown articles. The side-by-side layout allows you to reference documentation while continuing to read the conversation.
+
+The right panel excels at providing contextual information without interrupting the user's current flow. It's particularly effective for technical documentation where users frequently cross-reference specifications.
+
+Click "Used 2 sources" below to open the side panel with detailed technical references.`
+    });
+    parts.push({
+      type: 'sources',
+      sources: [
+        {
+          url: 'https://docs.accessibility.org/wcag-2.1-aa-implementation',
+          title: 'WCAG 2.1 AA Implementation Guide',
+          content: `# WCAG 2.1 AA Compliance
+
+## Introduction
+
+Web Content Accessibility Guidelines (WCAG) 2.1 Level AA provides the framework for creating accessible web experiences that work for users with diverse abilities.
+
+## Core Principles (POUR)
+
+| Principle | Description | Key Requirements |
+|-----------|-------------|------------------|
+| **Perceivable** | Information must be presentable | Alt text, captions, color contrast |
+| **Operable** | UI components must be usable | Keyboard navigation, sufficient time |
+| **Understandable** | Content must be clear | Readable text, predictable behavior |
+| **Robust** | Content works across technologies | Valid markup, compatibility |
+
+## Level AA Requirements
+
+### Visual Requirements
+
+#### Color Contrast
+
+- **Normal text**: Minimum 4.5:1 contrast ratio
+- **Large text** (18pt+): Minimum 3:1 contrast ratio
+- **UI components**: 3:1 for interactive elements
+
+\`\`\`css
+/* Good contrast example */
+.text-primary {
+  color: #1a1a1a;        /* Near black */
+  background: #ffffff;    /* White */
+  /* Contrast ratio: 19.56:1 ✅ */
+}
+
+.button-primary {
+  color: #ffffff;
+  background: #0066cc;    /* Blue */
+  /* Contrast ratio: 4.55:1 ✅ */
+}
+\`\`\`
+
+#### Text Resizing
+
+Users must be able to resize text up to **200%** without loss of content or functionality.
+
+### Keyboard Accessibility
+
+#### Focus Management
+
+All interactive elements must be keyboard accessible:
+
+\`\`\`typescript
+// Proper focus trap in modal
+function Modal({ children, onClose }) {
+  const firstFocusable = useRef<HTMLElement>()
+  const lastFocusable = useRef<HTMLElement>()
+
+  useEffect(() => {
+    firstFocusable.current?.focus()
+
+    const handleTab = (e: KeyboardEvent) => {
+      if (e.key === 'Tab') {
+        // Trap focus within modal
+        trapFocus(e, firstFocusable, lastFocusable)
+      }
+    }
+
+    document.addEventListener('keydown', handleTab)
+    return () => document.removeEventListener('keydown', handleTab)
+  }, [])
+
+  return <div role="dialog" aria-modal="true">{children}</div>
+}
+\`\`\`
+
+#### Skip Links
+
+Provide skip navigation for keyboard users:
+
+\`\`\`html
+<a href="#main-content" class="skip-link">
+  Skip to main content
+</a>
+\`\`\`
+
+### ARIA Implementation
+
+#### Semantic HTML First
+
+Use native HTML elements when possible:
+
+| Instead of | Use |
+|------------|-----|
+| \`<div onclick="...">\` | \`<button>\` |
+| \`<div>\` for navigation | \`<nav>\` |
+| \`<div>\` for lists | \`<ul>\`, \`<ol>\` |
+
+#### ARIA Roles and Properties
+
+\`\`\`tsx
+// Accessible dropdown
+<div role="combobox" aria-expanded={isOpen} aria-haspopup="listbox">
+  <input
+    type="text"
+    aria-label="Search options"
+    aria-autocomplete="list"
+    aria-controls="listbox-id"
+  />
+  <ul role="listbox" id="listbox-id">
+    <li role="option" aria-selected={isSelected}>
+      Option 1
+    </li>
+  </ul>
+</div>
+\`\`\`
+
+## Form Accessibility
+
+### Labels and Instructions
+
+Every form input must have:
+
+1. **Visible label**: \`<label>\` element
+2. **Clear purpose**: Descriptive text
+3. **Error identification**: Specific error messages
+4. **Help text**: Additional guidance when needed
+
+\`\`\`tsx
+<div>
+  <label htmlFor="email">
+    Email Address <span aria-label="required">*</span>
+  </label>
+  <input
+    id="email"
+    type="email"
+    aria-required="true"
+    aria-invalid={hasError}
+    aria-describedby="email-error email-help"
+  />
+  <div id="email-help">We'll never share your email</div>
+  {hasError && (
+    <div id="email-error" role="alert">
+      Please enter a valid email address
+    </div>
+  )}
+</div>
+\`\`\`
+
+## Testing Checklist
+
+### Automated Testing
+
+| Tool | Purpose | Coverage |
+|------|---------|----------|
+| axe-core | Rule-based checking | ~57% WCAG |
+| WAVE | Visual feedback | Basic issues |
+| Lighthouse | Chrome DevTools | Performance + A11y |
+
+### Manual Testing
+
+- ✅ **Keyboard navigation**: Tab through entire interface
+- ✅ **Screen reader**: Test with NVDA/JAWS (Windows) or VoiceOver (Mac)
+- ✅ **Color contrast**: Use contrast checker tools
+- ✅ **Zoom testing**: Test at 200% zoom
+- ✅ **Focus indicators**: Verify visible focus states
+
+## Common Patterns
+
+### Accessible Modal Dialog
+
+\`\`\`typescript
+interface ModalProps {
+  isOpen: boolean
+  onClose: () => void
+  title: string
+  children: React.ReactNode
+}
+
+function AccessibleModal({ isOpen, onClose, title, children }: ModalProps) {
+  return (
+    <Dialog
+      open={isOpen}
+      onClose={onClose}
+      aria-labelledby="modal-title"
+      aria-describedby="modal-description"
+    >
+      <div role="document">
+        <h2 id="modal-title">{title}</h2>
+        <div id="modal-description">
+          {children}
+        </div>
+        <button onClick={onClose} aria-label="Close dialog">
+          ×
+        </button>
+      </div>
+    </Dialog>
+  )
+}
+\`\`\`
+
+### Accessible Data Table
+
+\`\`\`html
+<table>
+  <caption>User Activity Report</caption>
+  <thead>
+    <tr>
+      <th scope="col">Name</th>
+      <th scope="col">Email</th>
+      <th scope="col">Last Login</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th scope="row">John Doe</th>
+      <td>john@example.com</td>
+      <td><time datetime="2024-01-15">Jan 15, 2024</time></td>
+    </tr>
+  </tbody>
+</table>
+\`\`\`
+
+## Resources
+
+- **W3C WCAG 2.1**: https://www.w3.org/WAI/WCAG21/quickref/
+- **MDN Accessibility**: https://developer.mozilla.org/en-US/docs/Web/Accessibility
+- **WebAIM**: https://webaim.org/resources/`
+        },
+        {
+          url: 'https://soc2.compliance.guide/type-ii-requirements',
+          title: 'SOC 2 Type II Requirements & Implementation',
+          content: `# SOC 2 Type II Compliance
+
+## Overview
+
+Service Organization Control (SOC) 2 Type II examines both the **design** and **operational effectiveness** of security controls over time (typically 6-12 months).
+
+## Trust Services Criteria
+
+### Security (Required)
+
+The foundation of SOC 2 compliance:
+
+\`\`\`
+Security Control Framework:
+┌─────────────────────────────────┐
+│ Access Controls                 │
+│ ├─ Authentication              │
+│ ├─ Authorization               │
+│ └─ Least Privilege             │
+├─────────────────────────────────┤
+│ Change Management               │
+│ ├─ Code review process         │
+│ ├─ Deployment procedures       │
+│ └─ Rollback capabilities       │
+├─────────────────────────────────┤
+│ Incident Response               │
+│ ├─ Detection systems           │
+│ ├─ Response procedures         │
+│ └─ Post-incident review        │
+└─────────────────────────────────┘
+\`\`\`
+
+### Additional Criteria (Optional)
+
+| Criterion | Focus Area | Key Controls |
+|-----------|------------|--------------|
+| **Availability** | System uptime | Monitoring, redundancy, disaster recovery |
+| **Processing Integrity** | Data accuracy | Validation, error handling, reconciliation |
+| **Confidentiality** | Data protection | Encryption, access controls, DLP |
+| **Privacy** | PII handling | Consent management, data rights, retention |
+
+## Implementation Requirements
+
+### Access Control Implementation
+
+\`\`\`typescript
+// Multi-factor authentication
+class AuthenticationService {
+  async authenticate(credentials: Credentials): Promise<AuthToken> {
+    // 1. Verify username/password
+    const user = await this.verifyCredentials(credentials)
+
+    // 2. Require MFA
+    if (!user.mfaVerified) {
+      throw new MFARequiredError()
+    }
+
+    // 3. Generate session token
+    const token = await this.generateToken(user, {
+      expiresIn: '8h',
+      refreshable: true
+    })
+
+    // 4. Audit log
+    await this.auditLog.record({
+      event: 'user.authenticated',
+      userId: user.id,
+      timestamp: new Date(),
+      ipAddress: credentials.ipAddress,
+      userAgent: credentials.userAgent
+    })
+
+    return token
+  }
+}
+\`\`\`
+
+### Audit Logging
+
+Comprehensive logging requirements:
+
+| Log Type | Required Fields | Retention |
+|----------|----------------|-----------|
+| Authentication | User ID, timestamp, IP, result | 1 year |
+| Authorization | User, resource, action, result | 1 year |
+| Data Access | User, data type, timestamp | 7 years |
+| Configuration | Change type, user, before/after | 7 years |
+| Security Events | Event type, severity, details | 7 years |
+
+### Encryption Standards
+
+\`\`\`typescript
+// Data encryption implementation
+class EncryptionService {
+  // Data at rest
+  encryptAtRest(data: Buffer): EncryptedData {
+    return {
+      ciphertext: aes256gcm.encrypt(data, this.dataKey),
+      algorithm: 'AES-256-GCM',
+      keyId: this.dataKey.id
+    }
+  }
+
+  // Data in transit
+  tlsConfig(): TLSConfig {
+    return {
+      minVersion: 'TLSv1.3',
+      ciphers: [
+        'TLS_AES_256_GCM_SHA384',
+        'TLS_AES_128_GCM_SHA256'
+      ],
+      honorCipherOrder: true,
+      requireCertificate: true
+    }
+  }
+}
+\`\`\`
+
+## Monitoring & Alerting
+
+### Real-time Monitoring
+
+\`\`\`yaml
+# Monitoring configuration
+monitoring:
+  metrics:
+    - name: authentication_failures
+      threshold: 5
+      window: 5m
+      severity: high
+
+    - name: unauthorized_access_attempts
+      threshold: 3
+      window: 1m
+      severity: critical
+
+    - name: data_access_unusual_volume
+      threshold: 1000
+      window: 1h
+      severity: medium
+
+  alerts:
+    - type: email
+      recipients: [security-team@company.com]
+
+    - type: pagerduty
+      severity: [critical, high]
+
+    - type: slack
+      channel: '#security-alerts'
+\`\`\`
+
+### Incident Response
+
+Response time requirements:
+
+| Severity | Response Time | Resolution Time |
+|----------|---------------|-----------------|
+| Critical | < 15 minutes | < 4 hours |
+| High | < 1 hour | < 24 hours |
+| Medium | < 4 hours | < 5 days |
+| Low | < 24 hours | < 30 days |
+
+## Audit Evidence
+
+### Documentation Requirements
+
+1. **Policies & Procedures**
+   - Information security policy
+   - Access control procedures
+   - Incident response plan
+   - Business continuity plan
+
+2. **Technical Evidence**
+   - System configurations
+   - Access control lists
+   - Audit logs
+   - Vulnerability scans
+   - Penetration test results
+
+3. **Operational Evidence**
+   - Security awareness training records
+   - Background check documentation
+   - Vendor management records
+   - Change management tickets
+
+## Continuous Compliance
+
+### Quarterly Reviews
+
+\`\`\`markdown
+## Q1 2024 Compliance Review Checklist
+
+- [ ] User access review (all systems)
+- [ ] Privileged access verification
+- [ ] Security awareness training completion
+- [ ] Vulnerability management report
+- [ ] Incident response test results
+- [ ] Backup and recovery validation
+- [ ] Third-party audit findings review
+- [ ] Policy updates and acknowledgments
+\`\`\`
+
+### Automation Opportunities
+
+| Process | Automation | Tool |
+|---------|------------|------|
+| Access reviews | Quarterly automated | Okta, Azure AD |
+| Vulnerability scanning | Continuous | Qualys, Nessus |
+| Log analysis | Real-time | Splunk, ELK |
+| Compliance reporting | Monthly | Vanta, Drata |
+
+## Common Pitfalls
+
+⚠️ **Insufficient audit logging**: Ensure all security-relevant events are logged
+
+⚠️ **Missing evidence**: Document everything - if it's not documented, it didn't happen
+
+⚠️ **Scope creep**: Clearly define system boundaries and maintain consistency
+
+⚠️ **Manual processes**: Automate controls where possible to reduce human error
+
+## Certification Timeline
+
+\`\`\`
+SOC 2 Type II Timeline:
+┌────────────────────────────────────────────┐
+│ Months 1-3: Preparation                    │
+│ ├─ Gap assessment                          │
+│ ├─ Control implementation                  │
+│ └─ Documentation                           │
+├────────────────────────────────────────────┤
+│ Months 4-9: Observation Period             │
+│ ├─ Controls operating                      │
+│ ├─ Evidence collection                     │
+│ └─ Continuous monitoring                   │
+├────────────────────────────────────────────┤
+│ Months 10-12: Audit                        │
+│ ├─ Evidence review                         │
+│ ├─ Control testing                         │
+│ └─ Report issuance                         │
+└────────────────────────────────────────────┘
+\`\`\`
+
+Total timeline: **12-18 months** from initiation to report`
+        }
+      ],
+      citationVariant: 'right-panel'
     });
   } else {
     // Default scenario - fall back to original logic
