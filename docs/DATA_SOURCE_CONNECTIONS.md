@@ -23,6 +23,8 @@ This architecture keeps Rita lightweight, eliminates credential storage security
 
 Stores connection metadata, configuration, and sync status for external data sources at the organization level. **Credentials are NOT stored in Rita** - they are managed by the external service using a composite key (`tenant_id`, `connection_id`, `connection_type`).
 
+**Lazy Initialization**: Records are only created when a user first configures a data source. The frontend displays all available data source types (Confluence, ServiceNow, SharePoint, WebSearch) statically, and the database only stores connections that have been configured.
+
 ```sql
 -- Data source connections (Confluence, ServiceNow, SharePoint, etc.)
 CREATE TABLE data_source_connections (
@@ -30,35 +32,35 @@ CREATE TABLE data_source_connections (
   organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
 
   -- Connection metadata
+  type TEXT NOT NULL, -- 'confluence', 'servicenow', 'sharepoint', 'websearch'
   name TEXT NOT NULL,
-  type TEXT NOT NULL, -- 'confluence', 'servicenow', 'sharepoint', 'websearch', etc.
   description TEXT,
 
   -- Configuration (no credentials stored in Rita)
   config JSONB DEFAULT '{}'::jsonb,
 
   -- Current status (what's happening NOW)
-  status TEXT DEFAULT 'unconfigured' NOT NULL, -- 'unconfigured', 'idle', 'syncing'
+  status TEXT DEFAULT 'idle' NOT NULL, -- 'idle', 'syncing'
 
   -- Historical tracking (what happened LAST TIME)
   last_sync_status TEXT DEFAULT NULL, -- NULL, 'completed', 'failed'
 
-  enabled BOOLEAN DEFAULT false, -- Disabled by default until configured
+  enabled BOOLEAN DEFAULT false,
 
   -- Sync tracking
   last_sync_at TIMESTAMP WITH TIME ZONE,
   last_sync_error TEXT,
 
   -- Audit fields
-  created_by UUID, -- Nullable for system-seeded connections
-  updated_by UUID,
+  created_by UUID NOT NULL, -- Always set when user configures connection
+  updated_by UUID NOT NULL,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
 
   -- Soft delete support
   deleted_at TIMESTAMP WITH TIME ZONE,
 
-  CONSTRAINT unique_connection_per_org UNIQUE (organization_id, type, name)
+  CONSTRAINT unique_type_per_org UNIQUE (organization_id, type)
 );
 
 -- Indexes for performance
@@ -97,6 +99,12 @@ CREATE TRIGGER update_data_source_connections_updated_at
 - NO credentials stored in Rita - external service handles all credential storage
 - Extensible for any data source type
 
+### ✅ Type Validation
+- **Application-level validation** enforces allowed data source types
+- Database schema remains generic and flexible
+- Initial release supports: `confluence`, `servicenow`, `sharepoint`, `websearch`
+- Easy to add new types without database migrations
+
 ### ✅ Security
 - **Zero credential storage** - Rita never stores credentials in the database
 - Credentials are passed to external service via HTTPS webhooks only
@@ -116,13 +124,54 @@ CREATE TRIGGER update_data_source_connections_updated_at
 
 ## Connection Types
 
-Supported data source types (extensible):
+Supported data source types are validated at the **application level** for flexibility:
+
+**Initial Release (4 types)**:
+- `confluence` - Atlassian Confluence
+- `servicenow` - ServiceNow
+- `sharepoint` - Microsoft SharePoint
+- `websearch` - Web Search
+
+**Application-Level Validation**:
+```typescript
+// packages/api-server/src/constants/dataSources.ts
+export const ALLOWED_DATA_SOURCE_TYPES = [
+  'confluence',
+  'servicenow',
+  'sharepoint',
+  'websearch'
+] as const;
+
+export type DataSourceType = typeof ALLOWED_DATA_SOURCE_TYPES[number];
+
+export function isValidDataSourceType(type: string): type is DataSourceType {
+  return ALLOWED_DATA_SOURCE_TYPES.includes(type as DataSourceType);
+}
+```
+
+**Validation in API Endpoints**:
+```typescript
+// PUT /api/v1/data-sources/:type
+async function upsertDataSource(req: Request, res: Response) {
+  const { type } = req.params;
+
+  // Validate type is allowed
+  if (!isValidDataSourceType(type)) {
+    return res.status(400).json({
+      error: 'Invalid data source type',
+      message: `Type '${type}' is not supported`,
+      allowed_types: ALLOWED_DATA_SOURCE_TYPES
+    });
+  }
+
+  // Proceed with UPSERT...
+}
+```
+
+**Future Extensible Types** (not in initial release):
 
 | Type | Description | Config Example |
 |------|-------------|----------------|
-| `confluence` | Atlassian Confluence | `{ "url": "https://company.atlassian.net/wiki", "spaceKeys": [...] }` |
-| `servicenow` | ServiceNow | `{ "instance": "...", "tables": [...] }` |
-| `sharepoint` | Microsoft SharePoint | `{ "siteUrl": "...", "driveId": "..." }` |
 | `jira` | Atlassian Jira | `{ "baseUrl": "...", "projectKeys": [...] }` |
 | `gdrive` | Google Drive | `{ "folderId": "...", "recursive": true }` |
 | `slack` | Slack | `{ "channelIds": [...], "includeThreads": true }` |
@@ -185,9 +234,10 @@ Different data sources use different authentication methods:
 
 Represents what is happening **NOW** with the connection:
 
-- **`unconfigured`** - Connection seeded/created but not configured (no credentials/config set)
 - **`idle`** - Connection is configured and ready, not currently syncing
 - **`syncing`** - External service is currently performing a sync operation
+
+**Note**: If a connection doesn't exist in the database, it's "unconfigured" from the user's perspective. The frontend displays all 4 data source types statically, and only configured connections exist in the database.
 
 ### Historical Status (`last_sync_status` field)
 
@@ -206,7 +256,7 @@ Represents what happened during the **LAST SYNC**:
 
 | status | enabled | last_sync_status | Meaning |
 |--------|---------|------------------|---------|
-| `unconfigured` | `false` | `NULL` | Seeded, never configured |
+| *(not in DB)* | *(N/A)* | *(N/A)* | Not configured yet (frontend displays option) |
 | `idle` | `true` | `NULL` | Configured, never synced |
 | `syncing` | `true` | `NULL` | First sync in progress |
 | `idle` | `true` | `completed` | Configured, last sync succeeded |
@@ -216,54 +266,80 @@ Represents what happened during the **LAST SYNC**:
 | `idle` | `false` | `completed` | Disabled (was working) |
 | `idle` | `false` | `failed` | Disabled (after failure) |
 
-## Seeding Default Connections
+## On-Demand Seeding via API Endpoint
 
-When a new organization is created, Rita automatically seeds unconfigured connection placeholders for common data sources:
+**Backend owns the list of default data source types** and creates placeholder records on-demand via a dedicated seeding endpoint.
 
-```sql
--- Seed default data source connections for new organization
--- This should be called when an organization is created
-
-INSERT INTO data_source_connections (
-  organization_id,
-  name,
-  type,
-  description,
-  config,
-  status,
-  enabled,
-  created_by
-) VALUES
-  -- Confluence
-  ($1, 'Confluence', 'confluence', 'Connect your Atlassian Confluence workspace', '{}'::jsonb, 'unconfigured', false, NULL),
-
-  -- ServiceNow
-  ($1, 'ServiceNow', 'servicenow', 'Connect your ServiceNow instance', '{}'::jsonb, 'unconfigured', false, NULL),
-
-  -- SharePoint
-  ($1, 'SharePoint', 'sharepoint', 'Connect your Microsoft SharePoint', '{}'::jsonb, 'unconfigured', false, NULL),
-
-  -- Web Search
-  ($1, 'Web Search', 'websearch', 'Search the public web', '{}'::jsonb, 'unconfigured', false, NULL)
-
-ON CONFLICT (organization_id, type, name) DO NOTHING;
-```
+**Database records are created when user first visits the data sources page:**
+- Frontend calls `POST /api/v1/data-sources/seed` to ensure default data sources exist
+- Endpoint is **idempotent** - safe to call multiple times, only creates missing records
+- Backend creates 4 default placeholder records: Confluence, ServiceNow, SharePoint, WebSearch
+- Records created with `status='idle'`, `enabled=false` (unconfigured state)
 
 **Lifecycle Flow**:
-1. **Organization Created** → Seed 4 unconfigured connections: `status='unconfigured'`, `enabled=false`, `last_sync_status=NULL`
-2. **User Enters Credentials** → Clicks "Verify" → Rita calls `data_source_verify` webhook → External service validates AND stores credentials
-3. **External Service Responds** → Returns available options (spaces, tables, etc.) → Credentials now stored using composite key (`tenant_id`, `connection_id`, `connection_type`)
-4. **User Selects Options** → Clicks "Save" → Rita saves ONLY `config` (no credentials), sets `status='idle'`, `enabled=true`, `last_sync_status=NULL`
-5. **User Triggers Sync** → Set `status='syncing'`, call `data_source_sync_requested` webhook → External service looks up stored credentials
-6. **Sync Completes** → RabbitMQ message updates `status='idle'`, `last_sync_status='completed'` or `'failed'`
+1. **Organization Created** → No database records created
+2. **User Navigates to Data Sources Page** → Frontend calls `POST /api/v1/data-sources/seed`
+3. **Seed Endpoint** → Idempotently creates 4 default data source records if they don't exist
+4. **Frontend Fetches** → `GET /api/v1/data-sources` returns all data sources (now includes 4 defaults)
+5. **User Clicks "Configure"** → Opens configuration modal for that data source
+6. **User Enters Credentials** → Clicks "Verify" → Rita calls `data_source_verify` webhook
+7. **External Service Responds** → Validates credentials, stores them using (`tenant_id`, `connection_id`, `connection_type`), returns available options
+8. **User Selects Options** → Clicks "Save" → Rita updates database record:
+   - Sets `config` with user's selections
+   - Sets `status='idle'`, `enabled=true`, `last_sync_status=NULL`
+9. **User Triggers Sync** → Set `status='syncing'`, call `data_source_sync_requested` webhook
+10. **Sync Completes** → RabbitMQ message updates `status='idle'`, `last_sync_status='completed'` or `'failed'`
 
-**Frontend Display**:
-- Show all seeded connections with "Configure" button for `unconfigured` status
-- Configuration modal has two steps:
-  1. Enter credentials → "Verify" button → Show loading state
-  2. Select from available options (returned from verify) → "Save" button
-- Only `enabled = true` connections can be synced
-- Grey out/disable unconfigured connections in UI
+**Frontend Load Logic**:
+```typescript
+// When user navigates to data sources page
+async function loadDataSources() {
+  // 1. Ensure default data sources exist (idempotent - safe to call every time)
+  await fetch('/api/v1/data-sources/seed', {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${token}` }
+  });
+
+  // 2. Fetch all data sources (guaranteed to have the 4 defaults now)
+  const response = await fetch('/api/v1/data-sources', {
+    headers: { 'Authorization': `Bearer ${token}` }
+  });
+
+  const { data } = await response.json();
+
+  // 3. Display all connections
+  // - "Configure" button for enabled=false (not configured)
+  // - "Edit" / "Sync" buttons for enabled=true (configured)
+  setDataSources(data);
+}
+```
+
+**Default Data Sources** (backend-defined):
+```typescript
+// packages/api-server/src/constants/dataSources.ts
+export const DEFAULT_DATA_SOURCES = [
+  {
+    type: 'confluence',
+    name: 'Confluence',
+    description: 'Connect your Atlassian Confluence workspace'
+  },
+  {
+    type: 'servicenow',
+    name: 'ServiceNow',
+    description: 'Connect your ServiceNow instance'
+  },
+  {
+    type: 'sharepoint',
+    name: 'SharePoint',
+    description: 'Connect your Microsoft SharePoint'
+  },
+  {
+    type: 'websearch',
+    name: 'Web Search',
+    description: 'Search the public web'
+  }
+] as const;
+```
 
 ## Webhook Flow & RabbitMQ Integration
 
@@ -754,6 +830,93 @@ async function triggerSync(connectionId: string) {
 ```
 
 ## API Endpoints
+
+### POST /api/v1/data-sources/seed
+
+Idempotently create placeholder records for the 4 default data source types if they don't exist yet.
+
+**Purpose**: Called by the frontend when user navigates to the data sources page to ensure default data sources exist.
+
+**Idempotent**: Safe to call multiple times - only creates records that don't exist.
+
+**Request Body**: Empty
+
+**Backend Processing**:
+```typescript
+async function seedDefaultDataSources(req: Request, res: Response) {
+  const { organizationId, userId } = req.user;
+
+  const DEFAULT_DATA_SOURCES = [
+    { type: 'confluence', name: 'Confluence', description: 'Connect your Atlassian Confluence workspace' },
+    { type: 'servicenow', name: 'ServiceNow', description: 'Connect your ServiceNow instance' },
+    { type: 'sharepoint', name: 'SharePoint', description: 'Connect your Microsoft SharePoint' },
+    { type: 'websearch', name: 'Web Search', description: 'Search the public web' }
+  ];
+
+  const client = await pool.connect();
+
+  try {
+    await client.query('BEGIN');
+
+    const created = [];
+    const existing = [];
+
+    for (const source of DEFAULT_DATA_SOURCES) {
+      const result = await client.query(`
+        INSERT INTO data_source_connections (
+          organization_id, type, name, description,
+          status, enabled, created_by, updated_by
+        )
+        VALUES ($1, $2, $3, $4, 'idle', false, $5, $5)
+        ON CONFLICT (organization_id, type) DO NOTHING
+        RETURNING id, type, name
+      `, [organizationId, source.type, source.name, source.description, userId]);
+
+      if (result.rows.length > 0) {
+        created.push(result.rows[0]);
+      } else {
+        existing.push(source.type);
+      }
+    }
+
+    await client.query('COMMIT');
+
+    return res.json({
+      success: true,
+      created: created.length,
+      existing: existing.length,
+      message: `Created ${created.length} new data sources, ${existing.length} already existed`
+    });
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+```
+
+**Response** (first time):
+```json
+{
+  "success": true,
+  "created": 4,
+  "existing": 0,
+  "message": "Created 4 new data sources, 0 already existed"
+}
+```
+
+**Response** (subsequent calls):
+```json
+{
+  "success": true,
+  "created": 0,
+  "existing": 4,
+  "message": "Created 0 new data sources, 4 already existed"
+}
+```
+
+---
 
 ### GET /api/v1/data-sources
 
