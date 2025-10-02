@@ -57,7 +57,6 @@ import type {
   SimpleChatMessage,
   GroupedChatMessage,
 } from '@/stores/conversationStore'
-import { getMessageType } from '@/stores/conversationStore'
 import { useConversationStore } from '@/stores/conversationStore'
 
 export interface ChatV1ContentProps {
@@ -157,77 +156,76 @@ function GroupedMessage({ message, onCopy, isCopied }: {
     <Message from={message.role}>
       <div className="flex flex-col w-full">
         <MessageContent variant="flat">
-          {message.parts.map((part, index) => {
-            const type = getMessageType({ metadata: part.metadata } as RitaMessage)
+          {message.parts.map((part, index) => (
+            <Fragment key={part.id}>
+              {/* Render reasoning if present */}
+              {part.metadata?.reasoning && (
+                <Reasoning isStreaming={Boolean(part.metadata.reasoning.streaming)}>
+                  <ReasoningTrigger />
+                  <ReasoningContent>{part.metadata.reasoning.content}</ReasoningContent>
+                </Reasoning>
+              )}
 
-            switch (type) {
-              case 'reasoning':
-                return (
-                  <Reasoning key={part.id} isStreaming={Boolean(part.metadata?.reasoning?.streaming)}>
-                    <ReasoningTrigger />
-                    <ReasoningContent>{part.metadata?.reasoning?.content}</ReasoningContent>
-                  </Reasoning>
-                )
-
-              case 'text':
+              {/* Render text content if present */}
+              {(() => {
                 // Check if the NEXT part is sources (for potential inline citations)
                 const nextPart = message.parts[index + 1]
                 const nextHasSources = nextPart?.metadata?.sources && nextPart.metadata.sources.length > 0
 
                 // Use inline citations if next part has sources and this text contains markers
-                if (nextHasSources && part.message.includes('[')) {
-                  return (
-                    <ResponseWithInlineCitations
-                      key={part.id}
-                      sources={nextPart.metadata?.sources || []}
-                      messageId={part.id}
-                    >
-                      {part.message}
-                    </ResponseWithInlineCitations>
-                  )
+                if (part.message && part.message.trim().length > 0) {
+                  if (nextHasSources && part.message.includes('[')) {
+                    return (
+                      <ResponseWithInlineCitations
+                        sources={nextPart.metadata?.sources || []}
+                        messageId={part.id}
+                      >
+                        {part.message}
+                      </ResponseWithInlineCitations>
+                    )
+                  }
+                  return <Response>{part.message}</Response>
                 }
-                return <Response key={part.id}>{part.message}</Response>
+                return null
+              })()}
 
-              case 'sources':
+              {/* Render sources if present */}
+              {(() => {
                 // Check if the PREVIOUS part was text with inline citation markers
                 const prevPart = message.parts[index - 1]
                 const prevHasMarkers = prevPart && !prevPart.metadata?.sources &&
                   prevPart.message && prevPart.message.includes('[')
 
                 // Skip rendering sources separately if they were already rendered inline
-                if (prevHasMarkers) {
-                  return null
+                if (part.metadata?.sources && !prevHasMarkers) {
+                  return (
+                    <Citations
+                      sources={part.metadata.sources}
+                      messageId={part.id}
+                      variant={part.metadata?.citation_variant}
+                    />
+                  )
                 }
-
-                return (
-                  <Citations
-                    key={part.id}
-                    sources={part.metadata?.sources || []}
-                    messageId={part.id}
-                    variant={part.metadata?.citation_variant}
-                  />
-                )
-
-              case 'tasks':
-                return (
-                  <div key={part.id} className="mt-4 space-y-2">
-                    {part.metadata?.tasks?.map((task: any, i: number) => (
-                      <Task key={i} defaultOpen={task.defaultOpen || i === 0}>
-                        <TaskTrigger title={task.title} />
-                        <TaskContent>
-                          {task.items.map((item: string, j: number) => (
-                            <TaskItem key={j}>{item}</TaskItem>
-                          ))}
-                        </TaskContent>
-                      </Task>
-                    ))}
-                  </div>
-                )
-
-              default:
                 return null
-            }
-          })}
+              })()}
+
+              {/* Render tasks if present */}
+              {part.metadata?.tasks && (
+                <div className="mt-4 space-y-2">
+                  {part.metadata.tasks.map((task: any, i: number) => (
+                    <Task key={i} defaultOpen={task.defaultOpen || i === 0}>
+                      <TaskTrigger title={task.title} />
+                      <TaskContent>
+                        {task.items.map((item: string, j: number) => (
+                          <TaskItem key={j}>{item}</TaskItem>
+                        ))}
+                      </TaskContent>
+                    </Task>
+                  ))}
+                </div>
+              )}
+            </Fragment>
+          ))}
         </MessageContent>
 
         {/* Show copy action only if there's text content to copy */}
@@ -251,18 +249,20 @@ function SimpleMessage({ message, onCopy, isCopied }: {
 }) {
   return (
     <Message from={message.role}>
-      <MessageContent variant={message.role === 'assistant' ? 'flat' : 'contained'}>
-        <Response>{message.message}</Response>
-      </MessageContent>
+      <div className="flex flex-col w-full">
+        <MessageContent variant={message.role === 'assistant' ? 'flat' : 'contained'}>
+          <Response>{message.message}</Response>
+        </MessageContent>
 
-      {/* Show copy action only for assistant messages with text content */}
-      {message.role === 'assistant' && hasSimpleCopyableContent(message) && (
-        <Actions className="mt-2">
-          <Action onClick={() => onCopy(message.message, message.id)} tooltip="Copy message">
-            {isCopied ? <CheckIcon className="size-3" /> : <CopyIcon className="size-3" />}
-          </Action>
-        </Actions>
-      )}
+        {/* Show copy action only for assistant messages with text content */}
+        {message.role === 'assistant' && hasSimpleCopyableContent(message) && (
+          <Actions className="mt-2">
+            <Action onClick={() => onCopy(message.message, message.id)} tooltip="Copy message">
+              {isCopied ? <CheckIcon className="size-3" /> : <CopyIcon className="size-3" />}
+            </Action>
+          </Actions>
+        )}
+      </div>
     </Message>
   )
 }
@@ -331,7 +331,7 @@ export default function ChatV1Content({
       toast.success('Message copied to clipboard')
       // Reset copied state after 2 seconds (same as ai-elements pattern)
       setTimeout(() => setCopiedMessageId(null), 2000)
-    } catch (error) {
+    } catch (_error) {
       toast.error('Failed to copy message')
     }
   }, [])
