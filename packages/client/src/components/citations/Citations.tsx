@@ -28,6 +28,10 @@ export interface CitationSource {
   description?: string
   /** Optional markdown content for the source */
   content?: string
+  /** Optional snippet/quote excerpt to display */
+  snippet?: string
+  /** Optional blob ID for loading full document */
+  blob_id?: string
 }
 
 /**

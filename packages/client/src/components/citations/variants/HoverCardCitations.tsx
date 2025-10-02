@@ -13,6 +13,7 @@
 
 'use client'
 
+import { useState } from 'react'
 import {
   InlineCitation,
   InlineCitationCard,
@@ -29,7 +30,54 @@ import {
 } from '@/components/ai-elements/inline-citation'
 import { Response } from '@/components/ai-elements/response'
 import { cn } from '@/lib/utils'
-import type { CitationsProps } from '../Citations'
+import type { CitationsProps, CitationSource } from '../Citations'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from '@/components/ui/dialog'
+import { Streamdown } from 'streamdown'
+
+/**
+ * Mock document loading function
+ * In production, this would fetch the document content from the API using blob_id
+ */
+async function loadDocument(blob_id: string): Promise<string> {
+  // Simulate API call delay
+  await new Promise(resolve => setTimeout(resolve, 500))
+
+  // Return mock markdown content
+  return `# Document: ${blob_id}
+
+## Overview
+This is a mock document loaded using blob_id: \`${blob_id}\`
+
+In production, this would fetch the actual document content from your storage service.
+
+## Features
+- Full markdown support
+- **Bold text** and *italic text*
+- Code blocks
+- Lists and tables
+
+### Code Example
+\`\`\`typescript
+// Example code
+const data = await fetchDocument(blob_id)
+console.log(data)
+\`\`\`
+
+### Table Example
+| Feature | Status |
+|---------|--------|
+| Markdown | ✅ |
+| Images | ✅ |
+| Code | ✅ |
+
+> This is a blockquote with important information.`
+}
 
 /**
  * HoverCardCitations - Hover badge with carousel implementation
@@ -52,19 +100,57 @@ export function HoverCardCitations({
   className,
   messageId,
 }: CitationsProps) {
+  const [modalOpen, setModalOpen] = useState(false)
+  const [modalContent, setModalContent] = useState<{ title: string; content: string } | null>(null)
+  const [isLoadingDocument, setIsLoadingDocument] = useState(false)
+
+  // Handle "View full document" click
+  const handleViewFullDocument = async (source: CitationSource) => {
+    if (!source.blob_id) return
+
+    setIsLoadingDocument(true)
+    setModalOpen(true)
+
+    try {
+      const content = await loadDocument(source.blob_id)
+      setModalContent({
+        title: source.title,
+        content,
+      })
+    } catch (error) {
+      console.error('Error loading document:', error)
+      setModalContent({
+        title: source.title,
+        content: 'Error loading document. Please try again.',
+      })
+    } finally {
+      setIsLoadingDocument(false)
+    }
+
+    // Audit logging
+    console.log('Full document requested:', {
+      messageId,
+      sourceTitle: source.title,
+      blobId: source.blob_id,
+      variant: 'hover-card',
+      timestamp: new Date().toISOString(),
+    })
+  }
+
   // Extract URLs for the badge trigger
   const sourceUrls = sources.map(source => source.url)
 
   return (
-    <span
-      className={cn('not-prose inline-flex items-center gap-1', className)}
-      data-message-id={messageId}
-    >
-      <InlineCitation>
-        <InlineCitationCard>
-          <InlineCitationCardTrigger sources={sourceUrls} className="cursor-pointer" />
+    <>
+      <span
+        className={cn('not-prose inline-flex items-center gap-1', className)}
+        data-message-id={messageId}
+      >
+        <InlineCitation>
+          <InlineCitationCard>
+            <InlineCitationCardTrigger sources={sourceUrls} className="cursor-pointer" />
 
-          <InlineCitationCardBody>
+            <InlineCitationCardBody>
             {sources.length === 1 ? (
               // Single source - no carousel needed
               <div className="p-4 space-y-3">
@@ -72,11 +158,54 @@ export function HoverCardCitations({
                   title={sources[0].title}
                   url={sources[0].url}
                 />
+
+                {/* Show snippet if present, otherwise show URL */}
+                {sources[0].snippet ? (
+                  <blockquote className="text-sm text-muted-foreground italic border-l-2 border-muted pl-3 py-1">
+                    {sources[0].snippet}
+                  </blockquote>
+                ) : (
+                  <p className="text-xs text-muted-foreground break-all">
+                    {sources[0].url}
+                  </p>
+                )}
+
                 {sources[0].content && (
                   <div className="prose prose-xs dark:prose-invert max-w-none border-t border-border pt-3">
                     <Response>{sources[0].content}</Response>
                   </div>
                 )}
+
+                {/* Action links */}
+                <div className="flex flex-col gap-2 pt-2">
+                  <a
+                    href={sources[0].url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-xs text-primary hover:underline inline-flex items-center gap-1"
+                    onClick={() => {
+                      console.log('Citation clicked:', {
+                        messageId,
+                        sourceUrl: sources[0].url,
+                        sourceTitle: sources[0].title,
+                        variant: 'hover-card',
+                        timestamp: new Date().toISOString(),
+                      })
+                    }}
+                  >
+                    View source →
+                  </a>
+
+                  {sources[0].blob_id && (
+                    <button
+                      type="button"
+                      onClick={() => handleViewFullDocument(sources[0])}
+                      className="text-xs text-primary hover:underline inline-flex items-center gap-1 text-left"
+                    >
+                      View full document →
+                    </button>
+                  )}
+                </div>
               </div>
             ) : (
               // Multiple sources - use carousel
@@ -94,37 +223,87 @@ export function HoverCardCitations({
                         title={source.title}
                         url={source.url}
                       />
+
+                      {/* Show snippet if present, otherwise show URL */}
+                      {source.snippet ? (
+                        <blockquote className="text-sm text-muted-foreground italic border-l-2 border-muted pl-3 py-1 mt-2">
+                          {source.snippet}
+                        </blockquote>
+                      ) : (
+                        <p className="text-xs text-muted-foreground break-all mt-2">
+                          {source.url}
+                        </p>
+                      )}
+
                       {source.content && (
                         <div className="prose prose-xs dark:prose-invert max-w-none border-t border-border pt-3 mt-3">
                           <Response>{source.content}</Response>
                         </div>
                       )}
-                      <a
-                        href={source.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-xs text-primary hover:underline mt-2 inline-block"
-                        onClick={() => {
-                          // Audit logging for citation clicks
-                          console.log('Citation clicked:', {
-                            messageId,
-                            sourceUrl: source.url,
-                            sourceTitle: source.title,
-                            variant: 'hover-card',
-                            timestamp: new Date().toISOString(),
-                          })
-                        }}
-                      >
-                        View source →
-                      </a>
+
+                      {/* Action links */}
+                      <div className="flex flex-col gap-2 mt-2">
+                        <a
+                          href={source.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-xs text-primary hover:underline inline-flex items-center gap-1"
+                          onClick={() => {
+                            // Audit logging for citation clicks
+                            console.log('Citation clicked:', {
+                              messageId,
+                              sourceUrl: source.url,
+                              sourceTitle: source.title,
+                              variant: 'hover-card',
+                              timestamp: new Date().toISOString(),
+                            })
+                          }}
+                        >
+                          View source →
+                        </a>
+
+                        {source.blob_id && (
+                          <button
+                            type="button"
+                            onClick={() => handleViewFullDocument(source)}
+                            className="text-xs text-primary hover:underline inline-flex items-center gap-1 text-left"
+                          >
+                            View full document →
+                          </button>
+                        )}
+                      </div>
                     </InlineCitationCarouselItem>
                   ))}
                 </InlineCitationCarouselContent>
               </InlineCitationCarousel>
             )}
-          </InlineCitationCardBody>
-        </InlineCitationCard>
-      </InlineCitation>
-    </span>
+            </InlineCitationCardBody>
+          </InlineCitationCard>
+        </InlineCitation>
+      </span>
+
+      {/* Modal for full document view */}
+      <Dialog open={modalOpen} onOpenChange={setModalOpen}>
+        <DialogContent className="sm:max-w-5xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{modalContent?.title || 'Document'}</DialogTitle>
+            <DialogDescription>
+              Full document content
+            </DialogDescription>
+          </DialogHeader>
+          <div className="prose dark:prose-invert max-w-none">
+            {isLoadingDocument ? (
+              <div className="flex items-center justify-center py-8">
+                <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full" />
+              </div>
+            ) : modalContent?.content ? (
+              <Streamdown>{modalContent.content}</Streamdown>
+            ) : (
+              <p className="text-muted-foreground">No content available</p>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
   )
 }

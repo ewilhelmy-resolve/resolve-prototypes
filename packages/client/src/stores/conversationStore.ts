@@ -23,8 +23,10 @@ export interface Message {
       url: string
       title: string
       description?: string
+      snippet?: string
+      blob_id?: string
     }>
-    citationVariant?: 'collapsible-list' | 'modal' | 'right-panel' | 'hover-card'
+    citation_variant?: 'collapsible-list' | 'modal' | 'right-panel' | 'hover-card'
     tasks?: Array<{
       title: string
       items: string[]

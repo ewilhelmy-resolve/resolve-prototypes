@@ -505,6 +505,184 @@ This tests the complete grouped message functionality.`
         { url: 'https://docs.resolve.com/test9', title: 'Test9 Combination Guide' }
       ]
     });
+  } else if (content.startsWith('inline with snippet')) {
+    // NEW: Inline citations with snippets
+    parts.push({
+      type: 'text',
+      text: `## Inline Citations with Snippets
+
+Research shows that AI models benefit from large-scale training data [1]. Recent breakthroughs have demonstrated remarkable performance improvements [2]. The field continues to evolve rapidly with new architectures [3].
+
+These advancements are reshaping how we approach machine learning problems.`
+    });
+    parts.push({
+      type: 'sources',
+      sources: [
+        {
+          url: 'https://arxiv.org/training-data-2024',
+          title: 'Large-Scale Training Data for AI Models',
+          snippet: '...training on diverse datasets leads to better generalization and improved performance across tasks...'
+        },
+        {
+          url: 'https://research.ai/breakthroughs-2024',
+          title: 'AI Performance Breakthroughs 2024',
+          snippet: '...transformer architectures achieved state-of-the-art results on benchmark evaluations...'
+        },
+        {
+          url: 'https://ml-journal.com/new-architectures',
+          title: 'Novel Neural Network Architectures',
+          snippet: '...attention mechanisms combined with efficient computation enable faster training and inference...'
+        }
+      ]
+    });
+  } else if (content.startsWith('inline without snippet')) {
+    // NEW: Inline citations without snippets (show URLs instead)
+    parts.push({
+      type: 'text',
+      text: `## Inline Citations without Snippets
+
+Enterprise security requires multi-layered defense strategies [1]. Compliance frameworks guide implementation [2]. Regular audits ensure ongoing adherence [3].
+
+These practices form the foundation of modern cybersecurity.`
+    });
+    parts.push({
+      type: 'sources',
+      sources: [
+        {
+          url: 'https://security.enterprise.com/defense-strategies',
+          title: 'Multi-Layered Defense Strategies'
+        },
+        {
+          url: 'https://compliance.gov/frameworks',
+          title: 'Security Compliance Frameworks'
+        },
+        {
+          url: 'https://audit.security.org/best-practices',
+          title: 'Security Audit Best Practices'
+        }
+      ]
+    });
+  } else if (content.startsWith('inline with blob')) {
+    // NEW: Inline citations with blob_id for full document viewing
+    parts.push({
+      type: 'text',
+      text: `## Inline Citations with Full Documents
+
+The comprehensive automation guide [1] details implementation strategies. Architecture patterns [2] provide proven solutions for scaling.
+
+Click "View full document" to read the complete technical specifications.`
+    });
+    parts.push({
+      type: 'sources',
+      sources: [
+        {
+          url: 'https://docs.resolve.com/automation-guide',
+          title: 'Rita Automation Implementation Guide',
+          snippet: '...comprehensive guide covering architecture, deployment, and best practices for enterprise automation...',
+          blob_id: 'blob_automation_guide_v2024'
+        },
+        {
+          url: 'https://docs.resolve.com/architecture-patterns',
+          title: 'Enterprise Architecture Patterns',
+          snippet: '...scalable patterns for microservices, event-driven systems, and distributed processing...',
+          blob_id: 'blob_architecture_patterns_2024'
+        }
+      ]
+    });
+  } else if (content.startsWith('inline mixed')) {
+    // NEW: Mixed inline citations (some with snippet, some without, some with blob_id)
+    parts.push({
+      type: 'text',
+      text: `## Mixed Inline Citations
+
+Cloud infrastructure [1] enables scalability. Kubernetes orchestration [2] manages containers efficiently. Security hardening [3] protects production systems. Monitoring tools [4] provide visibility.
+
+This demonstrates different citation types working together seamlessly.`
+    });
+    parts.push({
+      type: 'sources',
+      sources: [
+        {
+          url: 'https://cloud.providers.com/infrastructure',
+          title: 'Cloud Infrastructure Fundamentals',
+          snippet: '...elastic compute resources scale on demand to handle varying workloads efficiently...'
+        },
+        {
+          url: 'https://kubernetes.io/docs/orchestration',
+          title: 'Kubernetes Container Orchestration'
+          // No snippet - will show URL
+        },
+        {
+          url: 'https://security.hardening.org/guide',
+          title: 'Production Security Hardening Guide',
+          snippet: '...defense-in-depth strategies with network segmentation, access controls, and encryption...',
+          blob_id: 'blob_security_hardening_2024'
+        },
+        {
+          url: 'https://monitoring.observability.com/tools',
+          title: 'Production Monitoring and Observability',
+          blob_id: 'blob_monitoring_guide_2024'
+          // Has blob_id but no snippet - will show URL with doc option
+        }
+      ]
+    });
+  } else if (content.startsWith('modal override')) {
+    // NEW: Force modal variant via citation_variant override
+    parts.push({
+      type: 'text',
+      text: `## Modal Citation Override
+
+This response forces the modal citation variant through API override, ignoring the default hover-card behavior configured in the frontend.
+
+The modal provides a focused viewing experience for multiple sources.`
+    });
+    parts.push({
+      type: 'sources',
+      sources: [
+        {
+          url: 'https://ux-research.com/modal-effectiveness',
+          title: 'Modal Dialog Effectiveness Study',
+          snippet: '...modal overlays increase focus and reduce cognitive load when viewing detailed content...'
+        },
+        {
+          url: 'https://design-patterns.org/modal-best-practices',
+          title: 'Modal Design Best Practices',
+          snippet: '...centered layout with backdrop improves user attention and engagement metrics...'
+        },
+        {
+          url: 'https://accessibility.guide/modal-wcag',
+          title: 'Accessible Modal Implementation',
+          snippet: '...proper focus management and keyboard navigation ensure modals work for all users...'
+        }
+      ],
+      citation_variant: 'modal'
+    });
+  } else if (content.startsWith('right-panel override')) {
+    // NEW: Force right-panel variant via citation_variant override
+    parts.push({
+      type: 'text',
+      text: `## Right Panel Citation Override
+
+This response forces the right panel citation variant, overriding the default hover-card behavior.
+
+The side panel allows reading sources while maintaining conversation context.`
+    });
+    parts.push({
+      type: 'sources',
+      sources: [
+        {
+          url: 'https://ux-patterns.com/side-panel-design',
+          title: 'Side Panel Design Patterns',
+          snippet: '...side panels preserve main content visibility while providing auxiliary information access...'
+        },
+        {
+          url: 'https://interaction-design.org/split-view',
+          title: 'Split View Interaction Design',
+          snippet: '...split layouts enable simultaneous viewing of primary and secondary content streams...'
+        }
+      ],
+      citation_variant: 'right-panel'
+    });
   } else if (content.startsWith('test10')) {
     // test10: Reasoning + tasks
     parts.push({
@@ -573,7 +751,7 @@ Click "Used 3 sources" below to see the modal citation display.`
         { url: 'https://research.ux/focused-reading-patterns', title: 'Focused Reading Patterns Study' },
         { url: 'https://docs.modal-design.com/engagement-metrics', title: 'User Engagement with Modal Dialogs' }
       ],
-      citationVariant: 'modal'
+      citation_variant: 'modal'
     });
   } else if ((content.toLowerCase().startsWith('right-panel') || content.toLowerCase().startsWith('right panel')) && !content.toLowerCase().includes('article')) {
     // right-panel: Test right-panel citation variant
@@ -594,7 +772,7 @@ Click "Used 3 sources" below to see the right panel slide out from the side.`
         { url: 'https://webdesign.modern/split-screen-layouts', title: 'Modern Split-Screen Layouts' },
         { url: 'https://research.ui/contextual-information-display', title: 'Contextual Information Display Research' }
       ],
-      citationVariant: 'right-panel'
+      citation_variant: 'right-panel'
     });
   } else if (content.toLowerCase().startsWith('hover-card') || content.toLowerCase().startsWith('hover card')) {
     // hover-card: Test hover-card citation variant with inline markers
@@ -635,7 +813,7 @@ Click "Used 3 sources" below to expand the collapsible list.`
         { url: 'https://web-standards.org/disclosure-widgets', title: 'Disclosure Widget Design Standards' },
         { url: 'https://accessibility-research.org/expand-collapse', title: 'Accessible Expand/Collapse Controls' }
       ],
-      citationVariant: 'collapsible-list'
+      citation_variant: 'collapsible-list'
     });
   } else if (content.toLowerCase().includes('modal') && content.toLowerCase().includes('article')) {
     // modal with article: Test modal with large markdown content
@@ -907,7 +1085,7 @@ Enterprise automation requires careful pattern selection based on:
 The most successful implementations combine multiple patterns adapted to specific use cases rather than applying a one-size-fits-all approach.`
         }
       ],
-      citationVariant: 'modal'
+      citation_variant: 'modal'
     });
   } else if (content.toLowerCase().includes('right') && content.toLowerCase().includes('panel') && content.toLowerCase().includes('article')) {
     // right-panel with article: Test right panel with large markdown content
@@ -1404,7 +1582,7 @@ SOC 2 Type II Timeline:
 Total timeline: **12-18 months** from initiation to report`
         }
       ],
-      citationVariant: 'right-panel'
+      citation_variant: 'right-panel'
     });
   } else {
     // Default scenario - fall back to original logic
@@ -1729,9 +1907,9 @@ This is a basic response format. Set \`MOCK_SCENARIO\` environment variable to g
         metadata[part.type] = { content: part.text, state: part.state };
       } else if (part.type === 'sources') {
         metadata[part.type] = part[part.type];
-        // Include citationVariant if provided
-        if (part.citationVariant) {
-          metadata.citationVariant = part.citationVariant;
+        // Include citation_variant if provided
+        if (part.citation_variant) {
+          metadata.citation_variant = part.citation_variant;
         }
       } else {
         metadata[part.type] = part[part.type];

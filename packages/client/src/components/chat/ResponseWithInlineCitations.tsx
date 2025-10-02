@@ -14,6 +14,7 @@
 
 'use client'
 
+import { useState } from 'react'
 import { Response } from '@/components/ai-elements/response'
 import {
   InlineCitation,
@@ -23,6 +24,14 @@ import {
 } from '@/components/ai-elements/inline-citation'
 import type { CitationSource } from '@/components/citations/Citations'
 import { cn } from '@/lib/utils'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from '@/components/ui/dialog'
+import { Streamdown } from 'streamdown'
 
 export interface ResponseWithInlineCitationsProps {
   /** Message text with citation markers */
@@ -92,12 +101,55 @@ function parseCitationMarkers(text: string): {
  * </ResponseWithInlineCitations>
  * ```
  */
+/**
+ * Mock document loading function
+ * In production, this would fetch the document content from the API using blob_id
+ */
+async function loadDocument(blob_id: string): Promise<string> {
+  // Simulate API call delay
+  await new Promise(resolve => setTimeout(resolve, 500))
+
+  // Return mock markdown content
+  return `# Document: ${blob_id}
+
+## Overview
+This is a mock document loaded using blob_id: \`${blob_id}\`
+
+In production, this would fetch the actual document content from your storage service.
+
+## Features
+- Full markdown support
+- **Bold text** and *italic text*
+- Code blocks
+- Lists and tables
+
+### Code Example
+\`\`\`typescript
+// Example code
+const data = await fetchDocument(blob_id)
+console.log(data)
+\`\`\`
+
+### Table Example
+| Feature | Status |
+|---------|--------|
+| Markdown | ✅ |
+| Images | ✅ |
+| Code | ✅ |
+
+> This is a blockquote with important information.`
+}
+
 export function ResponseWithInlineCitations({
   children,
   sources = [],
   className,
   messageId,
 }: ResponseWithInlineCitationsProps) {
+  const [modalOpen, setModalOpen] = useState(false)
+  const [modalContent, setModalContent] = useState<{ title: string; content: string } | null>(null)
+  const [isLoadingDocument, setIsLoadingDocument] = useState(false)
+
   // If no sources or no citation markers, render as regular Response
   if (!sources || sources.length === 0 || !children.includes('[')) {
     return <Response className={className}>{children}</Response>
@@ -110,10 +162,43 @@ export function ResponseWithInlineCitations({
     return <Response className={className}>{children}</Response>
   }
 
+  // Handle "View full document" click
+  const handleViewFullDocument = async (source: CitationSource) => {
+    if (!source.blob_id) return
+
+    setIsLoadingDocument(true)
+    setModalOpen(true)
+
+    try {
+      const content = await loadDocument(source.blob_id)
+      setModalContent({
+        title: source.title,
+        content,
+      })
+    } catch (error) {
+      console.error('Error loading document:', error)
+      setModalContent({
+        title: source.title,
+        content: 'Error loading document. Please try again.',
+      })
+    } finally {
+      setIsLoadingDocument(false)
+    }
+
+    // Audit logging
+    console.log('Full document requested:', {
+      messageId,
+      sourceTitle: source.title,
+      blobId: source.blob_id,
+      timestamp: new Date().toISOString(),
+    })
+  }
+
   // Render text and citations inline together
   return (
-    <div className={cn('prose dark:prose-invert', className)}>
-      {segments.map((segment, idx) => {
+    <>
+      <div className={cn('prose dark:prose-invert', className)}>
+        {segments.map((segment, idx) => {
         if (segment.type === 'text') {
           // Render text as plain text to keep it inline
           return <span key={idx}>{segment.content}</span>
@@ -143,10 +228,16 @@ export function ResponseWithInlineCitations({
                     {source.title}
                   </h4>
 
-                  {/* URL as description */}
-                  <p className="text-xs text-muted-foreground break-all">
-                    {source.url}
-                  </p>
+                  {/* Show snippet if present, otherwise show URL */}
+                  {source.snippet ? (
+                    <blockquote className="text-sm text-muted-foreground italic border-l-2 border-muted pl-3 py-1">
+                      {source.snippet}
+                    </blockquote>
+                  ) : (
+                    <p className="text-xs text-muted-foreground break-all">
+                      {source.url}
+                    </p>
+                  )}
 
                   {/* Optional description if provided */}
                   {source.description && (
@@ -155,31 +246,69 @@ export function ResponseWithInlineCitations({
                     </p>
                   )}
 
-                  {/* View source link */}
-                  <a
-                    href={source.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-xs text-primary hover:underline inline-flex items-center gap-1"
-                    onClick={() => {
-                      // Audit logging
-                      console.log('Inline citation clicked:', {
-                        messageId,
-                        sourceUrl: source.url,
-                        sourceTitle: source.title,
-                        citationIndex: segment.index,
-                        timestamp: new Date().toISOString(),
-                      })
-                    }}
-                  >
-                    View source →
-                  </a>
+                  {/* Action links */}
+                  <div className="flex flex-col gap-2 pt-2">
+                    {/* View source link */}
+                    <a
+                      href={source.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-xs text-primary hover:underline inline-flex items-center gap-1"
+                      onClick={() => {
+                        // Audit logging
+                        console.log('Inline citation clicked:', {
+                          messageId,
+                          sourceUrl: source.url,
+                          sourceTitle: source.title,
+                          citationIndex: segment.index,
+                          timestamp: new Date().toISOString(),
+                        })
+                      }}
+                    >
+                      View source →
+                    </a>
+
+                    {/* View full document button if blob_id exists */}
+                    {source.blob_id && (
+                      <button
+                        type="button"
+                        onClick={() => handleViewFullDocument(source)}
+                        className="text-xs text-primary hover:underline inline-flex items-center gap-1 text-left"
+                      >
+                        View full document →
+                      </button>
+                    )}
+                  </div>
                 </div>
               </InlineCitationCardBody>
             </InlineCitationCard>
           </InlineCitation>
         )
-      })}
-    </div>
+        })}
+      </div>
+
+      {/* Modal for full document view */}
+      <Dialog open={modalOpen} onOpenChange={setModalOpen}>
+        <DialogContent className="sm:max-w-5xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{modalContent?.title || 'Document'}</DialogTitle>
+            <DialogDescription>
+              Full document content
+            </DialogDescription>
+          </DialogHeader>
+          <div className="prose dark:prose-invert max-w-none">
+            {isLoadingDocument ? (
+              <div className="flex items-center justify-center py-8">
+                <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full" />
+              </div>
+            ) : modalContent?.content ? (
+              <Streamdown>{modalContent.content}</Streamdown>
+            ) : (
+              <p className="text-muted-foreground">No content available</p>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
   )
 }

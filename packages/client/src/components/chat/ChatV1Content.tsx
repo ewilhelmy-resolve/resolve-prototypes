@@ -199,7 +199,7 @@ function GroupedMessage({ message, onCopy, isCopied }: {
                     key={part.id}
                     sources={part.metadata?.sources || []}
                     messageId={part.id}
-                    variant={part.metadata?.citationVariant}
+                    variant={part.metadata?.citation_variant}
                   />
                 )
 
