@@ -597,16 +597,16 @@ Click "Used 3 sources" below to see the right panel slide out from the side.`
       citationVariant: 'right-panel'
     });
   } else if (content.toLowerCase().startsWith('hover-card') || content.toLowerCase().startsWith('hover card')) {
-    // hover-card: Test hover-card citation variant
+    // hover-card: Test hover-card citation variant with inline markers
     parts.push({
       type: 'text',
       text: `## Hover Card Citations Demo
 
-Hover interactions provide instant access to information without requiring explicit clicks. This pattern reduces cognitive load by offering contextual details on demand through simple mouse movement.
+Hover interactions provide instant access to information without requiring explicit clicks [1]. This pattern reduces cognitive load by offering contextual details on demand through simple mouse movement [2].
 
-Tooltip-style hover cards are particularly effective for inline references, allowing readers to quickly preview source information while maintaining reading flow. The interaction feels natural and requires minimal user effort.
+Tooltip-style hover cards are particularly effective for inline references [3], allowing readers to quickly preview source information while maintaining reading flow. The interaction feels natural and requires minimal user effort.
 
-Hover over the inline badge (showing "interaction-design.org +2") to see the hover card with carousel navigation.`
+Hover over any inline badge (like [1] above) to see the hover card with source information.`
     });
     parts.push({
       type: 'sources',
@@ -614,8 +614,7 @@ Hover over the inline badge (showing "interaction-design.org +2") to see the hov
         { url: 'https://interaction-design.org/hover-patterns', title: 'Hover Interaction Design Patterns' },
         { url: 'https://cognitive-ux.research/tooltip-effectiveness', title: 'Cognitive Benefits of Tooltips' },
         { url: 'https://ux-patterns.com/inline-preview-cards', title: 'Inline Preview Cards Best Practices' }
-      ],
-      citationVariant: 'hover-card'
+      ]
     });
   } else if (content.toLowerCase().startsWith('collapsible-list') || content.toLowerCase().startsWith('collapsible list')) {
     // collapsible-list: Test collapsible-list citation variant (baseline)
