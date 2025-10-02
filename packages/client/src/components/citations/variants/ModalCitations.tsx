@@ -51,6 +51,10 @@ export function ModalCitations({
 }: CitationsProps) {
   const [open, setOpen] = useState(false)
 
+  // Check if any source has content - use wider modal for articles
+  const hasContent = sources.some(source => source.content)
+  const modalWidth = hasContent ? 'sm:max-w-7xl' : 'sm:max-w-2xl'
+
   return (
     <div className={cn('not-prose mb-4', className)}>
       <Dialog open={open} onOpenChange={setOpen}>
@@ -69,7 +73,7 @@ export function ModalCitations({
           </Button>
         </DialogTrigger>
 
-      <DialogContent className="max-w-7xl max-h-[85vh] flex flex-col">
+      <DialogContent className={cn(modalWidth, 'max-h-[85vh] flex flex-col')}>
         <DialogHeader>
           <DialogTitle>Sources</DialogTitle>
           <DialogDescription>
