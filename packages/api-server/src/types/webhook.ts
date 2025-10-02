@@ -17,7 +17,9 @@ export interface MessageWebhookPayload extends BaseWebhookPayload {
   customer_message: string;
   message_id: string;
   document_ids?: string[];
-  transcript?: Array<{ role: string; content: string }>;
+  transcript_ids?: {
+    transcripts: Array<{ role: string; content: string }>;
+  };
 }
 
 export interface DocumentProcessingPayload extends BaseWebhookPayload {

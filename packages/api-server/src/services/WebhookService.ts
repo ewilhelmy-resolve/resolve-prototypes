@@ -49,7 +49,9 @@ export class WebhookService {
       customer_message: params.customerMessage,
       message_id: params.messageId,
       document_ids: params.documentIds || [],
-      transcript: params.transcript,
+      transcript_ids: params.transcript ? {
+        transcripts: params.transcript
+      } : undefined,
       timestamp: (params.createdAt || new Date()).toISOString()
     };
 

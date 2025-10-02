@@ -115,7 +115,9 @@ describe('WebhookService', () => {
           message_id: 'msg-101',
           customer_message: 'How are you?',
           document_ids: ['doc-1'],
-          transcript: transcript
+          transcript_ids: {
+            transcripts: transcript
+          }
         }),
         expect.objectContaining({
           headers: {
