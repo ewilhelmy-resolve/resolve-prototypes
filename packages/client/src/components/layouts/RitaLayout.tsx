@@ -38,7 +38,6 @@ import {
   LayoutGrid,
   File,
   Ticket,
-  MessageCirclePlus,
   PanelLeft,
   ChevronDown,
   ALargeSmall,
@@ -100,12 +99,18 @@ function RitaLayoutContent({ children, activePage = "chat" }: RitaLayoutProps) {
 
   // Get user initials for avatar
   const getUserInitials = () => {
-    if (!user?.name) return "U"
-    const parts = user.name.split(" ")
-    if (parts.length >= 2) {
-      return `${parts[0][0]}${parts[1][0]}`.toUpperCase()
+    const firstName = user?.firstName || ''
+    const lastName = user?.lastName || ''
+
+    if (firstName && lastName) {
+      return `${firstName[0]}${lastName[0]}`.toUpperCase()
     }
-    return user.name.substring(0, 2).toUpperCase()
+
+    if (firstName) {
+      return firstName.substring(0, 2).toUpperCase()
+    }
+
+    return "U"
   }
 
   return (
@@ -210,7 +215,9 @@ function RitaLayoutContent({ children, activePage = "chat" }: RitaLayoutProps) {
                     </AvatarFallback>
                   </Avatar>
                   <div className="flex flex-col gap-0.5">
-                    <span className="text-sm font-bold text-sidebar-foreground">{user?.name || "User"}</span>
+                    <span className="text-sm font-bold text-sidebar-foreground">
+                      {user?.firstName && user?.lastName ? `${user.firstName} ${user.lastName}` : user?.username || "User"}
+                    </span>
                     <span className="text-xs text-sidebar-foreground truncate">{user?.email || ""}</span>
                   </div>
                   <ChevronDown className="w-4 h-4 ml-auto" />

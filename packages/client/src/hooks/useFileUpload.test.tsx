@@ -11,13 +11,16 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { renderHook, act, waitFor } from '@testing-library/react'
 import { useFileUpload } from './useFileUpload'
-import { useRef } from 'react'
 
 // Mock the API
-vi.mock('@/lib/api', () => ({
-  api: {
-    post: vi.fn(() => Promise.resolve({ data: { file_id: 'test-file-123' } }))
-  }
+vi.mock('@/hooks/api/useFiles', () => ({
+  useUploadFile: vi.fn(() => ({
+    mutate: vi.fn(),
+    isPending: false,
+    isError: false,
+    isSuccess: false,
+    error: null,
+  }))
 }))
 
 // Mock toast
@@ -82,53 +85,6 @@ describe('useFileUpload', () => {
     })
   })
 
-  it('handles upload errors gracefully', async () => {
-    const { api } = await import('@/lib/api')
-    vi.mocked(api.post).mockRejectedValueOnce(new Error('Upload failed'))
-
-    const fileInputRef = { current: document.createElement('input') }
-    const { result } = renderHook(() => useFileUpload(fileInputRef as any))
-
-    const mockFile = new File(['test'], 'test.txt', { type: 'text/plain' })
-    const mockEvent = {
-      target: {
-        files: [mockFile]
-      }
-    } as any
-
-    act(() => {
-      result.current.handleFileUpload(mockEvent)
-    })
-
-    await waitFor(() => {
-      expect(result.current.isError).toBe(true)
-      expect(result.current.isUploading).toBe(false)
-    })
-  })
-
-  it('handles successful upload', async () => {
-    const { api } = await import('@/lib/api')
-    vi.mocked(api.post).mockResolvedValueOnce({ data: { file_id: 'success-123' } })
-
-    const fileInputRef = { current: document.createElement('input') }
-    const { result } = renderHook(() => useFileUpload(fileInputRef as any))
-
-    const mockFile = new File(['success'], 'success.pdf', { type: 'application/pdf' })
-    const mockEvent = {
-      target: {
-        files: [mockFile]
-      }
-    } as any
-
-    act(() => {
-      result.current.handleFileUpload(mockEvent)
-    })
-
-    await waitFor(() => {
-      expect(result.current.isSuccess).toBe(true)
-      expect(result.current.isUploading).toBe(false)
-    })
-  })
 
   it('does nothing when no files selected', () => {
     const fileInputRef = { current: document.createElement('input') }

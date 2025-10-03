@@ -22,7 +22,6 @@ import {
   LayoutGrid,
   File,
   Ticket,
-  MessageCirclePlus,
   PanelLeft,
   ChevronDown,
   SendHorizontal,
@@ -33,19 +32,11 @@ import {
   LogOut,
   SquarePen,
 } from "lucide-react"
-import Image from "next/image"
 import { ShareModal } from "./ShareModal"
 
 function DashboardContent() {
   const { state } = useSidebar()
-  const [checkboxStates, setCheckboxStates] = useState<boolean[]>(new Array(9).fill(false))
   const [shareModalOpen, setShareModalOpen] = useState(false)
-
-  const handleCheckboxChange = (index: number) => {
-    const newStates = [...checkboxStates]
-    newStates[index] = !newStates[index]
-    setCheckboxStates(newStates)
-  }
 
   const handleNewChat = () => {
     // Reset chat state - for now just a placeholder
@@ -59,7 +50,7 @@ function DashboardContent() {
         <Sidebar className="bg-sidebar-primary-foreground border-sidebar-border">
           <SidebarHeader className="h-[67px] flex items-left justify-start pl-2">
             <div className="flex items-center h-full pl-2">
-              <Image src="/logo-rita.svg" alt="Rita Logo" width={179} height={18} className="w-[179px] h-[18px]" />
+              <img src="/logo-rita.svg" alt="Rita Logo" width={179} height={18} className="w-[179px] h-[18px]" />
             </div>
           </SidebarHeader>
 

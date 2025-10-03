@@ -9,9 +9,8 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, waitFor } from '@testing-library/react'
-import { userEvent } from '@testing-library/user-event'
-import { BrowserRouter, MemoryRouter } from 'react-router-dom'
+import { render, waitFor } from '@testing-library/react'
+import { MemoryRouter } from 'react-router-dom'
 import ChatV1Page from './ChatV1Page'
 
 // Mock all dependencies

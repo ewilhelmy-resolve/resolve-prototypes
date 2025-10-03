@@ -1,5 +1,5 @@
 /**
- * RitaV1Layout.test.tsx - Unit tests for layout functionality
+ * RitaLayout.test.tsx - Unit tests for layout functionality
  *
  * Tests:
  * - Share button functionality
@@ -12,7 +12,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { BrowserRouter } from 'react-router-dom'
-import RitaV1Layout from './RitaV1Layout'
+import RitaLayout from './RitaLayout'
 
 // Mock all dependencies
 vi.mock('@/hooks/useAuth', () => ({
@@ -67,7 +67,7 @@ vi.mock('@/hooks/useFirstTimeLogin', () => ({
   }))
 }))
 
-describe('RitaV1Layout', () => {
+describe('RitaLayout', () => {
   beforeEach(() => {
     vi.clearAllMocks()
   })
@@ -75,9 +75,9 @@ describe('RitaV1Layout', () => {
   it('renders layout with children', () => {
     render(
       <BrowserRouter>
-        <RitaV1Layout>
+        <RitaLayout>
           <div data-testid="test-child">Test Content</div>
-        </RitaV1Layout>
+        </RitaLayout>
       </BrowserRouter>
     )
 
@@ -87,9 +87,9 @@ describe('RitaV1Layout', () => {
   it('displays conversation list in sidebar', () => {
     render(
       <BrowserRouter>
-        <RitaV1Layout>
+        <RitaLayout>
           <div>Content</div>
-        </RitaV1Layout>
+        </RitaLayout>
       </BrowserRouter>
     )
 
@@ -100,9 +100,9 @@ describe('RitaV1Layout', () => {
   it('filters conversations based on search', async () => {
     render(
       <BrowserRouter>
-        <RitaV1Layout>
+        <RitaLayout>
           <div>Content</div>
-        </RitaV1Layout>
+        </RitaLayout>
       </BrowserRouter>
     )
 
@@ -119,9 +119,9 @@ describe('RitaV1Layout', () => {
   it('displays share button and opens dialog', async () => {
     render(
       <BrowserRouter>
-        <RitaV1Layout activePage="chat">
+        <RitaLayout activePage="chat">
           <div>Content</div>
-        </RitaV1Layout>
+        </RitaLayout>
       </BrowserRouter>
     )
 
@@ -138,9 +138,9 @@ describe('RitaV1Layout', () => {
   it('displays knowledge base panel on chat page', () => {
     render(
       <BrowserRouter>
-        <RitaV1Layout activePage="chat">
+        <RitaLayout activePage="chat">
           <div>Content</div>
-        </RitaV1Layout>
+        </RitaLayout>
       </BrowserRouter>
     )
 
@@ -152,9 +152,9 @@ describe('RitaV1Layout', () => {
   it('does not display knowledge base panel on non-chat pages', () => {
     render(
       <BrowserRouter>
-        <RitaV1Layout activePage="users">
+        <RitaLayout activePage="users">
           <div>Content</div>
-        </RitaV1Layout>
+        </RitaLayout>
       </BrowserRouter>
     )
 
@@ -164,9 +164,9 @@ describe('RitaV1Layout', () => {
   it('displays knowledge base upload button', () => {
     render(
       <BrowserRouter>
-        <RitaV1Layout activePage="chat">
+        <RitaLayout activePage="chat">
           <div>Content</div>
-        </RitaV1Layout>
+        </RitaLayout>
       </BrowserRouter>
     )
 
@@ -183,9 +183,9 @@ describe('RitaV1Layout', () => {
   it('displays new chat button', () => {
     render(
       <BrowserRouter>
-        <RitaV1Layout>
+        <RitaLayout>
           <div>Content</div>
-        </RitaV1Layout>
+        </RitaLayout>
       </BrowserRouter>
     )
 
@@ -204,9 +204,9 @@ describe('RitaV1Layout', () => {
 
     render(
       <BrowserRouter>
-        <RitaV1Layout>
+        <RitaLayout>
           <div>Content</div>
-        </RitaV1Layout>
+        </RitaLayout>
       </BrowserRouter>
     )
 
@@ -228,9 +228,9 @@ describe('RitaV1Layout', () => {
 
     render(
       <BrowserRouter>
-        <RitaV1Layout>
+        <RitaLayout>
           <div>Content</div>
-        </RitaV1Layout>
+        </RitaLayout>
       </BrowserRouter>
     )
 
@@ -251,9 +251,9 @@ describe('RitaV1Layout', () => {
 
     render(
       <BrowserRouter>
-        <RitaV1Layout>
+        <RitaLayout>
           <div>Content</div>
-        </RitaV1Layout>
+        </RitaLayout>
       </BrowserRouter>
     )
 
