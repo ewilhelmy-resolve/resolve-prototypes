@@ -3,10 +3,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { STATUS } from "@/constants/connectionSources";
 import { useConnectionSource } from "@/contexts/ConnectionSourceContext";
-import ConfluenceConfiguration from "./ConfluenceConfiguration";
-import ConnectionsForm from "./ConnectionsForm";
-import FormField from "./FormField";
-import FormSection from "./FormSection";
+import ConfluenceConfiguration from "../connection-details/ConfluenceConfiguration";
+import ConnectionsForm from "../form-elements/ConnectionsForm";
+import FormField from "../form-elements/FormField";
+import FormSection from "../form-elements/FormSection";
 
 export interface ConfluenceFormData {
 	url: string;
@@ -29,7 +29,7 @@ export function ConfluenceForm() {
 	};
 
 	// If connected, show configuration view
-	if (source.status === STATUS.CONNECTED) {
+	if (source.status !== STATUS.NOT_CONNECTED) {
 		return <ConfluenceConfiguration />;
 	}
 

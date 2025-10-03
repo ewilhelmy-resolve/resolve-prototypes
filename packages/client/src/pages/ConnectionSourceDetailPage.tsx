@@ -1,18 +1,12 @@
-import { Link, Navigate, useParams } from "react-router-dom";
+import { Navigate, useParams } from "react-router-dom";
 import {
 	ConfluenceForm,
 	ServiceNowForm,
 	SharePointForm,
 	WebSearchForm,
-} from "@/components/connection-forms";
+} from "@/components/connection-sources/connection-forms";
+import Header from "@/components/Header";
 import RitaSettingsLayout from "@/components/layouts/RitaSettingsLayout";
-import { ConnectionStatusBadge } from "@/components/settings/ConnectionStatusBadge";
-import {
-	Breadcrumb,
-	BreadcrumbItem,
-	BreadcrumbList,
-	BreadcrumbSeparator,
-} from "@/components/ui/breadcrumb";
 import {
 	getSourceById,
 	SOURCE_IDS,
@@ -21,7 +15,7 @@ import {
 import { ConnectionSourceProvider } from "@/contexts/ConnectionSourceContext";
 
 export default function ConnectionSourceDetailPage() {
-	const { sourceId } = useParams<{ sourceId: typeof SOURCE_IDS[number] }>();
+	const { sourceId } = useParams<{ sourceId: (typeof SOURCE_IDS)[number] }>();
 
 	// Redirect to 404 if source doesn't exist
 	if (!sourceId || !SOURCE_IDS.includes(sourceId)) {
@@ -57,43 +51,23 @@ export default function ConnectionSourceDetailPage() {
 		<ConnectionSourceProvider source={source}>
 			<RitaSettingsLayout>
 				<div className="flex-1 inline-flex flex-col items-center gap-8 w-full">
-					{/* Top block */}
 					<div className="self-stretch flex flex-col items-start gap-8">
-						{/* Breadcrumbs */}
-						<Breadcrumb>
-							<BreadcrumbList>
-								<BreadcrumbItem>
-									<Link to="/settings/connections">Connections</Link>
-								</BreadcrumbItem>
-								<BreadcrumbSeparator />
-								<BreadcrumbItem>
-									<span>{sourceTitle}</span>
-								</BreadcrumbItem>
-							</BreadcrumbList>
-						</Breadcrumb>
-						{/* Title row */}
-						<div className="self-stretch inline-flex items-center gap-2">
-							<div className="flex flex-1 items-center gap-3">
-								{source.id !== SOURCES.WEB_SEARCH && (
+						<Header
+							breadcrumbs={[
+								{ label: "Connections", href: "/settings/connections" },
+								{ label: sourceTitle },
+							]}
+							title={sourceTitle}
+							icon={
+								source.id !== SOURCES.WEB_SEARCH ? (
 									<img
 										src={`/connections/icon_${sourceId}.svg`}
 										alt={`${sourceTitle} icon`}
-										className="w-5 h-5 flex-shrink-0 self-center"
 									/>
-								)}
-								<h1 className="text-2xl leading-8 tracking-[-0.01em] text-foreground flex items-center">
-									{sourceTitle}
-								</h1>
-								<ConnectionStatusBadge status={source.status} />
-							</div>
-						</div>
-
-						<p className="self-stretch text-sm leading-5 text-muted-foreground">
-							Connect your {sourceTitle} instance to build context for Rita to
-							make better experiences.
-						</p>
-
-						<hr className="self-stretch border-t border-border" />
+								) : undefined
+							}
+							description={`Connect your ${sourceTitle} instance to build context for Rita to make better experiences.`}
+						/>
 					</div>
 
 					{/* Form area */}

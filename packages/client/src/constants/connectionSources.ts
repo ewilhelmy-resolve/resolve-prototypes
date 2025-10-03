@@ -21,11 +21,13 @@ export interface ConnectionSource {
   };
  }
 
- export type Status = 'Not connected' | 'Connected';
+ export type Status = 'Not connected' | 'Connected' | 'Syncing' | 'Error';
 
  export const STATUS = {
   NOT_CONNECTED: 'Not connected' as Status,
   CONNECTED: 'Connected' as Status,
+  SYNCING: 'Syncing' as Status,
+  ERROR: 'Error' as Status,
 };
 
 
@@ -55,17 +57,27 @@ export const CONNECTION_SOURCES: ConnectionSource[] = [
   {
     id: SOURCES.SHAREPOINT,
     title: 'SharePoint',
-    status: STATUS.NOT_CONNECTED,
+    status: STATUS.SYNCING,
     lastSync: '—',
     badges: ['Knowledge'],
+    config: {
+      url: 'http://acme.atlassian.net/wiki',
+      email: 'charlie@acme.com',
+      updatedAt: '2:09 PM, Today',
+    },
    },
   {
     id: SOURCES.SERVICENOW,
     title: 'ServiceNow',
-    status: STATUS.NOT_CONNECTED,
+    status: STATUS.ERROR,
     lastSync: '—',
     badges: ['Knowledge', 'Ticketing'],
-   },
+    config: {
+      url: 'http://acme.atlassian.net/wiki',
+      email: 'charlie@acme.com',
+      updatedAt: '2:09 PM, Today',
+    },
+  },
   {
     id: SOURCES.WEB_SEARCH,
     title: 'Web Search (LGA)',
