@@ -6,6 +6,7 @@ import { NotFoundPage } from './pages/NotFoundPage';
 import ContactPage from './pages/ContactPage';
 import HelpPage from './pages/HelpPage';
 import ChatV1Page from './pages/ChatV1Page';
+import ChatTestPage from './pages/ChatTestPage';
 import FilesV1Page from './pages/FilesV1Page';
 import UsersV1Page from './pages/UsersV1Page';
 import SettingsV1Page from './pages/SettingsV1Page';
@@ -33,6 +34,23 @@ const router = createBrowserRouter([
     element: (
       <ProtectedRoute>
         <ChatV1Page />
+      </ProtectedRoute>
+    )
+  },
+  // Test page for new v0.app layout
+  {
+    path: '/chat-test',
+    element: (
+      <ProtectedRoute>
+        <ChatTestPage />
+      </ProtectedRoute>
+    )
+  },
+  {
+    path: '/chat-test/:conversationId',
+    element: (
+      <ProtectedRoute>
+        <ChatTestPage />
       </ProtectedRoute>
     )
   },

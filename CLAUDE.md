@@ -176,24 +176,40 @@ When backend API endpoints are ready, the system will automatically support remo
 
 Rita Go uses a **Figma-to-shadcn workflow** for implementing UX designs:
 
-#### Installing Design System Components
-When UX provides Figma-to-shadcn component URLs:
+#### Installing Design System Components with CLI
 
-1. **Attempt shadcn CLI Installation**:
-   ```bash
-   cd packages/client
-   npx shadcn add https://[figma-to-shadcn-url].json
-   ```
+When UX provides v0.app or Figma-to-shadcn component URLs, we use the shadcn CLI to generate and install components:
 
-2. **Manual Installation** (recommended for reliability):
-   ```bash
-   # Download and inspect component definition
-   curl -s https://[figma-to-shadcn-url].json
+**Primary Method - CLI Installation:**
+```bash
+cd packages/client
 
-   # Extract the component code from the JSON
-   # Create src/components/[ComponentName].tsx with the code
-   # Update router.tsx to use the new component
-   ```
+# For v0.app components (answer 'n' to overwrites if protecting existing files)
+yes n | npx shadcn@latest add "https://v0.app/chat/b/[component-id]"
+
+# For shadcn registry components
+npx shadcn@latest add button card dialog
+
+# For custom registry URLs
+npx shadcn@latest add "https://[custom-registry-url].json"
+```
+
+**What the CLI Does:**
+- Downloads component definitions from v0.app or registries
+- Generates TypeScript/React code
+- Copies files into your `src/` directory (though sometimes in wrong location - see version control section below)
+- Installs npm dependencies automatically
+- Updates CSS variables in `src/index.css`
+
+**Alternative - Manual Installation** (fallback if CLI fails):
+```bash
+# Download and inspect component definition
+curl -s https://[component-url].json
+
+# Extract the component code from the JSON
+# Create src/components/[ComponentName].tsx with the code
+# Update router.tsx to use the new component
+```
 
 #### What Happened with RitaLayout
 The current RitaLayout was installed following this process:
@@ -221,6 +237,153 @@ The current RitaLayout was installed following this process:
 - Each UX update gets its own commit with clear message
 - Document the source URL in component comments
 - Keep track of component version/date for future reference
+
+#### Version Control for v0.app & Figma Components
+
+**Philosophy:** shadcn/ui and v0.app use a **"generate and copy"** approach. We use the CLI (`npx shadcn add`) to generate components, but unlike traditional npm packages, the code is copied directly into your source tree. This gives full customization control but requires manual update management.
+
+**How It Works:**
+```bash
+# Install command (generates and copies code)
+npx shadcn@latest add "https://v0.app/chat/b/[component-id]"
+
+# What happens:
+# 1. CLI downloads component definition
+# 2. Generates TypeScript/React code
+# 3. Copies files into your src/ directory
+# 4. Updates package.json with any new dependencies
+# 5. Updates CSS variables in index.css if needed
+```
+
+**Key Difference from Traditional Packages:**
+- ❌ NOT like: `npm install @shadcn/ui` (dependency in node_modules)
+- ✅ IS like: Code generator that copies files into your source tree
+- Result: You own the code, can modify freely, but updates require re-running the CLI
+
+**TL;DR - The Workflow:**
+1. Run `npx shadcn add [v0-url]` to generate and copy component code
+2. CLI may place files in wrong location - extract to `src/components/ui/`
+3. Delete incorrectly placed `ui/` directory
+4. Adapt high-level components (remove Next.js, add Rita hooks)
+5. Keep original as `.reference.tsx` for comparison
+6. Commit with clear documentation of source URL
+7. For updates: re-run CLI, manually merge changes, preserve customizations
+
+**Component Categories & Ownership:**
+
+| Category | Location | Update Strategy | Ownership |
+|----------|----------|----------------|-----------|
+| **Base UI Components** | `src/components/ui/` | Commit before updating, manual merge | Minimal edits, track upstream |
+| **Adapted v0 Layouts** | `src/components/layouts/` | Manual regeneration, preserve integrations | Fully customized, fork and own |
+| **Reference Files** | `*.reference.tsx` | Keep for comparison only | Do not use in production |
+| **Custom Wrappers** | `src/components/custom/` (future) | Full control | Rita-specific variants |
+
+**Update Workflow (When UX sends new v0.app URL):**
+
+1. **Before Update:**
+   ```bash
+   # Commit all current changes
+   git add .
+   git commit -m "feat: checkpoint before v0 update"
+
+   # Create diff of existing customizations (if updating existing component)
+   git diff HEAD~1 -- src/components/layouts/RitaV0Layout.tsx > customizations.patch
+   ```
+
+2. **Generate with CLI:**
+   ```bash
+   # Run v0.app/shadcn installation (answer 'n' to overwrite prompts if protecting existing files)
+   cd packages/client
+   yes n | npx shadcn@latest add "https://v0.app/chat/b/[component-id]"
+
+   # What the CLI does:
+   # ✅ Downloads component definition from v0.app
+   # ✅ Generates React/TypeScript code
+   # ✅ Installs npm dependencies (if new ones needed)
+   # ✅ Updates CSS variables in src/index.css
+   # ⚠️  May copy files to WRONG location (packages/client/ui/ instead of src/components/ui/)
+   # ✅ Creates high-level components (Dashboard, ShareModal, etc.)
+   ```
+
+3. **Post-Install Cleanup & Extraction:**
+   ```bash
+   # Check what was created
+   ls -la ui/              # Wrong location (if exists)
+   ls -la src/components/  # High-level components (Dashboard.tsx, ShareModal.tsx)
+
+   # Extract any NEW components from ui/ to correct location
+   # Example: If pagination.tsx is new
+   cp ui/pagination.tsx src/components/ui/pagination.tsx
+
+   # Delete the incorrectly placed ui/ directory
+   rm -rf ui/
+
+   # Verify git status
+   git status --short
+   ```
+
+4. **Adapt for Rita:**
+   - **For high-level layouts:** Create new file (e.g., `RitaV0Layout.tsx`, `ChatTestPage.tsx`)
+   - **For reference:** Rename original v0 output (e.g., `Dashboard.tsx` → `Dashboard.reference.tsx`)
+   - Remove Next.js dependencies:
+     - Replace `Image` from `next/image` with standard `<img>` tag
+     - Remove `"use client"` directives
+     - Replace Next.js routing with React Router
+   - Integrate Rita hooks:
+     - `useAuth()` for authentication
+     - `useConversations()` for conversation data
+     - `useChatNavigation()` for navigation
+     - `useKnowledgeBase()` for knowledge base features
+   - Test with SSE real-time updates
+   - Add proper TypeScript types for all props
+   - Verify responsive design and accessibility
+
+5. **Compare & Merge (for updates to existing components):**
+   ```bash
+   # If updating an existing component, compare versions
+   git diff src/components/layouts/RitaV0Layout.tsx
+
+   # Selectively apply desired changes
+   # Preserve Rita-specific integrations (auth, hooks, SSE)
+   ```
+
+6. **Commit & Document:**
+   ```bash
+   git add .
+   git commit -m "feat: update RitaV0Layout from v0.app [component-id]
+
+   Source: https://v0.app/chat/b/[component-id]
+   Changes:
+   - Updated sidebar design
+   - Added new navigation pattern
+   - Preserved Rita auth/SSE integration"
+   ```
+
+**Long-Term Strategy: "Fork and Own for Layouts, Track Upstream for Base Components"**
+
+- **Base shadcn Components** (`button.tsx`, `card.tsx`, etc.):
+  - Minimize customization
+  - Update periodically from shadcn registry for bug fixes
+  - Create wrappers for Rita-specific variants
+
+- **v0.app Layouts** (`RitaV0Layout.tsx`, `ChatTestPage.tsx`, etc.):
+  - Treat as **starting templates**, not maintained dependencies
+  - Fully customize and version control
+  - Regenerate from v0 only for major redesigns (not minor updates)
+  - Preserve all Rita integrations (hooks, auth, SSE)
+
+**What NOT to Do:**
+- ❌ Don't commit the incorrectly placed `packages/client/ui/` directory (CLI bug - wrong location)
+- ❌ Don't use `--overwrite` flag without committing existing changes first
+- ❌ Don't expect automatic updates like npm packages (CLI regenerates, requires manual merge)
+- ❌ Don't use original v0 outputs directly (e.g., Dashboard.tsx) - they lack Rita integrations
+- ❌ Don't run CLI installation without the `yes n |` prefix if you have existing customized components
+- ❌ Don't skip the cleanup step - always delete incorrectly placed directories
+
+**Reference Files:**
+- `Dashboard.reference.tsx` - Original v0.app output (for comparison)
+- Keep as documentation, mark with `.reference.tsx` extension
+- Do not import in production code
 
 3. **Component Integration**:
    - Components are pre-built with proper responsive design
