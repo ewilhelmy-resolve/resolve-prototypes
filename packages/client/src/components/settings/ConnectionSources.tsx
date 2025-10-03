@@ -3,25 +3,19 @@
 import { Link } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
 import { CONNECTION_SOURCES, STATUS } from "@/constants/connectionSources";
 import { ConnectionStatusBadge } from "../connection-sources/ConnectionStatusBadge";
+import Header from "../Header";
 import { Button } from "../ui/button";
 
 export default function ConnectionSources() {
 	return (
 		<div className="w-full">
 			<div className="flex flex-col gap-8">
-				<div className="flex flex-col gap-2">
-					<h3 className="text-2xl font-medium text-foreground">
-						Connection Sources
-					</h3>
-					<p className="text-sm text-muted-foreground">
-						Connect your knowledge and ticketing sources to help Rita resolve IT
-						issues faster.
-					</p>
-				</div>
-				<Separator />
+				<Header
+					title="Connection Sources"
+					description="Connect your knowledge and ticketing sources to help Rita resolve IT issues faster."
+				/>
 				{/* w-full max-w-2xl mx-auto flex flex-col gap-8 */}
 				<div className="w-full max-w-4xl mx-auto flex flex-col gap-8">
 					{CONNECTION_SOURCES.map((source) => (

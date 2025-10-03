@@ -18,8 +18,8 @@ interface HeaderBreadcrumbItem {
 }
 
 interface HeaderProps {
-	/** Breadcrumb items array */
-	breadcrumbs: HeaderBreadcrumbItem[];
+	/** Breadcrumb items array (optional) */
+	breadcrumbs?: HeaderBreadcrumbItem[];
 	/** Page title */
 	title: string;
 	/** Optional icon to display before title */
@@ -41,36 +41,38 @@ export default function Header({
 	return (
 		<div className="flex flex-col gap-8 w-full">
 			<div className="flex flex-col gap-2">
-				<Breadcrumb>
-					<BreadcrumbList className="gap-2.5">
-						{breadcrumbs.map((item, index) => {
-							const isLast = index === breadcrumbs.length - 1;
-							return (
-								<div key={item.label} className="flex items-center gap-2.5">
-									<BreadcrumbItem>
-										{isLast ? (
-											<BreadcrumbPage className="text-foreground text-sm">
-												{item.label}
-											</BreadcrumbPage>
-										) : (
-											<BreadcrumbLink
-												href={item.href || "#"}
-												className="text-muted-foreground text-sm"
-											>
-												{item.label}
-											</BreadcrumbLink>
+				{breadcrumbs && breadcrumbs.length > 0 && (
+					<Breadcrumb>
+						<BreadcrumbList className="gap-2.5">
+							{breadcrumbs.map((item, index) => {
+								const isLast = index === breadcrumbs.length - 1;
+								return (
+									<div key={item.label} className="flex items-center gap-2.5">
+										<BreadcrumbItem>
+											{isLast ? (
+												<BreadcrumbPage className="text-foreground text-sm">
+													{item.label}
+												</BreadcrumbPage>
+											) : (
+												<BreadcrumbLink
+													href={item.href || "#"}
+													className="text-muted-foreground text-sm"
+												>
+													{item.label}
+												</BreadcrumbLink>
+											)}
+										</BreadcrumbItem>
+										{!isLast && (
+											<BreadcrumbSeparator>
+												<ChevronRight className="h-4 w-4 text-muted-foreground" />
+											</BreadcrumbSeparator>
 										)}
-									</BreadcrumbItem>
-									{!isLast && (
-										<BreadcrumbSeparator>
-											<ChevronRight className="h-4 w-4 text-muted-foreground" />
-										</BreadcrumbSeparator>
-									)}
-								</div>
-							);
-						})}
-					</BreadcrumbList>
-				</Breadcrumb>
+									</div>
+								);
+							})}
+						</BreadcrumbList>
+					</Breadcrumb>
+				)}
 
 				<div className="flex flex-col gap-2">
 					<div className="flex items-center gap-2">
