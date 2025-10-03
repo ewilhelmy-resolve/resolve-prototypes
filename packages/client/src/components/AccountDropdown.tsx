@@ -9,7 +9,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu"
-import { Settings, LogOut } from "lucide-react"
+import { Settings, LogOut, Code2 } from "lucide-react"
 
 interface AccountDropdownProps {
   onSignOut: () => void
@@ -20,6 +20,10 @@ export default function AccountDropdown({ onSignOut }: AccountDropdownProps) {
 
   const handleSettings = () => {
     navigate('/settings')
+  }
+
+  const handleDevTools = () => {
+    navigate('/devtools')
   }
 
   return (
@@ -40,6 +44,13 @@ export default function AccountDropdown({ onSignOut }: AccountDropdownProps) {
         >
           <Settings className="mr-2 h-4 w-4" />
           <span>Settings</span>
+        </DropdownMenuItem>
+        <DropdownMenuItem
+          className="cursor-pointer"
+          onClick={handleDevTools}
+        >
+          <Code2 className="mr-2 h-4 w-4" />
+          <span>Developer Tools</span>
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem
