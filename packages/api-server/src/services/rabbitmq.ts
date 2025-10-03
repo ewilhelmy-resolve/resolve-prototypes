@@ -1,15 +1,18 @@
 import amqp from 'amqplib';
 import { pool, withOrgContext } from '../config/database.js';
 import { logError, PerformanceTimer, queueLogger } from '../config/logger.js';
+import { DataSourceSyncConsumer } from '../consumers/DataSourceSyncConsumer.js';
 import { getSSEService } from './sse.js';
 
 export class RabbitMQService {
   private connection: any = null;
   private channel: any = null;
   private readonly queueName: string;
+  private dataSourceSyncConsumer: DataSourceSyncConsumer;
 
   constructor() {
     this.queueName = process.env.QUEUE_NAME || 'chat.responses';
+    this.dataSourceSyncConsumer = new DataSourceSyncConsumer();
   }
 
   async connect(): Promise<void> {
@@ -42,6 +45,7 @@ export class RabbitMQService {
 
     queueLogger.info({ queueName: this.queueName }, 'Starting RabbitMQ consumer...');
 
+    // Start chat responses consumer
     await this.channel.consume(this.queueName, async (message: any) => {
       if (!message) return;
 
@@ -78,6 +82,9 @@ export class RabbitMQService {
         this.channel?.nack(message, false, false);
       }
     });
+
+    // Start data source sync consumer
+    await this.dataSourceSyncConsumer.startConsumer(this.channel);
   }
 
   private async processMessage(payload: any): Promise<void> {

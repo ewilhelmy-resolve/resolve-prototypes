@@ -33,7 +33,20 @@ export interface NewMessageEvent {
   };
 }
 
-export type SSEEvent = MessageUpdateEvent | NewMessageEvent;
+export interface DataSourceUpdateEvent {
+  type: 'data_source_update';
+  data: {
+    connectionId: string;
+    status: 'idle' | 'syncing';
+    lastSyncStatus: 'completed' | 'failed' | null;
+    lastSyncAt: Date | null;
+    errorMessage?: string;
+    documentsProcessed?: number;
+    timestamp: string;
+  };
+}
+
+export type SSEEvent = MessageUpdateEvent | NewMessageEvent | DataSourceUpdateEvent;
 
 export class SSEService {
   private connections: Map<string, SSEConnection> = new Map();

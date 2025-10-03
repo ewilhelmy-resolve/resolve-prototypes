@@ -169,6 +169,37 @@ async function publishResponse(response: MockResponse): Promise<void> {
   }
 }
 
+async function publishToQueue(queueName: string, message: any): Promise<void> {
+  const timer = new PerformanceTimer(rabbitLogger, 'publish-to-queue');
+  const contextLogger = createContextLogger(rabbitLogger, generateCorrelationId());
+
+  try {
+    if (!rabbitChannel) {
+      throw new Error('RabbitMQ channel not initialized');
+    }
+
+    // Assert queue exists
+    await rabbitChannel.assertQueue(queueName, { durable: true });
+
+    const messageBuffer = Buffer.from(JSON.stringify(message));
+    rabbitChannel.sendToQueue(queueName, messageBuffer, {
+      persistent: true
+    });
+
+    timer.end({
+      queueName,
+      success: true
+    });
+    contextLogger.info({
+      queueName
+    }, 'Published message to queue');
+  } catch (error) {
+    timer.end({ success: false });
+    logError(contextLogger, error as Error, { operation: 'publish-to-queue', queueName });
+    throw error;
+  }
+}
+
 // Keycloak Admin API functions
 let keycloakAdminToken: string | null = null;
 let tokenExpiresAt: number = 0;
@@ -1332,6 +1363,78 @@ app.post('/webhook', async (req, res) => {
         });
       }
 
+    } else if (payload.source === 'rita-data-sources' && payload.action === 'verify_credentials') {
+      const contextLogger = createContextLogger(webhookLogger, correlationId, {
+        connectionId: payload.connection_id,
+        connectionType: payload.connection_type,
+        tenantId: payload.tenant_id
+      });
+
+      contextLogger.info({
+        source: payload.source,
+        action: payload.action,
+        connection_id: payload.connection_id,
+        connection_type: payload.connection_type,
+        user_email: payload.user_email
+      }, 'Received data source verify webhook');
+
+      // Simulate verification success
+      return res.status(200).json({
+        success: true,
+        message: 'Credentials verified successfully'
+      });
+
+    } else if (payload.source === 'rita-data-sources' && payload.action === 'trigger_sync') {
+      const contextLogger = createContextLogger(webhookLogger, correlationId, {
+        connectionId: payload.connection_id,
+        connectionType: payload.connection_type,
+        tenantId: payload.tenant_id
+      });
+
+      contextLogger.info({
+        source: payload.source,
+        action: payload.action,
+        connection_id: payload.connection_id,
+        connection_type: payload.connection_type,
+        user_email: payload.user_email
+      }, 'Received data source sync trigger webhook');
+
+      // Publish sync_completed message to RabbitMQ after 2 second delay
+      setTimeout(async () => {
+        try {
+          if (!rabbitChannel) {
+            throw new Error('RabbitMQ channel not initialized');
+          }
+
+          const syncMessage = {
+            connection_id: payload.connection_id,
+            tenant_id: payload.tenant_id,
+            status: 'sync_completed',
+            documents_processed: 42,
+            timestamp: new Date().toISOString()
+          };
+
+          await rabbitChannel.assertQueue('data_source_sync_status', { durable: true });
+          rabbitChannel.sendToQueue(
+            'data_source_sync_status',
+            Buffer.from(JSON.stringify(syncMessage)),
+            { persistent: true }
+          );
+
+          contextLogger.info({
+            connectionId: payload.connection_id,
+            documentsProcessed: 42
+          }, 'Published sync_completed message to RabbitMQ');
+        } catch (error) {
+          contextLogger.error({ error }, 'Failed to publish sync_completed message');
+        }
+      }, 2000);
+
+      return res.status(200).json({
+        success: true,
+        message: 'Sync triggered successfully'
+      });
+
     } else {
       const errorLogger = createContextLogger(webhookLogger, correlationId);
       // Avoid accessing properties on a value narrowed to never by referencing raw body as BaseWebhookPayload
@@ -1525,6 +1628,75 @@ app.post('/webhook', async (req, res) => {
           error: error instanceof Error ? error.message : 'Unknown error',
           status: 'failed_but_acknowledged'
         });
+      }
+    } else if (payload.source === 'rita-data-sources') {
+      // Data source webhooks
+      const contextLogger = createContextLogger(webhookLogger, correlationId, {
+        connectionId: payload.connection_id,
+        connectionType: payload.connection_type,
+        tenantId: payload.tenant_id
+      });
+
+      // Log full webhook payload
+      console.log('\n' + '═'.repeat(100));
+      console.log('🔌 DATA SOURCE WEBHOOK RECEIVED');
+      console.log('═'.repeat(100));
+      console.log(JSON.stringify(payload, null, 2));
+      console.log('═'.repeat(100) + '\n');
+
+      if (payload.action === 'verify_credentials') {
+        contextLogger.info({
+          credentials: Object.keys(payload.credentials || {}),
+          settingsKeys: Object.keys(payload.settings || {})
+        }, 'Verifying data source credentials');
+
+        timer.end({ action: 'verify_credentials', success: true });
+
+        res.json({
+          success: true,
+          message: 'Credentials verified successfully',
+          verified_at: new Date().toISOString()
+        });
+
+      } else if (payload.action === 'trigger_sync') {
+        contextLogger.info({
+          settingsKeys: Object.keys(payload.settings || {})
+        }, 'Sync triggered for data source');
+
+        // Publish sync_completed message to RabbitMQ queue
+        setTimeout(async () => {
+          try {
+            const syncMessage = {
+              connection_id: payload.connection_id,
+              tenant_id: payload.tenant_id,
+              status: 'sync_completed',
+              documents_processed: 42,
+              timestamp: new Date().toISOString()
+            };
+
+            await publishToQueue('data_source_sync_status', syncMessage);
+            contextLogger.info({
+              connection_id: payload.connection_id,
+              documents_processed: 42
+            }, 'Published sync_completed message to queue');
+
+          } catch (error) {
+            logError(contextLogger, error as Error, { operation: 'publish-sync-status' });
+          }
+        }, 2000); // Simulate 2 second sync delay
+
+        timer.end({ action: 'trigger_sync', success: true });
+
+        res.json({
+          success: true,
+          message: 'Sync triggered successfully',
+          job_id: randomUUID(),
+          triggered_at: new Date().toISOString()
+        });
+
+      } else {
+        contextLogger.warn({ action: payload.action }, 'Unknown data source action');
+        res.status(400).json({ error: 'Unknown action' });
       }
     }
 

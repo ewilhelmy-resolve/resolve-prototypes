@@ -11,6 +11,7 @@ import {
 } from './middleware/logging.js';
 import authRoutes from './routes/auth.js';
 import conversationRoutes from './routes/conversations.js';
+import dataSourceRoutes from './routes/dataSources.js';
 import filesRoutes from './routes/files.js';
 import organizationRoutes from './routes/organizations.js';
 import sseRoutes from './routes/sse.js';
@@ -89,6 +90,7 @@ app.get('/test-sse', (req, res) => {
 // Protected routes (require authentication)
 app.use('/api/organizations', authenticateUser, addUserContextToLogs, organizationRoutes);
 app.use('/api/conversations', authenticateUser, addUserContextToLogs, conversationRoutes);
+app.use('/api/data-sources', authenticateUser, addUserContextToLogs, dataSourceRoutes);
 app.use('/api/files', authenticateUser, addUserContextToLogs, filesRoutes);
 app.use('/api/sse', authenticateUser, addUserContextToLogs, sseRoutes);
 app.get('/api/profile', authenticateUser, addUserContextToLogs, logApiOperation('get-profile'), (req: any, res) => {
