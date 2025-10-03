@@ -1,17 +1,11 @@
 "use client";
 
-import { Badge } from "@/components/ui/badge";
+import { RefreshCw } from "lucide-react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import {
-	CircleCheck,
-	CircleX,
-	Loader2,
-	RefreshCw,
-	HelpCircle,
-} from "lucide-react";
 import type { ConnectionSource } from "@/constants/connectionSources";
 import { STATUS } from "@/constants/connectionSources";
-import { useState } from "react";
+import { ConnectionStatusBadge } from "./ConnectionStatusBadge";
 
 interface ConnectionStatusCardProps {
 	source: ConnectionSource;
@@ -48,78 +42,6 @@ export function ConnectionStatusCard({
 		setTimeout(() => {
 			setIsRetrying(false);
 		}, 2000);
-	};
-	const getStatusBadge = () => {
-		// Show retrying state when actively retrying
-		if (isRetrying && source.status === STATUS.ERROR) {
-			return (
-				<Badge
-					variant="outline"
-					className="bg-background border-blue-500 gap-1.5 px-3 py-1"
-				>
-					<Loader2 className="h-3 w-3 text-blue-500 animate-spin" />
-					Retrying...
-				</Badge>
-			);
-		}
-
-		// Show help needed state after max retries
-		if (showHelp && source.status === STATUS.ERROR) {
-			return (
-				<Badge
-					variant="outline"
-					className="bg-background border-orange-500 gap-1.5 px-3 py-1"
-				>
-					<HelpCircle className="h-3 w-3 text-orange-500" />
-					Need Help
-				</Badge>
-			);
-		}
-
-		switch (source.status) {
-			case STATUS.SYNCING:
-				return (
-					<Badge
-						variant="outline"
-						className="bg-background border-blue-500 gap-1.5 px-3 py-1"
-					>
-						<Loader2 className="h-3 w-3 text-blue-500 animate-spin" />
-						Testing...
-					</Badge>
-				);
-			case STATUS.ERROR:
-				return (
-					<Badge
-						variant="outline"
-						className="bg-background border-red-500 gap-1.5 px-3 py-1"
-					>
-						<CircleX className="h-3 w-3 text-red-500" />
-						Failed
-					</Badge>
-				);
-			case STATUS.CONNECTED:
-				return (
-					<Badge
-						variant="outline"
-						className="bg-background border-green-500 gap-1.5 px-3 py-1"
-					>
-						<CircleCheck className="h-3 w-3 text-green-500" />
-						Connected
-					</Badge>
-				);
-			case STATUS.NOT_CONNECTED:
-				return (
-					<Badge
-						variant="outline"
-						className="bg-background border-muted-foreground gap-1.5 px-3 py-1"
-					>
-						<CircleX className="h-3 w-3 text-muted-foreground" />
-						Not connected
-					</Badge>
-				);
-			default:
-				return null;
-		}
 	};
 
 	const getStatusMessage = () => {
@@ -219,7 +141,13 @@ export function ConnectionStatusCard({
 								</p>
 							</div>
 						</div>
-						<div className="flex justify-center flex-1">{getStatusBadge()}</div>
+						<div className="flex justify-center flex-1">
+							<ConnectionStatusBadge
+								status={source.status}
+								isRetrying={isRetrying}
+								showHelp={showHelp}
+							/>
+						</div>
 						<div className="flex items-center">{getStatusMessage()}</div>
 					</div>
 				</div>

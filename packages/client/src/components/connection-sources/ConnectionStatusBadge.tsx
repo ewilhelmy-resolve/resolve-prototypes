@@ -1,16 +1,53 @@
-import { CircleCheck, CircleX, Loader2 } from "lucide-react";
+import { CircleCheck, CircleX, HelpCircle, Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { STATUS, type Status } from "@/constants/connectionSources";
 
 interface ConnectionStatusBadgeProps {
 	status: Status;
+	/** Override status to show retrying state */
+	isRetrying?: boolean;
+	/** Override status to show help needed state */
+	showHelp?: boolean;
 }
 
 /**
  * Badge component for displaying connection status
  * Supports states: Syncing (Testing), Connected, Error (Failed), Not connected
+ * Plus override states: Retrying, Need Help
  */
-export function ConnectionStatusBadge({ status }: ConnectionStatusBadgeProps) {
+export function ConnectionStatusBadge({
+	status,
+	isRetrying = false,
+	showHelp = false,
+}: ConnectionStatusBadgeProps) {
+	// Handle override states for error status
+	if (status === STATUS.ERROR) {
+		if (isRetrying) {
+			return (
+				<Badge
+					variant="outline"
+					className="bg-background border-blue-500 gap-1.5 px-3 py-1"
+				>
+					<Loader2 className="h-3 w-3 text-blue-500 animate-spin" />
+					Retrying...
+				</Badge>
+			);
+		}
+
+		if (showHelp) {
+			return (
+				<Badge
+					variant="outline"
+					className="bg-background border-orange-500 gap-1.5 px-3 py-1"
+				>
+					<HelpCircle className="h-3 w-3 text-orange-500" />
+					Need Help
+				</Badge>
+			);
+		}
+	}
+
+	// Default status rendering
 	switch (status) {
 		case STATUS.SYNCING:
 			return (

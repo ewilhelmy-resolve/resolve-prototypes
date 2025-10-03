@@ -2,7 +2,7 @@ import { useForm } from "react-hook-form";
 import { Button } from "@/components/ui/button";
 import { STATUS } from "@/constants/connectionSources";
 import { useConnectionSource } from "@/contexts/ConnectionSourceContext";
-import WebSearchConfiguration from "../connections-detail/WebSearchConfiguration";
+import WebSearchConfiguration from "../connection-details/WebSearchConfiguration";
 import ConnectionsForm from "../form-elements/ConnectionsForm";
 import FormSection from "../form-elements/FormSection";
 
