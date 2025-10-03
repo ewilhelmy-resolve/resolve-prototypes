@@ -38,9 +38,7 @@ export function FeatureFlagsPanel() {
   const handleToggle = (key: FeatureFlagKey, checked: boolean) => {
     setFlag(key, checked)
     const action = checked ? 'enabled' : 'disabled'
-    toast.success(`Feature flag ${action}`, {
-      description: FEATURE_FLAGS[key].label,
-    })
+    toast.success(`${FEATURE_FLAGS[key].label} ${action}`)
   }
 
   return (
