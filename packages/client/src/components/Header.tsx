@@ -2,6 +2,7 @@
 
 import { ChevronRight } from "lucide-react";
 import type { ReactNode } from "react";
+import { Link } from "react-router-dom";
 import {
 	Breadcrumb,
 	BreadcrumbItem,
@@ -54,11 +55,8 @@ export default function Header({
 													{item.label}
 												</BreadcrumbPage>
 											) : (
-												<BreadcrumbLink
-													href={item.href || "#"}
-													className="text-muted-foreground text-sm"
-												>
-													{item.label}
+												<BreadcrumbLink asChild>
+													<Link to={item.href || "#"}>{item.label}</Link>
 												</BreadcrumbLink>
 											)}
 										</BreadcrumbItem>
