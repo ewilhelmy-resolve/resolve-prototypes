@@ -16,15 +16,15 @@ export interface Message {
     // Each property is self-contained with its own content
     reasoning?: {
       content: string     // Reasoning text content
+      title?: string      // Optional custom title for reasoning section
       duration?: number   // How long AI spent thinking
       streaming?: boolean // Real-time streaming state
     }
     sources?: Array<{
       url: string
       title: string
-      description?: string
-      snippet?: string
-      blob_id?: string
+      snippet?: string      // Optional excerpt/preview of source content
+      blob_id?: string      // Optional reference to uploaded document
     }>
     citation_variant?: 'collapsible-list' | 'modal' | 'right-panel' | 'hover-card'
     tasks?: Array<{
@@ -38,6 +38,7 @@ export interface Message {
       mediaType: string
       size?: number
     }>
+    turn_complete?: boolean  // UI hint: true = turn finished, false/undefined = more messages coming
   }
 
   // Grouping for multi-part AI responses

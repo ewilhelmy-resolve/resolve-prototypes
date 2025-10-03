@@ -351,9 +351,21 @@ Check the sources section for additional resources!`
     parts.push({
       type: 'sources',
       sources: [
-        { url: 'https://docs.resolve.com/test3', title: 'Test3 Documentation' },
-        { url: 'https://github.com/resolve-io/test3', title: 'Test3 GitHub Repository' },
-        { url: 'https://blog.resolve.com/test3-guide', title: 'Complete Test3 Guide' }
+        {
+          url: 'https://docs.resolve.com/test3',
+          title: 'Test3 Documentation',
+          snippet: 'Complete documentation for Test3 features including setup, configuration, and advanced usage. Learn how to integrate Test3 with your existing workflows.'
+        },
+        {
+          url: 'https://github.com/resolve-io/test3',
+          title: 'Test3 GitHub Repository',
+          snippet: 'Open source repository containing the full Test3 implementation, examples, and test suite. Contributions welcome!'
+        },
+        {
+          url: 'https://blog.resolve.com/test3-guide',
+          title: 'Complete Test3 Guide',
+          snippet: 'Step-by-step guide covering common Test3 patterns, best practices, and troubleshooting tips from the engineering team.'
+        }
       ]
     });
   } else if (content.startsWith('test4')) {
@@ -1072,7 +1084,10 @@ This is a basic response format. Set \`MOCK_SCENARIO\` environment variable to g
   // Convert parts to separate messages with the external service format
   const responses = [];
 
-  for (const part of parts) {
+  for (let i = 0; i < parts.length; i++) {
+    const part = parts[i];
+    const isLastPart = i === parts.length - 1;
+
     if (part.type === 'text') {
       // Main text response
       responses.push({
@@ -1081,7 +1096,10 @@ This is a basic response format. Set \`MOCK_SCENARIO\` environment variable to g
         tenant_id: messagePayload.tenant_id,
         user_id: messagePayload.user_id,
         response: part.text,
-        response_group_id: responseGroupId
+        response_group_id: responseGroupId,
+        metadata: {
+          turn_complete: isLastPart
+        }
       });
     } else {
       // Metadata-based response (reasoning, sources, tasks)
@@ -1098,6 +1116,9 @@ This is a basic response format. Set \`MOCK_SCENARIO\` environment variable to g
       } else {
         metadata[part.type] = part[part.type];
       }
+
+      // Add turn_complete to metadata
+      metadata.turn_complete = isLastPart;
 
       responses.push({
         message_id: messagePayload.message_id,

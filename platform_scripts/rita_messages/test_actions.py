@@ -141,7 +141,8 @@ def test_reasoning_message(rabbit_config, queue_name, test_ids):
         response_group_id=None,
         tenant_id=test_ids['tenant_id'],
         message_id=test_ids['message_id'] or str(uuid.uuid4()),
-        conversation_id=test_ids['conversation_id']
+        conversation_id=test_ids['conversation_id'],
+        turn_complete=True  # Single message - turn is complete
     )
 
     print_result(result)
@@ -172,7 +173,8 @@ def test_sources_message(rabbit_config, queue_name, test_ids):
         response_group_id=None,
         tenant_id=test_ids['tenant_id'],
         message_id=test_ids['message_id'] or str(uuid.uuid4()),
-        conversation_id=test_ids['conversation_id']
+        conversation_id=test_ids['conversation_id'],
+        turn_complete=True  # Single message - turn is complete
     )
 
     print_result(result)
@@ -220,7 +222,8 @@ def test_tasks_message(rabbit_config, queue_name, test_ids):
         response_group_id=None,
         tenant_id=test_ids['tenant_id'],
         message_id=test_ids['message_id'] or str(uuid.uuid4()),
-        conversation_id=test_ids['conversation_id']
+        conversation_id=test_ids['conversation_id'],
+        turn_complete=True  # Single message - turn is complete
     )
 
     print_result(result)
@@ -265,7 +268,8 @@ def test_complete_message(rabbit_config, queue_name, test_ids):
         response_group_id=None,
         tenant_id=test_ids['tenant_id'],
         message_id=test_ids['message_id'] or str(uuid.uuid4()),
-        conversation_id=test_ids['conversation_id']
+        conversation_id=test_ids['conversation_id'],
+        turn_complete=True  # Single message - turn is complete
     )
 
     print_result(result)
@@ -295,7 +299,8 @@ def test_grouped_messages(rabbit_config, queue_name, test_ids):
         response_group_id=group_id,
         tenant_id=test_ids['tenant_id'],
         message_id=str(uuid.uuid4()),
-        conversation_id=test_ids['conversation_id']
+        conversation_id=test_ids['conversation_id'],
+        turn_complete=False  # More messages coming
     )
     print_result(result1)
 
@@ -321,7 +326,8 @@ def test_grouped_messages(rabbit_config, queue_name, test_ids):
         response_group_id=group_id,
         tenant_id=test_ids['tenant_id'],
         message_id=str(uuid.uuid4()),
-        conversation_id=test_ids['conversation_id']
+        conversation_id=test_ids['conversation_id'],
+        turn_complete=True  # Last message - turn is complete
     )
     print_result(result2)
 

@@ -7,16 +7,28 @@ Use send_to_rabbitmq.py to send the built message, or use the all-in-one actions
 Inputs (execute signature):
  - text_content: string (OPTIONAL) - Main response text
  - reasoning_content: string (OPTIONAL) - Step-by-step analysis content
- - sources: string or list (OPTIONAL) - JSON string or list of {url: str, title: str}
-   Example: '[{"url": "https://docs.example.com", "title": "Documentation"}]'
+ - sources: string or list (OPTIONAL) - JSON string or list of {url: str, title: str, snippet?: str}
+   Example: '[{"url": "https://docs.example.com", "title": "Documentation", "snippet": "Brief content preview"}]'
+   Note: snippet field is optional and provides a preview of the source content
  - tasks: string or list (OPTIONAL) - JSON string or list of {title: str, items: list[str], defaultOpen: bool}
    Example: '[{"title": "Setup", "items": ["Install dependencies", "Configure"], "defaultOpen": true}]'
  - response_group_id: string (OPTIONAL) - UUID to group with other messages
+ - turn_complete: boolean (OPTIONAL) - UI hint to indicate turn completion
+   true = this is the last message in the turn, false/undefined = more messages coming
+   Used to control loading spinners and "AI is typing..." indicators
  - tenant_id: string (REQUIRED) - Tenant identifier
  - message_id: string (REQUIRED) - User message ID (provided by workflow as parameter)
  - conversation_id: string (REQUIRED) - Conversation identifier
 
 Return: JSON-serializable dict with status and message payload.
+
+Note on turn_complete:
+  - For single-message responses: set to true or omit
+  - For multi-part responses: set to false for all parts except the last
+  - The last message in a response group should have turn_complete=true
+  - To use turn_complete, add it to the RabbitMQ message metadata directly:
+    message["metadata"]["turn_complete"] = true/false
+  - This field is a UI hint only and not validated by this builder
 """
 
 import json
@@ -93,7 +105,7 @@ def validate_parameters(tenant_id, message_id, conversation_id, sources=None, ta
     return True, None
 
 
-def execute(text_content,reasoning_content,sources,tasks,response_group_id,tenant_id,message_id,conversation_id):
+def execute(text_content,reasoning_content,sources,tasks,response_group_id,tenant_id,message_id,conversation_id,turn_complete):
     """
     Build a Rita message payload without sending to RabbitMQ.
     Returns the message structure for use with send_to_rabbitmq.py or other purposes.
@@ -105,6 +117,7 @@ def execute(text_content,reasoning_content,sources,tasks,response_group_id,tenan
         sources = sources if sources else None
         tasks = tasks if tasks else None
         response_group_id = response_group_id if response_group_id else None
+        turn_complete = turn_complete if turn_complete is not None else None
 
         # Validate response_group_id format
         is_valid, error_msg = validate_response_group_id(response_group_id)
@@ -154,6 +167,10 @@ def execute(text_content,reasoning_content,sources,tasks,response_group_id,tenan
             if isinstance(tasks, str):
                 tasks = json.loads(tasks)
             metadata["tasks"] = tasks
+
+        # Add turn_complete to metadata if provided
+        if turn_complete is not None:
+            metadata["turn_complete"] = turn_complete
 
         # Add metadata if not empty
         if metadata:

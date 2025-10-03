@@ -118,6 +118,15 @@ const mapRitaStatusToChatStatus = (
     }
   }
 
+  // Check if last assistant message indicates turn is not complete
+  if (lastMessage && lastMessage.role === 'assistant') {
+    const turnComplete = lastMessage.metadata?.turn_complete
+    // If turn_complete is explicitly false, show loader (more messages coming)
+    if (turnComplete === false) {
+      return 'streaming'
+    }
+  }
+
   // Check if last message failed
   if (lastMessage && lastMessage.status === 'failed') {
     return 'error'

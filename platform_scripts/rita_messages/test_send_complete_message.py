@@ -47,7 +47,8 @@ def test_missing_host_fails():
         response_group_id=None,
         tenant_id="test-tenant",
         message_id=str(uuid.uuid4()),
-        conversation_id=str(uuid.uuid4())
+        conversation_id=str(uuid.uuid4()),
+        turn_complete=None
     )
 
     assert result["status"] == "error"
@@ -74,7 +75,8 @@ def test_missing_tenant_id_fails():
         response_group_id=None,
         tenant_id=None,
         message_id=str(uuid.uuid4()),
-        conversation_id=str(uuid.uuid4())
+        conversation_id=str(uuid.uuid4()),
+        turn_complete=None
     )
 
     assert result["status"] == "error"
@@ -101,7 +103,8 @@ def test_missing_message_id_fails():
         response_group_id=None,
         tenant_id="test-tenant",
         message_id=None,
-        conversation_id=str(uuid.uuid4())
+        conversation_id=str(uuid.uuid4()),
+        turn_complete=None
     )
 
     assert result["status"] == "error"
@@ -128,7 +131,8 @@ def test_missing_conversation_id_fails():
         response_group_id=None,
         tenant_id="test-tenant",
         message_id=str(uuid.uuid4()),
-        conversation_id=None
+        conversation_id=None,
+        turn_complete=None
     )
 
     assert result["status"] == "error"
@@ -159,7 +163,8 @@ def test_empty_message_fails():
         response_group_id=None,
         tenant_id="test-tenant",
         message_id=str(uuid.uuid4()),
-        conversation_id=str(uuid.uuid4())
+        conversation_id=str(uuid.uuid4()),
+        turn_complete=None
     )
 
     assert result["status"] == "error"
@@ -186,7 +191,8 @@ def test_whitespace_only_text_fails():
         response_group_id=None,
         tenant_id="test-tenant",
         message_id=str(uuid.uuid4()),
-        conversation_id=str(uuid.uuid4())
+        conversation_id=str(uuid.uuid4()),
+        turn_complete=None
     )
 
     assert result["status"] == "error"
@@ -220,7 +226,8 @@ def test_invalid_response_group_id_fails():
         response_group_id="not-a-valid-uuid",
         tenant_id="test-tenant",
         message_id=str(uuid.uuid4()),
-        conversation_id=str(uuid.uuid4())
+        conversation_id=str(uuid.uuid4()),
+        turn_complete=None
     )
 
     assert result["status"] == "error"
@@ -250,7 +257,8 @@ def test_invalid_sources_structure_fails():
         response_group_id=None,
         tenant_id="test-tenant",
         message_id=str(uuid.uuid4()),
-        conversation_id=str(uuid.uuid4())
+        conversation_id=str(uuid.uuid4()),
+        turn_complete=None
     )
 
     assert result["status"] == "error"
@@ -280,7 +288,8 @@ def test_invalid_tasks_structure_fails():
         response_group_id=None,
         tenant_id="test-tenant",
         message_id=str(uuid.uuid4()),
-        conversation_id=str(uuid.uuid4())
+        conversation_id=str(uuid.uuid4()),
+        turn_complete=None
     )
 
     assert result["status"] == "error"
@@ -319,7 +328,8 @@ def test_text_only_message_success():
         response_group_id=None,
         tenant_id="test-tenant",
         message_id=str(uuid.uuid4()),
-        conversation_id=str(uuid.uuid4())
+        conversation_id=str(uuid.uuid4()),
+        turn_complete=None
     )
 
     assert result["status"] == "success"
@@ -360,7 +370,8 @@ def test_reasoning_only_message_success():
         response_group_id=None,
         tenant_id="test-tenant",
         message_id=str(uuid.uuid4()),
-        conversation_id=str(uuid.uuid4())
+        conversation_id=str(uuid.uuid4()),
+        turn_complete=None
     )
 
     assert result["status"] == "success"
@@ -403,7 +414,8 @@ def test_sources_only_message_success():
         response_group_id=None,
         tenant_id="test-tenant",
         message_id=str(uuid.uuid4()),
-        conversation_id=str(uuid.uuid4())
+        conversation_id=str(uuid.uuid4()),
+        turn_complete=None
     )
 
     assert result["status"] == "success"
@@ -447,7 +459,8 @@ def test_tasks_only_message_success():
         response_group_id=None,
         tenant_id="test-tenant",
         message_id=str(uuid.uuid4()),
-        conversation_id=str(uuid.uuid4())
+        conversation_id=str(uuid.uuid4()),
+        turn_complete=None
     )
 
     assert result["status"] == "success"
@@ -487,7 +500,8 @@ def test_complete_message_with_all_components():
         response_group_id=group_id,
         tenant_id="test-tenant",
         message_id=str(uuid.uuid4()),
-        conversation_id=str(uuid.uuid4())
+        conversation_id=str(uuid.uuid4()),
+        turn_complete=None
     )
 
     assert result["status"] == "success"
@@ -535,7 +549,8 @@ def test_message_body_sent_as_json():
         response_group_id=None,
         tenant_id=tenant_id,
         message_id=message_id,
-        conversation_id=conversation_id
+        conversation_id=conversation_id,
+        turn_complete=None
     )
 
     assert result["status"] == "success"
@@ -580,7 +595,8 @@ def test_message_persistence_enabled():
         response_group_id=None,
         tenant_id="test-tenant",
         message_id=str(uuid.uuid4()),
-        conversation_id=str(uuid.uuid4())
+        conversation_id=str(uuid.uuid4()),
+        turn_complete=None
     )
 
     assert result["status"] == "success"
@@ -618,7 +634,8 @@ def test_queue_declared_as_durable():
         response_group_id=None,
         tenant_id="test-tenant",
         message_id=str(uuid.uuid4()),
-        conversation_id=str(uuid.uuid4())
+        conversation_id=str(uuid.uuid4()),
+        turn_complete=None
     )
 
     assert result["status"] == "success"
@@ -656,7 +673,8 @@ def test_connection_closed_after_send():
         response_group_id=None,
         tenant_id="test-tenant",
         message_id=str(uuid.uuid4()),
-        conversation_id=str(uuid.uuid4())
+        conversation_id=str(uuid.uuid4()),
+        turn_complete=None
     )
 
     assert result["status"] == "success"

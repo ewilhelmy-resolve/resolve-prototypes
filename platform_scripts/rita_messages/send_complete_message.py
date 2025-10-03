@@ -12,14 +12,17 @@ Inputs (execute signature):
  - queue_name: string (REQUIRED) - Name of the queue
  - text_content: string (OPTIONAL) - Main response text
  - reasoning_content: string (OPTIONAL) - Step-by-step analysis content
- - sources: string or list (OPTIONAL) - JSON string or list of {url: str, title: str}
-   Example: '[{"url": "https://docs.example.com", "title": "Documentation"}]'
+ - sources: string or list (OPTIONAL) - JSON string or list of {url: str, title: str, snippet?: str}
+   Example: '[{"url": "https://docs.example.com", "title": "Documentation", "snippet": "Brief preview text"}]'
+   Note: snippet field is optional and provides a content preview
  - tasks: string or list (OPTIONAL) - JSON string or list of {title: str, items: list[str], defaultOpen: bool}
    Example: '[{"title": "Setup", "items": ["Install dependencies", "Configure"], "defaultOpen": true}]'
  - response_group_id: string (OPTIONAL) - UUID to group with other messages
  - tenant_id: string (REQUIRED) - Tenant identifier
  - message_id: string (REQUIRED) - User message ID (provided by workflow as parameter)
  - conversation_id: string (REQUIRED) - Conversation identifier
+ - turn_complete: boolean (OPTIONAL) - UI hint to signal if this is the last message in a turn
+   Set to True for the final message, False for intermediate messages
 
 Return: JSON-serializable dict with status.
 """
@@ -166,7 +169,7 @@ def send_to_rabbitmq(message_body, host, port, username, password, vhost, queue_
     connection.close()
 
 
-def execute(host,port,username,password,vhost,queue_name,text_content,reasoning_content,sources,tasks,response_group_id,tenant_id,message_id,conversation_id):
+def execute(host,port,username,password,vhost,queue_name,text_content,reasoning_content,sources,tasks,response_group_id,tenant_id,message_id,conversation_id,turn_complete):
     """
     Send a complete Rita message with all optional components.
     """
@@ -177,6 +180,7 @@ def execute(host,port,username,password,vhost,queue_name,text_content,reasoning_
         sources = sources if sources else None
         tasks = tasks if tasks else None
         response_group_id = response_group_id if response_group_id else None
+        turn_complete = turn_complete if turn_complete is not None else None
 
         # Validate response_group_id format
         is_valid, error_msg = validate_response_group_id(response_group_id)
@@ -234,6 +238,10 @@ def execute(host,port,username,password,vhost,queue_name,text_content,reasoning_
             if isinstance(tasks, str):
                 tasks = json.loads(tasks)
             metadata["tasks"] = tasks
+
+        # Add turn_complete to metadata if provided
+        if turn_complete is not None:
+            metadata["turn_complete"] = turn_complete
 
         # Add metadata if not empty
         if metadata:

@@ -32,7 +32,8 @@ def test_valid_text_only():
         response_group_id=None,
         tenant_id="test-tenant",
         message_id=str(uuid.uuid4()),
-        conversation_id=str(uuid.uuid4())
+        conversation_id=str(uuid.uuid4()),
+        turn_complete=None
     )
 
     assert result["status"] == "success", f"Expected success, got: {result}"
@@ -54,7 +55,8 @@ def test_valid_reasoning_only():
         response_group_id=None,
         tenant_id="test-tenant",
         message_id=str(uuid.uuid4()),
-        conversation_id=str(uuid.uuid4())
+        conversation_id=str(uuid.uuid4()),
+        turn_complete=None
     )
 
     assert result["status"] == "success", f"Expected success, got: {result}"
@@ -82,7 +84,8 @@ def test_valid_sources_only():
         response_group_id=None,
         tenant_id="test-tenant",
         message_id=str(uuid.uuid4()),
-        conversation_id=str(uuid.uuid4())
+        conversation_id=str(uuid.uuid4()),
+        turn_complete=None
     )
 
     assert result["status"] == "success", f"Expected success, got: {result}"
@@ -111,7 +114,8 @@ def test_valid_tasks_only():
         response_group_id=None,
         tenant_id="test-tenant",
         message_id=str(uuid.uuid4()),
-        conversation_id=str(uuid.uuid4())
+        conversation_id=str(uuid.uuid4()),
+        turn_complete=None
     )
 
     assert result["status"] == "success", f"Expected success, got: {result}"
@@ -136,7 +140,8 @@ def test_valid_complete_message():
         response_group_id=group_id,
         tenant_id="test-tenant",
         message_id=str(uuid.uuid4()),
-        conversation_id=str(uuid.uuid4())
+        conversation_id=str(uuid.uuid4()),
+        turn_complete=None
     )
 
     assert result["status"] == "success", f"Expected success, got: {result}"
@@ -161,7 +166,8 @@ def test_empty_message_fails():
         response_group_id=None,
         tenant_id="test-tenant",
         message_id=str(uuid.uuid4()),
-        conversation_id=str(uuid.uuid4())
+        conversation_id=str(uuid.uuid4()),
+        turn_complete=None
     )
 
     assert result["status"] == "error", f"Expected error, got: {result}"
@@ -182,7 +188,8 @@ def test_missing_tenant_id_fails():
         response_group_id=None,
         tenant_id=None,
         message_id=str(uuid.uuid4()),
-        conversation_id=str(uuid.uuid4())
+        conversation_id=str(uuid.uuid4()),
+        turn_complete=None
     )
 
     assert result["status"] == "error", f"Expected error, got: {result}"
@@ -203,7 +210,8 @@ def test_missing_message_id_fails():
         response_group_id=None,
         tenant_id="test-tenant",
         message_id=None,
-        conversation_id=str(uuid.uuid4())
+        conversation_id=str(uuid.uuid4()),
+        turn_complete=None
     )
 
     assert result["status"] == "error", f"Expected error, got: {result}"
@@ -224,7 +232,8 @@ def test_missing_conversation_id_fails():
         response_group_id=None,
         tenant_id="test-tenant",
         message_id=str(uuid.uuid4()),
-        conversation_id=None
+        conversation_id=None,
+        turn_complete=None
     )
 
     assert result["status"] == "error", f"Expected error, got: {result}"
@@ -245,7 +254,8 @@ def test_invalid_response_group_id_fails():
         response_group_id="not-a-valid-uuid",
         tenant_id="test-tenant",
         message_id=str(uuid.uuid4()),
-        conversation_id=str(uuid.uuid4())
+        conversation_id=str(uuid.uuid4()),
+        turn_complete=None
     )
 
     assert result["status"] == "error", f"Expected error, got: {result}"
@@ -269,7 +279,8 @@ def test_invalid_sources_structure_fails():
         response_group_id=None,
         tenant_id="test-tenant",
         message_id=str(uuid.uuid4()),
-        conversation_id=str(uuid.uuid4())
+        conversation_id=str(uuid.uuid4()),
+        turn_complete=None
     )
 
     assert result["status"] == "error", f"Expected error, got: {result}"
@@ -293,7 +304,8 @@ def test_invalid_tasks_structure_fails():
         response_group_id=None,
         tenant_id="test-tenant",
         message_id=str(uuid.uuid4()),
-        conversation_id=str(uuid.uuid4())
+        conversation_id=str(uuid.uuid4()),
+        turn_complete=None
     )
 
     assert result["status"] == "error", f"Expected error, got: {result}"
@@ -314,7 +326,8 @@ def test_sources_not_a_list_fails():
         response_group_id=None,
         tenant_id="test-tenant",
         message_id=str(uuid.uuid4()),
-        conversation_id=str(uuid.uuid4())
+        conversation_id=str(uuid.uuid4()),
+        turn_complete=None
     )
 
     assert result["status"] == "error", f"Expected error, got: {result}"
@@ -335,7 +348,8 @@ def test_tasks_not_a_list_fails():
         response_group_id=None,
         tenant_id="test-tenant",
         message_id=str(uuid.uuid4()),
-        conversation_id=str(uuid.uuid4())
+        conversation_id=str(uuid.uuid4()),
+        turn_complete=None
     )
 
     assert result["status"] == "error", f"Expected error, got: {result}"
@@ -356,7 +370,8 @@ def test_whitespace_only_text_fails():
         response_group_id=None,
         tenant_id="test-tenant",
         message_id=str(uuid.uuid4()),
-        conversation_id=str(uuid.uuid4())
+        conversation_id=str(uuid.uuid4()),
+        turn_complete=None
     )
 
     assert result["status"] == "error", f"Expected error, got: {result}"

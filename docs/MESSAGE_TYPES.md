@@ -69,6 +69,7 @@ interface Message {
     sources?: Array<{
       url: string
       title: string
+      snippet?: string  // Optional content preview/excerpt
     }>
     tasks?: Array<{
       title: string
@@ -81,6 +82,7 @@ interface Message {
       mediaType: string
       size?: number
     }>
+    turn_complete?: boolean  // UI hint: true = turn finished, false/undefined = more messages coming
   }
   response_group_id?: string
   timestamp: Date
@@ -111,6 +113,7 @@ interface RabbitMQMessage {
     sources?: Array<{
       url: string
       title: string
+      snippet?: string  // Optional content preview (200-300 chars recommended)
     }>
     tasks?: Array<{
       title: string
@@ -123,6 +126,7 @@ interface RabbitMQMessage {
       mediaType: string
       size?: number
     }>
+    turn_complete?: boolean  // UI hint: false = more messages coming, true = turn finished
   }
   response_group_id?: string  // UUID to group related messages
 }
@@ -402,6 +406,11 @@ Rita uses the **ai-elements** component library for rendering:
 3. **Use incremental delays** (100ms recommended) between grouped messages
 4. **Include meaningful metadata** with appropriate structure
 5. **Keep text content** in the `response` field, metadata in `metadata` field
+6. **Use `turn_complete`** to control loading indicators:
+   - Set `metadata.turn_complete = false` for all messages except the last
+   - Set `metadata.turn_complete = true` on the final message in a turn
+   - Omit the field for single-message responses (defaults to complete)
+7. **Include `snippet` in sources** for richer previews (200-300 characters recommended)
 
 ### For Frontend Development:
 
