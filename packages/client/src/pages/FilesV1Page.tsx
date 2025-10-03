@@ -7,13 +7,13 @@
  * Follows SOC2 compliance, WCAG 2.1 AA accessibility, and Component-Based Architecture.
  */
 
-import RitaV1Layout from '../components/layouts/RitaV1Layout'
+import RitaLayout from '../components/layouts/RitaLayout'
 import FilesV1Content from '../components/FilesV1Content'
 
 export default function FilesV1Page() {
   return (
-    <RitaV1Layout activePage="files">
+    <RitaLayout activePage="files">
       <FilesV1Content />
-    </RitaV1Layout>
+    </RitaLayout>
   )
 }

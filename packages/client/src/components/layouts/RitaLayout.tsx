@@ -1,5 +1,5 @@
 /**
- * RitaV0Layout - Adapted v0.app Dashboard layout for Rita
+ * RitaLayout - Adapted v0.app Dashboard layout for Rita
  *
  * This layout is based on the v0.app Dashboard component but adapted to work with:
  * - React/Vite (no Next.js)
@@ -56,13 +56,13 @@ import { useChatNavigation } from "@/hooks/useChatNavigation"
 import { useKnowledgeBase } from "@/hooks/useKnowledgeBase"
 import type { Conversation } from "@/stores/conversationStore"
 
-export interface RitaV0LayoutProps {
+export interface RitaLayoutProps {
   children: React.ReactNode;
   /** Current active page for navigation highlighting */
   activePage?: "chat" | "files" | "automations" | "tickets" | "users";
 }
 
-function RitaV0LayoutContent({ children, activePage = "chat" }: RitaV0LayoutProps) {
+function RitaLayoutContent({ children, activePage = "chat" }: RitaLayoutProps) {
   const { state } = useSidebar()
   const [shareModalOpen, setShareModalOpen] = useState(false)
   const navigate = useNavigate()
@@ -424,10 +424,10 @@ function RitaV0LayoutContent({ children, activePage = "chat" }: RitaV0LayoutProp
   )
 }
 
-export default function RitaV0Layout(props: RitaV0LayoutProps) {
+export default function RitaLayout(props: RitaLayoutProps) {
   return (
     <SidebarProvider className="w-screen">
-      <RitaV0LayoutContent {...props} />
+      <RitaLayoutContent {...props} />
     </SidebarProvider>
   )
 }

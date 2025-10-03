@@ -6,11 +6,11 @@
  */
 
 import { FeatureFlagsPanel } from '@/components/devtools/FeatureFlagsPanel'
-import RitaV1Layout from '@/components/layouts/RitaV1Layout'
+import RitaLayout from '@/components/layouts/RitaLayout'
 
 const DevToolsPage: React.FC = () => {
   return (
-    <RitaV1Layout activePage="users">
+    <RitaLayout activePage="users">
       <div className="h-full overflow-y-auto p-8">
         <div className="max-w-4xl mx-auto space-y-6">
           <div>
@@ -24,7 +24,7 @@ const DevToolsPage: React.FC = () => {
           <FeatureFlagsPanel />
         </div>
       </div>
-    </RitaV1Layout>
+    </RitaLayout>
   )
 }
 

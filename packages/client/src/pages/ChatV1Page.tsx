@@ -11,7 +11,7 @@ import { useParams } from 'react-router-dom'
 import { SSEProvider, useSSEContext } from '../contexts/SSEContext'
 import { useAuth } from '../hooks/useAuth'
 import { useConversationStore } from '../stores/conversationStore'
-import RitaV1Layout from '../components/layouts/RitaV1Layout'
+import RitaLayout from '../components/layouts/RitaLayout'
 import ChatV1Content from '../components/chat/ChatV1Content.tsx'
 import { useRitaChat } from '../hooks/useRitaChat'
 
@@ -42,9 +42,9 @@ const ChatV1Demo: React.FC = () => {
   }, [latestUpdate, updateMessage])
 
   return (
-    <RitaV1Layout activePage="chat">
+    <RitaLayout activePage="chat">
       <ChatV1Content {...ritaChatState} />
-    </RitaV1Layout>
+    </RitaLayout>
   )
 }
 
