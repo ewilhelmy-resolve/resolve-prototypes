@@ -364,9 +364,10 @@ function RitaLayoutContent({ children, activePage = "chat" }: RitaLayoutProps) {
                   ) : (
                     <div className="flex flex-col gap-2">
                       {knowledgeBaseFiles.slice(0, 4).map((file) => (
-                        <div
+                        <button
                           key={file.id}
-                          className="flex items-start gap-2 p-2 rounded-md hover:bg-accent cursor-pointer"
+                          type="button"
+                          className="flex items-start gap-2 p-2 rounded-md hover:bg-accent cursor-pointer text-left w-full"
                           onClick={navigateToKnowledgeArticles}
                         >
                           <FileText className="w-4 h-4 mt-0.5 text-muted-foreground" />
@@ -378,7 +379,7 @@ function RitaLayoutContent({ children, activePage = "chat" }: RitaLayoutProps) {
                               {file.created_at?.toLocaleDateString() || "Recently added"}
                             </p>
                           </div>
-                        </div>
+                        </button>
                       ))}
                       {knowledgeBaseFiles.length > 4 && (
                         <Button
