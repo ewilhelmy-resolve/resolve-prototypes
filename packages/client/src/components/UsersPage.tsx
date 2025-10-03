@@ -32,9 +32,9 @@ export default function UsersPage() {
   ]
 
   return (
-    <div className="flex flex-col">
+    <div className="flex flex-col h-full overflow-y-auto">
       <div className="flex flex-col gap-2.5 p-4 border-b border-border">
-        <div className="container mx-auto">
+        <div className="max-w-7xl mx-auto w-full">
           <div className="flex justify-between items-center gap-6">
             <div className="flex flex-col">
               <h1 className="text-2xl font-normal text-foreground">Users</h1>
@@ -49,7 +49,7 @@ export default function UsersPage() {
         </div>
       </div>
 
-      <div className="flex flex-col gap-4 p-4">
+      <div className="flex flex-col gap-4 p-6 max-w-7xl mx-auto w-full">
         <div className="flex gap-2.5 lg:gap-10">
           <Card className="bg-popover border border-border rounded-md shadow-sm">
             <CardContent className="p-4">
