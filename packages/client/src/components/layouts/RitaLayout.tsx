@@ -38,7 +38,6 @@ import {
   LayoutGrid,
   File,
   Ticket,
-  PanelLeft,
   ChevronDown,
   ALargeSmall,
   Plus,
@@ -65,6 +64,7 @@ function RitaLayoutContent({ children, activePage = "chat" }: RitaLayoutProps) {
   const { state } = useSidebar()
   const [shareModalOpen, setShareModalOpen] = useState(false)
   const navigate = useNavigate()
+
 
   // Rita hooks
   const { user, logout } = useAuth()
@@ -115,8 +115,7 @@ function RitaLayoutContent({ children, activePage = "chat" }: RitaLayoutProps) {
 
   return (
     <>
-      <div className="flex h-screen w-full overflow-hidden">
-        <Sidebar className="bg-sidebar-primary-foreground border-sidebar-border">
+      <Sidebar className="bg-sidebar-primary-foreground border-sidebar-border">
           <SidebarHeader className="h-[67px] flex items-left justify-start pl-2">
             <div className="flex items-center h-full pl-2">
               <img src="/logo-rita.svg" alt="Rita Logo" width={179} height={18} className="w-[179px] h-[18px]" />
@@ -269,12 +268,10 @@ function RitaLayoutContent({ children, activePage = "chat" }: RitaLayoutProps) {
           </SidebarFooter>
         </Sidebar>
 
-        <div className="flex-1 flex flex-col overflow-hidden min-w-0">
-          <header className="h-[67px] border-b border-border bg-background flex items-center px-6 flex-shrink-0">
-            <div className="flex items-center gap-2 h-full">
-              <SidebarTrigger className="w-7 h-7 rounded-md">
-                <PanelLeft className="w-4 h-4" />
-              </SidebarTrigger>
+        <div className="fixed inset-y-0 right-0 left-0 lg:left-[204px] flex flex-col overflow-hidden">
+          <header className="h-[67px] border-b border-border bg-background flex items-center flex-shrink-0 pr-6">
+            <div className="flex items-center gap-2 h-full pl-4">
+              <SidebarTrigger />
               <Breadcrumb>
                 <BreadcrumbList>
                   <BreadcrumbItem>
@@ -410,7 +407,6 @@ function RitaLayoutContent({ children, activePage = "chat" }: RitaLayoutProps) {
             )}
           </div>
         </div>
-      </div>
 
       {/* Hidden file input for document upload */}
       <input
