@@ -10,6 +10,7 @@ import FilesV1Page from './pages/FilesV1Page';
 import UsersV1Page from './pages/UsersV1Page';
 import SettingsV1Page from './pages/SettingsV1Page';
 import ConnectionSourceDetailPage from './pages/ConnectionSourceDetailPage';
+import DevToolsPage from './pages/DevToolsPage';
 import { ProtectedRoute } from './components/auth/ProtectedRoute';
 
 const router = createBrowserRouter([
@@ -116,6 +117,14 @@ const router = createBrowserRouter([
       <ProtectedRoute>
         {/* Analytics dashboard - future feature */}
         <div>Analytics dashboard (future feature)</div>
+      </ProtectedRoute>
+    )
+  },
+  {
+    path: '/devtools',
+    element: (
+      <ProtectedRoute>
+        <DevToolsPage />
       </ProtectedRoute>
     )
   },
