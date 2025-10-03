@@ -140,13 +140,15 @@ def test_reasoning_message(rabbit_config, queue_name, test_ids):
 1. **Check System Status**: Verify all services are running
 2. **Review Logs**: Look for any errors or warnings
 3. **Generate Report**: Create comprehensive status report""",
+        reasoning_title="System Analysis",
         sources=None,
         tasks=None,
         response_group_id=None,
         tenant_id=test_ids['tenant_id'],
         message_id=test_ids['message_id'] or str(uuid.uuid4()),
         conversation_id=test_ids['conversation_id'],
-        turn_complete=True  # Single message - turn is complete
+        turn_complete=True,  # Single message - turn is complete
+        citation_variant=None
     )
 
     print_result(result)
@@ -158,9 +160,21 @@ def test_sources_message(rabbit_config, queue_name, test_ids):
     print_test_header("Sources Message")
 
     sources = [
-        {"url": "https://docs.anthropic.com", "title": "Anthropic Documentation"},
-        {"url": "https://docs.python.org", "title": "Python Documentation"},
-        {"url": "https://www.rabbitmq.com/documentation.html", "title": "RabbitMQ Docs"}
+        {
+            "url": "https://docs.anthropic.com",
+            "title": "Anthropic Documentation",
+            "snippet": "Learn about Claude API, best practices, and integration patterns."
+        },
+        {
+            "url": "https://docs.python.org",
+            "title": "Python Documentation",
+            "snippet": "Official Python documentation covering language features and standard library."
+        },
+        {
+            "url": "https://www.rabbitmq.com/documentation.html",
+            "title": "RabbitMQ Docs",
+            "snippet": "Complete guide to RabbitMQ message broker configuration and usage."
+        }
     ]
 
     result = send_complete(
@@ -172,13 +186,15 @@ def test_sources_message(rabbit_config, queue_name, test_ids):
         queue_name=queue_name,
         text_content=None,
         reasoning_content=None,
+        reasoning_title=None,
         sources=json.dumps(sources),
         tasks=None,
         response_group_id=None,
         tenant_id=test_ids['tenant_id'],
         message_id=test_ids['message_id'] or str(uuid.uuid4()),
         conversation_id=test_ids['conversation_id'],
-        turn_complete=True  # Single message - turn is complete
+        turn_complete=True,  # Single message - turn is complete
+        citation_variant="hover-card"
     )
 
     print_result(result)
@@ -221,13 +237,15 @@ def test_tasks_message(rabbit_config, queue_name, test_ids):
         queue_name=queue_name,
         text_content=None,
         reasoning_content=None,
+        reasoning_title=None,
         sources=None,
         tasks=json.dumps(tasks),
         response_group_id=None,
         tenant_id=test_ids['tenant_id'],
         message_id=test_ids['message_id'] or str(uuid.uuid4()),
         conversation_id=test_ids['conversation_id'],
-        turn_complete=True  # Single message - turn is complete
+        turn_complete=True,  # Single message - turn is complete
+        citation_variant=None
     )
 
     print_result(result)
@@ -235,11 +253,21 @@ def test_tasks_message(rabbit_config, queue_name, test_ids):
 
 
 def test_complete_message(rabbit_config, queue_name, test_ids):
-    """Test complete message with all components"""
-    print_test_header("Complete Message (All Components)")
+    """Test complete message with all components including new fields"""
+    print_test_header("Complete Message (All Components with New Fields)")
 
     sources = [
-        {"url": "https://docs.example.com/deployment", "title": "Deployment Guide"}
+        {
+            "url": "https://docs.example.com/deployment",
+            "title": "Deployment Guide",
+            "snippet": "Complete guide to deploying applications to production environments, including best practices and rollback procedures.",
+            "blob_id": "blob-deploy-guide-12345"
+        },
+        {
+            "url": "https://docs.example.com/monitoring",
+            "title": "Production Monitoring",
+            "snippet": "Learn how to set up monitoring, alerts, and observability for production systems."
+        }
     ]
 
     tasks = [
@@ -249,7 +277,8 @@ def test_complete_message(rabbit_config, queue_name, test_ids):
             "items": [
                 "Backup production database",
                 "Review rollback plan",
-                "Notify team members"
+                "Notify team members",
+                "Run final integration tests"
             ]
         }
     ]
@@ -261,19 +290,22 @@ def test_complete_message(rabbit_config, queue_name, test_ids):
         password=rabbit_config['password'],
         vhost=rabbit_config['vhost'],
         queue_name=queue_name,
-        text_content="## Deployment Plan Ready 🚀\n\nYour application is ready for production deployment.",
+        text_content="## Deployment Plan Ready 🚀\n\nYour application is ready for production deployment. All prerequisites have been verified.",
         reasoning_content="""Deployment Analysis:
 
 1. **Requirements Check**: All prerequisites met
 2. **Configuration Review**: Settings validated
-3. **Risk Assessment**: Low risk deployment""",
+3. **Risk Assessment**: Low risk deployment
+4. **Resource Allocation**: Sufficient capacity available""",
+        reasoning_title="Deployment Planning",
         sources=json.dumps(sources),
         tasks=json.dumps(tasks),
         response_group_id=None,
         tenant_id=test_ids['tenant_id'],
         message_id=test_ids['message_id'] or str(uuid.uuid4()),
         conversation_id=test_ids['conversation_id'],
-        turn_complete=True  # Single message - turn is complete
+        turn_complete=True,  # Single message - turn is complete
+        citation_variant="hover-card"
     )
 
     print_result(result)
@@ -298,13 +330,15 @@ def test_grouped_messages(rabbit_config, queue_name, test_ids):
         queue_name=queue_name,
         text_content=None,
         reasoning_content="Analyzing the system:\n1. Check metrics\n2. Evaluate performance\n3. Generate recommendations",
+        reasoning_title="Performance Analysis",
         sources=None,
         tasks=None,
         response_group_id=group_id,
         tenant_id=test_ids['tenant_id'],
         message_id=str(uuid.uuid4()),
         conversation_id=test_ids['conversation_id'],
-        turn_complete=False  # More messages coming
+        turn_complete=False,  # More messages coming
+        citation_variant=None
     )
     print_result(result1)
 
@@ -319,6 +353,7 @@ def test_grouped_messages(rabbit_config, queue_name, test_ids):
         queue_name=queue_name,
         text_content=None,
         reasoning_content=None,
+        reasoning_title=None,
         sources=None,
         tasks=json.dumps([
             {
@@ -331,7 +366,8 @@ def test_grouped_messages(rabbit_config, queue_name, test_ids):
         tenant_id=test_ids['tenant_id'],
         message_id=str(uuid.uuid4()),
         conversation_id=test_ids['conversation_id'],
-        turn_complete=True  # Last message - turn is complete
+        turn_complete=True,  # Last message - turn is complete
+        citation_variant=None
     )
     print_result(result2)
 

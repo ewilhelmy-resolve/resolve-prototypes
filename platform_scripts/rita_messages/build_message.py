@@ -7,18 +7,24 @@ Use send_to_rabbitmq.py to send the built message, or use the all-in-one actions
 Inputs (execute signature):
  - text_content: string (OPTIONAL) - Main response text
  - reasoning_content: string (OPTIONAL) - Step-by-step analysis content
- - sources: string or list (OPTIONAL) - JSON string or list of {url: str, title: str, snippet?: str}
-   Example: '[{"url": "https://docs.example.com", "title": "Documentation", "snippet": "Brief content preview"}]'
-   Note: snippet field is optional and provides a preview of the source content
+ - reasoning_title: string (OPTIONAL) - Custom title for reasoning section (e.g., "Research & Analysis")
+ - sources: string or list (OPTIONAL) - JSON string or list of {url: str, title: str, snippet?: str, blob_id?: str}
+   Example: '[{"url": "https://docs.example.com", "title": "Documentation", "snippet": "Brief preview", "blob_id": "blob-123"}]'
+   Note: snippet and blob_id fields are optional
+   - snippet: Content preview/excerpt (200-300 chars recommended)
+   - blob_id: Reference to uploaded document in blob storage
  - tasks: string or list (OPTIONAL) - JSON string or list of {title: str, items: list[str], defaultOpen: bool}
    Example: '[{"title": "Setup", "items": ["Install dependencies", "Configure"], "defaultOpen": true}]'
  - response_group_id: string (OPTIONAL) - UUID to group with other messages
- - turn_complete: boolean (OPTIONAL) - UI hint to indicate turn completion
-   true = this is the last message in the turn, false/undefined = more messages coming
-   Used to control loading spinners and "AI is typing..." indicators
  - tenant_id: string (REQUIRED) - Tenant identifier
  - message_id: string (REQUIRED) - User message ID (provided by workflow as parameter)
  - conversation_id: string (REQUIRED) - Conversation identifier
+ - turn_complete: boolean (OPTIONAL) - UI hint to indicate turn completion
+   true = this is the last message in the turn, false/undefined = more messages coming
+   Used to control loading spinners and "AI is typing..." indicators
+ - citation_variant: string (OPTIONAL) - Citation display variant
+   Options: 'hover-card' (default), 'modal', 'right-panel', 'collapsible-list', 'inline'
+   Controls how citations are displayed in the UI
 
 Return: JSON-serializable dict with status and message payload.
 
@@ -105,7 +111,7 @@ def validate_parameters(tenant_id, message_id, conversation_id, sources=None, ta
     return True, None
 
 
-def execute(text_content,reasoning_content,sources,tasks,response_group_id,tenant_id,message_id,conversation_id,turn_complete):
+def execute(text_content,reasoning_content,reasoning_title,sources,tasks,response_group_id,tenant_id,message_id,conversation_id,turn_complete,citation_variant):
     """
     Build a Rita message payload without sending to RabbitMQ.
     Returns the message structure for use with send_to_rabbitmq.py or other purposes.
@@ -114,10 +120,12 @@ def execute(text_content,reasoning_content,sources,tasks,response_group_id,tenan
         # Handle default values
         text_content = text_content or ""
         reasoning_content = reasoning_content if reasoning_content else None
+        reasoning_title = reasoning_title if reasoning_title else None
         sources = sources if sources else None
         tasks = tasks if tasks else None
         response_group_id = response_group_id if response_group_id else None
         turn_complete = turn_complete if turn_complete is not None else None
+        citation_variant = citation_variant if citation_variant else None
 
         # Validate response_group_id format
         is_valid, error_msg = validate_response_group_id(response_group_id)
@@ -155,6 +163,9 @@ def execute(text_content,reasoning_content,sources,tasks,response_group_id,tenan
                 "content": reasoning_content,
                 "state": "done"
             }
+            # Add title if provided
+            if reasoning_title:
+                metadata["reasoning"]["title"] = reasoning_title
 
         if sources:
             # Parse sources if it's a string
@@ -171,6 +182,10 @@ def execute(text_content,reasoning_content,sources,tasks,response_group_id,tenan
         # Add turn_complete to metadata if provided
         if turn_complete is not None:
             metadata["turn_complete"] = turn_complete
+
+        # Add citation_variant to metadata if provided
+        if citation_variant is not None:
+            metadata["citation_variant"] = citation_variant
 
         # Add metadata if not empty
         if metadata:

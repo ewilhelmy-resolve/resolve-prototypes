@@ -53,13 +53,15 @@ def test_missing_host_fails():
         queue_name="test_queue",
         text_content="Test",
         reasoning_content=None,
+        reasoning_title=None,
         sources=None,
         tasks=None,
         response_group_id=None,
         tenant_id="test-tenant",
         message_id=str(uuid.uuid4()),
         conversation_id=str(uuid.uuid4()),
-        turn_complete=None
+        turn_complete=None,
+        citation_variant=None
     ))
 
     assert result["status"] == "error"
@@ -81,13 +83,15 @@ def test_missing_tenant_id_fails():
         queue_name="test_queue",
         text_content="Test",
         reasoning_content=None,
+        reasoning_title=None,
         sources=None,
         tasks=None,
         response_group_id=None,
         tenant_id=None,
         message_id=str(uuid.uuid4()),
         conversation_id=str(uuid.uuid4()),
-        turn_complete=None
+        turn_complete=None,
+        citation_variant=None
     ))
 
     assert result["status"] == "error"
@@ -109,13 +113,15 @@ def test_missing_message_id_fails():
         queue_name="test_queue",
         text_content="Test",
         reasoning_content=None,
+        reasoning_title=None,
         sources=None,
         tasks=None,
         response_group_id=None,
         tenant_id="test-tenant",
         message_id=None,
         conversation_id=str(uuid.uuid4()),
-        turn_complete=None
+        turn_complete=None,
+        citation_variant=None
     ))
 
     assert result["status"] == "error"
@@ -137,13 +143,15 @@ def test_missing_conversation_id_fails():
         queue_name="test_queue",
         text_content="Test",
         reasoning_content=None,
+        reasoning_title=None,
         sources=None,
         tasks=None,
         response_group_id=None,
         tenant_id="test-tenant",
         message_id=str(uuid.uuid4()),
         conversation_id=None,
-        turn_complete=None
+        turn_complete=None,
+        citation_variant=None
     ))
 
     assert result["status"] == "error"
@@ -169,13 +177,15 @@ def test_empty_message_fails():
         queue_name="test_queue",
         text_content="",
         reasoning_content=None,
+        reasoning_title=None,
         sources=None,
         tasks=None,
         response_group_id=None,
         tenant_id="test-tenant",
         message_id=str(uuid.uuid4()),
         conversation_id=str(uuid.uuid4()),
-        turn_complete=None
+        turn_complete=None,
+        citation_variant=None
     ))
 
     assert result["status"] == "error"
@@ -197,13 +207,15 @@ def test_whitespace_only_text_fails():
         queue_name="test_queue",
         text_content="   \n\t  ",
         reasoning_content=None,
+        reasoning_title=None,
         sources=None,
         tasks=None,
         response_group_id=None,
         tenant_id="test-tenant",
         message_id=str(uuid.uuid4()),
         conversation_id=str(uuid.uuid4()),
-        turn_complete=None
+        turn_complete=None,
+        citation_variant=None
     ))
 
     assert result["status"] == "error"
@@ -232,13 +244,15 @@ def test_invalid_response_group_id_fails():
         queue_name="test_queue",
         text_content="Test message",
         reasoning_content=None,
+        reasoning_title=None,
         sources=None,
         tasks=None,
         response_group_id="not-a-valid-uuid",
         tenant_id="test-tenant",
         message_id=str(uuid.uuid4()),
         conversation_id=str(uuid.uuid4()),
-        turn_complete=None
+        turn_complete=None,
+        citation_variant=None
     ))
 
     assert result["status"] == "error"
@@ -263,13 +277,15 @@ def test_invalid_sources_structure_fails():
         queue_name="test_queue",
         text_content=None,
         reasoning_content=None,
+        reasoning_title=None,
         sources=json.dumps(invalid_sources),
         tasks=None,
         response_group_id=None,
         tenant_id="test-tenant",
         message_id=str(uuid.uuid4()),
         conversation_id=str(uuid.uuid4()),
-        turn_complete=None
+        turn_complete=None,
+        citation_variant=None
     ))
 
     assert result["status"] == "error"
@@ -294,13 +310,15 @@ def test_invalid_tasks_structure_fails():
         queue_name="test_queue",
         text_content=None,
         reasoning_content=None,
+        reasoning_title=None,
         sources=None,
         tasks=json.dumps(invalid_tasks),
         response_group_id=None,
         tenant_id="test-tenant",
         message_id=str(uuid.uuid4()),
         conversation_id=str(uuid.uuid4()),
-        turn_complete=None
+        turn_complete=None,
+        citation_variant=None
     ))
 
     assert result["status"] == "error"
@@ -334,13 +352,15 @@ def test_text_only_message_success():
         queue_name="test_queue",
         text_content="Hello, this is a test message",
         reasoning_content=None,
+        reasoning_title=None,
         sources=None,
         tasks=None,
         response_group_id=None,
         tenant_id="test-tenant",
         message_id=str(uuid.uuid4()),
         conversation_id=str(uuid.uuid4()),
-        turn_complete=None
+        turn_complete=None,
+        citation_variant=None
     ))
 
     assert result["status"] == "success"
@@ -376,13 +396,15 @@ def test_reasoning_only_message_success():
         queue_name="test_queue",
         text_content=None,
         reasoning_content="Step 1: Analyze\nStep 2: Execute",
+        reasoning_title=None,
         sources=None,
         tasks=None,
         response_group_id=None,
         tenant_id="test-tenant",
         message_id=str(uuid.uuid4()),
         conversation_id=str(uuid.uuid4()),
-        turn_complete=None
+        turn_complete=None,
+        citation_variant=None
     ))
 
     assert result["status"] == "success"
@@ -420,13 +442,15 @@ def test_sources_only_message_success():
         queue_name="test_queue",
         text_content=None,
         reasoning_content=None,
+        reasoning_title=None,
         sources=json.dumps(sources),
         tasks=None,
         response_group_id=None,
         tenant_id="test-tenant",
         message_id=str(uuid.uuid4()),
         conversation_id=str(uuid.uuid4()),
-        turn_complete=None
+        turn_complete=None,
+        citation_variant=None
     ))
 
     assert result["status"] == "success"
@@ -465,13 +489,15 @@ def test_tasks_only_message_success():
         queue_name="test_queue",
         text_content=None,
         reasoning_content=None,
+        reasoning_title=None,
         sources=None,
         tasks=json.dumps(tasks),
         response_group_id=None,
         tenant_id="test-tenant",
         message_id=str(uuid.uuid4()),
         conversation_id=str(uuid.uuid4()),
-        turn_complete=None
+        turn_complete=None,
+        citation_variant=None
     ))
 
     assert result["status"] == "success"
@@ -506,13 +532,15 @@ def test_complete_message_with_all_components():
         queue_name="test_queue",
         text_content="Complete message with all parts",
         reasoning_content="Reasoning content here",
+        reasoning_title=None,
         sources=json.dumps(sources),
         tasks=json.dumps(tasks),
         response_group_id=group_id,
         tenant_id="test-tenant",
         message_id=str(uuid.uuid4()),
         conversation_id=str(uuid.uuid4()),
-        turn_complete=None
+        turn_complete=None,
+        citation_variant=None
     ))
 
     assert result["status"] == "success"
@@ -555,13 +583,15 @@ def test_message_body_sent_as_json():
         queue_name="test_queue",
         text_content="Test message",
         reasoning_content=None,
+        reasoning_title=None,
         sources=None,
         tasks=None,
         response_group_id=None,
         tenant_id=tenant_id,
         message_id=message_id,
         conversation_id=conversation_id,
-        turn_complete=None
+        turn_complete=None,
+        citation_variant=None
     ))
 
     assert result["status"] == "success"
@@ -601,13 +631,15 @@ def test_message_persistence_enabled():
         queue_name="test_queue",
         text_content="Test message",
         reasoning_content=None,
+        reasoning_title=None,
         sources=None,
         tasks=None,
         response_group_id=None,
         tenant_id="test-tenant",
         message_id=str(uuid.uuid4()),
         conversation_id=str(uuid.uuid4()),
-        turn_complete=None
+        turn_complete=None,
+        citation_variant=None
     ))
 
     assert result["status"] == "success"
@@ -640,13 +672,15 @@ def test_queue_declared_as_durable():
         queue_name="test_queue",
         text_content="Test message",
         reasoning_content=None,
+        reasoning_title=None,
         sources=None,
         tasks=None,
         response_group_id=None,
         tenant_id="test-tenant",
         message_id=str(uuid.uuid4()),
         conversation_id=str(uuid.uuid4()),
-        turn_complete=None
+        turn_complete=None,
+        citation_variant=None
     ))
 
     assert result["status"] == "success"
@@ -679,13 +713,15 @@ def test_connection_closed_after_send():
         queue_name="test_queue",
         text_content="Test message",
         reasoning_content=None,
+        reasoning_title=None,
         sources=None,
         tasks=None,
         response_group_id=None,
         tenant_id="test-tenant",
         message_id=str(uuid.uuid4()),
         conversation_id=str(uuid.uuid4()),
-        turn_complete=None
+        turn_complete=None,
+        citation_variant=None
     ))
 
     assert result["status"] == "success"
@@ -719,13 +755,15 @@ def test_turn_complete_in_metadata():
         queue_name="test_queue",
         text_content="Test message",
         reasoning_content=None,
+        reasoning_title=None,
         sources=None,
         tasks=None,
         response_group_id=None,
         tenant_id="test-tenant",
         message_id=str(uuid.uuid4()),
         conversation_id=str(uuid.uuid4()),
-        turn_complete=True
+        turn_complete=True,
+        citation_variant=None
     ))
 
     assert result["status"] == "success"
@@ -741,13 +779,15 @@ def test_turn_complete_in_metadata():
         queue_name="test_queue",
         text_content="Test message",
         reasoning_content=None,
+        reasoning_title=None,
         sources=None,
         tasks=None,
         response_group_id=None,
         tenant_id="test-tenant",
         message_id=str(uuid.uuid4()),
         conversation_id=str(uuid.uuid4()),
-        turn_complete=False
+        turn_complete=False,
+        citation_variant=None
     ))
 
     assert result2["status"] == "success"
@@ -763,13 +803,15 @@ def test_turn_complete_in_metadata():
         queue_name="test_queue",
         text_content="Test message",
         reasoning_content=None,
+        reasoning_title=None,
         sources=None,
         tasks=None,
         response_group_id=None,
         tenant_id="test-tenant",
         message_id=str(uuid.uuid4()),
         conversation_id=str(uuid.uuid4()),
-        turn_complete=None
+        turn_complete=None,
+        citation_variant=None
     ))
 
     assert result3["status"] == "success"

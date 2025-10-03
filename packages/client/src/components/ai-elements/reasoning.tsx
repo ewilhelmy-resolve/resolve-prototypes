@@ -110,9 +110,17 @@ export const Reasoning = memo(
   }
 );
 
-export type ReasoningTriggerProps = ComponentProps<typeof CollapsibleTrigger>;
+export type ReasoningTriggerProps = ComponentProps<typeof CollapsibleTrigger> & {
+  title?: string;
+};
 
-const getThinkingMessage = (isStreaming: boolean, duration?: number) => {
+const getThinkingMessage = (isStreaming: boolean, duration?: number, customTitle?: string) => {
+  // If custom title is provided, use it
+  if (customTitle) {
+    return <p>{customTitle}</p>;
+  }
+
+  // Otherwise use default messages based on state
   if (isStreaming || duration === 0) {
     return <p>Thinking...</p>;
   }
@@ -123,7 +131,7 @@ const getThinkingMessage = (isStreaming: boolean, duration?: number) => {
 };
 
 export const ReasoningTrigger = memo(
-  ({ className, children, ...props }: ReasoningTriggerProps) => {
+  ({ className, title, children, ...props }: ReasoningTriggerProps) => {
     const { isStreaming, isOpen, duration } = useReasoning();
 
     return (
@@ -137,7 +145,7 @@ export const ReasoningTrigger = memo(
         {children ?? (
           <>
             <BrainIcon className="size-4" />
-            {getThinkingMessage(isStreaming, duration)}
+            {getThinkingMessage(isStreaming, duration, title)}
             <ChevronDownIcon
               className={cn(
                 "size-4 transition-transform",

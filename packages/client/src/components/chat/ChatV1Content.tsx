@@ -165,7 +165,7 @@ function GroupedMessage({ message, onCopy, isCopied }: {
               {/* Render reasoning if present */}
               {part.metadata?.reasoning && (
                 <Reasoning isStreaming={Boolean(part.metadata.reasoning.streaming)}>
-                  <ReasoningTrigger />
+                  <ReasoningTrigger title={part.metadata.reasoning.title} />
                   <ReasoningContent>{part.metadata.reasoning.content}</ReasoningContent>
                 </Reasoning>
               )}

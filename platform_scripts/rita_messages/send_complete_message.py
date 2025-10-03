@@ -12,19 +12,30 @@ Inputs (execute signature):
  - queue_name: string (REQUIRED) - Name of the queue
  - text_content: string (OPTIONAL) - Main response text
  - reasoning_content: string (OPTIONAL) - Step-by-step analysis content
- - sources: string or list (OPTIONAL) - JSON string or list of {url: str, title: str, snippet?: str}
-   Example: '[{"url": "https://docs.example.com", "title": "Documentation", "snippet": "Brief preview text"}]'
-   Note: snippet field is optional and provides a content preview
- - tasks: string or list (OPTIONAL) - JSON string or list of {title: str, items: list[str], defaultOpen: bool}
+ - reasoning_title: string (OPTIONAL) - Custom title for reasoning section
+   Examples: "Research & Analysis", "Planning", "Investigation"
+   Default: "Thinking" (if not provided in UI)
+ - sources: string or list (OPTIONAL) - JSON string or list of source objects
+   Format: {url: str, title: str, snippet?: str, blob_id?: str}
+   Example: '[{"url": "https://docs.example.com", "title": "Documentation", "snippet": "Brief preview", "blob_id": "blob-123"}]'
+   Fields:
+   - url (required): Source URL or blob reference
+   - title (required): Display title for the source
+   - snippet (optional): Content preview/excerpt (200-300 chars recommended)
+   - blob_id (optional): Reference to uploaded document in blob storage
+ - tasks: string or list (OPTIONAL) - JSON string or list of task objects
+   Format: {title: str, items: list[str], defaultOpen?: bool}
    Example: '[{"title": "Setup", "items": ["Install dependencies", "Configure"], "defaultOpen": true}]'
- - response_group_id: string (OPTIONAL) - UUID to group with other messages
+ - response_group_id: string (OPTIONAL) - UUID v4 to group related messages
  - tenant_id: string (REQUIRED) - Tenant identifier
  - message_id: string (REQUIRED) - User message ID (provided by workflow as parameter)
  - conversation_id: string (REQUIRED) - Conversation identifier
  - turn_complete: boolean (OPTIONAL) - UI hint to signal if this is the last message in a turn
-   Set to True for the final message, False for intermediate messages
+   Set to true for the final message, false for intermediate messages
+ - citation_variant: string (OPTIONAL) - Controls how citations are displayed in the UI
+   Options: 'hover-card' (default), 'modal', 'right-panel', 'collapsible-list', 'inline'
 
-Return: JSON-serializable dict with status.
+Return: JSON-serializable dict with status and message details.
 """
 
 import sys
@@ -169,7 +180,7 @@ def send_to_rabbitmq(message_body, host, port, username, password, vhost, queue_
     connection.close()
 
 
-def execute(host,port,username,password,vhost,queue_name,text_content,reasoning_content,sources,tasks,response_group_id,tenant_id,message_id,conversation_id,turn_complete):
+def execute(host,port,username,password,vhost,queue_name,text_content,reasoning_content,reasoning_title,sources,tasks,response_group_id,tenant_id,message_id,conversation_id,turn_complete,citation_variant):
     """
     Send a complete Rita message with all optional components.
     """
@@ -177,10 +188,12 @@ def execute(host,port,username,password,vhost,queue_name,text_content,reasoning_
         # Handle default values
         text_content = text_content or ""
         reasoning_content = reasoning_content if reasoning_content else None
+        reasoning_title = reasoning_title if reasoning_title else None
         sources = sources if sources else None
         tasks = tasks if tasks else None
         response_group_id = response_group_id if response_group_id else None
         turn_complete = turn_complete if turn_complete is not None else None
+        citation_variant = citation_variant if citation_variant else None
 
         # Validate response_group_id format
         is_valid, error_msg = validate_response_group_id(response_group_id)
@@ -226,6 +239,9 @@ def execute(host,port,username,password,vhost,queue_name,text_content,reasoning_
                 "content": reasoning_content,
                 "state": "done"
             }
+            # Add title if provided
+            if reasoning_title:
+                metadata["reasoning"]["title"] = reasoning_title
 
         if sources:
             # Parse sources if it's a string
@@ -242,6 +258,10 @@ def execute(host,port,username,password,vhost,queue_name,text_content,reasoning_
         # Add turn_complete to metadata if provided
         if turn_complete is not None:
             metadata["turn_complete"] = turn_complete
+
+        # Add citation_variant to metadata if provided
+        if citation_variant is not None:
+            metadata["citation_variant"] = citation_variant
 
         # Add metadata if not empty
         if metadata:

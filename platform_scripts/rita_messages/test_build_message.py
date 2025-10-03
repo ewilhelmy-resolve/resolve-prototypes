@@ -34,13 +34,15 @@ def test_valid_text_only():
     result = parse_result(build_message(
         text_content="Hello, this is a test message",
         reasoning_content=None,
+        reasoning_title=None,
         sources=None,
         tasks=None,
         response_group_id=None,
         tenant_id="test-tenant",
         message_id=str(uuid.uuid4()),
         conversation_id=str(uuid.uuid4()),
-        turn_complete=None
+        turn_complete=None,
+        citation_variant=None
     ))
 
     assert result["status"] == "success", f"Expected success, got: {result}"
@@ -57,13 +59,15 @@ def test_valid_reasoning_only():
     result = parse_result(build_message(
         text_content=None,
         reasoning_content="Step 1: Analyze\nStep 2: Execute",
+        reasoning_title=None,
         sources=None,
         tasks=None,
         response_group_id=None,
         tenant_id="test-tenant",
         message_id=str(uuid.uuid4()),
         conversation_id=str(uuid.uuid4()),
-        turn_complete=None
+        turn_complete=None,
+        citation_variant=None
     ))
 
     assert result["status"] == "success", f"Expected success, got: {result}"
@@ -86,13 +90,15 @@ def test_valid_sources_only():
     result = parse_result(build_message(
         text_content=None,
         reasoning_content=None,
+        reasoning_title=None,
         sources=json.dumps(sources),
         tasks=None,
         response_group_id=None,
         tenant_id="test-tenant",
         message_id=str(uuid.uuid4()),
         conversation_id=str(uuid.uuid4()),
-        turn_complete=None
+        turn_complete=None,
+        citation_variant=None
     ))
 
     assert result["status"] == "success", f"Expected success, got: {result}"
@@ -116,13 +122,15 @@ def test_valid_tasks_only():
     result = parse_result(build_message(
         text_content=None,
         reasoning_content=None,
+        reasoning_title=None,
         sources=None,
         tasks=json.dumps(tasks),
         response_group_id=None,
         tenant_id="test-tenant",
         message_id=str(uuid.uuid4()),
         conversation_id=str(uuid.uuid4()),
-        turn_complete=None
+        turn_complete=None,
+        citation_variant=None
     ))
 
     assert result["status"] == "success", f"Expected success, got: {result}"
@@ -142,13 +150,15 @@ def test_valid_complete_message():
     result = parse_result(build_message(
         text_content="Complete message with all parts",
         reasoning_content="Reasoning content here",
+        reasoning_title=None,
         sources=json.dumps(sources),
         tasks=json.dumps(tasks),
         response_group_id=group_id,
         tenant_id="test-tenant",
         message_id=str(uuid.uuid4()),
         conversation_id=str(uuid.uuid4()),
-        turn_complete=None
+        turn_complete=None,
+        citation_variant=None
     ))
 
     assert result["status"] == "success", f"Expected success, got: {result}"
@@ -168,13 +178,15 @@ def test_empty_message_fails():
     result = parse_result(build_message(
         text_content="",
         reasoning_content=None,
+        reasoning_title=None,
         sources=None,
         tasks=None,
         response_group_id=None,
         tenant_id="test-tenant",
         message_id=str(uuid.uuid4()),
         conversation_id=str(uuid.uuid4()),
-        turn_complete=None
+        turn_complete=None,
+        citation_variant=None
     ))
 
     assert result["status"] == "error", f"Expected error, got: {result}"
@@ -190,13 +202,15 @@ def test_missing_tenant_id_fails():
     result = parse_result(build_message(
         text_content="Test message",
         reasoning_content=None,
+        reasoning_title=None,
         sources=None,
         tasks=None,
         response_group_id=None,
         tenant_id=None,
         message_id=str(uuid.uuid4()),
         conversation_id=str(uuid.uuid4()),
-        turn_complete=None
+        turn_complete=None,
+        citation_variant=None
     ))
 
     assert result["status"] == "error", f"Expected error, got: {result}"
@@ -212,13 +226,15 @@ def test_missing_message_id_fails():
     result = parse_result(build_message(
         text_content="Test message",
         reasoning_content=None,
+        reasoning_title=None,
         sources=None,
         tasks=None,
         response_group_id=None,
         tenant_id="test-tenant",
         message_id=None,
         conversation_id=str(uuid.uuid4()),
-        turn_complete=None
+        turn_complete=None,
+        citation_variant=None
     ))
 
     assert result["status"] == "error", f"Expected error, got: {result}"
@@ -234,13 +250,15 @@ def test_missing_conversation_id_fails():
     result = parse_result(build_message(
         text_content="Test message",
         reasoning_content=None,
+        reasoning_title=None,
         sources=None,
         tasks=None,
         response_group_id=None,
         tenant_id="test-tenant",
         message_id=str(uuid.uuid4()),
         conversation_id=None,
-        turn_complete=None
+        turn_complete=None,
+        citation_variant=None
     ))
 
     assert result["status"] == "error", f"Expected error, got: {result}"
@@ -256,13 +274,15 @@ def test_invalid_response_group_id_fails():
     result = parse_result(build_message(
         text_content="Test message",
         reasoning_content=None,
+        reasoning_title=None,
         sources=None,
         tasks=None,
         response_group_id="not-a-valid-uuid",
         tenant_id="test-tenant",
         message_id=str(uuid.uuid4()),
         conversation_id=str(uuid.uuid4()),
-        turn_complete=None
+        turn_complete=None,
+        citation_variant=None
     ))
 
     assert result["status"] == "error", f"Expected error, got: {result}"
@@ -281,13 +301,15 @@ def test_invalid_sources_structure_fails():
     result = parse_result(build_message(
         text_content=None,
         reasoning_content=None,
+        reasoning_title=None,
         sources=json.dumps(invalid_sources),
         tasks=None,
         response_group_id=None,
         tenant_id="test-tenant",
         message_id=str(uuid.uuid4()),
         conversation_id=str(uuid.uuid4()),
-        turn_complete=None
+        turn_complete=None,
+        citation_variant=None
     ))
 
     assert result["status"] == "error", f"Expected error, got: {result}"
@@ -306,13 +328,15 @@ def test_invalid_tasks_structure_fails():
     result = parse_result(build_message(
         text_content=None,
         reasoning_content=None,
+        reasoning_title=None,
         sources=None,
         tasks=json.dumps(invalid_tasks),
         response_group_id=None,
         tenant_id="test-tenant",
         message_id=str(uuid.uuid4()),
         conversation_id=str(uuid.uuid4()),
-        turn_complete=None
+        turn_complete=None,
+        citation_variant=None
     ))
 
     assert result["status"] == "error", f"Expected error, got: {result}"
@@ -328,13 +352,15 @@ def test_sources_not_a_list_fails():
     result = parse_result(build_message(
         text_content=None,
         reasoning_content=None,
+        reasoning_title=None,
         sources=json.dumps({"url": "https://example.com", "title": "Example"}),
         tasks=None,
         response_group_id=None,
         tenant_id="test-tenant",
         message_id=str(uuid.uuid4()),
         conversation_id=str(uuid.uuid4()),
-        turn_complete=None
+        turn_complete=None,
+        citation_variant=None
     ))
 
     assert result["status"] == "error", f"Expected error, got: {result}"
@@ -350,13 +376,15 @@ def test_tasks_not_a_list_fails():
     result = parse_result(build_message(
         text_content=None,
         reasoning_content=None,
+        reasoning_title=None,
         sources=None,
         tasks=json.dumps({"title": "Test", "items": ["Item 1"]}),
         response_group_id=None,
         tenant_id="test-tenant",
         message_id=str(uuid.uuid4()),
         conversation_id=str(uuid.uuid4()),
-        turn_complete=None
+        turn_complete=None,
+        citation_variant=None
     ))
 
     assert result["status"] == "error", f"Expected error, got: {result}"
@@ -372,18 +400,147 @@ def test_whitespace_only_text_fails():
     result = parse_result(build_message(
         text_content="   \n\t  ",
         reasoning_content=None,
+        reasoning_title=None,
         sources=None,
         tasks=None,
         response_group_id=None,
         tenant_id="test-tenant",
         message_id=str(uuid.uuid4()),
         conversation_id=str(uuid.uuid4()),
-        turn_complete=None
+        turn_complete=None,
+        citation_variant=None
     ))
 
     assert result["status"] == "error", f"Expected error, got: {result}"
     assert "at least one of" in result["error"]
     print("✅ PASS: Whitespace-only text correctly rejected")
+    return result
+
+
+def test_sources_with_blob_id():
+    """Test sources with blob_id field"""
+    print("\n🧪 Test: Sources with blob_id")
+
+    sources = [
+        {
+            "url": "blob://internal",
+            "title": "Company Policy.pdf",
+            "snippet": "Section 4.2: All tokens must be rotated quarterly.",
+            "blob_id": "blob-a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+        }
+    ]
+
+    result = parse_result(build_message(
+        text_content=None,
+        reasoning_content=None,
+        reasoning_title=None,
+        sources=json.dumps(sources),
+        tasks=None,
+        response_group_id=None,
+        tenant_id="test-tenant",
+        message_id=str(uuid.uuid4()),
+        conversation_id=str(uuid.uuid4()),
+        turn_complete=None,
+        citation_variant=None
+    ))
+
+    assert result["status"] == "success", f"Expected success, got: {result}"
+    assert result["message"]["metadata"]["sources"][0]["blob_id"] == "blob-a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+    assert result["message"]["metadata"]["sources"][0]["snippet"] == "Section 4.2: All tokens must be rotated quarterly."
+    print("✅ PASS: Sources with blob_id built successfully")
+    return result
+
+
+def test_citation_variant():
+    """Test message with citation_variant"""
+    print("\n🧪 Test: Message with citation_variant")
+
+    result = parse_result(build_message(
+        text_content="Test message with citations",
+        reasoning_content=None,
+        reasoning_title=None,
+        sources=None,
+        tasks=None,
+        response_group_id=None,
+        tenant_id="test-tenant",
+        message_id=str(uuid.uuid4()),
+        conversation_id=str(uuid.uuid4()),
+        turn_complete=None,
+        citation_variant="hover-card"
+    ))
+
+    assert result["status"] == "success", f"Expected success, got: {result}"
+    assert result["message"]["metadata"]["citation_variant"] == "hover-card"
+    print("✅ PASS: Message with citation_variant built successfully")
+    return result
+
+
+def test_reasoning_with_title():
+    """Test reasoning with custom title"""
+    print("\n🧪 Test: Reasoning with custom title")
+
+    result = parse_result(build_message(
+        text_content=None,
+        reasoning_content="Step 1: Analyze requirements\nStep 2: Design solution",
+        reasoning_title="Research & Analysis",
+        sources=None,
+        tasks=None,
+        response_group_id=None,
+        tenant_id="test-tenant",
+        message_id=str(uuid.uuid4()),
+        conversation_id=str(uuid.uuid4()),
+        turn_complete=None,
+        citation_variant=None
+    ))
+
+    assert result["status"] == "success", f"Expected success, got: {result}"
+    assert result["message"]["metadata"]["reasoning"]["title"] == "Research & Analysis"
+    assert result["message"]["metadata"]["reasoning"]["content"] == "Step 1: Analyze requirements\nStep 2: Design solution"
+    assert result["message"]["metadata"]["reasoning"]["state"] == "done"
+    print("✅ PASS: Reasoning with custom title built successfully")
+    return result
+
+
+def test_complete_message_with_all_new_fields():
+    """Test complete message with blob_id, citation_variant, and reasoning title"""
+    print("\n🧪 Test: Complete message with all new fields")
+
+    sources = [
+        {
+            "url": "https://docs.example.com",
+            "title": "Documentation",
+            "snippet": "API reference guide"
+        },
+        {
+            "url": "blob://internal",
+            "title": "Internal Policy.pdf",
+            "snippet": "Company security policies",
+            "blob_id": "blob-123-456"
+        }
+    ]
+
+    tasks = [{"title": "Next Steps", "items": ["Review", "Approve"], "defaultOpen": True}]
+
+    result = parse_result(build_message(
+        text_content="Complete analysis with all new features",
+        reasoning_content="Analysis complete",
+        reasoning_title="Security Analysis",
+        sources=json.dumps(sources),
+        tasks=json.dumps(tasks),
+        response_group_id=str(uuid.uuid4()),
+        tenant_id="test-tenant",
+        message_id=str(uuid.uuid4()),
+        conversation_id=str(uuid.uuid4()),
+        turn_complete=True,
+        citation_variant="modal"
+    ))
+
+    assert result["status"] == "success", f"Expected success, got: {result}"
+    assert result["message"]["metadata"]["reasoning"]["title"] == "Security Analysis"
+    assert result["message"]["metadata"]["sources"][1]["blob_id"] == "blob-123-456"
+    assert result["message"]["metadata"]["citation_variant"] == "modal"
+    assert result["message"]["metadata"]["turn_complete"] == True
+    print("✅ PASS: Complete message with all new fields built successfully")
     return result
 
 
@@ -400,6 +557,12 @@ def main():
         test_valid_sources_only,
         test_valid_tasks_only,
         test_valid_complete_message,
+
+        # New field tests
+        test_sources_with_blob_id,
+        test_citation_variant,
+        test_reasoning_with_title,
+        test_complete_message_with_all_new_fields,
 
         # Validation failures
         test_empty_message_fails,

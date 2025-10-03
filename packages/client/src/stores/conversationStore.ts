@@ -16,17 +16,17 @@ export interface Message {
     // Each property is self-contained with its own content
     reasoning?: {
       content: string     // Reasoning text content
-      title?: string      // Optional custom title for reasoning section
+      title?: string      // Optional custom title (e.g., "Research & Analysis", "Planning")
       duration?: number   // How long AI spent thinking
       streaming?: boolean // Real-time streaming state
     }
     sources?: Array<{
       url: string
       title: string
-      snippet?: string      // Optional excerpt/preview of source content
-      blob_id?: string      // Optional reference to uploaded document
+      snippet?: string    // Optional excerpt/preview of source content (200-300 chars recommended)
+      blob_id?: string    // Optional reference to uploaded document in blob storage
     }>
-    citation_variant?: 'collapsible-list' | 'modal' | 'right-panel' | 'hover-card'
+    citation_variant?: 'hover-card' | 'modal' | 'right-panel' | 'collapsible-list' | 'inline'  // Controls how citations are displayed
     tasks?: Array<{
       title: string
       items: string[]
