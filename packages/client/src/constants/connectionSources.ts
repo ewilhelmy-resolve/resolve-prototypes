@@ -5,6 +5,20 @@ export interface ConnectionSource {
   lastSync?: string;
   description?: string;
   badges: string[];
+  config?: {
+    url?: string;
+    email?: string;
+    token?: string;
+    spaces?: string[];
+    tenantId?: string;
+    clientId?: string;
+    clientSecret?: string;
+    siteUrl?: string;
+    instanceUrl?: string;
+    username?: string;
+    password?: string;
+    updatedAt?: string;
+  };
  }
 
  export type Status = 'Not connected' | 'Connected';
@@ -14,30 +28,46 @@ export interface ConnectionSource {
   CONNECTED: 'Connected' as Status,
 };
 
+
+export const SOURCE_IDS = ['confluence', 'sharepoint', 'servicenow', 'web-search'] as const;
+
+export const SOURCES = {
+  CONFLUENCE: SOURCE_IDS[0],
+  SHAREPOINT: SOURCE_IDS[1],
+  SERVICENOW: SOURCE_IDS[2],
+  WEB_SEARCH: SOURCE_IDS[3],
+} as const;
+
 export const CONNECTION_SOURCES: ConnectionSource[] = [
   {
-    id: 'confluence',
+    id: SOURCES.CONFLUENCE,
     title: 'Confluence',
-    status: STATUS.NOT_CONNECTED,
+    status: STATUS.CONNECTED,
     lastSync: '—',
     badges: ['Knowledge'],
+    config: {
+      url: 'http://acme.atlassian.net/wiki',
+      email: 'charlie@acme.com',
+      spaces: ['architecture', 'knowledge', 'engineering'],
+      updatedAt: '2:09 PM, Today',
+    },
    },
   {
-    id: 'sharepoint',
+    id: SOURCES.SHAREPOINT,
     title: 'SharePoint',
     status: STATUS.NOT_CONNECTED,
     lastSync: '—',
     badges: ['Knowledge'],
    },
   {
-    id: 'servicenow',
+    id: SOURCES.SERVICENOW,
     title: 'ServiceNow',
     status: STATUS.NOT_CONNECTED,
     lastSync: '—',
     badges: ['Knowledge', 'Ticketing'],
    },
   {
-    id: 'web-search',
+    id: SOURCES.WEB_SEARCH,
     title: 'Web Search (LGA)',
     status: STATUS.CONNECTED,
     description: 'Use web results to supplement answers when knowledge isn\'t found.',
@@ -45,7 +75,8 @@ export const CONNECTION_SOURCES: ConnectionSource[] = [
    }
 ];
 
-export const VALID_SOURCE_IDS = CONNECTION_SOURCES.map(source => source.id);
+ 
+export type SourceId = typeof SOURCES[keyof typeof SOURCES];
 
 // Helper function to get source by ID
 export const getSourceById = (id: string): ConnectionSource | undefined => {

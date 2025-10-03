@@ -1,95 +1,107 @@
-import { useParams, Navigate, Link } from 'react-router-dom';
-import RitaSettingsLayout from '@/components/layouts/RitaSettingsLayout';
-import { VALID_SOURCE_IDS, getSourceById } from '@/constants/connectionSources';
-import { Breadcrumb, BreadcrumbItem, BreadcrumbList, BreadcrumbSeparator } from '@/components/ui/breadcrumb';
-import { ConnectionStatusBadge } from '@/components/settings/ConnectionStatusBadge';
-import { Button } from '@/components/ui/button';
-import { ConfluenceForm, SharePointForm, ServiceNowForm, WebSearchForm } from '@/components/connection-forms';
+import { Link, Navigate, useParams } from "react-router-dom";
+import {
+	ConfluenceForm,
+	ServiceNowForm,
+	SharePointForm,
+	WebSearchForm,
+} from "@/components/connection-forms";
+import RitaSettingsLayout from "@/components/layouts/RitaSettingsLayout";
+import { ConnectionStatusBadge } from "@/components/settings/ConnectionStatusBadge";
+import {
+	Breadcrumb,
+	BreadcrumbItem,
+	BreadcrumbList,
+	BreadcrumbSeparator,
+} from "@/components/ui/breadcrumb";
+import {
+	getSourceById,
+	SOURCE_IDS,
+	SOURCES,
+} from "@/constants/connectionSources";
+import { ConnectionSourceProvider } from "@/contexts/ConnectionSourceContext";
 
 export default function ConnectionSourceDetailPage() {
-  const { sourceId } = useParams<{ sourceId: string }>();
+	const { sourceId } = useParams<{ sourceId: typeof SOURCE_IDS[number] }>();
 
-  // Redirect to 404 if source doesn't exist
-  if (!sourceId || !VALID_SOURCE_IDS.includes(sourceId)) {
-    return <Navigate to="/404" replace />;
-  }
+	// Redirect to 404 if source doesn't exist
+	if (!sourceId || !SOURCE_IDS.includes(sourceId)) {
+		return <Navigate to="/404" replace />;
+	}
 
-  // Get source data by ID
-  const source = getSourceById(sourceId);
+	// Get source data by ID
+	const source = getSourceById(sourceId);
 
-  if (!source) {
-    return <Navigate to="/404" replace />;
-  }
+	if (!source) {
+		return <Navigate to="/404" replace />;
+	}
 
-  const sourceTitle = source.title;
+	const sourceTitle = source.title;
 
-  // Handle form submission
-  const handleFormSubmit = (data: any) => {
-    console.log('Form submitted:', data);
-    // TODO: Implement API call to save connection
-  };
+	// Render the appropriate form based on source ID
+	const renderForm = () => {
+		switch (sourceId) {
+			case SOURCES.CONFLUENCE:
+				return <ConfluenceForm />;
+			case SOURCES.SHAREPOINT:
+				return <SharePointForm />;
+			case SOURCES.SERVICENOW:
+				return <ServiceNowForm />;
+			case SOURCES.WEB_SEARCH:
+				return <WebSearchForm />;
+			default:
+				return null;
+		}
+	};
 
-  // Render the appropriate form based on source ID
-  const renderForm = () => {
-    switch (sourceId) {
-      case 'confluence':
-        return <ConfluenceForm onSubmit={handleFormSubmit} />;
-      case 'sharepoint':
-        return <SharePointForm onSubmit={handleFormSubmit} />;
-      case 'servicenow':
-        return <ServiceNowForm onSubmit={handleFormSubmit} />;
-      case 'web-search':
-        return <WebSearchForm onSubmit={handleFormSubmit} />;
-      default:
-        return null;
-    }
-  };
+	return (
+		<ConnectionSourceProvider source={source}>
+			<RitaSettingsLayout>
+				<div className="flex-1 inline-flex flex-col items-center gap-8 w-full">
+					{/* Top block */}
+					<div className="self-stretch flex flex-col items-start gap-8">
+						{/* Breadcrumbs */}
+						<Breadcrumb>
+							<BreadcrumbList>
+								<BreadcrumbItem>
+									<Link to="/settings/connections">Connections</Link>
+								</BreadcrumbItem>
+								<BreadcrumbSeparator />
+								<BreadcrumbItem>
+									<span>{sourceTitle}</span>
+								</BreadcrumbItem>
+							</BreadcrumbList>
+						</Breadcrumb>
+						{/* Title row */}
+						<div className="self-stretch inline-flex items-center gap-2">
+							<div className="flex flex-1 items-center gap-3">
+								{source.id !== SOURCES.WEB_SEARCH && (
+									<img
+										src={`/connections/icon_${sourceId}.svg`}
+										alt={`${sourceTitle} icon`}
+										className="w-5 h-5 flex-shrink-0 self-center"
+									/>
+								)}
+								<h1 className="text-2xl leading-8 tracking-[-0.01em] text-foreground flex items-center">
+									{sourceTitle}
+								</h1>
+								<ConnectionStatusBadge status={source.status} />
+							</div>
+						</div>
 
-  return (
-    <RitaSettingsLayout>
-      <div className="flex-1 inline-flex flex-col items-start gap-8  w-full max-w-4xl">
-        {/* Top block */}
-        <div className="self-stretch flex flex-col items-start gap-8">
-          {/* Breadcrumbs */}
-          <Breadcrumb>
-          <BreadcrumbList>
-            <BreadcrumbItem>
-              <Link to="/settings/connections">Connections</Link>
-            </BreadcrumbItem>
-            <BreadcrumbSeparator />
-            <BreadcrumbItem>
-              <span>{sourceTitle}</span>
-            </BreadcrumbItem>
-          </BreadcrumbList>
-        </Breadcrumb>
-          {/* Title row */}
-          <div className="self-stretch inline-flex items-center gap-2">
-            <div className="flex flex-1 items-center gap-2">
-              <h1 className="text-2xl leading-8 tracking-[-0.01em] text-foreground">
-                {sourceTitle}
-              </h1>
-              <ConnectionStatusBadge status={source.status} />
-            </div>
-         
-            <Button size="sm" type="submit" form="connection-form">
-              Connect
-            </Button>
-          </div>
+						<p className="self-stretch text-sm leading-5 text-muted-foreground">
+							Connect your {sourceTitle} instance to build context for Rita to
+							make better experiences.
+						</p>
 
-          <p className="self-stretch text-sm leading-5 text-muted-foreground">
-            Connect your {sourceTitle} instance to build context for Rita to make better experiences.
-          </p>
+						<hr className="self-stretch border-t border-border" />
+					</div>
 
-          <hr className="self-stretch border-t border-border" />
-        </div>
-
-        {/* Form area */}
-        <div className="self-stretch flex flex-col items-start gap-2">
-          <div className="w-full max-w-[520px] flex flex-col items-start gap-8">
-            {renderForm()}
-          </div>
-        </div>
-      </div>
-    </RitaSettingsLayout>
-  );
+					{/* Form area */}
+					<div className="w-full max-w-2xl mx-auto flex flex-col gap-8">
+						{renderForm()}
+					</div>
+				</div>
+			</RitaSettingsLayout>
+		</ConnectionSourceProvider>
+	);
 }
