@@ -5,6 +5,7 @@ import axios from 'axios';
 import cors from 'cors';
 import { config } from 'dotenv';
 import express from 'express';
+import { blobExists, getBlobContent, listBlobIds } from './blob-storage.js';
 import {
   configLogger,
   createContextLogger,
@@ -15,7 +16,6 @@ import {
   rabbitLogger,
   webhookLogger
 } from './config/logger.js';
-import { getBlobContent, blobExists, listBlobIds } from './blob-storage.js';
 
 
 // Load environment from root .env file
@@ -97,8 +97,26 @@ interface SignupWebhookPayload extends BaseWebhookPayload {
   pending_user_id: string;
 }
 
+// Data source webhook payloads for rita-data-sources
+interface DataSourceVerifyPayload extends BaseWebhookPayload {
+  source: 'rita-data-sources';
+  action: 'verify_credentials';
+  connection_id: string;
+  connection_type: string;
+  credentials: Record<string, any>;
+  settings: Record<string, any>;
+}
+
+interface DataSourceSyncPayload extends BaseWebhookPayload {
+  source: 'rita-data-sources';
+  action: 'trigger_sync';
+  connection_id: string;
+  connection_type: string;
+  settings: Record<string, any>;
+}
+
 // Union type for all webhook payloads
-type WebhookPayload = MessageWebhookPayload | DocumentWebhookPayload | SignupWebhookPayload | BaseWebhookPayload;
+type WebhookPayload = MessageWebhookPayload | DocumentWebhookPayload | SignupWebhookPayload | DataSourceVerifyPayload | DataSourceSyncPayload | BaseWebhookPayload;
 
 interface MockResponse {
   message_id: string;
@@ -1275,11 +1293,11 @@ app.post('/webhook', async (req, res) => {
       }, 'Received message webhook');
 
       // Log full webhook payload with transcript
-      console.log('\n' + '═'.repeat(100));
+      console.log(`\n${'═'.repeat(100)}`);
       console.log('📨 WEBHOOK PAYLOAD RECEIVED');
       console.log('═'.repeat(100));
       console.log(JSON.stringify(messagePayload, null, 2));
-      console.log('═'.repeat(100) + '\n');
+      console.log(`${'═'.repeat(100)}\n`);
 
       // Validate message-specific required fields
       if (!messagePayload.message_id || !messagePayload.conversation_id || !messagePayload.customer_message) {
@@ -1364,18 +1382,17 @@ app.post('/webhook', async (req, res) => {
       }
 
     } else if (payload.source === 'rita-data-sources' && payload.action === 'verify_credentials') {
+      const verifyPayload = payload as DataSourceVerifyPayload;
       const contextLogger = createContextLogger(webhookLogger, correlationId, {
-        connectionId: payload.connection_id,
-        connectionType: payload.connection_type,
-        tenantId: payload.tenant_id
+        tenantId: verifyPayload.tenant_id
       });
 
       contextLogger.info({
-        source: payload.source,
-        action: payload.action,
-        connection_id: payload.connection_id,
-        connection_type: payload.connection_type,
-        user_email: payload.user_email
+        source: verifyPayload.source,
+        action: verifyPayload.action,
+        connection_id: verifyPayload.connection_id,
+        connection_type: verifyPayload.connection_type,
+        user_email: verifyPayload.user_email
       }, 'Received data source verify webhook');
 
       // Simulate verification success
@@ -1385,18 +1402,17 @@ app.post('/webhook', async (req, res) => {
       });
 
     } else if (payload.source === 'rita-data-sources' && payload.action === 'trigger_sync') {
+      const syncPayload = payload as DataSourceSyncPayload;
       const contextLogger = createContextLogger(webhookLogger, correlationId, {
-        connectionId: payload.connection_id,
-        connectionType: payload.connection_type,
-        tenantId: payload.tenant_id
+        tenantId: syncPayload.tenant_id
       });
 
       contextLogger.info({
-        source: payload.source,
-        action: payload.action,
-        connection_id: payload.connection_id,
-        connection_type: payload.connection_type,
-        user_email: payload.user_email
+        source: syncPayload.source,
+        action: syncPayload.action,
+        connection_id: syncPayload.connection_id,
+        connection_type: syncPayload.connection_type,
+        user_email: syncPayload.user_email
       }, 'Received data source sync trigger webhook');
 
       // Publish sync_completed message to RabbitMQ after 2 second delay
@@ -1407,8 +1423,8 @@ app.post('/webhook', async (req, res) => {
           }
 
           const syncMessage = {
-            connection_id: payload.connection_id,
-            tenant_id: payload.tenant_id,
+            connection_id: syncPayload.connection_id,
+            tenant_id: syncPayload.tenant_id,
             status: 'sync_completed',
             documents_processed: 42,
             timestamp: new Date().toISOString()
@@ -1422,7 +1438,7 @@ app.post('/webhook', async (req, res) => {
           );
 
           contextLogger.info({
-            connectionId: payload.connection_id,
+            connectionId: syncPayload.connection_id,
             documentsProcessed: 42
           }, 'Published sync_completed message to RabbitMQ');
         } catch (error) {
@@ -1600,7 +1616,7 @@ app.post('/webhook', async (req, res) => {
         }, '🎉 SIGNUP SUCCESS: Keycloak user created');
 
         // Log verification URL prominently for testing
-        console.log('\n' + '='.repeat(80));
+        console.log(`\n${'='.repeat(80)}`);
         console.log('📧 MOCK EMAIL VERIFICATION');
         console.log('='.repeat(80));
         console.log(`To: ${signupPayload.user_email}`);
@@ -1628,75 +1644,6 @@ app.post('/webhook', async (req, res) => {
           error: error instanceof Error ? error.message : 'Unknown error',
           status: 'failed_but_acknowledged'
         });
-      }
-    } else if (payload.source === 'rita-data-sources') {
-      // Data source webhooks
-      const contextLogger = createContextLogger(webhookLogger, correlationId, {
-        connectionId: payload.connection_id,
-        connectionType: payload.connection_type,
-        tenantId: payload.tenant_id
-      });
-
-      // Log full webhook payload
-      console.log('\n' + '═'.repeat(100));
-      console.log('🔌 DATA SOURCE WEBHOOK RECEIVED');
-      console.log('═'.repeat(100));
-      console.log(JSON.stringify(payload, null, 2));
-      console.log('═'.repeat(100) + '\n');
-
-      if (payload.action === 'verify_credentials') {
-        contextLogger.info({
-          credentials: Object.keys(payload.credentials || {}),
-          settingsKeys: Object.keys(payload.settings || {})
-        }, 'Verifying data source credentials');
-
-        timer.end({ action: 'verify_credentials', success: true });
-
-        res.json({
-          success: true,
-          message: 'Credentials verified successfully',
-          verified_at: new Date().toISOString()
-        });
-
-      } else if (payload.action === 'trigger_sync') {
-        contextLogger.info({
-          settingsKeys: Object.keys(payload.settings || {})
-        }, 'Sync triggered for data source');
-
-        // Publish sync_completed message to RabbitMQ queue
-        setTimeout(async () => {
-          try {
-            const syncMessage = {
-              connection_id: payload.connection_id,
-              tenant_id: payload.tenant_id,
-              status: 'sync_completed',
-              documents_processed: 42,
-              timestamp: new Date().toISOString()
-            };
-
-            await publishToQueue('data_source_sync_status', syncMessage);
-            contextLogger.info({
-              connection_id: payload.connection_id,
-              documents_processed: 42
-            }, 'Published sync_completed message to queue');
-
-          } catch (error) {
-            logError(contextLogger, error as Error, { operation: 'publish-sync-status' });
-          }
-        }, 2000); // Simulate 2 second sync delay
-
-        timer.end({ action: 'trigger_sync', success: true });
-
-        res.json({
-          success: true,
-          message: 'Sync triggered successfully',
-          job_id: randomUUID(),
-          triggered_at: new Date().toISOString()
-        });
-
-      } else {
-        contextLogger.warn({ action: payload.action }, 'Unknown data source action');
-        res.status(400).json({ error: 'Unknown action' });
       }
     }
 
