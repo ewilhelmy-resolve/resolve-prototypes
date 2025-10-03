@@ -1,0 +1,47 @@
+name: QA Wolf tests
+
+on:
+  pull_request:
+    branches: [ main ]
+    types: [opened, synchronize, reopened, ready_for_review]
+
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - '*.txt'
+      - 'LICENSE'
+      - '.gitignore'
+
+env:
+  REPOSITORY_NAME: "${{ github.event.repository.name }}"
+  BRANCH_NAME: "${{ github.head_ref }}"
+  ENV_TYPE: "staging"
+  PR_NUMBER: "${{ github.event.pull_request.number }}"
+  DEPLOYMENT_TYPE: "rita-go"
+  COMMIT_SHA: "${{ github.event.pull_request.head.sha }}"
+
+jobs:
+  trigger_qawolf:
+    name: Trigger QA Wolf tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Send API POST request
+        run: |
+          curl -H "Authorization: ${{ secrets.QAWOLF_API_KEY }}" \
+          -H "Content-Type: application/json" https://app.qawolf.com/api/webhooks/deploy_success \
+          -d '{
+            "repository": {
+              "name": "${{ env.REPOSITORY_NAME }}",
+              "owner": "resolve-io"},
+            "branch": "${{ env.BRANCH_NAME }}",
+            "hosting_service": "GitHub",
+            "pull_request_number": ${{ env.PR_NUMBER }},
+            "sha": "${{ env.COMMIT_SHA }}",
+            "deployment_type": "${{ env.DEPLOYMENT_TYPE }}_${{ env.ENV_TYPE }}",
+            "variables": {
+              "RITAGO_URL": "https://onboarding.resolve.io/login"}
+          }'
