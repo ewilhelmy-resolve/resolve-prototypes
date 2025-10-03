@@ -112,7 +112,8 @@ jobs:
       - name: Build Frontend
         run: |
           cd packages/client
-          npm ci --legacy-peer-deps
+          rm -rf node_modules package-lock.json
+          npm install --legacy-peer-deps
           npm run build
         env:
           # Staging environment variables - using prefixed secrets
