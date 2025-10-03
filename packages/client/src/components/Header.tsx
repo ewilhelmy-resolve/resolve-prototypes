@@ -1,0 +1,96 @@
+"use client";
+
+import { ChevronRight } from "lucide-react";
+import type { ReactNode } from "react";
+import {
+	Breadcrumb,
+	BreadcrumbItem,
+	BreadcrumbLink,
+	BreadcrumbList,
+	BreadcrumbPage,
+	BreadcrumbSeparator,
+} from "@/components/ui/breadcrumb";
+import { Separator } from "@/components/ui/separator";
+
+interface HeaderBreadcrumbItem {
+	label: string;
+	href?: string;
+}
+
+interface HeaderProps {
+	/** Breadcrumb items array */
+	breadcrumbs: HeaderBreadcrumbItem[];
+	/** Page title */
+	title: string;
+	/** Optional icon to display before title */
+	icon?: ReactNode;
+	/** Optional description text below title */
+	description?: string;
+}
+
+/**
+ * Page header component with breadcrumbs, title, icon, and description
+ * Used for settings pages and detail views
+ */
+export default function Header({
+	breadcrumbs,
+	title,
+	icon,
+	description,
+}: HeaderProps) {
+	return (
+		<div className="flex flex-col gap-8 w-full">
+			<div className="flex flex-col gap-2">
+				<Breadcrumb>
+					<BreadcrumbList className="gap-2.5">
+						{breadcrumbs.map((item, index) => {
+							const isLast = index === breadcrumbs.length - 1;
+							return (
+								<div key={item.label} className="flex items-center gap-2.5">
+									<BreadcrumbItem>
+										{isLast ? (
+											<BreadcrumbPage className="text-foreground text-sm">
+												{item.label}
+											</BreadcrumbPage>
+										) : (
+											<BreadcrumbLink
+												href={item.href || "#"}
+												className="text-muted-foreground text-sm"
+											>
+												{item.label}
+											</BreadcrumbLink>
+										)}
+									</BreadcrumbItem>
+									{!isLast && (
+										<BreadcrumbSeparator>
+											<ChevronRight className="h-4 w-4 text-muted-foreground" />
+										</BreadcrumbSeparator>
+									)}
+								</div>
+							);
+						})}
+					</BreadcrumbList>
+				</Breadcrumb>
+
+				<div className="flex flex-col gap-2">
+					<div className="flex items-center gap-2">
+						<div className="flex items-center gap-2">
+							{icon && <div className="w-5 h-5 flex-shrink-0">{icon}</div>}
+							<h3 className="text-2xl font-medium text-foreground leading-8">
+								{title}
+							</h3>
+						</div>
+					</div>
+
+					{description && (
+						<p className="text-sm text-muted-foreground leading-5">
+							{description}
+						</p>
+					)}
+				</div>
+			</div>
+
+			<Separator />
+		</div>
+	);
+}

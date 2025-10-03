@@ -3,10 +3,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { STATUS } from "@/constants/connectionSources";
 import { useConnectionSource } from "@/contexts/ConnectionSourceContext";
-import ConnectionsForm from "./ConnectionsForm";
-import FormField from "./FormField";
-import FormSection from "./FormSection";
-import SharePointConfiguration from "./SharePointConfiguration";
+import SharePointConfiguration from "../connections-detail/SharePointConfiguration";
+import ConnectionsForm from "../form-elements/ConnectionsForm";
+import FormField from "../form-elements/FormField";
+import FormSection from "../form-elements/FormSection";
 
 export interface SharePointFormData {
 	tenantId: string;
@@ -29,7 +29,7 @@ export function SharePointForm() {
 	};
 
 	// If connected, show configuration view
-	if (source.status === STATUS.CONNECTED) {
+	if (source.status !== STATUS.NOT_CONNECTED) {
 		return <SharePointConfiguration />;
 	}
 

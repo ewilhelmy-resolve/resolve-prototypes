@@ -2,9 +2,9 @@ import { useForm } from "react-hook-form";
 import { Button } from "@/components/ui/button";
 import { STATUS } from "@/constants/connectionSources";
 import { useConnectionSource } from "@/contexts/ConnectionSourceContext";
-import ConnectionsForm from "./ConnectionsForm";
-import FormSection from "./FormSection";
-import WebSearchConfiguration from "./WebSearchConfiguration";
+import WebSearchConfiguration from "../connections-detail/WebSearchConfiguration";
+import ConnectionsForm from "../form-elements/ConnectionsForm";
+import FormSection from "../form-elements/FormSection";
 
 export interface WebSearchFormData {
 	enableSearch: boolean;
