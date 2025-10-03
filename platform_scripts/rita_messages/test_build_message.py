@@ -20,11 +20,18 @@ sys.path.insert(0, str(script_dir))
 from build_message import execute as build_message
 
 
+def parse_result(result):
+    """Parse JSON string result if needed"""
+    if isinstance(result, str):
+        return json.loads(result)
+    return result
+
+
 def test_valid_text_only():
     """Test building a message with text content only"""
     print("\n🧪 Test: Valid text-only message")
 
-    result = build_message(
+    result = parse_result(build_message(
         text_content="Hello, this is a test message",
         reasoning_content=None,
         sources=None,
@@ -34,7 +41,7 @@ def test_valid_text_only():
         message_id=str(uuid.uuid4()),
         conversation_id=str(uuid.uuid4()),
         turn_complete=None
-    )
+    ))
 
     assert result["status"] == "success", f"Expected success, got: {result}"
     assert result["message"]["response"] == "Hello, this is a test message"
@@ -47,7 +54,7 @@ def test_valid_reasoning_only():
     """Test building a message with reasoning only"""
     print("\n🧪 Test: Valid reasoning-only message")
 
-    result = build_message(
+    result = parse_result(build_message(
         text_content=None,
         reasoning_content="Step 1: Analyze\nStep 2: Execute",
         sources=None,
@@ -57,7 +64,7 @@ def test_valid_reasoning_only():
         message_id=str(uuid.uuid4()),
         conversation_id=str(uuid.uuid4()),
         turn_complete=None
-    )
+    ))
 
     assert result["status"] == "success", f"Expected success, got: {result}"
     assert result["message"]["response"] == ""
@@ -76,7 +83,7 @@ def test_valid_sources_only():
         {"url": "https://api.example.com", "title": "API Reference"}
     ]
 
-    result = build_message(
+    result = parse_result(build_message(
         text_content=None,
         reasoning_content=None,
         sources=json.dumps(sources),
@@ -86,7 +93,7 @@ def test_valid_sources_only():
         message_id=str(uuid.uuid4()),
         conversation_id=str(uuid.uuid4()),
         turn_complete=None
-    )
+    ))
 
     assert result["status"] == "success", f"Expected success, got: {result}"
     assert result["message"]["metadata"]["sources"] == sources
@@ -106,7 +113,7 @@ def test_valid_tasks_only():
         }
     ]
 
-    result = build_message(
+    result = parse_result(build_message(
         text_content=None,
         reasoning_content=None,
         sources=None,
@@ -116,7 +123,7 @@ def test_valid_tasks_only():
         message_id=str(uuid.uuid4()),
         conversation_id=str(uuid.uuid4()),
         turn_complete=None
-    )
+    ))
 
     assert result["status"] == "success", f"Expected success, got: {result}"
     assert result["message"]["metadata"]["tasks"] == tasks
@@ -132,7 +139,7 @@ def test_valid_complete_message():
     tasks = [{"title": "Test", "items": ["Item 1"], "defaultOpen": False}]
     group_id = str(uuid.uuid4())
 
-    result = build_message(
+    result = parse_result(build_message(
         text_content="Complete message with all parts",
         reasoning_content="Reasoning content here",
         sources=json.dumps(sources),
@@ -142,7 +149,7 @@ def test_valid_complete_message():
         message_id=str(uuid.uuid4()),
         conversation_id=str(uuid.uuid4()),
         turn_complete=None
-    )
+    ))
 
     assert result["status"] == "success", f"Expected success, got: {result}"
     assert result["message"]["response"] == "Complete message with all parts"
@@ -158,7 +165,7 @@ def test_empty_message_fails():
     """Test that building a message with no content fails"""
     print("\n🧪 Test: Empty message should fail")
 
-    result = build_message(
+    result = parse_result(build_message(
         text_content="",
         reasoning_content=None,
         sources=None,
@@ -168,7 +175,7 @@ def test_empty_message_fails():
         message_id=str(uuid.uuid4()),
         conversation_id=str(uuid.uuid4()),
         turn_complete=None
-    )
+    ))
 
     assert result["status"] == "error", f"Expected error, got: {result}"
     assert "at least one of" in result["error"]
@@ -180,7 +187,7 @@ def test_missing_tenant_id_fails():
     """Test that missing tenant_id fails validation"""
     print("\n🧪 Test: Missing tenant_id should fail")
 
-    result = build_message(
+    result = parse_result(build_message(
         text_content="Test message",
         reasoning_content=None,
         sources=None,
@@ -190,7 +197,7 @@ def test_missing_tenant_id_fails():
         message_id=str(uuid.uuid4()),
         conversation_id=str(uuid.uuid4()),
         turn_complete=None
-    )
+    ))
 
     assert result["status"] == "error", f"Expected error, got: {result}"
     assert "tenant_id is required" in result["error"]
@@ -202,7 +209,7 @@ def test_missing_message_id_fails():
     """Test that missing message_id fails validation"""
     print("\n🧪 Test: Missing message_id should fail")
 
-    result = build_message(
+    result = parse_result(build_message(
         text_content="Test message",
         reasoning_content=None,
         sources=None,
@@ -212,7 +219,7 @@ def test_missing_message_id_fails():
         message_id=None,
         conversation_id=str(uuid.uuid4()),
         turn_complete=None
-    )
+    ))
 
     assert result["status"] == "error", f"Expected error, got: {result}"
     assert "message_id is required" in result["error"]
@@ -224,7 +231,7 @@ def test_missing_conversation_id_fails():
     """Test that missing conversation_id fails validation"""
     print("\n🧪 Test: Missing conversation_id should fail")
 
-    result = build_message(
+    result = parse_result(build_message(
         text_content="Test message",
         reasoning_content=None,
         sources=None,
@@ -234,7 +241,7 @@ def test_missing_conversation_id_fails():
         message_id=str(uuid.uuid4()),
         conversation_id=None,
         turn_complete=None
-    )
+    ))
 
     assert result["status"] == "error", f"Expected error, got: {result}"
     assert "conversation_id is required" in result["error"]
@@ -246,7 +253,7 @@ def test_invalid_response_group_id_fails():
     """Test that invalid response_group_id fails validation"""
     print("\n🧪 Test: Invalid response_group_id should fail")
 
-    result = build_message(
+    result = parse_result(build_message(
         text_content="Test message",
         reasoning_content=None,
         sources=None,
@@ -256,7 +263,7 @@ def test_invalid_response_group_id_fails():
         message_id=str(uuid.uuid4()),
         conversation_id=str(uuid.uuid4()),
         turn_complete=None
-    )
+    ))
 
     assert result["status"] == "error", f"Expected error, got: {result}"
     assert "response_group_id must be a valid UUID v4" in result["error"]
@@ -271,7 +278,7 @@ def test_invalid_sources_structure_fails():
     # Missing 'title' field
     invalid_sources = [{"url": "https://example.com"}]
 
-    result = build_message(
+    result = parse_result(build_message(
         text_content=None,
         reasoning_content=None,
         sources=json.dumps(invalid_sources),
@@ -281,7 +288,7 @@ def test_invalid_sources_structure_fails():
         message_id=str(uuid.uuid4()),
         conversation_id=str(uuid.uuid4()),
         turn_complete=None
-    )
+    ))
 
     assert result["status"] == "error", f"Expected error, got: {result}"
     assert "missing required field 'title'" in result["error"]
@@ -296,7 +303,7 @@ def test_invalid_tasks_structure_fails():
     # Missing 'items' field
     invalid_tasks = [{"title": "Test Task"}]
 
-    result = build_message(
+    result = parse_result(build_message(
         text_content=None,
         reasoning_content=None,
         sources=None,
@@ -306,7 +313,7 @@ def test_invalid_tasks_structure_fails():
         message_id=str(uuid.uuid4()),
         conversation_id=str(uuid.uuid4()),
         turn_complete=None
-    )
+    ))
 
     assert result["status"] == "error", f"Expected error, got: {result}"
     assert "missing required field 'items'" in result["error"]
@@ -318,7 +325,7 @@ def test_sources_not_a_list_fails():
     """Test that sources must be a list"""
     print("\n🧪 Test: Sources must be a list")
 
-    result = build_message(
+    result = parse_result(build_message(
         text_content=None,
         reasoning_content=None,
         sources=json.dumps({"url": "https://example.com", "title": "Example"}),
@@ -328,7 +335,7 @@ def test_sources_not_a_list_fails():
         message_id=str(uuid.uuid4()),
         conversation_id=str(uuid.uuid4()),
         turn_complete=None
-    )
+    ))
 
     assert result["status"] == "error", f"Expected error, got: {result}"
     assert "sources must be a list" in result["error"]
@@ -340,7 +347,7 @@ def test_tasks_not_a_list_fails():
     """Test that tasks must be a list"""
     print("\n🧪 Test: Tasks must be a list")
 
-    result = build_message(
+    result = parse_result(build_message(
         text_content=None,
         reasoning_content=None,
         sources=None,
@@ -350,7 +357,7 @@ def test_tasks_not_a_list_fails():
         message_id=str(uuid.uuid4()),
         conversation_id=str(uuid.uuid4()),
         turn_complete=None
-    )
+    ))
 
     assert result["status"] == "error", f"Expected error, got: {result}"
     assert "tasks must be a list" in result["error"]
@@ -362,7 +369,7 @@ def test_whitespace_only_text_fails():
     """Test that whitespace-only text content is treated as empty"""
     print("\n🧪 Test: Whitespace-only text should fail")
 
-    result = build_message(
+    result = parse_result(build_message(
         text_content="   \n\t  ",
         reasoning_content=None,
         sources=None,
@@ -372,7 +379,7 @@ def test_whitespace_only_text_fails():
         message_id=str(uuid.uuid4()),
         conversation_id=str(uuid.uuid4()),
         turn_complete=None
-    )
+    ))
 
     assert result["status"] == "error", f"Expected error, got: {result}"
     assert "at least one of" in result["error"]

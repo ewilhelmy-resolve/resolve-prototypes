@@ -25,13 +25,20 @@ sys.path.insert(0, str(script_dir))
 from send_to_rabbitmq import execute as send_to_rabbitmq, validate_rabbitmq_params
 
 
+def parse_result(result):
+    """Parse JSON string result if needed"""
+    if isinstance(result, str):
+        return json.loads(result)
+    return result
+
+
 def test_missing_host_fails():
     """Test that missing host fails validation"""
     print("\n🧪 Test: Missing host should fail")
 
     message = {"test": "data"}
 
-    result = send_to_rabbitmq(
+    result = parse_result(send_to_rabbitmq(
         host=None,
         port="5672",
         username="guest",
@@ -39,7 +46,7 @@ def test_missing_host_fails():
         vhost="/",
         queue_name="test_queue",
         message=message
-    )
+    ))
 
     assert result["status"] == "error", f"Expected error, got: {result}"
     assert "host is required" in result["error"]
@@ -53,7 +60,7 @@ def test_missing_port_fails():
 
     message = {"test": "data"}
 
-    result = send_to_rabbitmq(
+    result = parse_result(send_to_rabbitmq(
         host="localhost",
         port=None,
         username="guest",
@@ -61,7 +68,7 @@ def test_missing_port_fails():
         vhost="/",
         queue_name="test_queue",
         message=message
-    )
+    ))
 
     assert result["status"] == "error", f"Expected error, got: {result}"
     assert "port is required" in result["error"]
@@ -75,7 +82,7 @@ def test_invalid_port_fails():
 
     message = {"test": "data"}
 
-    result = send_to_rabbitmq(
+    result = parse_result(send_to_rabbitmq(
         host="localhost",
         port="not-a-number",
         username="guest",
@@ -83,7 +90,7 @@ def test_invalid_port_fails():
         vhost="/",
         queue_name="test_queue",
         message=message
-    )
+    ))
 
     assert result["status"] == "error", f"Expected error, got: {result}"
     assert "port must be a valid integer" in result["error"]
@@ -97,7 +104,7 @@ def test_missing_username_fails():
 
     message = {"test": "data"}
 
-    result = send_to_rabbitmq(
+    result = parse_result(send_to_rabbitmq(
         host="localhost",
         port="5672",
         username=None,
@@ -105,7 +112,7 @@ def test_missing_username_fails():
         vhost="/",
         queue_name="test_queue",
         message=message
-    )
+    ))
 
     assert result["status"] == "error", f"Expected error, got: {result}"
     assert "username is required" in result["error"]
@@ -119,7 +126,7 @@ def test_missing_password_fails():
 
     message = {"test": "data"}
 
-    result = send_to_rabbitmq(
+    result = parse_result(send_to_rabbitmq(
         host="localhost",
         port="5672",
         username="guest",
@@ -127,7 +134,7 @@ def test_missing_password_fails():
         vhost="/",
         queue_name="test_queue",
         message=message
-    )
+    ))
 
     assert result["status"] == "error", f"Expected error, got: {result}"
     assert "password is required" in result["error"]
@@ -141,7 +148,7 @@ def test_missing_queue_name_fails():
 
     message = {"test": "data"}
 
-    result = send_to_rabbitmq(
+    result = parse_result(send_to_rabbitmq(
         host="localhost",
         port="5672",
         username="guest",
@@ -149,7 +156,7 @@ def test_missing_queue_name_fails():
         vhost="/",
         queue_name=None,
         message=message
-    )
+    ))
 
     assert result["status"] == "error", f"Expected error, got: {result}"
     assert "queue_name is required" in result["error"]
@@ -161,7 +168,7 @@ def test_missing_message_fails():
     """Test that missing message fails validation"""
     print("\n🧪 Test: Missing message should fail")
 
-    result = send_to_rabbitmq(
+    result = parse_result(send_to_rabbitmq(
         host="localhost",
         port="5672",
         username="guest",
@@ -169,7 +176,7 @@ def test_missing_message_fails():
         vhost="/",
         queue_name="test_queue",
         message=None
-    )
+    ))
 
     assert result["status"] == "error", f"Expected error, got: {result}"
     assert "message is required" in result["error"]
@@ -181,7 +188,7 @@ def test_invalid_json_string_fails():
     """Test that invalid JSON string fails"""
     print("\n🧪 Test: Invalid JSON string should fail")
 
-    result = send_to_rabbitmq(
+    result = parse_result(send_to_rabbitmq(
         host="localhost",
         port="5672",
         username="guest",
@@ -189,7 +196,7 @@ def test_invalid_json_string_fails():
         vhost="/",
         queue_name="test_queue",
         message="{invalid json}"
-    )
+    ))
 
     assert result["status"] == "error", f"Expected error, got: {result}"
     assert "Invalid message JSON" in result["error"]
@@ -201,7 +208,7 @@ def test_message_not_dict_fails():
     """Test that message must be a dict after parsing"""
     print("\n🧪 Test: Message must be a dict")
 
-    result = send_to_rabbitmq(
+    result = parse_result(send_to_rabbitmq(
         host="localhost",
         port="5672",
         username="guest",
@@ -209,7 +216,7 @@ def test_message_not_dict_fails():
         vhost="/",
         queue_name="test_queue",
         message="just a plain string"
-    )
+    ))
 
     assert result["status"] == "error", f"Expected error, got: {result}"
     assert "Invalid message JSON" in result["error"]
@@ -247,7 +254,7 @@ def test_empty_dict_message():
     # That's the job of build_message.py
     message = {}
 
-    result = send_to_rabbitmq(
+    result = parse_result(send_to_rabbitmq(
         host="localhost",
         port="5672",
         username="guest",
@@ -255,7 +262,7 @@ def test_empty_dict_message():
         vhost="/",
         queue_name="test_queue",
         message=message
-    )
+    ))
 
     # This will fail at RabbitMQ connection level (no pika), not validation level
     # In a real scenario with RabbitMQ, this would succeed because send_to_rabbitmq
@@ -284,7 +291,7 @@ def test_json_string_parsing():
         "response": "test"
     }
 
-    result = send_to_rabbitmq(
+    result = parse_result(send_to_rabbitmq(
         host="localhost",
         port="5672",
         username="guest",
@@ -292,7 +299,7 @@ def test_json_string_parsing():
         vhost="/",
         queue_name="test_queue",
         message=json.dumps(message_dict)
-    )
+    ))
 
     # With mocked pika, this should succeed
     assert result["status"] == "success", f"Expected success, got: {result}"
@@ -325,7 +332,7 @@ def test_successful_message_send_with_mocked_pika():
         "response": "Test message"
     }
 
-    result = send_to_rabbitmq(
+    result = parse_result(send_to_rabbitmq(
         host="localhost",
         port="5672",
         username="guest",
@@ -333,7 +340,7 @@ def test_successful_message_send_with_mocked_pika():
         vhost="/",
         queue_name="test_queue",
         message=message
-    )
+    ))
 
     assert result["status"] == "success", f"Expected success, got: {result}"
     assert result["message"] == message
@@ -365,7 +372,7 @@ def test_connection_parameters_passed_correctly():
 
     message = {"test": "data"}
 
-    result = send_to_rabbitmq(
+    result = parse_result(send_to_rabbitmq(
         host="rabbitmq.example.com",
         port="5672",
         username="admin",
@@ -373,7 +380,7 @@ def test_connection_parameters_passed_correctly():
         vhost="/production",
         queue_name="prod_queue",
         message=message
-    )
+    ))
 
     assert result["status"] == "success"
 
@@ -413,7 +420,7 @@ def test_message_body_sent_as_json():
         "response": "Hello World"
     }
 
-    result = send_to_rabbitmq(
+    result = parse_result(send_to_rabbitmq(
         host="localhost",
         port="5672",
         username="guest",
@@ -421,7 +428,7 @@ def test_message_body_sent_as_json():
         vhost="/",
         queue_name="test_queue",
         message=message
-    )
+    ))
 
     assert result["status"] == "success"
 
@@ -452,7 +459,7 @@ def test_message_persistence_enabled():
 
     message = {"test": "data"}
 
-    result = send_to_rabbitmq(
+    result = parse_result(send_to_rabbitmq(
         host="localhost",
         port="5672",
         username="guest",
@@ -460,7 +467,7 @@ def test_message_persistence_enabled():
         vhost="/",
         queue_name="test_queue",
         message=message
-    )
+    ))
 
     assert result["status"] == "success"
 
@@ -485,7 +492,7 @@ def test_connection_closed_after_send():
 
     message = {"test": "data"}
 
-    result = send_to_rabbitmq(
+    result = parse_result(send_to_rabbitmq(
         host="localhost",
         port="5672",
         username="guest",
@@ -493,7 +500,7 @@ def test_connection_closed_after_send():
         vhost="/",
         queue_name="test_queue",
         message=message
-    )
+    ))
 
     assert result["status"] == "success"
 

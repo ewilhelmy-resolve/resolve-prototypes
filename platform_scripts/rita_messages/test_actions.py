@@ -91,6 +91,10 @@ def print_test_header(test_name):
 
 def print_result(result):
     """Print test result"""
+    # Parse JSON string if needed
+    if isinstance(result, str):
+        result = json.loads(result)
+
     if result.get('status') == 'success':
         print(f"✅ Success! Message ID: {result.get('message_id')}")
     else:
@@ -331,6 +335,12 @@ def test_grouped_messages(rabbit_config, queue_name, test_ids):
     )
     print_result(result2)
 
+    # Parse JSON results if needed
+    if isinstance(result1, str):
+        result1 = json.loads(result1)
+    if isinstance(result2, str):
+        result2 = json.loads(result2)
+
     return result1.get('status') == 'success' and result2.get('status') == 'success'
 
 
@@ -444,6 +454,13 @@ Examples:
 
     success_count = 0
     for test_name, result in results:
+        # Parse JSON string if needed
+        if isinstance(result, str):
+            try:
+                result = json.loads(result)
+            except json.JSONDecodeError:
+                pass  # If it's not JSON, treat as boolean
+
         if isinstance(result, dict):
             status = "✅ PASS" if result.get('status') == 'success' else "❌ FAIL"
         else:

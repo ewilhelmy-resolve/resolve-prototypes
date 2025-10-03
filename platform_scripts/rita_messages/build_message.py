@@ -122,12 +122,12 @@ def execute(text_content,reasoning_content,sources,tasks,response_group_id,tenan
         # Validate response_group_id format
         is_valid, error_msg = validate_response_group_id(response_group_id)
         if not is_valid:
-            return {"status": "error", "error": f"Validation failed: {error_msg}"}
+            return json.dumps({"status": "error", "error": f"Validation failed: {error_msg}"})
 
         # Validate message parameters
         is_valid, error_msg = validate_parameters(tenant_id, message_id, conversation_id, sources, tasks)
         if not is_valid:
-            return {"status": "error", "error": f"Validation failed: {error_msg}"}
+            return json.dumps({"status": "error", "error": f"Validation failed: {error_msg}"})
 
         # Validate that at least one content component is provided
         has_content = (
@@ -137,7 +137,7 @@ def execute(text_content,reasoning_content,sources,tasks,response_group_id,tenan
             tasks
         )
         if not has_content:
-            return {"status": "error", "error": "Validation failed: at least one of text_content, reasoning_content, sources, or tasks is required"}
+            return json.dumps({"status": "error", "error": "Validation failed: at least one of text_content, reasoning_content, sources, or tasks is required"})
 
         # Build base message
         message = {
@@ -180,13 +180,13 @@ def execute(text_content,reasoning_content,sources,tasks,response_group_id,tenan
         if response_group_id:
             message["response_group_id"] = response_group_id
 
-        return {
+        return json.dumps({
             "status": "success",
             "message": message
-        }
+        })
 
     except Exception as e:
-        return {
+        return json.dumps({
             "status": "error",
             "error": str(e)
-        }
+        })

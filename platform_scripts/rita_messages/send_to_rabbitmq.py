@@ -96,21 +96,21 @@ def execute(host,port,username,password,vhost,queue_name,message):
         # Validate RabbitMQ parameters
         is_valid, error_msg = validate_rabbitmq_params(host, port, username, password, queue_name)
         if not is_valid:
-            return {"status": "error", "error": f"Validation failed: {error_msg}"}
+            return json.dumps({"status": "error", "error": f"Validation failed: {error_msg}"})
 
         # Validate message
         if not message:
-            return {"status": "error", "error": "Validation failed: message is required"}
+            return json.dumps({"status": "error", "error": "Validation failed: message is required"})
 
         # Parse message if it's a string
         if isinstance(message, str):
             try:
                 message = json.loads(message)
             except json.JSONDecodeError as e:
-                return {"status": "error", "error": f"Invalid message JSON: {str(e)}"}
+                return json.dumps({"status": "error", "error": f"Invalid message JSON: {str(e)}"})
 
         if not isinstance(message, dict):
-            return {"status": "error", "error": "Validation failed: message must be a JSON object"}
+            return json.dumps({"status": "error", "error": "Validation failed: message must be a JSON object"})
 
         # Install pika if needed
         install_and_import('pika')
@@ -118,13 +118,13 @@ def execute(host,port,username,password,vhost,queue_name,message):
         # Send to RabbitMQ
         send_message(message, host, port, username, password, vhost, queue_name)
 
-        return {
+        return json.dumps({
             "status": "success",
             "message": message
-        }
+        })
 
     except Exception as e:
-        return {
+        return json.dumps({
             "status": "error",
             "error": str(e)
-        }
+        })

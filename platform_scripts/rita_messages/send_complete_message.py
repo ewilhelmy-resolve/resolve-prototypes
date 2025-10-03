@@ -185,17 +185,17 @@ def execute(host,port,username,password,vhost,queue_name,text_content,reasoning_
         # Validate response_group_id format
         is_valid, error_msg = validate_response_group_id(response_group_id)
         if not is_valid:
-            return {"status": "error", "error": f"Validation failed: {error_msg}"}
+            return json.dumps({"status": "error", "error": f"Validation failed: {error_msg}"})
 
         # Validate RabbitMQ parameters
         is_valid, error_msg = validate_rabbitmq_params(host, port, username, password, queue_name)
         if not is_valid:
-            return {"status": "error", "error": f"Validation failed: {error_msg}"}
+            return json.dumps({"status": "error", "error": f"Validation failed: {error_msg}"})
 
         # Validate message parameters
         is_valid, error_msg = validate_parameters(tenant_id, message_id, conversation_id, sources, tasks)
         if not is_valid:
-            return {"status": "error", "error": f"Validation failed: {error_msg}"}
+            return json.dumps({"status": "error", "error": f"Validation failed: {error_msg}"})
 
         # Validate that at least one content component is provided
         has_content = (
@@ -205,7 +205,7 @@ def execute(host,port,username,password,vhost,queue_name,text_content,reasoning_
             tasks
         )
         if not has_content:
-            return {"status": "error", "error": "Validation failed: at least one of text_content, reasoning_content, sources, or tasks is required"}
+            return json.dumps({"status": "error", "error": "Validation failed: at least one of text_content, reasoning_content, sources, or tasks is required"})
 
         # Install pika if needed
         install_and_import('pika')
@@ -254,14 +254,14 @@ def execute(host,port,username,password,vhost,queue_name,text_content,reasoning_
         # Send to RabbitMQ
         send_to_rabbitmq(message, host, port, username, password, vhost, queue_name)
 
-        return {
+        return json.dumps({
             "status": "success",
             "message_id": message_id,
             "message": message
-        }
+        })
 
     except Exception as e:
-        return {
+        return json.dumps({
             "status": "error",
             "error": str(e)
-        }
+        })

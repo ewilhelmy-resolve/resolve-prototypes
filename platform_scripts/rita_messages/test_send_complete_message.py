@@ -26,6 +26,17 @@ from send_complete_message import execute as send_complete_message
 
 
 # ============================================================================
+# Helper Functions
+# ============================================================================
+
+def parse_result(result):
+    """Parse JSON string result if needed"""
+    if isinstance(result, str):
+        return json.loads(result)
+    return result
+
+
+# ============================================================================
 # Validation Tests - Required Parameters
 # ============================================================================
 
@@ -33,7 +44,7 @@ def test_missing_host_fails():
     """Test that missing host fails validation"""
     print("\n🧪 Test: Missing host should fail")
 
-    result = send_complete_message(
+    result = parse_result(send_complete_message(
         host=None,
         port="5672",
         username="guest",
@@ -49,7 +60,7 @@ def test_missing_host_fails():
         message_id=str(uuid.uuid4()),
         conversation_id=str(uuid.uuid4()),
         turn_complete=None
-    )
+    ))
 
     assert result["status"] == "error"
     assert "host is required" in result["error"]
@@ -61,7 +72,7 @@ def test_missing_tenant_id_fails():
     """Test that missing tenant_id fails validation"""
     print("\n🧪 Test: Missing tenant_id should fail")
 
-    result = send_complete_message(
+    result = parse_result(send_complete_message(
         host="localhost",
         port="5672",
         username="guest",
@@ -77,7 +88,7 @@ def test_missing_tenant_id_fails():
         message_id=str(uuid.uuid4()),
         conversation_id=str(uuid.uuid4()),
         turn_complete=None
-    )
+    ))
 
     assert result["status"] == "error"
     assert "tenant_id is required" in result["error"]
@@ -89,7 +100,7 @@ def test_missing_message_id_fails():
     """Test that missing message_id fails validation"""
     print("\n🧪 Test: Missing message_id should fail")
 
-    result = send_complete_message(
+    result = parse_result(send_complete_message(
         host="localhost",
         port="5672",
         username="guest",
@@ -105,7 +116,7 @@ def test_missing_message_id_fails():
         message_id=None,
         conversation_id=str(uuid.uuid4()),
         turn_complete=None
-    )
+    ))
 
     assert result["status"] == "error"
     assert "message_id is required" in result["error"]
@@ -117,7 +128,7 @@ def test_missing_conversation_id_fails():
     """Test that missing conversation_id fails validation"""
     print("\n🧪 Test: Missing conversation_id should fail")
 
-    result = send_complete_message(
+    result = parse_result(send_complete_message(
         host="localhost",
         port="5672",
         username="guest",
@@ -133,7 +144,7 @@ def test_missing_conversation_id_fails():
         message_id=str(uuid.uuid4()),
         conversation_id=None,
         turn_complete=None
-    )
+    ))
 
     assert result["status"] == "error"
     assert "conversation_id is required" in result["error"]
@@ -149,7 +160,7 @@ def test_empty_message_fails():
     """Test that message with no content fails validation"""
     print("\n🧪 Test: Empty message should fail")
 
-    result = send_complete_message(
+    result = parse_result(send_complete_message(
         host="localhost",
         port="5672",
         username="guest",
@@ -165,7 +176,7 @@ def test_empty_message_fails():
         message_id=str(uuid.uuid4()),
         conversation_id=str(uuid.uuid4()),
         turn_complete=None
-    )
+    ))
 
     assert result["status"] == "error"
     assert "at least one of" in result["error"]
@@ -177,7 +188,7 @@ def test_whitespace_only_text_fails():
     """Test that whitespace-only text is treated as empty"""
     print("\n🧪 Test: Whitespace-only text should fail")
 
-    result = send_complete_message(
+    result = parse_result(send_complete_message(
         host="localhost",
         port="5672",
         username="guest",
@@ -193,7 +204,7 @@ def test_whitespace_only_text_fails():
         message_id=str(uuid.uuid4()),
         conversation_id=str(uuid.uuid4()),
         turn_complete=None
-    )
+    ))
 
     assert result["status"] == "error"
     assert "at least one of" in result["error"]
@@ -212,7 +223,7 @@ def test_invalid_response_group_id_fails():
     import pika
     pika.reset_mock()
 
-    result = send_complete_message(
+    result = parse_result(send_complete_message(
         host="localhost",
         port="5672",
         username="guest",
@@ -228,7 +239,7 @@ def test_invalid_response_group_id_fails():
         message_id=str(uuid.uuid4()),
         conversation_id=str(uuid.uuid4()),
         turn_complete=None
-    )
+    ))
 
     assert result["status"] == "error"
     assert "response_group_id must be a valid UUID v4" in result["error"]
@@ -243,7 +254,7 @@ def test_invalid_sources_structure_fails():
     # Missing 'title' field
     invalid_sources = [{"url": "https://example.com"}]
 
-    result = send_complete_message(
+    result = parse_result(send_complete_message(
         host="localhost",
         port="5672",
         username="guest",
@@ -259,7 +270,7 @@ def test_invalid_sources_structure_fails():
         message_id=str(uuid.uuid4()),
         conversation_id=str(uuid.uuid4()),
         turn_complete=None
-    )
+    ))
 
     assert result["status"] == "error"
     assert "missing required field 'title'" in result["error"]
@@ -274,7 +285,7 @@ def test_invalid_tasks_structure_fails():
     # Missing 'items' field
     invalid_tasks = [{"title": "Test Task"}]
 
-    result = send_complete_message(
+    result = parse_result(send_complete_message(
         host="localhost",
         port="5672",
         username="guest",
@@ -290,7 +301,7 @@ def test_invalid_tasks_structure_fails():
         message_id=str(uuid.uuid4()),
         conversation_id=str(uuid.uuid4()),
         turn_complete=None
-    )
+    ))
 
     assert result["status"] == "error"
     assert "missing required field 'items'" in result["error"]
@@ -314,7 +325,7 @@ def test_text_only_message_success():
     pika.BlockingConnection.return_value = mock_connection
     mock_connection.channel.return_value = mock_channel
 
-    result = send_complete_message(
+    result = parse_result(send_complete_message(
         host="localhost",
         port="5672",
         username="guest",
@@ -330,7 +341,7 @@ def test_text_only_message_success():
         message_id=str(uuid.uuid4()),
         conversation_id=str(uuid.uuid4()),
         turn_complete=None
-    )
+    ))
 
     assert result["status"] == "success"
     assert result["message"]["response"] == "Hello, this is a test message"
@@ -356,7 +367,7 @@ def test_reasoning_only_message_success():
     pika.BlockingConnection.return_value = mock_connection
     mock_connection.channel.return_value = mock_channel
 
-    result = send_complete_message(
+    result = parse_result(send_complete_message(
         host="localhost",
         port="5672",
         username="guest",
@@ -372,7 +383,7 @@ def test_reasoning_only_message_success():
         message_id=str(uuid.uuid4()),
         conversation_id=str(uuid.uuid4()),
         turn_complete=None
-    )
+    ))
 
     assert result["status"] == "success"
     assert result["message"]["response"] == ""
@@ -400,7 +411,7 @@ def test_sources_only_message_success():
         {"url": "https://api.example.com", "title": "API Reference"}
     ]
 
-    result = send_complete_message(
+    result = parse_result(send_complete_message(
         host="localhost",
         port="5672",
         username="guest",
@@ -416,7 +427,7 @@ def test_sources_only_message_success():
         message_id=str(uuid.uuid4()),
         conversation_id=str(uuid.uuid4()),
         turn_complete=None
-    )
+    ))
 
     assert result["status"] == "success"
     assert result["message"]["metadata"]["sources"] == sources
@@ -445,7 +456,7 @@ def test_tasks_only_message_success():
         }
     ]
 
-    result = send_complete_message(
+    result = parse_result(send_complete_message(
         host="localhost",
         port="5672",
         username="guest",
@@ -461,7 +472,7 @@ def test_tasks_only_message_success():
         message_id=str(uuid.uuid4()),
         conversation_id=str(uuid.uuid4()),
         turn_complete=None
-    )
+    ))
 
     assert result["status"] == "success"
     assert result["message"]["metadata"]["tasks"] == tasks
@@ -486,7 +497,7 @@ def test_complete_message_with_all_components():
     tasks = [{"title": "Test", "items": ["Item 1"], "defaultOpen": False}]
     group_id = str(uuid.uuid4())
 
-    result = send_complete_message(
+    result = parse_result(send_complete_message(
         host="localhost",
         port="5672",
         username="guest",
@@ -502,7 +513,7 @@ def test_complete_message_with_all_components():
         message_id=str(uuid.uuid4()),
         conversation_id=str(uuid.uuid4()),
         turn_complete=None
-    )
+    ))
 
     assert result["status"] == "success"
     assert result["message"]["response"] == "Complete message with all parts"
@@ -535,7 +546,7 @@ def test_message_body_sent_as_json():
     tenant_id = "test-tenant"
     conversation_id = str(uuid.uuid4())
 
-    result = send_complete_message(
+    result = parse_result(send_complete_message(
         host="localhost",
         port="5672",
         username="guest",
@@ -551,7 +562,7 @@ def test_message_body_sent_as_json():
         message_id=message_id,
         conversation_id=conversation_id,
         turn_complete=None
-    )
+    ))
 
     assert result["status"] == "success"
 
@@ -581,7 +592,7 @@ def test_message_persistence_enabled():
     pika.BlockingConnection.return_value = mock_connection
     mock_connection.channel.return_value = mock_channel
 
-    result = send_complete_message(
+    result = parse_result(send_complete_message(
         host="localhost",
         port="5672",
         username="guest",
@@ -597,7 +608,7 @@ def test_message_persistence_enabled():
         message_id=str(uuid.uuid4()),
         conversation_id=str(uuid.uuid4()),
         turn_complete=None
-    )
+    ))
 
     assert result["status"] == "success"
 
@@ -620,7 +631,7 @@ def test_queue_declared_as_durable():
     pika.BlockingConnection.return_value = mock_connection
     mock_connection.channel.return_value = mock_channel
 
-    result = send_complete_message(
+    result = parse_result(send_complete_message(
         host="localhost",
         port="5672",
         username="guest",
@@ -636,7 +647,7 @@ def test_queue_declared_as_durable():
         message_id=str(uuid.uuid4()),
         conversation_id=str(uuid.uuid4()),
         turn_complete=None
-    )
+    ))
 
     assert result["status"] == "success"
 
@@ -659,7 +670,7 @@ def test_connection_closed_after_send():
     pika.BlockingConnection.return_value = mock_connection
     mock_connection.channel.return_value = mock_channel
 
-    result = send_complete_message(
+    result = parse_result(send_complete_message(
         host="localhost",
         port="5672",
         username="guest",
@@ -675,7 +686,7 @@ def test_connection_closed_after_send():
         message_id=str(uuid.uuid4()),
         conversation_id=str(uuid.uuid4()),
         turn_complete=None
-    )
+    ))
 
     assert result["status"] == "success"
 
@@ -683,6 +694,88 @@ def test_connection_closed_after_send():
     mock_connection.close.assert_called_once()
 
     print("✅ PASS: Connection properly closed")
+    return result
+
+
+def test_turn_complete_in_metadata():
+    """Test that turn_complete is included in metadata when provided"""
+    print("\n🧪 Test: turn_complete field in metadata")
+
+    import pika
+    pika.reset_mock()
+
+    mock_connection = MagicMock()
+    mock_channel = MagicMock()
+    pika.BlockingConnection.return_value = mock_connection
+    mock_connection.channel.return_value = mock_channel
+
+    # Test with turn_complete=True
+    result = parse_result(send_complete_message(
+        host="localhost",
+        port="5672",
+        username="guest",
+        password="guest",
+        vhost="/",
+        queue_name="test_queue",
+        text_content="Test message",
+        reasoning_content=None,
+        sources=None,
+        tasks=None,
+        response_group_id=None,
+        tenant_id="test-tenant",
+        message_id=str(uuid.uuid4()),
+        conversation_id=str(uuid.uuid4()),
+        turn_complete=True
+    ))
+
+    assert result["status"] == "success"
+    assert result["message"]["metadata"]["turn_complete"] == True
+
+    # Test with turn_complete=False
+    result2 = parse_result(send_complete_message(
+        host="localhost",
+        port="5672",
+        username="guest",
+        password="guest",
+        vhost="/",
+        queue_name="test_queue",
+        text_content="Test message",
+        reasoning_content=None,
+        sources=None,
+        tasks=None,
+        response_group_id=None,
+        tenant_id="test-tenant",
+        message_id=str(uuid.uuid4()),
+        conversation_id=str(uuid.uuid4()),
+        turn_complete=False
+    ))
+
+    assert result2["status"] == "success"
+    assert result2["message"]["metadata"]["turn_complete"] == False
+
+    # Test with turn_complete=None (should not be in metadata)
+    result3 = parse_result(send_complete_message(
+        host="localhost",
+        port="5672",
+        username="guest",
+        password="guest",
+        vhost="/",
+        queue_name="test_queue",
+        text_content="Test message",
+        reasoning_content=None,
+        sources=None,
+        tasks=None,
+        response_group_id=None,
+        tenant_id="test-tenant",
+        message_id=str(uuid.uuid4()),
+        conversation_id=str(uuid.uuid4()),
+        turn_complete=None
+    ))
+
+    assert result3["status"] == "success"
+    assert "turn_complete" not in result3["message"].get("metadata", {})
+
+    print("✅ PASS: turn_complete field handled correctly in metadata")
     return result
 
 
@@ -723,6 +816,9 @@ def main():
         test_message_persistence_enabled,
         test_queue_declared_as_durable,
         test_connection_closed_after_send,
+
+        # turn_complete field tests
+        test_turn_complete_in_metadata,
     ]
 
     passed = 0
@@ -730,7 +826,10 @@ def main():
 
     for test_func in tests:
         try:
-            test_func()
+            result = test_func()
+            # Parse result if it's a JSON string
+            if result and isinstance(result, str):
+                result = parse_result(result)
             passed += 1
         except AssertionError as e:
             print(f"❌ FAIL: {test_func.__name__}")
