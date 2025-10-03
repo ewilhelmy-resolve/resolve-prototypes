@@ -74,7 +74,7 @@ export default function ConfluenceConfiguration() {
 										emptyIndicator="No spaces found."
 									/>
 								</div>
-								<Button variant="secondary" size="sm">
+								<Button variant="secondary">
 									<RefreshCw className="h-4 w-4 mr-2" />
 									Refresh
 								</Button>
