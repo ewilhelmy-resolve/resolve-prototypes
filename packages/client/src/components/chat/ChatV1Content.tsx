@@ -37,12 +37,8 @@ import {
 import { Actions, Action } from '@/components/ai-elements/actions'
 import { Response } from '@/components/ai-elements/response'
 import { Loader } from '@/components/ai-elements/loader'
-import {
-  Sources,
-  SourcesContent,
-  SourcesTrigger,
-  Source,
-} from '@/components/ai-elements/sources'
+import { Citations } from '@/components/citations'
+import { ResponseWithInlineCitations } from './ResponseWithInlineCitations'
 import {
   Task,
   TaskContent,
@@ -155,7 +151,7 @@ function GroupedMessage({ message, onCopy, isCopied }: {
     <Message from={message.role}>
       <div className="flex flex-col w-full">
         <MessageContent variant="flat">
-          {message.parts.map((part) => (
+          {message.parts.map((part, index) => (
             <Fragment key={part.id}>
               {/* Render reasoning if present */}
               {part.metadata?.reasoning && (
@@ -166,21 +162,47 @@ function GroupedMessage({ message, onCopy, isCopied }: {
               )}
 
               {/* Render text content if present */}
-              {part.message && part.message.trim().length > 0 && (
-                <Response>{part.message}</Response>
-              )}
+              {(() => {
+                // Check if the NEXT part is sources (for potential inline citations)
+                const nextPart = message.parts[index + 1]
+                const nextHasSources = nextPart?.metadata?.sources && nextPart.metadata.sources.length > 0
+
+                // Use inline citations if next part has sources and this text contains markers
+                if (part.message && part.message.trim().length > 0) {
+                  if (nextHasSources && part.message.includes('[')) {
+                    return (
+                      <ResponseWithInlineCitations
+                        sources={nextPart.metadata?.sources || []}
+                        messageId={part.id}
+                      >
+                        {part.message}
+                      </ResponseWithInlineCitations>
+                    )
+                  }
+                  return <Response>{part.message}</Response>
+                }
+                return null
+              })()}
 
               {/* Render sources if present */}
-              {part.metadata?.sources && (
-                <Sources>
-                  <SourcesTrigger count={part.metadata.sources.length || 0} />
-                  <SourcesContent>
-                    {part.metadata.sources.map((source: any, i: number) => (
-                      <Source key={i} href={source.url} title={source.title} />
-                    ))}
-                  </SourcesContent>
-                </Sources>
-              )}
+              {(() => {
+                // Check if the PREVIOUS part was text with inline citation markers
+                const prevPart = message.parts[index - 1]
+                const prevHasMarkers = prevPart && !prevPart.metadata?.sources &&
+                  prevPart.message && prevPart.message.includes('[')
+
+                // Skip rendering sources separately if they were already rendered inline
+                if (part.metadata?.sources && !prevHasMarkers) {
+                  return (
+                    <Citations
+                      sources={part.metadata.sources}
+                      messageId={part.id}
+                      variant={part.metadata?.citation_variant}
+                    />
+                  )
+                }
+                return null
+              })()}
 
               {/* Render tasks if present */}
               {part.metadata?.tasks && (

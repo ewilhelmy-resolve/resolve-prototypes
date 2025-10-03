@@ -15,6 +15,7 @@ import {
   rabbitLogger,
   webhookLogger
 } from './config/logger.js';
+import { getBlobContent, blobExists, listBlobIds } from './blob-storage.js';
 
 
 // Load environment from root .env file
@@ -507,6 +508,235 @@ This tests the complete grouped message functionality.`
         { url: 'https://docs.resolve.com/test9', title: 'Test9 Combination Guide' }
       ]
     });
+  } else if (content.toLowerCase().startsWith('show all citations')) {
+    // Consolidated citation examples demonstrating all formats and variants
+    parts.push({
+      type: 'text',
+      text: `## Citation Examples Demonstration
+
+This response demonstrates all citation UI variants available in Rita:
+
+### UI Variants Demonstrated Below
+1. **hover-card**: Default inline interaction with badges
+2. **modal**: Focused overlay display
+3. **right-panel**: Side-by-side reading experience
+4. **collapsible-list**: Expandable list view
+5. **inline**: Citation markers embedded in text
+
+Each section below uses a different citation variant.`
+    });
+
+    // 1. Hover-card variant
+    parts.push({
+      type: 'text',
+      text: `### 1. Hover-Card Variant
+Inline citation badges with hover interaction.`
+    });
+    parts.push({
+      type: 'sources',
+      metadata: { citation_variant: 'hover-card' },
+      sources: [
+        {
+          url: 'https://docs.resolve.com/quick-reference',
+          title: 'Quick Reference Guide'
+        },
+        {
+          title: 'Rita Automation Documentation',
+          snippet: '...this is the quote you\'re looking for...',
+          blob_id: 'blob_automation_guide_v2024'
+        }
+      ]
+    });
+
+    // 2. Modal variant
+    parts.push({
+      type: 'text',
+      text: `### 2. Modal Variant
+Citations displayed in a focused modal overlay. Click "View full document" to see the complete 824-line guide with Mermaid diagrams.`
+    });
+    parts.push({
+      type: 'sources',
+      metadata: { citation_variant: 'modal' },
+      sources: [
+        {
+          title: 'Rita Automation Implementation Guide',
+          snippet: '...comprehensive guide covering architecture, deployment, and best practices for enterprise automation...',
+          blob_id: 'blob_automation_guide_v2024'
+        },
+        {
+          url: 'https://research.enterprise.com/patterns',
+          title: 'Enterprise Architecture Patterns',
+          snippet: '...scalable patterns for microservices, event-driven systems, and distributed processing...'
+        }
+      ]
+    });
+
+    // 3. Right-panel variant
+    parts.push({
+      type: 'text',
+      text: `### 3. Right-Panel Variant
+Side-by-side reading with sources in a right panel. Both sources use the same 824-line document with Mermaid diagrams.`
+    });
+    parts.push({
+      type: 'sources',
+      metadata: { citation_variant: 'right-panel' },
+      sources: [
+        {
+          title: 'Rita Automation Implementation Guide',
+          snippet: '...comprehensive guide covering architecture, deployment, and best practices for enterprise automation...',
+          blob_id: 'blob_automation_guide_v2024'
+        },
+        {
+          title: 'Rita Automation Implementation Guide (Copy 2)',
+          snippet: '...same comprehensive guide with architecture diagrams and deployment instructions...',
+          blob_id: 'blob_automation_guide_v2024'
+        }
+      ]
+    });
+
+    // 4. Collapsible-list variant
+    parts.push({
+      type: 'text',
+      text: `### 4. Collapsible-List Variant
+Traditional expandable list view of citations.`
+    });
+    parts.push({
+      type: 'sources',
+      metadata: { citation_variant: 'collapsible-list' },
+      sources: [
+        {
+          title: 'Rita Automation Implementation Guide',
+          snippet: '...comprehensive guide covering architecture, deployment, and best practices...',
+          blob_id: 'blob_automation_guide_v2024'
+        },
+        {
+          url: 'https://research.enterprise.com/patterns',
+          title: 'Enterprise Architecture Patterns',
+          snippet: '...scalable patterns for microservices, event-driven systems...'
+        },
+        {
+          title: 'Production Security Hardening Guide',
+          snippet: '...defense-in-depth strategies with network segmentation and access controls...',
+          blob_id: 'blob_security_hardening_2024'
+        },
+        {
+          url: 'https://monitoring.observability.com/guide',
+          title: 'Production Monitoring Guide',
+          snippet: '...effective monitoring and observability strategies...',
+          blob_id: 'blob_monitoring_guide_2024'
+        },
+        {
+          title: 'WCAG 2.1 AA Implementation Guide',
+          snippet: '...comprehensive accessibility standards for web content and applications...',
+          blob_id: 'blob_wcag_guide_2024'
+        },
+        {
+          url: 'https://compliance.guide/soc2',
+          title: 'SOC 2 Type II Compliance Requirements',
+          snippet: '...security, availability, processing integrity, confidentiality, and privacy controls...',
+          blob_id: 'blob_soc2_guide_2024'
+        }
+      ]
+    });
+
+    // 5. Inline citations variant
+    parts.push({
+      type: 'text',
+      text: `### 5. Inline Citations
+Citation markers embedded directly in the text for academic-style referencing.
+
+According to recent research [1], enterprise automation requires careful architectural planning [2]. Security considerations [3] must be addressed from the beginning, with comprehensive monitoring [4] throughout the lifecycle.`
+    });
+    parts.push({
+      type: 'sources',
+      sources: [
+        {
+          title: 'Rita Automation Implementation Guide',
+          snippet: '...comprehensive guide covering architecture, deployment, and best practices for enterprise automation...',
+          blob_id: 'blob_automation_guide_v2024'
+        },
+        {
+          url: 'https://research.enterprise.com/patterns',
+          title: 'Enterprise Architecture Patterns',
+          snippet: '...scalable patterns for microservices, event-driven systems, and distributed processing...',
+          blob_id: 'blob_architecture_patterns_2024'
+        },
+        {
+          title: 'Production Security Hardening Guide',
+          snippet: '...defense-in-depth strategies with network segmentation, access controls, and encryption...',
+          blob_id: 'blob_security_hardening_2024'
+        },
+        {
+          url: 'https://monitoring.observability.com/guide',
+          title: 'Production Monitoring Best Practices',
+          snippet: '...effective monitoring and observability strategies for production systems...',
+          blob_id: 'blob_monitoring_guide_2024'
+        }
+      ]
+    });
+  } else if (content.toLowerCase().startsWith('regular citations') || content.toLowerCase().startsWith('default citations')) {
+    // Regular/default example showing hover-card with navigation between multiple citations
+    parts.push({
+      type: 'text',
+      text: `## Default Citation Behavior
+
+This demonstrates the regular out-of-the-box citation behavior with hover cards at the end.
+
+According to recent research, enterprise automation requires careful architectural planning. Security best practices must be followed from the start, with comprehensive monitoring throughout the implementation lifecycle. The hover card below allows you to navigate between multiple citation sources.`
+    });
+    parts.push({
+      type: 'sources',
+      metadata: { citation_variant: 'hover-card' },
+      sources: [
+        {
+          title: 'Rita Automation Implementation Guide',
+          snippet: '...comprehensive guide covering architecture, deployment, and best practices for enterprise automation...',
+          blob_id: 'blob_automation_guide_v2024'
+        },
+        {
+          url: 'https://research.enterprise.com/patterns',
+          title: 'Enterprise Architecture Patterns',
+          snippet: '...scalable patterns for microservices, event-driven systems, and distributed processing...'
+        },
+        {
+          title: 'Production Security Hardening Guide',
+          snippet: '...defense-in-depth strategies with network segmentation, access controls, and encryption...',
+          blob_id: 'blob_security_hardening_2024'
+        },
+        {
+          title: 'Monitoring and Observability Guide',
+          snippet: '...effective strategies for production monitoring and incident response...',
+          blob_id: 'blob_monitoring_guide_2024'
+        }
+      ]
+    });
+  } else if (content.toLowerCase().startsWith('simple citations') || content.toLowerCase().startsWith('basic citations')) {
+    // Shorter example with just URL and title
+    parts.push({
+      type: 'text',
+      text: `## Simple Citations
+
+Basic citation format with just URL and title, no snippets or full documents.
+
+Here are some helpful resources [1] [2] [3] for getting started with Rita.`
+    });
+    parts.push({
+      type: 'sources',
+      sources: [
+        {
+          url: 'https://docs.resolve.com/getting-started',
+          title: 'Getting Started with Rita'
+        },
+        {
+          url: 'https://docs.resolve.com/tutorials',
+          title: 'Rita Tutorials and Examples'
+        },
+        {
+          url: 'https://docs.resolve.com/api-reference',
+          title: 'Rita API Reference'
+        }
+      ]
+    });
   } else if (content.startsWith('test10')) {
     // test10: Reasoning + tasks
     parts.push({
@@ -855,13 +1085,27 @@ This is a basic response format. Set \`MOCK_SCENARIO\` environment variable to g
       });
     } else {
       // Metadata-based response (reasoning, sources, tasks)
+      const metadata: any = {};
+
+      if (part.type === 'reasoning') {
+        metadata[part.type] = { content: part.text, state: part.state };
+      } else if (part.type === 'sources') {
+        metadata.sources = part.sources;
+        // Include any additional metadata (like citation_variant)
+        if (part.metadata) {
+          Object.assign(metadata, part.metadata);
+        }
+      } else {
+        metadata[part.type] = part[part.type];
+      }
+
       responses.push({
         message_id: messagePayload.message_id,
         conversation_id: messagePayload.conversation_id,
         tenant_id: messagePayload.tenant_id,
         user_id: messagePayload.user_id,
         response: '', // Empty text content for metadata-only messages
-        metadata: { [part.type]: part.type === 'reasoning' ? { content: part.text, state: part.state } : part[part.type] },
+        metadata,
         response_group_id: responseGroupId
       });
     }
@@ -882,6 +1126,58 @@ app.get('/health', (_req, res) => {
     service: 'rita-mock-automation',
     timestamp: new Date().toISOString(),
     config: MOCK_CONFIG
+  });
+});
+
+// Blob content endpoint
+app.get('/blobs/:blob_id', (req, res) => {
+  const correlationId = generateCorrelationId();
+  const contextLogger = createContextLogger(logger, correlationId, {
+    blobId: req.params.blob_id
+  });
+
+  const { blob_id } = req.params;
+
+  contextLogger.info({}, 'Blob content requested');
+
+  if (!blobExists(blob_id)) {
+    contextLogger.warn({}, 'Blob not found');
+    return res.status(404).json({
+      error: 'Blob not found',
+      blob_id
+    });
+  }
+
+  const blobContent = getBlobContent(blob_id);
+
+  if (!blobContent) {
+    contextLogger.error({}, 'Blob exists but content retrieval failed');
+    return res.status(500).json({
+      error: 'Failed to retrieve blob content',
+      blob_id
+    });
+  }
+
+  contextLogger.info({
+    contentType: blobContent.content_type,
+    contentLength: blobContent.content.length
+  }, 'Blob content retrieved successfully');
+
+  res.json(blobContent);
+});
+
+// List all available blobs
+app.get('/blobs', (_req, res) => {
+  const correlationId = generateCorrelationId();
+  const contextLogger = createContextLogger(logger, correlationId);
+
+  contextLogger.info({}, 'Blob list requested');
+
+  const blobIds = listBlobIds();
+
+  res.json({
+    blobs: blobIds,
+    count: blobIds.length
   });
 });
 
