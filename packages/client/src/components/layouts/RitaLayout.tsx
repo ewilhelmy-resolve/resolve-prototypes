@@ -115,7 +115,7 @@ function RitaLayoutContent({ children, activePage = "chat" }: RitaLayoutProps) {
 
   return (
     <>
-      <Sidebar className="bg-sidebar-primary-foreground border-sidebar-border">
+      <Sidebar className="bg-sidebar-primary-foreground border-sidebar-border max-w-64">
           <SidebarHeader className="h-[67px] flex items-left justify-start pl-2">
             <div className="flex items-center h-full pl-2">
               <img src="/logo-rita.svg" alt="Rita Logo" width={179} height={18} className="w-[179px] h-[18px]" />
@@ -189,13 +189,13 @@ function RitaLayoutContent({ children, activePage = "chat" }: RitaLayoutProps) {
                   <div className="px-2 text-xs text-muted-foreground">No conversations yet</div>
                 ) : (
                   conversations.slice(0, 5).map((conversation: Conversation) => (
-                    <SidebarMenuItem key={conversation.id}>
+                    <SidebarMenuItem key={conversation.id} className="min-w-0">
                       <SidebarMenuButton
-                        className="px-2 py-2 h-8 rounded-md text-sm text-sidebar-foreground"
+                        className="px-2 py-2 h-8 rounded-md text-sm text-sidebar-foreground min-w-0"
                         onClick={() => handleConversationClick(conversation.id)}
                         isActive={conversation.id === currentConversationId}
                       >
-                        <span className="truncate">{conversation.title}</span>
+                        <span className="truncate min-w-0">{conversation.title}</span>
                       </SidebarMenuButton>
                     </SidebarMenuItem>
                   ))
@@ -268,7 +268,7 @@ function RitaLayoutContent({ children, activePage = "chat" }: RitaLayoutProps) {
           </SidebarFooter>
         </Sidebar>
 
-        <div className="fixed inset-y-0 right-0 left-0 lg:left-[204px] flex flex-col overflow-hidden">
+        <div className="fixed inset-y-0 right-0 left-0 lg:left-64 flex flex-col overflow-hidden">
           <header className="h-[67px] border-b border-border bg-background flex items-center flex-shrink-0 pr-6">
             <div className="flex items-center gap-2 h-full pl-4">
               <SidebarTrigger className="lg:flex" />
