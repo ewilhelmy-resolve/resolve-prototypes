@@ -9,7 +9,8 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, waitFor } from '@testing-library/react'
+import { render } from '@testing-library/react'
+import { waitFor } from '@testing-library/dom'
 import { MemoryRouter } from 'react-router-dom'
 import ChatV1Page from './ChatV1Page'
 
