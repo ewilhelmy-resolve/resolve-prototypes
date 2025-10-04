@@ -32,8 +32,8 @@ export default function UsersPage() {
   ]
 
   return (
-    <div className="flex flex-col h-full overflow-y-auto">
-      <div className="flex flex-col gap-2.5 p-4 border-b border-border">
+    <div className="flex flex-col h-full">
+      <div className="flex flex-col gap-2.5 p-6 border-b border-border flex-shrink-0">
         <div className="max-w-7xl mx-auto w-full">
           <div className="flex justify-between items-center gap-6">
             <div className="flex flex-col">
@@ -49,7 +49,7 @@ export default function UsersPage() {
         </div>
       </div>
 
-      <div className="flex flex-col gap-4 p-6 max-w-7xl mx-auto w-full">
+      <div className="flex flex-col gap-4 p-6 max-w-7xl mx-auto w-full flex-1 overflow-y-auto">
         <div className="flex gap-2.5 lg:gap-10">
           <Card className="bg-popover border border-border rounded-md shadow-sm">
             <CardContent className="p-4">
