@@ -271,7 +271,7 @@ function RitaLayoutContent({ children, activePage = "chat" }: RitaLayoutProps) {
         <div className="fixed inset-y-0 right-0 left-0 lg:left-[204px] flex flex-col overflow-hidden">
           <header className="h-[67px] border-b border-border bg-background flex items-center flex-shrink-0 pr-6">
             <div className="flex items-center gap-2 h-full pl-4">
-              <SidebarTrigger />
+              <SidebarTrigger className="lg:flex" />
               <Breadcrumb>
                 <BreadcrumbList>
                   <BreadcrumbItem>
