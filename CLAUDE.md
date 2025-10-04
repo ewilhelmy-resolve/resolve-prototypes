@@ -391,12 +391,71 @@ npx shadcn@latest add "https://v0.app/chat/b/[component-id]"
    - Follow established layout patterns (sticky inputs, proper height constraints)
    - Integrate with existing authentication and routing systems
 
-#### Layout Architecture
+#### Layout Architecture & Integration Lessons Learned
+
 Current implementation uses:
-- **RitaLayout**: Main application layout from Figma design
+- **RitaLayout**: Main application layout from v0.app/shadcn Dashboard design
 - **Responsive Design**: Mobile sheet navigation, desktop sidebars
 - **Proper Height Management**: `min-h-screen` with flex layouts preventing scroll issues
 - **Component-Based**: Modular sections (sidebar, main content, right panel)
+
+**Critical Integration Lessons from RitaLayout Implementation:**
+
+1. **Sidebar Width Management**
+   - **Problem**: Sidebar used `w-[--sidebar-width]` (16rem/256px) but main content used `left-[204px]`, causing 52px overlap
+   - **Solution**: Match main content offset to sidebar width using `lg:left-64` (16rem = 256px)
+   - **Lesson**: Always verify CSS variable values match between sidebar and main content offsets
+
+2. **Text Truncation in Flex Containers**
+   - **Problem**: Long conversation titles caused sidebar to expand beyond fixed width, even with `truncate` class
+   - **Root Cause**: Flex items need `min-w-0` to allow text truncation to work properly
+   - **Solution**: Add `min-w-0` to SidebarMenuItem, SidebarMenuButton, and text spans
+   - **Lesson**: `truncate` alone isn't enough in flexbox - always add `min-w-0` to parent flex items
+
+3. **Nested Scroll Containers**
+   - **Problem**: RitaLayout's `<main>` had `overflow-y-auto` AND page components also had `overflow-y-auto`
+   - **Result**: Content appeared cut off, double scrollbars, confusing UX
+   - **Solution**: Let RitaLayout handle ALL scrolling, remove `overflow-y-auto` from child page components
+   - **Lesson**: Single scroll responsibility - layout controls scroll, pages provide content structure only
+
+4. **Max-Width Constraints**
+   - **Problem**: Sidebar could expand past intended width when content pushed boundaries
+   - **Solution**: Add explicit `max-w-64` to Sidebar component
+   - **Lesson**: Always set `max-w-*` on fixed-width containers, even if width is already specified
+
+5. **Page Component Structure**
+   - **Working Pattern**:
+     ```tsx
+     <div className="flex flex-col h-full">
+       {/* Header with flex-shrink-0 */}
+       <div className="px-6 py-6 border-b flex-shrink-0">
+         <h1>Page Title</h1>
+       </div>
+
+       {/* Content with flex-1 (NO overflow-y-auto) */}
+       <div className="px-6 py-6 flex-1">
+         {/* Page content */}
+       </div>
+     </div>
+     ```
+   - **Lesson**: Use `flex-shrink-0` for headers, `flex-1` for content, let parent handle scroll
+
+6. **Local vs Production Differences**
+   - **Problem**: Layout worked locally but broke in production build
+   - **Root Cause**: CSS optimization/minification exposed underlying layout issues (width mismatches, nested scrolls)
+   - **Solution**: Always test with production builds (`npm run build && npm run preview`) before deploying
+   - **Lesson**: Dev mode is forgiving; production mode exposes structural issues
+
+**Testing Checklist for v0.app/Figma Layout Integration:**
+
+- [ ] Sidebar width matches main content offset exactly
+- [ ] Long text truncates properly (test with 50+ character strings)
+- [ ] No double scrollbars (only one scroll container per view)
+- [ ] All pages fit within layout bounds (no cut-off content)
+- [ ] Responsive design works (mobile sheet, desktop fixed sidebar)
+- [ ] Production build tested (`npm run build && npm run preview`)
+- [ ] Toggle button visible and functional at all viewport sizes
+- [ ] Content doesn't shift when sidebar opens/closes
 
 #### Integration Example
 ```typescript
