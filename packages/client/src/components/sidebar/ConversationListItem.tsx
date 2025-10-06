@@ -1,14 +1,16 @@
 /**
- * ConversationListItem - Sidebar conversation item with delete action
+ * ConversationListItem - Sidebar conversation item with rename and delete actions
  *
  * Displays a conversation in the sidebar with:
  * - Click to navigate to conversation
  * - Hover-revealed ellipsis menu
- * - Delete action with confirmation
+ * - Rename action with inline edit dialog
+ * - Delete action with confirmation dialog
  */
 
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
 import { SidebarMenuItem, SidebarMenuButton } from "@/components/ui/sidebar"
 import {
   DropdownMenu,
@@ -26,8 +28,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import { MoreHorizontal, Trash2 } from "lucide-react"
-import { useDeleteConversation } from "@/hooks/api/useConversations"
+import { MoreHorizontal, Trash2, Pencil } from "lucide-react"
+import { useDeleteConversation, useUpdateConversation } from "@/hooks/api/useConversations"
 import type { Conversation } from "@/stores/conversationStore"
 
 interface ConversationListItemProps {
@@ -42,7 +44,30 @@ export function ConversationListItem({
   onClick,
 }: ConversationListItemProps) {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [renameDialogOpen, setRenameDialogOpen] = useState(false)
+  const [editedTitle, setEditedTitle] = useState("")
   const deleteConversationMutation = useDeleteConversation()
+  const updateConversationMutation = useUpdateConversation()
+
+  const handleRenameClick = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    setEditedTitle(conversation.title)
+    setRenameDialogOpen(true)
+  }
+
+  const handleConfirmRename = () => {
+    if (editedTitle.trim().length === 0) return
+    updateConversationMutation.mutate({
+      conversationId: conversation.id,
+      title: editedTitle.trim()
+    })
+    setRenameDialogOpen(false)
+  }
+
+  const handleCancelRename = () => {
+    setRenameDialogOpen(false)
+    setEditedTitle("")
+  }
 
   const handleDeleteClick = (e: React.MouseEvent) => {
     e.stopPropagation()
@@ -82,6 +107,10 @@ export function ConversationListItem({
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={handleRenameClick}>
+                <Pencil className="h-4 w-4 mr-2" />
+                Rename
+              </DropdownMenuItem>
               <DropdownMenuItem
                 className="text-destructive focus:text-destructive focus:bg-destructive/10"
                 onClick={handleDeleteClick}
@@ -93,6 +122,40 @@ export function ConversationListItem({
           </DropdownMenu>
         </div>
       </SidebarMenuItem>
+
+      {/* Rename Dialog */}
+      <AlertDialog open={renameDialogOpen} onOpenChange={setRenameDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Rename Conversation</AlertDialogTitle>
+            <AlertDialogDescription>
+              Enter a new title for this conversation.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="py-4">
+            <Input
+              value={editedTitle}
+              onChange={(e) => setEditedTitle(e.target.value)}
+              placeholder="Conversation title"
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && editedTitle.trim().length > 0) {
+                  handleConfirmRename()
+                }
+              }}
+              autoFocus
+            />
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={handleCancelRename}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmRename}
+              disabled={editedTitle.trim().length === 0}
+            >
+              Save
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Delete Confirmation Dialog */}
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
