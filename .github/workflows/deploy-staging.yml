@@ -323,7 +323,7 @@ jobs:
           # Optional: URL of the deployed environment to test
           deployment-url: "${{ needs.deploy-environment.outputs.deployment-url || 'https://onboarding.resolve.io' }}"
           # Optional: Environment variables as JSON string
-          variables: '{"RITAGO_USER": ${{ env.RITAGO_USER }}, "RITAGO_PASSWORD": ${{ secrets.RITAGO_PASSWORD }}'
+          variables: '{"RITAGO_USER": "${{ env.RITAGO_USER }}", "RITAGO_PASSWORD": "${{ secrets.RITAGO_PASSWORD }}"'
 
   # TODO: Uncomment after validating build images
   # Slack notification - runs on success OR failure
