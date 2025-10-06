@@ -56,7 +56,7 @@ export function ConnectionStatusBadge({
 					className="bg-background border-blue-500 gap-1.5 px-3 py-1"
 				>
 					<Loader2 className="h-3 w-3 text-blue-500 animate-spin" />
-					Testing...
+					Verifying...
 				</Badge>
 			);
 		case STATUS.ERROR:

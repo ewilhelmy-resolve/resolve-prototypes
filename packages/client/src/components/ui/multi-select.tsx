@@ -68,7 +68,6 @@ const multiSelectVariants = cva("m-1 transition-all duration-300 ease-in-out", {
 	},
 	defaultVariants: {
 		variant: "default",
-		badgeAnimation: "bounce",
 	},
 });
 
@@ -1012,7 +1011,7 @@ export const MultiSelect = React.forwardRef<MultiSelectRef, MultiSelectProps>(
 						style={{
 							animationDuration: `${animationConfig?.duration || animation}s`,
 							animationDelay: `${animationConfig?.delay || 0}s`,
-							width: buttonRef.current?.offsetWidth
+                            width: buttonRef.current?.offsetWidth
 								? `${buttonRef.current.offsetWidth}px`
 								: "auto",
 							maxWidth: `min(${widthConstraints.maxWidth}, 85vw)`,

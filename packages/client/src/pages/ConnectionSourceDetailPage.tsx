@@ -1,3 +1,4 @@
+import { Globe } from "lucide-react";
 import { Navigate, useParams } from "react-router-dom";
 import {
 	ConfluenceForm,
@@ -64,7 +65,9 @@ export default function ConnectionSourceDetailPage() {
 										src={`/connections/icon_${sourceId}.svg`}
 										alt={`${sourceTitle} icon`}
 									/>
-								) : undefined
+								) : (
+									<Globe className="h-5 w-5 flex-shrink-0" />
+								)
 							}
 							description={`Connect your ${sourceTitle} instance to build context for Rita to make better experiences.`}
 						/>

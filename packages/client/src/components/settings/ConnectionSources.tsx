@@ -1,9 +1,10 @@
 "use client";
 
+import { Globe } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
-import { CONNECTION_SOURCES, STATUS } from "@/constants/connectionSources";
+import { CONNECTION_SOURCES, STATUS, SOURCES } from "@/constants/connectionSources";
 import { ConnectionStatusBadge } from "../connection-sources/ConnectionStatusBadge";
 import Header from "../Header";
 import { Button } from "../ui/button";
@@ -29,6 +30,15 @@ export default function ConnectionSources() {
 									<div className="flex flex-col gap-2">
 										<div className="flex flex-col">
 											<div className="flex items-center gap-2">
+												{source.id !== SOURCES.WEB_SEARCH ? (
+													<img
+														src={`/connections/icon_${source.id}.svg`}
+														alt={`${source.title} icon`}
+														className="w-5 h-5 flex-shrink-0"
+													/>
+												) : (
+													<Globe className="h-5 w-5 flex-shrink-0" />
+												)}
 												<p className="text-base font-bold text-foreground">
 													{source.title}
 												</p>
