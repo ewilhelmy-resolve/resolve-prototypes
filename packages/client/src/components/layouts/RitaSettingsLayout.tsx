@@ -56,7 +56,10 @@ export default function RitaSettingsLayout({
 								</SidebarMenuButton>
 							</SidebarMenuItem>
 							<SidebarMenuItem>
-								<SidebarMenuButton className="p-2 h-8 rounded-md" isActive>
+								<SidebarMenuButton
+									className="p-2 h-8 rounded-md cursor-pointer"
+									onClick={() => navigate("/settings")}
+								>
 									<span className="text-sm">Connection Sources</span>
 								</SidebarMenuButton>
 							</SidebarMenuItem>
