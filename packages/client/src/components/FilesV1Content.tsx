@@ -1,347 +1,411 @@
 /**
- * FilesV1Content - Knowledge Articles Management Content
+ * FilesV1Content - Knowledge Articles Management with v0 UI
  *
- * This replicates the functionality from the original FilesPage but designed
- * for the V1 layout system. Includes file upload, management, search, filtering,
- * and all the same features as the legacy files page.
+ * Uses the v0-generated KnowledgeArticles component as the UI foundation
+ * while hooking up all Rita API functionality for file management.
  */
 
-import type React from 'react';
-import { useState, useRef } from 'react';
-import { useFiles, useUploadFile, useDownloadFile, type FileDocument } from '../hooks/api/useFiles';
-import { Button } from '../components/ui/button';
-import { Card, CardContent } from '../components/ui/card';
-import { Input } from '../components/ui/input';
-import { Badge } from '../components/ui/badge';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/table';
-import { Skeleton } from '../components/ui/skeleton';
+import { useState, useRef } from 'react'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Badge } from '@/components/ui/badge'
+import { Checkbox } from '@/components/ui/checkbox'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import { Card, CardContent } from '@/components/ui/card'
 import {
-  Upload,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+import { Skeleton } from '@/components/ui/skeleton'
+import {
+  Plus,
+  TrendingUp,
+  ChevronDown,
+  ArrowUpDown,
+  Check,
+  Zap,
+  Loader,
+  MoreHorizontal,
   Download,
   File,
   AlertCircle,
   CheckCircle,
-  Search,
-  MoreHorizontal,
-  ArrowUpDown,
-} from 'lucide-react';
-import { cn } from '../lib/utils';
+} from 'lucide-react'
+import { useFiles, useUploadFile, useDownloadFile, type FileDocument } from '@/hooks/api/useFiles'
 
 const formatFileSize = (bytes: number): string => {
-  if (bytes === 0) return '0 Bytes';
-  const k = 1024;
-  const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return parseFloat((bytes / k ** i).toFixed(2)) + ' ' + sizes[i];
-};
+  if (bytes === 0) return '0 Bytes'
+  const k = 1024
+  const sizes = ['Bytes', 'KB', 'MB', 'GB']
+  const i = Math.floor(Math.log(bytes) / Math.log(k))
+  return parseFloat((bytes / k ** i).toFixed(2)) + ' ' + sizes[i]
+}
+
+const formatDate = (date: Date | null | undefined): string => {
+  if (!date) return 'N/A'
+  return new Intl.DateTimeFormat('en-US', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  }).format(date)
+}
 
 export default function FilesV1Content() {
-  const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState('All');
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [searchQuery, setSearchQuery] = useState('')
+  const [statusFilter, setStatusFilter] = useState('All')
+  const [sourceFilter, setSourceFilter] = useState('All')
+  const [selectedFiles, setSelectedFiles] = useState<Set<string>>(new Set())
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
-  const { data: filesData, isLoading } = useFiles();
-  const uploadFileMutation = useUploadFile();
-  const downloadFileMutation = useDownloadFile();
+  const { data: filesData, isLoading } = useFiles()
+  const uploadFileMutation = useUploadFile()
+  const downloadFileMutation = useDownloadFile()
 
-  // Filter files based on search and status
-  const filteredFiles = filesData?.documents.filter((file) => {
-    const matchesSearch = file.filename.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesStatus = statusFilter === 'All' || file.status === statusFilter.toLowerCase();
-    return matchesSearch && matchesStatus;
-  }) || [];
+  const files = filesData?.documents || []
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    e.preventDefault();
+  // Filter files
+  const filteredFiles = files.filter((file) => {
+    const matchesSearch = file.filename.toLowerCase().includes(searchQuery.toLowerCase())
+    const matchesStatus = statusFilter === 'All' || file.status === statusFilter.toLowerCase()
+    const matchesSource = sourceFilter === 'All' || file.type === sourceFilter
+    return matchesSearch && matchesStatus && matchesSource
+  })
+
+  // Calculate stats
+  const totalDocs = files.length
+  const uploadedCount = files.filter(f => f.status === 'uploaded').length
+
+  const handleSelectAll = () => {
+    if (selectedFiles.size === filteredFiles.length) {
+      setSelectedFiles(new Set())
+    } else {
+      setSelectedFiles(new Set(filteredFiles.map(f => f.id)))
+    }
+  }
+
+  const handleSelectFile = (fileId: string) => {
+    const newSelected = new Set(selectedFiles)
+    if (newSelected.has(fileId)) {
+      newSelected.delete(fileId)
+    } else {
+      newSelected.add(fileId)
+    }
+    setSelectedFiles(newSelected)
+  }
+
+  const handleUploadClick = () => {
+    fileInputRef.current?.click()
+  }
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
-      handleFiles(e.target.files);
+      uploadFileMutation.mutate(e.target.files[0])
     }
-  };
-
-  const handleFiles = (files: FileList) => {
-    const file = files[0];
-    if (file) {
-      uploadFileMutation.mutate(file);
-    }
-  };
-
-  const openFileSelector = () => {
-    fileInputRef.current?.click();
-  };
+  }
 
   const handleDownload = (file: FileDocument) => {
     downloadFileMutation.mutate({
       documentId: file.id,
       filename: file.filename
-    });
-  };
+    })
+  }
+
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case 'uploaded':
+        return <Check className="h-3 w-3" />
+      case 'pending':
+        return <Loader className="h-3 w-3 animate-spin" />
+      case 'syncing':
+        return <Zap className="h-3 w-3" />
+      default:
+        return <AlertCircle className="h-3 w-3" />
+    }
+  }
+
+  const getStatusLabel = (status: string) => {
+    return status.charAt(0).toUpperCase() + status.slice(1)
+  }
 
   return (
-    <div className="flex flex-col h-full p-6">
-      <div className="max-w-7xl mx-auto w-full space-y-6">
-        {/* Page Header */}
+    <div className="flex flex-col h-full">
+      {/* Header */}
+      <div className="border-b border-border px-6 py-6 flex-shrink-0">
         <div className="flex justify-between items-center">
           <div>
             <h1 className="text-2xl font-normal text-foreground">Knowledge Articles</h1>
-            <p className="text-sm text-muted-foreground mt-1">
-              Manage your knowledge base documents and articles
-            </p>
           </div>
-          <Button
-            variant="outline"
-            size="sm"
-            className="justify-center gap-2"
-            onClick={openFileSelector}
-            disabled={uploadFileMutation.isPending}
-          >
-            <Upload className="w-4 h-4" />
-            Upload Document
+          <Button onClick={handleUploadClick} disabled={uploadFileMutation.isPending}>
+            {uploadFileMutation.isPending ? (
+              <Loader className="h-4 w-4 animate-spin" />
+            ) : (
+              <Plus className="h-4 w-4" />
+            )}
+            Add Articles
           </Button>
         </div>
+      </div>
 
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-2xl font-bold">{filesData?.total || 0}</p>
+      {/* Main Content */}
+      <div className="flex-1 px-6 py-6 overflow-y-auto">
+        <div className="flex flex-col gap-6">
+          {/* Stats Cards */}
+          <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
+            <Card className="border border-border bg-popover">
+              <CardContent className="p-4">
+                <div className="flex flex-col gap-0">
+                  <div className="flex items-center gap-3">
+                    <h3 className="text-2xl font-normal text-foreground">{totalDocs}</h3>
+                    <Badge variant="outline" className="flex items-center gap-1">
+                      <TrendingUp className="h-3 w-3" />
+                      +4.5%
+                    </Badge>
+                  </div>
                   <p className="text-sm text-muted-foreground">Total Documents</p>
                 </div>
-                <div className="text-green-600 text-sm font-medium">+4.5%</div>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
 
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-2xl font-bold">{filteredFiles.length}</p>
-                  <p className="text-sm text-muted-foreground">Available Files</p>
+            <Card className="border border-border bg-popover">
+              <CardContent className="p-4">
+                <div className="flex flex-col gap-0">
+                  <div className="flex items-center gap-3">
+                    <h3 className="text-2xl font-normal text-foreground">{uploadedCount}</h3>
+                    <Badge variant="outline" className="flex items-center gap-1">
+                      <TrendingUp className="h-3 w-3" />
+                      +4.5%
+                    </Badge>
+                  </div>
+                  <p className="text-sm text-muted-foreground">Total Vectors</p>
                 </div>
-                <div className="text-green-600 text-sm font-medium">+2.1%</div>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
 
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-2xl font-bold">{filteredFiles.filter(f => f.status === 'uploaded').length}</p>
-                  <p className="text-sm text-muted-foreground">Processed</p>
+            <Card className="border border-border bg-popover">
+              <CardContent className="p-4">
+                <div className="flex flex-col gap-0">
+                  <div className="flex items-center gap-3">
+                    <h3 className="text-2xl font-normal text-foreground">30</h3>
+                    <Badge variant="outline" className="flex items-center gap-1">
+                      <TrendingUp className="h-3 w-3" />
+                      +5%
+                    </Badge>
+                  </div>
+                  <p className="text-sm text-muted-foreground">Queries answered</p>
                 </div>
-                <div className="text-green-600 text-sm font-medium">+8.2%</div>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
 
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-2xl font-bold">N/A</p>
-                  <p className="text-sm text-muted-foreground">Avg. Size</p>
+            <Card className="border border-border bg-popover">
+              <CardContent className="p-4">
+                <div className="flex flex-col gap-0">
+                  <div className="flex items-center gap-3">
+                    <h3 className="text-2xl font-normal text-foreground">30</h3>
+                    <Badge variant="outline" className="flex items-center gap-1">
+                      <TrendingUp className="h-3 w-3" />
+                      +5%
+                    </Badge>
+                  </div>
+                  <p className="text-sm text-muted-foreground">Avg . Accuracy</p>
                 </div>
-                <div className="text-muted-foreground text-sm font-medium">0%</div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+              </CardContent>
+            </Card>
+          </div>
 
-        {/* Search and Filter */}
-        <div className="flex items-center gap-4">
-          <div className="relative flex-1 max-w-md">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+          {/* Search and Filters */}
+          <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
             <Input
-              placeholder="Search documents..."
+              placeholder="Search documents....."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10"
+              className="max-w-sm"
             />
-          </div>
-          <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-32">
-              <SelectValue placeholder="Status: All" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="All">All</SelectItem>
-              <SelectItem value="uploaded">Uploaded</SelectItem>
-              <SelectItem value="pending">Pending</SelectItem>
-              <SelectItem value="failed">Failed</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
+            <div className="flex gap-4">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline">
+                    Source: {sourceFilter}
+                    <ChevronDown className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent>
+                  <DropdownMenuItem onSelect={() => setSourceFilter('All')}>All Sources</DropdownMenuItem>
+                  <DropdownMenuItem onSelect={() => setSourceFilter('Manual')}>Manual</DropdownMenuItem>
+                  <DropdownMenuItem onSelect={() => setSourceFilter('Jira Confluence')}>Jira Confluence</DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
 
-        {/* Documents Table */}
-        <Card>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-[300px]">
-                  <div className="flex items-center gap-2">
-                    Name
-                    <ArrowUpDown className="w-4 h-4" />
-                  </div>
-                </TableHead>
-                <TableHead>
-                  <div className="flex items-center gap-2">
-                    Status
-                    <ArrowUpDown className="w-4 h-4" />
-                  </div>
-                </TableHead>
-                <TableHead>
-                  <div className="flex items-center gap-2">
-                    Size
-                    <ArrowUpDown className="w-4 h-4" />
-                  </div>
-                </TableHead>
-                <TableHead>
-                  <div className="flex items-center gap-2">
-                    Type
-                    <ArrowUpDown className="w-4 h-4" />
-                  </div>
-                </TableHead>
-                <TableHead>Last Modified</TableHead>
-                <TableHead className="w-[50px]"></TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {isLoading ? (
-                [...Array(3)].map((_, i) => (
-                  <TableRow key={i}>
-                    <TableCell><Skeleton className="h-4 w-[200px]" /></TableCell>
-                    <TableCell><Skeleton className="h-4 w-[80px]" /></TableCell>
-                    <TableCell><Skeleton className="h-4 w-[60px]" /></TableCell>
-                    <TableCell><Skeleton className="h-4 w-[100px]" /></TableCell>
-                    <TableCell><Skeleton className="h-4 w-[120px]" /></TableCell>
-                    <TableCell><Skeleton className="h-4 w-[30px]" /></TableCell>
-                  </TableRow>
-                ))
-              ) : filteredFiles.length === 0 ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline">
+                    Status: {statusFilter}
+                    <ChevronDown className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent>
+                  <DropdownMenuItem onSelect={() => setStatusFilter('All')}>All Status</DropdownMenuItem>
+                  <DropdownMenuItem onSelect={() => setStatusFilter('uploaded')}>Active</DropdownMenuItem>
+                  <DropdownMenuItem onSelect={() => setStatusFilter('pending')}>Pending</DropdownMenuItem>
+                  <DropdownMenuItem onSelect={() => setStatusFilter('syncing')}>Syncing</DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          </div>
+
+          {/* Table */}
+          <div className="border rounded-md">
+            <Table>
+              <TableHeader>
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center py-8">
-                    <div className="flex flex-col items-center gap-2 text-muted-foreground">
-                      <File className="h-12 w-12 opacity-30" />
-                      <p>No documents found</p>
-                      <p className="text-sm">
-                        {searchQuery || statusFilter !== 'All'
-                          ? 'Try adjusting your search or filter criteria'
-                          : 'Upload your first document to get started'
-                        }
-                      </p>
-                    </div>
-                  </TableCell>
+                  <TableHead className="w-8">
+                    <Checkbox
+                      checked={selectedFiles.size === filteredFiles.length && filteredFiles.length > 0}
+                      onCheckedChange={handleSelectAll}
+                    />
+                  </TableHead>
+                  <TableHead>Name</TableHead>
+                  <TableHead>
+                    <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
+                      Status
+                      <ArrowUpDown className="h-4 w-4" />
+                    </Button>
+                  </TableHead>
+                  <TableHead>
+                    <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
+                      Source
+                      <ArrowUpDown className="h-4 w-4" />
+                    </Button>
+                  </TableHead>
+                  <TableHead>
+                    <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
+                      Size
+                      <ArrowUpDown className="h-4 w-4" />
+                    </Button>
+                  </TableHead>
+                  <TableHead>
+                    <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
+                      Queries
+                      <ArrowUpDown className="h-4 w-4" />
+                    </Button>
+                  </TableHead>
+                  <TableHead className="text-right">Created Modified</TableHead>
+                  <TableHead className="w-16"></TableHead>
                 </TableRow>
-              ) : (
-                filteredFiles.map((file) => (
-                  <TableRow key={file.id}>
-                    <TableCell>
-                      <span className="text-blue-600 hover:underline cursor-pointer font-medium">
-                        {file.filename}
-                      </span>
-                    </TableCell>
-                    <TableCell>
-                      <Badge
-                        variant={file.status === 'uploaded' ? "default" : "secondary"}
-                        className={cn(
-                          file.status === 'uploaded' && "bg-green-100 text-green-800 hover:bg-green-100",
-                          file.status === 'pending' && "bg-orange-100 text-orange-800 hover:bg-orange-100",
-                          file.status === 'failed' && "bg-red-100 text-red-800 hover:bg-red-100"
-                        )}
-                      >
-                        <div
-                          className={cn(
-                            "w-2 h-2 rounded-full mr-2",
-                            file.status === 'uploaded' && "bg-green-500",
-                            file.status === 'pending' && "bg-orange-500",
-                            file.status === 'failed' && "bg-red-500"
-                          )}
-                        />
-                        {file.status.charAt(0).toUpperCase() + file.status.slice(1)}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">
-                      {formatFileSize(file.size)}
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">
-                      {file.type}
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">
-                      {file.created_at?.toLocaleDateString() || 'N/A'}
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-1">
-                        {file.status === 'uploaded' && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleDownload(file)}
-                            className="h-8 w-8 p-0"
-                          >
-                            <Download className="h-4 w-4" />
-                          </Button>
-                        )}
-                        <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                          <MoreHorizontal className="w-4 h-4" />
-                        </Button>
+              </TableHeader>
+              <TableBody>
+                {isLoading ? (
+                  [...Array(3)].map((_, i) => (
+                    <TableRow key={i}>
+                      <TableCell><Skeleton className="h-4 w-4" /></TableCell>
+                      <TableCell><Skeleton className="h-4 w-[200px]" /></TableCell>
+                      <TableCell><Skeleton className="h-4 w-[80px]" /></TableCell>
+                      <TableCell><Skeleton className="h-4 w-[100px]" /></TableCell>
+                      <TableCell><Skeleton className="h-4 w-[60px]" /></TableCell>
+                      <TableCell><Skeleton className="h-4 w-[40px]" /></TableCell>
+                      <TableCell><Skeleton className="h-4 w-[120px]" /></TableCell>
+                      <TableCell><Skeleton className="h-4 w-[30px]" /></TableCell>
+                    </TableRow>
+                  ))
+                ) : filteredFiles.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={8} className="text-center py-8">
+                      <div className="flex flex-col items-center gap-2 text-muted-foreground">
+                        <File className="h-12 w-12 opacity-30" />
+                        <p>No documents found</p>
+                        <p className="text-sm">
+                          {searchQuery || statusFilter !== 'All'
+                            ? 'Try adjusting your search or filter criteria'
+                            : 'Upload your first document to get started'}
+                        </p>
                       </div>
                     </TableCell>
                   </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </Card>
+                ) : (
+                  filteredFiles.map((file) => (
+                    <TableRow key={file.id}>
+                      <TableCell>
+                        <Checkbox
+                          checked={selectedFiles.has(file.id)}
+                          onCheckedChange={() => handleSelectFile(file.id)}
+                        />
+                      </TableCell>
+                      <TableCell>{file.filename}</TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className="flex items-center gap-1 w-fit">
+                          {getStatusIcon(file.status)}
+                          {getStatusLabel(file.status)}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>{file.type || 'Manual'}</TableCell>
+                      <TableCell className="text-right">{formatFileSize(file.size)}</TableCell>
+                      <TableCell className="text-right">-</TableCell>
+                      <TableCell className="text-right">{formatDate(file.created_at)}</TableCell>
+                      <TableCell>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
+                              <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            {file.status === 'uploaded' && (
+                              <DropdownMenuItem onClick={() => handleDownload(file)}>
+                                <Download className="h-4 w-4 mr-2" />
+                                Download
+                              </DropdownMenuItem>
+                            )}
+                            <DropdownMenuItem>Delete</DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
 
-        {/* Pagination */}
-        <div className="flex items-center justify-between">
-          <p className="text-sm text-muted-foreground">
-            {filteredFiles.length} Documents
-          </p>
-          <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" disabled>
-              Previous
-            </Button>
-            <Button variant="outline" size="sm" disabled>
-              Next
-            </Button>
+          {/* Footer */}
+          <div className="flex justify-center">
+            <p className="text-sm text-muted-foreground">{filteredFiles.length} Knowledge articles</p>
           </div>
         </div>
-
-        {/* Hidden file input for drag & drop functionality */}
-        <input
-          ref={fileInputRef}
-          type="file"
-          className="hidden"
-          onChange={handleChange}
-          accept=".jpg,.jpeg,.png,.gif,.webp,.pdf,.txt,.md,.doc,.docx,.xls,.xlsx"
-          disabled={uploadFileMutation.isPending}
-        />
-
-        {/* Upload status messages */}
-        {uploadFileMutation.isError && (
-          <div className="fixed bottom-4 right-4 p-3 bg-destructive/10 border border-destructive/20 rounded-md max-w-sm">
-            <div className="flex items-center gap-2 text-destructive">
-              <AlertCircle className="h-4 w-4" />
-              <span className="text-sm">
-                {uploadFileMutation.error?.message || 'Upload failed'}
-              </span>
-            </div>
-          </div>
-        )}
-
-        {uploadFileMutation.isSuccess && (
-          <div className="fixed bottom-4 right-4 p-3 bg-green-50 border border-green-200 rounded-md max-w-sm">
-            <div className="flex items-center gap-2 text-green-700">
-              <CheckCircle className="h-4 w-4" />
-              <span className="text-sm">File uploaded successfully!</span>
-            </div>
-          </div>
-        )}
       </div>
+
+      {/* Hidden file input */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        className="hidden"
+        onChange={handleFileChange}
+        accept=".jpg,.jpeg,.png,.gif,.webp,.pdf,.txt,.md,.doc,.docx,.xls,.xlsx"
+        disabled={uploadFileMutation.isPending}
+      />
+
+      {/* Upload status toast */}
+      {uploadFileMutation.isError && (
+        <div className="fixed bottom-4 right-4 p-3 bg-destructive/10 border border-destructive/20 rounded-md max-w-sm">
+          <div className="flex items-center gap-2 text-destructive">
+            <AlertCircle className="h-4 w-4" />
+            <span className="text-sm">
+              {uploadFileMutation.error?.message || 'Upload failed'}
+            </span>
+          </div>
+        </div>
+      )}
+
+      {uploadFileMutation.isSuccess && (
+        <div className="fixed bottom-4 right-4 p-3 bg-green-50 border border-green-200 rounded-md max-w-sm">
+          <div className="flex items-center gap-2 text-green-700">
+            <CheckCircle className="h-4 w-4" />
+            <span className="text-sm">File uploaded successfully!</span>
+          </div>
+        </div>
+      )}
     </div>
-  );
+  )
 }
