@@ -69,7 +69,10 @@ export default function RitaSettingsLayout({
 						</SidebarGroupLabel>
 						<SidebarMenu>
 							<SidebarMenuItem>
-								<SidebarMenuButton className="p-2 h-8 rounded-md">
+								<SidebarMenuButton
+									className="p-2 h-8 rounded-md cursor-pointer"
+									onClick={() => navigate("/settings/users")}
+								>
 									<span className="text-sm">Users</span>
 								</SidebarMenuButton>
 							</SidebarMenuItem>

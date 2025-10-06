@@ -45,7 +45,6 @@ import {
   FileText,
   LogOut,
   SquarePen,
-  User,
 } from "lucide-react"
 import { ShareModal } from "@/components/ShareModal"
 import { useAuth } from "@/hooks/useAuth"
@@ -87,10 +86,6 @@ function RitaLayoutContent({ children, activePage = "chat" }: RitaLayoutProps) {
     } catch (error) {
       console.error("Failed to sign out:", error)
     }
-  }
-
-  const navigateToUsers = () => {
-    navigate("/users")
   }
 
   const navigateToKnowledgeArticles = () => {
@@ -152,15 +147,6 @@ function RitaLayoutContent({ children, activePage = "chat" }: RitaLayoutProps) {
                   <SidebarMenuButton className="flex items-center gap-2 px-2 py-2 h-8 rounded-md">
                     <Ticket className="w-4 h-4" />
                     <span className="text-sm text-sidebar-foreground">Tickets</span>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-                <SidebarMenuItem>
-                  <SidebarMenuButton
-                    className="flex items-center gap-2 px-2 py-2 h-8 rounded-md"
-                    onClick={navigateToUsers}
-                  >
-                    <User className="w-4 h-4" />
-                    <span className="text-sm text-sidebar-foreground">Users</span>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               </SidebarMenu>
