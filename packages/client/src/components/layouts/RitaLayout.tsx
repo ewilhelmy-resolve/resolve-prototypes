@@ -53,6 +53,7 @@ import { useConversations } from "@/hooks/api/useConversations"
 import { useChatNavigation } from "@/hooks/useChatNavigation"
 import { useKnowledgeBase } from "@/hooks/useKnowledgeBase"
 import type { Conversation } from "@/stores/conversationStore"
+import { ConversationListItem } from "@/components/sidebar/ConversationListItem"
 
 export interface RitaLayoutProps {
   children: React.ReactNode;
@@ -64,7 +65,6 @@ function RitaLayoutContent({ children, activePage = "chat" }: RitaLayoutProps) {
   const { state } = useSidebar()
   const [shareModalOpen, setShareModalOpen] = useState(false)
   const navigate = useNavigate()
-
 
   // Rita hooks
   const { user, logout } = useAuth()
@@ -189,15 +189,12 @@ function RitaLayoutContent({ children, activePage = "chat" }: RitaLayoutProps) {
                   <div className="px-2 text-xs text-muted-foreground">No conversations yet</div>
                 ) : (
                   conversations.slice(0, 5).map((conversation: Conversation) => (
-                    <SidebarMenuItem key={conversation.id} className="min-w-0">
-                      <SidebarMenuButton
-                        className="px-2 py-2 h-8 rounded-md text-sm text-sidebar-foreground min-w-0"
-                        onClick={() => handleConversationClick(conversation.id)}
-                        isActive={conversation.id === currentConversationId}
-                      >
-                        <span className="truncate min-w-0">{conversation.title}</span>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
+                    <ConversationListItem
+                      key={conversation.id}
+                      conversation={conversation}
+                      isActive={conversation.id === currentConversationId}
+                      onClick={handleConversationClick}
+                    />
                   ))
                 )}
               </SidebarMenu>
