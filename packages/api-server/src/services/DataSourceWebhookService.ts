@@ -33,7 +33,7 @@ export class DataSourceWebhookService {
     settings: Record<string, any>;
   }): Promise<WebhookResponse> {
     const payload: VerifyWebhookPayload = {
-      source: 'rita-data-sources',
+      source: 'rita-chat',
       action: 'verify_credentials',
       tenant_id: params.organizationId,
       user_id: params.userId,
@@ -60,7 +60,7 @@ export class DataSourceWebhookService {
     settings: Record<string, any>;
   }): Promise<WebhookResponse> {
     const payload: SyncTriggerWebhookPayload = {
-      source: 'rita-data-sources',
+      source: 'rita-chat',
       action: 'trigger_sync',
       tenant_id: params.organizationId,
       user_id: params.userId,

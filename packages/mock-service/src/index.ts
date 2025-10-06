@@ -99,7 +99,7 @@ interface SignupWebhookPayload extends BaseWebhookPayload {
 
 // Data source webhook payloads for rita-data-sources
 interface DataSourceVerifyPayload extends BaseWebhookPayload {
-  source: 'rita-data-sources';
+  source: 'rita-chat';
   action: 'verify_credentials';
   connection_id: string;
   connection_type: string;
@@ -108,7 +108,7 @@ interface DataSourceVerifyPayload extends BaseWebhookPayload {
 }
 
 interface DataSourceSyncPayload extends BaseWebhookPayload {
-  source: 'rita-data-sources';
+  source: 'rita-chat';
   action: 'trigger_sync';
   connection_id: string;
   connection_type: string;
@@ -1381,7 +1381,7 @@ app.post('/webhook', async (req, res) => {
         });
       }
 
-    } else if (payload.source === 'rita-data-sources' && payload.action === 'verify_credentials') {
+    } else if (payload.source === 'rita-chat' && payload.action === 'verify_credentials') {
       const verifyPayload = payload as DataSourceVerifyPayload;
       const contextLogger = createContextLogger(webhookLogger, correlationId, {
         tenantId: verifyPayload.tenant_id
@@ -1401,7 +1401,7 @@ app.post('/webhook', async (req, res) => {
         message: 'Credentials verified successfully'
       });
 
-    } else if (payload.source === 'rita-data-sources' && payload.action === 'trigger_sync') {
+    } else if (payload.source === 'rita-chat' && payload.action === 'trigger_sync') {
       const syncPayload = payload as DataSourceSyncPayload;
       const contextLogger = createContextLogger(webhookLogger, correlationId, {
         tenantId: syncPayload.tenant_id

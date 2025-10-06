@@ -369,7 +369,7 @@ async function verifyConnection(connectionId: string, userId: string, userEmail:
     organizationId: connection.organization_id,
     userId,
     userEmail,
-    source: 'rita-data-sources',
+    source: 'rita-chat',
     action: 'data_source_verify',
     additionalData: {
       connection_id: connection.id,
@@ -473,7 +473,7 @@ async function triggerSync(connectionId: string, userId: string, userEmail: stri
     organizationId: connection.organization_id,
     userId,
     userEmail,
-    source: 'rita-data-sources',
+    source: 'rita-chat',
     action: 'data_source_sync_requested',
     additionalData: {
       connection_id: connection.id,
@@ -1018,7 +1018,7 @@ const response = await webhookService.sendGenericEvent({
   organizationId: connection.organization_id,
   userId: req.user.id,
   userEmail: req.user.email,
-  source: 'rita-data-sources',
+  source: 'rita-chat',
   action: 'data_source_verify',
   additionalData: {
     connection_id: connection.id,
@@ -1179,7 +1179,7 @@ await webhookService.sendGenericEvent({
   organizationId: connection.organization_id,
   userId: req.user.id,
   userEmail: req.user.email,
-  source: 'rita-data-sources',
+  source: 'rita-chat',
   action: 'data_source_sync_requested',
   additionalData: {
     connection_id: connection.id,

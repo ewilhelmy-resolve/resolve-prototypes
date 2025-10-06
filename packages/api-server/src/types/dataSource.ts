@@ -56,7 +56,7 @@ export interface UpdateDataSourceRequest {
  * Sent to external service to verify credentials
  */
 export interface VerifyWebhookPayload {
-  source: 'rita-data-sources';
+  source: 'rita-chat';
   action: 'verify_credentials';
   tenant_id: string;
   user_id: string;
@@ -73,7 +73,7 @@ export interface VerifyWebhookPayload {
  * Sent to external service to trigger sync job
  */
 export interface SyncTriggerWebhookPayload {
-  source: 'rita-data-sources';
+  source: 'rita-chat';
   action: 'trigger_sync';
   tenant_id: string;
   user_id: string;
