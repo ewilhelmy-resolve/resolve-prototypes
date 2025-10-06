@@ -317,7 +317,7 @@ jobs:
           GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
         with:
           # Required: QA Wolf API key from workspace settings page
-          qawolf-api-key: "${{ secrets.QAWOLF_API_KEY }}"
+          qawolf-api-key: "${{ secrets.RITAGO_QAWOLF_API_KEY }}"
           # Deployment type to match specific triggers
           deployment-type: "deployment"
           # Optional: URL of the deployed environment to test
