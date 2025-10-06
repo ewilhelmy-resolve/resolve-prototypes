@@ -14,7 +14,7 @@
 "use client";
 
 import { useState } from "react"
-import { useNavigate } from "react-router-dom"
+import { useNavigate, useLocation } from "react-router-dom"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import {
@@ -64,6 +64,7 @@ function RitaLayoutContent({ children, activePage = "chat" }: RitaLayoutProps) {
   const { state } = useSidebar()
   const [shareModalOpen, setShareModalOpen] = useState(false)
   const navigate = useNavigate()
+  const location = useLocation()
 
   // Rita hooks
   const { user, logout } = useAuth()
@@ -124,6 +125,7 @@ function RitaLayoutContent({ children, activePage = "chat" }: RitaLayoutProps) {
                   <SidebarMenuButton
                     className="flex items-center gap-2 px-2 py-2 h-8 rounded-md"
                     onClick={() => navigate("/chat")}
+                    isActive={location.pathname === "/chat" || location.pathname.startsWith("/chat/")}
                   >
                     <LayoutGrid className="w-4 h-4" />
                     <span className="text-sm text-sidebar-foreground">Dashboard</span>
@@ -133,6 +135,7 @@ function RitaLayoutContent({ children, activePage = "chat" }: RitaLayoutProps) {
                   <SidebarMenuButton
                     className="flex items-center gap-2 px-2 py-2 h-8 rounded-md"
                     onClick={navigateToKnowledgeArticles}
+                    isActive={location.pathname === "/content"}
                   >
                     <File className="w-4 h-4" />
                     <span className="text-sm text-sidebar-foreground">Knowledge Articles</span>

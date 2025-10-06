@@ -2,7 +2,7 @@
 
 import { ArrowLeft } from "lucide-react";
 import type { ReactNode } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import {
 	Sidebar,
 	SidebarContent,
@@ -24,11 +24,17 @@ export default function RitaSettingsLayout({
 	children,
 }: RitaSettingsLayoutProps) {
 	const navigate = useNavigate();
+	const location = useLocation();
 
 	const handleBackToApp = () => {
 		// Navigate to root, which will redirect to the default app route
 		navigate("/");
 	};
+
+	// Check if current path matches route (including sub-routes)
+	const isConnectionSourcesActive = location.pathname === "/settings" ||
+		location.pathname.startsWith("/settings/connections");
+	const isUsersActive = location.pathname.startsWith("/settings/users");
 
 	return (
 		<SidebarProvider defaultOpen={true}>
@@ -59,6 +65,7 @@ export default function RitaSettingsLayout({
 								<SidebarMenuButton
 									className="p-2 h-8 rounded-md cursor-pointer"
 									onClick={() => navigate("/settings")}
+									isActive={isConnectionSourcesActive}
 								>
 									<span className="text-sm">Connection Sources</span>
 								</SidebarMenuButton>
@@ -75,6 +82,7 @@ export default function RitaSettingsLayout({
 								<SidebarMenuButton
 									className="p-2 h-8 rounded-md cursor-pointer"
 									onClick={() => navigate("/settings/users")}
+									isActive={isUsersActive}
 								>
 									<span className="text-sm">Users</span>
 								</SidebarMenuButton>
