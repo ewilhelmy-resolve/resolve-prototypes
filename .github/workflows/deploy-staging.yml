@@ -303,6 +303,26 @@ jobs:
              echo "  - API Image: $API_IMAGE"
              echo "  - Frontend Image: $FRONTEND_IMAGE"
              echo "  - Deployed at: $(date)"
+  
+  # Trigger QA Wolf tests           
+  trigger-qawofl:
+    needs: deploy-staging
+    name: Notify QA Wolf
+    runs-on: ubuntu-latest
+    steps:
+      - name: Notify QA Wolf of deployment
+        uses: qawolf/notify-qawolf-on-deploy-action@v1
+        env:
+          GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
+        with:
+          # Required: QA Wolf API key from workspace settings page
+          qawolf-api-key: "${{ secrets.QAWOLF_API_KEY }}"
+          # Deployment type to match specific triggers
+          deployment-type: "deployment"
+          # Optional: URL of the deployed environment to test
+          deployment-url: "${{ needs.deploy-environment.outputs.deployment-url || 'https://onboarding.resolve.io' }}"
+          # Optional: Environment variables as JSON string
+          variables: '{"RITAGO_USER": "env.RITAGO_USER", "RITAGO_PASSWORD": "secrets.RITAGO_PASSWORD"}'
 
   # TODO: Uncomment after validating build images
   # Slack notification - runs on success OR failure
