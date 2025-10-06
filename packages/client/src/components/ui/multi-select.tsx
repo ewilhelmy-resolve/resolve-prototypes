@@ -68,7 +68,6 @@ const multiSelectVariants = cva("m-1 transition-all duration-300 ease-in-out", {
 	},
 	defaultVariants: {
 		variant: "default",
-		badgeAnimation: "bounce",
 	},
 });
 
@@ -1003,18 +1002,16 @@ export const MultiSelect = React.forwardRef<MultiSelectRef, MultiSelectProps>(
 						aria-multiselectable="true"
 						aria-label="Available options"
 						className={cn(
-							"p-0",
+							"w-auto p-0",
 							getPopoverAnimationClass(),
 							screenSize === "mobile" && "w-[85vw] max-w-[280px]",
 							screenSize === "tablet" && "w-[70vw] max-w-md",
+							screenSize === "desktop" && "min-w-[300px]",
 							popoverClassName
 						)}
 						style={{
 							animationDuration: `${animationConfig?.duration || animation}s`,
 							animationDelay: `${animationConfig?.delay || 0}s`,
-							width: buttonRef.current?.offsetWidth
-								? `${buttonRef.current.offsetWidth}px`
-								: "auto",
 							maxWidth: `min(${widthConstraints.maxWidth}, 85vw)`,
 							maxHeight: screenSize === "mobile" ? "70vh" : "60vh",
 							touchAction: "manipulation",

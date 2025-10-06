@@ -1,6 +1,6 @@
 "use client";
 
-import { EllipsisVertical, RefreshCw } from "lucide-react";
+import { EllipsisVertical } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
@@ -74,9 +74,8 @@ export default function ConfluenceConfiguration() {
 										emptyIndicator="No spaces found."
 									/>
 								</div>
-								<Button variant="secondary">
-									<RefreshCw className="h-4 w-4 mr-2" />
-									Refresh
+								<Button variant="default">
+									Sync
 								</Button>
 							</div>
 						</div>
