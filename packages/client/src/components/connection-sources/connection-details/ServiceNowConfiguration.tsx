@@ -1,11 +1,23 @@
 "use client";
 
-import {  EllipsisVertical } from "lucide-react";
+import { EllipsisVertical } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+	DropdownMenu,
+	DropdownMenuContent,
+	DropdownMenuItem,
+	DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { useConnectionSource } from "@/contexts/ConnectionSourceContext";
 import { ConnectionStatusCard } from "../ConnectionStatusCard";
 
-export default function ServiceNowConfiguration() {
+interface ServiceNowConfigurationProps {
+	onEdit?: () => void;
+}
+
+export default function ServiceNowConfiguration({
+	onEdit,
+}: ServiceNowConfigurationProps = {}) {
 	const { source } = useConnectionSource();
 	return (
 		<div className="flex flex-col gap-2">
@@ -16,9 +28,19 @@ export default function ServiceNowConfiguration() {
 							ServiceNow configuration
 						</h4>
 					</div>
-					<Button variant="ghost" size="icon">
-						<EllipsisVertical className="h-4 w-4" />
-					</Button>
+					<DropdownMenu>
+						<DropdownMenuTrigger asChild>
+							<Button variant="ghost" size="icon">
+								<EllipsisVertical className="h-4 w-4" />
+							</Button>
+						</DropdownMenuTrigger>
+						<DropdownMenuContent>
+							<DropdownMenuItem onClick={onEdit}>Edit</DropdownMenuItem>
+							<DropdownMenuItem className="text-destructive">
+								Disconnect
+							</DropdownMenuItem>
+						</DropdownMenuContent>
+					</DropdownMenu>
 				</div>
 
 				<ConnectionStatusCard source={source} />

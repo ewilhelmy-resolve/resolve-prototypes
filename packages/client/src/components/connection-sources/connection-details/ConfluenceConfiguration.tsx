@@ -15,7 +15,13 @@ import { MultiSelect, type MultiSelectOption } from "../../ui/multi-select";
 import { ConnectionStatusCard } from "../ConnectionStatusCard";
 import FormSectionTitle from "../form-elements/FormSectionTitle";
 
-export default function ConfluenceConfiguration() {
+interface ConfluenceConfigurationProps {
+	onEdit?: () => void;
+}
+
+export default function ConfluenceConfiguration({
+	onEdit,
+}: ConfluenceConfigurationProps = {}) {
 	const { source } = useConnectionSource();
 	const [selectedSpaces, setSelectedSpaces] = useState<string[]>([]);
 
@@ -60,7 +66,7 @@ export default function ConfluenceConfiguration() {
 							</Button>
 						</DropdownMenuTrigger>
 						<DropdownMenuContent>
-							<DropdownMenuItem>Edit</DropdownMenuItem>
+							<DropdownMenuItem onClick={onEdit}>Edit</DropdownMenuItem>
 							<DropdownMenuItem className="text-destructive">
 								Disconnect
 							</DropdownMenuItem>

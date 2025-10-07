@@ -3,14 +3,12 @@ import { useForm } from "react-hook-form";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { MultiSelect } from "@/components/ui/multi-select";
-import { STATUS } from "@/constants/connectionSources";
 import { useConnectionSource } from "@/contexts/ConnectionSourceContext";
 import {
 	useUpdateDataSource,
 	useVerifyDataSource,
 } from "@/hooks/useDataSources";
 import { toast } from "@/lib/toast";
-import ConfluenceConfiguration from "../connection-details/ConfluenceConfiguration";
 import ConnectionsForm from "../form-elements/ConnectionsForm";
 import FormField from "../form-elements/FormField";
 import FormSection from "../form-elements/FormSection";
@@ -137,11 +135,6 @@ export function ConfluenceForm({ onCancel }: ConfluenceFormProps = {}) {
 	const onSubmit = async () => {
 		await handleConnect();
 	};
-
-	// If connected, show configuration view
-	if (source.status !== STATUS.NOT_CONNECTED) {
-		return <ConfluenceConfiguration />;
-	}
 
 	return (
 		<ConnectionsForm handleSubmit={handleSubmit(onSubmit)} id="connection-form">

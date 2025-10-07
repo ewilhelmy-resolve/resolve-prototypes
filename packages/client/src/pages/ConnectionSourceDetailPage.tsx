@@ -1,7 +1,10 @@
-import { Globe, MoreVertical } from "lucide-react";
+import { Globe } from "lucide-react";
 import { useState } from "react";
 import { Navigate, useNavigate, useParams } from "react-router-dom";
-import { ConnectionStatusCard } from "@/components/connection-sources/ConnectionStatusCard";
+ import ConfluenceConfiguration from "@/components/connection-sources/connection-details/ConfluenceConfiguration";
+import ServiceNowConfiguration from "@/components/connection-sources/connection-details/ServiceNowConfiguration";
+import SharePointConfiguration from "@/components/connection-sources/connection-details/SharePointConfiguration";
+import WebSearchConfiguration from "@/components/connection-sources/connection-details/WebSearchConfiguration";
 import {
 	ConfluenceForm,
 	ServiceNowForm,
@@ -10,13 +13,6 @@ import {
 } from "@/components/connection-sources/connection-forms";
 import Header from "@/components/Header";
 import RitaSettingsLayout from "@/components/layouts/RitaSettingsLayout";
-import { Button } from "@/components/ui/button";
-import {
-	DropdownMenu,
-	DropdownMenuContent,
-	DropdownMenuItem,
-	DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import {
 	mapDataSourceToUI,
 	SOURCE_METADATA,
@@ -24,7 +20,7 @@ import {
 } from "@/constants/connectionSources";
 import { ConnectionSourceProvider } from "@/contexts/ConnectionSourceContext";
 import { useDataSource } from "@/hooks/useDataSources";
-import type { DataSourceConnection } from "@/types/dataSource";
+import { BACKEND_STATUS, type DataSourceConnection } from "@/types/dataSource";
 
 export default function ConnectionSourceDetailPage() {
 	const { id } = useParams<{ id: string }>(); // UUID from backend
@@ -48,7 +44,11 @@ export default function ConnectionSourceDetailPage() {
 
 	// Determine if source has been configured before
 	// If last_verification_at is null, it has NEVER been configured
-	const isConfigured = source.last_verification_at !== null;	
+	// OR if status is 'verifying' (backend is processing first-time verification)
+	const isConfigured =
+		source.last_verification_at !== null ||
+		source.status === BACKEND_STATUS.VERIFYING ||
+		source.status === BACKEND_STATUS.SYNCING;
 
 	const metadata = SOURCE_METADATA[source.type] || { title: source.type };
 	const sourceTitle = metadata.title;
@@ -86,45 +86,37 @@ export default function ConnectionSourceDetailPage() {
 		}
 	};
 
+	// Render the appropriate configuration view based on source type
+	const renderConfiguration = (sourceData: DataSourceConnection) => {
+		const handleEdit = () => setIsEditMode(true);
+
+		switch (sourceData.type) {
+			case "confluence":
+				return <ConfluenceConfiguration onEdit={handleEdit} />;
+			case "sharepoint":
+				return <SharePointConfiguration onEdit={handleEdit} />;
+			case "servicenow":
+				return <ServiceNowConfiguration onEdit={handleEdit} />;
+			case "websearch":
+				return <WebSearchConfiguration onEdit={handleEdit} />;
+			default:
+				return <div>Unknown source type</div>;
+		}
+	};
+
 	// Render logic:
-	// - NOT configured (lastVerificationAt === null):
-	//   - Always show form by default with Cancel button
-	// - IS configured (lastVerificationAt !== null):
-	//   - Default: Show ConnectionStatusCard with Edit dropdown
-	//   - After clicking Edit: Show form with Cancel button
+	// - Show FORM when: NOT configured OR isEditMode is true
+	// - Show CONFIGURATION VIEW otherwise
 	const renderContent = () => {
-		if (!isConfigured) {
-			// Never configured before → Show form directly with Cancel button
+		console.log({ isConfigured, isEditMode });
+
+		// Show form if not configured OR in edit mode
+		if (!isConfigured || isEditMode) {
 			return renderForm(source, true);
 		}
 
-		// Already configured → Show view mode or edit mode
-		if (isEditMode) {
-			// Edit mode → Show form with Cancel button
-			return renderForm(source, true);
-		}
-
-		// Default: Show ConnectionStatusCard with Edit dropdown
-		return (
-			<div className="space-y-4">
-				<div className="flex items-center justify-between mb-4">
-					<h2 className="text-lg font-semibold">Connection Status</h2>
-					<DropdownMenu>
-						<DropdownMenuTrigger asChild>
-							<Button variant="ghost" size="icon">
-								<MoreVertical className="h-5 w-5" />
-							</Button>
-						</DropdownMenuTrigger>
-						<DropdownMenuContent align="end">
-							<DropdownMenuItem onClick={() => setIsEditMode(true)}>
-								Edit
-							</DropdownMenuItem>
-						</DropdownMenuContent>
-					</DropdownMenu>
-				</div>
-				<ConnectionStatusCard source={uiSource} />
-			</div>
-		);
+		// Default: Show configuration view (ConfluenceConfiguration, etc.)
+		return renderConfiguration(source);
 	};
 
 	return (

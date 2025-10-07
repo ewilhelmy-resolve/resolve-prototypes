@@ -7,6 +7,13 @@ export type DataSourceStatus = 'idle' | 'verifying' | 'syncing';
 
 export type DataSourceLastSyncStatus = 'completed' | 'failed' | null;
 
+// Backend status constants (match database values exactly)
+export const BACKEND_STATUS = {
+	IDLE: 'idle' as DataSourceStatus,
+	VERIFYING: 'verifying' as DataSourceStatus,
+	SYNCING: 'syncing' as DataSourceStatus,
+} as const;
+
 /**
  * Data Source Connection from backend
  * Represents a configured external data source (Confluence, ServiceNow, etc.)
