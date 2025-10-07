@@ -24,7 +24,25 @@ sequenceDiagram
     participant U as User
     participant RG as Rita Go (Client)
     participant API as API Server
+    participant Webhook as External Service
     participant KC as Keycloak
+
+    Note over U,KC: Signup Flow (New Users)
+    U->>RG: Enter signup details
+    RG->>API: POST /auth/signup
+    API->>API: Create pending_users record
+    API->>Webhook: Webhook (user_signup)
+    Note over Webhook: Creates Keycloak user<br/>(disabled until verified)
+    Webhook->>KC: Create user with credentials
+    KC-->>Webhook: User created
+    Webhook->>U: Send verification email
+    API-->>RG: Success (check email)
+
+    U->>U: Click verification link in email
+    RG->>API: POST /auth/verify-email (token)
+    API->>API: Validate token + Delete pending_users
+    API-->>RG: Email verified
+    Note over KC: User enabled in Keycloak<br/>(can now login)
 
     Note over RG: App Startup
     RG->>KC: Silent SSO Check (iframe)
@@ -42,13 +60,16 @@ sequenceDiagram
     U->>RG: Click "Sign in"
     RG->>KC: Redirect to Keycloak login
     U->>KC: Enter credentials
-    KC->>RG: Redirect with authorization code
-    RG->>KC: Exchange code for tokens
-    KC-->>RG: JWT Access + Refresh Token
-    RG->>API: Create Session (POST /auth/login)
-    API-->>RG: Session Cookie
-
-    Note over RG: User authenticated, access granted
+    alt Email Not Verified
+        KC-->>U: Login denied (account disabled)
+    else Email Verified
+        KC->>RG: Redirect with authorization code
+        RG->>KC: Exchange code for tokens
+        KC-->>RG: JWT Access + Refresh Token
+        RG->>API: Create Session (POST /auth/login)
+        API-->>RG: Session Cookie
+        Note over RG: User authenticated, access granted
+    end
 
     Note over RG: Token Refresh (Background)
     loop Every minute
@@ -56,7 +77,7 @@ sequenceDiagram
         alt Token expires in <5 min
             RG->>KC: Refresh token
             KC-->>RG: New JWT tokens
-            RG->>API: Update session
+            RG->>API: Create new session cookie
         end
     end
 
@@ -285,6 +306,89 @@ flowchart TD
     D --> L[Clear all auth state]
     L --> M[Redirect to /login]
 ```
+
+## Signup Flow with External Service
+
+The signup process involves coordination between Rita API, an external webhook service, and Keycloak:
+
+```mermaid
+sequenceDiagram
+    participant U as User
+    participant Client as Rita Go
+    participant API as Rita API Server
+    participant DB as PostgreSQL
+    participant Webhook as External Service
+    participant KC as Keycloak
+    participant Email as Email Service
+
+    U->>Client: Fill signup form
+    Client->>API: POST /auth/signup
+    Note over API: Validate email format<br/>Check for existing user
+
+    API->>DB: INSERT pending_users
+    Note over DB: Store: email, firstName, lastName,<br/>company, password (plaintext),<br/>verification_token, token_expires_at
+
+    API->>Webhook: POST webhook (user_signup action)
+    Note over Webhook: Payload includes:<br/>- Base64-encoded password<br/>- Verification token<br/>- Verification URL<br/>- User details
+
+    Webhook->>KC: Create Keycloak user
+    Note over KC: User created with:<br/>- Credentials set<br/>- Account DISABLED<br/>- Email unverified
+
+    KC-->>Webhook: User created successfully
+
+    Webhook->>Email: Send verification email
+    Note over Email: Email contains:<br/>verification_url with token
+
+    Email-->>U: Verification email delivered
+    Webhook-->>API: Webhook success
+    API-->>Client: 200 OK (check email)
+    Client->>U: Show "Check your email" message
+
+    Note over U: User opens email and clicks link
+
+    U->>Client: Click verification link
+    Client->>API: POST /auth/verify-email (token)
+
+    API->>DB: SELECT pending_users WHERE token
+    alt Token valid and not expired
+        API->>DB: Check if user already exists
+        alt User doesn't exist
+            API->>DB: DELETE pending_users record
+            Note over KC: External service enables user<br/>(out of band)
+            API-->>Client: Email verified, can now login
+            Client->>U: Redirect to login page
+        else User already exists
+            API->>DB: DELETE pending_users
+            API-->>Client: Account already exists
+        end
+    else Token invalid or expired
+        API->>DB: DELETE pending_users (if expired)
+        API-->>Client: Invalid/expired token
+        Client->>U: Show error, prompt to sign up again
+    end
+```
+
+### Key Security Points
+
+1. **Password Handling**:
+   - Password is base64-encoded (NOT hashed) before webhook transmission
+   - External service is responsible for secure password handling
+   - **Requires HTTPS** for webhook communication
+
+2. **User State Management**:
+   - Keycloak user created immediately but **disabled**
+   - `pending_users` table tracks verification state
+   - User cannot login until email verified
+
+3. **Token Expiration**:
+   - Verification tokens expire after 24 hours
+   - Expired tokens trigger cleanup of `pending_users` record
+   - User must re-signup if token expires
+
+4. **Race Condition Prevention**:
+   - Signup checks for existing users before creating pending record
+   - Verification checks for existing users before enabling
+   - Duplicate signups replace old pending records
 
 ## API Endpoints
 
