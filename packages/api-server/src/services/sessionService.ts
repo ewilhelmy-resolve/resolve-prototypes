@@ -49,7 +49,7 @@ export class SessionService {
     }
   }
 
-  private async findOrCreateUser(tokenPayload: jose.JWTPayload): Promise<{ id: string; email: string; activeOrganizationId: string; }> {
+  public async findOrCreateUser(tokenPayload: jose.JWTPayload): Promise<{ id: string; email: string; activeOrganizationId: string; }> {
     // biome-ignore lint/style/noNonNullAssertion: must be non-null
     const keycloakId = tokenPayload.sub!;
     const email = tokenPayload.email as string;

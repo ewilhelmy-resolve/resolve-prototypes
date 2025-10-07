@@ -656,27 +656,7 @@ This architecture provides a robust, scalable, and maintainable authentication s
 
 ## Known Issues and Proposed Improvements
 
-### 1. Session Service findOrCreateUser Access Modifier
-
-**Current Issue**: The `findOrCreateUser` method in `SessionService` is marked as `private`, but it's called from the authentication middleware using a type assertion:
-
-```typescript
-// packages/api-server/src/middleware/auth.ts:41
-const user = await (sessionService as any).findOrCreateUser(payload);
-```
-
-**Proposed Fix**: Change the method visibility to `public` to eliminate the `as any` cast and improve type safety:
-
-```typescript
-// packages/api-server/src/services/sessionService.ts:52
-public async findOrCreateUser(tokenPayload: jose.JWTPayload) { ... }
-```
-
-**Impact**: Low priority, cosmetic issue that doesn't affect functionality but reduces code quality.
-
----
-
-### 2. Session Cookie Replacement on Token Refresh
+### 1. Session Cookie Replacement on Token Refresh
 
 **Current Behavior**: When tokens are refreshed, the AuthManager calls `POST /auth/login` again, which creates a **new** session cookie. This means:
 - Each token refresh creates a new session in the backend
@@ -719,7 +699,7 @@ router.put('/session/refresh', async (req, res) => {
 
 ---
 
-### 3. AuthStore Session Validation Endpoint Mismatch
+### 2. AuthStore Session Validation Endpoint Mismatch
 
 **Current Issue**: The `validateSession()` method in `AuthStore` calls a non-existent endpoint:
 
@@ -739,7 +719,7 @@ const response = await fetch(`${API_BASE_URL}/auth/session`, {
 
 ---
 
-### 4. Password Security in Signup Flow
+### 3. Password Security in Signup Flow
 
 **Current Implementation**: Passwords are base64-encoded (not hashed) before being sent to the webhook service:
 
@@ -767,7 +747,7 @@ password: Buffer.from(password).toString('base64')
 
 ---
 
-### 5. Token Refresh Race Conditions
+### 4. Token Refresh Race Conditions
 
 **Potential Issue**: If a user has multiple browser tabs open, each instance of AuthManager runs its own refresh timer. This could lead to:
 - Multiple simultaneous token refresh requests
@@ -816,7 +796,7 @@ class AuthManager {
 
 ---
 
-### 6. Silent SSO Configuration
+### 5. Silent SSO Configuration
 
 **Current Setup**: Uses `check-sso` with a dedicated HTML file:
 
@@ -835,7 +815,7 @@ silentCheckSsoRedirectUri: `${window.location.origin}/silent-check-sso.html`,
 
 ---
 
-### 7. Error Retry Strategy
+### 6. Error Retry Strategy
 
 **Current Implementation**: The AuthStore includes retry logic with exponential backoff (up to 3 attempts).
 

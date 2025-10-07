@@ -38,7 +38,7 @@ export const authenticateUser = async (
         // JIT User Provisioning - find or create user from Keycloak token
         const sessionService = getSessionService();
         try {
-          const user = await (sessionService as any).findOrCreateUser(payload);
+          const user = await sessionService.findOrCreateUser(payload);
           req.user = {
             id: user.id,
             email: user.email,
