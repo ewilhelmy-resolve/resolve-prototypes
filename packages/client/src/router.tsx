@@ -9,6 +9,7 @@ import ChatV1Page from './pages/ChatV1Page';
 import FilesV1Page from './pages/FilesV1Page';
 import UsersV1Page from './pages/UsersV1Page';
 import SettingsV1Page from './pages/SettingsV1Page';
+import UsersSettingsPage from './pages/UsersSettingsPage';
 import ConnectionSourceDetailPage from './pages/ConnectionSourceDetailPage';
 import DevToolsPage from './pages/DevToolsPage';
 import { ProtectedRoute } from './components/auth/ProtectedRoute';
@@ -73,6 +74,14 @@ const router = createBrowserRouter([
     element: (
       <ProtectedRoute>
         <ConnectionSourceDetailPage />
+      </ProtectedRoute>
+    )
+  },
+  {
+    path: '/settings/users',
+    element: (
+      <ProtectedRoute>
+        <UsersSettingsPage />
       </ProtectedRoute>
     )
   },

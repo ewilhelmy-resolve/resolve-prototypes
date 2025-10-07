@@ -158,7 +158,7 @@ function GroupedMessage({ message, onCopy, isCopied }: {
 }) {
   return (
     <Message from={message.role}>
-      <div className="flex flex-col w-full">
+      <div className="flex flex-col">
         <MessageContent variant="flat">
           {message.parts.map((part, index) => (
             <Fragment key={part.id}>
@@ -253,7 +253,7 @@ function SimpleMessage({ message, onCopy, isCopied }: {
 }) {
   return (
     <Message from={message.role}>
-      <div className="flex flex-col w-full">
+      <div className="flex flex-col">
         <MessageContent variant={message.role === 'assistant' ? 'flat' : 'contained'}>
           <Response>{message.message}</Response>
         </MessageContent>

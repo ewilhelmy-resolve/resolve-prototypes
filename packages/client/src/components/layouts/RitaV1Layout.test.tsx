@@ -31,6 +31,14 @@ vi.mock('@/hooks/api/useConversations', () => ({
       { id: 'conv-3', title: 'Search Test' }
     ],
     isLoading: false
+  })),
+  useDeleteConversation: vi.fn(() => ({
+    mutate: vi.fn(),
+    isPending: false
+  })),
+  useUpdateConversation: vi.fn(() => ({
+    mutate: vi.fn(),
+    isPending: false
   }))
 }))
 
