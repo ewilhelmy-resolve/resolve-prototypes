@@ -178,6 +178,11 @@ interface ConversationState {
   isLoading: boolean
   isSending: boolean
 
+  // Pagination state
+  hasMoreMessages: boolean      // Are there older messages to load?
+  isLoadingMore: boolean        // Currently loading older messages?
+  oldestMessageTimestamp: Date | null  // Cursor for pagination
+
   // Actions
   setCurrentConversation: (conversationId: string | null) => void
   setConversations: (conversations: Conversation[]) => void
@@ -185,8 +190,11 @@ interface ConversationState {
   setMessages: (messages: Message[]) => void
   addMessage: (message: Message) => void
   updateMessage: (messageId: string, updates: Partial<Message>) => void
+  prependMessages: (messages: Message[]) => void // Add older messages to beginning
   setLoading: (loading: boolean) => void
   setSending: (sending: boolean) => void
+  setHasMoreMessages: (hasMore: boolean) => void
+  setLoadingMore: (loading: boolean) => void
   clearCurrentConversation: () => void
   reset: () => void
   recomputeChatMessages: () => void // Force regrouping
@@ -202,10 +210,19 @@ export const useConversationStore = create<ConversationState>()(
       chatMessages: [],
       isLoading: false,
       isSending: false,
+      hasMoreMessages: false,
+      isLoadingMore: false,
+      oldestMessageTimestamp: null,
 
       // Actions
       setCurrentConversation: (conversationId) =>
-        set({ currentConversationId: conversationId, messages: [], chatMessages: [] }),
+        set({
+          currentConversationId: conversationId,
+          messages: [],
+          chatMessages: [],
+          hasMoreMessages: false,
+          oldestMessageTimestamp: null
+        }),
 
       setConversations: (conversations) =>
         set({ conversations }),
@@ -217,7 +234,9 @@ export const useConversationStore = create<ConversationState>()(
 
       setMessages: (messages) => {
         const chatMessages = groupMessages(messages)
-        set({ messages, chatMessages })
+        // Set oldest message timestamp for pagination cursor
+        const oldestTimestamp = messages.length > 0 ? messages[0].timestamp : null
+        set({ messages, chatMessages, oldestMessageTimestamp: oldestTimestamp })
       },
 
       addMessage: (message) =>
@@ -240,17 +259,38 @@ export const useConversationStore = create<ConversationState>()(
           }
         }),
 
+      prependMessages: (olderMessages) =>
+        set((state) => {
+          // Add older messages to the beginning
+          const newMessages = [...olderMessages, ...state.messages]
+          const oldestTimestamp = olderMessages.length > 0 ? olderMessages[0].timestamp : state.oldestMessageTimestamp
+          return {
+            messages: newMessages,
+            chatMessages: groupMessages(newMessages),
+            oldestMessageTimestamp: oldestTimestamp
+          }
+        }),
+
       setLoading: (loading) =>
         set({ isLoading: loading }),
 
       setSending: (sending) =>
         set({ isSending: sending }),
 
+      setHasMoreMessages: (hasMore) =>
+        set({ hasMoreMessages: hasMore }),
+
+      setLoadingMore: (loading) =>
+        set({ isLoadingMore: loading }),
+
       clearCurrentConversation: () =>
         set({
           currentConversationId: null,
           messages: [],
-          chatMessages: []
+          chatMessages: [],
+          hasMoreMessages: false,
+          isLoadingMore: false,
+          oldestMessageTimestamp: null
         }),
 
       reset: () =>
@@ -261,6 +301,9 @@ export const useConversationStore = create<ConversationState>()(
           chatMessages: [],
           isLoading: false,
           isSending: false,
+          hasMoreMessages: false,
+          isLoadingMore: false,
+          oldestMessageTimestamp: null
         }),
 
       recomputeChatMessages: () => {
