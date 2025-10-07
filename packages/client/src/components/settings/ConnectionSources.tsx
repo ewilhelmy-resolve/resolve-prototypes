@@ -1,32 +1,74 @@
 "use client";
 
+import { useEffect, useMemo } from "react";
 import { Globe } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
-import {
-	CONNECTION_SOURCES,
-	SOURCES,
-	STATUS,
-} from "@/constants/connectionSources";
+import { SOURCES, STATUS, mapDataSourceToUI } from "@/constants/connectionSources";
 import { ConnectionStatusBadge } from "../connection-sources/ConnectionStatusBadge";
 import Header from "../Header";
 import { Button } from "../ui/button";
-
+import { useDataSources, useSeedDataSources } from "@/hooks/useDataSources";
 
 export default function ConnectionSources() {
-	
-	return (
-	
+	const { mutate: seedSources, isPending: isSeeding } = useSeedDataSources();
+	const { data: dataSources, isLoading, error } = useDataSources();
+
+	// Seed on mount (idempotent - safe to call multiple times)
+	useEffect(() => {
+		seedSources();
+	}, [seedSources]);
+
+	// Map backend data to UI format
+	const uiSources = useMemo(() => {
+		if (!dataSources) return [];
+		return dataSources.map(mapDataSourceToUI);
+	}, [dataSources]);
+
+	if (isLoading || isSeeding) {
+		return (
 			<div className="w-full">
 				<div className="flex flex-col gap-8">
 					<Header
 						title="Connection Sources"
 						description="Connect your knowledge and ticketing sources to help Rita resolve IT issues faster."
 					/>
-					{/* w-full max-w-2xl mx-auto flex flex-col gap-8 */}
 					<div className="w-full max-w-4xl mx-auto flex flex-col gap-8">
-						{CONNECTION_SOURCES.map((source) => (
+						<div className="text-center py-8">Loading connections...</div>
+					</div>
+				</div>
+			</div>
+		);
+	}
+
+	if (error) {
+		return (
+			<div className="w-full">
+				<div className="flex flex-col gap-8">
+					<Header
+						title="Connection Sources"
+						description="Connect your knowledge and ticketing sources to help Rita resolve IT issues faster."
+					/>
+					<div className="w-full max-w-4xl mx-auto flex flex-col gap-8">
+						<div className="text-center py-8 text-destructive">
+							Failed to load data sources. Please try again.
+						</div>
+					</div>
+				</div>
+			</div>
+		);
+	}
+
+	return (
+		<div className="w-full">
+			<div className="flex flex-col gap-8">
+				<Header
+					title="Connection Sources"
+					description="Connect your knowledge and ticketing sources to help Rita resolve IT issues faster."
+				/>
+				<div className="w-full max-w-4xl mx-auto flex flex-col gap-8">
+					{uiSources.map((source) => (
 							<Link
 								key={source.id}
 								to={`/settings/connections/${source.id}`}
@@ -37,9 +79,9 @@ export default function ConnectionSources() {
 										<div className="flex flex-col gap-2">
 											<div className="flex flex-col">
 												<div className="flex items-center gap-2">
-													{source.id !== SOURCES.WEB_SEARCH ? (
+													{source.type !== SOURCES.WEB_SEARCH ? (
 														<img
-															src={`/connections/icon_${source.id}.svg`}
+															src={`/connections/icon_${source.type}.svg`}
 															alt={`${source.title} icon`}
 															className="w-5 h-5 flex-shrink-0"
 														/>
@@ -71,16 +113,9 @@ export default function ConnectionSources() {
 												))}
 											</div>
 										</div>
-										{source.status !== STATUS.NOT_CONNECTED && (
-											<Button variant="secondary" size="sm">
-												Manage
-											</Button>
-										)}
-										{source.status === STATUS.NOT_CONNECTED && (
-											<Button variant="secondary" size="sm">
-												Configure
-											</Button>
-										)}
+										<Button variant="secondary" size="sm">
+											{source.status === STATUS.NOT_CONNECTED ? 'Configure' : 'Manage'}
+										</Button>
 									</div>
 								</Card>
 							</Link>

@@ -100,8 +100,8 @@ export function ConnectionStatusCard({
 			case STATUS.CONNECTED:
 				return (
 					<p className="text-sm text-foreground whitespace-nowrap">
-						{source.config?.updatedAt
-							? `Updated at ${source.config.updatedAt}`
+						{source.settings?.updatedAt
+							? `Updated at ${source.settings.updatedAt}`
 							: "Connected"}
 					</p>
 				);
@@ -125,19 +125,19 @@ export function ConnectionStatusCard({
 							<div className="flex items-center gap-3">
 								<p className="text-sm text-muted-foreground w-12">URL</p>
 								<p className="text-sm text-foreground">
-									{source.config?.url || "—"}
+									{source.settings?.url || "—"}
 								</p>
 							</div>
 							<div className="flex items-center gap-3">
 								<p className="text-sm text-muted-foreground w-12">Email</p>
 								<p className="text-sm text-foreground">
-									{source.config?.email || "—"}
+									{source.settings?.email || "—"}
 								</p>
 							</div>
 							<div className="flex items-center gap-3">
 								<p className="text-sm text-muted-foreground w-12">API</p>
 								<p className="text-sm text-foreground">
-									{source.config?.token ? "••••••••••••••••••••" : "—"}
+									{source.settings?.token ? "••••••••••••••••••••" : "—"}
 								</p>
 							</div>
 						</div>

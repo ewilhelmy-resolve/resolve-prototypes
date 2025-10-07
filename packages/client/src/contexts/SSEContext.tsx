@@ -1,11 +1,13 @@
 import type React from 'react';
 import { createContext, useContext, useCallback, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { useSSE } from '../hooks/useSSE';
 import { useConversationStore } from '../stores/conversationStore';
 import type { SSEEvent } from '../services/EventSourceSSEClient';
 import type { Message } from '../stores/conversationStore';
 import { toast } from '../lib/toast';
 import { useNavigate } from 'react-router-dom';
+import { dataSourceKeys } from '../hooks/useDataSources';
 
 interface MessageUpdate {
   messageId: string;
@@ -41,6 +43,7 @@ export const SSEProvider: React.FC<SSEProviderProps> = ({
   const [messageUpdates, setMessageUpdates] = useState<MessageUpdate[]>([]);
   const [latestUpdate, setLatestUpdate] = useState<MessageUpdate | null>(null);
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
   const handleMessage = useCallback((event: SSEEvent) => {
     console.log('Received SSE event:', event);
@@ -82,33 +85,28 @@ export const SSEProvider: React.FC<SSEProviderProps> = ({
     } else if (event.type === 'data_source_update') {
       // Handle data source connection updates (verification, sync status changes)
       // Determine update type based on which fields are present
-      const updateType = event.data.lastVerificationAt ? 'verification' :
-                        event.data.lastSyncStatus ? 'sync' : 'unknown';
+      const updateType = event.data.last_verification_at ? 'verification' :
+                        event.data.last_sync_status ? 'sync' : 'unknown';
 
       console.log('[SSE] Data source update received:', {
         updateType,
         connectionId: event.data.connectionId,
         status: event.data.status,
-        lastSyncStatus: event.data.lastSyncStatus,
-        lastVerificationAt: event.data.lastVerificationAt,
-        latestOptions: event.data.latestOptions
+        last_sync_status: event.data.last_sync_status,
+        last_verification_at: event.data.last_verification_at,
+        latest_options: event.data.latest_options
       });
 
-      // TODO: Invalidate TanStack Query cache when data source hooks are implemented
-      // This will trigger automatic refetch of:
-      // - useDataSources() - list of all data sources
-      // - useDataSource(event.data.connectionId) - single data source details
-      //
-      // Example implementation:
-      // import { useQueryClient } from '@tanstack/react-query';
-      // const queryClient = useQueryClient();
-      // queryClient.invalidateQueries({ queryKey: ['dataSources'] });
-      // queryClient.invalidateQueries({ queryKey: ['dataSource', event.data.connectionId] });
+      // Invalidate TanStack Query cache to trigger automatic refetch
+      queryClient.invalidateQueries({ queryKey: dataSourceKeys.list() });
+      queryClient.invalidateQueries({
+        queryKey: dataSourceKeys.detail(event.data.connectionId)
+      });
 
       // Show toast notification for sync events only (not verification)
-      if (updateType === 'sync' && event.data.lastSyncStatus) {
+      if (updateType === 'sync' && event.data.last_sync_status) {
         const connectionType = event.data.connectionType || 'Data source';
-        const syncStatus = event.data.lastSyncStatus;
+        const syncStatus = event.data.last_sync_status;
 
         if (syncStatus === 'completed') {
           toast.success(`${connectionType} sync complete`, {
@@ -128,7 +126,7 @@ export const SSEProvider: React.FC<SSEProviderProps> = ({
         }
       }
     }
-  }, [navigate]);
+  }, [navigate, queryClient]);
 
   const handleError = useCallback((error: any) => {
     console.error('SSE connection error:', error);

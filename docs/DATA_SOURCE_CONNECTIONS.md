@@ -158,7 +158,7 @@ export function isValidDataSourceType(type: string): type is DataSourceType {
 
 **Validation in API Endpoints**:
 ```typescript
-// PUT /api/v1/data-sources/:type
+// PUT /api/data-sources/:type
 async function upsertDataSource(req: Request, res: Response) {
   const { type } = req.params;
 
@@ -279,16 +279,16 @@ Represents what happened during the **LAST SYNC**:
 **Backend owns the list of default data source types** and creates placeholder records on-demand via a dedicated seeding endpoint.
 
 **Database records are created when user first visits the data sources page:**
-- Frontend calls `POST /api/v1/data-sources/seed` to ensure default data sources exist
+- Frontend calls `POST /api/data-sources/seed` to ensure default data sources exist
 - Endpoint is **idempotent** - safe to call multiple times, only creates missing records
 - Backend creates 4 default placeholder records: Confluence, ServiceNow, SharePoint, WebSearch
 - Records created with `status='idle'`, `enabled=false` (unconfigured state)
 
 **Lifecycle Flow**:
 1. **Organization Created** → No database records created
-2. **User Navigates to Data Sources Page** → Frontend calls `POST /api/v1/data-sources/seed`
+2. **User Navigates to Data Sources Page** → Frontend calls `POST /api/data-sources/seed`
 3. **Seed Endpoint** → Idempotently creates 4 default data source records if they don't exist
-4. **Frontend Fetches** → `GET /api/v1/data-sources` returns all data sources (now includes 4 defaults)
+4. **Frontend Fetches** → `GET /api/data-sources` returns all data sources (now includes 4 defaults)
 5. **User Clicks "Configure"** → Opens configuration modal for that data source
 6. **User Enters Credentials** → Clicks "Verify" → Rita calls `data_source_verify` webhook
 7. **External Service Responds** → Validates credentials, stores them using (`tenant_id`, `connection_id`, `connection_type`), returns available options
@@ -303,13 +303,13 @@ Represents what happened during the **LAST SYNC**:
 // When user navigates to data sources page
 async function loadDataSources() {
   // 1. Ensure default data sources exist (idempotent - safe to call every time)
-  await fetch('/api/v1/data-sources/seed', {
+  await fetch('/api/data-sources/seed', {
     method: 'POST',
     headers: { 'Authorization': `Bearer ${token}` }
   });
 
   // 2. Fetch all data sources (guaranteed to have the 4 defaults now)
-  const response = await fetch('/api/v1/data-sources', {
+  const response = await fetch('/api/data-sources', {
     headers: { 'Authorization': `Bearer ${token}` }
   });
 
@@ -393,7 +393,7 @@ sequenceDiagram
     Consumer->>DB: UPDATE status='idle'<br/>latest_options={...}<br/>last_verification_at=NOW()
     Consumer->>SSE: sendToOrganization()<br/>{type:'data_source_update', data:{...}}
 
-    SSE-->>Client: SSE Event: data_source_update<br/>{latestOptions, lastVerificationAt}
+    SSE-->>Client: SSE Event: data_source_update<br/>{latest_options, last_verification_at}
 
     Note over Client: Client receives SSE event
     Client->>Client: Invalidate TanStack queries:<br/>- useDataSources()<br/>- useDataSource(id)
@@ -437,7 +437,7 @@ sequenceDiagram
     Consumer->>DB: UPDATE status='idle'<br/>last_sync_status='completed'<br/>last_sync_at=NOW()
     Consumer->>SSE: sendToOrganization()<br/>{type:'data_source_update', data:{...}}
 
-    SSE-->>Client: SSE Event: data_source_update<br/>{status:'idle', lastSyncStatus:'completed',<br/>documentsProcessed:42}
+    SSE-->>Client: SSE Event: data_source_update<br/>{status:'idle', last_sync_status:'completed',<br/>documentsProcessed:42}
 
     Note over Client: Client receives SSE event
     Client->>Client: Invalidate TanStack queries:<br/>- useDataSources()<br/>- useDataSource(id)
@@ -493,7 +493,7 @@ graph TB
 When a user enters credentials, Rita sends them to the external service for validation **without saving to the database**. The verification result is delivered asynchronously via RabbitMQ:
 
 ```typescript
-// Rita API endpoint: POST /api/v1/data-sources/:id/verify
+// Rita API endpoint: POST /api/data-sources/:id/verify
 import { DataSourceWebhookService } from '../services/DataSourceWebhookService.js';
 
 async function verifyConnection(connectionId: string, userId: string, userEmail: string, credentials: any, settings: any) {
@@ -508,7 +508,7 @@ async function verifyConnection(connectionId: string, userId: string, userEmail:
 
   // Send webhook - external service will respond via RabbitMQ
   const response = await webhookService.sendVerifyEvent({
-    organizationId: connection.organization_id,
+    organization_id: connection.organization_id,
     userId,
     userEmail,
     connectionId: connection.id,
@@ -621,7 +621,7 @@ This JSONB structure is stored directly in the `latest_options` column.
 After verification and user selection of options, Rita saves the configuration and triggers a sync:
 
 ```typescript
-// Rita API endpoint: POST /api/v1/data-sources/:id/sync
+// Rita API endpoint: POST /api/data-sources/:id/sync
 import { WebhookService } from '../services/WebhookService.js';
 
 async function triggerSync(connectionId: string, userId: string, userEmail: string) {
@@ -638,7 +638,7 @@ async function triggerSync(connectionId: string, userId: string, userEmail: stri
   const webhookService = new WebhookService();
 
   const response = await webhookService.sendGenericEvent({
-    organizationId: connection.organization_id,
+    organization_id: connection.organization_id,
     userId,
     userEmail,
     source: 'rita-chat',
@@ -664,7 +664,7 @@ async function triggerSync(connectionId: string, userId: string, userEmail: stri
 
 **Webhook Payload Structure** (sent by WebhookService):
 
-The `WebhookService` automatically maps `organizationId` → `tenant_id` in the payload:
+The `WebhookService` automatically maps `organization_id` → `tenant_id` in the payload:
 
 ```json
 {
@@ -685,7 +685,7 @@ The `WebhookService` automatically maps `organizationId` → `tenant_id` in the 
 
 **Note**: Credentials are NOT included in sync requests - external service looks them up using the composite key (`tenant_id` + `connection_id` + `connection_type`).
 
-**Note**: Pass `organizationId` to `sendGenericEvent()` - it will be automatically mapped to `tenant_id` in the webhook payload.
+**Note**: Pass `organization_id` to `sendGenericEvent()` - it will be automatically mapped to `tenant_id` in the webhook payload.
 
 **Environment Variables**:
 - Uses existing `AUTOMATION_WEBHOOK_URL` from WebhookService
@@ -843,14 +843,14 @@ sseService.sendToOrganization(tenant_id, {
     connectionId: string,
     status: 'idle' | 'syncing' | 'verifying',
     // Sync-specific fields (when type='sync')
-    lastSyncStatus?: 'completed' | 'failed',
-    lastSyncAt?: string,
-    lastSyncError?: string,
+    last_sync_status?: 'completed' | 'failed',
+    last_sync_at?: string,
+    last_sync_error?: string,
     documentsProcessed?: number,
     // Verification-specific fields (when type='verification')
-    lastVerificationAt?: string,
-    lastVerificationError?: string,
-    latestOptions?: Record<string, any>,
+    last_verification_at?: string,
+    last_verification_error?: string,
+    latest_options?: Record<string, any>,
     timestamp: string
   }
 });
@@ -922,7 +922,7 @@ async function triggerSync(connectionId: string) {
 
 ## API Endpoints
 
-### POST /api/v1/data-sources/seed
+### POST /api/data-sources/seed
 
 Idempotently create placeholder records for the 4 default data source types if they don't exist yet.
 
@@ -935,7 +935,7 @@ Idempotently create placeholder records for the 4 default data source types if t
 **Backend Processing**:
 ```typescript
 async function seedDefaultDataSources(req: Request, res: Response) {
-  const { organizationId, userId } = req.user;
+  const { organization_id, userId } = req.user;
 
   const DEFAULT_DATA_SOURCES = [
     { type: 'confluence', name: 'Confluence', description: 'Connect your Atlassian Confluence workspace' },
@@ -961,7 +961,7 @@ async function seedDefaultDataSources(req: Request, res: Response) {
         VALUES ($1, $2, $3, $4, 'idle', false, $5, $5)
         ON CONFLICT (organization_id, type) DO NOTHING
         RETURNING id, type, name
-      `, [organizationId, source.type, source.name, source.description, userId]);
+      `, [organization_id, source.type, source.name, source.description, userId]);
 
       if (result.rows.length > 0) {
         created.push(result.rows[0]);
@@ -1009,7 +1009,7 @@ async function seedDefaultDataSources(req: Request, res: Response) {
 
 ---
 
-### GET /api/v1/data-sources
+### GET /api/data-sources
 
 List all data source connections for the current user's organization.
 
@@ -1059,7 +1059,7 @@ List all data source connections for the current user's organization.
 
 ---
 
-### GET /api/v1/data-sources/:id
+### GET /api/data-sources/:id
 
 Get a single data source connection by ID.
 
@@ -1084,7 +1084,7 @@ Get a single data source connection by ID.
 
 ---
 
-### POST /api/v1/data-sources/:id/verify
+### POST /api/data-sources/:id/verify
 
 Verify credentials and retrieve available options from the external service **without saving to the database**.
 
@@ -1106,7 +1106,7 @@ Verify credentials and retrieve available options from the external service **wi
 // Send verification webhook to external service
 const webhookService = new WebhookService();
 const response = await webhookService.sendGenericEvent({
-  organizationId: connection.organization_id,
+  organization_id: connection.organization_id,
   userId: req.user.id,
   userEmail: req.user.email,
   source: 'rita-chat',
@@ -1149,11 +1149,11 @@ return response.data;
 
 ---
 
-### PUT /api/v1/data-sources/:id
+### PUT /api/data-sources/:id
 
 Update/configure a data source connection (used to configure seeded connections).
 
-**Important**: Credentials should be verified using `POST /api/v1/data-sources/:id/verify` before calling this endpoint.
+**Important**: Credentials should be verified using `POST /api/data-sources/:id/verify` before calling this endpoint.
 
 **Request Body**:
 ```json
@@ -1187,7 +1187,7 @@ await db.query(`
     updated_by = $5,
     updated_at = NOW()
   WHERE id = $6 AND organization_id = $7
-`, [name, description, config, enabled, userId, connectionId, organizationId]);
+`, [name, description, config, enabled, userId, connectionId, organization_id]);
 ```
 
 **Response**:
@@ -1214,7 +1214,7 @@ await db.query(`
 
 ---
 
-### PATCH /api/v1/data-sources/:id
+### PATCH /api/data-sources/:id
 
 Partially update a data source connection (e.g., enable/disable, update config only).
 
@@ -1229,7 +1229,7 @@ Partially update a data source connection (e.g., enable/disable, update config o
 
 ---
 
-### POST /api/v1/data-sources/:id/sync
+### POST /api/data-sources/:id/sync
 
 Manually trigger a sync for a configured connection.
 
@@ -1248,7 +1248,7 @@ Manually trigger a sync for a configured connection.
 **Backend Processing**:
 ```typescript
 // Fetch connection
-const connection = await getConnection(connectionId, organizationId);
+const connection = await getConnection(connectionId, organization_id);
 
 // Validate
 if (!connection.enabled) {
@@ -1267,7 +1267,7 @@ await updateConnection(connectionId, { status: 'syncing', last_sync_at: new Date
 // Trigger webhook - NO credentials sent, external service looks them up
 const webhookService = new WebhookService();
 await webhookService.sendGenericEvent({
-  organizationId: connection.organization_id,
+  organization_id: connection.organization_id,
   userId: req.user.id,
   userEmail: req.user.email,
   source: 'rita-chat',
@@ -1295,7 +1295,7 @@ await webhookService.sendGenericEvent({
 
 ---
 
-### DELETE /api/v1/data-sources/:id
+### DELETE /api/data-sources/:id
 
 **NOT IMPLEMENTED IN INITIAL RELEASE**
 
@@ -1317,7 +1317,7 @@ Soft-delete a data source connection (sets `deleted_at`).
 
 ---
 
-### POST /api/v1/data-sources
+### POST /api/data-sources
 
 **NOT IMPLEMENTED IN INITIAL RELEASE**
 
@@ -1329,7 +1329,7 @@ Initially, only the four seeded connections are available:
 - SharePoint
 - WebSearch
 
-Users must configure these seeded connections via the `PUT /api/v1/data-sources/:id` endpoint.
+Users must configure these seeded connections via the `PUT /api/data-sources/:id` endpoint.
 
 ---
 
@@ -1337,7 +1337,7 @@ Users must configure these seeded connections via the `PUT /api/v1/data-sources/
 
 ### 1. List all connections
 ```typescript
-const response = await fetch('/api/v1/data-sources', {
+const response = await fetch('/api/data-sources', {
   headers: { 'Authorization': `Bearer ${token}` }
 });
 const { data } = await response.json();
@@ -1347,7 +1347,7 @@ const { data } = await response.json();
 ### 2. User enters credentials and clicks "Verify"
 ```typescript
 // User enters API token and email for Confluence
-const verifyResponse = await fetch('/api/v1/data-sources/confluence-id/verify', {
+const verifyResponse = await fetch('/api/data-sources/confluence-id/verify', {
   method: 'POST',
   headers: {
     'Authorization': `Bearer ${token}`,
@@ -1374,7 +1374,7 @@ const verifyResult = await verifyResponse.json();
 // User selects ["ENG", "PROD"]
 
 // Now save the configuration (NO credentials - already stored during verify)
-const saveResponse = await fetch('/api/v1/data-sources/confluence-id', {
+const saveResponse = await fetch('/api/data-sources/confluence-id', {
   method: 'PUT',
   headers: {
     'Authorization': `Bearer ${token}`,
@@ -1396,7 +1396,7 @@ const saveResponse = await fetch('/api/v1/data-sources/confluence-id', {
 
 ### 4. Trigger sync
 ```typescript
-await fetch('/api/v1/data-sources/confluence-id/sync', {
+await fetch('/api/data-sources/confluence-id/sync', {
   method: 'POST',
   headers: { 'Authorization': `Bearer ${token}` }
 });
@@ -1406,7 +1406,7 @@ await fetch('/api/v1/data-sources/confluence-id/sync', {
 
 ### 5. Listen for sync completion (SSE)
 ```typescript
-const eventSource = new EventSource('/api/v1/sse');
+const eventSource = new EventSource('/api/sse');
 eventSource.addEventListener('data_source_sync_status', (event) => {
   const { connectionId, status, error } = JSON.parse(event.data);
   // Update UI: status='completed' or 'failed'
@@ -1445,7 +1445,7 @@ eventSource.addEventListener('data_source_sync_status', (event) => {
 - **Zero credential storage** in Rita's database eliminates credential theft risk
 - **External service responsibility** - The external sync service stores and manages all credentials
 - **Credential transmission** - Credentials are only sent via HTTPS during:
-  1. `POST /api/v1/data-sources/:id/verify` - Verification and initial storage by external service
+  1. `POST /api/data-sources/:id/verify` - Verification and initial storage by external service
 - **Composite key storage** - External service uses (`tenant_id`, `connection_id`, `connection_type`) to store/retrieve credentials
 - **No credential retrieval** - Rita never retrieves credentials from external service
 

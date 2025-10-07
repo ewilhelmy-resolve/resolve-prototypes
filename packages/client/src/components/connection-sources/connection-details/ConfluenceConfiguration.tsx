@@ -18,7 +18,7 @@ import FormSectionTitle from "../form-elements/FormSectionTitle";
 export default function ConfluenceConfiguration() {
 	const { source } = useConnectionSource();
 	const [selectedSpaces, setSelectedSpaces] = useState<string[]>(
-		source.config?.spaces || [],
+		source.settings?.spaces || [],
 	);
 	const CONFLUENCE_SPACES: MultiSelectOption[] = [
 		{ label: "Architecture Team", value: "architecture" },
