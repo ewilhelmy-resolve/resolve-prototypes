@@ -730,52 +730,22 @@ password: Buffer.from(password).toString('base64')  // Sent to webhook only
 
 ---
 
-### 2. Token Refresh Race Conditions
+### 2. Token Refresh Race Conditions (LOW PRIORITY - DEFERRED)
 
 **Potential Issue**: If a user has multiple browser tabs open, each instance of AuthManager runs its own refresh timer. This could lead to:
 - Multiple simultaneous token refresh requests
-- Unnecessary backend session creations
-- Wasted API calls
+- Unnecessary API calls (though session updates are efficient)
+- Minor overhead with multiple tabs
 
-**Current Mitigation**: Keycloak's `updateToken()` is idempotent and handles concurrent calls gracefully.
+**Current Mitigation**:
+- Keycloak's `updateToken()` is idempotent and handles concurrent calls gracefully
+- Session refresh endpoint (`PUT /auth/session/refresh`) is efficient and updates in-place
+- Impact is minimal in practice
 
-**Proposed Improvement**:
-- Implement cross-tab synchronization using `BroadcastChannel` API
-- Only the "leader" tab performs token refresh
-- Other tabs listen for `token:refreshed` events via BroadcastChannel
-- Falls back to individual timers if BroadcastChannel not supported
+**Future Improvement (if needed):**
+Implement cross-tab synchronization using `BroadcastChannel` API where only the "leader" tab performs token refresh and broadcasts the result to other tabs.
 
-```typescript
-// Proposed implementation
-class AuthManager {
-  private broadcastChannel: BroadcastChannel | null = null;
-
-  constructor() {
-    if ('BroadcastChannel' in window) {
-      this.broadcastChannel = new BroadcastChannel('auth-sync');
-      this.broadcastChannel.onmessage = (event) => {
-        if (event.data.type === 'token:refreshed') {
-          // Update local tokens without backend call
-          this.eventBus.emit('token:refreshed', event.data.tokens);
-        }
-      };
-    }
-  }
-
-  private async checkAndRefreshToken(): Promise<void> {
-    // ... existing logic ...
-    if (refreshed) {
-      // Broadcast to other tabs
-      this.broadcastChannel?.postMessage({
-        type: 'token:refreshed',
-        tokens: { token, refreshToken, tokenExpiry }
-      });
-    }
-  }
-}
-```
-
-**Impact**: Medium priority - reduces load but not critical for functionality.
+**Decision**: Deferred to future iteration. Current implementation is acceptable for production use.
 
 ---
 
