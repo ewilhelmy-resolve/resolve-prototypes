@@ -191,9 +191,15 @@ router.post('/:conversationId/messages', authenticateUser, async (req, res) => {
         `, [conversationId, authReq.user.activeOrganizationId]);
 
         // Build transcript array from existing messages
+        // Escape special characters to ensure valid JSON
         const transcript = transcriptResult.rows.map((row: any) => ({
           role: row.role,
           content: row.message
+            .replace(/\\/g, '\\\\')  // Escape backslashes first
+            .replace(/\n/g, '\\n')   // Escape newlines
+            .replace(/\r/g, '\\r')   // Escape carriage returns
+            .replace(/\t/g, '\\t')   // Escape tabs
+            .replace(/"/g, '\\"')    // Escape quotes
         }));
 
         // Create message in database
