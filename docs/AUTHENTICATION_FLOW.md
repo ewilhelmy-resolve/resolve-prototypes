@@ -12,9 +12,10 @@ This document explains the authentication architecture for the Rita project, whi
 - **Keycloak**: Identity provider and authentication server
 
 ### Client-Side Architecture
-- **AuthManager**: Singleton managing Keycloak instance and global token refresh
-- **AuthStore (Zustand)**: Global state management with persistence
-- **useAuth Hook**: Clean React interface for components
+- **AuthManager**: Singleton managing Keycloak instance and global token refresh (`packages/client/src/services/auth-manager.ts`)
+- **AuthStore (Zustand)**: Global state management with persistence (`packages/client/src/stores/auth-store.ts`)
+- **useAuth Hook**: Clean React interface for components (`packages/client/src/hooks/useAuth.ts`)
+- **ProtectedRoute**: Route guard component (`packages/client/src/components/auth/ProtectedRoute.tsx`)
 
 ## High-Level Authentication Flow
 
@@ -241,13 +242,15 @@ flowchart TD
     C -->|Yes| D[Call keycloak.updateToken]
     D --> E{Refresh successful?}
     E -->|Yes| F[Update AuthStore state]
-    F --> G[Update backend session]
+    F --> G[Create new backend session cookie]
     G --> A
     E -->|No| H[Emit auth:error]
     H --> I[Stop refresh timer]
     I --> J[Force logout user]
     J --> K[Redirect to login]
 ```
+
+**Important**: Token refresh replaces the session cookie by calling `POST /auth/login` again with the new access token. This creates a fresh `rita_session` cookie with updated expiration time, rather than updating an existing session in-place.
 
 ## Error Handling Strategy
 
@@ -283,6 +286,123 @@ flowchart TD
     L --> M[Redirect to /login]
 ```
 
+## API Endpoints
+
+The API server (`packages/api-server/src/routes/auth.ts`) provides the following authentication endpoints:
+
+### POST /auth/signup
+Creates a pending user and triggers webhook for email verification.
+```typescript
+// Request body
+{
+  firstName: string,
+  lastName: string,
+  email: string,
+  company: string,
+  password: string  // Base64-encoded in webhook payload for security
+}
+
+// Response
+{
+  success: true,
+  message: "Signup successful. Please check your email..."
+}
+```
+
+**Note**: Password is base64-encoded before being sent to the webhook service for Keycloak user creation.
+
+### POST /auth/login
+Creates a session cookie from a Keycloak access token (browser-based flows).
+```typescript
+// Request body
+{ accessToken: string }
+
+// Response
+{
+  success: true,
+  user: { id, email, organizationId },
+  session: { id, expiresAt }
+}
+```
+
+Sets `rita_session` HTTP-only cookie.
+
+### DELETE /auth/logout
+Destroys the current session.
+```typescript
+// Response
+{ success: true, message: "Logged out successfully" }
+```
+
+Clears `rita_session` cookie.
+
+### DELETE /auth/logout-all
+Destroys all sessions for the authenticated user across all devices.
+```typescript
+// Response
+{ success: true, deletedSessions: number }
+```
+
+### POST /auth/verify-email
+Verifies signup token and marks user as ready for Keycloak signin.
+```typescript
+// Request body
+{ token: string }
+
+// Response
+{
+  success: true,
+  message: "Email verified successfully...",
+  email: string
+}
+```
+
+### GET /auth/session
+Checks if the current session cookie is valid and returns session info.
+```typescript
+// Response (authenticated)
+{
+  authenticated: true,
+  user: { id, email, organizationId },
+  session: { id, expiresAt, lastAccessedAt }
+}
+
+// Response (not authenticated)
+{
+  authenticated: false,
+  error: "No session found" | "Invalid or expired session"
+}
+```
+
+## Middleware Authentication
+
+The authentication middleware (`packages/api-server/src/middleware/auth.ts`) supports two authentication methods:
+
+### 1. JWT Bearer Token (Primary)
+```typescript
+Authorization: Bearer <keycloak-access-token>
+```
+- Validates token against Keycloak JWKS
+- Performs **JIT (Just-In-Time) User Provisioning** if user doesn't exist
+- Creates user profile and organization automatically on first API access
+
+### 2. Session Cookie (Fallback)
+```
+Cookie: rita_session=<session-id>
+```
+- Used for SSE (Server-Sent Events) and browser flows
+- Session validated and refreshed on each request
+
+**JIT Provisioning Implementation** (`packages/api-server/src/services/sessionService.ts:52`):
+```typescript
+private async findOrCreateUser(tokenPayload: jose.JWTPayload) {
+  // 1. Check if user exists by Keycloak ID
+  // 2. If not, create new user profile + organization in single transaction
+  // 3. Set user's active organization to newly created org
+  // 4. Return user info for session creation
+}
+```
+
 ## Security Considerations
 
 ### Token Storage
@@ -293,9 +413,10 @@ flowchart TD
 
 ### Session Management
 - **Dual authentication**: JWT tokens (stateless) + session cookies (stateful)
-- **Backend validation**: API server validates session on each request
+- **Backend validation**: API server validates session on each request via `GET /auth/session`
 - **Auto logout**: Failed token refresh triggers automatic logout
-- **Secure cookies**: Session cookies are HTTP-only and secure
+- **Secure cookies**: Session cookies are HTTP-only, secure (production), and SameSite=Lax
+- **Session cookie name**: `rita_session` (24-hour expiration)
 
 ### PKCE Flow
 Keycloak initialization uses PKCE (Proof Key for Code Exchange):
@@ -426,3 +547,275 @@ The Zustand store integrates with Redux DevTools for debugging:
 - Action history for troubleshooting
 
 This architecture provides a robust, scalable, and maintainable authentication system that handles all edge cases while providing excellent developer experience.
+
+---
+
+## Known Issues and Proposed Improvements
+
+### 1. Session Service findOrCreateUser Access Modifier
+
+**Current Issue**: The `findOrCreateUser` method in `SessionService` is marked as `private`, but it's called from the authentication middleware using a type assertion:
+
+```typescript
+// packages/api-server/src/middleware/auth.ts:41
+const user = await (sessionService as any).findOrCreateUser(payload);
+```
+
+**Proposed Fix**: Change the method visibility to `public` to eliminate the `as any` cast and improve type safety:
+
+```typescript
+// packages/api-server/src/services/sessionService.ts:52
+public async findOrCreateUser(tokenPayload: jose.JWTPayload) { ... }
+```
+
+**Impact**: Low priority, cosmetic issue that doesn't affect functionality but reduces code quality.
+
+---
+
+### 2. Session Cookie Replacement on Token Refresh
+
+**Current Behavior**: When tokens are refreshed, the AuthManager calls `POST /auth/login` again, which creates a **new** session cookie. This means:
+- Each token refresh creates a new session in the backend
+- Old sessions may accumulate until cleanup runs
+- Session ID changes during the user's session lifetime
+
+**Location**: `packages/client/src/services/auth-manager.ts:117`
+
+**Potential Issues**:
+- Session table growth if cleanup isn't aggressive enough
+- Potential race conditions if multiple tabs refresh simultaneously
+- Unnecessary database writes on every token refresh (every 5 minutes)
+
+**Proposed Improvements**:
+
+**Option A**: Add `PUT /auth/session/refresh` endpoint
+```typescript
+// New endpoint in auth.ts
+router.put('/session/refresh', async (req, res) => {
+  const { accessToken } = req.body;
+  const sessionId = sessionService.parseSessionIdFromCookie(req.headers.cookie);
+
+  // Update existing session with new token instead of creating new one
+  await sessionService.updateSessionToken(sessionId, accessToken);
+
+  res.json({ success: true });
+});
+```
+
+**Option B**: Use session ID in token claims
+- Store session ID in a custom Keycloak token claim
+- On token refresh, reuse the same session ID
+- Only create new sessions on fresh logins
+
+**Option C**: Keep current approach but improve cleanup
+- Add more aggressive session cleanup (delete old sessions on refresh)
+- Implement session versioning to track which is the "current" session
+
+**Recommended**: Option A - cleanest separation of concerns and most efficient.
+
+---
+
+### 3. AuthStore Session Validation Endpoint Mismatch
+
+**Current Issue**: The `validateSession()` method in `AuthStore` calls a non-existent endpoint:
+
+```typescript
+// packages/client/src/stores/auth-store.ts:244
+const response = await fetch(`${API_BASE_URL}/auth/validate`, {
+```
+
+**Fix Required**: Update to use the correct endpoint:
+```typescript
+const response = await fetch(`${API_BASE_URL}/auth/session`, {
+```
+
+**Impact**: **HIGH PRIORITY** - This breaks session validation functionality in the client.
+
+**Status**: ⚠️ Needs immediate fix in implementation.
+
+---
+
+### 4. Password Security in Signup Flow
+
+**Current Implementation**: Passwords are base64-encoded (not hashed) before being sent to the webhook service:
+
+```typescript
+// packages/api-server/src/routes/auth.ts:81
+password: Buffer.from(password).toString('base64')
+```
+
+**Security Considerations**:
+- Base64 is **encoding**, not encryption or hashing
+- Passwords are transmitted in reversible format over the network (HTTPS required)
+- Webhook service becomes responsible for secure password handling
+
+**Questions for Discussion**:
+1. Should passwords be hashed (bcrypt/argon2) before transmission?
+2. Is the webhook service over HTTPS in all environments?
+3. Does Keycloak accept pre-hashed passwords or only plaintext?
+4. Should we implement end-to-end encryption for password transmission?
+
+**Recommendation**:
+- Document that HTTPS is **mandatory** for webhook communication
+- Consider hashing passwords before transmission if Keycloak supports it
+- Add webhook authentication/authorization to prevent MITM attacks
+- Implement webhook request signing to verify integrity
+
+---
+
+### 5. Token Refresh Race Conditions
+
+**Potential Issue**: If a user has multiple browser tabs open, each instance of AuthManager runs its own refresh timer. This could lead to:
+- Multiple simultaneous token refresh requests
+- Unnecessary backend session creations
+- Wasted API calls
+
+**Current Mitigation**: Keycloak's `updateToken()` is idempotent and handles concurrent calls gracefully.
+
+**Proposed Improvement**:
+- Implement cross-tab synchronization using `BroadcastChannel` API
+- Only the "leader" tab performs token refresh
+- Other tabs listen for `token:refreshed` events via BroadcastChannel
+- Falls back to individual timers if BroadcastChannel not supported
+
+```typescript
+// Proposed implementation
+class AuthManager {
+  private broadcastChannel: BroadcastChannel | null = null;
+
+  constructor() {
+    if ('BroadcastChannel' in window) {
+      this.broadcastChannel = new BroadcastChannel('auth-sync');
+      this.broadcastChannel.onmessage = (event) => {
+        if (event.data.type === 'token:refreshed') {
+          // Update local tokens without backend call
+          this.eventBus.emit('token:refreshed', event.data.tokens);
+        }
+      };
+    }
+  }
+
+  private async checkAndRefreshToken(): Promise<void> {
+    // ... existing logic ...
+    if (refreshed) {
+      // Broadcast to other tabs
+      this.broadcastChannel?.postMessage({
+        type: 'token:refreshed',
+        tokens: { token, refreshToken, tokenExpiry }
+      });
+    }
+  }
+}
+```
+
+**Impact**: Medium priority - reduces load but not critical for functionality.
+
+---
+
+### 6. Silent SSO Configuration
+
+**Current Setup**: Uses `check-sso` with a dedicated HTML file:
+
+```typescript
+// packages/client/src/services/auth-manager.ts:31-33
+onLoad: 'check-sso',
+silentCheckSsoRedirectUri: `${window.location.origin}/silent-check-sso.html`,
+```
+
+**Documentation Gap**: The `public/silent-check-sso.html` file is referenced but not documented in this flow document.
+
+**Improvement**:
+- Document the contents and purpose of `silent-check-sso.html`
+- Explain why it's needed vs. using the main app URL
+- Add troubleshooting guide for silent SSO timeout issues
+
+---
+
+### 7. Error Retry Strategy
+
+**Current Implementation**: The AuthStore includes retry logic with exponential backoff (up to 3 attempts).
+
+**Potential Issue**: The retry mechanism only applies to initialization failures, not to:
+- Token refresh failures (which trigger immediate logout)
+- Session creation failures (which are silently logged)
+- Network errors during login
+
+**Proposed Enhancement**:
+- Add retry logic for transient network errors
+- Distinguish between retryable errors (503, network timeout) and permanent errors (401, 403)
+- Implement circuit breaker pattern for repeated failures
+- Add user notification system for authentication issues
+
+---
+
+## Future Enhancements
+
+### 1. **Refresh Token Rotation**
+Implement Keycloak refresh token rotation for enhanced security. Each token refresh should invalidate the old refresh token and issue a new one.
+
+### 2. **Multi-Factor Authentication (MFA)**
+Add MFA support through Keycloak's built-in OTP functionality. Document the flow changes needed.
+
+### 3. **Device Management**
+- Allow users to view active sessions across devices
+- Add "logout from this device" vs. "logout from all devices" distinction in UI
+- Show session metadata (device type, location, last accessed)
+
+### 4. **Session Activity Monitoring**
+- Track user activity to extend session expiration on active use
+- Implement "idle timeout" separate from absolute session timeout
+- Add configurable session duration based on user role or security level
+
+### 5. **OAuth Social Login Integration**
+- Add Google, GitHub, Microsoft login options via Keycloak
+- Document the identity provider federation setup
+- Handle account linking for users with multiple login methods
+
+### 6. **Audit Logging**
+- Log all authentication events (login, logout, token refresh, failures)
+- Implement SOC2-compliant audit trail for security reviews
+- Add user-facing "security activity" dashboard
+
+### 7. **Biometric Authentication**
+- Integrate WebAuthn for passwordless authentication
+- Support hardware security keys (YubiKey, etc.)
+- Implement device fingerprinting for suspicious activity detection
+
+---
+
+## Testing Recommendations
+
+To ensure this authentication flow works correctly, the following test scenarios should be covered:
+
+### Unit Tests
+- ✅ AuthManager token refresh logic
+- ✅ SessionService JIT provisioning
+- ✅ Session cookie generation and parsing
+- ⚠️ AuthStore state transitions (needs expansion)
+
+### Integration Tests
+- ⚠️ Full login flow (Keycloak → JWT → Session cookie)
+- ⚠️ Token refresh with backend session update
+- ⚠️ Session validation across API requests
+- ⚠️ Logout clearing both Keycloak and backend sessions
+
+### E2E Tests (Missing)
+- ❌ User signup → email verification → login → protected route access
+- ❌ Token expiration handling in active session
+- ❌ Multi-tab behavior (login in one tab, reflected in others)
+- ❌ Session timeout and auto-logout
+- ❌ Network failure recovery during authentication
+
+### Security Tests (Missing)
+- ❌ XSS protection (no token leakage to localStorage)
+- ❌ CSRF protection on session endpoints
+- ❌ Token expiration enforcement
+- ❌ Session hijacking prevention
+- ❌ Webhook payload security validation
+
+---
+
+**Legend**:
+- ✅ Exists and working
+- ⚠️ Partially implemented or needs improvement
+- ❌ Missing or not yet implemented
