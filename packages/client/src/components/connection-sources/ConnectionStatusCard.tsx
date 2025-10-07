@@ -120,7 +120,7 @@ export function ConnectionStatusCard({
 		<div className="flex flex-col gap-1">
 			<div className="border border-border bg-popover rounded-md p-4">
 				<div className="rounded-lg">
-					<div className="flex items-center justify-between gap-8">
+					<div className="flex flex-col md:flex-row items-center justify-between gap-8">
 						<div className="flex flex-col gap-2">
 							<div className="flex items-center gap-3">
 								<p className="text-sm text-muted-foreground w-12">URL</p>

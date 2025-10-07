@@ -58,8 +58,8 @@ export default function ConfluenceConfiguration() {
 							<Label className="mb-2">
 								Which spaces would you like to sync from?
 							</Label>
-							<div className="flex items-start gap-4">
-								<div className="flex-1">
+							<div className="flex flex-col md:flex-row items-start gap-4">
+								<div className="md:flex-1 w-full">
 									<MultiSelect
 										animationConfig={{ optionHoverAnimation: "none" }}
 										options={CONFLUENCE_SPACES}
@@ -74,7 +74,7 @@ export default function ConfluenceConfiguration() {
 										emptyIndicator="No spaces found."
 									/>
 								</div>
-								<Button variant="default">
+								<Button className="w-full md:w-fit" variant="default">
 									Sync
 								</Button>
 							</div>
