@@ -37,11 +37,18 @@ export interface DataSourceUpdateEvent {
   type: 'data_source_update';
   data: {
     connectionId: string;
-    status: 'idle' | 'syncing';
-    lastSyncStatus: 'completed' | 'failed' | null;
-    lastSyncAt: Date | null;
-    errorMessage?: string;
+    connectionType?: string; // e.g., 'confluence', 'servicenow', 'sharepoint', 'websearch'
+    status: 'idle' | 'verifying' | 'syncing';
+    // Sync-specific fields
+    lastSyncStatus?: 'completed' | 'failed' | null;
+    lastSyncAt?: Date | null;
+    lastSyncError?: string;
     documentsProcessed?: number;
+    // Verification-specific fields
+    lastVerificationAt?: Date | null;
+    lastVerificationError?: string | null;
+    latestOptions?: Record<string, any> | null;
+    // Common
     timestamp: string;
   };
 }

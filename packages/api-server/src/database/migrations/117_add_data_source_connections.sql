@@ -39,6 +39,6 @@ CREATE INDEX idx_data_source_connections_status ON data_source_connections (stat
 COMMENT ON TABLE data_source_connections IS 'External data source configurations (no credentials stored)';
 COMMENT ON COLUMN data_source_connections.type IS 'Data source type: confluence, servicenow, sharepoint, websearch';
 COMMENT ON COLUMN data_source_connections.settings IS 'JSONB settings specific to each data source type (no credentials)';
-COMMENT ON COLUMN data_source_connections.status IS 'Current sync status: idle (not syncing), syncing (in progress)';
+COMMENT ON COLUMN data_source_connections.status IS 'Current operation status: idle (ready), syncing (in progress)';
 COMMENT ON COLUMN data_source_connections.last_sync_status IS 'Last sync result: NULL (never synced), completed, failed';
 COMMENT ON COLUMN data_source_connections.enabled IS 'Whether the data source is configured and active';

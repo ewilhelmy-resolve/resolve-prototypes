@@ -40,16 +40,23 @@ CREATE TABLE data_source_connections (
   config JSONB DEFAULT '{}'::jsonb,
 
   -- Current status (what's happening NOW)
-  status TEXT DEFAULT 'idle' NOT NULL, -- 'idle', 'syncing'
+  status TEXT DEFAULT 'idle' NOT NULL, -- 'idle', 'verifying', 'syncing'
 
   -- Historical tracking (what happened LAST TIME)
   last_sync_status TEXT DEFAULT NULL, -- NULL, 'completed', 'failed'
 
+  -- Latest verification options (JSONB with connection-type-specific structure)
+  latest_options JSONB DEFAULT NULL, -- e.g., '{"spaces": "ENG,PROD,DOCS"}' for Confluence
+
   enabled BOOLEAN DEFAULT false,
+
+  -- Verification tracking
+  last_verification_at TIMESTAMP WITH TIME ZONE, -- When credentials were last verified
+  last_verification_error TEXT, -- Error from last verification (NULL on success)
 
   -- Sync tracking
   last_sync_at TIMESTAMP WITH TIME ZONE,
-  last_sync_error TEXT,
+  last_sync_error TEXT, -- Error from last sync (NULL on success)
 
   -- Audit fields
   created_by UUID NOT NULL, -- Always set when user configures connection
@@ -234,7 +241,8 @@ Different data sources use different authentication methods:
 
 Represents what is happening **NOW** with the connection:
 
-- **`idle`** - Connection is configured and ready, not currently syncing
+- **`idle`** - Connection is ready, not currently verifying or syncing
+- **`verifying`** - External service is validating credentials and fetching available options
 - **`syncing`** - External service is currently performing a sync operation
 
 **Note**: If a connection doesn't exist in the database, it's "unconfigured" from the user's perspective. The frontend displays all 4 data source types statically, and only configured connections exist in the database.
@@ -347,59 +355,197 @@ export const DEFAULT_DATA_SOURCES = [
 
 Rita uses a **two-step configuration process** for data source connections:
 
-1. **Verify Credentials** → External service validates credentials and returns available options
+1. **Verify Credentials** → External service validates credentials and publishes verification result to RabbitMQ with available options
 2. **Save & Sync** → User selects options, Rita saves configuration and triggers sync
 
 This ensures credentials are valid before saving and allows users to select from available resources (spaces, tables, etc.).
 
+**Important Change**: Verification now follows the same RabbitMQ pattern as sync operations. The webhook triggers verification, and the result is delivered asynchronously via RabbitMQ.
+
+### Data Flow Diagrams
+
+#### Verification Flow
+
+```mermaid
+sequenceDiagram
+    participant Client as Rita Client (Frontend)
+    participant API as Rita API Server
+    participant DB as PostgreSQL
+    participant Webhook as External Service
+    participant Queue as RabbitMQ
+    participant Consumer as DataSourceStatusConsumer
+    participant SSE as SSE Service
+
+    Note over Client,SSE: User clicks "Verify" with credentials
+
+    Client->>API: POST /api/data-sources/:id/verify<br/>{credentials, settings}
+    API->>DB: UPDATE status='verifying'
+    API->>Webhook: POST verify_credentials webhook<br/>(credentials + metadata)
+    API-->>Client: 200 {status: "verifying"}
+
+    Note over Client: UI shows loading state<br/>(status='verifying')
+
+    Note over Webhook: External service validates<br/>credentials & fetches options
+
+    Webhook->>Queue: Publish to data_source_status<br/>{type:'verification', status:'success', options}
+
+    Queue->>Consumer: Consume verification message
+    Consumer->>DB: UPDATE status='idle'<br/>latest_options={...}<br/>last_verification_at=NOW()
+    Consumer->>SSE: sendToOrganization()<br/>{type:'data_source_update', data:{...}}
+
+    SSE-->>Client: SSE Event: data_source_update<br/>{latestOptions, lastVerificationAt}
+
+    Note over Client: Client receives SSE event
+    Client->>Client: Invalidate TanStack queries:<br/>- useDataSources()<br/>- useDataSource(id)
+    Client->>Client: Queries refetch automatically
+    Client->>Client: UI updates with verification result<br/>& available options
+```
+
+#### Sync Flow
+
+```mermaid
+sequenceDiagram
+    participant Client as Rita Client (Frontend)
+    participant API as Rita API Server
+    participant DB as PostgreSQL
+    participant Webhook as External Service
+    participant Queue as RabbitMQ
+    participant Consumer as DataSourceStatusConsumer
+    participant SSE as SSE Service
+
+    Note over Client,SSE: User clicks "Sync Now"
+
+    Client->>API: POST /api/data-sources/:id/sync
+    API->>DB: UPDATE status='syncing'
+    API->>Webhook: POST trigger_sync webhook<br/>(connection metadata, NO credentials)
+    API-->>Client: 200 {success: true}
+
+    Note over Client: UI shows syncing state<br/>(status='syncing')
+
+    Note over Webhook: External service looks up<br/>credentials & performs sync
+
+    Webhook->>Queue: Publish to data_source_status<br/>{type:'sync', status:'sync_started'}
+    Queue->>Consumer: Consume sync_started message
+    Consumer->>SSE: sendToOrganization()<br/>{type:'data_source_update', status:'syncing'}
+    SSE-->>Client: SSE Event: status='syncing'
+
+    Note over Webhook: Sync in progress...
+
+    Webhook->>Queue: Publish to data_source_status<br/>{type:'sync', status:'sync_completed',<br/>documents_processed:42}
+
+    Queue->>Consumer: Consume sync_completed message
+    Consumer->>DB: UPDATE status='idle'<br/>last_sync_status='completed'<br/>last_sync_at=NOW()
+    Consumer->>SSE: sendToOrganization()<br/>{type:'data_source_update', data:{...}}
+
+    SSE-->>Client: SSE Event: data_source_update<br/>{status:'idle', lastSyncStatus:'completed',<br/>documentsProcessed:42}
+
+    Note over Client: Client receives SSE event
+    Client->>Client: Invalidate TanStack queries:<br/>- useDataSources()<br/>- useDataSource(id)
+    Client->>Client: Queries refetch automatically
+    Client->>Client: UI updates with sync result
+```
+
+#### Unified Consumer Architecture
+
+```mermaid
+graph TB
+    subgraph "External Service"
+        ES[External Sync Service]
+    end
+
+    subgraph "RabbitMQ"
+        Queue[data_source_status Queue]
+    end
+
+    subgraph "Rita API Server"
+        Consumer[DataSourceStatusConsumer]
+        SyncHandler[processSyncStatus]
+        VerifyHandler[processVerificationStatus]
+        DB[(PostgreSQL)]
+        SSE[SSE Service]
+    end
+
+    subgraph "Rita Client"
+        UI[Frontend UI]
+        TQ[TanStack Query Cache]
+    end
+
+    ES -->|type:'sync'| Queue
+    ES -->|type:'verification'| Queue
+
+    Queue --> Consumer
+    Consumer -->|Discriminate by type| SyncHandler
+    Consumer -->|Discriminate by type| VerifyHandler
+
+    SyncHandler --> DB
+    VerifyHandler --> DB
+
+    SyncHandler --> SSE
+    VerifyHandler --> SSE
+
+    SSE -->|data_source_update event| UI
+    UI -->|Invalidate queries| TQ
+    TQ -->|Refetch data| DB
+```
+
 ### Verifying Credentials
 
-When a user enters credentials, Rita sends them to the external service for validation **without saving to the database**:
+When a user enters credentials, Rita sends them to the external service for validation **without saving to the database**. The verification result is delivered asynchronously via RabbitMQ:
 
 ```typescript
 // Rita API endpoint: POST /api/v1/data-sources/:id/verify
-import { WebhookService } from '../services/WebhookService.js';
+import { DataSourceWebhookService } from '../services/DataSourceWebhookService.js';
 
-async function verifyConnection(connectionId: string, userId: string, userEmail: string, credentials: any, config: any) {
+async function verifyConnection(connectionId: string, userId: string, userEmail: string, credentials: any, settings: any) {
   const connection = await getConnection(connectionId);
 
-  const webhookService = new WebhookService();
+  // Update status to 'verifying'
+  await updateConnection(connectionId, {
+    status: 'verifying'
+  });
 
-  const response = await webhookService.sendGenericEvent({
+  const webhookService = new DataSourceWebhookService();
+
+  // Send webhook - external service will respond via RabbitMQ
+  const response = await webhookService.sendVerifyEvent({
     organizationId: connection.organization_id,
     userId,
     userEmail,
-    source: 'rita-chat',
-    action: 'data_source_verify',
-    additionalData: {
-      connection_id: connection.id,
-      connection_type: connection.type,
-      config: config,
-      credentials: credentials  // Sent as plaintext over HTTPS
-    }
+    connectionId: connection.id,
+    connectionType: connection.type,
+    settings: settings,
+    credentials: credentials  // Sent as plaintext over HTTPS
   });
 
   if (!response.success) {
-    throw new Error(response.error || 'Verification failed');
+    // Update status back to 'idle' on webhook failure
+    await updateConnection(connectionId, {
+      status: 'idle',
+      last_sync_error: response.error || 'Verification request failed'
+    });
+    throw new Error(response.error || 'Verification request failed');
   }
 
-  // Return available options to frontend (e.g., Confluence spaces, ServiceNow tables)
-  return response.data;
+  // Return immediately - frontend will receive result via SSE when RabbitMQ message arrives
+  return {
+    status: 'verifying',
+    message: 'Verification in progress'
+  };
 }
 ```
 
 **Verify Webhook Payload**:
 ```json
 {
-  "source": "rita-data-sources",
-  "action": "data_source_verify",
+  "source": "rita-chat",
+  "action": "verify_credentials",
   "user_email": "user@example.com",
   "user_id": "uuid",
   "tenant_id": "uuid",
   "timestamp": "2025-10-01T10:00:00.000Z",
   "connection_id": "uuid",
   "connection_type": "confluence",
-  "config": {
+  "settings": {
     "url": "https://company.atlassian.net/wiki"
   },
   "credentials": {
@@ -409,42 +555,64 @@ async function verifyConnection(connectionId: string, userId: string, userEmail:
 }
 ```
 
-**External Service Response** (for Confluence):
+**RabbitMQ Verification Result Message**:
+
+**Queue Name**: `data_source.verification_status`
+
+**Success Message** (for Confluence):
 ```json
 {
-  "valid": true,
-  "message": "Credentials verified successfully",
-  "available_options": {
-    "spaces": [
-      { "key": "ENG", "name": "Engineering", "type": "global" },
-      { "key": "PROD", "name": "Product", "type": "global" },
-      { "key": "DOCS", "name": "Documentation", "type": "global" }
-    ]
-  }
+  "connection_id": "uuid",
+  "tenant_id": "uuid",
+  "status": "success",
+  "options": {
+    "spaces": "ENG,PROD,DOCS"
+  },
+  "error": null
 }
 ```
 
-**External Service Response** (for ServiceNow):
+**Success Message** (for ServiceNow):
 ```json
 {
-  "valid": true,
-  "message": "Credentials verified successfully",
-  "available_options": {
-    "tables": [
-      { "name": "incident", "label": "Incidents" },
-      { "name": "kb_knowledge", "label": "Knowledge Base" },
-      { "name": "sc_cat_item", "label": "Service Catalog Items" }
-    ]
-  }
+  "connection_id": "uuid",
+  "tenant_id": "uuid",
+  "status": "success",
+  "options": {
+    "tables": "incident,kb_knowledge,sc_cat_item"
+  },
+  "error": null
 }
 ```
 
-**Error Response**:
+**Success Message** (for SharePoint):
 ```json
 {
-  "valid": false,
-  "message": "Invalid API token or insufficient permissions",
-  "error_code": "INVALID_CREDENTIALS"
+  "connection_id": "uuid",
+  "tenant_id": "uuid",
+  "status": "success",
+  "options": {
+    "sites": "site1,site2,site3"
+  },
+  "error": null
+}
+```
+
+**Note**: The `options` field is a **JSON object** with connection-type-specific keys. Each key contains a **comma-separated string** of available resources:
+- **Confluence**: `{"spaces": "key1,key2,key3"}`
+- **ServiceNow**: `{"tables": "table1,table2,table3"}`
+- **SharePoint**: `{"sites": "site1,site2,site3"}`
+
+This JSONB structure is stored directly in the `latest_options` column.
+
+**Error Message**:
+```json
+{
+  "connection_id": "uuid",
+  "tenant_id": "uuid",
+  "status": "failed",
+  "options": null,
+  "error": "Invalid API token or insufficient permissions"
 }
 ```
 
@@ -548,252 +716,175 @@ The external sync service publishes a simple status update message to RabbitMQ:
 
 **Note**: The RabbitMQ message uses `tenant_id` (external convention), which Rita maps to `organization_id` (internal convention).
 
-### Rita RabbitMQ Consumer
+### Rita RabbitMQ Consumer (Unified)
 
-Rita uses a **dedicated consumer** for data source sync status updates, separate from the existing chat message consumer.
+Rita uses a **unified consumer** for all data source status updates (sync and verification), separate from the existing chat message consumer.
 
-**Implementation**: `packages/api-server/src/consumers/dataSourceSyncConsumer.ts`
+**Implementation**: `packages/api-server/src/consumers/DataSourceStatusConsumer.ts`
 
-**Why Separate Consumer?**
-- Single Responsibility: Chat messages vs. data source syncs are different domains
-- Different message structures and processing logic
-- Separate queues: `chat.responses` vs. `data_source.sync_status`
-- Independent error handling and retry strategies
+**Queue Name**: `data_source_status` (single queue for all data source events)
+
+**Why Unified Consumer?**
+- Single Responsibility: One consumer manages all data source status updates
+- Consistent event handling: Both sync and verification follow same patterns
+- Easier monitoring: Single queue to observe
+- More efficient: One connection, one consumer instance
+- Message type discrimination via `type` field
+
+**Message Types** (discriminated union via `type` field):
+
+```typescript
+// Sync status message
+interface SyncStatusMessage {
+  type: 'sync';  // Discriminator
+  connection_id: string;
+  tenant_id: string;
+  status: 'sync_started' | 'sync_completed' | 'sync_failed';
+  error_message?: string;
+  documents_processed?: number;
+  timestamp: string;
+}
+
+// Verification status message
+interface VerificationStatusMessage {
+  type: 'verification';  // Discriminator
+  connection_id: string;
+  tenant_id: string;
+  status: 'success' | 'failed';
+  options: Record<string, any> | null;  // e.g., {"spaces": "ENG,PROD,DOCS"}
+  error: string | null;
+}
+
+// Union type
+type DataSourceStatusMessage = SyncStatusMessage | VerificationStatusMessage;
+```
 
 **Consumer Implementation**:
 
 ```typescript
-// packages/api-server/src/consumers/dataSourceSyncConsumer.ts
-import { getRabbitMQService } from '../services/rabbitmq.js';
-import { pool, withOrgContext } from '../config/database.js';
-import { logError, PerformanceTimer, queueLogger } from '../config/logger.js';
+// packages/api-server/src/consumers/DataSourceStatusConsumer.ts
+import type { Channel, ConsumeMessage } from 'amqplib';
+import { DataSourceService } from '../services/DataSourceService.js';
 import { getSSEService } from '../services/sse.js';
+import { queueLogger, logError, PerformanceTimer } from '../config/logger.js';
 
-interface DataSourceSyncMessage {
-  connection_id: string;
-  tenant_id: string;
-  status: 'completed' | 'failed';
-  error: string | null;
-}
+export class DataSourceStatusConsumer {
+  private readonly queueName = 'data_source_status';
+  private dataSourceService: DataSourceService;
 
-export async function startDataSourceSyncConsumer(): Promise<void> {
-  const rabbitmq = getRabbitMQService();
-  const QUEUE_NAME = 'data_source.sync_status';
-
-  // Ensure RabbitMQ is connected
-  if (!rabbitmq) {
-    throw new Error('RabbitMQ service not initialized');
+  constructor() {
+    this.dataSourceService = new DataSourceService();
   }
 
-  queueLogger.info({ queueName: QUEUE_NAME }, 'Starting data source sync consumer...');
+  async startConsumer(channel: Channel): Promise<void> {
+    queueLogger.info({ queueName: this.queueName }, 'Starting Data Source Status consumer...');
 
-  // Assert queue exists with dead letter configuration
-  await rabbitmq.publishMessage(QUEUE_NAME, {}); // This will create the queue via assertQueue
+    await channel.assertQueue(this.queueName, { durable: true });
 
-  // Note: Use the internal channel from getRabbitMQService
-  // The actual consumer setup would be:
-  const channel = await getChannel(); // Internal method to access channel
+    await channel.consume(this.queueName, async (message: ConsumeMessage | null) => {
+      if (!message) return;
 
-  await channel.assertQueue(QUEUE_NAME, {
-    durable: true,
-    deadLetterExchange: 'dlx',
-    deadLetterRoutingKey: 'data_source.sync_status.failed',
-  });
+      const timer = new PerformanceTimer(queueLogger, 'data-source-status-processing');
+      try {
+        const content = JSON.parse(message.content.toString());
 
-  await channel.consume(QUEUE_NAME, async (msg) => {
-    if (!msg) return;
+        // Discriminate based on type field
+        if (content.type === 'sync') {
+          await this.processSyncStatus(content);
+        } else if (content.type === 'verification') {
+          await this.processVerificationStatus(content);
+        } else {
+          throw new Error(`Unknown message type: ${content.type}`);
+        }
 
-    const timer = new PerformanceTimer(queueLogger, 'data-source-sync-processing');
-
-    try {
-      const message: DataSourceSyncMessage = JSON.parse(msg.content.toString());
-
-      queueLogger.info({
-        connectionId: message.connection_id,
-        organizationId: message.tenant_id,
-        status: message.status
-      }, 'Received data source sync status message');
-
-      await handleSyncStatus(message);
-
-      // Acknowledge message
-      channel.ack(msg);
-
-      timer.end({
-        connectionId: message.connection_id,
-        status: message.status,
-        success: true
-      });
-
-    } catch (error) {
-      timer.end({ success: false });
-      logError(queueLogger, error as Error, {
-        operation: 'data-source-sync-processing'
-      });
-
-      // Store failure for debugging
-      await storeMessageFailure(msg, error as Error);
-
-      // Retry with exponential backoff (max 3 retries)
-      const retryCount = msg.properties.headers?.['x-retry-count'] || 0;
-      if (retryCount < 3) {
-        setTimeout(() => channel.nack(msg, false, true), Math.pow(2, retryCount) * 1000);
-      } else {
-        channel.nack(msg, false, false); // Move to DLQ
-      }
-    }
-  });
-
-  queueLogger.info({ queueName: QUEUE_NAME }, 'Data source sync consumer started successfully');
-}
-
-async function handleSyncStatus(message: DataSourceSyncMessage): Promise<void> {
-  // Map tenant_id from RabbitMQ to organizationId for internal use
-  const { connection_id: connectionId, tenant_id, status, error } = message;
-  const organizationId = tenant_id;
-
-  const messageLogger = queueLogger.child({
-    connectionId,
-    organizationId,
-    status
-  });
-
-  messageLogger.info('Processing data source sync status update');
-
-  // Get user_id from the connection for org context
-  const client = await pool.connect();
-  let userId: string;
-
-  try {
-    const result = await client.query(
-      'SELECT created_by FROM data_source_connections WHERE id = $1 AND organization_id = $2',
-      [connectionId, organizationId]
-    );
-
-    if (result.rows.length === 0) {
-      throw new Error(`Connection ${connectionId} not found for organization ${organizationId}`);
-    }
-
-    userId = result.rows[0].created_by;
-  } finally {
-    client.release();
-  }
-
-  // Process with organization context
-  await withOrgContext(userId, organizationId, async (client) => {
-    // Update connection status
-    await client.query(`
-      UPDATE data_source_connections
-      SET
-        status = $1,
-        last_sync_at = $2,
-        last_sync_error = $3,
-        updated_at = NOW()
-      WHERE id = $4 AND organization_id = $5
-    `, [status, new Date(), error, connectionId, organizationId]);
-
-    messageLogger.info({ newStatus: status }, 'Connection status updated');
-
-    // Create audit log entry
-    await client.query(`
-      INSERT INTO audit_logs (organization_id, user_id, action, resource_type, resource_id, metadata)
-      VALUES ($1, $2, $3, $4, $5, $6)
-    `, [
-      organizationId,
-      userId,
-      `data_source_sync_${status}`,
-      'data_source_connection',
-      connectionId,
-      JSON.stringify({ error })
-    ]);
-
-    messageLogger.info('Audit log created');
-  });
-
-  // Send SSE notification to organization members
-  try {
-    const sseService = getSSEService();
-
-    // Notify all organization members about the sync status change
-    sseService.sendToOrganization(organizationId, {
-      type: 'data_source_sync_status',
-      data: {
-        connectionId,
-        status,
-        error,
-        lastSyncAt: new Date().toISOString()
+        channel.ack(message);
+        timer.end({ success: true });
+      } catch (error) {
+        timer.end({ success: false });
+        logError(queueLogger, error as Error, { operation: 'data-source-status-processing' });
+        channel.nack(message, false, false); // Don't requeue
       }
     });
 
-    messageLogger.info({ eventType: 'data_source_sync_status' }, 'SSE event sent to organization');
-  } catch (sseError) {
-    messageLogger.warn({
-      error: sseError instanceof Error ? sseError.message : String(sseError)
-    }, 'Failed to send SSE event');
-    // Don't throw - SSE failure shouldn't prevent message processing
+    queueLogger.info({ queueName: this.queueName }, 'Data Source Status consumer started');
   }
 
-  messageLogger.info('Data source sync status processing completed');
-}
+  private async processSyncStatus(payload: SyncStatusMessage) {
+    // Handle sync_started, sync_completed, sync_failed
+    // Update database, send SSE events
+  }
 
-async function storeMessageFailure(message: any, error: Error): Promise<void> {
-  try {
-    const content = JSON.parse(message.content.toString());
-    const client = await pool.connect();
-
-    try {
-      await client.query(`
-        INSERT INTO message_processing_failures (
-          tenant_id, message_id, queue_name, message_payload,
-          error_message, error_type, processing_status, original_received_at
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-      `, [
-        content.tenant_id || null,
-        content.connection_id || `failed_${Date.now()}`,
-        'data_source.sync_status',
-        JSON.stringify(content),
-        error.message,
-        error.name || 'UnknownError',
-        'failed',
-        new Date()
-      ]);
-
-      queueLogger.info({
-        connectionId: content.connection_id,
-        errorType: error.name
-      }, 'Data source sync failure stored in database');
-    } finally {
-      client.release();
-    }
-  } catch (storeError) {
-    queueLogger.error({
-      error: storeError instanceof Error ? storeError.message : String(storeError)
-    }, 'Failed to store data source sync failure');
+  private async processVerificationStatus(payload: VerificationStatusMessage) {
+    // Handle success, failed
+    // Update database with options/error, send SSE events
   }
 }
+```
+
+**Processing Logic**:
+
+1. **For Sync Messages** (`type: 'sync'`):
+   - `sync_started` → Set `status='syncing'`
+   - `sync_completed` → Set `status='idle'`, `last_sync_status='completed'`, `last_sync_at=NOW()`, clear `last_sync_error`
+   - `sync_failed` → Set `status='idle'`, `last_sync_status='failed'`, `last_sync_error=message`, `last_sync_at=NOW()`
+
+2. **For Verification Messages** (`type: 'verification'`):
+   - `success` → Set `status='idle'`, `latest_options={...}`, clear `last_verification_error`, `last_verification_at=NOW()`
+   - `failed` → Set `status='idle'`, `last_verification_error=message`, `last_verification_at=NOW()`
+
+**SSE Events**:
+
+Both sync and verification send the same SSE event type for consistency:
+
+```typescript
+sseService.sendToOrganization(tenant_id, {
+  type: 'data_source_update',
+  data: {
+    connectionId: string,
+    status: 'idle' | 'syncing' | 'verifying',
+    // Sync-specific fields (when type='sync')
+    lastSyncStatus?: 'completed' | 'failed',
+    lastSyncAt?: string,
+    lastSyncError?: string,
+    documentsProcessed?: number,
+    // Verification-specific fields (when type='verification')
+    lastVerificationAt?: string,
+    lastVerificationError?: string,
+    latestOptions?: Record<string, any>,
+    timestamp: string
+  }
+});
 ```
 
 **Starting the Consumer**:
 
-Add to `packages/api-server/src/index.ts`:
-
 ```typescript
-import { startDataSourceSyncConsumer } from './consumers/dataSourceSyncConsumer.js';
+// packages/api-server/src/services/rabbitmq.ts
+import { DataSourceStatusConsumer } from '../consumers/DataSourceStatusConsumer.js';
 
-// After RabbitMQ connection is established
-await rabbitmq.connect();
-await rabbitmq.startConsumer(); // Existing chat consumer
-await startDataSourceSyncConsumer(); // New data source consumer
+export class RabbitMQService {
+  private dataSourceStatusConsumer: DataSourceStatusConsumer;
+
+  constructor() {
+    this.dataSourceStatusConsumer = new DataSourceStatusConsumer();
+  }
+
+  async startConsumer() {
+    // Start chat responses consumer
+    await this.channel.consume(this.queueName, ...);
+
+    // Start unified data source status consumer
+    await this.dataSourceStatusConsumer.startConsumer(this.channel);
+  }
+}
 ```
 
 **Key Features**:
-- Reuses existing `RabbitMQService` connection
-- Separate queue and consumer logic
-- Uses `withOrgContext` for proper multi-tenant isolation
-- Sends SSE notifications to all organization members
-- Proper error handling with retry logic and dead letter queue
+- Single queue, single consumer for all data source events
+- Type discrimination via `type` field
+- Consistent SSE event format (`data_source_update`)
+- Proper error handling and structured logging
 - Audit logging for compliance
-- Performance monitoring with `PerformanceTimer`
 
 ### Error Handling
 

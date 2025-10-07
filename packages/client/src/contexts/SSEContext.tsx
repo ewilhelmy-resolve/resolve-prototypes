@@ -4,6 +4,8 @@ import { useSSE } from '../hooks/useSSE';
 import { useConversationStore } from '../stores/conversationStore';
 import type { SSEEvent } from '../services/EventSourceSSEClient';
 import type { Message } from '../stores/conversationStore';
+import { toast } from '../lib/toast';
+import { useNavigate } from 'react-router-dom';
 
 interface MessageUpdate {
   messageId: string;
@@ -38,6 +40,7 @@ export const SSEProvider: React.FC<SSEProviderProps> = ({
 }) => {
   const [messageUpdates, setMessageUpdates] = useState<MessageUpdate[]>([]);
   const [latestUpdate, setLatestUpdate] = useState<MessageUpdate | null>(null);
+  const navigate = useNavigate();
 
   const handleMessage = useCallback((event: SSEEvent) => {
     console.log('Received SSE event:', event);
@@ -76,8 +79,56 @@ export const SSEProvider: React.FC<SSEProviderProps> = ({
       if (currentConversationId) {
         addMessage(newMessage);
       }
+    } else if (event.type === 'data_source_update') {
+      // Handle data source connection updates (verification, sync status changes)
+      // Determine update type based on which fields are present
+      const updateType = event.data.lastVerificationAt ? 'verification' :
+                        event.data.lastSyncStatus ? 'sync' : 'unknown';
+
+      console.log('[SSE] Data source update received:', {
+        updateType,
+        connectionId: event.data.connectionId,
+        status: event.data.status,
+        lastSyncStatus: event.data.lastSyncStatus,
+        lastVerificationAt: event.data.lastVerificationAt,
+        latestOptions: event.data.latestOptions
+      });
+
+      // TODO: Invalidate TanStack Query cache when data source hooks are implemented
+      // This will trigger automatic refetch of:
+      // - useDataSources() - list of all data sources
+      // - useDataSource(event.data.connectionId) - single data source details
+      //
+      // Example implementation:
+      // import { useQueryClient } from '@tanstack/react-query';
+      // const queryClient = useQueryClient();
+      // queryClient.invalidateQueries({ queryKey: ['dataSources'] });
+      // queryClient.invalidateQueries({ queryKey: ['dataSource', event.data.connectionId] });
+
+      // Show toast notification for sync events only (not verification)
+      if (updateType === 'sync' && event.data.lastSyncStatus) {
+        const connectionType = event.data.connectionType || 'Data source';
+        const syncStatus = event.data.lastSyncStatus;
+
+        if (syncStatus === 'completed') {
+          toast.success(`${connectionType} sync complete`, {
+            action: {
+              label: 'View',
+              onClick: () => navigate('/settings/connections')
+            }
+          });
+        } else if (syncStatus === 'failed') {
+          toast.error(`${connectionType} sync failed`, {
+            description: event.data.lastSyncError || 'An error occurred',
+            action: {
+              label: 'View',
+              onClick: () => navigate('/settings/connections')
+            }
+          });
+        }
+      }
     }
-  }, []);
+  }, [navigate]);
 
   const handleError = useCallback((error: any) => {
     console.error('SSE connection error:', error);

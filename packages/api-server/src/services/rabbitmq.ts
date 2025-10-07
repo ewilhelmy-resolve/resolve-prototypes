@@ -1,18 +1,18 @@
 import amqp from 'amqplib';
 import { pool, withOrgContext } from '../config/database.js';
 import { logError, PerformanceTimer, queueLogger } from '../config/logger.js';
-import { DataSourceSyncConsumer } from '../consumers/DataSourceSyncConsumer.js';
+import { DataSourceStatusConsumer } from '../consumers/DataSourceStatusConsumer.js';
 import { getSSEService } from './sse.js';
 
 export class RabbitMQService {
   private connection: any = null;
   private channel: any = null;
   private readonly queueName: string;
-  private dataSourceSyncConsumer: DataSourceSyncConsumer;
+  private dataSourceStatusConsumer: DataSourceStatusConsumer;
 
   constructor() {
     this.queueName = process.env.QUEUE_NAME || 'chat.responses';
-    this.dataSourceSyncConsumer = new DataSourceSyncConsumer();
+    this.dataSourceStatusConsumer = new DataSourceStatusConsumer();
   }
 
   async connect(): Promise<void> {
@@ -83,8 +83,8 @@ export class RabbitMQService {
       }
     });
 
-    // Start data source sync consumer
-    await this.dataSourceSyncConsumer.startConsumer(this.channel);
+    // Start unified data source status consumer
+    await this.dataSourceStatusConsumer.startConsumer(this.channel);
   }
 
   private async processMessage(payload: any): Promise<void> {

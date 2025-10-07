@@ -17,9 +17,15 @@ export interface DataSourceConnection {
   settings: Record<string, any>;
 
   // Status
-  status: 'idle' | 'syncing';
+  status: 'idle' | 'verifying' | 'syncing';
   last_sync_status: 'completed' | 'failed' | null;
   last_sync_at: Date | null;
+  last_sync_error: string | null;
+
+  // Verification
+  last_verification_at: Date | null;
+  last_verification_error: string | null;
+  latest_options: Record<string, any> | null;
 
   // Control
   enabled: boolean;
@@ -89,6 +95,7 @@ export interface SyncTriggerWebhookPayload {
  * Consumed by Rita to update data source status
  */
 export interface SyncStatusMessage {
+  type: 'sync';  // Discriminator field
   connection_id: string;
   tenant_id: string;
   status: 'sync_started' | 'sync_completed' | 'sync_failed';
@@ -96,3 +103,22 @@ export interface SyncStatusMessage {
   documents_processed?: number;
   timestamp: string;
 }
+
+/**
+ * RabbitMQ message for verification status updates
+ * Consumed by Rita to update verification results
+ */
+export interface VerificationStatusMessage {
+  type: 'verification';  // Discriminator field
+  connection_id: string;
+  tenant_id: string;
+  status: 'success' | 'failed';
+  options: Record<string, any> | null;
+  error: string | null;
+}
+
+/**
+ * Union type for all data source status messages
+ * Discriminated by the 'type' field
+ */
+export type DataSourceStatusMessage = SyncStatusMessage | VerificationStatusMessage;

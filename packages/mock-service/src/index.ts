@@ -1395,10 +1395,45 @@ app.post('/webhook', async (req, res) => {
         user_email: verifyPayload.user_email
       }, 'Received data source verify webhook');
 
-      // Simulate verification success
+      // Publish verification success message to RabbitMQ after 1 second delay
+      setTimeout(async () => {
+        try {
+          if (!rabbitChannel) {
+            throw new Error('RabbitMQ channel not initialized');
+          }
+
+          // Simulate verification success with mock options
+          const verificationMessage = {
+            type: 'verification',
+            connection_id: verifyPayload.connection_id,
+            tenant_id: verifyPayload.tenant_id,
+            status: 'success',
+            options: {
+              spaces: 'ENG,PROD,DOCS',
+              sites: 'confluence.company.com'
+            },
+            error: null
+          };
+
+          await rabbitChannel.assertQueue('data_source_status', { durable: true });
+          rabbitChannel.sendToQueue(
+            'data_source_status',
+            Buffer.from(JSON.stringify(verificationMessage)),
+            { persistent: true }
+          );
+
+          contextLogger.info({
+            connectionId: verifyPayload.connection_id,
+            status: 'success'
+          }, 'Published verification success message to RabbitMQ');
+        } catch (error) {
+          contextLogger.error({ error }, 'Failed to publish verification message');
+        }
+      }, 1000);
+
       return res.status(200).json({
         success: true,
-        message: 'Credentials verified successfully'
+        message: 'Verification started'
       });
 
     } else if (payload.source === 'rita-chat' && payload.action === 'trigger_sync') {
@@ -1423,6 +1458,7 @@ app.post('/webhook', async (req, res) => {
           }
 
           const syncMessage = {
+            type: 'sync',
             connection_id: syncPayload.connection_id,
             tenant_id: syncPayload.tenant_id,
             status: 'sync_completed',
@@ -1430,9 +1466,9 @@ app.post('/webhook', async (req, res) => {
             timestamp: new Date().toISOString()
           };
 
-          await rabbitChannel.assertQueue('data_source_sync_status', { durable: true });
+          await rabbitChannel.assertQueue('data_source_status', { durable: true });
           rabbitChannel.sendToQueue(
-            'data_source_sync_status',
+            'data_source_status',
             Buffer.from(JSON.stringify(syncMessage)),
             { persistent: true }
           );

@@ -1,23 +1,25 @@
 import express from 'express';
 import { z } from 'zod';
+import { authenticateUser } from '../middleware/auth.js';
 import { DataSourceService } from '../services/DataSourceService.js';
 import { DataSourceWebhookService } from '../services/DataSourceWebhookService.js';
-import { authenticateUser } from '../middleware/auth.js';
 import type { AuthenticatedRequest } from '../types/express.js';
 
 const router = express.Router();
 const dataSourceService = new DataSourceService();
 const webhookService = new DataSourceWebhookService();
 
-// Validation schema for verify endpoint
+// Validation schema for verify endpoint (credentials optional for auto-verify)
 const verifyCredentialsSchema = z.object({
-  credentials: z.record(z.string(), z.any()),
+  credentials: z.record(z.string(), z.any()).optional(),
   settings: z.record(z.string(), z.any()).optional()
 });
 
 /**
  * POST /api/v1/data-sources/:id/verify
- * Verify credentials for a data source by sending to external service
+ * Verify credentials for a data source
+ * - With credentials: Manual verification (first-time setup)
+ * - Without credentials: Auto-verification with 10-minute throttle
  */
 router.post('/:id/verify', authenticateUser, async (req, res) => {
   const authReq = req as AuthenticatedRequest;
@@ -37,42 +39,48 @@ router.post('/:id/verify', authenticateUser, async (req, res) => {
       return res.status(404).json({ error: 'Data source not found' });
     }
 
-    // Send verify webhook
-    const webhookResponse = await webhookService.sendVerifyEvent({
+    // Auto-verification mode (no credentials provided)
+    if (!validated.credentials) {
+      // Check throttle (10-minute minimum)
+      const shouldVerify = await dataSourceService.shouldTriggerVerification(
+        id,
+        authReq.user.activeOrganizationId
+      );
+
+      if (!shouldVerify) {
+        return res.json({
+          status: 'skipped',
+          message: 'Verification throttled (10-minute minimum)',
+          last_verification_at: dataSource.last_verification_at
+        });
+      }
+    }
+
+    // Update status to 'verifying' before sending webhook
+    await dataSourceService.updateDataSourceStatus(
+      id,
+      authReq.user.activeOrganizationId,
+      'verifying' as any
+    );
+
+    // Send verify webhook (async)
+    webhookService.sendVerifyEvent({
       organizationId: authReq.user.activeOrganizationId,
       userId: authReq.user.id,
       userEmail: authReq.user.email,
       connectionId: dataSource.id,
       connectionType: dataSource.type,
-      credentials: validated.credentials,
+      credentials: validated.credentials || {},
       settings: validated.settings || dataSource.settings
+    }).catch(error => {
+      console.error('[DataSourceWebhook] Verify webhook failed:', error);
+      // Error handling happens in consumer when status message arrives
     });
 
-    if (!webhookResponse.success) {
-      return res.status(500).json({
-        success: false,
-        error: 'Verification failed',
-        details: webhookResponse.error
-      });
-    }
-
-    // Update data source if settings were provided
-    if (validated.settings) {
-      await dataSourceService.updateDataSource(
-        id,
-        authReq.user.activeOrganizationId,
-        authReq.user.id,
-        {
-          settings: validated.settings,
-          enabled: true
-        }
-      );
-    }
-
+    // Return immediately - result will come via RabbitMQ/SSE
     res.json({
-      success: true,
-      message: 'Credentials verified successfully',
-      data: webhookResponse.data
+      status: 'verifying',
+      message: 'Verification in progress'
     });
   } catch (error) {
     if (error instanceof z.ZodError) {

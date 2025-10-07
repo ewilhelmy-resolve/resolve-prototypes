@@ -86,7 +86,7 @@ Implementing data source connections feature that allows organizations to config
 ---
 
 ### 5. Webhook Handlers
-**Status**: ✅ Complete
+**Status**: 🔄 Needs Update (Verification flow changed)
 **Files**:
 - `packages/api-server/src/services/DataSourceWebhookService.ts`
 - `packages/api-server/src/routes/dataSourceWebhooks.ts`
@@ -95,28 +95,35 @@ Implementing data source connections feature that allows organizations to config
   - `sendVerifyEvent()` - Send credentials to external service for verification
   - `sendSyncTriggerEvent()` - Trigger sync job
 - [x] Create webhook routes:
-  - `POST /api/v1/data-sources/:id/verify` - Verify credentials
+  - `POST /api/v1/data-sources/:id/verify` - ⚠️ **NEEDS UPDATE**: Now returns immediately with `status='verifying'` instead of waiting for response
   - `POST /api/v1/data-sources/:id/sync` - Trigger sync
 - [x] Add retry logic (3 attempts with exponential backoff)
 - [x] Add status validation (prevent sync when already syncing)
 - [x] Mount webhook routes in main data sources router
 
+**Required Changes**:
+- Update `/verify` endpoint to set `status='verifying'` and return immediately
+- Frontend receives verification result via SSE (not HTTP response)
+
 **Dependencies**: Step 3 (service), existing `WebhookService.ts`
 
 ---
 
-### 6. RabbitMQ Consumer for Sync Status
+### 6. Unified RabbitMQ Consumer for Data Source Status
 **Status**: ✅ Complete
-**File**: `packages/api-server/src/consumers/DataSourceSyncConsumer.ts`
+**File**: `packages/api-server/src/consumers/DataSourceStatusConsumer.ts`
 
-- [x] Create consumer for `data_source_sync_status` queue
-- [x] Handle message types:
+- [x] Create unified consumer for `data_source_status` queue (single queue for all events)
+- [x] Handle sync messages (`type: 'sync'`):
   - `sync_started` → Update `status='syncing'`
-  - `sync_completed` → Update `status='idle'`, `last_sync_status='completed'`, `last_sync_at=NOW()`
-  - `sync_failed` → Update `status='idle'`, `last_sync_status='failed'`
-- [x] Add error handling and logging
-- [x] Send SSE events to organization on status changes
-- [x] ~~Add audit logging to `data_source_sync_history`~~ (Table not created)
+  - `sync_completed` → Update `status='idle'`, `last_sync_status='completed'`, `last_sync_at=NOW()`, clear `last_sync_error`
+  - `sync_failed` → Update `status='idle'`, `last_sync_status='failed'`, `last_sync_error=message`
+- [x] Handle verification messages (`type: 'verification'`):
+  - `status='success'` → Update `status='idle'`, `latest_options={...}`, clear `last_verification_error`
+  - `status='failed'` → Update `status='idle'`, `last_verification_error=error`
+- [x] Discriminate message types via `type` field
+- [x] Send unified SSE events (`data_source_update`) to organization
+- [x] Add error handling and structured logging
 - [x] Register consumer in `RabbitMQService.startConsumer()`
 
 **Dependencies**: Step 3 (service)
@@ -273,6 +280,95 @@ Implementing data source connections feature that allows organizations to config
 
 ---
 
+## Summary of Required Code Changes
+
+### Database Changes
+1. **Migration Update** (if not already deployed):
+   - Add `latest_options JSONB DEFAULT NULL` column to `data_source_connections`
+   - Add `last_verification_at TIMESTAMP WITH TIME ZONE` column
+   - Add `last_verification_error TEXT` column
+   - Update `status` column to support `'verifying'` state: `'idle' | 'verifying' | 'syncing'`
+   - Update `last_sync_error` comment to note it's shared between verification and sync failures
+
+**Field Cleanup Rules:**
+- `last_verification_error` - Cleared when verification succeeds
+- `last_sync_error` - Cleared when sync succeeds
+- `latest_options` - Updated on successful verification, never cleared
+- `last_verification_at` - Updated on every verification attempt, never cleared
+- All other timestamp fields - Never cleared, only updated
+
+### TypeScript Type Updates
+2. **`packages/api-server/src/types/dataSource.ts`**:
+   - Update `DataSourceConnection` interface:
+     - Change `status: 'idle' | 'syncing'` → `status: 'idle' | 'verifying' | 'syncing'`
+     - Add `latest_options: Record<string, string> | null` field
+   - Add new interface `VerificationStatusMessage`:
+     ```typescript
+     interface VerificationStatusMessage {
+       connection_id: string;
+       tenant_id: string;
+       status: 'success' | 'failed';
+       options: Record<string, string> | null;
+       error: string | null;
+     }
+     ```
+
+### Service Updates
+3. **`packages/api-server/src/services/DataSourceService.ts`**:
+   - Add method to handle verification status updates:
+     ```typescript
+     async updateVerificationStatus(
+       connectionId: string,
+       organizationId: string,
+       status: 'success' | 'failed',
+       options?: Record<string, string>,
+       error?: string
+     ): Promise<DataSourceConnection>
+     ```
+
+### Webhook Handler Updates
+4. **`packages/api-server/src/routes/dataSourceWebhooks.ts`**:
+   - Update `POST /api/v1/data-sources/:id/verify` endpoint:
+     - Set connection `status='verifying'` before sending webhook
+     - Return immediately with `{ status: 'verifying', message: 'Verification in progress' }`
+     - Frontend will receive result via SSE
+
+### Unified Consumer Implementation (Refactored)
+5. **Rename and merge consumers** → `packages/api-server/src/consumers/DataSourceStatusConsumer.ts`:
+   - Unified consumer for single queue: `data_source_status`
+   - Handles both sync and verification messages via `type` discriminator
+   - `processSyncStatus()` method for `type: 'sync'` messages
+   - `processVerificationStatus()` method for `type: 'verification'` messages
+   - Single SSE event type: `data_source_update` for consistency
+
+6. **Update `packages/api-server/src/services/rabbitmq.ts`**:
+   - Replace separate consumers with single `DataSourceStatusConsumer`:
+     ```typescript
+     import { DataSourceStatusConsumer } from '../consumers/DataSourceStatusConsumer.js';
+
+     constructor() {
+       this.dataSourceStatusConsumer = new DataSourceStatusConsumer();
+     }
+
+     async startConsumer() {
+       await this.dataSourceStatusConsumer.startConsumer(this.channel);
+     }
+     ```
+
+7. **Update TypeScript types** → `packages/api-server/src/types/dataSource.ts`:
+   - Add `type` discriminator to `SyncStatusMessage`: `type: 'sync'`
+   - Add `type` discriminator to `VerificationStatusMessage`: `type: 'verification'`
+   - Create union type: `DataSourceStatusMessage = SyncStatusMessage | VerificationStatusMessage`
+
+### Frontend Updates (Future)
+8. **SSE Event Handling**:
+   - Subscribe to unified `data_source_update` SSE events
+   - Handle both sync and verification updates in single listener
+   - Show loading state while `status='verifying'` or `status='syncing'`
+   - Display available options from `latestOptions` when verification succeeds
+   - Show sync progress when `documentsProcessed` is present
+   - Show error messages from either `lastSyncError` or `lastVerificationError`
+
 ## Notes & Decisions
 
 ### Key Architectural Decisions
@@ -281,6 +377,8 @@ Implementing data source connections feature that allows organizations to config
 3. **Lazy seeding** - Default data sources created on-demand via idempotent endpoint
 4. **Status architecture** - Split into `status` (current), `last_sync_status` (historical), `enabled` (control)
 5. **Webhook-based flow** - All external interactions via webhooks + RabbitMQ
+6. **Async verification** - Verification now follows same RabbitMQ pattern as sync operations
+7. **Unified queue architecture** - Single `data_source_status` queue with type discriminator for both sync and verification events
 
 ### Open Questions
 - None currently

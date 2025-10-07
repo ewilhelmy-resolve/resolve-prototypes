@@ -1,10 +1,10 @@
 import { pool } from '../config/database.js';
+import { DEFAULT_DATA_SOURCES, isValidDataSourceType } from '../constants/dataSources.js';
 import type {
-  DataSourceConnection,
   CreateDataSourceRequest,
+  DataSourceConnection,
   UpdateDataSourceRequest
 } from '../types/dataSource.js';
-import { DEFAULT_DATA_SOURCES, isValidDataSourceType } from '../constants/dataSources.js';
 
 export class DataSourceService {
   /**
@@ -201,6 +201,79 @@ export class DataSourceService {
 
     if (updateLastSyncAt) {
       updates.push(`last_sync_at = NOW()`);
+    }
+
+    updates.push(`updated_at = NOW()`);
+
+    values.push(connectionId, organizationId);
+
+    const result = await pool.query<DataSourceConnection>(
+      `UPDATE data_source_connections
+       SET ${updates.join(', ')}
+       WHERE id = $${paramIndex++} AND organization_id = $${paramIndex++}
+       RETURNING *`,
+      values
+    );
+
+    return result.rows[0] || null;
+  }
+
+  /**
+   * Check if verification should be triggered (throttle: 10 minutes)
+   */
+  async shouldTriggerVerification(
+    connectionId: string,
+    organizationId: string
+  ): Promise<boolean> {
+    const result = await pool.query<{ last_verification_at: Date | null }>(
+      `SELECT last_verification_at
+       FROM data_source_connections
+       WHERE id = $1 AND organization_id = $2`,
+      [connectionId, organizationId]
+    );
+
+    if (!result.rows[0]) {
+      return false; // Connection not found
+    }
+
+    const lastVerifiedAt = result.rows[0].last_verification_at;
+
+    // If never verified, allow verification
+    if (!lastVerifiedAt) {
+      return true;
+    }
+
+    // Check if 10 minutes have passed
+    const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000);
+    return new Date(lastVerifiedAt) < tenMinutesAgo;
+  }
+
+  /**
+   * Update verification status (used by RabbitMQ consumer)
+   */
+  async updateVerificationStatus(
+    connectionId: string,
+    organizationId: string,
+    status: 'success' | 'failed',
+    options?: Record<string, any>,
+    error?: string
+  ): Promise<DataSourceConnection | null> {
+    const updates = ['status = $1', 'last_verification_at = NOW()'];
+    const values: any[] = ['idle']; // Always return to idle after verification
+    let paramIndex = 2;
+
+    if (status === 'success') {
+      // On success: clear error, store options
+      updates.push(`last_verification_error = NULL`);
+
+      if (options) {
+        updates.push(`latest_options = $${paramIndex++}`);
+        values.push(JSON.stringify(options));
+      }
+    } else {
+      // On failure: store error
+      updates.push(`last_verification_error = $${paramIndex++}`);
+      values.push(error || 'Verification failed');
     }
 
     updates.push(`updated_at = NOW()`);
