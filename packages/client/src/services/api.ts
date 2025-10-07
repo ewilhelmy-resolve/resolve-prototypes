@@ -87,8 +87,8 @@ export const conversationApi = {
       body: data,
     }),
 
-  getConversationMessages: (conversationId: string) =>
-    apiRequest<{ messages: any[] }>(`/api/conversations/${conversationId}/messages`),
+  getConversationMessages: (conversationId: string, params?: { limit?: number; before?: string }) =>
+    apiRequest<{ messages: any[]; hasMore: boolean; nextCursor: string | null }>(`/api/conversations/${conversationId}/messages${params ? `?${new URLSearchParams(params as any).toString()}` : ''}`),
 
   sendMessage: (conversationId: string, data: { content: string }) =>
     apiRequest<{ message: any }>(`/api/conversations/${conversationId}/messages`, {
