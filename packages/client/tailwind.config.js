@@ -12,10 +12,12 @@ export default {
     'border-l-2',
     'border-t-2',
     'border-b-2',
+    'border-2',
     'border-gray-200',
     'bg-gray-200',
     'h-[2px]',
     'w-[2px]',
+    'rounded-lg',
   ],
   prefix: "",
   theme: {

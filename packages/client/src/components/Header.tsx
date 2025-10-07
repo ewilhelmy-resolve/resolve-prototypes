@@ -11,6 +11,7 @@ import {
 	BreadcrumbPage,
 	BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
+import { Separator } from "@/components/ui/separator";
 
 interface HeaderBreadcrumbItem {
 	label: string;
@@ -89,7 +90,7 @@ export default function Header({
 				</div>
 			</div>
 
-			<div className="w-full border-t-2 border-gray-200" />
+			<Separator className="bg-gray-200 h-[2px]" />
 		</div>
 	);
 }
