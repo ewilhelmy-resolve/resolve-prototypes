@@ -1,10 +1,12 @@
-import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { STATUS } from "@/constants/connectionSources";
 import { useConnectionSource } from "@/contexts/ConnectionSourceContext";
-import { useVerifyDataSource, useUpdateDataSource } from "@/hooks/useDataSources";
+import {
+	useUpdateDataSource,
+	useVerifyDataSource,
+} from "@/hooks/useDataSources";
 import { toast } from "@/lib/toast";
 import ServiceNowConfiguration from "../connection-details/ServiceNowConfiguration";
 import ConnectionsForm from "../form-elements/ConnectionsForm";
@@ -33,9 +35,9 @@ export function ServiceNowForm({ onCancel }: ServiceNowFormProps = {}) {
 		getValues,
 	} = useForm<ServiceNowFormData>({
 		defaultValues: {
-			instanceUrl: source.backendData?.settings?.instanceUrl || '',
-			username: source.backendData?.settings?.username || '',
-			password: '',
+			instanceUrl: source.backendData?.settings?.instanceUrl || "",
+			username: source.backendData?.settings?.username || "",
+			password: "",
 		},
 	});
 
@@ -78,16 +80,20 @@ export function ServiceNowForm({ onCancel }: ServiceNowFormProps = {}) {
 			});
 
 			toast.success("Connection Configured", {
-				description: "Your ServiceNow connection has been configured successfully",
+				description:
+					"Your ServiceNow connection has been configured successfully",
 			});
 		} catch (error) {
 			toast.error("Connection Failed", {
-				description: error instanceof Error ? error.message : "Failed to configure connection",
+				description:
+					error instanceof Error
+						? error.message
+						: "Failed to configure connection",
 			});
 		}
 	};
 
-	const onSubmit = async (data: ServiceNowFormData) => {
+	const onSubmit = async (/*data: ServiceNowFormData*/) => {
 		await handleConnect();
 	};
 
@@ -135,11 +141,7 @@ export function ServiceNowForm({ onCancel }: ServiceNowFormProps = {}) {
 				{/* Connect Button with optional Cancel */}
 				<div className="flex justify-end gap-2">
 					{onCancel && (
-						<Button
-							type="button"
-							variant="outline"
-							onClick={onCancel}
-						>
+						<Button type="button" variant="outline" onClick={onCancel}>
 							Cancel
 						</Button>
 					)}
@@ -148,7 +150,9 @@ export function ServiceNowForm({ onCancel }: ServiceNowFormProps = {}) {
 						onClick={handleConnect}
 						disabled={verifyMutation.isPending || updateMutation.isPending}
 					>
-						{verifyMutation.isPending || updateMutation.isPending ? "Connecting..." : "Connect"}
+						{verifyMutation.isPending || updateMutation.isPending
+							? "Connecting..."
+							: "Connect"}
 					</Button>
 				</div>
 			</FormSection>

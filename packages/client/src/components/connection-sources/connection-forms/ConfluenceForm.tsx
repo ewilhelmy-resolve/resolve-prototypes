@@ -128,7 +128,7 @@ export function ConfluenceForm({ onCancel }: ConfluenceFormProps = {}) {
 		}
 	};
 
-	const onSubmit = async (data: ConfluenceFormData) => {
+	const onSubmit = async () => {
 		await handleConnect();
 	};
 

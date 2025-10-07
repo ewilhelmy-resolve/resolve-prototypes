@@ -1,10 +1,12 @@
-import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { STATUS } from "@/constants/connectionSources";
 import { useConnectionSource } from "@/contexts/ConnectionSourceContext";
-import { useVerifyDataSource, useUpdateDataSource } from "@/hooks/useDataSources";
+import {
+	useUpdateDataSource,
+	useVerifyDataSource,
+} from "@/hooks/useDataSources";
 import { toast } from "@/lib/toast";
 import SharePointConfiguration from "../connection-details/SharePointConfiguration";
 import ConnectionsForm from "../form-elements/ConnectionsForm";
@@ -34,17 +36,22 @@ export function SharePointForm({ onCancel }: SharePointFormProps = {}) {
 		getValues,
 	} = useForm<SharePointFormData>({
 		defaultValues: {
-			tenantId: source.backendData?.settings?.tenantId || '',
-			clientId: source.backendData?.settings?.clientId || '',
-			clientSecret: '',
-			siteUrl: source.backendData?.settings?.siteUrl || '',
+			tenantId: source.backendData?.settings?.tenantId || "",
+			clientId: source.backendData?.settings?.clientId || "",
+			clientSecret: "",
+			siteUrl: source.backendData?.settings?.siteUrl || "",
 		},
 	});
 
 	const handleConnect = async () => {
 		const formData = getValues();
 
-		if (!formData.tenantId || !formData.clientId || !formData.clientSecret || !formData.siteUrl) {
+		if (
+			!formData.tenantId ||
+			!formData.clientId ||
+			!formData.clientSecret ||
+			!formData.siteUrl
+		) {
 			toast.error("Validation Error", {
 				description: "Please fill in all authentication fields",
 			});
@@ -82,16 +89,20 @@ export function SharePointForm({ onCancel }: SharePointFormProps = {}) {
 			});
 
 			toast.success("Connection Configured", {
-				description: "Your SharePoint connection has been configured successfully",
+				description:
+					"Your SharePoint connection has been configured successfully",
 			});
 		} catch (error) {
 			toast.error("Connection Failed", {
-				description: error instanceof Error ? error.message : "Failed to configure connection",
+				description:
+					error instanceof Error
+						? error.message
+						: "Failed to configure connection",
 			});
 		}
 	};
 
-	const onSubmit = async (data: SharePointFormData) => {
+	const onSubmit = async (/*data: SharePointFormData*/) => {
 		await handleConnect();
 	};
 
@@ -148,11 +159,7 @@ export function SharePointForm({ onCancel }: SharePointFormProps = {}) {
 				{/* Connect Button with optional Cancel */}
 				<div className="flex justify-end gap-2">
 					{onCancel && (
-						<Button
-							type="button"
-							variant="outline"
-							onClick={onCancel}
-						>
+						<Button type="button" variant="outline" onClick={onCancel}>
 							Cancel
 						</Button>
 					)}
@@ -161,7 +168,9 @@ export function SharePointForm({ onCancel }: SharePointFormProps = {}) {
 						onClick={handleConnect}
 						disabled={verifyMutation.isPending || updateMutation.isPending}
 					>
-						{verifyMutation.isPending || updateMutation.isPending ? "Connecting..." : "Connect"}
+						{verifyMutation.isPending || updateMutation.isPending
+							? "Connecting..."
+							: "Connect"}
 					</Button>
 				</div>
 			</FormSection>
