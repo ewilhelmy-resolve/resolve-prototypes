@@ -779,22 +779,79 @@ class AuthManager {
 
 ---
 
-### 3. Silent SSO Configuration
+### 3. Silent SSO Configuration ✅ DOCUMENTED
 
-**Current Setup**: Uses `check-sso` with a dedicated HTML file:
+**Purpose**: Enables seamless re-authentication without redirecting users to Keycloak login page when they already have an active Keycloak session.
+
+**Implementation**:
+
+The authentication system uses Keycloak's "Silent Check SSO" feature via an iframe:
 
 ```typescript
-// packages/client/src/services/auth-manager.ts:31-33
-onLoad: 'check-sso',
-silentCheckSsoRedirectUri: `${window.location.origin}/silent-check-sso.html`,
+// packages/client/src/services/auth-manager.ts:30-34
+await this.keycloak.init({
+  onLoad: 'check-sso',
+  silentCheckSsoRedirectUri: `${window.location.origin}/silent-check-sso.html`,
+  pkceMethod: 'S256',
+});
 ```
 
-**Documentation Gap**: The `public/silent-check-sso.html` file is referenced but not documented in this flow document.
+**Silent SSO HTML File** (`packages/client/public/silent-check-sso.html`):
 
-**Improvement**:
-- Document the contents and purpose of `silent-check-sso.html`
-- Explain why it's needed vs. using the main app URL
-- Add troubleshooting guide for silent SSO timeout issues
+```html
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Keycloak Silent Check SSO</title>
+</head>
+<body>
+<script>
+    parent.postMessage(location.href, location.origin);
+</script>
+</body>
+</html>
+```
+
+**How It Works**:
+
+1. **App Startup**: When the app loads, Keycloak creates a hidden iframe
+2. **Iframe Loads**: The iframe navigates to Keycloak with `silent-check-sso.html` as the redirect URI
+3. **Keycloak Check**: Keycloak checks if the user has an active session (via cookies)
+4. **Redirect**: If authenticated, Keycloak redirects back to `silent-check-sso.html` with auth code
+5. **PostMessage**: The iframe posts the redirect URL (containing auth code) to the parent window
+6. **Token Exchange**: Parent window extracts the auth code and exchanges it for tokens
+7. **Silent Success**: User is logged in without seeing Keycloak login page
+
+**Why a Separate HTML File?**
+
+- **Cross-origin isolation**: Prevents CORS issues when Keycloak redirects back
+- **Minimal payload**: Fast loading in iframe (no app bundle)
+- **Single purpose**: Only handles postMessage, no app logic
+- **Security**: Isolated from main app state and logic
+
+**Benefits**:
+
+- ✅ Users stay logged in across browser sessions (if Keycloak session active)
+- ✅ No visible redirect to Keycloak login page on app load
+- ✅ Seamless experience for returning users
+- ✅ Works in background without user interaction
+
+**Troubleshooting**:
+
+| Issue | Cause | Solution |
+|-------|-------|----------|
+| Silent SSO timeout | Keycloak server unreachable | Check `KEYCLOAK_URL` environment variable |
+| Always shows login | No active Keycloak session | User needs to login once, then SSO works |
+| CORS errors | Wrong redirect URI configured | Verify `silentCheckSsoRedirectUri` matches Keycloak client settings |
+| Iframe blocked | Browser security settings | Check browser allows iframes from Keycloak domain |
+
+**Configuration**:
+
+Ensure Keycloak client has the correct redirect URI registered:
+```
+http://localhost:5173/silent-check-sso.html  (development)
+https://your-domain.com/silent-check-sso.html  (production)
+```
 
 ---
 
