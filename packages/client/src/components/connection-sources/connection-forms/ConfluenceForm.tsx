@@ -51,30 +51,36 @@ export function ConfluenceForm({ onCancel }: ConfluenceFormProps = {}) {
 		},
 	});
 
-	// Parse available spaces from latest_options
+	// Parse available spaces from latest_options (discovered during verification)
+	// and pre-select spaces from settings (already configured)
 	useEffect(() => {
+		// Available options come from latest_options.spaces (populated after verification)
 		if (source.backendData?.latest_options?.spaces) {
-			const spaces = source.backendData.latest_options.spaces
-				.split(",")
-				.map((s) => s.trim())
-				.filter(Boolean);
-			setAvailableSpaces(spaces);
+			const available =
+				typeof source.backendData.latest_options.spaces === "string"
+					? source.backendData.latest_options.spaces
+							.split(",")
+							.map((s: string) => s.trim())
+							.filter(Boolean)
+					: [];
+			setAvailableSpaces(available);
 		}
-	}, [source.backendData?.latest_options?.spaces]);
 
-	// Initialize selected spaces from settings
-	useEffect(() => {
+		// Pre-select spaces from settings.spaces (already configured spaces)
 		if (source.backendData?.settings?.spaces) {
-			const spaces =
+			const selected =
 				typeof source.backendData.settings.spaces === "string"
 					? source.backendData.settings.spaces
 							.split(",")
 							.map((s: string) => s.trim())
 							.filter(Boolean)
 					: [];
-			setSelectedSpaces(spaces);
+			setSelectedSpaces(selected);
 		}
-	}, [source.backendData?.settings?.spaces]);
+	}, [
+		source.backendData?.latest_options?.spaces,
+		source.backendData?.settings?.spaces,
+	]);
 
 	const handleConnect = async () => {
 		const formData = getValues();
@@ -171,7 +177,7 @@ export function ConfluenceForm({ onCancel }: ConfluenceFormProps = {}) {
 					/>
 				</FormField>
 
-				{/* Spaces Selection - Show if available from previous verification */}
+				{/* Spaces Selection - Show if available from latest_options (populated after verification) */}
 				{availableSpaces.length > 0 && (
 					<FormField label="Spaces (Optional)" errors={errors} name="spaces">
 						<MultiSelect

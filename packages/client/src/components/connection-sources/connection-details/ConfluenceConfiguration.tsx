@@ -1,7 +1,7 @@
 "use client";
 
 import { EllipsisVertical } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
 	DropdownMenu,
@@ -17,18 +17,36 @@ import FormSectionTitle from "../form-elements/FormSectionTitle";
 
 export default function ConfluenceConfiguration() {
 	const { source } = useConnectionSource();
-	const [selectedSpaces, setSelectedSpaces] = useState<string[]>(
-		source.settings?.spaces || [],
-	);
-	const CONFLUENCE_SPACES: MultiSelectOption[] = [
-		{ label: "Architecture Team", value: "architecture" },
-		{ label: "Knowledge Base", value: "knowledge" },
-		{ label: "Engineering", value: "engineering" },
-		{ label: "Product Team", value: "product" },
-		{ label: "Sales and Marketing", value: "sales" },
-		{ label: "Design", value: "design" },
-		{ label: "IT", value: "it" },
-	];
+	const [selectedSpaces, setSelectedSpaces] = useState<string[]>([]);
+
+	// Parse available spaces from latest_options (discovered during verification)
+	const availableSpaces: MultiSelectOption[] = useMemo(() => {
+		if (source.backendData?.latest_options?.spaces) {
+			const spaces =
+				typeof source.backendData.latest_options.spaces === "string"
+					? source.backendData.latest_options.spaces
+							.split(",")
+							.map((s: string) => s.trim())
+							.filter(Boolean)
+					: [];
+			return spaces.map((space) => ({ label: space, value: space }));
+		}
+		return [];
+	}, [source.backendData?.latest_options?.spaces]);
+
+	// Initialize selected spaces from settings.spaces (already configured)
+	useEffect(() => {
+		if (source.backendData?.settings?.spaces) {
+			const spaces =
+				typeof source.backendData.settings.spaces === "string"
+					? source.backendData.settings.spaces
+							.split(",")
+							.map((s: string) => s.trim())
+							.filter(Boolean)
+					: [];
+			setSelectedSpaces(spaces);
+		}
+	}, [source.backendData?.settings?.spaces]);
 
 	return (
 		<div className="w-full flex flex-col gap-2">
@@ -62,7 +80,7 @@ export default function ConfluenceConfiguration() {
 								<div className="md:flex-1 w-full">
 									<MultiSelect
 										animationConfig={{ optionHoverAnimation: "none" }}
-										options={CONFLUENCE_SPACES}
+										options={availableSpaces}
 										defaultValue={selectedSpaces}
 										onValueChange={(values) => {
 											setSelectedSpaces(values);

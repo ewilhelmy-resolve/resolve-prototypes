@@ -49,7 +49,7 @@ export function ConnectionStatusBadge({
 
 	// Default status rendering
 	switch (status) {
-		case STATUS.SYNCING:
+		case STATUS.VERIFYING:
 			return (
 				<Badge
 					variant="outline"
@@ -57,6 +57,16 @@ export function ConnectionStatusBadge({
 				>
 					<Loader2 className="h-3 w-3 text-blue-500 animate-spin" />
 					Verifying...
+				</Badge>
+			);
+		case STATUS.SYNCING:
+			return (
+				<Badge
+					variant="outline"
+					className="bg-background border-blue-500 gap-1.5 px-3 py-1"
+				>
+					<Loader2 className="h-3 w-3 text-blue-500 animate-spin" />
+					Syncing...
 				</Badge>
 			);
 		case STATUS.ERROR:
