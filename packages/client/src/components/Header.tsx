@@ -90,7 +90,7 @@ export default function Header({
 				</div>
 			</div>
 
-			<Separator />
+			<Separator className="bg-gray-200 h-[2px]" />
 		</div>
 	);
 }
