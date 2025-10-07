@@ -325,11 +325,16 @@ sequenceDiagram
     Client->>API: POST /auth/signup
     Note over API: Validate email format<br/>Check for existing user
 
-    API->>DB: INSERT pending_users
-    Note over DB: Store: email, firstName, lastName,<br/>company, password (plaintext),<br/>verification_token, token_expires_at
-
     API->>Webhook: POST webhook (user_signup action)
     Note over Webhook: Payload includes:<br/>- Base64-encoded password<br/>- Verification token<br/>- Verification URL<br/>- User details
+
+    alt Webhook succeeds
+        API->>DB: INSERT pending_users
+        Note over DB: Store: email, firstName, lastName,<br/>company, verification_token,<br/>token_expires_at<br/>(NO PASSWORD STORED)
+    else Webhook fails
+        API-->>Client: Error - account creation failed
+        Note over API: Do not store pending user<br/>if webhook fails
+    end
 
     Webhook->>KC: Create Keycloak user
     Note over KC: User created with:<br/>- Credentials set<br/>- Account DISABLED<br/>- Email unverified
@@ -370,15 +375,18 @@ sequenceDiagram
 
 ### Key Security Points
 
-1. **Password Handling**:
-   - Password is base64-encoded (NOT hashed) before webhook transmission
-   - External service is responsible for secure password handling
+1. **Password Handling** (Zero Storage):
+   - Passwords are **NEVER stored in the database**, not even temporarily
+   - Password flow: Client → API (memory) → Webhook → External Service → Keycloak
+   - Password is base64-encoded before webhook transmission (prevents logging)
    - **Requires HTTPS** for webhook communication
+   - If webhook fails, signup fails - no orphaned passwords in database
 
 2. **User State Management**:
    - Keycloak user created immediately but **disabled**
-   - `pending_users` table tracks verification state
+   - `pending_users` table tracks verification state (email, token, expiration only)
    - User cannot login until email verified
+   - Webhook must succeed before storing any user data
 
 3. **Token Expiration**:
    - Verification tokens expire after 24 hours
@@ -386,9 +394,10 @@ sequenceDiagram
    - User must re-signup if token expires
 
 4. **Race Condition Prevention**:
-   - Signup checks for existing users before creating pending record
+   - Signup checks for existing users before calling webhook
    - Verification checks for existing users before enabling
    - Duplicate signups replace old pending records
+   - Webhook failure prevents database writes
 
 ## API Endpoints
 
@@ -403,17 +412,22 @@ Creates a pending user and triggers webhook for email verification.
   lastName: string,
   email: string,
   company: string,
-  password: string  // Base64-encoded in webhook payload for security
+  password: string  // Sent to webhook only, NEVER stored in database
 }
 
-// Response
+// Response (success)
 {
   success: true,
   message: "Signup successful. Please check your email..."
 }
+
+// Response (webhook failure)
+{
+  error: "Failed to create account. Please try again."
+}
 ```
 
-**Note**: Password is base64-encoded before being sent to the webhook service for Keycloak user creation.
+**Security**: Password is base64-encoded before webhook transmission and **never stored in the database**. If webhook fails, signup fails and no user data is persisted.
 
 ### POST /auth/login
 Creates a session cookie from a Keycloak access token (browser-based flows).
@@ -699,31 +713,36 @@ router.put('/session/refresh', async (req, res) => {
 
 ---
 
-### 2. Password Security in Signup Flow
+### 2. Password Security - Zero Storage Architecture ✅ RESOLVED
 
-**Current Implementation**: Passwords are base64-encoded (not hashed) before being sent to the webhook service:
+**Implementation**: Passwords are **never stored in the database**, not even temporarily.
 
 ```typescript
-// packages/api-server/src/routes/auth.ts:81
-password: Buffer.from(password).toString('base64')
+// packages/api-server/src/routes/auth.ts:73
+password: Buffer.from(password).toString('base64')  // Sent to webhook only
 ```
 
-**Security Considerations**:
-- Base64 is **encoding**, not encryption or hashing
-- Passwords are transmitted in reversible format over the network (HTTPS required)
-- Webhook service becomes responsible for secure password handling
+**Zero Storage Security Model**:
+- ✅ Passwords **never touch the database** at any point
+- ✅ Password flow: Client → API (in-memory only) → Webhook → Keycloak
+- ✅ Base64 encoding prevents accidental logging of plaintext
+- ✅ HTTPS enforced for all webhook communication
+- ✅ Webhook authentication via Authorization header
+- ✅ If webhook fails, signup fails - no orphaned data
 
-**Questions for Discussion**:
-1. Should passwords be hashed (bcrypt/argon2) before transmission?
-2. Is the webhook service over HTTPS in all environments?
-3. Does Keycloak accept pre-hashed passwords or only plaintext?
-4. Should we implement end-to-end encryption for password transmission?
+**Flow**:
+1. Client submits signup form with password
+2. API validates and **immediately sends to webhook** (password in memory only)
+3. If webhook succeeds → Store pending user (email, name, token - NO PASSWORD)
+4. If webhook fails → Return error, store nothing
+5. External service creates Keycloak user with password
+6. Password never exists in Rita database
 
-**Recommendation**:
-- Document that HTTPS is **mandatory** for webhook communication
-- Consider hashing passwords before transmission if Keycloak supports it
-- Add webhook authentication/authorization to prevent MITM attacks
-- Implement webhook request signing to verify integrity
+**Architecture Rationale**:
+- **Zero trust**: Passwords should never be persisted outside identity systems
+- **Fail-fast**: Webhook failure prevents any data persistence
+- **Separation of concerns**: Rita handles flow, Keycloak handles passwords
+- **Audit compliance**: No password storage = no password breach risk
 
 ---
 

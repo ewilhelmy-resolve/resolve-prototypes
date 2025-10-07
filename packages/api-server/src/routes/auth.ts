@@ -59,17 +59,9 @@ router.post('/signup', async (req, res) => {
     const verificationToken = crypto.randomBytes(32).toString('hex');
     const tokenExpiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
 
-    // Create pending user
-    const pendingUserResult = await pool.query(
-      `INSERT INTO pending_users (email, first_name, last_name, company, password, verification_token, token_expires_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id`,
-      [email, firstName, lastName, company, password, verificationToken, tokenExpiresAt]
-    );
-
-    const pendingUserId = pendingUserResult.rows[0].id;
-
     // Trigger webhook to platform for Keycloak user creation and email sending
-    await webhookService.sendGenericEvent({
+    // Do this BEFORE storing in database to avoid storing data if webhook fails
+    const webhookResponse = await webhookService.sendGenericEvent({
       organizationId: 'pending', // Temporary org ID for pending users
       userEmail: email,
       source: 'rita-signup',
@@ -80,10 +72,26 @@ router.post('/signup', async (req, res) => {
         company,
         password: Buffer.from(password).toString('base64'),
         verification_token: verificationToken,
-        verification_url: `${process.env.CLIENT_URL || 'http://localhost:5173'}/verify-email?token=${verificationToken}`,
-        pending_user_id: pendingUserId
+        verification_url: `${process.env.CLIENT_URL || 'http://localhost:5173'}/verify-email?token=${verificationToken}`
       }
     });
+
+    // If webhook fails, don't store pending user
+    if (!webhookResponse.success) {
+      logger.error({ email, webhookError: webhookResponse.error }, 'Webhook failed during signup');
+      return res.status(500).json({
+        error: 'Failed to create account. Please try again.'
+      });
+    }
+
+    // Create pending user (WITHOUT password - it was sent to webhook only)
+    const pendingUserResult = await pool.query(
+      `INSERT INTO pending_users (email, first_name, last_name, company, verification_token, token_expires_at)
+       VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,
+      [email, firstName, lastName, company, verificationToken, tokenExpiresAt]
+    );
+
+    const pendingUserId = pendingUserResult.rows[0].id;
 
     logger.info({
       email,
