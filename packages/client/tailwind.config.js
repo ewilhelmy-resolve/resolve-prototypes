@@ -7,6 +7,16 @@ export default {
     './app/**/*.{ts,tsx}',
     './src/**/*.{ts,tsx}',
   ],
+  safelist: [
+    'border-r-2',
+    'border-l-2',
+    'border-t-2',
+    'border-b-2',
+    'border-gray-200',
+    'bg-gray-200',
+    'h-[2px]',
+    'w-[2px]',
+  ],
   prefix: "",
   theme: {
     container: {
@@ -17,6 +27,9 @@ export default {
       },
     },
     extend: {
+      borderWidth: {
+        '2': '2px',
+      },
       colors: {
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",

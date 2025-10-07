@@ -210,7 +210,7 @@ function RitaLayoutContent({ children, activePage = "chat" }: RitaLayoutProps) {
               </PopoverTrigger>
               <PopoverContent className="w-64 p-0" side="top" align="start" sideOffset={8}>
                 <div className="flex flex-col">
-                  <div className="px-3 py-3 border-b border-border">
+                  <div className="px-3 py-3 border-b-2 border-gray-200">
                     <p className="text-sm text-muted-foreground">{user?.email || ""}</p>
                     <div className="flex items-center justify-between mt-2">
                       <div className="flex items-center gap-2">
@@ -255,7 +255,7 @@ function RitaLayoutContent({ children, activePage = "chat" }: RitaLayoutProps) {
         </Sidebar>
 
         <div className="fixed inset-y-0 right-0 left-0 lg:left-64 flex flex-col overflow-hidden">
-          <header className="h-[67px] border-b border-border bg-background flex items-center flex-shrink-0 pr-6">
+          <header className="h-[67px] bg-background flex items-center flex-shrink-0 pr-6 border-b-2 border-gray-200">
             <div className="flex items-center gap-2 h-full pl-4">
               <SidebarTrigger className="lg:flex" />
               <Breadcrumb>
@@ -290,7 +290,7 @@ function RitaLayoutContent({ children, activePage = "chat" }: RitaLayoutProps) {
 
             {/* Right sidebar - Knowledge Articles panel (only on chat page) */}
             {activePage === "chat" && (
-              <aside className="hidden lg:flex w-80 border-l border-border bg-background p-6 flex-col gap-6 overflow-y-auto flex-shrink-0">
+              <aside className="hidden lg:flex w-80 bg-background p-6 flex-col gap-6 overflow-y-auto flex-shrink-0">
                 <div className="flex items-center justify-between">
                   <h2 className="text-lg font-semibold text-foreground">Knowledge Articles</h2>
                   <Button
@@ -377,7 +377,7 @@ function RitaLayoutContent({ children, activePage = "chat" }: RitaLayoutProps) {
                   )}
                 </div>
 
-                <div className="mt-auto pt-6 border-t border-border">
+                <div className="mt-auto pt-6 border-t-2 border-gray-200">
                   <div className="space-y-3">
                     <h3 className="text-base font-semibold text-foreground">Share Rita</h3>
                     <p className="text-sm text-muted-foreground">
