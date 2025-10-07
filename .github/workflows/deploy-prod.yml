@@ -15,38 +15,38 @@ env:
   REGISTRY: ghcr.io
   GITHUB_REPOSITORY_OWNER: resolve-io
   IMAGE_PREFIX: rita
-  DEPLOY_HOST: ${{ vars.STAGING_DEPLOY_HOST || 'ec2-54-147-199-139.compute-1.amazonaws.com' }}
-  DEPLOY_USER: ${{ vars.STAGING_DEPLOY_USER || 'ec2-user' }}
+  DEPLOY_HOST: ${{ vars.PROD_DEPLOY_HOST || 'ec2-44-218-120-97.compute-1.amazonaws.com' }}
+  DEPLOY_USER: ${{ vars.PROD_DEPLOY_USER || 'ec2-user' }}
 
 jobs:
   # Validate all required secrets are configured
   validate-secrets:
     runs-on: ubuntu-latest
     steps:
-      - name: Validate staging secrets
+      - name: Validate production secrets
         shell: bash
         run: |
-          echo "🔍 Validating required staging secrets..."
+          echo "🔍 Validating required production secrets..."
 
           failed=false
 
           # Frontend build secrets
-          if [ -z "${{ secrets.STAGING_VITE_KEYCLOAK_URL }}" ]; then
-            echo "❌ Missing: STAGING_VITE_KEYCLOAK_URL"
+          if [ -z "${{ secrets.PROD_VITE_KEYCLOAK_URL }}" ]; then
+            echo "❌ Missing: PROD_VITE_KEYCLOAK_URL"
             failed=true
           fi
-          if [ -z "${{ secrets.STAGING_VITE_KEYCLOAK_REALM }}" ]; then
-            echo "❌ Missing: STAGING_VITE_KEYCLOAK_REALM"
+          if [ -z "${{ secrets.PROD_VITE_KEYCLOAK_REALM }}" ]; then
+            echo "❌ Missing: PROD_VITE_KEYCLOAK_REALM"
             failed=true
           fi
-          if [ -z "${{ secrets.STAGING_VITE_KEYCLOAK_CLIENT_ID }}" ]; then
-            echo "❌ Missing: STAGING_VITE_KEYCLOAK_CLIENT_ID"
+          if [ -z "${{ secrets.PROD_VITE_KEYCLOAK_CLIENT_ID }}" ]; then
+            echo "❌ Missing: PROD_VITE_KEYCLOAK_CLIENT_ID"
             failed=true
           fi
 
           # Backend infrastructure secrets (only check if deployment is enabled)
-          # if [ -z "${{ secrets.STAGING_DATABASE_URL }}" ]; then
-          #   echo "❌ Missing: STAGING_DATABASE_URL"
+          # if [ -z "${{ secrets.PROD_DATABASE_URL }}" ]; then
+          #   echo "❌ Missing: PROD_DATABASE_URL"
           #   failed=true
           # fi
 
@@ -55,7 +55,7 @@ jobs:
             echo "📋 Please add missing secrets in GitHub repository settings:"
             echo "   Settings → Secrets and variables → Actions → Secrets"
             echo ""
-            echo "📖 See docs/STAGING_SECRETS_SETUP.md for detailed setup instructions"
+            echo "📖 See docs/PROD_SECRETS_SETUP.md for detailed setup instructions"
             exit 1
           fi
 
@@ -115,10 +115,10 @@ jobs:
           npm ci --legacy-peer-deps
           npm run build
         env:
-          # Staging environment variables - using prefixed secrets
-          VITE_KEYCLOAK_URL: ${{ secrets.STAGING_VITE_KEYCLOAK_URL }}
-          VITE_KEYCLOAK_REALM: ${{ secrets.STAGING_VITE_KEYCLOAK_REALM }}
-          VITE_KEYCLOAK_CLIENT_ID: ${{ secrets.STAGING_VITE_KEYCLOAK_CLIENT_ID }}
+          # Production environment variables - using prefixed secrets
+          VITE_KEYCLOAK_URL: ${{ secrets.PROD_VITE_KEYCLOAK_URL }}
+          VITE_KEYCLOAK_REALM: ${{ secrets.PROD_VITE_KEYCLOAK_REALM }}
+          VITE_KEYCLOAK_CLIENT_ID: ${{ secrets.PROD_VITE_KEYCLOAK_CLIENT_ID }}
           VITE_API_URL: ""  # Use relative URLs
 
       - name: Build and push API Server image
@@ -143,12 +143,12 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-   #  Deploy to staging environment
-  deploy-staging:
+   #  Deploy to production environment
+  deploy-production:
      runs-on: ubuntu-latest
      needs: build-and-push
      steps:
-       - name: Deploy to staging server
+       - name: Deploy to production server
          uses: appleboy/ssh-action@v1.0.0
          with:
            host: ${{ env.DEPLOY_HOST }}
@@ -162,19 +162,19 @@ jobs:
              FRONTEND_IMAGE="${{ needs.build-and-push.outputs.frontend-image }}"
              SHORT_SHA="${{ needs.build-and-push.outputs.short-sha }}"
 
-             echo "🚀 Starting staging deployment for commit $SHORT_SHA"
+             echo "🚀 Starting production deployment for commit $SHORT_SHA"
 
              # Login to registry
              echo "${{ secrets.GITHUB_TOKEN }}" | docker login ${{ env.REGISTRY }} -u ${{ github.actor }} --password-stdin
 
              # Create and navigate to deployment directory
-             sudo mkdir -p /opt/rita-staging
-             cd /opt/rita-staging
+             sudo mkdir -p /opt/rita-production
+             cd /opt/rita-production
 
              # Stop onboarding deployment if running (to free up port 80)
              echo "🛑 Stopping onboarding deployment..."
              cd /opt/onboarding && docker-compose down --remove-orphans || true
-             cd /opt/rita-staging
+             cd /opt/rita-production
 
              # Clean up old Rita images to free space
              echo "🧹 Cleaning up old Rita images..."
@@ -191,15 +191,15 @@ jobs:
              docker pull $FRONTEND_IMAGE
 
              # Tag images locally for docker-compose
-             docker tag $API_IMAGE rita-api-server:staging
-             docker tag $FRONTEND_IMAGE rita-frontend:staging
+             docker tag $API_IMAGE rita-api-server:production
+             docker tag $FRONTEND_IMAGE rita-frontend:production
 
              # Run database migrations first
              echo "🔄 Running database migrations..."
              if timeout 300 docker run --rm \
-               -e DATABASE_URL="${{ secrets.STAGING_DATABASE_URL }}" \
+               -e DATABASE_URL="${{ secrets.PROD_DATABASE_URL }}" \
                -e NODE_ENV=production \
-               rita-api-server:staging \
+               rita-api-server:production \
                node dist/database/migrate.js; then
                echo "✅ Migrations completed successfully"
              else
@@ -218,27 +218,27 @@ jobs:
              # Backup current compose file
              sudo cp docker-compose.yml docker-compose.yml.bak 2>/dev/null || true
 
-             # Create staging docker-compose.yml
-             echo "📝 Creating staging docker-compose.yml..."
+             # Create production docker-compose.yml
+             echo "📝 Creating production docker-compose.yml..."
              sudo tee docker-compose.yml > /dev/null << 'EOF'
              version: '3.8'
 
              services:
                api-server:
-                 image: rita-api-server:staging
+                 image: rita-api-server:production
                  environment:
                    NODE_ENV: production
                    PORT: 3000
-                   DATABASE_URL: ${{ secrets.STAGING_DATABASE_URL }}
-                   RABBITMQ_URL: ${{ secrets.STAGING_RABBITMQ_URL }}
-                   KEYCLOAK_URL: ${{ secrets.STAGING_KEYCLOAK_URL }}
-                   KEYCLOAK_REALM: ${{ secrets.STAGING_KEYCLOAK_REALM }}
-                   KEYCLOAK_ISSUER: ${{ secrets.STAGING_KEYCLOAK_ISSUER }}
-                   AUTOMATION_WEBHOOK_URL: ${{ secrets.STAGING_AUTOMATION_WEBHOOK_URL }}
-                   AUTOMATION_AUTH: ${{ secrets.STAGING_AUTOMATION_AUTH }}
-                   CLIENT_URL: ${{ secrets.STAGING_CLIENT_URL }}
-                   CONSUL_HTTP_ADDR: ${{ secrets.CONSUL_HTTP_ADDR }}
-                   CONSUL_HTTP_TOKEN: ${{ secrets.CONSUL_HTTP_TOKEN_PROD }}
+                   DATABASE_URL: ${{ secrets.PROD_DATABASE_URL }}
+                   RABBITMQ_URL: ${{ secrets.PROD_RABBITMQ_URL }}
+                   KEYCLOAK_URL: ${{ secrets.PROD_KEYCLOAK_URL }}
+                   KEYCLOAK_REALM: ${{ secrets.PROD_KEYCLOAK_REALM }}
+                   KEYCLOAK_ISSUER: ${{ secrets.PROD_KEYCLOAK_ISSUER }}
+                   AUTOMATION_WEBHOOK_URL: ${{ secrets.PROD_AUTOMATION_WEBHOOK_URL }}
+                   AUTOMATION_AUTH: ${{ secrets.PROD_AUTOMATION_AUTH }}
+                   CLIENT_URL: ${{ secrets.PROD_CLIENT_URL }}
+                   CONSUL_HTTP_ADDR: ${{ secrets.PROD_CONSUL_HTTP_ADDR }}
+                   CONSUL_HTTP_TOKEN: ${{ secrets.PROD_CONSUL_HTTP_TOKEN }}
                  healthcheck:
                    test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
                    interval: 30s
@@ -251,7 +251,7 @@ jobs:
                    - resolve-shared
 
                frontend:
-                 image: rita-frontend:staging
+                 image: rita-frontend:production
                  ports:
                    - "80:80"
                  depends_on:
@@ -303,7 +303,7 @@ jobs:
                echo "⚠️ API Server health check failed, but container is running"
              fi
 
-             echo "🎉 Staging deployment successful!"
+             echo "🎉 Production deployment successful!"
              echo "📊 Deployment info:"
              echo "  - Commit SHA: $SHORT_SHA"
              echo "  - API Image: $API_IMAGE"
@@ -311,8 +311,8 @@ jobs:
              echo "  - Deployed at: $(date)"
   
   # Trigger QA Wolf tests           
-  trigger-qawofl:
-    needs: deploy-staging
+  trigger-qawolf:
+    needs: deploy-production
     name: Notify QA Wolf
     runs-on: ubuntu-latest
     steps:
@@ -332,19 +332,19 @@ jobs:
   # Slack notification - runs on success OR failure
   # notify:
   #   runs-on: ubuntu-latest
-  #   needs: [build-and-push, deploy-staging]
+  #   needs: [build-and-push, deploy-production]
   #   if: always()
   #   steps:
   #     - name: Determine overall status
   #       id: status
   #       run: |
-  #         if [[ "${{ needs.build-and-push.result }}" == "success" && "${{ needs.deploy-staging.result }}" == "success" ]]; then
+  #         if [[ "${{ needs.build-and-push.result }}" == "success" && "${{ needs.deploy-production.result }}" == "success" ]]; then
   #           echo "overall_status=✅ Success" >> $GITHUB_OUTPUT
   #           echo "details=Deployment completed successfully" >> $GITHUB_OUTPUT
   #         elif [[ "${{ needs.build-and-push.result }}" == "failure" ]]; then
   #           echo "overall_status=❌ Build Failed" >> $GITHUB_OUTPUT
   #           echo "details=Failed to build or push Docker images" >> $GITHUB_OUTPUT
-  #         elif [[ "${{ needs.deploy-staging.result }}" == "failure" ]]; then
+  #         elif [[ "${{ needs.deploy-production.result }}" == "failure" ]]; then
   #           echo "overall_status=❌ Deploy Failed" >> $GITHUB_OUTPUT
   #           echo "details=Build succeeded but deployment failed (old version still running)" >> $GITHUB_OUTPUT
   #         else
@@ -360,14 +360,14 @@ jobs:
   #         username: 'GitHub Actions'
   #         icon_emoji: ':rocket:'
   #         text: |
-  #           *Rita Staging Deployment*
+  #           *Rita Production Deployment*
   #           *Status:* ${{ steps.status.outputs.overall_status }}
   #           *Details:* ${{ steps.status.outputs.details }}
   #           *Branch:* `${{ github.ref_name }}`
   #           *Commit:* `${{ needs.build-and-push.outputs.short-sha || github.sha }}`
   #           *Author:* ${{ github.actor }}
-  #           *URL:* ${{ secrets.STAGING_URL || 'https://staging.resolve.io' }}
+  #           *URL:* ${{ secrets.PROD_URL || 'https://prod.resolve.io' }}
   #           *Workflow:* <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View Logs>
   #       env:
-  #         SLACK_WEBHOOK_URL: ${{ secrets.STAGING_SLACK_WEBHOOK_URL }}
+  #         SLACK_WEBHOOK_URL: ${{ secrets.PROD_SLACK_WEBHOOK_URL }}
   #         if: env.SLACK_WEBHOOK_URL != ''

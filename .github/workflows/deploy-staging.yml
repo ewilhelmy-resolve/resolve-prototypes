@@ -238,8 +238,8 @@ jobs:
                    AUTOMATION_WEBHOOK_URL: ${{ secrets.STAGING_AUTOMATION_WEBHOOK_URL }}
                    AUTOMATION_AUTH: ${{ secrets.STAGING_AUTOMATION_AUTH }}
                    CLIENT_URL: ${{ secrets.STAGING_CLIENT_URL }}
-                   CONSUL_HTTP_ADDR: ${{ secrets.CONSUL_HTTP_ADDR }}
-                   CONSUL_HTTP_TOKEN: ${{ secrets.CONSUL_HTTP_TOKEN }}
+                   CONSUL_HTTP_ADDR: ${{ secrets.STAGING_CONSUL_HTTP_ADDR }}
+                   CONSUL_HTTP_TOKEN: ${{ secrets.STAGING_CONSUL_HTTP_TOKEN }}
                  healthcheck:
                    test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
                    interval: 30s
@@ -312,7 +312,7 @@ jobs:
              echo "  - Deployed at: $(date)"
   
   # Trigger QA Wolf tests           
-  trigger-qawofl:
+  trigger-qawolf:
     needs: deploy-staging
     name: Notify QA Wolf
     runs-on: ubuntu-latest
