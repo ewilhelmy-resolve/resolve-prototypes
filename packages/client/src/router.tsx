@@ -12,6 +12,7 @@ import SettingsV1Page from './pages/SettingsV1Page';
 import UsersSettingsPage from './pages/UsersSettingsPage';
 import ConnectionSourceDetailPage from './pages/ConnectionSourceDetailPage';
 import DevToolsPage from './pages/DevToolsPage';
+import DropdownTestPage from './pages/DropdownTestPage';
 import { ProtectedRoute } from './components/auth/ProtectedRoute';
 
 const router = createBrowserRouter([
@@ -136,6 +137,11 @@ const router = createBrowserRouter([
         <DevToolsPage />
       </ProtectedRoute>
     )
+  },
+  // Test pages (public)
+  {
+    path: '/test/dropdown',
+    element: <DropdownTestPage />
   },
   // Auth and utility pages
   {
