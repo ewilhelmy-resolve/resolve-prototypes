@@ -247,6 +247,16 @@ router.post('/:conversationId/messages', authenticateUser, async (req, res) => {
       }
     }
 
+    // Validate that transcript serializes to well-formed JSON
+    try {
+      const testJson = JSON.stringify({ transcript: truncatedTranscript });
+      JSON.parse(testJson); // This will throw if JSON is malformed
+    } catch (jsonError) {
+      console.error('❌ Transcript JSON validation failed:', jsonError);
+      console.error('Transcript data:', truncatedTranscript);
+      throw new Error('Failed to serialize transcript to valid JSON');
+    }
+
     // Send webhook to external service using WebhookService
     const webhookResponse = await webhookService.sendMessageEvent({
       organizationId: authReq.user.activeOrganizationId,

@@ -120,6 +120,20 @@ export class WebhookService {
   private async sendEvent(payload: WebhookPayload): Promise<WebhookResponse> {
     let lastError: WebhookError | null = null;
 
+    // Validate payload is JSON-serializable before sending
+    try {
+      const testJson = JSON.stringify(payload);
+      JSON.parse(testJson); // Verify it's valid JSON
+    } catch (validationError) {
+      console.error('[WebhookService] Payload validation failed:', validationError);
+      console.error('[WebhookService] Invalid payload:', payload);
+      return {
+        success: false,
+        status: 0,
+        error: `Invalid JSON payload: ${validationError instanceof Error ? validationError.message : 'Unknown error'}`
+      };
+    }
+
     for (let attempt = 1; attempt <= this.config.retryAttempts; attempt++) {
       try {
         console.log(`[WebhookService] Sending event (attempt ${attempt}/${this.config.retryAttempts}):`, {

@@ -167,6 +167,26 @@ describe('Transcript Content Escaping', () => {
       expect(parsed[2].content).toBe('Can you help with:\\n1. Task A\\n2. Task B');
     });
 
+    it('should validate JSON round-trip integrity', () => {
+      const transcript = [
+        createTranscriptEntry('user', 'Test\nwith\nmultiple\nlines'),
+        createTranscriptEntry('assistant', 'Response\twith\ttabs')
+      ];
+
+      // Serialize and parse
+      const json = JSON.stringify({ transcript });
+      const parsed = JSON.parse(json);
+
+      // Verify structure is intact
+      expect(parsed).toHaveProperty('transcript');
+      expect(parsed.transcript).toBeInstanceOf(Array);
+      expect(parsed.transcript).toHaveLength(2);
+
+      // Verify content has escaped characters
+      expect(parsed.transcript[0].content).toBe('Test\\nwith\\nmultiple\\nlines');
+      expect(parsed.transcript[1].content).toBe('Response\\twith\\ttabs');
+    });
+
     it('should create valid JSON for webhook payload structure', () => {
       const transcript = [
         createTranscriptEntry('user', 'Line 1\nLine 2'),
