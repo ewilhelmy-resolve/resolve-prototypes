@@ -77,7 +77,9 @@ sequenceDiagram
         alt Token expires in <5 min
             RG->>KC: Refresh token
             KC-->>RG: New JWT tokens
-            RG->>API: Create new session cookie
+            RG->>API: PUT /auth/session/refresh
+            API->>API: Update existing session
+            API-->>RG: Session updated
         end
     end
 
@@ -263,15 +265,20 @@ flowchart TD
     C -->|Yes| D[Call keycloak.updateToken]
     D --> E{Refresh successful?}
     E -->|Yes| F[Update AuthStore state]
-    F --> G[Create new backend session cookie]
-    G --> A
-    E -->|No| H[Emit auth:error]
-    H --> I[Stop refresh timer]
-    I --> J[Force logout user]
-    J --> K[Redirect to login]
+    F --> G[PUT /auth/session/refresh]
+    G --> H[Update existing session + extend expiration]
+    H --> A
+    E -->|No| I[Emit auth:error]
+    I --> J[Stop refresh timer]
+    J --> K[Force logout user]
+    K --> L[Redirect to login]
 ```
 
-**Important**: Token refresh replaces the session cookie by calling `POST /auth/login` again with the new access token. This creates a fresh `rita_session` cookie with updated expiration time, rather than updating an existing session in-place.
+**Efficient Refresh**: Token refresh now uses `PUT /auth/session/refresh` to update the existing session in-place, rather than creating a new session. This:
+- Maintains the same session ID throughout the user's session
+- Extends the session expiration time (24 hours from refresh)
+- Reduces database writes and session table growth
+- Prevents session ID changes during active sessions
 
 ## Error Handling Strategy
 
@@ -428,6 +435,26 @@ Creates a pending user and triggers webhook for email verification.
 ```
 
 **Security**: Password is base64-encoded before webhook transmission and **never stored in the database**. If webhook fails, signup fails and no user data is persisted.
+
+### PUT /auth/session/refresh
+Updates an existing session with a new Keycloak access token (efficient token refresh).
+```typescript
+// Request body
+{ accessToken: string }
+
+// Response (success)
+{
+  success: true,
+  session: { id, expiresAt }
+}
+
+// Response (failure)
+{
+  error: "Session update failed. Please login again."
+}
+```
+
+**Benefits**: More efficient than `POST /auth/login` during token refresh. Extends existing session expiration without creating new session records.
 
 ### POST /auth/login
 Creates a session cookie from a Keycloak access token (browser-based flows).
@@ -670,50 +697,7 @@ This architecture provides a robust, scalable, and maintainable authentication s
 
 ## Known Issues and Proposed Improvements
 
-### 1. Session Cookie Replacement on Token Refresh
-
-**Current Behavior**: When tokens are refreshed, the AuthManager calls `POST /auth/login` again, which creates a **new** session cookie. This means:
-- Each token refresh creates a new session in the backend
-- Old sessions may accumulate until cleanup runs
-- Session ID changes during the user's session lifetime
-
-**Location**: `packages/client/src/services/auth-manager.ts:117`
-
-**Potential Issues**:
-- Session table growth if cleanup isn't aggressive enough
-- Potential race conditions if multiple tabs refresh simultaneously
-- Unnecessary database writes on every token refresh (every 5 minutes)
-
-**Proposed Improvements**:
-
-**Option A**: Add `PUT /auth/session/refresh` endpoint
-```typescript
-// New endpoint in auth.ts
-router.put('/session/refresh', async (req, res) => {
-  const { accessToken } = req.body;
-  const sessionId = sessionService.parseSessionIdFromCookie(req.headers.cookie);
-
-  // Update existing session with new token instead of creating new one
-  await sessionService.updateSessionToken(sessionId, accessToken);
-
-  res.json({ success: true });
-});
-```
-
-**Option B**: Use session ID in token claims
-- Store session ID in a custom Keycloak token claim
-- On token refresh, reuse the same session ID
-- Only create new sessions on fresh logins
-
-**Option C**: Keep current approach but improve cleanup
-- Add more aggressive session cleanup (delete old sessions on refresh)
-- Implement session versioning to track which is the "current" session
-
-**Recommended**: Option A - cleanest separation of concerns and most efficient.
-
----
-
-### 2. Password Security - Zero Storage Architecture ✅ RESOLVED
+### 1. Password Security - Zero Storage Architecture ✅ RESOLVED
 
 **Implementation**: Passwords are **never stored in the database**, not even temporarily.
 
@@ -746,7 +730,7 @@ password: Buffer.from(password).toString('base64')  // Sent to webhook only
 
 ---
 
-### 3. Token Refresh Race Conditions
+### 2. Token Refresh Race Conditions
 
 **Potential Issue**: If a user has multiple browser tabs open, each instance of AuthManager runs its own refresh timer. This could lead to:
 - Multiple simultaneous token refresh requests
@@ -795,7 +779,7 @@ class AuthManager {
 
 ---
 
-### 4. Silent SSO Configuration
+### 3. Silent SSO Configuration
 
 **Current Setup**: Uses `check-sso` with a dedicated HTML file:
 
@@ -814,7 +798,7 @@ silentCheckSsoRedirectUri: `${window.location.origin}/silent-check-sso.html`,
 
 ---
 
-### 5. Error Retry Strategy
+### 4. Error Retry Strategy
 
 **Current Implementation**: The AuthStore includes retry logic with exponential backoff (up to 3 attempts).
 

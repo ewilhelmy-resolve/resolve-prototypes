@@ -124,6 +124,57 @@ export class SessionService {
     return session;
   }
 
+  async updateSessionToken(sessionId: string, keycloakAccessToken: string): Promise<Session | null> {
+    try {
+      // Verify the new token is valid
+      const { payload } = await jose.jwtVerify(keycloakAccessToken, JWKS, {
+        issuer: KEYCLOAK_ISSUER,
+      });
+
+      if (!payload.sub || !payload.email) {
+        throw new Error('Invalid Keycloak token payload. Missing sub or email.');
+      }
+
+      // Get existing session
+      const session = await this.sessionStore.getSession(sessionId);
+      if (!session) {
+        logger.warn({ sessionId }, 'Attempted to update non-existent session');
+        return null;
+      }
+
+      // Verify the token belongs to the same user
+      const user = await this.findOrCreateUser(payload);
+      if (user.id !== session.userId) {
+        logger.error({
+          sessionUserId: session.userId,
+          tokenUserId: user.id
+        }, 'Token user mismatch during session update');
+        return null;
+      }
+
+      // Extend session expiration (24 hours from now)
+      const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+
+      // Update session
+      const updatedSession = await this.sessionStore.updateSession(sessionId, {
+        expiresAt,
+        lastAccessedAt: new Date(),
+      });
+
+      if (updatedSession) {
+        logger.info(
+          { sessionId, userId: session.userId },
+          'Session token refreshed successfully'
+        );
+      }
+
+      return updatedSession;
+    } catch (error) {
+      logger.error({ error, sessionId }, 'Failed to update session token');
+      return null;
+    }
+  }
+
   async destroySession(sessionId: string): Promise<boolean> {
     const deleted = await this.sessionStore.deleteSession(sessionId);
     if (deleted) logger.info({ sessionId }, 'Session destroyed');

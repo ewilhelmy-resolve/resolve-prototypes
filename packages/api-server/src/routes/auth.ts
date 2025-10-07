@@ -168,6 +168,60 @@ router.post('/login', async (req, res) => {
 });
 
 /**
+ * Session refresh endpoint - Updates existing session with new token
+ * This is more efficient than creating a new session on every token refresh
+ * PUT /auth/session/refresh
+ * Body: { accessToken: string }
+ */
+router.put('/session/refresh', async (req, res) => {
+  try {
+    const { accessToken } = req.body;
+
+    if (!accessToken) {
+      return res.status(400).json({
+        error: 'Access token is required'
+      });
+    }
+
+    // Get session ID from cookie
+    const sessionId = sessionService.parseSessionIdFromCookie(req.headers.cookie);
+    if (!sessionId) {
+      return res.status(401).json({
+        error: 'No active session found'
+      });
+    }
+
+    // Update session with new token
+    const updatedSession = await sessionService.updateSessionToken(sessionId, accessToken);
+
+    if (!updatedSession) {
+      return res.status(401).json({
+        error: 'Session update failed. Please login again.'
+      });
+    }
+
+    logger.info({
+      userId: updatedSession.userId,
+      sessionId: updatedSession.sessionId,
+    }, 'Session token refreshed');
+
+    res.json({
+      success: true,
+      session: {
+        id: updatedSession.sessionId,
+        expiresAt: updatedSession.expiresAt,
+      }
+    });
+
+  } catch (error) {
+    logger.error({ error }, 'Session refresh failed');
+    res.status(500).json({
+      error: 'Session refresh failed. Please try again.'
+    });
+  }
+});
+
+/**
  * Logout endpoint - Destroys current session
  * DELETE /auth/logout
  */

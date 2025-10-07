@@ -113,8 +113,8 @@ export class AuthManager {
             tokenExpiry: this.keycloak.tokenParsed?.exp!,
           });
 
-          // Update backend session with new token
-          await this.createBackendSession();
+          // Update existing backend session with new token (efficient)
+          await this.updateBackendSession();
         }
       } catch (error) {
         console.error('AuthManager: Token refresh failed:', error);
@@ -196,6 +196,32 @@ export class AuthManager {
       this.eventBus.emit('session:ready', undefined);
     } catch (error) {
       console.error('AuthManager: Failed to create backend session:', error);
+      this.eventBus.emit('session:error', error instanceof Error ? error : new Error('Unknown session error'));
+    }
+  }
+
+  private async updateBackendSession(): Promise<void> {
+    if (!this.keycloak.token) {
+      console.warn('AuthManager: Cannot update session - no token available');
+      return;
+    }
+
+    try {
+      console.log('AuthManager: Updating backend session...');
+      const response = await fetch(`${API_BASE_URL}/auth/session/refresh`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ accessToken: this.keycloak.token }),
+        credentials: 'include',
+      });
+
+      if (!response.ok) {
+        throw new Error(`Session update failed: ${response.status}`);
+      }
+
+      console.log('AuthManager: Backend session updated successfully');
+    } catch (error) {
+      console.error('AuthManager: Failed to update backend session:', error);
       this.eventBus.emit('session:error', error instanceof Error ? error : new Error('Unknown session error'));
     }
   }
