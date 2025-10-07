@@ -238,20 +238,6 @@ const useAuthStore = create<AuthStore>()(
           return get().sessionReady;
         },
 
-        validateSession: async () => {
-          console.log('AuthStore: Validating session');
-          try {
-            const response = await fetch(`${API_BASE_URL}/auth/validate`, {
-              method: 'GET',
-              credentials: 'include'
-            });
-            return response.ok;
-          } catch (error) {
-            console.error('AuthStore: Session validation failed:', error);
-            return false;
-          }
-        },
-
         clearSession: () => {
           console.log('AuthStore: Clearing session');
           set((state) => {

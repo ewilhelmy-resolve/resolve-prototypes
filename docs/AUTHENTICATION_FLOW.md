@@ -699,27 +699,7 @@ router.put('/session/refresh', async (req, res) => {
 
 ---
 
-### 2. AuthStore Session Validation Endpoint Mismatch
-
-**Current Issue**: The `validateSession()` method in `AuthStore` calls a non-existent endpoint:
-
-```typescript
-// packages/client/src/stores/auth-store.ts:244
-const response = await fetch(`${API_BASE_URL}/auth/validate`, {
-```
-
-**Fix Required**: Update to use the correct endpoint:
-```typescript
-const response = await fetch(`${API_BASE_URL}/auth/session`, {
-```
-
-**Impact**: **HIGH PRIORITY** - This breaks session validation functionality in the client.
-
-**Status**: ⚠️ Needs immediate fix in implementation.
-
----
-
-### 3. Password Security in Signup Flow
+### 2. Password Security in Signup Flow
 
 **Current Implementation**: Passwords are base64-encoded (not hashed) before being sent to the webhook service:
 
@@ -747,7 +727,7 @@ password: Buffer.from(password).toString('base64')
 
 ---
 
-### 4. Token Refresh Race Conditions
+### 3. Token Refresh Race Conditions
 
 **Potential Issue**: If a user has multiple browser tabs open, each instance of AuthManager runs its own refresh timer. This could lead to:
 - Multiple simultaneous token refresh requests
@@ -796,7 +776,7 @@ class AuthManager {
 
 ---
 
-### 5. Silent SSO Configuration
+### 4. Silent SSO Configuration
 
 **Current Setup**: Uses `check-sso` with a dedicated HTML file:
 
@@ -815,7 +795,7 @@ silentCheckSsoRedirectUri: `${window.location.origin}/silent-check-sso.html`,
 
 ---
 
-### 6. Error Retry Strategy
+### 5. Error Retry Strategy
 
 **Current Implementation**: The AuthStore includes retry logic with exponential backoff (up to 3 attempts).
 
