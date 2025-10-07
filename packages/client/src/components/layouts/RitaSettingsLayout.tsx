@@ -14,6 +14,7 @@ import {
 	SidebarMenuButton,
 	SidebarMenuItem,
 	SidebarProvider,
+	SidebarSeparator,
 } from "@/components/ui/sidebar";
 
 interface RitaSettingsLayoutProps {
@@ -72,6 +73,8 @@ export default function RitaSettingsLayout({
 							</SidebarMenuItem>
 						</SidebarMenu>
 					</SidebarGroup>
+
+					<SidebarSeparator />
 
 					<SidebarGroup className="p-2">
 						<SidebarGroupLabel className="px-2 h-8 text-xs opacity-70">
