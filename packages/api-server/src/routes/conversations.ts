@@ -191,9 +191,15 @@ router.post('/:conversationId/messages', authenticateUser, async (req, res) => {
         `, [conversationId, authReq.user.activeOrganizationId]);
 
         // Build transcript array from existing messages
+        // Escape special characters to ensure valid JSON
         const transcript = transcriptResult.rows.map((row: any) => ({
           role: row.role,
           content: row.message
+            .replace(/\\/g, '\\\\')  // Escape backslashes first
+            .replace(/\n/g, '\\n')   // Escape newlines
+            .replace(/\r/g, '\\r')   // Escape carriage returns
+            .replace(/\t/g, '\\t')   // Escape tabs
+            .replace(/"/g, '\\"')    // Escape quotes
         }));
 
         // Create message in database
@@ -239,6 +245,16 @@ router.post('/:conversationId/messages', authenticateUser, async (req, res) => {
           break;
         }
       }
+    }
+
+    // Validate that transcript serializes to well-formed JSON
+    try {
+      const testJson = JSON.stringify({ transcript: truncatedTranscript });
+      JSON.parse(testJson); // This will throw if JSON is malformed
+    } catch (jsonError) {
+      console.error('❌ Transcript JSON validation failed:', jsonError);
+      console.error('Transcript data:', truncatedTranscript);
+      throw new Error('Failed to serialize transcript to valid JSON');
     }
 
     // Send webhook to external service using WebhookService
