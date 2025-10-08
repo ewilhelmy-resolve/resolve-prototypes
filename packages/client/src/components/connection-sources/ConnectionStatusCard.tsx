@@ -100,8 +100,8 @@ export function ConnectionStatusCard({
 			case STATUS.CONNECTED:
 				return (
 					<p className="text-sm text-foreground whitespace-nowrap">
-						{source.settings?.updatedAt
-							? `Updated at ${source.settings.updatedAt}`
+						{source.lastSync
+							? `Last synced ${source.lastSync}`
 							: "Connected"}
 					</p>
 				);
@@ -120,23 +120,23 @@ export function ConnectionStatusCard({
 		<div className="flex flex-col gap-1">
 			<div className="border border-border bg-popover rounded-md p-4">
 				<div className="rounded-lg">
-					<div className="flex flex-col md:flex-row items-center justify-between gap-8">
-						<div className="flex flex-col gap-2">
-							<div className="flex items-center gap-3">
-								<p className="text-sm text-muted-foreground w-12">URL</p>
-								<p className="text-sm text-foreground">
+					<div className="flex flex-col md:flex-row items-center justify-between gap-5">
+						<div className="flex flex-col gap-2 max-w-xs">
+							<div className="flex items-center gap-1">
+								<p className="text-sm text-muted-foreground w-10">URL</p>
+								<p className="text-sm text-foreground truncate">
 									{source.settings?.url || "—"}
 								</p>
 							</div>
-							<div className="flex items-center gap-3">
-								<p className="text-sm text-muted-foreground w-12">Email</p>
-								<p className="text-sm text-foreground">
+							<div className="flex items-center gap-1">
+								<p className="text-sm text-muted-foreground w-10">Email</p>
+								<p className="text-sm text-foreground truncate">
 									{source.settings?.email || "—"}
 								</p>
 							</div>
-							<div className="flex items-center gap-3">
-								<p className="text-sm text-muted-foreground w-12">API</p>
-								<p className="text-sm text-foreground">
+							<div className="flex items-center gap-1">
+								<p className="text-sm text-muted-foreground w-10">API</p>
+								<p className="text-sm text-foreground truncate">
 									{source.settings?.token ? "••••••••••••••••••••" : "—"}
 								</p>
 							</div>
@@ -148,7 +148,7 @@ export function ConnectionStatusCard({
 								showHelp={showHelp}
 							/>
 						</div>
-						<div className="flex items-center">{getStatusMessage()}</div>
+						<div className="flex items-center mr-6">{getStatusMessage()}</div>
 					</div>
 				</div>
 			</div>

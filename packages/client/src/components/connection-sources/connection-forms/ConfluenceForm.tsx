@@ -8,6 +8,10 @@ import {
 	useUpdateDataSource,
 	useVerifyDataSource,
 } from "@/hooks/useDataSources";
+import {
+	parseAvailableSpaces,
+	parseSelectedSpaces,
+} from "@/lib/dataSourceUtils";
 import { toast } from "@/lib/toast";
 import ConnectionsForm from "../form-elements/ConnectionsForm";
 import FormField from "../form-elements/FormField";
@@ -52,33 +56,17 @@ export function ConfluenceForm({ onCancel }: ConfluenceFormProps = {}) {
 	// Parse available spaces from latest_options (discovered during verification)
 	// and pre-select spaces from settings (already configured)
 	useEffect(() => {
-		// Available options come from latest_options.spaces (populated after verification)
-		if (source.backendData?.latest_options?.spaces) {
-			const available =
-				typeof source.backendData.latest_options.spaces === "string"
-					? source.backendData.latest_options.spaces
-							.split(",")
-							.map((s: string) => s.trim())
-							.filter(Boolean)
-					: [];
+		const available = parseAvailableSpaces(source.backendData?.latest_options);
+		const selected = parseSelectedSpaces(source.backendData?.settings);
+
+		if (available.length > 0) {
 			setAvailableSpaces(available);
 		}
 
-		// Pre-select spaces from settings.spaces (already configured spaces)
-		if (source.backendData?.settings?.spaces) {
-			const selected =
-				typeof source.backendData.settings.spaces === "string"
-					? source.backendData.settings.spaces
-							.split(",")
-							.map((s: string) => s.trim())
-							.filter(Boolean)
-					: [];
+		if (selected.length > 0) {
 			setSelectedSpaces(selected);
 		}
-	}, [
-		source.backendData?.latest_options?.spaces,
-		source.backendData?.settings?.spaces,
-	]);
+	}, [source.backendData?.latest_options, source.backendData?.settings]);
 
 	const handleConnect = async () => {
 		const formData = getValues();
