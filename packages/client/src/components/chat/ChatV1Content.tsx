@@ -369,7 +369,7 @@ export default function ChatV1Content({
       <Conversation className="flex-1" contextRef={handleStickToBottomContext}>
         <ConversationContent className="px-6 py-6">
           <div className="max-w-4xl mx-auto">
-          {messagesLoading || (currentConversationId && chatMessages.length === 0) ? (
+          {messagesLoading ? (
             <div className="flex items-center justify-center h-full">
               <Loader size={24} />
             </div>
