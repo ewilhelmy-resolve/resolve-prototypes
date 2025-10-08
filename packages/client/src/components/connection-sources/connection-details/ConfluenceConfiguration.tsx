@@ -1,7 +1,7 @@
 "use client";
 
 import { EllipsisVertical } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
 	DropdownMenu,
@@ -15,20 +15,44 @@ import { MultiSelect, type MultiSelectOption } from "../../ui/multi-select";
 import { ConnectionStatusCard } from "../ConnectionStatusCard";
 import FormSectionTitle from "../form-elements/FormSectionTitle";
 
-export default function ConfluenceConfiguration() {
+interface ConfluenceConfigurationProps {
+	onEdit?: () => void;
+}
+
+export default function ConfluenceConfiguration({
+	onEdit,
+}: ConfluenceConfigurationProps = {}) {
 	const { source } = useConnectionSource();
-	const [selectedSpaces, setSelectedSpaces] = useState<string[]>(
-		source.config?.spaces || [],
-	);
-	const CONFLUENCE_SPACES: MultiSelectOption[] = [
-		{ label: "Architecture Team", value: "architecture" },
-		{ label: "Knowledge Base", value: "knowledge" },
-		{ label: "Engineering", value: "engineering" },
-		{ label: "Product Team", value: "product" },
-		{ label: "Sales and Marketing", value: "sales" },
-		{ label: "Design", value: "design" },
-		{ label: "IT", value: "it" },
-	];
+	const [selectedSpaces, setSelectedSpaces] = useState<string[]>([]);
+
+	// Parse available spaces from latest_options (discovered during verification)
+	const availableSpaces: MultiSelectOption[] = useMemo(() => {
+		if (source.backendData?.latest_options?.spaces) {
+			const spaces =
+				typeof source.backendData.latest_options.spaces === "string"
+					? source.backendData.latest_options.spaces
+							.split(",")
+							.map((s: string) => s.trim())
+							.filter(Boolean)
+					: [];
+			return spaces.map((space) => ({ label: space, value: space }));
+		}
+		return [];
+	}, [source.backendData?.latest_options?.spaces]);
+
+	// Initialize selected spaces from settings.spaces (already configured)
+	useEffect(() => {
+		if (source.backendData?.settings?.spaces) {
+			const spaces =
+				typeof source.backendData.settings.spaces === "string"
+					? source.backendData.settings.spaces
+							.split(",")
+							.map((s: string) => s.trim())
+							.filter(Boolean)
+					: [];
+			setSelectedSpaces(spaces);
+		}
+	}, [source.backendData?.settings?.spaces]);
 
 	return (
 		<div className="w-full flex flex-col gap-2">
@@ -42,7 +66,7 @@ export default function ConfluenceConfiguration() {
 							</Button>
 						</DropdownMenuTrigger>
 						<DropdownMenuContent>
-							<DropdownMenuItem>Edit</DropdownMenuItem>
+							<DropdownMenuItem onClick={onEdit}>Edit</DropdownMenuItem>
 							<DropdownMenuItem className="text-destructive">
 								Disconnect
 							</DropdownMenuItem>
@@ -58,11 +82,11 @@ export default function ConfluenceConfiguration() {
 							<Label className="mb-2">
 								Which spaces would you like to sync from?
 							</Label>
-							<div className="flex items-start gap-4">
-								<div className="flex-1">
+							<div className="flex flex-col md:flex-row items-start gap-4">
+								<div className="md:flex-1 w-full">
 									<MultiSelect
 										animationConfig={{ optionHoverAnimation: "none" }}
-										options={CONFLUENCE_SPACES}
+										options={availableSpaces}
 										defaultValue={selectedSpaces}
 										onValueChange={(values) => {
 											setSelectedSpaces(values);
@@ -74,7 +98,7 @@ export default function ConfluenceConfiguration() {
 										emptyIndicator="No spaces found."
 									/>
 								</div>
-								<Button variant="default">
+								<Button className="w-full md:w-fit" variant="default">
 									Sync
 								</Button>
 							</div>

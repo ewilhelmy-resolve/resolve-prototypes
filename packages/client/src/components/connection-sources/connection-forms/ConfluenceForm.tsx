@@ -1,9 +1,14 @@
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { STATUS } from "@/constants/connectionSources";
+import { MultiSelect } from "@/components/ui/multi-select";
 import { useConnectionSource } from "@/contexts/ConnectionSourceContext";
-import ConfluenceConfiguration from "../connection-details/ConfluenceConfiguration";
+import {
+	useUpdateDataSource,
+	useVerifyDataSource,
+} from "@/hooks/useDataSources";
+import { toast } from "@/lib/toast";
 import ConnectionsForm from "../form-elements/ConnectionsForm";
 import FormField from "../form-elements/FormField";
 import FormSection from "../form-elements/FormSection";
@@ -15,23 +20,121 @@ export interface ConfluenceFormData {
 	spaces?: string[];
 }
 
-export function ConfluenceForm() {
+interface ConfluenceFormProps {
+	onCancel?: () => void;
+}
+
+export function ConfluenceForm({ onCancel }: ConfluenceFormProps = {}) {
 	const { source } = useConnectionSource();
+	const verifyMutation = useVerifyDataSource();
+	const updateMutation = useUpdateDataSource();
+
+	const [availableSpaces, setAvailableSpaces] = useState<string[]>([]);
+	const [selectedSpaces, setSelectedSpaces] = useState<string[]>([]);
+
 	const {
 		register,
 		handleSubmit,
 		formState: { errors },
-	} = useForm<ConfluenceFormData>();
+		getValues,
+	} = useForm<ConfluenceFormData>({
+		defaultValues: {
+			url: source.backendData?.settings?.url || "",
+			email: source.backendData?.settings?.email || "",
+			token: "",
+			spaces:
+				source.backendData?.settings?.spaces
+					?.split(",")
+					.map((s: string) => s.trim()) || [],
+		},
+	});
 
-	const onSubmit = (data: ConfluenceFormData) => {
-		console.log("Confluence form submitted:", data);
-		// TODO: Implement API call to save Confluence connection
+	// Parse available spaces from latest_options (discovered during verification)
+	// and pre-select spaces from settings (already configured)
+	useEffect(() => {
+		// Available options come from latest_options.spaces (populated after verification)
+		if (source.backendData?.latest_options?.spaces) {
+			const available =
+				typeof source.backendData.latest_options.spaces === "string"
+					? source.backendData.latest_options.spaces
+							.split(",")
+							.map((s: string) => s.trim())
+							.filter(Boolean)
+					: [];
+			setAvailableSpaces(available);
+		}
+
+		// Pre-select spaces from settings.spaces (already configured spaces)
+		if (source.backendData?.settings?.spaces) {
+			const selected =
+				typeof source.backendData.settings.spaces === "string"
+					? source.backendData.settings.spaces
+							.split(",")
+							.map((s: string) => s.trim())
+							.filter(Boolean)
+					: [];
+			setSelectedSpaces(selected);
+		}
+	}, [
+		source.backendData?.latest_options?.spaces,
+		source.backendData?.settings?.spaces,
+	]);
+
+	const handleConnect = async () => {
+		const formData = getValues();
+
+		if (!formData.url || !formData.email || !formData.token) {
+			toast.error("Validation Error", {
+				description: "Please fill in all authentication fields",
+			});
+			return;
+		}
+
+		try {
+			// Step 1: Verify credentials
+			await verifyMutation.mutateAsync({
+				id: source.id,
+				payload: {
+					settings: {
+						url: formData.url,
+					},
+					credentials: {
+						email: formData.email,
+						apiToken: formData.token,
+					},
+				},
+			});
+
+			// Step 2: Save configuration immediately after verification
+			await updateMutation.mutateAsync({
+				id: source.id,
+				data: {
+					settings: {
+						url: formData.url,
+						email: formData.email,
+						apiToken: formData.token,
+						spaces: selectedSpaces.join(","),
+					},
+					enabled: true,
+				},
+			});
+
+			toast.success("Connection Configured", {
+				description: "Your Confluence connection has been configured successfully",
+			});
+		} catch (error) {
+			toast.error("Connection Failed", {
+				description:
+					error instanceof Error
+						? error.message
+						: "Failed to configure connection",
+			});
+		}
 	};
 
-	// If connected, show configuration view
-	if (source.status !== STATUS.NOT_CONNECTED) {
-		return <ConfluenceConfiguration />;
-	}
+	const onSubmit = async () => {
+		await handleConnect();
+	};
 
 	return (
 		<ConnectionsForm handleSubmit={handleSubmit(onSubmit)} id="connection-form">
@@ -66,14 +169,40 @@ export function ConfluenceForm() {
 						{...register("token", { required: "API token is required" })}
 					/>
 				</FormField>
-			</FormSection>
 
-			{/* Connect Button */}
-			<div className="flex justify-start">
-				<Button size="lg" type="submit">
-					Connect
-				</Button>
-			</div>
+				{/* Spaces Selection - Show if available from latest_options (populated after verification) */}
+				{availableSpaces.length > 0 && (
+					<FormField label="Spaces (Optional)" errors={errors} name="spaces">
+						<MultiSelect
+							options={availableSpaces.map((space) => ({
+								label: space,
+								value: space,
+							}))}
+							defaultValue={selectedSpaces}
+							onValueChange={setSelectedSpaces}
+							placeholder="Select spaces to sync"
+						/>
+					</FormField>
+				)}
+
+				{/* Connect Button with optional Cancel */}
+				<div className="flex justify-end gap-2 w-full">
+					{onCancel && (
+						<Button type="button" variant="outline" onClick={onCancel}>
+							Cancel
+						</Button>
+					)}
+					<Button
+						type="button"
+						onClick={handleConnect}
+						disabled={verifyMutation.isPending || updateMutation.isPending}
+					>
+						{verifyMutation.isPending || updateMutation.isPending
+							? "Connecting..."
+							: "Connect"}
+					</Button>
+				</div>
+			</FormSection>
 		</ConnectionsForm>
 	);
 }

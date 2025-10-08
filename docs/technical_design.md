@@ -243,7 +243,7 @@ rita-chat/
   * **`POST /api/organizations/switch`**
       * **Description:** Sets the user's active organization for subsequent requests.
       * **Auth:** Required.
-      * **Request Body:** `{ "organizationId": "string" }`.
+      * **Request Body:** `{ "organization_id": "string" }`.
 
 -----
 

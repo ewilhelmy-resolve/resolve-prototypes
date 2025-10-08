@@ -25,7 +25,7 @@ const updateDataSourceSchema = z.object({
 });
 
 /**
- * GET /api/v1/data-sources
+ * GET /api/data-sources
  * List all data sources for the authenticated user's organization
  */
 router.get('/', authenticateUser, async (req, res) => {
@@ -44,7 +44,33 @@ router.get('/', authenticateUser, async (req, res) => {
 });
 
 /**
- * GET /api/v1/data-sources/:id
+ * POST /api/data-sources/seed
+ * Seed default data sources for the organization (idempotent)
+ * IMPORTANT: Must be defined BEFORE /:id route to avoid matching "seed" as an ID
+ */
+router.post('/seed', authenticateUser, async (req, res) => {
+  const authReq = req as AuthenticatedRequest;
+
+  try {
+    const result = await dataSourceService.seedDefaultDataSources(
+      authReq.user.activeOrganizationId,
+      authReq.user.id
+    );
+
+    res.json({
+      success: true,
+      created: result.created.length,
+      existing: result.existing.length,
+      message: `Created ${result.created.length} new data sources, ${result.existing.length} already existed`
+    });
+  } catch (error) {
+    console.error('[DataSources] Error seeding data sources:', error);
+    res.status(500).json({ error: 'Failed to seed data sources' });
+  }
+});
+
+/**
+ * GET /api/data-sources/:id
  * Get a single data source by ID
  */
 router.get('/:id', authenticateUser, async (req, res) => {
@@ -69,7 +95,7 @@ router.get('/:id', authenticateUser, async (req, res) => {
 });
 
 /**
- * POST /api/v1/data-sources
+ * POST /api/data-sources
  * Create a new data source
  */
 router.post('/', authenticateUser, async (req, res) => {
@@ -100,7 +126,7 @@ router.post('/', authenticateUser, async (req, res) => {
 });
 
 /**
- * PUT /api/v1/data-sources/:id
+ * PUT /api/data-sources/:id
  * Update an existing data source
  */
 router.put('/:id', authenticateUser, async (req, res) => {
@@ -137,7 +163,7 @@ router.put('/:id', authenticateUser, async (req, res) => {
 });
 
 /**
- * DELETE /api/v1/data-sources/:id
+ * DELETE /api/data-sources/:id
  * Delete a data source
  */
 router.delete('/:id', authenticateUser, async (req, res) => {
@@ -158,31 +184,6 @@ router.delete('/:id', authenticateUser, async (req, res) => {
   } catch (error) {
     console.error('[DataSources] Error deleting data source:', error);
     res.status(500).json({ error: 'Failed to delete data source' });
-  }
-});
-
-/**
- * POST /api/v1/data-sources/seed
- * Seed default data sources for the organization (idempotent)
- */
-router.post('/seed', authenticateUser, async (req, res) => {
-  const authReq = req as AuthenticatedRequest;
-
-  try {
-    const result = await dataSourceService.seedDefaultDataSources(
-      authReq.user.activeOrganizationId,
-      authReq.user.id
-    );
-
-    res.json({
-      success: true,
-      created: result.created.length,
-      existing: result.existing.length,
-      message: `Created ${result.created.length} new data sources, ${result.existing.length} already existed`
-    });
-  } catch (error) {
-    console.error('[DataSources] Error seeding data sources:', error);
-    res.status(500).json({ error: 'Failed to seed data sources' });
   }
 });
 

@@ -182,4 +182,41 @@ export const fileApi = {
     }),
 };
 
+// Data Sources API
+export const dataSourcesApi = {
+  // List all data sources
+  list: () =>
+    apiRequest<{ data: import('../types/dataSource').DataSourceConnection[] }>('/api/data-sources'),
+
+  // Get single data source by ID
+  get: (id: string) =>
+    apiRequest<{ data: import('../types/dataSource').DataSourceConnection }>(`/api/data-sources/${id}`),
+
+  // Seed default data sources (idempotent)
+  seed: () =>
+    apiRequest<import('../types/dataSource').SeedDataSourcesResponse>('/api/data-sources/seed', {
+      method: 'POST',
+    }),
+
+  // Update data source
+  update: (id: string, data: import('../types/dataSource').UpdateDataSourceRequest) =>
+    apiRequest<{ data: import('../types/dataSource').DataSourceConnection }>(`/api/data-sources/${id}`, {
+      method: 'PUT',
+      body: data,
+    }),
+
+  // Verify credentials (async - result via SSE)
+  verify: (id: string, payload: import('../types/dataSource').VerifyDataSourceRequest) =>
+    apiRequest<import('../types/dataSource').VerifyDataSourceResponse>(`/api/data-sources/${id}/verify`, {
+      method: 'POST',
+      body: payload,
+    }),
+
+  // Trigger sync
+  sync: (id: string) =>
+    apiRequest<import('../types/dataSource').TriggerSyncResponse>(`/api/data-sources/${id}/sync`, {
+      method: 'POST',
+    }),
+};
+
 export { ApiError };

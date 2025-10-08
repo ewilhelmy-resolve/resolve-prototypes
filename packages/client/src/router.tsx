@@ -71,7 +71,7 @@ const router = createBrowserRouter([
     )
   },
   {
-    path: '/settings/connections/:sourceId',
+    path: '/settings/connections/:id',
     element: (
       <ProtectedRoute>
         <ConnectionSourceDetailPage />

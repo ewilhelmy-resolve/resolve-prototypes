@@ -3,6 +3,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { STATUS } from "@/constants/connectionSources";
 import { useConnectionSource } from "@/contexts/ConnectionSourceContext";
+import {
+	useUpdateDataSource,
+	useVerifyDataSource,
+} from "@/hooks/useDataSources";
+import { toast } from "@/lib/toast";
 import SharePointConfiguration from "../connection-details/SharePointConfiguration";
 import ConnectionsForm from "../form-elements/ConnectionsForm";
 import FormField from "../form-elements/FormField";
@@ -15,17 +20,90 @@ export interface SharePointFormData {
 	siteUrl: string;
 }
 
-export function SharePointForm() {
+interface SharePointFormProps {
+	onCancel?: () => void;
+}
+
+export function SharePointForm({ onCancel }: SharePointFormProps = {}) {
 	const { source } = useConnectionSource();
+	const verifyMutation = useVerifyDataSource();
+	const updateMutation = useUpdateDataSource();
+
 	const {
 		register,
 		handleSubmit,
 		formState: { errors },
-	} = useForm<SharePointFormData>();
+		getValues,
+	} = useForm<SharePointFormData>({
+		defaultValues: {
+			tenantId: source.backendData?.settings?.tenantId || "",
+			clientId: source.backendData?.settings?.clientId || "",
+			clientSecret: "",
+			siteUrl: source.backendData?.settings?.siteUrl || "",
+		},
+	});
 
-	const onSubmit = (data: SharePointFormData) => {
-		console.log("SharePoint form submitted:", data);
-		// TODO: Implement API call to save SharePoint connection
+	const handleConnect = async () => {
+		const formData = getValues();
+
+		if (
+			!formData.tenantId ||
+			!formData.clientId ||
+			!formData.clientSecret ||
+			!formData.siteUrl
+		) {
+			toast.error("Validation Error", {
+				description: "Please fill in all authentication fields",
+			});
+			return;
+		}
+
+		try {
+			// Step 1: Verify credentials
+			await verifyMutation.mutateAsync({
+				id: source.id,
+				payload: {
+					settings: {
+						tenantId: formData.tenantId,
+						siteUrl: formData.siteUrl,
+					},
+					credentials: {
+						clientId: formData.clientId,
+						clientSecret: formData.clientSecret,
+					},
+				},
+			});
+
+			// Step 2: Save configuration immediately after verification
+			await updateMutation.mutateAsync({
+				id: source.id,
+				data: {
+					settings: {
+						tenantId: formData.tenantId,
+						clientId: formData.clientId,
+						clientSecret: formData.clientSecret,
+						siteUrl: formData.siteUrl,
+					},
+					enabled: true,
+				},
+			});
+
+			toast.success("Connection Configured", {
+				description:
+					"Your SharePoint connection has been configured successfully",
+			});
+		} catch (error) {
+			toast.error("Connection Failed", {
+				description:
+					error instanceof Error
+						? error.message
+						: "Failed to configure connection",
+			});
+		}
+	};
+
+	const onSubmit = async (/*data: SharePointFormData*/) => {
+		await handleConnect();
 	};
 
 	// If connected, show configuration view
@@ -77,14 +155,25 @@ export function SharePointForm() {
 						{...register("siteUrl", { required: "Site URL is required" })}
 					/>
 				</FormField>
-			</FormSection>
 
-			{/* Connect Button */}
-			<div className="flex justify-start">
-				<Button size="lg" type="submit">
-					Connect
-				</Button>
-			</div>
+				{/* Connect Button with optional Cancel */}
+				<div className="flex justify-end gap-2">
+					{onCancel && (
+						<Button type="button" variant="outline" onClick={onCancel}>
+							Cancel
+						</Button>
+					)}
+					<Button
+						type="button"
+						onClick={handleConnect}
+						disabled={verifyMutation.isPending || updateMutation.isPending}
+					>
+						{verifyMutation.isPending || updateMutation.isPending
+							? "Connecting..."
+							: "Connect"}
+					</Button>
+				</div>
+			</FormSection>
 		</ConnectionsForm>
 	);
 }
