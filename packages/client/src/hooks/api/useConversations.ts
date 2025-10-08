@@ -83,7 +83,7 @@ export function useInfiniteConversationMessages(conversationId: string | null) {
 
       const response = await conversationApi.getConversationMessages(conversationId, {
         limit: pageParam === undefined ? 100 : 50, // Initial: 100, Pagination: 50
-        before: pageParam, // Cursor timestamp
+        ...(pageParam !== undefined && { before: pageParam }), // Only include before if cursor exists
       })
 
       const messages: Message[] = response.messages.map((msg: any) => ({
