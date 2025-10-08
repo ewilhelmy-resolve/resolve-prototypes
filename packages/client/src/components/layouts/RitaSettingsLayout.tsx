@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/sidebar";
 import { SSEProvider } from "@/contexts/SSEContext";
 import useAuth from "@/hooks/useAuth";
+import { cn } from "@/lib/utils";
 
 interface RitaSettingsLayoutProps {
 	children?: ReactNode;
@@ -35,10 +36,9 @@ export default function RitaSettingsLayout({
 	};
 
 	// Check if current path matches route (including sub-routes)
-	const isConnectionSourcesActive =
-		location.pathname === "/settings" ||
-		location.pathname.startsWith("/settings/connections");
+	const isConnectionSourcesActive = location.pathname.startsWith("/settings/connections");
 	const isUsersActive = location.pathname.startsWith("/settings/users");
+	const isProfileActive = location.pathname === "/settings";
 
 	const { authenticated, loading, sessionReady } = useAuth();
 
@@ -64,15 +64,14 @@ export default function RitaSettingsLayout({
 						<SidebarGroup className="p-2">
 							<SidebarMenu>
 								<SidebarMenuItem>
-									<SidebarMenuButton className="p-2 h-8 rounded-md">
+									<SidebarMenuButton className={cn("p-2 h-8 rounded-md", isProfileActive && "bg-accent text-accent-foreground")}>
 										<span className="text-sm">Profile</span>
 									</SidebarMenuButton>
 								</SidebarMenuItem>
 								<SidebarMenuItem>
 									<SidebarMenuButton
-										className="p-2 h-8 rounded-md cursor-pointer"
+										className={cn("p-2 h-8 rounded-md cursor-pointer", isConnectionSourcesActive && "bg-accent text-accent-foreground")}
 										onClick={() => navigate("/settings")}
-										isActive={isConnectionSourcesActive}
 									>
 										<span className="text-sm">Connection Sources</span>
 									</SidebarMenuButton>
@@ -89,9 +88,8 @@ export default function RitaSettingsLayout({
 							<SidebarMenu>
 								<SidebarMenuItem>
 									<SidebarMenuButton
-										className="p-2 h-8 rounded-md cursor-pointer"
+										className={cn("p-2 h-8 rounded-md cursor-pointer", isUsersActive && "bg-accent text-accent-foreground")}
 										onClick={() => navigate("/settings/users")}
-										isActive={isUsersActive}
 									>
 										<span className="text-sm">Users</span>
 									</SidebarMenuButton>
