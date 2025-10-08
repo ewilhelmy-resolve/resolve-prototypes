@@ -186,13 +186,19 @@ export function useChatPagination({
       (entries) => {
         const entry = entries[0]
 
-        // Load more when sentinel becomes visible AND we're near the top
-        if (entry.isIntersecting && hasNextPage && !isFetchingNextPage) {
+        // Detect when user scrolls to top (sentinel becomes visible)
+        if (entry.isIntersecting) {
           const scrollTop = container.scrollTop
 
           // Only trigger if we're within threshold pixels from top
           if (scrollTop < threshold) {
-            loadMore()
+            // Mark that user attempted to view older messages (scrolled to top)
+            setHasPaginationAttempted(true)
+
+            // Only load more if there are actually more messages to load
+            if (hasNextPage && !isFetchingNextPage) {
+              loadMore()
+            }
           }
         }
       },
