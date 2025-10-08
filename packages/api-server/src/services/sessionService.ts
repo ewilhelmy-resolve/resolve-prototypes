@@ -124,6 +124,10 @@ export class SessionService {
     return session;
   }
 
+  async updateSession(sessionId: string, updates: Partial<Session>): Promise<Session | null> {
+    return this.sessionStore.updateSession(sessionId, updates);
+  }
+
   async destroySession(sessionId: string): Promise<boolean> {
     const deleted = await this.sessionStore.deleteSession(sessionId);
     if (deleted) logger.info({ sessionId }, 'Session destroyed');
