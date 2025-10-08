@@ -194,6 +194,30 @@ describe('ConfluenceConfiguration', () => {
 		});
 	});
 
+	it('should call update mutation before sync mutation', async () => {
+		const callOrder: string[] = [];
+
+		mockUpdateMutation.mutateAsync = vi.fn().mockImplementation(async () => {
+			callOrder.push('update');
+			return Promise.resolve({});
+		});
+
+		mockSyncMutation.mutateAsync = vi.fn().mockImplementation(async () => {
+			callOrder.push('sync');
+			return Promise.resolve({});
+		});
+
+		const source = createMockSource();
+		renderWithProvider(source);
+
+		const syncButton = screen.getByRole('button', { name: /sync/i });
+		fireEvent.click(syncButton);
+
+		await waitFor(() => {
+			expect(callOrder).toEqual(['update', 'sync']);
+		});
+	});
+
 	it('should show success toast on successful sync', async () => {
 		const { toast } = await import('@/lib/toast');
 		const source = createMockSource();
