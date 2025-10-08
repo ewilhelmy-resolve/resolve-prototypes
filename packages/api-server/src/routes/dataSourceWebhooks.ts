@@ -167,9 +167,13 @@ router.post('/:id/sync', authenticateUser, async (req, res) => {
       authReq.user.activeOrganizationId
     );
 
+    if (!updatedDataSource) {
+      throw new Error('Data source not found after update');
+    }
+
     res.json({
       data: {
-        id: updatedDataSource!.id,
+        id: updatedDataSource.id,
         status: 'syncing' as const,
         triggeredAt: new Date().toISOString()
       }
