@@ -2,7 +2,9 @@
 
 ## Overview
 
-This document explains the authentication architecture for the Rita project, which uses a Zustand-based global state management system with Keycloak for identity management and JWT tokens for API communication.
+This document explains the authentication architecture for the Rita project, which uses a Zustand-based global state management system with Keycloak for identity management and **cookie-only authentication** for API communication.
+
+**Authentication Model**: Frontend manages Keycloak JWT tokens, backend uses HTTP-only session cookies exclusively. This ensures consistent authentication across all request types (fetch, EventSource/SSE, file downloads).
 
 ## Architecture Components
 
@@ -77,18 +79,18 @@ sequenceDiagram
         alt Token expires in <5 min
             RG->>KC: Refresh token
             KC-->>RG: New JWT tokens
-            RG->>API: PUT /auth/session/refresh
-            API->>API: Update existing session
-            API-->>RG: Session updated
+            RG->>API: POST /auth/login (new token)
+            API->>API: Update session cookie
+            API-->>RG: Refreshed session cookie
         end
     end
 
-    Note over U,API: API Requests
+    Note over U,API: API Requests (Cookie-Only Auth)
     RG->>API: API Request + Session Cookie
-    API->>API: Validate session
+    API->>API: Validate session cookie
     alt Session valid
         API-->>RG: Response data
-    else Session invalid
+    else Session invalid/expired
         API-->>RG: 401 Unauthorized
         RG->>KC: Force logout
     end
@@ -246,9 +248,9 @@ private async checkAndRefreshToken(): Promise<void> {
     // Proactively refresh token
     const refreshed = await keycloak.updateToken(30);
     if (refreshed) {
-      // Update store and backend session
+      // Update store and backend session cookie
       this.eventBus.emit('token:refreshed', newTokens);
-      await this.createBackendSession();
+      await this.updateBackendSession(); // POST /auth/login
     }
   }
 }
@@ -265,8 +267,8 @@ flowchart TD
     C -->|Yes| D[Call keycloak.updateToken]
     D --> E{Refresh successful?}
     E -->|Yes| F[Update AuthStore state]
-    F --> G[PUT /auth/session/refresh]
-    G --> H[Update existing session + extend expiration]
+    F --> G[POST /auth/login with new token]
+    G --> H[Update session cookie, extend expiration]
     H --> A
     E -->|No| I[Emit auth:error]
     I --> J[Stop refresh timer]
@@ -274,11 +276,11 @@ flowchart TD
     K --> L[Redirect to login]
 ```
 
-**Efficient Refresh**: Token refresh now uses `PUT /auth/session/refresh` to update the existing session in-place, rather than creating a new session. This:
-- Maintains the same session ID throughout the user's session
-- Extends the session expiration time (24 hours from refresh)
-- Reduces database writes and session table growth
-- Prevents session ID changes during active sessions
+**Cookie-Only Authentication**: All protected API endpoints use HTTP-only session cookies exclusively. When the Keycloak JWT token refreshes, the frontend calls `POST /auth/login` to update the backend session cookie. This ensures:
+- Consistent authentication across all request types (fetch, EventSource/SSE, file downloads)
+- No JWT/cookie auth mismatch issues
+- Better security (HttpOnly cookies can't be accessed by JavaScript)
+- Simpler architecture (single authentication path)
 
 ## Error Handling Strategy
 
@@ -490,28 +492,14 @@ Initiates password reset flow via external service and Keycloak.
 2. Sends email with reset link to user
 3. Handles password update when user submits new password
 
-### PUT /auth/session/refresh
-Updates an existing session with a new Keycloak access token (efficient token refresh).
-```typescript
-// Request body
-{ accessToken: string }
-
-// Response (success)
-{
-  success: true,
-  session: { id, expiresAt }
-}
-
-// Response (failure)
-{
-  error: "Session update failed. Please login again."
-}
-```
-
-**Benefits**: More efficient than `POST /auth/login` during token refresh. Extends existing session expiration without creating new session records.
-
 ### POST /auth/login
-Creates a session cookie from a Keycloak access token (browser-based flows).
+Creates or updates a session cookie from a Keycloak access token.
+
+**Used for**:
+- Initial login after Keycloak authentication
+- Token refresh (updates session cookie with new Keycloak token)
+- Session recovery after idle period
+
 ```typescript
 // Request body
 { accessToken: string }
@@ -524,7 +512,7 @@ Creates a session cookie from a Keycloak access token (browser-based flows).
 }
 ```
 
-Sets `rita_session` HTTP-only cookie.
+**Behavior**: Sets or updates `rita_session` HTTP-only cookie (24-hour expiration). If an existing valid session exists, it extends the expiration. Otherwise, creates a new session with JIT user provisioning from Keycloak token.
 
 ### DELETE /auth/logout
 Destroys the current session.
@@ -575,26 +563,32 @@ Checks if the current session cookie is valid and returns session info.
 
 ## Middleware Authentication
 
-The authentication middleware (`packages/api-server/src/middleware/auth.ts`) supports two authentication methods:
+The authentication middleware (`packages/api-server/src/middleware/auth.ts`) uses **cookie-only authentication**:
 
-### 1. JWT Bearer Token (Primary)
-```typescript
-Authorization: Bearer <keycloak-access-token>
-```
-- Validates token against Keycloak JWKS
-- Performs **JIT (Just-In-Time) User Provisioning** if user doesn't exist
-- Creates user profile and organization automatically on first API access
-
-### 2. Session Cookie (Fallback)
+### Session Cookie Authentication
 ```
 Cookie: rita_session=<session-id>
 ```
-- Used for SSE (Server-Sent Events) and browser flows
-- Session validated and refreshed on each request
+- **All protected endpoints** require valid session cookie
+- Session validated on each request
+- Works consistently across all request types:
+  - Regular fetch requests ✅
+  - EventSource (SSE) connections ✅
+  - File downloads ✅
+  - WebSocket (future) ✅
+
+**Session Creation with JIT Provisioning**:
+
+When users authenticate via Keycloak, the frontend calls `POST /auth/login` with the Keycloak JWT token. The backend:
+1. Validates Keycloak JWT token
+2. Performs **JIT (Just-In-Time) User Provisioning** via `sessionService.findOrCreateUser()`
+3. Creates user profile and organization automatically if they don't exist
+4. Creates/updates session record in session store
+5. Returns HTTP-only session cookie
 
 **JIT Provisioning Implementation** (`packages/api-server/src/services/sessionService.ts:52`):
 ```typescript
-private async findOrCreateUser(tokenPayload: jose.JWTPayload) {
+public async findOrCreateUser(tokenPayload: jose.JWTPayload) {
   // 1. Check if user exists by Keycloak ID
   // 2. If not, create new user profile + organization in single transaction
   // 3. Set user's active organization to newly created org
@@ -605,17 +599,17 @@ private async findOrCreateUser(tokenPayload: jose.JWTPayload) {
 ## Security Considerations
 
 ### Token Storage
-- **Access tokens**: Stored in memory only (Zustand store)
-- **Refresh tokens**: Stored in memory only (Zustand store)
+- **Keycloak JWT tokens**: Managed by frontend, stored in memory only (Zustand store)
 - **Session cookies**: HTTP-only cookies set by backend
 - **No localStorage**: Prevents XSS token theft
 
 ### Session Management
-- **Dual authentication**: JWT tokens (stateless) + session cookies (stateful)
-- **Backend validation**: API server validates session on each request via `GET /auth/session`
+- **Cookie-only backend auth**: All API requests authenticated via HTTP-only session cookies
+- **Frontend token management**: Keycloak JWT tokens handled by frontend, refreshed automatically
+- **Session synchronization**: When Keycloak token refreshes, frontend calls `POST /auth/login` to update session cookie
 - **Auto logout**: Failed token refresh triggers automatic logout
 - **Secure cookies**: Session cookies are HTTP-only, secure (production), and SameSite=Lax
-- **Session cookie name**: `rita_session` (24-hour expiration)
+- **Session cookie name**: `rita_session` (24-hour expiration, extended on each token refresh)
 
 ### PKCE Flow
 Keycloak initialization uses PKCE (Proof Key for Code Exchange):

@@ -34,20 +34,24 @@ async function apiRequest<T>(
     credentials: 'include', // Include cookies for session-based auth
   };
 
+  // Cookie-only authentication: Refresh session cookie when Keycloak token refreshes
   if (keycloak.authenticated && keycloak.token) {
     try {
       const refreshed = await keycloak.updateToken(5); // Refresh if token expires in 5s
       if (refreshed) {
-        console.log('API request: Token was refreshed');
+        console.log('API request: Keycloak token refreshed, updating session cookie');
+        // Update backend session cookie with new token
+        await fetch(`${API_BASE_URL}/auth/login`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ accessToken: keycloak.token }),
+          credentials: 'include',
+        });
       }
-    } catch {
-      console.error('Failed to refresh token, logging out.');
+    } catch (error) {
+      console.error('Failed to refresh token, logging out.', error);
       keycloak.logout();
     }
-    config.headers = {
-      ...config.headers,
-      Authorization: `Bearer ${keycloak.token}`,
-    };
   }
 
   if (body && method !== 'GET') {
@@ -60,7 +64,7 @@ async function apiRequest<T>(
     const errorData = await response.json().catch(() => ({}));
     // Special handling for 401 to trigger re-authentication
     if (response.status === 401) {
-      console.error('API request returned 401. This may trigger a logout.');
+      console.error('API request returned 401. Session may have expired.');
     }
     throw new ApiError(
       response.status,
