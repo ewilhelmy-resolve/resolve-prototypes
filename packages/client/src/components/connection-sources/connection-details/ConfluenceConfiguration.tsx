@@ -9,6 +9,7 @@ import {
 	DropdownMenuItem,
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { STATUS } from "@/constants/connectionSources";
 import { useConnectionSource } from "@/contexts/ConnectionSourceContext";
 import { Label } from "../../ui/label";
 import { MultiSelect, type MultiSelectOption } from "../../ui/multi-select";
@@ -24,6 +25,9 @@ export default function ConfluenceConfiguration({
 }: ConfluenceConfigurationProps = {}) {
 	const { source } = useConnectionSource();
 	const [selectedSpaces, setSelectedSpaces] = useState<string[]>([]);
+
+	const isSyncButtonDisabled =
+		source.lastSync === null || source.status.toLocaleLowerCase() === STATUS.SYNCING.toLocaleLowerCase() || source.status.toLocaleLowerCase() === STATUS.VERIFYING.toLocaleLowerCase();
 
 	// Parse available spaces from latest_options (discovered during verification)
 	const availableSpaces: MultiSelectOption[] = useMemo(() => {
@@ -98,7 +102,11 @@ export default function ConfluenceConfiguration({
 										emptyIndicator="No spaces found."
 									/>
 								</div>
-								<Button className="w-full md:w-fit" variant="default">
+								<Button
+									disabled={isSyncButtonDisabled}
+									className="w-full md:w-fit"
+									variant="default"
+								>
 									Sync
 								</Button>
 							</div>
