@@ -8,7 +8,7 @@
 
 'use client'
 
-import { useCallback, Fragment, useState } from 'react'
+import { useCallback, Fragment, useState, useRef } from 'react'
 import { toast } from 'sonner'
 import type { ChatStatus } from 'ai'
 import {
@@ -58,6 +58,7 @@ import type {
   GroupedChatMessage,
 } from '@/stores/conversationStore'
 import { useConversationStore } from '@/stores/conversationStore'
+import { useChatPagination } from '@/hooks/useChatPagination'
 
 export interface ChatV1ContentProps {
   // Message state
@@ -290,6 +291,16 @@ export default function ChatV1Content({
   // Get grouped messages from store instead of flat messages
   const { chatMessages } = useConversationStore()
 
+  // Scroll container ref for pagination
+  const scrollContainerRef = useRef<HTMLDivElement>(null)
+
+  // Pagination hook for infinite scroll
+  const { sentinelRef, isLoadingMore, hasMore } = useChatPagination({
+    conversationId: currentConversationId,
+    scrollContainerRef,
+    enabled: !!currentConversationId && chatMessages.length > 0,
+  })
+
   // Determine chat status
   const chatStatus = mapRitaStatusToChatStatus(isSending, uploadStatus.isUploading, messages)
 
@@ -349,7 +360,7 @@ export default function ChatV1Content({
   return (
     <div className="h-full flex flex-col">
       <Conversation className="flex-1">
-        <ConversationContent className="px-6 py-6">
+        <ConversationContent className="px-6 py-6" ref={scrollContainerRef}>
           <div className="max-w-4xl mx-auto">
           {messagesLoading || (currentConversationId && chatMessages.length === 0) ? (
             <div className="flex items-center justify-center h-full">
@@ -364,6 +375,24 @@ export default function ChatV1Content({
             </div>
           ) : (
             <>
+              {/* Intersection Observer sentinel for infinite scroll */}
+              <div ref={sentinelRef} className="h-1" />
+
+              {/* Loading indicator for pagination */}
+              {isLoadingMore && (
+                <div className="flex justify-center py-4">
+                  <Loader size={16} />
+                  <span className="ml-2 text-sm text-gray-500">Loading older messages...</span>
+                </div>
+              )}
+
+              {/* "Beginning of conversation" indicator */}
+              {!hasMore && !isLoadingMore && chatMessages.length > 0 && (
+                <div className="flex justify-center py-4">
+                  <span className="text-sm text-gray-400">Beginning of conversation</span>
+                </div>
+              )}
+
               {/* Render grouped chat messages */}
               {chatMessages.map((chatMessage) => (
                 <Fragment key={chatMessage.id}>
