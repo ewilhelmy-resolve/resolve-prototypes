@@ -254,7 +254,7 @@ function RitaLayoutContent({ children, activePage = "chat" }: RitaLayoutProps) {
           </SidebarFooter>
         </Sidebar>
 
-        <div className="fixed inset-y-0 right-0 left-0 lg:left-64 flex flex-col overflow-hidden">
+        <div className="fixed inset-y-0 right-0 left-0 lg:left-64 lg:peer-data-[state=collapsed]:left-0 flex flex-col overflow-hidden transition-[left] duration-200 ease-linear">
           <header className="h-[67px] bg-background flex items-center flex-shrink-0 pr-6 border-b-2 border-gray-200">
             <div className="flex items-center gap-2 h-full pl-4">
               <SidebarTrigger className="lg:flex" />
