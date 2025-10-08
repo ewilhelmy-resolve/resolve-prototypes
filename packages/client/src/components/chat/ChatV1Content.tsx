@@ -295,7 +295,7 @@ export default function ChatV1Content({
   const scrollContainerRef = useRef<HTMLDivElement>(null)
 
   // Pagination hook for infinite scroll
-  const { sentinelRef, isLoadingMore, hasMore } = useChatPagination({
+  const { sentinelRef, isLoadingMore, hasMore, hasPaginationAttempted } = useChatPagination({
     conversationId: currentConversationId,
     scrollContainerRef,
     enabled: !!currentConversationId && chatMessages.length > 0,
@@ -386,8 +386,8 @@ export default function ChatV1Content({
                 </div>
               )}
 
-              {/* "Beginning of conversation" indicator */}
-              {!hasMore && !isLoadingMore && chatMessages.length > 0 && (
+              {/* "Beginning of conversation" indicator - only show after pagination attempted */}
+              {!hasMore && !isLoadingMore && chatMessages.length > 0 && hasPaginationAttempted && (
                 <div className="flex justify-center py-4">
                   <span className="text-sm text-gray-400">Beginning of conversation</span>
                 </div>

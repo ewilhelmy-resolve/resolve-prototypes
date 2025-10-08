@@ -38,6 +38,7 @@ export interface UseChatPaginationReturn {
   sentinelRef: React.RefObject<HTMLDivElement>
   isLoadingMore: boolean
   hasMore: boolean
+  hasPaginationAttempted: boolean
 }
 
 export function useChatPagination({
@@ -49,6 +50,7 @@ export function useChatPagination({
   const sentinelRef = useRef<HTMLDivElement>(null)
   const { chatMessages, setMessages, prependMessages, setHasMoreMessages, setLoadingMore } = useConversationStore()
   const [hasScrolledToBottom, setHasScrolledToBottom] = useState(false)
+  const [hasPaginationAttempted, setHasPaginationAttempted] = useState(false)
   const scrollAttemptedRef = useRef<string | null>(null)
   const previousPageCountRef = useRef(0)
 
@@ -84,6 +86,8 @@ export function useChatPagination({
         prependMessages(latestPage.messages)
       }
       previousPageCountRef.current = currentPageCount
+      // Mark that pagination has been attempted (user scrolled to top)
+      setHasPaginationAttempted(true)
     }
 
     setHasMoreMessages(hasMore)
@@ -121,6 +125,7 @@ export function useChatPagination({
   useEffect(() => {
     if (!conversationId) {
       setHasScrolledToBottom(false)
+      setHasPaginationAttempted(false)
       scrollAttemptedRef.current = null
     }
   }, [conversationId])
@@ -209,5 +214,6 @@ export function useChatPagination({
     sentinelRef,
     isLoadingMore: isFetchingNextPage,
     hasMore: hasNextPage || false,
+    hasPaginationAttempted,
   }
 }
