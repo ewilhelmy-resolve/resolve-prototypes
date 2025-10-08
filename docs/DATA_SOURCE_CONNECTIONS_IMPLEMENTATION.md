@@ -55,12 +55,12 @@ Implementing data source connections feature that allows organizations to config
 **Status**: ✅ Complete
 **File**: `packages/api-server/src/services/DataSourceService.ts`
 
-- [x] `getDataSources(organizationId)` - List all connections
-- [x] `getDataSource(id, organizationId)` - Get single connection
+- [x] `getDataSources(organization_id)` - List all connections
+- [x] `getDataSource(id, organization_id)` - Get single connection
 - [x] `createDataSource(params)` - Create new connection
-- [x] `updateDataSource(id, organizationId, params)` - Update connection
-- [x] `deleteDataSource(id, organizationId)` - Delete connection
-- [x] `seedDefaultDataSources(organizationId, userId)` - Idempotent seeding
+- [x] `updateDataSource(id, organization_id, params)` - Update connection
+- [x] `deleteDataSource(id, organization_id)` - Delete connection
+- [x] `seedDefaultDataSources(organization_id, userId)` - Idempotent seeding
 - [x] `updateDataSourceStatus()` - Update status (used by RabbitMQ consumer)
 
 **Dependencies**: Step 2 (types)
@@ -71,12 +71,12 @@ Implementing data source connections feature that allows organizations to config
 **Status**: ✅ Complete
 **File**: `packages/api-server/src/routes/dataSources.ts`
 
-- [x] `GET /api/v1/data-sources` - List connections
-- [x] `GET /api/v1/data-sources/:id` - Get single connection
-- [x] `POST /api/v1/data-sources` - Create connection
-- [x] `PUT /api/v1/data-sources/:id` - Update connection
-- [x] `DELETE /api/v1/data-sources/:id` - Delete connection
-- [x] `POST /api/v1/data-sources/seed` - Seed default sources
+- [x] `GET /api/data-sources` - List connections
+- [x] `GET /api/data-sources/:id` - Get single connection
+- [x] `POST /api/data-sources` - Create connection
+- [x] `PUT /api/data-sources/:id` - Update connection
+- [x] `DELETE /api/data-sources/:id` - Delete connection
+- [x] `POST /api/data-sources/seed` - Seed default sources
 - [x] Add authentication middleware
 - [x] Add input validation (Zod schemas)
 - [x] Register routes in `index.ts`
@@ -95,8 +95,8 @@ Implementing data source connections feature that allows organizations to config
   - `sendVerifyEvent()` - Send credentials to external service for verification
   - `sendSyncTriggerEvent()` - Trigger sync job
 - [x] Create webhook routes:
-  - `POST /api/v1/data-sources/:id/verify` - ⚠️ **NEEDS UPDATE**: Now returns immediately with `status='verifying'` instead of waiting for response
-  - `POST /api/v1/data-sources/:id/sync` - Trigger sync
+  - `POST /api/data-sources/:id/verify` - ⚠️ **NEEDS UPDATE**: Now returns immediately with `status='verifying'` instead of waiting for response
+  - `POST /api/data-sources/:id/sync` - Trigger sync
 - [x] Add retry logic (3 attempts with exponential backoff)
 - [x] Add status validation (prevent sync when already syncing)
 - [x] Mount webhook routes in main data sources router
@@ -319,7 +319,7 @@ Implementing data source connections feature that allows organizations to config
      ```typescript
      async updateVerificationStatus(
        connectionId: string,
-       organizationId: string,
+       organization_id: string,
        status: 'success' | 'failed',
        options?: Record<string, string>,
        error?: string
@@ -328,7 +328,7 @@ Implementing data source connections feature that allows organizations to config
 
 ### Webhook Handler Updates
 4. **`packages/api-server/src/routes/dataSourceWebhooks.ts`**:
-   - Update `POST /api/v1/data-sources/:id/verify` endpoint:
+   - Update `POST /api/data-sources/:id/verify` endpoint:
      - Set connection `status='verifying'` before sending webhook
      - Return immediately with `{ status: 'verifying', message: 'Verification in progress' }`
      - Frontend will receive result via SSE
@@ -365,9 +365,9 @@ Implementing data source connections feature that allows organizations to config
    - Subscribe to unified `data_source_update` SSE events
    - Handle both sync and verification updates in single listener
    - Show loading state while `status='verifying'` or `status='syncing'`
-   - Display available options from `latestOptions` when verification succeeds
+   - Display available options from `latest_options` when verification succeeds
    - Show sync progress when `documentsProcessed` is present
-   - Show error messages from either `lastSyncError` or `lastVerificationError`
+   - Show error messages from either `last_sync_error` or `last_verification_error`
 
 ## Notes & Decisions
 
@@ -395,3 +395,155 @@ Implementing data source connections feature that allows organizations to config
 - **Phase 3** (Testing): Steps 11-14
 
 **Target Completion**: TBD
+
+---
+
+## Post-Implementation Fixes & Updates
+
+### API Route Corrections (Completed 2025-10-07)
+
+#### Issue 1: Route Order Bug
+**Problem**: The `/seed` endpoint was returning 404 errors because it was defined AFTER the `/:id` parameterized route in `packages/api-server/src/routes/dataSources.ts`.
+
+**Root Cause**: Express.js matches routes in order of definition. When `/seed` came after `/:id`, Express treated "seed" as an ID parameter.
+
+**Fix Applied**:
+```typescript
+// BEFORE (broken):
+router.get('/:id', ...);        // Line 76
+router.post('/seed', ...);      // Line 168 - TOO LATE!
+
+// AFTER (fixed):
+router.post('/seed', ...);      // Line 51 - BEFORE /:id
+router.get('/:id', ...);        // Line 76 - AFTER /seed
+```
+
+**Files Changed**: `packages/api-server/src/routes/dataSources.ts`
+
+---
+
+#### Issue 2: API Path Mismatch
+**Problem**: Frontend was calling `/api/v1/data-sources/*` but backend routes were mounted at `/api/data-sources/*` (no v1 prefix).
+
+**Root Cause**: Initial design included v1 versioning but it was not implemented consistently. No other API routes in Rita use the v1 prefix.
+
+**Fix Applied**: Removed `/v1/` prefix from all frontend API calls:
+```typescript
+// BEFORE:
+list: () => apiRequest('/api/v1/data-sources'),
+seed: () => apiRequest('/api/v1/data-sources/seed', { method: 'POST' }),
+
+// AFTER:
+list: () => apiRequest('/api/data-sources'),
+seed: () => apiRequest('/api/data-sources/seed', { method: 'POST' }),
+```
+
+**Files Changed**:
+- `packages/client/src/services/api.ts` (lines 186-220)
+- All documentation files (removed v1 references)
+
+---
+
+### Field Name Standardization (Completed 2025-10-07)
+
+#### Issue 1: config vs settings
+**Problem**: Frontend code used `config` field name but backend database and validation schemas use `settings`.
+
+**Fix Applied**: Global rename from `config` to `settings` throughout frontend:
+- Updated `packages/client/src/types/dataSource.ts` interfaces
+- Updated all connection form components
+- Updated `packages/client/src/constants/connectionSources.ts`
+- Updated component prop names and default values
+
+**Files Changed**:
+- `packages/client/src/types/dataSource.ts`
+- `packages/client/src/constants/connectionSources.ts`
+- `packages/client/src/components/connection-sources/connection-forms/*.tsx` (all forms)
+
+#### Issue 2: camelCase vs snake_case
+**Problem**: Frontend TypeScript interfaces used camelCase field names (e.g., `lastVerificationAt`, `organizationId`) but backend API returns snake_case (e.g., `last_verification_at`, `organization_id`) matching the PostgreSQL database schema.
+
+**Root Cause**: Backend routes directly return database rows without field name transformation. This is consistent with other API routes in the codebase (e.g., conversations API also returns snake_case `created_at`).
+
+**Fix Applied**: Updated all frontend TypeScript interfaces and code to use snake_case matching backend:
+
+| Old (camelCase) | New (snake_case) |
+|----------------|------------------|
+| `organizationId` | `organization_id` |
+| `lastSyncStatus` | `last_sync_status` |
+| `latestOptions` | `latest_options` |
+| `lastVerificationAt` | `last_verification_at` |
+| `lastVerificationError` | `last_verification_error` |
+| `lastSyncAt` | `last_sync_at` |
+| `lastSyncError` | `last_sync_error` |
+| `createdBy` | `created_by` |
+| `updatedBy` | `updated_by` |
+| `createdAt` | `created_at` |
+| `updatedAt` | `updated_at` |
+
+**Files Changed**:
+- `packages/client/src/types/dataSource.ts` - Interface definitions
+- `packages/client/src/constants/connectionSources.ts` - Mapping functions
+- `packages/client/src/contexts/SSEContext.tsx` - SSE event handling
+- `packages/client/src/components/connection-sources/connection-forms/ConfluenceForm.tsx` - Form logic
+- `packages/client/src/pages/ConnectionSourceDetailPage.tsx` - View logic
+- All documentation files (using sed bulk replacement)
+
+**Why Not Transform in Frontend?**
+- Maintains consistency with existing codebase patterns
+- Reduces complexity (no transformation layer needed)
+- TypeScript provides type safety regardless of naming convention
+- Backend directly returns Postgres schema (no ORM mapping)
+
+---
+
+### UI Enhancements (Completed 2025-10-07)
+
+#### ConnectionStatusCard Integration
+**Enhancement**: Added `ConnectionStatusCard` component to detail page view mode with Edit dropdown menu.
+
+**Implementation**:
+- View mode now shows `ConnectionStatusCard` with connection details (URL, email, API key masked)
+- Added `DropdownMenu` with `MoreVertical` icon for actions
+- Edit menu item triggers edit mode to show configuration form
+- Cancel button returns to view mode
+
+**Files Changed**: `packages/client/src/pages/ConnectionSourceDetailPage.tsx`
+
+---
+
+### Current Implementation Status
+
+#### Completed (Phase 1 - Backend):
+- ✅ Database migration (`data_source_connections` table)
+- ✅ TypeScript types and constants
+- ✅ DataSourceService (all CRUD operations)
+- ✅ API routes with authentication and validation
+- ✅ Webhook handlers for verify and sync operations
+- ✅ Unified RabbitMQ consumer for sync and verification status
+- ✅ Route order fix (seed before :id)
+- ✅ API path correction (removed v1 prefix)
+
+#### Completed (Phase 2 - Frontend):
+- ✅ Frontend types matching backend
+- ✅ API client functions in `services/api.ts`
+- ✅ TanStack Query hooks (`useDataSources`, `useDataSource`, `useVerifyDataSource`, `useUpdateDataSource`)
+- ✅ SSE context integration for real-time updates
+- ✅ Constants and UI mapping functions
+- ✅ Connection forms with verify & save flow (Confluence, ServiceNow, SharePoint, WebSearch)
+- ✅ ConnectionStatusCard component
+- ✅ ConnectionSourceDetailPage with view/edit modes
+- ✅ Field name standardization (config → settings)
+- ✅ ConnectionStatusCard integration with Edit dropdown
+
+#### In Progress:
+- 🔄 Testing and validation
+
+#### Pending (Phase 3 - Testing):
+- ⏳ Unit tests for backend services
+- ⏳ Integration tests for API endpoints
+- ⏳ Frontend component tests
+- ⏳ E2E testing
+- ⏳ Docker validation
+
+---

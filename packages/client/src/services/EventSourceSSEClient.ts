@@ -31,7 +31,6 @@ export class EventSourceSSEClient {
 
         // Set up event listeners
         this.eventSource.onopen = () => {
-          console.log('EventSource connection opened');
           this.emit('open', {});
           resolve();
         };
@@ -39,7 +38,6 @@ export class EventSourceSSEClient {
         this.eventSource.onmessage = (event) => {
           try {
             const data = JSON.parse(event.data);
-            console.log('EventSource received data:', data);
             this.emit('message', data);
           } catch (error) {
             console.error('Failed to parse EventSource data:', error);

@@ -1,11 +1,16 @@
 "use client";
 
-import { EllipsisVertical } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { useConnectionSource } from "@/contexts/ConnectionSourceContext";
+import { ConnectionActionsMenu } from "../ConnectionActionsMenu";
 import { ConnectionStatusCard } from "../ConnectionStatusCard";
 
-export default function SharePointConfiguration() {
+interface SharePointConfigurationProps {
+	onEdit?: () => void;
+}
+
+export default function SharePointConfiguration({
+	onEdit,
+}: SharePointConfigurationProps = {}) {
 	const { source } = useConnectionSource();
 	return (
 		<div className="flex flex-col gap-2">
@@ -16,9 +21,7 @@ export default function SharePointConfiguration() {
 							SharePoint configuration
 						</h4>
 					</div>
-					<Button variant="ghost" size="icon">
-						<EllipsisVertical className="h-4 w-4" />
-					</Button>
+					<ConnectionActionsMenu onEdit={onEdit} />
 				</div>
 
 				<ConnectionStatusCard source={source} />

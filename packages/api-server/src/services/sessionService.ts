@@ -49,7 +49,7 @@ export class SessionService {
     }
   }
 
-  private async findOrCreateUser(tokenPayload: jose.JWTPayload): Promise<{ id: string; email: string; activeOrganizationId: string; }> {
+  public async findOrCreateUser(tokenPayload: jose.JWTPayload): Promise<{ id: string; email: string; activeOrganizationId: string; }> {
     // biome-ignore lint/style/noNonNullAssertion: must be non-null
     const keycloakId = tokenPayload.sub!;
     const email = tokenPayload.email as string;
@@ -124,6 +124,10 @@ export class SessionService {
     return session;
   }
 
+  async updateSession(sessionId: string, updates: Partial<Session>): Promise<Session | null> {
+    return this.sessionStore.updateSession(sessionId, updates);
+  }
+
   async destroySession(sessionId: string): Promise<boolean> {
     const deleted = await this.sessionStore.deleteSession(sessionId);
     if (deleted) logger.info({ sessionId }, 'Session destroyed');
@@ -136,7 +140,7 @@ export class SessionService {
     return deletedCount;
   }
 
-  private generateSessionCookie(sessionId: string): string {
+  generateSessionCookie(sessionId: string): string {
     const isProduction = process.env.NODE_ENV === 'production';
     const domain = process.env.COOKIE_DOMAIN || undefined;
     const maxAge = 24 * 60 * 60 * 1000; // 24 hours

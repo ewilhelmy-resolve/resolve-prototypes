@@ -2,7 +2,7 @@
 
 import { ArrowLeft } from "lucide-react";
 import type { ReactNode } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import {
 	Sidebar,
 	SidebarContent,
@@ -14,7 +14,11 @@ import {
 	SidebarMenuButton,
 	SidebarMenuItem,
 	SidebarProvider,
+	SidebarSeparator,
 } from "@/components/ui/sidebar";
+import { SSEProvider } from "@/contexts/SSEContext";
+import useAuth from "@/hooks/useAuth";
+import { cn } from "@/lib/utils";
 
 interface RitaSettingsLayoutProps {
 	children?: ReactNode;
@@ -32,69 +36,73 @@ export default function RitaSettingsLayout({
 	};
 
 	// Check if current path matches route (including sub-routes)
-	const isConnectionSourcesActive = location.pathname === "/settings" ||
-		location.pathname.startsWith("/settings/connections");
+	const isConnectionSourcesActive = location.pathname.startsWith("/settings/connections");
 	const isUsersActive = location.pathname.startsWith("/settings/users");
+	const isProfileActive = location.pathname === "/settings";
+
+	const { authenticated, loading, sessionReady } = useAuth();
 
 	return (
-		<SidebarProvider defaultOpen={true}>
-			<Sidebar>
-				<SidebarHeader className="p-2">
-					<SidebarMenu>
-						<SidebarMenuItem>
-							<SidebarMenuButton
-								className="flex items-center gap-2 p-2 h-8 rounded-md cursor-pointer"
-								onClick={handleBackToApp}
-							>
-								<ArrowLeft className="h-4 w-4" />
-								<span className="text-sm">Settings</span>
-							</SidebarMenuButton>
-						</SidebarMenuItem>
-					</SidebarMenu>
-				</SidebarHeader>
-
-				<SidebarContent>
-					<SidebarGroup className="p-2">
-						<SidebarMenu>
-							<SidebarMenuItem>
-								<SidebarMenuButton className="p-2 h-8 rounded-md">
-									<span className="text-sm">Profile</span>
-								</SidebarMenuButton>
-							</SidebarMenuItem>
-							<SidebarMenuItem>
-								<SidebarMenuButton
-									className="p-2 h-8 rounded-md cursor-pointer"
-									onClick={() => navigate("/settings")}
-									isActive={isConnectionSourcesActive}
-								>
-									<span className="text-sm">Connection Sources</span>
-								</SidebarMenuButton>
-							</SidebarMenuItem>
-						</SidebarMenu>
-					</SidebarGroup>
-
-					<SidebarGroup className="p-2">
-						<SidebarGroupLabel className="px-2 h-8 text-xs opacity-70">
-							Admin
-						</SidebarGroupLabel>
+		<SSEProvider apiUrl="" enabled={authenticated && !loading && sessionReady}>
+			<SidebarProvider defaultOpen={true}>
+				<Sidebar>
+					<SidebarHeader className="p-2">
 						<SidebarMenu>
 							<SidebarMenuItem>
 								<SidebarMenuButton
-									className="p-2 h-8 rounded-md cursor-pointer"
-									onClick={() => navigate("/settings/users")}
-									isActive={isUsersActive}
+									className="flex items-center gap-2 p-2 h-8 rounded-md cursor-pointer"
+									onClick={handleBackToApp}
 								>
-									<span className="text-sm">Users</span>
+									<ArrowLeft className="h-4 w-4" />
+									<span className="text-sm">Settings</span>
 								</SidebarMenuButton>
 							</SidebarMenuItem>
 						</SidebarMenu>
-					</SidebarGroup>
-				</SidebarContent>
-			</Sidebar>
+					</SidebarHeader>
 
-			<SidebarInset className="flex flex-col items-start w-full md:ml-[calc(var(--sidebar-width)-6rem)]">
-				<main className="w-full p-6">{children}</main>
-			</SidebarInset>
-		</SidebarProvider>
+					<SidebarContent>
+						<SidebarGroup className="p-2">
+							<SidebarMenu>
+								<SidebarMenuItem>
+									<SidebarMenuButton className={cn("p-2 h-8 rounded-md", isProfileActive && "bg-accent text-accent-foreground")}>
+										<span className="text-sm">Profile</span>
+									</SidebarMenuButton>
+								</SidebarMenuItem>
+								<SidebarMenuItem>
+									<SidebarMenuButton
+										className={cn("p-2 h-8 rounded-md cursor-pointer", isConnectionSourcesActive && "bg-accent text-accent-foreground")}
+										onClick={() => navigate("/settings")}
+									>
+										<span className="text-sm">Connection Sources</span>
+									</SidebarMenuButton>
+								</SidebarMenuItem>
+							</SidebarMenu>
+						</SidebarGroup>
+
+						<SidebarSeparator />
+
+						<SidebarGroup className="p-2">
+							<SidebarGroupLabel className="px-2 h-8 text-xs opacity-70">
+								Admin
+							</SidebarGroupLabel>
+							<SidebarMenu>
+								<SidebarMenuItem>
+									<SidebarMenuButton
+										className={cn("p-2 h-8 rounded-md cursor-pointer", isUsersActive && "bg-accent text-accent-foreground")}
+										onClick={() => navigate("/settings/users")}
+									>
+										<span className="text-sm">Users</span>
+									</SidebarMenuButton>
+								</SidebarMenuItem>
+							</SidebarMenu>
+						</SidebarGroup>
+					</SidebarContent>
+				</Sidebar>
+
+				<SidebarInset className="flex flex-col items-start w-full md:ml-[calc(var(--sidebar-width)-6rem)]">
+					<main className="w-full p-6">{children}</main>
+				</SidebarInset>
+			</SidebarProvider>
+		</SSEProvider>
 	);
 }
