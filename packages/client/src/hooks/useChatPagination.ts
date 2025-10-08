@@ -47,12 +47,14 @@ export function useChatPagination({
   threshold = 200,
 }: UseChatPaginationProps): UseChatPaginationReturn {
   const sentinelRef = useRef<HTMLDivElement>(null)
-  const { isLoadingMore, hasMoreMessages, chatMessages } = useConversationStore()
+  const { chatMessages, setMessages, prependMessages, setHasMoreMessages, setLoadingMore } = useConversationStore()
   const [hasScrolledToBottom, setHasScrolledToBottom] = useState(false)
   const scrollAttemptedRef = useRef<string | null>(null)
+  const previousPageCountRef = useRef(0)
 
   // Use infinite query hook
   const {
+    data,
     fetchNextPage,
     hasNextPage,
     isFetchingNextPage,
@@ -61,6 +63,43 @@ export function useChatPagination({
   // Preserve scroll position before loading
   const scrollHeightBeforeLoad = useRef<number>(0)
   const scrollTopBeforeLoad = useRef<number>(0)
+
+  // Update store when query data changes
+  useEffect(() => {
+    if (!data) return
+
+    const allMessages = data.pages.flatMap((page) => page.messages)
+    const hasMore = data.pages[data.pages.length - 1]?.hasMore || false
+    const currentPageCount = data.pages.length
+
+    // Initial load: replace all messages
+    if (currentPageCount === 1 && previousPageCountRef.current === 0) {
+      setMessages(allMessages)
+      previousPageCountRef.current = 1
+    }
+    // Pagination: prepend older messages
+    else if (currentPageCount > previousPageCountRef.current) {
+      const latestPage = data.pages[data.pages.length - 1]
+      if (latestPage.messages.length > 0) {
+        prependMessages(latestPage.messages)
+      }
+      previousPageCountRef.current = currentPageCount
+    }
+
+    setHasMoreMessages(hasMore)
+  }, [data, setMessages, prependMessages, setHasMoreMessages])
+
+  // Update loading state
+  useEffect(() => {
+    setLoadingMore(isFetchingNextPage)
+  }, [isFetchingNextPage, setLoadingMore])
+
+  // Reset page count when conversation changes
+  useEffect(() => {
+    if (conversationId) {
+      previousPageCountRef.current = 0
+    }
+  }, [conversationId])
 
   // Handle loading older messages
   const loadMore = useCallback(async () => {
