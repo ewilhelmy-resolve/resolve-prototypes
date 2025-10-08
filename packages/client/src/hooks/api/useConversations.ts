@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient, useInfiniteQuery } from '@tanstack/react-query'
 import { conversationApi } from '@/services/api.ts'
 import { useConversationStore } from '@/stores/conversationStore.ts'
 import type { Conversation, Message } from '@/stores/conversationStore.ts'
@@ -69,6 +69,70 @@ export function useConversationMessages(conversationId: string | null) {
     enabled: !!conversationId,
     staleTime: 0, // we always want to fetch the latest messages
     refetchOnMount: true,
+  })
+}
+
+// Fetch conversation messages with infinite scroll pagination
+export function useInfiniteConversationMessages(conversationId: string | null) {
+  const { setMessages, prependMessages, setHasMoreMessages, setLoadingMore } = useConversationStore()
+
+  return useInfiniteQuery({
+    queryKey: [...conversationKeys.messages(conversationId || ''), 'infinite'],
+    queryFn: async ({ pageParam }) => {
+      if (!conversationId) return { messages: [], hasMore: false, nextCursor: null }
+
+      const response = await conversationApi.getConversationMessages(conversationId, {
+        limit: pageParam === undefined ? 100 : 50, // Initial: 100, Pagination: 50
+        before: pageParam, // Cursor timestamp
+      })
+
+      const messages: Message[] = response.messages.map((msg: any) => ({
+        id: msg.id,
+        message: msg.message,
+        role: msg.role,
+        timestamp: new Date(msg.created_at),
+        conversation_id: msg.conversation_id,
+        status: msg.status,
+        error_message: msg.error_message,
+        metadata: msg.metadata,
+        response_group_id: msg.response_group_id,
+      }))
+
+      return {
+        messages,
+        hasMore: response.hasMore,
+        nextCursor: response.nextCursor,
+      }
+    },
+    getNextPageParam: (lastPage) => {
+      // Return cursor for next page, or undefined if no more pages
+      return lastPage.hasMore ? lastPage.nextCursor : undefined
+    },
+    initialPageParam: undefined,
+    enabled: !!conversationId,
+    staleTime: 0,
+    refetchOnMount: true,
+    select: (data) => {
+      // Flatten all pages into single message array
+      const allMessages = data.pages.flatMap((page) => page.messages)
+      const hasMore = data.pages[data.pages.length - 1]?.hasMore || false
+
+      // Update store with flattened messages
+      if (data.pages.length === 1) {
+        // Initial load: use setMessages
+        setMessages(allMessages)
+      } else if (data.pages.length > 1) {
+        // Pagination: prepend older messages
+        const latestPage = data.pages[data.pages.length - 1]
+        if (latestPage.messages.length > 0) {
+          prependMessages(latestPage.messages)
+        }
+      }
+
+      setHasMoreMessages(hasMore)
+
+      return { messages: allMessages, hasMore }
+    },
   })
 }
 
