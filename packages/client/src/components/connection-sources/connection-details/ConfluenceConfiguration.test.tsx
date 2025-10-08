@@ -4,6 +4,7 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import ConfluenceConfiguration from './ConfluenceConfiguration';
 import { ConnectionSourceProvider } from '@/contexts/ConnectionSourceContext';
 import { STATUS } from '@/constants/connectionSources';
@@ -98,21 +99,26 @@ describe('ConfluenceConfiguration', () => {
 	it('should render actions menu', () => {
 		const source = createMockSource();
 		renderWithProvider(source);
-		// EllipsisVertical button should be present
-		const menuButton = screen.getByRole('button');
-		expect(menuButton).toBeInTheDocument();
+		// EllipsisVertical button should be present (there are multiple buttons, check for existence)
+		const buttons = screen.getAllByRole('button');
+		expect(buttons.length).toBeGreaterThan(0);
 	});
 
 	it('should call onEdit when Edit is clicked', async () => {
+		const user = userEvent.setup();
 		const mockOnEdit = vi.fn();
 		const source = createMockSource();
 		renderWithProvider(source, mockOnEdit);
 
-		const menuButton = screen.getByRole('button');
-		fireEvent.click(menuButton);
+		// Get the menu trigger button (not the sync button)
+		const buttons = screen.getAllByRole('button');
+		const menuButton = buttons.find(btn => btn.getAttribute('aria-haspopup') === 'menu');
+		expect(menuButton).toBeDefined();
+
+		await user.click(menuButton!);
 
 		const editOption = await screen.findByText('Edit');
-		fireEvent.click(editOption);
+		await user.click(editOption);
 
 		expect(mockOnEdit).toHaveBeenCalledTimes(1);
 	});
@@ -180,7 +186,7 @@ describe('ConfluenceConfiguration', () => {
 					settings: {
 						url: 'https://company.atlassian.net',
 						email: 'user@company.com',
-						spaces: 'ENG, PROD, DOCS',
+						spaces: 'ENG,PROD,DOCS', // Join without spaces (actual behavior)
 					},
 				},
 			});

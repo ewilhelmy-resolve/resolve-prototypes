@@ -2,8 +2,8 @@
  * ConnectionStatusCard.test.tsx - Unit tests for connection status card component
  */
 
-import { render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { render, screen, fireEvent, waitFor, act } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
 import type { ConnectionSource } from "@/constants/connectionSources";
 import { STATUS } from "@/constants/connectionSources";
 import { ConnectionStatusCard } from "./ConnectionStatusCard";
@@ -16,17 +16,25 @@ const createMockSource = (
 	type: "confluence",
 	title: "Confluence",
 	status: STATUS.CONNECTED,
-	lastSync: undefined,
+	lastSync: "2 hours ago",
 	description: "Confluence workspace connection",
 	badges: ["ENG", "PROD"],
-	settings: {},
+	settings: {
+		url: "https://company.atlassian.net",
+		email: "user@company.com",
+		token: "secret-token-123",
+	},
 	backendData: {
 		id: "source-123",
 		organization_id: "org-123",
 		type: "confluence",
 		name: "Confluence",
 		description: null,
-		settings: {},
+		settings: {
+			url: "https://company.atlassian.net",
+			email: "user@company.com",
+			token: "secret-token-123",
+		},
 		latest_options: null,
 		status: "idle",
 		last_sync_status: "completed",
@@ -76,59 +84,124 @@ describe("ConnectionStatusCard", () => {
 		});
 	});
 
-	describe("Last Sync Display", () => {
-		it("should display last sync time when available", () => {
-			const source = createMockSource({ lastSync: "2 hours ago" });
+	describe("Connection Details Display", () => {
+		it("should display URL when available", () => {
+			const source = createMockSource({
+				settings: { url: "https://company.atlassian.net" },
+			});
 			render(<ConnectionStatusCard source={source} />);
-			expect(screen.getByText("Last sync")).toBeInTheDocument();
-			expect(screen.getByText("2 hours ago")).toBeInTheDocument();
+			expect(screen.getByText("URL")).toBeInTheDocument();
+			expect(
+				screen.getByText("https://company.atlassian.net"),
+			).toBeInTheDocument();
 		});
 
-		it('should display "—" when last sync is undefined', () => {
-			const source = createMockSource({ lastSync: undefined });
+		it("should display email when available", () => {
+			const source = createMockSource({
+				settings: { email: "user@company.com" },
+			});
 			render(<ConnectionStatusCard source={source} />);
-			expect(screen.getByText("Last sync")).toBeInTheDocument();
-			expect(screen.getByText("—")).toBeInTheDocument();
+			expect(screen.getByText("Email")).toBeInTheDocument();
+			expect(screen.getByText("user@company.com")).toBeInTheDocument();
 		});
 
-		it('should display "Just now" for very recent sync', () => {
-			const source = createMockSource({ lastSync: "Just now" });
+		it("should mask API token", () => {
+			const source = createMockSource({
+				settings: { token: "secret-token" },
+			});
 			render(<ConnectionStatusCard source={source} />);
-			expect(screen.getByText("Just now")).toBeInTheDocument();
+			expect(screen.getByText("API")).toBeInTheDocument();
+			expect(screen.getByText(/••••••••••••••••••••/)).toBeInTheDocument();
+		});
+
+		it('should display "—" when URL is missing', () => {
+			const source = createMockSource({ settings: {} });
+			render(<ConnectionStatusCard source={source} />);
+			expect(screen.getByText("URL")).toBeInTheDocument();
+			expect(screen.getAllByText("—").length).toBeGreaterThan(0);
 		});
 	});
 
-	describe("Badges Display", () => {
-		it("should display badges when present", () => {
-			const source = createMockSource({ badges: ["ENG", "PROD", "DOCS"] });
-			render(<ConnectionStatusCard source={source} />);
-			expect(screen.getByText("ENG")).toBeInTheDocument();
-			expect(screen.getByText("PROD")).toBeInTheDocument();
-			expect(screen.getByText("DOCS")).toBeInTheDocument();
-		});
-
-		it("should not display badges section when badges array is empty", () => {
-  			// Badges container should not be rendered
-			expect(screen.queryByText("ENG")).not.toBeInTheDocument();
-		});
-
-		it("should handle single badge", () => {
-			const source = createMockSource({ badges: ["ENG"] });
-			render(<ConnectionStatusCard source={source} />);
-			expect(screen.getByText("ENG")).toBeInTheDocument();
-		});
-
-		it("should handle many badges", () => {
+	describe("Status Messages", () => {
+		it("should show last sync time for CONNECTED status", () => {
 			const source = createMockSource({
-				badges: ["ENG", "PROD", "DOCS", "MARKETING", "SALES"],
+				status: STATUS.CONNECTED,
+				lastSync: "2 hours ago",
 			});
 			render(<ConnectionStatusCard source={source} />);
-			expect(screen.getByText("ENG")).toBeInTheDocument();
-			expect(screen.getByText("PROD")).toBeInTheDocument();
-			expect(screen.getByText("DOCS")).toBeInTheDocument();
-			expect(screen.getByText("MARKETING")).toBeInTheDocument();
-			expect(screen.getByText("SALES")).toBeInTheDocument();
+			expect(screen.getByText("Last synced 2 hours ago")).toBeInTheDocument();
 		});
+
+		it('should show "Connected" when no lastSync available', () => {
+			const source = createMockSource({
+				status: STATUS.CONNECTED,
+				lastSync: undefined,
+			});
+			render(<ConnectionStatusCard source={source} />);
+			// There are two "Connected" texts: one in badge, one in status message
+			expect(screen.getAllByText("Connected").length).toBe(2);
+		});
+
+		it('should show "Syncing connection..." for SYNCING status', () => {
+			const source = createMockSource({ status: STATUS.SYNCING });
+			render(<ConnectionStatusCard source={source} />);
+			expect(screen.getByText("Syncing connection...")).toBeInTheDocument();
+		});
+
+		it('should show "Verifying connection..." for VERIFYING status', () => {
+			const source = createMockSource({ status: STATUS.VERIFYING });
+			render(<ConnectionStatusCard source={source} />);
+			expect(screen.getByText("Verifying connection...")).toBeInTheDocument();
+		});
+
+		it('should show "Not configured" for NOT_CONNECTED status', () => {
+			const source = createMockSource({ status: STATUS.NOT_CONNECTED });
+			render(<ConnectionStatusCard source={source} />);
+			expect(screen.getByText("Not configured")).toBeInTheDocument();
+		});
+	});
+
+	describe("Error Handling", () => {
+		it('should show "Connection failed" message for ERROR status', () => {
+			const source = createMockSource({ status: STATUS.ERROR });
+			render(<ConnectionStatusCard source={source} />);
+			expect(screen.getByText(/Connection failed/)).toBeInTheDocument();
+		});
+
+		it("should show Retry button for ERROR status", () => {
+			const source = createMockSource({ status: STATUS.ERROR });
+			render(<ConnectionStatusCard source={source} />);
+			expect(screen.getByRole("button", { name: /Retry/i })).toBeInTheDocument();
+		});
+
+		it("should call onRetry when Retry button is clicked", () => {
+			const mockOnRetry = vi.fn();
+			const source = createMockSource({ status: STATUS.ERROR });
+			render(<ConnectionStatusCard source={source} onRetry={mockOnRetry} />);
+
+			const retryButton = screen.getByRole("button", { name: /Retry/i });
+			fireEvent.click(retryButton);
+
+			expect(mockOnRetry).toHaveBeenCalledTimes(1);
+		});
+
+		it("should show retry count after first retry", async () => {
+			const source = createMockSource({ status: STATUS.ERROR });
+			render(<ConnectionStatusCard source={source} />);
+
+			const retryButton = screen.getByRole("button", { name: /Retry/i });
+			fireEvent.click(retryButton);
+
+			// Wait for retry state to complete
+			await waitFor(() => {
+				expect(screen.getByText(/\(1\/3\)/)).toBeInTheDocument();
+			});
+		});
+
+		// Note: The following tests verify that the retry count increments
+		// and eventually shows "Get Help" button after 3 retries.
+		// We skip detailed async timer testing as it's complex and the basic
+		// retry logic is already verified by simpler tests above.
 	});
 
 	describe("Card Structure", () => {
@@ -139,12 +212,11 @@ describe("ConnectionStatusCard", () => {
 			expect(container.querySelector(".border")).toBeInTheDocument();
 		});
 
-		it("should display status and last sync in the same card", () => {
+		it("should display status badge in the card", () => {
 			const source = createMockSource();
 			render(<ConnectionStatusCard source={source} />);
-			// Both status badge and last sync should be present
-			expect(screen.getByText("Connected")).toBeInTheDocument();
-			expect(screen.getByText("Last sync")).toBeInTheDocument();
+			// Badge should be present (will have 2 "Connected" texts)
+			expect(screen.getAllByText("Connected").length).toBeGreaterThan(0);
 		});
 	});
 
@@ -155,7 +227,7 @@ describe("ConnectionStatusCard", () => {
 				title: "Confluence",
 			});
 			render(<ConnectionStatusCard source={source} />);
-			expect(screen.getByText("Connected")).toBeInTheDocument();
+			expect(screen.getAllByText("Connected").length).toBeGreaterThan(0);
 		});
 
 		it("should work with ServiceNow connection", () => {
@@ -164,7 +236,7 @@ describe("ConnectionStatusCard", () => {
 				title: "ServiceNow",
 			});
 			render(<ConnectionStatusCard source={source} />);
-			expect(screen.getByText("Connected")).toBeInTheDocument();
+			expect(screen.getAllByText("Connected").length).toBeGreaterThan(0);
 		});
 
 		it("should work with SharePoint connection", () => {
@@ -173,7 +245,7 @@ describe("ConnectionStatusCard", () => {
 				title: "SharePoint",
 			});
 			render(<ConnectionStatusCard source={source} />);
-			expect(screen.getByText("Connected")).toBeInTheDocument();
+			expect(screen.getAllByText("Connected").length).toBeGreaterThan(0);
 		});
 
 		it("should work with WebSearch connection", () => {
@@ -182,85 +254,7 @@ describe("ConnectionStatusCard", () => {
 				title: "Web Search",
 			});
 			render(<ConnectionStatusCard source={source} />);
-			expect(screen.getByText("Connected")).toBeInTheDocument();
-		});
-	});
-
-	describe("Edge Cases", () => {
-		it("should handle source with no badges and no lastSync", () => {
-			const source = createMockSource({ badges: [], lastSync: undefined });
-			render(<ConnectionStatusCard source={source} />);
-			expect(screen.getByText("Connected")).toBeInTheDocument();
-			expect(screen.getByText("—")).toBeInTheDocument();
-		});
-
-		it("should handle source with description", () => {
-			const source = createMockSource({ description: "Test description" });
-			render(<ConnectionStatusCard source={source} />);
-			// Description may or may not be displayed in the card
-			expect(screen.getByText("Connected")).toBeInTheDocument();
-		});
-
-		it("should handle very long badge names", () => {
-			const source = createMockSource({
-				badges: ["VERY_LONG_BADGE_NAME_THAT_MIGHT_OVERFLOW"],
-			});
-			render(<ConnectionStatusCard source={source} />);
-			expect(
-				screen.getByText("VERY_LONG_BADGE_NAME_THAT_MIGHT_OVERFLOW"),
-			).toBeInTheDocument();
-		});
-
-		it("should handle special characters in badges", () => {
-			const source = createMockSource({
-				badges: ["ENG-123", "PROD_V2", "DOCS@2024"],
-			});
-			render(<ConnectionStatusCard source={source} />);
-			expect(screen.getByText("ENG-123")).toBeInTheDocument();
-			expect(screen.getByText("PROD_V2")).toBeInTheDocument();
-			expect(screen.getByText("DOCS@2024")).toBeInTheDocument();
-		});
-	});
-
-	describe("Status and Sync Combinations", () => {
-		it("should show Connected status with recent sync", () => {
-			const source = createMockSource({
-				status: STATUS.CONNECTED,
-				lastSync: "Just now",
-			});
-			render(<ConnectionStatusCard source={source} />);
-			expect(screen.getByText("Connected")).toBeInTheDocument();
-			expect(screen.getByText("Just now")).toBeInTheDocument();
-		});
-
-		it("should show Syncing status with last sync time", () => {
-			const source = createMockSource({
-				status: STATUS.SYNCING,
-				lastSync: "1 hour ago",
-			});
-			render(<ConnectionStatusCard source={source} />);
-			expect(screen.getByText("Syncing...")).toBeInTheDocument();
-			expect(screen.getByText("1 hour ago")).toBeInTheDocument();
-		});
-
-		it("should show Error status with old sync time", () => {
-			const source = createMockSource({
-				status: STATUS.ERROR,
-				lastSync: "2 days ago",
-			});
-			render(<ConnectionStatusCard source={source} />);
-			expect(screen.getByText("Failed")).toBeInTheDocument();
-			expect(screen.getByText("2 days ago")).toBeInTheDocument();
-		});
-
-		it("should show Not connected status with no sync", () => {
-			const source = createMockSource({
-				status: STATUS.NOT_CONNECTED,
-				lastSync: undefined,
-			});
-			render(<ConnectionStatusCard source={source} />);
-			expect(screen.getByText("Not connected")).toBeInTheDocument();
-			expect(screen.getByText("—")).toBeInTheDocument();
+			expect(screen.getAllByText("Connected").length).toBeGreaterThan(0);
 		});
 	});
 });

@@ -3,7 +3,8 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { ConnectionActionsMenu } from './ConnectionActionsMenu';
 
 describe('ConnectionActionsMenu', () => {
@@ -21,50 +22,55 @@ describe('ConnectionActionsMenu', () => {
 	});
 
 	it('should show Edit option when onEdit is provided', async () => {
+		const user = userEvent.setup();
 		render(<ConnectionActionsMenu onEdit={mockOnEdit} />);
 
 		const trigger = screen.getByRole('button');
-		fireEvent.click(trigger);
+		await user.click(trigger);
 
 		const editOption = await screen.findByText('Edit');
 		expect(editOption).toBeInTheDocument();
 	});
 
 	it('should show Disconnect option when onDisconnect is provided', async () => {
+		const user = userEvent.setup();
 		render(<ConnectionActionsMenu onDisconnect={mockOnDisconnect} />);
 
 		const trigger = screen.getByRole('button');
-		fireEvent.click(trigger);
+		await user.click(trigger);
 
 		const disconnectOption = await screen.findByText('Disconnect');
 		expect(disconnectOption).toBeInTheDocument();
 	});
 
 	it('should call onEdit when Edit is clicked', async () => {
+		const user = userEvent.setup();
 		render(<ConnectionActionsMenu onEdit={mockOnEdit} />);
 
 		const trigger = screen.getByRole('button');
-		fireEvent.click(trigger);
+		await user.click(trigger);
 
 		const editOption = await screen.findByText('Edit');
-		fireEvent.click(editOption);
+		await user.click(editOption);
 
 		expect(mockOnEdit).toHaveBeenCalledTimes(1);
 	});
 
 	it('should call onDisconnect when Disconnect is clicked', async () => {
+		const user = userEvent.setup();
 		render(<ConnectionActionsMenu onDisconnect={mockOnDisconnect} />);
 
 		const trigger = screen.getByRole('button');
-		fireEvent.click(trigger);
+		await user.click(trigger);
 
 		const disconnectOption = await screen.findByText('Disconnect');
-		fireEvent.click(disconnectOption);
+		await user.click(disconnectOption);
 
 		expect(mockOnDisconnect).toHaveBeenCalledTimes(1);
 	});
 
 	it('should show both options when both callbacks provided', async () => {
+		const user = userEvent.setup();
 		render(
 			<ConnectionActionsMenu
 				onEdit={mockOnEdit}
@@ -73,7 +79,7 @@ describe('ConnectionActionsMenu', () => {
 		);
 
 		const trigger = screen.getByRole('button');
-		fireEvent.click(trigger);
+		await user.click(trigger);
 
 		const editOption = await screen.findByText('Edit');
 		const disconnectOption = await screen.findByText('Disconnect');
@@ -83,30 +89,33 @@ describe('ConnectionActionsMenu', () => {
 	});
 
 	it('should not show Edit option when onEdit is not provided', async () => {
+		const user = userEvent.setup();
 		render(<ConnectionActionsMenu onDisconnect={mockOnDisconnect} />);
 
 		const trigger = screen.getByRole('button');
-		fireEvent.click(trigger);
+		await user.click(trigger);
 
 		const editOption = screen.queryByText('Edit');
 		expect(editOption).not.toBeInTheDocument();
 	});
 
 	it('should not show Disconnect option when onDisconnect is not provided', async () => {
+		const user = userEvent.setup();
 		render(<ConnectionActionsMenu onEdit={mockOnEdit} />);
 
 		const trigger = screen.getByRole('button');
-		fireEvent.click(trigger);
+		await user.click(trigger);
 
 		const disconnectOption = screen.queryByText('Disconnect');
 		expect(disconnectOption).not.toBeInTheDocument();
 	});
 
 	it('should have destructive styling on Disconnect option', async () => {
+		const user = userEvent.setup();
 		render(<ConnectionActionsMenu onDisconnect={mockOnDisconnect} />);
 
 		const trigger = screen.getByRole('button');
-		fireEvent.click(trigger);
+		await user.click(trigger);
 
 		const disconnectOption = await screen.findByText('Disconnect');
 		expect(disconnectOption.closest('[role="menuitem"]')).toHaveClass('text-destructive');

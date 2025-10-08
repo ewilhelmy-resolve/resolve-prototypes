@@ -100,31 +100,31 @@ describe("ConnectionStatusBadge", () => {
 	describe("Color styling", () => {
 		it("should have blue border for VERIFYING status", () => {
 			render(<ConnectionStatusBadge status={STATUS.VERIFYING} />);
-			const badge = screen.getByText("Verifying...").closest("div");
+			const badge = screen.getByText("Verifying...");
 			expect(badge).toHaveClass("border-blue-500");
 		});
 
 		it("should have blue border for SYNCING status", () => {
 			render(<ConnectionStatusBadge status={STATUS.SYNCING} />);
-			const badge = screen.getByText("Syncing...").closest("div");
+			const badge = screen.getByText("Syncing...");
 			expect(badge).toHaveClass("border-blue-500");
 		});
 
 		it("should have green border for CONNECTED status", () => {
 			render(<ConnectionStatusBadge status={STATUS.CONNECTED} />);
-			const badge = screen.getByText("Connected").closest("div");
+			const badge = screen.getByText("Connected");
 			expect(badge).toHaveClass("border-green-500");
 		});
 
 		it("should have red border for ERROR status", () => {
 			render(<ConnectionStatusBadge status={STATUS.ERROR} />);
-			const badge = screen.getByText("Failed").closest("div");
+			const badge = screen.getByText("Failed");
 			expect(badge).toHaveClass("border-red-500");
 		});
 
 		it("should have orange border for Need Help state", () => {
 			render(<ConnectionStatusBadge status={STATUS.ERROR} showHelp={true} />);
-			const badge = screen.getByText("Need Help").closest("div");
+			const badge = screen.getByText("Need Help");
 			expect(badge).toHaveClass("border-orange-500");
 		});
 	});
