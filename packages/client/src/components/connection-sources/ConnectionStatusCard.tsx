@@ -94,6 +94,12 @@ export function ConnectionStatusCard({
 			case STATUS.SYNCING:
 				return (
 					<p className="text-sm text-foreground whitespace-nowrap">
+						Syncing connection...
+					</p>
+				);
+			case STATUS.VERIFYING:
+				return (
+					<p className="text-sm text-foreground whitespace-nowrap">
 						Verifying connection...
 					</p>
 				);

@@ -161,10 +161,18 @@ router.post('/:id/sync', authenticateUser, async (req, res) => {
       });
     }
 
+    // Get updated data source to return in response
+    const updatedDataSource = await dataSourceService.getDataSource(
+      id,
+      authReq.user.activeOrganizationId
+    );
+
     res.json({
-      success: true,
-      message: 'Sync triggered successfully',
-      data: webhookResponse.data
+      data: {
+        id: updatedDataSource!.id,
+        status: 'syncing' as const,
+        triggeredAt: new Date().toISOString()
+      }
     });
   } catch (error) {
     console.error('[DataSourceWebhook] Error triggering sync:', error);
