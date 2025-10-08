@@ -1,17 +1,21 @@
 "use client";
 
-import { EllipsisVertical } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
-import {
-	DropdownMenu,
-	DropdownMenuContent,
-	DropdownMenuItem,
-	DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+import { STATUS } from "@/constants/connectionSources";
 import { useConnectionSource } from "@/contexts/ConnectionSourceContext";
+import {
+	useTriggerSync,
+	useUpdateDataSource,
+} from "@/hooks/useDataSources";
+import {
+	parseAvailableSpaces,
+	parseSelectedSpaces,
+} from "@/lib/dataSourceUtils";
+import { toast } from "@/lib/toast";
 import { Label } from "../../ui/label";
 import { MultiSelect, type MultiSelectOption } from "../../ui/multi-select";
+import { ConnectionActionsMenu } from "../ConnectionActionsMenu";
 import { ConnectionStatusCard } from "../ConnectionStatusCard";
 import FormSectionTitle from "../form-elements/FormSectionTitle";
 
@@ -24,54 +28,69 @@ export default function ConfluenceConfiguration({
 }: ConfluenceConfigurationProps = {}) {
 	const { source } = useConnectionSource();
 	const [selectedSpaces, setSelectedSpaces] = useState<string[]>([]);
+	const updateMutation = useUpdateDataSource();
+	const syncMutation = useTriggerSync();
+
+	const isSyncButtonDisabled =
+		source.status.toLowerCase() === STATUS.SYNCING.toLowerCase() ||
+		source.status.toLowerCase() === STATUS.VERIFYING.toLowerCase() ||
+		updateMutation.isPending ||
+		syncMutation.isPending;
 
 	// Parse available spaces from latest_options (discovered during verification)
 	const availableSpaces: MultiSelectOption[] = useMemo(() => {
-		if (source.backendData?.latest_options?.spaces) {
-			const spaces =
-				typeof source.backendData.latest_options.spaces === "string"
-					? source.backendData.latest_options.spaces
-							.split(",")
-							.map((s: string) => s.trim())
-							.filter(Boolean)
-					: [];
-			return spaces.map((space) => ({ label: space, value: space }));
-		}
-		return [];
-	}, [source.backendData?.latest_options?.spaces]);
+		const spaces = parseAvailableSpaces(source.backendData?.latest_options);
+		return spaces.map((space) => ({ label: space, value: space }));
+	}, [source.backendData?.latest_options]);
 
 	// Initialize selected spaces from settings.spaces (already configured)
 	useEffect(() => {
-		if (source.backendData?.settings?.spaces) {
-			const spaces =
-				typeof source.backendData.settings.spaces === "string"
-					? source.backendData.settings.spaces
-							.split(",")
-							.map((s: string) => s.trim())
-							.filter(Boolean)
-					: [];
-			setSelectedSpaces(spaces);
+		const selected = parseSelectedSpaces(source.backendData?.settings);
+		if (selected.length > 0) {
+			setSelectedSpaces(selected);
 		}
-	}, [source.backendData?.settings?.spaces]);
+	}, [source.backendData?.settings]);
+
+	const handleSync = async () => {
+		if (!source.backendData) {
+			toast.error("Configuration Error", {
+				description: "No backend data available for this source",
+			});
+			return;
+		}
+
+		try {
+			// Step 1: Update selected spaces in settings
+			await updateMutation.mutateAsync({
+				id: source.backendData.id,
+				data: {
+					settings: {
+						...source.backendData.settings,
+						spaces: selectedSpaces.join(","),
+					},
+				},
+			});
+
+			// Step 2: Trigger sync
+			await syncMutation.mutateAsync(source.backendData.id);
+
+			toast.success("Sync Started", {
+				description: "Your Confluence spaces are being synced",
+			});
+		} catch (error) {
+			toast.error("Sync Failed", {
+				description:
+					error instanceof Error ? error.message : "Failed to start sync",
+			});
+		}
+	};
 
 	return (
 		<div className="w-full flex flex-col gap-2">
 			<div className="flex flex-col gap-2.5">
 				<div className="flex justify-between items-start gap-2">
 					<FormSectionTitle title="Confluence configuration" />
-					<DropdownMenu>
-						<DropdownMenuTrigger asChild>
-							<Button variant="ghost" size="icon">
-								<EllipsisVertical className="h-4 w-4" />
-							</Button>
-						</DropdownMenuTrigger>
-						<DropdownMenuContent>
-							<DropdownMenuItem onClick={onEdit}>Edit</DropdownMenuItem>
-							<DropdownMenuItem className="text-destructive">
-								Disconnect
-							</DropdownMenuItem>
-						</DropdownMenuContent>
-					</DropdownMenu>
+					<ConnectionActionsMenu onEdit={onEdit} />
 				</div>
 
 				<ConnectionStatusCard source={source} />
@@ -88,18 +107,21 @@ export default function ConfluenceConfiguration({
 										animationConfig={{ optionHoverAnimation: "none" }}
 										options={availableSpaces}
 										defaultValue={selectedSpaces}
-										onValueChange={(values) => {
-											setSelectedSpaces(values);
-											console.log("Spaces updated:", values);
-											// TODO: Implement API call to update spaces
-										}}
+										onValueChange={setSelectedSpaces}
 										placeholder="Choose spaces..."
 										searchable={true}
 										emptyIndicator="No spaces found."
 									/>
 								</div>
-								<Button className="w-full md:w-fit" variant="default">
-									Sync
+								<Button
+									onClick={handleSync}
+									disabled={isSyncButtonDisabled}
+									className="w-full md:w-fit"
+									variant="default"
+								>
+									{updateMutation.isPending || syncMutation.isPending
+										? "Syncing..."
+										: "Sync"}
 								</Button>
 							</div>
 						</div>

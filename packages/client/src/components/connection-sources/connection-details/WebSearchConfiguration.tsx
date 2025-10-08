@@ -1,14 +1,7 @@
 "use client";
 
-import { EllipsisVertical } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import {
-	DropdownMenu,
-	DropdownMenuContent,
-	DropdownMenuItem,
-	DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { useConnectionSource } from "@/contexts/ConnectionSourceContext";
+import { ConnectionActionsMenu } from "../ConnectionActionsMenu";
 import { ConnectionStatusCard } from "../ConnectionStatusCard";
 
 interface WebSearchConfigurationProps {
@@ -28,19 +21,7 @@ export default function WebSearchConfiguration({
 							Web Search configuration
 						</h4>
 					</div>
-					<DropdownMenu>
-						<DropdownMenuTrigger asChild>
-							<Button variant="ghost" size="icon">
-								<EllipsisVertical className="h-4 w-4" />
-							</Button>
-						</DropdownMenuTrigger>
-						<DropdownMenuContent>
-							<DropdownMenuItem onClick={onEdit}>Edit</DropdownMenuItem>
-							<DropdownMenuItem className="text-destructive">
-								Disconnect
-							</DropdownMenuItem>
-						</DropdownMenuContent>
-					</DropdownMenu>
+					<ConnectionActionsMenu onEdit={onEdit} />
 				</div>
 
 				<ConnectionStatusCard source={source} />
