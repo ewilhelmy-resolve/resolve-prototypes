@@ -47,8 +47,9 @@ export function useChatPagination({
   threshold = 200,
 }: UseChatPaginationProps): UseChatPaginationReturn {
   const sentinelRef = useRef<HTMLDivElement>(null)
-  const { isLoadingMore, hasMoreMessages } = useConversationStore()
+  const { isLoadingMore, hasMoreMessages, chatMessages } = useConversationStore()
   const [hasScrolledToBottom, setHasScrolledToBottom] = useState(false)
+  const scrollAttemptedRef = useRef<string | null>(null)
 
   // Use infinite query hook
   const {
@@ -77,24 +78,39 @@ export function useChatPagination({
     await fetchNextPage()
   }, [hasNextPage, isFetchingNextPage, fetchNextPage, scrollContainerRef])
 
+  // Reset scroll state when conversation changes
+  useEffect(() => {
+    if (!conversationId) {
+      setHasScrolledToBottom(false)
+      scrollAttemptedRef.current = null
+    }
+  }, [conversationId])
+
   // Initial scroll to bottom when messages first load
   useEffect(() => {
-    if (!scrollContainerRef.current || !conversationId) {
-      setHasScrolledToBottom(false)
+    if (!scrollContainerRef.current || !conversationId || !chatMessages.length) {
+      return
+    }
+
+    // Skip if we've already scrolled for this conversation
+    if (scrollAttemptedRef.current === conversationId) {
       return
     }
 
     const container = scrollContainerRef.current
 
-    // Only auto-scroll to bottom once when conversation first loads
-    if (!hasScrolledToBottom && container.scrollHeight > 0) {
-      // Use setTimeout to ensure DOM has rendered
+    // Only auto-scroll to bottom once when conversation first loads and has content
+    if (container.scrollHeight > container.clientHeight) {
+      // Use setTimeout to ensure DOM has fully rendered
       setTimeout(() => {
-        container.scrollTop = container.scrollHeight
-        setHasScrolledToBottom(true)
-      }, 100) // Slightly longer delay to ensure content is rendered
+        if (scrollContainerRef.current) {
+          scrollContainerRef.current.scrollTop = scrollContainerRef.current.scrollHeight
+          setHasScrolledToBottom(true)
+          scrollAttemptedRef.current = conversationId
+        }
+      }, 150) // Slightly longer delay to ensure content is rendered
     }
-  }, [conversationId, hasScrolledToBottom, scrollContainerRef])
+  }, [conversationId, chatMessages.length, scrollContainerRef])
 
   // Preserve scroll position after load
   useEffect(() => {
