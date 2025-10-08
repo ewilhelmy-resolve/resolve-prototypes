@@ -28,7 +28,7 @@ export function useChatPagination({
   threshold = 200,
 }: UseChatPaginationProps): UseChatPaginationReturn {
   const sentinelRef = useRef<HTMLDivElement>(null)
-  const { chatMessages, setMessages, prependMessages, setHasMoreMessages, setLoadingMore } = useConversationStore()
+  const { chatMessages, setMessages, setHasMoreMessages, setLoadingMore } = useConversationStore()
   const [hasScrolledToBottom, setHasScrolledToBottom] = useState(false)
   const [hasPaginationAttempted, setHasPaginationAttempted] = useState(false)
   const scrollAttemptedRef = useRef<string | null>(null)
@@ -50,23 +50,17 @@ export function useChatPagination({
     const hasMore = data.pages[data.pages.length - 1]?.hasMore || false
     const currentPageCount = data.pages.length
 
-    // Initial load: replace all messages
-    if (currentPageCount === 1 && previousPageCountRef.current === 0) {
-      setMessages(allMessages)
-      previousPageCountRef.current = 1
-    }
-    // Pagination: prepend older messages
-    else if (currentPageCount > previousPageCountRef.current) {
-      const latestPage = data.pages[data.pages.length - 1]
-      if (latestPage.messages.length > 0) {
-        prependMessages(latestPage.messages)
-      }
-      previousPageCountRef.current = currentPageCount
+    // Always set all messages from TanStack Query cache (prevents duplicates)
+    setMessages(allMessages)
+
+    // Track pagination attempt when new page is loaded
+    if (currentPageCount > previousPageCountRef.current) {
       setHasPaginationAttempted(true)
     }
 
+    previousPageCountRef.current = currentPageCount
     setHasMoreMessages(hasMore)
-  }, [data, setMessages, prependMessages, setHasMoreMessages])
+  }, [data, setMessages, setHasMoreMessages])
 
   // Update loading state
   useEffect(() => {

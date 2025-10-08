@@ -189,7 +189,6 @@ interface ConversationState {
   setMessages: (messages: Message[]) => void
   addMessage: (message: Message) => void
   updateMessage: (messageId: string, updates: Partial<Message>) => void
-  prependMessages: (messages: Message[]) => void // Add older messages to beginning
   setLoading: (loading: boolean) => void
   setSending: (sending: boolean) => void
   setHasMoreMessages: (hasMore: boolean) => void
@@ -253,18 +252,6 @@ export const useConversationStore = create<ConversationState>()(
           return {
             messages: newMessages,
             chatMessages: groupMessages(newMessages) // Auto-regroup on update
-          }
-        }),
-
-      prependMessages: (olderMessages) =>
-        set((state) => {
-          // Add older messages to the beginning
-          const newMessages = [...olderMessages, ...state.messages]
-          const oldestTimestamp = olderMessages.length > 0 ? olderMessages[0].timestamp : state.oldestMessageTimestamp
-          return {
-            messages: newMessages,
-            chatMessages: groupMessages(newMessages),
-            oldestMessageTimestamp: oldestTimestamp
           }
         }),
 
