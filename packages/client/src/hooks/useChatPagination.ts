@@ -143,7 +143,8 @@ export function useChatPagination({
 
     const container = scrollContainerRef.current
 
-    // Only auto-scroll to bottom once when conversation first loads and has content
+    // Mark conversation as "viewed" and enable observer
+    // This happens whether or not the conversation needs scrolling
     if (container.scrollHeight > container.clientHeight) {
       // Use setTimeout to ensure DOM has fully rendered
       setTimeout(() => {
@@ -153,6 +154,10 @@ export function useChatPagination({
           scrollAttemptedRef.current = conversationId
         }
       }, 150) // Slightly longer delay to ensure content is rendered
+    } else {
+      // Conversation fits on screen - activate observer immediately
+      setHasScrolledToBottom(true)
+      scrollAttemptedRef.current = conversationId
     }
   }, [conversationId, chatMessages.length, scrollContainerRef])
 
@@ -191,6 +196,7 @@ export function useChatPagination({
           const scrollTop = container.scrollTop
 
           // Only trigger if we're within threshold pixels from top
+          // For short conversations that fit on screen, always show indicator (scrollTop will be 0)
           if (scrollTop < threshold) {
             // Mark that user attempted to view older messages (scrolled to top)
             setHasPaginationAttempted(true)

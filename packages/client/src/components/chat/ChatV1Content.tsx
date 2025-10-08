@@ -294,6 +294,13 @@ export default function ChatV1Content({
   // Scroll container ref for pagination
   const scrollContainerRef = useRef<HTMLDivElement>(null)
 
+  // Callback to capture scrollRef from StickToBottom's contextRef
+  const handleStickToBottomContext = useCallback((context: any) => {
+    if (context?.scrollRef?.current) {
+      scrollContainerRef.current = context.scrollRef.current
+    }
+  }, [])
+
   // Pagination hook for infinite scroll
   const { sentinelRef, isLoadingMore, hasMore, hasPaginationAttempted } = useChatPagination({
     conversationId: currentConversationId,
@@ -359,8 +366,8 @@ export default function ChatV1Content({
 
   return (
     <div className="h-full flex flex-col">
-      <Conversation className="flex-1">
-        <ConversationContent className="px-6 py-6" ref={scrollContainerRef}>
+      <Conversation className="flex-1" contextRef={handleStickToBottomContext}>
+        <ConversationContent className="px-6 py-6">
           <div className="max-w-4xl mx-auto">
           {messagesLoading || (currentConversationId && chatMessages.length === 0) ? (
             <div className="flex items-center justify-center h-full">
