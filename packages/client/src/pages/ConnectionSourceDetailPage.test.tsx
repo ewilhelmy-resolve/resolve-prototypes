@@ -2,13 +2,13 @@
  * ConnectionSourceDetailPage.test.tsx - Unit tests for ConnectionSourceDetailPage
  */
 
-import { render, screen, waitFor } from "@testing-library/react";
-import { describe, expect, it, vi, beforeEach } from "vitest";
-import { MemoryRouter, Route, Routes } from "react-router-dom";
-import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { MemoryRouter, Route, Routes } from "react-router-dom";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { DataSourceConnection } from "@/types/dataSource";
 import ConnectionSourceDetailPage from "./ConnectionSourceDetailPage";
-import { BACKEND_STATUS, type DataSourceConnection } from "@/types/dataSource";
 
 // Mock hooks
 const mockDataSourceQuery = {
@@ -129,7 +129,9 @@ const createMockDataSource = (
 	...overrides,
 });
 
-const renderWithRouter = (initialRoute = "/settings/connections/source-123") => {
+const renderWithRouter = (
+	initialRoute = "/settings/connections/source-123",
+) => {
 	const queryClient = new QueryClient({
 		defaultOptions: {
 			queries: { retry: false },
@@ -374,7 +376,7 @@ describe("ConnectionSourceDetailPage", () => {
 		it("should consider source configured when status is VERIFYING", () => {
 			const source = createMockDataSource({
 				last_verification_at: null,
-				status: BACKEND_STATUS.VERIFYING,
+				status: "verifying",
 			});
 			mockDataSourceQuery.data = source;
 			renderWithRouter();
@@ -386,7 +388,7 @@ describe("ConnectionSourceDetailPage", () => {
 		it("should consider source configured when status is SYNCING", () => {
 			const source = createMockDataSource({
 				last_verification_at: null,
-				status: BACKEND_STATUS.SYNCING,
+				status: "syncing",
 			});
 			mockDataSourceQuery.data = source;
 			renderWithRouter();
@@ -398,7 +400,7 @@ describe("ConnectionSourceDetailPage", () => {
 		it("should consider source configured when status is FAILED", () => {
 			const source = createMockDataSource({
 				last_verification_at: null,
-				status: BACKEND_STATUS.FAILED,
+				status: "syncing",
 			});
 			mockDataSourceQuery.data = source;
 			renderWithRouter();
@@ -410,7 +412,7 @@ describe("ConnectionSourceDetailPage", () => {
 		it("should consider source configured when status is COMPLETED", () => {
 			const source = createMockDataSource({
 				last_verification_at: null,
-				status: BACKEND_STATUS.COMPLETED,
+				status: "verifying",
 			});
 			mockDataSourceQuery.data = source;
 			renderWithRouter();
