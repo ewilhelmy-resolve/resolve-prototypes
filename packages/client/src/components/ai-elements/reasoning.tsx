@@ -7,10 +7,11 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { cn } from "@/lib/utils";
-import { BrainIcon, ChevronDownIcon } from "lucide-react";
+import {  ChevronDownIcon } from "lucide-react";
 import type { ComponentProps } from "react";
 import { createContext, memo, useContext, useEffect, useState } from "react";
 import { Response } from "./response";
+import { Clock } from "../animate-ui/icons/clock";
 
 type ReasoningContextValue = {
   isStreaming: boolean;
@@ -144,7 +145,7 @@ export const ReasoningTrigger = memo(
       >
         {children ?? (
           <>
-            <BrainIcon className="size-4" />
+            <Clock animate="default" loop className="size-4" />
             {getThinkingMessage(isStreaming, duration, title)}
             <ChevronDownIcon
               className={cn(
