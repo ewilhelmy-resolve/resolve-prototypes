@@ -9,13 +9,13 @@ import {
 } from "@/components/ui/collapsible";
 import { cn } from "@/lib/utils";
 import {
-  BrainIcon,
   ChevronDownIcon,
   DotIcon,
   type LucideIcon,
 } from "lucide-react";
 import type { ComponentProps } from "react";
 import { createContext, memo, useContext } from "react";
+import { Clock } from "../animate-ui/icons/clock";
 
 type ChainOfThoughtContextValue = {
   isOpen: boolean;
@@ -87,7 +87,7 @@ export const ChainOfThoughtHeader = memo(
           )}
           {...props}
         >
-          <BrainIcon className="size-4" />
+         <Clock animate="default" loop className="size-4" />
           <span className="flex-1 text-left">
             {children ?? "Chain of Thought"}
           </span>
