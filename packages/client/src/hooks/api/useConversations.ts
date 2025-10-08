@@ -1,7 +1,8 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient, useInfiniteQuery, type InfiniteData } from '@tanstack/react-query'
 import { conversationApi } from '@/services/api.ts'
 import { useConversationStore } from '@/stores/conversationStore.ts'
 import type { Conversation, Message } from '@/stores/conversationStore.ts'
+import { CHAT_PAGINATION } from '@/constants/pagination'
 
 // Query keys
 export const conversationKeys = {
@@ -68,6 +69,53 @@ export function useConversationMessages(conversationId: string | null) {
     },
     enabled: !!conversationId,
     staleTime: 0, // we always want to fetch the latest messages
+    refetchOnMount: true,
+  })
+}
+
+// Fetch conversation messages with infinite scroll pagination
+export function useInfiniteConversationMessages(conversationId: string | null) {
+  return useInfiniteQuery<
+    { messages: Message[]; hasMore: boolean; nextCursor: string | null },
+    Error,
+    InfiniteData<{ messages: Message[]; hasMore: boolean; nextCursor: string | null }>,
+    string[],
+    string | undefined
+  >({
+    queryKey: [...conversationKeys.messages(conversationId || ''), 'infinite'],
+    queryFn: async ({ pageParam }: { pageParam: string | undefined }) => {
+      if (!conversationId) return { messages: [], hasMore: false, nextCursor: null }
+
+      const response = await conversationApi.getConversationMessages(conversationId, {
+        limit: pageParam === undefined ? CHAT_PAGINATION.INITIAL_PAGE_SIZE : CHAT_PAGINATION.PAGE_SIZE,
+        ...(pageParam !== undefined && { before: pageParam }), // Only include before if cursor exists
+      })
+
+      const messages: Message[] = response.messages.map((msg: any) => ({
+        id: msg.id,
+        message: msg.message,
+        role: msg.role,
+        timestamp: new Date(msg.created_at),
+        conversation_id: msg.conversation_id,
+        status: msg.status,
+        error_message: msg.error_message,
+        metadata: msg.metadata,
+        response_group_id: msg.response_group_id,
+      }))
+
+      return {
+        messages,
+        hasMore: response.hasMore,
+        nextCursor: response.nextCursor,
+      }
+    },
+    getNextPageParam: (lastPage) => {
+      // Return cursor for next page, or undefined if no more pages
+      return lastPage.hasMore ? lastPage.nextCursor : undefined
+    },
+    initialPageParam: undefined,
+    enabled: !!conversationId,
+    staleTime: 0,
     refetchOnMount: true,
   })
 }

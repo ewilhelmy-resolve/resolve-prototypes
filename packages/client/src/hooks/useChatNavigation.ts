@@ -41,8 +41,9 @@ export const useChatNavigation = (): ChatNavigationState => {
     navigate(`/chat/${conversationId}`)
   }
 
+  // Return URL param as source of truth (falls back to store if no URL param)
   return {
-    currentConversationId,
+    currentConversationId: conversationId || currentConversationId,
     handleNewChat,
     handleConversationClick,
   }

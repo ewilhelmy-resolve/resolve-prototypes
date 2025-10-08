@@ -7,7 +7,7 @@
 
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useConversationMessages, useCreateConversation, useSendMessage } from '@/hooks/api/useConversations'
+import { useCreateConversation, useSendMessage } from '@/hooks/api/useConversations'
 import { useConversationStore } from '@/stores/conversationStore'
 
 export interface MessageHandlerState {
@@ -28,10 +28,12 @@ export const useMessageHandler = (messagesEndRef: React.RefObject<HTMLDivElement
   const [messageValue, setMessageValue] = useState('')
   const navigate = useNavigate()
 
-  const { currentConversationId, messages, isSending } = useConversationStore()
-  const { isLoading: messagesLoading } = useConversationMessages(currentConversationId)
+  const { currentConversationId, messages, isSending, isLoadingMore } = useConversationStore()
   const createConversationMutation = useCreateConversation()
   const sendMessageMutation = useSendMessage()
+
+  // Note: Message loading is now handled by useInfiniteConversationMessages in useChatPagination
+  // The isLoadingMore state from the store tracks pagination loading
 
   // Auto-scroll to bottom when messages change
   // biome-ignore lint/correctness/useExhaustiveDependencies: needed for scroll
@@ -84,7 +86,7 @@ export const useMessageHandler = (messagesEndRef: React.RefObject<HTMLDivElement
 
   return {
     messages,
-    loading: messagesLoading,
+    loading: isLoadingMore, // Use pagination loading state instead of old query
     isSending,
     messageValue,
     handleSendMessage,

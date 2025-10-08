@@ -561,31 +561,33 @@ export const PromptInputTools = ({
 
 export type PromptInputButtonProps = ComponentProps<typeof Button>;
 
-export const PromptInputButton = forwardRef<HTMLButtonElement, PromptInputButtonProps>(({
-  variant = "ghost",
-  className,
-  size,
-  ...props
-}, ref) => {
-  const newSize =
-    (size ?? Children.count(props.children) > 1) ? "default" : "icon";
+export const PromptInputButton = forwardRef<HTMLButtonElement, PromptInputButtonProps>(
+  ({
+    variant = "ghost",
+    className,
+    size,
+    ...props
+  }, ref) => {
+    const newSize =
+      (size ?? Children.count(props.children) > 1) ? "default" : "icon";
 
-  return (
-    <Button
-      ref={ref}
-      className={cn(
-        "shrink-0 gap-1.5 rounded-lg",
-        variant === "ghost" && "text-muted-foreground",
-        newSize === "default" && "px-3",
-        className
-      )}
-      size={newSize}
-      type="button"
-      variant={variant}
-      {...props}
-    />
-  );
-});
+    return (
+      <Button
+        ref={ref}
+        className={cn(
+          "shrink-0 gap-1.5 rounded-lg",
+          variant === "ghost" && "text-muted-foreground",
+          newSize === "default" && "px-3",
+          className
+        )}
+        size={newSize}
+        type="button"
+        variant={variant}
+        {...props}
+      />
+    );
+  }
+);
 
 PromptInputButton.displayName = "PromptInputButton";
 

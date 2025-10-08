@@ -82,8 +82,20 @@ export const conversationApi = {
       body: data,
     }),
 
-  getConversationMessages: (conversationId: string) =>
-    apiRequest<{ messages: any[] }>(`/api/conversations/${conversationId}/messages`),
+  getConversationMessages: (conversationId: string, params?: { limit?: number; before?: string }) => {
+    // Filter out undefined values to avoid sending "undefined" as a string
+    const cleanParams = params ? Object.entries(params)
+      .filter(([_, value]) => value !== undefined)
+      .reduce((acc, [key, value]) => ({ ...acc, [key]: String(value) }), {}) : {};
+
+    const queryString = Object.keys(cleanParams).length > 0
+      ? `?${new URLSearchParams(cleanParams).toString()}`
+      : '';
+
+    return apiRequest<{ messages: any[]; hasMore: boolean; nextCursor: string | null }>(
+      `/api/conversations/${conversationId}/messages${queryString}`
+    );
+  },
 
   sendMessage: (conversationId: string, data: { content: string }) =>
     apiRequest<{ message: any }>(`/api/conversations/${conversationId}/messages`, {

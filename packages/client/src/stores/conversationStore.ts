@@ -178,6 +178,10 @@ interface ConversationState {
   isLoading: boolean
   isSending: boolean
 
+  // Pagination state
+  hasMoreMessages: boolean      // Are there older messages to load?
+  isLoadingMore: boolean        // Currently loading older messages?
+
   // Actions
   setCurrentConversation: (conversationId: string | null) => void
   setConversations: (conversations: Conversation[]) => void
@@ -187,6 +191,8 @@ interface ConversationState {
   updateMessage: (messageId: string, updates: Partial<Message>) => void
   setLoading: (loading: boolean) => void
   setSending: (sending: boolean) => void
+  setHasMoreMessages: (hasMore: boolean) => void
+  setLoadingMore: (loading: boolean) => void
   clearCurrentConversation: () => void
   reset: () => void
   recomputeChatMessages: () => void // Force regrouping
@@ -202,10 +208,17 @@ export const useConversationStore = create<ConversationState>()(
       chatMessages: [],
       isLoading: false,
       isSending: false,
+      hasMoreMessages: false,
+      isLoadingMore: false,
 
       // Actions
       setCurrentConversation: (conversationId) =>
-        set({ currentConversationId: conversationId, messages: [], chatMessages: [] }),
+        set({
+          currentConversationId: conversationId,
+          messages: [],
+          chatMessages: [],
+          hasMoreMessages: false
+        }),
 
       setConversations: (conversations) =>
         set({ conversations }),
@@ -246,11 +259,19 @@ export const useConversationStore = create<ConversationState>()(
       setSending: (sending) =>
         set({ isSending: sending }),
 
+      setHasMoreMessages: (hasMore) =>
+        set({ hasMoreMessages: hasMore }),
+
+      setLoadingMore: (loading) =>
+        set({ isLoadingMore: loading }),
+
       clearCurrentConversation: () =>
         set({
           currentConversationId: null,
           messages: [],
-          chatMessages: []
+          chatMessages: [],
+          hasMoreMessages: false,
+          isLoadingMore: false
         }),
 
       reset: () =>
@@ -261,6 +282,8 @@ export const useConversationStore = create<ConversationState>()(
           chatMessages: [],
           isLoading: false,
           isSending: false,
+          hasMoreMessages: false,
+          isLoadingMore: false
         }),
 
       recomputeChatMessages: () => {

@@ -86,13 +86,13 @@ router.get('/', authenticateUser, async (req, res) => {
   }
 });
 
-// Get all messages for a specific conversation
+// Get all messages for a specific conversation with cursor-based pagination
 router.get('/:conversationId/messages', authenticateUser, async (req, res) => {
   const authReq = req as AuthenticatedRequest;
   try {
     const { conversationId } = req.params;
     const limit = parseInt(req.query.limit as string, 10) || 100;
-    const offset = parseInt(req.query.offset as string, 10) || 0;
+    const before = req.query.before as string | undefined; // ISO timestamp cursor for older messages
 
     const result = await withOrgContext(
       authReq.user.id,
@@ -108,40 +108,100 @@ router.get('/:conversationId/messages', authenticateUser, async (req, res) => {
           return null; // Will result in a 404
         }
 
-        const messagesResult = await client.query(`
-          SELECT
-            m.id,
-            m.message,
-            m.role,
-            m.response_content,
-            m.status,
-            m.created_at,
-            m.processed_at,
-            m.error_message,
-            m.metadata,
-            m.response_group_id,
-            up.email as user_email,
-            COALESCE(
-              json_agg(
-                json_build_object(
-                  'id', d.id,
-                  'filename', d.file_name,
-                  'file_size', d.file_size
-                )
-              ) FILTER (WHERE d.id IS NOT NULL),
-              '[]'
-            ) as documents
-          FROM messages m
-          LEFT JOIN user_profiles up ON m.user_id = up.user_id
-          LEFT JOIN message_documents md ON m.id = md.message_id
-          LEFT JOIN documents d ON md.document_id = d.id
-          WHERE m.conversation_id = $1 AND m.organization_id = $2
-          GROUP BY m.id, m.message, m.role, m.response_content, m.status, m.created_at, m.processed_at, m.error_message, m.metadata, m.response_group_id, up.email
-          ORDER BY m.created_at ASC, m.id ASC
-          LIMIT $3 OFFSET $4
-        `, [conversationId, authReq.user.activeOrganizationId, limit, offset]);
+        // Build query with cursor-based pagination
+        // If 'before' cursor is provided, fetch older messages before that timestamp
+        // Otherwise, fetch the most recent messages (initial load)
+        let messagesQuery: string;
+        let queryParams: any[];
 
-        return messagesResult.rows;
+        if (before) {
+          // Pagination: fetch older messages before the cursor
+          messagesQuery = `
+            SELECT
+              m.id,
+              m.message,
+              m.role,
+              m.response_content,
+              m.status,
+              m.created_at,
+              m.processed_at,
+              m.error_message,
+              m.metadata,
+              m.response_group_id,
+              up.email as user_email,
+              COALESCE(
+                json_agg(
+                  json_build_object(
+                    'id', d.id,
+                    'filename', d.file_name,
+                    'file_size', d.file_size
+                  )
+                ) FILTER (WHERE d.id IS NOT NULL),
+                '[]'
+              ) as documents
+            FROM messages m
+            LEFT JOIN user_profiles up ON m.user_id = up.user_id
+            LEFT JOIN message_documents md ON m.id = md.message_id
+            LEFT JOIN documents d ON md.document_id = d.id
+            WHERE m.conversation_id = $1
+              AND m.organization_id = $2
+              AND m.created_at < $3
+            GROUP BY m.id, m.message, m.role, m.response_content, m.status, m.created_at, m.processed_at, m.error_message, m.metadata, m.response_group_id, up.email
+            ORDER BY m.created_at DESC, m.id DESC
+            LIMIT $4
+          `;
+          queryParams = [conversationId, authReq.user.activeOrganizationId, before, limit + 1];
+        } else {
+          // Initial load: fetch most recent messages
+          messagesQuery = `
+            SELECT
+              m.id,
+              m.message,
+              m.role,
+              m.response_content,
+              m.status,
+              m.created_at,
+              m.processed_at,
+              m.error_message,
+              m.metadata,
+              m.response_group_id,
+              up.email as user_email,
+              COALESCE(
+                json_agg(
+                  json_build_object(
+                    'id', d.id,
+                    'filename', d.file_name,
+                    'file_size', d.file_size
+                  )
+                ) FILTER (WHERE d.id IS NOT NULL),
+                '[]'
+              ) as documents
+            FROM messages m
+            LEFT JOIN user_profiles up ON m.user_id = up.user_id
+            LEFT JOIN message_documents md ON m.id = md.message_id
+            LEFT JOIN documents d ON md.document_id = d.id
+            WHERE m.conversation_id = $1 AND m.organization_id = $2
+            GROUP BY m.id, m.message, m.role, m.response_content, m.status, m.created_at, m.processed_at, m.error_message, m.metadata, m.response_group_id, up.email
+            ORDER BY m.created_at DESC, m.id DESC
+            LIMIT $3
+          `;
+          queryParams = [conversationId, authReq.user.activeOrganizationId, limit + 1];
+        }
+
+        const messagesResult = await client.query(messagesQuery, queryParams);
+
+        // Check if there are more messages (hasMore flag)
+        const hasMore = messagesResult.rows.length > limit;
+        const messages = hasMore ? messagesResult.rows.slice(0, limit) : messagesResult.rows;
+
+        // Reverse to chronological order (oldest first) for client consumption
+        messages.reverse();
+
+        return {
+          messages,
+          hasMore,
+          nextCursor: hasMore ? messages[0].created_at.toISOString() : null
+        };
       }
     );
 
@@ -149,7 +209,7 @@ router.get('/:conversationId/messages', authenticateUser, async (req, res) => {
       return res.status(404).json({ error: 'Conversation not found' });
     }
 
-    res.json({ messages: result });
+    res.json(result);
 
   } catch (error) {
     console.error('Error fetching messages for conversation:', error);
