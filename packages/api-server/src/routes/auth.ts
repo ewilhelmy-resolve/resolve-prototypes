@@ -9,6 +9,28 @@ const router = express.Router();
 const sessionService = getSessionService();
 const webhookService = new WebhookService();
 
+// Simple in-memory rate limiter for resend verification (5 minutes)
+const resendRateLimiter = new Map<string, number>();
+const RESEND_COOLDOWN_MS = 5 * 60 * 1000; // 5 minutes
+
+function checkResendRateLimit(email: string): boolean {
+  const lastResend = resendRateLimiter.get(email);
+  if (lastResend && Date.now() - lastResend < RESEND_COOLDOWN_MS) {
+    return false; // Rate limited
+  }
+  resendRateLimiter.set(email, Date.now());
+
+  // Cleanup old entries (older than cooldown period)
+  const cutoff = Date.now() - RESEND_COOLDOWN_MS;
+  for (const [key, timestamp] of resendRateLimiter.entries()) {
+    if (timestamp < cutoff) {
+      resendRateLimiter.delete(key);
+    }
+  }
+
+  return true; // Allowed
+}
+
 /**
  * Signup endpoint - Creates a pending user and triggers webhook for email verification
  * POST /auth/signup
@@ -108,6 +130,96 @@ router.post('/signup', async (req, res) => {
     logger.error({ error }, 'Signup failed');
     res.status(500).json({
       error: 'Signup failed. Please try again.'
+    });
+  }
+});
+
+/**
+ * Resend verification email endpoint
+ * POST /auth/resend-verification
+ * Body: { email: string }
+ */
+router.post('/resend-verification', async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({
+        error: 'Email is required'
+      });
+    }
+
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return res.status(400).json({
+        error: 'Invalid email format'
+      });
+    }
+
+    // Check rate limit
+    if (!checkResendRateLimit(email)) {
+      return res.status(429).json({
+        error: 'Please wait 5 minutes before requesting another verification email'
+      });
+    }
+
+    // Find pending user
+    const pendingUserResult = await pool.query(
+      'SELECT id, first_name, last_name, company FROM pending_users WHERE email = $1',
+      [email]
+    );
+
+    if (pendingUserResult.rows.length === 0) {
+      // Don't reveal if email exists or not (security)
+      return res.json({
+        success: true,
+        message: 'If a pending verification exists, a new email has been sent'
+      });
+    }
+
+    const pendingUser = pendingUserResult.rows[0];
+
+    // Generate NEW verification token
+    const verificationToken = crypto.randomBytes(32).toString('hex');
+    const tokenExpiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+
+    // Update pending user with new token
+    await pool.query(
+      'UPDATE pending_users SET verification_token = $1, token_expires_at = $2 WHERE email = $3',
+      [verificationToken, tokenExpiresAt, email]
+    );
+
+    // Trigger webhook to resend verification email
+    await webhookService.sendGenericEvent({
+      organizationId: 'pending',
+      userEmail: email,
+      source: 'rita-signup',
+      action: 'resend_verification',
+      additionalData: {
+        first_name: pendingUser.first_name,
+        last_name: pendingUser.last_name,
+        company: pendingUser.company,
+        verification_token: verificationToken,
+        verification_url: `${process.env.CLIENT_URL || 'http://localhost:5173'}/verify-email?token=${verificationToken}`,
+        pending_user_id: pendingUser.id
+      }
+    });
+
+    logger.info({
+      email,
+      pendingUserId: pendingUser.id
+    }, 'Verification email resent');
+
+    res.json({
+      success: true,
+      message: 'If a pending verification exists, a new email has been sent'
+    });
+
+  } catch (error) {
+    logger.error({ error }, 'Resend verification failed');
+    res.status(500).json({
+      error: 'Failed to resend verification email. Please try again.'
     });
   }
 });
@@ -286,6 +398,75 @@ router.delete('/logout-all', async (req, res) => {
     res.setHeader('Set-Cookie', destroyCookie);
     res.status(500).json({
       error: 'Failed to logout from all devices, but current session has been cleared.'
+    });
+  }
+});
+
+/**
+ * Forgot password endpoint - Triggers password reset flow via external service
+ * POST /auth/forgot-password
+ * Body: { email: string }
+ */
+router.post('/forgot-password', async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({
+        error: 'Email is required'
+      });
+    }
+
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return res.status(400).json({
+        error: 'Invalid email format'
+      });
+    }
+
+    // Check if user exists
+    const userResult = await pool.query(
+      'SELECT user_id, active_organization_id FROM user_profiles WHERE email = $1',
+      [email]
+    );
+
+    if (userResult.rows.length === 0) {
+      // Don't reveal if user exists or not (security best practice)
+      return res.json({
+        success: true,
+        message: 'If an account exists with this email, a password reset link will be sent'
+      });
+    }
+
+    const user = userResult.rows[0];
+
+    // Trigger webhook to external service to handle Keycloak password reset
+    await webhookService.sendGenericEvent({
+      organizationId: user.active_organization_id,
+      userEmail: email,
+      userId: user.user_id,
+      source: 'rita-auth',
+      action: 'password_reset_request',
+      additionalData: {
+        reset_url_base: `${process.env.CLIENT_URL || 'http://localhost:5173'}/reset-password`
+      }
+    });
+
+    logger.info({
+      email,
+      userId: user.user_id
+    }, 'Password reset requested');
+
+    res.json({
+      success: true,
+      message: 'If an account exists with this email, a password reset link will be sent'
+    });
+
+  } catch (error) {
+    logger.error({ error }, 'Forgot password request failed');
+    res.status(500).json({
+      error: 'Failed to process password reset request. Please try again.'
     });
   }
 });

@@ -2,6 +2,7 @@ import { createBrowserRouter, RouterProvider, Navigate } from 'react-router-dom'
 import { RootLayout } from './components/layouts/RootLayout';
 import { LoginPage } from './pages/LoginPage';
 import { VerifyEmailPage } from './pages/VerifyEmailPage';
+import { VerifyEmailSentPage } from './pages/VerifyEmailSentPage';
 import { NotFoundPage } from './pages/NotFoundPage';
 import ContactPage from './pages/ContactPage';
 import HelpPage from './pages/HelpPage';
@@ -155,6 +156,10 @@ const router = createBrowserRouter([
       {
         path: '/verify-email',
         element: <VerifyEmailPage />
+      },
+      {
+        path: '/verify-email-sent',
+        element: <VerifyEmailSentPage />
       },
       {
         path: '*',

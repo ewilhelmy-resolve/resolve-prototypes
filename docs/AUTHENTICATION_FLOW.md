@@ -406,6 +406,10 @@ sequenceDiagram
    - Duplicate signups replace old pending records
    - Webhook failure prevents database writes
 
+5. **Additional Flows**:
+   - **Resend Verification**: Generates new token, rate limited (5 min), triggers `resend_verification` webhook
+   - **Forgot Password**: Delegates to external service via `password_reset_request` webhook (zero storage)
+
 ## API Endpoints
 
 The API server (`packages/api-server/src/routes/auth.ts`) provides the following authentication endpoints:
@@ -435,6 +439,56 @@ Creates a pending user and triggers webhook for email verification.
 ```
 
 **Security**: Password is base64-encoded before webhook transmission and **never stored in the database**. If webhook fails, signup fails and no user data is persisted.
+
+### POST /auth/resend-verification
+Resends the email verification link with a new token.
+```typescript
+// Request body
+{ email: string }
+
+// Response (always success for security)
+{
+  success: true,
+  message: "If a pending verification exists, a new email has been sent"
+}
+
+// Response (rate limited)
+{
+  error: "Please wait 5 minutes before requesting another verification email"
+}
+```
+
+**Features**:
+- Generates NEW verification token (invalidates old one)
+- Extends expiration to 24 hours from resend
+- Rate limited: 1 request per 5 minutes per email
+- Doesn't reveal if email has pending verification (security)
+
+**Webhook**: Triggers `resend_verification` action to external service.
+
+### POST /auth/forgot-password
+Initiates password reset flow via external service and Keycloak.
+```typescript
+// Request body
+{ email: string }
+
+// Response (always success for security)
+{
+  success: true,
+  message: "If an account exists with this email, a password reset link will be sent"
+}
+```
+
+**Security**:
+- Doesn't reveal if user exists (prevents email enumeration)
+- External service handles Keycloak password reset flow
+- Rita doesn't store or manage password reset tokens
+- Consistent with zero-storage password architecture
+
+**Webhook**: Triggers `password_reset_request` action. External service:
+1. Creates password reset token in Keycloak
+2. Sends email with reset link to user
+3. Handles password update when user submits new password
 
 ### PUT /auth/session/refresh
 Updates an existing session with a new Keycloak access token (efficient token refresh).
