@@ -291,8 +291,8 @@ export default function ChatV1Content({
   // Get grouped messages from store instead of flat messages
   const { chatMessages } = useConversationStore()
 
-  // Scroll container ref for pagination
-  const scrollContainerRef = useRef<HTMLDivElement>(null)
+  // Scroll container ref for pagination (mutable to allow assignment from contextRef)
+  const scrollContainerRef = useRef<HTMLElement | null>(null)
 
   // Callback to capture scrollRef from StickToBottom's contextRef
   const handleStickToBottomContext = useCallback((context: any) => {

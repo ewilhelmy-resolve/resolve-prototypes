@@ -6,6 +6,14 @@
 import { useEffect, useRef, useCallback, useState } from 'react'
 import { useInfiniteConversationMessages } from '@/hooks/api/useConversations'
 import { useConversationStore } from '@/stores/conversationStore'
+import type { Message } from '@/stores/conversationStore'
+
+// Type for pagination page response
+type PaginationPage = {
+  messages: Message[]
+  hasMore: boolean
+  nextCursor: string | null
+}
 
 export interface UseChatPaginationProps {
   conversationId: string | null
@@ -46,8 +54,8 @@ export function useChatPagination({
   useEffect(() => {
     if (!data) return
 
-    const allMessages = data.pages.flatMap((page) => page.messages)
-    const hasMore = data.pages[data.pages.length - 1]?.hasMore || false
+    const allMessages = data.pages.flatMap((page: PaginationPage) => page.messages)
+    const hasMore = (data.pages[data.pages.length - 1] as PaginationPage)?.hasMore || false
     const currentPageCount = data.pages.length
 
     // Always set all messages from TanStack Query cache (prevents duplicates)

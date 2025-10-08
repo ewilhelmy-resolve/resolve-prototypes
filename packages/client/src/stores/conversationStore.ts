@@ -230,9 +230,7 @@ export const useConversationStore = create<ConversationState>()(
 
       setMessages: (messages) => {
         const chatMessages = groupMessages(messages)
-        // Set oldest message timestamp for pagination cursor
-        const oldestTimestamp = messages.length > 0 ? messages[0].timestamp : null
-        set({ messages, chatMessages, oldestMessageTimestamp: oldestTimestamp })
+        set({ messages, chatMessages })
       },
 
       addMessage: (message) =>

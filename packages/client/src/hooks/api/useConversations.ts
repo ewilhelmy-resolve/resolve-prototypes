@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useQueryClient, useInfiniteQuery } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient, useInfiniteQuery, type InfiniteData } from '@tanstack/react-query'
 import { conversationApi } from '@/services/api.ts'
 import { useConversationStore } from '@/stores/conversationStore.ts'
 import type { Conversation, Message } from '@/stores/conversationStore.ts'
@@ -75,9 +75,15 @@ export function useConversationMessages(conversationId: string | null) {
 
 // Fetch conversation messages with infinite scroll pagination
 export function useInfiniteConversationMessages(conversationId: string | null) {
-  return useInfiniteQuery({
+  return useInfiniteQuery<
+    { messages: Message[]; hasMore: boolean; nextCursor: string | null },
+    Error,
+    InfiniteData<{ messages: Message[]; hasMore: boolean; nextCursor: string | null }>,
+    string[],
+    string | undefined
+  >({
     queryKey: [...conversationKeys.messages(conversationId || ''), 'infinite'],
-    queryFn: async ({ pageParam }) => {
+    queryFn: async ({ pageParam }: { pageParam: string | undefined }) => {
       if (!conversationId) return { messages: [], hasMore: false, nextCursor: null }
 
       const response = await conversationApi.getConversationMessages(conversationId, {
