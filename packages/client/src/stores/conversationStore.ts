@@ -181,7 +181,6 @@ interface ConversationState {
   // Pagination state
   hasMoreMessages: boolean      // Are there older messages to load?
   isLoadingMore: boolean        // Currently loading older messages?
-  oldestMessageTimestamp: Date | null  // Cursor for pagination
 
   // Actions
   setCurrentConversation: (conversationId: string | null) => void
@@ -212,7 +211,6 @@ export const useConversationStore = create<ConversationState>()(
       isSending: false,
       hasMoreMessages: false,
       isLoadingMore: false,
-      oldestMessageTimestamp: null,
 
       // Actions
       setCurrentConversation: (conversationId) =>
@@ -220,8 +218,7 @@ export const useConversationStore = create<ConversationState>()(
           currentConversationId: conversationId,
           messages: [],
           chatMessages: [],
-          hasMoreMessages: false,
-          oldestMessageTimestamp: null
+          hasMoreMessages: false
         }),
 
       setConversations: (conversations) =>
@@ -289,8 +286,7 @@ export const useConversationStore = create<ConversationState>()(
           messages: [],
           chatMessages: [],
           hasMoreMessages: false,
-          isLoadingMore: false,
-          oldestMessageTimestamp: null
+          isLoadingMore: false
         }),
 
       reset: () =>
@@ -302,8 +298,7 @@ export const useConversationStore = create<ConversationState>()(
           isLoading: false,
           isSending: false,
           hasMoreMessages: false,
-          isLoadingMore: false,
-          oldestMessageTimestamp: null
+          isLoadingMore: false
         }),
 
       recomputeChatMessages: () => {
