@@ -3,9 +3,11 @@ import { logger } from '../config/logger.js';
 import { getSessionService } from '../services/sessionService.js';
 
 /**
- * Cookie-only authentication middleware
+ * Cookie-only authentication middleware with automatic session extension
  *
- * Validates session cookie for all protected routes.
+ * Validates session cookie for all protected routes and automatically extends
+ * session expiration when near expiry (sliding session pattern).
+ *
  * Session cookies are created via POST /auth/login after Keycloak authentication.
  *
  * Architecture: Frontend manages Keycloak JWT tokens, backend uses session cookies only.
@@ -35,6 +37,27 @@ export const authenticateUser = async (
         code: 'INVALID_SESSION',
       });
       return;
+    }
+
+    // Auto-extend session if near expiry (sliding session)
+    const EXTEND_THRESHOLD = 2 * 60 * 60 * 1000; // 2 hours
+    const timeUntilExpiry = session.expiresAt.getTime() - Date.now();
+
+    if (timeUntilExpiry < EXTEND_THRESHOLD) {
+      const newExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours from now
+      await sessionService.updateSession(sessionId, { expiresAt: newExpiry });
+
+      // Update cookie with extended expiration
+      const cookie = sessionService.generateSessionCookie(sessionId);
+      res.setHeader('Set-Cookie', cookie);
+
+      logger.debug({
+        userId: session.userId,
+        sessionId: session.sessionId,
+        oldExpiry: session.expiresAt,
+        newExpiry,
+        timeUntilExpiry: Math.floor(timeUntilExpiry / 1000 / 60) // minutes
+      }, 'Session auto-extended');
     }
 
     req.user = {

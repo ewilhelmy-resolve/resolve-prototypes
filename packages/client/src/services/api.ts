@@ -34,22 +34,13 @@ async function apiRequest<T>(
     credentials: 'include', // Include cookies for session-based auth
   };
 
-  // Cookie-only authentication: Refresh session cookie when Keycloak token refreshes
+  // Cookie-only authentication: Keep Keycloak JWT fresh
+  // Backend auto-extends session cookie when near expiry (sliding session)
   if (keycloak.authenticated && keycloak.token) {
     try {
-      const refreshed = await keycloak.updateToken(5); // Refresh if token expires in 5s
-      if (refreshed) {
-        console.log('API request: Keycloak token refreshed, updating session cookie');
-        // Update backend session cookie with new token
-        await fetch(`${API_BASE_URL}/auth/login`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ accessToken: keycloak.token }),
-          credentials: 'include',
-        });
-      }
+      await keycloak.updateToken(5); // Refresh JWT if expires in 5s
     } catch (error) {
-      console.error('Failed to refresh token, logging out.', error);
+      console.error('Failed to refresh Keycloak token, logging out.', error);
       keycloak.logout();
     }
   }

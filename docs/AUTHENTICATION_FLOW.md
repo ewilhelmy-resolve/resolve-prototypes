@@ -79,16 +79,17 @@ sequenceDiagram
         alt Token expires in <5 min
             RG->>KC: Refresh token
             KC-->>RG: New JWT tokens
-            RG->>API: POST /auth/login (new token)
-            API->>API: Update session cookie
-            API-->>RG: Refreshed session cookie
+            Note over RG: Session cookie managed by backend
         end
     end
 
-    Note over U,API: API Requests (Cookie-Only Auth)
+    Note over U,API: API Requests (Cookie-Only Auth + Auto-Extend)
     RG->>API: API Request + Session Cookie
     API->>API: Validate session cookie
-    alt Session valid
+    alt Session near expiry (<2 hours)
+        API->>API: Extend session by 24 hours
+        API-->>RG: Response + Updated cookie
+    else Session still fresh
         API-->>RG: Response data
     else Session invalid/expired
         API-->>RG: 401 Unauthorized
@@ -248,9 +249,9 @@ private async checkAndRefreshToken(): Promise<void> {
     // Proactively refresh token
     const refreshed = await keycloak.updateToken(30);
     if (refreshed) {
-      // Update store and backend session cookie
+      // Update store state
       this.eventBus.emit('token:refreshed', newTokens);
-      await this.updateBackendSession(); // POST /auth/login
+      // Backend auto-extends session cookie when near expiry
     }
   }
 }
@@ -267,20 +268,19 @@ flowchart TD
     C -->|Yes| D[Call keycloak.updateToken]
     D --> E{Refresh successful?}
     E -->|Yes| F[Update AuthStore state]
-    F --> G[POST /auth/login with new token]
-    G --> H[Update session cookie, extend expiration]
-    H --> A
+    F --> A
     E -->|No| I[Emit auth:error]
     I --> J[Stop refresh timer]
     J --> K[Force logout user]
     K --> L[Redirect to login]
 ```
 
-**Cookie-Only Authentication**: All protected API endpoints use HTTP-only session cookies exclusively. When the Keycloak JWT token refreshes, the frontend calls `POST /auth/login` to update the backend session cookie. This ensures:
+**Cookie-Only Authentication with Auto-Extension**: All protected API endpoints use HTTP-only session cookies exclusively. The backend automatically extends session cookies when near expiry (< 2 hours remaining), creating a sliding session. This ensures:
 - Consistent authentication across all request types (fetch, EventSource/SSE, file downloads)
-- No JWT/cookie auth mismatch issues
+- Active users never logged out (session extends with every API request)
+- No frontend cookie management needed
 - Better security (HttpOnly cookies can't be accessed by JavaScript)
-- Simpler architecture (single authentication path)
+- Simpler architecture (backend controls session lifecycle)
 
 ## Error Handling Strategy
 
@@ -605,11 +605,12 @@ public async findOrCreateUser(tokenPayload: jose.JWTPayload) {
 
 ### Session Management
 - **Cookie-only backend auth**: All API requests authenticated via HTTP-only session cookies
-- **Frontend token management**: Keycloak JWT tokens handled by frontend, refreshed automatically
-- **Session synchronization**: When Keycloak token refreshes, frontend calls `POST /auth/login` to update session cookie
-- **Auto logout**: Failed token refresh triggers automatic logout
+- **Frontend token management**: Keycloak JWT tokens handled by frontend, refreshed automatically every 5 minutes
+- **Sliding sessions**: Backend auto-extends session when near expiry (< 2 hours remaining)
+- **Session lifetime**: 24 hours from last activity (extends automatically while user is active)
+- **Auto logout**: Failed Keycloak token refresh triggers automatic logout
 - **Secure cookies**: Session cookies are HTTP-only, secure (production), and SameSite=Lax
-- **Session cookie name**: `rita_session` (24-hour expiration, extended on each token refresh)
+- **Session cookie name**: `rita_session`
 
 ### PKCE Flow
 Keycloak initialization uses PKCE (Proof Key for Code Exchange):
