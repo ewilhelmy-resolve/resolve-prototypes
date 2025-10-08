@@ -23,7 +23,7 @@
  * ```
  */
 
-import { useEffect, useRef, useCallback } from 'react'
+import { useEffect, useRef, useCallback, useState } from 'react'
 import { useInfiniteConversationMessages } from '@/hooks/api/useConversations'
 import { useConversationStore } from '@/stores/conversationStore'
 
@@ -48,6 +48,7 @@ export function useChatPagination({
 }: UseChatPaginationProps): UseChatPaginationReturn {
   const sentinelRef = useRef<HTMLDivElement>(null)
   const { isLoadingMore, hasMoreMessages } = useConversationStore()
+  const [hasScrolledToBottom, setHasScrolledToBottom] = useState(false)
 
   // Use infinite query hook
   const {
@@ -76,6 +77,25 @@ export function useChatPagination({
     await fetchNextPage()
   }, [hasNextPage, isFetchingNextPage, fetchNextPage, scrollContainerRef])
 
+  // Initial scroll to bottom when messages first load
+  useEffect(() => {
+    if (!scrollContainerRef.current || !conversationId) {
+      setHasScrolledToBottom(false)
+      return
+    }
+
+    const container = scrollContainerRef.current
+
+    // Only auto-scroll to bottom once when conversation first loads
+    if (!hasScrolledToBottom && container.scrollHeight > 0) {
+      // Use setTimeout to ensure DOM has rendered
+      setTimeout(() => {
+        container.scrollTop = container.scrollHeight
+        setHasScrolledToBottom(true)
+      }, 100) // Slightly longer delay to ensure content is rendered
+    }
+  }, [conversationId, hasScrolledToBottom, scrollContainerRef])
+
   // Preserve scroll position after load
   useEffect(() => {
     if (!isFetchingNextPage && scrollContainerRef.current && scrollHeightBeforeLoad.current > 0) {
@@ -94,7 +114,8 @@ export function useChatPagination({
 
   // Setup Intersection Observer for scroll-to-top detection
   useEffect(() => {
-    if (!enabled || !sentinelRef.current || !scrollContainerRef.current) {
+    // Don't activate observer until we've scrolled to bottom initially
+    if (!enabled || !sentinelRef.current || !scrollContainerRef.current || !hasScrolledToBottom) {
       return
     }
 
@@ -127,7 +148,7 @@ export function useChatPagination({
     return () => {
       observer.disconnect()
     }
-  }, [enabled, hasNextPage, isFetchingNextPage, loadMore, threshold, scrollContainerRef])
+  }, [enabled, hasNextPage, isFetchingNextPage, loadMore, threshold, scrollContainerRef, hasScrolledToBottom])
 
   return {
     sentinelRef,
