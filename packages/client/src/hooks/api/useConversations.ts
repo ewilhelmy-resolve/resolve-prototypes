@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient, useInfiniteQuery } from '@tansta
 import { conversationApi } from '@/services/api.ts'
 import { useConversationStore } from '@/stores/conversationStore.ts'
 import type { Conversation, Message } from '@/stores/conversationStore.ts'
+import { CHAT_PAGINATION } from '@/constants/pagination'
 
 // Query keys
 export const conversationKeys = {
@@ -80,7 +81,7 @@ export function useInfiniteConversationMessages(conversationId: string | null) {
       if (!conversationId) return { messages: [], hasMore: false, nextCursor: null }
 
       const response = await conversationApi.getConversationMessages(conversationId, {
-        limit: pageParam === undefined ? 100 : 50, // Initial: 100, Pagination: 50
+        limit: pageParam === undefined ? CHAT_PAGINATION.INITIAL_PAGE_SIZE : CHAT_PAGINATION.PAGE_SIZE,
         ...(pageParam !== undefined && { before: pageParam }), // Only include before if cursor exists
       })
 
