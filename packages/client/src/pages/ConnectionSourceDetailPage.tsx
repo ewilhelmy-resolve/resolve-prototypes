@@ -47,6 +47,8 @@ export default function ConnectionSourceDetailPage() {
 	// OR if status is 'verifying' (backend is processing first-time verification)
 	const isConfigured =
 		source.last_verification_at !== null ||
+		source.status === BACKEND_STATUS.FAILED ||
+		source.status === BACKEND_STATUS.COMPLETED ||
 		source.status === BACKEND_STATUS.VERIFYING ||
 		source.status === BACKEND_STATUS.SYNCING;
 
@@ -108,7 +110,6 @@ export default function ConnectionSourceDetailPage() {
 	// - Show FORM when: NOT configured OR isEditMode is true
 	// - Show CONFIGURATION VIEW otherwise
 	const renderContent = () => {
-		console.log({ isConfigured, isEditMode });
 
 		// Show form if not configured OR in edit mode
 		if (!isConfigured || isEditMode) {
