@@ -10,6 +10,7 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { ConversationListItem } from './ConversationListItem'
 import { SidebarProvider } from '@/components/ui/sidebar'
 import type { Conversation } from '@/stores/conversationStore'
@@ -88,6 +89,7 @@ describe('ConversationListItem', () => {
   })
 
   it('opens rename dialog when Rename is clicked', async () => {
+    const user = userEvent.setup()
     renderWithProvider(
       <ConversationListItem
         conversation={mockConversation}
@@ -98,11 +100,11 @@ describe('ConversationListItem', () => {
 
     // Open dropdown menu
     const menuButton = screen.getByLabelText('More options')
-    fireEvent.click(menuButton)
+    await user.click(menuButton)
 
     // Click Rename
-    const renameOption = screen.getByText('Rename')
-    fireEvent.click(renameOption)
+    const renameOption = await screen.findByText('Rename')
+    await user.click(renameOption)
 
     // Verify rename dialog appears
     await waitFor(() => {
@@ -112,6 +114,7 @@ describe('ConversationListItem', () => {
   })
 
   it('pre-fills input with current title in rename dialog', async () => {
+    const user = userEvent.setup()
     renderWithProvider(
       <ConversationListItem
         conversation={mockConversation}
@@ -121,8 +124,9 @@ describe('ConversationListItem', () => {
     )
 
     // Open dropdown and click Rename
-    fireEvent.click(screen.getByLabelText('More options'))
-    fireEvent.click(screen.getByText('Rename'))
+    await user.click(screen.getByLabelText('More options'))
+    const renameOption = await screen.findByText('Rename')
+    await user.click(renameOption)
 
     await waitFor(() => {
       const input = screen.getByPlaceholderText('Conversation title') as HTMLInputElement
@@ -131,6 +135,7 @@ describe('ConversationListItem', () => {
   })
 
   it('calls updateConversation mutation when Save is clicked', async () => {
+    const user = userEvent.setup()
     renderWithProvider(
       <ConversationListItem
         conversation={mockConversation}
@@ -140,8 +145,9 @@ describe('ConversationListItem', () => {
     )
 
     // Open rename dialog
-    fireEvent.click(screen.getByLabelText('More options'))
-    fireEvent.click(screen.getByText('Rename'))
+    await user.click(screen.getByLabelText('More options'))
+    const renameOption = await screen.findByText('Rename')
+    await user.click(renameOption)
 
     await waitFor(() => {
       expect(screen.getByPlaceholderText('Conversation title')).toBeInTheDocument()
@@ -163,6 +169,7 @@ describe('ConversationListItem', () => {
   })
 
   it('disables Save button when title is empty', async () => {
+    const user = userEvent.setup()
     renderWithProvider(
       <ConversationListItem
         conversation={mockConversation}
@@ -172,8 +179,9 @@ describe('ConversationListItem', () => {
     )
 
     // Open rename dialog
-    fireEvent.click(screen.getByLabelText('More options'))
-    fireEvent.click(screen.getByText('Rename'))
+    await user.click(screen.getByLabelText('More options'))
+    const renameOption = await screen.findByText('Rename')
+    await user.click(renameOption)
 
     await waitFor(() => {
       expect(screen.getByPlaceholderText('Conversation title')).toBeInTheDocument()
@@ -189,6 +197,7 @@ describe('ConversationListItem', () => {
   })
 
   it('submits rename on Enter key press', async () => {
+    const user = userEvent.setup()
     renderWithProvider(
       <ConversationListItem
         conversation={mockConversation}
@@ -198,8 +207,9 @@ describe('ConversationListItem', () => {
     )
 
     // Open rename dialog
-    fireEvent.click(screen.getByLabelText('More options'))
-    fireEvent.click(screen.getByText('Rename'))
+    await user.click(screen.getByLabelText('More options'))
+    const renameOption = await screen.findByText('Rename')
+    await user.click(renameOption)
 
     await waitFor(() => {
       expect(screen.getByPlaceholderText('Conversation title')).toBeInTheDocument()
@@ -218,6 +228,7 @@ describe('ConversationListItem', () => {
   })
 
   it('opens delete dialog when Delete is clicked', async () => {
+    const user = userEvent.setup()
     renderWithProvider(
       <ConversationListItem
         conversation={mockConversation}
@@ -227,11 +238,11 @@ describe('ConversationListItem', () => {
     )
 
     // Open dropdown menu
-    fireEvent.click(screen.getByLabelText('More options'))
+    await user.click(screen.getByLabelText('More options'))
 
     // Click Delete
-    const deleteOption = screen.getByText('Delete')
-    fireEvent.click(deleteOption)
+    const deleteOption = await screen.findByText('Delete')
+    await user.click(deleteOption)
 
     // Verify delete dialog appears
     await waitFor(() => {
@@ -241,6 +252,7 @@ describe('ConversationListItem', () => {
   })
 
   it('shows conversation title in delete confirmation', async () => {
+    const user = userEvent.setup()
     renderWithProvider(
       <ConversationListItem
         conversation={mockConversation}
@@ -250,15 +262,17 @@ describe('ConversationListItem', () => {
     )
 
     // Open delete dialog
-    fireEvent.click(screen.getByLabelText('More options'))
-    fireEvent.click(screen.getByText('Delete'))
+    await user.click(screen.getByLabelText('More options'))
+    const deleteOption = await screen.findByText('Delete')
+    await user.click(deleteOption)
 
     await waitFor(() => {
-      expect(screen.getByText(/Test Conversation/)).toBeInTheDocument()
+      expect(screen.getByText(/Are you sure you want to delete "Test Conversation"/)).toBeInTheDocument()
     })
   })
 
   it('calls deleteConversation mutation when Delete conversation is clicked', async () => {
+    const user = userEvent.setup()
     renderWithProvider(
       <ConversationListItem
         conversation={mockConversation}
@@ -268,8 +282,9 @@ describe('ConversationListItem', () => {
     )
 
     // Open delete dialog
-    fireEvent.click(screen.getByLabelText('More options'))
-    fireEvent.click(screen.getByText('Delete'))
+    await user.click(screen.getByLabelText('More options'))
+    const deleteOption = await screen.findByText('Delete')
+    await user.click(deleteOption)
 
     await waitFor(() => {
       expect(screen.getByText('Delete Conversation')).toBeInTheDocument()
@@ -284,6 +299,7 @@ describe('ConversationListItem', () => {
   })
 
   it('closes rename dialog when Cancel is clicked', async () => {
+    const user = userEvent.setup()
     renderWithProvider(
       <ConversationListItem
         conversation={mockConversation}
@@ -293,8 +309,9 @@ describe('ConversationListItem', () => {
     )
 
     // Open rename dialog
-    fireEvent.click(screen.getByLabelText('More options'))
-    fireEvent.click(screen.getByText('Rename'))
+    await user.click(screen.getByLabelText('More options'))
+    const renameOption = await screen.findByText('Rename')
+    await user.click(renameOption)
 
     await waitFor(() => {
       expect(screen.getByText('Rename Conversation')).toBeInTheDocument()
@@ -311,6 +328,7 @@ describe('ConversationListItem', () => {
   })
 
   it('closes delete dialog when Cancel is clicked', async () => {
+    const user = userEvent.setup()
     renderWithProvider(
       <ConversationListItem
         conversation={mockConversation}
@@ -320,8 +338,9 @@ describe('ConversationListItem', () => {
     )
 
     // Open delete dialog
-    fireEvent.click(screen.getByLabelText('More options'))
-    fireEvent.click(screen.getByText('Delete'))
+    await user.click(screen.getByLabelText('More options'))
+    const deleteOption = await screen.findByText('Delete')
+    await user.click(deleteOption)
 
     await waitFor(() => {
       expect(screen.getByText('Delete Conversation')).toBeInTheDocument()

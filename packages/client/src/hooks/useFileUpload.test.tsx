@@ -66,11 +66,22 @@ describe('useFileUpload', () => {
   })
 
   it('handleFileUpload processes files correctly', async () => {
+    const mockMutate = vi.fn()
+    const useFiles = await import('@/hooks/api/useFiles')
+    vi.mocked(useFiles.useUploadFile).mockReturnValue({
+      mutate: mockMutate,
+      isPending: false,
+      isError: false,
+      isSuccess: false,
+      error: null,
+    } as any)
+
     const fileInputRef = { current: document.createElement('input') }
     const { result } = renderHook(() => useFileUpload(fileInputRef as any))
 
     const mockFile = new File(['test content'], 'test.pdf', { type: 'application/pdf' })
     const mockEvent = {
+      preventDefault: vi.fn(),
       target: {
         files: [mockFile]
       }
@@ -80,10 +91,8 @@ describe('useFileUpload', () => {
       result.current.handleFileUpload(mockEvent)
     })
 
-    // Should set uploading state
-    await waitFor(() => {
-      expect(result.current.isUploading).toBe(true)
-    })
+    // Should call mutate with the file
+    expect(mockMutate).toHaveBeenCalledWith(mockFile)
   })
 
 
@@ -92,6 +101,7 @@ describe('useFileUpload', () => {
     const { result } = renderHook(() => useFileUpload(fileInputRef as any))
 
     const mockEvent = {
+      preventDefault: vi.fn(),
       target: {
         files: []
       }
@@ -108,6 +118,16 @@ describe('useFileUpload', () => {
   })
 
   it('supports multiple file types', async () => {
+    const mockMutate = vi.fn()
+    const useFiles = await import('@/hooks/api/useFiles')
+    vi.mocked(useFiles.useUploadFile).mockReturnValue({
+      mutate: mockMutate,
+      isPending: false,
+      isError: false,
+      isSuccess: false,
+      error: null,
+    } as any)
+
     const fileInputRef = { current: document.createElement('input') }
     const { result } = renderHook(() => useFileUpload(fileInputRef as any))
 
@@ -120,6 +140,7 @@ describe('useFileUpload', () => {
 
     for (const file of fileTypes) {
       const mockEvent = {
+        preventDefault: vi.fn(),
         target: {
           files: [file]
         }
@@ -129,9 +150,8 @@ describe('useFileUpload', () => {
         result.current.handleFileUpload(mockEvent)
       })
 
-      await waitFor(() => {
-        expect(result.current.isUploading || result.current.isSuccess).toBe(true)
-      })
+      // Should call mutate for each file type
+      expect(mockMutate).toHaveBeenCalledWith(file)
     }
   })
 })
