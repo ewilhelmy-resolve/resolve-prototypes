@@ -34,7 +34,6 @@ export function useAuth() {
     silentLogin: store.silentLogin,
 
     // Session management
-    validateSession: store.validateSession,
     clearSession: store.clearSession,
 
     // Computed values

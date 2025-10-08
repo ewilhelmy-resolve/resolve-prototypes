@@ -1,4 +1,4 @@
-import { Navigate } from 'react-router-dom';
+import { Navigate, useNavigate } from 'react-router-dom';
 import { useState } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { Button } from '../components/ui/button';
@@ -8,6 +8,7 @@ import { Loader2 } from 'lucide-react';
 const API_BASE_URL = import.meta.env.VITE_API_URL || '';
 
 export function LoginPage() {
+  const navigate = useNavigate();
   const { authenticated, login, loading, sessionReady } = useAuth();
   const [signupForm, setSignupForm] = useState({
     firstName: '',
@@ -17,14 +18,12 @@ export function LoginPage() {
     password: ''
   });
   const [signupLoading, setSignupLoading] = useState(false);
-  const [signupMessage, setSignupMessage] = useState<string | null>(null);
   const [signupError, setSignupError] = useState<string | null>(null);
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
     setSignupLoading(true);
     setSignupError(null);
-    setSignupMessage(null);
 
     try {
       const response = await fetch(`${API_BASE_URL}/auth/signup`, {
@@ -39,14 +38,8 @@ export function LoginPage() {
         throw new Error(data.error || 'Signup failed');
       }
 
-      setSignupMessage(data.message);
-      setSignupForm({
-        firstName: '',
-        lastName: '',
-        email: '',
-        company: '',
-        password: ''
-      });
+      // Redirect to verify email sent page with email in query params
+      navigate(`/verify-email-sent?email=${encodeURIComponent(signupForm.email)}`);
     } catch (error) {
       setSignupError(error instanceof Error ? error.message : 'Signup failed');
     } finally {
@@ -92,12 +85,6 @@ export function LoginPage() {
 
             {/* Signup Form */}
             <div className="space-y-4">
-              {signupMessage && (
-                <div className="p-4 bg-green-900/20 border border-green-700 rounded-lg">
-                  <p className="text-sm text-green-300">{signupMessage}</p>
-                </div>
-              )}
-
               {signupError && (
                 <div className="p-4 bg-red-900/20 border border-red-700 rounded-lg">
                   <p className="text-sm text-red-300">{signupError}</p>

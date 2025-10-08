@@ -72,7 +72,6 @@ export interface AuthActions {
 
   // Session management
   createSession: () => Promise<boolean>;
-  validateSession: () => Promise<boolean>;
   clearSession: () => void;
 
   // Error handling
