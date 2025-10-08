@@ -2,7 +2,12 @@
  * ConnectionStatusCard.test.tsx - Unit tests for connection status card component
  */
 
-import { render, screen, fireEvent, waitFor, act } from "@testing-library/react";
+import {
+	fireEvent,
+	render,
+	screen,
+	waitFor,
+} from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import type { ConnectionSource } from "@/constants/connectionSources";
 import { STATUS } from "@/constants/connectionSources";
@@ -171,7 +176,9 @@ describe("ConnectionStatusCard", () => {
 		it("should show Retry button for ERROR status", () => {
 			const source = createMockSource({ status: STATUS.ERROR });
 			render(<ConnectionStatusCard source={source} />);
-			expect(screen.getByRole("button", { name: /Retry/i })).toBeInTheDocument();
+			expect(
+				screen.getByRole("button", { name: /Retry/i }),
+			).toBeInTheDocument();
 		});
 
 		it("should call onRetry when Retry button is clicked", () => {

@@ -2,12 +2,11 @@
  * ConnectionSources.test.tsx - Unit tests for ConnectionSources component
  */
 
-import { render, screen, waitFor } from "@testing-library/react";
-import { describe, expect, it, vi, beforeEach } from "vitest";
+import { render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
-import ConnectionSources from "./ConnectionSources";
-import { STATUS } from "@/constants/connectionSources";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { DataSourceConnection } from "@/types/dataSource";
+import ConnectionSources from "./ConnectionSources";
 
 // Mock hooks
 const mockSeedMutation = {
@@ -149,7 +148,11 @@ describe("ConnectionSources", () => {
 
 		it("should render multiple data sources", () => {
 			const sources = [
-				createMockDataSource({ id: "1", type: "confluence", name: "Confluence" }),
+				createMockDataSource({
+					id: "1",
+					type: "confluence",
+					name: "Confluence",
+				}),
 				createMockDataSource({
 					id: "2",
 					type: "sharepoint",
@@ -188,7 +191,11 @@ describe("ConnectionSources", () => {
 					type: "servicenow",
 					name: "ServiceNow",
 				}),
-				createMockDataSource({ id: "1", type: "confluence", name: "Confluence" }),
+				createMockDataSource({
+					id: "1",
+					type: "confluence",
+					name: "Confluence",
+				}),
 			];
 			mockDataSourcesQuery.data = sources;
 			renderWithRouter(<ConnectionSources />);
@@ -275,10 +282,7 @@ describe("ConnectionSources", () => {
 			renderWithRouter(<ConnectionSources />);
 
 			const icon = screen.getByAltText("Confluence icon");
-			expect(icon).toHaveAttribute(
-				"src",
-				"/connections/icon_confluence.svg",
-			);
+			expect(icon).toHaveAttribute("src", "/connections/icon_confluence.svg");
 		});
 
 		it("should display icon for SharePoint", () => {
@@ -290,10 +294,7 @@ describe("ConnectionSources", () => {
 			renderWithRouter(<ConnectionSources />);
 
 			const icon = screen.getByAltText("SharePoint icon");
-			expect(icon).toHaveAttribute(
-				"src",
-				"/connections/icon_sharepoint.svg",
-			);
+			expect(icon).toHaveAttribute("src", "/connections/icon_sharepoint.svg");
 		});
 
 		it("should display Globe icon for Web Search", () => {
