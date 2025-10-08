@@ -35,16 +35,23 @@ test.describe('Sidebar Layout and Toggle', () => {
     await expect(trigger).toBeVisible();
   });
 
-  test('main content has correct spacing when sidebar is expanded', async ({ page }) => {
+  test('main content wrapper is full-width with padding for sidebar', async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 720 });
 
-    // Find main content wrapper
+    // Find main content wrapper - should always be at left edge
     const mainWrapper = page.locator('.fixed.inset-y-0.overflow-hidden').first();
-
-    // On desktop with expanded sidebar, should have left offset of 256px (16rem = left-64)
     const boundingBox = await mainWrapper.boundingBox();
-    expect(boundingBox?.x).toBeGreaterThanOrEqual(250); // Allow small margin for browser differences
-    expect(boundingBox?.x).toBeLessThanOrEqual(260);
+
+    // Main wrapper should be at left edge (full width)
+    expect(boundingBox?.x).toBeLessThanOrEqual(5);
+
+    // Header should have padding to account for sidebar
+    const header = page.locator('header');
+    const headerPadding = await header.evaluate((el) =>
+      window.getComputedStyle(el).paddingLeft
+    );
+    // Should have 256px (16rem) left padding on desktop
+    expect(headerPadding).toBe('256px');
   });
 
   test('sidebar collapses when toggle button is clicked', async ({ page }) => {
@@ -62,24 +69,40 @@ test.describe('Sidebar Layout and Toggle', () => {
     // Wait for animation to complete
     await page.waitForTimeout(250);
 
-    // Sidebar should now be collapsed
+    // Sidebar should now be collapsed with offcanvas collapsible mode
     await expect(sidebarWrapper).toHaveAttribute('data-state', 'collapsed');
     await expect(sidebarWrapper).toHaveAttribute('data-collapsible', 'offcanvas');
+
+    // CRITICAL: Verify the sidebar is actually visually hidden (negative left position)
+    const sidebarBox = await sidebarWrapper.boundingBox();
+    expect(sidebarBox?.x).toBeLessThan(0); // Should be off-screen to the left
   });
 
-  test('main content expands to full width when sidebar is collapsed', async ({ page }) => {
+  test('header position stays consistent when sidebar is collapsed', async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 720 });
 
-    const mainWrapper = page.locator('.fixed.inset-y-0.overflow-hidden').first();
+    const header = page.locator('header');
+    const sidebarWrapper = page.locator('[data-state]');
     const trigger = page.locator('[data-sidebar="trigger"]');
+
+    // Get header padding before collapse
+    const paddingBefore = await header.evaluate((el) =>
+      window.getComputedStyle(el).paddingLeft
+    );
 
     // Collapse sidebar
     await trigger.click();
     await page.waitForTimeout(250);
 
-    // Main content should now start at left edge (x=0 or very close)
-    const boundingBox = await mainWrapper.boundingBox();
-    expect(boundingBox?.x).toBeLessThanOrEqual(5); // Allow small margin
+    // Verify sidebar is in offcanvas mode
+    await expect(sidebarWrapper).toHaveAttribute('data-collapsible', 'offcanvas');
+
+    // CRITICAL: Header padding should remain the same (header doesn't move)
+    const paddingAfter = await header.evaluate((el) =>
+      window.getComputedStyle(el).paddingLeft
+    );
+    expect(paddingAfter).toBe(paddingBefore);
+    expect(paddingAfter).toBe('256px');
   });
 
   test('sidebar expands again when toggle is clicked second time', async ({ page }) => {
@@ -93,15 +116,19 @@ test.describe('Sidebar Layout and Toggle', () => {
     await page.waitForTimeout(250);
     await expect(sidebarWrapper).toHaveAttribute('data-state', 'collapsed');
 
+    // Verify sidebar is off-screen
+    const collapsedBox = await sidebarWrapper.boundingBox();
+    expect(collapsedBox?.x).toBeLessThan(0);
+
     // Expand again
     await trigger.click();
     await page.waitForTimeout(250);
     await expect(sidebarWrapper).toHaveAttribute('data-state', 'expanded');
 
-    // Main content should be back to left offset
-    const mainWrapper = page.locator('.fixed.inset-y-0.overflow-hidden').first();
-    const boundingBox = await mainWrapper.boundingBox();
-    expect(boundingBox?.x).toBeGreaterThanOrEqual(250);
+    // Sidebar should be back on-screen at left edge
+    const expandedBox = await sidebarWrapper.boundingBox();
+    expect(expandedBox?.x).toBeGreaterThanOrEqual(0);
+    expect(expandedBox?.x).toBeLessThanOrEqual(5);
   });
 
   test('logo remains visible throughout toggle cycle', async ({ page }) => {
@@ -130,29 +157,66 @@ test.describe('Sidebar Layout and Toggle', () => {
     await expect(logo).toBeVisible();
   });
 
-  test('sidebar trigger button position stays consistent', async ({ page }) => {
+  test('header elements stay in exact same position when sidebar toggles', async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 720 });
 
     const trigger = page.locator('[data-sidebar="trigger"]');
+    const breadcrumb = page.locator('header').locator('text="Rita Go"');
 
-    // Get initial position
-    const initialBox = await trigger.boundingBox();
-    expect(initialBox).not.toBeNull();
+    // Get initial positions
+    const initialTriggerBox = await trigger.boundingBox();
+    const initialBreadcrumbBox = await breadcrumb.boundingBox();
+    expect(initialTriggerBox).not.toBeNull();
+    expect(initialBreadcrumbBox).not.toBeNull();
 
     // Toggle sidebar
     await trigger.click();
     await page.waitForTimeout(250);
 
-    // Button should still be visible and clickable
+    // Elements should still be visible
     await expect(trigger).toBeVisible();
+    await expect(breadcrumb).toBeVisible();
 
-    // Get position after collapse
-    const collapsedBox = await trigger.boundingBox();
-    expect(collapsedBox).not.toBeNull();
+    // Get positions after collapse
+    const collapsedTriggerBox = await trigger.boundingBox();
+    const collapsedBreadcrumbBox = await breadcrumb.boundingBox();
 
-    // Button should be in roughly the same position (allowing for small shift from layout)
-    // The important thing is it doesn't disappear or move drastically
-    expect(Math.abs((collapsedBox?.x || 0) - (initialBox?.x || 0))).toBeLessThan(50);
+    // CRITICAL: Header elements should be in EXACT same position
+    // This is the key requirement - header doesn't move when sidebar toggles
+    expect(collapsedTriggerBox?.x).toBe(initialTriggerBox?.x);
+    expect(collapsedTriggerBox?.y).toBe(initialTriggerBox?.y);
+    expect(collapsedBreadcrumbBox?.x).toBe(initialBreadcrumbBox?.x);
+    expect(collapsedBreadcrumbBox?.y).toBe(initialBreadcrumbBox?.y);
+  });
+
+  test('sidebar has correct z-index and logo is visible above main content', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 720 });
+
+    const sidebarWrapper = page.locator('[data-state]');
+    const logo = page.locator('img[alt="Rita Logo"]');
+    const mainWrapper = page.locator('.fixed.inset-y-0.overflow-hidden').first();
+
+    // Verify sidebar has higher z-index than main content
+    const sidebarZIndex = await sidebarWrapper.evaluate((el) => {
+      // Find the fixed sidebar div (child of wrapper)
+      const fixedSidebar = el.querySelector('.fixed.z-50');
+      return fixedSidebar ? window.getComputedStyle(fixedSidebar).zIndex : null;
+    });
+    const mainZIndex = await mainWrapper.evaluate((el) =>
+      window.getComputedStyle(el).zIndex
+    );
+
+    expect(sidebarZIndex).toBe('50');
+    expect(mainZIndex).toBe('0');
+
+    // CRITICAL: Logo must be visible (not covered by main content)
+    await expect(logo).toBeVisible();
+
+    // Verify logo is actually rendered on screen (not just in DOM)
+    const logoBox = await logo.boundingBox();
+    expect(logoBox).not.toBeNull();
+    expect(logoBox?.width).toBeGreaterThan(0);
+    expect(logoBox?.height).toBeGreaterThan(0);
   });
 
   test('new chat button appears when sidebar is collapsed', async ({ page }) => {
