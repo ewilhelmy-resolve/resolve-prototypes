@@ -9,7 +9,7 @@ vi.mock('../../config/database.js', () => ({
 }));
 
 vi.mock('../../middleware/auth.js', () => ({
-  authenticateUser: vi.fn((req, res, next) => {
+  authenticateUser: vi.fn((req, _res, next) => {
     // Inject mock authenticated user
     (req as any).user = {
       id: 'test-user-id',
@@ -143,7 +143,7 @@ describe('Conversations Router - Automatic Cleanup', () => {
         .mockResolvedValueOnce({ rows: [] })
         .mockResolvedValueOnce({ rows: [{ id: 'new-conv-a', title: 'Chat A', created_at: new Date(), updated_at: new Date() }] });
 
-      vi.mocked(withOrgContext).mockImplementation(async (userId, orgId, callback) => {
+      vi.mocked(withOrgContext).mockImplementation(async (_userId, _orgId, callback) => {
         return await callback(mockClient);
       });
 
@@ -165,7 +165,7 @@ describe('Conversations Router - Automatic Cleanup', () => {
         .mockResolvedValueOnce({ rows: [{ id: 'new-conv-b', title: 'Chat B', created_at: new Date(), updated_at: new Date() }] });
 
       // Simulate User B with different ID
-      vi.mocked(withOrgContext).mockImplementation(async (userId, orgId, callback) => {
+      vi.mocked(withOrgContext).mockImplementation(async (_userId, _orgId, callback) => {
         // Override mock user for this test
         return await callback(mockClient);
       });
