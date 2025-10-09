@@ -9,6 +9,7 @@ import {
 	TrendingUp,
 } from "lucide-react";
 import { useState } from "react";
+import ConfirmDialog from "@/components/dialogs/ConfirmDialog";
 import Header from "@/components/Header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -29,10 +30,25 @@ import {
 	TableHeader,
 	TableRow,
 } from "@/components/ui/table";
+import EditUserSheet from "@/components/users/EditUserSheet";
 import InviteUsersButton from "@/components/users/InviteUsersButton";
+
+interface User {
+	id: string;
+	name: string;
+	email: string;
+	status: string;
+	role: string;
+	queries: string;
+	lastModified: string;
+}
 
 export default function SettingsUsers() {
 	const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
+	const [editingUser, setEditingUser] = useState<User | null>(null);
+	const [deletingUser, setDeletingUser] = useState<User | null>(null);
+	const [editSheetOpen, setEditSheetOpen] = useState(false);
+	const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 
 	const users = [
 		{
@@ -96,6 +112,26 @@ export default function SettingsUsers() {
 		} else {
 			setSelectedUsers(selectedUsers.filter((id) => id !== userId));
 		}
+	};
+
+	const handleEditUser = (user: User) => {
+		setEditingUser(user);
+		setEditSheetOpen(true);
+	};
+
+	const handleDeleteUser = (user: User) => {
+		setDeletingUser(user);
+		setDeleteDialogOpen(true);
+	};
+
+	const handleSaveUser = (userId: string, role: string) => {
+		console.log("Updating user:", userId, "with role:", role);
+		// TODO: Implement actual user update logic
+	};
+
+	const handleConfirmDelete = () => {
+		console.log("Deleting user:", deletingUser?.id);
+		// TODO: Implement actual user deletion logic
 	};
 
 	return (
@@ -245,9 +281,24 @@ export default function SettingsUsers() {
 											{user.lastModified}
 										</TableCell>
 										<TableCell>
-											<Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-												<MoreHorizontal className="h-4 w-4" />
-											</Button>
+											<DropdownMenu>
+												<DropdownMenuTrigger asChild>
+													<Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+														<MoreHorizontal className="h-4 w-4" />
+													</Button>
+												</DropdownMenuTrigger>
+												<DropdownMenuContent align="end">
+													<DropdownMenuItem onClick={() => handleEditUser(user)}>
+														Edit
+													</DropdownMenuItem>
+													<DropdownMenuItem
+														onClick={() => handleDeleteUser(user)}
+														className="text-destructive focus:text-destructive"
+													>
+														Delete
+													</DropdownMenuItem>
+												</DropdownMenuContent>
+											</DropdownMenu>
 										</TableCell>
 									</TableRow>
 								))}
@@ -268,6 +319,24 @@ export default function SettingsUsers() {
 					</div>
 				</div>
 			</div>
+
+			<EditUserSheet
+				open={editSheetOpen}
+				onOpenChange={setEditSheetOpen}
+				user={editingUser}
+				onSave={handleSaveUser}
+			/>
+
+			<ConfirmDialog
+				open={deleteDialogOpen}
+				onOpenChange={setDeleteDialogOpen}
+				title="Are you sure?"
+				description="This change will reduce this user's permissions from Admin to User. They will no longer have management access. Do you want to continue?"
+				onConfirm={handleConfirmDelete}
+				confirmLabel="Confirm"
+				cancelLabel="Cancel"
+				variant="destructive"
+			/>
 		</div>
 	);
 }
