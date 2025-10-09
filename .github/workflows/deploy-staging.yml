@@ -326,12 +326,12 @@ jobs:
           -H "Content-Type: application/json" https://app.qawolf.com/api/webhooks/deploy_success \
           -d '{
             "repository": {
-              "name": "${{ inputs.REPOSITORY_NAME }}",
+              "name": "${{ github.event.repository.name }}",
               "owner": "resolve-io"},
-            "branch": "${{ inputs.BRANCH_NAME }}",
+            "branch": "${{ github.head_ref }}",
             "hosting_service": "GitHub",
-            "pull_request_number": ${{ inputs.PR_NUMBER }},
-            "sha": "${{ inputs.COMMIT_SHA }}",
+            "pull_request_number": ${{ github.event.pull_request.number }}",
+            "sha": "${{ github.event.pull_request.head.sha }}",
             "deployment_type": "deployment",
             "variables": {
               "DEFAULT_URL": "'https://onboarding.resolve.io'"
