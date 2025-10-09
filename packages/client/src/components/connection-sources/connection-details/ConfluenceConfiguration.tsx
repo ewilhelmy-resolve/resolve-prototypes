@@ -93,7 +93,7 @@ export default function ConfluenceConfiguration({
 					<ConnectionActionsMenu onEdit={onEdit} />
 				</div>
 
-				<ConnectionStatusCard source={source} />
+				<ConnectionStatusCard source={source} onRetry={handleSync} />
 
 				<div className="flex flex-col gap-1">
 					<div className="border border-border bg-popover rounded-md p-4">

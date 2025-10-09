@@ -85,9 +85,9 @@ export function ConfluenceForm({ onCancel }: ConfluenceFormProps = {}) {
 				payload: {
 					settings: {
 						url: formData.url,
+						email: formData.email,
 					},
 					credentials: {
-						email: formData.email,
 						apiToken: formData.token,
 					},
 				},
@@ -100,7 +100,6 @@ export function ConfluenceForm({ onCancel }: ConfluenceFormProps = {}) {
 					settings: {
 						url: formData.url,
 						email: formData.email,
-						apiToken: formData.token,
 						spaces: selectedSpaces.join(","),
 					},
 					enabled: true,
@@ -133,7 +132,7 @@ export function ConfluenceForm({ onCancel }: ConfluenceFormProps = {}) {
 					<Input
 						id="url"
 						type="url"
-						placeholder="https://your-company.atlassian.net/wiki"
+						placeholder="https://your-company.atlassian.net"
 						{...register("url", { required: "URL is required" })}
 					/>
 				</FormField>

@@ -119,7 +119,7 @@ describe("ConfluenceForm", () => {
 			renderWithProvider(source);
 			expect(screen.getByLabelText("URL")).toBeInTheDocument();
 			expect(
-				screen.getByPlaceholderText("https://your-company.atlassian.net/wiki"),
+				screen.getByPlaceholderText("https://your-company.atlassian.net"),
 			).toBeInTheDocument();
 		});
 
@@ -332,9 +332,9 @@ describe("ConfluenceForm", () => {
 					payload: {
 						settings: {
 							url: "https://company.atlassian.net",
+							email: "user@company.com",
 						},
 						credentials: {
-							email: "user@company.com",
 							apiToken: "secret-token",
 						},
 					},
@@ -348,7 +348,6 @@ describe("ConfluenceForm", () => {
 						settings: {
 							url: "https://company.atlassian.net",
 							email: "user@company.com",
-							apiToken: "secret-token",
 							spaces: "",
 						},
 						enabled: true,
@@ -360,11 +359,11 @@ describe("ConfluenceForm", () => {
 		it("should include selected spaces in update mutation", async () => {
 			const source = createMockSource({
 				backendData: {
-						...baseBackendData,
-						latest_options: {
-							spaces: "ENG, PROD",
-						},
-					} as DataSourceConnection,
+					...baseBackendData,
+					latest_options: {
+						spaces: "ENG, PROD",
+					},
+				} as DataSourceConnection,
 			});
 			renderWithProvider(source);
 

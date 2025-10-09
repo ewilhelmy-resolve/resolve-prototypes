@@ -10,6 +10,12 @@ import { STATUS } from "@/constants/connectionSources";
 import { ConnectionSourceProvider } from "@/contexts/ConnectionSourceContext";
 import ConfluenceConfiguration from "./ConfluenceConfiguration";
 
+// Mock react-router-dom
+const mockNavigate = vi.fn();
+vi.mock("react-router-dom", () => ({
+	useNavigate: () => mockNavigate,
+}));
+
 // Mock hooks
 const mockUpdateMutation = {
 	mutateAsync: vi.fn().mockResolvedValue({}),
@@ -276,11 +282,11 @@ describe("ConfluenceConfiguration", () => {
 	});
 
 	it('should show "Syncing..." when mutation is pending', () => {
+		const source = createMockSource({ status: STATUS.CONNECTED });
 		mockSyncMutation.isPending = true;
-		const source = createMockSource();
+
 		renderWithProvider(source);
 
 		expect(screen.getByText("Syncing...")).toBeInTheDocument();
-		mockSyncMutation.isPending = false; // Reset
 	});
 });

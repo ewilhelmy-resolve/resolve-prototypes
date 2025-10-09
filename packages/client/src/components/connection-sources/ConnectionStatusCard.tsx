@@ -2,6 +2,7 @@
 
 import { RefreshCw } from "lucide-react";
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import type { ConnectionSource } from "@/constants/connectionSources";
 import { STATUS } from "@/constants/connectionSources";
@@ -10,7 +11,6 @@ import { ConnectionStatusBadge } from "./ConnectionStatusBadge";
 interface ConnectionStatusCardProps {
 	source: ConnectionSource;
 	onRetry?: () => void;
-	onGetHelp?: () => void;
 }
 
 /**
@@ -21,27 +21,23 @@ interface ConnectionStatusCardProps {
 export function ConnectionStatusCard({
 	source,
 	onRetry,
-	onGetHelp,
 }: ConnectionStatusCardProps) {
 	const [retryCount, setRetryCount] = useState(0);
-	const [isRetrying, setIsRetrying] = useState(false);
+	const navigate = useNavigate();
 
 	const maxRetries = 3;
 	const showHelp = retryCount >= maxRetries;
 
+	// Show retrying state when syncing/verifying after a retry attempt
+	const isRetrying = retryCount > 0 && (source.status === STATUS.SYNCING || source.status === STATUS.VERIFYING);
+
 	const handleRetry = () => {
-		setIsRetrying(true);
 		setRetryCount((prev) => prev + 1);
 
 		// Call parent retry handler if provided
 		if (onRetry) {
 			onRetry();
 		}
-
-		// Simulate retry attempt
-		setTimeout(() => {
-			setIsRetrying(false);
-		}, 2000);
 	};
 
 	const getStatusMessage = () => {
@@ -56,14 +52,21 @@ export function ConnectionStatusCard({
 						size="sm"
 						variant="outline"
 						onClick={() => {
-							if (onGetHelp) {
-								onGetHelp();
-							}
+							navigate('/help');
 						}}
 					>
 						Get Help
 					</Button>
 				</div>
+			);
+		}
+
+		// Show "Retrying..." when syncing/verifying after a retry attempt
+		if (isRetrying) {
+			return (
+				<p className="text-sm text-foreground whitespace-nowrap">
+					Retrying... ({retryCount}/{maxRetries})
+				</p>
 			);
 		}
 
@@ -79,11 +82,8 @@ export function ConnectionStatusCard({
 						size="sm"
 						variant="outline"
 						onClick={handleRetry}
-						disabled={isRetrying}
 					>
-						<RefreshCw
-							className={`h-3 w-3 mr-1.5 ${isRetrying ? "animate-spin" : ""}`}
-						/>
+						<RefreshCw className="h-3 w-3 mr-1.5" />
 						Retry
 					</Button>
 				</div>
@@ -150,7 +150,6 @@ export function ConnectionStatusCard({
 						<div className="flex justify-center flex-1">
 							<ConnectionStatusBadge
 								status={source.status}
-								isRetrying={isRetrying}
 								showHelp={showHelp}
 							/>
 						</div>
