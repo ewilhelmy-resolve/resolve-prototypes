@@ -330,11 +330,10 @@ jobs:
               "owner": "resolve-io"},
             "branch": "${{ github.head_ref }}",
             "hosting_service": "GitHub",
-            "pull_request_number": ${{ github.event.pull_request.number }}",
             "sha": "${{ github.event.pull_request.head.sha }}",
             "deployment_type": "deployment",
             "variables": {
-              "DEFAULT_URL": "'https://onboarding.resolve.io'"
+              "DEFAULT_URL": "https://onboarding.resolve.io"
           }'
   
   # # Trigger QA Wolf tests           
