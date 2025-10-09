@@ -192,34 +192,28 @@ function RitaLayoutContent({ children, activePage = "chat" }: RitaLayoutProps) {
 						</SidebarMenuItem>
 					</div>
 
-					<SidebarGroup>
-						<SidebarGroupLabel className="px-2 h-8 rounded-md text-xs text-sidebar-foreground">
-							Recent chats
-						</SidebarGroupLabel>
-						<SidebarMenu className="gap-1">
-							{conversationsLoading ? (
-								<div className="px-2 text-xs text-muted-foreground">
-									Loading...
-								</div>
-							) : conversations.length === 0 ? (
-								<div className="px-2 text-xs text-muted-foreground">
-									No conversations yet
-								</div>
-							) : (
-								conversations
-									.slice(0, 5)
-									.map((conversation: Conversation) => (
-										<ConversationListItem
-											key={conversation.id}
-											conversation={conversation}
-											isActive={conversation.id === currentConversationId}
-											onClick={handleConversationClick}
-										/>
-									))
-							)}
-						</SidebarMenu>
-					</SidebarGroup>
-				</SidebarContent>
+            <SidebarGroup>
+              <SidebarGroupLabel className="px-2 h-8 rounded-md text-xs text-sidebar-foreground">
+                Recent chats
+              </SidebarGroupLabel>
+              <SidebarMenu className="gap-1">
+                {conversationsLoading ? (
+                  <div className="px-2 text-xs text-muted-foreground">Loading...</div>
+                ) : conversations.length === 0 ? (
+                  <div className="px-2 text-xs text-muted-foreground">No conversations yet</div>
+                ) : (
+                  conversations.map((conversation: Conversation) => (
+                    <ConversationListItem
+                      key={conversation.id}
+                      conversation={conversation}
+                      isActive={conversation.id === currentConversationId}
+                      onClick={handleConversationClick}
+                    />
+                  ))
+                )}
+              </SidebarMenu>
+            </SidebarGroup>
+          </SidebarContent>
 
 				<SidebarFooter className="p-2 border-t border-sidebar-border">
 					<Popover>
