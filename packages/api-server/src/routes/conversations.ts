@@ -7,6 +7,9 @@ import type { AuthenticatedRequest } from '../types/express.js';
 const router = express.Router();
 const webhookService = new WebhookService();
 
+// Configuration: Maximum conversations per user before automatic cleanup
+const MAX_CONVERSATIONS_PER_USER = parseInt(process.env.MAX_CONVERSATIONS_PER_USER || '20', 10);
+
 // Create a new conversation
 router.post('/', authenticateUser, async (req, res) => {
   const authReq = req as AuthenticatedRequest;
@@ -21,6 +24,31 @@ router.post('/', authenticateUser, async (req, res) => {
       authReq.user.id,
       authReq.user.activeOrganizationId,
       async (client) => {
+        // Count user's existing conversations
+        const countResult = await client.query(`
+          SELECT COUNT(*) as count
+          FROM conversations
+          WHERE user_id = $1 AND organization_id = $2
+        `, [authReq.user.id, authReq.user.activeOrganizationId]);
+
+        const conversationCount = parseInt(countResult.rows[0].count, 10);
+
+        // If at or above limit, delete oldest conversation
+        if (conversationCount >= MAX_CONVERSATIONS_PER_USER) {
+          await client.query(`
+            DELETE FROM conversations
+            WHERE id = (
+              SELECT id FROM conversations
+              WHERE user_id = $1 AND organization_id = $2
+              ORDER BY created_at ASC
+              LIMIT 1
+            )
+          `, [authReq.user.id, authReq.user.activeOrganizationId]);
+
+          console.log(`🧹 Deleted oldest conversation for user ${authReq.user.id} (limit: ${MAX_CONVERSATIONS_PER_USER})`);
+        }
+
+        // Insert new conversation
         const conversationResult = await client.query(`
           INSERT INTO conversations (organization_id, user_id, title)
           VALUES ($1, $2, $3)

@@ -177,7 +177,7 @@ function RitaLayoutContent({ children, activePage = "chat" }: RitaLayoutProps) {
                 ) : conversations.length === 0 ? (
                   <div className="px-2 text-xs text-muted-foreground">No conversations yet</div>
                 ) : (
-                  conversations.slice(0, 5).map((conversation: Conversation) => (
+                  conversations.map((conversation: Conversation) => (
                     <ConversationListItem
                       key={conversation.id}
                       conversation={conversation}
