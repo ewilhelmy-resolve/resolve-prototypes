@@ -11,7 +11,7 @@ export class DataSourceWebhookService {
 
   constructor(config?: Partial<WebhookConfig>) {
     this.config = {
-      url: config?.url || process.env.DATA_SOURCE_WEBHOOK_URL ||
+      url: config?.url || process.env.AUTOMATION_WEBHOOK_URL ||
         'http://localhost:3001/webhook',
       authHeader: config?.authHeader || process.env.AUTOMATION_AUTH ||
         '',

@@ -18,7 +18,7 @@ export class WebhookService {
       url: config?.url || process.env.AUTOMATION_WEBHOOK_URL ||
         'http://localhost:3001/webhook',
       authHeader: config?.authHeader || process.env.AUTOMATION_AUTH ||
-        'Basic RTE0NzMwRkEtRDFCNS00MDM3LUFDRTMtQ0Y5N0ZCQzY3NkMyOlZaSkQqSSYyWEAkXkQ5Sjk4Rk5PJShGUVpaQ0dRNkEj',
+        '',
       timeout: config?.timeout || 10000,
       retryAttempts: config?.retryAttempts || 3,
       retryDelay: config?.retryDelay || 1000
