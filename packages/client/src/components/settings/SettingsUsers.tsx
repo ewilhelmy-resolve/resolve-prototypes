@@ -6,10 +6,10 @@ import {
 	ChevronDown,
 	Loader,
 	MoreHorizontal,
-	Plus,
 	TrendingUp,
 } from "lucide-react";
 import { useState } from "react";
+import Header from "@/components/Header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -29,7 +29,7 @@ import {
 	TableHeader,
 	TableRow,
 } from "@/components/ui/table";
-import Header from "@/components/Header";
+import InviteUsersButton from "@/components/users/InviteUsersButton";
 
 export default function SettingsUsers() {
 	const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
@@ -103,12 +103,7 @@ export default function SettingsUsers() {
 			<Header
 				title="Users"
 				description="Some really great content"
-				action={
-					<Button onClick={() => console.log("Invite users")}>
-						<Plus className="h-4 w-4" />
-						Invite Users
-					</Button>
-				}
+				action={<InviteUsersButton />}
 			/>
 
 			<div className="flex flex-col gap-6">
