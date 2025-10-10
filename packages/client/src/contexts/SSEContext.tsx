@@ -85,32 +85,31 @@ export const SSEProvider: React.FC<SSEProviderProps> = ({
 			} else if (event.type === "data_source_update") {
 				// Handle data source connection updates (verification, sync status changes)
 				// Determine update type based on which fields are present
-				// Backend sends camelCase fields (lastSyncStatus, not last_sync_status)
-				const updateType = event.data.lastVerificationAt
+				const updateType = event.data.last_verification_at
 					? "verification"
-					: event.data.lastSyncStatus
+					: event.data.last_sync_status
 						? "sync"
 						: "unknown";
 
 				console.log("[SSE] Data source update received:", {
 					updateType,
-					connectionId: event.data.connectionId,
+					connectionId: event.data.connection_id,
 					status: event.data.status,
-					lastSyncStatus: event.data.lastSyncStatus,
-					lastVerificationAt: event.data.lastVerificationAt,
-					latestOptions: event.data.latestOptions,
+					last_sync_status: event.data.last_sync_status,
+					last_verification_at: event.data.last_verification_at,
+					latest_options: event.data.latest_options,
 				});
 
 				// Invalidate TanStack Query cache to trigger automatic refetch
 				queryClient.invalidateQueries({ queryKey: dataSourceKeys.list() });
 				queryClient.invalidateQueries({
-					queryKey: dataSourceKeys.detail(event.data.connectionId),
+					queryKey: dataSourceKeys.detail(event.data.connection_id),
 				});
 
 				// Show toast notification for sync events only (not verification)
-				if (updateType === "sync" && event.data.lastSyncStatus) {
-					const connectionType = event.data.connectionType || "Data source";
-					const syncStatus = event.data.lastSyncStatus;
+				if (updateType === "sync" && event.data.last_sync_status) {
+					const connectionType = event.data.connection_type || "Data source";
+					const syncStatus = event.data.last_sync_status;
 
 					if (syncStatus === "completed") {
 						toast.success(`${connectionType} sync complete`, {
@@ -121,7 +120,7 @@ export const SSEProvider: React.FC<SSEProviderProps> = ({
 						});
 					} else if (syncStatus === "failed") {
 						toast.error(`${connectionType} sync failed`, {
-							description: event.data.lastSyncError || "An error occurred",
+							description: event.data.last_sync_error || "An error occurred",
 							action: {
 								label: "View",
 								onClick: () => navigate("/settings/connections"),

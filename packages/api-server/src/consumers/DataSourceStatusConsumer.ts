@@ -157,13 +157,13 @@ export class DataSourceStatusConsumer {
       sseService.sendToOrganization(tenant_id, {
         type: 'data_source_update',
         data: {
-          connectionId: connection_id,
-          connectionType: updatedDataSource.type,
+          connection_id: connection_id,
+          connection_type: updatedDataSource.type,
           status: updatedDataSource.status,
-          lastSyncStatus: updatedDataSource.last_sync_status,
-          lastSyncAt: updatedDataSource.last_sync_at,
-          lastSyncError: error_message,
-          documentsProcessed: payload.documents_processed,
+          last_sync_status: updatedDataSource.last_sync_status,
+          last_sync_at: updatedDataSource.last_sync_at,
+          last_sync_error: error_message,
+          documents_processed: payload.documents_processed,
           timestamp: new Date().toISOString()
         }
       });
@@ -236,11 +236,11 @@ export class DataSourceStatusConsumer {
       sseService.sendToOrganization(tenant_id, {
         type: 'data_source_update',
         data: {
-          connectionId: connection_id,
+          connection_id: connection_id,
           status: updatedDataSource.status,
-          lastVerificationAt: updatedDataSource.last_verification_at,
-          lastVerificationError: updatedDataSource.last_verification_error,
-          latestOptions: updatedDataSource.latest_options,
+          last_verification_at: updatedDataSource.last_verification_at,
+          last_verification_error: updatedDataSource.last_verification_error,
+          latest_options: updatedDataSource.latest_options,
           timestamp: new Date().toISOString()
         }
       });
