@@ -40,16 +40,12 @@ def parse_result(result):
 # Validation Tests - Required Parameters
 # ============================================================================
 
-def test_missing_host_fails():
-    """Test that missing host fails validation"""
-    print("\n🧪 Test: Missing host should fail")
+def test_missing_rabbitmq_url_fails():
+    """Test that missing rabbitmq_url fails validation"""
+    print("\n🧪 Test: Missing rabbitmq_url should fail")
 
     result = parse_result(send_complete_message(
-        host=None,
-        port="5672",
-        username="guest",
-        password="guest",
-        vhost="/",
+        rabbitmq_url=None,
         queue_name="test_queue",
         text_content="Test",
         reasoning_content=None,
@@ -65,8 +61,8 @@ def test_missing_host_fails():
     ))
 
     assert result["status"] == "error"
-    assert "host is required" in result["error"]
-    print("✅ PASS: Missing host correctly rejected")
+    assert "rabbitmq_url is required" in result["error"]
+    print("✅ PASS: Missing rabbitmq_url correctly rejected")
     return result
 
 
@@ -75,11 +71,7 @@ def test_missing_tenant_id_fails():
     print("\n🧪 Test: Missing tenant_id should fail")
 
     result = parse_result(send_complete_message(
-        host="localhost",
-        port="5672",
-        username="guest",
-        password="guest",
-        vhost="/",
+        rabbitmq_url="amqp://guest:guest@localhost:5672/",
         queue_name="test_queue",
         text_content="Test",
         reasoning_content=None,
@@ -105,11 +97,7 @@ def test_missing_message_id_fails():
     print("\n🧪 Test: Missing message_id should fail")
 
     result = parse_result(send_complete_message(
-        host="localhost",
-        port="5672",
-        username="guest",
-        password="guest",
-        vhost="/",
+        rabbitmq_url="amqp://guest:guest@localhost:5672/",
         queue_name="test_queue",
         text_content="Test",
         reasoning_content=None,
@@ -135,11 +123,7 @@ def test_missing_conversation_id_fails():
     print("\n🧪 Test: Missing conversation_id should fail")
 
     result = parse_result(send_complete_message(
-        host="localhost",
-        port="5672",
-        username="guest",
-        password="guest",
-        vhost="/",
+        rabbitmq_url="amqp://guest:guest@localhost:5672/",
         queue_name="test_queue",
         text_content="Test",
         reasoning_content=None,
@@ -169,11 +153,7 @@ def test_empty_message_fails():
     print("\n🧪 Test: Empty message should fail")
 
     result = parse_result(send_complete_message(
-        host="localhost",
-        port="5672",
-        username="guest",
-        password="guest",
-        vhost="/",
+        rabbitmq_url="amqp://guest:guest@localhost:5672/",
         queue_name="test_queue",
         text_content="",
         reasoning_content=None,
@@ -199,11 +179,7 @@ def test_whitespace_only_text_fails():
     print("\n🧪 Test: Whitespace-only text should fail")
 
     result = parse_result(send_complete_message(
-        host="localhost",
-        port="5672",
-        username="guest",
-        password="guest",
-        vhost="/",
+        rabbitmq_url="amqp://guest:guest@localhost:5672/",
         queue_name="test_queue",
         text_content="   \n\t  ",
         reasoning_content=None,
@@ -236,11 +212,7 @@ def test_invalid_response_group_id_fails():
     pika.reset_mock()
 
     result = parse_result(send_complete_message(
-        host="localhost",
-        port="5672",
-        username="guest",
-        password="guest",
-        vhost="/",
+        rabbitmq_url="amqp://guest:guest@localhost:5672/",
         queue_name="test_queue",
         text_content="Test message",
         reasoning_content=None,
@@ -269,11 +241,7 @@ def test_invalid_sources_structure_fails():
     invalid_sources = [{"url": "https://example.com"}]
 
     result = parse_result(send_complete_message(
-        host="localhost",
-        port="5672",
-        username="guest",
-        password="guest",
-        vhost="/",
+        rabbitmq_url="amqp://guest:guest@localhost:5672/",
         queue_name="test_queue",
         text_content=None,
         reasoning_content=None,
@@ -302,11 +270,7 @@ def test_invalid_tasks_structure_fails():
     invalid_tasks = [{"title": "Test Task"}]
 
     result = parse_result(send_complete_message(
-        host="localhost",
-        port="5672",
-        username="guest",
-        password="guest",
-        vhost="/",
+        rabbitmq_url="amqp://guest:guest@localhost:5672/",
         queue_name="test_queue",
         text_content=None,
         reasoning_content=None,
@@ -344,11 +308,7 @@ def test_text_only_message_success():
     mock_connection.channel.return_value = mock_channel
 
     result = parse_result(send_complete_message(
-        host="localhost",
-        port="5672",
-        username="guest",
-        password="guest",
-        vhost="/",
+        rabbitmq_url="amqp://guest:guest@localhost:5672/",
         queue_name="test_queue",
         text_content="Hello, this is a test message",
         reasoning_content=None,
@@ -388,11 +348,7 @@ def test_reasoning_only_message_success():
     mock_connection.channel.return_value = mock_channel
 
     result = parse_result(send_complete_message(
-        host="localhost",
-        port="5672",
-        username="guest",
-        password="guest",
-        vhost="/",
+        rabbitmq_url="amqp://guest:guest@localhost:5672/",
         queue_name="test_queue",
         text_content=None,
         reasoning_content="Step 1: Analyze\nStep 2: Execute",
@@ -434,11 +390,7 @@ def test_sources_only_message_success():
     ]
 
     result = parse_result(send_complete_message(
-        host="localhost",
-        port="5672",
-        username="guest",
-        password="guest",
-        vhost="/",
+        rabbitmq_url="amqp://guest:guest@localhost:5672/",
         queue_name="test_queue",
         text_content=None,
         reasoning_content=None,
@@ -481,11 +433,7 @@ def test_tasks_only_message_success():
     ]
 
     result = parse_result(send_complete_message(
-        host="localhost",
-        port="5672",
-        username="guest",
-        password="guest",
-        vhost="/",
+        rabbitmq_url="amqp://guest:guest@localhost:5672/",
         queue_name="test_queue",
         text_content=None,
         reasoning_content=None,
@@ -524,11 +472,7 @@ def test_complete_message_with_all_components():
     group_id = str(uuid.uuid4())
 
     result = parse_result(send_complete_message(
-        host="localhost",
-        port="5672",
-        username="guest",
-        password="guest",
-        vhost="/",
+        rabbitmq_url="amqp://guest:guest@localhost:5672/",
         queue_name="test_queue",
         text_content="Complete message with all parts",
         reasoning_content="Reasoning content here",
@@ -575,11 +519,7 @@ def test_message_body_sent_as_json():
     conversation_id = str(uuid.uuid4())
 
     result = parse_result(send_complete_message(
-        host="localhost",
-        port="5672",
-        username="guest",
-        password="guest",
-        vhost="/",
+        rabbitmq_url="amqp://guest:guest@localhost:5672/",
         queue_name="test_queue",
         text_content="Test message",
         reasoning_content=None,
@@ -623,11 +563,7 @@ def test_message_persistence_enabled():
     mock_connection.channel.return_value = mock_channel
 
     result = parse_result(send_complete_message(
-        host="localhost",
-        port="5672",
-        username="guest",
-        password="guest",
-        vhost="/",
+        rabbitmq_url="amqp://guest:guest@localhost:5672/",
         queue_name="test_queue",
         text_content="Test message",
         reasoning_content=None,
@@ -664,11 +600,7 @@ def test_queue_declared_as_durable():
     mock_connection.channel.return_value = mock_channel
 
     result = parse_result(send_complete_message(
-        host="localhost",
-        port="5672",
-        username="guest",
-        password="guest",
-        vhost="/",
+        rabbitmq_url="amqp://guest:guest@localhost:5672/",
         queue_name="test_queue",
         text_content="Test message",
         reasoning_content=None,
@@ -705,11 +637,7 @@ def test_connection_closed_after_send():
     mock_connection.channel.return_value = mock_channel
 
     result = parse_result(send_complete_message(
-        host="localhost",
-        port="5672",
-        username="guest",
-        password="guest",
-        vhost="/",
+        rabbitmq_url="amqp://guest:guest@localhost:5672/",
         queue_name="test_queue",
         text_content="Test message",
         reasoning_content=None,
@@ -747,11 +675,7 @@ def test_turn_complete_in_metadata():
 
     # Test with turn_complete=True
     result = parse_result(send_complete_message(
-        host="localhost",
-        port="5672",
-        username="guest",
-        password="guest",
-        vhost="/",
+        rabbitmq_url="amqp://guest:guest@localhost:5672/",
         queue_name="test_queue",
         text_content="Test message",
         reasoning_content=None,
@@ -771,11 +695,7 @@ def test_turn_complete_in_metadata():
 
     # Test with turn_complete=False
     result2 = parse_result(send_complete_message(
-        host="localhost",
-        port="5672",
-        username="guest",
-        password="guest",
-        vhost="/",
+        rabbitmq_url="amqp://guest:guest@localhost:5672/",
         queue_name="test_queue",
         text_content="Test message",
         reasoning_content=None,
@@ -795,11 +715,7 @@ def test_turn_complete_in_metadata():
 
     # Test with turn_complete=None (should not be in metadata)
     result3 = parse_result(send_complete_message(
-        host="localhost",
-        port="5672",
-        username="guest",
-        password="guest",
-        vhost="/",
+        rabbitmq_url="amqp://guest:guest@localhost:5672/",
         queue_name="test_queue",
         text_content="Test message",
         reasoning_content=None,
@@ -832,7 +748,7 @@ def main():
 
     tests = [
         # Validation - Required parameters
-        test_missing_host_fails,
+        test_missing_rabbitmq_url_fails,
         test_missing_tenant_id_fails,
         test_missing_message_id_fails,
         test_missing_conversation_id_fails,

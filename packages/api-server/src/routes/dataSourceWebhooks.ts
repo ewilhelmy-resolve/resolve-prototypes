@@ -63,8 +63,8 @@ router.post('/:id/verify', authenticateUser, async (req, res) => {
       'verifying' as any
     );
 
-    // Send verify webhook (async)
-    webhookService.sendVerifyEvent({
+    // Send verify webhook (await response)
+    const webhookResponse = await webhookService.sendVerifyEvent({
       organizationId: authReq.user.activeOrganizationId,
       userId: authReq.user.id,
       userEmail: authReq.user.email,
@@ -72,12 +72,25 @@ router.post('/:id/verify', authenticateUser, async (req, res) => {
       connectionType: dataSource.type,
       credentials: validated.credentials || {},
       settings: validated.settings || dataSource.settings
-    }).catch(error => {
-      console.error('[DataSourceWebhook] Verify webhook failed:', error);
-      // Error handling happens in consumer when status message arrives
     });
 
-    // Return immediately - result will come via RabbitMQ/SSE
+    // Handle webhook failure - revert status
+    if (!webhookResponse.success) {
+      await dataSourceService.updateDataSourceStatus(
+        id,
+        authReq.user.activeOrganizationId,
+        'idle',
+        'failed'
+      );
+
+      return res.status(500).json({
+        success: false,
+        error: 'Verification webhook failed',
+        details: webhookResponse.error
+      });
+    }
+
+    // Return success - result will come via RabbitMQ/SSE
     res.json({
       status: 'verifying',
       message: 'Verification in progress'

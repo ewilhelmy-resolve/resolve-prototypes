@@ -27,6 +27,8 @@ interface HeaderProps {
 	icon?: ReactNode;
 	/** Optional description text below title */
 	description?: string;
+	/** Optional button to display on the right side of the header */
+	action?: ReactNode;
 }
 
 /**
@@ -38,6 +40,7 @@ export default function Header({
 	title,
 	icon,
 	description,
+	action,
 }: HeaderProps) {
 	return (
 		<div className="flex flex-col gap-8 w-full">
@@ -73,13 +76,14 @@ export default function Header({
 				)}
 
 				<div className="flex flex-col gap-2">
-					<div className="flex items-center gap-2">
+					<div className="flex items-center justify-between gap-2">
 						<div className="flex items-center gap-2">
 							{icon && <div className="w-5 h-5 flex-shrink-0">{icon}</div>}
 							<h3 className="text-2xl font-medium text-foreground leading-8">
 								{title}
 							</h3>
 						</div>
+						{action && <div className="flex-shrink-0">{action}</div>}
 					</div>
 
 					{description && (
@@ -90,7 +94,7 @@ export default function Header({
 				</div>
 			</div>
 
-			<Separator className="bg-gray-200 h-[2px]" />
+			<Separator orientation="horizontal" />
 		</div>
 	);
 }

@@ -107,7 +107,7 @@ export const SSEProvider: React.FC<SSEProviderProps> = ({
 
 				console.log("[SSE] Data source update received:", {
 					updateType,
-					connectionId: event.data.connectionId,
+					connectionId: event.data.connection_id,
 					status: event.data.status,
 					last_sync_status: event.data.last_sync_status,
 					last_verification_at: event.data.last_verification_at,
@@ -117,12 +117,12 @@ export const SSEProvider: React.FC<SSEProviderProps> = ({
 				// Invalidate TanStack Query cache to trigger automatic refetch
 				queryClient.invalidateQueries({ queryKey: dataSourceKeys.list() });
 				queryClient.invalidateQueries({
-					queryKey: dataSourceKeys.detail(event.data.connectionId),
+					queryKey: dataSourceKeys.detail(event.data.connection_id),
 				});
 
 				// Show toast notification for sync events only (not verification)
 				if (updateType === "sync" && event.data.last_sync_status) {
-					const connectionType = event.data.connectionType || "Data source";
+					const connectionType = event.data.connection_type || "Data source";
 					const syncStatus = event.data.last_sync_status;
 
 					if (syncStatus === "completed") {
@@ -134,7 +134,7 @@ export const SSEProvider: React.FC<SSEProviderProps> = ({
 						});
 					} else if (syncStatus === "failed") {
 						toast.error(`${connectionType} sync failed`, {
-							description: event.data.lastSyncError || "An error occurred",
+							description: event.data.last_sync_error || "An error occurred",
 							action: {
 								label: "View",
 								onClick: () => navigate("/settings/connections"),
