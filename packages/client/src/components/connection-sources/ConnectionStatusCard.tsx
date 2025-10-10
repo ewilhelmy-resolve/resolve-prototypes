@@ -143,7 +143,7 @@ export function ConnectionStatusCard({
 							<div className="flex items-center gap-1">
 								<p className="text-sm text-muted-foreground w-10">API</p>
 								<p className="text-sm text-foreground truncate">
-									{source.settings?.token ? "••••••••••••••••••••" : "—"}
+									••••••••••••••••••••
 								</p>
 							</div>
 						</div>

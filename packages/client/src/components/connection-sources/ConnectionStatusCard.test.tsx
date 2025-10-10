@@ -134,7 +134,7 @@ describe("ConnectionStatusCard", () => {
 			expect(screen.getByText("user@company.com")).toBeInTheDocument();
 		});
 
-		it("should mask API token", () => {
+		it("should always display masked API token", () => {
 			const source = createMockSource({
 				settings: { token: "secret-token" },
 			});
@@ -144,6 +144,20 @@ describe("ConnectionStatusCard", () => {
 				</MemoryRouter>,
 			);
 			expect(screen.getByText("API")).toBeInTheDocument();
+			expect(screen.getByText(/••••••••••••••••••••/)).toBeInTheDocument();
+		});
+
+		it("should display masked API token even when token is not set", () => {
+			const source = createMockSource({
+				settings: { url: "https://example.com", email: "test@example.com" },
+			});
+			render(
+				<MemoryRouter>
+					<ConnectionStatusCard source={source} />
+				</MemoryRouter>,
+			);
+			expect(screen.getByText("API")).toBeInTheDocument();
+			// API should always show masked value, never "—"
 			expect(screen.getByText(/••••••••••••••••••••/)).toBeInTheDocument();
 		});
 
