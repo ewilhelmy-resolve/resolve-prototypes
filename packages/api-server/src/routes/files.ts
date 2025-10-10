@@ -488,7 +488,6 @@ router.delete('/:documentId', authenticateUser, async (req, res) => {
       authReq.user.activeOrganizationId,
       async (client) => {
         // Delete only metadata record (preserve blob for other references)
-        // This will also remove from message_documents due to CASCADE on blob_metadata.id
         const deleteResult = await client.query(
           'DELETE FROM blob_metadata WHERE id = $1 AND organization_id = $2 AND user_id = $3 RETURNING id',
           [documentId, authReq.user.activeOrganizationId, authReq.user.id]

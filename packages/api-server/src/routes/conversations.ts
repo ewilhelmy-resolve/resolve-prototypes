@@ -156,25 +156,12 @@ router.get('/:conversationId/messages', authenticateUser, async (req, res) => {
               m.error_message,
               m.metadata,
               m.response_group_id,
-              up.email as user_email,
-              COALESCE(
-                json_agg(
-                  json_build_object(
-                    'id', d.id,
-                    'filename', d.file_name,
-                    'file_size', d.file_size
-                  )
-                ) FILTER (WHERE d.id IS NOT NULL),
-                '[]'
-              ) as documents
+              up.email as user_email
             FROM messages m
             LEFT JOIN user_profiles up ON m.user_id = up.user_id
-            LEFT JOIN message_documents md ON m.id = md.message_id
-            LEFT JOIN documents d ON md.document_id = d.id
             WHERE m.conversation_id = $1
               AND m.organization_id = $2
               AND m.created_at < $3
-            GROUP BY m.id, m.message, m.role, m.response_content, m.status, m.created_at, m.processed_at, m.error_message, m.metadata, m.response_group_id, up.email
             ORDER BY m.created_at DESC, m.id DESC
             LIMIT $4
           `;
@@ -193,23 +180,10 @@ router.get('/:conversationId/messages', authenticateUser, async (req, res) => {
               m.error_message,
               m.metadata,
               m.response_group_id,
-              up.email as user_email,
-              COALESCE(
-                json_agg(
-                  json_build_object(
-                    'id', d.id,
-                    'filename', d.file_name,
-                    'file_size', d.file_size
-                  )
-                ) FILTER (WHERE d.id IS NOT NULL),
-                '[]'
-              ) as documents
+              up.email as user_email
             FROM messages m
             LEFT JOIN user_profiles up ON m.user_id = up.user_id
-            LEFT JOIN message_documents md ON m.id = md.message_id
-            LEFT JOIN documents d ON md.document_id = d.id
             WHERE m.conversation_id = $1 AND m.organization_id = $2
-            GROUP BY m.id, m.message, m.role, m.response_content, m.status, m.created_at, m.processed_at, m.error_message, m.metadata, m.response_group_id, up.email
             ORDER BY m.created_at DESC, m.id DESC
             LIMIT $3
           `;
@@ -250,7 +224,7 @@ router.post('/:conversationId/messages', authenticateUser, async (req, res) => {
   const authReq = req as AuthenticatedRequest;
   try {
     const { conversationId } = req.params;
-    const { content, document_ids = [] } = req.body;
+    const { content } = req.body;
 
     if (!content || content.trim().length === 0) {
       return res.status(400).json({ error: 'Message content is required' });
@@ -299,20 +273,6 @@ router.post('/:conversationId/messages', authenticateUser, async (req, res) => {
 
         const message = messageResult.rows[0];
 
-        // Link documents if provided
-        if (document_ids.length > 0) {
-          const documentValues = document_ids.map((_docId: string, index: number) =>
-            `($${index * 2 + 1}, $${index * 2 + 2})`
-          ).join(', ');
-
-          const documentParams = document_ids.flatMap((docId: string) => [message.id, docId]);
-
-          await client.query(`
-            INSERT INTO message_documents (message_id, document_id)
-            VALUES ${documentValues}
-          `, documentParams);
-        }
-
         return { message, transcript };
       }
     );
@@ -353,7 +313,7 @@ router.post('/:conversationId/messages', authenticateUser, async (req, res) => {
       conversationId: conversationId,
       messageId: result.message.id,
       customerMessage: result.message.message,
-      documentIds: document_ids,
+      documentIds: [], // No per-message document attachments - RAG uses all user documents
       createdAt: result.message.created_at,
       transcript: truncatedTranscript
     });
@@ -381,10 +341,7 @@ router.post('/:conversationId/messages', authenticateUser, async (req, res) => {
     );
 
     res.status(201).json({
-      message: {
-        ...result.message,
-        document_ids: document_ids
-      }
+      message: result.message
     });
 
   } catch (error) {
