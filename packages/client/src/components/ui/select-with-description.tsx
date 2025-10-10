@@ -17,17 +17,11 @@ const SelectItemWithDescription = React.forwardRef<
   <SelectPrimitive.Item
     ref={ref}
     className={cn(
-      "relative flex w-full cursor-default select-none items-start gap-2 rounded-sm py-2 pl-8 pr-2 text-sm outline-none focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
+      "relative flex w-full cursor-default select-none items-center justify-between gap-2 rounded-sm py-2 pl-2 pr-8 text-sm outline-none focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
       className
     )}
     {...props}
   >
-    <span className="absolute left-2 flex h-3.5 w-3.5 items-center justify-center">
-      <SelectPrimitive.ItemIndicator>
-        <Check className="h-4 w-4" />
-      </SelectPrimitive.ItemIndicator>
-    </span>
-
     <div className="flex flex-col gap-0.5">
       <SelectPrimitive.ItemText asChild>
         <span className="font-medium">{children}</span>
@@ -36,6 +30,12 @@ const SelectItemWithDescription = React.forwardRef<
         <span className="text-xs text-muted-foreground">{description}</span>
       )}
     </div>
+
+    <span className="flex h-3.5 w-3.5 items-center justify-center flex-shrink-0">
+      <SelectPrimitive.ItemIndicator>
+        <Check className="h-5 w-5 font-semibold" />
+      </SelectPrimitive.ItemIndicator>
+    </span>
   </SelectPrimitive.Item>
 ))
 SelectItemWithDescription.displayName = "SelectItemWithDescription"
