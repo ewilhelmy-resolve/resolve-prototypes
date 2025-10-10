@@ -1,7 +1,49 @@
-export interface SSEEvent {
+export interface MessageUpdateEvent {
+  type: 'message_update';
+  data: {
+    messageId: string;
+    status: 'pending' | 'processing' | 'completed' | 'failed';
+    responseContent?: string;
+    errorMessage?: string;
+    processedAt?: string;
+  };
+}
+
+export interface NewMessageEvent {
+  type: 'new_message';
+  data: {
+    messageId: string;
+    conversationId: string;
+    role: 'user' | 'assistant';
+    message: string;
+    metadata?: any;
+    response_group_id?: string;
+    userId: string;
+    createdAt: string;
+  };
+}
+
+export interface DataSourceUpdateEvent {
+  type: 'data_source_update';
+  data: {
+    connectionId: string;
+    connectionType?: string;
+    status: 'idle' | 'verifying' | 'syncing';
+    lastSyncStatus?: 'completed' | 'failed' | null;
+    lastSyncAt?: Date | null;
+    lastSyncError?: string;
+    documentsProcessed?: number;
+    lastVerificationAt?: Date | null;
+    lastVerificationError?: string | null;
+    latestOptions?: Record<string, any> | null;
+    timestamp: string;
+  };
+}
+
+export type SSEEvent = MessageUpdateEvent | NewMessageEvent | DataSourceUpdateEvent | {
   type: string;
   data: any;
-}
+};
 
 export interface EventSourceSSEClientOptions {
   url: string;

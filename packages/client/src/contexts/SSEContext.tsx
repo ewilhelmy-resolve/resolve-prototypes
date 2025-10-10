@@ -67,6 +67,23 @@ export const SSEProvider: React.FC<SSEProviderProps> = ({
 				const { addMessage, currentConversationId } =
 					useConversationStore.getState();
 
+				// Validate that message belongs to the current conversation
+				if (!event.data.conversationId) {
+					console.warn("[SSE] Received new_message event without conversationId", {
+						messageId: event.data.messageId,
+					});
+					return;
+				}
+
+				if (event.data.conversationId !== currentConversationId) {
+					console.log("[SSE] Ignoring message from different conversation", {
+						messageConversation: event.data.conversationId,
+						currentConversation: currentConversationId,
+						messageId: event.data.messageId,
+					});
+					return;
+				}
+
 				const newMessage: Message = {
 					id: event.data.messageId,
 					role: event.data.role || "assistant",
@@ -74,14 +91,11 @@ export const SSEProvider: React.FC<SSEProviderProps> = ({
 					metadata: event.data.metadata,
 					response_group_id: event.data.response_group_id,
 					timestamp: new Date(event.data.createdAt),
-					conversation_id: currentConversationId || "",
+					conversation_id: event.data.conversationId,
 					status: "completed",
 				};
 
-				// Only add the message if it's for the current conversation
-				if (currentConversationId) {
-					addMessage(newMessage);
-				}
+				addMessage(newMessage);
 			} else if (event.type === "data_source_update") {
 				// Handle data source connection updates (verification, sync status changes)
 				// Determine update type based on which fields are present
