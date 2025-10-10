@@ -26,16 +26,19 @@ export interface NewMessageEvent {
 export interface DataSourceUpdateEvent {
   type: 'data_source_update';
   data: {
-    connectionId: string;
-    connectionType?: string;
+    connection_id: string;
+    connection_type?: string; // e.g., 'confluence', 'servicenow', 'sharepoint', 'websearch'
     status: 'idle' | 'verifying' | 'syncing';
-    lastSyncStatus?: 'completed' | 'failed' | null;
-    lastSyncAt?: Date | null;
-    lastSyncError?: string;
-    documentsProcessed?: number;
-    lastVerificationAt?: Date | null;
-    lastVerificationError?: string | null;
-    latestOptions?: Record<string, any> | null;
+    // Sync-specific fields
+    last_sync_status?: 'completed' | 'failed' | null;
+    last_sync_at?: Date | null;
+    last_sync_error?: string;
+    documents_processed?: number;
+    // Verification-specific fields
+    last_verification_at?: Date | null;
+    last_verification_error?: string | null;
+    latest_options?: Record<string, any> | null;
+    // Common
     timestamp: string;
   };
 }
