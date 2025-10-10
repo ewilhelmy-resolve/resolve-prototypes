@@ -85,9 +85,10 @@ export const SSEProvider: React.FC<SSEProviderProps> = ({
 			} else if (event.type === "data_source_update") {
 				// Handle data source connection updates (verification, sync status changes)
 				// Determine update type based on which fields are present
-				const updateType = event.data.last_verification_at
+				// Backend sends camelCase fields (lastSyncStatus, not last_sync_status)
+				const updateType = event.data.lastVerificationAt
 					? "verification"
-					: event.data.last_sync_status
+					: event.data.lastSyncStatus
 						? "sync"
 						: "unknown";
 
@@ -95,9 +96,9 @@ export const SSEProvider: React.FC<SSEProviderProps> = ({
 					updateType,
 					connectionId: event.data.connectionId,
 					status: event.data.status,
-					last_sync_status: event.data.last_sync_status,
-					last_verification_at: event.data.last_verification_at,
-					latest_options: event.data.latest_options,
+					lastSyncStatus: event.data.lastSyncStatus,
+					lastVerificationAt: event.data.lastVerificationAt,
+					latestOptions: event.data.latestOptions,
 				});
 
 				// Invalidate TanStack Query cache to trigger automatic refetch
@@ -107,9 +108,9 @@ export const SSEProvider: React.FC<SSEProviderProps> = ({
 				});
 
 				// Show toast notification for sync events only (not verification)
-				if (updateType === "sync" && event.data.last_sync_status) {
+				if (updateType === "sync" && event.data.lastSyncStatus) {
 					const connectionType = event.data.connectionType || "Data source";
-					const syncStatus = event.data.last_sync_status;
+					const syncStatus = event.data.lastSyncStatus;
 
 					if (syncStatus === "completed") {
 						toast.success(`${connectionType} sync complete`, {
