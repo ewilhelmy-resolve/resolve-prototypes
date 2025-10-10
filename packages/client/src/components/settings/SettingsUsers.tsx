@@ -1,5 +1,3 @@
-"use client";
-
 import {
 	ArrowUpDown,
 	Check,
@@ -49,6 +47,12 @@ export default function SettingsUsers() {
 	const [deletingUser, setDeletingUser] = useState<User | null>(null);
 	const [editSheetOpen, setEditSheetOpen] = useState(false);
 	const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+	const [roleChangeDialogOpen, setRoleChangeDialogOpen] = useState(false);
+	const [pendingRoleChange, setPendingRoleChange] = useState<{
+		userId: string;
+		newRole: string;
+		oldRole: string;
+	} | null>(null);
 
 	const users = [
 		{
@@ -65,7 +69,7 @@ export default function SettingsUsers() {
 			name: "Taylor Brown",
 			email: "Taylor@acme.com",
 			status: "Active",
-			role: "Content Admin",
+			role: "Admin",
 			queries: "4",
 			lastModified: "03 Sep, 2025 18:07",
 		},
@@ -124,9 +128,33 @@ export default function SettingsUsers() {
 		setDeleteDialogOpen(true);
 	};
 
-	const handleSaveUser = (userId: string, role: string) => {
-		console.log("Updating user:", userId, "with role:", role);
-		// TODO: Implement actual user update logic
+	const handleSaveUser = (userId: string, newRole: string) => {
+		// Check if role is being downgraded from Admin
+		const user = users.find((u) => u.id === userId);
+		if (user && user.role === "Admin" && newRole !== "Admin") {
+			// Show confirmation dialog for role downgrade
+			setPendingRoleChange({ userId, newRole, oldRole: user.role });
+			setRoleChangeDialogOpen(true);
+		} else {
+			// Direct update for non-Admin downgrades
+			console.log("Updating user:", userId, "with role:", newRole);
+			setEditSheetOpen(false);
+			// TODO: Implement actual user update logic
+		}
+	};
+
+	const handleConfirmRoleChange = () => {
+		if (pendingRoleChange) {
+			console.log(
+				"Updating user:",
+				pendingRoleChange.userId,
+				"with role:",
+				pendingRoleChange.newRole
+			);
+			// TODO: Implement actual user update logic
+			setPendingRoleChange(null);
+			setEditSheetOpen(false);
+		}
 	};
 
 	const handleConfirmDelete = () => {
@@ -330,12 +358,22 @@ export default function SettingsUsers() {
 			<ConfirmDialog
 				open={deleteDialogOpen}
 				onOpenChange={setDeleteDialogOpen}
-				title="Are you sure?"
-				description="This change will reduce this user's permissions from Admin to User. They will no longer have management access. Do you want to continue?"
+				title="Remove User"
+				description="Are you sure you want remove this user? Once removed they will no longer have access and no data will be recovered."
 				onConfirm={handleConfirmDelete}
-				confirmLabel="Confirm"
+				confirmLabel="Remove"
 				cancelLabel="Cancel"
 				variant="destructive"
+			/>
+
+			<ConfirmDialog
+				open={roleChangeDialogOpen}
+				onOpenChange={setRoleChangeDialogOpen}
+				title="Change User Role"
+				description={"This change will reduce this user's permissions from Admin to User. They will no longer have management access. Do you want to continue?"}
+				onConfirm={handleConfirmRoleChange}
+				confirmLabel="Confirm"
+				cancelLabel="Cancel"
 			/>
 		</div>
 	);
