@@ -1,17 +1,13 @@
-import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { Button } from "@/components/ui/button";
+import { InfoAlert } from "@/components/ui/info-alert";
 import { Input } from "@/components/ui/input";
-import { MultiSelect } from "@/components/ui/multi-select";
+import { Spinner } from "@/components/ui/spinner";
 import { useConnectionSource } from "@/contexts/ConnectionSourceContext";
 import {
 	useUpdateDataSource,
 	useVerifyDataSource,
 } from "@/hooks/useDataSources";
-import {
-	parseAvailableSpaces,
-	parseSelectedSpaces,
-} from "@/lib/dataSourceUtils";
 import { toast } from "@/lib/toast";
 import ConnectionsForm from "../form-elements/ConnectionsForm";
 import FormField from "../form-elements/FormField";
@@ -33,15 +29,13 @@ export function ConfluenceForm({ onCancel }: ConfluenceFormProps = {}) {
 	const verifyMutation = useVerifyDataSource();
 	const updateMutation = useUpdateDataSource();
 
-	const [availableSpaces, setAvailableSpaces] = useState<string[]>([]);
-	const [selectedSpaces, setSelectedSpaces] = useState<string[]>([]);
-
 	const {
 		register,
 		handleSubmit,
-		formState: { errors },
+		formState: { errors, isValid },
 		getValues,
 	} = useForm<ConfluenceFormData>({
+		mode: "onChange",
 		defaultValues: {
 			url: source.backendData?.settings?.url || "",
 			email: source.backendData?.settings?.email || "",
@@ -52,21 +46,6 @@ export function ConfluenceForm({ onCancel }: ConfluenceFormProps = {}) {
 					.map((s: string) => s.trim()) || [],
 		},
 	});
-
-	// Parse available spaces from latest_options (discovered during verification)
-	// and pre-select spaces from settings (already configured)
-	useEffect(() => {
-		const available = parseAvailableSpaces(source.backendData?.latest_options);
-		const selected = parseSelectedSpaces(source.backendData?.settings);
-
-		if (available.length > 0) {
-			setAvailableSpaces(available);
-		}
-
-		if (selected.length > 0) {
-			setSelectedSpaces(selected);
-		}
-	}, [source.backendData?.latest_options, source.backendData?.settings]);
 
 	const handleConnect = async () => {
 		const formData = getValues();
@@ -100,14 +79,14 @@ export function ConfluenceForm({ onCancel }: ConfluenceFormProps = {}) {
 					settings: {
 						url: formData.url,
 						email: formData.email,
-						spaces: selectedSpaces.join(","),
 					},
 					enabled: true,
 				},
 			});
 
 			toast.success("Connection Configured", {
-				description: "Your Confluence connection has been configured successfully",
+				description:
+					"Your Confluence connection has been configured successfully",
 			});
 		} catch (error) {
 			toast.error("Connection Failed", {
@@ -128,67 +107,85 @@ export function ConfluenceForm({ onCancel }: ConfluenceFormProps = {}) {
 			{/* Authentication */}
 			<FormSection title="Authentication">
 				{/* URL */}
-				<FormField label="URL" errors={errors} name="url">
+				<FormField label="URL" errors={errors} name="url" required>
 					<Input
 						id="url"
 						type="url"
 						placeholder="https://your-company.atlassian.net"
-						{...register("url", { required: "URL is required" })}
+						{...register("url", {
+							required: "URL is required",
+							pattern: {
+								value: /^https?:\/\/.+/,
+								message: "Please enter a valid URL",
+							},
+						})}
 					/>
 				</FormField>
 
 				{/* User email */}
-				<FormField label="User email" errors={errors} name="email">
+				<FormField label="User email" errors={errors} name="email" required>
 					<Input
 						id="email"
 						type="email"
 						placeholder="you@company.com"
-						{...register("email", { required: "Email is required" })}
+						{...register("email", {
+							required: "Email is required",
+							pattern: {
+								value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
+								message: "Please enter a valid email address",
+							},
+						})}
 					/>
 				</FormField>
 
 				{/* API token */}
-				<FormField label="API token" errors={errors} name="token">
+				<FormField label="API token" errors={errors} name="token" required>
 					<Input
 						id="token"
 						type="password"
 						placeholder="••••••••"
-						{...register("token", { required: "API token is required" })}
+						{...register("token", {
+							required: "API token is required",
+							minLength: {
+								value: 1,
+								message: "API token cannot be empty",
+							},
+						})}
 					/>
 				</FormField>
 
-				{/* Spaces Selection - Show if available from latest_options (populated after verification) */}
-				{availableSpaces.length > 0 && (
-					<FormField label="Spaces (Optional)" errors={errors} name="spaces">
-						<MultiSelect
-							options={availableSpaces.map((space) => ({
-								label: space,
-								value: space,
-							}))}
-							defaultValue={selectedSpaces}
-							onValueChange={setSelectedSpaces}
-							placeholder="Select spaces to sync"
-						/>
-					</FormField>
-				)}
-
 				{/* Connect Button with optional Cancel */}
-				<div className="flex justify-end gap-2 w-full">
+				<div className="flex justify-start gap-2 w-full">
+					<Button
+						type="button"
+						onClick={handleConnect}
+						disabled={
+							!isValid || verifyMutation.isPending || updateMutation.isPending
+						}
+					>
+						{verifyMutation.isPending || updateMutation.isPending ? (
+							<>
+								<Spinner className="mr-2" />
+								Connecting...
+							</>
+						) : (
+							"Connect"
+						)}
+					</Button>
+
 					{onCancel && (
 						<Button type="button" variant="outline" onClick={onCancel}>
 							Cancel
 						</Button>
 					)}
-					<Button
-						type="button"
-						onClick={handleConnect}
-						disabled={verifyMutation.isPending || updateMutation.isPending}
-					>
-						{verifyMutation.isPending || updateMutation.isPending
-							? "Connecting..."
-							: "Connect"}
-					</Button>
 				</div>
+
+				{verifyMutation.isPending && (
+					<InfoAlert>
+						<p className=" text-accent-foreground">Connection may take time</p>
+						<p>You can leave this page while it is connecting</p>
+					</InfoAlert>
+				)}
 			</FormSection>
 		</ConnectionsForm>
 	);
