@@ -4,7 +4,7 @@
  * This page uses RitaSettingsLayout and displays user management UI
  */
 
-import SettingsUsers from "@/components/settings/SettingsUsers";
+import SettingsUsers from "@/pages/settings/SettingsUsers";
 import RitaSettingsLayout from "../components/layouts/RitaSettingsLayout";
 
 const UsersSettingsPage: React.FC = () => {
