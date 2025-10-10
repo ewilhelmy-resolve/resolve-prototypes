@@ -1,0 +1,108 @@
+{
+  "innerCode": 200,
+  "data": {
+    "name": "Data Source Verification Status",
+    "description": "Sends data source verification status updates (success, failed) to Rita via RabbitMQ.",
+    "Timeout": null,
+    "class": [],
+    "rootSettings": {
+      "isCollapse": false,
+      "activitySettings": [
+        {
+          "value": "%rita_rabbitmq_url%",
+          "required": true,
+          "key": "rabbitmq_url",
+          "label": "RabbitMQ URL",
+          "labelKey": "rabbitmq_url",
+          "baseType": "control",
+          "controlType": "hidden"
+        },
+        {
+          "value": "%rita_data_source_status_queue_name%",
+          "required": true,
+          "key": "queue_name",
+          "label": "Queue Name",
+          "labelKey": "queue_name",
+          "baseType": "control",
+          "controlType": "hidden"
+        },
+        {
+          "value": "verification",
+          "required": true,
+          "key": "message_type",
+          "label": "Message Type",
+          "labelKey": "message_type",
+          "baseType": "control",
+          "controlType": "hidden"
+        },
+        {
+          "value": "%connection_id%",
+          "required": true,
+          "key": "connection_id",
+          "label": "Connection ID",
+          "labelKey": "connection_id",
+          "baseType": "control",
+          "controlType": "hidden"
+        },
+        {
+          "value": "%tenant_id%",
+          "required": true,
+          "key": "tenant_id",
+          "label": "Tenant ID",
+          "labelKey": "tenant_id",
+          "baseType": "control",
+          "controlType": "hidden"
+        },
+        {
+          "value": "",
+          "required": false,
+          "key": "status",
+          "label": "Status",
+          "labelKey": "status",
+          "baseType": "control",
+          "controlType": "hidden"
+        },
+        {
+          "value": "",
+          "required": false,
+          "key": "error_message",
+          "label": "Error Message",
+          "labelKey": "error_message",
+          "baseType": "control",
+          "controlType": "hidden"
+        },
+        {
+          "value": "",
+          "required": false,
+          "key": "documents_processed",
+          "label": "Documents Processed",
+          "labelKey": "documents_processed",
+          "baseType": "control",
+          "controlType": "hidden"
+        },
+        {
+          "value": "\"\"%verification_options%\"\"",
+          "required": false,
+          "key": "verification_options",
+          "label": "Verification Options JSON (on success)",
+          "labelKey": "verification_options",
+          "baseType": "control",
+          "controlType": "textbox"
+        },
+        {
+          "value": "%verification_error%",
+          "required": false,
+          "key": "verification_error",
+          "label": "Verification Error (on failure)",
+          "labelKey": "verification_error",
+          "baseType": "control",
+          "controlType": "textbox"
+        }
+      ],
+      "index": "1",
+      "label": "main",
+      "labelKey": null
+    }
+  },
+  "message": "SUCCESS"
+}

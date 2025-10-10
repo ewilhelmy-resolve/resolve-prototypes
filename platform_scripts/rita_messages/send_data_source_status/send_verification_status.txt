@@ -1,0 +1,36 @@
+Data Source Verification Status
+================================
+
+Sends data source verification status updates to Rita via RabbitMQ.
+
+PREREQUISITES
+-------------
+Set these workflow variables before using:
+• %rita_rabbitmq_url%
+• %rita_data_source_status_queue_name%
+• %tenant_id%
+• %connection_id%
+
+HOW IT WORKS
+------------
+Status is automatically determined:
+• If Verification Error is provided → Status = "failed"
+• If Verification Options is provided → Status = "success"
+• Provide ONE field based on the verification result
+
+FIELDS
+------
+• Connection ID: Data source connection identifier
+• Verification Options: JSON object (use for success)
+  Example: {"channels": ["general", "random"], "users": ["john", "jane"]}
+• Verification Error: Error message (use for failure)
+
+EXAMPLES
+--------
+Success:
+- Verification Options: {"spaces": ["ENG", "PROD"]}
+- Verification Error: (leave empty)
+
+Failed:
+- Verification Options: (leave empty)
+- Verification Error: "Invalid API token"
