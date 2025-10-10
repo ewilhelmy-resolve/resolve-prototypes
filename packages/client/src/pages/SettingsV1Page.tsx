@@ -6,7 +6,7 @@
  */
 
 import RitaSettingsLayout from '../components/layouts/RitaSettingsLayout'
-import ConnectionSources from '../components/settings/ConnectionSources'
+import ConnectionSources from './settings/ConnectionSources'
 
 const SettingsV1Page: React.FC = () => {
   return (

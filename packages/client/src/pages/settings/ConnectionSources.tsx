@@ -11,9 +11,9 @@ import {
 	STATUS,
 } from "@/constants/connectionSources";
 import { useDataSources, useSeedDataSources } from "@/hooks/useDataSources";
-import { ConnectionStatusBadge } from "../connection-sources/ConnectionStatusBadge";
-import Header from "../Header";
-import { Button } from "../ui/button";
+import { ConnectionStatusBadge } from "../../components/connection-sources/ConnectionStatusBadge";
+import Header from "../../components/Header";
+import { Button } from "../../components/ui/button";
 
 export default function ConnectionSources() {
 	const { mutate: seedSources, isPending: isSeeding } = useSeedDataSources();

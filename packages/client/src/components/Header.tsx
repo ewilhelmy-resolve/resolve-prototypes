@@ -94,7 +94,7 @@ export default function Header({
 				</div>
 			</div>
 
-			<Separator />
+			<Separator orientation="horizontal" />
 		</div>
 	);
 }

@@ -38,7 +38,7 @@ export default function RitaSettingsLayout({
 	// Check if current path matches route (including sub-routes)
 	const isConnectionSourcesActive = location.pathname.startsWith("/settings/connections");
 	const isUsersActive = location.pathname.startsWith("/settings/users");
-	const isProfileActive = location.pathname === "/settings";
+	const isProfileActive = location.pathname === "/settings/profile";
 
 	const { authenticated, loading, sessionReady } = useAuth();
 
@@ -64,14 +64,17 @@ export default function RitaSettingsLayout({
 						<SidebarGroup className="p-2">
 							<SidebarMenu>
 								<SidebarMenuItem>
-									<SidebarMenuButton className={cn("p-2 h-8 rounded-md", isProfileActive && "bg-accent text-accent-foreground")}>
+									<SidebarMenuButton
+										className={cn("p-2 h-8 rounded-md cursor-pointer", isProfileActive && "bg-accent text-accent-foreground")}
+										onClick={() => navigate("/settings/profile")}
+									>
 										<span className="text-sm">Profile</span>
 									</SidebarMenuButton>
 								</SidebarMenuItem>
 								<SidebarMenuItem>
 									<SidebarMenuButton
 										className={cn("p-2 h-8 rounded-md cursor-pointer", isConnectionSourcesActive && "bg-accent text-accent-foreground")}
-										onClick={() => navigate("/settings")}
+										onClick={() => navigate("/settings/connections")}
 									>
 										<span className="text-sm">Connection Sources</span>
 									</SidebarMenuButton>
