@@ -114,28 +114,28 @@ describe("ConfluenceForm", () => {
 			expect(screen.getByText("Authentication")).toBeInTheDocument();
 		});
 
-		it("should render URL input field", () => {
+		it("should render URL input field with required indicator", () => {
 			const source = createMockSource();
 			renderWithProvider(source);
-			expect(screen.getByLabelText("URL")).toBeInTheDocument();
+			expect(screen.getByLabelText(/URL/i)).toBeInTheDocument();
 			expect(
 				screen.getByPlaceholderText("https://your-company.atlassian.net"),
 			).toBeInTheDocument();
 		});
 
-		it("should render email input field", () => {
+		it("should render email input field with required indicator", () => {
 			const source = createMockSource();
 			renderWithProvider(source);
-			expect(screen.getByLabelText("User email")).toBeInTheDocument();
+			expect(screen.getByLabelText(/User email/i)).toBeInTheDocument();
 			expect(
 				screen.getByPlaceholderText("you@company.com"),
 			).toBeInTheDocument();
 		});
 
-		it("should render API token input field", () => {
+		it("should render API token input field with required indicator", () => {
 			const source = createMockSource();
 			renderWithProvider(source);
-			expect(screen.getByLabelText("API token")).toBeInTheDocument();
+			expect(screen.getByLabelText(/API token/i)).toBeInTheDocument();
 			expect(screen.getByPlaceholderText("••••••••")).toBeInTheDocument();
 		});
 
@@ -176,7 +176,7 @@ describe("ConfluenceForm", () => {
 				} as DataSourceConnection,
 			});
 			renderWithProvider(source);
-			const urlInput = screen.getByLabelText("URL") as HTMLInputElement;
+			const urlInput = screen.getByLabelText(/URL/i) as HTMLInputElement;
 			expect(urlInput.value).toBe("https://company.atlassian.net");
 		});
 
@@ -191,7 +191,7 @@ describe("ConfluenceForm", () => {
 			});
 			renderWithProvider(source);
 			const emailInput = screen.getByLabelText(
-				"User email",
+				/User email/i,
 			) as HTMLInputElement;
 			expect(emailInput.value).toBe("user@company.com");
 		});
@@ -206,91 +206,59 @@ describe("ConfluenceForm", () => {
 				} as DataSourceConnection,
 			});
 			renderWithProvider(source);
-			const tokenInput = screen.getByLabelText("API token") as HTMLInputElement;
+			const tokenInput = screen.getByLabelText(/API token/i) as HTMLInputElement;
 			expect(tokenInput.value).toBe("");
 		});
 	});
 
-	describe("Spaces Multiselect", () => {
-		it("should not show spaces multiselect when no available spaces", () => {
-			const source = createMockSource();
-			renderWithProvider(source);
-			expect(screen.queryByText("Spaces (Optional)")).not.toBeInTheDocument();
-		});
-
-		it("should show spaces multiselect when available spaces exist", () => {
-			const source = createMockSource({
-				backendData: {
-						...baseBackendData,
-						latest_options: {
-							spaces: "ENG, PROD, DOCS",
-						},
-					} as DataSourceConnection,
-			});
-			renderWithProvider(source);
-			expect(screen.getByText("Spaces (Optional)")).toBeInTheDocument();
-		});
-
-		it("should pre-select spaces from settings", () => {
-			const source = createMockSource({
-				backendData: {
-						...baseBackendData,
-						latest_options: {
-							spaces: "ENG, PROD, DOCS",
-						},
-						settings: {
-							spaces: "ENG, PROD",
-						},
-					} as DataSourceConnection,
-			});
-			renderWithProvider(source);
-			// Spaces should be pre-selected (would need to interact with MultiSelect to verify)
-		});
-	});
+	// Note: Spaces Multiselect tests removed as this feature is not yet implemented
+	// TODO: Re-add these tests when the Spaces Multiselect feature is implemented
 
 	describe("Form Validation", () => {
-		it("should show validation error when submitting without URL", async () => {
-			const { toast } = await import("@/lib/toast");
+		it("should disable Connect button when form is empty", () => {
 			const source = createMockSource();
 			renderWithProvider(source);
 
 			const connectButton = screen.getByRole("button", { name: /connect/i });
-			fireEvent.click(connectButton);
-
-			await waitFor(() => {
-				expect(toast.error).toHaveBeenCalledWith("Validation Error", {
-					description: "Please fill in all authentication fields",
-				});
-			});
+			expect(connectButton).toBeDisabled();
 		});
 
-		it("should show validation error when submitting without email", async () => {
-			const { toast } = await import("@/lib/toast");
+		it("should disable Connect button when URL is missing", () => {
 			const source = createMockSource();
 			renderWithProvider(source);
 
-			const urlInput = screen.getByLabelText("URL");
+			const emailInput = screen.getByLabelText(/User email/i);
+			const tokenInput = screen.getByLabelText(/API token/i);
+
+			fireEvent.change(emailInput, { target: { value: "user@company.com" } });
+			fireEvent.change(tokenInput, { target: { value: "secret-token" } });
+
+			const connectButton = screen.getByRole("button", { name: /connect/i });
+			expect(connectButton).toBeDisabled();
+		});
+
+		it("should disable Connect button when email is missing", () => {
+			const source = createMockSource();
+			renderWithProvider(source);
+
+			const urlInput = screen.getByLabelText(/URL/i);
+			const tokenInput = screen.getByLabelText(/API token/i);
+
 			fireEvent.change(urlInput, {
 				target: { value: "https://company.atlassian.net" },
 			});
+			fireEvent.change(tokenInput, { target: { value: "secret-token" } });
 
 			const connectButton = screen.getByRole("button", { name: /connect/i });
-			fireEvent.click(connectButton);
-
-			await waitFor(() => {
-				expect(toast.error).toHaveBeenCalledWith("Validation Error", {
-					description: "Please fill in all authentication fields",
-				});
-			});
+			expect(connectButton).toBeDisabled();
 		});
 
-		it("should show validation error when submitting without token", async () => {
-			const { toast } = await import("@/lib/toast");
+		it("should disable Connect button when token is missing", () => {
 			const source = createMockSource();
 			renderWithProvider(source);
 
-			const urlInput = screen.getByLabelText("URL");
-			const emailInput = screen.getByLabelText("User email");
+			const urlInput = screen.getByLabelText(/URL/i);
+			const emailInput = screen.getByLabelText(/User email/i);
 
 			fireEvent.change(urlInput, {
 				target: { value: "https://company.atlassian.net" },
@@ -298,12 +266,56 @@ describe("ConfluenceForm", () => {
 			fireEvent.change(emailInput, { target: { value: "user@company.com" } });
 
 			const connectButton = screen.getByRole("button", { name: /connect/i });
-			fireEvent.click(connectButton);
+			expect(connectButton).toBeDisabled();
+		});
+
+		it("should enable Connect button when all fields are valid", async () => {
+			const source = createMockSource();
+			renderWithProvider(source);
+
+			const urlInput = screen.getByLabelText(/URL/i);
+			const emailInput = screen.getByLabelText(/User email/i);
+			const tokenInput = screen.getByLabelText(/API token/i);
+
+			fireEvent.change(urlInput, {
+				target: { value: "https://company.atlassian.net" },
+			});
+			fireEvent.change(emailInput, { target: { value: "user@company.com" } });
+			fireEvent.change(tokenInput, { target: { value: "secret-token" } });
 
 			await waitFor(() => {
-				expect(toast.error).toHaveBeenCalledWith("Validation Error", {
-					description: "Please fill in all authentication fields",
-				});
+				const connectButton = screen.getByRole("button", { name: /connect/i });
+				expect(connectButton).not.toBeDisabled();
+			});
+		});
+
+		it("should show validation error for invalid URL format", async () => {
+			const source = createMockSource();
+			renderWithProvider(source);
+
+			const urlInput = screen.getByLabelText(/URL/i);
+			fireEvent.change(urlInput, { target: { value: "invalid-url" } });
+			fireEvent.blur(urlInput);
+
+			await waitFor(() => {
+				expect(
+					screen.getByText("Please enter a valid URL"),
+				).toBeInTheDocument();
+			});
+		});
+
+		it("should show validation error for invalid email format", async () => {
+			const source = createMockSource();
+			renderWithProvider(source);
+
+			const emailInput = screen.getByLabelText(/User email/i);
+			fireEvent.change(emailInput, { target: { value: "invalid-email" } });
+			fireEvent.blur(emailInput);
+
+			await waitFor(() => {
+				expect(
+					screen.getByText("Please enter a valid email address"),
+				).toBeInTheDocument();
 			});
 		});
 	});
@@ -313,9 +325,9 @@ describe("ConfluenceForm", () => {
 			const source = createMockSource();
 			renderWithProvider(source);
 
-			const urlInput = screen.getByLabelText("URL");
-			const emailInput = screen.getByLabelText("User email");
-			const tokenInput = screen.getByLabelText("API token");
+			const urlInput = screen.getByLabelText(/URL/i);
+			const emailInput = screen.getByLabelText(/User email/i);
+			const tokenInput = screen.getByLabelText(/API token/i);
 
 			fireEvent.change(urlInput, {
 				target: { value: "https://company.atlassian.net" },
@@ -323,7 +335,13 @@ describe("ConfluenceForm", () => {
 			fireEvent.change(emailInput, { target: { value: "user@company.com" } });
 			fireEvent.change(tokenInput, { target: { value: "secret-token" } });
 
-			const connectButton = screen.getByRole("button", { name: /connect/i });
+			// Wait for form validation to complete and button to be enabled
+			const connectButton = await waitFor(() => {
+				const btn = screen.getByRole("button", { name: /connect/i });
+				expect(btn).not.toBeDisabled();
+				return btn;
+			});
+
 			fireEvent.click(connectButton);
 
 			await waitFor(() => {
@@ -348,7 +366,6 @@ describe("ConfluenceForm", () => {
 						settings: {
 							url: "https://company.atlassian.net",
 							email: "user@company.com",
-							spaces: "",
 						},
 						enabled: true,
 					},
@@ -356,46 +373,17 @@ describe("ConfluenceForm", () => {
 			});
 		});
 
-		it("should include selected spaces in update mutation", async () => {
-			const source = createMockSource({
-				backendData: {
-					...baseBackendData,
-					latest_options: {
-						spaces: "ENG, PROD",
-					},
-				} as DataSourceConnection,
-			});
-			renderWithProvider(source);
-
-			const urlInput = screen.getByLabelText("URL");
-			const emailInput = screen.getByLabelText("User email");
-			const tokenInput = screen.getByLabelText("API token");
-
-			fireEvent.change(urlInput, {
-				target: { value: "https://company.atlassian.net" },
-			});
-			fireEvent.change(emailInput, { target: { value: "user@company.com" } });
-			fireEvent.change(tokenInput, { target: { value: "secret-token" } });
-
-			const connectButton = screen.getByRole("button", { name: /connect/i });
-			fireEvent.click(connectButton);
-
-			await waitFor(() => {
-				expect(mockUpdateMutation.mutateAsync).toHaveBeenCalled();
-			});
-
-			const updateCall = mockUpdateMutation.mutateAsync.mock.calls[0][0];
-			expect(updateCall.data.settings).toHaveProperty("spaces");
-		});
+		// Note: Spaces-related test removed as this feature is not yet implemented
+		// TODO: Re-add this test when the Spaces Multiselect feature is implemented
 
 		it("should show success toast on successful connection", async () => {
 			const { toast } = await import("@/lib/toast");
 			const source = createMockSource();
 			renderWithProvider(source);
 
-			const urlInput = screen.getByLabelText("URL");
-			const emailInput = screen.getByLabelText("User email");
-			const tokenInput = screen.getByLabelText("API token");
+			const urlInput = screen.getByLabelText(/URL/i);
+			const emailInput = screen.getByLabelText(/User email/i);
+			const tokenInput = screen.getByLabelText(/API token/i);
 
 			fireEvent.change(urlInput, {
 				target: { value: "https://company.atlassian.net" },
@@ -403,7 +391,13 @@ describe("ConfluenceForm", () => {
 			fireEvent.change(emailInput, { target: { value: "user@company.com" } });
 			fireEvent.change(tokenInput, { target: { value: "secret-token" } });
 
-			const connectButton = screen.getByRole("button", { name: /connect/i });
+			// Wait for form validation to complete and button to be enabled
+			const connectButton = await waitFor(() => {
+				const btn = screen.getByRole("button", { name: /connect/i });
+				expect(btn).not.toBeDisabled();
+				return btn;
+			});
+
 			fireEvent.click(connectButton);
 
 			await waitFor(() => {
@@ -423,9 +417,9 @@ describe("ConfluenceForm", () => {
 			const source = createMockSource();
 			renderWithProvider(source);
 
-			const urlInput = screen.getByLabelText("URL");
-			const emailInput = screen.getByLabelText("User email");
-			const tokenInput = screen.getByLabelText("API token");
+			const urlInput = screen.getByLabelText(/URL/i);
+			const emailInput = screen.getByLabelText(/User email/i);
+			const tokenInput = screen.getByLabelText(/API token/i);
 
 			fireEvent.change(urlInput, {
 				target: { value: "https://company.atlassian.net" },
@@ -433,7 +427,13 @@ describe("ConfluenceForm", () => {
 			fireEvent.change(emailInput, { target: { value: "user@company.com" } });
 			fireEvent.change(tokenInput, { target: { value: "secret-token" } });
 
-			const connectButton = screen.getByRole("button", { name: /connect/i });
+			// Wait for form validation to complete and button to be enabled
+			const connectButton = await waitFor(() => {
+				const btn = screen.getByRole("button", { name: /connect/i });
+				expect(btn).not.toBeDisabled();
+				return btn;
+			});
+
 			fireEvent.click(connectButton);
 
 			await waitFor(() => {
@@ -452,9 +452,9 @@ describe("ConfluenceForm", () => {
 			const source = createMockSource();
 			renderWithProvider(source);
 
-			const urlInput = screen.getByLabelText("URL");
-			const emailInput = screen.getByLabelText("User email");
-			const tokenInput = screen.getByLabelText("API token");
+			const urlInput = screen.getByLabelText(/URL/i);
+			const emailInput = screen.getByLabelText(/User email/i);
+			const tokenInput = screen.getByLabelText(/API token/i);
 
 			fireEvent.change(urlInput, {
 				target: { value: "https://company.atlassian.net" },
@@ -462,7 +462,13 @@ describe("ConfluenceForm", () => {
 			fireEvent.change(emailInput, { target: { value: "user@company.com" } });
 			fireEvent.change(tokenInput, { target: { value: "secret-token" } });
 
-			const connectButton = screen.getByRole("button", { name: /connect/i });
+			// Wait for form validation to complete and button to be enabled
+			const connectButton = await waitFor(() => {
+				const btn = screen.getByRole("button", { name: /connect/i });
+				expect(btn).not.toBeDisabled();
+				return btn;
+			});
+
 			fireEvent.click(connectButton);
 
 			await waitFor(() => {
@@ -514,6 +520,52 @@ describe("ConfluenceForm", () => {
 		});
 	});
 
+	describe("InfoAlert Display", () => {
+		it("should show info alert when verification is pending", () => {
+			mockVerifyMutation.isPending = true;
+			const source = createMockSource();
+			renderWithProvider(source);
+
+			expect(
+				screen.getByText("Connection may take time"),
+			).toBeInTheDocument();
+			expect(
+				screen.getByText("You can leave this page while it is connecting"),
+			).toBeInTheDocument();
+
+			mockVerifyMutation.isPending = false; // Reset
+		});
+
+		it("should not show info alert when verification is not pending", () => {
+			mockVerifyMutation.isPending = false;
+			const source = createMockSource();
+			renderWithProvider(source);
+
+			expect(
+				screen.queryByText("Connection may take time"),
+			).not.toBeInTheDocument();
+			expect(
+				screen.queryByText("You can leave this page while it is connecting"),
+			).not.toBeInTheDocument();
+		});
+
+		it("should not show info alert when only update is pending", () => {
+			mockVerifyMutation.isPending = false;
+			mockUpdateMutation.isPending = true;
+			const source = createMockSource();
+			renderWithProvider(source);
+
+			expect(
+				screen.queryByText("Connection may take time"),
+			).not.toBeInTheDocument();
+			expect(
+				screen.queryByText("You can leave this page while it is connecting"),
+			).not.toBeInTheDocument();
+
+			mockUpdateMutation.isPending = false; // Reset
+		});
+	});
+
 	describe("Cancel Button", () => {
 		it("should call onCancel when Cancel button is clicked", () => {
 			const mockOnCancel = vi.fn();
@@ -532,7 +584,7 @@ describe("ConfluenceForm", () => {
 			const source = createMockSource();
 			renderWithProvider(source);
 
-			const urlInput = screen.getByLabelText("URL");
+			const urlInput = screen.getByLabelText(/URL/i);
 			expect(urlInput).toHaveAttribute("type", "url");
 		});
 
@@ -540,7 +592,7 @@ describe("ConfluenceForm", () => {
 			const source = createMockSource();
 			renderWithProvider(source);
 
-			const emailInput = screen.getByLabelText("User email");
+			const emailInput = screen.getByLabelText(/User email/i);
 			expect(emailInput).toHaveAttribute("type", "email");
 		});
 
@@ -548,7 +600,7 @@ describe("ConfluenceForm", () => {
 			const source = createMockSource();
 			renderWithProvider(source);
 
-			const tokenInput = screen.getByLabelText("API token");
+			const tokenInput = screen.getByLabelText(/API token/i);
 			expect(tokenInput).toHaveAttribute("type", "password");
 		});
 	});

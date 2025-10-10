@@ -1,6 +1,4 @@
-import { InfoIcon } from "lucide-react";
 import { useState } from "react";
-import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
 	Dialog,
@@ -10,6 +8,7 @@ import {
 	DialogHeader,
 	DialogTitle,
 } from "@/components/ui/dialog";
+import { InfoAlert } from "@/components/ui/info-alert";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 
@@ -61,13 +60,10 @@ export default function InviteUsersDialog({
 				</DialogHeader>
 
 				<div className="grid gap-4 py-4">
-					<Alert className="w-full bg-primary-foreground flex items-start gap-2 border-0">
-						<InfoIcon className="size-4" />
-						<AlertDescription className="flex-1">
-							<p className=" text-accent-foreground">All new users will be assigned the <span className="font-semibold inline">User</span> role by default.</p>
-							<p> To grant admin access, update their role later in Settings → Users.</p>
-						</AlertDescription>
-					</Alert>
+					<InfoAlert>
+						<p className=" text-accent-foreground">All new users will be assigned the <span className="font-semibold inline">User</span> role by default.</p>
+						<p> To grant admin access, update their role later in Settings → Users.</p>
+					</InfoAlert>
 
 					<div className="grid gap-2">
 						<Label htmlFor="emails">Email addresses</Label>
