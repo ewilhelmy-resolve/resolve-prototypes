@@ -203,6 +203,7 @@ export class RabbitMQService {
           type: 'new_message',
           data: {
             messageId: assistantMessageId,
+            conversationId: conversation_id,
             role: 'assistant',
             message: response,
             metadata: metadata,

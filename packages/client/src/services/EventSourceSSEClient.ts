@@ -1,7 +1,52 @@
-export interface SSEEvent {
+export interface MessageUpdateEvent {
+  type: 'message_update';
+  data: {
+    messageId: string;
+    status: 'pending' | 'processing' | 'completed' | 'failed';
+    responseContent?: string;
+    errorMessage?: string;
+    processedAt?: string;
+  };
+}
+
+export interface NewMessageEvent {
+  type: 'new_message';
+  data: {
+    messageId: string;
+    conversationId: string;
+    role: 'user' | 'assistant';
+    message: string;
+    metadata?: any;
+    response_group_id?: string;
+    userId: string;
+    createdAt: string;
+  };
+}
+
+export interface DataSourceUpdateEvent {
+  type: 'data_source_update';
+  data: {
+    connection_id: string;
+    connection_type?: string; // e.g., 'confluence', 'servicenow', 'sharepoint', 'websearch'
+    status: 'idle' | 'verifying' | 'syncing';
+    // Sync-specific fields
+    last_sync_status?: 'completed' | 'failed' | null;
+    last_sync_at?: Date | null;
+    last_sync_error?: string;
+    documents_processed?: number;
+    // Verification-specific fields
+    last_verification_at?: Date | null;
+    last_verification_error?: string | null;
+    latest_options?: Record<string, any> | null;
+    // Common
+    timestamp: string;
+  };
+}
+
+export type SSEEvent = MessageUpdateEvent | NewMessageEvent | DataSourceUpdateEvent | {
   type: string;
   data: any;
-}
+};
 
 export interface EventSourceSSEClientOptions {
   url: string;

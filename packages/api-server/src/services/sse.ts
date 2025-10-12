@@ -24,6 +24,7 @@ export interface NewMessageEvent {
   type: 'new_message';
   data: {
     messageId: string;
+    conversationId: string;
     role: 'user' | 'assistant';
     message: string;
     metadata?: any;
