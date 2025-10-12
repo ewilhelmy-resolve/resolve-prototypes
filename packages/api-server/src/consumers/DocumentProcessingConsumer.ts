@@ -86,7 +86,7 @@ export class DocumentProcessingConsumer {
    * Process document status update based on status type
    */
   private async processDocumentStatus(payload: DocumentProcessingMessage): Promise<void> {
-    const { blob_metadata_id, tenant_id, user_id, status } = payload;
+    const { blob_metadata_id, tenant_id, status } = payload;
 
     // Validate required fields
     if (!blob_metadata_id || !tenant_id || !status) {
