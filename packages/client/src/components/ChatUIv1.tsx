@@ -13,13 +13,13 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { MessageCirclePlus, LayoutGrid, Newspaper, Ticket, User, Search, Share2, Zap, SendHorizontal, Plus, PanelLeft, LogOut } from "lucide-react"
 
 // Import existing functionality
-import { SSEProvider, useSSEContext } from '../contexts/SSEContext'
+import { useSSEContext } from '../contexts/SSEContext'
 import { useAuth } from '../hooks/useAuth'
 import { useConversationStore } from '../stores/conversationStore'
 import { useUIStore } from '../stores/uiStore'
 import { useConversations, useCreateConversation, useSendMessage } from '../hooks/api/useConversations'
 
-const RitaChatInterface: React.FC = () => {
+export default function ChatUIv1() {
   const { conversationId } = useParams<{ conversationId?: string }>()
   const navigate = useNavigate()
   const { latestUpdate } = useSSEContext()
@@ -486,20 +486,5 @@ const RitaChatInterface: React.FC = () => {
       </SidebarProvider>
       </div>
     </div>
-  )
-}
-
-export default function ChatUIv1() {
-  const { authenticated, loading, sessionReady } = useAuth()
-
-  console.log('ChatUIv1 render - authenticated:', authenticated, 'loading:', loading, 'sessionReady:', sessionReady, 'SSE enabled:', authenticated && !loading && sessionReady)
-
-  return (
-    <SSEProvider
-      apiUrl=""
-      enabled={authenticated && !loading && sessionReady}
-    >
-      <RitaChatInterface />
-    </SSEProvider>
   )
 }

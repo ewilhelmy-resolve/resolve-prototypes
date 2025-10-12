@@ -54,7 +54,19 @@ export interface DataSourceUpdateEvent {
   };
 }
 
-export type SSEEvent = MessageUpdateEvent | NewMessageEvent | DataSourceUpdateEvent;
+export interface DocumentUpdateEvent {
+  type: 'document_update';
+  data: {
+    blob_metadata_id: string;
+    filename: string;
+    status: 'processed' | 'failed';
+    processed_markdown?: string;
+    error_message?: string;
+    timestamp: string;
+  };
+}
+
+export type SSEEvent = MessageUpdateEvent | NewMessageEvent | DataSourceUpdateEvent | DocumentUpdateEvent;
 
 export class SSEService {
   private connections: Map<string, SSEConnection> = new Map();

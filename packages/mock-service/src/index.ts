@@ -1606,7 +1606,7 @@ app.post('/webhook', async (req, res) => {
       }, MOCK_CONFIG.responseDelay);
 
     } else if (payload.source === 'rita-documents') {
-      // Document processing - just log as placeholder
+      // Document processing - simulate processing and send status update
       const documentPayload = payload as DocumentWebhookPayload;
       timer.end({
         blobMetadataId: documentPayload.blob_metadata_id,
@@ -1620,15 +1620,48 @@ app.post('/webhook', async (req, res) => {
         document_url: documentPayload.document_url,
         file_type: documentPayload.file_type,
         file_size: documentPayload.file_size,
-        original_filename: documentPayload.original_filename,
-        note: 'Document processing is placeholder - only logging to console'
-      }, '📄 PLACEHOLDER: Document processing webhook received');
+        original_filename: documentPayload.original_filename
+      }, '📄 Document processing webhook received');
+
+      // Publish processing_completed message to RabbitMQ after 3 second delay
+      setTimeout(async () => {
+        try {
+          if (!rabbitChannel) {
+            throw new Error('RabbitMQ channel not initialized');
+          }
+
+          // Simulate successful document processing
+          const processingMessage = {
+            type: 'document_processing',
+            blob_metadata_id: documentPayload.blob_metadata_id,
+            tenant_id: documentPayload.tenant_id,
+            user_id: documentPayload.user_id,
+            status: 'processing_completed',
+            processed_markdown: `# Processed Document: ${documentPayload.original_filename}\n\nThis is mock processed content from the document.\n\n## Summary\n- **File Type**: ${documentPayload.file_type}\n- **File Size**: ${documentPayload.file_size} bytes\n- **Processed At**: ${new Date().toISOString()}\n\n## Content\nMock extracted text content from the uploaded document. In a real scenario, this would contain the actual parsed and processed content from the PDF, DOCX, or other file format.`,
+            timestamp: new Date().toISOString()
+          };
+
+          await rabbitChannel.assertQueue('document_processing_status', { durable: true });
+          rabbitChannel.sendToQueue(
+            'document_processing_status',
+            Buffer.from(JSON.stringify(processingMessage)),
+            { persistent: true }
+          );
+
+          contextLogger.info({
+            blobMetadataId: documentPayload.blob_metadata_id,
+            status: 'processing_completed'
+          }, 'Published document processing_completed message to RabbitMQ');
+        } catch (error) {
+          contextLogger.error({ error }, 'Failed to publish document processing message');
+        }
+      }, 3000); // 3 second delay to simulate processing time
 
       res.status(200).json({
-        message: 'Document webhook received and logged (placeholder implementation)',
+        message: 'Document webhook received, processing started',
         blob_metadata_id: documentPayload.blob_metadata_id,
         blob_id: documentPayload.blob_id,
-        status: 'acknowledged'
+        status: 'processing'
       });
 
     } else if (payload.source === 'rita-signup') {

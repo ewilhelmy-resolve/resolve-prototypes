@@ -187,6 +187,13 @@ export const fileApi = {
     apiRequest<{ deleted: boolean }>(`/api/files/${documentId}`, {
       method: 'DELETE',
     }),
+
+  // Reprocess document (trigger processing workflow)
+  reprocessDocument: (documentId: string) =>
+    apiRequest<{ success: boolean; message: string; document_id: string }>(`/api/files/${documentId}/process`, {
+      method: 'POST',
+      body: { enable_processing: true },
+    }),
 };
 
 // Data Sources API

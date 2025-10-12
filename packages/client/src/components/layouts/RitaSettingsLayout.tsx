@@ -16,8 +16,6 @@ import {
 	SidebarProvider,
 	SidebarSeparator,
 } from "@/components/ui/sidebar";
-import { SSEProvider } from "@/contexts/SSEContext";
-import useAuth from "@/hooks/useAuth";
 import { cn } from "@/lib/utils";
 
 interface RitaSettingsLayoutProps {
@@ -40,11 +38,8 @@ export default function RitaSettingsLayout({
 	const isUsersActive = location.pathname.startsWith("/settings/users");
 	const isProfileActive = location.pathname === "/settings/profile";
 
-	const { authenticated, loading, sessionReady } = useAuth();
-
 	return (
-		<SSEProvider apiUrl="" enabled={authenticated && !loading && sessionReady}>
-			<SidebarProvider defaultOpen={true}>
+		<SidebarProvider defaultOpen={true}>
 				<Sidebar>
 					<SidebarHeader className="p-2">
 						<SidebarMenu>
@@ -105,7 +100,6 @@ export default function RitaSettingsLayout({
 				<SidebarInset className="flex flex-col items-start w-full md:ml-[calc(var(--sidebar-width)-6rem)]">
 					<main className="w-full p-6">{children}</main>
 				</SidebarInset>
-			</SidebarProvider>
-		</SSEProvider>
+		</SidebarProvider>
 	);
 }

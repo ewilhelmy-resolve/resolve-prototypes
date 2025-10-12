@@ -4,26 +4,26 @@
 
 The Rita file upload system implements a **content-addressable blob storage** architecture with automatic deduplication, enabling efficient storage of files across multiple users and organizations while maintaining per-user metadata.
 
-**Status**: ✅ **FULLY IMPLEMENTED** (Migration from `documents` table to `blobs`/`blob_metadata` completed)
+**Status**: ✅ **FULLY IMPLEMENTED** (Migration from `documents` table to `blobs`/`blob_metadata` completed + Real-time Processing Status Updates via SSE)
 
-**Last Updated**: 2025-10-10
+**Last Updated**: 2025-10-12
 
 ---
 
 ## Architecture Summary
 
-### Sequence Diagram: File Upload and Message Flow
+### Sequence Diagram: File Upload with Real-Time Processing Status
 
 ```mermaid
 sequenceDiagram
     actor User
     participant Frontend as Rita Frontend
-    participant API as Rita Backend API
+    participant API as Rita Backend API<br/>(includes Consumer)
     participant DB as Rita Database
-    participant RAG as External RAG Service
+    participant Automation as Automation Platform
     participant RabbitMQ
 
-    Note over User,RAG: File Upload Flow
+    Note over User,Automation: File Upload Flow
 
     User->>Frontend: 1. Select & upload file
     Frontend->>API: 2. POST /api/files/upload<br/>(multipart/form-data)
@@ -37,21 +37,32 @@ sequenceDiagram
         API->>API: 5b. Reuse existing blob_id
     end
 
-    API->>DB: 6. INSERT INTO blob_metadata<br/>(blob_id, organization_id, user_id, filename, ...)
+    API->>DB: 6. INSERT INTO blob_metadata<br/>(status='processing', ...)
     DB-->>API: 7. Return metadata record
 
-    API->>RAG: 8. Send webhook<br/>{action: "document_uploaded",<br/> blob_metadata_id, document_url, ...}
+    API->>Automation: 8. Send webhook<br/>{action: "document_uploaded",<br/> blob_metadata_id, document_url, ...}
 
-    RAG->>API: 9. GET /api/files/:id/download
-    API->>DB: 10. SELECT data FROM blobs<br/>JOIN blob_metadata
-    DB-->>API: 11. Return blob data
-    API-->>RAG: 12. Binary file content
+    API-->>Frontend: 9. {document: {id, status: 'processing', ...}}
+    Frontend-->>User: 10. Show "Processing" badge
 
-    RAG->>RAG: 13. Process document<br/>(parse, chunk, embed)
-    RAG-->>API: 14. 200 OK
+    Note over Automation,API: Async Document Processing
 
-    API-->>Frontend: 15. {document: {id, filename, size, ...}}
-    Frontend-->>User: 16. Show upload success
+    Automation->>DB: 11. SELECT data FROM blobs JOIN blob_metadata<br/>(direct database access)
+    DB-->>Automation: 12. Return blob data
+
+    Automation->>Automation: 13. Process document<br/>(parse, chunk, embed, vectorize)
+
+    alt Processing Successful
+        Automation->>RabbitMQ: 14a. Publish to document_processing_status<br/>{status: 'processing_completed',<br/> processed_markdown: "..."}
+    else Processing Failed
+        Automation->>RabbitMQ: 14b. Publish to document_processing_status<br/>{status: 'processing_failed',<br/> error_message: "..."}
+    end
+
+    RabbitMQ->>API: 15. Consumer receives message
+    API->>DB: 16. UPDATE blob_metadata<br/>SET status='processed'|'failed'
+    API->>Frontend: 17. Send SSE event:<br/>document_update
+
+    Frontend-->>User: 18. Update badge to "Processed" or "Failed"<br/>Show toast notification
 
     Note over User,RabbitMQ: Chat Message Flow
 
@@ -64,18 +75,18 @@ sequenceDiagram
     API->>DB: 21. SELECT role, message FROM messages<br/>(build transcript)
     DB-->>API: 22. Return conversation history
 
-    API->>RAG: 23. Send webhook<br/>{action: "message_created",<br/> message_id, transcript, ...}
-    RAG-->>API: 24. 200 OK
+    API->>Automation: 23. Send webhook<br/>{action: "message_created",<br/> message_id, transcript, ...}
+    Automation-->>API: 24. 200 OK
 
     API->>DB: 25. UPDATE messages SET status='sent'
     API-->>Frontend: 26. {message: {id, status: 'sent', ...}}
     Frontend-->>User: 27. Show message sent
 
-    Note over RAG,Frontend: Async Processing via RabbitMQ
+    Note over Automation,Frontend: Async Processing via RabbitMQ
 
-    RAG->>RAG: 28. Generate AI response<br/>(query context + LLM)
+    Automation->>Automation: 28. Generate AI response<br/>(query context + LLM)
 
-    RAG->>RabbitMQ: 29. Publish to chat.responses queue<br/>{message_id, tenant_id,<br/> conversation_id, user_id, response}
+    Automation->>RabbitMQ: 29. Publish to chat.responses queue<br/>{message_id, tenant_id,<br/> conversation_id, user_id, response}
 
     RabbitMQ->>API: 30. Consumer receives message
 
@@ -113,6 +124,398 @@ The system separates **content** (raw file data) from **context** (user/org meta
 - **Multi-tenancy**: Same blob can have different metadata per organization/user
 - **Data Integrity**: Content-addressable via SHA-256 ensures consistency
 - **Scalability**: Separate concerns of data storage vs. contextual metadata
+
+---
+
+## Document Processing Status System
+
+### Overview
+
+The system implements **real-time document processing status updates** via RabbitMQ and Server-Sent Events (SSE), allowing users to track the progress of document processing from upload through completion or failure.
+
+**Status Flow**:
+```
+processing → processed (success)
+          ↘ failed (error)
+```
+
+### Architecture Components
+
+####  1. **Initial Upload** (`status='processing'`)
+When a document is uploaded, it starts with `status='processing'` rather than `'uploaded'`:
+
+**Location**: `packages/api-server/src/routes/files.ts:117,123`
+```sql
+INSERT INTO blob_metadata (..., status, ...)
+VALUES (..., 'processing', ...)
+```
+
+**Rationale**: Processing begins immediately via webhook, so the document is never in a true "uploaded but not processing" state.
+
+#### 2. **RabbitMQ Consumer** (`DocumentProcessingConsumer`)
+
+**Location**: `packages/api-server/src/consumers/DocumentProcessingConsumer.ts`
+
+**Purpose**: Listens to `document_processing_status` queue for status updates from the automation platform.
+
+**Message Format**:
+```typescript
+// Success
+{
+  type: 'document_processing',
+  blob_metadata_id: 'uuid',
+  tenant_id: 'org-uuid',
+  user_id: 'user-uuid',  // Optional
+  status: 'processing_completed',
+  processed_markdown: '# Document\n\nContent...',
+  timestamp: '2025-10-12T01:11:55Z'
+}
+
+// Failure
+{
+  type: 'document_processing',
+  blob_metadata_id: 'uuid',
+  tenant_id: 'org-uuid',
+  user_id: 'user-uuid',  // Optional
+  status: 'processing_failed',
+  error_message: 'Unable to parse PDF: Corrupted file',
+  timestamp: '2025-10-12T01:11:55Z'
+}
+```
+
+**Consumer Logic**:
+1. Validates required fields (`blob_metadata_id`, `tenant_id`, `status`)
+2. Routes to `handleProcessingCompleted()` or `handleProcessingFailed()`
+3. Updates database via `withOrgContext` (multi-tenant isolation)
+4. Sends SSE event to frontend
+5. ACKs message to RabbitMQ
+
+**Database Updates**:
+```sql
+-- Success
+UPDATE blob_metadata
+SET status = 'processed',
+    processed_markdown = $1,
+    metadata = CASE
+      WHEN metadata ? 'error' THEN metadata - 'error'  -- Clear previous errors
+      ELSE metadata
+    END,
+    updated_at = NOW()
+WHERE id = $2 AND organization_id = $3;
+
+-- Failure
+UPDATE blob_metadata
+SET status = 'failed',
+    metadata = jsonb_set(
+      COALESCE(metadata, '{}'::jsonb),
+      '{error}',
+      to_jsonb($1::text)
+    ),
+    updated_at = NOW()
+WHERE id = $2 AND organization_id = $3;
+```
+
+**Key Feature**: When processing succeeds after a previous failure, the error is automatically removed from metadata using PostgreSQL JSONB operations (`metadata - 'error'`).
+
+#### 3. **SSE Event Broadcasting**
+
+**SSE Event Type**: `document_update`
+
+**Implementation**: Consumer sends SSE events via `getSSEService()`:
+
+```typescript
+sseService.sendToUser(userId, tenantId, {
+  type: 'document_update',
+  data: {
+    blob_metadata_id: id,
+    filename: filename,
+    status: 'processed' | 'failed',
+    processed_markdown: markdown,  // Optional
+    error_message: error,           // Optional
+    timestamp: new Date().toISOString()
+  }
+});
+```
+
+**SSE Type Definition** (`packages/api-server/src/services/sse.ts`):
+```typescript
+export interface DocumentUpdateEvent {
+  type: 'document_update';
+  data: {
+    blob_metadata_id: string;
+    filename: string;
+    status: 'processed' | 'failed';
+    processed_markdown?: string;
+    error_message?: string;
+    timestamp: string;
+  };
+}
+```
+
+#### 4. **Frontend SSE Listener**
+
+**Location**: `packages/client/src/contexts/SSEContext.tsx:132-160`
+
+**Handler Logic**:
+```typescript
+else if (event.type === "document_update") {
+  console.log("[SSE] Document update received:", {
+    blobMetadataId: event.data.blob_metadata_id,
+    filename: event.data.filename,
+    status: event.data.status,
+  });
+
+  // Invalidate TanStack Query cache to trigger automatic refetch
+  queryClient.invalidateQueries({ queryKey: fileKeys.lists() });
+
+  // Show toast notification
+  if (event.data.status === "processed") {
+    toast.success(`${event.data.filename} processed successfully`, {
+      action: { label: "View", onClick: () => navigate("/content") }
+    });
+  } else if (event.data.status === "failed") {
+    toast.error(`${event.data.filename} processing failed`, {
+      description: event.data.error_message || "An error occurred",
+      action: { label: "View", onClick: () => navigate("/content") }
+    });
+  }
+}
+```
+
+**TanStack Query Invalidation**: Automatically refetches the file list, updating UI without manual refresh.
+
+#### 5. **UI Status Indicators**
+
+**Location**: `packages/client/src/components/FilesV1Content.tsx`
+
+**Status Icons**:
+```typescript
+const getStatusIcon = (status: string) => {
+  switch (status) {
+    case 'processing': return <Loader className="h-3 w-3 animate-spin" />
+    case 'processed': return <CheckCircle className="h-3 w-3" />
+    case 'failed': return <AlertCircle className="h-3 w-3" />
+    default: return <Check className="h-3 w-3" />
+  }
+}
+```
+
+**Status Badge Variants**:
+```typescript
+const getStatusVariant = (status: string) => {
+  switch (status) {
+    case 'processed': return 'default'      // Green
+    case 'processing': return 'secondary'   // Blue with spinner
+    case 'failed': return 'destructive'     // Red
+    default: return 'outline'
+  }
+}
+```
+
+**Stats Cards**: Display counts for each status (processing, processed, failed, all)
+
+#### 6. **Reprocess Functionality**
+
+**Purpose**: Allow users to retry failed document processing or reprocess existing documents.
+
+**Backend Endpoint**: `POST /api/files/:documentId/process`
+
+**Frontend Hook** (`useReprocessFile`):
+```typescript
+export function useReprocessFile() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (documentId: string) => {
+      return await fileApi.reprocessDocument(documentId)
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: fileKeys.lists() })
+    },
+  })
+}
+```
+
+**UI Integration**: Context menu with "Reprocess" option available for all statuses.
+
+### Automation Platform Integration
+
+#### Automation Activity Script
+
+**Location**: `platform_scripts/rita_messages/send_document_processing_status/`
+
+**Files**:
+- `send_document_processing_status.py` - Python activity script
+- `send_document_processing_status.json` - Activity configuration
+- `send_document_processing_status.txt` - User documentation
+- `test_send_document_processing_status.py` - Test suite
+
+**Usage in RAG Workflows**:
+```python
+# In document processing automation
+try:
+    # Process document (parse, chunk, embed, vectorize)
+    processed_content = process_document(document_url)
+
+    # Send success status
+    send_document_processing_status(
+        rabbitmq_url=config.rabbitmq_url,
+        queue_name='document_processing_status',
+        blob_metadata_id=metadata_id,
+        tenant_id=tenant_id,
+        user_id=user_id,
+        status='processing_completed',
+        processed_markdown=processed_content
+    )
+except Exception as e:
+    # Send failure status
+    send_document_processing_status(
+        rabbitmq_url=config.rabbitmq_url,
+        queue_name='document_processing_status',
+        blob_metadata_id=metadata_id,
+        tenant_id=tenant_id,
+        user_id=user_id,
+        status='processing_failed',
+        error_message=str(e)
+    )
+```
+
+**Activity Parameters**:
+| Parameter | Required | Description |
+|-----------|----------|-------------|
+| `rabbitmq_url` | Yes | RabbitMQ connection URL |
+| `queue_name` | Yes | Queue name (`document_processing_status`) |
+| `blob_metadata_id` | Yes | Document UUID |
+| `tenant_id` | Yes | Organization UUID |
+| `user_id` | No | User UUID (optional) |
+| `status` | Yes | `processing_completed` or `processing_failed` |
+| `processed_markdown` | No | Extracted markdown (for success) |
+| `error_message` | No | Error details (for failure) |
+
+### Mock Service for Testing
+
+**Location**: `packages/mock-service/src/index.ts:1627-1659`
+
+**Behavior**: Simulates document processing with 3-second delay:
+1. Receives webhook from Rita
+2. Waits 3 seconds (simulated processing time)
+3. Publishes `processing_completed` message to RabbitMQ queue
+4. Consumer picks up message and updates status
+
+**Message Example**:
+```typescript
+{
+  type: 'document_processing',
+  blob_metadata_id: documentPayload.blob_metadata_id,
+  tenant_id: documentPayload.tenant_id,
+  user_id: documentPayload.user_id,
+  status: 'processing_completed',
+  processed_markdown: `# Processed Document: ${filename}\n\nMock content...`,
+  timestamp: new Date().toISOString()
+}
+```
+
+### End-to-End Flow
+
+1. **User uploads file** → Status: `processing` (spinner icon)
+2. **Rita sends webhook** → External automation platform downloads file
+3. **Automation platform processes document** → Parse, chunk, embed, vectorize (3-30 seconds)
+4. **Automation platform publishes to queue** → `processing_completed` or `processing_failed`
+5. **Consumer updates database** → Status: `processed` or `failed`
+6. **Consumer sends SSE event** → `document_update` event
+7. **Frontend receives SSE** → Invalidates query cache
+8. **TanStack Query refetches** → Automatic UI update
+9. **User sees result** → Badge changes to "Processed" ✅ or "Failed" ❌
+10. **Toast notification** → Success/error message with "View" action
+
+**Latency**: Typical SSE latency from queue message to frontend update is **< 1 second**.
+
+### Error Handling & Recovery
+
+#### Metadata Error Cleanup
+
+**Problem**: Failed documents store error in `metadata.error`. After reprocessing successfully, the old error should be cleared.
+
+**Solution**: The `handleProcessingCompleted` method automatically removes the `error` key:
+```sql
+metadata = CASE
+  WHEN metadata ? 'error' THEN metadata - 'error'
+  ELSE metadata
+END
+```
+
+#### Reprocess After Failure
+
+Users can click "Reprocess" in the file context menu to:
+1. Send document back to automation platform via webhook
+2. Update status to `processing`
+3. Wait for new status update via RabbitMQ
+
+### Configuration
+
+**Environment Variables**:
+```bash
+# Backend
+DOCUMENT_PROCESSING_QUEUE=document_processing_status
+
+# RAG Service
+RITA_RABBITMQ_URL=amqp://username:password@rabbitmq:5672
+RITA_DOCUMENT_PROCESSING_QUEUE_NAME=document_processing_status
+```
+
+**Queue Configuration**:
+- Queue: `document_processing_status`
+- Durable: `true` (survives broker restarts)
+- Auto-delete: `false` (persists when no consumers)
+
+### Monitoring & Debugging
+
+**Backend Logs** (`DocumentProcessingConsumer`):
+```
+[info] Received document processing status message
+[info] Processing document status update
+[info] Document processing completed successfully
+[info] SSE event sent
+```
+
+**Frontend Logs** (`SSEContext`):
+```
+[SSE] Document update received: { blobMetadataId, filename, status }
+```
+
+**RabbitMQ Management**:
+- Monitor queue depth (should be near 0)
+- Check message rate (messages/sec)
+- View consumer count (should be ≥ 1)
+
+### Performance Considerations
+
+1. **Database Updates**: Uses indexed lookups on `blob_metadata.id` and `organization_id`
+2. **SSE Broadcasting**: Sends only to affected user (or organization if no user_id)
+3. **Query Invalidation**: TanStack Query only refetches file list when needed
+4. **RabbitMQ ACK**: Messages acknowledged only after successful processing
+
+### Testing
+
+**Backend Tests** (`test_send_document_processing_status.py`):
+```bash
+cd platform_scripts/rita_messages/send_document_processing_status
+python3 test_send_document_processing_status.py
+```
+
+**Test Coverage**:
+- ✅ Successful processing message
+- ✅ Failed processing message
+- ✅ Missing required field validation
+- ✅ Invalid status validation
+- ✅ Processing without user_id (system processing)
+
+**Integration Testing**:
+1. Upload document → Verify `status='processing'`
+2. Wait 3 seconds (mock service)
+3. Verify status updates to `'processed'`
+4. Verify SSE event received
+5. Verify toast notification shown
+6. Verify badge updated in UI
 
 ---
 
@@ -186,7 +589,7 @@ CREATE INDEX idx_blob_metadata_filename ON blob_metadata(filename);
 
 **Previously**: A junction table linked messages to documents (many-to-many relationship).
 
-**Deprecated in migration 121**: The `message_documents` table has been removed. Document associations with messages are now handled by the **external RAG service**, not by database junction tables.
+**Deprecated in migration 121**: The `message_documents` table has been removed. Document associations with messages are now handled by the **automation platform**, not by database junction tables.
 
 **Rationale**:
 - Document IDs are passed to the webhook when messages are created
@@ -230,11 +633,13 @@ Content-Type: multipart/form-data
     "filename": "example.pdf",
     "size": 102400,
     "type": "application/pdf",
-    "status": "uploaded",
-    "created_at": "2025-10-10T12:00:00Z"
+    "status": "processing",
+    "created_at": "2025-10-12T12:00:00Z"
   }
 }
 ```
+
+**Note**: Status is `'processing'` immediately after upload since RAG processing begins via webhook.
 
 **File Size Limits**:
 - Default: 100MB (configurable via `FILE_SIZE_LIMIT_KB` env var)
@@ -297,8 +702,8 @@ After successful upload, sends webhook to external service:
     "filename": "my-article.txt",
     "size": 1024,
     "type": "text/plain",
-    "status": "uploaded",
-    "created_at": "2025-10-10T12:00:00Z"
+    "status": "processing",
+    "created_at": "2025-10-12T12:00:00Z"
   }
 }
 ```
@@ -329,25 +734,49 @@ SELECT
     ELSE 'binary'
   END as content_type
 FROM blob_metadata bm
-WHERE bm.organization_id = $1 AND bm.user_id = $2 AND bm.status = 'uploaded'
+WHERE bm.organization_id = $1 AND bm.user_id = $2
 ORDER BY bm.created_at DESC
 LIMIT $3 OFFSET $4
 ```
+
+**Note**: Status filter removed - returns documents in all statuses (`processing`, `processed`, `failed`).
 
 **Response**:
 ```json
 {
   "documents": [
     {
-      "id": "uuid",
-      "file_name": "example.pdf",
+      "id": "uuid-1",
+      "file_name": "report.pdf",
       "file_size": 102400,
       "mime_type": "application/pdf",
-      "status": "uploaded",
+      "status": "processed",
       "content_type": "binary",
       "metadata": {},
-      "created_at": "2025-10-10T12:00:00Z",
-      "updated_at": "2025-10-10T12:00:00Z"
+      "created_at": "2025-10-12T12:00:00Z",
+      "updated_at": "2025-10-12T12:00:05Z"
+    },
+    {
+      "id": "uuid-2",
+      "file_name": "data.xlsx",
+      "file_size": 45000,
+      "mime_type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      "status": "processing",
+      "content_type": "binary",
+      "metadata": {},
+      "created_at": "2025-10-12T12:01:00Z",
+      "updated_at": "2025-10-12T12:01:00Z"
+    },
+    {
+      "id": "uuid-3",
+      "file_name": "corrupted.pdf",
+      "file_size": 5000,
+      "mime_type": "application/pdf",
+      "status": "failed",
+      "content_type": "binary",
+      "metadata": { "error": "Unable to parse PDF: Corrupted file header" },
+      "created_at": "2025-10-12T11:55:00Z",
+      "updated_at": "2025-10-12T11:55:03Z"
     }
   ],
   "total": 100,
@@ -355,6 +784,8 @@ LIMIT $3 OFFSET $4
   "offset": 0
 }
 ```
+
+**Note**: Returns documents in all processing statuses. Frontend filters by status using UI dropdowns.
 
 **Content Type Detection**:
 - `content_type: 'text'` if `metadata->>'content' IS NOT NULL`
@@ -376,8 +807,10 @@ SELECT
   bm.status
 FROM blob_metadata bm
 JOIN blobs b ON bm.blob_id = b.blob_id
-WHERE bm.id = $1 AND bm.organization_id = $2 AND bm.status = 'uploaded'
+WHERE bm.id = $1 AND bm.organization_id = $2
 ```
+
+**Note**: Status filter removed - allows downloading documents regardless of processing status.
 
 **Response Headers**:
 ```
@@ -419,7 +852,7 @@ RETURNING id
 
 **Implementation**: `packages/api-server/src/routes/files.ts:377`
 
-**Purpose**: Trigger document processing webhook (e.g., RAG pipeline)
+**Purpose**: Trigger document processing webhook (reprocess documents in any status)
 
 **Request**:
 ```json
@@ -429,9 +862,11 @@ RETURNING id
 ```
 
 **Backend Flow**:
-1. Verify document exists and is in `uploaded` status
+1. Verify document exists (accepts any status)
 2. Send webhook to external service (same payload as upload webhook)
 3. Update document status to `processing`
+
+**Note**: This endpoint allows reprocessing documents that failed or need re-indexing.
 
 **Response**:
 ```json
@@ -640,14 +1075,21 @@ WHERE blob_id NOT IN (SELECT DISTINCT blob_id FROM blob_metadata);
 
 ### 3. File Processing Pipeline Integration
 
-**Current**: Webhook sends event, external service processes
-**Future**: Track processing status and results
+**Status**: ✅ **IMPLEMENTED** (See "Document Processing Status System" section)
 
-**Enhancements**:
-- Update `blob_metadata.status` based on SSE events from external service
-- Store processed results in `processed_markdown` field
-- Add retry logic for failed processing
-- Display processing status in UI
+**Features**:
+- ✅ Real-time status tracking via RabbitMQ + SSE
+- ✅ Database updates (`status`, `processed_markdown`, `metadata.error`)
+- ✅ Automatic error cleanup on successful reprocessing
+- ✅ Manual reprocess functionality for failed documents
+- ✅ UI indicators with animated status badges
+- ✅ Toast notifications with navigation actions
+
+**Future Enhancements**:
+- [ ] Automatic retry logic for transient failures
+- [ ] Processing timeout detection (mark as failed if >5min)
+- [ ] Processing progress percentage (0-100%)
+- [ ] Batch reprocessing for multiple documents
 
 ### 4. Deduplication Metrics Dashboard
 
@@ -862,11 +1304,35 @@ console.log('[WebhookService] Webhook failure stored in database')
 
 ## References
 
+### Documentation
 - **Migration Plan**: `docs/blobbifier-migration-plan.md` (outdated, superseded by this doc)
-- **Database Migrations**:
-  - `110_replace_file_storage.sql` - Old documents table schema
-  - `113_add_content_addressable_storage.sql` - New blobs/blob_metadata tables
-  - `114_change_blobs_id_to_uuid.sql` - UUID migration
-- **Backend Implementation**: `packages/api-server/src/routes/files.ts`
-- **Frontend Implementation**: `packages/client/src/hooks/api/useFiles.ts`
-- **Webhook Service**: `packages/api-server/src/services/WebhookService.ts`
+- **Processing Status Plan**: `docs/document-processing-status-implementation.md` - Implementation plan for status system
+
+### Database Migrations
+- `110_replace_file_storage.sql` - Old documents table schema
+- `113_add_content_addressable_storage.sql` - New blobs/blob_metadata tables
+- `114_change_blobs_id_to_uuid.sql` - UUID migration
+
+### Backend Implementation
+- **File Routes**: `packages/api-server/src/routes/files.ts` - Upload, download, list, delete, process endpoints
+- **Document Consumer**: `packages/api-server/src/consumers/DocumentProcessingConsumer.ts` - RabbitMQ consumer for status updates
+- **SSE Service**: `packages/api-server/src/services/sse.ts` - Server-Sent Events broadcasting
+- **SSE Types**: Document update event types (processing status)
+- **Webhook Service**: `packages/api-server/src/services/WebhookService.ts` - External service integration
+
+### Frontend Implementation
+- **Hooks**: `packages/client/src/hooks/api/useFiles.ts` - TanStack Query hooks (upload, download, reprocess)
+- **SSE Context**: `packages/client/src/contexts/SSEContext.tsx` - SSE connection & event handling
+- **UI Component**: `packages/client/src/components/FilesV1Content.tsx` - Status badges, filters, reprocess
+- **API Client**: `packages/client/src/services/api.ts` - File API methods
+
+### External Service Integration
+- **Activity Script**: `platform_scripts/rita_messages/send_document_processing_status/` - Python automation activities
+  - `send_document_processing_status.py` - Main activity
+  - `send_document_processing_status.json` - Configuration
+  - `send_document_processing_status.txt` - Documentation
+  - `test_send_document_processing_status.py` - Test suite
+
+### Testing
+- **Mock Service**: `packages/mock-service/src/index.ts:1627-1659` - Simulates document processing with 3s delay
+- **Activity Tests**: All 5 tests passing (success, failure, validation)

@@ -32,8 +32,9 @@ import {
   File,
   AlertCircle,
   CheckCircle,
+  RefreshCw,
 } from 'lucide-react'
-import { useFiles, useUploadFile, useDownloadFile, type FileDocument } from '@/hooks/api/useFiles'
+import { useFiles, useUploadFile, useDownloadFile, useReprocessFile, type FileDocument } from '@/hooks/api/useFiles'
 
 const formatFileSize = (bytes: number): string => {
   if (bytes === 0) return '0 Bytes'
@@ -64,6 +65,7 @@ export default function FilesV1Content() {
   const { data: filesData, isLoading } = useFiles()
   const uploadFileMutation = useUploadFile()
   const downloadFileMutation = useDownloadFile()
+  const reprocessFileMutation = useReprocessFile()
 
   const files = filesData?.documents || []
 
@@ -77,7 +79,9 @@ export default function FilesV1Content() {
 
   // Calculate stats
   const totalDocs = files.length
-  const uploadedCount = files.filter(f => f.status === 'uploaded').length
+  const processedCount = files.filter(f => f.status === 'processed').length
+  const processingCount = files.filter(f => f.status === 'processing').length
+  const failedCount = files.filter(f => f.status === 'failed').length
 
   const handleSelectAll = () => {
     if (selectedFiles.size === filteredFiles.length) {
@@ -114,10 +118,20 @@ export default function FilesV1Content() {
     })
   }
 
+  const handleReprocess = (file: FileDocument) => {
+    reprocessFileMutation.mutate(file.id)
+  }
+
   const getStatusIcon = (status: string) => {
     switch (status) {
       case 'uploaded':
         return <Check className="h-3 w-3" />
+      case 'processing':
+        return <Loader className="h-3 w-3 animate-spin" />
+      case 'processed':
+        return <CheckCircle className="h-3 w-3" />
+      case 'failed':
+        return <AlertCircle className="h-3 w-3" />
       case 'pending':
         return <Loader className="h-3 w-3 animate-spin" />
       case 'syncing':
@@ -129,6 +143,19 @@ export default function FilesV1Content() {
 
   const getStatusLabel = (status: string) => {
     return status.charAt(0).toUpperCase() + status.slice(1)
+  }
+
+  const getStatusVariant = (status: string): "default" | "secondary" | "destructive" | "outline" => {
+    switch (status) {
+      case 'processed':
+        return 'default'
+      case 'processing':
+        return 'secondary'
+      case 'failed':
+        return 'destructive'
+      default:
+        return 'outline'
+    }
   }
 
   return (
@@ -174,13 +201,15 @@ export default function FilesV1Content() {
               <CardContent className="p-4">
                 <div className="flex flex-col gap-0">
                   <div className="flex items-center gap-3">
-                    <h3 className="text-2xl font-normal text-foreground">{uploadedCount}</h3>
-                    <Badge variant="outline" className="flex items-center gap-1">
-                      <TrendingUp className="h-3 w-3" />
-                      +4.5%
-                    </Badge>
+                    <h3 className="text-2xl font-normal text-foreground">{processedCount}</h3>
+                    {processedCount > 0 && (
+                      <Badge variant="outline" className="flex items-center gap-1">
+                        <CheckCircle className="h-3 w-3" />
+                        Ready
+                      </Badge>
+                    )}
                   </div>
-                  <p className="text-sm text-muted-foreground">Total Vectors</p>
+                  <p className="text-sm text-muted-foreground">Processed Documents</p>
                 </div>
               </CardContent>
             </Card>
@@ -189,13 +218,15 @@ export default function FilesV1Content() {
               <CardContent className="p-4">
                 <div className="flex flex-col gap-0">
                   <div className="flex items-center gap-3">
-                    <h3 className="text-2xl font-normal text-foreground">30</h3>
-                    <Badge variant="outline" className="flex items-center gap-1">
-                      <TrendingUp className="h-3 w-3" />
-                      +5%
-                    </Badge>
+                    <h3 className="text-2xl font-normal text-foreground">{processingCount}</h3>
+                    {processingCount > 0 && (
+                      <Badge variant="secondary" className="flex items-center gap-1">
+                        <Loader className="h-3 w-3 animate-spin" />
+                        Active
+                      </Badge>
+                    )}
                   </div>
-                  <p className="text-sm text-muted-foreground">Queries answered</p>
+                  <p className="text-sm text-muted-foreground">Processing</p>
                 </div>
               </CardContent>
             </Card>
@@ -204,13 +235,15 @@ export default function FilesV1Content() {
               <CardContent className="p-4">
                 <div className="flex flex-col gap-0">
                   <div className="flex items-center gap-3">
-                    <h3 className="text-2xl font-normal text-foreground">30</h3>
-                    <Badge variant="outline" className="flex items-center gap-1">
-                      <TrendingUp className="h-3 w-3" />
-                      +5%
-                    </Badge>
+                    <h3 className="text-2xl font-normal text-foreground">{failedCount}</h3>
+                    {failedCount > 0 && (
+                      <Badge variant="destructive" className="flex items-center gap-1">
+                        <AlertCircle className="h-3 w-3" />
+                        Failed
+                      </Badge>
+                    )}
                   </div>
-                  <p className="text-sm text-muted-foreground">Avg . Accuracy</p>
+                  <p className="text-sm text-muted-foreground">Failed Documents</p>
                 </div>
               </CardContent>
             </Card>
@@ -248,9 +281,10 @@ export default function FilesV1Content() {
                 </DropdownMenuTrigger>
                 <DropdownMenuContent>
                   <DropdownMenuItem onSelect={() => setStatusFilter('All')}>All Status</DropdownMenuItem>
-                  <DropdownMenuItem onSelect={() => setStatusFilter('uploaded')}>Active</DropdownMenuItem>
-                  <DropdownMenuItem onSelect={() => setStatusFilter('pending')}>Pending</DropdownMenuItem>
-                  <DropdownMenuItem onSelect={() => setStatusFilter('syncing')}>Syncing</DropdownMenuItem>
+                  <DropdownMenuItem onSelect={() => setStatusFilter('processed')}>Processed</DropdownMenuItem>
+                  <DropdownMenuItem onSelect={() => setStatusFilter('processing')}>Processing</DropdownMenuItem>
+                  <DropdownMenuItem onSelect={() => setStatusFilter('failed')}>Failed</DropdownMenuItem>
+                  <DropdownMenuItem onSelect={() => setStatusFilter('uploaded')}>Uploaded</DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>
@@ -335,7 +369,7 @@ export default function FilesV1Content() {
                       </TableCell>
                       <TableCell>{file.filename}</TableCell>
                       <TableCell>
-                        <Badge variant="outline" className="flex items-center gap-1 w-fit">
+                        <Badge variant={getStatusVariant(file.status)} className="flex items-center gap-1 w-fit">
                           {getStatusIcon(file.status)}
                           {getStatusLabel(file.status)}
                         </Badge>
@@ -352,12 +386,19 @@ export default function FilesV1Content() {
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            {file.status === 'uploaded' && (
+                            {(file.status === 'uploaded' || file.status === 'processed') && (
                               <DropdownMenuItem onClick={() => handleDownload(file)}>
                                 <Download className="h-4 w-4 mr-2" />
                                 Download
                               </DropdownMenuItem>
                             )}
+                            <DropdownMenuItem
+                              onClick={() => handleReprocess(file)}
+                              disabled={reprocessFileMutation.isPending}
+                            >
+                              <RefreshCw className={`h-4 w-4 mr-2 ${reprocessFileMutation.isPending ? 'animate-spin' : ''}`} />
+                              Reprocess
+                            </DropdownMenuItem>
                             <DropdownMenuItem>Delete</DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
@@ -403,6 +444,26 @@ export default function FilesV1Content() {
           <div className="flex items-center gap-2 text-green-700">
             <CheckCircle className="h-4 w-4" />
             <span className="text-sm">File uploaded successfully!</span>
+          </div>
+        </div>
+      )}
+
+      {reprocessFileMutation.isError && (
+        <div className="fixed bottom-4 right-4 p-3 bg-destructive/10 border border-destructive/20 rounded-md max-w-sm">
+          <div className="flex items-center gap-2 text-destructive">
+            <AlertCircle className="h-4 w-4" />
+            <span className="text-sm">
+              {reprocessFileMutation.error?.message || 'Reprocess failed'}
+            </span>
+          </div>
+        </div>
+      )}
+
+      {reprocessFileMutation.isSuccess && (
+        <div className="fixed bottom-4 right-4 p-3 bg-green-50 border border-green-200 rounded-md max-w-sm">
+          <div className="flex items-center gap-2 text-green-700">
+            <RefreshCw className="h-4 w-4" />
+            <span className="text-sm">Document sent for reprocessing!</span>
           </div>
         </div>
       )}

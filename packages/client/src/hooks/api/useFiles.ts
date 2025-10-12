@@ -6,9 +6,12 @@ export interface FileDocument {
   filename: string
   size: number
   type: string
-  status: string
+  status: 'processing' | 'processed' | 'failed' | 'uploaded'
   content_type?: 'text' | 'binary' | 'unknown'
-  metadata?: any
+  metadata?: {
+    error?: string
+    [key: string]: any
+  }
   created_at?: Date
   updated_at?: Date
 }
@@ -134,6 +137,22 @@ export function useDeleteFile() {
   return useMutation({
     mutationFn: async (documentId: string) => {
       const response = await fileApi.deleteDocument(documentId)
+      return response
+    },
+    onSuccess: () => {
+      // Invalidate files list to refresh it
+      queryClient.invalidateQueries({ queryKey: fileKeys.lists() })
+    },
+  })
+}
+
+// Reprocess file mutation
+export function useReprocessFile() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async (documentId: string) => {
+      const response = await fileApi.reprocessDocument(documentId)
       return response
     },
     onSuccess: () => {

@@ -2,6 +2,7 @@ import amqp from 'amqplib';
 import { pool, withOrgContext } from '../config/database.js';
 import { logError, PerformanceTimer, queueLogger } from '../config/logger.js';
 import { DataSourceStatusConsumer } from '../consumers/DataSourceStatusConsumer.js';
+import { DocumentProcessingConsumer } from '../consumers/DocumentProcessingConsumer.js';
 import { getSSEService } from './sse.js';
 
 export class RabbitMQService {
@@ -9,10 +10,12 @@ export class RabbitMQService {
   private channel: any = null;
   private readonly queueName: string;
   private dataSourceStatusConsumer: DataSourceStatusConsumer;
+  private documentProcessingConsumer: DocumentProcessingConsumer;
 
   constructor() {
     this.queueName = process.env.QUEUE_NAME || 'chat.responses';
     this.dataSourceStatusConsumer = new DataSourceStatusConsumer();
+    this.documentProcessingConsumer = new DocumentProcessingConsumer();
   }
 
   async connect(): Promise<void> {
@@ -85,6 +88,9 @@ export class RabbitMQService {
 
     // Start unified data source status consumer
     await this.dataSourceStatusConsumer.startConsumer(this.channel);
+
+    // Start document processing status consumer
+    await this.documentProcessingConsumer.startConsumer(this.channel);
   }
 
   private async processMessage(payload: any): Promise<void> {
