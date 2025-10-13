@@ -13,7 +13,7 @@ on:
       - '.gitignore'
 
 concurrency:
-  group: ${{ github.ref_name }}-qawolf
+  group: ${{ github.ref_name }}-staging
   cancel-in-progress: true
 
 env:
@@ -332,10 +332,11 @@ jobs:
             "hosting_service": "GitHub",
             "sha": "${{ github.event.pull_request.head.sha }}",
             "pull_request_number": "${{ github.event.pull_request.number }}",
-            "deployment_type": "deployment",
-            "variables": {
-              "DEFAULT_URL": "https://onboarding.resolve.io"
+            "deployment_type": "deployment"
           }'
+          #   "variables": {
+          #     "DEFAULT_URL": "https://onboarding.resolve.io"
+          # }'
   
   # # Trigger QA Wolf tests           
   # trigger-qawolf:
