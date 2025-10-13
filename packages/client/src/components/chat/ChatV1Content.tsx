@@ -6,486 +6,534 @@
  * support, better accessibility, and advanced features.
  */
 
-'use client'
+"use client";
 
-import { useCallback, Fragment, useState, useRef } from 'react'
-import { toast } from 'sonner'
-import type { ChatStatus } from 'ai'
+import type { ChatStatus } from "ai";
+import { CheckIcon, CopyIcon, PaperclipIcon } from "lucide-react";
+import { Fragment, useCallback, useRef, useState } from "react";
+import { toast } from "sonner";
+import { Action, Actions } from "@/components/ai-elements/actions";
 import {
-  Conversation,
-  ConversationContent,
-  ConversationScrollButton,
-  ConversationEmptyState,
-} from '@/components/ai-elements/conversation'
-import { Message, MessageContent } from '@/components/ai-elements/message'
+	Conversation,
+	ConversationContent,
+	ConversationEmptyState,
+	ConversationScrollButton,
+} from "@/components/ai-elements/conversation";
+import { Loader } from "@/components/ai-elements/loader";
+import { Message, MessageContent } from "@/components/ai-elements/message";
 import {
-  PromptInput,
-  PromptInputActionAddAttachments,
-  PromptInputActionMenu,
-  PromptInputActionMenuContent,
-  PromptInputActionMenuTrigger,
-  PromptInputAttachment,
-  PromptInputAttachments,
-  PromptInputBody,
-  PromptInputButton,
-  type PromptInputMessage,
-  PromptInputSubmit,
-  PromptInputTextarea,
-  PromptInputToolbar,
-  PromptInputTools,
-} from '@/components/ai-elements/prompt-input'
-import { Actions, Action } from '@/components/ai-elements/actions'
-import { Response } from '@/components/ai-elements/response'
-import { Loader } from '@/components/ai-elements/loader'
-import { Citations } from '@/components/citations'
-import { ResponseWithInlineCitations } from './ResponseWithInlineCitations'
+	PromptInput,
+	PromptInputActionAddAttachments,
+	PromptInputActionMenu,
+	PromptInputActionMenuContent,
+	PromptInputActionMenuTrigger,
+	PromptInputAttachment,
+	PromptInputAttachments,
+	PromptInputBody,
+	PromptInputButton,
+	type PromptInputMessage,
+	PromptInputSubmit,
+	PromptInputTextarea,
+	PromptInputToolbar,
+	PromptInputTools,
+} from "@/components/ai-elements/prompt-input";
 import {
-  Task,
-  TaskContent,
-  TaskItem,
-  TaskTrigger,
-} from '@/components/ai-elements/task'
+	Reasoning,
+	ReasoningContent,
+	ReasoningTrigger,
+} from "@/components/ai-elements/reasoning";
+import { Response } from "@/components/ai-elements/response";
 import {
-  Reasoning,
-  ReasoningContent,
-  ReasoningTrigger,
-} from '@/components/ai-elements/reasoning'
-import { CopyIcon, CheckIcon, PaperclipIcon } from 'lucide-react'
-import type { RitaChatState } from '@/hooks/useRitaChat'
+	Task,
+	TaskContent,
+	TaskItem,
+	TaskTrigger,
+} from "@/components/ai-elements/task";
+import { Citations } from "@/components/citations";
+import { useChatPagination } from "@/hooks/useChatPagination";
+import type { RitaChatState } from "@/hooks/useRitaChat";
 import type {
-  Message as RitaMessage,
-  SimpleChatMessage,
-  GroupedChatMessage,
-} from '@/stores/conversationStore'
-import { useConversationStore } from '@/stores/conversationStore'
-import { useChatPagination } from '@/hooks/useChatPagination'
+	GroupedChatMessage,
+	Message as RitaMessage,
+	SimpleChatMessage,
+} from "@/stores/conversationStore";
+import { useConversationStore } from "@/stores/conversationStore";
+import { ResponseWithInlineCitations } from "./ResponseWithInlineCitations";
 
 export interface ChatV1ContentProps {
-  // Message state
-  messages: RitaChatState['messages']
-  messagesLoading: RitaChatState['messagesLoading']
-  isSending: RitaChatState['isSending']
-  currentConversationId: RitaChatState['currentConversationId']
+	// Message state
+	messages: RitaChatState["messages"];
+	messagesLoading: RitaChatState["messagesLoading"];
+	isSending: RitaChatState["isSending"];
+	currentConversationId: RitaChatState["currentConversationId"];
 
-  // UI state
-  messageValue: RitaChatState['messageValue']
+	// UI state
+	messageValue: RitaChatState["messageValue"];
 
-  // Actions
-  handleSendMessage: RitaChatState['handleSendMessage']
-  handleMessageChange: RitaChatState['handleMessageChange']
+	// Actions
+	handleSendMessage: RitaChatState["handleSendMessage"];
+	handleMessageChange: RitaChatState["handleMessageChange"];
 
-  // File upload (for chat messages)
-  handleFileUpload: RitaChatState['handleFileUpload']
-  uploadStatus: RitaChatState['uploadStatus']
+	// File upload (for chat messages)
+	handleFileUpload: RitaChatState["handleFileUpload"];
+	uploadStatus: RitaChatState["uploadStatus"];
 
-  // Refs
-  fileInputRef: RitaChatState['fileInputRef']
+	// Refs
+	fileInputRef: RitaChatState["fileInputRef"];
 }
 
 /**
  * Map Rita's message status to ai-elements ChatStatus
  */
 const mapRitaStatusToChatStatus = (
-  isSending: boolean,
-  isUploading: boolean,
-  messages: RitaMessage[]
+	isSending: boolean,
+	isUploading: boolean,
+	messages: RitaMessage[],
 ): ChatStatus => {
-  if (isUploading || isSending) {
-    return 'submitted'
-  }
+	if (isUploading || isSending) {
+		return "submitted";
+	}
 
-  // Check if any message is in processing state
-  const hasProcessingMessage = messages.some(msg =>
-    msg.status === 'processing' || msg.status === 'pending'
-  )
+	// Check if any message is in processing state
+	const hasProcessingMessage = messages.some(
+		(msg) => msg.status === "processing" || msg.status === "pending",
+	);
 
-  if (hasProcessingMessage) {
-    return 'streaming'
-  }
+	if (hasProcessingMessage) {
+		return "streaming";
+	}
 
-  // Check if we're waiting for AI response after user sent a message
-  const lastMessage = messages[messages.length - 1]
-  if (lastMessage && lastMessage.role === 'user') {
-    // Find if there are any assistant messages after this user message
-    const hasAssistantResponseAfter = messages.some(msg =>
-      msg.role === 'assistant' &&
-      msg.timestamp > lastMessage.timestamp
-    )
+	// Check if we're waiting for AI response after user sent a message
+	const lastMessage = messages[messages.length - 1];
+	if (lastMessage && lastMessage.role === "user") {
+		// Find if there are any assistant messages after this user message
+		const hasAssistantResponseAfter = messages.some(
+			(msg) =>
+				msg.role === "assistant" && msg.timestamp > lastMessage.timestamp,
+		);
 
+		// If no assistant response yet and user message is sent, keep loader
+		if (!hasAssistantResponseAfter && lastMessage.status === "sent") {
+			return "streaming"; // Show loader while waiting for AI response
+		}
+	}
 
-    // If no assistant response yet and user message is sent, keep loader
-    if (!hasAssistantResponseAfter && lastMessage.status === 'sent') {
-      return 'streaming' // Show loader while waiting for AI response
-    }
-  }
+	// Check if last assistant message indicates turn is not complete
+	if (lastMessage && lastMessage.role === "assistant") {
+		const turnComplete = lastMessage.metadata?.turn_complete;
+		// If turn_complete is explicitly false, show loader (more messages coming)
+		if (turnComplete === false) {
+			return "streaming";
+		}
+	}
 
-  // Check if last assistant message indicates turn is not complete
-  if (lastMessage && lastMessage.role === 'assistant') {
-    const turnComplete = lastMessage.metadata?.turn_complete
-    // If turn_complete is explicitly false, show loader (more messages coming)
-    if (turnComplete === false) {
-      return 'streaming'
-    }
-  }
+	// Check if last message failed
+	if (lastMessage && lastMessage.status === "failed") {
+		return "error";
+	}
 
-  // Check if last message failed
-  if (lastMessage && lastMessage.status === 'failed') {
-    return 'error'
-  }
-
-  return 'ready'
-}
+	return "ready";
+};
 
 // Helper function to get grouped content for copying
 const getGroupedContent = (message: GroupedChatMessage): string => {
-  return message.parts.map(part => part.message).join('\n\n')
-}
+	return message.parts.map((part) => part.message).join("\n\n");
+};
 
 // Helper function to check if a grouped message has copyable content
 const hasGroupedCopyableContent = (message: GroupedChatMessage): boolean => {
-  return message.parts.some(part => part.message && part.message.trim().length > 0)
-}
+	return message.parts.some(
+		(part) => part.message && part.message.trim().length > 0,
+	);
+};
 
 // Helper function to check if a simple message has copyable content
 const hasSimpleCopyableContent = (message: SimpleChatMessage): boolean => {
-  return Boolean(message.message && message.message.trim().length > 0)
-}
+	return Boolean(message.message && message.message.trim().length > 0);
+};
 
 // Component for rendering grouped messages
-function GroupedMessage({ message, onCopy, isCopied }: {
-  message: GroupedChatMessage,
-  onCopy: (text: string, messageId: string) => void,
-  isCopied: boolean
+function GroupedMessage({
+	message,
+	onCopy,
+	isCopied,
+}: {
+	message: GroupedChatMessage;
+	onCopy: (text: string, messageId: string) => void;
+	isCopied: boolean;
 }) {
-  return (
-    <Message from={message.role}>
-      <div className="flex flex-col">
-        <MessageContent variant="flat">
-          {message.parts.map((part, index) => (
-            <Fragment key={part.id}>
-              {/* Render reasoning if present */}
-              {part.metadata?.reasoning && (
-                <Reasoning isStreaming={Boolean(part.metadata.reasoning.streaming)}>
-                  <ReasoningTrigger title={part.metadata.reasoning.title} />
-                  <ReasoningContent>{part.metadata.reasoning.content}</ReasoningContent>
-                </Reasoning>
-              )}
+	return (
+		<Message from={message.role}>
+			<div className="flex flex-col w-full">
+				<MessageContent variant="flat">
+					{message.parts.map((part, index) => (
+						<Fragment key={part.id}>
+							{/* Render reasoning if present */}
+							{part.metadata?.reasoning && (
+								<Reasoning
+									isStreaming={Boolean(part.metadata.reasoning.streaming)}
+								>
+									<ReasoningTrigger title={part.metadata.reasoning.title} />
+									<ReasoningContent>
+										{part.metadata.reasoning.content}
+									</ReasoningContent>
+								</Reasoning>
+							)}
 
-              {/* Render text content if present */}
-              {(() => {
-                // Check if the NEXT part is sources (for potential inline citations)
-                const nextPart = message.parts[index + 1]
-                const nextHasSources = nextPart?.metadata?.sources && nextPart.metadata.sources.length > 0
+							{/* Render text content if present */}
+							{(() => {
+								// Check if the NEXT part is sources (for potential inline citations)
+								const nextPart = message.parts[index + 1];
+								const nextHasSources =
+									nextPart?.metadata?.sources &&
+									nextPart.metadata.sources.length > 0;
 
-                // Use inline citations if next part has sources and this text contains markers
-                if (part.message && part.message.trim().length > 0) {
-                  if (nextHasSources && part.message.includes('[')) {
-                    return (
-                      <ResponseWithInlineCitations
-                        sources={nextPart.metadata?.sources || []}
-                        messageId={part.id}
-                      >
-                        {part.message}
-                      </ResponseWithInlineCitations>
-                    )
-                  }
-                  return <Response>{part.message}</Response>
-                }
-                return null
-              })()}
+								// Use inline citations if next part has sources and this text contains markers
+								if (part.message && part.message.trim().length > 0) {
+									if (nextHasSources && part.message.includes("[")) {
+										return (
+											<ResponseWithInlineCitations
+												sources={nextPart.metadata?.sources || []}
+												messageId={part.id}
+											>
+												{part.message}
+											</ResponseWithInlineCitations>
+										);
+									}
+									return <Response>{part.message}</Response>;
+								}
+								return null;
+							})()}
 
-              {/* Render sources if present */}
-              {(() => {
-                // Check if the PREVIOUS part was text with inline citation markers
-                const prevPart = message.parts[index - 1]
-                const prevHasMarkers = prevPart && !prevPart.metadata?.sources &&
-                  prevPart.message && prevPart.message.includes('[')
+							{/* Render sources if present */}
+							{(() => {
+								// Check if the PREVIOUS part was text with inline citation markers
+								const prevPart = message.parts[index - 1];
+								const prevHasMarkers =
+									prevPart &&
+									!prevPart.metadata?.sources &&
+									prevPart.message &&
+									prevPart.message.includes("[");
 
-                // Skip rendering sources separately if they were already rendered inline
-                if (part.metadata?.sources && !prevHasMarkers) {
-                  return (
-                    <Citations
-                      sources={part.metadata.sources}
-                      messageId={part.id}
-                      variant={part.metadata?.citation_variant}
-                    />
-                  )
-                }
-                return null
-              })()}
+								// Skip rendering sources separately if they were already rendered inline
+								if (part.metadata?.sources && !prevHasMarkers) {
+									return (
+										<Citations
+											sources={part.metadata.sources}
+											messageId={part.id}
+											variant={part.metadata?.citation_variant}
+										/>
+									);
+								}
+								return null;
+							})()}
 
-              {/* Render tasks if present */}
-              {part.metadata?.tasks && (
-                <div className="mt-4 space-y-2">
-                  {part.metadata.tasks.map((task: any, i: number) => (
-                    <Task key={i} defaultOpen={task.defaultOpen || i === 0}>
-                      <TaskTrigger title={task.title} />
-                      <TaskContent>
-                        {task.items.map((item: string, j: number) => (
-                          <TaskItem key={j}>{item}</TaskItem>
-                        ))}
-                      </TaskContent>
-                    </Task>
-                  ))}
-                </div>
-              )}
-            </Fragment>
-          ))}
-        </MessageContent>
+							{/* Render tasks if present */}
+							{part.metadata?.tasks && (
+								<div className="mt-4 space-y-2">
+									{part.metadata.tasks.map((task: any, i: number) => (
+										<Task key={i} defaultOpen={task.defaultOpen || i === 0}>
+											<TaskTrigger title={task.title} />
+											<TaskContent>
+												{task.items.map((item: string, j: number) => (
+													<TaskItem key={j}>{item}</TaskItem>
+												))}
+											</TaskContent>
+										</Task>
+									))}
+								</div>
+							)}
+						</Fragment>
+					))}
+				</MessageContent>
 
-        {/* Show copy action only if there's text content to copy */}
-        {hasGroupedCopyableContent(message) && (
-          <Actions className="mt-2">
-            <Action onClick={() => onCopy(getGroupedContent(message), message.id)} tooltip="Copy message">
-              {isCopied ? <CheckIcon className="size-3" /> : <CopyIcon className="size-3" />}
-            </Action>
-          </Actions>
-        )}
-      </div>
-    </Message>
-  )
+				{/* Show copy action only if there's text content to copy */}
+				{hasGroupedCopyableContent(message) && (
+					<Actions className="mt-2">
+						<Action
+							onClick={() => onCopy(getGroupedContent(message), message.id)}
+							tooltip="Copy message"
+						>
+							{isCopied ? (
+								<CheckIcon className="size-3" />
+							) : (
+								<CopyIcon className="size-3" />
+							)}
+						</Action>
+					</Actions>
+				)}
+			</div>
+		</Message>
+	);
 }
 
 // Component for simple standalone messages
-function SimpleMessage({ message, onCopy, isCopied }: {
-  message: SimpleChatMessage,
-  onCopy: (text: string, messageId: string) => void,
-  isCopied: boolean
+function SimpleMessage({
+	message,
+	onCopy,
+	isCopied,
+}: {
+	message: SimpleChatMessage;
+	onCopy: (text: string, messageId: string) => void;
+	isCopied: boolean;
 }) {
-  return (
-    <Message from={message.role}>
-      <div className="flex flex-col">
-        <MessageContent variant={message.role === 'assistant' ? 'flat' : 'contained'}>
-          <Response>{message.message}</Response>
-        </MessageContent>
+	return (
+		<Message from={message.role}>
+			<div className="flex flex-col">
+				<MessageContent
+					variant={message.role === "assistant" ? "flat" : "contained"}
+				>
+					<Response>{message.message}</Response>
+				</MessageContent>
 
-        {/* Show copy action only for assistant messages with text content */}
-        {message.role === 'assistant' && hasSimpleCopyableContent(message) && (
-          <Actions className="mt-2">
-            <Action onClick={() => onCopy(message.message, message.id)} tooltip="Copy message">
-              {isCopied ? <CheckIcon className="size-3" /> : <CopyIcon className="size-3" />}
-            </Action>
-          </Actions>
-        )}
-      </div>
-    </Message>
-  )
+				{/* Show copy action only for assistant messages with text content */}
+				{message.role === "assistant" && hasSimpleCopyableContent(message) && (
+					<Actions className="mt-2">
+						<Action
+							onClick={() => onCopy(message.message, message.id)}
+							tooltip="Copy message"
+						>
+							{isCopied ? (
+								<CheckIcon className="size-3" />
+							) : (
+								<CopyIcon className="size-3" />
+							)}
+						</Action>
+					</Actions>
+				)}
+			</div>
+		</Message>
+	);
 }
 
 export default function ChatV1Content({
-  messages,
-  messagesLoading,
-  isSending,
-  currentConversationId,
-  messageValue,
-  handleSendMessage,
-  handleMessageChange,
-  handleFileUpload,
-  uploadStatus,
-  fileInputRef,
+	messages,
+	messagesLoading,
+	isSending,
+	currentConversationId,
+	messageValue,
+	handleSendMessage,
+	handleMessageChange,
+	handleFileUpload,
+	uploadStatus,
+	fileInputRef,
 }: ChatV1ContentProps) {
+	// Copy state tracking for icon feedback
+	const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
 
-  // Copy state tracking for icon feedback
-  const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null)
+	// Get grouped messages from store instead of flat messages
+	const { chatMessages } = useConversationStore();
 
-  // Get grouped messages from store instead of flat messages
-  const { chatMessages } = useConversationStore()
+	// Scroll container ref for pagination (mutable to allow assignment from contextRef)
+	const scrollContainerRef = useRef<HTMLElement | null>(null);
 
-  // Scroll container ref for pagination (mutable to allow assignment from contextRef)
-  const scrollContainerRef = useRef<HTMLElement | null>(null)
+	// Callback to capture scrollRef from StickToBottom's contextRef
+	const handleStickToBottomContext = useCallback((context: any) => {
+		if (context?.scrollRef?.current) {
+			scrollContainerRef.current = context.scrollRef.current;
+		}
+	}, []);
 
-  // Callback to capture scrollRef from StickToBottom's contextRef
-  const handleStickToBottomContext = useCallback((context: any) => {
-    if (context?.scrollRef?.current) {
-      scrollContainerRef.current = context.scrollRef.current
-    }
-  }, [])
+	// Pagination hook for infinite scroll
+	const { sentinelRef, isLoadingMore, hasMore, hasPaginationAttempted } =
+		useChatPagination({
+			conversationId: currentConversationId,
+			scrollContainerRef,
+			enabled: !!currentConversationId && chatMessages.length > 0,
+		});
 
-  // Pagination hook for infinite scroll
-  const { sentinelRef, isLoadingMore, hasMore, hasPaginationAttempted } = useChatPagination({
-    conversationId: currentConversationId,
-    scrollContainerRef,
-    enabled: !!currentConversationId && chatMessages.length > 0,
-  })
+	// Determine chat status
+	const chatStatus = mapRitaStatusToChatStatus(
+		isSending,
+		uploadStatus.isUploading,
+		messages,
+	);
 
-  // Determine chat status
-  const chatStatus = mapRitaStatusToChatStatus(isSending, uploadStatus.isUploading, messages)
+	// Handle form submission from PromptInput
+	const handlePromptSubmit = useCallback(
+		async (message: PromptInputMessage) => {
+			const hasText = Boolean(message.text);
+			const hasAttachments = Boolean(message.files?.length);
 
-  // Handle form submission from PromptInput
-  const handlePromptSubmit = useCallback(async (message: PromptInputMessage) => {
-    const hasText = Boolean(message.text)
-    const hasAttachments = Boolean(message.files?.length)
+			if (!(hasText || hasAttachments)) {
+				return;
+			}
 
-    if (!(hasText || hasAttachments)) {
-      return
-    }
+			// If we have text, update Rita's message value
+			if (message.text) {
+				handleMessageChange(message.text);
+			}
 
-    // If we have text, update Rita's message value
-    if (message.text) {
-      handleMessageChange(message.text)
-    }
+			// Handle file uploads if present
+			if (message.files && message.files.length > 0) {
+				// Convert FileUIPart back to File for Rita's handler
+				// Note: This is a simplified approach - in a real implementation,
+				// you might need to handle the file conversion differently
+				const fileEvent = {
+					target: {
+						files: message.files as any, // Type assertion for compatibility
+					},
+				} as React.ChangeEvent<HTMLInputElement>;
 
-    // Handle file uploads if present
-    if (message.files && message.files.length > 0) {
-      // Convert FileUIPart back to File for Rita's handler
-      // Note: This is a simplified approach - in a real implementation,
-      // you might need to handle the file conversion differently
-      const fileEvent = {
-        target: {
-          files: message.files as any // Type assertion for compatibility
-        }
-      } as React.ChangeEvent<HTMLInputElement>
+				handleFileUpload(fileEvent);
+			}
 
-      handleFileUpload(fileEvent)
-    }
+			// Use setTimeout to ensure state is updated before sending
+			setTimeout(async () => {
+				await handleSendMessage();
+			}, 0);
+		},
+		[handleMessageChange, handleSendMessage, handleFileUpload],
+	);
 
-    // Use setTimeout to ensure state is updated before sending
-    setTimeout(async () => {
-      await handleSendMessage()
-    }, 0)
-  }, [handleMessageChange, handleSendMessage, handleFileUpload])
+	// Handle copy action with visual feedback
+	const handleCopy = useCallback(async (text: string, messageId: string) => {
+		try {
+			await navigator.clipboard.writeText(text);
+			setCopiedMessageId(messageId);
+			toast.success("Message copied to clipboard");
+			// Reset copied state after 2 seconds (same as ai-elements pattern)
+			setTimeout(() => setCopiedMessageId(null), 2000);
+		} catch (_error) {
+			toast.error("Failed to copy message");
+		}
+	}, []);
 
-  // Handle copy action with visual feedback
-  const handleCopy = useCallback(async (text: string, messageId: string) => {
-    try {
-      await navigator.clipboard.writeText(text)
-      setCopiedMessageId(messageId)
-      toast.success('Message copied to clipboard')
-      // Reset copied state after 2 seconds (same as ai-elements pattern)
-      setTimeout(() => setCopiedMessageId(null), 2000)
-    } catch (_error) {
-      toast.error('Failed to copy message')
-    }
-  }, [])
+	// Handle direct attachment button click
+	const handleAttachmentClick = useCallback(() => {
+		fileInputRef.current?.click();
+	}, [fileInputRef]);
 
-  // Handle direct attachment button click
-  const handleAttachmentClick = useCallback(() => {
-    fileInputRef.current?.click()
-  }, [fileInputRef])
+	return (
+		<div className="h-full flex flex-col">
+			<Conversation className="flex-1" contextRef={handleStickToBottomContext}>
+				<ConversationContent className="px-6 py-6">
+					<div className="max-w-4xl mx-auto">
+						{messagesLoading ? (
+							<div className="flex items-center justify-center h-full">
+								<Loader size={24} />
+							</div>
+						) : !currentConversationId || chatMessages.length === 0 ? (
+							<div className="min-h-[60vh] flex items-center justify-center">
+								<ConversationEmptyState
+									title="Ask Rita"
+									description="Diagnose and resolve issues, then create automations to speed up future remediation"
+								/>
+							</div>
+						) : (
+							<>
+								{/* Intersection Observer sentinel for infinite scroll */}
+								<div ref={sentinelRef} className="h-1" />
 
+								{/* Loading indicator for pagination */}
+								{isLoadingMore && (
+									<div className="flex justify-center py-4">
+										<Loader size={16} />
+										<span className="ml-2 text-sm text-gray-500">
+											Loading older messages...
+										</span>
+									</div>
+								)}
 
-  return (
-    <div className="h-full flex flex-col">
-      <Conversation className="flex-1" contextRef={handleStickToBottomContext}>
-        <ConversationContent className="px-6 py-6">
-          <div className="max-w-4xl mx-auto">
-          {messagesLoading ? (
-            <div className="flex items-center justify-center h-full">
-              <Loader size={24} />
-            </div>
-          ) : !currentConversationId || chatMessages.length === 0 ? (
-            <div className="min-h-[60vh] flex items-center justify-center">
-              <ConversationEmptyState
-                title="Ask Rita"
-                description="Diagnose and resolve issues, then create automations to speed up future remediation"
-              />
-            </div>
-          ) : (
-            <>
-              {/* Intersection Observer sentinel for infinite scroll */}
-              <div ref={sentinelRef} className="h-1" />
+								{/* "Beginning of conversation" indicator - only show after pagination attempted */}
+								{!hasMore &&
+									!isLoadingMore &&
+									chatMessages.length > 0 &&
+									hasPaginationAttempted && (
+										<div className="flex justify-center py-4">
+											<span className="text-sm text-gray-400">
+												Beginning of conversation
+											</span>
+										</div>
+									)}
 
-              {/* Loading indicator for pagination */}
-              {isLoadingMore && (
-                <div className="flex justify-center py-4">
-                  <Loader size={16} />
-                  <span className="ml-2 text-sm text-gray-500">Loading older messages...</span>
-                </div>
-              )}
+								{/* Render grouped chat messages */}
+								{chatMessages.map((chatMessage) => (
+									<Fragment key={chatMessage.id}>
+										{chatMessage.isGroup ? (
+											<GroupedMessage
+												message={chatMessage as GroupedChatMessage}
+												onCopy={handleCopy}
+												isCopied={copiedMessageId === chatMessage.id}
+											/>
+										) : (
+											<SimpleMessage
+												message={chatMessage as SimpleChatMessage}
+												onCopy={handleCopy}
+												isCopied={copiedMessageId === chatMessage.id}
+											/>
+										)}
+									</Fragment>
+								))}
 
-              {/* "Beginning of conversation" indicator - only show after pagination attempted */}
-              {!hasMore && !isLoadingMore && chatMessages.length > 0 && hasPaginationAttempted && (
-                <div className="flex justify-center py-4">
-                  <span className="text-sm text-gray-400">Beginning of conversation</span>
-                </div>
-              )}
+								{/* Show loader when processing */}
+								{(chatStatus === "submitted" || chatStatus === "streaming") && (
+									<Loader />
+								)}
+							</>
+						)}
+					</div>
+				</ConversationContent>
+				<ConversationScrollButton />
+			</Conversation>
 
-              {/* Render grouped chat messages */}
-              {chatMessages.map((chatMessage) => (
-                <Fragment key={chatMessage.id}>
-                  {chatMessage.isGroup ? (
-                    <GroupedMessage
-                      message={chatMessage as GroupedChatMessage}
-                      onCopy={handleCopy}
-                      isCopied={copiedMessageId === chatMessage.id}
-                    />
-                  ) : (
-                    <SimpleMessage
-                      message={chatMessage as SimpleChatMessage}
-                      onCopy={handleCopy}
-                      isCopied={copiedMessageId === chatMessage.id}
-                    />
-                  )}
-                </Fragment>
-              ))}
+			{/* Modern input using PromptInput */}
+			<div className="px-6 py-4 xborder-t border-gray-200 bg-white">
+				<div className="max-w-4xl mx-auto">
+					<PromptInput
+						onSubmit={handlePromptSubmit}
+						globalDrop
+						multiple
+						accept="image/*,.pdf,.txt,.md,.doc,.docx,.xls,.xlsx"
+						maxFiles={5}
+						maxFileSize={10 * 1024 * 1024} // 10MB
+					>
+						<PromptInputBody>
+							<PromptInputAttachments>
+								{(attachment) => <PromptInputAttachment data={attachment} />}
+							</PromptInputAttachments>
+							<PromptInputTextarea
+								onChange={(e) => handleMessageChange(e.target.value)}
+								value={messageValue}
+								placeholder="Ask me anything..."
+							/>
+						</PromptInputBody>
+						<PromptInputToolbar>
+							<PromptInputTools>
+								<PromptInputButton
+									onClick={handleAttachmentClick}
+									variant="ghost"
+									disabled={uploadStatus.isUploading}
+								>
+									<PaperclipIcon size={16} />
+									<span className="sr-only">Add attachment</span>
+								</PromptInputButton>
+								<PromptInputActionMenu>
+									<PromptInputActionMenuTrigger />
+									<PromptInputActionMenuContent>
+										<PromptInputActionAddAttachments />
+									</PromptInputActionMenuContent>
+								</PromptInputActionMenu>
+							</PromptInputTools>
+							<PromptInputSubmit
+								disabled={!messageValue.trim() && chatStatus !== "streaming"}
+								status={chatStatus}
+							/>
+						</PromptInputToolbar>
+					</PromptInput>
+				</div>
+			</div>
 
-              {/* Show loader when processing */}
-              {(chatStatus === 'submitted' || chatStatus === 'streaming') && <Loader />}
-            </>
-          )}
-          </div>
-        </ConversationContent>
-        <ConversationScrollButton />
-      </Conversation>
-
-      {/* Modern input using PromptInput */}
-      <div className="px-6 py-4 xborder-t border-gray-200 bg-white">
-
-        <div className="max-w-4xl mx-auto">
-          <PromptInput
-            onSubmit={handlePromptSubmit}
-            globalDrop
-            multiple
-            accept="image/*,.pdf,.txt,.md,.doc,.docx,.xls,.xlsx"
-            maxFiles={5}
-            maxFileSize={10 * 1024 * 1024} // 10MB
-          >
-            <PromptInputBody>
-              <PromptInputAttachments>
-                {(attachment) => <PromptInputAttachment data={attachment} />}
-              </PromptInputAttachments>
-              <PromptInputTextarea
-                onChange={(e) => handleMessageChange(e.target.value)}
-                value={messageValue}
-                placeholder="Ask me anything..."
-              />
-            </PromptInputBody>
-            <PromptInputToolbar>
-              <PromptInputTools>
-                <PromptInputButton
-                  onClick={handleAttachmentClick}
-                  variant="ghost"
-                  disabled={uploadStatus.isUploading}
-                >
-                  <PaperclipIcon size={16} />
-                  <span className="sr-only">Add attachment</span>
-                </PromptInputButton>
-                <PromptInputActionMenu>
-                  <PromptInputActionMenuTrigger />
-                  <PromptInputActionMenuContent>
-                    <PromptInputActionAddAttachments />
-                  </PromptInputActionMenuContent>
-                </PromptInputActionMenu>
-              </PromptInputTools>
-              <PromptInputSubmit
-                disabled={!messageValue.trim() && chatStatus !== 'streaming'}
-                status={chatStatus}
-              />
-            </PromptInputToolbar>
-          </PromptInput>
-        </div>
-      </div>
-
-      {/* Hidden file input for compatibility with existing Rita handlers */}
-      <input
-        ref={fileInputRef}
-        type="file"
-        className="hidden"
-        onChange={handleFileUpload}
-        accept=".jpg,.jpeg,.png,.gif,.webp,.pdf,.txt,.md,.doc,.docx,.xls,.xlsx"
-        disabled={uploadStatus.isUploading}
-        multiple={false}
-      />
-    </div>
-  )
+			{/* Hidden file input for compatibility with existing Rita handlers */}
+			<input
+				ref={fileInputRef}
+				type="file"
+				className="hidden"
+				onChange={handleFileUpload}
+				accept=".jpg,.jpeg,.png,.gif,.webp,.pdf,.txt,.md,.doc,.docx,.xls,.xlsx"
+				disabled={uploadStatus.isUploading}
+				multiple={false}
+			/>
+		</div>
+	);
 }
