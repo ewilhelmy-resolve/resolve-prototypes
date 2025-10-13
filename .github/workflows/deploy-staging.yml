@@ -320,17 +320,15 @@ jobs:
     name: Notify QA Wolf
     runs-on: ubuntu-latest
     steps:
-      - name: Send API POST request
-        run: |
-          curl -H "Authorization: ${{ secrets.RITAGO_QAWOLF_API_KEY }}" \
-          -H "Content-Type: application/json" https://app.qawolf.com/api/webhooks/deploy_success \
-          -d '{
-            "branch": "${{ github.head_ref }}",
-            "hosting_service": "GitHub",
-            "sha": "${{ github.event.pull_request.head.sha }}",
-            "pull_request_number": "${{ github.event.pull_request.number }}",
-            "deployment_type": "deployment"
-          }'
+      - name: Notify QA Wolf of deployment
+        uses: qawolf/notify-qawolf-on-deploy-action@v1
+        env:
+          GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
+        with:
+          # Required: QA Wolf API key from workspace settings page
+          qawolf-api-key: "${{ secrets.RITAGO_QAWOLF_API_KEY }}"
+          # Deployment type to match specific triggers
+          deployment-type: "deployment"
 
   
   # # Trigger QA Wolf tests           
