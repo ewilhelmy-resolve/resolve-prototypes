@@ -7,6 +7,7 @@ import {
 	TrendingUp,
 } from "lucide-react";
 import { useState } from "react";
+import { BulkActions } from "@/components/BulkActions";
 import ConfirmDialog from "@/components/dialogs/ConfirmDialog";
 import Header from "@/components/Header";
 import { Badge } from "@/components/ui/badge";
@@ -149,7 +150,7 @@ export default function SettingsUsers() {
 				"Updating user:",
 				pendingRoleChange.userId,
 				"with role:",
-				pendingRoleChange.newRole
+				pendingRoleChange.newRole,
 			);
 			// TODO: Implement actual user update logic
 			setPendingRoleChange(null);
@@ -159,6 +160,11 @@ export default function SettingsUsers() {
 
 	const handleConfirmDelete = () => {
 		console.log("Deleting user:", deletingUser?.id);
+		// TODO: Implement actual user deletion logic
+	};
+
+	const handleDeleteUsers = () => {
+		console.log("Deleting users:", selectedUsers);
 		// TODO: Implement actual user deletion logic
 	};
 
@@ -215,24 +221,33 @@ export default function SettingsUsers() {
 				</div>
 
 				<div className="flex flex-col gap-5">
-					<div className="flex justify-between items-center py-4">
-						<Input placeholder="Search users....." className="max-w-sm" />
-						<div className="flex items-center gap-4">
-							<DropdownMenu>
-								<DropdownMenuTrigger asChild>
-									<Button variant="outline">
-										Status: All
-										<ChevronDown className="h-4 w-4" />
-									</Button>
-								</DropdownMenuTrigger>
-								<DropdownMenuContent>
-									<DropdownMenuItem>All</DropdownMenuItem>
-									<DropdownMenuItem>Active</DropdownMenuItem>
-									<DropdownMenuItem>Invite pending</DropdownMenuItem>
-								</DropdownMenuContent>
-							</DropdownMenu>
+					{selectedUsers.length === 0 ? (
+						<div className="flex justify-between items-center py-4">
+							<Input placeholder="Search users....." className="max-w-sm" />
+							<div className="flex items-center gap-4">
+								<DropdownMenu>
+									<DropdownMenuTrigger asChild>
+										<Button variant="outline">
+											Status: All
+											<ChevronDown className="h-4 w-4" />
+										</Button>
+									</DropdownMenuTrigger>
+									<DropdownMenuContent>
+										<DropdownMenuItem>All</DropdownMenuItem>
+										<DropdownMenuItem>Active</DropdownMenuItem>
+										<DropdownMenuItem>Invite pending</DropdownMenuItem>
+									</DropdownMenuContent>
+								</DropdownMenu>
+							</div>
 						</div>
-					</div>
+					) : (
+						<BulkActions
+							selectedItems={selectedUsers}
+							onDelete={handleDeleteUsers}
+							onClose={() => setSelectedUsers([])}
+							itemLabel="users"
+						/>
+					)}
 
 					<div className="border rounded-md">
 						<Table>
@@ -311,12 +326,18 @@ export default function SettingsUsers() {
 										<TableCell>
 											<DropdownMenu>
 												<DropdownMenuTrigger asChild>
-													<Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+													<Button
+														variant="ghost"
+														size="sm"
+														className="h-8 w-8 p-0"
+													>
 														<MoreHorizontal className="h-4 w-4" />
 													</Button>
 												</DropdownMenuTrigger>
 												<DropdownMenuContent align="end">
-													<DropdownMenuItem onClick={() => handleEditUser(user)}>
+													<DropdownMenuItem
+														onClick={() => handleEditUser(user)}
+													>
 														Edit
 													</DropdownMenuItem>
 													<DropdownMenuItem
@@ -370,7 +391,9 @@ export default function SettingsUsers() {
 				open={roleChangeDialogOpen}
 				onOpenChange={setRoleChangeDialogOpen}
 				title="Change User Role"
-				description={"This change will reduce this user's permissions from Admin to User. They will no longer have management access. Do you want to continue?"}
+				description={
+					"This change will reduce this user's permissions from Admin to User. They will no longer have management access. Do you want to continue?"
+				}
 				onConfirm={handleConfirmRoleChange}
 				confirmLabel="Confirm"
 				cancelLabel="Cancel"
