@@ -113,7 +113,7 @@ export const BulkActions: React.FC<BulkActionsProps> = ({
 		<section
 			className={cn(
 				"relative flex items-center justify-between",
-				"bg-blue-50 dark:bg-slate-800/50 border border-border rounded-md",
+				"bg-primary-foreground dark:bg-slate-800/50 border border-border rounded-md",
 				"px-6 py-4 shadow-sm animate-in fade-in",
 				className,
 			)}
