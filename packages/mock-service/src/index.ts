@@ -97,6 +97,32 @@ interface SignupWebhookPayload extends BaseWebhookPayload {
   pending_user_id: string;
 }
 
+// Invitation webhook payloads for rita-invitations
+interface SendInvitationWebhookPayload extends BaseWebhookPayload {
+  source: 'rita-invitations';
+  action: 'send_invitation';
+  organization_name: string;
+  invited_by_email: string;
+  invited_by_name: string;
+  invitations: Array<{
+    invitee_email: string;
+    invitation_token: string;
+    invitation_url: string;
+    invitation_id: string;
+    expires_at: string;
+  }>;
+}
+
+interface AcceptInvitationWebhookPayload extends BaseWebhookPayload {
+  source: 'rita-invitations';
+  action: 'accept_invitation';
+  invitation_id: string;
+  first_name: string;
+  last_name: string;
+  password: string;
+  email_verified: boolean;
+}
+
 // Data source webhook payloads for rita-data-sources
 interface DataSourceVerifyPayload extends BaseWebhookPayload {
   source: 'rita-chat';
@@ -116,7 +142,7 @@ interface DataSourceSyncPayload extends BaseWebhookPayload {
 }
 
 // Union type for all webhook payloads
-type WebhookPayload = MessageWebhookPayload | DocumentWebhookPayload | SignupWebhookPayload | DataSourceVerifyPayload | DataSourceSyncPayload | BaseWebhookPayload;
+type WebhookPayload = MessageWebhookPayload | DocumentWebhookPayload | SignupWebhookPayload | SendInvitationWebhookPayload | AcceptInvitationWebhookPayload | DataSourceVerifyPayload | DataSourceSyncPayload | BaseWebhookPayload;
 
 interface MockResponse {
   message_id: string;
@@ -1378,6 +1404,120 @@ app.post('/webhook', async (req, res) => {
         }, 'Signup webhook validation failed - missing required fields');
         return res.status(400).json({
           error: 'Missing required fields for signup webhook: user_email, first_name, last_name, company, password, verification_token'
+        });
+      }
+
+    } else if (payload.source === 'rita-invitations' && payload.action === 'send_invitation') {
+      const invitationPayload = payload as SendInvitationWebhookPayload;
+
+      const contextLogger = createContextLogger(webhookLogger, correlationId, {
+        tenantId: invitationPayload.tenant_id,
+        organizationName: invitationPayload.organization_name,
+        invitedByEmail: invitationPayload.invited_by_email
+      });
+
+      contextLogger.info({
+        source: invitationPayload.source,
+        action: invitationPayload.action,
+        organization_name: invitationPayload.organization_name,
+        invited_by_email: invitationPayload.invited_by_email,
+        invited_by_name: invitationPayload.invited_by_name,
+        invitation_count: invitationPayload.invitations.length
+      }, 'Received send_invitation webhook');
+
+      // Log mock invitation emails prominently for testing
+      console.log(`\n${'='.repeat(80)}`);
+      console.log('📧 MOCK INVITATION EMAILS');
+      console.log('='.repeat(80));
+      console.log(`Organization: ${invitationPayload.organization_name}`);
+      console.log(`Invited by: ${invitationPayload.invited_by_name} (${invitationPayload.invited_by_email})`);
+      console.log(`Total invitations: ${invitationPayload.invitations.length}`);
+      console.log('');
+
+      for (const invitation of invitationPayload.invitations) {
+        console.log(`To: ${invitation.invitee_email}`);
+        console.log(`Invitation URL: ${invitation.invitation_url}`);
+        console.log(`Expires: ${new Date(invitation.expires_at).toLocaleString()}`);
+        console.log('');
+      }
+
+      console.log('(In production, these would be sent via email service)');
+      console.log(`${'='.repeat(80)}\n`);
+
+      return res.status(200).json({
+        success: true,
+        message: 'Invitation emails logged successfully',
+        invitations_sent: invitationPayload.invitations.length
+      });
+
+    } else if (payload.source === 'rita-invitations' && payload.action === 'accept_invitation') {
+      const acceptPayload = payload as AcceptInvitationWebhookPayload;
+
+      const contextLogger = createContextLogger(webhookLogger, correlationId, {
+        email: acceptPayload.user_email,
+        invitationId: acceptPayload.invitation_id,
+        tenantId: acceptPayload.tenant_id
+      });
+
+      contextLogger.info({
+        source: acceptPayload.source,
+        action: acceptPayload.action,
+        user_email: acceptPayload.user_email,
+        invitation_id: acceptPayload.invitation_id,
+        first_name: acceptPayload.first_name,
+        last_name: acceptPayload.last_name,
+        email_verified: acceptPayload.email_verified
+      }, 'Received accept_invitation webhook');
+
+      try {
+        // Create user in Keycloak (similar to signup flow)
+        const signupData: SignupWebhookPayload = {
+          source: 'rita-signup',
+          action: 'user_signup',
+          tenant_id: acceptPayload.tenant_id,
+          user_email: acceptPayload.user_email,
+          first_name: acceptPayload.first_name,
+          last_name: acceptPayload.last_name,
+          company: '', // Not provided in invitation flow
+          password: acceptPayload.password,
+          verification_token: '', // Not needed since email_verified is true
+          verification_url: '',
+          pending_user_id: acceptPayload.invitation_id // Use invitation_id as pending_user_id
+        };
+
+        const keycloakUserId = await createKeycloakUser(signupData);
+
+        contextLogger.info({
+          email: acceptPayload.user_email,
+          keycloakUserId,
+          invitation_id: acceptPayload.invitation_id
+        }, '🎉 INVITATION ACCEPTED: Keycloak user created');
+
+        console.log(`\n${'='.repeat(80)}`);
+        console.log('✅ INVITATION ACCEPTED');
+        console.log('='.repeat(80));
+        console.log(`Email: ${acceptPayload.user_email}`);
+        console.log(`Name: ${acceptPayload.first_name} ${acceptPayload.last_name}`);
+        console.log(`Keycloak User ID: ${keycloakUserId}`);
+        console.log(`Invitation ID: ${acceptPayload.invitation_id}`);
+        console.log('');
+        console.log('User can now sign in to the application!');
+        console.log(`${'='.repeat(80)}\n`);
+
+        return res.status(200).json({
+          success: true,
+          message: 'Invitation accepted, user created in Keycloak',
+          keycloak_user_id: keycloakUserId,
+          email: acceptPayload.user_email
+        });
+
+      } catch (error) {
+        logError(contextLogger, error as Error, { operation: 'accept-invitation-processing' });
+
+        return res.status(200).json({
+          success: false,
+          message: 'Invitation webhook received but user creation failed',
+          error: error instanceof Error ? error.message : 'Unknown error'
         });
       }
 

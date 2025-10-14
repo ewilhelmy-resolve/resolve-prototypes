@@ -40,14 +40,12 @@ CREATE TABLE pending_invitations (
   organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
   invited_by_user_id UUID NOT NULL REFERENCES user_profiles(user_id) ON DELETE CASCADE,
   email TEXT NOT NULL,
-  role TEXT NOT NULL DEFAULT 'user',
   invitation_token TEXT NOT NULL UNIQUE,
   token_expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
   status TEXT NOT NULL DEFAULT 'pending', -- 'pending', 'accepted', 'expired', 'cancelled', 'failed'
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   accepted_at TIMESTAMP WITH TIME ZONE,
 
-  CONSTRAINT valid_role CHECK (role IN ('owner', 'admin', 'user')),
   CONSTRAINT valid_status CHECK (status IN ('pending', 'accepted', 'expired', 'cancelled', 'failed'))
 );
 
@@ -65,7 +63,6 @@ CREATE UNIQUE INDEX idx_pending_invitations_unique_email_org
 
 COMMENT ON TABLE pending_invitations IS 'Stores organization user invitations until accepted';
 COMMENT ON COLUMN pending_invitations.invitation_token IS 'Unique token sent via email for invitation acceptance';
-COMMENT ON COLUMN pending_invitations.role IS 'Role the user will have in the organization upon acceptance';
 COMMENT ON COLUMN pending_invitations.status IS 'Current status of the invitation';
 ```
 
@@ -112,7 +109,7 @@ sequenceDiagram
     RG->>API: GET /api/invitations/verify/:token
     API->>API: Lookup invitation by token
     API->>API: Check not expired, not accepted
-    API-->>RG: Invitation details (email, org name, inviter, role)
+    API-->>RG: Invitation details (email, org name, inviter)
     RG->>RG: Show acceptance page with pre-filled email
 
     Note over Invited,KC: Step 3: Accept Invitation & Create Account
@@ -173,7 +170,7 @@ sequenceDiagram
 }
 ```
 
-**Note**: All invited users are assigned the `user` role by default. Organization owners can promote users to `admin` or `owner` roles after they join using the role management endpoint.
+**Note**: All invited users are assigned the `user` role by default in the organization. Organization owners can promote users to `admin` or `owner` roles after they join using the role management endpoint.
 
 **Process**:
 1. **Authentication Check**: Verify requester has valid session
@@ -214,7 +211,6 @@ sequenceDiagram
            id: invitation.id,
            email,
            token: newToken,
-           role,
            expiresAt: newExpiresAt
          });
          continue; // Move to next email
@@ -258,7 +254,6 @@ sequenceDiagram
    - `organization_id`: From requester's session
    - `invited_by_user_id`: Requester's user ID
    - `email`: Invited user's email
-   - `role`: Requested role (default: 'user')
    - `invitation_token`: Crypto-random 32-byte hex
    - `token_expires_at`: 7 days from now
    - `status`: 'pending'
@@ -788,7 +783,7 @@ async findOrCreateUser(tokenPayload: jose.JWTPayload) {
 | POST | `/api/invitations/send` | Yes | owner/admin | Send invitations to email list (always as 'user' role) |
 | GET | `/api/invitations/verify/:token` | No | - | Verify invitation token validity |
 | POST | `/api/invitations/accept` | No | - | Accept invitation and start signup |
-| GET | `/api/invitations/list` | Yes | owner/admin | List org invitations (pending/accepted/expired) |
+| GET | `/api/invitations` | Yes | owner/admin | List org invitations (pending/accepted/expired) |
 | DELETE | `/api/invitations/:id/cancel` | Yes | owner/admin | Cancel pending invitation |
 | PATCH | `/api/organizations/members/:userId/role` | Yes | owner | Update role of existing organization member |
 

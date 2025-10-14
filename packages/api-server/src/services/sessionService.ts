@@ -73,6 +73,16 @@ export class SessionService {
     }
 
     logger.info({ keycloakId, email }, 'New user detected. Starting provisioning...');
+
+    // Check for accepted invitations FIRST (before creating anything)
+    const invitationsResult = await pool.query(
+      `SELECT id, organization_id
+       FROM pending_invitations
+       WHERE email = $1 AND status = 'accepted'
+       ORDER BY created_at ASC`,
+      [email]
+    );
+
     const client = await pool.connect();
     try {
       await client.query('BEGIN');
@@ -84,29 +94,57 @@ export class SessionService {
       );
       const newUserId = newUserResult.rows[0].user_id;
 
-      const newOrgResult = await client.query(
-        `INSERT INTO organizations (name) VALUES ($1) RETURNING id`,
-        [`${email}'s Organization`]
-      );
-      const newOrgId = newOrgResult.rows[0].id;
+      let activeOrganizationId: string;
 
-      await client.query(
-        'INSERT INTO organization_members (organization_id, user_id, role) VALUES ($1, $2, \'owner\')',
-        [newOrgId, newUserId]
-      );
+      if (invitationsResult.rows.length > 0) {
+        // User was invited - add to invited org(s), DON'T create personal org
+        logger.info({ userId: newUserId, email, invitationCount: invitationsResult.rows.length }, 'User has accepted invitations. Adding to invited organization(s).');
 
-      await client.query(
-        'UPDATE user_profiles SET active_organization_id = $1 WHERE user_id = $2',
-        [newOrgId, newUserId]
-      );
+        for (const invitation of invitationsResult.rows) {
+          await client.query(
+            `INSERT INTO organization_members (organization_id, user_id, role)
+             VALUES ($1, $2, 'user')
+             ON CONFLICT (organization_id, user_id) DO NOTHING`,
+            [invitation.organization_id, newUserId]
+          );
+        }
+
+        // Set first invited org as active
+        activeOrganizationId = invitationsResult.rows[0].organization_id;
+
+        await client.query(
+          'UPDATE user_profiles SET active_organization_id = $1 WHERE user_id = $2',
+          [activeOrganizationId, newUserId]
+        );
+
+        logger.info({ userId: newUserId, organizationId: activeOrganizationId }, 'Invited user provisioned successfully (no personal org created)');
+      } else {
+        // Normal signup flow - create personal organization
+        const newOrgResult = await client.query(
+          `INSERT INTO organizations (name) VALUES ($1) RETURNING id`,
+          [`${email}'s Organization`]
+        );
+        activeOrganizationId = newOrgResult.rows[0].id;
+
+        await client.query(
+          'INSERT INTO organization_members (organization_id, user_id, role) VALUES ($1, $2, \'owner\')',
+          [activeOrganizationId, newUserId]
+        );
+
+        await client.query(
+          'UPDATE user_profiles SET active_organization_id = $1 WHERE user_id = $2',
+          [activeOrganizationId, newUserId]
+        );
+
+        logger.info({ userId: newUserId, organizationId: activeOrganizationId }, 'New user provisioned successfully with personal organization');
+      }
 
       await client.query('COMMIT');
-      logger.info({ userId: newUserId, keycloakId }, 'New user provisioned successfully');
 
       return {
         id: newUserId,
         email: email,
-        activeOrganizationId: newOrgId,
+        activeOrganizationId: activeOrganizationId,
       };
     } catch (error) {
       await client.query('ROLLBACK');
