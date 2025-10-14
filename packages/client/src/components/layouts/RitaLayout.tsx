@@ -244,7 +244,7 @@ function RitaLayoutContent({ children, activePage = "chat" }: RitaLayoutProps) {
 							sideOffset={8}
 						>
 							<div className="flex flex-col">
-								<div className="px-3 py-3 border-b-2 border-gray-200">
+								<div className="px-3 py-3 border-b border-gray-200">
 									<p className="text-sm text-muted-foreground">
 										{user?.email || ""}
 									</p>
@@ -297,7 +297,7 @@ function RitaLayoutContent({ children, activePage = "chat" }: RitaLayoutProps) {
 			</Sidebar>
 
 			<div className="fixed inset-y-0 right-0 left-0 z-0 flex flex-col overflow-hidden">
-				<header className="h-[67px] bg-background flex items-center flex-shrink-0 pr-6 border-b-2 border-gray-200 lg:pl-64">
+				<header className="h-[67px] bg-background flex items-center flex-shrink-0 pr-6 border-b border-gray-200 lg:pl-64">
 					<div className="flex items-center gap-2 h-full pl-4">
 						<SidebarTrigger className="lg:flex" />
 						<Breadcrumb>
