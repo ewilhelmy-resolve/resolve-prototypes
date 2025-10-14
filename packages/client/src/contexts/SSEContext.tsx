@@ -4,6 +4,7 @@ import { createContext, useCallback, useContext, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { fileKeys } from "../hooks/api/useFiles";
 import { dataSourceKeys } from "../hooks/useDataSources";
+import { profileKeys } from "../hooks/api/useProfile";
 import { useSSE } from "../hooks/useSSE";
 import { toast } from "../lib/toast";
 import type { SSEEvent } from "../services/EventSourceSSEClient";
@@ -170,6 +171,26 @@ export const SSEProvider: React.FC<SSEProviderProps> = ({
 							onClick: () => navigate("/content"),
 						},
 					});
+				}
+			} else if (event.type === "organization_update") {
+				// Handle organization updates (name changes, role changes, etc.)
+				console.log("[SSE] Organization update received:", {
+					updateType: event.data.updateType,
+					organizationId: event.data.organizationId,
+				});
+
+				// Invalidate profile cache to refetch with updated data
+				queryClient.invalidateQueries({ queryKey: profileKeys.detail() });
+
+				// Show toast notification based on update type
+				if (event.data.updateType === "name") {
+					toast.info("Organization name updated");
+				} else if (event.data.updateType === "role") {
+					toast.info("Your role has been updated", {
+						description: "Your permissions may have changed",
+					});
+				} else if (event.data.updateType === "settings") {
+					toast.info("Organization settings updated");
 				}
 			}
 		},

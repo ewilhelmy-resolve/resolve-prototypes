@@ -120,6 +120,17 @@ export const conversationApi = {
 
 // Organization API
 export const organizationApi = {
+  getCurrentOrganization: () =>
+    apiRequest<{
+      organization: {
+        id: string
+        name: string
+        user_role: string
+        member_count: number
+        created_at: string
+      }
+    }>('/api/organizations/current'),
+
   switchOrganization: (organizationId: string) =>
     apiRequest<{ success: boolean }>('/api/organizations/switch', {
       method: 'POST',
