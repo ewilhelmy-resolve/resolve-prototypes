@@ -290,20 +290,20 @@ function RitaLayoutContent({ children, activePage = "chat" }: RitaLayoutProps) {
 
 								<div className="py-1">
 									<button
-										className="w-full px-3 py-2 text-left text-sm text-foreground hover:bg-accent"
+										className="w-full px-3 py-2 text-left text-sm text-foreground hover:bg-accent cursor-pointer"
 										onClick={() => navigate("/settings")}
 									>
 										Settings
 									</button>
 									<button
-										className="w-full px-3 py-2 text-left text-sm text-foreground hover:bg-accent"
+										className="w-full px-3 py-2 text-left text-sm text-foreground hover:bg-accent cursor-pointer"
 										onClick={() => navigate("/help")}
 									>
 										Help documentation
 									</button>
 									<Separator className="my-1" />
 									<button
-										className="w-full px-3 py-2 text-left text-sm text-foreground hover:bg-accent flex items-center gap-2"
+										className="w-full px-3 py-2 text-left text-sm text-foreground hover:bg-accent flex items-center gap-2 cursor-pointer"
 										onClick={handleSignOut}
 									>
 										<LogOut className="w-4 h-4" />
