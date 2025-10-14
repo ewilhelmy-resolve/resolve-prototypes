@@ -477,7 +477,7 @@ router.post('/:documentId/process', authenticateUser, async (req, res) => {
   }
 });
 
-// Delete document
+// Delete document with webhook notification and smart blob cleanup
 router.delete('/:documentId', authenticateUser, async (req, res) => {
   const authReq = req as AuthenticatedRequest;
   try {
@@ -487,13 +487,56 @@ router.delete('/:documentId', authenticateUser, async (req, res) => {
       authReq.user.id,
       authReq.user.activeOrganizationId,
       async (client) => {
-        // Delete only metadata record (preserve blob for other references)
-        const deleteResult = await client.query(
-          'DELETE FROM blob_metadata WHERE id = $1 AND organization_id = $2 AND user_id = $3 RETURNING id',
-          [documentId, authReq.user.activeOrganizationId, authReq.user.id]
-        );
+        // Begin transaction for atomic deletion
+        await client.query('BEGIN');
 
-        return deleteResult.rows.length > 0;
+        try {
+          // 1. Fetch metadata BEFORE deletion (need blob_id for webhook)
+          const metadataResult = await client.query(
+            'SELECT id, blob_id, filename, organization_id FROM blob_metadata WHERE id = $1 AND organization_id = $2 AND user_id = $3',
+            [documentId, authReq.user.activeOrganizationId, authReq.user.id]
+          );
+
+          if (metadataResult.rows.length === 0) {
+            await client.query('ROLLBACK');
+            return null; // Not found
+          }
+
+          const metadata = metadataResult.rows[0];
+          const blobId = metadata.blob_id;
+
+          // 2. Delete metadata record
+          await client.query(
+            'DELETE FROM blob_metadata WHERE id = $1',
+            [documentId]
+          );
+
+          // 3. Check if blob is still referenced by other metadata
+          const blobRefCount = await client.query(
+            'SELECT COUNT(*) as count FROM blob_metadata WHERE blob_id = $1',
+            [blobId]
+          );
+
+          const refCount = parseInt(blobRefCount.rows[0].count, 10);
+
+          // 4. Delete blob only if no other references exist
+          if (refCount === 0) {
+            await client.query(
+              'DELETE FROM blobs WHERE blob_id = $1',
+              [blobId]
+            );
+            console.log(`[FileDelete] Deleted orphaned blob ${blobId}`);
+          } else {
+            console.log(`[FileDelete] Preserved blob ${blobId} (${refCount} references remaining)`);
+          }
+
+          await client.query('COMMIT');
+          return metadata;
+
+        } catch (error) {
+          await client.query('ROLLBACK');
+          throw error;
+        }
       }
     );
 
@@ -501,7 +544,24 @@ router.delete('/:documentId', authenticateUser, async (req, res) => {
       return res.status(404).json({ error: 'Document not found' });
     }
 
-    res.json({ deleted: true });
+    // 5. Send deletion webhook (non-blocking - don't wait for response)
+    webhookService.sendDocumentDeleteEvent({
+      organizationId: authReq.user.activeOrganizationId,
+      userId: authReq.user.id,
+      userEmail: authReq.user.email,
+      blobMetadataId: result.id.toString(),
+      blobId: result.blob_id.toString()
+    }).catch(webhookError => {
+      console.error('[FileDelete] Webhook failed for deleted document:', webhookError);
+      // Webhook failure doesn't affect deletion success
+    });
+
+    // 6. Return immediate success to frontend
+    res.json({
+      deleted: true,
+      document_id: result.id,
+      blob_id: result.blob_id
+    });
 
   } catch (error) {
     console.error('Error deleting document:', error);

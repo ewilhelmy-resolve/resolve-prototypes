@@ -33,6 +33,13 @@ export interface DocumentProcessingPayload extends BaseWebhookPayload {
   original_filename: string;
 }
 
+export interface DocumentDeletePayload extends BaseWebhookPayload {
+  source: 'rita-documents';
+  action: 'document_deleted';
+  blob_metadata_id: string; // blob_metadata.id (article_id for compatibility)
+  blob_id: string; // blobs.blob_id
+}
+
 export interface WebhookResponse {
   success: boolean;
   data?: any;
@@ -58,4 +65,5 @@ export interface WebhookError extends Error {
 export type WebhookPayload =
   | MessageWebhookPayload
   | DocumentProcessingPayload
+  | DocumentDeletePayload
   | (BaseWebhookPayload & Record<string, any>);
