@@ -119,6 +119,26 @@ function RitaLayoutContent({ children, activePage = "chat" }: RitaLayoutProps) {
 		return "U";
 	};
 
+	// Format file metadata for display (e.g., "PDF - Today, 4:00PM")
+	const formatFileMetadata = (file: any) => {
+		const fileExtension = file.filename?.split('.').pop()?.toUpperCase() || 'FILE';
+
+		if (!file.created_at) return fileExtension;
+
+		const date = new Date(file.created_at);
+		const today = new Date();
+		const isToday = date.toDateString() === today.toDateString();
+
+		const dateStr = isToday ? 'Today' : date.toLocaleDateString();
+		const timeStr = date.toLocaleTimeString('en-US', {
+			hour: 'numeric',
+			minute: '2-digit',
+			hour12: true
+		});
+
+		return `${fileExtension} - ${dateStr}, ${timeStr}`;
+	};
+
 	return (
 		<>
 			<Sidebar className="bg-sidebar-primary-foreground border-sidebar-border max-w-64">
@@ -244,7 +264,7 @@ function RitaLayoutContent({ children, activePage = "chat" }: RitaLayoutProps) {
 							sideOffset={8}
 						>
 							<div className="flex flex-col">
-								<div className="px-3 py-3 border-b-2 border-gray-200">
+								<div className="px-3 py-3 border-b border-gray-200">
 									<p className="text-sm text-muted-foreground">
 										{user?.email || ""}
 									</p>
@@ -270,20 +290,20 @@ function RitaLayoutContent({ children, activePage = "chat" }: RitaLayoutProps) {
 
 								<div className="py-1">
 									<button
-										className="w-full px-3 py-2 text-left text-sm text-foreground hover:bg-accent"
+										className="w-full px-3 py-2 text-left text-sm text-foreground hover:bg-accent cursor-pointer"
 										onClick={() => navigate("/settings")}
 									>
 										Settings
 									</button>
 									<button
-										className="w-full px-3 py-2 text-left text-sm text-foreground hover:bg-accent"
+										className="w-full px-3 py-2 text-left text-sm text-foreground hover:bg-accent cursor-pointer"
 										onClick={() => navigate("/help")}
 									>
 										Help documentation
 									</button>
 									<Separator className="my-1" />
 									<button
-										className="w-full px-3 py-2 text-left text-sm text-foreground hover:bg-accent flex items-center gap-2"
+										className="w-full px-3 py-2 text-left text-sm text-foreground hover:bg-accent flex items-center gap-2 cursor-pointer"
 										onClick={handleSignOut}
 									>
 										<LogOut className="w-4 h-4" />
@@ -297,7 +317,7 @@ function RitaLayoutContent({ children, activePage = "chat" }: RitaLayoutProps) {
 			</Sidebar>
 
 			<div className="fixed inset-y-0 right-0 left-0 z-0 flex flex-col overflow-hidden">
-				<header className="h-[67px] bg-background flex items-center flex-shrink-0 pr-6 border-b-2 border-gray-200 lg:pl-64">
+				<header className={`h-[67px] bg-background flex items-center flex-shrink-0 pr-6 border-b border-gray-200 transition-[padding] duration-200 ease-linear ${state === "expanded" ? "lg:pl-64" : "lg:pl-12"}`}>
 					<div className="flex items-center gap-2 h-full pl-4">
 						<SidebarTrigger className="lg:flex" />
 						<Breadcrumb>
@@ -329,7 +349,7 @@ function RitaLayoutContent({ children, activePage = "chat" }: RitaLayoutProps) {
 					</div>
 				</header>
 
-				<div className="flex flex-1 overflow-hidden min-w-0 lg:pl-64">
+				<div className={`flex flex-1 overflow-hidden min-w-0 transition-[padding] duration-200 ease-linear ${state === "expanded" ? "lg:pl-64" : "lg:pl-12"}`}>
 					<main className="flex-1 flex flex-col overflow-y-auto min-w-0 w-full">
 						{children}
 					</main>
@@ -351,8 +371,8 @@ function RitaLayoutContent({ children, activePage = "chat" }: RitaLayoutProps) {
 								</Button>
 							</div>
 
-							<div className="flex gap-4 w-full justify-between">
-								<div className="flex flex-col">
+							<div className="flex gap-4 w-full justify-between border border-border rounded-lg p-4">
+								<div className="flex flex-col items-center flex-1">
 									<span className="text-2xl font-semibold text-foreground">
 										{knowledgeBaseFilesLoading ? "-" : totalKnowledgeBaseFiles}
 									</span>
@@ -360,13 +380,15 @@ function RitaLayoutContent({ children, activePage = "chat" }: RitaLayoutProps) {
 										Articles
 									</span>
 								</div>
-								<div className="flex flex-col">
+								<Separator orientation="vertical" className="h-auto" />
+								<div className="flex flex-col items-center flex-1">
 									<span className="text-2xl font-semibold text-foreground">
 										0
 									</span>
 									<span className="text-xs text-muted-foreground">Vectors</span>
 								</div>
-								<div className="flex flex-col">
+								<Separator orientation="vertical" className="h-auto" />
+								<div className="flex flex-col items-center flex-1">
 									<span className="text-2xl font-semibold text-foreground">
 										0%
 									</span>
@@ -375,8 +397,6 @@ function RitaLayoutContent({ children, activePage = "chat" }: RitaLayoutProps) {
 									</span>
 								</div>
 							</div>
-
-							<Separator />
 
 							<div className="flex flex-col gap-3">
 								<span className="text-sm text-muted-foreground">
@@ -388,18 +408,20 @@ function RitaLayoutContent({ children, activePage = "chat" }: RitaLayoutProps) {
 										Loading...
 									</div>
 								) : knowledgeBaseFiles.length === 0 ? (
-									<div className="flex flex-col items-center gap-3 py-4">
-										<FileText className="w-8 h-8 text-muted-foreground" />
-										<p className="text-sm text-muted-foreground text-center">
-											No articles yet. Add your first article to get started.
+									<div className="flex flex-col items-center gap-4 py-8 px-4 border border-border rounded-lg">
+										<h3 className="text-lg font-semibold text-foreground">
+											No articles yet
+										</h3>
+										<p className="text-sm text-muted-foreground text-center max-w-xs">
+											Upload your knowledge articles to unlock instant answers from Rita
 										</p>
 										<Button
-											variant="outline"
+											variant="secondary"
 											onClick={openDocumentSelector}
-											className="gap-2"
+											className="gap-2 bg-muted hover:bg-muted/80"
 										>
 											<Plus className="h-4 w-4" />
-											Add Article
+											Add knowledge
 										</Button>
 									</div>
 								) : (
@@ -408,28 +430,27 @@ function RitaLayoutContent({ children, activePage = "chat" }: RitaLayoutProps) {
 											<button
 												key={file.id}
 												type="button"
-												className="flex items-start gap-2 p-2 rounded-md hover:bg-accent cursor-pointer text-left w-full"
+												className="flex items-start gap-3 py-3 rounded-md hover:bg-accent cursor-pointer text-left w-full"
 												onClick={navigateToKnowledgeArticles}
 											>
-												<FileText className="w-4 h-4 mt-0.5 text-muted-foreground" />
+												<FileText className="w-5 h-5 mt-0.5 text-foreground flex-shrink-0" />
 												<div className="flex-1 min-w-0">
-													<p className="text-sm font-medium text-foreground truncate">
+													<p className="text-base font-semibold text-foreground truncate">
 														{file.filename}
 													</p>
-													<p className="text-xs text-muted-foreground">
-														{file.created_at?.toLocaleDateString() ||
-															"Recently added"}
+													<p className="text-sm text-muted-foreground">
+														{formatFileMetadata(file)}
 													</p>
 												</div>
 											</button>
 										))}
 										{knowledgeBaseFiles.length > 4 && (
 											<Button
-												variant="ghost"
-												className="w-full h-9 text-sm"
+												variant="secondary"
+												className="w-full h-10 text-sm bg-muted hover:bg-muted/80"
 												onClick={navigateToKnowledgeArticles}
 											>
-												View all {totalKnowledgeBaseFiles} articles
+												See all
 											</Button>
 										)}
 									</div>
