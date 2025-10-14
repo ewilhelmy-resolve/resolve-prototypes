@@ -101,9 +101,17 @@ export const requireRole = (allowedRoles: string[]) => {
     try {
       const authReq = req as AuthenticatedRequest;
 
-      // authenticateUser middleware guarantees these exist
-      const userId = authReq.user!.id;
-      const organizationId = authReq.user!.activeOrganizationId;
+      // authenticateUser middleware guarantees these exist, but check for type safety
+      if (!authReq.user) {
+        res.status(401).json({
+          error: 'Authentication required',
+          code: 'NO_AUTH'
+        });
+        return;
+      }
+
+      const userId = authReq.user.id;
+      const organizationId = authReq.user.activeOrganizationId;
 
       // Query user's role in their active organization
       const roleResult = await pool.query(
