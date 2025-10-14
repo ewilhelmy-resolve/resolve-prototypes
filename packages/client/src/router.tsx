@@ -12,6 +12,7 @@ import DevToolsPage from "./pages/DevToolsPage";
 import DropdownTestPage from "./pages/DropdownTestPage";
 import FilesV1Page from "./pages/FilesV1Page";
 import HelpPage from "./pages/HelpPage";
+import InviteAcceptPage from "./pages/InviteAcceptPage";
 import { LoginPage } from "./pages/LoginPage";
 import { NotFoundPage } from "./pages/NotFoundPage";
 import SettingsV1Page from "./pages/SettingsV1Page";
@@ -169,6 +170,10 @@ const router = createBrowserRouter([
 			{
 				path: "/verify-email-sent",
 				element: <VerifyEmailSentPage />,
+			},
+			{
+				path: "/invite",
+				element: <InviteAcceptPage />,
 			},
 			{
 				path: "*",
