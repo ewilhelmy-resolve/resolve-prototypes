@@ -95,7 +95,7 @@ export function DragDropOverlay({
             {accept && (
               <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-background/50 border border-border">
                 <FileIcon className="w-3.5 h-3.5" />
-                <span>{formatAcceptedTypes(accept)}</span>
+                <span>Files supported: pdf, txt, doc, docx, md, etc.</span>
               </div>
             )}
             {maxFiles && (
