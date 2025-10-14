@@ -317,7 +317,7 @@ function RitaLayoutContent({ children, activePage = "chat" }: RitaLayoutProps) {
 			</Sidebar>
 
 			<div className="fixed inset-y-0 right-0 left-0 z-0 flex flex-col overflow-hidden">
-				<header className="h-[67px] bg-background flex items-center flex-shrink-0 pr-6 border-b border-gray-200 lg:pl-64">
+				<header className={`h-[67px] bg-background flex items-center flex-shrink-0 pr-6 border-b border-gray-200 transition-[padding] duration-200 ease-linear ${state === "expanded" ? "lg:pl-64" : "lg:pl-12"}`}>
 					<div className="flex items-center gap-2 h-full pl-4">
 						<SidebarTrigger className="lg:flex" />
 						<Breadcrumb>
@@ -349,7 +349,7 @@ function RitaLayoutContent({ children, activePage = "chat" }: RitaLayoutProps) {
 					</div>
 				</header>
 
-				<div className="flex flex-1 overflow-hidden min-w-0 lg:pl-64">
+				<div className={`flex flex-1 overflow-hidden min-w-0 transition-[padding] duration-200 ease-linear ${state === "expanded" ? "lg:pl-64" : "lg:pl-12"}`}>
 					<main className="flex-1 flex flex-col overflow-y-auto min-w-0 w-full">
 						{children}
 					</main>
