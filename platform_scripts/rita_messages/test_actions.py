@@ -25,14 +25,12 @@ import json
 import uuid
 import argparse
 from pathlib import Path
-from urllib.parse import urlparse
 
 # Add the script directory to Python path
 script_dir = Path(__file__).parent
-sys.path.insert(0, str(script_dir))
+sys.path.insert(0, str(script_dir / 'send_complete_message'))
 
 # Import the actions
-from send_text_message import execute as send_text
 from send_complete_message import execute as send_complete
 
 
@@ -56,21 +54,6 @@ def load_env():
     return env_vars
 
 
-def parse_rabbitmq_url(rabbitmq_url):
-    """Parse RabbitMQ URL into connection parameters"""
-    parsed = urlparse(rabbitmq_url)
-
-    # Determine if SSL is needed based on scheme
-    use_ssl = parsed.scheme == 'amqps'
-    default_port = 5671 if use_ssl else 5672
-
-    return {
-        'host': parsed.hostname or 'localhost',
-        'port': str(parsed.port or default_port),
-        'username': parsed.username or 'guest',
-        'password': parsed.password or 'guest',
-        'vhost': parsed.path.lstrip('/') or '/'
-    }
 
 
 def generate_test_ids():
@@ -91,6 +74,10 @@ def print_test_header(test_name):
 
 def print_result(result):
     """Print test result"""
+    # Parse JSON string if needed
+    if isinstance(result, str):
+        result = json.loads(result)
+
     if result.get('status') == 'success':
         print(f"✅ Success! Message ID: {result.get('message_id')}")
     else:
@@ -98,37 +85,12 @@ def print_result(result):
     print()
 
 
-def test_text_message(rabbit_config, queue_name, test_ids):
-    """Test simple text message"""
-    print_test_header("Text Message")
-
-    result = send_text(
-        host=rabbit_config['host'],
-        port=rabbit_config['port'],
-        username=rabbit_config['username'],
-        password=rabbit_config['password'],
-        vhost=rabbit_config['vhost'],
-        queue_name=queue_name,
-        text_content="## Test Message ✅\n\nThis is a simple text message test from the automation platform.",
-        tenant_id=test_ids['tenant_id'],
-        message_id=test_ids['message_id'] or str(uuid.uuid4()),  # Use provided or generate new
-        conversation_id=test_ids['conversation_id']
-    )
-
-    print_result(result)
-    return result
-
-
-def test_reasoning_message(rabbit_config, queue_name, test_ids):
+def test_reasoning_message(rabbitmq_url, queue_name, test_ids):
     """Test reasoning only message using send_complete_message"""
     print_test_header("Reasoning Message")
 
     result = send_complete(
-        host=rabbit_config['host'],
-        port=rabbit_config['port'],
-        username=rabbit_config['username'],
-        password=rabbit_config['password'],
-        vhost=rabbit_config['vhost'],
+        rabbitmq_url=rabbitmq_url,
         queue_name=queue_name,
         text_content=None,
         reasoning_content="""Let me analyze this step by step:
@@ -136,50 +98,64 @@ def test_reasoning_message(rabbit_config, queue_name, test_ids):
 1. **Check System Status**: Verify all services are running
 2. **Review Logs**: Look for any errors or warnings
 3. **Generate Report**: Create comprehensive status report""",
+        reasoning_title="System Analysis",
         sources=None,
         tasks=None,
         response_group_id=None,
         tenant_id=test_ids['tenant_id'],
         message_id=test_ids['message_id'] or str(uuid.uuid4()),
-        conversation_id=test_ids['conversation_id']
+        conversation_id=test_ids['conversation_id'],
+        turn_complete=True,  # Single message - turn is complete
+        citation_variant=None
     )
 
     print_result(result)
     return result
 
 
-def test_sources_message(rabbit_config, queue_name, test_ids):
+def test_sources_message(rabbitmq_url, queue_name, test_ids):
     """Test sources only message using send_complete_message"""
     print_test_header("Sources Message")
 
     sources = [
-        {"url": "https://docs.anthropic.com", "title": "Anthropic Documentation"},
-        {"url": "https://docs.python.org", "title": "Python Documentation"},
-        {"url": "https://www.rabbitmq.com/documentation.html", "title": "RabbitMQ Docs"}
+        {
+            "url": "https://docs.anthropic.com",
+            "title": "Anthropic Documentation",
+            "snippet": "Learn about Claude API, best practices, and integration patterns."
+        },
+        {
+            "url": "https://docs.python.org",
+            "title": "Python Documentation",
+            "snippet": "Official Python documentation covering language features and standard library."
+        },
+        {
+            "url": "https://www.rabbitmq.com/documentation.html",
+            "title": "RabbitMQ Docs",
+            "snippet": "Complete guide to RabbitMQ message broker configuration and usage."
+        }
     ]
 
     result = send_complete(
-        host=rabbit_config['host'],
-        port=rabbit_config['port'],
-        username=rabbit_config['username'],
-        password=rabbit_config['password'],
-        vhost=rabbit_config['vhost'],
+        rabbitmq_url=rabbitmq_url,
         queue_name=queue_name,
         text_content=None,
         reasoning_content=None,
+        reasoning_title=None,
         sources=json.dumps(sources),
         tasks=None,
         response_group_id=None,
         tenant_id=test_ids['tenant_id'],
         message_id=test_ids['message_id'] or str(uuid.uuid4()),
-        conversation_id=test_ids['conversation_id']
+        conversation_id=test_ids['conversation_id'],
+        turn_complete=True,  # Single message - turn is complete
+        citation_variant="hover-card"
     )
 
     print_result(result)
     return result
 
 
-def test_tasks_message(rabbit_config, queue_name, test_ids):
+def test_tasks_message(rabbitmq_url, queue_name, test_ids):
     """Test tasks only message using send_complete_message"""
     print_test_header("Tasks Message")
 
@@ -207,32 +183,41 @@ def test_tasks_message(rabbit_config, queue_name, test_ids):
     ]
 
     result = send_complete(
-        host=rabbit_config['host'],
-        port=rabbit_config['port'],
-        username=rabbit_config['username'],
-        password=rabbit_config['password'],
-        vhost=rabbit_config['vhost'],
+        rabbitmq_url=rabbitmq_url,
         queue_name=queue_name,
         text_content=None,
         reasoning_content=None,
+        reasoning_title=None,
         sources=None,
         tasks=json.dumps(tasks),
         response_group_id=None,
         tenant_id=test_ids['tenant_id'],
         message_id=test_ids['message_id'] or str(uuid.uuid4()),
-        conversation_id=test_ids['conversation_id']
+        conversation_id=test_ids['conversation_id'],
+        turn_complete=True,  # Single message - turn is complete
+        citation_variant=None
     )
 
     print_result(result)
     return result
 
 
-def test_complete_message(rabbit_config, queue_name, test_ids):
-    """Test complete message with all components"""
-    print_test_header("Complete Message (All Components)")
+def test_complete_message(rabbitmq_url, queue_name, test_ids):
+    """Test complete message with all components including new fields"""
+    print_test_header("Complete Message (All Components with New Fields)")
 
     sources = [
-        {"url": "https://docs.example.com/deployment", "title": "Deployment Guide"}
+        {
+            "url": "https://docs.example.com/deployment",
+            "title": "Deployment Guide",
+            "snippet": "Complete guide to deploying applications to production environments, including best practices and rollback procedures.",
+            "blob_id": "blob-deploy-guide-12345"
+        },
+        {
+            "url": "https://docs.example.com/monitoring",
+            "title": "Production Monitoring",
+            "snippet": "Learn how to set up monitoring, alerts, and observability for production systems."
+        }
     ]
 
     tasks = [
@@ -242,37 +227,38 @@ def test_complete_message(rabbit_config, queue_name, test_ids):
             "items": [
                 "Backup production database",
                 "Review rollback plan",
-                "Notify team members"
+                "Notify team members",
+                "Run final integration tests"
             ]
         }
     ]
 
     result = send_complete(
-        host=rabbit_config['host'],
-        port=rabbit_config['port'],
-        username=rabbit_config['username'],
-        password=rabbit_config['password'],
-        vhost=rabbit_config['vhost'],
+        rabbitmq_url=rabbitmq_url,
         queue_name=queue_name,
-        text_content="## Deployment Plan Ready 🚀\n\nYour application is ready for production deployment.",
+        text_content="## Deployment Plan Ready 🚀\n\nYour application is ready for production deployment. All prerequisites have been verified.",
         reasoning_content="""Deployment Analysis:
 
 1. **Requirements Check**: All prerequisites met
 2. **Configuration Review**: Settings validated
-3. **Risk Assessment**: Low risk deployment""",
+3. **Risk Assessment**: Low risk deployment
+4. **Resource Allocation**: Sufficient capacity available""",
+        reasoning_title="Deployment Planning",
         sources=json.dumps(sources),
         tasks=json.dumps(tasks),
         response_group_id=None,
         tenant_id=test_ids['tenant_id'],
         message_id=test_ids['message_id'] or str(uuid.uuid4()),
-        conversation_id=test_ids['conversation_id']
+        conversation_id=test_ids['conversation_id'],
+        turn_complete=True,  # Single message - turn is complete
+        citation_variant="hover-card"
     )
 
     print_result(result)
     return result
 
 
-def test_grouped_messages(rabbit_config, queue_name, test_ids):
+def test_grouped_messages(rabbitmq_url, queue_name, test_ids):
     """Test message grouping with response_group_id using send_complete_message"""
     print_test_header("Grouped Messages (Using response_group_id)")
 
@@ -282,34 +268,30 @@ def test_grouped_messages(rabbit_config, queue_name, test_ids):
     # Message 1: Reasoning
     print("Sending message 1: Reasoning...")
     result1 = send_complete(
-        host=rabbit_config['host'],
-        port=rabbit_config['port'],
-        username=rabbit_config['username'],
-        password=rabbit_config['password'],
-        vhost=rabbit_config['vhost'],
+        rabbitmq_url=rabbitmq_url,
         queue_name=queue_name,
         text_content=None,
         reasoning_content="Analyzing the system:\n1. Check metrics\n2. Evaluate performance\n3. Generate recommendations",
+        reasoning_title="Performance Analysis",
         sources=None,
         tasks=None,
         response_group_id=group_id,
         tenant_id=test_ids['tenant_id'],
         message_id=str(uuid.uuid4()),
-        conversation_id=test_ids['conversation_id']
+        conversation_id=test_ids['conversation_id'],
+        turn_complete=False,  # More messages coming
+        citation_variant=None
     )
     print_result(result1)
 
     # Message 2: Tasks (grouped with message 1)
     print("Sending message 2: Tasks (grouped)...")
     result2 = send_complete(
-        host=rabbit_config['host'],
-        port=rabbit_config['port'],
-        username=rabbit_config['username'],
-        password=rabbit_config['password'],
-        vhost=rabbit_config['vhost'],
+        rabbitmq_url=rabbitmq_url,
         queue_name=queue_name,
         text_content=None,
         reasoning_content=None,
+        reasoning_title=None,
         sources=None,
         tasks=json.dumps([
             {
@@ -321,9 +303,17 @@ def test_grouped_messages(rabbit_config, queue_name, test_ids):
         response_group_id=group_id,
         tenant_id=test_ids['tenant_id'],
         message_id=str(uuid.uuid4()),
-        conversation_id=test_ids['conversation_id']
+        conversation_id=test_ids['conversation_id'],
+        turn_complete=True,  # Last message - turn is complete
+        citation_variant=None
     )
     print_result(result2)
+
+    # Parse JSON results if needed
+    if isinstance(result1, str):
+        result1 = json.loads(result1)
+    if isinstance(result2, str):
+        result2 = json.loads(result2)
 
     return result1.get('status') == 'success' and result2.get('status') == 'success'
 
@@ -339,19 +329,19 @@ Examples:
   # Auto-generate test IDs, run all tests
   python platform_scripts/rita_messages/test_actions.py
 
-  # Run text message test with specific IDs (clear and readable)
+  # Run specific test with custom IDs (clear and readable)
   python platform_scripts/rita_messages/test_actions.py \\
     --conversation-id 2c5e478d-0827-4403-8780-9dee982676f0 \\
     --tenant-id be0cc838-7530-4961-a887-139f9c9e5012 \\
     --message-id ebc08133-cd88-4d5a-b672-55a4cdfe2433 \\
-    --test text
+    --test complete
 
   # Using short flags
   python platform_scripts/rita_messages/test_actions.py \\
     -c 2c5e478d-0827-4403-8780-9dee982676f0 \\
     -tn be0cc838-7530-4961-a887-139f9c9e5012 \\
     -m ebc08133-cd88-4d5a-b672-55a4cdfe2433 \\
-    -t complete
+    -t reasoning
         """
     )
     parser.add_argument('--conversation-id', '--conv', '-c',
@@ -360,7 +350,7 @@ Examples:
                         help='Tenant/organization ID (uses "test-tenant-001" if not provided)')
     parser.add_argument('--message-id', '--msg', '-m',
                         help='Message ID (must be an existing assistant message in the DB)')
-    parser.add_argument('--test', '-t', choices=['text', 'reasoning', 'sources', 'tasks', 'complete', 'grouped', 'all'],
+    parser.add_argument('--test', '-t', choices=['reasoning', 'sources', 'tasks', 'complete', 'grouped', 'all'],
                         default='all',
                         help='Run specific test (default: all)')
 
@@ -381,9 +371,6 @@ Examples:
     print(f"✅ RabbitMQ URL: {rabbitmq_url}")
     print(f"✅ Queue Name: {queue_name}")
 
-    rabbit_config = parse_rabbitmq_url(rabbitmq_url)
-    print(f"✅ Connection: {rabbit_config['username']}@{rabbit_config['host']}:{rabbit_config['port']}")
-
     # Generate or use provided test identifiers
     test_ids = {
         'tenant_id': args.tenant_id or 'test-tenant-001',
@@ -401,7 +388,6 @@ Examples:
 
     # Define test mapping
     test_map = {
-        'text': ('Text Message', test_text_message),
         'reasoning': ('Reasoning Message', test_reasoning_message),
         'sources': ('Sources Message', test_sources_message),
         'tasks': ('Tasks Message', test_tasks_message),
@@ -416,11 +402,11 @@ Examples:
         if args.test == 'all':
             # Run all tests
             for test_key, (test_name, test_func) in test_map.items():
-                results.append((test_name, test_func(rabbit_config, queue_name, test_ids)))
+                results.append((test_name, test_func(rabbitmq_url, queue_name, test_ids)))
         else:
             # Run specific test
             test_name, test_func = test_map[args.test]
-            results.append((test_name, test_func(rabbit_config, queue_name, test_ids)))
+            results.append((test_name, test_func(rabbitmq_url, queue_name, test_ids)))
 
     except KeyboardInterrupt:
         print("\n\n⚠️  Test interrupted by user")
@@ -438,6 +424,13 @@ Examples:
 
     success_count = 0
     for test_name, result in results:
+        # Parse JSON string if needed
+        if isinstance(result, str):
+            try:
+                result = json.loads(result)
+            except json.JSONDecodeError:
+                pass  # If it's not JSON, treat as boolean
+
         if isinstance(result, dict):
             status = "✅ PASS" if result.get('status') == 'success' else "❌ FAIL"
         else:

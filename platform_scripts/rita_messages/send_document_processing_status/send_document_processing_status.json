@@ -1,0 +1,90 @@
+{
+  "innerCode": 200,
+  "data": {
+    "name": "Document Processing Status",
+    "description": "Sends document processing status updates (processing_completed, processing_failed) to Rita via RabbitMQ.",
+    "Timeout": null,
+    "class": [],
+    "rootSettings": {
+      "isCollapse": false,
+      "activitySettings": [
+        {
+          "value": "%rita_rabbitmq_url%",
+          "required": true,
+          "key": "rabbitmq_url",
+          "label": "RabbitMQ URL",
+          "labelKey": "rabbitmq_url",
+          "baseType": "control",
+          "controlType": "hidden"
+        },
+        {
+          "value": "%rita_document_processing_queue_name%",
+          "required": true,
+          "key": "queue_name",
+          "label": "Queue Name",
+          "labelKey": "queue_name",
+          "baseType": "control",
+          "controlType": "hidden"
+        },
+        {
+          "value": "%blob_metadata_id%",
+          "required": true,
+          "key": "blob_metadata_id",
+          "label": "Blob Metadata ID",
+          "labelKey": "blob_metadata_id",
+          "baseType": "control",
+          "controlType": "hidden"
+        },
+        {
+          "value": "%tenant_id%",
+          "required": true,
+          "key": "tenant_id",
+          "label": "Tenant ID",
+          "labelKey": "tenant_id",
+          "baseType": "control",
+          "controlType": "hidden"
+        },
+        {
+          "value": "%user_id%",
+          "required": false,
+          "key": "user_id",
+          "label": "User ID",
+          "labelKey": "user_id",
+          "baseType": "control",
+          "controlType": "hidden"
+        },
+        {
+          "value": "%processing_status%",
+          "required": true,
+          "key": "status",
+          "label": "Processing Status",
+          "labelKey": "status",
+          "baseType": "control",
+          "controlType": "textbox"
+        },
+        {
+          "value": "%processed_markdown%",
+          "required": false,
+          "key": "processed_markdown",
+          "label": "Processed Markdown",
+          "labelKey": "processed_markdown",
+          "baseType": "control",
+          "controlType": "textbox"
+        },
+        {
+          "value": "%processing_error%",
+          "required": false,
+          "key": "error_message",
+          "label": "Processing Error",
+          "labelKey": "error_message",
+          "baseType": "control",
+          "controlType": "textbox"
+        }
+      ],
+      "index": "1",
+      "label": "main",
+      "labelKey": null
+    }
+  },
+  "message": "SUCCESS"
+}

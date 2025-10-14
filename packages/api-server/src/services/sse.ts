@@ -24,6 +24,7 @@ export interface NewMessageEvent {
   type: 'new_message';
   data: {
     messageId: string;
+    conversationId: string;
     role: 'user' | 'assistant';
     message: string;
     metadata?: any;
@@ -33,7 +34,39 @@ export interface NewMessageEvent {
   };
 }
 
-export type SSEEvent = MessageUpdateEvent | NewMessageEvent;
+export interface DataSourceUpdateEvent {
+  type: 'data_source_update';
+  data: {
+    connection_id: string;
+    connection_type?: string; // e.g., 'confluence', 'servicenow', 'sharepoint', 'websearch'
+    status: 'idle' | 'verifying' | 'syncing';
+    // Sync-specific fields
+    last_sync_status?: 'completed' | 'failed' | null;
+    last_sync_at?: Date | null;
+    last_sync_error?: string;
+    documents_processed?: number;
+    // Verification-specific fields
+    last_verification_at?: Date | null;
+    last_verification_error?: string | null;
+    latest_options?: Record<string, any> | null;
+    // Common
+    timestamp: string;
+  };
+}
+
+export interface DocumentUpdateEvent {
+  type: 'document_update';
+  data: {
+    blob_metadata_id: string;
+    filename: string;
+    status: 'processed' | 'failed';
+    processed_markdown?: string;
+    error_message?: string;
+    timestamp: string;
+  };
+}
+
+export type SSEEvent = MessageUpdateEvent | NewMessageEvent | DataSourceUpdateEvent | DocumentUpdateEvent;
 
 export class SSEService {
   private connections: Map<string, SSEConnection> = new Map();

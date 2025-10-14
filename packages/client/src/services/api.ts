@@ -34,20 +34,15 @@ async function apiRequest<T>(
     credentials: 'include', // Include cookies for session-based auth
   };
 
+  // Cookie-only authentication: Keep Keycloak JWT fresh
+  // Backend auto-extends session cookie when near expiry (sliding session)
   if (keycloak.authenticated && keycloak.token) {
     try {
-      const refreshed = await keycloak.updateToken(5); // Refresh if token expires in 5s
-      if (refreshed) {
-        console.log('API request: Token was refreshed');
-      }
-    } catch {
-      console.error('Failed to refresh token, logging out.');
+      await keycloak.updateToken(5); // Refresh JWT if expires in 5s
+    } catch (error) {
+      console.error('Failed to refresh Keycloak token, logging out.', error);
       keycloak.logout();
     }
-    config.headers = {
-      ...config.headers,
-      Authorization: `Bearer ${keycloak.token}`,
-    };
   }
 
   if (body && method !== 'GET') {
@@ -60,7 +55,7 @@ async function apiRequest<T>(
     const errorData = await response.json().catch(() => ({}));
     // Special handling for 401 to trigger re-authentication
     if (response.status === 401) {
-      console.error('API request returned 401. This may trigger a logout.');
+      console.error('API request returned 401. Session may have expired.');
     }
     throw new ApiError(
       response.status,
@@ -87,8 +82,20 @@ export const conversationApi = {
       body: data,
     }),
 
-  getConversationMessages: (conversationId: string) =>
-    apiRequest<{ messages: any[] }>(`/api/conversations/${conversationId}/messages`),
+  getConversationMessages: (conversationId: string, params?: { limit?: number; before?: string }) => {
+    // Filter out undefined values to avoid sending "undefined" as a string
+    const cleanParams = params ? Object.entries(params)
+      .filter(([_, value]) => value !== undefined)
+      .reduce((acc, [key, value]) => ({ ...acc, [key]: String(value) }), {}) : {};
+
+    const queryString = Object.keys(cleanParams).length > 0
+      ? `?${new URLSearchParams(cleanParams).toString()}`
+      : '';
+
+    return apiRequest<{ messages: any[]; hasMore: boolean; nextCursor: string | null }>(
+      `/api/conversations/${conversationId}/messages${queryString}`
+    );
+  },
 
   sendMessage: (conversationId: string, data: { content: string }) =>
     apiRequest<{ message: any }>(`/api/conversations/${conversationId}/messages`, {
@@ -179,6 +186,50 @@ export const fileApi = {
   deleteDocument: (documentId: string) =>
     apiRequest<{ deleted: boolean }>(`/api/files/${documentId}`, {
       method: 'DELETE',
+    }),
+
+  // Reprocess document (trigger processing workflow)
+  reprocessDocument: (documentId: string) =>
+    apiRequest<{ success: boolean; message: string; document_id: string }>(`/api/files/${documentId}/process`, {
+      method: 'POST',
+      body: { enable_processing: true },
+    }),
+};
+
+// Data Sources API
+export const dataSourcesApi = {
+  // List all data sources
+  list: () =>
+    apiRequest<{ data: import('../types/dataSource').DataSourceConnection[] }>('/api/data-sources'),
+
+  // Get single data source by ID
+  get: (id: string) =>
+    apiRequest<{ data: import('../types/dataSource').DataSourceConnection }>(`/api/data-sources/${id}`),
+
+  // Seed default data sources (idempotent)
+  seed: () =>
+    apiRequest<import('../types/dataSource').SeedDataSourcesResponse>('/api/data-sources/seed', {
+      method: 'POST',
+    }),
+
+  // Update data source
+  update: (id: string, data: import('../types/dataSource').UpdateDataSourceRequest) =>
+    apiRequest<{ data: import('../types/dataSource').DataSourceConnection }>(`/api/data-sources/${id}`, {
+      method: 'PUT',
+      body: data,
+    }),
+
+  // Verify credentials (async - result via SSE)
+  verify: (id: string, payload: import('../types/dataSource').VerifyDataSourceRequest) =>
+    apiRequest<import('../types/dataSource').VerifyDataSourceResponse>(`/api/data-sources/${id}/verify`, {
+      method: 'POST',
+      body: payload,
+    }),
+
+  // Trigger sync
+  sync: (id: string) =>
+    apiRequest<import('../types/dataSource').TriggerSyncResponse>(`/api/data-sources/${id}/sync`, {
+      method: 'POST',
     }),
 };
 

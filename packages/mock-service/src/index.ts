@@ -5,6 +5,7 @@ import axios from 'axios';
 import cors from 'cors';
 import { config } from 'dotenv';
 import express from 'express';
+import { blobExists, getBlobContent, listBlobIds } from './blob-storage.js';
 import {
   configLogger,
   createContextLogger,
@@ -96,8 +97,26 @@ interface SignupWebhookPayload extends BaseWebhookPayload {
   pending_user_id: string;
 }
 
+// Data source webhook payloads for rita-data-sources
+interface DataSourceVerifyPayload extends BaseWebhookPayload {
+  source: 'rita-chat';
+  action: 'verify_credentials';
+  connection_id: string;
+  connection_type: string;
+  credentials: Record<string, any>;
+  settings: Record<string, any>;
+}
+
+interface DataSourceSyncPayload extends BaseWebhookPayload {
+  source: 'rita-chat';
+  action: 'trigger_sync';
+  connection_id: string;
+  connection_type: string;
+  settings: Record<string, any>;
+}
+
 // Union type for all webhook payloads
-type WebhookPayload = MessageWebhookPayload | DocumentWebhookPayload | SignupWebhookPayload | BaseWebhookPayload;
+type WebhookPayload = MessageWebhookPayload | DocumentWebhookPayload | SignupWebhookPayload | DataSourceVerifyPayload | DataSourceSyncPayload | BaseWebhookPayload;
 
 interface MockResponse {
   message_id: string;
@@ -164,6 +183,37 @@ async function publishResponse(response: MockResponse): Promise<void> {
   } catch (error) {
     timer.end({ success: false });
     logError(contextLogger, error as Error, { operation: 'publish-response' });
+    throw error;
+  }
+}
+
+async function publishToQueue(queueName: string, message: any): Promise<void> {
+  const timer = new PerformanceTimer(rabbitLogger, 'publish-to-queue');
+  const contextLogger = createContextLogger(rabbitLogger, generateCorrelationId());
+
+  try {
+    if (!rabbitChannel) {
+      throw new Error('RabbitMQ channel not initialized');
+    }
+
+    // Assert queue exists
+    await rabbitChannel.assertQueue(queueName, { durable: true });
+
+    const messageBuffer = Buffer.from(JSON.stringify(message));
+    rabbitChannel.sendToQueue(queueName, messageBuffer, {
+      persistent: true
+    });
+
+    timer.end({
+      queueName,
+      success: true
+    });
+    contextLogger.info({
+      queueName
+    }, 'Published message to queue');
+  } catch (error) {
+    timer.end({ success: false });
+    logError(contextLogger, error as Error, { operation: 'publish-to-queue', queueName });
     throw error;
   }
 }
@@ -350,9 +400,21 @@ Check the sources section for additional resources!`
     parts.push({
       type: 'sources',
       sources: [
-        { url: 'https://docs.resolve.com/test3', title: 'Test3 Documentation' },
-        { url: 'https://github.com/resolve-io/test3', title: 'Test3 GitHub Repository' },
-        { url: 'https://blog.resolve.com/test3-guide', title: 'Complete Test3 Guide' }
+        {
+          url: 'https://docs.resolve.com/test3',
+          title: 'Test3 Documentation',
+          snippet: 'Complete documentation for Test3 features including setup, configuration, and advanced usage. Learn how to integrate Test3 with your existing workflows.'
+        },
+        {
+          url: 'https://github.com/resolve-io/test3',
+          title: 'Test3 GitHub Repository',
+          snippet: 'Open source repository containing the full Test3 implementation, examples, and test suite. Contributions welcome!'
+        },
+        {
+          url: 'https://blog.resolve.com/test3-guide',
+          title: 'Complete Test3 Guide',
+          snippet: 'Step-by-step guide covering common Test3 patterns, best practices, and troubleshooting tips from the engineering team.'
+        }
       ]
     });
   } else if (content.startsWith('test4')) {
@@ -505,6 +567,235 @@ This tests the complete grouped message functionality.`
         { url: 'https://docs.resolve.com/reasoning-sources', title: 'Reasoning + Sources Pattern' },
         { url: 'https://research.resolve.com/analysis', title: 'Analysis Methodology' },
         { url: 'https://docs.resolve.com/test9', title: 'Test9 Combination Guide' }
+      ]
+    });
+  } else if (content.toLowerCase().startsWith('show all citations')) {
+    // Consolidated citation examples demonstrating all formats and variants
+    parts.push({
+      type: 'text',
+      text: `## Citation Examples Demonstration
+
+This response demonstrates all citation UI variants available in Rita:
+
+### UI Variants Demonstrated Below
+1. **hover-card**: Default inline interaction with badges
+2. **modal**: Focused overlay display
+3. **right-panel**: Side-by-side reading experience
+4. **collapsible-list**: Expandable list view
+5. **inline**: Citation markers embedded in text
+
+Each section below uses a different citation variant.`
+    });
+
+    // 1. Hover-card variant
+    parts.push({
+      type: 'text',
+      text: `### 1. Hover-Card Variant
+Inline citation badges with hover interaction.`
+    });
+    parts.push({
+      type: 'sources',
+      metadata: { citation_variant: 'hover-card' },
+      sources: [
+        {
+          url: 'https://docs.resolve.com/quick-reference',
+          title: 'Quick Reference Guide'
+        },
+        {
+          title: 'Rita Automation Documentation',
+          snippet: '...this is the quote you\'re looking for...',
+          blob_id: 'blob_automation_guide_v2024'
+        }
+      ]
+    });
+
+    // 2. Modal variant
+    parts.push({
+      type: 'text',
+      text: `### 2. Modal Variant
+Citations displayed in a focused modal overlay. Click "View full document" to see the complete 824-line guide with Mermaid diagrams.`
+    });
+    parts.push({
+      type: 'sources',
+      metadata: { citation_variant: 'modal' },
+      sources: [
+        {
+          title: 'Rita Automation Implementation Guide',
+          snippet: '...comprehensive guide covering architecture, deployment, and best practices for enterprise automation...',
+          blob_id: 'blob_automation_guide_v2024'
+        },
+        {
+          url: 'https://research.enterprise.com/patterns',
+          title: 'Enterprise Architecture Patterns',
+          snippet: '...scalable patterns for microservices, event-driven systems, and distributed processing...'
+        }
+      ]
+    });
+
+    // 3. Right-panel variant
+    parts.push({
+      type: 'text',
+      text: `### 3. Right-Panel Variant
+Side-by-side reading with sources in a right panel. Both sources use the same 824-line document with Mermaid diagrams.`
+    });
+    parts.push({
+      type: 'sources',
+      metadata: { citation_variant: 'right-panel' },
+      sources: [
+        {
+          title: 'Rita Automation Implementation Guide',
+          snippet: '...comprehensive guide covering architecture, deployment, and best practices for enterprise automation...',
+          blob_id: 'blob_automation_guide_v2024'
+        },
+        {
+          title: 'Rita Automation Implementation Guide (Copy 2)',
+          snippet: '...same comprehensive guide with architecture diagrams and deployment instructions...',
+          blob_id: 'blob_automation_guide_v2024'
+        }
+      ]
+    });
+
+    // 4. Collapsible-list variant
+    parts.push({
+      type: 'text',
+      text: `### 4. Collapsible-List Variant
+Traditional expandable list view of citations.`
+    });
+    parts.push({
+      type: 'sources',
+      metadata: { citation_variant: 'collapsible-list' },
+      sources: [
+        {
+          title: 'Rita Automation Implementation Guide',
+          snippet: '...comprehensive guide covering architecture, deployment, and best practices...',
+          blob_id: 'blob_automation_guide_v2024'
+        },
+        {
+          url: 'https://research.enterprise.com/patterns',
+          title: 'Enterprise Architecture Patterns',
+          snippet: '...scalable patterns for microservices, event-driven systems...'
+        },
+        {
+          title: 'Production Security Hardening Guide',
+          snippet: '...defense-in-depth strategies with network segmentation and access controls...',
+          blob_id: 'blob_security_hardening_2024'
+        },
+        {
+          url: 'https://monitoring.observability.com/guide',
+          title: 'Production Monitoring Guide',
+          snippet: '...effective monitoring and observability strategies...',
+          blob_id: 'blob_monitoring_guide_2024'
+        },
+        {
+          title: 'WCAG 2.1 AA Implementation Guide',
+          snippet: '...comprehensive accessibility standards for web content and applications...',
+          blob_id: 'blob_wcag_guide_2024'
+        },
+        {
+          url: 'https://compliance.guide/soc2',
+          title: 'SOC 2 Type II Compliance Requirements',
+          snippet: '...security, availability, processing integrity, confidentiality, and privacy controls...',
+          blob_id: 'blob_soc2_guide_2024'
+        }
+      ]
+    });
+
+    // 5. Inline citations variant
+    parts.push({
+      type: 'text',
+      text: `### 5. Inline Citations
+Citation markers embedded directly in the text for academic-style referencing.
+
+According to recent research [1], enterprise automation requires careful architectural planning [2]. Security considerations [3] must be addressed from the beginning, with comprehensive monitoring [4] throughout the lifecycle.`
+    });
+    parts.push({
+      type: 'sources',
+      sources: [
+        {
+          title: 'Rita Automation Implementation Guide',
+          snippet: '...comprehensive guide covering architecture, deployment, and best practices for enterprise automation...',
+          blob_id: 'blob_automation_guide_v2024'
+        },
+        {
+          url: 'https://research.enterprise.com/patterns',
+          title: 'Enterprise Architecture Patterns',
+          snippet: '...scalable patterns for microservices, event-driven systems, and distributed processing...',
+          blob_id: 'blob_architecture_patterns_2024'
+        },
+        {
+          title: 'Production Security Hardening Guide',
+          snippet: '...defense-in-depth strategies with network segmentation, access controls, and encryption...',
+          blob_id: 'blob_security_hardening_2024'
+        },
+        {
+          url: 'https://monitoring.observability.com/guide',
+          title: 'Production Monitoring Best Practices',
+          snippet: '...effective monitoring and observability strategies for production systems...',
+          blob_id: 'blob_monitoring_guide_2024'
+        }
+      ]
+    });
+  } else if (content.toLowerCase().startsWith('regular citations') || content.toLowerCase().startsWith('default citations')) {
+    // Regular/default example showing hover-card with navigation between multiple citations
+    parts.push({
+      type: 'text',
+      text: `## Default Citation Behavior
+
+This demonstrates the regular out-of-the-box citation behavior with hover cards at the end.
+
+According to recent research, enterprise automation requires careful architectural planning. Security best practices must be followed from the start, with comprehensive monitoring throughout the implementation lifecycle. The hover card below allows you to navigate between multiple citation sources.`
+    });
+    parts.push({
+      type: 'sources',
+      metadata: { citation_variant: 'hover-card' },
+      sources: [
+        {
+          title: 'Rita Automation Implementation Guide',
+          snippet: '...comprehensive guide covering architecture, deployment, and best practices for enterprise automation...',
+          blob_id: 'blob_automation_guide_v2024'
+        },
+        {
+          url: 'https://research.enterprise.com/patterns',
+          title: 'Enterprise Architecture Patterns',
+          snippet: '...scalable patterns for microservices, event-driven systems, and distributed processing...'
+        },
+        {
+          title: 'Production Security Hardening Guide',
+          snippet: '...defense-in-depth strategies with network segmentation, access controls, and encryption...',
+          blob_id: 'blob_security_hardening_2024'
+        },
+        {
+          title: 'Monitoring and Observability Guide',
+          snippet: '...effective strategies for production monitoring and incident response...',
+          blob_id: 'blob_monitoring_guide_2024'
+        }
+      ]
+    });
+  } else if (content.toLowerCase().startsWith('simple citations') || content.toLowerCase().startsWith('basic citations')) {
+    // Shorter example with just URL and title
+    parts.push({
+      type: 'text',
+      text: `## Simple Citations
+
+Basic citation format with just URL and title, no snippets or full documents.
+
+Here are some helpful resources [1] [2] [3] for getting started with Rita.`
+    });
+    parts.push({
+      type: 'sources',
+      sources: [
+        {
+          url: 'https://docs.resolve.com/getting-started',
+          title: 'Getting Started with Rita'
+        },
+        {
+          url: 'https://docs.resolve.com/tutorials',
+          title: 'Rita Tutorials and Examples'
+        },
+        {
+          url: 'https://docs.resolve.com/api-reference',
+          title: 'Rita API Reference'
+        }
       ]
     });
   } else if (content.startsWith('test10')) {
@@ -842,7 +1133,10 @@ This is a basic response format. Set \`MOCK_SCENARIO\` environment variable to g
   // Convert parts to separate messages with the external service format
   const responses = [];
 
-  for (const part of parts) {
+  for (let i = 0; i < parts.length; i++) {
+    const part = parts[i];
+    const isLastPart = i === parts.length - 1;
+
     if (part.type === 'text') {
       // Main text response
       responses.push({
@@ -851,17 +1145,37 @@ This is a basic response format. Set \`MOCK_SCENARIO\` environment variable to g
         tenant_id: messagePayload.tenant_id,
         user_id: messagePayload.user_id,
         response: part.text,
-        response_group_id: responseGroupId
+        response_group_id: responseGroupId,
+        metadata: {
+          turn_complete: isLastPart
+        }
       });
     } else {
       // Metadata-based response (reasoning, sources, tasks)
+      const metadata: any = {};
+
+      if (part.type === 'reasoning') {
+        metadata[part.type] = { content: part.text, state: part.state };
+      } else if (part.type === 'sources') {
+        metadata.sources = part.sources;
+        // Include any additional metadata (like citation_variant)
+        if (part.metadata) {
+          Object.assign(metadata, part.metadata);
+        }
+      } else {
+        metadata[part.type] = part[part.type];
+      }
+
+      // Add turn_complete to metadata
+      metadata.turn_complete = isLastPart;
+
       responses.push({
         message_id: messagePayload.message_id,
         conversation_id: messagePayload.conversation_id,
         tenant_id: messagePayload.tenant_id,
         user_id: messagePayload.user_id,
         response: '', // Empty text content for metadata-only messages
-        metadata: { [part.type]: part.type === 'reasoning' ? { content: part.text, state: part.state } : part[part.type] },
+        metadata,
         response_group_id: responseGroupId
       });
     }
@@ -882,6 +1196,58 @@ app.get('/health', (_req, res) => {
     service: 'rita-mock-automation',
     timestamp: new Date().toISOString(),
     config: MOCK_CONFIG
+  });
+});
+
+// Blob content endpoint
+app.get('/blobs/:blob_id', (req, res) => {
+  const correlationId = generateCorrelationId();
+  const contextLogger = createContextLogger(logger, correlationId, {
+    blobId: req.params.blob_id
+  });
+
+  const { blob_id } = req.params;
+
+  contextLogger.info({}, 'Blob content requested');
+
+  if (!blobExists(blob_id)) {
+    contextLogger.warn({}, 'Blob not found');
+    return res.status(404).json({
+      error: 'Blob not found',
+      blob_id
+    });
+  }
+
+  const blobContent = getBlobContent(blob_id);
+
+  if (!blobContent) {
+    contextLogger.error({}, 'Blob exists but content retrieval failed');
+    return res.status(500).json({
+      error: 'Failed to retrieve blob content',
+      blob_id
+    });
+  }
+
+  contextLogger.info({
+    contentType: blobContent.content_type,
+    contentLength: blobContent.content.length
+  }, 'Blob content retrieved successfully');
+
+  res.json(blobContent);
+});
+
+// List all available blobs
+app.get('/blobs', (_req, res) => {
+  const correlationId = generateCorrelationId();
+  const contextLogger = createContextLogger(logger, correlationId);
+
+  contextLogger.info({}, 'Blob list requested');
+
+  const blobIds = listBlobIds();
+
+  res.json({
+    blobs: blobIds,
+    count: blobIds.length
   });
 });
 
@@ -927,11 +1293,11 @@ app.post('/webhook', async (req, res) => {
       }, 'Received message webhook');
 
       // Log full webhook payload with transcript
-      console.log('\n' + '═'.repeat(100));
+      console.log(`\n${'═'.repeat(100)}`);
       console.log('📨 WEBHOOK PAYLOAD RECEIVED');
       console.log('═'.repeat(100));
       console.log(JSON.stringify(messagePayload, null, 2));
-      console.log('═'.repeat(100) + '\n');
+      console.log(`${'═'.repeat(100)}\n`);
 
       // Validate message-specific required fields
       if (!messagePayload.message_id || !messagePayload.conversation_id || !messagePayload.customer_message) {
@@ -1014,6 +1380,112 @@ app.post('/webhook', async (req, res) => {
           error: 'Missing required fields for signup webhook: user_email, first_name, last_name, company, password, verification_token'
         });
       }
+
+    } else if (payload.source === 'rita-chat' && payload.action === 'verify_credentials') {
+      const verifyPayload = payload as DataSourceVerifyPayload;
+      const contextLogger = createContextLogger(webhookLogger, correlationId, {
+        tenantId: verifyPayload.tenant_id
+      });
+
+      contextLogger.info({
+        source: verifyPayload.source,
+        action: verifyPayload.action,
+        connection_id: verifyPayload.connection_id,
+        connection_type: verifyPayload.connection_type,
+        user_email: verifyPayload.user_email
+      }, 'Received data source verify webhook');
+
+      // Publish verification success message to RabbitMQ after 1 second delay
+      setTimeout(async () => {
+        try {
+          if (!rabbitChannel) {
+            throw new Error('RabbitMQ channel not initialized');
+          }
+
+          // Simulate verification success with mock options
+          const verificationMessage = {
+            type: 'verification',
+            connection_id: verifyPayload.connection_id,
+            tenant_id: verifyPayload.tenant_id,
+            status: 'success',
+            options: {
+              spaces: 'ENG,PROD,DOCS',
+              sites: 'confluence.company.com'
+            },
+            error: null
+          };
+
+          await rabbitChannel.assertQueue('data_source_status', { durable: true });
+          rabbitChannel.sendToQueue(
+            'data_source_status',
+            Buffer.from(JSON.stringify(verificationMessage)),
+            { persistent: true }
+          );
+
+          contextLogger.info({
+            connectionId: verifyPayload.connection_id,
+            status: 'success'
+          }, 'Published verification success message to RabbitMQ');
+        } catch (error) {
+          contextLogger.error({ error }, 'Failed to publish verification message');
+        }
+      }, 1000);
+
+      return res.status(200).json({
+        success: true,
+        message: 'Verification started'
+      });
+
+    } else if (payload.source === 'rita-chat' && payload.action === 'trigger_sync') {
+      const syncPayload = payload as DataSourceSyncPayload;
+      const contextLogger = createContextLogger(webhookLogger, correlationId, {
+        tenantId: syncPayload.tenant_id
+      });
+
+      contextLogger.info({
+        source: syncPayload.source,
+        action: syncPayload.action,
+        connection_id: syncPayload.connection_id,
+        connection_type: syncPayload.connection_type,
+        user_email: syncPayload.user_email
+      }, 'Received data source sync trigger webhook');
+
+      // Publish sync_completed message to RabbitMQ after 2 second delay
+      setTimeout(async () => {
+        try {
+          if (!rabbitChannel) {
+            throw new Error('RabbitMQ channel not initialized');
+          }
+
+          const syncMessage = {
+            type: 'sync',
+            connection_id: syncPayload.connection_id,
+            tenant_id: syncPayload.tenant_id,
+            status: 'sync_completed',
+            documents_processed: 42,
+            timestamp: new Date().toISOString()
+          };
+
+          await rabbitChannel.assertQueue('data_source_status', { durable: true });
+          rabbitChannel.sendToQueue(
+            'data_source_status',
+            Buffer.from(JSON.stringify(syncMessage)),
+            { persistent: true }
+          );
+
+          contextLogger.info({
+            connectionId: syncPayload.connection_id,
+            documentsProcessed: 42
+          }, 'Published sync_completed message to RabbitMQ');
+        } catch (error) {
+          contextLogger.error({ error }, 'Failed to publish sync_completed message');
+        }
+      }, 2000);
+
+      return res.status(200).json({
+        success: true,
+        message: 'Sync triggered successfully'
+      });
 
     } else {
       const errorLogger = createContextLogger(webhookLogger, correlationId);
@@ -1134,7 +1606,7 @@ app.post('/webhook', async (req, res) => {
       }, MOCK_CONFIG.responseDelay);
 
     } else if (payload.source === 'rita-documents') {
-      // Document processing - just log as placeholder
+      // Document processing - simulate processing and send status update
       const documentPayload = payload as DocumentWebhookPayload;
       timer.end({
         blobMetadataId: documentPayload.blob_metadata_id,
@@ -1148,15 +1620,48 @@ app.post('/webhook', async (req, res) => {
         document_url: documentPayload.document_url,
         file_type: documentPayload.file_type,
         file_size: documentPayload.file_size,
-        original_filename: documentPayload.original_filename,
-        note: 'Document processing is placeholder - only logging to console'
-      }, '📄 PLACEHOLDER: Document processing webhook received');
+        original_filename: documentPayload.original_filename
+      }, '📄 Document processing webhook received');
+
+      // Publish processing_completed message to RabbitMQ after 3 second delay
+      setTimeout(async () => {
+        try {
+          if (!rabbitChannel) {
+            throw new Error('RabbitMQ channel not initialized');
+          }
+
+          // Simulate successful document processing
+          const processingMessage = {
+            type: 'document_processing',
+            blob_metadata_id: documentPayload.blob_metadata_id,
+            tenant_id: documentPayload.tenant_id,
+            user_id: documentPayload.user_id,
+            status: 'processing_completed',
+            processed_markdown: `# Processed Document: ${documentPayload.original_filename}\n\nThis is mock processed content from the document.\n\n## Summary\n- **File Type**: ${documentPayload.file_type}\n- **File Size**: ${documentPayload.file_size} bytes\n- **Processed At**: ${new Date().toISOString()}\n\n## Content\nMock extracted text content from the uploaded document. In a real scenario, this would contain the actual parsed and processed content from the PDF, DOCX, or other file format.`,
+            timestamp: new Date().toISOString()
+          };
+
+          await rabbitChannel.assertQueue('document_processing_status', { durable: true });
+          rabbitChannel.sendToQueue(
+            'document_processing_status',
+            Buffer.from(JSON.stringify(processingMessage)),
+            { persistent: true }
+          );
+
+          contextLogger.info({
+            blobMetadataId: documentPayload.blob_metadata_id,
+            status: 'processing_completed'
+          }, 'Published document processing_completed message to RabbitMQ');
+        } catch (error) {
+          contextLogger.error({ error }, 'Failed to publish document processing message');
+        }
+      }, 3000); // 3 second delay to simulate processing time
 
       res.status(200).json({
-        message: 'Document webhook received and logged (placeholder implementation)',
+        message: 'Document webhook received, processing started',
         blob_metadata_id: documentPayload.blob_metadata_id,
         blob_id: documentPayload.blob_id,
-        status: 'acknowledged'
+        status: 'processing'
       });
 
     } else if (payload.source === 'rita-signup') {
@@ -1180,7 +1685,7 @@ app.post('/webhook', async (req, res) => {
         }, '🎉 SIGNUP SUCCESS: Keycloak user created');
 
         // Log verification URL prominently for testing
-        console.log('\n' + '='.repeat(80));
+        console.log(`\n${'='.repeat(80)}`);
         console.log('📧 MOCK EMAIL VERIFICATION');
         console.log('='.repeat(80));
         console.log(`To: ${signupPayload.user_email}`);

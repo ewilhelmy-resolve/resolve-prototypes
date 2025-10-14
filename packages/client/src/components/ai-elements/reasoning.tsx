@@ -7,10 +7,11 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { cn } from "@/lib/utils";
-import { BrainIcon, ChevronDownIcon } from "lucide-react";
+import {  ChevronDownIcon } from "lucide-react";
 import type { ComponentProps } from "react";
 import { createContext, memo, useContext, useEffect, useState } from "react";
 import { Response } from "./response";
+import { Clock } from "../animate-ui/icons/clock";
 
 type ReasoningContextValue = {
   isStreaming: boolean;
@@ -110,9 +111,17 @@ export const Reasoning = memo(
   }
 );
 
-export type ReasoningTriggerProps = ComponentProps<typeof CollapsibleTrigger>;
+export type ReasoningTriggerProps = ComponentProps<typeof CollapsibleTrigger> & {
+  title?: string;
+};
 
-const getThinkingMessage = (isStreaming: boolean, duration?: number) => {
+const getThinkingMessage = (isStreaming: boolean, duration?: number, customTitle?: string) => {
+  // If custom title is provided, use it
+  if (customTitle) {
+    return <p>{customTitle}</p>;
+  }
+
+  // Otherwise use default messages based on state
   if (isStreaming || duration === 0) {
     return <p>Thinking...</p>;
   }
@@ -123,7 +132,7 @@ const getThinkingMessage = (isStreaming: boolean, duration?: number) => {
 };
 
 export const ReasoningTrigger = memo(
-  ({ className, children, ...props }: ReasoningTriggerProps) => {
+  ({ className, title, children, ...props }: ReasoningTriggerProps) => {
     const { isStreaming, isOpen, duration } = useReasoning();
 
     return (
@@ -136,8 +145,8 @@ export const ReasoningTrigger = memo(
       >
         {children ?? (
           <>
-            <BrainIcon className="size-4" />
-            {getThinkingMessage(isStreaming, duration)}
+            <Clock animate="default" loop className="size-4" />
+            {getThinkingMessage(isStreaming, duration, title)}
             <ChevronDownIcon
               className={cn(
                 "size-4 transition-transform",

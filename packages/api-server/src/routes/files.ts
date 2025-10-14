@@ -114,7 +114,7 @@ router.post('/upload', authenticateUser, handleUpload, async (req, res) => {
             INSERT INTO blob_metadata (
               blob_id, organization_id, user_id, filename, file_size, mime_type, status, metadata
             )
-            VALUES ($1, $2, $3, $4, $5, $6, 'uploaded', $7)
+            VALUES ($1, $2, $3, $4, $5, $6, 'processing', $7)
             RETURNING id, blob_id, filename, file_size, mime_type, status, created_at
           `, [
             blobId,
@@ -229,7 +229,7 @@ router.post('/content', authenticateUser, async (req, res) => {
             INSERT INTO blob_metadata (
               blob_id, organization_id, user_id, filename, file_size, mime_type, status, metadata
             )
-            VALUES ($1, $2, $3, $4, $5, 'text/plain', 'uploaded', $6)
+            VALUES ($1, $2, $3, $4, $5, 'text/plain', 'processing', $6)
             RETURNING id, blob_id, filename, file_size, mime_type, status, created_at
           `, [
             blobId,
@@ -287,7 +287,7 @@ router.get('/:documentId/download', authenticateUser, async (req, res) => {
             bm.status
           FROM blob_metadata bm
           JOIN blobs b ON bm.blob_id = b.blob_id
-          WHERE bm.id = $1 AND bm.organization_id = $2 AND bm.status = 'uploaded'
+          WHERE bm.id = $1 AND bm.organization_id = $2
         `, [documentId, authReq.user.activeOrganizationId]);
 
         if (documentResult.rows.length === 0) {
@@ -346,14 +346,14 @@ router.get('/', authenticateUser, async (req, res) => {
               ELSE 'binary'
             END as content_type
           FROM blob_metadata bm
-          WHERE bm.organization_id = $1 AND bm.user_id = $2 AND bm.status = 'uploaded'
+          WHERE bm.organization_id = $1 AND bm.user_id = $2
           ORDER BY bm.created_at DESC
           LIMIT $3 OFFSET $4
         `, [authReq.user.activeOrganizationId, authReq.user.id, limit, offset]);
 
         const countResult = await client.query(
-          'SELECT COUNT(*) as total FROM blob_metadata WHERE organization_id = $1 AND user_id = $2 AND status = $3',
-          [authReq.user.activeOrganizationId, authReq.user.id, 'uploaded']
+          'SELECT COUNT(*) as total FROM blob_metadata WHERE organization_id = $1 AND user_id = $2',
+          [authReq.user.activeOrganizationId, authReq.user.id]
         );
 
         return {
@@ -386,7 +386,7 @@ router.post('/:documentId/process', authenticateUser, async (req, res) => {
       });
     }
 
-    // Get document details
+    // Get document details (allow reprocessing for any status)
     const document = await withOrgContext(
       authReq.user.id,
       authReq.user.activeOrganizationId,
@@ -394,7 +394,7 @@ router.post('/:documentId/process', authenticateUser, async (req, res) => {
         const documentResult = await client.query(`
           SELECT bm.id, bm.filename as file_name, bm.file_size, bm.mime_type, bm.status
           FROM blob_metadata bm
-          WHERE bm.id = $1 AND bm.organization_id = $2 AND bm.user_id = $3 AND bm.status = 'uploaded'
+          WHERE bm.id = $1 AND bm.organization_id = $2 AND bm.user_id = $3
         `, [documentId, authReq.user.activeOrganizationId, authReq.user.id]);
 
         if (documentResult.rows.length === 0) {
@@ -406,7 +406,7 @@ router.post('/:documentId/process', authenticateUser, async (req, res) => {
     );
 
     if (!document) {
-      return res.status(404).json({ error: 'Document not found or not uploadable' });
+      return res.status(404).json({ error: 'Document not found' });
     }
 
     // Generate document URL for webhook
@@ -488,7 +488,6 @@ router.delete('/:documentId', authenticateUser, async (req, res) => {
       authReq.user.activeOrganizationId,
       async (client) => {
         // Delete only metadata record (preserve blob for other references)
-        // This will also remove from message_documents due to CASCADE on blob_metadata.id
         const deleteResult = await client.query(
           'DELETE FROM blob_metadata WHERE id = $1 AND organization_id = $2 AND user_id = $3 RETURNING id',
           [documentId, authReq.user.activeOrganizationId, authReq.user.id]

@@ -1,69 +1,30 @@
 import type { NextFunction, Request, Response } from 'express';
-import * as jose from 'jose';
 import { logger } from '../config/logger.js';
 import { getSessionService } from '../services/sessionService.js';
 
-// Keycloak configuration from environment variables
-const KEYCLOAK_URL = process.env.KEYCLOAK_URL || 'http://localhost:8080';
-const KEYCLOAK_REALM = process.env.KEYCLOAK_REALM || 'rita-chat-realm';
-const KEYCLOAK_ISSUER = process.env.KEYCLOAK_ISSUER || `${KEYCLOAK_URL}/realms/${KEYCLOAK_REALM}`;
-const JWKS = jose.createRemoteJWKSet(new URL(`${KEYCLOAK_URL}/realms/${KEYCLOAK_REALM}/protocol/openid-connect/certs`));
-
-async function validateKeycloakToken(token: string) {
-  try {
-    const { payload } = await jose.jwtVerify(token, JWKS, {
-      issuer: KEYCLOAK_ISSUER,
-    });
-    return payload;
-  } catch (error) {
-    logger.warn({ error }, 'Keycloak JWT validation failed');
-    return null;
-  }
-}
-
+/**
+ * Cookie-only authentication middleware with automatic session extension
+ *
+ * Validates session cookie for all protected routes and automatically extends
+ * session expiration when near expiry (sliding session pattern).
+ *
+ * Session cookies are created via POST /auth/login after Keycloak authentication.
+ *
+ * Architecture: Frontend manages Keycloak JWT tokens, backend uses session cookies only.
+ * This ensures consistent authentication across all request types (fetch, EventSource, etc.)
+ */
 export const authenticateUser = async (
   req: Request,
   res: Response,
   next: NextFunction
 ): Promise<void> => {
   try {
-    const authHeader = req.headers.authorization;
-
-    // 1. Authenticate with Keycloak JWT if present
-    if (authHeader?.startsWith('Bearer ')) {
-      const token = authHeader.substring(7);
-      const payload = await validateKeycloakToken(token);
-
-      if (payload?.sub) {
-        // JIT User Provisioning - find or create user from Keycloak token
-        const sessionService = getSessionService();
-        try {
-          const user = await (sessionService as any).findOrCreateUser(payload);
-          req.user = {
-            id: user.id,
-            email: user.email,
-            activeOrganizationId: user.activeOrganizationId,
-          };
-          logger.debug({ userId: req.user.id, endpoint: `${req.method} ${req.path}` }, 'User authenticated via JWT');
-          return next();
-        } catch (error) {
-          logger.error({ error, keycloakId: payload.sub }, 'Failed to provision user from JWT');
-          res.status(500).json({
-            error: 'Failed to provision user. Please try again.',
-            code: 'USER_PROVISIONING_ERROR',
-          });
-          return;
-        }
-      }
-    }
-
-    // 2. Fallback to session cookie for SSE and browser flows
     const sessionService = getSessionService();
     const sessionId = sessionService.parseSessionIdFromCookie(req.headers.cookie);
 
     if (!sessionId) {
       res.status(401).json({
-        error: 'No session or token found. Please login.',
+        error: 'No session found. Please login.',
         code: 'NO_AUTH',
       });
       return;
@@ -78,6 +39,27 @@ export const authenticateUser = async (
       return;
     }
 
+    // Auto-extend session if near expiry (sliding session)
+    const EXTEND_THRESHOLD = 2 * 60 * 60 * 1000; // 2 hours
+    const timeUntilExpiry = session.expiresAt.getTime() - Date.now();
+
+    if (timeUntilExpiry < EXTEND_THRESHOLD) {
+      const newExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours from now
+      await sessionService.updateSession(sessionId, { expiresAt: newExpiry });
+
+      // Update cookie with extended expiration
+      const cookie = sessionService.generateSessionCookie(sessionId);
+      res.setHeader('Set-Cookie', cookie);
+
+      logger.debug({
+        userId: session.userId,
+        sessionId: session.sessionId,
+        oldExpiry: session.expiresAt,
+        newExpiry,
+        timeUntilExpiry: Math.floor(timeUntilExpiry / 1000 / 60) // minutes
+      }, 'Session auto-extended');
+    }
+
     req.user = {
       id: session.userId,
       email: session.userEmail,
@@ -85,7 +67,7 @@ export const authenticateUser = async (
     };
     req.session = { sessionId: session.sessionId };
 
-    logger.debug({ userId: session.userId, sessionId: session.sessionId }, 'User authenticated via session');
+    logger.debug({ userId: session.userId, sessionId: session.sessionId, endpoint: `${req.method} ${req.path}` }, 'User authenticated via session cookie');
     next();
   } catch (error) {
     logger.error({ error, path: req.path }, 'Authentication error');

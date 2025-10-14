@@ -8,14 +8,13 @@
 
 import { useEffect } from 'react'
 import { useParams } from 'react-router-dom'
-import { SSEProvider, useSSEContext } from '../contexts/SSEContext'
-import { useAuth } from '../hooks/useAuth'
+import { useSSEContext } from '../contexts/SSEContext'
 import { useConversationStore } from '../stores/conversationStore'
-import RitaV1Layout from '../components/layouts/RitaV1Layout'
+import RitaLayout from '../components/layouts/RitaLayout'
 import ChatV1Content from '../components/chat/ChatV1Content.tsx'
 import { useRitaChat } from '../hooks/useRitaChat'
 
-const ChatV1Demo: React.FC = () => {
+export default function ChatV1Page() {
   const { conversationId } = useParams<{ conversationId?: string }>()
   const { latestUpdate } = useSSEContext()
   const { updateMessage, setCurrentConversation } = useConversationStore()
@@ -42,21 +41,8 @@ const ChatV1Demo: React.FC = () => {
   }, [latestUpdate, updateMessage])
 
   return (
-    <RitaV1Layout activePage="chat">
+    <RitaLayout activePage="chat">
       <ChatV1Content {...ritaChatState} />
-    </RitaV1Layout>
-  )
-}
-
-export default function ChatV1Page() {
-  const { authenticated, loading, sessionReady } = useAuth()
-
-  return (
-    <SSEProvider
-      apiUrl=""
-      enabled={authenticated && !loading && sessionReady}
-    >
-      <ChatV1Demo />
-    </SSEProvider>
+    </RitaLayout>
   )
 }

@@ -16,13 +16,17 @@ export interface Message {
     // Each property is self-contained with its own content
     reasoning?: {
       content: string     // Reasoning text content
+      title?: string      // Optional custom title (e.g., "Research & Analysis", "Planning")
       duration?: number   // How long AI spent thinking
       streaming?: boolean // Real-time streaming state
     }
     sources?: Array<{
       url: string
       title: string
+      snippet?: string    // Optional excerpt/preview of source content (200-300 chars recommended)
+      blob_id?: string    // Optional reference to uploaded document in blob storage
     }>
+    citation_variant?: 'hover-card' | 'modal' | 'right-panel' | 'collapsible-list' | 'inline'  // Controls how citations are displayed
     tasks?: Array<{
       title: string
       items: string[]
@@ -34,6 +38,7 @@ export interface Message {
       mediaType: string
       size?: number
     }>
+    turn_complete?: boolean  // UI hint: true = turn finished, false/undefined = more messages coming
   }
 
   // Grouping for multi-part AI responses
@@ -173,6 +178,10 @@ interface ConversationState {
   isLoading: boolean
   isSending: boolean
 
+  // Pagination state
+  hasMoreMessages: boolean      // Are there older messages to load?
+  isLoadingMore: boolean        // Currently loading older messages?
+
   // Actions
   setCurrentConversation: (conversationId: string | null) => void
   setConversations: (conversations: Conversation[]) => void
@@ -182,6 +191,8 @@ interface ConversationState {
   updateMessage: (messageId: string, updates: Partial<Message>) => void
   setLoading: (loading: boolean) => void
   setSending: (sending: boolean) => void
+  setHasMoreMessages: (hasMore: boolean) => void
+  setLoadingMore: (loading: boolean) => void
   clearCurrentConversation: () => void
   reset: () => void
   recomputeChatMessages: () => void // Force regrouping
@@ -197,10 +208,17 @@ export const useConversationStore = create<ConversationState>()(
       chatMessages: [],
       isLoading: false,
       isSending: false,
+      hasMoreMessages: false,
+      isLoadingMore: false,
 
       // Actions
       setCurrentConversation: (conversationId) =>
-        set({ currentConversationId: conversationId, messages: [], chatMessages: [] }),
+        set({
+          currentConversationId: conversationId,
+          messages: [],
+          chatMessages: [],
+          hasMoreMessages: false
+        }),
 
       setConversations: (conversations) =>
         set({ conversations }),
@@ -241,11 +259,19 @@ export const useConversationStore = create<ConversationState>()(
       setSending: (sending) =>
         set({ isSending: sending }),
 
+      setHasMoreMessages: (hasMore) =>
+        set({ hasMoreMessages: hasMore }),
+
+      setLoadingMore: (loading) =>
+        set({ isLoadingMore: loading }),
+
       clearCurrentConversation: () =>
         set({
           currentConversationId: null,
           messages: [],
-          chatMessages: []
+          chatMessages: [],
+          hasMoreMessages: false,
+          isLoadingMore: false
         }),
 
       reset: () =>
@@ -256,6 +282,8 @@ export const useConversationStore = create<ConversationState>()(
           chatMessages: [],
           isLoading: false,
           isSending: false,
+          hasMoreMessages: false,
+          isLoadingMore: false
         }),
 
       recomputeChatMessages: () => {

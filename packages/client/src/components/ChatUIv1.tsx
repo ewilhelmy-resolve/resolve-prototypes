@@ -13,13 +13,13 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { MessageCirclePlus, LayoutGrid, Newspaper, Ticket, User, Search, Share2, Zap, SendHorizontal, Plus, PanelLeft, LogOut } from "lucide-react"
 
 // Import existing functionality
-import { SSEProvider, useSSEContext } from '../contexts/SSEContext'
+import { useSSEContext } from '../contexts/SSEContext'
 import { useAuth } from '../hooks/useAuth'
 import { useConversationStore } from '../stores/conversationStore'
 import { useUIStore } from '../stores/uiStore'
-import { useConversations, useConversationMessages, useCreateConversation, useSendMessage } from '../hooks/api/useConversations'
+import { useConversations, useCreateConversation, useSendMessage } from '../hooks/api/useConversations'
 
-const RitaChatInterface: React.FC = () => {
+export default function ChatUIv1() {
   const { conversationId } = useParams<{ conversationId?: string }>()
   const navigate = useNavigate()
   const { latestUpdate } = useSSEContext()
@@ -35,6 +35,7 @@ const RitaChatInterface: React.FC = () => {
     currentConversationId,
     messages,
     isSending,
+    isLoadingMore,
     updateMessage,
     clearCurrentConversation,
     setCurrentConversation,
@@ -42,7 +43,7 @@ const RitaChatInterface: React.FC = () => {
 
   // Queries and mutations
   useConversations() // Keep conversations in sync
-  const { isLoading: messagesLoading } = useConversationMessages(currentConversationId)
+  // Note: Message loading is now handled by useInfiniteConversationMessages in useChatPagination
   const createConversationMutation = useCreateConversation()
   const sendMessageMutation = useSendMessage()
 
@@ -292,7 +293,7 @@ const RitaChatInterface: React.FC = () => {
             <div className="flex flex-col flex-1">
               {/* Messages Area */}
               <div className="flex-1 overflow-y-auto p-4">
-                {messagesLoading || (currentConversationId && messages.length === 0) ? (
+                {isLoadingMore || (currentConversationId && messages.length === 0) ? (
                   <div className="max-w-4xl mx-auto space-y-4">
                     {[...Array(3)].map((_, i) => (
                       <div key={i} className="flex items-start gap-3">
@@ -485,20 +486,5 @@ const RitaChatInterface: React.FC = () => {
       </SidebarProvider>
       </div>
     </div>
-  )
-}
-
-export default function ChatUIv1() {
-  const { authenticated, loading, sessionReady } = useAuth()
-
-  console.log('ChatUIv1 render - authenticated:', authenticated, 'loading:', loading, 'sessionReady:', sessionReady, 'SSE enabled:', authenticated && !loading && sessionReady)
-
-  return (
-    <SSEProvider
-      apiUrl=""
-      enabled={authenticated && !loading && sessionReady}
-    >
-      <RitaChatInterface />
-    </SSEProvider>
   )
 }

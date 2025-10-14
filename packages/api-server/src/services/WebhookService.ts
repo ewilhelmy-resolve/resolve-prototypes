@@ -18,7 +18,7 @@ export class WebhookService {
       url: config?.url || process.env.AUTOMATION_WEBHOOK_URL ||
         'http://localhost:3001/webhook',
       authHeader: config?.authHeader || process.env.AUTOMATION_AUTH ||
-        'Basic RTE0NzMwRkEtRDFCNS00MDM3LUFDRTMtQ0Y5N0ZCQzY3NkMyOlZaSkQqSSYyWEAkXkQ5Sjk4Rk5PJShGUVpaQ0dRNkEj',
+        '',
       timeout: config?.timeout || 10000,
       retryAttempts: config?.retryAttempts || 3,
       retryDelay: config?.retryDelay || 1000
@@ -119,6 +119,20 @@ export class WebhookService {
    */
   private async sendEvent(payload: WebhookPayload): Promise<WebhookResponse> {
     let lastError: WebhookError | null = null;
+
+    // Validate payload is JSON-serializable before sending
+    try {
+      const testJson = JSON.stringify(payload);
+      JSON.parse(testJson); // Verify it's valid JSON
+    } catch (validationError) {
+      console.error('[WebhookService] Payload validation failed:', validationError);
+      console.error('[WebhookService] Invalid payload:', payload);
+      return {
+        success: false,
+        status: 0,
+        error: `Invalid JSON payload: ${validationError instanceof Error ? validationError.message : 'Unknown error'}`
+      };
+    }
 
     for (let attempt = 1; attempt <= this.config.retryAttempts; attempt++) {
       try {

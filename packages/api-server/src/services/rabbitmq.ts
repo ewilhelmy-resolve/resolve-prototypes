@@ -1,15 +1,21 @@
 import amqp from 'amqplib';
 import { pool, withOrgContext } from '../config/database.js';
 import { logError, PerformanceTimer, queueLogger } from '../config/logger.js';
+import { DataSourceStatusConsumer } from '../consumers/DataSourceStatusConsumer.js';
+import { DocumentProcessingConsumer } from '../consumers/DocumentProcessingConsumer.js';
 import { getSSEService } from './sse.js';
 
 export class RabbitMQService {
   private connection: any = null;
   private channel: any = null;
   private readonly queueName: string;
+  private dataSourceStatusConsumer: DataSourceStatusConsumer;
+  private documentProcessingConsumer: DocumentProcessingConsumer;
 
   constructor() {
     this.queueName = process.env.QUEUE_NAME || 'chat.responses';
+    this.dataSourceStatusConsumer = new DataSourceStatusConsumer();
+    this.documentProcessingConsumer = new DocumentProcessingConsumer();
   }
 
   async connect(): Promise<void> {
@@ -42,6 +48,7 @@ export class RabbitMQService {
 
     queueLogger.info({ queueName: this.queueName }, 'Starting RabbitMQ consumer...');
 
+    // Start chat responses consumer
     await this.channel.consume(this.queueName, async (message: any) => {
       if (!message) return;
 
@@ -78,6 +85,12 @@ export class RabbitMQService {
         this.channel?.nack(message, false, false);
       }
     });
+
+    // Start unified data source status consumer
+    await this.dataSourceStatusConsumer.startConsumer(this.channel);
+
+    // Start document processing status consumer
+    await this.documentProcessingConsumer.startConsumer(this.channel);
   }
 
   private async processMessage(payload: any): Promise<void> {
@@ -196,6 +209,7 @@ export class RabbitMQService {
           type: 'new_message',
           data: {
             messageId: assistantMessageId,
+            conversationId: conversation_id,
             role: 'assistant',
             message: response,
             metadata: metadata,

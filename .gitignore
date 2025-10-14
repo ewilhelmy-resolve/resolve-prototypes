@@ -37,6 +37,10 @@ coverage/
 # nyc test coverage
 .nyc_output
 
+# Test artifacts
+playwright-report/
+test-results/
+
 # Dependency directories
 jspm_packages/
 
@@ -109,3 +113,5 @@ rabbitmq_data/
 ngrok.yml
 .mcp.json
 .claude/settings.local.json
+
+__pycache__/

@@ -7,6 +7,18 @@ export default {
     './app/**/*.{ts,tsx}',
     './src/**/*.{ts,tsx}',
   ],
+  safelist: [
+    'border-r-2',
+    'border-l-2',
+    'border-t-2',
+    'border-b-2',
+    'border-2',
+    'border-gray-200',
+    'bg-gray-200',
+    'h-[2px]',
+    'w-[2px]',
+    'rounded-lg',
+  ],
   prefix: "",
   theme: {
     container: {
@@ -17,6 +29,9 @@ export default {
       },
     },
     extend: {
+      borderWidth: {
+        '2': '2px',
+      },
       colors: {
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
@@ -50,6 +65,16 @@ export default {
         card: {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
+        },
+        sidebar: {
+          DEFAULT: "hsl(var(--sidebar))",
+          foreground: "hsl(var(--sidebar-foreground))",
+          primary: "hsl(var(--sidebar-primary))",
+          "primary-foreground": "hsl(var(--sidebar-primary-foreground))",
+          accent: "hsl(var(--sidebar-accent))",
+          "accent-foreground": "hsl(var(--sidebar-accent-foreground))",
+          border: "hsl(var(--sidebar-border))",
+          ring: "hsl(var(--sidebar-ring))",
         },
       },
       borderRadius: {

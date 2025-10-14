@@ -1,145 +1,183 @@
-import { createBrowserRouter, RouterProvider, Navigate } from 'react-router-dom';
-import { RootLayout } from './components/layouts/RootLayout';
-import { LoginPage } from './pages/LoginPage';
-import { VerifyEmailPage } from './pages/VerifyEmailPage';
-import { NotFoundPage } from './pages/NotFoundPage';
-import ContactPage from './pages/ContactPage';
-import HelpPage from './pages/HelpPage';
-import ChatV1Page from './pages/ChatV1Page';
-import FilesV1Page from './pages/FilesV1Page';
-import UsersV1Page from './pages/UsersV1Page';
-import SettingsV1Page from './pages/SettingsV1Page';
-import ConnectionSourceDetailPage from './pages/ConnectionSourceDetailPage';
-import { ProtectedRoute } from './components/auth/ProtectedRoute';
+import {
+	createBrowserRouter,
+	Navigate,
+	RouterProvider,
+} from "react-router-dom";
+import { ProtectedRoute } from "./components/auth/ProtectedRoute";
+import { RootLayout } from "./components/layouts/RootLayout";
+import ChatV1Page from "./pages/ChatV1Page";
+import ConnectionSourceDetailPage from "./pages/ConnectionSourceDetailPage";
+import ContactPage from "./pages/ContactPage";
+import DevToolsPage from "./pages/DevToolsPage";
+import DropdownTestPage from "./pages/DropdownTestPage";
+import FilesV1Page from "./pages/FilesV1Page";
+import HelpPage from "./pages/HelpPage";
+import { LoginPage } from "./pages/LoginPage";
+import { NotFoundPage } from "./pages/NotFoundPage";
+import SettingsV1Page from "./pages/SettingsV1Page";
+import ProfilePage from "./pages/settings/ProfilePage";
+import UsersSettingsPage from "./pages/UsersSettingsPage";
+import UsersV1Page from "./pages/UsersV1Page";
+import { VerifyEmailPage } from "./pages/VerifyEmailPage";
+import { VerifyEmailSentPage } from "./pages/VerifyEmailSentPage";
 
 const router = createBrowserRouter([
-  // Root redirect
-  {
-    path: '/',
-    element: <Navigate to="/chat" replace />
-  },
-  // Main application routes
-  {
-    path: '/chat',
-    element: (
-      <ProtectedRoute>
-        <ChatV1Page />
-      </ProtectedRoute>
-    )
-  },
-  {
-    path: '/chat/:conversationId',
-    element: (
-      <ProtectedRoute>
-        <ChatV1Page />
-      </ProtectedRoute>
-    )
-  },
-  {
-    path: '/content',
-    element: (
-      <ProtectedRoute>
-        <FilesV1Page />
-      </ProtectedRoute>
-    )
-  },
-  {
-    path: '/users',
-    element: (
-      <ProtectedRoute>
-        <UsersV1Page />
-      </ProtectedRoute>
-    )
-  },
-  {
-    path: '/settings',
-    element: (
-      <ProtectedRoute>
-        <SettingsV1Page />
-      </ProtectedRoute>
-    )
-  },
-  {
-    path: '/settings/connections',
-    element: (
-      <ProtectedRoute>
-        <SettingsV1Page />
-      </ProtectedRoute>
-    )
-  },
-  {
-    path: '/settings/connections/:sourceId',
-    element: (
-      <ProtectedRoute>
-        <ConnectionSourceDetailPage />
-      </ProtectedRoute>
-    )
-  },
-  // Placeholder routes - to be implemented with UX designs
-  {
-    path: '/account',
-    element: (
-      <ProtectedRoute>
-        {/* Account settings - awaiting UX design */}
-        <div>Account settings page (coming soon)</div>
-      </ProtectedRoute>
-    )
-  },
-  {
-    path: '/contact',
-    element: (
-      <ProtectedRoute>
-        <ContactPage />
-      </ProtectedRoute>
-    )
-  },
-  {
-    path: '/help',
-    element: (
-      <ProtectedRoute>
-        <HelpPage />
-      </ProtectedRoute>
-    )
-  },
-  {
-    path: '/payment',
-    element: (
-      <ProtectedRoute>
-        {/* Payment management - awaiting UX design */}
-        <div>Payment management (coming soon)</div>
-      </ProtectedRoute>
-    )
-  },
-  {
-    path: '/analytics',
-    element: (
-      <ProtectedRoute>
-        {/* Analytics dashboard - future feature */}
-        <div>Analytics dashboard (future feature)</div>
-      </ProtectedRoute>
-    )
-  },
-  // Auth and utility pages
-  {
-    path: '/',
-    element: <RootLayout />,
-    children: [
-      {
-        path: '/login',
-        element: <LoginPage />
-      },
-      {
-        path: '/verify-email',
-        element: <VerifyEmailPage />
-      },
-      {
-        path: '*',
-        element: <NotFoundPage />
-      }
-    ]
-  }
+	// Root redirect
+	{
+		path: "/",
+		element: <Navigate to="/chat" replace />,
+	},
+	// Main application routes
+	{
+		path: "/chat",
+		element: (
+			<ProtectedRoute>
+				<ChatV1Page />
+			</ProtectedRoute>
+		),
+	},
+	{
+		path: "/chat/:conversationId",
+		element: (
+			<ProtectedRoute>
+				<ChatV1Page />
+			</ProtectedRoute>
+		),
+	},
+	{
+		path: "/content",
+		element: (
+			<ProtectedRoute>
+				<FilesV1Page />
+			</ProtectedRoute>
+		),
+	},
+	{
+		path: "/users",
+		element: (
+			<ProtectedRoute>
+				<UsersV1Page />
+			</ProtectedRoute>
+		),
+	},
+	{
+		path: "/settings",
+		element: <Navigate to="/settings/profile" replace />,
+	},
+	{
+		path: "/settings/profile",
+		element: (
+			<ProtectedRoute>
+				<ProfilePage />
+			</ProtectedRoute>
+		),
+	},
+	{
+		path: "/settings/connections",
+		element: (
+			<ProtectedRoute>
+				<SettingsV1Page />
+			</ProtectedRoute>
+		),
+	},
+	{
+		path: "/settings/connections/:id",
+		element: (
+			<ProtectedRoute>
+				<ConnectionSourceDetailPage />
+			</ProtectedRoute>
+		),
+	},
+	{
+		path: "/settings/users",
+		element: (
+			<ProtectedRoute>
+				<UsersSettingsPage />
+			</ProtectedRoute>
+		),
+	},
+	// Placeholder routes - to be implemented with UX designs
+	{
+		path: "/account",
+		element: (
+			<ProtectedRoute>
+				{/* Account settings - awaiting UX design */}
+				<div>Account settings page (coming soon)</div>
+			</ProtectedRoute>
+		),
+	},
+	{
+		path: "/contact",
+		element: (
+			<ProtectedRoute>
+				<ContactPage />
+			</ProtectedRoute>
+		),
+	},
+	{
+		path: "/help",
+		element: (
+			<ProtectedRoute>
+				<HelpPage />
+			</ProtectedRoute>
+		),
+	},
+	{
+		path: "/payment",
+		element: (
+			<ProtectedRoute>
+				{/* Payment management - awaiting UX design */}
+				<div>Payment management (coming soon)</div>
+			</ProtectedRoute>
+		),
+	},
+	{
+		path: "/analytics",
+		element: (
+			<ProtectedRoute>
+				{/* Analytics dashboard - future feature */}
+				<div>Analytics dashboard (future feature)</div>
+			</ProtectedRoute>
+		),
+	},
+	{
+		path: "/devtools",
+		element: (
+			<ProtectedRoute>
+				<DevToolsPage />
+			</ProtectedRoute>
+		),
+	},
+	// Test pages (public)
+	{
+		path: "/test/dropdown",
+		element: <DropdownTestPage />,
+	},
+	// Auth and utility pages
+	{
+		path: "/",
+		element: <RootLayout />,
+		children: [
+			{
+				path: "/login",
+				element: <LoginPage />,
+			},
+			{
+				path: "/verify-email",
+				element: <VerifyEmailPage />,
+			},
+			{
+				path: "/verify-email-sent",
+				element: <VerifyEmailSentPage />,
+			},
+			{
+				path: "*",
+				element: <NotFoundPage />,
+			},
+		],
+	},
 ]);
 
 export function AppRouter() {
-  return <RouterProvider router={router} />;
+	return <RouterProvider router={router} />;
 }

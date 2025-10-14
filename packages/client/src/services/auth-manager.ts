@@ -113,8 +113,7 @@ export class AuthManager {
             tokenExpiry: this.keycloak.tokenParsed?.exp!,
           });
 
-          // Update backend session with new token
-          await this.createBackendSession();
+          // Backend auto-extends session cookie when near expiry (no action needed here)
         }
       } catch (error) {
         console.error('AuthManager: Token refresh failed:', error);
