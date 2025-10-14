@@ -27,20 +27,6 @@ export function DragDropOverlay({
 }: DragDropOverlayProps) {
   if (!isDragging) return null
 
-  const formatAcceptedTypes = (accept?: string) => {
-    if (!accept) return 'any file type'
-
-    const types = accept.split(',').map(type => type.trim())
-    const readable = types.map(type => {
-      if (type.startsWith('.')) return type
-      if (type === 'image/*') return 'images'
-      if (type === 'application/pdf') return 'PDFs'
-      return type.split('/')[1] || type
-    })
-
-    return readable.join(', ')
-  }
-
   const formatMaxSize = (bytes?: number) => {
     if (!bytes) return null
     const mb = bytes / 1024 / 1024

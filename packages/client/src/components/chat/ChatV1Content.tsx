@@ -61,6 +61,7 @@ import { useConversationStore } from "@/stores/conversationStore";
 import { ResponseWithInlineCitations } from "./ResponseWithInlineCitations";
 import { DragDropOverlay } from "./DragDropOverlay";
 import { useDragAndDrop } from "@/hooks/useDragAndDrop";
+import { useUploadFile } from "@/hooks/api/useFiles";
 
 export interface ChatV1ContentProps {
 	// Message state
@@ -326,12 +327,33 @@ export default function ChatV1Content({
 	// Get grouped messages from store instead of flat messages
 	const { chatMessages } = useConversationStore();
 
-	// Drag-and-drop visual feedback (file handling done by PromptInput)
+	// File upload mutation for drag-and-drop
+	const uploadFileMutation = useUploadFile();
+
+	// Handle drag-and-drop file upload
+	const handleDragDropUpload = useCallback((files: FileList) => {
+		if (files.length === 0) return;
+
+		// Upload each file to knowledge base
+		Array.from(files).forEach(file => {
+			uploadFileMutation.mutate(file, {
+				onSuccess: () => {
+					toast.success(`Uploaded "${file.name}" to knowledge base`);
+				},
+				onError: (error: any) => {
+					toast.error(`Failed to upload "${file.name}": ${error?.message || 'Unknown error'}`);
+				}
+			});
+		});
+	}, [uploadFileMutation]);
+
+	// Drag-and-drop with file upload functionality
 	const { isDragging } = useDragAndDrop({
 		enabled: !uploadStatus.isUploading,
 		accept: "image/*,.pdf,.txt,.md,.doc,.docx,.xls,.xlsx",
 		maxFiles: 5,
 		maxFileSize: 10 * 1024 * 1024, // 10MB
+		onDrop: handleDragDropUpload,
 		onError: (error) => toast.error(error)
 	});
 
