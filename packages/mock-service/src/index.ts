@@ -1407,7 +1407,7 @@ app.post('/webhook', async (req, res) => {
         });
       }
 
-    } else if (payload.source === 'rita-invitations' && payload.action === 'send_invitation') {
+    } else if (payload.source === 'rita-chat' && payload.action === 'send_invitation') {
       const invitationPayload = payload as SendInvitationWebhookPayload;
 
       const contextLogger = createContextLogger(webhookLogger, correlationId, {
@@ -1450,7 +1450,7 @@ app.post('/webhook', async (req, res) => {
         invitations_sent: invitationPayload.invitations.length
       });
 
-    } else if (payload.source === 'rita-invitations' && payload.action === 'accept_invitation') {
+    } else if (payload.source === 'rita-chat' && payload.action === 'accept_invitation') {
       const acceptPayload = payload as AcceptInvitationWebhookPayload;
 
       const contextLogger = createContextLogger(webhookLogger, correlationId, {
