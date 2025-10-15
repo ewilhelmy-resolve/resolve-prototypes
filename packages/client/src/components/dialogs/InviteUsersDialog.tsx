@@ -9,7 +9,7 @@ import {
 	DialogHeader,
 	DialogTitle,
 } from "@/components/ui/dialog";
-import { InfoAlert } from "@/components/ui/info-alert";
+import { StatusAlert } from "@/components/ui/status-alert";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useSendInvitations } from "@/hooks/api/useInvitations";
@@ -167,7 +167,7 @@ export default function InviteUsersDialog({
 				</DialogHeader>
 
 				<div className="grid gap-4 py-4">
-					<InfoAlert>
+					<StatusAlert variant="info">
 						<p className="text-accent-foreground">
 							All new users will be assigned the{" "}
 							<span className="font-semibold inline">User</span> role by default.
@@ -175,7 +175,7 @@ export default function InviteUsersDialog({
 						<p>
 							To grant admin access, update their role later in Settings → Users.
 						</p>
-					</InfoAlert>
+					</StatusAlert>
 
 					<div className="grid gap-2">
 						<Label htmlFor="emails">Email addresses</Label>
