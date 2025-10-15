@@ -84,6 +84,14 @@ interface DocumentWebhookPayload extends BaseWebhookPayload {
   original_filename: string;
 }
 
+// Document deletion webhook payload for rita-documents
+interface DocumentDeletePayload extends BaseWebhookPayload {
+  source: 'rita-documents';
+  action: 'document_deleted';
+  blob_metadata_id: string; // blob_metadata.id
+  blob_id: string; // blobs.blob_id
+}
+
 // Signup webhook payload for rita-signup
 interface SignupWebhookPayload extends BaseWebhookPayload {
   source: 'rita-signup';
@@ -142,7 +150,7 @@ interface DataSourceSyncPayload extends BaseWebhookPayload {
 }
 
 // Union type for all webhook payloads
-type WebhookPayload = MessageWebhookPayload | DocumentWebhookPayload | SignupWebhookPayload | SendInvitationWebhookPayload | AcceptInvitationWebhookPayload | DataSourceVerifyPayload | DataSourceSyncPayload | BaseWebhookPayload;
+type WebhookPayload = MessageWebhookPayload | DocumentWebhookPayload | DocumentDeletePayload | SignupWebhookPayload | SendInvitationWebhookPayload | AcceptInvitationWebhookPayload | DataSourceVerifyPayload | DataSourceSyncPayload | BaseWebhookPayload;
 
 interface MockResponse {
   message_id: string;
@@ -1371,6 +1379,50 @@ app.post('/webhook', async (req, res) => {
           error: 'Missing required fields for document webhook: blob_metadata_id, blob_id, document_url, file_type'
         });
       }
+
+    } else if (payload.source === 'rita-documents' && payload.action === 'document_deleted') {
+      const deletePayload = payload as DocumentDeletePayload;
+
+      const contextLogger = createContextLogger(webhookLogger, correlationId, {
+        blobMetadataId: deletePayload.blob_metadata_id,
+        blobId: deletePayload.blob_id,
+        tenantId: deletePayload.tenant_id,
+        userId: deletePayload.user_id
+      });
+
+      contextLogger.info({
+        source: deletePayload.source,
+        action: deletePayload.action,
+        user_email: deletePayload.user_email,
+        blob_metadata_id: deletePayload.blob_metadata_id,
+        blob_id: deletePayload.blob_id
+      }, '🗑️  Document deletion webhook received');
+
+      // Validate deletion-specific required fields
+      if (!deletePayload.blob_metadata_id || !deletePayload.blob_id) {
+        contextLogger.warn({
+          hasBlobMetadataId: !!deletePayload.blob_metadata_id,
+          hasBlobId: !!deletePayload.blob_id
+        }, 'Document deletion webhook validation failed - missing required fields');
+        return res.status(400).json({
+          error: 'Missing required fields for document deletion webhook: blob_metadata_id, blob_id'
+        });
+      }
+
+      // Log deletion event prominently
+      console.log(`\n${'═'.repeat(100)}`);
+      console.log('🗑️  DOCUMENT DELETION WEBHOOK RECEIVED');
+      console.log('═'.repeat(100));
+      console.log(JSON.stringify(deletePayload, null, 2));
+      console.log(`${'═'.repeat(100)}\n`);
+
+      // Acknowledge successful receipt (Barista would perform vector database cleanup here)
+      return res.status(200).json({
+        message: 'Document deletion webhook received',
+        blob_metadata_id: deletePayload.blob_metadata_id,
+        blob_id: deletePayload.blob_id,
+        status: 'acknowledged'
+      });
 
     } else if (payload.source === 'rita-signup' && payload.action === 'user_signup') {
       const signupPayload = payload as SignupWebhookPayload;

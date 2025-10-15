@@ -2,6 +2,7 @@ import axios, { type AxiosResponse } from 'axios';
 import { pool } from '../config/database.js';
 import type {
   BaseWebhookPayload,
+  DocumentDeletePayload,
   DocumentProcessingPayload,
   MessageWebhookPayload,
   WebhookConfig,
@@ -84,6 +85,31 @@ export class WebhookService {
       file_type: params.fileType,
       file_size: params.fileSize,
       original_filename: params.originalFilename,
+      timestamp: new Date().toISOString()
+    };
+
+    return this.sendEvent(payload);
+  }
+
+  /**
+   * Send document deletion webhook event
+   */
+  async sendDocumentDeleteEvent(params: {
+    organizationId: string;
+    userId: string;
+    userEmail: string;
+    blobMetadataId: string;
+    blobId: string;
+  }): Promise<WebhookResponse> {
+    const payload: DocumentDeletePayload = {
+      source: 'rita-documents',
+      action: 'document_deleted',
+      user_email: params.userEmail,
+      user_id: params.userId,
+      tenant_id: params.organizationId, // Map organization_id to tenant_id
+      blob_metadata_id: params.blobMetadataId,
+      blob_id: params.blobId,
+      article_id: params.blobId, // Temporary compatibility field for Barista (maps to blob_id)
       timestamp: new Date().toISOString()
     };
 

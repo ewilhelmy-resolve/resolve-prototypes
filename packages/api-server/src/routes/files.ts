@@ -477,31 +477,112 @@ router.post('/:documentId/process', authenticateUser, async (req, res) => {
   }
 });
 
-// Delete document
+// Delete document with webhook notification and smart blob cleanup
 router.delete('/:documentId', authenticateUser, async (req, res) => {
   const authReq = req as AuthenticatedRequest;
   try {
     const { documentId } = req.params;
 
+    // 1. Fetch metadata FIRST (need it for webhook before deletion)
+    const metadata = await withOrgContext(
+      authReq.user.id,
+      authReq.user.activeOrganizationId,
+      async (client) => {
+        const metadataResult = await client.query(
+          'SELECT id, blob_id, filename, organization_id FROM blob_metadata WHERE id = $1 AND organization_id = $2 AND user_id = $3',
+          [documentId, authReq.user.activeOrganizationId, authReq.user.id]
+        );
+
+        if (metadataResult.rows.length === 0) {
+          return null; // Not found
+        }
+
+        return metadataResult.rows[0];
+      }
+    );
+
+    if (!metadata) {
+      return res.status(404).json({ error: 'Document not found' });
+    }
+
+    // 2. Send deletion webhook BEFORE database deletion
+    // This ensures external services (Barista) clean up vector embeddings first
+    try {
+      const webhookResponse = await webhookService.sendDocumentDeleteEvent({
+        organizationId: authReq.user.activeOrganizationId,
+        userId: authReq.user.id,
+        userEmail: authReq.user.email,
+        blobMetadataId: metadata.id.toString(),
+        blobId: metadata.blob_id.toString()
+      });
+
+      if (!webhookResponse.success) {
+        console.error('[FileDelete] Webhook failed:', webhookResponse.error);
+        return res.status(500).json({
+          error: 'Failed to notify external services. Document not deleted.',
+          details: webhookResponse.error
+        });
+      }
+
+      console.log('[FileDelete] Webhook succeeded, proceeding with database deletion');
+    } catch (webhookError) {
+      console.error('[FileDelete] Webhook error:', webhookError);
+      return res.status(500).json({
+        error: 'Failed to notify external services. Document not deleted.'
+      });
+    }
+
+    // 3. Proceed with database deletion only if webhook succeeded
     const result = await withOrgContext(
       authReq.user.id,
       authReq.user.activeOrganizationId,
       async (client) => {
-        // Delete only metadata record (preserve blob for other references)
-        const deleteResult = await client.query(
-          'DELETE FROM blob_metadata WHERE id = $1 AND organization_id = $2 AND user_id = $3 RETURNING id',
-          [documentId, authReq.user.activeOrganizationId, authReq.user.id]
-        );
+        await client.query('BEGIN');
 
-        return deleteResult.rows.length > 0;
+        try {
+          const blobId = metadata.blob_id;
+
+          // Delete metadata record
+          await client.query(
+            'DELETE FROM blob_metadata WHERE id = $1',
+            [documentId]
+          );
+
+          // Check if blob is still referenced by other metadata
+          const blobRefCount = await client.query(
+            'SELECT COUNT(*) as count FROM blob_metadata WHERE blob_id = $1',
+            [blobId]
+          );
+
+          const refCount = parseInt(blobRefCount.rows[0].count, 10);
+
+          // Delete blob only if no other references exist
+          if (refCount === 0) {
+            await client.query(
+              'DELETE FROM blobs WHERE blob_id = $1',
+              [blobId]
+            );
+            console.log(`[FileDelete] Deleted orphaned blob ${blobId}`);
+          } else {
+            console.log(`[FileDelete] Preserved blob ${blobId} (${refCount} references remaining)`);
+          }
+
+          await client.query('COMMIT');
+          return metadata;
+
+        } catch (error) {
+          await client.query('ROLLBACK');
+          throw error;
+        }
       }
     );
 
-    if (!result) {
-      return res.status(404).json({ error: 'Document not found' });
-    }
-
-    res.json({ deleted: true });
+    // 4. Return success to frontend
+    res.json({
+      deleted: true,
+      document_id: result.id,
+      blob_id: result.blob_id
+    });
 
   } catch (error) {
     console.error('Error deleting document:', error);
