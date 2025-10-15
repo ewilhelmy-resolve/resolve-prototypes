@@ -642,11 +642,165 @@ The implementation successfully handles:
 **A**: Hard delete. No requirement for soft-delete or recycle bin functionality.
 
 ### Q: What if Barista webhook fails?
-**A**: Log to `rag_webhook_failures` table. Barista can replay failed webhooks from this table.
+**A**: Webhook must succeed before deletion proceeds. If webhook fails, deletion is aborted and error returned to frontend.
+
+## Architecture Tradeoffs and Design Decisions
+
+### Current Implementation: Webhook-Before-Deletion
+
+**Flow** (as of 2025-10-15):
+1. Fetch metadata from database
+2. **Call webhook to Barista** (blocking - wait for response)
+3. If webhook fails → abort deletion, return 500 error to frontend
+4. If webhook succeeds → proceed with database deletion
+5. Delete metadata and blob (if orphaned)
+6. Return success to frontend
+
+**Rationale**: Prevents orphaned vector embeddings in Barista if the webhook service is unreachable.
+
+### Tradeoffs and Known Limitations
+
+#### Limitation 1: No Re-trigger After External Platform Failure
+
+**Problem**: If Barista's webhook endpoint acknowledges the deletion (returns 200) but then fails to actually delete the vector embeddings, there is no way to retrigger the deletion from Rita. The document is already gone from Rita's database.
+
+**Impact**: Conversations may continue to retrieve content from vectors that reference non-existent documents in Rita. This creates a data inconsistency where:
+- Rita believes the document is deleted
+- Barista's vector store still contains embeddings for the deleted document
+- Chat responses may include content from "deleted" documents
+
+**Example Scenario**:
+```
+1. User deletes document "FAQ.pdf" from Rita
+2. Rita sends webhook to Barista: DELETE /vectors?article_id=123
+3. Barista responds: HTTP 200 OK
+4. Rita deletes document from database
+5. Barista experiences internal error AFTER responding and fails to delete vectors
+6. Result: Vectors remain in Barista, but document gone from Rita
+```
+
+#### Limitation 2: Synchronous Webhook Creates Deletion Latency
+
+**Problem**: Frontend must wait for both webhook AND database deletion to complete before seeing success confirmation.
+
+**Impact**:
+- Slower perceived deletion (200-500ms for webhook + 50-100ms for database)
+- If Barista is slow to respond, users experience UI lag
+- Timeout scenarios may cause confusion (is it deleted or not?)
+
+### Alternative Approaches
+
+#### Approach A: Asynchronous Queue-Based Deletion (Recommended Long-Term)
+
+**Pattern**: Mirror the file upload flow using RabbitMQ message queue
+
+**Flow**:
+```
+1. Frontend: Delete button clicked
+2. Backend: Mark document as "deletion_pending" in database
+3. Backend: Publish "document.delete.requested" message to RabbitMQ
+4. Backend: Return immediate success to frontend (document hidden from UI)
+5. Worker: Consume message from queue
+6. Worker: Call Barista webhook to delete vectors
+7. Worker: If webhook succeeds → delete from database
+8. Worker: If webhook fails → retry with exponential backoff
+9. Worker: After max retries → mark as "deletion_failed", alert ops team
+```
+
+**Benefits**:
+- ✅ Immediate frontend response (better UX)
+- ✅ Automatic retries with backoff
+- ✅ Dead letter queue for failed deletions
+- ✅ Consistent with upload pattern
+- ✅ Graceful degradation under Barista outages
+
+**Implementation Effort**: Medium (requires RabbitMQ consumer, worker process, status tracking)
+
+#### Approach B: Eventual Consistency with Reconciliation
+
+**Pattern**: Allow temporary inconsistency, run periodic reconciliation job
+
+**Flow**:
+```
+1. Delete document from Rita immediately
+2. Send webhook to Barista (non-blocking, fire-and-forget)
+3. Barista processes deletion asynchronously
+4. Nightly reconciliation job:
+   - Query Rita for all documents
+   - Query Barista for all vectors
+   - Delete orphaned vectors in Barista that don't exist in Rita
+```
+
+**Benefits**:
+- ✅ Simple implementation
+- ✅ Fast frontend response
+- ✅ Self-healing via reconciliation
+
+**Drawbacks**:
+- ❌ Temporary inconsistency window (up to 24 hours)
+- ❌ Requires Barista to expose vector listing API
+- ❌ Large orgs may have performance issues with full scans
+
+#### Approach C: Barista-Owned Retry Logic (Current Mitigation)
+
+**Pattern**: Webhook fails → Barista handles retries internally
+
+**Flow**:
+```
+1. Rita calls webhook (blocking)
+2. If webhook fails → Rita returns 500, deletion aborted
+3. User retries deletion manually
+4. Barista implements internal retry logic for delete operations
+5. Barista's queue system ensures delete eventually completes
+```
+
+**Benefits**:
+- ✅ Minimal Rita changes
+- ✅ Centralized failure handling in Barista
+- ✅ Rita maintains simple request-response model
+
+**Drawbacks**:
+- ❌ Relies on Barista's implementation quality
+- ❌ No visibility into Barista's retry status from Rita
+- ❌ Manual user retries if Barista reports failure
+
+### Recommendations
+
+**Short-Term (Current State)**:
+- **Keep webhook-before-deletion approach** to prevent orphaned vectors
+- **Document the limitation** that Barista must handle internal failures with retries
+- **Add monitoring** for webhook failure rates (alert if >5% failures)
+- **Manual remediation**: Ops team can query `rag_webhook_failures` table to identify stuck deletions
+
+**Medium-Term (Next Quarter)**:
+- **Implement Approach A** (queue-based deletion) for consistency with upload pattern
+- **Add status field** to `blob_metadata`: `active`, `deletion_pending`, `deletion_failed`
+- **Build admin UI** to view and retry failed deletions
+- **Add metrics** to track deletion latency and failure rates
+
+**Long-Term (Future Architecture)**:
+- **Event-driven architecture**: All Rita → Barista communication via events
+- **Outbox pattern**: Store events in database before publishing (guaranteed delivery)
+- **Barista webhooks back**: Barista confirms deletion complete → Rita marks record as deleted
+- **Bidirectional sync**: Periodic health checks ensure Rita and Barista stay in sync
+
+### Monitoring and Alerting
+
+**Key Metrics**:
+- Webhook failure rate (target: <1%)
+- Deletion latency P50/P95/P99
+- Documents stuck in "deletion_pending" state
+- Orphaned vectors detected by reconciliation
+
+**Alert Triggers**:
+- Webhook failure rate >5% over 5 minutes
+- Any deletion taking >10 seconds
+- More than 10 deletions pending for >1 hour
+- Barista webhook endpoint returning 5xx for >3 attempts
 
 ---
 
-**Document Version**: 1.2
+**Document Version**: 1.3
 **Created**: 2025-10-14
-**Last Updated**: 2025-10-14
-**Status**: Backend Testing Complete (5/5 tests passed) - Ready for Frontend Integration
+**Last Updated**: 2025-10-15
+**Status**: Backend Complete - Documented Tradeoffs and Mitigation Strategies
