@@ -570,31 +570,5 @@ describe("InviteAcceptPage", () => {
 			expect(screen.getByLabelText(/last name/i)).toBeInTheDocument();
 			expect(screen.getByLabelText(/password/i)).toBeInTheDocument();
 		});
-
-		it("should show helper text for password requirements", () => {
-			vi.spyOn(useInvitationsModule, "useVerifyInvitation").mockReturnValue({
-				data: mockVerificationData,
-				isLoading: false,
-				error: null,
-			} as any);
-
-			vi.spyOn(useInvitationsModule, "useAcceptInvitation").mockReturnValue({
-				mutate: vi.fn(),
-				isPending: false,
-				error: null,
-			} as any);
-
-			render(
-				<TestWrapper>
-					<InviteAcceptPage />
-				</TestWrapper>,
-			);
-
-			expect(
-				screen.getByText(
-					/min 8 characters with uppercase, lowercase, number, and special character/i,
-				),
-			).toBeInTheDocument();
-		});
 	});
 });

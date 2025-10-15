@@ -369,10 +369,6 @@ export default function InviteAcceptPage() {
 									{errors.password.message}
 								</p>
 							)}
-							<p className="text-xs text-white/70">
-								Min 8 characters with uppercase, lowercase, number, and special
-								character
-							</p>
 						</div>
 
 						{/* Submit Button */}
