@@ -20,7 +20,7 @@ env:
   REGISTRY: ghcr.io
   GITHUB_REPOSITORY_OWNER: resolve-io
   IMAGE_PREFIX: rita
-  DEPLOY_HOST: ${{ vars.STAGING_DEPLOY_HOST || 'ec2-54-147-199-139.compute-1.amazonaws.com' }}
+  DEPLOY_HOST: ${{ vars.STAGING_DEPLOY_HOST || 'ec2-23-21-95-233.compute-1.amazonaws.com' }}
   DEPLOY_USER: ${{ vars.STAGING_DEPLOY_USER || 'ec2-user' }}
 
 jobs:
