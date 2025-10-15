@@ -109,6 +109,7 @@ export class WebhookService {
       tenant_id: params.organizationId, // Map organization_id to tenant_id
       blob_metadata_id: params.blobMetadataId,
       blob_id: params.blobId,
+      article_id: params.blobId, // Temporary compatibility field for Barista (maps to blob_id)
       timestamp: new Date().toISOString()
     };
 

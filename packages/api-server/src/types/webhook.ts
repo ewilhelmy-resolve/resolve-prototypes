@@ -36,8 +36,9 @@ export interface DocumentProcessingPayload extends BaseWebhookPayload {
 export interface DocumentDeletePayload extends BaseWebhookPayload {
   source: 'rita-documents';
   action: 'document_deleted';
-  blob_metadata_id: string; // blob_metadata.id (article_id for compatibility)
+  blob_metadata_id: string; // blob_metadata.id
   blob_id: string; // blobs.blob_id
+  article_id: string; // Temporary field for Barista compatibility (maps to blob_id)
 }
 
 export interface WebhookResponse {
