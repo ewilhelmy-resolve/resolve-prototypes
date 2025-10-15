@@ -9,6 +9,52 @@ Rita is structured as a modern microservices architecture:
 - `packages/client/` - **Rita Go** React/TypeScript frontend with Keycloak authentication
 - `packages/mock-service/` - Mock external service for development
 
+## Documentation Strategy
+
+Rita uses a **lifecycle-based documentation archiving strategy** to keep documentation organized, discoverable, and AI-assistant-friendly.
+
+### Directory Structure
+
+```
+docs/                           # Root-level documentation
+├── README.md                   # Master index and navigation
+├── active/                     # In-progress features and bugs
+│   ├── features/              # Features being developed
+│   └── bugs/                  # Known bugs being tracked
+├── v1/                        # Production documentation (v1.x releases)
+│   ├── architecture/          # System design and decisions
+│   ├── setup/                 # Setup and configuration
+│   └── guides/                # Developer guides and workflows
+└── archived/                  # Deprecated documentation
+    └── deprecated/            # No longer relevant
+
+packages/{package-name}/docs/  # Package-specific docs (same structure)
+├── README.md                  # Package-specific index
+├── active/
+├── v1/
+└── archived/
+```
+
+### Documentation Lifecycle
+
+1. **Active Development** (`active/`): Features and bugs currently being worked on
+2. **Production Ready** (`v1/`): Documentation for features live in production
+3. **Archived** (`archived/`): Historical docs for deprecated features
+
+### When Creating Documentation
+
+- **New Features**: Place in `active/features/` with descriptive filename
+- **Bug Tracking**: Place in `active/bugs/` with issue reference
+- **Completed Features**: Move to appropriate `v1/` subdirectory
+- **Deprecated Features**: Move to `archived/deprecated/` with date prefix
+
+### Navigation
+
+- **Root Docs**: See [docs/README.md](docs/README.md) for complete index
+- **API Server**: See [packages/api-server/docs/README.md](packages/api-server/docs/README.md)
+- **Client (Rita Go)**: See [packages/client/docs/README.md](packages/client/docs/README.md)
+- **Mock Service**: See [packages/mock-service/docs/README.md](packages/mock-service/docs/README.md)
+
 ## Frontend Development Standards (Rita Go)
 
 ### Default Agent Usage
