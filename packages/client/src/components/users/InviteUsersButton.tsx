@@ -4,7 +4,7 @@ import InviteUsersDialog from "@/components/dialogs/InviteUsersDialog";
 import { Button } from "@/components/ui/button";
 
 interface InviteUsersButtonProps extends Omit<ComponentProps<typeof Button>, "onClick"> {
-	/** Button text (defaults to "Invite Users") */
+	/** Button text (defaults to "Invite users") */
 	children?: React.ReactNode;
 }
 
@@ -13,7 +13,7 @@ interface InviteUsersButtonProps extends Omit<ComponentProps<typeof Button>, "on
  * Manages dialog state internally
  */
 export default function InviteUsersButton({
-	children = "Invite Users",
+	children = "Invite users",
 	...buttonProps
 }: InviteUsersButtonProps) {
 	const [dialogOpen, setDialogOpen] = useState(false);

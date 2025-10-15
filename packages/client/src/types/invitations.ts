@@ -115,29 +115,40 @@ export interface SendInvitationsResponse {
 }
 
 /**
+ * Invitation details returned during verification
+ * Subset of full Invitation record with user-friendly field names
+ */
+export interface InvitationDetails {
+	/** Email address of the invitee */
+	email: string;
+	/** Organization name the user is being invited to */
+	organizationName: string;
+	/** Name of the person who sent the invitation */
+	inviterName: string;
+	/** ISO 8601 timestamp when invitation expires */
+	expiresAt: string;
+	/** Role assigned to the invitee (optional, may not be in all responses) */
+	role?: UserRole;
+}
+
+/**
  * Verify Invitation Response
  * Returns invitation details for the accept page
  */
 export interface VerifyInvitationResponse {
 	/** Whether the token is valid and invitation is pending */
 	valid: boolean;
-	/** Invitation details if valid */
-	invitation: Invitation | null;
-	/** Email address of the invitee */
-	email: string;
-	/** Name of the inviter */
-	invitedBy: string;
-	/** Role assigned to the invitee */
-	role: UserRole;
-	/** ISO 8601 expiration date */
-	expirationDate: string;
+	/** Invitation details if valid, null if invalid */
+	invitation: InvitationDetails | null;
 }
 
 /**
  * Request Body for Accepting Invitation
- * User provides password and profile details
+ * User provides token, password, and profile details
  */
 export interface AcceptInvitationRequest {
+	/** Invitation token from URL */
+	token: string;
 	/** User's chosen password (min 8 chars, must meet complexity requirements) */
 	password: string;
 	/** User's first name */
@@ -238,11 +249,10 @@ export interface InvitationAPIError {
 /**
  * Form Data for Invite Accept Page
  * Client-side form structure with validation
+ * Note: Email is NOT submitted - it comes from the invitation token on the backend
  */
 export interface InviteAcceptFormData {
-	email: string;
 	password: string;
-	confirmPassword: string;
 	firstName: string;
 	lastName: string;
 }

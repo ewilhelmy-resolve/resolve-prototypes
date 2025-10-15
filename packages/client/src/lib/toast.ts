@@ -45,12 +45,29 @@ function error(title: string, options?: ToastOptions) {
 }
 
 /**
+ * Show an info toast notification
+ */
+function info(title: string, options?: ToastOptions) {
+  return sonnerToast.custom((id) =>
+    CustomToast({
+      id,
+      variant: 'success', // Use success variant for info (neutral blue)
+      title,
+      description: options?.description,
+      action: options?.action
+    })
+  );
+}
+
+/**
  * Custom toast API
  * Usage:
  *   toast.success('Operation completed', { action: { label: 'View', onClick: () => {} } })
  *   toast.error('Operation failed', { description: 'Error details' })
+ *   toast.info('Information message', { description: 'Additional details' })
  */
 export const toast = {
   success,
-  error
+  error,
+  info
 };
