@@ -316,6 +316,268 @@ flowchart TD
     L --> M[Redirect to /login]
 ```
 
+## User Invitation System
+
+Rita supports inviting users to join existing organizations. The invitation system integrates with the authentication flow to ensure invited users are automatically added to the correct organization without creating a personal organization.
+
+### Invitation Flow Overview
+
+```mermaid
+sequenceDiagram
+    participant Owner as Org Owner
+    participant Client as Rita Go
+    participant API as Rita API Server
+    participant DB as PostgreSQL
+    participant Webhook as External Service
+    participant Email as Email Service
+    participant Invitee as Invited User
+    participant KC as Keycloak
+
+    Note over Owner,Email: Send Invitation
+    Owner->>Client: Enter invitee emails
+    Client->>API: POST /api/invitations (batch)
+    Note over API: Validate emails<br/>Check for existing members<br/>Check single-org constraint
+
+    API->>Webhook: POST webhook (send_invitation action)
+    Note over Webhook: Payload includes:<br/>- Organization name<br/>- Inviter details<br/>- Invitation tokens<br/>- Invitation URLs
+
+    alt Webhook succeeds
+        API->>DB: INSERT/UPDATE pending_invitations
+        Note over DB: Store: email, org_id,<br/>invitation_token (64 chars),<br/>token_expires_at (7 days),<br/>status='pending'
+    else Webhook fails
+        API-->>Client: Error - invitation failed
+        Note over API: Mark invitations as failed
+    end
+
+    Webhook->>Email: Send invitation emails
+    Email-->>Invitee: Invitation email with link
+
+    Note over Invitee: User clicks invitation link
+    Invitee->>Client: GET /invite?token=...
+    Client->>API: POST /api/invitations/verify (token)
+
+    API->>DB: SELECT pending_invitations WHERE token
+    alt Token valid and not expired
+        API-->>Client: Valid invitation details
+        Client->>Invitee: Show signup form (email pre-filled)
+    else Token invalid/expired
+        API-->>Client: Invalid token
+        Client->>Invitee: Show error message
+    end
+
+    Note over Invitee: User completes signup form
+    Invitee->>Client: Submit signup (firstName, lastName, password)
+    Client->>API: POST /api/invitations/accept
+
+    API->>DB: UPDATE pending_invitations SET status='accepted'
+    Note over DB: Atomic update prevents<br/>duplicate acceptance
+
+    API->>Webhook: POST webhook (accept_invitation action)
+    Note over Webhook: Payload includes:<br/>- User details<br/>- Base64-encoded password<br/>- email_verified: true
+
+    Webhook->>KC: Create Keycloak user (enabled)
+    Note over KC: User created with:<br/>- Credentials set<br/>- Account ENABLED<br/>- Email marked verified
+
+    KC-->>Webhook: User created
+    Webhook-->>API: Success
+    API-->>Client: Invitation accepted
+
+    Note over Invitee: First Login - JIT Provisioning
+    Invitee->>Client: Login via Keycloak
+    KC-->>Client: JWT tokens
+    Client->>API: POST /auth/login (accessToken)
+
+    API->>API: sessionService.findOrCreateUser()
+    API->>DB: Check for user by keycloak_id
+    Note over API: User doesn't exist yet
+
+    API->>DB: Check pending_invitations<br/>WHERE email AND status='accepted'
+    Note over DB: Found accepted invitation!
+
+    API->>DB: BEGIN TRANSACTION
+    API->>DB: INSERT user_profiles
+    API->>DB: INSERT organization_members<br/>(role='user', org from invitation)
+    API->>DB: UPDATE user_profiles<br/>SET active_organization_id
+    API->>DB: COMMIT
+
+    Note over API: NO personal org created<br/>User added to invited org only
+
+    API-->>Client: Session cookie + user info
+    Client->>Invitee: Redirect to app (member of invited org)
+```
+
+### Key Security and Business Logic
+
+**Single Organization Constraint**:
+- Users can only belong to ONE organization in Rita
+- `sendInvitations()` checks if invitee already has an organization (INV012 error code)
+- Prevents users from accepting multiple organization invitations
+- Enforced at invitation send time AND during JIT provisioning
+
+**Invitation Token Security**:
+- 64-character hex tokens (32 random bytes) generated via `crypto.randomBytes()`
+- 7-day expiration from creation
+- Tokens invalidated after acceptance (status='accepted')
+- Can resend to pending/expired invitations (generates new token)
+
+**Email Verification via Invitation**:
+- Invited users have `email_verified: true` sent to Keycloak
+- No separate email verification step required
+- Invitation link acts as email verification
+- Keycloak account created in ENABLED state (unlike direct signups)
+
+**JIT Provisioning Integration** (`sessionService.ts:77-120`):
+- When invited user logs in for the first time, `findOrCreateUser()` is called
+- Checks `pending_invitations` table for accepted invitations matching email
+- If found: Creates user profile + adds to invited organization (NO personal org)
+- If not found: Creates user profile + personal organization (normal signup flow)
+- Single transaction ensures atomic provisioning
+
+**Invitation Status Lifecycle**:
+```
+pending → accepted (user completes signup)
+pending → expired (7 days pass)
+pending → cancelled (org owner cancels)
+pending → failed (webhook error)
+accepted → (permanent, user provisioned)
+```
+
+**Error Codes**:
+- `INV003`: Invitation already accepted
+- `INV006`: User already a member of this organization
+- `INV007`: Invalid email format
+- `INV009`: Webhook failed to send invitation emails
+- `INV012`: User already has an organization (single-org constraint)
+
+### Invitation API Endpoints
+
+#### POST /api/invitations
+Send invitations to multiple users (batch processing).
+
+**Authentication**: Requires valid session cookie + organization owner/admin role.
+
+```typescript
+// Request body
+{
+  emails: string[]  // Array of email addresses to invite
+}
+
+// Response (success)
+{
+  success: true,
+  invitations: [
+    { email: "user1@example.com", status: "sent" },
+    { email: "user2@example.com", status: "skipped", reason: "Already a member", code: "INV006" }
+  ],
+  successCount: 1,
+  failureCount: 1
+}
+```
+
+**Validation**:
+- Email format validation
+- Check if already organization member
+- Check if user already has an organization (single-org constraint)
+- Check for existing pending/expired invitations (allows resend)
+- Atomic token generation and webhook call
+
+#### POST /api/invitations/verify
+Verify invitation token and return invitation details.
+
+**Authentication**: Public endpoint (no auth required).
+
+```typescript
+// Request body
+{ token: string }
+
+// Response (valid token)
+{
+  valid: true,
+  invitation: {
+    email: "invitee@example.com",
+    organizationName: "Acme Corp",
+    inviterName: "owner@acme.com",
+    expiresAt: "2025-10-20T..."
+  }
+}
+
+// Response (invalid/expired)
+{
+  valid: false,
+  invitation: null,
+  error: "Invitation has expired"
+}
+```
+
+#### POST /api/invitations/accept
+Accept invitation and create Keycloak account.
+
+**Authentication**: Public endpoint (no auth required).
+
+```typescript
+// Request body
+{
+  token: string,
+  firstName: string,
+  lastName: string,
+  password: string
+}
+
+// Response
+{
+  success: true,
+  email: "invitee@example.com"
+}
+```
+
+**Security**:
+- Verifies token before processing
+- Checks for duplicate users (email already registered)
+- Atomic status update prevents duplicate acceptance
+- Password base64-encoded before webhook transmission
+- Password NEVER stored in Rita database
+- Triggers `accept_invitation` webhook for Keycloak user creation
+
+#### DELETE /api/invitations/:id
+Cancel a pending invitation.
+
+**Authentication**: Requires valid session cookie + organization owner/admin role.
+
+```typescript
+// Response
+{ success: true }
+```
+
+**Behavior**: Can only cancel invitations in 'pending' status.
+
+#### GET /api/invitations
+List invitations for the authenticated user's organization.
+
+**Authentication**: Requires valid session cookie.
+
+**Query Parameters**:
+- `status`: Filter by status (pending, accepted, expired, cancelled, failed)
+- `limit`: Number of results (default: 50)
+- `offset`: Pagination offset (default: 0)
+
+```typescript
+// Response
+[
+  {
+    id: "uuid",
+    organization_id: "uuid",
+    invited_by_user_id: "uuid",
+    email: "invitee@example.com",
+    invitation_token: "...",
+    token_expires_at: "2025-10-20T...",
+    status: "pending",
+    created_at: "2025-10-13T...",
+    accepted_at: null,
+    invited_by_name: "owner@acme.com"
+  }
+]
+```
+
 ## Signup Flow with External Service
 
 The signup process involves coordination between Rita API, an external webhook service, and Keycloak:
@@ -590,11 +852,28 @@ When users authenticate via Keycloak, the frontend calls `POST /auth/login` with
 ```typescript
 public async findOrCreateUser(tokenPayload: jose.JWTPayload) {
   // 1. Check if user exists by Keycloak ID
-  // 2. If not, create new user profile + organization in single transaction
-  // 3. Set user's active organization to newly created org
-  // 4. Return user info for session creation
+  // 2. If not, check for accepted invitations FIRST
+  // 3a. If invited: Create user + add to invited org(s) (NO personal org)
+  // 3b. If NOT invited: Create user + personal org (normal flow)
+  // 4. Set user's active organization
+  // 5. Return user info for session creation
 }
 ```
+
+**Two Provisioning Paths**:
+
+1. **Invited Users** (`sessionService.ts:99-120`):
+   - Query `pending_invitations` for accepted invitations matching user email
+   - Create user profile without personal organization
+   - Add user as 'user' role member to invited organization(s)
+   - Set first invited organization as active
+   - **Key difference**: No personal organization created
+
+2. **Direct Signups** (`sessionService.ts:122-139`):
+   - No accepted invitations found
+   - Create user profile + personal organization (named "{email}'s Organization")
+   - Add user as 'owner' role member of personal organization
+   - Set personal organization as active
 
 ## Security Considerations
 
@@ -932,8 +1211,9 @@ To ensure this authentication flow works correctly, the following test scenarios
 
 ### Unit Tests
 - ✅ AuthManager token refresh logic
-- ✅ SessionService JIT provisioning
+- ✅ SessionService JIT provisioning (including invited user flow)
 - ✅ Session cookie generation and parsing
+- ✅ InvitationService business logic (24 comprehensive tests)
 - ⚠️ AuthStore state transitions (needs expansion)
 
 ### Integration Tests
@@ -944,10 +1224,12 @@ To ensure this authentication flow works correctly, the following test scenarios
 
 ### E2E Tests (Missing)
 - ❌ User signup → email verification → login → protected route access
+- ❌ Invitation flow → accept invitation → first login → org membership verification
 - ❌ Token expiration handling in active session
 - ❌ Multi-tab behavior (login in one tab, reflected in others)
 - ❌ Session timeout and auto-logout
 - ❌ Network failure recovery during authentication
+- ❌ Single-org constraint enforcement (cannot accept second invitation)
 
 ### Security Tests (Missing)
 - ❌ XSS protection (no token leakage to localStorage)

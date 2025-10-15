@@ -95,6 +95,7 @@ export const createContextLogger = (
   messageContext?: {
     messageId?: string;
     organizationId?: string;
+    organizationName?: string;
     userId?: string;
     tenantId?: string;
     conversationId?: string;
@@ -103,6 +104,8 @@ export const createContextLogger = (
     blobId?: string;
     email?: string;
     pendingUserId?: string;
+    invitationId?: string;
+    invitedByEmail?: string;
   }
 ) => {
   return baseLogger.child({

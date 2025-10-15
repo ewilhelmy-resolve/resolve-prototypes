@@ -1,6 +1,8 @@
 import type { NextFunction, Request, Response } from 'express';
 import { logger } from '../config/logger.js';
 import { getSessionService } from '../services/sessionService.js';
+import { pool } from '../config/database.js';
+import type { AuthenticatedRequest } from '../types/express.js';
 
 /**
  * Cookie-only authentication middleware with automatic session extension
@@ -76,4 +78,74 @@ export const authenticateUser = async (
       code: 'AUTH_ERROR',
     });
   }
+};
+
+/**
+ * Role-based authorization middleware
+ *
+ * Checks if the authenticated user has one of the required roles in their active organization.
+ * Must be used AFTER authenticateUser middleware.
+ *
+ * @param allowedRoles - Array of roles that are allowed to access the endpoint
+ * @returns Express middleware function
+ *
+ * @example
+ * router.post('/admin-action', authenticateUser, requireRole(['owner', 'admin']), handler);
+ */
+export const requireRole = (allowedRoles: string[]) => {
+  return async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> => {
+    try {
+      const authReq = req as AuthenticatedRequest;
+
+      // authenticateUser middleware guarantees these exist, but check for type safety
+      if (!authReq.user) {
+        res.status(401).json({
+          error: 'Authentication required',
+          code: 'NO_AUTH'
+        });
+        return;
+      }
+
+      const userId = authReq.user.id;
+      const organizationId = authReq.user.activeOrganizationId;
+
+      // Query user's role in their active organization
+      const roleResult = await pool.query(
+        `SELECT role FROM organization_members
+         WHERE organization_id = $1 AND user_id = $2`,
+        [organizationId, userId]
+      );
+
+      if (roleResult.rows.length === 0) {
+        res.status(403).json({
+          error: 'You are not a member of this organization',
+          code: 'NOT_MEMBER'
+        });
+        return;
+      }
+
+      const userRole = roleResult.rows[0].role;
+
+      if (!allowedRoles.includes(userRole)) {
+        res.status(403).json({
+          error: `Permission denied. Required role: ${allowedRoles.join(' or ')}`,
+          code: 'INSUFFICIENT_PERMISSIONS'
+        });
+        return;
+      }
+
+      // User has required role, proceed to route handler
+      next();
+    } catch (error) {
+      logger.error({ error, path: req.path }, 'Authorization error');
+      res.status(500).json({
+        error: 'Authorization check failed. Please try again.',
+        code: 'AUTH_ERROR',
+      });
+    }
+  };
 };

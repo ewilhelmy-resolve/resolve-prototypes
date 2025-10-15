@@ -13,6 +13,7 @@ import authRoutes from './routes/auth.js';
 import conversationRoutes from './routes/conversations.js';
 import dataSourceRoutes from './routes/dataSources.js';
 import filesRoutes from './routes/files.js';
+import invitationRoutes from './routes/invitations.js';
 import organizationRoutes from './routes/organizations.js';
 import sseRoutes from './routes/sse.js';
 import { getRabbitMQService } from './services/rabbitmq.js';
@@ -46,6 +47,9 @@ app.get('/health', (_req, res) => {
 
 // Authentication routes (no auth required)
 app.use('/auth', authRoutes);
+
+// Invitation routes (mixed auth - some public, some protected)
+app.use('/api/invitations', invitationRoutes);
 
 // Test SSE endpoint (no auth required)
 app.get('/test-sse', (req, res) => {
@@ -150,6 +154,7 @@ app.listen(PORT, async () => {
       conversationMessages: `http://localhost:${PORT}/api/conversations/:id/messages`,
       messages: `http://localhost:${PORT}/api/messages (convenience method)`,
       files: `http://localhost:${PORT}/api/files`,
+      invitations: `http://localhost:${PORT}/api/invitations`,
       organizations: `http://localhost:${PORT}/api/organizations`,
       sse: `http://localhost:${PORT}/api/sse/events`
     }
