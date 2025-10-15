@@ -7,59 +7,49 @@
  * Route: /invite?token=<invitation_token>
  */
 
-import { useEffect, useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { AlertCircle, CheckCircle2, Loader2 } from "lucide-react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { z } from "zod";
-import {
-	AlertCircle,
-	CheckCircle2,
-	Loader2,
-	Mail,
-	Shield,
-	User,
-} from "lucide-react";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
+import { StatusAlert } from "@/components/ui/status-alert";
 import {
 	useAcceptInvitation,
 	useVerifyInvitation,
 } from "@/hooks/api/useInvitations";
 import {
+	type InvitationAPIError,
 	InvitationErrorCode,
 	type InviteAcceptFormData,
-	type InvitationAPIError,
 } from "@/types/invitations";
 
 /**
  * Zod Schema for Invitation Accept Form
  * Enforces password complexity and field requirements
+ * Note: Email is not included - it comes from the invitation token and is display-only
  */
-const inviteAcceptSchema = z
-	.object({
-		email: z.string().email("Invalid email address"),
-		password: z
-			.string()
-			.min(8, "Password must be at least 8 characters")
-			.refine(
-				(val) => /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/.test(val),
-				{
-					message: "Password must contain uppercase, lowercase, number, and special character",
-				},
-			),
-		confirmPassword: z.string(),
-		firstName: z.string().min(1, "First name is required"),
-		lastName: z.string().min(1, "Last name is required"),
-	})
-	.refine((data) => data.password === data.confirmPassword, {
-		message: "Passwords don't match",
-		path: ["confirmPassword"],
-	});
+const inviteAcceptSchema = z.object({
+	password: z
+		.string()
+		.min(8, "Password must be at least 8 characters")
+		.refine(
+			(val) =>
+				/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/.test(
+					val,
+				),
+			{
+				message:
+					"Password must contain uppercase, lowercase, number, and special character",
+			},
+		),
+	firstName: z.string().min(1, "First name is required"),
+	lastName: z.string().min(1, "Last name is required"),
+});
 
 /**
  * Error code to user-friendly message mapping
@@ -103,37 +93,31 @@ export default function InviteAcceptPage() {
 		error: verifyError,
 	} = useVerifyInvitation(token || "", !!token);
 
+	console.log("Verification data:", verificationData, verifyError);
+	
+
 	// Accept invitation mutation
 	const {
 		mutate: acceptInvitation,
 		isPending: isAccepting,
 		error: acceptError,
-	} = useAcceptInvitation(token || "");
+	} = useAcceptInvitation();
 
 	// Form setup with react-hook-form + Zod
+	// Note: Email is not in the form - it comes from verificationData and is display-only
 	const {
 		register,
 		handleSubmit,
 		formState: { errors, isValid },
-		setValue,
 	} = useForm<InviteAcceptFormData>({
 		resolver: zodResolver(inviteAcceptSchema),
 		mode: "onChange",
 		defaultValues: {
-			email: "",
 			password: "",
-			confirmPassword: "",
 			firstName: "",
 			lastName: "",
 		},
 	});
-
-	// Pre-fill email when verification succeeds
-	useEffect(() => {
-		if (verificationData?.email) {
-			setValue("email", verificationData.email, { shouldValidate: true });
-		}
-	}, [verificationData, setValue]);
 
 	// Simulate progress bar during account creation
 	useEffect(() => {
@@ -154,8 +138,14 @@ export default function InviteAcceptPage() {
 
 	// Handle form submission
 	const onSubmit = (data: InviteAcceptFormData) => {
+		if (!token) {
+			console.error("No invitation token provided");
+			return;
+		}
+
 		acceptInvitation(
 			{
+				token,
 				password: data.password,
 				firstName: data.firstName,
 				lastName: data.lastName,
@@ -180,13 +170,11 @@ export default function InviteAcceptPage() {
 	// Loading state while verifying token
 	if (isVerifying) {
 		return (
-			<div className="flex min-h-screen items-center justify-center bg-background">
-				<Card className="w-full max-w-md">
-					<CardContent className="flex flex-col items-center gap-4 py-8">
-						<Loader2 className="h-8 w-8 animate-spin text-primary" />
-						<p className="text-muted-foreground">Verifying invitation...</p>
-					</CardContent>
-				</Card>
+			<div className="min-h-screen bg-gradient-to-b from-[#000000] to-[#012C72] flex justify-center items-center px-9">
+				<div className="w-full max-w-md rounded-2xl p-4 flex flex-col justify-center items-center gap-6">
+					<Loader2 className="h-8 w-8 animate-spin text-white" />
+					<p className="text-white text-sm">Verifying invitation...</p>
+				</div>
 			</div>
 		);
 	}
@@ -194,33 +182,29 @@ export default function InviteAcceptPage() {
 	// Error state for invalid/expired/cancelled invitations
 	if (verifyError || !verificationData?.valid) {
 		return (
-			<div className="flex min-h-screen items-center justify-center bg-background">
-				<Card className="w-full max-w-md">
-					<CardHeader>
+			<div className="min-h-screen bg-gradient-to-b from-[#000000] to-[#012C72] flex justify-center items-center px-9">
+				<div className="w-full max-w-md rounded-2xl p-4 flex flex-col justify-start items-center gap-6">
+					<div className="w-full flex flex-col justify-start items-center gap-6 py-4">
 						<div className="flex items-center gap-2">
-							<AlertCircle className="h-5 w-5 text-destructive" />
-							<CardTitle>Invalid Invitation</CardTitle>
+							<AlertCircle className="h-5 w-5 text-red-400" />
 						</div>
-					</CardHeader>
-					<CardContent>
-						<Alert variant="destructive">
-							<AlertCircle className="h-4 w-4" />
-							<AlertTitle>Unable to process invitation</AlertTitle>
-							<AlertDescription>
-								{verifyError ? getErrorMessage(verifyError) : "This invitation link is no longer valid."}
-							</AlertDescription>
-						</Alert>
-					</CardContent>
-					<CardFooter>
-						<Button
-							variant="outline"
-							className="w-full"
-							onClick={() => navigate("/login")}
-						>
-							Go to Login
-						</Button>
-					</CardFooter>
-				</Card>
+						<div className="w-full flex flex-col justify-start items-center">
+							<h2 className="text-white text-3xl font-normal text-center leading-9 font-serif pb-2">
+								Invalid Invitation
+							</h2>
+							<p className="text-white text-sm text-center leading-5">
+								{verifyError
+									? getErrorMessage(verifyError)
+									: "This invitation link is no longer valid."}
+							</p>
+						</div>
+						<div className="w-full">
+							<Button className="w-full" onClick={() => navigate("/login")}>
+								Go to Login
+							</Button>
+						</div>
+					</div>
+				</div>
 			</div>
 		);
 	}
@@ -228,132 +212,148 @@ export default function InviteAcceptPage() {
 	// Success state after account creation
 	if (showSuccess) {
 		return (
-			<div className="flex min-h-screen items-center justify-center bg-background">
-				<Card className="w-full max-w-md">
-					<CardHeader>
+			<div className="min-h-screen bg-gradient-to-b from-[#000000] to-[#012C72] flex justify-center items-center px-9">
+				<div className="w-full max-w-md rounded-2xl p-4 flex flex-col justify-start items-center gap-6">
+					<div className="w-full flex flex-col justify-start items-center gap-6 py-4">
 						<div className="flex items-center gap-2">
-							<CheckCircle2 className="h-5 w-5 text-green-600" />
-							<CardTitle>Account Created Successfully!</CardTitle>
+							<CheckCircle2 className="h-8 w-8 text-green-400" />
 						</div>
-					</CardHeader>
-					<CardContent className="space-y-4">
-						<Alert className="border-green-500 bg-green-50 dark:bg-green-950">
-							<CheckCircle2 className="h-4 w-4 text-green-600 dark:text-green-400" />
-							<AlertDescription className="text-green-800 dark:text-green-200">
-								Your account has been created successfully. You can now log in with
-								your credentials.
-							</AlertDescription>
-						</Alert>
-						<p className="text-sm text-muted-foreground text-center">
-							Redirecting to login page in 3 seconds...
-						</p>
-					</CardContent>
-					<CardFooter>
-						<Button className="w-full" onClick={() => navigate("/login")}>
-							Go to Login Now
-						</Button>
-					</CardFooter>
-				</Card>
+						<div className="w-full flex flex-col justify-start items-center">
+							<h2 className="text-white text-3xl font-normal text-center leading-9 font-serif pb-2">
+								Account Created Successfully!
+							</h2>
+							<p className="text-white text-sm text-center leading-5 mb-4">
+								Your account has been created successfully. You can now log in
+								with your credentials.
+							</p>
+							<p className="text-white/70 text-sm text-center leading-5">
+								Redirecting to login page in 3 seconds...
+							</p>
+						</div>
+						<div className="w-full">
+							<Button className="w-full" onClick={() => navigate("/login")}>
+								Go to Login Now
+							</Button>
+						</div>
+					</div>
+				</div>
 			</div>
 		);
 	}
 
 	// Main form for accepting invitation
 	return (
-		<div className="flex min-h-screen items-center justify-center bg-background p-4">
-			<Card className="w-full max-w-md">
-				<CardHeader>
-					<CardTitle>Accept Invitation</CardTitle>
-					<CardDescription>
-						You've been invited by {verificationData.invitedBy} to join as a{" "}
-						{verificationData.role}
-					</CardDescription>
-				</CardHeader>
+		<div className="min-h-screen bg-gradient-to-b from-[#000000] to-[#012C72] flex justify-center items-center px-9">
+			<div className="w-full max-w-md rounded-2xl p-4 flex flex-col justify-start items-center gap-6">
+				<form
+					onSubmit={handleSubmit(onSubmit)}
+					className="w-full flex flex-col justify-start items-center gap-6 py-4"
+				>
+					<div className="w-full flex flex-col justify-start items-center gap-6">
+						{/* Logo */}
+						<div className="w-full flex justify-center items-start">
+							<div className="w-6 h-6 flex justify-start items-center">
+								<img
+									src="/logo-mark.svg"
+									alt="RitaGo Logo"
+									width="24"
+									height="24"
+								/>
+							</div>
+						</div>
 
-				<form onSubmit={handleSubmit(onSubmit)}>
-					<CardContent className="space-y-4">
+						{/* Header */}
+						<div className="w-full flex flex-col justify-start items-center">
+							<div className="w-full flex justify-center items-center pb-2">
+								<h2 className="text-white text-3xl font-normal text-center leading-9 font-serif">
+									You've been invited to RitaGo
+								</h2>
+							</div>
+							<div className="w-full flex justify-center items-center">
+								<p className="text-white text-sm text-center leading-5">
+									To start your 90 day trial generate a password
+								</p>
+							</div>
+						</div>
+					</div>
+
+					{/* Form Fields */}
+					<div className="w-full flex flex-col justify-center items-center gap-5">
 						{/* API Error Alert */}
 						{acceptError && (
-							<Alert variant="destructive">
-								<AlertCircle className="h-4 w-4" />
-								<AlertDescription>
-									{getErrorMessage(acceptError)}
-								</AlertDescription>
-							</Alert>
+							<StatusAlert variant="warning">
+								{getErrorMessage(acceptError)}
+							</StatusAlert>
 						)}
 
 						{/* Progress Bar (shown during submission) */}
 						{isAccepting && (
-							<div className="space-y-2">
+							<div className="w-full space-y-2">
 								<Progress value={acceptProgress} className="w-full" />
-								<p className="text-sm text-muted-foreground text-center">
+								<p className="text-white text-sm text-center">
 									Creating your account...
 								</p>
 							</div>
 						)}
 
-						{/* Email (read-only, pre-filled) */}
-						<div className="space-y-2">
-							<Label htmlFor="email">
-								<Mail className="inline h-4 w-4 mr-1" />
+						{/* Email (read-only, display only - NOT submitted) */}
+						<div className="w-full space-y-2">
+							<Label htmlFor="email" className="text-white text-sm">
 								Email
 							</Label>
 							<Input
 								id="email"
 								type="email"
-								{...register("email")}
+								value={verificationData?.invitation?.email || ""}
 								disabled
-								className="bg-muted"
-							/>
-							{errors.email && (
-								<p className="text-sm text-destructive">{errors.email.message}</p>
-							)}
+								readOnly
+								className="opacity-50 text-white"
+							/>							
 						</div>
 
-						{/* First Name */}
-						<div className="space-y-2">
-							<Label htmlFor="firstName">
-								<User className="inline h-4 w-4 mr-1" />
-								First Name
-							</Label>
-							<Input
-								id="firstName"
-								type="text"
-								placeholder="John"
-								{...register("firstName")}
-								disabled={isAccepting}
-							/>
-							{errors.firstName && (
-								<p className="text-sm text-destructive">
-									{errors.firstName.message}
-								</p>
-							)}
-						</div>
-
-						{/* Last Name */}
-						<div className="space-y-2">
-							<Label htmlFor="lastName">
-								<User className="inline h-4 w-4 mr-1" />
-								Last Name
-							</Label>
-							<Input
-								id="lastName"
-								type="text"
-								placeholder="Doe"
-								{...register("lastName")}
-								disabled={isAccepting}
-							/>
-							{errors.lastName && (
-								<p className="text-sm text-destructive">
-									{errors.lastName.message}
-								</p>
-							)}
+						{/* First Name and Last Name */}
+						<div className="w-full flex gap-5">
+							<div className="flex-1 space-y-2">
+								<Label htmlFor="firstName" className="text-white text-sm">
+									First name
+								</Label>
+								<Input
+									id="firstName"
+									type="text"
+									placeholder=""
+									{...register("firstName")}
+									disabled={isAccepting}
+									className="text-white placeholder:text-gray-400"
+								/>
+								{errors.firstName && (
+									<p className="text-sm text-red-400">
+										{errors.firstName.message}
+									</p>
+								)}
+							</div>
+							<div className="flex-1 space-y-2">
+								<Label htmlFor="lastName" className="text-white text-sm">
+									Last name
+								</Label>
+								<Input
+									id="lastName"
+									type="text"
+									placeholder=""
+									{...register("lastName")}
+									disabled={isAccepting}
+									className="text-white placeholder:text-gray-400"
+								/>
+								{errors.lastName && (
+									<p className="text-sm text-red-400">
+										{errors.lastName.message}
+									</p>
+								)}
+							</div>
 						</div>
 
 						{/* Password */}
-						<div className="space-y-2">
-							<Label htmlFor="password">
-								<Shield className="inline h-4 w-4 mr-1" />
+						<div className="w-full space-y-2">
+							<Label htmlFor="password" className="text-white text-sm">
 								Password
 							</Label>
 							<Input
@@ -362,55 +362,35 @@ export default function InviteAcceptPage() {
 								placeholder="••••••••"
 								{...register("password")}
 								disabled={isAccepting}
+								className="text-white placeholder:text-gray-400"
 							/>
 							{errors.password && (
-								<p className="text-sm text-destructive">
+								<p className="text-sm text-red-400">
 									{errors.password.message}
 								</p>
 							)}
-							<p className="text-xs text-muted-foreground">
+							<p className="text-xs text-white/70">
 								Min 8 characters with uppercase, lowercase, number, and special
 								character
 							</p>
 						</div>
 
-						{/* Confirm Password */}
-						<div className="space-y-2">
-							<Label htmlFor="confirmPassword">
-								<Shield className="inline h-4 w-4 mr-1" />
-								Confirm Password
-							</Label>
-							<Input
-								id="confirmPassword"
-								type="password"
-								placeholder="••••••••"
-								{...register("confirmPassword")}
-								disabled={isAccepting}
-							/>
-							{errors.confirmPassword && (
-								<p className="text-sm text-destructive">
-									{errors.confirmPassword.message}
-								</p>
-							)}
+						{/* Submit Button */}
+						<div className="w-full">
+							<Button
+								type="submit"
+								className="w-full"
+								disabled={!isValid || isAccepting}
+							>
+								{isAccepting && (
+									<Loader2 className="mr-2 h-4 w-4 animate-spin" />
+								)}
+								{isAccepting ? "Creating Account..." : "Accept Invite"}
+							</Button>
 						</div>
-					</CardContent>
-
-					<CardFooter className="flex flex-col gap-2">
-						<Button
-							type="submit"
-							className="w-full"
-							disabled={!isValid || isAccepting}
-						>
-							{isAccepting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-							{isAccepting ? "Creating Account..." : "Create Account"}
-						</Button>
-						<p className="text-xs text-muted-foreground text-center">
-							By creating an account, you agree to our Terms of Service and Privacy
-							Policy
-						</p>
-					</CardFooter>
+					</div>
 				</form>
-			</Card>
+			</div>
 		</div>
 	);
 }

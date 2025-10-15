@@ -1,6 +1,6 @@
 import { useForm } from "react-hook-form";
 import { Button } from "@/components/ui/button";
-import { InfoAlert } from "@/components/ui/info-alert";
+import { StatusAlert } from "@/components/ui/status-alert";
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
 import { useConnectionSource } from "@/contexts/ConnectionSourceContext";
@@ -181,10 +181,10 @@ export function ConfluenceForm({ onCancel }: ConfluenceFormProps = {}) {
 				</div>
 
 				{verifyMutation.isPending && (
-					<InfoAlert>
+					<StatusAlert variant="info">
 						<p className=" text-accent-foreground">Connection may take time</p>
 						<p>You can leave this page while it is connecting</p>
-					</InfoAlert>
+					</StatusAlert>
 				)}
 			</FormSection>
 		</ConnectionsForm>

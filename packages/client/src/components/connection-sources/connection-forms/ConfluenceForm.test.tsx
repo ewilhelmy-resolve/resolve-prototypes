@@ -520,8 +520,8 @@ describe("ConfluenceForm", () => {
 		});
 	});
 
-	describe("InfoAlert Display", () => {
-		it("should show info alert when verification is pending", () => {
+	describe("StatusAlert Display", () => {
+		it("should show status alert when verification is pending", () => {
 			mockVerifyMutation.isPending = true;
 			const source = createMockSource();
 			renderWithProvider(source);
@@ -536,7 +536,7 @@ describe("ConfluenceForm", () => {
 			mockVerifyMutation.isPending = false; // Reset
 		});
 
-		it("should not show info alert when verification is not pending", () => {
+		it("should not show status alert when verification is not pending", () => {
 			mockVerifyMutation.isPending = false;
 			const source = createMockSource();
 			renderWithProvider(source);
@@ -549,7 +549,7 @@ describe("ConfluenceForm", () => {
 			).not.toBeInTheDocument();
 		});
 
-		it("should not show info alert when only update is pending", () => {
+		it("should not show status alert when only update is pending", () => {
 			mockVerifyMutation.isPending = false;
 			mockUpdateMutation.isPending = true;
 			const source = createMockSource();
