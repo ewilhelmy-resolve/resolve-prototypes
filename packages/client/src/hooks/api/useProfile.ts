@@ -1,4 +1,5 @@
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useEffect } from 'react'
 import { organizationApi } from '@/services/api'
 import { useAuthStore } from '@/stores/auth-store'
 import type { UserProfile, OrganizationRole } from '@/types/profile'
@@ -42,6 +43,14 @@ export const profileKeys = {
  */
 export function useProfile() {
   const { user: authUser, authenticated, sessionReady } = useAuthStore()
+  const queryClient = useQueryClient()
+
+  // Clear profile cache when user logs out
+  useEffect(() => {
+    if (!authenticated) {
+      queryClient.removeQueries({ queryKey: profileKeys.all })
+    }
+  }, [authenticated, queryClient])
 
   return useQuery({
     queryKey: profileKeys.detail(),

@@ -1,6 +1,18 @@
 import InviteUsersButton from "./InviteUsersButton";
+import { useProfilePermissions } from "@/hooks/api/useProfile";
 
+/**
+ * Card component for inviting users
+ * Only visible to users with invitation management permissions (admin/owner)
+ */
 const InviteUserCard = () => {
+	const { canManageInvitations } = useProfilePermissions();
+
+	// Hide card for regular users
+	if (!canManageInvitations()) {
+		return null;
+	}
+
 	return (
 		<div className="mt-auto pt-6">
 			<div className="space-y-3 p-4 border border-border rounded-lg bg-blue-50/30">

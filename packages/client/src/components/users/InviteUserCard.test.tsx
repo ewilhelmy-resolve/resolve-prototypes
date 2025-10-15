@@ -5,8 +5,14 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi, beforeEach } from "vitest";
 import InviteUserCard from "./InviteUserCard";
+import { useProfilePermissions } from "@/hooks/api/useProfile";
+
+// Mock useProfilePermissions
+vi.mock("@/hooks/api/useProfile", () => ({
+	useProfilePermissions: vi.fn(),
+}));
 
 // Mock InviteUsersButton to simplify testing
 vi.mock("./InviteUsersButton", () => ({
@@ -16,6 +22,20 @@ vi.mock("./InviteUsersButton", () => ({
 		</button>
 	),
 }));
+
+// Helper to setup admin permissions
+function setupAdminPermissions() {
+	vi.mocked(useProfilePermissions).mockReturnValue({
+		canManageInvitations: () => true,
+		hasRole: vi.fn(),
+		isOwner: vi.fn(),
+		isAdmin: vi.fn(),
+		isOwnerOrAdmin: vi.fn(),
+		canManageMembers: vi.fn(),
+		canManageOrganization: vi.fn(),
+		canDeleteConversations: vi.fn(),
+	});
+}
 
 // Test wrapper with providers
 function TestWrapper({ children }: { children: React.ReactNode }) {
@@ -33,6 +53,10 @@ function TestWrapper({ children }: { children: React.ReactNode }) {
 
 describe("InviteUserCard", () => {
 	describe("Content and Layout", () => {
+		beforeEach(() => {
+			setupAdminPermissions();
+		});
+
 		it("should render the card container", () => {
 			render(
 				<TestWrapper>
@@ -119,6 +143,10 @@ describe("InviteUserCard", () => {
 	});
 
 	describe("Container Layout", () => {
+		beforeEach(() => {
+			setupAdminPermissions();
+		});
+
 		it("should have proper spacing at the top", () => {
 			render(
 				<TestWrapper>
@@ -135,6 +163,10 @@ describe("InviteUserCard", () => {
 	});
 
 	describe("Visual Design", () => {
+		beforeEach(() => {
+			setupAdminPermissions();
+		});
+
 		it("should use blue background color with opacity", () => {
 			render(
 				<TestWrapper>
@@ -174,6 +206,10 @@ describe("InviteUserCard", () => {
 	});
 
 	describe("Component Integration", () => {
+		beforeEach(() => {
+			setupAdminPermissions();
+		});
+
 		it("should render all child elements in correct order", () => {
 			render(
 				<TestWrapper>
@@ -200,6 +236,10 @@ describe("InviteUserCard", () => {
 	});
 
 	describe("Accessibility", () => {
+		beforeEach(() => {
+			setupAdminPermissions();
+		});
+
 		it("should have semantic heading", () => {
 			render(
 				<TestWrapper>
@@ -246,6 +286,10 @@ describe("InviteUserCard", () => {
 	});
 
 	describe("User Interactions", () => {
+		beforeEach(() => {
+			setupAdminPermissions();
+		});
+
 		it("should allow clicking the invite button", async () => {
 			const user = userEvent.setup();
 
@@ -264,6 +308,10 @@ describe("InviteUserCard", () => {
 	});
 
 	describe("Component Structure", () => {
+		beforeEach(() => {
+			setupAdminPermissions();
+		});
+
 		it("should match the expected DOM structure", () => {
 			const { container } = render(
 				<TestWrapper>
@@ -284,6 +332,10 @@ describe("InviteUserCard", () => {
 	});
 
 	describe("Responsive Design", () => {
+		beforeEach(() => {
+			setupAdminPermissions();
+		});
+
 		it("should have full-width button", () => {
 			render(
 				<TestWrapper>
@@ -306,6 +358,47 @@ describe("InviteUserCard", () => {
 				.parentElement;
 			expect(card).toHaveClass("space-y-3"); // Vertical spacing between elements
 			expect(card).toHaveClass("p-4"); // Padding around content
+		});
+	});
+
+	describe("Permission-Based Rendering", () => {
+		it("should return null when user cannot manage invitations", () => {
+			// Mock permissions to deny invitation management
+			vi.mocked(useProfilePermissions).mockReturnValue({
+				canManageInvitations: () => false,
+				hasRole: vi.fn(),
+				isOwner: vi.fn(),
+				isAdmin: vi.fn(),
+				isOwnerOrAdmin: vi.fn(),
+				canManageMembers: vi.fn(),
+				canManageOrganization: vi.fn(),
+				canDeleteConversations: vi.fn(),
+			});
+
+			const { container } = render(
+				<TestWrapper>
+					<InviteUserCard />
+				</TestWrapper>,
+			);
+
+			// Component should render nothing (QueryClientProvider renders a div)
+			expect(container.querySelector('[class*="mt-auto"]')).not.toBeInTheDocument();
+			expect(screen.queryByRole("heading", { name: /invite users/i })).not.toBeInTheDocument();
+		});
+
+		it("should render content when user can manage invitations", () => {
+			setupAdminPermissions();
+
+			render(
+				<TestWrapper>
+					<InviteUserCard />
+				</TestWrapper>,
+			);
+
+			// Component should render the card
+			expect(
+				screen.getByRole("heading", { name: /invite users/i }),
+			).toBeInTheDocument();
 		});
 	});
 });
