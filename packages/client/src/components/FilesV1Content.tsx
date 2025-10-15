@@ -18,6 +18,16 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { Skeleton } from '@/components/ui/skeleton'
 import {
   Plus,
@@ -33,8 +43,9 @@ import {
   AlertCircle,
   CheckCircle,
   RefreshCw,
+  Trash2,
 } from 'lucide-react'
-import { useFiles, useUploadFile, useDownloadFile, useReprocessFile, type FileDocument } from '@/hooks/api/useFiles'
+import { useFiles, useUploadFile, useDownloadFile, useReprocessFile, useDeleteFile, type FileDocument } from '@/hooks/api/useFiles'
 
 const formatFileSize = (bytes: number): string => {
   if (bytes === 0) return '0 Bytes'
@@ -60,12 +71,15 @@ export default function FilesV1Content() {
   const [statusFilter, setStatusFilter] = useState('All')
   const [sourceFilter, setSourceFilter] = useState('All')
   const [selectedFiles, setSelectedFiles] = useState<Set<string>>(new Set())
+  const [fileToDelete, setFileToDelete] = useState<FileDocument | null>(null)
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const { data: filesData, isLoading } = useFiles()
   const uploadFileMutation = useUploadFile()
   const downloadFileMutation = useDownloadFile()
   const reprocessFileMutation = useReprocessFile()
+  const deleteFileMutation = useDeleteFile()
 
   const files = filesData?.documents || []
 
@@ -120,6 +134,19 @@ export default function FilesV1Content() {
 
   const handleReprocess = (file: FileDocument) => {
     reprocessFileMutation.mutate(file.id)
+  }
+
+  const handleDelete = (file: FileDocument) => {
+    setFileToDelete(file)
+    setDeleteDialogOpen(true)
+  }
+
+  const confirmDelete = () => {
+    if (fileToDelete) {
+      deleteFileMutation.mutate(fileToDelete.id)
+      setDeleteDialogOpen(false)
+      setFileToDelete(null)
+    }
   }
 
   const getStatusIcon = (status: string) => {
@@ -399,7 +426,14 @@ export default function FilesV1Content() {
                               <RefreshCw className={`h-4 w-4 mr-2 ${reprocessFileMutation.isPending ? 'animate-spin' : ''}`} />
                               Reprocess
                             </DropdownMenuItem>
-                            <DropdownMenuItem>Delete</DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() => handleDelete(file)}
+                              disabled={deleteFileMutation.isPending}
+                              className="text-destructive focus:text-destructive"
+                            >
+                              <Trash2 className="h-4 w-4 mr-2" />
+                              Delete
+                            </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
                       </TableCell>
@@ -467,6 +501,47 @@ export default function FilesV1Content() {
           </div>
         </div>
       )}
+
+      {deleteFileMutation.isError && (
+        <div className="fixed bottom-4 right-4 p-3 bg-destructive/10 border border-destructive/20 rounded-md max-w-sm">
+          <div className="flex items-center gap-2 text-destructive">
+            <AlertCircle className="h-4 w-4" />
+            <span className="text-sm">
+              {deleteFileMutation.error?.message || 'Delete failed'}
+            </span>
+          </div>
+        </div>
+      )}
+
+      {deleteFileMutation.isSuccess && (
+        <div className="fixed bottom-4 right-4 p-3 bg-green-50 border border-green-200 rounded-md max-w-sm">
+          <div className="flex items-center gap-2 text-green-700">
+            <CheckCircle className="h-4 w-4" />
+            <span className="text-sm">Document deleted successfully!</span>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Document</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete "<strong>{fileToDelete?.filename}</strong>"? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }
