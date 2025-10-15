@@ -56,6 +56,7 @@ import {
 	useSidebar,
 } from "@/components/ui/sidebar";
 import { useConversations } from "@/hooks/api/useConversations";
+import { useProfilePermissions } from "@/hooks/api/useProfile";
 import { useAuth } from "@/hooks/useAuth";
 import { useChatNavigation } from "@/hooks/useChatNavigation";
 import { useKnowledgeBase } from "@/hooks/useKnowledgeBase";
@@ -76,6 +77,7 @@ function RitaLayoutContent({ children, activePage = "chat" }: RitaLayoutProps) {
 
 	// Rita hooks
 	const { user, logout } = useAuth();
+	const { isOwnerOrAdmin } = useProfilePermissions();
 	const { data: conversationsData, isLoading: conversationsLoading } =
 		useConversations();
 	const { handleNewChat, handleConversationClick, currentConversationId } =
@@ -155,50 +157,52 @@ function RitaLayoutContent({ children, activePage = "chat" }: RitaLayoutProps) {
 				</SidebarHeader>
 
 				<SidebarContent className="gap-2">
-					<SidebarGroup>
-						<SidebarMenu className="gap-1">
-							<SidebarMenuItem>
-								<SidebarMenuButton
-									className="flex items-center gap-2 px-2 py-2 h-8 rounded-md"
-									onClick={() => navigate("/chat")}
-									isActive={
-										location.pathname === "/chat" ||
-										location.pathname.startsWith("/chat/")
-									}
-								>
-									<LayoutGrid className="w-4 h-4" />
-									<span className="text-sm text-sidebar-foreground">
-										Dashboard
-									</span>
-								</SidebarMenuButton>
-							</SidebarMenuItem>
-							<SidebarMenuItem>
-								<SidebarMenuButton
-									className="flex items-center gap-2 px-2 py-2 h-8 rounded-md"
-									onClick={navigateToKnowledgeArticles}
-									isActive={location.pathname === "/content"}
-								>
-									<File className="w-4 h-4" />
-									<span className="text-sm text-sidebar-foreground">
-										Knowledge Articles
-									</span>
-									{totalKnowledgeBaseFiles > 0 && (
-										<div className="ml-auto flex items-center justify-center px-1 h-5 bg-sidebar-accent rounded text-xs text-sidebar-foreground">
-											{totalKnowledgeBaseFiles}
-										</div>
-									)}
-								</SidebarMenuButton>
-							</SidebarMenuItem>
-							<SidebarMenuItem>
-								<SidebarMenuButton className="flex items-center gap-2 px-2 py-2 h-8 rounded-md">
-									<Ticket className="w-4 h-4" />
-									<span className="text-sm text-sidebar-foreground">
-										Tickets
-									</span>
-								</SidebarMenuButton>
-							</SidebarMenuItem>
-						</SidebarMenu>
-					</SidebarGroup>
+					{isOwnerOrAdmin() && (
+						<SidebarGroup>
+							<SidebarMenu className="gap-1">
+								<SidebarMenuItem>
+									<SidebarMenuButton
+										className="flex items-center gap-2 px-2 py-2 h-8 rounded-md"
+										onClick={() => navigate("/chat")}
+										isActive={
+											location.pathname === "/chat" ||
+											location.pathname.startsWith("/chat/")
+										}
+									>
+										<LayoutGrid className="w-4 h-4" />
+										<span className="text-sm text-sidebar-foreground">
+											Dashboard
+										</span>
+									</SidebarMenuButton>
+								</SidebarMenuItem>
+								<SidebarMenuItem>
+									<SidebarMenuButton
+										className="flex items-center gap-2 px-2 py-2 h-8 rounded-md"
+										onClick={navigateToKnowledgeArticles}
+										isActive={location.pathname === "/content"}
+									>
+										<File className="w-4 h-4" />
+										<span className="text-sm text-sidebar-foreground">
+											Knowledge Articles
+										</span>
+										{totalKnowledgeBaseFiles > 0 && (
+											<div className="ml-auto flex items-center justify-center px-1 h-5 bg-sidebar-accent rounded text-xs text-sidebar-foreground">
+												{totalKnowledgeBaseFiles}
+											</div>
+										)}
+									</SidebarMenuButton>
+								</SidebarMenuItem>
+								<SidebarMenuItem>
+									<SidebarMenuButton className="flex items-center gap-2 px-2 py-2 h-8 rounded-md">
+										<Ticket className="w-4 h-4" />
+										<span className="text-sm text-sidebar-foreground">
+											Tickets
+										</span>
+									</SidebarMenuButton>
+								</SidebarMenuItem>
+							</SidebarMenu>
+						</SidebarGroup>
+					)}
 
 					<div className="px-2">
 						<SidebarMenuItem>
@@ -289,12 +293,21 @@ function RitaLayoutContent({ children, activePage = "chat" }: RitaLayoutProps) {
 								</div>
 
 								<div className="py-1">
-									<button
-										className="w-full px-3 py-2 text-left text-sm text-foreground hover:bg-accent cursor-pointer"
-										onClick={() => navigate("/settings")}
-									>
-										Settings
-									</button>
+									{isOwnerOrAdmin() ? (
+										<button
+											className="w-full px-3 py-2 text-left text-sm text-foreground hover:bg-accent cursor-pointer"
+											onClick={() => navigate("/settings")}
+										>
+											Settings
+										</button>
+									) : (
+										<button
+											className="w-full px-3 py-2 text-left text-sm text-foreground hover:bg-accent cursor-pointer flex items-center gap-2"
+											onClick={() => navigate("/settings/profile")}
+										>
+											Profile
+										</button>
+									)}
 									<button
 										className="w-full px-3 py-2 text-left text-sm text-foreground hover:bg-accent cursor-pointer"
 										onClick={() => navigate("/help")}
@@ -354,8 +367,8 @@ function RitaLayoutContent({ children, activePage = "chat" }: RitaLayoutProps) {
 						{children}
 					</main>
 
-					{/* Right sidebar - Knowledge Articles panel (only on chat page) */}
-					{activePage === "chat" && (
+					{/* Right sidebar - Knowledge Articles panel (only on chat page for admins/owners) */}
+					{activePage === "chat" && isOwnerOrAdmin() && (
 						<aside className="hidden lg:flex w-80 bg-background p-6 flex-col gap-6 overflow-y-auto flex-shrink-0">
 							<div className="flex items-center justify-between">
 								<h2 className="text-lg font-semibold text-foreground">

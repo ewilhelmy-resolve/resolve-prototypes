@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-// import useAuth from "@/hooks/useAuth";
+import { useProfilePermissions } from "@/hooks/api/useProfile";
 
 /**
  * ProfilePage - Unified profile settings page
@@ -27,10 +27,8 @@ const profileSchema = z.object({
 type ProfileFormData = z.infer<typeof profileSchema>;
 
 export default function ProfilePage() {
-	// TODO: Re-enable auth and role checks when auth is implemented
-	// const { hasRole } = useAuth();
-	// const isAdmin = hasRole("admin");
-	const isAdmin = true;
+	const { isOwnerOrAdmin } = useProfilePermissions();
+	const isAdmin = isOwnerOrAdmin();
 
 	const [originalValues] = useState<ProfileFormData>({
 		firstName: "Charlie",
