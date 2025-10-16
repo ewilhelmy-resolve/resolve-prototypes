@@ -110,7 +110,7 @@ const useAuthStore = create<AuthStore>()(
 
 						set((state) => {
 							state.authenticated = result.authenticated;
-							state.user = normalizeUser(result.user);
+							// Don't set user here - let auth:success event handler set it from backend
 							state.token = result.token;
 							state.refreshToken = result.refreshToken;
 							state.tokenExpiry = result.tokenExpiry;
