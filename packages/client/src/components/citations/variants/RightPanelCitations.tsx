@@ -89,16 +89,18 @@ export function RightPanelCitations({
     setIsLoadingDocument(true)
     setModalOpen(true)
 
+    const displayTitle = source.title || 'Document'
+
     try {
       const content = await loadDocument(source.blob_id)
       setModalContent({
-        title: source.title,
+        title: displayTitle,
         content,
       })
     } catch (error) {
       console.error('Error loading document:', error)
       setModalContent({
-        title: source.title,
+        title: displayTitle,
         content: 'Error loading document. Please try again.',
       })
     } finally {

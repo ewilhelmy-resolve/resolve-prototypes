@@ -11,12 +11,6 @@ describe('Citations', () => {
     { blob_id: 'blob_doc_2' },
   ]
 
-  // Legacy case: sources with URL and title
-  const mockLegacySources: CitationSource[] = [
-    { url: 'https://example.com/doc1', title: 'Example Document 1' },
-    { url: 'https://example.com/doc2', title: 'Example Document 2' },
-  ]
-
   it('renders nothing when sources array is empty', () => {
     const { container } = render(
       <CitationProvider>

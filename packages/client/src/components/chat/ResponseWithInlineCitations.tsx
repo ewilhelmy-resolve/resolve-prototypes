@@ -213,7 +213,7 @@ export function ResponseWithInlineCitations({
     setModalOpen(true)
 
     // Get the display title (fetched or provided)
-    const displayTitle = documentTitles[source.blob_id] || source.title
+    const displayTitle = documentTitles[source.blob_id] || source.title || 'Document'
 
     try {
       const content = await loadDocument(source.blob_id)
