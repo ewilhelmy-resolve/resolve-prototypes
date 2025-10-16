@@ -8,13 +8,13 @@
  * - Click trigger to expand/collapse sources
  * - List of clickable source links
  * - Accessible with ARIA attributes
- * - Automatically fetches document titles from blob_id
+ * - Automatically fetches document titles from blob_id using TanStack Query
  * - Opens modal with full document content on click
  */
 
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState } from 'react'
 import {
   Sources,
   SourcesContent,
@@ -29,48 +29,48 @@ import {
   DialogTitle,
   DialogDescription,
 } from '@/components/ui/dialog'
-import { fileApi } from '@/services/api'
 import { Streamdown } from 'streamdown'
+import { useDocumentMetadata, documentMetadataKeys } from '@/hooks/api/useDocumentMetadata'
+import { useQueryClient } from '@tanstack/react-query'
 import type { CitationsProps } from '../Citations'
 
 /**
- * Fetch document metadata (title/filename) for a given blob_id
+ * SourceItem - Individual source item with metadata fetching
+ * Uses TanStack Query to fetch document metadata for blob_id sources
  */
-async function fetchDocumentTitle(blob_id: string): Promise<string> {
-  try {
-    console.log('[CollapsibleListCitations] Fetching metadata for blob_id:', blob_id)
-    const metadata = await fileApi.getDocumentMetadata(blob_id)
-    console.log('[CollapsibleListCitations] Received metadata:', metadata)
-    return metadata.filename
-  } catch (error) {
-    console.error('[CollapsibleListCitations] Error fetching document metadata for blob_id:', blob_id, error)
-    return 'Unknown Document' // Fallback title
-  }
-}
+function SourceItem({
+  source,
+  index,
+  messageId,
+  onSourceClick,
+}: {
+  source: CitationsProps['sources'][0]
+  index: number
+  messageId?: string
+  onSourceClick: (source: CitationsProps['sources'][0], e: React.MouseEvent) => void
+}) {
+  // Fetch document metadata if source has blob_id but no title
+  const { data: metadata } = useDocumentMetadata(
+    source.blob_id && !source.title ? source.blob_id : undefined
+  )
 
-/**
- * Load document content from API using blob_metadata ID
- * Fetches processed content from metadata.content instead of raw blob
- */
-async function loadDocument(blob_id: string): Promise<string> {
-  try {
-    console.log('[CollapsibleListCitations] Loading document metadata for blob_id:', blob_id)
-    // Fetch metadata with processed content
-    const metadata = await fileApi.getDocumentMetadata(blob_id)
-    console.log('[CollapsibleListCitations] Received metadata with content length:', metadata.metadata?.content?.length || 0)
+  // Get display title - prefer fetched metadata, then source.title, then fallback
+  const displayTitle = metadata?.filename || source.title || 'Loading...'
 
-    // Extract processed content from metadata
-    const content = metadata.metadata?.content
-    if (!content) {
-      console.warn('[CollapsibleListCitations] No processed content available in metadata for blob_id:', blob_id)
-      return 'Document content is being processed. Please try again later.'
-    }
-
-    return content
-  } catch (error) {
-    console.error('[CollapsibleListCitations] Error loading document metadata:', error)
-    throw error
-  }
+  return (
+    <div key={`${messageId}-${index}`} className="space-y-2">
+      <Source
+        href={source.url || '#'}
+        title={displayTitle}
+        onClick={(e: React.MouseEvent) => onSourceClick(source, e)}
+      />
+      {source.content && (
+        <div className="pl-6 prose prose-sm dark:prose-invert max-w-none">
+          <Response>{source.content}</Response>
+        </div>
+      )}
+    </div>
+  )
 }
 
 /**
@@ -95,49 +95,10 @@ export function CollapsibleListCitations({
   className,
   messageId,
 }: CitationsProps) {
-  const [documentTitles, setDocumentTitles] = useState<Record<string, string>>({})
+  const queryClient = useQueryClient()
   const [modalOpen, setModalOpen] = useState(false)
   const [modalContent, setModalContent] = useState<{ title: string; content: string } | null>(null)
   const [isLoadingDocument, setIsLoadingDocument] = useState(false)
-  const fetchedBlobIdsRef = useRef<Set<string>>(new Set())
-
-  // Fetch document titles for sources with blob_id (only once per blob_id)
-  useEffect(() => {
-    const fetchTitles = async () => {
-      // Filter out sources that already have titles or have been fetched
-      const sourcesToFetch = sources.filter(
-        source =>
-          source.blob_id &&
-          !source.title &&
-          !documentTitles[source.blob_id] &&
-          !fetchedBlobIdsRef.current.has(source.blob_id)
-      )
-
-      if (sourcesToFetch.length === 0) return
-
-      // Mark these blob_ids as being fetched
-      sourcesToFetch.forEach(source => {
-        if (source.blob_id) {
-          fetchedBlobIdsRef.current.add(source.blob_id)
-        }
-      })
-
-      const titlePromises = sourcesToFetch.map(async (source) => {
-        const title = await fetchDocumentTitle(source.blob_id!)
-        return { blob_id: source.blob_id!, title }
-      })
-
-      const titles = await Promise.all(titlePromises)
-      const titleMap = titles.reduce((acc, { blob_id, title }) => {
-        acc[blob_id] = title
-        return acc
-      }, {} as Record<string, string>)
-
-      setDocumentTitles(prev => ({ ...prev, ...titleMap }))
-    }
-
-    fetchTitles()
-  }, [sources, documentTitles])
 
   // Handle "View full document" click
   const handleSourceClick = async (source: typeof sources[0], e: React.MouseEvent) => {
@@ -155,13 +116,24 @@ export function CollapsibleListCitations({
     setIsLoadingDocument(true)
     setModalOpen(true)
 
-    // Get the display title (fetched or provided)
-    const displayTitle = documentTitles[source.blob_id] || source.title || 'Document'
+    // Get cached metadata or fetch it
+    const cachedMetadata = queryClient.getQueryData(documentMetadataKeys.detail(source.blob_id))
+    const displayTitle = (cachedMetadata as any)?.filename || source.title || 'Document'
 
     try {
-      const content = await loadDocument(source.blob_id)
+      // Fetch/use cached metadata
+      const metadata = await queryClient.ensureQueryData({
+        queryKey: documentMetadataKeys.detail(source.blob_id),
+        queryFn: async () => {
+          const { fileApi } = await import('@/services/api')
+          return await fileApi.getDocumentMetadata(source.blob_id!)
+        },
+      })
+
+      const content = metadata.metadata?.content || 'Document content is being processed. Please try again later.'
+
       setModalContent({
-        title: displayTitle,
+        title: metadata.filename,
         content,
       })
     } catch (error) {
@@ -188,27 +160,15 @@ export function CollapsibleListCitations({
       <Sources className={className} data-message-id={messageId}>
         <SourcesTrigger count={sources.length} />
         <SourcesContent>
-          {sources.map((source, index) => {
-            // Get the display title - prefer fetched title from blob_id, then fallback to source.title
-            const displayTitle = source.blob_id && documentTitles[source.blob_id]
-              ? documentTitles[source.blob_id]
-              : source.title || 'Loading...'
-
-            return (
-              <div key={`${messageId}-${index}`} className="space-y-2">
-                <Source
-                  href={source.url || '#'}
-                  title={displayTitle}
-                  onClick={(e: React.MouseEvent) => handleSourceClick(source, e)}
-                />
-                {source.content && (
-                  <div className="pl-6 prose prose-sm dark:prose-invert max-w-none">
-                    <Response>{source.content}</Response>
-                  </div>
-                )}
-              </div>
-            )
-          })}
+          {sources.map((source, index) => (
+            <SourceItem
+              key={`${messageId}-${index}`}
+              source={source}
+              index={index}
+              messageId={messageId}
+              onSourceClick={handleSourceClick}
+            />
+          ))}
         </SourcesContent>
       </Sources>
 

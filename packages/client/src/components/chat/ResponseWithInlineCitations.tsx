@@ -14,7 +14,7 @@
 
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState } from 'react'
 import { Response } from '@/components/ai-elements/response'
 import {
   InlineCitation,
@@ -33,6 +33,8 @@ import {
 } from '@/components/ui/dialog'
 import { Streamdown } from 'streamdown'
 import { ExternalLinkIcon } from 'lucide-react'
+import { useDocumentMetadata, documentMetadataKeys } from '@/hooks/api/useDocumentMetadata'
+import { useQueryClient } from '@tanstack/react-query'
 
 export interface ResponseWithInlineCitationsProps {
   /** Message text with citation markers */
@@ -103,44 +105,97 @@ function parseCitationMarkers(text: string): {
  * </ResponseWithInlineCitations>
  * ```
  */
-import { fileApi } from '@/services/api'
 
 /**
- * Load document content from API using blob_metadata ID
- * Fetches processed content from metadata.content instead of raw blob
+ * InlineCitationItem - Individual citation item with metadata fetching
+ * Uses TanStack Query to fetch document metadata for blob_id sources
  */
-async function loadDocument(blob_id: string): Promise<string> {
-  try {
-    console.log('[ResponseWithInlineCitations] Loading document metadata for blob_id:', blob_id)
-    // Fetch metadata with processed content
-    const metadata = await fileApi.getDocumentMetadata(blob_id)
-    console.log('[ResponseWithInlineCitations] Received metadata with content length:', metadata.metadata?.content?.length || 0)
+function InlineCitationItem({
+  source,
+  index,
+  messageId,
+  onViewDocument,
+}: {
+  source: CitationSource
+  index: number
+  messageId?: string
+  onViewDocument: (source: CitationSource) => void
+}) {
+  // Fetch document metadata if source has blob_id but no title
+  const { data: metadata } = useDocumentMetadata(
+    source.blob_id && !source.title ? source.blob_id : undefined
+  )
 
-    // Extract processed content from metadata
-    const content = metadata.metadata?.content
-    if (!content) {
-      console.warn('[ResponseWithInlineCitations] No processed content available in metadata for blob_id:', blob_id)
-      return 'Document content is being processed. Please try again later.'
-    }
+  // Get display title - prefer fetched metadata, then source.title
+  const displayTitle = metadata?.filename || source.title
 
-    return content
-  } catch (error) {
-    console.error('[ResponseWithInlineCitations] Error loading document metadata:', error)
-    throw error
-  }
-}
+  return (
+    <InlineCitation key={index}>
+      <InlineCitationCard>
+        <InlineCitationCardTrigger sources={source.url ? [source.url] : []} />
+        <InlineCitationCardBody>
+          <div className="p-4 space-y-2">
+            {/* Title as header */}
+            <h4 className="font-semibold text-sm text-foreground">
+              {displayTitle}
+            </h4>
 
-/**
- * Fetch document metadata (title/filename) for a given blob_id
- */
-async function fetchDocumentTitle(blob_id: string): Promise<string> {
-  try {
-    const metadata = await fileApi.getDocumentMetadata(blob_id)
-    return metadata.filename
-  } catch (error) {
-    console.error('Error fetching document metadata:', error)
-    return 'Unknown Document' // Fallback title
-  }
+            {/* Show snippet if present, otherwise show URL or blob info */}
+            {source.snippet ? (
+              <blockquote className="text-sm text-muted-foreground italic border-l-2 border-muted pl-3 py-1">
+                {source.snippet}
+              </blockquote>
+            ) : source.url ? (
+              <p className="text-xs text-muted-foreground break-all">
+                {source.url}
+              </p>
+            ) : source.blob_id ? (
+              <p className="text-xs text-muted-foreground">
+                Full document available
+              </p>
+            ) : null}
+
+            {/* Action links */}
+            <div className="flex flex-col gap-2 pt-2">
+              {/* View source link - only show if URL exists */}
+              {source.url && (
+                <a
+                  href={source.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-xs text-primary hover:underline inline-flex items-center gap-1"
+                  onClick={() => {
+                    // Audit logging
+                    console.log('Inline citation clicked:', {
+                      messageId,
+                      sourceUrl: source.url,
+                      sourceTitle: source.title,
+                      citationIndex: index,
+                      timestamp: new Date().toISOString(),
+                    })
+                  }}
+                >
+                  View source
+                  <ExternalLinkIcon className="h-3 w-3" />
+                </a>
+              )}
+
+              {/* View full document button if blob_id exists */}
+              {source.blob_id && (
+                <button
+                  type="button"
+                  onClick={() => onViewDocument(source)}
+                  className="text-xs text-primary hover:underline inline-flex items-center gap-1 text-left"
+                >
+                  View full document →
+                </button>
+              )}
+            </div>
+          </div>
+        </InlineCitationCardBody>
+      </InlineCitationCard>
+    </InlineCitation>
+  )
 }
 
 export function ResponseWithInlineCitations({
@@ -149,49 +204,10 @@ export function ResponseWithInlineCitations({
   className,
   messageId,
 }: ResponseWithInlineCitationsProps) {
+  const queryClient = useQueryClient()
   const [modalOpen, setModalOpen] = useState(false)
   const [modalContent, setModalContent] = useState<{ title: string; content: string } | null>(null)
   const [isLoadingDocument, setIsLoadingDocument] = useState(false)
-  const [documentTitles, setDocumentTitles] = useState<Record<string, string>>({}) // Cache for blob_id -> title mapping
-  const fetchedBlobIdsRef = useRef<Set<string>>(new Set())
-
-  // Fetch document titles for sources with blob_id (only once per blob_id)
-  useEffect(() => {
-    const fetchTitles = async () => {
-      // Filter out sources that already have titles or have been fetched
-      const sourcesToFetch = sources.filter(
-        source =>
-          source.blob_id &&
-          !source.title &&
-          !documentTitles[source.blob_id] &&
-          !fetchedBlobIdsRef.current.has(source.blob_id)
-      )
-
-      if (sourcesToFetch.length === 0) return
-
-      // Mark these blob_ids as being fetched
-      sourcesToFetch.forEach(source => {
-        if (source.blob_id) {
-          fetchedBlobIdsRef.current.add(source.blob_id)
-        }
-      })
-
-      const titlePromises = sourcesToFetch.map(async (source) => {
-        const title = await fetchDocumentTitle(source.blob_id!)
-        return { blob_id: source.blob_id!, title }
-      })
-
-      const titles = await Promise.all(titlePromises)
-      const titleMap = titles.reduce((acc, { blob_id, title }) => {
-        acc[blob_id] = title
-        return acc
-      }, {} as Record<string, string>)
-
-      setDocumentTitles(prev => ({ ...prev, ...titleMap }))
-    }
-
-    fetchTitles()
-  }, [sources, documentTitles])
 
   // If no sources or no citation markers, render as regular Response
   if (!sources || sources.length === 0 || !children.includes('[')) {
@@ -212,13 +228,24 @@ export function ResponseWithInlineCitations({
     setIsLoadingDocument(true)
     setModalOpen(true)
 
-    // Get the display title (fetched or provided)
-    const displayTitle = documentTitles[source.blob_id] || source.title || 'Document'
+    // Get cached metadata or fetch it
+    const cachedMetadata = queryClient.getQueryData(documentMetadataKeys.detail(source.blob_id))
+    const displayTitle = (cachedMetadata as any)?.filename || source.title || 'Document'
 
     try {
-      const content = await loadDocument(source.blob_id)
+      // Fetch/use cached metadata
+      const metadata = await queryClient.ensureQueryData({
+        queryKey: documentMetadataKeys.detail(source.blob_id),
+        queryFn: async () => {
+          const { fileApi } = await import('@/services/api')
+          return await fileApi.getDocumentMetadata(source.blob_id!)
+        },
+      })
+
+      const content = metadata.metadata?.content || 'Document content is being processed. Please try again later.'
+
       setModalContent({
-        title: displayTitle,
+        title: metadata.filename,
         content,
       })
     } catch (error) {
@@ -245,96 +272,33 @@ export function ResponseWithInlineCitations({
     <>
       <div className={cn('prose dark:prose-invert', className)}>
         {segments.map((segment, idx) => {
-        if (segment.type === 'text') {
-          // Render text as plain text to keep it inline
-          return <span key={idx}>{segment.content}</span>
-        }
+          if (segment.type === 'text') {
+            // Render text as plain text to keep it inline
+            return <span key={idx}>{segment.content}</span>
+          }
 
-        // Citation segment - render inline badge
-        const citationIndex = segment.index! - 1 // Convert 1-based to 0-based
-        const source = sources[citationIndex]
+          // Citation segment - render inline badge
+          const citationIndex = segment.index! - 1 // Convert 1-based to 0-based
+          const source = sources[citationIndex]
 
-        // If source doesn't exist, just show the marker as text
-        if (!source) {
+          // If source doesn't exist, just show the marker as text
+          if (!source) {
+            return (
+              <span key={idx} className="text-muted-foreground text-xs">
+                {segment.content}
+              </span>
+            )
+          }
+
           return (
-            <span key={idx} className="text-muted-foreground text-xs">
-              {segment.content}
-            </span>
+            <InlineCitationItem
+              key={idx}
+              source={source}
+              index={citationIndex}
+              messageId={messageId}
+              onViewDocument={handleViewFullDocument}
+            />
           )
-        }
-
-        // Get the display title - prefer fetched title from blob_id, then fallback to source.title
-        const displayTitle = source.blob_id && documentTitles[source.blob_id]
-          ? documentTitles[source.blob_id]
-          : source.title
-
-        return (
-          <InlineCitation key={idx}>
-            <InlineCitationCard>
-              <InlineCitationCardTrigger sources={source.url ? [source.url] : []} />
-              <InlineCitationCardBody>
-                <div className="p-4 space-y-2">
-                  {/* Title as header */}
-                  <h4 className="font-semibold text-sm text-foreground">
-                    {displayTitle}
-                  </h4>
-
-                  {/* Show snippet if present, otherwise show URL or blob info */}
-                  {source.snippet ? (
-                    <blockquote className="text-sm text-muted-foreground italic border-l-2 border-muted pl-3 py-1">
-                      {source.snippet}
-                    </blockquote>
-                  ) : source.url ? (
-                    <p className="text-xs text-muted-foreground break-all">
-                      {source.url}
-                    </p>
-                  ) : source.blob_id ? (
-                    <p className="text-xs text-muted-foreground">
-                      Full document available
-                    </p>
-                  ) : null}
-
-                  {/* Action links */}
-                  <div className="flex flex-col gap-2 pt-2">
-                    {/* View source link - only show if URL exists */}
-                    {source.url && (
-                      <a
-                        href={source.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-xs text-primary hover:underline inline-flex items-center gap-1"
-                        onClick={() => {
-                          // Audit logging
-                          console.log('Inline citation clicked:', {
-                            messageId,
-                            sourceUrl: source.url,
-                            sourceTitle: source.title,
-                            citationIndex: segment.index,
-                            timestamp: new Date().toISOString(),
-                          })
-                        }}
-                      >
-                        View source
-                        <ExternalLinkIcon className="h-3 w-3" />
-                      </a>
-                    )}
-
-                    {/* View full document button if blob_id exists */}
-                    {source.blob_id && (
-                      <button
-                        type="button"
-                        onClick={() => handleViewFullDocument(source)}
-                        className="text-xs text-primary hover:underline inline-flex items-center gap-1 text-left"
-                      >
-                        View full document →
-                      </button>
-                    )}
-                  </div>
-                </div>
-              </InlineCitationCardBody>
-            </InlineCitationCard>
-          </InlineCitation>
-        )
         })}
       </div>
 
