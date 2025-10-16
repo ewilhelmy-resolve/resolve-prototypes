@@ -195,6 +195,21 @@ export class AuthManager {
 				throw new Error(`Session creation failed: ${response.status}`);
 			}
 
+			// Parse response to get user data from backend (including names from database)
+			const data = await response.json();
+
+			// Emit auth:success with user data from backend
+			if (data.success && data.user) {
+				this.eventBus.emit("auth:success", {
+					authenticated: true,
+					user: data.user,
+					token: this.keycloak.token!,
+					refreshToken: this.keycloak.refreshToken!,
+					tokenExpiry: this.keycloak.tokenParsed?.exp || null,
+					sessionReady: true,
+				});
+			}
+
 			this.eventBus.emit("session:ready", undefined);
 		} catch (error) {
 			console.error("AuthManager: Failed to create backend session:", error);

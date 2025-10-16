@@ -97,12 +97,6 @@ app.use('/api/conversations', authenticateUser, addUserContextToLogs, conversati
 app.use('/api/data-sources', authenticateUser, addUserContextToLogs, dataSourceRoutes);
 app.use('/api/files', authenticateUser, addUserContextToLogs, filesRoutes);
 app.use('/api/sse', authenticateUser, addUserContextToLogs, sseRoutes);
-app.get('/api/profile', authenticateUser, addUserContextToLogs, logApiOperation('get-profile'), (req: any, res) => {
-  res.json({
-    user: req.user,
-    message: 'Authentication successful'
-  });
-});
 
 // Test organization context
 app.get('/api/test-org-context', authenticateUser, addUserContextToLogs, logApiOperation('test-org-context'), async (req: any, res) => {
@@ -149,7 +143,7 @@ app.listen(PORT, async () => {
     endpoints: {
       health: `http://localhost:${PORT}/health`,
       auth: `http://localhost:${PORT}/auth`,
-      profile: `http://localhost:${PORT}/api/profile`,
+      profile: `http://localhost:${PORT}/auth/profile`,
       conversations: `http://localhost:${PORT}/api/conversations`,
       conversationMessages: `http://localhost:${PORT}/api/conversations/:id/messages`,
       messages: `http://localhost:${PORT}/api/messages (convenience method)`,

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -9,7 +9,10 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useProfilePermissions } from "@/hooks/api/useProfile";
+import { useProfile, useProfilePermissions } from "@/hooks/api/useProfile";
+import { useUpdateProfile } from "@/hooks/api/useUpdateProfile";
+import { useUpdateOrganization } from "@/hooks/api/useUpdateOrganization";
+import { toast } from "@/lib/toast";
 
 /**
  * ProfilePage - Unified profile settings page
@@ -19,8 +22,8 @@ import { useProfilePermissions } from "@/hooks/api/useProfile";
  */
 // Profile form validation schema
 const profileSchema = z.object({
-	firstName: z.string().min(1, "First name is required"),
-	lastName: z.string().min(1, "Last name is required"),
+	firstName: z.string().min(1, "First name is required").max(100, "First name is too long"),
+	lastName: z.string().min(1, "Last name is required").max(100, "Last name is too long"),
 	organization: z.string().min(1, "Organization is required"),
 });
 
@@ -28,27 +31,88 @@ type ProfileFormData = z.infer<typeof profileSchema>;
 
 export default function ProfilePage() {
 	const { isOwnerOrAdmin } = useProfilePermissions();
-	const isAdmin = isOwnerOrAdmin();
-
-	const [originalValues] = useState<ProfileFormData>({
-		firstName: "Charlie",
-		lastName: "Smith",
-		organization: "Acme Inc.",
-	});
+	const isAdmin = isOwnerOrAdmin(); // For delete account section AND organization editing
+	const { data: profile } = useProfile();
+	const { mutate: updateProfile, isPending: isUpdatingProfile } = useUpdateProfile();
+	const { mutate: updateOrganization, isPending: isUpdatingOrganization } = useUpdateOrganization();
 
 	const {
 		register,
 		handleSubmit,
+		reset,
 		formState: { errors, isValid, isDirty },
 	} = useForm<ProfileFormData>({
 		resolver: zodResolver(profileSchema),
 		mode: "onChange",
-		defaultValues: originalValues,
+		defaultValues: {
+			firstName: "",
+			lastName: "",
+			organization: "Acme Inc.", // TODO: Load from organization data when available
+		},
 	});
 
+	// Reset form when profile data loads
+	useEffect(() => {
+		if (profile?.user) {
+			reset({
+				firstName: profile.user.firstName || "",
+				lastName: profile.user.lastName || "",
+				organization: profile.organization.name || "",
+			});
+		}
+	}, [profile, reset]);
+
 	const handleUpdateProfile = (data: ProfileFormData) => {
-		console.log("Profile updated:", data);
-		// Handle profile update here
+		const hasProfileChanges = data.firstName !== profile?.user.firstName || data.lastName !== profile?.user.lastName;
+		const hasOrganizationChanges = isAdmin && data.organization !== profile?.organization.name;
+
+		// Track pending operations
+		let completedOperations = 0;
+		const totalOperations = (hasProfileChanges ? 1 : 0) + (hasOrganizationChanges ? 1 : 0);
+
+		const checkAllComplete = () => {
+			completedOperations++;
+			if (completedOperations === totalOperations) {
+				toast.success("Profile updated successfully");
+				reset(data);
+			}
+		};
+
+		// Update user profile (firstName, lastName)
+		if (hasProfileChanges) {
+			updateProfile(
+				{
+					firstName: data.firstName,
+					lastName: data.lastName,
+				},
+				{
+					onSuccess: checkAllComplete,
+					onError: (error) => {
+						toast.error("Failed to update profile", {
+							description: error.message || "Please try again.",
+						});
+					},
+				}
+			);
+		}
+
+		// Update organization name (admin only)
+		if (hasOrganizationChanges && profile?.organization.id) {
+			updateOrganization(
+				{
+					organizationId: profile.organization.id,
+					name: data.organization,
+				},
+				{
+					onSuccess: checkAllComplete,
+					onError: (error) => {
+						toast.error("Failed to update organization", {
+							description: error.message || "Please try again.",
+						});
+					},
+				}
+			);
+		}
 	};
 
 	const handleDeleteAccount = () => {
@@ -143,7 +207,7 @@ export default function ProfilePage() {
 													</Label>
 													<Input
 														id="email"
-														defaultValue="charlie@acme.com"
+														value={profile?.user?.email || ""}
 														disabled
 														className="opacity-50"
 													/>
@@ -181,12 +245,12 @@ export default function ProfilePage() {
 										<Button
 											type="submit"
 											size="default"
-											disabled={!isValid || !isDirty}
+											disabled={!isValid || !isDirty || isUpdatingProfile || isUpdatingOrganization}
 											className={
-												!isValid || !isDirty ? "opacity-50 w-fit" : "w-fit"
+												!isValid || !isDirty || isUpdatingProfile || isUpdatingOrganization ? "opacity-50 w-fit" : "w-fit"
 											}
 										>
-											Update profile
+											{isUpdatingProfile || isUpdatingOrganization ? "Updating..." : "Update profile"}
 										</Button>
 									</form>
 

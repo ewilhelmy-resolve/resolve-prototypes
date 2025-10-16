@@ -2,9 +2,19 @@ import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 import { immer } from "zustand/middleware/immer";
 import { authManager } from "../services/auth-manager";
-import { AuthError, type AuthStore } from "../types/auth";
+import { AuthError, type AuthStore, type User, keycloakProfileToUser } from "../types/auth";
+import type { KeycloakProfile } from "keycloak-js";
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || "";
+
+// Helper to ensure user is always User type
+const normalizeUser = (user: User | KeycloakProfile | null): User | null => {
+	if (!user) return null;
+	// If it's already a User (has required 'id' as string), return as is
+	if ('id' in user && typeof user.id === 'string') return user as User;
+	// Otherwise convert KeycloakProfile to User
+	return keycloakProfileToUser(user as KeycloakProfile);
+};
 
 const useAuthStore = create<AuthStore>()(
 	persist(
@@ -14,7 +24,7 @@ const useAuthStore = create<AuthStore>()(
 				authManager.on("auth:success", (result) => {
 					set((state) => {
 						state.authenticated = result.authenticated;
-						state.user = result.user;
+						state.user = normalizeUser(result.user);
 						state.token = result.token;
 						state.refreshToken = result.refreshToken;
 						state.tokenExpiry = result.tokenExpiry;
@@ -100,7 +110,7 @@ const useAuthStore = create<AuthStore>()(
 
 						set((state) => {
 							state.authenticated = result.authenticated;
-							state.user = result.user;
+							state.user = normalizeUser(result.user);
 							state.token = result.token;
 							state.refreshToken = result.refreshToken;
 							state.tokenExpiry = result.tokenExpiry;
@@ -257,6 +267,12 @@ const useAuthStore = create<AuthStore>()(
 					set((state) => {
 						state.sessionReady = false;
 						state.sessionExpiry = null;
+					});
+				},
+
+				setUser: (user) => {
+					set((state) => {
+						state.user = user;
 					});
 				},
 

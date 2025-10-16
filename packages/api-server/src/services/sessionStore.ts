@@ -5,6 +5,8 @@ export interface Session {
   userId: string;
   organizationId: string;
   userEmail: string;
+  firstName?: string;
+  lastName?: string;
   expiresAt: Date;
   createdAt: Date;
   lastAccessedAt: Date;
@@ -14,6 +16,8 @@ export interface CreateSessionData {
   userId: string;
   organizationId: string;
   userEmail: string;
+  firstName?: string;
+  lastName?: string;
   sessionDurationMs?: number; // Default: 24 hours
 }
 
@@ -49,6 +53,8 @@ class InMemorySessionStore implements SessionStore {
       userId: data.userId,
       organizationId: data.organizationId,
       userEmail: data.userEmail,
+      firstName: data.firstName,
+      lastName: data.lastName,
       expiresAt,
       createdAt: now,
       lastAccessedAt: now,

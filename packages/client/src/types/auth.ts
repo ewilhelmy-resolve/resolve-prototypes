@@ -1,5 +1,15 @@
 import type { KeycloakProfile } from 'keycloak-js';
 
+// Custom User interface for database-first user data
+export interface User {
+  id: string;
+  email: string;
+  firstName?: string;
+  lastName?: string;
+  username?: string;
+  organizationId?: string;
+}
+
 export class AuthError extends Error {
   constructor(
     public code: AuthErrorCode,
@@ -25,7 +35,7 @@ export type AuthErrorCode =
 
 export interface AuthResult {
   authenticated: boolean;
-  user: KeycloakProfile | null;
+  user: User | KeycloakProfile | null;
   token: string | null;
   refreshToken: string | null;
   tokenExpiry: number | null;
@@ -39,7 +49,7 @@ export interface AuthState {
   initialized: boolean;
 
   // User information
-  user: KeycloakProfile | null;
+  user: User | null;
   token: string | null;
   refreshToken: string | null;
   tokenExpiry: number | null;
@@ -74,6 +84,9 @@ export interface AuthActions {
   createSession: () => Promise<boolean>;
   clearSession: () => void;
 
+  // User management
+  setUser: (user: User | null) => void;
+
   // Error handling
   setError: (error: AuthError) => void;
   clearError: () => void;
@@ -94,4 +107,15 @@ export interface AuthEventPayload extends Record<string | symbol, unknown> {
   'token:expired': undefined;
   'session:ready': undefined;
   'session:error': Error;
+}
+
+// Helper function to convert KeycloakProfile to User
+export function keycloakProfileToUser(profile: KeycloakProfile): User {
+  return {
+    id: profile.id || '',
+    email: profile.email || '',
+    firstName: profile.firstName,
+    lastName: profile.lastName,
+    username: profile.username,
+  };
 }

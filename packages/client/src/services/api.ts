@@ -131,6 +131,20 @@ export const organizationApi = {
       }
     }>('/api/organizations/current'),
 
+  updateOrganization: (organizationId: string, data: { name: string }) =>
+    apiRequest<{
+      success: boolean
+      organization: {
+        id: string
+        name: string
+        created_at: string
+        updated_at: string
+      }
+    }>(`/api/organizations/${organizationId}`, {
+      method: 'PATCH',
+      body: data,
+    }),
+
   switchOrganization: (organizationId: string) =>
     apiRequest<{ success: boolean }>('/api/organizations/switch', {
       method: 'POST',

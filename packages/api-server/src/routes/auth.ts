@@ -1,9 +1,12 @@
 import express from 'express';
 import crypto from 'crypto';
+import { z } from 'zod';
 import { getSessionService } from '../services/sessionService.js';
 import { WebhookService } from '../services/WebhookService.js';
 import { pool } from '../config/database.js';
 import { logger } from '../config/logger.js';
+import { authenticateUser } from '../middleware/auth.js';
+import type { AuthenticatedRequest } from '../types/express.js';
 
 const router = express.Router();
 const sessionService = getSessionService();
@@ -258,6 +261,8 @@ router.post('/login', async (req, res) => {
       user: {
         id: session.userId,
         email: session.userEmail,
+        firstName: session.firstName,
+        lastName: session.lastName,
         organizationId: session.organizationId,
       },
       session: {
@@ -512,6 +517,8 @@ router.get('/session', async (req, res) => {
       user: {
         id: session.userId,
         email: session.userEmail,
+        firstName: session.firstName,
+        lastName: session.lastName,
         organizationId: session.organizationId,
       },
       session: {
@@ -527,6 +534,136 @@ router.get('/session', async (req, res) => {
       error: 'Failed to check session status',
       authenticated: false
     });
+  }
+});
+
+/**
+ * Get user profile endpoint - Returns current user's profile information
+ * GET /auth/profile
+ */
+router.get('/profile', authenticateUser, async (req, res) => {
+  const authReq = req as AuthenticatedRequest;
+  try {
+    const userId = authReq.user.id;
+
+    const result = await pool.query(
+      'SELECT user_id, email, first_name, last_name, active_organization_id FROM user_profiles WHERE user_id = $1',
+      [userId]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    const user = result.rows[0];
+
+    res.json({
+      success: true,
+      user: {
+        id: user.user_id,
+        email: user.email,
+        firstName: user.first_name,
+        lastName: user.last_name,
+        organizationId: user.active_organization_id,
+      },
+    });
+  } catch (error) {
+    logger.error({ error }, 'Failed to fetch user profile');
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Validation schema for profile updates
+const updateProfileSchema = z.object({
+  firstName: z.string().min(1).max(100).trim().optional(),
+  lastName: z.string().min(1).max(100).trim().optional(),
+});
+
+/**
+ * Update user profile endpoint - Updates firstName and/or lastName
+ * PATCH /auth/profile
+ */
+router.patch('/profile', authenticateUser, async (req, res) => {
+  const authReq = req as AuthenticatedRequest;
+  try {
+    const userId = authReq.user.id;
+
+    // Validate request body
+    const validation = updateProfileSchema.safeParse(req.body);
+    if (!validation.success) {
+      return res.status(400).json({
+        error: 'Invalid request',
+        details: validation.error.issues.map(issue => ({
+          path: issue.path,
+          message: issue.message,
+        })),
+      });
+    }
+
+    const { firstName, lastName } = validation.data;
+
+    // Build dynamic UPDATE query (only update provided fields)
+    const updates: string[] = [];
+    const values: any[] = [];
+    let paramIndex = 1;
+
+    if (firstName !== undefined) {
+      updates.push(`first_name = $${paramIndex++}`);
+      values.push(firstName);
+    }
+
+    if (lastName !== undefined) {
+      updates.push(`last_name = $${paramIndex++}`);
+      values.push(lastName);
+    }
+
+    if (updates.length === 0) {
+      return res.status(400).json({ error: 'No fields to update' });
+    }
+
+    values.push(userId);
+
+    // Update database
+    const result = await pool.query(
+      `UPDATE user_profiles
+       SET ${updates.join(', ')}
+       WHERE user_id = $${paramIndex}
+       RETURNING user_id, email, first_name, last_name`,
+      values
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    const updatedUser = result.rows[0];
+
+    // Update session with new names
+    const sessionId = sessionService.parseSessionIdFromCookie(authReq.headers.cookie);
+    if (sessionId) {
+      await sessionService.updateSession(sessionId, {
+        firstName: updatedUser.first_name,
+        lastName: updatedUser.last_name,
+      });
+    }
+
+    logger.info(
+      { userId, firstName, lastName },
+      'User profile updated successfully'
+    );
+
+    res.json({
+      success: true,
+      user: {
+        id: updatedUser.user_id,
+        email: updatedUser.email,
+        firstName: updatedUser.first_name,
+        lastName: updatedUser.last_name,
+      },
+    });
+  } catch (error) {
+    logger.error({ error }, 'Failed to update user profile');
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 
