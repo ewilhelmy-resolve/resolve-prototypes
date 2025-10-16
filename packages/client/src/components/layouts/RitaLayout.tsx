@@ -461,7 +461,7 @@ function RitaLayoutContent({ children, activePage = "chat" }: RitaLayoutProps) {
 											>
 												<FileText className="w-5 h-5 mt-0.5 text-foreground flex-shrink-0" />
 												<div className="flex-1 min-w-0">
-													<p className="text-base font-semibold text-foreground truncate">
+													<p className="text-base text-foreground truncate">
 														{file.filename}
 													</p>
 													<p className="text-sm text-muted-foreground">
