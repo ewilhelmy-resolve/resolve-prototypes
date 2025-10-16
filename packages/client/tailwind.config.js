@@ -29,6 +29,9 @@ export default {
       },
     },
     extend: {
+      fontFamily: {
+        heading: ['Season Mix', 'serif'],
+      },
       borderWidth: {
         '2': '2px',
       },
