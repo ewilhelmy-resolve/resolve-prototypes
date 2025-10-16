@@ -62,6 +62,44 @@ export const authenticateUser = async (
       }, 'Session auto-extended');
     }
 
+    // Check if user is active in their organization (member management)
+    const { rows } = await pool.query(
+      `SELECT is_active FROM organization_members
+       WHERE organization_id = $1 AND user_id = $2`,
+      [session.organizationId, session.userId]
+    );
+
+    // User not found in organization (membership removed)
+    if (rows.length === 0) {
+      logger.warn({
+        userId: session.userId,
+        organizationId: session.organizationId,
+        sessionId: session.sessionId
+      }, 'User session exists but organization membership not found');
+
+      res.status(403).json({
+        error: 'You are not a member of this organization',
+        code: 'NOT_MEMBER',
+      });
+      return;
+    }
+
+    // User exists but is deactivated
+    const isActive = rows[0].is_active;
+    if (!isActive) {
+      logger.info({
+        userId: session.userId,
+        organizationId: session.organizationId,
+        sessionId: session.sessionId
+      }, 'API request blocked - user account deactivated');
+
+      res.status(401).json({
+        error: 'Your account has been disabled. Contact your organization administrator.',
+        code: 'ACCOUNT_DISABLED',
+      });
+      return;
+    }
+
     req.user = {
       id: session.userId,
       email: session.userEmail,

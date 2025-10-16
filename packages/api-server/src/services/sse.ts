@@ -66,7 +66,47 @@ export interface DocumentUpdateEvent {
   };
 }
 
-export type SSEEvent = MessageUpdateEvent | NewMessageEvent | DataSourceUpdateEvent | DocumentUpdateEvent;
+export interface MemberRoleUpdatedEvent {
+  type: 'member_role_updated';
+  data: {
+    userId: string;
+    userEmail: string;
+    oldRole: 'owner' | 'admin' | 'user';
+    newRole: 'owner' | 'admin' | 'user';
+    updatedBy: string;
+    timestamp: string;
+  };
+}
+
+export interface MemberStatusUpdatedEvent {
+  type: 'member_status_updated';
+  data: {
+    userId: string;
+    userEmail: string;
+    isActive: boolean;
+    updatedBy: string;
+    timestamp: string;
+  };
+}
+
+export interface MemberRemovedEvent {
+  type: 'member_removed';
+  data: {
+    userId: string;
+    userEmail: string;
+    removedBy: string;
+    timestamp: string;
+  };
+}
+
+export type SSEEvent =
+  | MessageUpdateEvent
+  | NewMessageEvent
+  | DataSourceUpdateEvent
+  | DocumentUpdateEvent
+  | MemberRoleUpdatedEvent
+  | MemberStatusUpdatedEvent
+  | MemberRemovedEvent;
 
 export class SSEService {
   private connections: Map<string, SSEConnection> = new Map();

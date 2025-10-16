@@ -14,6 +14,7 @@ import conversationRoutes from './routes/conversations.js';
 import dataSourceRoutes from './routes/dataSources.js';
 import filesRoutes from './routes/files.js';
 import invitationRoutes from './routes/invitations.js';
+import memberRoutes from './routes/members.js';
 import organizationRoutes from './routes/organizations.js';
 import sseRoutes from './routes/sse.js';
 import { getRabbitMQService } from './services/rabbitmq.js';
@@ -92,6 +93,8 @@ app.get('/test-sse', (req, res) => {
 });
 
 // Protected routes (require authentication)
+// IMPORTANT: Register /api/organizations/members BEFORE /api/organizations to avoid route conflicts
+app.use('/api/organizations/members', authenticateUser, addUserContextToLogs, memberRoutes);
 app.use('/api/organizations', authenticateUser, addUserContextToLogs, organizationRoutes);
 app.use('/api/conversations', authenticateUser, addUserContextToLogs, conversationRoutes);
 app.use('/api/data-sources', authenticateUser, addUserContextToLogs, dataSourceRoutes);
@@ -149,6 +152,7 @@ app.listen(PORT, async () => {
       messages: `http://localhost:${PORT}/api/messages (convenience method)`,
       files: `http://localhost:${PORT}/api/files`,
       invitations: `http://localhost:${PORT}/api/invitations`,
+      members: `http://localhost:${PORT}/api/organizations/members`,
       organizations: `http://localhost:${PORT}/api/organizations`,
       sse: `http://localhost:${PORT}/api/sse/events`
     }
