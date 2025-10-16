@@ -4,6 +4,7 @@ import {
 	RouterProvider,
 } from "react-router-dom";
 import { ProtectedRoute } from "./components/auth/ProtectedRoute";
+import { RoleProtectedRoute } from "./components/auth/RoleProtectedRoute";
 import { RootLayout } from "./components/layouts/RootLayout";
 import ChatV1Page from "./pages/ChatV1Page";
 import ConnectionSourceDetailPage from "./pages/ConnectionSourceDetailPage";
@@ -48,9 +49,9 @@ const router = createBrowserRouter([
 	{
 		path: "/content",
 		element: (
-			<ProtectedRoute>
+			<RoleProtectedRoute allowedRoles={['owner', 'admin']}>
 				<FilesV1Page />
-			</ProtectedRoute>
+			</RoleProtectedRoute>
 		),
 	},
 	{

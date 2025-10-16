@@ -34,6 +34,7 @@ function setupAdminPermissions() {
 		canManageMembers: vi.fn(),
 		canManageOrganization: vi.fn(),
 		canDeleteConversations: vi.fn(),
+		canManageFiles: vi.fn(),
 	});
 }
 
@@ -373,6 +374,7 @@ describe("InviteUserCard", () => {
 				canManageMembers: vi.fn(),
 				canManageOrganization: vi.fn(),
 				canDeleteConversations: vi.fn(),
+				canManageFiles: vi.fn(),
 			});
 
 			const { container } = render(
