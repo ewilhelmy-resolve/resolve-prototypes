@@ -18,7 +18,7 @@ import {
 	ChevronDown,
 	File,
 	FileText,
-	LayoutGrid,
+	Home,
 	LogOut,
 	Plus,
 	SquarePen,
@@ -182,9 +182,9 @@ function RitaLayoutContent({ children, activePage = "chat" }: RitaLayoutProps) {
 											location.pathname.startsWith("/chat/")
 										}
 									>
-										<LayoutGrid className="w-4 h-4" />
+										<Home className="w-4 h-4" />
 										<span className="text-sm text-sidebar-foreground">
-											Dashboard
+											Home
 										</span>
 									</SidebarMenuButton>
 								</SidebarMenuItem>
