@@ -1300,7 +1300,7 @@ app.get('/api/files/:documentId/metadata', (req, res) => {
     });
   }
 
-  // Return metadata only (no content)
+  // Return metadata with content for citations
   const metadata = {
     id: documentId,
     filename: blobContent.metadata?.title || 'Document',
@@ -1308,7 +1308,9 @@ app.get('/api/files/:documentId/metadata', (req, res) => {
     mime_type: blobContent.content_type === 'markdown' ? 'text/markdown' : 'text/plain',
     created_at: blobContent.metadata?.created_at || new Date().toISOString(),
     updated_at: blobContent.metadata?.updated_at || new Date().toISOString(),
-    status: 'processed'
+    metadata: {
+      content: blobContent.content
+    }
   };
 
   contextLogger.info({
