@@ -1,7 +1,6 @@
 import {
 	ArrowUpDown,
 	Loader,
-	MailPlus,
 	MoreHorizontal,
 	XCircle,
 } from "lucide-react";
