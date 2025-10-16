@@ -288,7 +288,7 @@ export function useCancelInvitation() {
 			return fetchWithAuth<CancelInvitationResponse>(
 				`/api/invitations/${data.invitationId}/cancel`,
 				{
-					method: "POST",
+					method: "DELETE",
 				},
 			);
 		},

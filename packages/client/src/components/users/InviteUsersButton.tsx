@@ -7,6 +7,8 @@ import { useProfilePermissions } from "@/hooks/api/useProfile";
 interface InviteUsersButtonProps extends Omit<ComponentProps<typeof Button>, "onClick"> {
 	/** Button text (defaults to "Invite users") */
 	children?: React.ReactNode;
+	/** Optional icon to override the default Plus icon */
+	icon?: React.ReactNode;
 }
 
 /**
@@ -16,6 +18,7 @@ interface InviteUsersButtonProps extends Omit<ComponentProps<typeof Button>, "on
  */
 export default function InviteUsersButton({
 	children = "Invite users",
+	icon,
 	...buttonProps
 }: InviteUsersButtonProps) {
 	const [dialogOpen, setDialogOpen] = useState(false);
@@ -29,7 +32,7 @@ export default function InviteUsersButton({
 	return (
 		<>
 			<Button onClick={() => setDialogOpen(true)} {...buttonProps}>
-				<Plus className="h-4 w-4" />
+				{icon !== undefined ? icon : <Plus className="h-4 w-4" />}
 				{children}
 			</Button>
 
