@@ -5,9 +5,10 @@ import { CitationProvider } from '@/contexts/CitationContext'
 import type { CitationSource } from './Citations'
 
 describe('Citations', () => {
+  // Base case: blob_id-only sources (title will be fetched from API)
   const mockSources: CitationSource[] = [
-    { url: 'https://example.com/doc1', title: 'Example Document 1' },
-    { url: 'https://example.com/doc2', title: 'Example Document 2' },
+    { blob_id: 'blob_doc_1' },
+    { blob_id: 'blob_doc_2' },
   ]
 
   it('renders nothing when sources array is empty', () => {
@@ -28,11 +29,12 @@ describe('Citations', () => {
     expect(container.firstChild).toBeNull()
   })
 
-  it('filters out invalid sources without url/blob_id or title', () => {
+  it('filters out invalid sources without url or blob_id', () => {
     const invalidSources = [
-      { url: '', title: 'No URL or blob_id' },
-      { url: 'https://example.com', title: '' },
-      { url: 'https://valid.com', title: 'Valid Source' },
+      { title: 'No URL or blob_id' }, // Invalid: no identifier
+      { url: '', title: 'Empty URL' }, // Invalid: empty URL
+      { blob_id: 'blob_valid_123' }, // Valid: has blob_id (title optional)
+      { url: 'https://valid.com', title: 'Valid Source' }, // Valid: has URL and title
     ] as CitationSource[]
 
     const { container } = render(
@@ -41,22 +43,22 @@ describe('Citations', () => {
       </CitationProvider>
     )
 
-    // Should still render component with 1 valid source
+    // Should render component with 2 valid sources (blob_id and URL)
     expect(container.firstChild).toBeInTheDocument()
   })
 
-  it('accepts sources with blob_id but no URL', () => {
+  it('accepts sources with blob_id-only (base case - no title, no URL)', () => {
     const sourcesWithBlobOnly = [
-      { title: 'Internal Document', blob_id: 'blob_test_123' },
+      { blob_id: 'blob_test_123' }, // Title will be fetched from API
     ] as CitationSource[]
 
     const { container } = render(
       <CitationProvider>
-        <Citations sources={sourcesWithBlobOnly} messageId="test-blob-valid" />
+        <Citations sources={sourcesWithBlobOnly} messageId="test-blob-only" />
       </CitationProvider>
     )
 
-    // Should render with blob_id-only source
+    // Should render with blob_id-only source (title will be fetched)
     expect(container.firstChild).toBeInTheDocument()
   })
 
@@ -191,8 +193,7 @@ describe('Citations', () => {
 
   it('handles multiple sources correctly', () => {
     const multipleSources = [...mockSources, {
-      url: 'https://example.com/doc3',
-      title: 'Example Document 3'
+      blob_id: 'blob_doc_3'
     }]
 
     const { container } = render(
@@ -204,7 +205,7 @@ describe('Citations', () => {
     expect(container.firstChild).toBeInTheDocument()
   })
 
-  it('renders markdown content when provided in modal variant', () => {
+  it('renders markdown content when provided in modal variant (legacy URL+content support)', () => {
     const sourcesWithContent = [
       {
         url: 'https://example.com/article',
@@ -222,7 +223,7 @@ describe('Citations', () => {
     expect(container.firstChild).toBeInTheDocument()
   })
 
-  it('renders markdown content when provided in right-panel variant', () => {
+  it('renders markdown content when provided in right-panel variant (legacy URL+content support)', () => {
     const sourcesWithContent = [
       {
         url: 'https://example.com/guide',
@@ -240,7 +241,7 @@ describe('Citations', () => {
     expect(container.firstChild).toBeInTheDocument()
   })
 
-  it('handles mixed sources with and without content', () => {
+  it('handles mixed sources with and without content (legacy URL support)', () => {
     const mixedSources = [
       {
         url: 'https://example.com/with-content',
@@ -262,7 +263,7 @@ describe('Citations', () => {
     expect(container.firstChild).toBeInTheDocument()
   })
 
-  it('supports complex markdown with tables and code blocks', () => {
+  it('supports complex markdown with tables and code blocks (legacy URL+content support)', () => {
     const complexSource = [
       {
         url: 'https://example.com/complex',
@@ -291,11 +292,9 @@ const test = () => console.log('test')
   })
 
   describe('Blob ID Support', () => {
-    it('handles sources with blob_id for full document access', () => {
+    it('handles sources with blob_id for full document access (base case)', () => {
       const sourcesWithBlob: CitationSource[] = [
         {
-          title: 'Technical Documentation',
-          snippet: '...comprehensive guide...',
           blob_id: 'blob_test_doc_2024'
         }
       ]
@@ -309,10 +308,9 @@ const test = () => console.log('test')
       expect(container.firstChild).toBeInTheDocument()
     })
 
-    it('handles sources with only blob_id (no URL)', () => {
+    it('handles sources with only blob_id (no URL) - base case', () => {
       const sourcesWithBlobOnly: CitationSource[] = [
         {
-          title: 'Internal Document',
           blob_id: 'blob_internal_2024'
         }
       ]
@@ -326,17 +324,14 @@ const test = () => console.log('test')
       expect(container.firstChild).toBeInTheDocument()
     })
 
-    it('handles mixed sources (URL and blob_id)', () => {
+    it('handles mixed sources (legacy URL and base blob_id)', () => {
       const mixedSources: CitationSource[] = [
         {
           url: 'https://external.com/article',
-          title: 'External Article',
-          snippet: '...external...'
+          title: 'External Article'
         },
         {
-          title: 'Internal Guide',
-          snippet: '...internal...',
-          blob_id: 'blob_guide_2024'
+          blob_id: 'blob_guide_2024' // Base case - blob_id only
         }
       ]
 
@@ -349,12 +344,11 @@ const test = () => console.log('test')
       expect(container.firstChild).toBeInTheDocument()
     })
 
-    it('handles sources with both URL and blob_id', () => {
+    it('handles sources with both URL and blob_id (optional enhancement)', () => {
       const sourcesWithBoth: CitationSource[] = [
         {
           url: 'https://docs.example.com/guide',
           title: 'Complete Guide',
-          snippet: '...guide excerpt...',
           blob_id: 'blob_complete_guide_2024'
         }
       ]
