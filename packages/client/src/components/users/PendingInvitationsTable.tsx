@@ -1,7 +1,6 @@
 import {
 	ArrowUpDown,
 	Loader,
-	MailPlus,
 	MoreHorizontal,
 	XCircle,
 } from "lucide-react";
@@ -26,7 +25,7 @@ import {
 	TableHeader,
 	TableRow,
 } from "@/components/ui/table";
-import InviteUsersButton from "@/components/users/InviteUsersButton";
+import EmptyInvitationsState from "@/components/users/EmptyInvitationsState";
 import {
 	useCancelInvitation,
 	useInvitations,
@@ -175,22 +174,7 @@ export default function PendingInvitationsTable() {
 
 	// Empty state
 	if (invitations.length === 0) {
-		return (
-			<div className="flex flex-col items-center justify-center py-12 text-center border rounded-md">
-				<div>
-					<InviteUsersButton
-						variant="link"
-						icon={<MailPlus className="!h-10 !w-10" />}
-					>
-						{null}
-					</InviteUsersButton>
-				</div>
-				<h3 className="text-lg font-semibold mb-2">No pending invitations</h3>
-				<p className="text-sm text-muted-foreground">
-					When you invite users, they will appear here
-				</p>
-			</div>
-		);
+		return <EmptyInvitationsState />;
 	}
 
 	return (

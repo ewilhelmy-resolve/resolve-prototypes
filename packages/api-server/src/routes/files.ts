@@ -267,6 +267,61 @@ router.post('/content', authenticateUser, async (req, res) => {
   }
 });
 
+// Get document metadata (for citations - returns metadata without full blob content)
+router.get('/:documentId/metadata', authenticateUser, async (req, res) => {
+  const authReq = req as AuthenticatedRequest;
+  try {
+    const { documentId } = req.params;
+
+    const result = await withOrgContext(
+      authReq.user.id,
+      authReq.user.activeOrganizationId,
+      async (client) => {
+        // Fetch only document metadata with processed content, no blob data
+        const metadataResult = await client.query(`
+          SELECT
+            bm.id,
+            bm.filename,
+            bm.file_size,
+            bm.mime_type,
+            bm.created_at,
+            bm.updated_at,
+            bm.status,
+            bm.metadata
+          FROM blob_metadata bm
+          WHERE bm.id = $1 AND bm.organization_id = $2
+        `, [documentId, authReq.user.activeOrganizationId]);
+
+        if (metadataResult.rows.length === 0) {
+          return null;
+        }
+
+        return metadataResult.rows[0];
+      }
+    );
+
+    if (result === null) {
+      return res.status(404).json({ error: 'Document not found' });
+    }
+
+    // Return metadata with processed content (no raw blob data)
+    res.json({
+      id: result.id,
+      filename: result.filename,
+      file_size: result.file_size,
+      mime_type: result.mime_type,
+      created_at: result.created_at,
+      updated_at: result.updated_at,
+      status: result.status,
+      metadata: result.metadata || {}
+    });
+
+  } catch (error) {
+    console.error('Error fetching document metadata:', error);
+    res.status(500).json({ error: 'Failed to fetch document metadata' });
+  }
+});
+
 // Download file directly from database
 router.get('/:documentId/download', authenticateUser, async (req, res) => {
   const authReq = req as AuthenticatedRequest;

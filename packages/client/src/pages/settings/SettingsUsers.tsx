@@ -1,15 +1,12 @@
-import { TrendingUp } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Header from "@/components/Header";
-import { Badge } from "@/components/ui/badge";
-import { Card } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import InviteUsersButton from "@/components/users/InviteUsersButton";
-import UsersTable from "@/components/users/UsersTable";
 import PendingInvitationsTable from "@/components/users/PendingInvitationsTable";
-import { useProfilePermissions } from "@/hooks/api/useProfile";
+import UsersTable from "@/components/users/UsersTable";
 import { useInvitations } from "@/hooks/api/useInvitations";
+import { useProfilePermissions } from "@/hooks/api/useProfile";
 import { InvitationStatus } from "@/types/invitations";
 
 export default function SettingsUsers() {
@@ -39,7 +36,10 @@ export default function SettingsUsers() {
 			/>
 
 			<div className="flex flex-col gap-6">
-				<div className="grid grid-cols-1 md:grid-cols-3 gap-2.5">
+				{/* 
+				TODO : Hide for now, will implement later
+
+				 <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5">
 					<Card className="p-4 bg-popover border border-border">
 						<div className="flex flex-col gap-0">
 							<div className="flex items-center gap-3">
@@ -84,7 +84,7 @@ export default function SettingsUsers() {
 							</p>
 						</div>
 					</Card>
-				</div>
+				</div> */}
 
 				<Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
 					<TabsList>

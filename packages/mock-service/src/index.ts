@@ -416,6 +416,45 @@ I've analyzed your **"${messagePayload.customer_message}"** request with reasoni
 
 This tests the reasoning → text flow in the UI.`
     });
+  } else if (content.toLowerCase().includes('test citations') || content.toLowerCase().includes('show citations')) {
+    // Test citations with blob_id (for testing the new citation feature)
+    parts.push({
+      type: 'text',
+      text: `## Citation Test with Document References
+
+This response demonstrates the citation feature with real document references using blob_id.
+
+### Features Being Tested:
+- **Document Title Fetching**: Citations automatically fetch document titles from blob_id via API
+- **Collapsible Dropdown**: Click "Used 3 sources" to expand and see all citations
+- **Modal Display**: Click any citation to view the full document in a modal
+- **Real API Integration**: Uses the actual file API endpoints for metadata and content
+
+### How It Works:
+The Rita system provides enterprise-grade workflow automation with SOC2 Type II compliance. Security hardening features include authentication, encryption, and audit logging across all components. Real-time monitoring capabilities enable comprehensive observability with alerting and metrics collection.
+
+### Test Instructions:
+1. Look below for the "Used 3 sources" collapsible dropdown
+2. Click to expand and see the list of documents (titles fetched automatically)
+3. Click any document name to open a modal with the full content
+4. Notice the document titles are fetched automatically from blob_id (not UUIDs!)
+
+*All citations reference real documents stored in the blob storage system.*`
+    });
+    parts.push({
+      type: 'sources',
+      sources: [
+        {
+          blob_id: '3ba3478d-fa3e-4868-b698-8ffe7546cca0'
+        },
+        {
+          blob_id: '5700df61-9e9c-4422-82b6-fe44498331a4'
+        },
+        {
+          blob_id: 'b54e3a44-70e5-4686-be46-2126b9ff2303'
+        }
+      ]
+    });
   } else if (content.startsWith('test3')) {
     // test3: Text + sources
     parts.push({
@@ -1231,6 +1270,100 @@ app.get('/health', (_req, res) => {
     timestamp: new Date().toISOString(),
     config: MOCK_CONFIG
   });
+});
+
+// Mock metadata endpoint (mimics api-server /api/files/:documentId/metadata)
+app.get('/api/files/:documentId/metadata', (req, res) => {
+  const correlationId = generateCorrelationId();
+  const contextLogger = createContextLogger(logger, correlationId, {
+    documentId: req.params.documentId
+  });
+
+  const { documentId } = req.params;
+
+  contextLogger.info({}, 'Document metadata requested');
+
+  // For testing, treat documentId as blob_id
+  if (!blobExists(documentId)) {
+    contextLogger.warn({}, 'Document not found');
+    return res.status(404).json({
+      error: 'Document not found'
+    });
+  }
+
+  const blobContent = getBlobContent(documentId);
+
+  if (!blobContent) {
+    contextLogger.error({}, 'Document exists but metadata retrieval failed');
+    return res.status(500).json({
+      error: 'Failed to retrieve document metadata'
+    });
+  }
+
+  // Return metadata with content for citations
+  const metadata = {
+    id: documentId,
+    filename: blobContent.metadata?.title || 'Document',
+    file_size: blobContent.content.length,
+    mime_type: blobContent.content_type === 'markdown' ? 'text/markdown' : 'text/plain',
+    created_at: blobContent.metadata?.created_at || new Date().toISOString(),
+    updated_at: blobContent.metadata?.updated_at || new Date().toISOString(),
+    metadata: {
+      content: blobContent.content
+    }
+  };
+
+  contextLogger.info({
+    filename: metadata.filename,
+    fileSize: metadata.file_size
+  }, 'Document metadata retrieved successfully');
+
+  res.json(metadata);
+});
+
+// Mock download endpoint (mimics api-server /api/files/:documentId/download)
+app.get('/api/files/:documentId/download', (req, res) => {
+  const correlationId = generateCorrelationId();
+  const contextLogger = createContextLogger(logger, correlationId, {
+    documentId: req.params.documentId
+  });
+
+  const { documentId } = req.params;
+
+  contextLogger.info({}, 'Document download requested');
+
+  // For testing, treat documentId as blob_id
+  if (!blobExists(documentId)) {
+    contextLogger.warn({}, 'Document not found');
+    return res.status(404).json({
+      error: 'Document not found'
+    });
+  }
+
+  const blobContent = getBlobContent(documentId);
+
+  if (!blobContent) {
+    contextLogger.error({}, 'Document exists but download failed');
+    return res.status(500).json({
+      error: 'Failed to download document'
+    });
+  }
+
+  // Set headers for file download
+  const filename = blobContent.metadata?.title || 'document.md';
+  const mimeType = blobContent.content_type === 'markdown' ? 'text/markdown' : 'text/plain';
+
+  res.setHeader('Content-Type', mimeType);
+  res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+  res.setHeader('Content-Length', blobContent.content.length);
+
+  contextLogger.info({
+    filename,
+    contentLength: blobContent.content.length
+  }, 'Document downloaded successfully');
+
+  // Send the content as text
+  res.send(blobContent.content);
 });
 
 // Blob content endpoint
