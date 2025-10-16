@@ -1,9 +1,6 @@
-import { TrendingUp } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Header from "@/components/Header";
-import { Badge } from "@/components/ui/badge";
-import { Card } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import InviteUsersButton from "@/components/users/InviteUsersButton";
 import PendingInvitationsTable from "@/components/users/PendingInvitationsTable";
