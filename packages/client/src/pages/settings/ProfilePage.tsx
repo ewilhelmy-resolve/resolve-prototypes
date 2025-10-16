@@ -1,6 +1,6 @@
+import { zodResolver } from "@hookform/resolvers/zod";
 import { useEffect } from "react";
 import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { ConfirmFormDialog } from "@/components/dialogs/ConfirmFormDialog";
 import Header from "@/components/Header";
@@ -10,8 +10,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useProfile, useProfilePermissions } from "@/hooks/api/useProfile";
-import { useUpdateProfile } from "@/hooks/api/useUpdateProfile";
 import { useUpdateOrganization } from "@/hooks/api/useUpdateOrganization";
+import { useUpdateProfile } from "@/hooks/api/useUpdateProfile";
 import { toast } from "@/lib/toast";
 
 /**
@@ -22,8 +22,14 @@ import { toast } from "@/lib/toast";
  */
 // Profile form validation schema
 const profileSchema = z.object({
-	firstName: z.string().min(1, "First name is required").max(100, "First name is too long"),
-	lastName: z.string().min(1, "Last name is required").max(100, "Last name is too long"),
+	firstName: z
+		.string()
+		.min(1, "First name is required")
+		.max(100, "First name is too long"),
+	lastName: z
+		.string()
+		.min(1, "Last name is required")
+		.max(100, "Last name is too long"),
 	organization: z.string().min(1, "Organization is required"),
 });
 
@@ -33,8 +39,10 @@ export default function ProfilePage() {
 	const { isOwnerOrAdmin } = useProfilePermissions();
 	const isAdmin = isOwnerOrAdmin(); // For delete account section AND organization editing
 	const { data: profile } = useProfile();
-	const { mutate: updateProfile, isPending: isUpdatingProfile } = useUpdateProfile();
-	const { mutate: updateOrganization, isPending: isUpdatingOrganization } = useUpdateOrganization();
+	const { mutate: updateProfile, isPending: isUpdatingProfile } =
+		useUpdateProfile();
+	const { mutate: updateOrganization, isPending: isUpdatingOrganization } =
+		useUpdateOrganization();
 
 	const {
 		register,
@@ -63,12 +71,16 @@ export default function ProfilePage() {
 	}, [profile, reset]);
 
 	const handleUpdateProfile = (data: ProfileFormData) => {
-		const hasProfileChanges = data.firstName !== profile?.user.firstName || data.lastName !== profile?.user.lastName;
-		const hasOrganizationChanges = isAdmin && data.organization !== profile?.organization.name;
+		const hasProfileChanges =
+			data.firstName !== profile?.user.firstName ||
+			data.lastName !== profile?.user.lastName;
+		const hasOrganizationChanges =
+			isAdmin && data.organization !== profile?.organization.name;
 
 		// Track pending operations
 		let completedOperations = 0;
-		const totalOperations = (hasProfileChanges ? 1 : 0) + (hasOrganizationChanges ? 1 : 0);
+		const totalOperations =
+			(hasProfileChanges ? 1 : 0) + (hasOrganizationChanges ? 1 : 0);
 
 		const checkAllComplete = () => {
 			completedOperations++;
@@ -92,7 +104,7 @@ export default function ProfilePage() {
 							description: error.message || "Please try again.",
 						});
 					},
-				}
+				},
 			);
 		}
 
@@ -110,7 +122,7 @@ export default function ProfilePage() {
 							description: error.message || "Please try again.",
 						});
 					},
-				}
+				},
 			);
 		}
 	};
@@ -131,11 +143,9 @@ export default function ProfilePage() {
 		tenantAccess: z.boolean().refine((val) => val === true, {
 			message: "Must confirm tenant access removal",
 		}),
-		confirmText: z
-			.string()
-			.refine((val) => val.toLowerCase() === "delete", {
-				message: 'Must type "delete" to confirm',
-			}),
+		confirmText: z.string().refine((val) => val.toLowerCase() === "delete", {
+			message: 'Must type "delete" to confirm',
+		}),
 	});
 
 	return (
@@ -174,7 +184,9 @@ export default function ProfilePage() {
 													<Input
 														id="firstName"
 														{...register("firstName")}
-														className={errors.firstName ? "border-destructive" : ""}
+														className={
+															errors.firstName ? "border-destructive" : ""
+														}
 													/>
 													{errors.firstName && (
 														<p className="text-sm text-destructive">
@@ -190,7 +202,9 @@ export default function ProfilePage() {
 													<Input
 														id="lastName"
 														{...register("lastName")}
-														className={errors.lastName ? "border-destructive" : ""}
+														className={
+															errors.lastName ? "border-destructive" : ""
+														}
 													/>
 													{errors.lastName && (
 														<p className="text-sm text-destructive">
@@ -245,17 +259,29 @@ export default function ProfilePage() {
 										<Button
 											type="submit"
 											size="default"
-											disabled={!isValid || !isDirty || isUpdatingProfile || isUpdatingOrganization}
+											disabled={
+												!isValid ||
+												!isDirty ||
+												isUpdatingProfile ||
+												isUpdatingOrganization
+											}
 											className={
-												!isValid || !isDirty || isUpdatingProfile || isUpdatingOrganization ? "opacity-50 w-fit" : "w-fit"
+												!isValid ||
+												!isDirty ||
+												isUpdatingProfile ||
+												isUpdatingOrganization
+													? "opacity-50 w-fit"
+													: "w-fit"
 											}
 										>
-											{isUpdatingProfile || isUpdatingOrganization ? "Updating..." : "Update profile"}
+											{isUpdatingProfile || isUpdatingOrganization
+												? "Updating..."
+												: "Update profile"}
 										</Button>
 									</form>
 
 									{isAdmin && (
-										<div className="flex flex-col gap-6">
+										<div className="flex flex-col gap-6 mt-5">
 											<div className="flex flex-col gap-2.5">
 												<div className="flex flex-col gap-2">
 													<h4 className="text-xl font-normal text-foreground">
@@ -315,9 +341,13 @@ export default function ProfilePage() {
 																			id="permanent"
 																			checked={form.watch("permanent") || false}
 																			onCheckedChange={(checked) =>
-																				form.setValue("permanent", checked === true, {
-																					shouldValidate: true,
-																				})
+																				form.setValue(
+																					"permanent",
+																					checked === true,
+																					{
+																						shouldValidate: true,
+																					},
+																				)
 																			}
 																		/>
 																		<label
@@ -333,41 +363,54 @@ export default function ProfilePage() {
 																			id="data"
 																			checked={form.watch("data") || false}
 																			onCheckedChange={(checked) =>
-																				form.setValue("data", checked === true, {
-																					shouldValidate: true,
-																				})
+																				form.setValue(
+																					"data",
+																					checked === true,
+																					{
+																						shouldValidate: true,
+																					},
+																				)
 																			}
 																		/>
 																		<label
 																			htmlFor="data"
 																			className="text-sm leading-relaxed cursor-pointer select-none"
 																		>
-																			I understand all my data will be permanently
-																			deleted
+																			I understand all my data will be
+																			permanently deleted
 																		</label>
 																	</div>
 																	<div className="flex items-start gap-3">
 																		<Checkbox
 																			id="tenantAccess"
-																			checked={form.watch("tenantAccess") || false}
+																			checked={
+																				form.watch("tenantAccess") || false
+																			}
 																			onCheckedChange={(checked) =>
-																				form.setValue("tenantAccess", checked === true, {
-																					shouldValidate: true,
-																				})
+																				form.setValue(
+																					"tenantAccess",
+																					checked === true,
+																					{
+																						shouldValidate: true,
+																					},
+																				)
 																			}
 																		/>
 																		<label
 																			htmlFor="tenantAccess"
 																			className="text-sm leading-relaxed cursor-pointer select-none"
 																		>
-																			I understand all users in this tenant will no
-																			longer have access
+																			I understand all users in this tenant will
+																			no longer have access
 																		</label>
 																	</div>
 																</div>
 
 																<div className="flex flex-col gap-2">
-																	<Label htmlFor="confirmText" className="text-sm">
+																	<Label
+																		htmlFor="confirmText"
+																		className="text-sm"
+																	>
 																		Type{" "}
 																		<span className="font-mono font-semibold">
 																			delete
