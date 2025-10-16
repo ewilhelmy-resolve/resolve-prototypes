@@ -83,9 +83,9 @@ export const conversationApi = {
     }),
 
   getConversationMessages: (conversationId: string, params?: { limit?: number; before?: string }) => {
-    // Filter out undefined values to avoid sending "undefined" as a string
+    // Filter out undefined and null values to avoid sending them as strings
     const cleanParams = params ? Object.entries(params)
-      .filter(([_, value]) => value !== undefined)
+      .filter(([_, value]) => value !== undefined && value !== null && value !== '')
       .reduce((acc, [key, value]) => ({ ...acc, [key]: String(value) }), {}) : {};
 
     const queryString = Object.keys(cleanParams).length > 0

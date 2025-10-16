@@ -111,7 +111,8 @@ export function useInfiniteConversationMessages(conversationId: string | null) {
     },
     getNextPageParam: (lastPage) => {
       // Return cursor for next page, or undefined if no more pages
-      return lastPage.hasMore ? lastPage.nextCursor : undefined
+      // Ensure we return undefined (not null) when there's no next page or cursor
+      return lastPage.hasMore && lastPage.nextCursor ? lastPage.nextCursor : undefined
     },
     initialPageParam: undefined,
     enabled: !!conversationId,
