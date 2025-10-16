@@ -295,7 +295,6 @@ export default function PendingInvitationsTable() {
 													onClick={() => handleResendInvitation(invitation)}
 													disabled={isResending}
 												>
-													<MailPlus className="h-4 w-4 mr-2" />
 													Resend Invitation
 												</DropdownMenuItem>
 												<DropdownMenuItem
@@ -303,7 +302,6 @@ export default function PendingInvitationsTable() {
 													disabled={isCanceling}
 													className="text-destructive focus:text-destructive"
 												>
-													<XCircle className="h-4 w-4 mr-2" />
 													Cancel Invitation
 												</DropdownMenuItem>
 											</DropdownMenuContent>
