@@ -219,6 +219,23 @@ export const fileApi = {
       method: 'POST',
       body: { enable_processing: true },
     }),
+
+  // Get document metadata (for citations - includes processed content from metadata.content)
+  getDocumentMetadata: (documentId: string) =>
+    apiRequest<{
+      id: string
+      filename: string
+      file_size: number
+      mime_type: string
+      created_at: string
+      updated_at: string
+      metadata: {
+        content?: string
+        [key: string]: any
+      }
+    }>(`/api/files/${documentId}/metadata`, {
+      method: 'GET',
+    }),
 };
 
 // Data Sources API

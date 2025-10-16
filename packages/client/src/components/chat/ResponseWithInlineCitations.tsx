@@ -14,7 +14,7 @@
 
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Response } from '@/components/ai-elements/response'
 import {
   InlineCitation,
@@ -103,23 +103,43 @@ function parseCitationMarkers(text: string): {
  * </ResponseWithInlineCitations>
  * ```
  */
+import { fileApi } from '@/services/api'
+
 /**
- * Load document content from blob API
+ * Load document content from API using blob_metadata ID
+ * Fetches processed content from metadata.content instead of raw blob
  */
 async function loadDocument(blob_id: string): Promise<string> {
   try {
-    // Fetch from mock service blob endpoint
-    const response = await fetch(`http://localhost:3001/blobs/${blob_id}`)
+    console.log('[ResponseWithInlineCitations] Loading document metadata for blob_id:', blob_id)
+    // Fetch metadata with processed content
+    const metadata = await fileApi.getDocumentMetadata(blob_id)
+    console.log('[ResponseWithInlineCitations] Received metadata with content length:', metadata.metadata?.content?.length || 0)
 
-    if (!response.ok) {
-      throw new Error(`Failed to load document: ${response.statusText}`)
+    // Extract processed content from metadata
+    const content = metadata.metadata?.content
+    if (!content) {
+      console.warn('[ResponseWithInlineCitations] No processed content available in metadata for blob_id:', blob_id)
+      return 'Document content is being processed. Please try again later.'
     }
 
-    const data = await response.json()
-    return data.content || 'Document content not available'
+    return content
   } catch (error) {
-    console.error('Error loading document from blob API:', error)
+    console.error('[ResponseWithInlineCitations] Error loading document metadata:', error)
     throw error
+  }
+}
+
+/**
+ * Fetch document metadata (title/filename) for a given blob_id
+ */
+async function fetchDocumentTitle(blob_id: string): Promise<string> {
+  try {
+    const metadata = await fileApi.getDocumentMetadata(blob_id)
+    return metadata.filename
+  } catch (error) {
+    console.error('Error fetching document metadata:', error)
+    return 'Unknown Document' // Fallback title
   }
 }
 
@@ -132,6 +152,31 @@ export function ResponseWithInlineCitations({
   const [modalOpen, setModalOpen] = useState(false)
   const [modalContent, setModalContent] = useState<{ title: string; content: string } | null>(null)
   const [isLoadingDocument, setIsLoadingDocument] = useState(false)
+  const [documentTitles, setDocumentTitles] = useState<Record<string, string>>({}) // Cache for blob_id -> title mapping
+
+  // Fetch document titles for sources with blob_id
+  useEffect(() => {
+    const fetchTitles = async () => {
+      const titlePromises = sources
+        .filter(source => source.blob_id && !source.title) // Only fetch if title is missing
+        .map(async (source) => {
+          const title = await fetchDocumentTitle(source.blob_id!)
+          return { blob_id: source.blob_id!, title }
+        })
+
+      const titles = await Promise.all(titlePromises)
+      const titleMap = titles.reduce((acc, { blob_id, title }) => {
+        acc[blob_id] = title
+        return acc
+      }, {} as Record<string, string>)
+
+      setDocumentTitles(titleMap)
+    }
+
+    if (sources.some(source => source.blob_id && !source.title)) {
+      fetchTitles()
+    }
+  }, [sources])
 
   // If no sources or no citation markers, render as regular Response
   if (!sources || sources.length === 0 || !children.includes('[')) {
@@ -152,16 +197,19 @@ export function ResponseWithInlineCitations({
     setIsLoadingDocument(true)
     setModalOpen(true)
 
+    // Get the display title (fetched or provided)
+    const displayTitle = documentTitles[source.blob_id] || source.title
+
     try {
       const content = await loadDocument(source.blob_id)
       setModalContent({
-        title: source.title,
+        title: displayTitle,
         content,
       })
     } catch (error) {
       console.error('Error loading document:', error)
       setModalContent({
-        title: source.title,
+        title: displayTitle,
         content: 'Error loading document. Please try again.',
       })
     } finally {
@@ -171,7 +219,7 @@ export function ResponseWithInlineCitations({
     // Audit logging
     console.log('Full document requested:', {
       messageId,
-      sourceTitle: source.title,
+      sourceTitle: displayTitle,
       blobId: source.blob_id,
       timestamp: new Date().toISOString(),
     })
@@ -200,6 +248,11 @@ export function ResponseWithInlineCitations({
           )
         }
 
+        // Get the display title - prefer fetched title from blob_id, then fallback to source.title
+        const displayTitle = source.blob_id && documentTitles[source.blob_id]
+          ? documentTitles[source.blob_id]
+          : source.title
+
         return (
           <InlineCitation key={idx}>
             <InlineCitationCard>
@@ -208,7 +261,7 @@ export function ResponseWithInlineCitations({
                 <div className="p-4 space-y-2">
                   {/* Title as header */}
                   <h4 className="font-semibold text-sm text-foreground">
-                    {source.title}
+                    {displayTitle}
                   </h4>
 
                   {/* Show snippet if present, otherwise show URL or blob info */}
