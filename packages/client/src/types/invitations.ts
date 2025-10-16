@@ -68,26 +68,26 @@ export enum InvitationErrorCode {
 export interface Invitation {
 	/** UUID for the invitation */
 	id: string;
-	/** Email address of the invitee */
-	email: string;
+	/** UUID of the organization */
+	organization_id: string;
 	/** UUID of the inviter (admin user) */
-	invited_by: string;
+	invited_by_user_id: string;
 	/** Name of the inviter */
 	invited_by_name?: string;
-	/** Assigned role for the invitee */
-	role: UserRole;
+	/** Email address of the invitee */
+	email: string;
+	/** Unique invitation token (hashed) */
+	invitation_token: string;
+	/** ISO 8601 timestamp when invitation token expires */
+	token_expires_at: string;
 	/** Current status of the invitation */
 	status: InvitationStatus;
-	/** Unique verification token (UUID) */
-	token: string;
 	/** ISO 8601 timestamp when invitation was created */
 	created_at: string;
-	/** ISO 8601 timestamp when invitation expires */
-	expiration_date: string;
 	/** ISO 8601 timestamp when invitation was accepted (null if pending) */
 	accepted_at: string | null;
-	/** UUID of the tenant */
-	tenant_id: string;
+	/** Assigned role for the invitee (may be in nested data) */
+	role?: UserRole;
 }
 
 /**
