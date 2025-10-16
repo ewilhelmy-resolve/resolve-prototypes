@@ -24,9 +24,10 @@ import {
 	SquarePen,
 	Ticket,
 } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { ShareModal } from "@/components/ShareModal";
+import WelcomeDialog from "@/components/WelcomeDialog";
 import { ConversationListItem } from "@/components/sidebar/ConversationListItem";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
@@ -60,6 +61,7 @@ import { useProfilePermissions } from "@/hooks/api/useProfile";
 import { useAuth } from "@/hooks/useAuth";
 import { useChatNavigation } from "@/hooks/useChatNavigation";
 import { useKnowledgeBase } from "@/hooks/useKnowledgeBase";
+import { useFeatureFlag } from "@/hooks/useFeatureFlags";
 import type { Conversation } from "@/stores/conversationStore";
 import InviteUserCard from "../users/InviteUserCard";
 
@@ -72,8 +74,12 @@ export interface RitaLayoutProps {
 function RitaLayoutContent({ children, activePage = "chat" }: RitaLayoutProps) {
 	const { state } = useSidebar();
 	const [shareModalOpen, setShareModalOpen] = useState(false);
+	const [welcomeModalOpen, setWelcomeModalOpen] = useState(false);
 	const navigate = useNavigate();
 	const location = useLocation();
+
+	// Feature flags
+	const showWelcomeModal = useFeatureFlag('SHOW_WELCOME_MODAL');
 
 	// Rita hooks
 	const { user, logout } = useAuth();
@@ -92,6 +98,13 @@ function RitaLayoutContent({ children, activePage = "chat" }: RitaLayoutProps) {
 	} = useKnowledgeBase();
 
 	const conversations = conversationsData || [];
+
+	// Show welcome modal on first load if feature flag is enabled
+	useEffect(() => {
+		if (showWelcomeModal) {
+			setWelcomeModalOpen(true);
+		}
+	}, [showWelcomeModal]);
 
 	const handleSignOut = async () => {
 		try {
@@ -491,6 +504,13 @@ function RitaLayoutContent({ children, activePage = "chat" }: RitaLayoutProps) {
 				open={shareModalOpen}
 				onOpenChange={setShareModalOpen}
 				onNavigateToSettings={() => navigate("/settings")}
+			/>
+
+			{/* Welcome Modal */}
+			<WelcomeDialog
+				open={welcomeModalOpen}
+				onOpenChange={setWelcomeModalOpen}
+				onUploadFiles={openDocumentSelector}
 			/>
 		</>
 	);
