@@ -14,7 +14,7 @@
 
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Response } from '@/components/ai-elements/response'
 import {
   InlineCitation,
@@ -153,16 +153,33 @@ export function ResponseWithInlineCitations({
   const [modalContent, setModalContent] = useState<{ title: string; content: string } | null>(null)
   const [isLoadingDocument, setIsLoadingDocument] = useState(false)
   const [documentTitles, setDocumentTitles] = useState<Record<string, string>>({}) // Cache for blob_id -> title mapping
+  const fetchedBlobIdsRef = useRef<Set<string>>(new Set())
 
-  // Fetch document titles for sources with blob_id
+  // Fetch document titles for sources with blob_id (only once per blob_id)
   useEffect(() => {
     const fetchTitles = async () => {
-      const titlePromises = sources
-        .filter(source => source.blob_id && !source.title) // Only fetch if title is missing
-        .map(async (source) => {
-          const title = await fetchDocumentTitle(source.blob_id!)
-          return { blob_id: source.blob_id!, title }
-        })
+      // Filter out sources that already have titles or have been fetched
+      const sourcesToFetch = sources.filter(
+        source =>
+          source.blob_id &&
+          !source.title &&
+          !documentTitles[source.blob_id] &&
+          !fetchedBlobIdsRef.current.has(source.blob_id)
+      )
+
+      if (sourcesToFetch.length === 0) return
+
+      // Mark these blob_ids as being fetched
+      sourcesToFetch.forEach(source => {
+        if (source.blob_id) {
+          fetchedBlobIdsRef.current.add(source.blob_id)
+        }
+      })
+
+      const titlePromises = sourcesToFetch.map(async (source) => {
+        const title = await fetchDocumentTitle(source.blob_id!)
+        return { blob_id: source.blob_id!, title }
+      })
 
       const titles = await Promise.all(titlePromises)
       const titleMap = titles.reduce((acc, { blob_id, title }) => {
@@ -170,13 +187,11 @@ export function ResponseWithInlineCitations({
         return acc
       }, {} as Record<string, string>)
 
-      setDocumentTitles(titleMap)
+      setDocumentTitles(prev => ({ ...prev, ...titleMap }))
     }
 
-    if (sources.some(source => source.blob_id && !source.title)) {
-      fetchTitles()
-    }
-  }, [sources])
+    fetchTitles()
+  }, [sources, documentTitles])
 
   // If no sources or no citation markers, render as regular Response
   if (!sources || sources.length === 0 || !children.includes('[')) {

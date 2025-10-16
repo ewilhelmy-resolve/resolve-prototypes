@@ -14,7 +14,7 @@
 
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import {
   Sources,
   SourcesContent,
@@ -99,16 +99,33 @@ export function CollapsibleListCitations({
   const [modalOpen, setModalOpen] = useState(false)
   const [modalContent, setModalContent] = useState<{ title: string; content: string } | null>(null)
   const [isLoadingDocument, setIsLoadingDocument] = useState(false)
+  const fetchedBlobIdsRef = useRef<Set<string>>(new Set())
 
-  // Fetch document titles for sources with blob_id
+  // Fetch document titles for sources with blob_id (only once per blob_id)
   useEffect(() => {
     const fetchTitles = async () => {
-      const titlePromises = sources
-        .filter(source => source.blob_id && !source.title) // Only fetch if title is missing
-        .map(async (source) => {
-          const title = await fetchDocumentTitle(source.blob_id!)
-          return { blob_id: source.blob_id!, title }
-        })
+      // Filter out sources that already have titles or have been fetched
+      const sourcesToFetch = sources.filter(
+        source =>
+          source.blob_id &&
+          !source.title &&
+          !documentTitles[source.blob_id] &&
+          !fetchedBlobIdsRef.current.has(source.blob_id)
+      )
+
+      if (sourcesToFetch.length === 0) return
+
+      // Mark these blob_ids as being fetched
+      sourcesToFetch.forEach(source => {
+        if (source.blob_id) {
+          fetchedBlobIdsRef.current.add(source.blob_id)
+        }
+      })
+
+      const titlePromises = sourcesToFetch.map(async (source) => {
+        const title = await fetchDocumentTitle(source.blob_id!)
+        return { blob_id: source.blob_id!, title }
+      })
 
       const titles = await Promise.all(titlePromises)
       const titleMap = titles.reduce((acc, { blob_id, title }) => {
@@ -116,13 +133,11 @@ export function CollapsibleListCitations({
         return acc
       }, {} as Record<string, string>)
 
-      setDocumentTitles(titleMap)
+      setDocumentTitles(prev => ({ ...prev, ...titleMap }))
     }
 
-    if (sources.some(source => source.blob_id && !source.title)) {
-      fetchTitles()
-    }
-  }, [sources])
+    fetchTitles()
+  }, [sources, documentTitles])
 
   // Handle "View full document" click
   const handleSourceClick = async (source: typeof sources[0], e: React.MouseEvent) => {
