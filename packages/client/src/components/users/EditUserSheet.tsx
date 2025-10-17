@@ -17,24 +17,29 @@ import {
 	SheetHeader,
 	SheetTitle,
 } from "@/components/ui/sheet";
-
-interface User {
-	id: string;
-	name: string;
-	email: string;
-	role: string;
-}
+import { useProfilePermissions } from "@/hooks/api/useProfile";
+import type { Member, OrganizationRole } from "@/types/member";
 
 interface EditUserSheetProps {
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
-	user: User | null;
-	onSave: (userId: string, role: string) => void;
+	user: Member | null;
+	onSave: (
+		userId: string,
+		updates: {
+			firstName?: string;
+			lastName?: string;
+			role?: OrganizationRole;
+		},
+	) => void;
 }
 
 /**
  * Sheet component for editing user information
- * Displays user email and allows role modification
+ * Allows editing first name, last name, and role (email is read-only)
+ * Permission-based:
+ * - Admins can assign: owner, admin, user (all roles)
+ * - Owners can assign: owner, user (NOT admin)
  */
 export default function EditUserSheet({
 	open,
@@ -42,19 +47,37 @@ export default function EditUserSheet({
 	user,
 	onSave,
 }: EditUserSheetProps) {
-	const [selectedRole, setSelectedRole] = useState<string>(user?.role || "User");
+	const { isOwner, isAdmin } = useProfilePermissions();
+	const [firstName, setFirstName] = useState("");
+	const [lastName, setLastName] = useState("");
+	const [email, setEmail] = useState("");
+	const [selectedRole, setSelectedRole] = useState<OrganizationRole>("user");
 
-	// Update selected role when user changes
+	// Update form fields when user changes
 	useEffect(() => {
 		if (user) {
+			setFirstName(user.firstName || "");
+			setLastName(user.lastName || "");
+			setEmail(user.email);
 			setSelectedRole(user.role);
 		}
 	}, [user]);
 
 	const handleSave = () => {
 		if (user) {
-			onSave(user.id, selectedRole);
-			onOpenChange(false);
+			const updates: {
+				firstName?: string;
+				lastName?: string;
+				role?: OrganizationRole;
+			} = {};
+
+			// Only include changed fields
+			if (firstName !== (user.firstName || "")) updates.firstName = firstName;
+			if (lastName !== (user.lastName || "")) updates.lastName = lastName;
+			if (selectedRole !== user.role) updates.role = selectedRole;
+
+			onSave(user.id, updates);
+			// Note: Sheet is closed by parent component in onSuccess callback
 		}
 	};
 
@@ -70,31 +93,78 @@ export default function EditUserSheet({
 
 				<div className="flex flex-col gap-4 px-4">
 					<div className="flex flex-col gap-2">
-						<Label htmlFor="name">Name</Label>
-						<Input id="name" value={user.name} readOnly />
+						<Label htmlFor="firstName">First Name</Label>
+						<Input
+							id="firstName"
+							value={firstName}
+							onChange={(e) => setFirstName(e.target.value)}
+							placeholder="Enter first name"
+						/>
+					</div>
+
+					<div className="flex flex-col gap-2">
+						<Label htmlFor="lastName">Last Name</Label>
+						<Input
+							id="lastName"
+							value={lastName}
+							onChange={(e) => setLastName(e.target.value)}
+							placeholder="Enter last name"
+						/>
 					</div>
 
 					<div className="flex flex-col gap-2">
 						<Label htmlFor="email">User Email</Label>
-						<Input id="email" value={user.email} readOnly />
+						<Input
+							id="email"
+							type="email"
+							value={email}
+							readOnly
+							className="bg-muted"
+						/>
 					</div>
 
 					<div className="flex flex-col gap-2">
 						<Label htmlFor="role">Role</Label>
-						<Select value={selectedRole} onValueChange={setSelectedRole}>
+						<Select
+							value={selectedRole}
+							onValueChange={(value) =>
+								setSelectedRole(value as OrganizationRole)
+							}
+						>
 							<SelectTrigger id="role">
 								<SelectValue placeholder="Select role" />
 							</SelectTrigger>
 							<SelectContent>
+								{/* Admins can assign all roles */}
+								{isAdmin() && (
+									<>
+										<SelectItemWithDescription
+											value="owner"
+											description="Full control over all content, members, and settings"
+										>
+											Owner
+										</SelectItemWithDescription>
+										<SelectItemWithDescription
+											value="admin"
+											description="Can manage users and content, but not other admins/owners"
+										>
+											Admin
+										</SelectItemWithDescription>
+									</>
+								)}
+								{/* Owners can assign owner role (but not admin) */}
+								{isOwner() && !isAdmin() && (
+									<SelectItemWithDescription
+										value="owner"
+										description="Full control over all content, members, and settings"
+									>
+										Owner
+									</SelectItemWithDescription>
+								)}
+								{/* Both owners and admins can assign User role */}
 								<SelectItemWithDescription
-									value="Admin"
-									description="Can view and chat with content but not manage"
-								>
-									Admin
-								</SelectItemWithDescription>
-								<SelectItemWithDescription
-									value="User"
-									description="Full control over all content, members, and settings"
+									value="user"
+									description="Can view and chat with content but not manage users"
 								>
 									User
 								</SelectItemWithDescription>

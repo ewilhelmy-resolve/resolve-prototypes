@@ -5,6 +5,7 @@ import { useNavigate } from "react-router-dom";
 import { fileKeys } from "../hooks/api/useFiles";
 import { dataSourceKeys } from "../hooks/useDataSources";
 import { profileKeys } from "../hooks/api/useProfile";
+import { memberKeys } from "../hooks/api/useMembers";
 import { useSSE } from "../hooks/useSSE";
 import { toast } from "../lib/toast";
 import type { SSEEvent } from "../services/EventSourceSSEClient";
@@ -191,6 +192,79 @@ export const SSEProvider: React.FC<SSEProviderProps> = ({
 					});
 				} else if (event.data.updateType === "settings") {
 					toast.info("Organization settings updated");
+				}
+			} else if (event.type === "member_role_updated") {
+				// Handle member role updates
+				console.log("[SSE] Member role updated:", event.data);
+
+				// Invalidate member lists to refetch
+				queryClient.invalidateQueries({ queryKey: memberKeys.lists() });
+
+				// Check if the update affects the current user
+				const profile = queryClient.getQueryData(profileKeys.detail()) as any;
+				if (profile?.user?.id === event.data.userId) {
+					// Current user's role was changed
+					queryClient.invalidateQueries({ queryKey: profileKeys.detail() });
+					toast.info("Your role has been updated", {
+						description: `You are now ${event.data.newRole}`,
+					});
+				} else {
+					// Another member's role was changed
+					toast.info("Member role updated", {
+						description: `${event.data.userEmail} is now ${event.data.newRole}`,
+					});
+				}
+			} else if (event.type === "member_status_updated") {
+				// Handle member status updates (activate/deactivate)
+				console.log("[SSE] Member status updated:", event.data);
+
+				// Invalidate member lists to refetch
+				queryClient.invalidateQueries({ queryKey: memberKeys.lists() });
+
+				// Check if the update affects the current user
+				const profile = queryClient.getQueryData(profileKeys.detail()) as any;
+				if (profile?.user?.id === event.data.userId) {
+					// Current user was deactivated/activated
+					queryClient.invalidateQueries({ queryKey: profileKeys.detail() });
+
+					if (!event.data.isActive) {
+						// User was deactivated - force logout
+						toast.error("Your account has been deactivated", {
+							description: "Contact your organization administrator",
+						});
+						setTimeout(() => {
+							window.location.href = "/logout";
+						}, 2000);
+					} else {
+						toast.success("Your account has been activated");
+					}
+				} else {
+					// Another member's status was changed
+					const status = event.data.isActive ? "activated" : "deactivated";
+					toast.info(`Member ${status}`, {
+						description: `${event.data.userEmail} has been ${status}`,
+					});
+				}
+			} else if (event.type === "member_removed") {
+				// Handle member removal
+				console.log("[SSE] Member removed:", event.data);
+
+				// Invalidate member lists to refetch
+				queryClient.invalidateQueries({ queryKey: memberKeys.lists() });
+
+				// Check if the removed member is the current user
+				const profile = queryClient.getQueryData(profileKeys.detail()) as any;
+				if (profile?.user?.id === event.data.userId) {
+					// Current user was removed - force logout
+					toast.error("You have been removed from the organization");
+					setTimeout(() => {
+						window.location.href = "/logout";
+					}, 2000);
+				} else {
+					// Another member was removed
+					toast.info("Member removed", {
+						description: `${event.data.userEmail} has been removed`,
+					});
 				}
 			}
 		},

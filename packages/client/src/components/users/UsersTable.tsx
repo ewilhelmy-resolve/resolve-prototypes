@@ -1,10 +1,13 @@
 import {
 	ArrowUpDown,
-	Check,
+	Ban,
 	Loader,
 	MoreHorizontal,
+	MoveDown,
+	MoveUp,
+	UserCheck,
+	XCircle,
 } from "lucide-react";
-import { useState } from "react";
 import { BulkActions } from "@/components/BulkActions";
 import ConfirmDialog from "@/components/dialogs/ConfirmDialog";
 import { Badge } from "@/components/ui/badge";
@@ -26,115 +29,250 @@ import {
 	TableRow,
 } from "@/components/ui/table";
 import EditUserSheet from "@/components/users/EditUserSheet";
-
-interface User {
-	id: string;
-	name: string;
-	email: string;
-	status: string;
-	role: string;
-	queries: string;
-	lastModified: string;
-}
+import {
+	useMembers,
+	useRemoveMember,
+	useUpdateMemberRole,
+	useUpdateMemberStatus,
+	useUpdateMemberProfile,
+} from "@/hooks/api/useMembers";
+import { useUsersTableState } from "@/hooks/useUsersTableState";
+import type { Member, OrganizationRole } from "@/types/member";
 
 export default function UsersTable() {
-	const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
-	const [editingUser, setEditingUser] = useState<User | null>(null);
-	const [deletingUser, setDeletingUser] = useState<User | null>(null);
-	const [editSheetOpen, setEditSheetOpen] = useState(false);
-	const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-	const [roleChangeDialogOpen, setRoleChangeDialogOpen] = useState(false);
-	const [pendingRoleChange, setPendingRoleChange] = useState<{
-		userId: string;
-		newRole: string;
-		oldRole: string;
-	} | null>(null);
+	// Use custom hook for state management
+	const {
+		selectedUsers,
+		setSelectedUsers,
+		handleSelectAll,
+		handleSelectUser,
+		searchQuery,
+		setSearchQuery,
+		sortBy,
+		sortOrder,
+		handleSort,
+		getSortIcon,
+		editingUser,
+		setEditingUser,
+		deletingUser,
+		setDeletingUser,
+		deactivatingUser,
+		setDeactivatingUser,
+		handleEditUser,
+		handleDeactivateUser,
+		handleDeleteUser,
+		editSheetOpen,
+		setEditSheetOpen,
+		deleteDialogOpen,
+		setDeleteDialogOpen,
+		roleChangeDialogOpen,
+		setRoleChangeDialogOpen,
+		deactivateDialogOpen,
+		setDeactivateDialogOpen,
+		pendingRoleChange,
+		setPendingRoleChange,
+	} = useUsersTableState();
 
-	// Mock data - only active users (no "Invite pending" status)
-	const users = [
-		{
-			id: "2",
-			name: "Taylor Brown",
-			email: "Taylor@acme.com",
-			status: "Active",
-			role: "Admin",
-			queries: "4",
-			lastModified: "03 Sep, 2025 18:07",
+	// Fetch members from API
+	const { data, isLoading, error } = useMembers({
+		limit: 50,
+		offset: 0,
+		sortBy,
+		sortOrder,
+	});
+
+	// Mutations
+	const { mutate: updateRole } = useUpdateMemberRole();
+	const { mutate: updateStatus } = useUpdateMemberStatus();
+	const { mutate: removeMember } = useRemoveMember();
+	const { mutate: updateMemberProfile } = useUpdateMemberProfile();
+
+	const allMembers = data?.members || [];
+
+	// Client-side search filtering
+	const members = allMembers.filter((member) => {
+		if (!searchQuery.trim()) return true;
+
+		const query = searchQuery.toLowerCase();
+		const name =
+			`${member.firstName || ""} ${member.lastName || ""}`.toLowerCase();
+		const email = member.email.toLowerCase();
+
+		return name.includes(query) || email.includes(query);
+	});
+
+	// Loading state
+	if (isLoading) {
+		return (
+			<div className="flex justify-center items-center py-12">
+				<Loader className="h-8 w-8 animate-spin text-muted-foreground" />
+			</div>
+		);
+	}
+
+	// Error state
+	if (error) {
+		return (
+			<div className="flex flex-col items-center justify-center py-12 text-center">
+				<XCircle className="h-12 w-12 text-destructive mb-4" />
+				<h3 className="text-lg font-semibold mb-2">Failed to load members</h3>
+				<p className="text-sm text-muted-foreground mb-4">
+					{error.message || "An error occurred while fetching members"}
+				</p>
+				<Button variant="outline" onClick={() => window.location.reload()}>
+					Try Again
+				</Button>
+			</div>
+		);
+	}
+
+	const handleSaveUser = (
+		userId: string,
+		updates: {
+			firstName?: string;
+			lastName?: string;
+			role?: OrganizationRole;
 		},
-		{
-			id: "4",
-			name: "Riley Green",
-			email: "Riley@acme.com",
-			status: "Active",
-			role: "User",
-			queries: "43",
-			lastModified: "03 Sep, 2025 18:07",
-		},
-	];
+	) => {
+		const member = members.find((m) => m.id === userId);
+		if (!member) return;
 
-	const handleSelectAll = (checked: boolean) => {
-		if (checked) {
-			setSelectedUsers(users.map((user) => user.id));
-		} else {
-			setSelectedUsers([]);
+		const hasProfileUpdates =
+			updates.firstName !== undefined || updates.lastName !== undefined;
+		const hasRoleUpdate = updates.role !== undefined;
+
+		// Check if role is being downgraded (only if role is being updated)
+		if (hasRoleUpdate && (member.role === "owner" || member.role === "admin")) {
+			if (updates.role && updates.role !== member.role) {
+				setPendingRoleChange({
+					userId,
+					newRole: updates.role,
+					oldRole: member.role,
+				});
+				setRoleChangeDialogOpen(true);
+				return;
+			}
 		}
-	};
 
-	const handleSelectUser = (userId: string, checked: boolean) => {
-		if (checked) {
-			setSelectedUsers([...selectedUsers, userId]);
+		// Handle profile updates (firstName, lastName)
+		if (hasProfileUpdates) {
+			const profileData: { firstName?: string; lastName?: string } = {};
+			if (updates.firstName !== undefined)
+				profileData.firstName = updates.firstName;
+			if (updates.lastName !== undefined)
+				profileData.lastName = updates.lastName;
+
+			updateMemberProfile(
+				{ userId, data: profileData },
+				{
+					onSuccess: () => {
+						// If there's also a role update, handle it next
+						if (hasRoleUpdate && updates.role) {
+							updateRole(
+								{ userId, role: updates.role },
+								{
+									onSuccess: () => {
+										setEditSheetOpen(false);
+									},
+								},
+							);
+						} else {
+							setEditSheetOpen(false);
+						}
+					},
+				},
+			);
+		} else if (hasRoleUpdate && updates.role) {
+			// Only role update
+			updateRole(
+				{ userId, role: updates.role },
+				{
+					onSuccess: () => {
+						setEditSheetOpen(false);
+					},
+				},
+			);
 		} else {
-			setSelectedUsers(selectedUsers.filter((id) => id !== userId));
-		}
-	};
-
-	const handleEditUser = (user: User) => {
-		setEditingUser(user);
-		setEditSheetOpen(true);
-	};
-
-	const handleDeleteUser = (user: User) => {
-		setDeletingUser(user);
-		setDeleteDialogOpen(true);
-	};
-
-	const handleSaveUser = (userId: string, newRole: string) => {
-		// Check if role is being downgraded from Admin
-		const user = users.find((u) => u.id === userId);
-		if (user && user.role === "Admin" && newRole !== "Admin") {
-			// Show confirmation dialog for role downgrade
-			setPendingRoleChange({ userId, newRole, oldRole: user.role });
-			setRoleChangeDialogOpen(true);
-		} else {
-			// Direct update for non-Admin downgrades
-			console.log("Updating user:", userId, "with role:", newRole);
+			// No updates
 			setEditSheetOpen(false);
-			// TODO: Implement actual user update logic
 		}
 	};
 
 	const handleConfirmRoleChange = () => {
-		if (pendingRoleChange) {
-			console.log(
-				"Updating user:",
-				pendingRoleChange.userId,
-				"with role:",
-				pendingRoleChange.newRole,
-			);
-			// TODO: Implement actual user update logic
-			setPendingRoleChange(null);
-			setEditSheetOpen(false);
-		}
+		if (!pendingRoleChange) return;
+
+		updateRole(
+			{ userId: pendingRoleChange.userId, role: pendingRoleChange.newRole },
+			{
+				onSuccess: () => {
+					setPendingRoleChange(null);
+					setRoleChangeDialogOpen(false);
+					setEditSheetOpen(false);
+				},
+			},
+		);
+	};
+
+	const handleConfirmDeactivate = () => {
+		if (!deactivatingUser) return;
+
+		updateStatus(
+			{ userId: deactivatingUser.id, isActive: false },
+			{
+				onSuccess: () => {
+					setDeactivateDialogOpen(false);
+					setDeactivatingUser(null);
+				},
+			},
+		);
+	};
+
+	const handleActivateUser = (member: Member) => {
+		updateStatus({ userId: member.id, isActive: true });
 	};
 
 	const handleConfirmDelete = () => {
-		console.log("Deleting user:", deletingUser?.id);
-		// TODO: Implement actual user deletion logic
+		if (!deletingUser) return;
+
+		removeMember(
+			{ userId: deletingUser.id },
+			{
+				onSuccess: () => {
+					setDeleteDialogOpen(false);
+					setDeletingUser(null);
+				},
+			},
+		);
 	};
 
 	const handleDeleteUsers = () => {
-		console.log("Deleting users:", selectedUsers);
-		// TODO: Implement actual user deletion logic
+		console.log("Bulk delete users:", selectedUsers);
+		// TODO: Implement bulk operations when backend supports it
+	};
+
+	// Helper to render sort icon based on current sort state
+	const renderSortIcon = (column: "email" | "role" | "joinedAt") => {
+		const iconType = getSortIcon(column);
+		if (iconType === "default") {
+			return <ArrowUpDown className="h-4 w-4" />;
+		}
+		return iconType === "asc" ? (
+			<MoveUp className="h-4 w-4" />
+		) : (
+			<MoveDown className="h-4 w-4" />
+		);
+	};
+
+	// Format date helper
+	const formatDate = (dateString: string) => {
+		const date = new Date(dateString);
+		return date.toLocaleDateString("en-US", {
+			day: "2-digit",
+			month: "short",
+			year: "numeric",
+			hour: "2-digit",
+			minute: "2-digit",
+		});
 	};
 
 	return (
@@ -142,7 +280,12 @@ export default function UsersTable() {
 			<div className="flex flex-col gap-5">
 				{selectedUsers.length === 0 ? (
 					<div className="flex justify-between items-center py-4">
-						<Input placeholder="Search users....." className="max-w-sm" />
+						<Input
+							placeholder="Search by name or email..."
+							className="max-w-sm"
+							value={searchQuery}
+							onChange={(e) => setSearchQuery(e.target.value)}
+						/>
 					</div>
 				) : (
 					<BulkActions
@@ -159,51 +302,67 @@ export default function UsersTable() {
 							<TableRow>
 								<TableHead className="w-8">
 									<Checkbox
-										checked={selectedUsers.length === users.length}
-										onCheckedChange={handleSelectAll}
+										checked={selectedUsers.length === members.length}
+										onCheckedChange={(checked) =>
+											handleSelectAll(checked as boolean, members)
+										}
 									/>
 								</TableHead>
-								<TableHead>Name</TableHead>
 								<TableHead>
-									<Button variant="ghost" className="flex items-center gap-2">
-										Status
-										<ArrowUpDown className="h-4 w-4" />
+									<Button
+										variant="ghost"
+										className="flex items-center gap-2"
+										onClick={() => handleSort("email")}
+									>
+										Name
+										{renderSortIcon("email")}
 									</Button>
 								</TableHead>
+								<TableHead>Status</TableHead>
 								<TableHead>
-									<Button variant="ghost" className="flex items-center gap-2">
-										Roles
-										<ArrowUpDown className="h-4 w-4" />
+									<Button
+										variant="ghost"
+										className="flex items-center gap-2"
+										onClick={() => handleSort("role")}
+									>
+										Role
+										{renderSortIcon("role")}
 									</Button>
 								</TableHead>
-								<TableHead>
-									<Button variant="ghost" className="flex items-center gap-2">
-										Queries
-										<ArrowUpDown className="h-4 w-4" />
+								<TableHead className="text-right">Conversations</TableHead>
+								<TableHead className="text-right">
+									<Button
+										variant="ghost"
+										className="flex items-center gap-2 ml-auto"
+										onClick={() => handleSort("joinedAt")}
+									>
+										Joined
+										{renderSortIcon("joinedAt")}
 									</Button>
 								</TableHead>
-								<TableHead className="text-right">Last Modified</TableHead>
 								<TableHead className="w-8"></TableHead>
 							</TableRow>
 						</TableHeader>
 						<TableBody>
-							{users.map((user) => (
-								<TableRow key={user.id}>
+							{members.map((member) => (
+								<TableRow key={member.id}>
 									<TableCell>
 										<Checkbox
-											checked={selectedUsers.includes(user.id)}
+											checked={selectedUsers.includes(member.id)}
 											onCheckedChange={(checked) =>
-												handleSelectUser(user.id, checked as boolean)
+												handleSelectUser(member.id, checked as boolean)
 											}
 										/>
 									</TableCell>
 									<TableCell>
 										<div className="flex flex-col">
 											<span className="text-sm text-foreground">
-												{user.name}
+												{member.firstName && member.lastName
+													? `${member.firstName} ${member.lastName}`
+													: member.email}
 											</span>
 											<span className="text-sm text-muted-foreground">
-												{user.email}
+												{member.email}
 											</span>
 										</div>
 									</TableCell>
@@ -212,20 +371,24 @@ export default function UsersTable() {
 											variant="outline"
 											className="flex items-center gap-1 w-fit"
 										>
-											{user.status === "Active" ? (
-												<Check className="h-3 w-3" />
+											{member.isActive ? (
+												<UserCheck className="h-3 w-3" />
 											) : (
-												<Loader className="h-3 w-3" />
+												<Ban className="h-3 w-3" />
 											)}
-											{user.status}
+											{member.isActive ? "Active" : "Inactive"}
 										</Badge>
 									</TableCell>
 									<TableCell>
-										<Badge variant="outline">{user.role}</Badge>
+										<Badge variant="outline" className="capitalize">
+											{member.role}
+										</Badge>
 									</TableCell>
-									<TableCell className="text-right">{user.queries}</TableCell>
 									<TableCell className="text-right">
-										{user.lastModified}
+										{member.conversationsCount}
+									</TableCell>
+									<TableCell className="text-right">
+										{formatDate(member.joinedAt)}
 									</TableCell>
 									<TableCell>
 										<DropdownMenu>
@@ -240,15 +403,28 @@ export default function UsersTable() {
 											</DropdownMenuTrigger>
 											<DropdownMenuContent align="end">
 												<DropdownMenuItem
-													onClick={() => handleEditUser(user)}
+													onClick={() => handleEditUser(member)}
 												>
-													Edit
+													Edit Role
 												</DropdownMenuItem>
+												{member.isActive ? (
+													<DropdownMenuItem
+														onClick={() => handleDeactivateUser(member)}
+													>
+														Deactivate
+													</DropdownMenuItem>
+												) : (
+													<DropdownMenuItem
+														onClick={() => handleActivateUser(member)}
+													>
+														Activate
+													</DropdownMenuItem>
+												)}
 												<DropdownMenuItem
-													onClick={() => handleDeleteUser(user)}
+													onClick={() => handleDeleteUser(member)}
 													className="text-destructive focus:text-destructive"
 												>
-													Delete
+													Remove
 												</DropdownMenuItem>
 											</DropdownMenuContent>
 										</DropdownMenu>
@@ -260,18 +436,15 @@ export default function UsersTable() {
 				</div>
 
 				<div className="flex justify-between items-center py-4">
-					<p className="text-sm text-muted-foreground">{users.length} Users</p>
-					<div className="flex items-center gap-2">
-						<Button variant="outline" disabled>
-							Previous
-						</Button>
-						<Button variant="outline" disabled>
-							Next
-						</Button>
-					</div>
+					<p className="text-sm text-muted-foreground">
+						{members.length} User{members.length !== 1 ? "s" : ""}
+						{searchQuery && ` (filtered from ${allMembers.length})`}
+					</p>
+					{/* TODO: Add pagination when implementing */}
 				</div>
 			</div>
 
+			{/* Edit User Sheet */}
 			<EditUserSheet
 				open={editSheetOpen}
 				onOpenChange={setEditSheetOpen}
@@ -279,24 +452,36 @@ export default function UsersTable() {
 				onSave={handleSaveUser}
 			/>
 
+			{/* Deactivate Dialog */}
+			<ConfirmDialog
+				open={deactivateDialogOpen}
+				onOpenChange={setDeactivateDialogOpen}
+				title="Deactivate User"
+				description={`Are you sure you want to deactivate ${deactivatingUser?.email}? They will be blocked from accessing the system immediately.`}
+				onConfirm={handleConfirmDeactivate}
+				confirmLabel="Deactivate"
+				cancelLabel="Cancel"
+				variant="destructive"
+			/>
+
+			{/* Remove User Dialog */}
 			<ConfirmDialog
 				open={deleteDialogOpen}
 				onOpenChange={setDeleteDialogOpen}
 				title="Remove User"
-				description="Are you sure you want remove this user? Once removed they will no longer have access and no data will be recovered."
+				description={`Are you sure you want to remove ${deletingUser?.email}? This will remove them from the organization. They can be re-invited later.`}
 				onConfirm={handleConfirmDelete}
 				confirmLabel="Remove"
 				cancelLabel="Cancel"
 				variant="destructive"
 			/>
 
+			{/* Role Change Confirmation Dialog */}
 			<ConfirmDialog
 				open={roleChangeDialogOpen}
 				onOpenChange={setRoleChangeDialogOpen}
 				title="Change User Role"
-				description={
-					"This change will reduce this user's permissions from Admin to User. They will no longer have management access. Do you want to continue?"
-				}
+				description={`This will change ${editingUser?.email}'s role from ${pendingRoleChange?.oldRole} to ${pendingRoleChange?.newRole}. This may affect their permissions.`}
 				onConfirm={handleConfirmRoleChange}
 				confirmLabel="Confirm"
 				cancelLabel="Cancel"
