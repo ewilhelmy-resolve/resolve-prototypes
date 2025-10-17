@@ -19,7 +19,6 @@ import { NotFoundPage } from "./pages/NotFoundPage";
 import SettingsV1Page from "./pages/SettingsV1Page";
 import ProfilePage from "./pages/settings/ProfilePage";
 import UsersSettingsPage from "./pages/UsersSettingsPage";
-import UsersV1Page from "./pages/UsersV1Page";
 import { VerifyEmailPage } from "./pages/VerifyEmailPage";
 import { VerifyEmailSentPage } from "./pages/VerifyEmailSentPage";
 
@@ -52,14 +51,6 @@ const router = createBrowserRouter([
 			<RoleProtectedRoute allowedRoles={['owner', 'admin']}>
 				<FilesV1Page />
 			</RoleProtectedRoute>
-		),
-	},
-	{
-		path: "/users",
-		element: (
-			<ProtectedRoute>
-				<UsersV1Page />
-			</ProtectedRoute>
 		),
 	},
 	{
