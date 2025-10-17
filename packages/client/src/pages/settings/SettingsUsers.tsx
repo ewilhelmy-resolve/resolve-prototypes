@@ -31,7 +31,7 @@ export default function SettingsUsers() {
 		<div className="flex flex-col gap-8">
 			<Header
 				title="Users"
-				description="Some really great content"
+				description="Manage users and invitations to your organization."
 				action={<InviteUsersButton />}
 			/>
 

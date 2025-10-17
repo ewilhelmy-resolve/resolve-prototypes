@@ -36,7 +36,7 @@ import {
 	useUpdateMemberStatus,
 } from "@/hooks/api/useMembers";
 import { useUsersTableState } from "@/hooks/useUsersTableState";
-import type { Member, OrganizationRole } from "@/types/member";
+import type {   OrganizationRole } from "@/types/member";
 
 export default function UsersTable() {
 	// Use custom hook for state management
@@ -57,7 +57,7 @@ export default function UsersTable() {
 		deactivatingUser,
 		setDeactivatingUser,
 		handleEditUser,
-		handleDeactivateUser,
+		// handleDeactivateUser,
 		handleDeleteUser,
 		editSheetOpen,
 		setEditSheetOpen,
@@ -192,9 +192,11 @@ export default function UsersTable() {
 		);
 	};
 
-	const handleActivateUser = (member: Member) => {
-		updateStatus({ userId: member.id, isActive: true });
-	};
+	// TODO: Enable activate action when we have a nicer way to prevent those users from logging in
+
+	// const handleActivateUser = (member: Member) => {
+	// 	updateStatus({ userId: member.id, isActive: true });
+	// };
 
 	const handleConfirmDelete = () => {
 		if (!deletingUser) return;
@@ -210,9 +212,43 @@ export default function UsersTable() {
 		);
 	};
 
-	const handleDeleteUsers = () => {
-		console.log("Bulk delete users:", selectedUsers);
-		// TODO: Implement bulk operations when backend supports it
+	const handleDeleteUsers = async () => {
+		// Delete selected users one by one
+		let successCount = 0;
+		let failCount = 0;
+
+		for (const userId of selectedUsers) {
+			try {
+				await new Promise<void>((resolve, reject) => {
+					removeMember(
+						{ userId },
+						{
+							onSuccess: () => {
+								successCount++;
+								resolve();
+							},
+							onError: () => {
+								failCount++;
+								reject();
+							},
+						},
+					);
+				});
+			} catch {
+				// Error already handled by mutation
+			}
+		}
+
+		// Clear selection after deletion attempts
+		setSelectedUsers([]);
+
+		// Show summary toast
+		if (successCount > 0 && failCount === 0) {
+			// All successful
+			// Success feedback is handled by useRemoveMember hook
+		} else if (failCount > 0) {
+			// Some or all failed - already handled by useRemoveMember error handler
+		}
 	};
 
 	// Helper to render sort icon based on current sort state
@@ -370,8 +406,10 @@ export default function UsersTable() {
 												<DropdownMenuItem
 													onClick={() => handleEditUser(member)}
 												>
-													Edit Role
+													Edit
 												</DropdownMenuItem>
+												{/* 
+												 TODO: Enable activate/deactivate actions when we have a nicer way to prevent those user from logging in
 												{member.isActive ? (
 													<DropdownMenuItem
 														onClick={() => handleDeactivateUser(member)}
@@ -384,12 +422,12 @@ export default function UsersTable() {
 													>
 														Activate
 													</DropdownMenuItem>
-												)}
+												)} */}
 												<DropdownMenuItem
 													onClick={() => handleDeleteUser(member)}
 													className="text-destructive focus:text-destructive"
 												>
-													Remove
+													Delete
 												</DropdownMenuItem>
 											</DropdownMenuContent>
 										</DropdownMenu>
