@@ -172,7 +172,7 @@ export default function ProfilePage() {
 										className="flex flex-col gap-8 bg-white"
 									>
 										<div className="flex flex-col gap-4">
-											<div className="flex gap-4">
+											<div className="flex flex-col md:flex-row gap-4">
 												<div className="flex flex-col gap-2 flex-1">
 													<Label
 														htmlFor="firstName"
@@ -291,7 +291,7 @@ export default function ProfilePage() {
 											</div>
 
 											<div className="border border-border rounded-md p-4 bg-neutral-50">
-												<div className="flex justify-between items-center gap-6">
+												<div className="flex flex-col md:flex-row justify-between items-center gap-6">
 													<div className="flex flex-col gap-2">
 														<div className="flex justify-start items-center">
 															<p className="text-base font-bold text-foreground">
