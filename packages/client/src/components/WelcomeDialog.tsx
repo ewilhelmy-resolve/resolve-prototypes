@@ -1,9 +1,14 @@
 /**
- * WelcomeDialog - Role-based welcome modal
+ * WelcomeDialog - Role-based welcome modal with visual mockup
  *
  * Displays personalized onboarding content based on user role:
  * - Admin/Owner: Steps to connect knowledge sources and invite teammates
  * - Regular User: Info about using RitaGo for IT support
+ *
+ * Features:
+ * - Two-column layout (content left, visual mockup right)
+ * - Role-based copy with personalized greeting
+ * - Responsive design (stacks on mobile)
  *
  * Integrates with:
  * - useProfile() for user name and role detection
@@ -38,72 +43,103 @@ export default function WelcomeDialog({
   const { data: profile } = useProfile()
   const { isOwnerOrAdmin } = useProfilePermissions()
 
-  // Get user's first name or fallback to "there"
   const firstName = profile?.user?.firstName || "there"
   const isAdmin = isOwnerOrAdmin()
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-2xl">
-        <DialogHeader className="space-y-3">
-          <DialogTitle className="text-3xl font-semibold text-center">
-            Welcome to RitaGo, {firstName}
-          </DialogTitle>
-          <DialogDescription className="text-base text-center leading-relaxed">
-            Enjoy your free 90-day trial of Resolve's AI-powered agent for
-            faster, smarter IT support.
-          </DialogDescription>
-        </DialogHeader>
+      <DialogContent className="sm:max-w-6xl p-6 md:p-11" showCloseButton={false}>
+        <div className="flex flex-col lg:flex-row gap-6 lg:gap-[90px] items-stretch w-full">
+          {/* Left side - Content */}
+          <div className="flex flex-col gap-6 items-start w-full lg:max-w-md">
+            <div className="flex flex-col gap-2 items-start w-full">
+              <h2 className="text-4xl font-normal leading-10 text-foreground">
+                Welcome to RitaGo, {firstName}
+              </h2>
+              <p className="text-lg font-light leading-7 text-foreground">
+                Enjoy your free 90-day trial of Resolve's AI-powered agent for
+                faster, smarter IT support.
+              </p>
+            </div>
 
-        <div className="space-y-6 pt-2">
-          {isAdmin ? (
-            // Admin Copy
-            <>
-              <div className="space-y-4">
-                <p className="text-sm text-foreground leading-relaxed">
-                  RitaGo learns from your company's knowledge and tickets
-                  (coming soon) to help resolve IT issues automatically. In a
-                  few steps, you'll:
-                </p>
+            <div className="flex flex-col gap-4 items-start w-full">
+              {isAdmin ? (
+                // Admin Copy
+                <>
+                  <p className="text-base font-light leading-6 text-foreground">
+                    RitaGo learns from your company's knowledge and tickets
+                    (coming soon) to help resolve IT issues automatically. In a
+                    few steps, you'll:
+                  </p>
+                  <ul className="space-y-3 w-full">
+                    <li className="flex items-start gap-3 text-base font-light leading-6 text-foreground">
+                      <CheckCircle2 className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
+                      <span>
+                        Connect your knowledge sources like Confluence,
+                        ServiceNow, or SharePoint.
+                      </span>
+                    </li>
+                    <li className="flex items-start gap-3 text-base font-light leading-6 text-foreground">
+                      <CheckCircle2 className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
+                      <span>
+                        Invite your teammates to start getting instant answers.
+                      </span>
+                    </li>
+                    <li className="flex items-start gap-3 text-base font-light leading-6 text-foreground">
+                      <CheckCircle2 className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
+                      <span>
+                        And coming soon — connect your ITSM for historical
+                        ticket data to enrich your workspace and help users
+                        resolve issues even faster.
+                      </span>
+                    </li>
+                  </ul>
+                </>
+              ) : (
+                // User Copy
+                <>
+                  <h3 className="text-lg font-normal leading-7 text-foreground">
+                    Your Admin has connected your workspace.
+                  </h3>
+                  <p className="text-base font-light leading-6 text-foreground">
+                    RitaGo helps you solve IT issues instantly — from password
+                    resets to VPN access — all based on your company's trusted
+                    content. Just ask a question or describe the issue, and
+                    RitaGo will:
+                  </p>
+                  <ul className="space-y-3 w-full">
+                    <li className="flex items-start gap-3 text-base font-light leading-6 text-foreground">
+                      <CheckCircle2 className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
+                      <span>Search verified knowledge</span>
+                    </li>
+                    <li className="flex items-start gap-3 text-base font-light leading-6 text-foreground">
+                      <CheckCircle2 className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
+                      <span>Get easy next steps or fixes to issues, fast</span>
+                    </li>
+                    <li className="flex items-start gap-3 text-base font-light leading-6 text-foreground">
+                      <CheckCircle2 className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
+                      <span>
+                        Create a ticket if you still need help without overhead
+                      </span>
+                    </li>
+                  </ul>
+                </>
+              )}
 
-                <ul className="space-y-3">
-                  <li className="flex items-start gap-3 text-sm text-foreground">
-                    <CheckCircle2 className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
-                    <span>
-                      Connect your knowledge sources like Confluence,
-                      ServiceNow, or SharePoint.
-                    </span>
-                  </li>
-                  <li className="flex items-start gap-3 text-sm text-foreground">
-                    <CheckCircle2 className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
-                    <span>
-                      Invite your teammates to start getting instant answers.
-                    </span>
-                  </li>
-                  <li className="flex items-start gap-3 text-sm text-foreground">
-                    <CheckCircle2 className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
-                    <span>
-                      And coming soon — connect your ITSM for historical ticket
-                      data to enrich your workspace and help users resolve
-                      issues even faster.
-                    </span>
-                  </li>
-                </ul>
-              </div>
-
-              <div className="flex flex-col sm:flex-row gap-3 pt-4">
+              <div className="flex gap-4 items-start pt-2">
                 <Button
                   onClick={() => {
-                    onUploadFiles?.()
+                    if (isAdmin && onUploadFiles) {
+                      onUploadFiles()
+                    }
                     onOpenChange(false)
                   }}
-                  className="flex-1"
                 >
                   Get Started
                 </Button>
                 <Button
-                  variant="outline"
-                  className="flex-1 gap-2"
+                  variant="link"
+                  className="gap-2"
                   onClick={() => {
                     window.open(
                       "https://docs.resolve.com/ritago",
@@ -116,66 +152,17 @@ export default function WelcomeDialog({
                   <ExternalLink className="w-4 h-4" />
                 </Button>
               </div>
-            </>
-          ) : (
-            // User Copy
-            <>
-              <div className="space-y-4">
-                <h3 className="text-base font-semibold text-foreground">
-                  Your Admin has connected your workspace.
-                </h3>
+            </div>
+          </div>
 
-                <p className="text-sm text-foreground leading-relaxed">
-                  RitaGo helps you solve IT issues instantly — from password
-                  resets to VPN access — all based on your company's trusted
-                  content. Just ask a question or describe the issue, and
-                  RitaGo will:
-                </p>
-
-                <ul className="space-y-3">
-                  <li className="flex items-start gap-3 text-sm text-foreground">
-                    <CheckCircle2 className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
-                    <span>Search verified knowledge</span>
-                  </li>
-                  <li className="flex items-start gap-3 text-sm text-foreground">
-                    <CheckCircle2 className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
-                    <span>Get easy next steps or fixes to issues, fast</span>
-                  </li>
-                  <li className="flex items-start gap-3 text-sm text-foreground">
-                    <CheckCircle2 className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
-                    <span>
-                      Create a ticket if you still need help without overhead
-                    </span>
-                  </li>
-                </ul>
-              </div>
-
-              <div className="flex flex-col sm:flex-row gap-3 pt-4">
-                <Button
-                  onClick={() => {
-                    onOpenChange(false)
-                  }}
-                  className="flex-1"
-                >
-                  Get Started
-                </Button>
-                <Button
-                  variant="outline"
-                  className="flex-1 gap-2"
-                  onClick={() => {
-                    window.open(
-                      "https://docs.resolve.com/ritago",
-                      "_blank",
-                      "noopener,noreferrer"
-                    )
-                  }}
-                >
-                  Learn how RitaGo works
-                  <ExternalLink className="w-4 h-4" />
-                </Button>
-              </div>
-            </>
-          )}
+          {/* Right side - Visual mockup */}
+          <div className="hidden md:flex flex-col gap-2 items-center justify-center w-full lg:max-w-lg">
+            <img
+              src="/images/welcome-modal-mockup.png"
+              alt="RitaGo chat interface showing password reset conversation"
+              className="w-full h-full rounded-2xl object-cover"
+            />
+          </div>
         </div>
       </DialogContent>
     </Dialog>
