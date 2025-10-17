@@ -382,6 +382,10 @@ export default function ChatV1Content({
 		messages,
 	);
 
+	// Determine if input should be disabled (turn-based conversation)
+	const isInputDisabled =
+		chatStatus === "streaming" || chatStatus === "submitted";
+
 	// Handle form submission from PromptInput
 	const handlePromptSubmit = useCallback(
 		async (message: PromptInputMessage) => {
@@ -537,6 +541,7 @@ export default function ChatV1Content({
 								onChange={(e) => handleMessageChange(e.target.value)}
 								value={messageValue}
 								placeholder="Ask me anything..."
+								disabled={isInputDisabled}
 							/>
 						</PromptInputBody>
 						<PromptInputToolbar>
@@ -557,7 +562,11 @@ export default function ChatV1Content({
 								</PromptInputActionMenu>
 							</PromptInputTools>
 							<PromptInputSubmit
-								disabled={!messageValue.trim() && chatStatus !== "streaming"}
+								disabled={
+									!messageValue.trim() ||
+									chatStatus === "streaming" ||
+									chatStatus === "submitted"
+								}
 								status={chatStatus}
 							/>
 						</PromptInputToolbar>
