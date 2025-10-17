@@ -22,9 +22,6 @@ import { Button } from "@/components/ui/button"
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
 } from "@/components/ui/dialog"
 import { useProfile, useProfilePermissions } from "@/hooks/api/useProfile"
 import { CheckCircle2, ExternalLink } from "lucide-react"
