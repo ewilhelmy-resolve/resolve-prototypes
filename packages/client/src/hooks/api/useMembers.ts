@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { toast } from "sonner";
+import { ritaToast } from "@/components/ui/rita-toast";
 import { memberApi } from "@/services/api";
 import type {
 	MemberListParams,
@@ -81,7 +81,8 @@ export function useUpdateMemberRole() {
 		},
 		onError: (error: any) => {
 			const message = error.message || "Failed to update member role";
-			toast.error("Failed to update role", {
+			ritaToast.error({
+				title: "Failed to update role",
 				description: message,
 			});
 		},
@@ -114,7 +115,8 @@ export function useUpdateMemberStatus() {
 		},
 		onError: (error: any) => {
 			const message = error.message || "Failed to update member status";
-			toast.error("Failed to update status", {
+			ritaToast.error({
+				title: "Failed to update status",
 				description: message,
 			});
 		},
@@ -143,7 +145,8 @@ export function useRemoveMember() {
 		},
 		onError: (error: any) => {
 			const message = error.message || "Failed to remove member";
-			toast.error("Failed to remove member", {
+			ritaToast.error({
+				title: "Failed to remove member",
 				description: message,
 			});
 		},
@@ -180,7 +183,8 @@ export function useUpdateMemberProfile() {
 		},
 		onError: (error: any) => {
 			const message = error.message || "Failed to update member profile";
-			toast.error("Failed to update profile", {
+			ritaToast.error({
+				title: "Failed to update profile",
 				description: message,
 			});
 		},
