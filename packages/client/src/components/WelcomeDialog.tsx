@@ -48,7 +48,7 @@ export default function WelcomeDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-[calc(100vw-2rem)] sm:max-w-2xl lg:max-w-6xl p-4 sm:p-6 md:p-11" showCloseButton={false}>
+      <DialogContent className="max-w-[calc(100vw-2rem)] sm:max-w-2xl lg:max-w-6xl p-4 sm:p-6 md:p-11">
         <div className="flex flex-col lg:flex-row gap-6 lg:gap-[90px] items-stretch w-full">
           {/* Left side - Content */}
           <div className="flex flex-col gap-4 sm:gap-6 items-start w-full lg:max-w-md">
