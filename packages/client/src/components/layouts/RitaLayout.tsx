@@ -99,14 +99,21 @@ function RitaLayoutContent({ children, activePage = "chat" }: RitaLayoutProps) {
 
 	const conversations = conversationsData || [];
 
-	// Check if user has seen welcome modal before (via cookie)
+	// Check if user has seen welcome modal before (localStorage + cookie fallback)
 	const hasSeenWelcomeModal = () => {
-		return document.cookie.includes('rita_welcome_seen=true');
+		// Check localStorage first (persists across sessions)
+		const hasSeenInLocalStorage = localStorage.getItem('rita_welcome_seen') === 'true';
+		// Check cookie as fallback
+		const hasSeenInCookie = document.cookie.includes('rita_welcome_seen=true');
+		return hasSeenInLocalStorage || hasSeenInCookie;
 	};
 
-	// Set cookie when user dismisses welcome modal
+	// Mark welcome modal as seen (both localStorage and cookie)
 	const markWelcomeModalAsSeen = () => {
-		// Set cookie to expire in 1 year
+		// Set in localStorage (persists indefinitely)
+		localStorage.setItem('rita_welcome_seen', 'true');
+
+		// Set cookie to expire in 1 year (for cross-tab consistency)
 		const expiryDate = new Date();
 		expiryDate.setFullYear(expiryDate.getFullYear() + 1);
 		document.cookie = `rita_welcome_seen=true; expires=${expiryDate.toUTCString()}; path=/; SameSite=Lax`;
@@ -120,18 +127,17 @@ function RitaLayoutContent({ children, activePage = "chat" }: RitaLayoutProps) {
 			return;
 		}
 
-		// First time user - show modal and mark as seen
+		// First time user - show modal
 		if (!hasSeenWelcomeModal()) {
 			setWelcomeModalOpen(true);
+			// Mark as seen immediately to prevent showing on refresh
+			markWelcomeModalAsSeen();
 		}
 	}, [showWelcomeModal]);
 
-	// Handle modal close - mark as seen
+	// Handle modal close
 	const handleWelcomeModalClose = (open: boolean) => {
 		setWelcomeModalOpen(open);
-		if (!open) {
-			markWelcomeModalAsSeen();
-		}
 	};
 
 	const handleSignOut = async () => {
