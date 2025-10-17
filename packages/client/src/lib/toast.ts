@@ -1,9 +1,8 @@
-import { toast as sonnerToast } from 'sonner';
-import { CustomToast } from '../components/ui/custom-toast';
+import { ritaToast } from '@/components/ui/rita-toast';
 
 /**
- * Custom toast utility that wraps Sonner with custom styling
- * Provides success and error toast variants with full Tailwind control
+ * Custom toast utility that wraps ritaToast with a convenient API
+ * Provides success, error, warning, and info toast variants
  */
 
 interface ToastOptions {
@@ -18,45 +17,44 @@ interface ToastOptions {
  * Show a success toast notification
  */
 function success(title: string, options?: ToastOptions) {
-  return sonnerToast.custom((id) =>
-    CustomToast({
-      id,
-      variant: 'success',
-      title,
-      description: options?.description,
-      action: options?.action
-    })
-  );
+  return ritaToast.success({
+    title,
+    description: options?.description,
+    action: options?.action
+  });
 }
 
 /**
  * Show an error toast notification
  */
 function error(title: string, options?: ToastOptions) {
-  return sonnerToast.custom((id) =>
-    CustomToast({
-      id,
-      variant: 'error',
-      title,
-      description: options?.description,
-      action: options?.action
-    })
-  );
+  return ritaToast.error({
+    title,
+    description: options?.description,
+    action: options?.action
+  });
+}
+
+/**
+ * Show a warning toast notification
+ */
+function warning(title: string, options?: ToastOptions) {
+  return ritaToast.warning({
+    title,
+    description: options?.description,
+    action: options?.action
+  });
 }
 
 /**
  * Show an info toast notification
  */
 function info(title: string, options?: ToastOptions) {
-  return sonnerToast.custom((id) =>
-    CustomToast({
-      id,
-      variant: 'success', // Use success variant for info (neutral blue)
-      title,
-      description: options?.description,
-      action: options?.action
-    })
-  );
+  return ritaToast.info({
+    title,
+    description: options?.description,
+    action: options?.action
+  });
 }
 
 /**
@@ -64,10 +62,12 @@ function info(title: string, options?: ToastOptions) {
  * Usage:
  *   toast.success('Operation completed', { action: { label: 'View', onClick: () => {} } })
  *   toast.error('Operation failed', { description: 'Error details' })
+ *   toast.warning('Warning message', { description: 'Warning details' })
  *   toast.info('Information message', { description: 'Additional details' })
  */
 export const toast = {
   success,
   error,
+  warning,
   info
 };
