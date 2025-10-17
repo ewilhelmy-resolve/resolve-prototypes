@@ -39,9 +39,9 @@ export const FEATURE_FLAGS: Record<FeatureFlagKey, FeatureFlagConfig> = {
   SHOW_WELCOME_MODAL: {
     key: 'SHOW_WELCOME_MODAL',
     label: 'Show Welcome Modal',
-    description: 'Display welcome dialog for new users on first login',
-    defaultValue: true,
-    category: 'general',
+    description: 'Force show welcome modal (for testing). Normal users see it automatically on first visit.',
+    defaultValue: false,
+    category: 'debug',
   },
   ENABLE_DEBUG_MODE: {
     key: 'ENABLE_DEBUG_MODE',

@@ -18,15 +18,16 @@ import {
 	ChevronDown,
 	File,
 	FileText,
-	LayoutGrid,
+	Home,
 	LogOut,
 	Plus,
 	SquarePen,
 	Ticket,
 } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { ShareModal } from "@/components/ShareModal";
+import WelcomeDialog from "@/components/WelcomeDialog";
 import { ConversationListItem } from "@/components/sidebar/ConversationListItem";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
@@ -60,6 +61,7 @@ import { useProfilePermissions } from "@/hooks/api/useProfile";
 import { useAuth } from "@/hooks/useAuth";
 import { useChatNavigation } from "@/hooks/useChatNavigation";
 import { useKnowledgeBase } from "@/hooks/useKnowledgeBase";
+import { useFeatureFlag } from "@/hooks/useFeatureFlags";
 import type { Conversation } from "@/stores/conversationStore";
 import InviteUserCard from "../users/InviteUserCard";
 
@@ -72,8 +74,12 @@ export interface RitaLayoutProps {
 function RitaLayoutContent({ children, activePage = "chat" }: RitaLayoutProps) {
 	const { state } = useSidebar();
 	const [shareModalOpen, setShareModalOpen] = useState(false);
+	const [welcomeModalOpen, setWelcomeModalOpen] = useState(false);
 	const navigate = useNavigate();
 	const location = useLocation();
+
+	// Feature flags
+	const showWelcomeModal = useFeatureFlag('SHOW_WELCOME_MODAL');
 
 	// Rita hooks
 	const { user, logout } = useAuth();
@@ -92,6 +98,47 @@ function RitaLayoutContent({ children, activePage = "chat" }: RitaLayoutProps) {
 	} = useKnowledgeBase();
 
 	const conversations = conversationsData || [];
+
+	// Check if user has seen welcome modal before (localStorage + cookie fallback)
+	const hasSeenWelcomeModal = useCallback(() => {
+		// Check localStorage first (persists across sessions)
+		const hasSeenInLocalStorage = localStorage.getItem('rita_welcome_seen') === 'true';
+		// Check cookie as fallback
+		const hasSeenInCookie = document.cookie.includes('rita_welcome_seen=true');
+		return hasSeenInLocalStorage || hasSeenInCookie;
+	}, []);
+
+	// Mark welcome modal as seen (both localStorage and cookie)
+	const markWelcomeModalAsSeen = useCallback(() => {
+		// Set in localStorage (persists indefinitely)
+		localStorage.setItem('rita_welcome_seen', 'true');
+
+		// Set cookie to expire in 1 year (for cross-tab consistency)
+		const expiryDate = new Date();
+		expiryDate.setFullYear(expiryDate.getFullYear() + 1);
+		document.cookie = `rita_welcome_seen=true; expires=${expiryDate.toUTCString()}; path=/; SameSite=Lax`;
+	}, []);
+
+	// Show welcome modal on first load if user hasn't seen it, or if feature flag is manually enabled
+	useEffect(() => {
+		// Feature flag explicitly enabled in devtools - always show
+		if (showWelcomeModal) {
+			setWelcomeModalOpen(true);
+			return;
+		}
+
+		// First time user - show modal
+		if (!hasSeenWelcomeModal()) {
+			setWelcomeModalOpen(true);
+			// Mark as seen immediately to prevent showing on refresh
+			markWelcomeModalAsSeen();
+		}
+	}, [showWelcomeModal, hasSeenWelcomeModal, markWelcomeModalAsSeen]);
+
+	// Handle modal close
+	const handleWelcomeModalClose = (open: boolean) => {
+		setWelcomeModalOpen(open);
+	};
 
 	const handleSignOut = async () => {
 		try {
@@ -169,9 +216,9 @@ function RitaLayoutContent({ children, activePage = "chat" }: RitaLayoutProps) {
 											location.pathname.startsWith("/chat/")
 										}
 									>
-										<LayoutGrid className="w-4 h-4" />
+										<Home className="w-4 h-4" />
 										<span className="text-sm text-sidebar-foreground">
-											Dashboard
+											Home
 										</span>
 									</SidebarMenuButton>
 								</SidebarMenuItem>
@@ -448,7 +495,7 @@ function RitaLayoutContent({ children, activePage = "chat" }: RitaLayoutProps) {
 											>
 												<FileText className="w-5 h-5 mt-0.5 text-foreground flex-shrink-0" />
 												<div className="flex-1 min-w-0">
-													<p className="text-base font-semibold text-foreground truncate">
+													<p className="text-base text-foreground truncate">
 														{file.filename}
 													</p>
 													<p className="text-sm text-muted-foreground">
@@ -491,6 +538,13 @@ function RitaLayoutContent({ children, activePage = "chat" }: RitaLayoutProps) {
 				open={shareModalOpen}
 				onOpenChange={setShareModalOpen}
 				onNavigateToSettings={() => navigate("/settings")}
+			/>
+
+			{/* Welcome Modal */}
+			<WelcomeDialog
+				open={welcomeModalOpen}
+				onOpenChange={handleWelcomeModalClose}
+				onUploadFiles={openDocumentSelector}
 			/>
 		</>
 	);

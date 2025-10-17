@@ -27,8 +27,8 @@
     --card-foreground: oklch(0.145 0 0);
     --popover: oklch(1 0 0);
     --popover-foreground: oklch(0.145 0 0);
-    --primary: oklch(0.472 0.197 260.442);
-    --primary-foreground: oklch(0.970 0.014 254.604);
+    --primary: rgba(0, 80, 199, 1);
+    --primary-foreground: rgba(239, 246, 255, 1);
     --secondary: oklch(0.97 0 0);
     --secondary-foreground: oklch(0.205 0 0);
     --muted: oklch(0.97 0 0);
@@ -46,7 +46,7 @@
     --chart-4: oklch(0.828 0.189 84.429);
     --chart-5: oklch(0.769 0.188 70.08);
     --radius: 0.625rem;
-    --sidebar: oklch(1.000 0.000 0.000);
+    --sidebar: rgba(255, 255, 255, 1);
     --sidebar-foreground: oklch(0.145 0 0);
     --sidebar-primary: oklch(0.205 0 0);
     --sidebar-primary-foreground: oklch(0.985 0 0);
@@ -63,8 +63,8 @@
     --card-foreground: oklch(0.985 0 0);
     --popover: oklch(0.145 0 0);
     --popover-foreground: oklch(0.985 0 0);
-    --primary: oklch(0.563 0.241 260.818);
-    --primary-foreground: oklch(0.282 0.087 267.935);
+    --primary: rgba(0, 102, 255, 1);
+    --primary-foreground: rgba(23, 37, 84, 1);
     --secondary: oklch(0.269 0 0);
     --secondary-foreground: oklch(0.985 0 0);
     --muted: oklch(0.269 0 0);
@@ -145,30 +145,30 @@
         font-family: var(--font-heading);
     }
     .heading-xl {
-        font-family: var(--font-heading);
+    font-family: Season Mix;
     }
     .heading-lg {
-        font-family: var(--font-heading);
+    font-family: Season Mix;
     }
     .heading-md {
-        font-family: var(--font-heading);
+    font-family: Season Mix;
     }
     .heading-sm {
-        font-family: var(--font-heading);
+    font-family: Season Mix;
     }
 }
 
 @media screen and (max-width: 80rem) {
   .heading-xl {
-    font-family: var(--font-heading);
+    font-family: Season Mix;
     }
   .heading-lg {
-    font-family: var(--font-heading);
+    font-family: Season Mix;
     }
   .heading-md {
-    font-family: var(--font-heading);
+    font-family: Season Mix;
     }
   .heading-sm {
-    font-family: var(--font-heading);
+    font-family: Season Mix;
     }
 }
