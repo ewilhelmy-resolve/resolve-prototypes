@@ -272,36 +272,6 @@ export function groupMessages(flatMessages: Message[]): ChatMessage[] {
   return grouped
 }
 
-function flushCompletedGroups(groups: Map<string, Message[]>, output: ChatMessage[]) {
-  for (const [groupId, messages] of groups.entries()) {
-    if (messages.length > 0) {
-      // Sort messages within group by timestamp to ensure correct order
-      const sortedMessages = messages.sort((a, b) =>
-        new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
-      )
-
-      // Convert to parts
-      const parts = sortedMessages.map(msg => ({
-        id: msg.id,
-        message: msg.message,
-        metadata: msg.metadata
-      }))
-
-      // ✨ NEW: Merge consecutive reasoning messages
-      const mergedParts = mergeConsecutiveReasoning(parts)
-
-      output.push({
-        id: groupId,
-        role: sortedMessages[0].role, // All messages in group have same role
-        isGroup: true,
-        parts: mergedParts,
-        timestamp: sortedMessages[0].timestamp // Use first message timestamp
-      } as GroupedChatMessage)
-    }
-  }
-  groups.clear()
-}
-
 export interface Conversation {
   id: string
   title: string

@@ -6,7 +6,7 @@
  */
 
 import { describe, it, expect } from 'vitest'
-import { groupMessages, type Message } from './conversationStore'
+import { groupMessages, type Message, type GroupedChatMessage } from './conversationStore'
 
 describe('conversationStore - Reasoning Message Merging', () => {
   /**
@@ -53,13 +53,12 @@ describe('conversationStore - Reasoning Message Merging', () => {
       expect(result).toHaveLength(1)
       expect(result[0].isGroup).toBe(true)
 
-      if (result[0].isGroup) {
-        expect(result[0].parts).toHaveLength(1)
-        expect(result[0].parts[0].metadata.reasoning.content).toBe(
-          'First thought process\n\nSecond thought process'
-        )
-        expect(result[0].parts[0].metadata.reasoning.title).toBe('Analysis') // Last title wins
-      }
+      const grouped = result[0] as GroupedChatMessage
+      expect(grouped.parts).toHaveLength(1)
+      expect(grouped.parts[0].metadata.reasoning.content).toBe(
+        'First thought process\n\nSecond thought process'
+      )
+      expect(grouped.parts[0].metadata.reasoning.title).toBe('Analysis') // Last title wins
     })
 
     it('should merge 3+ consecutive reasoning messages', () => {
@@ -99,11 +98,11 @@ describe('conversationStore - Reasoning Message Merging', () => {
       const result = groupMessages(messages)
 
       expect(result).toHaveLength(1)
+      expect(result[0].isGroup).toBe(true)
 
-      if (result[0].isGroup) {
-        expect(result[0].parts[0].metadata.reasoning.content).toBe('Step 1\n\nStep 2\n\nStep 3')
-        expect(result[0].parts[0].metadata.reasoning.title).toBe('Verification')
-      }
+      const grouped = result[0] as GroupedChatMessage
+      expect(grouped.parts[0].metadata.reasoning.content).toBe('Step 1\n\nStep 2\n\nStep 3')
+      expect(grouped.parts[0].metadata.reasoning.title).toBe('Verification')
     })
   })
 
@@ -149,16 +148,16 @@ describe('conversationStore - Reasoning Message Merging', () => {
       const result = groupMessages(messages)
 
       expect(result).toHaveLength(1)
+      expect(result[0].isGroup).toBe(true)
 
-      if (result[0].isGroup) {
-        const part = result[0].parts[0]
-        expect(part.id).toBe('msg-3') // Uses last message's ID
-        expect(part.message).toBe('Here is the final answer')
-        expect(part.metadata.reasoning.content).toBe(
-          'Planning approach\n\nAnalyzing data\n\nFinal verification'
-        )
-        expect(part.metadata.reasoning.title).toBe('Verification')
-      }
+      const grouped = result[0] as GroupedChatMessage
+      const part = grouped.parts[0]
+      expect(part.id).toBe('msg-3') // Uses last message's ID
+      expect(part.message).toBe('Here is the final answer')
+      expect(part.metadata.reasoning.content).toBe(
+        'Planning approach\n\nAnalyzing data\n\nFinal verification'
+      )
+      expect(part.metadata.reasoning.title).toBe('Verification')
     })
   })
 
@@ -203,14 +202,14 @@ describe('conversationStore - Reasoning Message Merging', () => {
       const result = groupMessages(messages)
 
       expect(result).toHaveLength(1)
+      expect(result[0].isGroup).toBe(true)
 
-      if (result[0].isGroup) {
-        // Should have 3 separate parts (not merged)
-        expect(result[0].parts).toHaveLength(3)
-        expect(result[0].parts[0].metadata.reasoning.content).toBe('First reasoning')
-        expect(result[0].parts[1].message).toBe('Interrupting text without reasoning')
-        expect(result[0].parts[2].metadata.reasoning.content).toBe('Second reasoning')
-      }
+      const grouped = result[0] as GroupedChatMessage
+      // Should have 3 separate parts (not merged)
+      expect(grouped.parts).toHaveLength(3)
+      expect(grouped.parts[0].metadata.reasoning.content).toBe('First reasoning')
+      expect(grouped.parts[1].message).toBe('Interrupting text without reasoning')
+      expect(grouped.parts[2].metadata.reasoning.content).toBe('Second reasoning')
     })
   })
 
@@ -249,14 +248,14 @@ describe('conversationStore - Reasoning Message Merging', () => {
       const result = groupMessages(messages)
 
       expect(result).toHaveLength(1)
+      expect(result[0].isGroup).toBe(true)
 
-      if (result[0].isGroup) {
-        const part = result[0].parts[0]
-        expect(part.metadata.reasoning.content).toBe('Researching docs\n\nContinuing analysis')
-        expect(part.metadata.sources).toEqual([
-          { url: 'https://docs.example.com', title: 'Docs' },
-        ])
-      }
+      const grouped = result[0] as GroupedChatMessage
+      const part = grouped.parts[0]
+      expect(part.metadata.reasoning.content).toBe('Researching docs\n\nContinuing analysis')
+      expect(part.metadata.sources).toEqual([
+        { url: 'https://docs.example.com', title: 'Docs' },
+      ])
     })
 
     it('should use last message as base when it has text content', () => {
@@ -291,13 +290,15 @@ describe('conversationStore - Reasoning Message Merging', () => {
 
       const result = groupMessages(messages)
 
-      if (result[0].isGroup) {
-        const part = result[0].parts[0]
-        expect(part.id).toBe('msg-2') // Last message as base
-        expect(part.message).toBe('Answer with different metadata')
-        expect(part.metadata.sources).toBeUndefined()
-        expect(part.metadata.tasks).toEqual([{ title: 'Task', items: ['Item 1'] }])
-      }
+      expect(result).toHaveLength(1)
+      expect(result[0].isGroup).toBe(true)
+
+      const grouped = result[0] as GroupedChatMessage
+      const part = grouped.parts[0]
+      expect(part.id).toBe('msg-2') // Last message as base
+      expect(part.message).toBe('Answer with different metadata')
+      expect(part.metadata.sources).toBeUndefined()
+      expect(part.metadata.tasks).toEqual([{ title: 'Task', items: ['Item 1'] }])
     })
   })
 
@@ -333,12 +334,12 @@ describe('conversationStore - Reasoning Message Merging', () => {
       const result = groupMessages(messages)
 
       expect(result).toHaveLength(1)
+      expect(result[0].isGroup).toBe(true)
 
-      if (result[0].isGroup) {
-        expect(result[0].parts[0].metadata.reasoning.content).toBe(
-          'Standalone reasoning 1\n\nStandalone reasoning 2'
-        )
-      }
+      const grouped = result[0] as GroupedChatMessage
+      expect(grouped.parts[0].metadata.reasoning.content).toBe(
+        'Standalone reasoning 1\n\nStandalone reasoning 2'
+      )
     })
   })
 
@@ -369,11 +370,11 @@ describe('conversationStore - Reasoning Message Merging', () => {
       const result = groupMessages(messages)
 
       expect(result).toHaveLength(1)
+      expect(result[0].isGroup).toBe(true)
 
-      if (result[0].isGroup) {
-        expect(result[0].parts).toHaveLength(1)
-        expect(result[0].parts[0].metadata.reasoning.content).toBe('Single reasoning')
-      }
+      const grouped = result[0] as GroupedChatMessage
+      expect(grouped.parts).toHaveLength(1)
+      expect(grouped.parts[0].metadata.reasoning.content).toBe('Single reasoning')
     })
 
     it('should handle messages without metadata', () => {
