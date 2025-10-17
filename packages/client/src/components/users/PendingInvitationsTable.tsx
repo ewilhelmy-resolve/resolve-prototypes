@@ -1,5 +1,4 @@
 import {
-	ArrowUpDown,
 	Loader,
 	MoreHorizontal,
 	XCircle,
@@ -39,6 +38,7 @@ export default function PendingInvitationsTable() {
 	const [cancelingInvitation, setCancelingInvitation] =
 		useState<Invitation | null>(null);
 	const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
+	const [bulkCancelDialogOpen, setBulkCancelDialogOpen] = useState(false);
 	const [searchQuery, setSearchQuery] = useState("");
 
 	// Fetch pending invitations
@@ -134,6 +134,58 @@ export default function PendingInvitationsTable() {
 		);
 	};
 
+	const handleBulkCancelClick = () => {
+		setBulkCancelDialogOpen(true);
+	};
+
+	const handleConfirmBulkCancel = async () => {
+		setBulkCancelDialogOpen(false);
+
+		// Cancel selected invitations one by one
+		let successCount = 0;
+		let failCount = 0;
+
+		for (const invitationId of selectedInvitations) {
+			try {
+				await new Promise<void>((resolve, reject) => {
+					cancelInvitation(
+						{ invitationId },
+						{
+							onSuccess: () => {
+								successCount++;
+								resolve();
+							},
+							onError: () => {
+								failCount++;
+								reject();
+							},
+						},
+					);
+				});
+			} catch {
+				// Error already handled by mutation
+			}
+		}
+
+		// Clear selection after cancellation attempts
+		setSelectedInvitations([]);
+
+		// Show summary toast
+		if (successCount > 0 && failCount === 0) {
+			toast.success("Invitations cancelled", {
+				description: `Successfully cancelled ${successCount} invitation${successCount !== 1 ? "s" : ""}`,
+			});
+		} else if (failCount > 0 && successCount > 0) {
+			toast.warning("Partial success", {
+				description: `Cancelled ${successCount} invitation${successCount !== 1 ? "s" : ""}, but ${failCount} failed`,
+			});
+		} else if (failCount > 0) {
+			toast.error("Failed to cancel invitations", {
+				description: `Failed to cancel ${failCount} invitation${failCount !== 1 ? "s" : ""}`,
+			});
+		}
+	};
+
 	const formatDate = (dateString: string) => {
 		const date = new Date(dateString);
 		return date.toLocaleDateString("en-US", {
@@ -192,10 +244,8 @@ export default function PendingInvitationsTable() {
 				) : (
 					<BulkActions
 						selectedItems={selectedInvitations}
-						onDelete={() => {
-							// TODO: Implement bulk cancel
-							console.log("Bulk cancel:", selectedInvitations);
-						}}
+						onDelete={handleBulkCancelClick}
+						deleteLabel="Cancel Invitations"
 						onClose={() => setSelectedInvitations([])}
 						itemLabel="invitations"
 					/>
@@ -214,10 +264,7 @@ export default function PendingInvitationsTable() {
 								<TableHead>Email</TableHead>
 								<TableHead>Invited By</TableHead>
 								<TableHead>
-									<Button variant="ghost" className="flex items-center gap-2">
-										Invited Date
-										<ArrowUpDown className="h-4 w-4" />
-									</Button>
+									Invited Date
 								</TableHead>
 								<TableHead>Expires At</TableHead>
 								<TableHead>Status</TableHead>
@@ -301,18 +348,12 @@ export default function PendingInvitationsTable() {
 					<p className="text-sm text-muted-foreground">
 						{invitations.length} Pending Invitation
 						{invitations.length !== 1 ? "s" : ""}
+						{searchQuery && ` (filtered from ${allInvitations.length})`}
 					</p>
-					<div className="flex items-center gap-2">
-						<Button variant="outline" disabled>
-							Previous
-						</Button>
-						<Button variant="outline" disabled>
-							Next
-						</Button>
-					</div>
 				</div>
 			</div>
 
+			{/* Single Cancel Dialog */}
 			<ConfirmDialog
 				open={cancelDialogOpen}
 				onOpenChange={setCancelDialogOpen}
@@ -321,6 +362,18 @@ export default function PendingInvitationsTable() {
 				onConfirm={handleConfirmCancel}
 				confirmLabel="Cancel Invitation"
 				cancelLabel="Keep Invitation"
+				variant="destructive"
+			/>
+
+			{/* Bulk Cancel Dialog */}
+			<ConfirmDialog
+				open={bulkCancelDialogOpen}
+				onOpenChange={setBulkCancelDialogOpen}
+				title="Cancel Multiple Invitations"
+				description={`Are you sure you want to cancel ${selectedInvitations.length} invitation${selectedInvitations.length !== 1 ? "s" : ""}? This action cannot be undone.`}
+				onConfirm={handleConfirmBulkCancel}
+				confirmLabel="Cancel Invitations"
+				cancelLabel="Keep Invitations"
 				variant="destructive"
 			/>
 		</>
