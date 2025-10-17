@@ -3,9 +3,9 @@ import type React from "react";
 import { createContext, useCallback, useContext, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { fileKeys } from "../hooks/api/useFiles";
-import { dataSourceKeys } from "../hooks/useDataSources";
-import { profileKeys } from "../hooks/api/useProfile";
 import { memberKeys } from "../hooks/api/useMembers";
+import { profileKeys } from "../hooks/api/useProfile";
+import { dataSourceKeys } from "../hooks/useDataSources";
 import { useSSE } from "../hooks/useSSE";
 import { toast } from "../lib/toast";
 import type { SSEEvent } from "../services/EventSourceSSEClient";
@@ -72,9 +72,12 @@ export const SSEProvider: React.FC<SSEProviderProps> = ({
 
 				// Validate that message belongs to the current conversation
 				if (!event.data.conversationId) {
-					console.warn("[SSE] Received new_message event without conversationId", {
-						messageId: event.data.messageId,
-					});
+					console.warn(
+						"[SSE] Received new_message event without conversationId",
+						{
+							messageId: event.data.messageId,
+						},
+					);
 					return;
 				}
 
@@ -107,15 +110,6 @@ export const SSEProvider: React.FC<SSEProviderProps> = ({
 					: event.data.last_sync_status
 						? "sync"
 						: "unknown";
-
-				console.log("[SSE] Data source update received:", {
-					updateType,
-					connectionId: event.data.connection_id,
-					status: event.data.status,
-					last_sync_status: event.data.last_sync_status,
-					last_verification_at: event.data.last_verification_at,
-					latest_options: event.data.latest_options,
-				});
 
 				// Invalidate TanStack Query cache to trigger automatic refetch
 				queryClient.invalidateQueries({ queryKey: dataSourceKeys.list() });
@@ -174,29 +168,20 @@ export const SSEProvider: React.FC<SSEProviderProps> = ({
 					});
 				}
 			} else if (event.type === "organization_update") {
-				// Handle organization updates (name changes, role changes, etc.)
-				console.log("[SSE] Organization update received:", {
-					updateType: event.data.updateType,
-					organizationId: event.data.organizationId,
-				});
-
 				// Invalidate profile cache to refetch with updated data
 				queryClient.invalidateQueries({ queryKey: profileKeys.detail() });
 
 				// Show toast notification based on update type
 				if (event.data.updateType === "name") {
-					toast.info("Organization name updated");
+					toast.success("Organization name updated");
 				} else if (event.data.updateType === "role") {
 					toast.info("Your role has been updated", {
 						description: "Your permissions may have changed",
 					});
 				} else if (event.data.updateType === "settings") {
-					toast.info("Organization settings updated");
+					toast.success("Organization settings updated");
 				}
 			} else if (event.type === "member_role_updated") {
-				// Handle member role updates
-				console.log("[SSE] Member role updated:", event.data);
-
 				// Invalidate member lists to refetch
 				queryClient.invalidateQueries({ queryKey: memberKeys.lists() });
 
@@ -210,14 +195,11 @@ export const SSEProvider: React.FC<SSEProviderProps> = ({
 					});
 				} else {
 					// Another member's role was changed
-					toast.info("Member role updated", {
+					toast.success("Member role updated", {
 						description: `${event.data.userEmail} is now ${event.data.newRole}`,
 					});
 				}
 			} else if (event.type === "member_status_updated") {
-				// Handle member status updates (activate/deactivate)
-				console.log("[SSE] Member status updated:", event.data);
-
 				// Invalidate member lists to refetch
 				queryClient.invalidateQueries({ queryKey: memberKeys.lists() });
 
@@ -246,9 +228,6 @@ export const SSEProvider: React.FC<SSEProviderProps> = ({
 					});
 				}
 			} else if (event.type === "member_removed") {
-				// Handle member removal
-				console.log("[SSE] Member removed:", event.data);
-
 				// Invalidate member lists to refetch
 				queryClient.invalidateQueries({ queryKey: memberKeys.lists() });
 

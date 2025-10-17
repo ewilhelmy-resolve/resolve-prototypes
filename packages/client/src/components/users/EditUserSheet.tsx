@@ -27,19 +27,19 @@ interface EditUserSheetProps {
 	onSave: (
 		userId: string,
 		updates: {
-			firstName?: string;
-			lastName?: string;
 			role?: OrganizationRole;
 		},
 	) => void;
 }
 
 /**
- * Sheet component for editing user information
- * Allows editing first name, last name, and role (email is read-only)
+ * Sheet component for editing user role
+ * Allows editing role only (name and email are read-only for now)
  * Permission-based:
  * - Admins can assign: owner, admin, user (all roles)
  * - Owners can assign: owner, user (NOT admin)
+ *
+ * Note: Profile editing (firstName, lastName) will be added in a future update
  */
 export default function EditUserSheet({
 	open,
@@ -48,17 +48,11 @@ export default function EditUserSheet({
 	onSave,
 }: EditUserSheetProps) {
 	const { isOwner, isAdmin } = useProfilePermissions();
-	const [firstName, setFirstName] = useState("");
-	const [lastName, setLastName] = useState("");
-	const [email, setEmail] = useState("");
 	const [selectedRole, setSelectedRole] = useState<OrganizationRole>("user");
 
 	// Update form fields when user changes
 	useEffect(() => {
 		if (user) {
-			setFirstName(user.firstName || "");
-			setLastName(user.lastName || "");
-			setEmail(user.email);
 			setSelectedRole(user.role);
 		}
 	}, [user]);
@@ -66,14 +60,10 @@ export default function EditUserSheet({
 	const handleSave = () => {
 		if (user) {
 			const updates: {
-				firstName?: string;
-				lastName?: string;
 				role?: OrganizationRole;
 			} = {};
 
-			// Only include changed fields
-			if (firstName !== (user.firstName || "")) updates.firstName = firstName;
-			if (lastName !== (user.lastName || "")) updates.lastName = lastName;
+			// Only include role if changed
 			if (selectedRole !== user.role) updates.role = selectedRole;
 
 			onSave(user.id, updates);
@@ -93,31 +83,25 @@ export default function EditUserSheet({
 
 				<div className="flex flex-col gap-4 px-4">
 					<div className="flex flex-col gap-2">
-						<Label htmlFor="firstName">First Name</Label>
+						<Label htmlFor="name">Name</Label>
 						<Input
-							id="firstName"
-							value={firstName}
-							onChange={(e) => setFirstName(e.target.value)}
-							placeholder="Enter first name"
+							id="name"
+							value={
+								user.firstName && user.lastName
+									? `${user.firstName} ${user.lastName}`
+									: user.email
+							}
+							readOnly
+							className="bg-muted"
 						/>
 					</div>
 
 					<div className="flex flex-col gap-2">
-						<Label htmlFor="lastName">Last Name</Label>
-						<Input
-							id="lastName"
-							value={lastName}
-							onChange={(e) => setLastName(e.target.value)}
-							placeholder="Enter last name"
-						/>
-					</div>
-
-					<div className="flex flex-col gap-2">
-						<Label htmlFor="email">User Email</Label>
+						<Label htmlFor="email">Email</Label>
 						<Input
 							id="email"
 							type="email"
-							value={email}
+							value={user.email}
 							readOnly
 							className="bg-muted"
 						/>

@@ -34,7 +34,6 @@ import {
 	useRemoveMember,
 	useUpdateMemberRole,
 	useUpdateMemberStatus,
-	useUpdateMemberProfile,
 } from "@/hooks/api/useMembers";
 import { useUsersTableState } from "@/hooks/useUsersTableState";
 import type { Member, OrganizationRole } from "@/types/member";
@@ -85,7 +84,6 @@ export default function UsersTable() {
 	const { mutate: updateRole } = useUpdateMemberRole();
 	const { mutate: updateStatus } = useUpdateMemberStatus();
 	const { mutate: removeMember } = useRemoveMember();
-	const { mutate: updateMemberProfile } = useUpdateMemberProfile();
 
 	const allMembers = data?.members || [];
 
@@ -129,19 +127,15 @@ export default function UsersTable() {
 	const handleSaveUser = (
 		userId: string,
 		updates: {
-			firstName?: string;
-			lastName?: string;
 			role?: OrganizationRole;
 		},
 	) => {
 		const member = members.find((m) => m.id === userId);
 		if (!member) return;
 
-		const hasProfileUpdates =
-			updates.firstName !== undefined || updates.lastName !== undefined;
 		const hasRoleUpdate = updates.role !== undefined;
 
-		// Check if role is being downgraded (only if role is being updated)
+		// Check if role is being downgraded
 		if (hasRoleUpdate && (member.role === "owner" || member.role === "admin")) {
 			if (updates.role && updates.role !== member.role) {
 				setPendingRoleChange({
@@ -154,36 +148,8 @@ export default function UsersTable() {
 			}
 		}
 
-		// Handle profile updates (firstName, lastName)
-		if (hasProfileUpdates) {
-			const profileData: { firstName?: string; lastName?: string } = {};
-			if (updates.firstName !== undefined)
-				profileData.firstName = updates.firstName;
-			if (updates.lastName !== undefined)
-				profileData.lastName = updates.lastName;
-
-			updateMemberProfile(
-				{ userId, data: profileData },
-				{
-					onSuccess: () => {
-						// If there's also a role update, handle it next
-						if (hasRoleUpdate && updates.role) {
-							updateRole(
-								{ userId, role: updates.role },
-								{
-									onSuccess: () => {
-										setEditSheetOpen(false);
-									},
-								},
-							);
-						} else {
-							setEditSheetOpen(false);
-						}
-					},
-				},
-			);
-		} else if (hasRoleUpdate && updates.role) {
-			// Only role update
+		// Handle role update
+		if (hasRoleUpdate && updates.role) {
 			updateRole(
 				{ userId, role: updates.role },
 				{
