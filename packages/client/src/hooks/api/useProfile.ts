@@ -130,5 +130,6 @@ export function useProfilePermissions() {
     canManageMembers: () => hasRole(['owner', 'admin']),
     canManageOrganization: () => hasRole('owner'),
     canDeleteConversations: () => hasRole(['owner', 'admin']),
+    canManageFiles: () => hasRole(['owner', 'admin']),
   }
 }
