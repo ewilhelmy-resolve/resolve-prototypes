@@ -1,13 +1,4 @@
-import {
-	ArrowUpDown,
-	Ban,
-	Check,
-	Loader,
-	MoreHorizontal,
-	MoveDown,
-	MoveUp,
-	XCircle,
-} from "lucide-react";
+import { Ban, Check, Loader, MoreHorizontal, XCircle } from "lucide-react";
 import { BulkActions } from "@/components/BulkActions";
 import ConfirmDialog from "@/components/dialogs/ConfirmDialog";
 import { Badge } from "@/components/ui/badge";
@@ -36,7 +27,8 @@ import {
 	useUpdateMemberStatus,
 } from "@/hooks/api/useMembers";
 import { useUsersTableState } from "@/hooks/useUsersTableState";
-import type { Member, OrganizationRole } from "@/types/member";
+import { formatDate, renderSortIcon } from "@/lib/table-utils";
+import type { OrganizationRole } from "@/types/member";
 
 export default function UsersTable() {
 	// Use custom hook for state management
@@ -50,19 +42,20 @@ export default function UsersTable() {
 		sortBy,
 		sortOrder,
 		handleSort,
-		getSortIcon,
 		editingUser,
 		deletingUser,
 		setDeletingUser,
 		deactivatingUser,
 		setDeactivatingUser,
 		handleEditUser,
-		handleDeactivateUser,
+		// handleDeactivateUser,
 		handleDeleteUser,
 		editSheetOpen,
 		setEditSheetOpen,
 		deleteDialogOpen,
 		setDeleteDialogOpen,
+		bulkDeleteDialogOpen,
+		setBulkDeleteDialogOpen,
 		roleChangeDialogOpen,
 		setRoleChangeDialogOpen,
 		deactivateDialogOpen,
@@ -192,9 +185,11 @@ export default function UsersTable() {
 		);
 	};
 
-	const handleActivateUser = (member: Member) => {
-		updateStatus({ userId: member.id, isActive: true });
-	};
+	// TODO: Enable activate action when we have a nicer way to prevent those users from logging in
+
+	// const handleActivateUser = (member: Member) => {
+	// 	updateStatus({ userId: member.id, isActive: true });
+	// };
 
 	const handleConfirmDelete = () => {
 		if (!deletingUser) return;
@@ -210,34 +205,49 @@ export default function UsersTable() {
 		);
 	};
 
-	const handleDeleteUsers = () => {
-		console.log("Bulk delete users:", selectedUsers);
-		// TODO: Implement bulk operations when backend supports it
+	const handleBulkDeleteClick = () => {
+		setBulkDeleteDialogOpen(true);
 	};
 
-	// Helper to render sort icon based on current sort state
-	const renderSortIcon = (column: "email" | "role" | "joinedAt") => {
-		const iconType = getSortIcon(column);
-		if (iconType === "default") {
-			return <ArrowUpDown className="h-4 w-4" />;
+	const handleConfirmBulkDelete = async () => {
+		setBulkDeleteDialogOpen(false);
+
+		// Delete selected users one by one
+		let successCount = 0;
+		let failCount = 0;
+
+		for (const userId of selectedUsers) {
+			try {
+				await new Promise<void>((resolve, reject) => {
+					removeMember(
+						{ userId },
+						{
+							onSuccess: () => {
+								successCount++;
+								resolve();
+							},
+							onError: () => {
+								failCount++;
+								reject();
+							},
+						},
+					);
+				});
+			} catch {
+				// Error already handled by mutation
+			}
 		}
-		return iconType === "asc" ? (
-			<MoveUp className="h-4 w-4" />
-		) : (
-			<MoveDown className="h-4 w-4" />
-		);
-	};
 
-	// Format date helper
-	const formatDate = (dateString: string) => {
-		const date = new Date(dateString);
-		return date.toLocaleDateString("en-US", {
-			day: "2-digit",
-			month: "short",
-			year: "numeric",
-			hour: "2-digit",
-			minute: "2-digit",
-		});
+		// Clear selection after deletion attempts
+		setSelectedUsers([]);
+
+		// Show summary toast
+		if (successCount > 0 && failCount === 0) {
+			// All successful
+			// Success feedback is handled by useRemoveMember hook
+		} else if (failCount > 0) {
+			// Some or all failed - already handled by useRemoveMember error handler
+		}
 	};
 
 	return (
@@ -255,7 +265,7 @@ export default function UsersTable() {
 				) : (
 					<BulkActions
 						selectedItems={selectedUsers}
-						onDelete={handleDeleteUsers}
+						onDelete={handleBulkDeleteClick}
 						onClose={() => setSelectedUsers([])}
 						itemLabel="users"
 					/>
@@ -280,7 +290,7 @@ export default function UsersTable() {
 										onClick={() => handleSort("email")}
 									>
 										Name
-										{renderSortIcon("email")}
+										{renderSortIcon(sortBy, "email", sortOrder)}
 									</Button>
 								</TableHead>
 								<TableHead>Status</TableHead>
@@ -291,7 +301,7 @@ export default function UsersTable() {
 										onClick={() => handleSort("role")}
 									>
 										Role
-										{renderSortIcon("role")}
+										{renderSortIcon(sortBy, "role", sortOrder)}
 									</Button>
 								</TableHead>
 								<TableHead className="text-right">Conversations</TableHead>
@@ -302,7 +312,7 @@ export default function UsersTable() {
 										onClick={() => handleSort("joinedAt")}
 									>
 										Joined
-										{renderSortIcon("joinedAt")}
+										{renderSortIcon(sortBy, "joinedAt", sortOrder)}
 									</Button>
 								</TableHead>
 								<TableHead className="w-8"></TableHead>
@@ -370,8 +380,10 @@ export default function UsersTable() {
 												<DropdownMenuItem
 													onClick={() => handleEditUser(member)}
 												>
-													Edit Role
+													Edit
 												</DropdownMenuItem>
+												{/* 
+												 TODO: Enable activate/deactivate actions when we have a nicer way to prevent those user from logging in
 												{member.isActive ? (
 													<DropdownMenuItem
 														onClick={() => handleDeactivateUser(member)}
@@ -384,12 +396,12 @@ export default function UsersTable() {
 													>
 														Activate
 													</DropdownMenuItem>
-												)}
+												)} */}
 												<DropdownMenuItem
 													onClick={() => handleDeleteUser(member)}
 													className="text-destructive focus:text-destructive"
 												>
-													Remove
+													Delete
 												</DropdownMenuItem>
 											</DropdownMenuContent>
 										</DropdownMenu>
@@ -450,6 +462,18 @@ export default function UsersTable() {
 				onConfirm={handleConfirmRoleChange}
 				confirmLabel="Confirm"
 				cancelLabel="Cancel"
+			/>
+
+			{/* Bulk Delete Confirmation Dialog */}
+			<ConfirmDialog
+				open={bulkDeleteDialogOpen}
+				onOpenChange={setBulkDeleteDialogOpen}
+				title="Remove Users"
+				description={`Are you sure you want to remove ${selectedUsers.length} user${selectedUsers.length !== 1 ? "s" : ""}? This will remove them from the organization. They can be re-invited later.`}
+				onConfirm={handleConfirmBulkDelete}
+				confirmLabel="Remove Users"
+				cancelLabel="Cancel"
+				variant="destructive"
 			/>
 		</>
 	);

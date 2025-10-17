@@ -30,6 +30,8 @@ interface BulkActionsProps {
 	actions?: BulkAction[];
 	/** Legacy delete handler for backward compatibility */
 	onDelete?: () => void;
+	/** Custom label for delete button (e.g., "Delete", "Cancel Invitation", "Remove") */
+	deleteLabel?: string;
 	/** Close handler to clear selections */
 	onClose: () => void;
 	/** Custom label for selected items (e.g., "users", "files", "items") */
@@ -83,6 +85,7 @@ export const BulkActions: React.FC<BulkActionsProps> = ({
 	selectedUsers,
 	actions,
 	onDelete,
+	deleteLabel = "Delete",
 	onClose,
 	itemLabel = "items",
 	className,
@@ -103,7 +106,7 @@ export const BulkActions: React.FC<BulkActionsProps> = ({
 	// Use custom actions or default to delete action
 	const displayActions: BulkAction[] = actions || (onDelete ? [{
 		key: 'delete',
-		label: 'Delete',
+		label: deleteLabel,
 		icon: <Trash2 className="h-4 w-4" />,
 		variant: 'destructive' as const,
 		onClick: onDelete,
