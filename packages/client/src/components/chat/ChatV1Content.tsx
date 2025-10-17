@@ -160,11 +160,20 @@ function GroupedMessage({
 	message,
 	onCopy,
 	isCopied,
+	chatStatus,
+	isLastMessage,
 }: {
 	message: GroupedChatMessage;
 	onCopy: (text: string, messageId: string) => void;
 	isCopied: boolean;
+	chatStatus: ChatStatus;
+	isLastMessage: boolean;
 }) {
+	// Only the last message can be actively streaming
+	const isThisMessageStreaming =
+		isLastMessage &&
+		(chatStatus === "streaming" || chatStatus === "submitted");
+
 	return (
 		<Message from={message.role}>
 			<div className="flex flex-col w-full">
@@ -174,7 +183,7 @@ function GroupedMessage({
 							{/* Render reasoning if present */}
 							{part.metadata?.reasoning && (
 								<Reasoning
-									isStreaming={Boolean(part.metadata.reasoning.streaming)}
+									isStreaming={isThisMessageStreaming}
 								>
 									<ReasoningTrigger title={part.metadata.reasoning.title} />
 									<ReasoningContent>
@@ -493,28 +502,28 @@ export default function ChatV1Content({
 									)}
 
 								{/* Render grouped chat messages */}
-								{chatMessages.map((chatMessage) => (
-									<Fragment key={chatMessage.id}>
-										{chatMessage.isGroup ? (
-											<GroupedMessage
-												message={chatMessage as GroupedChatMessage}
-												onCopy={handleCopy}
-												isCopied={copiedMessageId === chatMessage.id}
-											/>
-										) : (
-											<SimpleMessage
-												message={chatMessage as SimpleChatMessage}
-												onCopy={handleCopy}
-												isCopied={copiedMessageId === chatMessage.id}
-											/>
-										)}
-									</Fragment>
-								))}
-
-								{/* Show loader when processing */}
-								{(chatStatus === "submitted" || chatStatus === "streaming") && (
-									<Loader />
-								)}
+								{chatMessages.map((chatMessage, index) => {
+									const isLastMessage = index === chatMessages.length - 1;
+									return (
+										<Fragment key={chatMessage.id}>
+											{chatMessage.isGroup ? (
+												<GroupedMessage
+													message={chatMessage as GroupedChatMessage}
+													onCopy={handleCopy}
+													isCopied={copiedMessageId === chatMessage.id}
+													chatStatus={chatStatus}
+													isLastMessage={isLastMessage}
+												/>
+											) : (
+												<SimpleMessage
+													message={chatMessage as SimpleChatMessage}
+													onCopy={handleCopy}
+													isCopied={copiedMessageId === chatMessage.id}
+												/>
+											)}
+										</Fragment>
+									);
+								})}
 							</>
 						)}
 					</div>

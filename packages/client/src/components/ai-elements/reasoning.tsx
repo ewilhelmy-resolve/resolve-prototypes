@@ -145,7 +145,7 @@ export const ReasoningTrigger = memo(
       >
         {children ?? (
           <>
-            <Clock animate="default" loop className="size-4" />
+            <Clock animate={isStreaming ? "default" : false} loop={isStreaming} className="size-4" />
             {getThinkingMessage(isStreaming, duration, title)}
             <ChevronDownIcon
               className={cn(
