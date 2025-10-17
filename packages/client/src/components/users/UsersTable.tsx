@@ -468,7 +468,7 @@ export default function UsersTable() {
 			<ConfirmDialog
 				open={bulkDeleteDialogOpen}
 				onOpenChange={setBulkDeleteDialogOpen}
-				title="Remove Multiple Users"
+				title="Remove Users"
 				description={`Are you sure you want to remove ${selectedUsers.length} user${selectedUsers.length !== 1 ? "s" : ""}? This will remove them from the organization. They can be re-invited later.`}
 				onConfirm={handleConfirmBulkDelete}
 				confirmLabel="Remove Users"

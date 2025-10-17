@@ -1,11 +1,6 @@
-import {
-	Loader,
-	MoreHorizontal,
-	XCircle,
-} from "lucide-react";
+import { Loader, MoreHorizontal, XCircle } from "lucide-react";
 import { useState } from "react";
 import { BulkActions } from "@/components/BulkActions";
-import { formatDate } from "@/lib/table-utils";
 import ConfirmDialog from "@/components/dialogs/ConfirmDialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -31,8 +26,13 @@ import {
 	useInvitations,
 	useResendInvitation,
 } from "@/hooks/api/useInvitations";
+import { formatDate } from "@/lib/table-utils";
 import { toast } from "@/lib/toast";
-import { type Invitation, InvitationStatus, UserRole } from "@/types/invitations";
+import {
+	type Invitation,
+	InvitationStatus,
+	UserRole,
+} from "@/types/invitations";
 
 export default function PendingInvitationsTable() {
 	const [selectedInvitations, setSelectedInvitations] = useState<string[]>([]);
@@ -187,7 +187,6 @@ export default function PendingInvitationsTable() {
 		}
 	};
 
-
 	// Loading state
 	if (isLoading) {
 		return (
@@ -254,9 +253,7 @@ export default function PendingInvitationsTable() {
 								</TableHead>
 								<TableHead>Email</TableHead>
 								<TableHead>Invited By</TableHead>
-								<TableHead>
-									Invited Date
-								</TableHead>
+								<TableHead>Invited Date</TableHead>
 								<TableHead>Expires At</TableHead>
 								<TableHead>Status</TableHead>
 								<TableHead className="w-8"></TableHead>
@@ -360,7 +357,7 @@ export default function PendingInvitationsTable() {
 			<ConfirmDialog
 				open={bulkCancelDialogOpen}
 				onOpenChange={setBulkCancelDialogOpen}
-				title="Cancel Multiple Invitations"
+				title="Cancel Invitations"
 				description={`Are you sure you want to cancel ${selectedInvitations.length} invitation${selectedInvitations.length !== 1 ? "s" : ""}? This action cannot be undone.`}
 				onConfirm={handleConfirmBulkCancel}
 				confirmLabel="Cancel Invitations"
