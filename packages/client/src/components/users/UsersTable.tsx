@@ -52,7 +52,6 @@ export default function UsersTable() {
 		handleSort,
 		getSortIcon,
 		editingUser,
-		setEditingUser,
 		deletingUser,
 		setDeletingUser,
 		deactivatingUser,
