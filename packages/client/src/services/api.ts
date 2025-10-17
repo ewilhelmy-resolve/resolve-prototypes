@@ -275,4 +275,96 @@ export const dataSourcesApi = {
     }),
 };
 
+// Member API
+export const memberApi = {
+  /**
+   * List all members in the organization
+   */
+  listMembers: async (params?: import('../types/member').MemberListParams): Promise<import('../types/member').MemberListResponse> => {
+    const searchParams = new URLSearchParams();
+
+    if (params?.role) searchParams.append('role', params.role);
+    if (params?.limit) searchParams.append('limit', params.limit.toString());
+    if (params?.offset) searchParams.append('offset', params.offset.toString());
+    if (params?.sortBy) searchParams.append('sortBy', params.sortBy);
+    if (params?.sortOrder) searchParams.append('sortOrder', params.sortOrder);
+
+    const queryString = searchParams.toString();
+    const url = `/api/organizations/members${queryString ? `?${queryString}` : ''}`;
+
+    return apiRequest<import('../types/member').MemberListResponse>(url, {
+      method: 'GET',
+    });
+  },
+
+  /**
+   * Get detailed information about a specific member
+   */
+  getMember: async (userId: string): Promise<import('../types/member').MemberResponse> => {
+    return apiRequest<import('../types/member').MemberResponse>(`/api/organizations/members/${userId}`, {
+      method: 'GET',
+    });
+  },
+
+  /**
+   * Update a member's role (owner only)
+   */
+  updateMemberRole: async (
+    userId: string,
+    role: import('../types/member').OrganizationRole
+  ): Promise<import('../types/member').UpdateMemberResponse> => {
+    return apiRequest<import('../types/member').UpdateMemberResponse>(
+      `/api/organizations/members/${userId}/role`,
+      {
+        method: 'PATCH',
+        body: { role },
+      }
+    );
+  },
+
+  /**
+   * Update a member's active status (owner/admin with restrictions)
+   */
+  updateMemberStatus: async (
+    userId: string,
+    isActive: boolean
+  ): Promise<import('../types/member').UpdateMemberResponse> => {
+    return apiRequest<import('../types/member').UpdateMemberResponse>(
+      `/api/organizations/members/${userId}/status`,
+      {
+        method: 'PATCH',
+        body: { isActive },
+      }
+    );
+  },
+
+  /**
+   * Remove a member from the organization (soft delete)
+   */
+  removeMember: async (userId: string): Promise<import('../types/member').RemoveMemberResponse> => {
+    return apiRequest<import('../types/member').RemoveMemberResponse>(
+      `/api/organizations/members/${userId}`,
+      {
+        method: 'DELETE',
+      }
+    );
+  },
+
+  /**
+   * Update a member's profile (firstName, lastName) (owner/admin only)
+   */
+  updateMemberProfile: async (
+    userId: string,
+    data: { firstName?: string; lastName?: string }
+  ): Promise<import('../types/member').UpdateMemberResponse> => {
+    return apiRequest<import('../types/member').UpdateMemberResponse>(
+      `/api/organizations/members/${userId}/profile`,
+      {
+        method: 'PATCH',
+        body: data,
+      }
+    );
+  },
+};
+
 export { ApiError };
