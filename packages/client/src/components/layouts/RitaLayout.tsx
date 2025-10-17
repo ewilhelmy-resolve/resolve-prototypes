@@ -99,12 +99,40 @@ function RitaLayoutContent({ children, activePage = "chat" }: RitaLayoutProps) {
 
 	const conversations = conversationsData || [];
 
-	// Show welcome modal on first load if feature flag is enabled
+	// Check if user has seen welcome modal before (via cookie)
+	const hasSeenWelcomeModal = () => {
+		return document.cookie.includes('rita_welcome_seen=true');
+	};
+
+	// Set cookie when user dismisses welcome modal
+	const markWelcomeModalAsSeen = () => {
+		// Set cookie to expire in 1 year
+		const expiryDate = new Date();
+		expiryDate.setFullYear(expiryDate.getFullYear() + 1);
+		document.cookie = `rita_welcome_seen=true; expires=${expiryDate.toUTCString()}; path=/; SameSite=Lax`;
+	};
+
+	// Show welcome modal on first load if user hasn't seen it, or if feature flag is manually enabled
 	useEffect(() => {
+		// Feature flag explicitly enabled in devtools - always show
 		if (showWelcomeModal) {
+			setWelcomeModalOpen(true);
+			return;
+		}
+
+		// First time user - show modal and mark as seen
+		if (!hasSeenWelcomeModal()) {
 			setWelcomeModalOpen(true);
 		}
 	}, [showWelcomeModal]);
+
+	// Handle modal close - mark as seen
+	const handleWelcomeModalClose = (open: boolean) => {
+		setWelcomeModalOpen(open);
+		if (!open) {
+			markWelcomeModalAsSeen();
+		}
+	};
 
 	const handleSignOut = async () => {
 		try {
@@ -509,7 +537,7 @@ function RitaLayoutContent({ children, activePage = "chat" }: RitaLayoutProps) {
 			{/* Welcome Modal */}
 			<WelcomeDialog
 				open={welcomeModalOpen}
-				onOpenChange={setWelcomeModalOpen}
+				onOpenChange={handleWelcomeModalClose}
 				onUploadFiles={openDocumentSelector}
 			/>
 		</>
