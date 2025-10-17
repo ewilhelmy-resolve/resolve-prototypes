@@ -1,13 +1,4 @@
-import {
-	ArrowUpDown,
-	Ban,
-	Check,
-	Loader,
-	MoreHorizontal,
-	MoveDown,
-	MoveUp,
-	XCircle,
-} from "lucide-react";
+import { Ban, Check, Loader, MoreHorizontal, XCircle } from "lucide-react";
 import { BulkActions } from "@/components/BulkActions";
 import ConfirmDialog from "@/components/dialogs/ConfirmDialog";
 import { Badge } from "@/components/ui/badge";
@@ -36,7 +27,8 @@ import {
 	useUpdateMemberStatus,
 } from "@/hooks/api/useMembers";
 import { useUsersTableState } from "@/hooks/useUsersTableState";
-import type {   OrganizationRole } from "@/types/member";
+import { formatDate, renderSortIcon } from "@/lib/table-utils";
+import type { OrganizationRole } from "@/types/member";
 
 export default function UsersTable() {
 	// Use custom hook for state management
@@ -50,7 +42,6 @@ export default function UsersTable() {
 		sortBy,
 		sortOrder,
 		handleSort,
-		getSortIcon,
 		editingUser,
 		deletingUser,
 		setDeletingUser,
@@ -63,6 +54,8 @@ export default function UsersTable() {
 		setEditSheetOpen,
 		deleteDialogOpen,
 		setDeleteDialogOpen,
+		bulkDeleteDialogOpen,
+		setBulkDeleteDialogOpen,
 		roleChangeDialogOpen,
 		setRoleChangeDialogOpen,
 		deactivateDialogOpen,
@@ -212,7 +205,13 @@ export default function UsersTable() {
 		);
 	};
 
-	const handleDeleteUsers = async () => {
+	const handleBulkDeleteClick = () => {
+		setBulkDeleteDialogOpen(true);
+	};
+
+	const handleConfirmBulkDelete = async () => {
+		setBulkDeleteDialogOpen(false);
+
 		// Delete selected users one by one
 		let successCount = 0;
 		let failCount = 0;
@@ -251,31 +250,6 @@ export default function UsersTable() {
 		}
 	};
 
-	// Helper to render sort icon based on current sort state
-	const renderSortIcon = (column: "email" | "role" | "joinedAt") => {
-		const iconType = getSortIcon(column);
-		if (iconType === "default") {
-			return <ArrowUpDown className="h-4 w-4" />;
-		}
-		return iconType === "asc" ? (
-			<MoveUp className="h-4 w-4" />
-		) : (
-			<MoveDown className="h-4 w-4" />
-		);
-	};
-
-	// Format date helper
-	const formatDate = (dateString: string) => {
-		const date = new Date(dateString);
-		return date.toLocaleDateString("en-US", {
-			day: "2-digit",
-			month: "short",
-			year: "numeric",
-			hour: "2-digit",
-			minute: "2-digit",
-		});
-	};
-
 	return (
 		<>
 			<div className="flex flex-col gap-5">
@@ -291,7 +265,7 @@ export default function UsersTable() {
 				) : (
 					<BulkActions
 						selectedItems={selectedUsers}
-						onDelete={handleDeleteUsers}
+						onDelete={handleBulkDeleteClick}
 						onClose={() => setSelectedUsers([])}
 						itemLabel="users"
 					/>
@@ -316,7 +290,7 @@ export default function UsersTable() {
 										onClick={() => handleSort("email")}
 									>
 										Name
-										{renderSortIcon("email")}
+										{renderSortIcon(sortBy, "email", sortOrder)}
 									</Button>
 								</TableHead>
 								<TableHead>Status</TableHead>
@@ -327,7 +301,7 @@ export default function UsersTable() {
 										onClick={() => handleSort("role")}
 									>
 										Role
-										{renderSortIcon("role")}
+										{renderSortIcon(sortBy, "role", sortOrder)}
 									</Button>
 								</TableHead>
 								<TableHead className="text-right">Conversations</TableHead>
@@ -338,7 +312,7 @@ export default function UsersTable() {
 										onClick={() => handleSort("joinedAt")}
 									>
 										Joined
-										{renderSortIcon("joinedAt")}
+										{renderSortIcon(sortBy, "joinedAt", sortOrder)}
 									</Button>
 								</TableHead>
 								<TableHead className="w-8"></TableHead>
@@ -488,6 +462,18 @@ export default function UsersTable() {
 				onConfirm={handleConfirmRoleChange}
 				confirmLabel="Confirm"
 				cancelLabel="Cancel"
+			/>
+
+			{/* Bulk Delete Confirmation Dialog */}
+			<ConfirmDialog
+				open={bulkDeleteDialogOpen}
+				onOpenChange={setBulkDeleteDialogOpen}
+				title="Remove Multiple Users"
+				description={`Are you sure you want to remove ${selectedUsers.length} user${selectedUsers.length !== 1 ? "s" : ""}? This will remove them from the organization. They can be re-invited later.`}
+				onConfirm={handleConfirmBulkDelete}
+				confirmLabel="Remove Users"
+				cancelLabel="Cancel"
+				variant="destructive"
 			/>
 		</>
 	);

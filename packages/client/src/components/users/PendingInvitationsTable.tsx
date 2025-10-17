@@ -5,6 +5,7 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import { BulkActions } from "@/components/BulkActions";
+import { formatDate } from "@/lib/table-utils";
 import ConfirmDialog from "@/components/dialogs/ConfirmDialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -186,16 +187,6 @@ export default function PendingInvitationsTable() {
 		}
 	};
 
-	const formatDate = (dateString: string) => {
-		const date = new Date(dateString);
-		return date.toLocaleDateString("en-US", {
-			day: "2-digit",
-			month: "short",
-			year: "numeric",
-			hour: "2-digit",
-			minute: "2-digit",
-		});
-	};
 
 	// Loading state
 	if (isLoading) {

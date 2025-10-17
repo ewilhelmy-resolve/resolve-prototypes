@@ -18,6 +18,7 @@ interface UsersTableState {
 	// Sheet/Dialog visibility
 	editSheetOpen: boolean;
 	deleteDialogOpen: boolean;
+	bulkDeleteDialogOpen: boolean;
 	roleChangeDialogOpen: boolean;
 	deactivateDialogOpen: boolean;
 	// Pending changes
@@ -42,6 +43,8 @@ type UsersTableAction =
 	| { type: "CLOSE_DEACTIVATE_DIALOG" }
 	| { type: "OPEN_DELETE_DIALOG"; payload: Member }
 	| { type: "CLOSE_DELETE_DIALOG" }
+	| { type: "OPEN_BULK_DELETE_DIALOG" }
+	| { type: "CLOSE_BULK_DELETE_DIALOG" }
 	| { type: "OPEN_ROLE_CHANGE_DIALOG"; payload: { userId: string; newRole: OrganizationRole; oldRole: OrganizationRole } }
 	| { type: "CLOSE_ROLE_CHANGE_DIALOG" };
 
@@ -58,6 +61,7 @@ const initialState: UsersTableState = {
 	deactivatingUser: null,
 	editSheetOpen: false,
 	deleteDialogOpen: false,
+	bulkDeleteDialogOpen: false,
 	roleChangeDialogOpen: false,
 	deactivateDialogOpen: false,
 	pendingRoleChange: null,
@@ -96,6 +100,10 @@ function usersTableReducer(
 			return { ...state, deletingUser: action.payload, deleteDialogOpen: true };
 		case "CLOSE_DELETE_DIALOG":
 			return { ...state, deleteDialogOpen: false, deletingUser: null };
+		case "OPEN_BULK_DELETE_DIALOG":
+			return { ...state, bulkDeleteDialogOpen: true };
+		case "CLOSE_BULK_DELETE_DIALOG":
+			return { ...state, bulkDeleteDialogOpen: false };
 		case "OPEN_ROLE_CHANGE_DIALOG":
 			return { ...state, pendingRoleChange: action.payload, roleChangeDialogOpen: true };
 		case "CLOSE_ROLE_CHANGE_DIALOG":
@@ -174,6 +182,14 @@ export function useUsersTableState() {
 		}
 	};
 
+	const setBulkDeleteDialogOpen = (open: boolean) => {
+		if (open) {
+			dispatch({ type: "OPEN_BULK_DELETE_DIALOG" });
+		} else {
+			dispatch({ type: "CLOSE_BULK_DELETE_DIALOG" });
+		}
+	};
+
 	const setRoleChangeDialogOpen = (open: boolean) => {
 		if (!open) {
 			dispatch({ type: "CLOSE_ROLE_CHANGE_DIALOG" });
@@ -213,16 +229,6 @@ export function useUsersTableState() {
 		}
 	};
 
-	// Helper - Get sort icon type based on current sort state
-	const getSortIcon = (
-		column: "email" | "role" | "joinedAt",
-	): "default" | "asc" | "desc" => {
-		if (state.sortBy !== column) {
-			return "default";
-		}
-		return state.sortOrder === "asc" ? "asc" : "desc";
-	};
-
 	return {
 		// Selection
 		selectedUsers: state.selectedUsers,
@@ -236,7 +242,6 @@ export function useUsersTableState() {
 		sortBy: state.sortBy,
 		sortOrder: state.sortOrder,
 		handleSort,
-		getSortIcon,
 
 		// Dialog state
 		editingUser: state.editingUser,
@@ -256,6 +261,8 @@ export function useUsersTableState() {
 		setEditSheetOpen,
 		deleteDialogOpen: state.deleteDialogOpen,
 		setDeleteDialogOpen,
+		bulkDeleteDialogOpen: state.bulkDeleteDialogOpen,
+		setBulkDeleteDialogOpen,
 		roleChangeDialogOpen: state.roleChangeDialogOpen,
 		setRoleChangeDialogOpen,
 		deactivateDialogOpen: state.deactivateDialogOpen,
