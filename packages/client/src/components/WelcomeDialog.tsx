@@ -48,15 +48,15 @@ export default function WelcomeDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-6xl p-6 md:p-11" showCloseButton={false}>
+      <DialogContent className="max-w-[calc(100vw-2rem)] sm:max-w-2xl lg:max-w-6xl p-4 sm:p-6 md:p-11" showCloseButton={false}>
         <div className="flex flex-col lg:flex-row gap-6 lg:gap-[90px] items-stretch w-full">
           {/* Left side - Content */}
-          <div className="flex flex-col gap-6 items-start w-full lg:max-w-md">
+          <div className="flex flex-col gap-4 sm:gap-6 items-start w-full lg:max-w-md">
             <div className="flex flex-col gap-2 items-start w-full">
-              <h2 className="text-4xl font-normal leading-10 text-foreground">
+              <h2 className="text-2xl sm:text-3xl lg:text-4xl font-normal leading-tight text-foreground">
                 Welcome to RitaGo, {firstName}
               </h2>
-              <p className="text-lg font-light leading-7 text-foreground">
+              <p className="text-base sm:text-lg font-light leading-relaxed text-foreground">
                 Enjoy your free 90-day trial of Resolve's AI-powered agent for
                 faster, smarter IT support.
               </p>
@@ -126,7 +126,7 @@ export default function WelcomeDialog({
                 </>
               )}
 
-              <div className="flex gap-4 items-start pt-2">
+              <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 items-stretch sm:items-start pt-2 w-full">
                 <Button
                   onClick={() => {
                     if (isAdmin && onUploadFiles) {
@@ -134,12 +134,13 @@ export default function WelcomeDialog({
                     }
                     onOpenChange(false)
                   }}
+                  className="w-full sm:w-auto"
                 >
                   Get Started
                 </Button>
                 <Button
                   variant="link"
-                  className="gap-2"
+                  className="gap-2 w-full sm:w-auto justify-center sm:justify-start"
                   onClick={() => {
                     window.open(
                       "https://docs.resolve.com/ritago",
@@ -155,8 +156,8 @@ export default function WelcomeDialog({
             </div>
           </div>
 
-          {/* Right side - Visual mockup */}
-          <div className="hidden md:flex flex-col gap-2 items-center justify-center w-full lg:max-w-lg">
+          {/* Right side - Visual mockup (desktop only) */}
+          <div className="hidden lg:flex flex-col gap-2 items-center justify-center w-full lg:max-w-lg">
             <img
               src="/images/welcome-modal-mockup.png"
               alt="RitaGo chat interface showing password reset conversation"
