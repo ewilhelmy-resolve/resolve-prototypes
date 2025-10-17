@@ -1,11 +1,11 @@
 import {
 	ArrowUpDown,
 	Ban,
+	Check,
 	Loader,
 	MoreHorizontal,
 	MoveDown,
 	MoveUp,
-	UserCheck,
 	XCircle,
 } from "lucide-react";
 import { BulkActions } from "@/components/BulkActions";
@@ -337,7 +337,7 @@ export default function UsersTable() {
 											className="flex items-center gap-1 w-fit"
 										>
 											{member.isActive ? (
-												<UserCheck className="h-3 w-3" />
+												<Check className="h-3 w-3" />
 											) : (
 												<Ban className="h-3 w-3" />
 											)}
