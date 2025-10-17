@@ -24,7 +24,7 @@ import {
 	SquarePen,
 	Ticket,
 } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { ShareModal } from "@/components/ShareModal";
 import WelcomeDialog from "@/components/WelcomeDialog";
@@ -100,16 +100,16 @@ function RitaLayoutContent({ children, activePage = "chat" }: RitaLayoutProps) {
 	const conversations = conversationsData || [];
 
 	// Check if user has seen welcome modal before (localStorage + cookie fallback)
-	const hasSeenWelcomeModal = () => {
+	const hasSeenWelcomeModal = useCallback(() => {
 		// Check localStorage first (persists across sessions)
 		const hasSeenInLocalStorage = localStorage.getItem('rita_welcome_seen') === 'true';
 		// Check cookie as fallback
 		const hasSeenInCookie = document.cookie.includes('rita_welcome_seen=true');
 		return hasSeenInLocalStorage || hasSeenInCookie;
-	};
+	}, []);
 
 	// Mark welcome modal as seen (both localStorage and cookie)
-	const markWelcomeModalAsSeen = () => {
+	const markWelcomeModalAsSeen = useCallback(() => {
 		// Set in localStorage (persists indefinitely)
 		localStorage.setItem('rita_welcome_seen', 'true');
 
@@ -117,7 +117,7 @@ function RitaLayoutContent({ children, activePage = "chat" }: RitaLayoutProps) {
 		const expiryDate = new Date();
 		expiryDate.setFullYear(expiryDate.getFullYear() + 1);
 		document.cookie = `rita_welcome_seen=true; expires=${expiryDate.toUTCString()}; path=/; SameSite=Lax`;
-	};
+	}, []);
 
 	// Show welcome modal on first load if user hasn't seen it, or if feature flag is manually enabled
 	useEffect(() => {
@@ -133,7 +133,7 @@ function RitaLayoutContent({ children, activePage = "chat" }: RitaLayoutProps) {
 			// Mark as seen immediately to prevent showing on refresh
 			markWelcomeModalAsSeen();
 		}
-	}, [showWelcomeModal]);
+	}, [showWelcomeModal, hasSeenWelcomeModal, markWelcomeModalAsSeen]);
 
 	// Handle modal close
 	const handleWelcomeModalClose = (open: boolean) => {
