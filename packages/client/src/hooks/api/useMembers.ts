@@ -72,7 +72,7 @@ export function useUpdateMemberRole() {
 			userId: string;
 			role: OrganizationRole;
 		}) => memberApi.updateMemberRole(userId, role),
-		onSuccess: (data, variables) => {
+		onSuccess: (_data, variables) => {
 			// Invalidate member lists to refetch
 			queryClient.invalidateQueries({ queryKey: memberKeys.lists() });
 			queryClient.invalidateQueries({
@@ -105,7 +105,7 @@ export function useUpdateMemberStatus() {
 	return useMutation({
 		mutationFn: ({ userId, isActive }: { userId: string; isActive: boolean }) =>
 			memberApi.updateMemberStatus(userId, isActive),
-		onSuccess: (data, variables) => {
+		onSuccess: (_data, variables) => {
 			// Invalidate member lists to refetch
 			queryClient.invalidateQueries({ queryKey: memberKeys.lists() });
 			queryClient.invalidateQueries({
@@ -139,7 +139,7 @@ export function useRemoveMember() {
 	return useMutation({
 		mutationFn: ({ userId }: { userId: string }) =>
 			memberApi.removeMember(userId),
-		onSuccess: (data) => {
+		onSuccess: (_data) => {
 			// Invalidate member lists to refetch
 			queryClient.invalidateQueries({ queryKey: memberKeys.lists() });
 		},
