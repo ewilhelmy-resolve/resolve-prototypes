@@ -131,6 +131,20 @@ interface AcceptInvitationWebhookPayload extends BaseWebhookPayload {
   email_verified: boolean;
 }
 
+// Password reset webhook payloads for rita-auth
+interface PasswordResetRequestPayload extends BaseWebhookPayload {
+  source: 'rita-auth';
+  action: 'password_reset_request';
+  reset_url: string;
+  expires_at: string;
+}
+
+interface PasswordResetCompletePayload extends BaseWebhookPayload {
+  source: 'rita-auth';
+  action: 'password_reset_complete';
+  password: string; // Base64 encoded
+}
+
 // Data source webhook payloads for rita-data-sources
 interface DataSourceVerifyPayload extends BaseWebhookPayload {
   source: 'rita-chat';
@@ -150,7 +164,7 @@ interface DataSourceSyncPayload extends BaseWebhookPayload {
 }
 
 // Union type for all webhook payloads
-type WebhookPayload = MessageWebhookPayload | DocumentWebhookPayload | DocumentDeletePayload | SignupWebhookPayload | SendInvitationWebhookPayload | AcceptInvitationWebhookPayload | DataSourceVerifyPayload | DataSourceSyncPayload | BaseWebhookPayload;
+type WebhookPayload = MessageWebhookPayload | DocumentWebhookPayload | DocumentDeletePayload | SignupWebhookPayload | SendInvitationWebhookPayload | AcceptInvitationWebhookPayload | PasswordResetRequestPayload | PasswordResetCompletePayload | DataSourceVerifyPayload | DataSourceSyncPayload | BaseWebhookPayload;
 
 interface MockResponse {
   message_id: string;
@@ -1426,16 +1440,32 @@ app.post('/webhook', async (req, res) => {
   try {
     const payload: WebhookPayload = req.body;
 
-    // Basic validation - all webhooks must have source, action, and tenant_id
-    if (!payload.source || !payload.action || !payload.tenant_id) {
+    // Basic validation - all webhooks must have source and action
+    // tenant_id is required for most webhooks EXCEPT password reset (public/unauthenticated flow)
+    const isPasswordReset = payload.source === 'rita-auth' &&
+                           (payload.action === 'password_reset_request' || payload.action === 'password_reset_complete');
+
+    if (!payload.source || !payload.action) {
       const errorLogger = createContextLogger(webhookLogger, correlationId);
       errorLogger.warn({
         hasSource: !!payload.source,
-        hasAction: !!payload.action,
-        hasTenantId: !!payload.tenant_id
+        hasAction: !!payload.action
       }, 'Webhook validation failed - missing basic required fields');
       return res.status(400).json({
-        error: 'Missing required fields: source, action, tenant_id'
+        error: 'Missing required fields: source, action'
+      });
+    }
+
+    // Require tenant_id for all webhooks except password reset
+    if (!isPasswordReset && !payload.tenant_id) {
+      const errorLogger = createContextLogger(webhookLogger, correlationId);
+      errorLogger.warn({
+        source: payload.source,
+        action: payload.action,
+        hasTenantId: !!payload.tenant_id
+      }, 'Webhook validation failed - missing tenant_id');
+      return res.status(400).json({
+        error: 'Missing required field: tenant_id'
       });
     }
 
@@ -1702,6 +1732,126 @@ app.post('/webhook', async (req, res) => {
         return res.status(200).json({
           success: false,
           message: 'Invitation webhook received but user creation failed',
+          error: error instanceof Error ? error.message : 'Unknown error'
+        });
+      }
+
+    } else if (payload.source === 'rita-auth' && payload.action === 'password_reset_request') {
+      const resetRequestPayload = payload as PasswordResetRequestPayload;
+      const contextLogger = createContextLogger(webhookLogger, correlationId, {
+        email: resetRequestPayload.user_email
+      });
+
+      contextLogger.info({
+        source: resetRequestPayload.source,
+        action: resetRequestPayload.action,
+        user_email: resetRequestPayload.user_email,
+        reset_url: resetRequestPayload.reset_url,
+        expires_at: resetRequestPayload.expires_at
+      }, 'Received password reset request webhook');
+
+      // Log mock password reset email prominently for testing
+      console.log(`\n${'='.repeat(80)}`);
+      console.log('🔑 MOCK PASSWORD RESET EMAIL');
+      console.log('='.repeat(80));
+      console.log(`To: ${resetRequestPayload.user_email}`);
+      console.log(`Expires: ${new Date(resetRequestPayload.expires_at).toLocaleString()}`);
+      console.log('');
+      console.log('Click here to reset your password:');
+      console.log(`${resetRequestPayload.reset_url}`);
+      console.log('');
+      console.log('(In production, this would be sent via email service)');
+      console.log(`${'='.repeat(80)}\n`);
+
+      return res.status(200).json({
+        success: true,
+        message: 'Password reset email logged successfully'
+      });
+
+    } else if (payload.source === 'rita-auth' && payload.action === 'password_reset_complete') {
+      const resetCompletePayload = payload as PasswordResetCompletePayload;
+      const contextLogger = createContextLogger(webhookLogger, correlationId, {
+        email: resetCompletePayload.user_email
+      });
+
+      contextLogger.info({
+        source: resetCompletePayload.source,
+        action: resetCompletePayload.action,
+        user_email: resetCompletePayload.user_email
+      }, 'Received password reset complete webhook');
+
+      try {
+        // Decode Base64 password
+        const decodedPassword = Buffer.from(resetCompletePayload.password, 'base64').toString('utf8');
+
+        // Get Keycloak admin token
+        const adminToken = await getKeycloakAdminToken();
+
+        // Find user by email
+        const usersResponse = await axios.get(
+          `${MOCK_CONFIG.keycloak.baseUrl}/admin/realms/${MOCK_CONFIG.keycloak.realm}/users`,
+          {
+            params: { email: resetCompletePayload.user_email, exact: true },
+            headers: {
+              'Authorization': `Bearer ${adminToken}`,
+              'Content-Type': 'application/json'
+            }
+          }
+        );
+
+        if (usersResponse.data.length === 0) {
+          contextLogger.warn({}, 'User not found in Keycloak');
+          return res.status(404).json({
+            success: false,
+            message: 'User not found in Keycloak'
+          });
+        }
+
+        const keycloakUserId = usersResponse.data[0].id;
+
+        // Update password in Keycloak
+        await axios.put(
+          `${MOCK_CONFIG.keycloak.baseUrl}/admin/realms/${MOCK_CONFIG.keycloak.realm}/users/${keycloakUserId}/reset-password`,
+          {
+            type: 'password',
+            value: decodedPassword,
+            temporary: false
+          },
+          {
+            headers: {
+              'Authorization': `Bearer ${adminToken}`,
+              'Content-Type': 'application/json'
+            }
+          }
+        );
+
+        contextLogger.info({
+          keycloakUserId,
+          email: resetCompletePayload.user_email
+        }, '🎉 PASSWORD RESET COMPLETE: Keycloak password updated');
+
+        console.log(`\n${'='.repeat(80)}`);
+        console.log('✅ PASSWORD RESET COMPLETE');
+        console.log('='.repeat(80));
+        console.log(`Email: ${resetCompletePayload.user_email}`);
+        console.log(`Keycloak User ID: ${keycloakUserId}`);
+        console.log('');
+        console.log('Password has been successfully updated in Keycloak!');
+        console.log(`${'='.repeat(80)}\n`);
+
+        return res.status(200).json({
+          success: true,
+          message: 'Password reset complete, Keycloak password updated',
+          keycloak_user_id: keycloakUserId,
+          email: resetCompletePayload.user_email
+        });
+
+      } catch (error) {
+        logError(contextLogger, error as Error, { operation: 'password-reset-complete-processing' });
+
+        return res.status(200).json({
+          success: false,
+          message: 'Password reset webhook received but Keycloak update failed',
           error: error instanceof Error ? error.message : 'Unknown error'
         });
       }

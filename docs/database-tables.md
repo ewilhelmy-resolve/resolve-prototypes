@@ -53,6 +53,9 @@ erDiagram
     pending_users }o--|| user_profiles : "becomes user"
     pending_invitations }o--|| organization_members : "accepts invitation"
 
+    %% Password Reset
+    user_profiles ||--o{ password_reset_tokens : "email"
+
     organizations {
         uuid id PK
         text name
@@ -156,6 +159,17 @@ erDiagram
         timestamp accepted_at
     }
 
+    password_reset_tokens {
+        uuid id PK
+        text user_email
+        text reset_token UK
+        timestamp token_expires_at
+        timestamp created_at
+        timestamp used_at
+        text ip_address
+        text user_agent
+    }
+
     data_source_connections {
         uuid id PK
         uuid organization_id FK
@@ -224,7 +238,7 @@ erDiagram
 
 ## Active Tables (Used in Code)
 
-These 13 tables are actively queried and managed by the API server (`packages/api-server/src`).
+These 14 tables are actively queried and managed by the API server (`packages/api-server/src`).
 
 ### 1. **organizations**
 **Purpose:** Multi-tenant organization container
@@ -594,7 +608,65 @@ These 13 tables are actively queried and managed by the API server (`packages/ap
 
 ---
 
-### 11. **data_source_connections**
+### 11. **password_reset_tokens**
+**Purpose:** Secure password reset tokens with single-use enforcement
+**Schema:** Migration `129_add_password_reset_tokens.sql`
+**Used In:**
+- `routes/auth.ts` (password reset flow)
+- `services/PasswordResetService.ts` (token management)
+
+**Columns:**
+- `id` UUID PRIMARY KEY - Unique token identifier
+- `user_email` TEXT NOT NULL - Email address of user requesting reset
+- `reset_token` TEXT NOT NULL UNIQUE - 64-character hex token (256-bit entropy)
+- `token_expires_at` TIMESTAMP WITH TIME ZONE NOT NULL - Token expiration (1 hour from creation)
+- `created_at` TIMESTAMP WITH TIME ZONE DEFAULT NOW() - Token creation timestamp
+- `used_at` TIMESTAMP WITH TIME ZONE - Timestamp when token was used (NULL = unused)
+- `ip_address` TEXT - IP address of requester (audit trail)
+- `user_agent` TEXT - User agent string (audit trail)
+
+**Indexes:**
+- `idx_password_reset_tokens_email` ON user_email - Fast lookup by email
+- `idx_password_reset_tokens_token` ON reset_token - Fast token validation
+- `idx_password_reset_tokens_expires_at` ON token_expires_at - Cleanup queries
+- `idx_password_reset_tokens_unique_active_email` ON (user_email) WHERE used_at IS NULL AND token_expires_at > NOW() - Enforce single active reset per user
+
+**Features:**
+- **Single-use enforcement** - `used_at` field + atomic UPDATE prevents token reuse
+- **Opportunistic cleanup** - Old tokens cleaned during INSERT (no cron needed)
+- **1-hour token expiration** - Short window minimizes attack surface
+- **7-day audit retention** - Used tokens kept for SOC2 compliance
+- **IP and user agent logging** - Security audit trail
+
+**Operations:**
+- `SELECT` - Verify token validity, check for existing active tokens
+- `INSERT` - Create new reset token (includes opportunistic cleanup in same transaction)
+- `UPDATE` - Mark token as used (atomic single-use enforcement: `WHERE used_at IS NULL`)
+- `DELETE` - Opportunistic cleanup of expired/old tokens (happens during INSERT)
+
+**Code References:**
+- `routes/auth.ts` - Password reset endpoints (`/auth/forgot-password`, `/auth/verify-reset-token`, `/auth/reset-password`)
+- `services/PasswordResetService.ts` - Token lifecycle management
+
+**Security Notes:**
+- Tokens generated with `crypto.randomBytes(32)` (256 bits entropy)
+- Only one active reset token per email (enforced by partial unique index)
+- Atomic updates prevent race conditions on token use
+- Passwords never stored in this table (zero-storage architecture)
+- Short expiration (1 hour) limits attack window
+
+**Cleanup Strategy:**
+- **Opportunistic cleanup** - Runs during token creation, no cron job needed
+- Expired tokens deleted after 24 hours past expiration
+- Used tokens deleted after 7 days (audit retention for SOC2)
+- Cleanup SQL: `DELETE WHERE token_expires_at < NOW() - INTERVAL '24 hours' OR (used_at IS NOT NULL AND used_at < NOW() - INTERVAL '7 days')`
+
+**Relationships:**
+- References `user_profiles(email)` - Logical relationship (not enforced FK to allow cleanup independence)
+
+---
+
+### 12. **data_source_connections**
 **Purpose:** Configuration for external data sources (Confluence, ServiceNow, SharePoint, Web Search)
 **Schema:** Migration `117_add_data_source_connections.sql`
 **Used In:**
@@ -638,7 +710,7 @@ These 13 tables are actively queried and managed by the API server (`packages/ap
 
 ---
 
-### 12. **message_processing_failures**
+### 13. **message_processing_failures**
 **Purpose:** Track messages that failed processing from RabbitMQ queues
 **Schema:** Migration `115_add_message_processing_failures.sql`
 **Used In:**
@@ -679,7 +751,7 @@ These 13 tables are actively queried and managed by the API server (`packages/ap
 
 ---
 
-### 13. **rag_webhook_failures**
+### 14. **rag_webhook_failures**
 **Purpose:** Track webhook failures for retry logic
 **Schema:** Migration `01-init.sql` (legacy RAG tables)
 **Used In:**
@@ -911,7 +983,7 @@ External RAG service tables have been successfully dropped:
 ### Summary
 
 **Total Tables Dropped:** 16 (11 legacy + 5 external RAG)
-**Active Tables Remaining:** 13 (used by API server)
+**Active Tables Remaining:** 14 (used by API server)
 **Retained System Tables:** 2 (migration_history, rag_webhook_failures)
 
 ---

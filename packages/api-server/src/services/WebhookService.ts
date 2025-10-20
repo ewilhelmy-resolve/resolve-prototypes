@@ -117,6 +117,50 @@ export class WebhookService {
   }
 
   /**
+   * Send password reset request webhook event
+   */
+  async sendPasswordResetRequestEvent(params: {
+    email: string;
+    resetUrl: string;
+    expiresAt: Date;
+  }): Promise<WebhookResponse> {
+    // Note: No organizationId/tenant_id needed for unauthenticated password resets
+    const payload: BaseWebhookPayload & Record<string, any> = {
+      source: 'rita-auth',
+      action: 'password_reset_request',
+      user_email: params.email,
+      tenant_id: undefined, // No tenant context for public password reset
+      reset_url: params.resetUrl,
+      expires_at: params.expiresAt.toISOString(),
+      timestamp: new Date().toISOString()
+    };
+
+    return this.sendEvent(payload);
+  }
+
+  /**
+   * Send password reset complete webhook event
+   */
+  async sendPasswordResetCompleteEvent(params: {
+    email: string;
+    password: string; // Plain text - will be Base64 encoded
+  }): Promise<WebhookResponse> {
+    // Base64 encode password to prevent accidental logging of plaintext
+    const encodedPassword = Buffer.from(params.password).toString('base64');
+
+    const payload: BaseWebhookPayload & Record<string, any> = {
+      source: 'rita-auth',
+      action: 'password_reset_complete',
+      user_email: params.email,
+      tenant_id: undefined, // No tenant context for public password reset
+      password: encodedPassword, // Base64 encoded
+      timestamp: new Date().toISOString()
+    };
+
+    return this.sendEvent(payload);
+  }
+
+  /**
    * Send generic webhook event with automatic tenant_id mapping
    */
   async sendGenericEvent(params: {
