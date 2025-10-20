@@ -496,17 +496,17 @@ router.post('/reset-password', async (req, res) => {
     // Mark token as used (atomic single-use enforcement)
     const resetResult = await passwordResetService.resetPassword({ token });
 
-    if (!resetResult.success) {
+    if (!resetResult.success || !resetResult.email) {
       return res.status(400).json({
         success: false,
-        error: resetResult.error,
-        code: resetResult.code
+        error: resetResult.error || 'Invalid reset token',
+        code: resetResult.code || 'PWD_RESET_001'
       });
     }
 
     // Trigger webhook to update Keycloak password
     const webhookResult = await webhookService.sendPasswordResetCompleteEvent({
-      email: resetResult.email!,
+      email: resetResult.email,
       password: newPassword // Plain text (service will Base64 encode)
     });
 
