@@ -1,4 +1,4 @@
-import { Navigate, useNavigate } from 'react-router-dom';
+import { Navigate, useNavigate, Link } from 'react-router-dom';
 import { useState } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { Button } from '../components/ui/button';
@@ -175,7 +175,15 @@ export function LoginPage() {
                 </Button>
               </form>
 
-              <div className="text-center">
+              <div className="text-center space-y-3">
+                <div>
+                  <Link
+                    to="/forgot-password"
+                    className="text-sm text-blue-400 hover:text-blue-300 hover:underline"
+                  >
+                    Forgot your password?
+                  </Link>
+                </div>
                 <p className="text-sm text-muted-foreground">
                   Already have an account?{' '}
                   <button

@@ -12,10 +12,12 @@ import ContactPage from "./pages/ContactPage";
 import DevToolsPage from "./pages/DevToolsPage";
 import DropdownTestPage from "./pages/DropdownTestPage";
 import FilesV1Page from "./pages/FilesV1Page";
+import ForgotPasswordPage from "./pages/ForgotPasswordPage";
 import HelpPage from "./pages/HelpPage";
 import InviteAcceptPage from "./pages/InviteAcceptPage";
 import { LoginPage } from "./pages/LoginPage";
 import { NotFoundPage } from "./pages/NotFoundPage";
+import ResetPasswordPage from "./pages/ResetPasswordPage";
 import SettingsV1Page from "./pages/SettingsV1Page";
 import ProfilePage from "./pages/settings/ProfilePage";
 import UsersSettingsPage from "./pages/UsersSettingsPage";
@@ -166,6 +168,14 @@ const router = createBrowserRouter([
 			{
 				path: "/invite",
 				element: <InviteAcceptPage />,
+			},
+			{
+				path: "/forgot-password",
+				element: <ForgotPasswordPage />,
+			},
+			{
+				path: "/reset-password",
+				element: <ResetPasswordPage />,
 			},
 			{
 				path: "*",
