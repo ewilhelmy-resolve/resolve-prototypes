@@ -55,10 +55,10 @@ import type {
 } from "@/stores/conversationStore";
 import { useConversationStore } from "@/stores/conversationStore";
 import { ResponseWithInlineCitations } from "./ResponseWithInlineCitations";
-import { DragDropOverlay } from "./DragDropOverlay";
+// import { DragDropOverlay } from "./DragDropOverlay"; // TODO: Re-enable when backend support is ready
 import { useDragAndDrop } from "@/hooks/useDragAndDrop";
 import { useUploadFile } from "@/hooks/api/useFiles";
-import { useProfilePermissions } from "@/hooks/api/useProfile";
+// import { useProfilePermissions } from "@/hooks/api/useProfile"; // TODO: Re-enable when backend support is ready
 
 export interface ChatV1ContentProps {
 	// Message state
@@ -330,9 +330,10 @@ export default function ChatV1Content({
 	// Copy state tracking for icon feedback
 	const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
 
-	// Check if user is admin/owner (only admins can upload attachments)
-	const { isOwnerOrAdmin } = useProfilePermissions();
-	const isAdmin = isOwnerOrAdmin();
+	// Check if user is admin/owner (only admins can upload attachments - currently disabled for all users)
+	// TODO: Re-enable when backend support is ready
+	// const { isOwnerOrAdmin } = useProfilePermissions();
+	// const isAdmin = isOwnerOrAdmin();
 
 	// Get grouped messages from store instead of flat messages
 	const { chatMessages } = useConversationStore();
@@ -357,9 +358,10 @@ export default function ChatV1Content({
 		});
 	}, [uploadFileMutation]);
 
-	// Drag-and-drop with file upload functionality (enabled only for admins)
-	const { isDragging } = useDragAndDrop({
-		enabled: !uploadStatus.isUploading && isAdmin,
+	// Drag-and-drop with file upload functionality (disabled for all users)
+	// TODO: Re-enable when backend support is ready (set enabled to: !uploadStatus.isUploading && isAdmin)
+	/* const { isDragging } = */ useDragAndDrop({
+		enabled: false,
 		accept: ".pdf,.txt,.md,.doc,.docx,.xls,.xlsx",
 		maxFiles: 5,
 		maxFileSize: 10 * 1024 * 1024, // 10MB
@@ -454,15 +456,15 @@ export default function ChatV1Content({
 
 	return (
 		<div className="h-full flex flex-col relative">
-			{/* Drag-and-drop overlay (shown only for admins) */}
-			{isAdmin && (
+			{/* Drag-and-drop overlay (disabled - TODO: Re-enable when backend support is ready) */}
+			{/* {isAdmin && (
 				<DragDropOverlay
 					isDragging={isDragging}
 					accept=".pdf,.txt,.md,.doc,.docx,.xls,.xlsx"
 					maxFiles={5}
 					maxFileSize={10 * 1024 * 1024}
 				/>
-			)}
+			)} */}
 
 			<Conversation className="flex-1" contextRef={handleStickToBottomContext}>
 				<ConversationContent className="px-6 py-6">

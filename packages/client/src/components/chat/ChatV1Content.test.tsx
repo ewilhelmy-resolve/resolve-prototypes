@@ -9,7 +9,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen } from '@testing-library/react'
 import ChatV1Content from './ChatV1Content'
 import type { ChatV1ContentProps } from './ChatV1Content'
 
@@ -99,57 +99,9 @@ describe('ChatV1Content - Attachment Upload Permissions', () => {
     vi.clearAllMocks()
   })
 
-  describe('Admin/Owner User Permissions', () => {
-    beforeEach(() => {
-      // Mock user as admin/owner
-      mockIsOwnerOrAdmin.mockReturnValue(true)
-    })
-
-    it('shows drag-and-drop overlay for admin users', () => {
-      const props = createDefaultProps()
-      render(<ChatV1Content {...props} />)
-
-      const overlay = screen.getByTestId('drag-drop-overlay')
-      expect(overlay).toBeInTheDocument()
-    })
-
-    it('enables drag-and-drop for admin users when not uploading', async () => {
-      const props = createDefaultProps()
-      const { useDragAndDrop } = await import('@/hooks/useDragAndDrop')
-
-      render(<ChatV1Content {...props} />)
-
-      // Verify useDragAndDrop was called with enabled: true
-      expect(useDragAndDrop).toHaveBeenCalledWith(
-        expect.objectContaining({
-          enabled: true, // !uploadStatus.isUploading && isAdmin
-        })
-      )
-    })
-
-    it('disables drag-and-drop for admin users when uploading', async () => {
-      const props = createDefaultProps()
-      props.uploadStatus.isUploading = true
-      const { useDragAndDrop } = await import('@/hooks/useDragAndDrop')
-
-      render(<ChatV1Content {...props} />)
-
-      // Verify useDragAndDrop was called with enabled: false
-      expect(useDragAndDrop).toHaveBeenCalledWith(
-        expect.objectContaining({
-          enabled: false, // isUploading is true
-        })
-      )
-    })
-  })
-
-  describe('Regular User Permissions', () => {
-    beforeEach(() => {
-      // Mock user as regular (non-admin)
-      mockIsOwnerOrAdmin.mockReturnValue(false)
-    })
-
-    it('does NOT show drag-and-drop overlay for regular users', () => {
+  describe('Attachment Upload Disabled', () => {
+    it('does NOT show drag-and-drop overlay for any users', () => {
+      mockIsOwnerOrAdmin.mockReturnValue(true) // Even for admins
       const props = createDefaultProps()
       render(<ChatV1Content {...props} />)
 
@@ -157,16 +109,17 @@ describe('ChatV1Content - Attachment Upload Permissions', () => {
       expect(overlay).not.toBeInTheDocument()
     })
 
-    it('disables drag-and-drop for regular users', async () => {
+    it('disables drag-and-drop hook for all users', async () => {
+      mockIsOwnerOrAdmin.mockReturnValue(true)
       const props = createDefaultProps()
       const { useDragAndDrop } = await import('@/hooks/useDragAndDrop')
 
       render(<ChatV1Content {...props} />)
 
-      // Verify useDragAndDrop was called with enabled: false
+      // Verify useDragAndDrop was called with enabled: false (disabled for all)
       expect(useDragAndDrop).toHaveBeenCalledWith(
         expect.objectContaining({
-          enabled: false, // !isAdmin
+          enabled: false,
         })
       )
     })
@@ -181,58 +134,6 @@ describe('ChatV1Content - Attachment Upload Permissions', () => {
 
       // Verify drag-and-drop overlay is absent (no attachment features)
       expect(screen.queryByTestId('drag-drop-overlay')).not.toBeInTheDocument()
-    })
-  })
-
-  describe('Permission Edge Cases', () => {
-    it('handles permission check returning undefined', () => {
-      // Mock permission returning undefined (not loaded yet)
-      mockIsOwnerOrAdmin.mockReturnValue(undefined)
-
-      const props = createDefaultProps()
-      render(<ChatV1Content {...props} />)
-
-      // Should treat undefined as false (no permissions)
-      const overlay = screen.queryByTestId('drag-drop-overlay')
-      expect(overlay).not.toBeInTheDocument()
-    })
-
-    it('re-renders correctly when permissions change from false to true', async () => {
-      // Start with no permissions
-      mockIsOwnerOrAdmin.mockReturnValue(false)
-
-      const props = createDefaultProps()
-      const { rerender } = render(<ChatV1Content {...props} />)
-
-      // Verify no attachment features
-      expect(screen.queryByTestId('drag-drop-overlay')).not.toBeInTheDocument()
-
-      // Update permissions to admin
-      mockIsOwnerOrAdmin.mockReturnValue(true)
-      rerender(<ChatV1Content {...props} />)
-
-      // Wait for update and verify drag-and-drop appears
-      await waitFor(() => {
-        expect(screen.getByTestId('drag-drop-overlay')).toBeInTheDocument()
-      })
-    })
-
-    it('combines upload status and permission checks correctly', async () => {
-      mockIsOwnerOrAdmin.mockReturnValue(true)
-
-      const props = createDefaultProps()
-      props.uploadStatus.isUploading = true
-
-      const { useDragAndDrop } = await import('@/hooks/useDragAndDrop')
-
-      render(<ChatV1Content {...props} />)
-
-      // Both conditions must be true: !isUploading AND isAdmin
-      expect(useDragAndDrop).toHaveBeenCalledWith(
-        expect.objectContaining({
-          enabled: false, // isUploading is true, so disabled
-        })
-      )
     })
   })
 })
