@@ -62,6 +62,7 @@ import { ResponseWithInlineCitations } from "./ResponseWithInlineCitations";
 import { DragDropOverlay } from "./DragDropOverlay";
 import { useDragAndDrop } from "@/hooks/useDragAndDrop";
 import { useUploadFile } from "@/hooks/api/useFiles";
+import { useProfilePermissions } from "@/hooks/api/useProfile";
 
 export interface ChatV1ContentProps {
 	// Message state
@@ -333,6 +334,10 @@ export default function ChatV1Content({
 	// Copy state tracking for icon feedback
 	const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
 
+	// Check if user is admin/owner (only admins can upload attachments)
+	const { isOwnerOrAdmin } = useProfilePermissions();
+	const isAdmin = isOwnerOrAdmin();
+
 	// Get grouped messages from store instead of flat messages
 	const { chatMessages } = useConversationStore();
 
@@ -356,9 +361,9 @@ export default function ChatV1Content({
 		});
 	}, [uploadFileMutation]);
 
-	// Drag-and-drop with file upload functionality
+	// Drag-and-drop with file upload functionality (enabled only for admins)
 	const { isDragging } = useDragAndDrop({
-		enabled: !uploadStatus.isUploading,
+		enabled: !uploadStatus.isUploading && isAdmin,
 		accept: "image/*,.pdf,.txt,.md,.doc,.docx,.xls,.xlsx",
 		maxFiles: 5,
 		maxFileSize: 10 * 1024 * 1024, // 10MB
@@ -452,13 +457,15 @@ export default function ChatV1Content({
 
 	return (
 		<div className="h-full flex flex-col relative">
-			{/* Drag-and-drop overlay */}
-			<DragDropOverlay
-				isDragging={isDragging}
-				accept="image/*,.pdf,.txt,.md,.doc,.docx,.xls,.xlsx"
-				maxFiles={5}
-				maxFileSize={10 * 1024 * 1024}
-			/>
+			{/* Drag-and-drop overlay (shown only for admins) */}
+			{isAdmin && (
+				<DragDropOverlay
+					isDragging={isDragging}
+					accept="image/*,.pdf,.txt,.md,.doc,.docx,.xls,.xlsx"
+					maxFiles={5}
+					maxFileSize={10 * 1024 * 1024}
+				/>
+			)}
 
 			<Conversation className="flex-1" contextRef={handleStickToBottomContext}>
 				<ConversationContent className="px-6 py-6">
@@ -555,20 +562,25 @@ export default function ChatV1Content({
 						</PromptInputBody>
 						<PromptInputToolbar>
 							<PromptInputTools>
-								<PromptInputButton
-									onClick={handleAttachmentClick}
-									variant="ghost"
-									disabled={uploadStatus.isUploading}
-								>
-									<PaperclipIcon size={16} />
-									<span className="sr-only">Add attachment</span>
-								</PromptInputButton>
-								<PromptInputActionMenu>
-									<PromptInputActionMenuTrigger />
-									<PromptInputActionMenuContent>
-										<PromptInputActionAddAttachments />
-									</PromptInputActionMenuContent>
-								</PromptInputActionMenu>
+								{/* Show attachment buttons only for admins */}
+								{isAdmin && (
+									<>
+										<PromptInputButton
+											onClick={handleAttachmentClick}
+											variant="ghost"
+											disabled={uploadStatus.isUploading}
+										>
+											<PaperclipIcon size={16} />
+											<span className="sr-only">Add attachment</span>
+										</PromptInputButton>
+										<PromptInputActionMenu>
+											<PromptInputActionMenuTrigger />
+											<PromptInputActionMenuContent>
+												<PromptInputActionAddAttachments />
+											</PromptInputActionMenuContent>
+										</PromptInputActionMenu>
+									</>
+								)}
 							</PromptInputTools>
 							<PromptInputSubmit
 								disabled={
