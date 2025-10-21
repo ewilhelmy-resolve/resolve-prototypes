@@ -39,11 +39,8 @@ const AppContent: React.FC = () => {
 				onAction={() => {
 					window.location.href = '/login';
 				}}
-				icon={
-					<div className="rounded-full bg-destructive/10 p-3">
-						<Loader2 className="h-8 w-8 text-destructive" />
-					</div>
-				}
+				iconSrc="/images/signal_Image.svg"
+				iconAlt="Signal interrupted illustration"
 			/>
 		);
 	}
