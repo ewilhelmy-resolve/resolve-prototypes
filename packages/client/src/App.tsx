@@ -21,12 +21,6 @@ const AppContent: React.FC = () => {
 	// Force logout if profile fetch fails after all retries (initial + 2 retries = 3 total attempts)
 	useEffect(() => {
 		if (authenticated && sessionReady && profileError && !isLoadingProfile && failureCount >= 3) {
-			// All retries exhausted, force Keycloak logout
-			console.log('Profile fetch failed after all retries, forcing logout', {
-				failureCount,
-				error: profileError
-			});
-
 			// Clear all cached data first
 			queryClient.clear();
 
