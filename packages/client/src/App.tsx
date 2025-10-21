@@ -5,6 +5,7 @@ import { useEffect } from "react";
 import { Toaster } from "@/components/ui/sonner";
 import { useProfile } from "@/hooks/api/useProfile";
 import { useAuth } from "@/hooks/useAuth";
+import { CrashPage } from "@/components/CrashPage";
 import { CitationProvider } from "./contexts/CitationContext";
 import { QueryProvider } from "./providers/QueryProvider";
 import { AppRouter } from "./router";
@@ -45,27 +46,19 @@ const AppContent: React.FC = () => {
 	// If profile fetch failed after all retries, show error and prompt re-login
 	if (authenticated && sessionReady && profileError && failureCount >= 3) {
 		return (
-			<div className="flex min-h-screen items-center justify-center bg-background p-4">
-				<div className="flex flex-col items-center gap-4 text-center max-w-md">
+			<CrashPage
+				title="Unable to load your profile"
+				description="We couldn't load your profile after multiple attempts. Please sign in again."
+				actionLabel="Go to Login"
+				onAction={() => {
+					window.location.href = '/login';
+				}}
+				icon={
 					<div className="rounded-full bg-destructive/10 p-3">
 						<Loader2 className="h-8 w-8 text-destructive" />
 					</div>
-					<div>
-						<h2 className="text-lg font-semibold">Unable to load your profile</h2>
-						<p className="text-sm text-muted-foreground mt-1">
-							We couldn't load your profile after multiple attempts. Please sign in again.
-						</p>
-					</div>
-					<button
-						onClick={() => {
-							window.location.href = '/login';
-						}}
-						className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90"
-					>
-						Go to Login
-					</button>
-				</div>
-			</div>
+				}
+			/>
 		);
 	}
 
