@@ -360,7 +360,7 @@ export default function ChatV1Content({
 	// Drag-and-drop with file upload functionality (enabled only for admins)
 	const { isDragging } = useDragAndDrop({
 		enabled: !uploadStatus.isUploading && isAdmin,
-		accept: "image/*,.pdf,.txt,.md,.doc,.docx,.xls,.xlsx",
+		accept: ".pdf,.txt,.md,.doc,.docx,.xls,.xlsx",
 		maxFiles: 5,
 		maxFileSize: 10 * 1024 * 1024, // 10MB
 		onDrop: handleDragDropUpload,
@@ -458,7 +458,7 @@ export default function ChatV1Content({
 			{isAdmin && (
 				<DragDropOverlay
 					isDragging={isDragging}
-					accept="image/*,.pdf,.txt,.md,.doc,.docx,.xls,.xlsx"
+					accept=".pdf,.txt,.md,.doc,.docx,.xls,.xlsx"
 					maxFiles={5}
 					maxFileSize={10 * 1024 * 1024}
 				/>
@@ -542,7 +542,7 @@ export default function ChatV1Content({
 						onSubmit={handlePromptSubmit}
 						globalDrop={isAdmin}
 						multiple={isAdmin}
-						accept={isAdmin ? "image/*,.pdf,.txt,.md,.doc,.docx,.xls,.xlsx" : undefined}
+						accept={isAdmin ? ".pdf,.txt,.md,.doc,.docx,.xls,.xlsx" : undefined}
 						maxFiles={isAdmin ? 5 : undefined}
 						maxFileSize={isAdmin ? 10 * 1024 * 1024 : undefined}
 					>

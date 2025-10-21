@@ -249,7 +249,7 @@ describe('ChatV1Content - Attachment Upload Permissions', () => {
 
       expect(useDragAndDrop).toHaveBeenCalledWith(
         expect.objectContaining({
-          accept: "image/*,.pdf,.txt,.md,.doc,.docx,.xls,.xlsx",
+          accept: ".pdf,.txt,.md,.doc,.docx,.xls,.xlsx",
           maxFiles: 5,
           maxFileSize: 10 * 1024 * 1024, // 10MB
         })
