@@ -92,8 +92,8 @@ jobs:
         id: meta
         run: |
           SHORT_SHA=${GITHUB_SHA::7}
-          API_IMAGE="${{ env.REGISTRY }}/${{ env.GITHUB_REPOSITORY_OWNER }}/${{ env.IMAGE_PREFIX }}-api-server:main-${SHORT_SHA}"
-          FRONTEND_IMAGE="${{ env.REGISTRY }}/${{ env.GITHUB_REPOSITORY_OWNER }}/${{ env.IMAGE_PREFIX }}-frontend:main-${SHORT_SHA}"
+          API_IMAGE="${{ env.REGISTRY }}/${{ env.GITHUB_REPOSITORY_OWNER }}/${{ env.IMAGE_PREFIX }}-api-server:prod-${SHORT_SHA}"
+          FRONTEND_IMAGE="${{ env.REGISTRY }}/${{ env.GITHUB_REPOSITORY_OWNER }}/${{ env.IMAGE_PREFIX }}-frontend:prod-${SHORT_SHA}"
 
           echo "short-sha=${SHORT_SHA}" >> $GITHUB_OUTPUT
           echo "api-server-image=${API_IMAGE}" >> $GITHUB_OUTPUT
