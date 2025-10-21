@@ -39,7 +39,27 @@ app.use(express.json());
 
 // Health check endpoint
 app.get('/health', (_req, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+  const rabbitmqService = getRabbitMQService();
+  const rabbitMQHealth = rabbitmqService.getHealthStatus();
+
+  const isHealthy = rabbitMQHealth.status === 'connected';
+  const health = {
+    status: isHealthy ? 'ok' : 'degraded',
+    timestamp: new Date().toISOString(),
+    services: {
+      api: 'ok',
+      rabbitmq: {
+        status: rabbitMQHealth.status,
+        lastConnectedAt: rabbitMQHealth.lastConnectedAt,
+        reconnectAttempts: rabbitMQHealth.reconnectAttempts,
+        consecutiveFailures: rabbitMQHealth.consecutiveFailures,
+        message: rabbitMQHealth.message,
+      },
+    },
+  };
+
+  const statusCode = isHealthy ? 200 : 503;
+  res.status(statusCode).json(health);
 });
 
 // Webhook routes (no auth required)
@@ -163,15 +183,26 @@ app.listen(PORT, async () => {
     // Initialize SSE service
     getSSEService();
     logger.info('SSE service initialized successfully');
+  } catch (error) {
+    logger.fatal({ error }, 'Failed to initialize SSE service');
+    process.exit(1);
+  }
 
-    // Initialize RabbitMQ consumer
-    const rabbitmqService = getRabbitMQService();
+  // Initialize RabbitMQ with automatic retry on failure
+  const rabbitmqService = getRabbitMQService();
+  try {
     await rabbitmqService.connect();
     await rabbitmqService.startConsumer();
     logger.info('RabbitMQ consumer initialized successfully');
   } catch (error) {
-    logger.fatal({ error }, 'Failed to initialize services');
-    process.exit(1);
+    // Don't crash the server - automatic reconnection will handle this
+    logger.warn({
+      error: (error as Error).message,
+      errorCode: (error as any).code,
+    }, 'RabbitMQ initial connection failed - will retry automatically in background');
+
+    // Start reconnection in background
+    rabbitmqService['reconnect']();
   }
 });
 
