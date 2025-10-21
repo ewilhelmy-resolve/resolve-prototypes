@@ -39,37 +39,35 @@ export function CrashPage({
 	iconAlt = "Error illustration",
 }: CrashPageProps) {
 	return (
-		<div className="w-full h-screen bg-[rgb(5,7,15)] flex items-start justify-start gap-0.5">
-			<div className="w-full h-full flex items-center justify-center p-6 rounded-lg border">
-				<div className="w-full max-w-[624px] flex flex-col items-center gap-6">
-					{/* Icon/Image Section */}
-					{(icon || iconSrc) && (
-						<div className="w-full h-[300px] flex items-center justify-center p-3 bg-zinc-950 border-primary rounded">
-							{icon || (
-								<img
-									src={iconSrc}
-									alt={iconAlt}
-									className="max-w-full h-auto max-h-[227px]"
-								/>
-							)}
-						</div>
-					)}
+		<div className="w-full h-screen bg-[rgb(5,7,15)] flex items-center justify-center">
+			<div className="w-full max-w-[624px] flex flex-col items-center gap-6 p-6">
+				{/* Icon/Image Section */}
+				{(icon || iconSrc) && (
+					<div className="w-full h-[300px] flex items-center justify-center p-3 bg-zinc-950 border-primary rounded">
+						{icon || (
+							<img
+								src={iconSrc}
+								alt={iconAlt}
+								className="max-w-full h-auto max-h-[227px]"
+							/>
+						)}
+					</div>
+				)}
 
-					{/* Title */}
-					<h1 className="text-muted text-[29px] font-normal leading-7 text-center">
-						{title}
-					</h1>
+				{/* Title */}
+				<h1 className="text-muted text-[29px] font-normal leading-7 text-center">
+					{title}
+				</h1>
 
-					{/* Description */}
-					<p className="text-card text-base font-light leading-6 text-center">
-						{description}
-					</p>
+				{/* Description */}
+				<p className="text-card text-base font-light leading-6 text-center">
+					{description}
+				</p>
 
-					{/* Action Button */}
-					<Button onClick={onAction} aria-label={actionLabel}>
-						{actionLabel}
-					</Button>
-				</div>
+				{/* Action Button */}
+				<Button onClick={onAction} aria-label={actionLabel}>
+					{actionLabel}
+				</Button>
 			</div>
 		</div>
 	)
