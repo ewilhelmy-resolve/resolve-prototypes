@@ -23,6 +23,10 @@ import {
 	useVerifyInvitation,
 } from "@/hooks/api/useInvitations";
 import {
+	PASSWORD_REGEX,
+	MIN_PASSWORD_LENGTH,
+} from "@/lib/validation";
+import {
 	type InvitationAPIError,
 	InvitationErrorCode,
 	type InviteAcceptFormData,
@@ -32,16 +36,14 @@ import {
  * Zod Schema for Invitation Accept Form
  * Enforces password complexity and field requirements
  * Note: Email is not included - it comes from the invitation token and is display-only
+ * Uses shared validation constants from @/lib/validation
  */
 const inviteAcceptSchema = z.object({
 	password: z
 		.string()
-		.min(8, "Password must be at least 8 characters")
+		.min(MIN_PASSWORD_LENGTH, `Password must be at least ${MIN_PASSWORD_LENGTH} characters`)
 		.refine(
-			(val) =>
-				/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/.test(
-					val,
-				),
+			(val) => PASSWORD_REGEX.test(val),
 			{
 				message:
 					"Password must contain uppercase, lowercase, number, and special character",
