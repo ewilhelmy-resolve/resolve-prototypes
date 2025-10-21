@@ -1,19 +1,18 @@
 name: Deploy to Production
 
 on:
-  pull_request:
-    branches: [ main ]
-    types: [closed] 
-
-    paths-ignore:
-      - '**.md'
-      - 'docs/**'
-      - '*.txt'
-      - 'LICENSE'
-      - '.gitignore'
+  workflow_dispatch:
+    inputs:
+      run_qa_tests:
+        description: 'Run QA Wolf tests after deployment'
+        type: boolean
+        default: true
+        required: true
+  repository_dispatch:
+    types: [deploy-production]
 
 concurrency:
-  group: qawolf-${{ github.event.pull_request.number }}
+  group: production-deploy
   cancel-in-progress: true
 
 env:
@@ -319,6 +318,10 @@ jobs:
   trigger-qawolf:
     needs: deploy-production
     name: Notify QA Wolf
+    # Run tests if manually triggered with run_qa_tests=true or if triggered via repository_dispatch
+    if: |
+      github.event_name == 'workflow_dispatch' && inputs.run_qa_tests ||
+      github.event_name == 'repository_dispatch'
     runs-on: ubuntu-latest
     steps:
       - name: Notify QA Wolf of deployment
@@ -331,7 +334,7 @@ jobs:
           # Deployment type to match specific triggers
           deployment-type: "deployment"
           # Optional: URL of the deployed environment to test
-          deployment-url: "${{ needs.deploy-environment.outputs.deployment-url || 'https://onboarding.resolve.io' }}"
+          deployment-url: "https://onboarding.resolve.io"
 
   # TODO: Uncomment after validating build images
   # Slack notification - runs on success OR failure
