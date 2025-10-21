@@ -2,10 +2,10 @@
  * ChatV1Content.test.tsx - Unit tests for chat content attachment permissions
  *
  * Tests critical attachment upload permission functionality:
- * - Admin/owner users can see and use attachment features
- * - Regular users cannot see or use attachment features
+ * - Admin/owner users can use drag-and-drop features
+ * - Regular users cannot use drag-and-drop features
  * - Drag-and-drop is enabled/disabled based on role
- * - Attachment buttons are visible/hidden based on role
+ * - Attachment button is currently hidden for all users
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest'
@@ -113,16 +113,6 @@ describe('ChatV1Content - Attachment Upload Permissions', () => {
       expect(overlay).toBeInTheDocument()
     })
 
-    it('shows attachment button for admin users', () => {
-      const props = createDefaultProps()
-      render(<ChatV1Content {...props} />)
-
-      // Find button by its sr-only text content
-      const attachmentButton = screen.getByText('Add attachment', { selector: '.sr-only' })
-      expect(attachmentButton).toBeInTheDocument()
-      expect(attachmentButton.closest('button')).toBeInTheDocument()
-    })
-
     it('enables drag-and-drop for admin users when not uploading', async () => {
       const props = createDefaultProps()
       const { useDragAndDrop } = await import('@/hooks/useDragAndDrop')
@@ -151,26 +141,6 @@ describe('ChatV1Content - Attachment Upload Permissions', () => {
         })
       )
     })
-
-    it('does not disable attachment button when not uploading', () => {
-      const props = createDefaultProps()
-      render(<ChatV1Content {...props} />)
-
-      const attachmentText = screen.getByText('Add attachment', { selector: '.sr-only' })
-      const attachmentButton = attachmentText.closest('button')
-      expect(attachmentButton).not.toBeDisabled()
-    })
-
-    it('disables attachment button when uploading', () => {
-      const props = createDefaultProps()
-      props.uploadStatus.isUploading = true
-
-      render(<ChatV1Content {...props} />)
-
-      const attachmentText = screen.getByText('Add attachment', { selector: '.sr-only' })
-      const attachmentButton = attachmentText.closest('button')
-      expect(attachmentButton).toBeDisabled()
-    })
   })
 
   describe('Regular User Permissions', () => {
@@ -185,14 +155,6 @@ describe('ChatV1Content - Attachment Upload Permissions', () => {
 
       const overlay = screen.queryByTestId('drag-drop-overlay')
       expect(overlay).not.toBeInTheDocument()
-    })
-
-    it('does NOT show attachment button for regular users', () => {
-      const props = createDefaultProps()
-      render(<ChatV1Content {...props} />)
-
-      const attachmentText = screen.queryByText('Add attachment', { selector: '.sr-only' })
-      expect(attachmentText).not.toBeInTheDocument()
     })
 
     it('disables drag-and-drop for regular users', async () => {
@@ -217,9 +179,8 @@ describe('ChatV1Content - Attachment Upload Permissions', () => {
       const textarea = screen.getByPlaceholderText(/ask me anything/i)
       expect(textarea).toBeInTheDocument()
 
-      // Verify attachment features are absent
+      // Verify drag-and-drop overlay is absent (no attachment features)
       expect(screen.queryByTestId('drag-drop-overlay')).not.toBeInTheDocument()
-      expect(screen.queryByText('Add attachment', { selector: '.sr-only' })).not.toBeInTheDocument()
     })
   })
 
@@ -234,9 +195,6 @@ describe('ChatV1Content - Attachment Upload Permissions', () => {
       // Should treat undefined as false (no permissions)
       const overlay = screen.queryByTestId('drag-drop-overlay')
       expect(overlay).not.toBeInTheDocument()
-
-      const attachmentText = screen.queryByText('Add attachment', { selector: '.sr-only' })
-      expect(attachmentText).not.toBeInTheDocument()
     })
 
     it('re-renders correctly when permissions change from false to true', async () => {
@@ -248,16 +206,14 @@ describe('ChatV1Content - Attachment Upload Permissions', () => {
 
       // Verify no attachment features
       expect(screen.queryByTestId('drag-drop-overlay')).not.toBeInTheDocument()
-      expect(screen.queryByText('Add attachment', { selector: '.sr-only' })).not.toBeInTheDocument()
 
       // Update permissions to admin
       mockIsOwnerOrAdmin.mockReturnValue(true)
       rerender(<ChatV1Content {...props} />)
 
-      // Wait for update and verify attachment features appear
+      // Wait for update and verify drag-and-drop appears
       await waitFor(() => {
         expect(screen.getByTestId('drag-drop-overlay')).toBeInTheDocument()
-        expect(screen.getByText('Add attachment', { selector: '.sr-only' })).toBeInTheDocument()
       })
     })
 
@@ -312,31 +268,6 @@ describe('ChatV1Content - Attachment Upload Permissions', () => {
           onError: expect.any(Function),
         })
       )
-    })
-  })
-
-  describe('Accessibility', () => {
-    beforeEach(() => {
-      mockIsOwnerOrAdmin.mockReturnValue(true)
-    })
-
-    it('provides sr-only label for attachment button', () => {
-      const props = createDefaultProps()
-      render(<ChatV1Content {...props} />)
-
-      const srOnly = screen.getByText('Add attachment', { selector: '.sr-only' })
-      expect(srOnly).toBeInTheDocument()
-      expect(srOnly).toHaveTextContent('Add attachment')
-      expect(srOnly).toHaveClass('sr-only')
-    })
-
-    it('includes proper ARIA attributes on interactive elements', () => {
-      const props = createDefaultProps()
-      render(<ChatV1Content {...props} />)
-
-      const attachmentText = screen.getByText('Add attachment', { selector: '.sr-only' })
-      const attachmentButton = attachmentText.closest('button')
-      expect(attachmentButton).toHaveAttribute('type', 'button')
     })
   })
 })

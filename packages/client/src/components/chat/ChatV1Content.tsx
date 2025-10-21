@@ -9,7 +9,7 @@
 "use client";
 
 import type { ChatStatus } from "ai";
-import { CheckIcon, CopyIcon, PaperclipIcon } from "lucide-react";
+import { CheckIcon, CopyIcon /* , PaperclipIcon */ } from "lucide-react";
 import { Fragment, useCallback, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Action, Actions } from "@/components/ai-elements/actions";
@@ -26,7 +26,7 @@ import {
 	PromptInputAttachment,
 	PromptInputAttachments,
 	PromptInputBody,
-	PromptInputButton,
+	// PromptInputButton, // TODO: Uncomment when re-enabling attachment button
 	type PromptInputMessage,
 	PromptInputSubmit,
 	PromptInputTextarea,
@@ -447,9 +447,10 @@ export default function ChatV1Content({
 	}, []);
 
 	// Handle direct attachment button click
-	const handleAttachmentClick = useCallback(() => {
-		fileInputRef.current?.click();
-	}, [fileInputRef]);
+	// TODO: Uncomment when re-enabling attachment button
+	// const handleAttachmentClick = useCallback(() => {
+	// 	fileInputRef.current?.click();
+	// }, [fileInputRef]);
 
 	return (
 		<div className="h-full flex flex-col relative">
@@ -558,17 +559,7 @@ export default function ChatV1Content({
 						</PromptInputBody>
 						<PromptInputToolbar>
 							<PromptInputTools>
-								{/* Show attachment button only for admins */}
-								{isAdmin && (
-									<PromptInputButton
-										onClick={handleAttachmentClick}
-										variant="ghost"
-										disabled={uploadStatus.isUploading}
-									>
-										<PaperclipIcon size={16} />
-										<span className="sr-only">Add attachment</span>
-									</PromptInputButton>
-								)}
+								{/* TODO: Re-enable attachment button when backend support is ready */}
 							</PromptInputTools>
 							<PromptInputSubmit
 								disabled={
