@@ -59,6 +59,7 @@ import { ResponseWithInlineCitations } from "./ResponseWithInlineCitations";
 import { useDragAndDrop } from "@/hooks/useDragAndDrop";
 import { useUploadFile } from "@/hooks/api/useFiles";
 // import { useProfilePermissions } from "@/hooks/api/useProfile"; // TODO: Re-enable when backend support is ready
+import { SUPPORTED_DOCUMENT_TYPES } from "@/lib/constants";
 
 export interface ChatV1ContentProps {
 	// Message state
@@ -362,7 +363,7 @@ export default function ChatV1Content({
 	// TODO: Re-enable when backend support is ready (set enabled to: !uploadStatus.isUploading && isAdmin)
 	/* const { isDragging } = */ useDragAndDrop({
 		enabled: false,
-		accept: ".pdf,.txt,.md,.doc,.docx,.xls,.xlsx",
+		accept: SUPPORTED_DOCUMENT_TYPES,
 		maxFiles: 5,
 		maxFileSize: 10 * 1024 * 1024, // 10MB
 		onDrop: handleDragDropUpload,
@@ -460,7 +461,7 @@ export default function ChatV1Content({
 			{/* {isAdmin && (
 				<DragDropOverlay
 					isDragging={isDragging}
-					accept=".pdf,.txt,.md,.doc,.docx,.xls,.xlsx"
+					accept={SUPPORTED_DOCUMENT_TYPES}
 					maxFiles={5}
 					maxFileSize={10 * 1024 * 1024}
 				/>
@@ -582,7 +583,7 @@ export default function ChatV1Content({
 				type="file"
 				className="hidden"
 				onChange={handleFileUpload}
-				accept=".jpg,.jpeg,.png,.gif,.webp,.pdf,.txt,.md,.doc,.docx,.xls,.xlsx"
+				accept={SUPPORTED_DOCUMENT_TYPES}
 				disabled={uploadStatus.isUploading}
 				multiple={false}
 			/>
