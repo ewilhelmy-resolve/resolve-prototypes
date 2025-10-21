@@ -27,7 +27,7 @@ export function LoginPage() {
 		company?: string;
 		password?: string;
 	}>({});
-	const [touchedFields, setTouchedFields] = useState<{
+	const [dirtyFields, setDirtyFields] = useState<{
 		firstName?: boolean;
 		lastName?: boolean;
 		email?: boolean;
@@ -63,6 +63,15 @@ export function LoginPage() {
 		setSignupLoading(true);
 		setSignupError(null);
 		setFieldErrors({});
+
+		// Mark all fields as dirty on submit
+		setDirtyFields({
+			firstName: true,
+			lastName: true,
+			email: true,
+			company: true,
+			password: true,
+		});
 
 		// Validate all fields using reusable validation utilities
 		const errors: typeof fieldErrors = {};
@@ -184,10 +193,15 @@ export function LoginPage() {
 											placeholder="John"
 											value={signupForm.firstName}
 											onChange={(e) => {
+												const value = e.target.value;
 												setSignupForm((prev) => ({
 													...prev,
-													firstName: e.target.value,
+													firstName: value,
 												}));
+												// Mark as dirty if value is not empty
+												if (value.trim() !== "") {
+													setDirtyFields((prev) => ({ ...prev, firstName: true }));
+												}
 												// Clear error when user types
 												if (fieldErrors.firstName) {
 													setFieldErrors((prev) => ({
@@ -197,10 +211,12 @@ export function LoginPage() {
 												}
 											}}
 											onBlur={() => {
-												setTouchedFields((prev) => ({ ...prev, firstName: true }));
-												const error = validateRequired(signupForm.firstName, "First name");
-												if (error) {
-													setFieldErrors((prev) => ({ ...prev, firstName: error }));
+												// Only validate if field has been modified (is dirty)
+												if (dirtyFields.firstName) {
+													const error = validateRequired(signupForm.firstName, "First name");
+													if (error) {
+														setFieldErrors((prev) => ({ ...prev, firstName: error }));
+													}
 												}
 											}}
 											required
@@ -223,10 +239,15 @@ export function LoginPage() {
 											placeholder="Doe"
 											value={signupForm.lastName}
 											onChange={(e) => {
+												const value = e.target.value;
 												setSignupForm((prev) => ({
 													...prev,
-													lastName: e.target.value,
+													lastName: value,
 												}));
+												// Mark as dirty if value is not empty
+												if (value.trim() !== "") {
+													setDirtyFields((prev) => ({ ...prev, lastName: true }));
+												}
 												// Clear error when user types
 												if (fieldErrors.lastName) {
 													setFieldErrors((prev) => ({
@@ -236,10 +257,12 @@ export function LoginPage() {
 												}
 											}}
 											onBlur={() => {
-												setTouchedFields((prev) => ({ ...prev, lastName: true }));
-												const error = validateRequired(signupForm.lastName, "Last name");
-												if (error) {
-													setFieldErrors((prev) => ({ ...prev, lastName: error }));
+												// Only validate if field has been modified (is dirty)
+												if (dirtyFields.lastName) {
+													const error = validateRequired(signupForm.lastName, "Last name");
+													if (error) {
+														setFieldErrors((prev) => ({ ...prev, lastName: error }));
+													}
 												}
 											}}
 											required
@@ -263,10 +286,15 @@ export function LoginPage() {
 										placeholder="you@acme.com"
 										value={signupForm.email}
 										onChange={(e) => {
+											const value = e.target.value;
 											setSignupForm((prev) => ({
 												...prev,
-												email: e.target.value,
+												email: value,
 											}));
+											// Mark as dirty if value is not empty
+											if (value.trim() !== "") {
+												setDirtyFields((prev) => ({ ...prev, email: true }));
+											}
 											// Clear error when user types
 											if (fieldErrors.email) {
 												setFieldErrors((prev) => ({
@@ -276,10 +304,12 @@ export function LoginPage() {
 											}
 										}}
 										onBlur={() => {
-											setTouchedFields((prev) => ({ ...prev, email: true }));
-											const error = validateEmail(signupForm.email);
-											if (error) {
-												setFieldErrors((prev) => ({ ...prev, email: error }));
+											// Only validate if field has been modified (is dirty)
+											if (dirtyFields.email) {
+												const error = validateEmail(signupForm.email);
+												if (error) {
+													setFieldErrors((prev) => ({ ...prev, email: error }));
+												}
 											}
 										}}
 										required
@@ -300,10 +330,15 @@ export function LoginPage() {
 										placeholder="Acme Inc."
 										value={signupForm.company}
 										onChange={(e) => {
+											const value = e.target.value;
 											setSignupForm((prev) => ({
 												...prev,
-												company: e.target.value,
+												company: value,
 											}));
+											// Mark as dirty if value is not empty
+											if (value.trim() !== "") {
+												setDirtyFields((prev) => ({ ...prev, company: true }));
+											}
 											// Clear error when user types
 											if (fieldErrors.company) {
 												setFieldErrors((prev) => ({
@@ -313,10 +348,12 @@ export function LoginPage() {
 											}
 										}}
 										onBlur={() => {
-											setTouchedFields((prev) => ({ ...prev, company: true }));
-											const error = validateRequired(signupForm.company, "Company name");
-											if (error) {
-												setFieldErrors((prev) => ({ ...prev, company: error }));
+											// Only validate if field has been modified (is dirty)
+											if (dirtyFields.company) {
+												const error = validateRequired(signupForm.company, "Company name");
+												if (error) {
+													setFieldErrors((prev) => ({ ...prev, company: error }));
+												}
 											}
 										}}
 										required
@@ -337,10 +374,15 @@ export function LoginPage() {
 										placeholder="••••••••"
 										value={signupForm.password}
 										onChange={(e) => {
+											const value = e.target.value;
 											setSignupForm((prev) => ({
 												...prev,
-												password: e.target.value,
+												password: value,
 											}));
+											// Mark as dirty if value is not empty
+											if (value !== "") {
+												setDirtyFields((prev) => ({ ...prev, password: true }));
+											}
 											// Clear error when user types
 											if (fieldErrors.password) {
 												setFieldErrors((prev) => ({
@@ -350,10 +392,12 @@ export function LoginPage() {
 											}
 										}}
 										onBlur={() => {
-											setTouchedFields((prev) => ({ ...prev, password: true }));
-											const error = validatePassword(signupForm.password);
-											if (error) {
-												setFieldErrors((prev) => ({ ...prev, password: error }));
+											// Only validate if field has been modified (is dirty)
+											if (dirtyFields.password) {
+												const error = validatePassword(signupForm.password);
+												if (error) {
+													setFieldErrors((prev) => ({ ...prev, password: error }));
+												}
 											}
 										}}
 										required
