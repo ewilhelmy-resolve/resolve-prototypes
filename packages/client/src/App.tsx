@@ -53,8 +53,6 @@ const AppContent: React.FC = () => {
 				onAction={() => {
 					window.location.href = '/login';
 				}}
-				iconSrc="/images/signal_Image.svg"
-				iconAlt="Signal interrupted illustration"
 			/>
 		);
 	}

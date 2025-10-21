@@ -109,8 +109,6 @@ export default function UsersTable() {
 				description={error.message || "An error occurred while fetching members. Please try again."}
 				actionLabel="Try Again"
 				onAction={() => window.location.reload()}
-				iconSrc="/images/signal_Image.svg"
-				iconAlt="Error loading members"
 			/>
 		);
 	}
