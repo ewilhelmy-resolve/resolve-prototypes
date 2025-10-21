@@ -6,10 +6,12 @@
     "dev:api": "cd packages/api-server && npm run dev",
     "dev:client": "cd packages/client && npm run dev",
     "dev:mock": "cd packages/mock-service && npm run dev",
+    "dev:theme": "cd keycloak && npm run dev",
     "migrate": "cd packages/api-server && npm run migrate",
     "test:auth": "cd packages/api-server && npm run test:auth",
     "test": "cd packages/client && npm run test",
     "build": "cd packages/api-server && npm run build && cd ../client && npm run build",
+    "build:theme": "cd keycloak && npm run build",
     "lint": "cd packages/api-server && npm run lint && cd ../client && npm run lint",
     "type-check": "cd packages/api-server && npm run type-check && cd ../client && npm run type-check && cd ../mock-service && npm run type-check",
     "prepare": "husky"

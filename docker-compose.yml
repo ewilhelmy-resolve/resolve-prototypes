@@ -45,7 +45,12 @@ services:
       - "8080:8080"
     volumes:
       - ./keycloak/realm-export.json:/opt/keycloak/data/import/realm-export.json
-    command: start-dev --import-realm
+      - ./keycloak/themes:/opt/keycloak/themes/
+    command: >
+      start-dev
+      --import-realm
+      --spi-theme-cache-themes=false
+      --spi-theme-cache-templates=false
 
 volumes:
   postgres_data:
