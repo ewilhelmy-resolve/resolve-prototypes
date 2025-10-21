@@ -4,7 +4,7 @@ import { Navigate, useNavigate } from "react-router-dom";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { useAuth } from "../hooks/useAuth";
-import { validatePassword, validateRequired, validateEmail } from "../lib/validation";
+import { validateEmail, validatePassword, validateRequired } from "../lib/validation";
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || "";
 
