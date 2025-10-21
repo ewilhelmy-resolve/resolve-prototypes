@@ -37,6 +37,7 @@ import {
   Trash2,
 } from 'lucide-react'
 import { useFiles, useUploadFile, useDownloadFile, useReprocessFile, useDeleteFile, type FileDocument } from '@/hooks/api/useFiles'
+import { SUPPORTED_DOCUMENT_TYPES } from '@/lib/constants'
 
 const formatFileSize = (bytes: number): string => {
   if (bytes === 0) return '0 Bytes'
@@ -448,7 +449,7 @@ export default function FilesV1Content() {
         type="file"
         className="hidden"
         onChange={handleFileChange}
-        accept=".jpg,.jpeg,.png,.gif,.webp,.pdf,.txt,.md,.doc,.docx,.xls,.xlsx"
+        accept={SUPPORTED_DOCUMENT_TYPES}
         disabled={uploadFileMutation.isPending}
       />
 

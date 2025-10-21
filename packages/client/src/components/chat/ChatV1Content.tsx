@@ -9,7 +9,7 @@
 "use client";
 
 import type { ChatStatus } from "ai";
-import { CheckIcon, CopyIcon, PaperclipIcon } from "lucide-react";
+import { CheckIcon, CopyIcon /* , PaperclipIcon */ } from "lucide-react";
 import { Fragment, useCallback, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Action, Actions } from "@/components/ai-elements/actions";
@@ -23,14 +23,10 @@ import { Loader } from "@/components/ai-elements/loader";
 import { Message, MessageContent } from "@/components/ai-elements/message";
 import {
 	PromptInput,
-	PromptInputActionAddAttachments,
-	PromptInputActionMenu,
-	PromptInputActionMenuContent,
-	PromptInputActionMenuTrigger,
 	PromptInputAttachment,
 	PromptInputAttachments,
 	PromptInputBody,
-	PromptInputButton,
+	// PromptInputButton, // TODO: Uncomment when re-enabling attachment button
 	type PromptInputMessage,
 	PromptInputSubmit,
 	PromptInputTextarea,
@@ -59,9 +55,11 @@ import type {
 } from "@/stores/conversationStore";
 import { useConversationStore } from "@/stores/conversationStore";
 import { ResponseWithInlineCitations } from "./ResponseWithInlineCitations";
-import { DragDropOverlay } from "./DragDropOverlay";
+// import { DragDropOverlay } from "./DragDropOverlay"; // TODO: Re-enable when backend support is ready
 import { useDragAndDrop } from "@/hooks/useDragAndDrop";
 import { useUploadFile } from "@/hooks/api/useFiles";
+// import { useProfilePermissions } from "@/hooks/api/useProfile"; // TODO: Re-enable when backend support is ready
+import { SUPPORTED_DOCUMENT_TYPES } from "@/lib/constants";
 
 export interface ChatV1ContentProps {
 	// Message state
@@ -333,6 +331,11 @@ export default function ChatV1Content({
 	// Copy state tracking for icon feedback
 	const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
 
+	// Check if user is admin/owner (only admins can upload attachments - currently disabled for all users)
+	// TODO: Re-enable when backend support is ready
+	// const { isOwnerOrAdmin } = useProfilePermissions();
+	// const isAdmin = isOwnerOrAdmin();
+
 	// Get grouped messages from store instead of flat messages
 	const { chatMessages } = useConversationStore();
 
@@ -356,10 +359,11 @@ export default function ChatV1Content({
 		});
 	}, [uploadFileMutation]);
 
-	// Drag-and-drop with file upload functionality
-	const { isDragging } = useDragAndDrop({
-		enabled: !uploadStatus.isUploading,
-		accept: "image/*,.pdf,.txt,.md,.doc,.docx,.xls,.xlsx",
+	// Drag-and-drop with file upload functionality (disabled for all users)
+	// TODO: Re-enable when backend support is ready (set enabled to: !uploadStatus.isUploading && isAdmin)
+	/* const { isDragging } = */ useDragAndDrop({
+		enabled: false,
+		accept: SUPPORTED_DOCUMENT_TYPES,
 		maxFiles: 5,
 		maxFileSize: 10 * 1024 * 1024, // 10MB
 		onDrop: handleDragDropUpload,
@@ -446,19 +450,22 @@ export default function ChatV1Content({
 	}, []);
 
 	// Handle direct attachment button click
-	const handleAttachmentClick = useCallback(() => {
-		fileInputRef.current?.click();
-	}, [fileInputRef]);
+	// TODO: Uncomment when re-enabling attachment button
+	// const handleAttachmentClick = useCallback(() => {
+	// 	fileInputRef.current?.click();
+	// }, [fileInputRef]);
 
 	return (
 		<div className="h-full flex flex-col relative">
-			{/* Drag-and-drop overlay */}
-			<DragDropOverlay
-				isDragging={isDragging}
-				accept="image/*,.pdf,.txt,.md,.doc,.docx,.xls,.xlsx"
-				maxFiles={5}
-				maxFileSize={10 * 1024 * 1024}
-			/>
+			{/* Drag-and-drop overlay (disabled - TODO: Re-enable when backend support is ready) */}
+			{/* {isAdmin && (
+				<DragDropOverlay
+					isDragging={isDragging}
+					accept={SUPPORTED_DOCUMENT_TYPES}
+					maxFiles={5}
+					maxFileSize={10 * 1024 * 1024}
+				/>
+			)} */}
 
 			<Conversation className="flex-1" contextRef={handleStickToBottomContext}>
 				<ConversationContent className="px-6 py-6">
@@ -536,11 +543,11 @@ export default function ChatV1Content({
 				<div className="max-w-4xl mx-auto">
 					<PromptInput
 						onSubmit={handlePromptSubmit}
-						globalDrop
-						multiple
-						accept="image/*,.pdf,.txt,.md,.doc,.docx,.xls,.xlsx"
-						maxFiles={5}
-						maxFileSize={10 * 1024 * 1024} // 10MB
+						globalDrop={false}
+						multiple={false}
+						accept={undefined}
+						maxFiles={undefined}
+						maxFileSize={undefined}
 					>
 						<PromptInputBody>
 							<PromptInputAttachments>
@@ -555,20 +562,7 @@ export default function ChatV1Content({
 						</PromptInputBody>
 						<PromptInputToolbar>
 							<PromptInputTools>
-								<PromptInputButton
-									onClick={handleAttachmentClick}
-									variant="ghost"
-									disabled={uploadStatus.isUploading}
-								>
-									<PaperclipIcon size={16} />
-									<span className="sr-only">Add attachment</span>
-								</PromptInputButton>
-								<PromptInputActionMenu>
-									<PromptInputActionMenuTrigger />
-									<PromptInputActionMenuContent>
-										<PromptInputActionAddAttachments />
-									</PromptInputActionMenuContent>
-								</PromptInputActionMenu>
+								{/* TODO: Re-enable attachment button when backend support is ready */}
 							</PromptInputTools>
 							<PromptInputSubmit
 								disabled={
@@ -589,7 +583,7 @@ export default function ChatV1Content({
 				type="file"
 				className="hidden"
 				onChange={handleFileUpload}
-				accept=".jpg,.jpeg,.png,.gif,.webp,.pdf,.txt,.md,.doc,.docx,.xls,.xlsx"
+				accept={SUPPORTED_DOCUMENT_TYPES}
 				disabled={uploadStatus.isUploading}
 				multiple={false}
 			/>

@@ -64,6 +64,7 @@ import { useKnowledgeBase } from "@/hooks/useKnowledgeBase";
 import { useFeatureFlag } from "@/hooks/useFeatureFlags";
 import type { Conversation } from "@/stores/conversationStore";
 import InviteUserCard from "../users/InviteUserCard";
+import { SUPPORTED_DOCUMENT_TYPES } from "@/lib/constants";
 
 export interface RitaLayoutProps {
 	children: React.ReactNode;
@@ -529,7 +530,7 @@ function RitaLayoutContent({ children, activePage = "chat" }: RitaLayoutProps) {
 				type="file"
 				className="hidden"
 				onChange={handleDocumentUpload}
-				accept=".jpg,.jpeg,.png,.gif,.webp,.pdf,.txt,.md,.doc,.docx,.xls,.xlsx"
+				accept={SUPPORTED_DOCUMENT_TYPES}
 				multiple={false}
 			/>
 
