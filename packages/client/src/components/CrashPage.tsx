@@ -43,7 +43,7 @@ export function CrashPage({
 			<div className="w-full max-w-[624px] flex flex-col items-center gap-6 p-6">
 				{/* Icon/Image Section */}
 				{(icon || iconSrc) && (
-					<div className="w-full h-[300px] flex items-center justify-center p-3 bg-zinc-950 border-primary rounded">
+					<div className="w-full h-[300px] flex items-center justify-center p-3 bg-zinc-950 rounded">
 						{icon || (
 							<img
 								src={iconSrc}
