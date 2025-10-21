@@ -23,10 +23,6 @@ import { Loader } from "@/components/ai-elements/loader";
 import { Message, MessageContent } from "@/components/ai-elements/message";
 import {
 	PromptInput,
-	PromptInputActionAddAttachments,
-	PromptInputActionMenu,
-	PromptInputActionMenuContent,
-	PromptInputActionMenuTrigger,
 	PromptInputAttachment,
 	PromptInputAttachments,
 	PromptInputBody,
@@ -562,24 +558,16 @@ export default function ChatV1Content({
 						</PromptInputBody>
 						<PromptInputToolbar>
 							<PromptInputTools>
-								{/* Show attachment buttons only for admins */}
+								{/* Show attachment button only for admins */}
 								{isAdmin && (
-									<>
-										<PromptInputButton
-											onClick={handleAttachmentClick}
-											variant="ghost"
-											disabled={uploadStatus.isUploading}
-										>
-											<PaperclipIcon size={16} />
-											<span className="sr-only">Add attachment</span>
-										</PromptInputButton>
-										<PromptInputActionMenu>
-											<PromptInputActionMenuTrigger />
-											<PromptInputActionMenuContent>
-												<PromptInputActionAddAttachments />
-											</PromptInputActionMenuContent>
-										</PromptInputActionMenu>
-									</>
+									<PromptInputButton
+										onClick={handleAttachmentClick}
+										variant="ghost"
+										disabled={uploadStatus.isUploading}
+									>
+										<PaperclipIcon size={16} />
+										<span className="sr-only">Add attachment</span>
+									</PromptInputButton>
 								)}
 							</PromptInputTools>
 							<PromptInputSubmit

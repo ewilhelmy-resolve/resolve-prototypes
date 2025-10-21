@@ -152,16 +152,6 @@ describe('ChatV1Content - Attachment Upload Permissions', () => {
       )
     })
 
-    it('shows action menu with attachment option for admin users', () => {
-      const props = createDefaultProps()
-      render(<ChatV1Content {...props} />)
-
-      // Action menu trigger should be present (dropdown menu button)
-      const buttons = screen.getAllByRole('button')
-      // Should have at least the attachment button and action menu button
-      expect(buttons.length).toBeGreaterThanOrEqual(2)
-    })
-
     it('does not disable attachment button when not uploading', () => {
       const props = createDefaultProps()
       render(<ChatV1Content {...props} />)
@@ -217,15 +207,6 @@ describe('ChatV1Content - Attachment Upload Permissions', () => {
           enabled: false, // !isAdmin
         })
       )
-    })
-
-    it('does NOT show action menu for regular users', () => {
-      const props = createDefaultProps()
-      render(<ChatV1Content {...props} />)
-
-      // Attachment text should not be present
-      const attachmentText = screen.queryByText('Add attachment', { selector: '.sr-only' })
-      expect(attachmentText).not.toBeInTheDocument()
     })
 
     it('renders chat interface without attachment features', () => {
