@@ -1,11 +1,11 @@
 /**
  * ChatV1Content.test.tsx - Unit tests for chat content attachment permissions
  *
- * Tests critical attachment upload permission functionality:
- * - Admin/owner users can use drag-and-drop features
- * - Regular users cannot use drag-and-drop features
- * - Drag-and-drop is enabled/disabled based on role
- * - Attachment button is currently hidden for all users
+ * Tests attachment upload functionality (currently disabled):
+ * - All attachment features are temporarily disabled for ALL users
+ * - Drag-and-drop overlay still conditionally shown for admins (non-functional)
+ * - Permission checks remain in place for future re-enablement
+ * - Tests verify permission-based conditional rendering
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest'
@@ -231,41 +231,6 @@ describe('ChatV1Content - Attachment Upload Permissions', () => {
       expect(useDragAndDrop).toHaveBeenCalledWith(
         expect.objectContaining({
           enabled: false, // isUploading is true, so disabled
-        })
-      )
-    })
-  })
-
-  describe('Drag-and-Drop Configuration', () => {
-    beforeEach(() => {
-      mockIsOwnerOrAdmin.mockReturnValue(true)
-    })
-
-    it('configures drag-and-drop with correct file types', async () => {
-      const props = createDefaultProps()
-      const { useDragAndDrop } = await import('@/hooks/useDragAndDrop')
-
-      render(<ChatV1Content {...props} />)
-
-      expect(useDragAndDrop).toHaveBeenCalledWith(
-        expect.objectContaining({
-          accept: ".pdf,.txt,.md,.doc,.docx,.xls,.xlsx",
-          maxFiles: 5,
-          maxFileSize: 10 * 1024 * 1024, // 10MB
-        })
-      )
-    })
-
-    it('passes onDrop and onError handlers to drag-and-drop hook', async () => {
-      const props = createDefaultProps()
-      const { useDragAndDrop } = await import('@/hooks/useDragAndDrop')
-
-      render(<ChatV1Content {...props} />)
-
-      expect(useDragAndDrop).toHaveBeenCalledWith(
-        expect.objectContaining({
-          onDrop: expect.any(Function),
-          onError: expect.any(Function),
         })
       )
     })

@@ -540,11 +540,11 @@ export default function ChatV1Content({
 				<div className="max-w-4xl mx-auto">
 					<PromptInput
 						onSubmit={handlePromptSubmit}
-						globalDrop={isAdmin}
-						multiple={isAdmin}
-						accept={isAdmin ? ".pdf,.txt,.md,.doc,.docx,.xls,.xlsx" : undefined}
-						maxFiles={isAdmin ? 5 : undefined}
-						maxFileSize={isAdmin ? 10 * 1024 * 1024 : undefined}
+						globalDrop={false}
+						multiple={false}
+						accept={undefined}
+						maxFiles={undefined}
+						maxFileSize={undefined}
 					>
 						<PromptInputBody>
 							<PromptInputAttachments>
