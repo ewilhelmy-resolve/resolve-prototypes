@@ -1,5 +1,6 @@
-import { Ban, Check, Loader, MoreHorizontal, XCircle } from "lucide-react";
+import { Ban, Check, Loader, MoreHorizontal } from "lucide-react";
 import { BulkActions } from "@/components/BulkActions";
+import { CrashPage } from "@/components/CrashPage";
 import ConfirmDialog from "@/components/dialogs/ConfirmDialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -103,16 +104,14 @@ export default function UsersTable() {
 	// Error state
 	if (error) {
 		return (
-			<div className="flex flex-col items-center justify-center py-12 text-center">
-				<XCircle className="h-12 w-12 text-destructive mb-4" />
-				<h3 className="text-lg font-semibold mb-2">Failed to load members</h3>
-				<p className="text-sm text-muted-foreground mb-4">
-					{error.message || "An error occurred while fetching members"}
-				</p>
-				<Button variant="outline" onClick={() => window.location.reload()}>
-					Try Again
-				</Button>
-			</div>
+			<CrashPage
+				title="Failed to load members"
+				description={error.message || "An error occurred while fetching members. Please try again."}
+				actionLabel="Try Again"
+				onAction={() => window.location.reload()}
+				iconSrc="/images/signal_Image.svg"
+				iconAlt="Error loading members"
+			/>
 		);
 	}
 
