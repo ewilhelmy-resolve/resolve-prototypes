@@ -45,7 +45,10 @@ services:
       - "8080:8080"
     volumes:
       - ./keycloak/realm-export.json:/opt/keycloak/data/import/realm-export.json
+      # Development: Mount local theme files for live editing
       - ./keycloak/themes:/opt/keycloak/themes/
+      # Production testing: Mount JAR file from GitHub Actions build
+      #- ./keycloak/rita-theme-v2-20251021-5d3c10a2.jar:/opt/keycloak/providers/rita-theme-v2.jar
     command: >
       start-dev
       --import-realm
