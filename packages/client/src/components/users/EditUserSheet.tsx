@@ -30,6 +30,7 @@ interface EditUserSheetProps {
 			role?: OrganizationRole;
 		},
 	) => void;
+	isLastActiveOwner?: boolean;
 }
 
 /**
@@ -46,6 +47,7 @@ export default function EditUserSheet({
 	onOpenChange,
 	user,
 	onSave,
+	isLastActiveOwner = false,
 }: EditUserSheetProps) {
 	const { isOwner, isAdmin } = useProfilePermissions();
 	const [selectedRole, setSelectedRole] = useState<OrganizationRole>("user");
@@ -114,6 +116,7 @@ export default function EditUserSheet({
 							onValueChange={(value) =>
 								setSelectedRole(value as OrganizationRole)
 							}
+							disabled={isLastActiveOwner}
 						>
 							<SelectTrigger id="role">
 								<SelectValue placeholder="Select role" />
@@ -154,6 +157,12 @@ export default function EditUserSheet({
 								</SelectItemWithDescription>
 							</SelectContent>
 						</Select>
+						{isLastActiveOwner && (
+							<p className="text-sm text-muted-foreground">
+								Cannot change role: This is the only active owner in the organization.
+								Promote another member to owner first.
+							</p>
+						)}
 					</div>
 				</div>
 

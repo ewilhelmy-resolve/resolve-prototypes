@@ -97,6 +97,14 @@ export default function UsersTable() {
 		return name.includes(query) || email.includes(query);
 	});
 
+	// Check if a user is the last active owner in the organization
+	const isLastActiveOwner = (userId: string): boolean => {
+		const activeOwners = allMembers.filter(
+			(m) => m.role === "owner" && m.isActive
+		);
+		return activeOwners.length === 1 && activeOwners[0].id === userId;
+	};
+
 	// Loading state
 	if (isLoading) {
 		return (
@@ -432,6 +440,7 @@ export default function UsersTable() {
 				onOpenChange={setEditSheetOpen}
 				user={editingUser}
 				onSave={handleSaveUser}
+				isLastActiveOwner={editingUser ? isLastActiveOwner(editingUser.id) : false}
 			/>
 
 			{/* Deactivate Dialog */}
