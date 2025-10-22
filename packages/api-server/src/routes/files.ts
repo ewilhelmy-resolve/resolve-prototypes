@@ -341,15 +341,23 @@ router.get('/:documentId/metadata', authenticateUser, async (req, res) => {
     }
 
     // Return metadata with processed content (no raw blob data)
+    // Frontend expects article content in metadata.content field
+    const metadata = result.metadata || {};
+    metadata.content = result.processed_markdown;
+
     res.json({
       id: result.id,
+      organization_id: result.organization_id,
+      user_id: result.user_id,
       filename: result.filename,
       file_size: result.file_size,
       mime_type: result.mime_type,
+      status: result.status,
+      processed_markdown: result.processed_markdown,
+      metadata: metadata,
       created_at: result.created_at,
       updated_at: result.updated_at,
-      status: result.status,
-      metadata: result.metadata || {}
+      blob_id: result.blob_id
     });
 
   } catch (error) {
