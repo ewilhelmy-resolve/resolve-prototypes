@@ -534,7 +534,7 @@ describe('MemberService - Critical Business Rules', () => {
       expect(mockClient.query).toHaveBeenCalledWith('COMMIT');
     });
 
-    it('deleteOwnAccount should handle owner self-deletion', async () => {
+    it('deleteOwnAccount should handle last owner self-deletion', async () => {
       const userId = 'owner-123';
 
       // Mock BEGIN
@@ -564,13 +564,78 @@ describe('MemberService - Critical Business Rules', () => {
         rowCount: 1
       });
 
+      // Mock isLastActiveOwner check (returns 0 other owners = is last owner)
+      (mockPool.query as any).mockResolvedValueOnce({
+        rows: [{ owner_count: 0 }],
+        rowCount: 1
+      });
+
       // Mock audit log INSERT
       mockClient.query.mockResolvedValueOnce({});
 
-      // Mock DELETE user_profiles
+      // Mock DELETE user_profiles (batch delete all members)
       mockClient.query.mockResolvedValueOnce({});
 
       // Mock DELETE organization
+      mockClient.query.mockResolvedValueOnce({});
+
+      // Mock COMMIT
+      mockClient.query.mockResolvedValueOnce({});
+
+      const result = await memberService.deleteOwnAccount(userId);
+
+      expect(result.success).toBe(true);
+      expect(result.removedMember.email).toBe('owner@example.com');
+      expect(mockClient.query).toHaveBeenCalledWith('COMMIT');
+    });
+
+    it('deleteOwnAccount should handle owner self-deletion with other owners', async () => {
+      const userId = 'owner-123';
+
+      // Mock BEGIN
+      mockClient.query.mockResolvedValueOnce({});
+
+      // Mock user details
+      mockClient.query.mockResolvedValueOnce({
+        rows: [{
+          user_id: userId,
+          email: 'owner@example.com',
+          first_name: 'Owner',
+          last_name: 'User',
+          organization_id: 'org-123',
+          role: 'owner',
+          is_active: true
+        }],
+        rowCount: 1
+      });
+
+      // Mock all org members (2 owners)
+      mockClient.query.mockResolvedValueOnce({
+        rows: [
+          {
+            user_id: userId,
+            email: 'owner@example.com',
+            role: 'owner'
+          },
+          {
+            user_id: 'owner-456',
+            email: 'owner2@example.com',
+            role: 'owner'
+          }
+        ],
+        rowCount: 2
+      });
+
+      // Mock isLastActiveOwner check (returns 1 other owner = not last owner)
+      (mockPool.query as any).mockResolvedValueOnce({
+        rows: [{ owner_count: 1 }],
+        rowCount: 1
+      });
+
+      // Mock audit log INSERT
+      mockClient.query.mockResolvedValueOnce({});
+
+      // Mock DELETE user_profiles (only delete this owner)
       mockClient.query.mockResolvedValueOnce({});
 
       // Mock COMMIT

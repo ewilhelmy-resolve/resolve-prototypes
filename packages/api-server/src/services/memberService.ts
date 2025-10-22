@@ -892,15 +892,28 @@ export class MemberService {
         );
         allOrgMembers = membersResult.rows;
 
-        // If user is an owner, they can delete the entire organization
+        // If user is the LAST owner, they can delete the entire organization
         // This will delete ALL members and organization data
         if (user.role === 'owner') {
-          deleteEntireOrganization = true;
-          logger.info({
-            userId,
-            organizationId: user.organization_id,
-            memberCount: allOrgMembers.length
-          }, 'Owner deleting account - will delete entire organization and all members');
+          // Check if this is the last active owner
+          const isLastOwner = await this.isLastActiveOwner(user.organization_id, userId);
+
+          if (isLastOwner) {
+            deleteEntireOrganization = true;
+            logger.info({
+              userId,
+              organizationId: user.organization_id,
+              memberCount: allOrgMembers.length
+            }, 'Last owner deleting account - will delete entire organization and all members');
+          } else {
+            // Other owners exist, so just delete this owner's account
+            deleteEntireOrganization = false;
+            logger.info({
+              userId,
+              organizationId: user.organization_id,
+              memberCount: allOrgMembers.length
+            }, 'Owner deleting account - other owners exist, only deleting this owner');
+          }
         } else {
           // Non-owners can only delete their own account (not the whole org)
           deleteEntireOrganization = false;
