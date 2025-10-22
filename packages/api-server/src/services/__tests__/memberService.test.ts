@@ -2,6 +2,16 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { MemberService } from '../memberService.js';
 import type { Pool } from 'pg';
 
+// Mock WebhookService to avoid DATABASE_URL requirement
+vi.mock('../WebhookService.js', () => ({
+  WebhookService: vi.fn().mockImplementation(() => ({
+    deleteKeycloakUser: vi.fn().mockResolvedValue({
+      success: true,
+      status: 200
+    })
+  }))
+}));
+
 // Mock SSE service
 vi.mock('../sse.js', () => ({
   getSSEService: vi.fn(() => ({
@@ -479,17 +489,98 @@ describe('MemberService - Critical Business Rules', () => {
     });
   });
 
-  describe('Phase 2 Placeholder Methods', () => {
-    it('should throw error when attempting hard delete', async () => {
-      await expect(
-        memberService.deleteMemberPermanent('org-123', 'user-456', 'owner-789')
-      ).rejects.toThrow('Hard delete not implemented - Phase 2 feature');
+  describe('Phase 2 Hard Delete Methods', () => {
+    it('deleteMemberPermanent should call webhook and delete user', async () => {
+      const orgId = 'org-123';
+      const userId = 'user-456';
+      const performerId = 'owner-789';
+
+      // Mock BEGIN
+      mockClient.query.mockResolvedValueOnce({});
+
+      // Mock permission check
+      (mockPool.query as any).mockResolvedValueOnce({
+        rows: [{ performer_role: 'owner', target_role: 'user' }],
+        rowCount: 1
+      });
+
+      // Mock member details
+      mockClient.query.mockResolvedValueOnce({
+        rows: [{
+          user_id: userId,
+          email: 'user@example.com',
+          first_name: 'Test',
+          last_name: 'User',
+          role: 'user',
+          is_active: true,
+          joined_at: new Date()
+        }],
+        rowCount: 1
+      });
+
+      // Mock audit log INSERT
+      mockClient.query.mockResolvedValueOnce({});
+
+      // Mock DELETE user_profiles
+      mockClient.query.mockResolvedValueOnce({});
+
+      // Mock COMMIT
+      mockClient.query.mockResolvedValueOnce({});
+
+      const result = await memberService.deleteMemberPermanent(orgId, userId, performerId);
+
+      expect(result.success).toBe(true);
+      expect(result.removedMember.email).toBe('user@example.com');
+      expect(mockClient.query).toHaveBeenCalledWith('COMMIT');
     });
 
-    it('should throw error when attempting delete own account', async () => {
-      await expect(
-        memberService.deleteOwnAccount('user-456')
-      ).rejects.toThrow('Delete own account not implemented - Phase 2 feature');
+    it('deleteOwnAccount should handle owner self-deletion', async () => {
+      const userId = 'owner-123';
+
+      // Mock BEGIN
+      mockClient.query.mockResolvedValueOnce({});
+
+      // Mock user details
+      mockClient.query.mockResolvedValueOnce({
+        rows: [{
+          user_id: userId,
+          email: 'owner@example.com',
+          first_name: 'Owner',
+          last_name: 'User',
+          organization_id: 'org-123',
+          role: 'owner',
+          is_active: true
+        }],
+        rowCount: 1
+      });
+
+      // Mock all org members
+      mockClient.query.mockResolvedValueOnce({
+        rows: [{
+          user_id: userId,
+          email: 'owner@example.com',
+          role: 'owner'
+        }],
+        rowCount: 1
+      });
+
+      // Mock audit log INSERT
+      mockClient.query.mockResolvedValueOnce({});
+
+      // Mock DELETE user_profiles
+      mockClient.query.mockResolvedValueOnce({});
+
+      // Mock DELETE organization
+      mockClient.query.mockResolvedValueOnce({});
+
+      // Mock COMMIT
+      mockClient.query.mockResolvedValueOnce({});
+
+      const result = await memberService.deleteOwnAccount(userId);
+
+      expect(result.success).toBe(true);
+      expect(result.removedMember.email).toBe('owner@example.com');
+      expect(mockClient.query).toHaveBeenCalledWith('COMMIT');
     });
   });
 });
