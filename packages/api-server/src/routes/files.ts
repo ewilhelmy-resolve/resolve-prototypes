@@ -313,15 +313,19 @@ router.get('/:documentId/metadata', authenticateUser, async (req, res) => {
         const metadataResult = await client.query(`
           SELECT
             bm.id,
+            bm.organization_id,
+            bm.user_id,
             bm.filename,
             bm.file_size,
             bm.mime_type,
+            bm.status,
+            bm.processed_markdown,
+            bm.metadata,
             bm.created_at,
             bm.updated_at,
-            bm.status,
-            bm.metadata
+            bm.blob_id
           FROM blob_metadata bm
-          WHERE bm.id = $1 AND bm.organization_id = $2
+          WHERE bm.blob_id = $1 AND bm.organization_id = $2
         `, [documentId, authReq.user.activeOrganizationId]);
 
         if (metadataResult.rows.length === 0) {
