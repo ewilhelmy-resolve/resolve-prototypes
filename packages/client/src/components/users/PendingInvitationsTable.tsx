@@ -1,6 +1,7 @@
-import { Loader, MoreHorizontal, XCircle } from "lucide-react";
+import { Loader, MoreHorizontal } from "lucide-react";
 import { useState } from "react";
 import { BulkActions } from "@/components/BulkActions";
+import { CrashPage } from "@/components/CrashPage";
 import ConfirmDialog from "@/components/dialogs/ConfirmDialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -199,18 +200,12 @@ export default function PendingInvitationsTable() {
 	// Error state
 	if (error) {
 		return (
-			<div className="flex flex-col items-center justify-center py-12 text-center">
-				<XCircle className="h-12 w-12 text-destructive mb-4" />
-				<h3 className="text-lg font-semibold mb-2">
-					Failed to load invitations
-				</h3>
-				<p className="text-sm text-muted-foreground mb-4">
-					{error.message || "An error occurred while fetching invitations"}
-				</p>
-				<Button variant="outline" onClick={() => window.location.reload()}>
-					Try Again
-				</Button>
-			</div>
+			<CrashPage
+				title="Failed to load invitations"
+				description={error.message || "An error occurred while fetching invitations. Please try again."}
+				actionLabel="Try Again"
+				onAction={() => window.location.reload()}
+			/>
 		);
 	}
 

@@ -5,6 +5,7 @@ import { useEffect, useMemo } from "react";
 import { Link } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
+import { CrashPage } from "@/components/CrashPage";
 import {
 	mapDataSourceToUI,
 	SOURCES,
@@ -58,19 +59,12 @@ export default function ConnectionSources() {
 
 	if (error) {
 		return (
-			<div className="w-full">
-				<div className="flex flex-col gap-8">
-					<Header
-						title="Connection Sources"
-						description="Connect your knowledge and ticketing sources to help Rita resolve IT issues faster."
-					/>
-					<div className="w-full max-w-4xl mx-auto flex flex-col gap-8">
-						<div className="text-center py-8 text-destructive">
-							Failed to load data sources. Please try again.
-						</div>
-					</div>
-				</div>
-			</div>
+			<CrashPage
+				title="Failed to load data sources"
+				description="An error occurred while fetching connection sources. Please try again."
+				actionLabel="Try Again"
+				onAction={() => window.location.reload()}
+			/>
 		);
 	}
 
