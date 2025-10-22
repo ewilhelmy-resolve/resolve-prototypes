@@ -27,6 +27,7 @@ import {
 	useUpdateMemberRole,
 	useUpdateMemberStatus,
 } from "@/hooks/api/useMembers";
+import { useProfile } from "@/hooks/api/useProfile";
 import { useUsersTableState } from "@/hooks/useUsersTableState";
 import { formatDate, renderSortIcon } from "@/lib/table-utils";
 import type { OrganizationRole } from "@/types/member";
@@ -64,6 +65,10 @@ export default function UsersTable() {
 		pendingRoleChange,
 		setPendingRoleChange,
 	} = useUsersTableState();
+
+	// Get current user profile to hide delete option for self
+	const { data: profile } = useProfile();
+	const currentUserId = profile?.user.id;
 
 	// Fetch members from API
 	const { data, isLoading, error } = useMembers({
@@ -379,7 +384,7 @@ export default function UsersTable() {
 												>
 													Edit
 												</DropdownMenuItem>
-												{/* 
+												{/*
 												 TODO: Enable activate/deactivate actions when we have a nicer way to prevent those user from logging in
 												{member.isActive ? (
 													<DropdownMenuItem
@@ -394,12 +399,15 @@ export default function UsersTable() {
 														Activate
 													</DropdownMenuItem>
 												)} */}
-												<DropdownMenuItem
-													onClick={() => handleDeleteUser(member)}
-													className="text-destructive focus:text-destructive"
-												>
-													Delete
-												</DropdownMenuItem>
+												{/* Hide delete option for current user - they should use Profile page to delete own account */}
+												{member.id !== currentUserId && (
+													<DropdownMenuItem
+														onClick={() => handleDeleteUser(member)}
+														className="text-destructive focus:text-destructive"
+													>
+														Delete
+													</DropdownMenuItem>
+												)}
 											</DropdownMenuContent>
 										</DropdownMenu>
 									</TableCell>
