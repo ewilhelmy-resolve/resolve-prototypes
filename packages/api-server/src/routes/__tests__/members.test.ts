@@ -331,31 +331,43 @@ describe('Members Routes - API Contracts', () => {
     });
   });
 
-  describe('Phase 2 Placeholder Endpoints', () => {
-    it('should return 501 for DELETE /:userId/permanent', async () => {
-      mockMemberService.deleteMemberPermanent.mockRejectedValueOnce(
-        new Error('Hard delete not implemented - Phase 2 feature')
-      );
+  describe('Phase 2 Hard Delete Endpoints', () => {
+    it('should successfully delete member permanently', async () => {
+      mockMemberService.deleteMemberPermanent.mockResolvedValueOnce({
+        success: true,
+        message: 'Member permanently deleted',
+        removedMember: {
+          userId: 'user-1',
+          email: 'user1@example.com',
+          role: 'user'
+        }
+      });
 
       const response = await request(app)
-        .delete('/api/organizations/members/user-1/permanent')
-        .expect(501);
+        .delete('/api/organizations/members/user-1/permanent?reason=Test deletion')
+        .expect(200);
 
-      expect(response.body.code).toBe('NOT_IMPLEMENTED');
-      expect(response.body.message).toContain('Phase 2');
+      expect(response.body.success).toBe(true);
+      expect(response.body.removedMember.email).toBe('user1@example.com');
     });
 
-    it('should return 501 for DELETE /self/permanent', async () => {
-      mockMemberService.deleteOwnAccount.mockRejectedValueOnce(
-        new Error('Delete own account not implemented - Phase 2 feature')
-      );
+    it('should successfully delete own account', async () => {
+      mockMemberService.deleteOwnAccount.mockResolvedValueOnce({
+        success: true,
+        message: 'Account permanently deleted',
+        removedMember: {
+          userId: 'test-user-id',
+          email: 'test@example.com',
+          role: 'owner'
+        }
+      });
 
       const response = await request(app)
-        .delete('/api/organizations/members/self/permanent')
-        .expect(501);
+        .delete('/api/organizations/members/self/permanent?reason=User requested deletion')
+        .expect(200);
 
-      expect(response.body.code).toBe('NOT_IMPLEMENTED');
-      expect(response.body.message).toContain('Phase 2');
+      expect(response.body.success).toBe(true);
+      expect(response.body.removedMember.email).toBe('test@example.com');
     });
   });
 
