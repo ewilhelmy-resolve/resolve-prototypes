@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ritaToast } from "@/components/ui/rita-toast";
 import { memberApi } from "@/services/api";
+import { useAuthStore } from "@/stores/auth-store";
 import type {
 	MemberListParams,
 	OrganizationRole,
@@ -185,6 +186,87 @@ export function useUpdateMemberProfile() {
 			const message = error.message || "Failed to update member profile";
 			ritaToast.error({
 				title: "Failed to update profile",
+				description: message,
+			});
+		},
+	});
+}
+
+/**
+ * Hook: Delete Member Permanently
+ *
+ * Permanently deletes a member (hard delete with Keycloak cleanup)
+ * Owner only - irreversible action that deletes from database, Keycloak, and external storage
+ * If deleting an owner who is the last/only member, deletes entire organization
+ *
+ * @example
+ * const { mutate, isPending } = useDeleteMemberPermanent()
+ * mutate({ userId: 'uuid', reason: 'Violated terms of service' })
+ */
+export function useDeleteMemberPermanent() {
+	const queryClient = useQueryClient();
+
+	return useMutation({
+		mutationFn: ({ userId, reason }: { userId: string; reason?: string }) =>
+			memberApi.deleteMemberPermanent(userId, reason),
+		onSuccess: () => {
+			// Invalidate member lists to refetch
+			queryClient.invalidateQueries({ queryKey: memberKeys.lists() });
+			ritaToast.success({
+				title: "Member deleted",
+				description: "Member has been permanently deleted from the system",
+			});
+		},
+		onError: (error: any) => {
+			const message = error.message || "Failed to delete member";
+			ritaToast.error({
+				title: "Failed to delete member",
+				description: message,
+			});
+		},
+	});
+}
+
+/**
+ * Hook: Delete Own Account
+ *
+ * Deletes the current user's account (hard delete with Keycloak cleanup)
+ * If owner and last/sole member → deletes entire organization and all members
+ *
+ * ⚠️ After success, user will be logged out via auth store and redirected to login
+ *
+ * @example
+ * const { mutate, isPending } = useDeleteOwnAccount()
+ * mutate({ reason: 'User requested account deletion' })
+ */
+export function useDeleteOwnAccount() {
+	const logout = useAuthStore((state) => state.logout);
+
+	return useMutation({
+		mutationFn: ({ reason }: { reason?: string }) =>
+			memberApi.deleteOwnAccount(reason),
+		onSuccess: () => {
+			ritaToast.success({
+				title: "Account deleted",
+				description: "Your account has been permanently deleted. Logging out...",
+			});
+
+			// Wait briefly to show toast, then logout via auth store
+			setTimeout(async () => {
+				// Use Rita's auth store logout method which handles:
+				// 1. Backend /auth/logout call
+				// 2. Keycloak logout
+				// 3. State cleanup
+				// 4. Redirect to login
+				// Note: Keycloak requires absolute URL for redirect
+				const redirectUri = `${window.location.origin}/login?accountDeleted=true`;
+				await logout(redirectUri);
+			}, 2000);
+		},
+		onError: (error: any) => {
+			const message = error.message || "Failed to delete account";
+			ritaToast.error({
+				title: "Failed to delete account",
 				description: message,
 			});
 		},

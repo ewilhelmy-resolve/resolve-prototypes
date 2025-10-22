@@ -23,7 +23,7 @@ import {
 import EditUserSheet from "@/components/users/EditUserSheet";
 import {
 	useMembers,
-	useRemoveMember,
+	useDeleteMemberPermanent,
 	useUpdateMemberRole,
 	useUpdateMemberStatus,
 } from "@/hooks/api/useMembers";
@@ -76,7 +76,7 @@ export default function UsersTable() {
 	// Mutations
 	const { mutate: updateRole } = useUpdateMemberRole();
 	const { mutate: updateStatus } = useUpdateMemberStatus();
-	const { mutate: removeMember } = useRemoveMember();
+	const { mutate: deleteMemberPermanent } = useDeleteMemberPermanent();
 
 	const allMembers = data?.members || [];
 
@@ -191,7 +191,7 @@ export default function UsersTable() {
 	const handleConfirmDelete = () => {
 		if (!deletingUser) return;
 
-		removeMember(
+		deleteMemberPermanent(
 			{ userId: deletingUser.id },
 			{
 				onSuccess: () => {
@@ -216,7 +216,7 @@ export default function UsersTable() {
 		for (const userId of selectedUsers) {
 			try {
 				await new Promise<void>((resolve, reject) => {
-					removeMember(
+					deleteMemberPermanent(
 						{ userId },
 						{
 							onSuccess: () => {
@@ -241,9 +241,9 @@ export default function UsersTable() {
 		// Show summary toast
 		if (successCount > 0 && failCount === 0) {
 			// All successful
-			// Success feedback is handled by useRemoveMember hook
+			// Success feedback is handled by useDeleteMemberPermanent hook
 		} else if (failCount > 0) {
-			// Some or all failed - already handled by useRemoveMember error handler
+			// Some or all failed - already handled by useDeleteMemberPermanent error handler
 		}
 	};
 
@@ -438,14 +438,14 @@ export default function UsersTable() {
 				variant="destructive"
 			/>
 
-			{/* Remove User Dialog */}
+			{/* Permanently Delete User Dialog */}
 			<ConfirmDialog
 				open={deleteDialogOpen}
 				onOpenChange={setDeleteDialogOpen}
-				title="Remove User"
-				description={`Are you sure you want to remove ${deletingUser?.email}? This will remove them from the organization. They can be re-invited later.`}
+				title="Permanently Delete User"
+				description={`Are you sure you want to PERMANENTLY delete ${deletingUser?.email}? This will delete their account from Keycloak, remove all their data (messages, conversations, files), and cannot be undone.${deletingUser?.role === "owner" ? " ⚠️ WARNING: If they are the only member, this will delete the entire organization and all data." : ""}`}
 				onConfirm={handleConfirmDelete}
-				confirmLabel="Remove"
+				confirmLabel="Delete Permanently"
 				cancelLabel="Cancel"
 				variant="destructive"
 			/>
@@ -465,10 +465,10 @@ export default function UsersTable() {
 			<ConfirmDialog
 				open={bulkDeleteDialogOpen}
 				onOpenChange={setBulkDeleteDialogOpen}
-				title="Remove Users"
-				description={`Are you sure you want to remove ${selectedUsers.length} user${selectedUsers.length !== 1 ? "s" : ""}? This will remove them from the organization. They can be re-invited later.`}
+				title="Permanently Delete Users"
+				description={`Are you sure you want to PERMANENTLY delete ${selectedUsers.length} user${selectedUsers.length !== 1 ? "s" : ""}? This will delete their accounts from Keycloak, remove all their data (messages, conversations, files), and cannot be undone. If any are the only owner, their entire organization will be deleted.`}
 				onConfirm={handleConfirmBulkDelete}
-				confirmLabel="Remove Users"
+				confirmLabel="Delete Users Permanently"
 				cancelLabel="Cancel"
 				variant="destructive"
 			/>

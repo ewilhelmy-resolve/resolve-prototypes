@@ -99,6 +99,27 @@ export interface MemberRemovedEvent {
   };
 }
 
+export interface MemberDeletedPermanentEvent {
+  type: 'member_deleted_permanent';
+  data: {
+    userId: string;
+    userEmail: string;
+    deletedBy: string;
+    reason: string;
+    timestamp: string;
+  };
+}
+
+export interface MemberDeletedOwnAccountEvent {
+  type: 'member_deleted_own_account';
+  data: {
+    userId: string;
+    userEmail: string;
+    reason: string;
+    timestamp: string;
+  };
+}
+
 export type SSEEvent =
   | MessageUpdateEvent
   | NewMessageEvent
@@ -106,7 +127,9 @@ export type SSEEvent =
   | DocumentUpdateEvent
   | MemberRoleUpdatedEvent
   | MemberStatusUpdatedEvent
-  | MemberRemovedEvent;
+  | MemberRemovedEvent
+  | MemberDeletedPermanentEvent
+  | MemberDeletedOwnAccountEvent;
 
 export class SSEService {
   private connections: Map<string, SSEConnection> = new Map();

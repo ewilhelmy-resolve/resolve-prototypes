@@ -12,6 +12,7 @@ import { Label } from "@/components/ui/label";
 import { useProfile, useProfilePermissions } from "@/hooks/api/useProfile";
 import { useUpdateOrganization } from "@/hooks/api/useUpdateOrganization";
 import { useUpdateProfile } from "@/hooks/api/useUpdateProfile";
+import { useDeleteOwnAccount } from "@/hooks/api/useMembers";
 import { toast } from "@/lib/toast";
 
 /**
@@ -43,6 +44,8 @@ export default function ProfilePage() {
 		useUpdateProfile();
 	const { mutate: updateOrganization, isPending: isUpdatingOrganization } =
 		useUpdateOrganization();
+	const { mutate: deleteOwnAccount, isPending: isDeletingAccount } =
+		useDeleteOwnAccount();
 
 	const {
 		register,
@@ -128,8 +131,7 @@ export default function ProfilePage() {
 	};
 
 	const handleDeleteAccount = () => {
-		// Handle account deletion here
-		console.log("Account deleted");
+		deleteOwnAccount({ reason: "User requested account deletion" });
 	};
 
 	// Validation schema for delete account dialog
@@ -299,18 +301,26 @@ export default function ProfilePage() {
 															</p>
 														</div>
 														<p className="text-sm text-foreground">
-															Permanently delete your entire account, and all
-															data you have uploaded.
+															Permanently delete your entire account
+															{isAdmin ? ", organization," : ""} and all data you
+															have uploaded.
+															{isAdmin &&
+																" As an owner, this will delete the entire organization and all members."}
 														</p>
 													</div>
 													<ConfirmFormDialog
 														trigger={
-															<Button variant="destructive">
-																Delete Account
+															<Button
+																variant="destructive"
+																disabled={isDeletingAccount}
+															>
+																{isDeletingAccount
+																	? "Deleting..."
+																	: "Delete Account"}
 															</Button>
 														}
 														title="Delete your account"
-														description="This action cannot be undone. This will permanently delete your account and remove all your data from our servers."
+														description={`This action cannot be undone. This will permanently delete your account and remove all your data from our servers.${isAdmin ? " As an owner, this will also delete the entire organization and all members." : ""}`}
 														validationSchema={deleteAccountSchema}
 														defaultValues={{
 															permanent: false,
@@ -400,7 +410,8 @@ export default function ProfilePage() {
 																			htmlFor="tenantAccess"
 																			className="text-sm leading-relaxed cursor-pointer select-none"
 																		>
-																			I understand all users in this tenant will
+																			I understand all users in this{" "}
+																			{isAdmin ? "organization" : "tenant"} will
 																			no longer have access
 																		</label>
 																	</div>

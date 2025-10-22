@@ -1,6 +1,7 @@
 import type { Pool } from 'pg';
 import { createChildLogger } from '../config/logger.js';
 import { getSSEService } from './sse.js';
+import { WebhookService } from './WebhookService.js';
 import type {
   Member,
   MemberDetails,
@@ -653,39 +654,412 @@ export class MemberService {
   // ============================================================================
 
   /**
-   * Permanently delete a member (hard delete with Keycloak cleanup)
-   * Phase 2: Requires webhook integration
+   * Permanently delete a member from the system
+   * Phase 2: Hard delete with webhook integration
    *
-   * @throws Error - Not implemented in Phase 1
+   * This method:
+   * 1. Validates permissions (only owners can hard delete)
+   * 2. Calls Keycloak deletion webhook (BLOCKING - transaction waits for success)
+   * 3. Hard deletes user_profiles record (CASCADE handles related data via FK constraints)
+   * 4. Creates audit log
+   * 5. Sends SSE event
+   *
+   * If webhook fails, the entire transaction is rolled back (no partial deletes).
+   *
+   * @param organizationId - Organization ID
+   * @param userId - User ID to delete
+   * @param performedBy - User ID performing the deletion
+   * @param reason - Optional reason for deletion
+   * @returns Deleted member details
+   * @throws Error if permission denied, user not found, or webhook fails
    */
   async deleteMemberPermanent(
     organizationId: string,
     userId: string,
     performedBy: string,
     reason?: string
-  ): Promise<never> {
-    logger.warn({
-      organizationId,
-      userId,
-      performedBy,
-      reason
-    }, 'Attempted to call Phase 2 method: deleteMemberPermanent');
+  ): Promise<RemovedMember> {
+    const client = await this.pool.connect();
+    const webhookService = new WebhookService();
 
-    throw new Error('Hard delete not implemented - Phase 2 feature');
+    try {
+      await client.query('BEGIN');
+
+      // Cannot delete self
+      if (userId === performedBy) {
+        throw new Error('Cannot delete yourself from the organization');
+      }
+
+      // Check permission - only owners can permanently delete
+      const canPerform = await this.canPerformAction(
+        organizationId,
+        performedBy,
+        userId,
+        'remove_member' // Reuse remove_member permission (owners only)
+      );
+
+      if (!canPerform) {
+        throw new Error('Permission denied: Only owners can permanently delete members');
+      }
+
+      // Get member details before deletion
+      const memberResult = await client.query(
+        `SELECT up.user_id, up.email, up.first_name, up.last_name, om.role, om.is_active, om.joined_at
+         FROM user_profiles up
+         INNER JOIN organization_members om ON up.user_id = om.user_id
+         WHERE om.organization_id = $1 AND up.user_id = $2`,
+        [organizationId, userId]
+      );
+
+      if (memberResult.rows.length === 0) {
+        throw new Error('Member not found');
+      }
+
+      const member = memberResult.rows[0];
+
+      // Check if deleting last active owner
+      if (member.role === 'owner' && member.is_active) {
+        const isLast = await this.isLastActiveOwner(organizationId, userId);
+        if (isLast) {
+          throw new Error('Cannot delete the last active owner');
+        }
+      }
+
+      // BLOCKING WEBHOOK CALL: Delete user from Keycloak BEFORE database deletion
+      // If webhook fails, transaction will rollback and no data is deleted
+      logger.info({
+        organizationId,
+        userId,
+        email: member.email
+      }, 'Calling Keycloak deletion webhook (BLOCKING)');
+
+      const webhookResponse = await webhookService.deleteKeycloakUser({
+        userId: member.user_id,
+        email: member.email,
+        organizationId,
+        reason: reason || 'Member deleted by administrator'
+      });
+
+      if (!webhookResponse.success) {
+        throw new Error(`Keycloak deletion failed: ${webhookResponse.error || 'Unknown error'}`);
+      }
+
+      logger.info({
+        organizationId,
+        userId,
+        email: member.email,
+        webhookStatus: webhookResponse.status
+      }, 'Keycloak deletion webhook succeeded');
+
+      // Create audit log BEFORE deletion (user_id will be SET NULL after deletion)
+      await client.query(
+        `INSERT INTO audit_logs (organization_id, user_id, action, resource_type, resource_id, metadata)
+         VALUES ($1, $2, $3, $4, $5, $6)`,
+        [
+          organizationId,
+          performedBy,
+          'delete_member_permanent',
+          'user_profile',
+          userId,
+          JSON.stringify({
+            targetUserId: userId,
+            targetEmail: member.email,
+            targetRole: member.role,
+            firstName: member.first_name,
+            lastName: member.last_name,
+            removalType: 'hard',
+            reason: reason || 'No reason provided',
+            keycloakDeleted: true
+          })
+        ]
+      );
+
+      // HARD DELETE: Delete user_profiles record
+      // FK constraints with CASCADE will automatically delete:
+      // - messages (user_id → CASCADE)
+      // - conversations (user_id → CASCADE)
+      // - blob_metadata (user_id → CASCADE)
+      // - organization_members (user_id → CASCADE via user_profiles FK)
+      // - audit_logs (user_id → SET NULL)
+      await client.query(
+        `DELETE FROM user_profiles WHERE user_id = $1`,
+        [userId]
+      );
+
+      await client.query('COMMIT');
+
+      // Trigger SSE event after successful deletion
+      const sseService = getSSEService();
+      sseService.sendToOrganization(organizationId, {
+        type: 'member_deleted_permanent',
+        data: {
+          userId,
+          userEmail: member.email,
+          deletedBy: performedBy,
+          reason: reason || 'No reason provided',
+          timestamp: new Date().toISOString()
+        }
+      });
+
+      logger.info({
+        organizationId,
+        userId,
+        email: member.email,
+        performedBy,
+        reason
+      }, 'Member permanently deleted successfully');
+
+      return {
+        success: true,
+        message: 'Member permanently deleted',
+        removedMember: {
+          id: userId,
+          email: member.email,
+          role: member.role
+        }
+      };
+
+    } catch (error) {
+      await client.query('ROLLBACK');
+
+      logger.error({
+        organizationId,
+        userId,
+        performedBy,
+        error: error instanceof Error ? error.message : String(error)
+      }, 'Failed to permanently delete member - transaction rolled back');
+
+      throw error;
+
+    } finally {
+      client.release();
+    }
   }
 
   /**
-   * Delete own account
-   * Phase 2: Requires webhook integration
+   * Delete own account (self-service deletion)
+   * Phase 2: Hard delete with webhook integration
    *
-   * @throws Error - Not implemented in Phase 1
+   * This method:
+   * 1. Finds user's organization
+   * 2. Validates user is not the last owner (if owner)
+   * 3. Calls Keycloak deletion webhook (BLOCKING - transaction waits for success)
+   * 4. Hard deletes user_profiles record (CASCADE handles related data via FK constraints)
+   * 5. Creates audit log
+   * 6. Sends SSE event
+   *
+   * If webhook fails, the entire transaction is rolled back (no partial deletes).
+   *
+   * @param userId - User ID deleting their own account
+   * @param reason - Optional reason for deletion
+   * @returns Deleted member details
+   * @throws Error if user not found, last owner, or webhook fails
    */
-  async deleteOwnAccount(userId: string, reason?: string): Promise<never> {
-    logger.warn({
-      userId,
-      reason
-    }, 'Attempted to call Phase 2 method: deleteOwnAccount');
+  async deleteOwnAccount(userId: string, reason?: string): Promise<RemovedMember> {
+    const client = await this.pool.connect();
+    const webhookService = new WebhookService();
 
-    throw new Error('Delete own account not implemented - Phase 2 feature');
+    try {
+      await client.query('BEGIN');
+
+      // Get user's organization and details
+      const userResult = await client.query(
+        `SELECT up.user_id, up.email, up.first_name, up.last_name, om.organization_id, om.role, om.is_active
+         FROM user_profiles up
+         LEFT JOIN organization_members om ON up.user_id = om.user_id
+         WHERE up.user_id = $1`,
+        [userId]
+      );
+
+      if (userResult.rows.length === 0) {
+        throw new Error('User not found');
+      }
+
+      const user = userResult.rows[0];
+
+      // Get all organization members if user belongs to an organization
+      let allOrgMembers: Array<{user_id: string; email: string; role: string}> = [];
+      let deleteEntireOrganization = false;
+
+      if (user.organization_id) {
+        // Get all members of the organization
+        const membersResult = await client.query(
+          `SELECT up.user_id, up.email, om.role
+           FROM organization_members om
+           INNER JOIN user_profiles up ON om.user_id = up.user_id
+           WHERE om.organization_id = $1`,
+          [user.organization_id]
+        );
+        allOrgMembers = membersResult.rows;
+
+        // If user is an owner, they can delete the entire organization
+        // This will delete ALL members and organization data
+        if (user.role === 'owner') {
+          deleteEntireOrganization = true;
+          logger.info({
+            userId,
+            organizationId: user.organization_id,
+            memberCount: allOrgMembers.length
+          }, 'Owner deleting account - will delete entire organization and all members');
+        } else {
+          // Non-owners can only delete their own account (not the whole org)
+          deleteEntireOrganization = false;
+        }
+      }
+
+      // BLOCKING WEBHOOK CALL: Delete users from Keycloak BEFORE database deletion
+      // If webhook fails, transaction will rollback and no data is deleted
+      // If owner is deleting account, delete ALL organization members from Keycloak
+      const additionalEmails = deleteEntireOrganization
+        ? allOrgMembers.filter(m => m.user_id !== userId).map(m => m.email)
+        : [];
+
+      logger.info({
+        userId,
+        email: user.email,
+        organizationId: user.organization_id,
+        deleteEntireOrganization,
+        totalMembersToDelete: deleteEntireOrganization ? allOrgMembers.length : 1,
+        additionalEmails
+      }, 'Calling Keycloak deletion webhook for own account (BLOCKING)');
+
+      const webhookResponse = await webhookService.deleteKeycloakUser({
+        userId: user.user_id,
+        email: user.email,
+        organizationId: user.organization_id || 'no-organization',
+        reason: reason || (deleteEntireOrganization ? 'Owner deleted account - organization deleted' : 'User deleted own account'),
+        deleteOrganization: deleteEntireOrganization, // Signal external system to delete entire organization data
+        additionalEmails // Additional member emails to delete from Keycloak
+      });
+
+      if (!webhookResponse.success) {
+        throw new Error(`Keycloak deletion failed: ${webhookResponse.error || 'Unknown error'}`);
+      }
+
+      logger.info({
+        userId,
+        email: user.email,
+        webhookStatus: webhookResponse.status
+      }, 'Keycloak deletion webhook succeeded for own account');
+
+      // Create audit log BEFORE deletion (user_id will be SET NULL after deletion)
+      await client.query(
+        `INSERT INTO audit_logs (organization_id, user_id, action, resource_type, resource_id, metadata)
+         VALUES ($1, $2, $3, $4, $5, $6)`,
+        [
+          user.organization_id, // May be null if user has no organization
+          userId,
+          'delete_own_account',
+          'user_profile',
+          userId,
+          JSON.stringify({
+            email: user.email,
+            role: user.role,
+            firstName: user.first_name,
+            lastName: user.last_name,
+            removalType: 'hard',
+            reason: reason || 'User deleted own account',
+            keycloakDeleted: true,
+            deleteEntireOrganization,
+            organizationWillBeDeleted: deleteEntireOrganization, // Flag to indicate org deletion
+            totalMembersDeleted: deleteEntireOrganization ? allOrgMembers.length : 1,
+            memberEmails: deleteEntireOrganization ? allOrgMembers.map(m => m.email) : [user.email]
+          })
+        ]
+      );
+
+      // HARD DELETE: Delete all organization members if owner is deleting account
+      // Otherwise, just delete the user's own account
+      if (deleteEntireOrganization && user.organization_id) {
+        // Delete ALL user_profiles for all organization members
+        // This will CASCADE delete all their data (messages, conversations, blob_metadata, etc.)
+        const memberIds = allOrgMembers.map(m => m.user_id);
+        await client.query(
+          `DELETE FROM user_profiles WHERE user_id = ANY($1::uuid[])`,
+          [memberIds]
+        );
+
+        // Delete the organization itself
+        // This triggers CASCADE deletion of:
+        // - data_source_connections (organization_id → CASCADE)
+        // - pending_invitations (organization_id → CASCADE)
+        // - Any other organization-scoped data
+        await client.query(
+          `DELETE FROM organizations WHERE id = $1`,
+          [user.organization_id]
+        );
+
+        logger.info({
+          organizationId: user.organization_id,
+          userId,
+          totalMembersDeleted: allOrgMembers.length,
+          reason: 'Owner deleted account - entire organization deleted'
+        }, 'Organization and all members deleted');
+
+      } else {
+        // Single user deletion (non-owner or user without organization)
+        // FK constraints with CASCADE will automatically delete:
+        // - messages (user_id → CASCADE)
+        // - conversations (user_id → CASCADE)
+        // - blob_metadata (user_id → CASCADE)
+        // - organization_members (user_id → CASCADE via user_profiles FK)
+        // - audit_logs (user_id → SET NULL)
+        await client.query(
+          `DELETE FROM user_profiles WHERE user_id = $1`,
+          [userId]
+        );
+
+        logger.info({
+          userId,
+          email: user.email
+        }, 'User account deleted');
+      }
+
+      await client.query('COMMIT');
+
+      // Trigger SSE event after successful deletion (if user had organization)
+      if (user.organization_id) {
+        const sseService = getSSEService();
+        sseService.sendToOrganization(user.organization_id, {
+          type: 'member_deleted_own_account',
+          data: {
+            userId,
+            userEmail: user.email,
+            reason: reason || 'User deleted own account',
+            timestamp: new Date().toISOString()
+          }
+        });
+      }
+
+      logger.info({
+        userId,
+        email: user.email,
+        organizationId: user.organization_id,
+        reason
+      }, 'User successfully deleted own account');
+
+      return {
+        success: true,
+        message: 'Account permanently deleted',
+        removedMember: {
+          id: userId,
+          email: user.email,
+          role: user.role || 'user'
+        }
+      };
+
+    } catch (error) {
+      await client.query('ROLLBACK');
+
+      logger.error({
+        userId,
+        error: error instanceof Error ? error.message : String(error)
+      }, 'Failed to delete own account - transaction rolled back');
+
+      throw error;
+
+    } finally {
+      client.release();
+    }
   }
 }

@@ -145,6 +145,15 @@ interface PasswordResetCompletePayload extends BaseWebhookPayload {
   password: string; // Base64 encoded
 }
 
+// Member management webhook payloads for rita-member-management
+interface DeleteKeycloakUserPayload extends BaseWebhookPayload {
+  source: 'rita-member-management';
+  action: 'delete_keycloak_user';
+  delete_tenant?: boolean; // If true, external service should delete entire organization data
+  additional_emails?: string[]; // Additional member emails to delete from Keycloak
+  reason?: string;
+}
+
 // Data source webhook payloads for rita-data-sources
 interface DataSourceVerifyPayload extends BaseWebhookPayload {
   source: 'rita-chat';
@@ -164,7 +173,7 @@ interface DataSourceSyncPayload extends BaseWebhookPayload {
 }
 
 // Union type for all webhook payloads
-type WebhookPayload = MessageWebhookPayload | DocumentWebhookPayload | DocumentDeletePayload | SignupWebhookPayload | SendInvitationWebhookPayload | AcceptInvitationWebhookPayload | PasswordResetRequestPayload | PasswordResetCompletePayload | DataSourceVerifyPayload | DataSourceSyncPayload | BaseWebhookPayload;
+type WebhookPayload = MessageWebhookPayload | DocumentWebhookPayload | DocumentDeletePayload | SignupWebhookPayload | SendInvitationWebhookPayload | AcceptInvitationWebhookPayload | PasswordResetRequestPayload | PasswordResetCompletePayload | DeleteKeycloakUserPayload | DataSourceVerifyPayload | DataSourceSyncPayload | BaseWebhookPayload;
 
 interface MockResponse {
   message_id: string;
@@ -368,6 +377,70 @@ async function createKeycloakUser(signupData: SignupWebhookPayload): Promise<str
     logError(contextLogger, error as Error, {
       operation: 'create-keycloak-user',
       keycloakRealm: MOCK_CONFIG.keycloak.realm
+    });
+    throw error;
+  }
+}
+
+async function deleteKeycloakUser(email: string, userId?: string): Promise<void> {
+  const timer = new PerformanceTimer(webhookLogger, 'delete-keycloak-user');
+  const contextLogger = createContextLogger(webhookLogger, generateCorrelationId(), {
+    email,
+    userId
+  });
+
+  try {
+    const adminToken = await getKeycloakAdminToken();
+
+    // If userId not provided, find user by email
+    let keycloakUserId = userId;
+    if (!keycloakUserId) {
+      const usersResponse = await axios.get(
+        `${MOCK_CONFIG.keycloak.baseUrl}/admin/realms/${MOCK_CONFIG.keycloak.realm}/users`,
+        {
+          params: { email, exact: true },
+          headers: {
+            'Authorization': `Bearer ${adminToken}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+
+      if (usersResponse.data.length === 0) {
+        throw new Error(`User not found in Keycloak: ${email}`);
+      }
+
+      keycloakUserId = usersResponse.data[0].id;
+    }
+
+    // Delete user from Keycloak
+    await axios.delete(
+      `${MOCK_CONFIG.keycloak.baseUrl}/admin/realms/${MOCK_CONFIG.keycloak.realm}/users/${keycloakUserId}`,
+      {
+        headers: {
+          'Authorization': `Bearer ${adminToken}`,
+          'Content-Type': 'application/json'
+        }
+      }
+    );
+
+    timer.end({
+      email,
+      keycloakUserId,
+      success: true
+    });
+
+    contextLogger.info({
+      keycloakUserId,
+      keycloakRealm: MOCK_CONFIG.keycloak.realm
+    }, 'Keycloak user deleted successfully');
+
+  } catch (error) {
+    timer.end({ success: false });
+    logError(contextLogger, error as Error, {
+      operation: 'delete-keycloak-user',
+      keycloakRealm: MOCK_CONFIG.keycloak.realm,
+      email
     });
     throw error;
   }
@@ -1853,6 +1926,101 @@ app.post('/webhook', async (req, res) => {
           success: false,
           message: 'Password reset webhook received but Keycloak update failed',
           error: error instanceof Error ? error.message : 'Unknown error'
+        });
+      }
+
+    } else if (payload.source === 'rita-member-management' && payload.action === 'delete_keycloak_user') {
+      const deletePayload = payload as DeleteKeycloakUserPayload;
+      const contextLogger = createContextLogger(webhookLogger, correlationId, {
+        email: deletePayload.user_email,
+        userId: deletePayload.user_id,
+        tenantId: deletePayload.tenant_id
+      });
+
+      contextLogger.info({
+        source: deletePayload.source,
+        action: deletePayload.action,
+        user_email: deletePayload.user_email,
+        user_id: deletePayload.user_id,
+        reason: deletePayload.reason
+      }, 'Received delete Keycloak user webhook');
+
+      try {
+        // Delete primary user from Keycloak
+        // NOTE: Only pass email - let deleteKeycloakUser search Keycloak by email
+        // deletePayload.user_id is Rita's database user_id, not Keycloak's user ID
+        await deleteKeycloakUser(deletePayload.user_email!);
+
+        // Delete additional users if provided (for organization deletion)
+        const additionalEmails = deletePayload.additional_emails || [];
+        let additionalUsersDeleted = 0;
+
+        if (additionalEmails.length > 0) {
+          for (const email of additionalEmails) {
+            try {
+              await deleteKeycloakUser(email);
+              additionalUsersDeleted++;
+              contextLogger.info({ email }, 'Additional user deleted from Keycloak');
+            } catch (error) {
+              contextLogger.error({ email, error }, 'Failed to delete additional user from Keycloak');
+              // Continue deleting other users even if one fails
+            }
+          }
+        }
+
+        const totalUsersDeleted = 1 + additionalUsersDeleted;
+
+        contextLogger.info({
+          email: deletePayload.user_email,
+          user_id: deletePayload.user_id,
+          tenant_id: deletePayload.tenant_id,
+          totalUsersDeleted,
+          reason: deletePayload.reason
+        }, '🗑️  KEYCLOAK USER(S) DELETED: User(s) removed from identity provider');
+
+        console.log(`\n${'='.repeat(80)}`);
+        console.log('🗑️  KEYCLOAK USER(S) DELETED');
+        console.log('='.repeat(80));
+        console.log(`Primary Email: ${deletePayload.user_email}`);
+        console.log(`User ID: ${deletePayload.user_id || 'N/A'}`);
+        console.log(`Tenant ID: ${deletePayload.tenant_id}`);
+        console.log(`Total Users Deleted: ${totalUsersDeleted} (Primary + ${additionalUsersDeleted} additional)`);
+        console.log(`Delete Organization: ${deletePayload.delete_tenant ? '✅ YES (clean ALL organization data)' : '❌ NO (user-only cleanup)'}`);
+        console.log(`Reason: ${deletePayload.reason || 'Not specified'}`);
+        console.log('');
+        if (additionalEmails.length > 0) {
+          console.log(`Additional users deleted from Keycloak:`);
+          additionalEmails.forEach((email, idx) => {
+            console.log(`  ${idx + 1}. ${email}`);
+          });
+          console.log('');
+        }
+        console.log('User(s) have been successfully removed from Keycloak!');
+        if (deletePayload.delete_tenant) {
+          console.log('⚠️  ORGANIZATION DELETION: External service should delete ALL files for tenant_id.');
+        } else {
+          console.log('External service can now proceed with user-specific file cleanup using tenant_id.');
+        }
+        console.log(`${'='.repeat(80)}\n`);
+
+        return res.status(200).json({
+          success: true,
+          message: `Keycloak user(s) deleted successfully (${totalUsersDeleted} total)`,
+          email: deletePayload.user_email,
+          user_id: deletePayload.user_id,
+          tenant_id: deletePayload.tenant_id,
+          total_users_deleted: totalUsersDeleted,
+          additional_users_deleted: additionalUsersDeleted
+        });
+
+      } catch (error) {
+        logError(contextLogger, error as Error, { operation: 'delete-keycloak-user-processing' });
+
+        return res.status(500).json({
+          success: false,
+          message: 'Failed to delete Keycloak user',
+          error: error instanceof Error ? error.message : 'Unknown error',
+          email: deletePayload.user_email
         });
       }
 

@@ -117,6 +117,33 @@ export class WebhookService {
   }
 
   /**
+   * Send Keycloak user deletion webhook event
+   * Used for Phase 2 hard delete to synchronize user deletion with external identity provider
+   */
+  async deleteKeycloakUser(params: {
+    userId: string;
+    email: string;
+    organizationId: string; // Always required - used by external service for file cleanup
+    reason?: string;
+    deleteOrganization?: boolean; // Signal external system to delete entire organization data
+    additionalEmails?: string[]; // Additional user emails to delete from Keycloak (for org deletion)
+  }): Promise<WebhookResponse> {
+    const payload: BaseWebhookPayload & Record<string, any> = {
+      source: 'rita-member-management',
+      action: 'delete_keycloak_user',
+      user_email: params.email,
+      user_id: params.userId,
+      tenant_id: params.organizationId, // Map organization_id to tenant_id
+      delete_tenant: params.deleteOrganization || false, // Map to delete_tenant for external service
+      additional_emails: params.additionalEmails || [], // Additional emails for batch Keycloak deletion
+      reason: params.reason || 'Member deleted by administrator',
+      timestamp: new Date().toISOString()
+    };
+
+    return this.sendEvent(payload);
+  }
+
+  /**
    * Send password reset request webhook event
    */
   async sendPasswordResetRequestEvent(params: {

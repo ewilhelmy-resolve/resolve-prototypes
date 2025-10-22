@@ -351,6 +351,40 @@ export const memberApi = {
   },
 
   /**
+   * Permanently delete a member (hard delete with Keycloak cleanup)
+   * Owner only - deletes user from database, Keycloak, and external storage
+   * If owner is being deleted and they're the last/only member, deletes entire organization
+   */
+  deleteMemberPermanent: async (userId: string, reason?: string): Promise<import('../types/member').RemoveMemberResponse> => {
+    const searchParams = new URLSearchParams();
+    if (reason) searchParams.append('reason', reason);
+
+    const queryString = searchParams.toString();
+    const url = `/api/organizations/members/${userId}/permanent${queryString ? `?${queryString}` : ''}`;
+
+    return apiRequest<import('../types/member').RemoveMemberResponse>(url, {
+      method: 'DELETE',
+    });
+  },
+
+  /**
+   * Delete own account (hard delete with Keycloak cleanup)
+   * If owner and last/sole member → deletes entire organization and all members
+   * ⚠️ User will be logged out after successful deletion
+   */
+  deleteOwnAccount: async (reason?: string): Promise<import('../types/member').RemoveMemberResponse> => {
+    const searchParams = new URLSearchParams();
+    if (reason) searchParams.append('reason', reason);
+
+    const queryString = searchParams.toString();
+    const url = `/api/organizations/members/self/permanent${queryString ? `?${queryString}` : ''}`;
+
+    return apiRequest<import('../types/member').RemoveMemberResponse>(url, {
+      method: 'DELETE',
+    });
+  },
+
+  /**
    * Update a member's profile (firstName, lastName) (owner/admin only)
    */
   updateMemberProfile: async (
