@@ -24,10 +24,9 @@ import {
 	SquarePen,
 	Ticket,
 } from "lucide-react";
-import { useState, useEffect, useCallback } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { ShareModal } from "@/components/ShareModal";
-import WelcomeDialog from "@/components/WelcomeDialog";
 import { ConversationListItem } from "@/components/sidebar/ConversationListItem";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
@@ -56,15 +55,16 @@ import {
 	SidebarTrigger,
 	useSidebar,
 } from "@/components/ui/sidebar";
+import WelcomeDialog from "@/components/WelcomeDialog";
 import { useConversations } from "@/hooks/api/useConversations";
 import { useProfilePermissions } from "@/hooks/api/useProfile";
 import { useAuth } from "@/hooks/useAuth";
 import { useChatNavigation } from "@/hooks/useChatNavigation";
-import { useKnowledgeBase } from "@/hooks/useKnowledgeBase";
 import { useFeatureFlag } from "@/hooks/useFeatureFlags";
+import { useKnowledgeBase } from "@/hooks/useKnowledgeBase";
+import { SUPPORTED_DOCUMENT_TYPES } from "@/lib/constants";
 import type { Conversation } from "@/stores/conversationStore";
 import InviteUserCard from "../users/InviteUserCard";
-import { SUPPORTED_DOCUMENT_TYPES } from "@/lib/constants";
 
 export interface RitaLayoutProps {
 	children: React.ReactNode;
@@ -80,7 +80,7 @@ function RitaLayoutContent({ children, activePage = "chat" }: RitaLayoutProps) {
 	const location = useLocation();
 
 	// Feature flags
-	const showWelcomeModal = useFeatureFlag('SHOW_WELCOME_MODAL');
+	const showWelcomeModal = useFeatureFlag("SHOW_WELCOME_MODAL");
 
 	// Rita hooks
 	const { user, logout } = useAuth();
@@ -103,16 +103,17 @@ function RitaLayoutContent({ children, activePage = "chat" }: RitaLayoutProps) {
 	// Check if user has seen welcome modal before (localStorage + cookie fallback)
 	const hasSeenWelcomeModal = useCallback(() => {
 		// Check localStorage first (persists across sessions)
-		const hasSeenInLocalStorage = localStorage.getItem('rita_welcome_seen') === 'true';
+		const hasSeenInLocalStorage =
+			localStorage.getItem("rita_welcome_seen") === "true";
 		// Check cookie as fallback
-		const hasSeenInCookie = document.cookie.includes('rita_welcome_seen=true');
+		const hasSeenInCookie = document.cookie.includes("rita_welcome_seen=true");
 		return hasSeenInLocalStorage || hasSeenInCookie;
 	}, []);
 
 	// Mark welcome modal as seen (both localStorage and cookie)
 	const markWelcomeModalAsSeen = useCallback(() => {
 		// Set in localStorage (persists indefinitely)
-		localStorage.setItem('rita_welcome_seen', 'true');
+		localStorage.setItem("rita_welcome_seen", "true");
 
 		// Set cookie to expire in 1 year (for cross-tab consistency)
 		const expiryDate = new Date();
@@ -171,7 +172,8 @@ function RitaLayoutContent({ children, activePage = "chat" }: RitaLayoutProps) {
 
 	// Format file metadata for display (e.g., "PDF - Today, 4:00PM")
 	const formatFileMetadata = (file: any) => {
-		const fileExtension = file.filename?.split('.').pop()?.toUpperCase() || 'FILE';
+		const fileExtension =
+			file.filename?.split(".").pop()?.toUpperCase() || "FILE";
 
 		if (!file.created_at) return fileExtension;
 
@@ -179,11 +181,11 @@ function RitaLayoutContent({ children, activePage = "chat" }: RitaLayoutProps) {
 		const today = new Date();
 		const isToday = date.toDateString() === today.toDateString();
 
-		const dateStr = isToday ? 'Today' : date.toLocaleDateString();
-		const timeStr = date.toLocaleTimeString('en-US', {
-			hour: 'numeric',
-			minute: '2-digit',
-			hour12: true
+		const dateStr = isToday ? "Today" : date.toLocaleDateString();
+		const timeStr = date.toLocaleTimeString("en-US", {
+			hour: "numeric",
+			minute: "2-digit",
+			hour12: true,
 		});
 
 		return `${fileExtension} - ${dateStr}, ${timeStr}`;
@@ -241,7 +243,11 @@ function RitaLayoutContent({ children, activePage = "chat" }: RitaLayoutProps) {
 									</SidebarMenuButton>
 								</SidebarMenuItem>
 								<SidebarMenuItem>
-									<SidebarMenuButton className="flex items-center gap-2 px-2 py-2 h-8 rounded-md">
+									<SidebarMenuButton
+										className="flex items-center gap-2 px-2 py-2 h-8 rounded-md"
+										onClick={() => navigate("/tickets")}
+										isActive={location.pathname === "/tickets"}
+									>
 										<Ticket className="w-4 h-4" />
 										<span className="text-sm text-sidebar-foreground">
 											Tickets
@@ -264,28 +270,32 @@ function RitaLayoutContent({ children, activePage = "chat" }: RitaLayoutProps) {
 						</SidebarMenuItem>
 					</div>
 
-            <SidebarGroup>
-              <SidebarGroupLabel className="px-2 h-8 rounded-md text-xs text-sidebar-foreground">
-                Recent chats
-              </SidebarGroupLabel>
-              <SidebarMenu className="gap-1">
-                {conversationsLoading ? (
-                  <div className="px-2 text-xs text-muted-foreground">Loading...</div>
-                ) : conversations.length === 0 ? (
-                  <div className="px-2 text-xs text-muted-foreground">No conversations yet</div>
-                ) : (
-                  conversations.map((conversation: Conversation) => (
-                    <ConversationListItem
-                      key={conversation.id}
-                      conversation={conversation}
-                      isActive={conversation.id === currentConversationId}
-                      onClick={handleConversationClick}
-                    />
-                  ))
-                )}
-              </SidebarMenu>
-            </SidebarGroup>
-          </SidebarContent>
+					<SidebarGroup>
+						<SidebarGroupLabel className="px-2 h-8 rounded-md text-xs text-sidebar-foreground">
+							Recent chats
+						</SidebarGroupLabel>
+						<SidebarMenu className="gap-1">
+							{conversationsLoading ? (
+								<div className="px-2 text-xs text-muted-foreground">
+									Loading...
+								</div>
+							) : conversations.length === 0 ? (
+								<div className="px-2 text-xs text-muted-foreground">
+									No conversations yet
+								</div>
+							) : (
+								conversations.map((conversation: Conversation) => (
+									<ConversationListItem
+										key={conversation.id}
+										conversation={conversation}
+										isActive={conversation.id === currentConversationId}
+										onClick={handleConversationClick}
+									/>
+								))
+							)}
+						</SidebarMenu>
+					</SidebarGroup>
+				</SidebarContent>
 
 				<SidebarFooter className="p-2 border-t border-sidebar-border">
 					<Popover>
@@ -378,7 +388,9 @@ function RitaLayoutContent({ children, activePage = "chat" }: RitaLayoutProps) {
 			</Sidebar>
 
 			<div className="fixed inset-y-0 right-0 left-0 z-0 flex flex-col overflow-hidden">
-				<header className={`h-[67px] bg-background flex items-center flex-shrink-0 pr-6 border-b border-gray-200 transition-[padding] duration-200 ease-linear ${state === "expanded" ? "lg:pl-64" : "lg:pl-12"}`}>
+				<header
+					className={`h-[67px] bg-background flex items-center flex-shrink-0 pr-6 border-b border-gray-200 transition-[padding] duration-200 ease-linear ${state === "expanded" ? "lg:pl-64" : "lg:pl-12"}`}
+				>
 					<div className="flex items-center gap-2 h-full pl-4">
 						<SidebarTrigger className="lg:flex" />
 						<Breadcrumb>
@@ -410,7 +422,9 @@ function RitaLayoutContent({ children, activePage = "chat" }: RitaLayoutProps) {
 					</div>
 				</header>
 
-				<div className={`flex flex-1 overflow-hidden min-w-0 transition-[padding] duration-200 ease-linear ${state === "expanded" ? "lg:pl-64" : "lg:pl-12"}`}>
+				<div
+					className={`flex flex-1 overflow-hidden min-w-0 transition-[padding] duration-200 ease-linear ${state === "expanded" ? "lg:pl-64" : "lg:pl-12"}`}
+				>
 					<main className="flex-1 flex flex-col overflow-y-auto min-w-0 w-full">
 						{children}
 					</main>
@@ -474,7 +488,8 @@ function RitaLayoutContent({ children, activePage = "chat" }: RitaLayoutProps) {
 											No articles yet
 										</h3>
 										<p className="text-sm text-muted-foreground text-center max-w-xs">
-											Upload your knowledge articles to unlock instant answers from Rita
+											Upload your knowledge articles to unlock instant answers
+											from Rita
 										</p>
 										<Button
 											variant="secondary"

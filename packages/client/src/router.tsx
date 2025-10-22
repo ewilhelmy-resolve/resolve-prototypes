@@ -20,6 +20,7 @@ import { NotFoundPage } from "./pages/NotFoundPage";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
 import SettingsV1Page from "./pages/SettingsV1Page";
 import ProfilePage from "./pages/settings/ProfilePage";
+import TicketsPage from "./pages/TicketsPage";
 import UsersSettingsPage from "./pages/UsersSettingsPage";
 import { VerifyEmailPage } from "./pages/VerifyEmailPage";
 import { VerifyEmailSentPage } from "./pages/VerifyEmailSentPage";
@@ -52,6 +53,14 @@ const router = createBrowserRouter([
 		element: (
 			<RoleProtectedRoute allowedRoles={['owner', 'admin']}>
 				<FilesV1Page />
+			</RoleProtectedRoute>
+		),
+	},
+	{
+		path: "/tickets",
+		element: (
+			<RoleProtectedRoute allowedRoles={['owner', 'admin']}>
+				<TicketsPage />
 			</RoleProtectedRoute>
 		),
 	},
