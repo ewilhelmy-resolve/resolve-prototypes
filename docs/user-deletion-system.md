@@ -243,6 +243,50 @@ The system uses a **blocking webhook pattern** to ensure Keycloak and database s
 
 ---
 
+## Business Rules & Protections
+
+### Last Owner Protection
+
+**Purpose**: Prevent organizations from being left without an owner, which would make them unmanageable.
+
+**Rules**:
+1. **Cannot Delete Last Active Owner**: If an owner is the only active owner in the organization, they cannot be deleted by another admin
+2. **Cannot Demote Last Active Owner**: If an owner is the only active owner, their role cannot be changed to admin or user
+3. **Cannot Deactivate Last Active Owner**: If an owner is the only active owner, they cannot be deactivated
+
+**Implementation**:
+
+**Backend Protection** (`memberService.ts:214-220`):
+```typescript
+// Check if demoting last active owner
+if (oldRole === 'owner' && newRole !== 'owner') {
+  const isLast = await this.isLastActiveOwner(organizationId, userId);
+  if (isLast) {
+    throw new Error('Cannot demote the last active owner');
+  }
+}
+```
+
+**Frontend Protection** (`UsersTable.tsx:100-106`, `EditUserSheet.tsx:119-165`):
+- UI calculates if user is last active owner
+- Role selector is disabled when `isLastActiveOwner={true}`
+- Helpful message displayed: "Cannot change role: This is the only active owner in the organization. Promote another member to owner first."
+
+**Exception**: Owner can still delete their own account via self-deletion, which triggers complete organization deletion (includes all members and all data).
+
+**How to Check if Last Owner**:
+```sql
+SELECT COUNT(*) as owner_count
+FROM organization_members
+WHERE organization_id = $1
+AND role = 'owner'
+AND is_active = true
+AND user_id != $2  -- Exclude the user being checked
+```
+If `owner_count = 0`, then the user is the last active owner.
+
+---
+
 ## Database Schema & CASCADE Constraints
 
 ### Foreign Key Constraints (Migration 130)
