@@ -17,6 +17,11 @@ on:
         required: false
         default: 'latest'
 
+env:
+    DEPLOY_PROD_HOST: 'ec2-44-218-120-97.compute-1.amazonaws.com'
+    DEPLOY_STAGING_HOST: 'ec2-23-21-95-233.compute-1.amazonaws.com'
+    DEPLOY_USER: 'ec2-user'
+
 jobs:
   build-theme:
     runs-on: ubuntu-latest
@@ -89,6 +94,19 @@ jobs:
         working-directory: keycloak
         run: |
           mv rita-theme-v2.jar ${{ steps.metadata.outputs.artifact_name }}
+
+      - name: Push JAR to environments
+        working-directory: keycloak
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.DEPLOY_ONBOARDING_SSH_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          scp -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no ./${{ steps.metadata.outputs.artifact_name }} ${{ env.DEPLOY_USER }}@${{ env.DEPLOY_STAGING_HOST }}:/tmp/
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no ${{ env.DEPLOY_USER }}@${{ env.DEPLOY_STAGING_HOST }} "sudo mv /tmp/${{ steps.metadata.outputs.artifact_name }} /opt/onboarding/keycloak/providers/"
+          if [ "${{ github.ref }}" = "refs/heads/main" ]; then
+            scp -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no ./${{ steps.metadata.outputs.artifact_name }} ${{ env.DEPLOY_USER }}@${{ env.DEPLOY_PROD_HOST }}:/tmp/
+            ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no ${{ env.DEPLOY_USER }}@${{ env.DEPLOY_PROD_HOST }} "sudo mv /tmp/${{ steps.metadata.outputs.artifact_name }} /opt/onboarding/keycloak/providers/"
+          fi
 
       - name: Upload theme artifact
         uses: actions/upload-artifact@v4
