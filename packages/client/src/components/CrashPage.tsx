@@ -35,7 +35,7 @@ export function CrashPage({
 	actionLabel,
 	onAction,
 	icon,
-	iconSrc = "/images/signal_Image.svg",
+	iconSrc = "/images/img_error.png",
 	iconAlt = "Error illustration",
 }: CrashPageProps) {
 	return (
