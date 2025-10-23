@@ -53,13 +53,14 @@ sequenceDiagram
     Automation->>Automation: 13. Process document<br/>(parse, chunk, embed, vectorize)
 
     alt Processing Successful
-        Automation->>RabbitMQ: 14a. Publish to document_processing_status<br/>{status: 'processing_completed',<br/> processed_markdown: "..."}
+        Automation->>DB: 14a. UPDATE blob_metadata<br/>SET processed_markdown (direct DB access)
+        Automation->>RabbitMQ: 14b. Publish to document_processing_status<br/>{status: 'processing_completed'}
     else Processing Failed
-        Automation->>RabbitMQ: 14b. Publish to document_processing_status<br/>{status: 'processing_failed',<br/> error_message: "..."}
+        Automation->>RabbitMQ: 14c. Publish to document_processing_status<br/>{status: 'processing_failed',<br/> error_message: "..."}
     end
 
     RabbitMQ->>API: 15. Consumer receives message
-    API->>DB: 16. UPDATE blob_metadata<br/>SET status='processed'|'failed'
+    API->>DB: 16. UPDATE blob_metadata<br/>SET status='processed'|'failed'<br/>(status only, not processed_markdown)
     API->>Frontend: 17. Send SSE event:<br/>document_update
 
     Frontend-->>User: 18. Update badge to "Processed" or "Failed"<br/>Show toast notification
@@ -195,13 +196,12 @@ VALUES (..., 'processing', ...)
 -- Success
 UPDATE blob_metadata
 SET status = 'processed',
-    processed_markdown = $1,
     metadata = CASE
       WHEN metadata ? 'error' THEN metadata - 'error'  -- Clear previous errors
       ELSE metadata
     END,
     updated_at = NOW()
-WHERE id = $2 AND organization_id = $3;
+WHERE id = $1 AND organization_id = $2;
 
 -- Failure
 UPDATE blob_metadata
@@ -215,7 +215,9 @@ SET status = 'failed',
 WHERE id = $2 AND organization_id = $3;
 ```
 
-**Key Feature**: When processing succeeds after a previous failure, the error is automatically removed from metadata using PostgreSQL JSONB operations (`metadata - 'error'`).
+**Key Features**:
+- When processing succeeds after a previous failure, the error is automatically removed from metadata using PostgreSQL JSONB operations (`metadata - 'error'`)
+- **Important**: The `processed_markdown` field is updated directly by the external automation system in the database, NOT by the consumer. The consumer only updates the status and clears errors.
 
 #### 3. **SSE Event Broadcasting**
 
