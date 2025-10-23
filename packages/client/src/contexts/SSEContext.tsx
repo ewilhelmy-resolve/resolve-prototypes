@@ -117,7 +117,19 @@ export const SSEProvider: React.FC<SSEProviderProps> = ({
 					queryKey: dataSourceKeys.detail(event.data.connection_id),
 				});
 
-				// Show toast notification for sync events only (not verification)
+				// Show toast notification for verification failures
+				if (updateType === "verification" && event.data.last_verification_error) {
+					const connectionType = event.data.connection_type || "Data source";
+					toast.error(`${connectionType} verification failed`, {
+						description: event.data.last_verification_error || "Failed to verify connection",
+						action: {
+							label: "View",
+							onClick: () => navigate("/settings/connections"),
+						},
+					});
+				}
+
+				// Show toast notification for sync events
 				if (updateType === "sync" && event.data.last_sync_status) {
 					const connectionType = event.data.connection_type || "Data source";
 					const syncStatus = event.data.last_sync_status;
