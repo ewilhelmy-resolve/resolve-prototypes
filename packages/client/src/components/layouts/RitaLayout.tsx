@@ -446,6 +446,9 @@ function RitaLayoutContent({ children, activePage = "chat" }: RitaLayoutProps) {
 								</Button>
 							</div>
 
+							{/* 
+							TODO : Add knowledge base stats summary when backend support is added
+							
 							<div className="flex gap-4 w-full justify-between border border-border rounded-lg p-4">
 								<div className="flex flex-col items-center flex-1">
 									<span className="text-2xl font-semibold text-foreground">
@@ -471,7 +474,7 @@ function RitaLayoutContent({ children, activePage = "chat" }: RitaLayoutProps) {
 										Accuracy
 									</span>
 								</div>
-							</div>
+							</div> */}
 
 							<div className="flex flex-col gap-3">
 								<span className="text-sm text-muted-foreground">
