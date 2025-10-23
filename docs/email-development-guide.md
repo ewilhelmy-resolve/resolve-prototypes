@@ -99,17 +99,24 @@ docker compose up -d keycloak
 
 Use this only for fresh development setup.
 
-### Mock Service SMTP (Already Configured)
+### Mock Service SMTP (Auto-Configured)
 
-SMTP settings are in `.env`:
+The email service automatically defaults to `localhost:1025` for local development.
+
+**No configuration needed!** The service will work out of the box.
+
+Optional configuration in `.env` (only if you need to override defaults):
 ```bash
-SMTP_HOST=mailpit
+# Defaults to 'localhost' if not set
+SMTP_HOST=localhost
 SMTP_PORT=1025
 SMTP_FROM=noreply@rita.local
 SMTP_FROM_NAME=Rita Platform
 ```
 
-Email service: `packages/mock-service/src/email-service.ts`
+**Note**: If running mock-service in Docker, set `SMTP_HOST=mailpit`
+
+Email service implementation: `packages/mock-service/src/email-service.ts`
 
 ---
 

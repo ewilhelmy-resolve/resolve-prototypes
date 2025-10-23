@@ -13,8 +13,13 @@ class EmailService {
   private transporter: Transporter;
 
   constructor() {
-    this.transporter = nodemailer.createTransporter({
-      host: process.env.SMTP_HOST || 'mailpit',
+    // Auto-detect SMTP host based on environment
+    // Default to 'localhost' for local development (most common case)
+    // Use 'mailpit' only when explicitly running in Docker
+    const defaultHost = process.env.SMTP_HOST || 'localhost';
+
+    this.transporter = nodemailer.createTransport({
+      host: defaultHost,
       port: parseInt(process.env.SMTP_PORT || '1025', 10),
       secure: process.env.SMTP_SECURE === 'true',
       auth: process.env.SMTP_AUTH === 'true' ? {
@@ -22,6 +27,11 @@ class EmailService {
         pass: process.env.SMTP_PASS || ''
       } : undefined
     });
+
+    logger.info({
+      host: defaultHost,
+      port: parseInt(process.env.SMTP_PORT || '1025', 10)
+    }, '📧 Email service initialized');
   }
 
   async sendEmail(options: EmailOptions): Promise<void> {
