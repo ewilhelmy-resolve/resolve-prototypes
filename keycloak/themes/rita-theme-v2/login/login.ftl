@@ -29,11 +29,23 @@
                 </p>
             </div>
 
-            <#-- Error Messages (if any) -->
+            <#-- Success/Error Messages -->
             <#if message?has_content && (message.type != 'warning' || !isAppInitiatedAction??)>
-                <div class="p-4 bg-red-900/20 border border-red-700 rounded-lg mb-4">
-                    <p class="text-sm text-red-300">${kcSanitize(message.summary)?no_esc}</p>
-                </div>
+                <#-- Check if this is the "email sent" success message from forgot password -->
+                <#assign messageText = message.summary?lower_case>
+                <#assign isEmailSentMessage = messageText?contains("email shortly") || messageText?contains("should receive")>
+
+                <#if isEmailSentMessage>
+                    <#-- Show email confirmation in green -->
+                    <div class="p-4 bg-green-900/20 border border-green-700 rounded-lg mb-4">
+                        <p class="text-sm text-green-300">${kcSanitize(message.summary)?no_esc}</p>
+                    </div>
+                <#else>
+                    <#-- Show actual errors in red -->
+                    <div class="p-4 bg-red-900/20 border border-red-700 rounded-lg mb-4">
+                        <p class="text-sm text-red-300">${kcSanitize(message.summary)?no_esc}</p>
+                    </div>
+                </#if>
             </#if>
 
             <#-- Login Form -->
@@ -137,9 +149,9 @@
                 </form>
             </#if>
 
-            <#-- Social Providers (if configured) -->
+            <#-- Social Providers (if configured) - Hidden with Tailwind -->
             <#if realm.password && social.providers??>
-                <div class="mt-6">
+                <div class="hidden mt-6">
                     <div class="relative">
                         <div class="absolute inset-0 flex items-center">
                             <div class="w-full border-t border-gray-700"></div>

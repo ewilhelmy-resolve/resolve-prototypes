@@ -1,6 +1,7 @@
 {
   "realm": "rita-chat-realm",
   "enabled": true,
+  "loginTheme": "rita-theme-v2",
   "resetPasswordAllowed": true,
   "smtpServer": {
     "host": "mailpit",

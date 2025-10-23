@@ -30,29 +30,11 @@
                 </div>
             </div>
 
-            <#-- Success/Error Messages -->
-            <#if message?has_content>
-                <#if message.type = 'success'>
-                    <div class="p-4 bg-green-900/20 border border-green-700 rounded-lg mb-4">
-                        <p class="text-sm text-green-300">${kcSanitize(message.summary)?no_esc}</p>
-                    </div>
-                <#elseif message.type = 'warning'>
-                    <div class="p-4 bg-yellow-900/20 border border-yellow-700 rounded-lg mb-4">
-                        <p class="text-sm text-yellow-300">${kcSanitize(message.summary)?no_esc}</p>
-                    </div>
-                <#elseif message.type = 'error'>
-                    <div class="p-4 bg-red-900/20 border border-red-700 rounded-lg mb-4">
-                        <p class="text-sm text-red-300">${kcSanitize(message.summary)?no_esc}</p>
-                    </div>
-                <#elseif message.type = 'info'>
-                    <div class="p-4 bg-blue-900/20 border border-blue-700 rounded-lg mb-4">
-                        <p class="text-sm text-blue-300">${kcSanitize(message.summary)?no_esc}</p>
-                    </div>
-                <#else>
-                    <div class="p-4 bg-gray-900/20 border border-gray-700 rounded-lg mb-4">
-                        <p class="text-sm text-gray-300">${kcSanitize(message.summary)?no_esc}</p>
-                    </div>
-                </#if>
+            <#-- Only show error messages for username field, hide the success "email sent" message -->
+            <#if messagesPerField.existsError('username')>
+                <div class="p-4 bg-red-900/20 border border-red-700 rounded-lg mb-4">
+                    <p class="text-sm text-red-300">${kcSanitize(messagesPerField.get('username'))?no_esc}</p>
+                </div>
             </#if>
 
             <#-- Password Reset Form -->
