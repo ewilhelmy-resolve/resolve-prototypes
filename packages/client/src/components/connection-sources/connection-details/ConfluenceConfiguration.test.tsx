@@ -5,8 +5,8 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { ConnectionSource } from "@/constants/connectionSources";
-import { STATUS } from "@/constants/connectionSources";
+import type { ConnectionSource } from "@/constants/connectionSourcesConstants";
+import { STATUS } from "@/constants/connectionSourcesConstants";
 import { ConnectionSourceProvider } from "@/contexts/ConnectionSourceContext";
 import ConfluenceConfiguration from "./ConfluenceConfiguration";
 

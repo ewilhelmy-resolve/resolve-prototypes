@@ -1,6 +1,6 @@
 import { useForm } from "react-hook-form";
 import { Button } from "@/components/ui/button";
-import { STATUS } from "@/constants/connectionSources";
+import { STATUS } from "@/constants/connectionSourcesConstants";
 import { useConnectionSource } from "@/contexts/ConnectionSourceContext";
 import { useUpdateDataSource } from "@/hooks/useDataSources";
 import { toast } from "@/lib/toast";

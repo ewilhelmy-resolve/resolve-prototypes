@@ -17,7 +17,7 @@ import {
 	mapDataSourceToUI,
 	SOURCE_METADATA,
 	SOURCES,
-} from "@/constants/connectionSources";
+} from "@/constants/connectionSourcesConstants";
 import { ConnectionSourceProvider } from "@/contexts/ConnectionSourceContext";
 import { useDataSource } from "@/hooks/useDataSources";
 import { BACKEND_STATUS, type DataSourceConnection } from "@/types/dataSource";
