@@ -16,6 +16,7 @@ import {
   rabbitLogger,
   webhookLogger
 } from './config/logger.js';
+import { emailService } from './email-service.js';
 
 
 // Load environment from root .env file
@@ -1713,30 +1714,36 @@ app.post('/webhook', async (req, res) => {
         invitation_count: invitationPayload.invitations.length
       }, 'Received send_invitation webhook');
 
-      // Log mock invitation emails prominently for testing
-      console.log(`\n${'='.repeat(80)}`);
-      console.log('📧 MOCK INVITATION EMAILS');
-      console.log('='.repeat(80));
-      console.log(`Organization: ${invitationPayload.organization_name}`);
-      console.log(`Invited by: ${invitationPayload.invited_by_name} (${invitationPayload.invited_by_email})`);
-      console.log(`Total invitations: ${invitationPayload.invitations.length}`);
-      console.log('');
+      // Send invitation emails via Mailpit
+      try {
+        for (const invitation of invitationPayload.invitations) {
+          await emailService.sendInvitation(
+            invitation.invitee_email,
+            invitationPayload.invited_by_name,
+            invitationPayload.organization_name,
+            invitation.invitation_url,
+            invitation.expires_at
+          );
+        }
 
-      for (const invitation of invitationPayload.invitations) {
-        console.log(`To: ${invitation.invitee_email}`);
-        console.log(`Invitation URL: ${invitation.invitation_url}`);
-        console.log(`Expires: ${new Date(invitation.expires_at).toLocaleString()}`);
-        console.log('');
+        contextLogger.info({
+          invitation_count: invitationPayload.invitations.length
+        }, '📧 Invitation emails sent successfully via Mailpit');
+
+        return res.status(200).json({
+          success: true,
+          message: 'Invitation emails sent successfully',
+          invitations_sent: invitationPayload.invitations.length
+        });
+      } catch (error) {
+        logError(contextLogger, error as Error, { operation: 'send-invitations' });
+
+        return res.status(500).json({
+          success: false,
+          message: 'Failed to send invitation emails',
+          error: error instanceof Error ? error.message : 'Unknown error'
+        });
       }
-
-      console.log('(In production, these would be sent via email service)');
-      console.log(`${'='.repeat(80)}\n`);
-
-      return res.status(200).json({
-        success: true,
-        message: 'Invitation emails logged successfully',
-        invitations_sent: invitationPayload.invitations.length
-      });
 
     } else if (payload.source === 'rita-chat' && payload.action === 'accept_invitation') {
       const acceptPayload = payload as AcceptInvitationWebhookPayload;
@@ -1823,23 +1830,31 @@ app.post('/webhook', async (req, res) => {
         expires_at: resetRequestPayload.expires_at
       }, 'Received password reset request webhook');
 
-      // Log mock password reset email prominently for testing
-      console.log(`\n${'='.repeat(80)}`);
-      console.log('🔑 MOCK PASSWORD RESET EMAIL');
-      console.log('='.repeat(80));
-      console.log(`To: ${resetRequestPayload.user_email}`);
-      console.log(`Expires: ${new Date(resetRequestPayload.expires_at).toLocaleString()}`);
-      console.log('');
-      console.log('Click here to reset your password:');
-      console.log(`${resetRequestPayload.reset_url}`);
-      console.log('');
-      console.log('(In production, this would be sent via email service)');
-      console.log(`${'='.repeat(80)}\n`);
+      // Send password reset email via Mailpit
+      try {
+        await emailService.sendPasswordReset(
+          resetRequestPayload.user_email!,
+          resetRequestPayload.reset_url,
+          resetRequestPayload.expires_at
+        );
 
-      return res.status(200).json({
-        success: true,
-        message: 'Password reset email logged successfully'
-      });
+        contextLogger.info({
+          email: resetRequestPayload.user_email
+        }, '📧 Password reset email sent successfully via Mailpit');
+
+        return res.status(200).json({
+          success: true,
+          message: 'Password reset email sent successfully'
+        });
+      } catch (error) {
+        logError(contextLogger, error as Error, { operation: 'send-password-reset' });
+
+        return res.status(500).json({
+          success: false,
+          message: 'Failed to send password reset email',
+          error: error instanceof Error ? error.message : 'Unknown error'
+        });
+      }
 
     } else if (payload.source === 'rita-auth' && payload.action === 'password_reset_complete') {
       const resetCompletePayload = payload as PasswordResetCompletePayload;
@@ -2320,32 +2335,25 @@ app.post('/webhook', async (req, res) => {
         // Create user in Keycloak
         const keycloakUserId = await createKeycloakUser(signupPayload);
 
+        // Send verification email via Mailpit
+        await emailService.sendSignupVerification(
+          signupPayload.user_email!,
+          `${signupPayload.first_name} ${signupPayload.last_name}`,
+          signupPayload.verification_url
+        );
+
         contextLogger.info({
           email: signupPayload.user_email,
           keycloakUserId,
           verification_url: signupPayload.verification_url,
           pending_user_id: signupPayload.pending_user_id
-        }, '🎉 SIGNUP SUCCESS: Keycloak user created');
-
-        // Log verification URL prominently for testing
-        console.log(`\n${'='.repeat(80)}`);
-        console.log('📧 MOCK EMAIL VERIFICATION');
-        console.log('='.repeat(80));
-        console.log(`To: ${signupPayload.user_email}`);
-        console.log(`Name: ${signupPayload.first_name} ${signupPayload.last_name}`);
-        console.log(`Company: ${signupPayload.company}`);
-        console.log('');
-        console.log('Click here to verify your email:');
-        console.log(`${signupPayload.verification_url}`);
-        console.log('');
-        console.log('(In production, this would be sent via email)');
-        console.log(`${'='.repeat(80)}\n`);
+        }, '🎉 SIGNUP SUCCESS: Keycloak user created and verification email sent');
 
         res.status(200).json({
           message: 'Signup webhook processed successfully',
           keycloak_user_id: keycloakUserId,
           email: signupPayload.user_email,
-          status: 'user_created_and_email_logged'
+          status: 'user_created_and_email_sent'
         });
 
       } catch (error) {
