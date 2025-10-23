@@ -1,6 +1,6 @@
 import { CircleCheck, CircleX, HelpCircle, Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { STATUS, type Status } from "@/constants/connectionSources";
+import { STATUS, type Status } from "@/constants/connectionSourcesConstants";
 
 interface ConnectionStatusBadgeProps {
 	status: Status;

@@ -3,14 +3,14 @@
 import { Globe } from "lucide-react";
 import { useEffect, useMemo } from "react";
 import { Link } from "react-router-dom";
+import { CrashPage } from "@/components/CrashPage";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
-import { CrashPage } from "@/components/CrashPage";
 import {
 	mapDataSourceToUI,
 	SOURCES,
 	STATUS,
-} from "@/constants/connectionSources";
+} from "@/constants/connectionSourcesConstants";
 import { useDataSources, useSeedDataSources } from "@/hooks/useDataSources";
 import { ConnectionStatusBadge } from "../../components/connection-sources/ConnectionStatusBadge";
 import Header from "../../components/Header";
@@ -76,13 +76,9 @@ export default function ConnectionSources() {
 					description="Connect your knowledge and ticketing sources to help Rita resolve IT issues faster."
 				/>
 				<div className="w-full max-w-4xl mx-auto flex flex-col gap-8">
-					{uiSources.map((source) => (
-						<Link
-							key={source.id}
-							to={`/settings/connections/${source.id}`}
-							className="block"
-						>
-							<Card className="p-4 border border-border bg-popover hover:bg-accent transition-colors cursor-pointer">
+					{uiSources.map((source) => {
+						const cardContent = (
+							<Card className={`p-4 border border-border bg-popover transition-colors ${source.type === SOURCES.CONFLUENCE ? 'hover:bg-accent cursor-pointer' : 'cursor-default opacity-75'}`}>
 								<div className="flex justify-between items-center">
 									<div className="flex flex-col gap-2">
 										<div className="flex flex-col">
@@ -121,15 +117,38 @@ export default function ConnectionSources() {
 											))}
 										</div>
 									</div>
-									<Button variant="secondary" size="sm">
-										{source.status === STATUS.NOT_CONNECTED
-											? "Configure"
-											: "Manage"}
+									<Button variant="secondary" size="sm" disabled={source.type !== SOURCES.CONFLUENCE}>
+										{
+											source.type === SOURCES.CONFLUENCE && <span>{  source.status === STATUS.NOT_CONNECTED
+												? "Configure"
+												: "Manage"}</span>
+										}
+
+										{
+											source.type !== SOURCES.CONFLUENCE && <span>Coming Soon</span>
+										}
+
 									</Button>
 								</div>
 							</Card>
-						</Link>
-					))}
+						);
+
+						// Only wrap Confluence sources with Link
+						if (source.type === SOURCES.CONFLUENCE) {
+							return (
+								<Link
+									key={source.id}
+									to={`/settings/connections/${source.id}`}
+									className="block"
+								>
+									{cardContent}
+								</Link>
+							);
+						}
+
+						// For other sources, just return the card without link
+						return <div key={source.id}>{cardContent}</div>;
+					})}
 				</div>
 			</div>
 		</div>

@@ -344,9 +344,11 @@ function RitaLayoutContent({ children, activePage = "chat" }: RitaLayoutProps) {
 												</span>
 											</div>
 										</div>
+										{/*
+										TODO : when implementing billing/plan upgrades
 										<span className="text-sm text-blue-600 font-medium cursor-pointer">
 											Upgrade
-										</span>
+										</span> */}
 									</div>
 								</div>
 
@@ -366,12 +368,14 @@ function RitaLayoutContent({ children, activePage = "chat" }: RitaLayoutProps) {
 											Profile
 										</button>
 									)}
+									{/*
+									TODO : when implementing help documentation
 									<button
 										className="w-full px-3 py-2 text-left text-sm text-foreground hover:bg-accent cursor-pointer"
 										onClick={() => navigate("/help")}
 									>
 										Help documentation
-									</button>
+									</button> */}
 									<Separator className="my-1" />
 									<button
 										className="w-full px-3 py-2 text-left text-sm text-foreground hover:bg-accent flex items-center gap-2 cursor-pointer"
