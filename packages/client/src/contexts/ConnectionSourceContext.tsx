@@ -1,5 +1,5 @@
 import { createContext, type ReactNode, useContext } from "react";
-import type { ConnectionSource } from "@/constants/connectionSourcesConstants";
+import type { ConnectionSource } from "@/constants/connectionSources";
 
 interface ConnectionSourceContextType {
 	source: ConnectionSource;

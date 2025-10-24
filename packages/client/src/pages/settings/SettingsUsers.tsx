@@ -1,12 +1,12 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import Header from "@/components/Header";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import InviteUsersButton from "@/components/users/InviteUsersButton";
 import PendingInvitationsTable from "@/components/users/PendingInvitationsTable";
 import UsersTable from "@/components/users/UsersTable";
 import { useInvitations } from "@/hooks/api/useInvitations";
 import { useProfilePermissions } from "@/hooks/api/useProfile";
+import SettingsHeader from "@/pages/settings/SettingsHeader";
 import { InvitationStatus } from "@/types/invitations";
 
 export default function SettingsUsers() {
@@ -28,14 +28,16 @@ export default function SettingsUsers() {
 	const pendingCount = pendingData?.total || 0;
 
 	return (
-		<div className="flex flex-col gap-8">
-			<Header
-				title="Users"
-				description="Manage users and invitations to your organization."
-				action={<InviteUsersButton />}
-			/>
+		<div className="flex-1 inline-flex flex-col items-center gap-8 w-full">
+			<div className="self-stretch flex flex-col items-start gap-8">
+				<SettingsHeader
+					title="Users"
+					description="Manage users and invitations to your organization."
+					action={<InviteUsersButton />}
+				/>
+			</div>
 
-			<div className="flex flex-col gap-6">
+			<div className="pb-8 w-full flex flex-col gap-6">
 				{/* 
 				TODO : Hide for now, will implement later
 
@@ -86,7 +88,7 @@ export default function SettingsUsers() {
 					</Card>
 				</div> */}
 
-				<Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+				<Tabs value={activeTab} onValueChange={setActiveTab} className="w-full pr-[2em]">
 					<TabsList>
 						<TabsTrigger value="users">Users</TabsTrigger>
 						<TabsTrigger value="pending">

@@ -5,8 +5,8 @@
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { describe, expect, it, vi } from "vitest";
-import type { ConnectionSource } from "@/constants/connectionSourcesConstants";
-import { STATUS } from "@/constants/connectionSourcesConstants";
+import type { ConnectionSource } from "@/constants/connectionSources";
+import { STATUS } from "@/constants/connectionSources";
 import { ConnectionStatusCard } from "./ConnectionStatusCard";
 
 // Mock connection sources
