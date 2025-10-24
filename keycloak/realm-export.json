@@ -1,6 +1,7 @@
 {
   "realm": "rita-chat-realm",
   "enabled": true,
+  "sslRequired": "none",
   "loginTheme": "rita-theme-v2",
   "resetPasswordAllowed": true,
   "smtpServer": {

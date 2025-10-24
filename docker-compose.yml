@@ -41,6 +41,7 @@ services:
       KEYCLOAK_ADMIN_PASSWORD: admin
       KC_HOSTNAME_URL: http://localhost:8080
       KC_HOSTNAME_ADMIN_URL: http://localhost:8080
+      KC_HTTP_ENABLED: true  # Add this line to enable HTTP
     ports:
       - "8080:8080"
     volumes:
