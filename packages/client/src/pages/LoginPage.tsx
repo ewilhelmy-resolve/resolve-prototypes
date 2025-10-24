@@ -2,6 +2,7 @@ import { Loader2 } from "lucide-react";
 import { useState } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
 import { Button } from "../components/ui/button";
+import { Checkbox } from "../components/ui/checkbox";
 import { Input } from "../components/ui/input";
 import { useAuth } from "../hooks/useAuth";
 import { validateEmail, validatePassword, validateRequired } from "../lib/validation";
@@ -17,6 +18,7 @@ export function LoginPage() {
 		email: "",
 		company: "",
 		password: "",
+		acceptedTos: false,
 	});
 	const [signupLoading, setSignupLoading] = useState(false);
 	const [signupError, setSignupError] = useState<string | null>(null);
@@ -43,7 +45,8 @@ export function LoginPage() {
 			!signupForm.lastName.trim() ||
 			!signupForm.email.trim() ||
 			!signupForm.company.trim() ||
-			!signupForm.password
+			!signupForm.password ||
+			!signupForm.acceptedTos
 		) {
 			return false;
 		}
@@ -116,7 +119,10 @@ export function LoginPage() {
 			const response = await fetch(`${API_BASE_URL}/auth/signup`, {
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify(signupForm),
+				body: JSON.stringify({
+					...signupForm,
+					tosAcceptedAt: signupForm.acceptedTos ? new Date().toISOString() : undefined,
+				}),
 			});
 
 			const data = await response.json();
@@ -408,6 +414,38 @@ export function LoginPage() {
 										<p className="text-sm text-red-400">{fieldErrors.password}</p>
 									)}
 								</div>
+
+								{/* Terms of Service Checkbox */}
+								<div className="flex items-start gap-3">
+									<Checkbox
+										id="acceptedTos"
+										checked={signupForm.acceptedTos}
+										onCheckedChange={(checked) => {
+											setSignupForm((prev) => ({
+												...prev,
+												acceptedTos: checked === true,
+											}));
+										}}
+										disabled={signupLoading}
+										className="mt-0.5"
+									/>
+									<label
+										htmlFor="acceptedTos"
+										className="text-sm text-gray-300 leading-relaxed cursor-pointer"
+									>
+										I agree to the{" "}
+										<a
+											href="/terms-of-service"
+											target="_blank"
+											rel="noopener noreferrer"
+											className="text-blue-400 hover:underline font-medium"
+											onClick={(e) => e.stopPropagation()}
+										>
+											Terms of Service
+										</a>
+									</label>
+								</div>
+
 								<Button
 									type="submit"
 									disabled={signupLoading || !isFormValid()}
