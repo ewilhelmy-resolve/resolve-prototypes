@@ -21,7 +21,7 @@ export function TermsOfService() {
 
 	// Custom components to preserve list numbering for legal documents
 	const components: Components = {
-		ol: ({ node, ordered, start, ...props }) => {
+		ol: ({ start, ...props }) => {
 			return (
 				<ol
 					{...props}
