@@ -117,10 +117,10 @@ router.post('/upload', authenticateUser, requireRole(['owner', 'admin']), handle
           // Insert metadata record
           const metadataResult = await client.query(`
             INSERT INTO blob_metadata (
-              blob_id, organization_id, user_id, filename, file_size, mime_type, status, metadata
+              blob_id, organization_id, user_id, filename, file_size, mime_type, status, metadata, source
             )
-            VALUES ($1, $2, $3, $4, $5, $6, 'processing', $7)
-            RETURNING id, blob_id, filename, file_size, mime_type, status, created_at
+            VALUES ($1, $2, $3, $4, $5, $6, 'processing', $7, 'manual')
+            RETURNING id, blob_id, filename, file_size, mime_type, status, source, created_at
           `, [
             blobId,
             authReq.user.activeOrganizationId,
@@ -182,6 +182,7 @@ router.post('/upload', authenticateUser, requireRole(['owner', 'admin']), handle
         size: result.file_size,
         type: result.mime_type,
         status: result.status,
+        source: result.source,
         created_at: result.created_at
       }
     });
@@ -454,6 +455,7 @@ router.get('/', authenticateUser, requireRole(['owner', 'admin']), async (req, r
             bm.user_id,
             bm.created_at,
             bm.updated_at,
+            bm.source,
             CASE
               WHEN bm.metadata->>'content' IS NOT NULL THEN 'text'
               ELSE 'binary'

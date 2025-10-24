@@ -58,6 +58,29 @@ const formatDate = (date: Date | null | undefined): string => {
   }).format(date)
 }
 
+const getSourceDisplayName = (source: string | undefined | null): string => {
+  if (!source) return '-'
+  switch (source.toLowerCase()) {
+    case 'manual':
+      return 'Manual'
+    case 'confluence':
+      return 'Jira Confluence'
+    default:
+      return source
+  }
+}
+
+const getSourceDatabaseValue = (displayName: string): string => {
+  switch (displayName) {
+    case 'Manual':
+      return 'manual'
+    case 'Jira Confluence':
+      return 'confluence'
+    default:
+      return displayName.toLowerCase()
+  }
+}
+
 export default function FilesV1Content() {
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState('All')
@@ -79,7 +102,7 @@ export default function FilesV1Content() {
   const filteredFiles = files.filter((file) => {
     const matchesSearch = file.filename.toLowerCase().includes(searchQuery.toLowerCase())
     const matchesStatus = statusFilter === 'All' || file.status === statusFilter.toLowerCase()
-    const matchesSource = sourceFilter === 'All' || file.type === sourceFilter
+    const matchesSource = sourceFilter === 'All' || file.source === getSourceDatabaseValue(sourceFilter)
     return matchesSearch && matchesStatus && matchesSource
   })
 
@@ -393,7 +416,7 @@ export default function FilesV1Content() {
                           {getStatusLabel(file.status)}
                         </Badge>
                       </TableCell>
-                      <TableCell>{file.type || 'Manual'}</TableCell>
+                      <TableCell>{getSourceDisplayName(file.source)}</TableCell>
                       <TableCell className="text-right">{formatFileSize(file.size)}</TableCell>
                       <TableCell className="text-right">-</TableCell>
                       <TableCell className="text-right">{formatDate(file.created_at)}</TableCell>
