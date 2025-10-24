@@ -103,9 +103,11 @@ jobs:
           chmod 600 ~/.ssh/deploy_key
           scp -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no ./${{ steps.metadata.outputs.artifact_name }} ${{ env.DEPLOY_USER }}@${{ env.DEPLOY_STAGING_HOST }}:/tmp/
           ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no ${{ env.DEPLOY_USER }}@${{ env.DEPLOY_STAGING_HOST }} "sudo mv /tmp/${{ steps.metadata.outputs.artifact_name }} /opt/onboarding/keycloak/providers/"
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no ${{ env.DEPLOY_USER }}@${{ env.DEPLOY_STAGING_HOST }} "cd /opt/onboarding/keycloak && docker-compose down && docker-compose up -d"
           if [ "${{ github.ref }}" = "refs/heads/main" ]; then
             scp -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no ./${{ steps.metadata.outputs.artifact_name }} ${{ env.DEPLOY_USER }}@${{ env.DEPLOY_PROD_HOST }}:/tmp/
             ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no ${{ env.DEPLOY_USER }}@${{ env.DEPLOY_PROD_HOST }} "sudo mv /tmp/${{ steps.metadata.outputs.artifact_name }} /opt/onboarding/keycloak/providers/"
+            ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no ${{ env.DEPLOY_USER }}@${{ env.DEPLOY_PROD_HOST }} "cd /opt/onboarding/keycloak && docker-compose down && docker-compose up -d"
           fi
 
       - name: Upload theme artifact
