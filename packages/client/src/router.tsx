@@ -20,6 +20,7 @@ import { NotFoundPage } from "./pages/NotFoundPage";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
 import SettingsV1Page from "./pages/SettingsV1Page";
 import ProfilePage from "./pages/settings/ProfilePage";
+import TermsOfService from "./pages/TermsOfService";
 import TicketsPage from "./pages/TicketsPage";
 import UsersSettingsPage from "./pages/UsersSettingsPage";
 import { VerifyEmailPage } from "./pages/VerifyEmailPage";
@@ -185,6 +186,10 @@ const router = createBrowserRouter([
 			{
 				path: "/reset-password",
 				element: <ResetPasswordPage />,
+			},
+			{
+				path: "/terms-of-service",
+				element: <TermsOfService />,
 			},
 			{
 				path: "*",

@@ -51,7 +51,7 @@ function checkResendRateLimit(email: string): boolean {
  */
 router.post('/signup', async (req, res) => {
   try {
-    const { firstName, lastName, email, company, password } = req.body;
+    const { firstName, lastName, email, company, password, tosAcceptedAt } = req.body;
 
     if (!firstName || !lastName || !email || !company || !password) {
       return res.status(400).json({
@@ -121,9 +121,9 @@ router.post('/signup', async (req, res) => {
 
     // Create pending user (WITHOUT password - it was sent to webhook only)
     const pendingUserResult = await pool.query(
-      `INSERT INTO pending_users (email, first_name, last_name, company, verification_token, token_expires_at)
-       VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,
-      [email, firstName, lastName, company, verificationToken, tokenExpiresAt]
+      `INSERT INTO pending_users (email, first_name, last_name, company, verification_token, token_expires_at, tos_accepted_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id`,
+      [email, firstName, lastName, company, verificationToken, tokenExpiresAt, tosAcceptedAt || null]
     );
 
     const pendingUserId = pendingUserResult.rows[0].id;
