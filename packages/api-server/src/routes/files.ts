@@ -338,6 +338,28 @@ router.get('/:documentId/metadata', authenticateUser, async (req, res) => {
     );
 
     if (result === null) {
+      // Log phantom citation (404 error)
+      try {
+        await withOrgContext(
+          authReq.user.id,
+          authReq.user.activeOrganizationId,
+          async (client) => {
+            await client.query(`
+              INSERT INTO phantom_citations (blob_id, user_id, organization_id, first_seen, last_seen, occurrence_count)
+              VALUES ($1, $2, $3, NOW(), NOW(), 1)
+              ON CONFLICT (blob_id, user_id, organization_id)
+              DO UPDATE SET
+                last_seen = NOW(),
+                occurrence_count = phantom_citations.occurrence_count + 1,
+                updated_at = NOW()
+            `, [documentId, authReq.user.id, authReq.user.activeOrganizationId]);
+          }
+        );
+      } catch (logError) {
+        // Don't fail the request if logging fails
+        console.error('Failed to log phantom citation:', logError);
+      }
+
       return res.status(404).json({ error: 'Document not found' });
     }
 
