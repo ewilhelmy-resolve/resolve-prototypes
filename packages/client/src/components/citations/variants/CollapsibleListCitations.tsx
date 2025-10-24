@@ -50,12 +50,32 @@ function SourceItem({
   onSourceClick: (source: CitationsProps['sources'][0], e: React.MouseEvent) => void
 }) {
   // Fetch document metadata if source has blob_id but no title
-  const { data: metadata } = useDocumentMetadata(
+  const { data: metadata, isError, isLoading } = useDocumentMetadata(
     source.blob_id && !source.title ? source.blob_id : undefined
   )
 
-  // Get display title - prefer fetched metadata, then source.title, then fallback
-  const displayTitle = metadata?.filename || source.title || 'Loading...'
+  // If metadata fetch failed, hide this citation and log warning
+  if (isError) {
+    console.warn('Citation source not found:', {
+      blob_id: source.blob_id,
+      messageId,
+      index,
+    })
+    return null
+  }
+
+  // Get display title - prefer fetched metadata, then source.title, then loading state
+  const displayTitle = metadata?.filename || source.title || (isLoading ? 'Loading...' : undefined)
+
+  // If no title can be determined (shouldn't happen after loading), hide the citation
+  if (!displayTitle) {
+    console.warn('Citation source has no title:', {
+      blob_id: source.blob_id,
+      messageId,
+      index,
+    })
+    return null
+  }
 
   return (
     <div key={`${messageId}-${index}`} className="space-y-2">

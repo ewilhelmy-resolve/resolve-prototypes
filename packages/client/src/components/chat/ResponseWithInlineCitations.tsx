@@ -122,12 +122,32 @@ function InlineCitationItem({
   onViewDocument: (source: CitationSource) => void
 }) {
   // Fetch document metadata if source has blob_id but no title
-  const { data: metadata } = useDocumentMetadata(
+  const { data: metadata, isError, isLoading } = useDocumentMetadata(
     source.blob_id && !source.title ? source.blob_id : undefined
   )
 
-  // Get display title - prefer fetched metadata, then source.title
-  const displayTitle = metadata?.filename || source.title
+  // If metadata fetch failed, hide this inline citation and log warning
+  if (isError) {
+    console.warn('Inline citation source not found:', {
+      blob_id: source.blob_id,
+      messageId,
+      index,
+    })
+    return null
+  }
+
+  // Get display title - prefer fetched metadata, then source.title, then loading state
+  const displayTitle = metadata?.filename || source.title || (isLoading ? 'Loading...' : undefined)
+
+  // If no title can be determined (shouldn't happen after loading), hide the citation
+  if (!displayTitle) {
+    console.warn('Inline citation source has no title:', {
+      blob_id: source.blob_id,
+      messageId,
+      index,
+    })
+    return null
+  }
 
   return (
     <InlineCitation key={index}>
