@@ -101,11 +101,13 @@ jobs:
           mkdir -p ~/.ssh
           echo "${{ secrets.DEPLOY_ONBOARDING_SSH_KEY }}" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
-          scp -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no ./${{ steps.metadata.outputs.artifact_name }} ${{ env.DEPLOY_USER }}@${{ env.DEPLOY_STAGING_HOST }}:/tmp/
-          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no ${{ env.DEPLOY_USER }}@${{ env.DEPLOY_STAGING_HOST }} "sudo mv /opt/onboarding/keycloak/providers/*.jar /opt/onboarding/keycloak/providers/rita-theme-v2.backup"
-          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no ${{ env.DEPLOY_USER }}@${{ env.DEPLOY_STAGING_HOST }} "sudo mv /tmp/${{ steps.metadata.outputs.artifact_name }} /opt/onboarding/keycloak/providers/rita-theme-v2.jar"
-          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no ${{ env.DEPLOY_USER }}@${{ env.DEPLOY_STAGING_HOST }} "cd /opt/onboarding/keycloak && sudo docker-compose down && sudo docker-compose up -d"
           if [ "${{ github.ref }}" = "refs/heads/main" ]; then
+            # Deploy to staging
+            scp -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no ./${{ steps.metadata.outputs.artifact_name }} ${{ env.DEPLOY_USER }}@${{ env.DEPLOY_STAGING_HOST }}:/tmp/
+            ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no ${{ env.DEPLOY_USER }}@${{ env.DEPLOY_STAGING_HOST }} "sudo mv /opt/onboarding/keycloak/providers/*.jar /opt/onboarding/keycloak/providers/rita-theme-v2.backup"
+            ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no ${{ env.DEPLOY_USER }}@${{ env.DEPLOY_STAGING_HOST }} "sudo mv /tmp/${{ steps.metadata.outputs.artifact_name }} /opt/onboarding/keycloak/providers/rita-theme-v2.jar"
+            ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no ${{ env.DEPLOY_USER }}@${{ env.DEPLOY_STAGING_HOST }} "cd /opt/onboarding/keycloak && sudo docker-compose down && sudo docker-compose up -d"
+            # Deploy to production
             scp -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no ./${{ steps.metadata.outputs.artifact_name }} ${{ env.DEPLOY_USER }}@${{ env.DEPLOY_PROD_HOST }}:/tmp/
             ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no ${{ env.DEPLOY_USER }}@${{ env.DEPLOY_PROD_HOST }} "sudo mv /opt/onboarding/keycloak/providers/*.jar /opt/onboarding/keycloak/providers/rita-theme-v2.backup"
             ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no ${{ env.DEPLOY_USER }}@${{ env.DEPLOY_PROD_HOST }} "sudo mv /tmp/${{ steps.metadata.outputs.artifact_name }} /opt/onboarding/keycloak/providers/rita-theme-v2.jar"
