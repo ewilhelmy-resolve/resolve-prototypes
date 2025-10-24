@@ -2066,6 +2066,7 @@ app.post('/webhook', async (req, res) => {
             connection_id: verifyPayload.connection_id,
             tenant_id: verifyPayload.tenant_id,
             status: 'success',
+            //status: 'failed',
             options: {
               spaces: 'ENG,PROD,DOCS',
               sites: 'confluence.company.com'

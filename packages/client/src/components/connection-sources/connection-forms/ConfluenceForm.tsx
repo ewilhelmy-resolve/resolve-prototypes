@@ -29,6 +29,10 @@ export function ConfluenceForm({ onCancel }: ConfluenceFormProps = {}) {
 	const verifyMutation = useVerifyDataSource();
 	const updateMutation = useUpdateDataSource();
 
+	// Check for verification failure state (derived from error field, not status)
+	const verificationError = source.backendData?.last_verification_error;
+	const verificationFailed = !!verificationError;
+
 	const {
 		register,
 		handleSubmit,
@@ -106,6 +110,15 @@ export function ConfluenceForm({ onCancel }: ConfluenceFormProps = {}) {
 		<ConnectionsForm handleSubmit={handleSubmit(onSubmit)} id="connection-form">
 			{/* Authentication */}
 			<FormSection title="Authentication">
+				{/* Show error alert when verification fails */}
+				{verificationFailed && (
+					<StatusAlert variant="error" className="mb-4">
+						<p className="font-semibold">Verification Failed</p>
+						<p>{verificationError}</p>
+						<p className="text-sm mt-2">Please check your credentials and try again.</p>
+					</StatusAlert>
+				)}
+
 				{/* URL */}
 				<FormField label="URL" errors={errors} name="url" required>
 					<Input

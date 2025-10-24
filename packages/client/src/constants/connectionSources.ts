@@ -81,6 +81,7 @@ export const SOURCE_METADATA: Record<
  * @param last_sync_status - Last sync result ('completed', 'failed', null)
  * @param enabled - Whether connection is enabled
  * @param last_verification_at - When credentials were last verified (null = never configured)
+ * @param last_verification_error - Last verification error message (null = no error)
  * @returns UI-friendly status string
  */
 export function getDisplayStatus(
@@ -88,6 +89,7 @@ export function getDisplayStatus(
 	last_sync_status: DataSourceLastSyncStatus,
 	enabled: boolean,
 	last_verification_at: string | null,
+	last_verification_error: string | null = null,
 ): Status {
 	// Check active statuses first (verifying/syncing take precedence)
 	if (status === "verifying") {
@@ -101,6 +103,11 @@ export function getDisplayStatus(
 	// Not configured yet (never verified)
 	if (!last_verification_at) {
 		return STATUS.NOT_CONNECTED;
+	}
+
+	// Check for verification failure (derived state)
+	if (last_verification_error) {
+		return STATUS.ERROR;
 	}
 
 	// Idle - check last sync result
@@ -212,6 +219,7 @@ export function mapDataSourceToUI(
 			source.last_sync_status,
 			source.enabled,
 			source.last_verification_at,
+			source.last_verification_error,
 		),
 		lastSync: formatRelativeTime(source.last_sync_at),
 		description: metadata.description,

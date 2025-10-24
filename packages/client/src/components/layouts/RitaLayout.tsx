@@ -306,8 +306,8 @@ function RitaLayoutContent({ children, activePage = "chat" }: RitaLayoutProps) {
 										{getUserInitials()}
 									</AvatarFallback>
 								</Avatar>
-								<div className="flex flex-col gap-0.5">
-									<span className="text-sm font-bold text-sidebar-foreground">
+								<div className="flex flex-col gap-0.5 overflow-hidden">
+									<span className="text-sm font-bold text-sidebar-foreground truncate">
 										{user?.firstName && user?.lastName
 											? `${user.firstName} ${user.lastName}`
 											: user?.username || "User"}
@@ -367,15 +367,15 @@ function RitaLayoutContent({ children, activePage = "chat" }: RitaLayoutProps) {
 										>
 											Profile
 										</button>
-									)}
-									{/*
-									TODO : when implementing help documentation
-									<button
-										className="w-full px-3 py-2 text-left text-sm text-foreground hover:bg-accent cursor-pointer"
-										onClick={() => navigate("/help")}
+										)}
+									<a
+										href="https://help.resolve.io/rita-go/"
+										target="_blank"
+										rel="noopener noreferrer"
+										className="w-full px-3 py-2 text-left text-sm text-foreground hover:bg-accent cursor-pointer block"
 									>
 										Help documentation
-									</button> */}
+									</a>
 									<Separator className="my-1" />
 									<button
 										className="w-full px-3 py-2 text-left text-sm text-foreground hover:bg-accent flex items-center gap-2 cursor-pointer"
