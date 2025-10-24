@@ -92,19 +92,12 @@ This Premium Service Subscription Addendum sets forth the payment terms and fees
 
 **A.1 Fees**. Fees for each level of Service are specified in the Fee Schedule below:
 
-+-------------------+----------------------------+----------------------------+
-| **Service Level** | **Fee Amount (USD \$)**    | **Payment Due**            |
-+:=================:+:==========================:+:==========================:+
-| Basic             | 0.00                       | N/A                        |
-+-------------------+----------------------------+----------------------------+
-| Level 2           | [x.00]                   | [Timeframe]              |
-+-------------------+----------------------------+----------------------------+
-| Level 3           | [x.00]                   | [Timeframe]              |
-+-------------------+----------------------------+----------------------------+
-| Level 4           | Please contact <Sales@Resolve.io> for custom pricing    |
-|                   |                                                         |
-| Enterprise Level  |                                                         |
-+-------------------+---------------------------------------------------------+
+| **Service Level** | **Fee Amount (USD $)** | **Payment Due** |
+|:-----------------:|:----------------------:|:---------------:|
+| Basic | 0.00 | N/A |
+| Level 2 | [x.00] | [Timeframe] |
+| Level 3 | [x.00] | [Timeframe] |
+| Level 4 / Enterprise Level | Please contact Sales@Resolve.io for custom pricing | Contact for details |
 
 **A.2 Payments**. All payments are due in full prior to receiving access to Level 2 or Level 3 services. Payments may be made by for these Levels via the in application payment. For all Level 4 or above please contact <Sales@Resolve.io>
 
