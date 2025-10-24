@@ -14,7 +14,7 @@
 
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import {
   Sources,
   SourcesContent,
@@ -43,19 +43,54 @@ function SourceItem({
   index,
   messageId,
   onSourceClick,
+  onValidityChange,
 }: {
   source: CitationsProps['sources'][0]
   index: number
   messageId?: string
   onSourceClick: (source: CitationsProps['sources'][0], e: React.MouseEvent) => void
+  onValidityChange?: (index: number, isValid: boolean) => void
 }) {
   // Fetch document metadata if source has blob_id but no title
-  const { data: metadata } = useDocumentMetadata(
+  const { data: metadata, isError, isLoading } = useDocumentMetadata(
     source.blob_id && !source.title ? source.blob_id : undefined
   )
 
-  // Get display title - prefer fetched metadata, then source.title, then fallback
-  const displayTitle = metadata?.filename || source.title || 'Loading...'
+  // Notify parent about validity changes
+  useEffect(() => {
+    if (onValidityChange) {
+      if (isError) {
+        // Source failed to load
+        onValidityChange(index, false)
+      } else if (!isLoading && (metadata || source.title)) {
+        // Source loaded successfully
+        onValidityChange(index, true)
+      }
+    }
+  }, [isError, isLoading, metadata, source.title, index, onValidityChange])
+
+  // If metadata fetch failed, hide this citation and log warning
+  if (isError) {
+    console.warn('Citation source not found:', {
+      blob_id: source.blob_id,
+      messageId,
+      index,
+    })
+    return null
+  }
+
+  // Get display title - prefer fetched metadata, then source.title, then loading state
+  const displayTitle = metadata?.filename || source.title || (isLoading ? 'Loading...' : undefined)
+
+  // If no title can be determined (shouldn't happen after loading), hide the citation
+  if (!displayTitle) {
+    console.warn('Citation source has no title:', {
+      blob_id: source.blob_id,
+      messageId,
+      index,
+    })
+    return null
+  }
 
   return (
     <div key={`${messageId}-${index}`} className="space-y-2">
@@ -99,6 +134,22 @@ export function CollapsibleListCitations({
   const [modalOpen, setModalOpen] = useState(false)
   const [modalContent, setModalContent] = useState<{ title: string; content: string } | null>(null)
   const [isLoadingDocument, setIsLoadingDocument] = useState(false)
+
+  // Track which sources are valid (successfully loaded)
+  const [validSources, setValidSources] = useState<Set<number>>(new Set())
+
+  // Callback for SourceItem to report validity
+  const handleValidityChange = useCallback((index: number, isValid: boolean) => {
+    setValidSources(prev => {
+      const next = new Set(prev)
+      if (isValid) {
+        next.add(index)
+      } else {
+        next.delete(index)
+      }
+      return next
+    })
+  }, [])
 
   // Handle "View full document" click
   const handleSourceClick = async (source: typeof sources[0], e: React.MouseEvent) => {
@@ -155,10 +206,29 @@ export function CollapsibleListCitations({
     })
   }
 
+  // Don't render anything if no valid sources (all phantom)
+  if (validSources.size === 0 && sources.length > 0) {
+    // Still render the source items to trigger validity checks, but hide the container
+    return (
+      <div style={{ display: 'none' }}>
+        {sources.map((source, index) => (
+          <SourceItem
+            key={`${messageId}-${index}`}
+            source={source}
+            index={index}
+            messageId={messageId}
+            onSourceClick={handleSourceClick}
+            onValidityChange={handleValidityChange}
+          />
+        ))}
+      </div>
+    )
+  }
+
   return (
     <>
       <Sources className={className} data-message-id={messageId}>
-        <SourcesTrigger count={sources.length} />
+        <SourcesTrigger count={validSources.size} />
         <SourcesContent>
           {sources.map((source, index) => (
             <SourceItem
@@ -167,6 +237,7 @@ export function CollapsibleListCitations({
               index={index}
               messageId={messageId}
               onSourceClick={handleSourceClick}
+              onValidityChange={handleValidityChange}
             />
           ))}
         </SourcesContent>
