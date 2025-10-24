@@ -8,6 +8,7 @@ export interface FileDocument {
   type: string
   status: 'processing' | 'processed' | 'failed' | 'uploaded'
   content_type?: 'text' | 'binary' | 'unknown'
+  source?: string
   metadata?: {
     error?: string
     [key: string]: any
@@ -37,6 +38,7 @@ export function useFiles() {
         type: doc.mime_type,
         status: doc.status,
         content_type: doc.content_type,
+        source: doc.source,
         metadata: doc.metadata,
         created_at: new Date(doc.created_at),
         updated_at: doc.updated_at ? new Date(doc.updated_at) : undefined,
@@ -68,6 +70,7 @@ export function useUploadFile() {
           size: response.document.size,
           type: response.document.type,
           status: response.document.status,
+          source: response.document.source,
           created_at: new Date(response.document.created_at),
         } as FileDocument
       }
@@ -94,6 +97,7 @@ export function useCreateContent() {
           size: response.document.size,
           type: response.document.type,
           status: response.document.status,
+          source: response.document.source,
           created_at: new Date(response.document.created_at),
         } as FileDocument
       }
