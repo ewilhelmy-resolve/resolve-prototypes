@@ -9,7 +9,7 @@ import { validateEmail, validatePassword, validateRequired } from "../lib/valida
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || "";
 
-export function LoginPage() {
+export function SignUpPage() {
 	const navigate = useNavigate();
 	const { authenticated, login, loading, sessionReady } = useAuth();
 	const [signupForm, setSignupForm] = useState({
@@ -170,6 +170,9 @@ export function LoginPage() {
 				<div className="flex items-center justify-center p-6 sm:p-12">
 					<div className="w-full max-w-md">
 						<div className="text-left space-y-2 mb-8">
+							<div className="flex justify-center mb-4">
+								<img src="/public/auth-logo-rita.svg" alt="Rita Logo" className="h-28 w-28 object-contain" loading="lazy" />
+							</div>
 							<h1 className="text-4xl font-bold tracking-tighter">
 								Start your automation journey
 							</h1>

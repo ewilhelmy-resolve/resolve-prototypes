@@ -19,8 +19,8 @@
 
             <#-- Logo and Header Section -->
             <div class="flex flex-col items-center mb-8">
-                <img src="${url.resourcesPath}/img/logo.svg" alt="Rita" class="h-12 mb-6" />
-                <h1 class="text-4xl font-bold tracking-tighter text-center">
+                <img src="${url.resourcesPath}/img/logo.svg" alt="Rita" class="h-28 w-28 mb-6" />
+                <h1 class="text-4xl font-bold tracking-tighter">
                     ${msg("updatePasswordTitle")}
                 </h1>
                 <p class="text-gray-400 text-center mt-2">

@@ -7,7 +7,7 @@ This guide provides instructions for running and managing the Keycloak instance 
 The Keycloak service is integrated into the main `docker-compose.yml` file. To start it, simply run:
 
 ```bash
-docker-compose up
+docker compose up
 ```
 
 This will start all the necessary services, including Keycloak. Keycloak will automatically import the local development realm configuration on startup.

@@ -19,7 +19,7 @@
 
             <#-- Logo and Header Section -->
             <div class="flex flex-col items-center mb-8">
-                <img src="${url.resourcesPath}/img/logo.svg" alt="Rita" class="h-12 mb-6" />
+                <img src="${url.resourcesPath}/img/logo.svg" alt="Rita" class="h-28 w-28 mb-6" />
                 <div class="text-center space-y-2">
                     <h1 class="text-4xl font-bold tracking-tighter">
                         ${kcSanitize(msg("errorTitle"))?no_esc}
