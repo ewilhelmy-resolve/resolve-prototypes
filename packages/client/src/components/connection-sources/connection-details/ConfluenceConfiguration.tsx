@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { STATUS } from "@/constants/connectionSourcesConstants";
+import { STATUS } from "@/constants/connectionSources";
 import { useConnectionSource } from "@/contexts/ConnectionSourceContext";
 import {
 	useTriggerSync,

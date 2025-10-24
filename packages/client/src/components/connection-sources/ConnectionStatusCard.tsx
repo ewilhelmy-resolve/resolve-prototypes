@@ -4,8 +4,8 @@ import { RefreshCw } from "lucide-react";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import type { ConnectionSource } from "@/constants/connectionSourcesConstants";
-import { STATUS } from "@/constants/connectionSourcesConstants";
+import type { ConnectionSource } from "@/constants/connectionSources";
+import { STATUS } from "@/constants/connectionSources";
 import { ConnectionStatusBadge } from "./ConnectionStatusBadge";
 
 interface ConnectionStatusCardProps {

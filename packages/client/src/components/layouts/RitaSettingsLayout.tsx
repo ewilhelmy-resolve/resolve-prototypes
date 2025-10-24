@@ -9,12 +9,10 @@ import {
 	SidebarGroup,
 	SidebarGroupLabel,
 	SidebarHeader,
-	SidebarInset,
 	SidebarMenu,
 	SidebarMenuButton,
 	SidebarMenuItem,
 	SidebarProvider,
-	SidebarSeparator,
 } from "@/components/ui/sidebar";
 import { useProfilePermissions } from "@/hooks/api/useProfile";
 import { cn } from "@/lib/utils";
@@ -77,9 +75,8 @@ export default function RitaSettingsLayout({
 					</SidebarGroup>
 
 					{isOwnerOrAdmin() && (
-						<>
-							<SidebarSeparator />
-
+					 
+						 
 							<SidebarGroup className="p-2">
 								<SidebarGroupLabel className="px-2 h-8 text-xs opacity-70">
 									Admin
@@ -111,14 +108,16 @@ export default function RitaSettingsLayout({
 									</SidebarMenuItem>
 								</SidebarMenu>
 							</SidebarGroup>
-						</>
+					 
 					)}
 				</SidebarContent>
+				<div className="p-2 border-t border-sidebar-border invisible w-[256px]" />
 			</Sidebar>
-
-			<SidebarInset className="flex flex-col items-start w-full md:ml-[calc(var(--sidebar-width)-6rem)]">
-				<main className="w-full p-6">{children}</main>
-			</SidebarInset>
+		 
+			<main className="w-full md:ml-[calc(var(--sidebar-width)+2em)]">
+				 {children}
+			</main>
+ 
 		</SidebarProvider>
 	);
 }

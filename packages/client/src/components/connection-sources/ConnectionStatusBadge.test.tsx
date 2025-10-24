@@ -4,7 +4,7 @@
 
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
-import { STATUS } from "@/constants/connectionSourcesConstants";
+import { STATUS } from "@/constants/connectionSources";
 import { ConnectionStatusBadge } from "./ConnectionStatusBadge";
 
 describe("ConnectionStatusBadge", () => {

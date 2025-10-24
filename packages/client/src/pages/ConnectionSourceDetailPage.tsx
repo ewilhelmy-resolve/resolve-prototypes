@@ -1,7 +1,7 @@
 import { Globe } from "lucide-react";
 import { useState } from "react";
 import { Navigate, useNavigate, useParams } from "react-router-dom";
- import ConfluenceConfiguration from "@/components/connection-sources/connection-details/ConfluenceConfiguration";
+import ConfluenceConfiguration from "@/components/connection-sources/connection-details/ConfluenceConfiguration";
 import ServiceNowConfiguration from "@/components/connection-sources/connection-details/ServiceNowConfiguration";
 import SharePointConfiguration from "@/components/connection-sources/connection-details/SharePointConfiguration";
 import WebSearchConfiguration from "@/components/connection-sources/connection-details/WebSearchConfiguration";
@@ -11,15 +11,15 @@ import {
 	SharePointForm,
 	WebSearchForm,
 } from "@/components/connection-sources/connection-forms";
-import Header from "@/components/Header";
 import RitaSettingsLayout from "@/components/layouts/RitaSettingsLayout";
 import {
 	mapDataSourceToUI,
 	SOURCE_METADATA,
 	SOURCES,
-} from "@/constants/connectionSourcesConstants";
+} from "@/constants/connectionSources";
 import { ConnectionSourceProvider } from "@/contexts/ConnectionSourceContext";
 import { useDataSource } from "@/hooks/useDataSources";
+import SettingsHeader from "@/pages/settings/SettingsHeader";
 import { BACKEND_STATUS, type DataSourceConnection } from "@/types/dataSource";
 
 export default function ConnectionSourceDetailPage() {
@@ -110,7 +110,6 @@ export default function ConnectionSourceDetailPage() {
 	// - Show FORM when: NOT configured OR isEditMode is true
 	// - Show CONFIGURATION VIEW otherwise
 	const renderContent = () => {
-
 		// Show form if not configured OR in edit mode
 		if (!isConfigured || isEditMode) {
 			return renderForm(source, true);
@@ -125,7 +124,7 @@ export default function ConnectionSourceDetailPage() {
 			<RitaSettingsLayout>
 				<div className="flex-1 inline-flex flex-col items-center gap-8 w-full">
 					<div className="self-stretch flex flex-col items-start gap-8">
-						<Header
+						<SettingsHeader
 							breadcrumbs={[
 								{ label: "Connections", href: "/settings/connections" },
 								{ label: sourceTitle },

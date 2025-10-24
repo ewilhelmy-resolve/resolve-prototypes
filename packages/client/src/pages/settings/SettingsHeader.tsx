@@ -35,7 +35,7 @@ interface HeaderProps {
  * Page header component with breadcrumbs, title, icon, and description
  * Used for settings pages and detail views
  */
-export default function Header({
+export default function SettingsHeader({
 	breadcrumbs,
 	title,
 	icon,
@@ -43,7 +43,7 @@ export default function Header({
 	action,
 }: HeaderProps) {
 	return (
-		<div className="flex flex-col gap-8 w-full">
+		<div className="flex flex-col gap-8 w-full mt-5">
 			<div className="flex flex-col gap-2">
 				{breadcrumbs && breadcrumbs.length > 0 && (
 					<Breadcrumb>
@@ -83,7 +83,7 @@ export default function Header({
 								{title}
 							</h3>
 						</div>
-						{action && <div className="flex-shrink-0">{action}</div>}
+						{action && <div className="flex-shrink-0 pr-[2em]">{action}</div>}
 					</div>
 
 					{description && (
