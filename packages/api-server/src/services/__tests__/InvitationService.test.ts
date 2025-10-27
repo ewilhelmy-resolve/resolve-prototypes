@@ -208,6 +208,15 @@ describe('InvitationService', () => {
         fields: []
       } as any);
 
+      // Mock user existence check (user EXISTS - so don't clean up)
+      vi.mocked(mockPool.query).mockResolvedValueOnce({
+        rows: [{ user_id: 'existing-user-123' }],
+        command: '',
+        oid: 0,
+        rowCount: 1,
+        fields: []
+      } as any);
+
       const result = await invitationService.sendInvitations(
         organizationId,
         invitedByUserId,
@@ -618,6 +627,15 @@ describe('InvitationService', () => {
         fields: []
       } as any);
 
+      // Mock auto-cancel query (no competing invitations)
+      vi.mocked(mockPool.query).mockResolvedValueOnce({
+        rows: [],
+        command: 'UPDATE',
+        oid: 0,
+        rowCount: 0,
+        fields: []
+      } as any);
+
       const result = await invitationService.acceptInvitation(
         token,
         firstName,
@@ -666,6 +684,15 @@ describe('InvitationService', () => {
         command: '',
         oid: 0,
         rowCount: 1,
+        fields: []
+      } as any);
+
+      // Mock auto-cancel query (no competing invitations)
+      vi.mocked(mockPool.query).mockResolvedValueOnce({
+        rows: [],
+        command: 'UPDATE',
+        oid: 0,
+        rowCount: 0,
         fields: []
       } as any);
 
@@ -868,6 +895,324 @@ describe('InvitationService', () => {
       expect(mockPool.query).toHaveBeenCalledWith(
         expect.stringContaining('LIMIT'),
         expect.arrayContaining([organizationId, 10, 20])
+      );
+    });
+  });
+
+  describe('Orphaned Invitation Cleanup (Layer 2: Self-Healing)', () => {
+    const organizationId = 'org-123';
+    const invitedByUserId = 'user-456';
+    const orphanedEmail = 'deleted@example.com';
+
+    beforeEach(() => {
+      // Mock organization query
+      vi.mocked(mockPool.query).mockResolvedValueOnce({
+        rows: [
+          {
+            org_name: 'Test Org',
+            inviter_email: 'inviter@example.com'
+          }
+        ],
+        command: '',
+        oid: 0,
+        rowCount: 1,
+        fields: []
+      } as any);
+    });
+
+    it('should clean up orphaned accepted invitation when user deleted', async () => {
+      // Mock member check (not a member)
+      vi.mocked(mockPool.query).mockResolvedValueOnce({
+        rows: [],
+        command: '',
+        oid: 0,
+        rowCount: 0,
+        fields: []
+      } as any);
+
+      // Mock user with org check (no org)
+      vi.mocked(mockPool.query).mockResolvedValueOnce({
+        rows: [],
+        command: '',
+        oid: 0,
+        rowCount: 0,
+        fields: []
+      } as any);
+
+      // Mock existing invitation check (accepted invitation exists)
+      vi.mocked(mockPool.query).mockResolvedValueOnce({
+        rows: [{ id: 'orphaned-inv-123', status: 'accepted' }],
+        command: '',
+        oid: 0,
+        rowCount: 1,
+        fields: []
+      } as any);
+
+      // Mock user existence check (user does NOT exist - orphaned!)
+      vi.mocked(mockPool.query).mockResolvedValueOnce({
+        rows: [],
+        command: '',
+        oid: 0,
+        rowCount: 0,
+        fields: []
+      } as any);
+
+      // Mock DELETE orphaned invitation
+      vi.mocked(mockPool.query).mockResolvedValueOnce({
+        rows: [],
+        command: 'DELETE',
+        oid: 0,
+        rowCount: 1,
+        fields: []
+      } as any);
+
+      // Mock existingCheck (should find no invitation after cleanup)
+      vi.mocked(mockPool.query).mockResolvedValueOnce({
+        rows: [],
+        command: '',
+        oid: 0,
+        rowCount: 0,
+        fields: []
+      } as any);
+
+      // Mock INSERT new invitation
+      vi.mocked(mockPool.query).mockResolvedValueOnce({
+        rows: [{ id: 'new-inv-456' }],
+        command: 'INSERT',
+        oid: 0,
+        rowCount: 1,
+        fields: []
+      } as any);
+
+      const result = await invitationService.sendInvitations(
+        organizationId,
+        invitedByUserId,
+        [orphanedEmail]
+      );
+
+      // Should successfully send new invitation after cleanup
+      expect(result.success).toBe(true);
+      expect(result.successCount).toBe(1);
+      expect(result.invitations[0].status).toBe('sent');
+      expect(result.invitations[0].email).toBe(orphanedEmail);
+
+      // Verify DELETE was called to clean up orphan
+      expect(mockPool.query).toHaveBeenCalledWith(
+        expect.stringContaining('DELETE FROM pending_invitations WHERE id = $1'),
+        ['orphaned-inv-123']
+      );
+
+      // Verify webhook was called to send new invitation
+      expect(mockWebhookService.sendGenericEvent).toHaveBeenCalled();
+    });
+
+    it('should NOT clean up accepted invitation when user still exists', async () => {
+      // Mock member check (not a member)
+      vi.mocked(mockPool.query).mockResolvedValueOnce({
+        rows: [],
+        command: '',
+        oid: 0,
+        rowCount: 0,
+        fields: []
+      } as any);
+
+      // Mock user with org check (no org)
+      vi.mocked(mockPool.query).mockResolvedValueOnce({
+        rows: [],
+        command: '',
+        oid: 0,
+        rowCount: 0,
+        fields: []
+      } as any);
+
+      // Mock existing invitation check (accepted invitation exists)
+      vi.mocked(mockPool.query).mockResolvedValueOnce({
+        rows: [{ id: 'valid-inv-123', status: 'accepted' }],
+        command: '',
+        oid: 0,
+        rowCount: 1,
+        fields: []
+      } as any);
+
+      // Mock user existence check (user EXISTS)
+      vi.mocked(mockPool.query).mockResolvedValueOnce({
+        rows: [{ user_id: 'existing-user-123' }],
+        command: '',
+        oid: 0,
+        rowCount: 1,
+        fields: []
+      } as any);
+
+      const result = await invitationService.sendInvitations(
+        organizationId,
+        invitedByUserId,
+        ['active@example.com']
+      );
+
+      // Should skip invitation (user exists and already accepted)
+      expect(result.success).toBe(true);
+      expect(result.successCount).toBe(0);
+      expect(result.failureCount).toBe(1);
+      expect(result.invitations[0].status).toBe('skipped');
+      expect(result.invitations[0].code).toBe('INV003');
+      expect(result.invitations[0].reason).toBe('User already accepted invitation');
+
+      // Verify DELETE was NOT called (no orphan cleanup)
+      expect(mockPool.query).not.toHaveBeenCalledWith(
+        expect.stringContaining('DELETE FROM pending_invitations'),
+        expect.anything()
+      );
+
+      // Verify webhook was NOT called
+      expect(mockWebhookService.sendGenericEvent).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('Cross-Organization Invitation Auto-Cancel', () => {
+    const token = 'a'.repeat(64);
+    const firstName = 'John';
+    const lastName = 'Doe';
+    const password = 'SecurePass123!';
+    const email = 'user@example.com';
+    const orgAId = 'org-A-uuid';
+    const orgBId = 'org-B-uuid';
+
+    beforeEach(() => {
+      // Mock verifyToken (valid)
+      const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+      vi.mocked(mockPool.query).mockResolvedValueOnce({
+        rows: [
+          {
+            email,
+            token_expires_at: expiresAt,
+            status: 'pending',
+            organization_name: 'Org A',
+            inviter_name: 'inviter@orgA.com'
+          }
+        ],
+        command: '',
+        oid: 0,
+        rowCount: 1,
+        fields: []
+      } as any);
+    });
+
+    it('should auto-cancel competing invitations from other orgs when user accepts', async () => {
+      // Mock existing user check (none)
+      vi.mocked(mockPool.query).mockResolvedValueOnce({
+        rows: [],
+        command: '',
+        oid: 0,
+        rowCount: 0,
+        fields: []
+      } as any);
+
+      // Mock get invitation details (Org A)
+      vi.mocked(mockPool.query).mockResolvedValueOnce({
+        rows: [{ id: 'inv-A', organization_id: orgAId }],
+        command: '',
+        oid: 0,
+        rowCount: 1,
+        fields: []
+      } as any);
+
+      // Mock update invitation status (Org A accepted)
+      vi.mocked(mockPool.query).mockResolvedValueOnce({
+        rows: [{ id: 'inv-A' }],
+        command: '',
+        oid: 0,
+        rowCount: 1,
+        fields: []
+      } as any);
+
+      // Mock auto-cancel other pending invitations (Org B cancelled)
+      vi.mocked(mockPool.query).mockResolvedValueOnce({
+        rows: [
+          { id: 'inv-B', organization_id: orgBId },
+          { id: 'inv-C', organization_id: 'org-C-uuid' }
+        ],
+        command: 'UPDATE',
+        oid: 0,
+        rowCount: 2,
+        fields: []
+      } as any);
+
+      const result = await invitationService.acceptInvitation(
+        token,
+        firstName,
+        lastName,
+        password
+      );
+
+      expect(result.success).toBe(true);
+      expect(result.email).toBe(email);
+
+      // Verify auto-cancel query was called
+      expect(mockPool.query).toHaveBeenCalledWith(
+        expect.stringContaining("SET status = 'cancelled'"),
+        [email, 'inv-A']
+      );
+
+      // Verify webhook was called
+      expect(mockWebhookService.sendGenericEvent).toHaveBeenCalledWith(
+        expect.objectContaining({
+          organizationId: orgAId,
+          action: 'accept_invitation'
+        })
+      );
+    });
+
+    it('should handle case where no competing invitations exist', async () => {
+      // Mock existing user check (none)
+      vi.mocked(mockPool.query).mockResolvedValueOnce({
+        rows: [],
+        command: '',
+        oid: 0,
+        rowCount: 0,
+        fields: []
+      } as any);
+
+      // Mock get invitation details
+      vi.mocked(mockPool.query).mockResolvedValueOnce({
+        rows: [{ id: 'inv-only', organization_id: orgAId }],
+        command: '',
+        oid: 0,
+        rowCount: 1,
+        fields: []
+      } as any);
+
+      // Mock update invitation status
+      vi.mocked(mockPool.query).mockResolvedValueOnce({
+        rows: [{ id: 'inv-only' }],
+        command: '',
+        oid: 0,
+        rowCount: 1,
+        fields: []
+      } as any);
+
+      // Mock auto-cancel query (no competing invitations found)
+      vi.mocked(mockPool.query).mockResolvedValueOnce({
+        rows: [],
+        command: 'UPDATE',
+        oid: 0,
+        rowCount: 0,
+        fields: []
+      } as any);
+
+      const result = await invitationService.acceptInvitation(
+        token,
+        firstName,
+        lastName,
+        password
+      );
+
+      expect(result.success).toBe(true);
+      expect(result.email).toBe(email);
+
+      // Verify auto-cancel query was still called (but found nothing)
+      expect(mockPool.query).toHaveBeenCalledWith(
+        expect.stringContaining("SET status = 'cancelled'"),
+        [email, 'inv-only']
       );
     });
   });

@@ -751,6 +751,25 @@ export class MemberService {
         webhookStatus: webhookResponse.status
       }, 'Keycloak deletion webhook succeeded');
 
+      // Clean up ALL invitation records before deleting user (any status)
+      // Rationale: If user is being deleted, no point keeping any invitations
+      const invitationCleanupResult = await client.query(
+        `DELETE FROM pending_invitations
+         WHERE email = $1
+         RETURNING id, status`,
+        [member.email]
+      );
+
+      const deletedInvitationCount = invitationCleanupResult.rows.length;
+
+      logger.info({
+        organizationId,
+        userId,
+        email: member.email,
+        deletedInvitations: deletedInvitationCount,
+        statuses: invitationCleanupResult.rows.map(r => r.status)
+      }, 'Cleaned up all invitations before user deletion');
+
       // Create audit log BEFORE deletion (user_id will be SET NULL after deletion)
       await client.query(
         `INSERT INTO audit_logs (organization_id, user_id, action, resource_type, resource_id, metadata)
@@ -769,7 +788,8 @@ export class MemberService {
             lastName: member.last_name,
             removalType: 'hard',
             reason: reason || 'No reason provided',
-            keycloakDeleted: true
+            keycloakDeleted: true,
+            deletedInvitations: deletedInvitationCount
           })
         ]
       );
@@ -954,6 +974,42 @@ export class MemberService {
         email: user.email,
         webhookStatus: webhookResponse.status
       }, 'Keycloak deletion webhook succeeded for own account');
+
+      // Clean up ALL invitation records before user deletion
+      if (deleteEntireOrganization && user.organization_id) {
+        // Delete ALL invitations for the entire organization (most efficient)
+        // Rationale: When org is deleted, all pending invitations become meaningless
+        const invitationCleanupResult = await client.query(
+          `DELETE FROM pending_invitations
+           WHERE organization_id = $1
+           RETURNING id, email, status`,
+          [user.organization_id]
+        );
+
+        logger.info({
+          organizationId: user.organization_id,
+          userId,
+          deletedInvitations: invitationCleanupResult.rows.length,
+          emails: invitationCleanupResult.rows.map(r => r.email),
+          statuses: invitationCleanupResult.rows.map(r => r.status)
+        }, 'Cleaned up ALL invitations for entire organization deletion');
+
+      } else {
+        // Delete ALL invitations for this user's email (any status)
+        const invitationCleanupResult = await client.query(
+          `DELETE FROM pending_invitations
+           WHERE email = $1
+           RETURNING id, status`,
+          [user.email]
+        );
+
+        logger.info({
+          userId,
+          email: user.email,
+          deletedInvitations: invitationCleanupResult.rows.length,
+          statuses: invitationCleanupResult.rows.map(r => r.status)
+        }, 'Cleaned up all invitations before self-deletion');
+      }
 
       // Create audit log BEFORE deletion (user_id will be SET NULL after deletion)
       await client.query(
