@@ -518,6 +518,12 @@ describe('MemberService - Critical Business Rules', () => {
         rowCount: 1
       });
 
+      // Mock invitation cleanup DELETE
+      mockClient.query.mockResolvedValueOnce({
+        rows: [],
+        rowCount: 0
+      });
+
       // Mock audit log INSERT
       mockClient.query.mockResolvedValueOnce({});
 
@@ -568,6 +574,12 @@ describe('MemberService - Critical Business Rules', () => {
       (mockPool.query as any).mockResolvedValueOnce({
         rows: [{ owner_count: 0 }],
         rowCount: 1
+      });
+
+      // Mock invitation cleanup DELETE (for entire organization)
+      mockClient.query.mockResolvedValueOnce({
+        rows: [],
+        rowCount: 0
       });
 
       // Mock audit log INSERT
@@ -630,6 +642,12 @@ describe('MemberService - Critical Business Rules', () => {
       (mockPool.query as any).mockResolvedValueOnce({
         rows: [{ owner_count: 1 }],
         rowCount: 1
+      });
+
+      // Mock invitation cleanup DELETE (for single user)
+      mockClient.query.mockResolvedValueOnce({
+        rows: [],
+        rowCount: 0
       });
 
       // Mock audit log INSERT
