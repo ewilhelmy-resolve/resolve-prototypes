@@ -145,7 +145,7 @@ export function VerifyEmailPage() {
 											variant="link"
 											className="w-full h-12 text-blue-400 font-medium"
 										>
-											Sign In with Keycloak
+											Sign In
 										</Button>
 									</div>
 								</div>
