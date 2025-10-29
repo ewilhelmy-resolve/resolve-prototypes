@@ -80,8 +80,11 @@ function parseCitationMarkers(text: string): {
 	const matches = Array.from(text.matchAll(citationRegex));
 
 	for (const match of matches) {
+		// Skip if match.index is undefined (shouldn't happen with matchAll, but TypeScript safety)
+		if (match.index === undefined) continue;
+
 		// Add text before citation
-		if (match.index !== undefined && match.index > lastIndex) {
+		if (match.index > lastIndex) {
 			segments.push({
 				type: "text",
 				content: text.slice(lastIndex, match.index),
@@ -274,7 +277,6 @@ export function ResponseWithInlineCitations({
     if (!documentId) return
 
 		setIsLoadingDocument(true);
-		setModalOpen(true);
 
     // Get cached metadata or fetch it
     const cachedMetadata = queryClient.getQueryData(documentMetadataKeys.detail(documentId))
@@ -306,6 +308,8 @@ export function ResponseWithInlineCitations({
 			});
 		} finally {
 			setIsLoadingDocument(false);
+			// Open modal AFTER content is loaded/set (fixes race condition)
+			setModalOpen(true);
 		}
 
     // Audit logging

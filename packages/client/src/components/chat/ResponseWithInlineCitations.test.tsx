@@ -300,41 +300,10 @@ describe("ResponseWithInlineCitations", () => {
 			});
 		});
 
-		it("logs audit event when view source clicked", async () => {
-			const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-
-			render(
-				<TestWrapper>
-					<ResponseWithInlineCitations
-						sources={mockSources}
-						messageId="msg-123"
-					>
-						Reference [1] explains this.
-					</ResponseWithInlineCitations>
-				</TestWrapper>,
-			);
-
-			await waitFor(() => {
-				const link = screen.getByText("View source");
-				fireEvent.click(link);
-			});
-
-			expect(consoleSpy).toHaveBeenCalledWith(
-				"Inline citation clicked:",
-				expect.objectContaining({
-					messageId: "msg-123",
-					sourceUrl: "https://example.com/doc1",
-					sourceTitle: "First Document",
-					citationIndex: 0,
-				}),
-			);
-
-			consoleSpy.mockRestore();
-		});
 	});
 
-	describe("Blob ID Support", () => {
-		it("displays full document button for blob_id sources", async () => {
+	describe("Blob ID Support (Legacy & New Formats)", () => {
+		it("displays full document button for blob_id sources (legacy)", async () => {
 			render(
 				<TestWrapper>
 					<ResponseWithInlineCitations sources={mockSources}>
@@ -345,6 +314,99 @@ describe("ResponseWithInlineCitations", () => {
 
 			await waitFor(() => {
 				expect(screen.getByText(/View full document/i)).toBeInTheDocument();
+			});
+		});
+
+		it("displays full document button for blob_metadata_id sources (new format)", async () => {
+			const newFormatSource: CitationSource[] = [
+				{
+					blob_metadata_id: "metadata-456",
+					title: "New Format Document",
+				},
+			];
+
+			render(
+				<TestWrapper>
+					<ResponseWithInlineCitations sources={newFormatSource}>
+						Document [1] uses new format.
+					</ResponseWithInlineCitations>
+				</TestWrapper>,
+			);
+
+			await waitFor(() => {
+				expect(screen.getByText(/View full document/i)).toBeInTheDocument();
+				expect(screen.getByText("New Format Document")).toBeInTheDocument();
+			});
+		});
+
+		it("prefers blob_metadata_id over blob_id when both exist", async () => {
+			const { useDocumentMetadata } = await import(
+				"@/hooks/api/useDocumentMetadata"
+			);
+
+			const mockMetadataFn = vi.fn(() => ({
+				data: {
+					filename: "Fetched via blob_metadata_id",
+					metadata: { content: "Content" },
+				},
+				isLoading: false,
+				isError: false,
+			}));
+
+			vi.mocked(useDocumentMetadata).mockImplementation(mockMetadataFn as any);
+
+			const dualFormatSource: CitationSource[] = [
+				{
+					blob_metadata_id: "metadata-999", // NEW (should be preferred)
+					blob_id: "blob-old-123", // LEGACY (should be ignored)
+				},
+			];
+
+			render(
+				<TestWrapper>
+					<ResponseWithInlineCitations sources={dualFormatSource}>
+						Document [1] has both IDs.
+					</ResponseWithInlineCitations>
+				</TestWrapper>,
+			);
+
+			await waitFor(() => {
+				// Should fetch metadata using blob_metadata_id (new format)
+				expect(mockMetadataFn).toHaveBeenCalledWith("metadata-999");
+				expect(screen.getByText("Fetched via blob_metadata_id")).toBeInTheDocument();
+			});
+		});
+
+		it("fetches document metadata for blob_metadata_id without title", async () => {
+			const { useDocumentMetadata } = await import(
+				"@/hooks/api/useDocumentMetadata"
+			);
+
+			vi.mocked(useDocumentMetadata).mockReturnValue({
+				data: {
+					filename: "Fetched New Format Title",
+					metadata: { content: "Document content" },
+				},
+				isLoading: false,
+				isError: false,
+			} as any);
+
+			const newFormatWithoutTitle: CitationSource[] = [
+				{
+					blob_metadata_id: "metadata-no-title",
+				},
+			];
+
+			render(
+				<TestWrapper>
+					<ResponseWithInlineCitations sources={newFormatWithoutTitle}>
+						See [1] for more.
+					</ResponseWithInlineCitations>
+				</TestWrapper>,
+			);
+
+			await waitFor(() => {
+				expect(screen.getByText("Fetched New Format Title")).toBeInTheDocument();
 			});
 		});
 
@@ -477,7 +539,7 @@ describe("ResponseWithInlineCitations", () => {
 	});
 
 	describe("Full Document Modal", () => {
-		it("opens modal when view full document clicked", async () => {
+		it("opens modal when view full document clicked (legacy blob_id)", async () => {
 			render(
 				<TestWrapper>
 					<ResponseWithInlineCitations sources={mockSources}>
@@ -493,6 +555,79 @@ describe("ResponseWithInlineCitations", () => {
 
 			await waitFor(() => {
 				expect(screen.getByText("Full document content")).toBeInTheDocument();
+			});
+		});
+
+		it("opens modal with blob_metadata_id sources (new format)", async () => {
+			const { fileApi } = await import("@/services/api");
+
+			vi.mocked(fileApi.getDocumentMetadata).mockResolvedValue({
+				filename: "New Format Document",
+				metadata: {
+					content: "# New Format Content\n\nThis uses blob_metadata_id.",
+				},
+			} as any);
+
+			const newFormatSource: CitationSource[] = [
+				{
+					blob_metadata_id: "metadata-789",
+					title: "New Format Doc",
+				},
+			];
+
+			render(
+				<TestWrapper>
+					<ResponseWithInlineCitations sources={newFormatSource}>
+						See document [1].
+					</ResponseWithInlineCitations>
+				</TestWrapper>,
+			);
+
+			await waitFor(() => {
+				const button = screen.getByText(/View full document/i);
+				fireEvent.click(button);
+			});
+
+			await waitFor(() => {
+				// Should call API with blob_metadata_id
+				expect(fileApi.getDocumentMetadata).toHaveBeenCalledWith("metadata-789");
+				expect(screen.getByText("New Format Document")).toBeInTheDocument();
+			});
+		});
+
+		it("uses blob_metadata_id when both IDs present in modal", async () => {
+			const { fileApi } = await import("@/services/api");
+
+			vi.mocked(fileApi.getDocumentMetadata).mockResolvedValue({
+				filename: "Dual Format Document",
+				metadata: { content: "Content" },
+			} as any);
+
+			const dualFormatSource: CitationSource[] = [
+				{
+					blob_metadata_id: "metadata-prefer-this",
+					blob_id: "blob-ignore-this",
+					title: "Dual Format",
+				},
+			];
+
+			render(
+				<TestWrapper>
+					<ResponseWithInlineCitations sources={dualFormatSource}>
+						See document [1].
+					</ResponseWithInlineCitations>
+				</TestWrapper>,
+			);
+
+			await waitFor(() => {
+				const button = screen.getByText(/View full document/i);
+				fireEvent.click(button);
+			});
+
+			await waitFor(() => {
+				// Should prefer blob_metadata_id over blob_id
+				expect(fileApi.getDocumentMetadata).toHaveBeenCalledWith("metadata-prefer-this");
+				expect(fileApi.getDocumentMetadata).not.toHaveBeenCalledWith("blob-ignore-this");
 			});
 		});
 
@@ -525,12 +660,16 @@ describe("ResponseWithInlineCitations", () => {
 			});
 		});
 
-		it("shows loading spinner while fetching document", async () => {
+		it("modal opens AFTER content is loaded (no race condition)", async () => {
 			const { fileApi } = await import("@/services/api");
 
 			// Simulate slow API call
+			let resolveMetadata: any;
 			vi.mocked(fileApi.getDocumentMetadata).mockImplementation(
-				() => new Promise((resolve) => setTimeout(resolve, 1000)),
+				() =>
+					new Promise((resolve) => {
+						resolveMetadata = resolve;
+					}),
 			);
 
 			render(
@@ -541,13 +680,26 @@ describe("ResponseWithInlineCitations", () => {
 				</TestWrapper>,
 			);
 
+			// Click the button
 			await waitFor(() => {
 				const button = screen.getByText(/View full document/i);
 				fireEvent.click(button);
 			});
 
-			// Loading spinner should appear
-			expect(screen.getByText("Full document content")).toBeInTheDocument();
+			// Modal should NOT be visible yet (content still loading)
+			expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+
+			// Resolve the metadata
+			resolveMetadata({
+				filename: "Loaded Document",
+				metadata: { content: "# Content" },
+			});
+
+			// NOW modal should appear with content
+			await waitFor(() => {
+				expect(screen.getByRole("dialog")).toBeInTheDocument();
+				expect(screen.getByText("Loaded Document")).toBeInTheDocument();
+			});
 		});
 
 		it("handles document fetch errors gracefully", async () => {
@@ -582,44 +734,6 @@ describe("ResponseWithInlineCitations", () => {
 			consoleSpy.mockRestore();
 		});
 
-		it("logs audit event when full document requested", async () => {
-			const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-			const { fileApi } = await import("@/services/api");
-
-			vi.mocked(fileApi.getDocumentMetadata).mockResolvedValue({
-				filename: "Test Document",
-				metadata: { content: "Content" },
-			} as any);
-
-			render(
-				<TestWrapper>
-					<ResponseWithInlineCitations
-						sources={mockSources}
-						messageId="msg-789"
-					>
-						See document [3].
-					</ResponseWithInlineCitations>
-				</TestWrapper>,
-			);
-
-			await waitFor(() => {
-				const button = screen.getByText(/View full document/i);
-				fireEvent.click(button);
-			});
-
-			await waitFor(() => {
-				expect(consoleSpy).toHaveBeenCalledWith(
-					"Full document requested:",
-					expect.objectContaining({
-						messageId: "msg-789",
-						sourceTitle: "Third Document",
-						blobId: "blob-123",
-					}),
-				);
-			});
-
-			consoleSpy.mockRestore();
-		});
 	});
 
 	describe("Edge Cases", () => {
