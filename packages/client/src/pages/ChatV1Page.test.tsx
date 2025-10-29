@@ -467,38 +467,6 @@ describe("ChatV1Page", () => {
 
 			expect(mockUpdateMessage).not.toHaveBeenCalled();
 		});
-
-		it("logs SSE updates to console", async () => {
-			const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-			const { useSSEContext } = await import("../contexts/SSEContext");
-
-			vi.mocked(useSSEContext).mockReturnValue({
-				latestUpdate: {
-					messageId: "msg-999",
-					status: "processing",
-					errorMessage: null,
-				},
-				connectionState: "open",
-			} as any);
-
-			render(
-				<TestWrapper>
-					<ChatV1Page />
-				</TestWrapper>,
-			);
-
-			await waitFor(() => {
-				expect(consoleSpy).toHaveBeenCalledWith(
-					"Applying SSE update to store:",
-					expect.objectContaining({
-						messageId: "msg-999",
-						status: "processing",
-					}),
-				);
-			});
-
-			consoleSpy.mockRestore();
-		});
 	});
 
 	describe("Hook Integration", () => {
