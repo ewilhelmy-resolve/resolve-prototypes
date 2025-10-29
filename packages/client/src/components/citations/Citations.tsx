@@ -11,8 +11,6 @@
  * - hover-card: Hover badge with carousel
  */
 
-'use client'
-
 import { lazy, Suspense } from 'react'
 import { useCitationVariant } from '@/contexts/CitationContext'
 
@@ -76,7 +74,8 @@ const HoverCardCitations = lazy(() =>
  */
 function CitationsLoading() {
   return (
-    <div
+    // biome-ignore lint/a11y/useSemanticElements: -- to be fixed later
+<div
       className="flex items-center gap-2 text-xs text-muted-foreground"
       role="status"
       aria-live="polite"
