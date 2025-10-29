@@ -1,4 +1,17 @@
 /**
+ * @deprecated This page is for UI reference only and is NOT used in production.
+ *
+ * Password reset is handled by Keycloak's native forgot password flow:
+ * - User clicks "Forgot Password?" on Keycloak login page
+ * - Keycloak renders `login-reset-password.ftl` (Rita themed)
+ * - Keycloak sends email and handles password update
+ * - See: keycloak/themes/rita-theme-v2/login/login-reset-password.ftl
+ *
+ * This React component is kept as a design reference for potential future
+ * Keycloak theme customizations or Rita Go admin features.
+ *
+ * ---
+ *
  * ResetPasswordPage - Public page for resetting password with token
  *
  * Allows users to reset their password using a token from the reset email.

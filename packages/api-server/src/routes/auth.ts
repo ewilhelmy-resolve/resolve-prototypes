@@ -3,24 +3,14 @@ import crypto from 'crypto';
 import { z } from 'zod';
 import { getSessionService } from '../services/sessionService.js';
 import { WebhookService } from '../services/WebhookService.js';
-import { PasswordResetService } from '../services/PasswordResetService.js';
 import { pool } from '../config/database.js';
 import { logger } from '../config/logger.js';
 import { authenticateUser } from '../middleware/auth.js';
 import type { AuthenticatedRequest } from '../types/express.js';
-import type {
-  ForgotPasswordRequest,
-  ForgotPasswordResponse,
-  VerifyResetTokenRequest,
-  VerifyResetTokenResponse,
-  ResetPasswordRequest,
-  ResetPasswordResponse
-} from '../types/auth.js';
 
 const router = express.Router();
 const sessionService = getSessionService();
 const webhookService = new WebhookService();
-const passwordResetService = new PasswordResetService();
 
 // Simple in-memory rate limiter for resend verification (5 minutes)
 const resendRateLimiter = new Map<string, number>();
@@ -359,187 +349,6 @@ router.delete('/logout-all', async (req, res) => {
     res.setHeader('Set-Cookie', destroyCookie);
     res.status(500).json({
       error: 'Failed to logout from all devices, but current session has been cleared.'
-    });
-  }
-});
-
-/**
- * POST /auth/forgot-password
- * Request password reset - generates token and sends email
- */
-router.post('/forgot-password', async (req, res) => {
-  try {
-    const { email } = req.body as ForgotPasswordRequest;
-
-    // Validate email format
-    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      return res.status(400).json({
-        error: 'Invalid email format'
-      });
-    }
-
-    // Request password reset (includes user existence check + opportunistic cleanup)
-    const resetData = await passwordResetService.requestReset({
-      email: email.toLowerCase().trim(),
-      ipAddress: req.ip || 'unknown',
-      userAgent: req.headers['user-agent'] || 'unknown'
-    });
-
-    // Always return generic success message (prevent email enumeration)
-    const genericResponse: ForgotPasswordResponse = {
-      success: true,
-      message: 'If an account exists with this email, a password reset link will be sent'
-    };
-
-    // If user doesn't exist, return early with generic message
-    if (!resetData) {
-      return res.json(genericResponse);
-    }
-
-    // Trigger webhook to send email
-    const resetUrl = `${process.env.CLIENT_URL || 'http://localhost:5173'}/reset-password?token=${resetData.token}`;
-
-    const webhookResult = await webhookService.sendPasswordResetRequestEvent({
-      email: email.toLowerCase().trim(),
-      resetUrl,
-      expiresAt: resetData.expiresAt
-    });
-
-    if (!webhookResult.success) {
-      // Webhook failed - delete token and return error
-      await passwordResetService.deleteToken(resetData.token);
-
-      return res.status(500).json({
-        error: 'Failed to send password reset email. Please try again.'
-      });
-    }
-
-    // Success - return generic message
-    return res.json(genericResponse);
-
-  } catch (error) {
-    logger.error({ error }, 'Forgot password error');
-    return res.status(500).json({
-      error: 'An error occurred. Please try again.'
-    });
-  }
-});
-
-/**
- * POST /auth/verify-reset-token
- * Verify reset token validity before showing password form
- */
-router.post('/verify-reset-token', async (req, res) => {
-  try {
-    const { token } = req.body as VerifyResetTokenRequest;
-
-    if (!token) {
-      return res.status(400).json({
-        valid: false,
-        error: 'Token is required',
-        code: 'PWD_RESET_001'
-      });
-    }
-
-    // Verify token
-    const result = await passwordResetService.verifyToken(token);
-
-    if (!result.valid) {
-      return res.status(400).json(result);
-    }
-
-    // Token is valid
-    const response: VerifyResetTokenResponse = {
-      valid: true,
-      email: result.email
-    };
-
-    return res.json(response);
-
-  } catch (error) {
-    logger.error({ error }, 'Verify reset token error');
-    return res.status(500).json({
-      valid: false,
-      error: 'An error occurred. Please try again.',
-      code: 'PWD_RESET_001'
-    });
-  }
-});
-
-/**
- * POST /auth/reset-password
- * Complete password reset - marks token as used and updates Keycloak
- */
-router.post('/reset-password', async (req, res) => {
-  try {
-    const { token, newPassword } = req.body as ResetPasswordRequest;
-
-    // Validate inputs
-    if (!token || !newPassword) {
-      return res.status(400).json({
-        success: false,
-        error: 'Token and password are required',
-        code: 'PWD_RESET_001'
-      });
-    }
-
-    // Validate password strength
-    const passwordValidation = passwordResetService.validatePassword(newPassword);
-    if (!passwordValidation.valid) {
-      return res.status(400).json({
-        success: false,
-        error: passwordValidation.error,
-        code: 'PWD_RESET_005'
-      });
-    }
-
-    // Mark token as used (atomic single-use enforcement)
-    const resetResult = await passwordResetService.resetPassword({ token });
-
-    if (!resetResult.success || !resetResult.email) {
-      return res.status(400).json({
-        success: false,
-        error: resetResult.error || 'Invalid reset token',
-        code: resetResult.code || 'PWD_RESET_001'
-      });
-    }
-
-    // Trigger webhook to update Keycloak password
-    const webhookResult = await webhookService.sendPasswordResetCompleteEvent({
-      email: resetResult.email,
-      password: newPassword // Plain text (service will Base64 encode)
-    });
-
-    if (!webhookResult.success) {
-      // Webhook failed - token already marked as used, don't rollback
-      logger.error({
-        email: resetResult.email,
-        tokenId: resetResult.tokenId,
-        error: webhookResult.error
-      }, 'Password reset webhook failed');
-
-      return res.status(500).json({
-        success: false,
-        error: 'Failed to update password. Please contact support.',
-        code: 'PWD_RESET_004'
-      });
-    }
-
-    // Success
-    const response: ResetPasswordResponse = {
-      success: true,
-      message: 'Password reset successfully. You can now log in with your new password.',
-      email: resetResult.email
-    };
-
-    return res.json(response);
-
-  } catch (error) {
-    logger.error({ error }, 'Reset password error');
-    return res.status(500).json({
-      success: false,
-      error: 'An error occurred. Please try again.',
-      code: 'PWD_RESET_004'
     });
   }
 });
