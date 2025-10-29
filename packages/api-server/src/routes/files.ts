@@ -301,6 +301,7 @@ router.post('/content', authenticateUser, requireRole(['owner', 'admin']), async
 });
 
 // Get document metadata (for citations - returns metadata without full blob content)
+// Supports both new (blob_metadata.id) and legacy (blob_id) formats for backward compatibility
 router.get('/:documentId/metadata', authenticateUser, async (req, res) => {
   const authReq = req as AuthenticatedRequest;
   try {
@@ -310,8 +311,8 @@ router.get('/:documentId/metadata', authenticateUser, async (req, res) => {
       authReq.user.id,
       authReq.user.activeOrganizationId,
       async (client) => {
-        // Fetch only document metadata with processed content, no blob data
-        const metadataResult = await client.query(`
+        // Strategy 1: Try lookup by blob_metadata.id (NEW FORMAT - preferred)
+        let metadataResult = await client.query(`
           SELECT
             bm.id,
             bm.organization_id,
@@ -326,33 +327,77 @@ router.get('/:documentId/metadata', authenticateUser, async (req, res) => {
             bm.updated_at,
             bm.blob_id
           FROM blob_metadata bm
-          WHERE bm.blob_id = $1 AND bm.organization_id = $2
+          WHERE bm.id = $1 AND bm.organization_id = $2
         `, [documentId, authReq.user.activeOrganizationId]);
 
+        let lookupStrategy = 'blob_metadata_id';
+
+        // Strategy 2: Fallback to blob_id lookup (OLD FORMAT - backward compatibility)
         if (metadataResult.rows.length === 0) {
-          return null;
+          metadataResult = await client.query(`
+            SELECT
+              bm.id,
+              bm.organization_id,
+              bm.user_id,
+              bm.filename,
+              bm.file_size,
+              bm.mime_type,
+              bm.status,
+              bm.processed_markdown,
+              bm.metadata,
+              bm.created_at,
+              bm.updated_at,
+              bm.blob_id
+            FROM blob_metadata bm
+            WHERE bm.blob_id = $1 AND bm.organization_id = $2
+          `, [documentId, authReq.user.activeOrganizationId]);
+
+          lookupStrategy = 'blob_id';
         }
 
-        return metadataResult.rows[0];
+        if (metadataResult.rows.length === 0) {
+          return { found: false, lookupStrategy: null };
+        }
+
+        return { found: true, data: metadataResult.rows[0], lookupStrategy };
       }
     );
 
-    if (result === null) {
-      // Log phantom citation (404 error)
+    if (!result.found) {
+      // Log phantom citation with appropriate ID type
       try {
         await withOrgContext(
           authReq.user.id,
           authReq.user.activeOrganizationId,
           async (client) => {
-            await client.query(`
-              INSERT INTO phantom_citations (blob_id, user_id, organization_id, first_seen, last_seen, occurrence_count)
-              VALUES ($1, $2, $3, NOW(), NOW(), 1)
-              ON CONFLICT (blob_id, user_id, organization_id)
-              DO UPDATE SET
-                last_seen = NOW(),
-                occurrence_count = phantom_citations.occurrence_count + 1,
-                updated_at = NOW()
-            `, [documentId, authReq.user.id, authReq.user.activeOrganizationId]);
+            // Determine if documentId looks like a UUID (blob_metadata_id) or text (blob_id)
+            const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(documentId);
+
+            if (isUUID) {
+              // Assume blob_metadata_id format
+              await client.query(`
+                INSERT INTO phantom_citations (blob_metadata_id, user_id, organization_id, first_seen, last_seen, occurrence_count)
+                VALUES ($1, $2, $3, NOW(), NOW(), 1)
+                ON CONFLICT (blob_metadata_id, user_id, organization_id)
+                WHERE blob_metadata_id IS NOT NULL
+                DO UPDATE SET
+                  last_seen = NOW(),
+                  occurrence_count = phantom_citations.occurrence_count + 1,
+                  updated_at = NOW()
+              `, [documentId, authReq.user.id, authReq.user.activeOrganizationId]);
+            } else {
+              // Assume blob_id format (legacy)
+              await client.query(`
+                INSERT INTO phantom_citations (blob_id, user_id, organization_id, first_seen, last_seen, occurrence_count)
+                VALUES ($1, $2, $3, NOW(), NOW(), 1)
+                ON CONFLICT (blob_id, user_id, organization_id)
+                WHERE blob_id IS NOT NULL
+                DO UPDATE SET
+                  last_seen = NOW(),
+                  occurrence_count = phantom_citations.occurrence_count + 1,
+                  updated_at = NOW()
+              `, [documentId, authReq.user.id, authReq.user.activeOrganizationId]);
+            }
           }
         );
       } catch (logError) {
@@ -365,22 +410,23 @@ router.get('/:documentId/metadata', authenticateUser, async (req, res) => {
 
     // Return metadata with processed content (no raw blob data)
     // Frontend expects article content in metadata.content field
-    const metadata = result.metadata || {};
-    metadata.content = result.processed_markdown;
+    const metadata = result.data.metadata || {};
+    metadata.content = result.data.processed_markdown;
 
     res.json({
-      id: result.id,
-      organization_id: result.organization_id,
-      user_id: result.user_id,
-      filename: result.filename,
-      file_size: result.file_size,
-      mime_type: result.mime_type,
-      status: result.status,
-      processed_markdown: result.processed_markdown,
+      id: result.data.id,
+      organization_id: result.data.organization_id,
+      user_id: result.data.user_id,
+      filename: result.data.filename,
+      file_size: result.data.file_size,
+      mime_type: result.data.mime_type,
+      status: result.data.status,
+      processed_markdown: result.data.processed_markdown,
       metadata: metadata,
-      created_at: result.created_at,
-      updated_at: result.updated_at,
-      blob_id: result.blob_id
+      created_at: result.data.created_at,
+      updated_at: result.data.updated_at,
+      blob_id: result.data.blob_id,
+      _lookup_strategy: result.lookupStrategy, // Debug info: which lookup method succeeded
     });
 
   } catch (error) {

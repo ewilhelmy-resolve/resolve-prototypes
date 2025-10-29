@@ -16,17 +16,20 @@ import { useCitationVariant } from '@/contexts/CitationContext'
 
 /**
  * Citation source data structure
+ * Supports both new (blob_metadata_id) and legacy (blob_id) formats
  */
 export interface CitationSource {
-  /** Source URL (optional if blob_id provided) */
+  /** Source URL (optional if blob_metadata_id/blob_id provided) */
   url?: string
-  /** Source title/label (optional - can be fetched from blob_id) */
+  /** Source title/label (optional - can be fetched from blob_metadata_id/blob_id) */
   title?: string
   /** Optional markdown content for the source */
   content?: string
   /** Optional snippet/quote excerpt to display */
   snippet?: string
-  /** Optional blob ID for loading full document */
+  /** NEW: Optional blob_metadata.id for loading full document (preferred) */
+  blob_metadata_id?: string
+  /** LEGACY: Optional blob_id for loading full document (backward compatibility) */
   blob_id?: string
 }
 
@@ -110,9 +113,9 @@ export function Citations({ sources, className, messageId, variant: variantProp 
     return null
   }
 
-  // Validate sources - must have either url or blob_id (title is optional, can be fetched from blob_id)
+  // Validate sources - must have url, blob_metadata_id, or blob_id (title is optional, can be fetched)
   const validSources = sources.filter(
-    source => source && (source.url || source.blob_id)
+    source => source && (source.url || source.blob_metadata_id || source.blob_id)
   )
 
   if (validSources.length === 0) {

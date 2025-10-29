@@ -23,8 +23,9 @@ export interface Message {
     sources?: Array<{
       url: string
       title: string
-      snippet?: string    // Optional excerpt/preview of source content (200-300 chars recommended)
-      blob_id?: string    // Optional reference to uploaded document in blob storage
+      snippet?: string         // Optional excerpt/preview of source content (200-300 chars recommended)
+      blob_metadata_id?: string // NEW: Reference to blob_metadata.id (preferred, from Barista)
+      blob_id?: string         // LEGACY: Reference to blob_id (backward compatibility for old messages)
     }>
     citation_variant?: 'hover-card' | 'modal' | 'right-panel' | 'collapsible-list' | 'inline'  // Controls how citations are displayed
     tasks?: Array<{
