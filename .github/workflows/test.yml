@@ -50,7 +50,12 @@ jobs:
       run: |
         cd packages/api-server
         npm run test:run
-    
+
+    - name: Run client unit tests
+      run: |
+        cd packages/client
+        npm run test:unit
+
     # E2E tests temporarily disabled - no E2E tests currently implemented
     # - name: Install Playwright browsers
     #   run: cd packages/client && npx playwright install --with-deps chromium
