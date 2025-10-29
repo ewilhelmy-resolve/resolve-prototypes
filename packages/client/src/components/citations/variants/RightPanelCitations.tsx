@@ -37,23 +37,11 @@ import {
 import { Streamdown } from 'streamdown'
 
 /**
- * Load document content from blob API
+ * Get document ID from source (supports both old and new formats)
+ * Prefers blob_metadata_id (new), falls back to blob_id (legacy)
  */
-async function loadDocument(blob_id: string): Promise<string> {
-  try {
-    // Fetch from mock service blob endpoint
-    const response = await fetch(`http://localhost:3001/blobs/${blob_id}`)
-
-    if (!response.ok) {
-      throw new Error(`Failed to load document: ${response.statusText}`)
-    }
-
-    const data = await response.json()
-    return data.content || 'Document content not available'
-  } catch (error) {
-    console.error('Error loading document from blob API:', error)
-    throw error
-  }
+function getDocumentId(source: CitationSource): string | undefined {
+  return source.blob_metadata_id || source.blob_id
 }
 
 /**
@@ -84,7 +72,8 @@ export function RightPanelCitations({
 
   // Handle "View full document" click
   const handleViewFullDocument = async (source: CitationSource) => {
-    if (!source.blob_id) return
+    const documentId = getDocumentId(source)
+    if (!documentId) return
 
     setIsLoadingDocument(true)
     setModalOpen(true)
@@ -92,9 +81,12 @@ export function RightPanelCitations({
     const displayTitle = source.title || 'Document'
 
     try {
-      const content = await loadDocument(source.blob_id)
+      const { fileApi } = await import('@/services/api')
+      const metadata = await fileApi.getDocumentMetadata(documentId)
+      const content = metadata.metadata?.content || 'Document content is being processed. Please try again later.'
+
       setModalContent({
-        title: displayTitle,
+        title: metadata.filename || displayTitle,
         content,
       })
     } catch (error) {
@@ -111,7 +103,9 @@ export function RightPanelCitations({
     console.log('Full document requested:', {
       messageId,
       sourceTitle: source.title,
-      blobId: source.blob_id,
+      documentId: documentId,
+      blob_metadata_id: source.blob_metadata_id,
+      blob_id: source.blob_id,
       variant: 'right-panel',
       timestamp: new Date().toISOString(),
     })
@@ -182,7 +176,7 @@ export function RightPanelCitations({
                         View source: {source.title}
                         <ExternalLinkIcon className="h-3 w-3 flex-shrink-0" aria-hidden="true" />
                       </a>
-                    ) : source.blob_id ? (
+                    ) : getDocumentId(source) ? (
                       <button
                         type="button"
                         onClick={() => handleViewFullDocument(source)}
@@ -241,7 +235,7 @@ export function RightPanelCitations({
                             View source
                             <ExternalLinkIcon className="h-3 w-3" aria-hidden="true" />
                           </a>
-                        ) : source.blob_id ? (
+                        ) : getDocumentId(source) ? (
                           <button
                             type="button"
                             onClick={() => handleViewFullDocument(source)}

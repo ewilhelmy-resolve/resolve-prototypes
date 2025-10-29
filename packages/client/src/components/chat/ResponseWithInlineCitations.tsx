@@ -36,6 +36,14 @@ import { ExternalLinkIcon } from 'lucide-react'
 import { useDocumentMetadata, documentMetadataKeys } from '@/hooks/api/useDocumentMetadata'
 import { useQueryClient } from '@tanstack/react-query'
 
+/**
+ * Get document ID from source (supports both old and new formats)
+ * Prefers blob_metadata_id (new), falls back to blob_id (legacy)
+ */
+function getDocumentId(source: CitationSource): string | undefined {
+  return source.blob_metadata_id || source.blob_id
+}
+
 export interface ResponseWithInlineCitationsProps {
   /** Message text with citation markers */
   children: string
@@ -108,7 +116,7 @@ function parseCitationMarkers(text: string): {
 
 /**
  * InlineCitationItem - Individual citation item with metadata fetching
- * Uses TanStack Query to fetch document metadata for blob_id sources
+ * Uses TanStack Query to fetch document metadata for blob_metadata_id/blob_id sources
  */
 function InlineCitationItem({
   source,
@@ -121,14 +129,16 @@ function InlineCitationItem({
   messageId?: string
   onViewDocument: (source: CitationSource) => void
 }) {
-  // Fetch document metadata if source has blob_id but no title
+  const documentId = getDocumentId(source)
+  // Fetch document metadata if source has document ID but no title
   const { data: metadata, isError, isLoading } = useDocumentMetadata(
-    source.blob_id && !source.title ? source.blob_id : undefined
+    documentId && !source.title ? documentId : undefined
   )
 
   // If metadata fetch failed, hide this inline citation and log warning
   if (isError) {
     console.warn('Inline citation source not found:', {
+      blob_metadata_id: source.blob_metadata_id,
       blob_id: source.blob_id,
       messageId,
       index,
@@ -142,6 +152,7 @@ function InlineCitationItem({
   // If no title can be determined (shouldn't happen after loading), hide the citation
   if (!displayTitle) {
     console.warn('Inline citation source has no title:', {
+      blob_metadata_id: source.blob_metadata_id,
       blob_id: source.blob_id,
       messageId,
       index,
@@ -169,7 +180,7 @@ function InlineCitationItem({
               <p className="text-xs text-muted-foreground break-all">
                 {source.url}
               </p>
-            ) : source.blob_id ? (
+            ) : documentId ? (
               <p className="text-xs text-muted-foreground">
                 Full document available
               </p>
@@ -200,8 +211,8 @@ function InlineCitationItem({
                 </a>
               )}
 
-              {/* View full document button if blob_id exists */}
-              {source.blob_id && (
+              {/* View full document button if document ID exists */}
+              {documentId && (
                 <button
                   type="button"
                   onClick={() => onViewDocument(source)}
@@ -243,22 +254,23 @@ export function ResponseWithInlineCitations({
 
   // Handle "View full document" click
   const handleViewFullDocument = async (source: CitationSource) => {
-    if (!source.blob_id) return
+    const documentId = getDocumentId(source)
+    if (!documentId) return
 
     setIsLoadingDocument(true)
     setModalOpen(true)
 
     // Get cached metadata or fetch it
-    const cachedMetadata = queryClient.getQueryData(documentMetadataKeys.detail(source.blob_id))
+    const cachedMetadata = queryClient.getQueryData(documentMetadataKeys.detail(documentId))
     const displayTitle = (cachedMetadata as any)?.filename || source.title || 'Document'
 
     try {
       // Fetch/use cached metadata
       const metadata = await queryClient.ensureQueryData({
-        queryKey: documentMetadataKeys.detail(source.blob_id),
+        queryKey: documentMetadataKeys.detail(documentId),
         queryFn: async () => {
           const { fileApi } = await import('@/services/api')
-          return await fileApi.getDocumentMetadata(source.blob_id!)
+          return await fileApi.getDocumentMetadata(documentId)
         },
       })
 
@@ -282,7 +294,9 @@ export function ResponseWithInlineCitations({
     console.log('Full document requested:', {
       messageId,
       sourceTitle: displayTitle,
-      blobId: source.blob_id,
+      documentId: documentId,
+      blob_metadata_id: source.blob_metadata_id,
+      blob_id: source.blob_id,
       timestamp: new Date().toISOString(),
     })
   }
