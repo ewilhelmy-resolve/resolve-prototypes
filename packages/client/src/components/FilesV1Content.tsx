@@ -18,7 +18,6 @@ import {
 	Plus,
 	RefreshCw,
 	Trash2,
-	TrendingUp,
 	Zap,
 } from "lucide-react";
 import { useRef, useState } from "react";
@@ -355,23 +354,15 @@ export default function FilesV1Content() {
 			{/* Main Content */}
 			<div className="flex-1 px-6 py-6 overflow-y-auto">
 				<div className="flex flex-col gap-6">
-					{/* Stats Cards */}
+					{/* Stats Cards - Hidden for now, needs metrics calculation rethink */}
+					{/*
 					<div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
 						<Card className="border border-border bg-popover">
 							<CardContent className="p-4">
 								<div className="flex flex-col gap-0">
-									<div className="flex items-center gap-3">
-										<h3 className="text-2xl font-normal text-foreground">
-											{totalDocs}
-										</h3>
-										<Badge
-											variant="outline"
-											className="flex items-center gap-1"
-										>
-											<TrendingUp className="h-3 w-3" />
-											+4.5%
-										</Badge>
-									</div>
+									<h3 className="text-2xl font-normal text-foreground">
+										{totalDocs}
+									</h3>
 									<p className="text-sm text-muted-foreground">
 										Total Documents
 									</p>
@@ -449,6 +440,7 @@ export default function FilesV1Content() {
 							</CardContent>
 						</Card>
 					</div>
+					*/}
 
 					{/* Search and Filters OR Bulk Actions */}
 					{selectedFiles.size === 0 ? (
