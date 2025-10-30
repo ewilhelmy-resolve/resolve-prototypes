@@ -468,12 +468,13 @@ export function SignUpPage() {
 							<div className="text-center space-y-3">
 								<p className="text-sm text-muted-foreground">
 									Already have an account?{" "}
-									<button
+									<Button
+									    variant="link"
 										onClick={() => login()}
-										className="text-blue-400 hover:underline font-medium"
+										className="text-blue-400 hover:underline font-medium mt-0 p-0"
 									>
 										Sign in
-									</button>
+									</Button>
 								</p>
 							</div>
 						</div>
