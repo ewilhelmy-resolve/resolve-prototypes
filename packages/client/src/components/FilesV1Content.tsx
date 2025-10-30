@@ -51,7 +51,12 @@ import {
 	useReprocessFile,
 	useUploadFile,
 } from "@/hooks/api/useFiles";
-import { SUPPORTED_DOCUMENT_TYPES } from "@/lib/constants";
+import {
+	FILE_SOURCE,
+	FILE_SOURCE_DISPLAY_NAMES,
+	SUPPORTED_DOCUMENT_TYPES,
+	type FileSourceType,
+} from "@/lib/constants";
 
 const formatFileSize = (bytes: number): string => {
 	if (bytes === 0) return "0 Bytes";
@@ -74,25 +79,16 @@ const formatDate = (date: Date | null | undefined): string => {
 
 const getSourceDisplayName = (source: string | undefined | null): string => {
 	if (!source) return "-";
-	switch (source.toLowerCase()) {
-		case "manual":
-			return "Manual";
-		case "confluence":
-			return "Jira Confluence";
-		default:
-			return source;
-	}
+	const normalizedSource = source.toLowerCase() as FileSourceType;
+	return FILE_SOURCE_DISPLAY_NAMES[normalizedSource] || source;
 };
 
 const getSourceDatabaseValue = (displayName: string): string => {
-	switch (displayName) {
-		case "Manual":
-			return "manual";
-		case "Jira Confluence":
-			return "confluence";
-		default:
-			return displayName.toLowerCase();
-	}
+	// Find the matching source constant by display name
+	const entry = Object.entries(FILE_SOURCE_DISPLAY_NAMES).find(
+		([_, name]) => name === displayName
+	);
+	return entry ? entry[0] : displayName.toLowerCase();
 };
 
 export default function FilesV1Content() {
@@ -363,13 +359,13 @@ export default function FilesV1Content() {
 									<DropdownMenuItem onSelect={() => setSourceFilter("All")}>
 										All Sources
 									</DropdownMenuItem>
-									<DropdownMenuItem onSelect={() => setSourceFilter("Manual")}>
-										Manual
+									<DropdownMenuItem onSelect={() => setSourceFilter(FILE_SOURCE_DISPLAY_NAMES[FILE_SOURCE.MANUAL])}>
+										{FILE_SOURCE_DISPLAY_NAMES[FILE_SOURCE.MANUAL]}
 									</DropdownMenuItem>
 									<DropdownMenuItem
-										onSelect={() => setSourceFilter("Jira Confluence")}
+										onSelect={() => setSourceFilter(FILE_SOURCE_DISPLAY_NAMES[FILE_SOURCE.CONFLUENCE])}
 									>
-										Jira Confluence
+										{FILE_SOURCE_DISPLAY_NAMES[FILE_SOURCE.CONFLUENCE]}
 									</DropdownMenuItem>
 								</DropdownMenuContent>
 							</DropdownMenu>
@@ -463,7 +459,7 @@ export default function FilesV1Content() {
 											<ArrowUpDown className="h-4 w-4" />
 										</Button>
 									</TableHead>
-									<TableHead className="text-right">Created Modified</TableHead>
+									<TableHead className="text-right">Last Modified</TableHead>
 									<TableHead className="w-16"></TableHead>
 								</TableRow>
 							</TableHeader>
@@ -536,7 +532,7 @@ export default function FilesV1Content() {
 											</TableCell>
 											<TableCell className="text-right">-</TableCell>
 											<TableCell className="text-right">
-												{formatDate(file.created_at)}
+												{formatDate(file.updated_at)}
 											</TableCell>
 											<TableCell>
 												<DropdownMenu>
@@ -550,24 +546,30 @@ export default function FilesV1Content() {
 														</Button>
 													</DropdownMenuTrigger>
 													<DropdownMenuContent align="end">
-														{(file.status === "uploaded" ||
-															file.status === "processed") && (
+														{/* Download option - only for manual uploads that are uploaded/processed */}
+														{file.source === FILE_SOURCE.MANUAL &&
+															(file.status === "uploaded" ||
+																file.status === "processed") && (
+																<DropdownMenuItem
+																	onClick={() => handleDownload(file)}
+																>
+																	<Download className="h-4 w-4 mr-2" />
+																	Download
+																</DropdownMenuItem>
+															)}
+														{/* Reprocess option - only for manual uploads */}
+														{file.source === FILE_SOURCE.MANUAL && (
 															<DropdownMenuItem
-																onClick={() => handleDownload(file)}
+																onClick={() => handleReprocess(file)}
+																disabled={reprocessFileMutation.isPending}
 															>
-																<Download className="h-4 w-4 mr-2" />
-																Download
+																<RefreshCw
+																	className={`h-4 w-4 mr-2 ${reprocessFileMutation.isPending ? "animate-spin" : ""}`}
+																/>
+																Reprocess
 															</DropdownMenuItem>
 														)}
-														<DropdownMenuItem
-															onClick={() => handleReprocess(file)}
-															disabled={reprocessFileMutation.isPending}
-														>
-															<RefreshCw
-																className={`h-4 w-4 mr-2 ${reprocessFileMutation.isPending ? "animate-spin" : ""}`}
-															/>
-															Reprocess
-														</DropdownMenuItem>
+														{/* Delete option - always available */}
 														<DropdownMenuItem
 															onClick={() => handleDelete(file)}
 															disabled={deleteFileMutation.isPending}
