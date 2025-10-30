@@ -26,7 +26,7 @@ import ConfirmDialog from "@/components/dialogs/ConfirmDialog";
 import { ritaToast } from "@/components/ui/rita-toast";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+// import { Card, CardContent } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
 	DropdownMenu,
@@ -123,11 +123,11 @@ export default function FilesV1Content() {
 		return matchesSearch && matchesStatus && matchesSource;
 	});
 
-	// Calculate stats
-	const totalDocs = filesData?.total || 0;
-	const processedCount = files.filter((f) => f.status === "processed").length;
-	const processingCount = files.filter((f) => f.status === "processing").length;
-	const failedCount = files.filter((f) => f.status === "failed").length;
+	// Calculate stats (currently hidden, but kept for future use)
+	// const totalDocs = filesData?.total || 0;
+	// const processedCount = files.filter((f) => f.status === "processed").length;
+	// const processingCount = files.filter((f) => f.status === "processing").length;
+	// const failedCount = files.filter((f) => f.status === "failed").length;
 
 	const handleSelectAll = () => {
 		if (selectedFiles.size === filteredFiles.length) {

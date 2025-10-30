@@ -204,8 +204,8 @@ export const fileApi = {
   },
 
   // List documents
-  listDocuments: () =>
-    apiRequest<{ documents: any[]; total: number; limit: number; offset: number }>('/api/files'),
+  listDocuments: (limit: number = 250) =>
+    apiRequest<{ documents: any[]; total: number; limit: number; offset: number }>(`/api/files?limit=${limit}`),
 
   // Delete document
   deleteDocument: (documentId: string) =>
