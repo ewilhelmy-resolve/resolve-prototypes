@@ -125,7 +125,7 @@ export default function FilesV1Content() {
 	});
 
 	// Calculate stats
-	const totalDocs = files.length;
+	const totalDocs = filesData?.total || 0;
 	const processedCount = files.filter((f) => f.status === "processed").length;
 	const processingCount = files.filter((f) => f.status === "processing").length;
 	const failedCount = files.filter((f) => f.status === "failed").length;
