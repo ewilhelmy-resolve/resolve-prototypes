@@ -15,6 +15,29 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import FilesV1Content from "./FilesV1Content";
 
+// Mock ritaToast
+vi.mock("@/components/ui/rita-toast", () => ({
+	ritaToast: {
+		success: vi.fn(),
+		error: vi.fn(),
+		warning: vi.fn(),
+		info: vi.fn(),
+	},
+}));
+
+// Mock BulkActions component
+vi.mock("@/components/BulkActions", () => ({
+	BulkActions: ({ selectedItems, onDelete, onClose, itemLabel }: any) => (
+		<div data-testid="bulk-actions">
+			<span>
+				{selectedItems.length} {itemLabel} selected
+			</span>
+			<button onClick={onDelete}>Delete Selected</button>
+			<button onClick={onClose}>Clear Selection</button>
+		</div>
+	),
+}));
+
 // Mock file data matching the real FileDocument type
 const mockFiles = [
 	{
@@ -436,6 +459,173 @@ describe("FilesV1Content", () => {
 			);
 
 			expect(screen.getByText("3 Knowledge articles")).toBeInTheDocument();
+		});
+	});
+
+	describe("Bulk Actions", () => {
+		it("shows BulkActions component when files are selected", async () => {
+			const { useFiles } = await import("@/hooks/api/useFiles");
+			vi.mocked(useFiles).mockReturnValue({
+				data: { documents: mockFiles },
+				isLoading: false,
+			} as any);
+
+			render(
+				<TestWrapper>
+					<FilesV1Content />
+				</TestWrapper>,
+			);
+
+			// Select first file
+			const checkboxes = screen.getAllByRole("checkbox");
+			const firstFileCheckbox = checkboxes[1]; // Skip select-all
+			fireEvent.click(firstFileCheckbox);
+
+			// BulkActions should appear
+			await waitFor(() => {
+				expect(screen.getByTestId("bulk-actions")).toBeInTheDocument();
+				expect(screen.getByText("1 files selected")).toBeInTheDocument();
+			});
+		});
+
+		it("hides search and filters when BulkActions is shown", async () => {
+			const { useFiles } = await import("@/hooks/api/useFiles");
+			vi.mocked(useFiles).mockReturnValue({
+				data: { documents: mockFiles },
+				isLoading: false,
+			} as any);
+
+			render(
+				<TestWrapper>
+					<FilesV1Content />
+				</TestWrapper>,
+			);
+
+			// Initially search is visible
+			expect(screen.getByPlaceholderText(/Search documents/i)).toBeInTheDocument();
+
+			// Select first file
+			const checkboxes = screen.getAllByRole("checkbox");
+			const firstFileCheckbox = checkboxes[1];
+			fireEvent.click(firstFileCheckbox);
+
+			// Search should be hidden
+			await waitFor(() => {
+				expect(screen.queryByPlaceholderText(/Search documents/i)).not.toBeInTheDocument();
+				expect(screen.getByTestId("bulk-actions")).toBeInTheDocument();
+			});
+		});
+
+		it("clears selection when Clear Selection button is clicked", async () => {
+			const { useFiles } = await import("@/hooks/api/useFiles");
+			vi.mocked(useFiles).mockReturnValue({
+				data: { documents: mockFiles },
+				isLoading: false,
+			} as any);
+
+			render(
+				<TestWrapper>
+					<FilesV1Content />
+				</TestWrapper>,
+			);
+
+			// Select first file
+			const checkboxes = screen.getAllByRole("checkbox");
+			const firstFileCheckbox = checkboxes[1];
+			fireEvent.click(firstFileCheckbox);
+
+			// BulkActions should appear
+			await waitFor(() => {
+				expect(screen.getByTestId("bulk-actions")).toBeInTheDocument();
+			});
+
+			// Click Clear Selection
+			const clearButton = screen.getByText("Clear Selection");
+			fireEvent.click(clearButton);
+
+			// BulkActions should disappear and search should reappear
+			await waitFor(() => {
+				expect(screen.queryByTestId("bulk-actions")).not.toBeInTheDocument();
+				expect(screen.getByPlaceholderText(/Search documents/i)).toBeInTheDocument();
+			});
+		});
+
+		it("opens bulk delete confirmation dialog", async () => {
+			const { useFiles } = await import("@/hooks/api/useFiles");
+			vi.mocked(useFiles).mockReturnValue({
+				data: { documents: mockFiles },
+				isLoading: false,
+			} as any);
+
+			render(
+				<TestWrapper>
+					<FilesV1Content />
+				</TestWrapper>,
+			);
+
+			// Select two files
+			const checkboxes = screen.getAllByRole("checkbox");
+			fireEvent.click(checkboxes[1]);
+			fireEvent.click(checkboxes[2]);
+
+			await waitFor(() => {
+				expect(screen.getByTestId("bulk-actions")).toBeInTheDocument();
+			});
+
+			// Click Delete Selected
+			const deleteButton = screen.getByText("Delete Selected");
+			fireEvent.click(deleteButton);
+
+			// Confirmation dialog should appear
+			await waitFor(() => {
+				expect(screen.getByText("Delete Documents")).toBeInTheDocument();
+				expect(screen.getByText(/2 documents/)).toBeInTheDocument();
+			});
+		});
+
+		it("selects all files when select-all checkbox is clicked", async () => {
+			const { useFiles } = await import("@/hooks/api/useFiles");
+			vi.mocked(useFiles).mockReturnValue({
+				data: { documents: mockFiles },
+				isLoading: false,
+			} as any);
+
+			render(
+				<TestWrapper>
+					<FilesV1Content />
+				</TestWrapper>,
+			);
+
+			// Click select-all checkbox
+			const checkboxes = screen.getAllByRole("checkbox");
+			const selectAllCheckbox = checkboxes[0];
+			fireEvent.click(selectAllCheckbox);
+
+			// BulkActions should show all 3 files selected
+			await waitFor(() => {
+				expect(screen.getByTestId("bulk-actions")).toBeInTheDocument();
+				expect(screen.getByText("3 files selected")).toBeInTheDocument();
+			});
+		});
+	});
+
+	describe("Toast Notifications", () => {
+		it("does not show fixed toast divs", async () => {
+			const { useFiles } = await import("@/hooks/api/useFiles");
+			vi.mocked(useFiles).mockReturnValue({
+				data: { documents: mockFiles },
+				isLoading: false,
+			} as any);
+
+			const { container } = render(
+				<TestWrapper>
+					<FilesV1Content />
+				</TestWrapper>,
+			);
+
+			// Should not have any fixed bottom-right toast divs
+			const fixedToasts = container.querySelectorAll('.fixed.bottom-4.right-4');
+			expect(fixedToasts.length).toBe(0);
 		});
 	});
 });

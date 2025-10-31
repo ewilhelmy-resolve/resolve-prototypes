@@ -22,7 +22,9 @@ import {
 	Zap,
 } from "lucide-react";
 import { useRef, useState } from "react";
+import { BulkActions } from "@/components/BulkActions";
 import ConfirmDialog from "@/components/dialogs/ConfirmDialog";
+import { ritaToast } from "@/components/ui/rita-toast";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -54,8 +56,8 @@ import {
 import {
 	FILE_SOURCE,
 	FILE_SOURCE_DISPLAY_NAMES,
-	SUPPORTED_DOCUMENT_TYPES,
 	type FileSourceType,
+	SUPPORTED_DOCUMENT_TYPES,
 } from "@/lib/constants";
 
 const formatFileSize = (bytes: number): string => {
@@ -86,7 +88,7 @@ const getSourceDisplayName = (source: string | undefined | null): string => {
 const getSourceDatabaseValue = (displayName: string): string => {
 	// Find the matching source constant by display name
 	const entry = Object.entries(FILE_SOURCE_DISPLAY_NAMES).find(
-		([_, name]) => name === displayName
+		([_, name]) => name === displayName,
 	);
 	return entry ? entry[0] : displayName.toLowerCase();
 };
@@ -98,6 +100,7 @@ export default function FilesV1Content() {
 	const [selectedFiles, setSelectedFiles] = useState<Set<string>>(new Set());
 	const [fileToDelete, setFileToDelete] = useState<FileDocument | null>(null);
 	const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+	const [bulkDeleteDialogOpen, setBulkDeleteDialogOpen] = useState(false);
 	const fileInputRef = useRef<HTMLInputElement>(null);
 
 	const { data: filesData, isLoading } = useFiles();
@@ -145,25 +148,119 @@ export default function FilesV1Content() {
 		setSelectedFiles(newSelected);
 	};
 
+	const handleBulkDeleteClick = () => {
+		setBulkDeleteDialogOpen(true);
+	};
+
+	const handleConfirmBulkDelete = async () => {
+		setBulkDeleteDialogOpen(false);
+
+		// Delete selected files one by one
+		let successCount = 0;
+		let failCount = 0;
+
+		for (const fileId of selectedFiles) {
+			try {
+				await new Promise<void>((resolve, reject) => {
+					deleteFileMutation.mutate(fileId, {
+						onSuccess: () => {
+							successCount++;
+							resolve();
+						},
+						onError: () => {
+							failCount++;
+							reject();
+						},
+					});
+				});
+			} catch {
+				// Error already counted in failCount
+			}
+		}
+
+		// Clear selection after deletion attempts
+		setSelectedFiles(new Set());
+
+		// Show summary toast
+		if (failCount === 0) {
+			ritaToast.success({
+				title: "Documents Deleted",
+				description: `Successfully deleted ${successCount} document${successCount !== 1 ? "s" : ""}`,
+			});
+		} else if (successCount === 0) {
+			ritaToast.error({
+				title: "Delete Failed",
+				description: `Failed to delete ${failCount} document${failCount !== 1 ? "s" : ""}`,
+			});
+		} else {
+			ritaToast.warning({
+				title: "Partial Success",
+				description: `Deleted ${successCount} document${successCount !== 1 ? "s" : ""}, ${failCount} failed`,
+			});
+		}
+	};
+
 	const handleUploadClick = () => {
 		fileInputRef.current?.click();
 	};
 
 	const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
 		if (e.target.files?.[0]) {
-			uploadFileMutation.mutate(e.target.files[0]);
+			uploadFileMutation.mutate(e.target.files[0], {
+				onSuccess: () => {
+					ritaToast.success({
+						title: "File Uploaded",
+						description: "Document uploaded successfully and processing started",
+					});
+				},
+				onError: (error) => {
+					ritaToast.error({
+						title: "Upload Failed",
+						description: error.message || "Failed to upload document",
+					});
+				},
+			});
 		}
 	};
 
 	const handleDownload = (file: FileDocument) => {
-		downloadFileMutation.mutate({
-			documentId: file.id,
-			filename: file.filename,
-		});
+		downloadFileMutation.mutate(
+			{
+				documentId: file.id,
+				filename: file.filename,
+			},
+			{
+				onSuccess: () => {
+					ritaToast.success({
+						title: "Download Started",
+						description: `Downloading ${file.filename}`,
+					});
+				},
+				onError: () => {
+					ritaToast.error({
+						title: "Download Failed",
+						description: `Could not download ${file.filename}`,
+					});
+				},
+			}
+		);
 	};
 
 	const handleReprocess = (file: FileDocument) => {
-		reprocessFileMutation.mutate(file.id);
+		reprocessFileMutation.mutate(file.id, {
+			onSuccess: () => {
+				ritaToast.success({
+					title: "Reprocessing Started",
+					description: `Document ${file.filename} is being reprocessed`,
+				});
+			},
+			onError: () => {
+				ritaToast.error({
+					title: "Reprocess Failed",
+					description: `Could not reprocess ${file.filename}`,
+				});
+			},
+		});
 	};
 
 	const handleDelete = (file: FileDocument) => {
@@ -173,7 +270,21 @@ export default function FilesV1Content() {
 
 	const confirmDelete = () => {
 		if (fileToDelete) {
-			deleteFileMutation.mutate(fileToDelete.id);
+			const fileName = fileToDelete.filename;
+			deleteFileMutation.mutate(fileToDelete.id, {
+				onSuccess: () => {
+					ritaToast.success({
+						title: "Document Deleted",
+						description: `${fileName} has been deleted`,
+					});
+				},
+				onError: () => {
+					ritaToast.error({
+						title: "Delete Failed",
+						description: `Could not delete ${fileName}`,
+					});
+				},
+			});
 			setDeleteDialogOpen(false);
 			setFileToDelete(null);
 		}
@@ -339,70 +450,91 @@ export default function FilesV1Content() {
 						</Card>
 					</div>
 
-					{/* Search and Filters */}
-					<div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
-						<Input
-							placeholder="Search documents....."
-							value={searchQuery}
-							onChange={(e) => setSearchQuery(e.target.value)}
-							className="max-w-sm"
-						/>
-						<div className="flex gap-4">
-							<DropdownMenu>
-								<DropdownMenuTrigger asChild>
-									<Button variant="outline">
-										Source: {sourceFilter}
-										<ChevronDown className="h-4 w-4" />
-									</Button>
-								</DropdownMenuTrigger>
-								<DropdownMenuContent>
-									<DropdownMenuItem onSelect={() => setSourceFilter("All")}>
-										All Sources
-									</DropdownMenuItem>
-									<DropdownMenuItem onSelect={() => setSourceFilter(FILE_SOURCE_DISPLAY_NAMES[FILE_SOURCE.MANUAL])}>
-										{FILE_SOURCE_DISPLAY_NAMES[FILE_SOURCE.MANUAL]}
-									</DropdownMenuItem>
-									<DropdownMenuItem
-										onSelect={() => setSourceFilter(FILE_SOURCE_DISPLAY_NAMES[FILE_SOURCE.CONFLUENCE])}
-									>
-										{FILE_SOURCE_DISPLAY_NAMES[FILE_SOURCE.CONFLUENCE]}
-									</DropdownMenuItem>
-								</DropdownMenuContent>
-							</DropdownMenu>
+					{/* Search and Filters OR Bulk Actions */}
+					{selectedFiles.size === 0 ? (
+						<div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
+							<Input
+								placeholder="Search documents....."
+								value={searchQuery}
+								onChange={(e) => setSearchQuery(e.target.value)}
+								className="max-w-sm"
+							/>
+							<div className="flex gap-4">
+								<DropdownMenu>
+									<DropdownMenuTrigger asChild>
+										<Button variant="outline">
+											Source: {sourceFilter}
+											<ChevronDown className="h-4 w-4" />
+										</Button>
+									</DropdownMenuTrigger>
+									<DropdownMenuContent>
+										<DropdownMenuItem onSelect={() => setSourceFilter("All")}>
+											All Sources
+										</DropdownMenuItem>
+										<DropdownMenuItem
+											onSelect={() =>
+												setSourceFilter(
+													FILE_SOURCE_DISPLAY_NAMES[FILE_SOURCE.MANUAL],
+												)
+											}
+										>
+											{FILE_SOURCE_DISPLAY_NAMES[FILE_SOURCE.MANUAL]}
+										</DropdownMenuItem>
+										<DropdownMenuItem
+											onSelect={() =>
+												setSourceFilter(
+													FILE_SOURCE_DISPLAY_NAMES[FILE_SOURCE.CONFLUENCE],
+												)
+											}
+										>
+											{FILE_SOURCE_DISPLAY_NAMES[FILE_SOURCE.CONFLUENCE]}
+										</DropdownMenuItem>
+									</DropdownMenuContent>
+								</DropdownMenu>
 
-							<DropdownMenu>
-								<DropdownMenuTrigger asChild>
-									<Button variant="outline">
-										Status: {statusFilter}
-										<ChevronDown className="h-4 w-4" />
-									</Button>
-								</DropdownMenuTrigger>
-								<DropdownMenuContent>
-									<DropdownMenuItem onSelect={() => setStatusFilter("All")}>
-										All Status
-									</DropdownMenuItem>
-									<DropdownMenuItem
-										onSelect={() => setStatusFilter("processed")}
-									>
-										Processed
-									</DropdownMenuItem>
-									<DropdownMenuItem
-										onSelect={() => setStatusFilter("processing")}
-									>
-										Processing
-									</DropdownMenuItem>
-									<DropdownMenuItem onSelect={() => setStatusFilter("failed")}>
-										Failed
-									</DropdownMenuItem>
-									<DropdownMenuItem
-										onSelect={() => setStatusFilter("uploaded")}
-									>
-										Uploaded
-									</DropdownMenuItem>
-								</DropdownMenuContent>
-							</DropdownMenu>
+								<DropdownMenu>
+									<DropdownMenuTrigger asChild>
+										<Button variant="outline">
+											Status: {statusFilter}
+											<ChevronDown className="h-4 w-4" />
+										</Button>
+									</DropdownMenuTrigger>
+									<DropdownMenuContent>
+										<DropdownMenuItem onSelect={() => setStatusFilter("All")}>
+											All Status
+										</DropdownMenuItem>
+										<DropdownMenuItem
+											onSelect={() => setStatusFilter("processed")}
+										>
+											Processed
+										</DropdownMenuItem>
+										<DropdownMenuItem
+											onSelect={() => setStatusFilter("processing")}
+										>
+											Processing
+										</DropdownMenuItem>
+										<DropdownMenuItem
+											onSelect={() => setStatusFilter("failed")}
+										>
+											Failed
+										</DropdownMenuItem>
+										<DropdownMenuItem
+											onSelect={() => setStatusFilter("uploaded")}
+										>
+											Uploaded
+										</DropdownMenuItem>
+									</DropdownMenuContent>
+								</DropdownMenu>
+							</div>
 						</div>
-					</div>
+					) : (
+						<BulkActions
+							selectedItems={Array.from(selectedFiles)}
+							onDelete={handleBulkDeleteClick}
+							onClose={() => setSelectedFiles(new Set())}
+							itemLabel="files"
+						/>
+					)}
 
 					{/* Table */}
 					<div className="border rounded-md">
@@ -607,67 +739,6 @@ export default function FilesV1Content() {
 				disabled={uploadFileMutation.isPending}
 			/>
 
-			{/* Upload status toast */}
-			{uploadFileMutation.isError && (
-				<div className="fixed bottom-4 right-4 p-3 bg-destructive/10 border border-destructive/20 rounded-md max-w-sm">
-					<div className="flex items-center gap-2 text-destructive">
-						<AlertCircle className="h-4 w-4" />
-						<span className="text-sm">
-							{uploadFileMutation.error?.message || "Upload failed"}
-						</span>
-					</div>
-				</div>
-			)}
-
-			{uploadFileMutation.isSuccess && (
-				<div className="fixed bottom-4 right-4 p-3 bg-green-50 border border-green-200 rounded-md max-w-sm">
-					<div className="flex items-center gap-2 text-green-700">
-						<CheckCircle className="h-4 w-4" />
-						<span className="text-sm">File uploaded successfully!</span>
-					</div>
-				</div>
-			)}
-
-			{reprocessFileMutation.isError && (
-				<div className="fixed bottom-4 right-4 p-3 bg-destructive/10 border border-destructive/20 rounded-md max-w-sm">
-					<div className="flex items-center gap-2 text-destructive">
-						<AlertCircle className="h-4 w-4" />
-						<span className="text-sm">
-							{reprocessFileMutation.error?.message || "Reprocess failed"}
-						</span>
-					</div>
-				</div>
-			)}
-
-			{reprocessFileMutation.isSuccess && (
-				<div className="fixed bottom-4 right-4 p-3 bg-green-50 border border-green-200 rounded-md max-w-sm">
-					<div className="flex items-center gap-2 text-green-700">
-						<RefreshCw className="h-4 w-4" />
-						<span className="text-sm">Document sent for reprocessing!</span>
-					</div>
-				</div>
-			)}
-
-			{deleteFileMutation.isError && (
-				<div className="fixed bottom-4 right-4 p-3 bg-destructive/10 border border-destructive/20 rounded-md max-w-sm">
-					<div className="flex items-center gap-2 text-destructive">
-						<AlertCircle className="h-4 w-4" />
-						<span className="text-sm">
-							{deleteFileMutation.error?.message || "Delete failed"}
-						</span>
-					</div>
-				</div>
-			)}
-
-			{deleteFileMutation.isSuccess && (
-				<div className="fixed bottom-4 right-4 p-3 bg-green-50 border border-green-200 rounded-md max-w-sm">
-					<div className="flex items-center gap-2 text-green-700">
-						<CheckCircle className="h-4 w-4" />
-						<span className="text-sm">Document deleted successfully!</span>
-					</div>
-				</div>
-			)}
-
 			{/* Delete Confirmation Dialog */}
 			<ConfirmDialog
 				open={deleteDialogOpen}
@@ -675,6 +746,18 @@ export default function FilesV1Content() {
 				title="Delete Document"
 				description={`Are you sure you want to delete "${fileToDelete?.filename}"? This action cannot be undone.`}
 				onConfirm={confirmDelete}
+				confirmLabel="Delete"
+				cancelLabel="Cancel"
+				variant="destructive"
+			/>
+
+			{/* Bulk Delete Confirmation Dialog */}
+			<ConfirmDialog
+				open={bulkDeleteDialogOpen}
+				onOpenChange={setBulkDeleteDialogOpen}
+				title="Delete Documents"
+				description={`Are you sure you want to delete ${selectedFiles.size} document${selectedFiles.size !== 1 ? "s" : ""}? This action cannot be undone and will permanently remove all selected files from your knowledge base.`}
+				onConfirm={handleConfirmBulkDelete}
 				confirmLabel="Delete"
 				cancelLabel="Cancel"
 				variant="destructive"
