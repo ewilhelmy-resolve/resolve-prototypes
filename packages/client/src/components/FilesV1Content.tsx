@@ -12,7 +12,6 @@ import {
 	CheckCircle,
 	ChevronDown,
 	Download,
-	File,
 	Loader,
 	MoreHorizontal,
 	Plus,
@@ -23,7 +22,7 @@ import {
 import { useRef, useState } from "react";
 import { BulkActions } from "@/components/BulkActions";
 import ConfirmDialog from "@/components/dialogs/ConfirmDialog";
-import { ritaToast } from "@/components/ui/rita-toast";
+import EmptyFilesState from "@/components/knowledge-articles/EmptyFilesState";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 // import { Card, CardContent } from "@/components/ui/card";
@@ -35,6 +34,7 @@ import {
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
+import { ritaToast } from "@/components/ui/rita-toast";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
 	Table,
@@ -44,6 +44,11 @@ import {
 	TableHeader,
 	TableRow,
 } from "@/components/ui/table";
+import {
+	Tooltip,
+	TooltipContent,
+	TooltipTrigger,
+} from "@/components/ui/tooltip";
 import {
 	type FileDocument,
 	useDeleteFile,
@@ -56,6 +61,8 @@ import {
 	FILE_SOURCE,
 	FILE_SOURCE_DISPLAY_NAMES,
 	type FileSourceType,
+	MAX_FILE_SIZE_MB,
+	SUPPORTED_DOCUMENT_EXTENSIONS,
 	SUPPORTED_DOCUMENT_TYPES,
 } from "@/lib/constants";
 
@@ -209,7 +216,8 @@ export default function FilesV1Content() {
 				onSuccess: () => {
 					ritaToast.success({
 						title: "File Uploaded",
-						description: "Document uploaded successfully and processing started",
+						description:
+							"Document uploaded successfully and processing started",
 					});
 				},
 				onError: (error) => {
@@ -241,7 +249,7 @@ export default function FilesV1Content() {
 						description: `Could not download ${file.filename}`,
 					});
 				},
-			}
+			},
 		);
 	};
 
@@ -337,17 +345,31 @@ export default function FilesV1Content() {
 							Knowledge Articles
 						</h1>
 					</div>
-					<Button
-						onClick={handleUploadClick}
-						disabled={uploadFileMutation.isPending}
-					>
-						{uploadFileMutation.isPending ? (
-							<Loader className="h-4 w-4 animate-spin" />
-						) : (
-							<Plus className="h-4 w-4" />
-						)}
-						Add Articles
-					</Button>
+					<Tooltip>
+						<TooltipTrigger asChild>
+							<Button
+								onClick={handleUploadClick}
+								disabled={uploadFileMutation.isPending}
+							>
+								{uploadFileMutation.isPending ? (
+									<Loader className="h-4 w-4 animate-spin" />
+								) : (
+									<Plus className="h-4 w-4" />
+								)}
+								Add Articles
+							</Button>
+						</TooltipTrigger>
+						<TooltipContent
+							side="top"
+							className="max-w-xs bg-primary text-primary-foreground"
+							arrowClassName="bg-primary fill-primary"
+						>
+							<div className="space-y-1">
+								<p>File types: {SUPPORTED_DOCUMENT_EXTENSIONS.join(", ")}</p>
+								<p className="text-center">Max size: {MAX_FILE_SIZE_MB}mb</p>
+							</div>
+						</TooltipContent>
+					</Tooltip>
 				</div>
 			</div>
 
@@ -528,196 +550,196 @@ export default function FilesV1Content() {
 						/>
 					)}
 
-					{/* Table */}
-					<div className="border rounded-md">
-						<Table>
-							<TableHeader>
-								<TableRow>
-									<TableHead className="w-8">
-										<Checkbox
-											checked={
-												selectedFiles.size === filteredFiles.length &&
-												filteredFiles.length > 0
-											}
-											onCheckedChange={handleSelectAll}
-										/>
-									</TableHead>
-									<TableHead>Name</TableHead>
-									<TableHead>
-										<Button
-											variant="ghost"
-											size="sm"
-											className="text-muted-foreground hover:text-foreground"
-										>
-											Status
-											<ArrowUpDown className="h-4 w-4" />
-										</Button>
-									</TableHead>
-									<TableHead>
-										<Button
-											variant="ghost"
-											size="sm"
-											className="text-muted-foreground hover:text-foreground"
-										>
-											Source
-											<ArrowUpDown className="h-4 w-4" />
-										</Button>
-									</TableHead>
-									<TableHead>
-										<Button
-											variant="ghost"
-											size="sm"
-											className="text-muted-foreground hover:text-foreground"
-										>
-											Size
-											<ArrowUpDown className="h-4 w-4" />
-										</Button>
-									</TableHead>
-									<TableHead>
-										<Button
-											variant="ghost"
-											size="sm"
-											className="text-muted-foreground hover:text-foreground"
-										>
-											Queries
-											<ArrowUpDown className="h-4 w-4" />
-										</Button>
-									</TableHead>
-									<TableHead className="text-right">Last Modified</TableHead>
-									<TableHead className="w-16"></TableHead>
-								</TableRow>
-							</TableHeader>
-							<TableBody>
-								{isLoading ? (
-									[...Array(3)].map((_, i) => (
-										<TableRow key={i}>
-											<TableCell>
-												<Skeleton className="h-4 w-4" />
-											</TableCell>
-											<TableCell>
-												<Skeleton className="h-4 w-[200px]" />
-											</TableCell>
-											<TableCell>
-												<Skeleton className="h-4 w-[80px]" />
-											</TableCell>
-											<TableCell>
-												<Skeleton className="h-4 w-[100px]" />
-											</TableCell>
-											<TableCell>
-												<Skeleton className="h-4 w-[60px]" />
-											</TableCell>
-											<TableCell>
-												<Skeleton className="h-4 w-[40px]" />
-											</TableCell>
-											<TableCell>
-												<Skeleton className="h-4 w-[120px]" />
-											</TableCell>
-											<TableCell>
-												<Skeleton className="h-4 w-[30px]" />
-											</TableCell>
-										</TableRow>
-									))
-								) : filteredFiles.length === 0 ? (
+					{/* Empty State */}
+					{!isLoading && filteredFiles.length === 0 ? (
+						<EmptyFilesState
+							hasActiveFilters={
+								searchQuery !== "" ||
+								statusFilter !== "All" ||
+								sourceFilter !== "All"
+							}
+							onUploadClick={handleUploadClick}
+						/>
+					) : (
+						/* Table */
+						<div className="border rounded-md">
+							<Table>
+								<TableHeader>
 									<TableRow>
-										<TableCell colSpan={8} className="text-center py-8">
-											<div className="flex flex-col items-center gap-2 text-muted-foreground">
-												<File className="h-12 w-12 opacity-30" />
-												<p>No documents found</p>
-												<p className="text-sm">
-													{searchQuery || statusFilter !== "All"
-														? "Try adjusting your search or filter criteria"
-														: "Upload your first document to get started"}
-												</p>
-											</div>
-										</TableCell>
+										<TableHead className="w-8">
+											<Checkbox
+												checked={
+													selectedFiles.size === filteredFiles.length &&
+													filteredFiles.length > 0
+												}
+												onCheckedChange={handleSelectAll}
+											/>
+										</TableHead>
+										<TableHead>Name</TableHead>
+										<TableHead>
+											<Button
+												variant="ghost"
+												size="sm"
+												className="text-muted-foreground hover:text-foreground"
+											>
+												Status
+												<ArrowUpDown className="h-4 w-4" />
+											</Button>
+										</TableHead>
+										<TableHead>
+											<Button
+												variant="ghost"
+												size="sm"
+												className="text-muted-foreground hover:text-foreground"
+											>
+												Source
+												<ArrowUpDown className="h-4 w-4" />
+											</Button>
+										</TableHead>
+										<TableHead>
+											<Button
+												variant="ghost"
+												size="sm"
+												className="text-muted-foreground hover:text-foreground"
+											>
+												Size
+												<ArrowUpDown className="h-4 w-4" />
+											</Button>
+										</TableHead>
+										<TableHead>
+											<Button
+												variant="ghost"
+												size="sm"
+												className="text-muted-foreground hover:text-foreground"
+											>
+												Queries
+												<ArrowUpDown className="h-4 w-4" />
+											</Button>
+										</TableHead>
+										<TableHead className="text-right">Last Modified</TableHead>
+										<TableHead className="w-16"></TableHead>
 									</TableRow>
-								) : (
-									filteredFiles.map((file) => (
-										<TableRow key={file.id}>
-											<TableCell>
-												<Checkbox
-													checked={selectedFiles.has(file.id)}
-													onCheckedChange={() => handleSelectFile(file.id)}
-												/>
-											</TableCell>
-											<TableCell>{file.filename}</TableCell>
-											<TableCell>
-												<Badge
-													variant={getStatusVariant(file.status)}
-													className="flex items-center gap-1 w-fit"
-												>
-													{getStatusIcon(file.status)}
-													{getStatusLabel(file.status)}
-												</Badge>
-											</TableCell>
-											<TableCell>{getSourceDisplayName(file.source)}</TableCell>
-											<TableCell className="text-right">
-												{formatFileSize(file.size)}
-											</TableCell>
-											<TableCell className="text-right">-</TableCell>
-											<TableCell className="text-right">
-												{formatDate(file.updated_at)}
-											</TableCell>
-											<TableCell>
-												<DropdownMenu>
-													<DropdownMenuTrigger asChild>
-														<Button
-															variant="ghost"
-															size="sm"
-															className="text-muted-foreground hover:text-foreground"
+								</TableHeader>
+								<TableBody>
+									{isLoading
+										? [...Array(3)].map((_, i) => (
+												<TableRow key={i}>
+													<TableCell>
+														<Skeleton className="h-4 w-4" />
+													</TableCell>
+													<TableCell>
+														<Skeleton className="h-4 w-[200px]" />
+													</TableCell>
+													<TableCell>
+														<Skeleton className="h-4 w-[80px]" />
+													</TableCell>
+													<TableCell>
+														<Skeleton className="h-4 w-[100px]" />
+													</TableCell>
+													<TableCell>
+														<Skeleton className="h-4 w-[60px]" />
+													</TableCell>
+													<TableCell>
+														<Skeleton className="h-4 w-[40px]" />
+													</TableCell>
+													<TableCell>
+														<Skeleton className="h-4 w-[120px]" />
+													</TableCell>
+													<TableCell>
+														<Skeleton className="h-4 w-[30px]" />
+													</TableCell>
+												</TableRow>
+											))
+										: filteredFiles.map((file) => (
+												<TableRow key={file.id}>
+													<TableCell>
+														<Checkbox
+															checked={selectedFiles.has(file.id)}
+															onCheckedChange={() => handleSelectFile(file.id)}
+														/>
+													</TableCell>
+													<TableCell>{file.filename}</TableCell>
+													<TableCell>
+														<Badge
+															variant={getStatusVariant(file.status)}
+															className="flex items-center gap-1 w-fit"
 														>
-															<MoreHorizontal className="h-4 w-4" />
-														</Button>
-													</DropdownMenuTrigger>
-													<DropdownMenuContent align="end">
-														{/* Download option - only for manual uploads that are uploaded/processed */}
-														{file.source === FILE_SOURCE.MANUAL &&
-															(file.status === "uploaded" ||
-																file.status === "processed") && (
-																<DropdownMenuItem
-																	onClick={() => handleDownload(file)}
+															{getStatusIcon(file.status)}
+															{getStatusLabel(file.status)}
+														</Badge>
+													</TableCell>
+													<TableCell>
+														{getSourceDisplayName(file.source)}
+													</TableCell>
+													<TableCell className="text-right">
+														{formatFileSize(file.size)}
+													</TableCell>
+													<TableCell className="text-right">-</TableCell>
+													<TableCell className="text-right">
+														{formatDate(file.updated_at)}
+													</TableCell>
+													<TableCell>
+														<DropdownMenu>
+															<DropdownMenuTrigger asChild>
+																<Button
+																	variant="ghost"
+																	size="sm"
+																	className="text-muted-foreground hover:text-foreground"
 																>
-																	<Download className="h-4 w-4 mr-2" />
-																	Download
+																	<MoreHorizontal className="h-4 w-4" />
+																</Button>
+															</DropdownMenuTrigger>
+															<DropdownMenuContent align="end">
+																{/* Download option - only for manual uploads that are uploaded/processed */}
+																{file.source === FILE_SOURCE.MANUAL &&
+																	(file.status === "uploaded" ||
+																		file.status === "processed") && (
+																		<DropdownMenuItem
+																			onClick={() => handleDownload(file)}
+																		>
+																			<Download className="h-4 w-4 mr-2" />
+																			Download
+																		</DropdownMenuItem>
+																	)}
+																{/* Reprocess option - only for manual uploads */}
+																{file.source === FILE_SOURCE.MANUAL && (
+																	<DropdownMenuItem
+																		onClick={() => handleReprocess(file)}
+																		disabled={reprocessFileMutation.isPending}
+																	>
+																		<RefreshCw
+																			className={`h-4 w-4 mr-2 ${reprocessFileMutation.isPending ? "animate-spin" : ""}`}
+																		/>
+																		Reprocess
+																	</DropdownMenuItem>
+																)}
+																{/* Delete option - always available */}
+																<DropdownMenuItem
+																	onClick={() => handleDelete(file)}
+																	disabled={deleteFileMutation.isPending}
+																	className="text-destructive focus:text-destructive"
+																>
+																	<Trash2 className="h-4 w-4 mr-2" />
+																	Delete
 																</DropdownMenuItem>
-															)}
-														{/* Reprocess option - only for manual uploads */}
-														{file.source === FILE_SOURCE.MANUAL && (
-															<DropdownMenuItem
-																onClick={() => handleReprocess(file)}
-																disabled={reprocessFileMutation.isPending}
-															>
-																<RefreshCw
-																	className={`h-4 w-4 mr-2 ${reprocessFileMutation.isPending ? "animate-spin" : ""}`}
-																/>
-																Reprocess
-															</DropdownMenuItem>
-														)}
-														{/* Delete option - always available */}
-														<DropdownMenuItem
-															onClick={() => handleDelete(file)}
-															disabled={deleteFileMutation.isPending}
-															className="text-destructive focus:text-destructive"
-														>
-															<Trash2 className="h-4 w-4 mr-2" />
-															Delete
-														</DropdownMenuItem>
-													</DropdownMenuContent>
-												</DropdownMenu>
-											</TableCell>
-										</TableRow>
-									))
-								)}
-							</TableBody>
-						</Table>
-					</div>
+															</DropdownMenuContent>
+														</DropdownMenu>
+													</TableCell>
+												</TableRow>
+											))}
+								</TableBody>
+							</Table>
+						</div>
+					)}
 
 					{/* Footer */}
-					<div className="flex justify-center">
-						<p className="text-sm text-muted-foreground">
-							{filteredFiles.length} Knowledge articles
-						</p>
-					</div>
+					{!isLoading && filteredFiles.length > 0 && (
+						<div className="flex justify-center">
+							<p className="text-sm text-muted-foreground">
+								{filteredFiles.length} Knowledge articles
+							</p>
+						</div>
+					)}
 				</div>
 			</div>
 

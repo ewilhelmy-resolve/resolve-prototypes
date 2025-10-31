@@ -46,3 +46,6 @@ export const FILE_SOURCE_DISPLAY_NAMES: Record<FileSourceType, string> = {
 	[FILE_SOURCE.MANUAL]: 'Manual',
 	[FILE_SOURCE.CONFLUENCE]: 'Jira Confluence',
 } as const
+
+
+export const MAX_FILE_SIZE_MB = 100;

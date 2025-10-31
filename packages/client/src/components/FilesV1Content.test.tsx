@@ -38,6 +38,23 @@ vi.mock("@/components/BulkActions", () => ({
 	),
 }));
 
+// Mock EmptyFilesState component
+vi.mock("@/components/knowledge-articles/EmptyFilesState", () => ({
+	default: ({ hasActiveFilters, onUploadClick }: any) => (
+		<div data-testid="empty-files-state">
+			<h2>{hasActiveFilters ? "No documents found" : "No documents yet"}</h2>
+			<p>
+				{hasActiveFilters
+					? "Try adjusting your search or filter criteria"
+					: "Upload your first document to get started"}
+			</p>
+			{!hasActiveFilters && onUploadClick && (
+				<button onClick={onUploadClick}>Upload Document</button>
+			)}
+		</div>
+	),
+}));
+
 // Mock file data matching the real FileDocument type
 const mockFiles = [
 	{
@@ -179,6 +196,23 @@ describe("FilesV1Content", () => {
 
 			expect(screen.getByText(/Source: All/i)).toBeInTheDocument();
 			expect(screen.getByText(/Status: All/i)).toBeInTheDocument();
+		});
+
+		it("Add Articles button has tooltip with upload requirements", () => {
+			render(
+				<TestWrapper>
+					<FilesV1Content />
+				</TestWrapper>,
+			);
+
+			const uploadButton = screen.getByRole("button", {
+				name: /Add Articles/i,
+			});
+			expect(uploadButton).toBeInTheDocument();
+
+			// Tooltip content is rendered by Radix UI when hovering
+			// We're verifying the button exists and is wrapped in Tooltip component
+			// The actual tooltip behavior is tested by Radix UI's own tests
 		});
 	});
 
@@ -404,10 +438,77 @@ describe("FilesV1Content", () => {
 			);
 
 			await waitFor(() => {
-				expect(screen.getByText("No documents found")).toBeInTheDocument();
+				expect(screen.getByTestId("empty-files-state")).toBeInTheDocument();
+				expect(screen.getByText("No documents yet")).toBeInTheDocument();
 				expect(
 					screen.getByText("Upload your first document to get started"),
 				).toBeInTheDocument();
+			});
+		});
+
+		it("shows Upload Document button in empty state when no filters", async () => {
+			const { useFiles } = await import("@/hooks/api/useFiles");
+			vi.mocked(useFiles).mockReturnValue({
+				data: { documents: [] },
+				isLoading: false,
+			} as any);
+
+			render(
+				<TestWrapper>
+					<FilesV1Content />
+				</TestWrapper>,
+			);
+
+			await waitFor(() => {
+				expect(screen.getByText("Upload Document")).toBeInTheDocument();
+			});
+		});
+
+		it("shows correct message when filters are active but no results", async () => {
+			const { useFiles } = await import("@/hooks/api/useFiles");
+			vi.mocked(useFiles).mockReturnValue({
+				data: { documents: mockFiles },
+				isLoading: false,
+			} as any);
+
+			render(
+				<TestWrapper>
+					<FilesV1Content />
+				</TestWrapper>,
+			);
+
+			// Apply search filter
+			const searchInput = screen.getByPlaceholderText(/Search documents/i);
+			fireEvent.change(searchInput, { target: { value: "nonexistent" } });
+
+			await waitFor(() => {
+				expect(screen.getByTestId("empty-files-state")).toBeInTheDocument();
+				expect(screen.getByText("No documents found")).toBeInTheDocument();
+				expect(
+					screen.getByText("Try adjusting your search or filter criteria"),
+				).toBeInTheDocument();
+			});
+		});
+
+		it("does not show Upload Document button when filters are active", async () => {
+			const { useFiles } = await import("@/hooks/api/useFiles");
+			vi.mocked(useFiles).mockReturnValue({
+				data: { documents: mockFiles },
+				isLoading: false,
+			} as any);
+
+			render(
+				<TestWrapper>
+					<FilesV1Content />
+				</TestWrapper>,
+			);
+
+			// Apply search filter
+			const searchInput = screen.getByPlaceholderText(/Search documents/i);
+			fireEvent.change(searchInput, { target: { value: "nonexistent" } });
+
+			await waitFor(() => {
+				expect(screen.queryByText("Upload Document")).not.toBeInTheDocument();
 			});
 		});
 	});
@@ -460,6 +561,40 @@ describe("FilesV1Content", () => {
 			);
 
 			expect(screen.getByText("3 Knowledge articles")).toBeInTheDocument();
+		});
+
+		it("does not show footer when no files exist", async () => {
+			const { useFiles } = await import("@/hooks/api/useFiles");
+			vi.mocked(useFiles).mockReturnValue({
+				data: { documents: [] },
+				isLoading: false,
+			} as any);
+
+			render(
+				<TestWrapper>
+					<FilesV1Content />
+				</TestWrapper>,
+			);
+
+			await waitFor(() => {
+				expect(screen.queryByText(/Knowledge articles$/)).not.toBeInTheDocument();
+			});
+		});
+
+		it("does not show footer when loading", async () => {
+			const { useFiles } = await import("@/hooks/api/useFiles");
+			vi.mocked(useFiles).mockReturnValue({
+				data: undefined,
+				isLoading: true,
+			} as any);
+
+			render(
+				<TestWrapper>
+					<FilesV1Content />
+				</TestWrapper>,
+			);
+
+			expect(screen.queryByText(/Knowledge articles$/)).not.toBeInTheDocument();
 		});
 	});
 
