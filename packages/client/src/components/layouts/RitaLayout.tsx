@@ -26,6 +26,7 @@ import {
 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
+import { FileUploadRequirements } from "@/components/knowledge-articles/FileUploadRequirements";
 import { ShareModal } from "@/components/ShareModal";
 import { ConversationListItem } from "@/components/sidebar/ConversationListItem";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -55,6 +56,11 @@ import {
 	SidebarTrigger,
 	useSidebar,
 } from "@/components/ui/sidebar";
+import {
+	Tooltip,
+	TooltipContent,
+	TooltipTrigger,
+} from "@/components/ui/tooltip";
 import WelcomeDialog from "@/components/WelcomeDialog";
 import { useConversations } from "@/hooks/api/useConversations";
 import { useProfilePermissions } from "@/hooks/api/useProfile";
@@ -62,7 +68,11 @@ import { useAuth } from "@/hooks/useAuth";
 import { useChatNavigation } from "@/hooks/useChatNavigation";
 import { useFeatureFlag } from "@/hooks/useFeatureFlags";
 import { useKnowledgeBase } from "@/hooks/useKnowledgeBase";
-import { SUPPORTED_DOCUMENT_TYPES } from "@/lib/constants";
+import {
+	MAX_FILE_SIZE_MB,
+	SUPPORTED_DOCUMENT_EXTENSIONS,
+	SUPPORTED_DOCUMENT_TYPES,
+} from "@/lib/constants";
 import type { Conversation } from "@/stores/conversationStore";
 import InviteUserCard from "../users/InviteUserCard";
 
@@ -367,7 +377,7 @@ function RitaLayoutContent({ children, activePage = "chat" }: RitaLayoutProps) {
 										>
 											Profile
 										</button>
-										)}
+									)}
 									<a
 										href="https://help.resolve.io/rita-go/"
 										target="_blank"
@@ -440,14 +450,30 @@ function RitaLayoutContent({ children, activePage = "chat" }: RitaLayoutProps) {
 								<h2 className="text-lg font-semibold text-foreground">
 									Knowledge Articles
 								</h2>
-								<Button
-									variant="ghost"
-									size="icon"
-									className="w-8 h-8"
-									onClick={openDocumentSelector}
-								>
-									<Plus className="w-4 h-4" />
-								</Button>
+								<Tooltip>
+									<TooltipTrigger asChild>
+										<Button
+											variant="ghost"
+											size="icon"
+											className="w-8 h-8"
+											onClick={openDocumentSelector}
+										>
+											<Plus className="w-4 h-4" />
+										</Button>
+									</TooltipTrigger>
+									<TooltipContent
+										side="top"
+										className="max-w-xs bg-primary text-primary-foreground"
+										arrowClassName="bg-primary fill-primary"
+									>
+										<div className="space-y-1">
+											<p>
+												File types: {SUPPORTED_DOCUMENT_EXTENSIONS.join(", ")}
+											</p>
+											<p className="text-center">Max size: {MAX_FILE_SIZE_MB}mb</p>
+										</div>
+									</TooltipContent>
+								</Tooltip>
 							</div>
 
 							{/* 
@@ -506,6 +532,7 @@ function RitaLayoutContent({ children, activePage = "chat" }: RitaLayoutProps) {
 											<Plus className="h-4 w-4" />
 											Add knowledge
 										</Button>
+										<FileUploadRequirements />
 									</div>
 								) : (
 									<div className="flex flex-col gap-2">

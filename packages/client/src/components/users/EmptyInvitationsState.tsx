@@ -18,7 +18,7 @@ export default function EmptyInvitationsState() {
 				</div>
 
 				<div className="flex justify-center items-center gap-3">
-					<InviteUsersButton className="shadow-sm" />
+					<InviteUsersButton variant={"secondary"} className="shadow-sm" />
 				</div>
 			</div>
 		</div>
