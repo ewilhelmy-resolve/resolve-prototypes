@@ -74,10 +74,12 @@ export function ConnectionStatusCard({
 		if (source.status === STATUS.ERROR) {
 			return (
 				<div className="flex items-center gap-3">
-					<p className="text-sm text-destructive whitespace-nowrap">
-						Connection failed{" "}
-						{retryCount > 0 && `(${retryCount}/${maxRetries})`}
-					</p>
+					<div className="text-sm text-destructive">
+						<div>
+							Connection failed
+						</div>
+						<div>{retryCount > 0 && `(${retryCount}/${maxRetries})`}</div>
+					</div>
 					<Button
 						size="sm"
 						variant="outline"

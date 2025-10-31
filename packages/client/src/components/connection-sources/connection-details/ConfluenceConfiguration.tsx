@@ -95,38 +95,41 @@ export default function ConfluenceConfiguration({
 
 				<ConnectionStatusCard source={source} onRetry={handleSync} />
 
-				<div className="flex flex-col gap-1">
-					<div className="border border-border bg-popover rounded-md p-4">
-						<div className="rounded-lg">
-							<Label className="mb-2">
-								Which spaces would you like to sync from?
-							</Label>
-							<div className="flex flex-col md:flex-row items-start gap-4">
-								<div className="md:flex-1 w-full">
-									<MultiSelect
-										animationConfig={{ optionHoverAnimation: "none" }}
-										options={availableSpaces}
-										defaultValue={selectedSpaces}
-										onValueChange={setSelectedSpaces}
-										placeholder="Choose spaces..."
-										searchable={true}
-										emptyIndicator="No spaces found."
-									/>
+				{/* Only show spaces selector when status is not Error */}
+				{source.status.toLowerCase() !== STATUS.ERROR.toLowerCase() && (
+					<div className="flex flex-col gap-1">
+						<div className="border border-border bg-popover rounded-md p-4">
+							<div className="rounded-lg">
+								<Label className="mb-2">
+									Which spaces would you like to sync from?
+								</Label>
+								<div className="flex flex-col md:flex-row items-start gap-4">
+									<div className="md:flex-1 w-full">
+										<MultiSelect
+											animationConfig={{ optionHoverAnimation: "none" }}
+											options={availableSpaces}
+											defaultValue={selectedSpaces}
+											onValueChange={setSelectedSpaces}
+											placeholder="Choose spaces..."
+											searchable={true}
+											emptyIndicator="No spaces found."
+										/>
+									</div>
+									<Button
+										onClick={handleSync}
+										disabled={isSyncButtonDisabled}
+										className="w-full md:w-fit"
+										variant="default"
+									>
+										{updateMutation.isPending || syncMutation.isPending
+											? "Syncing..."
+											: "Sync"}
+									</Button>
 								</div>
-								<Button
-									onClick={handleSync}
-									disabled={isSyncButtonDisabled}
-									className="w-full md:w-fit"
-									variant="default"
-								>
-									{updateMutation.isPending || syncMutation.isPending
-										? "Syncing..."
-										: "Sync"}
-								</Button>
 							</div>
 						</div>
 					</div>
-				</div>
+				)}
 			</div>
 		</div>
 	);
