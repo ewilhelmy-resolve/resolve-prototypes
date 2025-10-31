@@ -355,8 +355,8 @@ describe("ConfluenceConfiguration", () => {
 			});
 			renderWithProvider(source);
 
-			// ConnectionStatusCard should still be visible with Error status
-			expect(screen.getByText("Error")).toBeInTheDocument();
+			// ConnectionStatusCard should still be visible with "Failed" badge (not "Error")
+			expect(screen.getByText("Failed")).toBeInTheDocument();
 		});
 
 		it("should still show ConnectionActionsMenu when status is Error", () => {
