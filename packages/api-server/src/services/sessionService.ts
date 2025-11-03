@@ -198,6 +198,15 @@ export class SessionService {
         logger.info({ userId: newUserId, organizationId: activeOrganizationId }, 'New user provisioned successfully with personal organization');
       }
 
+      // Cleanup: Delete verified pending_users record (company name already used)
+      if (company) {
+        await client.query(
+          'DELETE FROM pending_users WHERE email = $1 AND status = $2',
+          [email, 'verified']
+        );
+        logger.debug({ email }, 'Cleaned up verified pending_users record after user provisioning');
+      }
+
       await client.query('COMMIT');
 
       return {

@@ -187,11 +187,20 @@ router.post('/resend-verification', async (req, res) => {
     const verificationToken = crypto.randomBytes(32).toString('hex');
     const tokenExpiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
 
-    // Update pending user with new token
-    await pool.query(
-      'UPDATE pending_users SET verification_token = $1, token_expires_at = $2 WHERE email = $3',
-      [verificationToken, tokenExpiresAt, email]
+    // Update pending user with new token (only if still pending, not verified)
+    const updateResult = await pool.query(
+      'UPDATE pending_users SET verification_token = $1, token_expires_at = $2 WHERE email = $3 AND status = $4 RETURNING id',
+      [verificationToken, tokenExpiresAt, email, 'pending']
     );
+
+    // If no rows updated, user already verified or doesn't exist (don't reveal which)
+    if (updateResult.rows.length === 0) {
+      logger.info({ email }, 'Resend verification requested for non-pending user (already verified or not found)');
+      return res.json({
+        success: true,
+        message: 'If a pending verification exists, a new email has been sent'
+      });
+    }
 
     // Trigger webhook to resend verification email
     await webhookService.sendGenericEvent({
@@ -405,8 +414,11 @@ router.post('/verify-email', async (req, res) => {
       });
     }
 
-    // Remove the pending user record (verification complete)
-    await pool.query('DELETE FROM pending_users WHERE id = $1', [pendingUser.id]);
+    // Mark user as verified (record will be deleted after org creation on first login)
+    await pool.query(
+      'UPDATE pending_users SET status = $1 WHERE id = $2',
+      ['verified', pendingUser.id]
+    );
 
     logger.info({
       email: pendingUser.email,

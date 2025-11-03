@@ -794,6 +794,12 @@ export class MemberService {
         ]
       );
 
+      // Cleanup: Delete any orphaned pending_users records (edge case safety net)
+      await client.query(
+        'DELETE FROM pending_users WHERE email = $1',
+        [member.email]
+      );
+
       // HARD DELETE: Delete user_profiles record
       // FK constraints with CASCADE will automatically delete:
       // - messages (user_id → CASCADE)
