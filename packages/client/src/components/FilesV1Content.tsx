@@ -566,7 +566,7 @@ export default function FilesV1Content() {
 							<Table>
 								<TableHeader>
 									<TableRow>
-										<TableHead className="w-8">
+										<TableHead className="w-12">
 											<Checkbox
 												checked={
 													selectedFiles.size === filteredFiles.length &&
@@ -580,42 +580,42 @@ export default function FilesV1Content() {
 											<Button
 												variant="ghost"
 												size="sm"
-												className="text-muted-foreground hover:text-foreground"
+												className="text-muted-foreground hover:text-foreground -ml-3"
 											>
 												Status
-												<ArrowUpDown className="h-4 w-4" />
+												<ArrowUpDown className="h-4 w-4 ml-1" />
 											</Button>
 										</TableHead>
 										<TableHead>
 											<Button
 												variant="ghost"
 												size="sm"
-												className="text-muted-foreground hover:text-foreground"
+												className="text-muted-foreground hover:text-foreground -ml-3"
 											>
 												Source
-												<ArrowUpDown className="h-4 w-4" />
+												<ArrowUpDown className="h-4 w-4 ml-1" />
 											</Button>
 										</TableHead>
-										<TableHead>
+										<TableHead className="text-right">
 											<Button
 												variant="ghost"
 												size="sm"
-												className="text-muted-foreground hover:text-foreground"
+												className="text-muted-foreground hover:text-foreground -mr-3"
 											>
 												Size
-												<ArrowUpDown className="h-4 w-4" />
+												<ArrowUpDown className="h-4 w-4 ml-1" />
 											</Button>
 										</TableHead>
-										<TableHead>
-											<Button
-												variant="ghost"
-												size="sm"
-												className="text-muted-foreground hover:text-foreground"
-											>
-												Queries
-												<ArrowUpDown className="h-4 w-4" />
-											</Button>
-										</TableHead>
+										{/*<TableHead>*/}
+										{/*	<Button*/}
+										{/*		variant="ghost"*/}
+										{/*		size="sm"*/}
+										{/*		className="text-muted-foreground hover:text-foreground"*/}
+										{/*	>*/}
+										{/*		Queries*/}
+										{/*		<ArrowUpDown className="h-4 w-4" />*/}
+										{/*	</Button>*/}
+										{/*</TableHead>*/}
 										<TableHead className="text-right">Last Modified</TableHead>
 										<TableHead className="w-16"></TableHead>
 									</TableRow>
@@ -624,7 +624,7 @@ export default function FilesV1Content() {
 									{isLoading
 										? [...Array(3)].map((_, i) => (
 												<TableRow key={i}>
-													<TableCell>
+													<TableCell className="w-12">
 														<Skeleton className="h-4 w-4" />
 													</TableCell>
 													<TableCell>
@@ -636,23 +636,20 @@ export default function FilesV1Content() {
 													<TableCell>
 														<Skeleton className="h-4 w-[100px]" />
 													</TableCell>
-													<TableCell>
-														<Skeleton className="h-4 w-[60px]" />
+													<TableCell className="text-right">
+														<Skeleton className="h-4 w-[60px] ml-auto" />
 													</TableCell>
-													<TableCell>
-														<Skeleton className="h-4 w-[40px]" />
+													<TableCell className="text-right">
+														<Skeleton className="h-4 w-[120px] ml-auto" />
 													</TableCell>
-													<TableCell>
-														<Skeleton className="h-4 w-[120px]" />
-													</TableCell>
-													<TableCell>
+													<TableCell className="w-16">
 														<Skeleton className="h-4 w-[30px]" />
 													</TableCell>
 												</TableRow>
 											))
 										: filteredFiles.map((file) => (
 												<TableRow key={file.id}>
-													<TableCell>
+													<TableCell className="w-12">
 														<Checkbox
 															checked={selectedFiles.has(file.id)}
 															onCheckedChange={() => handleSelectFile(file.id)}
@@ -674,11 +671,11 @@ export default function FilesV1Content() {
 													<TableCell className="text-right">
 														{formatFileSize(file.size)}
 													</TableCell>
-													<TableCell className="text-right">-</TableCell>
+													{/*<TableCell className="text-right">-</TableCell>*/}
 													<TableCell className="text-right">
 														{formatDate(file.updated_at)}
 													</TableCell>
-													<TableCell>
+													<TableCell className="w-16">
 														<DropdownMenu>
 															<DropdownMenuTrigger asChild>
 																<Button
