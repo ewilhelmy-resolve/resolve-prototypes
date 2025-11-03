@@ -289,4 +289,88 @@ describe("ConfluenceConfiguration", () => {
 
 		expect(screen.getByText("Syncing...")).toBeInTheDocument();
 	});
+
+	describe("Error State Handling", () => {
+		it("should hide spaces dropdown when status is Error", () => {
+			const source = createMockSource({
+				status: STATUS.ERROR,
+			});
+			renderWithProvider(source);
+
+			// Spaces dropdown should not be visible
+			expect(
+				screen.queryByText("Which spaces would you like to sync from?"),
+			).not.toBeInTheDocument();
+		});
+
+		it("should show spaces dropdown when status is Connected", () => {
+			const source = createMockSource({
+				status: STATUS.CONNECTED,
+			});
+			renderWithProvider(source);
+
+			// Spaces dropdown should be visible
+			expect(
+				screen.getByText("Which spaces would you like to sync from?"),
+			).toBeInTheDocument();
+		});
+
+		it("should show spaces dropdown when status is Syncing", () => {
+			const source = createMockSource({
+				status: STATUS.SYNCING,
+			});
+			renderWithProvider(source);
+
+			// Spaces dropdown should be visible even when syncing
+			expect(
+				screen.getByText("Which spaces would you like to sync from?"),
+			).toBeInTheDocument();
+		});
+
+		it("should show spaces dropdown when status is Verifying", () => {
+			const source = createMockSource({
+				status: STATUS.VERIFYING,
+			});
+			renderWithProvider(source);
+
+			// Spaces dropdown should be visible even when verifying
+			expect(
+				screen.getByText("Which spaces would you like to sync from?"),
+			).toBeInTheDocument();
+		});
+
+		it("should not show sync button when status is Error", () => {
+			const source = createMockSource({
+				status: STATUS.ERROR,
+			});
+			renderWithProvider(source);
+
+			// Sync button should not be present (it's inside the hidden spaces dropdown section)
+			expect(screen.queryByRole("button", { name: /sync/i })).not.toBeInTheDocument();
+		});
+
+		it("should still show ConnectionStatusCard when status is Error", () => {
+			const source = createMockSource({
+				status: STATUS.ERROR,
+			});
+			renderWithProvider(source);
+
+			// ConnectionStatusCard should still be visible with "Failed" badge (not "Error")
+			expect(screen.getByText("Failed")).toBeInTheDocument();
+		});
+
+		it("should still show ConnectionActionsMenu when status is Error", () => {
+			const source = createMockSource({
+				status: STATUS.ERROR,
+			});
+			renderWithProvider(source);
+
+			// Actions menu button should still be present
+			const buttons = screen.getAllByRole("button");
+			const menuButton = buttons.find(
+				(btn) => btn.getAttribute("aria-haspopup") === "menu",
+			);
+			expect(menuButton).toBeDefined();
+		});
+	});
 });
