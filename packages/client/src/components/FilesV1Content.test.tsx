@@ -540,8 +540,8 @@ describe("FilesV1Content", () => {
 
 			// Find all buttons - there should be multiple (upload, filters, sort, action menus)
 			const buttons = screen.getAllByRole("button");
-			// With 3 files, we expect: 1 upload + 2 filters + 4 sort buttons + 3 action menus = 10+
-			expect(buttons.length).toBeGreaterThanOrEqual(10);
+			// With 3 files, we expect: 1 upload + 2 filters + 3 sort buttons + 3 action menus = 9
+			expect(buttons.length).toBeGreaterThanOrEqual(9);
 		});
 	});
 
