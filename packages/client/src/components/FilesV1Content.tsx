@@ -559,7 +559,7 @@ export default function FilesV1Content() {
 								<DropdownMenu>
 									<DropdownMenuTrigger asChild>
 										<Button variant="outline">
-											Status: {statusFilter}
+											Status: {statusFilter === "All" ? statusFilter : statusFilter.charAt(0).toUpperCase() + statusFilter.slice(1)}
 											<ChevronDown className="h-4 w-4" />
 										</Button>
 									</DropdownMenuTrigger>
