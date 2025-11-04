@@ -428,11 +428,7 @@ function RitaLayoutContent({ children, activePage = "chat" }: RitaLayoutProps) {
 						)}
 					</div>
 					<div className="ml-auto">
-						<div className="px-2.5 h-7 rounded-sm border border-cyan-500 bg-cyan-500/10 flex items-center">
-							<span className="text-sm text-foreground">
-								Free trial ends in 34 days
-							</span>
-						</div>
+						{/* Placeholder for right-aligned header content */}
 					</div>
 				</header>
 
