@@ -136,7 +136,7 @@ describe("ConfluenceForm", () => {
 			const source = createMockSource();
 			renderWithProvider(source);
 			expect(screen.getByLabelText(/API token/i)).toBeInTheDocument();
-			expect(screen.getByPlaceholderText("••••••••")).toBeInTheDocument();
+			expect(screen.getByPlaceholderText("Enter API token")).toBeInTheDocument();
 		});
 
 		it("should render Connect button", () => {
