@@ -136,7 +136,7 @@ describe("ConfluenceForm", () => {
 			const source = createMockSource();
 			renderWithProvider(source);
 			expect(screen.getByLabelText(/API token/i)).toBeInTheDocument();
-			expect(screen.getByPlaceholderText("••••••••")).toBeInTheDocument();
+			expect(screen.getByPlaceholderText("Enter API token")).toBeInTheDocument();
 		});
 
 		it("should render Connect button", () => {
@@ -215,88 +215,52 @@ describe("ConfluenceForm", () => {
 	// TODO: Re-add these tests when the Spaces Multiselect feature is implemented
 
 	describe("Form Validation", () => {
-		it("should disable Connect button when form is empty", () => {
+		it("should enable Connect button by default (even when form is empty)", () => {
 			const source = createMockSource();
 			renderWithProvider(source);
 
 			const connectButton = screen.getByRole("button", { name: /connect/i });
-			expect(connectButton).toBeDisabled();
+			expect(connectButton).not.toBeDisabled();
 		});
 
-		it("should disable Connect button when URL is missing", () => {
+		it("should show validation error toast when clicking Connect with empty form", async () => {
+			const { toast } = await import("@/lib/toast");
 			const source = createMockSource();
 			renderWithProvider(source);
-
-			const emailInput = screen.getByLabelText(/User email/i);
-			const tokenInput = screen.getByLabelText(/API token/i);
-
-			fireEvent.change(emailInput, { target: { value: "user@company.com" } });
-			fireEvent.change(tokenInput, { target: { value: "secret-token" } });
 
 			const connectButton = screen.getByRole("button", { name: /connect/i });
-			expect(connectButton).toBeDisabled();
-		});
-
-		it("should disable Connect button when email is missing", () => {
-			const source = createMockSource();
-			renderWithProvider(source);
-
-			const urlInput = screen.getByLabelText(/URL/i);
-			const tokenInput = screen.getByLabelText(/API token/i);
-
-			fireEvent.change(urlInput, {
-				target: { value: "https://company.atlassian.net" },
-			});
-			fireEvent.change(tokenInput, { target: { value: "secret-token" } });
-
-			const connectButton = screen.getByRole("button", { name: /connect/i });
-			expect(connectButton).toBeDisabled();
-		});
-
-		it("should disable Connect button when token is missing", () => {
-			const source = createMockSource();
-			renderWithProvider(source);
-
-			const urlInput = screen.getByLabelText(/URL/i);
-			const emailInput = screen.getByLabelText(/User email/i);
-
-			fireEvent.change(urlInput, {
-				target: { value: "https://company.atlassian.net" },
-			});
-			fireEvent.change(emailInput, { target: { value: "user@company.com" } });
-
-			const connectButton = screen.getByRole("button", { name: /connect/i });
-			expect(connectButton).toBeDisabled();
-		});
-
-		it("should enable Connect button when all fields are valid", async () => {
-			const source = createMockSource();
-			renderWithProvider(source);
-
-			const urlInput = screen.getByLabelText(/URL/i);
-			const emailInput = screen.getByLabelText(/User email/i);
-			const tokenInput = screen.getByLabelText(/API token/i);
-
-			fireEvent.change(urlInput, {
-				target: { value: "https://company.atlassian.net" },
-			});
-			fireEvent.change(emailInput, { target: { value: "user@company.com" } });
-			fireEvent.change(tokenInput, { target: { value: "secret-token" } });
+			fireEvent.click(connectButton);
 
 			await waitFor(() => {
-				const connectButton = screen.getByRole("button", { name: /connect/i });
-				expect(connectButton).not.toBeDisabled();
+				expect(toast.error).toHaveBeenCalledWith("Validation Error", {
+					description: "Please check the form fields and correct any errors",
+				});
 			});
 		});
 
-		it("should show validation error for invalid URL format", async () => {
+		it("should show validation error for invalid URL format after clicking Connect", async () => {
+			const { toast } = await import("@/lib/toast");
 			const source = createMockSource();
 			renderWithProvider(source);
 
 			const urlInput = screen.getByLabelText(/URL/i);
-			fireEvent.change(urlInput, { target: { value: "invalid-url" } });
-			fireEvent.blur(urlInput);
+			const emailInput = screen.getByLabelText(/User email/i);
+			const tokenInput = screen.getByLabelText(/API token/i);
 
+			fireEvent.change(urlInput, { target: { value: "invalid-url" } });
+			fireEvent.change(emailInput, { target: { value: "user@company.com" } });
+			fireEvent.change(tokenInput, { target: { value: "secret-token" } });
+
+			const connectButton = screen.getByRole("button", { name: /connect/i });
+			fireEvent.click(connectButton);
+
+			await waitFor(() => {
+				expect(toast.error).toHaveBeenCalledWith("Validation Error", {
+					description: "Please check the form fields and correct any errors",
+				});
+			});
+
+			// Field error should appear
 			await waitFor(() => {
 				expect(
 					screen.getByText("Please enter a valid URL"),
@@ -304,18 +268,80 @@ describe("ConfluenceForm", () => {
 			});
 		});
 
-		it("should show validation error for invalid email format", async () => {
+		it("should show validation error for invalid email format after clicking Connect", async () => {
+			const { toast } = await import("@/lib/toast");
 			const source = createMockSource();
 			renderWithProvider(source);
 
+			const urlInput = screen.getByLabelText(/URL/i);
 			const emailInput = screen.getByLabelText(/User email/i);
-			fireEvent.change(emailInput, { target: { value: "invalid-email" } });
-			fireEvent.blur(emailInput);
+			const tokenInput = screen.getByLabelText(/API token/i);
 
+			fireEvent.change(urlInput, {
+				target: { value: "https://company.atlassian.net" },
+			});
+			fireEvent.change(emailInput, { target: { value: "invalid-email" } });
+			fireEvent.change(tokenInput, { target: { value: "secret-token" } });
+
+			const connectButton = screen.getByRole("button", { name: /connect/i });
+			fireEvent.click(connectButton);
+
+			await waitFor(() => {
+				expect(toast.error).toHaveBeenCalledWith("Validation Error", {
+					description: "Please check the form fields and correct any errors",
+				});
+			});
+
+			// Field error should appear
 			await waitFor(() => {
 				expect(
 					screen.getByText("Please enter a valid email address"),
 				).toBeInTheDocument();
+			});
+		});
+
+		it("should not show field errors until Connect button is clicked", () => {
+			const source = createMockSource();
+			renderWithProvider(source);
+
+			const urlInput = screen.getByLabelText(/URL/i);
+			const emailInput = screen.getByLabelText(/User email/i);
+
+			// Type invalid values
+			fireEvent.change(urlInput, { target: { value: "invalid-url" } });
+			fireEvent.change(emailInput, { target: { value: "invalid-email" } });
+			fireEvent.blur(urlInput);
+			fireEvent.blur(emailInput);
+
+			// Errors should NOT appear yet (mode is "onSubmit")
+			expect(
+				screen.queryByText("Please enter a valid URL"),
+			).not.toBeInTheDocument();
+			expect(
+				screen.queryByText("Please enter a valid email address"),
+			).not.toBeInTheDocument();
+		});
+
+		it("should proceed with connection when all fields are valid", async () => {
+			const source = createMockSource();
+			renderWithProvider(source);
+
+			const urlInput = screen.getByLabelText(/URL/i);
+			const emailInput = screen.getByLabelText(/User email/i);
+			const tokenInput = screen.getByLabelText(/API token/i);
+
+			fireEvent.change(urlInput, {
+				target: { value: "https://company.atlassian.net" },
+			});
+			fireEvent.change(emailInput, { target: { value: "user@company.com" } });
+			fireEvent.change(tokenInput, { target: { value: "secret-token" } });
+
+			const connectButton = screen.getByRole("button", { name: /connect/i });
+			fireEvent.click(connectButton);
+
+			// Should call verify mutation (not show validation error)
+			await waitFor(() => {
+				expect(mockVerifyMutation.mutateAsync).toHaveBeenCalled();
 			});
 		});
 	});
@@ -335,13 +361,7 @@ describe("ConfluenceForm", () => {
 			fireEvent.change(emailInput, { target: { value: "user@company.com" } });
 			fireEvent.change(tokenInput, { target: { value: "secret-token" } });
 
-			// Wait for form validation to complete and button to be enabled
-			const connectButton = await waitFor(() => {
-				const btn = screen.getByRole("button", { name: /connect/i });
-				expect(btn).not.toBeDisabled();
-				return btn;
-			});
-
+			const connectButton = screen.getByRole("button", { name: /connect/i });
 			fireEvent.click(connectButton);
 
 			await waitFor(() => {
@@ -391,13 +411,7 @@ describe("ConfluenceForm", () => {
 			fireEvent.change(emailInput, { target: { value: "user@company.com" } });
 			fireEvent.change(tokenInput, { target: { value: "secret-token" } });
 
-			// Wait for form validation to complete and button to be enabled
-			const connectButton = await waitFor(() => {
-				const btn = screen.getByRole("button", { name: /connect/i });
-				expect(btn).not.toBeDisabled();
-				return btn;
-			});
-
+			const connectButton = screen.getByRole("button", { name: /connect/i });
 			fireEvent.click(connectButton);
 
 			await waitFor(() => {
@@ -427,13 +441,7 @@ describe("ConfluenceForm", () => {
 			fireEvent.change(emailInput, { target: { value: "user@company.com" } });
 			fireEvent.change(tokenInput, { target: { value: "secret-token" } });
 
-			// Wait for form validation to complete and button to be enabled
-			const connectButton = await waitFor(() => {
-				const btn = screen.getByRole("button", { name: /connect/i });
-				expect(btn).not.toBeDisabled();
-				return btn;
-			});
-
+			const connectButton = screen.getByRole("button", { name: /connect/i });
 			fireEvent.click(connectButton);
 
 			await waitFor(() => {
@@ -462,13 +470,7 @@ describe("ConfluenceForm", () => {
 			fireEvent.change(emailInput, { target: { value: "user@company.com" } });
 			fireEvent.change(tokenInput, { target: { value: "secret-token" } });
 
-			// Wait for form validation to complete and button to be enabled
-			const connectButton = await waitFor(() => {
-				const btn = screen.getByRole("button", { name: /connect/i });
-				expect(btn).not.toBeDisabled();
-				return btn;
-			});
-
+			const connectButton = screen.getByRole("button", { name: /connect/i });
 			fireEvent.click(connectButton);
 
 			await waitFor(() => {
