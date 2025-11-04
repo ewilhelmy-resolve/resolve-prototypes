@@ -1,8 +1,8 @@
 import { useForm } from "react-hook-form";
 import { Button } from "@/components/ui/button";
-import { StatusAlert } from "@/components/ui/status-alert";
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
+import { StatusAlert } from "@/components/ui/status-alert";
 import { useConnectionSource } from "@/contexts/ConnectionSourceContext";
 import {
 	useUpdateDataSource,
@@ -36,10 +36,11 @@ export function ConfluenceForm({ onCancel }: ConfluenceFormProps = {}) {
 	const {
 		register,
 		handleSubmit,
-		formState: { errors, isValid },
+		formState: { errors },
 		getValues,
+		trigger,
 	} = useForm<ConfluenceFormData>({
-		mode: "onChange",
+		mode: "onSubmit", // Changed from "onChange" to only validate on submit
 		defaultValues: {
 			url: source.backendData?.settings?.url || "",
 			email: source.backendData?.settings?.email || "",
@@ -52,14 +53,18 @@ export function ConfluenceForm({ onCancel }: ConfluenceFormProps = {}) {
 	});
 
 	const handleConnect = async () => {
-		const formData = getValues();
+		// Trigger validation for all fields
+		const isValid = await trigger();
 
-		if (!formData.url || !formData.email || !formData.token) {
+		// If validation fails, show errors and stop
+		if (!isValid) {
 			toast.error("Validation Error", {
-				description: "Please fill in all authentication fields",
+				description: "Please check the form fields and correct any errors",
 			});
 			return;
 		}
+
+		const formData = getValues();
 
 		try {
 			// Step 1: Verify credentials
@@ -115,7 +120,9 @@ export function ConfluenceForm({ onCancel }: ConfluenceFormProps = {}) {
 					<StatusAlert variant="error" className="mb-4">
 						<p className="font-semibold">Verification Failed</p>
 						<p>{verificationError}</p>
-						<p className="text-sm mt-2">Please check your credentials and try again.</p>
+						<p className="text-sm mt-2">
+							Please check your credentials and try again.
+						</p>
 					</StatusAlert>
 				)}
 
@@ -156,7 +163,7 @@ export function ConfluenceForm({ onCancel }: ConfluenceFormProps = {}) {
 					<Input
 						id="token"
 						type="password"
-						placeholder="••••••••"
+						placeholder="Enter API token"
 						{...register("token", {
 							required: "API token is required",
 							minLength: {
@@ -172,9 +179,7 @@ export function ConfluenceForm({ onCancel }: ConfluenceFormProps = {}) {
 					<Button
 						type="button"
 						onClick={handleConnect}
-						disabled={
-							!isValid || verifyMutation.isPending || updateMutation.isPending
-						}
+						disabled={verifyMutation.isPending || updateMutation.isPending}
 					>
 						{verifyMutation.isPending || updateMutation.isPending ? (
 							<>
