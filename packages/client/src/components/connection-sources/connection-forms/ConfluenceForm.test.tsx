@@ -49,8 +49,8 @@ vi.mock("@/hooks/useDataSources", () => ({
 	useVerifyDataSource: vi.fn(() => mockVerifyMutation),
 }));
 
-vi.mock("@/lib/toast", () => ({
-	toast: {
+vi.mock("@/components/ui/rita-toast", () => ({
+	ritaToast: {
 		success: vi.fn(),
 		error: vi.fn(),
 	},
@@ -94,10 +94,12 @@ const createMockSource = (
 const renderWithProvider = (
 	source: ConnectionSource,
 	onCancel?: () => void,
+	onSuccess?: () => void,
+	onFailure?: () => void,
 ) => {
 	return render(
 		<ConnectionSourceProvider source={source}>
-			<ConfluenceForm onCancel={onCancel} />
+			<ConfluenceForm onCancel={onCancel} onSuccess={onSuccess} onFailure={onFailure} />
 		</ConnectionSourceProvider>,
 	);
 };
@@ -224,7 +226,7 @@ describe("ConfluenceForm", () => {
 		});
 
 		it("should show validation error toast when clicking Connect with empty form", async () => {
-			const { toast } = await import("@/lib/toast");
+			const { ritaToast } = await import("@/components/ui/rita-toast");
 			const source = createMockSource();
 			renderWithProvider(source);
 
@@ -232,14 +234,15 @@ describe("ConfluenceForm", () => {
 			fireEvent.click(connectButton);
 
 			await waitFor(() => {
-				expect(toast.error).toHaveBeenCalledWith("Validation Error", {
+				expect(ritaToast.error).toHaveBeenCalledWith({
+				title: "Validation Error",
 					description: "Please check the form fields and correct any errors",
 				});
 			});
 		});
 
 		it("should show validation error for invalid URL format after clicking Connect", async () => {
-			const { toast } = await import("@/lib/toast");
+			const { ritaToast } = await import("@/components/ui/rita-toast");
 			const source = createMockSource();
 			renderWithProvider(source);
 
@@ -255,7 +258,8 @@ describe("ConfluenceForm", () => {
 			fireEvent.click(connectButton);
 
 			await waitFor(() => {
-				expect(toast.error).toHaveBeenCalledWith("Validation Error", {
+				expect(ritaToast.error).toHaveBeenCalledWith({
+				title: "Validation Error",
 					description: "Please check the form fields and correct any errors",
 				});
 			});
@@ -269,7 +273,7 @@ describe("ConfluenceForm", () => {
 		});
 
 		it("should show validation error for invalid email format after clicking Connect", async () => {
-			const { toast } = await import("@/lib/toast");
+			const { ritaToast } = await import("@/components/ui/rita-toast");
 			const source = createMockSource();
 			renderWithProvider(source);
 
@@ -287,7 +291,8 @@ describe("ConfluenceForm", () => {
 			fireEvent.click(connectButton);
 
 			await waitFor(() => {
-				expect(toast.error).toHaveBeenCalledWith("Validation Error", {
+				expect(ritaToast.error).toHaveBeenCalledWith({
+				title: "Validation Error",
 					description: "Please check the form fields and correct any errors",
 				});
 			});
@@ -397,7 +402,7 @@ describe("ConfluenceForm", () => {
 		// TODO: Re-add this test when the Spaces Multiselect feature is implemented
 
 		it("should show success toast on successful connection", async () => {
-			const { toast } = await import("@/lib/toast");
+			const { ritaToast } = await import("@/components/ui/rita-toast");
 			const source = createMockSource();
 			renderWithProvider(source);
 
@@ -415,7 +420,8 @@ describe("ConfluenceForm", () => {
 			fireEvent.click(connectButton);
 
 			await waitFor(() => {
-				expect(toast.success).toHaveBeenCalledWith("Connection Configured", {
+				expect(ritaToast.success).toHaveBeenCalledWith({
+				title: "Connection Configured",
 					description:
 						"Your Confluence connection has been configured successfully",
 				});
@@ -423,7 +429,7 @@ describe("ConfluenceForm", () => {
 		});
 
 		it("should show error toast on failed verification", async () => {
-			const { toast } = await import("@/lib/toast");
+			const { ritaToast } = await import("@/components/ui/rita-toast");
 			mockVerifyMutation.mutateAsync.mockRejectedValueOnce(
 				new Error("Verification failed"),
 			);
@@ -445,14 +451,15 @@ describe("ConfluenceForm", () => {
 			fireEvent.click(connectButton);
 
 			await waitFor(() => {
-				expect(toast.error).toHaveBeenCalledWith("Connection Failed", {
+				expect(ritaToast.error).toHaveBeenCalledWith({
+				title: "Connection Failed",
 					description: "Verification failed",
 				});
 			});
 		});
 
 		it("should show error toast on failed update", async () => {
-			const { toast } = await import("@/lib/toast");
+			const { ritaToast } = await import("@/components/ui/rita-toast");
 			mockUpdateMutation.mutateAsync.mockRejectedValueOnce(
 				new Error("Update failed"),
 			);
@@ -474,7 +481,8 @@ describe("ConfluenceForm", () => {
 			fireEvent.click(connectButton);
 
 			await waitFor(() => {
-				expect(toast.error).toHaveBeenCalledWith("Connection Failed", {
+				expect(ritaToast.error).toHaveBeenCalledWith({
+				title: "Connection Failed",
 					description: "Update failed",
 				});
 			});
@@ -578,6 +586,93 @@ describe("ConfluenceForm", () => {
 			fireEvent.click(cancelButton);
 
 			expect(mockOnCancel).toHaveBeenCalledTimes(1);
+		});
+	});
+
+	describe("Success Callback", () => {
+		it("should call onSuccess callback after successful connection", async () => {
+			const mockOnSuccess = vi.fn();
+			const source = createMockSource();
+			renderWithProvider(source, undefined, mockOnSuccess);
+
+			const urlInput = screen.getByLabelText(/URL/i);
+			const emailInput = screen.getByLabelText(/User email/i);
+			const tokenInput = screen.getByLabelText(/API token/i);
+
+			fireEvent.change(urlInput, {
+				target: { value: "https://company.atlassian.net" },
+			});
+			fireEvent.change(emailInput, { target: { value: "user@company.com" } });
+			fireEvent.change(tokenInput, { target: { value: "secret-token" } });
+
+			const connectButton = screen.getByRole("button", { name: /connect/i });
+			fireEvent.click(connectButton);
+
+			await waitFor(() => {
+				expect(mockOnSuccess).toHaveBeenCalledTimes(1);
+			});
+		});
+
+		it("should not call onSuccess callback when connection fails", async () => {
+			const { ritaToast } = await import("@/components/ui/rita-toast");
+			mockVerifyMutation.mutateAsync.mockRejectedValueOnce(
+				new Error("Verification failed"),
+			);
+
+			const mockOnSuccess = vi.fn();
+			const source = createMockSource();
+			renderWithProvider(source, undefined, mockOnSuccess);
+
+			const urlInput = screen.getByLabelText(/URL/i);
+			const emailInput = screen.getByLabelText(/User email/i);
+			const tokenInput = screen.getByLabelText(/API token/i);
+
+			fireEvent.change(urlInput, {
+				target: { value: "https://company.atlassian.net" },
+			});
+			fireEvent.change(emailInput, { target: { value: "user@company.com" } });
+			fireEvent.change(tokenInput, { target: { value: "secret-token" } });
+
+			const connectButton = screen.getByRole("button", { name: /connect/i });
+			fireEvent.click(connectButton);
+
+			await waitFor(() => {
+				expect(ritaToast.error).toHaveBeenCalled();
+			});
+
+			// onSuccess should NOT be called on failure
+			expect(mockOnSuccess).not.toHaveBeenCalled();
+		});
+
+		it("should call onFailure callback when connection fails", async () => {
+			const { ritaToast } = await import("@/components/ui/rita-toast");
+			mockVerifyMutation.mutateAsync.mockRejectedValueOnce(
+				new Error("Verification failed"),
+			);
+
+			const mockOnFailure = vi.fn();
+			const source = createMockSource();
+			renderWithProvider(source, undefined, undefined, mockOnFailure);
+
+			const urlInput = screen.getByLabelText(/URL/i);
+			const emailInput = screen.getByLabelText(/User email/i);
+			const tokenInput = screen.getByLabelText(/API token/i);
+
+			fireEvent.change(urlInput, {
+				target: { value: "https://company.atlassian.net" },
+			});
+			fireEvent.change(emailInput, { target: { value: "user@company.com" } });
+			fireEvent.change(tokenInput, { target: { value: "secret-token" } });
+
+			const connectButton = screen.getByRole("button", { name: /connect/i });
+			fireEvent.click(connectButton);
+
+			await waitFor(() => {
+				expect(ritaToast.error).toHaveBeenCalled();
+			});
+
+			// onFailure SHOULD be called on failure
+			expect(mockOnFailure).toHaveBeenCalledTimes(1);
 		});
 	});
 

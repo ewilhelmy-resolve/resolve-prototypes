@@ -8,7 +8,7 @@ import {
 	useUpdateDataSource,
 	useVerifyDataSource,
 } from "@/hooks/useDataSources";
-import { toast } from "@/lib/toast";
+import { ritaToast } from "@/components/ui/rita-toast";
 import ConnectionsForm from "../form-elements/ConnectionsForm";
 import FormField from "../form-elements/FormField";
 import FormSection from "../form-elements/FormSection";
@@ -22,9 +22,11 @@ export interface ConfluenceFormData {
 
 interface ConfluenceFormProps {
 	onCancel?: () => void;
+	onSuccess?: () => void;
+	onFailure?: () => void;
 }
 
-export function ConfluenceForm({ onCancel }: ConfluenceFormProps = {}) {
+export function ConfluenceForm({ onCancel, onSuccess, onFailure }: ConfluenceFormProps = {}) {
 	const { source } = useConnectionSource();
 	const verifyMutation = useVerifyDataSource();
 	const updateMutation = useUpdateDataSource();
@@ -58,7 +60,8 @@ export function ConfluenceForm({ onCancel }: ConfluenceFormProps = {}) {
 
 		// If validation fails, show errors and stop
 		if (!isValid) {
-			toast.error("Validation Error", {
+			ritaToast.error({
+				title: "Validation Error",
 				description: "Please check the form fields and correct any errors",
 			});
 			return;
@@ -93,17 +96,25 @@ export function ConfluenceForm({ onCancel }: ConfluenceFormProps = {}) {
 				},
 			});
 
-			toast.success("Connection Configured", {
+			ritaToast.success({
+				title: "Connection Configured",
 				description:
 					"Your Confluence connection has been configured successfully",
 			});
+
+			// Call onSuccess callback to exit edit mode
+			onSuccess?.();
 		} catch (error) {
-			toast.error("Connection Failed", {
+			ritaToast.error({
+				title: "Connection Failed",
 				description:
 					error instanceof Error
 						? error.message
 						: "Failed to configure connection",
 			});
+
+			// Call onFailure callback to exit edit mode
+			onFailure?.();
 		}
 	};
 
