@@ -66,6 +66,22 @@ import {
 	SUPPORTED_DOCUMENT_TYPES,
 } from "@/lib/constants";
 
+// Registry for status icons
+const STATUS_ICON_REGISTRY: Record<string, React.ComponentType<{ className?: string }>> = {
+	uploaded: Check,
+	processing: Loader,
+	processed: CheckCircle,
+	failed: AlertCircle,
+	pending: Loader,
+	syncing: Zap,
+};
+
+// Registry for status icon animations
+const STATUS_ICON_ANIMATIONS: Record<string, string> = {
+	processing: "animate-spin",
+	pending: "animate-spin",
+};
+
 const formatFileSize = (bytes: number): string => {
 	if (bytes === 0) return "0 Bytes";
 	const k = 1024;
@@ -298,22 +314,11 @@ export default function FilesV1Content() {
 	};
 
 	const getStatusIcon = (status: string) => {
-		switch (status) {
-			case "uploaded":
-				return <Check className="h-3 w-3" />;
-			case "processing":
-				return <Loader className="h-3 w-3 animate-spin" />;
-			case "processed":
-				return <CheckCircle className="h-3 w-3" />;
-			case "failed":
-				return <AlertCircle className="h-3 w-3" />;
-			case "pending":
-				return <Loader className="h-3 w-3 animate-spin" />;
-			case "syncing":
-				return <Zap className="h-3 w-3" />;
-			default:
-				return <AlertCircle className="h-3 w-3" />;
-		}
+		const IconComponent = STATUS_ICON_REGISTRY[status] || AlertCircle;
+		const animation = STATUS_ICON_ANIMATIONS[status] || "";
+		const className = `h-3 w-3 ${animation}`.trim();
+
+		return <IconComponent className={className} />;
 	};
 
 	const getStatusLabel = (status: string) => {
