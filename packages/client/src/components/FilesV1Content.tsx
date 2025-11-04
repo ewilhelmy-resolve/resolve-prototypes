@@ -7,7 +7,6 @@
 
 import {
 	AlertCircle,
-	ArrowUpDown,
 	Check,
 	CheckCircle,
 	ChevronDown,
@@ -65,16 +64,33 @@ import {
 	SUPPORTED_DOCUMENT_EXTENSIONS,
 	SUPPORTED_DOCUMENT_TYPES,
 } from "@/lib/constants";
+import { renderSortIcon } from "@/lib/table-utils";
+
+// Registry for status icons
+const STATUS_ICON_REGISTRY: Record<string, React.ComponentType<{ className?: string }>> = {
+	uploaded: Check,
+	processing: Loader,
+	processed: CheckCircle,
+	failed: AlertCircle,
+	pending: Loader,
+	syncing: Zap,
+};
+
+// Registry for status icon animations
+const STATUS_ICON_ANIMATIONS: Record<string, string> = {
+	processing: "animate-spin",
+	pending: "animate-spin",
+};
 
 const formatFileSize = (bytes: number): string => {
 	if (bytes === 0) return "0 Bytes";
 	const k = 1024;
 	const sizes = ["Bytes", "KB", "MB", "GB"];
 	const i = Math.floor(Math.log(bytes) / Math.log(k));
-	return parseFloat((bytes / k ** i).toFixed(2)) + " " + sizes[i];
+	return `${parseFloat((bytes / k ** i).toFixed(2))} ${sizes[i]}`;
 };
 
-const formatDate = (date: Date | null | undefined): string => {
+function formatDate(date: Date | null | undefined): string {
 	if (!date) return "N/A";
 	return new Intl.DateTimeFormat("en-US", {
 		day: "2-digit",
@@ -83,7 +99,7 @@ const formatDate = (date: Date | null | undefined): string => {
 		hour: "2-digit",
 		minute: "2-digit",
 	}).format(date);
-};
+}
 
 const getSourceDisplayName = (source: string | undefined | null): string => {
 	if (!source) return "-";
@@ -99,6 +115,9 @@ const getSourceDatabaseValue = (displayName: string): string => {
 	return entry ? entry[0] : displayName.toLowerCase();
 };
 
+type SortField = "filename" | "size" | "type" | "status" | "source" | "created_at";
+type SortOrder = "asc" | "desc";
+
 export default function FilesV1Content() {
 	const [searchQuery, setSearchQuery] = useState("");
 	const [statusFilter, setStatusFilter] = useState("All");
@@ -107,6 +126,8 @@ export default function FilesV1Content() {
 	const [fileToDelete, setFileToDelete] = useState<FileDocument | null>(null);
 	const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 	const [bulkDeleteDialogOpen, setBulkDeleteDialogOpen] = useState(false);
+	const [sortField, setSortField] = useState<SortField>("created_at");
+	const [sortOrder, setSortOrder] = useState<SortOrder>("desc");
 	const fileInputRef = useRef<HTMLInputElement>(null);
 
 	const { data: filesData, isLoading } = useFiles();
@@ -116,6 +137,18 @@ export default function FilesV1Content() {
 	const deleteFileMutation = useDeleteFile();
 
 	const files = filesData?.documents || [];
+
+	// Handle sorting
+	const handleSort = (field: SortField) => {
+		if (sortField === field) {
+			// Toggle order if clicking same column
+			setSortOrder(sortOrder === "asc" ? "desc" : "asc");
+		} else {
+			// Set new column with default desc order
+			setSortField(field);
+			setSortOrder("desc");
+		}
+	};
 
 	// Filter files
 	const filteredFiles = files.filter((file) => {
@@ -130,6 +163,34 @@ export default function FilesV1Content() {
 		return matchesSearch && matchesStatus && matchesSource;
 	});
 
+	// Sort filtered files
+	const sortedFiles = [...filteredFiles].sort((a, b) => {
+		let comparison = 0;
+
+		switch (sortField) {
+			case "filename":
+				comparison = a.filename.localeCompare(b.filename);
+				break;
+			case "size":
+				comparison = a.size - b.size;
+				break;
+			case "type":
+				comparison = a.type.localeCompare(b.type);
+				break;
+			case "status":
+				comparison = a.status.localeCompare(b.status);
+				break;
+			case "source":
+				comparison = (a.source || "").localeCompare(b.source || "");
+				break;
+			case "created_at":
+				comparison = (a.created_at?.getTime() || 0) - (b.created_at?.getTime() || 0);
+				break;
+		}
+
+		return sortOrder === "asc" ? comparison : -comparison;
+	});
+
 	// Calculate stats (currently hidden, but kept for future use)
 	// const totalDocs = filesData?.total || 0;
 	// const processedCount = files.filter((f) => f.status === "processed").length;
@@ -137,10 +198,10 @@ export default function FilesV1Content() {
 	// const failedCount = files.filter((f) => f.status === "failed").length;
 
 	const handleSelectAll = () => {
-		if (selectedFiles.size === filteredFiles.length) {
+		if (selectedFiles.size === sortedFiles.length) {
 			setSelectedFiles(new Set());
 		} else {
-			setSelectedFiles(new Set(filteredFiles.map((f) => f.id)));
+			setSelectedFiles(new Set(sortedFiles.map((f) => f.id)));
 		}
 	};
 
@@ -298,22 +359,11 @@ export default function FilesV1Content() {
 	};
 
 	const getStatusIcon = (status: string) => {
-		switch (status) {
-			case "uploaded":
-				return <Check className="h-3 w-3" />;
-			case "processing":
-				return <Loader className="h-3 w-3 animate-spin" />;
-			case "processed":
-				return <CheckCircle className="h-3 w-3" />;
-			case "failed":
-				return <AlertCircle className="h-3 w-3" />;
-			case "pending":
-				return <Loader className="h-3 w-3 animate-spin" />;
-			case "syncing":
-				return <Zap className="h-3 w-3" />;
-			default:
-				return <AlertCircle className="h-3 w-3" />;
-		}
+		const IconComponent = STATUS_ICON_REGISTRY[status] || AlertCircle;
+		const animation = STATUS_ICON_ANIMATIONS[status] || "";
+		const className = `h-3 w-3 ${animation}`.trim();
+
+		return <IconComponent className={className} />;
 	};
 
 	const getStatusLabel = (status: string) => {
@@ -509,7 +559,7 @@ export default function FilesV1Content() {
 								<DropdownMenu>
 									<DropdownMenuTrigger asChild>
 										<Button variant="outline">
-											Status: {statusFilter}
+											Status: {statusFilter === "All" ? statusFilter : statusFilter.charAt(0).toUpperCase() + statusFilter.slice(1)}
 											<ChevronDown className="h-4 w-4" />
 										</Button>
 									</DropdownMenuTrigger>
@@ -569,21 +619,21 @@ export default function FilesV1Content() {
 										<TableHead className="w-12">
 											<Checkbox
 												checked={
-													selectedFiles.size === filteredFiles.length &&
-													filteredFiles.length > 0
+													selectedFiles.size === sortedFiles.length &&
+													sortedFiles.length > 0
 												}
 												onCheckedChange={handleSelectAll}
 											/>
 										</TableHead>
-										<TableHead>Name</TableHead>
 										<TableHead>
 											<Button
 												variant="ghost"
 												size="sm"
 												className="text-muted-foreground hover:text-foreground -ml-3"
+												onClick={() => handleSort("filename")}
 											>
-												Status
-												<ArrowUpDown className="h-4 w-4 ml-1" />
+												Name
+												{renderSortIcon(sortField, "filename", sortOrder)}
 											</Button>
 										</TableHead>
 										<TableHead>
@@ -591,9 +641,21 @@ export default function FilesV1Content() {
 												variant="ghost"
 												size="sm"
 												className="text-muted-foreground hover:text-foreground -ml-3"
+												onClick={() => handleSort("status")}
+											>
+												Status
+												{renderSortIcon(sortField, "status", sortOrder)}
+											</Button>
+										</TableHead>
+										<TableHead>
+											<Button
+												variant="ghost"
+												size="sm"
+												className="text-muted-foreground hover:text-foreground -ml-3"
+												onClick={() => handleSort("source")}
 											>
 												Source
-												<ArrowUpDown className="h-4 w-4 ml-1" />
+												{renderSortIcon(sortField, "source", sortOrder)}
 											</Button>
 										</TableHead>
 										<TableHead className="text-right">
@@ -601,9 +663,10 @@ export default function FilesV1Content() {
 												variant="ghost"
 												size="sm"
 												className="text-muted-foreground hover:text-foreground -mr-3"
+												onClick={() => handleSort("size")}
 											>
 												Size
-												<ArrowUpDown className="h-4 w-4 ml-1" />
+												{renderSortIcon(sortField, "size", sortOrder)}
 											</Button>
 										</TableHead>
 										{/*<TableHead>*/}
@@ -616,7 +679,17 @@ export default function FilesV1Content() {
 										{/*		<ArrowUpDown className="h-4 w-4" />*/}
 										{/*	</Button>*/}
 										{/*</TableHead>*/}
-										<TableHead className="text-right">Last Modified</TableHead>
+										<TableHead className="text-right">
+											<Button
+												variant="ghost"
+												size="sm"
+												className="text-muted-foreground hover:text-foreground -mr-3"
+												onClick={() => handleSort("created_at")}
+											>
+												Last Modified
+												{renderSortIcon(sortField, "created_at", sortOrder)}
+											</Button>
+										</TableHead>
 										<TableHead className="w-16"></TableHead>
 									</TableRow>
 								</TableHeader>
@@ -647,7 +720,7 @@ export default function FilesV1Content() {
 													</TableCell>
 												</TableRow>
 											))
-										: filteredFiles.map((file) => (
+										: sortedFiles.map((file) => (
 												<TableRow key={file.id}>
 													<TableCell className="w-12">
 														<Checkbox

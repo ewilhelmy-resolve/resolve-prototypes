@@ -156,24 +156,24 @@ describe("ConfluenceConfiguration", () => {
 		// Selected spaces should be 'ENG, PROD, DOCS'
 	});
 
-	it("should disable sync button when syncing", () => {
+	it("should hide sync button when syncing", () => {
 		const source = createMockSource({
 			status: STATUS.SYNCING,
 		});
 		renderWithProvider(source);
 
-		const syncButton = screen.getByRole("button", { name: /sync/i });
-		expect(syncButton).toBeDisabled();
+		// Sync button should not be present (it's inside the hidden spaces dropdown section)
+		expect(screen.queryByRole("button", { name: /sync/i })).not.toBeInTheDocument();
 	});
 
-	it("should disable sync button when verifying", () => {
+	it("should hide sync button when verifying", () => {
 		const source = createMockSource({
 			status: STATUS.VERIFYING,
 		});
 		renderWithProvider(source);
 
-		const syncButton = screen.getByRole("button", { name: /sync/i });
-		expect(syncButton).toBeDisabled();
+		// Sync button should not be present (it's inside the hidden spaces dropdown section)
+		expect(screen.queryByRole("button", { name: /sync/i })).not.toBeInTheDocument();
 	});
 
 	it("should enable sync button when connected", () => {
@@ -315,28 +315,28 @@ describe("ConfluenceConfiguration", () => {
 			).toBeInTheDocument();
 		});
 
-		it("should show spaces dropdown when status is Syncing", () => {
+		it("should hide spaces dropdown when status is Syncing", () => {
 			const source = createMockSource({
 				status: STATUS.SYNCING,
 			});
 			renderWithProvider(source);
 
-			// Spaces dropdown should be visible even when syncing
+			// Spaces dropdown should be hidden when syncing
 			expect(
-				screen.getByText("Which spaces would you like to sync from?"),
-			).toBeInTheDocument();
+				screen.queryByText("Which spaces would you like to sync from?"),
+			).not.toBeInTheDocument();
 		});
 
-		it("should show spaces dropdown when status is Verifying", () => {
+		it("should hide spaces dropdown when status is Verifying", () => {
 			const source = createMockSource({
 				status: STATUS.VERIFYING,
 			});
 			renderWithProvider(source);
 
-			// Spaces dropdown should be visible even when verifying
+			// Spaces dropdown should be hidden when verifying
 			expect(
-				screen.getByText("Which spaces would you like to sync from?"),
-			).toBeInTheDocument();
+				screen.queryByText("Which spaces would you like to sync from?"),
+			).not.toBeInTheDocument();
 		});
 
 		it("should not show sync button when status is Error", () => {
