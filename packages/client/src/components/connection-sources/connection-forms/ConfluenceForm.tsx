@@ -1,8 +1,8 @@
 import { useForm } from "react-hook-form";
 import { Button } from "@/components/ui/button";
-import { StatusAlert } from "@/components/ui/status-alert";
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
+import { StatusAlert } from "@/components/ui/status-alert";
 import { useConnectionSource } from "@/contexts/ConnectionSourceContext";
 import {
 	useUpdateDataSource,
@@ -115,7 +115,9 @@ export function ConfluenceForm({ onCancel }: ConfluenceFormProps = {}) {
 					<StatusAlert variant="error" className="mb-4">
 						<p className="font-semibold">Verification Failed</p>
 						<p>{verificationError}</p>
-						<p className="text-sm mt-2">Please check your credentials and try again.</p>
+						<p className="text-sm mt-2">
+							Please check your credentials and try again.
+						</p>
 					</StatusAlert>
 				)}
 
@@ -156,7 +158,7 @@ export function ConfluenceForm({ onCancel }: ConfluenceFormProps = {}) {
 					<Input
 						id="token"
 						type="password"
-						placeholder="••••••••"
+						placeholder="Enter API token"
 						{...register("token", {
 							required: "API token is required",
 							minLength: {
