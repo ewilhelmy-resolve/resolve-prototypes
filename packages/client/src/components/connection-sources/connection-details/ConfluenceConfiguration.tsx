@@ -95,8 +95,10 @@ export default function ConfluenceConfiguration({
 
 				<ConnectionStatusCard source={source} onRetry={handleSync} />
 
-				{/* Only show spaces selector when status is not Error */}
-				{source.status.toLowerCase() !== STATUS.ERROR.toLowerCase() && (
+				{/* Only show spaces selector when status is not Error, Verifying, or Syncing */}
+				{source.status.toLowerCase() !== STATUS.ERROR.toLowerCase() &&
+					source.status.toLowerCase() !== STATUS.VERIFYING.toLowerCase() &&
+					source.status.toLowerCase() !== STATUS.SYNCING.toLowerCase() && (
 					<div className="flex flex-col gap-1">
 						<div className="border border-border bg-popover rounded-md p-4">
 							<div className="rounded-lg">
