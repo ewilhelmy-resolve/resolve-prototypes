@@ -36,10 +36,11 @@ export function ConfluenceForm({ onCancel }: ConfluenceFormProps = {}) {
 	const {
 		register,
 		handleSubmit,
-		formState: { errors, isValid },
+		formState: { errors },
 		getValues,
+		trigger,
 	} = useForm<ConfluenceFormData>({
-		mode: "onChange",
+		mode: "onSubmit", // Changed from "onChange" to only validate on submit
 		defaultValues: {
 			url: source.backendData?.settings?.url || "",
 			email: source.backendData?.settings?.email || "",
@@ -52,14 +53,18 @@ export function ConfluenceForm({ onCancel }: ConfluenceFormProps = {}) {
 	});
 
 	const handleConnect = async () => {
-		const formData = getValues();
+		// Trigger validation for all fields
+		const isValid = await trigger();
 
-		if (!formData.url || !formData.email || !formData.token) {
+		// If validation fails, show errors and stop
+		if (!isValid) {
 			toast.error("Validation Error", {
-				description: "Please fill in all authentication fields",
+				description: "Please check the form fields and correct any errors",
 			});
 			return;
 		}
+
+		const formData = getValues();
 
 		try {
 			// Step 1: Verify credentials
@@ -174,9 +179,7 @@ export function ConfluenceForm({ onCancel }: ConfluenceFormProps = {}) {
 					<Button
 						type="button"
 						onClick={handleConnect}
-						disabled={
-							!isValid || verifyMutation.isPending || updateMutation.isPending
-						}
+						disabled={verifyMutation.isPending || updateMutation.isPending}
 					>
 						{verifyMutation.isPending || updateMutation.isPending ? (
 							<>
