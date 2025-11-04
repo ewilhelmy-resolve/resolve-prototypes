@@ -22,6 +22,28 @@ import { useDataSource } from "@/hooks/useDataSources";
 import SettingsHeader from "@/pages/settings/SettingsHeader";
 import { BACKEND_STATUS, type DataSourceConnection } from "@/types/dataSource";
 
+// Registry for connection source forms
+const FORM_REGISTRY: Record<
+	string,
+	React.ComponentType<{ onCancel?: () => void; onSuccess?: () => void; onFailure?: () => void }>
+> = {
+	[SOURCES.CONFLUENCE]: ConfluenceForm,
+	[SOURCES.SHAREPOINT]: SharePointForm,
+	[SOURCES.SERVICENOW]: ServiceNowForm,
+	[SOURCES.WEB_SEARCH]: WebSearchForm,
+};
+
+// Registry for connection source configuration views
+const CONFIGURATION_REGISTRY: Record<
+	string,
+	React.ComponentType<{ onEdit: () => void }>
+> = {
+	[SOURCES.CONFLUENCE]: ConfluenceConfiguration,
+	[SOURCES.SHAREPOINT]: SharePointConfiguration,
+	[SOURCES.SERVICENOW]: ServiceNowConfiguration,
+	[SOURCES.WEB_SEARCH]: WebSearchConfiguration,
+};
+
 export default function ConnectionSourceDetailPage() {
 	const { id } = useParams<{ id: string }>(); // UUID from backend
 	const navigate = useNavigate();
@@ -74,36 +96,34 @@ export default function ConnectionSourceDetailPage() {
 				}
 			: undefined;
 
-		switch (sourceData.type) {
-			case "confluence":
-				return <ConfluenceForm onCancel={handleCancel} />;
-			case "sharepoint":
-				return <SharePointForm onCancel={handleCancel} />;
-			case "servicenow":
-				return <ServiceNowForm onCancel={handleCancel} />;
-			case "websearch":
-				return <WebSearchForm onCancel={handleCancel} />;
-			default:
-				return <div>Unknown source type</div>;
+		const handleSuccess = () => {
+			setIsEditMode(false);
+		};
+
+		const handleFailure = () => {
+			setIsEditMode(false);
+		};
+
+		const FormComponent = FORM_REGISTRY[sourceData.type];
+
+		if (!FormComponent) {
+			return <div>Unknown source type</div>;
 		}
+
+		return <FormComponent onCancel={handleCancel} onSuccess={handleSuccess} onFailure={handleFailure} />;
 	};
 
 	// Render the appropriate configuration view based on source type
 	const renderConfiguration = (sourceData: DataSourceConnection) => {
 		const handleEdit = () => setIsEditMode(true);
 
-		switch (sourceData.type) {
-			case "confluence":
-				return <ConfluenceConfiguration onEdit={handleEdit} />;
-			case "sharepoint":
-				return <SharePointConfiguration onEdit={handleEdit} />;
-			case "servicenow":
-				return <ServiceNowConfiguration onEdit={handleEdit} />;
-			case "websearch":
-				return <WebSearchConfiguration onEdit={handleEdit} />;
-			default:
-				return <div>Unknown source type</div>;
+		const ConfigurationComponent = CONFIGURATION_REGISTRY[sourceData.type];
+
+		if (!ConfigurationComponent) {
+			return <div>Unknown source type</div>;
 		}
+
+		return <ConfigurationComponent onEdit={handleEdit} />;
 	};
 
 	// Render logic:
