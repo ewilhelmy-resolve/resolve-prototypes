@@ -47,6 +47,7 @@ import {
 } from "@/components/ai-elements/task";
 import { Citations } from "@/components/citations";
 import { useChatPagination } from "@/hooks/useChatPagination";
+import { formatAbsoluteTime } from "@/lib/date-utils";
 import type { RitaChatState } from "@/hooks/useRitaChat";
 import type {
 	GroupedChatMessage,
@@ -172,9 +173,17 @@ function GroupedMessage({
 		isLastMessage &&
 		(chatStatus === "streaming" || chatStatus === "submitted");
 
+	// Hover state for timestamp visibility
+	const [isHovering, setIsHovering] = useState(false);
+
 	return (
 		<Message from={message.role}>
-			<div className="flex flex-col w-full">
+			<div
+				role="group"
+				className="flex flex-col w-full"
+				onMouseEnter={() => setIsHovering(true)}
+				onMouseLeave={() => setIsHovering(false)}
+			>
 				<MessageContent variant="flat">
 					{message.parts.map((part, index) => (
 						<Fragment key={part.id}>
@@ -272,6 +281,15 @@ function GroupedMessage({
 						</Action>
 					</Actions>
 				)}
+
+				{/* Timestamp - show on hover only */}
+				<div
+					className={`text-xs text-gray-500 mt-1 transition-opacity ${
+						isHovering ? "opacity-100" : "opacity-0"
+					}`}
+				>
+					{formatAbsoluteTime(message.timestamp)}
+				</div>
 			</div>
 		</Message>
 	);
@@ -287,9 +305,17 @@ function SimpleMessage({
 	onCopy: (text: string, messageId: string) => void;
 	isCopied: boolean;
 }) {
+	// Hover state for timestamp visibility
+	const [isHovering, setIsHovering] = useState(false);
+
 	return (
 		<Message from={message.role}>
-			<div className="flex flex-col">
+			<div
+				role="group"
+				className="flex flex-col"
+				onMouseEnter={() => setIsHovering(true)}
+				onMouseLeave={() => setIsHovering(false)}
+			>
 				<MessageContent
 					variant={message.role === "assistant" ? "flat" : "contained"}
 				>
@@ -311,6 +337,15 @@ function SimpleMessage({
 						</Action>
 					</Actions>
 				)}
+
+				{/* Timestamp - show on hover only */}
+				<div
+					className={`text-xs text-gray-500 mt-1 transition-opacity ${
+						isHovering ? "opacity-100" : "opacity-0"
+					}`}
+				>
+					{formatAbsoluteTime(message.timestamp)}
+				</div>
 			</div>
 		</Message>
 	);
