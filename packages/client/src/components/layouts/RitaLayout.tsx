@@ -17,16 +17,15 @@ import {
 	ALargeSmall,
 	ChevronDown,
 	File,
-	FileText,
 	Home,
 	LogOut,
 	Plus,
 	SquarePen,
 	Ticket,
+	UserPlus,
 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { FileUploadRequirements } from "@/components/knowledge-articles/FileUploadRequirements";
 import { ShareModal } from "@/components/ShareModal";
 import { ConversationListItem } from "@/components/sidebar/ConversationListItem";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -61,6 +60,7 @@ import {
 	TooltipContent,
 	TooltipTrigger,
 } from "@/components/ui/tooltip";
+import InviteUsersButton from "@/components/users/InviteUsersButton";
 import WelcomeDialog from "@/components/WelcomeDialog";
 import { useConversations } from "@/hooks/api/useConversations";
 import { useProfilePermissions } from "@/hooks/api/useProfile";
@@ -74,7 +74,6 @@ import {
 	SUPPORTED_DOCUMENT_TYPES,
 } from "@/lib/constants";
 import type { Conversation } from "@/stores/conversationStore";
-import InviteUserCard from "../users/InviteUserCard";
 
 export interface RitaLayoutProps {
 	children: React.ReactNode;
@@ -100,8 +99,6 @@ function RitaLayoutContent({ children, activePage = "chat" }: RitaLayoutProps) {
 	const { handleNewChat, handleConversationClick, currentConversationId } =
 		useChatNavigation();
 	const {
-		files: knowledgeBaseFiles,
-		filesLoading: knowledgeBaseFilesLoading,
 		totalFiles: totalKnowledgeBaseFiles,
 		openDocumentSelector,
 		documentInputRef,
@@ -178,27 +175,6 @@ function RitaLayoutContent({ children, activePage = "chat" }: RitaLayoutProps) {
 		}
 
 		return "U";
-	};
-
-	// Format file metadata for display (e.g., "PDF - Today, 4:00PM")
-	const formatFileMetadata = (file: any) => {
-		const fileExtension =
-			file.filename?.split(".").pop()?.toUpperCase() || "FILE";
-
-		if (!file.created_at) return fileExtension;
-
-		const date = new Date(file.created_at);
-		const today = new Date();
-		const isToday = date.toDateString() === today.toDateString();
-
-		const dateStr = isToday ? "Today" : date.toLocaleDateString();
-		const timeStr = date.toLocaleTimeString("en-US", {
-			hour: "numeric",
-			minute: "2-digit",
-			hour12: true,
-		});
-
-		return `${fileExtension} - ${dateStr}, ${timeStr}`;
 	};
 
 	return (
@@ -427,8 +403,41 @@ function RitaLayoutContent({ children, activePage = "chat" }: RitaLayoutProps) {
 							</Button>
 						)}
 					</div>
-					<div className="ml-auto">
-						{/* Placeholder for right-aligned header content */}
+					<div className="ml-auto flex items-center gap-2">
+						{activePage === "chat" && isOwnerOrAdmin() && (
+							<>
+								<Tooltip>
+									<TooltipTrigger asChild>
+										<Button
+											variant="ghost"
+											className="gap-2 h-9 px-3 text-sm"
+											onClick={openDocumentSelector}
+										>
+											<Plus className="w-4 h-4" />
+											<span className="hidden sm:inline">Upload</span>
+										</Button>
+									</TooltipTrigger>
+									<TooltipContent side="bottom" className="max-w-xs">
+										<div className="space-y-1">
+											<p>
+												File types: {SUPPORTED_DOCUMENT_EXTENSIONS.join(", ")}
+											</p>
+											<p className="text-center">
+												Max size: {MAX_FILE_SIZE_MB}mb
+											</p>
+										</div>
+									</TooltipContent>
+								</Tooltip>
+
+								<InviteUsersButton
+									variant="ghost"
+									className="gap-2 h-9 px-3 text-sm"
+									icon={<UserPlus className="w-4 h-4" />}
+								>
+									<span className="hidden sm:inline">Invite</span>
+								</InviteUsersButton>
+							</>
+						)}
 					</div>
 				</header>
 
@@ -438,134 +447,6 @@ function RitaLayoutContent({ children, activePage = "chat" }: RitaLayoutProps) {
 					<main className="flex-1 flex flex-col overflow-y-auto min-w-0 w-full">
 						{children}
 					</main>
-
-					{/* Right sidebar - Knowledge Articles panel (only on chat page for admins/owners) */}
-					{activePage === "chat" && isOwnerOrAdmin() && (
-						<aside className="hidden lg:flex w-80 bg-background p-6 flex-col gap-6 overflow-y-auto flex-shrink-0">
-							<div className="flex items-center justify-between">
-								<h2 className="text-lg font-semibold text-foreground">
-									Knowledge Articles
-								</h2>
-								<Tooltip>
-									<TooltipTrigger asChild>
-										<Button
-											variant="ghost"
-											size="icon"
-											className="w-8 h-8"
-											onClick={openDocumentSelector}
-										>
-											<Plus className="w-4 h-4" />
-										</Button>
-									</TooltipTrigger>
-									<TooltipContent
-										side="top"
-										className="max-w-xs bg-primary text-primary-foreground"
-										arrowClassName="bg-primary fill-primary"
-									>
-										<div className="space-y-1">
-											<p>
-												File types: {SUPPORTED_DOCUMENT_EXTENSIONS.join(", ")}
-											</p>
-											<p className="text-center">Max size: {MAX_FILE_SIZE_MB}mb</p>
-										</div>
-									</TooltipContent>
-								</Tooltip>
-							</div>
-
-							{/* 
-							TODO : Add knowledge base stats summary when backend support is added
-							
-							<div className="flex gap-4 w-full justify-between border border-border rounded-lg p-4">
-								<div className="flex flex-col items-center flex-1">
-									<span className="text-2xl font-semibold text-foreground">
-										{knowledgeBaseFilesLoading ? "-" : totalKnowledgeBaseFiles}
-									</span>
-									<span className="text-xs text-muted-foreground">
-										Articles
-									</span>
-								</div>
-								<Separator orientation="vertical" className="h-auto" />
-								<div className="flex flex-col items-center flex-1">
-									<span className="text-2xl font-semibold text-foreground">
-										0
-									</span>
-									<span className="text-xs text-muted-foreground">Vectors</span>
-								</div>
-								<Separator orientation="vertical" className="h-auto" />
-								<div className="flex flex-col items-center flex-1">
-									<span className="text-2xl font-semibold text-foreground">
-										0%
-									</span>
-									<span className="text-xs text-muted-foreground">
-										Accuracy
-									</span>
-								</div>
-							</div> */}
-
-							<div className="flex flex-col gap-3">
-								<span className="text-sm text-muted-foreground">
-									{knowledgeBaseFiles.length} recent articles
-								</span>
-
-								{knowledgeBaseFilesLoading ? (
-									<div className="text-sm text-muted-foreground">
-										Loading...
-									</div>
-								) : knowledgeBaseFiles.length === 0 ? (
-									<div className="flex flex-col items-center gap-4 py-8 px-4 border border-border rounded-lg">
-										<h3 className="text-lg font-semibold text-foreground">
-											No articles yet
-										</h3>
-										<p className="text-sm text-muted-foreground text-center max-w-xs">
-											Upload your knowledge articles to unlock instant answers
-											from Rita
-										</p>
-										<Button
-											variant="secondary"
-											onClick={openDocumentSelector}
-											className="gap-2 bg-muted hover:bg-muted/80"
-										>
-											<Plus className="h-4 w-4" />
-											Add knowledge
-										</Button>
-										<FileUploadRequirements />
-									</div>
-								) : (
-									<div className="flex flex-col gap-2">
-										{knowledgeBaseFiles.slice(0, 4).map((file) => (
-											<button
-												key={file.id}
-												type="button"
-												className="flex items-start gap-3 py-3 rounded-md hover:bg-accent cursor-pointer text-left w-full"
-												onClick={navigateToKnowledgeArticles}
-											>
-												<FileText className="w-5 h-5 mt-0.5 text-foreground flex-shrink-0" />
-												<div className="flex-1 min-w-0">
-													<p className="text-base text-foreground truncate">
-														{file.filename}
-													</p>
-													<p className="text-sm text-muted-foreground">
-														{formatFileMetadata(file)}
-													</p>
-												</div>
-											</button>
-										))}
-										{knowledgeBaseFiles.length > 4 && (
-											<Button
-												variant="secondary"
-												className="w-full h-10 text-sm bg-muted hover:bg-muted/80"
-												onClick={navigateToKnowledgeArticles}
-											>
-												See all
-											</Button>
-										)}
-									</div>
-								)}
-							</div>
-
-							<InviteUserCard />
-						</aside>
-					)}
 				</div>
 			</div>
 
