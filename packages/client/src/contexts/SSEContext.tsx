@@ -2,12 +2,12 @@ import { useQueryClient } from "@tanstack/react-query";
 import type React from "react";
 import { createContext, useCallback, useContext, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { ritaToast } from "../components/ui/rita-toast";
 import { fileKeys } from "../hooks/api/useFiles";
 import { memberKeys } from "../hooks/api/useMembers";
 import { profileKeys } from "../hooks/api/useProfile";
 import { dataSourceKeys } from "../hooks/useDataSources";
 import { useSSE } from "../hooks/useSSE";
-import { toast } from "../lib/toast";
 import type { SSEEvent } from "../services/EventSourceSSEClient";
 import type { Message } from "../stores/conversationStore";
 import { useConversationStore } from "../stores/conversationStore";
@@ -120,7 +120,8 @@ export const SSEProvider: React.FC<SSEProviderProps> = ({
 				// Show toast notification for verification failures
 				if (updateType === "verification" && event.data.last_verification_error) {
 					const connectionType = event.data.connection_type || "Data source";
-					toast.error(`${connectionType} verification failed`, {
+					ritaToast.error({
+						title: `${connectionType} verification failed`,
 						description: event.data.last_verification_error || "Failed to verify connection",
 						action: {
 							label: "View",
@@ -135,14 +136,16 @@ export const SSEProvider: React.FC<SSEProviderProps> = ({
 					const syncStatus = event.data.last_sync_status;
 
 					if (syncStatus === "completed") {
-						toast.success(`${connectionType} sync complete`, {
+						ritaToast.success({
+							title: `${connectionType} sync complete`,
 							action: {
 								label: "View",
 								onClick: () => navigate("/settings/connections"),
 							},
 						});
 					} else if (syncStatus === "failed") {
-						toast.error(`${connectionType} sync failed`, {
+						ritaToast.error({
+							title: `${connectionType} sync failed`,
 							description: event.data.last_sync_error || "An error occurred",
 							action: {
 								label: "View",
@@ -164,19 +167,13 @@ export const SSEProvider: React.FC<SSEProviderProps> = ({
 
 				// Show toast notification for processing completion/failure
 				if (event.data.status === "processed") {
-					toast.success(`${event.data.filename} processed successfully`, {
-						action: {
-							label: "View",
-							onClick: () => navigate("/content"),
-						},
+					ritaToast.success({
+						title: `${event.data.filename} processed successfully`,
 					});
 				} else if (event.data.status === "failed") {
-					toast.error(`${event.data.filename} processing failed`, {
+					ritaToast.error({
+						title: `${event.data.filename} processing failed`,
 						description: event.data.error_message || "An error occurred",
-						action: {
-							label: "View",
-							onClick: () => navigate("/content"),
-						},
 					});
 				}
 			} else if (event.type === "organization_update") {
@@ -185,13 +182,18 @@ export const SSEProvider: React.FC<SSEProviderProps> = ({
 
 				// Show toast notification based on update type
 				if (event.data.updateType === "name") {
-					toast.success("Organization name updated");
+					ritaToast.success({
+						title: "Organization name updated",
+					});
 				} else if (event.data.updateType === "role") {
-					toast.info("Your role has been updated", {
+					ritaToast.info({
+						title: "Your role has been updated",
 						description: "Your permissions may have changed",
 					});
 				} else if (event.data.updateType === "settings") {
-					toast.success("Organization settings updated");
+					ritaToast.success({
+						title: "Organization settings updated",
+					});
 				}
 			} else if (event.type === "member_role_updated") {
 				// Invalidate member lists to refetch
@@ -202,12 +204,14 @@ export const SSEProvider: React.FC<SSEProviderProps> = ({
 				if (profile?.user?.id === event.data.userId) {
 					// Current user's role was changed
 					queryClient.invalidateQueries({ queryKey: profileKeys.detail() });
-					toast.info("Your role has been updated", {
+					ritaToast.info({
+						title: "Your role has been updated",
 						description: `You are now ${event.data.newRole}`,
 					});
 				} else {
 					// Another member's role was changed
-					toast.success("Member role updated", {
+					ritaToast.success({
+						title: "Member role updated",
 						description: `${event.data.userEmail} is now ${event.data.newRole}`,
 					});
 				}
@@ -223,19 +227,23 @@ export const SSEProvider: React.FC<SSEProviderProps> = ({
 
 					if (!event.data.isActive) {
 						// User was deactivated - force logout
-						toast.error("Your account has been deactivated", {
+						ritaToast.error({
+							title: "Your account has been deactivated",
 							description: "Contact your organization administrator",
 						});
 						setTimeout(() => {
 							window.location.href = "/logout";
 						}, 2000);
 					} else {
-						toast.success("Your account has been activated");
+						ritaToast.success({
+							title: "Your account has been activated",
+						});
 					}
 				} else {
 					// Another member's status was changed
 					const status = event.data.isActive ? "activated" : "deactivated";
-					toast.info(`Member ${status}`, {
+					ritaToast.info({
+						title: `Member ${status}`,
 						description: `${event.data.userEmail} has been ${status}`,
 					});
 				}
@@ -247,13 +255,16 @@ export const SSEProvider: React.FC<SSEProviderProps> = ({
 				const profile = queryClient.getQueryData(profileKeys.detail()) as any;
 				if (profile?.user?.id === event.data.userId) {
 					// Current user was removed - force logout
-					toast.error("You have been removed from the organization");
+					ritaToast.error({
+						title: "You have been removed from the organization",
+					});
 					setTimeout(() => {
 						window.location.href = "/logout";
 					}, 2000);
 				} else {
 					// Another member was removed
-					toast.info("Member removed", {
+					ritaToast.info({
+						title: "Member removed",
 						description: `${event.data.userEmail} has been removed`,
 					});
 				}

@@ -1,5 +1,5 @@
 import { toast as sonnerToast } from "sonner";
-import { CheckCircle2, XCircle, AlertCircle, Info } from "lucide-react";
+import { CheckCircle2, XCircle, AlertCircle, Info, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export type ToastVariant = "success" | "error" | "warning" | "info";
@@ -96,6 +96,13 @@ function RitaToast(props: ToastProps) {
 					</button>
 				</div>
 			)}
+			<button
+				className="ml-auto shrink-0 rounded-sm opacity-70 hover:opacity-100 transition-opacity focus:outline-none focus:ring-2 focus:ring-offset-2"
+				onClick={() => sonnerToast.dismiss(id)}
+				aria-label="Close notification"
+			>
+				<X className="h-4 w-4" />
+			</button>
 		</div>
 	);
 }
