@@ -58,19 +58,28 @@ jobs:
           mkdir -p build_temp/META-INF
           mkdir -p build_temp/theme/rita-theme-v2/login/resources/css
           mkdir -p build_temp/theme/rita-theme-v2/login/resources/img
+          mkdir -p build_temp/theme/rita-theme-v2/email/html
+          mkdir -p build_temp/theme/rita-theme-v2/email/text
+          mkdir -p build_temp/theme/rita-theme-v2/email/messages
 
-          # Copy theme files
+          # Copy login theme files
           cp themes/rita-theme-v2/login/theme.properties build_temp/theme/rita-theme-v2/login/
           cp themes/rita-theme-v2/login/*.ftl build_temp/theme/rita-theme-v2/login/
           cp themes/rita-theme-v2/login/resources/css/styles.css build_temp/theme/rita-theme-v2/login/resources/css/
           cp themes/rita-theme-v2/login/resources/img/logo.svg build_temp/theme/rita-theme-v2/login/resources/img/
+
+          # Copy email theme files
+          cp themes/rita-theme-v2/email/theme.properties build_temp/theme/rita-theme-v2/email/
+          cp themes/rita-theme-v2/email/html/*.ftl build_temp/theme/rita-theme-v2/email/html/
+          cp themes/rita-theme-v2/email/text/*.ftl build_temp/theme/rita-theme-v2/email/text/
+          cp themes/rita-theme-v2/email/messages/*.properties build_temp/theme/rita-theme-v2/email/messages/
 
           # Create keycloak-themes.json descriptor
           cat > build_temp/META-INF/keycloak-themes.json <<EOF
           {
               "themes": [{
                   "name" : "rita-theme-v2",
-                  "types": [ "login" ]
+                  "types": [ "login", "email" ]
               }]
           }
           EOF
