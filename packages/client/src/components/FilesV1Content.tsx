@@ -273,19 +273,36 @@ export default function FilesV1Content() {
 
 	const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
 		if (e.target.files?.[0]) {
-			uploadFileMutation.mutate(e.target.files[0], {
+			const selectedFile = e.target.files[0];
+			uploadFileMutation.mutate(selectedFile, {
 				onSuccess: () => {
 					ritaToast.success({
 						title: "File Uploaded",
 						description:
 							"Document uploaded successfully and processing started",
 					});
+					// Reset file input to allow re-selection
+					if (fileInputRef.current) {
+						fileInputRef.current.value = '';
+					}
 				},
-				onError: (error) => {
-					ritaToast.error({
-						title: "Upload Failed",
-						description: error.message || "Failed to upload document",
-					});
+				onError: (error: any) => {
+					// Handle duplicate file (409 Conflict)
+					if (error.status === 409 && error.data?.existing_filename) {
+						ritaToast.error({
+							title: "File Already Uploaded",
+							description: `This file already exists as "${error.data.existing_filename}"`,
+						});
+					} else {
+						ritaToast.error({
+							title: "Upload Failed",
+							description: error.message || "Failed to upload document",
+						});
+					}
+					// Reset file input to allow new selection
+					if (fileInputRef.current) {
+						fileInputRef.current.value = '';
+					}
 				},
 			});
 		}

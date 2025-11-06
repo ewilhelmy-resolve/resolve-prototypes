@@ -83,6 +83,30 @@ router.post('/upload', authenticateUser, requireRole(['owner', 'admin']), handle
     // Calculate SHA-256 hash of file content for deduplication
     const digest = crypto.createHash('sha256').update(file.buffer).digest('hex');
 
+    // Check if file already exists in organization (by digest)
+    const existingFile = await withOrgContext(
+      authReq.user.id,
+      authReq.user.activeOrganizationId,
+      async (client) => {
+        const result = await client.query(`
+          SELECT bm.id, bm.filename
+          FROM blob_metadata bm
+          JOIN blobs b ON bm.blob_id = b.blob_id
+          WHERE b.digest = $1 AND bm.organization_id = $2
+          LIMIT 1
+        `, [digest, authReq.user.activeOrganizationId]);
+
+        return result.rows.length > 0 ? result.rows[0] : null;
+      }
+    );
+
+    if (existingFile) {
+      return res.status(409).json({
+        error: 'File already uploaded',
+        existing_filename: existingFile.filename
+      });
+    }
+
     // Store file using new blob storage schema
     const result = await withOrgContext(
       authReq.user.id,
