@@ -5,15 +5,34 @@
             <td align="center" style="padding: 40px 20px;">
                 <table role="presentation" style="max-width: 600px; width: 100%; border-collapse: collapse; border: 0; border-spacing: 0; background-color: #ffffff; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1); border-radius: 12px; overflow: hidden;">
 
-                    <!-- Header with Gradient Background -->
+                    <!-- Header with Background -->
                     <tr>
-                        <td align="center" style="padding: 48px 40px; background: linear-gradient(135deg, #0d1637 0%, #1a2549 100%);">
-                            <h1 style="color: #ffffff; font-size: 32px; margin: 0; font-weight: 700; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; letter-spacing: -0.5px;">
-                                <img src="https://rita-go-assets.s3.us-east-1.amazonaws.com/email_logo.svg" alt="Rita" class="h-28 w-28 mb-6">
-                            </h1>
-                            <p style="color: rgba(255, 255, 255, 0.9); font-size: 16px; margin: 8px 0 0 0; font-weight: 400;">
-                                Password Reset
-                            </p>
+                        <td align="center" style="padding: 48px 40px; background-color: #0d1637;">
+                            <!--[if gte mso 9]>
+                            <v:rect xmlns:v="urn:schemas-microsoft-com:vml" fill="true" stroke="false" style="width:600px;height:200px;">
+                            <v:fill type="gradient" color="#0d1637" color2="#1a2549" angle="135" />
+                            <v:textbox inset="0,0,0,0">
+                            <![endif]-->
+                            <div>
+                                <table role="presentation" style="width: 100%; border-collapse: collapse;">
+                                    <tr>
+                                        <td align="center" style="padding: 0;">
+                                            <img src="https://rita-go-assets.s3.us-east-1.amazonaws.com/pw_reset_logo.png" alt="Rita-Go" style="display: block; width: 112px; height: 112px; margin: 0 auto 16px auto; border: 0;">
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td align="center">
+                                            <p style="color: rgba(255, 255, 255, 0.9); font-size: 16px; margin: 0; font-weight: 400; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;">
+                                                Password Reset
+                                            </p>
+                                        </td>
+                                    </tr>
+                                </table>
+                            </div>
+                            <!--[if gte mso 9]>
+                            </v:textbox>
+                            </v:rect>
+                            <![endif]-->
                         </td>
                     </tr>
 
@@ -43,9 +62,18 @@
                             <table role="presentation" style="width: 100%; border-collapse: collapse; margin: 0 0 32px 0;">
                                 <tr>
                                     <td align="center" style="padding: 0;">
-                                        <a href="${link}" style="display: inline-block; padding: 16px 48px; background: linear-gradient(135deg, #0d1637 0%, #1a2549 100%); color: #ffffff; text-decoration: none; font-size: 16px; font-weight: 600; border-radius: 8px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; box-shadow: 0 4px 6px rgba(102, 126, 234, 0.25); transition: all 0.3s ease;">
+                                        <!--[if mso]>
+                                        <v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" xmlns:w="urn:schemas-microsoft-com:office:word" href="${link}" style="height:50px;v-text-anchor:middle;width:200px;" arcsize="16%" stroke="f" fillcolor="#0d1637">
+                                        <w:anchorlock/>
+                                        <center>
+                                        <![endif]-->
+                                        <a href="${link}" style="display: inline-block; padding: 16px 48px; background-color: #0d1637; color: #ffffff; text-decoration: none; font-size: 16px; font-weight: 600; border-radius: 8px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; box-shadow: 0 4px 6px rgba(13, 22, 55, 0.25); mso-hide: all;">
                                             ${msg("passwordResetButton")}
                                         </a>
+                                        <!--[if mso]>
+                                        </center>
+                                        </v:roundrect>
+                                        <![endif]-->
                                     </td>
                                 </tr>
                             </table>
