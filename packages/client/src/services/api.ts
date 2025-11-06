@@ -158,6 +158,8 @@ export const fileApi = {
   uploadFile: async (file: File) => {
     const formData = new FormData();
     formData.append('file', file);
+    // Send filename separately with explicit UTF-8 encoding to avoid multer encoding issues
+    formData.append('filename', file.name);
 
     const response = await fetch(`${API_BASE_URL}/api/files/upload`, {
       method: 'POST',

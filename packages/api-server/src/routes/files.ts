@@ -78,7 +78,10 @@ router.post('/upload', authenticateUser, requireRole(['owner', 'admin']), handle
     }
 
     const file = req.file;
-    const { content } = req.body; // Optional text content
+    const { content, filename } = req.body; // Optional text content and explicit filename
+
+    // Use the explicitly provided filename (UTF-8 encoded) or fallback to multer's originalname
+    const safeFilename = filename || file.originalname;
 
     // Calculate SHA-256 hash of file content for deduplication
     const digest = crypto.createHash('sha256').update(file.buffer).digest('hex');
@@ -149,7 +152,7 @@ router.post('/upload', authenticateUser, requireRole(['owner', 'admin']), handle
             blobId,
             authReq.user.activeOrganizationId,
             authReq.user.id,
-            file.originalname,
+            safeFilename,
             file.size,
             file.mimetype,
             JSON.stringify({ content: content || null })
