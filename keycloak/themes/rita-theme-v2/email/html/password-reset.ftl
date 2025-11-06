@@ -78,17 +78,6 @@
                                 </tr>
                             </table>
 
-                            <!-- Security Notice -->
-                            <table role="presentation" style="width: 100%; border-collapse: collapse; margin: 0 0 24px 0; background-color: #fffaf0; border: 1px solid #fbd38d; border-radius: 4px;">
-                                <tr>
-                                    <td style="padding: 16px 20px;">
-                                        <p style="color: #744210; font-size: 13px; margin: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.5;">
-                                            🔒 ${msg("passwordResetSecurityNote")}
-                                        </p>
-                                    </td>
-                                </tr>
-                            </table>
-
                             <!-- Ignore Notice -->
                             <p style="color: #718096; font-size: 14px; line-height: 1.5; margin: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;">
                                 ${msg("passwordResetIgnore")}
