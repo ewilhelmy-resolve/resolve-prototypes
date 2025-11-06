@@ -1,6 +1,6 @@
 ======================================
 RITA-GO
-Secure Password Management
+Password Reset
 ======================================
 
 ${msg("passwordResetTitle")}
@@ -17,8 +17,3 @@ ${link}
 ${msg("passwordResetSecurityNote")}
 
 ${msg("passwordResetIgnore")}
-
---------------------------------------
-${msg("emailFooter")}
-
-© ${.now?string('yyyy')} Rita-Go. All rights reserved.
