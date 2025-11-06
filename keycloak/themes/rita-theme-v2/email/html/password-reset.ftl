@@ -17,7 +17,7 @@
                                 <table role="presentation" style="width: 100%; border-collapse: collapse;">
                                     <tr>
                                         <td align="center" style="padding: 0;">
-                                            <img src="https://rita-go-assets.s3.us-east-1.amazonaws.com/pw_reset_logo.png" alt="Rita-Go" style="display: block; width: 112px; height: 112px; margin: 0 auto 16px auto; border: 0;">
+                                            <img src="https://rita-go-assets.s3.us-east-1.amazonaws.com/pw_reset_logo.png" alt="Rita-Go" style="display: block; width: 113px; height: 70px; margin: 0 auto 16px auto; border: 0;">
                                         </td>
                                     </tr>
                                     <tr>
