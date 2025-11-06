@@ -7,12 +7,12 @@
 
                     <!-- Header with Gradient Background -->
                     <tr>
-                        <td align="center" style="padding: 48px 40px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                        <td align="center" style="padding: 48px 40px; background: linear-gradient(135deg, #0d1637 0%, #1a2549 100%);">
                             <h1 style="color: #ffffff; font-size: 32px; margin: 0; font-weight: 700; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; letter-spacing: -0.5px;">
-                                Rita-Go
+                                <img src="https://rita-go-assets.s3.us-east-1.amazonaws.com/email_logo.svg" alt="Rita" class="h-28 w-28 mb-6">
                             </h1>
                             <p style="color: rgba(255, 255, 255, 0.9); font-size: 16px; margin: 8px 0 0 0; font-weight: 400;">
-                                Secure Password Management
+                                Password Reset
                             </p>
                         </td>
                     </tr>
@@ -29,7 +29,7 @@
                             </p>
 
                             <!-- Expiry Notice -->
-                            <table role="presentation" style="width: 100%; border-collapse: collapse; margin: 0 0 32px 0; background-color: #f7fafc; border-left: 4px solid #667eea; border-radius: 4px;">
+                            <table role="presentation" style="width: 100%; border-collapse: collapse; margin: 0 0 32px 0; background-color: #f7fafc; border-left: 4px solid #1a2549; border-radius: 4px;">
                                 <tr>
                                     <td style="padding: 16px 20px;">
                                         <p style="color: #2d3748; font-size: 14px; margin: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;">
@@ -43,7 +43,7 @@
                             <table role="presentation" style="width: 100%; border-collapse: collapse; margin: 0 0 32px 0;">
                                 <tr>
                                     <td align="center" style="padding: 0;">
-                                        <a href="${link}" style="display: inline-block; padding: 16px 48px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: #ffffff; text-decoration: none; font-size: 16px; font-weight: 600; border-radius: 8px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; box-shadow: 0 4px 6px rgba(102, 126, 234, 0.25); transition: all 0.3s ease;">
+                                        <a href="${link}" style="display: inline-block; padding: 16px 48px; background: linear-gradient(135deg, #0d1637 0%, #1a2549 100%); color: #ffffff; text-decoration: none; font-size: 16px; font-weight: 600; border-radius: 8px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; box-shadow: 0 4px 6px rgba(102, 126, 234, 0.25); transition: all 0.3s ease;">
                                             ${msg("passwordResetButton")}
                                         </a>
                                     </td>
