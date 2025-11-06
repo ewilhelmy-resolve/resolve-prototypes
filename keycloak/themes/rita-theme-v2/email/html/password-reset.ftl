@@ -50,16 +50,6 @@
                                 </tr>
                             </table>
 
-                            <!-- Alternative Link Section -->
-                            <div style="margin: 0 0 24px 0;">
-                                <p style="color: #718096; font-size: 14px; line-height: 1.5; margin: 0 0 8px 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;">
-                                    ${msg("passwordResetAlternative")}
-                                </p>
-                                <p style="color: #a0aec0; font-size: 12px; line-height: 1.5; margin: 0; padding: 12px; background-color: #f7fafc; border-radius: 4px; font-family: 'Courier New', Courier, monospace; word-break: break-all;">
-                                    ${link}
-                                </p>
-                            </div>
-
                             <!-- Security Notice -->
                             <table role="presentation" style="width: 100%; border-collapse: collapse; margin: 0 0 24px 0; background-color: #fffaf0; border: 1px solid #fbd38d; border-radius: 4px;">
                                 <tr>
@@ -83,9 +73,6 @@
                         <td style="padding: 32px 40px; background-color: #f7fafc; border-top: 1px solid #e2e8f0;">
                             <p style="color: #718096; font-size: 13px; line-height: 1.5; margin: 0 0 8px 0; text-align: center; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;">
                                 ${msg("emailFooter")}
-                            </p>
-                            <p style="color: #a0aec0; font-size: 12px; line-height: 1.5; margin: 0; text-align: center; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;">
-                                © ${.now?string('yyyy')} Rita-Go. All rights reserved.
                             </p>
                         </td>
                     </tr>
