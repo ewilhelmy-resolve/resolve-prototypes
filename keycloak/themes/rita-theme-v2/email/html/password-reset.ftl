@@ -26,7 +26,7 @@
             <td align="center" style="background-color:#0d1637; padding:48px 40px;">
               <img src="https://rita-go-assets.s3.us-east-1.amazonaws.com/pw_reset_logo.png" alt="Rita-Go" width="113" height="70" style="display:block; margin:0 auto 16px auto;">
               <p style="color:#ffffff; opacity:0.9; font-size:16px; font-weight:400;">
-                ${msg("passwordResetHeader")}
+                Password Reset
               </p>
             </td>
           </tr>
@@ -34,23 +34,23 @@
           <!-- Content -->
           <tr>
             <td style="padding:48px 40px;">
-              <h2 style="color:#1a202c; font-size:26px; font-weight:600; margin:0 0 16px 0;">
-                ${msg("passwordResetTitle")}
+              <h2 style="color: #1a202c; font-size: 26px; margin: 0 0 16px 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; font-weight: 600; line-height: 1.3;">
+                  ${msg("passwordResetTitle")}
               </h2>
 
-              <p style="color:#4a5568; font-size:16px; line-height:1.6; margin:0 0 24px 0;">
-                ${msg("passwordResetBody")}
+              <p style="color: #4a5568; font-size: 16px; line-height: 1.6; margin: 0 0 24px 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;">
+                  ${msg("passwordResetBody")}
               </p>
 
               <!-- Expiry Notice -->
-              <table role="presentation" width="100%" style="background-color:#f7fafc; border-left:4px solid #1a2549; border-radius:4px; margin:0 0 32px 0;">
-                <tr>
-                  <td style="padding:16px 20px;">
-                    <p style="color:#2d3748; font-size:14px; margin:0;">
-                      ⏱️ ${msg("passwordResetExpiry", linkExpirationFormatter(linkExpiration))}
-                    </p>
-                  </td>
-                </tr>
+              <table role="presentation" style="width: 100%; border-collapse: collapse; margin: 0 0 32px 0; background-color: #f7fafc; border-left: 4px solid #1a2549; border-radius: 4px;">
+                  <tr>
+                      <td style="padding: 16px 20px;">
+                          <p style="color: #2d3748; font-size: 14px; margin: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;">
+                              ⏱️ ${msg("passwordResetExpiry", linkExpirationFormatter(linkExpiration))}
+                          </p>
+                      </td>
+                  </tr>
               </table>
 
               <!-- Reset Button -->
@@ -66,8 +66,8 @@
                     </v:roundrect>
                     <![endif]-->
                     <!--[if !mso]><!-- -->
-                    <a href="${link}" style="display:inline-block; padding:16px 48px; background-color:#0d1637; color:#ffffff; text-decoration:none; font-size:16px; font-weight:600; border-radius:8px; box-shadow:0 4px 6px rgba(13,22,55,0.25);">
-                      ${msg("passwordResetButton")}
+                    <a href="${link}" style="display: inline-block; padding: 16px 48px; background-color: #0d1637; color: #ffffff; text-decoration: none; font-size: 16px; font-weight: 600; border-radius: 8px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; box-shadow: 0 4px 6px rgba(13, 22, 55, 0.25); mso-hide: all;">
+                        ${msg("passwordResetButton")}
                     </a>
                     <!--<![endif]-->
                   </td>
@@ -75,8 +75,8 @@
               </table>
 
               <!-- Ignore Notice -->
-              <p style="color:#718096; font-size:14px; line-height:1.5; margin:0;">
-                ${msg("passwordResetIgnore")}
+              <p style="color: #718096; font-size: 14px; line-height: 1.5; margin: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;">
+                  ${msg("passwordResetIgnore")}
               </p>
 
             </td>
