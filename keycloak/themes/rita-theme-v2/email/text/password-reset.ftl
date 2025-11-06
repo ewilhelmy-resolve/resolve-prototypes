@@ -14,6 +14,4 @@ ${link}
 
 --------------------------------------
 
-${msg("passwordResetSecurityNote")}
-
 ${msg("passwordResetIgnore")}
