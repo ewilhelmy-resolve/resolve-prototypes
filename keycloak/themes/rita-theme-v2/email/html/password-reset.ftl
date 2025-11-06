@@ -67,15 +67,6 @@
                             </p>
                         </td>
                     </tr>
-
-                    <!-- Footer -->
-                    <tr>
-                        <td style="padding: 32px 40px; background-color: #f7fafc; border-top: 1px solid #e2e8f0;">
-                            <p style="color: #718096; font-size: 13px; line-height: 1.5; margin: 0 0 8px 0; text-align: center; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;">
-                                ${msg("emailFooter")}
-                            </p>
-                        </td>
-                    </tr>
                 </table>
             </td>
         </tr>
