@@ -15,17 +15,18 @@
 
 import {
 	ALargeSmall,
+	CheckCircle,
 	ChevronDown,
 	File,
 	Home,
 	LogOut,
-	Plus,
+	MailOpen,
 	SquarePen,
 	Ticket,
-	UserPlus,
 } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
+import { Loader } from "@/components/ai-elements/loader";
 import { ShareModal } from "@/components/ShareModal";
 import { ConversationListItem } from "@/components/sidebar/ConversationListItem";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -55,24 +56,17 @@ import {
 	SidebarTrigger,
 	useSidebar,
 } from "@/components/ui/sidebar";
-import {
-	Tooltip,
-	TooltipContent,
-	TooltipTrigger,
-} from "@/components/ui/tooltip";
 import InviteUsersButton from "@/components/users/InviteUsersButton";
 import WelcomeDialog from "@/components/WelcomeDialog";
 import { useConversations } from "@/hooks/api/useConversations";
 import { useProfilePermissions } from "@/hooks/api/useProfile";
 import { useAuth } from "@/hooks/useAuth";
+import { useDataSources } from "@/hooks/useDataSources";
 import { useChatNavigation } from "@/hooks/useChatNavigation";
 import { useFeatureFlag } from "@/hooks/useFeatureFlags";
 import { useKnowledgeBase } from "@/hooks/useKnowledgeBase";
-import {
-	MAX_FILE_SIZE_MB,
-	SUPPORTED_DOCUMENT_EXTENSIONS,
-	SUPPORTED_DOCUMENT_TYPES,
-} from "@/lib/constants";
+import { SUPPORTED_DOCUMENT_TYPES } from "@/lib/constants";
+import { cn } from "@/lib/utils";
 import type { Conversation } from "@/stores/conversationStore";
 
 export interface RitaLayoutProps {
@@ -96,9 +90,11 @@ function RitaLayoutContent({ children, activePage = "chat" }: RitaLayoutProps) {
 	const { isOwnerOrAdmin } = useProfilePermissions();
 	const { data: conversationsData, isLoading: conversationsLoading } =
 		useConversations();
+	const { data: dataSources } = useDataSources();
 	const { handleNewChat, handleConversationClick, currentConversationId } =
 		useChatNavigation();
 	const {
+		files,
 		totalFiles: totalKnowledgeBaseFiles,
 		openDocumentSelector,
 		documentInputRef,
@@ -106,6 +102,38 @@ function RitaLayoutContent({ children, activePage = "chat" }: RitaLayoutProps) {
 	} = useKnowledgeBase();
 
 	const conversations = conversationsData || [];
+
+	// Loading knowledge indicator state
+	const hasProcessedOrUploadedFiles = files.some(
+		(f) => f.status === "processed" || f.status === "uploaded",
+	);
+	const hasProcessingFiles = files.some((f) => f.status === "processing");
+	const hasDataSourcesSyncing =
+		dataSources?.some((ds) => ds.status === "syncing") ?? false;
+	const showLoadingIndicator =
+		(!hasProcessedOrUploadedFiles && hasProcessingFiles) ||
+		hasDataSourcesSyncing;
+
+	// State machine for loading indicator (hidden → loading → success → hidden)
+	type IndicatorState = "hidden" | "loading" | "success";
+	const [indicatorState, setIndicatorState] =
+		useState<IndicatorState>("hidden");
+	const prevLoadingRef = useRef(showLoadingIndicator);
+
+	useEffect(() => {
+		if (showLoadingIndicator) {
+			// Show loading state
+			setIndicatorState("loading");
+		} else if (prevLoadingRef.current && !showLoadingIndicator) {
+			// Transition from loading to success
+			setIndicatorState("success");
+			// Auto-dismiss after 3 seconds
+			const timer = setTimeout(() => setIndicatorState("hidden"), 3000);
+			return () => clearTimeout(timer);
+		}
+
+		prevLoadingRef.current = showLoadingIndicator;
+	}, [showLoadingIndicator]);
 
 	// Check if user has seen welcome modal before (localStorage + cookie fallback)
 	const hasSeenWelcomeModal = useCallback(() => {
@@ -392,6 +420,28 @@ function RitaLayoutContent({ children, activePage = "chat" }: RitaLayoutProps) {
 								</BreadcrumbItem>
 							</BreadcrumbList>
 						</Breadcrumb>
+						{(indicatorState === "loading" || indicatorState === "success") && (
+							<div
+								className={cn(
+									"flex items-center gap-2 ml-2 text-sm transition-colors",
+									indicatorState === "success"
+										? "text-green-700 bg-green-50 px-2 py-1 rounded-md"
+										: "text-muted-foreground",
+								)}
+							>
+								{indicatorState === "loading" ? (
+									<>
+										<Loader size={16} />
+										<span>We are loading knowledge...</span>
+									</>
+								) : (
+									<>
+										<CheckCircle size={16} />
+										<span>Knowledge successfully added</span>
+									</>
+								)}
+							</div>
+						)}
 						{state === "collapsed" && (
 							<Button
 								variant="ghost"
@@ -405,38 +455,12 @@ function RitaLayoutContent({ children, activePage = "chat" }: RitaLayoutProps) {
 					</div>
 					<div className="ml-auto flex items-center gap-2">
 						{activePage === "chat" && isOwnerOrAdmin() && (
-							<>
-								<Tooltip>
-									<TooltipTrigger asChild>
-										<Button
-											variant="ghost"
-											className="gap-2 h-9 px-3 text-sm"
-											onClick={openDocumentSelector}
-										>
-											<Plus className="w-4 h-4" />
-											<span className="hidden sm:inline">Upload</span>
-										</Button>
-									</TooltipTrigger>
-									<TooltipContent side="bottom" className="max-w-xs">
-										<div className="space-y-1">
-											<p>
-												File types: {SUPPORTED_DOCUMENT_EXTENSIONS.join(", ")}
-											</p>
-											<p className="text-center">
-												Max size: {MAX_FILE_SIZE_MB}mb
-											</p>
-										</div>
-									</TooltipContent>
-								</Tooltip>
-
-								<InviteUsersButton
-									variant="ghost"
-									className="gap-2 h-9 px-3 text-sm"
-									icon={<UserPlus className="w-4 h-4" />}
-								>
-									<span className="hidden sm:inline">Invite</span>
-								</InviteUsersButton>
-							</>
+							<InviteUsersButton
+								variant="secondary"
+								icon={<MailOpen className="w-4 h-4" />}
+							>
+								Invite Users
+							</InviteUsersButton>
 						)}
 					</div>
 				</header>

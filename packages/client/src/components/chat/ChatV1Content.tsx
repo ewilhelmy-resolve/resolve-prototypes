@@ -9,14 +9,14 @@
 "use client";
 
 import type { ChatStatus } from "ai";
-import { CheckIcon, CopyIcon /* , PaperclipIcon */ } from "lucide-react";
+import { CheckIcon, CopyIcon, Upload /* , PaperclipIcon */ } from "lucide-react";
 import { Fragment, useCallback, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { Action, Actions } from "@/components/ai-elements/actions";
 import {
 	Conversation,
 	ConversationContent,
-	ConversationEmptyState,
 	ConversationScrollButton,
 } from "@/components/ai-elements/conversation";
 import { Loader } from "@/components/ai-elements/loader";
@@ -46,6 +46,17 @@ import {
 	TaskTrigger,
 } from "@/components/ai-elements/task";
 import { Citations } from "@/components/citations";
+import {
+	Card,
+	CardContent,
+	CardDescription,
+	CardHeader,
+	CardTitle,
+} from "@/components/ui/card";
+import {
+	SOURCES,
+	SOURCE_METADATA,
+} from "@/constants/connectionSources";
 import { useChatPagination } from "@/hooks/useChatPagination";
 import { formatAbsoluteTime } from "@/lib/date-utils";
 import type { RitaChatState } from "@/hooks/useRitaChat";
@@ -60,7 +71,13 @@ import { ResponseWithInlineCitations } from "./ResponseWithInlineCitations";
 import { useDragAndDrop } from "@/hooks/useDragAndDrop";
 import { useUploadFile } from "@/hooks/api/useFiles";
 // import { useProfilePermissions } from "@/hooks/api/useProfile"; // TODO: Re-enable when backend support is ready
-import { SUPPORTED_DOCUMENT_TYPES } from "@/lib/constants";
+import { useKnowledgeBase } from "@/hooks/useKnowledgeBase";
+import {
+	MAX_FILE_SIZE_MB,
+	SUPPORTED_DOCUMENT_EXTENSIONS,
+	SUPPORTED_DOCUMENT_TYPES,
+} from "@/lib/constants";
+import { cn } from "@/lib/utils";
 
 export interface ChatV1ContentProps {
 	// Message state
@@ -401,6 +418,97 @@ function SimpleMessage({
 	);
 }
 
+// Custom empty state component for Ask Rita
+function AskRitaEmptyState({
+	hasKnowledge,
+	onUpload,
+	onConnections,
+}: {
+	hasKnowledge: boolean;
+	onUpload: () => void;
+	onConnections: () => void;
+}) {
+	// Connection source icons to display
+	const connectionSources = [
+		{ type: SOURCES.CONFLUENCE, icon: `/connections/icon_${SOURCES.CONFLUENCE}.svg` },
+		{ type: SOURCES.SHAREPOINT, icon: `/connections/icon_${SOURCES.SHAREPOINT}.svg` },
+		{ type: SOURCES.SERVICENOW, icon: `/connections/icon_${SOURCES.SERVICENOW}.svg` },
+	];
+
+	return (
+		<div className="flex flex-col items-center justify-center gap-8 py-12">
+			<div className="text-center space-y-2">
+				<h2 className="text-3xl font-semibold text-foreground">Ask Rita</h2>
+				<p className="text-base text-muted-foreground">
+					{hasKnowledge
+						? "Diagnose and resolve issues, then create automations to speed up future remediation"
+						: "Build your organization's help agent by adding knowledge"}
+				</p>
+			</div>
+
+			{!hasKnowledge && (
+				<>
+					<div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full max-w-2xl">
+						{/* Upload a file card */}
+						<Card className="cursor-pointer" onClick={onUpload}>
+							<CardHeader>
+								<div className="flex items-start justify-between">
+									<CardTitle className="text-lg font-medium">
+										Upload a file
+									</CardTitle>
+									<Upload className="h-5 w-5 text-muted-foreground" />
+								</div>
+								<CardDescription className="text-base">
+									Add knowledge via documents
+								</CardDescription>
+							</CardHeader>
+							<CardContent>
+								<p className="text-sm text-muted-foreground">
+									File types: {SUPPORTED_DOCUMENT_EXTENSIONS.join(", ")}; max
+									size: {MAX_FILE_SIZE_MB}mb
+								</p>
+							</CardContent>
+						</Card>
+
+						{/* Add a connection card */}
+						<Card className="cursor-pointer" onClick={onConnections}>
+							<CardHeader>
+								<CardTitle className="text-lg font-medium">
+									Add a connection
+								</CardTitle>
+								<CardDescription className="text-base">
+									Connect your knowledge sources
+								</CardDescription>
+							</CardHeader>
+							<CardContent>
+								<div className="flex gap-3">
+									{connectionSources.map((source) => (
+										<div
+											key={source.type}
+											className="w-8 h-8 flex items-center justify-center"
+										>
+											<img
+												src={source.icon}
+												alt={SOURCE_METADATA[source.type]?.title || source.type}
+												className="w-6 h-6"
+											/>
+										</div>
+									))}
+								</div>
+							</CardContent>
+						</Card>
+					</div>
+
+					<p className="text-xs text-muted-foreground text-center max-w-md">
+						All files and connections stay within your organization's
+						workspace.
+					</p>
+				</>
+			)}
+		</div>
+	);
+}
+
 export default function ChatV1Content({
 	messages,
 	messagesLoading,
@@ -415,6 +523,22 @@ export default function ChatV1Content({
 }: ChatV1ContentProps) {
 	// Copy state tracking for icon feedback
 	const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
+
+	// Navigation for connections
+	const navigate = useNavigate();
+
+	// Knowledge base for file upload
+	const {
+		openDocumentSelector,
+		files,
+		documentInputRef,
+		handleDocumentUpload,
+	} = useKnowledgeBase();
+
+	// Check if there are any processed or uploaded files
+	const hasProcessedOrUploadedFiles = files.some(
+		(f) => f.status === "processed" || f.status === "uploaded",
+	);
 
 	// Check if user is admin/owner (only admins can upload attachments - currently disabled for all users)
 	// TODO: Re-enable when backend support is ready
@@ -480,9 +604,11 @@ export default function ChatV1Content({
 		messages,
 	);
 
-	// Determine if input should be disabled (turn-based conversation)
+	// Determine if input should be disabled (turn-based conversation or no knowledge)
 	const isInputDisabled =
-		chatStatus === "streaming" || chatStatus === "submitted";
+		chatStatus === "streaming" ||
+		chatStatus === "submitted" ||
+		!hasProcessedOrUploadedFiles;
 
 	// Handle form submission from PromptInput
 	const handlePromptSubmit = useCallback(
@@ -561,9 +687,10 @@ export default function ChatV1Content({
 							</div>
 						) : !currentConversationId || chatMessages.length === 0 ? (
 							<div className="min-h-[60vh] flex items-center justify-center">
-								<ConversationEmptyState
-									title="Ask Rita"
-									description="Diagnose and resolve issues, then create automations to speed up future remediation"
+								<AskRitaEmptyState
+									hasKnowledge={hasProcessedOrUploadedFiles}
+									onUpload={openDocumentSelector}
+									onConnections={() => navigate("/settings/connections")}
 								/>
 							</div>
 						) : (
@@ -627,6 +754,7 @@ export default function ChatV1Content({
 			<div className="px-6 py-4 xborder-t border-gray-200 bg-white">
 				<div className="max-w-4xl mx-auto">
 					<PromptInput
+						className={cn(!hasProcessedOrUploadedFiles && "rounded-b-none")}
 						onSubmit={handlePromptSubmit}
 						globalDrop={false}
 						multiple={false}
@@ -659,10 +787,20 @@ export default function ChatV1Content({
 							/>
 						</PromptInputToolbar>
 					</PromptInput>
+
+					{/* Footer message when no processed or uploaded files */}
+					{!hasProcessedOrUploadedFiles && (
+						<div className="mt-0 flex items-center rounded-b-[12px] border border-t-0 border-border bg-muted px-3 py-2">
+							<p className="text-xs text-muted-foreground">
+								No knowledge found. Upload or connect a knowledge source to get
+								started.
+							</p>
+						</div>
+					)}
 				</div>
 			</div>
 
-			{/* Hidden file input for compatibility with existing Rita handlers */}
+			{/* Hidden file input for chat message attachments (currently disabled) */}
 			<input
 				ref={fileInputRef}
 				type="file"
@@ -670,6 +808,16 @@ export default function ChatV1Content({
 				onChange={handleFileUpload}
 				accept={SUPPORTED_DOCUMENT_TYPES}
 				disabled={uploadStatus.isUploading}
+				multiple={false}
+			/>
+
+			{/* Hidden file input for knowledge base uploads (empty state & navbar) */}
+			<input
+				ref={documentInputRef}
+				type="file"
+				className="hidden"
+				onChange={handleDocumentUpload}
+				accept={SUPPORTED_DOCUMENT_TYPES}
 				multiple={false}
 			/>
 		</div>
