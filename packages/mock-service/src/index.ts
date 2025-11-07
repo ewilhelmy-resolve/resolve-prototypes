@@ -2144,16 +2144,24 @@ app.post('/webhook', async (req, res) => {
             throw new Error('RabbitMQ channel not initialized');
           }
 
-          // Simulate successful document processing
-          const processingMessage = {
+          // Randomly simulate successful or failed document processing
+          const isSuccess = Math.random() > 0.5; // 50% success rate
+          const processingMessage: any = {
             type: 'document_processing',
             blob_metadata_id: documentPayload.blob_metadata_id,
             tenant_id: documentPayload.tenant_id,
             user_id: documentPayload.user_id,
-            status: 'processing_completed',
-            processed_markdown: `# Processed Document: ${documentPayload.original_filename}\n\nThis is mock processed content from the document.\n\n## Summary\n- **File Type**: ${documentPayload.file_type}\n- **File Size**: ${documentPayload.file_size} bytes\n- **Processed At**: ${new Date().toISOString()}\n\n## Content\nMock extracted text content from the uploaded document. In a real scenario, this would contain the actual parsed and processed content from the PDF, DOCX, or other file format.`,
+            status: isSuccess ? 'processing_completed' : 'processing_failed',
             timestamp: new Date().toISOString()
           };
+
+          if (isSuccess) {
+            // Add processed content for successful processing
+            processingMessage.processed_markdown = `# Processed Document: ${documentPayload.original_filename}\n\nThis is mock processed content from the document.\n\n## Summary\n- **File Type**: ${documentPayload.file_type}\n- **File Size**: ${documentPayload.file_size} bytes\n- **Processed At**: ${new Date().toISOString()}\n\n## Content\nMock extracted text content from the uploaded document. In a real scenario, this would contain the actual parsed and processed content from the PDF, DOCX, or other file format.`;
+          } else {
+            // Add error message for failed processing
+            processingMessage.error = 'Mock processing error: Failed to extract text from document';
+          }
 
           await rabbitChannel.assertQueue('document_processing_status', { durable: true });
           rabbitChannel.sendToQueue(

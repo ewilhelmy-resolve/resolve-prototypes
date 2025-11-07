@@ -59,27 +59,29 @@ import {
 import {
 	FILE_SOURCE,
 	FILE_SOURCE_DISPLAY_NAMES,
+	FILE_STATUS,
 	type FileSourceType,
 	MAX_FILE_SIZE_MB,
 	SUPPORTED_DOCUMENT_EXTENSIONS,
 	SUPPORTED_DOCUMENT_TYPES,
 } from "@/lib/constants";
 import { renderSortIcon } from "@/lib/table-utils";
+import { cn } from "@/lib/utils";
 
 // Registry for status icons
 const STATUS_ICON_REGISTRY: Record<string, React.ComponentType<{ className?: string }>> = {
-	uploaded: Check,
-	processing: Loader,
-	processed: CheckCircle,
-	failed: AlertCircle,
-	pending: Loader,
-	syncing: Zap,
+	[FILE_STATUS.UPLOADED]: Check,
+	[FILE_STATUS.PROCESSING]: Loader,
+	[FILE_STATUS.PROCESSED]: CheckCircle,
+	[FILE_STATUS.FAILED]: AlertCircle,
+	[FILE_STATUS.PENDING]: Loader,
+	[FILE_STATUS.SYNCING]: Zap,
 };
 
 // Registry for status icon animations
 const STATUS_ICON_ANIMATIONS: Record<string, string> = {
-	processing: "animate-spin",
-	pending: "animate-spin",
+	[FILE_STATUS.PROCESSING]: "animate-spin",
+	[FILE_STATUS.PENDING]: "animate-spin",
 };
 
 const formatFileSize = (bytes: number): string => {
@@ -391,11 +393,11 @@ export default function FilesV1Content() {
 		status: string,
 	): "default" | "secondary" | "destructive" | "outline" => {
 		switch (status) {
-			case "processed":
+			case FILE_STATUS.PROCESSED:
 				return "default";
-			case "processing":
+			case FILE_STATUS.PROCESSING:
 				return "secondary";
-			case "failed":
+			case FILE_STATUS.FAILED:
 				return "destructive";
 			default:
 				return "outline";
@@ -585,22 +587,22 @@ export default function FilesV1Content() {
 											All Status
 										</DropdownMenuItem>
 										<DropdownMenuItem
-											onSelect={() => setStatusFilter("processed")}
+											onSelect={() => setStatusFilter(FILE_STATUS.PROCESSED)}
 										>
 											Processed
 										</DropdownMenuItem>
 										<DropdownMenuItem
-											onSelect={() => setStatusFilter("processing")}
+											onSelect={() => setStatusFilter(FILE_STATUS.PROCESSING)}
 										>
 											Processing
 										</DropdownMenuItem>
 										<DropdownMenuItem
-											onSelect={() => setStatusFilter("failed")}
+											onSelect={() => setStatusFilter(FILE_STATUS.FAILED)}
 										>
 											Failed
 										</DropdownMenuItem>
 										<DropdownMenuItem
-											onSelect={() => setStatusFilter("uploaded")}
+											onSelect={() => setStatusFilter(FILE_STATUS.UPLOADED)}
 										>
 											Uploaded
 										</DropdownMenuItem>
@@ -747,13 +749,33 @@ export default function FilesV1Content() {
 													</TableCell>
 													<TableCell>{file.filename}</TableCell>
 													<TableCell>
-														<Badge
-															variant={getStatusVariant(file.status)}
-															className="flex items-center gap-1 w-fit"
-														>
-															{getStatusIcon(file.status)}
-															{getStatusLabel(file.status)}
-														</Badge>
+														<div className="flex items-center gap-2">
+															<Badge
+																variant={getStatusVariant(file.status)}
+																className="flex items-center gap-1 w-fit"
+															>
+																{getStatusIcon(file.status)}
+																{getStatusLabel(file.status)}
+															</Badge>
+															{file.status === FILE_STATUS.FAILED && (
+																<Button
+																	variant="link"
+																	size="sm"
+																	onClick={() => handleReprocess(file)}
+																	disabled={reprocessFileMutation.isPending}
+																	className="h-7 px-2 gap-1.5 hover:no-underline"
+																>
+																	<RefreshCw
+																		className={cn(
+																			"h-3 w-3",
+																			reprocessFileMutation.isPending &&
+																				"animate-spin",
+																		)}
+																	/>
+																	<span className="text-xs">Retry</span>
+																</Button>
+															)}
+														</div>
 													</TableCell>
 													<TableCell>
 														{getSourceDisplayName(file.source)}
@@ -779,8 +801,8 @@ export default function FilesV1Content() {
 															<DropdownMenuContent align="end">
 																{/* Download option - only for manual uploads that are uploaded/processed */}
 																{file.source === FILE_SOURCE.MANUAL &&
-																	(file.status === "uploaded" ||
-																		file.status === "processed") && (
+																	(file.status === FILE_STATUS.UPLOADED ||
+																		file.status === FILE_STATUS.PROCESSED) && (
 																		<DropdownMenuItem
 																			onClick={() => handleDownload(file)}
 																		>
