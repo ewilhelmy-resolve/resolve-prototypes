@@ -16,9 +16,11 @@ import {
 	Plus,
 	RefreshCw,
 	Trash2,
+	Upload,
 	Zap,
 } from "lucide-react";
 import { useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { BulkActions } from "@/components/BulkActions";
 import ConfirmDialog from "@/components/dialogs/ConfirmDialog";
 import EmptyFilesState from "@/components/knowledge-articles/EmptyFilesState";
@@ -30,6 +32,7 @@ import {
 	DropdownMenu,
 	DropdownMenuContent,
 	DropdownMenuItem,
+	DropdownMenuSeparator,
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
@@ -43,11 +46,7 @@ import {
 	TableHeader,
 	TableRow,
 } from "@/components/ui/table";
-import {
-	Tooltip,
-	TooltipContent,
-	TooltipTrigger,
-} from "@/components/ui/tooltip";
+import { useDataSources } from "@/hooks/useDataSources";
 import {
 	type FileDocument,
 	useDeleteFile,
@@ -61,10 +60,10 @@ import {
 	FILE_SOURCE_DISPLAY_NAMES,
 	FILE_STATUS,
 	type FileSourceType,
-	MAX_FILE_SIZE_MB,
-	SUPPORTED_DOCUMENT_EXTENSIONS,
 	SUPPORTED_DOCUMENT_TYPES,
 } from "@/lib/constants";
+import { SOURCE_METADATA } from "@/constants/connectionSources";
+import type { DataSourceConnection } from "@/types/dataSource";
 import { renderSortIcon } from "@/lib/table-utils";
 import { cn } from "@/lib/utils";
 
@@ -131,14 +130,22 @@ export default function FilesV1Content() {
 	const [sortField, setSortField] = useState<SortField>("created_at");
 	const [sortOrder, setSortOrder] = useState<SortOrder>("desc");
 	const fileInputRef = useRef<HTMLInputElement>(null);
+	const navigate = useNavigate();
 
 	const { data: filesData, isLoading } = useFiles();
+	const { data: dataSourcesData } = useDataSources();
 	const uploadFileMutation = useUploadFile();
 	const downloadFileMutation = useDownloadFile();
 	const reprocessFileMutation = useReprocessFile();
 	const deleteFileMutation = useDeleteFile();
 
 	const files = filesData?.documents || [];
+	const dataSources = dataSourcesData || [];
+
+	// Filter synced sources (completed + enabled)
+	const syncedSources = dataSources.filter(
+		(source: DataSourceConnection) => source.last_sync_status === "completed" && source.enabled
+	);
 
 	// Handle sorting
 	const handleSort = (field: SortField) => {
@@ -414,12 +421,9 @@ export default function FilesV1Content() {
 							Knowledge Articles
 						</h1>
 					</div>
-					<Tooltip>
-						<TooltipTrigger asChild>
-							<Button
-								onClick={handleUploadClick}
-								disabled={uploadFileMutation.isPending}
-							>
+					<DropdownMenu>
+						<DropdownMenuTrigger asChild>
+							<Button disabled={uploadFileMutation.isPending}>
 								{uploadFileMutation.isPending ? (
 									<Loader className="h-4 w-4 animate-spin" />
 								) : (
@@ -427,18 +431,58 @@ export default function FilesV1Content() {
 								)}
 								Add Articles
 							</Button>
-						</TooltipTrigger>
-						<TooltipContent
-							side="top"
-							className="max-w-xs bg-primary text-primary-foreground"
-							arrowClassName="bg-primary fill-primary"
-						>
-							<div className="space-y-1">
-								<p>File types: {SUPPORTED_DOCUMENT_EXTENSIONS.join(", ")}</p>
-								<p className="text-center">Max size: {MAX_FILE_SIZE_MB}mb</p>
-							</div>
-						</TooltipContent>
-					</Tooltip>
+						</DropdownMenuTrigger>
+						<DropdownMenuContent align="end">
+							{/* Upload file option */}
+							<DropdownMenuItem onClick={handleUploadClick}>
+								<Upload className="h-4 w-4 mr-2" />
+								Upload file
+							</DropdownMenuItem>
+
+							{/* Connect sources option */}
+							<DropdownMenuItem onClick={() => navigate("/settings/connections")}>
+								<Plus className="h-4 w-4 mr-2" />
+								Connect sources
+								<div className="ml-auto flex gap-1 pl-8">
+									<img
+										src="/connections/icon_confluence.svg"
+										alt=""
+										className="h-4 w-4"
+									/>
+									<img
+										src="/connections/icon_sharepoint.svg"
+										alt=""
+										className="h-4 w-4"
+									/>
+									<img
+										src="/connections/icon_servicenow.svg"
+										alt=""
+										className="h-4 w-4"
+									/>
+								</div>
+							</DropdownMenuItem>
+
+							{/* Synced sources */}
+							{syncedSources.length > 0 && (
+								<>
+									<DropdownMenuSeparator />
+									{syncedSources.map((source: DataSourceConnection) => (
+										<DropdownMenuItem
+											key={source.id}
+											onClick={() => navigate(`/settings/connections/${source.id}`)}
+										>
+											<img
+												src={`/connections/icon_${source.type}.svg`}
+												alt=""
+												className="h-4 w-4 mr-2"
+											/>
+											{SOURCE_METADATA[source.type]?.title || source.type}
+										</DropdownMenuItem>
+									))}
+								</>
+							)}
+						</DropdownMenuContent>
+					</DropdownMenu>
 				</div>
 			</div>
 
