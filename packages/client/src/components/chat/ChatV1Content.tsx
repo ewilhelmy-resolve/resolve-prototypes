@@ -149,6 +149,17 @@ const hasGroupedCopyableContent = (message: GroupedChatMessage): boolean => {
 	);
 };
 
+// Helper function to check if message only contains reasoning (no text/sources/tasks)
+const isReasoningOnlyMessage = (message: GroupedChatMessage): boolean => {
+	return message.parts.every(
+		(part) =>
+			part.metadata?.reasoning &&
+			!part.message?.trim() &&
+			!part.metadata?.sources?.length &&
+			!part.metadata?.tasks?.length,
+	);
+};
+
 // Helper function to check if a simple message has copyable content
 const hasSimpleCopyableContent = (message: SimpleChatMessage): boolean => {
 	return Boolean(message.message && message.message.trim().length > 0);
@@ -176,6 +187,9 @@ function GroupedMessage({
 	// Hover state for timestamp visibility
 	const [isHovering, setIsHovering] = useState(false);
 
+	// Check if this is a reasoning-only message for compact styling
+	const reasoningOnly = isReasoningOnlyMessage(message);
+
 	return (
 		<Message from={message.role}>
 			<div
@@ -184,7 +198,7 @@ function GroupedMessage({
 				onMouseEnter={() => setIsHovering(true)}
 				onMouseLeave={() => setIsHovering(false)}
 			>
-				<MessageContent variant="flat">
+				<MessageContent variant="flat" className={reasoningOnly ? "p-0" : ""}>
 					{message.parts.map((part, index) => (
 						<Fragment key={part.id}>
 							{/* Render reasoning if present */}
@@ -266,30 +280,48 @@ function GroupedMessage({
 					))}
 				</MessageContent>
 
-				{/* Show copy action only if there's text content to copy */}
-				{hasGroupedCopyableContent(message) && (
-					<Actions className="mt-2">
-						<Action
-							onClick={() => onCopy(getGroupedContent(message), message.id)}
-							tooltip="Copy message"
+				{/* Actions and timestamp row - always show for assistant messages */}
+				{message.role === "assistant" && (
+					<div className="flex items-center justify-between mt-2 gap-2">
+						{/* Copy action - only show if there's text content */}
+						{hasGroupedCopyableContent(message) ? (
+							<Actions>
+								<Action
+									onClick={() => onCopy(getGroupedContent(message), message.id)}
+									tooltip="Copy message"
+								>
+									{isCopied ? (
+										<CheckIcon className="size-3" />
+									) : (
+										<CopyIcon className="size-3" />
+									)}
+								</Action>
+							</Actions>
+						) : (
+							<div />
+						)}
+
+						{/* Timestamp - show on hover only */}
+						<div
+							className={`text-xs text-gray-500 transition-opacity ${
+								isHovering ? "opacity-100" : "opacity-0"
+							}`}
 						>
-							{isCopied ? (
-								<CheckIcon className="size-3" />
-							) : (
-								<CopyIcon className="size-3" />
-							)}
-						</Action>
-					</Actions>
+							{formatAbsoluteTime(message.timestamp)}
+						</div>
+					</div>
 				)}
 
-				{/* Timestamp - show on hover only */}
-				<div
-					className={`text-xs text-gray-500 mt-1 transition-opacity ${
-						isHovering ? "opacity-100" : "opacity-0"
-					}`}
-				>
-					{formatAbsoluteTime(message.timestamp)}
-				</div>
+				{/* User message timestamp only */}
+				{message.role === "user" && (
+					<div
+						className={`text-xs text-gray-500 mt-1 transition-opacity ${
+							isHovering ? "opacity-100" : "opacity-0"
+						}`}
+					>
+						{formatAbsoluteTime(message.timestamp)}
+					</div>
+				)}
 			</div>
 		</Message>
 	);
@@ -322,30 +354,48 @@ function SimpleMessage({
 					<Response>{message.message}</Response>
 				</MessageContent>
 
-				{/* Show copy action only for assistant messages with text content */}
-				{message.role === "assistant" && hasSimpleCopyableContent(message) && (
-					<Actions className="mt-2">
-						<Action
-							onClick={() => onCopy(message.message, message.id)}
-							tooltip="Copy message"
+				{/* Actions and timestamp row - always show for assistant messages */}
+				{message.role === "assistant" && (
+					<div className="flex items-center justify-between mt-2 gap-2">
+						{/* Copy action - only show if there's text content */}
+						{hasSimpleCopyableContent(message) ? (
+							<Actions>
+								<Action
+									onClick={() => onCopy(message.message, message.id)}
+									tooltip="Copy message"
+								>
+									{isCopied ? (
+										<CheckIcon className="size-3" />
+									) : (
+										<CopyIcon className="size-3" />
+									)}
+								</Action>
+							</Actions>
+						) : (
+							<div />
+						)}
+
+						{/* Timestamp - show on hover only */}
+						<div
+							className={`text-xs text-gray-500 transition-opacity ${
+								isHovering ? "opacity-100" : "opacity-0"
+							}`}
 						>
-							{isCopied ? (
-								<CheckIcon className="size-3" />
-							) : (
-								<CopyIcon className="size-3" />
-							)}
-						</Action>
-					</Actions>
+							{formatAbsoluteTime(message.timestamp)}
+						</div>
+					</div>
 				)}
 
-				{/* Timestamp - show on hover only */}
-				<div
-					className={`text-xs text-gray-500 mt-1 transition-opacity ${
-						isHovering ? "opacity-100" : "opacity-0"
-					}`}
-				>
-					{formatAbsoluteTime(message.timestamp)}
-				</div>
+				{/* User message timestamp only */}
+				{message.role === "user" && (
+					<div
+						className={`text-xs text-gray-500 mt-1 transition-opacity ${
+							isHovering ? "opacity-100" : "opacity-0"
+						}`}
+					>
+						{formatAbsoluteTime(message.timestamp)}
+					</div>
+				)}
 			</div>
 		</Message>
 	);
