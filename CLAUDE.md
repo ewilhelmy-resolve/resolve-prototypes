@@ -102,3 +102,4 @@ Check `.env.example` files in each package for required configuration.
 - Follow enterprise security and accessibility standards
 - Use the fe-enterprise-agent for all frontend development
 - Document components with proper JSDoc comments
+- never add claude as author in git commit messages
