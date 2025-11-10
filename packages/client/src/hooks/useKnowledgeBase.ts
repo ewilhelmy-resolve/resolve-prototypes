@@ -8,6 +8,8 @@
 import { useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useUploadFile, useFiles, type FileDocument } from '@/hooks/api/useFiles'
+import { validateFileForUpload } from '@/lib/constants'
+import { ritaToast } from '@/components/ui/rita-toast'
 
 export interface KnowledgeBaseState {
   // Upload state
@@ -46,6 +48,18 @@ export const useKnowledgeBase = (): KnowledgeBaseState => {
     e.preventDefault()
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0]
+
+      // Validate file type before upload
+      const validation = validateFileForUpload(file)
+      if (!validation.isValid && validation.error) {
+        ritaToast.error(validation.error)
+        // Reset file input
+        if (e.target) {
+          e.target.value = ''
+        }
+        return
+      }
+
       uploadFileMutation.mutate(file)
     }
   }

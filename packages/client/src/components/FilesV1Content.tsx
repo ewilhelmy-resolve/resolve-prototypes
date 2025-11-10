@@ -46,7 +46,7 @@ import {
 	TableHeader,
 	TableRow,
 } from "@/components/ui/table";
-import { useDataSources } from "@/hooks/useDataSources";
+import { SOURCE_METADATA } from "@/constants/connectionSources";
 import {
 	type FileDocument,
 	useDeleteFile,
@@ -55,20 +55,24 @@ import {
 	useReprocessFile,
 	useUploadFile,
 } from "@/hooks/api/useFiles";
+import { useDataSources } from "@/hooks/useDataSources";
 import {
 	FILE_SOURCE,
 	FILE_SOURCE_DISPLAY_NAMES,
 	FILE_STATUS,
 	type FileSourceType,
 	SUPPORTED_DOCUMENT_TYPES,
+	validateFileForUpload,
 } from "@/lib/constants";
-import { SOURCE_METADATA } from "@/constants/connectionSources";
-import type { DataSourceConnection } from "@/types/dataSource";
 import { renderSortIcon } from "@/lib/table-utils";
 import { cn } from "@/lib/utils";
+import type { DataSourceConnection } from "@/types/dataSource";
 
 // Registry for status icons
-const STATUS_ICON_REGISTRY: Record<string, React.ComponentType<{ className?: string }>> = {
+const STATUS_ICON_REGISTRY: Record<
+	string,
+	React.ComponentType<{ className?: string }>
+> = {
 	[FILE_STATUS.UPLOADED]: Check,
 	[FILE_STATUS.PROCESSING]: Loader,
 	[FILE_STATUS.PROCESSED]: CheckCircle,
@@ -116,7 +120,13 @@ const getSourceDatabaseValue = (displayName: string): string => {
 	return entry ? entry[0] : displayName.toLowerCase();
 };
 
-type SortField = "filename" | "size" | "type" | "status" | "source" | "created_at";
+type SortField =
+	| "filename"
+	| "size"
+	| "type"
+	| "status"
+	| "source"
+	| "created_at";
 type SortOrder = "asc" | "desc";
 
 export default function FilesV1Content() {
@@ -144,7 +154,8 @@ export default function FilesV1Content() {
 
 	// Filter synced sources (completed + enabled)
 	const syncedSources = dataSources.filter(
-		(source: DataSourceConnection) => source.last_sync_status === "completed" && source.enabled
+		(source: DataSourceConnection) =>
+			source.last_sync_status === "completed" && source.enabled,
 	);
 
 	// Handle sorting
@@ -193,7 +204,8 @@ export default function FilesV1Content() {
 				comparison = (a.source || "").localeCompare(b.source || "");
 				break;
 			case "created_at":
-				comparison = (a.created_at?.getTime() || 0) - (b.created_at?.getTime() || 0);
+				comparison =
+					(a.created_at?.getTime() || 0) - (b.created_at?.getTime() || 0);
 				break;
 		}
 
@@ -283,6 +295,18 @@ export default function FilesV1Content() {
 	const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
 		if (e.target.files?.[0]) {
 			const selectedFile = e.target.files[0];
+
+			// Validate file type before upload
+			const validation = validateFileForUpload(selectedFile);
+			if (!validation.isValid && validation.error) {
+				ritaToast.error(validation.error);
+				// Reset file input
+				if (fileInputRef.current) {
+					fileInputRef.current.value = "";
+				}
+				return;
+			}
+
 			uploadFileMutation.mutate(selectedFile, {
 				onSuccess: () => {
 					ritaToast.success({
@@ -292,7 +316,7 @@ export default function FilesV1Content() {
 					});
 					// Reset file input to allow re-selection
 					if (fileInputRef.current) {
-						fileInputRef.current.value = '';
+						fileInputRef.current.value = "";
 					}
 				},
 				onError: (error: any) => {
@@ -310,7 +334,7 @@ export default function FilesV1Content() {
 					}
 					// Reset file input to allow new selection
 					if (fileInputRef.current) {
-						fileInputRef.current.value = '';
+						fileInputRef.current.value = "";
 					}
 				},
 			});
@@ -440,7 +464,9 @@ export default function FilesV1Content() {
 							</DropdownMenuItem>
 
 							{/* Connect sources option */}
-							<DropdownMenuItem onClick={() => navigate("/settings/connections")}>
+							<DropdownMenuItem
+								onClick={() => navigate("/settings/connections")}
+							>
 								<Plus className="h-4 w-4 mr-2" />
 								Connect sources
 								<div className="ml-auto flex gap-1 pl-8">
@@ -469,7 +495,9 @@ export default function FilesV1Content() {
 									{syncedSources.map((source: DataSourceConnection) => (
 										<DropdownMenuItem
 											key={source.id}
-											onClick={() => navigate(`/settings/connections/${source.id}`)}
+											onClick={() =>
+												navigate(`/settings/connections/${source.id}`)
+											}
 										>
 											<img
 												src={`/connections/icon_${source.type}.svg`}
@@ -622,7 +650,11 @@ export default function FilesV1Content() {
 								<DropdownMenu>
 									<DropdownMenuTrigger asChild>
 										<Button variant="outline">
-											Status: {statusFilter === "All" ? statusFilter : statusFilter.charAt(0).toUpperCase() + statusFilter.slice(1)}
+											Status:{" "}
+											{statusFilter === "All"
+												? statusFilter
+												: statusFilter.charAt(0).toUpperCase() +
+													statusFilter.slice(1)}
 											<ChevronDown className="h-4 w-4" />
 										</Button>
 									</DropdownMenuTrigger>

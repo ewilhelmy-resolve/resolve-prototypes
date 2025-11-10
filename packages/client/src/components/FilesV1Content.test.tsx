@@ -413,6 +413,127 @@ describe("FilesV1Content", () => {
 			expect(uploadButton).toBeInTheDocument();
 			expect(uploadButton).not.toBeDisabled();
 		});
+
+		it("validates file type before upload", async () => {
+			const { useUploadFile } = await import("@/hooks/api/useFiles");
+			const mockMutate = vi.fn();
+			vi.mocked(useUploadFile).mockReturnValue({
+				mutate: mockMutate,
+				isPending: false,
+				isError: false,
+				isSuccess: false,
+				error: null,
+			} as any);
+
+			render(
+				<TestWrapper>
+					<FilesV1Content />
+				</TestWrapper>,
+			);
+
+			// Create invalid file (image)
+			const invalidFile = new File(["content"], "image.jpg", { type: "image/jpeg" });
+			const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+
+			// Simulate file selection
+			Object.defineProperty(input, "files", {
+				value: [invalidFile],
+				writable: false,
+			});
+			fireEvent.change(input);
+
+			// Should show error toast
+			const { ritaToast } = await import("@/components/ui/rita-toast");
+			await waitFor(() => {
+				expect(ritaToast.error).toHaveBeenCalledWith(
+					expect.objectContaining({
+						title: "Unsupported File Type",
+						description: expect.stringContaining(".jpg"),
+					}),
+				);
+			});
+
+			// Should NOT call mutate
+			expect(mockMutate).not.toHaveBeenCalled();
+		});
+
+		it("allows valid file types to upload", async () => {
+			const { useUploadFile } = await import("@/hooks/api/useFiles");
+			const mockMutate = vi.fn();
+			vi.mocked(useUploadFile).mockReturnValue({
+				mutate: mockMutate,
+				isPending: false,
+				isError: false,
+				isSuccess: false,
+				error: null,
+			} as any);
+
+			render(
+				<TestWrapper>
+					<FilesV1Content />
+				</TestWrapper>,
+			);
+
+			// Create valid file (PDF)
+			const validFile = new File(["content"], "document.pdf", { type: "application/pdf" });
+			const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+
+			// Simulate file selection
+			Object.defineProperty(input, "files", {
+				value: [validFile],
+				writable: false,
+			});
+			fireEvent.change(input);
+
+			// Should call mutate with the file
+			await waitFor(() => {
+				expect(mockMutate).toHaveBeenCalledWith(
+					validFile,
+					expect.any(Object),
+				);
+			});
+		});
+
+		it("resets file input after validation error", async () => {
+			const { useUploadFile } = await import("@/hooks/api/useFiles");
+			vi.mocked(useUploadFile).mockReturnValue({
+				mutate: vi.fn(),
+				isPending: false,
+				isError: false,
+				isSuccess: false,
+				error: null,
+			} as any);
+
+			render(
+				<TestWrapper>
+					<FilesV1Content />
+				</TestWrapper>,
+			);
+
+			// Create invalid file
+			const invalidFile = new File(["content"], "image.png", { type: "image/png" });
+			const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+
+			// Simulate file selection
+			Object.defineProperty(input, "files", {
+				value: [invalidFile],
+				writable: false,
+			});
+
+			// Set up a spy on the input value
+			const valueSetter = vi.fn();
+			Object.defineProperty(input, "value", {
+				set: valueSetter,
+				get: () => "",
+			});
+
+			fireEvent.change(input);
+
+			// Should reset input value
+			await waitFor(() => {
+				expect(valueSetter).toHaveBeenCalledWith("");
+			});
+		});
 	});
 
 	describe("Loading States", () => {
