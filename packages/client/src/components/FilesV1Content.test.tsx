@@ -12,6 +12,7 @@
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { FILE_SOURCE, FILE_STATUS } from "@/lib/constants";
 import FilesV1Content from "./FilesV1Content";
@@ -117,6 +118,14 @@ vi.mock("@/hooks/api/useFiles", () => ({
 	})),
 }));
 
+// Mock useDataSources hook
+vi.mock("@/hooks/useDataSources", () => ({
+	useDataSources: vi.fn(() => ({
+		data: [],
+		isLoading: false,
+	})),
+}));
+
 // Test wrapper with providers
 function TestWrapper({ children }: { children: React.ReactNode }) {
 	const queryClient = new QueryClient({
@@ -127,7 +136,9 @@ function TestWrapper({ children }: { children: React.ReactNode }) {
 	});
 
 	return (
-		<QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+		<MemoryRouter>
+			<QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+		</MemoryRouter>
 	);
 }
 

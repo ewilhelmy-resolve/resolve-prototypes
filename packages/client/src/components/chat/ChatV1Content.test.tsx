@@ -10,6 +10,7 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen } from '@testing-library/react'
+import { MemoryRouter } from 'react-router-dom'
 import ChatV1Content from './ChatV1Content'
 import type { ChatV1ContentProps } from './ChatV1Content'
 
@@ -40,6 +41,10 @@ vi.mock('@/hooks/useDragAndDrop', () => ({
 }))
 
 vi.mock('@/hooks/api/useFiles', () => ({
+  useFiles: vi.fn(() => ({
+    data: { documents: [] },
+    isLoading: false,
+  })),
   useUploadFile: vi.fn(() => mockUploadFileMutation),
 }))
 
@@ -103,7 +108,11 @@ describe('ChatV1Content - Attachment Upload Permissions', () => {
     it('does NOT show drag-and-drop overlay for any users', () => {
       mockIsOwnerOrAdmin.mockReturnValue(true) // Even for admins
       const props = createDefaultProps()
-      render(<ChatV1Content {...props} />)
+      render(
+        <MemoryRouter>
+          <ChatV1Content {...props} />
+        </MemoryRouter>
+      )
 
       const overlay = screen.queryByTestId('drag-drop-overlay')
       expect(overlay).not.toBeInTheDocument()
@@ -114,7 +123,11 @@ describe('ChatV1Content - Attachment Upload Permissions', () => {
       const props = createDefaultProps()
       const { useDragAndDrop } = await import('@/hooks/useDragAndDrop')
 
-      render(<ChatV1Content {...props} />)
+      render(
+        <MemoryRouter>
+          <ChatV1Content {...props} />
+        </MemoryRouter>
+      )
 
       // Verify useDragAndDrop was called with enabled: false (disabled for all)
       expect(useDragAndDrop).toHaveBeenCalledWith(
@@ -126,7 +139,11 @@ describe('ChatV1Content - Attachment Upload Permissions', () => {
 
     it('renders chat interface without attachment features', () => {
       const props = createDefaultProps()
-      render(<ChatV1Content {...props} />)
+      render(
+        <MemoryRouter>
+          <ChatV1Content {...props} />
+        </MemoryRouter>
+      )
 
       // Verify basic chat interface is present
       const textarea = screen.getByPlaceholderText(/ask me anything/i)
