@@ -69,7 +69,7 @@ import InviteUsersButton from "@/components/users/InviteUsersButton";
 import WelcomeDialog from "@/components/WelcomeDialog";
 import { SOURCE_METADATA } from "@/constants/connectionSources";
 import { useConversations } from "@/hooks/api/useConversations";
-import { useProfilePermissions } from "@/hooks/api/useProfile";
+import { useProfile, useProfilePermissions } from "@/hooks/api/useProfile";
 import { useAuth } from "@/hooks/useAuth";
 import { useChatNavigation } from "@/hooks/useChatNavigation";
 import { useDataSources } from "@/hooks/useDataSources";
@@ -98,6 +98,7 @@ function RitaLayoutContent({ children, activePage = "chat" }: RitaLayoutProps) {
 
 	// Rita hooks
 	const { user, logout } = useAuth();
+	const { data: profile } = useProfile();
 	const { isOwnerOrAdmin } = useProfilePermissions();
 	const { data: conversationsData, isLoading: conversationsLoading } =
 		useConversations();
@@ -151,24 +152,36 @@ function RitaLayoutContent({ children, activePage = "chat" }: RitaLayoutProps) {
 
 	// Check if user has seen welcome modal before (localStorage + cookie fallback)
 	const hasSeenWelcomeModal = useCallback(() => {
+		// Need user ID to check per-user state
+		const userId = profile?.user?.id;
+		if (!userId) return false;
+
+		const storageKey = `rita_welcome_seen_${userId}`;
+
 		// Check localStorage first (persists across sessions)
 		const hasSeenInLocalStorage =
-			localStorage.getItem("rita_welcome_seen") === "true";
+			localStorage.getItem(storageKey) === "true";
 		// Check cookie as fallback
-		const hasSeenInCookie = document.cookie.includes("rita_welcome_seen=true");
+		const hasSeenInCookie = document.cookie.includes(`${storageKey}=true`);
 		return hasSeenInLocalStorage || hasSeenInCookie;
-	}, []);
+	}, [profile?.user?.id]);
 
 	// Mark welcome modal as seen (both localStorage and cookie)
 	const markWelcomeModalAsSeen = useCallback(() => {
+		// Need user ID to save per-user state
+		const userId = profile?.user?.id;
+		if (!userId) return;
+
+		const storageKey = `rita_welcome_seen_${userId}`;
+
 		// Set in localStorage (persists indefinitely)
-		localStorage.setItem("rita_welcome_seen", "true");
+		localStorage.setItem(storageKey, "true");
 
 		// Set cookie to expire in 1 year (for cross-tab consistency)
 		const expiryDate = new Date();
 		expiryDate.setFullYear(expiryDate.getFullYear() + 1);
-		document.cookie = `rita_welcome_seen=true; expires=${expiryDate.toUTCString()}; path=/; SameSite=Lax`;
-	}, []);
+		document.cookie = `${storageKey}=true; expires=${expiryDate.toUTCString()}; path=/; SameSite=Lax`;
+	}, [profile?.user?.id]);
 
 	// Show welcome modal on first load if user hasn't seen it, or if feature flag is manually enabled
 	useEffect(() => {
@@ -579,7 +592,6 @@ function RitaLayoutContent({ children, activePage = "chat" }: RitaLayoutProps) {
 			<WelcomeDialog
 				open={welcomeModalOpen}
 				onOpenChange={handleWelcomeModalClose}
-				onUploadFiles={openDocumentSelector}
 			/>
 		</>
 	);

@@ -18,7 +18,7 @@
 
 "use client";
 
-import { CheckCircle2, ExternalLink } from "lucide-react";
+import { ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { useProfile, useProfilePermissions } from "@/hooks/api/useProfile";
@@ -26,13 +26,11 @@ import { useProfile, useProfilePermissions } from "@/hooks/api/useProfile";
 interface WelcomeDialogProps {
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
-	onUploadFiles?: () => void;
 }
 
 export default function WelcomeDialog({
 	open,
 	onOpenChange,
-	onUploadFiles,
 }: WelcomeDialogProps) {
 	const { data: profile } = useProfile();
 	const { isOwnerOrAdmin } = useProfilePermissions();
@@ -62,30 +60,23 @@ export default function WelcomeDialog({
 								<>
 									<p className="text-base font-light leading-6 text-foreground">
 										RitaGo learns from your company's knowledge and tickets
-										(coming soon) to help resolve IT issues automatically. In a
-										few steps, you'll:
+										(coming soon) to help resolve IT issues automatically.
 									</p>
-									<ul className="space-y-3 w-full">
-										<li className="flex items-start gap-3 text-base font-light leading-6 text-foreground">
-											<CheckCircle2 className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
-											<span>
-												Connect your knowledge sources like Confluence,
-												ServiceNow, or SharePoint.
-											</span>
+									<p className="text-base font-light leading-6 text-foreground">
+										In a few steps, you'll:
+									</p>
+									<ul className="list-disc space-y-3 w-full pl-5">
+										<li className="text-base font-light leading-6 text-foreground">
+											Connect your knowledge sources like Confluence,
+											ServiceNow, or SharePoint.
 										</li>
-										<li className="flex items-start gap-3 text-base font-light leading-6 text-foreground">
-											<CheckCircle2 className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
-											<span>
-												Invite your teammates to start getting instant answers.
-											</span>
+										<li className="text-base font-light leading-6 text-foreground">
+											Invite your teammates to start getting instant answers.
 										</li>
-										<li className="flex items-start gap-3 text-base font-light leading-6 text-foreground">
-											<CheckCircle2 className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
-											<span>
-												And coming soon — connect your ITSM for historical
-												ticket data to enrich your workspace and help users
-												resolve issues even faster.
-											</span>
+										<li className="text-base font-light leading-6 text-foreground">
+											And coming soon — connect your ITSM for historical
+											ticket data to enrich your workspace and help users
+											resolve issues even faster.
 										</li>
 									</ul>
 								</>
@@ -101,20 +92,15 @@ export default function WelcomeDialog({
 										content. Just ask a question or describe the issue, and
 										RitaGo will:
 									</p>
-									<ul className="space-y-3 w-full">
-										<li className="flex items-start gap-3 text-base font-light leading-6 text-foreground">
-											<CheckCircle2 className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
-											<span>Search verified knowledge</span>
+									<ul className="list-disc space-y-3 w-full pl-5">
+										<li className="text-base font-light leading-6 text-foreground">
+											Search verified knowledge
 										</li>
-										<li className="flex items-start gap-3 text-base font-light leading-6 text-foreground">
-											<CheckCircle2 className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
-											<span>Get easy next steps or fixes to issues, fast</span>
+										<li className="text-base font-light leading-6 text-foreground">
+											Get easy next steps or fixes to issues, fast
 										</li>
-										<li className="flex items-start gap-3 text-base font-light leading-6 text-foreground">
-											<CheckCircle2 className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
-											<span>
-												Create a ticket if you still need help without overhead
-											</span>
+										<li className="text-base font-light leading-6 text-foreground">
+											Create a ticket if you still need help without overhead
 										</li>
 									</ul>
 								</>
@@ -122,12 +108,7 @@ export default function WelcomeDialog({
 
 							<div className="flex flex-col sm:flex-row gap-3 sm:gap-4 items-stretch sm:items-start pt-2 w-full">
 								<Button
-									onClick={() => {
-										if (isAdmin && onUploadFiles) {
-											onUploadFiles();
-										}
-										onOpenChange(false);
-									}}
+									onClick={() => onOpenChange(false)}
 									className="w-full sm:w-auto"
 								>
 									Get Started
