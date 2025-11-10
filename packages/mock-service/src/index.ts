@@ -2159,8 +2159,8 @@ app.post('/webhook', async (req, res) => {
             // Add processed content for successful processing
             processingMessage.processed_markdown = `# Processed Document: ${documentPayload.original_filename}\n\nThis is mock processed content from the document.\n\n## Summary\n- **File Type**: ${documentPayload.file_type}\n- **File Size**: ${documentPayload.file_size} bytes\n- **Processed At**: ${new Date().toISOString()}\n\n## Content\nMock extracted text content from the uploaded document. In a real scenario, this would contain the actual parsed and processed content from the PDF, DOCX, or other file format.`;
           } else {
-            // Add error message for failed processing
-            processingMessage.error = 'Mock processing error: Failed to extract text from document';
+            // Add error message for failed processing (using error_message to match consumer expectations)
+            processingMessage.error_message = 'Mock processing error: Failed to extract text from document';
           }
 
           await rabbitChannel.assertQueue('document_processing_status', { durable: true });
