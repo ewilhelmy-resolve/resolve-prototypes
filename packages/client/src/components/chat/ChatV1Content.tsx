@@ -9,7 +9,11 @@
 "use client";
 
 import type { ChatStatus } from "ai";
-import { CheckIcon, CopyIcon, Upload /* , PaperclipIcon */ } from "lucide-react";
+import {
+	CheckIcon,
+	CopyIcon,
+	Upload /* , PaperclipIcon */,
+} from "lucide-react";
 import { Fragment, useCallback, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
@@ -53,13 +57,22 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@/components/ui/card";
-import {
-	SOURCES,
-	SOURCE_METADATA,
-} from "@/constants/connectionSources";
+import { SOURCES, SOURCE_METADATA } from "@/constants/connectionSources";
+import { useUploadFile } from "@/hooks/api/useFiles";
+import { useProfilePermissions } from "@/hooks/api/useProfile.ts";
 import { useChatPagination } from "@/hooks/useChatPagination";
-import { formatAbsoluteTime } from "@/lib/date-utils";
+// import { DragDropOverlay } from "./DragDropOverlay"; // TODO: Re-enable when backend support is ready
+import { useDragAndDrop } from "@/hooks/useDragAndDrop";
+// import { useProfilePermissions } from "@/hooks/api/useProfile"; // TODO: Re-enable when backend support is ready
+import { useKnowledgeBase } from "@/hooks/useKnowledgeBase";
 import type { RitaChatState } from "@/hooks/useRitaChat";
+import {
+	MAX_FILE_SIZE_MB,
+	SUPPORTED_DOCUMENT_EXTENSIONS,
+	SUPPORTED_DOCUMENT_TYPES,
+} from "@/lib/constants";
+import { formatAbsoluteTime } from "@/lib/date-utils";
+import { cn } from "@/lib/utils";
 import type {
 	GroupedChatMessage,
 	Message as RitaMessage,
@@ -67,17 +80,6 @@ import type {
 } from "@/stores/conversationStore";
 import { useConversationStore } from "@/stores/conversationStore";
 import { ResponseWithInlineCitations } from "./ResponseWithInlineCitations";
-// import { DragDropOverlay } from "./DragDropOverlay"; // TODO: Re-enable when backend support is ready
-import { useDragAndDrop } from "@/hooks/useDragAndDrop";
-import { useUploadFile } from "@/hooks/api/useFiles";
-// import { useProfilePermissions } from "@/hooks/api/useProfile"; // TODO: Re-enable when backend support is ready
-import { useKnowledgeBase } from "@/hooks/useKnowledgeBase";
-import {
-	MAX_FILE_SIZE_MB,
-	SUPPORTED_DOCUMENT_EXTENSIONS,
-	SUPPORTED_DOCUMENT_TYPES,
-} from "@/lib/constants";
-import { cn } from "@/lib/utils";
 
 export interface ChatV1ContentProps {
 	// Message state
@@ -198,8 +200,7 @@ function GroupedMessage({
 }) {
 	// Only the last message can be actively streaming
 	const isThisMessageStreaming =
-		isLastMessage &&
-		(chatStatus === "streaming" || chatStatus === "submitted");
+		isLastMessage && (chatStatus === "streaming" || chatStatus === "submitted");
 
 	// Hover state for timestamp visibility
 	const [isHovering, setIsHovering] = useState(false);
@@ -220,9 +221,7 @@ function GroupedMessage({
 						<Fragment key={part.id}>
 							{/* Render reasoning if present */}
 							{part.metadata?.reasoning && (
-								<Reasoning
-									isStreaming={isThisMessageStreaming}
-								>
+								<Reasoning isStreaming={isThisMessageStreaming}>
 									<ReasoningTrigger title={part.metadata.reasoning.title} />
 									<ReasoningContent>
 										{part.metadata.reasoning.content}
@@ -428,11 +427,21 @@ function AskRitaEmptyState({
 	onUpload: () => void;
 	onConnections: () => void;
 }) {
+	const { isOwnerOrAdmin } = useProfilePermissions();
 	// Connection source icons to display
 	const connectionSources = [
-		{ type: SOURCES.CONFLUENCE, icon: `/connections/icon_${SOURCES.CONFLUENCE}.svg` },
-		{ type: SOURCES.SHAREPOINT, icon: `/connections/icon_${SOURCES.SHAREPOINT}.svg` },
-		{ type: SOURCES.SERVICENOW, icon: `/connections/icon_${SOURCES.SERVICENOW}.svg` },
+		{
+			type: SOURCES.CONFLUENCE,
+			icon: `/connections/icon_${SOURCES.CONFLUENCE}.svg`,
+		},
+		{
+			type: SOURCES.SHAREPOINT,
+			icon: `/connections/icon_${SOURCES.SHAREPOINT}.svg`,
+		},
+		{
+			type: SOURCES.SERVICENOW,
+			icon: `/connections/icon_${SOURCES.SERVICENOW}.svg`,
+		},
 	];
 
 	return (
@@ -446,7 +455,7 @@ function AskRitaEmptyState({
 				</p>
 			</div>
 
-			{!hasKnowledge && (
+			{!hasKnowledge && isOwnerOrAdmin() && (
 				<>
 					<div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full max-w-2xl">
 						{/* Upload a file card */}
@@ -500,8 +509,7 @@ function AskRitaEmptyState({
 					</div>
 
 					<p className="text-xs text-muted-foreground text-center max-w-md">
-						All files and connections stay within your organization's
-						workspace.
+						All files and connections stay within your organization's workspace.
 					</p>
 				</>
 			)}
@@ -552,21 +560,26 @@ export default function ChatV1Content({
 	const uploadFileMutation = useUploadFile();
 
 	// Handle drag-and-drop file upload
-	const handleDragDropUpload = useCallback((files: FileList) => {
-		if (files.length === 0) return;
+	const handleDragDropUpload = useCallback(
+		(files: FileList) => {
+			if (files.length === 0) return;
 
-		// Upload each file to knowledge base
-		Array.from(files).forEach(file => {
-			uploadFileMutation.mutate(file, {
-				onSuccess: () => {
-					toast.success(`Uploaded "${file.name}" to knowledge base`);
-				},
-				onError: (error: any) => {
-					toast.error(`Failed to upload "${file.name}": ${error?.message || 'Unknown error'}`);
-				}
+			// Upload each file to knowledge base
+			Array.from(files).forEach((file) => {
+				uploadFileMutation.mutate(file, {
+					onSuccess: () => {
+						toast.success(`Uploaded "${file.name}" to knowledge base`);
+					},
+					onError: (error: any) => {
+						toast.error(
+							`Failed to upload "${file.name}": ${error?.message || "Unknown error"}`,
+						);
+					},
+				});
 			});
-		});
-	}, [uploadFileMutation]);
+		},
+		[uploadFileMutation],
+	);
 
 	// Drag-and-drop with file upload functionality (disabled for all users)
 	// TODO: Re-enable when backend support is ready (set enabled to: !uploadStatus.isUploading && isAdmin)
@@ -576,7 +589,7 @@ export default function ChatV1Content({
 		maxFiles: 5,
 		maxFileSize: 10 * 1024 * 1024, // 10MB
 		onDrop: handleDragDropUpload,
-		onError: (error) => toast.error(error)
+		onError: (error) => toast.error(error),
 	});
 
 	// Scroll container ref for pagination (mutable to allow assignment from contextRef)

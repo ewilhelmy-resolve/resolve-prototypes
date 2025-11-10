@@ -21,8 +21,10 @@ import {
 	Home,
 	LogOut,
 	MailOpen,
+	Plus,
 	SquarePen,
 	Ticket,
+	Upload,
 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
@@ -36,6 +38,13 @@ import {
 	BreadcrumbList,
 } from "@/components/ui/breadcrumb";
 import { Button } from "@/components/ui/button";
+import {
+	DropdownMenu,
+	DropdownMenuContent,
+	DropdownMenuItem,
+	DropdownMenuSeparator,
+	DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
 	Popover,
 	PopoverContent,
@@ -58,16 +67,18 @@ import {
 } from "@/components/ui/sidebar";
 import InviteUsersButton from "@/components/users/InviteUsersButton";
 import WelcomeDialog from "@/components/WelcomeDialog";
+import { SOURCE_METADATA } from "@/constants/connectionSources";
 import { useConversations } from "@/hooks/api/useConversations";
 import { useProfilePermissions } from "@/hooks/api/useProfile";
 import { useAuth } from "@/hooks/useAuth";
-import { useDataSources } from "@/hooks/useDataSources";
 import { useChatNavigation } from "@/hooks/useChatNavigation";
+import { useDataSources } from "@/hooks/useDataSources";
 import { useFeatureFlag } from "@/hooks/useFeatureFlags";
 import { useKnowledgeBase } from "@/hooks/useKnowledgeBase";
 import { SUPPORTED_DOCUMENT_TYPES } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 import type { Conversation } from "@/stores/conversationStore";
+import type { DataSourceConnection } from "@/types/dataSource";
 
 export interface RitaLayoutProps {
 	children: React.ReactNode;
@@ -103,16 +114,19 @@ function RitaLayoutContent({ children, activePage = "chat" }: RitaLayoutProps) {
 
 	const conversations = conversationsData || [];
 
+	// Filter synced sources (completed + enabled)
+	const syncedSources =
+		dataSources?.filter(
+			(source: DataSourceConnection) =>
+				source.last_sync_status === "completed" && source.enabled,
+		) || [];
+
 	// Loading knowledge indicator state
-	const hasProcessedOrUploadedFiles = files.some(
-		(f) => f.status === "processed" || f.status === "uploaded",
-	);
+	files.some((f) => f.status === "processed" || f.status === "uploaded");
 	const hasProcessingFiles = files.some((f) => f.status === "processing");
 	const hasDataSourcesSyncing =
 		dataSources?.some((ds) => ds.status === "syncing") ?? false;
-	const showLoadingIndicator =
-		(!hasProcessedOrUploadedFiles && hasProcessingFiles) ||
-		hasDataSourcesSyncing;
+	const showLoadingIndicator = hasProcessingFiles || hasDataSourcesSyncing;
 
 	// State machine for loading indicator (hidden → loading → success → hidden)
 	type IndicatorState = "hidden" | "loading" | "success";
@@ -407,7 +421,7 @@ function RitaLayoutContent({ children, activePage = "chat" }: RitaLayoutProps) {
 
 			<div className="fixed inset-y-0 right-0 left-0 z-0 flex flex-col overflow-hidden">
 				<header
-					className={`h-[67px] bg-background flex items-center flex-shrink-0 pr-6 border-b border-gray-200 transition-[padding] duration-200 ease-linear ${state === "expanded" ? "lg:pl-64" : "lg:pl-12"}`}
+					className={`h-[67px] bg-background flex items-center flex-shrink-0 pr-6 border-b border-gray-200 transition-[padding] duration-200 ease-linear ${state === "expanded" ? "lg:pl-54" : "lg:pl-0"}`}
 				>
 					<div className="flex items-center gap-2 h-full pl-4">
 						<SidebarTrigger className="lg:flex" />
@@ -454,19 +468,89 @@ function RitaLayoutContent({ children, activePage = "chat" }: RitaLayoutProps) {
 						)}
 					</div>
 					<div className="ml-auto flex items-center gap-2">
-						{activePage === "chat" && isOwnerOrAdmin() && (
-							<InviteUsersButton
-								variant="secondary"
-								icon={<MailOpen className="w-4 h-4" />}
-							>
-								Invite Users
-							</InviteUsersButton>
-						)}
+						{activePage === "chat" &&
+							isOwnerOrAdmin() &&
+							totalKnowledgeBaseFiles > 0 && (
+								<>
+									<DropdownMenu>
+										<DropdownMenuTrigger asChild>
+											<Button
+												variant="ghost"
+												className="gap-2 h-9 px-3 text-sm"
+											>
+												<Plus className="w-4 h-4" />
+												<span className="hidden sm:inline">Add Articles</span>
+											</Button>
+										</DropdownMenuTrigger>
+										<DropdownMenuContent align="end">
+											{/* Upload file option */}
+											<DropdownMenuItem onClick={openDocumentSelector}>
+												<Upload className="h-4 w-4 mr-2" />
+												Upload file
+											</DropdownMenuItem>
+
+											{/* Connect sources option */}
+											<DropdownMenuItem
+												onClick={() => navigate("/settings/connections")}
+											>
+												<Plus className="h-4 w-4 mr-2" />
+												Connect sources
+												<div className="ml-auto flex gap-1 pl-8">
+													<img
+														src="/connections/icon_confluence.svg"
+														alt=""
+														className="h-4 w-4"
+													/>
+													<img
+														src="/connections/icon_sharepoint.svg"
+														alt=""
+														className="h-4 w-4"
+													/>
+													<img
+														src="/connections/icon_servicenow.svg"
+														alt=""
+														className="h-4 w-4"
+													/>
+												</div>
+											</DropdownMenuItem>
+
+											{/* Synced sources */}
+											{syncedSources.length > 0 && (
+												<>
+													<DropdownMenuSeparator />
+													{syncedSources.map((source: DataSourceConnection) => (
+														<DropdownMenuItem
+															key={source.id}
+															onClick={() =>
+																navigate(`/settings/connections/${source.id}`)
+															}
+														>
+															<img
+																src={`/connections/icon_${source.type}.svg`}
+																alt=""
+																className="h-4 w-4 mr-2"
+															/>
+															{SOURCE_METADATA[source.type]?.title ||
+																source.type}
+														</DropdownMenuItem>
+													))}
+												</>
+											)}
+										</DropdownMenuContent>
+									</DropdownMenu>
+									<InviteUsersButton
+										variant="secondary"
+										icon={<MailOpen className="w-4 h-4" />}
+									>
+										Invite Users
+									</InviteUsersButton>
+								</>
+							)}
 					</div>
 				</header>
 
 				<div
-					className={`flex flex-1 overflow-hidden min-w-0 transition-[padding] duration-200 ease-linear ${state === "expanded" ? "lg:pl-64" : "lg:pl-12"}`}
+					className={`flex flex-1 overflow-hidden min-w-0 transition-[padding] duration-200 ease-linear ${state === "expanded" ? "lg:pl-54" : "lg:pl-0"}`}
 				>
 					<main className="flex-1 flex flex-col overflow-y-auto min-w-0 w-full">
 						{children}
