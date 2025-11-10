@@ -221,7 +221,7 @@ function RitaLayoutContent({ children, activePage = "chat" }: RitaLayoutProps) {
 
 	return (
 		<>
-			<Sidebar className="bg-sidebar-primary-foreground border-sidebar-border max-w-64">
+			<Sidebar className="bg-sidebar-primary-foreground border-sidebar-border w-[256px] lg:flex-shrink-0">
 				<SidebarHeader className="h-[67px] flex items-left justify-start pl-2">
 					<div className="flex items-center h-full pl-2">
 						<img
@@ -421,7 +421,7 @@ function RitaLayoutContent({ children, activePage = "chat" }: RitaLayoutProps) {
 
 			<div className="fixed inset-y-0 right-0 left-0 z-0 flex flex-col overflow-hidden">
 				<header
-					className={`h-[67px] bg-background flex items-center flex-shrink-0 pr-6 border-b border-gray-200 transition-[padding] duration-200 ease-linear ${state === "expanded" ? "lg:pl-54" : "lg:pl-0"}`}
+					className={`h-[67px] bg-background flex items-center flex-shrink-0 pr-6 border-b border-gray-200 transition-[padding] duration-200 ease-linear ${state === "expanded" ? "lg:pl-[250px]" : "lg:pl-0"}`}
 				>
 					<div className="flex items-center gap-2 h-full pl-4">
 						<SidebarTrigger className="lg:flex" />
@@ -550,7 +550,7 @@ function RitaLayoutContent({ children, activePage = "chat" }: RitaLayoutProps) {
 				</header>
 
 				<div
-					className={`flex flex-1 overflow-hidden min-w-0 transition-[padding] duration-200 ease-linear ${state === "expanded" ? "lg:pl-54" : "lg:pl-0"}`}
+					className={`flex flex-1 overflow-hidden min-w-0 transition-[padding] duration-200 ease-linear ${state === "expanded" ? "lg:pl-[250px]" : "lg:pl-0"}`}
 				>
 					<main className="flex-1 flex flex-col overflow-y-auto min-w-0 w-full">
 						{children}
