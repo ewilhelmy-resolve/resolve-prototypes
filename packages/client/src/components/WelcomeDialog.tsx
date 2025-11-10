@@ -139,7 +139,7 @@ export default function WelcomeDialog({
 										window.open(
                       // TODO: Update URL when RitaGo docs are live https://docs.resolve.com/ritago
                       // we use this old URL temporarily to avoid broken link
-											"https://docs.resolve.io/ritago",
+											"https://help.resolve.io/rita-go/",
 											"_blank",
 											"noopener,noreferrer",
 										);

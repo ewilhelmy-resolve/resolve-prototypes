@@ -47,5 +47,29 @@ export const FILE_SOURCE_DISPLAY_NAMES: Record<FileSourceType, string> = {
 	[FILE_SOURCE.CONFLUENCE]: 'Jira Confluence',
 } as const
 
+/**
+ * File status types for Knowledge Articles
+ *
+ * Represents the processing state of uploaded files:
+ * - UPLOADED: File uploaded but not yet processed
+ * - PROCESSING: File is currently being processed
+ * - PROCESSED: File has been successfully processed
+ * - FAILED: File processing failed
+ * - PENDING: File is pending processing
+ * - SYNCING: File is being synced from external source
+ */
+export const FILE_STATUS = {
+	UPLOADED: 'uploaded',
+	PROCESSING: 'processing',
+	PROCESSED: 'processed',
+	FAILED: 'failed',
+	PENDING: 'pending',
+	SYNCING: 'syncing',
+} as const
+
+/**
+ * Type definition for file status values
+ */
+export type FileStatusType = typeof FILE_STATUS[keyof typeof FILE_STATUS]
 
 export const MAX_FILE_SIZE_MB = 100;

@@ -13,6 +13,7 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { FILE_SOURCE, FILE_STATUS } from "@/lib/constants";
 import FilesV1Content from "./FilesV1Content";
 
 // Mock ritaToast
@@ -60,24 +61,24 @@ const mockFiles = [
 	{
 		id: "file-1",
 		filename: "test-document.pdf",
-		status: "processed",
-		source: "manual",
+		status: FILE_STATUS.PROCESSED,
+		source: FILE_SOURCE.MANUAL,
 		size: 1024000,
 		created_at: new Date("2025-01-01"),
 	},
 	{
 		id: "file-2",
 		filename: "confluence-page.txt",
-		status: "processing",
-		source: "confluence",
+		status: FILE_STATUS.PROCESSING,
+		source: FILE_SOURCE.CONFLUENCE,
 		size: 512000,
 		created_at: new Date("2025-01-02"),
 	},
 	{
 		id: "file-3",
 		filename: "failed-doc.docx",
-		status: "failed",
-		source: "manual",
+		status: FILE_STATUS.FAILED,
+		source: FILE_SOURCE.MANUAL,
 		size: 2048000,
 		created_at: new Date("2025-01-03"),
 	},
