@@ -22,10 +22,7 @@ import {
 	useAcceptInvitation,
 	useVerifyInvitation,
 } from "@/hooks/api/useInvitations";
-import {
-	PASSWORD_REGEX,
-	MIN_PASSWORD_LENGTH,
-} from "@/lib/validation";
+import { MIN_PASSWORD_LENGTH, PASSWORD_REGEX } from "@/lib/validation";
 import {
 	type InvitationAPIError,
 	InvitationErrorCode,
@@ -41,44 +38,67 @@ import {
 const inviteAcceptSchema = z.object({
 	password: z
 		.string()
-		.min(MIN_PASSWORD_LENGTH, `Password must be at least ${MIN_PASSWORD_LENGTH} characters`)
-		.refine(
-			(val) => PASSWORD_REGEX.test(val),
-			{
-				message:
-					"Password must contain uppercase, lowercase, number, and special character",
-			},
+		.transform((val) => val.trim())
+		.pipe(
+			z
+				.string()
+				.min(
+					MIN_PASSWORD_LENGTH,
+					`Password must be at least ${MIN_PASSWORD_LENGTH} characters`,
+				)
+				.refine((val) => PASSWORD_REGEX.test(val), {
+					message:
+						"Password must contain uppercase, lowercase, number, and special character",
+				}),
 		),
-	firstName: z.string().min(1, "First name is required"),
-	lastName: z.string().min(1, "Last name is required"),
+	firstName: z
+		.string()
+		.transform((val) => val.trim())
+		.pipe(z.string().min(1, "First name is required")),
+	lastName: z
+		.string()
+		.transform((val) => val.trim())
+		.pipe(z.string().min(1, "Last name is required")),
 });
 
 /**
- * Error code to user-friendly message mapping
+ * Error code to user-friendly message mapping registry
  */
+const ERROR_MESSAGE_REGISTRY: Record<InvitationErrorCode, string> = {
+	[InvitationErrorCode.INVALID_TOKEN]: "This invitation link is invalid",
+	[InvitationErrorCode.INVITATION_EXPIRED]:
+		"This invitation has expired. Please request a new invitation.",
+	[InvitationErrorCode.INVITATION_ALREADY_ACCEPTED]:
+		"This invitation has already been accepted. You can log in with your credentials.",
+	[InvitationErrorCode.INVITATION_CANCELLED]:
+		"This invitation has been cancelled by an administrator.",
+	[InvitationErrorCode.PASSWORD_TOO_WEAK]:
+		"Password does not meet security requirements",
+	[InvitationErrorCode.PASSWORD_REQUIRED]: "Password is required",
+	[InvitationErrorCode.FIRST_NAME_REQUIRED]: "First name is required",
+	[InvitationErrorCode.LAST_NAME_REQUIRED]: "Last name is required",
+	[InvitationErrorCode.SERVER_ERROR]:
+		"Server error occurred. Please try again later",
+	[InvitationErrorCode.INVALID_EMAIL]: "Invalid email address",
+	[InvitationErrorCode.DUPLICATE_PENDING]:
+		"User already has a pending invitation",
+	[InvitationErrorCode.USER_ALREADY_EXISTS]: "User already has an account",
+	[InvitationErrorCode.BATCH_SIZE_EXCEEDED]:
+		"Maximum 50 email addresses allowed per batch",
+	[InvitationErrorCode.TENANT_LIMIT_EXCEEDED]:
+		"Organization has reached the maximum number of users",
+	[InvitationErrorCode.UNAUTHORIZED]:
+		"You don't have permission to perform this action",
+	[InvitationErrorCode.FORBIDDEN]:
+		"You don't have permission to perform this action",
+};
+
 function getErrorMessage(error: InvitationAPIError): string {
-	switch (error.error) {
-		case InvitationErrorCode.INVALID_TOKEN:
-			return "This invitation link is invalid";
-		case InvitationErrorCode.INVITATION_EXPIRED:
-			return "This invitation has expired. Please request a new invitation.";
-		case InvitationErrorCode.INVITATION_ALREADY_ACCEPTED:
-			return "This invitation has already been accepted. You can log in with your credentials.";
-		case InvitationErrorCode.INVITATION_CANCELLED:
-			return "This invitation has been cancelled by an administrator.";
-		case InvitationErrorCode.PASSWORD_TOO_WEAK:
-			return "Password does not meet security requirements";
-		case InvitationErrorCode.PASSWORD_REQUIRED:
-			return "Password is required";
-		case InvitationErrorCode.FIRST_NAME_REQUIRED:
-			return "First name is required";
-		case InvitationErrorCode.LAST_NAME_REQUIRED:
-			return "Last name is required";
-		case InvitationErrorCode.SERVER_ERROR:
-			return "Server error occurred. Please try again later";
-		default:
-			return error.message || "Failed to accept invitation";
-	}
+	return (
+		ERROR_MESSAGE_REGISTRY[error.error] ||
+		error.message ||
+		"Failed to accept invitation"
+	);
 }
 
 export default function InviteAcceptPage() {
@@ -94,9 +114,6 @@ export default function InviteAcceptPage() {
 		isLoading: isVerifying,
 		error: verifyError,
 	} = useVerifyInvitation(token || "", !!token);
-
-	console.log("Verification data:", verificationData, verifyError);
-	
 
 	// Accept invitation mutation
 	const {
@@ -310,7 +327,7 @@ export default function InviteAcceptPage() {
 								disabled
 								readOnly
 								className="opacity-50 text-white"
-							/>							
+							/>
 						</div>
 
 						{/* First Name and Last Name */}
