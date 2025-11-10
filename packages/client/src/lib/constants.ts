@@ -16,6 +16,53 @@
 export const SUPPORTED_DOCUMENT_TYPES = '.pdf,.doc,.docx,.md,.txt' as const
 
 /**
+ * Array of supported file extensions for validation
+ */
+export const SUPPORTED_EXTENSIONS = ['.pdf', '.doc', '.docx', '.md', '.txt'] as const
+
+/**
+ * Validates if a file has a supported extension
+ * @param filename - The name of the file to validate
+ * @returns true if supported, false otherwise
+ */
+export function isValidFileType(filename: string): boolean {
+	const extension = filename.toLowerCase().slice(filename.lastIndexOf('.'))
+	return SUPPORTED_EXTENSIONS.includes(extension as any)
+}
+
+/**
+ * Gets a user-friendly error message for unsupported file types
+ * @param filename - The name of the file
+ * @returns Error message string
+ */
+export function getFileTypeErrorMessage(filename: string): string {
+	const extension = filename.slice(filename.lastIndexOf('.'))
+	return `File type "${extension}" is not supported. Please upload PDF, DOC, DOCX, MD, or TXT files.`
+}
+
+/**
+ * Validates a file before upload and returns validation result
+ * @param file - The file to validate
+ * @returns Object with isValid flag and optional error
+ */
+export function validateFileForUpload(file: File): {
+	isValid: boolean
+	error?: { title: string; description: string }
+} {
+	if (!isValidFileType(file.name)) {
+		return {
+			isValid: false,
+			error: {
+				title: 'Unsupported File Type',
+				description: getFileTypeErrorMessage(file.name),
+			}
+		}
+	}
+
+	return { isValid: true }
+}
+
+/**
  * Array version of supported document extensions (without dots)
  * Useful for validation and display purposes
  */

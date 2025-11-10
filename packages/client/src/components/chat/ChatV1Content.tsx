@@ -16,7 +16,7 @@ import {
 } from "lucide-react";
 import { Fragment, useCallback, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { toast } from "sonner";
+import { ritaToast } from "@/components/ui/rita-toast";
 import { Action, Actions } from "@/components/ai-elements/actions";
 import {
 	Conversation,
@@ -70,6 +70,7 @@ import {
 	MAX_FILE_SIZE_MB,
 	SUPPORTED_DOCUMENT_EXTENSIONS,
 	SUPPORTED_DOCUMENT_TYPES,
+	validateFileForUpload,
 } from "@/lib/constants";
 import { formatAbsoluteTime } from "@/lib/date-utils";
 import { cn } from "@/lib/utils";
@@ -566,14 +567,27 @@ export default function ChatV1Content({
 
 			// Upload each file to knowledge base
 			Array.from(files).forEach((file) => {
+				// Validate file type before upload
+				const validation = validateFileForUpload(file);
+				if (!validation.isValid && validation.error) {
+					ritaToast.error({
+						title: validation.error.title,
+						description: validation.error.description,
+					});
+					return;
+				}
+
 				uploadFileMutation.mutate(file, {
 					onSuccess: () => {
-						toast.success(`Uploaded "${file.name}" to knowledge base`);
+						ritaToast.success({
+							title: `Uploaded "${file.name}" to knowledge base`,
+						});
 					},
 					onError: (error: any) => {
-						toast.error(
-							`Failed to upload "${file.name}": ${error?.message || "Unknown error"}`,
-						);
+						ritaToast.error({
+							title: "Upload Failed",
+							description: `Failed to upload "${file.name}": ${error?.message || "Unknown error"}`,
+						});
 					},
 				});
 			});
@@ -589,7 +603,7 @@ export default function ChatV1Content({
 		maxFiles: 5,
 		maxFileSize: 10 * 1024 * 1024, // 10MB
 		onDrop: handleDragDropUpload,
-		onError: (error) => toast.error(error),
+		onError: (error) => ritaToast.error({ title: "Upload Error", description: error }),
 	});
 
 	// Scroll container ref for pagination (mutable to allow assignment from contextRef)
@@ -665,11 +679,11 @@ export default function ChatV1Content({
 		try {
 			await navigator.clipboard.writeText(text);
 			setCopiedMessageId(messageId);
-			toast.success("Message copied to clipboard");
+			ritaToast.success({ title: "Message copied to clipboard" });
 			// Reset copied state after 2 seconds (same as ai-elements pattern)
 			setTimeout(() => setCopiedMessageId(null), 2000);
 		} catch (_error) {
-			toast.error("Failed to copy message");
+			ritaToast.error({ title: "Failed to copy message" });
 		}
 	}, []);
 
