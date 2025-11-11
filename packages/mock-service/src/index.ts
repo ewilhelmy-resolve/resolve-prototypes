@@ -519,13 +519,35 @@ The Rita system provides enterprise-grade workflow automation with SOC2 Type II 
       type: 'sources',
       sources: [
         {
-          blob_id: '3ba3478d-fa3e-4868-b698-8ffe7546cca0'
+          title: 'Rita Automation Implementation Guide',
+          url: '#'
         },
         {
-          blob_id: '5700df61-9e9c-4422-82b6-fe44498331a4'
+          title: 'Production Security Hardening Guide',
+          url: '#'
         },
         {
-          blob_id: 'b54e3a44-70e5-4686-be46-2126b9ff2303'
+          title: 'Production Monitoring and Observability',
+          url: '#'
+        }
+      ]
+    });
+  } else if (content.toLowerCase().includes('test single source') || content.toLowerCase().includes('one source')) {
+    // Test single source (for testing singular "Used 1 source" display)
+    parts.push({
+      type: 'text',
+      text: `## Single Source Test
+
+This response tests the singular form: **"Used 1 source"** instead of "sources".
+
+The information provided is based on a single document reference. This ensures proper grammar in the UI when only one source is cited.`
+    });
+    parts.push({
+      type: 'sources',
+      sources: [
+        {
+          title: 'Rita Automation Implementation Guide',
+          url: '#'
         }
       ]
     });
