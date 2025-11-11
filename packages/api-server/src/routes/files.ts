@@ -527,9 +527,9 @@ router.get('/:documentId/download', authenticateUser, requireRole(['owner', 'adm
 /**
  * GET /api/files
  * List all files in the organization
- * Auth: Required (owner/admin)
+ * Auth: Required
  */
-router.get('/', authenticateUser, requireRole(['owner', 'admin']), async (req, res) => {
+router.get('/', authenticateUser, async (req, res) => {
   const authReq = req as AuthenticatedRequest;
   try {
     const limit = parseInt(req.query.limit as string, 10) || 50;

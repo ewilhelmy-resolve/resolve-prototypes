@@ -549,10 +549,9 @@ export default function ChatV1Content({
 		(f) => f.status === "processed" || f.status === "uploaded",
 	);
 
-	// Check if user is admin/owner (only admins can upload attachments - currently disabled for all users)
-	// TODO: Re-enable when backend support is ready
-	// const { isOwnerOrAdmin } = useProfilePermissions();
-	// const isAdmin = isOwnerOrAdmin();
+	// Check if user is admin/owner
+	const { isOwnerOrAdmin } = useProfilePermissions();
+	const isAdmin = isOwnerOrAdmin();
 
 	// Get grouped messages from store instead of flat messages
 	const { chatMessages } = useConversationStore();
@@ -819,8 +818,9 @@ export default function ChatV1Content({
 					{!hasProcessedOrUploadedFiles && (
 						<div className="mt-0 flex items-center rounded-b-[12px] border border-t-0 border-border bg-muted px-3 py-2">
 							<p className="text-xs text-muted-foreground">
-								No knowledge found. Upload or connect a knowledge source to get
-								started.
+								{isAdmin
+									? "No knowledge found. Upload or connect a knowledge source to get started."
+									: "No knowledge found. Reach out to your RitaGo Administrator."}
 							</p>
 						</div>
 					)}
