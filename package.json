@@ -9,7 +9,7 @@
     "dev:theme": "cd keycloak && npm run dev",
     "migrate": "cd packages/api-server && npm run migrate",
     "test:auth": "cd packages/api-server && npm run test:auth",
-    "test": "cd packages/client && npm run test",
+    "test": "cd packages/client && npm run test:unit:run",
     "build": "cd packages/api-server && npm run build && cd ../client && npm run build",
     "build:theme": "cd keycloak && npm run build",
     "lint": "cd packages/api-server && npm run lint && cd ../client && npm run lint",
