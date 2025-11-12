@@ -52,6 +52,7 @@ export class AuthManager {
 				this.startTokenRefreshTimer();
 				result.sessionReady = true;
 				result.user = this.keycloak.profile || null;
+				this.setReturningUserFlag();
 			}
 
 			return result;
@@ -218,6 +219,21 @@ export class AuthManager {
 				error instanceof Error ? error : new Error("Unknown session error"),
 			);
 		}
+	}
+
+	private setReturningUserFlag(): void {
+		const key = "rita_returning_user";
+		const value = "true";
+		const expiryDays = 365;
+
+		// Set in localStorage
+		localStorage.setItem(key, value);
+
+		// Set in cookie (1 year expiry)
+		const expiryDate = new Date();
+		expiryDate.setDate(expiryDate.getDate() + expiryDays);
+		const secure = window.location.protocol === "https:" ? "; Secure" : "";
+		document.cookie = `${key}=${value}; expires=${expiryDate.toUTCString()}; path=/; SameSite=Lax${secure}`;
 	}
 
 	private getCurrentState(): AuthResult {

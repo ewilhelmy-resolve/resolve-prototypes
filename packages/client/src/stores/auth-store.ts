@@ -200,7 +200,12 @@ const useAuthStore = create<AuthStore>()(
 						console.error("AuthStore: Keycloak logout failed:", error);
 					}
 
-					// Clear all auth state
+					// Clear returning user flag
+					const key = "rita_returning_user";
+					localStorage.removeItem(key);
+					document.cookie = `${key}=; Max-Age=0; path=/; SameSite=Lax`;
+
+				// Clear all auth state
 					set((state) => {
 						state.authenticated = false;
 						state.user = null;

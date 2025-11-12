@@ -1,5 +1,5 @@
 import { Loader2 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
 import { Button } from "../components/ui/button";
 import { Checkbox } from "../components/ui/checkbox";
@@ -36,6 +36,25 @@ export function SignUpPage() {
 		company?: boolean;
 		password?: boolean;
 	}>({});
+
+	// Auto-redirect returning users to sign-in
+	useEffect(() => {
+		const key = "rita_returning_user";
+
+		// Check localStorage and cookie
+		const hasFlag =
+			localStorage.getItem(key) === "true" ||
+			document.cookie.includes(`${key}=true`);
+
+		if (hasFlag) {
+			// Clear flag to prevent redirect loop
+			localStorage.removeItem(key);
+			document.cookie = `${key}=; Max-Age=0; path=/; SameSite=Lax`;
+
+			// Redirect to Keycloak sign-in
+			login();
+		}
+	}, [login]);
 
 	// Check if form is valid (all fields filled and pass validation)
 	const isFormValid = (): boolean => {
