@@ -1,12 +1,12 @@
 /**
- * RitaLayout - Adapted v0.app Dashboard layout for Rita
+ * RitaLayout - Adapted v0.app Dashboard layout for RITA
  *
  * This layout is based on the v0.app Dashboard component but adapted to work with:
  * - React/Vite (no Next.js)
- * - Rita's authentication (Keycloak via useAuth)
- * - Rita's conversation store and API hooks
- * - Rita's knowledge base integration
- * - Rita's SSE real-time updates
+ * - RITA's authentication (Keycloak via useAuth)
+ * - RITA's conversation store and API hooks
+ * - RITA's knowledge base integration
+ * - RITA's SSE real-time updates
  *
  * Source: https://v0.app/chat/b/b_zjL85AzE9kl
  */
@@ -96,7 +96,7 @@ function RitaLayoutContent({ children, activePage = "chat" }: RitaLayoutProps) {
 	// Feature flags
 	const showWelcomeModal = useFeatureFlag("SHOW_WELCOME_MODAL");
 
-	// Rita hooks
+	// RITA hooks
 	const { user, logout } = useAuth();
 	const { data: profile } = useProfile();
 	const { isOwnerOrAdmin } = useProfilePermissions();
@@ -239,7 +239,7 @@ function RitaLayoutContent({ children, activePage = "chat" }: RitaLayoutProps) {
 					<div className="flex items-center h-full pl-2">
 						<img
 							src="/logo-rita.svg"
-							alt="Rita Logo"
+							alt="RITA Logo"
 							width={179}
 							height={18}
 							className="w-[179px] h-[18px]"
@@ -378,7 +378,7 @@ function RitaLayoutContent({ children, activePage = "chat" }: RitaLayoutProps) {
 											</div>
 											<div className="flex flex-col">
 												<span className="text-sm font-medium text-foreground">
-													Rita
+													RITA
 												</span>
 												<span className="text-xs text-muted-foreground">
 													Free plan
@@ -442,7 +442,7 @@ function RitaLayoutContent({ children, activePage = "chat" }: RitaLayoutProps) {
 							<BreadcrumbList>
 								<BreadcrumbItem>
 									<span className="text-sm text-foreground leading-none">
-										Rita Go
+										RITA Go
 									</span>
 								</BreadcrumbItem>
 							</BreadcrumbList>

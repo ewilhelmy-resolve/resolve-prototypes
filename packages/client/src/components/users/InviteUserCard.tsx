@@ -1,5 +1,5 @@
-import InviteUsersButton from "./InviteUsersButton";
 import { useProfilePermissions } from "@/hooks/api/useProfile";
+import InviteUsersButton from "./InviteUsersButton";
 
 /**
  * Card component for inviting users
@@ -20,7 +20,7 @@ const InviteUserCard = () => {
 					Invite Users
 				</h3>
 				<p className="text-sm text-muted-foreground">
-					Invite teammates to use Rita and resolve support faster.
+					Invite teammates to use RITA and resolve support faster.
 				</p>
 				<InviteUsersButton className="w-full gap-2 h-9" />
 			</div>

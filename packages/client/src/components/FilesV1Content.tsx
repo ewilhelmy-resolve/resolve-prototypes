@@ -2,7 +2,7 @@
  * FilesV1Content - Knowledge Articles Management with v0 UI
  *
  * Uses the v0-generated KnowledgeArticles component as the UI foundation
- * while hooking up all Rita API functionality for file management.
+ * while hooking up all RITA API functionality for file management.
  */
 
 import {

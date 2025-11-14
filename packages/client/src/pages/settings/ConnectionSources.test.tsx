@@ -125,7 +125,7 @@ describe("ConnectionSources", () => {
 
 			expect(
 				screen.getByText(
-					/Connect your knowledge and ticketing sources to help Rita resolve IT issues faster/,
+					/Connect your knowledge and ticketing sources to help RITA resolve IT issues faster/,
 				),
 			).toBeInTheDocument();
 		});

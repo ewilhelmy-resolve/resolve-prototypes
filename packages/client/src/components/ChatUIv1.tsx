@@ -192,7 +192,7 @@ export default function ChatUIv1() {
 								fill="currentColor"
 							></path>
 						</svg>
-						<span className="text-sm">Rita GO</span>
+						<span className="text-sm">RITA Go</span>
 					</div>
 
 					<div className="flex items-center gap-2">
@@ -350,7 +350,7 @@ export default function ChatUIv1() {
 										<div className="h-full flex items-center justify-center">
 											<div className="text-center max-w-lg mx-auto">
 												<h1 className="text-5xl font-medium text-foreground font-serif mb-4">
-													Ask Rita
+													Ask RITA
 												</h1>
 												<p className="text-base text-foreground leading-relaxed">
 													Diagnose and resolve issues, then create automations
@@ -377,7 +377,7 @@ export default function ChatUIv1() {
 																className={`flex items-center gap-2 mb-2 ${message.role === "user" ? "justify-end" : ""}`}
 															>
 																<span className="text-sm font-semibold">
-																	{message.role === "user" ? "You" : "Rita"}
+																	{message.role === "user" ? "You" : "RITA"}
 																</span>
 																<span className="text-xs text-muted-foreground/70 font-medium">
 																	{message.timestamp.toLocaleTimeString([], {
@@ -492,10 +492,10 @@ export default function ChatUIv1() {
 							<Card className="border">
 								<CardHeader className="space-y-1.5">
 									<CardTitle className="text-2xl font-medium font-serif">
-										Share Rita
+										Share RITA
 									</CardTitle>
 									<p className="text-sm text-muted-foreground">
-										Invite teammates to use Rita and resolve support faster.
+										Invite teammates to use RITA and resolve support faster.
 									</p>
 								</CardHeader>
 								<CardContent>

@@ -1,6 +1,6 @@
 # Feature Flags System
 
-Rita Go uses a **multi-scope feature flag system** for controlling features at different levels (local dev, tenant, user). This allows developers to:
+RITA Go uses a **multi-scope feature flag system** for controlling features at different levels (local dev, tenant, user). This allows developers to:
 - Hide incomplete features during development
 - Enable beta features for specific tenants or users
 - A/B test features with gradual rollouts

@@ -1,7 +1,7 @@
 /**
  * Pendo Analytics Integration
  *
- * This module manages the Pendo SDK lifecycle for Rita Go.
+ * This module manages the Pendo SDK lifecycle for RITA Go.
  * Pendo is conditionally loaded based on VITE_PENDO_API_KEY environment variable.
  *
  * @module lib/pendo

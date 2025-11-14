@@ -47,7 +47,7 @@ export default function ConnectionSources() {
 				<div className="flex flex-col gap-8">
 					<SettingsHeader
 						title="Connection Sources"
-						description="Connect your knowledge and ticketing sources to help Rita resolve IT issues faster."
+						description="Connect your knowledge and ticketing sources to help RITA resolve IT issues faster."
 					/>
 					<div className=" max-w-6xl">
 						<div className="text-center py-8">Loading connections...</div>
@@ -73,7 +73,7 @@ export default function ConnectionSources() {
 			<div className="self-stretch flex flex-col items-start gap-8">
 				<SettingsHeader
 					title="Connection Sources"
-					description="Connect your knowledge and ticketing sources to help Rita resolve IT issues faster."
+					description="Connect your knowledge and ticketing sources to help RITA resolve IT issues faster."
 				/>
 			</div>
 

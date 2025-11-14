@@ -1,7 +1,7 @@
 /**
  * ChatV1Page - Modern chat page using shared RitaV1Layout and ai-elements
  *
- * This is the next-generation Rita chat interface using the new shared layout structure
+ * This is the next-generation RITA chat interface using the new shared layout structure
  * with the ai-elements chat components for enhanced UX, markdown support, and modern
  * chat features including file attachments, action buttons, and professional styling.
  */

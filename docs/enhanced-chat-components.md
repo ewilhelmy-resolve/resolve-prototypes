@@ -1,6 +1,6 @@
 # Enhanced Chat Components - shadcn AI Chatbot Integration
 
-**Rita Go Frontend - Professional Chat Interface Components**
+**RITA Go Frontend - Professional Chat Interface Components**
 
 ---
 
@@ -146,7 +146,7 @@ function ChatPage() {
       messages={messages}
       isLoading={messagesLoading}
       isSending={isSending}
-      emptyStateTitle="Ask Rita"
+      emptyStateTitle="Ask RITA"
       emptyStateDescription="Diagnose and resolve issues, then create automations"
       className="flex-1"
     />

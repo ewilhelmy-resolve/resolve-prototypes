@@ -190,7 +190,7 @@ export function SignUpPage() {
 					<div className="w-full max-w-md">
 						<div className="text-left space-y-2 mb-8">
 							<div className="flex justify-center mb-4">
-								<img src="/signup-logo-rita.svg" alt="Rita Logo" className="h-28 w-28 object-contain" loading="lazy" />
+								<img src="/signup-logo-rita.svg" alt="RITA Logo" className="h-28 w-28 object-contain" loading="lazy" />
 							</div>
 							<h1 className="text-4xl font-bold tracking-tighter">
 								Start your automation journey
@@ -502,7 +502,7 @@ export function SignUpPage() {
 				<div className="hidden lg:flex items-center justify-center p-12 relative overflow-hidden">
 					<img
 						src="/ask-rita.png"
-						alt="Ask Rita"
+						alt="Ask RITA"
 						className="object-contain w-auto h-[70%] rounded-2xl"
 					/>
 				</div>

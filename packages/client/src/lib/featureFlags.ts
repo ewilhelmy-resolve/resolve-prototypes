@@ -1,7 +1,7 @@
 /**
  * Feature Flags Manager
  *
- * LocalStorage-based feature flag system for Rita Go.
+ * LocalStorage-based feature flag system for RITA Go.
  * Provides a centralized interface for managing feature toggles.
  */
 
