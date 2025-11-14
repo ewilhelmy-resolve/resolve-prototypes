@@ -293,16 +293,7 @@ export default function UsersTable() {
 										}
 									/>
 								</TableHead>
-								<TableHead>
-									<Button
-										variant="ghost"
-										className="flex items-center gap-2"
-										onClick={() => handleSort("email")}
-									>
-										Name
-										{renderSortIcon(sortBy, "email", sortOrder)}
-									</Button>
-								</TableHead>
+								<TableHead>Name</TableHead>
 								<TableHead>Status</TableHead>
 								<TableHead>
 									<Button
