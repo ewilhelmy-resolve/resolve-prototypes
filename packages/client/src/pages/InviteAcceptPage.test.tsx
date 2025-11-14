@@ -230,7 +230,7 @@ describe("InviteAcceptPage", () => {
 			);
 
 			expect(
-				screen.getByText("You've been invited to RitaGo"),
+				screen.getByText("You've been invited to RITA Go"),
 			).toBeInTheDocument();
 
 			const emailInput = screen.getByLabelText(/email/i) as HTMLInputElement;

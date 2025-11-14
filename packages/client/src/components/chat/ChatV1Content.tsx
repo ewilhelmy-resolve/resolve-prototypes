@@ -16,7 +16,6 @@ import {
 } from "lucide-react";
 import { Fragment, useCallback, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ritaToast } from "@/components/ui/rita-toast";
 import { Action, Actions } from "@/components/ai-elements/actions";
 import {
 	Conversation,
@@ -57,7 +56,8 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@/components/ui/card";
-import { SOURCES, SOURCE_METADATA } from "@/constants/connectionSources";
+import { ritaToast } from "@/components/ui/rita-toast";
+import { SOURCE_METADATA, SOURCES } from "@/constants/connectionSources";
 import { useUploadFile } from "@/hooks/api/useFiles";
 import { useProfilePermissions } from "@/hooks/api/useProfile.ts";
 import { useChatPagination } from "@/hooks/useChatPagination";
@@ -105,7 +105,7 @@ export interface ChatV1ContentProps {
 }
 
 /**
- * Map Rita's message status to ai-elements ChatStatus
+ * Map RITA's message status to ai-elements ChatStatus
  */
 const mapRitaStatusToChatStatus = (
 	isSending: boolean,
@@ -418,7 +418,7 @@ function SimpleMessage({
 	);
 }
 
-// Custom empty state component for Ask Rita
+// Custom empty state component for Ask RITA
 function AskRitaEmptyState({
 	hasKnowledge,
 	onUpload,
@@ -448,7 +448,7 @@ function AskRitaEmptyState({
 	return (
 		<div className="flex flex-col items-center justify-center gap-8 py-12">
 			<div className="text-center space-y-2">
-				<h2 className="text-3xl font-semibold text-foreground">Ask Rita</h2>
+				<h2 className="text-3xl font-semibold text-foreground">Ask RITA</h2>
 				<p className="text-base text-muted-foreground">
 					{hasKnowledge
 						? "Diagnose and resolve issues, then create automations to speed up future remediation"
@@ -602,7 +602,8 @@ export default function ChatV1Content({
 		maxFiles: 5,
 		maxFileSize: 10 * 1024 * 1024, // 10MB
 		onDrop: handleDragDropUpload,
-		onError: (error) => ritaToast.error({ title: "Upload Error", description: error }),
+		onError: (error) =>
+			ritaToast.error({ title: "Upload Error", description: error }),
 	});
 
 	// Scroll container ref for pagination (mutable to allow assignment from contextRef)
@@ -646,14 +647,14 @@ export default function ChatV1Content({
 				return;
 			}
 
-			// If we have text, update Rita's message value
+			// If we have text, update RITA's message value
 			if (message.text) {
 				handleMessageChange(message.text);
 			}
 
 			// Handle file uploads if present
 			if (message.files && message.files.length > 0) {
-				// Convert FileUIPart back to File for Rita's handler
+				// Convert FileUIPart back to File for RITA's handler
 				// Note: This is a simplified approach - in a real implementation,
 				// you might need to handle the file conversion differently
 				const fileEvent = {
@@ -820,7 +821,7 @@ export default function ChatV1Content({
 							<p className="text-xs text-muted-foreground">
 								{isAdmin
 									? "No knowledge found. Upload or connect a knowledge source to get started."
-									: "No knowledge found. Reach out to your RitaGo Administrator."}
+									: "No knowledge found. Reach out to your RITA Go Administrator."}
 							</p>
 						</div>
 					)}

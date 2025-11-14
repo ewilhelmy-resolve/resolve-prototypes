@@ -274,7 +274,7 @@ export default function InviteAcceptPage() {
 							<div className="w-6 h-6 flex justify-start items-center">
 								<img
 									src="/logo-mark.svg"
-									alt="RitaGo Logo"
+									alt="RITA Go Logo"
 									width="24"
 									height="24"
 								/>
@@ -285,7 +285,7 @@ export default function InviteAcceptPage() {
 						<div className="w-full flex flex-col justify-start items-center">
 							<div className="w-full flex justify-center items-center pb-2">
 								<h2 className="text-white text-3xl font-normal text-center leading-9 font-serif">
-									You've been invited to RitaGo
+									You've been invited to RITA Go
 								</h2>
 							</div>
 							<div className="w-full flex justify-center items-center">

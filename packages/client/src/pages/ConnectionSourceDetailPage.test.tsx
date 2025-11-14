@@ -238,7 +238,7 @@ describe("ConnectionSourceDetailPage", () => {
 
 			expect(
 				screen.getByText(
-					/Connect your Confluence instance to build context for Rita/,
+					/Connect your Confluence instance to build context for RITA/,
 				),
 			).toBeInTheDocument();
 		});

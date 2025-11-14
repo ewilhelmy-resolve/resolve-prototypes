@@ -115,7 +115,7 @@ jobs:
     #       sleep 2
     #     done
 
-    # - name: Run E2E tests (Rita Go)
+    # - name: Run E2E tests (RITA Go)
     #   run: npm test
     #   env:
     #     CI: true

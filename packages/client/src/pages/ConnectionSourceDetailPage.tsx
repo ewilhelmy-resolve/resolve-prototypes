@@ -160,7 +160,7 @@ export default function ConnectionSourceDetailPage() {
 									<Globe className="h-5 w-5 flex-shrink-0" />
 								)
 							}
-							description={`Connect your ${sourceTitle} instance to build context for Rita to make better experiences.`}
+							description={`Connect your ${sourceTitle} instance to build context for RITA to make better experiences.`}
 						/>
 					</div>
 

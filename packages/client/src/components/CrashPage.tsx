@@ -2,7 +2,7 @@
  * CrashPage - Reusable error/crash page component
  *
  * Based on v0.app design: https://v0.app/chat/b/b_t8qeGj6A1Fa
- * Adapted for Rita with:
+ * Adapted for RITA with:
  * - Removed Next.js dependencies (Image → img)
  * - Made configurable via props
  * - Added proper TypeScript types

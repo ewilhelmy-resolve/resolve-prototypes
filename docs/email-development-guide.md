@@ -133,13 +133,13 @@ Email service implementation: `packages/mock-service/src/email-service.ts`
 
 ### Test Mock Service Signup Email
 
-1. Trigger signup flow from Rita Go
+1. Trigger signup flow from RITA Go
 2. Check Mailpit: http://localhost:8025
 3. Verify email contains signup verification link
 
 ### Test Invitations
 
-1. Send organization invitation from Rita Go
+1. Send organization invitation from RITA Go
 2. Check Mailpit for invitation email
 3. Verify invitation URL and expiration
 

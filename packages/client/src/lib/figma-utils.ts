@@ -17,7 +17,7 @@ export function figmaCn(...inputs: any[]) {
 }
 
 /**
- * Validates Figma component props against Rita Go standards
+ * Validates Figma component props against RITA Go standards
  */
 export function validateFigmaProps<T extends FigmaComponentProps>(
   props: T,
@@ -64,7 +64,7 @@ export function transformDesignTokens(tokens: Record<string, any>): Record<strin
 }
 
 /**
- * Ensures Figma components follow Rita Go naming conventions
+ * Ensures Figma components follow RITA Go naming conventions
  */
 export function standardizeComponentName(figmaName: string): string {
   // Convert from various Figma naming patterns to PascalCase
@@ -75,7 +75,7 @@ export function standardizeComponentName(figmaName: string): string {
 }
 
 /**
- * Adds Rita Go enterprise compliance attributes
+ * Adds RITA Go enterprise compliance attributes
  */
 export function addEnterpriseAttributes(props: any): any {
   return {
@@ -104,7 +104,7 @@ export function logFigmaConversion(
 
 /**
  * ⚠️ DEPRECATED - Manual style merging violates no-styling principle
- * Figma designs should contain all Rita Go theme elements
+ * Figma designs should contain all RITA Go theme elements
  */
 export function mergeWithRitaTheme(figmaStyles: any, _ritaTheme: any = {}): any {
   console.warn('mergeWithRitaTheme is deprecated. Use complete Figma designs with Rita theme.')

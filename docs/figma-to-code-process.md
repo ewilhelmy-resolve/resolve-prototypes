@@ -1,8 +1,8 @@
 # Figma-to-Code Integration Process
 
-**Rita Go Frontend Development**
+**RITA Go Frontend Development**
 
-This document outlines the complete process for integrating Figma designs into the Rita Go codebase using v0.app and shadcn/ui tooling.
+This document outlines the complete process for integrating Figma designs into the RITA Go codebase using v0.app and shadcn/ui tooling.
 
 ---
 
@@ -831,5 +831,5 @@ If you encounter new issues during Figma-to-Code integration:
 ---
 
 **Last Updated:** January 2025
-**Maintainer:** Rita Go Frontend Team
+**Maintainer:** RITA Go Frontend Team
 **Related Docs:** `CLAUDE.md`, `docs/ux-components.md`

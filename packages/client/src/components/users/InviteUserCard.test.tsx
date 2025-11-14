@@ -2,12 +2,12 @@
  * InviteUserCard.test.tsx - Unit tests for InviteUserCard component
  */
 
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { describe, expect, it, vi, beforeEach } from "vitest";
-import InviteUserCard from "./InviteUserCard";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useProfilePermissions } from "@/hooks/api/useProfile";
+import InviteUserCard from "./InviteUserCard";
 
 // Mock useProfilePermissions
 vi.mock("@/hooks/api/useProfile", () => ({
@@ -66,8 +66,9 @@ describe("InviteUserCard", () => {
 			);
 
 			// Card should have proper styling classes
-			const card = screen.getByRole("heading", { name: /invite users/i })
-				.parentElement;
+			const card = screen.getByRole("heading", {
+				name: /invite users/i,
+			}).parentElement;
 			expect(card).toHaveClass("space-y-3");
 			expect(card).toHaveClass("p-4");
 			expect(card).toHaveClass("border");
@@ -99,7 +100,7 @@ describe("InviteUserCard", () => {
 
 			expect(
 				screen.getByText(
-					"Invite teammates to use Rita and resolve support faster.",
+					"Invite teammates to use RITA and resolve support faster.",
 				),
 			).toBeInTheDocument();
 		});
@@ -112,7 +113,7 @@ describe("InviteUserCard", () => {
 			);
 
 			const description = screen.getByText(
-				"Invite teammates to use Rita and resolve support faster.",
+				"Invite teammates to use RITA and resolve support faster.",
 			);
 			expect(description).toHaveClass("text-sm");
 			expect(description).toHaveClass("text-muted-foreground");
@@ -175,8 +176,9 @@ describe("InviteUserCard", () => {
 				</TestWrapper>,
 			);
 
-			const card = screen.getByRole("heading", { name: /invite users/i })
-				.parentElement;
+			const card = screen.getByRole("heading", {
+				name: /invite users/i,
+			}).parentElement;
 			expect(card).toHaveClass("bg-blue-50/30");
 		});
 
@@ -187,8 +189,9 @@ describe("InviteUserCard", () => {
 				</TestWrapper>,
 			);
 
-			const card = screen.getByRole("heading", { name: /invite users/i })
-				.parentElement;
+			const card = screen.getByRole("heading", {
+				name: /invite users/i,
+			}).parentElement;
 			expect(card).toHaveClass("rounded-lg");
 		});
 
@@ -199,8 +202,9 @@ describe("InviteUserCard", () => {
 				</TestWrapper>,
 			);
 
-			const card = screen.getByRole("heading", { name: /invite users/i })
-				.parentElement;
+			const card = screen.getByRole("heading", {
+				name: /invite users/i,
+			}).parentElement;
 			expect(card).toHaveClass("border");
 			expect(card).toHaveClass("border-border");
 		});
@@ -218,8 +222,9 @@ describe("InviteUserCard", () => {
 				</TestWrapper>,
 			);
 
-			const card = screen.getByRole("heading", { name: /invite users/i })
-				.parentElement;
+			const card = screen.getByRole("heading", {
+				name: /invite users/i,
+			}).parentElement;
 
 			// Get all child elements
 			const children = Array.from(card?.children || []);
@@ -262,7 +267,7 @@ describe("InviteUserCard", () => {
 			// Text should be accessible
 			expect(
 				screen.getByText(
-					"Invite teammates to use Rita and resolve support faster.",
+					"Invite teammates to use RITA and resolve support faster.",
 				),
 			).toBeInTheDocument();
 		});
@@ -280,7 +285,7 @@ describe("InviteUserCard", () => {
 
 			// Description should use muted foreground
 			const description = screen.getByText(
-				"Invite teammates to use Rita and resolve support faster.",
+				"Invite teammates to use RITA and resolve support faster.",
 			);
 			expect(description).toHaveClass("text-muted-foreground");
 		});
@@ -355,8 +360,9 @@ describe("InviteUserCard", () => {
 				</TestWrapper>,
 			);
 
-			const card = screen.getByRole("heading", { name: /invite users/i })
-				.parentElement;
+			const card = screen.getByRole("heading", {
+				name: /invite users/i,
+			}).parentElement;
 			expect(card).toHaveClass("space-y-3"); // Vertical spacing between elements
 			expect(card).toHaveClass("p-4"); // Padding around content
 		});
@@ -384,8 +390,12 @@ describe("InviteUserCard", () => {
 			);
 
 			// Component should render nothing (QueryClientProvider renders a div)
-			expect(container.querySelector('[class*="mt-auto"]')).not.toBeInTheDocument();
-			expect(screen.queryByRole("heading", { name: /invite users/i })).not.toBeInTheDocument();
+			expect(
+				container.querySelector('[class*="mt-auto"]'),
+			).not.toBeInTheDocument();
+			expect(
+				screen.queryByRole("heading", { name: /invite users/i }),
+			).not.toBeInTheDocument();
 		});
 
 		it("should render content when user can manage invitations", () => {

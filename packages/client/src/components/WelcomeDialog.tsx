@@ -3,7 +3,7 @@
  *
  * Displays personalized onboarding content based on user role:
  * - Admin/Owner: Steps to connect knowledge sources and invite teammates
- * - Regular User: Info about using RitaGo for IT support
+ * - Regular User: Info about using RITAGo for IT support
  *
  * Features:
  * - Two-column layout (content left, visual mockup right)
@@ -46,7 +46,7 @@ export default function WelcomeDialog({
 					<div className="flex flex-col gap-4 sm:gap-6 items-start w-full lg:max-w-md">
 						<div className="flex flex-col gap-2 items-start w-full">
 							<h2 className="text-2xl sm:text-3xl lg:text-4xl font-normal leading-tight text-foreground">
-								Welcome to RitaGo, {firstName}
+								Welcome to RITA Go, {firstName}
 							</h2>
 							<p className="text-base sm:text-lg font-light leading-relaxed text-foreground">
 								Enjoy your free 90-day trial of Resolve's AI-powered agent for
@@ -59,7 +59,7 @@ export default function WelcomeDialog({
 								// Admin Copy
 								<>
 									<p className="text-base font-light leading-6 text-foreground">
-										RitaGo learns from your company's knowledge and tickets
+									    RITA Go learns from your company's knowledge and tickets
 										(coming soon) to help resolve IT issues automatically.
 									</p>
 									<p className="text-base font-light leading-6 text-foreground">
@@ -87,10 +87,10 @@ export default function WelcomeDialog({
 										Your Admin has connected your workspace.
 									</h3>
 									<p className="text-base font-light leading-6 text-foreground">
-										RitaGo helps you solve IT issues instantly — from password
+										RITA Go helps you solve IT issues instantly — from password
 										resets to VPN access — all based on your company's trusted
 										content. Just ask a question or describe the issue, and
-										RitaGo will:
+										RITA Go will:
 									</p>
 									<ul className="list-disc space-y-3 w-full pl-5">
 										<li className="text-base font-light leading-6 text-foreground">
@@ -118,7 +118,7 @@ export default function WelcomeDialog({
 									className="gap-2 w-full sm:w-auto justify-center sm:justify-start"
 									onClick={() => {
 										window.open(
-                      // TODO: Update URL when RitaGo docs are live https://docs.resolve.com/ritago
+                      // TODO: Update URL when RITA Go docs are live https://docs.resolve.com/ritago
                       // we use this old URL temporarily to avoid broken link
 											"https://help.resolve.io/rita-go/",
 											"_blank",
@@ -126,7 +126,7 @@ export default function WelcomeDialog({
 										);
 									}}
 								>
-									Learn how RitaGo works
+									Learn how RITA Go works
 									<ExternalLink className="w-4 h-4" />
 								</Button>
 							</div>
@@ -137,7 +137,7 @@ export default function WelcomeDialog({
 					<div className="hidden lg:flex flex-col gap-2 items-center justify-center w-full lg:max-w-lg">
 						<img
 							src="/images/welcome-modal-mockup.png"
-							alt="RitaGo chat interface showing password reset conversation"
+							alt="RITA Go chat interface showing password reset conversation"
 							className="w-full h-full rounded-2xl object-cover"
 						/>
 					</div>

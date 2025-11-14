@@ -1,6 +1,6 @@
 # Figma-to-shadcn Workflow
 
-Rita Go uses a **Figma-to-shadcn workflow** for implementing UX designs.
+RITA Go uses a **Figma-to-shadcn workflow** for implementing UX designs.
 
 ## Installing Design System Components with CLI
 

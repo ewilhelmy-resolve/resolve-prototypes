@@ -25,7 +25,7 @@ export default function EmptyFilesState({
 					<p className="text-sm text-muted-foreground text-center">
 						{hasActiveFilters
 							? "Try adjusting your search or filter criteria"
-							: "Upload your knowledge articles to unlock instant answers from Rita"}
+							: "Upload your knowledge articles to unlock instant answers from RITA"}
 					</p>
 				</div>
 
