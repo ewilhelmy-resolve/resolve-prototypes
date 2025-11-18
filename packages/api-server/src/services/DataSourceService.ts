@@ -186,7 +186,7 @@ export class DataSourceService {
   async updateDataSourceStatus(
     connectionId: string,
     organizationId: string,
-    status: 'idle' | 'syncing',
+    status: 'idle' | 'syncing' | 'cancelled',
     lastSyncStatus?: 'completed' | 'failed' | null,
     updateLastSyncAt: boolean = false
   ): Promise<DataSourceConnection | null> {
@@ -287,6 +287,40 @@ export class DataSourceService {
        RETURNING *`,
       values
     );
+
+    return result.rows[0] || null;
+  }
+
+  /**
+   * Cancel an ongoing sync operation
+   * Sets status to 'cancelled' and marks last_sync_status as 'failed'
+   *
+   * TODO: Add webhook call to external platform to actually cancel the sync job
+   * For now, this only updates the local database status
+   */
+  async cancelSync(
+    connectionId: string,
+    organizationId: string
+  ): Promise<DataSourceConnection | null> {
+    const result = await pool.query<DataSourceConnection>(
+      `UPDATE data_source_connections
+       SET status = 'cancelled',
+           last_sync_status = 'failed',
+           last_sync_error = 'Sync cancelled by user',
+           last_sync_at = NOW(),
+           updated_at = NOW()
+       WHERE id = $1 AND organization_id = $2
+       RETURNING *`,
+      [connectionId, organizationId]
+    );
+
+    // TODO: Send cancel webhook to external platform
+    // const webhookService = new DataSourceWebhookService();
+    // await webhookService.sendCancelSyncEvent({
+    //   organizationId,
+    //   connectionId,
+    //   connectionType: result.rows[0]?.type,
+    // });
 
     return result.rows[0] || null;
   }

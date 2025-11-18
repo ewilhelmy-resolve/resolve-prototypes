@@ -210,4 +210,66 @@ router.post('/:id/sync', authenticateUser, async (req, res) => {
   }
 });
 
+/**
+ * POST /api/v1/data-sources/:id/cancel-sync
+ * Cancel an ongoing sync operation
+ */
+router.post('/:id/cancel-sync', authenticateUser, async (req, res) => {
+  const authReq = req as AuthenticatedRequest;
+  const { id } = req.params;
+
+  try {
+    // Get data source
+    const dataSource = await dataSourceService.getDataSource(
+      id,
+      authReq.user.activeOrganizationId
+    );
+
+    if (!dataSource) {
+      return res.status(404).json({ error: 'Data source not found' });
+    }
+
+    // Check if sync is actually in progress
+    if (dataSource.status !== 'syncing') {
+      return res.status(400).json({
+        error: 'No sync in progress',
+        message: `Cannot cancel sync - current status is '${dataSource.status}'`
+      });
+    }
+
+    // Cancel the sync
+    const updatedDataSource = await dataSourceService.cancelSync(
+      id,
+      authReq.user.activeOrganizationId
+    );
+
+    if (!updatedDataSource) {
+      throw new Error('Data source not found after cancel operation');
+    }
+
+    // TODO: Send cancel webhook to external platform to actually stop the sync job
+    // For now, we only update the local database status
+    // const webhookResponse = await webhookService.sendCancelSyncEvent({
+    //   organizationId: authReq.user.activeOrganizationId,
+    //   connectionId: dataSource.id,
+    //   connectionType: dataSource.type,
+    // });
+
+    res.json({
+      success: true,
+      data: {
+        id: updatedDataSource.id,
+        status: updatedDataSource.status,
+        last_sync_status: updatedDataSource.last_sync_status,
+        last_sync_error: updatedDataSource.last_sync_error,
+        cancelledAt: new Date().toISOString()
+      },
+      message: 'Sync cancelled successfully'
+    });
+  } catch (error) {
+    console.error('[DataSourceWebhook] Error cancelling sync:', error);
+    res.status(500).json({ error: 'Failed to cancel sync' });
+  }
+});
+
 export default router;

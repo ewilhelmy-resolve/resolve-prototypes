@@ -139,6 +139,19 @@ export class DataSourceStatusConsumer {
         }, 'Data source sync failed');
         break;
 
+      case 'sync_cancelled':
+        updatedDataSource = await this.dataSourceService.updateDataSourceStatus(
+          connection_id,
+          tenant_id,
+          'cancelled',
+          'failed',
+          true // Update last_sync_at
+        );
+        messageLogger.info({
+          errorMessage: error_message || 'Sync cancelled by user'
+        }, 'Data source sync cancelled');
+        break;
+
       default:
         messageLogger.error({ status }, 'Unknown sync status type');
         throw new Error(`Unknown sync status type: ${status}`);

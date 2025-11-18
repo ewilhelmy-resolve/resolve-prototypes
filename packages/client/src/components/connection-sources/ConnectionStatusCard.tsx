@@ -105,6 +105,12 @@ export function ConnectionStatusCard({
 						Verifying connection...
 					</p>
 				);
+			case STATUS.CANCELLED:
+				return (
+					<p className="text-sm text-muted-foreground whitespace-nowrap">
+						Sync cancelled by user
+					</p>
+				);
 			case STATUS.CONNECTED:
 				return (
 					<p className="text-sm text-foreground whitespace-nowrap">

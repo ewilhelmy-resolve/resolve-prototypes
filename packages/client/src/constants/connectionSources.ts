@@ -10,6 +10,7 @@ export type Status =
 	| "Connected"
 	| "Syncing"
 	| "Verifying"
+	| "Cancelled"
 	| "Error";
 
 export const STATUS = {
@@ -17,6 +18,7 @@ export const STATUS = {
 	CONNECTED: "Connected" as Status,
 	SYNCING: "Syncing" as Status,
 	VERIFYING: "Verifying" as Status,
+	CANCELLED: "Cancelled" as Status,
 	ERROR: "Error" as Status,
 };
 

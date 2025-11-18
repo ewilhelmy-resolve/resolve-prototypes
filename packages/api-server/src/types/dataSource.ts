@@ -17,7 +17,7 @@ export interface DataSourceConnection {
   settings: Record<string, any>;
 
   // Status
-  status: 'idle' | 'verifying' | 'syncing';
+  status: 'idle' | 'verifying' | 'syncing' | 'cancelled';
   last_sync_status: 'completed' | 'failed' | null;
   last_sync_at: Date | null;
   last_sync_error: string | null;
@@ -98,7 +98,7 @@ export interface SyncStatusMessage {
   type: 'sync';  // Discriminator field
   connection_id: string;
   tenant_id: string;
-  status: 'sync_started' | 'sync_completed' | 'sync_failed';
+  status: 'sync_started' | 'sync_completed' | 'sync_failed' | 'sync_cancelled';
   error_message?: string;
   documents_processed?: number;
   timestamp: string;

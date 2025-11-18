@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { STATUS } from "@/constants/connectionSources";
 import { useConnectionSource } from "@/contexts/ConnectionSourceContext";
 import {
+	useCancelSync,
 	useTriggerSync,
 	useUpdateDataSource,
 } from "@/hooks/useDataSources";
@@ -30,12 +31,18 @@ export default function ConfluenceConfiguration({
 	const [selectedSpaces, setSelectedSpaces] = useState<string[]>([]);
 	const updateMutation = useUpdateDataSource();
 	const syncMutation = useTriggerSync();
+	const cancelMutation = useCancelSync();
+
+	const isSyncing = source.status.toLowerCase() === STATUS.SYNCING.toLowerCase();
+	const isVerifying = source.status.toLowerCase() === STATUS.VERIFYING.toLowerCase();
 
 	const isSyncButtonDisabled =
-		source.status.toLowerCase() === STATUS.SYNCING.toLowerCase() ||
-		source.status.toLowerCase() === STATUS.VERIFYING.toLowerCase() ||
+		isSyncing ||
+		isVerifying ||
 		updateMutation.isPending ||
 		syncMutation.isPending;
+
+	const isCancelButtonDisabled = cancelMutation.isPending;
 
 	// Parse available spaces from latest_options (discovered during verification)
 	const availableSpaces: MultiSelectOption[] = useMemo(() => {
@@ -85,6 +92,28 @@ export default function ConfluenceConfiguration({
 		}
 	};
 
+	const handleCancelSync = async () => {
+		if (!source.backendData) {
+			toast.error("Configuration Error", {
+				description: "No backend data available for this source",
+			});
+			return;
+		}
+
+		try {
+			await cancelMutation.mutateAsync(source.backendData.id);
+
+			toast.success("Sync Cancelled", {
+				description: "Your sync operation has been cancelled",
+			});
+		} catch (error) {
+			toast.error("Cancel Failed", {
+				description:
+					error instanceof Error ? error.message : "Failed to cancel sync",
+			});
+		}
+	};
+
 	return (
 		<div className="w-full flex flex-col gap-2">
 			<div className="flex flex-col gap-2.5">
@@ -95,10 +124,28 @@ export default function ConfluenceConfiguration({
 
 				<ConnectionStatusCard source={source} onRetry={handleSync} />
 
+				{/* Show cancel button when syncing */}
+				{isSyncing && (
+					<div className="flex flex-col gap-1">
+						<div className="border border-border bg-popover rounded-md p-4">
+							<div className="rounded-lg flex items-center justify-between">
+								<Label>Sync in progress...</Label>
+								<Button
+									onClick={handleCancelSync}
+									disabled={isCancelButtonDisabled}
+									variant="destructive"
+								>
+									{cancelMutation.isPending ? "Cancelling..." : "Cancel Sync"}
+								</Button>
+							</div>
+						</div>
+					</div>
+				)}
+
 				{/* Only show spaces selector when status is not Error, Verifying, or Syncing */}
 				{source.status.toLowerCase() !== STATUS.ERROR.toLowerCase() &&
-					source.status.toLowerCase() !== STATUS.VERIFYING.toLowerCase() &&
-					source.status.toLowerCase() !== STATUS.SYNCING.toLowerCase() && (
+					!isVerifying &&
+					!isSyncing && (
 					<div className="flex flex-col gap-1">
 						<div className="border border-border bg-popover rounded-md p-4">
 							<div className="rounded-lg">

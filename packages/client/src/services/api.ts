@@ -275,6 +275,12 @@ export const dataSourcesApi = {
     apiRequest<import('../types/dataSource').TriggerSyncResponse>(`/api/data-sources/${id}/sync`, {
       method: 'POST',
     }),
+
+  // Cancel sync
+  cancelSync: (id: string) =>
+    apiRequest<{ success: boolean; message: string }>(`/api/data-sources/${id}/cancel-sync`, {
+      method: 'POST',
+    }),
 };
 
 // Member API

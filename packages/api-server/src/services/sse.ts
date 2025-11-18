@@ -39,7 +39,7 @@ export interface DataSourceUpdateEvent {
   data: {
     connection_id: string;
     connection_type?: string; // e.g., 'confluence', 'servicenow', 'sharepoint', 'websearch'
-    status: 'idle' | 'verifying' | 'syncing';
+    status: 'idle' | 'verifying' | 'syncing' | 'cancelled';
     // Sync-specific fields
     last_sync_status?: 'completed' | 'failed' | null;
     last_sync_at?: Date | null;
