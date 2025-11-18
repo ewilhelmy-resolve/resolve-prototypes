@@ -60,7 +60,8 @@ export default function ConfluenceConfiguration({
 
 	const handleSync = async () => {
 		if (!source.backendData) {
-			ritaToast.error("Configuration Error", {
+			ritaToast.error({
+				title: "Configuration Error",
 				description: "No backend data available for this source",
 			});
 			return;
@@ -81,11 +82,13 @@ export default function ConfluenceConfiguration({
 			// Step 2: Trigger sync
 			await syncMutation.mutateAsync(source.backendData.id);
 
-			ritaToast.success("Sync Started", {
+			ritaToast.success({
+				title: "Sync Started",
 				description: "Your Confluence spaces are being synced",
 			});
 		} catch (error) {
-			ritaToast.error("Sync Failed", {
+			ritaToast.error({
+				title: "Sync Failed",
 				description:
 					error instanceof Error ? error.message : "Failed to start sync",
 			});
@@ -94,7 +97,8 @@ export default function ConfluenceConfiguration({
 
 	const handleCancelSync = async () => {
 		if (!source.backendData) {
-			ritaToast.error("Configuration Error", {
+			ritaToast.error({
+				title: "Configuration Error",
 				description: "No backend data available for this source",
 			});
 			return;
@@ -103,11 +107,13 @@ export default function ConfluenceConfiguration({
 		try {
 			await cancelMutation.mutateAsync(source.backendData.id);
 
-			ritaToast.success("Sync Cancelled", {
+			ritaToast.success({
+				title: "Sync Cancelled",
 				description: "Your sync operation has been cancelled",
 			});
 		} catch (error) {
-			ritaToast.error("Cancel Failed", {
+			ritaToast.error({
+				title: "Cancel Failed",
 				description:
 					error instanceof Error ? error.message : "Failed to cancel sync",
 			});
