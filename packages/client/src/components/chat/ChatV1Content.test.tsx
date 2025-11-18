@@ -1,15 +1,14 @@
 /**
- * ChatV1Content.test.tsx - Unit tests for chat content attachment permissions
+ * ChatV1Content.test.tsx - Unit tests for chat content
  *
- * Tests attachment upload functionality (currently disabled):
- * - All attachment features are temporarily disabled for ALL users
- * - Drag-and-drop overlay still conditionally shown for admins (non-functional)
- * - Permission checks remain in place for future re-enablement
- * - Tests verify permission-based conditional rendering
+ * Tests:
+ * - Attachment upload functionality (currently disabled)
+ * - Timeout behavior for incomplete turns
+ * - Navigation to incomplete conversations
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { render, screen, act } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import ChatV1Content from './ChatV1Content'
 import type { ChatV1ContentProps } from './ChatV1Content'
@@ -18,6 +17,7 @@ import type { ChatV1ContentProps } from './ChatV1Content'
 const mockIsOwnerOrAdmin = vi.fn()
 const mockIsDragging = vi.fn(() => false)
 const mockUploadFileMutation = { mutate: vi.fn(), isPending: false }
+const mockUseKnowledgeBase = vi.fn()
 
 vi.mock('@/hooks/api/useProfile', () => ({
   useProfilePermissions: vi.fn(() => ({
@@ -69,6 +69,10 @@ vi.mock('@/components/citations', () => ({
   Citations: ({ children }: any) => <div>{children}</div>,
 }))
 
+vi.mock('@/hooks/useKnowledgeBase', () => ({
+  useKnowledgeBase: () => mockUseKnowledgeBase(),
+}))
+
 vi.mock('./ResponseWithInlineCitations', () => ({
   ResponseWithInlineCitations: ({ children }: any) => <div>{children}</div>,
 }))
@@ -102,6 +106,13 @@ const createDefaultProps = (): ChatV1ContentProps => ({
 describe('ChatV1Content - Attachment Upload Permissions', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    // Default mock for knowledge base with processed files
+    mockUseKnowledgeBase.mockReturnValue({
+      openDocumentSelector: vi.fn(),
+      files: [{ id: '1', status: 'processed', name: 'test.pdf' }],
+      documentInputRef: { current: null },
+      handleDocumentUpload: vi.fn(),
+    })
   })
 
   describe('Attachment Upload Disabled', () => {
@@ -191,6 +202,193 @@ describe('ChatV1Content - Attachment Upload Permissions', () => {
       expect(ritaToast).toBeDefined()
       expect(ritaToast.error).toBeDefined()
       expect(ritaToast.success).toBeDefined()
+    })
+  })
+
+  describe('Timeout Behavior for Incomplete Turns', () => {
+    beforeEach(() => {
+      vi.useFakeTimers()
+    })
+
+    afterEach(() => {
+      vi.useRealTimers()
+    })
+
+    it('enables input after 30s when streaming status persists', async () => {
+      const props = createDefaultProps()
+      props.messages = [
+        {
+          id: '1',
+          role: 'user',
+          message: 'test message',
+          timestamp: Date.now(),
+          status: 'sent',
+          conversationId: 'conv-1',
+        },
+      ]
+
+      const { ritaToast } = await import('@/components/ui/rita-toast')
+      const warningSpy = vi.spyOn(ritaToast, 'warning')
+
+      render(
+        <MemoryRouter>
+          <ChatV1Content {...props} />
+        </MemoryRouter>
+      )
+
+      // Input should be disabled initially (streaming state)
+      const textarea = screen.getByPlaceholderText(/ask me anything/i)
+      expect(textarea).toBeDisabled()
+
+      // Fast-forward 30 seconds wrapped in act
+      await act(async () => {
+        vi.advanceTimersByTime(30000)
+      })
+
+      // Toast warning should be shown
+      expect(warningSpy).toHaveBeenCalledWith({ title: 'Response timeout - input re-enabled' })
+
+      // Input should now be enabled
+      expect(textarea).not.toBeDisabled()
+    })
+
+    it('clears timeout when status changes before 30s', async () => {
+      const props = createDefaultProps()
+      props.messages = [
+        {
+          id: '1',
+          role: 'user',
+          message: 'test message',
+          timestamp: Date.now(),
+          status: 'sent',
+          conversationId: 'conv-1',
+        },
+      ]
+
+      const { ritaToast } = await import('@/components/ui/rita-toast')
+      const warningSpy = vi.spyOn(ritaToast, 'warning')
+
+      const { rerender } = render(
+        <MemoryRouter>
+          <ChatV1Content {...props} />
+        </MemoryRouter>
+      )
+
+      // Fast-forward 15 seconds (half the timeout)
+      vi.advanceTimersByTime(15000)
+
+      // Update messages with assistant response (status change)
+      props.messages = [
+        ...props.messages,
+        {
+          id: '2',
+          role: 'assistant',
+          message: 'response',
+          timestamp: Date.now(),
+          status: 'sent',
+          conversationId: 'conv-1',
+          metadata: { turn_complete: true },
+        },
+      ]
+
+      rerender(
+        <MemoryRouter>
+          <ChatV1Content {...props} />
+        </MemoryRouter>
+      )
+
+      // Fast-forward another 20 seconds (total 35s)
+      vi.advanceTimersByTime(20000)
+
+      // Toast should NOT be shown (timeout cleared)
+      expect(warningSpy).not.toHaveBeenCalled()
+    })
+  })
+
+  describe('Navigation to Incomplete Conversations', () => {
+    it('enables input when navigating to conversation with incomplete turn', () => {
+      const props = createDefaultProps()
+      props.currentConversationId = 'conv-1'
+      props.messages = [
+        {
+          id: '1',
+          role: 'user',
+          message: 'test message',
+          timestamp: Date.now(),
+          status: 'sent',
+          conversationId: 'conv-1',
+        },
+      ]
+
+      render(
+        <MemoryRouter>
+          <ChatV1Content {...props} />
+        </MemoryRouter>
+      )
+
+      // Input should be enabled (timeout override triggered)
+      const textarea = screen.getByPlaceholderText(/ask me anything/i)
+      expect(textarea).not.toBeDisabled()
+    })
+
+    it('enables input when navigating to conversation with turn_complete: false', () => {
+      const props = createDefaultProps()
+      props.currentConversationId = 'conv-1'
+      props.messages = [
+        {
+          id: '1',
+          role: 'assistant',
+          message: 'partial response',
+          timestamp: Date.now(),
+          status: 'sent',
+          conversationId: 'conv-1',
+          metadata: { turn_complete: false },
+        },
+      ]
+
+      render(
+        <MemoryRouter>
+          <ChatV1Content {...props} />
+        </MemoryRouter>
+      )
+
+      // Input should be enabled (timeout override triggered)
+      const textarea = screen.getByPlaceholderText(/ask me anything/i)
+      expect(textarea).not.toBeDisabled()
+    })
+
+    it('does not override when navigating to complete conversation', () => {
+      const props = createDefaultProps()
+      props.currentConversationId = 'conv-1'
+      props.messages = [
+        {
+          id: '1',
+          role: 'user',
+          message: 'test message',
+          timestamp: Date.now() - 2000,
+          status: 'sent',
+          conversationId: 'conv-1',
+        },
+        {
+          id: '2',
+          role: 'assistant',
+          message: 'complete response',
+          timestamp: Date.now(),
+          status: 'sent',
+          conversationId: 'conv-1',
+          metadata: { turn_complete: true },
+        },
+      ]
+
+      render(
+        <MemoryRouter>
+          <ChatV1Content {...props} />
+        </MemoryRouter>
+      )
+
+      // Input should be enabled normally (no streaming state)
+      const textarea = screen.getByPlaceholderText(/ask me anything/i)
+      expect(textarea).not.toBeDisabled()
     })
   })
 })
