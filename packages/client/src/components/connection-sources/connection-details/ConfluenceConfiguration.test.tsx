@@ -38,8 +38,8 @@ vi.mock("@/hooks/useDataSources", () => ({
 	useCancelSync: vi.fn(() => mockCancelMutation),
 }));
 
-vi.mock("@/lib/toast", () => ({
-	toast: {
+vi.mock("@/components/ui/rita-toast", () => ({
+	ritaToast: {
 		success: vi.fn(),
 		error: vi.fn(),
 	},
@@ -241,7 +241,7 @@ describe("ConfluenceConfiguration", () => {
 	});
 
 	it("should show success toast on successful sync", async () => {
-		const { toast } = await import("@/lib/toast");
+		const { ritaToast } = await import("@/components/ui/rita-toast");
 		const source = createMockSource();
 		renderWithProvider(source);
 
@@ -249,14 +249,14 @@ describe("ConfluenceConfiguration", () => {
 		fireEvent.click(syncButton);
 
 		await waitFor(() => {
-			expect(toast.success).toHaveBeenCalledWith("Sync Started", {
+			expect(ritaToast.success).toHaveBeenCalledWith("Sync Started", {
 				description: "Your Confluence spaces are being synced",
 			});
 		});
 	});
 
 	it("should show error toast on failed sync", async () => {
-		const { toast } = await import("@/lib/toast");
+		const { ritaToast } = await import("@/components/ui/rita-toast");
 		mockUpdateMutation.mutateAsync.mockRejectedValueOnce(
 			new Error("Sync failed"),
 		);
@@ -268,14 +268,14 @@ describe("ConfluenceConfiguration", () => {
 		fireEvent.click(syncButton);
 
 		await waitFor(() => {
-			expect(toast.error).toHaveBeenCalledWith("Sync Failed", {
+			expect(ritaToast.error).toHaveBeenCalledWith("Sync Failed", {
 				description: "Sync failed",
 			});
 		});
 	});
 
 	it("should show error when backend data is missing", async () => {
-		const { toast } = await import("@/lib/toast");
+		const { ritaToast } = await import("@/components/ui/rita-toast");
 		const source = createMockSource({ backendData: undefined });
 		renderWithProvider(source);
 
@@ -283,7 +283,7 @@ describe("ConfluenceConfiguration", () => {
 		fireEvent.click(syncButton);
 
 		await waitFor(() => {
-			expect(toast.error).toHaveBeenCalledWith("Configuration Error", {
+			expect(ritaToast.error).toHaveBeenCalledWith("Configuration Error", {
 				description: "No backend data available for this source",
 			});
 		});

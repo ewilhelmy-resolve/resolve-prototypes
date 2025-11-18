@@ -13,7 +13,7 @@ import {
 	parseAvailableSpaces,
 	parseSelectedSpaces,
 } from "@/lib/dataSourceUtils";
-import { toast } from "@/lib/toast";
+import { ritaToast } from "@/components/ui/rita-toast";
 import { Label } from "../../ui/label";
 import { MultiSelect, type MultiSelectOption } from "../../ui/multi-select";
 import { ConnectionActionsMenu } from "../ConnectionActionsMenu";
@@ -60,7 +60,7 @@ export default function ConfluenceConfiguration({
 
 	const handleSync = async () => {
 		if (!source.backendData) {
-			toast.error("Configuration Error", {
+			ritaToast.error("Configuration Error", {
 				description: "No backend data available for this source",
 			});
 			return;
@@ -81,11 +81,11 @@ export default function ConfluenceConfiguration({
 			// Step 2: Trigger sync
 			await syncMutation.mutateAsync(source.backendData.id);
 
-			toast.success("Sync Started", {
+			ritaToast.success("Sync Started", {
 				description: "Your Confluence spaces are being synced",
 			});
 		} catch (error) {
-			toast.error("Sync Failed", {
+			ritaToast.error("Sync Failed", {
 				description:
 					error instanceof Error ? error.message : "Failed to start sync",
 			});
@@ -94,7 +94,7 @@ export default function ConfluenceConfiguration({
 
 	const handleCancelSync = async () => {
 		if (!source.backendData) {
-			toast.error("Configuration Error", {
+			ritaToast.error("Configuration Error", {
 				description: "No backend data available for this source",
 			});
 			return;
@@ -103,11 +103,11 @@ export default function ConfluenceConfiguration({
 		try {
 			await cancelMutation.mutateAsync(source.backendData.id);
 
-			toast.success("Sync Cancelled", {
+			ritaToast.success("Sync Cancelled", {
 				description: "Your sync operation has been cancelled",
 			});
 		} catch (error) {
-			toast.error("Cancel Failed", {
+			ritaToast.error("Cancel Failed", {
 				description:
 					error instanceof Error ? error.message : "Failed to cancel sync",
 			});
