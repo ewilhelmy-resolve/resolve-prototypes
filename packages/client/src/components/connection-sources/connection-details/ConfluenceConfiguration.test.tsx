@@ -27,9 +27,15 @@ const mockSyncMutation = {
 	isPending: false,
 };
 
+const mockCancelMutation = {
+	mutateAsync: vi.fn().mockResolvedValue({}),
+	isPending: false,
+};
+
 vi.mock("@/hooks/useDataSources", () => ({
 	useUpdateDataSource: vi.fn(() => mockUpdateMutation),
 	useTriggerSync: vi.fn(() => mockSyncMutation),
+	useCancelSync: vi.fn(() => mockCancelMutation),
 }));
 
 vi.mock("@/lib/toast", () => ({
@@ -163,7 +169,9 @@ describe("ConfluenceConfiguration", () => {
 		renderWithProvider(source);
 
 		// Sync button should not be present (it's inside the hidden spaces dropdown section)
-		expect(screen.queryByRole("button", { name: /sync/i })).not.toBeInTheDocument();
+		expect(screen.queryByRole("button", { name: /^sync$/i })).not.toBeInTheDocument();
+		// Cancel button should be present when syncing
+		expect(screen.getByRole("button", { name: /cancel sync/i })).toBeInTheDocument();
 	});
 
 	it("should hide sync button when verifying", () => {
