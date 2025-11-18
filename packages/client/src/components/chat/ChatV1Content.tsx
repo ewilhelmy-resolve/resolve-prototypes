@@ -644,7 +644,7 @@ export default function ChatV1Content({
 
 		if (chatStatus === "streaming") {
 			const timeoutId = setTimeout(() => {
-				ritaToast.warning({ title: "Response timeout - input re-enabled" });
+				ritaToast.warning({ title: "Response timeout" });
 				setTimeoutOverride(true);
 			}, 30000);
 
