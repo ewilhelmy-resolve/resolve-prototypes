@@ -3,14 +3,16 @@ import { MemberService } from '../memberService.js';
 import type { Pool } from 'pg';
 
 // Mock WebhookService to avoid DATABASE_URL requirement
-vi.mock('../WebhookService.js', () => ({
-  WebhookService: vi.fn().mockImplementation(() => ({
-    deleteKeycloakUser: vi.fn().mockResolvedValue({
-      success: true,
-      status: 200
-    })
-  }))
-}));
+vi.mock('../WebhookService.js', () => {
+  return {
+    WebhookService: class MockWebhookService {
+      deleteKeycloakUser = vi.fn().mockResolvedValue({
+        success: true,
+        status: 200
+      });
+    }
+  };
+});
 
 // Mock SSE service
 vi.mock('../sse.js', () => ({

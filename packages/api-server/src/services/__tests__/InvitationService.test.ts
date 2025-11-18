@@ -4,11 +4,13 @@ import { WebhookService } from '../WebhookService.js';
 import type { Pool, PoolClient } from 'pg';
 
 // Mock WebhookService
-vi.mock('../WebhookService.js', () => ({
-  WebhookService: vi.fn().mockImplementation(() => ({
-    sendGenericEvent: vi.fn().mockResolvedValue({ success: true })
-  }))
-}));
+vi.mock('../WebhookService.js', () => {
+  return {
+    WebhookService: class MockWebhookService {
+      sendGenericEvent = vi.fn().mockResolvedValue({ success: true });
+    }
+  };
+});
 
 describe('InvitationService', () => {
   let invitationService: InvitationService;

@@ -5,18 +5,24 @@ import memberRoutes from '../members.js';
 
 // Mock dependencies
 vi.mock('../../services/memberService.js', () => {
-  const mockMemberService = {
-    listMembers: vi.fn(),
-    getMemberDetails: vi.fn(),
-    updateMemberRole: vi.fn(),
-    updateMemberStatus: vi.fn(),
-    removeMember: vi.fn(),
-    deleteMemberPermanent: vi.fn(),
-    deleteOwnAccount: vi.fn()
-  };
+  const listMembers = vi.fn();
+  const getMemberDetails = vi.fn();
+  const updateMemberRole = vi.fn();
+  const updateMemberStatus = vi.fn();
+  const removeMember = vi.fn();
+  const deleteMemberPermanent = vi.fn();
+  const deleteOwnAccount = vi.fn();
 
   return {
-    MemberService: vi.fn(() => mockMemberService)
+    MemberService: class MockMemberService {
+      listMembers = listMembers;
+      getMemberDetails = getMemberDetails;
+      updateMemberRole = updateMemberRole;
+      updateMemberStatus = updateMemberStatus;
+      removeMember = removeMember;
+      deleteMemberPermanent = deleteMemberPermanent;
+      deleteOwnAccount = deleteOwnAccount;
+    }
   };
 });
 
