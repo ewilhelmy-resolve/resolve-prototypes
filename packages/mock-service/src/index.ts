@@ -159,8 +159,15 @@ interface DataSourceSyncPayload extends BaseWebhookPayload {
   settings: Record<string, any>;
 }
 
+interface DataSourceCancelPayload extends BaseWebhookPayload {
+  source: 'rita-chat';
+  action: 'cancel_sync';
+  connection_id: string;
+  connection_type: string;
+}
+
 // Union type for all webhook payloads
-type WebhookPayload = MessageWebhookPayload | DocumentWebhookPayload | DocumentDeletePayload | SignupWebhookPayload | SendInvitationWebhookPayload | AcceptInvitationWebhookPayload | DeleteKeycloakUserPayload | DataSourceVerifyPayload | DataSourceSyncPayload | BaseWebhookPayload;
+type WebhookPayload = MessageWebhookPayload | DocumentWebhookPayload | DocumentDeletePayload | SignupWebhookPayload | SendInvitationWebhookPayload | AcceptInvitationWebhookPayload | DeleteKeycloakUserPayload | DataSourceVerifyPayload | DataSourceSyncPayload | DataSourceCancelPayload | BaseWebhookPayload;
 
 interface MockResponse {
   message_id: string;
@@ -1986,7 +1993,7 @@ app.post('/webhook', async (req, res) => {
         user_email: syncPayload.user_email
       }, 'Received data source sync trigger webhook');
 
-      // Publish sync_completed message to RabbitMQ after 2 second delay
+      // Publish sync_completed message to RabbitMQ after 20 second delay
       setTimeout(async () => {
         try {
           if (!rabbitChannel) {
@@ -2016,11 +2023,36 @@ app.post('/webhook', async (req, res) => {
         } catch (error) {
           contextLogger.error({ error }, 'Failed to publish sync_completed message');
         }
-      }, 2000);
+      }, 20000);
 
       return res.status(200).json({
         success: true,
         message: 'Sync triggered successfully'
+      });
+
+    } else if (payload.source === 'rita-chat' && payload.action === 'cancel_sync') {
+      const cancelPayload = payload as DataSourceCancelPayload;
+      const contextLogger = createContextLogger(webhookLogger, correlationId, {
+        tenantId: cancelPayload.tenant_id
+      });
+
+      contextLogger.info({
+        source: cancelPayload.source,
+        action: cancelPayload.action,
+        connection_id: cancelPayload.connection_id,
+        connection_type: cancelPayload.connection_type,
+        user_email: cancelPayload.user_email
+      }, 'Received data source cancel sync webhook');
+
+      // Acknowledge cancel request immediately
+      // In a real implementation, this would signal the running sync job to stop
+      contextLogger.info({
+        connectionId: cancelPayload.connection_id
+      }, 'Cancel sync request acknowledged - sync job would be terminated');
+
+      return res.status(200).json({
+        success: true,
+        message: 'Cancel sync request acknowledged'
       });
 
     } else {

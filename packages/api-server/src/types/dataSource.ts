@@ -91,6 +91,21 @@ export interface SyncTriggerWebhookPayload {
 }
 
 /**
+ * Cancel sync webhook payload
+ * Sent to external service to cancel ongoing sync job
+ */
+export interface CancelSyncWebhookPayload {
+  source: 'rita-chat';
+  action: 'cancel_sync';
+  tenant_id: string;
+  user_id?: string;
+  user_email?: string;
+  connection_id: string;
+  connection_type: DataSourceType;
+  timestamp: string;
+}
+
+/**
  * RabbitMQ message for sync status updates
  * Consumed by Rita to update data source status
  */
