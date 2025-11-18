@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { resolve } from 'node:path';
-import { type Channel, type ChannelModel, connect } from 'amqplib';
+import { type Channel, type Connection, connect } from 'amqplib';
 import axios from 'axios';
 import cors from 'cors';
 import { config } from 'dotenv';
@@ -178,7 +178,7 @@ interface MessagePart {
 }
 
 // RabbitMQ connection
-let rabbitConnection: ChannelModel | null = null;
+let rabbitConnection: Connection | null = null;
 let rabbitChannel: Channel | null = null;
 
 async function connectRabbitMQ(): Promise<void> {
