@@ -664,7 +664,7 @@ describe("ResponseWithInlineCitations", () => {
 			const { fileApi } = await import("@/services/api");
 
 			// Simulate slow API call
-			let resolveMetadata: any;
+			let resolveMetadata: ((value: any) => void) | undefined;
 			vi.mocked(fileApi.getDocumentMetadata).mockImplementation(
 				() =>
 					new Promise((resolve) => {
@@ -690,10 +690,12 @@ describe("ResponseWithInlineCitations", () => {
 			expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
 
 			// Resolve the metadata
-			resolveMetadata({
-				filename: "Loaded Document",
-				metadata: { content: "# Content" },
-			});
+			if (resolveMetadata) {
+				resolveMetadata({
+					filename: "Loaded Document",
+					metadata: { content: "# Content" },
+				});
+			}
 
 			// NOW modal should appear with content
 			await waitFor(() => {
