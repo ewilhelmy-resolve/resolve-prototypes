@@ -96,12 +96,17 @@ export interface SyncTriggerWebhookPayload {
  */
 export interface CancelSyncWebhookPayload {
   source: 'rita-chat';
-  action: 'cancel_sync';
+  action: 'trigger_sync_cancel';
   tenant_id: string;
   user_id?: string;
   user_email?: string;
   connection_id: string;
   connection_type: DataSourceType;
+  settings: {
+    url: string;
+    email: string;
+    status: 'cancel';
+  };
   timestamp: string;
 }
 

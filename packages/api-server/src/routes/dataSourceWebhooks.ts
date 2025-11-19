@@ -261,7 +261,11 @@ router.post('/:id/cancel-sync', authenticateUser, async (req, res) => {
       userId: authReq.user.id,
       userEmail: authReq.user.email,
       connectionId: dataSource.id,
-      connectionType: dataSource.type
+      connectionType: dataSource.type,
+      settings: {
+        url: dataSource.settings?.url || '',
+        email: dataSource.settings?.email || ''
+      }
     });
 
     // Log webhook result but don't fail the request (sync is already marked cancelled locally)

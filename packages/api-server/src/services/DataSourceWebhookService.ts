@@ -85,15 +85,24 @@ export class DataSourceWebhookService {
     userEmail?: string;
     connectionId: string;
     connectionType: string;
+    settings: {
+      url: string;
+      email: string;
+    };
   }): Promise<WebhookResponse> {
     const payload: CancelSyncWebhookPayload = {
       source: 'rita-chat',
-      action: 'cancel_sync',
+      action: 'trigger_sync_cancel',
       tenant_id: params.organizationId,
       user_id: params.userId,
       user_email: params.userEmail,
       connection_id: params.connectionId,
       connection_type: params.connectionType as any,
+      settings: {
+        url: params.settings.url,
+        email: params.settings.email,
+        status: 'cancel'
+      },
       timestamp: new Date().toISOString()
     };
 

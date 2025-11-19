@@ -188,7 +188,8 @@ export class DataSourceService {
     organizationId: string,
     status: 'idle' | 'syncing' | 'cancelled',
     lastSyncStatus?: 'completed' | 'failed' | null,
-    updateLastSyncAt: boolean = false
+    updateLastSyncAt: boolean = false,
+    requireSyncingStatus: boolean = false
   ): Promise<DataSourceConnection | null> {
     const updates = ['status = $1'];
     const values: any[] = [status];
@@ -207,10 +208,16 @@ export class DataSourceService {
 
     values.push(connectionId, organizationId);
 
+    // Add status check to prevent race condition: only update if status is 'syncing'
+    // This prevents sync_completed messages from overwriting 'cancelled' status
+    const whereClause = requireSyncingStatus
+      ? `WHERE id = $${paramIndex++} AND organization_id = $${paramIndex++} AND status = 'syncing'`
+      : `WHERE id = $${paramIndex++} AND organization_id = $${paramIndex++}`;
+
     const result = await pool.query<DataSourceConnection>(
       `UPDATE data_source_connections
        SET ${updates.join(', ')}
-       WHERE id = $${paramIndex++} AND organization_id = $${paramIndex++}
+       ${whereClause}
        RETURNING *`,
       values
     );
