@@ -210,7 +210,7 @@ function GroupedMessage({
 	const reasoningOnly = isReasoningOnlyMessage(message);
 
 	return (
-		<Message from={message.role}>
+		<Message from={message.role} className={reasoningOnly ? "py-1" : ""}>
 			<div
 				role="group"
 				className="flex flex-col w-full"
@@ -222,7 +222,10 @@ function GroupedMessage({
 						<Fragment key={part.id}>
 							{/* Render reasoning if present */}
 							{part.metadata?.reasoning && (
-								<Reasoning isStreaming={isThisMessageStreaming}>
+								<Reasoning
+									isStreaming={isThisMessageStreaming}
+									className={reasoningOnly ? "mb-0" : ""}
+								>
 									<ReasoningTrigger title={part.metadata.reasoning.title} />
 									<ReasoningContent>
 										{part.metadata.reasoning.content}
@@ -297,9 +300,9 @@ function GroupedMessage({
 					))}
 				</MessageContent>
 
-				{/* Actions and timestamp row - always show for assistant messages */}
-				{message.role === "assistant" && (
-					<div className="flex items-center justify-between mt-2 gap-2">
+				{/* Actions and timestamp row - hide for reasoning-only messages */}
+				{message.role === "assistant" && !reasoningOnly && (
+					<div className="flex items-center justify-between gap-2">
 						{/* Copy action - only show if there's text content */}
 						{hasGroupedCopyableContent(message) ? (
 							<Actions>
@@ -373,7 +376,7 @@ function SimpleMessage({
 
 				{/* Actions and timestamp row - always show for assistant messages */}
 				{message.role === "assistant" && (
-					<div className="flex items-center justify-between mt-2 gap-2">
+					<div className="flex items-center justify-between gap-2">
 						{/* Copy action - only show if there's text content */}
 						{hasSimpleCopyableContent(message) ? (
 							<Actions>
