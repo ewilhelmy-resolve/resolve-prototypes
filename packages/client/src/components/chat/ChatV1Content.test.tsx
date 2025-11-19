@@ -1,196 +1,394 @@
 /**
- * ChatV1Content.test.tsx - Unit tests for chat content attachment permissions
+ * ChatV1Content.test.tsx - Unit tests for chat content
  *
- * Tests attachment upload functionality (currently disabled):
- * - All attachment features are temporarily disabled for ALL users
- * - Drag-and-drop overlay still conditionally shown for admins (non-functional)
- * - Permission checks remain in place for future re-enablement
- * - Tests verify permission-based conditional rendering
+ * Tests:
+ * - Attachment upload functionality (currently disabled)
+ * - Timeout behavior for incomplete turns
+ * - Navigation to incomplete conversations
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen } from '@testing-library/react'
-import { MemoryRouter } from 'react-router-dom'
-import ChatV1Content from './ChatV1Content'
-import type { ChatV1ContentProps } from './ChatV1Content'
+import { act, render, screen } from "@testing-library/react";
+import { MemoryRouter } from "react-router-dom";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { ChatV1ContentProps } from "./ChatV1Content";
+import ChatV1Content from "./ChatV1Content";
 
 // Mock dependencies
-const mockIsOwnerOrAdmin = vi.fn()
-const mockIsDragging = vi.fn(() => false)
-const mockUploadFileMutation = { mutate: vi.fn(), isPending: false }
+const mockIsOwnerOrAdmin = vi.fn();
+const mockIsDragging = vi.fn(() => false);
+const mockUploadFileMutation = { mutate: vi.fn(), isPending: false };
+const mockUseKnowledgeBase = vi.fn();
 
-vi.mock('@/hooks/api/useProfile', () => ({
-  useProfilePermissions: vi.fn(() => ({
-    isOwnerOrAdmin: mockIsOwnerOrAdmin,
-    hasRole: vi.fn(),
-    isOwner: vi.fn(),
-    isAdmin: vi.fn(),
-    canManageInvitations: vi.fn(),
-    canManageMembers: vi.fn(),
-    canManageOrganization: vi.fn(),
-    canDeleteConversations: vi.fn(),
-    canManageFiles: vi.fn(),
-  })),
-}))
+vi.mock("@/hooks/api/useProfile", () => ({
+	useProfilePermissions: vi.fn(() => ({
+		isOwnerOrAdmin: mockIsOwnerOrAdmin,
+		hasRole: vi.fn(),
+		isOwner: vi.fn(),
+		isAdmin: vi.fn(),
+		canManageInvitations: vi.fn(),
+		canManageMembers: vi.fn(),
+		canManageOrganization: vi.fn(),
+		canDeleteConversations: vi.fn(),
+		canManageFiles: vi.fn(),
+	})),
+}));
 
-vi.mock('@/hooks/useDragAndDrop', () => ({
-  useDragAndDrop: vi.fn((config: any) => ({
-    isDragging: mockIsDragging(),
-    enabled: config.enabled,
-  })),
-}))
+vi.mock("@/hooks/useDragAndDrop", () => ({
+	useDragAndDrop: vi.fn((config: any) => ({
+		isDragging: mockIsDragging(),
+		enabled: config.enabled,
+	})),
+}));
 
-vi.mock('@/hooks/api/useFiles', () => ({
-  useFiles: vi.fn(() => ({
-    data: { documents: [] },
-    isLoading: false,
-  })),
-  useUploadFile: vi.fn(() => mockUploadFileMutation),
-}))
+vi.mock("@/hooks/api/useFiles", () => ({
+	useFiles: vi.fn(() => ({
+		data: { documents: [] },
+		isLoading: false,
+	})),
+	useUploadFile: vi.fn(() => mockUploadFileMutation),
+}));
 
-vi.mock('@/stores/conversationStore', () => ({
-  useConversationStore: vi.fn(() => ({
-    chatMessages: [],
-    currentConversationId: null,
-  })),
-}))
+vi.mock("@/stores/conversationStore", () => ({
+	useConversationStore: vi.fn(() => ({
+		chatMessages: [],
+		currentConversationId: null,
+	})),
+}));
 
-vi.mock('@/hooks/useChatPagination', () => ({
-  useChatPagination: vi.fn(() => ({
-    displayedMessages: [],
-    hasMore: false,
-    isLoading: false,
-    loadMore: vi.fn(),
-    containerRef: { current: null },
-  })),
-}))
+vi.mock("@/hooks/useChatPagination", () => ({
+	useChatPagination: vi.fn(() => ({
+		displayedMessages: [],
+		hasMore: false,
+		isLoading: false,
+		loadMore: vi.fn(),
+		containerRef: { current: null },
+	})),
+}));
 
-vi.mock('@/components/citations', () => ({
-  Citations: ({ children }: any) => <div>{children}</div>,
-}))
+vi.mock("@/components/citations", () => ({
+	Citations: ({ children }: any) => <div>{children}</div>,
+}));
 
-vi.mock('./ResponseWithInlineCitations', () => ({
-  ResponseWithInlineCitations: ({ children }: any) => <div>{children}</div>,
-}))
+vi.mock("@/hooks/useKnowledgeBase", () => ({
+	useKnowledgeBase: () => mockUseKnowledgeBase(),
+}));
 
-vi.mock('./DragDropOverlay', () => ({
-  DragDropOverlay: ({ isDragging }: { isDragging: boolean }) => (
-    <div data-testid="drag-drop-overlay" data-dragging={isDragging}>
-      Drag and Drop Overlay
-    </div>
-  ),
-}))
+vi.mock("./ResponseWithInlineCitations", () => ({
+	ResponseWithInlineCitations: ({ children }: any) => <div>{children}</div>,
+}));
+
+vi.mock("./DragDropOverlay", () => ({
+	DragDropOverlay: ({ isDragging }: { isDragging: boolean }) => (
+		<div data-testid="drag-drop-overlay" data-dragging={isDragging}>
+			Drag and Drop Overlay
+		</div>
+	),
+}));
 
 // Helper to create default props
 const createDefaultProps = (): ChatV1ContentProps => ({
-  messages: [],
-  messagesLoading: false,
-  isSending: false,
-  currentConversationId: null,
-  messageValue: '',
-  handleSendMessage: vi.fn(),
-  handleMessageChange: vi.fn(),
-  handleFileUpload: vi.fn(),
-  uploadStatus: {
-    isUploading: false,
-    isError: false,
-    isSuccess: false,
-  },
-  fileInputRef: { current: null },
-})
+	messages: [],
+	messagesLoading: false,
+	isSending: false,
+	currentConversationId: null,
+	messageValue: "",
+	handleSendMessage: vi.fn(),
+	handleMessageChange: vi.fn(),
+	handleFileUpload: vi.fn(),
+	uploadStatus: {
+		isUploading: false,
+		isError: false,
+		isSuccess: false,
+	},
+	fileInputRef: { current: null },
+});
 
-describe('ChatV1Content - Attachment Upload Permissions', () => {
-  beforeEach(() => {
-    vi.clearAllMocks()
-  })
+describe("ChatV1Content - Attachment Upload Permissions", () => {
+	beforeEach(() => {
+		vi.clearAllMocks();
+		// Default mock for knowledge base with processed files
+		mockUseKnowledgeBase.mockReturnValue({
+			openDocumentSelector: vi.fn(),
+			files: [{ id: "1", status: "processed", name: "test.pdf" }],
+			documentInputRef: { current: null },
+			handleDocumentUpload: vi.fn(),
+		});
+	});
 
-  describe('Attachment Upload Disabled', () => {
-    it('does NOT show drag-and-drop overlay for any users', () => {
-      mockIsOwnerOrAdmin.mockReturnValue(true) // Even for admins
-      const props = createDefaultProps()
-      render(
-        <MemoryRouter>
-          <ChatV1Content {...props} />
-        </MemoryRouter>
-      )
+	describe("Attachment Upload Disabled", () => {
+		it("does NOT show drag-and-drop overlay for any users", () => {
+			mockIsOwnerOrAdmin.mockReturnValue(true); // Even for admins
+			const props = createDefaultProps();
+			render(
+				<MemoryRouter>
+					<ChatV1Content {...props} />
+				</MemoryRouter>,
+			);
 
-      const overlay = screen.queryByTestId('drag-drop-overlay')
-      expect(overlay).not.toBeInTheDocument()
-    })
+			const overlay = screen.queryByTestId("drag-drop-overlay");
+			expect(overlay).not.toBeInTheDocument();
+		});
 
-    it('disables drag-and-drop hook for all users', async () => {
-      mockIsOwnerOrAdmin.mockReturnValue(true)
-      const props = createDefaultProps()
-      const { useDragAndDrop } = await import('@/hooks/useDragAndDrop')
+		it("disables drag-and-drop hook for all users", async () => {
+			mockIsOwnerOrAdmin.mockReturnValue(true);
+			const props = createDefaultProps();
+			const { useDragAndDrop } = await import("@/hooks/useDragAndDrop");
 
-      render(
-        <MemoryRouter>
-          <ChatV1Content {...props} />
-        </MemoryRouter>
-      )
+			render(
+				<MemoryRouter>
+					<ChatV1Content {...props} />
+				</MemoryRouter>,
+			);
 
-      // Verify useDragAndDrop was called with enabled: false (disabled for all)
-      expect(useDragAndDrop).toHaveBeenCalledWith(
-        expect.objectContaining({
-          enabled: false,
-        })
-      )
-    })
+			// Verify useDragAndDrop was called with enabled: false (disabled for all)
+			expect(useDragAndDrop).toHaveBeenCalledWith(
+				expect.objectContaining({
+					enabled: false,
+				}),
+			);
+		});
 
-    it('renders chat interface without attachment features', () => {
-      const props = createDefaultProps()
-      render(
-        <MemoryRouter>
-          <ChatV1Content {...props} />
-        </MemoryRouter>
-      )
+		it("renders chat interface without attachment features", () => {
+			const props = createDefaultProps();
+			render(
+				<MemoryRouter>
+					<ChatV1Content {...props} />
+				</MemoryRouter>,
+			);
 
-      // Verify basic chat interface is present
-      const textarea = screen.getByPlaceholderText(/ask me anything/i)
-      expect(textarea).toBeInTheDocument()
+			// Verify basic chat interface is present
+			const textarea = screen.getByPlaceholderText(/ask me anything/i);
+			expect(textarea).toBeInTheDocument();
 
-      // Verify drag-and-drop overlay is absent (no attachment features)
-      expect(screen.queryByTestId('drag-drop-overlay')).not.toBeInTheDocument()
-    })
-  })
+			// Verify drag-and-drop overlay is absent (no attachment features)
+			expect(screen.queryByTestId("drag-drop-overlay")).not.toBeInTheDocument();
+		});
+	});
 
-  describe('File Validation (for when uploads re-enabled)', () => {
-    it('validates file types in drag-and-drop handler', async () => {
-      // Test the handleDragDropUpload logic even though drag-and-drop is disabled
-      // This ensures when re-enabled, validation is working
-      mockIsOwnerOrAdmin.mockReturnValue(true)
-      const props = createDefaultProps()
+	describe("File Validation (for when uploads re-enabled)", () => {
+		it("validates file types in drag-and-drop handler", async () => {
+			// Test the handleDragDropUpload logic even though drag-and-drop is disabled
+			// This ensures when re-enabled, validation is working
+			mockIsOwnerOrAdmin.mockReturnValue(true);
+			const props = createDefaultProps();
 
-      render(
-        <MemoryRouter>
-          <ChatV1Content {...props} />
-        </MemoryRouter>
-      )
+			render(
+				<MemoryRouter>
+					<ChatV1Content {...props} />
+				</MemoryRouter>,
+			);
 
-      // Even though drag-and-drop is disabled, the validation logic exists in the code
-      // We can verify the ritaToast mock would be called with proper error messages
-      const { ritaToast } = await import('@/components/ui/rita-toast')
+			// Even though drag-and-drop is disabled, the validation logic exists in the code
+			// We can verify the ritaToast mock would be called with proper error messages
+			const { ritaToast } = await import("@/components/ui/rita-toast");
 
-      // Verify ritaToast is available for error reporting
-      expect(ritaToast.error).toBeDefined()
-      expect(ritaToast.success).toBeDefined()
-    })
+			// Verify ritaToast is available for error reporting
+			expect(ritaToast.error).toBeDefined();
+			expect(ritaToast.success).toBeDefined();
+		});
 
-    it('uses ritaToast for all notifications', async () => {
-      mockIsOwnerOrAdmin.mockReturnValue(true)
-      const props = createDefaultProps()
+		it("uses ritaToast for all notifications", async () => {
+			mockIsOwnerOrAdmin.mockReturnValue(true);
+			const props = createDefaultProps();
 
-      render(
-        <MemoryRouter>
-          <ChatV1Content {...props} />
-        </MemoryRouter>
-      )
+			render(
+				<MemoryRouter>
+					<ChatV1Content {...props} />
+				</MemoryRouter>,
+			);
 
-      // Verify component imports ritaToast (not plain toast from sonner)
-      const { ritaToast } = await import('@/components/ui/rita-toast')
-      expect(ritaToast).toBeDefined()
-      expect(ritaToast.error).toBeDefined()
-      expect(ritaToast.success).toBeDefined()
-    })
-  })
-})
+			// Verify component imports ritaToast (not plain toast from sonner)
+			const { ritaToast } = await import("@/components/ui/rita-toast");
+			expect(ritaToast).toBeDefined();
+			expect(ritaToast.error).toBeDefined();
+			expect(ritaToast.success).toBeDefined();
+		});
+	});
+
+	describe("Timeout Behavior for Incomplete Turns", () => {
+		beforeEach(() => {
+			vi.useFakeTimers();
+		});
+
+		afterEach(() => {
+			vi.useRealTimers();
+		});
+
+		it("enables input after 30s when streaming status persists", async () => {
+			const props = createDefaultProps();
+			props.messages = [
+				{
+					id: "1",
+					role: "user",
+					message: "test message",
+					timestamp: Date.now(),
+					status: "sent",
+					conversationId: "conv-1",
+				},
+			];
+
+			const { ritaToast } = await import("@/components/ui/rita-toast");
+			const warningSpy = vi.spyOn(ritaToast, "warning");
+
+			render(
+				<MemoryRouter>
+					<ChatV1Content {...props} />
+				</MemoryRouter>,
+			);
+
+			// Input should be disabled initially (streaming state)
+			const textarea = screen.getByPlaceholderText(/ask me anything/i);
+			expect(textarea).toBeDisabled();
+
+			// Fast-forward 30 seconds wrapped in act
+			await act(async () => {
+				vi.advanceTimersByTime(30000);
+			});
+
+			// Toast warning should be shown
+			expect(warningSpy).toHaveBeenCalledWith({ title: "Response timeout" });
+
+			// Input should now be enabled
+			expect(textarea).not.toBeDisabled();
+		});
+
+		it("clears timeout when status changes before 30s", async () => {
+			const props = createDefaultProps();
+			props.messages = [
+				{
+					id: "1",
+					role: "user",
+					message: "test message",
+					timestamp: Date.now(),
+					status: "sent",
+					conversationId: "conv-1",
+				},
+			];
+
+			const { ritaToast } = await import("@/components/ui/rita-toast");
+			const warningSpy = vi.spyOn(ritaToast, "warning");
+
+			const { rerender } = render(
+				<MemoryRouter>
+					<ChatV1Content {...props} />
+				</MemoryRouter>,
+			);
+
+			// Fast-forward 15 seconds (half the timeout)
+			vi.advanceTimersByTime(15000);
+
+			// Update messages with assistant response (status change)
+			props.messages = [
+				...props.messages,
+				{
+					id: "2",
+					role: "assistant",
+					message: "response",
+					timestamp: Date.now(),
+					status: "sent",
+					conversationId: "conv-1",
+					metadata: { turn_complete: true },
+				},
+			];
+
+			rerender(
+				<MemoryRouter>
+					<ChatV1Content {...props} />
+				</MemoryRouter>,
+			);
+
+			// Fast-forward another 20 seconds (total 35s)
+			vi.advanceTimersByTime(20000);
+
+			// Toast should NOT be shown (timeout cleared)
+			expect(warningSpy).not.toHaveBeenCalled();
+		});
+	});
+
+	describe("Navigation to Incomplete Conversations", () => {
+		it("enables input when navigating to conversation with incomplete turn", () => {
+			const props = createDefaultProps();
+			props.currentConversationId = "conv-1";
+			props.messages = [
+				{
+					id: "1",
+					role: "user",
+					message: "test message",
+					timestamp: Date.now(),
+					status: "sent",
+					conversationId: "conv-1",
+				},
+			];
+
+			render(
+				<MemoryRouter>
+					<ChatV1Content {...props} />
+				</MemoryRouter>,
+			);
+
+			// Input should be enabled (timeout override triggered)
+			const textarea = screen.getByPlaceholderText(/ask me anything/i);
+			expect(textarea).not.toBeDisabled();
+		});
+
+		it("enables input when navigating to conversation with turn_complete: false", () => {
+			const props = createDefaultProps();
+			props.currentConversationId = "conv-1";
+			props.messages = [
+				{
+					id: "1",
+					role: "assistant",
+					message: "partial response",
+					timestamp: Date.now(),
+					status: "sent",
+					conversationId: "conv-1",
+					metadata: { turn_complete: false },
+				},
+			];
+
+			render(
+				<MemoryRouter>
+					<ChatV1Content {...props} />
+				</MemoryRouter>,
+			);
+
+			// Input should be enabled (timeout override triggered)
+			const textarea = screen.getByPlaceholderText(/ask me anything/i);
+			expect(textarea).not.toBeDisabled();
+		});
+
+		it("does not override when navigating to complete conversation", () => {
+			const props = createDefaultProps();
+			props.currentConversationId = "conv-1";
+			props.messages = [
+				{
+					id: "1",
+					role: "user",
+					message: "test message",
+					timestamp: Date.now() - 2000,
+					status: "sent",
+					conversationId: "conv-1",
+				},
+				{
+					id: "2",
+					role: "assistant",
+					message: "complete response",
+					timestamp: Date.now(),
+					status: "sent",
+					conversationId: "conv-1",
+					metadata: { turn_complete: true },
+				},
+			];
+
+			render(
+				<MemoryRouter>
+					<ChatV1Content {...props} />
+				</MemoryRouter>,
+			);
+
+			// Input should be enabled normally (no streaming state)
+			const textarea = screen.getByPlaceholderText(/ask me anything/i);
+			expect(textarea).not.toBeDisabled();
+		});
+	});
+});

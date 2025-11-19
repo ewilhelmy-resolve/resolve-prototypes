@@ -14,7 +14,7 @@ import {
 	CopyIcon,
 	Upload /* , PaperclipIcon */,
 } from "lucide-react";
-import { Fragment, useCallback, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Action, Actions } from "@/components/ai-elements/actions";
 import {
@@ -533,6 +533,12 @@ export default function ChatV1Content({
 	// Copy state tracking for icon feedback
 	const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
 
+	// Timeout override state for incomplete turns
+	const [timeoutOverride, setTimeoutOverride] = useState(false);
+
+	// Track which conversation has been checked for incomplete turns
+	const lastCheckedConvRef = useRef<string | null>(null);
+
 	// Navigation for connections
 	const navigate = useNavigate();
 
@@ -631,11 +637,46 @@ export default function ChatV1Content({
 		messages,
 	);
 
+	// 30-second timeout for incomplete turns
+	useEffect(() => {
+		// Reset override when status changes
+		setTimeoutOverride(false);
+
+		if (chatStatus === "streaming") {
+			const timeoutId = setTimeout(() => {
+				ritaToast.warning({ title: "Response timeout" });
+				setTimeoutOverride(true);
+			}, 30000);
+
+			return () => clearTimeout(timeoutId);
+		}
+	}, [chatStatus]);
+
+	// Check for incomplete conversation on navigation
+	useEffect(() => {
+		if (!currentConversationId || !messages.length) return;
+
+		// Only check once per conversation
+		if (lastCheckedConvRef.current === currentConversationId) return;
+		lastCheckedConvRef.current = currentConversationId;
+
+		const lastMsg = messages[messages.length - 1];
+		const isIncomplete =
+			lastMsg.role === "user" ||
+			(lastMsg.role === "assistant" &&
+				lastMsg.metadata?.turn_complete === false);
+
+		if (isIncomplete) {
+			setTimeoutOverride(true);
+		}
+	}, [currentConversationId, messages]);
+
 	// Determine if input should be disabled (turn-based conversation or no knowledge)
 	const isInputDisabled =
-		chatStatus === "streaming" ||
-		chatStatus === "submitted" ||
-		!hasProcessedOrUploadedFiles;
+		!timeoutOverride &&
+		(chatStatus === "streaming" ||
+			chatStatus === "submitted" ||
+			!hasProcessedOrUploadedFiles);
 
 	// Handle form submission from PromptInput
 	const handlePromptSubmit = useCallback(
