@@ -214,12 +214,9 @@ router.post('/:id/sync', authenticateUser, async (req, res) => {
  * POST /api/v1/data-sources/:id/cancel-sync
  * Cancel an ongoing sync operation
  *
- * TODO: Backend platform implementation needed
- * The external automation platform (Barista) must implement:
- * 1. Receive cancel_sync webhook from Rita
- * 2. Stop the running sync job for the connection_id
- * 3. Clean up any in-progress operations
- * 4. Optionally send sync_cancelled status back via RabbitMQ
+ * Platform team implementation:
+ * Platform team polls sync_cancellation_requests table for pending requests,
+ * stops the running sync jobs, and updates status to 'completed' when done.
  */
 router.post('/:id/cancel-sync', authenticateUser, async (req, res) => {
   const authReq = req as AuthenticatedRequest;
@@ -254,28 +251,21 @@ router.post('/:id/cancel-sync', authenticateUser, async (req, res) => {
       throw new Error('Data source not found after cancel operation');
     }
 
-    // Send cancel webhook to external platform to stop the sync job
-    // TODO: External platform must handle this webhook and terminate the running sync job
-    const webhookResponse = await webhookService.sendCancelSyncEvent({
-      organizationId: authReq.user.activeOrganizationId,
+    // Create cancellation request for platform team to process
+    await dataSourceService.createCancellationRequest({
+      tenantId: authReq.user.activeOrganizationId,
       userId: authReq.user.id,
-      userEmail: authReq.user.email,
       connectionId: dataSource.id,
       connectionType: dataSource.type,
-      settings: {
-        url: dataSource.settings?.url || '',
-        email: dataSource.settings?.email || ''
-      }
+      connectionUrl: dataSource.settings?.url || '',
+      email: dataSource.settings?.email || ''
     });
 
-    // Log webhook result but don't fail the request (sync is already marked cancelled locally)
-    // This ensures the user gets immediate feedback even if the webhook fails
-    if (!webhookResponse.success) {
-      console.warn('[DataSourceWebhook] Cancel webhook failed but local status updated:', {
-        connectionId: dataSource.id,
-        error: webhookResponse.error
-      });
-    }
+    console.log('[DataSourceWebhook] Cancellation request created:', {
+      connectionId: dataSource.id,
+      tenantId: authReq.user.activeOrganizationId,
+      connectionType: dataSource.type
+    });
 
     res.json({
       success: true,

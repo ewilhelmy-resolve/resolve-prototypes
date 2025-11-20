@@ -301,9 +301,6 @@ export class DataSourceService {
   /**
    * Cancel an ongoing sync operation
    * Sets status to 'cancelled' and marks last_sync_status as 'failed'
-   *
-   * TODO: Add webhook call to external platform to actually cancel the sync job
-   * For now, this only updates the local database status
    */
   async cancelSync(
     connectionId: string,
@@ -321,14 +318,34 @@ export class DataSourceService {
       [connectionId, organizationId]
     );
 
-    // TODO: Send cancel webhook to external platform
-    // const webhookService = new DataSourceWebhookService();
-    // await webhookService.sendCancelSyncEvent({
-    //   organizationId,
-    //   connectionId,
-    //   connectionType: result.rows[0]?.type,
-    // });
-
     return result.rows[0] || null;
+  }
+
+  /**
+   * Create a cancellation request for the platform team to process
+   * Inserts into sync_cancellation_requests table
+   */
+  async createCancellationRequest(params: {
+    tenantId: string;
+    userId: string;
+    connectionId: string;
+    connectionType: string;
+    connectionUrl: string;
+    email: string;
+  }): Promise<void> {
+    await pool.query(
+      `INSERT INTO sync_cancellation_requests (
+        tenant_id, user_id, connection_id, connection_type,
+        connection_url, email, status
+      ) VALUES ($1, $2, $3, $4, $5, $6, 'pending')`,
+      [
+        params.tenantId,
+        params.userId,
+        params.connectionId,
+        params.connectionType,
+        params.connectionUrl,
+        params.email
+      ]
+    );
   }
 }

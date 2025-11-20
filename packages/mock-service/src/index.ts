@@ -159,20 +159,8 @@ interface DataSourceSyncPayload extends BaseWebhookPayload {
   settings: Record<string, any>;
 }
 
-interface DataSourceCancelPayload extends BaseWebhookPayload {
-  source: 'rita-chat';
-  action: 'trigger_sync_cancel';
-  connection_id: string;
-  connection_type: string;
-  settings: {
-    url: string;
-    email: string;
-    status: 'cancel';
-  };
-}
-
 // Union type for all webhook payloads
-type WebhookPayload = MessageWebhookPayload | DocumentWebhookPayload | DocumentDeletePayload | SignupWebhookPayload | SendInvitationWebhookPayload | AcceptInvitationWebhookPayload | DeleteKeycloakUserPayload | DataSourceVerifyPayload | DataSourceSyncPayload | DataSourceCancelPayload | BaseWebhookPayload;
+type WebhookPayload = MessageWebhookPayload | DocumentWebhookPayload | DocumentDeletePayload | SignupWebhookPayload | SendInvitationWebhookPayload | AcceptInvitationWebhookPayload | DeleteKeycloakUserPayload | DataSourceVerifyPayload | DataSourceSyncPayload | BaseWebhookPayload;
 
 interface MockResponse {
   message_id: string;
@@ -2046,35 +2034,6 @@ app.post('/webhook', async (req, res) => {
       return res.status(200).json({
         success: true,
         message: 'Sync triggered successfully'
-      });
-
-    } else if (payload.source === 'rita-chat' && payload.action === 'trigger_sync_cancel') {
-      const cancelPayload = payload as DataSourceCancelPayload;
-      const contextLogger = createContextLogger(webhookLogger, correlationId, {
-        tenantId: cancelPayload.tenant_id
-      });
-
-      contextLogger.info({
-        source: cancelPayload.source,
-        action: cancelPayload.action,
-        connection_id: cancelPayload.connection_id,
-        connection_type: cancelPayload.connection_type,
-        user_email: cancelPayload.user_email,
-        settings: cancelPayload.settings
-      }, 'Received data source cancel sync webhook');
-
-      // Add connection to cancelled set to prevent sync_completed from being sent
-      cancelledSyncConnections.add(cancelPayload.connection_id);
-
-      // Acknowledge cancel request immediately
-      // In a real implementation, this would signal the running sync job to stop
-      contextLogger.info({
-        connectionId: cancelPayload.connection_id
-      }, 'Cancel sync request acknowledged - sync job terminated, will not send sync_completed');
-
-      return res.status(200).json({
-        success: true,
-        message: 'Cancel sync request acknowledged'
       });
 
     } else {

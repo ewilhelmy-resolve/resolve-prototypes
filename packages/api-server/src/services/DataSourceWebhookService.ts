@@ -2,8 +2,7 @@ import axios, { type AxiosResponse } from 'axios';
 import { pool } from '../config/database.js';
 import type {
   VerifyWebhookPayload,
-  SyncTriggerWebhookPayload,
-  CancelSyncWebhookPayload
+  SyncTriggerWebhookPayload
 } from '../types/dataSource.js';
 import type { WebhookConfig, WebhookResponse, WebhookError } from '../types/webhook.js';
 
@@ -77,42 +76,9 @@ export class DataSourceWebhookService {
   }
 
   /**
-   * Send cancel sync webhook event
-   */
-  async sendCancelSyncEvent(params: {
-    organizationId: string;
-    userId?: string;
-    userEmail?: string;
-    connectionId: string;
-    connectionType: string;
-    settings: {
-      url: string;
-      email: string;
-    };
-  }): Promise<WebhookResponse> {
-    const payload: CancelSyncWebhookPayload = {
-      source: 'rita-chat',
-      action: 'trigger_sync_cancel',
-      tenant_id: params.organizationId,
-      user_id: params.userId,
-      user_email: params.userEmail,
-      connection_id: params.connectionId,
-      connection_type: params.connectionType as any,
-      settings: {
-        url: params.settings.url,
-        email: params.settings.email,
-        status: 'cancel'
-      },
-      timestamp: new Date().toISOString()
-    };
-
-    return this.sendEvent(payload);
-  }
-
-  /**
    * Core event sending method with retry logic
    */
-  private async sendEvent(payload: VerifyWebhookPayload | SyncTriggerWebhookPayload | CancelSyncWebhookPayload): Promise<WebhookResponse> {
+  private async sendEvent(payload: VerifyWebhookPayload | SyncTriggerWebhookPayload): Promise<WebhookResponse> {
     let lastError: WebhookError | null = null;
 
     // Validate payload is JSON-serializable before sending
@@ -217,7 +183,7 @@ export class DataSourceWebhookService {
    * Store webhook failure in database
    */
   private async storeWebhookFailure(
-    payload: VerifyWebhookPayload | SyncTriggerWebhookPayload | CancelSyncWebhookPayload,
+    payload: VerifyWebhookPayload | SyncTriggerWebhookPayload,
     error: WebhookError | null,
     retryCount: number
   ): Promise<void> {
