@@ -181,6 +181,9 @@ interface MessagePart {
 let rabbitConnection: Connection | null = null;
 let rabbitChannel: Channel | null = null;
 
+// Track cancelled sync operations to prevent sending sync_completed
+const cancelledSyncConnections = new Set<string>();
+
 async function connectRabbitMQ(): Promise<void> {
   const timer = new PerformanceTimer(rabbitLogger, 'connect-rabbitmq');
   try {
@@ -1986,9 +1989,19 @@ app.post('/webhook', async (req, res) => {
         user_email: syncPayload.user_email
       }, 'Received data source sync trigger webhook');
 
-      // Publish sync_completed message to RabbitMQ after 2 second delay
+      // Publish sync_completed message to RabbitMQ after 20 second delay
       setTimeout(async () => {
         try {
+          // Check if sync was cancelled before sending sync_completed
+          if (cancelledSyncConnections.has(syncPayload.connection_id)) {
+            contextLogger.info({
+              connectionId: syncPayload.connection_id
+            }, 'Sync was cancelled - skipping sync_completed message');
+            // Remove from cancelled set after skipping
+            cancelledSyncConnections.delete(syncPayload.connection_id);
+            return;
+          }
+
           if (!rabbitChannel) {
             throw new Error('RabbitMQ channel not initialized');
           }
@@ -2016,7 +2029,7 @@ app.post('/webhook', async (req, res) => {
         } catch (error) {
           contextLogger.error({ error }, 'Failed to publish sync_completed message');
         }
-      }, 2000);
+      }, 20000);
 
       return res.status(200).json({
         success: true,

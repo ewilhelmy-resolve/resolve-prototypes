@@ -186,9 +186,10 @@ export class DataSourceService {
   async updateDataSourceStatus(
     connectionId: string,
     organizationId: string,
-    status: 'idle' | 'syncing',
+    status: 'idle' | 'syncing' | 'cancelled',
     lastSyncStatus?: 'completed' | 'failed' | null,
-    updateLastSyncAt: boolean = false
+    updateLastSyncAt: boolean = false,
+    requireSyncingStatus: boolean = false
   ): Promise<DataSourceConnection | null> {
     const updates = ['status = $1'];
     const values: any[] = [status];
@@ -207,10 +208,16 @@ export class DataSourceService {
 
     values.push(connectionId, organizationId);
 
+    // Add status check to prevent race condition: only update if status is 'syncing'
+    // This prevents sync_completed messages from overwriting 'cancelled' status
+    const whereClause = requireSyncingStatus
+      ? `WHERE id = $${paramIndex++} AND organization_id = $${paramIndex++} AND status = 'syncing'`
+      : `WHERE id = $${paramIndex++} AND organization_id = $${paramIndex++}`;
+
     const result = await pool.query<DataSourceConnection>(
       `UPDATE data_source_connections
        SET ${updates.join(', ')}
-       WHERE id = $${paramIndex++} AND organization_id = $${paramIndex++}
+       ${whereClause}
        RETURNING *`,
       values
     );
@@ -289,5 +296,56 @@ export class DataSourceService {
     );
 
     return result.rows[0] || null;
+  }
+
+  /**
+   * Cancel an ongoing sync operation
+   * Sets status to 'cancelled' and marks last_sync_status as 'failed'
+   */
+  async cancelSync(
+    connectionId: string,
+    organizationId: string
+  ): Promise<DataSourceConnection | null> {
+    const result = await pool.query<DataSourceConnection>(
+      `UPDATE data_source_connections
+       SET status = 'cancelled',
+           last_sync_status = 'failed',
+           last_sync_error = 'Sync cancelled by user',
+           last_sync_at = NOW(),
+           updated_at = NOW()
+       WHERE id = $1 AND organization_id = $2
+       RETURNING *`,
+      [connectionId, organizationId]
+    );
+
+    return result.rows[0] || null;
+  }
+
+  /**
+   * Create a cancellation request for the platform team to process
+   * Inserts into sync_cancellation_requests table
+   */
+  async createCancellationRequest(params: {
+    tenantId: string;
+    userId: string;
+    connectionId: string;
+    connectionType: string;
+    connectionUrl: string;
+    email: string;
+  }): Promise<void> {
+    await pool.query(
+      `INSERT INTO sync_cancellation_requests (
+        tenant_id, user_id, connection_id, connection_type,
+        connection_url, email, status
+      ) VALUES ($1, $2, $3, $4, $5, $6, 'pending')`,
+      [
+        params.tenantId,
+        params.userId,
+        params.connectionId,
+        params.connectionType,
+        params.connectionUrl,
+        params.email
+      ]
+    );
   }
 }

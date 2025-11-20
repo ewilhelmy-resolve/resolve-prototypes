@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { STATUS } from "@/constants/connectionSources";
 import { useConnectionSource } from "@/contexts/ConnectionSourceContext";
 import {
+	useCancelSync,
 	useTriggerSync,
 	useUpdateDataSource,
 } from "@/hooks/useDataSources";
@@ -12,7 +13,7 @@ import {
 	parseAvailableSpaces,
 	parseSelectedSpaces,
 } from "@/lib/dataSourceUtils";
-import { toast } from "@/lib/toast";
+import { ritaToast } from "@/components/ui/rita-toast";
 import { Label } from "../../ui/label";
 import { MultiSelect, type MultiSelectOption } from "../../ui/multi-select";
 import { ConnectionActionsMenu } from "../ConnectionActionsMenu";
@@ -30,12 +31,18 @@ export default function ConfluenceConfiguration({
 	const [selectedSpaces, setSelectedSpaces] = useState<string[]>([]);
 	const updateMutation = useUpdateDataSource();
 	const syncMutation = useTriggerSync();
+	const cancelMutation = useCancelSync();
+
+	const isSyncing = source.status.toLowerCase() === STATUS.SYNCING.toLowerCase();
+	const isVerifying = source.status.toLowerCase() === STATUS.VERIFYING.toLowerCase();
 
 	const isSyncButtonDisabled =
-		source.status.toLowerCase() === STATUS.SYNCING.toLowerCase() ||
-		source.status.toLowerCase() === STATUS.VERIFYING.toLowerCase() ||
+		isSyncing ||
+		isVerifying ||
 		updateMutation.isPending ||
 		syncMutation.isPending;
+
+	const isCancelButtonDisabled = cancelMutation.isPending;
 
 	// Parse available spaces from latest_options (discovered during verification)
 	const availableSpaces: MultiSelectOption[] = useMemo(() => {
@@ -53,7 +60,8 @@ export default function ConfluenceConfiguration({
 
 	const handleSync = async () => {
 		if (!source.backendData) {
-			toast.error("Configuration Error", {
+			ritaToast.error({
+				title: "Configuration Error",
 				description: "No backend data available for this source",
 			});
 			return;
@@ -74,13 +82,40 @@ export default function ConfluenceConfiguration({
 			// Step 2: Trigger sync
 			await syncMutation.mutateAsync(source.backendData.id);
 
-			toast.success("Sync Started", {
+			ritaToast.success({
+				title: "Sync Started",
 				description: "Your Confluence spaces are being synced",
 			});
 		} catch (error) {
-			toast.error("Sync Failed", {
+			ritaToast.error({
+				title: "Sync Failed",
 				description:
 					error instanceof Error ? error.message : "Failed to start sync",
+			});
+		}
+	};
+
+	const handleCancelSync = async () => {
+		if (!source.backendData) {
+			ritaToast.error({
+				title: "Configuration Error",
+				description: "No backend data available for this source",
+			});
+			return;
+		}
+
+		try {
+			await cancelMutation.mutateAsync(source.backendData.id);
+
+			ritaToast.success({
+				title: "Sync Cancelled",
+				description: "Your sync operation has been cancelled",
+			});
+		} catch (error) {
+			ritaToast.error({
+				title: "Cancel Failed",
+				description:
+					error instanceof Error ? error.message : "Failed to cancel sync",
 			});
 		}
 	};
@@ -95,10 +130,28 @@ export default function ConfluenceConfiguration({
 
 				<ConnectionStatusCard source={source} onRetry={handleSync} />
 
+				{/* Show cancel button when syncing */}
+				{isSyncing && (
+					<div className="flex flex-col gap-1">
+						<div className="border border-border bg-popover rounded-md p-4">
+							<div className="rounded-lg flex items-center justify-between">
+								<Label>Sync in progress...</Label>
+								<Button
+									onClick={handleCancelSync}
+									disabled={isCancelButtonDisabled}
+									variant="destructive"
+								>
+									{cancelMutation.isPending ? "Cancelling..." : "Cancel Sync"}
+								</Button>
+							</div>
+						</div>
+					</div>
+				)}
+
 				{/* Only show spaces selector when status is not Error, Verifying, or Syncing */}
 				{source.status.toLowerCase() !== STATUS.ERROR.toLowerCase() &&
-					source.status.toLowerCase() !== STATUS.VERIFYING.toLowerCase() &&
-					source.status.toLowerCase() !== STATUS.SYNCING.toLowerCase() && (
+					!isVerifying &&
+					!isSyncing && (
 					<div className="flex flex-col gap-1">
 						<div className="border border-border bg-popover rounded-md p-4">
 							<div className="rounded-lg">

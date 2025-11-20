@@ -1,4 +1,4 @@
-import { CircleCheck, CircleX, HelpCircle, Loader2 } from "lucide-react";
+import { CircleCheck, CircleX, HelpCircle, Loader2, XCircle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { STATUS, type Status } from "@/constants/connectionSources";
 
@@ -77,6 +77,16 @@ export function ConnectionStatusBadge({
 				>
 					<CircleX className="h-3 w-3 text-red-500" />
 					Failed
+				</Badge>
+			);
+		case STATUS.CANCELLED:
+			return (
+				<Badge
+					variant="outline"
+					className="bg-background border-yellow-500 gap-1.5 px-3 py-1"
+				>
+					<XCircle className="h-3 w-3 text-yellow-500" />
+					Cancelled
 				</Badge>
 			);
 		case STATUS.CONNECTED:

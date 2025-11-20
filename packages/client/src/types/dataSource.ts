@@ -3,17 +3,18 @@
 
 export type DataSourceType = 'confluence' | 'servicenow' | 'sharepoint' | 'websearch';
 
-export type DataSourceStatus = 'idle' | 'verifying' | 'syncing';
+export type DataSourceStatus = 'idle' | 'verifying' | 'syncing' | 'cancelled';
 
 export type DataSourceLastSyncStatus = 'completed' | 'failed' | null;
 
-export type Status = 'connected' | 'not_connected' | 'verifying' | 'syncing' | 'error' | null;
+export type Status = 'connected' | 'not_connected' | 'verifying' | 'syncing' | 'cancelled' | 'error' | null;
 
 // Backend status constants (match database values exactly)
 export const BACKEND_STATUS = {
 	IDLE: 'idle' as Status,
 	VERIFYING: 'verifying' as Status,
 	SYNCING: 'syncing' as Status,
+	CANCELLED: 'cancelled' as Status,
   FAILED: 'failed' as Status,
   COMPLETED: 'completed' as Status,
 } as const;

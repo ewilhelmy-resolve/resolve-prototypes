@@ -210,4 +210,78 @@ router.post('/:id/sync', authenticateUser, async (req, res) => {
   }
 });
 
+/**
+ * POST /api/v1/data-sources/:id/cancel-sync
+ * Cancel an ongoing sync operation
+ *
+ * Platform team implementation:
+ * Platform team polls sync_cancellation_requests table for pending requests,
+ * stops the running sync jobs, and updates status to 'completed' when done.
+ */
+router.post('/:id/cancel-sync', authenticateUser, async (req, res) => {
+  const authReq = req as AuthenticatedRequest;
+  const { id } = req.params;
+
+  try {
+    // Get data source
+    const dataSource = await dataSourceService.getDataSource(
+      id,
+      authReq.user.activeOrganizationId
+    );
+
+    if (!dataSource) {
+      return res.status(404).json({ error: 'Data source not found' });
+    }
+
+    // Check if sync is actually in progress
+    if (dataSource.status !== 'syncing') {
+      return res.status(400).json({
+        error: 'No sync in progress',
+        message: `Cannot cancel sync - current status is '${dataSource.status}'`
+      });
+    }
+
+    // Cancel the sync locally first (update database status)
+    const updatedDataSource = await dataSourceService.cancelSync(
+      id,
+      authReq.user.activeOrganizationId
+    );
+
+    if (!updatedDataSource) {
+      throw new Error('Data source not found after cancel operation');
+    }
+
+    // Create cancellation request for platform team to process
+    await dataSourceService.createCancellationRequest({
+      tenantId: authReq.user.activeOrganizationId,
+      userId: authReq.user.id,
+      connectionId: dataSource.id,
+      connectionType: dataSource.type,
+      connectionUrl: dataSource.settings?.url || '',
+      email: dataSource.settings?.email || ''
+    });
+
+    console.log('[DataSourceWebhook] Cancellation request created:', {
+      connectionId: dataSource.id,
+      tenantId: authReq.user.activeOrganizationId,
+      connectionType: dataSource.type
+    });
+
+    res.json({
+      success: true,
+      data: {
+        id: updatedDataSource.id,
+        status: updatedDataSource.status,
+        last_sync_status: updatedDataSource.last_sync_status,
+        last_sync_error: updatedDataSource.last_sync_error,
+        cancelledAt: new Date().toISOString()
+      },
+      message: 'Sync cancelled successfully'
+    });
+  } catch (error) {
+    console.error('[DataSourceWebhook] Error cancelling sync:', error);
+    res.status(500).json({ error: 'Failed to cancel sync' });
+  }
+});
+
 export default router;

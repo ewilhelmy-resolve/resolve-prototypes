@@ -119,8 +119,19 @@ export class DataSourceStatusConsumer {
           tenant_id,
           'idle',
           'completed',
-          true // Update last_sync_at
+          true, // Update last_sync_at
+          true  // Require status to be 'syncing' to prevent race condition
         );
+
+        // If update failed (returned null), the sync was likely cancelled
+        if (!updatedDataSource) {
+          messageLogger.warn({
+            connection_id,
+            tenant_id
+          }, 'Sync completed message ignored - sync may have been cancelled');
+          return; // Don't send SSE notification
+        }
+
         messageLogger.info({
           documentsProcessed: payload.documents_processed
         }, 'Data source sync completed successfully');
@@ -137,6 +148,19 @@ export class DataSourceStatusConsumer {
         messageLogger.error({
           errorMessage: error_message
         }, 'Data source sync failed');
+        break;
+
+      case 'sync_cancelled':
+        updatedDataSource = await this.dataSourceService.updateDataSourceStatus(
+          connection_id,
+          tenant_id,
+          'cancelled',
+          'failed',
+          true // Update last_sync_at
+        );
+        messageLogger.info({
+          errorMessage: error_message || 'Sync cancelled by user'
+        }, 'Data source sync cancelled');
         break;
 
       default:
