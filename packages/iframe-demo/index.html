@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RITA Iframe Embed Demo</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        header {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 28px;
+        }
+
+        p {
+            color: #666;
+            margin-bottom: 20px;
+            line-height: 1.6;
+        }
+
+        .controls {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        label {
+            font-weight: 600;
+            color: #333;
+        }
+
+        input[type="text"] {
+            padding: 10px 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+            min-width: 250px;
+            transition: border-color 0.2s;
+        }
+
+        input[type="text"]:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        button {
+            padding: 10px 20px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        button:hover {
+            background: #5568d3;
+        }
+
+        button:active {
+            transform: translateY(1px);
+        }
+
+        .iframe-container {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            height: calc(100vh - 280px);
+            min-height: 600px;
+        }
+
+        iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+            border-radius: 8px;
+            background: white;
+        }
+
+        .info {
+            background: #fff3cd;
+            border: 1px solid #ffc107;
+            border-radius: 8px;
+            padding: 15px;
+            margin-top: 10px;
+        }
+
+        .info strong {
+            color: #856404;
+        }
+
+        .info code {
+            background: #fff;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            color: #d63384;
+        }
+
+        .test-scenarios {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+            flex-wrap: wrap;
+        }
+
+        .test-scenarios button {
+            background: #6c757d;
+            font-size: 13px;
+            padding: 8px 16px;
+        }
+
+        .test-scenarios button:hover {
+            background: #5a6268;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🤖 RITA Iframe Embed Demo</h1>
+            <p>Test the iframe-embeddable chat version of RITA with configurable intent-eid parameter.</p>
+
+            <div class="controls">
+                <label for="intentEid">Intent EID:</label>
+                <input
+                    type="text"
+                    id="intentEid"
+                    placeholder="e.g., test-123, ticket-456, session-abc"
+                    value="test-demo-001"
+                >
+                <button onclick="loadIframe()">Load Iframe</button>
+            </div>
+
+            <div class="test-scenarios">
+                <strong>Quick Tests:</strong>
+                <button onclick="setIntentAndLoad('ticket-urgent-001')">Ticket Support</button>
+                <button onclick="setIntentAndLoad('onboarding-new-user')">User Onboarding</button>
+                <button onclick="setIntentAndLoad('sales-inquiry-123')">Sales Inquiry</button>
+                <button onclick="setIntentAndLoad('')">No Intent EID</button>
+            </div>
+
+            <div class="info">
+                <strong>Current URL:</strong> <code id="currentUrl">Not loaded yet</code>
+                <br><br>
+                <strong>⚠️ Authentication Required:</strong> You must be logged in to RITA at
+                <a href="http://localhost:5173/chat" target="_blank" style="color: #667eea; text-decoration: underline;">
+                    http://localhost:5173/chat
+                </a>
+                first. The iframe shares authentication cookies with the main app.
+            </div>
+        </header>
+
+        <div class="iframe-container">
+            <iframe id="ritaIframe" src=""></iframe>
+        </div>
+    </div>
+
+    <script>
+        // Default to localhost for development
+        const RITA_BASE_URL = 'http://localhost:5173';
+
+        function loadIframe() {
+            const intentEid = document.getElementById('intentEid').value.trim();
+            const iframe = document.getElementById('ritaIframe');
+
+            // Build URL with optional intent-eid parameter
+            let url = `${RITA_BASE_URL}/iframe/chat`;
+            if (intentEid) {
+                url += `?intent-eid=${encodeURIComponent(intentEid)}`;
+            }
+
+            iframe.src = url;
+            document.getElementById('currentUrl').textContent = url;
+
+            console.log('[Iframe Demo] Loading iframe with URL:', url);
+        }
+
+        function setIntentAndLoad(intentValue) {
+            document.getElementById('intentEid').value = intentValue;
+            loadIframe();
+        }
+
+        // Load iframe on page load with default intent-eid
+        window.addEventListener('DOMContentLoaded', loadIframe);
+    </script>
+</body>
+</html>
