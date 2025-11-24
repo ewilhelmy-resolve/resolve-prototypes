@@ -70,9 +70,10 @@ export function TicketGroupStat({
 	};
 
 	return (
-		<div
+		<button
+			type="button"
 			onClick={handleClick}
-			className="flex flex-col gap-4 rounded-lg border border-border bg-card p-4 cursor-pointer hover:bg-accent/50 transition-colors"
+			className="flex flex-col gap-4 rounded-lg border border-border bg-card p-4 cursor-pointer hover:bg-accent/50 transition-colors text-left"
 		>
 			{/* Title and Count */}
 			<div className="flex flex-col gap-3.5">
@@ -115,6 +116,6 @@ export function TicketGroupStat({
 					{knowledgeStatus === "found" ? "Knowledge found" : "Knowledge gap"}
 				</Badge>
 			</div>
-		</div>
+		</button>
 	);
 }

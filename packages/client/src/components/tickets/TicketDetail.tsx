@@ -9,9 +9,6 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer } from "recharts"
 import { Info, ChevronDown, ArrowUpDown, MoreHorizontal, WandSparkles, Sparkles, Zap, Network, Crown } from "lucide-react"
 
-interface TicketDetailProps {
-  className?: string
-}
 
 const badges = [
   { text: "976 tickets", variant: "secondary" as const },
@@ -43,7 +40,7 @@ const recommendations = [
   { title: "Auto-Resolve", icon: Network, comingSoon: true }
 ]
 
-export default function TicketDetail({ }: TicketDetailProps) {
+export default function TicketDetail() {
   return (
     <div className="flex min-h-screen flex-col lg:flex-row">
       {/* Main Content */}
