@@ -40,6 +40,16 @@ import {
 	Crown,
 } from "lucide-react";
 
+// Map source names to icon paths
+const getSourceIcon = (source: string): string => {
+	const sourceMap: Record<string, string> = {
+		ServiceNow: "/connections/icon_servicenow.svg",
+		Confluence: "/connections/icon_confluence.svg",
+		SharePoint: "/connections/icon_sharepoint.svg",
+	};
+	return sourceMap[source] || "/connections/icon_servicenow.svg";
+};
+
 const badges = [
 	{ text: "976 tickets", variant: "secondary" as const },
 	{ text: "14 open", variant: "secondary" as const },
@@ -121,7 +131,7 @@ export default function TicketDetailPage() {
 				<div className="flex-1 p-4">
 					<div className="flex flex-col gap-4">
 						{/* Page Header */}
-						<div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+						<div className="flex flex-col gap-4 lg:flex-row lg:items-center">
 							<h1 className="text-xl font-medium">{title}</h1>
 							<div className="flex flex-wrap gap-2">
 								{badges.map((badge, index) => (
@@ -168,7 +178,7 @@ export default function TicketDetailPage() {
 								</ResponsiveContainer>
 							</div>
 
-							<div className="flex gap-4">
+							<div className="flex gap-4 justify-center">
 								<div className="flex items-center gap-2">
 									<div className="h-3 w-3 rounded-xs" style={{ backgroundColor: "#8b5cf6" }} />
 									<span className="text-sm">Manual</span>
@@ -252,7 +262,11 @@ export default function TicketDetailPage() {
 												</TableCell>
 												<TableCell className="text-center">
 													<div className="flex justify-center">
-														<div className="h-4 w-4 rounded-sm bg-green-600" />
+														<img
+															src={getSourceIcon(row.source)}
+															alt={row.source}
+															className="h-4 w-4"
+														/>
 													</div>
 												</TableCell>
 												<TableCell className="text-right text-sm">
