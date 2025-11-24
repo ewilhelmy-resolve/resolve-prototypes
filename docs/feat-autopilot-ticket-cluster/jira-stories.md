@@ -11,11 +11,11 @@
 Create database schema for RITA Autopilot including all tables, RLS policies, indexes, and constraints. Foundation for all backend work.
 
 ### Acceptance Criteria
-- [ ] Migration file creates 6 tables: clusters, tickets, analytics_cluster_daily, knowledge_articles, ingestion_runs, credential_delegation_tokens
+- [ ] Migration file creates 5 tables: clusters, tickets, analytics_cluster_daily, knowledge_articles, ingestion_runs
 - [ ] RLS policies enforced on all tables using app.current_organization_id
 - [ ] All indexes created (org_id, cluster_id, status, timestamps)
 - [ ] Foreign key constraints with proper ON DELETE actions
-- [ ] Unique constraints (delegation token, cluster validation)
+- [ ] Unique constraints (cluster validation)
 - [ ] Auto-timestamp triggers (updated_at)
 - [ ] Migration runs successfully on dev/staging
 - [ ] Rollback script tested
@@ -31,7 +31,6 @@ CREATE TABLE tickets (...)
 CREATE TABLE analytics_cluster_daily (...)
 CREATE TABLE knowledge_articles (...)
 CREATE TABLE ingestion_runs (...)
-CREATE TABLE credential_delegation_tokens (...)
 
 -- RLS pattern:
 ALTER TABLE clusters ENABLE ROW LEVEL SECURITY;
@@ -151,6 +150,11 @@ Reference: Section 4.2 Frontend API Endpoints, Section 5.2 Frontend State
 Implement delegated ITSM credential setup: RITA Owner sends magic link to IT Admin who submits credentials via public page with polling for verification status.
 
 ### Acceptance Criteria
+- [ ] Migration creates credential_delegation_tokens table
+  - All columns per technical design (id, organization_id, created_by_user_id, admin_email, etc.)
+  - Indexes (token, org_id, status, expires_at, connection_id)
+  - RLS policy using app.current_organization_id
+  - Unique constraint for pending tokens (admin_email + org + system_type WHERE status='pending')
 - [ ] POST /api/credential-delegations/create endpoint
   - Generates 64-char token (crypto.randomBytes)
   - Inserts credential_delegation_tokens record
@@ -179,6 +183,30 @@ Implement delegated ITSM credential setup: RITA Owner sends magic link to IT Adm
 - Story 1 (Database Foundation)
 
 ### Technical Notes
+```sql
+-- Migration: XXX_add_credential_delegation_tokens.sql
+CREATE TABLE credential_delegation_tokens (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+    created_by_user_id UUID NOT NULL REFERENCES user_profiles(user_id),
+    admin_email TEXT NOT NULL,
+    admin_name TEXT,
+    itsm_system_type TEXT NOT NULL CHECK (itsm_system_type IN ('servicenow', 'jira', 'confluence')),
+    delegation_token TEXT NOT NULL UNIQUE,
+    token_expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'used', 'verified', 'expired', 'cancelled')),
+    credentials_received_at TIMESTAMP WITH TIME ZONE,
+    credentials_verified_at TIMESTAMP WITH TIME ZONE,
+    last_verification_error TEXT,
+    connection_id UUID REFERENCES data_source_connections(id) ON DELETE SET NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    accepted_at TIMESTAMP WITH TIME ZONE,
+    completed_at TIMESTAMP WITH TIME ZONE
+);
+
+-- Indexes + RLS per technical design Section 7.2
+```
+
 ```typescript
 // Token generation:
 const token = crypto.randomBytes(32).toString('hex');
@@ -198,7 +226,7 @@ WHERE token=$1 AND status='pending' RETURNING id;
 }
 ```
 
-Reference: Section 2.3 Delegated ITSM Credential Setup, Section 4.2 API Endpoints
+Reference: Section 2.3 Delegated ITSM Credential Setup, Section 4.2 API Endpoints, Section 7.2 credential_delegation_tokens
 
 ---
 
