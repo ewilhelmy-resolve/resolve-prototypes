@@ -13,6 +13,7 @@ import DevToolsPage from "./pages/DevToolsPage";
 import DropdownTestPage from "./pages/DropdownTestPage";
 import FilesV1Page from "./pages/FilesV1Page";
 import HelpPage from "./pages/HelpPage";
+import IframeChatPage from "./pages/IframeChatPage";
 import InviteAcceptPage from "./pages/InviteAcceptPage";
 import { NotFoundPage } from "./pages/NotFoundPage";
 import SettingsV1Page from "./pages/SettingsV1Page";
@@ -44,6 +45,23 @@ const router = createBrowserRouter([
 		element: (
 			<ProtectedRoute>
 				<ChatV1Page />
+			</ProtectedRoute>
+		),
+	},
+	// Iframe-embeddable chat routes (minimal UI)
+	{
+		path: "/iframe/chat",
+		element: (
+			<ProtectedRoute>
+				<IframeChatPage />
+			</ProtectedRoute>
+		),
+	},
+	{
+		path: "/iframe/chat/:conversationId",
+		element: (
+			<ProtectedRoute>
+				<IframeChatPage />
 			</ProtectedRoute>
 		),
 	},

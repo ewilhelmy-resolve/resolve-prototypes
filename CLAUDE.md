@@ -90,12 +90,45 @@ Check `.env.example` files in each package for required configuration.
 - `npm run dev:api` - Start API server (port 3000)
 - `npm run dev:mock` - Start mock service
 - `npm run dev:theme` - Start Keycloak theme development
+- `npm run dev:iframe-demo` - Start iframe demo host (port 5174)
 - `npm test` - Run test suite
 - `npm run type-check` - Run TypeScript type checking across all packages
 - `npm run build` - Build API server and client for production
 - `npm run build:theme` - Build Keycloak theme
 - `npm run lint` - Run linting across all packages
 - `docker compose up -d` - Start full stack with Docker
+
+### Iframe Embeddable Chat
+
+RITA Go includes an iframe-embeddable version for integration into external applications.
+
+**Key Features**:
+- Minimal UI (no sidebar, no navigation)
+- Intent tracking via `intent-eid` parameter
+- Works without knowledge base files
+- Reuses all core chat components
+
+**Routes**:
+- `/iframe/chat` - New conversation
+- `/iframe/chat/:conversationId` - Existing conversation
+- `/iframe/chat?intent-eid=<value>` - With intent tracking
+
+**Quick Start**:
+```bash
+# Terminal 1: Start client
+npm run dev:client
+
+# Terminal 2: Start demo
+npm run dev:iframe-demo
+# Opens http://localhost:5174
+```
+
+**Documentation**: See `packages/client/IFRAME.md` for integration guide
+
+**Current Limitations**:
+- Requires Keycloak authentication (same-domain only)
+- No token-based auth yet (planned for staging deployment)
+- Intent-eid logged but not persisted to backend
 
 ### Style & Reminders
 - Prefer TypeScript strict mode for all new code

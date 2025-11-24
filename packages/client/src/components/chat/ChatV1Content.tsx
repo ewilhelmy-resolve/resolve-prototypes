@@ -98,6 +98,9 @@ export interface ChatV1ContentProps {
 
 	// File upload (for chat messages)
 	handleFileUpload: RitaChatState["handleFileUpload"];
+
+	// Config options
+	requireKnowledgeBase?: boolean;
 	uploadStatus: RitaChatState["uploadStatus"];
 
 	// Refs
@@ -532,6 +535,7 @@ export default function ChatV1Content({
 	handleFileUpload,
 	uploadStatus,
 	fileInputRef,
+	requireKnowledgeBase = true,
 }: ChatV1ContentProps) {
 	// Copy state tracking for icon feedback
 	const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
@@ -679,7 +683,7 @@ export default function ChatV1Content({
 		!timeoutOverride &&
 		(chatStatus === "streaming" ||
 			chatStatus === "submitted" ||
-			!hasProcessedOrUploadedFiles);
+			(requireKnowledgeBase && !hasProcessedOrUploadedFiles));
 
 	// Handle form submission from PromptInput
 	const handlePromptSubmit = useCallback(
@@ -758,11 +762,22 @@ export default function ChatV1Content({
 							</div>
 						) : !currentConversationId || chatMessages.length === 0 ? (
 							<div className="min-h-[60vh] flex items-center justify-center">
-								<AskRitaEmptyState
-									hasKnowledge={hasProcessedOrUploadedFiles}
-									onUpload={openDocumentSelector}
-									onConnections={() => navigate("/settings/connections")}
-								/>
+								{requireKnowledgeBase ? (
+									<AskRitaEmptyState
+										hasKnowledge={hasProcessedOrUploadedFiles}
+										onUpload={openDocumentSelector}
+										onConnections={() => navigate("/settings/connections")}
+									/>
+								) : (
+									<div className="text-center max-w-md px-4">
+										<h2 className="text-2xl font-semibold text-gray-900 mb-2">
+											Ask me anything
+										</h2>
+										<p className="text-sm text-gray-600">
+											Start a conversation by typing your question below.
+										</p>
+									</div>
+								)}
 							</div>
 						) : (
 							<>
@@ -860,7 +875,7 @@ export default function ChatV1Content({
 					</PromptInput>
 
 					{/* Footer message when no processed or uploaded files */}
-					{!hasProcessedOrUploadedFiles && (
+					{requireKnowledgeBase && !hasProcessedOrUploadedFiles && (
 						<div className="mt-0 flex items-center rounded-b-[12px] border border-t-0 border-border bg-muted px-3 py-2">
 							<p className="text-xs text-muted-foreground">
 								{isAdmin
