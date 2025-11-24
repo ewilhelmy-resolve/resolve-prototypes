@@ -108,9 +108,9 @@ const tableData = [
 ];
 
 const recommendations = [
-	{ title: "Auto-Respond", icon: Sparkles, enabled: false },
-	{ title: "Auto-Populate", icon: Zap, enabled: false },
-	{ title: "Auto-Resolve", icon: Network, comingSoon: true },
+	{ title: "Auto-Respond", icon: Sparkles, enabled: false, color: "text-purple-500" },
+	{ title: "Auto-Populate", icon: Zap, enabled: false, color: "text-green-500" },
+	{ title: "Auto-Resolve", icon: Network, comingSoon: true, color: "text-blue-500" },
 ];
 
 export default function TicketDetailPage() {
@@ -368,16 +368,15 @@ export default function TicketDetailPage() {
 										className="flex items-center justify-between rounded-sm border p-2"
 									>
 										<div className="flex items-center gap-2">
-											<rec.icon className="h-4 w-4 text-purple-500" />
+											<rec.icon className={`h-4 w-4 ${rec.color}`} />
 											<span>{rec.title}</span>
-											{rec.comingSoon && (
-												<Badge variant="outline" className="ml-2">
-													<Crown className="mr-1 h-3 w-3" />
-													coming soon
-												</Badge>
-											)}
 										</div>
-										{!rec.comingSoon && (
+										{rec.comingSoon ? (
+											<Badge variant="outline" className="ml-2">
+												<Crown className="mr-1 h-3 w-3 text-yellow-500" />
+												coming soon
+											</Badge>
+										) : (
 											<Button variant="ghost" size="sm">
 												Enable
 											</Button>
