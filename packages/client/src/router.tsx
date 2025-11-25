@@ -21,9 +21,11 @@ import { SignUpPage } from "./pages/SignUpPage";
 import ProfilePage from "./pages/settings/ProfilePage";
 import TermsOfService from "./pages/TermsOfService";
 import TicketsPage from "./pages/TicketsPage";
+import TicketDetailPage from "./pages/TicketDetailPage";
 import UsersSettingsPage from "./pages/UsersSettingsPage";
 import { VerifyEmailPage } from "./pages/VerifyEmailPage";
 import { VerifyEmailSentPage } from "./pages/VerifyEmailSentPage";
+import TicketsPage2 from "./pages/TicketsPage2";
 
 const router = createBrowserRouter([
 	// Root redirect
@@ -78,6 +80,22 @@ const router = createBrowserRouter([
 		element: (
 			<RoleProtectedRoute allowedRoles={["owner", "admin"]}>
 				<TicketsPage />
+			</RoleProtectedRoute>
+		),
+	},
+	{
+		path: "/tickets2",
+		element: (
+			<RoleProtectedRoute allowedRoles={["owner", "admin"]}>
+				<TicketsPage2 />
+			</RoleProtectedRoute>
+		),
+	},
+	{
+		path: "/tickets/:id",
+		element: (
+			<RoleProtectedRoute allowedRoles={["owner", "admin"]}>
+				<TicketDetailPage />
 			</RoleProtectedRoute>
 		),
 	},

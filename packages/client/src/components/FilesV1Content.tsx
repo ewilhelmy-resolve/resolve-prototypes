@@ -24,6 +24,7 @@ import { useNavigate } from "react-router-dom";
 import { BulkActions } from "@/components/BulkActions";
 import ConfirmDialog from "@/components/dialogs/ConfirmDialog";
 import EmptyFilesState from "@/components/knowledge-articles/EmptyFilesState";
+import { MainHeader } from "@/components/MainHeader";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 // import { Card, CardContent } from "@/components/ui/card";
@@ -438,13 +439,9 @@ export default function FilesV1Content() {
 	return (
 		<div className="flex flex-col h-full">
 			{/* Header */}
-			<div className="border-b border-border px-6 py-6 flex-shrink-0">
-				<div className="flex justify-between items-center">
-					<div>
-						<h1 className="text-2xl font-normal text-foreground">
-							Knowledge Articles
-						</h1>
-					</div>
+			<MainHeader
+				title="Knowledge Articles"
+				action={
 					<DropdownMenu>
 						<DropdownMenuTrigger asChild>
 							<Button disabled={uploadFileMutation.isPending}>
@@ -511,8 +508,8 @@ export default function FilesV1Content() {
 							)}
 						</DropdownMenuContent>
 					</DropdownMenu>
-				</div>
-			</div>
+				}
+			/>
 
 			{/* Main Content */}
 			<div className="flex-1 px-6 py-6 overflow-y-auto">
