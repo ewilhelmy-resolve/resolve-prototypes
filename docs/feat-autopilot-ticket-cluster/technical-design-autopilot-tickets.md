@@ -1,7 +1,7 @@
 # Technical Design Document: RITA Autopilot & Cluster Dashboard
 
-**Status:** Draft v1.1
-**Date:** November 20, 2025
+**Status:** Draft v1.3
+**Date:** November 24, 2025
 **Feature:** Continuous ITSM Ingestion, Live Dashboard, & Cluster Management
 
 -----
@@ -16,6 +16,14 @@ This document outlines the architecture for the RITA Autopilot Dashboard. The sy
 * **Command-Query Separation:** The App triggers actions, but the Workflow Platform acts as the "Source of Truth" for cluster definitions.
 * **Two-Speed UX:** "Core Data" (Tickets) loads immediately to unlock the UI, while "Enrichment" (Knowledge Base analysis) occurs asynchronously in the background.
 * **Pre-Aggregated Metrics:** Uses a "Daily Bucket" pattern to ensure dashboard charts render instantly regardless of date range selection.
+
+### Implementation Prerequisites
+
+Before implementing this feature, the following codebase changes are required:
+
+1. **Add `jira` to `ALLOWED_DATA_SOURCE_TYPES`** in `packages/api-server/src/constants/dataSources.ts`
+2. **Add `jira` to `DEFAULT_DATA_SOURCES`** array for org seeding
+3. **Add system user constant** for auto-generated records (clusters created by Workflow Platform)
 
 -----
 
@@ -62,7 +70,7 @@ sequenceDiagram
     WP->>WP: AI Sorts Tickets (Assigns Stable Cluster IDs)
 
     Note over WP, MQ: PHASE 3: Batch Result Handoff
-    WP->>MQ: Publish `ingest.batch.processed`
+    WP->>MQ: Publish `ticket_batch_processed`
     Note right of WP: Payload includes:<br/>{organization_id, ingestion_run_id,<br/>groups: [{cluster_id, name, tickets}]}
 
     MQ->>RB: Consume Message
@@ -91,7 +99,7 @@ sequenceDiagram
     deactivate RB
 
     critical UX UNLOCK
-    RB--)RC: SSE Event: `sync_completed`<br/>{ingestion_run_id, status, records_processed}
+    RB--)RC: SSE Event: `ingestion_run_update`<br/>{ingestion_run_id, status: 'completed', records_processed}
     RC->>DB: GET /api/dashboard/clusters<br/>(filtered by organization_id via RLS)
     RC-->>User: UI UNLOCKED. Cards appear.<br/>Badge says "Analyzing..."
     end
@@ -100,7 +108,7 @@ sequenceDiagram
     rect rgb(240, 248, 255)
     Note right of WP: Background Process (Knowledge Base Search)
     WP->>WP: Deep Search Knowledge Base
-    WP->>MQ: Publish `enrichment.cluster.kb`<br/>{organization_id, cluster_id, kb_status, articles[]}
+    WP->>MQ: Publish `ticket_cluster_enrichment`<br/>{organization_id, cluster_id, kb_status, articles[]}
 
     MQ->>RB: Consume Message
     activate RB
@@ -113,7 +121,7 @@ sequenceDiagram
     Note right of RB: COMMIT TRANSACTION
     deactivate RB
 
-    RB--)RC: SSE Event: `cluster_updated`<br/>{cluster_id, kb_status: "FOUND"}
+    RB--)RC: SSE Event: `cluster_update`<br/>{cluster_id, kb_status: "FOUND"}
     RC-->>User: Card "c1" badge updates to "Knowledge Found"
     end
 ```
@@ -198,6 +206,11 @@ sequenceDiagram
 
     alt Update Successful (Single-Use Enforcement)
         DB-->>Backend: Row updated, return id
+
+        Backend->>DB: UPSERT data_source_connections<br/>(organization_id, type, status='verifying')<br/>ON CONFLICT (organization_id, type) DO UPDATE<br/>RETURNING id as connection_id
+        Note right of Backend: Create/update connection record BEFORE webhook<br/>to get connection_id for webhook payload
+
+        Backend->>DB: UPDATE credential_delegation_tokens<br/>SET connection_id=$1 WHERE id=$2
         Backend->>DB: COMMIT TRANSACTION
 
         Backend->>Backend: Base64 encode password<br/>(prevent accidental logging)
@@ -235,12 +248,13 @@ sequenceDiagram
 
         Queue->>Backend: Consume verification message
         Backend->>DB: BEGIN TRANSACTION
-        Backend->>DB: UPDATE credential_delegation_tokens<br/>SET status='verified', verified_at=NOW()
-        Backend->>DB: UPSERT data_source_connections<br/>(organization_id, type='servicenow', enabled=true)
+        Backend->>DB: UPDATE credential_delegation_tokens<br/>SET status='verified', credentials_verified_at=NOW()
+        Backend->>DB: UPDATE data_source_connections<br/>SET status='idle', enabled=true,<br/>latest_options=$options, last_verification_at=NOW()
+        Note right of Backend: Connection record already exists<br/>(created during credential submission)
         Backend->>DB: INSERT audit_logs<br/>(action: 'credential_verification_success')
         Backend->>DB: COMMIT TRANSACTION
 
-        Backend--)Client: SSE Event: credential_verified<br/>{system_type: "servicenow"}
+        Backend--)Client: SSE Event: data_source_update<br/>{connection_id, connection_type: "servicenow", status: "idle"}
         Client-->>Owner: Toast: "ServiceNow credentials verified ✓"
 
         Note over Client,Admin: Next poll detects status='verified'
@@ -331,10 +345,8 @@ erDiagram
     organizations ||--o{ ingestion_runs : "owns"
 
     %% User Tracking
-    user_profiles ||--o{ clusters : "created_by"
-    user_profiles ||--o{ clusters : "updated_by"
+    user_profiles ||--o{ clusters : "automation_enabled_by"
     user_profiles ||--o{ tickets : "validated_by"
-    user_profiles ||--o{ knowledge_articles : "created_by"
     user_profiles ||--o{ ingestion_runs : "started_by"
 
     %% Data Relationships
@@ -394,15 +406,14 @@ erDiagram
     }
 
     clusters {
-        uuid id PK "Stable ID from Workflow Platform"
+        uuid id PK "Auto-generated internal ID"
         uuid organization_id FK "organizations.id ON DELETE CASCADE"
+        text external_cluster_id UK "Stable ID from Workflow Platform"
         string name "Dynamic AI Name"
         jsonb config "{auto_respond: boolean, auto_populate: boolean}"
-        int validation_target "TBD - to be defined"
+        int validation_target "TBD - nullable until product spec"
         int validation_current "Current approved samples"
         text kb_status "PENDING|FOUND|GAP"
-        uuid created_by FK "user_profiles.user_id"
-        uuid updated_by FK "user_profiles.user_id"
         uuid automation_enabled_by FK "user_profiles.user_id"
         timestamp automation_enabled_at
         timestamp created_at
@@ -413,7 +424,7 @@ erDiagram
         uuid id PK
         uuid organization_id FK "organizations.id ON DELETE CASCADE"
         uuid cluster_id FK "clusters.id ON DELETE CASCADE"
-        uuid data_source_connection_id FK "optional, NULL allowed"
+        uuid data_source_connection_id FK "optional - for filtering by connection"
         string external_id "INC-123"
         string subject
         string external_status "Open, Closed, etc"
@@ -422,7 +433,7 @@ erDiagram
         text validation_result "PENDING|APPROVED|REJECTED"
         uuid validated_by FK "user_profiles.user_id"
         timestamp validated_at
-        jsonb source_metadata "{source: 'servicenow', url: '...'}"
+        jsonb source_metadata "Raw ITSM properties from source system"
         timestamp created_at
         timestamp updated_at "auto-trigger"
     }
@@ -433,7 +444,7 @@ erDiagram
         date day PK
         int total_tickets
         int automated_count
-        int kb_gap_count
+        int kb_gap_count "TBD - computation logic pending"
         timestamp created_at
         timestamp updated_at
     }
@@ -442,11 +453,10 @@ erDiagram
         uuid id PK
         uuid organization_id FK "organizations.id ON DELETE CASCADE"
         uuid cluster_id FK "clusters.id ON DELETE CASCADE"
-        uuid created_by FK "user_profiles.user_id"
         string title
         string url
         float relevance_score
-        text status "active|broken|archived"
+        text status "active|broken|archived - defer until needed"
         timestamp created_at
         timestamp updated_at "auto-trigger"
     }
@@ -461,9 +471,8 @@ erDiagram
         int records_failed
         jsonb metadata "batch_id, sync params"
         text error_message
-        timestamp started_at
         timestamp completed_at
-        timestamp created_at
+        timestamp created_at "also serves as started_at"
         timestamp updated_at
     }
 
@@ -472,18 +481,15 @@ erDiagram
         uuid organization_id FK "organizations.id ON DELETE CASCADE"
         uuid created_by_user_id FK "user_profiles.user_id"
         text admin_email "IT admin email (not Rita user)"
-        text admin_name "optional"
         text itsm_system_type "servicenow|jira|confluence"
         text delegation_token UK "64-char hex (32 bytes)"
         timestamp token_expires_at "7 days default"
         text status "pending|used|verified|expired|cancelled"
-        timestamp credentials_received_at
-        timestamp credentials_verified_at
+        timestamp credentials_received_at "when IT admin submitted"
+        timestamp credentials_verified_at "when external service verified"
         text last_verification_error
         uuid connection_id FK "data_source_connections.id ON DELETE SET NULL"
         timestamp created_at
-        timestamp accepted_at
-        timestamp completed_at
     }
 ```
 
@@ -507,7 +513,6 @@ erDiagram
   "user_id": "creator-uuid-456",
   "user_email": "owner@company.com",
   "admin_email": "itadmin@company.com",
-  "admin_name": "John Smith",
   "delegation_url": "https://rita.app/credential-setup?token=abc123...",
   "organization_name": "Acme Corp",
   "itsm_system_type": "servicenow",
@@ -526,7 +531,6 @@ erDiagram
 - `timestamp` - ISO 8601 timestamp
 
 **Optional Fields:**
-- `admin_name` - For email greeting personalization
 - `delegation_token_id` - For external tracking/logging
 - `expires_at` - Token expiry (7 days default)
 
@@ -648,16 +652,16 @@ erDiagram
 1. Looks up credentials using composite key: `(tenant_id, connection_id, connection_type)`
 2. Fetches tickets from ITSM system using stored credentials
 3. AI clustering engine groups tickets by similarity
-4. Publishes `ingest.batch.processed` message to RabbitMQ (see Section 4.2)
+4. Publishes `ticket_batch_processed` message to RabbitMQ (see Section 4.2)
 
 **Response:** HTTP 200 (synchronous acknowledgment)
-**Result:** Arrives asynchronously via RabbitMQ `ingest.batch.processed` queue
+**Result:** Arrives asynchronously via RabbitMQ `ticket_batch_processed` queue
 
 ---
 
 ### 4.2 RabbitMQ Payloads
 
-**Queue:** `ingest.batch.processed` (Phase 3)
+**Queue:** `ticket_batch_processed` (Phase 3)
 *Purpose: High-throughput core data transfer.*
 
 ```json
@@ -689,7 +693,7 @@ erDiagram
 }
 ```
 
-**Queue:** `enrichment.cluster.kb` (Phase 4)
+**Queue:** `ticket_cluster_enrichment` (Phase 4)
 *Purpose: Metadata enrichment (populates the Knowledge Tab).*
 
 ```json
@@ -710,7 +714,7 @@ erDiagram
 
 **Error Handling:**
 - RabbitMQ message processing failures logged to existing `message_processing_failures` table
-- `queue_name` = `ingest.batch.processed`, `enrichment.cluster.kb`, or `data_source_status`
+- `queue_name` = `ticket_batch_processed`, `ticket_cluster_enrichment`, or `data_source_status`
 - Failed messages include full payload for retry/debugging
 - Retry logic: max 3 attempts with exponential backoff
 
@@ -849,7 +853,7 @@ erDiagram
 #### Credential Delegation Endpoints (ITSM Setup)
 
 * **`POST /api/credential-delegations/create`**
-    * Payload: `{ "admin_email": string, "admin_name"?: string, "itsm_system_type": "servicenow" | "jira" | "confluence" }`
+    * Payload: `{ "admin_email": string, "itsm_system_type": "servicenow" | "jira" | "confluence" }`
     * Authorization: Requires `admin` or `owner` role
     * Action: Generate 64-char token, INSERT credential_delegation_tokens, send email via webhook
     * Webhook Call: `WebhookService.sendCredentialDelegationEmail()`
@@ -954,20 +958,21 @@ erDiagram
     * This enables Row-Level Security (RLS) policies to enforce isolation
 
 2.  **Transaction Scope:**
-    * Process entire `ingest.batch.processed` payload in single Postgres transaction
+    * Process entire `ticket_batch_processed` payload in single Postgres transaction
     * BEGIN TRANSACTION at message receipt
     * COMMIT only after all clusters, tickets, and metrics updated
     * ROLLBACK on critical failures (invalid organization, database errors)
 
 3.  **Idempotency Pattern:**
-    * **Clusters:** `INSERT ... ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, kb_status = EXCLUDED.kb_status, updated_at = NOW(), updated_by = system_user_id`
-    * **Tickets:** `INSERT ... ON CONFLICT (id) DO UPDATE SET cluster_id = EXCLUDED.cluster_id, external_status = EXCLUDED.external_status, updated_at = NOW()`
+    * **Clusters:** `INSERT ... ON CONFLICT (organization_id, external_cluster_id) DO UPDATE SET name = EXCLUDED.name, kb_status = EXCLUDED.kb_status, updated_at = NOW()`
+    * **Tickets:** `INSERT ... ON CONFLICT (organization_id, external_id) DO UPDATE SET cluster_id = EXCLUDED.cluster_id, external_status = EXCLUDED.external_status, updated_at = NOW()`
+    * Conflict targets use unique constraints (org + external ID), not internal auto-generated IDs
     * Allows re-syncing/replaying messages without duplication
-    * Updated records maintain audit trail via updated_at/updated_by
+    * Updated records maintain audit trail via updated_at
 
 4.  **Error Handling:**
     * **RabbitMQ Failures:** Rita Backend logs message processing errors to `message_processing_failures` table (internal error tracking)
-      * `queue_name = 'ingest.batch.processed'`
+      * `queue_name = 'ticket_batch_processed'`
       * `message_payload` = full JSON payload for replay
       * `tenant_id = organization_id`
       * Retry logic: max 3 attempts with exponential backoff (60s, 300s, 900s)
@@ -1106,9 +1111,17 @@ erDiagram
 
 1.  **Optimistic UI:** When User clicks "Validate" on a ticket, update the UI immediately. Revert if the API call fails.
 2.  **SSE Handling (RITA Owner - Authenticated):**
-    * `sync_completed`: Triggers a refetch of the main Grid query.
-    * `cluster_updated`: Updates the specific Cluster Card in the cache (TanStack Query) to show the Knowledge Badge without a full list reload.
-    * `credential_verified`: Shows toast notification "ServiceNow credentials verified ✓"
+
+    **Event Naming Convention:** Follow existing pattern `{resource}_{action}` (e.g., `data_source_update`)
+
+    | Event Type | Payload | Handler |
+    |------------|---------|---------|
+    | `ingestion_run_update` | `{ingestion_run_id, status, records_processed}` | Refetch dashboard on `status='completed'` |
+    | `cluster_update` | `{cluster_id, kb_status, updated_fields[]}` | Update cluster in TanStack Query cache |
+    | `ticket_update` | `{ticket_id, cluster_id, validation_result}` | Update validation progress |
+    | `data_source_update` | `{connection_id, connection_type, status}` | Existing event - reused for credential verification |
+
+    **Note:** Reuses existing `data_source_update` event type for credential verification (matches current Confluence pattern).
 3.  **Status Polling (IT Admin - Public Page):**
     ```typescript
     // After credential submission (POST /credential-delegations/submit)
@@ -1426,29 +1439,32 @@ CREATE INDEX idx_ingestion_runs_started_at ON ingestion_runs(started_at DESC);
 #### clusters Table
 
 ```sql
--- Main autopilot clusters table
+-- Main autopilot clusters table (system-generated by Workflow Platform)
 CREATE TABLE clusters (
-    id UUID PRIMARY KEY,  -- Stable ID provided by Workflow Platform
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),  -- Internal auto-generated ID
     organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+    external_cluster_id TEXT NOT NULL,  -- Stable ID from Workflow Platform
     name TEXT NOT NULL,
     config JSONB DEFAULT '{}'::jsonb,
-    validation_target INTEGER,  -- TBD: to be defined, nullable for now
+    validation_target INTEGER,  -- TBD: product spec pending, nullable for now
     validation_current INTEGER NOT NULL DEFAULT 0,
     kb_status TEXT DEFAULT 'PENDING' CHECK (kb_status IN ('PENDING', 'FOUND', 'GAP')),
 
-    -- User tracking
-    created_by UUID NOT NULL REFERENCES user_profiles(user_id),
-    updated_by UUID NOT NULL REFERENCES user_profiles(user_id),
+    -- User tracking (only for user actions, not system creation)
     automation_enabled_by UUID REFERENCES user_profiles(user_id),
 
     -- Timestamps
     automation_enabled_at TIMESTAMP WITH TIME ZONE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+
+    -- Unique constraint: one external_cluster_id per organization
+    CONSTRAINT uq_clusters_external_id_org UNIQUE (organization_id, external_cluster_id)
 );
 
 -- Indexes
 CREATE INDEX idx_clusters_organization_id ON clusters(organization_id);
+CREATE INDEX idx_clusters_external_id ON clusters(external_cluster_id);
 CREATE INDEX idx_clusters_kb_status ON clusters(kb_status);
 CREATE INDEX idx_clusters_created_at ON clusters(created_at DESC);
 CREATE INDEX idx_clusters_config ON clusters USING GIN (config);
@@ -1467,12 +1483,13 @@ FOR EACH ROW
 EXECUTE FUNCTION trigger_set_timestamp();
 
 -- Comments
-COMMENT ON TABLE clusters IS 'AI-generated ticket clusters from Workflow Platform with automation config';
-COMMENT ON COLUMN clusters.id IS 'Stable cluster ID provided by Workflow Platform';
+COMMENT ON TABLE clusters IS 'AI-generated ticket clusters from Workflow Platform (system-generated)';
+COMMENT ON COLUMN clusters.id IS 'Internal auto-generated UUID for internal references';
+COMMENT ON COLUMN clusters.external_cluster_id IS 'Stable cluster ID provided by Workflow Platform (used for upsert matching)';
 COMMENT ON COLUMN clusters.config IS 'JSONB config: {auto_respond: boolean, auto_populate: boolean}';
 COMMENT ON COLUMN clusters.validation_current IS 'Current count of approved validation samples (progress toward target)';
 COMMENT ON COLUMN clusters.automation_enabled_at IS 'Timestamp when automation was first enabled (audit trail)';
-COMMENT ON COLUMN clusters.validation_target IS 'Validation sample target count (TBD - to be defined in product spec)';
+COMMENT ON COLUMN clusters.validation_target IS 'Validation sample target count (TBD - product spec pending)';
 ```
 
 #### tickets Table
@@ -1537,7 +1554,8 @@ COMMENT ON TABLE tickets IS 'ITSM tickets assigned to autopilot clusters';
 COMMENT ON COLUMN tickets.external_id IS 'ITSM ticket ID (e.g., INC-123 from ServiceNow)';
 COMMENT ON COLUMN tickets.rita_status IS 'Rita-specific status for workflow tracking';
 COMMENT ON COLUMN tickets.is_validation_sample IS 'Flag indicating ticket selected for 0/16 validation UI';
-COMMENT ON COLUMN tickets.source_metadata IS 'JSONB: {source: "servicenow", instance_url: "...", sys_id: "..."}';
+COMMENT ON COLUMN tickets.data_source_connection_id IS 'Optional FK for filtering tickets by connection (NULL if from WP independent connections)';
+COMMENT ON COLUMN tickets.source_metadata IS 'Raw ITSM properties from source system for debugging/display';
 ```
 
 #### analytics_cluster_daily Table
@@ -1578,24 +1596,23 @@ CREATE POLICY "users_access_own_organization_analytics" ON analytics_cluster_dai
 COMMENT ON TABLE analytics_cluster_daily IS 'Pre-aggregated daily metrics for fast dashboard queries (retention period TBD)';
 COMMENT ON COLUMN analytics_cluster_daily.day IS 'Date bucket for metrics aggregation';
 COMMENT ON COLUMN analytics_cluster_daily.automated_count IS 'Count of tickets handled by automation';
-COMMENT ON COLUMN analytics_cluster_daily.kb_gap_count IS 'Count of tickets with knowledge base gaps';
+COMMENT ON COLUMN analytics_cluster_daily.kb_gap_count IS 'Count of tickets with KB gaps (TBD - computation logic pending)';
 ```
 
 #### knowledge_articles Table
 
 ```sql
--- Knowledge base articles linked to clusters
+-- Knowledge base articles linked to clusters (system-generated from Workflow Platform)
 CREATE TABLE knowledge_articles (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
     cluster_id UUID NOT NULL REFERENCES clusters(id) ON DELETE CASCADE,
-    created_by UUID REFERENCES user_profiles(user_id),
 
     -- Article details
     title TEXT NOT NULL,
     url TEXT NOT NULL,
     relevance_score FLOAT NOT NULL CHECK (relevance_score >= 0 AND relevance_score <= 1),
-    status TEXT DEFAULT 'active' CHECK (status IN ('active', 'broken', 'archived')),
+    status TEXT DEFAULT 'active' CHECK (status IN ('active', 'broken', 'archived')),  -- defer until needed
 
     -- Timestamps
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
@@ -1622,9 +1639,9 @@ FOR EACH ROW
 EXECUTE FUNCTION trigger_set_timestamp();
 
 -- Comments
-COMMENT ON TABLE knowledge_articles IS 'Knowledge base articles linked to clusters by Workflow Platform';
+COMMENT ON TABLE knowledge_articles IS 'KB articles linked to clusters (system-generated from Workflow Platform)';
 COMMENT ON COLUMN knowledge_articles.relevance_score IS 'AI relevance score (0.0 to 1.0) from Workflow Platform';
-COMMENT ON COLUMN knowledge_articles.status IS 'Track article availability (future: auto-refresh broken links)';
+COMMENT ON COLUMN knowledge_articles.status IS 'Track article availability - defer until auto-refresh feature needed';
 ```
 
 #### ingestion_runs Table
@@ -1646,8 +1663,7 @@ CREATE TABLE ingestion_runs (
     metadata JSONB DEFAULT '{}'::jsonb,
     error_message TEXT,
 
-    -- Timestamps
-    started_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    -- Timestamps (created_at doubles as started_at)
     completed_at TIMESTAMP WITH TIME ZONE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
@@ -1657,7 +1673,7 @@ CREATE TABLE ingestion_runs (
 CREATE INDEX idx_ingestion_runs_organization ON ingestion_runs(organization_id);
 CREATE INDEX idx_ingestion_runs_data_source ON ingestion_runs(data_source_connection_id);
 CREATE INDEX idx_ingestion_runs_status ON ingestion_runs(status);
-CREATE INDEX idx_ingestion_runs_started_at ON ingestion_runs(started_at DESC);
+CREATE INDEX idx_ingestion_runs_created_at ON ingestion_runs(created_at DESC);
 CREATE INDEX idx_ingestion_runs_started_by ON ingestion_runs(started_by);
 
 -- Row-Level Security
@@ -1672,6 +1688,7 @@ COMMENT ON TABLE ingestion_runs IS 'Track ITSM ticket sync operations from Workf
 COMMENT ON COLUMN ingestion_runs.metadata IS 'JSONB: {batch_id, sync_params, workflow_run_id}';
 COMMENT ON COLUMN ingestion_runs.records_processed IS 'Count of successfully processed tickets';
 COMMENT ON COLUMN ingestion_runs.records_failed IS 'Count of failed ticket validations';
+COMMENT ON COLUMN ingestion_runs.created_at IS 'Doubles as started_at timestamp';
 ```
 
 #### credential_delegation_tokens Table
@@ -1685,7 +1702,6 @@ CREATE TABLE credential_delegation_tokens (
 
     -- Delegated admin info (not yet authenticated)
     admin_email TEXT NOT NULL,
-    admin_name TEXT,
     itsm_system_type TEXT NOT NULL CHECK (itsm_system_type IN ('servicenow', 'jira', 'confluence')),
 
     -- Token management
@@ -1696,17 +1712,15 @@ CREATE TABLE credential_delegation_tokens (
     status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'used', 'verified', 'expired', 'cancelled')),
 
     -- Credential submission tracking
-    credentials_received_at TIMESTAMP WITH TIME ZONE,
-    credentials_verified_at TIMESTAMP WITH TIME ZONE,
+    credentials_received_at TIMESTAMP WITH TIME ZONE,  -- when IT admin submitted
+    credentials_verified_at TIMESTAMP WITH TIME ZONE,  -- when external service verified
     last_verification_error TEXT,
 
     -- Link to data source connection (set after verification webhook sent)
     connection_id UUID REFERENCES data_source_connections(id) ON DELETE SET NULL,
 
-    -- Audit fields
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    accepted_at TIMESTAMP WITH TIME ZONE,
-    completed_at TIMESTAMP WITH TIME ZONE
+    -- Timestamps
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
 -- Indexes
@@ -1736,8 +1750,8 @@ COMMENT ON COLUMN credential_delegation_tokens.delegation_token IS '64-char hex 
 COMMENT ON COLUMN credential_delegation_tokens.admin_email IS 'Email of IT admin (not yet a Rita user)';
 COMMENT ON COLUMN credential_delegation_tokens.itsm_system_type IS 'ServiceNow, Jira, or Confluence';
 COMMENT ON COLUMN credential_delegation_tokens.status IS 'pending → used → verified (or back to pending on failure)';
-COMMENT ON COLUMN credential_delegation_tokens.credentials_received_at IS 'When IT admin submitted credentials';
-COMMENT ON COLUMN credential_delegation_tokens.credentials_verified_at IS 'When external service verified credentials';
+COMMENT ON COLUMN credential_delegation_tokens.credentials_received_at IS 'When IT admin submitted credentials (replaces accepted_at)';
+COMMENT ON COLUMN credential_delegation_tokens.credentials_verified_at IS 'When external service verified (replaces completed_at)';
 ```
 
 ### 7.3 Migration Checklist

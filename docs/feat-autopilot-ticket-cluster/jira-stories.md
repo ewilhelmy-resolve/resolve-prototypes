@@ -11,11 +11,17 @@
 Create database schema for RITA Autopilot including all tables, RLS policies, indexes, and constraints. Foundation for all backend work.
 
 ### Acceptance Criteria
-- [ ] Migration file creates 5 tables: clusters, tickets, analytics_cluster_daily, knowledge_articles, ingestion_runs
+- [ ] Add `jira` to `ALLOWED_DATA_SOURCE_TYPES` in `packages/api-server/src/constants/dataSources.ts`
+- [ ] Add `jira` to `DEFAULT_DATA_SOURCES` array
+- [ ] Migration file creates 6 tables: clusters, tickets, analytics_cluster_daily, knowledge_articles, ingestion_runs, credential_delegation_tokens
+- [ ] clusters table uses `external_cluster_id` (TEXT) + internal auto-gen `id` (UUID)
+- [ ] clusters.created_by/updated_by nullable (for system-generated records)
+- [ ] Unique constraint on clusters: `(organization_id, external_cluster_id)`
+- [ ] Unique constraint on tickets: `(organization_id, external_id)`
 - [ ] RLS policies enforced on all tables using app.current_organization_id
-- [ ] All indexes created (org_id, cluster_id, status, timestamps)
+- [ ] All indexes created (org_id, cluster_id, external_cluster_id, status, timestamps)
 - [ ] Foreign key constraints with proper ON DELETE actions
-- [ ] Unique constraints (cluster validation)
+- [ ] Unique constraints (delegation token)
 - [ ] Auto-timestamp triggers (updated_at)
 - [ ] Migration runs successfully on dev/staging
 - [ ] Rollback script tested
@@ -26,11 +32,18 @@ None - must complete first
 ### Technical Notes
 ```sql
 -- Key tables:
-CREATE TABLE clusters (...)
-CREATE TABLE tickets (...)
-CREATE TABLE analytics_cluster_daily (...)
-CREATE TABLE knowledge_articles (...)
-CREATE TABLE ingestion_runs (...)
+CREATE TABLE clusters (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),  -- Internal ID
+  external_cluster_id TEXT NOT NULL,  -- From Workflow Platform
+  created_by UUID REFERENCES user_profiles(user_id),  -- Nullable for system
+  ...
+  CONSTRAINT uq_clusters_external_id_org UNIQUE (organization_id, external_cluster_id)
+);
+
+CREATE TABLE tickets (
+  ...
+  CONSTRAINT uq_tickets_external_id_org UNIQUE (organization_id, external_id)
+);
 
 -- RLS pattern:
 ALTER TABLE clusters ENABLE ROW LEVEL SECURITY;
@@ -59,13 +72,13 @@ Implement ticket ingestion pipeline: trigger sync via webhook, consume batch mes
   - Creates ingestion_run record
   - Sends sync_tickets webhook to Workflow Platform
   - Returns 202 with ingestion_run_id
-- [ ] IngestBatchConsumer processes ingest.batch.processed queue
-  - Upserts clusters and tickets
+- [ ] TicketBatchConsumer processes `ticket_batch_processed` queue
+  - Upserts clusters using `ON CONFLICT (organization_id, external_cluster_id)`
+  - Upserts tickets using `ON CONFLICT (organization_id, external_id)`
   - Updates analytics_cluster_daily
-  - Handles idempotency (ON CONFLICT DO UPDATE)
   - Commits transaction on success
   - Logs errors to message_processing_failures
-- [ ] SSE event emitted on sync completion: sync_completed
+- [ ] SSE event emitted on sync completion: `ingestion_run_update`
 - [ ] Audit log created: trigger_ticket_sync
 - [ ] Unit tests for consumer logic
 - [ ] Integration test with mock RabbitMQ
@@ -84,9 +97,9 @@ await webhookService.sendGenericEvent({
   }
 });
 
-// Consumer idempotency:
-INSERT INTO clusters (...) ON CONFLICT (id) DO UPDATE SET ...
-INSERT INTO tickets (...) ON CONFLICT (id) DO UPDATE SET ...
+// Consumer idempotency (use unique constraints, not auto-gen IDs):
+INSERT INTO clusters (...) ON CONFLICT (organization_id, external_cluster_id) DO UPDATE SET ...
+INSERT INTO tickets (...) ON CONFLICT (organization_id, external_id) DO UPDATE SET ...
 ```
 
 Reference: Section 5.1 Backend Worker Logic, Section 4.2 API Endpoints
@@ -150,11 +163,6 @@ Reference: Section 4.2 Frontend API Endpoints, Section 5.2 Frontend State
 Implement delegated ITSM credential setup: RITA Owner sends magic link to IT Admin who submits credentials via public page with polling for verification status.
 
 ### Acceptance Criteria
-- [ ] Migration creates credential_delegation_tokens table
-  - All columns per technical design (id, organization_id, created_by_user_id, admin_email, etc.)
-  - Indexes (token, org_id, status, expires_at, connection_id)
-  - RLS policy using app.current_organization_id
-  - Unique constraint for pending tokens (admin_email + org + system_type WHERE status='pending')
 - [ ] POST /api/credential-delegations/create endpoint
   - Generates 64-char token (crypto.randomBytes)
   - Inserts credential_delegation_tokens record
@@ -165,16 +173,18 @@ Implement delegated ITSM credential setup: RITA Owner sends magic link to IT Adm
   - Returns org_name, system_type
 - [ ] POST /api/credential-delegations/submit endpoint (public)
   - Atomic single-use enforcement (status='used')
+  - **UPSERT data_source_connections BEFORE webhook** (to get connection_id)
+  - Links delegation token to connection_id
   - Sends verify_credentials webhook (password base64 encoded)
-  - Creates/updates data_source_connection record
   - Returns 202 with polling_url
 - [ ] GET /api/credential-delegations/status/:token endpoint (public)
   - Returns status: verifying|success|failed
   - Rate limited: 20 req/min per token
 - [ ] DataSourceStatusConsumer updated
   - Consumes data_source_status queue
-  - Updates credential_delegation_tokens on verification
-  - Upserts data_source_connections
+  - Updates credential_delegation_tokens on verification (status='verified')
+  - Updates data_source_connections (status='idle', enabled=true, latest_options)
+  - Emits `data_source_update` SSE event (reuses existing event type)
   - Logs to audit_logs
 - [ ] Unit tests for token generation, single-use enforcement
 - [ ] Integration test with mock Workflow Platform
@@ -183,50 +193,38 @@ Implement delegated ITSM credential setup: RITA Owner sends magic link to IT Adm
 - Story 1 (Database Foundation)
 
 ### Technical Notes
-```sql
--- Migration: XXX_add_credential_delegation_tokens.sql
-CREATE TABLE credential_delegation_tokens (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
-    created_by_user_id UUID NOT NULL REFERENCES user_profiles(user_id),
-    admin_email TEXT NOT NULL,
-    admin_name TEXT,
-    itsm_system_type TEXT NOT NULL CHECK (itsm_system_type IN ('servicenow', 'jira', 'confluence')),
-    delegation_token TEXT NOT NULL UNIQUE,
-    token_expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
-    status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'used', 'verified', 'expired', 'cancelled')),
-    credentials_received_at TIMESTAMP WITH TIME ZONE,
-    credentials_verified_at TIMESTAMP WITH TIME ZONE,
-    last_verification_error TEXT,
-    connection_id UUID REFERENCES data_source_connections(id) ON DELETE SET NULL,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    accepted_at TIMESTAMP WITH TIME ZONE,
-    completed_at TIMESTAMP WITH TIME ZONE
-);
-
--- Indexes + RLS per technical design Section 7.2
-```
-
 ```typescript
 // Token generation:
 const token = crypto.randomBytes(32).toString('hex');
 
-// Single-use enforcement:
+// Single-use enforcement + connection creation (in transaction):
+BEGIN;
 UPDATE credential_delegation_tokens
 SET status='used', credentials_received_at=NOW()
 WHERE token=$1 AND status='pending' RETURNING id;
-// If 0 rows: 409 Conflict
+// If 0 rows: ROLLBACK + 409 Conflict
 
-// Webhook payload:
+// Create/update connection BEFORE webhook to get connection_id:
+INSERT INTO data_source_connections (organization_id, type, status, ...)
+VALUES ($org, $type, 'verifying', ...)
+ON CONFLICT (organization_id, type) DO UPDATE SET status='verifying'
+RETURNING id AS connection_id;
+
+// Link delegation to connection:
+UPDATE credential_delegation_tokens SET connection_id=$conn WHERE id=$del_id;
+COMMIT;
+
+// Webhook payload (now has connection_id):
 {
   source: 'rita-chat',
   action: 'verify_credentials',
+  connection_id: connection_id,  // From upsert above
   connection_type: 'servicenow',
   credentials: { username, password: base64(pwd) }
 }
 ```
 
-Reference: Section 2.3 Delegated ITSM Credential Setup, Section 4.2 API Endpoints, Section 7.2 credential_delegation_tokens
+Reference: Section 2.3 Delegated ITSM Credential Setup, Section 4.2 API Endpoints
 
 ---
 
@@ -511,15 +509,19 @@ Remove frontend mocks, wire real APIs, implement end-to-end test scenarios cover
 - [ ] Fix any contract mismatches discovered
 - [ ] E2E test: Full ingestion flow
   - Owner clicks "Sync Tickets"
-  - Mock RabbitMQ publishes ingest.batch.processed
+  - Mock RabbitMQ publishes `ticket_batch_processed`
   - Dashboard updates with new clusters
   - Verify SSE event received
 - [ ] E2E test: Credential delegation flow
   - Owner creates delegation
   - IT Admin receives email (check webhook call)
   - IT Admin submits credentials
+  - Verify data_source_connection created BEFORE webhook sent
   - Polling returns success
-  - data_source_connection created
+  - Connection status updated to 'idle', enabled=true
+- [ ] E2E test: Duplicate delegation prevention
+  - Owner creates delegation for admin@company.com + servicenow
+  - Second delegation for same email+org+type returns 409
 - [ ] E2E test: Validation workflow
   - User opens cluster detail
   - Approves validation sample
@@ -529,6 +531,15 @@ Remove frontend mocks, wire real APIs, implement end-to-end test scenarios cover
   - User enables automation
   - Config saved with audit log
   - Cluster card shows "Automated" badge
+- [ ] E2E test: Sync cancellation race condition
+  - Start sync (status='syncing')
+  - Cancel sync (status='cancelled')
+  - RabbitMQ sends sync_completed
+  - Verify status remains 'cancelled' (not overwritten)
+- [ ] E2E test: Cluster idempotency
+  - Sync same tickets twice with same external_cluster_id
+  - Verify no duplicate clusters created
+  - Verify tickets updated (not duplicated)
 - [ ] Load testing: 100+ clusters, 1000+ tickets
 - [ ] Error scenario testing: network failures, webhook timeouts
 - [ ] Accessibility audit: axe-core scan
@@ -545,7 +556,7 @@ test('Full ingestion flow', async ({ page }) => {
   await page.click('button:has-text("Sync Tickets")');
 
   // Mock RabbitMQ message
-  await mockRabbitMQ.publish('ingest.batch.processed', mockBatch);
+  await mockRabbitMQ.publish('ticket_batch_processed', mockBatch);
 
   // Wait for SSE event
   await page.waitForSelector('.cluster-card:has-text("Email Issues")');
@@ -613,7 +624,17 @@ All stories must meet:
 
 Before starting, resolve:
 1. validation_target default value? (affects Story 6)
-2. Analytics retention period? (affects Story 1 indexing)
-3. Rate limit for delegation? (affects Story 4)
+2. Analytics retention period? 30d/90d/1yr? (affects Story 1 indexing)
+3. Rate limit for delegation? 10/day per org per doc (affects Story 4)
 4. SSE debouncing strategy? (affects Stories 2, 6, 8)
 5. Knowledge article max per cluster? (affects Story 6)
+6. Queue naming convention - confirm with platform team: `ticket_batch_processed`, `ticket_cluster_enrichment`
+
+## Resolved in v1.2
+
+- ~~Cluster IDs~~ → Use `external_cluster_id` (TEXT) from Workflow Platform + internal auto-gen `id` (UUID)
+- ~~Ticket upsert conflict~~ → Use `(organization_id, external_id)` unique constraint
+- ~~Delegation → connection timing~~ → Create `data_source_connections` record BEFORE sending webhook
+- ~~System user for clusters~~ → Make `created_by`/`updated_by` nullable for system-generated records
+- ~~SSE event naming~~ → Follow existing pattern: `ingestion_run_update`, `cluster_update`, `data_source_update`
+- ~~Jira type~~ → Add to `ALLOWED_DATA_SOURCE_TYPES` in Story 1
