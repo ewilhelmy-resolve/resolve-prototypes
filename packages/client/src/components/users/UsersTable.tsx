@@ -402,7 +402,7 @@ export default function UsersTable() {
 												{member.id !== currentUserId && (
 													<DropdownMenuItem
 														onClick={() => handleDeleteUser(member)}
-														className="text-destructive focus:text-destructive"
+														variant="destructive"
 													>
 														Delete
 													</DropdownMenuItem>
