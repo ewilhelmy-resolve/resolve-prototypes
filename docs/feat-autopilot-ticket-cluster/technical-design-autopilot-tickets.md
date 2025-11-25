@@ -1652,6 +1652,36 @@ COMMENT ON COLUMN knowledge_articles.status IS 'Track article availability - def
 
 #### ingestion_runs Table
 
+**Why This Table Exists (vs `data_source_connections.status`)**
+
+| Aspect | `data_source_connections` | `ingestion_runs` |
+|--------|---------------------------|------------------|
+| **Purpose** | Connection config state | Individual sync operation |
+| **Cardinality** | 1 per org+type | Many per connection |
+| **Status values** | `idle`, `syncing` | `pending`, `running`, `completed`, `failed`, `cancelled` |
+| **Tracks** | "Is something syncing now?" | "What happened in this specific sync?" |
+| **History** | Only `last_sync_status` | Full record per sync |
+| **Counters** | None | `records_processed`, `records_failed` |
+| **Error detail** | None | `error_message` TEXT |
+
+**Relationship:**
+```
+data_source_connections (1) ←──── (N) ingestion_runs
+         ↓                              ↓
+   "Jira is syncing"            "Sync #5: 150 tickets, completed"
+                                "Sync #6: failed - timeout"
+```
+
+**Usage:**
+- `data_source_connections.status` = UI spinner on connection card (denormalized for fast reads)
+- `ingestion_runs` = audit trail + detailed metrics per sync attempt
+
+**Lifecycle:**
+```
+User clicks "Sync" → INSERT (pending) → webhook sent → UPDATE (running) →
+RabbitMQ consumed → UPDATE (completed/failed) → SSE event → UI unlocks
+```
+
 ```sql
 -- Track ticket ingestion/sync operations
 CREATE TABLE ingestion_runs (
