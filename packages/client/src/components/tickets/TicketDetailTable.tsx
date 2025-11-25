@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,7 +18,8 @@ import {
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Checkbox } from "@/components/ui/checkbox";
-import { ChevronDown, ArrowUpDown, MoreHorizontal } from "lucide-react";
+import { ChevronDown, ArrowUpDown, MoreHorizontal, Loader } from "lucide-react";
+import { BulkActions } from "@/components/BulkActions";
 
 interface TicketItem {
 	id: number;
@@ -104,10 +106,53 @@ export function TicketDetailTable({
 	tickets = defaultTickets,
 	knowledgeArticleCount = 12,
 }: TicketDetailTableProps) {
+	// Bulk selection state
+	const [selectedTickets, setSelectedTickets] = useState<number[]>([]);
+	const [isProcessing, setIsProcessing] = useState(false);
+
+	// Selection handlers
+	const handleSelectAll = (checked: boolean) => {
+		if (checked) {
+			setSelectedTickets(tickets.map((t) => t.id));
+		} else {
+			setSelectedTickets([]);
+		}
+	};
+
+	const handleSelectTicket = (ticketId: number, checked: boolean) => {
+		if (checked) {
+			setSelectedTickets([...selectedTickets, ticketId]);
+		} else {
+			setSelectedTickets(selectedTickets.filter((id) => id !== ticketId));
+		}
+	};
+
+	// Single ticket review
+	const reviewAI = (ticketId: number) => {
+		console.log(`Review AI response for ticket ID: ${ticketId}`);
+	};
+
+	// Bulk review handler with simulated delay
+	const handleBulkReviewAI = async () => {
+		setIsProcessing(true);
+
+		// Process each selected ticket with delay
+		for (const ticketId of selectedTickets) {
+			console.log(`Processing Review AI response for ticket ID: ${ticketId}`);
+			// Simulate API call delay
+			await new Promise((resolve) => setTimeout(resolve, 500));
+		}
+
+		setIsProcessing(false);
+		setSelectedTickets([]);
+		console.log(`Completed bulk review for ${selectedTickets.length} tickets`);
+	};
+
 	return (
 		<div className="flex flex-col gap-3">
-			{/* Filters */}
-			<div className="flex flex-col gap-4 py-4 sm:flex-row sm:items-center sm:justify-between">
+			{/* Filters or Bulk Actions */}
+			{selectedTickets.length === 0 ? (
+				<div className="flex flex-col gap-4 py-4 sm:flex-row sm:items-center sm:justify-between">
 				<Tabs defaultValue="needs-response" className="w-fit">
 					<TabsList>
 						<TabsTrigger value="needs-response">
@@ -134,6 +179,22 @@ export function TicketDetailTable({
 					<Input placeholder="Search tickets....." className="w-40" />
 				</div>
 			</div>
+			) : (
+				<BulkActions
+					selectedItems={selectedTickets.map(String)}
+					actions={[
+						{
+							key: 'review',
+							label: isProcessing ? "Processing..." : "Review AI Responses",
+							variant: 'default',
+							onClick: handleBulkReviewAI,
+							disabled: isProcessing,
+						},
+					]}
+					onClose={() => setSelectedTickets([])}
+					itemLabel="tickets"
+				/>
+			)}
 
 			{/* Table */}
 			<div className="rounded-md border">
@@ -141,7 +202,10 @@ export function TicketDetailTable({
 					<TableHeader>
 						<TableRow>
 							<TableHead className="w-8">
-								<Checkbox />
+								<Checkbox
+									checked={selectedTickets.length === tickets.length}
+									onCheckedChange={(checked) => handleSelectAll(checked as boolean)}
+								/>
 							</TableHead>
 							<TableHead>Name</TableHead>
 							<TableHead>
@@ -166,7 +230,10 @@ export function TicketDetailTable({
 						{tickets.map((row) => (
 							<TableRow key={row.id}>
 								<TableCell>
-									<Checkbox />
+									<Checkbox
+										checked={selectedTickets.includes(row.id)}
+										onCheckedChange={(checked) => handleSelectTicket(row.id, checked as boolean)}
+									/>
 								</TableCell>
 								<TableCell className="font-medium text-primary">
 									{row.name}
@@ -187,9 +254,18 @@ export function TicketDetailTable({
 									{row.date}
 								</TableCell>
 								<TableCell>
-									<Button variant="ghost" size="icon">
-										<MoreHorizontal className="h-4 w-4" />
-									</Button>
+								<DropdownMenu>
+											<DropdownMenuTrigger asChild>
+												<Button variant="ghost" size="icon">
+													<MoreHorizontal />
+												</Button>
+											</DropdownMenuTrigger>
+											<DropdownMenuContent align="end">
+												<DropdownMenuItem onClick={() => reviewAI(row.id)}> 
+													Review AI response
+												</DropdownMenuItem>
+										</DropdownMenuContent>
+										</DropdownMenu>		
 								</TableCell>
 							</TableRow>
 						))}
