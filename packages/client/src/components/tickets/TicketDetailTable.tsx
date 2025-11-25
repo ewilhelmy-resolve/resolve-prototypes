@@ -18,7 +18,7 @@ import {
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Checkbox } from "@/components/ui/checkbox";
-import { ChevronDown, ArrowUpDown, MoreHorizontal, Loader } from "lucide-react";
+import { ChevronDown, ArrowUpDown, MoreHorizontal } from "lucide-react";
 import { BulkActions } from "@/components/BulkActions";
 
 interface TicketItem {
