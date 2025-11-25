@@ -7,7 +7,8 @@ export const ALLOWED_DATA_SOURCE_TYPES = [
   'confluence',
   'servicenow',
   'sharepoint',
-  'websearch'
+  'websearch',
+  'jira'
 ] as const;
 
 export type DataSourceType = typeof ALLOWED_DATA_SOURCE_TYPES[number];
@@ -42,5 +43,10 @@ export const DEFAULT_DATA_SOURCES = [
     type: 'websearch' as DataSourceType,
     name: 'Web Search',
     description: 'Search the public web'
+  },
+  {
+    type: 'jira' as DataSourceType,
+    name: 'Jira',
+    description: 'Connect your Atlassian Jira instance'
   }
 ] as const;
