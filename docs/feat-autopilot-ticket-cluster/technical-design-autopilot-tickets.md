@@ -116,7 +116,7 @@ sequenceDiagram
     Note right of RB: BEGIN TRANSACTION
 
     RB->>DB: UPDATE clusters<br/>SET kb_status='FOUND', updated_at=NOW()
-    RB->>DB: INSERT knowledge_articles<br/>(organization_id, cluster_id, title, url, relevance_score)
+    RB->>DB: UPSERT knowledge_articles<br/>(organization_id, external_id, cluster_id, title, url, relevance_score)
 
     Note right of RB: COMMIT TRANSACTION
     deactivate RB
@@ -453,6 +453,7 @@ erDiagram
         uuid id PK
         uuid organization_id FK "organizations.id ON DELETE CASCADE"
         uuid cluster_id FK "clusters.id ON DELETE CASCADE"
+        text external_id "UNIQUE(org_id, external_id) - from Workflow Platform"
         string title
         string url
         float relevance_score
@@ -1607,6 +1608,7 @@ CREATE TABLE knowledge_articles (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
     cluster_id UUID NOT NULL REFERENCES clusters(id) ON DELETE CASCADE,
+    external_id TEXT NOT NULL,  -- Stable identifier from Workflow Platform for upsert
 
     -- Article details
     title TEXT NOT NULL,
@@ -1616,7 +1618,10 @@ CREATE TABLE knowledge_articles (
 
     -- Timestamps
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+
+    -- Unique constraint for upsert operations
+    UNIQUE (organization_id, external_id)
 );
 
 -- Indexes
@@ -1640,6 +1645,7 @@ EXECUTE FUNCTION trigger_set_timestamp();
 
 -- Comments
 COMMENT ON TABLE knowledge_articles IS 'KB articles linked to clusters (system-generated from Workflow Platform)';
+COMMENT ON COLUMN knowledge_articles.external_id IS 'Stable identifier from Workflow Platform for idempotent upsert operations';
 COMMENT ON COLUMN knowledge_articles.relevance_score IS 'AI relevance score (0.0 to 1.0) from Workflow Platform';
 COMMENT ON COLUMN knowledge_articles.status IS 'Track article availability - defer until auto-refresh feature needed';
 ```
