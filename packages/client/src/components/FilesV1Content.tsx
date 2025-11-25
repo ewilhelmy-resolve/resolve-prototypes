@@ -899,7 +899,7 @@ export default function FilesV1Content() {
 																<DropdownMenuItem
 																	onClick={() => handleDelete(file)}
 																	disabled={deleteFileMutation.isPending}
-																	className="text-destructive focus:text-destructive"
+																	variant="destructive"
 																>
 																	<Trash2 className="h-4 w-4 mr-2" />
 																	Delete
