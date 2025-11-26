@@ -314,7 +314,7 @@ export default function PendingInvitationsTable() {
 												<DropdownMenuItem
 													onClick={() => handleCancelInvitation(invitation)}
 													disabled={isCanceling}
-													className="text-destructive focus:text-destructive"
+													variant="destructive"
 												>
 													Cancel Invitation
 												</DropdownMenuItem>
