@@ -1,7 +1,7 @@
 # Technical Design Document: RITA Autopilot & Cluster Dashboard
 
-**Status:** Draft v1.3
-**Date:** November 24, 2025
+**Status:** Draft v1.6
+**Date:** November 26, 2025
 **Feature:** Continuous ITSM Ingestion, Live Dashboard, & Cluster Management
 
 -----
@@ -12,8 +12,9 @@ This document outlines the architecture for the RITA Autopilot Dashboard. The sy
 
 **Key Architectural Decisions:**
 
+* **Workflow Platform Direct DB Access:** WF writes directly to PostgreSQL for autopilot tables (clusters, tickets, knowledge_articles, analytics_cluster_daily, ingestion_runs). Rita receives lightweight RabbitMQ notifications for SSE emission only - no DB writes in Rita consumers.
 * **Event-Driven Architecture:** Decouples the User Interface (Rita Client) from the heavy AI processing (Workflow Platform).
-* **Command-Query Separation:** The App triggers actions, but the Workflow Platform acts as the "Source of Truth" for cluster definitions.
+* **Command-Query Separation:** The App triggers actions, but the Workflow Platform acts as the "Source of Truth" for cluster definitions AND owns data writes.
 * **Two-Speed UX:** "Core Data" (Tickets) loads immediately to unlock the UI, while "Enrichment" (Knowledge Base analysis) occurs asynchronously in the background.
 * **Pre-Aggregated Metrics:** Uses a "Daily Bucket" pattern to ensure dashboard charts render instantly regardless of date range selection.
 
@@ -33,8 +34,10 @@ Before implementing this feature, the following codebase changes are required:
 
 1.  **Command:** User triggers a sync via **Rita Backend**.
 2.  **Process:** **Workflow Platform** fetches data from ITSM tools (ServiceNow/Jira), performs AI clustering, and assigns stable Cluster IDs.
-3.  **Publish:** Data flows back to Rita Backend via **RabbitMQ** in two distinct phases (Batch Ingest & Async Enrichment).
-4.  **Query:** **Rita Client** reads from optimized PostgreSQL tables and receives real-time updates via Server-Sent Events (SSE).
+3.  **Write:** **Workflow Platform** writes directly to PostgreSQL (clusters, tickets, analytics, ingestion_runs) using `organization_id` filtering.
+4.  **Notify:** **Workflow Platform** publishes lightweight notification to RabbitMQ (no full data payload).
+5.  **SSE:** **Rita Backend** consumes notification and emits SSE event to client (no DB writes).
+6.  **Query:** **Rita Client** reads from optimized PostgreSQL tables and receives real-time updates via Server-Sent Events (SSE).
 
 ### 2.2 Sequence Diagram
 
@@ -60,7 +63,6 @@ sequenceDiagram
     Note right of RB: Log audit: trigger_ticket_sync<br/>(user_id, organization_id, ingestion_run_id)
 
     RB->>WP: POST webhook<br/>source: 'rita-chat'<br/>action: 'sync_tickets'<br/>tenant_id, user_id, user_email<br/>connection_id, connection_type: 'servicenow'|'jira'<br/>ingestion_run_id
-    RB->>DB: UPDATE ingestion_runs SET status='running'
     RB-->>RC: 200 OK {ingestion_run_id, status: "SYNCING"}
     RC-->>User: UI shows Progress Bar (Locked)
 
@@ -69,265 +71,65 @@ sequenceDiagram
     ITSM-->>WP: Return Raw Tickets
     WP->>WP: AI Sorts Tickets (Assigns Stable Cluster IDs)
 
-    Note over WP, MQ: PHASE 3: Batch Result Handoff
-    WP->>MQ: Publish `ticket_batch_processed`
-    Note right of WP: Payload includes:<br/>{organization_id, ingestion_run_id,<br/>groups: [{cluster_id, name, tickets}]}
-
-    MQ->>RB: Consume Message
-    activate RB
-    Note right of RB: Extract organization_id from payload
-    RB->>DB: SET LOCAL app.current_organization_id
-    Note right of RB: BEGIN TRANSACTION
+    Note over WP, DB: PHASE 3: Direct DB Write (WF owns writes)
+    activate WP
+    Note right of WP: WF has direct PostgreSQL connection
+    Note right of WP: BEGIN TRANSACTION
 
     loop For Each Group in Batch
-        RB->>DB: UPSERT clusters<br/>(id, organization_id, name, config, created_by)
-        RB->>DB: UPSERT tickets<br/>(organization_id, cluster_id, external_id, source_metadata)
-        RB->>DB: UPSERT analytics_cluster_daily<br/>(organization_id, cluster_id, day, total_tickets)
+        WP->>DB: UPSERT clusters<br/>(organization_id, external_cluster_id, name, config)<br/>WHERE organization_id = $tenant_id
+        WP->>DB: UPSERT tickets<br/>(organization_id, cluster_id, external_id, source_metadata)<br/>WHERE organization_id = $tenant_id
+        WP->>DB: UPSERT analytics_cluster_daily<br/>(organization_id, cluster_id, day, total_tickets)
     end
 
-    alt Success
-        RB->>DB: UPDATE ingestion_runs<br/>SET status='completed', records_processed=N
-        Note right of RB: COMMIT TRANSACTION
-    else Validation Error (partial failure)
-        Note right of RB: COMMIT TRANSACTION (continue with valid records)<br/>Log validation errors to message_processing_failures
-        RB->>DB: UPDATE ingestion_runs<br/>SET records_failed=M
-    else Critical Error
-        Note right of RB: ROLLBACK TRANSACTION<br/>Log to message_processing_failures for retry
-        RB->>DB: UPDATE ingestion_runs<br/>SET status='failed', error_message
-        RB->>MQ: NACK message (will retry)
-    end
+    WP->>DB: UPDATE ingestion_runs<br/>SET status='completed', records_processed=N<br/>WHERE id = $ingestion_run_id
+    Note right of WP: COMMIT TRANSACTION
+    deactivate WP
+
+    Note over WP, MQ: PHASE 3b: Lightweight Notification
+    WP->>MQ: Publish `ingestion_notification`<br/>{type, tenant_id, user_id, ingestion_run_id, status, records_processed}
+    Note right of WP: Notification only - NO full data payload
+
+    MQ->>RB: Consume Notification
+    activate RB
+    Note right of RB: NO database writes<br/>SSE emission only
+    RB--)RC: SSE Event: `ingestion_run_update`<br/>{ingestion_run_id, status: 'completed', records_processed}
     deactivate RB
 
     critical UX UNLOCK
-    RB--)RC: SSE Event: `ingestion_run_update`<br/>{ingestion_run_id, status: 'completed', records_processed}
-    RC->>DB: GET /api/dashboard/clusters<br/>(filtered by organization_id via RLS)
+    RC->>RB: GET /api/dashboard/clusters<br/>(filtered by organization_id via RLS)
     RC-->>User: UI UNLOCKED. Cards appear.<br/>Badge says "Analyzing..."
     end
 
-    Note over WP, MQ: PHASE 4: Async Enrichment
+    Note over WP, DB: PHASE 4: Async Enrichment (WF owns writes)
     rect rgb(240, 248, 255)
     Note right of WP: Background Process (Knowledge Base Search)
     WP->>WP: Deep Search Knowledge Base
-    WP->>MQ: Publish `ticket_cluster_enrichment`<br/>{organization_id, cluster_id, kb_status, articles[]}
 
-    MQ->>RB: Consume Message
+    activate WP
+    Note right of WP: BEGIN TRANSACTION
+    WP->>DB: UPDATE clusters<br/>SET kb_status='FOUND'<br/>WHERE organization_id = $tenant_id AND id = $cluster_id
+    WP->>DB: UPSERT knowledge_articles<br/>(organization_id, external_id, cluster_id, title, url, relevance_score)
+    Note right of WP: COMMIT TRANSACTION
+    deactivate WP
+
+    WP->>MQ: Publish `enrichment_notification`<br/>{type, tenant_id, user_id, cluster_id, kb_status}
+
+    MQ->>RB: Consume Notification
     activate RB
-    RB->>DB: SET LOCAL app.current_organization_id
-    Note right of RB: BEGIN TRANSACTION
-
-    RB->>DB: UPDATE clusters<br/>SET kb_status='FOUND', updated_at=NOW()
-    RB->>DB: UPSERT knowledge_articles<br/>(organization_id, external_id, cluster_id, title, url, relevance_score)
-
-    Note right of RB: COMMIT TRANSACTION
+    Note right of RB: NO database writes<br/>SSE emission only
+    RB--)RC: SSE Event: `cluster_update`<br/>{cluster_id, kb_status: "FOUND"}
     deactivate RB
 
-    RB--)RC: SSE Event: `cluster_update`<br/>{cluster_id, kb_status: "FOUND"}
     RC-->>User: Card "c1" badge updates to "Knowledge Found"
     end
 ```
 
-### 2.3 Delegated ITSM Credential Setup
+### 2.3 ITSM Credential Setup
 
-**Use Case:** RITA Autopilot Owner needs to connect ServiceNow or Jira for ticket ingestion, but does not have ITSM administrator credentials.
+> **See:** [Credential Delegation Technical Design](../feat-credential-delegation/technical-design-credential-delegation.md) for the complete credential delegation flow, including magic link tokens, IT Admin verification, and security model.
 
-**Solution:** Secure, ephemeral "magic link" system that allows an external IT Admin to input sensitive credentials without creating a RITA user account.
-
-#### Security Model
-
-* **Zero Credential Storage:** Rita NEVER stores ITSM credentials - they pass through in memory only and are immediately sent to external service
-* **Magic Link Pattern:** 64-character hex token (256-bit entropy) with 7-day expiration
-* **Single-Use Enforcement:** Atomic database update prevents token reuse (race condition protection)
-* **Real-Time Feedback:** SSE events notify both delegator and delegate of verification status
-* **Audit Trail:** All delegation and verification actions logged for SOC2 compliance
-
-#### Supported Systems
-
-* **ServiceNow** - Username/password or API token authentication
-* **Jira** - API token + email authentication
-* **Confluence** - API token + email authentication (optional delegation for private instances)
-
-#### Delegation Flow
-
-```mermaid
-sequenceDiagram
-    autonumber
-    actor Owner as Owner
-    participant Client as Rita Client
-    participant Backend as Rita Backend
-    participant DB as PostgreSQL
-    actor Admin as IT Admin (External)
-    participant Webhook as Workflow Platform
-    participant Queue as RabbitMQ
-
-    Note over Owner,Queue: PHASE 1: Delegation Creation
-
-    Owner->>Client: Navigate to ServiceNow setup<br/>Click "Delegate to IT Admin"
-    Client->>Backend: POST /credential-delegations/create<br/>{admin_email, system_type: "servicenow"}
-
-    Backend->>DB: Check no pending delegation exists<br/>(admin_email + org + system_type)
-    DB-->>Backend: No duplicate found
-
-    Backend->>Backend: Generate secure token<br/>crypto.randomBytes(32).toString('hex')
-    Backend->>DB: INSERT credential_delegation_tokens<br/>(token, status='pending', expires_at=7days)
-    Backend->>DB: INSERT audit_logs<br/>(action: 'create_credential_delegation')
-
-    Backend->>Webhook: POST webhook<br/>source: 'rita-credential-delegation'<br/>action: 'send_delegation_email'<br/>tenant_id, user_id, user_email<br/>admin_email, delegation_url, organization_name, itsm_system_type
-    Note right of Webhook: Workflow Platform sends email<br/>with magic link to IT Admin
-
-    Backend-->>Client: 200 {delegation_id, expires_at, status: "pending"}
-    Client-->>Owner: "Invitation sent to admin@company.com"
-
-    Note over Admin,Client: PHASE 2: IT Admin Receives & Clicks Link
-
-    Note over Admin: IT Admin receives email<br/>and clicks magic link
-    Admin->>Client: Click link → /credential-setup?token=xxx
-
-    Client->>Backend: GET /credential-delegations/verify/:token
-    Backend->>DB: SELECT * FROM credential_delegation_tokens<br/>WHERE token=$1 AND status='pending'<br/>AND expires_at > NOW()
-
-    alt Token Valid
-        DB-->>Backend: Return delegation details
-        Backend-->>Client: 200 {valid: true, org_name, system_type, delegated_by}
-        Client-->>Admin: Display credential form<br/>(ServiceNow URL, username, password)
-    else Token Invalid/Expired
-        DB-->>Backend: No match found
-        Backend-->>Client: 400 {valid: false, reason: "expired"}
-        Client-->>Admin: "This link has expired or been used"
-    end
-
-    Note over Admin,Webhook: PHASE 3: Credential Submission
-
-    Admin->>Client: Fill form & click "Verify Credentials"<br/>{url, username, password}
-
-    Client->>Backend: POST /credential-delegations/submit<br/>{token, credentials}
-
-    Backend->>DB: BEGIN TRANSACTION
-    Backend->>DB: UPDATE credential_delegation_tokens<br/>SET status='used', credentials_received_at=NOW()<br/>WHERE token=$1 AND status='pending'<br/>RETURNING id
-
-    alt Update Successful (Single-Use Enforcement)
-        DB-->>Backend: Row updated, return id
-
-        Backend->>DB: UPSERT data_source_connections<br/>(organization_id, type, status='verifying')<br/>ON CONFLICT (organization_id, type) DO UPDATE<br/>RETURNING id as connection_id
-        Note right of Backend: Create/update connection record BEFORE webhook<br/>to get connection_id for webhook payload
-
-        Backend->>DB: UPDATE credential_delegation_tokens<br/>SET connection_id=$1 WHERE id=$2
-        Backend->>DB: COMMIT TRANSACTION
-
-        Backend->>Backend: Base64 encode password<br/>(prevent accidental logging)
-
-        Backend->>Webhook: POST webhook<br/>source: 'rita-chat'<br/>action: 'verify_credentials'<br/>tenant_id, user_id, user_email, connection_id<br/>connection_type: 'servicenow'|'jira'<br/>credentials: {username, password (base64)}
-        Note right of Webhook: Workflow Platform validates<br/>credentials against ServiceNow API
-
-        Backend-->>Client: 202 {status: "verifying", polling_url: "/status/:token"}
-        Client-->>Admin: Show spinner + start polling every 3s
-
-        loop Poll every 3 seconds (max 30s)
-            Client->>Backend: GET /credential-delegations/status/:token
-            Backend->>DB: SELECT status FROM credential_delegation_tokens<br/>WHERE token=$1
-            alt Still Verifying (status='used')
-                Backend-->>Client: 200 {status: "verifying"}
-                Client-->>Admin: Continue showing spinner
-            end
-        end
-
-        Note over Client,Admin: Polling continues until status changes<br/>or 30s timeout (see Phase 4)
-
-    else Already Used (Race Condition)
-        DB-->>Backend: 0 rows updated
-        Backend->>DB: ROLLBACK TRANSACTION
-        Backend-->>Client: 409 {error: "Token already used"}
-        Client-->>Admin: "This link has already been used"
-    end
-
-    Note over Webhook,Queue: PHASE 4: Async Verification Result
-
-    alt Credentials Valid
-        Webhook->>Webhook: Test connection to ServiceNow<br/>Store credentials securely<br/>(tenant_id + connection_id + type)
-
-        Webhook->>Queue: Publish data_source_status<br/>{type: "verification", connection_id, tenant_id,<br/>status: "success", options: {tables: "..."}}
-
-        Queue->>Backend: Consume verification message
-        Backend->>DB: BEGIN TRANSACTION
-        Backend->>DB: UPDATE credential_delegation_tokens<br/>SET status='verified', credentials_verified_at=NOW()
-        Backend->>DB: UPDATE data_source_connections<br/>SET status='idle', enabled=true,<br/>latest_options=$options, last_verification_at=NOW()
-        Note right of Backend: Connection record already exists<br/>(created during credential submission)
-        Backend->>DB: INSERT audit_logs<br/>(action: 'credential_verification_success')
-        Backend->>DB: COMMIT TRANSACTION
-
-        Backend--)Client: SSE Event: data_source_update<br/>{connection_id, connection_type: "servicenow", status: "idle"}
-        Client-->>Owner: Toast: "ServiceNow credentials verified ✓"
-
-        Note over Client,Admin: Next poll detects status='verified'
-        Client->>Backend: GET /credential-delegations/status/:token
-        Backend->>DB: SELECT status, connection_id
-        Backend-->>Client: 200 {status: "success", connection_id}
-        Client-->>Admin: Success: "Credentials verified!<br/>You can close this page."
-
-        Backend->>Webhook: POST webhook (optional)<br/>action: 'send_verification_result_email'<br/>admin_email, verification_status: "success"
-        Note right of Webhook: Email notification sent to IT Admin
-
-    else Credentials Invalid
-        Webhook->>Queue: Publish data_source_status<br/>{type: "verification", connection_id, tenant_id,<br/>status: "failed", error: "Invalid credentials..."}
-
-        Queue->>Backend: Consume verification message
-        Backend->>DB: UPDATE credential_delegation_tokens<br/>SET status='pending',<br/>last_verification_error='Invalid credentials'
-
-        Note over Client,Admin: Next poll detects status='pending'
-        Client->>Backend: GET /credential-delegations/status/:token
-        Backend->>DB: SELECT status, last_verification_error
-        Backend-->>Client: 200 {status: "failed", error, allow_retry: true}
-        Client-->>Admin: Error: "Invalid credentials. Please try again."<br/>(Form remains editable, can retry)
-
-        Backend->>Webhook: POST webhook<br/>action: 'send_verification_result_email'<br/>admin_email, verification_status: "failed", error
-        Note right of Webhook: Email notification sent to IT Admin
-    end
-
-    alt Polling Timeout (30 seconds)
-        Note over Client,Admin: Status still 'used' after 10 polls
-        Client-->>Admin: "Verification taking longer than expected.<br/>We'll email you at {admin_email} when complete."
-        Note right of Admin: IT Admin can close page.<br/>Will receive email when verification completes.
-    end
-
-    Note over Owner,Client: PHASE 5: Setup Complete
-
-    Owner->>Client: Refresh data sources page
-    Client->>Backend: GET /data-sources
-    Backend->>DB: SELECT * FROM data_source_connections<br/>WHERE organization_id=$1
-    DB-->>Backend: Return all connections (ServiceNow now enabled=true)
-    Backend-->>Client: Return data sources
-    Client-->>Owner: ServiceNow card shows:<br/>Status: "Configured ✓"<br/>"Last verified: 2 minutes ago"
-```
-
-#### Key Features
-
-**Token Security:**
-- Generated using `crypto.randomBytes(32).toString('hex')` (matches invitation system pattern)
-- 7-day expiration (configurable)
-- Single-use atomic enforcement prevents race conditions
-- Rate limiting: 10 delegations per org per day
-
-**Zero Credential Storage:**
-- Credentials never persisted to Rita database
-- Passed in memory only from frontend → API → webhook → external service
-- Base64 encoding prevents accidental logging
-- External service stores credentials using composite key: `(tenant_id, connection_id, connection_type)`
-
-**Real-Time Updates:**
-- IT Admin sees verification result via SSE (no polling required)
-- RITA Owner receives toast notification when setup completes
-- Both parties get immediate feedback on success/failure
-
-**Audit Compliance (SOC2):**
-- Who created delegation (RITA Owner user_id)
-- Who submitted credentials (IT Admin email, IP address)
-- When credentials verified (timestamp)
-- All logged to `audit_logs` table
-
-**Error Handling:**
-- Invalid/expired token → User-friendly error message
-- Credentials fail verification → Allow retry (token reverts to 'pending')
-- Webhook failure → Logged to `message_processing_failures` with retry logic
-- Race conditions → Atomic status updates prevent duplicate submissions
+**Summary:** RITA uses a secure delegation system to allow external IT admins to configure ITSM credentials without creating RITA accounts. Once credentials are verified, the `data_source_connections` table is updated and autopilot ticket sync becomes available.
 
 -----
 
@@ -361,10 +163,8 @@ erDiagram
     %% Error Tracking (existing table)
     message_processing_failures ||--o{ ingestion_runs : "tracks_errors"
 
-    %% Credential Delegation (ITSM setup)
-    organizations ||--o{ credential_delegation_tokens : "owns"
-    user_profiles ||--o{ credential_delegation_tokens : "created_by"
-    credential_delegation_tokens }o--|| data_source_connections : "enables_setup"
+    %% Credential Delegation (see separate doc)
+    %% credential_delegation_tokens documented in ../feat-credential-delegation/
 
     organizations {
         uuid id PK
@@ -500,115 +300,7 @@ erDiagram
 
 ### 4.1 Webhook Payloads
 
-#### Credential Delegation Email Webhook
-
-**Webhook:** Workflow Platform
-**Action:** `send_delegation_email`
-**Purpose:** Send magic link email to IT Admin for delegated credential setup
-
-```json
-{
-  "source": "rita-credential-delegation",
-  "action": "send_delegation_email",
-  "tenant_id": "org-uuid-123",
-  "user_id": "creator-uuid-456",
-  "user_email": "owner@company.com",
-  "admin_email": "itadmin@company.com",
-  "delegation_url": "https://rita.app/credential-setup?token=abc123...",
-  "organization_name": "Acme Corp",
-  "itsm_system_type": "servicenow",
-  "delegation_token_id": "token-uuid-789",
-  "expires_at": "2025-12-01T10:00:00Z",
-  "timestamp": "2025-11-24T10:00:00Z"
-}
-```
-
-**Required Fields:**
-- `source`, `action`, `tenant_id`, `user_id`, `user_email` - Standard webhook fields
-- `admin_email` - IT Admin recipient email (not a Rita user)
-- `delegation_url` - Full URL with secure token for credential setup page
-- `organization_name` - For email personalization
-- `itsm_system_type` - System being configured: `servicenow`, `jira`, or `confluence`
-- `timestamp` - ISO 8601 timestamp
-
-**Optional Fields:**
-- `delegation_token_id` - For external tracking/logging
-- `expires_at` - Token expiry (7 days default)
-
-**Error Handling:**
-- Webhook failures logged to `rag_webhook_failures` table
-- Retry: 3 attempts with exponential backoff
-- Non-retryable errors (4xx) marked as `dead_letter`
-
----
-
-#### Credential Verification Webhook
-
-**Webhook:** Workflow Platform
-**Action:** `verify_credentials`
-**Purpose:** Validate ITSM credentials and store securely in external service
-
-```json
-{
-  "source": "rita-chat",
-  "action": "verify_credentials",
-  "tenant_id": "org-uuid-123",
-  "user_id": "creator-uuid-456",
-  "user_email": "owner@company.com",
-  "connection_id": "conn-uuid-789",
-  "connection_type": "servicenow",
-  "credentials": {
-    "username": "admin@company.com",
-    "password": "YmFzZTY0RW5jb2RlZFBhc3N3b3Jk"
-  },
-  "settings": {
-    "url": "https://company.service-now.com"
-  },
-  "timestamp": "2025-11-24T10:00:00Z"
-}
-```
-
-**Connection Types:**
-- `servicenow` - Basic auth (username/password)
-- `jira` - API token + email
-- `confluence` - API token + email
-
-**ServiceNow Credentials:**
-```json
-{
-  "credentials": {
-    "username": "admin@company.com",
-    "password": "YmFzZTY0RW5jb2RlZA=="
-  },
-  "settings": {
-    "url": "https://company.service-now.com"
-  }
-}
-```
-
-**Jira/Confluence Credentials:**
-```json
-{
-  "credentials": {
-    "api_token": "ATATT3xFfGF0...",
-    "email": "user@company.com"
-  },
-  "settings": {
-    "url": "https://company.atlassian.net"
-  }
-}
-```
-
-**Security:**
-- Password base64 encoded to prevent accidental logging
-- Credentials transmitted over HTTPS only
-- Rita NEVER stores credentials in database
-- External service stores with composite key: `(tenant_id, connection_id, connection_type)`
-
-**Response:** HTTP 200 (synchronous acknowledgment)
-**Result:** Arrives asynchronously via RabbitMQ `data_source_status` queue
-
----
+> **Credential Delegation Webhooks:** See [Credential Delegation Technical Design](../feat-credential-delegation/technical-design-credential-delegation.md) for `send_delegation_email` and `verify_credentials` webhook payloads.
 
 #### Sync Tickets Webhook (Autopilot)
 
@@ -662,122 +354,76 @@ erDiagram
 
 ### 4.2 RabbitMQ Payloads
 
-**Queue:** `ticket_batch_processed` (Phase 3)
-*Purpose: High-throughput core data transfer.*
+> **Architecture Note:** With Workflow Platform Direct DB Access, RabbitMQ messages are now lightweight notifications for SSE emission only. WF writes data directly to PostgreSQL, then publishes notification. Rita consumers emit SSE events without any database writes.
+
+**Queue:** `ingestion_notification` (Phase 3b)
+*Purpose: Lightweight notification after WF completes direct DB writes. Rita consumer emits SSE only.*
 
 ```json
 {
-  "batch_id": "b-789",
-  "organization_id": "org-uuid-123",
-  "ingestion_run_id": "run-uuid-456",
-  "groups": [
-    {
-      "cluster_id": "c-555",
-      "name": "Email Signatures",
-      "tickets": [
-        {
-          "ext_id": "INC001",
-          "subject": "Fix signature",
-          "created_at": "2025-11-20T10:00:00Z",
-          "external_status": "open",
-          "rita_status": "needs_response",
-          "is_validation_sample": true,
-          "source_metadata": {
-            "source": "servicenow",
-            "instance_url": "https://acme.service-now.com",
-            "sys_id": "abc123"
-          }
-        }
-      ]
-    }
-  ]
+  "type": "ingestion_completed",
+  "tenant_id": "org-uuid-123",
+  "user_id": "user-uuid-456",
+  "ingestion_run_id": "run-uuid-789",
+  "status": "completed",
+  "records_processed": 150,
+  "records_failed": 2,
+  "timestamp": "2025-11-26T10:00:00Z"
 }
 ```
 
-**Queue:** `ticket_cluster_enrichment` (Phase 4)
-*Purpose: Metadata enrichment (populates the Knowledge Tab).*
+**Rita Consumer Action:** Emit SSE `ingestion_run_update` event to user. NO database writes.
+
+---
+
+**Queue:** `cluster_notification` (Phase 3b - optional per-cluster updates)
+*Purpose: Notify when individual cluster created/updated. Rita consumer emits SSE only.*
 
 ```json
 {
-  "organization_id": "org-uuid-123",
-  "cluster_id": "c-555",
+  "type": "cluster_created",
+  "tenant_id": "org-uuid-123",
+  "user_id": "user-uuid-456",
+  "cluster_id": "cluster-uuid-555",
+  "action": "created",
+  "timestamp": "2025-11-26T10:00:00Z"
+}
+```
+
+**Rita Consumer Action:** Emit SSE `cluster_update` event. NO database writes.
+
+---
+
+**Queue:** `enrichment_notification` (Phase 4)
+*Purpose: Notify when KB enrichment completes. Rita consumer emits SSE only.*
+
+```json
+{
+  "type": "enrichment_completed",
+  "tenant_id": "org-uuid-123",
+  "user_id": "user-uuid-456",
+  "cluster_id": "cluster-uuid-555",
   "kb_status": "FOUND",
-  "articles": [
-    {
-      "title": "How to update Outlook Signature",
-      "url": "https://service-now.com/kb/123",
-      "relevance": 0.95,
-      "status": "active"
-    }
-  ]
+  "articles_count": 3,
+  "timestamp": "2025-11-26T10:00:00Z"
 }
 ```
+
+**Rita Consumer Action:** Emit SSE `cluster_update` event with `kb_status`. NO database writes.
+
+---
 
 **Error Handling:**
-- RabbitMQ message processing failures logged to existing `message_processing_failures` table
-- `queue_name` = `ticket_batch_processed`, `ticket_cluster_enrichment`, or `data_source_status`
-- Failed messages include full payload for retry/debugging
+- Consumer failures logged to `message_processing_failures` table
+- `queue_name` = `ingestion_notification`, `cluster_notification`, `enrichment_notification`, or `data_source_status`
+- Notifications are idempotent - re-processing just re-emits SSE
 - Retry logic: max 3 attempts with exponential backoff
 
-**Queue:** `data_source_status` (Delegated Setup & Data Source Verification)
-*Purpose: Async credential verification results for all data source types (ServiceNow, Jira, Confluence).*
+**Queue:** `data_source_status` (Credential Verification)
 
-**Success Message:**
-```json
-{
-  "type": "verification",
-  "connection_id": "conn-uuid-789",
-  "tenant_id": "org-uuid-123",
-  "status": "success",
-  "options": {
-    "tables": "incident,problem,change_request"
-  },
-  "error": null
-}
-```
+> **See:** [Credential Delegation Technical Design](../feat-credential-delegation/technical-design-credential-delegation.md) for `data_source_status` queue payloads and consumer processing logic.
 
-**Failure Message:**
-```json
-{
-  "type": "verification",
-  "connection_id": "conn-uuid-789",
-  "tenant_id": "org-uuid-123",
-  "status": "failed",
-  "options": null,
-  "error": "Invalid credentials or insufficient permissions"
-}
-```
-
-**Options by Connection Type:**
-- ServiceNow: `{"tables": "incident,problem,change_request"}` - Comma-separated table names
-- Jira: `{"projects": "PROJ1,PROJ2,PROJ3"}` - Comma-separated project keys
-- Confluence: `{"spaces": "ENG,PROD,DOCS"}` - Comma-separated space keys
-
-**Consumer:** `DataSourceStatusConsumer` (existing consumer, reused for delegation flow):
-
-**On Success:**
-1. Update `data_source_connections`:
-   - `status` → `'active'`
-   - `latest_options` → options JSONB
-   - `last_verification_at` → `NOW()`
-   - `enabled` → `true`
-
-2. If triggered by delegation:
-   - Lookup `credential_delegation_tokens` by `connection_id`
-   - Update `status` → `'verified'`
-   - Update `credentials_verified_at` → `NOW()`
-   - INSERT `audit_logs` (action: `'credential_verification_success'`)
-
-3. Emit SSE event: `credential_verified` to organization
-
-**On Failure:**
-1. Update `data_source_connections.status` → `'failed'`
-
-2. If triggered by delegation:
-   - Update `credential_delegation_tokens.status` → `'pending'` (allow retry)
-   - Update `last_verification_error` → error message
-
-3. Emit SSE event: `credential_failed` to organization
+*This queue is shared between credential verification (delegation flow) and direct data source verification (Confluence).*
 
 ### 4.2 Frontend API Endpoints
 
@@ -851,57 +497,9 @@ erDiagram
     * Audit: Logs to `audit_logs` with action `trigger_ticket_sync`
     * Returns: `202 { ingestion_run_id, status: "SYNCING" }`
 
-#### Credential Delegation Endpoints (ITSM Setup)
+#### Credential Delegation Endpoints
 
-* **`POST /api/credential-delegations/create`**
-    * Payload: `{ "admin_email": string, "itsm_system_type": "servicenow" | "jira" | "confluence" }`
-    * Authorization: Requires `admin` or `owner` role
-    * Action: Generate 64-char token, INSERT credential_delegation_tokens, send email via webhook
-    * Webhook Call: `WebhookService.sendCredentialDelegationEmail()`
-        - source: `'rita-credential-delegation'`, action: `'send_delegation_email'`
-        - Includes: tenant_id, user_id, user_email, admin_email, delegation_url, organization_name, itsm_system_type
-        - Failures logged to `rag_webhook_failures` table
-        - Retry: 3 attempts with exponential backoff
-    * Rate limit: 10 delegations per org per day
-    * Audit: Logs to `audit_logs` with action `create_credential_delegation`
-    * Returns: `{ delegation_id, delegation_url, expires_at, status: "pending" }`
-
-* **`GET /api/credential-delegations/verify/:token`** (Public)
-    * Authorization: None (public endpoint)
-    * Action: Validate token exists, not expired, status='pending'
-    * Returns: `{ valid: boolean, org_name, system_type, delegated_by, expires_at }` or `{ valid: false, reason }`
-
-* **`GET /api/credential-delegations/status/:token`** (Public)
-    * Authorization: None (token is auth)
-    * Purpose: Poll verification status for IT Admin real-time feedback
-    * Action: Check delegation token status
-    * Returns based on status:
-        - `status='used'`: `{ status: "verifying", message: "Checking credentials..." }`
-        - `status='verified'`: `{ status: "success", message: "Credentials verified!", connection_id: "uuid" }`
-        - `status='pending'` (after failure): `{ status: "failed", error: "Invalid credentials or insufficient permissions", allow_retry: true }`
-        - Token not found / wrong status: `404 { error: "Invalid or expired token" }`
-    * Rate limit: 20 requests per minute per token
-    * Used by IT Admin page for polling after credential submission
-    * Typical polling: Every 3 seconds for max 30 seconds (10 polls)
-
-* **`POST /api/credential-delegations/submit`** (Public)
-    * Payload: `{ "token": string, "credentials": { url, username, password, ... } }`
-    * Authorization: None (public endpoint)
-    * Action: Atomic update status='used', send webhook for verification, credentials NOT stored
-    * Webhook Call: `DataSourceWebhookService.sendVerifyEvent()`
-        - source: `'rita-chat'`, action: `'verify_credentials'`
-        - connection_type: `'servicenow'|'jira'|'confluence'` (identifies system)
-        - Includes: tenant_id, user_id, user_email, connection_id, credentials (password base64 encoded), settings
-        - Same pattern as Confluence verification
-        - Result arrives async via RabbitMQ `data_source_status` queue
-    * Returns: `202 { status: "verifying", polling_url: "/api/credential-delegations/status/:token" }` (result via polling)
-    * Frontend: Immediately starts polling status endpoint every 3s
-    * Error: 409 if token already used (race condition prevention)
-
-* **`GET /api/credential-delegations`**
-    * Query: `?status=pending|used|verified&system_type=servicenow|jira`
-    * Authorization: Requires `member` role or higher
-    * Returns: List of delegations for organization `[{ id, admin_email, system_type, status, created_at, expires_at, verified_at }]`
+> **See:** [Credential Delegation Technical Design](../feat-credential-delegation/technical-design-credential-delegation.md) for all `/api/credential-delegations/*` endpoints.
 
 -----
 
@@ -950,42 +548,73 @@ erDiagram
 
 ---
 
-**Consumer:** `IngestBatchConsumer.ts` (packages/api-server/src/services/)
+**Consumer:** `IngestionNotificationConsumer.ts` (packages/api-server/src/consumers/)
 
-1.  **Organization Context Extraction:**
-    * Extract `organization_id` from message payload
-    * Validate organization exists and is active
-    * Set PostgreSQL session variable: `SET LOCAL app.current_organization_id = 'org-uuid'`
-    * This enables Row-Level Security (RLS) policies to enforce isolation
+> **Architecture Note:** With WF Direct DB Access, this consumer is lightweight - it only emits SSE events. All database writes happen in Workflow Platform before the notification is published.
 
-2.  **Transaction Scope:**
-    * Process entire `ticket_batch_processed` payload in single Postgres transaction
-    * BEGIN TRANSACTION at message receipt
-    * COMMIT only after all clusters, tickets, and metrics updated
-    * ROLLBACK on critical failures (invalid organization, database errors)
+1.  **Message Processing:**
+    * Consume from queues: `ingestion_notification`, `cluster_notification`, `enrichment_notification`
+    * Extract `tenant_id`, `user_id`, and event details from payload
+    * NO database writes - data already written by Workflow Platform
 
-3.  **Idempotency Pattern:**
+2.  **SSE Emission:**
+    * Map notification type to SSE event:
+      * `ingestion_completed` → `ingestion_run_update` SSE event
+      * `cluster_created`/`cluster_updated` → `cluster_update` SSE event
+      * `enrichment_completed` → `cluster_update` SSE event (with kb_status)
+    * Emit to user via `sseService.sendToUser(user_id, tenant_id, event)`
+
+3.  **Error Handling:**
+    * Consumer failures logged to `message_processing_failures` table
+    * Notifications are idempotent - re-processing just re-emits SSE (safe)
+    * ACK on success, NACK without requeue on repeated failures
+    * Max 3 retry attempts
+
+4.  **Example Implementation:**
+    ```typescript
+    // IngestionNotificationConsumer.ts
+    async processMessage(message: IngestionNotification): Promise<void> {
+      const { type, tenant_id, user_id, ingestion_run_id, status, records_processed } = message;
+
+      // NO database writes - WF already wrote to DB
+
+      // Emit SSE event only
+      await this.sseService.sendToUser(user_id, tenant_id, {
+        type: 'ingestion_run_update',
+        data: {
+          ingestion_run_id,
+          status,
+          records_processed,
+          timestamp: new Date().toISOString()
+        }
+      });
+
+      this.logger.info('SSE emitted for ingestion notification', { ingestion_run_id, status });
+    }
+    ```
+
+---
+
+**Workflow Platform Responsibilities (Direct DB Access):**
+
+WF now owns all autopilot data writes. Key patterns:
+
+1.  **Multi-Tenancy (Direct org_id filter):**
+    * Include `organization_id` in all WHERE/INSERT clauses
+    * Do NOT use `SET LOCAL app.current_organization_id` (RLS optional for WF)
+    * Example: `WHERE organization_id = $tenant_id`
+
+2.  **Idempotency Pattern (WF implements):**
     * **Clusters:** `INSERT ... ON CONFLICT (organization_id, external_cluster_id) DO UPDATE SET name = EXCLUDED.name, kb_status = EXCLUDED.kb_status, updated_at = NOW()`
     * **Tickets:** `INSERT ... ON CONFLICT (organization_id, external_id) DO UPDATE SET cluster_id = EXCLUDED.cluster_id, external_status = EXCLUDED.external_status, updated_at = NOW()`
-    * Conflict targets use unique constraints (org + external ID), not internal auto-generated IDs
-    * Allows re-syncing/replaying messages without duplication
-    * Updated records maintain audit trail via updated_at
+    * Conflict targets use unique constraints (org + external ID)
 
-4.  **Error Handling:**
-    * **RabbitMQ Failures:** Rita Backend logs message processing errors to `message_processing_failures` table (internal error tracking)
-      * `queue_name = 'ticket_batch_processed'`
-      * `message_payload` = full JSON payload for replay
-      * `tenant_id = organization_id`
-      * Retry logic: max 3 attempts with exponential backoff (60s, 300s, 900s)
-    * **Partial Failures:** If specific ticket validation fails (missing ID, invalid format):
-      * Rita Backend logs to `message_processing_failures` with `error_type = 'validation_error'`
-      * **Do NOT roll back** valid tickets in same batch
-      * Continue processing remaining tickets
-      * Update `ingestion_runs.records_failed` counter
-    * **Critical Failures:** Invalid organization, DB connection loss → ROLLBACK, requeue message
+3.  **Transaction Scope:**
+    * Process entire batch in single Postgres transaction
+    * COMMIT only after all clusters, tickets, analytics, and ingestion_runs updated
+    * ROLLBACK on critical failures
 
-5.  **Metric Updates:**
-    * Update `analytics_cluster_daily` during transaction using UPSERT:
+4.  **Metric Updates (WF implements):**
     ```sql
     INSERT INTO analytics_cluster_daily (organization_id, cluster_id, day, total_tickets, automated_count, kb_gap_count)
     VALUES ($1, $2, CURRENT_DATE, $3, $4, $5)
@@ -993,120 +622,25 @@ erDiagram
     DO UPDATE SET
       total_tickets = analytics_cluster_daily.total_tickets + EXCLUDED.total_tickets,
       automated_count = analytics_cluster_daily.automated_count + EXCLUDED.automated_count,
-      kb_gap_count = analytics_cluster_daily.kb_gap_count + EXCLUDED.kb_gap_count,
       updated_at = NOW();
     ```
-    * Incremental updates prevent full recalculation
-    * Daily buckets enable fast dashboard queries regardless of date range
 
-6.  **Ingestion Run Tracking:**
-    * Update `ingestion_runs` table on completion:
-      * `status = 'completed'` or `'failed'`
-      * `records_processed` = successful ticket count
-      * `records_failed` = validation failure count
-      * `completed_at = NOW()`
-    * If linked to data source: Update `data_source_connections.status = 'idle'`, `last_sync_status = 'completed'`, `last_sync_at = NOW()`
+5.  **Ingestion Run Tracking (WF updates):**
+    ```sql
+    UPDATE ingestion_runs
+    SET status = 'completed', records_processed = $2, completed_at = NOW()
+    WHERE id = $1 AND organization_id = $tenant_id;
+    ```
 
-**Consumer:** `DataSourceStatusConsumer.ts` (packages/api-server/src/services/)
-*Reuses existing consumer for both Confluence verification AND delegated ITSM setup*
+6.  **After DB Commit - Publish Notification:**
+    * Only publish to RabbitMQ AFTER transaction commits successfully
+    * Notification contains minimal data for SSE (no full payloads)
 
-7.  **Data Source Verification Processing:**
-    * **Queue:** `data_source_status`
-    * **Message Format:** `{ type: 'verification', connection_id, tenant_id, status: 'success'|'failed', options?, error? }`
+**Consumer:** `DataSourceStatusConsumer.ts`
 
-    * **Organization Context:**
-      * Extract `tenant_id` from message payload (maps to organization_id)
-      * Set PostgreSQL session variable: `SET LOCAL app.current_organization_id = 'org-uuid'`
+> **See:** [Credential Delegation Technical Design](../feat-credential-delegation/technical-design-credential-delegation.md) for `DataSourceStatusConsumer` verification processing logic.
 
-    * **Transaction Scope:**
-      * BEGIN TRANSACTION on message receipt
-      * COMMIT only after all updates complete
-      * ROLLBACK on database errors
-
-    * **Success Flow (status='success'):**
-      ```sql
-      -- Update data source connection
-      UPDATE data_source_connections
-      SET status = 'active',
-          latest_options = $2,  -- JSONB: {tables: "..."} or {spaces: "..."} or {projects: "..."}
-          last_verification_at = NOW(),
-          enabled = true,
-          updated_at = NOW()
-      WHERE id = $1;
-
-      -- If triggered by delegation: lookup token by connection_id
-      -- credential_delegation_tokens table should reference connection_id
-      UPDATE credential_delegation_tokens
-      SET status = 'verified',
-          credentials_verified_at = NOW(),
-          completed_at = NOW()
-      WHERE connection_id = $1 AND status = 'used';
-
-      -- Audit log (if delegation triggered)
-      INSERT INTO audit_logs (
-        organization_id, user_id, action, resource_type, resource_id, metadata
-      )
-      SELECT organization_id, created_by_user_id, 'credential_verification_success',
-             'credential_delegation', id, jsonb_build_object('connection_id', connection_id)
-      FROM credential_delegation_tokens
-      WHERE connection_id = $1;
-      ```
-
-    * **Failure Flow (status='failed'):**
-      ```sql
-      -- Update data source connection
-      UPDATE data_source_connections
-      SET status = 'failed',
-          updated_at = NOW()
-      WHERE id = $1;
-
-      -- If triggered by delegation: revert to pending (allow retry)
-      UPDATE credential_delegation_tokens
-      SET status = 'pending',
-          last_verification_error = $2
-      WHERE connection_id = $1 AND status = 'used';
-      ```
-
-    * **SSE Event Emission:**
-      * Success: `sendToOrganization(tenant_id, { type: 'credential_verified', connection_type, connection_id })`
-      * Failure: `sendToOrganization(tenant_id, { type: 'credential_failed', error })`
-
-    * **Email Notification (Delegation Flow Only):**
-      ```typescript
-      // After updating credential_delegation_tokens status
-      const delegation = await db.query(
-        'SELECT admin_email, organization_id FROM credential_delegation_tokens WHERE connection_id = $1',
-        [connection_id]
-      );
-
-      if (delegation) {
-        // Send email notification to IT Admin
-        await webhookService.sendGenericEvent({
-          organizationId: delegation.organization_id,
-          source: 'rita-credential-delegation',
-          action: 'send_verification_result_email',
-          additionalData: {
-            admin_email: delegation.admin_email,
-            verification_status: status === 'success' ? 'verified' : 'failed',
-            itsm_system_type: connectionType,
-            error: status === 'failed' ? errorMessage : null
-          }
-        });
-      }
-      ```
-      * Email sent on both success and failure
-      * Optional: Can be skipped if polling completed successfully (IT Admin already saw result)
-      * Always sent on timeout (IT Admin closed page before verification completed)
-
-    * **Detecting Delegation vs Direct Verification:**
-      * Query `credential_delegation_tokens` by `connection_id`
-      * If found with status='used' → delegation flow (update delegation record)
-      * If not found → direct verification (Confluence pattern, no delegation updates needed)
-
-    * **Error Handling:**
-      * Invalid organization → Log warning, NACK message (don't requeue)
-      * Database errors → Log error, NACK message with requeue (max 3 retries)
-      * Connection not found → Log warning, ACK message (idempotent)
+*This consumer is reused for both Confluence verification AND delegated ITSM setup.*
 
 ### 5.2 Frontend State (React)
 
@@ -1123,58 +657,10 @@ erDiagram
     | `data_source_update` | `{connection_id, connection_type, status}` | Existing event - reused for credential verification |
 
     **Note:** Reuses existing `data_source_update` event type for credential verification (matches current Confluence pattern).
+
 3.  **Status Polling (IT Admin - Public Page):**
-    ```typescript
-    // After credential submission (POST /credential-delegations/submit)
-    const pollVerificationStatus = async (token: string) => {
-      const MAX_POLLS = 10; // 30 seconds total (3s interval)
-      const POLL_INTERVAL = 3000; // 3 seconds
-      let attempts = 0;
 
-      const interval = setInterval(async () => {
-        attempts++;
-
-        try {
-          const response = await fetch(`/api/credential-delegations/status/${token}`);
-          const data = await response.json();
-
-          if (data.status === 'success') {
-            clearInterval(interval);
-            showSuccessMessage('Credentials verified! You can close this page.');
-            // Optionally disable form
-          } else if (data.status === 'failed') {
-            clearInterval(interval);
-            showErrorMessage(data.error);
-            // Re-enable form for retry
-          } else if (attempts >= MAX_POLLS) {
-            // Timeout after 30 seconds
-            clearInterval(interval);
-            showTimeoutMessage(
-              'Verification taking longer than expected. ' +
-              'We\'ll email you at {admin_email} when complete.'
-            );
-          }
-          // else status='verifying' → continue polling
-        } catch (error) {
-          console.error('Polling error:', error);
-          // Continue polling on network errors
-        }
-      }, POLL_INTERVAL);
-
-      // Cleanup on component unmount
-      return () => clearInterval(interval);
-    };
-    ```
-    * **Polling Strategy:**
-      - Start immediately after submit (202 response)
-      - Poll every 3 seconds
-      - Max 10 attempts (30 seconds total)
-      - Clear interval on success/failure/timeout
-    * **UX States:**
-      - Verifying: Show spinner + "Checking credentials..."
-      - Success: Green checkmark + "Credentials verified!"
-      - Failed: Error message + retry button
-      - Timeout: Info message + "Check your email"
+    > **See:** [Credential Delegation Technical Design](../feat-credential-delegation/technical-design-credential-delegation.md) for IT Admin polling implementation.
 
 ### 5.3 Audit Integration
 
@@ -1228,15 +714,16 @@ erDiagram
 
 ### 5.4 Sync Two-Way Logic
 
-* **Incoming (Read-Only):** ITSM → Workflow Platform → RabbitMQ → Rita Backend → PostgreSQL
+* **Incoming (WF Direct Write):** ITSM → Workflow Platform → PostgreSQL (direct) → RabbitMQ notification → Rita Backend → SSE
   * Workflow Platform is source of truth for cluster definitions and ticket assignments
-  * Rita Backend passively receives and stores data
+  * **WF writes directly to PostgreSQL** with `organization_id` in all queries
+  * Rita Backend receives lightweight notification and emits SSE only (no DB writes)
   * No mutations sent back to Workflow Platform during ingestion
 
 * **Outgoing (Commands):** Rita Backend → Webhook → Workflow Platform
   * User actions trigger configuration commands
   * Examples: Enable auto-respond, update validation target, link knowledge article
-  * Workflow Platform executes commands and may send updated data back via RabbitMQ
+  * Workflow Platform executes commands, writes to DB, and publishes notification
 
 ## 6\. Security & Performance
 
@@ -1244,9 +731,17 @@ erDiagram
 
 **Architecture Pattern:** All tables follow Rita's established multi-tenancy model documented in `docs/database-tables.md`
 
+#### Data Isolation by Component
+
+| Component | Isolation Method | Notes |
+|-----------|-----------------|-------|
+| Rita Backend | RLS via `SET LOCAL app.current_organization_id` | Standard pattern for API requests |
+| Workflow Platform | Direct `organization_id` filter in queries | Requires superuser/table owner role (bypasses RLS) or dedicated role with BYPASSRLS privilege |
+| Rita Consumers | N/A (no DB writes) | Notification consumers only emit SSE |
+
 #### Row-Level Security (RLS) Policies
 
-All autopilot tables enforce organization isolation via PostgreSQL Row-Level Security:
+All autopilot tables have RLS policies enabled. Rita Backend uses these; Workflow Platform uses direct filtering:
 
 ```sql
 -- Enable RLS on all autopilot tables
@@ -1273,7 +768,7 @@ CREATE POLICY "users_access_own_organization_knowledge" ON knowledge_articles
   FOR ALL
   USING (organization_id = current_setting('app.current_organization_id', true)::uuid);
 
-CREATE POLICY "users_access_own_organization_runs" ON ingestion_runs
+CREATE POLICY "users_access_own_organization_ingestion_runs" ON ingestion_runs
   FOR ALL
   USING (organization_id = current_setting('app.current_organization_id', true)::uuid);
 ```
@@ -1299,7 +794,7 @@ All mutable tables track user actions following Rita's audit pattern:
 **Auto-Update Trigger Pattern:**
 ```sql
 -- Trigger function (shared across tables)
-CREATE OR REPLACE FUNCTION trigger_set_timestamp()
+CREATE OR REPLACE FUNCTION update_updated_at_column()
 RETURNS TRIGGER AS $$
 BEGIN
   NEW.updated_at = NOW();
@@ -1311,7 +806,7 @@ $$ LANGUAGE plpgsql;
 CREATE TRIGGER set_timestamp
 BEFORE UPDATE ON clusters
 FOR EACH ROW
-EXECUTE FUNCTION trigger_set_timestamp();
+EXECUTE FUNCTION update_updated_at_column();
 ```
 
 #### Keycloak Integration
@@ -1360,12 +855,14 @@ interface AuditLog {
 
 #### Database Indexing
 
+> **Note:** Indexes marked with `-- FUTURE` are recommended optimizations not yet in migration 138. Add based on query patterns observed in production.
+
 **clusters table:**
 ```sql
 CREATE INDEX idx_clusters_organization_id ON clusters(organization_id);
 CREATE INDEX idx_clusters_kb_status ON clusters(kb_status);
 CREATE INDEX idx_clusters_created_at ON clusters(created_at DESC);
-CREATE INDEX idx_clusters_config ON clusters USING GIN (config);
+CREATE INDEX idx_clusters_config ON clusters USING GIN (config);  -- FUTURE
 ```
 
 **tickets table:**
@@ -1374,18 +871,18 @@ CREATE INDEX idx_tickets_organization_id ON tickets(organization_id);
 CREATE INDEX idx_tickets_cluster_id ON tickets(cluster_id);
 CREATE INDEX idx_tickets_rita_status ON tickets(rita_status);
 CREATE INDEX idx_tickets_validation_result ON tickets(validation_result);
-CREATE INDEX idx_tickets_data_source ON tickets(data_source_connection_id);
+CREATE INDEX idx_tickets_data_source ON tickets(data_source_connection_id);  -- FUTURE
 CREATE INDEX idx_tickets_created_at ON tickets(created_at DESC);
-CREATE INDEX idx_tickets_validated_by ON tickets(validated_by);
-CREATE INDEX idx_tickets_source_metadata ON tickets USING GIN (source_metadata);
+CREATE INDEX idx_tickets_validated_by ON tickets(validated_by);  -- FUTURE
+CREATE INDEX idx_tickets_source_metadata ON tickets USING GIN (source_metadata);  -- FUTURE
 ```
 
 **analytics_cluster_daily table:**
 ```sql
 CREATE INDEX idx_analytics_cluster_daily_org ON analytics_cluster_daily(organization_id);
 CREATE INDEX idx_analytics_cluster_daily_day ON analytics_cluster_daily(day DESC);
--- Compound index for dashboard queries
-CREATE INDEX idx_analytics_org_cluster_day ON analytics_cluster_daily(organization_id, cluster_id, day DESC);
+-- Compound index for dashboard queries -- FUTURE
+CREATE INDEX idx_analytics_org_cluster_day ON analytics_cluster_daily(organization_id, cluster_id, day DESC);  -- FUTURE
 ```
 
 **knowledge_articles table:**
@@ -1398,10 +895,10 @@ CREATE INDEX idx_knowledge_articles_relevance ON knowledge_articles(relevance_sc
 
 **ingestion_runs table:**
 ```sql
-CREATE INDEX idx_ingestion_runs_organization ON ingestion_runs(organization_id);
-CREATE INDEX idx_ingestion_runs_data_source ON ingestion_runs(data_source_connection_id);
+CREATE INDEX idx_ingestion_runs_organization_id ON ingestion_runs(organization_id);
+CREATE INDEX idx_ingestion_runs_data_source ON ingestion_runs(data_source_connection_id);  -- FUTURE
 CREATE INDEX idx_ingestion_runs_status ON ingestion_runs(status);
-CREATE INDEX idx_ingestion_runs_started_at ON ingestion_runs(started_at DESC);
+CREATE INDEX idx_ingestion_runs_created_at ON ingestion_runs(created_at DESC);
 ```
 
 #### Query Optimization Patterns
@@ -1465,10 +962,10 @@ CREATE TABLE clusters (
 
 -- Indexes
 CREATE INDEX idx_clusters_organization_id ON clusters(organization_id);
-CREATE INDEX idx_clusters_external_id ON clusters(external_cluster_id);
+CREATE INDEX idx_clusters_external_cluster_id ON clusters(external_cluster_id);
 CREATE INDEX idx_clusters_kb_status ON clusters(kb_status);
 CREATE INDEX idx_clusters_created_at ON clusters(created_at DESC);
-CREATE INDEX idx_clusters_config ON clusters USING GIN (config);
+CREATE INDEX idx_clusters_config ON clusters USING GIN (config);  -- FUTURE
 
 -- Row-Level Security
 ALTER TABLE clusters ENABLE ROW LEVEL SECURITY;
@@ -1481,7 +978,7 @@ CREATE POLICY "users_access_own_organization_clusters" ON clusters
 CREATE TRIGGER set_timestamp
 BEFORE UPDATE ON clusters
 FOR EACH ROW
-EXECUTE FUNCTION trigger_set_timestamp();
+EXECUTE FUNCTION update_updated_at_column();
 
 -- Comments
 COMMENT ON TABLE clusters IS 'AI-generated ticket clusters from Workflow Platform (system-generated)';
@@ -1531,11 +1028,11 @@ CREATE INDEX idx_tickets_organization_id ON tickets(organization_id);
 CREATE INDEX idx_tickets_cluster_id ON tickets(cluster_id);
 CREATE INDEX idx_tickets_rita_status ON tickets(rita_status);
 CREATE INDEX idx_tickets_validation_result ON tickets(validation_result);
-CREATE INDEX idx_tickets_data_source ON tickets(data_source_connection_id);
+CREATE INDEX idx_tickets_data_source ON tickets(data_source_connection_id);  -- FUTURE
 CREATE INDEX idx_tickets_created_at ON tickets(created_at DESC);
-CREATE INDEX idx_tickets_validated_by ON tickets(validated_by);
-CREATE INDEX idx_tickets_source_metadata ON tickets USING GIN (source_metadata);
-CREATE INDEX idx_tickets_validation_samples ON tickets(cluster_id, is_validation_sample) WHERE is_validation_sample = true;
+CREATE INDEX idx_tickets_validated_by ON tickets(validated_by);  -- FUTURE
+CREATE INDEX idx_tickets_source_metadata ON tickets USING GIN (source_metadata);  -- FUTURE
+CREATE INDEX idx_tickets_validation_samples ON tickets(cluster_id, is_validation_sample) WHERE is_validation_sample = true;  -- FUTURE
 
 -- Row-Level Security
 ALTER TABLE tickets ENABLE ROW LEVEL SECURITY;
@@ -1548,7 +1045,7 @@ CREATE POLICY "users_access_own_organization_tickets" ON tickets
 CREATE TRIGGER set_timestamp
 BEFORE UPDATE ON tickets
 FOR EACH ROW
-EXECUTE FUNCTION trigger_set_timestamp();
+EXECUTE FUNCTION update_updated_at_column();
 
 -- Comments
 COMMENT ON TABLE tickets IS 'ITSM tickets assigned to autopilot clusters';
@@ -1641,7 +1138,7 @@ CREATE POLICY "users_access_own_organization_knowledge" ON knowledge_articles
 CREATE TRIGGER set_timestamp
 BEFORE UPDATE ON knowledge_articles
 FOR EACH ROW
-EXECUTE FUNCTION trigger_set_timestamp();
+EXECUTE FUNCTION update_updated_at_column();
 
 -- Comments
 COMMENT ON TABLE knowledge_articles IS 'KB articles linked to clusters (system-generated from Workflow Platform)';
@@ -1715,7 +1212,7 @@ CREATE INDEX idx_ingestion_runs_started_by ON ingestion_runs(started_by);
 -- Row-Level Security
 ALTER TABLE ingestion_runs ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "users_access_own_organization_runs" ON ingestion_runs
+CREATE POLICY "users_access_own_organization_ingestion_runs" ON ingestion_runs
     FOR ALL
     USING (organization_id = current_setting('app.current_organization_id', true)::uuid);
 
@@ -1729,83 +1226,23 @@ COMMENT ON COLUMN ingestion_runs.created_at IS 'Doubles as started_at timestamp'
 
 #### credential_delegation_tokens Table
 
-```sql
--- Delegated ITSM credential setup tokens
-CREATE TABLE credential_delegation_tokens (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
-    created_by_user_id UUID NOT NULL REFERENCES user_profiles(user_id) ON DELETE CASCADE,
-
-    -- Delegated admin info (not yet authenticated)
-    admin_email TEXT NOT NULL,
-    itsm_system_type TEXT NOT NULL CHECK (itsm_system_type IN ('servicenow', 'jira', 'confluence')),
-
-    -- Token management
-    delegation_token TEXT NOT NULL UNIQUE,
-    token_expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
-
-    -- Status tracking
-    status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'used', 'verified', 'expired', 'cancelled')),
-
-    -- Credential submission tracking
-    credentials_received_at TIMESTAMP WITH TIME ZONE,  -- when IT admin submitted
-    credentials_verified_at TIMESTAMP WITH TIME ZONE,  -- when external service verified
-    last_verification_error TEXT,
-
-    -- Link to data source connection (set after verification webhook sent)
-    connection_id UUID REFERENCES data_source_connections(id) ON DELETE SET NULL,
-
-    -- Timestamps
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
-
--- Indexes
-CREATE INDEX idx_cred_delegation_email ON credential_delegation_tokens(admin_email);
-CREATE INDEX idx_cred_delegation_token ON credential_delegation_tokens(delegation_token);
-CREATE INDEX idx_cred_delegation_org_id ON credential_delegation_tokens(organization_id);
-CREATE INDEX idx_cred_delegation_status ON credential_delegation_tokens(status);
-CREATE INDEX idx_cred_delegation_expires_at ON credential_delegation_tokens(token_expires_at);
-CREATE INDEX idx_cred_delegation_created_by ON credential_delegation_tokens(created_by_user_id);
-CREATE INDEX idx_cred_delegation_connection_id ON credential_delegation_tokens(connection_id);
-
--- Unique constraint: prevent duplicate pending tokens
-CREATE UNIQUE INDEX idx_cred_delegation_unique
-    ON credential_delegation_tokens(admin_email, organization_id, itsm_system_type)
-    WHERE status = 'pending';
-
--- Row-Level Security
-ALTER TABLE credential_delegation_tokens ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY "users_access_own_organization_delegations" ON credential_delegation_tokens
-    FOR ALL
-    USING (organization_id = current_setting('app.current_organization_id', true)::uuid);
-
--- Comments
-COMMENT ON TABLE credential_delegation_tokens IS 'Delegated credential setup links for external ITSM admins';
-COMMENT ON COLUMN credential_delegation_tokens.delegation_token IS '64-char hex token (32 random bytes) sent via email';
-COMMENT ON COLUMN credential_delegation_tokens.admin_email IS 'Email of IT admin (not yet a Rita user)';
-COMMENT ON COLUMN credential_delegation_tokens.itsm_system_type IS 'ServiceNow, Jira, or Confluence';
-COMMENT ON COLUMN credential_delegation_tokens.status IS 'pending → used → verified (or back to pending on failure)';
-COMMENT ON COLUMN credential_delegation_tokens.credentials_received_at IS 'When IT admin submitted credentials (replaces accepted_at)';
-COMMENT ON COLUMN credential_delegation_tokens.credentials_verified_at IS 'When external service verified (replaces completed_at)';
-```
+> **See:** [Credential Delegation Technical Design](../feat-credential-delegation/technical-design-credential-delegation.md) for the `credential_delegation_tokens` table schema.
 
 ### 7.3 Migration Checklist
 
 **Pre-Migration:**
 - [ ] Backup production database
 - [ ] Test migration on staging environment
-- [ ] Verify trigger_set_timestamp() function exists
+- [ ] Verify update_updated_at_column() function exists
 - [ ] Verify organizations and user_profiles tables exist
 - [ ] Verify data_source_connections table exists (for optional FK)
 
 **Post-Migration:**
-- [ ] Verify all tables created: `\dt clusters tickets analytics_cluster_daily knowledge_articles ingestion_runs credential_delegation_tokens`
-- [ ] Verify all indexes created: `\di idx_clusters_*` `\di idx_cred_delegation_*`
+- [ ] Verify all tables created: `\dt clusters tickets analytics_cluster_daily knowledge_articles ingestion_runs`
+- [ ] Verify all indexes created: `\di idx_clusters_*` `\di idx_tickets_*`
+- [ ] For credential_delegation_tokens: See [Credential Delegation Technical Design](../feat-credential-delegation/technical-design-credential-delegation.md)
 - [ ] Verify RLS policies enabled: `SELECT tablename, rowsecurity FROM pg_tables WHERE schemaname = 'public'`
-- [ ] Verify foreign key constraints: `\d+ clusters` `\d+ credential_delegation_tokens`
-- [ ] Verify CHECK constraints: `\d+ credential_delegation_tokens` (status, itsm_system_type)
-- [ ] Verify UNIQUE constraint: `\d+ credential_delegation_tokens` (admin_email + org + system_type WHERE status='pending')
+- [ ] Verify foreign key constraints: `\d+ clusters` `\d+ tickets`
 - [ ] Test RLS isolation: Set `app.current_organization_id` and query tables
 - [ ] Grant appropriate permissions to application database user
 
@@ -1813,12 +1250,12 @@ COMMENT ON COLUMN credential_delegation_tokens.credentials_verified_at IS 'When 
 
 ```sql
 -- Rollback script (if needed - DESTRUCTIVE!)
-DROP TABLE IF EXISTS credential_delegation_tokens CASCADE;
 DROP TABLE IF EXISTS ingestion_runs CASCADE;
 DROP TABLE IF EXISTS knowledge_articles CASCADE;
 DROP TABLE IF EXISTS analytics_cluster_daily CASCADE;
 DROP TABLE IF EXISTS tickets CASCADE;
 DROP TABLE IF EXISTS clusters CASCADE;
+-- For credential_delegation_tokens rollback, see Credential Delegation doc
 ```
 
 **⚠️ Warning:** Rollback will permanently delete all autopilot data. Only use in emergency situations.
@@ -1852,3 +1289,46 @@ DROP TABLE IF EXISTS clusters CASCADE;
 2. Establish data retention policies (analytics, audit logs)
 3. Design cluster lifecycle management (active → archived states)
 4. Plan knowledge article verification cron job strategy
+
+-----
+
+## Changelog
+
+### v1.6 (November 26, 2025)
+**Document-Migration Alignment & RLS Clarification**
+
+- **Clarified:** WF requires superuser/table owner role (bypasses RLS) or BYPASSRLS privilege for direct DB writes
+- **Fixed:** Trigger function name `trigger_set_timestamp()` → `update_updated_at_column()` (matches 01-init.sql)
+- **Fixed:** Index name `idx_clusters_external_id` → `idx_clusters_external_cluster_id` (matches migration)
+- **Fixed:** Policy name `users_access_own_organization_runs` → `users_access_own_organization_ingestion_runs`
+- **Fixed:** Index names in ingestion_runs section to match migration (`organization_id`, `created_at`)
+- **Marked:** 7 indexes as `-- FUTURE` (not yet in migration 138): GIN indexes, compound indexes, partial indexes
+
+### v1.5 (November 26, 2025)
+**Document Split: Credential Delegation Extracted**
+
+- **Split:** Credential delegation moved to separate doc: `../feat-credential-delegation/technical-design-credential-delegation.md`
+- **Removed:** Section 2.3 delegation flow (full sequence diagram)
+- **Removed:** Credential delegation webhook payloads
+- **Removed:** Credential delegation API endpoints
+- **Removed:** `DataSourceStatusConsumer` verification logic details
+- **Removed:** `credential_delegation_tokens` table schema
+- **Added:** Cross-references to credential delegation doc throughout
+
+### v1.4 (November 26, 2025)
+**Architectural Change: Workflow Platform Direct DB Access**
+
+- **Changed:** WF now writes directly to PostgreSQL for autopilot tables (clusters, tickets, knowledge_articles, analytics_cluster_daily, ingestion_runs)
+- **Changed:** RabbitMQ messages are now lightweight notifications (no full data payloads)
+- **Changed:** Rita consumers (`IngestionNotificationConsumer`) only emit SSE events - no DB writes
+- **Changed:** WF uses direct `organization_id` filtering instead of RLS session variables
+- **Deferred:** Audit logging for WF writes (to be addressed in later iteration)
+
+### v1.3 (November 24, 2025)
+- Added credential delegation flow for ITSM setup
+- Added ingestion_runs table and sync tracking
+- Added detailed RabbitMQ payload specifications
+
+### v1.2
+- Initial autopilot tables schema
+- Cluster and ticket management flows
