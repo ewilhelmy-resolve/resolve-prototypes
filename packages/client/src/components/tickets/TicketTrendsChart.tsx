@@ -17,8 +17,8 @@ interface ChartDataPoint {
 interface TicketTrendsChartProps {
   /** Chart data points with month, manual, and automated values */
   data?: ChartDataPoint[];
-  /** Height of the chart container (default: 192px / h-48) */
-  height?: string;
+  /** Height of the chart in pixels (default: 192) */
+  height?: number;
 }
 
 // Generate random chart data for demonstration
@@ -54,7 +54,7 @@ const generateChartData = (): ChartDataPoint[] => {
  * - Centered legend showing Manual (purple) and Automated (green)
  *
  * @param data - Array of data points with month, manual, and automated values (generates random data if not provided)
- * @param height - CSS height class for the chart container (default: "h-48")
+ * @param height - Height of the chart in pixels (default: 192)
  *
  * @example
  * ```tsx
@@ -64,13 +64,13 @@ const generateChartData = (): ChartDataPoint[] => {
  * // With custom API data
  * <TicketTrendsChart data={ticketTrendsData} />
  *
- * // With taller chart
- * <TicketTrendsChart height="h-64" />
+ * // With taller chart (256px)
+ * <TicketTrendsChart height={256} />
  * ```
  */
 export function TicketTrendsChart({
   data = generateChartData(),
-  height = "h-48",
+  height = 192,
 }: TicketTrendsChartProps) {
   return (
     <div className="rounded-lg border bg-background p-3">
@@ -86,8 +86,8 @@ export function TicketTrendsChart({
 
       <div className="flex flex-col gap-4">
         {/* Chart */}
-        <div className={`mb-4 ${height}`}>
-          <ResponsiveContainer width="100%" height="100%">
+        <div className="w-full">
+          <ResponsiveContainer width="100%" height={height}>
             <LineChart data={data}>
               <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
               <XAxis dataKey="month" stroke="#6b7280" />
