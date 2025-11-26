@@ -1,7 +1,7 @@
 # Technical Design Document: RITA Autopilot & Cluster Dashboard
 
-**Status:** Draft v1.3
-**Date:** November 24, 2025
+**Status:** Draft v1.4
+**Date:** November 26, 2025
 **Feature:** Continuous ITSM Ingestion, Live Dashboard, & Cluster Management
 
 -----
@@ -12,8 +12,9 @@ This document outlines the architecture for the RITA Autopilot Dashboard. The sy
 
 **Key Architectural Decisions:**
 
+* **Workflow Platform Direct DB Access:** WF writes directly to PostgreSQL for autopilot tables (clusters, tickets, knowledge_articles, analytics_cluster_daily, ingestion_runs). Rita receives lightweight RabbitMQ notifications for SSE emission only - no DB writes in Rita consumers.
 * **Event-Driven Architecture:** Decouples the User Interface (Rita Client) from the heavy AI processing (Workflow Platform).
-* **Command-Query Separation:** The App triggers actions, but the Workflow Platform acts as the "Source of Truth" for cluster definitions.
+* **Command-Query Separation:** The App triggers actions, but the Workflow Platform acts as the "Source of Truth" for cluster definitions AND owns data writes.
 * **Two-Speed UX:** "Core Data" (Tickets) loads immediately to unlock the UI, while "Enrichment" (Knowledge Base analysis) occurs asynchronously in the background.
 * **Pre-Aggregated Metrics:** Uses a "Daily Bucket" pattern to ensure dashboard charts render instantly regardless of date range selection.
 
@@ -33,8 +34,10 @@ Before implementing this feature, the following codebase changes are required:
 
 1.  **Command:** User triggers a sync via **Rita Backend**.
 2.  **Process:** **Workflow Platform** fetches data from ITSM tools (ServiceNow/Jira), performs AI clustering, and assigns stable Cluster IDs.
-3.  **Publish:** Data flows back to Rita Backend via **RabbitMQ** in two distinct phases (Batch Ingest & Async Enrichment).
-4.  **Query:** **Rita Client** reads from optimized PostgreSQL tables and receives real-time updates via Server-Sent Events (SSE).
+3.  **Write:** **Workflow Platform** writes directly to PostgreSQL (clusters, tickets, analytics, ingestion_runs) using `organization_id` filtering.
+4.  **Notify:** **Workflow Platform** publishes lightweight notification to RabbitMQ (no full data payload).
+5.  **SSE:** **Rita Backend** consumes notification and emits SSE event to client (no DB writes).
+6.  **Query:** **Rita Client** reads from optimized PostgreSQL tables and receives real-time updates via Server-Sent Events (SSE).
 
 ### 2.2 Sequence Diagram
 
@@ -60,7 +63,6 @@ sequenceDiagram
     Note right of RB: Log audit: trigger_ticket_sync<br/>(user_id, organization_id, ingestion_run_id)
 
     RB->>WP: POST webhook<br/>source: 'rita-chat'<br/>action: 'sync_tickets'<br/>tenant_id, user_id, user_email<br/>connection_id, connection_type: 'servicenow'|'jira'<br/>ingestion_run_id
-    RB->>DB: UPDATE ingestion_runs SET status='running'
     RB-->>RC: 200 OK {ingestion_run_id, status: "SYNCING"}
     RC-->>User: UI shows Progress Bar (Locked)
 
@@ -69,59 +71,56 @@ sequenceDiagram
     ITSM-->>WP: Return Raw Tickets
     WP->>WP: AI Sorts Tickets (Assigns Stable Cluster IDs)
 
-    Note over WP, MQ: PHASE 3: Batch Result Handoff
-    WP->>MQ: Publish `ticket_batch_processed`
-    Note right of WP: Payload includes:<br/>{organization_id, ingestion_run_id,<br/>groups: [{cluster_id, name, tickets}]}
-
-    MQ->>RB: Consume Message
-    activate RB
-    Note right of RB: Extract organization_id from payload
-    RB->>DB: SET LOCAL app.current_organization_id
-    Note right of RB: BEGIN TRANSACTION
+    Note over WP, DB: PHASE 3: Direct DB Write (WF owns writes)
+    activate WP
+    Note right of WP: WF has direct PostgreSQL connection
+    Note right of WP: BEGIN TRANSACTION
 
     loop For Each Group in Batch
-        RB->>DB: UPSERT clusters<br/>(id, organization_id, name, config, created_by)
-        RB->>DB: UPSERT tickets<br/>(organization_id, cluster_id, external_id, source_metadata)
-        RB->>DB: UPSERT analytics_cluster_daily<br/>(organization_id, cluster_id, day, total_tickets)
+        WP->>DB: UPSERT clusters<br/>(organization_id, external_cluster_id, name, config)<br/>WHERE organization_id = $tenant_id
+        WP->>DB: UPSERT tickets<br/>(organization_id, cluster_id, external_id, source_metadata)<br/>WHERE organization_id = $tenant_id
+        WP->>DB: UPSERT analytics_cluster_daily<br/>(organization_id, cluster_id, day, total_tickets)
     end
 
-    alt Success
-        RB->>DB: UPDATE ingestion_runs<br/>SET status='completed', records_processed=N
-        Note right of RB: COMMIT TRANSACTION
-    else Validation Error (partial failure)
-        Note right of RB: COMMIT TRANSACTION (continue with valid records)<br/>Log validation errors to message_processing_failures
-        RB->>DB: UPDATE ingestion_runs<br/>SET records_failed=M
-    else Critical Error
-        Note right of RB: ROLLBACK TRANSACTION<br/>Log to message_processing_failures for retry
-        RB->>DB: UPDATE ingestion_runs<br/>SET status='failed', error_message
-        RB->>MQ: NACK message (will retry)
-    end
+    WP->>DB: UPDATE ingestion_runs<br/>SET status='completed', records_processed=N<br/>WHERE id = $ingestion_run_id
+    Note right of WP: COMMIT TRANSACTION
+    deactivate WP
+
+    Note over WP, MQ: PHASE 3b: Lightweight Notification
+    WP->>MQ: Publish `ingestion_notification`<br/>{type, tenant_id, user_id, ingestion_run_id, status, records_processed}
+    Note right of WP: Notification only - NO full data payload
+
+    MQ->>RB: Consume Notification
+    activate RB
+    Note right of RB: NO database writes<br/>SSE emission only
+    RB--)RC: SSE Event: `ingestion_run_update`<br/>{ingestion_run_id, status: 'completed', records_processed}
     deactivate RB
 
     critical UX UNLOCK
-    RB--)RC: SSE Event: `ingestion_run_update`<br/>{ingestion_run_id, status: 'completed', records_processed}
-    RC->>DB: GET /api/dashboard/clusters<br/>(filtered by organization_id via RLS)
+    RC->>RB: GET /api/dashboard/clusters<br/>(filtered by organization_id via RLS)
     RC-->>User: UI UNLOCKED. Cards appear.<br/>Badge says "Analyzing..."
     end
 
-    Note over WP, MQ: PHASE 4: Async Enrichment
+    Note over WP, DB: PHASE 4: Async Enrichment (WF owns writes)
     rect rgb(240, 248, 255)
     Note right of WP: Background Process (Knowledge Base Search)
     WP->>WP: Deep Search Knowledge Base
-    WP->>MQ: Publish `ticket_cluster_enrichment`<br/>{organization_id, cluster_id, kb_status, articles[]}
 
-    MQ->>RB: Consume Message
+    activate WP
+    Note right of WP: BEGIN TRANSACTION
+    WP->>DB: UPDATE clusters<br/>SET kb_status='FOUND'<br/>WHERE organization_id = $tenant_id AND id = $cluster_id
+    WP->>DB: UPSERT knowledge_articles<br/>(organization_id, external_id, cluster_id, title, url, relevance_score)
+    Note right of WP: COMMIT TRANSACTION
+    deactivate WP
+
+    WP->>MQ: Publish `enrichment_notification`<br/>{type, tenant_id, user_id, cluster_id, kb_status}
+
+    MQ->>RB: Consume Notification
     activate RB
-    RB->>DB: SET LOCAL app.current_organization_id
-    Note right of RB: BEGIN TRANSACTION
-
-    RB->>DB: UPDATE clusters<br/>SET kb_status='FOUND', updated_at=NOW()
-    RB->>DB: UPSERT knowledge_articles<br/>(organization_id, external_id, cluster_id, title, url, relevance_score)
-
-    Note right of RB: COMMIT TRANSACTION
+    Note right of RB: NO database writes<br/>SSE emission only
+    RB--)RC: SSE Event: `cluster_update`<br/>{cluster_id, kb_status: "FOUND"}
     deactivate RB
 
-    RB--)RC: SSE Event: `cluster_update`<br/>{cluster_id, kb_status: "FOUND"}
     RC-->>User: Card "c1" badge updates to "Knowledge Found"
     end
 ```
@@ -662,61 +661,69 @@ erDiagram
 
 ### 4.2 RabbitMQ Payloads
 
-**Queue:** `ticket_batch_processed` (Phase 3)
-*Purpose: High-throughput core data transfer.*
+> **Architecture Note:** With Workflow Platform Direct DB Access, RabbitMQ messages are now lightweight notifications for SSE emission only. WF writes data directly to PostgreSQL, then publishes notification. Rita consumers emit SSE events without any database writes.
+
+**Queue:** `ingestion_notification` (Phase 3b)
+*Purpose: Lightweight notification after WF completes direct DB writes. Rita consumer emits SSE only.*
 
 ```json
 {
-  "batch_id": "b-789",
-  "organization_id": "org-uuid-123",
-  "ingestion_run_id": "run-uuid-456",
-  "groups": [
-    {
-      "cluster_id": "c-555",
-      "name": "Email Signatures",
-      "tickets": [
-        {
-          "ext_id": "INC001",
-          "subject": "Fix signature",
-          "created_at": "2025-11-20T10:00:00Z",
-          "external_status": "open",
-          "rita_status": "needs_response",
-          "is_validation_sample": true,
-          "source_metadata": {
-            "source": "servicenow",
-            "instance_url": "https://acme.service-now.com",
-            "sys_id": "abc123"
-          }
-        }
-      ]
-    }
-  ]
+  "type": "ingestion_completed",
+  "tenant_id": "org-uuid-123",
+  "user_id": "user-uuid-456",
+  "ingestion_run_id": "run-uuid-789",
+  "status": "completed",
+  "records_processed": 150,
+  "records_failed": 2,
+  "timestamp": "2025-11-26T10:00:00Z"
 }
 ```
 
-**Queue:** `ticket_cluster_enrichment` (Phase 4)
-*Purpose: Metadata enrichment (populates the Knowledge Tab).*
+**Rita Consumer Action:** Emit SSE `ingestion_run_update` event to user. NO database writes.
+
+---
+
+**Queue:** `cluster_notification` (Phase 3b - optional per-cluster updates)
+*Purpose: Notify when individual cluster created/updated. Rita consumer emits SSE only.*
 
 ```json
 {
-  "organization_id": "org-uuid-123",
-  "cluster_id": "c-555",
+  "type": "cluster_created",
+  "tenant_id": "org-uuid-123",
+  "user_id": "user-uuid-456",
+  "cluster_id": "cluster-uuid-555",
+  "action": "created",
+  "timestamp": "2025-11-26T10:00:00Z"
+}
+```
+
+**Rita Consumer Action:** Emit SSE `cluster_update` event. NO database writes.
+
+---
+
+**Queue:** `enrichment_notification` (Phase 4)
+*Purpose: Notify when KB enrichment completes. Rita consumer emits SSE only.*
+
+```json
+{
+  "type": "enrichment_completed",
+  "tenant_id": "org-uuid-123",
+  "user_id": "user-uuid-456",
+  "cluster_id": "cluster-uuid-555",
   "kb_status": "FOUND",
-  "articles": [
-    {
-      "title": "How to update Outlook Signature",
-      "url": "https://service-now.com/kb/123",
-      "relevance": 0.95,
-      "status": "active"
-    }
-  ]
+  "articles_count": 3,
+  "timestamp": "2025-11-26T10:00:00Z"
 }
 ```
+
+**Rita Consumer Action:** Emit SSE `cluster_update` event with `kb_status`. NO database writes.
+
+---
 
 **Error Handling:**
-- RabbitMQ message processing failures logged to existing `message_processing_failures` table
-- `queue_name` = `ticket_batch_processed`, `ticket_cluster_enrichment`, or `data_source_status`
-- Failed messages include full payload for retry/debugging
+- Consumer failures logged to `message_processing_failures` table
+- `queue_name` = `ingestion_notification`, `cluster_notification`, `enrichment_notification`, or `data_source_status`
+- Notifications are idempotent - re-processing just re-emits SSE
 - Retry logic: max 3 attempts with exponential backoff
 
 **Queue:** `data_source_status` (Delegated Setup & Data Source Verification)
@@ -950,42 +957,73 @@ erDiagram
 
 ---
 
-**Consumer:** `IngestBatchConsumer.ts` (packages/api-server/src/services/)
+**Consumer:** `IngestionNotificationConsumer.ts` (packages/api-server/src/consumers/)
 
-1.  **Organization Context Extraction:**
-    * Extract `organization_id` from message payload
-    * Validate organization exists and is active
-    * Set PostgreSQL session variable: `SET LOCAL app.current_organization_id = 'org-uuid'`
-    * This enables Row-Level Security (RLS) policies to enforce isolation
+> **Architecture Note:** With WF Direct DB Access, this consumer is lightweight - it only emits SSE events. All database writes happen in Workflow Platform before the notification is published.
 
-2.  **Transaction Scope:**
-    * Process entire `ticket_batch_processed` payload in single Postgres transaction
-    * BEGIN TRANSACTION at message receipt
-    * COMMIT only after all clusters, tickets, and metrics updated
-    * ROLLBACK on critical failures (invalid organization, database errors)
+1.  **Message Processing:**
+    * Consume from queues: `ingestion_notification`, `cluster_notification`, `enrichment_notification`
+    * Extract `tenant_id`, `user_id`, and event details from payload
+    * NO database writes - data already written by Workflow Platform
 
-3.  **Idempotency Pattern:**
+2.  **SSE Emission:**
+    * Map notification type to SSE event:
+      * `ingestion_completed` → `ingestion_run_update` SSE event
+      * `cluster_created`/`cluster_updated` → `cluster_update` SSE event
+      * `enrichment_completed` → `cluster_update` SSE event (with kb_status)
+    * Emit to user via `sseService.sendToUser(user_id, tenant_id, event)`
+
+3.  **Error Handling:**
+    * Consumer failures logged to `message_processing_failures` table
+    * Notifications are idempotent - re-processing just re-emits SSE (safe)
+    * ACK on success, NACK without requeue on repeated failures
+    * Max 3 retry attempts
+
+4.  **Example Implementation:**
+    ```typescript
+    // IngestionNotificationConsumer.ts
+    async processMessage(message: IngestionNotification): Promise<void> {
+      const { type, tenant_id, user_id, ingestion_run_id, status, records_processed } = message;
+
+      // NO database writes - WF already wrote to DB
+
+      // Emit SSE event only
+      await this.sseService.sendToUser(user_id, tenant_id, {
+        type: 'ingestion_run_update',
+        data: {
+          ingestion_run_id,
+          status,
+          records_processed,
+          timestamp: new Date().toISOString()
+        }
+      });
+
+      this.logger.info('SSE emitted for ingestion notification', { ingestion_run_id, status });
+    }
+    ```
+
+---
+
+**Workflow Platform Responsibilities (Direct DB Access):**
+
+WF now owns all autopilot data writes. Key patterns:
+
+1.  **Multi-Tenancy (Direct org_id filter):**
+    * Include `organization_id` in all WHERE/INSERT clauses
+    * Do NOT use `SET LOCAL app.current_organization_id` (RLS optional for WF)
+    * Example: `WHERE organization_id = $tenant_id`
+
+2.  **Idempotency Pattern (WF implements):**
     * **Clusters:** `INSERT ... ON CONFLICT (organization_id, external_cluster_id) DO UPDATE SET name = EXCLUDED.name, kb_status = EXCLUDED.kb_status, updated_at = NOW()`
     * **Tickets:** `INSERT ... ON CONFLICT (organization_id, external_id) DO UPDATE SET cluster_id = EXCLUDED.cluster_id, external_status = EXCLUDED.external_status, updated_at = NOW()`
-    * Conflict targets use unique constraints (org + external ID), not internal auto-generated IDs
-    * Allows re-syncing/replaying messages without duplication
-    * Updated records maintain audit trail via updated_at
+    * Conflict targets use unique constraints (org + external ID)
 
-4.  **Error Handling:**
-    * **RabbitMQ Failures:** Rita Backend logs message processing errors to `message_processing_failures` table (internal error tracking)
-      * `queue_name = 'ticket_batch_processed'`
-      * `message_payload` = full JSON payload for replay
-      * `tenant_id = organization_id`
-      * Retry logic: max 3 attempts with exponential backoff (60s, 300s, 900s)
-    * **Partial Failures:** If specific ticket validation fails (missing ID, invalid format):
-      * Rita Backend logs to `message_processing_failures` with `error_type = 'validation_error'`
-      * **Do NOT roll back** valid tickets in same batch
-      * Continue processing remaining tickets
-      * Update `ingestion_runs.records_failed` counter
-    * **Critical Failures:** Invalid organization, DB connection loss → ROLLBACK, requeue message
+3.  **Transaction Scope:**
+    * Process entire batch in single Postgres transaction
+    * COMMIT only after all clusters, tickets, analytics, and ingestion_runs updated
+    * ROLLBACK on critical failures
 
-5.  **Metric Updates:**
-    * Update `analytics_cluster_daily` during transaction using UPSERT:
+4.  **Metric Updates (WF implements):**
     ```sql
     INSERT INTO analytics_cluster_daily (organization_id, cluster_id, day, total_tickets, automated_count, kb_gap_count)
     VALUES ($1, $2, CURRENT_DATE, $3, $4, $5)
@@ -993,19 +1031,19 @@ erDiagram
     DO UPDATE SET
       total_tickets = analytics_cluster_daily.total_tickets + EXCLUDED.total_tickets,
       automated_count = analytics_cluster_daily.automated_count + EXCLUDED.automated_count,
-      kb_gap_count = analytics_cluster_daily.kb_gap_count + EXCLUDED.kb_gap_count,
       updated_at = NOW();
     ```
-    * Incremental updates prevent full recalculation
-    * Daily buckets enable fast dashboard queries regardless of date range
 
-6.  **Ingestion Run Tracking:**
-    * Update `ingestion_runs` table on completion:
-      * `status = 'completed'` or `'failed'`
-      * `records_processed` = successful ticket count
-      * `records_failed` = validation failure count
-      * `completed_at = NOW()`
-    * If linked to data source: Update `data_source_connections.status = 'idle'`, `last_sync_status = 'completed'`, `last_sync_at = NOW()`
+5.  **Ingestion Run Tracking (WF updates):**
+    ```sql
+    UPDATE ingestion_runs
+    SET status = 'completed', records_processed = $2, completed_at = NOW()
+    WHERE id = $1 AND organization_id = $tenant_id;
+    ```
+
+6.  **After DB Commit - Publish Notification:**
+    * Only publish to RabbitMQ AFTER transaction commits successfully
+    * Notification contains minimal data for SSE (no full payloads)
 
 **Consumer:** `DataSourceStatusConsumer.ts` (packages/api-server/src/services/)
 *Reuses existing consumer for both Confluence verification AND delegated ITSM setup*
@@ -1228,15 +1266,16 @@ erDiagram
 
 ### 5.4 Sync Two-Way Logic
 
-* **Incoming (Read-Only):** ITSM → Workflow Platform → RabbitMQ → Rita Backend → PostgreSQL
+* **Incoming (WF Direct Write):** ITSM → Workflow Platform → PostgreSQL (direct) → RabbitMQ notification → Rita Backend → SSE
   * Workflow Platform is source of truth for cluster definitions and ticket assignments
-  * Rita Backend passively receives and stores data
+  * **WF writes directly to PostgreSQL** with `organization_id` in all queries
+  * Rita Backend receives lightweight notification and emits SSE only (no DB writes)
   * No mutations sent back to Workflow Platform during ingestion
 
 * **Outgoing (Commands):** Rita Backend → Webhook → Workflow Platform
   * User actions trigger configuration commands
   * Examples: Enable auto-respond, update validation target, link knowledge article
-  * Workflow Platform executes commands and may send updated data back via RabbitMQ
+  * Workflow Platform executes commands, writes to DB, and publishes notification
 
 ## 6\. Security & Performance
 
@@ -1244,9 +1283,17 @@ erDiagram
 
 **Architecture Pattern:** All tables follow Rita's established multi-tenancy model documented in `docs/database-tables.md`
 
+#### Data Isolation by Component
+
+| Component | Isolation Method | Notes |
+|-----------|-----------------|-------|
+| Rita Backend | RLS via `SET LOCAL app.current_organization_id` | Standard pattern for API requests |
+| Workflow Platform | Direct `organization_id` filter in queries | WF includes org_id in all WHERE/INSERT clauses |
+| Rita Consumers | N/A (no DB writes) | Notification consumers only emit SSE |
+
 #### Row-Level Security (RLS) Policies
 
-All autopilot tables enforce organization isolation via PostgreSQL Row-Level Security:
+All autopilot tables have RLS policies enabled. Rita Backend uses these; Workflow Platform uses direct filtering:
 
 ```sql
 -- Enable RLS on all autopilot tables
@@ -1852,3 +1899,27 @@ DROP TABLE IF EXISTS clusters CASCADE;
 2. Establish data retention policies (analytics, audit logs)
 3. Design cluster lifecycle management (active → archived states)
 4. Plan knowledge article verification cron job strategy
+
+-----
+
+## Changelog
+
+### v1.4 (November 26, 2025)
+**Architectural Change: Workflow Platform Direct DB Access**
+
+- **Changed:** WF now writes directly to PostgreSQL for autopilot tables (clusters, tickets, knowledge_articles, analytics_cluster_daily, ingestion_runs)
+- **Changed:** RabbitMQ messages are now lightweight notifications (no full data payloads)
+- **Changed:** Rita consumers (`IngestionNotificationConsumer`) only emit SSE events - no DB writes
+- **Changed:** WF uses direct `organization_id` filtering instead of RLS session variables
+- **Unchanged:** Credential delegation flow (Rita still owns tokens, webhooks)
+- **Unchanged:** Rita keeps migration ownership for all tables
+- **Deferred:** Audit logging for WF writes (to be addressed in later iteration)
+
+### v1.3 (November 24, 2025)
+- Added credential delegation flow for ITSM setup
+- Added ingestion_runs table and sync tracking
+- Added detailed RabbitMQ payload specifications
+
+### v1.2
+- Initial autopilot tables schema
+- Cluster and ticket management flows
