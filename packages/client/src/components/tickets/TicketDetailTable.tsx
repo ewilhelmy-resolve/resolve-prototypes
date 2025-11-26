@@ -121,7 +121,6 @@ export function TicketDetailTable({
 }: TicketDetailTableProps) {
 	// Bulk selection state
 	const [selectedTickets, setSelectedTickets] = useState<string[]>([]);
-	const [isProcessing, setIsProcessing] = useState(false);
 
 	// Review sheet state
 	const [reviewSheetOpen, setReviewSheetOpen] = useState(false);
@@ -234,10 +233,9 @@ export function TicketDetailTable({
 					actions={[
 						{
 							key: 'review',
-							label: isProcessing ? "Processing..." : "Review AI Responses",
+							label: "Review AI Responses",
 							variant: 'default',
 							onClick: handleBulkReviewAI,
-							disabled: isProcessing,
 						},
 					]}
 					onClose={() => setSelectedTickets([])}
