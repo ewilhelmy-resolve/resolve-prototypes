@@ -48,22 +48,15 @@ const router = createBrowserRouter([
 			</ProtectedRoute>
 		),
 	},
-	// Iframe-embeddable chat routes (minimal UI)
+	// Iframe-embeddable chat routes (minimal UI, public access)
+	// NO ProtectedRoute - uses public-guest-user session
 	{
 		path: "/iframe/chat",
-		element: (
-			<ProtectedRoute>
-				<IframeChatPage />
-			</ProtectedRoute>
-		),
+		element: <IframeChatPage />,
 	},
 	{
 		path: "/iframe/chat/:conversationId",
-		element: (
-			<ProtectedRoute>
-				<IframeChatPage />
-			</ProtectedRoute>
-		),
+		element: <IframeChatPage />,
 	},
 	{
 		path: "/content",

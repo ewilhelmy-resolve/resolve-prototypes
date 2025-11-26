@@ -13,6 +13,7 @@ import authRoutes from './routes/auth.js';
 import conversationRoutes from './routes/conversations.js';
 import dataSourceRoutes from './routes/dataSources.js';
 import filesRoutes from './routes/files.js';
+import iframeRoutes from './routes/iframe.routes.js';
 import invitationRoutes from './routes/invitations.js';
 import memberRoutes from './routes/members.js';
 import organizationRoutes from './routes/organizations.js';
@@ -68,6 +69,9 @@ app.get('/health', (_req, res) => {
 
 // Authentication routes (no auth required)
 app.use('/auth', authRoutes);
+
+// Iframe routes (no auth required - public access)
+app.use('/api/iframe', iframeRoutes);
 
 // Invitation routes (mixed auth - some public, some protected)
 app.use('/api/invitations', invitationRoutes);
