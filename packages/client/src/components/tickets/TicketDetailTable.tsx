@@ -20,13 +20,16 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { ChevronDown, ArrowUpDown, MoreHorizontal } from "lucide-react";
 import { BulkActions } from "@/components/BulkActions";
+import ReviewAIResponseSheet, { type ReviewTicket } from "./ReviewAIResponseSheet";
 
 interface TicketItem {
-	id: number;
+	id: string;
 	name: string;
 	status: string;
 	source: string;
 	date: string;
+	description?: string;
+	priority?: "low" | "medium" | "high" | "critical";
 }
 
 interface TicketDetailTableProps {
@@ -48,39 +51,49 @@ const getSourceIcon = (source: string): string => {
 
 const defaultTickets: TicketItem[] = [
 	{
-		id: 1,
+		id: "INC0000001",
 		name: "Password Reset",
 		status: "Needs response",
 		source: "ServiceNow",
 		date: "03 Sep, 2025 18:07",
+		description: "User unable to access account. Password reset required.",
+		priority: "high",
 	},
 	{
-		id: 2,
+		id: "INC0000002",
 		name: "VPN Connection Troubleshooting",
 		status: "Needs response",
 		source: "ServiceNow",
 		date: "03 Sep, 2025 18:07",
+		description: "VPN client fails to connect. Error code 800.",
+		priority: "medium",
 	},
 	{
-		id: 3,
+		id: "INC0000003",
 		name: "Two-factor authentication setup",
 		status: "Needs response",
 		source: "ServiceNow",
 		date: "03 Sep, 2025 18:07",
+		description: "User needs help configuring 2FA for their account.",
+		priority: "low",
 	},
 	{
-		id: 4,
+		id: "INC0000004",
 		name: "Phishing awareness guide",
 		status: "Needs response",
 		source: "ServiceNow",
 		date: "03 Sep, 2025 18:07",
+		description: "Request for phishing email identification training.",
+		priority: "low",
 	},
 	{
-		id: 5,
+		id: "INC0000005",
 		name: "Email Configuration Setup",
 		status: "Needs response",
 		source: "ServiceNow",
 		date: "03 Sep, 2025 18:07",
+		description: "New employee needs email client configuration assistance.",
+		priority: "medium",
 	},
 ];
 
@@ -107,8 +120,13 @@ export function TicketDetailTable({
 	knowledgeArticleCount = 12,
 }: TicketDetailTableProps) {
 	// Bulk selection state
-	const [selectedTickets, setSelectedTickets] = useState<number[]>([]);
+	const [selectedTickets, setSelectedTickets] = useState<string[]>([]);
 	const [isProcessing, setIsProcessing] = useState(false);
+
+	// Review sheet state
+	const [reviewSheetOpen, setReviewSheetOpen] = useState(false);
+	const [reviewTickets, setReviewTickets] = useState<ReviewTicket[]>([]);
+	const [currentReviewIndex, setCurrentReviewIndex] = useState(0);
 
 	// Selection handlers
 	const handleSelectAll = (checked: boolean) => {
@@ -119,7 +137,7 @@ export function TicketDetailTable({
 		}
 	};
 
-	const handleSelectTicket = (ticketId: number, checked: boolean) => {
+	const handleSelectTicket = (ticketId: string, checked: boolean) => {
 		if (checked) {
 			setSelectedTickets([...selectedTickets, ticketId]);
 		} else {
@@ -127,25 +145,56 @@ export function TicketDetailTable({
 		}
 	};
 
+	// Convert TicketItem to ReviewTicket format
+	const convertToReviewTicket = (ticket: TicketItem): ReviewTicket => ({
+		id: ticket.id,
+		title: ticket.name,
+		description: ticket.description || "No description provided.",
+		priority: ticket.priority || "medium",
+	});
+
 	// Single ticket review
-	const reviewAI = (ticketId: number) => {
-		console.log(`Review AI response for ticket ID: ${ticketId}`);
+	const reviewAI = (ticketId: string) => {
+		const ticket = tickets.find((t) => t.id === ticketId);
+		if (ticket) {
+			setReviewTickets([convertToReviewTicket(ticket)]);
+			setCurrentReviewIndex(0);
+			setReviewSheetOpen(true);
+		}
 	};
 
-	// Bulk review handler with simulated delay
+	// Bulk review handler
 	const handleBulkReviewAI = async () => {
-		setIsProcessing(true);
+		const ticketsToReview = tickets.filter((t) =>
+			selectedTickets.includes(t.id)
+		).map(convertToReviewTicket);
 
-		// Process each selected ticket with delay
-		for (const ticketId of selectedTickets) {
-			console.log(`Processing Review AI response for ticket ID: ${ticketId}`);
-			// Simulate API call delay
-			await new Promise((resolve) => setTimeout(resolve, 500));
+		setReviewTickets(ticketsToReview);
+		setCurrentReviewIndex(0);
+		setReviewSheetOpen(true);
+	};
+
+	// Handle approve/reject actions
+	const handleApprove = (ticketId: string) => {
+		console.log(`Approved AI response for ticket: ${ticketId}`);
+		// TODO: Implement API call to approve response
+	};
+
+	const handleReject = (ticketId: string) => {
+		console.log(`Rejected AI response for ticket: ${ticketId}`);
+		// TODO: Implement API call to reject response or open editor
+	};
+
+	const handleNavigate = (index: number) => {
+		setCurrentReviewIndex(index);
+	};
+
+	const handleReviewSheetClose = (open: boolean) => {
+		setReviewSheetOpen(open);
+		if (!open) {
+			// Clear selection after closing review sheet
+			setSelectedTickets([]);
 		}
-
-		setIsProcessing(false);
-		setSelectedTickets([]);
-		console.log(`Completed bulk review for ${selectedTickets.length} tickets`);
 	};
 
 	return (
@@ -287,6 +336,17 @@ export function TicketDetailTable({
 					</Button>
 				</div>
 			</div>
+
+			{/* Review AI Response Sheet */}
+			<ReviewAIResponseSheet
+				open={reviewSheetOpen}
+				onOpenChange={handleReviewSheetClose}
+				tickets={reviewTickets}
+				currentIndex={currentReviewIndex}
+				onNavigate={handleNavigate}
+				onApprove={handleApprove}
+				onReject={handleReject}
+			/>
 		</div>
 	);
 }
