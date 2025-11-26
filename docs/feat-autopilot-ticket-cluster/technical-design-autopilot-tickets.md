@@ -1,6 +1,6 @@
 # Technical Design Document: RITA Autopilot & Cluster Dashboard
 
-**Status:** Draft v1.5
+**Status:** Draft v1.6
 **Date:** November 26, 2025
 **Feature:** Continuous ITSM Ingestion, Live Dashboard, & Cluster Management
 
@@ -736,7 +736,7 @@ WF now owns all autopilot data writes. Key patterns:
 | Component | Isolation Method | Notes |
 |-----------|-----------------|-------|
 | Rita Backend | RLS via `SET LOCAL app.current_organization_id` | Standard pattern for API requests |
-| Workflow Platform | Direct `organization_id` filter in queries | WF includes org_id in all WHERE/INSERT clauses |
+| Workflow Platform | Direct `organization_id` filter in queries | Requires superuser/table owner role (bypasses RLS) or dedicated role with BYPASSRLS privilege |
 | Rita Consumers | N/A (no DB writes) | Notification consumers only emit SSE |
 
 #### Row-Level Security (RLS) Policies
@@ -768,7 +768,7 @@ CREATE POLICY "users_access_own_organization_knowledge" ON knowledge_articles
   FOR ALL
   USING (organization_id = current_setting('app.current_organization_id', true)::uuid);
 
-CREATE POLICY "users_access_own_organization_runs" ON ingestion_runs
+CREATE POLICY "users_access_own_organization_ingestion_runs" ON ingestion_runs
   FOR ALL
   USING (organization_id = current_setting('app.current_organization_id', true)::uuid);
 ```
@@ -794,7 +794,7 @@ All mutable tables track user actions following Rita's audit pattern:
 **Auto-Update Trigger Pattern:**
 ```sql
 -- Trigger function (shared across tables)
-CREATE OR REPLACE FUNCTION trigger_set_timestamp()
+CREATE OR REPLACE FUNCTION update_updated_at_column()
 RETURNS TRIGGER AS $$
 BEGIN
   NEW.updated_at = NOW();
@@ -806,7 +806,7 @@ $$ LANGUAGE plpgsql;
 CREATE TRIGGER set_timestamp
 BEFORE UPDATE ON clusters
 FOR EACH ROW
-EXECUTE FUNCTION trigger_set_timestamp();
+EXECUTE FUNCTION update_updated_at_column();
 ```
 
 #### Keycloak Integration
@@ -855,12 +855,14 @@ interface AuditLog {
 
 #### Database Indexing
 
+> **Note:** Indexes marked with `-- FUTURE` are recommended optimizations not yet in migration 138. Add based on query patterns observed in production.
+
 **clusters table:**
 ```sql
 CREATE INDEX idx_clusters_organization_id ON clusters(organization_id);
 CREATE INDEX idx_clusters_kb_status ON clusters(kb_status);
 CREATE INDEX idx_clusters_created_at ON clusters(created_at DESC);
-CREATE INDEX idx_clusters_config ON clusters USING GIN (config);
+CREATE INDEX idx_clusters_config ON clusters USING GIN (config);  -- FUTURE
 ```
 
 **tickets table:**
@@ -869,18 +871,18 @@ CREATE INDEX idx_tickets_organization_id ON tickets(organization_id);
 CREATE INDEX idx_tickets_cluster_id ON tickets(cluster_id);
 CREATE INDEX idx_tickets_rita_status ON tickets(rita_status);
 CREATE INDEX idx_tickets_validation_result ON tickets(validation_result);
-CREATE INDEX idx_tickets_data_source ON tickets(data_source_connection_id);
+CREATE INDEX idx_tickets_data_source ON tickets(data_source_connection_id);  -- FUTURE
 CREATE INDEX idx_tickets_created_at ON tickets(created_at DESC);
-CREATE INDEX idx_tickets_validated_by ON tickets(validated_by);
-CREATE INDEX idx_tickets_source_metadata ON tickets USING GIN (source_metadata);
+CREATE INDEX idx_tickets_validated_by ON tickets(validated_by);  -- FUTURE
+CREATE INDEX idx_tickets_source_metadata ON tickets USING GIN (source_metadata);  -- FUTURE
 ```
 
 **analytics_cluster_daily table:**
 ```sql
 CREATE INDEX idx_analytics_cluster_daily_org ON analytics_cluster_daily(organization_id);
 CREATE INDEX idx_analytics_cluster_daily_day ON analytics_cluster_daily(day DESC);
--- Compound index for dashboard queries
-CREATE INDEX idx_analytics_org_cluster_day ON analytics_cluster_daily(organization_id, cluster_id, day DESC);
+-- Compound index for dashboard queries -- FUTURE
+CREATE INDEX idx_analytics_org_cluster_day ON analytics_cluster_daily(organization_id, cluster_id, day DESC);  -- FUTURE
 ```
 
 **knowledge_articles table:**
@@ -893,10 +895,10 @@ CREATE INDEX idx_knowledge_articles_relevance ON knowledge_articles(relevance_sc
 
 **ingestion_runs table:**
 ```sql
-CREATE INDEX idx_ingestion_runs_organization ON ingestion_runs(organization_id);
-CREATE INDEX idx_ingestion_runs_data_source ON ingestion_runs(data_source_connection_id);
+CREATE INDEX idx_ingestion_runs_organization_id ON ingestion_runs(organization_id);
+CREATE INDEX idx_ingestion_runs_data_source ON ingestion_runs(data_source_connection_id);  -- FUTURE
 CREATE INDEX idx_ingestion_runs_status ON ingestion_runs(status);
-CREATE INDEX idx_ingestion_runs_started_at ON ingestion_runs(started_at DESC);
+CREATE INDEX idx_ingestion_runs_created_at ON ingestion_runs(created_at DESC);
 ```
 
 #### Query Optimization Patterns
@@ -960,10 +962,10 @@ CREATE TABLE clusters (
 
 -- Indexes
 CREATE INDEX idx_clusters_organization_id ON clusters(organization_id);
-CREATE INDEX idx_clusters_external_id ON clusters(external_cluster_id);
+CREATE INDEX idx_clusters_external_cluster_id ON clusters(external_cluster_id);
 CREATE INDEX idx_clusters_kb_status ON clusters(kb_status);
 CREATE INDEX idx_clusters_created_at ON clusters(created_at DESC);
-CREATE INDEX idx_clusters_config ON clusters USING GIN (config);
+CREATE INDEX idx_clusters_config ON clusters USING GIN (config);  -- FUTURE
 
 -- Row-Level Security
 ALTER TABLE clusters ENABLE ROW LEVEL SECURITY;
@@ -976,7 +978,7 @@ CREATE POLICY "users_access_own_organization_clusters" ON clusters
 CREATE TRIGGER set_timestamp
 BEFORE UPDATE ON clusters
 FOR EACH ROW
-EXECUTE FUNCTION trigger_set_timestamp();
+EXECUTE FUNCTION update_updated_at_column();
 
 -- Comments
 COMMENT ON TABLE clusters IS 'AI-generated ticket clusters from Workflow Platform (system-generated)';
@@ -1026,11 +1028,11 @@ CREATE INDEX idx_tickets_organization_id ON tickets(organization_id);
 CREATE INDEX idx_tickets_cluster_id ON tickets(cluster_id);
 CREATE INDEX idx_tickets_rita_status ON tickets(rita_status);
 CREATE INDEX idx_tickets_validation_result ON tickets(validation_result);
-CREATE INDEX idx_tickets_data_source ON tickets(data_source_connection_id);
+CREATE INDEX idx_tickets_data_source ON tickets(data_source_connection_id);  -- FUTURE
 CREATE INDEX idx_tickets_created_at ON tickets(created_at DESC);
-CREATE INDEX idx_tickets_validated_by ON tickets(validated_by);
-CREATE INDEX idx_tickets_source_metadata ON tickets USING GIN (source_metadata);
-CREATE INDEX idx_tickets_validation_samples ON tickets(cluster_id, is_validation_sample) WHERE is_validation_sample = true;
+CREATE INDEX idx_tickets_validated_by ON tickets(validated_by);  -- FUTURE
+CREATE INDEX idx_tickets_source_metadata ON tickets USING GIN (source_metadata);  -- FUTURE
+CREATE INDEX idx_tickets_validation_samples ON tickets(cluster_id, is_validation_sample) WHERE is_validation_sample = true;  -- FUTURE
 
 -- Row-Level Security
 ALTER TABLE tickets ENABLE ROW LEVEL SECURITY;
@@ -1043,7 +1045,7 @@ CREATE POLICY "users_access_own_organization_tickets" ON tickets
 CREATE TRIGGER set_timestamp
 BEFORE UPDATE ON tickets
 FOR EACH ROW
-EXECUTE FUNCTION trigger_set_timestamp();
+EXECUTE FUNCTION update_updated_at_column();
 
 -- Comments
 COMMENT ON TABLE tickets IS 'ITSM tickets assigned to autopilot clusters';
@@ -1136,7 +1138,7 @@ CREATE POLICY "users_access_own_organization_knowledge" ON knowledge_articles
 CREATE TRIGGER set_timestamp
 BEFORE UPDATE ON knowledge_articles
 FOR EACH ROW
-EXECUTE FUNCTION trigger_set_timestamp();
+EXECUTE FUNCTION update_updated_at_column();
 
 -- Comments
 COMMENT ON TABLE knowledge_articles IS 'KB articles linked to clusters (system-generated from Workflow Platform)';
@@ -1210,7 +1212,7 @@ CREATE INDEX idx_ingestion_runs_started_by ON ingestion_runs(started_by);
 -- Row-Level Security
 ALTER TABLE ingestion_runs ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "users_access_own_organization_runs" ON ingestion_runs
+CREATE POLICY "users_access_own_organization_ingestion_runs" ON ingestion_runs
     FOR ALL
     USING (organization_id = current_setting('app.current_organization_id', true)::uuid);
 
@@ -1231,7 +1233,7 @@ COMMENT ON COLUMN ingestion_runs.created_at IS 'Doubles as started_at timestamp'
 **Pre-Migration:**
 - [ ] Backup production database
 - [ ] Test migration on staging environment
-- [ ] Verify trigger_set_timestamp() function exists
+- [ ] Verify update_updated_at_column() function exists
 - [ ] Verify organizations and user_profiles tables exist
 - [ ] Verify data_source_connections table exists (for optional FK)
 
@@ -1291,6 +1293,16 @@ DROP TABLE IF EXISTS clusters CASCADE;
 -----
 
 ## Changelog
+
+### v1.6 (November 26, 2025)
+**Document-Migration Alignment & RLS Clarification**
+
+- **Clarified:** WF requires superuser/table owner role (bypasses RLS) or BYPASSRLS privilege for direct DB writes
+- **Fixed:** Trigger function name `trigger_set_timestamp()` → `update_updated_at_column()` (matches 01-init.sql)
+- **Fixed:** Index name `idx_clusters_external_id` → `idx_clusters_external_cluster_id` (matches migration)
+- **Fixed:** Policy name `users_access_own_organization_runs` → `users_access_own_organization_ingestion_runs`
+- **Fixed:** Index names in ingestion_runs section to match migration (`organization_id`, `created_at`)
+- **Marked:** 7 indexes as `-- FUTURE` (not yet in migration 138): GIN indexes, compound indexes, partial indexes
 
 ### v1.5 (November 26, 2025)
 **Document Split: Credential Delegation Extracted**
