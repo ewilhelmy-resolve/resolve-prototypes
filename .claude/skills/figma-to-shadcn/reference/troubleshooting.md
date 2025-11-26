@@ -123,23 +123,90 @@ import { DataTable } from "@/components/ui/data-table"  ❌
 
 **Solution:**
 
-Use **only installed ShadCN components**:
+**Step 1: Check what's installed**
+```bash
+ls packages/client/src/components/ui/
+```
 
-**Available in RITA Go:**
-- button, card, input, label, textarea
-- select, checkbox, radio-group
-- dialog, sheet, dropdown-menu, popover
-- table, tabs, badge, avatar
-- form (with react-hook-form integration)
-- toast, alert, separator
-- skeleton, scroll-area
+**Step 2: Install missing component**
+```bash
+cd packages/client
+npx shadcn@latest add [component-name]
+```
 
-**Not available (build from primitives):**
-- data-table (use table + custom logic)
-- command-palette (use dialog + input)
-- date-picker (use popover + custom calendar)
+**Example: Installing select component**
+```bash
+cd packages/client
+npx shadcn@latest add select
+# Creates: src/components/ui/select.tsx
+```
 
-Check `packages/client/src/components/ui/` for available components.
+**Common ShadCN components:**
+- `button`, `card`, `input`, `label`, `textarea`
+- `select`, `checkbox`, `radio-group`, `switch`
+- `dialog`, `sheet`, `dropdown-menu`, `popover`, `hover-card`
+- `table`, `tabs`, `badge`, `avatar`, `separator`
+- `form` (includes react-hook-form integration)
+- `toast`, `alert`, `skeleton`, `scroll-area`
+
+**Not available in ShadCN (build from primitives):**
+- `data-table` (use `table` + custom logic)
+- `command-palette` (use `dialog` + `input`)
+- `date-picker` (use `popover` + custom calendar)
+- `color-picker` (use `popover` + custom picker)
+
+**Auto-install multiple components:**
+```bash
+cd packages/client
+npx shadcn@latest add button card input select dialog table
+```
+
+---
+
+### 5b. Missing NPM Dependencies
+
+**Symptoms:**
+```
+Error: Cannot find module 'lucide-react'
+Error: Cannot find module 'react-hook-form'
+Error: Cannot find module 'zod'
+```
+
+**Solution:**
+
+**Step 1: Check package.json**
+```bash
+cat packages/client/package.json | grep -E "lucide|react-hook-form|zod"
+```
+
+**Step 2: Install missing packages**
+```bash
+cd packages/client
+
+# Icons
+npm install lucide-react
+
+# Forms & validation
+npm install react-hook-form @hookform/resolvers zod
+
+# All at once
+npm install lucide-react react-hook-form @hookform/resolvers zod
+```
+
+**Expected versions (RITA Go):**
+```json
+{
+  "lucide-react": "^0.460.0",
+  "react-hook-form": "^7.53.2",
+  "@hookform/resolvers": "^3.9.1",
+  "zod": "^3.23.8"
+}
+```
+
+**Verify installation:**
+```bash
+npm list lucide-react react-hook-form @hookform/resolvers zod
+```
 
 ---
 

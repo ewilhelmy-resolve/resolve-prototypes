@@ -179,9 +179,64 @@ When this skill triggers:
    - Blue/primary → `variant="default"` or `bg-primary`
    - Gray borders → `border-border`
    - Muted text → `text-muted-foreground`
-6. **Generate components** following stack requirements above
-7. **Output complete files** with path comments
-8. **No explanations** - code only, ready to copy-paste
+6. **Check dependencies before generating:**
+   - Verify ShadCN components exist in `packages/client/src/components/ui/`
+   - If missing, run: `npx shadcn@latest add [component-name]` (e.g., `select`, `dialog`, `table`)
+   - Check Lucide icons are installed: `lucide-react` in package.json
+   - Verify form dependencies: `react-hook-form`, `@hookform/resolvers`, `zod`
+7. **Generate components** following stack requirements above
+8. **Output complete files** with path comments
+9. **Provide installation commands** if components missing
+
+## Dependency Management
+
+Before generating components, verify and install required dependencies:
+
+### ShadCN UI Components
+
+**Check if component exists:**
+```bash
+ls packages/client/src/components/ui/[component].tsx
+```
+
+**If missing, install:**
+```bash
+cd packages/client
+npx shadcn@latest add [component-name]
+```
+
+**Common components needed:**
+- `button`, `card`, `input`, `label`, `textarea`
+- `select`, `checkbox`, `radio-group`, `switch`
+- `dialog`, `sheet`, `dropdown-menu`, `popover`, `hover-card`
+- `table`, `tabs`, `badge`, `avatar`, `separator`
+- `form` (includes react-hook-form integration)
+- `toast`, `alert`, `skeleton`, `scroll-area`
+
+### NPM Dependencies
+
+**Check package.json for:**
+```json
+{
+  "lucide-react": "^0.x.x",           // Icons
+  "react-hook-form": "^7.x.x",        // Forms
+  "@hookform/resolvers": "^3.x.x",    // Form validation
+  "zod": "^3.x.x"                      // Schema validation
+}
+```
+
+**If missing, install:**
+```bash
+cd packages/client
+npm install lucide-react react-hook-form @hookform/resolvers zod
+```
+
+### Installation Workflow
+
+1. **Analyze generated code** - identify imports needed
+2. **Check existence** - verify files/packages present
+3. **Install missing** - run commands before presenting code
+4. **Inform user** - list what was installed
 
 ## Error Handling
 
@@ -198,6 +253,12 @@ When this skill triggers:
 **MCP tool errors:**
 ```
 "Figma MCP error: [error message]. Check if Figma desktop app is open and file is accessible."
+```
+
+**Missing dependencies:**
+```
+"Installing required ShadCN components: [list]
+Run: cd packages/client && npx shadcn@latest add [components]"
 ```
 
 ---
