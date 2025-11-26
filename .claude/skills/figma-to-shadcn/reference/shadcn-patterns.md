@@ -463,48 +463,83 @@ export function MobileNav() {
 
 ## Color & Theme Patterns
 
-### Using Theme Colors
+### Using Theme Colors (RITA Design System)
+
+**ALWAYS use design tokens from packages/client/src/index.css:**
 
 ```tsx
-// ✅ Use theme-aware classes
-<div className="bg-background text-foreground">
-<div className="bg-primary text-primary-foreground">
-<div className="bg-muted text-muted-foreground">
-<div className="bg-destructive text-destructive-foreground">
+// ✅ CORRECT - Use design system tokens
+<div className="bg-background text-foreground">         // Base colors
+<div className="bg-primary text-primary-foreground">    // Blue actions
+<div className="bg-muted text-muted-foreground">        // Subdued content
+<div className="bg-destructive text-destructive-foreground"> // Error states
+<div className="bg-accent text-accent-foreground">      // Highlights
+<div className="border-border">                         // Borders
 
-// ❌ Avoid hardcoded colors
-<div className="bg-white text-black">
-<div className="bg-blue-500 text-white">
+// ❌ WRONG - Never hardcode colors
+<div className="bg-white text-black">           // Use bg-background instead
+<div className="bg-blue-500 text-white">        // Use bg-primary instead
+<div className="bg-red-500 text-white">         // Use bg-destructive instead
+<div className="border-gray-200">               // Use border-border instead
 ```
 
-### Variants
+### Error States - ALWAYS Use Destructive Variant
 
 ```tsx
-// Button variants (built-in)
-<Button variant="default">Default</Button>
-<Button variant="destructive">Delete</Button>
-<Button variant="outline">Cancel</Button>
-<Button variant="ghost">Settings</Button>
-<Button variant="link">Learn More</Button>
+// ✅ CORRECT - Error colors via variant
+<Button variant="destructive">Delete Account</Button>
+<Badge variant="destructive">Failed</Badge>
+<div className="text-destructive-foreground">Error message</div>
+
+// ❌ WRONG - Manual red colors
+<Button className="bg-red-500">Delete</Button>
+<span className="text-red-600">Error</span>
+```
+
+### Variants (Built-in Design System Colors)
+
+```tsx
+// Button variants (use primary blue and destructive red from index.css)
+<Button variant="default">Default</Button>           // Primary blue
+<Button variant="destructive">Delete</Button>       // Destructive red
+<Button variant="outline">Cancel</Button>           // Outline
+<Button variant="ghost">Settings</Button>           // Transparent
+<Button variant="link">Learn More</Button>          // Link style
 
 // Badge variants
-<Badge variant="default">Active</Badge>
-<Badge variant="secondary">Pending</Badge>
-<Badge variant="destructive">Failed</Badge>
-<Badge variant="outline">Draft</Badge>
+<Badge variant="default">Active</Badge>             // Primary blue
+<Badge variant="secondary">Pending</Badge>          // Muted gray
+<Badge variant="destructive">Failed</Badge>         // Destructive red
+<Badge variant="outline">Draft</Badge>              // Outline
+```
+
+### Typography Classes
+
+```tsx
+// ✅ CORRECT - Use design system fonts
+<h1 className="font-heading">Dashboard</h1>         // Season Mix
+<p className="font-sans">Body text</p>              // Helvetica
+<code className="font-mono">const x = 1</code>      // Monospace
+
+// ❌ WRONG - Custom font classes
+<h1 className="font-serif">Title</h1>               // Use font-heading
+<p className="font-custom">Text</p>                 // Use font-sans
 ```
 
 ---
 
 ## Best Practices Summary
 
-1. **Always use theme-aware colors** - `bg-background`, `text-foreground`, etc.
-2. **Fix padding conflicts** - Add `className="p-0"` to nested headers/footers
-3. **Use Zod for validation** - Type-safe and runtime-safe
-4. **Add accessibility attributes** - `aria-label`, `sr-only`, `aria-required`
-5. **Prefer semantic components** - Use Card, Sheet, Dialog over div soup
-6. **Mobile-first responsive** - Use `md:`, `lg:` breakpoints
-7. **Loading states** - Disable buttons, show spinners/skeletons
-8. **TypeScript interfaces** - Define props for all components
-9. **Lucide icons** - Import from `lucide-react`, use consistent sizing
-10. **No inline styles** - Tailwind utilities only
+1. **ALWAYS use design system tokens** - `bg-background`, `text-foreground`, `bg-destructive` (NO `bg-red-500`, `bg-blue-600`)
+2. **Error states use destructive variant** - `variant="destructive"` on Button/Badge (NO manual red colors)
+3. **Borders use border-border** - NO `border-gray-200` or arbitrary border colors
+4. **Typography uses design system fonts** - `font-heading` (Season Mix), `font-sans` (Helvetica)
+5. **Fix padding conflicts** - Add `className="p-0"` to nested headers/footers
+6. **Use Zod for validation** - Type-safe and runtime-safe
+7. **Add accessibility attributes** - `aria-label`, `sr-only`, `aria-required`
+8. **Prefer semantic components** - Use Card, Sheet, Dialog over div soup
+9. **Mobile-first responsive** - Use `md:`, `lg:` breakpoints
+10. **Loading states** - Disable buttons, show spinners/skeletons
+11. **TypeScript interfaces** - Define props for all components
+12. **Lucide icons** - Import from `lucide-react`, use consistent sizing
+13. **No inline styles** - Tailwind utilities only

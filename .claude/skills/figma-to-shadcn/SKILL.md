@@ -59,6 +59,16 @@ packages/client/src/components/payments/
 - Zod validation for forms
 - SOC2 compliance (audit logging if needed)
 
+**Use Design System Tokens (from packages/client/src/index.css):**
+- `bg-background` / `text-foreground` - Base colors
+- `bg-primary` / `text-primary-foreground` - Primary actions (blue)
+- `bg-destructive` / `text-destructive-foreground` - Error states (NO manual red colors)
+- `bg-muted` / `text-muted-foreground` - Subdued content
+- `bg-accent` / `text-accent-foreground` - Highlights
+- `border-border` - Borders (NO border-gray-*)
+- `font-heading` - Headings (Season Mix)
+- `font-sans` - Body text (Helvetica)
+
 ## Output Format
 
 Generate complete, ready-to-use files with clear path comments:
@@ -147,6 +157,7 @@ const form = useForm({
 ## Detailed References
 
 For advanced usage, see:
+- [./reference/color-mapping.md](./reference/color-mapping.md) - **Figma color → design token mapping (START HERE)**
 - [./reference/examples.md](./reference/examples.md) - Full component generation examples
 - [./reference/shadcn-patterns.md](./reference/shadcn-patterns.md) - ShadCN best practices and common fixes
 - [./reference/troubleshooting.md](./reference/troubleshooting.md) - Common issues and solutions
@@ -163,9 +174,14 @@ When this skill triggers:
 4. **Use Figma MCP tools:**
    - `mcp__figma__get_design_context` with extracted fileKey and nodeId
    - `mcp__figma__get_variable_defs` for design tokens
-5. **Generate components** following stack requirements above
-6. **Output complete files** with path comments
-7. **No explanations** - code only, ready to copy-paste
+5. **Map Figma colors to design tokens:**
+   - Red/error colors → `variant="destructive"` or `bg-destructive`
+   - Blue/primary → `variant="default"` or `bg-primary`
+   - Gray borders → `border-border`
+   - Muted text → `text-muted-foreground`
+6. **Generate components** following stack requirements above
+7. **Output complete files** with path comments
+8. **No explanations** - code only, ready to copy-paste
 
 ## Error Handling
 
