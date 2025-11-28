@@ -111,6 +111,7 @@ function RitaLayoutContent({ children, activePage = "chat" }: RitaLayoutProps) {
 		openDocumentSelector,
 		documentInputRef,
 		handleDocumentUpload,
+		uploadingFiles,
 	} = useKnowledgeBase();
 
 	const conversations = conversationsData || [];
@@ -578,7 +579,8 @@ function RitaLayoutContent({ children, activePage = "chat" }: RitaLayoutProps) {
 				className="hidden"
 				onChange={handleDocumentUpload}
 				accept={SUPPORTED_DOCUMENT_TYPES}
-				multiple={false}
+				multiple
+				disabled={uploadingFiles.size > 0}
 			/>
 
 			{/* Share Modal */}

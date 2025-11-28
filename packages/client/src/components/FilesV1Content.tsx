@@ -324,7 +324,10 @@ export default function FilesV1Content() {
 		const filesToUpload = Array.from(files);
 		let successCount = 0;
 		let errorCount = 0;
+		let duplicateCount = 0;
 		const errors: string[] = [];
+		const duplicates: string[] = [];
+		const successfulFilenames: string[] = [];
 
 		// Show initial toast
 		ritaToast.info({
@@ -346,14 +349,17 @@ export default function FilesV1Content() {
 			setUploadingFiles((prev) => new Set(prev).add(file.name));
 
 			try {
-				await uploadFileMutation.mutateAsync(file);
+				const response = await uploadFileMutation.mutateAsync(file);
 				successCount++;
+				// Use server's returned filename (not client's file.name) for SSE tracking
+				successfulFilenames.push(response.document.filename);
 			} catch (error: any) {
-				errorCount++;
-				// Handle duplicate file (409 Conflict)
+				// Handle duplicate file (409 Conflict) - treat differently from errors
 				if (error.status === 409 && error.data?.existing_filename) {
-					errors.push(`${file.name}: Already exists as "${error.data.existing_filename}"`);
+					duplicateCount++;
+					duplicates.push(`${file.name}: Already exists as "${error.data.existing_filename}"`);
 				} else {
+					errorCount++;
 					errors.push(`${file.name}: ${error.message || "Upload failed"}`);
 				}
 			} finally {
@@ -376,22 +382,57 @@ export default function FilesV1Content() {
 			queryClient.invalidateQueries({ queryKey: fileKeys.lists() });
 		}
 
-		// Show final summary toast
-		if (successCount > 0 && errorCount === 0) {
+		// Initialize processing tracking in sessionStorage for SSE summary toast
+		if (successCount > 0) {
+			const processingKey = 'rita-processing-files';
+			
+			// Clear any stale tracking data before initializing new batch
+			sessionStorage.removeItem(processingKey);
+			
+			const trackingData = {
+				filenames: successfulFilenames, // Use server's returned filenames for SSE matching
+				processed: 0,
+				failed: 0,
+			};
+			
+			sessionStorage.setItem(processingKey, JSON.stringify(trackingData));
+		}
+
+		// Show upload summary toast (immediate feedback)
+		if (successCount > 0 && errorCount === 0 && duplicateCount === 0) {
+			// All files uploaded successfully
 			ritaToast.success({
 				title: "Upload Complete",
-				description: `Successfully uploaded ${successCount} file${successCount > 1 ? 's' : ''}`,
+				description: `Successfully uploaded ${successCount} file${successCount > 1 ? 's' : ''}. Processing...`,
+			});
+		} else if (successCount > 0 && duplicateCount > 0 && errorCount === 0) {
+			// Some successful, some duplicates, no errors
+			ritaToast.info({
+				title: "Upload Complete",
+				description: `${successCount} file${successCount > 1 ? 's' : ''} uploaded. ${duplicateCount} duplicate${duplicateCount > 1 ? 's' : ''} skipped.`,
 			});
 		} else if (successCount > 0 && errorCount > 0) {
+			// Mixed success and errors (may also have duplicates)
+			const failedMsg = duplicateCount > 0 
+				? `${errorCount} failed, ${duplicateCount} duplicate${duplicateCount > 1 ? 's' : ''} skipped.`
+				: `${errorCount} failed.`;
 			ritaToast.warning({
 				title: "Upload Partially Complete",
-				description: `${successCount} succeeded, ${errorCount} failed. Check details for errors.`,
+				description: `${successCount} succeeded, ${failedMsg} Processing uploaded files...`,
 			});
-		} else if (errorCount > 0) {
-			ritaToast.error({
-				title: "Upload Failed",
-				description: errors.length > 0 ? errors[0] : "All uploads failed",
-			});
+		} else if (errorCount > 0 || duplicateCount > 0) {
+			// All failed or all duplicates
+			if (duplicateCount > 0 && errorCount === 0) {
+				ritaToast.info({
+					title: "Files Already Exist",
+					description: `All ${duplicateCount} file${duplicateCount > 1 ? 's are' : ' is'} already in your knowledge base.`,
+				});
+			} else {
+				ritaToast.error({
+					title: "Upload Failed",
+					description: errors.length > 0 ? errors[0] : "All uploads failed",
+				});
+			}
 		}
 	};
 
@@ -993,7 +1034,7 @@ export default function FilesV1Content() {
 									onClick={handlePrevPage}
 									disabled={!hasPrevPage}
 								>
-									<ChevronDown className="h-4 w-4 rotate-90" />
+								 
 									Previous
 								</Button>
 								<Button
@@ -1003,7 +1044,7 @@ export default function FilesV1Content() {
 									disabled={!hasNextPage}
 								>
 									Next
-									<ChevronDown className="h-4 w-4 -rotate-90" />
+									 
 								</Button>
 							</div>
 						</div>
