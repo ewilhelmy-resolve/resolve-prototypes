@@ -555,6 +555,7 @@ export default function ChatV1Content({
 		files,
 		documentInputRef,
 		handleDocumentUpload,
+		uploadingFiles,
 	} = useKnowledgeBase();
 
 	// Check if there are any processed or uploaded files
@@ -905,7 +906,8 @@ export default function ChatV1Content({
 				className="hidden"
 				onChange={handleDocumentUpload}
 				accept={SUPPORTED_DOCUMENT_TYPES}
-				multiple={false}
+				multiple
+				disabled={uploadingFiles.size > 0}
 			/>
 		</div>
 	);

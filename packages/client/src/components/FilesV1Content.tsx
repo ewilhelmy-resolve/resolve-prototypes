@@ -19,7 +19,7 @@ import {
 	Upload,
 	Zap,
 } from "lucide-react";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { BulkActions } from "@/components/BulkActions";
 import ConfirmDialog from "@/components/dialogs/ConfirmDialog";
@@ -50,12 +50,14 @@ import {
 import { SOURCE_METADATA } from "@/constants/connectionSources";
 import {
 	type FileDocument,
+	fileKeys,
 	useDeleteFile,
 	useDownloadFile,
 	useFiles,
 	useReprocessFile,
 	useUploadFile,
 } from "@/hooks/api/useFiles";
+import { useQueryClient } from "@tanstack/react-query";
 import { useDataSources } from "@/hooks/useDataSources";
 import {
 	FILE_SOURCE,
@@ -130,8 +132,11 @@ type SortField =
 	| "created_at";
 type SortOrder = "asc" | "desc";
 
+const PAGE_SIZE = 50;
+
 export default function FilesV1Content() {
-	const [searchQuery, setSearchQuery] = useState("");
+	const [searchInput, setSearchInput] = useState(""); // User's input (immediate)
+	const [searchQuery, setSearchQuery] = useState(""); // Debounced value (for API)
 	const [statusFilter, setStatusFilter] = useState("All");
 	const [sourceFilter, setSourceFilter] = useState("All");
 	const [selectedFiles, setSelectedFiles] = useState<Set<string>>(new Set());
@@ -140,10 +145,31 @@ export default function FilesV1Content() {
 	const [bulkDeleteDialogOpen, setBulkDeleteDialogOpen] = useState(false);
 	const [sortField, setSortField] = useState<SortField>("created_at");
 	const [sortOrder, setSortOrder] = useState<SortOrder>("desc");
+	const [page, setPage] = useState(0);
+	const [uploadingFiles, setUploadingFiles] = useState<Set<string>>(new Set());
 	const fileInputRef = useRef<HTMLInputElement>(null);
 	const navigate = useNavigate();
+	const queryClient = useQueryClient();
 
-	const { data: filesData, isLoading } = useFiles();
+	// Debounce search input - wait 500ms after user stops typing
+	useEffect(() => {
+		const timer = setTimeout(() => {
+			setSearchQuery(searchInput);
+		}, 500);
+
+		return () => clearTimeout(timer);
+	}, [searchInput]);
+
+	// API-level sorting, pagination, and filtering
+	const { data: filesData, isLoading, error } = useFiles({
+		limit: PAGE_SIZE,
+		offset: page * PAGE_SIZE,
+		sortBy: sortField,
+		sortOrder,
+		search: searchQuery,
+		status: statusFilter !== "All" ? statusFilter : undefined,
+		source: sourceFilter !== "All" ? getSourceDatabaseValue(sourceFilter) : undefined,
+	});
 	const { data: dataSourcesData } = useDataSources();
 	const uploadFileMutation = useUploadFile();
 	const downloadFileMutation = useDownloadFile();
@@ -151,6 +177,7 @@ export default function FilesV1Content() {
 	const deleteFileMutation = useDeleteFile();
 
 	const files = filesData?.documents || [];
+	const totalFiles = filesData?.total || 0;
 	const dataSources = dataSourcesData || [];
 
 	// Filter synced sources (completed + enabled)
@@ -159,7 +186,23 @@ export default function FilesV1Content() {
 			source.last_sync_status === "completed" && source.enabled,
 	);
 
-	// Handle sorting
+	// Show error toast when API fails
+	useEffect(() => {
+		if (error) {
+			ritaToast.error({
+				title: "Failed to load files",
+				description: error instanceof Error ? error.message : "Unable to fetch files. Please try again.",
+			});
+		}
+	}, [error]);
+
+	// Reset to page 0 when filters change
+	// biome-ignore lint/correctness/useExhaustiveDependencies: reset page when filters change
+	useEffect(() => {
+		setPage(0);
+	}, [searchQuery, statusFilter, sourceFilter]);
+
+	// Handle sorting - resets to page 0 on sort change
 	const handleSort = (field: SortField) => {
 		if (sortField === field) {
 			// Toggle order if clicking same column
@@ -169,49 +212,31 @@ export default function FilesV1Content() {
 			setSortField(field);
 			setSortOrder("desc");
 		}
+		setPage(0); // Reset to first page on sort change
 	};
 
-	// Filter files
-	const filteredFiles = files.filter((file) => {
-		const matchesSearch = file.filename
-			.toLowerCase()
-			.includes(searchQuery.toLowerCase());
-		const matchesStatus =
-			statusFilter === "All" || file.status === statusFilter.toLowerCase();
-		const matchesSource =
-			sourceFilter === "All" ||
-			file.source === getSourceDatabaseValue(sourceFilter);
-		return matchesSearch && matchesStatus && matchesSource;
-	});
+	// Server-side filtering - no client-side filtering needed
+	// Files returned from API are already filtered
+	const sortedFiles = files;
 
-	// Sort filtered files
-	const sortedFiles = [...filteredFiles].sort((a, b) => {
-		let comparison = 0;
+	// Pagination handlers
+	// Check if there's a next page based on total files from API
+	const hasNextPage = (page + 1) * PAGE_SIZE < totalFiles;
+	const hasPrevPage = page > 0;
 
-		switch (sortField) {
-			case "filename":
-				comparison = a.filename.localeCompare(b.filename);
-				break;
-			case "size":
-				comparison = a.size - b.size;
-				break;
-			case "type":
-				comparison = a.type.localeCompare(b.type);
-				break;
-			case "status":
-				comparison = a.status.localeCompare(b.status);
-				break;
-			case "source":
-				comparison = (a.source || "").localeCompare(b.source || "");
-				break;
-			case "created_at":
-				comparison =
-					(a.created_at?.getTime() || 0) - (b.created_at?.getTime() || 0);
-				break;
+	const handleNextPage = () => {
+		if (hasNextPage) {
+			setPage(page + 1);
+			setSelectedFiles(new Set()); // Clear selection on page change
 		}
+	};
 
-		return sortOrder === "asc" ? comparison : -comparison;
-	});
+	const handlePrevPage = () => {
+		if (hasPrevPage) {
+			setPage(page - 1);
+			setSelectedFiles(new Set()); // Clear selection on page change
+		}
+	};
 
 	// Calculate stats (currently hidden, but kept for future use)
 	// const totalDocs = filesData?.total || 0;
@@ -293,52 +318,122 @@ export default function FilesV1Content() {
 		fileInputRef.current?.click();
 	};
 
-	const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-		if (e.target.files?.[0]) {
-			const selectedFile = e.target.files[0];
+	const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+		const files = e.target.files;
+		if (!files || files.length === 0) return;
 
+		const filesToUpload = Array.from(files);
+		let successCount = 0;
+		let errorCount = 0;
+		let duplicateCount = 0;
+		const errors: string[] = [];
+		const duplicates: string[] = [];
+		const successfulFilenames: string[] = [];
+
+		// Show initial toast
+		ritaToast.info({
+			title: "Uploading Files",
+			description: `Starting upload of ${filesToUpload.length} file${filesToUpload.length > 1 ? 's' : ''}...`,
+		});
+
+		// Process each file
+		for (const file of filesToUpload) {
 			// Validate file type before upload
-			const validation = validateFileForUpload(selectedFile);
+			const validation = validateFileForUpload(file);
 			if (!validation.isValid && validation.error) {
-				ritaToast.error(validation.error);
-				// Reset file input
-				if (fileInputRef.current) {
-					fileInputRef.current.value = "";
-				}
-				return;
+				errorCount++;
+				errors.push(`${file.name}: ${validation.error.description}`);
+				continue;
 			}
 
-			uploadFileMutation.mutate(selectedFile, {
-				onSuccess: () => {
-					ritaToast.success({
-						title: "File Uploaded",
-						description:
-							"Document uploaded successfully and processing started",
-					});
-					// Reset file input to allow re-selection
-					if (fileInputRef.current) {
-						fileInputRef.current.value = "";
-					}
-				},
-				onError: (error: any) => {
-					// Handle duplicate file (409 Conflict)
-					if (error.status === 409 && error.data?.existing_filename) {
-						ritaToast.error({
-							title: "File Already Uploaded",
-							description: `This file already exists as "${error.data.existing_filename}"`,
-						});
-					} else {
-						ritaToast.error({
-							title: "Upload Failed",
-							description: error.message || "Failed to upload document",
-						});
-					}
-					// Reset file input to allow new selection
-					if (fileInputRef.current) {
-						fileInputRef.current.value = "";
-					}
-				},
+			// Track uploading state
+			setUploadingFiles((prev) => new Set(prev).add(file.name));
+
+			try {
+				const response = await uploadFileMutation.mutateAsync(file);
+				successCount++;
+				// Use server's returned filename (not client's file.name) for SSE tracking
+				successfulFilenames.push(response.document.filename);
+			} catch (error: any) {
+				// Handle duplicate file (409 Conflict) - treat differently from errors
+				if (error.status === 409 && error.data?.existing_filename) {
+					duplicateCount++;
+					duplicates.push(`${file.name}: Already exists as "${error.data.existing_filename}"`);
+				} else {
+					errorCount++;
+					errors.push(`${file.name}: ${error.message || "Upload failed"}`);
+				}
+			} finally {
+				// Remove from uploading state
+				setUploadingFiles((prev) => {
+					const next = new Set(prev);
+					next.delete(file.name);
+					return next;
+				});
+			}
+		}
+
+		// Reset file input to allow re-selection
+		if (fileInputRef.current) {
+			fileInputRef.current.value = "";
+		}
+
+		// Invalidate files query cache if any files were uploaded successfully
+		if (successCount > 0) {
+			queryClient.invalidateQueries({ queryKey: fileKeys.lists() });
+		}
+
+		// Initialize processing tracking in sessionStorage for SSE summary toast
+		if (successCount > 0) {
+			const processingKey = 'rita-processing-files';
+			
+			// Clear any stale tracking data before initializing new batch
+			sessionStorage.removeItem(processingKey);
+			
+			const trackingData = {
+				filenames: successfulFilenames, // Use server's returned filenames for SSE matching
+				processed: 0,
+				failed: 0,
+			};
+			
+			sessionStorage.setItem(processingKey, JSON.stringify(trackingData));
+		}
+
+		// Show upload summary toast (immediate feedback)
+		if (successCount > 0 && errorCount === 0 && duplicateCount === 0) {
+			// All files uploaded successfully
+			ritaToast.success({
+				title: "Upload Complete",
+				description: `Successfully uploaded ${successCount} file${successCount > 1 ? 's' : ''}. Processing...`,
 			});
+		} else if (successCount > 0 && duplicateCount > 0 && errorCount === 0) {
+			// Some successful, some duplicates, no errors
+			ritaToast.info({
+				title: "Upload Complete",
+				description: `${successCount} file${successCount > 1 ? 's' : ''} uploaded. ${duplicateCount} duplicate${duplicateCount > 1 ? 's' : ''} skipped.`,
+			});
+		} else if (successCount > 0 && errorCount > 0) {
+			// Mixed success and errors (may also have duplicates)
+			const failedMsg = duplicateCount > 0 
+				? `${errorCount} failed, ${duplicateCount} duplicate${duplicateCount > 1 ? 's' : ''} skipped.`
+				: `${errorCount} failed.`;
+			ritaToast.warning({
+				title: "Upload Partially Complete",
+				description: `${successCount} succeeded, ${failedMsg} Processing uploaded files...`,
+			});
+		} else if (errorCount > 0 || duplicateCount > 0) {
+			// All failed or all duplicates
+			if (duplicateCount > 0 && errorCount === 0) {
+				ritaToast.info({
+					title: "Files Already Exist",
+					description: `All ${duplicateCount} file${duplicateCount > 1 ? 's are' : ' is'} already in your knowledge base.`,
+				});
+			} else {
+				ritaToast.error({
+					title: "Upload Failed",
+					description: errors.length > 0 ? errors[0] : "All uploads failed",
+				});
+			}
 		}
 	};
 
@@ -455,9 +550,16 @@ export default function FilesV1Content() {
 						</DropdownMenuTrigger>
 						<DropdownMenuContent align="end">
 							{/* Upload file option */}
-							<DropdownMenuItem onClick={handleUploadClick}>
-								<Upload className="h-4 w-4 mr-2" />
-								Upload file
+							<DropdownMenuItem
+								onClick={handleUploadClick}
+								disabled={uploadingFiles.size > 0}
+							>
+								{uploadingFiles.size > 0 ? (
+									<Loader className="h-4 w-4 mr-2 animate-spin" />
+								) : (
+									<Upload className="h-4 w-4 mr-2" />
+								)}
+								{uploadingFiles.size > 0 ? `Uploading ${uploadingFiles.size} file${uploadingFiles.size > 1 ? 's' : ''}...` : 'Upload file'}
 							</DropdownMenuItem>
 
 							{/* Connect sources option */}
@@ -607,8 +709,8 @@ export default function FilesV1Content() {
 						<div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
 							<Input
 								placeholder="Search documents....."
-								value={searchQuery}
-								onChange={(e) => setSearchQuery(e.target.value)}
+								value={searchInput}
+								onChange={(e) => setSearchInput(e.target.value)}
 								className="max-w-sm"
 							/>
 							<div className="flex gap-4">
@@ -693,10 +795,10 @@ export default function FilesV1Content() {
 					)}
 
 					{/* Empty State */}
-					{!isLoading && filteredFiles.length === 0 ? (
+					{!isLoading && sortedFiles.length === 0 ? (
 						<EmptyFilesState
 							hasActiveFilters={
-								searchQuery !== "" ||
+								searchInput !== "" ||
 								statusFilter !== "All" ||
 								sourceFilter !== "All"
 							}
@@ -914,12 +1016,38 @@ export default function FilesV1Content() {
 						</div>
 					)}
 
-					{/* Footer */}
-					{!isLoading && filteredFiles.length > 0 && (
-						<div className="flex justify-center">
+					{/* Footer with Pagination */}
+					{!isLoading && sortedFiles.length > 0 && (
+						<div className="flex flex-col sm:flex-row justify-between items-center gap-4">
 							<p className="text-sm text-muted-foreground">
-								{filteredFiles.length} Knowledge articles
+								{searchInput || statusFilter !== "All" || sourceFilter !== "All" ? (
+									// Show filtered results info
+									<>Showing {sortedFiles.length} of {totalFiles} articles (filtered)</>
+								) : (
+									// Show pagination range when no filters
+									<>Showing {page * PAGE_SIZE + 1}-{Math.min((page + 1) * PAGE_SIZE, totalFiles)} of {totalFiles} articles</>
+								)}
 							</p>
+							<div className="flex items-center gap-2">
+								<Button
+									variant="outline"
+									size="sm"
+									onClick={handlePrevPage}
+									disabled={!hasPrevPage}
+								>
+								 
+									Previous
+								</Button>
+								<Button
+									variant="outline"
+									size="sm"
+									onClick={handleNextPage}
+									disabled={!hasNextPage}
+								>
+									Next
+									 
+								</Button>
+							</div>
 						</div>
 					)}
 				</div>
@@ -929,10 +1057,11 @@ export default function FilesV1Content() {
 			<input
 				ref={fileInputRef}
 				type="file"
+				multiple
 				className="hidden"
 				onChange={handleFileChange}
 				accept={SUPPORTED_DOCUMENT_TYPES}
-				disabled={uploadFileMutation.isPending}
+				disabled={uploadFileMutation.isPending || uploadingFiles.size > 0}
 			/>
 
 			{/* Delete Confirmation Dialog */}

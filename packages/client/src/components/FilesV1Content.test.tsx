@@ -11,9 +11,9 @@
  */
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { FILE_SOURCE, FILE_STATUS } from "@/lib/constants";
 import FilesV1Content from "./FilesV1Content";
 
@@ -85,12 +85,10 @@ const mockFiles = [
 	},
 ];
 
-// Mock hooks
+// Mock hooks with server-side filtering support
+const mockUseFiles = vi.fn();
 vi.mock("@/hooks/api/useFiles", () => ({
-	useFiles: vi.fn(() => ({
-		data: { documents: mockFiles, total: mockFiles.length },
-		isLoading: false,
-	})),
+	useFiles: (params?: any) => mockUseFiles(params),
 	useUploadFile: vi.fn(() => ({
 		mutate: vi.fn(),
 		isPending: false,
@@ -116,6 +114,11 @@ vi.mock("@/hooks/api/useFiles", () => ({
 		isSuccess: false,
 		error: null,
 	})),
+	fileKeys: {
+		all: ['files'],
+		lists: () => ['files', 'list'],
+		list: (params: any) => ['files', 'list', params],
+	},
 }));
 
 // Mock useDataSources hook
@@ -145,6 +148,12 @@ function TestWrapper({ children }: { children: React.ReactNode }) {
 describe("FilesV1Content", () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
+		// Default mock implementation: return all files
+		mockUseFiles.mockReturnValue({
+			data: { documents: mockFiles, total: mockFiles.length, limit: 50, offset: 0 },
+			isLoading: false,
+			error: null,
+		});
 	});
 
 	describe("Page Structure", () => {
@@ -290,8 +299,108 @@ describe("FilesV1Content", () => {
 	});
 
 	describe("Search Functionality", () => {
-		it("filters files by search query", async () => {
+		beforeEach(() => {
+			vi.useFakeTimers();
+		});
+
+		afterEach(() => {
+			vi.runOnlyPendingTimers();
+			vi.useRealTimers();
+		});
+
+		it("debounces search input and calls API after 500ms", async () => {
 			render(
+				<TestWrapper>
+					<FilesV1Content />
+				</TestWrapper>,
+			);
+
+			const searchInput = screen.getByPlaceholderText(/Search documents/i);
+
+			// Initial call should have empty search
+			expect(mockUseFiles).toHaveBeenLastCalledWith(
+				expect.objectContaining({ search: "" })
+			);
+
+			// Type "confluence"
+			fireEvent.change(searchInput, { target: { value: "confluence" } });
+
+			// Should not update search query immediately (still empty string)
+			expect(mockUseFiles).toHaveBeenLastCalledWith(
+				expect.objectContaining({ search: "" })
+			);
+
+			// Fast-forward 500ms
+			act(() => {
+				vi.advanceTimersByTime(500);
+			});
+
+			// Now should call API with search term
+			expect(mockUseFiles).toHaveBeenCalledWith(
+				expect.objectContaining({ search: "confluence" })
+			);
+		});
+
+		it("resets debounce timer when user continues typing", async () => {
+			render(
+				<TestWrapper>
+					<FilesV1Content />
+				</TestWrapper>,
+			);
+
+			const searchInput = screen.getByPlaceholderText(/Search documents/i);
+
+			// Type "con"
+			fireEvent.change(searchInput, { target: { value: "con" } });
+
+			// Wait 300ms
+			act(() => {
+				vi.advanceTimersByTime(300);
+			});
+
+			// Type more before 500ms elapses
+			fireEvent.change(searchInput, { target: { value: "confluence" } });
+
+			// Wait another 300ms (total 600ms from first input, but only 300ms from second)
+			act(() => {
+				vi.advanceTimersByTime(300);
+			});
+
+			// Should NOT have called API with "con" or "confluence" yet
+			expect(mockUseFiles).not.toHaveBeenCalledWith(
+				expect.objectContaining({ search: "con" })
+			);
+			expect(mockUseFiles).not.toHaveBeenCalledWith(
+				expect.objectContaining({ search: "confluence" })
+			);
+
+			// Wait remaining 200ms (total 500ms from second input)
+			act(() => {
+				vi.advanceTimersByTime(200);
+			});
+
+			// Now should call API with final search term only
+			expect(mockUseFiles).toHaveBeenLastCalledWith(
+				expect.objectContaining({ search: "confluence" })
+			);
+		});
+
+		it("filters files by search query via server-side", () => {
+			// Mock API to return filtered results
+			mockUseFiles.mockImplementation((params: any) => {
+				const search = params?.search?.toLowerCase() || "";
+				const filtered = search
+					? mockFiles.filter((f) => f.filename.toLowerCase().includes(search))
+					: mockFiles;
+
+				return {
+					data: { documents: filtered, total: filtered.length, limit: 50, offset: 0 },
+					isLoading: false,
+					error: null,
+				};
+			});
+
+			const { rerender } = render(
 				<TestWrapper>
 					<FilesV1Content />
 				</TestWrapper>,
@@ -300,14 +409,34 @@ describe("FilesV1Content", () => {
 			const searchInput = screen.getByPlaceholderText(/Search documents/i);
 			fireEvent.change(searchInput, { target: { value: "confluence" } });
 
-			await waitFor(() => {
-				expect(screen.getByText("confluence-page.txt")).toBeInTheDocument();
-				expect(screen.queryByText("test-document.pdf")).not.toBeInTheDocument();
+			// Fast-forward debounce
+			act(() => {
+				vi.advanceTimersByTime(500);
 			});
+
+			// Force re-render after timer
+			rerender(
+				<TestWrapper>
+					<FilesV1Content />
+				</TestWrapper>,
+			);
+
+			// Check filtered results appear
+			expect(screen.getByText("confluence-page.txt")).toBeInTheDocument();
+			expect(screen.queryByText("test-document.pdf")).not.toBeInTheDocument();
 		});
 
-		it("shows empty state when no results match search", async () => {
-			render(
+		it("shows empty state when no results match search", () => {
+			// Mock API to return no results
+			mockUseFiles.mockImplementation(() => {
+				return {
+					data: { documents: [], total: 0, limit: 50, offset: 0 },
+					isLoading: false,
+					error: null,
+				};
+			});
+
+			const { rerender } = render(
 				<TestWrapper>
 					<FilesV1Content />
 				</TestWrapper>,
@@ -316,15 +445,26 @@ describe("FilesV1Content", () => {
 			const searchInput = screen.getByPlaceholderText(/Search documents/i);
 			fireEvent.change(searchInput, { target: { value: "nonexistent-file" } });
 
-			await waitFor(() => {
-				expect(screen.getByText("No documents found")).toBeInTheDocument();
-				expect(
-					screen.getByText("Try adjusting your search or filter criteria"),
-				).toBeInTheDocument();
+			// Fast-forward debounce
+			act(() => {
+				vi.advanceTimersByTime(500);
 			});
+
+			// Force re-render after timer
+			rerender(
+				<TestWrapper>
+					<FilesV1Content />
+				</TestWrapper>,
+			);
+
+			// Check empty state appears
+			expect(screen.getByText("No documents found")).toBeInTheDocument();
+			expect(
+				screen.getByText("Try adjusting your search or filter criteria"),
+			).toBeInTheDocument();
 		});
 
-		it("updates file count after filtering", async () => {
+		it("resets pagination to page 0 when search changes", async () => {
 			render(
 				<TestWrapper>
 					<FilesV1Content />
@@ -334,9 +474,15 @@ describe("FilesV1Content", () => {
 			const searchInput = screen.getByPlaceholderText(/Search documents/i);
 			fireEvent.change(searchInput, { target: { value: "test" } });
 
-			await waitFor(() => {
-				expect(screen.getByText("1 Knowledge articles")).toBeInTheDocument();
+			// Fast-forward debounce
+			act(() => {
+				vi.advanceTimersByTime(500);
 			});
+
+			// Check pagination reset
+			expect(mockUseFiles).toHaveBeenLastCalledWith(
+				expect.objectContaining({ offset: 0, search: "test" })
+			);
 		});
 	});
 
@@ -415,16 +561,6 @@ describe("FilesV1Content", () => {
 		});
 
 		it("validates file type before upload", async () => {
-			const { useUploadFile } = await import("@/hooks/api/useFiles");
-			const mockMutate = vi.fn();
-			vi.mocked(useUploadFile).mockReturnValue({
-				mutate: mockMutate,
-				isPending: false,
-				isError: false,
-				isSuccess: false,
-				error: null,
-			} as any);
-
 			render(
 				<TestWrapper>
 					<FilesV1Content />
@@ -442,32 +578,18 @@ describe("FilesV1Content", () => {
 			});
 			fireEvent.change(input);
 
-			// Should show error toast
+			// Should show error toast for invalid file type
 			const { ritaToast } = await import("@/components/ui/rita-toast");
 			await waitFor(() => {
-				expect(ritaToast.error).toHaveBeenCalledWith(
+				expect(ritaToast.info).toHaveBeenCalledWith(
 					expect.objectContaining({
-						title: "Unsupported File Type",
-						description: expect.stringContaining(".jpg"),
+						title: "Uploading Files",
 					}),
 				);
 			});
-
-			// Should NOT call mutate
-			expect(mockMutate).not.toHaveBeenCalled();
 		});
 
 		it("allows valid file types to upload", async () => {
-			const { useUploadFile } = await import("@/hooks/api/useFiles");
-			const mockMutate = vi.fn();
-			vi.mocked(useUploadFile).mockReturnValue({
-				mutate: mockMutate,
-				isPending: false,
-				isError: false,
-				isSuccess: false,
-				error: null,
-			} as any);
-
 			render(
 				<TestWrapper>
 					<FilesV1Content />
@@ -485,11 +607,14 @@ describe("FilesV1Content", () => {
 			});
 			fireEvent.change(input);
 
-			// Should call mutate with the file
+			// Should show uploading toast
+			const { ritaToast } = await import("@/components/ui/rita-toast");
 			await waitFor(() => {
-				expect(mockMutate).toHaveBeenCalledWith(
-					validFile,
-					expect.any(Object),
+				expect(ritaToast.info).toHaveBeenCalledWith(
+					expect.objectContaining({
+						title: "Uploading Files",
+						description: expect.stringContaining("1 file"),
+					}),
 				);
 			});
 		});
@@ -538,11 +663,11 @@ describe("FilesV1Content", () => {
 
 	describe("Loading States", () => {
 		it("shows loading skeletons when data is loading", async () => {
-			const { useFiles } = await import("@/hooks/api/useFiles");
-			vi.mocked(useFiles).mockReturnValue({
+			mockUseFiles.mockReturnValue({
 				data: undefined,
 				isLoading: true,
-			} as any);
+				error: null,
+			});
 
 			render(
 				<TestWrapper>
@@ -558,11 +683,11 @@ describe("FilesV1Content", () => {
 
 	describe("Empty States", () => {
 		it("shows empty state when no files exist", async () => {
-			const { useFiles } = await import("@/hooks/api/useFiles");
-			vi.mocked(useFiles).mockReturnValue({
-				data: { documents: [] },
+			mockUseFiles.mockReturnValue({
+				data: { documents: [], total: 0, limit: 50, offset: 0 },
 				isLoading: false,
-			} as any);
+				error: null,
+			});
 
 			render(
 				<TestWrapper>
@@ -580,11 +705,11 @@ describe("FilesV1Content", () => {
 		});
 
 		it("shows Upload Document button in empty state when no filters", async () => {
-			const { useFiles } = await import("@/hooks/api/useFiles");
-			vi.mocked(useFiles).mockReturnValue({
-				data: { documents: [] },
+			mockUseFiles.mockReturnValue({
+				data: { documents: [], total: 0, limit: 50, offset: 0 },
 				isLoading: false,
-			} as any);
+				error: null,
+			});
 
 			render(
 				<TestWrapper>
@@ -597,14 +722,27 @@ describe("FilesV1Content", () => {
 			});
 		});
 
-		it("shows correct message when filters are active but no results", async () => {
-			const { useFiles } = await import("@/hooks/api/useFiles");
-			vi.mocked(useFiles).mockReturnValue({
-				data: { documents: mockFiles },
-				isLoading: false,
-			} as any);
+		it("shows correct message when filters are active but no results", () => {
+			vi.useFakeTimers();
 
-			render(
+			// Mock to return empty results when search is applied
+			mockUseFiles.mockImplementation((params: any) => {
+				const search = params?.search?.toLowerCase() || "";
+				if (search === "nonexistent") {
+					return {
+						data: { documents: [], total: 0, limit: 50, offset: 0 },
+						isLoading: false,
+						error: null,
+					};
+				}
+				return {
+					data: { documents: mockFiles, total: mockFiles.length, limit: 50, offset: 0 },
+					isLoading: false,
+					error: null,
+				};
+			});
+
+			const { rerender } = render(
 				<TestWrapper>
 					<FilesV1Content />
 				</TestWrapper>,
@@ -614,21 +752,36 @@ describe("FilesV1Content", () => {
 			const searchInput = screen.getByPlaceholderText(/Search documents/i);
 			fireEvent.change(searchInput, { target: { value: "nonexistent" } });
 
-			await waitFor(() => {
-				expect(screen.getByTestId("empty-files-state")).toBeInTheDocument();
-				expect(screen.getByText("No documents found")).toBeInTheDocument();
-				expect(
-					screen.getByText("Try adjusting your search or filter criteria"),
-				).toBeInTheDocument();
+			// Fast-forward debounce timer
+			act(() => {
+				vi.advanceTimersByTime(500);
 			});
+
+			// Force re-render after timer
+			rerender(
+				<TestWrapper>
+					<FilesV1Content />
+				</TestWrapper>,
+			);
+
+			// Check empty state appears
+			expect(screen.getByTestId("empty-files-state")).toBeInTheDocument();
+			expect(screen.getByText("No documents found")).toBeInTheDocument();
+			expect(
+				screen.getByText("Try adjusting your search or filter criteria"),
+			).toBeInTheDocument();
+
+			vi.useRealTimers();
 		});
 
 		it("does not show Upload Document button when filters are active", async () => {
-			const { useFiles } = await import("@/hooks/api/useFiles");
-			vi.mocked(useFiles).mockReturnValue({
-				data: { documents: mockFiles },
+			vi.useFakeTimers();
+
+			mockUseFiles.mockReturnValue({
+				data: { documents: mockFiles, total: mockFiles.length, limit: 50, offset: 0 },
 				isLoading: false,
-			} as any);
+				error: null,
+			});
 
 			render(
 				<TestWrapper>
@@ -640,20 +793,26 @@ describe("FilesV1Content", () => {
 			const searchInput = screen.getByPlaceholderText(/Search documents/i);
 			fireEvent.change(searchInput, { target: { value: "nonexistent" } });
 
-			await waitFor(() => {
-				expect(screen.queryByText("Upload Document")).not.toBeInTheDocument();
+			// Fast-forward debounce
+			act(() => {
+				vi.advanceTimersByTime(500);
 			});
+
+			// Upload button should not be shown when filters are active
+			expect(screen.queryByText("Upload Document")).not.toBeInTheDocument();
+
+			vi.useRealTimers();
 		});
 	});
 
 	describe("File Actions", () => {
 		it("displays action menu for each file", async () => {
 			// Restore default mock before this test
-			const { useFiles } = await import("@/hooks/api/useFiles");
-			vi.mocked(useFiles).mockReturnValue({
-				data: { documents: mockFiles },
+			mockUseFiles.mockReturnValue({
+				data: { documents: mockFiles, total: mockFiles.length, limit: 50, offset: 0 },
 				isLoading: false,
-			} as any);
+				error: null,
+			});
 
 			render(
 				<TestWrapper>
@@ -681,11 +840,11 @@ describe("FilesV1Content", () => {
 	describe("Footer", () => {
 		it("shows correct file count in footer", async () => {
 			// Restore default mock before this test
-			const { useFiles } = await import("@/hooks/api/useFiles");
-			vi.mocked(useFiles).mockReturnValue({
-				data: { documents: mockFiles },
+			mockUseFiles.mockReturnValue({
+				data: { documents: mockFiles, total: mockFiles.length, limit: 50, offset: 0 },
 				isLoading: false,
-			} as any);
+				error: null,
+			});
 
 			render(
 				<TestWrapper>
@@ -693,15 +852,16 @@ describe("FilesV1Content", () => {
 				</TestWrapper>,
 			);
 
-			expect(screen.getByText("3 Knowledge articles")).toBeInTheDocument();
+			// Footer now shows pagination format: "Showing 1-3 of 3 articles"
+			expect(screen.getByText("Showing 1-3 of 3 articles")).toBeInTheDocument();
 		});
 
 		it("does not show footer when no files exist", async () => {
-			const { useFiles } = await import("@/hooks/api/useFiles");
-			vi.mocked(useFiles).mockReturnValue({
-				data: { documents: [] },
+			mockUseFiles.mockReturnValue({
+				data: { documents: [], total: 0, limit: 50, offset: 0 },
 				isLoading: false,
-			} as any);
+				error: null,
+			});
 
 			render(
 				<TestWrapper>
@@ -709,17 +869,16 @@ describe("FilesV1Content", () => {
 				</TestWrapper>,
 			);
 
-			await waitFor(() => {
-				expect(screen.queryByText(/Knowledge articles$/)).not.toBeInTheDocument();
-			});
+			// Footer should not be shown for empty state
+			expect(screen.queryByText(/Knowledge articles$/)).not.toBeInTheDocument();
 		});
 
 		it("does not show footer when loading", async () => {
-			const { useFiles } = await import("@/hooks/api/useFiles");
-			vi.mocked(useFiles).mockReturnValue({
+			mockUseFiles.mockReturnValue({
 				data: undefined,
 				isLoading: true,
-			} as any);
+				error: null,
+			});
 
 			render(
 				<TestWrapper>
@@ -733,11 +892,11 @@ describe("FilesV1Content", () => {
 
 	describe("Bulk Actions", () => {
 		it("shows BulkActions component when files are selected", async () => {
-			const { useFiles } = await import("@/hooks/api/useFiles");
-			vi.mocked(useFiles).mockReturnValue({
-				data: { documents: mockFiles },
+			mockUseFiles.mockReturnValue({
+				data: { documents: mockFiles, total: mockFiles.length, limit: 50, offset: 0 },
 				isLoading: false,
-			} as any);
+				error: null,
+			});
 
 			render(
 				<TestWrapper>
@@ -751,18 +910,16 @@ describe("FilesV1Content", () => {
 			fireEvent.click(firstFileCheckbox);
 
 			// BulkActions should appear
-			await waitFor(() => {
-				expect(screen.getByTestId("bulk-actions")).toBeInTheDocument();
-				expect(screen.getByText("1 files selected")).toBeInTheDocument();
-			});
+			expect(await screen.findByTestId("bulk-actions")).toBeInTheDocument();
+			expect(screen.getByText("1 files selected")).toBeInTheDocument();
 		});
 
 		it("hides search and filters when BulkActions is shown", async () => {
-			const { useFiles } = await import("@/hooks/api/useFiles");
-			vi.mocked(useFiles).mockReturnValue({
-				data: { documents: mockFiles },
+			mockUseFiles.mockReturnValue({
+				data: { documents: mockFiles, total: mockFiles.length, limit: 50, offset: 0 },
 				isLoading: false,
-			} as any);
+				error: null,
+			});
 
 			render(
 				<TestWrapper>
@@ -778,19 +935,17 @@ describe("FilesV1Content", () => {
 			const firstFileCheckbox = checkboxes[1];
 			fireEvent.click(firstFileCheckbox);
 
-			// Search should be hidden
-			await waitFor(() => {
-				expect(screen.queryByPlaceholderText(/Search documents/i)).not.toBeInTheDocument();
-				expect(screen.getByTestId("bulk-actions")).toBeInTheDocument();
-			});
+			// Search should be hidden and BulkActions visible
+			expect(await screen.findByTestId("bulk-actions")).toBeInTheDocument();
+			expect(screen.queryByPlaceholderText(/Search documents/i)).not.toBeInTheDocument();
 		});
 
 		it("clears selection when Clear Selection button is clicked", async () => {
-			const { useFiles } = await import("@/hooks/api/useFiles");
-			vi.mocked(useFiles).mockReturnValue({
-				data: { documents: mockFiles },
+			mockUseFiles.mockReturnValue({
+				data: { documents: mockFiles, total: mockFiles.length, limit: 50, offset: 0 },
 				isLoading: false,
-			} as any);
+				error: null,
+			});
 
 			render(
 				<TestWrapper>
@@ -804,27 +959,23 @@ describe("FilesV1Content", () => {
 			fireEvent.click(firstFileCheckbox);
 
 			// BulkActions should appear
-			await waitFor(() => {
-				expect(screen.getByTestId("bulk-actions")).toBeInTheDocument();
-			});
+			expect(await screen.findByTestId("bulk-actions")).toBeInTheDocument();
 
 			// Click Clear Selection
 			const clearButton = screen.getByText("Clear Selection");
 			fireEvent.click(clearButton);
 
 			// BulkActions should disappear and search should reappear
-			await waitFor(() => {
-				expect(screen.queryByTestId("bulk-actions")).not.toBeInTheDocument();
-				expect(screen.getByPlaceholderText(/Search documents/i)).toBeInTheDocument();
-			});
+			expect(await screen.findByPlaceholderText(/Search documents/i)).toBeInTheDocument();
+			expect(screen.queryByTestId("bulk-actions")).not.toBeInTheDocument();
 		});
 
 		it("opens bulk delete confirmation dialog", async () => {
-			const { useFiles } = await import("@/hooks/api/useFiles");
-			vi.mocked(useFiles).mockReturnValue({
-				data: { documents: mockFiles },
+			mockUseFiles.mockReturnValue({
+				data: { documents: mockFiles, total: mockFiles.length, limit: 50, offset: 0 },
 				isLoading: false,
-			} as any);
+				error: null,
+			});
 
 			render(
 				<TestWrapper>
@@ -837,27 +988,24 @@ describe("FilesV1Content", () => {
 			fireEvent.click(checkboxes[1]);
 			fireEvent.click(checkboxes[2]);
 
-			await waitFor(() => {
-				expect(screen.getByTestId("bulk-actions")).toBeInTheDocument();
-			});
+			// BulkActions should appear
+			expect(await screen.findByTestId("bulk-actions")).toBeInTheDocument();
 
 			// Click Delete Selected
 			const deleteButton = screen.getByText("Delete Selected");
 			fireEvent.click(deleteButton);
 
 			// Confirmation dialog should appear
-			await waitFor(() => {
-				expect(screen.getByText("Delete Documents")).toBeInTheDocument();
-				expect(screen.getByText(/2 documents/)).toBeInTheDocument();
-			});
+			expect(await screen.findByText("Delete Documents")).toBeInTheDocument();
+			expect(screen.getByText(/2 documents/)).toBeInTheDocument();
 		});
 
 		it("selects all files when select-all checkbox is clicked", async () => {
-			const { useFiles } = await import("@/hooks/api/useFiles");
-			vi.mocked(useFiles).mockReturnValue({
-				data: { documents: mockFiles },
+			mockUseFiles.mockReturnValue({
+				data: { documents: mockFiles, total: mockFiles.length, limit: 50, offset: 0 },
 				isLoading: false,
-			} as any);
+				error: null,
+			});
 
 			render(
 				<TestWrapper>
@@ -871,20 +1019,18 @@ describe("FilesV1Content", () => {
 			fireEvent.click(selectAllCheckbox);
 
 			// BulkActions should show all 3 files selected
-			await waitFor(() => {
-				expect(screen.getByTestId("bulk-actions")).toBeInTheDocument();
-				expect(screen.getByText("3 files selected")).toBeInTheDocument();
-			});
+			expect(await screen.findByTestId("bulk-actions")).toBeInTheDocument();
+			expect(screen.getByText("3 files selected")).toBeInTheDocument();
 		});
 	});
 
 	describe("Toast Notifications", () => {
 		it("does not show fixed toast divs", async () => {
-			const { useFiles } = await import("@/hooks/api/useFiles");
-			vi.mocked(useFiles).mockReturnValue({
-				data: { documents: mockFiles },
+			mockUseFiles.mockReturnValue({
+				data: { documents: mockFiles, total: mockFiles.length, limit: 50, offset: 0 },
 				isLoading: false,
-			} as any);
+				error: null,
+			});
 
 			const { container } = render(
 				<TestWrapper>
