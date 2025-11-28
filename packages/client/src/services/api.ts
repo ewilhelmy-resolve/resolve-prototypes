@@ -206,8 +206,37 @@ export const fileApi = {
   },
 
   // List documents
-  listDocuments: (limit: number = 250) =>
-    apiRequest<{ documents: any[]; total: number; limit: number; offset: number }>(`/api/files?limit=${limit}`),
+  listDocuments: (
+    limit: number = 250,
+    offset: number = 0,
+    sortBy: string = 'created_at',
+    sortOrder: string = 'desc',
+    search?: string,
+    status?: string,
+    source?: string
+  ) => {
+    const params = new URLSearchParams({
+      limit: limit.toString(),
+      offset: offset.toString(),
+      sort_by: sortBy,
+      sort_order: sortOrder,
+    });
+
+    // Add optional filter parameters
+    if (search && search.trim()) {
+      params.append('search', search.trim());
+    }
+    if (status && status.toLowerCase() !== 'all') {
+      params.append('status', status.toLowerCase());
+    }
+    if (source && source.toLowerCase() !== 'all') {
+      params.append('source', source);
+    }
+
+    return apiRequest<{ documents: any[]; total: number; limit: number; offset: number }>(
+      `/api/files?${params.toString()}`
+    );
+  },
 
   // Delete document
   deleteDocument: (documentId: string) =>
