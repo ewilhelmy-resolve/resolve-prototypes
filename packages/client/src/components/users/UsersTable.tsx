@@ -351,15 +351,15 @@ export default function UsersTable() {
 									</Button>
 								</TableHead>
 								<TableHead>
-								<Button
-									variant="ghost"
-									className="flex items-center gap-2 -ml-3"
-									onClick={() => handleSort("status")}
-								>
-									Status
-									{renderSortIcon(sortBy, "status", sortOrder)}
-								</Button>
-							</TableHead>
+									<Button
+										variant="ghost"
+										className="flex items-center gap-2 -ml-3"
+										onClick={() => handleSort("status")}
+									>
+										Status
+										{renderSortIcon(sortBy, "status", sortOrder)}
+									</Button>
+								</TableHead>
 								<TableHead>
 									<Button
 										variant="ghost"

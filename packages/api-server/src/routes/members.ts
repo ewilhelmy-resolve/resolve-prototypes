@@ -69,7 +69,7 @@ router.get('/', authenticateUser, requireRole(['owner', 'admin']), async (req, r
       search: search as string | undefined,
       limit: parseInt(limit as string, 10),
       offset: parseInt(offset as string, 10),
-      sortBy: sortBy as 'name' | 'role' | 'joinedAt' | 'conversationsCount',
+      sortBy: sortBy as 'name' | 'role' | 'status' | 'joinedAt' | 'conversationsCount',
       sortOrder: sortOrder as 'asc' | 'desc'
     });
 
