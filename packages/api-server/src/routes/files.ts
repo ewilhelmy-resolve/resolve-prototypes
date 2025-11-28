@@ -564,7 +564,7 @@ router.get('/', authenticateUser, async (req, res) => {
         let paramIndex = 2;
 
         // Add search filter (case-insensitive filename search)
-        if (search && search.trim()) {
+        if (search?.trim()) {
           whereConditions.push(`LOWER(bm.filename) LIKE LOWER($${paramIndex})`);
           queryParams.push(`%${search.trim()}%`);
           paramIndex++;
