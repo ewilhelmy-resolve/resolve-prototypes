@@ -29,13 +29,15 @@ vi.mock("@/components/ui/rita-toast", () => ({
 
 // Mock BulkActions component
 vi.mock("@/components/BulkActions", () => ({
-	BulkActions: ({ selectedItems, onDelete, onClose, itemLabel }: any) => (
+	BulkActions: ({ selectedItems, onDelete, onClose, itemLabel, isLoading, remainingCount }: any) => (
 		<div data-testid="bulk-actions">
 			<span>
-				{selectedItems.length} {itemLabel} selected
+				{isLoading && remainingCount != null
+					? `${remainingCount} ${itemLabel} remaining`
+					: `${selectedItems.length} ${itemLabel} selected`}
 			</span>
-			<button onClick={onDelete}>Delete Selected</button>
-			<button onClick={onClose}>Clear Selection</button>
+			<button onClick={onDelete} disabled={isLoading}>Delete Selected</button>
+			<button onClick={onClose} disabled={isLoading}>Clear Selection</button>
 		</div>
 	),
 }));
@@ -1041,6 +1043,210 @@ describe("FilesV1Content", () => {
 			// Should not have any fixed bottom-right toast divs
 			const fixedToasts = container.querySelectorAll('.fixed.bottom-4.right-4');
 			expect(fixedToasts.length).toBe(0);
+		});
+	});
+
+	describe("Upload Progress Bar", () => {
+		it("does not show progress bar when no upload is in progress", () => {
+			mockUseFiles.mockReturnValue({
+				data: { documents: mockFiles, total: mockFiles.length, limit: 50, offset: 0 },
+				isLoading: false,
+				error: null,
+			});
+
+			render(
+				<TestWrapper>
+					<FilesV1Content />
+				</TestWrapper>,
+			);
+
+			// Progress bar should not be visible
+			expect(screen.queryByText(/Uploading files.../i)).not.toBeInTheDocument();
+		});
+
+		it("shows progress bar when uploading multiple files", async () => {
+			// Mock upload mutation to track progress
+			const mockMutateAsync = vi.fn().mockImplementation(() =>
+				new Promise((resolve) => {
+					setTimeout(() => resolve({ document: { filename: 'test.pdf' } }), 100);
+				})
+			);
+
+			const { useUploadFile } = await import("@/hooks/api/useFiles");
+			vi.mocked(useUploadFile).mockReturnValue({
+				mutate: vi.fn(),
+				mutateAsync: mockMutateAsync,
+				isPending: false,
+				isError: false,
+				isSuccess: false,
+				error: null,
+			} as any);
+
+			mockUseFiles.mockReturnValue({
+				data: { documents: mockFiles, total: mockFiles.length, limit: 50, offset: 0 },
+				isLoading: false,
+				error: null,
+			});
+
+			render(
+				<TestWrapper>
+					<FilesV1Content />
+				</TestWrapper>,
+			);
+
+			// Create multiple valid files
+			const file1 = new File(["content1"], "doc1.pdf", { type: "application/pdf" });
+			const file2 = new File(["content2"], "doc2.pdf", { type: "application/pdf" });
+			const file3 = new File(["content3"], "doc3.pdf", { type: "application/pdf" });
+			const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+
+			// Simulate file selection
+			Object.defineProperty(input, "files", {
+				value: [file1, file2, file3],
+				writable: false,
+			});
+			fireEvent.change(input);
+
+			// Progress bar should appear for multiple files
+			await waitFor(() => {
+				expect(screen.getByText(/Uploading files.../i)).toBeInTheDocument();
+			});
+		});
+
+		it("shows correct progress count during multi-file upload", async () => {
+			let resolveUpload: () => void;
+			const mockMutateAsync = vi.fn().mockImplementation(() =>
+				new Promise<{ document: { filename: string } }>((resolve) => {
+					resolveUpload = () => resolve({ document: { filename: 'test.pdf' } });
+				})
+			);
+
+			const { useUploadFile } = await import("@/hooks/api/useFiles");
+			vi.mocked(useUploadFile).mockReturnValue({
+				mutate: vi.fn(),
+				mutateAsync: mockMutateAsync,
+				isPending: false,
+				isError: false,
+				isSuccess: false,
+				error: null,
+			} as any);
+
+			mockUseFiles.mockReturnValue({
+				data: { documents: mockFiles, total: mockFiles.length, limit: 50, offset: 0 },
+				isLoading: false,
+				error: null,
+			});
+
+			render(
+				<TestWrapper>
+					<FilesV1Content />
+				</TestWrapper>,
+			);
+
+			// Create multiple valid files
+			const file1 = new File(["content1"], "doc1.pdf", { type: "application/pdf" });
+			const file2 = new File(["content2"], "doc2.pdf", { type: "application/pdf" });
+			const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+
+			// Simulate file selection
+			Object.defineProperty(input, "files", {
+				value: [file1, file2],
+				writable: false,
+			});
+			fireEvent.change(input);
+
+			// Progress should show total count
+			await waitFor(() => {
+				expect(screen.getByText(/of 2/i)).toBeInTheDocument();
+			});
+		});
+
+		it("does not show progress bar for single file upload", async () => {
+			const mockMutateAsync = vi.fn().mockResolvedValue({ document: { filename: 'test.pdf' } });
+
+			const { useUploadFile } = await import("@/hooks/api/useFiles");
+			vi.mocked(useUploadFile).mockReturnValue({
+				mutate: vi.fn(),
+				mutateAsync: mockMutateAsync,
+				isPending: false,
+				isError: false,
+				isSuccess: false,
+				error: null,
+			} as any);
+
+			mockUseFiles.mockReturnValue({
+				data: { documents: mockFiles, total: mockFiles.length, limit: 50, offset: 0 },
+				isLoading: false,
+				error: null,
+			});
+
+			render(
+				<TestWrapper>
+					<FilesV1Content />
+				</TestWrapper>,
+			);
+
+			// Create single valid file
+			const file = new File(["content"], "document.pdf", { type: "application/pdf" });
+			const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+
+			// Simulate file selection
+			Object.defineProperty(input, "files", {
+				value: [file],
+				writable: false,
+			});
+			fireEvent.change(input);
+
+			// Progress bar should NOT appear for single file
+			expect(screen.queryByText(/Uploading files.../i)).not.toBeInTheDocument();
+		});
+
+		it("clears progress bar after upload completes", async () => {
+			const mockMutateAsync = vi.fn().mockResolvedValue({ document: { filename: 'test.pdf' } });
+
+			const { useUploadFile } = await import("@/hooks/api/useFiles");
+			vi.mocked(useUploadFile).mockReturnValue({
+				mutate: vi.fn(),
+				mutateAsync: mockMutateAsync,
+				isPending: false,
+				isError: false,
+				isSuccess: false,
+				error: null,
+			} as any);
+
+			mockUseFiles.mockReturnValue({
+				data: { documents: mockFiles, total: mockFiles.length, limit: 50, offset: 0 },
+				isLoading: false,
+				error: null,
+			});
+
+			render(
+				<TestWrapper>
+					<FilesV1Content />
+				</TestWrapper>,
+			);
+
+			// Create multiple valid files
+			const file1 = new File(["content1"], "doc1.pdf", { type: "application/pdf" });
+			const file2 = new File(["content2"], "doc2.pdf", { type: "application/pdf" });
+			const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+
+			// Simulate file selection
+			Object.defineProperty(input, "files", {
+				value: [file1, file2],
+				writable: false,
+			});
+			fireEvent.change(input);
+
+			// Wait for uploads to complete
+			await waitFor(() => {
+				expect(mockMutateAsync).toHaveBeenCalledTimes(2);
+			});
+
+			// Progress bar should be cleared after upload
+			await waitFor(() => {
+				expect(screen.queryByText(/Uploading files.../i)).not.toBeInTheDocument();
+			});
 		});
 	});
 });
