@@ -197,6 +197,7 @@ export default function FilesV1Content() {
 	}, [error]);
 
 	// Reset to page 0 when filters change
+	// biome-ignore lint/correctness/useExhaustiveDependencies: reset page when filters change
 	useEffect(() => {
 		setPage(0);
 	}, [searchQuery, statusFilter, sourceFilter]);
