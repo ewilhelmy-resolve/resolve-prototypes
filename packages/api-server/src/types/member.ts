@@ -65,7 +65,9 @@ export interface ListMembersOptions {
   limit?: number;
   offset?: number;
   role?: OrganizationRole;
-  sortBy?: 'email' | 'role' | 'joinedAt';
+  status?: 'active' | 'inactive';
+  search?: string;
+  sortBy?: 'name' | 'role' | 'status' | 'joinedAt' | 'conversationsCount';
   sortOrder?: 'asc' | 'desc';
 }
 
