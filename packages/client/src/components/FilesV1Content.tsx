@@ -37,6 +37,7 @@ import {
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
+import { Progress } from "@/components/ui/progress";
 import { ritaToast } from "@/components/ui/rita-toast";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -147,6 +148,9 @@ export default function FilesV1Content() {
 	const [sortOrder, setSortOrder] = useState<SortOrder>("desc");
 	const [page, setPage] = useState(0);
 	const [uploadingFiles, setUploadingFiles] = useState<Set<string>>(new Set());
+	const [isBulkDeleting, setIsBulkDeleting] = useState(false);
+	const [deletingRemaining, setDeletingRemaining] = useState<number | null>(null);
+	const [uploadProgress, setUploadProgress] = useState<{ total: number; current: number } | null>(null);
 	const fileInputRef = useRef<HTMLInputElement>(null);
 	const navigate = useNavigate();
 	const queryClient = useQueryClient();
@@ -267,22 +271,31 @@ export default function FilesV1Content() {
 	};
 
 	const handleConfirmBulkDelete = async () => {
+		// Close dialog first, then start deletion
 		setBulkDeleteDialogOpen(false);
+		setIsBulkDeleting(true);
 
 		// Delete selected files one by one
 		let successCount = 0;
 		let failCount = 0;
+		const filesToDelete = Array.from(selectedFiles);
+		let remaining = filesToDelete.length;
+		setDeletingRemaining(remaining);
 
-		for (const fileId of selectedFiles) {
+		for (const fileId of filesToDelete) {
 			try {
 				await new Promise<void>((resolve, reject) => {
 					deleteFileMutation.mutate(fileId, {
 						onSuccess: () => {
 							successCount++;
+							remaining--;
+							setDeletingRemaining(remaining);
 							resolve();
 						},
 						onError: () => {
 							failCount++;
+							remaining--;
+							setDeletingRemaining(remaining);
 							reject();
 						},
 					});
@@ -291,6 +304,10 @@ export default function FilesV1Content() {
 				// Error already counted in failCount
 			}
 		}
+
+		// Clear loading state
+		setIsBulkDeleting(false);
+		setDeletingRemaining(null);
 
 		// Clear selection after deletion attempts
 		setSelectedFiles(new Set());
@@ -336,8 +353,20 @@ export default function FilesV1Content() {
 			description: `Starting upload of ${filesToUpload.length} file${filesToUpload.length > 1 ? 's' : ''}...`,
 		});
 
+		// Initialize upload progress for multiple files
+		if (filesToUpload.length > 1) {
+			setUploadProgress({ total: filesToUpload.length, current: 0 });
+		}
+
 		// Process each file
-		for (const file of filesToUpload) {
+		for (let i = 0; i < filesToUpload.length; i++) {
+			const file = filesToUpload[i];
+
+			// Update progress
+			if (filesToUpload.length > 1) {
+				setUploadProgress({ total: filesToUpload.length, current: i + 1 });
+			}
+
 			// Validate file type before upload
 			const validation = validateFileForUpload(file);
 			if (!validation.isValid && validation.error) {
@@ -372,6 +401,9 @@ export default function FilesV1Content() {
 				});
 			}
 		}
+
+		// Clear upload progress
+		setUploadProgress(null);
 
 		// Reset file input to allow re-selection
 		if (fileInputRef.current) {
@@ -791,7 +823,23 @@ export default function FilesV1Content() {
 							onDelete={handleBulkDeleteClick}
 							onClose={() => setSelectedFiles(new Set())}
 							itemLabel="files"
+							isLoading={isBulkDeleting}
+							remainingCount={deletingRemaining}
 						/>
+					)}
+
+					{/* Upload Progress Bar */}
+					{uploadProgress && (
+						<div className="flex items-center gap-4 p-4 bg-muted/50 border rounded-md">
+							<Loader className="h-4 w-4 animate-spin text-primary" />
+							<div className="flex-1">
+								<div className="flex justify-between text-sm mb-1">
+									<span>Uploading files...</span>
+									<span>{uploadProgress.current} of {uploadProgress.total}</span>
+								</div>
+								<Progress value={(uploadProgress.current / uploadProgress.total) * 100} className="h-2" />
+							</div>
+						</div>
 					)}
 
 					{/* Empty State */}
@@ -806,7 +854,7 @@ export default function FilesV1Content() {
 						/>
 					) : (
 						/* Table */
-						<div className="border rounded-md">
+						<div className="relative border rounded-md">
 							<Table>
 								<TableHeader>
 									<TableRow>

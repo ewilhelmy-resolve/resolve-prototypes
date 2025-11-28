@@ -1,5 +1,5 @@
 import { Ban, Check, ChevronDown, Loader, MoreHorizontal } from "lucide-react";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { BulkActions } from "@/components/BulkActions";
 import { CrashPage } from "@/components/CrashPage";
 import ConfirmDialog from "@/components/dialogs/ConfirmDialog";
@@ -74,6 +74,10 @@ export default function UsersTable() {
 		pendingRoleChange,
 		setPendingRoleChange,
 	} = useUsersTableState();
+
+	// Loading state for bulk delete
+	const [isBulkDeleting, setIsBulkDeleting] = useState(false);
+	const [deletingRemaining, setDeletingRemaining] = useState<number | null>(null);
 
 	// Get current user profile to hide delete option for self
 	const { data: profile } = useProfile();
@@ -246,13 +250,18 @@ export default function UsersTable() {
 	};
 
 	const handleConfirmBulkDelete = async () => {
+		// Close dialog first, then start deletion
 		setBulkDeleteDialogOpen(false);
+		setIsBulkDeleting(true);
 
 		// Delete selected users one by one
 		let successCount = 0;
 		let failCount = 0;
+		const usersToDelete = [...selectedUsers];
+		let remaining = usersToDelete.length;
+		setDeletingRemaining(remaining);
 
-		for (const userId of selectedUsers) {
+		for (const userId of usersToDelete) {
 			try {
 				await new Promise<void>((resolve, reject) => {
 					deleteMemberPermanent(
@@ -260,10 +269,14 @@ export default function UsersTable() {
 						{
 							onSuccess: () => {
 								successCount++;
+								remaining--;
+								setDeletingRemaining(remaining);
 								resolve();
 							},
 							onError: () => {
 								failCount++;
+								remaining--;
+								setDeletingRemaining(remaining);
 								reject();
 							},
 						},
@@ -273,6 +286,10 @@ export default function UsersTable() {
 				// Error already handled by mutation
 			}
 		}
+
+		// Clear loading state
+		setIsBulkDeleting(false);
+		setDeletingRemaining(null);
 
 		// Clear selection after deletion attempts
 		setSelectedUsers([]);
@@ -325,10 +342,13 @@ export default function UsersTable() {
 						onDelete={handleBulkDeleteClick}
 						onClose={() => setSelectedUsers([])}
 						itemLabel="users"
+						isLoading={isBulkDeleting}
+						remainingCount={deletingRemaining}
 					/>
 				)}
 
-				<div className="border rounded-md">
+				{/* Table */}
+				<div className="relative border rounded-md">
 					<Table>
 						<TableHeader>
 							<TableRow>
