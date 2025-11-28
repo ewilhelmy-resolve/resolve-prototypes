@@ -1114,10 +1114,9 @@ describe("FilesV1Content", () => {
 		});
 
 		it("shows correct progress count during multi-file upload", async () => {
-			let resolveUpload: () => void;
 			const mockMutateAsync = vi.fn().mockImplementation(() =>
 				new Promise<{ document: { filename: string } }>((resolve) => {
-					resolveUpload = () => resolve({ document: { filename: 'test.pdf' } });
+					setTimeout(() => resolve({ document: { filename: 'test.pdf' } }), 100);
 				})
 			);
 
