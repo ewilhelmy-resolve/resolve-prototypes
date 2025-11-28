@@ -22,6 +22,9 @@ export interface FilesQueryParams {
   offset?: number
   sortBy?: 'filename' | 'size' | 'type' | 'status' | 'source' | 'created_at'
   sortOrder?: 'asc' | 'desc'
+  search?: string
+  status?: string
+  source?: string
 }
 
 // Query keys
@@ -33,12 +36,12 @@ export const fileKeys = {
 
 // List user's documents
 export function useFiles(params: FilesQueryParams = {}) {
-  const { limit = 50, offset = 0, sortBy = 'created_at', sortOrder = 'desc' } = params
+  const { limit = 50, offset = 0, sortBy = 'created_at', sortOrder = 'desc', search, status, source } = params
 
   return useQuery({
-    queryKey: fileKeys.list({ limit, offset, sortBy, sortOrder }),
+    queryKey: fileKeys.list({ limit, offset, sortBy, sortOrder, search, status, source }),
     queryFn: async () => {
-      const response = await fileApi.listDocuments(limit, offset, sortBy, sortOrder)
+      const response = await fileApi.listDocuments(limit, offset, sortBy, sortOrder, search, status, source)
 
       const documents: FileDocument[] = response.documents.map((doc: any) => ({
         id: doc.id,

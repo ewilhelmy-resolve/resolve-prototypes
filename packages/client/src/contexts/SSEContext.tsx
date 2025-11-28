@@ -156,11 +156,11 @@ export const SSEProvider: React.FC<SSEProviderProps> = ({
 				}
 			} else if (event.type === "document_update") {
 				// Handle document processing status updates
-				console.log("[SSE] Document update received:", {
-					blobMetadataId: event.data.blob_metadata_id,
-					filename: event.data.filename,
-					status: event.data.status,
-				});
+				// console.log("[SSE] Document update received:", {
+				// 	blobMetadataId: event.data.blob_metadata_id,
+				// 	filename: event.data.filename,
+				// 	status: event.data.status,
+				// });
 
 				// Invalidate TanStack Query cache to trigger automatic refetch
 				queryClient.invalidateQueries({ queryKey: fileKeys.lists() });

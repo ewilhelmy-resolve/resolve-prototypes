@@ -537,6 +537,11 @@ router.get('/', authenticateUser, async (req, res) => {
     const sortBy = (req.query.sort_by as string) || 'created_at';
     const sortOrder = (req.query.sort_order as string)?.toUpperCase() === 'ASC' ? 'ASC' : 'DESC';
 
+    // Filter parameters
+    const search = req.query.search as string;
+    const status = req.query.status as string;
+    const source = req.query.source as string;
+
     // Validate and map sort fields to database columns
     const sortFieldMap: Record<string, string> = {
       'filename': 'bm.filename',
@@ -553,6 +558,34 @@ router.get('/', authenticateUser, async (req, res) => {
       authReq.user.id,
       authReq.user.activeOrganizationId,
       async (client) => {
+        // Build WHERE clause dynamically
+        const whereConditions: string[] = ['bm.organization_id = $1'];
+        const queryParams: any[] = [authReq.user.activeOrganizationId];
+        let paramIndex = 2;
+
+        // Add search filter (case-insensitive filename search)
+        if (search && search.trim()) {
+          whereConditions.push(`LOWER(bm.filename) LIKE LOWER($${paramIndex})`);
+          queryParams.push(`%${search.trim()}%`);
+          paramIndex++;
+        }
+
+        // Add status filter
+        if (status && status.toLowerCase() !== 'all') {
+          whereConditions.push(`bm.status = $${paramIndex}`);
+          queryParams.push(status.toLowerCase());
+          paramIndex++;
+        }
+
+        // Add source filter
+        if (source && source.toLowerCase() !== 'all') {
+          whereConditions.push(`bm.source = $${paramIndex}`);
+          queryParams.push(source);
+          paramIndex++;
+        }
+
+        const whereClause = whereConditions.join(' AND ');
+
         const documentsResult = await client.query(`
           SELECT
             bm.id,
@@ -570,14 +603,14 @@ router.get('/', authenticateUser, async (req, res) => {
               ELSE 'binary'
             END as content_type
           FROM blob_metadata bm
-          WHERE bm.organization_id = $1
+          WHERE ${whereClause}
           ORDER BY ${sortField} ${sortOrder}
-          LIMIT $2 OFFSET $3
-        `, [authReq.user.activeOrganizationId, limit, offset]);
+          LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
+        `, [...queryParams, limit, offset]);
 
         const countResult = await client.query(
-          'SELECT COUNT(*) as total FROM blob_metadata WHERE organization_id = $1',
-          [authReq.user.activeOrganizationId]
+          `SELECT COUNT(*) as total FROM blob_metadata bm WHERE ${whereClause}`,
+          queryParams
         );
 
         return {

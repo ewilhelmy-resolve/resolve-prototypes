@@ -50,12 +50,14 @@ import {
 import { SOURCE_METADATA } from "@/constants/connectionSources";
 import {
 	type FileDocument,
+	fileKeys,
 	useDeleteFile,
 	useDownloadFile,
 	useFiles,
 	useReprocessFile,
 	useUploadFile,
 } from "@/hooks/api/useFiles";
+import { useQueryClient } from "@tanstack/react-query";
 import { useDataSources } from "@/hooks/useDataSources";
 import {
 	FILE_SOURCE,
@@ -133,7 +135,8 @@ type SortOrder = "asc" | "desc";
 const PAGE_SIZE = 50;
 
 export default function FilesV1Content() {
-	const [searchQuery, setSearchQuery] = useState("");
+	const [searchInput, setSearchInput] = useState(""); // User's input (immediate)
+	const [searchQuery, setSearchQuery] = useState(""); // Debounced value (for API)
 	const [statusFilter, setStatusFilter] = useState("All");
 	const [sourceFilter, setSourceFilter] = useState("All");
 	const [selectedFiles, setSelectedFiles] = useState<Set<string>>(new Set());
@@ -143,15 +146,29 @@ export default function FilesV1Content() {
 	const [sortField, setSortField] = useState<SortField>("created_at");
 	const [sortOrder, setSortOrder] = useState<SortOrder>("desc");
 	const [page, setPage] = useState(0);
+	const [uploadingFiles, setUploadingFiles] = useState<Set<string>>(new Set());
 	const fileInputRef = useRef<HTMLInputElement>(null);
 	const navigate = useNavigate();
+	const queryClient = useQueryClient();
 
-	// API-level sorting and pagination
+	// Debounce search input - wait 500ms after user stops typing
+	useEffect(() => {
+		const timer = setTimeout(() => {
+			setSearchQuery(searchInput);
+		}, 500);
+
+		return () => clearTimeout(timer);
+	}, [searchInput]);
+
+	// API-level sorting, pagination, and filtering
 	const { data: filesData, isLoading, error } = useFiles({
 		limit: PAGE_SIZE,
 		offset: page * PAGE_SIZE,
 		sortBy: sortField,
 		sortOrder,
+		search: searchQuery,
+		status: statusFilter !== "All" ? statusFilter : undefined,
+		source: sourceFilter !== "All" ? getSourceDatabaseValue(sourceFilter) : undefined,
 	});
 	const { data: dataSourcesData } = useDataSources();
 	const uploadFileMutation = useUploadFile();
@@ -179,6 +196,11 @@ export default function FilesV1Content() {
 		}
 	}, [error]);
 
+	// Reset to page 0 when filters change
+	useEffect(() => {
+		setPage(0);
+	}, [searchQuery, statusFilter, sourceFilter]);
+
 	// Handle sorting - resets to page 0 on sort change
 	const handleSort = (field: SortField) => {
 		if (sortField === field) {
@@ -192,24 +214,13 @@ export default function FilesV1Content() {
 		setPage(0); // Reset to first page on sort change
 	};
 
-	// Client-side filtering (fallback for search/status/source filters)
-	const filteredFiles = files.filter((file) => {
-		const matchesSearch = file.filename
-			.toLowerCase()
-			.includes(searchQuery.toLowerCase());
-		const matchesStatus =
-			statusFilter === "All" || file.status === statusFilter.toLowerCase();
-		const matchesSource =
-			sourceFilter === "All" ||
-			file.source === getSourceDatabaseValue(sourceFilter);
-		return matchesSearch && matchesStatus && matchesSource;
-	});
-
-	// Use filtered files directly (API handles sorting)
-	const sortedFiles = filteredFiles;
+	// Server-side filtering - no client-side filtering needed
+	// Files returned from API are already filtered
+	const sortedFiles = files;
 
 	// Pagination handlers
-	const hasNextPage = page * PAGE_SIZE + files.length < totalFiles;
+	// Check if there's a next page based on total files from API
+	const hasNextPage = (page + 1) * PAGE_SIZE < totalFiles;
 	const hasPrevPage = page > 0;
 
 	const handleNextPage = () => {
@@ -306,51 +317,80 @@ export default function FilesV1Content() {
 		fileInputRef.current?.click();
 	};
 
-	const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-		if (e.target.files?.[0]) {
-			const selectedFile = e.target.files[0];
+	const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+		const files = e.target.files;
+		if (!files || files.length === 0) return;
 
+		const filesToUpload = Array.from(files);
+		let successCount = 0;
+		let errorCount = 0;
+		const errors: string[] = [];
+
+		// Show initial toast
+		ritaToast.info({
+			title: "Uploading Files",
+			description: `Starting upload of ${filesToUpload.length} file${filesToUpload.length > 1 ? 's' : ''}...`,
+		});
+
+		// Process each file
+		for (const file of filesToUpload) {
 			// Validate file type before upload
-			const validation = validateFileForUpload(selectedFile);
+			const validation = validateFileForUpload(file);
 			if (!validation.isValid && validation.error) {
-				ritaToast.error(validation.error);
-				// Reset file input
-				if (fileInputRef.current) {
-					fileInputRef.current.value = "";
-				}
-				return;
+				errorCount++;
+				errors.push(`${file.name}: ${validation.error.description}`);
+				continue;
 			}
 
-			uploadFileMutation.mutate(selectedFile, {
-				onSuccess: () => {
-					ritaToast.success({
-						title: "File Uploaded",
-						description:
-							"Document uploaded successfully and processing started",
-					});
-					// Reset file input to allow re-selection
-					if (fileInputRef.current) {
-						fileInputRef.current.value = "";
-					}
-				},
-				onError: (error: any) => {
-					// Handle duplicate file (409 Conflict)
-					if (error.status === 409 && error.data?.existing_filename) {
-						ritaToast.error({
-							title: "File Already Uploaded",
-							description: `This file already exists as "${error.data.existing_filename}"`,
-						});
-					} else {
-						ritaToast.error({
-							title: "Upload Failed",
-							description: error.message || "Failed to upload document",
-						});
-					}
-					// Reset file input to allow new selection
-					if (fileInputRef.current) {
-						fileInputRef.current.value = "";
-					}
-				},
+			// Track uploading state
+			setUploadingFiles((prev) => new Set(prev).add(file.name));
+
+			try {
+				await uploadFileMutation.mutateAsync(file);
+				successCount++;
+			} catch (error: any) {
+				errorCount++;
+				// Handle duplicate file (409 Conflict)
+				if (error.status === 409 && error.data?.existing_filename) {
+					errors.push(`${file.name}: Already exists as "${error.data.existing_filename}"`);
+				} else {
+					errors.push(`${file.name}: ${error.message || "Upload failed"}`);
+				}
+			} finally {
+				// Remove from uploading state
+				setUploadingFiles((prev) => {
+					const next = new Set(prev);
+					next.delete(file.name);
+					return next;
+				});
+			}
+		}
+
+		// Reset file input to allow re-selection
+		if (fileInputRef.current) {
+			fileInputRef.current.value = "";
+		}
+
+		// Invalidate files query cache if any files were uploaded successfully
+		if (successCount > 0) {
+			queryClient.invalidateQueries({ queryKey: fileKeys.lists() });
+		}
+
+		// Show final summary toast
+		if (successCount > 0 && errorCount === 0) {
+			ritaToast.success({
+				title: "Upload Complete",
+				description: `Successfully uploaded ${successCount} file${successCount > 1 ? 's' : ''}`,
+			});
+		} else if (successCount > 0 && errorCount > 0) {
+			ritaToast.warning({
+				title: "Upload Partially Complete",
+				description: `${successCount} succeeded, ${errorCount} failed. Check details for errors.`,
+			});
+		} else if (errorCount > 0) {
+			ritaToast.error({
+				title: "Upload Failed",
+				description: errors.length > 0 ? errors[0] : "All uploads failed",
 			});
 		}
 	};
@@ -468,9 +508,16 @@ export default function FilesV1Content() {
 						</DropdownMenuTrigger>
 						<DropdownMenuContent align="end">
 							{/* Upload file option */}
-							<DropdownMenuItem onClick={handleUploadClick}>
-								<Upload className="h-4 w-4 mr-2" />
-								Upload file
+							<DropdownMenuItem
+								onClick={handleUploadClick}
+								disabled={uploadingFiles.size > 0}
+							>
+								{uploadingFiles.size > 0 ? (
+									<Loader className="h-4 w-4 mr-2 animate-spin" />
+								) : (
+									<Upload className="h-4 w-4 mr-2" />
+								)}
+								{uploadingFiles.size > 0 ? `Uploading ${uploadingFiles.size} file${uploadingFiles.size > 1 ? 's' : ''}...` : 'Upload file'}
 							</DropdownMenuItem>
 
 							{/* Connect sources option */}
@@ -620,8 +667,8 @@ export default function FilesV1Content() {
 						<div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
 							<Input
 								placeholder="Search documents....."
-								value={searchQuery}
-								onChange={(e) => setSearchQuery(e.target.value)}
+								value={searchInput}
+								onChange={(e) => setSearchInput(e.target.value)}
 								className="max-w-sm"
 							/>
 							<div className="flex gap-4">
@@ -706,10 +753,10 @@ export default function FilesV1Content() {
 					)}
 
 					{/* Empty State */}
-					{!isLoading && filteredFiles.length === 0 ? (
+					{!isLoading && sortedFiles.length === 0 ? (
 						<EmptyFilesState
 							hasActiveFilters={
-								searchQuery !== "" ||
+								searchInput !== "" ||
 								statusFilter !== "All" ||
 								sourceFilter !== "All"
 							}
@@ -928,10 +975,16 @@ export default function FilesV1Content() {
 					)}
 
 					{/* Footer with Pagination */}
-					{!isLoading && filteredFiles.length > 0 && (
+					{!isLoading && sortedFiles.length > 0 && (
 						<div className="flex flex-col sm:flex-row justify-between items-center gap-4">
 							<p className="text-sm text-muted-foreground">
-								Showing {page * PAGE_SIZE + 1}-{Math.min((page + 1) * PAGE_SIZE, totalFiles)} of {totalFiles} articles
+								{searchInput || statusFilter !== "All" || sourceFilter !== "All" ? (
+									// Show filtered results info
+									<>Showing {sortedFiles.length} of {totalFiles} articles (filtered)</>
+								) : (
+									// Show pagination range when no filters
+									<>Showing {page * PAGE_SIZE + 1}-{Math.min((page + 1) * PAGE_SIZE, totalFiles)} of {totalFiles} articles</>
+								)}
 							</p>
 							<div className="flex items-center gap-2">
 								<Button
@@ -962,10 +1015,11 @@ export default function FilesV1Content() {
 			<input
 				ref={fileInputRef}
 				type="file"
+				multiple
 				className="hidden"
 				onChange={handleFileChange}
 				accept={SUPPORTED_DOCUMENT_TYPES}
-				disabled={uploadFileMutation.isPending}
+				disabled={uploadFileMutation.isPending || uploadingFiles.size > 0}
 			/>
 
 			{/* Delete Confirmation Dialog */}
