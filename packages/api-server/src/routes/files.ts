@@ -534,6 +534,20 @@ router.get('/', authenticateUser, async (req, res) => {
   try {
     const limit = parseInt(req.query.limit as string, 10) || 50;
     const offset = parseInt(req.query.offset as string, 10) || 0;
+    const sortBy = (req.query.sort_by as string) || 'created_at';
+    const sortOrder = (req.query.sort_order as string)?.toUpperCase() === 'ASC' ? 'ASC' : 'DESC';
+
+    // Validate and map sort fields to database columns
+    const sortFieldMap: Record<string, string> = {
+      'filename': 'bm.filename',
+      'size': 'bm.file_size',
+      'type': 'bm.mime_type',
+      'status': 'bm.status',
+      'source': 'bm.source',
+      'created_at': 'bm.created_at',
+    };
+
+    const sortField = sortFieldMap[sortBy] || 'bm.created_at';
 
     const result = await withOrgContext(
       authReq.user.id,
@@ -557,7 +571,7 @@ router.get('/', authenticateUser, async (req, res) => {
             END as content_type
           FROM blob_metadata bm
           WHERE bm.organization_id = $1
-          ORDER BY bm.created_at DESC
+          ORDER BY ${sortField} ${sortOrder}
           LIMIT $2 OFFSET $3
         `, [authReq.user.activeOrganizationId, limit, offset]);
 

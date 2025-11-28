@@ -206,8 +206,22 @@ export const fileApi = {
   },
 
   // List documents
-  listDocuments: (limit: number = 250) =>
-    apiRequest<{ documents: any[]; total: number; limit: number; offset: number }>(`/api/files?limit=${limit}`),
+  listDocuments: (
+    limit: number = 250,
+    offset: number = 0,
+    sortBy: string = 'created_at',
+    sortOrder: string = 'desc'
+  ) => {
+    const params = new URLSearchParams({
+      limit: limit.toString(),
+      offset: offset.toString(),
+      sort_by: sortBy,
+      sort_order: sortOrder,
+    });
+    return apiRequest<{ documents: any[]; total: number; limit: number; offset: number }>(
+      `/api/files?${params.toString()}`
+    );
+  },
 
   // Delete document
   deleteDocument: (documentId: string) =>

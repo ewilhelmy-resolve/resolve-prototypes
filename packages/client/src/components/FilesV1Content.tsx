@@ -19,7 +19,7 @@ import {
 	Upload,
 	Zap,
 } from "lucide-react";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { BulkActions } from "@/components/BulkActions";
 import ConfirmDialog from "@/components/dialogs/ConfirmDialog";
@@ -130,6 +130,8 @@ type SortField =
 	| "created_at";
 type SortOrder = "asc" | "desc";
 
+const PAGE_SIZE = 50;
+
 export default function FilesV1Content() {
 	const [searchQuery, setSearchQuery] = useState("");
 	const [statusFilter, setStatusFilter] = useState("All");
@@ -140,10 +142,17 @@ export default function FilesV1Content() {
 	const [bulkDeleteDialogOpen, setBulkDeleteDialogOpen] = useState(false);
 	const [sortField, setSortField] = useState<SortField>("created_at");
 	const [sortOrder, setSortOrder] = useState<SortOrder>("desc");
+	const [page, setPage] = useState(0);
 	const fileInputRef = useRef<HTMLInputElement>(null);
 	const navigate = useNavigate();
 
-	const { data: filesData, isLoading } = useFiles();
+	// API-level sorting and pagination
+	const { data: filesData, isLoading, error } = useFiles({
+		limit: PAGE_SIZE,
+		offset: page * PAGE_SIZE,
+		sortBy: sortField,
+		sortOrder,
+	});
 	const { data: dataSourcesData } = useDataSources();
 	const uploadFileMutation = useUploadFile();
 	const downloadFileMutation = useDownloadFile();
@@ -151,6 +160,7 @@ export default function FilesV1Content() {
 	const deleteFileMutation = useDeleteFile();
 
 	const files = filesData?.documents || [];
+	const totalFiles = filesData?.total || 0;
 	const dataSources = dataSourcesData || [];
 
 	// Filter synced sources (completed + enabled)
@@ -159,7 +169,17 @@ export default function FilesV1Content() {
 			source.last_sync_status === "completed" && source.enabled,
 	);
 
-	// Handle sorting
+	// Show error toast when API fails
+	useEffect(() => {
+		if (error) {
+			ritaToast.error({
+				title: "Failed to load files",
+				description: error instanceof Error ? error.message : "Unable to fetch files. Please try again.",
+			});
+		}
+	}, [error]);
+
+	// Handle sorting - resets to page 0 on sort change
 	const handleSort = (field: SortField) => {
 		if (sortField === field) {
 			// Toggle order if clicking same column
@@ -169,9 +189,10 @@ export default function FilesV1Content() {
 			setSortField(field);
 			setSortOrder("desc");
 		}
+		setPage(0); // Reset to first page on sort change
 	};
 
-	// Filter files
+	// Client-side filtering (fallback for search/status/source filters)
 	const filteredFiles = files.filter((file) => {
 		const matchesSearch = file.filename
 			.toLowerCase()
@@ -184,34 +205,26 @@ export default function FilesV1Content() {
 		return matchesSearch && matchesStatus && matchesSource;
 	});
 
-	// Sort filtered files
-	const sortedFiles = [...filteredFiles].sort((a, b) => {
-		let comparison = 0;
+	// Use filtered files directly (API handles sorting)
+	const sortedFiles = filteredFiles;
 
-		switch (sortField) {
-			case "filename":
-				comparison = a.filename.localeCompare(b.filename);
-				break;
-			case "size":
-				comparison = a.size - b.size;
-				break;
-			case "type":
-				comparison = a.type.localeCompare(b.type);
-				break;
-			case "status":
-				comparison = a.status.localeCompare(b.status);
-				break;
-			case "source":
-				comparison = (a.source || "").localeCompare(b.source || "");
-				break;
-			case "created_at":
-				comparison =
-					(a.created_at?.getTime() || 0) - (b.created_at?.getTime() || 0);
-				break;
+	// Pagination handlers
+	const hasNextPage = page * PAGE_SIZE + files.length < totalFiles;
+	const hasPrevPage = page > 0;
+
+	const handleNextPage = () => {
+		if (hasNextPage) {
+			setPage(page + 1);
+			setSelectedFiles(new Set()); // Clear selection on page change
 		}
+	};
 
-		return sortOrder === "asc" ? comparison : -comparison;
-	});
+	const handlePrevPage = () => {
+		if (hasPrevPage) {
+			setPage(page - 1);
+			setSelectedFiles(new Set()); // Clear selection on page change
+		}
+	};
 
 	// Calculate stats (currently hidden, but kept for future use)
 	// const totalDocs = filesData?.total || 0;
@@ -914,12 +927,32 @@ export default function FilesV1Content() {
 						</div>
 					)}
 
-					{/* Footer */}
+					{/* Footer with Pagination */}
 					{!isLoading && filteredFiles.length > 0 && (
-						<div className="flex justify-center">
+						<div className="flex flex-col sm:flex-row justify-between items-center gap-4">
 							<p className="text-sm text-muted-foreground">
-								{filteredFiles.length} Knowledge articles
+								Showing {page * PAGE_SIZE + 1}-{Math.min((page + 1) * PAGE_SIZE, totalFiles)} of {totalFiles} articles
 							</p>
+							<div className="flex items-center gap-2">
+								<Button
+									variant="outline"
+									size="sm"
+									onClick={handlePrevPage}
+									disabled={!hasPrevPage}
+								>
+									<ChevronDown className="h-4 w-4 rotate-90" />
+									Previous
+								</Button>
+								<Button
+									variant="outline"
+									size="sm"
+									onClick={handleNextPage}
+									disabled={!hasNextPage}
+								>
+									Next
+									<ChevronDown className="h-4 w-4 -rotate-90" />
+								</Button>
+							</div>
 						</div>
 					)}
 				</div>
