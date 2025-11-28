@@ -1,4 +1,5 @@
-import { Ban, Check, Loader, MoreHorizontal } from "lucide-react";
+import { Ban, Check, ChevronDown, Loader, MoreHorizontal } from "lucide-react";
+import { useEffect } from "react";
 import { BulkActions } from "@/components/BulkActions";
 import { CrashPage } from "@/components/CrashPage";
 import ConfirmDialog from "@/components/dialogs/ConfirmDialog";
@@ -32,6 +33,8 @@ import { useUsersTableState } from "@/hooks/useUsersTableState";
 import { formatDate, renderSortIcon } from "@/lib/table-utils";
 import type { OrganizationRole } from "@/types/member";
 
+const PAGE_SIZE = 50;
+
 export default function UsersTable() {
 	// Use custom hook for state management
 	const {
@@ -39,11 +42,17 @@ export default function UsersTable() {
 		setSelectedUsers,
 		handleSelectAll,
 		handleSelectUser,
+		searchInput,
+		setSearchInput,
 		searchQuery,
 		setSearchQuery,
+		statusFilter,
+		setStatusFilter,
 		sortBy,
 		sortOrder,
 		handleSort,
+		page,
+		setPage,
 		editingUser,
 		deletingUser,
 		setDeletingUser,
@@ -70,12 +79,23 @@ export default function UsersTable() {
 	const { data: profile } = useProfile();
 	const currentUserId = profile?.user.id;
 
-	// Fetch members from API
+	// Debounce search input - wait 500ms after user stops typing
+	useEffect(() => {
+		const timer = setTimeout(() => {
+			setSearchQuery(searchInput);
+		}, 500);
+
+		return () => clearTimeout(timer);
+	}, [searchInput, setSearchQuery]);
+
+	// Fetch members from API with server-side filtering, sorting, pagination
 	const { data, isLoading, error } = useMembers({
-		limit: 50,
-		offset: 0,
+		limit: PAGE_SIZE,
+		offset: page * PAGE_SIZE,
 		sortBy,
 		sortOrder,
+		search: searchQuery || undefined,
+		status: statusFilter !== "All" ? statusFilter : undefined,
 	});
 
 	// Mutations
@@ -83,23 +103,29 @@ export default function UsersTable() {
 	const { mutate: updateStatus } = useUpdateMemberStatus();
 	const { mutate: deleteMemberPermanent } = useDeleteMemberPermanent();
 
-	const allMembers = data?.members || [];
+	const members = data?.members || [];
+	const totalMembers = data?.total || 0;
 
-	// Client-side search filtering
-	const members = allMembers.filter((member) => {
-		if (!searchQuery.trim()) return true;
+	// Pagination calculations
+	const hasNextPage = (page + 1) * PAGE_SIZE < totalMembers;
+	const hasPrevPage = page > 0;
 
-		const query = searchQuery.toLowerCase();
-		const name =
-			`${member.firstName || ""} ${member.lastName || ""}`.toLowerCase();
-		const email = member.email.toLowerCase();
+	const handleNextPage = () => {
+		if (hasNextPage) {
+			setPage(page + 1);
+		}
+	};
 
-		return name.includes(query) || email.includes(query);
-	});
+	const handlePrevPage = () => {
+		if (hasPrevPage) {
+			setPage(page - 1);
+		}
+	};
 
 	// Check if a user is the last active owner in the organization
+	// Note: This uses the current page's members, but the backend validates this properly
 	const isLastActiveOwner = (userId: string): boolean => {
-		const activeOwners = allMembers.filter(
+		const activeOwners = members.filter(
 			(m) => m.role === "owner" && m.isActive
 		);
 		return activeOwners.length === 1 && activeOwners[0].id === userId;
@@ -264,13 +290,34 @@ export default function UsersTable() {
 		<>
 			<div className="flex flex-col gap-5">
 				{selectedUsers.length === 0 ? (
-					<div className="flex justify-between items-center py-4">
+					<div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 py-4">
 						<Input
 							placeholder="Search by name or email..."
 							className="max-w-sm"
-							value={searchQuery}
-							onChange={(e) => setSearchQuery(e.target.value)}
+							value={searchInput}
+							onChange={(e) => setSearchInput(e.target.value)}
 						/>
+						<div className="flex gap-4">
+							<DropdownMenu>
+								<DropdownMenuTrigger asChild>
+									<Button variant="outline">
+										Status: {statusFilter === "All" ? "All" : statusFilter === "active" ? "Active" : "Inactive"}
+										<ChevronDown className="h-4 w-4 ml-2" />
+									</Button>
+								</DropdownMenuTrigger>
+								<DropdownMenuContent>
+									<DropdownMenuItem onSelect={() => setStatusFilter("All")}>
+										All
+									</DropdownMenuItem>
+									<DropdownMenuItem onSelect={() => setStatusFilter("active")}>
+										Active
+									</DropdownMenuItem>
+									<DropdownMenuItem onSelect={() => setStatusFilter("inactive")}>
+										Inactive
+									</DropdownMenuItem>
+								</DropdownMenuContent>
+							</DropdownMenu>
+						</div>
 					</div>
 				) : (
 					<BulkActions
@@ -287,25 +334,52 @@ export default function UsersTable() {
 							<TableRow>
 								<TableHead className="w-8">
 									<Checkbox
-										checked={selectedUsers.length === members.length}
+										checked={selectedUsers.length === members.length && members.length > 0}
 										onCheckedChange={(checked) =>
 											handleSelectAll(checked as boolean, members)
 										}
 									/>
 								</TableHead>
-								<TableHead>Name</TableHead>
-								<TableHead>Status</TableHead>
 								<TableHead>
 									<Button
 										variant="ghost"
-										className="flex items-center gap-2"
+										className="flex items-center gap-2 -ml-3"
+										onClick={() => handleSort("name")}
+									>
+										Name
+										{renderSortIcon(sortBy, "name", sortOrder)}
+									</Button>
+								</TableHead>
+								<TableHead>
+								<Button
+									variant="ghost"
+									className="flex items-center gap-2 -ml-3"
+									onClick={() => handleSort("status")}
+								>
+									Status
+									{renderSortIcon(sortBy, "status", sortOrder)}
+								</Button>
+							</TableHead>
+								<TableHead>
+									<Button
+										variant="ghost"
+										className="flex items-center gap-2 -ml-3"
 										onClick={() => handleSort("role")}
 									>
 										Role
 										{renderSortIcon(sortBy, "role", sortOrder)}
 									</Button>
 								</TableHead>
-								<TableHead className="text-right">Conversations</TableHead>
+								<TableHead className="text-right">
+									<Button
+										variant="ghost"
+										className="flex items-center gap-2 ml-auto -mr-3"
+										onClick={() => handleSort("conversationsCount")}
+									>
+										Conversations
+										{renderSortIcon(sortBy, "conversationsCount", sortOrder)}
+									</Button>
+								</TableHead>
 								<TableHead className="text-right">
 									<Button
 										variant="ghost"
@@ -416,13 +490,36 @@ export default function UsersTable() {
 					</Table>
 				</div>
 
-				<div className="flex justify-between items-center py-4">
-					<p className="text-sm text-muted-foreground">
-						{members.length} User{members.length !== 1 ? "s" : ""}
-						{searchQuery && ` (filtered from ${allMembers.length})`}
-					</p>
-					{/* TODO: Add pagination when implementing */}
-				</div>
+				{/* Footer with Pagination */}
+				{!isLoading && members.length > 0 && (
+					<div className="flex flex-col sm:flex-row justify-between items-center gap-4 py-4">
+						<p className="text-sm text-muted-foreground">
+							{searchInput || statusFilter !== "All" ? (
+								<>Showing {members.length} of {totalMembers} users (filtered)</>
+							) : (
+								<>Showing {page * PAGE_SIZE + 1}-{Math.min((page + 1) * PAGE_SIZE, totalMembers)} of {totalMembers} users</>
+							)}
+						</p>
+						<div className="flex items-center gap-2">
+							<Button
+								variant="outline"
+								size="sm"
+								onClick={handlePrevPage}
+								disabled={!hasPrevPage}
+							>
+								Previous
+							</Button>
+							<Button
+								variant="outline"
+								size="sm"
+								onClick={handleNextPage}
+								disabled={!hasNextPage}
+							>
+								Next
+							</Button>
+						</div>
+					</div>
+				)}
 			</div>
 
 			{/* Edit User Sheet */}

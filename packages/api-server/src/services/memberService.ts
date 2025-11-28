@@ -38,11 +38,14 @@ export class MemberService {
       limit = 50,
       offset = 0,
       role,
+      status,
+      search,
       sortBy = 'joinedAt',
       sortOrder = 'desc'
     } = options;
 
-    // Build query with optional role filter and conversation counts
+    // Build query with optional filters and conversation counts
+    // Use computed display_name for proper sorting (combines first_name + last_name, falls back to email)
     let query = `
       SELECT
         up.user_id as id,
@@ -52,7 +55,8 @@ export class MemberService {
         om.role,
         om.is_active,
         om.joined_at,
-        COALESCE(conv_count.count, 0)::INTEGER as conversations_count
+        COALESCE(conv_count.count, 0)::INTEGER as conversations_count,
+        LOWER(COALESCE(NULLIF(TRIM(CONCAT(up.first_name, ' ', up.last_name)), ''), up.email)) as display_name
       FROM organization_members om
       INNER JOIN user_profiles up ON om.user_id = up.user_id
       LEFT JOIN (
@@ -72,9 +76,25 @@ export class MemberService {
       query += ` AND om.role = $${params.length}`;
     }
 
-    // Add sorting
-    const sortColumn = sortBy === 'email' ? 'up.email' :
+    // Add status filter if specified
+    if (status) {
+      const isActive = status === 'active';
+      params.push(isActive);
+      query += ` AND om.is_active = $${params.length}`;
+    }
+
+    // Add search filter if specified (search by email, firstName, lastName)
+    if (search && search.trim()) {
+      const searchPattern = `%${search.trim()}%`;
+      params.push(searchPattern);
+      query += ` AND (up.email ILIKE $${params.length} OR up.first_name ILIKE $${params.length} OR up.last_name ILIKE $${params.length} OR CONCAT(up.first_name, ' ', up.last_name) ILIKE $${params.length})`;
+    }
+
+    // Add sorting - use computed display_name column for name sorting
+    const sortColumn = sortBy === 'name' ? 'display_name' :
                        sortBy === 'role' ? 'om.role' :
+                       sortBy === 'status' ? 'om.is_active' :
+                       sortBy === 'conversationsCount' ? 'conversations_count' :
                        'om.joined_at';
     query += ` ORDER BY ${sortColumn} ${sortOrder.toUpperCase()}`;
 
@@ -84,10 +104,11 @@ export class MemberService {
 
     const result = await this.pool.query(query, params);
 
-    // Get total count (without pagination)
+    // Get total count (without pagination) - must include same filters
     let countQuery = `
       SELECT COUNT(*) as total
       FROM organization_members om
+      INNER JOIN user_profiles up ON om.user_id = up.user_id
       WHERE om.organization_id = $1
     `;
     const countParams: any[] = [organizationId];
@@ -95,6 +116,18 @@ export class MemberService {
     if (role) {
       countParams.push(role);
       countQuery += ` AND om.role = $${countParams.length}`;
+    }
+
+    if (status) {
+      const isActive = status === 'active';
+      countParams.push(isActive);
+      countQuery += ` AND om.is_active = $${countParams.length}`;
+    }
+
+    if (search && search.trim()) {
+      const searchPattern = `%${search.trim()}%`;
+      countParams.push(searchPattern);
+      countQuery += ` AND (up.email ILIKE $${countParams.length} OR up.first_name ILIKE $${countParams.length} OR up.last_name ILIKE $${countParams.length} OR CONCAT(up.first_name, ' ', up.last_name) ILIKE $${countParams.length})`;
     }
 
     const countResult = await this.pool.query(countQuery, countParams);

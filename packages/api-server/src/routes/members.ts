@@ -23,6 +23,8 @@ router.get('/', authenticateUser, requireRole(['owner', 'admin']), async (req, r
     // Parse query parameters
     const {
       role,
+      status,
+      search,
       limit = '50',
       offset = '0',
       sortBy = 'joinedAt',
@@ -37,10 +39,18 @@ router.get('/', authenticateUser, requireRole(['owner', 'admin']), async (req, r
       });
     }
 
-    // Validate sortBy
-    if (sortBy && !['email', 'role', 'joinedAt'].includes(sortBy as string)) {
+    // Validate status if provided
+    if (status && !['active', 'inactive'].includes(status as string)) {
       return res.status(400).json({
-        error: 'Invalid sortBy. Must be one of: email, role, joinedAt',
+        error: 'Invalid status. Must be one of: active, inactive',
+        code: 'INVALID_STATUS'
+      });
+    }
+
+    // Validate sortBy
+    if (sortBy && !['name', 'role', 'status', 'joinedAt', 'conversationsCount'].includes(sortBy as string)) {
+      return res.status(400).json({
+        error: 'Invalid sortBy. Must be one of: name, role, status, joinedAt, conversationsCount',
         code: 'INVALID_SORT'
       });
     }
@@ -55,9 +65,11 @@ router.get('/', authenticateUser, requireRole(['owner', 'admin']), async (req, r
 
     const result = await memberService.listMembers(organizationId, {
       role: role as OrganizationRole | undefined,
+      status: status as 'active' | 'inactive' | undefined,
+      search: search as string | undefined,
       limit: parseInt(limit as string, 10),
       offset: parseInt(offset as string, 10),
-      sortBy: sortBy as 'email' | 'role' | 'joinedAt',
+      sortBy: sortBy as 'name' | 'role' | 'joinedAt' | 'conversationsCount',
       sortOrder: sortOrder as 'asc' | 'desc'
     });
 

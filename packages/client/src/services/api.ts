@@ -321,6 +321,8 @@ export const memberApi = {
     const searchParams = new URLSearchParams();
 
     if (params?.role) searchParams.append('role', params.role);
+    if (params?.status) searchParams.append('status', params.status);
+    if (params?.search) searchParams.append('search', params.search);
     if (params?.limit) searchParams.append('limit', params.limit.toString());
     if (params?.offset) searchParams.append('offset', params.offset.toString());
     if (params?.sortBy) searchParams.append('sortBy', params.sortBy);
