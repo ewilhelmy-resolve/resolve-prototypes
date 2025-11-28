@@ -84,7 +84,7 @@ export class MemberService {
     }
 
     // Add search filter if specified (search by email, firstName, lastName)
-    if (search && search.trim()) {
+    if (search?.trim()) {
       const searchPattern = `%${search.trim()}%`;
       params.push(searchPattern);
       query += ` AND (up.email ILIKE $${params.length} OR up.first_name ILIKE $${params.length} OR up.last_name ILIKE $${params.length} OR CONCAT(up.first_name, ' ', up.last_name) ILIKE $${params.length})`;
@@ -124,7 +124,7 @@ export class MemberService {
       countQuery += ` AND om.is_active = $${countParams.length}`;
     }
 
-    if (search && search.trim()) {
+    if (search?.trim()) {
       const searchPattern = `%${search.trim()}%`;
       countParams.push(searchPattern);
       countQuery += ` AND (up.email ILIKE $${countParams.length} OR up.first_name ILIKE $${countParams.length} OR up.last_name ILIKE $${countParams.length} OR CONCAT(up.first_name, ' ', up.last_name) ILIKE $${countParams.length})`;
