@@ -90,7 +90,7 @@ Check `.env.example` files in each package for required configuration.
 - `npm run dev:api` - Start API server (port 3000)
 - `npm run dev:mock` - Start mock service
 - `npm run dev:theme` - Start Keycloak theme development
-- `npm run dev:iframe-demo` - Start iframe demo host (port 5174)
+- `npm run dev:iframe-app` - Start iframe app host (port 5174)
 - `npm test` - Run test suite
 - `npm run type-check` - Run TypeScript type checking across all packages
 - `npm run build` - Build API server and client for production
@@ -98,37 +98,48 @@ Check `.env.example` files in each package for required configuration.
 - `npm run lint` - Run linting across all packages
 - `docker compose up -d` - Start full stack with Docker
 
-### Iframe Embeddable Chat
+### Iframe Embeddable Chat (Public Guest Access)
 
-RITA Go includes an iframe-embeddable version for integration into external applications.
+RITA Go includes an iframe-embeddable version for integration into host pages on the same domain.
 
 **Key Features**:
 - Minimal UI (no sidebar, no navigation)
+- Public guest user access (no Keycloak login required)
 - Intent tracking via `intent-eid` parameter
 - Works without knowledge base files
-- Reuses all core chat components
+- Same-domain deployment provides security
 
 **Routes**:
-- `/iframe/chat` - New conversation
+- `/iframe/chat` - New public conversation
 - `/iframe/chat/:conversationId` - Existing conversation
 - `/iframe/chat?intent-eid=<value>` - With intent tracking
 
+**How it Works**:
+- All iframe users share a single `public-guest-user` account
+- Session created automatically on page load
+- No authentication UI or login required
+- Conversations isolated by `conversationId`
+
 **Quick Start**:
 ```bash
-# Terminal 1: Start client
+# Terminal 1: Start API server
+npm run dev:api
+
+# Terminal 2: Start client
 npm run dev:client
 
-# Terminal 2: Start demo
-npm run dev:iframe-demo
+# Terminal 3: Start iframe app host
+npm run dev:iframe-app
 # Opens http://localhost:5174
 ```
 
 **Documentation**: See `packages/client/IFRAME.md` for integration guide
 
-**Current Limitations**:
-- Requires Keycloak authentication (same-domain only)
-- No token-based auth yet (planned for staging deployment)
-- Intent-eid logged but not persisted to backend
+**Public User Restrictions** (future):
+- No file uploads
+- No data source connections
+- Limited conversation history
+- No org settings access
 
 ### Style & Reminders
 - Prefer TypeScript strict mode for all new code
