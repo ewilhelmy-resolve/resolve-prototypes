@@ -1,6 +1,6 @@
 # Technical Design Document: RITA Autopilot & Cluster Dashboard
 
-**Status:** Draft v1.10
+**Status:** Draft v1.11
 **Date:** December 1, 2025
 **Feature:** Continuous ITSM Ingestion, Live Dashboard, & Cluster Management
 
@@ -104,9 +104,9 @@ sequenceDiagram
         RC-->>User: UI UNLOCKED. Cards appear.<br/>Badge says "Analyzing..."
     end
 
-    Note over WP, DB: PHASE 4: Async Enrichment (WF owns writes)
+    Note over WP, DB: PHASE 4: Async Enrichment
+    Note right of WP: Triggers:<br/>1. After ingestion (auto)<br/>2. Webhook: refresh_enrichment_clusters<br/>3. Scheduled cron
     rect rgb(240, 248, 255)
-        Note right of WP: Background Process (Knowledge Base Search)
         WP->>WP: Deep Search Knowledge Base
 
         activate WP
@@ -337,6 +337,37 @@ erDiagram
 
 **Response:** HTTP 200 (synchronous acknowledgment)
 **Result:** Arrives asynchronously via RabbitMQ `ingestion_notification` queue
+
+---
+
+#### Refresh Enrichment Webhook (Autopilot)
+
+**Webhook:** Workflow Platform
+**Action:** `refresh_enrichment_clusters`
+**Purpose:** Trigger KB enrichment refresh for specific clusters or all clusters
+
+```json
+{
+  "source": "rita-chat",
+  "action": "refresh_enrichment_clusters",
+  "tenant_id": "org-uuid-123",
+  "user_id": "user-uuid-456",
+  "cluster_ids": ["cluster-uuid-1", "cluster-uuid-2"],
+  "timestamp": "2025-12-01T10:00:00Z"
+}
+```
+
+**cluster_ids:**
+- Array of cluster UUIDs to refresh
+- Empty array `[]` = refresh all clusters for tenant
+
+**Trigger Sources:**
+- Manual user action (UI button)
+- Scheduled cron job
+- Post-ingestion automatic trigger
+
+**Response:** HTTP 200 (synchronous acknowledgment)
+**Result:** Arrives asynchronously via RabbitMQ `enrichment_notification` queue
 
 ---
 
@@ -1213,6 +1244,13 @@ DROP TABLE IF EXISTS clusters CASCADE;
 -----
 
 ## Changelog
+
+### v1.11 (December 1, 2025)
+**Enrichment Trigger Options**
+
+- **Added:** `refresh_enrichment_clusters` webhook action for manual/scheduled KB refresh
+- **Added:** PHASE 4 now supports multiple triggers: auto (post-ingestion), webhook, cron
+- **Added:** `cluster_ids` array parameter (empty = all clusters)
 
 ### v1.10 (December 1, 2025)
 **Schema Updates (Migration 139)**
