@@ -63,7 +63,7 @@ export function useFiles(params: FilesQueryParams = {}) {
         offset: response.offset
       }
     },
-    staleTime: 1000 * 60 * 5, // 5 minutes
+    staleTime: 1000 * 30, // 30 seconds - shorter for better UX after mutations
   })
 }
 
@@ -88,8 +88,8 @@ export function useUploadFile() {
       }
     },
     onSuccess: () => {
-      // Invalidate files list to refresh it
-      queryClient.invalidateQueries({ queryKey: fileKeys.lists() })
+      // Invalidate files list and force immediate refetch
+      queryClient.invalidateQueries({ queryKey: fileKeys.lists(), refetchType: 'active' })
     },
   })
 }
@@ -115,8 +115,8 @@ export function useCreateContent() {
       }
     },
     onSuccess: () => {
-      // Invalidate files list to refresh it
-      queryClient.invalidateQueries({ queryKey: fileKeys.lists() })
+      // Invalidate files list and force immediate refetch
+      queryClient.invalidateQueries({ queryKey: fileKeys.lists(), refetchType: 'active' })
     },
   })
 }
@@ -156,8 +156,8 @@ export function useDeleteFile() {
       return response
     },
     onSuccess: () => {
-      // Invalidate files list to refresh it
-      queryClient.invalidateQueries({ queryKey: fileKeys.lists() })
+      // Invalidate files list and force immediate refetch
+      queryClient.invalidateQueries({ queryKey: fileKeys.lists(), refetchType: 'active' })
     },
   })
 }
@@ -172,8 +172,8 @@ export function useReprocessFile() {
       return response
     },
     onSuccess: () => {
-      // Invalidate files list to refresh it
-      queryClient.invalidateQueries({ queryKey: fileKeys.lists() })
+      // Invalidate files list and force immediate refetch
+      queryClient.invalidateQueries({ queryKey: fileKeys.lists(), refetchType: 'active' })
     },
   })
 }

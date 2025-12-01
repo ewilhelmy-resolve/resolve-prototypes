@@ -335,7 +335,12 @@ export default function FilesV1Content() {
 		fileInputRef.current?.click();
 	};
 
+	const cleanFilter = () => {
+		setSearchInput("");
+	};
+
 	const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+		cleanFilter();
 		const files = e.target.files;
 		if (!files || files.length === 0) return;
 
@@ -412,7 +417,7 @@ export default function FilesV1Content() {
 
 		// Invalidate files query cache if any files were uploaded successfully
 		if (successCount > 0) {
-			queryClient.invalidateQueries({ queryKey: fileKeys.lists() });
+			queryClient.invalidateQueries({ queryKey: fileKeys.lists(), refetchType: 'active' });
 		}
 
 		// Initialize processing tracking in sessionStorage for SSE summary toast
