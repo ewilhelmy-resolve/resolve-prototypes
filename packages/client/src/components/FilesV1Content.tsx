@@ -412,7 +412,7 @@ export default function FilesV1Content() {
 
 		// Invalidate files query cache if any files were uploaded successfully
 		if (successCount > 0) {
-			queryClient.invalidateQueries({ queryKey: fileKeys.lists() });
+			queryClient.invalidateQueries({ queryKey: fileKeys.lists(), refetchType: 'active' });
 		}
 
 		// Initialize processing tracking in sessionStorage for SSE summary toast
