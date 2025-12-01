@@ -91,8 +91,9 @@ export class IframeService {
 
   /**
    * Validate instantiation and setup public session + conversation
+   * If existingConversationId provided, skip conversation creation (session-only mode)
    */
-  async validateAndSetup(intentEid?: string): Promise<{
+  async validateAndSetup(intentEid?: string, existingConversationId?: string): Promise<{
     valid: boolean;
     publicUserId: string;
     conversationId: string;
@@ -101,11 +102,13 @@ export class IframeService {
     // Create session for public user
     const { session, cookie } = await this.createPublicSession();
 
-    // Create conversation
-    const { conversationId } = await this.createPublicConversation(intentEid);
+    // Use existing conversation or create new one
+    const conversationId = existingConversationId
+      ? existingConversationId
+      : (await this.createPublicConversation(intentEid)).conversationId;
 
     logger.info(
-      { conversationId, intentEid, sessionId: session.sessionId },
+      { conversationId, intentEid, sessionId: session.sessionId, existingConversation: !!existingConversationId },
       'Iframe instantiation complete'
     );
 

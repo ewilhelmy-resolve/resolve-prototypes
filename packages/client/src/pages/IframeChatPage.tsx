@@ -13,7 +13,7 @@
  * 4. Render chat with SSE (session cookie enables SSE)
  */
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
 import ChatV1Content from "../components/chat/ChatV1Content";
 import IframeChatLayout from "../components/layouts/IframeChatLayout";
@@ -68,26 +68,26 @@ export default function IframeChatPage() {
 
 	const apiUrl = import.meta.env.VITE_API_URL || "";
 	const { setCurrentConversation } = useConversationStore();
+	const initRef = useRef(false);
 
-	// Initialize public session and conversation on mount
+	// Initialize public session on mount (always required for auth)
 	useEffect(() => {
-		async function initializeIframe() {
-			// If we have a conversationId in URL, assume session already exists
-			if (urlConversationId) {
-				setConversationId(urlConversationId);
-				setCurrentConversation(urlConversationId); // Set store immediately
-				setSessionReady(true);
-				setIsLoading(false);
-				return;
-			}
+		// Guard against StrictMode double-mount
+		if (initRef.current) return;
+		initRef.current = true;
 
+		async function initializeIframe() {
 			try {
 				console.log("[IframeChatPage] Initializing public session...", {
 					intentEid,
+					existingConversationId: urlConversationId,
 				});
 
+				// Always call validate-instantiation to get session cookie
+				// Pass existing conversationId to skip creating a new one
 				const response = await iframeApi.validateInstantiation({
 					intentEid: intentEid || undefined,
+					existingConversationId: urlConversationId,
 				});
 
 				if (response.valid && response.conversationId) {
@@ -96,7 +96,7 @@ export default function IframeChatPage() {
 						publicUserId: response.publicUserId,
 					});
 					setConversationId(response.conversationId);
-					setCurrentConversation(response.conversationId); // Set store immediately
+					setCurrentConversation(response.conversationId);
 					setSessionReady(true);
 				} else {
 					setError(response.error || "Failed to initialize session");

@@ -13,10 +13,10 @@ const router = express.Router();
  */
 router.post('/validate-instantiation', async (req, res) => {
   try {
-    const { intentEid } = req.body;
+    const { intentEid, existingConversationId } = req.body;
 
     const iframeService = getIframeService();
-    const result = await iframeService.validateAndSetup(intentEid);
+    const result = await iframeService.validateAndSetup(intentEid, existingConversationId);
 
     // Set session cookie
     res.setHeader('Set-Cookie', result.cookie);
