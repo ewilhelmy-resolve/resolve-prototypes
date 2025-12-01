@@ -31,15 +31,8 @@ function IframeChatContent({
 	conversationId: string;
 }) {
 	const { latestUpdate } = useSSEContext();
-	const { updateMessage, setCurrentConversation } = useConversationStore();
+	const { updateMessage } = useConversationStore();
 	const ritaChatState = useRitaChat();
-
-	// Set conversation ID
-	useEffect(() => {
-		if (conversationId) {
-			setCurrentConversation(conversationId);
-		}
-	}, [conversationId, setCurrentConversation]);
 
 	// Handle SSE message updates
 	useEffect(() => {
@@ -51,7 +44,14 @@ function IframeChatContent({
 		}
 	}, [latestUpdate, updateMessage]);
 
-	return <ChatV1Content {...ritaChatState} requireKnowledgeBase={false} />;
+	// Override currentConversationId from props (ensures it's set before first message)
+	return (
+		<ChatV1Content
+			{...ritaChatState}
+			currentConversationId={conversationId}
+			requireKnowledgeBase={false}
+		/>
+	);
 }
 
 export default function IframeChatPage() {
@@ -67,6 +67,7 @@ export default function IframeChatPage() {
 	const [sessionReady, setSessionReady] = useState(false);
 
 	const apiUrl = import.meta.env.VITE_API_URL || "";
+	const { setCurrentConversation } = useConversationStore();
 
 	// Initialize public session and conversation on mount
 	useEffect(() => {
@@ -74,6 +75,7 @@ export default function IframeChatPage() {
 			// If we have a conversationId in URL, assume session already exists
 			if (urlConversationId) {
 				setConversationId(urlConversationId);
+				setCurrentConversation(urlConversationId); // Set store immediately
 				setSessionReady(true);
 				setIsLoading(false);
 				return;
@@ -94,6 +96,7 @@ export default function IframeChatPage() {
 						publicUserId: response.publicUserId,
 					});
 					setConversationId(response.conversationId);
+					setCurrentConversation(response.conversationId); // Set store immediately
 					setSessionReady(true);
 				} else {
 					setError(response.error || "Failed to initialize session");
@@ -107,7 +110,7 @@ export default function IframeChatPage() {
 		}
 
 		initializeIframe();
-	}, [urlConversationId, intentEid]);
+	}, [urlConversationId, intentEid, setCurrentConversation]);
 
 	// Loading state
 	if (isLoading) {
