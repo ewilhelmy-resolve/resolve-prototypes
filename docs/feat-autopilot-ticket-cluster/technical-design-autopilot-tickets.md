@@ -1,7 +1,7 @@
 # Technical Design Document: RITA Autopilot & Cluster Dashboard
 
-**Status:** Draft v1.6
-**Date:** November 26, 2025
+**Status:** Draft v1.10
+**Date:** December 1, 2025
 **Feature:** Continuous ITSM Ingestion, Live Dashboard, & Cluster Management
 
 -----
@@ -12,11 +12,10 @@ This document outlines the architecture for the RITA Autopilot Dashboard. The sy
 
 **Key Architectural Decisions:**
 
-* **Workflow Platform Direct DB Access:** WF writes directly to PostgreSQL for autopilot tables (clusters, tickets, knowledge_articles, analytics_cluster_daily, ingestion_runs). Rita receives lightweight RabbitMQ notifications for SSE emission only - no DB writes in Rita consumers.
+* **Workflow Platform Direct DB Access:** WF writes directly to PostgreSQL for autopilot tables (clusters, tickets, knowledge_articles, ingestion_runs). Rita receives lightweight RabbitMQ notifications for SSE emission only.
 * **Event-Driven Architecture:** Decouples the User Interface (Rita Client) from the heavy AI processing (Workflow Platform).
 * **Command-Query Separation:** The App triggers actions, but the Workflow Platform acts as the "Source of Truth" for cluster definitions AND owns data writes.
 * **Two-Speed UX:** "Core Data" (Tickets) loads immediately to unlock the UI, while "Enrichment" (Knowledge Base analysis) occurs asynchronously in the background.
-* **Pre-Aggregated Metrics:** Uses a "Daily Bucket" pattern to ensure dashboard charts render instantly regardless of date range selection.
 
 ### Implementation Prerequisites
 
@@ -32,12 +31,13 @@ Before implementing this feature, the following codebase changes are required:
 
 ### 2.1 The Flow
 
-1.  **Command:** User triggers a sync via **Rita Backend**.
-2.  **Process:** **Workflow Platform** fetches data from ITSM tools (ServiceNow/Jira), performs AI clustering, and assigns stable Cluster IDs.
-3.  **Write:** **Workflow Platform** writes directly to PostgreSQL (clusters, tickets, analytics, ingestion_runs) using `organization_id` filtering.
-4.  **Notify:** **Workflow Platform** publishes lightweight notification to RabbitMQ (no full data payload).
-5.  **SSE:** **Rita Backend** consumes notification and emits SSE event to client (no DB writes).
-6.  **Query:** **Rita Client** reads from optimized PostgreSQL tables and receives real-time updates via Server-Sent Events (SSE).
+1.  **Command:** User triggers sync via **Rita Backend** (with `rebuild_model` flag).
+2.  **Workflow 1 (Ticket Pull):** **WF** fetches tickets from ITSM → writes to DB with `cluster_id=NULL` (unclassified).
+3.  **Workflow 2 (Classification):** **WF** classifies tickets using existing or new model (based on `rebuild_model` flag) → assigns `cluster_id`.
+4.  **Write:** **WF** writes clusters, ticket assignments to PostgreSQL using `organization_id` filtering.
+5.  **Notify:** **WF** publishes lightweight `ingestion_notification` to RabbitMQ.
+6.  **SSE:** **Rita Backend** consumes notification → emits SSE event to client.
+7.  **Query:** **Rita Client** reads from PostgreSQL and receives real-time updates via SSE.
 
 ### 2.2 Sequence Diagram
 
@@ -52,9 +52,8 @@ sequenceDiagram
     participant WP as Workflow Platform
     participant ITSM as ServiceNow/Jira
 
-    Note over User, RB: PHASE 1: The Trigger (with Auth & Audit)
+    Note over User, RB: PHASE 1: The Trigger
     User->>RC: Click "Sync Tickets"
-    Note right of User: User authenticated via Keycloak JWT
     RC->>RB: POST /api/ingest/trigger<br/>{Authorization: Bearer JWT}
 
     Note right of RB: Extract user_id & active_organization_id<br/>from JWT + user_profiles table
@@ -62,67 +61,69 @@ sequenceDiagram
     RB->>DB: INSERT ingestion_runs<br/>(organization_id, started_by, status='pending')
     Note right of RB: Log audit: trigger_ticket_sync<br/>(user_id, organization_id, ingestion_run_id)
 
-    RB->>WP: POST webhook<br/>source: 'rita-chat'<br/>action: 'sync_tickets'<br/>tenant_id, user_id, user_email<br/>connection_id, connection_type: 'servicenow'|'jira'<br/>ingestion_run_id
+    RB->>WP: POST webhook<br/>source: 'rita-chat'<br/>action: 'sync_tickets'<br/>tenant_id, user_id, user_email<br/>connection_id, connection_type<br/>ingestion_run_id, rebuild_model: false
     RB-->>RC: 200 OK {ingestion_run_id, status: "SYNCING"}
     RC-->>User: UI shows Progress Bar (Locked)
 
-    Note over WP, ITSM: PHASE 2: Ingestion & Sorting
-    WP->>ITSM: Fetch Batch (Mixed Topics)
+    Note over WP, ITSM: PHASE 2a: Ticket Pull Workflow
+    WP->>ITSM: Fetch Batch 
     ITSM-->>WP: Return Raw Tickets
-    WP->>WP: AI Sorts Tickets (Assigns Stable Cluster IDs)
 
-    Note over WP, DB: PHASE 3: Direct DB Write (WF owns writes)
     activate WP
-    Note right of WP: WF has direct PostgreSQL connection
-    Note right of WP: BEGIN TRANSACTION
+    WP->>DB: UPSERT tickets with cluster_id=NULL<br/>(organization_id, external_id, subject, cluster_text, source_metadata)<br/>WHERE organization_id = $tenant_id
+    Note right of WP: COMMIT - Tickets stored as unclassified
+    deactivate WP
 
-    loop For Each Group in Batch
-        WP->>DB: UPSERT clusters<br/>(organization_id, external_cluster_id, name, config)<br/>WHERE organization_id = $tenant_id
-        WP->>DB: UPSERT tickets<br/>(organization_id, cluster_id, external_id, source_metadata)<br/>WHERE organization_id = $tenant_id
-        WP->>DB: UPSERT analytics_cluster_daily<br/>(organization_id, cluster_id, day, total_tickets)
+    Note over WP, DB: PHASE 2b: Classification Workflow
+    activate WP
+    alt rebuild_model = true
+        WP->>WP: Train new classification model
+    else rebuild_model = false
+        WP->>WP: Load existing model
+    end
+    WP->>WP: Classify tickets → assign cluster IDs
+
+    loop For Each Cluster
+        WP->>DB: UPSERT clusters<br/>(organization_id, external_cluster_id, name, config)
+        WP->>DB: UPDATE tickets SET cluster_id<br/>WHERE organization_id = $tenant_id AND external_id IN (...)
     end
 
     WP->>DB: UPDATE ingestion_runs<br/>SET status='completed', records_processed=N<br/>WHERE id = $ingestion_run_id
-    Note right of WP: COMMIT TRANSACTION
     deactivate WP
 
-    Note over WP, MQ: PHASE 3b: Lightweight Notification
+    Note over WP, MQ: PHASE 3: Lightweight Notification
     WP->>MQ: Publish `ingestion_notification`<br/>{type, tenant_id, user_id, ingestion_run_id, status, records_processed}
-    Note right of WP: Notification only - NO full data payload
 
     MQ->>RB: Consume Notification
     activate RB
-    Note right of RB: NO database writes<br/>SSE emission only
     RB--)RC: SSE Event: `ingestion_run_update`<br/>{ingestion_run_id, status: 'completed', records_processed}
     deactivate RB
 
     critical UX UNLOCK
-    RC->>RB: GET /api/dashboard/clusters<br/>(filtered by organization_id via RLS)
-    RC-->>User: UI UNLOCKED. Cards appear.<br/>Badge says "Analyzing..."
+        RC->>RB: GET /api/dashboard/clusters<br/>(filtered by organization_id via RLS)
+        RC-->>User: UI UNLOCKED. Cards appear.<br/>Badge says "Analyzing..."
     end
 
     Note over WP, DB: PHASE 4: Async Enrichment (WF owns writes)
     rect rgb(240, 248, 255)
-    Note right of WP: Background Process (Knowledge Base Search)
-    WP->>WP: Deep Search Knowledge Base
+        Note right of WP: Background Process (Knowledge Base Search)
+        WP->>WP: Deep Search Knowledge Base
 
-    activate WP
-    Note right of WP: BEGIN TRANSACTION
-    WP->>DB: UPDATE clusters<br/>SET kb_status='FOUND'<br/>WHERE organization_id = $tenant_id AND id = $cluster_id
-    WP->>DB: UPSERT knowledge_articles<br/>(organization_id, external_id, cluster_id, title, url, relevance_score)
-    Note right of WP: COMMIT TRANSACTION
-    deactivate WP
+        activate WP
+        WP->>DB: UPDATE clusters<br/>SET kb_status='FOUND'<br/>WHERE organization_id = $tenant_id AND id = $cluster_id
+        WP->>DB: UPSERT knowledge_articles<br/>(organization_id, external_id, cluster_id, title, url, relevance_score)
+        deactivate WP
 
-    WP->>MQ: Publish `enrichment_notification`<br/>{type, tenant_id, user_id, cluster_id, kb_status}
+        WP->>MQ: Publish `enrichment_notification`<br/>{type, tenant_id, user_id, cluster_id, kb_status}
 
-    MQ->>RB: Consume Notification
-    activate RB
-    Note right of RB: NO database writes<br/>SSE emission only
-    RB--)RC: SSE Event: `cluster_update`<br/>{cluster_id, kb_status: "FOUND"}
-    deactivate RB
+        MQ->>RB: Consume Notification
+        activate RB
+        RB--)RC: SSE Event: `cluster_update`<br/>{cluster_id, kb_status: "FOUND"}
+        deactivate RB
 
-    RC-->>User: Card "c1" badge updates to "Knowledge Found"
+        RC-->>User: Card "c1" badge updates to "Knowledge Found"
     end
+
 ```
 
 ### 2.3 ITSM Credential Setup
@@ -142,7 +143,6 @@ erDiagram
     %% Core Multi-Tenancy
     organizations ||--o{ clusters : "owns"
     organizations ||--o{ tickets : "owns"
-    organizations ||--o{ analytics_cluster_daily : "owns"
     organizations ||--o{ knowledge_articles : "owns"
     organizations ||--o{ ingestion_runs : "owns"
 
@@ -153,7 +153,6 @@ erDiagram
 
     %% Data Relationships
     clusters ||--o{ tickets : "contains"
-    clusters ||--o{ analytics_cluster_daily : "aggregates"
     clusters ||--o{ knowledge_articles : "linked_to"
 
     %% Data Source Integration (optional)
@@ -208,6 +207,7 @@ erDiagram
     clusters {
         uuid id PK "Auto-generated internal ID"
         uuid organization_id FK "organizations.id ON DELETE CASCADE"
+        uuid parent_cluster_id FK "clusters.id - NULL=top-level, 2 levels max"
         text external_cluster_id UK "Stable ID from Workflow Platform"
         string name "Dynamic AI Name"
         jsonb config "{auto_respond: boolean, auto_populate: boolean}"
@@ -223,11 +223,12 @@ erDiagram
     tickets {
         uuid id PK
         uuid organization_id FK "organizations.id ON DELETE CASCADE"
-        uuid cluster_id FK "clusters.id ON DELETE CASCADE"
+        uuid cluster_id FK "clusters.id ON DELETE SET NULL - NULL=unclassified"
         uuid data_source_connection_id FK "optional - for filtering by connection"
         string external_id "INC-123"
         string subject
         string external_status "Open, Closed, etc"
+        text cluster_text "Text for classification (set by ingestion)"
         text rita_status "NEEDS_RESPONSE|COMPLETED"
         boolean is_validation_sample "Flag for validation UI"
         text validation_result "PENDING|APPROVED|REJECTED"
@@ -236,17 +237,6 @@ erDiagram
         jsonb source_metadata "Raw ITSM properties from source system"
         timestamp created_at
         timestamp updated_at "auto-trigger"
-    }
-
-    analytics_cluster_daily {
-        uuid organization_id PK "FK organizations.id"
-        uuid cluster_id PK "FK clusters.id ON DELETE CASCADE"
-        date day PK
-        int total_tickets
-        int automated_count
-        int kb_gap_count "TBD - computation logic pending"
-        timestamp created_at
-        timestamp updated_at
     }
 
     knowledge_articles {
@@ -276,22 +266,6 @@ erDiagram
         timestamp created_at "also serves as started_at"
         timestamp updated_at
     }
-
-    credential_delegation_tokens {
-        uuid id PK
-        uuid organization_id FK "organizations.id ON DELETE CASCADE"
-        uuid created_by_user_id FK "user_profiles.user_id"
-        text admin_email "IT admin email (not Rita user)"
-        text itsm_system_type "servicenow|jira|confluence"
-        text delegation_token UK "64-char hex (32 bytes)"
-        timestamp token_expires_at "7 days default"
-        text status "pending|used|verified|expired|cancelled"
-        timestamp credentials_received_at "when IT admin submitted"
-        timestamp credentials_verified_at "when external service verified"
-        text last_verification_error
-        uuid connection_id FK "data_source_connections.id ON DELETE SET NULL"
-        timestamp created_at
-    }
 ```
 
 -----
@@ -318,6 +292,7 @@ erDiagram
   "ingestion_run_id": "run-uuid-789",
   "connection_id": "conn-uuid-abc",
   "connection_type": "servicenow",
+  "rebuild_model": false,
   "settings": {
     "instance_url": "https://company.service-now.com",
     "tables": ["incident", "kb_knowledge"],
@@ -341,20 +316,33 @@ erDiagram
 - Includes `ingestion_run_id` for autopilot tracking
 - Workflow Platform uses `connection_type` to determine ITSM-specific behavior
 
-**Workflow Platform Processing:**
+**rebuild_model Flag:**
+- `false` (default): Use existing trained classification model
+- `true`: Retrain/create new classification model before assigning clusters
+
+**Workflow Platform Processing (2-Workflow Architecture):**
+
+*Workflow 1: Ticket Pull*
 1. Looks up credentials using composite key: `(tenant_id, connection_id, connection_type)`
-2. Fetches tickets from ITSM system using stored credentials
-3. AI clustering engine groups tickets by similarity
-4. Publishes `ticket_batch_processed` message to RabbitMQ (see Section 4.2)
+2. Fetches tickets from ITSM system
+3. Writes tickets to DB with `cluster_id = NULL` (unclassified)
+4. Triggers Workflow 2
+
+*Workflow 2: Classification*
+1. If `rebuild_model=true`: Train new classification model
+2. If `rebuild_model=false`: Load existing model
+3. Classify tickets → assign `cluster_id`
+4. Write cluster assignments to DB
+5. Publishes `ingestion_notification` to RabbitMQ
 
 **Response:** HTTP 200 (synchronous acknowledgment)
-**Result:** Arrives asynchronously via RabbitMQ `ticket_batch_processed` queue
+**Result:** Arrives asynchronously via RabbitMQ `ingestion_notification` queue
 
 ---
 
 ### 4.2 RabbitMQ Payloads
 
-> **Architecture Note:** With Workflow Platform Direct DB Access, RabbitMQ messages are now lightweight notifications for SSE emission only. WF writes data directly to PostgreSQL, then publishes notification. Rita consumers emit SSE events without any database writes.
+> **Architecture Note:** RabbitMQ messages are lightweight notifications for SSE emission. WF writes data directly to PostgreSQL, then publishes notification.
 
 **Queue:** `ingestion_notification` (Phase 3b)
 *Purpose: Lightweight notification after WF completes direct DB writes. Rita consumer emits SSE only.*
@@ -372,7 +360,7 @@ erDiagram
 }
 ```
 
-**Rita Consumer Action:** Emit SSE `ingestion_run_update` event to user. NO database writes.
+**Rita Consumer Action:** Emit SSE `ingestion_run_update` event to user.
 
 ---
 
@@ -390,7 +378,7 @@ erDiagram
 }
 ```
 
-**Rita Consumer Action:** Emit SSE `cluster_update` event. NO database writes.
+**Rita Consumer Action:** Emit SSE `cluster_update` event.
 
 ---
 
@@ -409,7 +397,7 @@ erDiagram
 }
 ```
 
-**Rita Consumer Action:** Emit SSE `cluster_update` event with `kb_status`. NO database writes.
+**Rita Consumer Action:** Emit SSE `cluster_update` event with `kb_status`.
 
 ---
 
@@ -435,8 +423,8 @@ erDiagram
 #### Dashboard View
 
 * **`GET /api/dashboard/stats?range=30d`**
-    * Aggregates `analytics_cluster_daily` for user's active organization
-    * Returns: `{ total_tickets, automated_count, kb_gap_count, clusters_total, avg_automation_rate }`
+    * Aggregates metrics from tickets/clusters for user's active organization
+    * Returns: `{ total_tickets, automated_count, clusters_total, avg_automation_rate }`
     * Query: `WHERE organization_id = current_user.active_organization_id`
 
 * **`GET /api/dashboard/clusters?range=30d&sort=volume`**
@@ -490,7 +478,7 @@ erDiagram
         - connection_type: Determined by data_source_connections.type (servicenow, jira, confluence)
         - Includes: tenant_id, user_id, user_email, connection_id, ingestion_run_id, settings
         - Credentials NOT sent (Workflow Platform looks them up using composite key)
-        - Result arrives async via RabbitMQ `ingest.batch.processed` queue
+        - Result arrives async via RabbitMQ `ingestion_notification` queue
         - Failures logged to `rag_webhook_failures` table
         - Retry: 3 attempts with exponential backoff
     * Updates: `data_source_connections.status = 'syncing'` if data_source_connection_id provided
@@ -550,12 +538,9 @@ erDiagram
 
 **Consumer:** `IngestionNotificationConsumer.ts` (packages/api-server/src/consumers/)
 
-> **Architecture Note:** With WF Direct DB Access, this consumer is lightweight - it only emits SSE events. All database writes happen in Workflow Platform before the notification is published.
-
 1.  **Message Processing:**
     * Consume from queues: `ingestion_notification`, `cluster_notification`, `enrichment_notification`
     * Extract `tenant_id`, `user_id`, and event details from payload
-    * NO database writes - data already written by Workflow Platform
 
 2.  **SSE Emission:**
     * Map notification type to SSE event:
@@ -576,9 +561,6 @@ erDiagram
     async processMessage(message: IngestionNotification): Promise<void> {
       const { type, tenant_id, user_id, ingestion_run_id, status, records_processed } = message;
 
-      // NO database writes - WF already wrote to DB
-
-      // Emit SSE event only
       await this.sseService.sendToUser(user_id, tenant_id, {
         type: 'ingestion_run_update',
         data: {
@@ -611,28 +593,17 @@ WF now owns all autopilot data writes. Key patterns:
 
 3.  **Transaction Scope:**
     * Process entire batch in single Postgres transaction
-    * COMMIT only after all clusters, tickets, analytics, and ingestion_runs updated
+    * COMMIT only after all clusters, tickets, and ingestion_runs updated
     * ROLLBACK on critical failures
 
-4.  **Metric Updates (WF implements):**
-    ```sql
-    INSERT INTO analytics_cluster_daily (organization_id, cluster_id, day, total_tickets, automated_count, kb_gap_count)
-    VALUES ($1, $2, CURRENT_DATE, $3, $4, $5)
-    ON CONFLICT (organization_id, cluster_id, day)
-    DO UPDATE SET
-      total_tickets = analytics_cluster_daily.total_tickets + EXCLUDED.total_tickets,
-      automated_count = analytics_cluster_daily.automated_count + EXCLUDED.automated_count,
-      updated_at = NOW();
-    ```
-
-5.  **Ingestion Run Tracking (WF updates):**
+4.  **Ingestion Run Tracking (WF updates):**
     ```sql
     UPDATE ingestion_runs
     SET status = 'completed', records_processed = $2, completed_at = NOW()
     WHERE id = $1 AND organization_id = $tenant_id;
     ```
 
-6.  **After DB Commit - Publish Notification:**
+5.  **After DB Commit - Publish Notification:**
     * Only publish to RabbitMQ AFTER transaction commits successfully
     * Notification contains minimal data for SSE (no full payloads)
 
@@ -717,7 +688,7 @@ WF now owns all autopilot data writes. Key patterns:
 * **Incoming (WF Direct Write):** ITSM → Workflow Platform → PostgreSQL (direct) → RabbitMQ notification → Rita Backend → SSE
   * Workflow Platform is source of truth for cluster definitions and ticket assignments
   * **WF writes directly to PostgreSQL** with `organization_id` in all queries
-  * Rita Backend receives lightweight notification and emits SSE only (no DB writes)
+  * Rita Backend receives lightweight notification and emits SSE
   * No mutations sent back to Workflow Platform during ingestion
 
 * **Outgoing (Commands):** Rita Backend → Webhook → Workflow Platform
@@ -737,7 +708,7 @@ WF now owns all autopilot data writes. Key patterns:
 |-----------|-----------------|-------|
 | Rita Backend | RLS via `SET LOCAL app.current_organization_id` | Standard pattern for API requests |
 | Workflow Platform | Direct `organization_id` filter in queries | Requires superuser/table owner role (bypasses RLS) or dedicated role with BYPASSRLS privilege |
-| Rita Consumers | N/A (no DB writes) | Notification consumers only emit SSE |
+| Rita Consumers | SSE only | Notification consumers emit SSE events |
 
 #### Row-Level Security (RLS) Policies
 
@@ -747,7 +718,6 @@ All autopilot tables have RLS policies enabled. Rita Backend uses these; Workflo
 -- Enable RLS on all autopilot tables
 ALTER TABLE clusters ENABLE ROW LEVEL SECURITY;
 ALTER TABLE tickets ENABLE ROW LEVEL SECURITY;
-ALTER TABLE analytics_cluster_daily ENABLE ROW LEVEL SECURITY;
 ALTER TABLE knowledge_articles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE ingestion_runs ENABLE ROW LEVEL SECURITY;
 
@@ -757,10 +727,6 @@ CREATE POLICY "users_access_own_organization_clusters" ON clusters
   USING (organization_id = current_setting('app.current_organization_id', true)::uuid);
 
 CREATE POLICY "users_access_own_organization_tickets" ON tickets
-  FOR ALL
-  USING (organization_id = current_setting('app.current_organization_id', true)::uuid);
-
-CREATE POLICY "users_access_own_organization_analytics" ON analytics_cluster_daily
   FOR ALL
   USING (organization_id = current_setting('app.current_organization_id', true)::uuid);
 
@@ -877,14 +843,6 @@ CREATE INDEX idx_tickets_validated_by ON tickets(validated_by);  -- FUTURE
 CREATE INDEX idx_tickets_source_metadata ON tickets USING GIN (source_metadata);  -- FUTURE
 ```
 
-**analytics_cluster_daily table:**
-```sql
-CREATE INDEX idx_analytics_cluster_daily_org ON analytics_cluster_daily(organization_id);
-CREATE INDEX idx_analytics_cluster_daily_day ON analytics_cluster_daily(day DESC);
--- Compound index for dashboard queries -- FUTURE
-CREATE INDEX idx_analytics_org_cluster_day ON analytics_cluster_daily(organization_id, cluster_id, day DESC);  -- FUTURE
-```
-
 **knowledge_articles table:**
 ```sql
 CREATE INDEX idx_knowledge_articles_organization_id ON knowledge_articles(organization_id);
@@ -903,7 +861,6 @@ CREATE INDEX idx_ingestion_runs_created_at ON ingestion_runs(created_at DESC);
 
 #### Query Optimization Patterns
 
-* **Pre-Aggregated Metrics:** Daily bucket pattern in `analytics_cluster_daily` enables O(days) dashboard queries instead of O(tickets)
 * **Cursor-Based Pagination:** Ticket lists use `created_at` cursor to avoid OFFSET performance penalties
 * **Partial Indexes:** Consider `WHERE status = 'active'` on frequently filtered columns
 * **JSONB GIN Indexes:** Enable fast queries on `config`, `source_metadata` JSONB fields
@@ -930,7 +887,7 @@ CREATE INDEX idx_ingestion_runs_created_at ON ingestion_runs(created_at DESC);
 
 ### 7.1 Migration File
 
-**Location:** `packages/api-server/src/database/migrations/XXX_add_autopilot_tables.sql`
+**Location:** `packages/api-server/src/database/migrations/138_add_autopilot_tables.sql`
 
 ### 7.2 Table Creation Scripts
 
@@ -941,6 +898,7 @@ CREATE INDEX idx_ingestion_runs_created_at ON ingestion_runs(created_at DESC);
 CREATE TABLE clusters (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),  -- Internal auto-generated ID
     organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+    parent_cluster_id UUID REFERENCES clusters(id) ON DELETE CASCADE,  -- NULL=top-level, 2 levels max
     external_cluster_id TEXT NOT NULL,  -- Stable ID from Workflow Platform
     name TEXT NOT NULL,
     config JSONB DEFAULT '{}'::jsonb,
@@ -962,6 +920,7 @@ CREATE TABLE clusters (
 
 -- Indexes
 CREATE INDEX idx_clusters_organization_id ON clusters(organization_id);
+CREATE INDEX idx_clusters_parent_cluster_id ON clusters(parent_cluster_id);
 CREATE INDEX idx_clusters_external_cluster_id ON clusters(external_cluster_id);
 CREATE INDEX idx_clusters_kb_status ON clusters(kb_status);
 CREATE INDEX idx_clusters_created_at ON clusters(created_at DESC);
@@ -983,6 +942,7 @@ EXECUTE FUNCTION update_updated_at_column();
 -- Comments
 COMMENT ON TABLE clusters IS 'AI-generated ticket clusters from Workflow Platform (system-generated)';
 COMMENT ON COLUMN clusters.id IS 'Internal auto-generated UUID for internal references';
+COMMENT ON COLUMN clusters.parent_cluster_id IS 'Self-ref FK for subclusters (NULL=top-level, 2 levels max enforced in app)';
 COMMENT ON COLUMN clusters.external_cluster_id IS 'Stable cluster ID provided by Workflow Platform (used for upsert matching)';
 COMMENT ON COLUMN clusters.config IS 'JSONB config: {auto_respond: boolean, auto_populate: boolean}';
 COMMENT ON COLUMN clusters.validation_current IS 'Current count of approved validation samples (progress toward target)';
@@ -993,17 +953,18 @@ COMMENT ON COLUMN clusters.validation_target IS 'Validation sample target count 
 #### tickets Table
 
 ```sql
--- Tickets assigned to clusters
+-- Tickets from ITSM (NULL cluster_id = unclassified)
 CREATE TABLE tickets (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
-    cluster_id UUID NOT NULL REFERENCES clusters(id) ON DELETE CASCADE,
+    cluster_id UUID REFERENCES clusters(id) ON DELETE SET NULL,  -- NULL = unclassified
     data_source_connection_id UUID REFERENCES data_source_connections(id) ON DELETE SET NULL,
 
     -- Ticket details
     external_id TEXT NOT NULL,
     subject TEXT NOT NULL,
     external_status TEXT NOT NULL,
+    cluster_text TEXT,  -- Text for classification (set by ingestion workflow)
     rita_status TEXT DEFAULT 'NEEDS_RESPONSE' CHECK (rita_status IN ('NEEDS_RESPONSE', 'COMPLETED')),
 
     -- Validation tracking
@@ -1048,53 +1009,14 @@ FOR EACH ROW
 EXECUTE FUNCTION update_updated_at_column();
 
 -- Comments
-COMMENT ON TABLE tickets IS 'ITSM tickets assigned to autopilot clusters';
+COMMENT ON TABLE tickets IS 'ITSM tickets from Workflow Platform (NULL cluster_id = unclassified)';
+COMMENT ON COLUMN tickets.cluster_id IS 'NULL until classification workflow assigns cluster';
+COMMENT ON COLUMN tickets.cluster_text IS 'Text for classification (set by ingestion, used by classification workflow)';
 COMMENT ON COLUMN tickets.external_id IS 'ITSM ticket ID (e.g., INC-123 from ServiceNow)';
 COMMENT ON COLUMN tickets.rita_status IS 'Rita-specific status for workflow tracking';
 COMMENT ON COLUMN tickets.is_validation_sample IS 'Flag indicating ticket selected for 0/16 validation UI';
 COMMENT ON COLUMN tickets.data_source_connection_id IS 'Optional FK for filtering tickets by connection (NULL if from WP independent connections)';
 COMMENT ON COLUMN tickets.source_metadata IS 'Raw ITSM properties from source system for debugging/display';
-```
-
-#### analytics_cluster_daily Table
-
-```sql
--- Pre-aggregated daily metrics per cluster
-CREATE TABLE analytics_cluster_daily (
-    organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
-    cluster_id UUID NOT NULL REFERENCES clusters(id) ON DELETE CASCADE,
-    day DATE NOT NULL,
-
-    -- Metrics
-    total_tickets INTEGER DEFAULT 0,
-    automated_count INTEGER DEFAULT 0,
-    kb_gap_count INTEGER DEFAULT 0,
-
-    -- Timestamps
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-
-    -- Composite primary key
-    PRIMARY KEY (organization_id, cluster_id, day)
-);
-
--- Indexes
-CREATE INDEX idx_analytics_cluster_daily_org ON analytics_cluster_daily(organization_id);
-CREATE INDEX idx_analytics_cluster_daily_day ON analytics_cluster_daily(day DESC);
-CREATE INDEX idx_analytics_org_cluster_day ON analytics_cluster_daily(organization_id, cluster_id, day DESC);
-
--- Row-Level Security
-ALTER TABLE analytics_cluster_daily ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY "users_access_own_organization_analytics" ON analytics_cluster_daily
-    FOR ALL
-    USING (organization_id = current_setting('app.current_organization_id', true)::uuid);
-
--- Comments
-COMMENT ON TABLE analytics_cluster_daily IS 'Pre-aggregated daily metrics for fast dashboard queries (retention period TBD)';
-COMMENT ON COLUMN analytics_cluster_daily.day IS 'Date bucket for metrics aggregation';
-COMMENT ON COLUMN analytics_cluster_daily.automated_count IS 'Count of tickets handled by automation';
-COMMENT ON COLUMN analytics_cluster_daily.kb_gap_count IS 'Count of tickets with KB gaps (TBD - computation logic pending)';
 ```
 
 #### knowledge_articles Table
@@ -1238,7 +1160,7 @@ COMMENT ON COLUMN ingestion_runs.created_at IS 'Doubles as started_at timestamp'
 - [ ] Verify data_source_connections table exists (for optional FK)
 
 **Post-Migration:**
-- [ ] Verify all tables created: `\dt clusters tickets analytics_cluster_daily knowledge_articles ingestion_runs`
+- [ ] Verify all tables created: `\dt clusters tickets knowledge_articles ingestion_runs`
 - [ ] Verify all indexes created: `\di idx_clusters_*` `\di idx_tickets_*`
 - [ ] For credential_delegation_tokens: See [Credential Delegation Technical Design](../feat-credential-delegation/technical-design-credential-delegation.md)
 - [ ] Verify RLS policies enabled: `SELECT tablename, rowsecurity FROM pg_tables WHERE schemaname = 'public'`
@@ -1252,7 +1174,6 @@ COMMENT ON COLUMN ingestion_runs.created_at IS 'Doubles as started_at timestamp'
 -- Rollback script (if needed - DESTRUCTIVE!)
 DROP TABLE IF EXISTS ingestion_runs CASCADE;
 DROP TABLE IF EXISTS knowledge_articles CASCADE;
-DROP TABLE IF EXISTS analytics_cluster_daily CASCADE;
 DROP TABLE IF EXISTS tickets CASCADE;
 DROP TABLE IF EXISTS clusters CASCADE;
 -- For credential_delegation_tokens rollback, see Credential Delegation doc
@@ -1280,19 +1201,34 @@ DROP TABLE IF EXISTS clusters CASCADE;
 
 **Values to be defined in product specification:**
 - **Validation Target:** Default validation sample count per cluster (currently nullable field)
-- **Analytics Retention:** How long to retain daily metric buckets (30d, 90d, 1yr?)
 - **Knowledge Article Limits:** Max articles per cluster before truncation/ranking
 - **Sync Frequency:** Default/max polling intervals for ITSM connections
 
 **Recommended Next Steps:**
 1. Define validation target based on user research/piloting
-2. Establish data retention policies (analytics, audit logs)
+2. Establish data retention policies (audit logs)
 3. Design cluster lifecycle management (active → archived states)
 4. Plan knowledge article verification cron job strategy
 
 -----
 
 ## Changelog
+
+### v1.10 (December 1, 2025)
+**Schema Updates (Migration 139)**
+
+- **Changed:** `tickets.cluster_id` nullable + ON DELETE SET NULL (NULL = unclassified)
+- **Added:** `parent_cluster_id` self-referencing FK to clusters (subclusters, 2 levels max)
+- **Added:** `cluster_text` TEXT field to tickets (for classification workflow)
+- **Removed:** `analytics_cluster_daily` table (deferred - calculation logic TBD)
+- **Collapsed:** All schema updates into single migration 139_autopilot_schema_updates.sql
+
+### v1.7 (December 1, 2025)
+**2-Workflow Architecture**
+
+- **Added:** `rebuild_model` flag to webhook payload (controls model retraining)
+- **Changed:** WF split into 2 workflows: Ticket Pull → Classification
+- **Updated:** Sequence diagram to show 2-workflow architecture (Phase 2a, 2b)
 
 ### v1.6 (November 26, 2025)
 **Document-Migration Alignment & RLS Clarification**
@@ -1318,9 +1254,9 @@ DROP TABLE IF EXISTS clusters CASCADE;
 ### v1.4 (November 26, 2025)
 **Architectural Change: Workflow Platform Direct DB Access**
 
-- **Changed:** WF now writes directly to PostgreSQL for autopilot tables (clusters, tickets, knowledge_articles, analytics_cluster_daily, ingestion_runs)
+- **Changed:** WF now writes directly to PostgreSQL for autopilot tables (clusters, tickets, knowledge_articles, ingestion_runs)
 - **Changed:** RabbitMQ messages are now lightweight notifications (no full data payloads)
-- **Changed:** Rita consumers (`IngestionNotificationConsumer`) only emit SSE events - no DB writes
+- **Changed:** Rita consumers (`IngestionNotificationConsumer`) only emit SSE events
 - **Changed:** WF uses direct `organization_id` filtering instead of RLS session variables
 - **Deferred:** Audit logging for WF writes (to be addressed in later iteration)
 
