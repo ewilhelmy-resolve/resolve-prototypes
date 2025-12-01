@@ -312,6 +312,9 @@ export default function FilesV1Content() {
 		// Clear selection after deletion attempts
 		setSelectedFiles(new Set());
 
+		// Final refetch to sync with server state
+		queryClient.invalidateQueries({ queryKey: fileKeys.lists(), refetchType: 'active' });
+
 		// Show summary toast
 		if (failCount === 0) {
 			ritaToast.success({

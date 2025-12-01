@@ -87,9 +87,19 @@ export function useUploadFile() {
         } as FileDocument
       }
     },
-    onSuccess: () => {
-      // Invalidate files list and force immediate refetch
-      queryClient.invalidateQueries({ queryKey: fileKeys.lists(), refetchType: 'active' })
+    onSuccess: (data) => {
+      // Insert new document into cache immediately (no refetch)
+      queryClient.setQueriesData<{ documents: FileDocument[]; total: number; limit: number; offset: number }>(
+        { queryKey: fileKeys.lists() },
+        (oldData) => {
+          if (!oldData) return oldData
+          return {
+            ...oldData,
+            documents: [data.document, ...oldData.documents],
+            total: oldData.total + 1,
+          }
+        }
+      )
     },
   })
 }
@@ -114,9 +124,19 @@ export function useCreateContent() {
         } as FileDocument
       }
     },
-    onSuccess: () => {
-      // Invalidate files list and force immediate refetch
-      queryClient.invalidateQueries({ queryKey: fileKeys.lists(), refetchType: 'active' })
+    onSuccess: (data) => {
+      // Insert new document into cache immediately (no refetch)
+      queryClient.setQueriesData<{ documents: FileDocument[]; total: number; limit: number; offset: number }>(
+        { queryKey: fileKeys.lists() },
+        (oldData) => {
+          if (!oldData) return oldData
+          return {
+            ...oldData,
+            documents: [data.document, ...oldData.documents],
+            total: oldData.total + 1,
+          }
+        }
+      )
     },
   })
 }
@@ -155,9 +175,35 @@ export function useDeleteFile() {
       const response = await fileApi.deleteDocument(documentId)
       return response
     },
-    onSuccess: () => {
-      // Invalidate files list and force immediate refetch
-      queryClient.invalidateQueries({ queryKey: fileKeys.lists(), refetchType: 'active' })
+    onMutate: async (documentId: string) => {
+      // Cancel outgoing refetches
+      await queryClient.cancelQueries({ queryKey: fileKeys.lists() })
+
+      // Snapshot for rollback
+      const previousQueries = queryClient.getQueriesData<{ documents: FileDocument[]; total: number; limit: number; offset: number }>({ queryKey: fileKeys.lists() })
+
+      // Optimistically remove from all list queries
+      queryClient.setQueriesData<{ documents: FileDocument[]; total: number; limit: number; offset: number }>(
+        { queryKey: fileKeys.lists() },
+        (oldData) => {
+          if (!oldData) return oldData
+          return {
+            ...oldData,
+            documents: oldData.documents.filter((doc) => doc.id !== documentId),
+            total: Math.max(0, oldData.total - 1),
+          }
+        }
+      )
+
+      return { previousQueries }
+    },
+    onError: (_err, _documentId, context) => {
+      // Rollback on error
+      if (context?.previousQueries) {
+        context.previousQueries.forEach(([queryKey, data]) => {
+          queryClient.setQueryData(queryKey, data)
+        })
+      }
     },
   })
 }
