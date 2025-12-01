@@ -3,7 +3,7 @@ import type React from "react";
 import { createContext, useCallback, useContext, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ritaToast } from "../components/ui/rita-toast";
-import { fileKeys } from "../hooks/api/useFiles";
+import { fileKeys, type FileDocument } from "../hooks/api/useFiles";
 import { memberKeys } from "../hooks/api/useMembers";
 import { profileKeys } from "../hooks/api/useProfile";
 import { dataSourceKeys } from "../hooks/useDataSources";
@@ -156,14 +156,33 @@ export const SSEProvider: React.FC<SSEProviderProps> = ({
 				}
 			} else if (event.type === "document_update") {
 				// Handle document processing status updates
-				// Invalidate TanStack Query cache to trigger automatic refetch
-				queryClient.invalidateQueries({ queryKey: fileKeys.lists() });
+				const processingKey = 'rita-processing-files'
+				const stored = sessionStorage.getItem(processingKey)
+				const isBatchUpload = !!stored
+
+				// Update document status in cache (no refetch)
+				queryClient.setQueriesData<{ documents: FileDocument[]; total: number; limit: number; offset: number }>(
+					{ queryKey: fileKeys.lists() },
+					(oldData) => {
+						if (!oldData) return oldData
+						return {
+							...oldData,
+							documents: oldData.documents.map((doc) =>
+								doc.filename === event.data.filename
+									? { ...doc, status: event.data.status }
+									: doc
+							),
+						}
+					}
+				)
+
+				// If not a batch upload, refetch immediately for single file updates
+				if (!isBatchUpload) {
+					queryClient.invalidateQueries({ queryKey: fileKeys.lists(), refetchType: 'active' })
+				}
 
 				// Track processing results in sessionStorage for summary toast
-				const processingKey = 'rita-processing-files'
 				try {
-					const stored = sessionStorage.getItem(processingKey)
-
 					if (stored) {
 						const data = JSON.parse(stored)
 						const filename = event.data.filename
@@ -183,6 +202,9 @@ export const SSEProvider: React.FC<SSEProviderProps> = ({
 						if (data.filenames.length === 0) {
 							const processed = data.processed || 0
 							const failed = data.failed || 0
+
+							// Final refetch to sync with server after batch completes
+							queryClient.invalidateQueries({ queryKey: fileKeys.lists(), refetchType: 'active' })
 
 							// Show appropriate toast based on results (omit numbers if one category is zero)
 							if (processed > 0 && failed === 0) {
