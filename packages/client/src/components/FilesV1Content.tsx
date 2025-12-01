@@ -336,6 +336,7 @@ export default function FilesV1Content() {
 	};
 
 	const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+		setSearchInput(""); // clean filter when uploading new files
 		const files = e.target.files;
 		if (!files || files.length === 0) return;
 
