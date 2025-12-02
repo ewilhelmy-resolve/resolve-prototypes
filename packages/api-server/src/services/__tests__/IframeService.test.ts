@@ -102,6 +102,15 @@ describe('IframeService', () => {
       expect(result.cookie).toBeDefined();
       expect(result.tokenName).toBe('Test Token');
 
+      // Verify iframe_token_id is stored on conversation
+      if (result.conversationId) {
+        const convResult = await pool.query(
+          'SELECT iframe_token_id FROM conversations WHERE id = $1',
+          [result.conversationId]
+        );
+        expect(convResult.rows[0].iframe_token_id).toBeDefined();
+      }
+
       // Cleanup conversation
       if (result.conversationId) {
         await pool.query('DELETE FROM conversations WHERE id = $1', [result.conversationId]);

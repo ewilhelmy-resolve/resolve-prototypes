@@ -105,23 +105,23 @@ export class IframeService {
   /**
    * Create a conversation for the public guest user
    */
-  async createPublicConversation(intentEid?: string): Promise<{ conversationId: string }> {
+  async createPublicConversation(tokenId: string, intentEid?: string): Promise<{ conversationId: string }> {
     const result = await withOrgContext(
       PUBLIC_USER_ID,
       PUBLIC_ORG_ID,
       async (client) => {
         const conversationResult = await client.query(`
-          INSERT INTO conversations (organization_id, user_id, title)
-          VALUES ($1, $2, $3)
+          INSERT INTO conversations (organization_id, user_id, title, iframe_token_id)
+          VALUES ($1, $2, $3, $4)
           RETURNING id
-        `, [PUBLIC_ORG_ID, PUBLIC_USER_ID, 'Iframe Chat']);
+        `, [PUBLIC_ORG_ID, PUBLIC_USER_ID, 'Iframe Chat', tokenId]);
 
         return conversationResult.rows[0];
       }
     );
 
     logger.info(
-      { conversationId: result.id, intentEid },
+      { conversationId: result.id, tokenId, intentEid },
       'Public iframe conversation created'
     );
 
@@ -161,7 +161,7 @@ export class IframeService {
     // Use existing conversation or create new one
     const conversationId = existingConversationId
       ? existingConversationId
-      : (await this.createPublicConversation(intentEid)).conversationId;
+      : (await this.createPublicConversation(tokenInfo.id, intentEid)).conversationId;
 
     logger.info(
       {
