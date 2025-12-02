@@ -1,57 +1,32 @@
 # RITA Autopilot - JIRA Stories
 
-## Story 1: Database Foundation
+> **Split into two epics:**
+> - **Epic A: Autopilot Ingestion** - Core ticket clustering (Stories 1-3, 6-10)
+> - **Epic B: Credential Delegation** - ITSM credential setup (Stories D1-D4, future)
+
+---
+
+# Epic A: Autopilot Ingestion
+
+## Story 1: Database Foundation ✅ DONE
 
 **Type:** Task
 **Priority:** Highest
 **Estimate:** 3 points
-**Sprint:** 1
-
-### Description
-Create database schema for RITA Autopilot including all tables, RLS policies, indexes, and constraints. Foundation for all backend work.
+**Status:** ✅ COMPLETED
 
 ### Acceptance Criteria
-- [ ] Add `jira` to `ALLOWED_DATA_SOURCE_TYPES` in `packages/api-server/src/constants/dataSources.ts`
-- [ ] Add `jira` to `DEFAULT_DATA_SOURCES` array
-- [ ] Migration file creates 6 tables: clusters, tickets, analytics_cluster_daily, knowledge_articles, ingestion_runs, credential_delegation_tokens
-- [ ] clusters table uses `external_cluster_id` (TEXT) + internal auto-gen `id` (UUID)
-- [ ] clusters.created_by/updated_by nullable (for system-generated records)
-- [ ] Unique constraint on clusters: `(organization_id, external_cluster_id)`
-- [ ] Unique constraint on tickets: `(organization_id, external_id)`
-- [ ] RLS policies enforced on all tables using app.current_organization_id
-- [ ] All indexes created (org_id, cluster_id, external_cluster_id, status, timestamps)
-- [ ] Foreign key constraints with proper ON DELETE actions
-- [ ] Unique constraints (delegation token)
-- [ ] Auto-timestamp triggers (updated_at)
-- [ ] Migration runs successfully on dev/staging
-- [ ] Rollback script tested
+- [x] Add `jira` to `ALLOWED_DATA_SOURCE_TYPES` in `packages/api-server/src/constants/dataSources.ts`
+- [x] Add `jira` to `DEFAULT_DATA_SOURCES` array
+- [x] Migration file creates 6 tables: clusters, tickets, analytics_cluster_daily, knowledge_articles, ingestion_runs, credential_delegation_tokens
+- [x] clusters table uses `external_cluster_id` (TEXT) + internal auto-gen `id` (UUID)
+- [x] Unique constraint on clusters: `(organization_id, external_cluster_id)`
+- [x] Unique constraint on tickets: `(organization_id, external_id)`
+- [x] RLS policies enforced on all tables
+- [x] All indexes created
+- [x] Auto-timestamp triggers
 
-### Dependencies
-None - must complete first
-
-### Technical Notes
-```sql
--- Key tables:
-CREATE TABLE clusters (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),  -- Internal ID
-  external_cluster_id TEXT NOT NULL,  -- From Workflow Platform
-  created_by UUID REFERENCES user_profiles(user_id),  -- Nullable for system
-  ...
-  CONSTRAINT uq_clusters_external_id_org UNIQUE (organization_id, external_cluster_id)
-);
-
-CREATE TABLE tickets (
-  ...
-  CONSTRAINT uq_tickets_external_id_org UNIQUE (organization_id, external_id)
-);
-
--- RLS pattern:
-ALTER TABLE clusters ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "users_access_own_organization_clusters" ON clusters
-  FOR ALL USING (organization_id = current_setting('app.current_organization_id', true)::uuid);
-```
-
-Reference: docs/feat-autopilot-ticket-cluster/technical-design-autopilot-tickets.md Section 7.1
+**Completed:** Migration `138_add_autopilot_tables.sql`
 
 ---
 
@@ -61,26 +36,22 @@ Reference: docs/feat-autopilot-ticket-cluster/technical-design-autopilot-tickets
 **Priority:** High
 **Estimate:** 5 points
 **Sprint:** 1
-**Assignee:** Backend Pair A
 
 ### Description
-Implement ticket ingestion pipeline: trigger sync via webhook, consume batch messages from RabbitMQ, store clusters/tickets, emit SSE events.
+Implement trigger endpoint and notification consumer. WF owns DB writes via 2-workflow architecture; Rita emits SSE only.
 
 ### Acceptance Criteria
-- [ ] POST /api/ingest/trigger endpoint created
+- [ ] POST /api/ingest/trigger endpoint
   - Validates admin/owner role
-  - Creates ingestion_run record
-  - Sends sync_tickets webhook to Workflow Platform
+  - Creates ingestion_run record (status='pending')
+  - Sends sync_tickets webhook with `rebuild_model` flag
   - Returns 202 with ingestion_run_id
-- [ ] TicketBatchConsumer processes `ticket_batch_processed` queue
-  - Upserts clusters using `ON CONFLICT (organization_id, external_cluster_id)`
-  - Upserts tickets using `ON CONFLICT (organization_id, external_id)`
-  - Updates analytics_cluster_daily
-  - Commits transaction on success
+- [ ] IngestionNotificationConsumer processes `ingestion_notification` queue
+  - Emits SSE event: `ingestion_run_update`
+  - NO database writes (WF owns DB)
   - Logs errors to message_processing_failures
-- [ ] SSE event emitted on sync completion: `ingestion_run_update`
 - [ ] Audit log created: trigger_ticket_sync
-- [ ] Unit tests for consumer logic
+- [ ] Unit tests for endpoint + consumer
 - [ ] Integration test with mock RabbitMQ
 
 ### Dependencies
@@ -88,21 +59,31 @@ Implement ticket ingestion pipeline: trigger sync via webhook, consume batch mes
 
 ### Technical Notes
 ```typescript
-// Webhook payload:
+// Webhook payload (includes rebuild_model flag):
 await webhookService.sendGenericEvent({
   source: 'rita-chat',
   action: 'sync_tickets',
   additionalData: {
-    ingestion_run_id, connection_id, connection_type, settings
+    ingestion_run_id,
+    connection_id,
+    connection_type,
+    rebuild_model: false,  // true = retrain classification model
+    settings
   }
 });
 
-// Consumer idempotency (use unique constraints, not auto-gen IDs):
-INSERT INTO clusters (...) ON CONFLICT (organization_id, external_cluster_id) DO UPDATE SET ...
-INSERT INTO tickets (...) ON CONFLICT (organization_id, external_id) DO UPDATE SET ...
+// Consumer only emits SSE - no DB writes:
+await sseService.sendToUser(userId, tenantId, {
+  type: 'ingestion_run_update',
+  data: { ingestion_run_id, status, records_processed }
+});
 ```
 
-Reference: Section 5.1 Backend Worker Logic, Section 4.2 API Endpoints
+**WF 2-Workflow Architecture:**
+1. Ticket Pull: fetches from ITSM → writes tickets with `cluster_id=NULL`
+2. Classification: assigns clusters → sends `ingestion_notification`
+
+Reference: Section 4.1 Webhook Payloads, Section 5.1 Backend Worker Logic
 
 ---
 
@@ -148,141 +129,6 @@ rest.get('/api/dashboard/stats', (req, res, ctx) => {
 ```
 
 Reference: Section 4.2 Frontend API Endpoints, Section 5.2 Frontend State
-
----
-
-## Story 4: Credential Delegation Flow (Backend)
-
-**Type:** Story
-**Priority:** High
-**Estimate:** 5 points
-**Sprint:** 1
-**Assignee:** Backend Pair B
-
-### Description
-Implement delegated ITSM credential setup: RITA Owner sends magic link to IT Admin who submits credentials via public page with polling for verification status.
-
-### Acceptance Criteria
-- [ ] POST /api/credential-delegations/create endpoint
-  - Generates 64-char token (crypto.randomBytes)
-  - Inserts credential_delegation_tokens record
-  - Sends send_delegation_email webhook
-  - Returns delegation_id, expires_at
-- [ ] GET /api/credential-delegations/verify/:token endpoint (public)
-  - Validates token not expired, status='pending'
-  - Returns org_name, system_type
-- [ ] POST /api/credential-delegations/submit endpoint (public)
-  - Atomic single-use enforcement (status='used')
-  - **UPSERT data_source_connections BEFORE webhook** (to get connection_id)
-  - Links delegation token to connection_id
-  - Sends verify_credentials webhook (password base64 encoded)
-  - Returns 202 with polling_url
-- [ ] GET /api/credential-delegations/status/:token endpoint (public)
-  - Returns status: verifying|success|failed
-  - Rate limited: 20 req/min per token
-- [ ] DataSourceStatusConsumer updated
-  - Consumes data_source_status queue
-  - Updates credential_delegation_tokens on verification (status='verified')
-  - Updates data_source_connections (status='idle', enabled=true, latest_options)
-  - Emits `data_source_update` SSE event (reuses existing event type)
-  - Logs to audit_logs
-- [ ] Unit tests for token generation, single-use enforcement
-- [ ] Integration test with mock Workflow Platform
-
-### Dependencies
-- Story 1 (Database Foundation)
-
-### Technical Notes
-```typescript
-// Token generation:
-const token = crypto.randomBytes(32).toString('hex');
-
-// Single-use enforcement + connection creation (in transaction):
-BEGIN;
-UPDATE credential_delegation_tokens
-SET status='used', credentials_received_at=NOW()
-WHERE token=$1 AND status='pending' RETURNING id;
-// If 0 rows: ROLLBACK + 409 Conflict
-
-// Create/update connection BEFORE webhook to get connection_id:
-INSERT INTO data_source_connections (organization_id, type, status, ...)
-VALUES ($org, $type, 'verifying', ...)
-ON CONFLICT (organization_id, type) DO UPDATE SET status='verifying'
-RETURNING id AS connection_id;
-
-// Link delegation to connection:
-UPDATE credential_delegation_tokens SET connection_id=$conn WHERE id=$del_id;
-COMMIT;
-
-// Webhook payload (now has connection_id):
-{
-  source: 'rita-chat',
-  action: 'verify_credentials',
-  connection_id: connection_id,  // From upsert above
-  connection_type: 'servicenow',
-  credentials: { username, password: base64(pwd) }
-}
-```
-
-Reference: Section 2.3 Delegated ITSM Credential Setup, Section 4.2 API Endpoints
-
----
-
-## Story 5: Credential Delegation Flow (Frontend)
-
-**Type:** Story
-**Priority:** High
-**Estimate:** 5 points
-**Sprint:** 1
-**Assignee:** Frontend Pair B
-
-### Description
-Build RITA Owner delegation page and public IT Admin credential submission page with polling for real-time feedback.
-
-### Acceptance Criteria
-- [ ] Owner delegation page
-  - Form: admin_email, admin_name, itsm_system_type dropdown
-  - "Send Invitation" button calls POST /api/credential-delegations/create
-  - Success toast: "Invitation sent to {email}"
-  - Error handling for duplicate pending invitations
-- [ ] IT Admin public page /credential-setup?token=xxx
-  - Validates token via GET /api/credential-delegations/verify/:token
-  - Shows expired message for invalid tokens
-  - Form: ServiceNow URL, username, password
-  - "Verify Credentials" button calls POST /api/credential-delegations/submit
-  - Starts polling GET /api/credential-delegations/status/:token every 3s
-  - Shows spinner: "Verifying credentials..."
-  - Success: Green checkmark + "Credentials verified!"
-  - Failure: Error message + retry button (form re-enabled)
-  - Timeout (30s): "We'll email you when verification completes"
-- [ ] Polling cleanup on unmount
-- [ ] Form validation (required fields, email format, URL format)
-- [ ] Accessibility: form labels, error announcements
-- [ ] Responsive design
-
-### Dependencies
-- None (use mocks initially, integrate after Story 4)
-
-### Technical Notes
-```typescript
-// Polling logic:
-const MAX_POLLS = 10; // 30 seconds
-const interval = setInterval(async () => {
-  const { status } = await fetch(`/status/${token}`).then(r => r.json());
-  if (status === 'success') {
-    clearInterval(interval);
-    showSuccess();
-  } else if (status === 'failed') {
-    clearInterval(interval);
-    showError();
-  } else if (++attempts >= MAX_POLLS) {
-    clearInterval(interval);
-    showTimeout();
-  }
-}, 3000);
-```
-
-Reference: Section 2.3 Delegated ITSM Credential Setup, Section 5.2 Frontend State
 
 ---
 
@@ -403,7 +249,6 @@ Reference: Section 4.2 Frontend API Endpoints
 **Priority:** Medium
 **Estimate:** 3 points
 **Sprint:** 2
-**Assignee:** Backend Pair B
 
 ### Description
 Implement cluster config update endpoint for enabling automation toggles with audit logging.
@@ -411,23 +256,22 @@ Implement cluster config update endpoint for enabling automation toggles with au
 ### Acceptance Criteria
 - [ ] PATCH /api/clusters/:id/config endpoint
   - Payload: { auto_respond: boolean, auto_populate: boolean }
-  - Updates cluster.automation_config
+  - Updates cluster.config JSONB
   - Sets automation_enabled_by, automation_enabled_at on first enable
   - Emits SSE event: cluster_updated
   - Logs to audit_logs: enable_cluster_automation or update_cluster_config
 - [ ] Authorization: admin/owner role required
-- [ ] Validation: cannot enable without verified data source
 - [ ] Unit tests for config validation
 - [ ] Integration test for audit logging
 
 ### Dependencies
-- Story 4 (Credential Delegation Backend) for data_source_connections check
+- Story 6 (Cluster Detail Backend)
 
 ### Technical Notes
 ```sql
 -- Config update:
 UPDATE clusters
-SET automation_config = jsonb_set(automation_config, '{auto_respond}', $1::text::jsonb),
+SET config = jsonb_set(config, '{auto_respond}', $1::text::jsonb),
     automation_enabled_by = CASE WHEN automation_enabled_by IS NULL THEN $2 ELSE automation_enabled_by END,
     automation_enabled_at = CASE WHEN automation_enabled_at IS NULL THEN NOW() ELSE automation_enabled_at END
 WHERE id = $3;
@@ -447,7 +291,6 @@ Reference: Section 5.3 Audit Integration
 **Priority:** Medium
 **Estimate:** 3 points
 **Sprint:** 2
-**Assignee:** Frontend Pair B
 
 ### Description
 Build cluster config panel with automation toggles and real-time status updates via SSE.
@@ -455,9 +298,6 @@ Build cluster config panel with automation toggles and real-time status updates 
 ### Acceptance Criteria
 - [ ] Config panel in cluster detail page
 - [ ] Toggle switches: "Auto-respond to tickets", "Auto-populate knowledge"
-- [ ] Disabled state if data source not connected
-  - Tooltip: "Connect ServiceNow first"
-  - Link to credential delegation page
 - [ ] Optimistic UI update on toggle
 - [ ] SSE event cluster_updated refreshes config state
 - [ ] Confirmation dialog for disabling automation
@@ -478,14 +318,8 @@ Build cluster config panel with automation toggles and real-time status updates 
   label="Auto-respond to tickets"
   checked={config.auto_respond}
   onChange={handleToggle}
-  disabled={!dataSourceConnected}
   aria-describedby="auto-respond-help"
 />
-{!dataSourceConnected && (
-  <Tooltip id="auto-respond-help">
-    Connect ServiceNow to enable automation
-  </Tooltip>
-)}
 ```
 
 Reference: Section 4.2 Frontend API Endpoints
@@ -496,12 +330,11 @@ Reference: Section 4.2 Frontend API Endpoints
 
 **Type:** Task
 **Priority:** High
-**Estimate:** 5 points
+**Estimate:** 4 points
 **Sprint:** 2
-**Assignee:** All
 
 ### Description
-Remove frontend mocks, wire real APIs, implement end-to-end test scenarios covering full user workflows.
+Remove frontend mocks, wire real APIs, implement end-to-end test scenarios covering autopilot ingestion workflows.
 
 ### Acceptance Criteria
 - [ ] Remove MSW mocks from frontend
@@ -509,19 +342,9 @@ Remove frontend mocks, wire real APIs, implement end-to-end test scenarios cover
 - [ ] Fix any contract mismatches discovered
 - [ ] E2E test: Full ingestion flow
   - Owner clicks "Sync Tickets"
-  - Mock RabbitMQ publishes `ticket_batch_processed`
+  - Mock RabbitMQ publishes `ingestion_notification`
   - Dashboard updates with new clusters
   - Verify SSE event received
-- [ ] E2E test: Credential delegation flow
-  - Owner creates delegation
-  - IT Admin receives email (check webhook call)
-  - IT Admin submits credentials
-  - Verify data_source_connection created BEFORE webhook sent
-  - Polling returns success
-  - Connection status updated to 'idle', enabled=true
-- [ ] E2E test: Duplicate delegation prevention
-  - Owner creates delegation for admin@company.com + servicenow
-  - Second delegation for same email+org+type returns 409
 - [ ] E2E test: Validation workflow
   - User opens cluster detail
   - Approves validation sample
@@ -531,11 +354,6 @@ Remove frontend mocks, wire real APIs, implement end-to-end test scenarios cover
   - User enables automation
   - Config saved with audit log
   - Cluster card shows "Automated" badge
-- [ ] E2E test: Sync cancellation race condition
-  - Start sync (status='syncing')
-  - Cancel sync (status='cancelled')
-  - RabbitMQ sends sync_completed
-  - Verify status remains 'cancelled' (not overwritten)
 - [ ] E2E test: Cluster idempotency
   - Sync same tickets twice with same external_cluster_id
   - Verify no duplicate clusters created
@@ -543,10 +361,9 @@ Remove frontend mocks, wire real APIs, implement end-to-end test scenarios cover
 - [ ] Load testing: 100+ clusters, 1000+ tickets
 - [ ] Error scenario testing: network failures, webhook timeouts
 - [ ] Accessibility audit: axe-core scan
-- [ ] Cross-browser testing: Chrome, Firefox, Safari
 
 ### Dependencies
-- All previous stories
+- All previous Epic A stories
 
 ### Technical Notes
 ```typescript
@@ -556,7 +373,7 @@ test('Full ingestion flow', async ({ page }) => {
   await page.click('button:has-text("Sync Tickets")');
 
   // Mock RabbitMQ message
-  await mockRabbitMQ.publish('ticket_batch_processed', mockBatch);
+  await mockRabbitMQ.publish('ingestion_notification', mockNotification);
 
   // Wait for SSE event
   await page.waitForSelector('.cluster-card:has-text("Email Issues")');
@@ -571,38 +388,140 @@ Reference: Full technical design document
 
 ---
 
-## Epic Summary
+## Epic A Summary
 
 **Epic:** RITA Autopilot - Ticket Clustering Dashboard
-**Total Estimate:** 37 points (~2 sprints)
-**Timeline:** ~10-12 days with parallelization
+**Total Estimate:** 28 points (Story 1 done)
 
-### Sprint 1 (Stories 1-5)
-- Story 1: Database Foundation (3 pts)
-- Story 2: Core Ingestion Backend (5 pts) - Pair A
-- Story 3: Core Ingestion Frontend (5 pts) - Pair A
-- Story 4: Credential Delegation Backend (5 pts) - Pair B
-- Story 5: Credential Delegation Frontend (5 pts) - Pair B
-
-**Sprint 1 Deliverables:**
-- Working dashboard with real-time sync
-- Complete ITSM credential delegation flow
+### Sprint 1 (Stories 2-3)
+- Story 2: Core Ingestion Backend (5 pts)
+- Story 3: Core Ingestion Frontend (5 pts)
 
 ### Sprint 2 (Stories 6-10)
-- Story 6: Cluster Detail Backend (4 pts) - Pair A
-- Story 7: Cluster Detail Frontend (4 pts) - Pair A
-- Story 8: Cluster Config Backend (3 pts) - Pair B
-- Story 9: Cluster Config Frontend (3 pts) - Pair B
-- Story 10: Integration & E2E Testing (5 pts) - All
-
-**Sprint 2 Deliverables:**
-- Cluster detail views with validation
-- Automation config management
-- Production-ready system
+- Story 6: Cluster Detail Backend (4 pts)
+- Story 7: Cluster Detail Frontend (4 pts)
+- Story 8: Cluster Config Backend (3 pts)
+- Story 9: Cluster Config Frontend (3 pts)
+- Story 10: Integration & E2E Testing (4 pts)
 
 ---
 
-## Definition of Done
+# Epic B: Credential Delegation (Future)
+
+> **Note:** This epic is deferred. Data sources (ServiceNow/Jira) can be configured manually for now.
+
+## Story D1: Credential Delegation Backend
+
+**Type:** Story
+**Priority:** Medium
+**Estimate:** 5 points
+
+### Description
+Implement delegated ITSM credential setup: RITA Owner sends magic link to IT Admin who submits credentials via public page with polling for verification status.
+
+### Acceptance Criteria
+- [ ] POST /api/credential-delegations/create endpoint
+  - Generates 64-char token (crypto.randomBytes)
+  - Inserts credential_delegation_tokens record
+  - Sends send_delegation_email webhook
+  - Returns delegation_id, expires_at
+- [ ] GET /api/credential-delegations/verify/:token endpoint (public)
+  - Validates token not expired, status='pending'
+  - Returns org_name, system_type
+- [ ] POST /api/credential-delegations/submit endpoint (public)
+  - Atomic single-use enforcement (status='used')
+  - UPSERT data_source_connections BEFORE webhook
+  - Sends verify_credentials webhook
+  - Returns 202 with polling_url
+- [ ] GET /api/credential-delegations/status/:token endpoint (public)
+  - Returns status: verifying|success|failed
+  - Rate limited: 20 req/min per token
+- [ ] DataSourceStatusConsumer processes verification results
+- [ ] Unit tests for token generation, single-use enforcement
+
+### Dependencies
+- Story 1 (Database Foundation) ✅
+
+---
+
+## Story D2: Credential Delegation Frontend
+
+**Type:** Story
+**Priority:** Medium
+**Estimate:** 5 points
+
+### Description
+Build RITA Owner delegation page and public IT Admin credential submission page with polling.
+
+### Acceptance Criteria
+- [ ] Owner delegation page
+  - Form: admin_email, admin_name, itsm_system_type dropdown
+  - "Send Invitation" button
+  - Success/error toast messages
+- [ ] IT Admin public page /credential-setup?token=xxx
+  - Token validation
+  - Form: ServiceNow URL, username, password
+  - Polling for verification status (3s interval)
+  - Success/failure/timeout states
+- [ ] Form validation and accessibility
+
+### Dependencies
+- Use mocks initially, integrate after Story D1
+
+---
+
+## Story D3: Data Source Check Enhancement
+
+**Type:** Story
+**Priority:** Low
+**Estimate:** 2 points
+
+### Description
+Add verified data source check to cluster config (optional guard).
+
+### Acceptance Criteria
+- [ ] Optional validation: warn if no verified data source when enabling automation
+- [ ] Link to credential delegation page in warning
+
+### Dependencies
+- Story D1 (Delegation Backend)
+- Story 8 (Cluster Config Backend)
+
+---
+
+## Story D4: Credential Delegation E2E Testing
+
+**Type:** Task
+**Priority:** Medium
+**Estimate:** 2 points
+
+### Description
+E2E tests for complete credential delegation flow.
+
+### Acceptance Criteria
+- [ ] E2E test: Full delegation flow (create → submit → verify)
+- [ ] E2E test: Duplicate delegation prevention (409)
+- [ ] E2E test: Token expiration handling
+
+### Dependencies
+- Stories D1, D2, D3
+
+---
+
+## Epic B Summary
+
+**Total Estimate:** 14 points
+
+| Story | Name | Pts |
+|-------|------|-----|
+| D1 | Delegation Backend | 5 |
+| D2 | Delegation Frontend | 5 |
+| D3 | DS Check Enhancement | 2 |
+| D4 | E2E Testing | 2 |
+
+---
+
+# Definition of Done
 
 All stories must meet:
 - [ ] Code reviewed and approved
@@ -620,21 +539,19 @@ All stories must meet:
 
 ---
 
-## Unresolved Questions
+## Unresolved Questions (Epic A)
 
-Before starting, resolve:
 1. validation_target default value? (affects Story 6)
-2. Analytics retention period? 30d/90d/1yr? (affects Story 1 indexing)
-3. Rate limit for delegation? 10/day per org per doc (affects Story 4)
-4. SSE debouncing strategy? (affects Stories 2, 6, 8)
-5. Knowledge article max per cluster? (affects Story 6)
-6. Queue naming convention - confirm with platform team: `ticket_batch_processed`, `ticket_cluster_enrichment`
+2. Analytics retention period? 30d/90d/1yr?
+3. SSE debouncing strategy? (affects Stories 2, 6, 8)
+4. Knowledge article max per cluster? (affects Story 6)
+5. Queue naming convention - confirm: `ingestion_notification`, `cluster_notification`, `enrichment_notification`
 
-## Resolved in v1.2
+## Resolved
 
-- ~~Cluster IDs~~ → Use `external_cluster_id` (TEXT) from Workflow Platform + internal auto-gen `id` (UUID)
-- ~~Ticket upsert conflict~~ → Use `(organization_id, external_id)` unique constraint
-- ~~Delegation → connection timing~~ → Create `data_source_connections` record BEFORE sending webhook
-- ~~System user for clusters~~ → Make `created_by`/`updated_by` nullable for system-generated records
-- ~~SSE event naming~~ → Follow existing pattern: `ingestion_run_update`, `cluster_update`, `data_source_update`
-- ~~Jira type~~ → Add to `ALLOWED_DATA_SOURCE_TYPES` in Story 1
+- ~~Cluster IDs~~ → `external_cluster_id` (TEXT) + internal `id` (UUID)
+- ~~Ticket upsert~~ → `(organization_id, external_id)` unique constraint
+- ~~System user~~ → `automation_enabled_by` nullable for system-generated
+- ~~SSE naming~~ → `ingestion_run_update`, `cluster_update`
+- ~~Jira type~~ → Added to `ALLOWED_DATA_SOURCE_TYPES` ✅
+- ~~Story 8 DS check~~ → Removed, DS configured manually
