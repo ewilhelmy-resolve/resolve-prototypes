@@ -3,7 +3,7 @@ import type React from "react";
 import { createContext, useCallback, useContext, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ritaToast } from "../components/ui/rita-toast";
-import { fileKeys } from "../hooks/api/useFiles";
+import { fileKeys, type FileDocument } from "../hooks/api/useFiles";
 import { memberKeys } from "../hooks/api/useMembers";
 import { profileKeys } from "../hooks/api/useProfile";
 import { dataSourceKeys } from "../hooks/useDataSources";
@@ -156,25 +156,85 @@ export const SSEProvider: React.FC<SSEProviderProps> = ({
 				}
 			} else if (event.type === "document_update") {
 				// Handle document processing status updates
-				console.log("[SSE] Document update received:", {
-					blobMetadataId: event.data.blob_metadata_id,
-					filename: event.data.filename,
-					status: event.data.status,
-				});
+				const processingKey = 'rita-processing-files'
+				const stored = sessionStorage.getItem(processingKey)
+				const isBatchUpload = !!stored
 
-				// Invalidate TanStack Query cache to trigger automatic refetch
-				queryClient.invalidateQueries({ queryKey: fileKeys.lists() });
+				// Update document status in cache (no refetch)
+				queryClient.setQueriesData<{ documents: FileDocument[]; total: number; limit: number; offset: number }>(
+					{ queryKey: fileKeys.lists() },
+					(oldData) => {
+						if (!oldData) return oldData
+						return {
+							...oldData,
+							documents: oldData.documents.map((doc) =>
+								doc.filename === event.data.filename
+									? { ...doc, status: event.data.status }
+									: doc
+							),
+						}
+					}
+				)
 
-				// Show toast notification for processing completion/failure
-				if (event.data.status === "processed") {
-					ritaToast.success({
-						title: `${event.data.filename} processed successfully`,
-					});
-				} else if (event.data.status === "failed") {
-					ritaToast.error({
-						title: `${event.data.filename} processing failed`,
-						description: event.data.error_message || "An error occurred",
-					});
+				// If not a batch upload, refetch immediately for single file updates
+				if (!isBatchUpload) {
+					queryClient.invalidateQueries({ queryKey: fileKeys.lists(), refetchType: 'active' })
+				}
+
+				// Track processing results in sessionStorage for summary toast
+				try {
+					if (stored) {
+						const data = JSON.parse(stored)
+						const filename = event.data.filename
+						const status = event.data.status
+
+						// Update counts based on status
+						if (status === 'processed') {
+							data.processed = (data.processed || 0) + 1
+							data.filenames = data.filenames.filter((f: string) => f !== filename)
+						} else if (status === 'failed') {
+							data.failed = (data.failed || 0) + 1
+							data.filenames = data.filenames.filter((f: string) => f !== filename)
+						}
+						// Ignore other statuses (processing, pending, etc.)
+
+						// If all files processed, show summary and cleanup
+						if (data.filenames.length === 0) {
+							const processed = data.processed || 0
+							const failed = data.failed || 0
+
+							// Final refetch to sync with server after batch completes
+							queryClient.invalidateQueries({ queryKey: fileKeys.lists(), refetchType: 'active' })
+
+							// Show appropriate toast based on results (omit numbers if one category is zero)
+							if (processed > 0 && failed === 0) {
+								ritaToast.success({
+									title: 'Processing Complete',
+									description: processed === 1
+										? 'File processed successfully'
+										: 'All files processed successfully',
+								})
+							} else if (processed === 0 && failed > 0) {
+								ritaToast.error({
+									title: 'Processing Failed',
+									description: failed === 1
+										? 'File failed to process'
+										: 'All files failed to process',
+								})
+							} else if (processed > 0 && failed > 0) {
+								ritaToast.warning({
+									title: 'Processing Partially Complete',
+									description: `${processed} successful, ${failed} failed`,
+								})
+							}
+
+							sessionStorage.removeItem(processingKey)
+						} else {
+							sessionStorage.setItem(processingKey, JSON.stringify(data))
+						}
+					}
+				} catch (e) {
+					console.error('[SSE] Error processing document_update:', e)
 				}
 			} else if (event.type === "organization_update") {
 				// Invalidate profile cache to refetch with updated data

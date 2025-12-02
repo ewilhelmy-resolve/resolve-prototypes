@@ -8,9 +8,13 @@ interface UsersTableState {
 	// Selection
 	selectedUsers: string[];
 	// Search and sorting
-	searchQuery: string;
-	sortBy: "email" | "role" | "joinedAt";
+	searchInput: string; // Immediate input value
+	searchQuery: string; // Debounced value for API
+	statusFilter: "All" | "active" | "inactive";
+	sortBy: "name" | "role" | "status" | "joinedAt" | "conversationsCount";
 	sortOrder: "asc" | "desc";
+	// Pagination
+	page: number;
 	// Dialog state
 	editingUser: Member | null;
 	deletingUser: Member | null;
@@ -34,9 +38,12 @@ interface UsersTableState {
  */
 type UsersTableAction =
 	| { type: "SET_SELECTED_USERS"; payload: string[] }
+	| { type: "SET_SEARCH_INPUT"; payload: string }
 	| { type: "SET_SEARCH_QUERY"; payload: string }
-	| { type: "SET_SORT"; payload: { sortBy: "email" | "role" | "joinedAt"; sortOrder: "asc" | "desc" } }
-	| { type: "TOGGLE_SORT"; payload: "email" | "role" | "joinedAt" }
+	| { type: "SET_STATUS_FILTER"; payload: "All" | "active" | "inactive" }
+	| { type: "SET_PAGE"; payload: number }
+	| { type: "SET_SORT"; payload: { sortBy: "name" | "role" | "status" | "joinedAt" | "conversationsCount"; sortOrder: "asc" | "desc" } }
+	| { type: "TOGGLE_SORT"; payload: "name" | "role" | "status" | "joinedAt" | "conversationsCount" }
 	| { type: "OPEN_EDIT_SHEET"; payload: Member }
 	| { type: "CLOSE_EDIT_SHEET" }
 	| { type: "OPEN_DEACTIVATE_DIALOG"; payload: Member }
@@ -53,9 +60,12 @@ type UsersTableAction =
  */
 const initialState: UsersTableState = {
 	selectedUsers: [],
+	searchInput: "",
 	searchQuery: "",
+	statusFilter: "All",
 	sortBy: "joinedAt",
 	sortOrder: "desc",
+	page: 0,
 	editingUser: null,
 	deletingUser: null,
 	deactivatingUser: null,
@@ -77,17 +87,23 @@ function usersTableReducer(
 	switch (action.type) {
 		case "SET_SELECTED_USERS":
 			return { ...state, selectedUsers: action.payload };
+		case "SET_SEARCH_INPUT":
+			return { ...state, searchInput: action.payload };
 		case "SET_SEARCH_QUERY":
-			return { ...state, searchQuery: action.payload };
+			return { ...state, searchQuery: action.payload, page: 0 };
+		case "SET_STATUS_FILTER":
+			return { ...state, statusFilter: action.payload, page: 0, selectedUsers: [] };
+		case "SET_PAGE":
+			return { ...state, page: action.payload, selectedUsers: [] };
 		case "SET_SORT":
-			return { ...state, sortBy: action.payload.sortBy, sortOrder: action.payload.sortOrder };
+			return { ...state, sortBy: action.payload.sortBy, sortOrder: action.payload.sortOrder, page: 0 };
 		case "TOGGLE_SORT":
 			if (state.sortBy === action.payload) {
 				// Toggle order if clicking same column
-				return { ...state, sortOrder: state.sortOrder === "asc" ? "desc" : "asc" };
+				return { ...state, sortOrder: state.sortOrder === "asc" ? "desc" : "asc", page: 0 };
 			}
 			// Set new column with default desc order
-			return { ...state, sortBy: action.payload, sortOrder: "desc" };
+			return { ...state, sortBy: action.payload, sortOrder: "desc", page: 0 };
 		case "OPEN_EDIT_SHEET":
 			return { ...state, editingUser: action.payload, editSheetOpen: true };
 		case "CLOSE_EDIT_SHEET":
@@ -151,13 +167,25 @@ export function useUsersTableState() {
 	};
 
 	// Handler - Sorting
-	const handleSort = (column: "email" | "role" | "joinedAt") => {
+	const handleSort = (column: "name" | "role" | "status" | "joinedAt" | "conversationsCount") => {
 		dispatch({ type: "TOGGLE_SORT", payload: column });
 	};
 
 	// Setters
+	const setSearchInput = (input: string) => {
+		dispatch({ type: "SET_SEARCH_INPUT", payload: input });
+	};
+
 	const setSearchQuery = (query: string) => {
 		dispatch({ type: "SET_SEARCH_QUERY", payload: query });
+	};
+
+	const setStatusFilter = (filter: "All" | "active" | "inactive") => {
+		dispatch({ type: "SET_STATUS_FILTER", payload: filter });
+	};
+
+	const setPage = (page: number) => {
+		dispatch({ type: "SET_PAGE", payload: page });
 	};
 
 	const setSelectedUsers = (users: string[]) => {
@@ -236,12 +264,20 @@ export function useUsersTableState() {
 		handleSelectAll,
 		handleSelectUser,
 
-		// Search and sorting
+		// Search, filtering and sorting
+		searchInput: state.searchInput,
+		setSearchInput,
 		searchQuery: state.searchQuery,
 		setSearchQuery,
+		statusFilter: state.statusFilter,
+		setStatusFilter,
 		sortBy: state.sortBy,
 		sortOrder: state.sortOrder,
 		handleSort,
+
+		// Pagination
+		page: state.page,
+		setPage,
 
 		// Dialog state
 		editingUser: state.editingUser,
