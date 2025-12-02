@@ -1,6 +1,6 @@
 # Technical Design Document: RITA Autopilot & Cluster Dashboard
 
-**Status:** Draft v1.11
+**Status:** Draft v1.15
 **Date:** December 1, 2025
 **Feature:** Continuous ITSM Ingestion, Live Dashboard, & Cluster Management
 
@@ -12,7 +12,7 @@ This document outlines the architecture for the RITA Autopilot Dashboard. The sy
 
 **Key Architectural Decisions:**
 
-* **Workflow Platform Direct DB Access:** WF writes directly to PostgreSQL for autopilot tables (clusters, tickets, knowledge_articles, ingestion_runs). Rita receives lightweight RabbitMQ notifications for SSE emission only.
+* **Workflow Platform Direct DB Access:** WF writes directly to PostgreSQL for autopilot tables (clusters, tickets, cluster_kb_links, ingestion_runs). Rita receives lightweight RabbitMQ notifications for SSE emission only.
 * **Event-Driven Architecture:** Decouples the User Interface (Rita Client) from the heavy AI processing (Workflow Platform).
 * **Command-Query Separation:** The App triggers actions, but the Workflow Platform acts as the "Source of Truth" for cluster definitions AND owns data writes.
 * **Two-Speed UX:** "Core Data" (Tickets) loads immediately to unlock the UI, while "Enrichment" (Knowledge Base analysis) occurs asynchronously in the background.
@@ -39,7 +39,9 @@ Before implementing this feature, the following codebase changes are required:
 6.  **SSE:** **Rita Backend** consumes notification → emits SSE event to client.
 7.  **Query:** **Rita Client** reads from PostgreSQL and receives real-time updates via SSE.
 
-### 2.2 Sequence Diagram
+### 2.2 Sequence Diagrams
+
+#### 2.2.1 Sync Tickets Flow
 
 ```mermaid
 sequenceDiagram
@@ -55,9 +57,6 @@ sequenceDiagram
     Note over User, RB: PHASE 1: The Trigger
     User->>RC: Click "Sync Tickets"
     RC->>RB: POST /api/ingest/trigger<br/>{Authorization: Bearer JWT}
-
-    Note right of RB: Extract user_id & active_organization_id<br/>from JWT + user_profiles table
-    RB->>DB: SET LOCAL app.current_organization_id
     RB->>DB: INSERT ingestion_runs<br/>(organization_id, started_by, status='pending')
     Note right of RB: Log audit: trigger_ticket_sync<br/>(user_id, organization_id, ingestion_run_id)
 
@@ -99,19 +98,35 @@ sequenceDiagram
     RB--)RC: SSE Event: `ingestion_run_update`<br/>{ingestion_run_id, status: 'completed', records_processed}
     deactivate RB
 
-    critical UX UNLOCK
-        RC->>RB: GET /api/dashboard/clusters<br/>(filtered by organization_id via RLS)
-        RC-->>User: UI UNLOCKED. Cards appear.<br/>Badge says "Analyzing..."
+```
+
+#### 2.2.2 Enrichment Flow
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant RC as Rita Client
+    participant RB as Rita Backend
+    participant DB as Postgres DB
+    participant MQ as RabbitMQ
+    participant WP as Workflow Platform
+
+    Note over WP: Trigger Sources
+    alt Auto (post-ingestion)
+        WP->>WP: Triggered after sync completes
+    else Webhook (manual refresh)
+        RB->>WP: POST webhook<br/>action: refresh_enrichment_clusters<br/>cluster_ids: [...]
+    else Scheduled (cron)
+        WP->>WP: Cron job triggers enrichment
     end
 
-    Note over WP, DB: PHASE 4: Async Enrichment
-    Note right of WP: Triggers:<br/>1. After ingestion (auto)<br/>2. Webhook: refresh_enrichment_clusters<br/>3. Scheduled cron
     rect rgb(240, 248, 255)
+        Note over WP, DB: KB Enrichment Processing
         WP->>WP: Deep Search Knowledge Base
 
         activate WP
         WP->>DB: UPDATE clusters<br/>SET kb_status='FOUND'<br/>WHERE organization_id = $tenant_id AND id = $cluster_id
-        WP->>DB: UPSERT knowledge_articles<br/>(organization_id, external_id, cluster_id, title, url, relevance_score)
+        WP->>DB: UPSERT cluster_kb_links<br/>(organization_id, cluster_id, blob_metadata_id)
         deactivate WP
 
         WP->>MQ: Publish `enrichment_notification`<br/>{type, tenant_id, user_id, cluster_id, kb_status}
@@ -121,9 +136,8 @@ sequenceDiagram
         RB--)RC: SSE Event: `cluster_update`<br/>{cluster_id, kb_status: "FOUND"}
         deactivate RB
 
-        RC-->>User: Card "c1" badge updates to "Knowledge Found"
+        RC-->>RC: Update cluster badge
     end
-
 ```
 
 ### 2.3 ITSM Credential Setup
@@ -143,17 +157,16 @@ erDiagram
     %% Core Multi-Tenancy
     organizations ||--o{ clusters : "owns"
     organizations ||--o{ tickets : "owns"
-    organizations ||--o{ knowledge_articles : "owns"
+    organizations ||--o{ cluster_kb_links : "owns"
     organizations ||--o{ ingestion_runs : "owns"
 
     %% User Tracking
-    user_profiles ||--o{ clusters : "automation_enabled_by"
-    user_profiles ||--o{ tickets : "validated_by"
     user_profiles ||--o{ ingestion_runs : "started_by"
 
     %% Data Relationships
     clusters ||--o{ tickets : "contains"
-    clusters ||--o{ knowledge_articles : "linked_to"
+    clusters ||--o{ cluster_kb_links : "linked_to"
+    blob_metadata ||--o{ cluster_kb_links : "linked_to"
 
     %% Data Source Integration (optional)
     data_source_connections ||--o{ tickets : "source (optional)"
@@ -209,13 +222,9 @@ erDiagram
         uuid organization_id FK "organizations.id ON DELETE CASCADE"
         uuid parent_cluster_id FK "clusters.id - NULL=top-level, 2 levels max"
         text external_cluster_id UK "Stable ID from Workflow Platform"
-        string name "Dynamic AI Name"
+        string name "Cluster/Subcluster Name"
         jsonb config "{auto_respond: boolean, auto_populate: boolean}"
-        int validation_target "TBD - nullable until product spec"
-        int validation_current "Current approved samples"
         text kb_status "PENDING|FOUND|GAP"
-        uuid automation_enabled_by FK "user_profiles.user_id"
-        timestamp automation_enabled_at
         timestamp created_at
         timestamp updated_at "auto-trigger"
     }
@@ -230,26 +239,17 @@ erDiagram
         string external_status "Open, Closed, etc"
         text cluster_text "Text for classification (set by ingestion)"
         text rita_status "NEEDS_RESPONSE|COMPLETED"
-        boolean is_validation_sample "Flag for validation UI"
-        text validation_result "PENDING|APPROVED|REJECTED"
-        uuid validated_by FK "user_profiles.user_id"
-        timestamp validated_at
         jsonb source_metadata "Raw ITSM properties from source system"
         timestamp created_at
         timestamp updated_at "auto-trigger"
     }
 
-    knowledge_articles {
+    cluster_kb_links {
         uuid id PK
         uuid organization_id FK "organizations.id ON DELETE CASCADE"
         uuid cluster_id FK "clusters.id ON DELETE CASCADE"
-        text external_id "UNIQUE(org_id, external_id) - from Workflow Platform"
-        string title
-        string url
-        float relevance_score
-        text status "active|broken|archived - defer until needed"
+        uuid blob_metadata_id FK "blob_metadata.id ON DELETE CASCADE"
         timestamp created_at
-        timestamp updated_at "auto-trigger"
     }
 
     ingestion_runs {
@@ -467,7 +467,7 @@ erDiagram
 
 * **`GET /api/clusters/:id/details`**
     * Returns cluster metadata for user's active organization
-    * Response: `{ id, name, config, validation_target, validation_current, kb_status, trend_data[], created_by, updated_by, automation_enabled_at, automation_enabled_by }`
+    * Response: `{ id, name, config, kb_status, trend_data[], created_by, updated_by }`
     * Query: `WHERE id = :id AND organization_id = current_user.active_organization_id`
 
 * **`GET /api/clusters/:id/tickets`**
@@ -479,7 +479,7 @@ erDiagram
 * **`GET /api/clusters/:id/knowledge`**
     * Returns linked knowledge articles for cluster
     * Query: `WHERE cluster_id = :id AND organization_id = current_user.active_organization_id AND status = 'active'`
-    * Response includes: `{ id, title, url, relevance_score, created_by, created_at }`
+    * Response includes: `{ id, title, url, created_by, created_at }`
 
 #### Actions (Mutation Endpoints)
 
@@ -487,17 +487,8 @@ erDiagram
     * Payload: `{ "auto_respond": true, "auto_populate": false }`
     * Authorization: Requires `admin` or `owner` role in organization
     * Action: Updates `clusters.config`, sets `updated_by = current_user.user_id`, `updated_at = NOW()`
-    * If enabling automation: Sets `automation_enabled_by = current_user.user_id`, `automation_enabled_at = NOW()`
     * Triggers: Webhook to Workflow Platform with config change
     * Audit: Logs to `audit_logs` table with action `enable_cluster_automation` or `update_cluster_config`
-
-* **`POST /api/tickets/:id/validate`**
-    * Payload: `{ "result": "APPROVED" | "REJECTED" }`
-    * Authorization: Requires `member` role or higher
-    * Action: Updates `tickets.validation_result`, `validated_by = current_user.user_id`, `validated_at = NOW()`
-    * If APPROVED: Increments `clusters.validation_current`
-    * If validation_current reaches validation_target: Potentially triggers automation enablement
-    * Returns updated ticket and cluster validation progress
 
 * **`POST /api/ingest/trigger`**
     * Payload: `{ "data_source_connection_id": "uuid" }` (optional, defaults to primary ITSM)
@@ -655,7 +646,7 @@ WF now owns all autopilot data writes. Key patterns:
     |------------|---------|---------|
     | `ingestion_run_update` | `{ingestion_run_id, status, records_processed}` | Refetch dashboard on `status='completed'` |
     | `cluster_update` | `{cluster_id, kb_status, updated_fields[]}` | Update cluster in TanStack Query cache |
-    | `ticket_update` | `{ticket_id, cluster_id, validation_result}` | Update validation progress |
+    | `ticket_update` | `{ticket_id, cluster_id, rita_status}` | Update ticket status |
     | `data_source_update` | `{connection_id, connection_type, status}` | Existing event - reused for credential verification |
 
     **Note:** Reuses existing `data_source_update` event type for credential verification (matches current Confluence pattern).
@@ -749,7 +740,7 @@ All autopilot tables have RLS policies enabled. Rita Backend uses these; Workflo
 -- Enable RLS on all autopilot tables
 ALTER TABLE clusters ENABLE ROW LEVEL SECURITY;
 ALTER TABLE tickets ENABLE ROW LEVEL SECURITY;
-ALTER TABLE knowledge_articles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE cluster_kb_links ENABLE ROW LEVEL SECURITY;
 ALTER TABLE ingestion_runs ENABLE ROW LEVEL SECURITY;
 
 -- Policy pattern for all tables
@@ -761,7 +752,7 @@ CREATE POLICY "users_access_own_organization_tickets" ON tickets
   FOR ALL
   USING (organization_id = current_setting('app.current_organization_id', true)::uuid);
 
-CREATE POLICY "users_access_own_organization_knowledge" ON knowledge_articles
+CREATE POLICY "users_access_own_organization_kb_links" ON cluster_kb_links
   FOR ALL
   USING (organization_id = current_setting('app.current_organization_id', true)::uuid);
 
@@ -786,7 +777,7 @@ All mutable tables track user actions following Rita's audit pattern:
 * **Creation:** `created_by` UUID → `user_profiles.user_id` (Keycloak user ID)
 * **Modification:** `updated_by` UUID → `user_profiles.user_id` (updates on every change)
 * **Timestamps:** `created_at`, `updated_at` (auto-updated via trigger `set_timestamp`)
-* **Specific Actions:** `validated_by`, `automation_enabled_by`, `started_by` (domain-specific tracking)
+* **Specific Actions:** `started_by` (domain-specific tracking)
 
 **Auto-Update Trigger Pattern:**
 ```sql
@@ -867,19 +858,16 @@ CREATE INDEX idx_clusters_config ON clusters USING GIN (config);  -- FUTURE
 CREATE INDEX idx_tickets_organization_id ON tickets(organization_id);
 CREATE INDEX idx_tickets_cluster_id ON tickets(cluster_id);
 CREATE INDEX idx_tickets_rita_status ON tickets(rita_status);
-CREATE INDEX idx_tickets_validation_result ON tickets(validation_result);
 CREATE INDEX idx_tickets_data_source ON tickets(data_source_connection_id);  -- FUTURE
 CREATE INDEX idx_tickets_created_at ON tickets(created_at DESC);
-CREATE INDEX idx_tickets_validated_by ON tickets(validated_by);  -- FUTURE
 CREATE INDEX idx_tickets_source_metadata ON tickets USING GIN (source_metadata);  -- FUTURE
 ```
 
-**knowledge_articles table:**
+**cluster_kb_links table:**
 ```sql
-CREATE INDEX idx_knowledge_articles_organization_id ON knowledge_articles(organization_id);
-CREATE INDEX idx_knowledge_articles_cluster_id ON knowledge_articles(cluster_id);
-CREATE INDEX idx_knowledge_articles_status ON knowledge_articles(status);
-CREATE INDEX idx_knowledge_articles_relevance ON knowledge_articles(relevance_score DESC);
+CREATE INDEX idx_cluster_kb_links_cluster_id ON cluster_kb_links(cluster_id);
+CREATE INDEX idx_cluster_kb_links_blob_metadata_id ON cluster_kb_links(blob_metadata_id);
+CREATE INDEX idx_cluster_kb_links_organization_id ON cluster_kb_links(organization_id);
 ```
 
 **ingestion_runs table:**
@@ -933,15 +921,9 @@ CREATE TABLE clusters (
     external_cluster_id TEXT NOT NULL,  -- Stable ID from Workflow Platform
     name TEXT NOT NULL,
     config JSONB DEFAULT '{}'::jsonb,
-    validation_target INTEGER,  -- TBD: product spec pending, nullable for now
-    validation_current INTEGER NOT NULL DEFAULT 0,
     kb_status TEXT DEFAULT 'PENDING' CHECK (kb_status IN ('PENDING', 'FOUND', 'GAP')),
 
-    -- User tracking (only for user actions, not system creation)
-    automation_enabled_by UUID REFERENCES user_profiles(user_id),
-
     -- Timestamps
-    automation_enabled_at TIMESTAMP WITH TIME ZONE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
 
@@ -976,9 +958,6 @@ COMMENT ON COLUMN clusters.id IS 'Internal auto-generated UUID for internal refe
 COMMENT ON COLUMN clusters.parent_cluster_id IS 'Self-ref FK for subclusters (NULL=top-level, 2 levels max enforced in app)';
 COMMENT ON COLUMN clusters.external_cluster_id IS 'Stable cluster ID provided by Workflow Platform (used for upsert matching)';
 COMMENT ON COLUMN clusters.config IS 'JSONB config: {auto_respond: boolean, auto_populate: boolean}';
-COMMENT ON COLUMN clusters.validation_current IS 'Current count of approved validation samples (progress toward target)';
-COMMENT ON COLUMN clusters.automation_enabled_at IS 'Timestamp when automation was first enabled (audit trail)';
-COMMENT ON COLUMN clusters.validation_target IS 'Validation sample target count (TBD - product spec pending)';
 ```
 
 #### tickets Table
@@ -998,12 +977,6 @@ CREATE TABLE tickets (
     cluster_text TEXT,  -- Text for classification (set by ingestion workflow)
     rita_status TEXT DEFAULT 'NEEDS_RESPONSE' CHECK (rita_status IN ('NEEDS_RESPONSE', 'COMPLETED')),
 
-    -- Validation tracking
-    is_validation_sample BOOLEAN DEFAULT false,
-    validation_result TEXT DEFAULT 'PENDING' CHECK (validation_result IN ('PENDING', 'APPROVED', 'REJECTED')),
-    validated_by UUID REFERENCES user_profiles(user_id),
-    validated_at TIMESTAMP WITH TIME ZONE,
-
     -- Source metadata
     source_metadata JSONB DEFAULT '{}'::jsonb,
 
@@ -1019,12 +992,9 @@ CREATE TABLE tickets (
 CREATE INDEX idx_tickets_organization_id ON tickets(organization_id);
 CREATE INDEX idx_tickets_cluster_id ON tickets(cluster_id);
 CREATE INDEX idx_tickets_rita_status ON tickets(rita_status);
-CREATE INDEX idx_tickets_validation_result ON tickets(validation_result);
 CREATE INDEX idx_tickets_data_source ON tickets(data_source_connection_id);  -- FUTURE
 CREATE INDEX idx_tickets_created_at ON tickets(created_at DESC);
-CREATE INDEX idx_tickets_validated_by ON tickets(validated_by);  -- FUTURE
 CREATE INDEX idx_tickets_source_metadata ON tickets USING GIN (source_metadata);  -- FUTURE
-CREATE INDEX idx_tickets_validation_samples ON tickets(cluster_id, is_validation_sample) WHERE is_validation_sample = true;  -- FUTURE
 
 -- Row-Level Security
 ALTER TABLE tickets ENABLE ROW LEVEL SECURITY;
@@ -1045,59 +1015,37 @@ COMMENT ON COLUMN tickets.cluster_id IS 'NULL until classification workflow assi
 COMMENT ON COLUMN tickets.cluster_text IS 'Text for classification (set by ingestion, used by classification workflow)';
 COMMENT ON COLUMN tickets.external_id IS 'ITSM ticket ID (e.g., INC-123 from ServiceNow)';
 COMMENT ON COLUMN tickets.rita_status IS 'Rita-specific status for workflow tracking';
-COMMENT ON COLUMN tickets.is_validation_sample IS 'Flag indicating ticket selected for 0/16 validation UI';
 COMMENT ON COLUMN tickets.data_source_connection_id IS 'Optional FK for filtering tickets by connection (NULL if from WP independent connections)';
 COMMENT ON COLUMN tickets.source_metadata IS 'Raw ITSM properties from source system for debugging/display';
 ```
 
-#### knowledge_articles Table
+#### cluster_kb_links Table
 
 ```sql
--- Knowledge base articles linked to clusters (system-generated from Workflow Platform)
-CREATE TABLE knowledge_articles (
+-- Junction table linking clusters to KB articles in blob_metadata
+CREATE TABLE cluster_kb_links (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
     cluster_id UUID NOT NULL REFERENCES clusters(id) ON DELETE CASCADE,
-    external_id TEXT NOT NULL,  -- Stable identifier from Workflow Platform for upsert
-
-    -- Article details
-    title TEXT NOT NULL,
-    url TEXT NOT NULL,
-    relevance_score FLOAT NOT NULL CHECK (relevance_score >= 0 AND relevance_score <= 1),
-    status TEXT DEFAULT 'active' CHECK (status IN ('active', 'broken', 'archived')),  -- defer until needed
-
-    -- Timestamps
+    blob_metadata_id UUID NOT NULL REFERENCES blob_metadata(id) ON DELETE CASCADE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-
-    -- Unique constraint for upsert operations
-    UNIQUE (organization_id, external_id)
+    UNIQUE (cluster_id, blob_metadata_id)
 );
 
 -- Indexes
-CREATE INDEX idx_knowledge_articles_organization_id ON knowledge_articles(organization_id);
-CREATE INDEX idx_knowledge_articles_cluster_id ON knowledge_articles(cluster_id);
-CREATE INDEX idx_knowledge_articles_status ON knowledge_articles(status);
-CREATE INDEX idx_knowledge_articles_relevance ON knowledge_articles(relevance_score DESC);
+CREATE INDEX idx_cluster_kb_links_cluster_id ON cluster_kb_links(cluster_id);
+CREATE INDEX idx_cluster_kb_links_blob_metadata_id ON cluster_kb_links(blob_metadata_id);
+CREATE INDEX idx_cluster_kb_links_organization_id ON cluster_kb_links(organization_id);
 
 -- Row-Level Security
-ALTER TABLE knowledge_articles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE cluster_kb_links ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "users_access_own_organization_knowledge" ON knowledge_articles
+CREATE POLICY "users_access_own_organization_kb_links" ON cluster_kb_links
     FOR ALL
     USING (organization_id = current_setting('app.current_organization_id', true)::uuid);
 
--- Auto-update trigger
-CREATE TRIGGER set_timestamp
-BEFORE UPDATE ON knowledge_articles
-FOR EACH ROW
-EXECUTE FUNCTION update_updated_at_column();
-
 -- Comments
-COMMENT ON TABLE knowledge_articles IS 'KB articles linked to clusters (system-generated from Workflow Platform)';
-COMMENT ON COLUMN knowledge_articles.external_id IS 'Stable identifier from Workflow Platform for idempotent upsert operations';
-COMMENT ON COLUMN knowledge_articles.relevance_score IS 'AI relevance score (0.0 to 1.0) from Workflow Platform';
-COMMENT ON COLUMN knowledge_articles.status IS 'Track article availability - defer until auto-refresh feature needed';
+COMMENT ON TABLE cluster_kb_links IS 'Links clusters to KB articles in blob_metadata';
 ```
 
 #### ingestion_runs Table
@@ -1191,7 +1139,7 @@ COMMENT ON COLUMN ingestion_runs.created_at IS 'Doubles as started_at timestamp'
 - [ ] Verify data_source_connections table exists (for optional FK)
 
 **Post-Migration:**
-- [ ] Verify all tables created: `\dt clusters tickets knowledge_articles ingestion_runs`
+- [ ] Verify all tables created: `\dt clusters tickets cluster_kb_links ingestion_runs`
 - [ ] Verify all indexes created: `\di idx_clusters_*` `\di idx_tickets_*`
 - [ ] For credential_delegation_tokens: See [Credential Delegation Technical Design](../feat-credential-delegation/technical-design-credential-delegation.md)
 - [ ] Verify RLS policies enabled: `SELECT tablename, rowsecurity FROM pg_tables WHERE schemaname = 'public'`
@@ -1204,7 +1152,7 @@ COMMENT ON COLUMN ingestion_runs.created_at IS 'Doubles as started_at timestamp'
 ```sql
 -- Rollback script (if needed - DESTRUCTIVE!)
 DROP TABLE IF EXISTS ingestion_runs CASCADE;
-DROP TABLE IF EXISTS knowledge_articles CASCADE;
+DROP TABLE IF EXISTS cluster_kb_links CASCADE;
 DROP TABLE IF EXISTS tickets CASCADE;
 DROP TABLE IF EXISTS clusters CASCADE;
 -- For credential_delegation_tokens rollback, see Credential Delegation doc
@@ -1244,6 +1192,30 @@ DROP TABLE IF EXISTS clusters CASCADE;
 -----
 
 ## Changelog
+
+### v1.15 (December 2, 2025)
+**Remove Undefined Validation/Automation Fields**
+
+- **Removed:** tickets: is_validation_sample, validation_result, validated_by, validated_at
+- **Removed:** clusters: validation_target, validation_current, automation_enabled_by, automation_enabled_at
+- **Removed:** POST /api/tickets/:id/validate endpoint (deferred)
+- **Reason:** Product spec pending - will re-add when requirements defined
+
+### v1.14 (December 2, 2025)
+**Replace knowledge_articles with Junction Table**
+
+- **Replaced:** `knowledge_articles` table with `cluster_kb_links` junction table
+- **Added:** `cluster_kb_links` links `blob_metadata` → `clusters` (reuses existing KB content)
+- **Updated:** ERD, sequence diagrams, schema documentation
+- **Updated:** Migration 139 to DROP knowledge_articles and CREATE cluster_kb_links
+
+### v1.12 (December 1, 2025)
+**Sequence Diagram Split**
+
+- **Split:** Single sequence diagram into 2 diagrams by trigger type
+- **Added:** 2.2.1 Sync Tickets Flow (Phase 1-3): trigger → ticket pull → classification → notification
+- **Added:** 2.2.2 Enrichment Flow: shows 3 trigger sources (auto/webhook/cron) → KB search → notification
+- **Removed:** UX UNLOCK critical block (client fetches data independently after SSE)
 
 ### v1.11 (December 1, 2025)
 **Enrichment Trigger Options**
@@ -1292,7 +1264,7 @@ DROP TABLE IF EXISTS clusters CASCADE;
 ### v1.4 (November 26, 2025)
 **Architectural Change: Workflow Platform Direct DB Access**
 
-- **Changed:** WF now writes directly to PostgreSQL for autopilot tables (clusters, tickets, knowledge_articles, ingestion_runs)
+- **Changed:** WF now writes directly to PostgreSQL for autopilot tables (clusters, tickets, cluster_kb_links, ingestion_runs)
 - **Changed:** RabbitMQ messages are now lightweight notifications (no full data payloads)
 - **Changed:** Rita consumers (`IngestionNotificationConsumer`) only emit SSE events
 - **Changed:** WF uses direct `organization_id` filtering instead of RLS session variables

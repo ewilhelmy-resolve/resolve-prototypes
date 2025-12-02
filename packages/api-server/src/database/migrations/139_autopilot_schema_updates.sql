@@ -4,6 +4,8 @@
 -- 2. Add subcluster support to clusters
 -- 3. Add cluster_text to tickets for classification
 -- 4. Drop analytics_cluster_daily (deferred - calculation logic TBD)
+-- 5. Replace knowledge_articles with cluster_kb_links junction table
+-- 6. Remove undefined validation/automation fields (defer until product spec)
 
 -- =============================================================================
 -- 1. MAKE TICKETS.CLUSTER_ID NULLABLE (unclassified tickets)
@@ -56,6 +58,49 @@ COMMENT ON COLUMN tickets.cluster_text IS 'Text used for classification (set by 
 DROP TABLE IF EXISTS analytics_cluster_daily CASCADE;
 
 -- =============================================================================
+-- 5. REPLACE KNOWLEDGE_ARTICLES WITH JUNCTION TABLE
+-- =============================================================================
+
+-- Drop knowledge_articles (use blob_metadata instead)
+DROP TABLE IF EXISTS knowledge_articles CASCADE;
+
+-- Create junction table linking blob_metadata to clusters
+CREATE TABLE cluster_kb_links (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+    cluster_id UUID NOT NULL REFERENCES clusters(id) ON DELETE CASCADE,
+    blob_metadata_id UUID NOT NULL REFERENCES blob_metadata(id) ON DELETE CASCADE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    UNIQUE (cluster_id, blob_metadata_id)
+);
+
+CREATE INDEX idx_cluster_kb_links_cluster_id ON cluster_kb_links(cluster_id);
+CREATE INDEX idx_cluster_kb_links_blob_metadata_id ON cluster_kb_links(blob_metadata_id);
+CREATE INDEX idx_cluster_kb_links_organization_id ON cluster_kb_links(organization_id);
+
+ALTER TABLE cluster_kb_links ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "users_access_own_organization_kb_links" ON cluster_kb_links
+    FOR ALL USING (organization_id = current_setting('app.current_organization_id', true)::uuid);
+
+COMMENT ON TABLE cluster_kb_links IS 'Links clusters to KB articles in blob_metadata';
+
+-- =============================================================================
+-- 6. REMOVE UNDEFINED VALIDATION/AUTOMATION FIELDS (defer until product spec)
+-- =============================================================================
+
+-- Tickets: remove validation sample fields
+ALTER TABLE tickets DROP COLUMN IF EXISTS is_validation_sample;
+ALTER TABLE tickets DROP COLUMN IF EXISTS validation_result;
+ALTER TABLE tickets DROP COLUMN IF EXISTS validated_by;
+ALTER TABLE tickets DROP COLUMN IF EXISTS validated_at;
+
+-- Clusters: remove validation/automation fields
+ALTER TABLE clusters DROP COLUMN IF EXISTS validation_target;
+ALTER TABLE clusters DROP COLUMN IF EXISTS validation_current;
+ALTER TABLE clusters DROP COLUMN IF EXISTS automation_enabled_by;
+ALTER TABLE clusters DROP COLUMN IF EXISTS automation_enabled_at;
+
+-- =============================================================================
 -- ROLLBACK SCRIPT
 -- =============================================================================
 --
@@ -69,3 +114,7 @@ DROP TABLE IF EXISTS analytics_cluster_daily CASCADE;
 -- ALTER TABLE clusters DROP COLUMN IF EXISTS parent_cluster_id;
 -- ALTER TABLE tickets DROP COLUMN IF EXISTS cluster_text;
 -- Re-run migration 138 section for analytics_cluster_daily if needed
+-- DROP TABLE IF EXISTS cluster_kb_links CASCADE;
+-- Re-run migration 138 section for knowledge_articles if needed
+-- Re-run migration 138 section for tickets validation fields if needed
+-- Re-run migration 138 section for clusters validation/automation fields if needed
