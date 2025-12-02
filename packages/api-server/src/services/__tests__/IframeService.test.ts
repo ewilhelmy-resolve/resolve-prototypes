@@ -7,12 +7,17 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-// Mock dependencies before imports
+// Mock dependencies before imports - use vi.hoisted for variables used in vi.mock
+const { mockPoolQuery, mockWithOrgContext } = vi.hoisted(() => ({
+  mockPoolQuery: vi.fn(),
+  mockWithOrgContext: vi.fn(),
+}));
+
 vi.mock('../../config/database.js', () => ({
   pool: {
-    query: vi.fn(),
+    query: mockPoolQuery,
   },
-  withOrgContext: vi.fn(),
+  withOrgContext: mockWithOrgContext,
 }));
 
 vi.mock('./sessionStore.js', () => ({
@@ -31,7 +36,6 @@ vi.mock('./sessionService.js', () => ({
   })),
 }));
 
-import { pool, withOrgContext } from '../../config/database.js';
 import {
   IframeService,
   PUBLIC_USER_ID,
@@ -50,7 +54,7 @@ describe('IframeService', () => {
 
   describe('validateToken', () => {
     it('should return token info for valid active token', async () => {
-      vi.mocked(pool.query).mockResolvedValueOnce({
+      mockPoolQuery.mockResolvedValueOnce({
         rows: [{
           id: 'token-id-1',
           token: 'valid-token',
@@ -75,7 +79,7 @@ describe('IframeService', () => {
     });
 
     it('should return null for invalid token', async () => {
-      vi.mocked(pool.query).mockResolvedValueOnce({
+      mockPoolQuery.mockResolvedValueOnce({
         rows: [],
         command: 'SELECT',
         rowCount: 0,
@@ -89,7 +93,7 @@ describe('IframeService', () => {
     });
 
     it('should return null for empty token', async () => {
-      vi.mocked(pool.query).mockResolvedValueOnce({
+      mockPoolQuery.mockResolvedValueOnce({
         rows: [],
         command: 'SELECT',
         rowCount: 0,
@@ -114,7 +118,7 @@ describe('IframeService', () => {
     });
 
     it('should reject invalid token', async () => {
-      vi.mocked(pool.query).mockResolvedValueOnce({
+      mockPoolQuery.mockResolvedValueOnce({
         rows: [],
         command: 'SELECT',
         rowCount: 0,
@@ -132,7 +136,7 @@ describe('IframeService', () => {
 
     it('should accept valid token and create session', async () => {
       // Mock token validation
-      vi.mocked(pool.query).mockResolvedValueOnce({
+      mockPoolQuery.mockResolvedValueOnce({
         rows: [{
           id: 'token-id-1',
           token: 'valid-token',
@@ -149,7 +153,7 @@ describe('IframeService', () => {
       });
 
       // Mock conversation creation
-      vi.mocked(withOrgContext).mockImplementation(async (_userId, _orgId, callback) => {
+      mockWithOrgContext.mockImplementation(async (_userId, _orgId, callback) => {
         const mockClient = {
           query: vi.fn().mockResolvedValue({
             rows: [{ id: 'new-conversation-id' }],
@@ -170,7 +174,7 @@ describe('IframeService', () => {
 
     it('should use existing conversation ID if provided', async () => {
       // Mock token validation
-      vi.mocked(pool.query).mockResolvedValueOnce({
+      mockPoolQuery.mockResolvedValueOnce({
         rows: [{
           id: 'token-id-1',
           token: 'valid-token',
@@ -195,12 +199,12 @@ describe('IframeService', () => {
       expect(result.valid).toBe(true);
       expect(result.conversationId).toBe('existing-conversation-id');
       // withOrgContext should not be called when using existing conversation
-      expect(withOrgContext).not.toHaveBeenCalled();
+      expect(mockWithOrgContext).not.toHaveBeenCalled();
     });
 
     it('should pass intent-eid to conversation creation', async () => {
       // Mock token validation
-      vi.mocked(pool.query).mockResolvedValueOnce({
+      mockPoolQuery.mockResolvedValueOnce({
         rows: [{
           id: 'token-id-1',
           token: 'valid-token',
@@ -217,7 +221,7 @@ describe('IframeService', () => {
       });
 
       // Mock conversation creation
-      vi.mocked(withOrgContext).mockImplementation(async (_userId, _orgId, callback) => {
+      mockWithOrgContext.mockImplementation(async (_userId, _orgId, callback) => {
         const mockClient = {
           query: vi.fn().mockResolvedValue({
             rows: [{ id: 'new-conversation-id' }],
