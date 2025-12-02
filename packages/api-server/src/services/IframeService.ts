@@ -1,7 +1,17 @@
-import { withOrgContext } from '../config/database.js';
+import { pool, withOrgContext } from '../config/database.js';
 import { logger } from '../config/logger.js';
 import { getSessionStore, type CreateSessionData, type Session } from './sessionStore.js';
 import { getSessionService } from './sessionService.js';
+
+export interface IframeToken {
+  id: string;
+  token: string;
+  name: string;
+  description: string | null;
+  isActive: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+}
 
 /**
  * PUBLIC SYSTEM CONSTANTS
@@ -37,6 +47,35 @@ export function isPublicOrganization(organizationId: string): boolean {
 export class IframeService {
   private sessionStore = getSessionStore();
   private sessionService = getSessionService();
+
+  /**
+   * Validate an iframe token against the database
+   * Returns token info if valid, null if invalid/inactive
+   */
+  async validateToken(token: string): Promise<IframeToken | null> {
+    const result = await pool.query(
+      `SELECT id, token, name, description, is_active, created_at, updated_at
+       FROM iframe_tokens
+       WHERE token = $1 AND is_active = true`,
+      [token]
+    );
+
+    if (result.rows.length === 0) {
+      logger.warn({ token: token.substring(0, 8) + '...' }, 'Invalid or inactive iframe token');
+      return null;
+    }
+
+    const row = result.rows[0];
+    return {
+      id: row.id,
+      token: row.token,
+      name: row.name,
+      description: row.description,
+      isActive: row.is_active,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    };
+  }
 
   /**
    * Create a session for the public guest user
@@ -91,14 +130,31 @@ export class IframeService {
 
   /**
    * Validate instantiation and setup public session + conversation
-   * If existingConversationId provided, skip conversation creation (session-only mode)
+   * Requires valid token. If existingConversationId provided, skip conversation creation.
    */
-  async validateAndSetup(intentEid?: string, existingConversationId?: string): Promise<{
+  async validateAndSetup(
+    token: string,
+    intentEid?: string,
+    existingConversationId?: string
+  ): Promise<{
     valid: boolean;
-    publicUserId: string;
-    conversationId: string;
-    cookie: string;
+    error?: string;
+    publicUserId?: string;
+    conversationId?: string;
+    cookie?: string;
+    tokenName?: string;
   }> {
+    // Validate token first
+    if (!token) {
+      logger.warn('Iframe instantiation attempted without token');
+      return { valid: false, error: 'Token required' };
+    }
+
+    const tokenInfo = await this.validateToken(token);
+    if (!tokenInfo) {
+      return { valid: false, error: 'Invalid or inactive token' };
+    }
+
     // Create session for public user
     const { session, cookie } = await this.createPublicSession();
 
@@ -108,7 +164,13 @@ export class IframeService {
       : (await this.createPublicConversation(intentEid)).conversationId;
 
     logger.info(
-      { conversationId, intentEid, sessionId: session.sessionId, existingConversation: !!existingConversationId },
+      {
+        conversationId,
+        intentEid,
+        sessionId: session.sessionId,
+        existingConversation: !!existingConversationId,
+        tokenName: tokenInfo.name,
+      },
       'Iframe instantiation complete'
     );
 
@@ -117,6 +179,7 @@ export class IframeService {
       publicUserId: PUBLIC_USER_ID,
       conversationId,
       cookie,
+      tokenName: tokenInfo.name,
     };
   }
 }

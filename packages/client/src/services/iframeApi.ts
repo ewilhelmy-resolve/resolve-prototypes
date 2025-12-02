@@ -8,6 +8,7 @@
 const API_BASE_URL = import.meta.env.VITE_API_URL || '';
 
 export interface ValidateInstantiationRequest {
+  token: string;
   intentEid?: string;
   existingConversationId?: string; // Skip conversation creation if provided
 }

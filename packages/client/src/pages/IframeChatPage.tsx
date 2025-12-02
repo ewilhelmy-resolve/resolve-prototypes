@@ -57,6 +57,7 @@ function IframeChatContent({
 export default function IframeChatPage() {
 	const { conversationId: urlConversationId } = useParams<{ conversationId?: string }>();
 	const [searchParams] = useSearchParams();
+	const token = searchParams.get("token");
 	const intentEid = searchParams.get("intent-eid");
 
 	const [isLoading, setIsLoading] = useState(true);
@@ -77,8 +78,16 @@ export default function IframeChatPage() {
 		initRef.current = true;
 
 		async function initializeIframe() {
+			// Token is required
+			if (!token) {
+				setError("Missing token parameter");
+				setIsLoading(false);
+				return;
+			}
+
 			try {
 				console.log("[IframeChatPage] Initializing public session...", {
+					token: token.substring(0, 8) + "...",
 					intentEid,
 					existingConversationId: urlConversationId,
 				});
@@ -86,6 +95,7 @@ export default function IframeChatPage() {
 				// Always call validate-instantiation to get session cookie
 				// Pass existing conversationId to skip creating a new one
 				const response = await iframeApi.validateInstantiation({
+					token,
 					intentEid: intentEid || undefined,
 					existingConversationId: urlConversationId,
 				});
@@ -110,7 +120,7 @@ export default function IframeChatPage() {
 		}
 
 		initializeIframe();
-	}, [urlConversationId, intentEid, setCurrentConversation]);
+	}, [urlConversationId, token, intentEid, setCurrentConversation]);
 
 	// Loading state
 	if (isLoading) {
