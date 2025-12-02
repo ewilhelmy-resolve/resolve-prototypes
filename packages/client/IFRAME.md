@@ -1,41 +1,75 @@
-# RITA Go Iframe Integration
+# RITA Go Iframe Integration (Public Guest Access)
 
-Embeddable iframe version of RITA Go chat for integration into external applications.
+Embeddable iframe version of RITA Go chat for integration into host pages on the same domain.
 
 ## Overview
 
-The iframe version provides a minimal chat interface without sidebar, navigation, or header chrome. Perfect for embedding RITA into existing workflows, helpdesk systems, or custom applications.
+The iframe version provides public access to RITA chat without requiring user authentication. All users interact through a shared `public-guest-user` account, with conversations isolated by `conversationId`. This is designed for same-domain deployment where the host page and RITA share the same origin.
 
 ## Routes
 
-- `/iframe/chat` - New conversation
+- `/iframe/chat` - New public conversation
 - `/iframe/chat/:conversationId` - Existing conversation
 - `/iframe/chat?intent-eid=<value>` - New conversation with intent tracking
 
-## Key Differences from Main App
+## Key Features
 
-1. **No Sidebar** - Clean, minimal layout
-2. **No Navigation** - Focus on chat only
-3. **No Knowledge Base Requirement** - Works without uploaded files (configurable)
-4. **Intent EID Support** - Tracks conversation context via URL parameter
+1. **Public Access** - No Keycloak login required
+2. **Guest User Model** - All users share `public-guest-user` account
+3. **Minimal UI** - No sidebar, no navigation
+4. **Session Auto-Creation** - Session created automatically on page load
+5. **Intent EID Support** - Track conversation context via URL parameter
+6. **Same-Domain Security** - Secure by virtue of shared origin
 
 ## Quick Start (Development)
 
 ### 1. Start Dev Servers
 
 ```bash
-# Terminal 1: Start RITA client
+# Terminal 1: Start API server (required)
+npm run dev:api
+
+# Terminal 2: Start RITA client
 npm run dev:client
 
-# Terminal 2: Start iframe demo
-npm run dev:iframe-demo
+# Terminal 3: Start iframe app host
+npm run dev:iframe-app
 ```
 
 ### 2. Test Locally
 
-1. Open main app and login: http://localhost:5173/chat
-2. Open iframe demo: http://localhost:5174
-3. Test different intent-eid values
+Open directly: http://localhost:5173/iframe/chat
+
+Or use the demo app: http://localhost:5174
+
+## How It Works
+
+### Public Guest User
+
+All iframe conversations use a shared system user:
+
+- **User ID**: `00000000-0000-0000-0000-000000000002`
+- **Org ID**: `00000000-0000-0000-0000-000000000001`
+- **Email**: `public-guest@internal.system`
+
+This user is created via database migration and has restricted permissions.
+
+### Session Flow
+
+1. User loads `/iframe/chat`
+2. Frontend calls `POST /api/iframe/validate-instantiation`
+3. Backend creates session for `public-guest-user`
+4. Backend creates conversation, returns `conversationId`
+5. Session cookie set, chat renders
+6. User can send messages immediately
+
+### No Authentication Required
+
+Unlike the main RITA app:
+- No Keycloak redirect
+- No login page
+- No JWT tokens
+- Session created automatically
 
 ## Integration Example
 
@@ -43,22 +77,17 @@ npm run dev:iframe-demo
 
 ```html
 <iframe
-  src="https://your-rita-domain.com/iframe/chat?intent-eid=ticket-123"
+  src="https://your-domain.com/iframe/chat?intent-eid=ticket-123"
   style="width: 100%; height: 600px; border: none;"
-  allow="microphone; clipboard-write; clipboard-read"
 ></iframe>
 ```
 
 ### Dynamic Integration with JavaScript
 
 ```javascript
-// Create iframe dynamically
 const iframe = document.createElement('iframe');
-iframe.src = `https://your-rita-domain.com/iframe/chat?intent-eid=${intentId}`;
+iframe.src = `https://your-domain.com/iframe/chat?intent-eid=${intentId}`;
 iframe.style.cssText = 'width: 100%; height: 100%; border: none;';
-iframe.allow = 'microphone; clipboard-write; clipboard-read';
-
-// Replace existing element
 document.getElementById('chat-container').appendChild(iframe);
 ```
 
@@ -68,146 +97,121 @@ The `intent-eid` parameter allows tracking conversation context:
 
 - **Ticket Support**: `intent-eid=ticket-urgent-001`
 - **User Onboarding**: `intent-eid=onboarding-new-user`
-- **Sales Inquiry**: `intent-eid=sales-inquiry-123`
+- **Workflow Designer**: `intent-eid=activity-designer-001`
 
-### Current Behavior
+### Behavior
 
 - Parsed from URL query params
-- Logged to console for debugging
-- **TODO**: Store in conversation metadata (backend implementation needed)
+- Logged for audit purposes
+- Available for future analytics integration
 
-## Authentication
+## Security Model
 
-### Current State (v1)
+### Same-Domain Deployment
 
-**Same-Domain Only**
-- Uses Keycloak authentication
-- Shares session cookies with main app
-- Requires user to be logged in
-- Works only when iframe and parent are same domain
+- Host page and RITA must share the same origin
+- Session cookies work automatically
+- No cross-domain concerns
 
-### Limitations
+### Public User Restrictions (Planned)
 
-- ❌ Cannot embed in external domains (cross-origin)
-- ❌ No token-based auth
-- ❌ Requires Keycloak redirect flow
+Public users should have limited access:
+- No file uploads
+- No data source connections
+- Limited conversation history
+- No organization settings access
 
-### Planned (v2) - Token-Based Auth
+Use `isPublicUser()` helper to check:
 
-**Goal**: Cross-domain iframe embedding with token authentication
+```typescript
+import { isPublicUser } from '@/services/IframeService';
 
-**Implementation TODO**:
-1. Backend: Generate OTC (One-Time Code) endpoint
-2. Backend: Exchange OTC for session endpoint
-3. Backend: Redis storage for OTCs (5min TTL)
-4. Frontend: Handle `?otc=xxx` parameter in IframeChatPage
-5. Frontend: Exchange OTC for session on mount
-6. Parent: Generate OTC from authenticated session
-7. Security: Origin validation, rate limiting, audit logging
-
-**Example Flow**:
-```javascript
-// Parent page generates OTC
-const response = await fetch('/api/auth/generate-rita-otc', {
-  method: 'POST',
-  credentials: 'include'
-});
-const { otc } = await response.json();
-
-// Pass OTC to iframe
-iframe.src = `https://rita.yourdomain.com/iframe/chat?intent-eid=xxx&otc=${otc}`;
+if (isPublicUser(userId)) {
+  // Apply restrictions
+}
 ```
 
-## Security Considerations
+## API Endpoints
 
-### CSP (Content Security Policy)
+### POST /api/iframe/validate-instantiation
 
-Parent page must allow iframe embedding:
+Creates public session and conversation.
 
+**Request:**
+```json
+{
+  "intentEid": "optional-tracking-id"
+}
 ```
-Content-Security-Policy: frame-src https://your-rita-domain.com
-```
 
-### CORS
-
-RITA backend must whitelist parent domains for API calls (when token auth is implemented).
-
-### Sandbox Restrictions
-
-Consider iframe sandbox attributes:
-```html
-<iframe sandbox="allow-scripts allow-same-origin allow-forms allow-popups">
+**Response:**
+```json
+{
+  "valid": true,
+  "publicUserId": "00000000-0000-0000-0000-000000000002",
+  "conversationId": "uuid-of-new-conversation"
+}
 ```
 
 ## Testing
 
 ### Demo Application
 
-The `packages/iframe-demo` provides a testing environment:
+The `packages/iframe-app` provides a testing environment:
 
 **Features**:
 - Quick test scenarios (ticket, onboarding, sales)
 - Configurable intent-eid input
 - Visual URL display
-- Side-by-side comparison option
+- Responsive iframe container
 
 **Usage**:
 ```bash
-npm run dev:iframe-demo
+npm run dev:iframe-app
 # Opens http://localhost:5174
 ```
 
 ### Manual Testing Checklist
 
-- [ ] New conversation starts correctly
-- [ ] Intent-eid appears in logs
+- [ ] Page loads without login redirect
+- [ ] New conversation created automatically
+- [ ] Intent-eid appears in server logs
 - [ ] Message sending works
 - [ ] SSE real-time updates work
-- [ ] Citations render properly
-- [ ] Reasoning display works
-- [ ] Responsive layout works
-- [ ] Authentication flow works
 - [ ] No console errors
 
 ## Production Deployment
 
 ### Prerequisites
 
-1. **HTTPS Required** - Browsers block HTTP iframes in HTTPS pages
-2. **Authentication** - Implement token-based auth for cross-domain
-3. **CORS Configuration** - Whitelist allowed parent domains
-4. **Rate Limiting** - Prevent abuse of iframe endpoints
-5. **Monitoring** - Track iframe usage and errors
+1. **Same Domain** - Host and RITA on same origin
+2. **HTTPS** - Required for production
+3. **API Server** - Must be running with iframe routes
+4. **Database** - Migration 138 applied (public-guest-user)
 
 ### Environment Variables
 
 Same as main app - see `.env.example` in packages/client
 
-### Build
+## Known Limitations
 
-```bash
-npm run build
-# Builds both api-server and client
-```
-
-## Known Issues
-
-1. **Auth Required** - User must be logged in to main app first (same-domain only)
-2. **No PostMessage** - No parent-iframe communication yet
-3. **No Theming** - Cannot customize colors from parent
-4. **Intent EID Not Stored** - Logged but not persisted to backend
+1. **Same Domain Only** - Cannot embed cross-domain
+2. **Shared User** - All conversations from same "user"
+3. **No Personalization** - No user-specific settings
+4. **No PostMessage** - No parent-iframe communication
 
 ## Future Enhancements
 
-- [ ] Token-based authentication (OTC flow)
+- [ ] Feature restrictions for public user
 - [ ] PostMessage API for parent-iframe communication
 - [ ] Custom theming via URL parameters
-- [ ] Backend storage of intent-eid in conversation metadata
-- [ ] Error boundary and fallback UI
-- [ ] Multiple iframe instances on same page
-- [ ] Conversation persistence across page reloads
-- [ ] Analytics tracking for iframe usage
+- [ ] Analytics tracking for intent-eid
+- [ ] Conversation TTL auto-cleanup
+- [ ] Rate limiting per intent-eid
 
-## Support
+## Related Files
 
-For issues or questions, see project documentation in `/CLAUDE.md`
+- `packages/api-server/src/services/IframeService.ts` - Backend service
+- `packages/api-server/src/routes/iframe.routes.ts` - API endpoint
+- `packages/client/src/pages/IframeChatPage.tsx` - Frontend page
+- `packages/client/src/services/iframeApi.ts` - Frontend API client

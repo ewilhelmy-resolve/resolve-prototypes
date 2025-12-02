@@ -1,71 +1,38 @@
 /**
- * IframeChatPage - Minimal chat page for iframe embedding
+ * IframeChatPage - Public chat page for iframe embedding
  *
- * Stripped-down version of ChatV1Page for embedding in iframe:
+ * Stripped-down chat for embedding in iframe:
  * - No sidebar, no header navigation
- * - Parses intent-eid from URL params
- * - Passes intent-eid to conversation creation
- * - Standalone operation (no parent communication)
+ * - Uses public-guest-user (no Keycloak auth)
+ * - Parses intent-eid from URL params for tracking
  *
- * AUTHENTICATION STATUS:
- * Currently uses Keycloak auth (same-domain only). For cross-domain iframe
- * embedding, token-based auth must be implemented. See packages/client/IFRAME.md
- *
- * TODO - Token-Based Authentication:
- * 1. Add OTC (One-Time Code) parameter handling: ?otc=xxx
- * 2. Exchange OTC for session on mount
- * 3. Redirect to clean URL after auth (remove token from URL)
- * 4. Handle auth errors (expired OTC, invalid token)
- * 5. Backend: Implement /api/auth/exchange-otc endpoint
- * 6. Backend: Implement /api/auth/generate-otc endpoint
- * 7. Backend: Redis storage for OTCs (5min TTL)
+ * Flow:
+ * 1. On mount, call /api/iframe/validate-instantiation
+ * 2. Backend creates session for public-guest-user (cookie set)
+ * 3. Backend creates conversation, returns conversationId
+ * 4. Render chat with SSE (session cookie enables SSE)
  */
 
-import { useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
 import ChatV1Content from "../components/chat/ChatV1Content";
 import IframeChatLayout from "../components/layouts/IframeChatLayout";
+import { SSEProvider } from "../contexts/SSEContext";
 import { useSSEContext } from "../contexts/SSEContext";
 import { useRitaChat } from "../hooks/useRitaChat";
 import { useConversationStore } from "../stores/conversationStore";
+import { iframeApi } from "../services/iframeApi";
+import { Loader } from "../components/ai-elements/loader";
 
-export default function IframeChatPage() {
-	const { conversationId } = useParams<{ conversationId?: string }>();
-	const [searchParams] = useSearchParams();
-	const intentEid = searchParams.get("intent-eid");
-
+// Inner component that uses SSE (must be inside SSEProvider)
+function IframeChatContent({
+	conversationId,
+}: {
+	conversationId: string;
+}) {
 	const { latestUpdate } = useSSEContext();
-	const { updateMessage, setCurrentConversation } = useConversationStore();
+	const { updateMessage } = useConversationStore();
 	const ritaChatState = useRitaChat();
-
-	// Log intent-eid for debugging
-	useEffect(() => {
-		if (intentEid) {
-			console.log("[IframeChatPage] Initialized with intent-eid:", intentEid);
-			// TODO: Store intent-eid in conversation metadata
-			// This will require updating:
-			// - useCreateConversation hook to accept metadata param
-			// - conversationApi.createConversation to send metadata in request body
-			// - Backend API to store intent_eid in conversations.metadata column
-			// - Backend: Add migration for metadata column if needed
-		}
-	}, [intentEid]);
-
-	// Sync URL parameter with conversation store
-	useEffect(() => {
-		if (
-			conversationId &&
-			conversationId !== ritaChatState.currentConversationId
-		) {
-			setCurrentConversation(conversationId);
-		} else if (!conversationId && ritaChatState.currentConversationId) {
-			setCurrentConversation(null);
-		}
-	}, [
-		conversationId,
-		ritaChatState.currentConversationId,
-		setCurrentConversation,
-	]);
 
 	// Handle SSE message updates
 	useEffect(() => {
@@ -77,9 +44,128 @@ export default function IframeChatPage() {
 		}
 	}, [latestUpdate, updateMessage]);
 
+	// Override currentConversationId from props (ensures it's set before first message)
+	return (
+		<ChatV1Content
+			{...ritaChatState}
+			currentConversationId={conversationId}
+			requireKnowledgeBase={false}
+		/>
+	);
+}
+
+export default function IframeChatPage() {
+	const { conversationId: urlConversationId } = useParams<{ conversationId?: string }>();
+	const [searchParams] = useSearchParams();
+	const token = searchParams.get("token");
+	const intentEid = searchParams.get("intent-eid");
+
+	const [isLoading, setIsLoading] = useState(true);
+	const [error, setError] = useState<string | null>(null);
+	const [conversationId, setConversationId] = useState<string | null>(
+		urlConversationId || null
+	);
+	const [sessionReady, setSessionReady] = useState(false);
+
+	const apiUrl = import.meta.env.VITE_API_URL || "";
+	const { setCurrentConversation } = useConversationStore();
+	const initRef = useRef(false);
+
+	// Initialize public session on mount (always required for auth)
+	useEffect(() => {
+		// Guard against StrictMode double-mount
+		if (initRef.current) return;
+		initRef.current = true;
+
+		async function initializeIframe() {
+			// Token is required
+			if (!token) {
+				setError("Missing token parameter");
+				setIsLoading(false);
+				return;
+			}
+
+			try {
+				console.log("[IframeChatPage] Initializing public session...", {
+					token: token.substring(0, 8) + "...",
+					intentEid,
+					existingConversationId: urlConversationId,
+				});
+
+				// Always call validate-instantiation to get session cookie
+				// Pass existing conversationId to skip creating a new one
+				const response = await iframeApi.validateInstantiation({
+					token,
+					intentEid: intentEid || undefined,
+					existingConversationId: urlConversationId,
+				});
+
+				if (response.valid && response.conversationId) {
+					console.log("[IframeChatPage] Session initialized", {
+						conversationId: response.conversationId,
+						publicUserId: response.publicUserId,
+					});
+					setConversationId(response.conversationId);
+					setCurrentConversation(response.conversationId);
+					setSessionReady(true);
+				} else {
+					setError(response.error || "Failed to initialize session");
+				}
+			} catch (err) {
+				console.error("[IframeChatPage] Initialization error:", err);
+				setError("Failed to connect to server");
+			} finally {
+				setIsLoading(false);
+			}
+		}
+
+		initializeIframe();
+	}, [urlConversationId, token, intentEid, setCurrentConversation]);
+
+	// Loading state
+	if (isLoading) {
+		return (
+			<IframeChatLayout>
+				<div className="flex items-center justify-center h-full">
+					<Loader size={32} />
+				</div>
+			</IframeChatLayout>
+		);
+	}
+
+	// Error state
+	if (error) {
+		return (
+			<IframeChatLayout>
+				<div className="flex items-center justify-center h-full">
+					<div className="text-center max-w-md px-4">
+						<h2 className="text-xl font-semibold text-gray-900 mb-2">
+							Setup Failed
+						</h2>
+						<p className="text-sm text-gray-600">{error}</p>
+					</div>
+				</div>
+			</IframeChatLayout>
+		);
+	}
+
+	// Not ready state (shouldn't happen, but safety check)
+	if (!sessionReady || !conversationId) {
+		return (
+			<IframeChatLayout>
+				<div className="flex items-center justify-center h-full">
+					<div className="text-sm text-gray-500">Initializing...</div>
+				</div>
+			</IframeChatLayout>
+		);
+	}
+
+	// Render chat with SSE provider (session cookie enables SSE auth)
 	return (
 		<IframeChatLayout>
-			<ChatV1Content {...ritaChatState} requireKnowledgeBase={false} />
+			<SSEProvider apiUrl={apiUrl} enabled={sessionReady}>
+				<IframeChatContent conversationId={conversationId} />
+			</SSEProvider>
 		</IframeChatLayout>
 	);
 }
