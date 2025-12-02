@@ -28,8 +28,10 @@ router.post('/validate-instantiation', async (req, res) => {
       return;
     }
 
-    // Set session cookie
-    res.setHeader('Set-Cookie', result.cookie!);
+    // Set session cookie (cookie is guaranteed when valid=true)
+    if (result.cookie) {
+      res.setHeader('Set-Cookie', result.cookie);
+    }
 
     logger.info(
       { conversationId: result.conversationId, intentEid, tokenName: result.tokenName },
