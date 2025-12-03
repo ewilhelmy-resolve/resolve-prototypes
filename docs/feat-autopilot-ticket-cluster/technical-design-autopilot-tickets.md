@@ -1,6 +1,6 @@
 # Technical Design Document: RITA Autopilot & Cluster Dashboard
 
-**Status:** Draft v1.15
+**Status:** Draft v1.17
 **Date:** December 1, 2025
 **Feature:** Continuous ITSM Ingestion, Live Dashboard, & Cluster Management
 
@@ -70,7 +70,7 @@ sequenceDiagram
 
     activate WP
     WP->>DB: UPSERT tickets with cluster_id=NULL<br/>(organization_id, external_id, subject, cluster_text, source_metadata)<br/>WHERE organization_id = $tenant_id
-    Note right of WP: COMMIT - Tickets stored as unclassified
+    Note right of WP: Tickets stored as unclassified
     deactivate WP
 
     Note over WP, DB: PHASE 2b: Classification Workflow
@@ -159,9 +159,13 @@ erDiagram
     organizations ||--o{ tickets : "owns"
     organizations ||--o{ cluster_kb_links : "owns"
     organizations ||--o{ ingestion_runs : "owns"
+    organizations ||--o{ ml_models : "owns"
 
     %% User Tracking
     user_profiles ||--o{ ingestion_runs : "started_by"
+
+    %% ML Model Integration
+    ml_models ||--o{ clusters : "generated_by"
 
     %% Data Relationships
     clusters ||--o{ tickets : "contains"
@@ -217,12 +221,25 @@ erDiagram
         timestamp created_at
     }
 
+    ml_models {
+        uuid id PK
+        uuid organization_id FK "organizations.id ON DELETE CASCADE"
+        text external_model_id UK "ID from ML team system"
+        text model_name
+        date training_start_date
+        date training_end_date
+        jsonb metadata "Flexible field for future ML properties"
+        timestamp created_at
+        timestamp updated_at
+    }
+
     clusters {
         uuid id PK "Auto-generated internal ID"
         uuid organization_id FK "organizations.id ON DELETE CASCADE"
-        uuid parent_cluster_id FK "clusters.id - NULL=top-level, 2 levels max"
+        uuid model_id FK "ml_models.id - which model generated this cluster"
         text external_cluster_id UK "Stable ID from Workflow Platform"
-        string name "Cluster/Subcluster Name"
+        string name "Cluster Name"
+        text subcluster_name "NULL = top-level cluster only"
         jsonb config "{auto_respond: boolean, auto_populate: boolean}"
         text kb_status "PENDING|FOUND|GAP"
         timestamp created_at
@@ -910,6 +927,45 @@ CREATE INDEX idx_ingestion_runs_created_at ON ingestion_runs(created_at DESC);
 
 ### 7.2 Table Creation Scripts
 
+#### ml_models Table
+
+```sql
+-- ML classification models (populated by WF from ML team endpoints)
+CREATE TABLE ml_models (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+    external_model_id TEXT NOT NULL,  -- ID from ML team system
+    model_name TEXT NOT NULL,
+    training_start_date DATE,
+    training_end_date DATE,
+    metadata JSONB DEFAULT '{}'::jsonb,  -- Flexible field for future ML properties
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    UNIQUE (organization_id, external_model_id)
+);
+
+-- Indexes
+CREATE INDEX idx_ml_models_organization_id ON ml_models(organization_id);
+CREATE INDEX idx_ml_models_external_model_id ON ml_models(external_model_id);
+
+-- Row-Level Security
+ALTER TABLE ml_models ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "users_access_own_organization_ml_models" ON ml_models
+    FOR ALL
+    USING (organization_id = current_setting('app.current_organization_id', true)::uuid);
+
+-- Auto-update trigger
+CREATE TRIGGER set_ml_models_updated_at
+BEFORE UPDATE ON ml_models
+FOR EACH ROW
+EXECUTE FUNCTION update_updated_at_column();
+
+-- Comments
+COMMENT ON TABLE ml_models IS 'ML classification models (populated by WF from ML team endpoints)';
+COMMENT ON COLUMN ml_models.external_model_id IS 'Model ID from ML team system (used in API calls)';
+```
+
 #### clusters Table
 
 ```sql
@@ -917,9 +973,10 @@ CREATE INDEX idx_ingestion_runs_created_at ON ingestion_runs(created_at DESC);
 CREATE TABLE clusters (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),  -- Internal auto-generated ID
     organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
-    parent_cluster_id UUID REFERENCES clusters(id) ON DELETE CASCADE,  -- NULL=top-level, 2 levels max
+    model_id UUID REFERENCES ml_models(id) ON DELETE SET NULL,  -- ML model that generated this cluster
     external_cluster_id TEXT NOT NULL,  -- Stable ID from Workflow Platform
-    name TEXT NOT NULL,
+    name TEXT NOT NULL,  -- Cluster name (can repeat across rows)
+    subcluster_name TEXT,  -- Subcluster name (NULL = top-level cluster only)
     config JSONB DEFAULT '{}'::jsonb,
     kb_status TEXT DEFAULT 'PENDING' CHECK (kb_status IN ('PENDING', 'FOUND', 'GAP')),
 
@@ -933,7 +990,7 @@ CREATE TABLE clusters (
 
 -- Indexes
 CREATE INDEX idx_clusters_organization_id ON clusters(organization_id);
-CREATE INDEX idx_clusters_parent_cluster_id ON clusters(parent_cluster_id);
+CREATE INDEX idx_clusters_model_id ON clusters(model_id);
 CREATE INDEX idx_clusters_external_cluster_id ON clusters(external_cluster_id);
 CREATE INDEX idx_clusters_kb_status ON clusters(kb_status);
 CREATE INDEX idx_clusters_created_at ON clusters(created_at DESC);
@@ -955,8 +1012,9 @@ EXECUTE FUNCTION update_updated_at_column();
 -- Comments
 COMMENT ON TABLE clusters IS 'AI-generated ticket clusters from Workflow Platform (system-generated)';
 COMMENT ON COLUMN clusters.id IS 'Internal auto-generated UUID for internal references';
-COMMENT ON COLUMN clusters.parent_cluster_id IS 'Self-ref FK for subclusters (NULL=top-level, 2 levels max enforced in app)';
+COMMENT ON COLUMN clusters.model_id IS 'ML model that generated this cluster';
 COMMENT ON COLUMN clusters.external_cluster_id IS 'Stable cluster ID provided by Workflow Platform (used for upsert matching)';
+COMMENT ON COLUMN clusters.subcluster_name IS 'Subcluster name (NULL = top-level cluster only)';
 COMMENT ON COLUMN clusters.config IS 'JSONB config: {auto_respond: boolean, auto_populate: boolean}';
 ```
 
@@ -1192,6 +1250,23 @@ DROP TABLE IF EXISTS clusters CASCADE;
 -----
 
 ## Changelog
+
+### v1.17 (December 3, 2025)
+**Add ML Models Table**
+
+- **Added:** `ml_models` table for ML team integration (per-organization)
+- **Added:** `model_id` FK on clusters table
+- **Fields:** external_model_id, model_name, training_start_date, training_end_date
+- **Data Flow:** WF calls ML endpoints → writes to ml_models/clusters → notifies Rita
+- **Migration:** 143_flatten_subcluster_model.sql (consolidated)
+
+### v1.16 (December 2, 2025)
+**Flatten Subcluster Model**
+
+- **Replaced:** `parent_cluster_id` self-ref FK with `subcluster_name` TEXT field
+- **Model:** Each row = cluster+subcluster combination (denormalized)
+- **Simpler:** No self-joins needed, `name` can repeat across rows
+- **Migration:** 143_flatten_subcluster_model.sql (consolidated with v1.17)
 
 ### v1.15 (December 2, 2025)
 **Remove Undefined Validation/Automation Fields**
