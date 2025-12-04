@@ -12,6 +12,8 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { ThumbsDown, ThumbsUp, Sparkles, FileText } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useState } from "react";
+import { FeedbackSection } from "./FeedbackSection";
 
 /**
  * Ticket priority level
@@ -76,6 +78,8 @@ export default function ReviewAIResponseSheet({
 	onApprove,
 	onReject,
 }: ReviewAIResponseSheetProps) {
+	const [showFeedback, setShowFeedback] = useState(false);
+	
 	const currentTicket = tickets[currentIndex];
 	const progressValue = ((currentIndex + 1) / tickets.length) * 100;
 
@@ -120,13 +124,28 @@ Please let me know if these steps resolve your issue. If you need any additional
 	};
 
 	const handleReject = () => {
+		setShowFeedback(true);
+	};
+
+	const handleSubmitFeedback = (reasons: string[], feedback: string) => {
+		// Submit feedback logic here (reasons is optional, can be empty array)
 		onReject(currentTicket.id);
-		// Navigate to next ticket if available
+
+		// TODO: Send feedback to backend
+		console.log("Testing submit",{ reasons, feedback });
+
+		// Hide feedback section
+		setShowFeedback(false);
+
+		// Navigate to next ticket if available, otherwise stay on current (don't close sheet)
 		if (currentIndex < tickets.length - 1) {
 			onNavigate(currentIndex + 1);
-		} else {
-			onOpenChange(false);
 		}
+		// Don't close sheet - user can see confidence score and close manually
+	};
+
+	const handleCancelFeedback = () => {
+		setShowFeedback(false);
 	};
 
 	const getPriorityColor = (priority: TicketPriority) => {
@@ -258,12 +277,20 @@ Please let me know if these steps resolve your issue. If you need any additional
 					</div>
 				</div>
 
+				{/* Feedback Section - Floating overlay over footer */}
+				<FeedbackSection
+					show={showFeedback}
+					onSubmit={handleSubmitFeedback}
+					onCancel={handleCancelFeedback}
+				/>
+
 				{/* Footer Actions */}
 				<SheetFooter className="flex-row justify-center gap-2">
 					<Button
 						variant="outline"
 						className="flex-1 gap-2 border-destructive text-foreground"
 						onClick={handleReject}
+						disabled={showFeedback}
 					>
 						<ThumbsDown className="size-4 text-destructive" />
 						Teach the Bot
@@ -272,6 +299,7 @@ Please let me know if these steps resolve your issue. If you need any additional
 						variant="outline"
 						className="flex-1 gap-2 border-primary text-foreground"
 						onClick={handleApprove}
+						disabled={showFeedback}
 					>
 						<ThumbsUp className="size-4 text-primary" />
 						Trust the Bot
