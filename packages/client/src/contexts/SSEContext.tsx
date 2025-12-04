@@ -185,52 +185,62 @@ export const SSEProvider: React.FC<SSEProviderProps> = ({
 				try {
 					if (stored) {
 						const data = JSON.parse(stored)
-						const filename = event.data.filename
 						const status = event.data.status
 
 						// Update counts based on status
 						if (status === 'processed') {
 							data.processed = (data.processed || 0) + 1
-							data.filenames = data.filenames.filter((f: string) => f !== filename)
 						} else if (status === 'failed') {
 							data.failed = (data.failed || 0) + 1
-							data.filenames = data.filenames.filter((f: string) => f !== filename)
 						}
 						// Ignore other statuses (processing, pending, etc.)
 
-						// If all files processed, show summary and cleanup
-						if (data.filenames.length === 0) {
+						// Save updated counts
+						sessionStorage.setItem(processingKey, JSON.stringify(data))
+
+						// Check if all files processed AND uploads are complete
+						const total = data.total || 0
+						const allProcessed = total > 0 && (data.processed + data.failed) >= total
+
+						if (allProcessed && !data.uploading) {
 							const processed = data.processed || 0
 							const failed = data.failed || 0
+							const duplicates = data.duplicates || 0
 
 							// Final refetch to sync with server after batch completes
 							queryClient.invalidateQueries({ queryKey: fileKeys.lists(), refetchType: 'active' })
 
-							// Show appropriate toast based on results (omit numbers if one category is zero)
-							if (processed > 0 && failed === 0) {
+							// Build description with duplicates if any
+							const duplicateMsg = duplicates > 0 ? `, ${duplicates} duplicate${duplicates > 1 ? 's' : ''} skipped` : ''
+
+							// Show appropriate toast based on results
+							if (processed > 0 && failed === 0 && duplicates === 0) {
 								ritaToast.success({
 									title: 'Processing Complete',
 									description: processed === 1
 										? 'File processed successfully'
 										: 'All files processed successfully',
 								})
+							} else if (processed > 0 && failed === 0 && duplicates > 0) {
+								ritaToast.success({
+									title: 'Processing Complete',
+									description: `${processed} file${processed > 1 ? 's' : ''} processed${duplicateMsg}`,
+								})
 							} else if (processed === 0 && failed > 0) {
 								ritaToast.error({
 									title: 'Processing Failed',
 									description: failed === 1
-										? 'File failed to process'
-										: 'All files failed to process',
+										? `File failed to process${duplicateMsg}`
+										: `All files failed to process${duplicateMsg}`,
 								})
 							} else if (processed > 0 && failed > 0) {
 								ritaToast.warning({
 									title: 'Processing Partially Complete',
-									description: `${processed} successful, ${failed} failed`,
+									description: `${processed} successful, ${failed} failed${duplicateMsg}`,
 								})
 							}
 
 							sessionStorage.removeItem(processingKey)
-						} else {
-							sessionStorage.setItem(processingKey, JSON.stringify(data))
 						}
 					}
 				} catch (e) {
