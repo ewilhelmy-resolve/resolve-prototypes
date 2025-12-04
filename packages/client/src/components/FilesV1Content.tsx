@@ -355,6 +355,17 @@ export default function FilesV1Content() {
 		const duplicates: string[] = [];
 		const successfulFilenames: string[] = [];
 
+		// Initialize processing tracking BEFORE uploads start
+		// This prevents SSE events from triggering early toasts during the upload loop
+		const processingKey = 'rita-processing-files';
+		sessionStorage.setItem(processingKey, JSON.stringify({
+			total: 0, // Will be set after uploads complete
+			processed: 0,
+			failed: 0,
+			duplicates: 0,
+			uploading: true, // Flag to indicate uploads are in progress
+		}));
+
 		// Show initial toast
 		ritaToast.info({
 			title: "Uploading Files",
@@ -423,50 +434,96 @@ export default function FilesV1Content() {
 			queryClient.invalidateQueries({ queryKey: fileKeys.lists(), refetchType: 'active' });
 		}
 
-		// Initialize processing tracking in sessionStorage for SSE summary toast
+		// Update processing tracking and mark uploads complete
 		if (successCount > 0) {
-			const processingKey = 'rita-processing-files';
-			
-			// Clear any stale tracking data before initializing new batch
-			sessionStorage.removeItem(processingKey);
-			
+			// Get current tracking data to preserve any SSE updates that happened during upload
+			const currentData = JSON.parse(sessionStorage.getItem(processingKey) || '{}');
+			const processed = currentData.processed || 0;
+			const failed = currentData.failed || 0;
+
 			const trackingData = {
-				filenames: successfulFilenames, // Use server's returned filenames for SSE matching
-				processed: 0,
-				failed: 0,
+				total: successCount, // Total files that need processing
+				processed,
+				failed,
+				duplicates: duplicateCount,
+				uploading: false, // Uploads complete, SSE can now show final toast
 			};
-			
 			sessionStorage.setItem(processingKey, JSON.stringify(trackingData));
+
+			// Check if all files already processed while uploading (for fast processing)
+			if (processed + failed >= successCount) {
+				// All files already processed, show final toast
+				const duplicateMsg = duplicateCount > 0 ? `, ${duplicateCount} duplicate${duplicateCount > 1 ? 's' : ''} skipped` : '';
+
+				if (processed > 0 && failed === 0 && duplicateCount === 0) {
+					ritaToast.success({
+						title: 'Processing Complete',
+						description: processed === 1
+							? 'File processed successfully'
+							: 'All files processed successfully',
+					});
+				} else if (processed > 0 && failed === 0 && duplicateCount > 0) {
+					ritaToast.success({
+						title: 'Processing Complete',
+						description: `${processed} file${processed > 1 ? 's' : ''} processed${duplicateMsg}`,
+					});
+				} else if (processed === 0 && failed > 0) {
+					ritaToast.error({
+						title: 'Processing Failed',
+						description: failed === 1
+							? `File failed to process${duplicateMsg}`
+							: `All files failed to process${duplicateMsg}`,
+					});
+				} else if (processed > 0 && failed > 0) {
+					ritaToast.warning({
+						title: 'Processing Partially Complete',
+						description: `${processed} successful, ${failed} failed${duplicateMsg}`,
+					});
+				}
+
+				sessionStorage.removeItem(processingKey);
+				queryClient.invalidateQueries({ queryKey: fileKeys.lists(), refetchType: 'active' });
+			}
+		} else {
+			// No successful uploads, remove tracking
+			sessionStorage.removeItem(processingKey);
 		}
 
 		// Show upload summary toast (immediate feedback)
+		// Note: A separate "Processing Complete" toast will appear later via SSE when files finish processing
 		if (successCount > 0 && errorCount === 0 && duplicateCount === 0) {
 			// All files uploaded successfully
-			ritaToast.success({
-				title: "Upload Complete",
-				description: `Successfully uploaded ${successCount} file${successCount > 1 ? 's' : ''}. Processing...`,
+			ritaToast.info({
+				title: "Files Uploaded",
+				description: `${successCount} file${successCount > 1 ? 's' : ''} uploaded. Processing in background...`,
 			});
 		} else if (successCount > 0 && duplicateCount > 0 && errorCount === 0) {
 			// Some successful, some duplicates, no errors
-			ritaToast.info({
-				title: "Upload Complete",
-				description: `${successCount} file${successCount > 1 ? 's' : ''} uploaded. ${duplicateCount} duplicate${duplicateCount > 1 ? 's' : ''} skipped.`,
+			ritaToast.warning({
+				title: "Files Uploaded",
+				description: `${successCount} file${successCount > 1 ? 's' : ''} uploaded, ${duplicateCount} duplicate${duplicateCount > 1 ? 's' : ''} skipped. Processing in background...`,
 			});
 		} else if (successCount > 0 && errorCount > 0) {
 			// Mixed success and errors (may also have duplicates)
-			const failedMsg = duplicateCount > 0 
+			const failedMsg = duplicateCount > 0
 				? `${errorCount} failed, ${duplicateCount} duplicate${duplicateCount > 1 ? 's' : ''} skipped.`
 				: `${errorCount} failed.`;
 			ritaToast.warning({
-				title: "Upload Partially Complete",
-				description: `${successCount} succeeded, ${failedMsg} Processing uploaded files...`,
+				title: "Some Files Uploaded",
+				description: `${successCount} uploaded, ${failedMsg} Processing in background...`,
 			});
 		} else if (errorCount > 0 || duplicateCount > 0) {
-			// All failed or all duplicates
+			// All failed or all duplicates (no successes)
 			if (duplicateCount > 0 && errorCount === 0) {
-				ritaToast.info({
+				ritaToast.warning({
 					title: "Files Already Exist",
-					description: `All ${duplicateCount} file${duplicateCount > 1 ? 's are' : ' is'} already in your knowledge base.`,
+					description: `${duplicateCount} file${duplicateCount > 1 ? 's are' : ' is'} already in your knowledge base.`,
+				});
+			} else if (duplicateCount > 0 && errorCount > 0) {
+				// Both errors and duplicates, no successes
+				ritaToast.error({
+					title: "Upload Failed",
+					description: `${errorCount} failed, ${duplicateCount} duplicate${duplicateCount > 1 ? 's' : ''} skipped (already in knowledge base).`,
 				});
 			} else {
 				ritaToast.error({
