@@ -237,7 +237,6 @@ describe('DocumentProcessingConsumer', () => {
       await consumer.startConsumer(mockChannel);
       const consumeCallback = (mockChannel.consume as ReturnType<typeof vi.fn>).mock.calls[0][1];
 
-      const startTime = Date.now();
       const processPromise = consumeCallback(mockMessage);
 
       // Advance through delays: 500, 1000, 2000, 4000
@@ -300,6 +299,112 @@ describe('DocumentProcessingConsumer', () => {
       await consumeCallback(mockMessage);
 
       expect(mockChannel.nack).toHaveBeenCalledWith(mockMessage, false, false);
+    });
+  });
+
+  describe('idempotency checks', () => {
+    it('should skip update when document is already processed (idempotent)', async () => {
+      const { getSSEService } = await import('../../services/sse.js');
+      const mockSSE = vi.mocked(getSSEService);
+
+      const payload = {
+        type: 'document_processing',
+        blob_metadata_id: 'doc-123',
+        tenant_id: 'org-456',
+        user_id: 'user-789',
+        status: 'processing_completed',
+      };
+
+      mockMessage.content = Buffer.from(JSON.stringify(payload));
+
+      // Return document with skipped flag (already processed)
+      mockedWithOrgContext.mockResolvedValueOnce({
+        id: 'doc-123',
+        filename: 'test.pdf',
+        status: 'processed',
+        skipped: true,
+      });
+
+      await consumer.startConsumer(mockChannel);
+      const consumeCallback = (mockChannel.consume as ReturnType<typeof vi.fn>).mock.calls[0][1];
+
+      await consumeCallback(mockMessage);
+
+      // Should ack the message
+      expect(mockChannel.ack).toHaveBeenCalledWith(mockMessage);
+      // Should NOT send SSE event when skipped
+      const sseService = mockSSE();
+      expect(sseService.sendToUser).not.toHaveBeenCalled();
+      expect(sseService.sendToOrganization).not.toHaveBeenCalled();
+    });
+
+    it('should skip failed update when document is already in final state', async () => {
+      const { getSSEService } = await import('../../services/sse.js');
+      const mockSSE = vi.mocked(getSSEService);
+
+      const payload = {
+        type: 'document_processing',
+        blob_metadata_id: 'doc-123',
+        tenant_id: 'org-456',
+        user_id: 'user-789',
+        status: 'processing_failed',
+        error_message: 'Some error',
+      };
+
+      mockMessage.content = Buffer.from(JSON.stringify(payload));
+
+      // Return document with skipped flag (already processed or failed)
+      mockedWithOrgContext.mockResolvedValueOnce({
+        id: 'doc-123',
+        filename: 'test.pdf',
+        status: 'processed',
+        skipped: true,
+      });
+
+      await consumer.startConsumer(mockChannel);
+      const consumeCallback = (mockChannel.consume as ReturnType<typeof vi.fn>).mock.calls[0][1];
+
+      await consumeCallback(mockMessage);
+
+      // Should ack the message
+      expect(mockChannel.ack).toHaveBeenCalledWith(mockMessage);
+      // Should NOT send SSE event when skipped
+      const sseService = mockSSE();
+      expect(sseService.sendToUser).not.toHaveBeenCalled();
+    });
+
+    it('should process normally when document is not in final state', async () => {
+      const { getSSEService } = await import('../../services/sse.js');
+      const mockSSE = vi.mocked(getSSEService);
+
+      const payload = {
+        type: 'document_processing',
+        blob_metadata_id: 'doc-123',
+        tenant_id: 'org-456',
+        user_id: 'user-789',
+        status: 'processing_completed',
+      };
+
+      mockMessage.content = Buffer.from(JSON.stringify(payload));
+
+      // Return document without skipped flag (normal update)
+      mockedWithOrgContext.mockResolvedValueOnce({
+        id: 'doc-123',
+        filename: 'test.pdf',
+        status: 'processed',
+        updated_at: new Date(),
+        // No skipped flag
+      });
+
+      await consumer.startConsumer(mockChannel);
+      const consumeCallback = (mockChannel.consume as ReturnType<typeof vi.fn>).mock.calls[0][1];
+
+      await consumeCallback(mockMessage);
+
+      // Should ack and send SSE
+      expect(mockChannel.ack).toHaveBeenCalledWith(mockMessage);
+      const sseService = mockSSE();
+      expect(sseService.sendToUser).toHaveBeenCalled();
     });
   });
 
