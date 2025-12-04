@@ -193,8 +193,10 @@ export class DocumentProcessingConsumer {
    * Handle processing_completed status
    * Note: processed_markdown is updated directly by the external system in the database
    *
-   * Uses retry logic to handle race conditions when blob_metadata may not be
-   * immediately visible after file upload (e.g., during bulk uploads).
+   * Features:
+   * - Retry logic for race conditions when blob_metadata may not be visible yet
+   * - Idempotency check: skips if already processed
+   * - Row locking (FOR UPDATE) to prevent parallel processing conflicts
    */
   private async handleProcessingCompleted(
     payload: DocumentProcessingCompletedMessage,
@@ -202,13 +204,34 @@ export class DocumentProcessingConsumer {
   ): Promise<void> {
     // Update database via withOrgContext with retry logic
     // The external system has already updated processed_markdown directly
-    const updatedDocument = await withRetry(
+    const result = await withRetry(
       async () => {
         return withOrgContext(
           payload.user_id || 'system',  // Fallback to system if no user_id
           payload.tenant_id,
           async (client) => {
-            const result = await client.query(`
+            // First, check current status with row lock to prevent parallel processing
+            const currentDoc = await client.query(`
+              SELECT id, filename, status
+              FROM blob_metadata
+              WHERE id = $1 AND organization_id = $2
+              FOR UPDATE
+            `, [payload.blob_metadata_id, payload.tenant_id]);
+
+            if (currentDoc.rows.length === 0) {
+              return null; // Document not found, will trigger retry
+            }
+
+            const doc = currentDoc.rows[0];
+
+            // Idempotency check: if already processed, skip update
+            if (doc.status === 'processed') {
+              messageLogger.info({ currentStatus: doc.status }, 'Document already processed, skipping (idempotent)');
+              return { ...doc, skipped: true };
+            }
+
+            // Perform the update
+            const updateResult = await client.query(`
               UPDATE blob_metadata
               SET status = 'processed',
                   metadata = CASE
@@ -220,13 +243,20 @@ export class DocumentProcessingConsumer {
               RETURNING id, filename, status, updated_at
             `, [payload.blob_metadata_id, payload.tenant_id]);
 
-            return result.rows[0] || null;
+            return updateResult.rows[0] || null;
           }
         );
       },
       'handleProcessingCompleted',
       messageLogger
     );
+
+    const updatedDocument = result;
+
+    // Skip SSE if this was an idempotent no-op
+    if (updatedDocument?.skipped) {
+      return;
+    }
 
     messageLogger.info('Document processing completed successfully');
 
@@ -269,21 +299,44 @@ export class DocumentProcessingConsumer {
   /**
    * Handle processing_failed status
    *
-   * Uses retry logic to handle race conditions when blob_metadata may not be
-   * immediately visible after file upload (e.g., during bulk uploads).
+   * Features:
+   * - Retry logic for race conditions when blob_metadata may not be visible yet
+   * - Idempotency check: skips if already in final state (processed/failed)
+   * - Row locking (FOR UPDATE) to prevent parallel processing conflicts
    */
   private async handleProcessingFailed(
     payload: DocumentProcessingFailedMessage,
     messageLogger: any
   ): Promise<void> {
     // Update database with error using retry logic
-    const updatedDocument = await withRetry(
+    const result = await withRetry(
       async () => {
         return withOrgContext(
           payload.user_id || 'system',
           payload.tenant_id,
           async (client) => {
-            const result = await client.query(`
+            // First, check current status with row lock to prevent parallel processing
+            const currentDoc = await client.query(`
+              SELECT id, filename, status
+              FROM blob_metadata
+              WHERE id = $1 AND organization_id = $2
+              FOR UPDATE
+            `, [payload.blob_metadata_id, payload.tenant_id]);
+
+            if (currentDoc.rows.length === 0) {
+              return null; // Document not found, will trigger retry
+            }
+
+            const doc = currentDoc.rows[0];
+
+            // Idempotency check: if already in final state, skip update
+            if (doc.status === 'processed' || doc.status === 'failed') {
+              messageLogger.info({ currentStatus: doc.status }, 'Document already in final state, skipping (idempotent)');
+              return { ...doc, skipped: true };
+            }
+
+            // Perform the update
+            const updateResult = await client.query(`
               UPDATE blob_metadata
               SET status = 'failed',
                   metadata = jsonb_set(
@@ -296,13 +349,20 @@ export class DocumentProcessingConsumer {
               RETURNING id, filename, status, metadata, updated_at
             `, [payload.error_message || 'Processing failed', payload.blob_metadata_id, payload.tenant_id]);
 
-            return result.rows[0] || null;
+            return updateResult.rows[0] || null;
           }
         );
       },
       'handleProcessingFailed',
       messageLogger
     );
+
+    const updatedDocument = result;
+
+    // Skip SSE if this was an idempotent no-op
+    if (updatedDocument?.skipped) {
+      return;
+    }
 
     messageLogger.error({
       errorMessage: payload.error_message
