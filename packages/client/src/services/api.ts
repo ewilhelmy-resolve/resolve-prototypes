@@ -315,6 +315,13 @@ export const dataSourcesApi = {
     apiRequest<{ success: boolean; message: string }>(`/api/data-sources/${id}/cancel-sync`, {
       method: 'POST',
     }),
+
+  // Sync tickets (ITSM Autopilot)
+  syncTickets: (id: string, params: { time_range_days: number }) =>
+    apiRequest<import('../types/dataSource').SyncTicketsResponse>(`/api/data-sources/${id}/sync-tickets`, {
+      method: 'POST',
+      body: params,
+    }),
 };
 
 // Member API

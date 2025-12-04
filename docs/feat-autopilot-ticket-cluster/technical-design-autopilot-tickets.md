@@ -1,6 +1,6 @@
 # Technical Design Document: RITA Autopilot & Cluster Dashboard
 
-**Status:** Draft v1.17
+**Status:** Draft v1.18
 **Date:** December 1, 2025
 **Feature:** Continuous ITSM Ingestion, Live Dashboard, & Cluster Management
 
@@ -35,7 +35,7 @@ Before implementing this feature, the following codebase changes are required:
 2.  **Workflow 1 (Ticket Pull):** **WF** fetches tickets from ITSM → writes to DB with `cluster_id=NULL` (unclassified).
 3.  **Workflow 2 (Classification):** **WF** classifies tickets using existing or new model (based on `rebuild_model` flag) → assigns `cluster_id`.
 4.  **Write:** **WF** writes clusters, ticket assignments to PostgreSQL using `organization_id` filtering.
-5.  **Notify:** **WF** publishes lightweight `ingestion_notification` to RabbitMQ.
+5.  **Notify:** **WF** publishes lightweight `ticket_ingestion` message to `data_source_status` queue.
 6.  **SSE:** **Rita Backend** consumes notification → emits SSE event to client.
 7.  **Query:** **Rita Client** reads from PostgreSQL and receives real-time updates via SSE.
 
@@ -91,7 +91,7 @@ sequenceDiagram
     deactivate WP
 
     Note over WP, MQ: PHASE 3: Lightweight Notification
-    WP->>MQ: Publish `ingestion_notification`<br/>{type, tenant_id, user_id, ingestion_run_id, status, records_processed}
+    WP->>MQ: Publish to `data_source_status`<br/>{type: 'ticket_ingestion', tenant_id, user_id, ingestion_run_id, status, records_processed}
 
     MQ->>RB: Consume Notification
     activate RB
@@ -145,6 +145,49 @@ sequenceDiagram
 > **See:** [Credential Delegation Technical Design](../feat-credential-delegation/technical-design-credential-delegation.md) for the complete credential delegation flow, including magic link tokens, IT Admin verification, and security model.
 
 **Summary:** RITA uses a secure delegation system to allow external IT admins to configure ITSM credentials without creating RITA accounts. Once credentials are verified, the `data_source_connections` table is updated and autopilot ticket sync becomes available.
+
+### 2.4 Dual-Purpose Data Source Model
+
+ServiceNow can serve two purposes:
+- **Knowledge Base source** - sync KB articles (like Confluence)
+- **ITSM source** - sync tickets for autopilot clustering
+
+**Architecture Decision:** Same `data_source_connections` record per instance with capability flags:
+
+```sql
+ALTER TABLE data_source_connections
+  ADD COLUMN kb_enabled BOOLEAN DEFAULT false,
+  ADD COLUMN itsm_enabled BOOLEAN DEFAULT false;
+```
+
+**Connection examples:**
+| Type | kb_enabled | itsm_enabled |
+|------|------------|--------------|
+| confluence | true | false |
+| servicenow (KB only) | true | false |
+| servicenow (ITSM only) | false | true |
+| servicenow (both) | true | true |
+| jira | false | true |
+
+**Different Sync Tracking Mechanisms:**
+| Aspect | KB Sync | ITSM Sync |
+|--------|---------|-----------|
+| Tracking table | `data_source_connections` | `ingestion_runs` |
+| Status fields | `status`, `last_sync_status`, `last_sync_at` | `status`, `records_processed`, `records_failed` |
+| Webhook action | `trigger_sync` | `sync_tickets` |
+| History | Only last sync retained | Full run history |
+| RabbitMQ queue | `data_source_status` | `data_source_status` (type: `ticket_ingestion`) |
+
+**Table Selection via `latest_options`:**
+After verification, Workflow Platform returns available tables via RabbitMQ (same pattern as Confluence spaces):
+```json
+{
+  "kb_tables": ["kb_knowledge", "kb_category"],
+  "itsm_tables": ["incident", "problem", "change_request"]
+}
+```
+
+UI shows MultiSelect for each section based on capability flags.
 
 -----
 
@@ -207,6 +250,8 @@ erDiagram
         text status "idle|syncing"
         timestamp last_sync_at
         boolean enabled
+        boolean kb_enabled "true for KB sources"
+        boolean itsm_enabled "true for ITSM sources"
     }
 
     message_processing_failures {
@@ -350,10 +395,10 @@ erDiagram
 2. If `rebuild_model=false`: Load existing model
 3. Classify tickets → assign `cluster_id`
 4. Write cluster assignments to DB
-5. Publishes `ingestion_notification` to RabbitMQ
+5. Publishes `ticket_ingestion` to `data_source_status` queue
 
 **Response:** HTTP 200 (synchronous acknowledgment)
-**Result:** Arrives asynchronously via RabbitMQ `ingestion_notification` queue
+**Result:** Arrives asynchronously via RabbitMQ `data_source_status` queue (type: `ticket_ingestion`)
 
 ---
 
@@ -392,12 +437,12 @@ erDiagram
 
 > **Architecture Note:** RabbitMQ messages are lightweight notifications for SSE emission. WF writes data directly to PostgreSQL, then publishes notification.
 
-**Queue:** `ingestion_notification` (Phase 3b)
+**Queue:** `data_source_status` (Phase 3b)
 *Purpose: Lightweight notification after WF completes direct DB writes. Rita consumer emits SSE only.*
 
 ```json
 {
-  "type": "ingestion_completed",
+  "type": "ticket_ingestion",
   "tenant_id": "org-uuid-123",
   "user_id": "user-uuid-456",
   "ingestion_run_id": "run-uuid-789",
@@ -451,7 +496,7 @@ erDiagram
 
 **Error Handling:**
 - Consumer failures logged to `message_processing_failures` table
-- `queue_name` = `ingestion_notification`, `cluster_notification`, `enrichment_notification`, or `data_source_status`
+- `queue_name` = `data_source_status`, `cluster_notification`, or `enrichment_notification`
 - Notifications are idempotent - re-processing just re-emits SSE
 - Retry logic: max 3 attempts with exponential backoff
 
@@ -507,22 +552,23 @@ erDiagram
     * Triggers: Webhook to Workflow Platform with config change
     * Audit: Logs to `audit_logs` table with action `enable_cluster_automation` or `update_cluster_config`
 
-* **`POST /api/ingest/trigger`**
-    * Payload: `{ "data_source_connection_id": "uuid" }` (optional, defaults to primary ITSM)
+* **`POST /api/data-sources/:id/sync-tickets`**
+    * Payload: `{ "time_range_days": 30 }` (optional settings for ITSM sync)
     * Authorization: Requires `admin` or `owner` role
     * Action: Creates `ingestion_runs` record with `started_by = current_user.user_id`, status = `pending`
-    * Webhook Call: `WebhookService.sendGenericEvent()` or `DataSourceWebhookService.sendSyncTriggerEvent()`
+    * Webhook Call: `DataSourceWebhookService.sendSyncTicketsEvent()`
         - source: `'rita-chat'` (same as data source sync)
         - action: `'sync_tickets'` (distinguishes autopilot from regular data source sync)
-        - connection_type: Determined by data_source_connections.type (servicenow, jira, confluence)
+        - connection_type: Determined by data_source_connections.type (servicenow, jira)
         - Includes: tenant_id, user_id, user_email, connection_id, ingestion_run_id, settings
         - Credentials NOT sent (Workflow Platform looks them up using composite key)
-        - Result arrives async via RabbitMQ `ingestion_notification` queue
+        - Result arrives async via RabbitMQ `data_source_status` queue (type: `ticket_ingestion`)
         - Failures logged to `rag_webhook_failures` table
         - Retry: 3 attempts with exponential backoff
-    * Updates: `data_source_connections.status = 'syncing'` if data_source_connection_id provided
+    * Updates: `data_source_connections.status = 'syncing'`
     * Audit: Logs to `audit_logs` with action `trigger_ticket_sync`
     * Returns: `202 { ingestion_run_id, status: "SYNCING" }`
+    * Note: Follows same route pattern as `/api/data-sources/:id/sync` (KB sync)
 
 #### Credential Delegation Endpoints
 
@@ -534,15 +580,14 @@ erDiagram
 
 ### 5.1 Backend Worker Logic (Node.js)
 
-**Service:** `IngestTriggerService.ts` or within ingest routes
+**Service:** Within `dataSourceWebhooks.ts` routes (follows existing pattern)
 
-**Sync Trigger Logic:**
+**Sync Tickets Logic (`POST /api/data-sources/:id/sync-tickets`):**
 1. Validate user has admin/owner role
 2. Get user's active_organization_id from JWT
-3. Resolve data_source_connection_id:
-   - If provided: Use specified connection
-   - If not provided: Query primary ITSM connection for organization
-4. Create ingestion_run record:
+3. Get data_source_connection by `:id` param
+4. Validate connection has `itsm_enabled = true`
+5. Create ingestion_run record:
    ```sql
    INSERT INTO ingestion_runs (
      organization_id, started_by, status, data_source_connection_id
@@ -575,18 +620,21 @@ erDiagram
 
 ---
 
-**Consumer:** `IngestionNotificationConsumer.ts` (packages/api-server/src/consumers/)
+**Consumer:** `DataSourceStatusConsumer.ts` (packages/api-server/src/consumers/)
+
+Handles all data source status messages via discriminator pattern (`type` field):
+- `sync` → KB sync status
+- `verification` → credential verification
+- `ticket_ingestion` → ITSM ticket sync (autopilot)
 
 1.  **Message Processing:**
-    * Consume from queues: `ingestion_notification`, `cluster_notification`, `enrichment_notification`
+    * Consume from `data_source_status` queue
+    * Discriminate by `type` field: `sync`, `verification`, `ticket_ingestion`
     * Extract `tenant_id`, `user_id`, and event details from payload
 
-2.  **SSE Emission:**
-    * Map notification type to SSE event:
-      * `ingestion_completed` → `ingestion_run_update` SSE event
-      * `cluster_created`/`cluster_updated` → `cluster_update` SSE event
-      * `enrichment_completed` → `cluster_update` SSE event (with kb_status)
-    * Emit to user via `sseService.sendToUser(user_id, tenant_id, event)`
+2.  **SSE Emission (ticket_ingestion):**
+    * `ticket_ingestion` → `ingestion_run_update` SSE event
+    * Emit to organization via `sseService.sendToOrganization(tenant_id, event)`
 
 3.  **Error Handling:**
     * Consumer failures logged to `message_processing_failures` table
@@ -596,11 +644,11 @@ erDiagram
 
 4.  **Example Implementation:**
     ```typescript
-    // IngestionNotificationConsumer.ts
-    async processMessage(message: IngestionNotification): Promise<void> {
-      const { type, tenant_id, user_id, ingestion_run_id, status, records_processed } = message;
+    // DataSourceStatusConsumer.ts - processTicketIngestionStatus()
+    async processTicketIngestionStatus(message: IngestionStatusMessage): Promise<void> {
+      const { tenant_id, ingestion_run_id, status, records_processed } = message;
 
-      await this.sseService.sendToUser(user_id, tenant_id, {
+      await this.sseService.sendToOrganization(tenant_id, {
         type: 'ingestion_run_update',
         data: {
           ingestion_run_id,
@@ -610,7 +658,7 @@ erDiagram
         }
       });
 
-      this.logger.info('SSE emitted for ingestion notification', { ingestion_run_id, status });
+      this.logger.info('SSE emitted for ticket ingestion', { ingestion_run_id, status });
     }
     ```
 
@@ -1251,6 +1299,15 @@ DROP TABLE IF EXISTS clusters CASCADE;
 
 ## Changelog
 
+### v1.18 (December 3, 2025)
+**Dual-Purpose Data Source Model**
+
+- **Added:** Section 2.4 documenting kb_enabled/itsm_enabled capability columns
+- **Added:** `kb_enabled`, `itsm_enabled` columns to data_source_connections ERD
+- **Added:** Table selection via `latest_options` pattern (kb_tables, itsm_tables)
+- **Added:** Sync tracking mechanism comparison (KB vs ITSM)
+- **Migration:** 144_add_capability_columns.sql
+
 ### v1.17 (December 3, 2025)
 **Add ML Models Table**
 
@@ -1341,7 +1398,7 @@ DROP TABLE IF EXISTS clusters CASCADE;
 
 - **Changed:** WF now writes directly to PostgreSQL for autopilot tables (clusters, tickets, cluster_kb_links, ingestion_runs)
 - **Changed:** RabbitMQ messages are now lightweight notifications (no full data payloads)
-- **Changed:** Rita consumers (`IngestionNotificationConsumer`) only emit SSE events
+- **Changed:** Rita consumers (`DataSourceStatusConsumer`) only emit SSE events
 - **Changed:** WF uses direct `organization_id` filtering instead of RLS session variables
 - **Deferred:** Audit logging for WF writes (to be addressed in later iteration)
 

@@ -15,6 +15,11 @@ const verifyCredentialsSchema = z.object({
   settings: z.record(z.string(), z.any()).optional()
 });
 
+// Validation schema for sync-tickets endpoint (ITSM Autopilot)
+const syncTicketsSchema = z.object({
+  time_range_days: z.number().int().min(1).max(365).default(30)
+});
+
 /**
  * POST /api/v1/data-sources/:id/verify
  * Verify credentials for a data source
@@ -281,6 +286,111 @@ router.post('/:id/cancel-sync', authenticateUser, async (req, res) => {
   } catch (error) {
     console.error('[DataSourceWebhook] Error cancelling sync:', error);
     res.status(500).json({ error: 'Failed to cancel sync' });
+  }
+});
+
+/**
+ * POST /api/v1/data-sources/:id/sync-tickets
+ * Trigger ITSM ticket sync for autopilot clustering
+ * Creates ingestion_runs record, sends webhook, returns 202
+ */
+router.post('/:id/sync-tickets', authenticateUser, async (req, res) => {
+  const authReq = req as AuthenticatedRequest;
+  const { id } = req.params;
+
+  try {
+    // Validate request body
+    const validated = syncTicketsSchema.parse(req.body);
+
+    // Get data source
+    const dataSource = await dataSourceService.getDataSource(
+      id,
+      authReq.user.activeOrganizationId
+    );
+
+    if (!dataSource) {
+      return res.status(404).json({ error: 'Data source not found' });
+    }
+
+    if (!dataSource.enabled) {
+      return res.status(400).json({
+        error: 'Data source not configured',
+        message: 'Please configure the data source before triggering a sync'
+      });
+    }
+
+    // TODO: Check itsm_enabled flag once migration is applied
+    // For now, allow servicenow and jira types
+    if (!['servicenow', 'jira'].includes(dataSource.type)) {
+      return res.status(400).json({
+        error: 'Invalid data source type',
+        message: 'Ticket sync is only supported for ServiceNow and Jira connections'
+      });
+    }
+
+    // Create ingestion_runs record
+    const ingestionRunResult = await dataSourceService.createIngestionRun({
+      organizationId: authReq.user.activeOrganizationId,
+      dataSourceConnectionId: dataSource.id,
+      startedBy: authReq.user.id,
+      metadata: {
+        time_range_days: validated.time_range_days,
+        connection_type: dataSource.type
+      }
+    });
+
+    if (!ingestionRunResult) {
+      return res.status(500).json({ error: 'Failed to create ingestion run' });
+    }
+
+    // Send sync tickets webhook
+    const webhookResponse = await webhookService.sendSyncTicketsEvent({
+      organizationId: authReq.user.activeOrganizationId,
+      userId: authReq.user.id,
+      userEmail: authReq.user.email,
+      connectionId: dataSource.id,
+      connectionType: dataSource.type,
+      ingestionRunId: ingestionRunResult.id,
+      settings: {
+        ...dataSource.settings,
+        time_range_days: validated.time_range_days
+      }
+    });
+
+    if (!webhookResponse.success) {
+      // Update ingestion run status to failed
+      await dataSourceService.updateIngestionRunStatus(
+        ingestionRunResult.id,
+        'failed',
+        webhookResponse.error || 'Webhook request failed'
+      );
+
+      return res.status(500).json({
+        success: false,
+        error: 'Sync tickets webhook failed',
+        details: webhookResponse.error
+      });
+    }
+
+    // Update ingestion run status to running
+    await dataSourceService.updateIngestionRunStatus(ingestionRunResult.id, 'running');
+
+    // Return 202 Accepted - result will arrive via RabbitMQ/SSE
+    res.status(202).json({
+      ingestion_run_id: ingestionRunResult.id,
+      status: 'SYNCING',
+      message: 'Ticket sync in progress'
+    });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({
+        error: 'Validation error',
+        details: error.issues
+      });
+    }
+
+    console.error('[DataSourceWebhook] Error triggering ticket sync:', error);
+    res.status(500).json({ error: 'Failed to trigger ticket sync' });
   }
 });
 

@@ -91,6 +91,23 @@ export interface SyncTriggerWebhookPayload {
 }
 
 /**
+ * Sync tickets webhook payload (ITSM Autopilot)
+ * Sent to external service to trigger ITSM ticket sync for clustering
+ */
+export interface SyncTicketsWebhookPayload {
+  source: 'rita-chat';
+  action: 'sync_tickets';
+  tenant_id: string;
+  user_id: string;
+  user_email: string;
+  connection_id: string;
+  connection_type: DataSourceType;
+  ingestion_run_id: string;
+  settings: Record<string, any>;
+  timestamp: string;
+}
+
+/**
  * RabbitMQ message for sync status updates
  * Consumed by Rita to update data source status
  */
@@ -118,7 +135,24 @@ export interface VerificationStatusMessage {
 }
 
 /**
+ * RabbitMQ message for ticket ingestion status updates (ITSM Autopilot)
+ * Consumed by Rita to update ingestion_runs table and send SSE events
+ */
+export interface IngestionStatusMessage {
+  type: 'ticket_ingestion';  // Discriminator field
+  tenant_id: string;
+  user_id: string;
+  ingestion_run_id: string;
+  connection_id: string;
+  status: 'completed' | 'failed';
+  records_processed?: number;
+  records_failed?: number;
+  error_message?: string;
+  timestamp: string;
+}
+
+/**
  * Union type for all data source status messages
  * Discriminated by the 'type' field
  */
-export type DataSourceStatusMessage = SyncStatusMessage | VerificationStatusMessage;
+export type DataSourceStatusMessage = SyncStatusMessage | VerificationStatusMessage | IngestionStatusMessage;

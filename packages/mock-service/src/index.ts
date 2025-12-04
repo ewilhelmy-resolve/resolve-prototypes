@@ -159,8 +159,22 @@ interface DataSourceSyncPayload extends BaseWebhookPayload {
   settings: Record<string, any>;
 }
 
+// ITSM ticket sync webhook payload (Autopilot)
+interface SyncTicketsWebhookPayload extends BaseWebhookPayload {
+  source: 'rita-chat';
+  action: 'sync_tickets';
+  connection_id: string;
+  connection_type: string;
+  ingestion_run_id: string;
+  settings: {
+    instanceUrl?: string;
+    time_range_days?: number;
+    itsm_tables?: string[];
+  };
+}
+
 // Union type for all webhook payloads
-type WebhookPayload = MessageWebhookPayload | DocumentWebhookPayload | DocumentDeletePayload | SignupWebhookPayload | SendInvitationWebhookPayload | AcceptInvitationWebhookPayload | DeleteKeycloakUserPayload | DataSourceVerifyPayload | DataSourceSyncPayload | BaseWebhookPayload;
+type WebhookPayload = MessageWebhookPayload | DocumentWebhookPayload | DocumentDeletePayload | SignupWebhookPayload | SendInvitationWebhookPayload | AcceptInvitationWebhookPayload | DeleteKeycloakUserPayload | DataSourceVerifyPayload | DataSourceSyncPayload | SyncTicketsWebhookPayload | BaseWebhookPayload;
 
 interface MockResponse {
   message_id: string;
@@ -2034,6 +2048,69 @@ app.post('/webhook', async (req, res) => {
       return res.status(200).json({
         success: true,
         message: 'Sync triggered successfully'
+      });
+
+    } else if (payload.source === 'rita-chat' && payload.action === 'sync_tickets') {
+      // ITSM Autopilot: Sync tickets for clustering
+      const ticketsPayload = payload as SyncTicketsWebhookPayload;
+      const contextLogger = createContextLogger(webhookLogger, correlationId, {
+        tenantId: ticketsPayload.tenant_id
+      });
+
+      contextLogger.info({
+        source: ticketsPayload.source,
+        action: ticketsPayload.action,
+        connection_id: ticketsPayload.connection_id,
+        connection_type: ticketsPayload.connection_type,
+        ingestion_run_id: ticketsPayload.ingestion_run_id,
+        time_range_days: ticketsPayload.settings?.time_range_days,
+        user_email: ticketsPayload.user_email
+      }, 'Received sync_tickets webhook');
+
+      // Simulate ticket sync - publish ingestion_completed after 10 second delay
+      setTimeout(async () => {
+        try {
+          if (!rabbitChannel) {
+            throw new Error('RabbitMQ channel not initialized');
+          }
+
+          // Simulate processing results
+          const recordsProcessed = Math.floor(Math.random() * 150) + 50; // 50-200 tickets
+          const recordsFailed = Math.floor(Math.random() * 5); // 0-4 failures
+
+          const ingestionMessage = {
+            type: 'ticket_ingestion',
+            tenant_id: ticketsPayload.tenant_id,
+            user_id: ticketsPayload.user_id,
+            ingestion_run_id: ticketsPayload.ingestion_run_id,
+            connection_id: ticketsPayload.connection_id,
+            status: 'completed',
+            records_processed: recordsProcessed,
+            records_failed: recordsFailed,
+            timestamp: new Date().toISOString()
+          };
+
+          await rabbitChannel.assertQueue('data_source_status', { durable: true });
+          rabbitChannel.sendToQueue(
+            'data_source_status',
+            Buffer.from(JSON.stringify(ingestionMessage)),
+            { persistent: true }
+          );
+
+          contextLogger.info({
+            ingestionRunId: ticketsPayload.ingestion_run_id,
+            recordsProcessed,
+            recordsFailed
+          }, 'Published ticket_ingestion message to data_source_status queue');
+        } catch (error) {
+          contextLogger.error({ error }, 'Failed to publish ingestion_completed message');
+        }
+      }, 10000); // 10 second delay
+
+      return res.status(200).json({
+        success: true,
+        message: 'Ticket sync triggered successfully',
+        ingestion_run_id: ticketsPayload.ingestion_run_id
       });
 
     } else {
