@@ -5,7 +5,7 @@
     <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
     <meta name="robots" content="noindex, nofollow">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Sign in to Rita</title>
+    <title>Sign in to RITA</title>
     <link href="${url.resourcesPath}/css/fonts.css" rel="stylesheet" />
     <#if properties.styles?has_content>
         <#list properties.styles?split(' ') as style>
@@ -23,7 +23,7 @@
             <div class="flex flex-col items-center mb-8">
                 <img src="${url.resourcesPath}/img/logo.svg" alt="Rita" class="h-28 w-28 mb-6" />
                 <h1 class="text-4xl font-bold tracking-tighter">
-                    Sign in to Rita
+                    Sign in to RITA
                 </h1>
                 <p class="text-gray-400 text-center mt-2">
                     Enter your credentials to continue
