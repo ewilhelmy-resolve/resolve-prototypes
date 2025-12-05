@@ -30,7 +30,7 @@ export default function ConnectionSources() {
 		if (!dataSources) return [];
 
 		// Define the desired order
-		const sourceOrder = ["confluence", "sharepoint", "servicenow", "websearch"];
+		const sourceOrder = ["confluence", "sharepoint", "servicenow", "jira", "websearch"];
 
 		// Map and sort data sources
 		const mapped = dataSources.map(mapDataSourceToUI);
