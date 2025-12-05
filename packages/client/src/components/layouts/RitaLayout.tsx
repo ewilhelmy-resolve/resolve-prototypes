@@ -79,12 +79,25 @@ import { SUPPORTED_DOCUMENT_TYPES } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 import type { Conversation } from "@/stores/conversationStore";
 import type { DataSourceConnection } from "@/types/dataSource";
+import { memo } from "react";
 
 export interface RitaLayoutProps {
 	children: React.ReactNode;
 	/** Current active page for navigation highlighting */
 	activePage?: "chat" | "files" | "automations" | "tickets" | "users";
 }
+
+// Logo component memoized to prevent re-renders
+// Using background-image instead of <img> for better caching
+const RitaLogo = memo(() => (
+	<div
+		className="w-[179px] h-[18px] bg-no-repeat bg-center bg-contain"
+		style={{ backgroundImage: "url('/logo-rita.svg')" }}
+		role="img"
+		aria-label="RITA Logo"
+	/>
+));
+RitaLogo.displayName = "RitaLogo";
 
 function RitaLayoutContent({ children, activePage = "chat" }: RitaLayoutProps) {
 	const { state } = useSidebar();
@@ -238,13 +251,7 @@ function RitaLayoutContent({ children, activePage = "chat" }: RitaLayoutProps) {
 			<Sidebar className="bg-sidebar-primary-foreground border-sidebar-border w-[256px] lg:flex-shrink-0">
 				<SidebarHeader className="h-[67px] flex items-left justify-start pl-2">
 					<div className="flex items-center h-full pl-2">
-						<img
-							src="/logo-rita.svg"
-							alt="RITA Logo"
-							width={179}
-							height={18}
-							className="w-[179px] h-[18px]"
-						/>
+						<RitaLogo />
 					</div>
 				</SidebarHeader>
 
