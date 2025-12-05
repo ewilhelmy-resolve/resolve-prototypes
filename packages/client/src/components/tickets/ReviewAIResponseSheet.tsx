@@ -75,7 +75,7 @@ export default function ReviewAIResponseSheet({
 
 	const currentTicket = tickets[currentIndex];
 
-	// Reset state when sheet opens with new tickets
+	// Reset state when sheet opens
 	useEffect(() => {
 		if (open) {
 			setIsCompleted(false);
@@ -83,7 +83,7 @@ export default function ReviewAIResponseSheet({
 			setRejectedCount(0);
 			setShowFeedback(false);
 		}
-	}, [open, tickets.length]);
+	}, [open]);
 
 	// Don't render if no tickets
 	if (tickets.length === 0) {
