@@ -201,7 +201,7 @@ describe('useDeleteFile - optimistic removal', () => {
       offset: 0,
     }
 
-    mockedFileApi.deleteDocument.mockResolvedValueOnce({ success: true })
+    mockedFileApi.deleteDocument.mockResolvedValueOnce({ deleted: true })
 
     const { wrapper, queryClient } = createWrapper(initialData)
     const { result } = renderHook(() => useDeleteFile(), { wrapper })
@@ -259,7 +259,7 @@ describe('useDeleteFile - optimistic removal', () => {
       offset: 0,
     }
 
-    mockedFileApi.deleteDocument.mockResolvedValueOnce({ success: true })
+    mockedFileApi.deleteDocument.mockResolvedValueOnce({ deleted: true })
 
     const { wrapper, queryClient } = createWrapper(initialData)
     const { result } = renderHook(() => useDeleteFile(), { wrapper })
