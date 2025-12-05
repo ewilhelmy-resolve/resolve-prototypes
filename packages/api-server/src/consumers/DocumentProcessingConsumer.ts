@@ -54,13 +54,14 @@ function sleep(ms: number): Promise<void> {
 /**
  * Execute a database operation with retry logic and exponential backoff.
  * Used to handle race conditions when blob_metadata may not be visible yet.
+ *
+ * @throws Error if document not found after all retries exhausted
  */
 async function withRetry<T>(
   operation: () => Promise<T | null>,
   operationName: string,
   logger: any
-): Promise<T | null> {
-  let lastError: Error | null = null;
+): Promise<T> {
   let delay = RETRY_CONFIG.initialDelayMs;
 
   for (let attempt = 1; attempt <= RETRY_CONFIG.maxRetries; attempt++) {
@@ -84,8 +85,6 @@ async function withRetry<T>(
 
       await sleep(delay);
       delay = Math.min(delay * RETRY_CONFIG.backoffMultiplier, RETRY_CONFIG.maxDelayMs);
-    } else {
-      lastError = new Error(`Document not found after ${RETRY_CONFIG.maxRetries} retries`);
     }
   }
 
@@ -94,7 +93,7 @@ async function withRetry<T>(
     totalRetries: RETRY_CONFIG.maxRetries
   }, 'Document not found after all retries exhausted');
 
-  throw lastError;
+  throw new Error(`Document not found after ${RETRY_CONFIG.maxRetries} retries`);
 }
 
 export class DocumentProcessingConsumer {
@@ -211,15 +210,18 @@ export class DocumentProcessingConsumer {
           payload.tenant_id,
           async (client) => {
             // First, check current status with row lock to prevent parallel processing
+            // SKIP LOCKED allows other consumers to process different documents
+            // while this one waits, instead of blocking on contention
             const currentDoc = await client.query(`
               SELECT id, filename, status
               FROM blob_metadata
               WHERE id = $1 AND organization_id = $2
-              FOR UPDATE
+              FOR UPDATE SKIP LOCKED
             `, [payload.blob_metadata_id, payload.tenant_id]);
 
             if (currentDoc.rows.length === 0) {
-              return null; // Document not found, will trigger retry
+              // Document not found OR locked by another consumer - will trigger retry
+              return null;
             }
 
             const doc = currentDoc.rows[0];
@@ -251,12 +253,12 @@ export class DocumentProcessingConsumer {
       messageLogger
     );
 
-    const updatedDocument = result;
-
     // Skip SSE if this was an idempotent no-op
-    if (updatedDocument?.skipped) {
+    if (result.skipped) {
       return;
     }
+
+    const updatedDocument = result;
 
     messageLogger.info('Document processing completed successfully');
 
@@ -316,15 +318,18 @@ export class DocumentProcessingConsumer {
           payload.tenant_id,
           async (client) => {
             // First, check current status with row lock to prevent parallel processing
+            // SKIP LOCKED allows other consumers to process different documents
+            // while this one waits, instead of blocking on contention
             const currentDoc = await client.query(`
               SELECT id, filename, status
               FROM blob_metadata
               WHERE id = $1 AND organization_id = $2
-              FOR UPDATE
+              FOR UPDATE SKIP LOCKED
             `, [payload.blob_metadata_id, payload.tenant_id]);
 
             if (currentDoc.rows.length === 0) {
-              return null; // Document not found, will trigger retry
+              // Document not found OR locked by another consumer - will trigger retry
+              return null;
             }
 
             const doc = currentDoc.rows[0];
@@ -357,12 +362,12 @@ export class DocumentProcessingConsumer {
       messageLogger
     );
 
-    const updatedDocument = result;
-
     // Skip SSE if this was an idempotent no-op
-    if (updatedDocument?.skipped) {
+    if (result.skipped) {
       return;
     }
+
+    const updatedDocument = result;
 
     messageLogger.error({
       errorMessage: payload.error_message
