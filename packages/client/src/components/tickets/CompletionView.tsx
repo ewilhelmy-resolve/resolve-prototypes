@@ -41,10 +41,8 @@ export function CompletionView({
 	// Fire confetti when completion screen shows
 	useEffect(() => {
 		if (open) {
-			console.log('[CompletionView] Confetti trigger - open:', open);
-			// Small delay to ensure the component is fully mounted
+ 			// Small delay to ensure the component is fully mounted
 			const timer = setTimeout(() => {
-				console.log('[CompletionView] Firing confetti, ref:', confettiRef.current);
 				if (confettiRef.current) {
 					confettiRef.current.fire({
 						particleCount: 100,
