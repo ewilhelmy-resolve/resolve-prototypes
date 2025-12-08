@@ -52,6 +52,26 @@ export const SOURCES = {
 
 export type SourceId = (typeof SOURCES)[keyof typeof SOURCES];
 
+// Knowledge Sources - sync KB articles
+export const KNOWLEDGE_SOURCE_TYPES = [
+	"confluence",
+	"sharepoint",
+	"servicenow",
+	"websearch",
+] as const;
+
+// ITSM Sources - sync tickets for autopilot
+export const ITSM_SOURCE_TYPES = ["servicenow", "jira"] as const;
+
+// Display order for each section
+export const KNOWLEDGE_SOURCES_ORDER = [
+	"confluence",
+	"sharepoint",
+	"servicenow",
+	"websearch",
+];
+export const ITSM_SOURCES_ORDER = ["servicenow", "jira"];
+
 // Static metadata for each source type (icons, titles, descriptions)
 export const SOURCE_METADATA: Record<
 	string,
@@ -73,6 +93,10 @@ export const SOURCE_METADATA: Record<
 		title: "Web Search (LGA)",
 		description:
 			"Use web results to supplement answers when knowledge isn't found.",
+	},
+	jira: {
+		title: "Jira",
+		description: "Import tickets from Jira for autopilot clustering.",
 	},
 };
 

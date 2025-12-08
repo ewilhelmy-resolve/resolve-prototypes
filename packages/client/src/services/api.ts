@@ -57,6 +57,11 @@ async function apiRequest<T>(
     if (response.status === 401) {
       console.error('API request returned 401. Session may have expired.');
     }
+    // Handle 502 - backend is down, redirect to login
+    if (response.status === 502) {
+      console.error('API request returned 502. Backend is down.');
+      keycloak.logout();
+    }
     throw new ApiError(
       response.status,
       errorData.error || errorData.message || `HTTP ${response.status}: ${response.statusText}`,
@@ -309,6 +314,13 @@ export const dataSourcesApi = {
   cancelSync: (id: string) =>
     apiRequest<{ success: boolean; message: string }>(`/api/data-sources/${id}/cancel-sync`, {
       method: 'POST',
+    }),
+
+  // Sync tickets (ITSM Autopilot)
+  syncTickets: (id: string, params: { time_range_days: number }) =>
+    apiRequest<import('../types/dataSource').SyncTicketsResponse>(`/api/data-sources/${id}/sync-tickets`, {
+      method: 'POST',
+      body: params,
     }),
 };
 

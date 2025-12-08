@@ -1,7 +1,7 @@
 // Data Source Connection Types
 // Matches backend schema from packages/api-server/src/types/dataSource.ts
 
-export type DataSourceType = 'confluence' | 'servicenow' | 'sharepoint' | 'websearch';
+export type DataSourceType = 'confluence' | 'servicenow' | 'sharepoint' | 'websearch' | 'jira';
 
 export type DataSourceStatus = 'idle' | 'verifying' | 'syncing' | 'cancelled';
 
@@ -137,6 +137,16 @@ export interface TriggerSyncResponse {
 }
 
 /**
+ * API Response: Sync tickets (ITSM Autopilot)
+ * Returns 202 Accepted with ingestion run ID
+ */
+export interface SyncTicketsResponse {
+  ingestion_run_id: string;
+  status: 'SYNCING';
+  message: string;
+}
+
+/**
  * SSE Event: Data source status update
  * Sent when verification or sync status changes
  * NOTE: Uses snake_case to match backend
@@ -159,6 +169,23 @@ export interface DataSourceUpdateEvent {
     last_sync_error?: string | null;
     documentsProcessed?: number;
 
+    timestamp: string;
+  };
+}
+
+/**
+ * SSE Event: Ingestion run status update (ITSM Autopilot)
+ * Sent when ticket sync completes or fails
+ */
+export interface IngestionRunUpdateEvent {
+  type: 'ingestion_run_update';
+  data: {
+    ingestion_run_id: string;
+    connection_id: string;
+    status: 'completed' | 'failed';
+    records_processed?: number;
+    records_failed?: number;
+    error_message?: string;
     timestamp: string;
   };
 }

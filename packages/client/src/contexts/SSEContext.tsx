@@ -338,6 +338,24 @@ export const SSEProvider: React.FC<SSEProviderProps> = ({
 						description: `${event.data.userEmail} has been removed`,
 					});
 				}
+			} else if (event.type === "ingestion_run_update") {
+				// Handle ITSM Autopilot ticket sync completion
+				queryClient.invalidateQueries({ queryKey: dataSourceKeys.list() });
+				queryClient.invalidateQueries({
+					queryKey: dataSourceKeys.detail(event.data.connection_id),
+				});
+
+				if (event.data.status === "completed") {
+					ritaToast.success({
+						title: "Ticket sync complete",
+						description: `${event.data.records_processed ?? 0} tickets processed`,
+					});
+				} else if (event.data.status === "failed") {
+					ritaToast.error({
+						title: "Ticket sync failed",
+						description: event.data.error_message || "An error occurred",
+					});
+				}
 			}
 		},
 		[navigate, queryClient],

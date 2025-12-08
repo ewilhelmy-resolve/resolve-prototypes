@@ -12,6 +12,7 @@ export type FeatureFlagKey =
   | 'SHOW_WELCOME_MODAL'
   | 'ENABLE_DEBUG_MODE'
   | 'ENABLE_EXPERIMENTAL_FEATURES'
+  | 'ENABLE_SERVICENOW'
 
 /**
  * Feature flag configuration
@@ -54,6 +55,13 @@ export const FEATURE_FLAGS: Record<FeatureFlagKey, FeatureFlagConfig> = {
     key: 'ENABLE_EXPERIMENTAL_FEATURES',
     label: 'Experimental Features',
     description: 'Enable beta features and experimental functionality',
+    defaultValue: false,
+    category: 'experimental',
+  },
+  ENABLE_SERVICENOW: {
+    key: 'ENABLE_SERVICENOW',
+    label: 'ServiceNow Integration',
+    description: 'Enable ServiceNow KB and ITSM sync features',
     defaultValue: false,
     category: 'experimental',
   },

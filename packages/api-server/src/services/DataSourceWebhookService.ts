@@ -2,7 +2,8 @@ import axios, { type AxiosResponse } from 'axios';
 import { pool } from '../config/database.js';
 import type {
   VerifyWebhookPayload,
-  SyncTriggerWebhookPayload
+  SyncTriggerWebhookPayload,
+  SyncTicketsWebhookPayload
 } from '../types/dataSource.js';
 import type { WebhookConfig, WebhookResponse, WebhookError } from '../types/webhook.js';
 
@@ -76,9 +77,38 @@ export class DataSourceWebhookService {
   }
 
   /**
+   * Send sync tickets webhook event (ITSM Autopilot)
+   * Triggers ITSM ticket sync for clustering
+   */
+  async sendSyncTicketsEvent(params: {
+    organizationId: string;
+    userId: string;
+    userEmail: string;
+    connectionId: string;
+    connectionType: string;
+    ingestionRunId: string;
+    settings: Record<string, any>;
+  }): Promise<WebhookResponse> {
+    const payload: SyncTicketsWebhookPayload = {
+      source: 'rita-chat',
+      action: 'sync_tickets',
+      tenant_id: params.organizationId,
+      user_id: params.userId,
+      user_email: params.userEmail,
+      connection_id: params.connectionId,
+      connection_type: params.connectionType as any,
+      ingestion_run_id: params.ingestionRunId,
+      settings: params.settings,
+      timestamp: new Date().toISOString()
+    };
+
+    return this.sendEvent(payload);
+  }
+
+  /**
    * Core event sending method with retry logic
    */
-  private async sendEvent(payload: VerifyWebhookPayload | SyncTriggerWebhookPayload): Promise<WebhookResponse> {
+  private async sendEvent(payload: VerifyWebhookPayload | SyncTriggerWebhookPayload | SyncTicketsWebhookPayload): Promise<WebhookResponse> {
     let lastError: WebhookError | null = null;
 
     // Validate payload is JSON-serializable before sending
@@ -183,7 +213,7 @@ export class DataSourceWebhookService {
    * Store webhook failure in database
    */
   private async storeWebhookFailure(
-    payload: VerifyWebhookPayload | SyncTriggerWebhookPayload,
+    payload: VerifyWebhookPayload | SyncTriggerWebhookPayload | SyncTicketsWebhookPayload,
     error: WebhookError | null,
     retryCount: number
   ): Promise<void> {

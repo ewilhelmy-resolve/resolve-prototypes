@@ -348,4 +348,101 @@ export class DataSourceService {
       ]
     );
   }
+
+  /**
+   * Create an ingestion run record (ITSM Autopilot)
+   * Returns the created ingestion run with its ID
+   */
+  async createIngestionRun(params: {
+    organizationId: string;
+    dataSourceConnectionId: string;
+    startedBy: string;
+    metadata?: Record<string, any>;
+  }): Promise<{ id: string; status: string } | null> {
+    try {
+      const result = await pool.query<{ id: string; status: string }>(
+        `INSERT INTO ingestion_runs (
+          organization_id, data_source_connection_id, started_by,
+          status, metadata
+        ) VALUES ($1, $2, $3, 'pending', $4)
+        RETURNING id, status`,
+        [
+          params.organizationId,
+          params.dataSourceConnectionId,
+          params.startedBy,
+          JSON.stringify(params.metadata || {})
+        ]
+      );
+
+      return result.rows[0] || null;
+    } catch (error) {
+      console.error('[DataSourceService] Failed to create ingestion run:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Update ingestion run status
+   */
+  async updateIngestionRunStatus(
+    ingestionRunId: string,
+    status: 'pending' | 'running' | 'completed' | 'failed' | 'cancelled',
+    errorMessage?: string
+  ): Promise<void> {
+    const updates = ['status = $1', 'updated_at = NOW()'];
+    const values: any[] = [status];
+    let paramIndex = 2;
+
+    if (errorMessage) {
+      updates.push(`error_message = $${paramIndex++}`);
+      values.push(errorMessage);
+    }
+
+    if (status === 'completed' || status === 'failed' || status === 'cancelled') {
+      updates.push('completed_at = NOW()');
+    }
+
+    values.push(ingestionRunId);
+
+    await pool.query(
+      `UPDATE ingestion_runs
+       SET ${updates.join(', ')}
+       WHERE id = $${paramIndex}`,
+      values
+    );
+  }
+
+  /**
+   * Update ingestion run record counts
+   */
+  async updateIngestionRunRecords(
+    ingestionRunId: string,
+    recordsProcessed?: number,
+    recordsFailed?: number
+  ): Promise<void> {
+    const updates: string[] = ['updated_at = NOW()'];
+    const values: any[] = [];
+    let paramIndex = 1;
+
+    if (recordsProcessed !== undefined) {
+      updates.push(`records_processed = $${paramIndex++}`);
+      values.push(recordsProcessed);
+    }
+
+    if (recordsFailed !== undefined) {
+      updates.push(`records_failed = $${paramIndex++}`);
+      values.push(recordsFailed);
+    }
+
+    if (values.length === 0) return;
+
+    values.push(ingestionRunId);
+
+    await pool.query(
+      `UPDATE ingestion_runs
+       SET ${updates.join(', ')}
+       WHERE id = $${paramIndex}`,
+      values
+    );
+  }
 }
