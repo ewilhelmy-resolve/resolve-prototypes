@@ -544,7 +544,7 @@ describe("ConnectionSourceDetailPage", () => {
 			mockDataSourceQuery.data = source;
 			renderWithRouter();
 
-			expect(screen.getByText("Unknown source type")).toBeInTheDocument();
+			expect(screen.getByText("Configuration not available for this source type")).toBeInTheDocument();
 		});
 	});
 });
