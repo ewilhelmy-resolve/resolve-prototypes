@@ -14,6 +14,7 @@ export type FeatureFlagKey =
   | 'ENABLE_EXPERIMENTAL_FEATURES'
   | 'ENABLE_SERVICENOW'
   | 'ENABLE_MULTI_FILE_UPLOAD'
+  | 'ENABLE_TICKETS_V2'
 
 /**
  * Feature flag configuration
@@ -70,6 +71,13 @@ export const FEATURE_FLAGS: Record<FeatureFlagKey, FeatureFlagConfig> = {
     key: 'ENABLE_MULTI_FILE_UPLOAD',
     label: 'Multi-File Upload',
     description: 'Enable uploading multiple files at once in file inputs',
+    defaultValue: false,
+    category: 'experimental',
+  },
+  ENABLE_TICKETS_V2: {
+    key: 'ENABLE_TICKETS_V2',
+    label: 'Tickets',
+    description: 'Enable new tickets page UI',
     defaultValue: false,
     category: 'experimental',
   },

@@ -6,6 +6,7 @@ import {
 import { ProtectedRoute } from "./components/auth/ProtectedRoute";
 import { RoleProtectedRoute } from "./components/auth/RoleProtectedRoute";
 import { RootLayout } from "./components/layouts/RootLayout";
+import { useFeatureFlag } from "./hooks/useFeatureFlags";
 import ChatV1Page from "./pages/ChatV1Page";
 import ConnectionSourceDetailPage from "./pages/ConnectionSourceDetailPage";
 import ContactPage from "./pages/ContactPage";
@@ -27,6 +28,12 @@ import UsersSettingsPage from "./pages/UsersSettingsPage";
 import { VerifyEmailPage } from "./pages/VerifyEmailPage";
 import { VerifyEmailSentPage } from "./pages/VerifyEmailSentPage";
 import TicketsPage2 from "./pages/TicketsPage2";
+
+// Feature-flagged tickets page wrapper
+function TicketsPageWithFlag() {
+	const enableTicketsV2 = useFeatureFlag("ENABLE_TICKETS_V2");
+	return enableTicketsV2 ? <TicketsPage2 /> : <TicketsPage />;
+}
 
 const router = createBrowserRouter([
 	// Root redirect
@@ -73,15 +80,7 @@ const router = createBrowserRouter([
 		path: "/tickets",
 		element: (
 			<RoleProtectedRoute allowedRoles={["owner", "admin"]}>
-				<TicketsPage />
-			</RoleProtectedRoute>
-		),
-	},
-	{
-		path: "/tickets2",
-		element: (
-			<RoleProtectedRoute allowedRoles={["owner", "admin"]}>
-				<TicketsPage2 />
+				<TicketsPageWithFlag />
 			</RoleProtectedRoute>
 		),
 	},
