@@ -57,6 +57,11 @@ async function apiRequest<T>(
     if (response.status === 401) {
       console.error('API request returned 401. Session may have expired.');
     }
+    // Handle 502 - backend is down, redirect to login
+    if (response.status === 502) {
+      console.error('API request returned 502. Backend is down.');
+      keycloak.logout();
+    }
     throw new ApiError(
       response.status,
       errorData.error || errorData.message || `HTTP ${response.status}: ${response.statusText}`,
