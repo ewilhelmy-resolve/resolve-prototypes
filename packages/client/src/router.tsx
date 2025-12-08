@@ -16,9 +16,10 @@ import HelpPage from "./pages/HelpPage";
 import IframeChatPage from "./pages/IframeChatPage";
 import InviteAcceptPage from "./pages/InviteAcceptPage";
 import { NotFoundPage } from "./pages/NotFoundPage";
-import SettingsV1Page from "./pages/SettingsV1Page";
 import { SignUpPage } from "./pages/SignUpPage";
 import ProfilePage from "./pages/settings/ProfilePage";
+import KnowledgeSources from "./pages/settings/KnowledgeSources";
+import ItsmSources from "./pages/settings/ItsmSources";
 import TermsOfService from "./pages/TermsOfService";
 import TicketsPage from "./pages/TicketsPage";
 import TicketDetailPage from "./pages/TicketDetailPage";
@@ -106,17 +107,37 @@ const router = createBrowserRouter([
 	},
 	{
 		path: "/settings/connections",
+		element: <Navigate to="/settings/connections/knowledge" replace />,
+	},
+	{
+		path: "/settings/connections/knowledge",
 		element: (
 			<ProtectedRoute>
-				<SettingsV1Page />
+				<KnowledgeSources />
 			</ProtectedRoute>
 		),
 	},
 	{
-		path: "/settings/connections/:id",
+		path: "/settings/connections/knowledge/:id",
 		element: (
 			<ProtectedRoute>
-				<ConnectionSourceDetailPage />
+				<ConnectionSourceDetailPage mode="knowledge" />
+			</ProtectedRoute>
+		),
+	},
+	{
+		path: "/settings/connections/itsm",
+		element: (
+			<ProtectedRoute>
+				<ItsmSources />
+			</ProtectedRoute>
+		),
+	},
+	{
+		path: "/settings/connections/itsm/:id",
+		element: (
+			<ProtectedRoute>
+				<ConnectionSourceDetailPage mode="itsm" />
 			</ProtectedRoute>
 		),
 	},

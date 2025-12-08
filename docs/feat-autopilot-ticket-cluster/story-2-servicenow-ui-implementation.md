@@ -80,7 +80,10 @@ After verification, Workflow Platform returns available tables via RabbitMQ `dat
   status: 'success' | 'failed',
   options: {
     // For ServiceNow - separate options for KB vs ITSM
-    kb_tables: ["kb_knowledge", "kb_category"],
+    knowledge_base: [
+      { title: "Engineering", sys_id: "kb_eng_001" },
+      { title: "IT Support", sys_id: "kb_it_002" }
+    ],
     itsm_tables: ["incident", "problem", "change_request", "sc_request"]
   }
 }
@@ -89,14 +92,14 @@ After verification, Workflow Platform returns available tables via RabbitMQ `dat
 **Stored in:** `data_source_connections.latest_options` (JSONB)
 
 **UI display:**
-- KB sync section: MultiSelect from `latest_options.kb_tables`
+- KB sync section: MultiSelect from `latest_options.knowledge_base` (displays title, uses sys_id)
 - ITSM sync section: MultiSelect from `latest_options.itsm_tables`
 
 **Comparison with Confluence:**
 | Source | Options Field | Example |
 |--------|---------------|---------|
 | Confluence | `spaces` | `"ENG,PROD,DOCS"` |
-| ServiceNow KB | `kb_tables` | `["kb_knowledge"]` |
+| ServiceNow KB | `knowledge_base` | `[{title, sys_id}]` |
 | ServiceNow ITSM | `itsm_tables` | `["incident","problem"]` |
 
 ---
@@ -118,11 +121,11 @@ After verification, Workflow Platform returns available tables via RabbitMQ `dat
   "connection_id": "conn-uuid-abc",
   "connection_type": "servicenow",
   "credentials": {
-    "apiKey": "sn_api_key_xxxxx"
+    "password": "sn_password_xxxxx"
   },
   "settings": {
     "instanceUrl": "https://company.service-now.com",
-    "email": "admin@company.com"
+    "username": "service_account"
   },
   "timestamp": "2025-12-03T10:00:00Z"
 }
@@ -143,7 +146,10 @@ After verification, Workflow Platform returns available tables via RabbitMQ `dat
   "tenant_id": "org-uuid-123",
   "status": "success",
   "options": {
-    "kb_tables": ["kb_knowledge", "kb_category"],
+    "knowledge_base": [
+      { "title": "Engineering", "sys_id": "kb_eng_001" },
+      { "title": "IT Support", "sys_id": "kb_it_002" }
+    ],
     "itsm_tables": ["incident", "problem", "change_request", "sc_request"]
   },
   "error": null
@@ -168,8 +174,10 @@ After verification, Workflow Platform returns available tables via RabbitMQ `dat
   "connection_type": "servicenow",
   "settings": {
     "instanceUrl": "https://company.service-now.com",
-    "email": "admin@company.com",
-    "kb_tables": "kb_knowledge,kb_category"
+    "username": "service_account",
+    "knowledge_base": [
+      { "title": "Engineering", "sys_id": "kb_eng_001" }
+    ]
   },
   "timestamp": "2025-12-03T10:00:00Z"
 }

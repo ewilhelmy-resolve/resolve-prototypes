@@ -1,8 +1,13 @@
 "use client";
 
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, ChevronDown } from "lucide-react";
 import type { ReactNode } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
+import {
+	Collapsible,
+	CollapsibleContent,
+	CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 import {
 	Sidebar,
 	SidebarContent,
@@ -12,9 +17,13 @@ import {
 	SidebarMenu,
 	SidebarMenuButton,
 	SidebarMenuItem,
+	SidebarMenuSub,
+	SidebarMenuSubButton,
+	SidebarMenuSubItem,
 	SidebarProvider,
 } from "@/components/ui/sidebar";
 import { useProfilePermissions } from "@/hooks/api/useProfile";
+import { useFeatureFlag } from "@/hooks/useFeatureFlags";
 import { cn } from "@/lib/utils";
 
 interface RitaSettingsLayoutProps {
@@ -27,6 +36,7 @@ export default function RitaSettingsLayout({
 	const navigate = useNavigate();
 	const location = useLocation();
 	const { isOwnerOrAdmin } = useProfilePermissions();
+	const isServiceNowEnabled = useFeatureFlag("ENABLE_SERVICENOW");
 
 	const handleBackToApp = () => {
 		// Navigate to root, which will redirect to the default app route
@@ -37,6 +47,10 @@ export default function RitaSettingsLayout({
 	const isConnectionSourcesActive = location.pathname.startsWith(
 		"/settings/connections",
 	);
+	const isKnowledgeSourcesActive = location.pathname.includes(
+		"/connections/knowledge",
+	);
+	const isItsmSourcesActive = location.pathname.includes("/connections/itsm");
 	const isUsersActive = location.pathname.startsWith("/settings/users");
 	const isProfileActive = location.pathname === "/settings/profile";
 
@@ -83,18 +97,59 @@ export default function RitaSettingsLayout({
 								</SidebarGroupLabel>
 
 								<SidebarMenu>
-									<SidebarMenuItem>
-										<SidebarMenuButton
-											className={cn(
-												"p-2 h-8 rounded-md cursor-pointer",
-												isConnectionSourcesActive &&
-													"bg-accent text-accent-foreground",
-											)}
-											onClick={() => navigate("/settings/connections")}
-										>
-											<span className="text-sm">Connection Sources</span>
-										</SidebarMenuButton>
-									</SidebarMenuItem>
+									<Collapsible
+										defaultOpen={isConnectionSourcesActive}
+										className="group/collapsible"
+									>
+										<SidebarMenuItem>
+											<CollapsibleTrigger asChild>
+												<SidebarMenuButton
+													className={cn(
+														"p-2 h-8 rounded-md cursor-pointer justify-between",
+														isConnectionSourcesActive &&
+															"text-accent-foreground",
+													)}
+												>
+													<span className="text-sm">Connection Sources</span>
+													<ChevronDown className="h-4 w-4 transition-transform group-data-[state=open]/collapsible:rotate-180" />
+												</SidebarMenuButton>
+											</CollapsibleTrigger>
+											<CollapsibleContent>
+												<SidebarMenuSub>
+													<SidebarMenuSubItem>
+														<SidebarMenuSubButton
+															className={cn(
+																"cursor-pointer",
+																isKnowledgeSourcesActive &&
+																	"bg-accent text-accent-foreground",
+															)}
+															onClick={() =>
+																navigate("/settings/connections/knowledge")
+															}
+														>
+															<span className="text-sm">Knowledge Sources</span>
+														</SidebarMenuSubButton>
+													</SidebarMenuSubItem>
+													{isServiceNowEnabled && (
+													<SidebarMenuSubItem>
+														<SidebarMenuSubButton
+															className={cn(
+																"cursor-pointer",
+																isItsmSourcesActive &&
+																	"bg-accent text-accent-foreground",
+															)}
+															onClick={() =>
+																navigate("/settings/connections/itsm")
+															}
+														>
+															<span className="text-sm">ITSM Sources</span>
+														</SidebarMenuSubButton>
+													</SidebarMenuSubItem>
+												)}
+												</SidebarMenuSub>
+											</CollapsibleContent>
+										</SidebarMenuItem>
+									</Collapsible>
 									<SidebarMenuItem>
 										<SidebarMenuButton
 											className={cn(

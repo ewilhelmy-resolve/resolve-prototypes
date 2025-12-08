@@ -179,15 +179,18 @@ ALTER TABLE data_source_connections
 | RabbitMQ queue | `data_source_status` | `data_source_status` (type: `ticket_ingestion`) |
 
 **Table Selection via `latest_options`:**
-After verification, Workflow Platform returns available tables via RabbitMQ (same pattern as Confluence spaces):
+After verification, Workflow Platform returns available options via RabbitMQ (same pattern as Confluence spaces):
 ```json
 {
-  "kb_tables": ["kb_knowledge", "kb_category"],
+  "knowledge_base": [
+    { "title": "Engineering", "sys_id": "kb_eng_001" },
+    { "title": "IT Support", "sys_id": "kb_it_002" }
+  ],
   "itsm_tables": ["incident", "problem", "change_request"]
 }
 ```
 
-UI shows MultiSelect for each section based on capability flags.
+UI shows MultiSelect for each section based on capability flags. KB selector displays titles, stores full objects with sys_id.
 
 -----
 
@@ -1304,7 +1307,7 @@ DROP TABLE IF EXISTS clusters CASCADE;
 
 - **Added:** Section 2.4 documenting kb_enabled/itsm_enabled capability columns
 - **Added:** `kb_enabled`, `itsm_enabled` columns to data_source_connections ERD
-- **Added:** Table selection via `latest_options` pattern (kb_tables, itsm_tables)
+- **Added:** Table selection via `latest_options` pattern (knowledge_base objects, itsm_tables)
 - **Added:** Sync tracking mechanism comparison (KB vs ITSM)
 - **Migration:** 144_add_capability_columns.sql
 

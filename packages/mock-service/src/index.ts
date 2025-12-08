@@ -1947,6 +1947,9 @@ app.post('/webhook', async (req, res) => {
         user_email: verifyPayload.user_email
       }, 'Received data source verify webhook');
 
+      // Log raw payload for debugging (easy to copy)
+      contextLogger.info({ rawPayload: JSON.stringify(verifyPayload, null, 2) }, 'Raw verify_credentials payload');
+
       // Publish verification success message to RabbitMQ after 1 second delay
       setTimeout(async () => {
         try {
@@ -1954,17 +1957,33 @@ app.post('/webhook', async (req, res) => {
             throw new Error('RabbitMQ channel not initialized');
           }
 
-          // Simulate verification success with mock options
+          // Simulate verification success with mock options based on connection type
+          let options: Record<string, any> = {};
+          if (verifyPayload.connection_type === 'confluence') {
+            options = {
+              spaces: 'ENG,PROD,DOCS',
+              sites: 'confluence.company.com'
+            };
+          } else if (verifyPayload.connection_type === 'servicenow') {
+            options = {
+              knowledge_base: [
+                { title: 'Engineering', sys_id: 'kb_eng_001' },
+                { title: 'IT Support', sys_id: 'kb_it_002' },
+                { title: 'HR Policies', sys_id: 'kb_hr_003' }
+              ]
+            };
+          } else if (verifyPayload.connection_type === 'sharepoint') {
+            options = {
+              sites: ['https://company.sharepoint.com/sites/docs']
+            };
+          }
+
           const verificationMessage = {
             type: 'verification',
             connection_id: verifyPayload.connection_id,
             tenant_id: verifyPayload.tenant_id,
             status: 'success',
-            //status: 'failed',
-            options: {
-              spaces: 'ENG,PROD,DOCS',
-              sites: 'confluence.company.com'
-            },
+            options: options,
             error: null
           };
 

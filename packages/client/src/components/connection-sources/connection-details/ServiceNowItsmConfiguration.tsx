@@ -24,13 +24,13 @@ const TIME_RANGE_OPTIONS = [
 	{ label: "Last 90 days", value: "90" },
 ];
 
-interface ServiceNowConfigurationProps {
+interface ServiceNowItsmConfigurationProps {
 	onEdit?: () => void;
 }
 
-export default function ServiceNowConfiguration({
+export default function ServiceNowItsmConfiguration({
 	onEdit,
-}: ServiceNowConfigurationProps = {}) {
+}: ServiceNowItsmConfigurationProps = {}) {
 	const { source } = useConnectionSource();
 	const syncTickets = useSyncTickets();
 	const cancelMutation = useCancelSync();
@@ -99,7 +99,7 @@ export default function ServiceNowConfiguration({
 		<div className="w-full flex flex-col gap-2">
 			<div className="flex flex-col gap-2.5">
 				<div className="flex justify-between items-start gap-2">
-					<FormSectionTitle title="ServiceNow configuration" />
+					<FormSectionTitle title="ServiceNow ITSM configuration" />
 					<ConnectionActionsMenu onEdit={onEdit} />
 				</div>
 

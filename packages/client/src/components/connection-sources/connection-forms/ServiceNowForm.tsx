@@ -3,22 +3,20 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
 import { StatusAlert } from "@/components/ui/status-alert";
-import { STATUS } from "@/constants/connectionSources";
 import { useConnectionSource } from "@/contexts/ConnectionSourceContext";
 import {
 	useUpdateDataSource,
 	useVerifyDataSource,
 } from "@/hooks/useDataSources";
 import { ritaToast } from "@/components/ui/rita-toast";
-import ServiceNowConfiguration from "../connection-details/ServiceNowConfiguration";
 import ConnectionsForm from "../form-elements/ConnectionsForm";
 import FormField from "../form-elements/FormField";
 import FormSection from "../form-elements/FormSection";
 
 export interface ServiceNowFormData {
 	instanceUrl: string;
-	email: string;
-	apiKey: string;
+	username: string;
+	password: string;
 }
 
 interface ServiceNowFormProps {
@@ -46,8 +44,8 @@ export function ServiceNowForm({ onCancel, onSuccess, onFailure }: ServiceNowFor
 		mode: "onSubmit",
 		defaultValues: {
 			instanceUrl: source.backendData?.settings?.instanceUrl || "",
-			email: source.backendData?.settings?.email || "",
-			apiKey: "",
+			username: source.backendData?.settings?.username || "",
+			password: "",
 		},
 	});
 
@@ -72,10 +70,10 @@ export function ServiceNowForm({ onCancel, onSuccess, onFailure }: ServiceNowFor
 				payload: {
 					settings: {
 						instanceUrl: formData.instanceUrl,
-						email: formData.email,
 					},
 					credentials: {
-						apiKey: formData.apiKey,
+						username: formData.username,
+						password: formData.password,
 					},
 				},
 			});
@@ -86,7 +84,7 @@ export function ServiceNowForm({ onCancel, onSuccess, onFailure }: ServiceNowFor
 				data: {
 					settings: {
 						instanceUrl: formData.instanceUrl,
-						email: formData.email,
+						username: formData.username,
 					},
 					enabled: true,
 				},
@@ -115,11 +113,6 @@ export function ServiceNowForm({ onCancel, onSuccess, onFailure }: ServiceNowFor
 	const onSubmit = async () => {
 		await handleConnect();
 	};
-
-	// If connected, show configuration view
-	if (source.status !== STATUS.NOT_CONNECTED) {
-		return <ServiceNowConfiguration />;
-	}
 
 	return (
 		<ConnectionsForm handleSubmit={handleSubmit(onSubmit)} id="connection-form">
@@ -152,34 +145,26 @@ export function ServiceNowForm({ onCancel, onSuccess, onFailure }: ServiceNowFor
 					/>
 				</FormField>
 
-				{/* Email */}
-				<FormField label="Email" errors={errors} name="email" required>
+				{/* Username */}
+				<FormField label="Username" errors={errors} name="username" required>
 					<Input
-						id="email"
-						type="email"
-						placeholder="admin@company.com"
-						{...register("email", {
-							required: "Email is required",
-							pattern: {
-								value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
-								message: "Please enter a valid email address",
-							},
+						id="username"
+						type="text"
+						placeholder="service_account"
+						{...register("username", {
+							required: "Username is required",
 						})}
 					/>
 				</FormField>
 
-				{/* API Key */}
-				<FormField label="API Key" errors={errors} name="apiKey" required>
+				{/* Password */}
+				<FormField label="Password" errors={errors} name="password" required>
 					<Input
-						id="api-key"
+						id="password"
 						type="password"
-						placeholder="Enter API key"
-						{...register("apiKey", {
-							required: "API key is required",
-							minLength: {
-								value: 1,
-								message: "API key cannot be empty",
-							},
+						placeholder="Enter password"
+						{...register("password", {
+							required: "Password is required",
 						})}
 					/>
 				</FormField>
