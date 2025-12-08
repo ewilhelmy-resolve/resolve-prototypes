@@ -13,6 +13,7 @@ export type FeatureFlagKey =
   | 'ENABLE_DEBUG_MODE'
   | 'ENABLE_EXPERIMENTAL_FEATURES'
   | 'ENABLE_SERVICENOW'
+  | 'ENABLE_MULTI_FILE_UPLOAD'
 
 /**
  * Feature flag configuration
@@ -62,6 +63,13 @@ export const FEATURE_FLAGS: Record<FeatureFlagKey, FeatureFlagConfig> = {
     key: 'ENABLE_SERVICENOW',
     label: 'ServiceNow Integration',
     description: 'Enable ServiceNow KB and ITSM sync features',
+    defaultValue: false,
+    category: 'experimental',
+  },
+  ENABLE_MULTI_FILE_UPLOAD: {
+    key: 'ENABLE_MULTI_FILE_UPLOAD',
+    label: 'Multi-File Upload',
+    description: 'Enable uploading multiple files at once in file inputs',
     defaultValue: false,
     category: 'experimental',
   },
