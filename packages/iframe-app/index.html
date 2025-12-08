@@ -37,6 +37,12 @@
             font-size: 28px;
         }
 
+        h2 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 18px;
+        }
+
         p {
             color: #666;
             margin-bottom: 20px;
@@ -48,6 +54,7 @@
             gap: 10px;
             flex-wrap: wrap;
             align-items: center;
+            margin-bottom: 15px;
         }
 
         label {
@@ -89,13 +96,41 @@
             transform: translateY(1px);
         }
 
+        button.secondary {
+            background: #6c757d;
+        }
+
+        button.secondary:hover {
+            background: #5a6268;
+        }
+
+        button.success {
+            background: #28a745;
+        }
+
+        button.success:hover {
+            background: #218838;
+        }
+
+        .main-grid {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 20px;
+        }
+
+        @media (max-width: 1200px) {
+            .main-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
         .iframe-container {
             background: white;
             border-radius: 12px;
             padding: 20px;
             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-            height: calc(100vh - 280px);
-            min-height: 600px;
+            height: calc(100vh - 350px);
+            min-height: 500px;
         }
 
         iframe {
@@ -106,16 +141,92 @@
             background: white;
         }
 
+        .sidebar {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .panel {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .message-controls {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .message-controls textarea {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+            resize: vertical;
+            min-height: 80px;
+            font-family: inherit;
+        }
+
+        .message-controls textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .log-panel {
+            flex: 1;
+            min-height: 200px;
+            max-height: 400px;
+        }
+
+        .log-panel pre {
+            background: #1a1a2e;
+            color: #eee;
+            padding: 15px;
+            border-radius: 8px;
+            font-size: 12px;
+            overflow-y: auto;
+            height: 250px;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+
+        .log-entry {
+            margin-bottom: 8px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #333;
+        }
+
+        .log-entry.incoming {
+            color: #4ade80;
+        }
+
+        .log-entry.outgoing {
+            color: #60a5fa;
+        }
+
+        .log-entry.error {
+            color: #f87171;
+        }
+
+        .log-timestamp {
+            color: #888;
+            font-size: 10px;
+        }
+
         .info {
-            background: #fff3cd;
-            border: 1px solid #ffc107;
+            background: #e8f4fd;
+            border: 1px solid #2196f3;
             border-radius: 8px;
             padding: 15px;
             margin-top: 10px;
         }
 
         .info strong {
-            color: #856404;
+            color: #1565c0;
         }
 
         .info code {
@@ -126,92 +237,237 @@
             color: #d63384;
         }
 
-        .test-scenarios {
-            display: flex;
-            gap: 10px;
-            margin-top: 15px;
-            flex-wrap: wrap;
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
         }
 
-        .test-scenarios button {
-            background: #6c757d;
-            font-size: 13px;
-            padding: 8px 16px;
+        .status-indicator.ready {
+            background: #28a745;
         }
 
-        .test-scenarios button:hover {
-            background: #5a6268;
+        .status-indicator.waiting {
+            background: #ffc107;
+        }
+
+        .status-indicator.error {
+            background: #dc3545;
         }
     </style>
 </head>
 <body>
     <div class="container">
         <header>
-            <h1>🤖 RITA Iframe Embed Demo</h1>
-            <p>Test the iframe-embeddable chat version of RITA with configurable intent-eid parameter.</p>
+            <h1>RITA Iframe Embed Demo</h1>
+            <p>Test the iframe-embeddable chat with postMessage API for host page communication.</p>
 
             <div class="controls">
+                <label for="token">Token:</label>
+                <input
+                    type="text"
+                    id="token"
+                    placeholder="dev-iframe-token-2024"
+                    value="dev-iframe-token-2024"
+                >
                 <label for="intentEid">Intent EID:</label>
                 <input
                     type="text"
                     id="intentEid"
-                    placeholder="e.g., test-123, ticket-456, session-abc"
-                    value="test-demo-001"
+                    placeholder="e.g., test-123"
+                    value="demo-001"
                 >
                 <button onclick="loadIframe()">Load Iframe</button>
             </div>
 
-            <div class="test-scenarios">
-                <strong>Quick Tests:</strong>
-                <button onclick="setIntentAndLoad('ticket-urgent-001')">Ticket Support</button>
-                <button onclick="setIntentAndLoad('onboarding-new-user')">User Onboarding</button>
-                <button onclick="setIntentAndLoad('sales-inquiry-123')">Sales Inquiry</button>
-                <button onclick="setIntentAndLoad('')">No Intent EID</button>
-            </div>
-
             <div class="info">
-                <strong>Current URL:</strong> <code id="currentUrl">Not loaded yet</code>
+                <span class="status-indicator" id="statusIndicator"></span>
+                <strong>Status:</strong> <span id="connectionStatus">Not loaded</span>
                 <br><br>
-                <strong>⚠️ Authentication Required:</strong> You must be logged in to RITA at
-                <a href="http://localhost:5173/chat" target="_blank" style="color: #667eea; text-decoration: underline;">
-                    http://localhost:5173/chat
-                </a>
-                first. The iframe shares authentication cookies with the main app.
+                <strong>Current URL:</strong> <code id="currentUrl">Not loaded yet</code>
             </div>
         </header>
 
-        <div class="iframe-container">
-            <iframe id="ritaIframe" src=""></iframe>
+        <div class="main-grid">
+            <div class="iframe-container">
+                <iframe id="ritaIframe" src=""></iframe>
+            </div>
+
+            <div class="sidebar">
+                <div class="panel">
+                    <h2>Send Message (postMessage API)</h2>
+                    <div class="message-controls">
+                        <textarea id="messageContent" placeholder="Type message to send...">Hello from host page!</textarea>
+                        <div class="controls">
+                            <label for="chatSessionId">Chat Session:</label>
+                            <input type="text" id="chatSessionId" placeholder="workflow-tab-id" value="workflow-123" style="min-width: 150px;">
+                        </div>
+                        <div class="controls">
+                            <label for="tabInstanceId">Tab Instance:</label>
+                            <input type="text" id="tabInstanceId" placeholder="user-connection-id" value="user-456" style="min-width: 150px;">
+                        </div>
+                        <div style="display: flex; gap: 10px;">
+                            <button class="success" onclick="sendMessage()">Send Message</button>
+                            <button class="secondary" onclick="getStatus()">Get Status</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="panel log-panel">
+                    <h2>Event Log</h2>
+                    <pre id="eventLog"></pre>
+                    <button class="secondary" onclick="clearLog()" style="margin-top: 10px;">Clear Log</button>
+                </div>
+            </div>
         </div>
     </div>
 
     <script>
         // Default to localhost for development
         const RITA_BASE_URL = 'http://localhost:5173';
+        let iframeReady = false;
+        let requestCounter = 0;
+
+        function log(message, type = 'info') {
+            const logEl = document.getElementById('eventLog');
+            const timestamp = new Date().toLocaleTimeString();
+            const typeClass = type === 'incoming' ? 'incoming' : type === 'outgoing' ? 'outgoing' : type === 'error' ? 'error' : '';
+
+            const entry = document.createElement('div');
+            entry.className = `log-entry ${typeClass}`;
+            entry.innerHTML = `<span class="log-timestamp">[${timestamp}]</span> ${message}`;
+
+            logEl.insertBefore(entry, logEl.firstChild);
+        }
+
+        function clearLog() {
+            document.getElementById('eventLog').innerHTML = '';
+        }
+
+        function updateStatus(status, type) {
+            const indicator = document.getElementById('statusIndicator');
+            const statusText = document.getElementById('connectionStatus');
+
+            indicator.className = `status-indicator ${type}`;
+            statusText.textContent = status;
+        }
 
         function loadIframe() {
+            const token = document.getElementById('token').value.trim();
             const intentEid = document.getElementById('intentEid').value.trim();
             const iframe = document.getElementById('ritaIframe');
 
-            // Build URL with optional intent-eid parameter
-            let url = `${RITA_BASE_URL}/iframe/chat`;
-            if (intentEid) {
-                url += `?intent-eid=${encodeURIComponent(intentEid)}`;
+            if (!token) {
+                log('Error: Token is required', 'error');
+                return;
             }
 
+            // Build URL with token and optional intent-eid
+            let url = `${RITA_BASE_URL}/iframe/chat?token=${encodeURIComponent(token)}`;
+            if (intentEid) {
+                url += `&intent-eid=${encodeURIComponent(intentEid)}`;
+            }
+
+            iframeReady = false;
+            updateStatus('Loading...', 'waiting');
             iframe.src = url;
             document.getElementById('currentUrl').textContent = url;
 
-            console.log('[Iframe Demo] Loading iframe with URL:', url);
+            log(`Loading iframe: ${url}`, 'outgoing');
         }
 
-        function setIntentAndLoad(intentValue) {
-            document.getElementById('intentEid').value = intentValue;
-            loadIframe();
+        function sendMessage() {
+            if (!iframeReady) {
+                log('Error: Iframe not ready yet', 'error');
+                return;
+            }
+
+            const content = document.getElementById('messageContent').value.trim();
+            const chatSessionId = document.getElementById('chatSessionId').value.trim();
+            const tabInstanceId = document.getElementById('tabInstanceId').value.trim();
+
+            if (!content) {
+                log('Error: Message content is required', 'error');
+                return;
+            }
+
+            const requestId = `req_${++requestCounter}`;
+            const message = {
+                type: 'SEND_MESSAGE',
+                payload: {
+                    content,
+                    ...(chatSessionId && { chatSessionId }),
+                    ...(tabInstanceId && { tabInstanceId }),
+                },
+                requestId,
+            };
+
+            const iframe = document.getElementById('ritaIframe');
+            iframe.contentWindow.postMessage(message, '*');
+
+            log(`SEND_MESSAGE [${requestId}]: "${content.substring(0, 50)}${content.length > 50 ? '...' : ''}"`, 'outgoing');
         }
 
-        // Load iframe on page load with default intent-eid
-        window.addEventListener('DOMContentLoaded', loadIframe);
+        function getStatus() {
+            if (!iframeReady) {
+                log('Error: Iframe not ready yet', 'error');
+                return;
+            }
+
+            const requestId = `req_${++requestCounter}`;
+            const message = {
+                type: 'GET_STATUS',
+                requestId,
+            };
+
+            const iframe = document.getElementById('ritaIframe');
+            iframe.contentWindow.postMessage(message, '*');
+
+            log(`GET_STATUS [${requestId}]`, 'outgoing');
+        }
+
+        // Listen for messages from iframe
+        window.addEventListener('message', (event) => {
+            // In production, validate origin
+            const { type, requestId, success, error, data } = event.data || {};
+
+            if (!type) return;
+
+            switch (type) {
+                case 'READY':
+                    iframeReady = true;
+                    updateStatus('Ready', 'ready');
+                    log('READY: Iframe initialized and ready for commands', 'incoming');
+                    break;
+
+                case 'ACK':
+                    if (success) {
+                        log(`ACK [${requestId}]: Success`, 'incoming');
+                    } else {
+                        log(`ACK [${requestId}]: Failed - ${error}`, 'error');
+                    }
+                    break;
+
+                case 'STATUS':
+                    log(`STATUS [${requestId}]: ${JSON.stringify(data)}`, 'incoming');
+                    break;
+
+                case 'MESSAGE_RECEIVED':
+                    log(`MESSAGE_RECEIVED: New AI response`, 'incoming');
+                    break;
+
+                default:
+                    log(`Unknown message type: ${type}`, 'error');
+            }
+        });
+
+        // Load iframe on page load
+        window.addEventListener('DOMContentLoaded', () => {
+            updateStatus('Not loaded', 'waiting');
+            log('Demo page loaded. Click "Load Iframe" to start.', 'info');
+        });
     </script>
 </body>
 </html>

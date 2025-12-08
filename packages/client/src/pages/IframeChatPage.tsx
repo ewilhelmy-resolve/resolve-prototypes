@@ -13,13 +13,14 @@
  * 4. Render chat with SSE (session cookie enables SSE)
  */
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
 import ChatV1Content from "../components/chat/ChatV1Content";
 import IframeChatLayout from "../components/layouts/IframeChatLayout";
 import { SSEProvider } from "../contexts/SSEContext";
 import { useSSEContext } from "../contexts/SSEContext";
 import { useRitaChat } from "../hooks/useRitaChat";
+import { useIframeMessaging, type HostMessageMetadata } from "../hooks/useIframeMessaging";
 import { useConversationStore } from "../stores/conversationStore";
 import { iframeApi } from "../services/iframeApi";
 import { Loader } from "../components/ai-elements/loader";
@@ -43,6 +44,31 @@ function IframeChatContent({
 			});
 		}
 	}, [latestUpdate, updateMessage]);
+
+	// Handle postMessage commands from host page (Jarvis)
+	const handleHostSendMessage = useCallback(
+		async (content: string, metadata: HostMessageMetadata) => {
+			// Convert metadata to Record<string, string> for API
+			const apiMetadata: Record<string, string> = {};
+			if (metadata.chatSessionId) apiMetadata.chatSessionId = metadata.chatSessionId;
+			if (metadata.tabInstanceId) apiMetadata.tabInstanceId = metadata.tabInstanceId;
+
+			await ritaChatState.sendMessageWithContent(content, apiMetadata);
+		},
+		[ritaChatState]
+	);
+
+	// Enable postMessage communication with host page
+	useIframeMessaging({
+		enabled: true,
+		allowedOrigins: [], // Same-origin only for security
+		onSendMessage: handleHostSendMessage,
+		onGetStatus: () => ({
+			conversationId,
+			isSending: ritaChatState.isSending,
+			messageCount: ritaChatState.messages.length,
+		}),
+	});
 
 	// Override currentConversationId from props (ensures it's set before first message)
 	return (

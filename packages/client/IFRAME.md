@@ -140,6 +140,7 @@ Creates public session and conversation.
 **Request:**
 ```json
 {
+  "token": "your-iframe-token",
   "intentEid": "optional-tracking-id"
 }
 ```
@@ -152,6 +153,66 @@ Creates public session and conversation.
   "conversationId": "uuid-of-new-conversation"
 }
 ```
+
+## PostMessage API
+
+Enable host pages to communicate with the RITA iframe programmatically.
+
+### Message Protocol
+
+#### Host → Iframe
+
+| Type | Payload | Description |
+|------|---------|-------------|
+| `SEND_MESSAGE` | `{ content, chatSessionId?, tabInstanceId? }` | Send message to chat |
+| `GET_STATUS` | - | Request current status |
+| `CLEAR_CHAT` | - | Clear chat (future) |
+
+#### Iframe → Host
+
+| Type | Payload | Description |
+|------|---------|-------------|
+| `READY` | - | Iframe initialized, ready for commands |
+| `ACK` | `{ requestId, success, error? }` | Command acknowledged |
+| `STATUS` | `{ requestId, data }` | Status response |
+
+### Example Usage
+
+```javascript
+const iframe = document.getElementById('rita-iframe');
+
+// Listen for iframe ready
+window.addEventListener('message', (event) => {
+  if (event.data.type === 'READY') {
+    console.log('RITA iframe ready');
+  }
+  if (event.data.type === 'ACK') {
+    console.log('Message acknowledged:', event.data);
+  }
+});
+
+// Send message from host
+function sendToRita(message, chatSessionId, tabInstanceId) {
+  iframe.contentWindow.postMessage({
+    type: 'SEND_MESSAGE',
+    payload: {
+      content: message,
+      chatSessionId,   // Workflow tab ID (optional)
+      tabInstanceId,   // User connection ID (optional)
+    },
+    requestId: crypto.randomUUID()
+  }, '*');
+}
+```
+
+### Metadata Tracking
+
+Messages sent via postMessage can include metadata for workflow tracking:
+
+- **chatSessionId**: Jarvis workflow tab identifier
+- **tabInstanceId**: User connection identifier
+
+This metadata is stored with the message for audit and workflow correlation.
 
 ## Testing
 
@@ -198,16 +259,16 @@ Same as main app - see `.env.example` in packages/client
 1. **Same Domain Only** - Cannot embed cross-domain
 2. **Shared User** - All conversations from same "user"
 3. **No Personalization** - No user-specific settings
-4. **No PostMessage** - No parent-iframe communication
 
 ## Future Enhancements
 
 - [ ] Feature restrictions for public user
-- [ ] PostMessage API for parent-iframe communication
+- [x] PostMessage API for parent-iframe communication
 - [ ] Custom theming via URL parameters
 - [ ] Analytics tracking for intent-eid
 - [ ] Conversation TTL auto-cleanup
 - [ ] Rate limiting per intent-eid
+- [ ] Workflow state feedback to host (ritasendcompletemessage activity)
 
 ## Related Files
 
@@ -215,3 +276,5 @@ Same as main app - see `.env.example` in packages/client
 - `packages/api-server/src/routes/iframe.routes.ts` - API endpoint
 - `packages/client/src/pages/IframeChatPage.tsx` - Frontend page
 - `packages/client/src/services/iframeApi.ts` - Frontend API client
+- `packages/client/src/hooks/useIframeMessaging.ts` - PostMessage handler hook
+- `packages/iframe-app/index.html` - Demo host page with postMessage controls
