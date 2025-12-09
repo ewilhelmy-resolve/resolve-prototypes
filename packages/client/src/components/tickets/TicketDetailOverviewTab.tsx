@@ -10,6 +10,7 @@ import {
 	type AIResponseType,
 } from "@/lib/tickets/utils";
 import { EnableAutoRespondModal } from "./EnableAutoRespondModal";
+import { CreateKnowledgeArticleSheet } from "./CreateKnowledgeArticleSheet";
 
 interface TicketDetailOverviewTabProps {
 	/** Ticket group ID to fetch AI response data */
@@ -34,6 +35,7 @@ export function TicketDetailOverviewTab({
 	const aiResponse = ticketGroup?.aiResponse;
 	const [enableModalOpen, setEnableModalOpen] = useState(false);
 	const [selectedType, setSelectedType] = useState<AIResponseType | null>(null);
+	const [createKnowledgeSheetOpen, setCreateKnowledgeSheetOpen] = useState(false);
 
 	const handleEnableClick = (type: AIResponseType) => {
 		setSelectedType(type);
@@ -133,6 +135,7 @@ export function TicketDetailOverviewTab({
 						<Button
 							variant="outline"
 							className="w-full border-yellow-400 bg-yellow-100 hover:bg-yellow-200"
+							onClick={() => setCreateKnowledgeSheetOpen(true)}
 						>
 							Create Knowledge Article
 						</Button>
@@ -150,6 +153,13 @@ export function TicketDetailOverviewTab({
 					aiResponse={aiResponse}
 				/>
 			)}
+
+			{/* Create Knowledge Article Sheet */}
+			<CreateKnowledgeArticleSheet
+				open={createKnowledgeSheetOpen}
+				onOpenChange={setCreateKnowledgeSheetOpen}
+				ticketGroupName={ticketGroupName}
+			/>
 		</div>
 	);
 }
