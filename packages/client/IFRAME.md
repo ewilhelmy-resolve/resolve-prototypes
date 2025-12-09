@@ -281,21 +281,36 @@ VITE_ACTIONS_API_URL=https://actions-api-staging.resolve.io
 
 ## Testing
 
-### Demo Application
+### Built-in Demo Page
 
-The `packages/iframe-app` provides a testing environment:
+The `/embeddemo` route provides a built-in testing environment that deploys with the main app:
+
+**URL**: `http://localhost:5173/embeddemo`
 
 **Features**:
-- Quick test scenarios (ticket, onboarding, sales)
-- Configurable intent-eid input
-- Visual URL display
-- Responsive iframe container
+- No separate dev server needed
+- JWT input for workflow execution
+- Workflow GUID and context selection
+- Event log with color-coded entries
+- Send Message and Execute Workflow controls
 
 **Usage**:
+```bash
+# Just start the client (no separate demo server needed)
+npm run dev:client
+# Open http://localhost:5173/embeddemo
+```
+
+### Legacy Demo Application (deprecated)
+
+The `packages/iframe-app` provides a standalone testing environment:
+
 ```bash
 npm run dev:iframe-app
 # Opens http://localhost:5174
 ```
+
+Note: Prefer using `/embeddemo` as it deploys with the main app.
 
 ### Manual Testing Checklist
 
@@ -339,8 +354,9 @@ Same as main app - see `.env.example` in packages/client
 
 - `packages/api-server/src/services/IframeService.ts` - Backend service
 - `packages/api-server/src/routes/iframe.routes.ts` - API endpoint
-- `packages/client/src/pages/IframeChatPage.tsx` - Frontend page
+- `packages/client/src/pages/IframeChatPage.tsx` - Iframe chat page
+- `packages/client/src/pages/EmbedDemoPage.tsx` - Built-in demo page (/embeddemo)
 - `packages/client/src/services/iframeApi.ts` - Frontend API client (RITA API)
 - `packages/client/src/services/actionsApi.ts` - Actions API client (workflow execution)
 - `packages/client/src/hooks/useIframeMessaging.ts` - PostMessage handler hook
-- `packages/iframe-app/index.html` - Demo host page with postMessage controls
+- `packages/iframe-app/index.html` - Legacy demo (deprecated)
