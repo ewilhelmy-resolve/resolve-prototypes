@@ -1,8 +1,14 @@
 /**
  * EmbedDemoPage - Demo page for testing iframe embedding
  *
- * Public page that demonstrates postMessage API and Actions API workflow execution.
+ * Public page that demonstrates postMessage API and hashkey-based workflow execution.
  * Embeds the /iframe/chat route and provides controls to test communication.
+ *
+ * Workflow execution flow:
+ * 1. Host stores payload in Valkey with a hashkey (simulated here)
+ * 2. Host embeds iframe with ?token=xxx&hashkey=yyy
+ * 3. RITA backend fetches payload from Valkey and calls postEvent webhook
+ * 4. Response flows through queue -> message -> SSE to iframe
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -22,14 +28,10 @@ export default function EmbedDemoPage() {
 
 	// Form state
 	const [token, setToken] = useState("dev-iframe-token-2024");
-	const [intentEid, setIntentEid] = useState("demo-001");
+	const [hashkey, setHashkey] = useState("");
 	const [messageContent, setMessageContent] = useState("Hello from host page!");
 	const [chatSessionId, setChatSessionId] = useState("workflow-123");
 	const [tabInstanceId, setTabInstanceId] = useState("user-456");
-	const [jwtToken, setJwtToken] = useState("");
-	const [workflowGuid, setWorkflowGuid] = useState("");
-	const [workflowContext, setWorkflowContext] = useState<"Workflow" | "ActivityDesigner">("Workflow");
-	const [workflowInput, setWorkflowInput] = useState("Help me with this task");
 
 	const [currentUrl, setCurrentUrl] = useState("Not loaded yet");
 	const [connectionStatus, setConnectionStatus] = useState("Not loaded");
@@ -55,8 +57,9 @@ export default function EmbedDemoPage() {
 
 		const baseUrl = window.location.origin;
 		let url = `${baseUrl}/iframe/chat?token=${encodeURIComponent(token)}`;
-		if (intentEid) {
-			url += `&intent-eid=${encodeURIComponent(intentEid)}`;
+		if (hashkey) {
+			url += `&hashkey=${encodeURIComponent(hashkey)}`;
+			log(`Hashkey provided - workflow will execute on iframe load`, "workflow");
 		}
 
 		setIframeReady(false);
@@ -69,7 +72,7 @@ export default function EmbedDemoPage() {
 		}
 
 		log(`Loading iframe: ${url}`, "outgoing");
-	}, [token, intentEid, log]);
+	}, [token, hashkey, log]);
 
 	const sendMessage = useCallback(() => {
 		if (!iframeReady) {
@@ -99,48 +102,6 @@ export default function EmbedDemoPage() {
 		log(`SEND_MESSAGE [${reqId}]: "${messageContent.substring(0, 50)}${messageContent.length > 50 ? "..." : ""}"`, "outgoing");
 	}, [iframeReady, messageContent, chatSessionId, tabInstanceId, requestCounter, log]);
 
-	const executeWorkflow = useCallback(() => {
-		if (!iframeReady) {
-			log("Error: Iframe not ready yet", "error");
-			return;
-		}
-
-		if (!jwtToken) {
-			log("Error: JWT token is required for workflow execution", "error");
-			return;
-		}
-		if (!workflowGuid) {
-			log("Error: Workflow GUID is required", "error");
-			return;
-		}
-		if (!workflowInput) {
-			log("Error: Workflow input message is required", "error");
-			return;
-		}
-
-		const reqId = `req_${requestCounter + 1}`;
-		setRequestCounter((prev) => prev + 1);
-
-		const message = {
-			type: "EXECUTE_WORKFLOW",
-			payload: {
-				jwt: jwtToken.startsWith("Bearer ") ? jwtToken : `Bearer ${jwtToken}`,
-				workflowGuid,
-				chatInput: workflowInput,
-				chatSessionId: chatSessionId || `session-${Date.now()}`,
-				tabInstanceId: tabInstanceId || `tab-${Date.now()}`,
-				context: workflowContext,
-			},
-			requestId: reqId,
-		};
-
-		iframeRef.current?.contentWindow?.postMessage(message, "*");
-		log(
-			`EXECUTE_WORKFLOW [${reqId}]: "${workflowInput.substring(0, 40)}${workflowInput.length > 40 ? "..." : ""}" -> ${workflowGuid.substring(0, 8)}...`,
-			"workflow"
-		);
-	}, [iframeReady, jwtToken, workflowGuid, workflowInput, chatSessionId, tabInstanceId, workflowContext, requestCounter, log]);
-
 	const getStatus = useCallback(() => {
 		if (!iframeReady) {
 			log("Error: Iframe not ready yet", "error");
@@ -162,7 +123,7 @@ export default function EmbedDemoPage() {
 	// Listen for messages from iframe
 	useEffect(() => {
 		const handleMessage = (event: MessageEvent) => {
-			const { type, requestId, success, error, eventId, data } = event.data || {};
+			const { type, requestId, success, error, data } = event.data || {};
 
 			if (!type) return;
 
@@ -176,11 +137,7 @@ export default function EmbedDemoPage() {
 
 				case "ACK":
 					if (success) {
-						if (eventId) {
-							log(`ACK [${requestId}]: Workflow started, eventId=${eventId}`, "workflow");
-						} else {
-							log(`ACK [${requestId}]: Success`, "incoming");
-						}
+						log(`ACK [${requestId}]: Success`, "incoming");
 					} else {
 						log(`ACK [${requestId}]: Failed - ${error}`, "error");
 					}
@@ -225,14 +182,14 @@ export default function EmbedDemoPage() {
 							placeholder="dev-iframe-token-2024"
 							className="px-4 py-2 border-2 border-gray-200 rounded-lg text-sm min-w-[250px] focus:outline-none focus:border-indigo-500"
 						/>
-						<label htmlFor="intentEid" className="font-semibold text-gray-900">Intent EID:</label>
+						<label htmlFor="hashkey" className="font-semibold text-gray-900">Hashkey:</label>
 						<input
-							id="intentEid"
+							id="hashkey"
 							type="text"
-							value={intentEid}
-							onChange={(e) => setIntentEid(e.target.value)}
-							placeholder="e.g., test-123"
-							className="px-4 py-2 border-2 border-gray-200 rounded-lg text-sm min-w-[200px] focus:outline-none focus:border-indigo-500"
+							value={hashkey}
+							onChange={(e) => setHashkey(e.target.value)}
+							placeholder="(optional) Valkey key for workflow"
+							className="px-4 py-2 border-2 border-gray-200 rounded-lg text-sm min-w-[250px] focus:outline-none focus:border-indigo-500"
 						/>
 						<button
 							onClick={loadIframe}
@@ -322,62 +279,22 @@ export default function EmbedDemoPage() {
 								</div>
 							</div>
 
-							{/* Workflow Section */}
+							{/* Hashkey Workflow Info */}
 							<div className="bg-purple-50 border border-purple-500 rounded-lg p-4 mt-4">
-								<h3 className="text-sm font-semibold text-purple-700 mb-3">Execute Workflow (Actions API)</h3>
-
-								<div className="flex flex-col gap-3">
-									<div className="flex flex-wrap gap-3 items-center">
-										<label htmlFor="jwtToken" className="font-semibold text-gray-900 text-sm">JWT Token:</label>
-										<input
-											id="jwtToken"
-											type="text"
-											value={jwtToken}
-											onChange={(e) => setJwtToken(e.target.value)}
-											placeholder="Bearer eyJ..."
-											className="px-3 py-2 border-2 border-gray-200 rounded-lg text-xs w-full focus:outline-none focus:border-purple-500"
-										/>
-									</div>
-
-									<div className="flex flex-wrap gap-3 items-center">
-										<label htmlFor="workflowGuid" className="font-semibold text-gray-900 text-sm">Workflow GUID:</label>
-										<input
-											id="workflowGuid"
-											type="text"
-											value={workflowGuid}
-											onChange={(e) => setWorkflowGuid(e.target.value)}
-											placeholder="uuid-of-system-workflow"
-											className="px-3 py-2 border-2 border-gray-200 rounded-lg text-sm w-full focus:outline-none focus:border-purple-500"
-										/>
-									</div>
-
-									<div className="flex flex-wrap gap-3 items-center">
-										<label htmlFor="workflowContext" className="font-semibold text-gray-900 text-sm">Context:</label>
-										<select
-											id="workflowContext"
-											value={workflowContext}
-											onChange={(e) => setWorkflowContext(e.target.value as "Workflow" | "ActivityDesigner")}
-											className="px-3 py-2 border-2 border-gray-200 rounded-lg text-sm bg-white cursor-pointer focus:outline-none focus:border-purple-500"
-										>
-											<option value="Workflow">Workflow</option>
-											<option value="ActivityDesigner">ActivityDesigner</option>
-										</select>
-									</div>
-
-									<textarea
-										value={workflowInput}
-										onChange={(e) => setWorkflowInput(e.target.value)}
-										placeholder="Type message for workflow..."
-										className="w-full p-3 border-2 border-gray-200 rounded-lg text-sm resize-y min-h-[60px] focus:outline-none focus:border-purple-500"
-									/>
-
-									<button
-										onClick={executeWorkflow}
-										className="px-5 py-2 bg-purple-500 text-white rounded-lg font-semibold hover:bg-purple-600 active:translate-y-px"
-									>
-										Execute Workflow
-									</button>
-								</div>
+								<h3 className="text-sm font-semibold text-purple-700 mb-2">Workflow Execution (via Hashkey)</h3>
+								<p className="text-xs text-gray-600 mb-2">
+									Workflows are triggered by URL params, not postMessage. The flow is:
+								</p>
+								<ol className="text-xs text-gray-600 list-decimal list-inside space-y-1">
+									<li>Host stores payload in Valkey with a hashkey</li>
+									<li>Host embeds iframe with <code className="bg-white px-1 rounded">?token=xxx&hashkey=yyy</code></li>
+									<li>RITA backend fetches payload from Valkey</li>
+									<li>Backend calls postEvent webhook with JWT and params</li>
+									<li>Response flows through queue to chat via SSE</li>
+								</ol>
+								<p className="text-xs text-gray-500 mt-2">
+									To test: Store a payload in Valkey, enter the hashkey above, and click Load Iframe.
+								</p>
 							</div>
 						</div>
 

@@ -5,25 +5,23 @@
  * Used only in IframeChatPage for embedded chat scenarios.
  *
  * Protocol:
- * - Host → Iframe: SEND_MESSAGE, EXECUTE_WORKFLOW, GET_STATUS, CLEAR_CHAT
+ * - Host → Iframe: SEND_MESSAGE, GET_STATUS, CLEAR_CHAT
  * - Iframe → Host: READY, ACK, STATUS
+ *
+ * Note: Workflow execution is handled via hashkey URL param, not postMessage.
+ * Host stores payload in Valkey, passes hashkey in URL, backend fetches & executes.
  */
 
 import { useCallback, useEffect, useRef } from "react";
 
 // Message types from host page
 export interface IframeInboundMessage {
-	type: "SEND_MESSAGE" | "EXECUTE_WORKFLOW" | "GET_STATUS" | "CLEAR_CHAT";
+	type: "SEND_MESSAGE" | "GET_STATUS" | "CLEAR_CHAT";
 	payload?: {
 		// For SEND_MESSAGE
 		content?: string;
 		chatSessionId?: string; // Jarvis workflow tab ID
 		tabInstanceId?: string; // Jarvis user connection ID
-		// For EXECUTE_WORKFLOW (additional fields)
-		jwt?: string; // Bearer token for Actions API
-		workflowGuid?: string; // System workflow GUID
-		chatInput?: string; // User message content
-		context?: "Workflow" | "ActivityDesigner";
 	};
 	requestId?: string; // For ACK tracking
 }
@@ -34,7 +32,6 @@ export interface IframeOutboundMessage {
 	requestId?: string;
 	success?: boolean;
 	error?: string;
-	eventId?: string; // For EXECUTE_WORKFLOW response
 	data?: Record<string, unknown>;
 }
 
@@ -44,16 +41,6 @@ export interface HostMessageMetadata {
 	tabInstanceId?: string;
 }
 
-// Parameters for workflow execution
-export interface WorkflowExecutionParams {
-	jwt: string;
-	workflowGuid: string;
-	chatInput: string;
-	chatSessionId: string;
-	tabInstanceId: string;
-	context: "Workflow" | "ActivityDesigner";
-}
-
 interface UseIframeMessagingOptions {
 	enabled?: boolean;
 	allowedOrigins?: string[]; // Empty = same-origin only
@@ -61,7 +48,6 @@ interface UseIframeMessagingOptions {
 		content: string,
 		metadata: HostMessageMetadata
 	) => Promise<void>;
-	onExecuteWorkflow?: (params: WorkflowExecutionParams) => Promise<string>; // Returns eventId
 	onGetStatus?: () => Record<string, unknown>;
 	onClearChat?: () => void;
 }
@@ -94,7 +80,6 @@ export function useIframeMessaging({
 	enabled = true,
 	allowedOrigins = [],
 	onSendMessage,
-	onExecuteWorkflow,
 	onGetStatus,
 	onClearChat,
 }: UseIframeMessagingOptions = {}): {
@@ -147,46 +132,6 @@ export function useIframeMessaging({
 					}
 					break;
 
-				case "EXECUTE_WORKFLOW":
-					if (
-						onExecuteWorkflow &&
-						payload?.jwt &&
-						payload?.workflowGuid &&
-						payload?.chatInput &&
-						payload?.chatSessionId &&
-						payload?.tabInstanceId &&
-						payload?.context
-					) {
-						try {
-							const eventId = await onExecuteWorkflow({
-								jwt: payload.jwt,
-								workflowGuid: payload.workflowGuid,
-								chatInput: payload.chatInput,
-								chatSessionId: payload.chatSessionId,
-								tabInstanceId: payload.tabInstanceId,
-								context: payload.context,
-							});
-							postToParent({ type: "ACK", requestId, success: true, eventId });
-						} catch (error) {
-							const errorMessage =
-								error instanceof Error ? error.message : "Unknown error";
-							postToParent({
-								type: "ACK",
-								requestId,
-								success: false,
-								error: errorMessage,
-							});
-						}
-					} else {
-						postToParent({
-							type: "ACK",
-							requestId,
-							success: false,
-							error: "Missing required workflow parameters or handler",
-						});
-					}
-					break;
-
 				case "GET_STATUS":
 					if (onGetStatus) {
 						const status = onGetStatus();
@@ -205,7 +150,7 @@ export function useIframeMessaging({
 					console.warn("[IframeMessaging] Unknown message type:", type);
 			}
 		},
-		[allowedOrigins, onSendMessage, onExecuteWorkflow, onGetStatus, onClearChat]
+		[allowedOrigins, onSendMessage, onGetStatus, onClearChat]
 	);
 
 	useEffect(() => {
