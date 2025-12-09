@@ -63,7 +63,7 @@ export function EnableAutoPopulateSheet({
 	return (
 		<Sheet open={open} onOpenChange={onOpenChange}>
 			<SheetContent className="sm:max-w-lg flex flex-col p-8" side="right">
-				<SheetHeader>
+				<SheetHeader className="p-0">
 					<SheetTitle>Enable Auto-populated</SheetTitle>
 					<SheetDescription>
 						New tickets in this group will automatically have fill populate with predicted values.
