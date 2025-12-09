@@ -33,6 +33,14 @@ export default function EmbedDemoPage() {
 	const [chatSessionId, setChatSessionId] = useState("workflow-123");
 	const [tabInstanceId, setTabInstanceId] = useState("user-456");
 
+	// Workflow payload state
+	const [workflowJwt, setWorkflowJwt] = useState("");
+	const [workflowTenantId, setWorkflowTenantId] = useState("");
+	const [workflowGuid, setWorkflowGuid] = useState("");
+	const [workflowChatInput, setWorkflowChatInput] = useState("Hello from workflow");
+	const [workflowContext, setWorkflowContext] = useState<"Workflow" | "ActivityDesigner">("Workflow");
+	const [customParams, setCustomParams] = useState("");
+
 	const [currentUrl, setCurrentUrl] = useState("Not loaded yet");
 	const [connectionStatus, setConnectionStatus] = useState("Not loaded");
 	const [statusType, setStatusType] = useState<"waiting" | "ready" | "error">("waiting");
@@ -119,6 +127,42 @@ export default function EmbedDemoPage() {
 		iframeRef.current?.contentWindow?.postMessage(message, "*");
 		log(`GET_STATUS [${reqId}]`, "outgoing");
 	}, [iframeReady, requestCounter, log]);
+
+	// Generate Valkey payload for workflow testing
+	const generatePayload = useCallback(() => {
+		const payload: Record<string, unknown> = {
+			jwt: workflowJwt || "Bearer YOUR_JWT_HERE",
+			tenantId: workflowTenantId || "YOUR_TENANT_ID",
+		};
+		if (workflowGuid) payload.workflowGuid = workflowGuid;
+		if (workflowChatInput) payload.chatInput = workflowChatInput;
+		if (chatSessionId) payload.chatSessionId = chatSessionId;
+		if (tabInstanceId) payload.tabInstanceId = tabInstanceId;
+		payload.context = workflowContext;
+
+		// Parse custom params
+		if (customParams.trim()) {
+			try {
+				const custom = JSON.parse(customParams);
+				Object.assign(payload, custom);
+			} catch {
+				// Ignore invalid JSON
+			}
+		}
+
+		return payload;
+	}, [workflowJwt, workflowTenantId, workflowGuid, workflowChatInput, chatSessionId, tabInstanceId, workflowContext, customParams]);
+
+	const copyRedisCommand = useCallback(() => {
+		const payload = generatePayload();
+		const key = hashkey || `workflow-${Date.now()}`;
+		const cmd = `redis-cli SET ${key} '${JSON.stringify(payload)}'`;
+		navigator.clipboard.writeText(cmd);
+		log(`Copied redis-cli command to clipboard (key: ${key})`, "workflow");
+		if (!hashkey) {
+			setHashkey(key);
+		}
+	}, [generatePayload, hashkey, log]);
 
 	// Listen for messages from iframe
 	useEffect(() => {
@@ -226,7 +270,7 @@ export default function EmbedDemoPage() {
 					</div>
 
 					{/* Sidebar */}
-					<div className="flex flex-col gap-5">
+					<div className="flex flex-col gap-5 overflow-y-auto max-h-[calc(100vh-200px)]">
 						{/* Message Controls Panel */}
 						<div className="bg-white rounded-xl p-5 shadow-lg">
 							<h2 className="text-lg font-semibold text-gray-900 mb-3">Send Message (postMessage API)</h2>
@@ -236,7 +280,7 @@ export default function EmbedDemoPage() {
 									value={messageContent}
 									onChange={(e) => setMessageContent(e.target.value)}
 									placeholder="Type message to send..."
-									className="w-full p-3 border-2 border-gray-200 rounded-lg text-sm resize-y min-h-[80px] focus:outline-none focus:border-indigo-500"
+									className="w-full p-3 border-2 border-gray-200 rounded-lg text-sm resize-y min-h-[60px] focus:outline-none focus:border-indigo-500"
 								/>
 
 								<div className="flex flex-wrap gap-3 items-center">
@@ -278,31 +322,106 @@ export default function EmbedDemoPage() {
 									</button>
 								</div>
 							</div>
+						</div>
 
-							{/* Hashkey Workflow Info */}
-							<div className="bg-purple-50 border border-purple-500 rounded-lg p-4 mt-4">
-								<h3 className="text-sm font-semibold text-purple-700 mb-2">Workflow Execution (via Hashkey)</h3>
-								<p className="text-xs text-gray-600 mb-2">
-									Workflows are triggered by URL params, not postMessage. The flow is:
-								</p>
-								<ol className="text-xs text-gray-600 list-decimal list-inside space-y-1">
-									<li>Host stores payload in Valkey with a hashkey</li>
-									<li>Host embeds iframe with <code className="bg-white px-1 rounded">?token=xxx&hashkey=yyy</code></li>
-									<li>RITA backend fetches payload from Valkey</li>
-									<li>Backend calls postEvent webhook with JWT and params</li>
-									<li>Response flows through queue to chat via SSE</li>
-								</ol>
-								<p className="text-xs text-gray-500 mt-2">
-									To test: Store a payload in Valkey, enter the hashkey above, and click Load Iframe.
-								</p>
+						{/* Workflow Payload Builder */}
+						<div className="bg-white rounded-xl p-5 shadow-lg">
+							<h2 className="text-lg font-semibold text-gray-900 mb-2">Workflow Payload Builder</h2>
+							<p className="text-xs text-gray-500 mb-3">
+								RITA calls: <code className="bg-gray-100 px-1 rounded">POST /api/Webhooks/postEvent/{"{tenantId}"}</code>
+							</p>
+
+							<div className="flex flex-col gap-2">
+								<div>
+									<label htmlFor="workflowJwt" className="text-xs font-semibold text-gray-700">JWT Token:</label>
+									<input
+										id="workflowJwt"
+										type="text"
+										value={workflowJwt}
+										onChange={(e) => setWorkflowJwt(e.target.value)}
+										placeholder="Bearer eyJ..."
+										className="w-full px-3 py-2 border border-gray-200 rounded text-xs focus:outline-none focus:border-purple-500"
+									/>
+								</div>
+
+								<div>
+									<label htmlFor="workflowTenantId" className="text-xs font-semibold text-gray-700">Tenant ID:</label>
+									<input
+										id="workflowTenantId"
+										type="text"
+										value={workflowTenantId}
+										onChange={(e) => setWorkflowTenantId(e.target.value)}
+										placeholder="your-tenant-id"
+										className="w-full px-3 py-2 border border-gray-200 rounded text-xs focus:outline-none focus:border-purple-500"
+									/>
+								</div>
+
+								<div>
+									<label htmlFor="workflowGuid" className="text-xs font-semibold text-gray-700">Workflow GUID:</label>
+									<input
+										id="workflowGuid"
+										type="text"
+										value={workflowGuid}
+										onChange={(e) => setWorkflowGuid(e.target.value)}
+										placeholder="uuid-of-system-workflow"
+										className="w-full px-3 py-2 border border-gray-200 rounded text-xs focus:outline-none focus:border-purple-500"
+									/>
+								</div>
+
+								<div>
+									<label htmlFor="workflowChatInput" className="text-xs font-semibold text-gray-700">Chat Input:</label>
+									<input
+										id="workflowChatInput"
+										type="text"
+										value={workflowChatInput}
+										onChange={(e) => setWorkflowChatInput(e.target.value)}
+										placeholder="User message"
+										className="w-full px-3 py-2 border border-gray-200 rounded text-xs focus:outline-none focus:border-purple-500"
+									/>
+								</div>
+
+								<div>
+									<label htmlFor="workflowContext" className="text-xs font-semibold text-gray-700">Context:</label>
+									<select
+										id="workflowContext"
+										value={workflowContext}
+										onChange={(e) => setWorkflowContext(e.target.value as "Workflow" | "ActivityDesigner")}
+										className="w-full px-3 py-2 border border-gray-200 rounded text-xs bg-white focus:outline-none focus:border-purple-500"
+									>
+										<option value="Workflow">Workflow</option>
+										<option value="ActivityDesigner">ActivityDesigner</option>
+									</select>
+								</div>
+
+								<div>
+									<label htmlFor="customParams" className="text-xs font-semibold text-gray-700">Custom Params (JSON):</label>
+									<textarea
+										id="customParams"
+										value={customParams}
+										onChange={(e) => setCustomParams(e.target.value)}
+										placeholder='{"key": "value"}'
+										className="w-full px-3 py-2 border border-gray-200 rounded text-xs font-mono min-h-[50px] focus:outline-none focus:border-purple-500"
+									/>
+								</div>
+
+								<button
+									onClick={copyRedisCommand}
+									className="px-4 py-2 bg-purple-500 text-white rounded font-semibold text-sm hover:bg-purple-600 active:translate-y-px"
+								>
+									Copy redis-cli Command
+								</button>
+
+								<pre className="bg-gray-900 text-green-400 p-2 rounded text-[9px] font-mono overflow-x-auto max-h-[100px]">
+									{JSON.stringify(generatePayload(), null, 2)}
+								</pre>
 							</div>
 						</div>
 
 						{/* Log Panel */}
-						<div className="bg-white rounded-xl p-5 shadow-lg flex-1 min-h-[200px] max-h-[400px]">
+						<div className="bg-white rounded-xl p-5 shadow-lg min-h-[200px]">
 							<h2 className="text-lg font-semibold text-gray-900 mb-3">Event Log</h2>
 
-							<div className="bg-[#1a1a2e] text-gray-200 p-4 rounded-lg text-xs font-mono overflow-y-auto h-[250px]">
+							<div className="bg-[#1a1a2e] text-gray-200 p-4 rounded-lg text-xs font-mono overflow-y-auto h-[150px]">
 								{logs.map((entry) => (
 									<div
 										key={entry.id}
