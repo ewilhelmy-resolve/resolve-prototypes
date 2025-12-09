@@ -185,8 +185,9 @@ export function CreateKnowledgeArticleSheet({
 				{/* AI-Message Section */}
 				{generatedArticle && (
 					<div className="flex flex-col gap-2 flex-1 overflow-hidden">
-						<label className="text-sm font-medium">AI-Message</label>
+						<label htmlFor="ai-message" className="text-sm font-medium">AI-Message</label>
 						<textarea
+							id="ai-message"
 							value={generatedArticle}
 							onChange={(e) => setGeneratedArticle(e.target.value)}
 							className="flex-1 min-h-[200px] w-full rounded-md border border-input bg-gray-50 px-3 py-2 text-sm resize-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring overflow-y-auto"
