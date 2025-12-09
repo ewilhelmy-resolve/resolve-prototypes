@@ -4,6 +4,12 @@ import { TicketDetailOverviewTab } from "./TicketDetailOverviewTab";
 import KnowledgeTab from "./KnowledgeTab";
 
 interface TicketDetailSidebarProps {
+	/** Ticket group ID from URL params */
+	ticketGroupId?: string;
+	/** Ticket group display name */
+	ticketGroupName?: string;
+	/** Number of open tickets in this group */
+	openTicketsCount?: number;
 	/** Number of knowledge articles (fetched from API) */
 	knowledgeCount?: number;
 }
@@ -24,7 +30,12 @@ interface TicketDetailSidebarProps {
  * <TicketDetailSidebar />
  * ```
  */
-export function TicketDetailSidebar({ knowledgeCount = 0 }: TicketDetailSidebarProps) {
+export function TicketDetailSidebar({
+	ticketGroupId,
+	ticketGroupName = "Ticket Group",
+	openTicketsCount = 0,
+	knowledgeCount = 0,
+}: TicketDetailSidebarProps) {
 	const [activeTab, setActiveTab] = useState("overview");
 
 	return (
@@ -42,7 +53,11 @@ export function TicketDetailSidebar({ knowledgeCount = 0 }: TicketDetailSidebarP
 					</TabsList>
 
 					<TabsContent value="overview" className="mt-4">
-						<TicketDetailOverviewTab />
+						<TicketDetailOverviewTab
+							ticketGroupId={ticketGroupId}
+							ticketGroupName={ticketGroupName}
+							openTicketsCount={openTicketsCount}
+						/>
 					</TabsContent>
 
 					<TabsContent value="knowledge" className="mt-4">

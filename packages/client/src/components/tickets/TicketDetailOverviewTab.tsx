@@ -1,20 +1,45 @@
-import { Info, WandSparkles, Sparkles, Zap, Network, Crown } from "lucide-react";
+import { useState } from "react";
+import { Info, WandSparkles, Crown } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
+import {
+	AI_RESPONSE_TYPE,
+	getAllAIResponseTypes,
+	getTicketGroup,
+	type AIResponseType,
+} from "@/lib/tickets/utils";
+import { EnableAutoRespondModal } from "./EnableAutoRespondModal";
 
-const recommendations = [
-	{ title: "Auto-Respond", icon: Sparkles, enabled: false, color: "text-purple-500" },
-	{ title: "Auto-Populate", icon: Zap, enabled: false, color: "text-green-500" },
-	{ title: "Auto-Resolve", icon: Network, comingSoon: true, color: "text-blue-500" },
-];
+interface TicketDetailOverviewTabProps {
+	/** Ticket group ID to fetch AI response data */
+	ticketGroupId?: string;
+	/** Ticket group display name */
+	ticketGroupName?: string;
+	/** Number of open tickets in this group */
+	openTicketsCount?: number;
+}
 
 /**
  * TicketDetailOverviewTab - Overview tab content for ticket detail sidebar
  *
  * Displays metrics, validation confidence progress, and AutoPilot recommendations
  */
-export function TicketDetailOverviewTab() {
+export function TicketDetailOverviewTab({
+	ticketGroupId,
+	ticketGroupName = "Ticket Group",
+	openTicketsCount = 0,
+}: TicketDetailOverviewTabProps) {
+	const ticketGroup = ticketGroupId ? getTicketGroup(ticketGroupId) : undefined;
+	const aiResponse = ticketGroup?.aiResponse;
+	const [enableModalOpen, setEnableModalOpen] = useState(false);
+	const [selectedType, setSelectedType] = useState<AIResponseType | null>(null);
+
+	const handleEnableClick = (type: AIResponseType) => {
+		setSelectedType(type);
+		setEnableModalOpen(true);
+	};
+
 	return (
 		<div className="flex flex-col gap-4">
 			{/* Metrics */}
@@ -61,29 +86,47 @@ export function TicketDetailOverviewTab() {
 				</p>
 
 				<div className="flex flex-col gap-2">
-					{recommendations.map((rec, index) => (
-						<div
-							key={index}
-							className="flex items-center justify-between rounded-sm border p-2"
-						>
-							<div className="flex items-center gap-2">
-								<rec.icon className={`h-4 w-4 ${rec.color}`} />
-								<span>{rec.title}</span>
+					{getAllAIResponseTypes().map((config) => {
+						const Icon = config.icon;
+						return (
+							<div
+								key={config.type}
+								className="flex items-center justify-between rounded-sm border p-2"
+							>
+								<div className="flex items-center gap-2">
+									<Icon className={`h-4 w-4 ${config.color}`} />
+									<span>{config.title}</span>
+								</div>
+								{config.comingSoon ? (
+									<Badge variant="outline" className="ml-2">
+										<Crown className="mr-1 h-3 w-3 text-yellow-500" />
+										coming soon
+									</Badge>
+								) : (
+									<Button
+										variant="ghost"
+										size="sm"
+										onClick={() => handleEnableClick(config.type)}
+									>
+										Enable
+									</Button>
+								)}
 							</div>
-							{rec.comingSoon ? (
-								<Badge variant="outline" className="ml-2">
-									<Crown className="mr-1 h-3 w-3 text-yellow-500" />
-									coming soon
-								</Badge>
-							) : (
-								<Button variant="ghost" size="sm">
-									Enable
-								</Button>
-							)}
-						</div>
-					))}
+						);
+					})}
 				</div>
 			</div>
+
+			{/* Enable Auto-Respond Modal */}
+			{selectedType === AI_RESPONSE_TYPE.AUTO_RESPOND && aiResponse && (
+				<EnableAutoRespondModal
+					open={enableModalOpen}
+					onOpenChange={setEnableModalOpen}
+					ticketGroupName={ticketGroupName}
+					openTicketsCount={openTicketsCount}
+					aiResponse={aiResponse}
+				/>
+			)}
 		</div>
 	);
 }

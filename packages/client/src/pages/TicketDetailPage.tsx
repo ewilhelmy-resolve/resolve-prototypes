@@ -4,24 +4,26 @@ import { Badge } from "@/components/ui/badge";
 import { TicketDetailSidebar } from "@/components/tickets/TicketDetailSidebar";
 import { TicketTrendsChart } from "@/components/tickets/TicketTrendsChart";
 import { TicketDetailTable } from "@/components/tickets/TicketDetailTable";
-
-const badges = [
-	{ text: "976 tickets", variant: "secondary" as const },
-	{ text: "14 open", variant: "secondary" as const },
-	{ text: "12% automated", variant: "secondary" as const },
-	{ text: "Knowledge found", variant: "outline" as const },
-];
+import { getTicketGroup } from "@/lib/tickets/utils";
 
 export default function TicketDetailPage() {
 	const { id } = useParams<{ id: string }>();
+	const ticketGroup = id ? getTicketGroup(id) : undefined;
 
-	// Convert id to title (replace hyphens with spaces and capitalize)
-	const title = id
+	// Use ticket group data or fallback
+	const title = ticketGroup?.title ?? (id
 		? id
 				.split("-")
 				.map((word) => word.charAt(0).toUpperCase() + word.slice(1))
 				.join(" ")
-		: "Ticket Group";
+		: "Ticket Group");
+
+	const badges = [
+		{ text: `${ticketGroup?.count ?? 0} tickets`, variant: "secondary" as const },
+		{ text: `${ticketGroup?.openCount ?? 0} open`, variant: "secondary" as const },
+		{ text: `${ticketGroup?.automatedPercentage ?? 0}% automated`, variant: "secondary" as const },
+		{ text: ticketGroup?.knowledgeStatus === "found" ? "Knowledge found" : "Knowledge gap", variant: "outline" as const },
+	];
 
 	return (
 		<RitaLayout activePage="tickets">
@@ -46,12 +48,17 @@ export default function TicketDetailPage() {
 						 
 
 						{/* Table Section */}
-						<TicketDetailTable />
+						<TicketDetailTable ticketGroupId={id} />
 					</div>
 				</div>
 
 				{/* Right Sidebar */}
-				<TicketDetailSidebar knowledgeCount={3} />
+				<TicketDetailSidebar
+					ticketGroupId={id}
+					ticketGroupName={title}
+					openTicketsCount={ticketGroup?.openCount ?? 0}
+					knowledgeCount={3}
+				/>
 			</div>
 		</RitaLayout>
 	);
