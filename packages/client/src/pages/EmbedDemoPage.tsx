@@ -216,16 +216,18 @@ export default function EmbedDemoPage() {
 					</p>
 
 					<div className="flex flex-wrap gap-3 items-center mb-4">
-						<label className="font-semibold text-gray-900">Token:</label>
+						<label htmlFor="token" className="font-semibold text-gray-900">Token:</label>
 						<input
+							id="token"
 							type="text"
 							value={token}
 							onChange={(e) => setToken(e.target.value)}
 							placeholder="dev-iframe-token-2024"
 							className="px-4 py-2 border-2 border-gray-200 rounded-lg text-sm min-w-[250px] focus:outline-none focus:border-indigo-500"
 						/>
-						<label className="font-semibold text-gray-900">Intent EID:</label>
+						<label htmlFor="intentEid" className="font-semibold text-gray-900">Intent EID:</label>
 						<input
+							id="intentEid"
 							type="text"
 							value={intentEid}
 							onChange={(e) => setIntentEid(e.target.value)}
@@ -281,8 +283,9 @@ export default function EmbedDemoPage() {
 								/>
 
 								<div className="flex flex-wrap gap-3 items-center">
-									<label className="font-semibold text-gray-900 text-sm">Chat Session:</label>
+									<label htmlFor="chatSessionId" className="font-semibold text-gray-900 text-sm">Chat Session:</label>
 									<input
+										id="chatSessionId"
 										type="text"
 										value={chatSessionId}
 										onChange={(e) => setChatSessionId(e.target.value)}
@@ -292,8 +295,9 @@ export default function EmbedDemoPage() {
 								</div>
 
 								<div className="flex flex-wrap gap-3 items-center">
-									<label className="font-semibold text-gray-900 text-sm">Tab Instance:</label>
+									<label htmlFor="tabInstanceId" className="font-semibold text-gray-900 text-sm">Tab Instance:</label>
 									<input
+										id="tabInstanceId"
 										type="text"
 										value={tabInstanceId}
 										onChange={(e) => setTabInstanceId(e.target.value)}
@@ -324,8 +328,9 @@ export default function EmbedDemoPage() {
 
 								<div className="flex flex-col gap-3">
 									<div className="flex flex-wrap gap-3 items-center">
-										<label className="font-semibold text-gray-900 text-sm">JWT Token:</label>
+										<label htmlFor="jwtToken" className="font-semibold text-gray-900 text-sm">JWT Token:</label>
 										<input
+											id="jwtToken"
 											type="text"
 											value={jwtToken}
 											onChange={(e) => setJwtToken(e.target.value)}
@@ -335,8 +340,9 @@ export default function EmbedDemoPage() {
 									</div>
 
 									<div className="flex flex-wrap gap-3 items-center">
-										<label className="font-semibold text-gray-900 text-sm">Workflow GUID:</label>
+										<label htmlFor="workflowGuid" className="font-semibold text-gray-900 text-sm">Workflow GUID:</label>
 										<input
+											id="workflowGuid"
 											type="text"
 											value={workflowGuid}
 											onChange={(e) => setWorkflowGuid(e.target.value)}
@@ -346,8 +352,9 @@ export default function EmbedDemoPage() {
 									</div>
 
 									<div className="flex flex-wrap gap-3 items-center">
-										<label className="font-semibold text-gray-900 text-sm">Context:</label>
+										<label htmlFor="workflowContext" className="font-semibold text-gray-900 text-sm">Context:</label>
 										<select
+											id="workflowContext"
 											value={workflowContext}
 											onChange={(e) => setWorkflowContext(e.target.value as "Workflow" | "ActivityDesigner")}
 											className="px-3 py-2 border-2 border-gray-200 rounded-lg text-sm bg-white cursor-pointer focus:outline-none focus:border-purple-500"
