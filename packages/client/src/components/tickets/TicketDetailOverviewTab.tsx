@@ -10,6 +10,7 @@ import {
 	type AIResponseType,
 } from "@/lib/tickets/utils";
 import { EnableAutoRespondModal } from "./EnableAutoRespondModal";
+import { CreateKnowledgeArticleSheet } from "./CreateKnowledgeArticleSheet";
 
 interface TicketDetailOverviewTabProps {
 	/** Ticket group ID to fetch AI response data */
@@ -34,6 +35,7 @@ export function TicketDetailOverviewTab({
 	const aiResponse = ticketGroup?.aiResponse;
 	const [enableModalOpen, setEnableModalOpen] = useState(false);
 	const [selectedType, setSelectedType] = useState<AIResponseType | null>(null);
+	const [createKnowledgeSheetOpen, setCreateKnowledgeSheetOpen] = useState(false);
 
 	const handleEnableClick = (type: AIResponseType) => {
 		setSelectedType(type);
@@ -117,6 +119,30 @@ export function TicketDetailOverviewTab({
 				</div>
 			</div>
 
+			{/* Knowledge Gap Detected Card */}
+			{ticketGroup?.knowledgeStatus === "gap" && (
+				<div className="rounded-lg border border-yellow-300 bg-yellow-50 p-4">
+					<div className="flex flex-col gap-3">
+						<span className="p-2  bg-yellow-200 w-fit rounded-md">
+							<WandSparkles className="h-5 w-5 text-yellow-600" />
+						</span>
+						<div className="flex flex-col gap-1">
+							<h4 className="font-semibold">Knowledge Gap Detected</h4>
+							<p className="text-sm">
+								No knowledge articles found for this cluster. Rita recommends creating one to enable Auto-Answer.
+							</p>
+						</div>
+						<Button
+							variant="outline"
+							className="w-full border-yellow-400 bg-yellow-100 hover:bg-yellow-200"
+							onClick={() => setCreateKnowledgeSheetOpen(true)}
+						>
+							Create Knowledge Article
+						</Button>
+					</div>
+				</div>
+			)}
+
 			{/* Enable Auto-Respond Modal */}
 			{selectedType === AI_RESPONSE_TYPE.AUTO_RESPOND && aiResponse && (
 				<EnableAutoRespondModal
@@ -127,6 +153,13 @@ export function TicketDetailOverviewTab({
 					aiResponse={aiResponse}
 				/>
 			)}
+
+			{/* Create Knowledge Article Sheet */}
+			<CreateKnowledgeArticleSheet
+				open={createKnowledgeSheetOpen}
+				onOpenChange={setCreateKnowledgeSheetOpen}
+				ticketGroupName={ticketGroupName}
+			/>
 		</div>
 	);
 }
