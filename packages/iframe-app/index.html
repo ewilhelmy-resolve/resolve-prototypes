@@ -43,6 +43,13 @@
             font-size: 18px;
         }
 
+        h3 {
+            color: #555;
+            margin-bottom: 8px;
+            font-size: 14px;
+            font-weight: 600;
+        }
+
         p {
             color: #666;
             margin-bottom: 20px;
@@ -72,6 +79,21 @@
         }
 
         input[type="text"]:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        select {
+            padding: 10px 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+            min-width: 200px;
+            background: white;
+            cursor: pointer;
+        }
+
+        select:focus {
             outline: none;
             border-color: #667eea;
         }
@@ -110,6 +132,14 @@
 
         button.success:hover {
             background: #218838;
+        }
+
+        button.workflow {
+            background: #9333ea;
+        }
+
+        button.workflow:hover {
+            background: #7e22ce;
         }
 
         .main-grid {
@@ -212,6 +242,10 @@
             color: #f87171;
         }
 
+        .log-entry.workflow {
+            color: #c084fc;
+        }
+
         .log-timestamp {
             color: #888;
             font-size: 10px;
@@ -255,6 +289,24 @@
 
         .status-indicator.error {
             background: #dc3545;
+        }
+
+        .section-divider {
+            border-top: 1px solid #e0e0e0;
+            margin: 15px 0;
+            padding-top: 15px;
+        }
+
+        .workflow-section {
+            background: #faf5ff;
+            border: 1px solid #9333ea;
+            border-radius: 8px;
+            padding: 15px;
+            margin-top: 15px;
+        }
+
+        .workflow-section h3 {
+            color: #7e22ce;
         }
     </style>
 </head>
@@ -313,6 +365,29 @@
                             <button class="secondary" onclick="getStatus()">Get Status</button>
                         </div>
                     </div>
+
+                    <div class="workflow-section">
+                        <h3>Execute Workflow (Actions API)</h3>
+                        <div class="message-controls">
+                            <div class="controls">
+                                <label for="jwtToken">JWT Token:</label>
+                                <input type="text" id="jwtToken" placeholder="Bearer eyJ..." value="" style="min-width: 100%; font-size: 12px;">
+                            </div>
+                            <div class="controls">
+                                <label for="workflowGuid">Workflow GUID:</label>
+                                <input type="text" id="workflowGuid" placeholder="uuid-of-system-workflow" value="" style="min-width: 100%;">
+                            </div>
+                            <div class="controls">
+                                <label for="workflowContext">Context:</label>
+                                <select id="workflowContext">
+                                    <option value="Workflow">Workflow</option>
+                                    <option value="ActivityDesigner">ActivityDesigner</option>
+                                </select>
+                            </div>
+                            <textarea id="workflowInput" placeholder="Type message for workflow...">Help me with this task</textarea>
+                            <button class="workflow" onclick="executeWorkflow()">Execute Workflow</button>
+                        </div>
+                    </div>
                 </div>
 
                 <div class="panel log-panel">
@@ -333,7 +408,7 @@
         function log(message, type = 'info') {
             const logEl = document.getElementById('eventLog');
             const timestamp = new Date().toLocaleTimeString();
-            const typeClass = type === 'incoming' ? 'incoming' : type === 'outgoing' ? 'outgoing' : type === 'error' ? 'error' : '';
+            const typeClass = type === 'incoming' ? 'incoming' : type === 'outgoing' ? 'outgoing' : type === 'error' ? 'error' : type === 'workflow' ? 'workflow' : '';
 
             const entry = document.createElement('div');
             entry.className = `log-entry ${typeClass}`;
@@ -410,6 +485,52 @@
             log(`SEND_MESSAGE [${requestId}]: "${content.substring(0, 50)}${content.length > 50 ? '...' : ''}"`, 'outgoing');
         }
 
+        function executeWorkflow() {
+            if (!iframeReady) {
+                log('Error: Iframe not ready yet', 'error');
+                return;
+            }
+
+            const jwt = document.getElementById('jwtToken').value.trim();
+            const workflowGuid = document.getElementById('workflowGuid').value.trim();
+            const chatInput = document.getElementById('workflowInput').value.trim();
+            const context = document.getElementById('workflowContext').value;
+            const chatSessionId = document.getElementById('chatSessionId').value.trim() || `session-${Date.now()}`;
+            const tabInstanceId = document.getElementById('tabInstanceId').value.trim() || `tab-${Date.now()}`;
+
+            if (!jwt) {
+                log('Error: JWT token is required for workflow execution', 'error');
+                return;
+            }
+            if (!workflowGuid) {
+                log('Error: Workflow GUID is required', 'error');
+                return;
+            }
+            if (!chatInput) {
+                log('Error: Workflow input message is required', 'error');
+                return;
+            }
+
+            const requestId = `req_${++requestCounter}`;
+            const message = {
+                type: 'EXECUTE_WORKFLOW',
+                payload: {
+                    jwt: jwt.startsWith('Bearer ') ? jwt : `Bearer ${jwt}`,
+                    workflowGuid,
+                    chatInput,
+                    chatSessionId,
+                    tabInstanceId,
+                    context,
+                },
+                requestId,
+            };
+
+            const iframe = document.getElementById('ritaIframe');
+            iframe.contentWindow.postMessage(message, '*');
+
+            log(`EXECUTE_WORKFLOW [${requestId}]: "${chatInput.substring(0, 40)}${chatInput.length > 40 ? '...' : ''}" → ${workflowGuid.substring(0, 8)}...`, 'workflow');
+        }
+
         function getStatus() {
             if (!iframeReady) {
                 log('Error: Iframe not ready yet', 'error');
@@ -431,7 +552,7 @@
         // Listen for messages from iframe
         window.addEventListener('message', (event) => {
             // In production, validate origin
-            const { type, requestId, success, error, data } = event.data || {};
+            const { type, requestId, success, error, eventId, data } = event.data || {};
 
             if (!type) return;
 
@@ -444,7 +565,11 @@
 
                 case 'ACK':
                     if (success) {
-                        log(`ACK [${requestId}]: Success`, 'incoming');
+                        if (eventId) {
+                            log(`ACK [${requestId}]: Workflow started, eventId=${eventId}`, 'workflow');
+                        } else {
+                            log(`ACK [${requestId}]: Success`, 'incoming');
+                        }
                     } else {
                         log(`ACK [${requestId}]: Failed - ${error}`, 'error');
                     }
@@ -452,10 +577,6 @@
 
                 case 'STATUS':
                     log(`STATUS [${requestId}]: ${JSON.stringify(data)}`, 'incoming');
-                    break;
-
-                case 'MESSAGE_RECEIVED':
-                    log(`MESSAGE_RECEIVED: New AI response`, 'incoming');
                     break;
 
                 default:

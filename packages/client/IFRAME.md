@@ -164,7 +164,8 @@ Enable host pages to communicate with the RITA iframe programmatically.
 
 | Type | Payload | Description |
 |------|---------|-------------|
-| `SEND_MESSAGE` | `{ content, chatSessionId?, tabInstanceId? }` | Send message to chat |
+| `SEND_MESSAGE` | `{ content, chatSessionId?, tabInstanceId? }` | Send message to RITA API only |
+| `EXECUTE_WORKFLOW` | `{ jwt, workflowGuid, chatInput, chatSessionId, tabInstanceId, context }` | Execute via Actions API |
 | `GET_STATUS` | - | Request current status |
 | `CLEAR_CHAT` | - | Clear chat (future) |
 
@@ -173,7 +174,7 @@ Enable host pages to communicate with the RITA iframe programmatically.
 | Type | Payload | Description |
 |------|---------|-------------|
 | `READY` | - | Iframe initialized, ready for commands |
-| `ACK` | `{ requestId, success, error? }` | Command acknowledged |
+| `ACK` | `{ requestId, success, eventId?, error? }` | Command acknowledged (eventId for workflows) |
 | `STATUS` | `{ requestId, data }` | Status response |
 
 ### Example Usage
@@ -213,6 +214,70 @@ Messages sent via postMessage can include metadata for workflow tracking:
 - **tabInstanceId**: User connection identifier
 
 This metadata is stored with the message for audit and workflow correlation.
+
+## Actions API Integration (Workflow Execution)
+
+For workflow execution, RITA Go iframe calls the Actions API directly with JWT auth passed from the host.
+
+### Architecture
+
+```
+Host (Jarvis) → postMessage(EXECUTE_WORKFLOW) → RITA Go iframe
+                                                      ↓
+                                            POST /api/Workflows/executeSystemWorkflow
+                                                      ↓
+                                              Actions API (staging)
+                                                      ↓
+                         ┌────────────────────────────┴────────────────────────────┐
+                         ↓                                                         ↓
+              SignalR pushMessage → Host                               RITA API → SSE → iframe
+```
+
+### Execute Workflow Example
+
+```javascript
+// Host sends EXECUTE_WORKFLOW to iframe
+iframe.contentWindow.postMessage({
+  type: 'EXECUTE_WORKFLOW',
+  payload: {
+    jwt: 'Bearer eyJ...',              // JWT token for Actions API
+    workflowGuid: 'uuid-of-workflow',  // System workflow GUID
+    chatInput: 'User message',         // What the user typed
+    chatSessionId: 'workflow-tab-123', // Jarvis workflow tab ID
+    tabInstanceId: 'user-conn-456',    // Jarvis user connection ID
+    context: 'Workflow',               // 'Workflow' or 'ActivityDesigner'
+  },
+  requestId: crypto.randomUUID()
+}, '*');
+
+// Listen for ACK with eventId
+window.addEventListener('message', (event) => {
+  if (event.data.type === 'ACK' && event.data.eventId) {
+    console.log('Workflow started:', event.data.eventId);
+  }
+});
+```
+
+### Response Flow
+
+1. User message displayed immediately in iframe (optimistic)
+2. Actions API called with JWT → returns EventId
+3. Workflow executes, calls `/api/SignalR/pushMessage` → host receives via SignalR
+4. Workflow also sends to RITA API → iframe receives via SSE
+5. Both channels show the same response
+
+### Environment Variables
+
+```env
+VITE_ACTIONS_API_URL=https://actions-api-staging.resolve.io
+```
+
+### Security
+
+- JWT passed from host via postMessage (not stored in iframe)
+- Origin validation required in production
+- iframe token still required for session initialization
+- JWT used only for Actions API calls
 
 ## Testing
 
@@ -275,6 +340,7 @@ Same as main app - see `.env.example` in packages/client
 - `packages/api-server/src/services/IframeService.ts` - Backend service
 - `packages/api-server/src/routes/iframe.routes.ts` - API endpoint
 - `packages/client/src/pages/IframeChatPage.tsx` - Frontend page
-- `packages/client/src/services/iframeApi.ts` - Frontend API client
+- `packages/client/src/services/iframeApi.ts` - Frontend API client (RITA API)
+- `packages/client/src/services/actionsApi.ts` - Actions API client (workflow execution)
 - `packages/client/src/hooks/useIframeMessaging.ts` - PostMessage handler hook
 - `packages/iframe-app/index.html` - Demo host page with postMessage controls

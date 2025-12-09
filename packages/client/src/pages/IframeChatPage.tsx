@@ -20,9 +20,14 @@ import IframeChatLayout from "../components/layouts/IframeChatLayout";
 import { SSEProvider } from "../contexts/SSEContext";
 import { useSSEContext } from "../contexts/SSEContext";
 import { useRitaChat } from "../hooks/useRitaChat";
-import { useIframeMessaging, type HostMessageMetadata } from "../hooks/useIframeMessaging";
+import {
+	useIframeMessaging,
+	type HostMessageMetadata,
+	type WorkflowExecutionParams,
+} from "../hooks/useIframeMessaging";
 import { useConversationStore } from "../stores/conversationStore";
 import { iframeApi } from "../services/iframeApi";
+import { actionsApi } from "../services/actionsApi";
 import { Loader } from "../components/ai-elements/loader";
 
 // Inner component that uses SSE (must be inside SSEProvider)
@@ -58,11 +63,33 @@ function IframeChatContent({
 		[ritaChatState]
 	);
 
+	// Handle workflow execution via Actions API
+	const handleExecuteWorkflow = useCallback(
+		async (params: WorkflowExecutionParams): Promise<string> => {
+			// 1. Display user message in chat (optimistic)
+			await ritaChatState.sendMessageWithContent(params.chatInput, {
+				chatSessionId: params.chatSessionId,
+				tabInstanceId: params.tabInstanceId,
+			});
+
+			// 2. Call Actions API with JWT from host
+			const eventId = await actionsApi.executeSystemWorkflow(params.jwt, {
+				systemWorkflowGuid: params.workflowGuid,
+				executionParameters: actionsApi.buildExecutionParameters(params),
+			});
+
+			// 3. Response flows back via SSE (already handled)
+			return eventId;
+		},
+		[ritaChatState]
+	);
+
 	// Enable postMessage communication with host page
 	useIframeMessaging({
 		enabled: true,
 		allowedOrigins: [], // Same-origin only for security
 		onSendMessage: handleHostSendMessage,
+		onExecuteWorkflow: handleExecuteWorkflow,
 		onGetStatus: () => ({
 			conversationId,
 			isSending: ritaChatState.isSending,
