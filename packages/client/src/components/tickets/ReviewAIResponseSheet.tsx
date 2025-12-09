@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { CompletionView } from "./CompletionView";
 import { ReviewView } from "./ReviewView";
-import type { AIResponseData } from "./AIResponseSection";
+import { AI_RESPONSE_TYPE, getTicketGroup, type AIResponseType } from "@/lib/tickets/utils";
 
 /**
  * Ticket priority level
@@ -34,8 +34,12 @@ export interface ReviewStats {
 interface ReviewAIResponseSheetProps {
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
+	/** Ticket group ID to get AI response data */
+	ticketGroupId?: string;
 	tickets: ReviewTicket[];
 	currentIndex: number;
+	/** AI response type being reviewed (default: AI_RESPONSE_TYPE.AUTO_RESPOND) */
+	aiResponseType?: AIResponseType;
 	onNavigate: (index: number) => void;
 	onApprove: (ticketId: string) => void;
 	onReject: (ticketId: string) => void;
@@ -60,8 +64,10 @@ interface ReviewAIResponseSheetProps {
 export default function ReviewAIResponseSheet({
 	open,
 	onOpenChange,
+	ticketGroupId,
 	tickets,
 	currentIndex,
+	aiResponseType = AI_RESPONSE_TYPE.AUTO_RESPOND,
 	onNavigate,
 	onApprove,
 	onReject,
@@ -74,6 +80,8 @@ export default function ReviewAIResponseSheet({
 	const [rejectedCount, setRejectedCount] = useState(0);
 
 	const currentTicket = tickets[currentIndex];
+	const ticketGroup = ticketGroupId ? getTicketGroup(ticketGroupId) : undefined;
+	const aiResponse = ticketGroup?.aiResponse;
 
 	// Reset state when sheet opens
 	useEffect(() => {
@@ -85,8 +93,8 @@ export default function ReviewAIResponseSheet({
 		}
 	}, [open]);
 
-	// Don't render if no tickets
-	if (tickets.length === 0) {
+	// Don't render if no tickets or no AI response data
+	if (tickets.length === 0 || !aiResponse) {
 		return null;
 	}
 
@@ -116,31 +124,6 @@ export default function ReviewAIResponseSheet({
 			/>
 		);
 	}
-
-	// Mock AI response - replace with actual data
-	const aiResponse: AIResponseData = {
-		content: `Hi {name},
-
-Thank you for reaching out about your email signature. I'd be happy to help you update it to reflect your new role.
-
-Here are the steps to update your email signature:
-
-• Open Outlook and navigate to File > Options > Mail
-• Click on "Signatures" button
-• Select your existing signature or create a new one
-• Update your information (name, contact details)
-• Click OK to save and apply to new messages
-
-Please let me know if these steps resolve your issue. If you need any additional assistance with formatting or have questions, I'm here to help!`,
-		kbArticles: [
-			{ id: "KB0004", title: "Email Signature Configuration Guide" },
-			{ id: "KB0012", title: "Outlook Profile Settings" },
-			{ id: "KB0023", title: "Corporate Branding Guidelines" },
-			{ id: "KB0034", title: "Email Template Best Practices" },
-			{ id: "KB0045", title: "Troubleshooting Email Display" },
-		],
-		confidenceScore: 92,
-	};
 
 	const handleApprove = () => {
 		const newTrustedCount = trustedCount + 1;
@@ -198,6 +181,7 @@ Please let me know if these steps resolve your issue. If you need any additional
 			onOpenChange={onOpenChange}
 			ticket={currentTicket}
 			aiResponse={aiResponse}
+			aiResponseType={aiResponseType}
 			currentIndex={currentIndex}
 			totalTickets={tickets.length}
 			showFeedback={showFeedback}

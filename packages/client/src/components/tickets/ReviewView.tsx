@@ -15,13 +15,15 @@ import { cn } from "@/lib/utils";
 import { FeedbackSection } from "./FeedbackSection";
 import { AIResponseSection, type AIResponseData } from "./AIResponseSection";
 import type { ReviewTicket } from "./ReviewAIResponseSheet";
-import { getPriorityColor, formatPriority } from "@/lib/tickets/utils";
+import { getPriorityColor, formatPriority, type AIResponseType, AI_RESPONSE_TYPE } from "@/lib/tickets/utils";
 
 interface ReviewViewProps {
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
 	ticket: ReviewTicket;
 	aiResponse: AIResponseData;
+	/** AI response type for badge display (default: "auto-respond") */
+	aiResponseType?: AIResponseType;
 	currentIndex: number;
 	totalTickets: number;
 	showFeedback: boolean;
@@ -48,6 +50,7 @@ export function ReviewView({
 	onOpenChange,
 	ticket,
 	aiResponse,
+	aiResponseType = AI_RESPONSE_TYPE.AUTO_RESPOND,
 	currentIndex,
 	totalTickets,
 	showFeedback,
@@ -112,7 +115,7 @@ export function ReviewView({
 						</div>
 
 						{/* AI Response Section */}
-						<AIResponseSection response={aiResponse} />
+						<AIResponseSection response={aiResponse} type={aiResponseType} />
 					</div>
 				</div>
 

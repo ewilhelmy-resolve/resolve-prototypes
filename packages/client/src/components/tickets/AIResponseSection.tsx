@@ -1,7 +1,13 @@
 import { Badge } from "@/components/ui/badge";
-import { Sparkles, FileText } from "lucide-react";
+import { FileText } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { getConfidenceColor, getConfidenceLabel } from "@/lib/tickets/utils";
+import {
+	getConfidenceColor,
+	getConfidenceLabel,
+	getAIResponseTypeConfig,
+	type AIResponseType,
+	AI_RESPONSE_TYPE,
+} from "@/lib/tickets/utils";
 
 /**
  * Knowledge base article reference
@@ -23,10 +29,8 @@ export interface AIResponseData {
 interface AIResponseSectionProps {
 	/** AI response data to display */
 	response: AIResponseData;
-	/** Optional label override (default: "AI-Response") */
-	label?: string;
-	/** Optional badge text override (default: "Auto-Respond") */
-	badgeText?: string;
+	/** AI response type (default: "auto-respond") */
+	type?: AIResponseType;
 	/** Optional custom class for the container */
 	className?: string;
 	/** Max KB articles to show before collapsing (default: 1) */
@@ -37,7 +41,7 @@ interface AIResponseSectionProps {
  * Reusable AI Response Section component
  *
  * Displays AI-generated response with:
- * - Auto-respond badge indicator
+ * - Type-specific badge (Auto-Respond, Auto-Populate, Auto-Resolve)
  * - Response content in monospace font
  * - KB article references (collapsible)
  * - Confidence score badge
@@ -46,6 +50,7 @@ interface AIResponseSectionProps {
  * @example
  * ```tsx
  * <AIResponseSection
+ *   type={AI_RESPONSE_TYPE.AUTO_RESPOND}
  *   response={{
  *     content: "AI generated response...",
  *     kbArticles: [{ id: "KB001", title: "Article" }],
@@ -56,11 +61,12 @@ interface AIResponseSectionProps {
  */
 export function AIResponseSection({
 	response,
-	label = "AI-Response",
-	badgeText = "Auto-Respond",
+	type = AI_RESPONSE_TYPE.AUTO_RESPOND,
 	className,
 	maxVisibleArticles = 1,
 }: AIResponseSectionProps) {
+	const typeConfig = getAIResponseTypeConfig(type);
+	const TypeIcon = typeConfig.icon;
 	const visibleArticles = response.kbArticles.slice(0, maxVisibleArticles);
 	const hiddenCount = response.kbArticles.length - maxVisibleArticles;
 
@@ -68,10 +74,10 @@ export function AIResponseSection({
 		<div className={cn("flex-1 flex flex-col gap-2 min-h-0", className)}>
 			{/* Header with label and badge */}
 			<div className="flex items-center gap-2">
-				<p className="text-sm text-foreground">{label}</p>
-				<Badge className="px-2 py-0.5 border border-purple-500 bg-purple-50 text-purple-500 font-semibold gap-1">
-					<Sparkles className="size-3" />
-					{badgeText}
+				<p className="text-sm text-foreground">AI-Response</p>
+				<Badge className={cn("px-2 py-0.5 border font-semibold gap-1", typeConfig.badgeClasses)}>
+					<TypeIcon className="size-3" />
+					{typeConfig.title}
 				</Badge>
 			</div>
 

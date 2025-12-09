@@ -33,6 +33,8 @@ interface TicketItem {
 }
 
 interface TicketDetailTableProps {
+	/** Ticket group ID for AI response data */
+	ticketGroupId?: string;
 	/** Array of ticket items to display */
 	tickets?: TicketItem[];
 	/** Number of knowledge articles (for footer display) */
@@ -116,6 +118,7 @@ const defaultTickets: TicketItem[] = [
  * ```
  */
 export function TicketDetailTable({
+	ticketGroupId,
 	tickets = defaultTickets,
 	knowledgeArticleCount = 12,
 }: TicketDetailTableProps) {
@@ -339,6 +342,7 @@ export function TicketDetailTable({
 			<ReviewAIResponseSheet
 				open={reviewSheetOpen}
 				onOpenChange={handleReviewSheetClose}
+				ticketGroupId={ticketGroupId}
 				tickets={reviewTickets}
 				currentIndex={currentReviewIndex}
 				onNavigate={handleNavigate}
