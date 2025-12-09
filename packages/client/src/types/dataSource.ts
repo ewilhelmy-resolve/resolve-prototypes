@@ -41,12 +41,11 @@ export interface DataSourceConnection {
   last_sync_status: DataSourceLastSyncStatus;
 
   // IMPORTANT: latest_options contains available options from verification
-  // Format: { [key: string]: string } where value is comma-separated string
-  // Examples:
-  //   Confluence: { "spaces": "ENG,PROD,DOCS" }
-  //   ServiceNow: { "tables": "incident,kb_knowledge,sc_cat_item" }
-  //   SharePoint: { "sites": "site1,site2,site3" }
-  latest_options: Record<string, string> | null;
+  // Format varies by connection type:
+  //   Confluence: { "spaces": [{title, sys_id}, ...] }
+  //   ServiceNow KB: { "knowledge_base": [{title, sys_id}, ...] }
+  //   SharePoint: { "sites": [{title, sys_id}, ...] }
+  latest_options: Record<string, any> | null;
 
   enabled: boolean;
 
@@ -161,7 +160,7 @@ export interface DataSourceUpdateEvent {
     // Verification-specific fields
     last_verification_at?: string;
     last_verification_error?: string | null;
-    latest_options?: Record<string, string> | null;
+    latest_options?: Record<string, any> | null;
 
     // Sync-specific fields
     last_sync_status?: DataSourceLastSyncStatus;

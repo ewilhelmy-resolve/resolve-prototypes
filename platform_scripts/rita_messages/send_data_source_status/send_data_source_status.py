@@ -77,12 +77,12 @@ def validate_verification_message(connection_id, tenant_id, status, verification
     if status not in valid_statuses:
         return False, f"status must be one of: {', '.join(valid_statuses)}"
 
-    # Validate verification_options JSON if provided
+    # Validate verification_options JSON if provided (can be object or array)
     if verification_options:
         try:
             parsed_options = json.loads(verification_options) if isinstance(verification_options, str) else verification_options
-            if not isinstance(parsed_options, dict):
-                return False, "verification_options must be a JSON object"
+            if not isinstance(parsed_options, (dict, list)):
+                return False, "verification_options must be a JSON object or array"
         except json.JSONDecodeError as e:
             return False, f"verification_options JSON parsing error: {str(e)}"
 
