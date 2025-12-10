@@ -23,16 +23,17 @@ import KnowledgeSources from "./pages/settings/KnowledgeSources";
 import ItsmSources from "./pages/settings/ItsmSources";
 import TermsOfService from "./pages/TermsOfService";
 import TicketsPage from "./pages/TicketsPage";
+import ClusterDetailPage from "./pages/ClusterDetailPage";
 import TicketDetailPage from "./pages/TicketDetailPage";
 import UsersSettingsPage from "./pages/UsersSettingsPage";
 import { VerifyEmailPage } from "./pages/VerifyEmailPage";
 import { VerifyEmailSentPage } from "./pages/VerifyEmailSentPage";
-import TicketsPage2 from "./pages/TicketsPage2";
+import ClustersPage from "./pages/ClustersPage";
 
 // Feature-flagged tickets page wrapper
 function TicketsPageWithFlag() {
 	const enableTicketsV2 = useFeatureFlag("ENABLE_TICKETS_V2");
-	return enableTicketsV2 ? <TicketsPage2 /> : <TicketsPage />;
+	return enableTicketsV2 ? <ClustersPage /> : <TicketsPage />;
 }
 
 const router = createBrowserRouter([
@@ -86,6 +87,14 @@ const router = createBrowserRouter([
 	},
 	{
 		path: "/tickets/:id",
+		element: (
+			<RoleProtectedRoute allowedRoles={["owner", "admin"]}>
+				<ClusterDetailPage />
+			</RoleProtectedRoute>
+		),
+	},
+	{
+		path: "/tickets/:clusterId/:ticketId",
 		element: (
 			<RoleProtectedRoute allowedRoles={["owner", "admin"]}>
 				<TicketDetailPage />

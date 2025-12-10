@@ -30,7 +30,7 @@ export interface AIResponseTypeConfig {
 
 /**
  * Centralized configuration for AI response types
- * Used by AIResponseSection and TicketDetailOverviewTab
+ * Used by AIResponseSection and ClusterDetailOverviewTab
  */
 export const AI_RESPONSE_TYPES: Record<AIResponseType, AIResponseTypeConfig> = {
 	"auto-respond": {

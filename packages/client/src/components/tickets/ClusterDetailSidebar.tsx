@@ -1,21 +1,21 @@
 import { useState } from "react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { TicketDetailOverviewTab } from "./TicketDetailOverviewTab";
+import { ClusterDetailOverviewTab } from "./ClusterDetailOverviewTab";
 import KnowledgeTab from "./KnowledgeTab";
 
-interface TicketDetailSidebarProps {
-	/** Ticket group ID from URL params */
-	ticketGroupId?: string;
-	/** Ticket group display name */
-	ticketGroupName?: string;
-	/** Number of open tickets in this group */
+interface ClusterDetailSidebarProps {
+	/** Cluster ID from URL params */
+	clusterId?: string;
+	/** Cluster display name */
+	clusterName?: string;
+	/** Number of open tickets in this cluster */
 	openTicketsCount?: number;
 	/** Number of knowledge articles (fetched from API) */
 	knowledgeCount?: number;
 }
 
 /**
- * TicketDetailSidebar - Right sidebar for ticket detail page with tabbed content
+ * ClusterDetailSidebar - Right sidebar for cluster detail page with tabbed content
  *
  * Displays Overview and Knowledge tabs with switchable content
  *
@@ -24,18 +24,18 @@ interface TicketDetailSidebarProps {
  * @example
  * ```tsx
  * // With API data
- * <TicketDetailSidebar knowledgeCount={knowledgeArticles.length} />
+ * <ClusterDetailSidebar knowledgeCount={knowledgeArticles.length} />
  *
  * // Without API (shows 0)
- * <TicketDetailSidebar />
+ * <ClusterDetailSidebar />
  * ```
  */
-export function TicketDetailSidebar({
-	ticketGroupId,
-	ticketGroupName = "Ticket Group",
+export function ClusterDetailSidebar({
+	clusterId,
+	clusterName = "Cluster",
 	openTicketsCount = 0,
 	knowledgeCount = 0,
-}: TicketDetailSidebarProps) {
+}: ClusterDetailSidebarProps) {
 	const [activeTab, setActiveTab] = useState("overview");
 
 	return (
@@ -53,9 +53,9 @@ export function TicketDetailSidebar({
 					</TabsList>
 
 					<TabsContent value="overview" className="mt-4">
-						<TicketDetailOverviewTab
-							ticketGroupId={ticketGroupId}
-							ticketGroupName={ticketGroupName}
+						<ClusterDetailOverviewTab
+							clusterId={clusterId}
+							clusterName={clusterName}
 							openTicketsCount={openTicketsCount}
 						/>
 					</TabsContent>

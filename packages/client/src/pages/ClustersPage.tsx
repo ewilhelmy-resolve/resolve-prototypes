@@ -6,7 +6,7 @@ import { StatGroup } from "@/components/StatGroup";
 import { Badge } from "@/components/ui/badge";
 import TicketGroups from "@/components/tickets/TicketGroups";
 
-export default function TicketsPage2() {
+export default function ClustersPage() {
 	return (
 		<RitaLayout activePage="tickets">
 			<MainHeader
