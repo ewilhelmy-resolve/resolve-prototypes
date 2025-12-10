@@ -62,7 +62,7 @@ export function EnableAutoPopulateSheet({
 
 	return (
 		<Sheet open={open} onOpenChange={onOpenChange}>
-			<SheetContent className="sm:max-w-lg flex flex-col p-8" side="right">
+			<SheetContent className="w-full sm:max-w-lg flex flex-col p-8" side="right">
 				<SheetHeader className="pl-0">
 					<SheetTitle>Enable Auto-populated</SheetTitle>
 					<SheetDescription>

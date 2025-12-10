@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -32,9 +33,9 @@ interface TicketItem {
 	priority?: "low" | "medium" | "high" | "critical";
 }
 
-interface TicketDetailTableProps {
-	/** Ticket group ID for AI response data */
-	ticketGroupId?: string;
+interface ClusterDetailTableProps {
+	/** Cluster ID for AI response data */
+	clusterId?: string;
 	/** Array of ticket items to display */
 	tickets?: TicketItem[];
 	/** Number of knowledge articles (for footer display) */
@@ -100,7 +101,7 @@ const defaultTickets: TicketItem[] = [
 ];
 
 /**
- * TicketDetailTable - Table displaying tickets with filters and pagination
+ * ClusterDetailTable - Table displaying tickets with filters and pagination
  *
  * Shows a filterable, searchable table of tickets with status tabs,
  * source filtering, and pagination controls
@@ -111,17 +112,17 @@ const defaultTickets: TicketItem[] = [
  * @example
  * ```tsx
  * // With custom data
- * <TicketDetailTable tickets={ticketData} knowledgeArticleCount={15} />
+ * <ClusterDetailTable tickets={ticketData} knowledgeArticleCount={15} />
  *
  * // With defaults
- * <TicketDetailTable />
+ * <ClusterDetailTable />
  * ```
  */
-export function TicketDetailTable({
-	ticketGroupId,
+export function ClusterDetailTable({
+	clusterId,
 	tickets = defaultTickets,
 	knowledgeArticleCount = 12,
-}: TicketDetailTableProps) {
+}: ClusterDetailTableProps) {
 	// Bulk selection state
 	const [selectedTickets, setSelectedTickets] = useState<string[]>([]);
 
@@ -213,7 +214,7 @@ export function TicketDetailTable({
 					</TabsList>
 				</Tabs>
 
-				<div className="flex gap-2">
+				<div className="flex gap-2 flex-col md:flex-row">
 					<DropdownMenu>
 						<DropdownMenuTrigger asChild>
 							<Button variant="secondary">
@@ -227,7 +228,7 @@ export function TicketDetailTable({
 						</DropdownMenuContent>
 					</DropdownMenu>
 
-					<Input placeholder="Search tickets....." className="w-40" />
+					<Input placeholder="Search tickets....." className="md:w-40 w-full" />
 				</div>
 			</div>
 			) : (
@@ -285,8 +286,13 @@ export function TicketDetailTable({
 										onCheckedChange={(checked) => handleSelectTicket(row.id, checked as boolean)}
 									/>
 								</TableCell>
-								<TableCell className="font-medium text-primary">
-									{row.name}
+								<TableCell className="font-medium">
+									<Link
+										to={`/tickets/${clusterId}/${row.id}`}
+										className="text-primary hover:underline"
+									>
+										{row.name}
+									</Link>
 								</TableCell>
 								<TableCell>
 									<Badge variant="outline">{row.status}</Badge>
@@ -342,7 +348,7 @@ export function TicketDetailTable({
 			<ReviewAIResponseSheet
 				open={reviewSheetOpen}
 				onOpenChange={handleReviewSheetClose}
-				ticketGroupId={ticketGroupId}
+				ticketGroupId={clusterId}
 				tickets={reviewTickets}
 				currentIndex={currentReviewIndex}
 				onNavigate={handleNavigate}
