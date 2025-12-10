@@ -91,6 +91,8 @@ export default function ClusterDetailPage() {
 		if (bannerData.visible && bannerRef.current) {
 			bannerRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
 		}
+		// bannerData.key is intentionally in deps to trigger scroll on banner changes
+		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [bannerData.key, bannerData.visible]);
 
 	// Use ticket group data or fallback
