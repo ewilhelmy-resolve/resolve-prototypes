@@ -128,8 +128,8 @@ export function CreateKnowledgeArticleSheet({
 
 	return (
 		<Sheet open={open} onOpenChange={onOpenChange}>
-			<SheetContent className="flex flex-col gap-6 sm:max-w-xl w-full p-8">
-				<SheetHeader className="p-0">
+			<SheetContent className="flex flex-col gap-6 sm:max-w-xl w-full p-8 overflow-hidden">
+				<SheetHeader className="p-0 flex-shrink-0">
 					<SheetTitle className="text-lg font-semibold">
 						Create Knowledge Article
 					</SheetTitle>
@@ -138,65 +138,70 @@ export function CreateKnowledgeArticleSheet({
 					</SheetDescription>
 				</SheetHeader>
 
-				{/* Knowledge Sources Section */}
-				<div className="flex flex-col gap-3">
-					<div className="flex flex-col gap-1">
-						<h3 className="text-sm font-semibold">Knowledge Sources</h3>
-						<p className="text-sm text-muted-foreground">
-							Select sources to generate comprehensive article
-						</p>
+				{/* Scrollable Content Area */}
+				<div className="flex-1 flex flex-col gap-6 overflow-y-auto overflow-x-hidden min-h-0">
+					{/* Knowledge Sources Section */}
+					<div className="flex flex-col gap-3">
+						<div className="flex flex-col gap-1">
+							<h3 className="text-sm font-semibold">Knowledge Sources</h3>
+							<p className="text-sm text-muted-foreground">
+								Select sources to generate comprehensive article
+							</p>
+						</div>
+
+						<div className="flex flex-col gap-2">
+							{sources.map((source) => (
+								<label
+									key={source.id}
+									htmlFor={source.id}
+									className="flex items-start gap-3 rounded-lg border p-4 cursor-pointer hover:bg-accent/50 transition-colors"
+								>
+									<Checkbox
+										id={source.id}
+										checked={source.checked}
+										onCheckedChange={() => handleSourceToggle(source.id)}
+										className="mt-0.5"
+									/>
+									<div className="flex flex-col gap-0.5">
+										<span className="text-sm font-medium">{source.label}</span>
+										<span className="text-sm text-muted-foreground">
+											{source.description}
+										</span>
+									</div>
+								</label>
+							))}
+						</div>
 					</div>
 
-					<div className="flex flex-col gap-2">
-						{sources.map((source) => (
-							<label
-								key={source.id}
-								htmlFor={source.id}
-								className="flex items-start gap-3 rounded-lg border p-4 cursor-pointer hover:bg-accent/50 transition-colors"
-							>
-								<Checkbox
-									id={source.id}
-									checked={source.checked}
-									onCheckedChange={() => handleSourceToggle(source.id)}
-									className="mt-0.5"
-								/>
-								<div className="flex flex-col gap-0.5">
-									<span className="text-sm font-medium">{source.label}</span>
-									<span className="text-sm text-muted-foreground">
-										{source.description}
-									</span>
-								</div>
+					{/* Generate Article Button */}
+					<Button
+						variant="outline"
+						className="w-full gap-2"
+						onClick={handleGenerateArticle}
+						disabled={isGenerating || !sources.some((s) => s.checked)}
+					>
+						<WandSparkles className="h-4 w-4" />
+						{isGenerating ? "Generating..." : "Generate Article"}
+					</Button>
+
+					{/* AI-Message Section */}
+					{generatedArticle && (
+						<div className="flex flex-col gap-2 flex-1 min-h-[200px] p-2 md:p-0">
+							<label htmlFor="ai-message" className="text-sm font-medium">
+								AI-Message
 							</label>
-						))}
-					</div>
+							<textarea
+								id="ai-message"
+								value={generatedArticle}
+								onChange={(e) => setGeneratedArticle(e.target.value)}
+								className="flex-1 w-full rounded-md border border-input bg-gray-50 px-3 py-2 text-sm resize-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+							/>
+						</div>
+					)}
 				</div>
 
-				{/* Generate Article Button */}
-				<Button
-					variant="outline"
-					className="w-full gap-2"
-					onClick={handleGenerateArticle}
-					disabled={isGenerating || !sources.some((s) => s.checked)}
-				>
-					<WandSparkles className="h-4 w-4" />
-					{isGenerating ? "Generating..." : "Generate Article"}
-				</Button>
-
-				{/* AI-Message Section */}
-				{generatedArticle && (
-					<div className="flex flex-col gap-2 flex-1 overflow-hidden">
-						<label htmlFor="ai-message" className="text-sm font-medium">AI-Message</label>
-						<textarea
-							id="ai-message"
-							value={generatedArticle}
-							onChange={(e) => setGeneratedArticle(e.target.value)}
-							className="flex-1 min-h-[200px] w-full rounded-md border border-input bg-gray-50 px-3 py-2 text-sm resize-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring overflow-y-auto"
-						/>
-					</div>
-				)}
-
 				{/* Footer Actions */}
-				<SheetFooter className="flex-row justify-end gap-2 mt-auto p-0">
+				<SheetFooter className="flex-row justify-end gap-2 flex-shrink-0 p-0">
 					<Button variant="outline" onClick={handleCancel}>
 						Cancel
 					</Button>

@@ -53,7 +53,7 @@ export function TicketDetailHeader({
 	};
 
 	return (
-		<div className="flex items-center justify-between w-full border-b bg-background px-4 py-2">
+		<div className="flex flex-col md:flex-row items-center justify-between w-full border-b bg-background px-4 py-2 space-y-4 md:space-y-0">
 			{/* Left side - Back button, Ticket ID, Navigation */}
 			<div className="flex items-center gap-2">
 				<Button

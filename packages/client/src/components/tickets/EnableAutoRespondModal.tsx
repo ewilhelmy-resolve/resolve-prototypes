@@ -55,8 +55,8 @@ export function EnableAutoRespondModal({
 
 	return (
 		<Dialog open={open} onOpenChange={onOpenChange}>
-			<DialogContent className="sm:max-w-xl">
-				<DialogHeader>
+			<DialogContent className="sm:max-w-xl max-h-[90vh] flex flex-col">
+				<DialogHeader className="flex-none">
 					<DialogTitle>Enable Auto-Respond?</DialogTitle>
 					<DialogDescription>
 						You're about to enable automated responses for all tickets in{" "}
@@ -67,25 +67,28 @@ export function EnableAutoRespondModal({
 					</p>
 				</DialogHeader>
 
-				{/* AI Response Preview */}
-				<AIResponseSection
-					type={AI_RESPONSE_TYPE.AUTO_RESPOND}
-					response={aiResponse}
-					maxVisibleArticles={1}
-					className="flex-none"
-				/>
+				{/* Scrollable Content */}
+				<div className="flex-1 overflow-y-auto space-y-4 py-2">
+					{/* AI Response Preview */}
+					<AIResponseSection
+						type={AI_RESPONSE_TYPE.AUTO_RESPOND}
+						response={aiResponse}
+						maxVisibleArticles={1}
+						className="flex-none"
+					/>
 
-				{/* Info Alert */}
-				<StatusAlert variant="info">
-					<p className="font-semibold mb-1">When You Enable Auto-Respond</p>
-					<ul className="list-disc list-inside space-y-1 text-sm">
-						<li>Send automated responses to {openTicketsCount} currently open tickets</li>
-						<li>Automatically respond to all future tickets in this group</li>
-						<li>Use the responses you've trained Rita with</li>
-					</ul>
-				</StatusAlert>
+					{/* Info Alert */}
+					<StatusAlert variant="info">
+						<p className="font-semibold mb-1">When You Enable Auto-Respond</p>
+						<ul className="list-disc list-inside space-y-1 text-sm">
+							<li>Send automated responses to {openTicketsCount} currently open tickets</li>
+							<li>Automatically respond to all future tickets in this group</li>
+							<li>Use the responses you've trained Rita with</li>
+						</ul>
+					</StatusAlert>
+				</div>
 
-				<DialogFooter>
+				<DialogFooter className="flex-none">
 					<Button variant="outline" onClick={handleCancel}>
 						Cancel
 					</Button>

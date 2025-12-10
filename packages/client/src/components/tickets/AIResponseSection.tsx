@@ -98,9 +98,9 @@ export function AIResponseSection({
 									{visibleArticles.map((article) => (
 										<div
 											key={article.id}
-											className="flex items-center gap-1 px-2.5 py-1 bg-white border rounded-md h-7"
+											className="flex items-center gap-4 md:gap-1 px-2.5 py-1 bg-white border rounded-md h-fit md:h-7"
 										>
-											<FileText className="size-3 text-muted-foreground" />
+											<FileText className="size-12 md:size-3 text-muted-foreground" />
 											<p className="text-sm">
 												{article.id} - {article.title}
 											</p>

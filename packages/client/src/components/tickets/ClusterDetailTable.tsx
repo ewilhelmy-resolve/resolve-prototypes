@@ -214,7 +214,7 @@ export function ClusterDetailTable({
 					</TabsList>
 				</Tabs>
 
-				<div className="flex gap-2">
+				<div className="flex gap-2 flex-col md:flex-row">
 					<DropdownMenu>
 						<DropdownMenuTrigger asChild>
 							<Button variant="secondary">
@@ -228,7 +228,7 @@ export function ClusterDetailTable({
 						</DropdownMenuContent>
 					</DropdownMenu>
 
-					<Input placeholder="Search tickets....." className="w-40" />
+					<Input placeholder="Search tickets....." className="md:w-40 w-full" />
 				</div>
 			</div>
 			) : (
