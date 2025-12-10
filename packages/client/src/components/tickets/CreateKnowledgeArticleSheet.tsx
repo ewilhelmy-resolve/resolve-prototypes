@@ -128,7 +128,7 @@ export function CreateKnowledgeArticleSheet({
 
 	return (
 		<Sheet open={open} onOpenChange={onOpenChange}>
-			<SheetContent className="flex flex-col gap-6 sm:max-w-xl w-full p-6">
+			<SheetContent className="flex flex-col gap-6 sm:max-w-xl w-full p-8">
 				<SheetHeader className="p-0">
 					<SheetTitle className="text-lg font-semibold">
 						Create Knowledge Article
@@ -196,7 +196,7 @@ export function CreateKnowledgeArticleSheet({
 				)}
 
 				{/* Footer Actions */}
-				<SheetFooter className="flex-row justify-end gap-2 mt-auto">
+				<SheetFooter className="flex-row justify-end gap-2 mt-auto p-0">
 					<Button variant="outline" onClick={handleCancel}>
 						Cancel
 					</Button>

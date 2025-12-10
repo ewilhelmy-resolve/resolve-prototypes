@@ -10,6 +10,7 @@ import {
 	type AIResponseType,
 } from "@/lib/tickets/utils";
 import { EnableAutoRespondModal } from "./EnableAutoRespondModal";
+import { EnableAutoPopulateSheet } from "./EnableAutoPopulateSheet";
 import { CreateKnowledgeArticleSheet } from "./CreateKnowledgeArticleSheet";
 
 interface TicketDetailOverviewTabProps {
@@ -34,12 +35,17 @@ export function TicketDetailOverviewTab({
 	const ticketGroup = ticketGroupId ? getTicketGroup(ticketGroupId) : undefined;
 	const aiResponse = ticketGroup?.aiResponse;
 	const [enableModalOpen, setEnableModalOpen] = useState(false);
+	const [autoPopulateSheetOpen, setAutoPopulateSheetOpen] = useState(false);
 	const [selectedType, setSelectedType] = useState<AIResponseType | null>(null);
 	const [createKnowledgeSheetOpen, setCreateKnowledgeSheetOpen] = useState(false);
 
 	const handleEnableClick = (type: AIResponseType) => {
 		setSelectedType(type);
-		setEnableModalOpen(true);
+		if (type === AI_RESPONSE_TYPE.AUTO_POPULATE) {
+			setAutoPopulateSheetOpen(true);
+		} else {
+			setEnableModalOpen(true);
+		}
 	};
 
 	return (
@@ -159,6 +165,12 @@ export function TicketDetailOverviewTab({
 				open={createKnowledgeSheetOpen}
 				onOpenChange={setCreateKnowledgeSheetOpen}
 				ticketGroupName={ticketGroupName}
+			/>
+
+			{/* Enable Auto-Populate Sheet */}
+			<EnableAutoPopulateSheet
+				open={autoPopulateSheetOpen}
+				onOpenChange={setAutoPopulateSheetOpen}
 			/>
 		</div>
 	);
