@@ -13,26 +13,26 @@ import { EnableAutoRespondModal } from "./EnableAutoRespondModal";
 import { EnableAutoPopulateSheet } from "./EnableAutoPopulateSheet";
 import { CreateKnowledgeArticleSheet } from "./CreateKnowledgeArticleSheet";
 
-interface TicketDetailOverviewTabProps {
-	/** Ticket group ID to fetch AI response data */
-	ticketGroupId?: string;
-	/** Ticket group display name */
-	ticketGroupName?: string;
-	/** Number of open tickets in this group */
+interface ClusterDetailOverviewTabProps {
+	/** Cluster ID to fetch AI response data */
+	clusterId?: string;
+	/** Cluster display name */
+	clusterName?: string;
+	/** Number of open tickets in this cluster */
 	openTicketsCount?: number;
 }
 
 /**
- * TicketDetailOverviewTab - Overview tab content for ticket detail sidebar
+ * ClusterDetailOverviewTab - Overview tab content for cluster detail sidebar
  *
  * Displays metrics, validation confidence progress, and AutoPilot recommendations
  */
-export function TicketDetailOverviewTab({
-	ticketGroupId,
-	ticketGroupName = "Ticket Group",
+export function ClusterDetailOverviewTab({
+	clusterId,
+	clusterName = "Cluster",
 	openTicketsCount = 0,
-}: TicketDetailOverviewTabProps) {
-	const ticketGroup = ticketGroupId ? getTicketGroup(ticketGroupId) : undefined;
+}: ClusterDetailOverviewTabProps) {
+	const ticketGroup = clusterId ? getTicketGroup(clusterId) : undefined;
 	const aiResponse = ticketGroup?.aiResponse;
 	const [enableModalOpen, setEnableModalOpen] = useState(false);
 	const [autoPopulateSheetOpen, setAutoPopulateSheetOpen] = useState(false);
@@ -154,7 +154,7 @@ export function TicketDetailOverviewTab({
 				<EnableAutoRespondModal
 					open={enableModalOpen}
 					onOpenChange={setEnableModalOpen}
-					ticketGroupName={ticketGroupName}
+					ticketGroupName={clusterName}
 					openTicketsCount={openTicketsCount}
 					aiResponse={aiResponse}
 				/>
@@ -164,7 +164,7 @@ export function TicketDetailOverviewTab({
 			<CreateKnowledgeArticleSheet
 				open={createKnowledgeSheetOpen}
 				onOpenChange={setCreateKnowledgeSheetOpen}
-				ticketGroupName={ticketGroupName}
+				ticketGroupName={clusterName}
 			/>
 
 			{/* Enable Auto-Populate Sheet */}
