@@ -356,10 +356,10 @@ export default function EmbedDemoPage() {
 							<div className="bg-green-50 border-2 border-green-400 rounded-lg p-3 mb-3">
 								<p className="text-xs font-bold text-green-800 mb-1">RITA will call (dynamic endpoint):</p>
 								<code className="text-[11px] text-green-900 bg-green-100 px-2 py-1 rounded block break-all">
-									POST https://actions-api-staging.resolve.io{workflowEndpoint}
+									POST $ACTIONS_API_URL{workflowEndpoint}
 								</code>
 								<p className="text-[10px] text-green-700 mt-2">
-									Endpoint comes from Valkey payload - RITA is a pass-through proxy
+									Endpoint from Valkey payload. RITA is a pass-through proxy (no auth added).
 								</p>
 							</div>
 

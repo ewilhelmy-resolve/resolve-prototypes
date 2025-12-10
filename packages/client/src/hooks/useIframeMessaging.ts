@@ -54,10 +54,12 @@ interface UseIframeMessagingOptions {
 
 /**
  * Post message to parent window (host page)
+ * Uses same-origin for security (same-domain deployment)
  */
 function postToParent(message: IframeOutboundMessage): void {
 	if (window.parent && window.parent !== window) {
-		window.parent.postMessage(message, "*");
+		// Use same-origin for security - iframe is same-domain deployment
+		window.parent.postMessage(message, window.location.origin);
 	}
 }
 

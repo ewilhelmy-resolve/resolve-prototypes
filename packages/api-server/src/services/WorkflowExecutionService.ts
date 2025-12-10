@@ -12,7 +12,11 @@ import axios from 'axios';
 import { getValkeyClient } from '../config/valkey.js';
 import { logger } from '../config/logger.js';
 
-const ACTIONS_API_URL = process.env.ACTIONS_API_URL || 'https://actions-api-staging.resolve.io';
+// ACTIONS_API_URL must be set in environment
+const ACTIONS_API_URL = process.env.ACTIONS_API_URL;
+if (!ACTIONS_API_URL) {
+  logger.warn('ACTIONS_API_URL not set - workflow execution will fail for relative endpoints');
+}
 
 /**
  * Valkey payload structure (after base64 decode)
@@ -77,9 +81,17 @@ export class WorkflowExecutionService {
     const { endpoint, payload } = valkeyPayload;
 
     // Build full URL - endpoint can be absolute or relative to ACTIONS_API_URL
-    const url = endpoint.startsWith('http')
-      ? endpoint
-      : `${ACTIONS_API_URL}${endpoint.startsWith('/') ? '' : '/'}${endpoint}`;
+    let url: string;
+    if (endpoint.startsWith('http')) {
+      url = endpoint;
+    } else if (ACTIONS_API_URL) {
+      url = `${ACTIONS_API_URL}${endpoint.startsWith('/') ? '' : '/'}${endpoint}`;
+    } else {
+      return {
+        success: false,
+        error: 'ACTIONS_API_URL not configured and endpoint is not absolute',
+      };
+    }
 
     try {
       logger.info({ url, payloadKeys: Object.keys(payload || {}) }, 'Executing workflow');
