@@ -1,63 +1,120 @@
-import { useParams } from "react-router-dom";
+import { useState } from "react";
+import { useParams, Link } from "react-router-dom";
+import { ChevronLeft } from "lucide-react";
 import RitaLayout from "@/components/layouts/RitaLayout";
-import { Badge } from "@/components/ui/badge";
-import { TicketDetailSidebar } from "@/components/tickets/TicketDetailSidebar";
-import { TicketTrendsChart } from "@/components/tickets/TicketTrendsChart";
-import { TicketDetailTable } from "@/components/tickets/TicketDetailTable";
-import { getTicketGroup } from "@/lib/tickets/utils";
+import { Button } from "@/components/ui/button";
+import TicketDetailsCard from "@/components/tickets/TicketDetailsCard";
+import { TicketDetailHeader } from "@/components/tickets/TicketDetailHeader";
+import ReviewAIResponseSheet from "@/components/tickets/ReviewAIResponseSheet";
+import type { TicketPriority } from "@/components/tickets/TicketDetailsCard";
+
+// Mock ticket data - TODO: Replace with API call
+const MOCK_TICKETS: Record<string, {
+	id: string;
+	title: string;
+	description: string;
+	priority: TicketPriority;
+}> = {
+	"INC0000001": {
+		id: "INC0000001",
+		title: "Password Reset",
+		description: "User unable to access account. Password reset required.",
+		priority: "high",
+	},
+	"INC0000002": {
+		id: "INC0000002",
+		title: "VPN Connection Troubleshooting",
+		description: "VPN client fails to connect. Error code 800.",
+		priority: "medium",
+	},
+	"INC0000003": {
+		id: "INC0000003",
+		title: "Two-factor authentication setup",
+		description: "User needs help configuring 2FA for their account.",
+		priority: "low",
+	},
+	"INC0000004": {
+		id: "INC0000004",
+		title: "Phishing awareness guide",
+		description: "Request for phishing email identification training.",
+		priority: "low",
+	},
+	"INC0000005": {
+		id: "INC0000005",
+		title: "Email Configuration Setup",
+		description: "New employee needs email client configuration assistance.",
+		priority: "medium",
+	},
+};
+
+const TICKET_IDS = Object.keys(MOCK_TICKETS);
 
 export default function TicketDetailPage() {
-	const { id } = useParams<{ id: string }>();
-	const ticketGroup = id ? getTicketGroup(id) : undefined;
+	const { clusterId, ticketId } = useParams<{ clusterId: string; ticketId: string }>();
+	const ticket = ticketId ? MOCK_TICKETS[ticketId] : undefined;
+	const [reviewSheetOpen, setReviewSheetOpen] = useState(false);
 
-	// Use ticket group data or fallback
-	const title = ticketGroup?.title ?? (id
-		? id
-				.split("-")
-				.map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-				.join(" ")
-		: "Ticket Group");
+	if (!ticket) {
+		return (
+			<RitaLayout activePage="tickets">
+				<div className="flex flex-col items-center justify-center min-h-[400px] gap-4">
+					<p className="text-muted-foreground">Ticket not found</p>
+					<Button asChild variant="outline">
+						<Link to={clusterId ? `/tickets/${clusterId}` : "/tickets"}>
+							<ChevronLeft className="mr-2 h-4 w-4" />
+							Back to cluster
+						</Link>
+					</Button>
+				</div>
+			</RitaLayout>
+		);
+	}
 
-	const badges = [
-		{ text: `${ticketGroup?.count ?? 0} tickets`, variant: "secondary" as const },
-		{ text: `${ticketGroup?.openCount ?? 0} open`, variant: "secondary" as const },
-		{ text: `${ticketGroup?.automatedPercentage ?? 0}% automated`, variant: "secondary" as const },
-		{ text: ticketGroup?.knowledgeStatus === "found" ? "Knowledge found" : "Knowledge gap", variant: "outline" as const },
-	];
+	const handleApprove = (id: string) => {
+		console.log(`Approved AI response for ticket: ${id}`);
+		// TODO: Implement API call
+	};
+
+	const handleReject = (id: string) => {
+		console.log(`Rejected AI response for ticket: ${id}`);
+		// TODO: Implement API call
+	};
 
 	return (
 		<RitaLayout activePage="tickets">
-			<div className="flex min-h-screen flex-col lg:flex-row">
-				{/* Main Content */}
-				<div className="flex-1 p-4">
-					<div className="flex flex-col gap-4">
-						{/* Page Header */}
-						<div className="flex flex-col gap-4 lg:flex-row lg:items-center">
-							<h1 className="text-xl font-medium">{title}</h1>
-							<div className="flex flex-wrap gap-2">
-								{badges.map((badge, index) => (
-									<Badge key={index} variant={badge.variant}>
-										{badge.text}
-									</Badge>
-								))}
-							</div>
-						</div>
+			<div className="flex flex-col">
+				{/* Full-width Header */}
+				<TicketDetailHeader
+					ticketId={ticket.id}
+					clusterId={clusterId}
+					ticketIds={TICKET_IDS}
+					onReviewAIResponse={() => setReviewSheetOpen(true)}
+				/>
 
-						{/* Ticket Trends Chart */}
-						<TicketTrendsChart />
-						 
+				{/* Content */}
+				<div className="flex flex-col gap-4 p-4 w-full max-w-3xl mx-auto">
+					{/* Page Header */}
+					<h1 className="text-xl font-medium">{ticket.title}</h1>
 
-						{/* Table Section */}
-						<TicketDetailTable ticketGroupId={id} />
-					</div>
+					{/* Ticket Details Card */}
+					<TicketDetailsCard ticket={ticket} />
 				</div>
 
-				{/* Right Sidebar */}
-				<TicketDetailSidebar
-					ticketGroupId={id}
-					ticketGroupName={title}
-					openTicketsCount={ticketGroup?.openCount ?? 0}
-					knowledgeCount={3}
+				{/* Review AI Response Sheet */}
+				<ReviewAIResponseSheet
+					open={reviewSheetOpen}
+					onOpenChange={setReviewSheetOpen}
+					ticketGroupId={clusterId}
+					tickets={[{
+						id: ticket.id,
+						title: ticket.title,
+						description: ticket.description,
+						priority: ticket.priority,
+					}]}
+					currentIndex={0}
+					onNavigate={() => {}}
+					onApprove={handleApprove}
+					onReject={handleReject}
 				/>
 			</div>
 		</RitaLayout>

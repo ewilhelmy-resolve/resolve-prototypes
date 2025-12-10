@@ -16,24 +16,31 @@ Automatically generates production-ready React/TypeScript components from Figma 
 
 ## What It Does
 
-1. **Extracts design context** using Figma MCP tools (get_design_context, get_variable_defs)
-2. **Prompts for missing info** (feature name, component splitting preference)
+1. **IMMEDIATELY extracts design context** using Figma MCP tools (auto-allowed, no permission needed)
+2. **Shows design preview** and asks about component splitting preference
 3. **Generates TypeScript components** following RITA Go standards
-4. **Splits repeated patterns** into reusable components (default: true)
+4. **Splits repeated patterns** into reusable components (if user confirms)
 5. **Uses semantic naming** based on feature name (e.g., payments-dashboard → PaymentCard.tsx)
+
+**IMPORTANT:** When a Figma URL is detected, IMMEDIATELY call `mcp__figma__get_design_context` and `mcp__figma__get_variable_defs` WITHOUT asking for permission. These tools are pre-authorized in settings.json.
 
 ## Quick Usage
 
 **User shares Figma URL:**
 ```
-User: "https://figma.com/design/abc123?node-id=1-2"
+User: "https://figma.com/design/abc123/MyFile?node-id=1-2"
 ```
 
-**Skill asks interactively:**
+**Skill IMMEDIATELY fetches design context (no permission prompt):**
 ```
-Claude:
+Claude: [Calls mcp__figma__get_design_context and mcp__figma__get_variable_defs]
+```
+
+**THEN asks user:**
+```
+Claude: I've fetched the design. A few questions:
 - Feature/page name? (e.g., "user-profile", "payments-dashboard")
-- Split repeated patterns into reusable components? [default: yes]
+- Split repeated patterns into reusable components? [Y/n]
 ```
 
 **Generates components:**
@@ -118,11 +125,12 @@ When `split_components: true` (default):
 ## Interactive Workflow
 
 1. **User shares Figma URL** (with or without node-id)
-2. **Skill prompts:**
+2. **Skill IMMEDIATELY calls Figma MCP tools** (auto-allowed, no prompt)
+3. **AFTER fetching design, skill asks:**
    - "What feature/page is this? (e.g., 'payments-dashboard')"
-   - "Split repeated patterns? [Y/n]" (default: yes)
-3. **Skill generates** components in packages/client/src/components/
-4. **Skill applies** ShadCN padding fixes and accessibility patterns
+   - "Split repeated patterns into reusable components? [Y/n]"
+4. **Skill generates** components in packages/client/src/components/
+5. **Skill applies** ShadCN padding fixes and accessibility patterns
 
 ## Common ShadCN Patterns
 
@@ -166,14 +174,14 @@ For advanced usage, see:
 
 When this skill triggers:
 
-1. **Extract Figma URL** from conversation or prompt user
-2. **Check for node-id** in URL (required for specific frame/component)
-3. **Prompt for missing info:**
-   - Feature name: `"What should I name this feature? (e.g., 'user-settings')"`
-   - Split components: `"Split repeated patterns into reusable components? [Y/n]"` (default: yes)
-4. **Use Figma MCP tools:**
+1. **Extract Figma URL** from conversation (parse fileKey and nodeId from URL)
+2. **Check for node-id** - if missing, ask user to select a frame in Figma
+3. **IMMEDIATELY call Figma MCP tools** (these are auto-allowed, DO NOT ask permission):
    - `mcp__figma__get_design_context` with extracted fileKey and nodeId
    - `mcp__figma__get_variable_defs` for design tokens
+4. **AFTER fetching context, ask user:**
+   - Feature name: `"What should I name this feature? (e.g., 'user-settings')"`
+   - Split components: `"Split repeated patterns into reusable components? [Y/n]"` (default: yes)
 5. **Map Figma colors to design tokens:**
    - Red/error colors → `variant="destructive"` or `bg-destructive`
    - Blue/primary → `variant="default"` or `bg-primary`
