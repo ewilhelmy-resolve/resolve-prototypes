@@ -33,9 +33,8 @@ export default function EmbedDemoPage() {
 	const [chatSessionId, setChatSessionId] = useState("workflow-123");
 	const [tabInstanceId, setTabInstanceId] = useState("user-456");
 
-	// Workflow payload state
-	const [workflowJwt, setWorkflowJwt] = useState("");
-	const [workflowTenantId, setWorkflowTenantId] = useState("");
+	// Workflow payload state (no JWT - hashkey replaces auth)
+	const [workflowEndpoint, setWorkflowEndpoint] = useState("/api/Webhooks/postEvent/YOUR_TENANT_ID");
 	const [workflowGuid, setWorkflowGuid] = useState("");
 	const [workflowChatInput, setWorkflowChatInput] = useState("Hello from workflow");
 	const [workflowContext, setWorkflowContext] = useState<"Workflow" | "ActivityDesigner">("Workflow");
@@ -129,36 +128,40 @@ export default function EmbedDemoPage() {
 	}, [iframeReady, requestCounter, log]);
 
 	// Generate Valkey payload for workflow testing
+	// Structure: { endpoint, payload } - no JWT (hashkey replaces auth)
 	const generatePayload = useCallback(() => {
-		const payload: Record<string, unknown> = {
-			jwt: workflowJwt || "Bearer YOUR_JWT_HERE",
-			tenantId: workflowTenantId || "YOUR_TENANT_ID",
-		};
-		if (workflowGuid) payload.workflowGuid = workflowGuid;
-		if (workflowChatInput) payload.chatInput = workflowChatInput;
-		if (chatSessionId) payload.chatSessionId = chatSessionId;
-		if (tabInstanceId) payload.tabInstanceId = tabInstanceId;
-		payload.context = workflowContext;
+		const innerPayload: Record<string, unknown> = {};
+
+		if (workflowGuid) innerPayload.workflowGuid = workflowGuid;
+		if (workflowChatInput) innerPayload.chatInput = workflowChatInput;
+		if (chatSessionId) innerPayload.chatSessionId = chatSessionId;
+		if (tabInstanceId) innerPayload.tabInstanceId = tabInstanceId;
+		innerPayload.context = workflowContext;
 
 		// Parse custom params
 		if (customParams.trim()) {
 			try {
 				const custom = JSON.parse(customParams);
-				Object.assign(payload, custom);
+				Object.assign(innerPayload, custom);
 			} catch {
 				// Ignore invalid JSON
 			}
 		}
 
-		return payload;
-	}, [workflowJwt, workflowTenantId, workflowGuid, workflowChatInput, chatSessionId, tabInstanceId, workflowContext, customParams]);
+		return {
+			endpoint: workflowEndpoint,
+			payload: innerPayload,
+		};
+	}, [workflowEndpoint, workflowGuid, workflowChatInput, chatSessionId, tabInstanceId, workflowContext, customParams]);
 
 	const copyRedisCommand = useCallback(() => {
 		const payload = generatePayload();
 		const key = hashkey || `workflow-${Date.now()}`;
-		const cmd = `redis-cli SET ${key} '${JSON.stringify(payload)}'`;
+		// Base64 encode the payload as expected by backend
+		const base64Payload = btoa(JSON.stringify(payload));
+		const cmd = `redis-cli SET ${key} '${base64Payload}'`;
 		navigator.clipboard.writeText(cmd);
-		log(`Copied redis-cli command to clipboard (key: ${key})`, "workflow");
+		log(`Copied redis-cli command to clipboard (key: ${key}, base64 encoded)`, "workflow");
 		if (!hashkey) {
 			setHashkey(key);
 		}
@@ -212,9 +215,30 @@ export default function EmbedDemoPage() {
 				{/* Header */}
 				<header className="bg-white rounded-xl p-8 mb-5 shadow-lg">
 					<h1 className="text-2xl font-bold text-gray-900 mb-2">RITA Iframe Embed Demo</h1>
-					<p className="text-gray-600 mb-5">
-						Test the iframe-embeddable chat with postMessage API for host page communication.
+					<p className="text-gray-600 mb-3">
+						Test the iframe-embeddable chat. No JWT needed - hashkey mechanism handles auth.
 					</p>
+
+					{/* How to Demo */}
+					<details className="bg-purple-50 border border-purple-200 rounded-lg p-3 mb-4">
+						<summary className="font-semibold text-purple-800 cursor-pointer">How to Demo Locally</summary>
+						<ol className="text-xs text-purple-900 mt-2 space-y-1 list-decimal list-inside">
+							<li><strong>Basic chat:</strong> Click "Load Iframe" with default token</li>
+							<li><strong>With workflow:</strong>
+								<ol className="list-[lower-alpha] list-inside ml-4 mt-1">
+									<li>Fill in Workflow Payload Builder fields</li>
+									<li>Click "Copy redis-cli Command"</li>
+									<li>Run the command in terminal (requires Redis/Valkey running)</li>
+									<li>Click "Load Iframe" - workflow executes on load</li>
+								</ol>
+							</li>
+							<li><strong>PostMessage test:</strong> Use "Send Message" after iframe loads</li>
+						</ol>
+						<div className="mt-2 text-[10px] text-purple-700 font-mono bg-purple-100 p-2 rounded">
+							# Start Redis locally:<br/>
+							docker run -d -p 6379:6379 redis:alpine
+						</div>
+					</details>
 
 					<div className="flex flex-wrap gap-3 items-center mb-4">
 						<label htmlFor="token" className="font-semibold text-gray-900">Token:</label>
@@ -327,32 +351,34 @@ export default function EmbedDemoPage() {
 						{/* Workflow Payload Builder */}
 						<div className="bg-white rounded-xl p-5 shadow-lg">
 							<h2 className="text-lg font-semibold text-gray-900 mb-2">Workflow Payload Builder</h2>
-							<p className="text-xs text-gray-500 mb-3">
-								RITA calls: <code className="bg-gray-100 px-1 rounded">POST /api/Webhooks/postEvent/{"{tenantId}"}</code>
+
+							{/* Dynamic Endpoint Callout */}
+							<div className="bg-green-50 border-2 border-green-400 rounded-lg p-3 mb-3">
+								<p className="text-xs font-bold text-green-800 mb-1">RITA will call (dynamic endpoint):</p>
+								<code className="text-[11px] text-green-900 bg-green-100 px-2 py-1 rounded block break-all">
+									POST https://actions-api-staging.resolve.io{workflowEndpoint}
+								</code>
+								<p className="text-[10px] text-green-700 mt-2">
+									Endpoint comes from Valkey payload - RITA is a pass-through proxy
+								</p>
+							</div>
+
+							<p className="text-[10px] text-purple-600 mb-3">
+								Payload stored as base64 in Valkey. No JWT - hashkey is the auth.
 							</p>
 
 							<div className="flex flex-col gap-2">
 								<div>
-									<label htmlFor="workflowJwt" className="text-xs font-semibold text-gray-700">JWT Token:</label>
+									<label htmlFor="workflowEndpoint" className="text-xs font-semibold text-gray-700">
+										Endpoint (any path - RITA calls this):
+									</label>
 									<input
-										id="workflowJwt"
+										id="workflowEndpoint"
 										type="text"
-										value={workflowJwt}
-										onChange={(e) => setWorkflowJwt(e.target.value)}
-										placeholder="Bearer eyJ..."
-										className="w-full px-3 py-2 border border-gray-200 rounded text-xs focus:outline-none focus:border-purple-500"
-									/>
-								</div>
-
-								<div>
-									<label htmlFor="workflowTenantId" className="text-xs font-semibold text-gray-700">Tenant ID:</label>
-									<input
-										id="workflowTenantId"
-										type="text"
-										value={workflowTenantId}
-										onChange={(e) => setWorkflowTenantId(e.target.value)}
-										placeholder="your-tenant-id"
-										className="w-full px-3 py-2 border border-gray-200 rounded text-xs focus:outline-none focus:border-purple-500"
+										value={workflowEndpoint}
+										onChange={(e) => setWorkflowEndpoint(e.target.value)}
+										placeholder="/api/Webhooks/postEvent/{tenantId}"
+										className="w-full px-3 py-2 border-2 border-green-300 rounded text-xs font-mono focus:outline-none focus:border-green-500 bg-green-50"
 									/>
 								</div>
 
@@ -411,9 +437,23 @@ export default function EmbedDemoPage() {
 									Copy redis-cli Command
 								</button>
 
-								<pre className="bg-gray-900 text-green-400 p-2 rounded text-[9px] font-mono overflow-x-auto max-h-[100px]">
-									{JSON.stringify(generatePayload(), null, 2)}
-								</pre>
+								{/* Payload Preview with annotations */}
+								<div className="bg-gray-900 p-2 rounded text-[9px] font-mono overflow-x-auto max-h-[120px]">
+									<div className="text-gray-500">{"{"}</div>
+									<div className="ml-2">
+										<span className="text-yellow-400">"endpoint"</span>
+										<span className="text-gray-400">: </span>
+										<span className="text-green-400">"{workflowEndpoint}"</span>
+										<span className="text-gray-500">{" ← RITA POSTs to this"}</span>
+									</div>
+									<div className="ml-2">
+										<span className="text-yellow-400">"payload"</span>
+										<span className="text-gray-400">: </span>
+										<span className="text-blue-400">{JSON.stringify(generatePayload().payload)}</span>
+										<span className="text-gray-500">{" ← request body"}</span>
+									</div>
+									<div className="text-gray-500">{"}"}</div>
+								</div>
 							</div>
 						</div>
 

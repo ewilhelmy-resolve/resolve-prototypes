@@ -98,8 +98,9 @@ RITA backend fetches the payload and calls the Actions API postEvent webhook.
 ```
 Host (Jarvis)
     │
-    ├─1─► Store payload in Valkey with hashkey
-    │     { jwt, tenantId, workflowGuid, chatInput, context, ... }
+    ├─1─► Store base64-encoded payload in Valkey with hashkey
+    │     { endpoint: "/api/Webhooks/postEvent/{tenantId}",
+    │       payload: { workflowGuid, chatInput, context, ... } }
     │
     └─2─► Embed iframe: /iframe/chat?token=xxx&hashkey=yyy
                               │
@@ -111,10 +112,9 @@ Host (Jarvis)
                               ▼
                     RITA API backend
                               │
-                        ─4──► Fetch payload from Valkey
+                        ─4──► Fetch payload from Valkey, decode base64
                               │
-                        ─5──► POST /api/Webhooks/postEvent/{tenantId}
-                              │     (with JWT from payload)
+                        ─5──► POST to endpoint with payload (no JWT)
                               │
                               ▼
                     Actions API → Workflow executes
@@ -126,32 +126,48 @@ SignalR → Host                               RabbitMQ → RITA API → SSE →
 
 ### Valkey Payload Format
 
-The host stores this in Valkey with a unique hashkey:
+The host stores a **base64-encoded** JSON payload in Valkey with a unique hashkey.
+No JWT is needed - the hashkey mechanism replaces authentication.
+
+**JSON structure (before base64 encoding):**
 
 ```json
 {
-  "jwt": "Bearer eyJ...",
-  "tenantId": "your-tenant-id",
-  "workflowGuid": "uuid-of-system-workflow",
-  "chatInput": "User message content",
-  "chatSessionId": "workflow-tab-123",
-  "tabInstanceId": "user-conn-456",
-  "context": "Workflow"
+  "endpoint": "/api/Webhooks/postEvent/{tenantId}",
+  "payload": {
+    "workflowGuid": "uuid-of-system-workflow",
+    "chatInput": "User message content",
+    "chatSessionId": "workflow-tab-123",
+    "tabInstanceId": "user-conn-456",
+    "context": "Workflow"
+  }
 }
+```
+
+**To store in Valkey:**
+
+```bash
+# Create base64-encoded payload
+echo '{"endpoint":"/api/Webhooks/postEvent/my-tenant","payload":{"chatInput":"Hello"}}' | base64
+
+# Store in Redis/Valkey
+redis-cli SET my-hashkey "eyJlbmRwb2ludCI6Ii9hcGkvV2ViaG9va3MvcG9zdEV2ZW50L215LXRlbmFudCIsInBheWxvYWQiOnsiY2hhdElucHV0IjoiSGVsbG8ifX0="
 ```
 
 ### Response Flow
 
-1. RITA backend fetches payload from Valkey
-2. Backend calls postEvent webhook with JWT and params
+1. RITA backend fetches payload from Valkey and decodes base64
+2. Backend calls the endpoint specified in payload (no JWT auth)
 3. Workflow executes, calls `/api/SignalR/pushMessage` → host receives via SignalR
 4. Workflow also sends to RITA API → iframe receives via SSE
 5. Both channels show the same response
 
 ### Security
 
-- JWT stored in Valkey, not exposed in URL or postMessage
+- **No JWT required** - hashkey mechanism replaces need for auth tokens
 - Hashkey is a one-time key (host generates unique key per session)
+- Host controls what endpoint and payload are stored in Valkey
+- RITA backend only fetches and forwards - no sensitive data in URL
 - Origin validation for postMessage commands
 - Iframe token required for session initialization
 

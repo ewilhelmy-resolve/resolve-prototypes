@@ -2,9 +2,10 @@
  * WorkflowExecutionService - Handle iframe workflow execution
  *
  * Flow:
- * 1. Fetch payload from Valkey using hashkey
- * 2. Call Actions API postEvent webhook with JWT and params
- * 3. Response flows through queue -> message storage -> SSE
+ * 1. Fetch base64-encoded payload from Valkey using hashkey
+ * 2. Decode and parse to get endpoint + payload
+ * 3. Call the specified endpoint (no JWT - hashkey replaces auth)
+ * 4. Response flows through queue -> message storage -> SSE
  */
 
 import axios from 'axios';
@@ -13,29 +14,27 @@ import { logger } from '../config/logger.js';
 
 const ACTIONS_API_URL = process.env.ACTIONS_API_URL || 'https://actions-api-staging.resolve.io';
 
-export interface WorkflowPayload {
-  jwt: string;
-  tenantId: string;
-  workflowGuid?: string;
-  chatInput?: string;
-  chatSessionId?: string;
-  tabInstanceId?: string;
-  context?: 'Workflow' | 'ActivityDesigner';
-  // Allow additional fields from Valkey
-  [key: string]: unknown;
+/**
+ * Valkey payload structure (after base64 decode)
+ * No JWT - hashkey mechanism replaces need for auth tokens
+ */
+export interface ValkeyPayload {
+  endpoint: string;      // Full endpoint path, e.g., "/api/Webhooks/postEvent/{tenantId}"
+  payload: Record<string, unknown>; // Actual data to send to the endpoint
 }
 
 export interface ExecuteWorkflowResult {
   success: boolean;
   eventId?: string;
+  data?: unknown;
   error?: string;
 }
 
 export class WorkflowExecutionService {
   /**
-   * Fetch workflow payload from Valkey by hashkey
+   * Fetch and decode base64 payload from Valkey by hashkey
    */
-  async getPayloadFromValkey(hashkey: string): Promise<WorkflowPayload | null> {
+  async getPayloadFromValkey(hashkey: string): Promise<ValkeyPayload | null> {
     try {
       const client = getValkeyClient();
       const data = await client.get(hashkey);
@@ -45,54 +44,69 @@ export class WorkflowExecutionService {
         return null;
       }
 
-      const payload = JSON.parse(data) as WorkflowPayload;
+      // Decode base64
+      let decoded: string;
+      try {
+        decoded = Buffer.from(data, 'base64').toString('utf-8');
+      } catch {
+        // If not base64, assume it's plain JSON (for backwards compatibility)
+        decoded = data;
+      }
+
+      const payload = JSON.parse(decoded) as ValkeyPayload;
 
       // Validate required fields
-      if (!payload.jwt || !payload.tenantId) {
-        logger.error({ hashkey }, 'Invalid payload: missing jwt or tenantId');
+      if (!payload.endpoint) {
+        logger.error({ hashkey }, 'Invalid payload: missing endpoint');
         return null;
       }
 
-      logger.info({ hashkey, tenantId: payload.tenantId }, 'Valkey payload retrieved');
+      logger.info({ hashkey, endpoint: payload.endpoint }, 'Valkey payload retrieved and decoded');
       return payload;
     } catch (error) {
-      logger.error({ error, hashkey }, 'Failed to fetch Valkey payload');
+      logger.error({ error, hashkey }, 'Failed to fetch/decode Valkey payload');
       return null;
     }
   }
 
   /**
-   * Execute workflow via Actions API postEvent webhook
+   * Execute workflow by calling the specified endpoint
+   * No JWT auth - hashkey mechanism provides security
    */
-  async executeWorkflow(payload: WorkflowPayload): Promise<ExecuteWorkflowResult> {
-    const { jwt, tenantId, ...params } = payload;
+  async executeWorkflow(valkeyPayload: ValkeyPayload): Promise<ExecuteWorkflowResult> {
+    const { endpoint, payload } = valkeyPayload;
+
+    // Build full URL - endpoint can be absolute or relative to ACTIONS_API_URL
+    const url = endpoint.startsWith('http')
+      ? endpoint
+      : `${ACTIONS_API_URL}${endpoint.startsWith('/') ? '' : '/'}${endpoint}`;
 
     try {
-      logger.info({ tenantId, workflowGuid: params.workflowGuid }, 'Executing workflow via postEvent');
+      logger.info({ url, payloadKeys: Object.keys(payload || {}) }, 'Executing workflow');
 
       const response = await axios.post(
-        `${ACTIONS_API_URL}/api/Webhooks/postEvent/${tenantId}`,
-        params,
+        url,
+        payload,
         {
           headers: {
-            Authorization: jwt.startsWith('Bearer ') ? jwt : `Bearer ${jwt}`,
             'Content-Type': 'application/json',
           },
           timeout: 30000,
         }
       );
 
-      logger.info({ tenantId, status: response.status }, 'Workflow execution initiated');
+      logger.info({ url, status: response.status }, 'Workflow execution initiated');
 
       return {
         success: true,
-        eventId: response.data?.eventId || response.data,
+        eventId: response.data?.eventId,
+        data: response.data,
       };
     } catch (error: any) {
       const errorMessage = error.response?.data?.message || error.message || 'Unknown error';
       const status = error.response?.status;
 
-      logger.error({ tenantId, error: errorMessage, status }, 'Workflow execution failed');
+      logger.error({ url, error: errorMessage, status }, 'Workflow execution failed');
 
       return {
         success: false,
