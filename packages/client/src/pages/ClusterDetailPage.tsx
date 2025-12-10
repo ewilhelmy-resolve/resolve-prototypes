@@ -87,13 +87,14 @@ export default function ClusterDetailPage() {
 	};
 
 	// Scroll banner into view when it becomes visible or changes
+	// bannerData.key changes trigger re-scroll even if visible stays true
+	const bannerKey = bannerData.key;
 	useEffect(() => {
+		void bannerKey; // Reference key to trigger effect on banner changes
 		if (bannerData.visible && bannerRef.current) {
 			bannerRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
 		}
-		// bannerData.key is intentionally in deps to trigger scroll on banner changes
-		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [bannerData.key, bannerData.visible]);
+	}, [bannerKey, bannerData.visible]);
 
 	// Use ticket group data or fallback
 	const title = ticketGroup?.title ?? (id
