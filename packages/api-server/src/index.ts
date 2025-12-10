@@ -10,6 +10,7 @@ import {
   requestLoggingMiddleware
 } from './middleware/logging.js';
 import authRoutes from './routes/auth.js';
+import clusterRoutes from './routes/clusters.js';
 import conversationRoutes from './routes/conversations.js';
 import dataSourceRoutes from './routes/dataSources.js';
 import filesRoutes from './routes/files.js';
@@ -120,6 +121,7 @@ app.get('/test-sse', (req, res) => {
 // IMPORTANT: Register /api/organizations/members BEFORE /api/organizations to avoid route conflicts
 app.use('/api/organizations/members', authenticateUser, addUserContextToLogs, memberRoutes);
 app.use('/api/organizations', authenticateUser, addUserContextToLogs, organizationRoutes);
+app.use('/api/clusters', authenticateUser, addUserContextToLogs, clusterRoutes);
 app.use('/api/conversations', authenticateUser, addUserContextToLogs, conversationRoutes);
 app.use('/api/data-sources', authenticateUser, addUserContextToLogs, dataSourceRoutes);
 app.use('/api/files', authenticateUser, addUserContextToLogs, filesRoutes);
