@@ -6,6 +6,7 @@ import type {
   ClusterListQueryOptions,
   ClusterTicketsQueryOptions,
   PaginationInfo,
+  RitaStatus,
   Ticket
 } from '../types/cluster.js';
 
@@ -105,7 +106,7 @@ export class ClusterService {
     const fetchLimit = limit + 1; // Fetch one extra to determine has_more
 
     // Map tab to rita_status
-    let ritaStatusFilter: string | null = null;
+    let ritaStatusFilter: RitaStatus | null = null;
     if (options.tab === 'needs_response') {
       ritaStatusFilter = 'NEEDS_RESPONSE';
     } else if (options.tab === 'completed') {
