@@ -20,6 +20,12 @@ interface ClusterDetailOverviewTabProps {
 	clusterName?: string;
 	/** Number of open tickets in this cluster */
 	openTicketsCount?: number;
+	/** Called when auto-populate is enabled */
+	onAutoPopulateEnabled?: () => void;
+	/** Called when knowledge article is added */
+	onKnowledgeAdded?: () => void;
+	/** Called when auto-respond is enabled with context */
+	onAutoRespondEnabled?: (ticketGroupName: string, automatedPercentage: number) => void;
 }
 
 /**
@@ -31,6 +37,9 @@ export function ClusterDetailOverviewTab({
 	clusterId,
 	clusterName = "Cluster",
 	openTicketsCount = 0,
+	onAutoPopulateEnabled,
+	onKnowledgeAdded,
+	onAutoRespondEnabled,
 }: ClusterDetailOverviewTabProps) {
 	const ticketGroup = clusterId ? getTicketGroup(clusterId) : undefined;
 	const aiResponse = ticketGroup?.aiResponse;
@@ -157,6 +166,7 @@ export function ClusterDetailOverviewTab({
 					ticketGroupName={clusterName}
 					openTicketsCount={openTicketsCount}
 					aiResponse={aiResponse}
+					onAutoRespondEnabled={onAutoRespondEnabled}
 				/>
 			)}
 
@@ -165,12 +175,14 @@ export function ClusterDetailOverviewTab({
 				open={createKnowledgeSheetOpen}
 				onOpenChange={setCreateKnowledgeSheetOpen}
 				ticketGroupName={clusterName}
+				onKnowledgeAdded={onKnowledgeAdded}
 			/>
 
 			{/* Enable Auto-Populate Sheet */}
 			<EnableAutoPopulateSheet
 				open={autoPopulateSheetOpen}
 				onOpenChange={setAutoPopulateSheetOpen}
+				onEnable={onAutoPopulateEnabled}
 			/>
 		</div>
 	);

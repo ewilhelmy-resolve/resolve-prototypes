@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -21,7 +20,7 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { ChevronDown, ArrowUpDown, MoreHorizontal } from "lucide-react";
 import { BulkActions } from "@/components/BulkActions";
-import ReviewAIResponseSheet, { type ReviewTicket } from "./ReviewAIResponseSheet";
+import ReviewAIResponseSheet, { type ReviewTicket, type ReviewStats } from "./ReviewAIResponseSheet";
 
 interface TicketItem {
 	id: string;
@@ -40,6 +39,8 @@ interface ClusterDetailTableProps {
 	tickets?: TicketItem[];
 	/** Number of knowledge articles (for footer display) */
 	knowledgeArticleCount?: number;
+	/** Called when AI review is completed with stats */
+	onReviewComplete?: (stats: ReviewStats) => void;
 }
 
 // Map source names to icon paths
@@ -122,6 +123,7 @@ export function ClusterDetailTable({
 	clusterId,
 	tickets = defaultTickets,
 	knowledgeArticleCount = 12,
+	onReviewComplete,
 }: ClusterDetailTableProps) {
 	// Bulk selection state
 	const [selectedTickets, setSelectedTickets] = useState<string[]>([]);
@@ -261,12 +263,6 @@ export function ClusterDetailTable({
 							<TableHead>Name</TableHead>
 							<TableHead>
 								<Button variant="ghost" className="h-auto p-0">
-									Status
-									<ArrowUpDown className="ml-2 h-4 w-4" />
-								</Button>
-							</TableHead>
-							<TableHead>
-								<Button variant="ghost" className="h-auto p-0">
 									Source
 									<ArrowUpDown className="ml-2 h-4 w-4" />
 								</Button>
@@ -293,9 +289,6 @@ export function ClusterDetailTable({
 									>
 										{row.name}
 									</Link>
-								</TableCell>
-								<TableCell>
-									<Badge variant="outline">{row.status}</Badge>
 								</TableCell>
 								<TableCell className="text-center">
 									<div className="flex justify-center">
@@ -354,6 +347,7 @@ export function ClusterDetailTable({
 				onNavigate={handleNavigate}
 				onApprove={handleApprove}
 				onReject={handleReject}
+				onReviewComplete={onReviewComplete}
 			/>
 		</div>
 	);
