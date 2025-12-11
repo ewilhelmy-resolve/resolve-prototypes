@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { CompletionView } from "./CompletionView";
 import { ReviewView } from "./ReviewView";
-import { AI_RESPONSE_TYPE, getTicketGroup, type AIResponseType } from "@/lib/tickets/utils";
+import { AI_RESPONSE_TYPE, getTicketGroup, MOCK_AI_RESPONSE, type AIResponseType } from "@/lib/tickets/utils";
 
 /**
  * Ticket priority level
@@ -16,6 +16,7 @@ export type { KBArticle, AIResponseData as AIResponse } from "./AIResponseSectio
  */
 export interface ReviewTicket {
 	id: string;
+	externalId: string;
 	title: string;
 	description: string;
 	priority: TicketPriority;
@@ -85,7 +86,8 @@ export default function ReviewAIResponseSheet({
 
 	const currentTicket = tickets[currentIndex];
 	const ticketGroup = ticketGroupId ? getTicketGroup(ticketGroupId) : undefined;
-	const aiResponse = ticketGroup?.aiResponse;
+	// Use ticket group AI response or fallback to mock data (TODO: replace with real API)
+	const aiResponse = ticketGroup?.aiResponse ?? MOCK_AI_RESPONSE;
 
 	// Reset state when sheet opens
 	useEffect(() => {
@@ -123,7 +125,7 @@ export default function ReviewAIResponseSheet({
 	// Calculate review stats for completion screen
 	// Calculate confidence improvement based on trusted percentage
 	const totalReviewed = isCompleted ? tickets.length : trustedCount + rejectedCount;
-	const confidencePercentage = totalReviewed > 0 
+	const confidencePercentage = totalReviewed > 0
 		? Math.round((trustedCount / totalReviewed) * 100)
 		: 0;
 

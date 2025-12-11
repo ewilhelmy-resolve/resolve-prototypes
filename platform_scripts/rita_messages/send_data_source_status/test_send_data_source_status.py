@@ -180,6 +180,30 @@ class TestDataSourceStatus(unittest.TestCase):
         self.assertIsNone(result_data["message"]["error"])
 
     @patch('send_data_source_status.send_to_rabbitmq')
+    def test_verification_success_with_array_options(self, mock_send):
+        """Test verification with array options (ServiceNow KB format)"""
+        options = [
+            {"title": "KCS Knowledge Base", "sys_id": "abc123"},
+            {"title": "IT", "sys_id": "def456"}
+        ]
+        result = send_data_source_status(
+            rabbitmq_url=self.rabbitmq_url,
+            queue_name=self.queue_name,
+            message_type="verification",
+            connection_id=self.connection_id,
+            tenant_id=self.tenant_id,
+            status="success",
+            error_message=None,
+            documents_processed=None,
+            verification_options=json.dumps(options),
+            verification_error=None
+        )
+
+        result_data = json.loads(result)
+        self.assertEqual(result_data["status"], "success")
+        self.assertEqual(result_data["message"]["options"], options)
+
+    @patch('send_data_source_status.send_to_rabbitmq')
     def test_verification_failed_message(self, mock_send):
         """Test sending verification failed message with error"""
         error_msg = "Invalid credentials"

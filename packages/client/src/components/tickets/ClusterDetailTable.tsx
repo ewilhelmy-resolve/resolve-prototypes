@@ -1,8 +1,17 @@
+// TODO: Uncomment ChevronDown when source filter data is available
+import { /* ChevronDown, */ Loader2, MoreHorizontal } from "lucide-react";
 import { useState } from "react";
 import { Link } from "react-router-dom";
+import { BulkActions } from "@/components/BulkActions";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+	DropdownMenu,
+	DropdownMenuContent,
+	DropdownMenuItem,
+	DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
 	Table,
 	TableBody,
@@ -11,127 +20,121 @@ import {
 	TableHeader,
 	TableRow,
 } from "@/components/ui/table";
-import {
-	DropdownMenu,
-	DropdownMenuContent,
-	DropdownMenuItem,
-	DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { Checkbox } from "@/components/ui/checkbox";
-import { ChevronDown, ArrowUpDown, MoreHorizontal } from "lucide-react";
-import { BulkActions } from "@/components/BulkActions";
-import ReviewAIResponseSheet, { type ReviewTicket, type ReviewStats } from "./ReviewAIResponseSheet";
-
-interface TicketItem {
-	id: string;
-	name: string;
-	status: string;
-	source: string;
-	date: string;
-	description?: string;
-	priority?: "low" | "medium" | "high" | "critical";
-}
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useClusterTickets } from "@/hooks/useClusters";
+import { useDebounce } from "@/hooks/useDebounce";
+import { renderSortIcon } from "@/lib/table-utils";
+import type {
+	ClusterTicketsQueryParams,
+	SortDirection,
+	Ticket,
+	TicketSortOption,
+} from "@/types/cluster";
+import ReviewAIResponseSheet, {
+	type ReviewTicket,
+	type ReviewStats,
+} from "./ReviewAIResponseSheet";
 
 interface ClusterDetailTableProps {
-	/** Cluster ID for AI response data */
+	/** Cluster ID for fetching tickets */
 	clusterId?: string;
-	/** Array of ticket items to display */
-	tickets?: TicketItem[];
-	/** Number of knowledge articles (for footer display) */
-	knowledgeArticleCount?: number;
 	/** Called when AI review is completed with stats */
 	onReviewComplete?: (stats: ReviewStats) => void;
 }
 
-// Map source names to icon paths
-const getSourceIcon = (source: string): string => {
-	const sourceMap: Record<string, string> = {
-		ServiceNow: "/connections/icon_servicenow.svg",
-		Confluence: "/connections/icon_confluence.svg",
-		SharePoint: "/connections/icon_sharepoint.svg",
-	};
-	return sourceMap[source] || "/connections/icon_servicenow.svg";
+// Format date for display
+const formatDate = (dateString: string): string => {
+	const date = new Date(dateString);
+	return date.toLocaleDateString("en-US", {
+		day: "2-digit",
+		month: "short",
+		year: "numeric",
+		hour: "2-digit",
+		minute: "2-digit",
+	});
 };
 
-const defaultTickets: TicketItem[] = [
-	{
-		id: "INC0000001",
-		name: "Password Reset",
-		status: "Needs response",
-		source: "ServiceNow",
-		date: "03 Sep, 2025 18:07",
-		description: "User unable to access account. Password reset required.",
-		priority: "high",
-	},
-	{
-		id: "INC0000002",
-		name: "VPN Connection Troubleshooting",
-		status: "Needs response",
-		source: "ServiceNow",
-		date: "03 Sep, 2025 18:07",
-		description: "VPN client fails to connect. Error code 800.",
-		priority: "medium",
-	},
-	{
-		id: "INC0000003",
-		name: "Two-factor authentication setup",
-		status: "Needs response",
-		source: "ServiceNow",
-		date: "03 Sep, 2025 18:07",
-		description: "User needs help configuring 2FA for their account.",
-		priority: "low",
-	},
-	{
-		id: "INC0000004",
-		name: "Phishing awareness guide",
-		status: "Needs response",
-		source: "ServiceNow",
-		date: "03 Sep, 2025 18:07",
-		description: "Request for phishing email identification training.",
-		priority: "low",
-	},
-	{
-		id: "INC0000005",
-		name: "Email Configuration Setup",
-		status: "Needs response",
-		source: "ServiceNow",
-		date: "03 Sep, 2025 18:07",
-		description: "New employee needs email client configuration assistance.",
-		priority: "medium",
-	},
-];
+// Extract source from source_metadata or default to servicenow
+const getTicketSource = (metadata: Record<string, unknown>): string => {
+	return (metadata?.source as string) || "";
+};
+
+// Get source icon path
+const getSourceIcon = (source: string): string => {
+	return `/connections/icon_${source.toLowerCase()}.svg`;
+};
 
 /**
  * ClusterDetailTable - Table displaying tickets with filters and pagination
- *
- * Shows a filterable, searchable table of tickets with status tabs,
- * source filtering, and pagination controls
- *
- * @param tickets - Array of ticket items (defaults to sample data)
- * @param knowledgeArticleCount - Number of knowledge articles for footer (defaults to 12)
- *
- * @example
- * ```tsx
- * // With custom data
- * <ClusterDetailTable tickets={ticketData} knowledgeArticleCount={15} />
- *
- * // With defaults
- * <ClusterDetailTable />
- * ```
  */
 export function ClusterDetailTable({
 	clusterId,
-	tickets = defaultTickets,
-	knowledgeArticleCount = 12,
 	onReviewComplete,
 }: ClusterDetailTableProps) {
-	// Bulk selection state
+	const [activeTab, setActiveTab] = useState<"needs_response" | "completed">(
+		"needs_response",
+	);
+	const [cursor, setCursor] = useState<string | undefined>(undefined);
 	const [selectedTickets, setSelectedTickets] = useState<string[]>([]);
+	const [searchQuery, setSearchQuery] = useState("");
+	const [sortField, setSortField] = useState<TicketSortOption>("created_at");
+	const [sortDir, setSortDir] = useState<SortDirection>("desc");
+	// TODO: Uncomment when source filter data is available (tickets need data_source_connection_id populated)
+	// const [sourceFilter, setSourceFilter] = useState<string | undefined>(undefined);
+
+	// Debounce search to avoid excessive API calls
+	const debouncedSearch = useDebounce(searchQuery, 300);
+
+	const queryParams: ClusterTicketsQueryParams = {
+		tab: activeTab,
+		cursor,
+		limit: 20,
+		search: debouncedSearch || undefined,
+		sort: sortField,
+		sort_dir: sortDir,
+		// TODO: Uncomment when source filter data is available
+		// source: sourceFilter,
+	};
+
+	const { data, isLoading, error } = useClusterTickets(clusterId, queryParams);
+	const tickets = data?.data ?? [];
+	const pagination = data?.pagination;
 
 	// Review sheet state
 	const [reviewSheetOpen, setReviewSheetOpen] = useState(false);
 	const [reviewTickets, setReviewTickets] = useState<ReviewTicket[]>([]);
 	const [currentReviewIndex, setCurrentReviewIndex] = useState(0);
+
+	// Handle tab change - reset cursor and search
+	const handleTabChange = (value: string) => {
+		setActiveTab(value as "needs_response" | "completed");
+		setCursor(undefined);
+		setSelectedTickets([]);
+		setSearchQuery("");
+	};
+
+	// Handle search input
+	const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+		setSearchQuery(e.target.value);
+		setCursor(undefined); // Reset pagination when searching
+	};
+
+	// TODO: Uncomment when source filter data is available
+	// const handleSourceChange = (value: string) => {
+	// 	setSourceFilter(value === "all" ? undefined : value);
+	// 	setCursor(undefined);
+	// };
+
+	// Generic sort handler for columns
+	const handleSort = (field: TicketSortOption) => {
+		if (sortField === field) {
+			setSortDir(sortDir === "asc" ? "desc" : "asc");
+		} else {
+			setSortField(field);
+			setSortDir(field === "created_at" ? "desc" : "asc");
+		}
+		setCursor(undefined);
+	};
 
 	// Selection handlers
 	const handleSelectAll = (checked: boolean) => {
@@ -150,12 +153,13 @@ export function ClusterDetailTable({
 		}
 	};
 
-	// Convert TicketItem to ReviewTicket format
-	const convertToReviewTicket = (ticket: TicketItem): ReviewTicket => ({
+	// Convert Ticket to ReviewTicket format
+	const convertToReviewTicket = (ticket: Ticket): ReviewTicket => ({
 		id: ticket.id,
-		title: ticket.name,
-		description: ticket.description || "No description provided.",
-		priority: ticket.priority || "medium",
+		externalId: ticket.external_id,
+		title: ticket.subject,
+		description: ticket.cluster_text || "No description provided.",
+		priority: "medium",
 	});
 
 	// Single ticket review
@@ -170,9 +174,9 @@ export function ClusterDetailTable({
 
 	// Bulk review handler
 	const handleBulkReviewAI = async () => {
-		const ticketsToReview = tickets.filter((t) =>
-			selectedTickets.includes(t.id)
-		).map(convertToReviewTicket);
+		const ticketsToReview = tickets
+			.filter((t) => selectedTickets.includes(t.id))
+			.map(convertToReviewTicket);
 
 		setReviewTickets(ticketsToReview);
 		setCurrentReviewIndex(0);
@@ -197,50 +201,92 @@ export function ClusterDetailTable({
 	const handleReviewSheetClose = (open: boolean) => {
 		setReviewSheetOpen(open);
 		if (!open) {
-			// Clear selection after closing review sheet
 			setSelectedTickets([]);
 		}
 	};
+
+	// Pagination handlers
+	const handleNextPage = () => {
+		if (pagination?.next_cursor) {
+			setCursor(pagination.next_cursor);
+		}
+	};
+
+	if (isLoading) {
+		return (
+			<div className="flex min-h-[300px] items-center justify-center">
+				<Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+			</div>
+		);
+	}
+
+	if (error) {
+		return (
+			<div className="flex min-h-[300px] items-center justify-center">
+				<p className="text-destructive">Failed to load tickets</p>
+			</div>
+		);
+	}
 
 	return (
 		<div className="flex flex-col gap-3">
 			{/* Filters or Bulk Actions */}
 			{selectedTickets.length === 0 ? (
 				<div className="flex flex-col gap-4 py-4 sm:flex-row sm:items-center sm:justify-between">
-				<Tabs defaultValue="needs-response" className="w-fit">
-					<TabsList>
-						<TabsTrigger value="needs-response">
-							Needs Response
-						</TabsTrigger>
-						<TabsTrigger value="completed">Completed</TabsTrigger>
-					</TabsList>
-				</Tabs>
+					<div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+						<Tabs
+							value={activeTab}
+							onValueChange={handleTabChange}
+							className="w-fit"
+						>
+							<TabsList>
+								<TabsTrigger value="needs_response">Needs Response</TabsTrigger>
+								<TabsTrigger value="completed">Completed</TabsTrigger>
+							</TabsList>
+						</Tabs>
+					</div>
 
-				<div className="flex gap-2 flex-col md:flex-row">
-					<DropdownMenu>
-						<DropdownMenuTrigger asChild>
-							<Button variant="secondary">
-								Source: All
-								<ChevronDown className="ml-2 h-4 w-4" />
-							</Button>
-						</DropdownMenuTrigger>
-						<DropdownMenuContent>
-							<DropdownMenuItem>All Sources</DropdownMenuItem>
-							<DropdownMenuItem>ServiceNow</DropdownMenuItem>
-						</DropdownMenuContent>
-					</DropdownMenu>
+					<div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+						{/* TODO: Uncomment when source filter data is available (tickets need data_source_connection_id populated)
+						<DropdownMenu>
+							<DropdownMenuTrigger asChild>
+								<Button variant="outline" className="w-fit">
+									{sourceFilter
+										? sourceFilter.charAt(0).toUpperCase() +
+											sourceFilter.slice(1)
+										: "All Sources"}
+									<ChevronDown className="ml-2 h-4 w-4" />
+								</Button>
+							</DropdownMenuTrigger>
+							<DropdownMenuContent>
+								<DropdownMenuItem onClick={() => handleSourceChange("all")}>
+									All Sources
+								</DropdownMenuItem>
+								<DropdownMenuItem
+									onClick={() => handleSourceChange("servicenow")}
+								>
+									ServiceNow
+								</DropdownMenuItem>
+							</DropdownMenuContent>
+						</DropdownMenu>
+						*/}
 
-					<Input placeholder="Search tickets....." className="md:w-40 w-full" />
+						<Input
+							placeholder="Search tickets..."
+							className="md:w-64 w-full"
+							value={searchQuery}
+							onChange={handleSearchChange}
+						/>
+					</div>
 				</div>
-			</div>
 			) : (
 				<BulkActions
 					selectedItems={selectedTickets.map(String)}
 					actions={[
 						{
-							key: 'review',
+							key: "review",
 							label: "Review AI Responses",
-							variant: 'default',
+							variant: "default",
 							onClick: handleBulkReviewAI,
 						},
 					]}
@@ -256,82 +302,129 @@ export function ClusterDetailTable({
 						<TableRow>
 							<TableHead className="w-8">
 								<Checkbox
-									checked={selectedTickets.length === tickets.length}
-									onCheckedChange={(checked) => handleSelectAll(checked as boolean)}
+									checked={
+										tickets.length > 0 &&
+										selectedTickets.length === tickets.length
+									}
+									onCheckedChange={(checked) =>
+										handleSelectAll(checked as boolean)
+									}
 								/>
 							</TableHead>
-							<TableHead>Name</TableHead>
 							<TableHead>
-								<Button variant="ghost" className="h-auto p-0">
-									Source
-									<ArrowUpDown className="ml-2 h-4 w-4" />
+								<Button
+									variant="ghost"
+									className="h-auto p-0 flex items-center gap-2"
+									onClick={() => handleSort("subject")}
+								>
+									Subject
+									{renderSortIcon(sortField, "subject", sortDir)}
 								</Button>
 							</TableHead>
+							<TableHead>
+								<Button
+									variant="ghost"
+									className="h-auto p-0 flex items-center gap-2"
+									onClick={() => handleSort("external_id")}
+								>
+									External ID
+									{renderSortIcon(sortField, "external_id", sortDir)}
+								</Button>
+							</TableHead>
+							<TableHead>Source</TableHead>
 							<TableHead className="text-right">
-								Created Modified
+								<Button
+									variant="ghost"
+									className="h-auto p-0 flex items-center gap-2 ml-auto"
+									onClick={() => handleSort("created_at")}
+								>
+									Created
+									{renderSortIcon(sortField, "created_at", sortDir)}
+								</Button>
 							</TableHead>
 							<TableHead className="w-16" />
 						</TableRow>
 					</TableHeader>
 					<TableBody>
-						{tickets.map((row) => (
-							<TableRow key={row.id}>
-								<TableCell>
-									<Checkbox
-										checked={selectedTickets.includes(row.id)}
-										onCheckedChange={(checked) => handleSelectTicket(row.id, checked as boolean)}
-									/>
+						{tickets.length === 0 ? (
+							<TableRow>
+								<TableCell colSpan={6} className="h-24 text-center">
+									No tickets found
 								</TableCell>
-								<TableCell className="font-medium">
-									<Link
-										to={`/tickets/${clusterId}/${row.id}`}
-										className="text-primary hover:underline"
-									>
-										{row.name}
-									</Link>
-								</TableCell>
-								<TableCell className="text-center">
-									<div className="flex justify-center">
-										<img
-											src={getSourceIcon(row.source)}
-											alt={row.source}
-											className="h-4 w-4"
+							</TableRow>
+						) : (
+							tickets.map((row) => (
+								<TableRow key={row.id}>
+									<TableCell>
+										<Checkbox
+											checked={selectedTickets.includes(row.id)}
+											onCheckedChange={(checked) =>
+												handleSelectTicket(row.id, checked as boolean)
+											}
 										/>
-									</div>
-								</TableCell>
-								<TableCell className="text-right text-sm">
-									{row.date}
-								</TableCell>
-								<TableCell>
-								<DropdownMenu>
+									</TableCell>
+									<TableCell className="font-medium">
+										<Link
+											to={`/tickets/${clusterId}/${row.id}`}
+											className="text-primary hover:underline"
+										>
+											{row.subject}
+										</Link>
+									</TableCell>
+									<TableCell>{row.external_id}</TableCell>
+									<TableCell>
+										{getTicketSource(row.source_metadata) && (
+											<img
+												src={getSourceIcon(
+													getTicketSource(row.source_metadata),
+												)}
+												alt={getTicketSource(row.source_metadata)}
+												className="h-5 w-5"
+											/>
+										)}
+									</TableCell>
+									<TableCell className="text-right text-sm">
+										{formatDate(row.created_at)}
+									</TableCell>
+									<TableCell>
+										<DropdownMenu>
 											<DropdownMenuTrigger asChild>
 												<Button variant="ghost" size="icon">
 													<MoreHorizontal />
 												</Button>
 											</DropdownMenuTrigger>
 											<DropdownMenuContent align="end">
-												<DropdownMenuItem onClick={() => reviewAI(row.id)}> 
+												<DropdownMenuItem onClick={() => reviewAI(row.id)}>
 													Review AI response
 												</DropdownMenuItem>
-										</DropdownMenuContent>
-										</DropdownMenu>		
-								</TableCell>
-							</TableRow>
-						))}
+											</DropdownMenuContent>
+										</DropdownMenu>
+									</TableCell>
+								</TableRow>
+							))
+						)}
 					</TableBody>
 				</Table>
 			</div>
 
-			{/* Table Footer */}
+			{/* Table Footer - Pagination */}
 			<div className="flex items-center justify-between py-4">
 				<p className="text-sm text-muted-foreground">
-					{knowledgeArticleCount} Knowledge articles
+					{tickets.length} tickets
 				</p>
 				<div className="flex gap-2">
-					<Button variant="outline" disabled>
-						Previous
+					<Button
+						variant="outline"
+						disabled={!cursor}
+						onClick={() => setCursor(undefined)}
+					>
+						First
 					</Button>
-					<Button variant="outline" disabled>
+					<Button
+						variant="outline"
+						disabled={!pagination?.has_more}
+						onClick={handleNextPage}
+					>
 						Next
 					</Button>
 				</div>

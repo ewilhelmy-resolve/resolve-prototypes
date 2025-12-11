@@ -147,3 +147,23 @@ npm run dev:iframe-app
 - Use the fe-enterprise-agent for all frontend development
 - Document components with proper JSDoc comments
 - never add claude as author in git commit messages
+
+## Documentation Strategy
+
+Project docs organized by topic in `docs/`:
+
+| Folder | Purpose |
+|--------|---------|
+| `core/` | System fundamentals (auth, db, messages, tech design) |
+| `architecture/` | Infrastructure (RabbitMQ, file storage, data sources) |
+| `features/<name>/` | Feature docs grouped by feature |
+| `frontend/` | Client/UI guides (stack, figma workflow) |
+| `setup/` | Environment & config (keycloak, staging, email) |
+| `archived/` | Shipped implementation plans |
+| `feat-<name>/` | Large feature clusters |
+
+**When writing docs:**
+- New features → `docs/features/<feature-name>/`
+- Implementation plans → archive after shipping to `docs/archived/`
+- Package-specific → `packages/<pkg>/docs/`
+- See `docs/README.md` for full index

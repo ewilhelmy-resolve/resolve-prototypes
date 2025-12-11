@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { ClusterDetailOverviewTab } from "./ClusterDetailOverviewTab";
 import KnowledgeTab from "./KnowledgeTab";
+import type { KBStatus } from "@/types/cluster";
 
 interface ClusterDetailSidebarProps {
 	/** Cluster ID from URL params */
@@ -12,6 +13,8 @@ interface ClusterDetailSidebarProps {
 	openTicketsCount?: number;
 	/** Number of knowledge articles (fetched from API) */
 	knowledgeCount?: number;
+	/** Knowledge base status from cluster API */
+	kbStatus?: KBStatus;
 	/** Called when auto-populate is enabled */
 	onAutoPopulateEnabled?: () => void;
 	/** Called when knowledge article is added */
@@ -41,6 +44,7 @@ export function ClusterDetailSidebar({
 	clusterName = "Cluster",
 	openTicketsCount = 0,
 	knowledgeCount = 0,
+	kbStatus,
 	onAutoPopulateEnabled,
 	onKnowledgeAdded,
 	onAutoRespondEnabled,
@@ -63,9 +67,9 @@ export function ClusterDetailSidebar({
 
 					<TabsContent value="overview" className="mt-4">
 						<ClusterDetailOverviewTab
-							clusterId={clusterId}
 							clusterName={clusterName}
 							openTicketsCount={openTicketsCount}
+							kbStatus={kbStatus}
 							onAutoPopulateEnabled={onAutoPopulateEnabled}
 							onKnowledgeAdded={onKnowledgeAdded}
 							onAutoRespondEnabled={onAutoRespondEnabled}
@@ -73,7 +77,7 @@ export function ClusterDetailSidebar({
 					</TabsContent>
 
 					<TabsContent value="knowledge" className="mt-4">
-						<KnowledgeTab />
+						<KnowledgeTab clusterId={clusterId} />
 					</TabsContent>
 				</Tabs>
 			</div>

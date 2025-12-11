@@ -1,20 +1,21 @@
-import { useState, useEffect, useRef } from "react";
-import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { ArrowLeft, Loader2 } from "lucide-react";
+import { useNavigate, useParams } from "react-router-dom";
 import RitaLayout from "@/components/layouts/RitaLayout";
+import { ClusterDetailSidebar } from "@/components/tickets/ClusterDetailSidebar";
+import { ClusterDetailTable } from "@/components/tickets/ClusterDetailTable";
+import { TicketTrendsChart } from "@/components/tickets/TicketTrendsChart";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { FeedbackBanner } from "@/components/ui/feedback-banner";
-import { ClusterDetailSidebar } from "@/components/tickets/ClusterDetailSidebar";
-import { TicketTrendsChart } from "@/components/tickets/TicketTrendsChart";
-import { ClusterDetailTable } from "@/components/tickets/ClusterDetailTable";
-import { getTicketGroup } from "@/lib/tickets/utils";
+import { useClusterDetails } from "@/hooks/useClusters";
+import { KB_STATUS_BADGE_STYLES } from "@/lib/constants";
 import type { ReviewStats } from "@/components/tickets/ReviewAIResponseSheet";
 
 export default function ClusterDetailPage() {
 	const { id } = useParams<{ id: string }>();
 	const navigate = useNavigate();
-	const ticketGroup = id ? getTicketGroup(id) : undefined;
+	const { data: cluster, isLoading, error } = useClusterDetails(id);
 	const bannerRef = useRef<HTMLDivElement>(null);
 
 	// Banner state for review completion and auto-populate
@@ -96,19 +97,65 @@ export default function ClusterDetailPage() {
 		}
 	}, [bannerKey, bannerData.visible]);
 
-	// Use ticket group data or fallback
-	const title = ticketGroup?.title ?? (id
-		? id
-				.split("-")
-				.map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-				.join(" ")
-		: "Cluster");
+	// Build display title from name + subcluster_name
+	const getDisplayTitle = () => {
+		if (!cluster) return "Cluster";
+		if (cluster.subcluster_name) {
+			return `${cluster.name} - ${cluster.subcluster_name}`;
+		}
+		return cluster.name;
+	};
+
+	const getKnowledgeStatusBadge = () => {
+		if (!cluster) return null;
+		const style = KB_STATUS_BADGE_STYLES[cluster.kb_status];
+		if (!style) return null;
+		return style;
+	};
+
+	if (isLoading) {
+		return (
+			<RitaLayout activePage="tickets">
+				<div className="flex min-h-screen items-center justify-center">
+					<Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+				</div>
+			</RitaLayout>
+		);
+	}
+
+	if (error || !cluster) {
+		return (
+			<RitaLayout activePage="tickets">
+				<div className="flex min-h-screen flex-col items-center justify-center gap-4">
+					<p className="text-destructive">Failed to load cluster details</p>
+					<Button variant="outline" onClick={handleBack}>
+						Back to tickets
+					</Button>
+				</div>
+			</RitaLayout>
+		);
+	}
+
+	const title = getDisplayTitle();
+	const knowledgeStatusBadge = getKnowledgeStatusBadge();
 
 	const badges = [
-		{ text: `${ticketGroup?.count ?? 0} tickets`, variant: "secondary" as const },
-		{ text: `${ticketGroup?.openCount ?? 0} open`, variant: "secondary" as const },
-		{ text: `${ticketGroup?.automatedPercentage ?? 0}% automated`, variant: "secondary" as const },
-		{ text: ticketGroup?.knowledgeStatus === "found" ? "Knowledge found" : "Knowledge gap", variant: "outline" as const },
+		{
+			text: `${cluster.ticket_count} tickets`,
+			variant: "secondary" as const,
+			className: "",
+		},
+		{
+			text: `${cluster.open_count} open`,
+			variant: "secondary" as const,
+			className: "",
+		},
+		{
+			text: `${cluster.kb_articles_count} KB articles`,
+			variant: "secondary" as const,
+			className: "",
+		},
+		...(knowledgeStatusBadge ? [knowledgeStatusBadge] : []),
 	];
 
 	return (
@@ -144,7 +191,11 @@ export default function ClusterDetailPage() {
 							</div>
 							<div className="flex flex-wrap gap-2">
 								{badges.map((badge, index) => (
-									<Badge key={index} variant={badge.variant}>
+									<Badge
+										key={index}
+										variant={badge.variant}
+										className={badge.className}
+									>
 										{badge.text}
 									</Badge>
 								))}
@@ -153,10 +204,13 @@ export default function ClusterDetailPage() {
 
 						{/* Ticket Trends Chart */}
 						<TicketTrendsChart />
-						 
 
 						{/* Table Section */}
-						<ClusterDetailTable clusterId={id} onReviewComplete={handleReviewComplete} />
+						<ClusterDetailTable
+							key={id}
+							clusterId={id}
+							onReviewComplete={handleReviewComplete}
+						/>
 					</div>
 				</div>
 
@@ -164,8 +218,8 @@ export default function ClusterDetailPage() {
 				<ClusterDetailSidebar
 					clusterId={id}
 					clusterName={title}
-					openTicketsCount={ticketGroup?.openCount ?? 0}
-					knowledgeCount={3}
+					knowledgeCount={cluster.kb_articles_count}
+					kbStatus={cluster.kb_status}
 					onAutoPopulateEnabled={handleAutoPopulateEnabled}
 					onKnowledgeAdded={handleKnowledgeAdded}
 					onAutoRespondEnabled={handleAutoRespondEnabled}
