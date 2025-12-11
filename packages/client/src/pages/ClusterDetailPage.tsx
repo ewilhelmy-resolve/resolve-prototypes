@@ -1,16 +1,49 @@
-import { useEffect, useRef, useState } from "react";
+import confetti from "canvas-confetti";
 import { ArrowLeft, Loader2 } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import RitaLayout from "@/components/layouts/RitaLayout";
 import { ClusterDetailSidebar } from "@/components/tickets/ClusterDetailSidebar";
 import { ClusterDetailTable } from "@/components/tickets/ClusterDetailTable";
+import type { ReviewStats } from "@/components/tickets/ReviewAIResponseSheet";
 import { TicketTrendsChart } from "@/components/tickets/TicketTrendsChart";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { FeedbackBanner } from "@/components/ui/feedback-banner";
 import { useClusterDetails } from "@/hooks/useClusters";
 import { KB_STATUS_BADGE_STYLES } from "@/lib/constants";
-import type { ReviewStats } from "@/components/tickets/ReviewAIResponseSheet";
+
+/** Fire confetti animation for success/enriched banners */
+const fireConfetti = () => {
+	const defaults = {
+		spread: 360,
+		ticks: 50,
+		gravity: 0,
+		decay: 0.94,
+		startVelocity: 30,
+		// colors: ["#FFE400", "#FFBD00"],
+	};
+
+	const shoot = () => {
+		confetti({
+			...defaults,
+			particleCount: 40,
+			scalar: 1.2,
+			shapes: ["star", "square", "circle"],
+		});
+
+		confetti({
+			...defaults,
+			particleCount: 10,
+			scalar: 0.75,
+			shapes: ["star", "square", "circle"],
+		});
+	};
+
+	setTimeout(shoot, 0);
+	setTimeout(shoot, 100);
+	setTimeout(shoot, 200);
+};
 
 export default function ClusterDetailPage() {
 	const { id } = useParams<{ id: string }>();
@@ -36,6 +69,7 @@ export default function ClusterDetailPage() {
 		const { trusted, totalReviewed, confidenceImprovement } = stats;
 
 		if (confidenceImprovement > 0) {
+			fireConfetti();
 			setBannerData((prev) => ({
 				visible: true,
 				variant: "success",
@@ -55,6 +89,7 @@ export default function ClusterDetailPage() {
 	};
 
 	const handleAutoPopulateEnabled = () => {
+		fireConfetti();
 		setBannerData((prev) => ({
 			visible: true,
 			variant: "enriched",
@@ -64,16 +99,22 @@ export default function ClusterDetailPage() {
 	};
 
 	const handleKnowledgeAdded = () => {
+		fireConfetti();
 		setBannerData((prev) => ({
 			visible: true,
 			variant: "success",
 			title: "New knowledge added!",
-			description: "You just improved your knowledge to better auto-respond to issues.",
+			description:
+				"You just improved your knowledge to better auto-respond to issues.",
 			key: prev.key + 1,
 		}));
 	};
 
-	const handleAutoRespondEnabled = (ticketGroupName: string, automatedPercentage: number) => {
+	const handleAutoRespondEnabled = (
+		ticketGroupName: string,
+		automatedPercentage: number,
+	) => {
+		fireConfetti();
 		setBannerData((prev) => ({
 			visible: true,
 			variant: "enriched",
@@ -84,7 +125,12 @@ export default function ClusterDetailPage() {
 	};
 
 	const handleDismissBanner = () => {
-		setBannerData((prev) => ({ visible: false, variant: "success", title: "", key: prev.key }));
+		setBannerData((prev) => ({
+			visible: false,
+			variant: "success",
+			title: "",
+			key: prev.key,
+		}));
 	};
 
 	// Scroll banner into view when it becomes visible or changes

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { CompletionView } from "./CompletionView";
 import { ReviewView } from "./ReviewView";
 import { AI_RESPONSE_TYPE, getTicketGroup, MOCK_AI_RESPONSE, type AIResponseType } from "@/lib/tickets/utils";
@@ -82,7 +82,6 @@ export default function ReviewAIResponseSheet({
 	const [isCompleted, setIsCompleted] = useState(false);
 	const [trustedCount, setTrustedCount] = useState(0);
 	const [rejectedCount, setRejectedCount] = useState(0);
-	const hasCalledOnComplete = useRef(false);
 
 	const currentTicket = tickets[currentIndex];
 	const ticketGroup = ticketGroupId ? getTicketGroup(ticketGroupId) : undefined;
@@ -96,26 +95,8 @@ export default function ReviewAIResponseSheet({
 			setTrustedCount(0);
 			setRejectedCount(0);
 			setShowFeedback(false);
-			hasCalledOnComplete.current = false;
 		}
 	}, [open]);
-
-	// Notify parent when review is completed (only once)
-	useEffect(() => {
-		if (isCompleted && onReviewComplete && !hasCalledOnComplete.current) {
-			hasCalledOnComplete.current = true;
-			const totalReviewed = tickets.length;
-			const confidencePercentage = totalReviewed > 0
-				? Math.round((trustedCount / totalReviewed) * 100)
-				: 0;
-			onReviewComplete({
-				totalReviewed,
-				trusted: trustedCount,
-				needsImprovement: rejectedCount,
-				confidenceImprovement: confidencePercentage,
-			});
-		}
-	}, [isCompleted, onReviewComplete, tickets.length, trustedCount, rejectedCount]);
 
 	// Don't render if no tickets or no AI response data
 	if (tickets.length === 0 || !aiResponse) {
@@ -136,6 +117,12 @@ export default function ReviewAIResponseSheet({
 		confidenceImprovement: confidencePercentage,
 	};
 
+	// Handle Enable Auto-Respond click - triggers banner with confetti
+	const handleEnableAutoRespond = (stats: ReviewStats) => {
+		onReviewComplete?.(stats);
+		onEnableAutoRespond?.(stats);
+	};
+
 	// Show completion view when all tickets reviewed
 	if (isCompleted) {
 		return (
@@ -143,7 +130,7 @@ export default function ReviewAIResponseSheet({
 				open={open}
 				onOpenChange={onOpenChange}
 				stats={reviewStats}
-				onEnableAutoRespond={onEnableAutoRespond}
+				onEnableAutoRespond={handleEnableAutoRespond}
 				onKeepReviewing={onKeepReviewing}
 			/>
 		);
