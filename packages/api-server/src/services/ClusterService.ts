@@ -5,6 +5,7 @@ import type {
   ClusterListItem,
   ClusterListQueryOptions,
   ClusterTicketsQueryOptions,
+  KbArticle,
   PaginationInfo,
   RitaStatus,
   Ticket
@@ -21,12 +22,15 @@ export class ClusterService {
     clusterId: string,
     organizationId: string
   ): Promise<ClusterDetails | null> {
-    const result = await pool.query<Cluster & { kb_articles_count: string }>(
+    const result = await pool.query<Cluster & { kb_articles_count: string; ticket_count: string; open_count: string }>(
       `SELECT
         c.*,
-        COALESCE(COUNT(kb.id), 0)::text AS kb_articles_count
+        COALESCE(COUNT(DISTINCT kb.id), 0)::text AS kb_articles_count,
+        COALESCE(COUNT(DISTINCT t.id), 0)::text AS ticket_count,
+        COALESCE(COUNT(DISTINCT t.id) FILTER (WHERE t.external_status = 'Open'), 0)::text AS open_count
       FROM clusters c
       LEFT JOIN cluster_kb_links kb ON kb.cluster_id = c.id
+      LEFT JOIN tickets t ON t.cluster_id = c.id
       WHERE c.id = $1 AND c.organization_id = $2
       GROUP BY c.id`,
       [clusterId, organizationId]
@@ -39,7 +43,9 @@ export class ClusterService {
     const row = result.rows[0];
     return {
       ...row,
-      kb_articles_count: parseInt(row.kb_articles_count, 10)
+      kb_articles_count: parseInt(row.kb_articles_count, 10),
+      ticket_count: parseInt(row.ticket_count, 10),
+      open_count: parseInt(row.open_count, 10)
     };
   }
 
@@ -113,6 +119,11 @@ export class ClusterService {
       ritaStatusFilter = 'COMPLETED';
     }
 
+    // Sorting
+    const sortField = options.sort || 'created_at';
+    const sortDir = options.sort_dir || 'desc';
+    const orderBy = `${sortField} ${sortDir.toUpperCase()}`;
+
     // Build query
     const conditions: string[] = [
       'cluster_id = $1',
@@ -126,6 +137,19 @@ export class ClusterService {
       values.push(ritaStatusFilter);
     }
 
+    // Search filter (searches subject and external_id)
+    if (options.search) {
+      conditions.push(`(subject ILIKE $${paramIndex} OR external_id ILIKE $${paramIndex})`);
+      values.push(`%${options.search}%`);
+      paramIndex++;
+    }
+
+    // Source filter (from source_metadata JSONB)
+    if (options.source) {
+      conditions.push(`source_metadata->>'source' = $${paramIndex++}`);
+      values.push(options.source);
+    }
+
     if (options.cursor) {
       conditions.push(`created_at < $${paramIndex++}`);
       values.push(new Date(options.cursor));
@@ -136,7 +160,7 @@ export class ClusterService {
     const query = `
       SELECT * FROM tickets
       WHERE ${conditions.join(' AND ')}
-      ORDER BY created_at DESC
+      ORDER BY ${orderBy}
       LIMIT $${paramIndex}
     `;
 
@@ -171,5 +195,50 @@ export class ClusterService {
       [clusterId, organizationId]
     );
     return result.rows.length > 0;
+  }
+
+  /**
+   * Get KB articles linked to a cluster
+   */
+  async getClusterKbArticles(
+    clusterId: string,
+    organizationId: string
+  ): Promise<KbArticle[]> {
+    const result = await pool.query<KbArticle>(
+      `SELECT
+        bm.id,
+        bm.filename,
+        bm.file_size,
+        bm.mime_type,
+        bm.status,
+        bm.created_at,
+        bm.updated_at
+      FROM cluster_kb_links kb
+      JOIN blob_metadata bm ON bm.id = kb.blob_metadata_id
+      WHERE kb.cluster_id = $1 AND kb.organization_id = $2
+      ORDER BY bm.created_at DESC`,
+      [clusterId, organizationId]
+    );
+
+    return result.rows;
+  }
+
+  /**
+   * Get a single ticket by ID
+   */
+  async getTicketById(
+    ticketId: string,
+    organizationId: string
+  ): Promise<Ticket | null> {
+    const result = await pool.query<Ticket>(
+      `SELECT * FROM tickets WHERE id = $1 AND organization_id = $2`,
+      [ticketId, organizationId]
+    );
+
+    if (result.rows.length === 0) {
+      return null;
+    }
+
+    return result.rows[0];
   }
 }

@@ -14,7 +14,11 @@ const listQuerySchema = z.object({
 const ticketsQuerySchema = z.object({
   tab: z.enum(['needs_response', 'completed']).optional(),
   cursor: z.string().datetime().optional(),
-  limit: z.coerce.number().int().min(1).max(100).optional()
+  limit: z.coerce.number().int().min(1).max(100).optional(),
+  search: z.string().optional(),
+  sort: z.enum(['created_at', 'external_id', 'subject']).optional(),
+  sort_dir: z.enum(['asc', 'desc']).optional(),
+  source: z.string().optional()
 });
 
 /**
@@ -105,7 +109,11 @@ router.get('/:id/tickets', async (req, res) => {
       {
         tab: query.tab,
         cursor: query.cursor,
-        limit: query.limit
+        limit: query.limit,
+        search: query.search,
+        sort: query.sort,
+        sort_dir: query.sort_dir,
+        source: query.source
       }
     );
 
@@ -123,6 +131,36 @@ router.get('/:id/tickets', async (req, res) => {
 
     console.error('[Clusters] Error fetching cluster tickets:', error);
     res.status(500).json({ error: 'Failed to fetch cluster tickets' });
+  }
+});
+
+/**
+ * GET /api/clusters/:id/kb-articles
+ * Get KB articles linked to a cluster
+ */
+router.get('/:id/kb-articles', async (req, res) => {
+  const authReq = req as AuthenticatedRequest;
+  const { id } = req.params;
+
+  try {
+    const exists = await clusterService.clusterExists(
+      id,
+      authReq.user.activeOrganizationId
+    );
+
+    if (!exists) {
+      return res.status(404).json({ error: 'Cluster not found' });
+    }
+
+    const articles = await clusterService.getClusterKbArticles(
+      id,
+      authReq.user.activeOrganizationId
+    );
+
+    res.json({ data: articles });
+  } catch (error) {
+    console.error('[Clusters] Error fetching cluster KB articles:', error);
+    res.status(500).json({ error: 'Failed to fetch cluster KB articles' });
   }
 });
 

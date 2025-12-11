@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { CompletionView } from "./CompletionView";
 import { ReviewView } from "./ReviewView";
-import { AI_RESPONSE_TYPE, getTicketGroup, type AIResponseType } from "@/lib/tickets/utils";
+import { AI_RESPONSE_TYPE, getTicketGroup, MOCK_AI_RESPONSE, type AIResponseType } from "@/lib/tickets/utils";
 
 /**
  * Ticket priority level
@@ -16,6 +16,7 @@ export type { KBArticle, AIResponseData as AIResponse } from "./AIResponseSectio
  */
 export interface ReviewTicket {
 	id: string;
+	externalId: string;
 	title: string;
 	description: string;
 	priority: TicketPriority;
@@ -81,7 +82,8 @@ export default function ReviewAIResponseSheet({
 
 	const currentTicket = tickets[currentIndex];
 	const ticketGroup = ticketGroupId ? getTicketGroup(ticketGroupId) : undefined;
-	const aiResponse = ticketGroup?.aiResponse;
+	// Use ticket group AI response or fallback to mock data (TODO: replace with real API)
+	const aiResponse = ticketGroup?.aiResponse ?? MOCK_AI_RESPONSE;
 
 	// Reset state when sheet opens
 	useEffect(() => {
@@ -93,8 +95,8 @@ export default function ReviewAIResponseSheet({
 		}
 	}, [open]);
 
-	// Don't render if no tickets or no AI response data
-	if (tickets.length === 0 || !aiResponse) {
+	// Don't render if no tickets
+	if (tickets.length === 0) {
 		return null;
 	}
 

@@ -452,4 +452,56 @@ export const memberApi = {
   },
 };
 
+// Clusters API
+export const clustersApi = {
+	// List all clusters for the organization
+	list: (params?: import('../types/cluster').ClustersQueryParams) => {
+		const searchParams = new URLSearchParams();
+		if (params?.sort) searchParams.append('sort', params.sort);
+
+		const queryString = searchParams.toString();
+		return apiRequest<import('../types/cluster').ClustersResponse>(
+			`/api/clusters${queryString ? `?${queryString}` : ''}`
+		);
+	},
+
+	// Get cluster details by ID
+	getDetails: (clusterId: string) =>
+		apiRequest<import('../types/cluster').ClusterDetailsResponse>(
+			`/api/clusters/${clusterId}/details`
+		),
+
+	// Get paginated tickets for a cluster
+	getTickets: (clusterId: string, params?: import('../types/cluster').ClusterTicketsQueryParams) => {
+		const searchParams = new URLSearchParams();
+		if (params?.tab) searchParams.append('tab', params.tab);
+		if (params?.cursor) searchParams.append('cursor', params.cursor);
+		if (params?.limit) searchParams.append('limit', params.limit.toString());
+		if (params?.search) searchParams.append('search', params.search);
+		if (params?.sort) searchParams.append('sort', params.sort);
+		if (params?.sort_dir) searchParams.append('sort_dir', params.sort_dir);
+		if (params?.source) searchParams.append('source', params.source);
+
+		const queryString = searchParams.toString();
+		return apiRequest<import('../types/cluster').ClusterTicketsResponse>(
+			`/api/clusters/${clusterId}/tickets${queryString ? `?${queryString}` : ''}`
+		);
+	},
+
+	// Get KB articles linked to a cluster
+	getKbArticles: (clusterId: string) =>
+		apiRequest<import('../types/cluster').ClusterKbArticlesResponse>(
+			`/api/clusters/${clusterId}/kb-articles`
+		),
+};
+
+// Tickets API
+export const ticketsApi = {
+	// Get a single ticket by ID
+	getById: (ticketId: string) =>
+		apiRequest<import('../types/cluster').TicketResponse>(
+			`/api/tickets/${ticketId}`
+		),
+};
+
 export { ApiError };
