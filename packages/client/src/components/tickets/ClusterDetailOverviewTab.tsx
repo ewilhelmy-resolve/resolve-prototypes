@@ -21,6 +21,12 @@ interface ClusterDetailOverviewTabProps {
 	openTicketsCount?: number;
 	/** Knowledge base status from cluster API */
 	kbStatus?: KBStatus;
+	/** Called when auto-populate is enabled */
+	onAutoPopulateEnabled?: () => void;
+	/** Called when knowledge article is added */
+	onKnowledgeAdded?: () => void;
+	/** Called when auto-respond is enabled with context */
+	onAutoRespondEnabled?: (ticketGroupName: string, automatedPercentage: number) => void;
 }
 
 /**
@@ -32,6 +38,9 @@ export function ClusterDetailOverviewTab({
 	clusterName = "Cluster",
 	openTicketsCount = 0,
 	kbStatus,
+	onAutoPopulateEnabled,
+	onKnowledgeAdded,
+	onAutoRespondEnabled,
 }: ClusterDetailOverviewTabProps) {
 	// Use mock AI response data (TODO: replace with real API)
 	const aiResponse = MOCK_AI_RESPONSE;
@@ -158,6 +167,7 @@ export function ClusterDetailOverviewTab({
 					ticketGroupName={clusterName}
 					openTicketsCount={openTicketsCount}
 					aiResponse={aiResponse}
+					onAutoRespondEnabled={onAutoRespondEnabled}
 				/>
 			)}
 
@@ -166,12 +176,14 @@ export function ClusterDetailOverviewTab({
 				open={createKnowledgeSheetOpen}
 				onOpenChange={setCreateKnowledgeSheetOpen}
 				ticketGroupName={clusterName}
+				onKnowledgeAdded={onKnowledgeAdded}
 			/>
 
 			{/* Enable Auto-Populate Sheet */}
 			<EnableAutoPopulateSheet
 				open={autoPopulateSheetOpen}
 				onOpenChange={setAutoPopulateSheetOpen}
+				onEnable={onAutoPopulateEnabled}
 			/>
 		</div>
 	);

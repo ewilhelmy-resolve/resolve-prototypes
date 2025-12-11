@@ -1,22 +1,148 @@
+import confetti from "canvas-confetti";
 import { ArrowLeft, Loader2 } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import RitaLayout from "@/components/layouts/RitaLayout";
 import { ClusterDetailSidebar } from "@/components/tickets/ClusterDetailSidebar";
 import { ClusterDetailTable } from "@/components/tickets/ClusterDetailTable";
+import type { ReviewStats } from "@/components/tickets/ReviewAIResponseSheet";
 import { TicketTrendsChart } from "@/components/tickets/TicketTrendsChart";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { FeedbackBanner } from "@/components/ui/feedback-banner";
 import { useClusterDetails } from "@/hooks/useClusters";
 import { KB_STATUS_BADGE_STYLES } from "@/lib/constants";
+
+/** Fire confetti animation for success/enriched banners */
+const fireConfetti = () => {
+	const defaults = {
+		spread: 360,
+		ticks: 100,
+		gravity: 0.3,
+		decay: 0.96,
+		startVelocity: 30,
+	};
+
+	const shoot = () => {
+		confetti({
+			...defaults,
+			particleCount: 40,
+			scalar: 1.2,
+			shapes: ["star", "square", "circle"],
+		});
+
+		confetti({
+			...defaults,
+			particleCount: 10,
+			scalar: 0.75,
+			shapes: ["star", "square", "circle"],
+		});
+	};
+
+	setTimeout(shoot, 0);
+	setTimeout(shoot, 100);
+	setTimeout(shoot, 200);
+	setTimeout(shoot, 400);
+	setTimeout(shoot, 600);
+};
 
 export default function ClusterDetailPage() {
 	const { id } = useParams<{ id: string }>();
 	const navigate = useNavigate();
 	const { data: cluster, isLoading, error } = useClusterDetails(id);
+	const bannerRef = useRef<HTMLDivElement>(null);
+
+	// Banner state for review completion and auto-populate
+	// key increments on each new banner to trigger scroll even when already visible
+	const [bannerData, setBannerData] = useState<{
+		visible: boolean;
+		variant: "success" | "destructive" | "enriched";
+		title: string;
+		description?: string;
+		key: number;
+	}>({ visible: false, variant: "success", title: "", key: 0 });
 
 	const handleBack = () => {
 		navigate("/tickets");
 	};
+
+	const handleReviewComplete = (stats: ReviewStats) => {
+		const { trusted, totalReviewed, confidenceImprovement } = stats;
+
+		if (confidenceImprovement > 0) {
+			fireConfetti();
+			setBannerData((prev) => ({
+				visible: true,
+				variant: "success",
+				title: `Great job! You reviewed ${totalReviewed} responses.`,
+				description: `${trusted} trusted (${confidenceImprovement}% confidence)`,
+				key: prev.key + 1,
+			}));
+		} else {
+			setBannerData((prev) => ({
+				visible: true,
+				variant: "destructive",
+				title: "Review completed with areas for improvement",
+				description: `${totalReviewed} responses reviewed. Consider refining AI training data.`,
+				key: prev.key + 1,
+			}));
+		}
+	};
+
+	const handleAutoPopulateEnabled = () => {
+		fireConfetti();
+		setBannerData((prev) => ({
+			visible: true,
+			variant: "enriched",
+			title: "You just enriched tickets for this group!",
+			key: prev.key + 1,
+		}));
+	};
+
+	const handleKnowledgeAdded = () => {
+		fireConfetti();
+		setBannerData((prev) => ({
+			visible: true,
+			variant: "success",
+			title: "New knowledge added!",
+			description:
+				"You just improved your knowledge to better auto-respond to issues.",
+			key: prev.key + 1,
+		}));
+	};
+
+	const handleAutoRespondEnabled = (
+		ticketGroupName: string,
+		automatedPercentage: number,
+	) => {
+		fireConfetti();
+		setBannerData((prev) => ({
+			visible: true,
+			variant: "enriched",
+			title: `You just automated ${automatedPercentage}% of your work!`,
+			description: `Auto-respond is set to respond to all future tickets in "${ticketGroupName}"`,
+			key: prev.key + 1,
+		}));
+	};
+
+	const handleDismissBanner = () => {
+		setBannerData((prev) => ({
+			visible: false,
+			variant: "success",
+			title: "",
+			key: prev.key,
+		}));
+	};
+
+	// Scroll banner into view when it becomes visible or changes
+	// bannerData.key changes trigger re-scroll even if visible stays true
+	const bannerKey = bannerData.key;
+	useEffect(() => {
+		void bannerKey; // Reference key to trigger effect on banner changes
+		if (bannerData.visible && bannerRef.current) {
+			bannerRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+		}
+	}, [bannerKey, bannerData.visible]);
 
 	// Build display title from name + subcluster_name
 	const getDisplayTitle = () => {
@@ -81,6 +207,18 @@ export default function ClusterDetailPage() {
 
 	return (
 		<RitaLayout activePage="tickets">
+			{/* Feedback Banner */}
+			{bannerData.visible && (
+				<div ref={bannerRef}>
+					<FeedbackBanner
+						variant={bannerData.variant}
+						title={bannerData.title}
+						description={bannerData.description}
+						onDismiss={handleDismissBanner}
+					/>
+				</div>
+			)}
+
 			<div className="flex min-h-screen flex-col lg:flex-row">
 				{/* Main Content */}
 				<div className="flex-1 p-4">
@@ -115,7 +253,11 @@ export default function ClusterDetailPage() {
 						<TicketTrendsChart />
 
 						{/* Table Section */}
-						<ClusterDetailTable key={id} clusterId={id} />
+						<ClusterDetailTable
+							key={id}
+							clusterId={id}
+							onReviewComplete={handleReviewComplete}
+						/>
 					</div>
 				</div>
 
@@ -125,6 +267,9 @@ export default function ClusterDetailPage() {
 					clusterName={title}
 					knowledgeCount={cluster.kb_articles_count}
 					kbStatus={cluster.kb_status}
+					onAutoPopulateEnabled={handleAutoPopulateEnabled}
+					onKnowledgeAdded={handleKnowledgeAdded}
+					onAutoRespondEnabled={handleAutoRespondEnabled}
 				/>
 			</div>
 		</RitaLayout>

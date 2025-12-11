@@ -32,11 +32,14 @@ import type {
 } from "@/types/cluster";
 import ReviewAIResponseSheet, {
 	type ReviewTicket,
+	type ReviewStats,
 } from "./ReviewAIResponseSheet";
 
 interface ClusterDetailTableProps {
 	/** Cluster ID for fetching tickets */
 	clusterId?: string;
+	/** Called when AI review is completed with stats */
+	onReviewComplete?: (stats: ReviewStats) => void;
 }
 
 // Format date for display
@@ -64,7 +67,10 @@ const getSourceIcon = (source: string): string => {
 /**
  * ClusterDetailTable - Table displaying tickets with filters and pagination
  */
-export function ClusterDetailTable({ clusterId }: ClusterDetailTableProps) {
+export function ClusterDetailTable({
+	clusterId,
+	onReviewComplete,
+}: ClusterDetailTableProps) {
 	const [activeTab, setActiveTab] = useState<"needs_response" | "completed">(
 		"needs_response",
 	);
@@ -434,6 +440,7 @@ export function ClusterDetailTable({ clusterId }: ClusterDetailTableProps) {
 				onNavigate={handleNavigate}
 				onApprove={handleApprove}
 				onReject={handleReject}
+				onReviewComplete={onReviewComplete}
 			/>
 		</div>
 	);

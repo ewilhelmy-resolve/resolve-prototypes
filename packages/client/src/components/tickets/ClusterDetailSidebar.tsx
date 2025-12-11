@@ -15,6 +15,12 @@ interface ClusterDetailSidebarProps {
 	knowledgeCount?: number;
 	/** Knowledge base status from cluster API */
 	kbStatus?: KBStatus;
+	/** Called when auto-populate is enabled */
+	onAutoPopulateEnabled?: () => void;
+	/** Called when knowledge article is added */
+	onKnowledgeAdded?: () => void;
+	/** Called when auto-respond is enabled with context */
+	onAutoRespondEnabled?: (ticketGroupName: string, automatedPercentage: number) => void;
 }
 
 /**
@@ -39,6 +45,9 @@ export function ClusterDetailSidebar({
 	openTicketsCount = 0,
 	knowledgeCount = 0,
 	kbStatus,
+	onAutoPopulateEnabled,
+	onKnowledgeAdded,
+	onAutoRespondEnabled,
 }: ClusterDetailSidebarProps) {
 	const [activeTab, setActiveTab] = useState("overview");
 
@@ -61,6 +70,9 @@ export function ClusterDetailSidebar({
 							clusterName={clusterName}
 							openTicketsCount={openTicketsCount}
 							kbStatus={kbStatus}
+							onAutoPopulateEnabled={onAutoPopulateEnabled}
+							onKnowledgeAdded={onKnowledgeAdded}
+							onAutoRespondEnabled={onAutoRespondEnabled}
 						/>
 					</TabsContent>
 
