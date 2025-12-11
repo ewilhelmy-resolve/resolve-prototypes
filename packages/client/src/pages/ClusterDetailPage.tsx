@@ -17,11 +17,10 @@ import { KB_STATUS_BADGE_STYLES } from "@/lib/constants";
 const fireConfetti = () => {
 	const defaults = {
 		spread: 360,
-		ticks: 50,
-		gravity: 0,
-		decay: 0.94,
+		ticks: 100,
+		gravity: 0.3,
+		decay: 0.96,
 		startVelocity: 30,
-		// colors: ["#FFE400", "#FFBD00"],
 	};
 
 	const shoot = () => {
@@ -43,6 +42,8 @@ const fireConfetti = () => {
 	setTimeout(shoot, 0);
 	setTimeout(shoot, 100);
 	setTimeout(shoot, 200);
+	setTimeout(shoot, 400);
+	setTimeout(shoot, 600);
 };
 
 export default function ClusterDetailPage() {
