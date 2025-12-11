@@ -258,6 +258,8 @@ jobs:
 
                frontend:
                  image: rita-frontend:staging
+                 environment:
+                   VALKEY_URL: ${{ secrets.VALKEY_URL_STAGING }}
                  ports:
                    - "80:80"
                  depends_on:
