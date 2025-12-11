@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { ClusterDetailOverviewTab } from "./ClusterDetailOverviewTab";
 import KnowledgeTab from "./KnowledgeTab";
+import type { KBStatus } from "@/types/cluster";
 
 interface ClusterDetailSidebarProps {
 	/** Cluster ID from URL params */
@@ -12,6 +13,8 @@ interface ClusterDetailSidebarProps {
 	openTicketsCount?: number;
 	/** Number of knowledge articles (fetched from API) */
 	knowledgeCount?: number;
+	/** Knowledge base status from cluster API */
+	kbStatus?: KBStatus;
 }
 
 /**
@@ -35,6 +38,7 @@ export function ClusterDetailSidebar({
 	clusterName = "Cluster",
 	openTicketsCount = 0,
 	knowledgeCount = 0,
+	kbStatus,
 }: ClusterDetailSidebarProps) {
 	const [activeTab, setActiveTab] = useState("overview");
 
@@ -54,14 +58,14 @@ export function ClusterDetailSidebar({
 
 					<TabsContent value="overview" className="mt-4">
 						<ClusterDetailOverviewTab
-							clusterId={clusterId}
 							clusterName={clusterName}
 							openTicketsCount={openTicketsCount}
+							kbStatus={kbStatus}
 						/>
 					</TabsContent>
 
 					<TabsContent value="knowledge" className="mt-4">
-						<KnowledgeTab />
+						<KnowledgeTab clusterId={clusterId} />
 					</TabsContent>
 				</Tabs>
 			</div>

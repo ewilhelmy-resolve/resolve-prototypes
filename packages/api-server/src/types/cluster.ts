@@ -38,10 +38,12 @@ export interface Cluster {
 }
 
 /**
- * Cluster details response with KB articles count
+ * Cluster details response with counts
  */
 export interface ClusterDetails extends Cluster {
   kb_articles_count: number;
+  ticket_count: number;
+  open_count: number;
 }
 
 /**
@@ -98,12 +100,26 @@ export interface PaginationInfo {
 }
 
 /**
+ * Sort options for cluster tickets
+ */
+export type TicketSortOption = 'created_at' | 'external_id' | 'subject';
+
+/**
+ * Sort direction
+ */
+export type SortDirection = 'asc' | 'desc';
+
+/**
  * Query options for cluster tickets
  */
 export interface ClusterTicketsQueryOptions {
   tab?: 'needs_response' | 'completed';
   cursor?: string;
   limit?: number;
+  search?: string;
+  sort?: TicketSortOption;
+  sort_dir?: SortDirection;
+  source?: string;
 }
 
 /**
@@ -119,4 +135,24 @@ export interface ClusterDetailsResponse {
 export interface ClusterTicketsResponse {
   data: Ticket[];
   pagination: PaginationInfo;
+}
+
+/**
+ * KB article from blob_metadata
+ */
+export interface KbArticle {
+  id: string;
+  filename: string;
+  file_size: number;
+  mime_type: string;
+  status: string;
+  created_at: Date;
+  updated_at: Date;
+}
+
+/**
+ * Response for GET /api/clusters/:id/kb-articles
+ */
+export interface ClusterKbArticlesResponse {
+  data: KbArticle[];
 }
