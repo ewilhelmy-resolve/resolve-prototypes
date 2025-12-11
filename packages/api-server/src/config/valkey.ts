@@ -11,7 +11,10 @@ let valkeyClient: Redis | null = null;
 
 export function getValkeyClient(): Redis {
   if (!valkeyClient) {
-    const url = process.env.VALKEY_URL || process.env.REDIS_URL || 'redis://localhost:6379';
+    const url = process.env.VALKEY_URL || process.env.REDIS_URL;
+    if (!url) {
+      throw new Error('VALKEY_URL or REDIS_URL must be set');
+    }
 
     valkeyClient = new Redis(url, {
       maxRetriesPerRequest: 3,
