@@ -1,0 +1,21 @@
+{
+  "name": "keycloak-rita-theme",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Custom Keycloak theme for Rita application using Tailwind CSS",
+  "scripts": {
+    "dev": "npx @tailwindcss/cli -i ./themes/rita-theme-v2/login/input.css -o ./themes/rita-theme-v2/login/resources/css/styles.css --watch",
+    "build": "npx @tailwindcss/cli -i ./themes/rita-theme-v2/login/input.css -o ./themes/rita-theme-v2/login/resources/css/styles.css --minify"
+  },
+  "keywords": [
+    "keycloak",
+    "theme",
+    "tailwind"
+  ],
+  "author": "andres",
+  "license": "ISC",
+  "devDependencies": {
+    "@tailwindcss/cli": "4.1.15",
+    "tailwindcss": "4.1.15"
+  }
+}

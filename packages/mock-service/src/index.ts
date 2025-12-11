@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { resolve } from 'node:path';
-import { type Channel, type ChannelModel, connect } from 'amqplib';
+import { type Channel, type Connection, connect } from 'amqplib';
 import axios from 'axios';
 import cors from 'cors';
 import { config } from 'dotenv';
@@ -16,6 +16,7 @@ import {
   rabbitLogger,
   webhookLogger
 } from './config/logger.js';
+import { emailService } from './email-service.js';
 
 
 // Load environment from root .env file
@@ -84,6 +85,14 @@ interface DocumentWebhookPayload extends BaseWebhookPayload {
   original_filename: string;
 }
 
+// Document deletion webhook payload for rita-documents
+interface DocumentDeletePayload extends BaseWebhookPayload {
+  source: 'rita-documents';
+  action: 'document_deleted';
+  blob_metadata_id: string; // blob_metadata.id
+  blob_id: string; // blobs.blob_id
+}
+
 // Signup webhook payload for rita-signup
 interface SignupWebhookPayload extends BaseWebhookPayload {
   source: 'rita-signup';
@@ -123,6 +132,15 @@ interface AcceptInvitationWebhookPayload extends BaseWebhookPayload {
   email_verified: boolean;
 }
 
+// Member management webhook payloads for rita-member-management
+interface DeleteKeycloakUserPayload extends BaseWebhookPayload {
+  source: 'rita-member-management';
+  action: 'delete_keycloak_user';
+  delete_tenant?: boolean; // If true, external service should delete entire organization data
+  additional_emails?: string[]; // Additional member emails to delete from Keycloak
+  reason?: string;
+}
+
 // Data source webhook payloads for rita-data-sources
 interface DataSourceVerifyPayload extends BaseWebhookPayload {
   source: 'rita-chat';
@@ -141,8 +159,22 @@ interface DataSourceSyncPayload extends BaseWebhookPayload {
   settings: Record<string, any>;
 }
 
+// ITSM ticket sync webhook payload (Autopilot)
+interface SyncTicketsWebhookPayload extends BaseWebhookPayload {
+  source: 'rita-chat';
+  action: 'sync_tickets';
+  connection_id: string;
+  connection_type: string;
+  ingestion_run_id: string;
+  settings: {
+    instanceUrl?: string;
+    time_range_days?: number;
+    itsm_tables?: string[];
+  };
+}
+
 // Union type for all webhook payloads
-type WebhookPayload = MessageWebhookPayload | DocumentWebhookPayload | SignupWebhookPayload | SendInvitationWebhookPayload | AcceptInvitationWebhookPayload | DataSourceVerifyPayload | DataSourceSyncPayload | BaseWebhookPayload;
+type WebhookPayload = MessageWebhookPayload | DocumentWebhookPayload | DocumentDeletePayload | SignupWebhookPayload | SendInvitationWebhookPayload | AcceptInvitationWebhookPayload | DeleteKeycloakUserPayload | DataSourceVerifyPayload | DataSourceSyncPayload | SyncTicketsWebhookPayload | BaseWebhookPayload;
 
 interface MockResponse {
   message_id: string;
@@ -160,8 +192,11 @@ interface MessagePart {
 }
 
 // RabbitMQ connection
-let rabbitConnection: ChannelModel | null = null;
+let rabbitConnection: Connection | null = null;
 let rabbitChannel: Channel | null = null;
+
+// Track cancelled sync operations to prevent sending sync_completed
+const cancelledSyncConnections = new Set<string>();
 
 async function connectRabbitMQ(): Promise<void> {
   const timer = new PerformanceTimer(rabbitLogger, 'connect-rabbitmq');
@@ -351,6 +386,70 @@ async function createKeycloakUser(signupData: SignupWebhookPayload): Promise<str
   }
 }
 
+async function deleteKeycloakUser(email: string, userId?: string): Promise<void> {
+  const timer = new PerformanceTimer(webhookLogger, 'delete-keycloak-user');
+  const contextLogger = createContextLogger(webhookLogger, generateCorrelationId(), {
+    email,
+    userId
+  });
+
+  try {
+    const adminToken = await getKeycloakAdminToken();
+
+    // If userId not provided, find user by email
+    let keycloakUserId = userId;
+    if (!keycloakUserId) {
+      const usersResponse = await axios.get(
+        `${MOCK_CONFIG.keycloak.baseUrl}/admin/realms/${MOCK_CONFIG.keycloak.realm}/users`,
+        {
+          params: { email, exact: true },
+          headers: {
+            'Authorization': `Bearer ${adminToken}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+
+      if (usersResponse.data.length === 0) {
+        throw new Error(`User not found in Keycloak: ${email}`);
+      }
+
+      keycloakUserId = usersResponse.data[0].id;
+    }
+
+    // Delete user from Keycloak
+    await axios.delete(
+      `${MOCK_CONFIG.keycloak.baseUrl}/admin/realms/${MOCK_CONFIG.keycloak.realm}/users/${keycloakUserId}`,
+      {
+        headers: {
+          'Authorization': `Bearer ${adminToken}`,
+          'Content-Type': 'application/json'
+        }
+      }
+    );
+
+    timer.end({
+      email,
+      keycloakUserId,
+      success: true
+    });
+
+    contextLogger.info({
+      keycloakUserId,
+      keycloakRealm: MOCK_CONFIG.keycloak.realm
+    }, 'Keycloak user deleted successfully');
+
+  } catch (error) {
+    timer.end({ success: false });
+    logError(contextLogger, error as Error, {
+      operation: 'delete-keycloak-user',
+      keycloakRealm: MOCK_CONFIG.keycloak.realm,
+      email
+    });
+    throw error;
+  }
+}
+
 function generateMockResponse(payload: WebhookPayload, scenario?: string): MockResponse[] | null {
   // Only generate responses for rita-chat messages, not document processing
   if (payload.source !== 'rita-chat') {
@@ -407,6 +506,67 @@ I've analyzed your **"${messagePayload.customer_message}"** request with reasoni
 - **Step 3**: Testing the combination works correctly
 
 This tests the reasoning → text flow in the UI.`
+    });
+  } else if (content.toLowerCase().includes('test citations') || content.toLowerCase().includes('show citations')) {
+    // Test citations with blob_id (for testing the new citation feature)
+    parts.push({
+      type: 'text',
+      text: `## Citation Test with Document References
+
+This response demonstrates the citation feature with real document references using blob_id.
+
+### Features Being Tested:
+- **Document Title Fetching**: Citations automatically fetch document titles from blob_id via API
+- **Collapsible Dropdown**: Click "Used 3 sources" to expand and see all citations
+- **Modal Display**: Click any citation to view the full document in a modal
+- **Real API Integration**: Uses the actual file API endpoints for metadata and content
+
+### How It Works:
+The Rita system provides enterprise-grade workflow automation with SOC2 Type II compliance. Security hardening features include authentication, encryption, and audit logging across all components. Real-time monitoring capabilities enable comprehensive observability with alerting and metrics collection.
+
+### Test Instructions:
+1. Look below for the "Used 3 sources" collapsible dropdown
+2. Click to expand and see the list of documents (titles fetched automatically)
+3. Click any document name to open a modal with the full content
+4. Notice the document titles are fetched automatically from blob_id (not UUIDs!)
+
+*All citations reference real documents stored in the blob storage system.*`
+    });
+    parts.push({
+      type: 'sources',
+      sources: [
+        {
+          title: 'Rita Automation Implementation Guide',
+          url: '#'
+        },
+        {
+          title: 'Production Security Hardening Guide',
+          url: '#'
+        },
+        {
+          title: 'Production Monitoring and Observability',
+          url: '#'
+        }
+      ]
+    });
+  } else if (content.toLowerCase().includes('test single source') || content.toLowerCase().includes('one source')) {
+    // Test single source (for testing singular "Used 1 source" display)
+    parts.push({
+      type: 'text',
+      text: `## Single Source Test
+
+This response tests the singular form: **"Used 1 source"** instead of "sources".
+
+The information provided is based on a single document reference. This ensures proper grammar in the UI when only one source is cited.`
+    });
+    parts.push({
+      type: 'sources',
+      sources: [
+        {
+          title: 'Rita Automation Implementation Guide',
+          url: '#'
+        }
+      ]
     });
   } else if (content.startsWith('test3')) {
     // test3: Text + sources
@@ -1225,6 +1385,100 @@ app.get('/health', (_req, res) => {
   });
 });
 
+// Mock metadata endpoint (mimics api-server /api/files/:documentId/metadata)
+app.get('/api/files/:documentId/metadata', (req, res) => {
+  const correlationId = generateCorrelationId();
+  const contextLogger = createContextLogger(logger, correlationId, {
+    documentId: req.params.documentId
+  });
+
+  const { documentId } = req.params;
+
+  contextLogger.info({}, 'Document metadata requested');
+
+  // For testing, treat documentId as blob_id
+  if (!blobExists(documentId)) {
+    contextLogger.warn({}, 'Document not found');
+    return res.status(404).json({
+      error: 'Document not found'
+    });
+  }
+
+  const blobContent = getBlobContent(documentId);
+
+  if (!blobContent) {
+    contextLogger.error({}, 'Document exists but metadata retrieval failed');
+    return res.status(500).json({
+      error: 'Failed to retrieve document metadata'
+    });
+  }
+
+  // Return metadata with content for citations
+  const metadata = {
+    id: documentId,
+    filename: blobContent.metadata?.title || 'Document',
+    file_size: blobContent.content.length,
+    mime_type: blobContent.content_type === 'markdown' ? 'text/markdown' : 'text/plain',
+    created_at: blobContent.metadata?.created_at || new Date().toISOString(),
+    updated_at: blobContent.metadata?.updated_at || new Date().toISOString(),
+    metadata: {
+      content: blobContent.content
+    }
+  };
+
+  contextLogger.info({
+    filename: metadata.filename,
+    fileSize: metadata.file_size
+  }, 'Document metadata retrieved successfully');
+
+  res.json(metadata);
+});
+
+// Mock download endpoint (mimics api-server /api/files/:documentId/download)
+app.get('/api/files/:documentId/download', (req, res) => {
+  const correlationId = generateCorrelationId();
+  const contextLogger = createContextLogger(logger, correlationId, {
+    documentId: req.params.documentId
+  });
+
+  const { documentId } = req.params;
+
+  contextLogger.info({}, 'Document download requested');
+
+  // For testing, treat documentId as blob_id
+  if (!blobExists(documentId)) {
+    contextLogger.warn({}, 'Document not found');
+    return res.status(404).json({
+      error: 'Document not found'
+    });
+  }
+
+  const blobContent = getBlobContent(documentId);
+
+  if (!blobContent) {
+    contextLogger.error({}, 'Document exists but download failed');
+    return res.status(500).json({
+      error: 'Failed to download document'
+    });
+  }
+
+  // Set headers for file download
+  const filename = blobContent.metadata?.title || 'document.md';
+  const mimeType = blobContent.content_type === 'markdown' ? 'text/markdown' : 'text/plain';
+
+  res.setHeader('Content-Type', mimeType);
+  res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+  res.setHeader('Content-Length', blobContent.content.length);
+
+  contextLogger.info({
+    filename,
+    contentLength: blobContent.content.length
+  }, 'Document downloaded successfully');
+
+  // Send the content as text
+  res.send(blobContent.content);
+});
+
 // Blob content endpoint
 app.get('/blobs/:blob_id', (req, res) => {
   const correlationId = generateCorrelationId();
@@ -1285,16 +1539,29 @@ app.post('/webhook', async (req, res) => {
   try {
     const payload: WebhookPayload = req.body;
 
-    // Basic validation - all webhooks must have source, action, and tenant_id
-    if (!payload.source || !payload.action || !payload.tenant_id) {
+    // Basic validation - all webhooks must have source and action
+    // tenant_id is required for most webhooks EXCEPT password reset (public/unauthenticated flow)
+    if (!payload.source || !payload.action) {
       const errorLogger = createContextLogger(webhookLogger, correlationId);
       errorLogger.warn({
         hasSource: !!payload.source,
-        hasAction: !!payload.action,
-        hasTenantId: !!payload.tenant_id
+        hasAction: !!payload.action
       }, 'Webhook validation failed - missing basic required fields');
       return res.status(400).json({
-        error: 'Missing required fields: source, action, tenant_id'
+        error: 'Missing required fields: source, action'
+      });
+    }
+
+    // Require tenant_id for all webhooks
+    if (!payload.tenant_id) {
+      const errorLogger = createContextLogger(webhookLogger, correlationId);
+      errorLogger.warn({
+        source: payload.source,
+        action: payload.action,
+        hasTenantId: !!payload.tenant_id
+      }, 'Webhook validation failed - missing tenant_id');
+      return res.status(400).json({
+        error: 'Missing required field: tenant_id'
       });
     }
 
@@ -1372,6 +1639,50 @@ app.post('/webhook', async (req, res) => {
         });
       }
 
+    } else if (payload.source === 'rita-documents' && payload.action === 'document_deleted') {
+      const deletePayload = payload as DocumentDeletePayload;
+
+      const contextLogger = createContextLogger(webhookLogger, correlationId, {
+        blobMetadataId: deletePayload.blob_metadata_id,
+        blobId: deletePayload.blob_id,
+        tenantId: deletePayload.tenant_id,
+        userId: deletePayload.user_id
+      });
+
+      contextLogger.info({
+        source: deletePayload.source,
+        action: deletePayload.action,
+        user_email: deletePayload.user_email,
+        blob_metadata_id: deletePayload.blob_metadata_id,
+        blob_id: deletePayload.blob_id
+      }, '🗑️  Document deletion webhook received');
+
+      // Validate deletion-specific required fields
+      if (!deletePayload.blob_metadata_id || !deletePayload.blob_id) {
+        contextLogger.warn({
+          hasBlobMetadataId: !!deletePayload.blob_metadata_id,
+          hasBlobId: !!deletePayload.blob_id
+        }, 'Document deletion webhook validation failed - missing required fields');
+        return res.status(400).json({
+          error: 'Missing required fields for document deletion webhook: blob_metadata_id, blob_id'
+        });
+      }
+
+      // Log deletion event prominently
+      console.log(`\n${'═'.repeat(100)}`);
+      console.log('🗑️  DOCUMENT DELETION WEBHOOK RECEIVED');
+      console.log('═'.repeat(100));
+      console.log(JSON.stringify(deletePayload, null, 2));
+      console.log(`${'═'.repeat(100)}\n`);
+
+      // Acknowledge successful receipt (Barista would perform vector database cleanup here)
+      return res.status(200).json({
+        message: 'Document deletion webhook received',
+        blob_metadata_id: deletePayload.blob_metadata_id,
+        blob_id: deletePayload.blob_id,
+        status: 'acknowledged'
+      });
+
     } else if (payload.source === 'rita-signup' && payload.action === 'user_signup') {
       const signupPayload = payload as SignupWebhookPayload;
 
@@ -1425,30 +1736,36 @@ app.post('/webhook', async (req, res) => {
         invitation_count: invitationPayload.invitations.length
       }, 'Received send_invitation webhook');
 
-      // Log mock invitation emails prominently for testing
-      console.log(`\n${'='.repeat(80)}`);
-      console.log('📧 MOCK INVITATION EMAILS');
-      console.log('='.repeat(80));
-      console.log(`Organization: ${invitationPayload.organization_name}`);
-      console.log(`Invited by: ${invitationPayload.invited_by_name} (${invitationPayload.invited_by_email})`);
-      console.log(`Total invitations: ${invitationPayload.invitations.length}`);
-      console.log('');
+      // Send invitation emails via Mailpit
+      try {
+        for (const invitation of invitationPayload.invitations) {
+          await emailService.sendInvitation(
+            invitation.invitee_email,
+            invitationPayload.invited_by_name,
+            invitationPayload.organization_name,
+            invitation.invitation_url,
+            invitation.expires_at
+          );
+        }
 
-      for (const invitation of invitationPayload.invitations) {
-        console.log(`To: ${invitation.invitee_email}`);
-        console.log(`Invitation URL: ${invitation.invitation_url}`);
-        console.log(`Expires: ${new Date(invitation.expires_at).toLocaleString()}`);
-        console.log('');
+        contextLogger.info({
+          invitation_count: invitationPayload.invitations.length
+        }, '📧 Invitation emails sent successfully via Mailpit');
+
+        return res.status(200).json({
+          success: true,
+          message: 'Invitation emails sent successfully',
+          invitations_sent: invitationPayload.invitations.length
+        });
+      } catch (error) {
+        logError(contextLogger, error as Error, { operation: 'send-invitations' });
+
+        return res.status(500).json({
+          success: false,
+          message: 'Failed to send invitation emails',
+          error: error instanceof Error ? error.message : 'Unknown error'
+        });
       }
-
-      console.log('(In production, these would be sent via email service)');
-      console.log(`${'='.repeat(80)}\n`);
-
-      return res.status(200).json({
-        success: true,
-        message: 'Invitation emails logged successfully',
-        invitations_sent: invitationPayload.invitations.length
-      });
 
     } else if (payload.source === 'rita-chat' && payload.action === 'accept_invitation') {
       const acceptPayload = payload as AcceptInvitationWebhookPayload;
@@ -1521,6 +1838,101 @@ app.post('/webhook', async (req, res) => {
         });
       }
 
+    } else if (payload.source === 'rita-member-management' && payload.action === 'delete_keycloak_user') {
+      const deletePayload = payload as DeleteKeycloakUserPayload;
+      const contextLogger = createContextLogger(webhookLogger, correlationId, {
+        email: deletePayload.user_email,
+        userId: deletePayload.user_id,
+        tenantId: deletePayload.tenant_id
+      });
+
+      contextLogger.info({
+        source: deletePayload.source,
+        action: deletePayload.action,
+        user_email: deletePayload.user_email,
+        user_id: deletePayload.user_id,
+        reason: deletePayload.reason
+      }, 'Received delete Keycloak user webhook');
+
+      try {
+        // Delete primary user from Keycloak
+        // NOTE: Only pass email - let deleteKeycloakUser search Keycloak by email
+        // deletePayload.user_id is Rita's database user_id, not Keycloak's user ID
+        await deleteKeycloakUser(deletePayload.user_email!);
+
+        // Delete additional users if provided (for organization deletion)
+        const additionalEmails = deletePayload.additional_emails || [];
+        let additionalUsersDeleted = 0;
+
+        if (additionalEmails.length > 0) {
+          for (const email of additionalEmails) {
+            try {
+              await deleteKeycloakUser(email);
+              additionalUsersDeleted++;
+              contextLogger.info({ email }, 'Additional user deleted from Keycloak');
+            } catch (error) {
+              contextLogger.error({ email, error }, 'Failed to delete additional user from Keycloak');
+              // Continue deleting other users even if one fails
+            }
+          }
+        }
+
+        const totalUsersDeleted = 1 + additionalUsersDeleted;
+
+        contextLogger.info({
+          email: deletePayload.user_email,
+          user_id: deletePayload.user_id,
+          tenant_id: deletePayload.tenant_id,
+          totalUsersDeleted,
+          reason: deletePayload.reason
+        }, '🗑️  KEYCLOAK USER(S) DELETED: User(s) removed from identity provider');
+
+        console.log(`\n${'='.repeat(80)}`);
+        console.log('🗑️  KEYCLOAK USER(S) DELETED');
+        console.log('='.repeat(80));
+        console.log(`Primary Email: ${deletePayload.user_email}`);
+        console.log(`User ID: ${deletePayload.user_id || 'N/A'}`);
+        console.log(`Tenant ID: ${deletePayload.tenant_id}`);
+        console.log(`Total Users Deleted: ${totalUsersDeleted} (Primary + ${additionalUsersDeleted} additional)`);
+        console.log(`Delete Organization: ${deletePayload.delete_tenant ? '✅ YES (clean ALL organization data)' : '❌ NO (user-only cleanup)'}`);
+        console.log(`Reason: ${deletePayload.reason || 'Not specified'}`);
+        console.log('');
+        if (additionalEmails.length > 0) {
+          console.log(`Additional users deleted from Keycloak:`);
+          additionalEmails.forEach((email, idx) => {
+            console.log(`  ${idx + 1}. ${email}`);
+          });
+          console.log('');
+        }
+        console.log('User(s) have been successfully removed from Keycloak!');
+        if (deletePayload.delete_tenant) {
+          console.log('⚠️  ORGANIZATION DELETION: External service should delete ALL files for tenant_id.');
+        } else {
+          console.log('External service can now proceed with user-specific file cleanup using tenant_id.');
+        }
+        console.log(`${'='.repeat(80)}\n`);
+
+        return res.status(200).json({
+          success: true,
+          message: `Keycloak user(s) deleted successfully (${totalUsersDeleted} total)`,
+          email: deletePayload.user_email,
+          user_id: deletePayload.user_id,
+          tenant_id: deletePayload.tenant_id,
+          total_users_deleted: totalUsersDeleted,
+          additional_users_deleted: additionalUsersDeleted
+        });
+
+      } catch (error) {
+        logError(contextLogger, error as Error, { operation: 'delete-keycloak-user-processing' });
+
+        return res.status(500).json({
+          success: false,
+          message: 'Failed to delete Keycloak user',
+          error: error instanceof Error ? error.message : 'Unknown error',
+          email: deletePayload.user_email
+        });
+      }
+
     } else if (payload.source === 'rita-chat' && payload.action === 'verify_credentials') {
       const verifyPayload = payload as DataSourceVerifyPayload;
       const contextLogger = createContextLogger(webhookLogger, correlationId, {
@@ -1535,6 +1947,9 @@ app.post('/webhook', async (req, res) => {
         user_email: verifyPayload.user_email
       }, 'Received data source verify webhook');
 
+      // Log raw payload for debugging (easy to copy)
+      contextLogger.info({ rawPayload: JSON.stringify(verifyPayload, null, 2) }, 'Raw verify_credentials payload');
+
       // Publish verification success message to RabbitMQ after 1 second delay
       setTimeout(async () => {
         try {
@@ -1542,16 +1957,33 @@ app.post('/webhook', async (req, res) => {
             throw new Error('RabbitMQ channel not initialized');
           }
 
-          // Simulate verification success with mock options
+          // Simulate verification success with mock options based on connection type
+          let options: Record<string, any> = {};
+          if (verifyPayload.connection_type === 'confluence') {
+            options = {
+              spaces: 'ENG,PROD,DOCS',
+              sites: 'confluence.company.com'
+            };
+          } else if (verifyPayload.connection_type === 'servicenow') {
+            options = {
+              knowledge_base: [
+                { title: 'Engineering', sys_id: 'kb_eng_001' },
+                { title: 'IT Support', sys_id: 'kb_it_002' },
+                { title: 'HR Policies', sys_id: 'kb_hr_003' }
+              ]
+            };
+          } else if (verifyPayload.connection_type === 'sharepoint') {
+            options = {
+              sites: ['https://company.sharepoint.com/sites/docs']
+            };
+          }
+
           const verificationMessage = {
             type: 'verification',
             connection_id: verifyPayload.connection_id,
             tenant_id: verifyPayload.tenant_id,
             status: 'success',
-            options: {
-              spaces: 'ENG,PROD,DOCS',
-              sites: 'confluence.company.com'
-            },
+            options: options,
             error: null
           };
 
@@ -1590,9 +2022,19 @@ app.post('/webhook', async (req, res) => {
         user_email: syncPayload.user_email
       }, 'Received data source sync trigger webhook');
 
-      // Publish sync_completed message to RabbitMQ after 2 second delay
+      // Publish sync_completed message to RabbitMQ after 20 second delay
       setTimeout(async () => {
         try {
+          // Check if sync was cancelled before sending sync_completed
+          if (cancelledSyncConnections.has(syncPayload.connection_id)) {
+            contextLogger.info({
+              connectionId: syncPayload.connection_id
+            }, 'Sync was cancelled - skipping sync_completed message');
+            // Remove from cancelled set after skipping
+            cancelledSyncConnections.delete(syncPayload.connection_id);
+            return;
+          }
+
           if (!rabbitChannel) {
             throw new Error('RabbitMQ channel not initialized');
           }
@@ -1620,11 +2062,74 @@ app.post('/webhook', async (req, res) => {
         } catch (error) {
           contextLogger.error({ error }, 'Failed to publish sync_completed message');
         }
-      }, 2000);
+      }, 20000);
 
       return res.status(200).json({
         success: true,
         message: 'Sync triggered successfully'
+      });
+
+    } else if (payload.source === 'rita-chat' && payload.action === 'sync_tickets') {
+      // ITSM Autopilot: Sync tickets for clustering
+      const ticketsPayload = payload as SyncTicketsWebhookPayload;
+      const contextLogger = createContextLogger(webhookLogger, correlationId, {
+        tenantId: ticketsPayload.tenant_id
+      });
+
+      contextLogger.info({
+        source: ticketsPayload.source,
+        action: ticketsPayload.action,
+        connection_id: ticketsPayload.connection_id,
+        connection_type: ticketsPayload.connection_type,
+        ingestion_run_id: ticketsPayload.ingestion_run_id,
+        time_range_days: ticketsPayload.settings?.time_range_days,
+        user_email: ticketsPayload.user_email
+      }, 'Received sync_tickets webhook');
+
+      // Simulate ticket sync - publish ingestion_completed after 10 second delay
+      setTimeout(async () => {
+        try {
+          if (!rabbitChannel) {
+            throw new Error('RabbitMQ channel not initialized');
+          }
+
+          // Simulate processing results
+          const recordsProcessed = Math.floor(Math.random() * 150) + 50; // 50-200 tickets
+          const recordsFailed = Math.floor(Math.random() * 5); // 0-4 failures
+
+          const ingestionMessage = {
+            type: 'ticket_ingestion',
+            tenant_id: ticketsPayload.tenant_id,
+            user_id: ticketsPayload.user_id,
+            ingestion_run_id: ticketsPayload.ingestion_run_id,
+            connection_id: ticketsPayload.connection_id,
+            status: 'completed',
+            records_processed: recordsProcessed,
+            records_failed: recordsFailed,
+            timestamp: new Date().toISOString()
+          };
+
+          await rabbitChannel.assertQueue('data_source_status', { durable: true });
+          rabbitChannel.sendToQueue(
+            'data_source_status',
+            Buffer.from(JSON.stringify(ingestionMessage)),
+            { persistent: true }
+          );
+
+          contextLogger.info({
+            ingestionRunId: ticketsPayload.ingestion_run_id,
+            recordsProcessed,
+            recordsFailed
+          }, 'Published ticket_ingestion message to data_source_status queue');
+        } catch (error) {
+          contextLogger.error({ error }, 'Failed to publish ingestion_completed message');
+        }
+      }, 10000); // 10 second delay
+
+      return res.status(200).json({
+        success: true,
+        message: 'Ticket sync triggered successfully',
+        ingestion_run_id: ticketsPayload.ingestion_run_id
       });
 
     } else {
@@ -1770,16 +2275,24 @@ app.post('/webhook', async (req, res) => {
             throw new Error('RabbitMQ channel not initialized');
           }
 
-          // Simulate successful document processing
-          const processingMessage = {
+          // Randomly simulate successful or failed document processing
+          const isSuccess = Math.random() > 0.5; // 50% success rate
+          const processingMessage: any = {
             type: 'document_processing',
             blob_metadata_id: documentPayload.blob_metadata_id,
             tenant_id: documentPayload.tenant_id,
             user_id: documentPayload.user_id,
-            status: 'processing_completed',
-            processed_markdown: `# Processed Document: ${documentPayload.original_filename}\n\nThis is mock processed content from the document.\n\n## Summary\n- **File Type**: ${documentPayload.file_type}\n- **File Size**: ${documentPayload.file_size} bytes\n- **Processed At**: ${new Date().toISOString()}\n\n## Content\nMock extracted text content from the uploaded document. In a real scenario, this would contain the actual parsed and processed content from the PDF, DOCX, or other file format.`,
+            status: isSuccess ? 'processing_completed' : 'processing_failed',
             timestamp: new Date().toISOString()
           };
+
+          if (isSuccess) {
+            // Add processed content for successful processing
+            processingMessage.processed_markdown = `# Processed Document: ${documentPayload.original_filename}\n\nThis is mock processed content from the document.\n\n## Summary\n- **File Type**: ${documentPayload.file_type}\n- **File Size**: ${documentPayload.file_size} bytes\n- **Processed At**: ${new Date().toISOString()}\n\n## Content\nMock extracted text content from the uploaded document. In a real scenario, this would contain the actual parsed and processed content from the PDF, DOCX, or other file format.`;
+          } else {
+            // Add error message for failed processing (using error_message to match consumer expectations)
+            processingMessage.error_message = 'Mock processing error: Failed to extract text from document';
+          }
 
           await rabbitChannel.assertQueue('document_processing_status', { durable: true });
           rabbitChannel.sendToQueue(
@@ -1817,32 +2330,25 @@ app.post('/webhook', async (req, res) => {
         // Create user in Keycloak
         const keycloakUserId = await createKeycloakUser(signupPayload);
 
+        // Send verification email via Mailpit
+        await emailService.sendSignupVerification(
+          signupPayload.user_email!,
+          `${signupPayload.first_name} ${signupPayload.last_name}`,
+          signupPayload.verification_url
+        );
+
         contextLogger.info({
           email: signupPayload.user_email,
           keycloakUserId,
           verification_url: signupPayload.verification_url,
           pending_user_id: signupPayload.pending_user_id
-        }, '🎉 SIGNUP SUCCESS: Keycloak user created');
-
-        // Log verification URL prominently for testing
-        console.log(`\n${'='.repeat(80)}`);
-        console.log('📧 MOCK EMAIL VERIFICATION');
-        console.log('='.repeat(80));
-        console.log(`To: ${signupPayload.user_email}`);
-        console.log(`Name: ${signupPayload.first_name} ${signupPayload.last_name}`);
-        console.log(`Company: ${signupPayload.company}`);
-        console.log('');
-        console.log('Click here to verify your email:');
-        console.log(`${signupPayload.verification_url}`);
-        console.log('');
-        console.log('(In production, this would be sent via email)');
-        console.log(`${'='.repeat(80)}\n`);
+        }, '🎉 SIGNUP SUCCESS: Keycloak user created and verification email sent');
 
         res.status(200).json({
           message: 'Signup webhook processed successfully',
           keycloak_user_id: keycloakUserId,
           email: signupPayload.user_email,
-          status: 'user_created_and_email_logged'
+          status: 'user_created_and_email_sent'
         });
 
       } catch (error) {

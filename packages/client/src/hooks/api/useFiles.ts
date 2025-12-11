@@ -8,6 +8,7 @@ export interface FileDocument {
   type: string
   status: 'processing' | 'processed' | 'failed' | 'uploaded'
   content_type?: 'text' | 'binary' | 'unknown'
+  source?: string
   metadata?: {
     error?: string
     [key: string]: any
@@ -16,19 +17,31 @@ export interface FileDocument {
   updated_at?: Date
 }
 
+export interface FilesQueryParams {
+  limit?: number
+  offset?: number
+  sortBy?: 'filename' | 'size' | 'type' | 'status' | 'source' | 'created_at'
+  sortOrder?: 'asc' | 'desc'
+  search?: string
+  status?: string
+  source?: string
+}
+
 // Query keys
 export const fileKeys = {
   all: ['files'] as const,
   lists: () => [...fileKeys.all, 'list'] as const,
-  list: (filters: string) => [...fileKeys.lists(), { filters }] as const,
+  list: (params: FilesQueryParams) => [...fileKeys.lists(), params] as const,
 }
 
 // List user's documents
-export function useFiles() {
+export function useFiles(params: FilesQueryParams = {}) {
+  const { limit = 50, offset = 0, sortBy = 'created_at', sortOrder = 'desc', search, status, source } = params
+
   return useQuery({
-    queryKey: fileKeys.lists(),
+    queryKey: fileKeys.list({ limit, offset, sortBy, sortOrder, search, status, source }),
     queryFn: async () => {
-      const response = await fileApi.listDocuments()
+      const response = await fileApi.listDocuments(limit, offset, sortBy, sortOrder, search, status, source)
 
       const documents: FileDocument[] = response.documents.map((doc: any) => ({
         id: doc.id,
@@ -37,6 +50,7 @@ export function useFiles() {
         type: doc.mime_type,
         status: doc.status,
         content_type: doc.content_type,
+        source: doc.source,
         metadata: doc.metadata,
         created_at: new Date(doc.created_at),
         updated_at: doc.updated_at ? new Date(doc.updated_at) : undefined,
@@ -49,7 +63,7 @@ export function useFiles() {
         offset: response.offset
       }
     },
-    staleTime: 1000 * 60 * 5, // 5 minutes
+    staleTime: 1000 * 30, // 30 seconds - shorter for better UX after mutations
   })
 }
 
@@ -68,13 +82,24 @@ export function useUploadFile() {
           size: response.document.size,
           type: response.document.type,
           status: response.document.status,
+          source: response.document.source,
           created_at: new Date(response.document.created_at),
         } as FileDocument
       }
     },
-    onSuccess: () => {
-      // Invalidate files list to refresh it
-      queryClient.invalidateQueries({ queryKey: fileKeys.lists() })
+    onSuccess: (data) => {
+      // Insert new document into cache immediately (no refetch)
+      queryClient.setQueriesData<{ documents: FileDocument[]; total: number; limit: number; offset: number }>(
+        { queryKey: fileKeys.lists() },
+        (oldData) => {
+          if (!oldData) return oldData
+          return {
+            ...oldData,
+            documents: [data.document, ...oldData.documents],
+            total: oldData.total + 1,
+          }
+        }
+      )
     },
   })
 }
@@ -94,13 +119,24 @@ export function useCreateContent() {
           size: response.document.size,
           type: response.document.type,
           status: response.document.status,
+          source: response.document.source,
           created_at: new Date(response.document.created_at),
         } as FileDocument
       }
     },
-    onSuccess: () => {
-      // Invalidate files list to refresh it
-      queryClient.invalidateQueries({ queryKey: fileKeys.lists() })
+    onSuccess: (data) => {
+      // Insert new document into cache immediately (no refetch)
+      queryClient.setQueriesData<{ documents: FileDocument[]; total: number; limit: number; offset: number }>(
+        { queryKey: fileKeys.lists() },
+        (oldData) => {
+          if (!oldData) return oldData
+          return {
+            ...oldData,
+            documents: [data.document, ...oldData.documents],
+            total: oldData.total + 1,
+          }
+        }
+      )
     },
   })
 }
@@ -139,9 +175,35 @@ export function useDeleteFile() {
       const response = await fileApi.deleteDocument(documentId)
       return response
     },
-    onSuccess: () => {
-      // Invalidate files list to refresh it
-      queryClient.invalidateQueries({ queryKey: fileKeys.lists() })
+    onMutate: async (documentId: string) => {
+      // Cancel outgoing refetches
+      await queryClient.cancelQueries({ queryKey: fileKeys.lists() })
+
+      // Snapshot for rollback
+      const previousQueries = queryClient.getQueriesData<{ documents: FileDocument[]; total: number; limit: number; offset: number }>({ queryKey: fileKeys.lists() })
+
+      // Optimistically remove from all list queries
+      queryClient.setQueriesData<{ documents: FileDocument[]; total: number; limit: number; offset: number }>(
+        { queryKey: fileKeys.lists() },
+        (oldData) => {
+          if (!oldData) return oldData
+          return {
+            ...oldData,
+            documents: oldData.documents.filter((doc) => doc.id !== documentId),
+            total: Math.max(0, oldData.total - 1),
+          }
+        }
+      )
+
+      return { previousQueries }
+    },
+    onError: (_err, _documentId, context) => {
+      // Rollback on error
+      if (context?.previousQueries) {
+        context.previousQueries.forEach(([queryKey, data]) => {
+          queryClient.setQueryData(queryKey, data)
+        })
+      }
     },
   })
 }
@@ -156,8 +218,8 @@ export function useReprocessFile() {
       return response
     },
     onSuccess: () => {
-      // Invalidate files list to refresh it
-      queryClient.invalidateQueries({ queryKey: fileKeys.lists() })
+      // Invalidate files list and force immediate refetch
+      queryClient.invalidateQueries({ queryKey: fileKeys.lists(), refetchType: 'active' })
     },
   })
 }

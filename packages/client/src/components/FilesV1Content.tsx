@@ -2,471 +2,1206 @@
  * FilesV1Content - Knowledge Articles Management with v0 UI
  *
  * Uses the v0-generated KnowledgeArticles component as the UI foundation
- * while hooking up all Rita API functionality for file management.
+ * while hooking up all RITA API functionality for file management.
  */
 
-import { useState, useRef } from 'react'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Badge } from '@/components/ui/badge'
-import { Checkbox } from '@/components/ui/checkbox'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { Card, CardContent } from '@/components/ui/card'
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
-import { Skeleton } from '@/components/ui/skeleton'
+	AlertCircle,
+	Check,
+	CheckCircle,
+	ChevronDown,
+	Download,
+	Loader,
+	MoreHorizontal,
+	Plus,
+	RefreshCw,
+	Trash2,
+	Upload,
+	Zap,
+} from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { BulkActions } from "@/components/BulkActions";
+import ConfirmDialog from "@/components/dialogs/ConfirmDialog";
+import EmptyFilesState from "@/components/knowledge-articles/EmptyFilesState";
+import { MainHeader } from "@/components/MainHeader";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+// import { Card, CardContent } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
-  Plus,
-  TrendingUp,
-  ChevronDown,
-  ArrowUpDown,
-  Check,
-  Zap,
-  Loader,
-  MoreHorizontal,
-  Download,
-  File,
-  AlertCircle,
-  CheckCircle,
-  RefreshCw,
-} from 'lucide-react'
-import { useFiles, useUploadFile, useDownloadFile, useReprocessFile, type FileDocument } from '@/hooks/api/useFiles'
+	DropdownMenu,
+	DropdownMenuContent,
+	DropdownMenuItem,
+	DropdownMenuSeparator,
+	DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Input } from "@/components/ui/input";
+import { Progress } from "@/components/ui/progress";
+import { ritaToast } from "@/components/ui/rita-toast";
+import { Skeleton } from "@/components/ui/skeleton";
+import {
+	Table,
+	TableBody,
+	TableCell,
+	TableHead,
+	TableHeader,
+	TableRow,
+} from "@/components/ui/table";
+import { SOURCE_METADATA } from "@/constants/connectionSources";
+import {
+	type FileDocument,
+	fileKeys,
+	useDeleteFile,
+	useDownloadFile,
+	useFiles,
+	useReprocessFile,
+	useUploadFile,
+} from "@/hooks/api/useFiles";
+import { useQueryClient } from "@tanstack/react-query";
+import { useDataSources } from "@/hooks/useDataSources";
+import {
+	FILE_SOURCE,
+	FILE_SOURCE_DISPLAY_NAMES,
+	FILE_STATUS,
+	type FileSourceType,
+	SUPPORTED_DOCUMENT_TYPES,
+	validateFileForUpload,
+} from "@/lib/constants";
+import { useFeatureFlag } from "@/hooks/useFeatureFlags";
+import { renderSortIcon } from "@/lib/table-utils";
+import { cn } from "@/lib/utils";
+import type { DataSourceConnection } from "@/types/dataSource";
+
+// Registry for status icons
+const STATUS_ICON_REGISTRY: Record<
+	string,
+	React.ComponentType<{ className?: string }>
+> = {
+	[FILE_STATUS.UPLOADED]: Check,
+	[FILE_STATUS.PROCESSING]: Loader,
+	[FILE_STATUS.PROCESSED]: CheckCircle,
+	[FILE_STATUS.FAILED]: AlertCircle,
+	[FILE_STATUS.PENDING]: Loader,
+	[FILE_STATUS.SYNCING]: Zap,
+};
+
+// Registry for status icon animations
+const STATUS_ICON_ANIMATIONS: Record<string, string> = {
+	[FILE_STATUS.PROCESSING]: "animate-spin",
+	[FILE_STATUS.PENDING]: "animate-spin",
+};
 
 const formatFileSize = (bytes: number): string => {
-  if (bytes === 0) return '0 Bytes'
-  const k = 1024
-  const sizes = ['Bytes', 'KB', 'MB', 'GB']
-  const i = Math.floor(Math.log(bytes) / Math.log(k))
-  return parseFloat((bytes / k ** i).toFixed(2)) + ' ' + sizes[i]
+	if (bytes === 0) return "0 Bytes";
+	const k = 1024;
+	const sizes = ["Bytes", "KB", "MB", "GB"];
+	const i = Math.floor(Math.log(bytes) / Math.log(k));
+	return `${parseFloat((bytes / k ** i).toFixed(2))} ${sizes[i]}`;
+};
+
+function formatDate(date: Date | null | undefined): string {
+	if (!date) return "N/A";
+	return new Intl.DateTimeFormat("en-US", {
+		day: "2-digit",
+		month: "short",
+		year: "numeric",
+		hour: "2-digit",
+		minute: "2-digit",
+	}).format(date);
 }
 
-const formatDate = (date: Date | null | undefined): string => {
-  if (!date) return 'N/A'
-  return new Intl.DateTimeFormat('en-US', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit'
-  }).format(date)
-}
+const getSourceDisplayName = (source: string | undefined | null): string => {
+	if (!source) return "-";
+	const normalizedSource = source.toLowerCase() as FileSourceType;
+	return FILE_SOURCE_DISPLAY_NAMES[normalizedSource] || source;
+};
+
+const getSourceDatabaseValue = (displayName: string): string => {
+	// Find the matching source constant by display name
+	const entry = Object.entries(FILE_SOURCE_DISPLAY_NAMES).find(
+		([_, name]) => name === displayName,
+	);
+	return entry ? entry[0] : displayName.toLowerCase();
+};
+
+type SortField =
+	| "filename"
+	| "size"
+	| "type"
+	| "status"
+	| "source"
+	| "created_at";
+type SortOrder = "asc" | "desc";
+
+const PAGE_SIZE = 50;
 
 export default function FilesV1Content() {
-  const [searchQuery, setSearchQuery] = useState('')
-  const [statusFilter, setStatusFilter] = useState('All')
-  const [sourceFilter, setSourceFilter] = useState('All')
-  const [selectedFiles, setSelectedFiles] = useState<Set<string>>(new Set())
-  const fileInputRef = useRef<HTMLInputElement>(null)
+	const [searchInput, setSearchInput] = useState(""); // User's input (immediate)
+	const [searchQuery, setSearchQuery] = useState(""); // Debounced value (for API)
+	const [statusFilter, setStatusFilter] = useState("All");
+	const [sourceFilter, setSourceFilter] = useState("All");
+	const [selectedFiles, setSelectedFiles] = useState<Set<string>>(new Set());
+	const [fileToDelete, setFileToDelete] = useState<FileDocument | null>(null);
+	const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+	const [bulkDeleteDialogOpen, setBulkDeleteDialogOpen] = useState(false);
+	const [sortField, setSortField] = useState<SortField>("created_at");
+	const [sortOrder, setSortOrder] = useState<SortOrder>("desc");
+	const [page, setPage] = useState(0);
+	const [uploadingFiles, setUploadingFiles] = useState<Set<string>>(new Set());
+	const [isBulkDeleting, setIsBulkDeleting] = useState(false);
+	const [deletingRemaining, setDeletingRemaining] = useState<number | null>(null);
+	const [uploadProgress, setUploadProgress] = useState<{ total: number; current: number } | null>(null);
+	const fileInputRef = useRef<HTMLInputElement>(null);
+	const navigate = useNavigate();
+	const queryClient = useQueryClient();
+	const enableMultiFileUpload = useFeatureFlag("ENABLE_MULTI_FILE_UPLOAD");
 
-  const { data: filesData, isLoading } = useFiles()
-  const uploadFileMutation = useUploadFile()
-  const downloadFileMutation = useDownloadFile()
-  const reprocessFileMutation = useReprocessFile()
+	// Debounce search input - wait 500ms after user stops typing
+	useEffect(() => {
+		const timer = setTimeout(() => {
+			setSearchQuery(searchInput);
+		}, 500);
 
-  const files = filesData?.documents || []
+		return () => clearTimeout(timer);
+	}, [searchInput]);
 
-  // Filter files
-  const filteredFiles = files.filter((file) => {
-    const matchesSearch = file.filename.toLowerCase().includes(searchQuery.toLowerCase())
-    const matchesStatus = statusFilter === 'All' || file.status === statusFilter.toLowerCase()
-    const matchesSource = sourceFilter === 'All' || file.type === sourceFilter
-    return matchesSearch && matchesStatus && matchesSource
-  })
+	// API-level sorting, pagination, and filtering
+	const { data: filesData, isLoading, error } = useFiles({
+		limit: PAGE_SIZE,
+		offset: page * PAGE_SIZE,
+		sortBy: sortField,
+		sortOrder,
+		search: searchQuery,
+		status: statusFilter !== "All" ? statusFilter : undefined,
+		source: sourceFilter !== "All" ? getSourceDatabaseValue(sourceFilter) : undefined,
+	});
+	const { data: dataSourcesData } = useDataSources();
+	const uploadFileMutation = useUploadFile();
+	const downloadFileMutation = useDownloadFile();
+	const reprocessFileMutation = useReprocessFile();
+	const deleteFileMutation = useDeleteFile();
 
-  // Calculate stats
-  const totalDocs = files.length
-  const processedCount = files.filter(f => f.status === 'processed').length
-  const processingCount = files.filter(f => f.status === 'processing').length
-  const failedCount = files.filter(f => f.status === 'failed').length
+	const files = filesData?.documents || [];
+	const totalFiles = filesData?.total || 0;
+	const dataSources = dataSourcesData || [];
 
-  const handleSelectAll = () => {
-    if (selectedFiles.size === filteredFiles.length) {
-      setSelectedFiles(new Set())
-    } else {
-      setSelectedFiles(new Set(filteredFiles.map(f => f.id)))
-    }
-  }
+	// Filter synced sources (completed + enabled)
+	const syncedSources = dataSources.filter(
+		(source: DataSourceConnection) =>
+			source.last_sync_status === "completed" && source.enabled,
+	);
 
-  const handleSelectFile = (fileId: string) => {
-    const newSelected = new Set(selectedFiles)
-    if (newSelected.has(fileId)) {
-      newSelected.delete(fileId)
-    } else {
-      newSelected.add(fileId)
-    }
-    setSelectedFiles(newSelected)
-  }
+	// Show error toast when API fails
+	useEffect(() => {
+		if (error) {
+			ritaToast.error({
+				title: "Failed to load files",
+				description: error instanceof Error ? error.message : "Unable to fetch files. Please try again.",
+			});
+		}
+	}, [error]);
 
-  const handleUploadClick = () => {
-    fileInputRef.current?.click()
-  }
+	// Reset to page 0 when filters change
+	// biome-ignore lint/correctness/useExhaustiveDependencies: reset page when filters change
+	useEffect(() => {
+		setPage(0);
+	}, [searchQuery, statusFilter, sourceFilter]);
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      uploadFileMutation.mutate(e.target.files[0])
-    }
-  }
+	// Handle sorting - resets to page 0 on sort change
+	const handleSort = (field: SortField) => {
+		if (sortField === field) {
+			// Toggle order if clicking same column
+			setSortOrder(sortOrder === "asc" ? "desc" : "asc");
+		} else {
+			// Set new column with default desc order
+			setSortField(field);
+			setSortOrder("desc");
+		}
+		setPage(0); // Reset to first page on sort change
+	};
 
-  const handleDownload = (file: FileDocument) => {
-    downloadFileMutation.mutate({
-      documentId: file.id,
-      filename: file.filename
-    })
-  }
+	// Server-side filtering - no client-side filtering needed
+	// Files returned from API are already filtered
+	const sortedFiles = files;
 
-  const handleReprocess = (file: FileDocument) => {
-    reprocessFileMutation.mutate(file.id)
-  }
+	// Pagination handlers
+	// Check if there's a next page based on total files from API
+	const hasNextPage = (page + 1) * PAGE_SIZE < totalFiles;
+	const hasPrevPage = page > 0;
 
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'uploaded':
-        return <Check className="h-3 w-3" />
-      case 'processing':
-        return <Loader className="h-3 w-3 animate-spin" />
-      case 'processed':
-        return <CheckCircle className="h-3 w-3" />
-      case 'failed':
-        return <AlertCircle className="h-3 w-3" />
-      case 'pending':
-        return <Loader className="h-3 w-3 animate-spin" />
-      case 'syncing':
-        return <Zap className="h-3 w-3" />
-      default:
-        return <AlertCircle className="h-3 w-3" />
-    }
-  }
+	const handleNextPage = () => {
+		if (hasNextPage) {
+			setPage(page + 1);
+			setSelectedFiles(new Set()); // Clear selection on page change
+		}
+	};
 
-  const getStatusLabel = (status: string) => {
-    return status.charAt(0).toUpperCase() + status.slice(1)
-  }
+	const handlePrevPage = () => {
+		if (hasPrevPage) {
+			setPage(page - 1);
+			setSelectedFiles(new Set()); // Clear selection on page change
+		}
+	};
 
-  const getStatusVariant = (status: string): "default" | "secondary" | "destructive" | "outline" => {
-    switch (status) {
-      case 'processed':
-        return 'default'
-      case 'processing':
-        return 'secondary'
-      case 'failed':
-        return 'destructive'
-      default:
-        return 'outline'
-    }
-  }
+	// Calculate stats (currently hidden, but kept for future use)
+	// const totalDocs = filesData?.total || 0;
+	// const processedCount = files.filter((f) => f.status === "processed").length;
+	// const processingCount = files.filter((f) => f.status === "processing").length;
+	// const failedCount = files.filter((f) => f.status === "failed").length;
 
-  return (
-    <div className="flex flex-col h-full">
-      {/* Header */}
-      <div className="border-b border-border px-6 py-6 flex-shrink-0">
-        <div className="flex justify-between items-center">
-          <div>
-            <h1 className="text-2xl font-normal text-foreground">Knowledge Articles</h1>
-          </div>
-          <Button onClick={handleUploadClick} disabled={uploadFileMutation.isPending}>
-            {uploadFileMutation.isPending ? (
-              <Loader className="h-4 w-4 animate-spin" />
-            ) : (
-              <Plus className="h-4 w-4" />
-            )}
-            Add Articles
-          </Button>
-        </div>
-      </div>
+	const handleSelectAll = () => {
+		if (selectedFiles.size === sortedFiles.length) {
+			setSelectedFiles(new Set());
+		} else {
+			setSelectedFiles(new Set(sortedFiles.map((f) => f.id)));
+		}
+	};
 
-      {/* Main Content */}
-      <div className="flex-1 px-6 py-6 overflow-y-auto">
-        <div className="flex flex-col gap-6">
-          {/* Stats Cards */}
-          <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
-            <Card className="border border-border bg-popover">
-              <CardContent className="p-4">
-                <div className="flex flex-col gap-0">
-                  <div className="flex items-center gap-3">
-                    <h3 className="text-2xl font-normal text-foreground">{totalDocs}</h3>
-                    <Badge variant="outline" className="flex items-center gap-1">
-                      <TrendingUp className="h-3 w-3" />
-                      +4.5%
-                    </Badge>
-                  </div>
-                  <p className="text-sm text-muted-foreground">Total Documents</p>
-                </div>
-              </CardContent>
-            </Card>
+	const handleSelectFile = (fileId: string) => {
+		const newSelected = new Set(selectedFiles);
+		if (newSelected.has(fileId)) {
+			newSelected.delete(fileId);
+		} else {
+			newSelected.add(fileId);
+		}
+		setSelectedFiles(newSelected);
+	};
 
-            <Card className="border border-border bg-popover">
-              <CardContent className="p-4">
-                <div className="flex flex-col gap-0">
-                  <div className="flex items-center gap-3">
-                    <h3 className="text-2xl font-normal text-foreground">{processedCount}</h3>
-                    {processedCount > 0 && (
-                      <Badge variant="outline" className="flex items-center gap-1">
-                        <CheckCircle className="h-3 w-3" />
-                        Ready
-                      </Badge>
-                    )}
-                  </div>
-                  <p className="text-sm text-muted-foreground">Processed Documents</p>
-                </div>
-              </CardContent>
-            </Card>
+	const handleBulkDeleteClick = () => {
+		setBulkDeleteDialogOpen(true);
+	};
 
-            <Card className="border border-border bg-popover">
-              <CardContent className="p-4">
-                <div className="flex flex-col gap-0">
-                  <div className="flex items-center gap-3">
-                    <h3 className="text-2xl font-normal text-foreground">{processingCount}</h3>
-                    {processingCount > 0 && (
-                      <Badge variant="secondary" className="flex items-center gap-1">
-                        <Loader className="h-3 w-3 animate-spin" />
-                        Active
-                      </Badge>
-                    )}
-                  </div>
-                  <p className="text-sm text-muted-foreground">Processing</p>
-                </div>
-              </CardContent>
-            </Card>
+	const handleConfirmBulkDelete = async () => {
+		// Close dialog first, then start deletion
+		setBulkDeleteDialogOpen(false);
+		setIsBulkDeleting(true);
 
-            <Card className="border border-border bg-popover">
-              <CardContent className="p-4">
-                <div className="flex flex-col gap-0">
-                  <div className="flex items-center gap-3">
-                    <h3 className="text-2xl font-normal text-foreground">{failedCount}</h3>
-                    {failedCount > 0 && (
-                      <Badge variant="destructive" className="flex items-center gap-1">
-                        <AlertCircle className="h-3 w-3" />
-                        Failed
-                      </Badge>
-                    )}
-                  </div>
-                  <p className="text-sm text-muted-foreground">Failed Documents</p>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
+		// Delete selected files one by one
+		let successCount = 0;
+		let failCount = 0;
+		const filesToDelete = Array.from(selectedFiles);
+		let remaining = filesToDelete.length;
+		setDeletingRemaining(remaining);
 
-          {/* Search and Filters */}
-          <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
-            <Input
-              placeholder="Search documents....."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="max-w-sm"
-            />
-            <div className="flex gap-4">
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline">
-                    Source: {sourceFilter}
-                    <ChevronDown className="h-4 w-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent>
-                  <DropdownMenuItem onSelect={() => setSourceFilter('All')}>All Sources</DropdownMenuItem>
-                  <DropdownMenuItem onSelect={() => setSourceFilter('Manual')}>Manual</DropdownMenuItem>
-                  <DropdownMenuItem onSelect={() => setSourceFilter('Jira Confluence')}>Jira Confluence</DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+		for (const fileId of filesToDelete) {
+			try {
+				await new Promise<void>((resolve, reject) => {
+					deleteFileMutation.mutate(fileId, {
+						onSuccess: () => {
+							successCount++;
+							remaining--;
+							setDeletingRemaining(remaining);
+							resolve();
+						},
+						onError: () => {
+							failCount++;
+							remaining--;
+							setDeletingRemaining(remaining);
+							reject();
+						},
+					});
+				});
+			} catch {
+				// Error already counted in failCount
+			}
+		}
 
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline">
-                    Status: {statusFilter}
-                    <ChevronDown className="h-4 w-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent>
-                  <DropdownMenuItem onSelect={() => setStatusFilter('All')}>All Status</DropdownMenuItem>
-                  <DropdownMenuItem onSelect={() => setStatusFilter('processed')}>Processed</DropdownMenuItem>
-                  <DropdownMenuItem onSelect={() => setStatusFilter('processing')}>Processing</DropdownMenuItem>
-                  <DropdownMenuItem onSelect={() => setStatusFilter('failed')}>Failed</DropdownMenuItem>
-                  <DropdownMenuItem onSelect={() => setStatusFilter('uploaded')}>Uploaded</DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
-          </div>
+		// Clear loading state
+		setIsBulkDeleting(false);
+		setDeletingRemaining(null);
 
-          {/* Table */}
-          <div className="border rounded-md">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-8">
-                    <Checkbox
-                      checked={selectedFiles.size === filteredFiles.length && filteredFiles.length > 0}
-                      onCheckedChange={handleSelectAll}
-                    />
-                  </TableHead>
-                  <TableHead>Name</TableHead>
-                  <TableHead>
-                    <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
-                      Status
-                      <ArrowUpDown className="h-4 w-4" />
-                    </Button>
-                  </TableHead>
-                  <TableHead>
-                    <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
-                      Source
-                      <ArrowUpDown className="h-4 w-4" />
-                    </Button>
-                  </TableHead>
-                  <TableHead>
-                    <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
-                      Size
-                      <ArrowUpDown className="h-4 w-4" />
-                    </Button>
-                  </TableHead>
-                  <TableHead>
-                    <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
-                      Queries
-                      <ArrowUpDown className="h-4 w-4" />
-                    </Button>
-                  </TableHead>
-                  <TableHead className="text-right">Created Modified</TableHead>
-                  <TableHead className="w-16"></TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {isLoading ? (
-                  [...Array(3)].map((_, i) => (
-                    <TableRow key={i}>
-                      <TableCell><Skeleton className="h-4 w-4" /></TableCell>
-                      <TableCell><Skeleton className="h-4 w-[200px]" /></TableCell>
-                      <TableCell><Skeleton className="h-4 w-[80px]" /></TableCell>
-                      <TableCell><Skeleton className="h-4 w-[100px]" /></TableCell>
-                      <TableCell><Skeleton className="h-4 w-[60px]" /></TableCell>
-                      <TableCell><Skeleton className="h-4 w-[40px]" /></TableCell>
-                      <TableCell><Skeleton className="h-4 w-[120px]" /></TableCell>
-                      <TableCell><Skeleton className="h-4 w-[30px]" /></TableCell>
-                    </TableRow>
-                  ))
-                ) : filteredFiles.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={8} className="text-center py-8">
-                      <div className="flex flex-col items-center gap-2 text-muted-foreground">
-                        <File className="h-12 w-12 opacity-30" />
-                        <p>No documents found</p>
-                        <p className="text-sm">
-                          {searchQuery || statusFilter !== 'All'
-                            ? 'Try adjusting your search or filter criteria'
-                            : 'Upload your first document to get started'}
-                        </p>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  filteredFiles.map((file) => (
-                    <TableRow key={file.id}>
-                      <TableCell>
-                        <Checkbox
-                          checked={selectedFiles.has(file.id)}
-                          onCheckedChange={() => handleSelectFile(file.id)}
-                        />
-                      </TableCell>
-                      <TableCell>{file.filename}</TableCell>
-                      <TableCell>
-                        <Badge variant={getStatusVariant(file.status)} className="flex items-center gap-1 w-fit">
-                          {getStatusIcon(file.status)}
-                          {getStatusLabel(file.status)}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>{file.type || 'Manual'}</TableCell>
-                      <TableCell className="text-right">{formatFileSize(file.size)}</TableCell>
-                      <TableCell className="text-right">-</TableCell>
-                      <TableCell className="text-right">{formatDate(file.created_at)}</TableCell>
-                      <TableCell>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
-                              <MoreHorizontal className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            {(file.status === 'uploaded' || file.status === 'processed') && (
-                              <DropdownMenuItem onClick={() => handleDownload(file)}>
-                                <Download className="h-4 w-4 mr-2" />
-                                Download
-                              </DropdownMenuItem>
-                            )}
-                            <DropdownMenuItem
-                              onClick={() => handleReprocess(file)}
-                              disabled={reprocessFileMutation.isPending}
-                            >
-                              <RefreshCw className={`h-4 w-4 mr-2 ${reprocessFileMutation.isPending ? 'animate-spin' : ''}`} />
-                              Reprocess
-                            </DropdownMenuItem>
-                            <DropdownMenuItem>Delete</DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </div>
+		// Clear selection after deletion attempts
+		setSelectedFiles(new Set());
 
-          {/* Footer */}
-          <div className="flex justify-center">
-            <p className="text-sm text-muted-foreground">{filteredFiles.length} Knowledge articles</p>
-          </div>
-        </div>
-      </div>
+		// Final refetch to sync with server state
+		queryClient.invalidateQueries({ queryKey: fileKeys.lists(), refetchType: 'active' });
 
-      {/* Hidden file input */}
-      <input
-        ref={fileInputRef}
-        type="file"
-        className="hidden"
-        onChange={handleFileChange}
-        accept=".jpg,.jpeg,.png,.gif,.webp,.pdf,.txt,.md,.doc,.docx,.xls,.xlsx"
-        disabled={uploadFileMutation.isPending}
-      />
+		// Show summary toast
+		if (failCount === 0) {
+			ritaToast.success({
+				title: "Documents Deleted",
+				description: `Successfully deleted ${successCount} document${successCount !== 1 ? "s" : ""}`,
+			});
+		} else if (successCount === 0) {
+			ritaToast.error({
+				title: "Delete Failed",
+				description: `Failed to delete ${failCount} document${failCount !== 1 ? "s" : ""}`,
+			});
+		} else {
+			ritaToast.warning({
+				title: "Partial Success",
+				description: `Deleted ${successCount} document${successCount !== 1 ? "s" : ""}, ${failCount} failed`,
+			});
+		}
+	};
 
-      {/* Upload status toast */}
-      {uploadFileMutation.isError && (
-        <div className="fixed bottom-4 right-4 p-3 bg-destructive/10 border border-destructive/20 rounded-md max-w-sm">
-          <div className="flex items-center gap-2 text-destructive">
-            <AlertCircle className="h-4 w-4" />
-            <span className="text-sm">
-              {uploadFileMutation.error?.message || 'Upload failed'}
-            </span>
-          </div>
-        </div>
-      )}
+	const handleUploadClick = () => {
+		fileInputRef.current?.click();
+	};
 
-      {uploadFileMutation.isSuccess && (
-        <div className="fixed bottom-4 right-4 p-3 bg-green-50 border border-green-200 rounded-md max-w-sm">
-          <div className="flex items-center gap-2 text-green-700">
-            <CheckCircle className="h-4 w-4" />
-            <span className="text-sm">File uploaded successfully!</span>
-          </div>
-        </div>
-      )}
+	const cleanFilter = () => {
+		setSearchInput("");
+	};
 
-      {reprocessFileMutation.isError && (
-        <div className="fixed bottom-4 right-4 p-3 bg-destructive/10 border border-destructive/20 rounded-md max-w-sm">
-          <div className="flex items-center gap-2 text-destructive">
-            <AlertCircle className="h-4 w-4" />
-            <span className="text-sm">
-              {reprocessFileMutation.error?.message || 'Reprocess failed'}
-            </span>
-          </div>
-        </div>
-      )}
+	const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+		cleanFilter();
+		const files = e.target.files;
+		if (!files || files.length === 0) return;
 
-      {reprocessFileMutation.isSuccess && (
-        <div className="fixed bottom-4 right-4 p-3 bg-green-50 border border-green-200 rounded-md max-w-sm">
-          <div className="flex items-center gap-2 text-green-700">
-            <RefreshCw className="h-4 w-4" />
-            <span className="text-sm">Document sent for reprocessing!</span>
-          </div>
-        </div>
-      )}
-    </div>
-  )
+		const filesToUpload = Array.from(files);
+		let successCount = 0;
+		let errorCount = 0;
+		let duplicateCount = 0;
+		const errors: string[] = [];
+		const duplicates: string[] = [];
+		const successfulFilenames: string[] = [];
+
+		// Initialize processing tracking BEFORE uploads start
+		// This prevents SSE events from triggering early toasts during the upload loop
+		const processingKey = 'rita-processing-files';
+		sessionStorage.setItem(processingKey, JSON.stringify({
+			total: 0, // Will be set after uploads complete
+			processed: 0,
+			failed: 0,
+			duplicates: 0,
+			uploading: true, // Flag to indicate uploads are in progress
+		}));
+
+		// Show initial toast
+		ritaToast.info({
+			title: "Uploading Files",
+			description: `Starting upload of ${filesToUpload.length} file${filesToUpload.length > 1 ? 's' : ''}...`,
+		});
+
+		// Initialize upload progress for multiple files
+		if (filesToUpload.length > 1) {
+			setUploadProgress({ total: filesToUpload.length, current: 0 });
+		}
+
+		// Process each file
+		for (let i = 0; i < filesToUpload.length; i++) {
+			const file = filesToUpload[i];
+
+			// Update progress
+			if (filesToUpload.length > 1) {
+				setUploadProgress({ total: filesToUpload.length, current: i + 1 });
+			}
+
+			// Validate file type before upload
+			const validation = validateFileForUpload(file);
+			if (!validation.isValid && validation.error) {
+				errorCount++;
+				errors.push(`${file.name}: ${validation.error.description}`);
+				continue;
+			}
+
+			// Track uploading state
+			setUploadingFiles((prev) => new Set(prev).add(file.name));
+
+			try {
+				const response = await uploadFileMutation.mutateAsync(file);
+				successCount++;
+				// Use server's returned filename (not client's file.name) for SSE tracking
+				successfulFilenames.push(response.document.filename);
+			} catch (error: any) {
+				// Handle duplicate file (409 Conflict) - treat differently from errors
+				if (error.status === 409 && error.data?.existing_filename) {
+					duplicateCount++;
+					duplicates.push(`${file.name}: Already exists as "${error.data.existing_filename}"`);
+				} else {
+					errorCount++;
+					errors.push(`${file.name}: ${error.message || "Upload failed"}`);
+				}
+			} finally {
+				// Remove from uploading state
+				setUploadingFiles((prev) => {
+					const next = new Set(prev);
+					next.delete(file.name);
+					return next;
+				});
+			}
+		}
+
+		// Clear upload progress
+		setUploadProgress(null);
+
+		// Reset file input to allow re-selection
+		if (fileInputRef.current) {
+			fileInputRef.current.value = "";
+		}
+
+		// Invalidate files query cache if any files were uploaded successfully
+		if (successCount > 0) {
+			queryClient.invalidateQueries({ queryKey: fileKeys.lists(), refetchType: 'active' });
+		}
+
+		// Update processing tracking and mark uploads complete
+		if (successCount > 0) {
+			// Get current tracking data to preserve any SSE updates that happened during upload
+			const currentData = JSON.parse(sessionStorage.getItem(processingKey) || '{}');
+			const processed = currentData.processed || 0;
+			const failed = currentData.failed || 0;
+
+			const trackingData = {
+				total: successCount, // Total files that need processing
+				processed,
+				failed,
+				duplicates: duplicateCount,
+				uploading: false, // Uploads complete, SSE can now show final toast
+			};
+			sessionStorage.setItem(processingKey, JSON.stringify(trackingData));
+
+			// Check if all files already processed while uploading (for fast processing)
+			if (processed + failed >= successCount) {
+				// All files already processed, show final toast
+				const duplicateMsg = duplicateCount > 0 ? `, ${duplicateCount} duplicate${duplicateCount > 1 ? 's' : ''} skipped` : '';
+
+				if (processed > 0 && failed === 0 && duplicateCount === 0) {
+					ritaToast.success({
+						title: 'Processing Complete',
+						description: processed === 1
+							? 'File processed successfully'
+							: 'All files processed successfully',
+					});
+				} else if (processed > 0 && failed === 0 && duplicateCount > 0) {
+					ritaToast.success({
+						title: 'Processing Complete',
+						description: `${processed} file${processed > 1 ? 's' : ''} processed${duplicateMsg}`,
+					});
+				} else if (processed === 0 && failed > 0) {
+					ritaToast.error({
+						title: 'Processing Failed',
+						description: failed === 1
+							? `File failed to process${duplicateMsg}`
+							: `All files failed to process${duplicateMsg}`,
+					});
+				} else if (processed > 0 && failed > 0) {
+					ritaToast.warning({
+						title: 'Processing Partially Complete',
+						description: `${processed} successful, ${failed} failed${duplicateMsg}`,
+					});
+				}
+
+				sessionStorage.removeItem(processingKey);
+				queryClient.invalidateQueries({ queryKey: fileKeys.lists(), refetchType: 'active' });
+			}
+		} else {
+			// No successful uploads, remove tracking
+			sessionStorage.removeItem(processingKey);
+		}
+
+		// Show upload summary toast (immediate feedback)
+		// Note: A separate "Processing Complete" toast will appear later via SSE when files finish processing
+		if (successCount > 0 && errorCount === 0 && duplicateCount === 0) {
+			// All files uploaded successfully
+			ritaToast.info({
+				title: "Files Uploaded",
+				description: `${successCount} file${successCount > 1 ? 's' : ''} uploaded. Processing in background...`,
+			});
+		} else if (successCount > 0 && duplicateCount > 0 && errorCount === 0) {
+			// Some successful, some duplicates, no errors
+			ritaToast.warning({
+				title: "Files Uploaded",
+				description: `${successCount} file${successCount > 1 ? 's' : ''} uploaded, ${duplicateCount} duplicate${duplicateCount > 1 ? 's' : ''} skipped. Processing in background...`,
+			});
+		} else if (successCount > 0 && errorCount > 0) {
+			// Mixed success and errors (may also have duplicates)
+			const failedMsg = duplicateCount > 0
+				? `${errorCount} failed, ${duplicateCount} duplicate${duplicateCount > 1 ? 's' : ''} skipped.`
+				: `${errorCount} failed.`;
+			ritaToast.warning({
+				title: "Some Files Uploaded",
+				description: `${successCount} uploaded, ${failedMsg} Processing in background...`,
+			});
+		} else if (errorCount > 0 || duplicateCount > 0) {
+			// All failed or all duplicates (no successes)
+			if (duplicateCount > 0 && errorCount === 0) {
+				ritaToast.warning({
+					title: "Files Already Exist",
+					description: `${duplicateCount} file${duplicateCount > 1 ? 's are' : ' is'} already in your knowledge base.`,
+				});
+			} else if (duplicateCount > 0 && errorCount > 0) {
+				// Both errors and duplicates, no successes
+				ritaToast.error({
+					title: "Upload Failed",
+					description: `${errorCount} failed, ${duplicateCount} duplicate${duplicateCount > 1 ? 's' : ''} skipped (already in knowledge base).`,
+				});
+			} else {
+				ritaToast.error({
+					title: "Upload Failed",
+					description: errors.length > 0 ? errors[0] : "All uploads failed",
+				});
+			}
+		}
+	};
+
+	const handleDownload = (file: FileDocument) => {
+		downloadFileMutation.mutate(
+			{
+				documentId: file.id,
+				filename: file.filename,
+			},
+			{
+				onSuccess: () => {
+					ritaToast.success({
+						title: "Download Started",
+						description: `Downloading ${file.filename}`,
+					});
+				},
+				onError: () => {
+					ritaToast.error({
+						title: "Download Failed",
+						description: `Could not download ${file.filename}`,
+					});
+				},
+			},
+		);
+	};
+
+	const handleReprocess = (file: FileDocument) => {
+		reprocessFileMutation.mutate(file.id, {
+			onSuccess: () => {
+				ritaToast.success({
+					title: "Reprocessing Started",
+					description: `Document ${file.filename} is being reprocessed`,
+				});
+			},
+			onError: () => {
+				ritaToast.error({
+					title: "Reprocess Failed",
+					description: `Could not reprocess ${file.filename}`,
+				});
+			},
+		});
+	};
+
+	const handleDelete = (file: FileDocument) => {
+		setFileToDelete(file);
+		setDeleteDialogOpen(true);
+	};
+
+	const confirmDelete = () => {
+		if (fileToDelete) {
+			const fileName = fileToDelete.filename;
+			deleteFileMutation.mutate(fileToDelete.id, {
+				onSuccess: () => {
+					ritaToast.success({
+						title: "Document Deleted",
+						description: `${fileName} has been deleted`,
+					});
+				},
+				onError: () => {
+					ritaToast.error({
+						title: "Delete Failed",
+						description: `Could not delete ${fileName}`,
+					});
+				},
+			});
+			setDeleteDialogOpen(false);
+			setFileToDelete(null);
+		}
+	};
+
+	const getStatusIcon = (status: string) => {
+		const IconComponent = STATUS_ICON_REGISTRY[status] || AlertCircle;
+		const animation = STATUS_ICON_ANIMATIONS[status] || "";
+		const className = `h-3 w-3 ${animation}`.trim();
+
+		return <IconComponent className={className} />;
+	};
+
+	const getStatusLabel = (status: string) => {
+		return status.charAt(0).toUpperCase() + status.slice(1);
+	};
+
+	const getStatusVariant = (
+		status: string,
+	): "default" | "secondary" | "destructive" | "outline" => {
+		switch (status) {
+			case FILE_STATUS.PROCESSED:
+				return "default";
+			case FILE_STATUS.PROCESSING:
+				return "secondary";
+			case FILE_STATUS.FAILED:
+				return "destructive";
+			default:
+				return "outline";
+		}
+	};
+
+	return (
+		<div className="flex flex-col h-full">
+			{/* Header */}
+			<MainHeader
+				title="Knowledge Articles"
+				action={
+					<DropdownMenu>
+						<DropdownMenuTrigger asChild>
+							<Button disabled={uploadFileMutation.isPending}>
+								{uploadFileMutation.isPending ? (
+									<Loader className="h-4 w-4 animate-spin" />
+								) : (
+									<Plus className="h-4 w-4" />
+								)}
+								Add Articles
+							</Button>
+						</DropdownMenuTrigger>
+						<DropdownMenuContent align="end">
+							{/* Upload file option */}
+							<DropdownMenuItem
+								onClick={handleUploadClick}
+								disabled={uploadingFiles.size > 0}
+							>
+								{uploadingFiles.size > 0 ? (
+									<Loader className="h-4 w-4 mr-2 animate-spin" />
+								) : (
+									<Upload className="h-4 w-4 mr-2" />
+								)}
+								{uploadingFiles.size > 0 ? `Uploading ${uploadingFiles.size} file${uploadingFiles.size > 1 ? 's' : ''}...` : 'Upload file'}
+							</DropdownMenuItem>
+
+							{/* Connect sources option */}
+							<DropdownMenuItem
+								onClick={() => navigate("/settings/connections")}
+							>
+								<Plus className="h-4 w-4 mr-2" />
+								Connect sources
+								<div className="ml-auto flex gap-1 pl-8">
+									<img
+										src="/connections/icon_confluence.svg"
+										alt=""
+										className="h-4 w-4"
+									/>
+									<img
+										src="/connections/icon_sharepoint.svg"
+										alt=""
+										className="h-4 w-4"
+									/>
+									<img
+										src="/connections/icon_servicenow.svg"
+										alt=""
+										className="h-4 w-4"
+									/>
+								</div>
+							</DropdownMenuItem>
+
+							{/* Synced sources */}
+							{syncedSources.length > 0 && (
+								<>
+									<DropdownMenuSeparator />
+									{syncedSources.map((source: DataSourceConnection) => (
+										<DropdownMenuItem
+											key={source.id}
+											onClick={() =>
+												navigate(`/settings/connections/${source.id}`)
+											}
+										>
+											<img
+												src={`/connections/icon_${source.type}.svg`}
+												alt=""
+												className="h-4 w-4 mr-2"
+											/>
+											{SOURCE_METADATA[source.type]?.title || source.type}
+										</DropdownMenuItem>
+									))}
+								</>
+							)}
+						</DropdownMenuContent>
+					</DropdownMenu>
+				}
+			/>
+
+			{/* Main Content */}
+			<div className="flex-1 px-6 py-6 overflow-y-auto">
+				<div className="flex flex-col gap-6">
+					{/* Stats Cards - Hidden for now, needs metrics calculation rethink */}
+					{/*
+					<div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
+						<Card className="border border-border bg-popover">
+							<CardContent className="p-4">
+								<div className="flex flex-col gap-0">
+									<h3 className="text-2xl font-normal text-foreground">
+										{totalDocs}
+									</h3>
+									<p className="text-sm text-muted-foreground">
+										Total Documents
+									</p>
+								</div>
+							</CardContent>
+						</Card>
+
+						<Card className="border border-border bg-popover">
+							<CardContent className="p-4">
+								<div className="flex flex-col gap-0">
+									<div className="flex items-center gap-3">
+										<h3 className="text-2xl font-normal text-foreground">
+											{processedCount}
+										</h3>
+										{processedCount > 0 && (
+											<Badge
+												variant="outline"
+												className="flex items-center gap-1"
+											>
+												<CheckCircle className="h-3 w-3" />
+												Ready
+											</Badge>
+										)}
+									</div>
+									<p className="text-sm text-muted-foreground">
+										Processed Documents
+									</p>
+								</div>
+							</CardContent>
+						</Card>
+
+						<Card className="border border-border bg-popover">
+							<CardContent className="p-4">
+								<div className="flex flex-col gap-0">
+									<div className="flex items-center gap-3">
+										<h3 className="text-2xl font-normal text-foreground">
+											{processingCount}
+										</h3>
+										{processingCount > 0 && (
+											<Badge
+												variant="secondary"
+												className="flex items-center gap-1"
+											>
+												<Loader className="h-3 w-3 animate-spin" />
+												Active
+											</Badge>
+										)}
+									</div>
+									<p className="text-sm text-muted-foreground">Processing</p>
+								</div>
+							</CardContent>
+						</Card>
+
+						<Card className="border border-border bg-popover">
+							<CardContent className="p-4">
+								<div className="flex flex-col gap-0">
+									<div className="flex items-center gap-3">
+										<h3 className="text-2xl font-normal text-foreground">
+											{failedCount}
+										</h3>
+										{failedCount > 0 && (
+											<Badge
+												variant="destructive"
+												className="flex items-center gap-1"
+											>
+												<AlertCircle className="h-3 w-3" />
+												Failed
+											</Badge>
+										)}
+									</div>
+									<p className="text-sm text-muted-foreground">
+										Failed Documents
+									</p>
+								</div>
+							</CardContent>
+						</Card>
+					</div>
+					*/}
+
+					{/* Search and Filters OR Bulk Actions */}
+					{selectedFiles.size === 0 ? (
+						<div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
+							<Input
+								placeholder="Search documents....."
+								value={searchInput}
+								onChange={(e) => setSearchInput(e.target.value)}
+								className="max-w-sm"
+							/>
+							<div className="flex gap-4">
+								<DropdownMenu>
+									<DropdownMenuTrigger asChild>
+										<Button variant="outline">
+											Source: {sourceFilter}
+											<ChevronDown className="h-4 w-4" />
+										</Button>
+									</DropdownMenuTrigger>
+									<DropdownMenuContent>
+										<DropdownMenuItem onSelect={() => setSourceFilter("All")}>
+											All Sources
+										</DropdownMenuItem>
+										<DropdownMenuItem
+											onSelect={() =>
+												setSourceFilter(
+													FILE_SOURCE_DISPLAY_NAMES[FILE_SOURCE.MANUAL],
+												)
+											}
+										>
+											{FILE_SOURCE_DISPLAY_NAMES[FILE_SOURCE.MANUAL]}
+										</DropdownMenuItem>
+										<DropdownMenuItem
+											onSelect={() =>
+												setSourceFilter(
+													FILE_SOURCE_DISPLAY_NAMES[FILE_SOURCE.CONFLUENCE],
+												)
+											}
+										>
+											{FILE_SOURCE_DISPLAY_NAMES[FILE_SOURCE.CONFLUENCE]}
+										</DropdownMenuItem>
+									</DropdownMenuContent>
+								</DropdownMenu>
+
+								<DropdownMenu>
+									<DropdownMenuTrigger asChild>
+										<Button variant="outline">
+											Status:{" "}
+											{statusFilter === "All"
+												? statusFilter
+												: statusFilter.charAt(0).toUpperCase() +
+													statusFilter.slice(1)}
+											<ChevronDown className="h-4 w-4" />
+										</Button>
+									</DropdownMenuTrigger>
+									<DropdownMenuContent>
+										<DropdownMenuItem onSelect={() => setStatusFilter("All")}>
+											All Status
+										</DropdownMenuItem>
+										<DropdownMenuItem
+											onSelect={() => setStatusFilter(FILE_STATUS.PROCESSED)}
+										>
+											Processed
+										</DropdownMenuItem>
+										<DropdownMenuItem
+											onSelect={() => setStatusFilter(FILE_STATUS.PROCESSING)}
+										>
+											Processing
+										</DropdownMenuItem>
+										<DropdownMenuItem
+											onSelect={() => setStatusFilter(FILE_STATUS.FAILED)}
+										>
+											Failed
+										</DropdownMenuItem>
+										<DropdownMenuItem
+											onSelect={() => setStatusFilter(FILE_STATUS.UPLOADED)}
+										>
+											Uploaded
+										</DropdownMenuItem>
+									</DropdownMenuContent>
+								</DropdownMenu>
+							</div>
+						</div>
+					) : (
+						<BulkActions
+							selectedItems={Array.from(selectedFiles)}
+							onDelete={handleBulkDeleteClick}
+							onClose={() => setSelectedFiles(new Set())}
+							itemLabel="files"
+							isLoading={isBulkDeleting}
+							remainingCount={deletingRemaining}
+						/>
+					)}
+
+					{/* Upload Progress Bar */}
+					{uploadProgress && (
+						<div className="flex items-center gap-4 p-4 bg-muted/50 border rounded-md">
+							<Loader className="h-4 w-4 animate-spin text-primary" />
+							<div className="flex-1">
+								<div className="flex justify-between text-sm mb-1">
+									<span>Uploading files...</span>
+									<span>{uploadProgress.current} of {uploadProgress.total}</span>
+								</div>
+								<Progress value={(uploadProgress.current / uploadProgress.total) * 100} className="h-2" />
+							</div>
+						</div>
+					)}
+
+					{/* Empty State */}
+					{!isLoading && sortedFiles.length === 0 ? (
+						<EmptyFilesState
+							hasActiveFilters={
+								searchInput !== "" ||
+								statusFilter !== "All" ||
+								sourceFilter !== "All"
+							}
+							onUploadClick={handleUploadClick}
+						/>
+					) : (
+						/* Table */
+						<div className="relative border rounded-md">
+							<Table>
+								<TableHeader>
+									<TableRow>
+										<TableHead className="w-12">
+											<Checkbox
+												checked={
+													selectedFiles.size === sortedFiles.length &&
+													sortedFiles.length > 0
+												}
+												onCheckedChange={handleSelectAll}
+											/>
+										</TableHead>
+										<TableHead>
+											<Button
+												variant="ghost"
+												size="sm"
+												className="text-muted-foreground hover:text-foreground -ml-3"
+												onClick={() => handleSort("filename")}
+											>
+												Name
+												{renderSortIcon(sortField, "filename", sortOrder)}
+											</Button>
+										</TableHead>
+										<TableHead>
+											<Button
+												variant="ghost"
+												size="sm"
+												className="text-muted-foreground hover:text-foreground -ml-3"
+												onClick={() => handleSort("status")}
+											>
+												Status
+												{renderSortIcon(sortField, "status", sortOrder)}
+											</Button>
+										</TableHead>
+										<TableHead>
+											<Button
+												variant="ghost"
+												size="sm"
+												className="text-muted-foreground hover:text-foreground -ml-3"
+												onClick={() => handleSort("source")}
+											>
+												Source
+												{renderSortIcon(sortField, "source", sortOrder)}
+											</Button>
+										</TableHead>
+										<TableHead className="text-right">
+											<Button
+												variant="ghost"
+												size="sm"
+												className="text-muted-foreground hover:text-foreground -mr-3"
+												onClick={() => handleSort("size")}
+											>
+												Size
+												{renderSortIcon(sortField, "size", sortOrder)}
+											</Button>
+										</TableHead>
+										{/*<TableHead>*/}
+										{/*	<Button*/}
+										{/*		variant="ghost"*/}
+										{/*		size="sm"*/}
+										{/*		className="text-muted-foreground hover:text-foreground"*/}
+										{/*	>*/}
+										{/*		Queries*/}
+										{/*		<ArrowUpDown className="h-4 w-4" />*/}
+										{/*	</Button>*/}
+										{/*</TableHead>*/}
+										<TableHead className="text-right">
+											<Button
+												variant="ghost"
+												size="sm"
+												className="text-muted-foreground hover:text-foreground -mr-3"
+												onClick={() => handleSort("created_at")}
+											>
+												Last Modified
+												{renderSortIcon(sortField, "created_at", sortOrder)}
+											</Button>
+										</TableHead>
+										<TableHead className="w-16"></TableHead>
+									</TableRow>
+								</TableHeader>
+								<TableBody>
+									{isLoading
+										? [...Array(3)].map((_, i) => (
+												<TableRow key={i}>
+													<TableCell className="w-12">
+														<Skeleton className="h-4 w-4" />
+													</TableCell>
+													<TableCell>
+														<Skeleton className="h-4 w-[200px]" />
+													</TableCell>
+													<TableCell>
+														<Skeleton className="h-4 w-[80px]" />
+													</TableCell>
+													<TableCell>
+														<Skeleton className="h-4 w-[100px]" />
+													</TableCell>
+													<TableCell className="text-right">
+														<Skeleton className="h-4 w-[60px] ml-auto" />
+													</TableCell>
+													<TableCell className="text-right">
+														<Skeleton className="h-4 w-[120px] ml-auto" />
+													</TableCell>
+													<TableCell className="w-16">
+														<Skeleton className="h-4 w-[30px]" />
+													</TableCell>
+												</TableRow>
+											))
+										: sortedFiles.map((file) => (
+												<TableRow key={file.id}>
+													<TableCell className="w-12">
+														<Checkbox
+															checked={selectedFiles.has(file.id)}
+															onCheckedChange={() => handleSelectFile(file.id)}
+														/>
+													</TableCell>
+													<TableCell>{file.filename}</TableCell>
+													<TableCell>
+														<div className="flex items-center gap-2">
+															<Badge
+																variant={getStatusVariant(file.status)}
+																className="flex items-center gap-1 w-fit"
+															>
+																{getStatusIcon(file.status)}
+																{getStatusLabel(file.status)}
+															</Badge>
+															{file.status === FILE_STATUS.FAILED && (
+																<Button
+																	variant="link"
+																	size="sm"
+																	onClick={() => handleReprocess(file)}
+																	disabled={reprocessFileMutation.isPending}
+																	className="h-7 px-2 gap-1.5 hover:no-underline"
+																>
+																	<RefreshCw
+																		className={cn(
+																			"h-3 w-3",
+																			reprocessFileMutation.isPending &&
+																				"animate-spin",
+																		)}
+																	/>
+																	<span className="text-xs">Retry</span>
+																</Button>
+															)}
+														</div>
+													</TableCell>
+													<TableCell>
+														{getSourceDisplayName(file.source)}
+													</TableCell>
+													<TableCell className="text-right">
+														{formatFileSize(file.size)}
+													</TableCell>
+													{/*<TableCell className="text-right">-</TableCell>*/}
+													<TableCell className="text-right">
+														{formatDate(file.updated_at)}
+													</TableCell>
+													<TableCell className="w-16">
+														<DropdownMenu>
+															<DropdownMenuTrigger asChild>
+																<Button
+																	variant="ghost"
+																	size="sm"
+																	className="text-muted-foreground hover:text-foreground"
+																>
+																	<MoreHorizontal className="h-4 w-4" />
+																</Button>
+															</DropdownMenuTrigger>
+															<DropdownMenuContent align="end">
+																{/* Download option - only for manual uploads that are uploaded/processed */}
+																{file.source === FILE_SOURCE.MANUAL &&
+																	(file.status === FILE_STATUS.UPLOADED ||
+																		file.status === FILE_STATUS.PROCESSED) && (
+																		<DropdownMenuItem
+																			onClick={() => handleDownload(file)}
+																		>
+																			<Download className="h-4 w-4 mr-2" />
+																			Download
+																		</DropdownMenuItem>
+																	)}
+																{/* Reprocess option - only for manual uploads */}
+																{file.source === FILE_SOURCE.MANUAL && (
+																	<DropdownMenuItem
+																		onClick={() => handleReprocess(file)}
+																		disabled={reprocessFileMutation.isPending}
+																	>
+																		<RefreshCw
+																			className={`h-4 w-4 mr-2 ${reprocessFileMutation.isPending ? "animate-spin" : ""}`}
+																		/>
+																		Reprocess
+																	</DropdownMenuItem>
+																)}
+																{/* Delete option - always available */}
+																<DropdownMenuItem
+																	onClick={() => handleDelete(file)}
+																	disabled={deleteFileMutation.isPending}
+																	variant="destructive"
+																>
+																	<Trash2 className="h-4 w-4 mr-2" />
+																	Delete
+																</DropdownMenuItem>
+															</DropdownMenuContent>
+														</DropdownMenu>
+													</TableCell>
+												</TableRow>
+											))}
+								</TableBody>
+							</Table>
+						</div>
+					)}
+
+					{/* Footer with Pagination */}
+					{!isLoading && sortedFiles.length > 0 && (
+						<div className="flex flex-col sm:flex-row justify-between items-center gap-4">
+							<p className="text-sm text-muted-foreground">
+								{searchInput || statusFilter !== "All" || sourceFilter !== "All" ? (
+									// Show filtered results info
+									<>Showing {sortedFiles.length} of {totalFiles} articles (filtered)</>
+								) : (
+									// Show pagination range when no filters
+									<>Showing {page * PAGE_SIZE + 1}-{Math.min((page + 1) * PAGE_SIZE, totalFiles)} of {totalFiles} articles</>
+								)}
+							</p>
+							<div className="flex items-center gap-2">
+								<Button
+									variant="outline"
+									size="sm"
+									onClick={handlePrevPage}
+									disabled={!hasPrevPage}
+								>
+								 
+									Previous
+								</Button>
+								<Button
+									variant="outline"
+									size="sm"
+									onClick={handleNextPage}
+									disabled={!hasNextPage}
+								>
+									Next
+									 
+								</Button>
+							</div>
+						</div>
+					)}
+				</div>
+			</div>
+
+			{/* Hidden file input */}
+			<input
+				ref={fileInputRef}
+				type="file"
+				multiple={enableMultiFileUpload}
+				className="hidden"
+				onChange={handleFileChange}
+				accept={SUPPORTED_DOCUMENT_TYPES}
+				disabled={uploadFileMutation.isPending || uploadingFiles.size > 0}
+			/>
+
+			{/* Delete Confirmation Dialog */}
+			<ConfirmDialog
+				open={deleteDialogOpen}
+				onOpenChange={setDeleteDialogOpen}
+				title="Delete Document"
+				description={`Are you sure you want to delete "${fileToDelete?.filename}"? This action cannot be undone.`}
+				onConfirm={confirmDelete}
+				confirmLabel="Delete"
+				cancelLabel="Cancel"
+				variant="destructive"
+			/>
+
+			{/* Bulk Delete Confirmation Dialog */}
+			<ConfirmDialog
+				open={bulkDeleteDialogOpen}
+				onOpenChange={setBulkDeleteDialogOpen}
+				title="Delete Documents"
+				description={`Are you sure you want to delete ${selectedFiles.size} document${selectedFiles.size !== 1 ? "s" : ""}? This action cannot be undone and will permanently remove all selected files from your knowledge base.`}
+				onConfirm={handleConfirmBulkDelete}
+				confirmLabel="Delete"
+				cancelLabel="Cancel"
+				variant="destructive"
+			/>
+		</div>
+	);
 }

@@ -2,7 +2,7 @@ import type { Channel, ConsumeMessage } from 'amqplib';
 import { logError, PerformanceTimer, queueLogger } from '../config/logger.js';
 import { DataSourceService } from '../services/DataSourceService.js';
 import { getSSEService } from '../services/sse.js';
-import type { DataSourceStatusMessage, SyncStatusMessage, VerificationStatusMessage } from '../types/dataSource.js';
+import type { DataSourceStatusMessage, IngestionStatusMessage, SyncStatusMessage, VerificationStatusMessage } from '../types/dataSource.js';
 
 /**
  * Unified RabbitMQ Consumer for Data Source Status Updates
@@ -48,6 +48,8 @@ export class DataSourceStatusConsumer {
           await this.processSyncStatus(content);
         } else if (content.type === 'verification') {
           await this.processVerificationStatus(content);
+        } else if (content.type === 'ticket_ingestion') {
+          await this.processTicketIngestionStatus(content);
         } else {
           throw new Error(`Unknown message type: ${(content as any).type}`);
         }
@@ -119,8 +121,19 @@ export class DataSourceStatusConsumer {
           tenant_id,
           'idle',
           'completed',
-          true // Update last_sync_at
+          true, // Update last_sync_at
+          true  // Require status to be 'syncing' to prevent race condition
         );
+
+        // If update failed (returned null), the sync was likely cancelled
+        if (!updatedDataSource) {
+          messageLogger.warn({
+            connection_id,
+            tenant_id
+          }, 'Sync completed message ignored - sync may have been cancelled');
+          return; // Don't send SSE notification
+        }
+
         messageLogger.info({
           documentsProcessed: payload.documents_processed
         }, 'Data source sync completed successfully');
@@ -137,6 +150,19 @@ export class DataSourceStatusConsumer {
         messageLogger.error({
           errorMessage: error_message
         }, 'Data source sync failed');
+        break;
+
+      case 'sync_cancelled':
+        updatedDataSource = await this.dataSourceService.updateDataSourceStatus(
+          connection_id,
+          tenant_id,
+          'cancelled',
+          'failed',
+          true // Update last_sync_at
+        );
+        messageLogger.info({
+          errorMessage: error_message || 'Sync cancelled by user'
+        }, 'Data source sync cancelled');
         break;
 
       default:
@@ -254,5 +280,79 @@ export class DataSourceStatusConsumer {
     }
 
     messageLogger.info('Verification status processing completed successfully');
+  }
+
+  /**
+   * Process ticket ingestion status message (ITSM Autopilot)
+   */
+  private async processTicketIngestionStatus(payload: IngestionStatusMessage): Promise<void> {
+    const { ingestion_run_id, tenant_id, connection_id, status, records_processed, records_failed, error_message } = payload;
+
+    // Validate required fields
+    if (!ingestion_run_id || !tenant_id || !status) {
+      const messageLogger = queueLogger.child({
+        ingestionRunId: ingestion_run_id,
+        tenantId: tenant_id,
+        status: status
+      });
+      messageLogger.error({ payload }, 'Invalid ticket ingestion payload: missing required fields');
+      throw new Error('Invalid ticket ingestion payload: missing required fields');
+    }
+
+    const messageLogger = queueLogger.child({
+      ingestionRunId: ingestion_run_id,
+      tenantId: tenant_id,
+      status: status
+    });
+
+    messageLogger.info('Processing ticket ingestion status update');
+
+    // Update ingestion_runs table
+    await this.dataSourceService.updateIngestionRunStatus(
+      ingestion_run_id,
+      status,
+      error_message
+    );
+
+    // Update records count if provided
+    if (records_processed !== undefined || records_failed !== undefined) {
+      await this.dataSourceService.updateIngestionRunRecords(
+        ingestion_run_id,
+        records_processed,
+        records_failed
+      );
+    }
+
+    messageLogger.info({
+      recordsProcessed: records_processed,
+      recordsFailed: records_failed
+    }, `Ticket ingestion ${status}`);
+
+    // Send SSE event to notify frontend
+    try {
+      const sseService = getSSEService();
+
+      sseService.sendToOrganization(tenant_id, {
+        type: 'ingestion_run_update',
+        data: {
+          ingestion_run_id: ingestion_run_id,
+          connection_id: connection_id,
+          status: status,
+          records_processed: records_processed,
+          records_failed: records_failed,
+          error_message: error_message,
+          timestamp: new Date().toISOString()
+        }
+      });
+
+      messageLogger.info({ eventType: 'ingestion_run_update' }, 'SSE event sent to organization');
+    } catch (sseError) {
+      messageLogger.warn({
+        error: sseError instanceof Error ? sseError.message : String(sseError)
+      }, 'Failed to send SSE event');
+      // Don't throw here - SSE failure shouldn't prevent status processing
+    }
+
+    messageLogger.info('Ticket ingestion status processing completed successfully');
   }
 }

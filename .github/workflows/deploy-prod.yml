@@ -1,0 +1,383 @@
+name: Deploy to Production
+
+on:
+  workflow_dispatch:
+  repository_dispatch:
+    types: [deploy-production]
+
+concurrency:
+  group: production-deploy
+  cancel-in-progress: true
+
+env:
+  REGISTRY: ghcr.io
+  GITHUB_REPOSITORY_OWNER: resolve-io
+  IMAGE_PREFIX: rita
+  DEPLOY_HOST: ${{ vars.PROD_DEPLOY_HOST || 'ec2-44-218-120-97.compute-1.amazonaws.com' }}
+  DEPLOY_USER: ${{ vars.PROD_DEPLOY_USER || 'ec2-user' }}
+
+jobs:
+  # Validate all required secrets are configured
+  validate-secrets:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate production secrets
+        shell: bash
+        run: |
+          echo "🔍 Validating required production secrets..."
+
+          failed=false
+
+          # Frontend build secrets
+          if [ -z "${{ secrets.PROD_VITE_KEYCLOAK_URL }}" ]; then
+            echo "❌ Missing: PROD_VITE_KEYCLOAK_URL"
+            failed=true
+          fi
+          if [ -z "${{ secrets.PROD_VITE_KEYCLOAK_REALM }}" ]; then
+            echo "❌ Missing: PROD_VITE_KEYCLOAK_REALM"
+            failed=true
+          fi
+          if [ -z "${{ secrets.PROD_VITE_KEYCLOAK_CLIENT_ID }}" ]; then
+            echo "❌ Missing: PROD_VITE_KEYCLOAK_CLIENT_ID"
+            failed=true
+          fi
+
+          # Pendo Analytics (optional - warn if missing but don't fail)
+          if [ -z "${{ secrets.PROD_VITE_PENDO_API_KEY }}" ]; then
+            echo "⚠️  Warning: PROD_VITE_PENDO_API_KEY not set (analytics will be disabled)"
+          else
+            echo "✅ PROD_VITE_PENDO_API_KEY is configured"
+          fi
+
+          # Backend infrastructure secrets (only check if deployment is enabled)
+          # if [ -z "${{ secrets.PROD_DATABASE_URL }}" ]; then
+          #   echo "❌ Missing: PROD_DATABASE_URL"
+          #   failed=true
+          # fi
+
+          if [ "$failed" = true ]; then
+            echo ""
+            echo "📋 Please add missing secrets in GitHub repository settings:"
+            echo "   Settings → Secrets and variables → Actions → Secrets"
+            echo ""
+            echo "📖 See docs/PROD_SECRETS_SETUP.md for detailed setup instructions"
+            exit 1
+          fi
+
+          echo "✅ All required secrets are configured!"
+
+  # Build and push Docker images
+  build-and-push:
+    runs-on: ubuntu-latest
+    needs: validate-secrets
+    outputs:
+      api-server-image: ${{ steps.meta.outputs.api-server-image }}
+      frontend-image: ${{ steps.meta.outputs.frontend-image }}
+      short-sha: ${{ steps.meta.outputs.short-sha }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Generate metadata
+        id: meta
+        run: |
+          SHORT_SHA=${GITHUB_SHA::7}
+          API_IMAGE="${{ env.REGISTRY }}/${{ env.GITHUB_REPOSITORY_OWNER }}/${{ env.IMAGE_PREFIX }}-api-server:prod-${SHORT_SHA}"
+          FRONTEND_IMAGE="${{ env.REGISTRY }}/${{ env.GITHUB_REPOSITORY_OWNER }}/${{ env.IMAGE_PREFIX }}-frontend:prod-${SHORT_SHA}"
+
+          echo "short-sha=${SHORT_SHA}" >> $GITHUB_OUTPUT
+          echo "api-server-image=${API_IMAGE}" >> $GITHUB_OUTPUT
+          echo "frontend-image=${FRONTEND_IMAGE}" >> $GITHUB_OUTPUT
+
+      - name: Setup Node.js for builds
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install root dependencies
+        run: npm ci --legacy-peer-deps
+
+      - name: Build API Server
+        run: |
+          cd packages/api-server
+          npm ci --legacy-peer-deps
+          npm run build
+
+      - name: Build Frontend
+        run: |
+          cd packages/client
+          npm ci --legacy-peer-deps
+          npm run build
+        env:
+          # Production environment variables - using prefixed secrets
+          VITE_KEYCLOAK_URL: ${{ secrets.PROD_VITE_KEYCLOAK_URL }}
+          VITE_KEYCLOAK_REALM: ${{ secrets.PROD_VITE_KEYCLOAK_REALM }}
+          VITE_KEYCLOAK_CLIENT_ID: ${{ secrets.PROD_VITE_KEYCLOAK_CLIENT_ID }}
+          VITE_API_URL: ""  # Use relative URLs
+          VITE_PENDO_API_KEY: ${{ secrets.PROD_VITE_PENDO_API_KEY }}
+
+      - name: Build and push API Server image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./packages/api-server
+          file: ./packages/api-server/Dockerfile.prod
+          push: true
+          tags: ${{ steps.meta.outputs.api-server-image }}
+          platforms: linux/amd64
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build and push Frontend image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./packages/client
+          file: ./packages/client/Dockerfile.prod
+          push: true
+          tags: ${{ steps.meta.outputs.frontend-image }}
+          platforms: linux/amd64
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+   #  Deploy to production environment
+  deploy-production:
+     runs-on: ubuntu-latest
+     needs: build-and-push
+     steps:
+       - name: Deploy to production server
+         uses: appleboy/ssh-action@v1.0.0
+         with:
+           host: ${{ env.DEPLOY_HOST }}
+           username: ${{ env.DEPLOY_USER }}
+           key: ${{ secrets.DEPLOY_ONBOARDING_SSH_KEY }}
+           script: |
+             set -e
+
+             # Variables
+             API_IMAGE="${{ needs.build-and-push.outputs.api-server-image }}"
+             FRONTEND_IMAGE="${{ needs.build-and-push.outputs.frontend-image }}"
+             SHORT_SHA="${{ needs.build-and-push.outputs.short-sha }}"
+
+             echo "🚀 Starting production deployment for commit $SHORT_SHA"
+
+             # Login to registry
+             echo "${{ secrets.GITHUB_TOKEN }}" | docker login ${{ env.REGISTRY }} -u ${{ github.actor }} --password-stdin
+
+             # Create and navigate to deployment directory
+             sudo mkdir -p /opt/rita-production
+             cd /opt/rita-production
+
+             # Stop onboarding deployment if running (to free up port 80)
+             echo "🛑 Stopping onboarding deployment..."
+             cd /opt/onboarding && docker-compose down --remove-orphans || true
+             cd /opt/rita-production
+
+             # Clean up old Rita images to free space
+             echo "🧹 Cleaning up old Rita images..."
+             docker rmi $(docker images "ghcr.io/resolve-io/rita-*" -q) 2>/dev/null || true
+             docker rmi $(docker images | grep "rita-" | awk '{print $3}') 2>/dev/null || true
+
+             # Check disk space
+             echo "💾 Disk space after cleanup:"
+             df -h
+
+             # Pull new images
+             echo "📦 Pulling new images..."
+             docker pull $API_IMAGE
+             docker pull $FRONTEND_IMAGE
+
+             # Tag images locally for docker-compose
+             docker tag $API_IMAGE rita-api-server:production
+             docker tag $FRONTEND_IMAGE rita-frontend:production
+
+             # Run database migrations first
+             echo "🔄 Running database migrations..."
+             if timeout 300 docker run --rm \
+               -e DATABASE_URL="${{ secrets.PROD_DATABASE_URL }}" \
+               -e NODE_ENV=production \
+               rita-api-server:production \
+               node dist/database/migrate.js; then
+               echo "✅ Migrations completed successfully"
+             else
+               echo "❌ Migration failed - deployment aborted"
+               echo "📋 Old version continues running"
+               echo "🔧 Fix migrations and redeploy"
+               echo "📊 Current running services:"
+               docker-compose ps || true
+               exit 1
+             fi
+
+             # Stop current deployment (simple replacement)
+             echo "🛑 Stopping current services..."
+             docker-compose down --remove-orphans || true
+
+             # Backup current compose file
+             sudo cp docker-compose.yml docker-compose.yml.bak 2>/dev/null || true
+
+             # Create production docker-compose.yml
+             echo "📝 Creating production docker-compose.yml..."
+             sudo tee docker-compose.yml > /dev/null << 'EOF'
+             version: '3.8'
+
+             services:
+               api-server:
+                 image: rita-api-server:production
+                 environment:
+                   NODE_ENV: production
+                   PORT: 3000
+                   DATABASE_URL: ${{ secrets.PROD_DATABASE_URL }}
+                   RABBITMQ_URL: ${{ secrets.PROD_RABBITMQ_URL }}
+                   KEYCLOAK_URL: ${{ secrets.PROD_KEYCLOAK_URL }}
+                   KEYCLOAK_REALM: ${{ secrets.PROD_KEYCLOAK_REALM }}
+                   KEYCLOAK_ISSUER: ${{ secrets.PROD_KEYCLOAK_ISSUER }}
+                   AUTOMATION_WEBHOOK_URL: ${{ secrets.PROD_AUTOMATION_WEBHOOK_URL }}
+                   AUTOMATION_AUTH: ${{ secrets.PROD_AUTOMATION_AUTH }}
+                   CLIENT_URL: ${{ secrets.PROD_CLIENT_URL }}
+                   CONSUL_HTTP_ADDR: ${{ secrets.PROD_CONSUL_HTTP_ADDR }}
+                   CONSUL_HTTP_TOKEN: ${{ secrets.PROD_CONSUL_HTTP_TOKEN }}
+                 healthcheck:
+                   test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+                   interval: 30s
+                   timeout: 10s
+                   retries: 3
+                   start_period: 10s
+                 restart: unless-stopped
+                 networks:
+                   - app-network
+                   - resolve-shared
+
+               frontend:
+                 image: rita-frontend:production
+                 ports:
+                   - "80:80"
+                 depends_on:
+                   - api-server
+                 healthcheck:
+                   test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost/"]
+                   interval: 30s
+                   timeout: 10s
+                   retries: 3
+                 restart: unless-stopped
+                 networks:
+                   - app-network
+                   - resolve-shared
+
+             networks:
+               app-network:
+                 driver: bridge
+               resolve-shared:
+                 external: true
+             EOF
+
+             # Start new deployment
+             echo "🚀 Starting new services..."
+             docker-compose up -d
+
+             # Wait for services to be ready
+             echo "⏳ Waiting for services to start..."
+             sleep 30
+
+             # Check container status and logs before health checks
+             echo "🔍 Checking container status..."
+             docker-compose ps
+             echo "📋 API Server logs:"
+             docker-compose logs --tail=30 api-server
+             echo "📋 Frontend logs:"
+             docker-compose logs --tail=30 frontend
+
+             # Health checks
+             echo "🏥 Running health checks..."
+             if curl -f http://localhost/health 2>/dev/null; then
+               echo "✅ Frontend health check passed"
+             else
+               echo "⚠️ Frontend health check failed, but container is running"
+             fi
+
+             if curl -f http://localhost:3000/health 2>/dev/null; then
+               echo "✅ API Server health check passed"
+             else
+               echo "⚠️ API Server health check failed, but container is running"
+             fi
+
+             echo "🎉 Production deployment successful!"
+             echo "📊 Deployment info:"
+             echo "  - Commit SHA: $SHORT_SHA"
+             echo "  - API Image: $API_IMAGE"
+             echo "  - Frontend Image: $FRONTEND_IMAGE"
+             echo "  - Deployed at: $(date)"
+  
+#  # Trigger QA Wolf tests           
+#  trigger-qawolf:
+#    needs: deploy-production
+#    name: Notify QA Wolf
+#    # Run tests if manually triggered with run_qa_tests=true or if triggered via repository_dispatch
+#    if: |
+#      github.event_name == 'workflow_dispatch' && inputs.run_qa_tests ||
+#      github.event_name == 'repository_dispatch'
+#    runs-on: ubuntu-latest
+#    steps:
+#      - name: Notify QA Wolf of deployment
+#        uses: qawolf/notify-qawolf-on-deploy-action@v1
+#        env:
+#          GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
+#        with:
+#          # Required: QA Wolf API key from workspace settings page
+#          qawolf-api-key: "${{ secrets.RITAGO_QAWOLF_API_KEY }}"
+#          # Deployment type to match specific triggers
+#          deployment-type: "deployment"
+#          # Optional: URL of the deployed environment to test
+#          deployment-url: "https://onboarding.resolve.io"
+
+  # TODO: Uncomment after validating build images
+  # Slack notification - runs on success OR failure
+  # notify:
+  #   runs-on: ubuntu-latest
+  #   needs: [build-and-push, deploy-production]
+  #   if: always()
+  #   steps:
+  #     - name: Determine overall status
+  #       id: status
+  #       run: |
+  #         if [[ "${{ needs.build-and-push.result }}" == "success" && "${{ needs.deploy-production.result }}" == "success" ]]; then
+  #           echo "overall_status=✅ Success" >> $GITHUB_OUTPUT
+  #           echo "details=Deployment completed successfully" >> $GITHUB_OUTPUT
+  #         elif [[ "${{ needs.build-and-push.result }}" == "failure" ]]; then
+  #           echo "overall_status=❌ Build Failed" >> $GITHUB_OUTPUT
+  #           echo "details=Failed to build or push Docker images" >> $GITHUB_OUTPUT
+  #         elif [[ "${{ needs.deploy-production.result }}" == "failure" ]]; then
+  #           echo "overall_status=❌ Deploy Failed" >> $GITHUB_OUTPUT
+  #           echo "details=Build succeeded but deployment failed (old version still running)" >> $GITHUB_OUTPUT
+  #         else
+  #           echo "overall_status=❌ Failed" >> $GITHUB_OUTPUT
+  #           echo "details=Unknown failure occurred" >> $GITHUB_OUTPUT
+  #         fi
+  #
+  #     - name: Notify Slack
+  #       uses: 8398a7/action-slack@v3
+  #       with:
+  #         status: ${{ job.status }}
+  #         channel: '#deployments'
+  #         username: 'GitHub Actions'
+  #         icon_emoji: ':rocket:'
+  #         text: |
+  #           *Rita Production Deployment*
+  #           *Status:* ${{ steps.status.outputs.overall_status }}
+  #           *Details:* ${{ steps.status.outputs.details }}
+  #           *Branch:* `${{ github.ref_name }}`
+  #           *Commit:* `${{ needs.build-and-push.outputs.short-sha || github.sha }}`
+  #           *Author:* ${{ github.actor }}
+  #           *URL:* ${{ secrets.PROD_URL || 'https://prod.resolve.io' }}
+  #           *Workflow:* <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View Logs>
+  #       env:
+  #         SLACK_WEBHOOK_URL: ${{ secrets.PROD_SLACK_WEBHOOK_URL }}
+  #         if: env.SLACK_WEBHOOK_URL != ''

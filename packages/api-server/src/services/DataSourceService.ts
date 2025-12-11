@@ -186,9 +186,10 @@ export class DataSourceService {
   async updateDataSourceStatus(
     connectionId: string,
     organizationId: string,
-    status: 'idle' | 'syncing',
+    status: 'idle' | 'syncing' | 'cancelled',
     lastSyncStatus?: 'completed' | 'failed' | null,
-    updateLastSyncAt: boolean = false
+    updateLastSyncAt: boolean = false,
+    requireSyncingStatus: boolean = false
   ): Promise<DataSourceConnection | null> {
     const updates = ['status = $1'];
     const values: any[] = [status];
@@ -207,10 +208,16 @@ export class DataSourceService {
 
     values.push(connectionId, organizationId);
 
+    // Add status check to prevent race condition: only update if status is 'syncing'
+    // This prevents sync_completed messages from overwriting 'cancelled' status
+    const whereClause = requireSyncingStatus
+      ? `WHERE id = $${paramIndex++} AND organization_id = $${paramIndex++} AND status = 'syncing'`
+      : `WHERE id = $${paramIndex++} AND organization_id = $${paramIndex++}`;
+
     const result = await pool.query<DataSourceConnection>(
       `UPDATE data_source_connections
        SET ${updates.join(', ')}
-       WHERE id = $${paramIndex++} AND organization_id = $${paramIndex++}
+       ${whereClause}
        RETURNING *`,
       values
     );
@@ -289,5 +296,153 @@ export class DataSourceService {
     );
 
     return result.rows[0] || null;
+  }
+
+  /**
+   * Cancel an ongoing sync operation
+   * Sets status to 'cancelled' and marks last_sync_status as 'failed'
+   */
+  async cancelSync(
+    connectionId: string,
+    organizationId: string
+  ): Promise<DataSourceConnection | null> {
+    const result = await pool.query<DataSourceConnection>(
+      `UPDATE data_source_connections
+       SET status = 'cancelled',
+           last_sync_status = 'failed',
+           last_sync_error = 'Sync cancelled by user',
+           last_sync_at = NOW(),
+           updated_at = NOW()
+       WHERE id = $1 AND organization_id = $2
+       RETURNING *`,
+      [connectionId, organizationId]
+    );
+
+    return result.rows[0] || null;
+  }
+
+  /**
+   * Create a cancellation request for the platform team to process
+   * Inserts into sync_cancellation_requests table
+   */
+  async createCancellationRequest(params: {
+    tenantId: string;
+    userId: string;
+    connectionId: string;
+    connectionType: string;
+    connectionUrl: string;
+    email: string;
+  }): Promise<void> {
+    await pool.query(
+      `INSERT INTO sync_cancellation_requests (
+        tenant_id, user_id, connection_id, connection_type,
+        connection_url, email, status
+      ) VALUES ($1, $2, $3, $4, $5, $6, 'pending')`,
+      [
+        params.tenantId,
+        params.userId,
+        params.connectionId,
+        params.connectionType,
+        params.connectionUrl,
+        params.email
+      ]
+    );
+  }
+
+  /**
+   * Create an ingestion run record (ITSM Autopilot)
+   * Returns the created ingestion run with its ID
+   */
+  async createIngestionRun(params: {
+    organizationId: string;
+    dataSourceConnectionId: string;
+    startedBy: string;
+    metadata?: Record<string, any>;
+  }): Promise<{ id: string; status: string } | null> {
+    try {
+      const result = await pool.query<{ id: string; status: string }>(
+        `INSERT INTO ingestion_runs (
+          organization_id, data_source_connection_id, started_by,
+          status, metadata
+        ) VALUES ($1, $2, $3, 'pending', $4)
+        RETURNING id, status`,
+        [
+          params.organizationId,
+          params.dataSourceConnectionId,
+          params.startedBy,
+          JSON.stringify(params.metadata || {})
+        ]
+      );
+
+      return result.rows[0] || null;
+    } catch (error) {
+      console.error('[DataSourceService] Failed to create ingestion run:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Update ingestion run status
+   */
+  async updateIngestionRunStatus(
+    ingestionRunId: string,
+    status: 'pending' | 'running' | 'completed' | 'failed' | 'cancelled',
+    errorMessage?: string
+  ): Promise<void> {
+    const updates = ['status = $1', 'updated_at = NOW()'];
+    const values: any[] = [status];
+    let paramIndex = 2;
+
+    if (errorMessage) {
+      updates.push(`error_message = $${paramIndex++}`);
+      values.push(errorMessage);
+    }
+
+    if (status === 'completed' || status === 'failed' || status === 'cancelled') {
+      updates.push('completed_at = NOW()');
+    }
+
+    values.push(ingestionRunId);
+
+    await pool.query(
+      `UPDATE ingestion_runs
+       SET ${updates.join(', ')}
+       WHERE id = $${paramIndex}`,
+      values
+    );
+  }
+
+  /**
+   * Update ingestion run record counts
+   */
+  async updateIngestionRunRecords(
+    ingestionRunId: string,
+    recordsProcessed?: number,
+    recordsFailed?: number
+  ): Promise<void> {
+    const updates: string[] = ['updated_at = NOW()'];
+    const values: any[] = [];
+    let paramIndex = 1;
+
+    if (recordsProcessed !== undefined) {
+      updates.push(`records_processed = $${paramIndex++}`);
+      values.push(recordsProcessed);
+    }
+
+    if (recordsFailed !== undefined) {
+      updates.push(`records_failed = $${paramIndex++}`);
+      values.push(recordsFailed);
+    }
+
+    if (values.length === 0) return;
+
+    values.push(ingestionRunId);
+
+    await pool.query(
+      `UPDATE ingestion_runs
+       SET ${updates.join(', ')}
+       WHERE id = $${paramIndex}`,
+      values
+    );
   }
 }

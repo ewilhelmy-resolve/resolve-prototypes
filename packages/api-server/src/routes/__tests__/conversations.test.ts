@@ -20,11 +20,13 @@ vi.mock('../../middleware/auth.js', () => ({
   })
 }));
 
-vi.mock('../../services/WebhookService.js', () => ({
-  WebhookService: vi.fn(() => ({
-    sendMessageEvent: vi.fn().mockResolvedValue({ success: true })
-  }))
-}));
+vi.mock('../../services/WebhookService.js', () => {
+  return {
+    WebhookService: class MockWebhookService {
+      sendMessageEvent = vi.fn().mockResolvedValue({ success: true });
+    }
+  };
+});
 
 import { withOrgContext } from '../../config/database.js';
 

@@ -1,6 +1,19 @@
 {
   "realm": "rita-chat-realm",
   "enabled": true,
+  "sslRequired": "none",
+  "loginTheme": "rita-theme-v2",
+  "emailTheme": "rita-theme-v2",
+  "resetPasswordAllowed": true,
+  "smtpServer": {
+    "host": "mailpit",
+    "port": "1025",
+    "from": "noreply@rita.local",
+    "fromDisplayName": "Rita Authentication",
+    "auth": "false",
+    "starttls": "false",
+    "ssl": "false"
+  },
   "clients": [
     {
       "clientId": "rita-chat-client",

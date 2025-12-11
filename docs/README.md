@@ -1,113 +1,73 @@
-# Rita Project Documentation
+# RITA Documentation
 
-This directory contains all documentation for the Rita project, organized using a lifecycle-based archiving strategy.
+## Quick Start
+
+New to RITA? Read these first:
+1. **[Technical Design](core/technical_design.md)** - System overview, multi-tenancy, MVP scope
+2. **[Authentication Flow](core/authentication-flow.md)** - Keycloak + cookie auth, signup/invitations
+3. **[Database Tables](core/database-tables.md)** - Complete schema w/ ER diagram
 
 ## Documentation Structure
 
-```
-docs/
-├── active/           # In-progress features and active bugs
-│   ├── features/     # Features currently being developed
-│   └── bugs/         # Known bugs being tracked
-├── v1/               # Production-ready documentation (v1.x releases)
-│   ├── architecture/ # System architecture and design decisions
-│   ├── setup/        # Setup and configuration guides
-│   └── guides/       # Developer guides and workflows
-└── archived/         # Deprecated documentation
-    └── deprecated/   # Features/docs no longer relevant
-```
+### 📘 [core/](core/)
+**System fundamentals** - read first
+- `technical_design.md` - Architecture overview, multi-tenancy model
+- `authentication-flow.md` - Auth system (Keycloak, sessions, invitations)
+- `database-tables.md` - Schema reference with ER diagrams
+- `MESSAGE_TYPES.md` - Chat message format, metadata structure
 
-## Quick Navigation
+### 🏗️ [architecture/](architecture/)
+**Infrastructure & integrations**
+- `rabbitmq-setup.md` - Message broker, queues, consumers, resilience
+- `DATA_SOURCE_CONNECTIONS.md` - External data sources (Confluence, ServiceNow, etc.)
+- `file-upload-system.md` - Content-addressable storage, deduplication
+- `file-access-control.md` - File permissions & security
 
-### Architecture (v1/architecture/)
-- [Authentication Flow](v1/architecture/authentication-flow.md) - Keycloak SSO integration
-- [Technical Design](v1/architecture/technical_design.md) - Overall system design
-- [Message Types](v1/architecture/MESSAGE_TYPES.md) - SSE message type definitions
-- [Blobbifier Migration Plan](v1/architecture/blobbifier-migration-plan.md) - Content-addressable storage migration
+### ✨ [features/](features/)
+**Feature-specific implementation docs**
+- `chat/` - Chat input, reasoning display, turn blocking
+- `invitations/` - User invitation system
+- `member-management/` - User CRUD, deletion
+- `settings/` - Profile store, update flows
 
-### Setup & Configuration (v1/setup/)
-- [Keycloak Setup](v1/setup/KEYCLOAK_SETUP.md) - Authentication server configuration
-- [Staging Secrets](v1/setup/STAGING_SECRETS_SETUP.md) - Production environment secrets
-- [Database Tips](v1/setup/DATABASE_TIPS.md) - PostgreSQL best practices
-- [Mock Service Validation](v1/setup/mock_service_validation.md) - Testing with mock services
+### 🎨 [frontend/](frontend/)
+**Client/UI documentation**
+- `guide_frontend_stack.md` - Vite, React, Tailwind, shadcn/ui setup
+- `feature-flags-system.md` - Feature toggles for dev/beta
+- `figma-*.md` - Design-to-code workflow
 
-### Developer Guides (v1/guides/)
-- [Frontend Stack Guide](v1/guides/guide_frontend_stack.md) - React/TypeScript/TanStack Query
-- [Figma to React Workflow](v1/guides/figma_to_react_workflow.md) - Design-to-code process
-- [Figma to Code Process](v1/guides/figma-to-code-process.md) - Component generation with shadcn/ui
+### ⚙️ [setup/](setup/)
+**Environment & configuration**
+- `KEYCLOAK_SETUP.md` - Identity provider setup
+- `keycloak-*.md` - Custom themes, password reset
+- `DATABASE_TIPS.md` - DB dev tips
+- `STAGING_SECRETS_SETUP.md` - Secrets management
+- `email-development-guide.md` - Email templates
 
-### Active Features (active/features/)
-- [Data Source Connections](active/features/DATA_SOURCE_CONNECTIONS.md) - External data integration
-- [Data Source Implementation](active/features/DATA_SOURCE_CONNECTIONS_IMPLEMENTATION.md) - Implementation details
-- [File Upload System](active/features/file-upload-system.md) - Document upload and storage
-- [User Invitation System](active/features/user-invitation-system.md) - Team member invitations
-- [Frontend Invitation Plan](active/features/frontend-invitation-implementation-plan.md) - UI implementation
-- [Settings Feature](active/features/settings-feature.md) - Application settings
-- [Enhanced Chat Components](active/features/enhanced-chat-components.md) - Chat UI improvements
-- [Signup Diagram Update](active/features/signup_diagram_update.md) - Registration flow changes
+### 📦 [archived/](archived/)
+**Shipped implementation plans** - historical reference only
 
-## Documentation Lifecycle
+### 🚀 [feat-autopilot-ticket-cluster/](feat-autopilot-ticket-cluster/)
+**Large feature docs** - autopilot & cluster dashboard technical design
 
-### Active Development (active/)
-Documents in this directory track features and bugs currently being worked on. These should be moved to `v1/` or `archived/` once complete.
+## Finding What You Need
 
-### Production Documentation (v1/)
-Documentation for features and systems that are live in production (v1.x releases). This is the primary reference for how Rita works today.
+| You want to... | Look here |
+|----------------|-----------|
+| Understand the system | `core/technical_design.md` |
+| Add authentication | `core/authentication-flow.md` |
+| Query the database | `core/database-tables.md` |
+| Work with messages | `core/MESSAGE_TYPES.md` |
+| Set up RabbitMQ | `architecture/rabbitmq-setup.md` |
+| Integrate data sources | `architecture/DATA_SOURCE_CONNECTIONS.md` |
+| Upload files | `architecture/file-upload-system.md` |
+| Build frontend features | `frontend/guide_frontend_stack.md` |
+| Configure Keycloak | `setup/KEYCLOAK_SETUP.md` |
+| Add feature flags | `frontend/feature-flags-system.md` |
 
-### Archived (archived/)
-Historical documentation for deprecated features, replaced systems, or outdated processes. Kept for reference but not actively maintained.
+## Contributing to Docs
 
-## Package-Specific Documentation
-
-For package-specific docs, see:
-- [API Server Documentation](../packages/api-server/docs/)
-- [Client Documentation](../packages/client/docs/)
-- [Mock Service Documentation](../packages/mock-service/docs/)
-
-## Contributing
-
-When creating new documentation:
-
-1. **Active Features**: Place in `active/features/` with descriptive filename
-2. **Active Bugs**: Place in `active/bugs/` with issue reference
-3. **Completed Work**: Move to appropriate `v1/` subdirectory
-4. **Deprecated Work**: Move to `archived/deprecated/` with date prefix
-
-### Documentation Template
-
-All documentation should include:
-
-```markdown
-# Document Title
-
-**Status**: [Active | Production | Archived]
-**Last Updated**: YYYY-MM-DD
-**Owner**: [Team/Person]
-
-## Overview
-Brief description of what this document covers.
-
-## Content
-Main content here.
-
-## Related Documentation
-- Link to related docs
-```
-
-## AI Assistant Benefits
-
-This structure helps AI assistants (like Claude) by:
-- **Clear Context**: Status (active/v1/archived) indicates document relevance
-- **Chronological Tracking**: Easy to see evolution of features
-- **Reduced Confusion**: No mixing of deprecated and current documentation
-- **Better Search**: Organized categories make finding docs faster
-- **Version Awareness**: v1/ directory makes it clear what's in production
-
-## Maintenance
-
-Documentation should be reviewed and reorganized:
-- **Weekly**: Update active/ docs with latest status
-- **After Feature Completion**: Move to v1/
-- **After Deprecation**: Move to archived/
-
-For questions about documentation organization, see [CLAUDE.md](../CLAUDE.md).
+- **New features**: Add to `features/<feature-name>/`
+- **Implementation plans**: Archive after shipping to `archived/`
+- **Large features**: Use subdirectory pattern (see `feat-autopilot-ticket-cluster/`)
+- **Architecture changes**: Update `core/` or `architecture/` docs

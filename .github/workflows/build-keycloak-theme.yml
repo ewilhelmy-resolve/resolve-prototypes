@@ -1,0 +1,139 @@
+name: Build Keycloak Theme
+
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - 'keycloak/**'
+      - '.github/workflows/build-keycloak-theme.yml'
+  pull_request:
+    branches: [main, develop]
+    paths:
+      - 'keycloak/**'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Theme version (e.g., 1.0.0)'
+        required: false
+        default: 'latest'
+
+env:
+    DEPLOY_PROD_HOST: 'ec2-44-218-120-97.compute-1.amazonaws.com'
+    DEPLOY_STAGING_HOST: 'ec2-23-21-95-233.compute-1.amazonaws.com'
+    DEPLOY_USER: 'ec2-user'
+
+jobs:
+  build-theme:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: keycloak/package-lock.json
+
+      - name: Install dependencies
+        working-directory: keycloak
+        run: npm ci
+
+      - name: Build theme CSS
+        working-directory: keycloak
+        run: npm run build
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Package theme as JAR
+        working-directory: keycloak
+        run: |
+          # Create packaging directory
+          mkdir -p build_temp/META-INF
+          mkdir -p build_temp/theme/rita-theme-v2/login/resources/css
+          mkdir -p build_temp/theme/rita-theme-v2/login/resources/img
+          mkdir -p build_temp/theme/rita-theme-v2/email/html
+          mkdir -p build_temp/theme/rita-theme-v2/email/text
+          mkdir -p build_temp/theme/rita-theme-v2/email/messages
+
+          # Copy login theme files
+          cp themes/rita-theme-v2/login/theme.properties build_temp/theme/rita-theme-v2/login/
+          cp themes/rita-theme-v2/login/*.ftl build_temp/theme/rita-theme-v2/login/
+          cp themes/rita-theme-v2/login/resources/css/styles.css build_temp/theme/rita-theme-v2/login/resources/css/
+          cp themes/rita-theme-v2/login/resources/img/logo.svg build_temp/theme/rita-theme-v2/login/resources/img/
+
+          # Copy email theme files
+          cp themes/rita-theme-v2/email/theme.properties build_temp/theme/rita-theme-v2/email/
+          cp themes/rita-theme-v2/email/html/*.ftl build_temp/theme/rita-theme-v2/email/html/
+          cp themes/rita-theme-v2/email/text/*.ftl build_temp/theme/rita-theme-v2/email/text/
+          cp themes/rita-theme-v2/email/messages/*.properties build_temp/theme/rita-theme-v2/email/messages/
+
+          # Create keycloak-themes.json descriptor
+          cat > build_temp/META-INF/keycloak-themes.json <<EOF
+          {
+              "themes": [{
+                  "name" : "rita-theme-v2",
+                  "types": [ "login", "email" ]
+              }]
+          }
+          EOF
+
+          # Create JAR
+          cd build_temp
+          jar -cf ../rita-theme-v2.jar .
+          cd ..
+
+      - name: Generate artifact metadata
+        id: metadata
+        run: |
+          VERSION="${{ github.event.inputs.version || 'latest' }}"
+          if [ "$VERSION" = "latest" ]; then
+            VERSION="$(date +%Y%m%d)-${GITHUB_SHA::8}"
+          fi
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "artifact_name=rita-theme-v2-${VERSION}.jar" >> $GITHUB_OUTPUT
+
+      - name: Rename JAR with version
+        working-directory: keycloak
+        run: |
+          mv rita-theme-v2.jar ${{ steps.metadata.outputs.artifact_name }}
+
+      - name: Push JAR to environments
+        working-directory: keycloak
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.DEPLOY_ONBOARDING_SSH_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          if [ "${{ github.ref }}" = "refs/heads/main" ]; then
+            # Deploy to staging
+            scp -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no ./${{ steps.metadata.outputs.artifact_name }} ${{ env.DEPLOY_USER }}@${{ env.DEPLOY_STAGING_HOST }}:/tmp/
+            ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no ${{ env.DEPLOY_USER }}@${{ env.DEPLOY_STAGING_HOST }} "sudo mv /opt/onboarding/keycloak/providers/*.jar /opt/onboarding/keycloak/providers/rita-theme-v2.backup"
+            ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no ${{ env.DEPLOY_USER }}@${{ env.DEPLOY_STAGING_HOST }} "sudo mv /tmp/${{ steps.metadata.outputs.artifact_name }} /opt/onboarding/keycloak/providers/rita-theme-v2.jar"
+            ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no ${{ env.DEPLOY_USER }}@${{ env.DEPLOY_STAGING_HOST }} "cd /opt/onboarding/keycloak && sudo docker-compose down && sudo docker-compose up -d"
+            # Deploy to production
+            scp -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no ./${{ steps.metadata.outputs.artifact_name }} ${{ env.DEPLOY_USER }}@${{ env.DEPLOY_PROD_HOST }}:/tmp/
+            ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no ${{ env.DEPLOY_USER }}@${{ env.DEPLOY_PROD_HOST }} "sudo mv /opt/onboarding/keycloak/providers/*.jar /opt/onboarding/keycloak/providers/rita-theme-v2.backup"
+            ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no ${{ env.DEPLOY_USER }}@${{ env.DEPLOY_PROD_HOST }} "sudo mv /tmp/${{ steps.metadata.outputs.artifact_name }} /opt/onboarding/keycloak/providers/rita-theme-v2.jar"
+            ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no ${{ env.DEPLOY_USER }}@${{ env.DEPLOY_PROD_HOST }} "cd /opt/onboarding/keycloak && sudo docker-compose down && sudo docker-compose up -d"
+          fi
+
+      - name: Upload theme artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: keycloak-theme-${{ steps.metadata.outputs.version }}
+          path: keycloak/${{ steps.metadata.outputs.artifact_name }}
+          retention-days: 90
+
+      - name: Upload to releases (on tag push)
+        if: startsWith(github.ref, 'refs/tags/theme-v')
+        uses: softprops/action-gh-release@v1
+        with:
+          files: keycloak/${{ steps.metadata.outputs.artifact_name }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

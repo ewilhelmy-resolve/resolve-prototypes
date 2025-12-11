@@ -127,12 +127,14 @@ export class DocumentProcessingConsumer {
 
   /**
    * Handle processing_completed status
+   * Note: processed_markdown is updated directly by the external system in the database
    */
   private async handleProcessingCompleted(
     payload: DocumentProcessingCompletedMessage,
     messageLogger: any
   ): Promise<void> {
-    // Update database via withOrgContext
+    // Update database via withOrgContext - only update status and clear errors
+    // The external system has already updated processed_markdown directly
     const updatedDocument = await withOrgContext(
       payload.user_id || 'system',  // Fallback to system if no user_id
       payload.tenant_id,
@@ -140,15 +142,14 @@ export class DocumentProcessingConsumer {
         const result = await client.query(`
           UPDATE blob_metadata
           SET status = 'processed',
-              processed_markdown = $1,
               metadata = CASE
                 WHEN metadata ? 'error' THEN metadata - 'error'
                 ELSE metadata
               END,
               updated_at = NOW()
-          WHERE id = $2 AND organization_id = $3
+          WHERE id = $1 AND organization_id = $2
           RETURNING id, filename, status, updated_at
-        `, [payload.processed_markdown || null, payload.blob_metadata_id, payload.tenant_id]);
+        `, [payload.blob_metadata_id, payload.tenant_id]);
 
         return result.rows[0] || null;
       }
@@ -173,7 +174,6 @@ export class DocumentProcessingConsumer {
             blob_metadata_id: payload.blob_metadata_id,
             filename: updatedDocument.filename,
             status: 'processed',
-            processed_markdown: payload.processed_markdown,
             timestamp: new Date().toISOString()
           }
         });

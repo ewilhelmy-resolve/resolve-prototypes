@@ -49,8 +49,8 @@ vi.mock("@/hooks/useDataSources", () => ({
 	useVerifyDataSource: vi.fn(() => mockVerifyMutation),
 }));
 
-vi.mock("@/lib/toast", () => ({
-	toast: {
+vi.mock("@/components/ui/rita-toast", () => ({
+	ritaToast: {
 		success: vi.fn(),
 		error: vi.fn(),
 	},
@@ -94,10 +94,12 @@ const createMockSource = (
 const renderWithProvider = (
 	source: ConnectionSource,
 	onCancel?: () => void,
+	onSuccess?: () => void,
+	onFailure?: () => void,
 ) => {
 	return render(
 		<ConnectionSourceProvider source={source}>
-			<ConfluenceForm onCancel={onCancel} />
+			<ConfluenceForm onCancel={onCancel} onSuccess={onSuccess} onFailure={onFailure} />
 		</ConnectionSourceProvider>,
 	);
 };
@@ -136,7 +138,7 @@ describe("ConfluenceForm", () => {
 			const source = createMockSource();
 			renderWithProvider(source);
 			expect(screen.getByLabelText(/API token/i)).toBeInTheDocument();
-			expect(screen.getByPlaceholderText("••••••••")).toBeInTheDocument();
+			expect(screen.getByPlaceholderText("Enter API token")).toBeInTheDocument();
 		});
 
 		it("should render Connect button", () => {
@@ -215,88 +217,54 @@ describe("ConfluenceForm", () => {
 	// TODO: Re-add these tests when the Spaces Multiselect feature is implemented
 
 	describe("Form Validation", () => {
-		it("should disable Connect button when form is empty", () => {
+		it("should enable Connect button by default (even when form is empty)", () => {
 			const source = createMockSource();
 			renderWithProvider(source);
 
 			const connectButton = screen.getByRole("button", { name: /connect/i });
-			expect(connectButton).toBeDisabled();
+			expect(connectButton).not.toBeDisabled();
 		});
 
-		it("should disable Connect button when URL is missing", () => {
+		it("should show validation error toast when clicking Connect with empty form", async () => {
+			const { ritaToast } = await import("@/components/ui/rita-toast");
 			const source = createMockSource();
 			renderWithProvider(source);
-
-			const emailInput = screen.getByLabelText(/User email/i);
-			const tokenInput = screen.getByLabelText(/API token/i);
-
-			fireEvent.change(emailInput, { target: { value: "user@company.com" } });
-			fireEvent.change(tokenInput, { target: { value: "secret-token" } });
 
 			const connectButton = screen.getByRole("button", { name: /connect/i });
-			expect(connectButton).toBeDisabled();
-		});
-
-		it("should disable Connect button when email is missing", () => {
-			const source = createMockSource();
-			renderWithProvider(source);
-
-			const urlInput = screen.getByLabelText(/URL/i);
-			const tokenInput = screen.getByLabelText(/API token/i);
-
-			fireEvent.change(urlInput, {
-				target: { value: "https://company.atlassian.net" },
-			});
-			fireEvent.change(tokenInput, { target: { value: "secret-token" } });
-
-			const connectButton = screen.getByRole("button", { name: /connect/i });
-			expect(connectButton).toBeDisabled();
-		});
-
-		it("should disable Connect button when token is missing", () => {
-			const source = createMockSource();
-			renderWithProvider(source);
-
-			const urlInput = screen.getByLabelText(/URL/i);
-			const emailInput = screen.getByLabelText(/User email/i);
-
-			fireEvent.change(urlInput, {
-				target: { value: "https://company.atlassian.net" },
-			});
-			fireEvent.change(emailInput, { target: { value: "user@company.com" } });
-
-			const connectButton = screen.getByRole("button", { name: /connect/i });
-			expect(connectButton).toBeDisabled();
-		});
-
-		it("should enable Connect button when all fields are valid", async () => {
-			const source = createMockSource();
-			renderWithProvider(source);
-
-			const urlInput = screen.getByLabelText(/URL/i);
-			const emailInput = screen.getByLabelText(/User email/i);
-			const tokenInput = screen.getByLabelText(/API token/i);
-
-			fireEvent.change(urlInput, {
-				target: { value: "https://company.atlassian.net" },
-			});
-			fireEvent.change(emailInput, { target: { value: "user@company.com" } });
-			fireEvent.change(tokenInput, { target: { value: "secret-token" } });
+			fireEvent.click(connectButton);
 
 			await waitFor(() => {
-				const connectButton = screen.getByRole("button", { name: /connect/i });
-				expect(connectButton).not.toBeDisabled();
+				expect(ritaToast.error).toHaveBeenCalledWith({
+				title: "Validation Error",
+					description: "Please check the form fields and correct any errors",
+				});
 			});
 		});
 
-		it("should show validation error for invalid URL format", async () => {
+		it("should show validation error for invalid URL format after clicking Connect", async () => {
+			const { ritaToast } = await import("@/components/ui/rita-toast");
 			const source = createMockSource();
 			renderWithProvider(source);
 
 			const urlInput = screen.getByLabelText(/URL/i);
-			fireEvent.change(urlInput, { target: { value: "invalid-url" } });
-			fireEvent.blur(urlInput);
+			const emailInput = screen.getByLabelText(/User email/i);
+			const tokenInput = screen.getByLabelText(/API token/i);
 
+			fireEvent.change(urlInput, { target: { value: "invalid-url" } });
+			fireEvent.change(emailInput, { target: { value: "user@company.com" } });
+			fireEvent.change(tokenInput, { target: { value: "secret-token" } });
+
+			const connectButton = screen.getByRole("button", { name: /connect/i });
+			fireEvent.click(connectButton);
+
+			await waitFor(() => {
+				expect(ritaToast.error).toHaveBeenCalledWith({
+				title: "Validation Error",
+					description: "Please check the form fields and correct any errors",
+				});
+			});
+
+			// Field error should appear
 			await waitFor(() => {
 				expect(
 					screen.getByText("Please enter a valid URL"),
@@ -304,18 +272,81 @@ describe("ConfluenceForm", () => {
 			});
 		});
 
-		it("should show validation error for invalid email format", async () => {
+		it("should show validation error for invalid email format after clicking Connect", async () => {
+			const { ritaToast } = await import("@/components/ui/rita-toast");
 			const source = createMockSource();
 			renderWithProvider(source);
 
+			const urlInput = screen.getByLabelText(/URL/i);
 			const emailInput = screen.getByLabelText(/User email/i);
-			fireEvent.change(emailInput, { target: { value: "invalid-email" } });
-			fireEvent.blur(emailInput);
+			const tokenInput = screen.getByLabelText(/API token/i);
 
+			fireEvent.change(urlInput, {
+				target: { value: "https://company.atlassian.net" },
+			});
+			fireEvent.change(emailInput, { target: { value: "invalid-email" } });
+			fireEvent.change(tokenInput, { target: { value: "secret-token" } });
+
+			const connectButton = screen.getByRole("button", { name: /connect/i });
+			fireEvent.click(connectButton);
+
+			await waitFor(() => {
+				expect(ritaToast.error).toHaveBeenCalledWith({
+				title: "Validation Error",
+					description: "Please check the form fields and correct any errors",
+				});
+			});
+
+			// Field error should appear
 			await waitFor(() => {
 				expect(
 					screen.getByText("Please enter a valid email address"),
 				).toBeInTheDocument();
+			});
+		});
+
+		it("should not show field errors until Connect button is clicked", () => {
+			const source = createMockSource();
+			renderWithProvider(source);
+
+			const urlInput = screen.getByLabelText(/URL/i);
+			const emailInput = screen.getByLabelText(/User email/i);
+
+			// Type invalid values
+			fireEvent.change(urlInput, { target: { value: "invalid-url" } });
+			fireEvent.change(emailInput, { target: { value: "invalid-email" } });
+			fireEvent.blur(urlInput);
+			fireEvent.blur(emailInput);
+
+			// Errors should NOT appear yet (mode is "onSubmit")
+			expect(
+				screen.queryByText("Please enter a valid URL"),
+			).not.toBeInTheDocument();
+			expect(
+				screen.queryByText("Please enter a valid email address"),
+			).not.toBeInTheDocument();
+		});
+
+		it("should proceed with connection when all fields are valid", async () => {
+			const source = createMockSource();
+			renderWithProvider(source);
+
+			const urlInput = screen.getByLabelText(/URL/i);
+			const emailInput = screen.getByLabelText(/User email/i);
+			const tokenInput = screen.getByLabelText(/API token/i);
+
+			fireEvent.change(urlInput, {
+				target: { value: "https://company.atlassian.net" },
+			});
+			fireEvent.change(emailInput, { target: { value: "user@company.com" } });
+			fireEvent.change(tokenInput, { target: { value: "secret-token" } });
+
+			const connectButton = screen.getByRole("button", { name: /connect/i });
+			fireEvent.click(connectButton);
+
+			// Should call verify mutation (not show validation error)
+			await waitFor(() => {
+				expect(mockVerifyMutation.mutateAsync).toHaveBeenCalled();
 			});
 		});
 	});
@@ -335,13 +366,7 @@ describe("ConfluenceForm", () => {
 			fireEvent.change(emailInput, { target: { value: "user@company.com" } });
 			fireEvent.change(tokenInput, { target: { value: "secret-token" } });
 
-			// Wait for form validation to complete and button to be enabled
-			const connectButton = await waitFor(() => {
-				const btn = screen.getByRole("button", { name: /connect/i });
-				expect(btn).not.toBeDisabled();
-				return btn;
-			});
-
+			const connectButton = screen.getByRole("button", { name: /connect/i });
 			fireEvent.click(connectButton);
 
 			await waitFor(() => {
@@ -377,7 +402,7 @@ describe("ConfluenceForm", () => {
 		// TODO: Re-add this test when the Spaces Multiselect feature is implemented
 
 		it("should show success toast on successful connection", async () => {
-			const { toast } = await import("@/lib/toast");
+			const { ritaToast } = await import("@/components/ui/rita-toast");
 			const source = createMockSource();
 			renderWithProvider(source);
 
@@ -391,17 +416,12 @@ describe("ConfluenceForm", () => {
 			fireEvent.change(emailInput, { target: { value: "user@company.com" } });
 			fireEvent.change(tokenInput, { target: { value: "secret-token" } });
 
-			// Wait for form validation to complete and button to be enabled
-			const connectButton = await waitFor(() => {
-				const btn = screen.getByRole("button", { name: /connect/i });
-				expect(btn).not.toBeDisabled();
-				return btn;
-			});
-
+			const connectButton = screen.getByRole("button", { name: /connect/i });
 			fireEvent.click(connectButton);
 
 			await waitFor(() => {
-				expect(toast.success).toHaveBeenCalledWith("Connection Configured", {
+				expect(ritaToast.success).toHaveBeenCalledWith({
+				title: "Connection Configured",
 					description:
 						"Your Confluence connection has been configured successfully",
 				});
@@ -409,7 +429,7 @@ describe("ConfluenceForm", () => {
 		});
 
 		it("should show error toast on failed verification", async () => {
-			const { toast } = await import("@/lib/toast");
+			const { ritaToast } = await import("@/components/ui/rita-toast");
 			mockVerifyMutation.mutateAsync.mockRejectedValueOnce(
 				new Error("Verification failed"),
 			);
@@ -427,24 +447,19 @@ describe("ConfluenceForm", () => {
 			fireEvent.change(emailInput, { target: { value: "user@company.com" } });
 			fireEvent.change(tokenInput, { target: { value: "secret-token" } });
 
-			// Wait for form validation to complete and button to be enabled
-			const connectButton = await waitFor(() => {
-				const btn = screen.getByRole("button", { name: /connect/i });
-				expect(btn).not.toBeDisabled();
-				return btn;
-			});
-
+			const connectButton = screen.getByRole("button", { name: /connect/i });
 			fireEvent.click(connectButton);
 
 			await waitFor(() => {
-				expect(toast.error).toHaveBeenCalledWith("Connection Failed", {
+				expect(ritaToast.error).toHaveBeenCalledWith({
+				title: "Connection Failed",
 					description: "Verification failed",
 				});
 			});
 		});
 
 		it("should show error toast on failed update", async () => {
-			const { toast } = await import("@/lib/toast");
+			const { ritaToast } = await import("@/components/ui/rita-toast");
 			mockUpdateMutation.mutateAsync.mockRejectedValueOnce(
 				new Error("Update failed"),
 			);
@@ -462,17 +477,12 @@ describe("ConfluenceForm", () => {
 			fireEvent.change(emailInput, { target: { value: "user@company.com" } });
 			fireEvent.change(tokenInput, { target: { value: "secret-token" } });
 
-			// Wait for form validation to complete and button to be enabled
-			const connectButton = await waitFor(() => {
-				const btn = screen.getByRole("button", { name: /connect/i });
-				expect(btn).not.toBeDisabled();
-				return btn;
-			});
-
+			const connectButton = screen.getByRole("button", { name: /connect/i });
 			fireEvent.click(connectButton);
 
 			await waitFor(() => {
-				expect(toast.error).toHaveBeenCalledWith("Connection Failed", {
+				expect(ritaToast.error).toHaveBeenCalledWith({
+				title: "Connection Failed",
 					description: "Update failed",
 				});
 			});
@@ -520,8 +530,8 @@ describe("ConfluenceForm", () => {
 		});
 	});
 
-	describe("InfoAlert Display", () => {
-		it("should show info alert when verification is pending", () => {
+	describe("StatusAlert Display", () => {
+		it("should show status alert when verification is pending", () => {
 			mockVerifyMutation.isPending = true;
 			const source = createMockSource();
 			renderWithProvider(source);
@@ -536,7 +546,7 @@ describe("ConfluenceForm", () => {
 			mockVerifyMutation.isPending = false; // Reset
 		});
 
-		it("should not show info alert when verification is not pending", () => {
+		it("should not show status alert when verification is not pending", () => {
 			mockVerifyMutation.isPending = false;
 			const source = createMockSource();
 			renderWithProvider(source);
@@ -549,7 +559,7 @@ describe("ConfluenceForm", () => {
 			).not.toBeInTheDocument();
 		});
 
-		it("should not show info alert when only update is pending", () => {
+		it("should not show status alert when only update is pending", () => {
 			mockVerifyMutation.isPending = false;
 			mockUpdateMutation.isPending = true;
 			const source = createMockSource();
@@ -576,6 +586,93 @@ describe("ConfluenceForm", () => {
 			fireEvent.click(cancelButton);
 
 			expect(mockOnCancel).toHaveBeenCalledTimes(1);
+		});
+	});
+
+	describe("Success Callback", () => {
+		it("should call onSuccess callback after successful connection", async () => {
+			const mockOnSuccess = vi.fn();
+			const source = createMockSource();
+			renderWithProvider(source, undefined, mockOnSuccess);
+
+			const urlInput = screen.getByLabelText(/URL/i);
+			const emailInput = screen.getByLabelText(/User email/i);
+			const tokenInput = screen.getByLabelText(/API token/i);
+
+			fireEvent.change(urlInput, {
+				target: { value: "https://company.atlassian.net" },
+			});
+			fireEvent.change(emailInput, { target: { value: "user@company.com" } });
+			fireEvent.change(tokenInput, { target: { value: "secret-token" } });
+
+			const connectButton = screen.getByRole("button", { name: /connect/i });
+			fireEvent.click(connectButton);
+
+			await waitFor(() => {
+				expect(mockOnSuccess).toHaveBeenCalledTimes(1);
+			});
+		});
+
+		it("should not call onSuccess callback when connection fails", async () => {
+			const { ritaToast } = await import("@/components/ui/rita-toast");
+			mockVerifyMutation.mutateAsync.mockRejectedValueOnce(
+				new Error("Verification failed"),
+			);
+
+			const mockOnSuccess = vi.fn();
+			const source = createMockSource();
+			renderWithProvider(source, undefined, mockOnSuccess);
+
+			const urlInput = screen.getByLabelText(/URL/i);
+			const emailInput = screen.getByLabelText(/User email/i);
+			const tokenInput = screen.getByLabelText(/API token/i);
+
+			fireEvent.change(urlInput, {
+				target: { value: "https://company.atlassian.net" },
+			});
+			fireEvent.change(emailInput, { target: { value: "user@company.com" } });
+			fireEvent.change(tokenInput, { target: { value: "secret-token" } });
+
+			const connectButton = screen.getByRole("button", { name: /connect/i });
+			fireEvent.click(connectButton);
+
+			await waitFor(() => {
+				expect(ritaToast.error).toHaveBeenCalled();
+			});
+
+			// onSuccess should NOT be called on failure
+			expect(mockOnSuccess).not.toHaveBeenCalled();
+		});
+
+		it("should call onFailure callback when connection fails", async () => {
+			const { ritaToast } = await import("@/components/ui/rita-toast");
+			mockVerifyMutation.mutateAsync.mockRejectedValueOnce(
+				new Error("Verification failed"),
+			);
+
+			const mockOnFailure = vi.fn();
+			const source = createMockSource();
+			renderWithProvider(source, undefined, undefined, mockOnFailure);
+
+			const urlInput = screen.getByLabelText(/URL/i);
+			const emailInput = screen.getByLabelText(/User email/i);
+			const tokenInput = screen.getByLabelText(/API token/i);
+
+			fireEvent.change(urlInput, {
+				target: { value: "https://company.atlassian.net" },
+			});
+			fireEvent.change(emailInput, { target: { value: "user@company.com" } });
+			fireEvent.change(tokenInput, { target: { value: "secret-token" } });
+
+			const connectButton = screen.getByRole("button", { name: /connect/i });
+			fireEvent.click(connectButton);
+
+			await waitFor(() => {
+				expect(ritaToast.error).toHaveBeenCalled();
+			});
+
+			// onFailure SHOULD be called on failure
+			expect(mockOnFailure).toHaveBeenCalledTimes(1);
 		});
 	});
 

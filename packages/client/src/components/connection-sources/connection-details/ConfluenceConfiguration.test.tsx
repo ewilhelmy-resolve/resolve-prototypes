@@ -27,13 +27,19 @@ const mockSyncMutation = {
 	isPending: false,
 };
 
+const mockCancelMutation = {
+	mutateAsync: vi.fn().mockResolvedValue({}),
+	isPending: false,
+};
+
 vi.mock("@/hooks/useDataSources", () => ({
 	useUpdateDataSource: vi.fn(() => mockUpdateMutation),
 	useTriggerSync: vi.fn(() => mockSyncMutation),
+	useCancelSync: vi.fn(() => mockCancelMutation),
 }));
 
-vi.mock("@/lib/toast", () => ({
-	toast: {
+vi.mock("@/components/ui/rita-toast", () => ({
+	ritaToast: {
 		success: vi.fn(),
 		error: vi.fn(),
 	},
@@ -156,24 +162,26 @@ describe("ConfluenceConfiguration", () => {
 		// Selected spaces should be 'ENG, PROD, DOCS'
 	});
 
-	it("should disable sync button when syncing", () => {
+	it("should hide sync button when syncing", () => {
 		const source = createMockSource({
 			status: STATUS.SYNCING,
 		});
 		renderWithProvider(source);
 
-		const syncButton = screen.getByRole("button", { name: /sync/i });
-		expect(syncButton).toBeDisabled();
+		// Sync button should not be present (it's inside the hidden spaces dropdown section)
+		expect(screen.queryByRole("button", { name: /^sync$/i })).not.toBeInTheDocument();
+		// Cancel button should be present when syncing
+		expect(screen.getByRole("button", { name: /cancel sync/i })).toBeInTheDocument();
 	});
 
-	it("should disable sync button when verifying", () => {
+	it("should hide sync button when verifying", () => {
 		const source = createMockSource({
 			status: STATUS.VERIFYING,
 		});
 		renderWithProvider(source);
 
-		const syncButton = screen.getByRole("button", { name: /sync/i });
-		expect(syncButton).toBeDisabled();
+		// Sync button should not be present (it's inside the hidden spaces dropdown section)
+		expect(screen.queryByRole("button", { name: /sync/i })).not.toBeInTheDocument();
 	});
 
 	it("should enable sync button when connected", () => {
@@ -233,7 +241,7 @@ describe("ConfluenceConfiguration", () => {
 	});
 
 	it("should show success toast on successful sync", async () => {
-		const { toast } = await import("@/lib/toast");
+		const { ritaToast } = await import("@/components/ui/rita-toast");
 		const source = createMockSource();
 		renderWithProvider(source);
 
@@ -241,14 +249,15 @@ describe("ConfluenceConfiguration", () => {
 		fireEvent.click(syncButton);
 
 		await waitFor(() => {
-			expect(toast.success).toHaveBeenCalledWith("Sync Started", {
+			expect(ritaToast.success).toHaveBeenCalledWith({
+				title: "Sync Started",
 				description: "Your Confluence spaces are being synced",
 			});
 		});
 	});
 
 	it("should show error toast on failed sync", async () => {
-		const { toast } = await import("@/lib/toast");
+		const { ritaToast } = await import("@/components/ui/rita-toast");
 		mockUpdateMutation.mutateAsync.mockRejectedValueOnce(
 			new Error("Sync failed"),
 		);
@@ -260,14 +269,15 @@ describe("ConfluenceConfiguration", () => {
 		fireEvent.click(syncButton);
 
 		await waitFor(() => {
-			expect(toast.error).toHaveBeenCalledWith("Sync Failed", {
+			expect(ritaToast.error).toHaveBeenCalledWith({
+				title: "Sync Failed",
 				description: "Sync failed",
 			});
 		});
 	});
 
 	it("should show error when backend data is missing", async () => {
-		const { toast } = await import("@/lib/toast");
+		const { ritaToast } = await import("@/components/ui/rita-toast");
 		const source = createMockSource({ backendData: undefined });
 		renderWithProvider(source);
 
@@ -275,7 +285,8 @@ describe("ConfluenceConfiguration", () => {
 		fireEvent.click(syncButton);
 
 		await waitFor(() => {
-			expect(toast.error).toHaveBeenCalledWith("Configuration Error", {
+			expect(ritaToast.error).toHaveBeenCalledWith({
+				title: "Configuration Error",
 				description: "No backend data available for this source",
 			});
 		});
@@ -288,5 +299,89 @@ describe("ConfluenceConfiguration", () => {
 		renderWithProvider(source);
 
 		expect(screen.getByText("Syncing...")).toBeInTheDocument();
+	});
+
+	describe("Error State Handling", () => {
+		it("should hide spaces dropdown when status is Error", () => {
+			const source = createMockSource({
+				status: STATUS.ERROR,
+			});
+			renderWithProvider(source);
+
+			// Spaces dropdown should not be visible
+			expect(
+				screen.queryByText("Which spaces would you like to sync from?"),
+			).not.toBeInTheDocument();
+		});
+
+		it("should show spaces dropdown when status is Connected", () => {
+			const source = createMockSource({
+				status: STATUS.CONNECTED,
+			});
+			renderWithProvider(source);
+
+			// Spaces dropdown should be visible
+			expect(
+				screen.getByText("Which spaces would you like to sync from?"),
+			).toBeInTheDocument();
+		});
+
+		it("should hide spaces dropdown when status is Syncing", () => {
+			const source = createMockSource({
+				status: STATUS.SYNCING,
+			});
+			renderWithProvider(source);
+
+			// Spaces dropdown should be hidden when syncing
+			expect(
+				screen.queryByText("Which spaces would you like to sync from?"),
+			).not.toBeInTheDocument();
+		});
+
+		it("should hide spaces dropdown when status is Verifying", () => {
+			const source = createMockSource({
+				status: STATUS.VERIFYING,
+			});
+			renderWithProvider(source);
+
+			// Spaces dropdown should be hidden when verifying
+			expect(
+				screen.queryByText("Which spaces would you like to sync from?"),
+			).not.toBeInTheDocument();
+		});
+
+		it("should not show sync button when status is Error", () => {
+			const source = createMockSource({
+				status: STATUS.ERROR,
+			});
+			renderWithProvider(source);
+
+			// Sync button should not be present (it's inside the hidden spaces dropdown section)
+			expect(screen.queryByRole("button", { name: /sync/i })).not.toBeInTheDocument();
+		});
+
+		it("should still show ConnectionStatusCard when status is Error", () => {
+			const source = createMockSource({
+				status: STATUS.ERROR,
+			});
+			renderWithProvider(source);
+
+			// ConnectionStatusCard should still be visible with "Failed" badge (not "Error")
+			expect(screen.getByText("Failed")).toBeInTheDocument();
+		});
+
+		it("should still show ConnectionActionsMenu when status is Error", () => {
+			const source = createMockSource({
+				status: STATUS.ERROR,
+			});
+			renderWithProvider(source);
+
+			// Actions menu button should still be present
+			const buttons = screen.getAllByRole("button");
+			const menuButton = buttons.find(
+				(btn) => btn.getAttribute("aria-haspopup") === "menu",
+			);
+			expect(menuButton).toBeDefined();
+		});
 	});
 });

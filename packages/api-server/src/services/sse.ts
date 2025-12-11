@@ -39,7 +39,7 @@ export interface DataSourceUpdateEvent {
   data: {
     connection_id: string;
     connection_type?: string; // e.g., 'confluence', 'servicenow', 'sharepoint', 'websearch'
-    status: 'idle' | 'verifying' | 'syncing';
+    status: 'idle' | 'verifying' | 'syncing' | 'cancelled';
     // Sync-specific fields
     last_sync_status?: 'completed' | 'failed' | null;
     last_sync_at?: Date | null;
@@ -66,7 +66,84 @@ export interface DocumentUpdateEvent {
   };
 }
 
-export type SSEEvent = MessageUpdateEvent | NewMessageEvent | DataSourceUpdateEvent | DocumentUpdateEvent;
+export interface MemberRoleUpdatedEvent {
+  type: 'member_role_updated';
+  data: {
+    userId: string;
+    userEmail: string;
+    oldRole: 'owner' | 'admin' | 'user';
+    newRole: 'owner' | 'admin' | 'user';
+    updatedBy: string;
+    timestamp: string;
+  };
+}
+
+export interface MemberStatusUpdatedEvent {
+  type: 'member_status_updated';
+  data: {
+    userId: string;
+    userEmail: string;
+    isActive: boolean;
+    updatedBy: string;
+    timestamp: string;
+  };
+}
+
+export interface MemberRemovedEvent {
+  type: 'member_removed';
+  data: {
+    userId: string;
+    userEmail: string;
+    removedBy: string;
+    timestamp: string;
+  };
+}
+
+export interface MemberDeletedPermanentEvent {
+  type: 'member_deleted_permanent';
+  data: {
+    userId: string;
+    userEmail: string;
+    deletedBy: string;
+    reason: string;
+    timestamp: string;
+  };
+}
+
+export interface MemberDeletedOwnAccountEvent {
+  type: 'member_deleted_own_account';
+  data: {
+    userId: string;
+    userEmail: string;
+    reason: string;
+    timestamp: string;
+  };
+}
+
+export interface IngestionRunUpdateEvent {
+  type: 'ingestion_run_update';
+  data: {
+    ingestion_run_id: string;
+    connection_id: string;
+    status: 'completed' | 'failed';
+    records_processed?: number;
+    records_failed?: number;
+    error_message?: string;
+    timestamp: string;
+  };
+}
+
+export type SSEEvent =
+  | MessageUpdateEvent
+  | NewMessageEvent
+  | DataSourceUpdateEvent
+  | DocumentUpdateEvent
+  | MemberRoleUpdatedEvent
+  | MemberStatusUpdatedEvent
+  | MemberRemovedEvent
+  | MemberDeletedPermanentEvent
+  | MemberDeletedOwnAccountEvent
+  | IngestionRunUpdateEvent;
 
 export class SSEService {
   private connections: Map<string, SSEConnection> = new Map();

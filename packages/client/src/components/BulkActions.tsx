@@ -1,4 +1,4 @@
-import { Trash2, X } from "lucide-react";
+import { Loader, Trash2, X } from "lucide-react";
 import type React from "react";
 import type { ReactNode } from "react";
 import { Button } from "@/components/ui/button";
@@ -30,12 +30,20 @@ interface BulkActionsProps {
 	actions?: BulkAction[];
 	/** Legacy delete handler for backward compatibility */
 	onDelete?: () => void;
+	/** Custom label for delete button (e.g., "Delete", "Cancel Invitation", "Remove") */
+	deleteLabel?: string;
 	/** Close handler to clear selections */
 	onClose: () => void;
 	/** Custom label for selected items (e.g., "users", "files", "items") */
 	itemLabel?: string;
 	/** Additional CSS classes */
 	className?: string;
+	/** Loading state - disables buttons and shows loading text */
+	isLoading?: boolean;
+	/** Custom loading label (e.g., "Deleting...") */
+	loadingLabel?: string;
+	/** Remaining items count during deletion (shown when isLoading is true) */
+	remainingCount?: number | null;
 }
 
 /**
@@ -83,9 +91,13 @@ export const BulkActions: React.FC<BulkActionsProps> = ({
 	selectedUsers,
 	actions,
 	onDelete,
+	deleteLabel = "Delete",
 	onClose,
 	itemLabel = "items",
 	className,
+	isLoading = false,
+	loadingLabel = "Deleting...",
+	remainingCount,
 }) => {
 	// Calculate count from various prop sources (backward compatibility)
 	const count =
@@ -103,10 +115,11 @@ export const BulkActions: React.FC<BulkActionsProps> = ({
 	// Use custom actions or default to delete action
 	const displayActions: BulkAction[] = actions || (onDelete ? [{
 		key: 'delete',
-		label: 'Delete',
-		icon: <Trash2 className="h-4 w-4" />,
+		label: isLoading ? loadingLabel : deleteLabel,
+		icon: isLoading ? <Loader className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />,
 		variant: 'destructive' as const,
 		onClick: onDelete,
+		disabled: isLoading,
 	}] : []);
 
 	return (
@@ -121,7 +134,10 @@ export const BulkActions: React.FC<BulkActionsProps> = ({
 		>
 			<div className="flex items-center gap-4">
 				<p className="text-base font-medium text-foreground">
-					{count} {count === 1 ? itemLabel.replace(/s$/, '') : itemLabel} selected
+					{isLoading && remainingCount != null
+						? `${remainingCount} ${remainingCount === 1 ? itemLabel.replace(/s$/, '') : itemLabel} remaining`
+						: `${count} ${count === 1 ? itemLabel.replace(/s$/, '') : itemLabel} selected`
+					}
 				</p>
 
 				{displayActions.map((action) => (
@@ -130,7 +146,7 @@ export const BulkActions: React.FC<BulkActionsProps> = ({
 						variant={action.variant || "default"}
 						className="flex items-center gap-2"
 						onClick={action.onClick}
-						disabled={action.disabled}
+						disabled={action.disabled || isLoading}
 					>
 						{action.icon}
 						{action.label}
@@ -141,7 +157,11 @@ export const BulkActions: React.FC<BulkActionsProps> = ({
 			<button
 				type="button"
 				onClick={onClose}
-				className="text-blue-600 hover:text-blue-800 dark:text-blue-400 transition-colors p-1 hover:bg-blue-100 dark:hover:bg-slate-700 rounded"
+				disabled={isLoading}
+				className={cn(
+					"text-blue-600 hover:text-blue-800 dark:text-blue-400 transition-colors p-1 hover:bg-blue-100 dark:hover:bg-slate-700 rounded",
+					isLoading && "opacity-50 cursor-not-allowed"
+				)}
 				aria-label="Close bulk actions"
 			>
 				<X className="h-5 w-5" />

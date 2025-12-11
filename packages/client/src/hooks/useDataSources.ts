@@ -127,3 +127,37 @@ export function useTriggerSync() {
     },
   });
 }
+
+/**
+ * Cancel an ongoing sync operation
+ */
+export function useCancelSync() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (id: string) => dataSourcesApi.cancelSync(id),
+    onSuccess: (_, id) => {
+      // Invalidate queries to show 'cancelled' status
+      queryClient.invalidateQueries({ queryKey: dataSourceKeys.detail(id) });
+      queryClient.invalidateQueries({ queryKey: dataSourceKeys.list() });
+    },
+  });
+}
+
+/**
+ * Trigger ITSM ticket sync for autopilot clustering
+ * Returns ingestion_run_id - status updates via SSE
+ */
+export function useSyncTickets() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ id, timeRangeDays }: { id: string; timeRangeDays: number }) =>
+      dataSourcesApi.syncTickets(id, { time_range_days: timeRangeDays }),
+    onSuccess: (_, { id }) => {
+      // Invalidate queries to reflect syncing state
+      queryClient.invalidateQueries({ queryKey: dataSourceKeys.detail(id) });
+      queryClient.invalidateQueries({ queryKey: dataSourceKeys.list() });
+    },
+  });
+}

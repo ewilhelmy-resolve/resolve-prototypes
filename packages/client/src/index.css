@@ -3,6 +3,23 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* Season Mix Font Family */
+@font-face {
+    font-family: 'Season Mix';
+    src: url('/fonts/SeasonMix-Regular.ttf') format('truetype');
+    font-weight: 400;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'Season Mix';
+    src: url('/fonts/SeasonMix-RegularItalic.ttf') format('truetype');
+    font-weight: 400;
+    font-style: italic;
+    font-display: swap;
+}
+
 :root {
     --background: oklch(1 0 0);
     --foreground: oklch(0.145 0 0);
@@ -10,8 +27,8 @@
     --card-foreground: oklch(0.145 0 0);
     --popover: oklch(1 0 0);
     --popover-foreground: oklch(0.145 0 0);
-    --primary: oklch(0.472 0.197 260.442);
-    --primary-foreground: oklch(0.970 0.014 254.604);
+    --primary: rgba(0, 80, 199, 1);
+    --primary-foreground: rgba(239, 246, 255, 1);
     --secondary: oklch(0.97 0 0);
     --secondary-foreground: oklch(0.205 0 0);
     --muted: oklch(0.97 0 0);
@@ -29,7 +46,7 @@
     --chart-4: oklch(0.828 0.189 84.429);
     --chart-5: oklch(0.769 0.188 70.08);
     --radius: 0.625rem;
-    --sidebar: oklch(1.000 0.000 0.000);
+    --sidebar: rgba(255, 255, 255, 1);
     --sidebar-foreground: oklch(0.145 0 0);
     --sidebar-primary: oklch(0.205 0 0);
     --sidebar-primary-foreground: oklch(0.985 0 0);
@@ -46,8 +63,8 @@
     --card-foreground: oklch(0.985 0 0);
     --popover: oklch(0.145 0 0);
     --popover-foreground: oklch(0.985 0 0);
-    --primary: oklch(0.563 0.241 260.818);
-    --primary-foreground: oklch(0.282 0.087 267.935);
+    --primary: rgba(0, 102, 255, 1);
+    --primary-foreground: rgba(23, 37, 84, 1);
     --secondary: oklch(0.269 0 0);
     --secondary-foreground: oklch(0.985 0 0);
     --muted: oklch(0.269 0 0);
@@ -76,6 +93,7 @@
 
 @theme inline {
     --font-sans: Helvetica, sans-serif;
+    --font-heading: 'Season Mix', serif;
     --font-mono: var(--font-geist-mono);
     --color-background: var(--background);
     --color-foreground: var(--foreground);
@@ -123,16 +141,19 @@
     body {
         @apply bg-background text-foreground;
     }
-  .heading-xl {
+    h1, h2, h3, h4 {
+        font-family: var(--font-heading);
+    }
+    .heading-xl {
     font-family: Season Mix;
     }
-  .heading-lg {
+    .heading-lg {
     font-family: Season Mix;
     }
-  .heading-md {
+    .heading-md {
     font-family: Season Mix;
     }
-  .heading-sm {
+    .heading-sm {
     font-family: Season Mix;
     }
 }

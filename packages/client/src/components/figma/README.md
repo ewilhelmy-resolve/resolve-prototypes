@@ -34,7 +34,7 @@ import { RitaHeroSection } from '@/components/figma/customized'
 4. **Generate**: Select component → Choose Claude 3.5 Sonnet → Generate code
 5. **Share**: Copy generated code or CLI command to Frontend Team
 
-**Frontend Team (in Rita Go):**
+**Frontend Team (in RITA Go):**
 6. **Place**: Copy generated code to `generated/` directory (NO style modifications)
 7. **Enhance**: Copy to `customized/` ONLY for semantic/accessibility improvements
 8. **Export**: Add exports to appropriate `index.ts` files
@@ -68,7 +68,7 @@ All components must meet:
 - ✅ TypeScript strict mode compliance
 - ✅ WCAG 2.1 AA accessibility
 - ✅ SOC2 security requirements
-- ✅ Rita Go architectural patterns
+- ✅ RITA Go architectural patterns
 
 ## Examples
 
@@ -85,7 +85,7 @@ export function Dashboard() {
 }
 ```
 
-### With Rita Go Enhancements
+### With RITA Go Enhancements
 ```tsx
 import { RitaHeroSection } from '@/components/figma'
 
@@ -93,9 +93,9 @@ export function HomePage() {
   return (
     <RitaHeroSection
       data-testid="home-hero"
-      aria-label="Rita Go welcome section"
+      aria-label="RITA Go welcome section"
     >
-      <h1>Welcome to Rita Go</h1>
+      <h1>Welcome to RITA Go</h1>
     </RitaHeroSection>
   )
 }

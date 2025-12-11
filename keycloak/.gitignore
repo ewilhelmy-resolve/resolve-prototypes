@@ -1,0 +1,12 @@
+# Node modules
+node_modules/
+
+# Build artifacts
+build_temp/
+*.jar
+
+# Generated CSS (built from input.css during CI/CD)
+themes/*/login/resources/css/styles.css
+
+# macOS
+.DS_Store

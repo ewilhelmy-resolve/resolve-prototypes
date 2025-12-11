@@ -1,9 +1,12 @@
 import express from 'express';
 import crypto from 'crypto';
+import { z } from 'zod';
 import { getSessionService } from '../services/sessionService.js';
 import { WebhookService } from '../services/WebhookService.js';
 import { pool } from '../config/database.js';
 import { logger } from '../config/logger.js';
+import { authenticateUser } from '../middleware/auth.js';
+import type { AuthenticatedRequest } from '../types/express.js';
 
 const router = express.Router();
 const sessionService = getSessionService();
@@ -38,7 +41,7 @@ function checkResendRateLimit(email: string): boolean {
  */
 router.post('/signup', async (req, res) => {
   try {
-    const { firstName, lastName, email, company, password } = req.body;
+    const { firstName, lastName, email, company, password, tosAcceptedAt } = req.body;
 
     if (!firstName || !lastName || !email || !company || !password) {
       return res.status(400).json({
@@ -108,9 +111,9 @@ router.post('/signup', async (req, res) => {
 
     // Create pending user (WITHOUT password - it was sent to webhook only)
     const pendingUserResult = await pool.query(
-      `INSERT INTO pending_users (email, first_name, last_name, company, verification_token, token_expires_at)
-       VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,
-      [email, firstName, lastName, company, verificationToken, tokenExpiresAt]
+      `INSERT INTO pending_users (email, first_name, last_name, company, verification_token, token_expires_at, tos_accepted_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id`,
+      [email, firstName, lastName, company, verificationToken, tokenExpiresAt, tosAcceptedAt || null]
     );
 
     const pendingUserId = pendingUserResult.rows[0].id;
@@ -184,11 +187,20 @@ router.post('/resend-verification', async (req, res) => {
     const verificationToken = crypto.randomBytes(32).toString('hex');
     const tokenExpiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
 
-    // Update pending user with new token
-    await pool.query(
-      'UPDATE pending_users SET verification_token = $1, token_expires_at = $2 WHERE email = $3',
-      [verificationToken, tokenExpiresAt, email]
+    // Update pending user with new token (only if still pending, not verified)
+    const updateResult = await pool.query(
+      'UPDATE pending_users SET verification_token = $1, token_expires_at = $2 WHERE email = $3 AND status = $4 RETURNING id',
+      [verificationToken, tokenExpiresAt, email, 'pending']
     );
+
+    // If no rows updated, user already verified or doesn't exist (don't reveal which)
+    if (updateResult.rows.length === 0) {
+      logger.info({ email }, 'Resend verification requested for non-pending user (already verified or not found)');
+      return res.json({
+        success: true,
+        message: 'If a pending verification exists, a new email has been sent'
+      });
+    }
 
     // Trigger webhook to resend verification email
     await webhookService.sendGenericEvent({
@@ -258,6 +270,8 @@ router.post('/login', async (req, res) => {
       user: {
         id: session.userId,
         email: session.userEmail,
+        firstName: session.firstName,
+        lastName: session.lastName,
         organizationId: session.organizationId,
       },
       session: {
@@ -349,75 +363,6 @@ router.delete('/logout-all', async (req, res) => {
 });
 
 /**
- * Forgot password endpoint - Triggers password reset flow via external service
- * POST /auth/forgot-password
- * Body: { email: string }
- */
-router.post('/forgot-password', async (req, res) => {
-  try {
-    const { email } = req.body;
-
-    if (!email) {
-      return res.status(400).json({
-        error: 'Email is required'
-      });
-    }
-
-    // Validate email format
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
-      return res.status(400).json({
-        error: 'Invalid email format'
-      });
-    }
-
-    // Check if user exists
-    const userResult = await pool.query(
-      'SELECT user_id, active_organization_id FROM user_profiles WHERE email = $1',
-      [email]
-    );
-
-    if (userResult.rows.length === 0) {
-      // Don't reveal if user exists or not (security best practice)
-      return res.json({
-        success: true,
-        message: 'If an account exists with this email, a password reset link will be sent'
-      });
-    }
-
-    const user = userResult.rows[0];
-
-    // Trigger webhook to external service to handle Keycloak password reset
-    await webhookService.sendGenericEvent({
-      organizationId: user.active_organization_id,
-      userEmail: email,
-      userId: user.user_id,
-      source: 'rita-auth',
-      action: 'password_reset_request',
-      additionalData: {
-        reset_url_base: `${process.env.CLIENT_URL || 'http://localhost:5173'}/reset-password`
-      }
-    });
-
-    logger.info({
-      email,
-      userId: user.user_id
-    }, 'Password reset requested');
-
-    res.json({
-      success: true,
-      message: 'If an account exists with this email, a password reset link will be sent'
-    });
-
-  } catch (error) {
-    logger.error({ error }, 'Forgot password request failed');
-    res.status(500).json({
-      error: 'Failed to process password reset request. Please try again.'
-    });
-  }
-});
-
-/**
  * Email verification endpoint - Verifies signup token and marks user as ready for Keycloak signin
  * POST /auth/verify-email
  * Body: { token: string }
@@ -469,8 +414,11 @@ router.post('/verify-email', async (req, res) => {
       });
     }
 
-    // Remove the pending user record (verification complete)
-    await pool.query('DELETE FROM pending_users WHERE id = $1', [pendingUser.id]);
+    // Mark user as verified (record will be deleted after org creation on first login)
+    await pool.query(
+      'UPDATE pending_users SET status = $1 WHERE id = $2',
+      ['verified', pendingUser.id]
+    );
 
     logger.info({
       email: pendingUser.email,
@@ -512,6 +460,8 @@ router.get('/session', async (req, res) => {
       user: {
         id: session.userId,
         email: session.userEmail,
+        firstName: session.firstName,
+        lastName: session.lastName,
         organizationId: session.organizationId,
       },
       session: {
@@ -527,6 +477,136 @@ router.get('/session', async (req, res) => {
       error: 'Failed to check session status',
       authenticated: false
     });
+  }
+});
+
+/**
+ * Get user profile endpoint - Returns current user's profile information
+ * GET /auth/profile
+ */
+router.get('/profile', authenticateUser, async (req, res) => {
+  const authReq = req as AuthenticatedRequest;
+  try {
+    const userId = authReq.user.id;
+
+    const result = await pool.query(
+      'SELECT user_id, email, first_name, last_name, active_organization_id FROM user_profiles WHERE user_id = $1',
+      [userId]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    const user = result.rows[0];
+
+    res.json({
+      success: true,
+      user: {
+        id: user.user_id,
+        email: user.email,
+        firstName: user.first_name,
+        lastName: user.last_name,
+        organizationId: user.active_organization_id,
+      },
+    });
+  } catch (error) {
+    logger.error({ error }, 'Failed to fetch user profile');
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Validation schema for profile updates
+const updateProfileSchema = z.object({
+  firstName: z.string().min(1).max(100).trim().optional(),
+  lastName: z.string().min(1).max(100).trim().optional(),
+});
+
+/**
+ * Update user profile endpoint - Updates firstName and/or lastName
+ * PATCH /auth/profile
+ */
+router.patch('/profile', authenticateUser, async (req, res) => {
+  const authReq = req as AuthenticatedRequest;
+  try {
+    const userId = authReq.user.id;
+
+    // Validate request body
+    const validation = updateProfileSchema.safeParse(req.body);
+    if (!validation.success) {
+      return res.status(400).json({
+        error: 'Invalid request',
+        details: validation.error.issues.map(issue => ({
+          path: issue.path,
+          message: issue.message,
+        })),
+      });
+    }
+
+    const { firstName, lastName } = validation.data;
+
+    // Build dynamic UPDATE query (only update provided fields)
+    const updates: string[] = [];
+    const values: any[] = [];
+    let paramIndex = 1;
+
+    if (firstName !== undefined) {
+      updates.push(`first_name = $${paramIndex++}`);
+      values.push(firstName);
+    }
+
+    if (lastName !== undefined) {
+      updates.push(`last_name = $${paramIndex++}`);
+      values.push(lastName);
+    }
+
+    if (updates.length === 0) {
+      return res.status(400).json({ error: 'No fields to update' });
+    }
+
+    values.push(userId);
+
+    // Update database
+    const result = await pool.query(
+      `UPDATE user_profiles
+       SET ${updates.join(', ')}
+       WHERE user_id = $${paramIndex}
+       RETURNING user_id, email, first_name, last_name`,
+      values
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    const updatedUser = result.rows[0];
+
+    // Update session with new names
+    const sessionId = sessionService.parseSessionIdFromCookie(authReq.headers.cookie);
+    if (sessionId) {
+      await sessionService.updateSession(sessionId, {
+        firstName: updatedUser.first_name,
+        lastName: updatedUser.last_name,
+      });
+    }
+
+    logger.info(
+      { userId, firstName, lastName },
+      'User profile updated successfully'
+    );
+
+    res.json({
+      success: true,
+      user: {
+        id: updatedUser.user_id,
+        email: updatedUser.email,
+        firstName: updatedUser.first_name,
+        lastName: updatedUser.last_name,
+      },
+    });
+  } catch (error) {
+    logger.error({ error }, 'Failed to update user profile');
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 

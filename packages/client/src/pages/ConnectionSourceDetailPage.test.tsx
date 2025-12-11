@@ -47,11 +47,23 @@ vi.mock(
 );
 
 vi.mock(
-	"@/components/connection-sources/connection-details/ServiceNowConfiguration",
+	"@/components/connection-sources/connection-details/ServiceNowKBConfiguration",
 	() => ({
 		default: ({ onEdit }: { onEdit: () => void }) => (
 			<div>
-				<div>ServiceNow Configuration</div>
+				<div>ServiceNow KB Configuration</div>
+				<button onClick={onEdit}>Edit</button>
+			</div>
+		),
+	}),
+);
+
+vi.mock(
+	"@/components/connection-sources/connection-details/ServiceNowItsmConfiguration",
+	() => ({
+		default: ({ onEdit }: { onEdit: () => void }) => (
+			<div>
+				<div>ServiceNow ITSM Configuration</div>
 				<button onClick={onEdit}>Edit</button>
 			</div>
 		),
@@ -130,7 +142,7 @@ const createMockDataSource = (
 });
 
 const renderWithRouter = (
-	initialRoute = "/settings/connections/source-123",
+	initialRoute = "/settings/connections/knowledge/source-123",
 ) => {
 	const queryClient = new QueryClient({
 		defaultOptions: {
@@ -144,13 +156,21 @@ const renderWithRouter = (
 			<MemoryRouter initialEntries={[initialRoute]}>
 				<Routes>
 					<Route
-						path="/settings/connections/:id"
-						element={<ConnectionSourceDetailPage />}
+						path="/settings/connections/knowledge/:id"
+						element={<ConnectionSourceDetailPage mode="knowledge" />}
+					/>
+					<Route
+						path="/settings/connections/itsm/:id"
+						element={<ConnectionSourceDetailPage mode="itsm" />}
 					/>
 					<Route path="/404" element={<div>404 Not Found</div>} />
 					<Route
-						path="/settings/connections"
-						element={<div>Connections List</div>}
+						path="/settings/connections/knowledge"
+						element={<div>Knowledge Sources List</div>}
+					/>
+					<Route
+						path="/settings/connections/itsm"
+						element={<div>ITSM Sources List</div>}
 					/>
 				</Routes>
 			</MemoryRouter>
@@ -210,7 +230,7 @@ describe("ConnectionSourceDetailPage", () => {
 			mockDataSourceQuery.data = source;
 			renderWithRouter();
 
-			expect(screen.getByText("Connections")).toBeInTheDocument();
+			expect(screen.getByText("Knowledge Sources")).toBeInTheDocument();
 		});
 
 		it("should render source icon for non-websearch sources", () => {
@@ -238,7 +258,7 @@ describe("ConnectionSourceDetailPage", () => {
 
 			expect(
 				screen.getByText(
-					/Connect your Confluence instance to build context for Rita/,
+					/Connect your Confluence instance to build context for RITA/,
 				),
 			).toBeInTheDocument();
 		});
@@ -267,15 +287,26 @@ describe("ConnectionSourceDetailPage", () => {
 			expect(screen.getByText("SharePoint Configuration")).toBeInTheDocument();
 		});
 
-		it("should show configuration view for configured ServiceNow source", () => {
+		it("should show KB configuration view for configured ServiceNow source in knowledge mode", () => {
 			const source = createMockDataSource({
 				type: "servicenow",
 				last_verification_at: "2024-01-01T00:00:00Z",
 			});
 			mockDataSourceQuery.data = source;
-			renderWithRouter();
+			renderWithRouter("/settings/connections/knowledge/source-123");
 
-			expect(screen.getByText("ServiceNow Configuration")).toBeInTheDocument();
+			expect(screen.getByText("ServiceNow KB Configuration")).toBeInTheDocument();
+		});
+
+		it("should show ITSM configuration view for configured ServiceNow source in itsm mode", () => {
+			const source = createMockDataSource({
+				type: "servicenow",
+				last_verification_at: "2024-01-01T00:00:00Z",
+			});
+			mockDataSourceQuery.data = source;
+			renderWithRouter("/settings/connections/itsm/source-123");
+
+			expect(screen.getByText("ServiceNow ITSM Configuration")).toBeInTheDocument();
 		});
 
 		it("should show configuration view for configured WebSearch source", () => {
@@ -513,7 +544,7 @@ describe("ConnectionSourceDetailPage", () => {
 			mockDataSourceQuery.data = source;
 			renderWithRouter();
 
-			expect(screen.getByText("Unknown source type")).toBeInTheDocument();
+			expect(screen.getByText("Configuration not available for this source type")).toBeInTheDocument();
 		});
 	});
 });

@@ -10,6 +10,7 @@ export type Status =
 	| "Connected"
 	| "Syncing"
 	| "Verifying"
+	| "Cancelled"
 	| "Error";
 
 export const STATUS = {
@@ -17,6 +18,7 @@ export const STATUS = {
 	CONNECTED: "Connected" as Status,
 	SYNCING: "Syncing" as Status,
 	VERIFYING: "Verifying" as Status,
+	CANCELLED: "Cancelled" as Status,
 	ERROR: "Error" as Status,
 };
 
@@ -50,6 +52,26 @@ export const SOURCES = {
 
 export type SourceId = (typeof SOURCES)[keyof typeof SOURCES];
 
+// Knowledge Sources - sync KB articles
+export const KNOWLEDGE_SOURCE_TYPES = [
+	"confluence",
+	"sharepoint",
+	"servicenow",
+	"websearch",
+] as const;
+
+// ITSM Sources - sync tickets for autopilot
+export const ITSM_SOURCE_TYPES = ["servicenow", "jira"] as const;
+
+// Display order for each section
+export const KNOWLEDGE_SOURCES_ORDER = [
+	"confluence",
+	"sharepoint",
+	"servicenow",
+	"websearch",
+];
+export const ITSM_SOURCES_ORDER = ["servicenow", "jira"];
+
 // Static metadata for each source type (icons, titles, descriptions)
 export const SOURCE_METADATA: Record<
 	string,
@@ -72,6 +94,10 @@ export const SOURCE_METADATA: Record<
 		description:
 			"Use web results to supplement answers when knowledge isn't found.",
 	},
+	jira: {
+		title: "Jira",
+		description: "Import tickets from Jira for autopilot clustering.",
+	},
 };
 
 /**
@@ -81,6 +107,7 @@ export const SOURCE_METADATA: Record<
  * @param last_sync_status - Last sync result ('completed', 'failed', null)
  * @param enabled - Whether connection is enabled
  * @param last_verification_at - When credentials were last verified (null = never configured)
+ * @param last_verification_error - Last verification error message (null = no error)
  * @returns UI-friendly status string
  */
 export function getDisplayStatus(
@@ -88,6 +115,7 @@ export function getDisplayStatus(
 	last_sync_status: DataSourceLastSyncStatus,
 	enabled: boolean,
 	last_verification_at: string | null,
+	last_verification_error: string | null = null,
 ): Status {
 	// Check active statuses first (verifying/syncing take precedence)
 	if (status === "verifying") {
@@ -101,6 +129,11 @@ export function getDisplayStatus(
 	// Not configured yet (never verified)
 	if (!last_verification_at) {
 		return STATUS.NOT_CONNECTED;
+	}
+
+	// Check for verification failure (derived state)
+	if (last_verification_error) {
+		return STATUS.ERROR;
 	}
 
 	// Idle - check last sync result
@@ -212,6 +245,7 @@ export function mapDataSourceToUI(
 			source.last_sync_status,
 			source.enabled,
 			source.last_verification_at,
+			source.last_verification_error,
 		),
 		lastSync: formatRelativeTime(source.last_sync_at),
 		description: metadata.description,

@@ -88,6 +88,38 @@ async function fetchWithAuth<T>(
 }
 
 /**
+ * Public fetch wrapper for invitation endpoints (no authentication required)
+ * Used for verify and accept endpoints which are accessed by users without accounts
+ */
+async function fetchPublic<T>(
+	endpoint: string,
+	options: RequestInit = {},
+): Promise<T> {
+	const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+		...options,
+		headers: {
+			"Content-Type": "application/json",
+			...options.headers,
+		},
+	});
+
+	if (!response.ok) {
+		const error: InvitationAPIError = await response.json().catch(() => ({
+			error: InvitationErrorCode.SERVER_ERROR,
+			message: `HTTP ${response.status}: ${response.statusText}`,
+		}));
+
+		throw error;
+	}
+
+	if (response.status === 204) {
+		return {} as T;
+	}
+
+	return response.json();
+}
+
+/**
  * Hook: Send Invitations (Batch)
  *
  * Sends invitations to 1-50 email addresses with assigned role.
@@ -133,6 +165,7 @@ export function useSendInvitations() {
  *
  * Validates invitation token and returns invitation details.
  * Used on invite accept page before showing form.
+ * PUBLIC endpoint - no authentication required (users don't have accounts yet)
  *
  * @param token - Invitation token from URL
  * @param enabled - Whether to run query (default: true)
@@ -144,7 +177,7 @@ export function useVerifyInvitation(token: string, enabled = true) {
 	return useQuery<VerifyInvitationResponse, InvitationAPIError>({
 		queryKey: invitationKeys.verify(token),
 		queryFn: async () => {
-			return fetchWithAuth<VerifyInvitationResponse>(
+			return fetchPublic<VerifyInvitationResponse>(
 				`/api/invitations/verify/${token}`,
 			);
 		},
@@ -162,24 +195,26 @@ export function useVerifyInvitation(token: string, enabled = true) {
  *
  * Accepts invitation and creates user account in Keycloak and Rita DB.
  * Password is sent directly to Keycloak, never stored in Rita.
+ * PUBLIC endpoint - no authentication required (users don't have accounts yet)
  *
  * @example
- * const { mutate, isPending, error } = useAcceptInvitation(token)
+ * const { mutate, isPending, error } = useAcceptInvitation()
  * mutate({
+ *   token: 'invitation-token-here',
  *   password: 'SecurePass123!',
  *   firstName: 'John',
  *   lastName: 'Doe'
  * })
  */
-export function useAcceptInvitation(token: string) {
+export function useAcceptInvitation() {
 	return useMutation<
 		AcceptInvitationResponse,
 		InvitationAPIError,
 		AcceptInvitationRequest
 	>({
 		mutationFn: async (data: AcceptInvitationRequest) => {
-			return fetchWithAuth<AcceptInvitationResponse>(
-				`/api/invitations/accept/${token}`,
+			return fetchPublic<AcceptInvitationResponse>(
+				"/api/invitations/accept",
 				{
 					method: "POST",
 					body: JSON.stringify(data),
@@ -253,7 +288,7 @@ export function useCancelInvitation() {
 			return fetchWithAuth<CancelInvitationResponse>(
 				`/api/invitations/${data.invitationId}/cancel`,
 				{
-					method: "POST",
+					method: "DELETE",
 				},
 			);
 		},

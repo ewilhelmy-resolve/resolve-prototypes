@@ -41,12 +41,42 @@ services:
       KEYCLOAK_ADMIN_PASSWORD: admin
       KC_HOSTNAME_URL: http://localhost:8080
       KC_HOSTNAME_ADMIN_URL: http://localhost:8080
+      KC_HTTP_ENABLED: true  # Add this line to enable HTTP
     ports:
       - "8080:8080"
     volumes:
       - ./keycloak/realm-export.json:/opt/keycloak/data/import/realm-export.json
-    command: start-dev --import-realm
+      # Development: Mount local theme files for live editing
+      - ./keycloak/themes:/opt/keycloak/themes/
+      # Production testing: Mount JAR file from GitHub Actions build
+      #- ./keycloak/rita-theme-v2-20251021-5d3c10a2.jar:/opt/keycloak/providers/rita-theme-v2.jar
+    command: >
+      start-dev
+      --import-realm
+      --spi-theme-cache-themes=false
+      --spi-theme-cache-templates=false
+
+  mailpit:
+    image: axllent/mailpit:latest
+    container_name: mailpit
+    restart: unless-stopped
+    ports:
+      - "1025:1025"  # SMTP server
+      - "8025:8025"  # Web UI
+    environment:
+      MP_MAX_MESSAGES: 5000
+      MP_DATABASE: /data/mailpit.db
+      MP_SMTP_AUTH_ACCEPT_ANY: 1
+      MP_SMTP_AUTH_ALLOW_INSECURE: 1
+    volumes:
+      - mailpit_data:/data
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8025/api/v1/info"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
 
 volumes:
   postgres_data:
   rabbitmq_data:
+  mailpit_data:

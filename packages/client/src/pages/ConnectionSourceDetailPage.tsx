@@ -1,8 +1,9 @@
 import { Globe } from "lucide-react";
 import { useState } from "react";
 import { Navigate, useNavigate, useParams } from "react-router-dom";
- import ConfluenceConfiguration from "@/components/connection-sources/connection-details/ConfluenceConfiguration";
-import ServiceNowConfiguration from "@/components/connection-sources/connection-details/ServiceNowConfiguration";
+import ConfluenceConfiguration from "@/components/connection-sources/connection-details/ConfluenceConfiguration";
+import ServiceNowKBConfiguration from "@/components/connection-sources/connection-details/ServiceNowKBConfiguration";
+import ServiceNowItsmConfiguration from "@/components/connection-sources/connection-details/ServiceNowItsmConfiguration";
 import SharePointConfiguration from "@/components/connection-sources/connection-details/SharePointConfiguration";
 import WebSearchConfiguration from "@/components/connection-sources/connection-details/WebSearchConfiguration";
 import {
@@ -11,7 +12,6 @@ import {
 	SharePointForm,
 	WebSearchForm,
 } from "@/components/connection-sources/connection-forms";
-import Header from "@/components/Header";
 import RitaSettingsLayout from "@/components/layouts/RitaSettingsLayout";
 import {
 	mapDataSourceToUI,
@@ -20,9 +20,48 @@ import {
 } from "@/constants/connectionSources";
 import { ConnectionSourceProvider } from "@/contexts/ConnectionSourceContext";
 import { useDataSource } from "@/hooks/useDataSources";
+import SettingsHeader from "@/pages/settings/SettingsHeader";
 import { BACKEND_STATUS, type DataSourceConnection } from "@/types/dataSource";
 
-export default function ConnectionSourceDetailPage() {
+type ConnectionMode = "knowledge" | "itsm";
+
+// Registry for connection source forms (same for both modes)
+const FORM_REGISTRY: Record<
+	string,
+	React.ComponentType<{ onCancel?: () => void; onSuccess?: () => void; onFailure?: () => void }>
+> = {
+	[SOURCES.CONFLUENCE]: ConfluenceForm,
+	[SOURCES.SHAREPOINT]: SharePointForm,
+	[SOURCES.SERVICENOW]: ServiceNowForm,
+	[SOURCES.WEB_SEARCH]: WebSearchForm,
+};
+
+// Registry for Knowledge Sources configuration views
+const KB_CONFIGURATION_REGISTRY: Record<
+	string,
+	React.ComponentType<{ onEdit: () => void }>
+> = {
+	[SOURCES.CONFLUENCE]: ConfluenceConfiguration,
+	[SOURCES.SHAREPOINT]: SharePointConfiguration,
+	[SOURCES.SERVICENOW]: ServiceNowKBConfiguration,
+	[SOURCES.WEB_SEARCH]: WebSearchConfiguration,
+};
+
+// Registry for ITSM Sources configuration views
+const ITSM_CONFIGURATION_REGISTRY: Record<
+	string,
+	React.ComponentType<{ onEdit: () => void }>
+> = {
+	[SOURCES.SERVICENOW]: ServiceNowItsmConfiguration,
+};
+
+interface ConnectionSourceDetailPageProps {
+	mode: ConnectionMode;
+}
+
+export default function ConnectionSourceDetailPage({
+	mode,
+}: ConnectionSourceDetailPageProps) {
 	const { id } = useParams<{ id: string }>(); // UUID from backend
 	const navigate = useNavigate();
 	const { data: source, isLoading, error } = useDataSource(id);
@@ -58,6 +97,22 @@ export default function ConnectionSourceDetailPage() {
 	// Map backend data to UI format for provider
 	const uiSource = mapDataSourceToUI(source);
 
+	// Get the base path for navigation based on mode
+	const basePath =
+		mode === "knowledge"
+			? "/settings/connections/knowledge"
+			: "/settings/connections/itsm";
+
+	// Get breadcrumb label based on mode
+	const breadcrumbLabel =
+		mode === "knowledge" ? "Knowledge Sources" : "ITSM Sources";
+
+	// Get configuration registry based on mode
+	const configurationRegistry =
+		mode === "knowledge"
+			? KB_CONFIGURATION_REGISTRY
+			: ITSM_CONFIGURATION_REGISTRY;
+
 	// Render the appropriate form based on source type
 	// Note: Forms will receive source via ConnectionSourceContext (useConnectionSource hook)
 	const renderForm = (
@@ -67,50 +122,47 @@ export default function ConnectionSourceDetailPage() {
 		const handleCancel = showCancel
 			? () => {
 					if (!isConfigured) {
-						navigate("/settings/connections");
+						navigate(basePath);
 					} else {
 						setIsEditMode(false);
 					}
 				}
 			: undefined;
 
-		switch (sourceData.type) {
-			case "confluence":
-				return <ConfluenceForm onCancel={handleCancel} />;
-			case "sharepoint":
-				return <SharePointForm onCancel={handleCancel} />;
-			case "servicenow":
-				return <ServiceNowForm onCancel={handleCancel} />;
-			case "websearch":
-				return <WebSearchForm onCancel={handleCancel} />;
-			default:
-				return <div>Unknown source type</div>;
+		const handleSuccess = () => {
+			setIsEditMode(false);
+		};
+
+		const handleFailure = () => {
+			setIsEditMode(false);
+		};
+
+		const FormComponent = FORM_REGISTRY[sourceData.type];
+
+		if (!FormComponent) {
+			return <div>Unknown source type</div>;
 		}
+
+		return <FormComponent onCancel={handleCancel} onSuccess={handleSuccess} onFailure={handleFailure} />;
 	};
 
-	// Render the appropriate configuration view based on source type
+	// Render the appropriate configuration view based on source type and mode
 	const renderConfiguration = (sourceData: DataSourceConnection) => {
 		const handleEdit = () => setIsEditMode(true);
 
-		switch (sourceData.type) {
-			case "confluence":
-				return <ConfluenceConfiguration onEdit={handleEdit} />;
-			case "sharepoint":
-				return <SharePointConfiguration onEdit={handleEdit} />;
-			case "servicenow":
-				return <ServiceNowConfiguration onEdit={handleEdit} />;
-			case "websearch":
-				return <WebSearchConfiguration onEdit={handleEdit} />;
-			default:
-				return <div>Unknown source type</div>;
+		const ConfigurationComponent = configurationRegistry[sourceData.type];
+
+		if (!ConfigurationComponent) {
+			return <div>Configuration not available for this source type</div>;
 		}
+
+		return <ConfigurationComponent onEdit={handleEdit} />;
 	};
 
 	// Render logic:
 	// - Show FORM when: NOT configured OR isEditMode is true
 	// - Show CONFIGURATION VIEW otherwise
 	const renderContent = () => {
-
 		// Show form if not configured OR in edit mode
 		if (!isConfigured || isEditMode) {
 			return renderForm(source, true);
@@ -125,9 +177,9 @@ export default function ConnectionSourceDetailPage() {
 			<RitaSettingsLayout>
 				<div className="flex-1 inline-flex flex-col items-center gap-8 w-full">
 					<div className="self-stretch flex flex-col items-start gap-8">
-						<Header
+						<SettingsHeader
 							breadcrumbs={[
-								{ label: "Connections", href: "/settings/connections" },
+								{ label: breadcrumbLabel, href: basePath },
 								{ label: sourceTitle },
 							]}
 							title={sourceTitle}
@@ -141,7 +193,7 @@ export default function ConnectionSourceDetailPage() {
 									<Globe className="h-5 w-5 flex-shrink-0" />
 								)
 							}
-							description={`Connect your ${sourceTitle} instance to build context for Rita to make better experiences.`}
+							description={`Connect your ${sourceTitle} instance to build context for RITA to make better experiences.`}
 						/>
 					</div>
 

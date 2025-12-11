@@ -2,7 +2,7 @@
  * Figma Integration Type Definitions
  *
  * TypeScript types for Figma-generated components and
- * integration with Rita Go architecture.
+ * integration with RITA Go architecture.
  */
 /** biome-ignore-all lint/complexity/noBannedTypes: temp */
 /** biome-ignore-all lint/suspicious/noExplicitAny: temp */
@@ -50,7 +50,7 @@ export interface FigmaConversionMetadata {
   role?: string
   /** Design tokens extracted */
   designTokens?: FigmaDesignTokens
-  /** Rita Go specific customizations applied */
+  /** RITA Go specific customizations applied */
   ritaCustomizations?: string[]
 }
 
@@ -135,7 +135,7 @@ export interface FigmaDesignTokens {
 }
 
 /**
- * Rita Go specific component configuration
+ * RITA Go specific component configuration
  */
 export interface RitaComponentConfig {
   /** Whether component requires authentication */
@@ -160,7 +160,7 @@ export interface FigmaComponent<T = {}> {
   props: T & FigmaComponentProps
   /** Conversion metadata */
   metadata: FigmaConversionMetadata
-  /** Rita Go configuration */
+  /** RITA Go configuration */
   ritaConfig?: RitaComponentConfig
 }
 
@@ -195,12 +195,12 @@ export interface FigmaConversionIssue {
 }
 
 /**
- * Figma to Rita Go component mapping
+ * Figma to RITA Go component mapping
  */
 export interface FigmaComponentMapping {
   /** Original Figma component name */
   figmaName: string
-  /** Standardized Rita Go component name */
+  /** Standardized RITA Go component name */
   ritaName: string
   /** Component category */
   category: 'ui' | 'layout' | 'feature' | 'page'
@@ -243,7 +243,7 @@ export type FigmaComponentFactory<T = {}> = (
  * Props for components that wrap Figma-generated content
  */
 export interface FigmaWrapperProps extends FigmaComponentProps {
-  /** Whether to apply Rita Go enterprise styles */
+  /** Whether to apply RITA Go enterprise styles */
   applyEnterpriseStyles?: boolean
   /** Whether to enable accessibility enhancements */
   enhanceAccessibility?: boolean

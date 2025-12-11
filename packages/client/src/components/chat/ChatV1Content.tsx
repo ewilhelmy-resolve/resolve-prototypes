@@ -9,28 +9,27 @@
 "use client";
 
 import type { ChatStatus } from "ai";
-import { CheckIcon, CopyIcon, PaperclipIcon } from "lucide-react";
-import { Fragment, useCallback, useRef, useState } from "react";
-import { toast } from "sonner";
+import {
+	CheckIcon,
+	CopyIcon,
+	Upload /* , PaperclipIcon */,
+} from "lucide-react";
+import { Fragment, useCallback, useEffect, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Action, Actions } from "@/components/ai-elements/actions";
 import {
 	Conversation,
 	ConversationContent,
-	ConversationEmptyState,
 	ConversationScrollButton,
 } from "@/components/ai-elements/conversation";
 import { Loader } from "@/components/ai-elements/loader";
 import { Message, MessageContent } from "@/components/ai-elements/message";
 import {
 	PromptInput,
-	PromptInputActionAddAttachments,
-	PromptInputActionMenu,
-	PromptInputActionMenuContent,
-	PromptInputActionMenuTrigger,
 	PromptInputAttachment,
 	PromptInputAttachments,
 	PromptInputBody,
-	PromptInputButton,
+	// PromptInputButton, // TODO: Uncomment when re-enabling attachment button
 	type PromptInputMessage,
 	PromptInputSubmit,
 	PromptInputTextarea,
@@ -50,8 +49,32 @@ import {
 	TaskTrigger,
 } from "@/components/ai-elements/task";
 import { Citations } from "@/components/citations";
+import {
+	Card,
+	CardContent,
+	CardDescription,
+	CardHeader,
+	CardTitle,
+} from "@/components/ui/card";
+import { ritaToast } from "@/components/ui/rita-toast";
+import { SOURCE_METADATA, SOURCES } from "@/constants/connectionSources";
+import { useUploadFile } from "@/hooks/api/useFiles";
+import { useProfilePermissions } from "@/hooks/api/useProfile.ts";
 import { useChatPagination } from "@/hooks/useChatPagination";
+// import { DragDropOverlay } from "./DragDropOverlay"; // TODO: Re-enable when backend support is ready
+import { useDragAndDrop } from "@/hooks/useDragAndDrop";
+import { useFeatureFlag } from "@/hooks/useFeatureFlags";
+// import { useProfilePermissions } from "@/hooks/api/useProfile"; // TODO: Re-enable when backend support is ready
+import { useKnowledgeBase } from "@/hooks/useKnowledgeBase";
 import type { RitaChatState } from "@/hooks/useRitaChat";
+import {
+	MAX_FILE_SIZE_MB,
+	SUPPORTED_DOCUMENT_EXTENSIONS,
+	SUPPORTED_DOCUMENT_TYPES,
+	validateFileForUpload,
+} from "@/lib/constants";
+import { formatAbsoluteTime } from "@/lib/date-utils";
+import { cn } from "@/lib/utils";
 import type {
 	GroupedChatMessage,
 	Message as RitaMessage,
@@ -59,9 +82,6 @@ import type {
 } from "@/stores/conversationStore";
 import { useConversationStore } from "@/stores/conversationStore";
 import { ResponseWithInlineCitations } from "./ResponseWithInlineCitations";
-import { DragDropOverlay } from "./DragDropOverlay";
-import { useDragAndDrop } from "@/hooks/useDragAndDrop";
-import { useUploadFile } from "@/hooks/api/useFiles";
 
 export interface ChatV1ContentProps {
 	// Message state
@@ -79,6 +99,9 @@ export interface ChatV1ContentProps {
 
 	// File upload (for chat messages)
 	handleFileUpload: RitaChatState["handleFileUpload"];
+
+	// Config options
+	requireKnowledgeBase?: boolean;
 	uploadStatus: RitaChatState["uploadStatus"];
 
 	// Refs
@@ -86,7 +109,7 @@ export interface ChatV1ContentProps {
 }
 
 /**
- * Map Rita's message status to ai-elements ChatStatus
+ * Map RITA's message status to ai-elements ChatStatus
  */
 const mapRitaStatusToChatStatus = (
 	isSending: boolean,
@@ -150,6 +173,17 @@ const hasGroupedCopyableContent = (message: GroupedChatMessage): boolean => {
 	);
 };
 
+// Helper function to check if message only contains reasoning (no text/sources/tasks)
+const isReasoningOnlyMessage = (message: GroupedChatMessage): boolean => {
+	return message.parts.every(
+		(part) =>
+			part.metadata?.reasoning &&
+			!part.message?.trim() &&
+			!part.metadata?.sources?.length &&
+			!part.metadata?.tasks?.length,
+	);
+};
+
 // Helper function to check if a simple message has copyable content
 const hasSimpleCopyableContent = (message: SimpleChatMessage): boolean => {
 	return Boolean(message.message && message.message.trim().length > 0);
@@ -160,21 +194,41 @@ function GroupedMessage({
 	message,
 	onCopy,
 	isCopied,
+	chatStatus,
+	isLastMessage,
 }: {
 	message: GroupedChatMessage;
 	onCopy: (text: string, messageId: string) => void;
 	isCopied: boolean;
+	chatStatus: ChatStatus;
+	isLastMessage: boolean;
 }) {
+	// Only the last message can be actively streaming
+	const isThisMessageStreaming =
+		isLastMessage && (chatStatus === "streaming" || chatStatus === "submitted");
+
+	// Hover state for timestamp visibility
+	const [isHovering, setIsHovering] = useState(false);
+
+	// Check if this is a reasoning-only message for compact styling
+	const reasoningOnly = isReasoningOnlyMessage(message);
+
 	return (
-		<Message from={message.role}>
-			<div className="flex flex-col w-full">
-				<MessageContent variant="flat">
+		<Message from={message.role} className={reasoningOnly ? "py-1" : ""}>
+			<div
+				role="group"
+				className="flex flex-col w-full"
+				onMouseEnter={() => setIsHovering(true)}
+				onMouseLeave={() => setIsHovering(false)}
+			>
+				<MessageContent variant="flat" className={reasoningOnly ? "p-0" : ""}>
 					{message.parts.map((part, index) => (
 						<Fragment key={part.id}>
 							{/* Render reasoning if present */}
 							{part.metadata?.reasoning && (
 								<Reasoning
-									isStreaming={Boolean(part.metadata.reasoning.streaming)}
+									isStreaming={isThisMessageStreaming}
+									className={reasoningOnly ? "mb-0" : ""}
 								>
 									<ReasoningTrigger title={part.metadata.reasoning.title} />
 									<ReasoningContent>
@@ -250,20 +304,47 @@ function GroupedMessage({
 					))}
 				</MessageContent>
 
-				{/* Show copy action only if there's text content to copy */}
-				{hasGroupedCopyableContent(message) && (
-					<Actions className="mt-2">
-						<Action
-							onClick={() => onCopy(getGroupedContent(message), message.id)}
-							tooltip="Copy message"
+				{/* Actions and timestamp row - hide for reasoning-only messages */}
+				{message.role === "assistant" && !reasoningOnly && (
+					<div className="flex items-center justify-between gap-2">
+						{/* Copy action - only show if there's text content */}
+						{hasGroupedCopyableContent(message) ? (
+							<Actions>
+								<Action
+									onClick={() => onCopy(getGroupedContent(message), message.id)}
+									tooltip="Copy message"
+								>
+									{isCopied ? (
+										<CheckIcon className="size-3" />
+									) : (
+										<CopyIcon className="size-3" />
+									)}
+								</Action>
+							</Actions>
+						) : (
+							<div />
+						)}
+
+						{/* Timestamp - show on hover only */}
+						<div
+							className={`text-xs text-gray-500 transition-opacity ${
+								isHovering ? "opacity-100" : "opacity-0"
+							}`}
 						>
-							{isCopied ? (
-								<CheckIcon className="size-3" />
-							) : (
-								<CopyIcon className="size-3" />
-							)}
-						</Action>
-					</Actions>
+							{formatAbsoluteTime(message.timestamp)}
+						</div>
+					</div>
+				)}
+
+				{/* User message timestamp only */}
+				{message.role === "user" && (
+					<div
+						className={`text-xs text-gray-500 mt-1 transition-opacity ${
+							isHovering ? "opacity-100" : "opacity-0"
+						}`}
+					>
+						{formatAbsoluteTime(message.timestamp)}
+					</div>
 				)}
 			</div>
 		</Message>
@@ -280,32 +361,167 @@ function SimpleMessage({
 	onCopy: (text: string, messageId: string) => void;
 	isCopied: boolean;
 }) {
+	// Hover state for timestamp visibility
+	const [isHovering, setIsHovering] = useState(false);
+
 	return (
 		<Message from={message.role}>
-			<div className="flex flex-col">
+			<div
+				role="group"
+				className="flex flex-col"
+				onMouseEnter={() => setIsHovering(true)}
+				onMouseLeave={() => setIsHovering(false)}
+			>
 				<MessageContent
 					variant={message.role === "assistant" ? "flat" : "contained"}
 				>
 					<Response>{message.message}</Response>
 				</MessageContent>
 
-				{/* Show copy action only for assistant messages with text content */}
-				{message.role === "assistant" && hasSimpleCopyableContent(message) && (
-					<Actions className="mt-2">
-						<Action
-							onClick={() => onCopy(message.message, message.id)}
-							tooltip="Copy message"
+				{/* Actions and timestamp row - always show for assistant messages */}
+				{message.role === "assistant" && (
+					<div className="flex items-center justify-between gap-2">
+						{/* Copy action - only show if there's text content */}
+						{hasSimpleCopyableContent(message) ? (
+							<Actions>
+								<Action
+									onClick={() => onCopy(message.message, message.id)}
+									tooltip="Copy message"
+								>
+									{isCopied ? (
+										<CheckIcon className="size-3" />
+									) : (
+										<CopyIcon className="size-3" />
+									)}
+								</Action>
+							</Actions>
+						) : (
+							<div />
+						)}
+
+						{/* Timestamp - show on hover only */}
+						<div
+							className={`text-xs text-gray-500 transition-opacity ${
+								isHovering ? "opacity-100" : "opacity-0"
+							}`}
 						>
-							{isCopied ? (
-								<CheckIcon className="size-3" />
-							) : (
-								<CopyIcon className="size-3" />
-							)}
-						</Action>
-					</Actions>
+							{formatAbsoluteTime(message.timestamp)}
+						</div>
+					</div>
+				)}
+
+				{/* User message timestamp only */}
+				{message.role === "user" && (
+					<div
+						className={`text-xs text-gray-500 mt-1 transition-opacity ${
+							isHovering ? "opacity-100" : "opacity-0"
+						}`}
+					>
+						{formatAbsoluteTime(message.timestamp)}
+					</div>
 				)}
 			</div>
 		</Message>
+	);
+}
+
+// Custom empty state component for Ask RITA
+function AskRitaEmptyState({
+	hasKnowledge,
+	onUpload,
+	onConnections,
+}: {
+	hasKnowledge: boolean;
+	onUpload: () => void;
+	onConnections: () => void;
+}) {
+	const { isOwnerOrAdmin } = useProfilePermissions();
+	// Connection source icons to display
+	const connectionSources = [
+		{
+			type: SOURCES.CONFLUENCE,
+			icon: `/connections/icon_${SOURCES.CONFLUENCE}.svg`,
+		},
+		{
+			type: SOURCES.SHAREPOINT,
+			icon: `/connections/icon_${SOURCES.SHAREPOINT}.svg`,
+		},
+		{
+			type: SOURCES.SERVICENOW,
+			icon: `/connections/icon_${SOURCES.SERVICENOW}.svg`,
+		},
+	];
+
+	return (
+		<div className="flex flex-col items-center justify-center gap-8 py-12">
+			<div className="text-center space-y-2">
+				<h2 className="text-3xl font-semibold text-foreground">Ask RITA</h2>
+				<p className="text-base text-muted-foreground">
+					{hasKnowledge
+						? "Diagnose and resolve issues, then create automations to speed up future remediation"
+						: "Build your organization's help agent by adding knowledge"}
+				</p>
+			</div>
+
+			{!hasKnowledge && isOwnerOrAdmin() && (
+				<>
+					<div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full max-w-2xl">
+						{/* Upload a file card */}
+						<Card className="cursor-pointer" onClick={onUpload}>
+							<CardHeader>
+								<div className="flex items-start justify-between">
+									<CardTitle className="text-lg font-medium">
+										Upload a file
+									</CardTitle>
+									<Upload className="h-5 w-5 text-muted-foreground" />
+								</div>
+								<CardDescription className="text-base">
+									Add knowledge via documents
+								</CardDescription>
+							</CardHeader>
+							<CardContent>
+								<p className="text-sm text-muted-foreground">
+									File types: {SUPPORTED_DOCUMENT_EXTENSIONS.join(", ")}; max
+									size: {MAX_FILE_SIZE_MB}mb
+								</p>
+							</CardContent>
+						</Card>
+
+						{/* Add a connection card */}
+						<Card className="cursor-pointer" onClick={onConnections}>
+							<CardHeader>
+								<CardTitle className="text-lg font-medium">
+									Add a connection
+								</CardTitle>
+								<CardDescription className="text-base">
+									Connect your knowledge sources
+								</CardDescription>
+							</CardHeader>
+							<CardContent>
+								<div className="flex gap-3">
+									{connectionSources.map((source) => (
+										<div
+											key={source.type}
+											className="w-8 h-8 flex items-center justify-center"
+										>
+											<img
+												src={source.icon}
+												alt={SOURCE_METADATA[source.type]?.title || source.type}
+												className="w-6 h-6"
+											/>
+										</div>
+									))}
+								</div>
+							</CardContent>
+						</Card>
+					</div>
+
+					<p className="text-xs text-muted-foreground text-center max-w-md">
+						All files and connections stay within your organization's workspace.
+					</p>
+				</>
+			)}
+		</div>
 	);
 }
 
@@ -320,9 +536,40 @@ export default function ChatV1Content({
 	handleFileUpload,
 	uploadStatus,
 	fileInputRef,
+	requireKnowledgeBase = true,
 }: ChatV1ContentProps) {
 	// Copy state tracking for icon feedback
 	const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
+
+	// Timeout override state for incomplete turns
+	const [timeoutOverride, setTimeoutOverride] = useState(false);
+
+	// Track which conversation has been checked for incomplete turns
+	const lastCheckedConvRef = useRef<string | null>(null);
+
+	// Navigation for connections
+	const navigate = useNavigate();
+
+	// Knowledge base for file upload
+	const {
+		openDocumentSelector,
+		files,
+		documentInputRef,
+		handleDocumentUpload,
+		uploadingFiles,
+	} = useKnowledgeBase();
+
+	// Check if there are any processed or uploaded files
+	const hasProcessedOrUploadedFiles = files.some(
+		(f) => f.status === "processed" || f.status === "uploaded",
+	);
+
+	// Check if user is admin/owner
+	const { isOwnerOrAdmin } = useProfilePermissions();
+	const isAdmin = isOwnerOrAdmin();
+
+	// Feature flags
+	const enableMultiFileUpload = useFeatureFlag("ENABLE_MULTI_FILE_UPLOAD");
 
 	// Get grouped messages from store instead of flat messages
 	const { chatMessages } = useConversationStore();
@@ -331,30 +578,50 @@ export default function ChatV1Content({
 	const uploadFileMutation = useUploadFile();
 
 	// Handle drag-and-drop file upload
-	const handleDragDropUpload = useCallback((files: FileList) => {
-		if (files.length === 0) return;
+	const handleDragDropUpload = useCallback(
+		(files: FileList) => {
+			if (files.length === 0) return;
 
-		// Upload each file to knowledge base
-		Array.from(files).forEach(file => {
-			uploadFileMutation.mutate(file, {
-				onSuccess: () => {
-					toast.success(`Uploaded "${file.name}" to knowledge base`);
-				},
-				onError: (error: any) => {
-					toast.error(`Failed to upload "${file.name}": ${error?.message || 'Unknown error'}`);
+			// Upload each file to knowledge base
+			Array.from(files).forEach((file) => {
+				// Validate file type before upload
+				const validation = validateFileForUpload(file);
+				if (!validation.isValid && validation.error) {
+					ritaToast.error({
+						title: validation.error.title,
+						description: validation.error.description,
+					});
+					return;
 				}
-			});
-		});
-	}, [uploadFileMutation]);
 
-	// Drag-and-drop with file upload functionality
-	const { isDragging } = useDragAndDrop({
-		enabled: !uploadStatus.isUploading,
-		accept: "image/*,.pdf,.txt,.md,.doc,.docx,.xls,.xlsx",
+				uploadFileMutation.mutate(file, {
+					onSuccess: () => {
+						ritaToast.success({
+							title: `Uploaded "${file.name}" to knowledge base`,
+						});
+					},
+					onError: (error: any) => {
+						ritaToast.error({
+							title: "Upload Failed",
+							description: `Failed to upload "${file.name}": ${error?.message || "Unknown error"}`,
+						});
+					},
+				});
+			});
+		},
+		[uploadFileMutation],
+	);
+
+	// Drag-and-drop with file upload functionality (disabled for all users)
+	// TODO: Re-enable when backend support is ready (set enabled to: !uploadStatus.isUploading && isAdmin)
+	/* const { isDragging } = */ useDragAndDrop({
+		enabled: false,
+		accept: SUPPORTED_DOCUMENT_TYPES,
 		maxFiles: 5,
 		maxFileSize: 10 * 1024 * 1024, // 10MB
 		onDrop: handleDragDropUpload,
-		onError: (error) => toast.error(error)
+		onError: (error) =>
+			ritaToast.error({ title: "Upload Error", description: error }),
 	});
 
 	// Scroll container ref for pagination (mutable to allow assignment from contextRef)
@@ -382,6 +649,47 @@ export default function ChatV1Content({
 		messages,
 	);
 
+	// 30-second timeout for incomplete turns
+	useEffect(() => {
+		// Reset override when status changes
+		setTimeoutOverride(false);
+
+		if (chatStatus === "streaming") {
+			const timeoutId = setTimeout(() => {
+				ritaToast.warning({ title: "Response timeout" });
+				setTimeoutOverride(true);
+			}, 30000);
+
+			return () => clearTimeout(timeoutId);
+		}
+	}, [chatStatus]);
+
+	// Check for incomplete conversation on navigation
+	useEffect(() => {
+		if (!currentConversationId || !messages.length) return;
+
+		// Only check once per conversation
+		if (lastCheckedConvRef.current === currentConversationId) return;
+		lastCheckedConvRef.current = currentConversationId;
+
+		const lastMsg = messages[messages.length - 1];
+		const isIncomplete =
+			lastMsg.role === "user" ||
+			(lastMsg.role === "assistant" &&
+				lastMsg.metadata?.turn_complete === false);
+
+		if (isIncomplete) {
+			setTimeoutOverride(true);
+		}
+	}, [currentConversationId, messages]);
+
+	// Determine if input should be disabled (turn-based conversation or no knowledge)
+	const isInputDisabled =
+		!timeoutOverride &&
+		(chatStatus === "streaming" ||
+			chatStatus === "submitted" ||
+			(requireKnowledgeBase && !hasProcessedOrUploadedFiles));
+
 	// Handle form submission from PromptInput
 	const handlePromptSubmit = useCallback(
 		async (message: PromptInputMessage) => {
@@ -392,14 +700,14 @@ export default function ChatV1Content({
 				return;
 			}
 
-			// If we have text, update Rita's message value
+			// If we have text, update RITA's message value
 			if (message.text) {
 				handleMessageChange(message.text);
 			}
 
 			// Handle file uploads if present
 			if (message.files && message.files.length > 0) {
-				// Convert FileUIPart back to File for Rita's handler
+				// Convert FileUIPart back to File for RITA's handler
 				// Note: This is a simplified approach - in a real implementation,
 				// you might need to handle the file conversion differently
 				const fileEvent = {
@@ -424,28 +732,31 @@ export default function ChatV1Content({
 		try {
 			await navigator.clipboard.writeText(text);
 			setCopiedMessageId(messageId);
-			toast.success("Message copied to clipboard");
+			ritaToast.success({ title: "Message copied to clipboard" });
 			// Reset copied state after 2 seconds (same as ai-elements pattern)
 			setTimeout(() => setCopiedMessageId(null), 2000);
 		} catch (_error) {
-			toast.error("Failed to copy message");
+			ritaToast.error({ title: "Failed to copy message" });
 		}
 	}, []);
 
 	// Handle direct attachment button click
-	const handleAttachmentClick = useCallback(() => {
-		fileInputRef.current?.click();
-	}, [fileInputRef]);
+	// TODO: Uncomment when re-enabling attachment button
+	// const handleAttachmentClick = useCallback(() => {
+	// 	fileInputRef.current?.click();
+	// }, [fileInputRef]);
 
 	return (
 		<div className="h-full flex flex-col relative">
-			{/* Drag-and-drop overlay */}
-			<DragDropOverlay
-				isDragging={isDragging}
-				accept="image/*,.pdf,.txt,.md,.doc,.docx,.xls,.xlsx"
-				maxFiles={5}
-				maxFileSize={10 * 1024 * 1024}
-			/>
+			{/* Drag-and-drop overlay (disabled - TODO: Re-enable when backend support is ready) */}
+			{/* {isAdmin && (
+				<DragDropOverlay
+					isDragging={isDragging}
+					accept={SUPPORTED_DOCUMENT_TYPES}
+					maxFiles={5}
+					maxFileSize={10 * 1024 * 1024}
+				/>
+			)} */}
 
 			<Conversation className="flex-1" contextRef={handleStickToBottomContext}>
 				<ConversationContent className="px-6 py-6">
@@ -456,10 +767,22 @@ export default function ChatV1Content({
 							</div>
 						) : !currentConversationId || chatMessages.length === 0 ? (
 							<div className="min-h-[60vh] flex items-center justify-center">
-								<ConversationEmptyState
-									title="Ask Rita"
-									description="Diagnose and resolve issues, then create automations to speed up future remediation"
-								/>
+								{requireKnowledgeBase ? (
+									<AskRitaEmptyState
+										hasKnowledge={hasProcessedOrUploadedFiles}
+										onUpload={openDocumentSelector}
+										onConnections={() => navigate("/settings/connections")}
+									/>
+								) : (
+									<div className="text-center max-w-md px-4">
+										<h2 className="text-2xl font-semibold text-gray-900 mb-2">
+											Ask me anything
+										</h2>
+										<p className="text-sm text-gray-600">
+											Start a conversation by typing your question below.
+										</p>
+									</div>
+								)}
 							</div>
 						) : (
 							<>
@@ -489,28 +812,28 @@ export default function ChatV1Content({
 									)}
 
 								{/* Render grouped chat messages */}
-								{chatMessages.map((chatMessage) => (
-									<Fragment key={chatMessage.id}>
-										{chatMessage.isGroup ? (
-											<GroupedMessage
-												message={chatMessage as GroupedChatMessage}
-												onCopy={handleCopy}
-												isCopied={copiedMessageId === chatMessage.id}
-											/>
-										) : (
-											<SimpleMessage
-												message={chatMessage as SimpleChatMessage}
-												onCopy={handleCopy}
-												isCopied={copiedMessageId === chatMessage.id}
-											/>
-										)}
-									</Fragment>
-								))}
-
-								{/* Show loader when processing */}
-								{(chatStatus === "submitted" || chatStatus === "streaming") && (
-									<Loader />
-								)}
+								{chatMessages.map((chatMessage, index) => {
+									const isLastMessage = index === chatMessages.length - 1;
+									return (
+										<Fragment key={chatMessage.id}>
+											{chatMessage.isGroup ? (
+												<GroupedMessage
+													message={chatMessage as GroupedChatMessage}
+													onCopy={handleCopy}
+													isCopied={copiedMessageId === chatMessage.id}
+													chatStatus={chatStatus}
+													isLastMessage={isLastMessage}
+												/>
+											) : (
+												<SimpleMessage
+													message={chatMessage as SimpleChatMessage}
+													onCopy={handleCopy}
+													isCopied={copiedMessageId === chatMessage.id}
+												/>
+											)}
+										</Fragment>
+									);
+								})}
 							</>
 						)}
 					</div>
@@ -522,12 +845,13 @@ export default function ChatV1Content({
 			<div className="px-6 py-4 xborder-t border-gray-200 bg-white">
 				<div className="max-w-4xl mx-auto">
 					<PromptInput
+						className={cn(!hasProcessedOrUploadedFiles && "rounded-b-none")}
 						onSubmit={handlePromptSubmit}
-						globalDrop
-						multiple
-						accept="image/*,.pdf,.txt,.md,.doc,.docx,.xls,.xlsx"
-						maxFiles={5}
-						maxFileSize={10 * 1024 * 1024} // 10MB
+						globalDrop={false}
+						multiple={false}
+						accept={undefined}
+						maxFiles={undefined}
+						maxFileSize={undefined}
 					>
 						<PromptInputBody>
 							<PromptInputAttachments>
@@ -537,43 +861,57 @@ export default function ChatV1Content({
 								onChange={(e) => handleMessageChange(e.target.value)}
 								value={messageValue}
 								placeholder="Ask me anything..."
+								disabled={isInputDisabled}
 							/>
 						</PromptInputBody>
 						<PromptInputToolbar>
 							<PromptInputTools>
-								<PromptInputButton
-									onClick={handleAttachmentClick}
-									variant="ghost"
-									disabled={uploadStatus.isUploading}
-								>
-									<PaperclipIcon size={16} />
-									<span className="sr-only">Add attachment</span>
-								</PromptInputButton>
-								<PromptInputActionMenu>
-									<PromptInputActionMenuTrigger />
-									<PromptInputActionMenuContent>
-										<PromptInputActionAddAttachments />
-									</PromptInputActionMenuContent>
-								</PromptInputActionMenu>
+								{/* TODO: Re-enable attachment button when backend support is ready */}
 							</PromptInputTools>
 							<PromptInputSubmit
-								disabled={!messageValue.trim() && chatStatus !== "streaming"}
+								disabled={
+									!messageValue.trim() ||
+									chatStatus === "streaming" ||
+									chatStatus === "submitted"
+								}
 								status={chatStatus}
 							/>
 						</PromptInputToolbar>
 					</PromptInput>
+
+					{/* Footer message when no processed or uploaded files */}
+					{requireKnowledgeBase && !hasProcessedOrUploadedFiles && (
+						<div className="mt-0 flex items-center rounded-b-[12px] border border-t-0 border-border bg-muted px-3 py-2">
+							<p className="text-xs text-muted-foreground">
+								{isAdmin
+									? "No knowledge found. Upload or connect a knowledge source to get started."
+									: "No knowledge found. Reach out to your RITA Go Administrator."}
+							</p>
+						</div>
+					)}
 				</div>
 			</div>
 
-			{/* Hidden file input for compatibility with existing Rita handlers */}
+			{/* Hidden file input for chat message attachments (currently disabled) */}
 			<input
 				ref={fileInputRef}
 				type="file"
 				className="hidden"
 				onChange={handleFileUpload}
-				accept=".jpg,.jpeg,.png,.gif,.webp,.pdf,.txt,.md,.doc,.docx,.xls,.xlsx"
+				accept={SUPPORTED_DOCUMENT_TYPES}
 				disabled={uploadStatus.isUploading}
-				multiple={false}
+				multiple={enableMultiFileUpload}
+			/>
+
+			{/* Hidden file input for knowledge base uploads (empty state & navbar) */}
+			<input
+				ref={documentInputRef}
+				type="file"
+				className="hidden"
+				onChange={handleDocumentUpload}
+				accept={SUPPORTED_DOCUMENT_TYPES}
+				multiple={enableMultiFileUpload}
+				disabled={uploadingFiles.size > 0}
 			/>
 		</div>
 	);

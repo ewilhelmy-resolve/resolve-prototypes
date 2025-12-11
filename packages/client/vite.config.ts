@@ -14,7 +14,7 @@ export default defineConfig({
         changeOrigin: true,
         secure: false,
       },
-      '/auth': {
+      '^/auth/(?!.*\\.(svg|png|jpg|jpeg|gif|ico|webp))': {
         target: 'http://localhost:3000',
         changeOrigin: true,
         secure: false,

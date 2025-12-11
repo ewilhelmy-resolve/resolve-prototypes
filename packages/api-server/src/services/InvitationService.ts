@@ -1,6 +1,7 @@
 import crypto from 'crypto';
 import type { Pool } from 'pg';
 import type { WebhookService } from './WebhookService.js';
+import { logger } from '../config/logger.js';
 import type {
   PendingInvitation,
   SendInvitationsResponse,
@@ -108,8 +109,34 @@ export class InvitationService {
           continue;
         }
 
-        // Skip if already accepted
+        // Handle accepted invitations with orphan detection (Layer 2: Self-Healing)
         if (invitation.status === 'accepted') {
+          // Check if user still exists (detect orphaned record)
+          const userExists = await this.pool.query(
+            `SELECT 1 FROM user_profiles WHERE email = $1`,
+            [trimmedEmail]
+          );
+
+          if (userExists.rows.length === 0) {
+            // ORPHANED RECORD DETECTED: User was deleted but invitation remains
+            // Clean up the orphaned invitation and allow re-invitation
+            await this.pool.query(
+              `DELETE FROM pending_invitations WHERE id = $1`,
+              [invitation.id]
+            );
+
+            logger.info({
+              organizationId,
+              email: trimmedEmail,
+              invitationId: invitation.id
+            }, 'Cleaned up orphaned accepted invitation (self-healing)');
+
+            // Allow re-invitation
+            validEmails.push(trimmedEmail);
+            continue;
+          }
+
+          // User exists and already accepted - skip as before
           skippedEmails.push({
             email: trimmedEmail,
             status: 'skipped',
@@ -383,6 +410,28 @@ export class InvitationService {
 
     if (updateResult.rows.length === 0) {
       throw new Error('Invitation already accepted');
+    }
+
+    // Auto-cancel all other pending invitations for this email (cross-org cleanup)
+    // Rationale: User can only belong to one organization (single-org constraint)
+    const cancelResult = await this.pool.query(
+      `UPDATE pending_invitations
+       SET status = 'cancelled'
+       WHERE email = $1
+       AND id != $2
+       AND status = 'pending'
+       RETURNING id, organization_id`,
+      [email, invitationId]
+    );
+
+    if (cancelResult.rows.length > 0) {
+      logger.info({
+        email,
+        acceptedInvitationId: invitationId,
+        acceptedOrganizationId: organizationId,
+        cancelledInvitations: cancelResult.rows.length,
+        cancelledOrganizations: cancelResult.rows.map(r => r.organization_id)
+      }, 'Auto-cancelled competing invitations from other organizations');
     }
 
     // Trigger webhook for Keycloak user creation (fire-and-forget)

@@ -1,16 +1,19 @@
 import { readFileSync, readdirSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
-import { Pool } from 'pg';
+import pg from 'pg';
+import type { Pool as PoolType } from 'pg';
+
+const { Pool } = pg;
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 export class DatabaseMigrator {
-  private pool: Pool;
+  private pool: PoolType;
   private migrationsDir: string;
 
-  constructor(pool: Pool) {
+  constructor(pool: PoolType) {
     this.pool = pool;
     this.migrationsDir = join(__dirname, 'migrations');
   }
@@ -30,7 +33,7 @@ export class DatabaseMigrator {
     const result = await this.pool.query(
       'SELECT migration_name FROM migration_history ORDER BY id'
     );
-    return result.rows.map(row => row.migration_name);
+    return result.rows.map((row: any) => row.migration_name);
   }
 
   async getPendingMigrations(): Promise<string[]> {

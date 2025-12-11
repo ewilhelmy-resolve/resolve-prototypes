@@ -6,7 +6,7 @@
  */
 
 import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { useCreateConversation, useSendMessage } from '@/hooks/api/useConversations'
 import { useConversationStore } from '@/stores/conversationStore'
 
@@ -27,6 +27,10 @@ export interface MessageHandlerState {
 export const useMessageHandler = (messagesEndRef: React.RefObject<HTMLDivElement>): MessageHandlerState => {
   const [messageValue, setMessageValue] = useState('')
   const navigate = useNavigate()
+  const location = useLocation()
+
+  // Check if we're on an iframe route (public access)
+  const isIframeRoute = location.pathname.startsWith('/iframe/')
 
   const { currentConversationId, messages, isSending, isLoadingMore } = useConversationStore()
   const createConversationMutation = useCreateConversation()
@@ -58,8 +62,9 @@ export const useMessageHandler = (messagesEndRef: React.RefObject<HTMLDivElement
           title: messageContent.substring(0, 50) + (messageContent.length > 50 ? '...' : '')
         })
         conversationId = conversation.id
-        // Navigate to the new conversation URL
-        navigate(`/chat/${conversationId}`)
+        // Navigate to the new conversation URL (use iframe path for public access)
+        const basePath = isIframeRoute ? '/iframe/chat' : '/chat'
+        navigate(`${basePath}/${conversationId}`)
       }
 
       // Send message

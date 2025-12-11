@@ -2,8 +2,9 @@ import crypto from 'node:crypto';
 import express from 'express';
 import multer from 'multer';
 import { withOrgContext } from '../config/database.js';
-import { authenticateUser } from '../middleware/auth.js';
+import { authenticateUser, requireRole } from '../middleware/auth.js';
 import { WebhookService } from '../services/WebhookService.js';
+import { logger } from '../config/logger.js';
 import type { AuthenticatedRequest } from '../types/express.js';
 
 const router = express.Router();
@@ -64,8 +65,12 @@ const handleUpload = (req: express.Request, res: express.Response, next: express
   });
 };
 
-// Upload file with content-addressable storage and deduplication
-router.post('/upload', authenticateUser, handleUpload, async (req, res) => {
+/**
+ * POST /api/files/upload
+ * Upload a file to organization knowledge base
+ * Auth: Required (owner/admin)
+ */
+router.post('/upload', authenticateUser, requireRole(['owner', 'admin']), handleUpload, async (req, res) => {
   const authReq = req as AuthenticatedRequest;
   try {
     if (!req.file) {
@@ -73,10 +78,37 @@ router.post('/upload', authenticateUser, handleUpload, async (req, res) => {
     }
 
     const file = req.file;
-    const { content } = req.body; // Optional text content
+    const { content, filename } = req.body; // Optional text content and explicit filename
+
+    // Use the explicitly provided filename (UTF-8 encoded) or fallback to multer's originalname
+    const safeFilename = filename || file.originalname;
 
     // Calculate SHA-256 hash of file content for deduplication
     const digest = crypto.createHash('sha256').update(file.buffer).digest('hex');
+
+    // Check if file already exists in organization (by digest)
+    const existingFile = await withOrgContext(
+      authReq.user.id,
+      authReq.user.activeOrganizationId,
+      async (client) => {
+        const result = await client.query(`
+          SELECT bm.id, bm.filename
+          FROM blob_metadata bm
+          JOIN blobs b ON bm.blob_id = b.blob_id
+          WHERE b.digest = $1 AND bm.organization_id = $2
+          LIMIT 1
+        `, [digest, authReq.user.activeOrganizationId]);
+
+        return result.rows.length > 0 ? result.rows[0] : null;
+      }
+    );
+
+    if (existingFile) {
+      return res.status(409).json({
+        error: 'File already uploaded',
+        existing_filename: existingFile.filename
+      });
+    }
 
     // Store file using new blob storage schema
     const result = await withOrgContext(
@@ -112,15 +144,15 @@ router.post('/upload', authenticateUser, handleUpload, async (req, res) => {
           // Insert metadata record
           const metadataResult = await client.query(`
             INSERT INTO blob_metadata (
-              blob_id, organization_id, user_id, filename, file_size, mime_type, status, metadata
+              blob_id, organization_id, user_id, filename, file_size, mime_type, status, metadata, source
             )
-            VALUES ($1, $2, $3, $4, $5, $6, 'processing', $7)
-            RETURNING id, blob_id, filename, file_size, mime_type, status, created_at
+            VALUES ($1, $2, $3, $4, $5, $6, 'processing', $7, 'manual')
+            RETURNING id, blob_id, filename, file_size, mime_type, status, source, created_at
           `, [
             blobId,
             authReq.user.activeOrganizationId,
             authReq.user.id,
-            file.originalname,
+            safeFilename,
             file.size,
             file.mimetype,
             JSON.stringify({ content: content || null })
@@ -155,12 +187,20 @@ router.post('/upload', authenticateUser, handleUpload, async (req, res) => {
       });
 
       if (!webhookResponse.success) {
-        console.error('Webhook failed for uploaded document:', webhookResponse.error);
+        logger.error({ webhookError: webhookResponse.error }, 'Webhook failed for uploaded document');
       }
     } catch (webhookError) {
-      console.error('Error sending upload webhook:', webhookError);
+      logger.error({ error: webhookError }, 'Error sending upload webhook');
       // Continue with the upload response even if webhook fails
     }
+
+    logger.info({
+      organizationId: authReq.user.activeOrganizationId,
+      userId: authReq.user.id,
+      documentId: result.id,
+      filename: result.filename,
+      fileSize: result.file_size
+    }, 'File uploaded');
 
     res.json({
       document: {
@@ -169,18 +209,27 @@ router.post('/upload', authenticateUser, handleUpload, async (req, res) => {
         size: result.file_size,
         type: result.mime_type,
         status: result.status,
+        source: result.source,
         created_at: result.created_at
       }
     });
 
   } catch (error) {
-    console.error('Error uploading file:', error);
+    logger.error({
+      error,
+      userId: authReq.user.id,
+      organizationId: authReq.user.activeOrganizationId
+    }, 'Failed to upload file');
     res.status(500).json({ error: 'Failed to upload file' });
   }
 });
 
-// Create text content (alternative to file upload)
-router.post('/content', authenticateUser, async (req, res) => {
+/**
+ * POST /api/files/content
+ * Create text content in organization knowledge base
+ * Auth: Required (owner/admin)
+ */
+router.post('/content', authenticateUser, requireRole(['owner', 'admin']), async (req, res) => {
   const authReq = req as AuthenticatedRequest;
   try {
     const { content, filename, metadata } = req.body;
@@ -250,6 +299,13 @@ router.post('/content', authenticateUser, async (req, res) => {
       }
     );
 
+    logger.info({
+      organizationId: authReq.user.activeOrganizationId,
+      userId: authReq.user.id,
+      documentId: result.id,
+      filename: result.filename
+    }, 'Content created');
+
     res.json({
       document: {
         id: result.id,
@@ -262,13 +318,156 @@ router.post('/content', authenticateUser, async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Error creating content:', error);
+    logger.error({
+      error,
+      userId: authReq.user.id,
+      organizationId: authReq.user.activeOrganizationId
+    }, 'Failed to create content');
     res.status(500).json({ error: 'Failed to create content' });
   }
 });
 
-// Download file directly from database
-router.get('/:documentId/download', authenticateUser, async (req, res) => {
+// Get document metadata (for citations - returns metadata without full blob content)
+// Supports both new (blob_metadata.id) and legacy (blob_id) formats for backward compatibility
+router.get('/:documentId/metadata', authenticateUser, async (req, res) => {
+  const authReq = req as AuthenticatedRequest;
+  try {
+    const { documentId } = req.params;
+
+    const result = await withOrgContext(
+      authReq.user.id,
+      authReq.user.activeOrganizationId,
+      async (client) => {
+        // Strategy 1: Try lookup by blob_metadata.id (NEW FORMAT - preferred)
+        let metadataResult = await client.query(`
+          SELECT
+            bm.id,
+            bm.organization_id,
+            bm.user_id,
+            bm.filename,
+            bm.file_size,
+            bm.mime_type,
+            bm.status,
+            bm.processed_markdown,
+            bm.metadata,
+            bm.created_at,
+            bm.updated_at,
+            bm.blob_id
+          FROM blob_metadata bm
+          WHERE bm.id = $1 AND bm.organization_id = $2
+        `, [documentId, authReq.user.activeOrganizationId]);
+
+        let lookupStrategy = 'blob_metadata_id';
+
+        // Strategy 2: Fallback to blob_id lookup (OLD FORMAT - backward compatibility)
+        if (metadataResult.rows.length === 0) {
+          metadataResult = await client.query(`
+            SELECT
+              bm.id,
+              bm.organization_id,
+              bm.user_id,
+              bm.filename,
+              bm.file_size,
+              bm.mime_type,
+              bm.status,
+              bm.processed_markdown,
+              bm.metadata,
+              bm.created_at,
+              bm.updated_at,
+              bm.blob_id
+            FROM blob_metadata bm
+            WHERE bm.blob_id = $1 AND bm.organization_id = $2
+          `, [documentId, authReq.user.activeOrganizationId]);
+
+          lookupStrategy = 'blob_id';
+        }
+
+        if (metadataResult.rows.length === 0) {
+          return { found: false, lookupStrategy: null };
+        }
+
+        return { found: true, data: metadataResult.rows[0], lookupStrategy };
+      }
+    );
+
+    if (!result.found) {
+      // Log phantom citation with appropriate ID type
+      try {
+        await withOrgContext(
+          authReq.user.id,
+          authReq.user.activeOrganizationId,
+          async (client) => {
+            // Determine if documentId looks like a UUID (blob_metadata_id) or text (blob_id)
+            const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(documentId);
+
+            if (isUUID) {
+              // Assume blob_metadata_id format
+              await client.query(`
+                INSERT INTO phantom_citations (blob_metadata_id, user_id, organization_id, first_seen, last_seen, occurrence_count)
+                VALUES ($1, $2, $3, NOW(), NOW(), 1)
+                ON CONFLICT (blob_metadata_id, user_id, organization_id)
+                WHERE blob_metadata_id IS NOT NULL
+                DO UPDATE SET
+                  last_seen = NOW(),
+                  occurrence_count = phantom_citations.occurrence_count + 1,
+                  updated_at = NOW()
+              `, [documentId, authReq.user.id, authReq.user.activeOrganizationId]);
+            } else {
+              // Assume blob_id format (legacy)
+              await client.query(`
+                INSERT INTO phantom_citations (blob_id, user_id, organization_id, first_seen, last_seen, occurrence_count)
+                VALUES ($1, $2, $3, NOW(), NOW(), 1)
+                ON CONFLICT (blob_id, user_id, organization_id)
+                WHERE blob_id IS NOT NULL
+                DO UPDATE SET
+                  last_seen = NOW(),
+                  occurrence_count = phantom_citations.occurrence_count + 1,
+                  updated_at = NOW()
+              `, [documentId, authReq.user.id, authReq.user.activeOrganizationId]);
+            }
+          }
+        );
+      } catch (logError) {
+        // Don't fail the request if logging fails
+        console.error('Failed to log phantom citation:', logError);
+      }
+
+      return res.status(404).json({ error: 'Document not found' });
+    }
+
+    // Return metadata with processed content (no raw blob data)
+    // Frontend expects article content in metadata.content field
+    const metadata = result.data.metadata || {};
+    metadata.content = result.data.processed_markdown;
+
+    res.json({
+      id: result.data.id,
+      organization_id: result.data.organization_id,
+      user_id: result.data.user_id,
+      filename: result.data.filename,
+      file_size: result.data.file_size,
+      mime_type: result.data.mime_type,
+      status: result.data.status,
+      processed_markdown: result.data.processed_markdown,
+      metadata: metadata,
+      created_at: result.data.created_at,
+      updated_at: result.data.updated_at,
+      blob_id: result.data.blob_id,
+      _lookup_strategy: result.lookupStrategy, // Debug info: which lookup method succeeded
+    });
+
+  } catch (error) {
+    console.error('Error fetching document metadata:', error);
+    res.status(500).json({ error: 'Failed to fetch document metadata' });
+  }
+});
+
+/**
+ * GET /api/files/:documentId/download
+ * Download a file from organization knowledge base
+ * Auth: Required (owner/admin)
+ */
+router.get('/:documentId/download', authenticateUser, requireRole(['owner', 'admin']), async (req, res) => {
   const authReq = req as AuthenticatedRequest;
   try {
     const { documentId } = req.params;
@@ -315,22 +514,78 @@ router.get('/:documentId/download', authenticateUser, async (req, res) => {
     }
 
   } catch (error) {
-    console.error('Error downloading file:', error);
+    logger.error({
+      error,
+      userId: authReq.user.id,
+      organizationId: authReq.user.activeOrganizationId,
+      documentId: req.params.documentId
+    }, 'Failed to download file');
     res.status(500).json({ error: 'Failed to download file' });
   }
 });
 
-// List user's documents
+/**
+ * GET /api/files
+ * List all files in the organization
+ * Auth: Required
+ */
 router.get('/', authenticateUser, async (req, res) => {
   const authReq = req as AuthenticatedRequest;
   try {
     const limit = parseInt(req.query.limit as string, 10) || 50;
     const offset = parseInt(req.query.offset as string, 10) || 0;
+    const sortBy = (req.query.sort_by as string) || 'created_at';
+    const sortOrder = (req.query.sort_order as string)?.toUpperCase() === 'ASC' ? 'ASC' : 'DESC';
+
+    // Filter parameters
+    const search = req.query.search as string;
+    const status = req.query.status as string;
+    const source = req.query.source as string;
+
+    // Validate and map sort fields to database columns
+    const sortFieldMap: Record<string, string> = {
+      'filename': 'bm.filename',
+      'size': 'bm.file_size',
+      'type': 'bm.mime_type',
+      'status': 'bm.status',
+      'source': 'bm.source',
+      'created_at': 'bm.created_at',
+    };
+
+    const sortField = sortFieldMap[sortBy] || 'bm.created_at';
 
     const result = await withOrgContext(
       authReq.user.id,
       authReq.user.activeOrganizationId,
       async (client) => {
+        // Build WHERE clause dynamically
+        const whereConditions: string[] = ['bm.organization_id = $1'];
+        const queryParams: any[] = [authReq.user.activeOrganizationId];
+        let paramIndex = 2;
+
+        // Add search filter (case-insensitive filename search)
+        if (search?.trim()) {
+          whereConditions.push(`LOWER(bm.filename) LIKE LOWER($${paramIndex})`);
+          queryParams.push(`%${search.trim()}%`);
+          paramIndex++;
+        }
+
+        // Add status filter
+        if (status && status.toLowerCase() !== 'all') {
+          whereConditions.push(`bm.status = $${paramIndex}`);
+          queryParams.push(status.toLowerCase());
+          paramIndex++;
+        }
+
+        // Add source filter
+        if (source && source.toLowerCase() !== 'all') {
+          whereConditions.push(`bm.source = $${paramIndex}`);
+          queryParams.push(source);
+          paramIndex++;
+        }
+
+        const whereClause = whereConditions.join(' AND ');
+
         const documentsResult = await client.query(`
           SELECT
             bm.id,
@@ -339,21 +594,23 @@ router.get('/', authenticateUser, async (req, res) => {
             bm.mime_type,
             bm.status,
             bm.metadata,
+            bm.user_id,
             bm.created_at,
             bm.updated_at,
+            bm.source,
             CASE
               WHEN bm.metadata->>'content' IS NOT NULL THEN 'text'
               ELSE 'binary'
             END as content_type
           FROM blob_metadata bm
-          WHERE bm.organization_id = $1 AND bm.user_id = $2
-          ORDER BY bm.created_at DESC
-          LIMIT $3 OFFSET $4
-        `, [authReq.user.activeOrganizationId, authReq.user.id, limit, offset]);
+          WHERE ${whereClause}
+          ORDER BY ${sortField} ${sortOrder}
+          LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
+        `, [...queryParams, limit, offset]);
 
         const countResult = await client.query(
-          'SELECT COUNT(*) as total FROM blob_metadata WHERE organization_id = $1 AND user_id = $2',
-          [authReq.user.activeOrganizationId, authReq.user.id]
+          `SELECT COUNT(*) as total FROM blob_metadata bm WHERE ${whereClause}`,
+          queryParams
         );
 
         return {
@@ -365,16 +622,31 @@ router.get('/', authenticateUser, async (req, res) => {
       }
     );
 
+    logger.info({
+      organizationId: authReq.user.activeOrganizationId,
+      userId: authReq.user.id,
+      count: result.documents.length,
+      total: result.total
+    }, 'Listed files');
+
     res.json(result);
 
   } catch (error) {
-    console.error('Error fetching documents:', error);
+    logger.error({
+      error,
+      userId: authReq.user.id,
+      organizationId: authReq.user.activeOrganizationId
+    }, 'Failed to fetch documents');
     res.status(500).json({ error: 'Failed to fetch documents' });
   }
 });
 
-// Send document for processing (optional webhook trigger)
-router.post('/:documentId/process', authenticateUser, async (req, res) => {
+/**
+ * POST /api/files/:documentId/process
+ * Trigger document processing (sends webhook to external services)
+ * Auth: Required (owner/admin)
+ */
+router.post('/:documentId/process', authenticateUser, requireRole(['owner', 'admin']), async (req, res) => {
   const authReq = req as AuthenticatedRequest;
   try {
     const { documentId } = req.params;
@@ -394,8 +666,8 @@ router.post('/:documentId/process', authenticateUser, async (req, res) => {
         const documentResult = await client.query(`
           SELECT bm.id, bm.filename as file_name, bm.file_size, bm.mime_type, bm.status
           FROM blob_metadata bm
-          WHERE bm.id = $1 AND bm.organization_id = $2 AND bm.user_id = $3
-        `, [documentId, authReq.user.activeOrganizationId, authReq.user.id]);
+          WHERE bm.id = $1 AND bm.organization_id = $2
+        `, [documentId, authReq.user.activeOrganizationId]);
 
         if (documentResult.rows.length === 0) {
           return null;
@@ -421,8 +693,8 @@ router.post('/:documentId/process', authenticateUser, async (req, res) => {
         const result = await client.query(`
           SELECT bm.blob_id
           FROM blob_metadata bm
-          WHERE bm.id = $1 AND bm.organization_id = $2 AND bm.user_id = $3
-        `, [documentId, authReq.user.activeOrganizationId, authReq.user.id]);
+          WHERE bm.id = $1 AND bm.organization_id = $2
+        `, [documentId, authReq.user.activeOrganizationId]);
 
         return result.rows[0]?.blob_id || null;
       }
@@ -458,12 +730,25 @@ router.post('/:documentId/process', authenticateUser, async (req, res) => {
         }
       );
 
+      logger.info({
+        organizationId: authReq.user.activeOrganizationId,
+        userId: authReq.user.id,
+        documentId: documentId
+      }, 'Document sent for processing');
+
       res.json({
         success: true,
         message: 'Document sent for processing',
         document_id: documentId
       });
     } else {
+      logger.error({
+        webhookError: webhookResponse.error,
+        userId: authReq.user.id,
+        organizationId: authReq.user.activeOrganizationId,
+        documentId: documentId
+      }, 'Failed to send document for processing');
+
       res.status(500).json({
         success: false,
         error: 'Failed to send document for processing',
@@ -472,39 +757,155 @@ router.post('/:documentId/process', authenticateUser, async (req, res) => {
     }
 
   } catch (error) {
-    console.error('Error processing document:', error);
+    logger.error({
+      error,
+      userId: authReq.user.id,
+      organizationId: authReq.user.activeOrganizationId,
+      documentId: req.params.documentId
+    }, 'Failed to process document');
     res.status(500).json({ error: 'Failed to process document' });
   }
 });
 
-// Delete document
-router.delete('/:documentId', authenticateUser, async (req, res) => {
+/**
+ * DELETE /api/files/:documentId
+ * Delete a file from organization (triggers webhook for external cleanup)
+ * Auth: Required (owner/admin)
+ */
+router.delete('/:documentId', authenticateUser, requireRole(['owner', 'admin']), async (req, res) => {
   const authReq = req as AuthenticatedRequest;
   try {
     const { documentId } = req.params;
 
+    // 1. Fetch metadata FIRST (need it for webhook before deletion)
+    const metadata = await withOrgContext(
+      authReq.user.id,
+      authReq.user.activeOrganizationId,
+      async (client) => {
+        const metadataResult = await client.query(
+          'SELECT id, blob_id, filename, organization_id, user_id FROM blob_metadata WHERE id = $1 AND organization_id = $2',
+          [documentId, authReq.user.activeOrganizationId]
+        );
+
+        if (metadataResult.rows.length === 0) {
+          return null; // Not found
+        }
+
+        return metadataResult.rows[0];
+      }
+    );
+
+    if (!metadata) {
+      return res.status(404).json({ error: 'Document not found' });
+    }
+
+    // 2. Send deletion webhook BEFORE database deletion
+    // This ensures external services (Barista) clean up vector embeddings first
+    try {
+      const webhookResponse = await webhookService.sendDocumentDeleteEvent({
+        organizationId: authReq.user.activeOrganizationId,
+        userId: authReq.user.id,
+        userEmail: authReq.user.email,
+        blobMetadataId: metadata.id.toString(),
+        blobId: metadata.blob_id.toString()
+      });
+
+      if (!webhookResponse.success) {
+        logger.error({
+          webhookError: webhookResponse.error,
+          userId: authReq.user.id,
+          organizationId: authReq.user.activeOrganizationId,
+          documentId: documentId
+        }, 'FileDelete webhook failed');
+        return res.status(500).json({
+          error: 'Failed to notify external services. Document not deleted.',
+          details: webhookResponse.error
+        });
+      }
+
+      logger.info({
+        organizationId: authReq.user.activeOrganizationId,
+        userId: authReq.user.id,
+        documentId: documentId
+      }, 'FileDelete webhook succeeded');
+    } catch (webhookError) {
+      logger.error({
+        error: webhookError,
+        userId: authReq.user.id,
+        organizationId: authReq.user.activeOrganizationId,
+        documentId: documentId
+      }, 'FileDelete webhook error');
+      return res.status(500).json({
+        error: 'Failed to notify external services. Document not deleted.'
+      });
+    }
+
+    // 3. Proceed with database deletion only if webhook succeeded
     const result = await withOrgContext(
       authReq.user.id,
       authReq.user.activeOrganizationId,
       async (client) => {
-        // Delete only metadata record (preserve blob for other references)
-        const deleteResult = await client.query(
-          'DELETE FROM blob_metadata WHERE id = $1 AND organization_id = $2 AND user_id = $3 RETURNING id',
-          [documentId, authReq.user.activeOrganizationId, authReq.user.id]
-        );
+        await client.query('BEGIN');
 
-        return deleteResult.rows.length > 0;
+        try {
+          const blobId = metadata.blob_id;
+
+          // Delete metadata record
+          await client.query(
+            'DELETE FROM blob_metadata WHERE id = $1',
+            [documentId]
+          );
+
+          // Check if blob is still referenced by other metadata
+          const blobRefCount = await client.query(
+            'SELECT COUNT(*) as count FROM blob_metadata WHERE blob_id = $1',
+            [blobId]
+          );
+
+          const refCount = parseInt(blobRefCount.rows[0].count, 10);
+
+          // Delete blob only if no other references exist
+          if (refCount === 0) {
+            await client.query(
+              'DELETE FROM blobs WHERE blob_id = $1',
+              [blobId]
+            );
+            logger.info({ blobId }, 'Deleted orphaned blob');
+          } else {
+            logger.info({ blobId, refCount }, 'Preserved blob (still referenced)');
+          }
+
+          await client.query('COMMIT');
+          return metadata;
+
+        } catch (error) {
+          await client.query('ROLLBACK');
+          throw error;
+        }
       }
     );
 
-    if (!result) {
-      return res.status(404).json({ error: 'Document not found' });
-    }
+    logger.info({
+      organizationId: authReq.user.activeOrganizationId,
+      userId: authReq.user.id,
+      documentId: result.id,
+      blobId: result.blob_id
+    }, 'File deleted');
 
-    res.json({ deleted: true });
+    // 4. Return success to frontend
+    res.json({
+      deleted: true,
+      document_id: result.id,
+      blob_id: result.blob_id
+    });
 
   } catch (error) {
-    console.error('Error deleting document:', error);
+    logger.error({
+      error,
+      userId: authReq.user.id,
+      organizationId: authReq.user.activeOrganizationId,
+      documentId: req.params.documentId
+    }, 'Failed to delete document');
     res.status(500).json({ error: 'Failed to delete document' });
   }
 });

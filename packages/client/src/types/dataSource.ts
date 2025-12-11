@@ -1,19 +1,20 @@
 // Data Source Connection Types
 // Matches backend schema from packages/api-server/src/types/dataSource.ts
 
-export type DataSourceType = 'confluence' | 'servicenow' | 'sharepoint' | 'websearch';
+export type DataSourceType = 'confluence' | 'servicenow' | 'sharepoint' | 'websearch' | 'jira';
 
-export type DataSourceStatus = 'idle' | 'verifying' | 'syncing';
+export type DataSourceStatus = 'idle' | 'verifying' | 'syncing' | 'cancelled';
 
 export type DataSourceLastSyncStatus = 'completed' | 'failed' | null;
 
-export type Status = 'connected' | 'not_connected' | 'verifying' | 'syncing' | 'error' | null;
+export type Status = 'connected' | 'not_connected' | 'verifying' | 'syncing' | 'cancelled' | 'error' | null;
 
 // Backend status constants (match database values exactly)
 export const BACKEND_STATUS = {
 	IDLE: 'idle' as Status,
 	VERIFYING: 'verifying' as Status,
 	SYNCING: 'syncing' as Status,
+	CANCELLED: 'cancelled' as Status,
   FAILED: 'failed' as Status,
   COMPLETED: 'completed' as Status,
 } as const;
@@ -40,12 +41,11 @@ export interface DataSourceConnection {
   last_sync_status: DataSourceLastSyncStatus;
 
   // IMPORTANT: latest_options contains available options from verification
-  // Format: { [key: string]: string } where value is comma-separated string
-  // Examples:
-  //   Confluence: { "spaces": "ENG,PROD,DOCS" }
-  //   ServiceNow: { "tables": "incident,kb_knowledge,sc_cat_item" }
-  //   SharePoint: { "sites": "site1,site2,site3" }
-  latest_options: Record<string, string> | null;
+  // Format varies by connection type:
+  //   Confluence: { "spaces": [{title, sys_id}, ...] }
+  //   ServiceNow KB: { "knowledge_base": [{title, sys_id}, ...] }
+  //   SharePoint: { "sites": [{title, sys_id}, ...] }
+  latest_options: Record<string, any> | null;
 
   enabled: boolean;
 
@@ -136,6 +136,16 @@ export interface TriggerSyncResponse {
 }
 
 /**
+ * API Response: Sync tickets (ITSM Autopilot)
+ * Returns 202 Accepted with ingestion run ID
+ */
+export interface SyncTicketsResponse {
+  ingestion_run_id: string;
+  status: 'SYNCING';
+  message: string;
+}
+
+/**
  * SSE Event: Data source status update
  * Sent when verification or sync status changes
  * NOTE: Uses snake_case to match backend
@@ -150,7 +160,7 @@ export interface DataSourceUpdateEvent {
     // Verification-specific fields
     last_verification_at?: string;
     last_verification_error?: string | null;
-    latest_options?: Record<string, string> | null;
+    latest_options?: Record<string, any> | null;
 
     // Sync-specific fields
     last_sync_status?: DataSourceLastSyncStatus;
@@ -158,6 +168,23 @@ export interface DataSourceUpdateEvent {
     last_sync_error?: string | null;
     documentsProcessed?: number;
 
+    timestamp: string;
+  };
+}
+
+/**
+ * SSE Event: Ingestion run status update (ITSM Autopilot)
+ * Sent when ticket sync completes or fails
+ */
+export interface IngestionRunUpdateEvent {
+  type: 'ingestion_run_update';
+  data: {
+    ingestion_run_id: string;
+    connection_id: string;
+    status: 'completed' | 'failed';
+    records_processed?: number;
+    records_failed?: number;
+    error_message?: string;
     timestamp: string;
   };
 }

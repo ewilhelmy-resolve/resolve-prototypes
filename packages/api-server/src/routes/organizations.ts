@@ -1,6 +1,8 @@
 import express from 'express';
+import { z } from 'zod';
 import { pool } from '../config/database.js';
-import { authenticateUser } from '../middleware/auth.js';
+import { authenticateUser, requireRole } from '../middleware/auth.js';
+import { logger } from '../config/logger.js';
 import type { AuthenticatedRequest } from '../types/express.js';
 
 const router = express.Router();
@@ -156,6 +158,93 @@ router.get('/current', authenticateUser, async (req, res) => {
   } catch (error) {
     console.error('Error fetching current organization:', error);
     res.status(500).json({ error: 'Failed to fetch organization details' });
+  }
+});
+
+// Validation schema for organization update
+const updateOrganizationSchema = z.object({
+  name: z.string().min(1, 'Organization name is required').max(100, 'Organization name is too long').trim(),
+});
+
+/**
+ * PATCH /api/organizations/:id
+ * Update organization name
+ * Auth: Required (owner/admin only)
+ */
+router.patch('/:id', authenticateUser, requireRole(['owner', 'admin']), async (req, res) => {
+  const authReq = req as AuthenticatedRequest;
+  try {
+    const { id } = req.params;
+    const userId = authReq.user.id;
+    const organizationId = authReq.user.activeOrganizationId;
+
+    // Validate that the organization ID matches the user's active organization
+    if (id !== organizationId) {
+      return res.status(403).json({ error: 'You can only update your active organization' });
+    }
+
+    // Validate request body
+    const validation = updateOrganizationSchema.safeParse(req.body);
+    if (!validation.success) {
+      return res.status(400).json({
+        error: 'Invalid request',
+        details: validation.error.issues.map(issue => ({
+          path: issue.path,
+          message: issue.message,
+        })),
+      });
+    }
+
+    const { name } = validation.data;
+
+    // Verify user has permission (owner/admin) for this organization
+    const membershipCheck = await pool.query(
+      'SELECT role FROM organization_members WHERE organization_id = $1 AND user_id = $2',
+      [id, userId]
+    );
+
+    if (membershipCheck.rows.length === 0) {
+      return res.status(403).json({ error: 'You do not have permission to update this organization' });
+    }
+
+    // Update organization name
+    const result = await pool.query(
+      'UPDATE organizations SET name = $1, updated_at = NOW() WHERE id = $2 RETURNING id, name, created_at, updated_at',
+      [name, id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Organization not found' });
+    }
+
+    const organization = result.rows[0];
+
+    // Log the organization update for audit trail
+    await pool.query(`
+      INSERT INTO audit_logs (organization_id, user_id, action, resource_type, resource_id, metadata)
+      VALUES ($1, $2, 'update_organization', 'organization', $1, $3)
+    `, [
+      id,
+      userId,
+      JSON.stringify({
+        field: 'name',
+        new_value: name,
+      })
+    ]);
+
+    logger.info({
+      organizationId: id,
+      userId,
+      name,
+    }, 'Organization name updated');
+
+    res.json({
+      success: true,
+      organization,
+    });
+  } catch (error) {
+    logger.error({ error }, 'Failed to update organization');
+    res.status(500).json({ error: 'Failed to update organization' });
   }
 });
 

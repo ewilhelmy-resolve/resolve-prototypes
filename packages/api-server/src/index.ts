@@ -10,10 +10,13 @@ import {
   requestLoggingMiddleware
 } from './middleware/logging.js';
 import authRoutes from './routes/auth.js';
+import clusterRoutes from './routes/clusters.js';
 import conversationRoutes from './routes/conversations.js';
 import dataSourceRoutes from './routes/dataSources.js';
 import filesRoutes from './routes/files.js';
+import iframeRoutes from './routes/iframe.routes.js';
 import invitationRoutes from './routes/invitations.js';
+import memberRoutes from './routes/members.js';
 import organizationRoutes from './routes/organizations.js';
 import sseRoutes from './routes/sse.js';
 import { getRabbitMQService } from './services/rabbitmq.js';
@@ -38,7 +41,27 @@ app.use(express.json());
 
 // Health check endpoint
 app.get('/health', (_req, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+  const rabbitmqService = getRabbitMQService();
+  const rabbitMQHealth = rabbitmqService.getHealthStatus();
+
+  const isHealthy = rabbitMQHealth.status === 'connected';
+  const health = {
+    status: isHealthy ? 'ok' : 'degraded',
+    timestamp: new Date().toISOString(),
+    services: {
+      api: 'ok',
+      rabbitmq: {
+        status: rabbitMQHealth.status,
+        lastConnectedAt: rabbitMQHealth.lastConnectedAt,
+        reconnectAttempts: rabbitMQHealth.reconnectAttempts,
+        consecutiveFailures: rabbitMQHealth.consecutiveFailures,
+        message: rabbitMQHealth.message,
+      },
+    },
+  };
+
+  const statusCode = isHealthy ? 200 : 503;
+  res.status(statusCode).json(health);
 });
 
 // Webhook routes (no auth required)
@@ -47,6 +70,9 @@ app.get('/health', (_req, res) => {
 
 // Authentication routes (no auth required)
 app.use('/auth', authRoutes);
+
+// Iframe routes (no auth required - public access)
+app.use('/api/iframe', iframeRoutes);
 
 // Invitation routes (mixed auth - some public, some protected)
 app.use('/api/invitations', invitationRoutes);
@@ -92,17 +118,14 @@ app.get('/test-sse', (req, res) => {
 });
 
 // Protected routes (require authentication)
+// IMPORTANT: Register /api/organizations/members BEFORE /api/organizations to avoid route conflicts
+app.use('/api/organizations/members', authenticateUser, addUserContextToLogs, memberRoutes);
 app.use('/api/organizations', authenticateUser, addUserContextToLogs, organizationRoutes);
+app.use('/api/clusters', authenticateUser, addUserContextToLogs, clusterRoutes);
 app.use('/api/conversations', authenticateUser, addUserContextToLogs, conversationRoutes);
 app.use('/api/data-sources', authenticateUser, addUserContextToLogs, dataSourceRoutes);
 app.use('/api/files', authenticateUser, addUserContextToLogs, filesRoutes);
 app.use('/api/sse', authenticateUser, addUserContextToLogs, sseRoutes);
-app.get('/api/profile', authenticateUser, addUserContextToLogs, logApiOperation('get-profile'), (req: any, res) => {
-  res.json({
-    user: req.user,
-    message: 'Authentication successful'
-  });
-});
 
 // Test organization context
 app.get('/api/test-org-context', authenticateUser, addUserContextToLogs, logApiOperation('test-org-context'), async (req: any, res) => {
@@ -149,12 +172,13 @@ app.listen(PORT, async () => {
     endpoints: {
       health: `http://localhost:${PORT}/health`,
       auth: `http://localhost:${PORT}/auth`,
-      profile: `http://localhost:${PORT}/api/profile`,
+      profile: `http://localhost:${PORT}/auth/profile`,
       conversations: `http://localhost:${PORT}/api/conversations`,
       conversationMessages: `http://localhost:${PORT}/api/conversations/:id/messages`,
       messages: `http://localhost:${PORT}/api/messages (convenience method)`,
       files: `http://localhost:${PORT}/api/files`,
       invitations: `http://localhost:${PORT}/api/invitations`,
+      members: `http://localhost:${PORT}/api/organizations/members`,
       organizations: `http://localhost:${PORT}/api/organizations`,
       sse: `http://localhost:${PORT}/api/sse/events`
     }
@@ -165,15 +189,26 @@ app.listen(PORT, async () => {
     // Initialize SSE service
     getSSEService();
     logger.info('SSE service initialized successfully');
+  } catch (error) {
+    logger.fatal({ error }, 'Failed to initialize SSE service');
+    process.exit(1);
+  }
 
-    // Initialize RabbitMQ consumer
-    const rabbitmqService = getRabbitMQService();
+  // Initialize RabbitMQ with automatic retry on failure
+  const rabbitmqService = getRabbitMQService();
+  try {
     await rabbitmqService.connect();
     await rabbitmqService.startConsumer();
     logger.info('RabbitMQ consumer initialized successfully');
   } catch (error) {
-    logger.fatal({ error }, 'Failed to initialize services');
-    process.exit(1);
+    // Don't crash the server - automatic reconnection will handle this
+    logger.warn({
+      error: (error as Error).message,
+      errorCode: (error as any).code,
+    }, 'RabbitMQ initial connection failed - will retry automatically in background');
+
+    // Start reconnection in background
+    rabbitmqService['reconnect']();
   }
 });
 

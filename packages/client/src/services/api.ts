@@ -57,6 +57,11 @@ async function apiRequest<T>(
     if (response.status === 401) {
       console.error('API request returned 401. Session may have expired.');
     }
+    // Handle 502 - backend is down, redirect to login
+    if (response.status === 502) {
+      console.error('API request returned 502. Backend is down.');
+      keycloak.logout();
+    }
     throw new ApiError(
       response.status,
       errorData.error || errorData.message || `HTTP ${response.status}: ${response.statusText}`,
@@ -83,9 +88,9 @@ export const conversationApi = {
     }),
 
   getConversationMessages: (conversationId: string, params?: { limit?: number; before?: string }) => {
-    // Filter out undefined values to avoid sending "undefined" as a string
+    // Filter out undefined and null values to avoid sending them as strings
     const cleanParams = params ? Object.entries(params)
-      .filter(([_, value]) => value !== undefined)
+      .filter(([_, value]) => value !== undefined && value !== null && value !== '')
       .reduce((acc, [key, value]) => ({ ...acc, [key]: String(value) }), {}) : {};
 
     const queryString = Object.keys(cleanParams).length > 0
@@ -120,6 +125,31 @@ export const conversationApi = {
 
 // Organization API
 export const organizationApi = {
+  getCurrentOrganization: () =>
+    apiRequest<{
+      organization: {
+        id: string
+        name: string
+        user_role: string
+        member_count: number
+        created_at: string
+      }
+    }>('/api/organizations/current'),
+
+  updateOrganization: (organizationId: string, data: { name: string }) =>
+    apiRequest<{
+      success: boolean
+      organization: {
+        id: string
+        name: string
+        created_at: string
+        updated_at: string
+      }
+    }>(`/api/organizations/${organizationId}`, {
+      method: 'PATCH',
+      body: data,
+    }),
+
   switchOrganization: (organizationId: string) =>
     apiRequest<{ success: boolean }>('/api/organizations/switch', {
       method: 'POST',
@@ -133,6 +163,8 @@ export const fileApi = {
   uploadFile: async (file: File) => {
     const formData = new FormData();
     formData.append('file', file);
+    // Send filename separately with explicit UTF-8 encoding to avoid multer encoding issues
+    formData.append('filename', file.name);
 
     const response = await fetch(`${API_BASE_URL}/api/files/upload`, {
       method: 'POST',
@@ -179,8 +211,37 @@ export const fileApi = {
   },
 
   // List documents
-  listDocuments: () =>
-    apiRequest<{ documents: any[]; total: number; limit: number; offset: number }>('/api/files'),
+  listDocuments: (
+    limit: number = 250,
+    offset: number = 0,
+    sortBy: string = 'created_at',
+    sortOrder: string = 'desc',
+    search?: string,
+    status?: string,
+    source?: string
+  ) => {
+    const params = new URLSearchParams({
+      limit: limit.toString(),
+      offset: offset.toString(),
+      sort_by: sortBy,
+      sort_order: sortOrder,
+    });
+
+    // Add optional filter parameters
+    if (search && search.trim()) {
+      params.append('search', search.trim());
+    }
+    if (status && status.toLowerCase() !== 'all') {
+      params.append('status', status.toLowerCase());
+    }
+    if (source && source.toLowerCase() !== 'all') {
+      params.append('source', source);
+    }
+
+    return apiRequest<{ documents: any[]; total: number; limit: number; offset: number }>(
+      `/api/files?${params.toString()}`
+    );
+  },
 
   // Delete document
   deleteDocument: (documentId: string) =>
@@ -193,6 +254,23 @@ export const fileApi = {
     apiRequest<{ success: boolean; message: string; document_id: string }>(`/api/files/${documentId}/process`, {
       method: 'POST',
       body: { enable_processing: true },
+    }),
+
+  // Get document metadata (for citations - includes processed content from metadata.content)
+  getDocumentMetadata: (documentId: string) =>
+    apiRequest<{
+      id: string
+      filename: string
+      file_size: number
+      mime_type: string
+      created_at: string
+      updated_at: string
+      metadata: {
+        content?: string
+        [key: string]: any
+      }
+    }>(`/api/files/${documentId}/metadata`, {
+      method: 'GET',
     }),
 };
 
@@ -231,6 +309,147 @@ export const dataSourcesApi = {
     apiRequest<import('../types/dataSource').TriggerSyncResponse>(`/api/data-sources/${id}/sync`, {
       method: 'POST',
     }),
+
+  // Cancel sync
+  cancelSync: (id: string) =>
+    apiRequest<{ success: boolean; message: string }>(`/api/data-sources/${id}/cancel-sync`, {
+      method: 'POST',
+    }),
+
+  // Sync tickets (ITSM Autopilot)
+  syncTickets: (id: string, params: { time_range_days: number }) =>
+    apiRequest<import('../types/dataSource').SyncTicketsResponse>(`/api/data-sources/${id}/sync-tickets`, {
+      method: 'POST',
+      body: params,
+    }),
+};
+
+// Member API
+export const memberApi = {
+  /**
+   * List all members in the organization
+   */
+  listMembers: async (params?: import('../types/member').MemberListParams): Promise<import('../types/member').MemberListResponse> => {
+    const searchParams = new URLSearchParams();
+
+    if (params?.role) searchParams.append('role', params.role);
+    if (params?.status) searchParams.append('status', params.status);
+    if (params?.search) searchParams.append('search', params.search);
+    if (params?.limit) searchParams.append('limit', params.limit.toString());
+    if (params?.offset) searchParams.append('offset', params.offset.toString());
+    if (params?.sortBy) searchParams.append('sortBy', params.sortBy);
+    if (params?.sortOrder) searchParams.append('sortOrder', params.sortOrder);
+
+    const queryString = searchParams.toString();
+    const url = `/api/organizations/members${queryString ? `?${queryString}` : ''}`;
+
+    return apiRequest<import('../types/member').MemberListResponse>(url, {
+      method: 'GET',
+    });
+  },
+
+  /**
+   * Get detailed information about a specific member
+   */
+  getMember: async (userId: string): Promise<import('../types/member').MemberResponse> => {
+    return apiRequest<import('../types/member').MemberResponse>(`/api/organizations/members/${userId}`, {
+      method: 'GET',
+    });
+  },
+
+  /**
+   * Update a member's role (owner only)
+   */
+  updateMemberRole: async (
+    userId: string,
+    role: import('../types/member').OrganizationRole
+  ): Promise<import('../types/member').UpdateMemberResponse> => {
+    return apiRequest<import('../types/member').UpdateMemberResponse>(
+      `/api/organizations/members/${userId}/role`,
+      {
+        method: 'PATCH',
+        body: { role },
+      }
+    );
+  },
+
+  /**
+   * Update a member's active status (owner/admin with restrictions)
+   */
+  updateMemberStatus: async (
+    userId: string,
+    isActive: boolean
+  ): Promise<import('../types/member').UpdateMemberResponse> => {
+    return apiRequest<import('../types/member').UpdateMemberResponse>(
+      `/api/organizations/members/${userId}/status`,
+      {
+        method: 'PATCH',
+        body: { isActive },
+      }
+    );
+  },
+
+  /**
+   * Remove a member from the organization (soft delete)
+   */
+  removeMember: async (userId: string): Promise<import('../types/member').RemoveMemberResponse> => {
+    return apiRequest<import('../types/member').RemoveMemberResponse>(
+      `/api/organizations/members/${userId}`,
+      {
+        method: 'DELETE',
+      }
+    );
+  },
+
+  /**
+   * Permanently delete a member (hard delete with Keycloak cleanup)
+   * Owner only - deletes user from database, Keycloak, and external storage
+   * If owner is being deleted and they're the last/only member, deletes entire organization
+   */
+  deleteMemberPermanent: async (userId: string, reason?: string): Promise<import('../types/member').RemoveMemberResponse> => {
+    const searchParams = new URLSearchParams();
+    if (reason) searchParams.append('reason', reason);
+
+    const queryString = searchParams.toString();
+    const url = `/api/organizations/members/${userId}/permanent${queryString ? `?${queryString}` : ''}`;
+
+    return apiRequest<import('../types/member').RemoveMemberResponse>(url, {
+      method: 'DELETE',
+    });
+  },
+
+  /**
+   * Delete own account (hard delete with Keycloak cleanup)
+   * If owner and last/sole member → deletes entire organization and all members
+   * ⚠️ User will be logged out after successful deletion
+   */
+  deleteOwnAccount: async (reason?: string): Promise<import('../types/member').RemoveMemberResponse> => {
+    const searchParams = new URLSearchParams();
+    if (reason) searchParams.append('reason', reason);
+
+    const queryString = searchParams.toString();
+    const url = `/api/organizations/members/self/permanent${queryString ? `?${queryString}` : ''}`;
+
+    return apiRequest<import('../types/member').RemoveMemberResponse>(url, {
+      method: 'DELETE',
+    });
+  },
+
+  /**
+   * Update a member's profile (firstName, lastName) (owner/admin only)
+   */
+  updateMemberProfile: async (
+    userId: string,
+    data: { firstName?: string; lastName?: string }
+  ): Promise<import('../types/member').UpdateMemberResponse> => {
+    return apiRequest<import('../types/member').UpdateMemberResponse>(
+      `/api/organizations/members/${userId}/profile`,
+      {
+        method: 'PATCH',
+        body: data,
+      }
+    );
+  },
 };
 
 export { ApiError };

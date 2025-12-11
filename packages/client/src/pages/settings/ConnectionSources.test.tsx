@@ -96,15 +96,18 @@ describe("ConnectionSources", () => {
 			renderWithRouter(<ConnectionSources />);
 
 			expect(
-				screen.getByText("Failed to load data sources. Please try again."),
+				screen.getByText("Failed to load data sources"),
+			).toBeInTheDocument();
+			expect(
+				screen.getByText("An error occurred while fetching connection sources. Please try again."),
 			).toBeInTheDocument();
 		});
 
-		it("should still show header when error occurs", () => {
+		it("should show Try Again button when error occurs", () => {
 			mockDataSourcesQuery.error = new Error("Failed to fetch");
 			renderWithRouter(<ConnectionSources />);
 
-			expect(screen.getByText("Connection Sources")).toBeInTheDocument();
+			expect(screen.getByRole("button", { name: /Try Again/i })).toBeInTheDocument();
 		});
 	});
 
@@ -122,7 +125,7 @@ describe("ConnectionSources", () => {
 
 			expect(
 				screen.getByText(
-					/Connect your knowledge and ticketing sources to help Rita resolve IT issues faster/,
+					/Connect your knowledge and ticketing sources to help RITA resolve IT issues faster/,
 				),
 			).toBeInTheDocument();
 		});
@@ -171,6 +174,28 @@ describe("ConnectionSources", () => {
 			expect(screen.getByText("SharePoint")).toBeInTheDocument();
 			expect(screen.getByText("ServiceNow")).toBeInTheDocument();
 		});
+
+		it("should only render Confluence sources as clickable links", () => {
+			const sources = [
+				createMockDataSource({
+					id: "1",
+					type: "confluence",
+					name: "Confluence",
+				}),
+				createMockDataSource({
+					id: "2",
+					type: "sharepoint",
+					name: "SharePoint",
+				}),
+			];
+			mockDataSourcesQuery.data = sources;
+			renderWithRouter(<ConnectionSources />);
+
+			// Only Confluence should be a link
+			const links = screen.getAllByRole("link");
+			expect(links).toHaveLength(1);
+			expect(links[0]).toHaveAttribute("href", "/settings/connections/1");
+		});
 	});
 
 	describe("Source Ordering", () => {
@@ -200,14 +225,15 @@ describe("ConnectionSources", () => {
 			mockDataSourcesQuery.data = sources;
 			renderWithRouter(<ConnectionSources />);
 
-			const cards = screen.getAllByRole("link");
-			const titles = cards.map((card) => card.textContent);
+			// Only Confluence should have a link - verify it's first
+			const link = screen.getByRole("link");
+			expect(link.textContent).toContain("Confluence");
 
-			// Verify order (titles will include status and other info)
-			expect(titles[0]).toContain("Confluence");
-			expect(titles[1]).toContain("SharePoint");
-			expect(titles[2]).toContain("ServiceNow");
-			expect(titles[3]).toContain("Web Search");
+			// Verify all sources are displayed in correct order
+			expect(screen.getByText("Confluence")).toBeInTheDocument();
+			expect(screen.getByText("SharePoint")).toBeInTheDocument();
+			expect(screen.getByText("ServiceNow")).toBeInTheDocument();
+			expect(screen.getByText("Web Search (LGA)")).toBeInTheDocument();
 		});
 	});
 
@@ -312,32 +338,54 @@ describe("ConnectionSources", () => {
 	});
 
 	describe("Source Actions", () => {
-		it('should show "Configure" button for not connected sources', () => {
+		it('should show "Configure" button for not connected Confluence sources', () => {
 			const source = createMockDataSource({
+				type: "confluence",
 				status: "idle",
 				last_verification_at: null,
 			});
 			mockDataSourcesQuery.data = [source];
 			renderWithRouter(<ConnectionSources />);
 
-			expect(screen.getByText("Configure")).toBeInTheDocument();
+			const button = screen.getByText("Configure");
+			expect(button).toBeInTheDocument();
+			expect(button).not.toBeDisabled();
 		});
 
-		it('should show "Manage" button for connected sources', () => {
+		it('should show "Manage" button for connected Confluence sources', () => {
 			const source = createMockDataSource({
+				type: "confluence",
 				status: "idle",
 				last_verification_at: "2024-01-01T00:00:00Z",
 			});
 			mockDataSourcesQuery.data = [source];
 			renderWithRouter(<ConnectionSources />);
 
-			expect(screen.getByText("Manage")).toBeInTheDocument();
+			const button = screen.getByText("Manage");
+			expect(button).toBeInTheDocument();
+			expect(button).not.toBeDisabled();
+		});
+
+		it('should show disabled "Coming Soon" button for non-Confluence sources', () => {
+			const source = createMockDataSource({
+				type: "sharepoint",
+				name: "SharePoint",
+			});
+			mockDataSourcesQuery.data = [source];
+			renderWithRouter(<ConnectionSources />);
+
+			const button = screen.getByRole("button", { name: /Coming Soon/i });
+			expect(button).toBeInTheDocument();
+			expect(button).toBeDisabled();
 		});
 	});
 
 	describe("Navigation", () => {
-		it("should link to source detail page", () => {
-			const source = createMockDataSource({ id: "source-123" });
+		it("should link Confluence source to detail page", () => {
+			const source = createMockDataSource({
+				id: "source-123",
+				type: "confluence"
+			});
 			mockDataSourcesQuery.data = [source];
 			renderWithRouter(<ConnectionSources />);
 
@@ -345,10 +393,37 @@ describe("ConnectionSources", () => {
 			expect(link).toHaveAttribute("href", "/settings/connections/source-123");
 		});
 
-		it("should create separate links for each source", () => {
+		it("should only create links for Confluence sources", () => {
 			const sources = [
 				createMockDataSource({ id: "1", type: "confluence" }),
 				createMockDataSource({ id: "2", type: "sharepoint" }),
+				createMockDataSource({ id: "3", type: "servicenow" }),
+			];
+			mockDataSourcesQuery.data = sources;
+			renderWithRouter(<ConnectionSources />);
+
+			// Only Confluence should be a link
+			const links = screen.getAllByRole("link");
+			expect(links).toHaveLength(1);
+			expect(links[0]).toHaveAttribute("href", "/settings/connections/1");
+		});
+
+		it("should not create links for non-Confluence sources", () => {
+			const sources = [
+				createMockDataSource({ id: "2", type: "sharepoint" }),
+				createMockDataSource({ id: "3", type: "servicenow" }),
+			];
+			mockDataSourcesQuery.data = sources;
+			renderWithRouter(<ConnectionSources />);
+
+			// No links should be present
+			expect(screen.queryByRole("link")).not.toBeInTheDocument();
+		});
+
+		it("should create multiple links when multiple Confluence sources exist", () => {
+			const sources = [
+				createMockDataSource({ id: "1", type: "confluence", name: "Confluence 1" }),
+				createMockDataSource({ id: "2", type: "confluence", name: "Confluence 2" }),
 			];
 			mockDataSourcesQuery.data = sources;
 			renderWithRouter(<ConnectionSources />);

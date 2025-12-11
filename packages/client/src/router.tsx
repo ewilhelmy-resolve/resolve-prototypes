@@ -4,7 +4,9 @@ import {
 	RouterProvider,
 } from "react-router-dom";
 import { ProtectedRoute } from "./components/auth/ProtectedRoute";
+import { RoleProtectedRoute } from "./components/auth/RoleProtectedRoute";
 import { RootLayout } from "./components/layouts/RootLayout";
+import { useFeatureFlag } from "./hooks/useFeatureFlags";
 import ChatV1Page from "./pages/ChatV1Page";
 import ConnectionSourceDetailPage from "./pages/ConnectionSourceDetailPage";
 import ContactPage from "./pages/ContactPage";
@@ -12,15 +14,27 @@ import DevToolsPage from "./pages/DevToolsPage";
 import DropdownTestPage from "./pages/DropdownTestPage";
 import FilesV1Page from "./pages/FilesV1Page";
 import HelpPage from "./pages/HelpPage";
+import IframeChatPage from "./pages/IframeChatPage";
 import InviteAcceptPage from "./pages/InviteAcceptPage";
-import { LoginPage } from "./pages/LoginPage";
 import { NotFoundPage } from "./pages/NotFoundPage";
-import SettingsV1Page from "./pages/SettingsV1Page";
+import { SignUpPage } from "./pages/SignUpPage";
 import ProfilePage from "./pages/settings/ProfilePage";
+import KnowledgeSources from "./pages/settings/KnowledgeSources";
+import ItsmSources from "./pages/settings/ItsmSources";
+import TermsOfService from "./pages/TermsOfService";
+import TicketsPage from "./pages/TicketsPage";
+import ClusterDetailPage from "./pages/ClusterDetailPage";
+import TicketDetailPage from "./pages/TicketDetailPage";
 import UsersSettingsPage from "./pages/UsersSettingsPage";
-import UsersV1Page from "./pages/UsersV1Page";
 import { VerifyEmailPage } from "./pages/VerifyEmailPage";
 import { VerifyEmailSentPage } from "./pages/VerifyEmailSentPage";
+import ClustersPage from "./pages/ClustersPage";
+
+// Feature-flagged tickets page wrapper
+function TicketsPageWithFlag() {
+	const enableTicketsV2 = useFeatureFlag("ENABLE_TICKETS_V2");
+	return enableTicketsV2 ? <ClustersPage /> : <TicketsPage />;
+}
 
 const router = createBrowserRouter([
 	// Root redirect
@@ -45,20 +59,46 @@ const router = createBrowserRouter([
 			</ProtectedRoute>
 		),
 	},
+	// Iframe-embeddable chat routes (minimal UI, public access)
+	// NO ProtectedRoute - uses public-guest-user session
+	{
+		path: "/iframe/chat",
+		element: <IframeChatPage />,
+	},
+	{
+		path: "/iframe/chat/:conversationId",
+		element: <IframeChatPage />,
+	},
 	{
 		path: "/content",
 		element: (
-			<ProtectedRoute>
+			<RoleProtectedRoute allowedRoles={["owner", "admin"]}>
 				<FilesV1Page />
-			</ProtectedRoute>
+			</RoleProtectedRoute>
 		),
 	},
 	{
-		path: "/users",
+		path: "/tickets",
 		element: (
-			<ProtectedRoute>
-				<UsersV1Page />
-			</ProtectedRoute>
+			<RoleProtectedRoute allowedRoles={["owner", "admin"]}>
+				<TicketsPageWithFlag />
+			</RoleProtectedRoute>
+		),
+	},
+	{
+		path: "/tickets/:id",
+		element: (
+			<RoleProtectedRoute allowedRoles={["owner", "admin"]}>
+				<ClusterDetailPage />
+			</RoleProtectedRoute>
+		),
+	},
+	{
+		path: "/tickets/:clusterId/:ticketId",
+		element: (
+			<RoleProtectedRoute allowedRoles={["owner", "admin"]}>
+				<TicketDetailPage />
+			</RoleProtectedRoute>
 		),
 	},
 	{
@@ -75,17 +115,37 @@ const router = createBrowserRouter([
 	},
 	{
 		path: "/settings/connections",
+		element: <Navigate to="/settings/connections/knowledge" replace />,
+	},
+	{
+		path: "/settings/connections/knowledge",
 		element: (
 			<ProtectedRoute>
-				<SettingsV1Page />
+				<KnowledgeSources />
 			</ProtectedRoute>
 		),
 	},
 	{
-		path: "/settings/connections/:id",
+		path: "/settings/connections/knowledge/:id",
 		element: (
 			<ProtectedRoute>
-				<ConnectionSourceDetailPage />
+				<ConnectionSourceDetailPage mode="knowledge" />
+			</ProtectedRoute>
+		),
+	},
+	{
+		path: "/settings/connections/itsm",
+		element: (
+			<ProtectedRoute>
+				<ItsmSources />
+			</ProtectedRoute>
+		),
+	},
+	{
+		path: "/settings/connections/itsm/:id",
+		element: (
+			<ProtectedRoute>
+				<ConnectionSourceDetailPage mode="itsm" />
 			</ProtectedRoute>
 		),
 	},
@@ -161,7 +221,7 @@ const router = createBrowserRouter([
 		children: [
 			{
 				path: "/login",
-				element: <LoginPage />,
+				element: <SignUpPage />,
 			},
 			{
 				path: "/verify-email",
@@ -174,6 +234,10 @@ const router = createBrowserRouter([
 			{
 				path: "/invite",
 				element: <InviteAcceptPage />,
+			},
+			{
+				path: "/terms-of-service",
+				element: <TermsOfService />,
 			},
 			{
 				path: "*",

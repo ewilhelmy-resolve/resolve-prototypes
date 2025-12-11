@@ -2,6 +2,7 @@ import axios, { type AxiosResponse } from 'axios';
 import { pool } from '../config/database.js';
 import type {
   BaseWebhookPayload,
+  DocumentDeletePayload,
   DocumentProcessingPayload,
   MessageWebhookPayload,
   WebhookConfig,
@@ -84,6 +85,58 @@ export class WebhookService {
       file_type: params.fileType,
       file_size: params.fileSize,
       original_filename: params.originalFilename,
+      timestamp: new Date().toISOString()
+    };
+
+    return this.sendEvent(payload);
+  }
+
+  /**
+   * Send document deletion webhook event
+   */
+  async sendDocumentDeleteEvent(params: {
+    organizationId: string;
+    userId: string;
+    userEmail: string;
+    blobMetadataId: string;
+    blobId: string;
+  }): Promise<WebhookResponse> {
+    const payload: DocumentDeletePayload = {
+      source: 'rita-documents',
+      action: 'document_deleted',
+      user_email: params.userEmail,
+      user_id: params.userId,
+      tenant_id: params.organizationId, // Map organization_id to tenant_id
+      blob_metadata_id: params.blobMetadataId,
+      blob_id: params.blobId,
+      article_id: params.blobId, // Temporary compatibility field for Barista (maps to blob_id)
+      timestamp: new Date().toISOString()
+    };
+
+    return this.sendEvent(payload);
+  }
+
+  /**
+   * Send Keycloak user deletion webhook event
+   * Used for Phase 2 hard delete to synchronize user deletion with external identity provider
+   */
+  async deleteKeycloakUser(params: {
+    userId: string;
+    email: string;
+    organizationId: string; // Always required - used by external service for file cleanup
+    reason?: string;
+    deleteOrganization?: boolean; // Signal external system to delete entire organization data
+    additionalEmails?: string[]; // Additional user emails to delete from Keycloak (for org deletion)
+  }): Promise<WebhookResponse> {
+    const payload: BaseWebhookPayload & Record<string, any> = {
+      source: 'rita-member-management',
+      action: 'delete_keycloak_user',
+      user_email: params.email,
+      user_id: params.userId,
+      tenant_id: params.organizationId, // Map organization_id to tenant_id
+      delete_tenant: params.deleteOrganization || false, // Map to delete_tenant for external service
+      additional_emails: params.additionalEmails || [], // Additional emails for batch Keycloak deletion
+      reason: params.reason || 'Member deleted by administrator',
       timestamp: new Date().toISOString()
     };
 
