@@ -4,12 +4,12 @@ This directory contains documentation specific to the Rita API Server (`packages
 
 ## Structure
 
-```
-docs/
-├── active/      # In-progress features and bugs
-├── v1/          # Production-ready documentation
-└── archived/    # Deprecated documentation
-```
+Package-specific docs live here. For project-wide documentation, see [`docs/`](../../../docs/):
+- `architecture/` - Infrastructure & integrations
+- `core/` - System fundamentals
+- `features/` - Feature implementations
+- `setup/` - Environment & config
+- `archived/` - Shipped implementation plans
 
 ## Overview
 
@@ -25,8 +25,8 @@ The Rita API Server is a TypeScript/Node.js backend service that provides:
 
 ### Core Documentation
 - [Main Project Docs](../../../docs/) - Root-level documentation
-- [Architecture](../../../docs/v1/architecture/) - System design and architecture
-- [Setup Guides](../../../docs/v1/setup/) - Environment configuration
+- [Architecture](../../../docs/architecture/) - System design and architecture
+- [Setup Guides](../../../docs/setup/) - Environment configuration
 
 ### API Server Specific
 - `src/routes/` - API endpoint definitions
@@ -85,7 +85,7 @@ Document storage uses a blobbifier pattern:
 ## Contributing
 
 When adding new features:
-1. Create documentation in `docs/active/`
+1. Create documentation in `docs/features/<feature-name>/`
 2. Update API endpoint documentation
 3. Add TypeScript types in `src/types/`
 4. Include unit tests

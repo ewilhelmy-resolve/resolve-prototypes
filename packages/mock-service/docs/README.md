@@ -4,12 +4,12 @@ This directory contains documentation specific to the Rita Mock Service (`packag
 
 ## Structure
 
-```
-docs/
-├── active/      # In-progress features and bugs
-├── v1/          # Production-ready documentation
-└── archived/    # Deprecated documentation
-```
+Package-specific docs live here. For project-wide documentation, see [`docs/`](../../../docs/):
+- `architecture/` - Infrastructure & integrations
+- `core/` - System fundamentals
+- `features/` - Feature implementations
+- `setup/` - Environment & config
+- `archived/` - Shipped implementation plans
 
 ## Overview
 
@@ -29,7 +29,7 @@ The Mock Service allows developers to:
 
 ### Core Documentation
 - [Main Project Docs](../../../docs/) - Root-level documentation
-- [Mock Service Validation](../../../docs/v1/setup/mock_service_validation.md) - Testing guide
+- [Mock Service Validation](../../../docs/archived/mock_service_validation.md) - Testing guide (archived)
 
 ## Development
 

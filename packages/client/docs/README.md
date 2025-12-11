@@ -4,12 +4,13 @@ This directory contains documentation specific to the Rita Go frontend applicati
 
 ## Structure
 
-```
-docs/
-├── active/      # In-progress features and bugs
-├── v1/          # Production-ready documentation
-└── archived/    # Deprecated documentation
-```
+Package-specific docs live here. For project-wide documentation, see [`docs/`](../../../docs/):
+- `architecture/` - Infrastructure & integrations
+- `core/` - System fundamentals
+- `features/` - Feature implementations
+- `frontend/` - Client/UI docs
+- `setup/` - Environment & config
+- `archived/` - Shipped implementation plans
 
 ## Overview
 
@@ -27,9 +28,9 @@ Rita Go is the enterprise frontend for Rita, built with:
 
 ### Core Documentation
 - [Main Project Docs](../../../docs/) - Root-level documentation
-- [Frontend Stack Guide](../../../docs/v1/guides/guide_frontend_stack.md) - Technology overview
-- [Figma to React Workflow](../../../docs/v1/guides/figma_to_react_workflow.md) - Design-to-code process
-- [Figma to Code Process](../../../docs/v1/guides/figma-to-code-process.md) - shadcn/ui integration
+- [Frontend Stack Guide](../../../docs/frontend/guide_frontend_stack.md) - Technology overview
+- [Figma to React Workflow](../../../docs/frontend/figma_to_react_workflow.md) - Design-to-code process
+- [Figma to Code Process](../../../docs/frontend/figma-to-code-process.md) - shadcn/ui integration
 
 ### Rita Go Specific
 - `src/components/` - React components (UI, layouts, feature components)
@@ -130,7 +131,7 @@ npx shadcn@latest add "https://v0.app/chat/b/[component-id]"
 
 **Important**: shadcn uses "generate and copy" approach - components are copied into your source tree, not installed as npm dependencies.
 
-See [Figma to Code Process](../../../docs/v1/guides/figma-to-code-process.md) for details.
+See [Figma to Code Process](../../../docs/frontend/figma-to-code-process.md) for details.
 
 ## SOC2 Type II Compliance
 
@@ -144,7 +145,7 @@ Rita Go is built for SOC2 certification:
 ## Contributing
 
 When adding new features:
-1. Create documentation in `docs/active/`
+1. Create documentation in `docs/features/<feature-name>/`
 2. Follow CBA and accessibility standards
 3. Use TypeScript strict mode
 4. Add unit tests for complex logic
