@@ -19,6 +19,8 @@ export interface MessageHandlerState {
   handleSendMessage: () => Promise<void>
   handleMessageChange: (value: string) => void
   handleKeyPress: (e: React.KeyboardEvent<HTMLTextAreaElement>) => void
+  // Programmatic message sending (for iframe host communication)
+  sendMessageWithContent: (content: string, metadata?: Record<string, string>) => Promise<void>
 }
 
 /**
@@ -89,6 +91,40 @@ export const useMessageHandler = (messagesEndRef: React.RefObject<HTMLDivElement
     }
   }
 
+  // Programmatic message sending with content and optional metadata
+  // Used by iframe host communication (postMessage API)
+  const sendMessageWithContent = async (content: string, metadata?: Record<string, string>) => {
+    if (!content.trim() || isSending) return
+
+    const tempId = `msg_${Date.now()}`
+
+    try {
+      let conversationId = currentConversationId
+
+      // Create conversation if we don't have one
+      if (!conversationId) {
+        const conversation = await createConversationMutation.mutateAsync({
+          title: content.substring(0, 50) + (content.length > 50 ? '...' : '')
+        })
+        conversationId = conversation.id
+        // Navigate to the new conversation URL (use iframe path for public access)
+        const basePath = isIframeRoute ? '/iframe/chat' : '/chat'
+        navigate(`${basePath}/${conversationId}`)
+      }
+
+      // Send message with metadata
+      await sendMessageMutation.mutateAsync({
+        conversationId,
+        content,
+        tempId,
+        metadata,
+      })
+    } catch (error) {
+      console.error('Failed to send message:', error)
+      throw error // Re-throw so caller can handle
+    }
+  }
+
   return {
     messages,
     loading: isLoadingMore, // Use pagination loading state instead of old query
@@ -97,5 +133,6 @@ export const useMessageHandler = (messagesEndRef: React.RefObject<HTMLDivElement
     handleSendMessage,
     handleMessageChange,
     handleKeyPress,
+    sendMessageWithContent,
   }
 }

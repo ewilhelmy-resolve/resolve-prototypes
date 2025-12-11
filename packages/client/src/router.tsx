@@ -12,6 +12,7 @@ import ConnectionSourceDetailPage from "./pages/ConnectionSourceDetailPage";
 import ContactPage from "./pages/ContactPage";
 import DevToolsPage from "./pages/DevToolsPage";
 import DropdownTestPage from "./pages/DropdownTestPage";
+import EmbedDemoPage from "./pages/EmbedDemoPage";
 import FilesV1Page from "./pages/FilesV1Page";
 import HelpPage from "./pages/HelpPage";
 import IframeChatPage from "./pages/IframeChatPage";
@@ -68,6 +69,11 @@ const router = createBrowserRouter([
 	{
 		path: "/iframe/chat/:conversationId",
 		element: <IframeChatPage />,
+	},
+	// Embed demo page (public, for testing iframe integration)
+	{
+		path: "/embeddemo",
+		element: <EmbedDemoPage />,
 	},
 	{
 		path: "/content",

@@ -19,6 +19,7 @@ import invitationRoutes from './routes/invitations.js';
 import memberRoutes from './routes/members.js';
 import organizationRoutes from './routes/organizations.js';
 import sseRoutes from './routes/sse.js';
+import { closeValkeyConnection } from './config/valkey.js';
 import { getRabbitMQService } from './services/rabbitmq.js';
 import { destroySessionStore } from './services/sessionStore.js';
 import { getSSEService } from './services/sse.js';
@@ -240,6 +241,14 @@ process.on('SIGINT', async () => {
     logger.info('Session store cleaned up');
   } catch (error) {
     logger.error({ error }, 'Error during session store cleanup');
+  }
+
+  try {
+    // Close Valkey connection
+    await closeValkeyConnection();
+    logger.info('Valkey connection closed');
+  } catch (error) {
+    logger.error({ error }, 'Error during Valkey shutdown');
   }
 
   logger.info('Server shutdown complete');

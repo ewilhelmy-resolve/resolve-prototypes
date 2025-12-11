@@ -102,7 +102,7 @@ export const conversationApi = {
     );
   },
 
-  sendMessage: (conversationId: string, data: { content: string }) =>
+  sendMessage: (conversationId: string, data: { content: string; metadata?: Record<string, string> }) =>
     apiRequest<{ message: any }>(`/api/conversations/${conversationId}/messages`, {
       method: 'POST',
       body: data,
