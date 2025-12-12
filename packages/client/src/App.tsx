@@ -6,6 +6,7 @@ import { Toaster } from "@/components/ui/sonner";
 import { useProfile } from "@/hooks/api/useProfile";
 import { useAuth } from "@/hooks/useAuth";
 import { usePendo } from "@/hooks/usePendo";
+import { usePlatformFlagsInit } from "@/hooks/usePlatformFlags";
 import { CrashPage } from "@/components/CrashPage";
 import { CitationProvider } from "./contexts/CitationContext";
 import { QueryProvider } from "./providers/QueryProvider";
@@ -22,6 +23,9 @@ const AppContent: React.FC = () => {
 
 	// Initialize Pendo analytics when user logs in
 	usePendo();
+
+	// Initialize platform feature flags after profile loads
+	usePlatformFlagsInit();
 
 	// Force logout if profile fetch fails after all retries (initial + 2 retries = 3 total attempts)
 	useEffect(() => {
