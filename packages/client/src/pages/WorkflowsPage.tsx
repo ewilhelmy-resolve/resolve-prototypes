@@ -27,7 +27,7 @@ export default function WorkflowsPage() {
 	// Auto-scroll to bottom when new messages arrive
 	useEffect(() => {
 		messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-	}, [messages]);
+	}, [messages.length]);
 
 	const handleSend = async () => {
 		if (!inputValue.trim() || !endpoint.trim() || isLoading) return;

@@ -76,9 +76,9 @@ const router = createBrowserRouter([
 		path: "/embeddemo",
 		element: <EmbedDemoPage />,
 	},
-	// HRITA - Workflow builder (dev tool, feature-flagged)
+	// JIRITA - Workflow builder (dev tool, feature-flagged)
 	{
-		path: "/hrita",
+		path: "/jirita",
 		element: (
 			<ProtectedRoute>
 				<WorkflowsPage />

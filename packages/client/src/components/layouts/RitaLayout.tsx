@@ -316,8 +316,8 @@ function RitaLayoutContent({ children, activePage = "chat" }: RitaLayoutProps) {
 								<SidebarMenuItem>
 									<SidebarMenuButton
 										className="flex items-center gap-2 px-2 py-2 h-8 rounded-md"
-										onClick={() => navigate("/hrita")}
-										isActive={location.pathname === "/hrita"}
+										onClick={() => navigate("/jirita")}
+										isActive={location.pathname === "/jirita"}
 									>
 										<Workflow className="w-4 h-4" />
 										<span className="text-sm text-sidebar-foreground">
