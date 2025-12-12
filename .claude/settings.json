@@ -10,5 +10,18 @@
 		],
 		"deny": [],
 		"ask": []
+	},
+	"hooks": {
+		"PreToolUse": [
+			{
+				"matcher": "Bash(git push*)",
+				"hooks": [
+					{
+						"type": "command",
+						"command": "npm run lint"
+					}
+				]
+			}
+		]
 	}
 }
