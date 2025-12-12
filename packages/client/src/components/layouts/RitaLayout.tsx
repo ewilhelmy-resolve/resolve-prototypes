@@ -25,6 +25,7 @@ import {
 	SquarePen,
 	Ticket,
 	Upload,
+	Workflow,
 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
@@ -109,6 +110,7 @@ function RitaLayoutContent({ children, activePage = "chat" }: RitaLayoutProps) {
 	// Feature flags
 	const showWelcomeModal = useFeatureFlag("SHOW_WELCOME_MODAL");
 	const enableMultiFileUpload = useFeatureFlag("ENABLE_MULTI_FILE_UPLOAD");
+	const enableWorkflows = useFeatureFlag("ENABLE_WORKFLOWS");
 
 	// RITA hooks
 	const { user, logout } = useAuth();
@@ -304,6 +306,20 @@ function RitaLayoutContent({ children, activePage = "chat" }: RitaLayoutProps) {
 										</span>
 									</SidebarMenuButton>
 								</SidebarMenuItem>
+								{enableWorkflows && (
+									<SidebarMenuItem>
+										<SidebarMenuButton
+											className="flex items-center gap-2 px-2 py-2 h-8 rounded-md"
+											onClick={() => navigate("/workflows")}
+											isActive={location.pathname === "/workflows"}
+										>
+											<Workflow className="w-4 h-4" />
+											<span className="text-sm text-sidebar-foreground">
+												Workflows
+											</span>
+										</SidebarMenuButton>
+									</SidebarMenuItem>
+								)}
 							</SidebarMenu>
 						</SidebarGroup>
 					)}

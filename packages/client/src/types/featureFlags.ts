@@ -15,6 +15,7 @@ export type FeatureFlagKey =
   | 'ENABLE_SERVICENOW'
   | 'ENABLE_MULTI_FILE_UPLOAD'
   | 'ENABLE_TICKETS_V2'
+  | 'ENABLE_WORKFLOWS'
 
 /**
  * Feature flag configuration
@@ -78,6 +79,13 @@ export const FEATURE_FLAGS: Record<FeatureFlagKey, FeatureFlagConfig> = {
     key: 'ENABLE_TICKETS_V2',
     label: 'Tickets',
     description: 'Enable new tickets page UI',
+    defaultValue: false,
+    category: 'experimental',
+  },
+  ENABLE_WORKFLOWS: {
+    key: 'ENABLE_WORKFLOWS',
+    label: 'Workflows',
+    description: 'Enable Workflow Generator dev tool',
     defaultValue: false,
     category: 'experimental',
   },
