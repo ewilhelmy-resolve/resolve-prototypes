@@ -25,6 +25,7 @@ export default function WorkflowsPage() {
 	const messagesEndRef = useRef<HTMLDivElement>(null);
 
 	// Auto-scroll to bottom when new messages arrive
+	// biome-ignore lint/correctness/useExhaustiveDependencies: intentionally scroll on message count change
 	useEffect(() => {
 		messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
 	}, [messages.length]);
