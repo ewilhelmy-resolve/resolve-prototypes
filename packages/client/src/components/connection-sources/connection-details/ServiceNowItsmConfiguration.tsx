@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/select";
 import { formatRelativeTime, STATUS } from "@/constants/connectionSources";
 import { useConnectionSource } from "@/contexts/ConnectionSourceContext";
-import { useSyncTickets, useCancelSync, useLatestIngestionRun } from "@/hooks/useDataSources";
+import { useSyncTickets, useCancelIngestion, useLatestIngestionRun } from "@/hooks/useDataSources";
 import { ritaToast } from "@/components/ui/rita-toast";
 import { ConnectionActionsMenu } from "../ConnectionActionsMenu";
 import { ConnectionStatusCard } from "../ConnectionStatusCard";
@@ -35,7 +35,7 @@ export default function ServiceNowItsmConfiguration({
 }: ServiceNowItsmConfigurationProps = {}) {
 	const { source } = useConnectionSource();
 	const syncTickets = useSyncTickets();
-	const cancelMutation = useCancelSync();
+	const cancelMutation = useCancelIngestion();
 	const [selectedTimeRange, setSelectedTimeRange] = useState("30");
 
 	// Track ticket sync status via ingestion runs (separate from knowledge sync)

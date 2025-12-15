@@ -323,6 +323,37 @@ export class DataSourceService {
   }
 
   /**
+   * Cancel an ongoing ingestion run (ticket sync)
+   * Only cancels if status is 'running' or 'pending'
+   */
+  async cancelIngestionRun(
+    connectionId: string,
+    organizationId: string
+  ): Promise<IngestionRun | null> {
+    const result = await pool.query<IngestionRun>(
+      `UPDATE ingestion_runs
+       SET status = 'cancelled',
+           error_message = 'Cancelled by user',
+           completed_at = NOW(),
+           updated_at = NOW()
+       WHERE data_source_connection_id = $1
+         AND organization_id = $2
+         AND status IN ('running', 'pending')
+         AND id = (
+           SELECT id FROM ingestion_runs
+           WHERE data_source_connection_id = $1
+             AND organization_id = $2
+           ORDER BY created_at DESC
+           LIMIT 1
+         )
+       RETURNING *`,
+      [connectionId, organizationId]
+    );
+
+    return result.rows[0] || null;
+  }
+
+  /**
    * Create a cancellation request for the platform team to process
    * Inserts into sync_cancellation_requests table
    */
@@ -450,15 +481,17 @@ export class DataSourceService {
   /**
    * Update ingestion run progress (for 'running' status only)
    * Updates record counts and optionally sets total_estimated in metadata
+   * Returns true if updated, false if skipped (e.g., run was cancelled)
    */
   async updateIngestionRunProgress(
     ingestionRunId: string,
     recordsProcessed: number,
     recordsFailed: number,
     totalEstimated?: number
-  ): Promise<void> {
+  ): Promise<boolean> {
+    let result;
     if (totalEstimated !== undefined) {
-      await pool.query(
+      result = await pool.query(
         `UPDATE ingestion_runs
          SET records_processed = $1,
              records_failed = $2,
@@ -473,7 +506,7 @@ export class DataSourceService {
         [recordsProcessed, recordsFailed, JSON.stringify(totalEstimated), ingestionRunId]
       );
     } else {
-      await pool.query(
+      result = await pool.query(
         `UPDATE ingestion_runs
          SET records_processed = $1,
              records_failed = $2,
@@ -482,6 +515,7 @@ export class DataSourceService {
         [recordsProcessed, recordsFailed, ingestionRunId]
       );
     }
+    return (result.rowCount ?? 0) > 0;
   }
 
   /**

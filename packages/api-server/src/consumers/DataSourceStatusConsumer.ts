@@ -310,12 +310,18 @@ export class DataSourceStatusConsumer {
     // Handle progress updates vs final status
     if (status === 'running') {
       // Progress update - only update records and total_estimated
-      await this.dataSourceService.updateIngestionRunProgress(
+      const updated = await this.dataSourceService.updateIngestionRunProgress(
         ingestion_run_id,
         records_processed ?? 0,
         records_failed ?? 0,
         total_estimated
       );
+
+      // Skip SSE if update was skipped (e.g., run was cancelled)
+      if (!updated) {
+        messageLogger.info('Progress update skipped - ingestion run may have been cancelled');
+        return;
+      }
     } else {
       // Final status (completed/failed) - update status and records
       await this.dataSourceService.updateIngestionRunStatus(

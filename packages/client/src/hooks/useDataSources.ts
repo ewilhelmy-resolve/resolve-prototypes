@@ -171,6 +171,24 @@ export function useCancelSync() {
 }
 
 /**
+ * Cancel an ongoing ingestion run (ticket sync)
+ */
+export function useCancelIngestion() {
+	const queryClient = useQueryClient();
+
+	return useMutation({
+		mutationFn: (connectionId: string) =>
+			dataSourcesApi.cancelIngestion(connectionId),
+		onSuccess: (_, connectionId) => {
+			// Invalidate ingestion run query to show 'cancelled' status
+			queryClient.invalidateQueries({
+				queryKey: ingestionRunKeys.latest(connectionId),
+			});
+		},
+	});
+}
+
+/**
  * Trigger ITSM ticket sync for autopilot clustering
  * Returns ingestion_run_id - status updates via SSE
  */
