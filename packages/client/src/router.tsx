@@ -30,6 +30,7 @@ import UsersSettingsPage from "./pages/UsersSettingsPage";
 import { VerifyEmailPage } from "./pages/VerifyEmailPage";
 import { VerifyEmailSentPage } from "./pages/VerifyEmailSentPage";
 import ClustersPage from "./pages/ClustersPage";
+import WorkflowsPage from "./pages/WorkflowsPage";
 
 // Feature-flagged tickets page wrapper
 function TicketsPageWithFlag() {
@@ -74,6 +75,15 @@ const router = createBrowserRouter([
 	{
 		path: "/embeddemo",
 		element: <EmbedDemoPage />,
+	},
+	// JIRITA - Workflow builder (dev tool, feature-flagged)
+	{
+		path: "/jirita",
+		element: (
+			<ProtectedRoute>
+				<WorkflowsPage />
+			</ProtectedRoute>
+		),
 	},
 	{
 		path: "/content",
