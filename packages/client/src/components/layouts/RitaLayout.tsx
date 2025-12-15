@@ -25,6 +25,7 @@ import {
 	SquarePen,
 	Ticket,
 	Upload,
+	Workflow,
 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
@@ -79,12 +80,25 @@ import { SUPPORTED_DOCUMENT_TYPES } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 import type { Conversation } from "@/stores/conversationStore";
 import type { DataSourceConnection } from "@/types/dataSource";
+import { memo } from "react";
 
 export interface RitaLayoutProps {
 	children: React.ReactNode;
 	/** Current active page for navigation highlighting */
 	activePage?: "chat" | "files" | "automations" | "tickets" | "users";
 }
+
+// Logo component memoized to prevent re-renders
+// Using background-image instead of <img> for better caching
+const RitaLogo = memo(() => (
+	<div
+		className="w-[179px] h-[18px] bg-no-repeat bg-center bg-contain"
+		style={{ backgroundImage: "url('/logo-rita.svg')" }}
+		role="img"
+		aria-label="RITA Logo"
+	/>
+));
+RitaLogo.displayName = "RitaLogo";
 
 function RitaLayoutContent({ children, activePage = "chat" }: RitaLayoutProps) {
 	const { state } = useSidebar();
@@ -95,6 +109,8 @@ function RitaLayoutContent({ children, activePage = "chat" }: RitaLayoutProps) {
 
 	// Feature flags
 	const showWelcomeModal = useFeatureFlag("SHOW_WELCOME_MODAL");
+	const enableMultiFileUpload = useFeatureFlag("ENABLE_MULTI_FILE_UPLOAD");
+	const enableWorkflows = useFeatureFlag("ENABLE_WORKFLOWS");
 
 	// RITA hooks
 	const { user, logout } = useAuth();
@@ -238,13 +254,7 @@ function RitaLayoutContent({ children, activePage = "chat" }: RitaLayoutProps) {
 			<Sidebar className="bg-sidebar-primary-foreground border-sidebar-border w-[256px] lg:flex-shrink-0">
 				<SidebarHeader className="h-[67px] flex items-left justify-start pl-2">
 					<div className="flex items-center h-full pl-2">
-						<img
-							src="/logo-rita.svg"
-							alt="RITA Logo"
-							width={179}
-							height={18}
-							className="w-[179px] h-[18px]"
-						/>
+						<RitaLogo />
 					</div>
 				</SidebarHeader>
 
@@ -293,6 +303,25 @@ function RitaLayoutContent({ children, activePage = "chat" }: RitaLayoutProps) {
 										<Ticket className="w-4 h-4" />
 										<span className="text-sm text-sidebar-foreground">
 											Tickets
+										</span>
+									</SidebarMenuButton>
+								</SidebarMenuItem>
+								</SidebarMenu>
+						</SidebarGroup>
+					)}
+
+					{enableWorkflows && (
+						<SidebarGroup>
+							<SidebarMenu className="gap-1">
+								<SidebarMenuItem>
+									<SidebarMenuButton
+										className="flex items-center gap-2 px-2 py-2 h-8 rounded-md"
+										onClick={() => navigate("/jirita")}
+										isActive={location.pathname === "/jirita"}
+									>
+										<Workflow className="w-4 h-4" />
+										<span className="text-sm text-sidebar-foreground">
+											Workflows
 										</span>
 									</SidebarMenuButton>
 								</SidebarMenuItem>
@@ -579,7 +608,7 @@ function RitaLayoutContent({ children, activePage = "chat" }: RitaLayoutProps) {
 				className="hidden"
 				onChange={handleDocumentUpload}
 				accept={SUPPORTED_DOCUMENT_TYPES}
-				multiple
+				multiple={enableMultiFileUpload}
 				disabled={uploadingFiles.size > 0}
 			/>
 

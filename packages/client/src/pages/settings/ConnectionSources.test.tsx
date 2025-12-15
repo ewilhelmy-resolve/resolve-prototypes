@@ -5,6 +5,7 @@
 import { render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { SidebarProvider } from "@/components/ui/sidebar";
 import type { DataSourceConnection } from "@/types/dataSource";
 import ConnectionSources from "./ConnectionSources";
 
@@ -57,7 +58,11 @@ const createMockDataSource = (
 });
 
 const renderWithRouter = (component: React.ReactElement) => {
-	return render(<MemoryRouter>{component}</MemoryRouter>);
+	return render(
+		<MemoryRouter>
+			<SidebarProvider>{component}</SidebarProvider>
+		</MemoryRouter>,
+	);
 };
 
 describe("ConnectionSources", () => {

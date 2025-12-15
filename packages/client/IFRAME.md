@@ -8,9 +8,9 @@ The iframe version provides public access to RITA chat without requiring user au
 
 ## Routes
 
-- `/iframe/chat` - New public conversation
-- `/iframe/chat/:conversationId` - Existing conversation
-- `/iframe/chat?intent-eid=<value>` - New conversation with intent tracking
+- `/iframe/chat?token=xxx` - New public conversation
+- `/iframe/chat/:conversationId?token=xxx` - Existing conversation
+- `/iframe/chat?token=xxx&hashkey=yyy` - With workflow execution via Valkey
 
 ## Key Features
 
@@ -18,7 +18,7 @@ The iframe version provides public access to RITA chat without requiring user au
 2. **Guest User Model** - All users share `public-guest-user` account
 3. **Minimal UI** - No sidebar, no navigation
 4. **Session Auto-Creation** - Session created automatically on page load
-5. **Intent EID Support** - Track conversation context via URL parameter
+5. **Hashkey Workflow Support** - Execute workflows via Valkey payload
 6. **Same-Domain Security** - Secure by virtue of shared origin
 
 ## Quick Start (Development)
@@ -31,16 +31,13 @@ npm run dev:api
 
 # Terminal 2: Start RITA client
 npm run dev:client
-
-# Terminal 3: Start iframe app host
-npm run dev:iframe-app
 ```
 
 ### 2. Test Locally
 
-Open directly: http://localhost:5173/iframe/chat
+Open directly: http://localhost:5173/iframe/chat?token=dev-iframe-token-2024
 
-Or use the demo app: http://localhost:5174
+Or use the built-in demo: http://localhost:5173/embeddemo
 
 ## How It Works
 
@@ -56,9 +53,9 @@ This user is created via database migration and has restricted permissions.
 
 ### Session Flow
 
-1. User loads `/iframe/chat`
+1. User loads `/iframe/chat?token=xxx`
 2. Frontend calls `POST /api/iframe/validate-instantiation`
-3. Backend creates session for `public-guest-user`
+3. Backend validates token, creates session for `public-guest-user`
 4. Backend creates conversation, returns `conversationId`
 5. Session cookie set, chat renders
 6. User can send messages immediately
@@ -68,7 +65,7 @@ This user is created via database migration and has restricted permissions.
 Unlike the main RITA app:
 - No Keycloak redirect
 - No login page
-- No JWT tokens
+- No JWT tokens (for basic chat)
 - Session created automatically
 
 ## Integration Example
@@ -77,7 +74,7 @@ Unlike the main RITA app:
 
 ```html
 <iframe
-  src="https://your-domain.com/iframe/chat?intent-eid=ticket-123"
+  src="https://your-domain.com/iframe/chat?token=your-token"
   style="width: 100%; height: 600px; border: none;"
 ></iframe>
 ```
@@ -86,50 +83,155 @@ Unlike the main RITA app:
 
 ```javascript
 const iframe = document.createElement('iframe');
-iframe.src = `https://your-domain.com/iframe/chat?intent-eid=${intentId}`;
+iframe.src = `https://your-domain.com/iframe/chat?token=${token}&hashkey=${hashkey}`;
 iframe.style.cssText = 'width: 100%; height: 100%; border: none;';
 document.getElementById('chat-container').appendChild(iframe);
 ```
 
-## Intent EID Parameter
+## Workflow Execution via Hashkey
 
-The `intent-eid` parameter allows tracking conversation context:
+For workflow execution, the host stores a payload in Valkey and passes the hashkey in the URL.
+RITA backend fetches the payload and calls the Actions API postEvent webhook.
 
-- **Ticket Support**: `intent-eid=ticket-urgent-001`
-- **User Onboarding**: `intent-eid=onboarding-new-user`
-- **Workflow Designer**: `intent-eid=activity-designer-001`
+### Architecture
 
-### Behavior
+```
+Host (Jarvis)
+    │
+    ├─1─► Store base64-encoded payload in Valkey with hashkey
+    │     { endpoint: "/api/Webhooks/postEvent/{tenantId}",
+    │       payload: { workflowGuid, chatInput, context, ... } }
+    │
+    └─2─► Embed iframe: /iframe/chat?token=xxx&hashkey=yyy
+                              │
+                              ▼
+                    RITA Go iframe (on load)
+                              │
+                        ─3──► POST /api/iframe/execute { hashkey }
+                              │
+                              ▼
+                    RITA API backend
+                              │
+                        ─4──► Fetch payload from Valkey, decode base64
+                              │
+                        ─5──► POST to endpoint with payload (no JWT)
+                              │
+                              ▼
+                    Actions API → Workflow executes
+                              │
+    ┌─────────────────────────┴─────────────────────────┐
+    ▼                                                   ▼
+SignalR → Host                               RabbitMQ → RITA API → SSE → iframe
+```
 
-- Parsed from URL query params
-- Logged for audit purposes
-- Available for future analytics integration
+### Valkey Payload Format
 
-## Security Model
+The host stores a **base64-encoded** JSON payload in Valkey with a unique hashkey.
+No JWT is needed - the hashkey mechanism replaces authentication.
 
-### Same-Domain Deployment
+**JSON structure (before base64 encoding):**
 
-- Host page and RITA must share the same origin
-- Session cookies work automatically
-- No cross-domain concerns
-
-### Public User Restrictions (Planned)
-
-Public users should have limited access:
-- No file uploads
-- No data source connections
-- Limited conversation history
-- No organization settings access
-
-Use `isPublicUser()` helper to check:
-
-```typescript
-import { isPublicUser } from '@/services/IframeService';
-
-if (isPublicUser(userId)) {
-  // Apply restrictions
+```json
+{
+  "endpoint": "/api/Webhooks/postEvent/{tenantId}",
+  "payload": {
+    "workflowGuid": "uuid-of-system-workflow",
+    "chatInput": "User message content",
+    "chatSessionId": "workflow-tab-123",
+    "tabInstanceId": "user-conn-456",
+    "context": "Workflow"
+  }
 }
 ```
+
+**To store in Valkey:**
+
+```bash
+# Create base64-encoded payload
+echo '{"endpoint":"/api/Webhooks/postEvent/my-tenant","payload":{"chatInput":"Hello"}}' | base64
+
+# Store in Redis/Valkey
+redis-cli SET my-hashkey "eyJlbmRwb2ludCI6Ii9hcGkvV2ViaG9va3MvcG9zdEV2ZW50L215LXRlbmFudCIsInBheWxvYWQiOnsiY2hhdElucHV0IjoiSGVsbG8ifX0="
+```
+
+### Response Flow
+
+1. RITA backend fetches payload from Valkey and decodes base64
+2. Backend calls the endpoint specified in payload (no JWT auth)
+3. Workflow executes, calls `/api/SignalR/pushMessage` → host receives via SignalR
+4. Workflow also sends to RITA API → iframe receives via SSE
+5. Both channels show the same response
+
+### Security
+
+- **No JWT required** - hashkey mechanism replaces need for auth tokens
+- Hashkey is a one-time key (host generates unique key per session)
+- Host controls what endpoint and payload are stored in Valkey
+- RITA backend only fetches and forwards - no sensitive data in URL
+- Origin validation for postMessage commands
+- Iframe token required for session initialization
+
+## PostMessage API
+
+Enable host pages to communicate with the RITA iframe programmatically.
+
+### Message Protocol
+
+#### Host → Iframe
+
+| Type | Payload | Description |
+|------|---------|-------------|
+| `SEND_MESSAGE` | `{ content, chatSessionId?, tabInstanceId? }` | Send message to chat |
+| `GET_STATUS` | - | Request current status |
+| `CLEAR_CHAT` | - | Clear chat (future) |
+
+Note: Workflow execution is handled via hashkey URL parameter, not postMessage.
+
+#### Iframe → Host
+
+| Type | Payload | Description |
+|------|---------|-------------|
+| `READY` | - | Iframe initialized, ready for commands |
+| `ACK` | `{ requestId, success, error? }` | Command acknowledged |
+| `STATUS` | `{ requestId, data }` | Status response |
+
+### Example Usage
+
+```javascript
+const iframe = document.getElementById('rita-iframe');
+
+// Listen for iframe ready
+window.addEventListener('message', (event) => {
+  if (event.data.type === 'READY') {
+    console.log('RITA iframe ready');
+  }
+  if (event.data.type === 'ACK') {
+    console.log('Message acknowledged:', event.data);
+  }
+});
+
+// Send message from host
+function sendToRita(message, chatSessionId, tabInstanceId) {
+  iframe.contentWindow.postMessage({
+    type: 'SEND_MESSAGE',
+    payload: {
+      content: message,
+      chatSessionId,   // Workflow tab ID (optional)
+      tabInstanceId,   // User connection ID (optional)
+    },
+    requestId: crypto.randomUUID()
+  }, '*');
+}
+```
+
+### Metadata Tracking
+
+Messages sent via postMessage can include metadata for workflow tracking:
+
+- **chatSessionId**: Jarvis workflow tab identifier
+- **tabInstanceId**: User connection identifier
+
+This metadata is stored with the message for audit and workflow correlation.
 
 ## API Endpoints
 
@@ -140,7 +242,9 @@ Creates public session and conversation.
 **Request:**
 ```json
 {
-  "intentEid": "optional-tracking-id"
+  "token": "your-iframe-token",
+  "hashkey": "optional-valkey-key",
+  "existingConversationId": "optional-uuid"
 }
 ```
 
@@ -153,31 +257,69 @@ Creates public session and conversation.
 }
 ```
 
+### POST /api/iframe/execute
+
+Execute workflow from Valkey hashkey.
+
+**Request:**
+```json
+{
+  "hashkey": "valkey-payload-key"
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "eventId": "uuid-from-actions-api"
+}
+```
+
+## Environment Variables
+
+### Backend (api-server)
+
+```env
+VALKEY_URL=redis://localhost:6379
+ACTIONS_API_URL=https://actions-api-staging.resolve.io
+```
+
+### Frontend (client)
+
+```env
+VITE_API_URL=http://localhost:3000
+```
+
 ## Testing
 
-### Demo Application
+### Built-in Demo Page
 
-The `packages/iframe-app` provides a testing environment:
+The `/embeddemo` route provides a built-in testing environment that deploys with the main app:
+
+**URL**: `http://localhost:5173/embeddemo`
 
 **Features**:
-- Quick test scenarios (ticket, onboarding, sales)
-- Configurable intent-eid input
-- Visual URL display
-- Responsive iframe container
+- No separate dev server needed
+- Token and hashkey configuration
+- Send Message via postMessage
+- Event log with color-coded entries
+- Workflow execution flow explanation
 
 **Usage**:
 ```bash
-npm run dev:iframe-app
-# Opens http://localhost:5174
+# Just start the client (no separate demo server needed)
+npm run dev:client
+# Open http://localhost:5173/embeddemo
 ```
 
 ### Manual Testing Checklist
 
 - [ ] Page loads without login redirect
 - [ ] New conversation created automatically
-- [ ] Intent-eid appears in server logs
 - [ ] Message sending works
 - [ ] SSE real-time updates work
+- [ ] Hashkey workflow execution works (requires Valkey payload)
 - [ ] No console errors
 
 ## Production Deployment
@@ -188,30 +330,35 @@ npm run dev:iframe-app
 2. **HTTPS** - Required for production
 3. **API Server** - Must be running with iframe routes
 4. **Database** - Migration 138 applied (public-guest-user)
+5. **Valkey/Redis** - Required for workflow execution
 
 ### Environment Variables
 
-Same as main app - see `.env.example` in packages/client
+Same as main app - see `.env.example` in project root
 
 ## Known Limitations
 
 1. **Same Domain Only** - Cannot embed cross-domain
 2. **Shared User** - All conversations from same "user"
 3. **No Personalization** - No user-specific settings
-4. **No PostMessage** - No parent-iframe communication
 
 ## Future Enhancements
 
 - [ ] Feature restrictions for public user
-- [ ] PostMessage API for parent-iframe communication
+- [x] PostMessage API for parent-iframe communication
+- [x] Workflow execution via Valkey hashkey
 - [ ] Custom theming via URL parameters
-- [ ] Analytics tracking for intent-eid
 - [ ] Conversation TTL auto-cleanup
-- [ ] Rate limiting per intent-eid
+- [ ] Rate limiting per hashkey
+- [ ] Workflow state feedback to host (ritasendcompletemessage activity)
 
 ## Related Files
 
-- `packages/api-server/src/services/IframeService.ts` - Backend service
-- `packages/api-server/src/routes/iframe.routes.ts` - API endpoint
-- `packages/client/src/pages/IframeChatPage.tsx` - Frontend page
+- `packages/api-server/src/services/IframeService.ts` - Session/token service
+- `packages/api-server/src/services/WorkflowExecutionService.ts` - Valkey + postEvent
+- `packages/api-server/src/routes/iframe.routes.ts` - API endpoints
+- `packages/api-server/src/config/valkey.ts` - Valkey client
+- `packages/client/src/pages/IframeChatPage.tsx` - Iframe chat page
+- `packages/client/src/pages/EmbedDemoPage.tsx` - Built-in demo page (/embeddemo)
 - `packages/client/src/services/iframeApi.ts` - Frontend API client
+- `packages/client/src/hooks/useIframeMessaging.ts` - PostMessage handler hook

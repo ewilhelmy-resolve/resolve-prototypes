@@ -5,7 +5,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import type { ConnectionSource } from "@/constants/connectionSources";
-import { STATUS } from "@/constants/connectionSources";
+import { SOURCES, STATUS } from "@/constants/connectionSources";
 import { ConnectionStatusBadge } from "./ConnectionStatusBadge";
 
 interface ConnectionStatusCardProps {
@@ -137,19 +137,27 @@ export function ConnectionStatusCard({
 					<div className="flex flex-col md:flex-row items-center justify-between gap-5">
 						<div className="flex flex-col gap-2 max-w-xs">
 							<div className="flex items-center gap-1">
-								<p className="text-sm text-muted-foreground w-10">URL</p>
+								<p className="text-sm text-muted-foreground w-16">URL</p>
 								<p className="text-sm text-foreground truncate">
-									{source.settings?.url || "—"}
+									{source.type === SOURCES.SERVICENOW
+										? source.settings?.instanceUrl || "—"
+										: source.settings?.url || "—"}
 								</p>
 							</div>
 							<div className="flex items-center gap-1">
-								<p className="text-sm text-muted-foreground w-10">Email</p>
+								<p className="text-sm text-muted-foreground w-16">
+									{source.type === SOURCES.SERVICENOW ? "Username" : "Email"}
+								</p>
 								<p className="text-sm text-foreground truncate">
-									{source.settings?.email || "—"}
+									{source.type === SOURCES.SERVICENOW
+										? source.settings?.username || "—"
+										: source.settings?.email || "—"}
 								</p>
 							</div>
 							<div className="flex items-center gap-1">
-								<p className="text-sm text-muted-foreground w-10">API</p>
+								<p className="text-sm text-muted-foreground w-16">
+									{source.type === SOURCES.SERVICENOW ? "Password" : "API"}
+								</p>
 								<p className="text-sm text-foreground truncate">
 									••••••••••••••••••••
 								</p>

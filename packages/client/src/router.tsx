@@ -6,26 +6,37 @@ import {
 import { ProtectedRoute } from "./components/auth/ProtectedRoute";
 import { RoleProtectedRoute } from "./components/auth/RoleProtectedRoute";
 import { RootLayout } from "./components/layouts/RootLayout";
+import { useFeatureFlag } from "./hooks/useFeatureFlags";
 import ChatV1Page from "./pages/ChatV1Page";
 import ConnectionSourceDetailPage from "./pages/ConnectionSourceDetailPage";
 import ContactPage from "./pages/ContactPage";
 import DevToolsPage from "./pages/DevToolsPage";
 import DropdownTestPage from "./pages/DropdownTestPage";
+import EmbedDemoPage from "./pages/EmbedDemoPage";
 import FilesV1Page from "./pages/FilesV1Page";
 import HelpPage from "./pages/HelpPage";
 import IframeChatPage from "./pages/IframeChatPage";
 import InviteAcceptPage from "./pages/InviteAcceptPage";
 import { NotFoundPage } from "./pages/NotFoundPage";
-import SettingsV1Page from "./pages/SettingsV1Page";
 import { SignUpPage } from "./pages/SignUpPage";
 import ProfilePage from "./pages/settings/ProfilePage";
+import KnowledgeSources from "./pages/settings/KnowledgeSources";
+import ItsmSources from "./pages/settings/ItsmSources";
 import TermsOfService from "./pages/TermsOfService";
 import TicketsPage from "./pages/TicketsPage";
+import ClusterDetailPage from "./pages/ClusterDetailPage";
 import TicketDetailPage from "./pages/TicketDetailPage";
 import UsersSettingsPage from "./pages/UsersSettingsPage";
 import { VerifyEmailPage } from "./pages/VerifyEmailPage";
 import { VerifyEmailSentPage } from "./pages/VerifyEmailSentPage";
-import TicketsPage2 from "./pages/TicketsPage2";
+import ClustersPage from "./pages/ClustersPage";
+import WorkflowsPage from "./pages/WorkflowsPage";
+
+// Feature-flagged tickets page wrapper
+function TicketsPageWithFlag() {
+	const enableTicketsV2 = useFeatureFlag("ENABLE_TICKETS_V2");
+	return enableTicketsV2 ? <ClustersPage /> : <TicketsPage />;
+}
 
 const router = createBrowserRouter([
 	// Root redirect
@@ -60,6 +71,20 @@ const router = createBrowserRouter([
 		path: "/iframe/chat/:conversationId",
 		element: <IframeChatPage />,
 	},
+	// Embed demo page (public, for testing iframe integration)
+	{
+		path: "/embeddemo",
+		element: <EmbedDemoPage />,
+	},
+	// JIRITA - Workflow builder (dev tool, feature-flagged)
+	{
+		path: "/jirita",
+		element: (
+			<ProtectedRoute>
+				<WorkflowsPage />
+			</ProtectedRoute>
+		),
+	},
 	{
 		path: "/content",
 		element: (
@@ -72,20 +97,20 @@ const router = createBrowserRouter([
 		path: "/tickets",
 		element: (
 			<RoleProtectedRoute allowedRoles={["owner", "admin"]}>
-				<TicketsPage />
-			</RoleProtectedRoute>
-		),
-	},
-	{
-		path: "/tickets2",
-		element: (
-			<RoleProtectedRoute allowedRoles={["owner", "admin"]}>
-				<TicketsPage2 />
+				<TicketsPageWithFlag />
 			</RoleProtectedRoute>
 		),
 	},
 	{
 		path: "/tickets/:id",
+		element: (
+			<RoleProtectedRoute allowedRoles={["owner", "admin"]}>
+				<ClusterDetailPage />
+			</RoleProtectedRoute>
+		),
+	},
+	{
+		path: "/tickets/:clusterId/:ticketId",
 		element: (
 			<RoleProtectedRoute allowedRoles={["owner", "admin"]}>
 				<TicketDetailPage />
@@ -106,17 +131,37 @@ const router = createBrowserRouter([
 	},
 	{
 		path: "/settings/connections",
+		element: <Navigate to="/settings/connections/knowledge" replace />,
+	},
+	{
+		path: "/settings/connections/knowledge",
 		element: (
 			<ProtectedRoute>
-				<SettingsV1Page />
+				<KnowledgeSources />
 			</ProtectedRoute>
 		),
 	},
 	{
-		path: "/settings/connections/:id",
+		path: "/settings/connections/knowledge/:id",
 		element: (
 			<ProtectedRoute>
-				<ConnectionSourceDetailPage />
+				<ConnectionSourceDetailPage mode="knowledge" />
+			</ProtectedRoute>
+		),
+	},
+	{
+		path: "/settings/connections/itsm",
+		element: (
+			<ProtectedRoute>
+				<ItsmSources />
+			</ProtectedRoute>
+		),
+	},
+	{
+		path: "/settings/connections/itsm/:id",
+		element: (
+			<ProtectedRoute>
+				<ConnectionSourceDetailPage mode="itsm" />
 			</ProtectedRoute>
 		),
 	},

@@ -46,7 +46,7 @@ Implement trigger endpoint and notification consumer. WF owns DB writes via 2-wo
   - Creates ingestion_run record (status='pending')
   - Sends sync_tickets webhook with `rebuild_model` flag
   - Returns 202 with ingestion_run_id
-- [ ] IngestionNotificationConsumer processes `ingestion_notification` queue
+- [ ] DataSourceStatusConsumer handles `ticket_ingestion` messages in `data_source_status` queue
   - Emits SSE event: `ingestion_run_update`
   - NO database writes (WF owns DB)
   - Logs errors to message_processing_failures
@@ -81,7 +81,7 @@ await sseService.sendToUser(userId, tenantId, {
 
 **WF 2-Workflow Architecture:**
 1. Ticket Pull: fetches from ITSM → writes tickets with `cluster_id=NULL`
-2. Classification: assigns clusters → sends `ingestion_notification`
+2. Classification: assigns clusters → sends `ticket_ingestion` to `data_source_status`
 
 Reference: Section 4.1 Webhook Payloads, Section 5.1 Backend Worker Logic
 
@@ -342,7 +342,7 @@ Remove frontend mocks, wire real APIs, implement end-to-end test scenarios cover
 - [ ] Fix any contract mismatches discovered
 - [ ] E2E test: Full ingestion flow
   - Owner clicks "Sync Tickets"
-  - Mock RabbitMQ publishes `ingestion_notification`
+  - Mock RabbitMQ publishes `ticket_ingestion` to `data_source_status`
   - Dashboard updates with new clusters
   - Verify SSE event received
 - [ ] E2E test: Validation workflow
@@ -373,7 +373,7 @@ test('Full ingestion flow', async ({ page }) => {
   await page.click('button:has-text("Sync Tickets")');
 
   // Mock RabbitMQ message
-  await mockRabbitMQ.publish('ingestion_notification', mockNotification);
+  await mockRabbitMQ.publish('data_source_status', { type: 'ticket_ingestion', ...mockNotification });
 
   // Wait for SSE event
   await page.waitForSelector('.cluster-card:has-text("Email Issues")');
@@ -545,7 +545,7 @@ All stories must meet:
 2. Analytics retention period? 30d/90d/1yr?
 3. SSE debouncing strategy? (affects Stories 2, 6, 8)
 4. Knowledge article max per cluster? (affects Story 6)
-5. Queue naming convention - confirm: `ingestion_notification`, `cluster_notification`, `enrichment_notification`
+5. Queue naming convention - ✅ Resolved: `data_source_status` (type: `ticket_ingestion`), `cluster_notification`, `enrichment_notification`
 
 ## Resolved
 

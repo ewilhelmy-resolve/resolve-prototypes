@@ -156,12 +156,13 @@ export function useSendMessage() {
   const { addMessage, updateMessage, setSending } = useConversationStore()
 
   return useMutation({
-    mutationFn: async (data: { conversationId: string; content: string; tempId: string }) => {
+    mutationFn: async (data: { conversationId: string; content: string; tempId: string; metadata?: Record<string, string> }) => {
       setSending(true)
 
       try {
         const response = await conversationApi.sendMessage(data.conversationId, {
           content: data.content,
+          metadata: data.metadata,
         })
 
         const message: Message = {

@@ -1,57 +1,114 @@
-import { useParams } from "react-router-dom";
+import { useState } from "react";
+import { useParams, Link } from "react-router-dom";
+import { ChevronLeft, Loader2 } from "lucide-react";
 import RitaLayout from "@/components/layouts/RitaLayout";
-import { Badge } from "@/components/ui/badge";
-import { TicketDetailSidebar } from "@/components/tickets/TicketDetailSidebar";
-import { TicketTrendsChart } from "@/components/tickets/TicketTrendsChart";
-import { TicketDetailTable } from "@/components/tickets/TicketDetailTable";
+import { Button } from "@/components/ui/button";
+import TicketDetailsCard from "@/components/tickets/TicketDetailsCard";
+import { TicketDetailHeader } from "@/components/tickets/TicketDetailHeader";
+import ReviewAIResponseSheet from "@/components/tickets/ReviewAIResponseSheet";
+import type { TicketPriority } from "@/components/tickets/TicketDetailsCard";
+import { useTicket, useClusterTickets } from "@/hooks/useClusters";
 
-const badges = [
-	{ text: "976 tickets", variant: "secondary" as const },
-	{ text: "14 open", variant: "secondary" as const },
-	{ text: "12% automated", variant: "secondary" as const },
-	{ text: "Knowledge found", variant: "outline" as const },
-];
+// Extract priority from source_metadata or default to medium
+const getPriorityFromMetadata = (metadata: Record<string, unknown>): TicketPriority => {
+	const priority = metadata?.priority as string | undefined;
+	if (priority && ["low", "medium", "high", "critical"].includes(priority)) {
+		return priority as TicketPriority;
+	}
+	return "medium";
+};
 
 export default function TicketDetailPage() {
-	const { id } = useParams<{ id: string }>();
+	const { clusterId, ticketId } = useParams<{ clusterId: string; ticketId: string }>();
+	const { data: ticket, isLoading, error } = useTicket(ticketId);
+	const { data: clusterTicketsData } = useClusterTickets(clusterId, { limit: 100 });
+	const [reviewSheetOpen, setReviewSheetOpen] = useState(false);
 
-	// Convert id to title (replace hyphens with spaces and capitalize)
-	const title = id
-		? id
-				.split("-")
-				.map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-				.join(" ")
-		: "Ticket Group";
+	// Get ticket IDs from cluster for navigation
+	const ticketIds = clusterTicketsData?.data?.map((t) => t.id) ?? [];
+
+	if (isLoading) {
+		return (
+			<RitaLayout activePage="tickets">
+				<div className="flex min-h-screen items-center justify-center">
+					<Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+				</div>
+			</RitaLayout>
+		);
+	}
+
+	if (error || !ticket) {
+		return (
+			<RitaLayout activePage="tickets">
+				<div className="flex flex-col items-center justify-center min-h-[400px] gap-4">
+					<p className="text-muted-foreground">Ticket not found</p>
+					<Button asChild variant="outline">
+						<Link to={clusterId ? `/tickets/${clusterId}` : "/tickets"}>
+							<ChevronLeft className="mr-2 h-4 w-4" />
+							Back to cluster
+						</Link>
+					</Button>
+				</div>
+			</RitaLayout>
+		);
+	}
+
+	// Map API ticket to card format
+	const ticketForCard = {
+		id: ticket.external_id,
+		title: ticket.subject,
+		description: ticket.cluster_text || "No description available.",
+		priority: getPriorityFromMetadata(ticket.source_metadata),
+	};
+
+	const handleApprove = (id: string) => {
+		console.log(`Approved AI response for ticket: ${id}`);
+		// TODO: Implement API call
+	};
+
+	const handleReject = (id: string) => {
+		console.log(`Rejected AI response for ticket: ${id}`);
+		// TODO: Implement API call
+	};
 
 	return (
 		<RitaLayout activePage="tickets">
-			<div className="flex min-h-screen flex-col lg:flex-row">
-				{/* Main Content */}
-				<div className="flex-1 p-4">
-					<div className="flex flex-col gap-4">
-						{/* Page Header */}
-						<div className="flex flex-col gap-4 lg:flex-row lg:items-center">
-							<h1 className="text-xl font-medium">{title}</h1>
-							<div className="flex flex-wrap gap-2">
-								{badges.map((badge, index) => (
-									<Badge key={index} variant={badge.variant}>
-										{badge.text}
-									</Badge>
-								))}
-							</div>
-						</div>
+			<div className="flex flex-col">
+				{/* Full-width Header */}
+				<TicketDetailHeader
+					ticketId={ticket.id}
+					externalId={ticket.external_id}
+					clusterId={clusterId}
+					ticketIds={ticketIds}
+					onReviewAIResponse={() => setReviewSheetOpen(true)}
+				/>
 
-						{/* Ticket Trends Chart */}
-						<TicketTrendsChart />
-						 
+				{/* Content */}
+				<div className="flex flex-col gap-4 p-4 w-full max-w-3xl mx-auto">
+					{/* Page Header */}
+					<h1 className="text-xl font-medium">{ticket.subject}</h1>
 
-						{/* Table Section */}
-						<TicketDetailTable />
-					</div>
+					{/* Ticket Details Card */}
+					<TicketDetailsCard ticket={ticketForCard} />
 				</div>
 
-				{/* Right Sidebar */}
-				<TicketDetailSidebar knowledgeCount={3} />
+				{/* Review AI Response Sheet */}
+				<ReviewAIResponseSheet
+					open={reviewSheetOpen}
+					onOpenChange={setReviewSheetOpen}
+					ticketGroupId={clusterId}
+					tickets={[{
+						id: ticket.id,
+						externalId: ticket.external_id,
+						title: ticket.subject,
+						description: ticket.cluster_text || "No description available.",
+						priority: ticketForCard.priority,
+					}]}
+					currentIndex={0}
+					onNavigate={() => {}}
+					onApprove={handleApprove}
+					onReject={handleReject}
+				/>
 			</div>
 		</RitaLayout>
 	);

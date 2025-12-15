@@ -120,6 +120,19 @@ export interface MemberDeletedOwnAccountEvent {
   };
 }
 
+export interface IngestionRunUpdateEvent {
+  type: 'ingestion_run_update';
+  data: {
+    ingestion_run_id: string;
+    connection_id: string;
+    status: 'completed' | 'failed';
+    records_processed?: number;
+    records_failed?: number;
+    error_message?: string;
+    timestamp: string;
+  };
+}
+
 export type SSEEvent =
   | MessageUpdateEvent
   | NewMessageEvent
@@ -129,7 +142,8 @@ export type SSEEvent =
   | MemberStatusUpdatedEvent
   | MemberRemovedEvent
   | MemberDeletedPermanentEvent
-  | MemberDeletedOwnAccountEvent;
+  | MemberDeletedOwnAccountEvent
+  | IngestionRunUpdateEvent;
 
 export class SSEService {
   private connections: Map<string, SSEConnection> = new Map();

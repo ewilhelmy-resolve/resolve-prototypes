@@ -37,6 +37,8 @@ export interface RitaChatState {
   handleSearchChange: (value: string) => void
   handleMessageChange: (value: string) => void
   handleKeyPress: (e: React.KeyboardEvent<HTMLTextAreaElement>) => void
+  // Programmatic message sending (for iframe host communication)
+  sendMessageWithContent: (content: string, metadata?: Record<string, string>) => Promise<void>
 
   // File upload (for chat messages)
   handleFileUpload: (e: React.ChangeEvent<HTMLInputElement>) => void
@@ -108,6 +110,7 @@ export const useRitaChat = (): RitaChatState => {
     handleSendMessage: messageHandler.handleSendMessage,
     handleMessageChange: messageHandler.handleMessageChange,
     handleKeyPress: messageHandler.handleKeyPress,
+    sendMessageWithContent: messageHandler.sendMessageWithContent,
 
     // Search actions
     handleSearchChange: search.handleSearchChange,

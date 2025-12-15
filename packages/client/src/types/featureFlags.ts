@@ -12,6 +12,16 @@ export type FeatureFlagKey =
   | 'SHOW_WELCOME_MODAL'
   | 'ENABLE_DEBUG_MODE'
   | 'ENABLE_EXPERIMENTAL_FEATURES'
+  | 'ENABLE_SERVICENOW'
+  | 'ENABLE_MULTI_FILE_UPLOAD'
+  | 'ENABLE_TICKETS_V2'
+  | 'ENABLE_WORKFLOWS'
+  // Auto Pilot flags (platform-controlled)
+  | 'ENABLE_AUTO_PILOT'
+  | 'ENABLE_AUTO_PILOT_SUGGESTIONS'
+  | 'ENABLE_AUTO_PILOT_ACTIONS'
+
+export type FlagSource = 'platform' | 'local' | 'default'
 
 /**
  * Feature flag configuration
@@ -26,7 +36,18 @@ export interface FeatureFlagConfig {
   /** Default value (enabled/disabled) */
   defaultValue: boolean
   /** Category for grouping in UI */
-  category: 'general' | 'debug' | 'experimental'
+  category: 'general' | 'debug' | 'experimental' | 'autopilot'
+  /** If true, flag is fetched from Platform Actions API */
+  platformControlled?: boolean
+
+}
+
+/**
+ * Resolved flag with source information
+ */
+export interface ResolvedFlag {
+  value: boolean
+  platformValue?: boolean
 }
 
 /**
@@ -56,6 +77,59 @@ export const FEATURE_FLAGS: Record<FeatureFlagKey, FeatureFlagConfig> = {
     description: 'Enable beta features and experimental functionality',
     defaultValue: false,
     category: 'experimental',
+  },
+  ENABLE_SERVICENOW: {
+    key: 'ENABLE_SERVICENOW',
+    label: 'ServiceNow Integration',
+    description: 'Enable ServiceNow KB and ITSM sync features',
+    defaultValue: false,
+    category: 'experimental',
+  },
+  ENABLE_MULTI_FILE_UPLOAD: {
+    key: 'ENABLE_MULTI_FILE_UPLOAD',
+    label: 'Multi-File Upload',
+    description: 'Enable uploading multiple files at once in file inputs',
+    defaultValue: false,
+    category: 'experimental',
+  },
+  ENABLE_TICKETS_V2: {
+    key: 'ENABLE_TICKETS_V2',
+    label: 'Tickets',
+    description: 'Enable new tickets page UI',
+    defaultValue: false,
+    category: 'experimental',
+  },
+  ENABLE_WORKFLOWS: {
+    key: 'ENABLE_WORKFLOWS',
+    label: 'Workflows',
+    description: 'Enable Workflow Generator dev tool',
+    defaultValue: false,
+    category: 'experimental',
+  },
+  // Auto Pilot flags (platform-controlled)
+  ENABLE_AUTO_PILOT: {
+    key: 'ENABLE_AUTO_PILOT',
+    label: 'Auto Pilot',
+    description: 'Master toggle for Auto Pilot features',
+    defaultValue: false,
+    category: 'autopilot',
+    platformControlled: true,
+  },
+  ENABLE_AUTO_PILOT_SUGGESTIONS: {
+    key: 'ENABLE_AUTO_PILOT_SUGGESTIONS',
+    label: 'Auto Pilot Suggestions',
+    description: 'Enable AI-powered suggestions in Auto Pilot',
+    defaultValue: false,
+    category: 'autopilot',
+    platformControlled: true,
+  },
+  ENABLE_AUTO_PILOT_ACTIONS: {
+    key: 'ENABLE_AUTO_PILOT_ACTIONS',
+    label: 'Auto Pilot Actions',
+    description: 'Enable automated actions execution in Auto Pilot',
+    defaultValue: false,
+    category: 'autopilot',
+    platformControlled: true,
   },
 }
 

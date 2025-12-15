@@ -1,5 +1,6 @@
 import express from 'express';
 import { getIframeService } from '../services/IframeService.js';
+import { getWorkflowExecutionService } from '../services/WorkflowExecutionService.js';
 import { logger } from '../config/logger.js';
 
 const router = express.Router();
@@ -48,6 +49,50 @@ router.post('/validate-instantiation', async (req, res) => {
     res.status(500).json({
       valid: false,
       error: 'Failed to initialize iframe session',
+    });
+  }
+});
+
+/**
+ * Execute workflow from Valkey hashkey
+ * POST /api/iframe/execute
+ *
+ * Flow:
+ * 1. Client sends hashkey (stored by host in Valkey)
+ * 2. Backend fetches payload from Valkey (contains JWT, tenantId, workflow params)
+ * 3. Backend calls Actions API postEvent webhook
+ * 4. Response flows through queue -> message -> SSE
+ */
+router.post('/execute', async (req, res) => {
+  try {
+    const { hashkey } = req.body;
+
+    if (!hashkey) {
+      res.status(400).json({
+        success: false,
+        error: 'Missing hashkey parameter',
+      });
+      return;
+    }
+
+    logger.info({ hashkey }, 'Executing workflow from hashkey');
+
+    const workflowService = getWorkflowExecutionService();
+    const result = await workflowService.executeFromHashkey(hashkey);
+
+    if (!result.success) {
+      logger.warn({ hashkey, error: result.error }, 'Workflow execution failed');
+      res.status(400).json(result);
+      return;
+    }
+
+    logger.info({ hashkey, eventId: result.eventId }, 'Workflow execution initiated');
+    res.json(result);
+  } catch (error) {
+    logger.error({ error }, 'Workflow execution error');
+    res.status(500).json({
+      success: false,
+      error: 'Internal server error',
     });
   }
 });

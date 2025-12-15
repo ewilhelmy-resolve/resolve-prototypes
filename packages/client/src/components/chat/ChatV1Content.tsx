@@ -63,6 +63,7 @@ import { useProfilePermissions } from "@/hooks/api/useProfile.ts";
 import { useChatPagination } from "@/hooks/useChatPagination";
 // import { DragDropOverlay } from "./DragDropOverlay"; // TODO: Re-enable when backend support is ready
 import { useDragAndDrop } from "@/hooks/useDragAndDrop";
+import { useFeatureFlag } from "@/hooks/useFeatureFlags";
 // import { useProfilePermissions } from "@/hooks/api/useProfile"; // TODO: Re-enable when backend support is ready
 import { useKnowledgeBase } from "@/hooks/useKnowledgeBase";
 import type { RitaChatState } from "@/hooks/useRitaChat";
@@ -567,6 +568,9 @@ export default function ChatV1Content({
 	const { isOwnerOrAdmin } = useProfilePermissions();
 	const isAdmin = isOwnerOrAdmin();
 
+	// Feature flags
+	const enableMultiFileUpload = useFeatureFlag("ENABLE_MULTI_FILE_UPLOAD");
+
 	// Get grouped messages from store instead of flat messages
 	const { chatMessages } = useConversationStore();
 
@@ -896,7 +900,7 @@ export default function ChatV1Content({
 				onChange={handleFileUpload}
 				accept={SUPPORTED_DOCUMENT_TYPES}
 				disabled={uploadStatus.isUploading}
-				multiple={false}
+				multiple={enableMultiFileUpload}
 			/>
 
 			{/* Hidden file input for knowledge base uploads (empty state & navbar) */}
@@ -906,7 +910,7 @@ export default function ChatV1Content({
 				className="hidden"
 				onChange={handleDocumentUpload}
 				accept={SUPPORTED_DOCUMENT_TYPES}
-				multiple
+				multiple={enableMultiFileUpload}
 				disabled={uploadingFiles.size > 0}
 			/>
 		</div>

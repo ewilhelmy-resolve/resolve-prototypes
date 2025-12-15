@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { ritaToast } from "@/components/ui/rita-toast";
 import { STATUS } from "@/constants/connectionSources";
 import { useConnectionSource } from "@/contexts/ConnectionSourceContext";
 import {
@@ -13,7 +14,6 @@ import {
 	parseAvailableSpaces,
 	parseSelectedSpaces,
 } from "@/lib/dataSourceUtils";
-import { ritaToast } from "@/components/ui/rita-toast";
 import { Label } from "../../ui/label";
 import { MultiSelect, type MultiSelectOption } from "../../ui/multi-select";
 import { ConnectionActionsMenu } from "../ConnectionActionsMenu";
@@ -33,8 +33,10 @@ export default function ConfluenceConfiguration({
 	const syncMutation = useTriggerSync();
 	const cancelMutation = useCancelSync();
 
-	const isSyncing = source.status.toLowerCase() === STATUS.SYNCING.toLowerCase();
-	const isVerifying = source.status.toLowerCase() === STATUS.VERIFYING.toLowerCase();
+	const isSyncing =
+		source.status.toLowerCase() === STATUS.SYNCING.toLowerCase();
+	const isVerifying =
+		source.status.toLowerCase() === STATUS.VERIFYING.toLowerCase();
 
 	const isSyncButtonDisabled =
 		isSyncing ||
@@ -152,39 +154,39 @@ export default function ConfluenceConfiguration({
 				{source.status.toLowerCase() !== STATUS.ERROR.toLowerCase() &&
 					!isVerifying &&
 					!isSyncing && (
-					<div className="flex flex-col gap-1">
-						<div className="border border-border bg-popover rounded-md p-4">
-							<div className="rounded-lg">
-								<Label className="mb-2">
-									Which spaces would you like to sync from?
-								</Label>
-								<div className="flex flex-col md:flex-row items-start gap-4">
-									<div className="md:flex-1 w-full">
-										<MultiSelect
-											animationConfig={{ optionHoverAnimation: "none" }}
-											options={availableSpaces}
-											defaultValue={selectedSpaces}
-											onValueChange={setSelectedSpaces}
-											placeholder="Choose spaces..."
-											searchable={true}
-											emptyIndicator="No spaces found."
-										/>
+						<div className="flex flex-col gap-1">
+							<div className="border border-border bg-popover rounded-md p-4">
+								<div className="rounded-lg">
+									<Label className="mb-2">
+										Which spaces would you like to sync from?
+									</Label>
+									<div className="flex flex-col md:flex-row items-start gap-4">
+										<div className="md:flex-1 w-full">
+											<MultiSelect
+												animationConfig={{ optionHoverAnimation: "none" }}
+												options={availableSpaces}
+												defaultValue={selectedSpaces}
+												onValueChange={setSelectedSpaces}
+												placeholder="Choose spaces..."
+												searchable={true}
+												emptyIndicator="No spaces found."
+											/>
+										</div>
+										<Button
+											onClick={handleSync}
+											disabled={isSyncButtonDisabled}
+											className="w-full md:w-fit"
+											variant="default"
+										>
+											{updateMutation.isPending || syncMutation.isPending
+												? "Syncing..."
+												: "Sync"}
+										</Button>
 									</div>
-									<Button
-										onClick={handleSync}
-										disabled={isSyncButtonDisabled}
-										className="w-full md:w-fit"
-										variant="default"
-									>
-										{updateMutation.isPending || syncMutation.isPending
-											? "Syncing..."
-											: "Sync"}
-									</Button>
 								</div>
 							</div>
 						</div>
-					</div>
-				)}
+					)}
 			</div>
 		</div>
 	);
