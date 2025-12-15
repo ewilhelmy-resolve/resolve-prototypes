@@ -16,6 +16,13 @@ export const dataSourceKeys = {
 		[...dataSourceKeys.details(), id] as const,
 };
 
+// Ingestion Run Query Keys (ITSM Autopilot)
+export const ingestionRunKeys = {
+	all: ["ingestionRuns"] as const,
+	latest: (connectionId: string) =>
+		[...ingestionRunKeys.all, "latest", connectionId] as const,
+};
+
 /**
  * List all data sources
  * @returns Query with array of data sources
@@ -179,9 +186,25 @@ export function useSyncTickets() {
 			timeRangeDays: number;
 		}) => dataSourcesApi.syncTickets(id, { time_range_days: timeRangeDays }),
 		onSuccess: (_, { id }) => {
-			// Invalidate queries to reflect syncing state
-			queryClient.invalidateQueries({ queryKey: dataSourceKeys.detail(id) });
-			queryClient.invalidateQueries({ queryKey: dataSourceKeys.list() });
+			// Invalidate ingestion run query to show new syncing state
+			queryClient.invalidateQueries({ queryKey: ingestionRunKeys.latest(id) });
 		},
+	});
+}
+
+/**
+ * Get the latest ingestion run for a data source (ITSM Autopilot)
+ * Used to check if a ticket sync is in progress
+ */
+export function useLatestIngestionRun(connectionId: string | undefined) {
+	return useQuery({
+		queryKey: ingestionRunKeys.latest(connectionId!),
+		queryFn: async () => {
+			if (!connectionId) throw new Error("Connection ID is required");
+			const response = await dataSourcesApi.getLatestIngestionRun(connectionId);
+			return response.data;
+		},
+		enabled: !!connectionId,
+		staleTime: 10000, // 10 seconds - more frequent refresh for active syncs
 	});
 }

@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/select";
 import { STATUS } from "@/constants/connectionSources";
 import { useConnectionSource } from "@/contexts/ConnectionSourceContext";
-import { useSyncTickets, useCancelSync } from "@/hooks/useDataSources";
+import { useSyncTickets, useCancelSync, useLatestIngestionRun } from "@/hooks/useDataSources";
 import { ritaToast } from "@/components/ui/rita-toast";
 import { ConnectionActionsMenu } from "../ConnectionActionsMenu";
 import { ConnectionStatusCard } from "../ConnectionStatusCard";
@@ -36,10 +36,13 @@ export default function ServiceNowItsmConfiguration({
 	const cancelMutation = useCancelSync();
 	const [selectedTimeRange, setSelectedTimeRange] = useState("30");
 
-	const isSyncing = source.status.toLowerCase() === STATUS.SYNCING.toLowerCase();
+	// Track ticket sync status via ingestion runs (separate from knowledge sync)
+	const { data: latestIngestionRun } = useLatestIngestionRun(source.backendData?.id);
+	const isTicketSyncing = latestIngestionRun?.status === "running" || latestIngestionRun?.status === "pending";
+
 	const isVerifying = source.status.toLowerCase() === STATUS.VERIFYING.toLowerCase();
 
-	const isSyncButtonDisabled = isSyncing || isVerifying || syncTickets.isPending;
+	const isSyncButtonDisabled = isTicketSyncing || isVerifying || syncTickets.isPending;
 	const isCancelButtonDisabled = cancelMutation.isPending;
 
 	const handleSyncTickets = async () => {
@@ -103,10 +106,18 @@ export default function ServiceNowItsmConfiguration({
 					<ConnectionActionsMenu onEdit={onEdit} />
 				</div>
 
-				<ConnectionStatusCard source={source} onRetry={handleSyncTickets} />
+				<ConnectionStatusCard
+					source={source}
+					onRetry={handleSyncTickets}
+					ticketSyncInfo={{
+						lastSyncAt: latestIngestionRun?.completed_at ?? null,
+						recordsProcessed: latestIngestionRun?.records_processed ?? 0,
+						isTicketSyncing,
+					}}
+				/>
 
-				{/* Show cancel button when syncing */}
-				{isSyncing && (
+				{/* Show cancel button when ticket sync is in progress */}
+				{isTicketSyncing && (
 					<div className="flex flex-col gap-1">
 						<div className="border border-border bg-popover rounded-md p-4">
 							<div className="rounded-lg flex items-center justify-between">
@@ -123,10 +134,10 @@ export default function ServiceNowItsmConfiguration({
 					</div>
 				)}
 
-				{/* ITSM Sync Section - show when not error, verifying, or syncing */}
+				{/* ITSM Sync Section - show when not error, verifying, or ticket syncing */}
 				{source.status.toLowerCase() !== STATUS.ERROR.toLowerCase() &&
 					!isVerifying &&
-					!isSyncing && (
+					!isTicketSyncing && (
 					<div className="flex flex-col gap-1">
 						<div className="border border-border bg-popover rounded-md p-4">
 							<div className="rounded-lg">
@@ -157,7 +168,7 @@ export default function ServiceNowItsmConfiguration({
 										className="w-full md:w-fit"
 										variant="default"
 									>
-										{syncTickets.isPending ? "Syncing..." : "Sync Tickets"}
+										{syncTickets.isPending ? "Importing..." : "Import tickets"}
 									</Button>
 								</div>
 							</div>

@@ -322,6 +322,10 @@ export const dataSourcesApi = {
       method: 'POST',
       body: params,
     }),
+
+  // Get latest ingestion run (ITSM Autopilot)
+  getLatestIngestionRun: (id: string) =>
+    apiRequest<import('../types/dataSource').LatestIngestionRunResponse>(`/api/data-sources/${id}/ingestion-runs/latest`),
 };
 
 // Member API

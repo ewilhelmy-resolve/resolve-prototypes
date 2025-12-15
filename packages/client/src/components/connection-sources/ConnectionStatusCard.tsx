@@ -1,16 +1,23 @@
 "use client";
 
-import { RefreshCw } from "lucide-react";
+import { Loader2, RefreshCw } from "lucide-react";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import type { ConnectionSource } from "@/constants/connectionSources";
-import { SOURCES, STATUS } from "@/constants/connectionSources";
+import { formatRelativeTime, SOURCES, STATUS } from "@/constants/connectionSources";
 import { ConnectionStatusBadge } from "./ConnectionStatusBadge";
+
+interface TicketSyncInfo {
+	lastSyncAt: string | null;
+	recordsProcessed: number;
+	isTicketSyncing: boolean;
+}
 
 interface ConnectionStatusCardProps {
 	source: ConnectionSource;
 	onRetry?: () => void;
+	ticketSyncInfo?: TicketSyncInfo;
 }
 
 /**
@@ -21,6 +28,7 @@ interface ConnectionStatusCardProps {
 export function ConnectionStatusCard({
 	source,
 	onRetry,
+	ticketSyncInfo,
 }: ConnectionStatusCardProps) {
 	const [retryCount, setRetryCount] = useState(0);
 	const navigate = useNavigate();
@@ -92,6 +100,16 @@ export function ConnectionStatusCard({
 			);
 		}
 
+		// Show ticket import progress when syncing (ITSM)
+		if (ticketSyncInfo?.isTicketSyncing) {
+			return (
+				<p className="text-sm text-foreground whitespace-nowrap flex items-center gap-2">
+					<Loader2 className="h-3 w-3 animate-spin" />
+					Importing tickets...
+				</p>
+			);
+		}
+
 		switch (source.status) {
 			case STATUS.SYNCING:
 				return (
@@ -112,6 +130,17 @@ export function ConnectionStatusCard({
 					</p>
 				);
 			case STATUS.CONNECTED:
+				// For ITSM: show last ticket sync info if available
+				if (ticketSyncInfo?.lastSyncAt) {
+					return (
+						<p className="text-sm text-foreground whitespace-nowrap">
+							Last synced {formatRelativeTime(ticketSyncInfo.lastSyncAt)}
+							{ticketSyncInfo.recordsProcessed > 0 && (
+								<span> · {ticketSyncInfo.recordsProcessed} tickets</span>
+							)}
+						</p>
+					);
+				}
 				return (
 					<p className="text-sm text-foreground whitespace-nowrap">
 						{source.lastSync

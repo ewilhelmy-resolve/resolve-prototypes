@@ -6,7 +6,7 @@ import { ritaToast } from "../components/ui/rita-toast";
 import { fileKeys, type FileDocument } from "../hooks/api/useFiles";
 import { memberKeys } from "../hooks/api/useMembers";
 import { profileKeys } from "../hooks/api/useProfile";
-import { dataSourceKeys } from "../hooks/useDataSources";
+import { dataSourceKeys, ingestionRunKeys } from "../hooks/useDataSources";
 import { useSSE } from "../hooks/useSSE";
 import type { SSEEvent } from "../services/EventSourceSSEClient";
 import type { Message } from "../stores/conversationStore";
@@ -340,9 +340,9 @@ export const SSEProvider: React.FC<SSEProviderProps> = ({
 				}
 			} else if (event.type === "ingestion_run_update") {
 				// Handle ITSM Autopilot ticket sync completion
-				queryClient.invalidateQueries({ queryKey: dataSourceKeys.list() });
+				// Invalidate ingestion run query to update UI status
 				queryClient.invalidateQueries({
-					queryKey: dataSourceKeys.detail(event.data.connection_id),
+					queryKey: ingestionRunKeys.latest(event.data.connection_id),
 				});
 
 				if (event.data.status === "completed") {

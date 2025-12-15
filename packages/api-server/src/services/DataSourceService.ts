@@ -3,6 +3,7 @@ import { DEFAULT_DATA_SOURCES, isValidDataSourceType } from '../constants/dataSo
 import type {
   CreateDataSourceRequest,
   DataSourceConnection,
+  IngestionRun,
   UpdateDataSourceRequest
 } from '../types/dataSource.js';
 
@@ -444,5 +445,37 @@ export class DataSourceService {
        WHERE id = $${paramIndex}`,
       values
     );
+  }
+
+  /**
+   * Get the latest ingestion run for a data source connection
+   * Returns null if no ingestion runs exist
+   */
+  async getLatestIngestionRun(
+    connectionId: string,
+    organizationId: string
+  ): Promise<IngestionRun | null> {
+    const result = await pool.query<IngestionRun>(
+      `SELECT
+        id,
+        organization_id,
+        data_source_connection_id,
+        started_by,
+        status,
+        records_processed,
+        records_failed,
+        metadata,
+        error_message,
+        completed_at,
+        created_at,
+        updated_at
+       FROM ingestion_runs
+       WHERE data_source_connection_id = $1 AND organization_id = $2
+       ORDER BY created_at DESC
+       LIMIT 1`,
+      [connectionId, organizationId]
+    );
+
+    return result.rows[0] || null;
   }
 }

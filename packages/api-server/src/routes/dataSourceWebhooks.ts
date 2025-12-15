@@ -394,4 +394,37 @@ router.post('/:id/sync-tickets', authenticateUser, async (req, res) => {
   }
 });
 
+/**
+ * GET /api/v1/data-sources/:id/ingestion-runs/latest
+ * Get the latest ingestion run for a data source (ITSM Autopilot)
+ * Used by frontend to check if a ticket sync is in progress
+ */
+router.get('/:id/ingestion-runs/latest', authenticateUser, async (req, res) => {
+  const authReq = req as AuthenticatedRequest;
+  const { id } = req.params;
+
+  try {
+    // Verify data source exists and belongs to org
+    const dataSource = await dataSourceService.getDataSource(
+      id,
+      authReq.user.activeOrganizationId
+    );
+
+    if (!dataSource) {
+      return res.status(404).json({ error: 'Data source not found' });
+    }
+
+    // Get latest ingestion run
+    const latestRun = await dataSourceService.getLatestIngestionRun(
+      id,
+      authReq.user.activeOrganizationId
+    );
+
+    res.json({ data: latestRun });
+  } catch (error) {
+    console.error('[DataSourceWebhook] Error fetching latest ingestion run:', error);
+    res.status(500).json({ error: 'Failed to fetch latest ingestion run' });
+  }
+});
+
 export default router;
