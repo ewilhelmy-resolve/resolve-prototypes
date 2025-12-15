@@ -24,8 +24,10 @@ interface CreateKnowledgeArticleSheetProps {
 	onOpenChange: (open: boolean) => void;
 	/** Ticket group name for context */
 	ticketGroupName?: string;
-	/** Called when user clicks "Add knowledge" */
+	/** Called when user clicks "Add knowledge" with the content */
 	onAddKnowledge?: (content: string) => void;
+	/** Called after knowledge is successfully added (for showing banners etc) */
+	onKnowledgeAdded?: () => void;
 }
 
 const INITIAL_SOURCES: KnowledgeSource[] = [
@@ -81,6 +83,7 @@ export function CreateKnowledgeArticleSheet({
 	onOpenChange,
 	ticketGroupName = "Software Installation",
 	onAddKnowledge,
+	onKnowledgeAdded,
 }: CreateKnowledgeArticleSheetProps) {
 	const [sources, setSources] = useState<KnowledgeSource[]>(INITIAL_SOURCES);
 	const [generatedArticle, setGeneratedArticle] = useState<string>("");
@@ -113,6 +116,7 @@ export function CreateKnowledgeArticleSheet({
 
 	const handleAddKnowledge = () => {
 		onAddKnowledge?.(generatedArticle);
+		onKnowledgeAdded?.();
 		onOpenChange(false);
 		// Reset state
 		setGeneratedArticle("");

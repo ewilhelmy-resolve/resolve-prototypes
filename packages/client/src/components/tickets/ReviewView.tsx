@@ -92,7 +92,7 @@ export function ReviewView({
 							<p className="text-sm text-foreground">Ticket Details</p>
 							<div className="border rounded-lg p-4 flex flex-col gap-2.5">
 								<div className="flex items-center gap-2 w-full">
-									<p className="text-base flex-1">{ticket.id}</p>
+									<p className="text-base flex-1">{ticket.externalId}</p>
 									<Badge
 										className={cn(
 											"px-2 py-0.5 border font-semibold",

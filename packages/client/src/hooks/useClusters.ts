@@ -1,0 +1,114 @@
+import { useQuery } from '@tanstack/react-query';
+import { clustersApi, ticketsApi } from '@/services/api';
+import type {
+	ClusterSortOption,
+	ClusterTicketsQueryParams,
+} from '@/types/cluster';
+
+// Query Keys
+export const clusterKeys = {
+	all: ['clusters'] as const,
+	lists: () => [...clusterKeys.all, 'list'] as const,
+	list: (sort?: ClusterSortOption) => [...clusterKeys.lists(), { sort }] as const,
+	details: () => [...clusterKeys.all, 'detail'] as const,
+	detail: (id: string) => [...clusterKeys.details(), id] as const,
+	tickets: () => [...clusterKeys.all, 'tickets'] as const,
+	ticketList: (id: string, params?: ClusterTicketsQueryParams) =>
+		[...clusterKeys.tickets(), id, params] as const,
+	kbArticles: () => [...clusterKeys.all, 'kb-articles'] as const,
+	kbArticleList: (id: string) => [...clusterKeys.kbArticles(), id] as const,
+};
+
+export const ticketKeys = {
+	all: ['tickets'] as const,
+	details: () => [...ticketKeys.all, 'detail'] as const,
+	detail: (id: string) => [...ticketKeys.details(), id] as const,
+};
+
+/**
+ * List all clusters for the organization
+ * @param sort - Sort option (volume, automation, recent)
+ * @returns Query with array of clusters
+ */
+export function useClusters(sort?: ClusterSortOption) {
+	return useQuery({
+		queryKey: clusterKeys.list(sort),
+		queryFn: async () => {
+			const response = await clustersApi.list({ sort });
+			return response.data;
+		},
+		staleTime: 30000, // 30 seconds
+	});
+}
+
+/**
+ * Get cluster details by ID
+ * @param id - Cluster UUID
+ * @returns Query with cluster details
+ */
+export function useClusterDetails(id: string | undefined) {
+	return useQuery({
+		queryKey: clusterKeys.detail(id!),
+		queryFn: async () => {
+			const response = await clustersApi.getDetails(id!);
+			return response.data;
+		},
+		enabled: !!id,
+		staleTime: 30000,
+	});
+}
+
+/**
+ * Get paginated tickets for a cluster
+ * @param id - Cluster UUID
+ * @param params - Query params (tab, cursor, limit)
+ * @returns Query with tickets and pagination info
+ */
+export function useClusterTickets(
+	id: string | undefined,
+	params?: ClusterTicketsQueryParams
+) {
+	return useQuery({
+		queryKey: clusterKeys.ticketList(id!, params),
+		queryFn: async () => {
+			const response = await clustersApi.getTickets(id!, params);
+			return response;
+		},
+		enabled: !!id,
+		staleTime: 30000,
+	});
+}
+
+/**
+ * Get KB articles linked to a cluster
+ * @param id - Cluster UUID
+ * @returns Query with KB articles
+ */
+export function useClusterKbArticles(id: string | undefined) {
+	return useQuery({
+		queryKey: clusterKeys.kbArticleList(id!),
+		queryFn: async () => {
+			const response = await clustersApi.getKbArticles(id!);
+			return response.data;
+		},
+		enabled: !!id,
+		staleTime: 30000,
+	});
+}
+
+/**
+ * Get a single ticket by ID
+ * @param id - Ticket UUID
+ * @returns Query with ticket details
+ */
+export function useTicket(id: string | undefined) {
+	return useQuery({
+		queryKey: ticketKeys.detail(id!),
+		queryFn: async () => {
+			const response = await ticketsApi.getById(id!);
+			return response.data;
+		},
+		enabled: !!id,
+		staleTime: 30000,
+	});
+}

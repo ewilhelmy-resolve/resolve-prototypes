@@ -6,20 +6,27 @@ import { Progress } from "@/components/ui/progress";
 import {
 	AI_RESPONSE_TYPE,
 	getAllAIResponseTypes,
-	getTicketGroup,
+	MOCK_AI_RESPONSE,
 	type AIResponseType,
 } from "@/lib/tickets/utils";
 import { EnableAutoRespondModal } from "./EnableAutoRespondModal";
 import { EnableAutoPopulateSheet } from "./EnableAutoPopulateSheet";
 import { CreateKnowledgeArticleSheet } from "./CreateKnowledgeArticleSheet";
+import type { KBStatus } from "@/types/cluster";
 
 interface ClusterDetailOverviewTabProps {
-	/** Cluster ID to fetch AI response data */
-	clusterId?: string;
 	/** Cluster display name */
 	clusterName?: string;
 	/** Number of open tickets in this cluster */
 	openTicketsCount?: number;
+	/** Knowledge base status from cluster API */
+	kbStatus?: KBStatus;
+	/** Called when auto-populate is enabled */
+	onAutoPopulateEnabled?: () => void;
+	/** Called when knowledge article is added */
+	onKnowledgeAdded?: () => void;
+	/** Called when auto-respond is enabled with context */
+	onAutoRespondEnabled?: (ticketGroupName: string, automatedPercentage: number) => void;
 }
 
 /**
@@ -28,12 +35,15 @@ interface ClusterDetailOverviewTabProps {
  * Displays metrics, validation confidence progress, and AutoPilot recommendations
  */
 export function ClusterDetailOverviewTab({
-	clusterId,
 	clusterName = "Cluster",
 	openTicketsCount = 0,
+	kbStatus,
+	onAutoPopulateEnabled,
+	onKnowledgeAdded,
+	onAutoRespondEnabled,
 }: ClusterDetailOverviewTabProps) {
-	const ticketGroup = clusterId ? getTicketGroup(clusterId) : undefined;
-	const aiResponse = ticketGroup?.aiResponse;
+	// Use mock AI response data (TODO: replace with real API)
+	const aiResponse = MOCK_AI_RESPONSE;
 	const [enableModalOpen, setEnableModalOpen] = useState(false);
 	const [autoPopulateSheetOpen, setAutoPopulateSheetOpen] = useState(false);
 	const [selectedType, setSelectedType] = useState<AIResponseType | null>(null);
@@ -126,7 +136,7 @@ export function ClusterDetailOverviewTab({
 			</div>
 
 			{/* Knowledge Gap Detected Card */}
-			{ticketGroup?.knowledgeStatus === "gap" && (
+			{kbStatus === "GAP" && (
 				<div className="rounded-lg border border-yellow-300 bg-yellow-50 p-4">
 					<div className="flex flex-col gap-3">
 						<span className="p-2  bg-yellow-200 w-fit rounded-md">
@@ -150,13 +160,14 @@ export function ClusterDetailOverviewTab({
 			)}
 
 			{/* Enable Auto-Respond Modal */}
-			{selectedType === AI_RESPONSE_TYPE.AUTO_RESPOND && aiResponse && (
+			{selectedType === AI_RESPONSE_TYPE.AUTO_RESPOND && (
 				<EnableAutoRespondModal
 					open={enableModalOpen}
 					onOpenChange={setEnableModalOpen}
 					ticketGroupName={clusterName}
 					openTicketsCount={openTicketsCount}
 					aiResponse={aiResponse}
+					onAutoRespondEnabled={onAutoRespondEnabled}
 				/>
 			)}
 
@@ -165,12 +176,14 @@ export function ClusterDetailOverviewTab({
 				open={createKnowledgeSheetOpen}
 				onOpenChange={setCreateKnowledgeSheetOpen}
 				ticketGroupName={clusterName}
+				onKnowledgeAdded={onKnowledgeAdded}
 			/>
 
 			{/* Enable Auto-Populate Sheet */}
 			<EnableAutoPopulateSheet
 				open={autoPopulateSheetOpen}
 				onOpenChange={setAutoPopulateSheetOpen}
+				onEnable={onAutoPopulateEnabled}
 			/>
 		</div>
 	);

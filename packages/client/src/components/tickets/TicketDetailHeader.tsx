@@ -3,8 +3,10 @@ import { ArrowLeft, ChevronDown, ChevronUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface TicketDetailHeaderProps {
-	/** Current ticket ID to display */
+	/** Current ticket ID for navigation */
 	ticketId: string;
+	/** External ticket ID to display (e.g., INC-1001) */
+	externalId: string;
 	/** Cluster ID for back navigation */
 	clusterId?: string;
 	/** List of all ticket IDs for navigation */
@@ -24,6 +26,7 @@ interface TicketDetailHeaderProps {
  */
 export function TicketDetailHeader({
 	ticketId,
+	externalId,
 	clusterId,
 	ticketIds,
 	onReviewAIResponse,
@@ -66,7 +69,7 @@ export function TicketDetailHeader({
 				</Button>
 
 				<div className="flex items-center gap-2">
-					<span className="text-base">{ticketId}</span>
+					<span className="text-base">{externalId}</span>
 
 					<Button
 						variant="outline"

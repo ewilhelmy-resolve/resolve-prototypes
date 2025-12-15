@@ -16,6 +16,12 @@ export type FeatureFlagKey =
   | 'ENABLE_MULTI_FILE_UPLOAD'
   | 'ENABLE_TICKETS_V2'
   | 'ENABLE_WORKFLOWS'
+  // Auto Pilot flags (platform-controlled)
+  | 'ENABLE_AUTO_PILOT'
+  | 'ENABLE_AUTO_PILOT_SUGGESTIONS'
+  | 'ENABLE_AUTO_PILOT_ACTIONS'
+
+export type FlagSource = 'platform' | 'local' | 'default'
 
 /**
  * Feature flag configuration
@@ -30,7 +36,18 @@ export interface FeatureFlagConfig {
   /** Default value (enabled/disabled) */
   defaultValue: boolean
   /** Category for grouping in UI */
-  category: 'general' | 'debug' | 'experimental'
+  category: 'general' | 'debug' | 'experimental' | 'autopilot'
+  /** If true, flag is fetched from Platform Actions API */
+  platformControlled?: boolean
+
+}
+
+/**
+ * Resolved flag with source information
+ */
+export interface ResolvedFlag {
+  value: boolean
+  platformValue?: boolean
 }
 
 /**
@@ -88,6 +105,31 @@ export const FEATURE_FLAGS: Record<FeatureFlagKey, FeatureFlagConfig> = {
     description: 'Enable Workflow Generator dev tool',
     defaultValue: false,
     category: 'experimental',
+  },
+  // Auto Pilot flags (platform-controlled)
+  ENABLE_AUTO_PILOT: {
+    key: 'ENABLE_AUTO_PILOT',
+    label: 'Auto Pilot',
+    description: 'Master toggle for Auto Pilot features',
+    defaultValue: false,
+    category: 'autopilot',
+    platformControlled: true,
+  },
+  ENABLE_AUTO_PILOT_SUGGESTIONS: {
+    key: 'ENABLE_AUTO_PILOT_SUGGESTIONS',
+    label: 'Auto Pilot Suggestions',
+    description: 'Enable AI-powered suggestions in Auto Pilot',
+    defaultValue: false,
+    category: 'autopilot',
+    platformControlled: true,
+  },
+  ENABLE_AUTO_PILOT_ACTIONS: {
+    key: 'ENABLE_AUTO_PILOT_ACTIONS',
+    label: 'Auto Pilot Actions',
+    description: 'Enable automated actions execution in Auto Pilot',
+    defaultValue: false,
+    category: 'autopilot',
+    platformControlled: true,
   },
 }
 

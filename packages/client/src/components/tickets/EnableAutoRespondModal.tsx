@@ -22,6 +22,8 @@ interface EnableAutoRespondModalProps {
 	aiResponse: AIResponseData;
 	/** Called when user confirms enabling auto-respond */
 	onEnable?: () => void;
+	/** Called after auto-respond is enabled with context for banner */
+	onAutoRespondEnabled?: (ticketGroupName: string, automatedPercentage: number) => void;
 }
 
 /**
@@ -42,10 +44,13 @@ export function EnableAutoRespondModal({
 	openTicketsCount,
 	aiResponse,
 	onEnable,
+	onAutoRespondEnabled,
 }: EnableAutoRespondModalProps) {
 	const handleEnable = () => {
 		console.log("Auto-Respond enabled for:", ticketGroupName);
 		onEnable?.();
+		// Pass ticket group name and a mock automated percentage (would come from real data)
+		onAutoRespondEnabled?.(ticketGroupName, 12);
 		onOpenChange(false);
 	};
 

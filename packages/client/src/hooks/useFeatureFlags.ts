@@ -1,19 +1,22 @@
 /**
  * useFeatureFlags - React hook for feature flags
  *
- * Provides reactive access to feature flags with automatic re-renders
- * when flags change.
+ * Two-tier feature flag system:
+ * - Platform flags: Fetched from Platform Actions API per tenant
+ * - Local overrides: localStorage-based for dev/testing
+ *
+ * Resolution order: Local Override > Platform Flag > Default (false)
  */
 
-import { useState, useEffect } from 'react'
-import { featureFlags } from '@/lib/featureFlags'
-import type { FeatureFlagKey } from '@/types/featureFlags'
+import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useFeatureFlagsStore } from '@/stores/feature-flags-store'
+import { FEATURE_FLAGS, type FeatureFlagKey, type FlagSource } from '@/types/featureFlags'
 
 /**
  * Hook for accessing a single feature flag
  *
  * @param key - Feature flag identifier
- * @returns Current flag value
+ * @returns Current flag value (resolved: local > platform > default)
  *
  * @example
  * ```tsx
@@ -25,16 +28,20 @@ import type { FeatureFlagKey } from '@/types/featureFlags'
  * ```
  */
 export function useFeatureFlag(key: FeatureFlagKey): boolean {
-  const [value, setValue] = useState(() => featureFlags.getFlag(key))
+  const store = useFeatureFlagsStore()
+  const [value, setValue] = useState(() => store.getFlag(key))
 
   useEffect(() => {
-    // Update when flags change
-    const unsubscribe = featureFlags.subscribe(() => {
-      setValue(featureFlags.getFlag(key))
+    // Initial value sync
+    setValue(store.getFlag(key))
+
+    // Subscribe to changes
+    const unsubscribe = store.subscribe(() => {
+      setValue(store.getFlag(key))
     })
 
     return unsubscribe
-  }, [key])
+  }, [key, store])
 
   return value
 }
@@ -55,42 +62,123 @@ export function useFeatureFlag(key: FeatureFlagKey): boolean {
  * ```
  */
 export function useFeatureFlags() {
-  const [flags, setFlags] = useState(() => featureFlags.getAllFlags())
+  const store = useFeatureFlagsStore()
+
+  const getAllFlags = useCallback(() => {
+    const result = {} as Record<FeatureFlagKey, boolean>
+    for (const key of Object.keys(FEATURE_FLAGS) as FeatureFlagKey[]) {
+      result[key] = store.getFlag(key)
+    }
+    return result
+  }, [store])
+
+  const [flags, setFlags] = useState(() => getAllFlags())
 
   useEffect(() => {
-    // Update when any flag changes
-    const unsubscribe = featureFlags.subscribe(() => {
-      setFlags(featureFlags.getAllFlags())
+    // Initial sync
+    setFlags(getAllFlags())
+
+    // Subscribe to changes
+    const unsubscribe = store.subscribe(() => {
+      setFlags(getAllFlags())
     })
 
     return unsubscribe
-  }, [])
+  }, [store, getAllFlags])
 
-  return {
+  const setFlag = useCallback((key: FeatureFlagKey, value: boolean) => {
+    store.setLocalOverride(key, value)
+  }, [store])
+
+  const toggleFlag = useCallback((key: FeatureFlagKey) => {
+    const current = store.getFlag(key)
+    store.setLocalOverride(key, !current)
+  }, [store])
+
+  const resetFlag = useCallback((key: FeatureFlagKey) => {
+    store.clearLocalOverride(key)
+  }, [store])
+
+  const resetAll = useCallback(() => {
+    store.clearAllLocalOverrides()
+  }, [store])
+
+  const hasModifiedFlags = useCallback(() => {
+    return Object.keys(store.localOverrides).length > 0
+  }, [store])
+
+  const getFlagSource = useCallback((key: FeatureFlagKey): FlagSource => {
+    return store.getFlagSource(key)
+  }, [store])
+
+  const getPlatformValue = useCallback((key: FeatureFlagKey): boolean | undefined => {
+    return store.getPlatformValue(key)
+  }, [store])
+
+  const hasLocalOverride = useCallback((key: FeatureFlagKey): boolean => {
+    return store.hasLocalOverride(key)
+  }, [store])
+
+  const clearLocalOverride = useCallback((key: FeatureFlagKey) => {
+    store.clearLocalOverride(key)
+  }, [store])
+
+  const setPlatformFlag = useCallback(async (key: FeatureFlagKey, value: boolean): Promise<boolean> => {
+    return store.setPlatformFlag(key, value)
+  }, [store])
+
+  return useMemo(() => ({
     /** Current values of all feature flags */
     flags,
 
-    /** Set a specific flag value */
-    setFlag: (key: FeatureFlagKey, value: boolean) => {
-      featureFlags.setFlag(key, value)
-    },
+    /** Set a local override for a flag */
+    setFlag,
 
-    /** Toggle a specific flag */
-    toggleFlag: (key: FeatureFlagKey) => {
-      featureFlags.toggleFlag(key)
-    },
+    /** Toggle a flag's local override */
+    toggleFlag,
 
-    /** Reset a specific flag to default */
-    resetFlag: (key: FeatureFlagKey) => {
-      featureFlags.resetFlag(key)
-    },
+    /** Clear local override for a specific flag */
+    resetFlag,
 
-    /** Reset all flags to defaults */
-    resetAll: () => {
-      featureFlags.resetAll()
-    },
+    /** Clear all local overrides */
+    resetAll,
 
-    /** Check if any flags have been modified */
-    hasModifiedFlags: () => featureFlags.hasModifiedFlags(),
-  }
+    /** Check if any flags have local overrides */
+    hasModifiedFlags,
+
+    /** Get the source of a flag's resolved value */
+    getFlagSource,
+
+    /** Get platform value for a flag (if available) */
+    getPlatformValue,
+
+    /** Check if a flag has a local override */
+    hasLocalOverride,
+
+    /** Clear local override for a specific flag */
+    clearLocalOverride,
+
+    /** Update a platform flag value (calls Platform Actions API) */
+    setPlatformFlag,
+
+    /** Whether platform flags have been initialized */
+    initialized: store.initialized,
+
+    /** Whether platform flags are currently loading */
+    loading: store.loading,
+  }), [
+    flags,
+    setFlag,
+    toggleFlag,
+    resetFlag,
+    resetAll,
+    hasModifiedFlags,
+    getFlagSource,
+    getPlatformValue,
+    hasLocalOverride,
+    clearLocalOverride,
+    setPlatformFlag,
+    store.initialized,
+    store.loading,
+  ])
 }
