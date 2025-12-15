@@ -7,6 +7,7 @@ import { fileKeys, type FileDocument } from "../hooks/api/useFiles";
 import { memberKeys } from "../hooks/api/useMembers";
 import { profileKeys } from "../hooks/api/useProfile";
 import { dataSourceKeys, ingestionRunKeys } from "../hooks/useDataSources";
+import type { IngestionRun } from "../types/dataSource";
 import { useSSE } from "../hooks/useSSE";
 import type { SSEEvent } from "../services/EventSourceSSEClient";
 import type { Message } from "../stores/conversationStore";
@@ -339,22 +340,43 @@ export const SSEProvider: React.FC<SSEProviderProps> = ({
 					});
 				}
 			} else if (event.type === "ingestion_run_update") {
-				// Handle ITSM Autopilot ticket sync completion
-				// Invalidate ingestion run query to update UI status
-				queryClient.invalidateQueries({
-					queryKey: ingestionRunKeys.latest(event.data.connection_id),
-				});
+				// Handle ITSM Autopilot ticket sync updates
+				if (event.data.status === "running") {
+					// Optimistic cache update for progress
+					queryClient.setQueryData<IngestionRun | null>(
+						ingestionRunKeys.latest(event.data.connection_id),
+						(old) => {
+							if (!old) return old;
+							return {
+								...old,
+								records_processed: event.data.records_processed ?? old.records_processed,
+								records_failed: event.data.records_failed ?? old.records_failed,
+								metadata: {
+									...old.metadata,
+									progress: event.data.total_estimated
+										? { total_estimated: event.data.total_estimated }
+										: old.metadata?.progress,
+								},
+							};
+						},
+					);
+				} else {
+					// Final status - invalidate to refetch
+					queryClient.invalidateQueries({
+						queryKey: ingestionRunKeys.latest(event.data.connection_id),
+					});
 
-				if (event.data.status === "completed") {
-					ritaToast.success({
-						title: "Ticket sync complete",
-						description: `${event.data.records_processed ?? 0} tickets processed`,
-					});
-				} else if (event.data.status === "failed") {
-					ritaToast.error({
-						title: "Ticket sync failed",
-						description: event.data.error_message || "An error occurred",
-					});
+					if (event.data.status === "completed") {
+						ritaToast.success({
+							title: "Ticket sync complete",
+							description: `${event.data.records_processed ?? 0} tickets processed`,
+						});
+					} else if (event.data.status === "failed") {
+						ritaToast.error({
+							title: "Ticket sync failed",
+							description: event.data.error_message || "An error occurred",
+						});
+					}
 				}
 			}
 		},

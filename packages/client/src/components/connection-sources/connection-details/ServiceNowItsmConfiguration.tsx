@@ -1,8 +1,10 @@
 "use client";
 
+import { Loader2 } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import { Progress } from "@/components/ui/progress";
 import {
 	Select,
 	SelectContent,
@@ -10,7 +12,7 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select";
-import { STATUS } from "@/constants/connectionSources";
+import { formatRelativeTime, STATUS } from "@/constants/connectionSources";
 import { useConnectionSource } from "@/contexts/ConnectionSourceContext";
 import { useSyncTickets, useCancelSync, useLatestIngestionRun } from "@/hooks/useDataSources";
 import { ritaToast } from "@/components/ui/rita-toast";
@@ -109,67 +111,96 @@ export default function ServiceNowItsmConfiguration({
 				<ConnectionStatusCard
 					source={source}
 					onRetry={handleSyncTickets}
-					ticketSyncInfo={{
-						lastSyncAt: latestIngestionRun?.completed_at ?? null,
-						recordsProcessed: latestIngestionRun?.records_processed ?? 0,
-						isTicketSyncing,
-					}}
+					hideStatusMessage
 				/>
 
-				{/* Show cancel button when ticket sync is in progress */}
-				{isTicketSyncing && (
-					<div className="flex flex-col gap-1">
-						<div className="border border-border bg-popover rounded-md p-4">
-							<div className="rounded-lg flex items-center justify-between">
-								<Label>Sync in progress...</Label>
-								<Button
-									onClick={handleCancelSync}
-									disabled={isCancelButtonDisabled}
-									variant="destructive"
-								>
-									{cancelMutation.isPending ? "Cancelling..." : "Cancel Sync"}
-								</Button>
-							</div>
-						</div>
-					</div>
-				)}
-
-				{/* ITSM Sync Section - show when not error, verifying, or ticket syncing */}
+				{/* ITSM Sync Section - show when connected and not verifying */}
 				{source.status.toLowerCase() !== STATUS.ERROR.toLowerCase() &&
-					!isVerifying &&
-					!isTicketSyncing && (
+					!isVerifying && (
 					<div className="flex flex-col gap-1">
 						<div className="border border-border bg-popover rounded-md p-4">
-							<div className="rounded-lg">
-								<Label className="mb-2">
-									Import tickets from the last:
-								</Label>
-								<div className="flex flex-col md:flex-row items-start gap-4 mt-2">
-									<div className="md:flex-1 w-full">
-										<Select
-											value={selectedTimeRange}
-											onValueChange={setSelectedTimeRange}
-										>
-											<SelectTrigger className="w-full">
-												<SelectValue placeholder="Select time range" />
-											</SelectTrigger>
-											<SelectContent>
-												{TIME_RANGE_OPTIONS.map((option) => (
-													<SelectItem key={option.value} value={option.value}>
-														{option.label}
-													</SelectItem>
-												))}
-											</SelectContent>
-										</Select>
+							<div className="rounded-lg flex flex-col gap-4">
+								{/* Import tickets controls */}
+								<div>
+									<Label className="mb-2">
+										Import tickets from the last:
+									</Label>
+									<div className="flex flex-col md:flex-row items-start gap-4 mt-2">
+										<div className="md:flex-1 w-full">
+											<Select
+												value={selectedTimeRange}
+												onValueChange={setSelectedTimeRange}
+												disabled={isTicketSyncing}
+											>
+												<SelectTrigger className="w-full">
+													<SelectValue placeholder="Select time range" />
+												</SelectTrigger>
+												<SelectContent>
+													{TIME_RANGE_OPTIONS.map((option) => (
+														<SelectItem key={option.value} value={option.value}>
+															{option.label}
+														</SelectItem>
+													))}
+												</SelectContent>
+											</Select>
+										</div>
+										{isTicketSyncing ? (
+											<Button
+												onClick={handleCancelSync}
+												disabled={isCancelButtonDisabled}
+												className="w-full md:w-fit"
+												variant="destructive"
+											>
+												{cancelMutation.isPending ? "Cancelling..." : "Cancel Sync"}
+											</Button>
+										) : (
+											<Button
+												onClick={handleSyncTickets}
+												disabled={isSyncButtonDisabled}
+												className="w-full md:w-fit"
+												variant="default"
+											>
+												{syncTickets.isPending ? "Importing..." : "Import tickets"}
+											</Button>
+										)}
 									</div>
-									<Button
-										onClick={handleSyncTickets}
-										disabled={isSyncButtonDisabled}
-										className="w-full md:w-fit"
-										variant="default"
-									>
-										{syncTickets.isPending ? "Importing..." : "Import tickets"}
-									</Button>
+								</div>
+
+								{/* Progress / Last sync info */}
+								<div className="border-t border-border pt-4">
+									{isTicketSyncing ? (
+										// Show progress when syncing
+										latestIngestionRun?.metadata?.progress?.total_estimated ? (
+											<div className="flex items-center gap-3">
+												<Progress
+													value={(latestIngestionRun.records_processed / latestIngestionRun.metadata.progress.total_estimated) * 100}
+													className="flex-1"
+												/>
+												<span className="text-sm text-muted-foreground whitespace-nowrap">
+													{latestIngestionRun.records_processed} of {latestIngestionRun.metadata.progress.total_estimated} tickets
+												</span>
+											</div>
+										) : (
+											<div className="flex items-center gap-2 text-sm text-muted-foreground">
+												<Loader2 className="h-4 w-4 animate-spin" />
+												Importing tickets...
+											</div>
+										)
+									) : (
+										// Show last sync info when not syncing
+										latestIngestionRun?.completed_at ? (
+											<p className="text-sm text-muted-foreground">
+												Last synced {formatRelativeTime(latestIngestionRun.completed_at)}
+												{latestIngestionRun.records_processed > 0 && (
+													<span> · {latestIngestionRun.records_processed} tickets</span>
+												)}
+											</p>
+										) : (
+											<p className="text-sm text-muted-foreground">
+												No tickets imported yet
+											</p>
+										)
+									)}
 								</div>
 							</div>
 						</div>

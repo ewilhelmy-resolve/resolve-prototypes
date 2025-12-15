@@ -286,7 +286,7 @@ export class DataSourceStatusConsumer {
    * Process ticket ingestion status message (ITSM Autopilot)
    */
   private async processTicketIngestionStatus(payload: IngestionStatusMessage): Promise<void> {
-    const { ingestion_run_id, tenant_id, connection_id, status, records_processed, records_failed, error_message } = payload;
+    const { ingestion_run_id, tenant_id, connection_id, status, records_processed, records_failed, total_estimated, error_message } = payload;
 
     // Validate required fields
     if (!ingestion_run_id || !tenant_id || !status) {
@@ -307,28 +307,39 @@ export class DataSourceStatusConsumer {
 
     messageLogger.info('Processing ticket ingestion status update');
 
-    // Update ingestion_runs table
-    await this.dataSourceService.updateIngestionRunStatus(
-      ingestion_run_id,
-      status,
-      error_message
-    );
-
-    // Update records count if provided
-    if (records_processed !== undefined || records_failed !== undefined) {
-      await this.dataSourceService.updateIngestionRunRecords(
+    // Handle progress updates vs final status
+    if (status === 'running') {
+      // Progress update - only update records and total_estimated
+      await this.dataSourceService.updateIngestionRunProgress(
         ingestion_run_id,
-        records_processed,
-        records_failed
+        records_processed ?? 0,
+        records_failed ?? 0,
+        total_estimated
       );
+    } else {
+      // Final status (completed/failed) - update status and records
+      await this.dataSourceService.updateIngestionRunStatus(
+        ingestion_run_id,
+        status,
+        error_message
+      );
+
+      if (records_processed !== undefined || records_failed !== undefined) {
+        await this.dataSourceService.updateIngestionRunRecords(
+          ingestion_run_id,
+          records_processed,
+          records_failed
+        );
+      }
     }
 
     messageLogger.info({
       recordsProcessed: records_processed,
-      recordsFailed: records_failed
+      recordsFailed: records_failed,
+      totalEstimated: total_estimated
     }, `Ticket ingestion ${status}`);
 
-    // Send SSE event to notify frontend
+    // Send SSE event to notify frontend (for all updates)
     try {
       const sseService = getSSEService();
 
@@ -340,6 +351,7 @@ export class DataSourceStatusConsumer {
           status: status,
           records_processed: records_processed,
           records_failed: records_failed,
+          total_estimated: total_estimated,
           error_message: error_message,
           timestamp: new Date().toISOString()
         }

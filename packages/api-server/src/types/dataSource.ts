@@ -144,9 +144,10 @@ export interface IngestionStatusMessage {
   user_id: string;
   ingestion_run_id: string;
   connection_id: string;
-  status: 'completed' | 'failed';
+  status: 'running' | 'completed' | 'failed';
   records_processed?: number;
   records_failed?: number;
+  total_estimated?: number;
   error_message?: string;
   timestamp: string;
 }

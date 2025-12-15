@@ -448,6 +448,43 @@ export class DataSourceService {
   }
 
   /**
+   * Update ingestion run progress (for 'running' status only)
+   * Updates record counts and optionally sets total_estimated in metadata
+   */
+  async updateIngestionRunProgress(
+    ingestionRunId: string,
+    recordsProcessed: number,
+    recordsFailed: number,
+    totalEstimated?: number
+  ): Promise<void> {
+    if (totalEstimated !== undefined) {
+      await pool.query(
+        `UPDATE ingestion_runs
+         SET records_processed = $1,
+             records_failed = $2,
+             metadata = jsonb_set(
+               COALESCE(metadata, '{}'::jsonb),
+               '{progress,total_estimated}',
+               $3::jsonb,
+               true
+             ),
+             updated_at = NOW()
+         WHERE id = $4 AND status = 'running'`,
+        [recordsProcessed, recordsFailed, JSON.stringify(totalEstimated), ingestionRunId]
+      );
+    } else {
+      await pool.query(
+        `UPDATE ingestion_runs
+         SET records_processed = $1,
+             records_failed = $2,
+             updated_at = NOW()
+         WHERE id = $3 AND status = 'running'`,
+        [recordsProcessed, recordsFailed, ingestionRunId]
+      );
+    }
+  }
+
+  /**
    * Get the latest ingestion run for a data source connection
    * Returns null if no ingestion runs exist
    */

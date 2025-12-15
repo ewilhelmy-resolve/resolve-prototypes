@@ -174,16 +174,17 @@ export interface DataSourceUpdateEvent {
 
 /**
  * SSE Event: Ingestion run status update (ITSM Autopilot)
- * Sent when ticket sync completes or fails
+ * Sent when ticket sync progresses, completes or fails
  */
 export interface IngestionRunUpdateEvent {
   type: 'ingestion_run_update';
   data: {
     ingestion_run_id: string;
     connection_id: string;
-    status: 'completed' | 'failed';
+    status: 'running' | 'completed' | 'failed';
     records_processed?: number;
     records_failed?: number;
+    total_estimated?: number;
     error_message?: string;
     timestamp: string;
   };
@@ -206,7 +207,12 @@ export interface IngestionRun {
   status: IngestionRunStatus;
   records_processed: number;
   records_failed: number;
-  metadata: Record<string, any>;
+  metadata: {
+    progress?: {
+      total_estimated: number;
+    };
+    [key: string]: unknown;
+  };
   error_message: string | null;
   completed_at: string | null;
   created_at: string;

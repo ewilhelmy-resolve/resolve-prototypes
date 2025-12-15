@@ -4,6 +4,7 @@ import { Loader2, RefreshCw } from "lucide-react";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import { Progress } from "@/components/ui/progress";
 import type { ConnectionSource } from "@/constants/connectionSources";
 import { formatRelativeTime, SOURCES, STATUS } from "@/constants/connectionSources";
 import { ConnectionStatusBadge } from "./ConnectionStatusBadge";
@@ -12,12 +13,15 @@ interface TicketSyncInfo {
 	lastSyncAt: string | null;
 	recordsProcessed: number;
 	isTicketSyncing: boolean;
+	totalEstimated?: number;
 }
 
 interface ConnectionStatusCardProps {
 	source: ConnectionSource;
 	onRetry?: () => void;
 	ticketSyncInfo?: TicketSyncInfo;
+	/** Hide the status message (e.g., when sync info is shown elsewhere) */
+	hideStatusMessage?: boolean;
 }
 
 /**
@@ -29,6 +33,7 @@ export function ConnectionStatusCard({
 	source,
 	onRetry,
 	ticketSyncInfo,
+	hideStatusMessage,
 }: ConnectionStatusCardProps) {
 	const [retryCount, setRetryCount] = useState(0);
 	const navigate = useNavigate();
@@ -102,6 +107,19 @@ export function ConnectionStatusCard({
 
 		// Show ticket import progress when syncing (ITSM)
 		if (ticketSyncInfo?.isTicketSyncing) {
+			// Show progress bar if we have total_estimated
+			if (ticketSyncInfo.totalEstimated && ticketSyncInfo.totalEstimated > 0) {
+				const progress = (ticketSyncInfo.recordsProcessed / ticketSyncInfo.totalEstimated) * 100;
+				return (
+					<div className="flex items-center gap-2">
+						<Progress value={progress} className="w-24" />
+						<span className="text-sm text-muted-foreground whitespace-nowrap">
+							{ticketSyncInfo.recordsProcessed} of {ticketSyncInfo.totalEstimated} tickets
+						</span>
+					</div>
+				);
+			}
+			// Fallback to spinner if no total_estimated
 			return (
 				<p className="text-sm text-foreground whitespace-nowrap flex items-center gap-2">
 					<Loader2 className="h-3 w-3 animate-spin" />
@@ -130,6 +148,10 @@ export function ConnectionStatusCard({
 					</p>
 				);
 			case STATUS.CONNECTED:
+				// Hide status message when shown elsewhere (e.g., ITSM configuration)
+				if (hideStatusMessage) {
+					return null;
+				}
 				// For ITSM: show last ticket sync info if available
 				if (ticketSyncInfo?.lastSyncAt) {
 					return (
