@@ -100,10 +100,10 @@ export default function KnowledgeSources() {
 						<Card
 							className={`p-4 mb-5 border border-border bg-popover transition-colors ${isEnabled ? "hover:bg-accent cursor-pointer" : "cursor-default opacity-75"}`}
 						>
-							<div className="flex justify-between items-center">
+							<div className="flex flex-col gap-4 sm:flex-row sm:justify-between sm:items-center">
 								<div className="flex flex-col gap-2">
 									<div className="flex flex-col">
-										<div className="flex items-center gap-2">
+										<div className="flex items-center gap-2 flex-wrap">
 											{source.type !== SOURCES.WEB_SEARCH ? (
 												<img
 													src={`/connections/icon_${source.type}.svg`}
@@ -138,7 +138,12 @@ export default function KnowledgeSources() {
 										))}
 									</div>
 								</div>
-								<Button variant="secondary" size="sm" disabled={!isEnabled}>
+								<Button
+									variant="secondary"
+									size="sm"
+									className="w-full sm:w-auto shrink-0"
+									disabled={!isEnabled}
+								>
 									{isEnabled ? (
 										<span>
 											{source.status === STATUS.NOT_CONNECTED

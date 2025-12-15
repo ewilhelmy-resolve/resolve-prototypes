@@ -2,8 +2,8 @@ import { Globe } from "lucide-react";
 import { useState } from "react";
 import { Navigate, useNavigate, useParams } from "react-router-dom";
 import ConfluenceConfiguration from "@/components/connection-sources/connection-details/ConfluenceConfiguration";
-import ServiceNowKBConfiguration from "@/components/connection-sources/connection-details/ServiceNowKBConfiguration";
 import ServiceNowItsmConfiguration from "@/components/connection-sources/connection-details/ServiceNowItsmConfiguration";
+import ServiceNowKBConfiguration from "@/components/connection-sources/connection-details/ServiceNowKBConfiguration";
 import SharePointConfiguration from "@/components/connection-sources/connection-details/SharePointConfiguration";
 import WebSearchConfiguration from "@/components/connection-sources/connection-details/WebSearchConfiguration";
 import {
@@ -28,7 +28,11 @@ type ConnectionMode = "knowledge" | "itsm";
 // Registry for connection source forms (same for both modes)
 const FORM_REGISTRY: Record<
 	string,
-	React.ComponentType<{ onCancel?: () => void; onSuccess?: () => void; onFailure?: () => void }>
+	React.ComponentType<{
+		onCancel?: () => void;
+		onSuccess?: () => void;
+		onFailure?: () => void;
+	}>
 > = {
 	[SOURCES.CONFLUENCE]: ConfluenceForm,
 	[SOURCES.SHAREPOINT]: SharePointForm,
@@ -143,7 +147,13 @@ export default function ConnectionSourceDetailPage({
 			return <div>Unknown source type</div>;
 		}
 
-		return <FormComponent onCancel={handleCancel} onSuccess={handleSuccess} onFailure={handleFailure} />;
+		return (
+			<FormComponent
+				onCancel={handleCancel}
+				onSuccess={handleSuccess}
+				onFailure={handleFailure}
+			/>
+		);
 	};
 
 	// Render the appropriate configuration view based on source type and mode
@@ -198,7 +208,7 @@ export default function ConnectionSourceDetailPage({
 					</div>
 
 					{/* Content area - form or view mode */}
-					<div className="w-full max-w-2xl mx-auto flex flex-col gap-8">
+					<div className="w-full max-w-2xl mx-auto flex flex-col gap-8 px-4 md:px-0">
 						{renderContent()}
 					</div>
 				</div>

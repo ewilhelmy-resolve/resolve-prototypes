@@ -23,8 +23,8 @@ import {
 } from "@/components/ui/table";
 import EditUserSheet from "@/components/users/EditUserSheet";
 import {
-	useMembers,
 	useDeleteMemberPermanent,
+	useMembers,
 	useUpdateMemberRole,
 	useUpdateMemberStatus,
 } from "@/hooks/api/useMembers";
@@ -77,7 +77,9 @@ export default function UsersTable() {
 
 	// Loading state for bulk delete
 	const [isBulkDeleting, setIsBulkDeleting] = useState(false);
-	const [deletingRemaining, setDeletingRemaining] = useState<number | null>(null);
+	const [deletingRemaining, setDeletingRemaining] = useState<number | null>(
+		null,
+	);
 
 	// Get current user profile to hide delete option for self
 	const { data: profile } = useProfile();
@@ -130,7 +132,7 @@ export default function UsersTable() {
 	// Note: This uses the current page's members, but the backend validates this properly
 	const isLastActiveOwner = (userId: string): boolean => {
 		const activeOwners = members.filter(
-			(m) => m.role === "owner" && m.isActive
+			(m) => m.role === "owner" && m.isActive,
 		);
 		return activeOwners.length === 1 && activeOwners[0].id === userId;
 	};
@@ -149,7 +151,10 @@ export default function UsersTable() {
 		return (
 			<CrashPage
 				title="Failed to load members"
-				description={error.message || "An error occurred while fetching members. Please try again."}
+				description={
+					error.message ||
+					"An error occurred while fetching members. Please try again."
+				}
 				actionLabel="Try Again"
 				onAction={() => window.location.reload()}
 			/>
@@ -318,7 +323,12 @@ export default function UsersTable() {
 							<DropdownMenu>
 								<DropdownMenuTrigger asChild>
 									<Button variant="outline">
-										Status: {statusFilter === "All" ? "All" : statusFilter === "active" ? "Active" : "Inactive"}
+										Status:{" "}
+										{statusFilter === "All"
+											? "All"
+											: statusFilter === "active"
+												? "Active"
+												: "Inactive"}
 										<ChevronDown className="h-4 w-4 ml-2" />
 									</Button>
 								</DropdownMenuTrigger>
@@ -329,7 +339,9 @@ export default function UsersTable() {
 									<DropdownMenuItem onSelect={() => setStatusFilter("active")}>
 										Active
 									</DropdownMenuItem>
-									<DropdownMenuItem onSelect={() => setStatusFilter("inactive")}>
+									<DropdownMenuItem
+										onSelect={() => setStatusFilter("inactive")}
+									>
 										Inactive
 									</DropdownMenuItem>
 								</DropdownMenuContent>
@@ -354,7 +366,10 @@ export default function UsersTable() {
 							<TableRow>
 								<TableHead className="w-8">
 									<Checkbox
-										checked={selectedUsers.length === members.length && members.length > 0}
+										checked={
+											selectedUsers.length === members.length &&
+											members.length > 0
+										}
 										onCheckedChange={(checked) =>
 											handleSelectAll(checked as boolean, members)
 										}
@@ -515,9 +530,15 @@ export default function UsersTable() {
 					<div className="flex flex-col sm:flex-row justify-between items-center gap-4 py-4">
 						<p className="text-sm text-muted-foreground">
 							{searchInput || statusFilter !== "All" ? (
-								<>Showing {members.length} of {totalMembers} users (filtered)</>
+								<>
+									Showing {members.length} of {totalMembers} users (filtered)
+								</>
 							) : (
-								<>Showing {page * PAGE_SIZE + 1}-{Math.min((page + 1) * PAGE_SIZE, totalMembers)} of {totalMembers} users</>
+								<>
+									Showing {page * PAGE_SIZE + 1}-
+									{Math.min((page + 1) * PAGE_SIZE, totalMembers)} of{" "}
+									{totalMembers} users
+								</>
 							)}
 						</p>
 						<div className="flex items-center gap-2">
@@ -548,7 +569,9 @@ export default function UsersTable() {
 				onOpenChange={setEditSheetOpen}
 				user={editingUser}
 				onSave={handleSaveUser}
-				isLastActiveOwner={editingUser ? isLastActiveOwner(editingUser.id) : false}
+				isLastActiveOwner={
+					editingUser ? isLastActiveOwner(editingUser.id) : false
+				}
 			/>
 
 			{/* Deactivate Dialog */}
