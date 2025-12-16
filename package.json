@@ -18,7 +18,8 @@
 		"build:theme": "cd keycloak && npm run build",
 		"lint": "cd packages/api-server && npm run lint && cd ../client && npm run lint",
 		"type-check": "cd packages/api-server && npm run type-check && cd ../client && npm run type-check && cd ../mock-service && npm run type-check",
-		"prepare": "husky"
+		"prepare": "husky",
+		"setup": "npm install && cd packages/api-server && npm install && cd ../client && npm install && cd ../mock-service && npm install && cd ../iframe-app && npm install && cd ../../keycloak && npm install && cd .. && npm run migrate"
 	},
 	"devDependencies": {
 		"@biomejs/biome": "2.2.4",
