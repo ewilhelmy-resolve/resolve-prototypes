@@ -45,6 +45,7 @@ services:
     ports:
       - "8080:8080"
     volumes:
+      - keycloak_data:/opt/keycloak/data
       - ./keycloak/realm-export.json:/opt/keycloak/data/import/realm-export.json
       # Development: Mount local theme files for live editing
       - ./keycloak/themes:/opt/keycloak/themes/
@@ -80,3 +81,4 @@ volumes:
   postgres_data:
   rabbitmq_data:
   mailpit_data:
+  keycloak_data:

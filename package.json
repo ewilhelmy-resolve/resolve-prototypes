@@ -3,7 +3,7 @@
 	"version": "1.0.0",
 	"private": true,
 	"scripts": {
-		"dev": "concurrently -n docker,api,client,mock -c gray,blue,green,yellow \"docker compose up\" \"npm:dev:api\" \"npm:dev:client\" \"npm:dev:mock\"",
+		"dev": "trap 'docker compose down' EXIT; concurrently -n docker,api,client,mock -c gray,blue,green,yellow \"docker compose up\" \"npm:dev:api\" \"npm:dev:client\" \"npm:dev:mock\"",
 		"docker:stop": "docker compose down",
 		"dev:restart": "npm run dev:stop && npm run dev",
 		"dev:api": "cd packages/api-server && npm run dev",
