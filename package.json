@@ -19,7 +19,7 @@
 		"lint": "cd packages/api-server && npm run lint && cd ../client && npm run lint",
 		"type-check": "cd packages/api-server && npm run type-check && cd ../client && npm run type-check && cd ../mock-service && npm run type-check",
 		"prepare": "husky",
-		"setup": "npm install && cd packages/api-server && npm install && cd ../client && npm install && cd ../mock-service && npm install && cd ../iframe-app && npm install && cd ../../keycloak && npm install && cd .. && npm run migrate"
+		"setup": "echo '\\n========== Installing: root ==========' && npm install && echo '\\n========== Installing: api-server ==========' && cd packages/api-server && npm install && echo '\\n========== Installing: client ==========' && cd ../client && npm install && echo '\\n========== Installing: mock-service ==========' && cd ../mock-service && npm install && echo '\\n========== Installing: iframe-app ==========' && cd ../iframe-app && npm install && echo '\\n========== Installing: keycloak ==========' && cd ../../keycloak && npm install && echo '\\n========== Running: migrations ==========' && cd .. && npm run migrate && echo '\\n========== Setup complete =========='"
 	},
 	"devDependencies": {
 		"@biomejs/biome": "2.2.4",
