@@ -489,7 +489,7 @@ export class DataSourceService {
     recordsFailed: number,
     totalEstimated?: number
   ): Promise<boolean> {
-    let result;
+    let result: { rowCount: number | null };
     if (totalEstimated !== undefined) {
       result = await pool.query(
         `UPDATE ingestion_runs
