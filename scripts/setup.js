@@ -32,7 +32,7 @@ try {
 	run("npm run migrate", "Running migrations");
 	console.log("\n========== Setup complete ==========");
 	console.log("Run 'npm run dev' to start development servers.\n");
-} catch (e) {
+} catch {
 	console.error("\n========== Setup failed ==========");
 	process.exit(1);
 }

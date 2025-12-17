@@ -10,11 +10,15 @@ const isDockerRunning = () => {
 	}
 };
 
+let isCleaningUp = false;
+
 const cleanup = () => {
+	if (isCleaningUp) return;
+	isCleaningUp = true;
 	console.log("\n========== Stopping docker ==========");
 	try {
 		execSync("docker compose down", { stdio: "inherit" });
-	} catch (e) {
+	} catch {
 		// ignore errors during cleanup
 	}
 	process.exit(0);
@@ -27,10 +31,9 @@ if (!isDockerRunning()) {
 	process.exit(1);
 }
 
-// Handle exit signals
+// Handle exit signals (SIGINT works on both Windows and Unix)
 process.on("SIGINT", cleanup);
 process.on("SIGTERM", cleanup);
-process.on("exit", cleanup);
 
 // Run concurrently
 const child = spawn(
@@ -52,6 +55,6 @@ const child = spawn(
 	},
 );
 
-child.on("exit", (code) => {
+child.on("exit", () => {
 	cleanup();
 });
