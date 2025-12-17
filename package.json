@@ -11,6 +11,7 @@
 		"dev:mock": "cd packages/mock-service && npm run dev",
 		"dev:theme": "cd keycloak && npm run dev",
 		"dev:iframe-app": "cd packages/iframe-app && npm run dev",
+		"install:all": "echo '\\n========== Installing: root ==========' && npm install && echo '\\n========== Installing: api-server ==========' && cd packages/api-server && npm install && echo '\\n========== Installing: client ==========' && cd ../client && npm install && echo '\\n========== Installing: mock-service ==========' && cd ../mock-service && npm install && echo '\\n========== Installing: iframe-app ==========' && cd ../iframe-app && npm install && echo '\\n========== Installing: keycloak ==========' && cd ../../keycloak && npm install && echo '\\n========== Setup complete =========='",
 		"migrate": "cd packages/api-server && npm run migrate",
 		"test:auth": "cd packages/api-server && npm run test:auth",
 		"test": "cd packages/client && npm run test:unit:run",
@@ -18,7 +19,8 @@
 		"build:theme": "cd keycloak && npm run build",
 		"lint": "cd packages/api-server && npm run lint && cd ../client && npm run lint",
 		"type-check": "cd packages/api-server && npm run type-check && cd ../client && npm run type-check && cd ../mock-service && npm run type-check",
-		"prepare": "husky"
+		"prepare": "husky",
+		"setup": "npm run install:all && echo '\\n========== Starting docker ==========' && docker compose up -d && echo '\\n========== Waiting for postgres ==========' && docker compose exec postgres pg_isready -U rita -d onboarding --timeout=60 && echo '\\n========== Running migrations ==========' && npm run migrate && echo '\\n========== Starting dev servers ==========' && npm run dev"
 	},
 	"devDependencies": {
 		"@biomejs/biome": "2.2.4",
