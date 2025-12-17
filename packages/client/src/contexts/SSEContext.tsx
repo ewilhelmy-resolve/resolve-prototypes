@@ -378,6 +378,12 @@ export const SSEProvider: React.FC<SSEProviderProps> = ({
 						});
 					}
 				}
+			} else if (event.type === "dynamic_workflow") {
+				// Dispatch custom event for WorkflowsPage to handle
+				const workflowEvent = new CustomEvent("workflow:event", {
+					detail: event.data,
+				});
+				window.dispatchEvent(workflowEvent);
 			}
 		},
 		[navigate, queryClient],
