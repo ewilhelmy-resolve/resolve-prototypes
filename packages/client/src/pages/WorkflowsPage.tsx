@@ -1,5 +1,5 @@
-import { useState, useRef, useEffect } from "react";
-import { Send, Settings, ChevronDown, ChevronUp, FlaskConical, Code, Globe, FileJson, Upload, Download } from "lucide-react";
+import { useState, useRef, useEffect, useCallback } from "react";
+import { Send, Settings, ChevronDown, ChevronUp, FlaskConical, Code, Globe, FileJson, Upload, Download, Wand2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
@@ -7,6 +7,9 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import RitaLayout from "@/components/layouts/RitaLayout";
+import { useProfile } from "@/hooks/api/useProfile";
+import { workflowApi } from "@/services/workflowApi";
+import type { DynamicWorkflowEvent } from "@/services/EventSourceSSEClient";
 import {
 	type WorkflowResponse,
 	type WorkflowTask,
@@ -146,8 +149,11 @@ function WorkflowRenderer({ data }: { data: WorkflowResponse }) {
 export default function WorkflowsPage() {
 	const [messages, setMessages] = useState<ChatMessage[]>([]);
 	const [showConfig, setShowConfig] = useState(true);
-	const [activeTab, setActiveTab] = useState<"input" | "output">("input");
+	const [activeTab, setActiveTab] = useState<"generate" | "input" | "output">("generate");
 	const [isLoading, setIsLoading] = useState(false);
+
+	// Generate tab state
+	const [queryInput, setQueryInput] = useState("");
 
 	// Input tab state
 	const [inputSource, setInputSource] = useState<InputSource>("json");
@@ -159,11 +165,95 @@ export default function WorkflowsPage() {
 	const [outputPayload, setOutputPayload] = useState("");
 
 	const messagesEndRef = useRef<HTMLDivElement>(null);
+	const { data: profile } = useProfile();
 
 	// biome-ignore lint/correctness/useExhaustiveDependencies: intentionally scroll on message count change
 	useEffect(() => {
 		messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
 	}, [messages.length]);
+
+	// Listen for SSE workflow events
+	useEffect(() => {
+		const handler = (e: Event) => {
+			const customEvent = e as CustomEvent<DynamicWorkflowEvent["data"]>;
+			const eventData = customEvent.detail;
+
+			if (eventData.action === "workflow_created" && eventData.workflow) {
+				const workflowResponse: WorkflowResponse = {
+					action: "workflow_created",
+					workflow: eventData.workflow,
+					mappings: eventData.mappings || {},
+					visualization: eventData.visualization || "",
+				};
+
+				const assistantMessage: ChatMessage = {
+					id: crypto.randomUUID(),
+					role: "assistant",
+					content: JSON.stringify(workflowResponse, null, 2),
+					timestamp: new Date(),
+					workflowData: workflowResponse,
+				};
+				setMessages((prev) => [...prev, assistantMessage]);
+				setIsLoading(false);
+			} else if (eventData.action === "progress_update") {
+				// Handle progress updates (optional: could show in UI)
+				console.log("[Workflow] Progress:", eventData.progress);
+			} else if (eventData.action === "workflow_executed") {
+				// Handle execution results
+				const resultMessage: ChatMessage = {
+					id: crypto.randomUUID(),
+					role: "assistant",
+					content: eventData.result
+						? JSON.stringify(eventData.result, null, 2)
+						: eventData.error || "Workflow executed",
+					timestamp: new Date(),
+					isError: !!eventData.error,
+				};
+				setMessages((prev) => [...prev, resultMessage]);
+				setIsLoading(false);
+			}
+		};
+
+		window.addEventListener("workflow:event", handler);
+		return () => window.removeEventListener("workflow:event", handler);
+	}, []);
+
+	// Generate workflow via webhook
+	const handleGenerateWorkflow = useCallback(async () => {
+		if (!queryInput.trim() || !profile || isLoading) return;
+
+		setIsLoading(true);
+		const userMessage: ChatMessage = {
+			id: crypto.randomUUID(),
+			role: "user",
+			content: queryInput,
+			timestamp: new Date(),
+		};
+		setMessages((prev) => [...prev, userMessage]);
+
+		try {
+			await workflowApi.generateWorkflow({
+				action: "generate_dynamic_workflow",
+				tenant_id: profile.organization.id,
+				user_email: profile.user.email,
+				user_id: profile.user.id,
+				query: queryInput,
+				index_name: "qasa_snippets3",
+			});
+			setQueryInput("");
+			// Response will come via SSE
+		} catch (error) {
+			const errorMessage: ChatMessage = {
+				id: crypto.randomUUID(),
+				role: "assistant",
+				content: `Error: ${error instanceof Error ? error.message : "Failed to generate workflow"}`,
+				timestamp: new Date(),
+				isError: true,
+			};
+			setMessages((prev) => [...prev, errorMessage]);
+			setIsLoading(false);
+		}
+	}, [queryInput, profile, isLoading]);
 
 	// INPUT: Render from JSON
 	const handleRenderJson = () => {
@@ -326,8 +416,12 @@ export default function WorkflowsPage() {
 
 					{showConfig && (
 						<div className="px-4 pb-4">
-							<Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "input" | "output")}>
+							<Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "generate" | "input" | "output")}>
 								<TabsList className="mb-3">
+									<TabsTrigger value="generate" className="gap-2">
+										<Wand2 className="w-4 h-4" />
+										Generate
+									</TabsTrigger>
 									<TabsTrigger value="input" className="gap-2">
 										<Download className="w-4 h-4" />
 										Input
@@ -337,6 +431,32 @@ export default function WorkflowsPage() {
 										Output
 									</TabsTrigger>
 								</TabsList>
+
+								{/* GENERATE TAB */}
+								<TabsContent value="generate" className="space-y-3 mt-0">
+									<div className="space-y-2">
+										<Label htmlFor="queryInput" className="text-xs">Describe the workflow you want to create</Label>
+										<Textarea
+											id="queryInput"
+											placeholder="e.g., Create a workflow that takes a ServiceNow ticket and summarizes it..."
+											value={queryInput}
+											onChange={(e) => setQueryInput(e.target.value)}
+											className="h-24 text-sm"
+										/>
+									</div>
+									<Button
+										onClick={handleGenerateWorkflow}
+										disabled={!queryInput.trim() || !profile || isLoading}
+										size="sm"
+										className="gap-2"
+									>
+										<Wand2 className="w-4 h-4" />
+										{isLoading ? "Generating..." : "Generate Workflow"}
+									</Button>
+									{!profile && (
+										<p className="text-xs text-muted-foreground">Loading profile...</p>
+									)}
+								</TabsContent>
 
 								{/* INPUT TAB */}
 								<TabsContent value="input" className="space-y-3 mt-0">
@@ -464,9 +584,11 @@ export default function WorkflowsPage() {
 							<div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground py-20">
 								<p className="text-lg font-medium">Workflow Generator</p>
 								<p className="text-sm">
-									{activeTab === "input"
-										? "Use Input tab to load workflow data (JSON or fetch from URL)"
-										: "Use Output tab to send data to an endpoint"
+									{activeTab === "generate"
+										? "Describe what you want to automate and generate a workflow"
+										: activeTab === "input"
+											? "Use Input tab to load workflow data (JSON or fetch from URL)"
+											: "Use Output tab to send data to an endpoint"
 									}
 								</p>
 							</div>

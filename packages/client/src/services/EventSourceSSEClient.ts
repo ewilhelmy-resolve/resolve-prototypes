@@ -43,7 +43,35 @@ export interface DataSourceUpdateEvent {
   };
 }
 
-export type SSEEvent = MessageUpdateEvent | NewMessageEvent | DataSourceUpdateEvent | {
+export interface DynamicWorkflowEvent {
+  type: 'dynamic_workflow';
+  data: {
+    action: 'workflow_created' | 'workflow_executed' | 'progress_update';
+    workflow?: Array<{
+      task_id: string;
+      description: string;
+      inputs: string[];
+      outputs: string[];
+      action: 'reuse' | 'create' | 'modify';
+      snippet: {
+        id: string;
+        description: string;
+        code: string;
+        input_example: string;
+        output_keys: string;
+        packages: string;
+      };
+    }>;
+    mappings?: Record<string, Record<string, string>>;
+    visualization?: string;
+    // For workflow_executed or progress_update
+    result?: any;
+    progress?: string;
+    error?: string;
+  };
+}
+
+export type SSEEvent = MessageUpdateEvent | NewMessageEvent | DataSourceUpdateEvent | DynamicWorkflowEvent | {
   type: string;
   data: any;
 };
