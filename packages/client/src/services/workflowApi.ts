@@ -1,43 +1,46 @@
 /**
  * Workflow API client
  *
- * Calls Actions API webhook to trigger workflow generation.
+ * Calls backend API to trigger workflow generation.
  * Response comes back via SSE 'dynamic_workflow' event.
  */
 
-const ACTIONS_API_URL =
-	import.meta.env.VITE_ACTIONS_API_URL ||
-	"https://actions-api-staging.resolve.io";
+import keycloak from './keycloak';
 
-// Workflow Creator webhook GUID - same endpoint as RitaGo
-const WORKFLOW_CREATOR_GUID = "00F4F67D-3B92-4FD2-A574-7BE22C6BE796";
+const API_BASE_URL = import.meta.env.VITE_API_URL || '';
 
 export interface GenerateWorkflowPayload {
-	action: "generate_dynamic_workflow";
-	tenant_id: string;
-	user_email: string;
-	user_id: string;
 	query: string;
-	index_name: string;
+	index_name?: string;
 }
 
 export const workflowApi = {
 	/**
-	 * Trigger workflow generation via webhook
-	 * Response will arrive via SSE 'workflow_created' event
+	 * Trigger workflow generation via backend
+	 * Response will arrive via SSE 'dynamic_workflow' event
 	 */
 	generateWorkflow: async (payload: GenerateWorkflowPayload): Promise<void> => {
-		const url = `${ACTIONS_API_URL}/api/Webhooks/postEvent/${WORKFLOW_CREATOR_GUID}`;
+		// Refresh token if needed
+		if (keycloak.authenticated && keycloak.token) {
+			try {
+				await keycloak.updateToken(5);
+			} catch (error) {
+				console.error('Failed to refresh Keycloak token', error);
+				keycloak.logout();
+				throw new Error('Authentication expired');
+			}
+		}
 
-		const response = await fetch(url, {
-			method: "POST",
-			headers: { "Content-Type": "application/json" },
+		const response = await fetch(`${API_BASE_URL}/api/workflows/generate`, {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			credentials: 'include',
 			body: JSON.stringify(payload),
 		});
 
 		if (!response.ok) {
-			const errorText = await response.text().catch(() => "Unknown error");
-			throw new Error(`Workflow webhook failed: ${response.status} - ${errorText}`);
+			const errorData = await response.json().catch(() => ({}));
+			throw new Error(errorData.error || `Workflow generation failed: ${response.status}`);
 		}
 	},
 };
