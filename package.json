@@ -1,40 +1,45 @@
 {
-	"name": "rita-chat",
-	"version": "1.0.0",
-	"private": true,
-	"scripts": {
-		"dev": "node scripts/dev.js",
-		"docker:stop": "docker compose down",
-		"dev:restart": "npm run dev:stop && npm run dev",
-		"dev:api": "cd packages/api-server && npm run dev",
-		"dev:client": "cd packages/client && npm run dev",
-		"dev:mock": "cd packages/mock-service && npm run dev",
-		"dev:theme": "cd keycloak && npm run dev",
-		"dev:iframe-app": "cd packages/iframe-app && npm run dev",
-		"install:all": "echo '\\n========== Installing: root ==========' && npm install && echo '\\n========== Installing: api-server ==========' && cd packages/api-server && npm install && echo '\\n========== Installing: client ==========' && cd ../client && npm install && echo '\\n========== Installing: mock-service ==========' && cd ../mock-service && npm install && echo '\\n========== Installing: iframe-app ==========' && cd ../iframe-app && npm install && echo '\\n========== Installing: keycloak ==========' && cd ../../keycloak && npm install && echo '\\n========== Setup complete =========='",
-		"migrate": "cd packages/api-server && npm run migrate",
-		"test:auth": "cd packages/api-server && npm run test:auth",
-		"test": "cd packages/client && npm run test:unit:run",
-		"build": "cd packages/api-server && npm run build && cd ../client && npm run build",
-		"build:theme": "cd keycloak && npm run build",
-		"lint": "cd packages/api-server && npm run lint && cd ../client && npm run lint",
-		"type-check": "cd packages/api-server && npm run type-check && cd ../client && npm run type-check && cd ../mock-service && npm run type-check",
-		"prepare": "husky",
-		"setup": "node scripts/setup.js",
-		"storybook": "cd packages/client && npm run storybook",
-		"build-storybook": "cd packages/client && NODE_ENV=production npm run build-storybook",
-		"deploy-storybook": "cd packages/client && npm run deploy-storybook"
-	},
-	"devDependencies": {
-		"@biomejs/biome": "2.2.4",
-		"concurrently": "9.2.1",
-		"dotenv-cli": "7.4.2",
-		"husky": "9.1.7",
-		"lint-staged": "16.2.3"
-	},
-	"lint-staged": {
-		"*.{js,ts,cjs,mjs,jsx,tsx,json,jsonc}": [
-			"biome check --write --no-errors-on-unmatched --files-ignore-unknown=true"
-		]
-	}
+  "name": "rita-chat",
+  "version": "1.0.0",
+  "private": true,
+  "packageManager": "pnpm@9.15.0",
+  "pnpm": {
+    "overrides": {
+      "@types/express-serve-static-core": "^5.0.0"
+    }
+  },
+  "scripts": {
+    "dev": "trap 'docker compose down' EXIT; concurrently -n docker,api,client,mock -c gray,blue,green,yellow \"docker compose up\" \"pnpm:dev:api\" \"pnpm:dev:client\" \"pnpm:dev:mock\"",
+    "docker:stop": "docker compose down",
+    "dev:restart": "pnpm run docker:stop && pnpm run dev",
+    "dev:api": "pnpm --filter rita-api-server dev",
+    "dev:client": "pnpm --filter rita-client dev",
+    "dev:mock": "pnpm --filter rita-mock-service dev",
+    "dev:theme": "pnpm --filter keycloak-rita-theme dev",
+    "dev:iframe-app": "pnpm --filter @rita/iframe-app dev",
+    "migrate": "pnpm --filter rita-api-server migrate",
+    "test:auth": "pnpm --filter rita-api-server test:auth",
+    "test": "pnpm --filter rita-client test:unit:run",
+    "build": "pnpm --filter rita-api-server build && pnpm --filter rita-client build",
+    "build:theme": "pnpm --filter keycloak-rita-theme build",
+    "lint": "pnpm -r run lint",
+    "type-check": "pnpm -r run type-check",
+    "prepare": "husky",
+    "setup": "pnpm install && echo '\\n========== Starting docker ==========' && docker compose up -d && echo '\\n========== Waiting for postgres ==========' && docker compose exec postgres pg_isready -U rita -d onboarding --timeout=60 && echo '\\n========== Running migrations ==========' && pnpm run migrate && echo '\\n========== Starting dev servers ==========' && pnpm run dev",
+    "storybook": "pnpm --filter rita-client storybook",
+    "build-storybook": "pnpm --filter rita-client build-storybook",
+    "deploy-storybook": "pnpm --filter rita-client deploy-storybook"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.2.4",
+    "concurrently": "9.2.1",
+    "dotenv-cli": "7.4.2",
+    "husky": "9.1.7",
+    "lint-staged": "16.2.3"
+  },
+  "lint-staged": {
+    "*.{js,ts,cjs,mjs,jsx,tsx,json,jsonc}": [
+      "biome check --write --no-errors-on-unmatched --files-ignore-unknown=true"
+    ]
+  }
 }

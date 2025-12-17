@@ -22,39 +22,33 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
-    
+
     steps:
     - uses: actions/checkout@v4
-    
+
+    - uses: pnpm/action-setup@v4
+      with:
+        version: 9
+
     - name: Set up Node.js
       uses: actions/setup-node@v4
       with:
         node-version: '20'
+        cache: 'pnpm'
 
-    - name: Install root dependencies
-      run: npm install
-
-    - name: Install package dependencies
-      run: |
-        cd packages/api-server && npm ci --legacy-peer-deps
-        cd ../client && npm ci --legacy-peer-deps
-        cd ../mock-service && npm ci --legacy-peer-deps
+    - run: pnpm install --frozen-lockfile
 
     - name: Type check (all packages)
-      run: npm run type-check
+      run: pnpm -r run type-check
 
     - name: Lint (all packages)
-      run: npm run lint
+      run: pnpm -r run lint
 
     - name: Run API server unit tests
-      run: |
-        cd packages/api-server
-        npm run test:run
+      run: pnpm --filter rita-api-server test:run
 
     - name: Run client unit tests
-      run: |
-        cd packages/client
-        npm run test:unit
+      run: pnpm --filter rita-client test:unit
 
     # E2E tests temporarily disabled - no E2E tests currently implemented
     # - name: Install Playwright browsers
@@ -68,7 +62,7 @@ jobs:
     #     echo "Waiting for infrastructure services..."
     #     for i in {1..60}; do
     #       if docker compose ps | grep -E "(postgres|rabbitmq|redis|keycloak)" | grep -q "(healthy)"; then
-    #         echo "✅ Infrastructure services are healthy"
+    #         echo "Infrastructure services are healthy"
     #         break
     #       fi
     #       echo "Waiting for services... ($i/60)"
@@ -81,14 +75,14 @@ jobs:
     # - name: Start API server
     #   run: |
     #     cd packages/api-server
-    #     npm run build
-    #     npm start &
+    #     pnpm build
+    #     pnpm start &
 
     #     # Wait for API server to be ready
     #     echo "Waiting for API server..."
     #     for i in {1..30}; do
     #       if curl -s http://localhost:3000/health > /dev/null; then
-    #         echo "✅ API server is ready"
+    #         echo "API server is ready"
     #         break
     #       fi
     #       echo "Waiting for API server... ($i/30)"
@@ -101,14 +95,14 @@ jobs:
     # - name: Start client (if needed for E2E)
     #   run: |
     #     cd packages/client
-    #     npm run build
-    #     npm run preview &
+    #     pnpm build
+    #     pnpm preview &
 
     #     # Wait for client to be ready
     #     echo "Waiting for client..."
     #     for i in {1..30}; do
     #       if curl -s http://localhost:5173 > /dev/null; then
-    #         echo "✅ Client is ready"
+    #         echo "Client is ready"
     #         break
     #       fi
     #       echo "Waiting for client... ($i/30)"
@@ -116,7 +110,7 @@ jobs:
     #     done
 
     # - name: Run E2E tests (RITA Go)
-    #   run: npm test
+    #   run: pnpm test
     #   env:
     #     CI: true
 

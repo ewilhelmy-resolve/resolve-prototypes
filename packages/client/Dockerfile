@@ -1,29 +1,26 @@
-# Multi-stage build for production
-FROM node:20-alpine AS builder
+# Multi-stage build for production with pnpm
+FROM node:20-slim AS base
+ENV PNPM_HOME="/pnpm"
+ENV PATH="$PNPM_HOME:$PATH"
+RUN corepack enable
 
-# Set working directory
+FROM base AS build
 WORKDIR /app
-
-# Copy package files
-COPY package*.json ./
-
-# Install dependencies (including devDependencies for build)
-RUN npm ci --legacy-peer-deps
-
-# Copy source code
+COPY pnpm-lock.yaml pnpm-workspace.yaml package.json ./
+COPY packages/client/package.json ./packages/client/
+RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm fetch --frozen-lockfile
 COPY . .
-
-# Build the application
-RUN npm run build
+RUN pnpm install --frozen-lockfile --offline --ignore-scripts
+RUN pnpm --filter rita-client build
 
 # Production stage with nginx
 FROM nginx:alpine AS production
 
 # Copy built assets from builder stage
-COPY --from=builder /app/dist /usr/share/nginx/html
+COPY --from=build /app/packages/client/dist /usr/share/nginx/html
 
 # Copy nginx configuration
-COPY nginx.conf /etc/nginx/conf.d/default.conf
+COPY packages/client/nginx.conf /etc/nginx/conf.d/default.conf
 
 # Expose port
 EXPOSE 80
