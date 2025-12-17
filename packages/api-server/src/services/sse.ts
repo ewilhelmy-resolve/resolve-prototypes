@@ -133,6 +133,34 @@ export interface IngestionRunUpdateEvent {
   };
 }
 
+export interface DynamicWorkflowEvent {
+  type: 'dynamic_workflow';
+  data: {
+    action: 'workflow_created' | 'workflow_executed' | 'progress_update';
+    workflow?: Array<{
+      task_id: string;
+      description: string;
+      inputs: string[];
+      outputs: string[];
+      action: 'reuse' | 'create' | 'modify';
+      snippet: {
+        id: string;
+        description: string;
+        code: string;
+        input_example: string;
+        output_keys: string;
+        packages: string;
+      };
+    }>;
+    mappings?: Record<string, Record<string, string>>;
+    visualization?: string;
+    result?: any;
+    progress?: string;
+    error?: string;
+    timestamp: string;
+  };
+}
+
 export type SSEEvent =
   | MessageUpdateEvent
   | NewMessageEvent
@@ -143,7 +171,8 @@ export type SSEEvent =
   | MemberRemovedEvent
   | MemberDeletedPermanentEvent
   | MemberDeletedOwnAccountEvent
-  | IngestionRunUpdateEvent;
+  | IngestionRunUpdateEvent
+  | DynamicWorkflowEvent;
 
 export class SSEService {
   private connections: Map<string, SSEConnection> = new Map();

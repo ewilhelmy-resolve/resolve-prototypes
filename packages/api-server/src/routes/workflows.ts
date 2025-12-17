@@ -25,6 +25,9 @@ router.post('/generate', authenticateUser, async (req, res) => {
 
     logger.info({ query: query.trim() }, 'Sending workflow generation request');
 
+    // Response queue for workflow events (platform sends responses here)
+    const responseQueue = process.env.WORKFLOW_RESPONSE_QUEUE || 'workflow.responses';
+
     const response = await webhookService.sendGenericEvent({
       organizationId: authReq.user.activeOrganizationId,
       userId: authReq.user.id,
@@ -34,8 +37,11 @@ router.post('/generate', authenticateUser, async (req, res) => {
       additionalData: {
         query: query.trim(),
         index_name: index_name || 'qasa_snippets3',
+        response_queue: responseQueue,
       },
     });
+
+    logger.info({ responseQueue }, 'Workflow request sent with response queue');
 
     if (!response.success) {
       logger.error({ error: response.error }, 'Workflow generation webhook failed');
