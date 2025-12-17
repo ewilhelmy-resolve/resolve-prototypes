@@ -64,7 +64,6 @@ export interface DynamicWorkflowEvent {
     }>;
     mappings?: Record<string, Record<string, string>>;
     visualization?: string;
-    // For workflow_executed or progress_update
     result?: any;
     progress?: string;
     error?: string;

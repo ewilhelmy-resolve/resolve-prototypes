@@ -2,7 +2,7 @@
  * Workflow API client
  *
  * Calls backend API to trigger workflow generation.
- * Response comes back via SSE 'dynamic_workflow' event.
+ * Response comes back via SSE 'dynamic_workflow' event with action='workflow_created'.
  */
 
 import keycloak from './keycloak';

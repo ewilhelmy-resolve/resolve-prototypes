@@ -1,17 +1,17 @@
 import express from 'express';
-import axios from 'axios';
 import { authenticateUser } from '../middleware/auth.js';
+import { WebhookService } from '../services/WebhookService.js';
 import type { AuthenticatedRequest } from '../types/express.js';
 import { logger } from '../config/logger.js';
 
 const router = express.Router();
-
-const ACTIONS_API_URL = process.env.ACTIONS_API_URL;
-const WORKFLOW_CREATOR_GUID = process.env.WORKFLOW_CREATOR_GUID || '00F4F67D-3B92-4FD2-A574-7BE22C6BE796';
+const webhookService = new WebhookService();
 
 /**
  * Generate a dynamic workflow
  * POST /api/workflows/generate
+ *
+ * Uses same webhook pattern as RitaGo chat, different queue for responses
  */
 router.post('/generate', authenticateUser, async (req, res) => {
   const authReq = req as AuthenticatedRequest;
@@ -23,41 +23,30 @@ router.post('/generate', authenticateUser, async (req, res) => {
       return res.status(400).json({ error: 'Query is required' });
     }
 
-    if (!ACTIONS_API_URL) {
-      logger.error('ACTIONS_API_URL not configured');
-      return res.status(500).json({ error: 'Workflow service not configured' });
+    logger.info({ query: query.trim() }, 'Sending workflow generation request');
+
+    const response = await webhookService.sendGenericEvent({
+      organizationId: authReq.user.activeOrganizationId,
+      userId: authReq.user.id,
+      userEmail: authReq.user.email,
+      source: 'rita-workflows',
+      action: 'generate_dynamic_workflow',
+      additionalData: {
+        query: query.trim(),
+        index_name: index_name || 'qasa_snippets3',
+      },
+    });
+
+    if (!response.success) {
+      logger.error({ error: response.error }, 'Workflow generation webhook failed');
+      return res.status(500).json({ error: response.error || 'Workflow generation failed' });
     }
 
-    const payload = {
-      action: 'generate_dynamic_workflow',
-      tenant_id: authReq.user.activeOrganizationId,
-      user_email: authReq.user.email,
-      user_id: authReq.user.id,
-      query: query.trim(),
-      index_name: index_name || 'qasa_snippets3',
-    };
-
-    const url = `${ACTIONS_API_URL}/api/Webhooks/postEvent/${WORKFLOW_CREATOR_GUID}`;
-
-    logger.info({ url, query: payload.query }, 'Sending workflow generation request');
-
-    const response = await axios.post(url, payload, {
-      headers: { 'Content-Type': 'application/json' },
-      timeout: 30000,
-    });
-
-    logger.info({ status: response.status }, 'Workflow generation request sent');
-
-    res.json({ success: true, data: response.data });
+    logger.info('Workflow generation request sent');
+    res.json({ success: true });
   } catch (error: any) {
-    const errorMessage = error.response?.data?.message || error.message || 'Unknown error';
-    const status = error.response?.status;
-
-    logger.error({ error: errorMessage, status }, 'Workflow generation failed');
-
-    res.status(status || 500).json({
-      error: `Workflow generation failed: ${errorMessage}`,
-    });
+    logger.error({ error: error.message }, 'Workflow generation failed');
+    res.status(500).json({ error: 'Workflow generation failed' });
   }
 });
 
