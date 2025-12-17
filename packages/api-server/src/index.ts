@@ -20,6 +20,7 @@ import invitationRoutes from './routes/invitations.js';
 import memberRoutes from './routes/members.js';
 import organizationRoutes from './routes/organizations.js';
 import sseRoutes from './routes/sse.js';
+import featureFlagRoutes from './routes/featureFlags.js';
 import { closeValkeyConnection } from './config/valkey.js';
 import { getRabbitMQService } from './services/rabbitmq.js';
 import { destroySessionStore } from './services/sessionStore.js';
@@ -129,6 +130,7 @@ app.use('/api/conversations', authenticateUser, addUserContextToLogs, conversati
 app.use('/api/data-sources', authenticateUser, addUserContextToLogs, dataSourceRoutes);
 app.use('/api/files', authenticateUser, addUserContextToLogs, filesRoutes);
 app.use('/api/sse', authenticateUser, addUserContextToLogs, sseRoutes);
+app.use('/api/feature-flags', authenticateUser, addUserContextToLogs, featureFlagRoutes);
 
 // Test organization context
 app.get('/api/test-org-context', authenticateUser, addUserContextToLogs, logApiOperation('test-org-context'), async (req: any, res) => {

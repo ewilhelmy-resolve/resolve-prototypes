@@ -133,6 +133,18 @@ export interface IngestionRunUpdateEvent {
   };
 }
 
+export interface FeatureFlagUpdateEvent {
+  type: 'feature_flag_update';
+  data: {
+    flagName: string;
+    platformFlagName: string;
+    environment: string;
+    organizationId: string;
+    isEnabled: boolean;
+    timestamp: string;
+  };
+}
+
 export type SSEEvent =
   | MessageUpdateEvent
   | NewMessageEvent
@@ -143,7 +155,8 @@ export type SSEEvent =
   | MemberRemovedEvent
   | MemberDeletedPermanentEvent
   | MemberDeletedOwnAccountEvent
-  | IngestionRunUpdateEvent;
+  | IngestionRunUpdateEvent
+  | FeatureFlagUpdateEvent;
 
 export class SSEService {
   private connections: Map<string, SSEConnection> = new Map();
