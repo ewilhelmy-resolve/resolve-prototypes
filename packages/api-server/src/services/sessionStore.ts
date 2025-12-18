@@ -1,5 +1,23 @@
 import { randomBytes } from 'crypto';
 
+/**
+ * Iframe webhook config from Valkey payload
+ * Used for tenant-specific webhook auth in embedded iframe chat
+ */
+export interface IframeWebhookConfig {
+  accessToken: string;
+  refreshToken: string;
+  tabInstanceId: string;
+  tenantId: string;
+  tenantName: string;
+  chatSessionId: string;
+  clientId: string;
+  clientKey: string;
+  tokenExpiry: number;
+  actionsApiBaseUrl: string;
+  context?: Record<string, any>;
+}
+
 export interface Session {
   sessionId: string;
   userId: string;
@@ -10,6 +28,8 @@ export interface Session {
   expiresAt: Date;
   createdAt: Date;
   lastAccessedAt: Date;
+  /** Iframe embed webhook config - only present for iframe sessions with hashkey */
+  iframeWebhookConfig?: IframeWebhookConfig;
 }
 
 export interface CreateSessionData {
@@ -19,6 +39,7 @@ export interface CreateSessionData {
   firstName?: string;
   lastName?: string;
   sessionDurationMs?: number; // Default: 24 hours
+  iframeWebhookConfig?: IframeWebhookConfig;
 }
 
 export interface SessionStore {
@@ -58,6 +79,7 @@ class InMemorySessionStore implements SessionStore {
       expiresAt,
       createdAt: now,
       lastAccessedAt: now,
+      iframeWebhookConfig: data.iframeWebhookConfig,
     };
 
     this.sessions.set(sessionId, session);

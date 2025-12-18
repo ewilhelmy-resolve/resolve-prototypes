@@ -14,10 +14,10 @@ const router = express.Router();
  */
 router.post('/validate-instantiation', async (req, res) => {
   try {
-    const { token, intentEid, existingConversationId } = req.body;
+    const { token, intentEid, existingConversationId, hashkey } = req.body;
 
     const iframeService = getIframeService();
-    const result = await iframeService.validateAndSetup(token, intentEid, existingConversationId);
+    const result = await iframeService.validateAndSetup(token, intentEid, existingConversationId, hashkey);
 
     // Handle validation failure
     if (!result.valid) {
@@ -35,7 +35,12 @@ router.post('/validate-instantiation', async (req, res) => {
     }
 
     logger.info(
-      { conversationId: result.conversationId, intentEid, tokenName: result.tokenName },
+      {
+        conversationId: result.conversationId,
+        intentEid,
+        tokenName: result.tokenName,
+        hasWebhookConfig: !!hashkey,
+      },
       'Iframe instantiation successful'
     );
 
