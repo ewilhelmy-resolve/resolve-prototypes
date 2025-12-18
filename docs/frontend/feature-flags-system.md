@@ -1,59 +1,113 @@
 # Feature Flags System
 
-RITA Go uses a **multi-scope feature flag system** for controlling features at different levels (local dev, tenant, user). This allows developers to:
-- Hide incomplete features during development
-- Enable beta features for specific tenants or users
-- A/B test features with gradual rollouts
-- Toggle debug modes and experimental features
+RITA Go uses a **two-tier feature flag system**:
 
-## Current Implementation
+1. **Platform Flags** - Per-tenant control via Platform Actions API (relay proxy)
+2. **Local Flags** - Per-browser localStorage for dev/experimental features
 
-**Location:**
-- `src/types/featureFlags.ts` - Flag registry and type definitions
-- `src/lib/featureFlags.ts` - Feature flags manager (localStorage)
-- `src/hooks/useFeatureFlags.ts` - React hooks for flag access
-- `src/components/devtools/FeatureFlagsPanel.tsx` - Management UI
-- `src/pages/DevToolsPage.tsx` - Developer tools page
+## Architecture Overview
 
-**Evaluation Priority (Scope Chain):**
 ```
-User-level (highest) → Tenant-level → Local (dev) → Default (lowest)
+┌─────────────────────────────────────────────────────────┐
+│                    Feature Flags                        │
+├─────────────────────────┬───────────────────────────────┤
+│     Platform Flags      │        Local Flags            │
+├─────────────────────────┼───────────────────────────────┤
+│ Per-org/tenant          │ Per-browser                   │
+│ api-server → Platform   │ localStorage                  │
+│ Valkey cached (5min)    │ Instant                       │
+│ SSE real-time sync      │ No sync                       │
+│ platformControlled:true │ platformControlled:false/omit │
+└─────────────────────────┴───────────────────────────────┘
 ```
-*Note: Currently only Local scope is implemented. Tenant and User scopes are architecture placeholders for future API integration.*
 
-## Adding a New Feature Flag
+**For platform-controlled flags**, see [Platform Feature Flags](./platform-feature-flags.md).
 
-1. **Register the flag** in `src/types/featureFlags.ts`:
+## Files
+
+| File | Purpose |
+|------|---------|
+| `src/types/featureFlags.ts` | Flag registry and types |
+| `src/services/platformFlags.ts` | Platform API calls |
+| `src/stores/feature-flags-store.ts` | Zustand store |
+| `src/hooks/useFeatureFlags.ts` | React hooks |
+| `src/hooks/usePlatformFlags.ts` | Init platform flags |
+| `src/components/devtools/FeatureFlagsPanel.tsx` | DevTools UI |
+
+## Adding a New Local Flag
+
+For dev/experimental features stored in localStorage:
+
+### Step 1: Register the flag
+
+**File:** `src/types/featureFlags.ts`
+
 ```typescript
 export type FeatureFlagKey =
-  | 'SHOW_WELCOME_MODAL'
-  | 'ENABLE_DEBUG_MODE'
-  | 'YOUR_NEW_FEATURE'  // Add your flag here
+  | 'EXISTING_FLAGS'
+  | 'YOUR_NEW_FEATURE'  // Add here
 
 export const FEATURE_FLAGS: Record<FeatureFlagKey, FeatureFlagConfig> = {
   YOUR_NEW_FEATURE: {
     key: 'YOUR_NEW_FEATURE',
     label: 'Your New Feature',
     description: 'Enable the new feature you are building',
-    defaultValue: false,  // Default state
+    defaultValue: false,
     category: 'experimental',  // general | debug | experimental
+    // omit platformControlled for local flags
   },
-  // ... other flags
 }
 ```
 
-2. **Use the flag** in your component:
+### Step 2: Use the flag
+
 ```typescript
 import { useFeatureFlag } from '@/hooks/useFeatureFlags'
 
 function MyComponent() {
   const showNewFeature = useFeatureFlag('YOUR_NEW_FEATURE')
-
   if (!showNewFeature) return <OldFeature />
-
   return <NewFeature />
 }
 ```
+
+---
+
+## Adding a Platform-Controlled Flag
+
+For per-tenant flags managed via Platform Actions API:
+
+### Step 1: Register in client
+
+**File:** `src/types/featureFlags.ts`
+
+```typescript
+YOUR_NEW_FEATURE: {
+  key: 'YOUR_NEW_FEATURE',
+  label: 'Your Feature',
+  description: 'Description',
+  defaultValue: false,
+  category: 'autopilot',  // or 'experimental'
+  platformControlled: true,  // <-- Required
+},
+```
+
+### Step 2: Add server mapping
+
+**File:** `packages/api-server/src/services/FeatureFlagService.ts`
+
+```typescript
+const CLIENT_TO_PLATFORM_FLAG_MAP: Record<string, string> = {
+  // existing mappings...
+  YOUR_NEW_FEATURE: 'your-new-feature',  // <-- Add
+}
+```
+
+### Step 3: Create in Platform Actions
+
+Ensure flag exists in Platform Actions backend with matching name.
+
+See [Platform Feature Flags](./platform-feature-flags.md) for full details.
 
 ## Developer APIs
 
@@ -118,13 +172,13 @@ describe('MyComponent', () => {
 5. **Documentation:** Always add clear `description` in the registry
 6. **Type Safety:** Never use string literals - always use `FeatureFlagKey` type
 
-## Future Enhancements
+## Current Capabilities
 
-The current system is designed to support:
-- **Tenant-level flags:** API-based feature access per tenant
-- **User-level flags:** Per-user feature targeting
-- **Real-time updates:** SSE for instant flag changes
-- **A/B testing:** Variant support for experiments
-- **Audit logging:** SOC2-compliant tracking (when `requiresAudit: true`)
-
-When backend API endpoints are ready, the system will automatically support remote flag evaluation while maintaining backward compatibility with the current localStorage-based dev flags.
+| Capability | Status |
+|------------|--------|
+| Tenant-level flags | ✅ Implemented (platform-controlled) |
+| Real-time updates | ✅ Implemented (SSE broadcast) |
+| Caching | ✅ Implemented (Valkey, 5min TTL) |
+| User-level flags | ⏳ Not yet implemented |
+| A/B testing | ⏳ Not yet implemented |
+| Audit logging | ⏳ Not yet implemented |
