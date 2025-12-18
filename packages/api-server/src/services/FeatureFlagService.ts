@@ -5,6 +5,7 @@
  * Broadcasts flag updates via SSE to connected clients.
  */
 
+import axios, { isAxiosError } from 'axios';
 import { getValkeyClient } from '../config/valkey.js';
 import { logger } from '../config/logger.js';
 import { getSSEService } from './sse.js';
@@ -61,19 +62,12 @@ export class FeatureFlagService {
         return cached === 'true';
       }
 
-      const response = await fetch(
+      const response = await axios.get(
         `${PLATFORM_FLAGS_URL}/api/features/is-enabled/${flagName}/${PLATFORM_ENV}/${tenantId}`
       );
 
-      if (!response.ok) {
-        logger.warn(
-          { flagName, environment: PLATFORM_ENV, tenantId, status: response.status },
-          'Platform flag fetch failed'
-        );
-        return false;
-      }
-
-      const isEnabled = await response.json();
+      const isEnabled = response.data;
+      console.log(`Is Enabled: ${isEnabled}`);
       const boolValue = Boolean(isEnabled);
 
       await valkey.setex(cacheKey, CACHE_TTL_SECONDS, String(boolValue));
@@ -88,6 +82,7 @@ export class FeatureFlagService {
       logger.error(
         {
           error: error instanceof Error ? error.message : String(error),
+          status: isAxiosError(error) ? error.response?.status : undefined,
           flagName,
           environment: PLATFORM_ENV,
           tenantId,
@@ -128,23 +123,11 @@ export class FeatureFlagService {
     organizationId: string
   ): Promise<boolean> {
     try {
-      const response = await fetch(`${PLATFORM_FLAGS_URL}/api/features/${flagName}/rules`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          environment: PLATFORM_ENV,
-          tenant: organizationId,
-          isEnabled,
-        }),
+      await axios.post(`${PLATFORM_FLAGS_URL}/api/features/${flagName}/rules`, {
+        environment: PLATFORM_ENV,
+        tenant: organizationId,
+        isEnabled: isEnabled,
       });
-
-      if (!response.ok) {
-        logger.warn(
-          { flagName, environment: PLATFORM_ENV, organizationId, status: response.status },
-          'Platform flag update failed'
-        );
-        return false;
-      }
 
       // Invalidate cache
       await this.invalidateCache(flagName, organizationId);
@@ -159,6 +142,7 @@ export class FeatureFlagService {
       logger.error(
         {
           error: error instanceof Error ? error.message : String(error),
+          status: isAxiosError(error) ? error.response?.status : undefined,
           flagName,
           environment: PLATFORM_ENV,
           organizationId,
