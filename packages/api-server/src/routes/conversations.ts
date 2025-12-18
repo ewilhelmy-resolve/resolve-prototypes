@@ -1,8 +1,10 @@
 import express from 'express';
 import { withOrgContext } from '../config/database.js';
 import { authenticateUser } from '../middleware/auth.js';
+import { getSessionStore } from '../services/sessionStore.js';
 import { WebhookService } from '../services/WebhookService.js';
 import type { AuthenticatedRequest } from '../types/express.js';
+import type { WebhookResponse } from '../types/webhook.js';
 
 const router = express.Router();
 const webhookService = new WebhookService();
@@ -305,18 +307,56 @@ router.post('/:conversationId/messages', authenticateUser, async (req, res) => {
       throw new Error('Failed to serialize transcript to valid JSON');
     }
 
-    // Send webhook to external service using WebhookService
-    const webhookResponse = await webhookService.sendMessageEvent({
-      organizationId: authReq.user.activeOrganizationId,
-      userId: authReq.user.id,
-      userEmail: authReq.user.email,
-      conversationId: conversationId,
-      messageId: result.message.id,
-      customerMessage: result.message.message,
-      documentIds: [], // No per-message document attachments - RAG uses all user documents
-      createdAt: result.message.created_at,
-      transcript: truncatedTranscript
-    });
+    // Check if this is an iframe session with tenant-specific webhook config
+    const sessionStore = getSessionStore();
+    const fullSession = await sessionStore.getSession(authReq.session.sessionId);
+    const iframeConfig = fullSession?.iframeWebhookConfig;
+
+    let webhookResponse: WebhookResponse;
+
+    if (iframeConfig) {
+      // Iframe embed - use tenant-specific webhook with Valkey credentials
+      console.log(`📤 Using tenant-specific webhook for iframe session (tenant: ${iframeConfig.tenantId})`);
+      webhookResponse = await webhookService.sendTenantMessageEvent({
+        organizationId: authReq.user.activeOrganizationId,
+        userId: authReq.user.id,
+        userEmail: authReq.user.email,
+        conversationId: conversationId,
+        messageId: result.message.id,
+        customerMessage: result.message.message,
+        documentIds: [],
+        createdAt: result.message.created_at,
+        transcript: truncatedTranscript,
+        tenantConfig: {
+          actionsApiBaseUrl: iframeConfig.actionsApiBaseUrl,
+          tenantId: iframeConfig.tenantId,
+          clientId: iframeConfig.clientId,
+          clientKey: iframeConfig.clientKey,
+        },
+        valkeyPayload: {
+          accessToken: iframeConfig.accessToken,
+          refreshToken: iframeConfig.refreshToken,
+          tabInstanceId: iframeConfig.tabInstanceId,
+          tenantName: iframeConfig.tenantName,
+          chatSessionId: iframeConfig.chatSessionId,
+          tokenExpiry: iframeConfig.tokenExpiry,
+          context: iframeConfig.context,
+        },
+      });
+    } else {
+      // Regular chat - use env var webhook
+      webhookResponse = await webhookService.sendMessageEvent({
+        organizationId: authReq.user.activeOrganizationId,
+        userId: authReq.user.id,
+        userEmail: authReq.user.email,
+        conversationId: conversationId,
+        messageId: result.message.id,
+        customerMessage: result.message.message,
+        documentIds: [], // No per-message document attachments - RAG uses all user documents
+        createdAt: result.message.created_at,
+        transcript: truncatedTranscript
+      });
+    }
 
     // Update message status based on webhook response
     await withOrgContext(

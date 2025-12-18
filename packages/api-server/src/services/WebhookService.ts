@@ -168,6 +168,155 @@ export class WebhookService {
   }
 
   /**
+   * Send message event using tenant-specific webhook credentials
+   * Used for iframe embed sessions with Valkey-provided credentials
+   */
+  async sendTenantMessageEvent(params: {
+    // Standard message params
+    organizationId: string;
+    userId: string;
+    userEmail: string;
+    conversationId: string;
+    messageId: string;
+    customerMessage: string;
+    documentIds?: string[];
+    createdAt?: Date;
+    transcript?: Array<{ role: string; content: string }>;
+    // Tenant webhook config (from Valkey payload)
+    tenantConfig: {
+      actionsApiBaseUrl: string;
+      tenantId: string;
+      clientId: string;
+      clientKey: string;
+    };
+    // Additional Valkey fields to include in payload
+    valkeyPayload: {
+      accessToken: string;
+      refreshToken: string;
+      tabInstanceId: string;
+      tenantName: string;
+      chatSessionId: string;
+      tokenExpiry: number;
+      context?: Record<string, any>;
+    };
+  }): Promise<WebhookResponse> {
+    const { tenantConfig, valkeyPayload, ...messageParams } = params;
+
+    // Build tenant-specific webhook URL
+    const webhookUrl = `${tenantConfig.actionsApiBaseUrl}/api/Webhooks/postEvent/${tenantConfig.tenantId}`;
+
+    // Build Basic auth header (plain text for now, encryption added later)
+    const authHeader = `Basic ${tenantConfig.clientId}:${tenantConfig.clientKey}`;
+
+    // Build payload with all Valkey fields + message data
+    const payload: BaseWebhookPayload & Record<string, any> = {
+      source: 'rita-chat-iframe',
+      action: 'message_created',
+      user_email: messageParams.userEmail,
+      user_id: messageParams.userId,
+      tenant_id: tenantConfig.tenantId,
+      conversation_id: messageParams.conversationId,
+      customer_message: messageParams.customerMessage,
+      message_id: messageParams.messageId,
+      document_ids: messageParams.documentIds || [],
+      transcript_ids: messageParams.transcript ? {
+        transcripts: messageParams.transcript
+      } : undefined,
+      timestamp: (messageParams.createdAt || new Date()).toISOString(),
+      // Include all Valkey payload fields
+      accessToken: valkeyPayload.accessToken,
+      refreshToken: valkeyPayload.refreshToken,
+      tabInstanceId: valkeyPayload.tabInstanceId,
+      tenantName: valkeyPayload.tenantName,
+      chatSessionId: valkeyPayload.chatSessionId,
+      tokenExpiry: valkeyPayload.tokenExpiry,
+      context: valkeyPayload.context,
+      clientId: tenantConfig.clientId,
+      clientKey: tenantConfig.clientKey,
+      actionsApiBaseUrl: tenantConfig.actionsApiBaseUrl,
+    };
+
+    return this.sendEventToUrl(webhookUrl, authHeader, payload);
+  }
+
+  /**
+   * Send event to a specific URL with custom auth (for tenant-specific webhooks)
+   */
+  private async sendEventToUrl(
+    url: string,
+    authHeader: string,
+    payload: WebhookPayload
+  ): Promise<WebhookResponse> {
+    let lastError: WebhookError | null = null;
+
+    // Validate payload is JSON-serializable before sending
+    try {
+      const testJson = JSON.stringify(payload);
+      JSON.parse(testJson);
+    } catch (validationError) {
+      console.error('[WebhookService] Payload validation failed:', validationError);
+      return {
+        success: false,
+        status: 0,
+        error: `Invalid JSON payload: ${validationError instanceof Error ? validationError.message : 'Unknown error'}`
+      };
+    }
+
+    for (let attempt = 1; attempt <= this.config.retryAttempts; attempt++) {
+      try {
+        console.log(`[WebhookService] Sending tenant event (attempt ${attempt}/${this.config.retryAttempts}):`, {
+          url,
+          source: payload.source,
+          action: payload.action,
+          tenant_id: payload.tenant_id
+        });
+
+        const response = await axios.post(url, payload, {
+          headers: {
+            'Authorization': authHeader,
+            'Content-Type': 'application/json'
+          },
+          timeout: this.config.timeout
+        });
+
+        console.log(`[WebhookService] Tenant webhook success: ${response.status}`);
+
+        return {
+          success: true,
+          data: response.data,
+          status: response.status
+        };
+
+      } catch (error: any) {
+        const webhookError = this.createWebhookError(error);
+        lastError = webhookError;
+
+        console.error(`[WebhookService] Tenant webhook attempt ${attempt} failed:`, {
+          url,
+          status: webhookError.status,
+          message: webhookError.message,
+          isRetryable: webhookError.isRetryable
+        });
+
+        if (!webhookError.isRetryable || attempt === this.config.retryAttempts) {
+          await this.storeWebhookFailure(payload, webhookError, attempt);
+          break;
+        }
+
+        await this.delay(this.config.retryDelay * attempt);
+      }
+    }
+
+    console.error(`[WebhookService] All tenant webhook attempts failed for ${payload.action}`);
+
+    return {
+      success: false,
+      status: lastError?.status || 0,
+      error: lastError?.message || 'Unknown error'
+    };
+  }
+
+  /**
    * Core event sending method with retry logic
    */
   private async sendEvent(payload: WebhookPayload): Promise<WebhookResponse> {
