@@ -11,6 +11,7 @@ import { useSSE } from "../hooks/useSSE";
 import type { SSEEvent } from "../services/EventSourceSSEClient";
 import type { Message } from "../stores/conversationStore";
 import { useConversationStore } from "../stores/conversationStore";
+import { useFeatureFlagsStore } from "../stores/feature-flags-store";
 
 interface MessageUpdate {
 	messageId: string;
@@ -356,6 +357,23 @@ export const SSEProvider: React.FC<SSEProviderProps> = ({
 						description: event.data.error_message || "An error occurred",
 					});
 				}
+			} else if (event.type === "feature_flag_update") {
+				// Handle real-time feature flag updates from relay proxy
+				const { platformFlags } = useFeatureFlagsStore.getState();
+				const flagName = event.data.flagName;
+				const isEnabled = event.data.isEnabled;
+
+				useFeatureFlagsStore.setState({
+					platformFlags: {
+						...platformFlags,
+						[flagName]: isEnabled,
+					},
+				});
+
+				ritaToast.info({
+					title: "Feature flag updated",
+					description: `${flagName} is now ${isEnabled ? "enabled" : "disabled"}`,
+				});
 			}
 		},
 		[navigate, queryClient],
