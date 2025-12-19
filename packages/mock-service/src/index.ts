@@ -2104,7 +2104,7 @@ app.post('/webhook', async (req, res) => {
 
           if (isComplete) {
             // Final completed message
-            const recordsFailed = Math.floor(Math.random() * 5); // 0-4 failures
+            const recordsFailed = Math.floor(Math.random() * 4) + 1; // 1-4 failures (always some for testing)
             const ingestionMessage = {
               type: 'ticket_ingestion',
               tenant_id: ticketsPayload.tenant_id,
