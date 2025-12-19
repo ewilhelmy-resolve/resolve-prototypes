@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { Code, Wand2, Send, FlaskConical, ChevronDown, ChevronUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import RitaLayout from "@/components/layouts/RitaLayout";
 import { workflowApi } from "@/services/workflowApi";
@@ -148,8 +149,9 @@ export default function WorkflowsPage() {
 	const [queryInput, setQueryInput] = useState("");
 
 	// Dev panel state
-	const [showDevPanel, setShowDevPanel] = useState(true);
+	const [showDevPanel, setShowDevPanel] = useState(false);
 	const [jsonInput, setJsonInput] = useState("");
+	const [rawEvents, setRawEvents] = useState<Array<{ timestamp: string; [key: string]: unknown }>>([]);
 
 	const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -163,6 +165,12 @@ export default function WorkflowsPage() {
 		const handler = (e: Event) => {
 			const customEvent = e as CustomEvent<DynamicWorkflowEvent["data"]>;
 			const eventData = customEvent.detail;
+
+			// Capture raw event for debugging
+			setRawEvents((prev) => [
+				...prev,
+				{ timestamp: new Date().toISOString(), ...eventData },
+			]);
 
 			if (eventData.action === "workflow_created" && eventData.workflow) {
 				const workflowResponse: WorkflowResponse = {
@@ -267,7 +275,7 @@ export default function WorkflowsPage() {
 						<button
 							type="button"
 							onClick={() => setShowDevPanel(!showDevPanel)}
-							className="w-full flex items-center justify-between px-4 py-2 text-sm font-medium text-muted-foreground hover:bg-muted/50"
+							className="w-full flex items-center justify-between px-4 py-2 text-sm font-medium text-muted-foreground hover:bg-muted/50 cursor-pointer"
 						>
 							<span className="flex items-center gap-2">
 								<FlaskConical className="w-4 h-4" />
@@ -277,34 +285,66 @@ export default function WorkflowsPage() {
 						</button>
 
 						{showDevPanel && (
-							<div className="px-4 pb-4 space-y-2">
-								<div className="flex items-center justify-between">
-									<span className="text-xs text-muted-foreground">Paste workflow JSON</span>
-									<Button
-										variant="ghost"
-										size="sm"
-										onClick={handleLoadTestData}
-										className="h-6 gap-1 text-xs"
-									>
-										<FlaskConical className="w-3 h-3" />
-										Load Test Data
-									</Button>
-								</div>
-								<Textarea
-									placeholder='{"action": "workflow_created", "workflow": [...], "mappings": {...}}'
-									value={jsonInput}
-									onChange={(e) => setJsonInput(e.target.value)}
-									className="h-24 text-xs font-mono"
-								/>
-								<Button
-									onClick={handleRenderJson}
-									disabled={!jsonInput.trim()}
-									size="sm"
-									className="gap-2"
-								>
-									<Send className="w-4 h-4" />
-									Render
-								</Button>
+							<div className="px-4 pb-4">
+								<Tabs defaultValue="events" className="w-full">
+									<TabsList className="w-full">
+										<TabsTrigger value="events" className="flex-1 text-xs cursor-pointer">
+											Raw Events {rawEvents.length > 0 && `(${rawEvents.length})`}
+										</TabsTrigger>
+										<TabsTrigger value="json" className="flex-1 text-xs cursor-pointer">
+											Paste JSON
+										</TabsTrigger>
+									</TabsList>
+
+									<TabsContent value="events" className="mt-2 space-y-2">
+										<div className="flex items-center justify-end">
+											<Button
+												variant="ghost"
+												size="sm"
+												onClick={() => setRawEvents([])}
+												className="h-6 text-xs cursor-pointer"
+												disabled={rawEvents.length === 0}
+											>
+												Clear
+											</Button>
+										</div>
+										<pre className="max-h-64 overflow-auto text-xs font-mono bg-muted/50 rounded p-2">
+											{rawEvents.length === 0
+												? "No events yet. Generate a workflow to see SSE events here."
+												: JSON.stringify(rawEvents, null, 2)}
+										</pre>
+									</TabsContent>
+
+									<TabsContent value="json" className="mt-2 space-y-2">
+										<div className="flex items-center justify-between">
+											<span className="text-xs text-muted-foreground">Paste workflow JSON</span>
+											<Button
+												variant="ghost"
+												size="sm"
+												onClick={handleLoadTestData}
+												className="h-6 gap-1 text-xs cursor-pointer"
+											>
+												<FlaskConical className="w-3 h-3" />
+												Load Test Data
+											</Button>
+										</div>
+										<Textarea
+											placeholder='{"action": "workflow_created", "workflow": [...], "mappings": {...}}'
+											value={jsonInput}
+											onChange={(e) => setJsonInput(e.target.value)}
+											className="h-24 text-xs font-mono"
+										/>
+										<Button
+											onClick={handleRenderJson}
+											disabled={!jsonInput.trim()}
+											size="sm"
+											className="gap-2 cursor-pointer"
+										>
+											<Send className="w-4 h-4" />
+											Render
+										</Button>
+									</TabsContent>
+								</Tabs>
 							</div>
 						)}
 					</div>
