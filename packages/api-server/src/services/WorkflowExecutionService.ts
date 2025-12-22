@@ -2,206 +2,216 @@
  * WorkflowExecutionService - Handle iframe workflow execution
  *
  * Flow:
- * 1. Fetch base64-encoded payload from Valkey using hashkey
- * 2. Decode and parse to get endpoint + payload
- * 3. Call the specified endpoint (no JWT - hashkey replaces auth)
+ * 1. Fetch webhook config from Valkey using hashkey
+ * 2. Parse config (accessToken, tenantId, actionsApiBaseUrl, etc.)
+ * 3. Call Actions API postEvent with proper auth
  * 4. Response flows through queue -> message storage -> SSE
  */
 
 import axios from 'axios';
 import { getValkeyClient, getValkeyStatus } from '../config/valkey.js';
 import { logger } from '../config/logger.js';
-
-// ACTIONS_API_URL must be set in environment
-const ACTIONS_API_URL = process.env.ACTIONS_API_URL;
-if (!ACTIONS_API_URL) {
-  logger.warn('ACTIONS_API_URL not set - workflow execution will fail for relative endpoints');
-}
+import type { IframeWebhookConfig } from './sessionStore.js';
 
 // Valkey key prefix - keys stored as rita:session:{guid}
 const VALKEY_KEY_PREFIX = 'rita:session:';
 
-/**
- * Valkey payload structure (after base64 decode)
- * No JWT - hashkey mechanism replaces need for auth tokens
- */
-export interface ValkeyPayload {
-  endpoint: string;      // Full endpoint path, e.g., "/api/Webhooks/postEvent/{tenantId}"
-  payload: Record<string, unknown>; // Actual data to send to the endpoint
-}
-
 export interface ExecuteWorkflowResult {
   success: boolean;
   eventId?: string;
-  data?: unknown;
   error?: string;
-  debug?: {
+  debug: {
+    // Valkey info
     valkeyStatus: { configured: boolean; url: string; connected: boolean };
-    hashkey?: string;
-    fullKey?: string; // Actual Valkey key: rita:session:{guid}
+    valkeyKey?: string;
+    valkeyDataLength?: number;
+    valkeyConfigKeys?: string[];
+    valkeyDurationMs?: number;
+    // Webhook request info
+    webhookUrl?: string;
+    webhookPayloadSent?: Record<string, unknown>;
+    // Webhook response info
+    webhookStatus?: number;
+    webhookResponse?: unknown;
+    webhookDurationMs?: number;
+    // Error info
     errorCode?: string;
     errorDetails?: string;
-    durationMs?: number;
+    // Totals
+    totalDurationMs?: number;
   };
 }
 
 export class WorkflowExecutionService {
   /**
-   * Fetch and decode base64 payload from Valkey by hashkey
+   * Fetch webhook config from Valkey by hashkey
    */
-  async getPayloadFromValkey(hashkey: string): Promise<{ payload: ValkeyPayload | null; debug: ExecuteWorkflowResult['debug'] }> {
+  async getConfigFromValkey(hashkey: string): Promise<{ config: IframeWebhookConfig | null; debug: ExecuteWorkflowResult['debug'] }> {
     const startTime = Date.now();
     const valkeyStatus = getValkeyStatus();
-    // Build full key with prefix: rita:session:{guid}
     const fullKey = `${VALKEY_KEY_PREFIX}${hashkey}`;
+
     const debug: ExecuteWorkflowResult['debug'] = {
       valkeyStatus,
-      hashkey: hashkey.substring(0, 8) + '...',
-      fullKey, // Show actual key being looked up
+      valkeyKey: fullKey,
     };
 
-    logger.info({ hashkey: debug.hashkey, fullKey, valkeyStatus }, 'Fetching payload from Valkey');
+    logger.info({ hashkey: hashkey.substring(0, 8) + '...', fullKey, valkeyStatus }, 'Fetching config from Valkey');
 
     try {
       const client = getValkeyClient();
-      logger.debug({ fullKey, clientStatus: client.status }, 'Valkey client obtained');
 
       // Data is stored as hash type: HGET rita:session:{guid} data
       const data = await client.hget(fullKey, 'data');
-      debug.durationMs = Date.now() - startTime;
+      debug.valkeyDurationMs = Date.now() - startTime;
 
       if (!data) {
-        logger.warn({ hashkey: debug.hashkey, durationMs: debug.durationMs }, 'Valkey payload not found - key does not exist');
         debug.errorCode = 'KEY_NOT_FOUND';
-        debug.errorDetails = 'The hashkey does not exist in Valkey or has expired';
-        return { payload: null, debug };
+        debug.errorDetails = 'Hashkey does not exist in Valkey or has expired';
+        debug.totalDurationMs = Date.now() - startTime;
+        return { config: null, debug };
       }
 
-      logger.info({ hashkey: debug.hashkey, durationMs: debug.durationMs, dataLength: data.length }, 'Valkey data retrieved');
+      debug.valkeyDataLength = data.length;
 
-      // Decode base64
-      let decoded: string;
+      // Parse JSON
+      let config: IframeWebhookConfig;
       try {
-        decoded = Buffer.from(data, 'base64').toString('utf-8');
-        logger.debug({ hashkey: debug.hashkey, decodedLength: decoded.length }, 'Base64 decoded');
-      } catch {
-        // If not base64, assume it's plain JSON (for backwards compatibility)
-        decoded = data;
-        logger.debug({ hashkey: debug.hashkey }, 'Data is plain JSON (not base64)');
-      }
-
-      let payload: ValkeyPayload;
-      try {
-        payload = JSON.parse(decoded) as ValkeyPayload;
+        config = JSON.parse(data) as IframeWebhookConfig;
+        debug.valkeyConfigKeys = Object.keys(config);
       } catch (parseError) {
-        logger.error({ hashkey: debug.hashkey, error: (parseError as Error).message }, 'Failed to parse JSON payload');
         debug.errorCode = 'JSON_PARSE_ERROR';
-        debug.errorDetails = `Failed to parse payload as JSON: ${(parseError as Error).message}`;
-        return { payload: null, debug };
+        debug.errorDetails = (parseError as Error).message;
+        debug.totalDurationMs = Date.now() - startTime;
+        return { config: null, debug };
       }
 
-      // Validate required fields
-      if (!payload.endpoint) {
-        logger.error({ hashkey: debug.hashkey, payloadKeys: Object.keys(payload) }, 'Invalid payload: missing endpoint');
-        debug.errorCode = 'MISSING_ENDPOINT';
-        debug.errorDetails = `Payload missing 'endpoint' field. Found keys: ${Object.keys(payload).join(', ')}`;
-        return { payload: null, debug };
+      // Validate required fields for webhook execution
+      const requiredFields = ['actionsApiBaseUrl', 'tenantId', 'clientId', 'clientKey'];
+      const missingFields = requiredFields.filter(field => !(field in config));
+
+      if (missingFields.length > 0) {
+        debug.errorCode = 'MISSING_FIELDS';
+        debug.errorDetails = `Missing: ${missingFields.join(', ')}`;
+        debug.totalDurationMs = Date.now() - startTime;
+        return { config: null, debug };
       }
 
-      logger.info({ hashkey: debug.hashkey, endpoint: payload.endpoint, durationMs: debug.durationMs }, 'Valkey payload retrieved and validated');
-      return { payload, debug };
+      logger.info({ tenantId: config.tenantId, durationMs: debug.valkeyDurationMs }, 'Valkey config validated');
+      return { config, debug };
     } catch (error) {
-      debug.durationMs = Date.now() - startTime;
       const err = error as Error & { code?: string };
-      debug.errorCode = err.code || err.name || 'UNKNOWN';
+      debug.errorCode = err.code || err.name || 'VALKEY_ERROR';
       debug.errorDetails = err.message;
-
-      logger.error({
-        hashkey: debug.hashkey,
-        error: err.message,
-        errorCode: debug.errorCode,
-        durationMs: debug.durationMs,
-        valkeyStatus,
-        stack: err.stack?.split('\n').slice(0, 3).join(' | '),
-      }, 'Failed to fetch/decode Valkey payload');
-
-      return { payload: null, debug };
+      debug.valkeyDurationMs = Date.now() - startTime;
+      debug.totalDurationMs = debug.valkeyDurationMs;
+      return { config: null, debug };
     }
   }
 
   /**
-   * Execute workflow by calling the specified endpoint
-   * No JWT auth - hashkey mechanism provides security
+   * Execute workflow by calling Actions API postEvent
    */
-  async executeWorkflow(valkeyPayload: ValkeyPayload, debug?: ExecuteWorkflowResult['debug']): Promise<ExecuteWorkflowResult> {
-    const { endpoint, payload } = valkeyPayload;
+  async executeWorkflow(config: IframeWebhookConfig, debug: ExecuteWorkflowResult['debug']): Promise<ExecuteWorkflowResult> {
+    const startTime = Date.now();
 
-    // Build full URL - endpoint can be absolute or relative to ACTIONS_API_URL
-    let url: string;
-    if (endpoint.startsWith('http')) {
-      url = endpoint;
-    } else if (ACTIONS_API_URL) {
-      url = `${ACTIONS_API_URL}${endpoint.startsWith('/') ? '' : '/'}${endpoint}`;
-    } else {
-      return {
-        success: false,
-        error: 'ACTIONS_API_URL not configured and endpoint is not absolute',
-        debug,
-      };
-    }
+    // Build webhook URL from config
+    const webhookUrl = `${config.actionsApiBaseUrl}/api/Webhooks/postEvent/${config.tenantId}`;
+    debug.webhookUrl = webhookUrl;
+
+    // Build Basic auth header (mask in debug)
+    const authHeader = `Basic ${config.clientId}:${config.clientKey}`;
+
+    // Build workflow trigger payload
+    const payload = {
+      source: 'rita-chat-iframe',
+      action: 'workflow_trigger',
+      tenant_id: config.tenantId,
+      tenant_name: config.tenantName,
+      tab_instance_id: config.tabInstanceId,
+      chat_session_id: config.chatSessionId,
+      access_token: config.accessToken,
+      refresh_token: config.refreshToken,
+      token_expiry: config.tokenExpiry,
+      context: config.context,
+      timestamp: new Date().toISOString(),
+    };
+
+    // Store payload in debug (mask tokens)
+    debug.webhookPayloadSent = {
+      ...payload,
+      access_token: payload.access_token ? '[MASKED]' : undefined,
+      refresh_token: payload.refresh_token ? '[MASKED]' : undefined,
+    };
 
     try {
-      logger.info({ url, payloadKeys: Object.keys(payload || {}) }, 'Executing workflow');
+      logger.info({ webhookUrl, tenantId: config.tenantId }, 'Executing workflow');
 
-      const response = await axios.post(
-        url,
-        payload,
-        {
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          timeout: 30000,
-        }
-      );
+      const response = await axios.post(webhookUrl, payload, {
+        headers: {
+          'Authorization': authHeader,
+          'Content-Type': 'application/json',
+        },
+        timeout: 30000,
+      });
 
-      logger.info({ url, status: response.status }, 'Workflow execution initiated');
+      debug.webhookDurationMs = Date.now() - startTime;
+      debug.webhookStatus = response.status;
+      debug.webhookResponse = response.data;
+      debug.totalDurationMs = (debug.valkeyDurationMs || 0) + debug.webhookDurationMs;
+
+      logger.info({ webhookUrl, status: response.status, tenantId: config.tenantId }, 'Workflow executed');
 
       return {
         success: true,
         eventId: response.data?.eventId,
-        data: response.data,
         debug,
       };
     } catch (error: unknown) {
-      const axiosError = error as { response?: { data?: { message?: string }; status?: number }; message?: string };
-      const errorMessage = axiosError.response?.data?.message || axiosError.message || 'Unknown error';
-      const status = axiosError.response?.status;
+      debug.webhookDurationMs = Date.now() - startTime;
+      debug.totalDurationMs = (debug.valkeyDurationMs || 0) + debug.webhookDurationMs;
 
-      logger.error({ url, error: errorMessage, status }, 'Workflow execution failed');
+      const axiosError = error as {
+        response?: { data?: unknown; status?: number; statusText?: string };
+        message?: string;
+        code?: string;
+      };
+
+      debug.webhookStatus = axiosError.response?.status;
+      debug.webhookResponse = axiosError.response?.data;
+      debug.errorCode = axiosError.code || `HTTP_${axiosError.response?.status || 'NETWORK'}`;
+      debug.errorDetails = axiosError.message || 'Unknown error';
+
+      logger.error({
+        webhookUrl,
+        status: debug.webhookStatus,
+        error: debug.errorDetails,
+        response: debug.webhookResponse,
+      }, 'Workflow execution failed');
 
       return {
         success: false,
-        error: `Workflow execution failed: ${status || 'network'} - ${errorMessage}`,
+        error: `Webhook failed: ${debug.webhookStatus || 'network'} - ${debug.errorDetails}`,
         debug,
       };
     }
   }
 
   /**
-   * Combined: fetch from Valkey and execute workflow
+   * Combined: fetch config from Valkey and execute workflow
    */
   async executeFromHashkey(hashkey: string): Promise<ExecuteWorkflowResult> {
-    const { payload, debug } = await this.getPayloadFromValkey(hashkey);
+    const { config, debug } = await this.getConfigFromValkey(hashkey);
 
-    if (!payload) {
+    if (!config) {
       return {
         success: false,
-        error: `Payload not found or invalid: ${debug?.errorCode || 'unknown'}`,
+        error: `Config invalid: ${debug.errorCode}`,
         debug,
       };
     }
 
-    return this.executeWorkflow(payload, debug);
+    return this.executeWorkflow(config, debug);
   }
 }
 
