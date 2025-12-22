@@ -120,8 +120,8 @@ export class WorkflowExecutionService {
     const webhookUrl = `${baseUrl}/api/Webhooks/postEvent/${config.tenantId}`;
     debug.webhookUrl = webhookUrl;
 
-    // Build auth header
-    const authHeader = `${config.clientId}:${config.clientKey}`;
+    // Build HTTP Basic auth header (clientId:clientKey base64 encoded)
+    const authHeader = `Basic ${Buffer.from(`${config.clientId}:${config.clientKey}`).toString('base64')}`;
 
     // Build workflow trigger payload
     const payload = {

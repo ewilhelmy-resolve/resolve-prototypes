@@ -206,8 +206,8 @@ export class WebhookService {
     const baseUrl = tenantConfig.actionsApiBaseUrl.replace(/\/$/, '');
     const webhookUrl = `${baseUrl}/api/Webhooks/postEvent/${tenantConfig.tenantId}`;
 
-    // Build auth header
-    const authHeader = `${tenantConfig.clientId}:${tenantConfig.clientKey}`;
+    // Build HTTP Basic auth header (clientId:clientKey base64 encoded)
+    const authHeader = `Basic ${Buffer.from(`${tenantConfig.clientId}:${tenantConfig.clientKey}`).toString('base64')}`;
 
     // Build payload with all Valkey fields + message data
     const payload: BaseWebhookPayload & Record<string, any> = {
