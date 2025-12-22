@@ -54,14 +54,22 @@ export class IframeService {
    * Payload is stored as raw JSON by the host app
    */
   async fetchValkeyPayload(hashkey: string): Promise<IframeWebhookConfig | null> {
+    const startTime = Date.now();
+    logger.info({ hashkey: hashkey.substring(0, 8) + '...' }, 'Fetching Valkey payload...');
+
     try {
       const client = getValkeyClient();
+      logger.debug({ hashkey: hashkey.substring(0, 8) + '...' }, 'Valkey client obtained, executing GET...');
+
       const rawData = await client.get(hashkey);
+      const duration = Date.now() - startTime;
 
       if (!rawData) {
-        logger.warn({ hashkey: hashkey.substring(0, 8) + '...' }, 'Valkey payload not found');
+        logger.warn({ hashkey: hashkey.substring(0, 8) + '...', durationMs: duration }, 'Valkey payload not found');
         return null;
       }
+
+      logger.info({ hashkey: hashkey.substring(0, 8) + '...', durationMs: duration, dataLength: rawData.length }, 'Valkey payload retrieved');
 
       const payload = JSON.parse(rawData);
 
@@ -98,8 +106,17 @@ export class IframeService {
         context: payload.context,
       };
     } catch (error) {
+      const duration = Date.now() - startTime;
+      const err = error as Error;
       logger.error(
-        { hashkey: hashkey.substring(0, 8) + '...', error: (error as Error).message },
+        {
+          hashkey: hashkey.substring(0, 8) + '...',
+          error: err.message,
+          errorName: err.name,
+          errorCode: (err as NodeJS.ErrnoException).code,
+          durationMs: duration,
+          stack: err.stack?.split('\n').slice(0, 3).join(' | '),
+        },
         'Failed to fetch/parse Valkey payload'
       );
       return null;

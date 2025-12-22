@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { resolve } from 'node:path';
-import { type Channel, type Connection, connect } from 'amqplib';
+import { type Channel, connect } from 'amqplib';
 import axios from 'axios';
 import cors from 'cors';
 import { config } from 'dotenv';
@@ -192,7 +192,7 @@ interface MessagePart {
 }
 
 // RabbitMQ connection
-let rabbitConnection: Connection | null = null;
+let rabbitConnection: Awaited<ReturnType<typeof connect>> | null = null;
 let rabbitChannel: Channel | null = null;
 
 // Track cancelled sync operations to prevent sending sync_completed
@@ -2460,7 +2460,7 @@ process.on('SIGINT', async () => {
       shutdownLogger.info({}, 'RabbitMQ channel closed');
     }
     if (rabbitConnection) {
-      await (rabbitConnection as unknown as { close: () => Promise<void> }).close();
+      await rabbitConnection.close();
       shutdownLogger.info({}, 'RabbitMQ connection closed');
     }
     shutdownLogger.info({}, 'Graceful shutdown completed');

@@ -16,14 +16,22 @@ export function getValkeyClient(): Redis {
       throw new Error('VALKEY_URL or REDIS_URL must be set');
     }
 
+    // Mask URL for logging (show host only)
+    const maskedUrl = url.replace(/\/\/([^:]+):([^@]+)@/, '//$1:***@');
+    logger.info({ url: maskedUrl }, 'Initializing Valkey client');
+
     valkeyClient = new Redis(url, {
       maxRetriesPerRequest: 3,
+      connectTimeout: 5000, // 5 second connection timeout
+      commandTimeout: 5000, // 5 second command timeout
       retryStrategy: (times) => {
         if (times > 3) {
           logger.error({ times }, 'Valkey connection failed after max retries');
           return null; // Stop retrying
         }
-        return Math.min(times * 200, 2000); // Exponential backoff
+        const delay = Math.min(times * 200, 2000);
+        logger.warn({ attempt: times, nextRetryMs: delay }, 'Valkey connection retry');
+        return delay;
       },
       lazyConnect: true, // Don't connect until first command
     });

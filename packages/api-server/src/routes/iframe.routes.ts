@@ -13,11 +13,16 @@ const router = express.Router();
  * Token validated against iframe_tokens table.
  */
 router.post('/validate-instantiation', async (req, res) => {
+  const startTime = Date.now();
+  logger.info({ hasHashkey: !!req.body.hashkey }, 'Iframe validate-instantiation started');
+
   try {
     const { token, intentEid, existingConversationId, hashkey } = req.body;
 
     const iframeService = getIframeService();
     const result = await iframeService.validateAndSetup(token, intentEid, existingConversationId, hashkey);
+    const duration = Date.now() - startTime;
+    logger.info({ durationMs: duration, valid: result.valid }, 'Iframe validate-instantiation completed');
 
     // Handle validation failure
     if (!result.valid) {
@@ -50,7 +55,15 @@ router.post('/validate-instantiation', async (req, res) => {
       conversationId: result.conversationId,
     });
   } catch (error) {
-    logger.error({ error }, 'Iframe instantiation failed');
+    const duration = Date.now() - startTime;
+    const err = error as Error;
+    logger.error({
+      error: err.message,
+      errorName: err.name,
+      errorCode: (err as NodeJS.ErrnoException).code,
+      durationMs: duration,
+      stack: err.stack?.split('\n').slice(0, 3).join(' | '),
+    }, 'Iframe instantiation failed');
     res.status(500).json({
       valid: false,
       error: 'Failed to initialize iframe session',
