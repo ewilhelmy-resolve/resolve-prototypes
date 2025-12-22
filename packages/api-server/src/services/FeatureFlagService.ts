@@ -1,20 +1,25 @@
 /**
  * Feature Flag Relay Proxy Service
  *
- * Proxies feature flag requests to the platform API with Valkey caching.
+ * Proxies feature flag requests to the platform API with in-memory LRU caching.
  * Broadcasts flag updates via SSE to connected clients.
  */
 
 import axios, { isAxiosError } from 'axios';
-import { getValkeyClient } from '../config/valkey.js';
+import { LRUCache } from 'lru-cache';
 import { logger } from '../config/logger.js';
 import { getSSEService } from './sse.js';
 
 const PLATFORM_FLAGS_URL =
   process.env.PLATFORM_FLAGS_URL || 'https://strangler-facade.resolve.io';
-const CACHE_TTL_SECONDS = parseInt(process.env.FEATURE_FLAG_CACHE_TTL || '300', 10);
-const CACHE_KEY_PREFIX = 'ff:';
+const CACHE_TTL_MS = parseInt(process.env.FEATURE_FLAG_CACHE_TTL || '300', 10) * 1000;
 const PLATFORM_ENV = process.env.NODE_ENV || 'development';
+
+// In-memory LRU cache for feature flags
+const flagCache = new LRUCache<string, boolean>({
+  max: 500, // Max 500 flag entries
+  ttl: CACHE_TTL_MS, // TTL from env (default 5 min)
+});
 
 // Client flag names → Platform flag names
 const CLIENT_TO_PLATFORM_FLAG_MAP: Record<string, string> = {
@@ -43,7 +48,7 @@ export function getClientFlagName(platformKey: string): string {
 }
 
 function getCacheKey(flagName: string, environment: string, tenantId: string): string {
-  return `${CACHE_KEY_PREFIX}${flagName}:${environment}:${tenantId}`;
+  return `${flagName}:${environment}:${tenantId}`;
 }
 
 export class FeatureFlagService {
@@ -54,12 +59,11 @@ export class FeatureFlagService {
     const cacheKey = getCacheKey(flagName, PLATFORM_ENV, tenantId);
 
     try {
-      const valkey = getValkeyClient();
-      const cached = await valkey.get(cacheKey);
+      const cached = flagCache.get(cacheKey);
 
-      if (cached !== null) {
+      if (cached !== undefined) {
         logger.debug({ flagName, environment: PLATFORM_ENV, tenantId, cached: true }, 'Feature flag cache hit');
-        return cached === 'true';
+        return cached;
       }
 
       const response = await axios.get(
@@ -67,10 +71,9 @@ export class FeatureFlagService {
       );
 
       const isEnabled = response.data;
-      console.log(`Is Enabled: ${isEnabled}`);
       const boolValue = Boolean(isEnabled);
 
-      await valkey.setex(cacheKey, CACHE_TTL_SECONDS, String(boolValue));
+      flagCache.set(cacheKey, boolValue);
 
       logger.debug(
         { flagName, environment: PLATFORM_ENV, tenantId, isEnabled: boolValue, cached: false },
@@ -130,7 +133,7 @@ export class FeatureFlagService {
       });
 
       // Invalidate cache
-      await this.invalidateCache(flagName, organizationId);
+      this.invalidateCache(flagName, organizationId);
 
       // Broadcast SSE update
       this.broadcastFlagUpdate(flagName, isEnabled, organizationId);
@@ -156,10 +159,9 @@ export class FeatureFlagService {
   /**
    * Invalidate cache for a specific flag
    */
-  private async invalidateCache(flagName: string, tenantId: string): Promise<void> {
+  private invalidateCache(flagName: string, tenantId: string): void {
     const cacheKey = getCacheKey(flagName, PLATFORM_ENV, tenantId);
-    const valkey = getValkeyClient();
-    await valkey.del(cacheKey);
+    flagCache.delete(cacheKey);
     logger.debug({ cacheKey }, 'Feature flag cache invalidated');
   }
 

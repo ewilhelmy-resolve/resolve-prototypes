@@ -2,7 +2,7 @@
 
 ## Overview
 
-Platform feature flags enable per-tenant control of features via the Platform Actions API. RITA Go uses a **relay proxy** through the api-server with **Valkey caching** and **SSE real-time broadcasts**.
+Platform feature flags enable per-tenant control of features via the Platform Actions API. RITA Go uses a **relay proxy** through the api-server with **in-memory LRU caching** and **SSE real-time broadcasts**.
 
 **Status**: ✅ **IMPLEMENTED**
 
@@ -18,39 +18,38 @@ Platform feature flags enable per-tenant control of features via the Platform Ac
 
 | Layer | Scope | Storage | Purpose |
 |-------|-------|---------|---------|
-| **Platform Flags** | Per-org/tenant | Platform API + Valkey cache | Per-tenant feature control |
+| **Platform Flags** | Per-org/tenant | Platform API + LRU cache | Per-tenant feature control |
 | **Local Flags** | Per-browser | localStorage | Dev/experimental features |
 
 ### Data Flow
 
 ```
-┌─────────────┐      ┌─────────────┐      ┌──────────────┐      ┌─────────────────┐
-│  RITA Go    │ ──── │  api-server │ ──── │    Valkey    │      │ Platform API    │
-│  (Client)   │      │  (Relay)    │      │   (Cache)    │      │ (strangler)     │
-└─────────────┘      └─────────────┘      └──────────────┘      └─────────────────┘
-       │                    │                    │                       │
-       │  GET /api/         │                    │                       │
-       │  feature-flags/X   │                    │                       │
-       │ ──────────────────>│                    │                       │
-       │                    │  GET cache key     │                       │
-       │                    │ ──────────────────>│                       │
-       │                    │                    │                       │
-       │                    │  [cache miss]      │                       │
-       │                    │ ───────────────────────────────────────────>
-       │                    │                    │    GET /api/features/ │
-       │                    │                    │    is-enabled/...     │
-       │                    │<───────────────────────────────────────────│
-       │                    │  SET cache (5min)  │                       │
-       │                    │ ──────────────────>│                       │
-       │<───────────────────│                    │                       │
-       │    { isEnabled }   │                    │                       │
+┌─────────────┐      ┌─────────────────────────────┐      ┌─────────────────┐
+│  RITA Go    │ ──── │  api-server                 │      │ Platform API    │
+│  (Client)   │      │  (Relay + LRU Cache)        │      │ (strangler)     │
+└─────────────┘      └─────────────────────────────┘      └─────────────────┘
+       │                          │                               │
+       │  GET /api/               │                               │
+       │  feature-flags/X         │                               │
+       │ ────────────────────────>│                               │
+       │                          │                               │
+       │                          │  [cache hit] → return cached  │
+       │                          │                               │
+       │                          │  [cache miss]                 │
+       │                          │ ─────────────────────────────>│
+       │                          │    GET /api/features/         │
+       │                          │    is-enabled/...             │
+       │                          │<─────────────────────────────│
+       │                          │  store in LRU (5min TTL)      │
+       │<─────────────────────────│                               │
+       │    { isEnabled }         │                               │
 ```
 
 ### Real-Time Updates (SSE)
 
 When a flag is updated, the api-server:
 1. Updates the Platform API
-2. Invalidates Valkey cache
+2. Invalidates LRU cache entry
 3. Broadcasts via SSE to all org members
 
 ```
@@ -177,7 +176,7 @@ Body: { environment, tenant, isEnabled }
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `PLATFORM_FLAGS_URL` | `https://strangler-facade.resolve.io` | Platform API base URL |
-| `FEATURE_FLAG_CACHE_TTL` | `300` | Cache TTL in seconds (5 min) |
+| `FEATURE_FLAG_CACHE_TTL` | `300` | LRU cache TTL in seconds (5 min) |
 | `NODE_ENV` | `development` | Environment for flag evaluation |
 
 ### Environment Detection
@@ -274,7 +273,7 @@ Access at `/devtools`. Platform-controlled flags show ☁️ icon:
 | Decision | Choice | Rationale |
 |----------|--------|-----------|
 | Relay proxy | api-server | Centralized auth, caching, SSE broadcast |
-| Caching | Valkey (5min TTL) | Reduce Platform API load |
+| Caching | In-memory LRU (5min TTL) | No external deps, reduces Platform API load |
 | Real-time updates | SSE broadcast | Instant sync across org |
 | Environment detection | Server NODE_ENV | Single source of truth |
 | Flag name mapping | Server-side | Client uses readable names |
