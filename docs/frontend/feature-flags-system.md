@@ -15,7 +15,7 @@ RITA Go uses a **two-tier feature flag system**:
 ├─────────────────────────┼───────────────────────────────┤
 │ Per-org/tenant          │ Per-browser                   │
 │ api-server → Platform   │ localStorage                  │
-│ Valkey cached (5min)    │ Instant                       │
+│ LRU cached (5min)       │ Instant                       │
 │ SSE real-time sync      │ No sync                       │
 │ platformControlled:true │ platformControlled:false/omit │
 └─────────────────────────┴───────────────────────────────┘
@@ -178,7 +178,7 @@ describe('MyComponent', () => {
 |------------|--------|
 | Tenant-level flags | ✅ Implemented (platform-controlled) |
 | Real-time updates | ✅ Implemented (SSE broadcast) |
-| Caching | ✅ Implemented (Valkey, 5min TTL) |
+| Caching | ✅ Implemented (in-memory LRU, 5min TTL) |
 | User-level flags | ⏳ Not yet implemented |
 | A/B testing | ⏳ Not yet implemented |
 | Audit logging | ⏳ Not yet implemented |
