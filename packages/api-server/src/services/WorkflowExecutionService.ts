@@ -18,6 +18,9 @@ if (!ACTIONS_API_URL) {
   logger.warn('ACTIONS_API_URL not set - workflow execution will fail for relative endpoints');
 }
 
+// Valkey key prefix - keys stored as rita:session:{guid}
+const VALKEY_KEY_PREFIX = 'rita:session:';
+
 /**
  * Valkey payload structure (after base64 decode)
  * No JWT - hashkey mechanism replaces need for auth tokens
@@ -35,6 +38,7 @@ export interface ExecuteWorkflowResult {
   debug?: {
     valkeyStatus: { configured: boolean; url: string; connected: boolean };
     hashkey?: string;
+    fullKey?: string; // Actual Valkey key: rita:session:{guid}
     errorCode?: string;
     errorDetails?: string;
     durationMs?: number;
@@ -48,18 +52,22 @@ export class WorkflowExecutionService {
   async getPayloadFromValkey(hashkey: string): Promise<{ payload: ValkeyPayload | null; debug: ExecuteWorkflowResult['debug'] }> {
     const startTime = Date.now();
     const valkeyStatus = getValkeyStatus();
+    // Build full key with prefix: rita:session:{guid}
+    const fullKey = `${VALKEY_KEY_PREFIX}${hashkey}`;
     const debug: ExecuteWorkflowResult['debug'] = {
       valkeyStatus,
       hashkey: hashkey.substring(0, 8) + '...',
+      fullKey, // Show actual key being looked up
     };
 
-    logger.info({ hashkey: debug.hashkey, valkeyStatus }, 'Fetching payload from Valkey');
+    logger.info({ hashkey: debug.hashkey, fullKey, valkeyStatus }, 'Fetching payload from Valkey');
 
     try {
       const client = getValkeyClient();
-      logger.debug({ hashkey: debug.hashkey, clientStatus: client.status }, 'Valkey client obtained');
+      logger.debug({ fullKey, clientStatus: client.status }, 'Valkey client obtained');
 
-      const data = await client.get(hashkey);
+      // Data is stored as hash type: HGET rita:session:{guid} data
+      const data = await client.hget(fullKey, 'data');
       debug.durationMs = Date.now() - startTime;
 
       if (!data) {
