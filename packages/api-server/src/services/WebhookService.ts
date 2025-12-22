@@ -202,11 +202,12 @@ export class WebhookService {
   }): Promise<WebhookResponse> {
     const { tenantConfig, valkeyPayload, ...messageParams } = params;
 
-    // Build tenant-specific webhook URL
-    const webhookUrl = `${tenantConfig.actionsApiBaseUrl}/api/Webhooks/postEvent/${tenantConfig.tenantId}`;
+    // Build tenant-specific webhook URL (remove trailing slash if present)
+    const baseUrl = tenantConfig.actionsApiBaseUrl.replace(/\/$/, '');
+    const webhookUrl = `${baseUrl}/api/Webhooks/postEvent/${tenantConfig.tenantId}`;
 
-    // Build Basic auth header (plain text for now, encryption added later)
-    const authHeader = `Basic ${tenantConfig.clientId}:${tenantConfig.clientKey}`;
+    // Build HTTP Basic auth header (clientId:clientKey base64 encoded)
+    const authHeader = `Basic ${Buffer.from(`${tenantConfig.clientId}:${tenantConfig.clientKey}`).toString('base64')}`;
 
     // Build payload with all Valkey fields + message data
     const payload: BaseWebhookPayload & Record<string, any> = {

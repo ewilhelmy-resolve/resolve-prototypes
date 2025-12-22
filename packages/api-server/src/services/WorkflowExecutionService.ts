@@ -115,12 +115,13 @@ export class WorkflowExecutionService {
   async executeWorkflow(config: IframeWebhookConfig, debug: ExecuteWorkflowResult['debug']): Promise<ExecuteWorkflowResult> {
     const startTime = Date.now();
 
-    // Build webhook URL from config
-    const webhookUrl = `${config.actionsApiBaseUrl}/api/Webhooks/postEvent/${config.tenantId}`;
+    // Build webhook URL from config (remove trailing slash if present)
+    const baseUrl = config.actionsApiBaseUrl.replace(/\/$/, '');
+    const webhookUrl = `${baseUrl}/api/Webhooks/postEvent/${config.tenantId}`;
     debug.webhookUrl = webhookUrl;
 
-    // Build Basic auth header (mask in debug)
-    const authHeader = `Basic ${config.clientId}:${config.clientKey}`;
+    // Build HTTP Basic auth header (clientId:clientKey base64 encoded)
+    const authHeader = `Basic ${Buffer.from(`${config.clientId}:${config.clientKey}`).toString('base64')}`;
 
     // Build workflow trigger payload
     const payload = {
