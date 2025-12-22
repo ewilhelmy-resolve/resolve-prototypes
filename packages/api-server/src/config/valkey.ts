@@ -31,9 +31,15 @@ export function getValkeyStatus(): { configured: boolean; url: string; connected
 
 export function getValkeyClient(): Redis {
   if (!valkeyClient) {
-    const url = process.env.VALKEY_URL || process.env.REDIS_URL;
+    let url = process.env.VALKEY_URL || process.env.REDIS_URL;
     if (!url) {
       throw new Error('VALKEY_URL or REDIS_URL must be set');
+    }
+
+    // Auto-add rediss:// prefix if missing (required for TLS)
+    if (!url.startsWith('redis://') && !url.startsWith('rediss://')) {
+      url = `rediss://${url}`;
+      logger.info('Added rediss:// prefix to Valkey URL for TLS');
     }
 
     // Store URL for status checking
@@ -43,20 +49,26 @@ export function getValkeyClient(): Redis {
     const maskedUrl = url.replace(/\/\/([^:]+):([^@]+)@/, '//$1:***@');
     logger.info({ url: maskedUrl }, 'Initializing Valkey client');
 
+    // Extract hostname for TLS servername (required for AWS/managed providers)
+    const hostname = new URL(url).hostname;
+
     valkeyClient = new Redis(url, {
       maxRetriesPerRequest: 3,
-      connectTimeout: 5000, // 5 second connection timeout
-      commandTimeout: 5000, // 5 second command timeout
+      connectTimeout: 5000,
+      commandTimeout: 5000,
+      lazyConnect: true,
+      tls: {
+        servername: hostname,
+      },
       retryStrategy: (times) => {
         if (times > 3) {
           logger.error({ times }, 'Valkey connection failed after max retries');
-          return null; // Stop retrying
+          return null;
         }
         const delay = Math.min(times * 200, 2000);
         logger.warn({ attempt: times, nextRetryMs: delay }, 'Valkey connection retry');
         return delay;
       },
-      lazyConnect: true, // Don't connect until first command
     });
 
     valkeyClient.on('connect', () => {
