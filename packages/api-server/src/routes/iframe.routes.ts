@@ -15,13 +15,15 @@ const router = express.Router();
  */
 router.post('/validate-instantiation', async (req, res) => {
   const startTime = Date.now();
-  logger.info({ hasHashkey: !!req.body.hashkey }, 'Iframe validate-instantiation started');
+  logger.info({ hasHashkey: !!(req.body.hashkey || req.body.sessionKey) }, 'Iframe validate-instantiation started');
 
   try {
-    const { token, intentEid, existingConversationId, hashkey } = req.body;
+    const { token, intentEid, existingConversationId, hashkey, sessionKey } = req.body;
+    // Support both hashkey and sessionKey (portal uses sessionKey)
+    const resolvedHashkey = hashkey || sessionKey;
 
     const iframeService = getIframeService();
-    const result = await iframeService.validateAndSetup(token, intentEid, existingConversationId, hashkey);
+    const result = await iframeService.validateAndSetup(token, intentEid, existingConversationId, resolvedHashkey);
     const duration = Date.now() - startTime;
     logger.info({ durationMs: duration, valid: result.valid }, 'Iframe validate-instantiation completed');
 
@@ -45,7 +47,7 @@ router.post('/validate-instantiation', async (req, res) => {
         conversationId: result.conversationId,
         intentEid,
         tokenName: result.tokenName,
-        hasWebhookConfig: !!hashkey,
+        hasWebhookConfig: !!resolvedHashkey,
       },
       'Iframe instantiation successful'
     );
@@ -107,9 +109,11 @@ router.post('/execute', async (req, res) => {
   const startTime = Date.now();
 
   try {
-    const { hashkey } = req.body;
+    const { hashkey, sessionKey } = req.body;
+    // Support both hashkey and sessionKey (portal uses sessionKey)
+    const resolvedHashkey = hashkey || sessionKey;
 
-    if (!hashkey) {
+    if (!resolvedHashkey) {
       res.status(400).json({
         success: false,
         error: 'Missing hashkey parameter',
@@ -120,10 +124,10 @@ router.post('/execute', async (req, res) => {
       return;
     }
 
-    logger.info({ hashkey: hashkey.substring(0, 8) + '...' }, 'Executing workflow from hashkey');
+    logger.info({ hashkey: resolvedHashkey.substring(0, 8) + '...' }, 'Executing workflow from hashkey');
 
     const workflowService = getWorkflowExecutionService();
-    const result = await workflowService.executeFromHashkey(hashkey);
+    const result = await workflowService.executeFromHashkey(resolvedHashkey);
     const duration = Date.now() - startTime;
 
     // Add duration to debug
@@ -133,7 +137,7 @@ router.post('/execute', async (req, res) => {
 
     if (!result.success) {
       logger.warn({
-        hashkey: hashkey.substring(0, 8) + '...',
+        hashkey: resolvedHashkey.substring(0, 8) + '...',
         error: result.error,
         debug: result.debug,
         durationMs: duration,
@@ -143,7 +147,7 @@ router.post('/execute', async (req, res) => {
     }
 
     logger.info({
-      hashkey: hashkey.substring(0, 8) + '...',
+      hashkey: resolvedHashkey.substring(0, 8) + '...',
       eventId: result.eventId,
       durationMs: duration,
     }, 'Workflow execution initiated');

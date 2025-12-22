@@ -202,7 +202,8 @@ export default function IframeChatPage() {
 	const { conversationId: urlConversationId } = useParams<{ conversationId?: string }>();
 	const [searchParams] = useSearchParams();
 	const token = searchParams.get("token");
-	const hashkey = searchParams.get("hashkey");
+	// Support both hashkey and sessionKey (portal uses sessionKey)
+	const hashkey = searchParams.get("hashkey") || searchParams.get("sessionKey");
 	const debug = searchParams.get("debug") === "true";
 
 	const [isLoading, setIsLoading] = useState(true);
