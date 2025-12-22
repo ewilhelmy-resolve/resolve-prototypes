@@ -1,6 +1,6 @@
 "use client";
 
-import { Loader2 } from "lucide-react";
+import { AlertCircle, Loader2 } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -12,6 +12,11 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select";
+import {
+	Tooltip,
+	TooltipContent,
+	TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { formatRelativeTime, STATUS } from "@/constants/connectionSources";
 import { useConnectionSource } from "@/contexts/ConnectionSourceContext";
 import { useSyncTickets, useCancelIngestion, useLatestIngestionRun } from "@/hooks/useDataSources";
@@ -193,6 +198,18 @@ export default function ServiceNowItsmConfiguration({
 												Last synced {formatRelativeTime(latestIngestionRun.completed_at)}
 												{latestIngestionRun.records_processed > 0 && (
 													<span> · {latestIngestionRun.records_processed} tickets</span>
+												)}
+												{latestIngestionRun.records_failed > 0 && (
+													<Tooltip>
+														<TooltipTrigger asChild>
+															<AlertCircle className="h-4 w-4 text-amber-500 inline ml-1 cursor-help" />
+														</TooltipTrigger>
+														<TooltipContent className="max-w-[250px]">
+															{latestIngestionRun.records_failed} tickets couldn't sync.
+															Common causes: missing fields, permissions, or API limits.
+															Excluded from analysis.
+														</TooltipContent>
+													</Tooltip>
 												)}
 											</p>
 										) : (

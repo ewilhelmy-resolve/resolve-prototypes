@@ -185,18 +185,19 @@ export function ConnectionStatusCard({
 		<div className="flex flex-col gap-1">
 			<div className="border border-border bg-popover rounded-md p-4">
 				<div className="rounded-lg">
-					<div className="flex flex-col md:flex-row items-center justify-between gap-5">
-						<div className="flex flex-col gap-2 max-w-xs">
-							<div className="flex items-center gap-1">
-								<p className="text-sm text-muted-foreground w-16">URL</p>
+					<div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+						{/* Credentials section */}
+						<div className="flex flex-col gap-2 w-full md:w-auto md:max-w-xs">
+							<div className="flex items-center gap-2">
+								<p className="text-sm text-muted-foreground w-20 shrink-0">URL</p>
 								<p className="text-sm text-foreground truncate">
 									{source.type === SOURCES.SERVICENOW
 										? source.settings?.instanceUrl || "—"
 										: source.settings?.url || "—"}
 								</p>
 							</div>
-							<div className="flex items-center gap-1">
-								<p className="text-sm text-muted-foreground w-16">
+							<div className="flex items-center gap-2">
+								<p className="text-sm text-muted-foreground w-20 shrink-0">
 									{source.type === SOURCES.SERVICENOW ? "Username" : "Email"}
 								</p>
 								<p className="text-sm text-foreground truncate">
@@ -205,8 +206,8 @@ export function ConnectionStatusCard({
 										: source.settings?.email || "—"}
 								</p>
 							</div>
-							<div className="flex items-center gap-1">
-								<p className="text-sm text-muted-foreground w-16">
+							<div className="flex items-center gap-2">
+								<p className="text-sm text-muted-foreground w-20 shrink-0">
 									{source.type === SOURCES.SERVICENOW ? "Password" : "API"}
 								</p>
 								<p className="text-sm text-foreground truncate">
@@ -214,14 +215,20 @@ export function ConnectionStatusCard({
 								</p>
 							</div>
 						</div>
-						<div className="flex justify-center flex-1">
+						{/* Status badge - right-aligned on both mobile and desktop */}
+						<div className="flex justify-end">
 							<ConnectionStatusBadge
 								status={source.status}
 								showHelp={showHelp}
 							/>
 						</div>
-						<div className="flex items-center mr-6">{getStatusMessage()}</div>
 					</div>
+					{/* Status message - separate row for cleaner layout */}
+					{getStatusMessage() && (
+						<div className="mt-3 pt-3 border-t border-border">
+							{getStatusMessage()}
+						</div>
+					)}
 				</div>
 			</div>
 		</div>
