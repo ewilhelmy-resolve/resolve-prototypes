@@ -128,19 +128,12 @@ router.post('/execute', async (req, res) => {
 
     const workflowService = getWorkflowExecutionService();
     const result = await workflowService.executeFromHashkey(resolvedHashkey);
-    const duration = Date.now() - startTime;
-
-    // Add duration to debug
-    if (result.debug) {
-      result.debug.durationMs = duration;
-    }
 
     if (!result.success) {
       logger.warn({
         hashkey: resolvedHashkey.substring(0, 8) + '...',
         error: result.error,
         debug: result.debug,
-        durationMs: duration,
       }, 'Workflow execution failed');
       res.status(400).json(result);
       return;
@@ -149,7 +142,7 @@ router.post('/execute', async (req, res) => {
     logger.info({
       hashkey: resolvedHashkey.substring(0, 8) + '...',
       eventId: result.eventId,
-      durationMs: duration,
+      durationMs: result.debug.totalDurationMs,
     }, 'Workflow execution initiated');
     res.json(result);
   } catch (error) {

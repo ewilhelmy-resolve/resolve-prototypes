@@ -381,7 +381,14 @@ router.post('/:conversationId/messages', authenticateUser, async (req, res) => {
     );
 
     res.status(201).json({
-      message: result.message
+      message: result.message,
+      // Include webhook debug info for iframe debugging
+      webhook: {
+        success: webhookResponse.success,
+        error: webhookResponse.error,
+        usedTenantConfig: !!iframeConfig,
+        tenantId: iframeConfig?.tenantId,
+      },
     });
 
   } catch (error) {
