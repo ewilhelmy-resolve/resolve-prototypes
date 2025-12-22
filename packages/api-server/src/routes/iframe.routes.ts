@@ -53,6 +53,8 @@ router.post('/validate-instantiation', async (req, res) => {
       valid: result.valid,
       publicUserId: result.publicUserId,
       conversationId: result.conversationId,
+      webhookConfigLoaded: result.webhookConfigLoaded,
+      webhookTenantId: result.webhookTenantId,
     });
   } catch (error) {
     const duration = Date.now() - startTime;

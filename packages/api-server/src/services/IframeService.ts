@@ -227,6 +227,8 @@ export class IframeService {
     conversationId?: string;
     cookie?: string;
     tokenName?: string;
+    webhookConfigLoaded?: boolean;
+    webhookTenantId?: string;
   }> {
     // Validate token first
     if (!token) {
@@ -276,6 +278,8 @@ export class IframeService {
       conversationId,
       cookie,
       tokenName: tokenInfo.name,
+      webhookConfigLoaded: !!iframeWebhookConfig,
+      webhookTenantId: iframeWebhookConfig?.tenantId,
     };
   }
 }
