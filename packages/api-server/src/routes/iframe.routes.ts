@@ -1,6 +1,7 @@
 import express from 'express';
 import { getIframeService } from '../services/IframeService.js';
 import { getWorkflowExecutionService } from '../services/WorkflowExecutionService.js';
+import { getValkeyStatus } from '../config/valkey.js';
 import { logger } from '../config/logger.js';
 
 const router = express.Router();
@@ -74,6 +75,25 @@ router.post('/validate-instantiation', async (req, res) => {
 });
 
 /**
+ * Debug endpoint - check Valkey status and configuration
+ * GET /api/iframe/debug
+ */
+router.get('/debug', async (_req, res) => {
+  const valkeyStatus = getValkeyStatus();
+  const envVars = {
+    VALKEY_URL: process.env.VALKEY_URL ? 'set' : 'not set',
+    REDIS_URL: process.env.REDIS_URL ? 'set' : 'not set',
+    ACTIONS_API_URL: process.env.ACTIONS_API_URL ? 'set' : 'not set',
+  };
+
+  res.json({
+    timestamp: new Date().toISOString(),
+    valkey: valkeyStatus,
+    environment: envVars,
+  });
+});
+
+/**
  * Execute workflow from Valkey hashkey
  * POST /api/iframe/execute
  *
@@ -84,6 +104,8 @@ router.post('/validate-instantiation', async (req, res) => {
  * 4. Response flows through queue -> message -> SSE
  */
 router.post('/execute', async (req, res) => {
+  const startTime = Date.now();
+
   try {
     const { hashkey } = req.body;
 
@@ -91,28 +113,59 @@ router.post('/execute', async (req, res) => {
       res.status(400).json({
         success: false,
         error: 'Missing hashkey parameter',
+        debug: {
+          valkeyStatus: getValkeyStatus(),
+        },
       });
       return;
     }
 
-    logger.info({ hashkey }, 'Executing workflow from hashkey');
+    logger.info({ hashkey: hashkey.substring(0, 8) + '...' }, 'Executing workflow from hashkey');
 
     const workflowService = getWorkflowExecutionService();
     const result = await workflowService.executeFromHashkey(hashkey);
+    const duration = Date.now() - startTime;
+
+    // Add duration to debug
+    if (result.debug) {
+      result.debug.durationMs = duration;
+    }
 
     if (!result.success) {
-      logger.warn({ hashkey, error: result.error }, 'Workflow execution failed');
+      logger.warn({
+        hashkey: hashkey.substring(0, 8) + '...',
+        error: result.error,
+        debug: result.debug,
+        durationMs: duration,
+      }, 'Workflow execution failed');
       res.status(400).json(result);
       return;
     }
 
-    logger.info({ hashkey, eventId: result.eventId }, 'Workflow execution initiated');
+    logger.info({
+      hashkey: hashkey.substring(0, 8) + '...',
+      eventId: result.eventId,
+      durationMs: duration,
+    }, 'Workflow execution initiated');
     res.json(result);
   } catch (error) {
-    logger.error({ error }, 'Workflow execution error');
+    const duration = Date.now() - startTime;
+    const err = error as Error & { code?: string };
+    logger.error({
+      error: err.message,
+      errorCode: err.code,
+      durationMs: duration,
+      stack: err.stack?.split('\n').slice(0, 3).join(' | '),
+    }, 'Workflow execution error');
     res.status(500).json({
       success: false,
       error: 'Internal server error',
+      debug: {
+        valkeyStatus: getValkeyStatus(),
+        errorCode: err.code || err.name,
+        errorDetails: err.message,
+        durationMs: duration,
+      },
     });
   }
 });
