@@ -8,6 +8,26 @@ import Redis from 'ioredis';
 import { logger } from './logger.js';
 
 let valkeyClient: Redis | null = null;
+let valkeyUrl: string | null = null;
+
+/**
+ * Get masked Valkey URL for debugging (hides password)
+ */
+export function getValkeyUrlMasked(): string {
+  if (!valkeyUrl) return 'not configured';
+  return valkeyUrl.replace(/\/\/([^:]+):([^@]+)@/, '//$1:***@');
+}
+
+/**
+ * Get Valkey connection status
+ */
+export function getValkeyStatus(): { configured: boolean; url: string; connected: boolean } {
+  return {
+    configured: !!valkeyUrl,
+    url: getValkeyUrlMasked(),
+    connected: valkeyClient?.status === 'ready',
+  };
+}
 
 export function getValkeyClient(): Redis {
   if (!valkeyClient) {
@@ -15,6 +35,9 @@ export function getValkeyClient(): Redis {
     if (!url) {
       throw new Error('VALKEY_URL or REDIS_URL must be set');
     }
+
+    // Store URL for status checking
+    valkeyUrl = url;
 
     // Mask URL for logging (show host only)
     const maskedUrl = url.replace(/\/\/([^:]+):([^@]+)@/, '//$1:***@');

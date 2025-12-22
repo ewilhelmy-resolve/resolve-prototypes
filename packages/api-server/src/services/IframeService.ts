@@ -4,6 +4,9 @@ import { getValkeyClient } from '../config/valkey.js';
 import { getSessionStore, type CreateSessionData, type Session, type IframeWebhookConfig } from './sessionStore.js';
 import { getSessionService } from './sessionService.js';
 
+// Valkey key prefix - keys stored as rita:session:{guid}
+const VALKEY_KEY_PREFIX = 'rita:session:';
+
 export interface IframeToken {
   id: string;
   token: string;
@@ -52,16 +55,20 @@ export class IframeService {
   /**
    * Fetch iframe webhook config from Valkey
    * Payload is stored as raw JSON by the host app
+   * Key format: rita:session:{guid}
    */
   async fetchValkeyPayload(hashkey: string): Promise<IframeWebhookConfig | null> {
     const startTime = Date.now();
-    logger.info({ hashkey: hashkey.substring(0, 8) + '...' }, 'Fetching Valkey payload...');
+    // Build full key with prefix: rita:session:{guid}
+    const fullKey = `${VALKEY_KEY_PREFIX}${hashkey}`;
+    logger.info({ hashkey: hashkey.substring(0, 8) + '...', fullKey }, 'Fetching Valkey payload...');
 
     try {
       const client = getValkeyClient();
-      logger.debug({ hashkey: hashkey.substring(0, 8) + '...' }, 'Valkey client obtained, executing GET...');
+      logger.debug({ fullKey }, 'Valkey client obtained, executing HGET...');
 
-      const rawData = await client.get(hashkey);
+      // Data is stored as hash type: HGET rita:session:{guid} data
+      const rawData = await client.hget(fullKey, 'data');
       const duration = Date.now() - startTime;
 
       if (!rawData) {
@@ -227,6 +234,8 @@ export class IframeService {
     conversationId?: string;
     cookie?: string;
     tokenName?: string;
+    webhookConfigLoaded?: boolean;
+    webhookTenantId?: string;
   }> {
     // Validate token first
     if (!token) {
@@ -276,6 +285,8 @@ export class IframeService {
       conversationId,
       cookie,
       tokenName: tokenInfo.name,
+      webhookConfigLoaded: !!iframeWebhookConfig,
+      webhookTenantId: iframeWebhookConfig?.tenantId,
     };
   }
 }
