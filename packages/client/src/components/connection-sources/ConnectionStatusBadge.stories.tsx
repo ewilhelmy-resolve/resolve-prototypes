@@ -32,7 +32,7 @@ export const Connected: Story = {
 	},
 };
 
-export const Error: Story = {
+export const ErrorStatus: Story = {
 	args: {
 		status: STATUS.ERROR,
 	},

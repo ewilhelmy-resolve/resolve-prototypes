@@ -1,3 +1,4 @@
+// biome-ignore-all lint/a11y/useValidAriaRole: role prop is component prop, not ARIA role
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { ChatMessage } from "./ChatMessage";
