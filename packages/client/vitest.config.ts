@@ -26,6 +26,24 @@ export default defineConfig({
         inline: ['katex', 'rehype-katex', 'streamdown'],
       },
     },
+    coverage: {
+      provider: 'v8',
+      reporter: ['text', 'json', 'html'],
+      exclude: [
+        'node_modules/**',
+        'src/test/**',
+        '**/*.stories.tsx',
+        '**/*.d.ts',
+        '**/types/**',
+        'src/components/tickets/**',
+      ],
+      thresholds: {
+        statements: 60,
+        branches: 60,
+        functions: 60,
+        lines: 60,
+      },
+    },
   },
   resolve: {
     alias: {
