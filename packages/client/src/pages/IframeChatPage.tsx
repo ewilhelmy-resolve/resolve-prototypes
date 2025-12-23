@@ -120,15 +120,12 @@ function DebugPanel({ debug, showDebug, setShowDebug, debugLogs, state }: DebugP
 // Inner component that uses SSE (must be inside SSEProvider)
 function IframeChatContent({
 	conversationId,
-	hashkey,
 }: {
 	conversationId: string;
-	hashkey: string | null;
 }) {
 	const { latestUpdate } = useSSEContext();
 	const { updateMessage } = useConversationStore();
 	const ritaChatState = useRitaChat();
-	const workflowExecutedRef = useRef(false);
 
 	// Handle SSE message updates
 	useEffect(() => {
@@ -139,29 +136,6 @@ function IframeChatContent({
 			});
 		}
 	}, [latestUpdate, updateMessage]);
-
-	// Execute workflow on mount if hashkey is present
-	useEffect(() => {
-		if (!hashkey || workflowExecutedRef.current) return;
-		workflowExecutedRef.current = true;
-
-		const key = hashkey; // Capture for closure
-		async function executeWorkflow() {
-			console.log("[IframeChatPage] Executing workflow from hashkey...");
-			try {
-				const result = await iframeApi.executeWorkflow(key);
-				if (result.success) {
-					console.log("[IframeChatPage] Workflow executed, eventId:", result.eventId);
-				} else {
-					console.error("[IframeChatPage] Workflow execution failed:", result.error);
-				}
-			} catch (err) {
-				console.error("[IframeChatPage] Workflow execution error:", err);
-			}
-		}
-
-		executeWorkflow();
-	}, [hashkey]);
 
 	// Handle postMessage commands from host page (Jarvis)
 	const handleHostSendMessage = useCallback(
@@ -220,6 +194,7 @@ export default function IframeChatPage() {
 	const apiUrl = import.meta.env.VITE_API_URL || "";
 	const { setCurrentConversation } = useConversationStore();
 	const initRef = useRef(false);
+	const workflowExecutedRef = useRef(false);
 
 	// Debug logging helper
 	const addDebugLog = useCallback((level: DebugLogEntry["level"], message: string, data?: Record<string, unknown>) => {
@@ -304,6 +279,30 @@ export default function IframeChatPage() {
 		initializeIframe();
 	}, [urlConversationId, token, hashkey, setCurrentConversation, addDebugLog]);
 
+	// Execute workflow once session is ready (if hashkey present)
+	// This runs in parent to prevent re-execution on child remounts
+	useEffect(() => {
+		if (!sessionReady || !hashkey || workflowExecutedRef.current) return;
+		workflowExecutedRef.current = true;
+
+		const key = hashkey; // Capture for closure (narrowed type)
+		async function executeWorkflow() {
+			console.log("[IframeChatPage] Executing workflow from hashkey...");
+			try {
+				const result = await iframeApi.executeWorkflow(key);
+				if (result.success) {
+					console.log("[IframeChatPage] Workflow executed, eventId:", result.eventId);
+				} else {
+					console.error("[IframeChatPage] Workflow execution failed:", result.error);
+				}
+			} catch (err) {
+				console.error("[IframeChatPage] Workflow execution error:", err);
+			}
+		}
+
+		executeWorkflow();
+	}, [sessionReady, hashkey]);
+
 	// Debug panel props
 	const debugPanelProps: DebugPanelProps = {
 		debug,
@@ -358,7 +357,7 @@ export default function IframeChatPage() {
 	return (
 		<IframeChatLayout>
 			<SSEProvider apiUrl={apiUrl} enabled={sessionReady}>
-				<IframeChatContent conversationId={conversationId} hashkey={hashkey} />
+				<IframeChatContent conversationId={conversationId} />
 			</SSEProvider>
 			<DebugPanel {...debugPanelProps} />
 		</IframeChatLayout>
