@@ -10,8 +10,7 @@ import {
 	SelectValue,
 } from "./select";
 import { Label } from "./label";
-import { Apple, Banana, Cherry, Grape } from "lucide-react";
-
+ 
 const meta: Meta<typeof Select> = {
 	component: Select,
 	title: "UI/Select",
