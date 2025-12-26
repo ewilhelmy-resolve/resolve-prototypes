@@ -316,12 +316,22 @@ export const dataSourcesApi = {
       method: 'POST',
     }),
 
+  // Cancel ingestion (ticket sync)
+  cancelIngestion: (id: string) =>
+    apiRequest<{ success: boolean; message: string }>(`/api/data-sources/${id}/cancel-ingestion`, {
+      method: 'POST',
+    }),
+
   // Sync tickets (ITSM Autopilot)
   syncTickets: (id: string, params: { time_range_days: number }) =>
     apiRequest<import('../types/dataSource').SyncTicketsResponse>(`/api/data-sources/${id}/sync-tickets`, {
       method: 'POST',
       body: params,
     }),
+
+  // Get latest ingestion run (ITSM Autopilot)
+  getLatestIngestionRun: (id: string) =>
+    apiRequest<import('../types/dataSource').LatestIngestionRunResponse>(`/api/data-sources/${id}/ingestion-runs/latest`),
 };
 
 // Member API

@@ -290,6 +290,60 @@ router.post('/:id/cancel-sync', authenticateUser, async (req, res) => {
 });
 
 /**
+ * POST /api/v1/data-sources/:id/cancel-ingestion
+ * Cancel an ongoing ticket sync (ingestion run)
+ * UI-only: updates DB status, platform continues but UI shows cancelled
+ */
+router.post('/:id/cancel-ingestion', authenticateUser, async (req, res) => {
+  const authReq = req as AuthenticatedRequest;
+  const { id } = req.params;
+
+  try {
+    // Verify data source exists and belongs to org
+    const dataSource = await dataSourceService.getDataSource(
+      id,
+      authReq.user.activeOrganizationId
+    );
+
+    if (!dataSource) {
+      return res.status(404).json({ error: 'Data source not found' });
+    }
+
+    // Cancel the latest ingestion run (only if running/pending)
+    const cancelledRun = await dataSourceService.cancelIngestionRun(
+      id,
+      authReq.user.activeOrganizationId
+    );
+
+    if (!cancelledRun) {
+      return res.status(400).json({
+        error: 'No ingestion in progress',
+        message: 'No running or pending ticket sync to cancel'
+      });
+    }
+
+    console.log('[DataSourceWebhook] Ingestion run cancelled:', {
+      ingestionRunId: cancelledRun.id,
+      connectionId: id,
+      tenantId: authReq.user.activeOrganizationId
+    });
+
+    res.json({
+      success: true,
+      data: {
+        ingestion_run_id: cancelledRun.id,
+        status: cancelledRun.status,
+        cancelledAt: new Date().toISOString()
+      },
+      message: 'Ticket sync cancelled'
+    });
+  } catch (error) {
+    console.error('[DataSourceWebhook] Error cancelling ingestion:', error);
+    res.status(500).json({ error: 'Failed to cancel ticket sync' });
+  }
+});
+
+/**
  * POST /api/v1/data-sources/:id/sync-tickets
  * Trigger ITSM ticket sync for autopilot clustering
  * Creates ingestion_runs record, sends webhook, returns 202
@@ -391,6 +445,39 @@ router.post('/:id/sync-tickets', authenticateUser, async (req, res) => {
 
     console.error('[DataSourceWebhook] Error triggering ticket sync:', error);
     res.status(500).json({ error: 'Failed to trigger ticket sync' });
+  }
+});
+
+/**
+ * GET /api/v1/data-sources/:id/ingestion-runs/latest
+ * Get the latest ingestion run for a data source (ITSM Autopilot)
+ * Used by frontend to check if a ticket sync is in progress
+ */
+router.get('/:id/ingestion-runs/latest', authenticateUser, async (req, res) => {
+  const authReq = req as AuthenticatedRequest;
+  const { id } = req.params;
+
+  try {
+    // Verify data source exists and belongs to org
+    const dataSource = await dataSourceService.getDataSource(
+      id,
+      authReq.user.activeOrganizationId
+    );
+
+    if (!dataSource) {
+      return res.status(404).json({ error: 'Data source not found' });
+    }
+
+    // Get latest ingestion run
+    const latestRun = await dataSourceService.getLatestIngestionRun(
+      id,
+      authReq.user.activeOrganizationId
+    );
+
+    res.json({ data: latestRun });
+  } catch (error) {
+    console.error('[DataSourceWebhook] Error fetching latest ingestion run:', error);
+    res.status(500).json({ error: 'Failed to fetch latest ingestion run' });
   }
 });
 

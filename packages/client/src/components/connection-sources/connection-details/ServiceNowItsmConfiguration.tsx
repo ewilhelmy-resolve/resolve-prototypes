@@ -1,8 +1,10 @@
 "use client";
 
+import { AlertCircle, Loader2 } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import { Progress } from "@/components/ui/progress";
 import {
 	Select,
 	SelectContent,
@@ -10,9 +12,14 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select";
-import { STATUS } from "@/constants/connectionSources";
+import {
+	Tooltip,
+	TooltipContent,
+	TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { formatRelativeTime, STATUS } from "@/constants/connectionSources";
 import { useConnectionSource } from "@/contexts/ConnectionSourceContext";
-import { useSyncTickets, useCancelSync } from "@/hooks/useDataSources";
+import { useSyncTickets, useCancelIngestion, useLatestIngestionRun } from "@/hooks/useDataSources";
 import { ritaToast } from "@/components/ui/rita-toast";
 import { ConnectionActionsMenu } from "../ConnectionActionsMenu";
 import { ConnectionStatusCard } from "../ConnectionStatusCard";
@@ -33,13 +40,16 @@ export default function ServiceNowItsmConfiguration({
 }: ServiceNowItsmConfigurationProps = {}) {
 	const { source } = useConnectionSource();
 	const syncTickets = useSyncTickets();
-	const cancelMutation = useCancelSync();
+	const cancelMutation = useCancelIngestion();
 	const [selectedTimeRange, setSelectedTimeRange] = useState("30");
 
-	const isSyncing = source.status.toLowerCase() === STATUS.SYNCING.toLowerCase();
+	// Track ticket sync status via ingestion runs (separate from knowledge sync)
+	const { data: latestIngestionRun } = useLatestIngestionRun(source.backendData?.id);
+	const isTicketSyncing = latestIngestionRun?.status === "running" || latestIngestionRun?.status === "pending";
+
 	const isVerifying = source.status.toLowerCase() === STATUS.VERIFYING.toLowerCase();
 
-	const isSyncButtonDisabled = isSyncing || isVerifying || syncTickets.isPending;
+	const isSyncButtonDisabled = isTicketSyncing || isVerifying || syncTickets.isPending;
 	const isCancelButtonDisabled = cancelMutation.isPending;
 
 	const handleSyncTickets = async () => {
@@ -103,62 +113,111 @@ export default function ServiceNowItsmConfiguration({
 					<ConnectionActionsMenu onEdit={onEdit} />
 				</div>
 
-				<ConnectionStatusCard source={source} onRetry={handleSyncTickets} />
+				<ConnectionStatusCard
+					source={source}
+					onRetry={handleSyncTickets}
+					hideStatusMessage
+				/>
 
-				{/* Show cancel button when syncing */}
-				{isSyncing && (
-					<div className="flex flex-col gap-1">
-						<div className="border border-border bg-popover rounded-md p-4">
-							<div className="rounded-lg flex items-center justify-between">
-								<Label>Sync in progress...</Label>
-								<Button
-									onClick={handleCancelSync}
-									disabled={isCancelButtonDisabled}
-									variant="destructive"
-								>
-									{cancelMutation.isPending ? "Cancelling..." : "Cancel Sync"}
-								</Button>
-							</div>
-						</div>
-					</div>
-				)}
-
-				{/* ITSM Sync Section - show when not error, verifying, or syncing */}
+				{/* ITSM Sync Section - show when connected and not verifying */}
 				{source.status.toLowerCase() !== STATUS.ERROR.toLowerCase() &&
-					!isVerifying &&
-					!isSyncing && (
+					!isVerifying && (
 					<div className="flex flex-col gap-1">
 						<div className="border border-border bg-popover rounded-md p-4">
-							<div className="rounded-lg">
-								<Label className="mb-2">
-									Import tickets from the last:
-								</Label>
-								<div className="flex flex-col md:flex-row items-start gap-4 mt-2">
-									<div className="md:flex-1 w-full">
-										<Select
-											value={selectedTimeRange}
-											onValueChange={setSelectedTimeRange}
-										>
-											<SelectTrigger className="w-full">
-												<SelectValue placeholder="Select time range" />
-											</SelectTrigger>
-											<SelectContent>
-												{TIME_RANGE_OPTIONS.map((option) => (
-													<SelectItem key={option.value} value={option.value}>
-														{option.label}
-													</SelectItem>
-												))}
-											</SelectContent>
-										</Select>
+							<div className="rounded-lg flex flex-col gap-4">
+								{/* Import tickets controls */}
+								<div>
+									<Label className="mb-2">
+										Import tickets from the last:
+									</Label>
+									<div className="flex flex-col md:flex-row items-start gap-4 mt-2">
+										<div className="md:flex-1 w-full">
+											<Select
+												value={selectedTimeRange}
+												onValueChange={setSelectedTimeRange}
+												disabled={isTicketSyncing}
+											>
+												<SelectTrigger className="w-full">
+													<SelectValue placeholder="Select time range" />
+												</SelectTrigger>
+												<SelectContent>
+													{TIME_RANGE_OPTIONS.map((option) => (
+														<SelectItem key={option.value} value={option.value}>
+															{option.label}
+														</SelectItem>
+													))}
+												</SelectContent>
+											</Select>
+										</div>
+										{isTicketSyncing ? (
+											<Button
+												onClick={handleCancelSync}
+												disabled={isCancelButtonDisabled}
+												className="w-full md:w-fit"
+												variant="destructive"
+											>
+												{cancelMutation.isPending ? "Cancelling..." : "Cancel Sync"}
+											</Button>
+										) : (
+											<Button
+												onClick={handleSyncTickets}
+												disabled={isSyncButtonDisabled}
+												className="w-full md:w-fit"
+												variant="default"
+											>
+												{syncTickets.isPending ? "Importing..." : "Import tickets"}
+											</Button>
+										)}
 									</div>
-									<Button
-										onClick={handleSyncTickets}
-										disabled={isSyncButtonDisabled}
-										className="w-full md:w-fit"
-										variant="default"
-									>
-										{syncTickets.isPending ? "Syncing..." : "Sync Tickets"}
-									</Button>
+								</div>
+
+								{/* Progress / Last sync info */}
+								<div className="border-t border-border pt-4">
+									{isTicketSyncing ? (
+										// Show progress when syncing
+										latestIngestionRun?.metadata?.progress?.total_estimated ? (
+											<div className="flex items-center gap-3">
+												<Progress
+													value={(latestIngestionRun.records_processed / latestIngestionRun.metadata.progress.total_estimated) * 100}
+													className="flex-1"
+												/>
+												<span className="text-sm text-muted-foreground whitespace-nowrap">
+													{latestIngestionRun.records_processed} of {latestIngestionRun.metadata.progress.total_estimated} tickets
+												</span>
+											</div>
+										) : (
+											<div className="flex items-center gap-2 text-sm text-muted-foreground">
+												<Loader2 className="h-4 w-4 animate-spin" />
+												Importing tickets...
+											</div>
+										)
+									) : (
+										// Show last sync info when not syncing
+										latestIngestionRun?.completed_at ? (
+											<p className="text-sm text-muted-foreground">
+												Last synced {formatRelativeTime(latestIngestionRun.completed_at)}
+												{latestIngestionRun.records_processed > 0 && (
+													<span> · {latestIngestionRun.records_processed} tickets</span>
+												)}
+												{latestIngestionRun.records_failed > 0 && (
+													<Tooltip>
+														<TooltipTrigger asChild>
+															<AlertCircle className="h-4 w-4 text-amber-500 inline ml-1 cursor-help" />
+														</TooltipTrigger>
+														<TooltipContent className="max-w-[250px]">
+															{latestIngestionRun.records_failed} tickets couldn't sync.
+															Common causes: missing fields, permissions, or API limits.
+															Excluded from analysis.
+														</TooltipContent>
+													</Tooltip>
+												)}
+											</p>
+										) : (
+											<p className="text-sm text-muted-foreground">
+												No tickets imported yet
+											</p>
+										)
+									)}
 								</div>
 							</div>
 						</div>

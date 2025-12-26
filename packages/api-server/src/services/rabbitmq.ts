@@ -3,6 +3,7 @@ import { pool, withOrgContext } from '../config/database.js';
 import { logError, PerformanceTimer, queueLogger } from '../config/logger.js';
 import { DataSourceStatusConsumer } from '../consumers/DataSourceStatusConsumer.js';
 import { DocumentProcessingConsumer } from '../consumers/DocumentProcessingConsumer.js';
+import { WorkflowConsumer } from '../consumers/WorkflowConsumer.js';
 import { getSSEService } from './sse.js';
 
 // Connection state types
@@ -39,6 +40,7 @@ export class RabbitMQService {
   private readonly queueName: string;
   private dataSourceStatusConsumer: DataSourceStatusConsumer;
   private documentProcessingConsumer: DocumentProcessingConsumer;
+  private workflowConsumer: WorkflowConsumer;
 
   // Connection resilience state
   private state: ConnectionState = {
@@ -57,6 +59,7 @@ export class RabbitMQService {
     this.queueName = process.env.QUEUE_NAME || 'chat.responses';
     this.dataSourceStatusConsumer = new DataSourceStatusConsumer();
     this.documentProcessingConsumer = new DocumentProcessingConsumer();
+    this.workflowConsumer = new WorkflowConsumer();
 
     // Initialize retry configuration from environment variables
     this.retryConfig = {
@@ -344,6 +347,9 @@ export class RabbitMQService {
 
     // Start document processing status consumer
     await this.documentProcessingConsumer.startConsumer(this.channel);
+
+    // Start workflow consumer
+    await this.workflowConsumer.startConsumer(this.channel);
   }
 
   private async processMessage(payload: any): Promise<void> {

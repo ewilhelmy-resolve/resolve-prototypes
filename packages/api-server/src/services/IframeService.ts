@@ -1,7 +1,11 @@
 import { pool, withOrgContext } from '../config/database.js';
 import { logger } from '../config/logger.js';
-import { getSessionStore, type CreateSessionData, type Session } from './sessionStore.js';
+import { getValkeyClient } from '../config/valkey.js';
+import { getSessionStore, type CreateSessionData, type Session, type IframeWebhookConfig } from './sessionStore.js';
 import { getSessionService } from './sessionService.js';
+
+// Valkey key prefix - keys stored as rita:session:{guid}
+const VALKEY_KEY_PREFIX = 'rita:session:';
 
 export interface IframeToken {
   id: string;
@@ -49,6 +53,84 @@ export class IframeService {
   private sessionService = getSessionService();
 
   /**
+   * Fetch iframe webhook config from Valkey
+   * Payload is stored as raw JSON by the host app
+   * Key format: rita:session:{guid}
+   */
+  async fetchValkeyPayload(hashkey: string): Promise<IframeWebhookConfig | null> {
+    const startTime = Date.now();
+    // Build full key with prefix: rita:session:{guid}
+    const fullKey = `${VALKEY_KEY_PREFIX}${hashkey}`;
+    logger.info({ hashkey: hashkey.substring(0, 8) + '...', fullKey }, 'Fetching Valkey payload...');
+
+    try {
+      const client = getValkeyClient();
+      logger.debug({ fullKey }, 'Valkey client obtained, executing HGET...');
+
+      // Data is stored as hash type: HGET rita:session:{guid} data
+      const rawData = await client.hget(fullKey, 'data');
+      const duration = Date.now() - startTime;
+
+      if (!rawData) {
+        logger.warn({ hashkey: hashkey.substring(0, 8) + '...', durationMs: duration }, 'Valkey payload not found');
+        return null;
+      }
+
+      logger.info({ hashkey: hashkey.substring(0, 8) + '...', durationMs: duration, dataLength: rawData.length }, 'Valkey payload retrieved');
+
+      const payload = JSON.parse(rawData);
+
+      // Validate required fields
+      const requiredFields = [
+        'accessToken', 'refreshToken', 'tabInstanceId', 'tenantId',
+        'tenantName', 'chatSessionId', 'clientId', 'clientKey',
+        'tokenExpiry', 'actionsApiBaseUrl'
+      ];
+
+      for (const field of requiredFields) {
+        if (!(field in payload)) {
+          logger.warn({ hashkey: hashkey.substring(0, 8) + '...', missingField: field }, 'Invalid Valkey payload - missing required field');
+          return null;
+        }
+      }
+
+      logger.info(
+        { hashkey: hashkey.substring(0, 8) + '...', tenantId: payload.tenantId },
+        'Valkey payload retrieved successfully'
+      );
+
+      return {
+        accessToken: payload.accessToken,
+        refreshToken: payload.refreshToken,
+        tabInstanceId: payload.tabInstanceId,
+        tenantId: payload.tenantId,
+        tenantName: payload.tenantName,
+        chatSessionId: payload.chatSessionId,
+        clientId: payload.clientId,
+        clientKey: payload.clientKey,
+        tokenExpiry: payload.tokenExpiry,
+        actionsApiBaseUrl: payload.actionsApiBaseUrl,
+        context: payload.context,
+      };
+    } catch (error) {
+      const duration = Date.now() - startTime;
+      const err = error as Error;
+      logger.error(
+        {
+          hashkey: hashkey.substring(0, 8) + '...',
+          error: err.message,
+          errorName: err.name,
+          errorCode: (err as NodeJS.ErrnoException).code,
+          durationMs: duration,
+          stack: err.stack?.split('\n').slice(0, 3).join(' | '),
+        },
+        'Failed to fetch/parse Valkey payload'
+      );
+      return null;
+    }
+  }
+
+  /**
    * Validate an iframe token against the database
    * Returns token info if valid, null if invalid/inactive
    */
@@ -80,8 +162,9 @@ export class IframeService {
   /**
    * Create a session for the public guest user
    * Bypasses Keycloak JWT validation - directly creates session for public user
+   * @param iframeWebhookConfig Optional webhook config from Valkey for tenant-specific webhooks
    */
-  async createPublicSession(): Promise<{ session: Session; cookie: string }> {
+  async createPublicSession(iframeWebhookConfig?: IframeWebhookConfig): Promise<{ session: Session; cookie: string }> {
     const sessionData: CreateSessionData = {
       userId: PUBLIC_USER_ID,
       organizationId: PUBLIC_ORG_ID,
@@ -89,13 +172,19 @@ export class IframeService {
       firstName: 'Public',
       lastName: 'Guest',
       sessionDurationMs: 24 * 60 * 60 * 1000, // 24 hours
+      iframeWebhookConfig,
     };
 
     const session = await this.sessionStore.createSession(sessionData);
     const cookie = this.sessionService.generateSessionCookie(session.sessionId);
 
     logger.info(
-      { sessionId: session.sessionId, userId: PUBLIC_USER_ID },
+      {
+        sessionId: session.sessionId,
+        userId: PUBLIC_USER_ID,
+        hasWebhookConfig: !!iframeWebhookConfig,
+        tenantId: iframeWebhookConfig?.tenantId,
+      },
       'Public iframe session created'
     );
 
@@ -131,11 +220,13 @@ export class IframeService {
   /**
    * Validate instantiation and setup public session + conversation
    * Requires valid token. If existingConversationId provided, skip conversation creation.
+   * @param hashkey Optional Valkey hashkey containing tenant webhook credentials
    */
   async validateAndSetup(
     token: string,
     intentEid?: string,
-    existingConversationId?: string
+    existingConversationId?: string,
+    hashkey?: string
   ): Promise<{
     valid: boolean;
     error?: string;
@@ -143,6 +234,8 @@ export class IframeService {
     conversationId?: string;
     cookie?: string;
     tokenName?: string;
+    webhookConfigLoaded?: boolean;
+    webhookTenantId?: string;
   }> {
     // Validate token first
     if (!token) {
@@ -155,8 +248,19 @@ export class IframeService {
       return { valid: false, error: 'Invalid or inactive token' };
     }
 
-    // Create session for public user
-    const { session, cookie } = await this.createPublicSession();
+    // Fetch Valkey payload if hashkey provided (for tenant-specific webhook auth)
+    let iframeWebhookConfig: IframeWebhookConfig | undefined;
+    if (hashkey) {
+      const payload = await this.fetchValkeyPayload(hashkey);
+      if (payload) {
+        iframeWebhookConfig = payload;
+      } else {
+        logger.warn({ hashkey: hashkey.substring(0, 8) + '...' }, 'Hashkey provided but Valkey payload invalid/missing - continuing without webhook config');
+      }
+    }
+
+    // Create session for public user with optional webhook config
+    const { session, cookie } = await this.createPublicSession(iframeWebhookConfig);
 
     // Use existing conversation or create new one
     const conversationId = existingConversationId
@@ -170,6 +274,7 @@ export class IframeService {
         sessionId: session.sessionId,
         existingConversation: !!existingConversationId,
         tokenName: tokenInfo.name,
+        hasWebhookConfig: !!iframeWebhookConfig,
       },
       'Iframe instantiation complete'
     );
@@ -180,6 +285,8 @@ export class IframeService {
       conversationId,
       cookie,
       tokenName: tokenInfo.name,
+      webhookConfigLoaded: !!iframeWebhookConfig,
+      webhookTenantId: iframeWebhookConfig?.tenantId,
     };
   }
 }

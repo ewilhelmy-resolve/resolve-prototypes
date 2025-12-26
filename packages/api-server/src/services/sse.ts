@@ -125,9 +125,10 @@ export interface IngestionRunUpdateEvent {
   data: {
     ingestion_run_id: string;
     connection_id: string;
-    status: 'completed' | 'failed';
+    status: 'running' | 'completed' | 'failed';
     records_processed?: number;
     records_failed?: number;
+    total_estimated?: number;
     error_message?: string;
     timestamp: string;
   };
@@ -145,6 +146,35 @@ export interface FeatureFlagUpdateEvent {
   };
 }
 
+    
+export interface DynamicWorkflowEvent {
+  type: 'dynamic_workflow';
+  data: {
+    action: 'workflow_created' | 'workflow_executed' | 'progress_update';
+    workflow?: Array<{
+      task_id: string;
+      description: string;
+      inputs: string[];
+      outputs: string[];
+      action: 'reuse' | 'create' | 'modify';
+      snippet: {
+        id: string;
+        description: string;
+        code: string;
+        input_example: string;
+        output_keys: string;
+        packages: string;
+      };
+    }>;
+    mappings?: Record<string, Record<string, string>>;
+    visualization?: string;
+    result?: any;
+    progress?: string;
+    error?: string;
+    timestamp: string;
+  };
+}
+
 export type SSEEvent =
   | MessageUpdateEvent
   | NewMessageEvent
@@ -157,6 +187,7 @@ export type SSEEvent =
   | MemberDeletedOwnAccountEvent
   | IngestionRunUpdateEvent
   | FeatureFlagUpdateEvent;
+  | DynamicWorkflowEvent;
 
 export class SSEService {
   private connections: Map<string, SSEConnection> = new Map();

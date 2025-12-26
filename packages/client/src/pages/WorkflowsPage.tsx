@@ -1,12 +1,12 @@
-import { useState, useRef, useEffect } from "react";
-import { Send, Settings, ChevronDown, ChevronUp, FlaskConical, Code, Globe, FileJson, Upload, Download } from "lucide-react";
+import { useState, useRef, useEffect, useCallback } from "react";
+import { Code, Wand2, Send, FlaskConical, ChevronDown, ChevronUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import RitaLayout from "@/components/layouts/RitaLayout";
+import { workflowApi } from "@/services/workflowApi";
+import type { DynamicWorkflowEvent } from "@/services/EventSourceSSEClient";
 import {
 	type WorkflowResponse,
 	type WorkflowTask,
@@ -17,7 +17,6 @@ import {
 } from "./workflows/types";
 import { TEST_WORKFLOW_RESPONSE } from "./workflows/testWorkflowData";
 
-type InputSource = "json" | "url";
 
 // Workflow Step Card Component
 function WorkflowStepCard({
@@ -145,18 +144,14 @@ function WorkflowRenderer({ data }: { data: WorkflowResponse }) {
 
 export default function WorkflowsPage() {
 	const [messages, setMessages] = useState<ChatMessage[]>([]);
-	const [showConfig, setShowConfig] = useState(true);
-	const [activeTab, setActiveTab] = useState<"input" | "output">("input");
+	const [currentWorkflow, setCurrentWorkflow] = useState<WorkflowResponse | null>(null);
 	const [isLoading, setIsLoading] = useState(false);
+	const [queryInput, setQueryInput] = useState("");
 
-	// Input tab state
-	const [inputSource, setInputSource] = useState<InputSource>("json");
+	// Dev panel state
+	const [showDevPanel, setShowDevPanel] = useState(false);
 	const [jsonInput, setJsonInput] = useState("");
-	const [inputEndpoint, setInputEndpoint] = useState("");
-
-	// Output tab state
-	const [outputEndpoint, setOutputEndpoint] = useState("");
-	const [outputPayload, setOutputPayload] = useState("");
+	const [rawEvents, setRawEvents] = useState<Array<{ timestamp: string; [key: string]: unknown }>>([]);
 
 	const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -165,141 +160,104 @@ export default function WorkflowsPage() {
 		messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
 	}, [messages.length]);
 
-	// INPUT: Render from JSON
-	const handleRenderJson = () => {
-		if (!jsonInput.trim()) return;
+	// Listen for SSE workflow events
+	useEffect(() => {
+		const handler = (e: Event) => {
+			const customEvent = e as CustomEvent<DynamicWorkflowEvent["data"]>;
+			const eventData = customEvent.detail;
 
-		try {
-			const data = JSON.parse(jsonInput);
+			// Capture raw event for debugging
+			setRawEvents((prev) => [
+				...prev,
+				{ timestamp: new Date().toISOString(), ...eventData },
+			]);
 
-			const userMessage: ChatMessage = {
-				id: crypto.randomUUID(),
-				role: "user",
-				content: "[JSON Input]",
-				timestamp: new Date(),
-			};
+			if (eventData.action === "workflow_created" && eventData.workflow) {
+				const workflowResponse: WorkflowResponse = {
+					action: "workflow_created",
+					workflow: eventData.workflow,
+					mappings: eventData.mappings || {},
+					visualization: eventData.visualization || "",
+				};
 
-			const assistantMessage: ChatMessage = {
-				id: crypto.randomUUID(),
-				role: "assistant",
-				content: jsonInput,
-				timestamp: new Date(),
-				workflowData: isWorkflowResponse(data) ? data : undefined,
-				isError: !isWorkflowResponse(data),
-			};
-
-			setMessages((prev) => [...prev, userMessage, assistantMessage]);
-
-			if (!isWorkflowResponse(data)) {
-				const warningMessage: ChatMessage = {
+				setCurrentWorkflow(workflowResponse);
+				const assistantMessage: ChatMessage = {
 					id: crypto.randomUUID(),
 					role: "assistant",
-					content: "Warning: JSON is not a valid workflow response. Showing raw JSON.",
+					content: "Workflow generated successfully",
 					timestamp: new Date(),
-					isError: true,
 				};
-				setMessages((prev) => [...prev, warningMessage]);
+				setMessages((prev) => [...prev, assistantMessage]);
+				setIsLoading(false);
+			} else if (eventData.action === "progress_update") {
+				const progressMessage: ChatMessage = {
+					id: crypto.randomUUID(),
+					role: "assistant",
+					content: eventData.progress || "Processing...",
+					timestamp: new Date(),
+				};
+				setMessages((prev) => [...prev, progressMessage]);
+			} else if (eventData.action === "workflow_executed") {
+				const resultMessage: ChatMessage = {
+					id: crypto.randomUUID(),
+					role: "assistant",
+					content: eventData.result
+						? JSON.stringify(eventData.result, null, 2)
+						: eventData.error || "Workflow executed",
+					timestamp: new Date(),
+					isError: !!eventData.error,
+				};
+				setMessages((prev) => [...prev, resultMessage]);
+				setIsLoading(false);
 			}
-		} catch (error) {
-			const errorMessage: ChatMessage = {
-				id: crypto.randomUUID(),
-				role: "assistant",
-				content: `JSON Parse Error: ${error instanceof Error ? error.message : "Invalid JSON"}`,
-				timestamp: new Date(),
-				isError: true,
-			};
-			setMessages((prev) => [...prev, errorMessage]);
-		}
-	};
+		};
 
-	// INPUT: Fetch from URL
-	const handleFetchFromUrl = async () => {
-		if (!inputEndpoint.trim() || isLoading) return;
+		window.addEventListener("workflow:event", handler);
+		return () => window.removeEventListener("workflow:event", handler);
+	}, []);
+
+	// Generate workflow via webhook
+	const handleGenerateWorkflow = useCallback(async () => {
+		if (!queryInput.trim() || isLoading) return;
 
 		setIsLoading(true);
 		const userMessage: ChatMessage = {
 			id: crypto.randomUUID(),
 			role: "user",
-			content: `[Fetch] ${inputEndpoint}`,
+			content: queryInput,
 			timestamp: new Date(),
 		};
 		setMessages((prev) => [...prev, userMessage]);
 
 		try {
-			const response = await fetch(inputEndpoint, {
-				method: "GET",
-				headers: { "Content-Type": "application/json" },
+			await workflowApi.generateWorkflow({
+				query: queryInput,
 			});
-
-			const data = await response.json();
-
-			const assistantMessage: ChatMessage = {
-				id: crypto.randomUUID(),
-				role: "assistant",
-				content: JSON.stringify(data, null, 2),
-				timestamp: new Date(),
-				isError: !response.ok,
-				workflowData: isWorkflowResponse(data) ? data : undefined,
-			};
-			setMessages((prev) => [...prev, assistantMessage]);
+			setQueryInput("");
+			// Response will come via SSE
 		} catch (error) {
 			const errorMessage: ChatMessage = {
 				id: crypto.randomUUID(),
 				role: "assistant",
-				content: `Fetch Error: ${error instanceof Error ? error.message : "Unknown error"}`,
+				content: `Error: ${error instanceof Error ? error.message : "Failed to generate workflow"}`,
 				timestamp: new Date(),
 				isError: true,
 			};
 			setMessages((prev) => [...prev, errorMessage]);
-		} finally {
 			setIsLoading(false);
 		}
-	};
+	}, [queryInput, isLoading]);
 
-	// OUTPUT: Send to endpoint
-	const handleSendToEndpoint = async () => {
-		if (!outputEndpoint.trim() || !outputPayload.trim() || isLoading) return;
-
-		setIsLoading(true);
-		const userMessage: ChatMessage = {
-			id: crypto.randomUUID(),
-			role: "user",
-			content: `[Send] ${outputEndpoint}`,
-			timestamp: new Date(),
-		};
-		setMessages((prev) => [...prev, userMessage]);
-
+	// Dev: Render from JSON
+	const handleRenderJson = () => {
+		if (!jsonInput.trim()) return;
 		try {
-			const payload = JSON.parse(outputPayload);
-
-			const response = await fetch(outputEndpoint, {
-				method: "POST",
-				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify(payload),
-			});
-
-			const data = await response.json();
-
-			const assistantMessage: ChatMessage = {
-				id: crypto.randomUUID(),
-				role: "assistant",
-				content: JSON.stringify(data, null, 2),
-				timestamp: new Date(),
-				isError: !response.ok,
-				workflowData: isWorkflowResponse(data) ? data : undefined,
-			};
-			setMessages((prev) => [...prev, assistantMessage]);
-		} catch (error) {
-			const errorMessage: ChatMessage = {
-				id: crypto.randomUUID(),
-				role: "assistant",
-				content: `Error: ${error instanceof Error ? error.message : "Unknown error"}`,
-				timestamp: new Date(),
-				isError: true,
-			};
-			setMessages((prev) => [...prev, errorMessage]);
-		} finally {
-			setIsLoading(false);
+			const data = JSON.parse(jsonInput);
+			if (isWorkflowResponse(data)) {
+				setCurrentWorkflow(data);
+			}
+		} catch {
+			// Invalid JSON - ignore
 		}
 	};
 
@@ -309,214 +267,179 @@ export default function WorkflowsPage() {
 
 	return (
 		<RitaLayout>
-			<div className="flex flex-col h-full bg-background">
-				{/* Config Panel */}
-				<div className="border-b">
-					<button
-						type="button"
-						onClick={() => setShowConfig(!showConfig)}
-						className="w-full flex items-center justify-between px-4 py-2 text-sm font-medium text-muted-foreground hover:bg-muted/50"
-					>
-						<span className="flex items-center gap-2">
-							<Settings className="w-4 h-4" />
-							Configuration
-						</span>
-						{showConfig ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-					</button>
+			<div className="grid grid-cols-1 lg:grid-cols-2 h-full bg-background">
+				{/* LEFT COLUMN: Chat */}
+				<div className="flex flex-col h-full border-r">
+					{/* Dev Panel */}
+					<div className="border-b">
+						<button
+							type="button"
+							onClick={() => setShowDevPanel(!showDevPanel)}
+							className="w-full flex items-center justify-between px-4 py-2 text-sm font-medium text-muted-foreground hover:bg-muted/50 cursor-pointer"
+						>
+							<span className="flex items-center gap-2">
+								<FlaskConical className="w-4 h-4" />
+								Dev Tools
+							</span>
+							{showDevPanel ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+						</button>
 
-					{showConfig && (
-						<div className="px-4 pb-4">
-							<Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "input" | "output")}>
-								<TabsList className="mb-3">
-									<TabsTrigger value="input" className="gap-2">
-										<Download className="w-4 h-4" />
-										Input
-									</TabsTrigger>
-									<TabsTrigger value="output" className="gap-2">
-										<Upload className="w-4 h-4" />
-										Output
-									</TabsTrigger>
-								</TabsList>
-
-								{/* INPUT TAB */}
-								<TabsContent value="input" className="space-y-3 mt-0">
-									{/* Source toggle */}
-									<div className="flex gap-2">
-										<Button
-											variant={inputSource === "json" ? "default" : "outline"}
-											size="sm"
-											onClick={() => setInputSource("json")}
-											className="gap-2"
-										>
-											<FileJson className="w-4 h-4" />
+						{showDevPanel && (
+							<div className="px-4 pb-4">
+								<Tabs defaultValue="events" className="w-full">
+									<TabsList className="w-full">
+										<TabsTrigger value="events" className="flex-1 text-xs cursor-pointer">
+											Raw Events {rawEvents.length > 0 && `(${rawEvents.length})`}
+										</TabsTrigger>
+										<TabsTrigger value="json" className="flex-1 text-xs cursor-pointer">
 											Paste JSON
-										</Button>
-										<Button
-											variant={inputSource === "url" ? "default" : "outline"}
-											size="sm"
-											onClick={() => setInputSource("url")}
-											className="gap-2"
-										>
-											<Globe className="w-4 h-4" />
-											Fetch URL
-										</Button>
-									</div>
+										</TabsTrigger>
+									</TabsList>
 
-									{inputSource === "json" ? (
-										<div className="space-y-2">
-											<div className="flex items-center justify-between">
-												<Label htmlFor="jsonInput" className="text-xs">Workflow JSON</Label>
-												<Button
-													variant="ghost"
-													size="sm"
-													onClick={handleLoadTestData}
-													className="h-6 gap-1 text-xs"
-												>
-													<FlaskConical className="w-3 h-3" />
-													Load Test Data
-												</Button>
-											</div>
-											<Textarea
-												id="jsonInput"
-												placeholder='{"action": "workflow_created", "workflow": [...], "mappings": {...}}'
-												value={jsonInput}
-												onChange={(e) => setJsonInput(e.target.value)}
-												className="h-32 text-xs font-mono"
-											/>
+									<TabsContent value="events" className="mt-2 space-y-2">
+										<div className="flex items-center justify-end">
 											<Button
-												onClick={handleRenderJson}
-												disabled={!jsonInput.trim()}
+												variant="ghost"
 												size="sm"
-												className="gap-2"
+												onClick={() => setRawEvents([])}
+												className="h-6 text-xs cursor-pointer"
+												disabled={rawEvents.length === 0}
 											>
-												<Send className="w-4 h-4" />
-												Render
+												Clear
 											</Button>
 										</div>
-									) : (
-										<div className="space-y-2">
-											<Label htmlFor="inputEndpoint" className="text-xs">Endpoint URL (GET)</Label>
-											<div className="flex gap-2">
-												<Input
-													id="inputEndpoint"
-													type="url"
-													placeholder="https://api.example.com/workflow"
-													value={inputEndpoint}
-													onChange={(e) => setInputEndpoint(e.target.value)}
-													className="h-8 text-sm flex-1"
-												/>
-												<Button
-													onClick={handleFetchFromUrl}
-													disabled={!inputEndpoint.trim() || isLoading}
-													size="sm"
-													className="gap-2"
-												>
-													<Download className="w-4 h-4" />
-													Fetch
-												</Button>
-											</div>
-										</div>
-									)}
-								</TabsContent>
+										<pre className="max-h-64 overflow-auto text-xs font-mono bg-muted/50 rounded p-2">
+											{rawEvents.length === 0
+												? "No events yet. Generate a workflow to see SSE events here."
+												: JSON.stringify(rawEvents, null, 2)}
+										</pre>
+									</TabsContent>
 
-								{/* OUTPUT TAB */}
-								<TabsContent value="output" className="space-y-3 mt-0">
-									<div className="space-y-2">
-										<Label htmlFor="outputEndpoint" className="text-xs">Endpoint URL (POST)</Label>
-										<Input
-											id="outputEndpoint"
-											type="url"
-											placeholder="https://api.example.com/submit"
-											value={outputEndpoint}
-											onChange={(e) => setOutputEndpoint(e.target.value)}
-											className="h-8 text-sm"
-										/>
-									</div>
-									<div className="space-y-2">
-										<Label htmlFor="outputPayload" className="text-xs">JSON Payload</Label>
+									<TabsContent value="json" className="mt-2 space-y-2">
+										<div className="flex items-center justify-between">
+											<span className="text-xs text-muted-foreground">Paste workflow JSON</span>
+											<Button
+												variant="ghost"
+												size="sm"
+												onClick={handleLoadTestData}
+												className="h-6 gap-1 text-xs cursor-pointer"
+											>
+												<FlaskConical className="w-3 h-3" />
+												Load Test Data
+											</Button>
+										</div>
 										<Textarea
-											id="outputPayload"
-											placeholder='{"workflow_id": "...", "data": {...}}'
-											value={outputPayload}
-											onChange={(e) => setOutputPayload(e.target.value)}
-											className="h-32 text-xs font-mono"
+											placeholder='{"action": "workflow_created", "workflow": [...], "mappings": {...}}'
+											value={jsonInput}
+											onChange={(e) => setJsonInput(e.target.value)}
+											className="h-24 text-xs font-mono"
 										/>
-									</div>
-									<Button
-										onClick={handleSendToEndpoint}
-										disabled={!outputEndpoint.trim() || !outputPayload.trim() || isLoading}
-										size="sm"
-										className="gap-2"
+										<Button
+											onClick={handleRenderJson}
+											disabled={!jsonInput.trim()}
+											size="sm"
+											className="gap-2 cursor-pointer"
+										>
+											<Send className="w-4 h-4" />
+											Render
+										</Button>
+									</TabsContent>
+								</Tabs>
+							</div>
+						)}
+					</div>
+
+					{/* Chat Messages */}
+					<div className="flex-1 overflow-y-auto p-4">
+						<div className="space-y-3">
+							{messages.length === 0 ? (
+								<div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground py-12">
+									<Wand2 className="w-8 h-8 mb-2 opacity-50" />
+									<p className="text-sm">Describe what you want to automate</p>
+								</div>
+							) : (
+								messages.map((message) => (
+									<div
+										key={message.id}
+										className={cn(
+											"flex",
+											message.role === "user" ? "justify-end" : "justify-start"
+										)}
 									>
-										<Send className="w-4 h-4" />
-										Send
-									</Button>
-								</TabsContent>
-							</Tabs>
+										<div
+											className={cn(
+												"max-w-[90%] rounded-lg px-3 py-2",
+												message.role === "user"
+													? "bg-primary text-primary-foreground"
+													: message.isError
+														? "bg-destructive/10 border border-destructive/20"
+														: "bg-muted"
+											)}
+										>
+											<p className={cn(
+												"text-sm",
+												message.isError && "text-destructive"
+											)}>
+												{message.content}
+											</p>
+										</div>
+									</div>
+								))
+							)}
+							{isLoading && (
+								<div className="flex justify-start">
+									<div className="bg-muted rounded-lg px-3 py-2">
+										<span className="text-sm text-muted-foreground">Processing...</span>
+									</div>
+								</div>
+							)}
+							<div ref={messagesEndRef} />
 						</div>
-					)}
+					</div>
+
+					{/* Chat Input */}
+					<div className="border-t p-4">
+						<div className="flex gap-2">
+							<Textarea
+								placeholder="Describe the workflow you want to create..."
+								value={queryInput}
+								onChange={(e) => setQueryInput(e.target.value)}
+								onKeyDown={(e) => {
+									if (e.key === "Enter" && !e.shiftKey) {
+										e.preventDefault();
+										handleGenerateWorkflow();
+									}
+								}}
+								className="min-h-[60px] resize-none"
+								disabled={isLoading}
+							/>
+							<Button
+								onClick={handleGenerateWorkflow}
+								disabled={!queryInput.trim() || isLoading}
+								size="icon"
+								className="h-[60px] w-[60px]"
+							>
+								<Send className="w-5 h-5" />
+							</Button>
+						</div>
+					</div>
 				</div>
 
-				{/* Messages Area */}
-				<div className="flex-1 overflow-y-auto p-4">
-					<div className="max-w-3xl mx-auto space-y-4">
-						{messages.length === 0 ? (
-							<div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground py-20">
-								<p className="text-lg font-medium">Workflow Generator</p>
-								<p className="text-sm">
-									{activeTab === "input"
-										? "Use Input tab to load workflow data (JSON or fetch from URL)"
-										: "Use Output tab to send data to an endpoint"
-									}
-								</p>
-							</div>
+				{/* RIGHT COLUMN: Workflow Visualization */}
+				<div className="flex flex-col h-full overflow-hidden">
+					<div className="px-4 py-2 border-b bg-muted/30">
+						<h2 className="text-sm font-medium text-muted-foreground">Workflow Preview</h2>
+					</div>
+					<div className="flex-1 overflow-y-auto p-4">
+						{currentWorkflow ? (
+							<WorkflowRenderer data={currentWorkflow} />
 						) : (
-							messages.map((message) => (
-								<div
-									key={message.id}
-									className={cn(
-										"flex",
-										message.role === "user" ? "justify-end" : "justify-start"
-									)}
-								>
-									<div
-										className={cn(
-											"max-w-[85%] rounded-lg",
-											message.role === "user"
-												? "bg-primary text-primary-foreground px-4 py-2"
-												: message.isError
-													? "bg-destructive/10 border border-destructive/20 px-4 py-2"
-													: message.workflowData
-														? "bg-transparent w-full"
-														: "bg-muted px-4 py-2"
-										)}
-									>
-										{message.role === "assistant" ? (
-											message.workflowData ? (
-												<WorkflowRenderer data={message.workflowData} />
-											) : (
-												<pre className={cn(
-													"text-sm whitespace-pre-wrap break-words font-mono",
-													message.isError && "text-destructive"
-												)}>
-													{message.content}
-												</pre>
-											)
-										) : (
-											<p className="text-sm">{message.content}</p>
-										)}
-									</div>
-								</div>
-							))
-						)}
-						{isLoading && (
-							<div className="flex justify-start">
-								<div className="bg-muted rounded-lg px-4 py-2">
-									<span className="text-sm text-muted-foreground">Loading...</span>
-								</div>
+							<div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground">
+								<Code className="w-8 h-8 mb-2 opacity-50" />
+								<p className="text-sm">No workflow loaded</p>
+								<p className="text-xs mt-1">Generate or load a workflow to see it here</p>
 							</div>
 						)}
-						<div ref={messagesEndRef} />
 					</div>
 				</div>
 			</div>

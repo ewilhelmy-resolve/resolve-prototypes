@@ -3,6 +3,7 @@ import { DEFAULT_DATA_SOURCES, isValidDataSourceType } from '../constants/dataSo
 import type {
   CreateDataSourceRequest,
   DataSourceConnection,
+  IngestionRun,
   UpdateDataSourceRequest
 } from '../types/dataSource.js';
 
@@ -322,6 +323,37 @@ export class DataSourceService {
   }
 
   /**
+   * Cancel an ongoing ingestion run (ticket sync)
+   * Only cancels if status is 'running' or 'pending'
+   */
+  async cancelIngestionRun(
+    connectionId: string,
+    organizationId: string
+  ): Promise<IngestionRun | null> {
+    const result = await pool.query<IngestionRun>(
+      `UPDATE ingestion_runs
+       SET status = 'cancelled',
+           error_message = 'Cancelled by user',
+           completed_at = NOW(),
+           updated_at = NOW()
+       WHERE data_source_connection_id = $1
+         AND organization_id = $2
+         AND status IN ('running', 'pending')
+         AND id = (
+           SELECT id FROM ingestion_runs
+           WHERE data_source_connection_id = $1
+             AND organization_id = $2
+           ORDER BY created_at DESC
+           LIMIT 1
+         )
+       RETURNING *`,
+      [connectionId, organizationId]
+    );
+
+    return result.rows[0] || null;
+  }
+
+  /**
    * Create a cancellation request for the platform team to process
    * Inserts into sync_cancellation_requests table
    */
@@ -444,5 +476,77 @@ export class DataSourceService {
        WHERE id = $${paramIndex}`,
       values
     );
+  }
+
+  /**
+   * Update ingestion run progress (for 'running' status only)
+   * Updates record counts and optionally sets total_estimated in metadata
+   * Returns true if updated, false if skipped (e.g., run was cancelled)
+   */
+  async updateIngestionRunProgress(
+    ingestionRunId: string,
+    recordsProcessed: number,
+    recordsFailed: number,
+    totalEstimated?: number
+  ): Promise<boolean> {
+    let result: { rowCount: number | null };
+    if (totalEstimated !== undefined) {
+      result = await pool.query(
+        `UPDATE ingestion_runs
+         SET records_processed = $1,
+             records_failed = $2,
+             metadata = jsonb_set(
+               COALESCE(metadata, '{}'::jsonb),
+               '{progress,total_estimated}',
+               $3::jsonb,
+               true
+             ),
+             updated_at = NOW()
+         WHERE id = $4 AND status = 'running'`,
+        [recordsProcessed, recordsFailed, JSON.stringify(totalEstimated), ingestionRunId]
+      );
+    } else {
+      result = await pool.query(
+        `UPDATE ingestion_runs
+         SET records_processed = $1,
+             records_failed = $2,
+             updated_at = NOW()
+         WHERE id = $3 AND status = 'running'`,
+        [recordsProcessed, recordsFailed, ingestionRunId]
+      );
+    }
+    return (result.rowCount ?? 0) > 0;
+  }
+
+  /**
+   * Get the latest ingestion run for a data source connection
+   * Returns null if no ingestion runs exist
+   */
+  async getLatestIngestionRun(
+    connectionId: string,
+    organizationId: string
+  ): Promise<IngestionRun | null> {
+    const result = await pool.query<IngestionRun>(
+      `SELECT
+        id,
+        organization_id,
+        data_source_connection_id,
+        started_by,
+        status,
+        records_processed,
+        records_failed,
+        metadata,
+        error_message,
+        completed_at,
+        created_at,
+        updated_at
+       FROM ingestion_runs
+       WHERE data_source_connection_id = $1 AND organization_id = $2
+       ORDER BY created_at DESC
+       LIMIT 1`,
+      [connectionId, organizationId]
+    );
+
+    return result.rows[0] || null;
   }
 }

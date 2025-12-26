@@ -13,6 +13,7 @@ import authRoutes from './routes/auth.js';
 import clusterRoutes from './routes/clusters.js';
 import ticketRoutes from './routes/tickets.js';
 import conversationRoutes from './routes/conversations.js';
+import workflowRoutes from './routes/workflows.js';
 import dataSourceRoutes from './routes/dataSources.js';
 import filesRoutes from './routes/files.js';
 import iframeRoutes from './routes/iframe.routes.js';
@@ -129,6 +130,7 @@ app.use('/api/tickets', authenticateUser, addUserContextToLogs, ticketRoutes);
 app.use('/api/conversations', authenticateUser, addUserContextToLogs, conversationRoutes);
 app.use('/api/data-sources', authenticateUser, addUserContextToLogs, dataSourceRoutes);
 app.use('/api/files', authenticateUser, addUserContextToLogs, filesRoutes);
+app.use('/api/workflows', workflowRoutes);
 app.use('/api/sse', authenticateUser, addUserContextToLogs, sseRoutes);
 app.use('/api/feature-flags', authenticateUser, addUserContextToLogs, featureFlagRoutes);
 
