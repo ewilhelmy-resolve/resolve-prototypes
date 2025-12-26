@@ -186,7 +186,7 @@ export type SSEEvent =
   | MemberDeletedPermanentEvent
   | MemberDeletedOwnAccountEvent
   | IngestionRunUpdateEvent
-  | FeatureFlagUpdateEvent;
+  | FeatureFlagUpdateEvent
   | DynamicWorkflowEvent;
 
 export class SSEService {
