@@ -1,74 +1,199 @@
-# Platform Feature Flags Integration - Technical Architecture
+# Platform Feature Flags - Relay Proxy Architecture
 
 ## Overview
 
-Integration of RITA Go with Platform Actions backend feature flag system to enable per-tenant control of Auto Pilot features.
+Platform feature flags enable per-tenant control of features via the Platform Actions API. RITA Go uses a **relay proxy** through the api-server with **in-memory LRU caching** and **SSE real-time broadcasts**.
 
 **Status**: ✅ **IMPLEMENTED**
 
-**Ticket**: RG-491
+**Ticket**: RG-491, RG-512
 
-**Last Updated**: 2025-12-11
+**Last Updated**: 2025-12-18
 
 ---
 
 ## Architecture Summary
 
-### Flag System
+### Two-Tier Flag System
 
 | Layer | Scope | Storage | Purpose |
 |-------|-------|---------|---------|
-| **Platform Flags** | Per-org/tenant | Platform Actions BE | Auto Pilot feature control |
-| **Local Flags** | Per-browser | localStorage | Other experimental features |
+| **Platform Flags** | Per-org/tenant | Platform API + LRU cache | Per-tenant feature control |
+| **Local Flags** | Per-browser | localStorage | Dev/experimental features |
 
-**Platform flags** are managed exclusively via Platform Actions API - no local overrides.
+### Data Flow
 
-### Sequence Diagram: Feature Flag Initialization
+```
+┌─────────────┐      ┌─────────────────────────────┐      ┌─────────────────┐
+│  RITA Go    │ ──── │  api-server                 │      │ Platform API    │
+│  (Client)   │      │  (Relay + LRU Cache)        │      │ (strangler)     │
+└─────────────┘      └─────────────────────────────┘      └─────────────────┘
+       │                          │                               │
+       │  GET /api/               │                               │
+       │  feature-flags/X         │                               │
+       │ ────────────────────────>│                               │
+       │                          │                               │
+       │                          │  [cache hit] → return cached  │
+       │                          │                               │
+       │                          │  [cache miss]                 │
+       │                          │ ─────────────────────────────>│
+       │                          │    GET /api/features/         │
+       │                          │    is-enabled/...             │
+       │                          │<─────────────────────────────│
+       │                          │  store in LRU (5min TTL)      │
+       │<─────────────────────────│                               │
+       │    { isEnabled }         │                               │
+```
 
-```mermaid
-sequenceDiagram
-    participant User
-    participant RitaGo as RITA Go
-    participant API as Platform Actions API
+### Real-Time Updates (SSE)
 
-    Note over User,API: App Initialization Flow
+When a flag is updated, the api-server:
+1. Updates the Platform API
+2. Invalidates LRU cache entry
+3. Broadcasts via SSE to all org members
 
-    User->>RitaGo: 1. Open app
-    RitaGo->>RitaGo: 2. Auth + fetch profile
-    RitaGo->>RitaGo: 3. Extract organization.id (tenant_id)
-    RitaGo->>RitaGo: 4. Detect environment from URL
-
-    par Fetch Platform Flags
-        RitaGo->>API: 5. GET /api/features/is-enabled/{name}/{env}/{tenant}
-        Note right of API: For each Auto Pilot flag
-        API-->>RitaGo: 6. boolean response
-    end
-
-    RitaGo->>RitaGo: 7. Store in Zustand
-    RitaGo-->>User: 8. App ready with resolved flags
+```
+┌─────────────┐      ┌─────────────┐      ┌─────────────────┐
+│  Admin      │      │  api-server │      │  All Org Users  │
+│  (Updates)  │      │             │      │  (SSE clients)  │
+└─────────────┘      └─────────────┘      └─────────────────┘
+       │                    │                       │
+       │  POST /rules       │                       │
+       │ ──────────────────>│                       │
+       │                    │── Update Platform API │
+       │                    │── Invalidate cache    │
+       │                    │                       │
+       │                    │  SSE: feature_flag_   │
+       │                    │       update          │
+       │                    │ ─────────────────────>│
+       │<───────────────────│                       │
+       │    { success }     │                       │
 ```
 
 ---
 
-## Platform Actions API
+## Adding a New Platform-Controlled Flag
 
-**Base URL:** `https://strangler-facade.resolve.io`
+### Step 1: Register in Client Types
 
-**Authentication:** None (unauthenticated)
+**File:** `packages/client/src/types/featureFlags.ts`
+
+```typescript
+export type FeatureFlagKey =
+  | 'EXISTING_FLAGS'
+  | 'YOUR_NEW_FEATURE'  // Add here
+
+export const FEATURE_FLAGS: Record<FeatureFlagKey, FeatureFlagConfig> = {
+  YOUR_NEW_FEATURE: {
+    key: 'YOUR_NEW_FEATURE',
+    label: 'Your Feature Name',
+    description: 'What this feature does',
+    defaultValue: false,
+    category: 'autopilot',  // or 'experimental'
+    platformControlled: true,  // <-- Required for platform flags
+  },
+}
+```
+
+### Step 2: Add Flag Mapping in api-server
+
+**File:** `packages/api-server/src/services/FeatureFlagService.ts`
+
+```typescript
+const CLIENT_TO_PLATFORM_FLAG_MAP: Record<string, string> = {
+  ENABLE_AUTO_PILOT: 'auto-pilot',
+  ENABLE_AUTO_PILOT_SUGGESTIONS: 'auto-pilot-suggestions',
+  ENABLE_AUTO_PILOT_ACTIONS: 'auto-pilot-actions',
+  YOUR_NEW_FEATURE: 'your-new-feature',  // <-- Add mapping
+}
+```
+
+### Step 3: Create Flag in Platform Actions
+
+Ensure the flag exists in the Platform Actions backend with matching name (e.g., `your-new-feature`).
+
+### Step 4: Use in Components
+
+```typescript
+import { useFeatureFlag } from '@/hooks/useFeatureFlags'
+
+function MyComponent() {
+  const isEnabled = useFeatureFlag('YOUR_NEW_FEATURE')
+  if (!isEnabled) return null
+  return <NewFeature />
+}
+```
+
+---
+
+## API Endpoints
+
+### Client → api-server (Relay)
+
+All requests require authentication (session cookie).
+
+#### Check Single Flag
+```
+GET /api/feature-flags/:flagName
+```
+**Response:** `{ flagName, isEnabled }`
+
+#### Batch Check
+```
+POST /api/feature-flags/batch
+Body: { flagNames: ['FLAG_A', 'FLAG_B'] }
+```
+**Response:** `{ flags: { FLAG_A: true, FLAG_B: false } }`
+
+#### Update Flag (admin/owner only)
+```
+POST /api/feature-flags/:flagName/rules
+Body: { isEnabled: true }
+```
+**Response:** `{ success, flagName, isEnabled }`
+
+### api-server → Platform API
+
+**Base URL:** `https://strangler-facade.resolve.io` (configurable via `PLATFORM_FLAGS_URL`)
+
+#### Check Feature Enabled
+```
+GET /api/features/is-enabled/{platformName}/{environment}/{tenant}
+```
+
+#### Update Feature Rule
+```
+POST /api/features/{platformName}/rules
+Body: { environment, tenant, isEnabled }
+```
+
+---
+
+## Configuration
+
+### Environment Variables
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `PLATFORM_FLAGS_URL` | `https://strangler-facade.resolve.io` | Platform API base URL |
+| `FEATURE_FLAG_CACHE_TTL` | `300` | LRU cache TTL in seconds (5 min) |
+| `NODE_ENV` | `development` | Environment for flag evaluation |
 
 ### Environment Detection
 
-Environment is auto-detected from the app URL:
+Environment is determined **server-side** from `NODE_ENV`:
 
-| Hostname | Environment |
-|----------|-------------|
-| `rita.resolve.io` | `production` |
-| `onboarding.resolve.io` | `staging` |
-| `localhost` / other | `development` |
+| NODE_ENV | Platform Environment |
+|----------|---------------------|
+| `production` | `production` |
+| `staging` | `staging` |
+| `development` | `development` |
 
-### Flag Name Mapping
+---
 
-Client keys are mapped to platform names:
+## Flag Name Mapping
+
+Client keys → Platform names (defined in `FeatureFlagService.ts`):
 
 | Client Key | Platform Name |
 |------------|---------------|
@@ -76,163 +201,59 @@ Client keys are mapped to platform names:
 | `ENABLE_AUTO_PILOT_SUGGESTIONS` | `auto-pilot-suggestions` |
 | `ENABLE_AUTO_PILOT_ACTIONS` | `auto-pilot-actions` |
 
-### Endpoints Used
-
-#### Check Feature Enabled
-```
-GET /api/features/is-enabled/{name}/{environment}/{tenant}
-```
-
-| Parameter | Type | Source | Example |
-|-----------|------|--------|---------|
-| `name` | string | Platform flag name | `auto-pilot` |
-| `environment` | string | Auto-detected from URL | `production` |
-| `tenant` | string | `organization.id` | `uuid` |
-
-**Response:** `boolean`
-
-#### Update Feature Rule
-```
-POST /api/features/{name}/rules
-```
-
-**Body:**
-```json
-{
-  "environment": "production",
-  "tenant": "uuid",
-  "isEnabled": true
-}
-```
-
 ---
 
-## Auto Pilot Feature Flags
+## Current Platform Flags
 
 | Client Key | Platform Name | Description | Default |
 |------------|---------------|-------------|---------|
-| `ENABLE_AUTO_PILOT` | `auto-pilot` | **Master toggle** for Auto Pilot | `false` |
-| `ENABLE_AUTO_PILOT_SUGGESTIONS` | `auto-pilot-suggestions` | AI-powered suggestions | `false` |
-| `ENABLE_AUTO_PILOT_ACTIONS` | `auto-pilot-actions` | Automated actions execution | `false` |
+| `ENABLE_AUTO_PILOT` | `auto-pilot` | **Master toggle** | `false` |
+| `ENABLE_AUTO_PILOT_SUGGESTIONS` | `auto-pilot-suggestions` | AI suggestions | `false` |
+| `ENABLE_AUTO_PILOT_ACTIONS` | `auto-pilot-actions` | Auto actions | `false` |
 
-### Master Toggle Behavior
+### Master Toggle Cascade
 
-`ENABLE_AUTO_PILOT` is the master toggle:
-- When **disabled**: `ENABLE_AUTO_PILOT_SUGGESTIONS` and `ENABLE_AUTO_PILOT_ACTIONS` are automatically disabled on the platform
-- When **disabled**: Dependent flags appear greyed out in UI
-- Cascade happens via parallel API calls
+`ENABLE_AUTO_PILOT` controls dependent flags:
+- When **disabled**: Dependents auto-disabled via parallel API calls
+- UI shows dependents greyed out when master is OFF
 
 ---
 
-## Implementation
+## Implementation Files
 
-### Files Created
+### Client (packages/client/)
 
-| File | Description |
-|------|-------------|
-| `src/services/platformFlags.ts` | Platform Actions API client with flag name mapping |
-| `src/stores/feature-flags-store.ts` | Zustand store for flag state |
-| `src/hooks/usePlatformFlags.ts` | Initialization hook |
-
-### Files Modified
-
-| File | Changes |
+| File | Purpose |
 |------|---------|
-| `src/types/featureFlags.ts` | Added Auto Pilot flags, `autopilot` category |
-| `src/hooks/useFeatureFlags.ts` | Refactored to use Zustand store |
-| `src/App.tsx` | Added `usePlatformFlagsInit()` |
-| `src/components/devtools/FeatureFlagsPanel.tsx` | Added platform flags UI in Experimental section |
+| `src/types/featureFlags.ts` | Flag registry, `platformControlled` marker |
+| `src/services/platformFlags.ts` | API calls to relay proxy |
+| `src/stores/feature-flags-store.ts` | Zustand store for flag state |
+| `src/hooks/useFeatureFlags.ts` | React hooks for flag access |
+| `src/hooks/usePlatformFlags.ts` | Initialization on app load |
+| `src/contexts/SSEContext.tsx` | Handles `feature_flag_update` events |
 
-### Platform Flags Service
+### Server (packages/api-server/)
 
-**File:** `src/services/platformFlags.ts`
-
-```typescript
-const PLATFORM_FLAGS_URL = import.meta.env.VITE_PLATFORM_FLAGS_URL || 'https://strangler-facade.resolve.io'
-
-// Auto-detect environment from URL
-function getPlatformEnv(): string {
-  const hostname = window.location.hostname
-  if (hostname.includes('rita.resolve.io')) return 'production'
-  if (hostname.includes('onboarding.resolve.io')) return 'staging'
-  return 'development'
-}
-
-// Client key to platform name mapping
-const CLIENT_TO_PLATFORM_FLAG_MAP: Record<string, string> = {
-  'ENABLE_AUTO_PILOT': 'auto-pilot',
-  'ENABLE_AUTO_PILOT_SUGGESTIONS': 'auto-pilot-suggestions',
-  'ENABLE_AUTO_PILOT_ACTIONS': 'auto-pilot-actions',
-}
-
-// Fetch flag value
-export async function fetchPlatformFlag(clientKey: string, tenantId: string): Promise<boolean>
-
-// Update flag value
-export async function updatePlatformFlag(clientKey: string, tenantId: string, isEnabled: boolean): Promise<boolean>
-```
-
-### Usage in Components
-
-```typescript
-// Single flag check
-import { useFeatureFlag } from '@/hooks/useFeatureFlags'
-
-function MyComponent() {
-  const isAutoPilotEnabled = useFeatureFlag('ENABLE_AUTO_PILOT')
-
-  if (!isAutoPilotEnabled) return null
-  return <AutoPilotFeature />
-}
-
-// Multiple flags
-import { useFeatureFlags } from '@/hooks/useFeatureFlags'
-
-function MyComponent() {
-  const { flags, getPlatformValue } = useFeatureFlags()
-
-  return (
-    <>
-      {flags.ENABLE_AUTO_PILOT && <AutoPilot />}
-      {flags.ENABLE_AUTO_PILOT_SUGGESTIONS && <Suggestions />}
-    </>
-  )
-}
-
-// Outside React
-import { useFeatureFlagsStore } from '@/stores/feature-flags-store'
-
-const isEnabled = useFeatureFlagsStore.getState().getFlag('ENABLE_AUTO_PILOT')
-```
+| File | Purpose |
+|------|---------|
+| `src/services/FeatureFlagService.ts` | Relay proxy with Valkey caching |
+| `src/routes/featureFlags.ts` | REST endpoints |
 
 ---
 
 ## DevTools UI
 
-Auto Pilot flags appear in the **Experimental Features** section:
+Access at `/devtools`. Platform-controlled flags show ☁️ icon:
 
 ```
-┌─ Experimental Features ─────────────────────────────┐
-│ These features are in early development...          │
-│ ─────────────────────────────────────────────────── │
-│ [Local experimental flags with toggles]             │
-│ ─────────────────────────────────────────────────── │
-│ ☁️ Auto Pilot (Platform-Controlled)                 │
-│                                                     │
-│ Auto Pilot                               [toggle]   │
-│ Master toggle for Auto Pilot                        │
-│                                                     │
-│ Auto Pilot Suggestions                   [disabled] │
-│ AI-powered suggestions              (greyed out)    │
-│                                                     │
-│ Auto Pilot Actions                       [disabled] │
-│ Automated actions execution         (greyed out)    │
-└─────────────────────────────────────────────────────┘
+┌─ Experimental Features ────────────────────────┐
+│ ☁️ Auto Pilot (Platform-Controlled)            │
+│                                                │
+│ Auto Pilot                          [toggle]   │
+│ Auto Pilot Suggestions              [greyed]   │
+│ Auto Pilot Actions                  [greyed]   │
+└────────────────────────────────────────────────┘
 ```
-
-- Platform toggles call the API directly
-- Dependent flags greyed out when master is OFF
-- Disabling master cascades to disable dependents
 
 ---
 
@@ -240,10 +261,10 @@ Auto Pilot flags appear in the **Experimental Features** section:
 
 | Scenario | Behavior |
 |----------|----------|
-| Platform API unreachable | Log warning, use `defaultValue: false` |
-| Platform API returns non-200 | Log warning, use `defaultValue: false` |
-| Invalid tenant ID | Flags default to `false` |
-| Update fails | Show error toast, state unchanged |
+| Platform API unreachable | Log error, return `false` |
+| Cache miss + API fail | Return `false`, no cache update |
+| Update fails | Return `false`, cache unchanged |
+| SSE disconnect | Flags remain at last known state |
 
 ---
 
@@ -251,9 +272,9 @@ Auto Pilot flags appear in the **Experimental Features** section:
 
 | Decision | Choice | Rationale |
 |----------|--------|-----------|
-| Bulk fetch | Individual requests | 3 flags acceptable, no bulk endpoint |
-| Refresh strategy | Init-only | Flags change infrequently |
-| Environment detection | Auto from URL | No env var needed, less config |
-| Flag name mapping | Client → Platform | Clean client code, platform naming conventions |
-| Master toggle cascade | Auto-disable dependents | UX consistency, prevent orphan states |
-| Local overrides for platform flags | None | Platform is source of truth |
+| Relay proxy | api-server | Centralized auth, caching, SSE broadcast |
+| Caching | In-memory LRU (5min TTL) | No external deps, reduces Platform API load |
+| Real-time updates | SSE broadcast | Instant sync across org |
+| Environment detection | Server NODE_ENV | Single source of truth |
+| Flag name mapping | Server-side | Client uses readable names |
+| Local overrides | None | Platform is source of truth |
