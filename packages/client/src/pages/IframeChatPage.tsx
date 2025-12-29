@@ -17,7 +17,7 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useParams, useSearchParams } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import ChatV1Content from "../components/chat/ChatV1Content";
 import IframeChatLayout from "../components/layouts/IframeChatLayout";
 import { SSEProvider } from "../contexts/SSEContext";
@@ -191,6 +191,7 @@ export default function IframeChatPage() {
 	const [showDebug, setShowDebug] = useState(debug);
 	const [debugLogs, setDebugLogs] = useState<DebugLogEntry[]>([]);
 
+	const navigate = useNavigate();
 	const apiUrl = import.meta.env.VITE_API_URL || "";
 	const { setCurrentConversation } = useConversationStore();
 	const initRef = useRef(false);
@@ -257,6 +258,15 @@ export default function IframeChatPage() {
 					});
 					setConversationId(response.conversationId);
 					setCurrentConversation(response.conversationId);
+
+					// Navigate to URL with conversationId to sync with useChatNavigation
+					// This prevents useChatNavigation from clearing the store when URL has no conversationId
+					if (!urlConversationId) {
+						const params = new URLSearchParams(window.location.search);
+						const newUrl = `/iframe/chat/${response.conversationId}${params.toString() ? `?${params}` : ""}`;
+						navigate(newUrl, { replace: true });
+					}
+
 					setSessionReady(true);
 				} else {
 					addDebugLog("error", "Validation failed", { ...response });
@@ -277,7 +287,7 @@ export default function IframeChatPage() {
 		}
 
 		initializeIframe();
-	}, [urlConversationId, token, hashkey, setCurrentConversation, addDebugLog]);
+	}, [urlConversationId, token, hashkey, setCurrentConversation, addDebugLog, navigate]);
 
 	// Execute workflow once session is ready (if hashkey present)
 	// This runs in parent to prevent re-execution on child remounts

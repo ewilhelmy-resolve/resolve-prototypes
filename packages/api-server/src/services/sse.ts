@@ -134,6 +134,19 @@ export interface IngestionRunUpdateEvent {
   };
 }
 
+export interface FeatureFlagUpdateEvent {
+  type: 'feature_flag_update';
+  data: {
+    flagName: string;
+    platformFlagName: string;
+    environment: string;
+    organizationId: string;
+    isEnabled: boolean;
+    timestamp: string;
+  };
+}
+
+    
 export interface DynamicWorkflowEvent {
   type: 'dynamic_workflow';
   data: {
@@ -173,6 +186,7 @@ export type SSEEvent =
   | MemberDeletedPermanentEvent
   | MemberDeletedOwnAccountEvent
   | IngestionRunUpdateEvent
+  | FeatureFlagUpdateEvent
   | DynamicWorkflowEvent;
 
 export class SSEService {
