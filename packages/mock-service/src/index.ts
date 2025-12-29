@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { resolve } from 'node:path';
-import { type Channel, type Connection, connect } from 'amqplib';
+import { type Channel, connect } from 'amqplib';
 import axios from 'axios';
 import cors from 'cors';
 import { config } from 'dotenv';
@@ -192,7 +192,7 @@ interface MessagePart {
 }
 
 // RabbitMQ connection
-let rabbitConnection: Connection | null = null;
+let rabbitConnection: Awaited<ReturnType<typeof connect>> | null = null;
 let rabbitChannel: Channel | null = null;
 
 // Track cancelled sync operations to prevent sending sync_completed
@@ -2086,45 +2086,86 @@ app.post('/webhook', async (req, res) => {
         user_email: ticketsPayload.user_email
       }, 'Received sync_tickets webhook');
 
-      // Simulate ticket sync - publish ingestion_completed after 10 second delay
-      setTimeout(async () => {
+      // Simulate ticket sync with batch progress updates
+      const totalTickets = Math.floor(Math.random() * 150) + 50; // 50-200 tickets
+      const batchSize = 25;
+      let processed = 0;
+
+      const sendProgressMessage = async () => {
         try {
           if (!rabbitChannel) {
             throw new Error('RabbitMQ channel not initialized');
           }
 
-          // Simulate processing results
-          const recordsProcessed = Math.floor(Math.random() * 150) + 50; // 50-200 tickets
-          const recordsFailed = Math.floor(Math.random() * 5); // 0-4 failures
-
-          const ingestionMessage = {
-            type: 'ticket_ingestion',
-            tenant_id: ticketsPayload.tenant_id,
-            user_id: ticketsPayload.user_id,
-            ingestion_run_id: ticketsPayload.ingestion_run_id,
-            connection_id: ticketsPayload.connection_id,
-            status: 'completed',
-            records_processed: recordsProcessed,
-            records_failed: recordsFailed,
-            timestamp: new Date().toISOString()
-          };
-
           await rabbitChannel.assertQueue('data_source_status', { durable: true });
-          rabbitChannel.sendToQueue(
-            'data_source_status',
-            Buffer.from(JSON.stringify(ingestionMessage)),
-            { persistent: true }
-          );
 
-          contextLogger.info({
-            ingestionRunId: ticketsPayload.ingestion_run_id,
-            recordsProcessed,
-            recordsFailed
-          }, 'Published ticket_ingestion message to data_source_status queue');
+          processed += batchSize;
+          const isComplete = processed >= totalTickets;
+
+          if (isComplete) {
+            // Final completed message
+            const recordsFailed = Math.floor(Math.random() * 4) + 1; // 1-4 failures (always some for testing)
+            const ingestionMessage = {
+              type: 'ticket_ingestion',
+              tenant_id: ticketsPayload.tenant_id,
+              user_id: ticketsPayload.user_id,
+              ingestion_run_id: ticketsPayload.ingestion_run_id,
+              connection_id: ticketsPayload.connection_id,
+              status: 'completed',
+              records_processed: totalTickets,
+              records_failed: recordsFailed,
+              total_estimated: totalTickets,
+              timestamp: new Date().toISOString()
+            };
+
+            rabbitChannel.sendToQueue(
+              'data_source_status',
+              Buffer.from(JSON.stringify(ingestionMessage)),
+              { persistent: true }
+            );
+
+            contextLogger.info({
+              ingestionRunId: ticketsPayload.ingestion_run_id,
+              recordsProcessed: totalTickets,
+              recordsFailed
+            }, 'Published ticket_ingestion completed message');
+          } else {
+            // Progress message
+            const ingestionMessage = {
+              type: 'ticket_ingestion',
+              tenant_id: ticketsPayload.tenant_id,
+              user_id: ticketsPayload.user_id,
+              ingestion_run_id: ticketsPayload.ingestion_run_id,
+              connection_id: ticketsPayload.connection_id,
+              status: 'running',
+              records_processed: processed,
+              records_failed: 0,
+              total_estimated: totalTickets,
+              timestamp: new Date().toISOString()
+            };
+
+            rabbitChannel.sendToQueue(
+              'data_source_status',
+              Buffer.from(JSON.stringify(ingestionMessage)),
+              { persistent: true }
+            );
+
+            contextLogger.info({
+              ingestionRunId: ticketsPayload.ingestion_run_id,
+              recordsProcessed: processed,
+              totalEstimated: totalTickets
+            }, 'Published ticket_ingestion progress message');
+
+            // Schedule next progress update
+            setTimeout(sendProgressMessage, 2000);
+          }
         } catch (error) {
-          contextLogger.error({ error }, 'Failed to publish ingestion_completed message');
+          contextLogger.error({ error }, 'Failed to publish ticket_ingestion message');
         }
-      }, 10000); // 10 second delay
+      };
+
+      // Start first progress update after 2 seconds
+      setTimeout(sendProgressMessage, 2000);
 
       return res.status(200).json({
         success: true,
@@ -2419,7 +2460,7 @@ process.on('SIGINT', async () => {
       shutdownLogger.info({}, 'RabbitMQ channel closed');
     }
     if (rabbitConnection) {
-      await (rabbitConnection as unknown as { close: () => Promise<void> }).close();
+      await rabbitConnection.close();
       shutdownLogger.info({}, 'RabbitMQ connection closed');
     }
     shutdownLogger.info({}, 'Graceful shutdown completed');

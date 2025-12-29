@@ -88,7 +88,11 @@ export default function SettingsUsers() {
 					</Card>
 				</div> */}
 
-				<Tabs value={activeTab} onValueChange={setActiveTab} className="w-full pr-[2em]">
+				<Tabs
+					value={activeTab}
+					onValueChange={setActiveTab}
+					className="w-full pr-[2em] px-4 md:px-0"
+				>
 					<TabsList>
 						<TabsTrigger value="users">Users</TabsTrigger>
 						<TabsTrigger value="pending">

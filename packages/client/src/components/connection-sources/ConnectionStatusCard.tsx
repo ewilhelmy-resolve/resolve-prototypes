@@ -1,16 +1,27 @@
 "use client";
 
-import { RefreshCw } from "lucide-react";
+import { Loader2, RefreshCw } from "lucide-react";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import { Progress } from "@/components/ui/progress";
 import type { ConnectionSource } from "@/constants/connectionSources";
-import { SOURCES, STATUS } from "@/constants/connectionSources";
+import { formatRelativeTime, SOURCES, STATUS } from "@/constants/connectionSources";
 import { ConnectionStatusBadge } from "./ConnectionStatusBadge";
+
+interface TicketSyncInfo {
+	lastSyncAt: string | null;
+	recordsProcessed: number;
+	isTicketSyncing: boolean;
+	totalEstimated?: number;
+}
 
 interface ConnectionStatusCardProps {
 	source: ConnectionSource;
 	onRetry?: () => void;
+	ticketSyncInfo?: TicketSyncInfo;
+	/** Hide the status message (e.g., when sync info is shown elsewhere) */
+	hideStatusMessage?: boolean;
 }
 
 /**
@@ -21,6 +32,8 @@ interface ConnectionStatusCardProps {
 export function ConnectionStatusCard({
 	source,
 	onRetry,
+	ticketSyncInfo,
+	hideStatusMessage,
 }: ConnectionStatusCardProps) {
 	const [retryCount, setRetryCount] = useState(0);
 	const navigate = useNavigate();
@@ -92,6 +105,29 @@ export function ConnectionStatusCard({
 			);
 		}
 
+		// Show ticket import progress when syncing (ITSM)
+		if (ticketSyncInfo?.isTicketSyncing) {
+			// Show progress bar if we have total_estimated
+			if (ticketSyncInfo.totalEstimated && ticketSyncInfo.totalEstimated > 0) {
+				const progress = (ticketSyncInfo.recordsProcessed / ticketSyncInfo.totalEstimated) * 100;
+				return (
+					<div className="flex items-center gap-2">
+						<Progress value={progress} className="w-24" />
+						<span className="text-sm text-muted-foreground whitespace-nowrap">
+							{ticketSyncInfo.recordsProcessed} of {ticketSyncInfo.totalEstimated} tickets
+						</span>
+					</div>
+				);
+			}
+			// Fallback to spinner if no total_estimated
+			return (
+				<p className="text-sm text-foreground whitespace-nowrap flex items-center gap-2">
+					<Loader2 className="h-3 w-3 animate-spin" />
+					Importing tickets...
+				</p>
+			);
+		}
+
 		switch (source.status) {
 			case STATUS.SYNCING:
 				return (
@@ -112,6 +148,21 @@ export function ConnectionStatusCard({
 					</p>
 				);
 			case STATUS.CONNECTED:
+				// Hide status message when shown elsewhere (e.g., ITSM configuration)
+				if (hideStatusMessage) {
+					return null;
+				}
+				// For ITSM: show last ticket sync info if available
+				if (ticketSyncInfo?.lastSyncAt) {
+					return (
+						<p className="text-sm text-foreground whitespace-nowrap">
+							Last synced {formatRelativeTime(ticketSyncInfo.lastSyncAt)}
+							{ticketSyncInfo.recordsProcessed > 0 && (
+								<span> · {ticketSyncInfo.recordsProcessed} tickets</span>
+							)}
+						</p>
+					);
+				}
 				return (
 					<p className="text-sm text-foreground whitespace-nowrap">
 						{source.lastSync
@@ -134,18 +185,19 @@ export function ConnectionStatusCard({
 		<div className="flex flex-col gap-1">
 			<div className="border border-border bg-popover rounded-md p-4">
 				<div className="rounded-lg">
-					<div className="flex flex-col md:flex-row items-center justify-between gap-5">
-						<div className="flex flex-col gap-2 max-w-xs">
-							<div className="flex items-center gap-1">
-								<p className="text-sm text-muted-foreground w-16">URL</p>
+					<div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+						{/* Credentials section */}
+						<div className="flex flex-col gap-2 w-full md:w-auto md:max-w-xs">
+							<div className="flex items-center gap-2">
+								<p className="text-sm text-muted-foreground w-20 shrink-0">URL</p>
 								<p className="text-sm text-foreground truncate">
 									{source.type === SOURCES.SERVICENOW
 										? source.settings?.instanceUrl || "—"
 										: source.settings?.url || "—"}
 								</p>
 							</div>
-							<div className="flex items-center gap-1">
-								<p className="text-sm text-muted-foreground w-16">
+							<div className="flex items-center gap-2">
+								<p className="text-sm text-muted-foreground w-20 shrink-0">
 									{source.type === SOURCES.SERVICENOW ? "Username" : "Email"}
 								</p>
 								<p className="text-sm text-foreground truncate">
@@ -154,8 +206,8 @@ export function ConnectionStatusCard({
 										: source.settings?.email || "—"}
 								</p>
 							</div>
-							<div className="flex items-center gap-1">
-								<p className="text-sm text-muted-foreground w-16">
+							<div className="flex items-center gap-2">
+								<p className="text-sm text-muted-foreground w-20 shrink-0">
 									{source.type === SOURCES.SERVICENOW ? "Password" : "API"}
 								</p>
 								<p className="text-sm text-foreground truncate">
@@ -163,14 +215,20 @@ export function ConnectionStatusCard({
 								</p>
 							</div>
 						</div>
-						<div className="flex justify-center flex-1">
+						{/* Status badge - right-aligned on both mobile and desktop */}
+						<div className="flex justify-end">
 							<ConnectionStatusBadge
 								status={source.status}
 								showHelp={showHelp}
 							/>
 						</div>
-						<div className="flex items-center mr-6">{getStatusMessage()}</div>
 					</div>
+					{/* Status message - separate row for cleaner layout */}
+					{getStatusMessage() && (
+						<div className="mt-3 pt-3 border-t border-border">
+							{getStatusMessage()}
+						</div>
+					)}
 				</div>
 			</div>
 		</div>

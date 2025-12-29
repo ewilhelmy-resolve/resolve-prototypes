@@ -144,9 +144,10 @@ export interface IngestionStatusMessage {
   user_id: string;
   ingestion_run_id: string;
   connection_id: string;
-  status: 'completed' | 'failed';
+  status: 'running' | 'completed' | 'failed';
   records_processed?: number;
   records_failed?: number;
+  total_estimated?: number;
   error_message?: string;
   timestamp: string;
 }
@@ -156,3 +157,27 @@ export interface IngestionStatusMessage {
  * Discriminated by the 'type' field
  */
 export type DataSourceStatusMessage = SyncStatusMessage | VerificationStatusMessage | IngestionStatusMessage;
+
+/**
+ * Ingestion run status for ITSM ticket sync
+ */
+export type IngestionRunStatus = 'pending' | 'running' | 'completed' | 'failed' | 'cancelled';
+
+/**
+ * Ingestion run entity (ITSM Autopilot)
+ * Tracks ticket sync operations for a data source connection
+ */
+export interface IngestionRun {
+  id: string;
+  organization_id: string;
+  data_source_connection_id: string | null;
+  started_by: string;
+  status: IngestionRunStatus;
+  records_processed: number;
+  records_failed: number;
+  metadata: Record<string, any>;
+  error_message: string | null;
+  completed_at: string | null;
+  created_at: string;
+  updated_at: string;
+}

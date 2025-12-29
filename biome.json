@@ -37,7 +37,8 @@
 			"!src/components/ui",
 			"!src/components/ai-elements",
 			"!src/index.css",
-			"!src/test"
+			"!src/test",
+			"!**/package-lock.json"
 		]
 	}
 }

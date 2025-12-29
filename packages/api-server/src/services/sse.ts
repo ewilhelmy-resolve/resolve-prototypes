@@ -125,14 +125,28 @@ export interface IngestionRunUpdateEvent {
   data: {
     ingestion_run_id: string;
     connection_id: string;
-    status: 'completed' | 'failed';
+    status: 'running' | 'completed' | 'failed';
     records_processed?: number;
     records_failed?: number;
+    total_estimated?: number;
     error_message?: string;
     timestamp: string;
   };
 }
 
+export interface FeatureFlagUpdateEvent {
+  type: 'feature_flag_update';
+  data: {
+    flagName: string;
+    platformFlagName: string;
+    environment: string;
+    organizationId: string;
+    isEnabled: boolean;
+    timestamp: string;
+  };
+}
+
+    
 export interface DynamicWorkflowEvent {
   type: 'dynamic_workflow';
   data: {
@@ -172,6 +186,7 @@ export type SSEEvent =
   | MemberDeletedPermanentEvent
   | MemberDeletedOwnAccountEvent
   | IngestionRunUpdateEvent
+  | FeatureFlagUpdateEvent
   | DynamicWorkflowEvent;
 
 export class SSEService {
