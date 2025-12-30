@@ -22,7 +22,7 @@
 		"prepare": "husky",
 		"setup": "node scripts/setup.js",
 		"storybook": "cd packages/client && npm run storybook",
-		"build-storybook": "cd packages/client && npm run build-storybook",
+		"build-storybook": "cd packages/client && NODE_ENV=production npm run build-storybook",
 		"deploy-storybook": "cd packages/client && npm run deploy-storybook"
 	},
 	"devDependencies": {
