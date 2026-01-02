@@ -122,3 +122,5 @@ keycloak/node_modules/
 keycloak/build_temp/
 keycloak/*.jar
 keycloak/themes/rita-theme/login/resources/css/styles.css
+
+tmux-dev.sh

@@ -1,7 +1,6 @@
 ---
 name: figma-to-shadcn
 description: Generate React/TypeScript components from Figma designs using Tailwind CSS, ShadCN UI, and Lucide icons. Auto-triggers when Figma URLs (figma.com/design or figma.com/file) are detected in conversation. Splits repeated patterns into reusable components.
-version: 1.1.0
 ---
 
 # Figma → ShadCN UI Component Generator

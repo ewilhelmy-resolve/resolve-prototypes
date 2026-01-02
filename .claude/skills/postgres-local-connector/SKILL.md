@@ -1,8 +1,7 @@
 ---
-name: postgres-db-connector
+name: postgres-local-connector
 description: 'Connect to local PostgreSQL Docker container and execute queries. Use when needing to query the onboarding database (DB: onboarding, User: rita). Auto-discovers container via docker ps'
 allowed-tools: Bash, Read, Write, Grep
-version: 1.0.0
 ---
 
 # PostgreSQL Database Connector
