@@ -11,7 +11,7 @@
 import axios from 'axios';
 import { getValkeyClient, getValkeyStatus } from '../config/valkey.js';
 import { logger } from '../config/logger.js';
-import type { IframeWebhookConfig } from './sessionStore.js';
+import type { IframeWebhookConfig, Session } from './sessionStore.js';
 
 // Valkey key prefix - keys stored as rita:session:{guid}
 const VALKEY_KEY_PREFIX = 'rita:session:';
@@ -111,8 +111,11 @@ export class WorkflowExecutionService {
 
   /**
    * Execute workflow by calling Actions API postEvent
+   * @param config Webhook config from Valkey
+   * @param debug Debug info object
+   * @param session Optional session containing Rita IDs for message routing
    */
-  async executeWorkflow(config: IframeWebhookConfig, debug: ExecuteWorkflowResult['debug']): Promise<ExecuteWorkflowResult> {
+  async executeWorkflow(config: IframeWebhookConfig, debug: ExecuteWorkflowResult['debug'], session?: Session | null): Promise<ExecuteWorkflowResult> {
     const startTime = Date.now();
 
     // Build webhook URL from config (remove trailing slash if present)
@@ -124,6 +127,7 @@ export class WorkflowExecutionService {
     const authHeader = `Basic ${Buffer.from(`${config.clientId}:${config.clientKey}`).toString('base64')}`;
 
     // Build workflow trigger payload
+    // Include Rita IDs so external system can route messages back correctly
     const payload = {
       source: 'rita-chat-iframe',
       action: 'workflow_trigger',
@@ -136,6 +140,10 @@ export class WorkflowExecutionService {
       token_expiry: config.tokenExpiry,
       context: config.context,
       timestamp: new Date().toISOString(),
+      // Rita IDs for routing messages back to iframe
+      rita_conversation_id: session?.conversationId,
+      rita_user_id: session?.userId,
+      rita_org_id: session?.organizationId,
     };
 
     // Store payload in debug (mask tokens)
@@ -200,8 +208,10 @@ export class WorkflowExecutionService {
 
   /**
    * Combined: fetch config from Valkey and execute workflow
+   * @param hashkey Valkey hashkey containing webhook config
+   * @param session Optional session containing Rita IDs for message routing
    */
-  async executeFromHashkey(hashkey: string): Promise<ExecuteWorkflowResult> {
+  async executeFromHashkey(hashkey: string, session?: Session | null): Promise<ExecuteWorkflowResult> {
     const { config, debug } = await this.getConfigFromValkey(hashkey);
 
     if (!config) {
@@ -212,7 +222,7 @@ export class WorkflowExecutionService {
       };
     }
 
-    return this.executeWorkflow(config, debug);
+    return this.executeWorkflow(config, debug, session);
   }
 }
 
