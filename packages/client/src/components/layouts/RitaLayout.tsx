@@ -30,7 +30,6 @@ import {
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Loader } from "@/components/ai-elements/loader";
-import { ShareModal } from "@/components/ShareModal";
 import { ConversationListItem } from "@/components/sidebar/ConversationListItem";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
@@ -102,7 +101,6 @@ RitaLogo.displayName = "RitaLogo";
 
 function RitaLayoutContent({ children, activePage = "chat" }: RitaLayoutProps) {
 	const { state } = useSidebar();
-	const [shareModalOpen, setShareModalOpen] = useState(false);
 	const [welcomeModalOpen, setWelcomeModalOpen] = useState(false);
 	const navigate = useNavigate();
 	const location = useLocation();
@@ -612,12 +610,6 @@ function RitaLayoutContent({ children, activePage = "chat" }: RitaLayoutProps) {
 				disabled={uploadingFiles.size > 0}
 			/>
 
-			{/* Share Modal */}
-			<ShareModal
-				open={shareModalOpen}
-				onOpenChange={setShareModalOpen}
-				onNavigateToSettings={() => navigate("/settings")}
-			/>
 
 			{/* Welcome Modal */}
 			<WelcomeDialog

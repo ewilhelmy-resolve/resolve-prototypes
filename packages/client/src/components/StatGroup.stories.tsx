@@ -9,7 +9,7 @@ const meta: Meta<typeof StatGroup> = {
 	title: "Components/StatGroup",
 	tags: ["autodocs"],
 	parameters: {
-		// layout: "fullscreen",
+		layout: "padded",
 	},
 };
 

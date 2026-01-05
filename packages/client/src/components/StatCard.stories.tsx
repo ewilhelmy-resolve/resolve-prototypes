@@ -8,8 +8,15 @@ const meta: Meta<typeof StatCard> = {
 	title: "Components/StatCard",
 	tags: ["autodocs"],
 	parameters: {
-		layout: "centered",
+		layout: "padded",
 	},
+	decorators: [
+		(Story) => (
+			<div className="min-w-[300px]">
+				<Story />
+			</div>
+		),
+	],
 };
 
 export default meta;
