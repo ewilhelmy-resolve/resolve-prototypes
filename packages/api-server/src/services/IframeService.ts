@@ -267,6 +267,9 @@ export class IframeService {
       ? existingConversationId
       : (await this.createPublicConversation(tokenInfo.id, intentEid)).conversationId;
 
+    // Store conversationId in session for /execute endpoint to use
+    await this.sessionStore.updateSession(session.sessionId, { conversationId });
+
     logger.info(
       {
         conversationId,

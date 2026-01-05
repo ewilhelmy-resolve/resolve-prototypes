@@ -3,6 +3,8 @@ import { getIframeService } from '../services/IframeService.js';
 import { getWorkflowExecutionService } from '../services/WorkflowExecutionService.js';
 import { getValkeyStatus } from '../config/valkey.js';
 import { logger } from '../config/logger.js';
+import { getSessionStore } from '../services/sessionStore.js';
+import { getSessionService } from '../services/sessionService.js';
 
 const router = express.Router();
 
@@ -124,10 +126,24 @@ router.post('/execute', async (req, res) => {
       return;
     }
 
-    logger.info({ hashkey: resolvedHashkey.substring(0, 8) + '...' }, 'Executing workflow from hashkey');
+    // Get session from cookie to retrieve conversationId and Rita IDs
+    const sessionService = getSessionService();
+    const sessionStore = getSessionStore();
+    const sessionId = sessionService.parseSessionIdFromCookie(req.headers.cookie);
+    const session = sessionId ? await sessionStore.getSession(sessionId) : null;
+
+    if (!session) {
+      logger.warn({ hasSessionId: !!sessionId }, 'Execute called without valid session - workflow will not have Rita IDs');
+    }
+
+    logger.info({
+      hashkey: resolvedHashkey.substring(0, 8) + '...',
+      hasSession: !!session,
+      conversationId: session?.conversationId,
+    }, 'Executing workflow from hashkey');
 
     const workflowService = getWorkflowExecutionService();
-    const result = await workflowService.executeFromHashkey(resolvedHashkey);
+    const result = await workflowService.executeFromHashkey(resolvedHashkey, session);
 
     if (!result.success) {
       logger.warn({
