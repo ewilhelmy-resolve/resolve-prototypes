@@ -16,7 +16,7 @@ import { MoreVertical } from "lucide-react";
 
 const meta: Meta<typeof Card> = {
 	component: Card,
-	title: "UI/Card",
+	title: "UI/Shadcn/Card",
 	tags: ["autodocs"],
 	parameters: {
 		layout: "centered",

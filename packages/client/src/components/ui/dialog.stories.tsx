@@ -16,7 +16,7 @@ import { Label } from "./label";
 
 const meta: Meta<typeof Dialog> = {
 	component: Dialog,
-	title: "UI/Dialog",
+	title: "UI/Shadcn/Dialog",
 	tags: ["autodocs"],
 	parameters: {
 		layout: "fullscreen",
