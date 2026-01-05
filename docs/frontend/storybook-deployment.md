@@ -80,9 +80,9 @@ flowchart TD
 ### Build Configuration
 
 **Files involved:**
-- `packages/client/.storybook/main.ts` - Storybook config
+- `packages/client/.storybook/main.ts` - Storybook config with base path settings
 - `packages/client/package.json` - Build & deploy scripts
-- `.nojekyll` - Disables Jekyll processing
+- `storybook-static/.nojekyll` - Auto-created during deploy, disables Jekyll processing
 - `.gitignore` - Excludes `storybook-static/` build artifacts
 
 ## Build Process
@@ -93,9 +93,10 @@ flowchart TD
    - Generates static HTML/CSS/JS
    - Output: `packages/client/storybook-static/`
 
-2. **Deploy Command:** `gh-pages -d storybook-static`
+2. **Deploy Command:** `gh-pages -d storybook-static --dotfiles`
+   - Creates `.nojekyll` file in build output
    - Creates/updates `gh-pages` branch
-   - Pushes static files to remote
+   - Pushes static files including dotfiles to remote
    - Triggers GitHub Pages rebuild
 
 ## Dependencies
@@ -115,17 +116,26 @@ flowchart TD
 - [ ] Storybook builds successfully locally (`npm run storybook`)
 - [ ] All stories render without errors
 - [ ] Accessibility checks pass (a11y addon)
-- [ ] `.nojekyll` file exists in root
 - [ ] GitHub Pages enabled on `gh-pages` branch
+- [ ] Deploy script includes `--dotfiles` flag
 - [ ] Deploy script runs without errors
 - [ ] Live URL loads correctly
+- [ ] No 404 errors in browser console for assets
 
 ## Troubleshooting
+
+### Failed to Fetch Dynamically Imported Module
+
+**Problem:** Assets return 404, mismatched hash in filenames
+**Solution:**
+- Ensure deploy script includes `--dotfiles` flag
+- Deploy script should create `.nojekyll` in build output: `touch storybook-static/.nojekyll`
+- Clear browser cache and wait 1-2 minutes after deploy
 
 ### Build Fails with Jekyll Error
 
 **Problem:** GitHub Pages tries to process files with Jekyll
-**Solution:** Ensure `.nojekyll` file exists in repository root
+**Solution:** Deploy script automatically creates `.nojekyll` file
 
 ### 404 on Deployed Site
 
