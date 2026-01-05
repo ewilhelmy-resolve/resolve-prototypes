@@ -4,7 +4,7 @@ import { FeedbackBanner } from "./feedback-banner";
 
 const meta: Meta<typeof FeedbackBanner> = {
 	component: FeedbackBanner,
-	title: "UI/FeedbackBanner",
+	title: "UI/Custom/FeedbackBanner",
 	tags: ["autodocs"],
 	args: {
 		onDismiss: fn(),

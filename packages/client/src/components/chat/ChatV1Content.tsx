@@ -24,18 +24,7 @@ import {
 } from "@/components/ai-elements/conversation";
 import { Loader } from "@/components/ai-elements/loader";
 import { Message, MessageContent } from "@/components/ai-elements/message";
-import {
-	PromptInput,
-	PromptInputAttachment,
-	PromptInputAttachments,
-	PromptInputBody,
-	// PromptInputButton, // TODO: Uncomment when re-enabling attachment button
-	type PromptInputMessage,
-	PromptInputSubmit,
-	PromptInputTextarea,
-	PromptInputToolbar,
-	PromptInputTools,
-} from "@/components/ai-elements/prompt-input";
+import type { PromptInputMessage } from "@/components/ai-elements/prompt-input";
 import {
 	Reasoning,
 	ReasoningContent,
@@ -48,6 +37,7 @@ import {
 	TaskItem,
 	TaskTrigger,
 } from "@/components/ai-elements/task";
+import { ChatInput } from "@/components/chat/ChatInput";
 import { Citations } from "@/components/citations";
 import {
 	Card,
@@ -74,7 +64,6 @@ import {
 	validateFileForUpload,
 } from "@/lib/constants";
 import { formatAbsoluteTime } from "@/lib/date-utils";
-import { cn } from "@/lib/utils";
 import type {
 	GroupedChatMessage,
 	Message as RitaMessage,
@@ -841,56 +830,23 @@ export default function ChatV1Content({
 				<ConversationScrollButton />
 			</Conversation>
 
-			{/* Modern input using PromptInput */}
-			<div className="px-6 py-4 xborder-t border-gray-200 bg-white">
-				<div className="max-w-4xl mx-auto">
-					<PromptInput
-						className={cn(!hasProcessedOrUploadedFiles && "rounded-b-none")}
-						onSubmit={handlePromptSubmit}
-						globalDrop={false}
-						multiple={false}
-						accept={undefined}
-						maxFiles={undefined}
-						maxFileSize={undefined}
-					>
-						<PromptInputBody>
-							<PromptInputAttachments>
-								{(attachment) => <PromptInputAttachment data={attachment} />}
-							</PromptInputAttachments>
-							<PromptInputTextarea
-								onChange={(e) => handleMessageChange(e.target.value)}
-								value={messageValue}
-								placeholder="Ask me anything..."
-								disabled={isInputDisabled}
-							/>
-						</PromptInputBody>
-						<PromptInputToolbar>
-							<PromptInputTools>
-								{/* TODO: Re-enable attachment button when backend support is ready */}
-							</PromptInputTools>
-							<PromptInputSubmit
-								disabled={
-									!messageValue.trim() ||
-									chatStatus === "streaming" ||
-									chatStatus === "submitted"
-								}
-								status={chatStatus}
-							/>
-						</PromptInputToolbar>
-					</PromptInput>
-
-					{/* Footer message when no processed or uploaded files */}
-					{requireKnowledgeBase && !hasProcessedOrUploadedFiles && (
-						<div className="mt-0 flex items-center rounded-b-[12px] border border-t-0 border-border bg-muted px-3 py-2">
-							<p className="text-xs text-muted-foreground">
-								{isAdmin
-									? "No knowledge found. Upload or connect a knowledge source to get started."
-									: "No knowledge found. Reach out to your RITA Go Administrator."}
-							</p>
-						</div>
-					)}
-				</div>
-			</div>
+			{/* Modern input using ChatInput */}
+			<ChatInput
+				value={messageValue}
+				placeholder="Ask me anything..."
+				chatStatus={chatStatus}
+				disabled={isInputDisabled}
+				showNoKnowledgeWarning={requireKnowledgeBase && !hasProcessedOrUploadedFiles}
+				isAdmin={isAdmin}
+				onChange={handleMessageChange}
+				onSubmit={handlePromptSubmit}
+				fileUpload={{
+					accept: undefined,
+					multiple: false,
+					maxFiles: undefined,
+					maxFileSize: undefined,
+				}}
+			/>
 
 			{/* Hidden file input for chat message attachments (currently disabled) */}
 			<input

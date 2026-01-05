@@ -5,7 +5,7 @@ import { Mail, Loader2, ChevronRight, Plus, Download, Trash2 } from "lucide-reac
 
 const meta: Meta<typeof Button> = {
 	component: Button,
-	title: "UI/Button",
+	title: "UI/Shadcn/Button",
 	tags: ["autodocs"],
 	args: {
 		onClick: fn(),

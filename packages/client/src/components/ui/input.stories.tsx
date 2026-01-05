@@ -7,7 +7,7 @@ import { useState } from "react";
 
 const meta: Meta<typeof Input> = {
 	component: Input,
-	title: "UI/Input",
+	title: "UI/Shadcn/Input",
 	tags: ["autodocs"],
 	parameters: {
 		layout: "centered",
