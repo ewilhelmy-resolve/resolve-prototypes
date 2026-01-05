@@ -45,9 +45,9 @@ const child = spawn(
 		"-c",
 		"gray,blue,green,yellow",
 		"docker compose up",
-		"npm:dev:api",
-		"npm:dev:client",
-		"npm:dev:mock",
+		"pnpm:dev:api",
+		"pnpm:dev:client",
+		"pnpm:dev:mock",
 	],
 	{
 		stdio: "inherit",

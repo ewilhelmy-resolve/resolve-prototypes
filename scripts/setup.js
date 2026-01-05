@@ -23,15 +23,15 @@ if (!isDockerRunning()) {
 }
 
 try {
-	run("npm run install:all", "Installing dependencies");
+	run("pnpm install", "Installing dependencies");
 	run("docker compose up -d", "Starting docker");
 	run(
 		"docker compose exec postgres pg_isready -U rita -d onboarding --timeout=60",
 		"Waiting for postgres",
 	);
-	run("npm run migrate", "Running migrations");
+	run("pnpm run migrate", "Running migrations");
 	console.log("\n========== Setup complete ==========");
-	console.log("Run 'npm run dev' to start development servers.\n");
+	console.log("Run 'pnpm run dev' to start development servers.\n");
 } catch {
 	console.error("\n========== Setup failed ==========");
 	process.exit(1);
