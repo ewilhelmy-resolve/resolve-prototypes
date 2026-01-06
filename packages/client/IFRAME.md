@@ -43,13 +43,9 @@ Or use the built-in demo: http://localhost:5173/embeddemo
 
 ### Public Guest User
 
-All iframe conversations use a shared system user:
+All iframe conversations use a shared system user created via database migration with restricted permissions.
 
-- **User ID**: `00000000-0000-0000-0000-000000000002`
-- **Org ID**: `00000000-0000-0000-0000-000000000001`
-- **Email**: `public-guest@internal.system`
-
-This user is created via database migration and has restricted permissions.
+**For External Systems**: Do NOT hardcode these IDs. Use the `rita_user_id`, `rita_org_id`, and `rita_conversation_id` values from the webhook payload when sending messages back.
 
 ### Session Flow
 
@@ -154,13 +150,87 @@ echo '{"endpoint":"/api/Webhooks/postEvent/my-tenant","payload":{"chatInput":"He
 redis-cli SET my-hashkey "eyJlbmRwb2ludCI6Ii9hcGkvV2ViaG9va3MvcG9zdEV2ZW50L215LXRlbmFudCIsInBheWxvYWQiOnsiY2hhdElucHV0IjoiSGVsbG8ifX0="
 ```
 
-### Response Flow
+### Webhook Payload to Actions API
 
-1. RITA backend fetches payload from Valkey and decodes base64
-2. Backend calls the endpoint specified in payload (no JWT auth)
-3. Workflow executes, calls `/api/SignalR/pushMessage` → host receives via SignalR
-4. Workflow also sends to RITA API → iframe receives via SSE
-5. Both channels show the same response
+When `/api/iframe/execute` is called, RITA sends a webhook to Actions API with Rita routing IDs:
+
+```json
+{
+  "source": "rita-chat-iframe",
+  "action": "workflow_trigger",
+  "tenant_id": "from-valkey-config",
+  "tenant_name": "from-valkey-config",
+  "tab_instance_id": "from-valkey-config",
+  "chat_session_id": "from-valkey-config",
+  "access_token": "[JWT from Valkey]",
+  "refresh_token": "[JWT from Valkey]",
+  "token_expiry": 1234567890,
+  "context": { "workflow-specific-data": "..." },
+  "timestamp": "2024-01-01T00:00:00.000Z",
+
+  "rita_conversation_id": "uuid-of-rita-conversation",
+  "rita_user_id": "00000000-0000-0000-0000-000000000002",
+  "rita_org_id": "00000000-0000-0000-0000-000000000001"
+}
+```
+
+**Important**: The `rita_*` fields are required for routing messages back to the iframe.
+
+### Response Flow (Round-Trip)
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                          OUTBOUND (Trigger)                             │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                         │
+│  Iframe loads → validate-instantiation → session created               │
+│                                              │                          │
+│                                              ▼                          │
+│  User clicks "Execute" → POST /api/iframe/execute                      │
+│                                              │                          │
+│                                              ▼                          │
+│  Backend fetches Valkey config + session → webhook to Actions API      │
+│  (includes rita_conversation_id, rita_user_id, rita_org_id)            │
+│                                              │                          │
+│                                              ▼                          │
+│  Actions API → Workflow Executes                                        │
+│                                                                         │
+├─────────────────────────────────────────────────────────────────────────┤
+│                          INBOUND (Response)                             │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                         │
+│  Workflow sends message to RabbitMQ `chat.responses` queue             │
+│  {                                                                      │
+│    "user_id": "<rita_user_id>",                                        │
+│    "organization_id": "<rita_org_id>",                                 │
+│    "conversation_id": "<rita_conversation_id>",                        │
+│    "content": "Workflow response message"                              │
+│  }                                                                      │
+│                              │                                          │
+│                              ▼                                          │
+│  RITA MessageConsumer → routes by user_id + org_id → SSE               │
+│                              │                                          │
+│                              ▼                                          │
+│  Iframe receives message via EventSource                               │
+│                                                                         │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+### External System: Sending Messages to Iframe
+
+External systems (workflow designers) must send messages to the `chat.responses` RabbitMQ queue using the Rita IDs from the webhook payload:
+
+```json
+{
+  "user_id": "<rita_user_id from webhook>",
+  "organization_id": "<rita_org_id from webhook>",
+  "conversation_id": "<rita_conversation_id from webhook>",
+  "content": "Your workflow response message",
+  "message_id": "uuid-for-deduplication"
+}
+```
+
+**Critical**: Use the exact `rita_user_id`, `rita_org_id`, and `rita_conversation_id` values from the webhook payload. SSE routes messages by these IDs - incorrect IDs will result in messages not being delivered.
 
 ### Security
 

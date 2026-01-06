@@ -30,6 +30,8 @@ export interface Session {
   lastAccessedAt: Date;
   /** Iframe embed webhook config - only present for iframe sessions with hashkey */
   iframeWebhookConfig?: IframeWebhookConfig;
+  /** Conversation ID for iframe sessions - used to route messages back */
+  conversationId?: string;
 }
 
 export interface CreateSessionData {

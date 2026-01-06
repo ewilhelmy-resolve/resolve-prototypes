@@ -3,7 +3,7 @@ import { StatusAlert } from "./status-alert";
 
 const meta: Meta<typeof StatusAlert> = {
 	component: StatusAlert,
-	title: "UI/StatusAlert",
+	title: "UI/Custom/StatusAlert",
 	tags: ["autodocs"],
 	argTypes: {
 		variant: {
