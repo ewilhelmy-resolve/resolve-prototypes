@@ -1,12 +1,19 @@
 import { create } from "@storybook/theming/create";
 
+// Hardcode base URL for GitHub Pages - manager uses iife format where import.meta isn't available
+// In production (GitHub Pages): /resolve-onboarding/
+// In development: /
+const baseUrl = window?.location?.pathname?.startsWith("/resolve-onboarding")
+	? "/resolve-onboarding/"
+	: "/";
+
 export const ritaTheme = create({
 	base: "light",
 
 	// Brand
 	brandTitle: "RITA Go Design System",
-	brandUrl: "/",
-	brandImage: "/logo-rita.svg",
+	brandUrl: baseUrl,
+	brandImage: `${baseUrl}logo-rita.svg`,
 	brandTarget: "_self",
 
 	// Colors - Clean monochrome like Audi
@@ -55,8 +62,8 @@ export const ritaDarkTheme = create({
 
 	// Brand
 	brandTitle: "RITA Go Design System",
-	brandUrl: "/",
-	brandImage: "/logo-rita.svg",
+	brandUrl: baseUrl,
+	brandImage: `${baseUrl}logo-rita.svg`,
 	brandTarget: "_self",
 
 	// Colors

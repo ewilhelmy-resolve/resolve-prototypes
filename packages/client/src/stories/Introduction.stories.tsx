@@ -1,5 +1,9 @@
 import type { Meta, StoryObj } from "@storybook/react";
 
+// Use base URL for GitHub Pages compatibility
+const baseUrl = import.meta.env.BASE_URL || "/";
+const logoSrc = `${baseUrl}logo-rita.svg`;
+
 const meta: Meta = {
 	title: "Getting Started/Introduction",
 	parameters: {
@@ -15,7 +19,7 @@ export const Welcome: Story = {
 		<div className="max-w-3xl space-y-8">
 			<div className="space-y-4">
 				<div className="flex items-center gap-4">
-					<img src="/logo-rita.svg" alt="RITA Go" className="h-10" />
+					<img src={logoSrc} alt="RITA Go" className="h-10" />
 					<span className="text-2xl font-medium text-muted-foreground">
 						Design System
 					</span>

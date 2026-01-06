@@ -1,5 +1,9 @@
 import type { Meta, StoryObj } from "@storybook/react";
 
+// Use base URL for GitHub Pages compatibility
+const baseUrl = import.meta.env.BASE_URL || "/";
+const logoSrc = `${baseUrl}logo-rita.svg`;
+
 const meta: Meta = {
 	title: "Brand Identity/Logo",
 	tags: ["autodocs"],
@@ -22,7 +26,7 @@ export const Default: Story = {
 	render: () => (
 		<div className="space-y-8">
 			<div className="p-8 bg-white rounded-lg border border-border">
-				<img src="/logo-rita.svg" alt="RITA Go Logo" className="h-8" />
+				<img src={logoSrc} alt="RITA Go Logo" className="h-8" />
 			</div>
 			<div className="text-sm text-muted-foreground">
 				<strong>File:</strong> /public/logo-rita.svg
@@ -37,7 +41,7 @@ export const OnDarkBackground: Story = {
 		<div className="space-y-8">
 			<div className="p-8 bg-black rounded-lg">
 				<img
-					src="/logo-rita.svg"
+					src={logoSrc}
 					alt="RITA Go Logo"
 					className="h-8 invert"
 				/>
@@ -59,13 +63,13 @@ export const Sizes: Story = {
 			<div className="space-y-4">
 				<div className="flex items-center gap-4 p-4 border border-border rounded-lg">
 					<code className="text-xs text-muted-foreground w-16">h-6</code>
-					<img src="/logo-rita.svg" alt="RITA Go Logo" className="h-6" />
+					<img src={logoSrc} alt="RITA Go Logo" className="h-6" />
 					<span className="text-sm text-muted-foreground">Small - Nav items</span>
 				</div>
 
 				<div className="flex items-center gap-4 p-4 border border-border rounded-lg">
 					<code className="text-xs text-muted-foreground w-16">h-8</code>
-					<img src="/logo-rita.svg" alt="RITA Go Logo" className="h-8" />
+					<img src={logoSrc} alt="RITA Go Logo" className="h-8" />
 					<span className="text-sm text-muted-foreground">
 						Default - Headers
 					</span>
@@ -73,13 +77,13 @@ export const Sizes: Story = {
 
 				<div className="flex items-center gap-4 p-4 border border-border rounded-lg">
 					<code className="text-xs text-muted-foreground w-16">h-12</code>
-					<img src="/logo-rita.svg" alt="RITA Go Logo" className="h-12" />
+					<img src={logoSrc} alt="RITA Go Logo" className="h-12" />
 					<span className="text-sm text-muted-foreground">Large - Hero</span>
 				</div>
 
 				<div className="flex items-center gap-4 p-4 border border-border rounded-lg">
 					<code className="text-xs text-muted-foreground w-16">h-16</code>
-					<img src="/logo-rita.svg" alt="RITA Go Logo" className="h-16" />
+					<img src={logoSrc} alt="RITA Go Logo" className="h-16" />
 					<span className="text-sm text-muted-foreground">
 						XL - Marketing
 					</span>
@@ -101,7 +105,7 @@ export const ClearSpace: Story = {
 
 			<div className="p-8 bg-muted/50 rounded-lg flex items-center justify-center">
 				<div className="border-2 border-dashed border-primary/30 p-6">
-					<img src="/logo-rita.svg" alt="RITA Go Logo" className="h-8" />
+					<img src={logoSrc} alt="RITA Go Logo" className="h-8" />
 				</div>
 			</div>
 		</div>
