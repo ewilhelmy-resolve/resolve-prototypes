@@ -9,7 +9,7 @@
     }
   },
   "scripts": {
-    "dev": "trap 'docker compose down' EXIT; concurrently -n docker,api,client,mock -c gray,blue,green,yellow \"docker compose up\" \"pnpm:dev:api\" \"pnpm:dev:client\" \"pnpm:dev:mock\"",
+    "dev": "node scripts/dev.js",
     "docker:stop": "docker compose down",
     "dev:restart": "pnpm run docker:stop && pnpm run dev",
     "dev:api": "pnpm --filter rita-api-server dev",
@@ -25,7 +25,7 @@
     "lint": "pnpm -r run lint",
     "type-check": "pnpm -r run type-check",
     "prepare": "husky",
-    "setup": "pnpm install && echo '\\n========== Starting docker ==========' && docker compose up -d && echo '\\n========== Waiting for postgres ==========' && docker compose exec postgres pg_isready -U rita -d onboarding --timeout=60 && echo '\\n========== Running migrations ==========' && pnpm run migrate && echo '\\n========== Starting dev servers ==========' && pnpm run dev",
+    "setup": "node scripts/setup.js",
     "storybook": "pnpm --filter rita-client storybook",
     "build-storybook": "pnpm --filter rita-client build-storybook",
     "deploy-storybook": "pnpm --filter rita-client deploy-storybook"
