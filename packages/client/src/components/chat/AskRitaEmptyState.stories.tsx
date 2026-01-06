@@ -14,7 +14,7 @@ import {
 } from "@/lib/constants";
 
 const meta: Meta = {
-	title: "Chat/AskRitaEmptyState",
+	title: "Features/Chat/Empty State",
 	parameters: {
 		layout: "centered",
 		docs: {

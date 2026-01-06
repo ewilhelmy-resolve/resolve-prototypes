@@ -30,7 +30,7 @@ function ChatInputWithState(
 }
 
 const meta = {
-	title: "Chat/ChatInput",
+	title: "Features/Chat/Input",
 	component: ChatInputWithState,
 	parameters: {
 		layout: "padded",

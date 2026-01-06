@@ -26,7 +26,7 @@ const createMockSource = (
 
 const meta: Meta<typeof ConnectionStatusCard> = {
 	component: ConnectionStatusCard,
-	title: "Connection Sources/ConnectionStatusCard",
+	title: "Features/Connections/Status Card",
 	tags: ["autodocs"],
 	parameters: {
 		layout: "centered",

@@ -28,7 +28,7 @@ const queryClient = new QueryClient({
 });
 
 const meta: Meta = {
-	title: "Chat/Messages",
+	title: "Features/Chat/Messages",
 	parameters: {
 		layout: "padded",
 		docs: {

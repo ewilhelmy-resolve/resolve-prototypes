@@ -4,7 +4,7 @@ import ConfirmDialog from "./ConfirmDialog";
 
 const meta: Meta<typeof ConfirmDialog> = {
 	component: ConfirmDialog,
-	title: "Dialogs/ConfirmDialog",
+	title: "Components/Overlays/Confirm Dialog",
 	tags: ["autodocs"],
 	args: {
 		open: true,

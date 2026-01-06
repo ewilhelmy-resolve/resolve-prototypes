@@ -3,7 +3,7 @@ import { Spinner } from "./spinner";
 
 const meta: Meta<typeof Spinner> = {
 	component: Spinner,
-	title: "UI/Shadcn/Spinner",
+	title: "Components/Feedback/Spinner",
 	tags: ["autodocs"],
 	argTypes: {
 		className: {

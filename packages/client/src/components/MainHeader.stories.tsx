@@ -14,7 +14,7 @@ import { Plus, Upload, Link, Loader } from "lucide-react";
 
 const meta: Meta<typeof MainHeader> = {
 	component: MainHeader,
-	title: "Components/MainHeader",
+	title: "Features/Layout/Main Header",
 	tags: ["autodocs"],
 	parameters: {
 		layout: "fullscreen",
