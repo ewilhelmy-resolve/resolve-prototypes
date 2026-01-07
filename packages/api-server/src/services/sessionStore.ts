@@ -34,6 +34,8 @@ export interface Session {
   iframeWebhookConfig?: IframeWebhookConfig;
   /** Conversation ID for iframe sessions - used to route messages back */
   conversationId?: string;
+  /** True if session created via iframe embed (determines webhook source) */
+  isIframeSession?: boolean;
 }
 
 export interface CreateSessionData {
@@ -44,6 +46,7 @@ export interface CreateSessionData {
   lastName?: string;
   sessionDurationMs?: number; // Default: 24 hours
   iframeWebhookConfig?: IframeWebhookConfig;
+  isIframeSession?: boolean;
 }
 
 export interface SessionStore {
@@ -84,6 +87,7 @@ class InMemorySessionStore implements SessionStore {
       createdAt: now,
       lastAccessedAt: now,
       iframeWebhookConfig: data.iframeWebhookConfig,
+      isIframeSession: data.isIframeSession,
     };
 
     this.sessions.set(sessionId, session);

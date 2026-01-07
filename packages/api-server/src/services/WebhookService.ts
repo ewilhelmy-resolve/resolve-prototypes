@@ -39,9 +39,10 @@ export class WebhookService {
     documentIds?: string[];
     createdAt?: Date;
     transcript?: Array<{ role: string; content: string }>;
+    source?: string;
   }): Promise<WebhookResponse> {
     const payload: MessageWebhookPayload = {
-      source: 'rita-chat',
+      source: params.source || 'rita-chat',
       action: 'message_created',
       user_email: params.userEmail,
       user_id: params.userId,

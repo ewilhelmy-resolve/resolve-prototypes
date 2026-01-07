@@ -354,6 +354,8 @@ router.post('/:conversationId/messages', authenticateUser, async (req, res) => {
       });
     } else {
       // Regular chat - use env var webhook
+      // Use iframe source if this is an iframe session (even without full Valkey config)
+      const source = fullSession?.isIframeSession ? 'rita-chat-iframe' : 'rita-chat';
       webhookResponse = await webhookService.sendMessageEvent({
         organizationId: authReq.user.activeOrganizationId,
         userId: authReq.user.id,
@@ -363,7 +365,8 @@ router.post('/:conversationId/messages', authenticateUser, async (req, res) => {
         customerMessage: result.message.message,
         documentIds: [], // No per-message document attachments - RAG uses all user documents
         createdAt: result.message.created_at,
-        transcript: truncatedTranscript
+        transcript: truncatedTranscript,
+        source,
       });
     }
 

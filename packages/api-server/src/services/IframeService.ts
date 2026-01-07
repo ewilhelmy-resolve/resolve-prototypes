@@ -174,6 +174,7 @@ export class IframeService {
       lastName: 'Guest',
       sessionDurationMs: 24 * 60 * 60 * 1000, // 24 hours
       iframeWebhookConfig,
+      isIframeSession: true,
     };
 
     const session = await this.sessionStore.createSession(sessionData);
