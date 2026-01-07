@@ -50,16 +50,20 @@ export function getValkeyClient(): Redis {
     logger.info({ url: maskedUrl }, 'Initializing Valkey client');
 
     // Extract hostname for TLS servername (required for AWS/managed providers)
-    const hostname = new URL(url).hostname;
+    const parsedUrl = new URL(url);
+    const useTls = url.startsWith('rediss://');
 
     valkeyClient = new Redis(url, {
       maxRetriesPerRequest: 3,
       connectTimeout: 5000,
       commandTimeout: 5000,
       lazyConnect: true,
-      tls: {
-        servername: hostname,
-      },
+      // Only enable TLS for rediss:// URLs (production), skip for redis:// (local dev)
+      ...(useTls && {
+        tls: {
+          servername: parsedUrl.hostname,
+        },
+      }),
       retryStrategy: (times) => {
         if (times > 3) {
           logger.error({ times }, 'Valkey connection failed after max retries');

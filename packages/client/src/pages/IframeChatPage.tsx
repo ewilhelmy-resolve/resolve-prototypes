@@ -4,13 +4,13 @@
  * Stripped-down chat for embedding in iframe:
  * - No sidebar, no header navigation
  * - Uses Valkey IDs from host app (Jarvis) - not Rita's user system
- * - Hashkey param provides session token + tenant context via Valkey
+ * - sessionKey param provides user identity + tenant context via Valkey
  *
  * Flow:
- * 1. On mount, call /api/iframe/validate-instantiation with token + hashkey
+ * 1. On mount, call /api/iframe/validate-instantiation with sessionKey
  * 2. Backend fetches Valkey payload (userId, tenantId, credentials)
  * 3. Backend creates session with Valkey IDs, returns cookie + conversationId
- * 4. If hashkey present, call /api/iframe/execute to trigger workflow
+ * 4. Call /api/iframe/execute to trigger workflow
  * 5. Render chat with SSE (session cookie enables SSE routing)
  *
  * Debug mode: Add ?debug=true to URL to see debug panel
@@ -48,8 +48,7 @@ interface DebugPanelProps {
 		sessionReady: boolean;
 		error: string | null;
 		conversationId: string | null;
-		token: string | null;
-		hashkey: string | null;
+		sessionKey: string | null;
 		apiUrl: string;
 	};
 }
@@ -82,8 +81,7 @@ function DebugPanel({ debug, showDebug, setShowDebug, debugLogs, state }: DebugP
 								sessionReady: state.sessionReady,
 								error: state.error,
 								conversationId: state.conversationId,
-								token: state.token ? state.token.substring(0, 12) + "..." : null,
-								hashkey: state.hashkey ? state.hashkey.substring(0, 12) + "..." : null,
+								sessionKey: state.sessionKey ? state.sessionKey.substring(0, 12) + "..." : null,
 								apiUrl: state.apiUrl,
 							}, null, 2)}
 						</pre>
@@ -175,9 +173,7 @@ function IframeChatContent({
 export default function IframeChatPage() {
 	const { conversationId: urlConversationId } = useParams<{ conversationId?: string }>();
 	const [searchParams] = useSearchParams();
-	const token = searchParams.get("token");
-	// Support both hashkey and sessionKey (portal uses sessionKey)
-	const hashkey = searchParams.get("hashkey") || searchParams.get("sessionKey");
+	const sessionKey = searchParams.get("sessionKey");
 	const debug = searchParams.get("debug") === "true";
 
 	const [isLoading, setIsLoading] = useState(true);
@@ -211,7 +207,7 @@ export default function IframeChatPage() {
 		consoleFn(`[IframeDebug] ${message}`, data || "");
 	}, []);
 
-	// Initialize public session on mount (always required for auth)
+	// Initialize iframe session on mount (always required for auth)
 	useEffect(() => {
 		// Guard against StrictMode double-mount
 		if (initRef.current) return;
@@ -222,16 +218,15 @@ export default function IframeChatPage() {
 
 		async function initializeIframe() {
 			addDebugLog("info", "Starting initialization", {
-				token: token ? token.substring(0, 8) + "..." : "null",
-				hashkey: hashkey ? hashkey.substring(0, 8) + "..." : "null",
+				sessionKey: sessionKey ? sessionKey.substring(0, 8) + "..." : "null",
 				existingConversationId: urlConversationId || "null",
 				apiUrl: currentApiUrl,
 			});
 
-			// Token is required
-			if (!token) {
-				addDebugLog("error", "Missing token parameter");
-				setError("Missing token parameter");
+			// sessionKey is required
+			if (!sessionKey) {
+				addDebugLog("error", "Missing sessionKey parameter");
+				setError("Missing sessionKey parameter");
 				setIsLoading(false);
 				return;
 			}
@@ -243,8 +238,7 @@ export default function IframeChatPage() {
 				// Always call validate-instantiation to get session cookie
 				// Pass existing conversationId to skip creating a new one
 				const response = await iframeApi.validateInstantiation({
-					token,
-					hashkey: hashkey || undefined,
+					sessionKey,
 					existingConversationId: urlConversationId,
 				});
 
@@ -287,17 +281,17 @@ export default function IframeChatPage() {
 		}
 
 		initializeIframe();
-	}, [urlConversationId, token, hashkey, setCurrentConversation, addDebugLog, navigate]);
+	}, [urlConversationId, sessionKey, setCurrentConversation, addDebugLog, navigate, apiUrl]);
 
-	// Execute workflow once session is ready (if hashkey present)
+	// Execute workflow once session is ready
 	// This runs in parent to prevent re-execution on child remounts
 	useEffect(() => {
-		if (!sessionReady || !hashkey || workflowExecutedRef.current) return;
+		if (!sessionReady || !sessionKey || workflowExecutedRef.current) return;
 		workflowExecutedRef.current = true;
 
-		const key = hashkey; // Capture for closure (narrowed type)
+		const key = sessionKey; // Capture for closure (narrowed type)
 		async function executeWorkflow() {
-			console.log("[IframeChatPage] Executing workflow from hashkey...");
+			console.log("[IframeChatPage] Executing workflow from sessionKey...");
 			try {
 				const result = await iframeApi.executeWorkflow(key);
 				if (result.success) {
@@ -311,7 +305,7 @@ export default function IframeChatPage() {
 		}
 
 		executeWorkflow();
-	}, [sessionReady, hashkey]);
+	}, [sessionReady, sessionKey]);
 
 	// Debug panel props
 	const debugPanelProps: DebugPanelProps = {
@@ -319,7 +313,7 @@ export default function IframeChatPage() {
 		showDebug,
 		setShowDebug,
 		debugLogs,
-		state: { isLoading, sessionReady, error, conversationId, token, hashkey, apiUrl },
+		state: { isLoading, sessionReady, error, conversationId, sessionKey, apiUrl },
 	};
 
 	// Loading state

@@ -1,15 +1,14 @@
 /**
  * IframeService.test.ts
  *
- * Tests for iframe token validation and session creation.
+ * Tests for iframe session creation using Valkey config.
  * Sessions use Valkey IDs (userId, tenantId) for SSE routing.
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 // Mock dependencies before imports - use vi.hoisted for variables used in vi.mock
-const { mockPoolQuery, mockWithOrgContext, mockSessionStore, mockValkeyClient } = vi.hoisted(() => ({
-  mockPoolQuery: vi.fn(),
+const { mockWithOrgContext, mockSessionStore, mockValkeyClient } = vi.hoisted(() => ({
   mockWithOrgContext: vi.fn(),
   mockSessionStore: {
     createSession: vi.fn().mockResolvedValue({
@@ -30,9 +29,6 @@ const { mockPoolQuery, mockWithOrgContext, mockSessionStore, mockValkeyClient } 
 }));
 
 vi.mock('../../config/database.js', () => ({
-  pool: {
-    query: mockPoolQuery,
-  },
   withOrgContext: mockWithOrgContext,
 }));
 
@@ -82,47 +78,6 @@ describe('IframeService', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     iframeService = new IframeService();
-  });
-
-  describe('validateToken', () => {
-    it('should return token info for valid active token', async () => {
-      mockPoolQuery.mockResolvedValueOnce({
-        rows: [{
-          id: 'token-id-1',
-          token: 'valid-token',
-          name: 'Test Token',
-          description: 'Test description',
-          is_active: true,
-          created_at: new Date(),
-          updated_at: new Date(),
-        }],
-        command: 'SELECT',
-        rowCount: 1,
-        oid: 0,
-        fields: [],
-      });
-
-      const result = await iframeService.validateToken('valid-token');
-
-      expect(result).not.toBeNull();
-      expect(result?.token).toBe('valid-token');
-      expect(result?.name).toBe('Test Token');
-      expect(result?.isActive).toBe(true);
-    });
-
-    it('should return null for invalid token', async () => {
-      mockPoolQuery.mockResolvedValueOnce({
-        rows: [],
-        command: 'SELECT',
-        rowCount: 0,
-        oid: 0,
-        fields: [],
-      });
-
-      const result = await iframeService.validateToken('invalid-token');
-
-      expect(result).toBeNull();
-    });
   });
 
   describe('fetchValkeyPayload', () => {
@@ -176,97 +131,23 @@ describe('IframeService', () => {
   });
 
   describe('validateAndSetup', () => {
-    it('should reject missing token', async () => {
+    it('should reject missing sessionKey', async () => {
       const result = await iframeService.validateAndSetup('');
 
       expect(result.valid).toBe(false);
-      expect(result.error).toBe('Token required');
-    });
-
-    it('should reject invalid token', async () => {
-      mockPoolQuery.mockResolvedValueOnce({
-        rows: [],
-        command: 'SELECT',
-        rowCount: 0,
-        oid: 0,
-        fields: [],
-      });
-
-      const result = await iframeService.validateAndSetup('invalid-token');
-
-      expect(result.valid).toBe(false);
-      expect(result.error).toBe('Invalid or inactive token');
-    });
-
-    it('should reject missing hashkey', async () => {
-      // Mock valid token
-      mockPoolQuery.mockResolvedValueOnce({
-        rows: [{
-          id: 'token-id-1',
-          token: 'valid-token',
-          name: 'Test Token',
-          description: null,
-          is_active: true,
-          created_at: new Date(),
-          updated_at: new Date(),
-        }],
-        command: 'SELECT',
-        rowCount: 1,
-        oid: 0,
-        fields: [],
-      });
-
-      const result = await iframeService.validateAndSetup('valid-token');
-
-      expect(result.valid).toBe(false);
-      expect(result.error).toBe('Hashkey required for iframe session');
+      expect(result.error).toBe('sessionKey required');
     });
 
     it('should reject invalid Valkey config', async () => {
-      // Mock valid token
-      mockPoolQuery.mockResolvedValueOnce({
-        rows: [{
-          id: 'token-id-1',
-          token: 'valid-token',
-          name: 'Test Token',
-          description: null,
-          is_active: true,
-          created_at: new Date(),
-          updated_at: new Date(),
-        }],
-        command: 'SELECT',
-        rowCount: 1,
-        oid: 0,
-        fields: [],
-      });
-
-      // Mock Valkey returns null
       mockValkeyClient.hget.mockResolvedValueOnce(null);
 
-      const result = await iframeService.validateAndSetup('valid-token', undefined, undefined, 'bad-hashkey');
+      const result = await iframeService.validateAndSetup('bad-session-key');
 
       expect(result.valid).toBe(false);
       expect(result.error).toBe('Invalid or missing Valkey configuration');
     });
 
     it('should create session with Valkey IDs', async () => {
-      // Mock token validation
-      mockPoolQuery.mockResolvedValueOnce({
-        rows: [{
-          id: 'token-id-1',
-          token: 'valid-token',
-          name: 'Test Token',
-          description: null,
-          is_active: true,
-          created_at: new Date(),
-          updated_at: new Date(),
-        }],
-        command: 'SELECT',
-        rowCount: 1,
-        oid: 0,
-        fields: [],
-      });
-
       // Mock Valkey payload
       mockValkeyClient.hget.mockResolvedValueOnce(JSON.stringify(validValkeyPayload));
 
@@ -280,14 +161,14 @@ describe('IframeService', () => {
         return await callback(mockClient as any);
       });
 
-      const result = await iframeService.validateAndSetup('valid-token', undefined, undefined, 'my-hashkey');
+      const result = await iframeService.validateAndSetup('my-session-key');
 
       expect(result.valid).toBe(true);
       expect(result.webhookConfigLoaded).toBe(true);
       expect(result.webhookTenantId).toBe('tenant-456');
       expect(result.conversationId).toBe('new-conv-id');
 
-      // Verify session created with Valkey IDs (not public user IDs)
+      // Verify session created with Valkey IDs
       expect(mockSessionStore.createSession).toHaveBeenCalledWith(
         expect.objectContaining({
           userId: 'user-keycloak-guid-123',
@@ -309,31 +190,13 @@ describe('IframeService', () => {
     });
 
     it('should use existing conversation ID if provided', async () => {
-      // Mock token validation
-      mockPoolQuery.mockResolvedValueOnce({
-        rows: [{
-          id: 'token-id-1',
-          token: 'valid-token',
-          name: 'Test Token',
-          description: null,
-          is_active: true,
-          created_at: new Date(),
-          updated_at: new Date(),
-        }],
-        command: 'SELECT',
-        rowCount: 1,
-        oid: 0,
-        fields: [],
-      });
-
       // Mock Valkey payload
       mockValkeyClient.hget.mockResolvedValueOnce(JSON.stringify(validValkeyPayload));
 
       const result = await iframeService.validateAndSetup(
-        'valid-token',
+        'my-session-key',
         undefined,
-        'existing-conversation-id',
-        'my-hashkey'
+        'existing-conversation-id'
       );
 
       expect(result.valid).toBe(true);
@@ -343,23 +206,6 @@ describe('IframeService', () => {
     });
 
     it('should store conversationId in session', async () => {
-      // Mock token validation
-      mockPoolQuery.mockResolvedValueOnce({
-        rows: [{
-          id: 'token-id-1',
-          token: 'valid-token',
-          name: 'Test Token',
-          description: null,
-          is_active: true,
-          created_at: new Date(),
-          updated_at: new Date(),
-        }],
-        command: 'SELECT',
-        rowCount: 1,
-        oid: 0,
-        fields: [],
-      });
-
       // Mock Valkey payload
       mockValkeyClient.hget.mockResolvedValueOnce(JSON.stringify(validValkeyPayload));
 
@@ -373,13 +219,33 @@ describe('IframeService', () => {
         return await callback(mockClient as any);
       });
 
-      await iframeService.validateAndSetup('valid-token', undefined, undefined, 'my-hashkey');
+      await iframeService.validateAndSetup('my-session-key');
 
       // Verify updateSession was called with conversationId
       expect(mockSessionStore.updateSession).toHaveBeenCalledWith(
         'mock-session-id',
         { conversationId: 'created-conv-123' }
       );
+    });
+
+    it('should pass intentEid to createIframeConversation', async () => {
+      // Mock Valkey payload
+      mockValkeyClient.hget.mockResolvedValueOnce(JSON.stringify(validValkeyPayload));
+
+      // Mock conversation creation
+      mockWithOrgContext.mockImplementation(async (_userId, _orgId, callback) => {
+        const mockClient = {
+          query: vi.fn().mockResolvedValue({
+            rows: [{ id: 'intent-conv-id' }],
+          }),
+        };
+        return await callback(mockClient as any);
+      });
+
+      const result = await iframeService.validateAndSetup('my-session-key', 'intent-eid-123');
+
+      expect(result.valid).toBe(true);
+      expect(result.conversationId).toBe('intent-conv-id');
     });
   });
 });

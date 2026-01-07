@@ -23,26 +23,24 @@ const router = express.Router();
  * Validate iframe instantiation and setup session
  * POST /api/iframe/validate-instantiation
  *
- * Validates token and loads Valkey config for routing IDs.
- * No organization DB checks - IDs come from Valkey.
+ * Validates Valkey config (sessionKey) for routing IDs.
+ * No token or organization DB checks - IDs come from Valkey.
  */
 router.post('/validate-instantiation', async (req, res) => {
   const startTime = Date.now();
-  logger.info({ hasHashkey: !!(req.body.hashkey || req.body.sessionKey) }, 'Iframe validate-instantiation started');
+  logger.info({ hasSessionKey: !!req.body.sessionKey }, 'Iframe validate-instantiation started');
 
   try {
-    const { token, intentEid, existingConversationId, hashkey, sessionKey } = req.body;
-    // Support both hashkey and sessionKey (portal uses sessionKey)
-    const resolvedHashkey = hashkey || sessionKey;
+    const { intentEid, existingConversationId, sessionKey } = req.body;
 
     const iframeService = getIframeService();
-    const result = await iframeService.validateAndSetup(token, intentEid, existingConversationId, resolvedHashkey);
+    const result = await iframeService.validateAndSetup(sessionKey, intentEid, existingConversationId);
     const duration = Date.now() - startTime;
     logger.info({ durationMs: duration, valid: result.valid }, 'Iframe validate-instantiation completed');
 
     // Handle validation failure
     if (!result.valid) {
-      logger.warn({ error: result.error }, 'Iframe token validation failed');
+      logger.warn({ error: result.error }, 'Iframe validation failed');
       res.status(401).json({
         valid: false,
         error: result.error,
@@ -59,8 +57,7 @@ router.post('/validate-instantiation', async (req, res) => {
       {
         conversationId: result.conversationId,
         intentEid,
-        tokenName: result.tokenName,
-        hasWebhookConfig: !!resolvedHashkey,
+        tenantId: result.webhookTenantId,
       },
       'Iframe instantiation successful'
     );

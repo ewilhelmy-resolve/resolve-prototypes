@@ -191,60 +191,67 @@ describe('iframe.routes', () => {
   });
 
   describe('POST /api/iframe/validate-instantiation', () => {
-    it('should validate token and return session info', async () => {
+    it('should validate sessionKey and return session info', async () => {
       mockIframeService.validateAndSetup.mockResolvedValue({
         valid: true,
         conversationId: 'new-conv-123',
         cookie: 'session=abc; Path=/; HttpOnly',
-        tokenName: 'Test Token',
         webhookConfigLoaded: true,
         webhookTenantId: 'tenant-456',
       });
 
       const response = await request(app)
         .post('/api/iframe/validate-instantiation')
-        .send({ token: 'valid-token', hashkey: 'my-hashkey' })
+        .send({ sessionKey: 'my-session-key' })
         .expect(200);
 
       expect(response.body.valid).toBe(true);
       expect(response.body.conversationId).toBe('new-conv-123');
       expect(response.body.webhookConfigLoaded).toBe(true);
+      expect(mockIframeService.validateAndSetup).toHaveBeenCalledWith(
+        'my-session-key',
+        undefined,
+        undefined
+      );
     });
 
-    it('should support sessionKey parameter', async () => {
+    it('should pass intentEid and existingConversationId', async () => {
       mockIframeService.validateAndSetup.mockResolvedValue({
         valid: true,
-        conversationId: 'conv-789',
+        conversationId: 'existing-conv-789',
         cookie: 'session=xyz; Path=/; HttpOnly',
         webhookConfigLoaded: true,
       });
 
       await request(app)
         .post('/api/iframe/validate-instantiation')
-        .send({ token: 'valid-token', sessionKey: 'portal-key' })
+        .send({
+          sessionKey: 'portal-key',
+          intentEid: 'intent-123',
+          existingConversationId: 'existing-conv-789',
+        })
         .expect(200);
 
       expect(mockIframeService.validateAndSetup).toHaveBeenCalledWith(
-        'valid-token',
-        undefined,
-        undefined,
-        'portal-key'
+        'portal-key',
+        'intent-123',
+        'existing-conv-789'
       );
     });
 
-    it('should return 401 for invalid token', async () => {
+    it('should return 401 for invalid Valkey config', async () => {
       mockIframeService.validateAndSetup.mockResolvedValue({
         valid: false,
-        error: 'Invalid or inactive token',
+        error: 'Invalid or missing Valkey configuration',
       });
 
       const response = await request(app)
         .post('/api/iframe/validate-instantiation')
-        .send({ token: 'invalid-token' })
+        .send({ sessionKey: 'invalid-key' })
         .expect(401);
 
       expect(response.body.valid).toBe(false);
-      expect(response.body.error).toBe('Invalid or inactive token');
+      expect(response.body.error).toBe('Invalid or missing Valkey configuration');
     });
 
     it('should set session cookie on success', async () => {
@@ -257,7 +264,7 @@ describe('iframe.routes', () => {
 
       const response = await request(app)
         .post('/api/iframe/validate-instantiation')
-        .send({ token: 'valid-token' })
+        .send({ sessionKey: 'valid-session-key' })
         .expect(200);
 
       expect(response.headers['set-cookie']).toBeDefined();
