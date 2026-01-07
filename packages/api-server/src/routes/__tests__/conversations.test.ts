@@ -16,6 +16,7 @@ vi.mock('../../middleware/auth.js', () => ({
       activeOrganizationId: 'test-org-id',
       email: 'test@example.com'
     };
+    (req as any).session = { sessionId: 'test-session-id' };
     next();
   })
 }));
@@ -24,9 +25,18 @@ vi.mock('../../services/WebhookService.js', () => {
   return {
     WebhookService: class MockWebhookService {
       sendMessageEvent = vi.fn().mockResolvedValue({ success: true });
+      sendTenantMessageEvent = vi.fn().mockResolvedValue({ success: true });
     }
   };
 });
+
+const mockSessionStore = {
+  getSession: vi.fn(),
+};
+
+vi.mock('../../services/sessionStore.js', () => ({
+  getSessionStore: () => mockSessionStore,
+}));
 
 import { withOrgContext } from '../../config/database.js';
 
@@ -260,6 +270,128 @@ describe('Conversations Router - Automatic Cleanup', () => {
       // This test verifies the configuration constant is used
       // The actual limit is defined at the top of conversations.ts
       expect(process.env.MAX_CONVERSATIONS_PER_USER || '20').toBeDefined();
+    });
+  });
+});
+
+describe('Conversations Router - Iframe userId Validation', () => {
+  let app: express.Application;
+  let mockClient: any;
+
+  beforeEach(() => {
+    app = express();
+    app.use(express.json());
+    app.use('/conversations', conversationsRouter);
+
+    mockClient = {
+      query: vi.fn(),
+      release: vi.fn()
+    };
+
+    vi.clearAllMocks();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  describe('POST /conversations/:id/messages - Iframe userId validation', () => {
+    it('should reject message when iframe config missing userId', async () => {
+      // Session has iframe config but no userId
+      mockSessionStore.getSession.mockResolvedValue({
+        sessionId: 'test-session-id',
+        iframeWebhookConfig: {
+          tenantId: 'tenant-123',
+          chatSessionId: 'chat-456',
+          accessToken: 'token',
+          refreshToken: 'refresh',
+          // userId is missing!
+        },
+      });
+
+      // Setup DB mocks for conversation check and message insert
+      mockClient.query
+        .mockResolvedValueOnce({ rows: [{ id: 'conv-123' }] }) // conv check
+        .mockResolvedValueOnce({ rows: [] }) // transcript
+        .mockResolvedValueOnce({ rows: [{ id: 'msg-1', message: 'test', created_at: new Date() }] }); // insert
+
+      vi.mocked(withOrgContext).mockImplementation(async (_userId, _orgId, callback) => {
+        return await callback(mockClient);
+      });
+
+      const response = await request(app)
+        .post('/conversations/conv-123/messages')
+        .send({ content: 'Hello' })
+        .expect(400);
+
+      expect(response.body.error).toContain('missing userId');
+      expect(response.body.code).toBe('IFRAME_MISSING_USER_ID');
+    });
+
+    it('should allow message when iframe config has userId', async () => {
+      // Session has complete iframe config including userId
+      mockSessionStore.getSession.mockResolvedValue({
+        sessionId: 'test-session-id',
+        iframeWebhookConfig: {
+          userId: 'user-keycloak-guid',
+          tenantId: 'tenant-123',
+          tenantName: 'Test Tenant',
+          chatSessionId: 'chat-456',
+          accessToken: 'token',
+          refreshToken: 'refresh',
+          tabInstanceId: 'tab-789',
+          clientId: 'client',
+          clientKey: 'key',
+          tokenExpiry: Date.now() + 3600000,
+          actionsApiBaseUrl: 'https://api.example.com',
+        },
+      });
+
+      // Setup DB mocks
+      mockClient.query
+        .mockResolvedValueOnce({ rows: [{ id: 'conv-123' }] }) // conv check
+        .mockResolvedValueOnce({ rows: [] }) // transcript
+        .mockResolvedValueOnce({ rows: [{ id: 'msg-1', message: 'test', role: 'user', status: 'pending', created_at: new Date() }] }) // insert
+        .mockResolvedValueOnce({ rows: [] }); // update status
+
+      vi.mocked(withOrgContext).mockImplementation(async (_userId, _orgId, callback) => {
+        return await callback(mockClient);
+      });
+
+      const response = await request(app)
+        .post('/conversations/conv-123/messages')
+        .send({ content: 'Hello' })
+        .expect(201);
+
+      expect(response.body.message).toBeDefined();
+      expect(response.body.webhook.usedTenantConfig).toBe(true);
+    });
+
+    it('should allow message when no iframe config (regular session)', async () => {
+      // Regular session without iframe config
+      mockSessionStore.getSession.mockResolvedValue({
+        sessionId: 'test-session-id',
+        // No iframeWebhookConfig
+      });
+
+      // Setup DB mocks
+      mockClient.query
+        .mockResolvedValueOnce({ rows: [{ id: 'conv-123' }] }) // conv check
+        .mockResolvedValueOnce({ rows: [] }) // transcript
+        .mockResolvedValueOnce({ rows: [{ id: 'msg-1', message: 'test', role: 'user', status: 'pending', created_at: new Date() }] }) // insert
+        .mockResolvedValueOnce({ rows: [] }); // update status
+
+      vi.mocked(withOrgContext).mockImplementation(async (_userId, _orgId, callback) => {
+        return await callback(mockClient);
+      });
+
+      const response = await request(app)
+        .post('/conversations/conv-123/messages')
+        .send({ content: 'Hello' })
+        .expect(201);
+
+      expect(response.body.message).toBeDefined();
+      expect(response.body.webhook.usedTenantConfig).toBe(false);
     });
   });
 });
