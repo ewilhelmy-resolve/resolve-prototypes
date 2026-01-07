@@ -40,10 +40,16 @@ router.post('/validate-instantiation', async (req, res) => {
 
     // Handle validation failure
     if (!result.valid) {
-      logger.warn({ error: result.error }, 'Iframe validation failed');
+      logger.warn({ error: result.error, sessionKey: sessionKey?.substring(0, 8) + '...' }, 'Iframe validation failed');
       res.status(401).json({
         valid: false,
         error: result.error,
+        debug: {
+          valkeyStatus: getValkeyStatus(),
+          sessionKeyProvided: !!sessionKey,
+          sessionKeyPrefix: sessionKey?.substring(0, 8) || null,
+          durationMs: duration,
+        },
       });
       return;
     }
