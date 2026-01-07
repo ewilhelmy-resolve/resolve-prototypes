@@ -312,6 +312,15 @@ router.post('/:conversationId/messages', authenticateUser, async (req, res) => {
     const fullSession = await sessionStore.getSession(authReq.session.sessionId);
     const iframeConfig = fullSession?.iframeWebhookConfig;
 
+    // Validate userId exists for iframe sessions (required for message routing)
+    if (iframeConfig && !iframeConfig.userId) {
+      console.error('❌ Iframe session missing userId - cannot route messages');
+      return res.status(400).json({
+        error: 'Iframe configuration missing userId - messages cannot be routed',
+        code: 'IFRAME_MISSING_USER_ID',
+      });
+    }
+
     let webhookResponse: WebhookResponse;
 
     if (iframeConfig) {

@@ -6,7 +6,7 @@
  * - POST /api/iframe/execute
  * - GET /api/iframe/debug
  *
- * Focus on /execute endpoint and Rita ID routing.
+ * /execute endpoint gets all IDs from Valkey config - no session lookup needed.
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
@@ -14,19 +14,13 @@ import express from 'express';
 import request from 'supertest';
 
 // Mock dependencies before imports
-const { mockIframeService, mockWorkflowService, mockSessionStore, mockSessionService } =
+const { mockIframeService, mockWorkflowService } =
   vi.hoisted(() => ({
     mockIframeService: {
       validateAndSetup: vi.fn(),
     },
     mockWorkflowService: {
       executeFromHashkey: vi.fn(),
-    },
-    mockSessionStore: {
-      getSession: vi.fn(),
-    },
-    mockSessionService: {
-      parseSessionIdFromCookie: vi.fn(),
     },
   }));
 
@@ -36,14 +30,6 @@ vi.mock('../../services/IframeService.js', () => ({
 
 vi.mock('../../services/WorkflowExecutionService.js', () => ({
   getWorkflowExecutionService: () => mockWorkflowService,
-}));
-
-vi.mock('../../services/sessionStore.js', () => ({
-  getSessionStore: () => mockSessionStore,
-}));
-
-vi.mock('../../services/sessionService.js', () => ({
-  getSessionService: () => mockSessionService,
 }));
 
 vi.mock('../../config/valkey.js', () => ({
@@ -81,20 +67,7 @@ describe('iframe.routes', () => {
   });
 
   describe('POST /api/iframe/execute', () => {
-    const mockSession = {
-      sessionId: 'session-abc-123',
-      userId: '00000000-0000-0000-0000-000000000002',
-      organizationId: '00000000-0000-0000-0000-000000000001',
-      userEmail: 'public-guest@internal.system',
-      conversationId: 'conv-xyz-789',
-      expiresAt: new Date(Date.now() + 86400000),
-      createdAt: new Date(),
-      lastAccessedAt: new Date(),
-    };
-
-    it('should execute workflow with session and return success', async () => {
-      mockSessionService.parseSessionIdFromCookie.mockReturnValue('session-abc-123');
-      mockSessionStore.getSession.mockResolvedValue(mockSession);
+    it('should execute workflow and return success', async () => {
       mockWorkflowService.executeFromHashkey.mockResolvedValue({
         success: true,
         eventId: 'event-123',
@@ -113,16 +86,13 @@ describe('iframe.routes', () => {
       expect(response.body.success).toBe(true);
       expect(response.body.eventId).toBe('event-123');
 
-      // Verify session was passed to workflow service
+      // Verify hashkey was passed to workflow service (IDs come from Valkey)
       expect(mockWorkflowService.executeFromHashkey).toHaveBeenCalledWith(
-        'my-hashkey-abc',
-        mockSession
+        'my-hashkey-abc'
       );
     });
 
     it('should support sessionKey parameter (portal compatibility)', async () => {
-      mockSessionService.parseSessionIdFromCookie.mockReturnValue('session-abc-123');
-      mockSessionStore.getSession.mockResolvedValue(mockSession);
       mockWorkflowService.executeFromHashkey.mockResolvedValue({
         success: true,
         eventId: 'event-123',
@@ -135,14 +105,11 @@ describe('iframe.routes', () => {
         .expect(200);
 
       expect(mockWorkflowService.executeFromHashkey).toHaveBeenCalledWith(
-        'portal-session-key',
-        mockSession
+        'portal-session-key'
       );
     });
 
     it('should prefer hashkey over sessionKey when both provided', async () => {
-      mockSessionService.parseSessionIdFromCookie.mockReturnValue('session-abc-123');
-      mockSessionStore.getSession.mockResolvedValue(mockSession);
       mockWorkflowService.executeFromHashkey.mockResolvedValue({
         success: true,
         eventId: 'event-123',
@@ -155,8 +122,7 @@ describe('iframe.routes', () => {
         .expect(200);
 
       expect(mockWorkflowService.executeFromHashkey).toHaveBeenCalledWith(
-        'primary-key',
-        mockSession
+        'primary-key'
       );
     });
 
@@ -171,52 +137,7 @@ describe('iframe.routes', () => {
       expect(mockWorkflowService.executeFromHashkey).not.toHaveBeenCalled();
     });
 
-    it('should execute without session but log warning', async () => {
-      mockSessionService.parseSessionIdFromCookie.mockReturnValue(null);
-      mockSessionStore.getSession.mockResolvedValue(null);
-      mockWorkflowService.executeFromHashkey.mockResolvedValue({
-        success: true,
-        eventId: 'event-456',
-        debug: { valkeyStatus: { configured: true, url: '', connected: true } },
-      });
-
-      const response = await request(app)
-        .post('/api/iframe/execute')
-        .send({ hashkey: 'orphan-hashkey' })
-        .expect(200);
-
-      expect(response.body.success).toBe(true);
-
-      // Session passed as null
-      expect(mockWorkflowService.executeFromHashkey).toHaveBeenCalledWith(
-        'orphan-hashkey',
-        null
-      );
-    });
-
-    it('should execute with expired/invalid session cookie', async () => {
-      mockSessionService.parseSessionIdFromCookie.mockReturnValue('expired-session');
-      mockSessionStore.getSession.mockResolvedValue(null); // Session not found/expired
-      mockWorkflowService.executeFromHashkey.mockResolvedValue({
-        success: true,
-        eventId: 'event-789',
-        debug: { valkeyStatus: { configured: true, url: '', connected: true } },
-      });
-
-      await request(app)
-        .post('/api/iframe/execute')
-        .send({ hashkey: 'some-hashkey' })
-        .expect(200);
-
-      expect(mockWorkflowService.executeFromHashkey).toHaveBeenCalledWith(
-        'some-hashkey',
-        null
-      );
-    });
-
     it('should return 400 when workflow execution fails', async () => {
-      mockSessionService.parseSessionIdFromCookie.mockReturnValue('session-abc');
-      mockSessionStore.getSession.mockResolvedValue(mockSession);
       mockWorkflowService.executeFromHashkey.mockResolvedValue({
         success: false,
         error: 'Config invalid: KEY_NOT_FOUND',
@@ -236,8 +157,7 @@ describe('iframe.routes', () => {
     });
 
     it('should return 500 on unexpected error', async () => {
-      mockSessionService.parseSessionIdFromCookie.mockReturnValue('session-abc');
-      mockSessionStore.getSession.mockRejectedValue(new Error('Database error'));
+      mockWorkflowService.executeFromHashkey.mockRejectedValue(new Error('Valkey error'));
 
       const response = await request(app)
         .post('/api/iframe/execute')
@@ -249,8 +169,6 @@ describe('iframe.routes', () => {
     });
 
     it('should include debug info in error response', async () => {
-      mockSessionService.parseSessionIdFromCookie.mockReturnValue('session-abc');
-      mockSessionStore.getSession.mockResolvedValue(mockSession);
       mockWorkflowService.executeFromHashkey.mockResolvedValue({
         success: false,
         error: 'Webhook failed: 401 - Unauthorized',

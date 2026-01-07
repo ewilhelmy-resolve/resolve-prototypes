@@ -3,17 +3,15 @@ import { getIframeService } from '../services/IframeService.js';
 import { getWorkflowExecutionService } from '../services/WorkflowExecutionService.js';
 import { getValkeyStatus } from '../config/valkey.js';
 import { logger } from '../config/logger.js';
-import { getSessionStore } from '../services/sessionStore.js';
-import { getSessionService } from '../services/sessionService.js';
 
 const router = express.Router();
 
 /**
- * Validate iframe instantiation and setup public session
+ * Validate iframe instantiation and setup session
  * POST /api/iframe/validate-instantiation
  *
- * Requires valid token in request body.
- * Token validated against iframe_tokens table.
+ * Validates token and loads Valkey config for routing IDs.
+ * No organization DB checks - IDs come from Valkey.
  */
 router.post('/validate-instantiation', async (req, res) => {
   const startTime = Date.now();
@@ -56,7 +54,6 @@ router.post('/validate-instantiation', async (req, res) => {
 
     res.json({
       valid: result.valid,
-      publicUserId: result.publicUserId,
       conversationId: result.conversationId,
       webhookConfigLoaded: result.webhookConfigLoaded,
       webhookTenantId: result.webhookTenantId,
@@ -101,11 +98,12 @@ router.get('/debug', async (_req, res) => {
  * Execute workflow from Valkey hashkey
  * POST /api/iframe/execute
  *
+ * No DB checks - all IDs from Valkey config.
  * Flow:
- * 1. Client sends hashkey (stored by host in Valkey)
- * 2. Backend fetches payload from Valkey (contains JWT, tenantId, workflow params)
- * 3. Backend calls Actions API postEvent webhook
- * 4. Response flows through queue -> message -> SSE
+ * 1. Client sends hashkey
+ * 2. Backend fetches payload from Valkey (userId, tenantId, chatSessionId, webhook creds)
+ * 3. Backend calls Actions API postEvent with rita_* routing IDs
+ * 4. Response flows: Actions API → RabbitMQ → SSE → iframe
  */
 router.post('/execute', async (req, res) => {
   const startTime = Date.now();
@@ -126,24 +124,13 @@ router.post('/execute', async (req, res) => {
       return;
     }
 
-    // Get session from cookie to retrieve conversationId and Rita IDs
-    const sessionService = getSessionService();
-    const sessionStore = getSessionStore();
-    const sessionId = sessionService.parseSessionIdFromCookie(req.headers.cookie);
-    const session = sessionId ? await sessionStore.getSession(sessionId) : null;
-
-    if (!session) {
-      logger.warn({ hasSessionId: !!sessionId }, 'Execute called without valid session - workflow will not have Rita IDs');
-    }
-
     logger.info({
       hashkey: resolvedHashkey.substring(0, 8) + '...',
-      hasSession: !!session,
-      conversationId: session?.conversationId,
     }, 'Executing workflow from hashkey');
 
+    // All IDs come from Valkey config (set by host application)
     const workflowService = getWorkflowExecutionService();
-    const result = await workflowService.executeFromHashkey(resolvedHashkey, session);
+    const result = await workflowService.executeFromHashkey(resolvedHashkey);
 
     if (!result.success) {
       logger.warn({

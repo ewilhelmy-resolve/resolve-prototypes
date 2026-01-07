@@ -84,7 +84,7 @@ export class IframeService {
       const requiredFields = [
         'accessToken', 'refreshToken', 'tabInstanceId', 'tenantId',
         'tenantName', 'chatSessionId', 'clientId', 'clientKey',
-        'tokenExpiry', 'actionsApiBaseUrl'
+        'tokenExpiry', 'actionsApiBaseUrl', 'userId'
       ];
 
       for (const field of requiredFields) {
@@ -111,6 +111,7 @@ export class IframeService {
         tokenExpiry: payload.tokenExpiry,
         actionsApiBaseUrl: payload.actionsApiBaseUrl,
         context: payload.context,
+        userId: payload.userId,
       };
     } catch (error) {
       const duration = Date.now() - startTime;

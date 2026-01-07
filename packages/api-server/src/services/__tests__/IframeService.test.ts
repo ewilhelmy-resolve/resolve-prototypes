@@ -357,6 +357,7 @@ describe('IframeService', () => {
       tokenExpiry: Date.now() + 3600000,
       actionsApiBaseUrl: 'https://api.example.com',
       context: { workflowGuid: 'wf-123' },
+      userId: 'user-from-host-456',
     };
 
     it('should fetch and parse valid payload from Valkey', async () => {
@@ -420,6 +421,7 @@ describe('IframeService', () => {
       clientKey: 'secret-key',
       tokenExpiry: Date.now() + 3600000,
       actionsApiBaseUrl: 'https://api.example.com',
+      userId: 'user-from-host-456',
     };
 
     it('should load webhook config and include in result', async () => {
