@@ -15,6 +15,7 @@
  *
  * OTHER SOURCES:
  * - rita-auth: Password reset events
+ * - rita-signup: User signup events (user_signup, resend_verification)
  * - rita-documents: Document upload/delete events
  *
  * Note: Invitation events (send_invitation, accept_invitation) use rita-chat source.
@@ -38,7 +39,7 @@
 export type ChatWebhookSource = 'rita-chat' | 'rita-chat-iframe' | 'rita-chat-workflows';
 
 /** All webhook sources including non-chat features */
-export type WebhookSource = ChatWebhookSource | 'rita-auth' | 'rita-documents';
+export type WebhookSource = ChatWebhookSource | 'rita-auth' | 'rita-signup' | 'rita-documents';
 
 export interface BaseWebhookPayload {
   source: WebhookSource | string; // WebhookSource for typed payloads, string for generic
