@@ -36,6 +36,11 @@ process.on("SIGINT", cleanup);
 process.on("SIGTERM", cleanup);
 
 // Run concurrently
+// Use escaped quotes for cross-platform compatibility
+const dockerCmd = process.platform === "win32"
+	? '\\"docker compose up\\"'
+	: '"docker compose up"';
+
 const child = spawn(
 	"npx",
 	[
@@ -44,7 +49,7 @@ const child = spawn(
 		"docker,api,client,mock",
 		"-c",
 		"gray,blue,green,yellow",
-		"docker compose up",
+		dockerCmd,
 		"pnpm:dev:api",
 		"pnpm:dev:client",
 		"pnpm:dev:mock",
