@@ -21,11 +21,16 @@ vi.mock('../../middleware/auth.js', () => ({
   })
 }));
 
+const { mockSendMessageEvent, mockSendTenantMessageEvent } = vi.hoisted(() => ({
+  mockSendMessageEvent: vi.fn().mockResolvedValue({ success: true }),
+  mockSendTenantMessageEvent: vi.fn().mockResolvedValue({ success: true }),
+}));
+
 vi.mock('../../services/WebhookService.js', () => {
   return {
     WebhookService: class MockWebhookService {
-      sendMessageEvent = vi.fn().mockResolvedValue({ success: true });
-      sendTenantMessageEvent = vi.fn().mockResolvedValue({ success: true });
+      sendMessageEvent = mockSendMessageEvent;
+      sendTenantMessageEvent = mockSendTenantMessageEvent;
     }
   };
 });
@@ -392,6 +397,74 @@ describe('Conversations Router - Iframe userId Validation', () => {
 
       expect(response.body.message).toBeDefined();
       expect(response.body.webhook.usedTenantConfig).toBe(false);
+    });
+
+    it('should use rita-chat-iframe source for iframe session without full config', async () => {
+      // Iframe session with isIframeSession flag but no webhook config
+      mockSessionStore.getSession.mockResolvedValue({
+        sessionId: 'test-session-id',
+        isIframeSession: true,
+        // No iframeWebhookConfig - Valkey wasn't available
+      });
+
+      mockSendMessageEvent.mockClear();
+
+      // Setup DB mocks
+      mockClient.query
+        .mockResolvedValueOnce({ rows: [{ id: 'conv-123' }] }) // conv check
+        .mockResolvedValueOnce({ rows: [] }) // transcript
+        .mockResolvedValueOnce({ rows: [{ id: 'msg-1', message: 'test', role: 'user', status: 'pending', created_at: new Date() }] }) // insert
+        .mockResolvedValueOnce({ rows: [] }); // update status
+
+      vi.mocked(withOrgContext).mockImplementation(async (_userId, _orgId, callback) => {
+        return await callback(mockClient);
+      });
+
+      await request(app)
+        .post('/conversations/conv-123/messages')
+        .send({ content: 'Hello' })
+        .expect(201);
+
+      // Verify source is rita-chat-iframe for iframe session
+      expect(mockSendMessageEvent).toHaveBeenCalledWith(
+        expect.objectContaining({
+          source: 'rita-chat-iframe',
+        })
+      );
+    });
+
+    it('should use rita-chat source for regular non-iframe session', async () => {
+      // Regular session - not iframe
+      mockSessionStore.getSession.mockResolvedValue({
+        sessionId: 'test-session-id',
+        isIframeSession: false,
+        // No iframeWebhookConfig
+      });
+
+      mockSendMessageEvent.mockClear();
+
+      // Setup DB mocks
+      mockClient.query
+        .mockResolvedValueOnce({ rows: [{ id: 'conv-123' }] }) // conv check
+        .mockResolvedValueOnce({ rows: [] }) // transcript
+        .mockResolvedValueOnce({ rows: [{ id: 'msg-1', message: 'test', role: 'user', status: 'pending', created_at: new Date() }] }) // insert
+        .mockResolvedValueOnce({ rows: [] }); // update status
+
+      vi.mocked(withOrgContext).mockImplementation(async (_userId, _orgId, callback) => {
+        return await callback(mockClient);
+      });
+
+      await request(app)
+        .post('/conversations/conv-123/messages')
+        .send({ content: 'Hello' })
+        .expect(201);
+
+      // Verify source is rita-chat for regular session
+      expect(mockSendMessageEvent).toHaveBeenCalledWith(
+        expect.objectContaining({
+          source: 'rita-chat',
+        })
+      );
     });
   });
 });
