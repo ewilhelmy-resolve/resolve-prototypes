@@ -281,7 +281,7 @@ export default function IframeChatPage() {
 		}
 
 		initializeIframe();
-	}, [urlConversationId, sessionKey, setCurrentConversation, addDebugLog, navigate, apiUrl]);
+	}, [urlConversationId, sessionKey, setCurrentConversation, addDebugLog, navigate]);
 
 	// Execute workflow once session is ready
 	// This runs in parent to prevent re-execution on child remounts
