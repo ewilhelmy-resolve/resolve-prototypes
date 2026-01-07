@@ -1,15 +1,42 @@
-// WebhookService types for Rita project
-// Maps organization_id to tenant_id for webhook platform compatibility
+/**
+ * WebhookService Types
+ *
+ * Rita has three chat applications that send webhooks to the platform.
+ * Each uses a distinct source to identify where messages originate.
+ *
+ * CHAT SOURCES (ChatWebhookSource):
+ * ┌─────────────────────┬─────────────────────┬─────────────────────────────────┐
+ * │ Source              │ Route               │ Description                     │
+ * ├─────────────────────┼─────────────────────┼─────────────────────────────────┤
+ * │ rita-chat           │ /chat               │ Main Rita app (Keycloak auth)   │
+ * │ rita-chat-iframe    │ /iframe/chat        │ Iframe embed (Valkey IDs)       │
+ * │ rita-chat-workflows │ /jirita             │ Workflow builder (Keycloak)     │
+ * └─────────────────────┴─────────────────────┴─────────────────────────────────┘
+ *
+ * OTHER SOURCES:
+ * - rita-auth: Password reset events
+ * - rita-signup: Invitation/signup events
+ * - rita-documents: Document upload/delete events
+ *
+ * Note: organization_id maps to tenant_id for webhook platform compatibility.
+ */
 
 /**
- * Chat webhook sources - three chat apps with common prefix
- * - rita-chat: Regular chat from main Rita app
- * - rita-chat-iframe: Chat from iframe embed (Jarvis integration)
- * - rita-chat-workflows: Workflow chat from /jirita page
+ * Chat webhook sources - three chat apps with common `rita-chat-*` prefix
+ *
+ * @example
+ * // Main app chat
+ * source: 'rita-chat'
+ *
+ * // Iframe embed (Jarvis integration)
+ * source: 'rita-chat-iframe'
+ *
+ * // Workflow builder (/jirita)
+ * source: 'rita-chat-workflows'
  */
 export type ChatWebhookSource = 'rita-chat' | 'rita-chat-iframe' | 'rita-chat-workflows';
 
-/** Other webhook sources (non-chat features) */
+/** All webhook sources including non-chat features */
 export type WebhookSource = ChatWebhookSource | 'rita-auth' | 'rita-signup' | 'rita-documents';
 
 export interface BaseWebhookPayload {

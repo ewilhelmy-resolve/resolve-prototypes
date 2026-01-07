@@ -1,3 +1,13 @@
+/**
+ * Conversation Routes
+ *
+ * Webhook sources:
+ * - rita-chat: Regular session (Keycloak auth)
+ * - rita-chat-iframe: Iframe session (Valkey IDs, isIframeSession=true)
+ *
+ * Source is determined by session.isIframeSession flag.
+ * See types/webhook.ts for ChatWebhookSource type definition.
+ */
 import express from 'express';
 import { withOrgContext } from '../config/database.js';
 import { authenticateUser } from '../middleware/auth.js';

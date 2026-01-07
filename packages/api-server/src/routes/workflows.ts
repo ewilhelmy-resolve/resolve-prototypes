@@ -1,3 +1,13 @@
+/**
+ * Workflow Routes (/jirita)
+ *
+ * Webhook source: rita-chat-workflows
+ *
+ * This is one of three chat applications in Rita:
+ * - rita-chat: Main app (/chat)
+ * - rita-chat-iframe: Iframe embed (/iframe/chat)
+ * - rita-chat-workflows: Workflow builder (/jirita) <-- this file
+ */
 import express from 'express';
 import { withOrgContext } from '../config/database.js';
 import { authenticateUser } from '../middleware/auth.js';
