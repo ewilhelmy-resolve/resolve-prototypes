@@ -9,6 +9,7 @@ const config: StorybookConfig = {
 		"@storybook/addon-interactions",
 	],
 	framework: "@storybook/react-vite",
+	staticDirs: ["../public"],
 	viteFinal: async (viteConfig) => {
 		viteConfig.resolve = viteConfig.resolve || {};
 		viteConfig.resolve.alias = {

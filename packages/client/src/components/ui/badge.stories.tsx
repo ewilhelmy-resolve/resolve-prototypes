@@ -4,7 +4,7 @@ import { CheckCircle, AlertTriangle, Info } from "lucide-react";
 
 const meta: Meta<typeof Badge> = {
 	component: Badge,
-	title: "UI/Shadcn/Badge",
+	title: "Components/Data Display/Badge",
 	tags: ["autodocs"],
 	argTypes: {
 		variant: {

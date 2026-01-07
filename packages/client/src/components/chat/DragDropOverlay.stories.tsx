@@ -3,7 +3,7 @@ import { DragDropOverlay } from "./DragDropOverlay";
 
 const meta: Meta<typeof DragDropOverlay> = {
 	component: DragDropOverlay,
-	title: "Chat/DragDropOverlay",
+	title: "Features/Chat/Drag Drop Overlay",
 	tags: ["autodocs"],
 	parameters: {
 		layout: "fullscreen",

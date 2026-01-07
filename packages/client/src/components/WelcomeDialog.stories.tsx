@@ -11,7 +11,7 @@ const queryClient = new QueryClient({
 
 const meta: Meta<typeof WelcomeDialog> = {
 	component: WelcomeDialog,
-	title: "Components/WelcomeDialog",
+	title: "Features/Onboarding/Welcome Dialog",
 	tags: ["autodocs"],
 	args: {
 		open: true,

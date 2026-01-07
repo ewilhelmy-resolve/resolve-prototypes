@@ -5,7 +5,7 @@ import { StatCard } from "./StatCard";
 
 const meta: Meta<typeof StatCard> = {
 	component: StatCard,
-	title: "Components/StatCard",
+	title: "Components/Data Display/Stat Card",
 	tags: ["autodocs"],
 	parameters: {
 		layout: "padded",

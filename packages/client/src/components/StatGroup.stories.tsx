@@ -6,7 +6,7 @@ import { StatGroup } from "./StatGroup";
 
 const meta: Meta<typeof StatGroup> = {
 	component: StatGroup,
-	title: "Components/StatGroup",
+	title: "Components/Data Display/Stat Group",
 	tags: ["autodocs"],
 	parameters: {
 		layout: "padded",

@@ -5,7 +5,7 @@ import { Info, HelpCircle, Settings, Plus } from "lucide-react";
 
 const meta: Meta<typeof Tooltip> = {
 	component: Tooltip,
-	title: "UI/Shadcn/Tooltip",
+	title: "Components/Overlays/Tooltip",
 	tags: ["autodocs"],
 	parameters: {
 		layout: "centered",

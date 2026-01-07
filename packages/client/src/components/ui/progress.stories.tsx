@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 
 const meta: Meta<typeof Progress> = {
 	component: Progress,
-	title: "UI/Shadcn/Progress",
+	title: "Components/Feedback/Progress",
 	tags: ["autodocs"],
 	parameters: {
 		layout: "centered",
