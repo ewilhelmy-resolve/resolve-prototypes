@@ -101,7 +101,7 @@ describe('InvitationService', () => {
         expect.objectContaining({
           organizationId,
           userId: invitedByUserId,
-          source: 'rita-signup',
+          source: 'rita-chat',
           action: 'send_invitation'
         })
       );
@@ -649,7 +649,7 @@ describe('InvitationService', () => {
       expect(result.email).toBe(email);
       expect(mockWebhookService.sendGenericEvent).toHaveBeenCalledWith(
         expect.objectContaining({
-          source: 'rita-signup',
+          source: 'rita-chat',
           action: 'accept_invitation',
           additionalData: expect.objectContaining({
             invitation_id: 'inv-123',
