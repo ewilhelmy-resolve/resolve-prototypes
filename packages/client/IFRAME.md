@@ -1,10 +1,10 @@
-# RITA Go Iframe Integration (Public Guest Access)
+# RITA Go Iframe Integration
 
 Embeddable iframe version of RITA Go chat for integration into host pages on the same domain.
 
 ## Overview
 
-The iframe version provides public access to RITA chat without requiring user authentication. All users interact through a shared `public-guest-user` account, with conversations isolated by `conversationId`. This is designed for same-domain deployment where the host page and RITA share the same origin.
+The iframe version provides embedded chat within a host portal (e.g., Jarvis). Authentication uses shared Keycloak between Rita and the host. Message routing IDs (userId, tenantId, chatSessionId) come from the Valkey payload set by the host. Same-domain deployment where host and RITA share the same origin.
 
 ## Routes
 
@@ -14,8 +14,8 @@ The iframe version provides public access to RITA chat without requiring user au
 
 ## Key Features
 
-1. **Public Access** - No Keycloak login required
-2. **Guest User Model** - All users share `public-guest-user` account
+1. **Shared Keycloak Auth** - Same auth as host portal
+2. **Host-Provided Routing IDs** - userId, tenantId, chatSessionId from Valkey
 3. **Minimal UI** - No sidebar, no navigation
 4. **Session Auto-Creation** - Session created automatically on page load
 5. **Hashkey Workflow Support** - Execute workflows via Valkey payload
@@ -41,28 +41,28 @@ Or use the built-in demo: http://localhost:5173/embeddemo
 
 ## How It Works
 
-### Public Guest User
-
-All iframe conversations use a shared system user created via database migration with restricted permissions.
-
-**For External Systems**: Do NOT hardcode these IDs. Use the `rita_user_id`, `rita_org_id`, and `rita_conversation_id` values from the webhook payload when sending messages back.
-
 ### Session Flow
 
-1. User loads `/iframe/chat?token=xxx`
-2. Frontend calls `POST /api/iframe/validate-instantiation`
-3. Backend validates token, creates session for `public-guest-user`
-4. Backend creates conversation, returns `conversationId`
+1. Host stores payload in Valkey with hashkey (includes userId, tenantId, chatSessionId)
+2. User loads `/iframe/chat?token=xxx&hashkey=yyy`
+3. Frontend calls `POST /api/iframe/validate-instantiation`
+4. Backend validates token, creates session with Valkey config
 5. Session cookie set, chat renders
 6. User can send messages immediately
 
-### No Authentication Required
+### Routing IDs from Valkey
 
-Unlike the main RITA app:
-- No Keycloak redirect
-- No login page
-- No JWT tokens (for basic chat)
-- Session created automatically
+Message routing IDs come from the Valkey payload (set by host):
+- **userId** - User's Keycloak GUID (`sub` claim from JWT) - must match SSE connection
+- **tenantId** - Organization ID user is active in → `rita_org_id`
+- **chatSessionId** - Unique chat instance identifier → `rita_conversation_id`
+
+**Critical for Message Delivery**:
+- `userId` must be the user's actual Keycloak GUID
+- SSE routes messages where `user_id` matches the authenticated user's ID
+- Mismatched IDs = messages won't be delivered
+
+**For External Systems**: Use `rita_user_id`, `rita_org_id`, `rita_conversation_id` from webhook payload when sending messages back via RabbitMQ.
 
 ## Integration Example
 
@@ -122,59 +122,67 @@ SignalR → Host                               RabbitMQ → RITA API → SSE →
 
 ### Valkey Payload Format
 
-The host stores a **base64-encoded** JSON payload in Valkey with a unique hashkey.
-No JWT is needed - the hashkey mechanism replaces authentication.
+The host stores a JSON payload as a Redis hash in Valkey with a unique hashkey.
+The hashkey provides routing IDs and webhook credentials. Auth is still via shared Keycloak.
 
-**JSON structure (before base64 encoding):**
+**Key format**: `rita:session:{guid}` (hash type, field: `data`)
+
+**Required fields:**
 
 ```json
 {
-  "endpoint": "/api/Webhooks/postEvent/{tenantId}",
-  "payload": {
-    "workflowGuid": "uuid-of-system-workflow",
-    "chatInput": "User message content",
-    "chatSessionId": "workflow-tab-123",
-    "tabInstanceId": "user-conn-456",
-    "context": "Workflow"
-  }
+  "userId": "f1918ce5-...",           // User's Keycloak GUID (JWT sub claim)
+  "tenantId": "41d95fc2-...",         // Organization ID (must match user's active org)
+  "chatSessionId": "4f1f3f18-...",    // Unique per chat instance
+  "tabInstanceId": "34b1b50b-...",
+  "tenantName": "TenantName",
+  "accessToken": "jwt-access-token",
+  "refreshToken": "jwt-refresh-token",
+  "clientId": "webhook-client-id",
+  "clientKey": "webhook-client-secret",
+  "tokenExpiry": 1765986500,
+  "actionsApiBaseUrl": "https://actions-api.example.com",
+  "context": { "workflowGuid": "wf-123" }
 }
 ```
+
+**ID Requirements for Message Delivery:**
+- `userId` = User's Keycloak GUID (same as `sub` in their JWT)
+- `tenantId` = Organization the user is active in (matches `activeOrganizationId` in Rita session)
+- `chatSessionId` = Unique identifier for this chat instance
 
 **To store in Valkey:**
 
 ```bash
-# Create base64-encoded payload
-echo '{"endpoint":"/api/Webhooks/postEvent/my-tenant","payload":{"chatInput":"Hello"}}' | base64
-
-# Store in Redis/Valkey
-redis-cli SET my-hashkey "eyJlbmRwb2ludCI6Ii9hcGkvV2ViaG9va3MvcG9zdEV2ZW50L215LXRlbmFudCIsInBheWxvYWQiOnsiY2hhdElucHV0IjoiSGVsbG8ifX0="
+# Store as Redis hash
+redis-cli HSET rita:session:my-guid data '{"tenantId":"tenant-123","userId":"user-456",...}'
 ```
 
 ### Webhook Payload to Actions API
 
-When `/api/iframe/execute` is called, RITA sends a webhook to Actions API with Rita routing IDs:
+When `/api/iframe/execute` is called, RITA sends a webhook to Actions API. All IDs come from the Valkey config:
 
 ```json
 {
   "source": "rita-chat-iframe",
   "action": "workflow_trigger",
-  "tenant_id": "from-valkey-config",
-  "tenant_name": "from-valkey-config",
-  "tab_instance_id": "from-valkey-config",
-  "chat_session_id": "from-valkey-config",
+  "tenant_id": "<tenantId from Valkey>",
+  "tenant_name": "<tenantName from Valkey>",
+  "tab_instance_id": "<tabInstanceId from Valkey>",
+  "chat_session_id": "<chatSessionId from Valkey>",
   "access_token": "[JWT from Valkey]",
   "refresh_token": "[JWT from Valkey]",
   "token_expiry": 1234567890,
   "context": { "workflow-specific-data": "..." },
   "timestamp": "2024-01-01T00:00:00.000Z",
 
-  "rita_conversation_id": "uuid-of-rita-conversation",
-  "rita_user_id": "00000000-0000-0000-0000-000000000002",
-  "rita_org_id": "00000000-0000-0000-0000-000000000001"
+  "rita_user_id": "<userId from Valkey>",
+  "rita_org_id": "<tenantId from Valkey>",
+  "rita_conversation_id": "<chatSessionId from Valkey>"
 }
 ```
 
-**Important**: The `rita_*` fields are required for routing messages back to the iframe.
+**Important**: The `rita_*` fields are required for routing messages back to the iframe. These values come directly from the Valkey payload set by the host.
 
 ### Response Flow (Round-Trip)
 
@@ -183,14 +191,14 @@ When `/api/iframe/execute` is called, RITA sends a webhook to Actions API with R
 │                          OUTBOUND (Trigger)                             │
 ├─────────────────────────────────────────────────────────────────────────┤
 │                                                                         │
-│  Iframe loads → validate-instantiation → session created               │
+│  Host stores payload in Valkey → Iframe loads with hashkey             │
 │                                              │                          │
 │                                              ▼                          │
 │  User clicks "Execute" → POST /api/iframe/execute                      │
 │                                              │                          │
 │                                              ▼                          │
-│  Backend fetches Valkey config + session → webhook to Actions API      │
-│  (includes rita_conversation_id, rita_user_id, rita_org_id)            │
+│  Backend fetches Valkey config → webhook to Actions API                │
+│  (includes rita_user_id, rita_org_id, rita_conversation_id)            │
 │                                              │                          │
 │                                              ▼                          │
 │  Actions API → Workflow Executes                                        │
@@ -201,9 +209,9 @@ When `/api/iframe/execute` is called, RITA sends a webhook to Actions API with R
 │                                                                         │
 │  Workflow sends message to RabbitMQ `chat.responses` queue             │
 │  {                                                                      │
-│    "user_id": "<rita_user_id>",                                        │
-│    "organization_id": "<rita_org_id>",                                 │
-│    "conversation_id": "<rita_conversation_id>",                        │
+│    "user_id": "<rita_user_id from webhook>",                           │
+│    "organization_id": "<rita_org_id from webhook>",                    │
+│    "conversation_id": "<rita_conversation_id from webhook>",           │
 │    "content": "Workflow response message"                              │
 │  }                                                                      │
 │                              │                                          │
@@ -307,13 +315,13 @@ This metadata is stored with the message for audit and workflow correlation.
 
 ### POST /api/iframe/validate-instantiation
 
-Creates public session and conversation.
+Creates session with Valkey config and conversation.
 
 **Request:**
 ```json
 {
   "token": "your-iframe-token",
-  "hashkey": "optional-valkey-key",
+  "hashkey": "valkey-key-with-config",
   "existingConversationId": "optional-uuid"
 }
 ```
@@ -322,8 +330,9 @@ Creates public session and conversation.
 ```json
 {
   "valid": true,
-  "publicUserId": "00000000-0000-0000-0000-000000000002",
-  "conversationId": "uuid-of-new-conversation"
+  "conversationId": "uuid-of-conversation",
+  "webhookConfigLoaded": true,
+  "webhookTenantId": "tenant-id-from-valkey"
 }
 ```
 
@@ -399,8 +408,7 @@ npm run dev:client
 1. **Same Domain** - Host and RITA on same origin
 2. **HTTPS** - Required for production
 3. **API Server** - Must be running with iframe routes
-4. **Database** - Migration 138 applied (public-guest-user)
-5. **Valkey/Redis** - Required for workflow execution
+4. **Valkey/Redis** - Required for storing session payloads
 
 ### Environment Variables
 
@@ -409,12 +417,11 @@ Same as main app - see `.env.example` in project root
 ## Known Limitations
 
 1. **Same Domain Only** - Cannot embed cross-domain
-2. **Shared User** - All conversations from same "user"
-3. **No Personalization** - No user-specific settings
+2. **Host Provides Routing IDs** - Valkey payload must include userId, tenantId, chatSessionId
+3. **Shared Keycloak** - Rita iframe uses same Keycloak as host portal
 
 ## Future Enhancements
 
-- [ ] Feature restrictions for public user
 - [x] PostMessage API for parent-iframe communication
 - [x] Workflow execution via Valkey hashkey
 - [ ] Custom theming via URL parameters
