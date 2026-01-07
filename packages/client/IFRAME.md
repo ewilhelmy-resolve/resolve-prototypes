@@ -1,25 +1,95 @@
 # RITA Go Iframe Integration
 
-Embeddable iframe version of RITA Go chat for integration into host pages on the same domain.
+Embeddable iframe version of RITA Go chat for integration into host portals (e.g., Jarvis).
 
-## Overview
+## Assumptions
 
-The iframe version provides embedded chat within a host portal (e.g., Jarvis). Authentication uses shared Keycloak between Rita and the host. Message routing IDs (userId, tenantId, chatSessionId) come from the Valkey payload set by the host. Same-domain deployment where host and RITA share the same origin.
+1. **Shared Keycloak** - Rita and host portal use the same Keycloak instance
+2. **Same Domain** - Host and Rita deployed on same origin (cookie sharing)
+3. **Host Controls Routing IDs** - Host provides userId, tenantId, chatSessionId via Valkey
+4. **User Already Authenticated** - User logged into host portal = logged into Rita
+5. **Valkey Available** - Redis/Valkey accessible to both host and Rita backend
+
+## ID Mapping
+
+| Valkey Field | Webhook Field | SSE Routing | Source |
+|--------------|---------------|-------------|--------|
+| `userId` | `rita_user_id` | `conn.userId` | User's Keycloak GUID (`sub` claim) |
+| `tenantId` | `rita_org_id` | `conn.organizationId` | User's active organization |
+| `chatSessionId` | `rita_conversation_id` | conversation filter | Unique per chat instance |
+
+**Critical**: For messages to reach the iframe, `userId` and `tenantId` must match the authenticated user's Keycloak GUID and active organization.
+
+## Message Delivery Sequence
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  1. SETUP                                                                   │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  User authenticates via Keycloak (shared with host)                        │
+│                         │                                                   │
+│                         ▼                                                   │
+│  Host stores Valkey payload with:                                          │
+│    - userId = user's Keycloak GUID                                         │
+│    - tenantId = user's active org                                          │
+│    - chatSessionId = unique instance ID                                    │
+│                         │                                                   │
+│                         ▼                                                   │
+│  Host embeds iframe: /iframe/chat?token=xxx&hashkey=yyy                    │
+│                         │                                                   │
+│                         ▼                                                   │
+│  Iframe establishes SSE connection (GET /api/sse/events)                   │
+│    → Connection registered with userId + organizationId from session       │
+│                                                                             │
+├─────────────────────────────────────────────────────────────────────────────┤
+│  2. OUTBOUND (Trigger Workflow)                                            │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  User action → POST /api/iframe/execute { hashkey }                        │
+│                         │                                                   │
+│                         ▼                                                   │
+│  Rita fetches Valkey config, sends webhook to Actions API:                 │
+│    {                                                                        │
+│      rita_user_id: config.userId,        // Keycloak GUID                  │
+│      rita_org_id: config.tenantId,       // Organization ID                │
+│      rita_conversation_id: config.chatSessionId,                           │
+│      ... workflow data                                                      │
+│    }                                                                        │
+│                         │                                                   │
+│                         ▼                                                   │
+│  Actions API executes workflow                                              │
+│                                                                             │
+├─────────────────────────────────────────────────────────────────────────────┤
+│  3. INBOUND (Message Delivery)                                             │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  Workflow publishes to RabbitMQ `chat.responses`:                          │
+│    {                                                                        │
+│      user_id: "<rita_user_id>",          // MUST match SSE conn.userId     │
+│      organization_id: "<rita_org_id>",   // MUST match SSE conn.orgId      │
+│      conversation_id: "<rita_conversation_id>",                            │
+│      content: "Response message"                                           │
+│    }                                                                        │
+│                         │                                                   │
+│                         ▼                                                   │
+│  Rita MessageConsumer receives message                                      │
+│                         │                                                   │
+│                         ▼                                                   │
+│  SSEService.sendToUser(user_id, organization_id, event)                    │
+│    → Filters connections: conn.userId === user_id                          │
+│                        && conn.organizationId === organization_id          │
+│                         │                                                   │
+│                         ▼                                                   │
+│  Message delivered to iframe via SSE EventSource                           │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
 
 ## Routes
 
-- `/iframe/chat?token=xxx` - New public conversation
+- `/iframe/chat?token=xxx&hashkey=yyy` - Chat with workflow execution
 - `/iframe/chat/:conversationId?token=xxx` - Existing conversation
-- `/iframe/chat?token=xxx&hashkey=yyy` - With workflow execution via Valkey
-
-## Key Features
-
-1. **Shared Keycloak Auth** - Same auth as host portal
-2. **Host-Provided Routing IDs** - userId, tenantId, chatSessionId from Valkey
-3. **Minimal UI** - No sidebar, no navigation
-4. **Session Auto-Creation** - Session created automatically on page load
-5. **Hashkey Workflow Support** - Execute workflows via Valkey payload
-6. **Same-Domain Security** - Secure by virtue of shared origin
 
 ## Quick Start (Development)
 
@@ -38,31 +108,6 @@ npm run dev:client
 Open directly: http://localhost:5173/iframe/chat?token=dev-iframe-token-2024
 
 Or use the built-in demo: http://localhost:5173/embeddemo
-
-## How It Works
-
-### Session Flow
-
-1. Host stores payload in Valkey with hashkey (includes userId, tenantId, chatSessionId)
-2. User loads `/iframe/chat?token=xxx&hashkey=yyy`
-3. Frontend calls `POST /api/iframe/validate-instantiation`
-4. Backend validates token, creates session with Valkey config
-5. Session cookie set, chat renders
-6. User can send messages immediately
-
-### Routing IDs from Valkey
-
-Message routing IDs come from the Valkey payload (set by host):
-- **userId** - User's Keycloak GUID (`sub` claim from JWT) - must match SSE connection
-- **tenantId** - Organization ID user is active in → `rita_org_id`
-- **chatSessionId** - Unique chat instance identifier → `rita_conversation_id`
-
-**Critical for Message Delivery**:
-- `userId` must be the user's actual Keycloak GUID
-- SSE routes messages where `user_id` matches the authenticated user's ID
-- Mismatched IDs = messages won't be delivered
-
-**For External Systems**: Use `rita_user_id`, `rita_org_id`, `rita_conversation_id` from webhook payload when sending messages back via RabbitMQ.
 
 ## Integration Example
 
@@ -88,37 +133,6 @@ document.getElementById('chat-container').appendChild(iframe);
 
 For workflow execution, the host stores a payload in Valkey and passes the hashkey in the URL.
 RITA backend fetches the payload and calls the Actions API postEvent webhook.
-
-### Architecture
-
-```
-Host (Jarvis)
-    │
-    ├─1─► Store base64-encoded payload in Valkey with hashkey
-    │     { endpoint: "/api/Webhooks/postEvent/{tenantId}",
-    │       payload: { workflowGuid, chatInput, context, ... } }
-    │
-    └─2─► Embed iframe: /iframe/chat?token=xxx&hashkey=yyy
-                              │
-                              ▼
-                    RITA Go iframe (on load)
-                              │
-                        ─3──► POST /api/iframe/execute { hashkey }
-                              │
-                              ▼
-                    RITA API backend
-                              │
-                        ─4──► Fetch payload from Valkey, decode base64
-                              │
-                        ─5──► POST to endpoint with payload (no JWT)
-                              │
-                              ▼
-                    Actions API → Workflow executes
-                              │
-    ┌─────────────────────────┴─────────────────────────┐
-    ▼                                                   ▼
-SignalR → Host                               RabbitMQ → RITA API → SSE → iframe
-```
 
 ### Valkey Payload Format
 
@@ -183,46 +197,6 @@ When `/api/iframe/execute` is called, RITA sends a webhook to Actions API. All I
 ```
 
 **Important**: The `rita_*` fields are required for routing messages back to the iframe. These values come directly from the Valkey payload set by the host.
-
-### Response Flow (Round-Trip)
-
-```
-┌─────────────────────────────────────────────────────────────────────────┐
-│                          OUTBOUND (Trigger)                             │
-├─────────────────────────────────────────────────────────────────────────┤
-│                                                                         │
-│  Host stores payload in Valkey → Iframe loads with hashkey             │
-│                                              │                          │
-│                                              ▼                          │
-│  User clicks "Execute" → POST /api/iframe/execute                      │
-│                                              │                          │
-│                                              ▼                          │
-│  Backend fetches Valkey config → webhook to Actions API                │
-│  (includes rita_user_id, rita_org_id, rita_conversation_id)            │
-│                                              │                          │
-│                                              ▼                          │
-│  Actions API → Workflow Executes                                        │
-│                                                                         │
-├─────────────────────────────────────────────────────────────────────────┤
-│                          INBOUND (Response)                             │
-├─────────────────────────────────────────────────────────────────────────┤
-│                                                                         │
-│  Workflow sends message to RabbitMQ `chat.responses` queue             │
-│  {                                                                      │
-│    "user_id": "<rita_user_id from webhook>",                           │
-│    "organization_id": "<rita_org_id from webhook>",                    │
-│    "conversation_id": "<rita_conversation_id from webhook>",           │
-│    "content": "Workflow response message"                              │
-│  }                                                                      │
-│                              │                                          │
-│                              ▼                                          │
-│  RITA MessageConsumer → routes by user_id + org_id → SSE               │
-│                              │                                          │
-│                              ▼                                          │
-│  Iframe receives message via EventSource                               │
-│                                                                         │
-└─────────────────────────────────────────────────────────────────────────┘
-```
 
 ### External System: Sending Messages to Iframe
 
