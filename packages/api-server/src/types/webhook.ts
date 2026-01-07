@@ -15,8 +15,10 @@
  *
  * OTHER SOURCES:
  * - rita-auth: Password reset events
- * - rita-signup: Invitation/signup events
+ * - rita-signup: User signup events (user_signup, resend_verification)
  * - rita-documents: Document upload/delete events
+ *
+ * Note: Invitation events (send_invitation, accept_invitation) use rita-chat source.
  *
  * Note: organization_id maps to tenant_id for webhook platform compatibility.
  */

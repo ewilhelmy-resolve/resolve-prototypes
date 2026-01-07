@@ -1,4 +1,4 @@
-import { pool, withOrgContext } from '../config/database.js';
+import { withOrgContext } from '../config/database.js';
 import { logger } from '../config/logger.js';
 import { getValkeyClient } from '../config/valkey.js';
 import { getSessionStore, type CreateSessionData, type Session, type IframeWebhookConfig } from './sessionStore.js';
@@ -6,17 +6,6 @@ import { getSessionService } from './sessionService.js';
 
 // Valkey key prefix - keys stored as rita:session:{guid}
 const VALKEY_KEY_PREFIX = 'rita:session:';
-
-export interface IframeToken {
-  id: string;
-  token: string;
-  name: string;
-  description: string | null;
-  isActive: boolean;
-  createdAt: Date;
-  updatedAt: Date;
-}
-
 
 export class IframeService {
   private sessionStore = getSessionStore();
@@ -102,35 +91,6 @@ export class IframeService {
   }
 
   /**
-   * Validate an iframe token against the database
-   * Returns token info if valid, null if invalid/inactive
-   */
-  async validateToken(token: string): Promise<IframeToken | null> {
-    const result = await pool.query(
-      `SELECT id, token, name, description, is_active, created_at, updated_at
-       FROM iframe_tokens
-       WHERE token = $1 AND is_active = true`,
-      [token]
-    );
-
-    if (result.rows.length === 0) {
-      logger.warn({ token: token.substring(0, 8) + '...' }, 'Invalid or inactive iframe token');
-      return null;
-    }
-
-    const row = result.rows[0];
-    return {
-      id: row.id,
-      token: row.token,
-      name: row.name,
-      description: row.description,
-      isActive: row.is_active,
-      createdAt: row.created_at,
-      updatedAt: row.updated_at,
-    };
-  }
-
-  /**
    * Create a session for iframe embed using Valkey config IDs
    * Session uses real user IDs from Valkey (userId, tenantId) for SSE routing
    */
@@ -164,7 +124,6 @@ export class IframeService {
    */
   async createIframeConversation(
     config: IframeWebhookConfig,
-    tokenId: string,
     intentEid?: string
   ): Promise<{ conversationId: string }> {
     const result = await withOrgContext(
@@ -172,17 +131,17 @@ export class IframeService {
       config.tenantId,
       async (client) => {
         const conversationResult = await client.query(`
-          INSERT INTO conversations (organization_id, user_id, title, iframe_token_id)
-          VALUES ($1, $2, $3, $4)
+          INSERT INTO conversations (organization_id, user_id, title)
+          VALUES ($1, $2, $3)
           RETURNING id
-        `, [config.tenantId, config.userId, 'Iframe Chat', tokenId]);
+        `, [config.tenantId, config.userId, 'Iframe Chat']);
 
         return conversationResult.rows[0];
       }
     );
 
     logger.info(
-      { conversationId: result.id, tokenId, intentEid, userId: config.userId, tenantId: config.tenantId },
+      { conversationId: result.id, intentEid, userId: config.userId, tenantId: config.tenantId },
       'Iframe conversation created with Valkey IDs'
     );
 
@@ -191,44 +150,31 @@ export class IframeService {
 
   /**
    * Validate instantiation and setup iframe session + conversation
-   * Requires valid token AND valid Valkey config (hashkey).
+   * Requires valid Valkey config (sessionKey).
    * Session uses real user IDs from Valkey for SSE routing.
    */
   async validateAndSetup(
-    token: string,
+    sessionKey: string,
     intentEid?: string,
-    existingConversationId?: string,
-    hashkey?: string
+    existingConversationId?: string
   ): Promise<{
     valid: boolean;
     error?: string;
     conversationId?: string;
     cookie?: string;
-    tokenName?: string;
     webhookConfigLoaded?: boolean;
     webhookTenantId?: string;
   }> {
-    // Validate token first
-    if (!token) {
-      logger.warn('Iframe instantiation attempted without token');
-      return { valid: false, error: 'Token required' };
-    }
-
-    const tokenInfo = await this.validateToken(token);
-    if (!tokenInfo) {
-      return { valid: false, error: 'Invalid or inactive token' };
-    }
-
-    // Hashkey required for iframe sessions
-    if (!hashkey) {
-      logger.warn('Iframe instantiation attempted without hashkey');
-      return { valid: false, error: 'Hashkey required for iframe session' };
+    // SessionKey (Valkey hashkey) required
+    if (!sessionKey) {
+      logger.warn('Iframe instantiation attempted without sessionKey');
+      return { valid: false, error: 'sessionKey required' };
     }
 
     // Fetch and validate Valkey config
-    const config = await this.fetchValkeyPayload(hashkey);
+    const config = await this.fetchValkeyPayload(sessionKey);
     if (!config) {
-      logger.warn({ hashkey: hashkey.substring(0, 8) + '...' }, 'Invalid or missing Valkey config');
+      logger.warn({ sessionKey: sessionKey.substring(0, 8) + '...' }, 'Invalid or missing Valkey config');
       return { valid: false, error: 'Invalid or missing Valkey configuration' };
     }
 
@@ -238,7 +184,7 @@ export class IframeService {
     // Use existing conversation or create new one
     const conversationId = existingConversationId
       ? existingConversationId
-      : (await this.createIframeConversation(config, tokenInfo.id, intentEid)).conversationId;
+      : (await this.createIframeConversation(config, intentEid)).conversationId;
 
     // Store conversationId in session for /execute endpoint to use
     await this.sessionStore.updateSession(session.sessionId, { conversationId });
@@ -251,7 +197,6 @@ export class IframeService {
         userId: config.userId,
         tenantId: config.tenantId,
         existingConversation: !!existingConversationId,
-        tokenName: tokenInfo.name,
       },
       'Iframe instantiation complete'
     );
@@ -260,7 +205,6 @@ export class IframeService {
       valid: true,
       conversationId,
       cookie,
-      tokenName: tokenInfo.name,
       webhookConfigLoaded: true,
       webhookTenantId: config.tenantId,
     };
