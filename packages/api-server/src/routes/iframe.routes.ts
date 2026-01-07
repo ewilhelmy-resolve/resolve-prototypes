@@ -1,3 +1,16 @@
+/**
+ * Iframe Routes (/iframe/chat)
+ *
+ * Webhook source: rita-chat-iframe
+ *
+ * This is one of three chat applications in Rita:
+ * - rita-chat: Main app (/chat)
+ * - rita-chat-iframe: Iframe embed (/iframe/chat) <-- this file
+ * - rita-chat-workflows: Workflow builder (/jirita)
+ *
+ * Sessions use Valkey IDs (userId, tenantId) from host app.
+ * See types/webhook.ts for ChatWebhookSource type definition.
+ */
 import express from 'express';
 import { getIframeService } from '../services/IframeService.js';
 import { getWorkflowExecutionService } from '../services/WorkflowExecutionService.js';

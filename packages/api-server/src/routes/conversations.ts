@@ -1,3 +1,13 @@
+/**
+ * Conversation Routes
+ *
+ * Webhook sources:
+ * - rita-chat: Regular session (Keycloak auth)
+ * - rita-chat-iframe: Iframe session (Valkey IDs, isIframeSession=true)
+ *
+ * Source is determined by session.isIframeSession flag.
+ * See types/webhook.ts for ChatWebhookSource type definition.
+ */
 import express from 'express';
 import { withOrgContext } from '../config/database.js';
 import { authenticateUser } from '../middleware/auth.js';
@@ -354,6 +364,8 @@ router.post('/:conversationId/messages', authenticateUser, async (req, res) => {
       });
     } else {
       // Regular chat - use env var webhook
+      // Use iframe source if this is an iframe session (even without full Valkey config)
+      const source = fullSession?.isIframeSession ? 'rita-chat-iframe' : 'rita-chat';
       webhookResponse = await webhookService.sendMessageEvent({
         organizationId: authReq.user.activeOrganizationId,
         userId: authReq.user.id,
@@ -363,7 +375,8 @@ router.post('/:conversationId/messages', authenticateUser, async (req, res) => {
         customerMessage: result.message.message,
         documentIds: [], // No per-message document attachments - RAG uses all user documents
         createdAt: result.message.created_at,
-        transcript: truncatedTranscript
+        transcript: truncatedTranscript,
+        source,
       });
     }
 

@@ -214,7 +214,7 @@ export class InvitationService {
         organizationId,
         userId: invitedByUserId,
         userEmail: inviter_email,
-        source: 'rita-chat',
+        source: 'rita-signup',
         action: 'send_invitation',
         additionalData: {
           organization_name: org_name,
@@ -440,7 +440,7 @@ export class InvitationService {
     await this.webhookService.sendGenericEvent({
       organizationId,
       userEmail: email,
-      source: 'rita-chat',
+      source: 'rita-signup',
       action: 'accept_invitation',
       additionalData: {
         invitation_id: invitationId,

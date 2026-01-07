@@ -194,7 +194,6 @@ describe('iframe.routes', () => {
     it('should validate token and return session info', async () => {
       mockIframeService.validateAndSetup.mockResolvedValue({
         valid: true,
-        publicUserId: '00000000-0000-0000-0000-000000000002',
         conversationId: 'new-conv-123',
         cookie: 'session=abc; Path=/; HttpOnly',
         tokenName: 'Test Token',
@@ -215,9 +214,9 @@ describe('iframe.routes', () => {
     it('should support sessionKey parameter', async () => {
       mockIframeService.validateAndSetup.mockResolvedValue({
         valid: true,
-        publicUserId: '00000000-0000-0000-0000-000000000002',
         conversationId: 'conv-789',
         cookie: 'session=xyz; Path=/; HttpOnly',
+        webhookConfigLoaded: true,
       });
 
       await request(app)
@@ -251,9 +250,9 @@ describe('iframe.routes', () => {
     it('should set session cookie on success', async () => {
       mockIframeService.validateAndSetup.mockResolvedValue({
         valid: true,
-        publicUserId: '00000000-0000-0000-0000-000000000002',
         conversationId: 'conv-123',
         cookie: 'rita_session=abc123; Path=/; HttpOnly; SameSite=Strict',
+        webhookConfigLoaded: true,
       });
 
       const response = await request(app)

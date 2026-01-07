@@ -1,8 +1,8 @@
 /**
  * Iframe API service
  *
- * Simple fetch-based API for iframe instantiation and workflow execution.
- * Does NOT use Keycloak - bypasses normal auth flow for public access.
+ * Fetch-based API for iframe instantiation and workflow execution.
+ * Uses Valkey-provided IDs from host app (Jarvis) - not Rita's user system.
  */
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || '';
@@ -15,9 +15,9 @@ export interface ValidateInstantiationRequest {
 
 export interface ValidateInstantiationResponse {
   valid: boolean;
-  publicUserId?: string;
   conversationId?: string;
   error?: string;
+  webhookConfigLoaded?: boolean;
 }
 
 export interface ExecuteWorkflowResponse {
@@ -28,8 +28,8 @@ export interface ExecuteWorkflowResponse {
 
 export const iframeApi = {
   /**
-   * Validate iframe instantiation and get a public session
-   * Creates session cookie + conversation for public-guest-user
+   * Validate iframe instantiation and create session
+   * Creates session cookie using Valkey-provided IDs from host app
    */
   validateInstantiation: async (
     request: ValidateInstantiationRequest

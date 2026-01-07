@@ -259,7 +259,7 @@ describe('WebhookService', () => {
         organizationId: 'org-123',
         userId: 'user-456',
         userEmail: 'test@example.com',
-        source: 'rita-test',
+        source: 'rita-chat-workflows',
         action: 'test-action',
         additionalData: {
           custom_field: 'custom_value'
@@ -270,7 +270,7 @@ describe('WebhookService', () => {
       expect(mockedAxios.post).toHaveBeenCalledWith(
         'https://test-webhook.example.com',
         expect.objectContaining({
-          source: 'rita-test',
+          source: 'rita-chat-workflows',
           action: 'test-action',
           tenant_id: 'org-123', // organization_id mapped to tenant_id
           user_email: 'test@example.com',
@@ -299,7 +299,7 @@ describe('WebhookService', () => {
 
         const result = await webhookService.sendGenericEvent({
           organizationId: 'org-123',
-          source: 'test',
+          source: 'rita-chat',
           action: 'test'
         });
 
@@ -324,7 +324,7 @@ describe('WebhookService', () => {
 
         const result = await webhookService.sendGenericEvent({
           organizationId: 'org-123',
-          source: 'test',
+          source: 'rita-chat',
           action: 'test'
         });
 
@@ -356,6 +356,97 @@ describe('WebhookService', () => {
 
       const customService = new WebhookService(customConfig);
       expect(customService).toBeInstanceOf(WebhookService);
+    });
+  });
+
+  /**
+   * Chat Source Tests
+   *
+   * Rita has three chat applications, each with a distinct source:
+   * - rita-chat: Main app (/chat)
+   * - rita-chat-iframe: Iframe embed (/iframe/chat)
+   * - rita-chat-workflows: Workflow builder (/jirita)
+   */
+  describe('chat sources', () => {
+    it('should use rita-chat source by default for sendMessageEvent', async () => {
+      mockedAxios.post.mockResolvedValueOnce({ status: 200, data: { success: true } });
+
+      await webhookService.sendMessageEvent({
+        organizationId: 'org-123',
+        userId: 'user-456',
+        userEmail: 'test@example.com',
+        conversationId: 'conv-789',
+        messageId: 'msg-101',
+        customerMessage: 'Hello',
+      });
+
+      expect(mockedAxios.post).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({ source: 'rita-chat' }),
+        expect.anything()
+      );
+    });
+
+    it('should use rita-chat-iframe source for iframe sessions', async () => {
+      mockedAxios.post.mockResolvedValueOnce({ status: 200, data: { success: true } });
+
+      await webhookService.sendMessageEvent({
+        organizationId: 'org-123',
+        userId: 'user-456',
+        userEmail: 'test@example.com',
+        conversationId: 'conv-789',
+        messageId: 'msg-101',
+        customerMessage: 'Hello from iframe',
+        source: 'rita-chat-iframe',
+      });
+
+      expect(mockedAxios.post).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({ source: 'rita-chat-iframe' }),
+        expect.anything()
+      );
+    });
+
+    it('should use rita-chat-workflows source for workflow chat', async () => {
+      mockedAxios.post.mockResolvedValueOnce({ status: 200, data: { success: true } });
+
+      await webhookService.sendMessageEvent({
+        organizationId: 'org-123',
+        userId: 'user-456',
+        userEmail: 'test@example.com',
+        conversationId: 'conv-789',
+        messageId: 'msg-101',
+        customerMessage: 'Generate workflow',
+        source: 'rita-chat-workflows',
+      });
+
+      expect(mockedAxios.post).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({ source: 'rita-chat-workflows' }),
+        expect.anything()
+      );
+    });
+
+    it('should use correct source in sendGenericEvent for workflows', async () => {
+      mockedAxios.post.mockResolvedValueOnce({ status: 200, data: { success: true } });
+
+      await webhookService.sendGenericEvent({
+        organizationId: 'org-123',
+        userId: 'user-456',
+        userEmail: 'test@example.com',
+        source: 'rita-chat-workflows',
+        action: 'generate_dynamic_workflow',
+        additionalData: { query: 'Create automation' },
+      });
+
+      expect(mockedAxios.post).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          source: 'rita-chat-workflows',
+          action: 'generate_dynamic_workflow',
+        }),
+        expect.anything()
+      );
     });
   });
 });
