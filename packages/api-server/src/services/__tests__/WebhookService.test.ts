@@ -259,7 +259,7 @@ describe('WebhookService', () => {
         organizationId: 'org-123',
         userId: 'user-456',
         userEmail: 'test@example.com',
-        source: 'rita-test',
+        source: 'rita-chat-workflows',
         action: 'test-action',
         additionalData: {
           custom_field: 'custom_value'
@@ -270,7 +270,7 @@ describe('WebhookService', () => {
       expect(mockedAxios.post).toHaveBeenCalledWith(
         'https://test-webhook.example.com',
         expect.objectContaining({
-          source: 'rita-test',
+          source: 'rita-chat-workflows',
           action: 'test-action',
           tenant_id: 'org-123', // organization_id mapped to tenant_id
           user_email: 'test@example.com',
@@ -299,7 +299,7 @@ describe('WebhookService', () => {
 
         const result = await webhookService.sendGenericEvent({
           organizationId: 'org-123',
-          source: 'test',
+          source: 'rita-chat',
           action: 'test'
         });
 
@@ -324,7 +324,7 @@ describe('WebhookService', () => {
 
         const result = await webhookService.sendGenericEvent({
           organizationId: 'org-123',
-          source: 'test',
+          source: 'rita-chat',
           action: 'test'
         });
 

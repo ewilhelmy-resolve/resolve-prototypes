@@ -2,13 +2,15 @@ import axios, { type AxiosResponse } from 'axios';
 import { pool } from '../config/database.js';
 import type {
   BaseWebhookPayload,
+  ChatWebhookSource,
   DocumentDeletePayload,
   DocumentProcessingPayload,
   MessageWebhookPayload,
   WebhookConfig,
   WebhookError,
   WebhookPayload,
-  WebhookResponse
+  WebhookResponse,
+  WebhookSource
 } from '../types/webhook.js';
 
 export class WebhookService {
@@ -39,7 +41,7 @@ export class WebhookService {
     documentIds?: string[];
     createdAt?: Date;
     transcript?: Array<{ role: string; content: string }>;
-    source?: 'rita-chat' | 'rita-chat-iframe';
+    source?: ChatWebhookSource;
   }): Promise<WebhookResponse> {
     const payload: MessageWebhookPayload = {
       source: params.source || 'rita-chat',
@@ -151,7 +153,7 @@ export class WebhookService {
     organizationId: string;
     userId?: string;
     userEmail?: string;
-    source: string;
+    source: WebhookSource;
     action: string;
     additionalData?: Record<string, any>;
   }): Promise<WebhookResponse> {

@@ -1,8 +1,19 @@
 // WebhookService types for Rita project
 // Maps organization_id to tenant_id for webhook platform compatibility
 
+/**
+ * Chat webhook sources - three chat apps with common prefix
+ * - rita-chat: Regular chat from main Rita app
+ * - rita-chat-iframe: Chat from iframe embed (Jarvis integration)
+ * - rita-chat-workflows: Workflow chat from /jirita page
+ */
+export type ChatWebhookSource = 'rita-chat' | 'rita-chat-iframe' | 'rita-chat-workflows';
+
+/** Other webhook sources (non-chat features) */
+export type WebhookSource = ChatWebhookSource | 'rita-auth' | 'rita-signup' | 'rita-documents';
+
 export interface BaseWebhookPayload {
-  source: string;
+  source: WebhookSource | string; // WebhookSource for typed payloads, string for generic
   action: string;
   user_email?: string;
   user_id?: string;
@@ -11,7 +22,7 @@ export interface BaseWebhookPayload {
 }
 
 export interface MessageWebhookPayload extends BaseWebhookPayload {
-  source: 'rita-chat' | 'rita-chat-iframe';
+  source: ChatWebhookSource;
   action: 'message_created';
   conversation_id: string;
   customer_message: string;
