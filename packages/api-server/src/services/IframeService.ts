@@ -17,36 +17,6 @@ export interface IframeToken {
   updatedAt: Date;
 }
 
-/**
- * PUBLIC SYSTEM CONSTANTS
- *
- * These UUIDs identify the public/guest access system.
- * Users and orgs matching these IDs should have RESTRICTED features:
- * - No file uploads
- * - No data source connections
- * - Limited conversation history
- * - No org settings access
- * - etc.
- *
- * Use isPublicUser() and isPublicOrganization() helpers to check.
- */
-export const PUBLIC_USER_ID = '00000000-0000-0000-0000-000000000002';
-export const PUBLIC_ORG_ID = '00000000-0000-0000-0000-000000000001';
-export const PUBLIC_USER_ROLE = 'public';
-
-/**
- * Check if a user ID is the public guest user
- */
-export function isPublicUser(userId: string): boolean {
-  return userId === PUBLIC_USER_ID;
-}
-
-/**
- * Check if an organization ID is the public system org
- */
-export function isPublicOrganization(organizationId: string): boolean {
-  return organizationId === PUBLIC_ORG_ID;
-}
 
 export class IframeService {
   private sessionStore = getSessionStore();
@@ -161,19 +131,16 @@ export class IframeService {
   }
 
   /**
-   * Create a session for the public guest user
-   * Bypasses Keycloak JWT validation - directly creates session for public user
-   * @param iframeWebhookConfig Optional webhook config from Valkey for tenant-specific webhooks
+   * Create a session for iframe embed using Valkey config IDs
+   * Session uses real user IDs from Valkey (userId, tenantId) for SSE routing
    */
-  async createPublicSession(iframeWebhookConfig?: IframeWebhookConfig): Promise<{ session: Session; cookie: string }> {
+  async createIframeSession(config: IframeWebhookConfig): Promise<{ session: Session; cookie: string }> {
     const sessionData: CreateSessionData = {
-      userId: PUBLIC_USER_ID,
-      organizationId: PUBLIC_ORG_ID,
-      userEmail: 'public-guest@internal.system',
-      firstName: 'Public',
-      lastName: 'Guest',
+      userId: config.userId,
+      organizationId: config.tenantId,
+      userEmail: `iframe-${config.userId.substring(0, 8)}@iframe.internal`,
       sessionDurationMs: 24 * 60 * 60 * 1000, // 24 hours
-      iframeWebhookConfig,
+      iframeWebhookConfig: config,
       isIframeSession: true,
     };
 
@@ -183,46 +150,49 @@ export class IframeService {
     logger.info(
       {
         sessionId: session.sessionId,
-        userId: PUBLIC_USER_ID,
-        hasWebhookConfig: !!iframeWebhookConfig,
-        tenantId: iframeWebhookConfig?.tenantId,
+        userId: config.userId,
+        tenantId: config.tenantId,
       },
-      'Public iframe session created'
+      'Iframe session created with Valkey IDs'
     );
 
     return { session, cookie };
   }
 
   /**
-   * Create a conversation for the public guest user
+   * Create a conversation for iframe user using Valkey IDs
    */
-  async createPublicConversation(tokenId: string, intentEid?: string): Promise<{ conversationId: string }> {
+  async createIframeConversation(
+    config: IframeWebhookConfig,
+    tokenId: string,
+    intentEid?: string
+  ): Promise<{ conversationId: string }> {
     const result = await withOrgContext(
-      PUBLIC_USER_ID,
-      PUBLIC_ORG_ID,
+      config.userId,
+      config.tenantId,
       async (client) => {
         const conversationResult = await client.query(`
           INSERT INTO conversations (organization_id, user_id, title, iframe_token_id)
           VALUES ($1, $2, $3, $4)
           RETURNING id
-        `, [PUBLIC_ORG_ID, PUBLIC_USER_ID, 'Iframe Chat', tokenId]);
+        `, [config.tenantId, config.userId, 'Iframe Chat', tokenId]);
 
         return conversationResult.rows[0];
       }
     );
 
     logger.info(
-      { conversationId: result.id, tokenId, intentEid },
-      'Public iframe conversation created'
+      { conversationId: result.id, tokenId, intentEid, userId: config.userId, tenantId: config.tenantId },
+      'Iframe conversation created with Valkey IDs'
     );
 
     return { conversationId: result.id };
   }
 
   /**
-   * Validate instantiation and setup public session + conversation
-   * Requires valid token. If existingConversationId provided, skip conversation creation.
-   * @param hashkey Optional Valkey hashkey containing tenant webhook credentials
+   * Validate instantiation and setup iframe session + conversation
+   * Requires valid token AND valid Valkey config (hashkey).
+   * Session uses real user IDs from Valkey for SSE routing.
    */
   async validateAndSetup(
     token: string,
@@ -232,7 +202,6 @@ export class IframeService {
   ): Promise<{
     valid: boolean;
     error?: string;
-    publicUserId?: string;
     conversationId?: string;
     cookie?: string;
     tokenName?: string;
@@ -250,24 +219,26 @@ export class IframeService {
       return { valid: false, error: 'Invalid or inactive token' };
     }
 
-    // Fetch Valkey payload if hashkey provided (for tenant-specific webhook auth)
-    let iframeWebhookConfig: IframeWebhookConfig | undefined;
-    if (hashkey) {
-      const payload = await this.fetchValkeyPayload(hashkey);
-      if (payload) {
-        iframeWebhookConfig = payload;
-      } else {
-        logger.warn({ hashkey: hashkey.substring(0, 8) + '...' }, 'Hashkey provided but Valkey payload invalid/missing - continuing without webhook config');
-      }
+    // Hashkey required for iframe sessions
+    if (!hashkey) {
+      logger.warn('Iframe instantiation attempted without hashkey');
+      return { valid: false, error: 'Hashkey required for iframe session' };
     }
 
-    // Create session for public user with optional webhook config
-    const { session, cookie } = await this.createPublicSession(iframeWebhookConfig);
+    // Fetch and validate Valkey config
+    const config = await this.fetchValkeyPayload(hashkey);
+    if (!config) {
+      logger.warn({ hashkey: hashkey.substring(0, 8) + '...' }, 'Invalid or missing Valkey config');
+      return { valid: false, error: 'Invalid or missing Valkey configuration' };
+    }
+
+    // Create session with Valkey IDs (for SSE routing)
+    const { session, cookie } = await this.createIframeSession(config);
 
     // Use existing conversation or create new one
     const conversationId = existingConversationId
       ? existingConversationId
-      : (await this.createPublicConversation(tokenInfo.id, intentEid)).conversationId;
+      : (await this.createIframeConversation(config, tokenInfo.id, intentEid)).conversationId;
 
     // Store conversationId in session for /execute endpoint to use
     await this.sessionStore.updateSession(session.sessionId, { conversationId });
@@ -277,21 +248,21 @@ export class IframeService {
         conversationId,
         intentEid,
         sessionId: session.sessionId,
+        userId: config.userId,
+        tenantId: config.tenantId,
         existingConversation: !!existingConversationId,
         tokenName: tokenInfo.name,
-        hasWebhookConfig: !!iframeWebhookConfig,
       },
       'Iframe instantiation complete'
     );
 
     return {
       valid: true,
-      publicUserId: PUBLIC_USER_ID,
       conversationId,
       cookie,
       tokenName: tokenInfo.name,
-      webhookConfigLoaded: !!iframeWebhookConfig,
-      webhookTenantId: iframeWebhookConfig?.tenantId,
+      webhookConfigLoaded: true,
+      webhookTenantId: config.tenantId,
     };
   }
 }
