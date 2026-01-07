@@ -11,7 +11,7 @@ export interface BaseWebhookPayload {
 }
 
 export interface MessageWebhookPayload extends BaseWebhookPayload {
-  source: 'rita-chat';
+  source: 'rita-chat' | 'rita-chat-iframe';
   action: 'message_created';
   conversation_id: string;
   customer_message: string;

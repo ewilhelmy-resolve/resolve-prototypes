@@ -1,17 +1,17 @@
 /**
- * IframeChatPage - Public chat page for iframe embedding
+ * IframeChatPage - Chat page for iframe embedding
  *
  * Stripped-down chat for embedding in iframe:
  * - No sidebar, no header navigation
- * - Uses public-guest-user (no Keycloak auth)
- * - Supports hashkey param for workflow execution via Valkey
+ * - Uses Valkey IDs from host app (Jarvis) - not Rita's user system
+ * - Hashkey param provides session token + tenant context via Valkey
  *
  * Flow:
- * 1. On mount, call /api/iframe/validate-instantiation
- * 2. Backend creates session for public-guest-user (cookie set)
- * 3. Backend creates conversation, returns conversationId
+ * 1. On mount, call /api/iframe/validate-instantiation with token + hashkey
+ * 2. Backend fetches Valkey payload (userId, tenantId, credentials)
+ * 3. Backend creates session with Valkey IDs, returns cookie + conversationId
  * 4. If hashkey present, call /api/iframe/execute to trigger workflow
- * 5. Render chat with SSE (session cookie enables SSE)
+ * 5. Render chat with SSE (session cookie enables SSE routing)
  *
  * Debug mode: Add ?debug=true to URL to see debug panel
  */
@@ -254,7 +254,7 @@ export default function IframeChatPage() {
 				if (response.valid && response.conversationId) {
 					addDebugLog("info", "Session initialized successfully", {
 						conversationId: response.conversationId,
-						publicUserId: response.publicUserId || "unknown",
+						webhookConfigLoaded: response.webhookConfigLoaded,
 					});
 					setConversationId(response.conversationId);
 					setCurrentConversation(response.conversationId);

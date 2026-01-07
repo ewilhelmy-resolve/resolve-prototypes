@@ -39,7 +39,7 @@ export class WebhookService {
     documentIds?: string[];
     createdAt?: Date;
     transcript?: Array<{ role: string; content: string }>;
-    source?: string;
+    source?: 'rita-chat' | 'rita-chat-iframe';
   }): Promise<WebhookResponse> {
     const payload: MessageWebhookPayload = {
       source: params.source || 'rita-chat',
