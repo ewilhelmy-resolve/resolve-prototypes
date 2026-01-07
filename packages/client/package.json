@@ -19,7 +19,7 @@
 		"test:unit:run": "vitest run",
 		"storybook": "storybook dev -p 6006",
 		"build-storybook": "NODE_ENV=production storybook build",
-		"deploy-storybook": "npm run build-storybook && touch storybook-static/.nojekyll && gh-pages -d storybook-static --dotfiles"
+		"deploy-storybook": "pnpm run build-storybook && touch storybook-static/.nojekyll && gh-pages -d storybook-static --dotfiles"
 	},
 	"dependencies": {
 		"@hookform/resolvers": "5.2.2",

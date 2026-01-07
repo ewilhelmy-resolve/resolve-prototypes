@@ -18,7 +18,7 @@
 				"hooks": [
 					{
 						"type": "command",
-						"command": "npm run lint"
+						"command": "pnpm run lint"
 					}
 				]
 			}
