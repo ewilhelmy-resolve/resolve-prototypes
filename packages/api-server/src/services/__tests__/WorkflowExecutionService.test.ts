@@ -44,7 +44,7 @@ import {
   WorkflowExecutionService,
   getWorkflowExecutionService,
 } from '../WorkflowExecutionService.js';
-import type { Session, IframeWebhookConfig } from '../sessionStore.js';
+import type { IframeWebhookConfig } from '../sessionStore.js';
 
 describe('WorkflowExecutionService', () => {
   let service: WorkflowExecutionService;
@@ -61,17 +61,7 @@ describe('WorkflowExecutionService', () => {
     tokenExpiry: Date.now() + 3600000,
     actionsApiBaseUrl: 'https://actions.example.com',
     context: { workflowGuid: 'wf-123' },
-  };
-
-  const mockSession: Session = {
-    sessionId: 'session-abc',
-    userId: '00000000-0000-0000-0000-000000000002',
-    organizationId: '00000000-0000-0000-0000-000000000001',
-    userEmail: 'public-guest@internal.system',
-    expiresAt: new Date(Date.now() + 86400000),
-    createdAt: new Date(),
-    lastAccessedAt: new Date(),
-    conversationId: 'conv-def-456',
+    userId: 'user-from-host-123',
   };
 
   beforeEach(() => {
@@ -151,7 +141,7 @@ describe('WorkflowExecutionService', () => {
   });
 
   describe('executeWorkflow', () => {
-    it('should call Actions API with correct payload including Rita IDs', async () => {
+    it('should call Actions API with correct payload including Rita IDs from config', async () => {
       mockedAxios.post.mockResolvedValueOnce({
         status: 200,
         data: { eventId: 'event-123' },
@@ -162,11 +152,7 @@ describe('WorkflowExecutionService', () => {
         valkeyDurationMs: 50,
       };
 
-      const result = await service.executeWorkflow(
-        validValkeyConfig,
-        debug,
-        mockSession
-      );
+      const result = await service.executeWorkflow(validValkeyConfig, debug);
 
       expect(result.success).toBe(true);
       expect(result.eventId).toBe('event-123');
@@ -181,10 +167,10 @@ describe('WorkflowExecutionService', () => {
           tenant_name: 'Test Tenant',
           tab_instance_id: 'tab-123',
           chat_session_id: 'chat-789',
-          // Rita IDs for message routing
-          rita_conversation_id: 'conv-def-456',
-          rita_user_id: '00000000-0000-0000-0000-000000000002',
-          rita_org_id: '00000000-0000-0000-0000-000000000001',
+          // Rita IDs for message routing (all from Valkey config)
+          rita_user_id: 'user-from-host-123',
+          rita_org_id: 'tenant-456',
+          rita_conversation_id: 'chat-789',
         }),
         expect.objectContaining({
           headers: expect.objectContaining({
@@ -204,7 +190,7 @@ describe('WorkflowExecutionService', () => {
 
       const debug = { valkeyStatus: mockGetValkeyStatus() };
 
-      await service.executeWorkflow(validValkeyConfig, debug, mockSession);
+      await service.executeWorkflow(validValkeyConfig, debug);
 
       expect(mockedAxios.post).toHaveBeenCalledWith(
         expect.any(String),
@@ -225,38 +211,10 @@ describe('WorkflowExecutionService', () => {
 
       const debug = { valkeyStatus: mockGetValkeyStatus() };
 
-      const result = await service.executeWorkflow(
-        validValkeyConfig,
-        debug,
-        mockSession
-      );
+      const result = await service.executeWorkflow(validValkeyConfig, debug);
 
       expect(result.debug.webhookPayloadSent?.access_token).toBe('[MASKED]');
       expect(result.debug.webhookPayloadSent?.refresh_token).toBe('[MASKED]');
-    });
-
-    it('should handle webhook without session (undefined Rita IDs)', async () => {
-      mockedAxios.post.mockResolvedValueOnce({
-        status: 200,
-        data: { eventId: 'event-123' },
-      });
-
-      const debug = { valkeyStatus: mockGetValkeyStatus() };
-
-      const result = await service.executeWorkflow(validValkeyConfig, debug, null);
-
-      expect(result.success).toBe(true);
-
-      // Rita IDs should be undefined
-      expect(mockedAxios.post).toHaveBeenCalledWith(
-        expect.any(String),
-        expect.objectContaining({
-          rita_conversation_id: undefined,
-          rita_user_id: undefined,
-          rita_org_id: undefined,
-        }),
-        expect.any(Object)
-      );
     });
 
     it('should use Basic auth with clientId:clientKey', async () => {
@@ -267,7 +225,7 @@ describe('WorkflowExecutionService', () => {
 
       const debug = { valkeyStatus: mockGetValkeyStatus() };
 
-      await service.executeWorkflow(validValkeyConfig, debug, mockSession);
+      await service.executeWorkflow(validValkeyConfig, debug);
 
       const expectedAuth = Buffer.from('client-abc:secret-key-xyz').toString(
         'base64'
@@ -297,7 +255,7 @@ describe('WorkflowExecutionService', () => {
 
       const debug = { valkeyStatus: mockGetValkeyStatus() };
 
-      await service.executeWorkflow(configWithTrailingSlash, debug, mockSession);
+      await service.executeWorkflow(configWithTrailingSlash, debug);
 
       expect(mockedAxios.post).toHaveBeenCalledWith(
         'https://actions.example.com/api/Webhooks/postEvent/tenant-456',
@@ -317,11 +275,7 @@ describe('WorkflowExecutionService', () => {
 
       const debug = { valkeyStatus: mockGetValkeyStatus() };
 
-      const result = await service.executeWorkflow(
-        validValkeyConfig,
-        debug,
-        mockSession
-      );
+      const result = await service.executeWorkflow(validValkeyConfig, debug);
 
       expect(result.success).toBe(false);
       expect(result.error).toContain('401');
@@ -337,11 +291,7 @@ describe('WorkflowExecutionService', () => {
 
       const debug = { valkeyStatus: mockGetValkeyStatus() };
 
-      const result = await service.executeWorkflow(
-        validValkeyConfig,
-        debug,
-        mockSession
-      );
+      const result = await service.executeWorkflow(validValkeyConfig, debug);
 
       expect(result.success).toBe(false);
       expect(result.debug.errorCode).toBe('ECONNREFUSED');
@@ -356,7 +306,7 @@ describe('WorkflowExecutionService', () => {
 
       const debug = { valkeyStatus: mockGetValkeyStatus() };
 
-      await service.executeWorkflow(validValkeyConfig, debug, mockSession);
+      await service.executeWorkflow(validValkeyConfig, debug);
 
       expect(mockedAxios.post).toHaveBeenCalledWith(
         expect.any(String),
@@ -378,11 +328,7 @@ describe('WorkflowExecutionService', () => {
         valkeyDurationMs: 25,
       };
 
-      const result = await service.executeWorkflow(
-        validValkeyConfig,
-        debug,
-        mockSession
-      );
+      const result = await service.executeWorkflow(validValkeyConfig, debug);
 
       expect(result.debug.webhookDurationMs).toBeDefined();
       expect(result.debug.webhookDurationMs).toBeGreaterThanOrEqual(0);
@@ -401,7 +347,7 @@ describe('WorkflowExecutionService', () => {
         data: { eventId: 'event-123' },
       });
 
-      const result = await service.executeFromHashkey('hashkey-123', mockSession);
+      const result = await service.executeFromHashkey('hashkey-123');
 
       expect(result.success).toBe(true);
       expect(result.eventId).toBe('event-123');
@@ -412,14 +358,14 @@ describe('WorkflowExecutionService', () => {
     it('should fail if config fetch fails', async () => {
       mockValkeyClient.hget.mockResolvedValueOnce(null);
 
-      const result = await service.executeFromHashkey('missing-key', mockSession);
+      const result = await service.executeFromHashkey('missing-key');
 
       expect(result.success).toBe(false);
       expect(result.error).toContain('Config invalid');
       expect(mockedAxios.post).not.toHaveBeenCalled();
     });
 
-    it('should pass session to executeWorkflow', async () => {
+    it('should use Valkey config IDs in webhook payload', async () => {
       mockValkeyClient.hget.mockResolvedValueOnce(
         JSON.stringify(validValkeyConfig)
       );
@@ -428,15 +374,15 @@ describe('WorkflowExecutionService', () => {
         data: { eventId: 'event-123' },
       });
 
-      await service.executeFromHashkey('hashkey-123', mockSession);
+      await service.executeFromHashkey('hashkey-123');
 
-      // Verify Rita IDs were included
+      // Verify IDs from Valkey config are used
       expect(mockedAxios.post).toHaveBeenCalledWith(
         expect.any(String),
         expect.objectContaining({
-          rita_conversation_id: 'conv-def-456',
-          rita_user_id: '00000000-0000-0000-0000-000000000002',
-          rita_org_id: '00000000-0000-0000-0000-000000000001',
+          rita_user_id: 'user-from-host-123',
+          rita_org_id: 'tenant-456',
+          rita_conversation_id: 'chat-789',
         }),
         expect.any(Object)
       );
