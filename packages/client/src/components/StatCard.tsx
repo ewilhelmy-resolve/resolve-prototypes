@@ -49,7 +49,7 @@ export function StatCard({ value, label, badge }: StatCardProps) {
 				<div className="flex flex-col gap-0">
 					<div className="flex items-center gap-3">
 						<h3 className="text-2xl font-normal text-foreground">{value}</h3>
-						{badge}
+						<span className="text-base">{badge}</span>
 					</div>
 					<p className="text-sm text-muted-foreground">{label}</p>
 				</div>
