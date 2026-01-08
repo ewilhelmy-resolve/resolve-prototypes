@@ -105,8 +105,12 @@ export async function closeValkeyConnection(): Promise<void> {
 // =============================================================================
 // Jarvis-to-Rita ID Mapping
 // =============================================================================
-// Maps external Jarvis IDs (tenantId, userGuid) to internal Rita IDs
-// (organization_id, user_id). Permanent cache to avoid repeated DB lookups.
+// Maps Jarvis IDs (tenantId, userGuid) to Rita internal IDs (organization_id,
+// user_id). Permanent cache to avoid repeated DB lookups.
+//
+// Note: userGuid is the Keycloak user ID from the shared Keycloak instance
+// used by both Jarvis and Rita for authentication. While Keycloak is shared,
+// Rita maintains its own user_profiles table with additional profile data.
 
 const JARVIS_ORG_PREFIX = 'Rita_jarvis_org:';
 const JARVIS_USER_PREFIX = 'Rita_jarvis_user:';
@@ -128,8 +132,9 @@ export async function getRitaOrgId(jarvisTenantId: string): Promise<string | nul
 }
 
 /**
- * Get Rita user ID from Jarvis user GUID
- * @returns Rita user UUID or null if not mapped
+ * Get Rita user ID from Jarvis user GUID (Keycloak user ID)
+ * @param jarvisGuid - Keycloak user ID from shared Keycloak instance
+ * @returns Rita user_profiles.user_id or null if not mapped
  */
 export async function getRitaUserId(jarvisGuid: string): Promise<string | null> {
   const client = getValkeyClient();
@@ -157,6 +162,8 @@ export async function setRitaOrgMapping(jarvisTenantId: string, ritaOrgId: strin
 
 /**
  * Save Jarvis user → Rita user mapping
+ * @param jarvisGuid - Keycloak user ID from shared Keycloak instance
+ * @param ritaUserId - Rita user_profiles.user_id
  */
 export async function setRitaUserMapping(jarvisGuid: string, ritaUserId: string): Promise<void> {
   const client = getValkeyClient();

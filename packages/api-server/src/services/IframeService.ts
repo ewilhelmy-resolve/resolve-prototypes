@@ -191,8 +191,12 @@ export class IframeService {
   }
 
   /**
-   * Resolve or create Rita user from Jarvis user GUID
-   * Uses JIT provisioning with Valkey-cached mapping
+   * Resolve or create Rita user from Jarvis user GUID (Keycloak user ID)
+   * Uses JIT provisioning with Valkey-cached mapping.
+   *
+   * Note: jarvisGuid is the Keycloak user ID from the shared Keycloak instance
+   * used by both Jarvis and Rita. We create a separate Rita user_profile entry
+   * to store Rita-specific data while maintaining the mapping.
    */
   private async resolveRitaUser(
     jarvisGuid: string,
