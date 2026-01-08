@@ -210,8 +210,8 @@ export class IframeService {
 
     // 2. Create new user in Rita DB with placeholder data
     const userResult = await pool.query(
-      `INSERT INTO user_profiles (email, keycloak_id, first_name, last_name, active_organization_id, created_at)
-       VALUES ($1, $2, $3, $4, $5, NOW())
+      `INSERT INTO user_profiles (user_id, email, keycloak_id, first_name, last_name, active_organization_id, created_at)
+       VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, NOW())
        RETURNING user_id`,
       [
         `iframe-${jarvisGuid.substring(0, 8)}@iframe.internal`,
