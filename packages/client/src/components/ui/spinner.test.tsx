@@ -10,7 +10,7 @@ describe("Spinner", () => {
 
 	it("has Loading aria-label", () => {
 		render(<Spinner />);
-		expect(screen.getByLabelText("Loading")).toBeInTheDocument();
+		expect(screen.getByLabelText("Loading...")).toBeInTheDocument();
 	});
 
 	it("applies default size class", () => {

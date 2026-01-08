@@ -1,4 +1,5 @@
 import { HeartCrack, PartyPopper, X } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
 
 type BannerVariant = "success" | "destructive" | "enriched";
@@ -34,6 +35,7 @@ export function FeedbackBanner({
 	onDismiss,
 	className,
 }: FeedbackBannerProps) {
+	const { t } = useTranslation("common");
 	const variantStyles = {
 		success: {
 			container: "bg-green-50 border-y border-green-300",
@@ -105,7 +107,7 @@ export function FeedbackBanner({
 				<button
 					onClick={onDismiss}
 					className="flex items-center justify-center size-9 rounded-md hover:bg-black/5 transition-colors"
-					aria-label="Dismiss banner"
+					aria-label={t("accessibility.dismissBanner")}
 				>
 					<X className="size-4 text-foreground" />
 				</button>
