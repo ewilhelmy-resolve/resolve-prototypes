@@ -1,4 +1,6 @@
 import type { Preview } from "@storybook/react";
+import { I18nextProvider } from "react-i18next";
+import i18n from "../src/i18n";
 import { ritaTheme } from "./rita-theme";
 import "../src/index.css";
 
@@ -21,6 +23,8 @@ const preview: Preview = {
 					["Introduction"],
 					"Brand Identity",
 					["Colors", "Typography", "Logo"],
+					"Translations",
+					["Overview", "Common Actions", "Interpolation", "Available Namespaces"],
 					"Components",
 					[
 						"Actions",
@@ -43,16 +47,18 @@ const preview: Preview = {
 			const isDark = theme === "dark";
 
 			return (
-				<div
-					className={`font-sans ${isDark ? "dark" : ""}`}
-					style={{
-						backgroundColor: isDark ? "#1A1A1A" : "#FFFFFF",
-						minHeight: "100%",
-						padding: "1rem",
-					}}
-				>
-					<Story />
-				</div>
+				<I18nextProvider i18n={i18n}>
+					<div
+						className={`font-sans ${isDark ? "dark" : ""}`}
+						style={{
+							backgroundColor: isDark ? "#1A1A1A" : "#FFFFFF",
+							minHeight: "100%",
+							padding: "1rem",
+						}}
+					>
+						<Story />
+					</div>
+				</I18nextProvider>
 			);
 		},
 	],
