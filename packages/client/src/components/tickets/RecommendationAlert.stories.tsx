@@ -1,10 +1,10 @@
 import type { Meta, StoryObj } from "@storybook/react";
 import { fn } from "@storybook/test";
 import {
-	WandSparkles,
 	AlertTriangle,
-	Lightbulb,
 	CheckCircle,
+	Lightbulb,
+	WandSparkles,
 	XCircle,
 } from "lucide-react";
 import { RecommendationAlert } from "./RecommendationAlert";
@@ -70,7 +70,7 @@ export const Success: Story = {
 	},
 };
 
-export const Error: Story = {
+export const ErrorVariant: Story = {
 	args: {
 		title: "Action Required",
 		description:
