@@ -177,17 +177,17 @@ export class IframeService {
        RETURNING id`,
       [orgName]
     );
-    ritaOrgId = orgResult.rows[0].id;
+    const newOrgId: string = orgResult.rows[0].id;
 
     // 3. Save mapping to Valkey
-    await setRitaOrgMapping(jarvisTenantId, ritaOrgId);
+    await setRitaOrgMapping(jarvisTenantId, newOrgId);
 
     logger.info(
-      { jarvisTenantId, ritaOrgId, orgName },
+      { jarvisTenantId, ritaOrgId: newOrgId, orgName },
       'Created Rita org from Jarvis tenant'
     );
 
-    return { ritaOrgId, wasCreated: true };
+    return { ritaOrgId: newOrgId, wasCreated: true };
   }
 
   /**
@@ -221,17 +221,17 @@ export class IframeService {
         ritaOrgId
       ]
     );
-    ritaUserId = userResult.rows[0].user_id;
+    const newUserId: string = userResult.rows[0].user_id;
 
     // 3. Save mapping to Valkey
-    await setRitaUserMapping(jarvisGuid, ritaUserId);
+    await setRitaUserMapping(jarvisGuid, newUserId);
 
     logger.info(
-      { jarvisGuid, ritaUserId, ritaOrgId },
+      { jarvisGuid, ritaUserId: newUserId, ritaOrgId },
       'Created Rita user from Jarvis GUID'
     );
 
-    return { ritaUserId, wasCreated: true };
+    return { ritaUserId: newUserId, wasCreated: true };
   }
 
   /**
