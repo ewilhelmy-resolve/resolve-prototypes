@@ -300,9 +300,9 @@ describe('Conversations Router - Iframe userId Validation', () => {
     vi.restoreAllMocks();
   });
 
-  describe('POST /conversations/:id/messages - Iframe userId validation', () => {
-    it('should reject message when iframe config missing userId', async () => {
-      // Session has iframe config but no userId
+  describe('POST /conversations/:id/messages - Iframe userGuid validation', () => {
+    it('should reject message when iframe config missing userGuid', async () => {
+      // Session has iframe config but no userGuid
       mockSessionStore.getSession.mockResolvedValue({
         sessionId: 'test-session-id',
         iframeWebhookConfig: {
@@ -310,7 +310,7 @@ describe('Conversations Router - Iframe userId Validation', () => {
           chatSessionId: 'chat-456',
           accessToken: 'token',
           refreshToken: 'refresh',
-          // userId is missing!
+          // userGuid is missing!
         },
       });
 
@@ -320,7 +320,7 @@ describe('Conversations Router - Iframe userId Validation', () => {
         .mockResolvedValueOnce({ rows: [] }) // transcript
         .mockResolvedValueOnce({ rows: [{ id: 'msg-1', message: 'test', created_at: new Date() }] }); // insert
 
-      vi.mocked(withOrgContext).mockImplementation(async (_userId, _orgId, callback) => {
+      vi.mocked(withOrgContext).mockImplementation(async (_userGuid, _orgId, callback) => {
         return await callback(mockClient);
       });
 
@@ -329,16 +329,16 @@ describe('Conversations Router - Iframe userId Validation', () => {
         .send({ content: 'Hello' })
         .expect(400);
 
-      expect(response.body.error).toContain('missing userId');
-      expect(response.body.code).toBe('IFRAME_MISSING_USER_ID');
+      expect(response.body.error).toContain('missing userGuid');
+      expect(response.body.code).toBe('IFRAME_MISSING_USER_GUID');
     });
 
-    it('should allow message when iframe config has userId', async () => {
-      // Session has complete iframe config including userId
+    it('should allow message when iframe config has userGuid', async () => {
+      // Session has complete iframe config including userGuid
       mockSessionStore.getSession.mockResolvedValue({
         sessionId: 'test-session-id',
         iframeWebhookConfig: {
-          userId: 'user-keycloak-guid',
+          userGuid: 'user-keycloak-guid',
           tenantId: 'tenant-123',
           tenantName: 'Test Tenant',
           chatSessionId: 'chat-456',
