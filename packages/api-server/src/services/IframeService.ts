@@ -7,7 +7,7 @@ import {
   setRitaOrgMapping,
   setRitaUserMapping,
 } from '../config/valkey.js';
-import { getSessionStore, type CreateSessionData, type Session, type IframeWebhookConfig } from './sessionStore.js';
+import { getSessionStore, type CreateSessionData, type IframeWebhookConfig } from './sessionStore.js';
 import { getSessionService } from './sessionService.js';
 import { pool } from '../config/database.js';
 
@@ -157,7 +157,7 @@ export class IframeService {
     tenantName: string
   ): Promise<{ ritaOrgId: string; wasCreated: boolean }> {
     // 1. Check Valkey mapping cache
-    let ritaOrgId = await getRitaOrgId(jarvisTenantId);
+    const ritaOrgId = await getRitaOrgId(jarvisTenantId);
     if (ritaOrgId) {
       // Org exists - update name if changed (Jarvis is source of truth)
       const orgName = tenantName || `Jarvis Tenant ${jarvisTenantId.substring(0, 8)}`;
@@ -203,7 +203,7 @@ export class IframeService {
     ritaOrgId: string
   ): Promise<{ ritaUserId: string; wasCreated: boolean }> {
     // 1. Check Valkey mapping cache
-    let ritaUserId = await getRitaUserId(jarvisGuid);
+    const ritaUserId = await getRitaUserId(jarvisGuid);
     if (ritaUserId) {
       return { ritaUserId, wasCreated: false };
     }
