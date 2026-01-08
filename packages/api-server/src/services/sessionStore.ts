@@ -17,7 +17,7 @@ export interface IframeWebhookConfig {
   actionsApiBaseUrl: string;
   context?: Record<string, any>;
   /** User identifier from host (JWT sub claim) - used for message routing */
-  userId: string;
+  userGuid: string;
 }
 
 export interface Session {

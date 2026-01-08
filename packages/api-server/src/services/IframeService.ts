@@ -73,21 +73,17 @@ export class IframeService {
         clientKey: payload.clientKey ? '[REDACTED]' : undefined,
       };
 
-      // Validate required fields (accept userId or userGuid)
+      // Validate required fields
       const requiredFields = [
         'accessToken', 'refreshToken', 'tabInstanceId', 'tenantId',
         'tenantName', 'chatSessionId', 'clientId', 'clientKey',
-        'tokenExpiry', 'actionsApiBaseUrl'
+        'tokenExpiry', 'actionsApiBaseUrl', 'userGuid'
       ];
-      const hasUserId = 'userId' in payload || 'userGuid' in payload;
 
       for (const field of requiredFields) {
         if (!(field in payload)) {
           debug.missingFields.push(field);
         }
-      }
-      if (!hasUserId) {
-        debug.missingFields.push('userId or userGuid');
       }
 
       if (debug.missingFields.length > 0) {
@@ -95,9 +91,6 @@ export class IframeService {
         debug.error = `Missing required fields: ${debug.missingFields.join(', ')}`;
         return { config: null, debug };
       }
-
-      // Normalize: use userId or fall back to userGuid
-      const userId = payload.userId || payload.userGuid;
 
       logger.info(
         { hashkey: hashkey.substring(0, 8) + '...', tenantId: payload.tenantId },
@@ -117,7 +110,7 @@ export class IframeService {
           tokenExpiry: payload.tokenExpiry,
           actionsApiBaseUrl: payload.actionsApiBaseUrl,
           context: payload.context,
-          userId,  // normalized from userId or userGuid
+          userGuid: payload.userGuid,
         },
         debug,
       };
@@ -150,13 +143,13 @@ export class IframeService {
 
   /**
    * Create a session for iframe embed using Valkey config IDs
-   * Session uses real user IDs from Valkey (userId, tenantId) for SSE routing
+   * Session uses real user IDs from Valkey (userGuid, tenantId) for SSE routing
    */
   async createIframeSession(config: IframeWebhookConfig): Promise<{ session: Session; cookie: string }> {
     const sessionData: CreateSessionData = {
-      userId: config.userId,
+      userId: config.userGuid,
       organizationId: config.tenantId,
-      userEmail: `iframe-${config.userId.substring(0, 8)}@iframe.internal`,
+      userEmail: `iframe-${config.userGuid.substring(0, 8)}@iframe.internal`,
       sessionDurationMs: 24 * 60 * 60 * 1000, // 24 hours
       iframeWebhookConfig: config,
       isIframeSession: true,
@@ -168,7 +161,7 @@ export class IframeService {
     logger.info(
       {
         sessionId: session.sessionId,
-        userId: config.userId,
+        userGuid: config.userGuid,
         tenantId: config.tenantId,
       },
       'Iframe session created with Valkey IDs'
@@ -185,21 +178,21 @@ export class IframeService {
     intentEid?: string
   ): Promise<{ conversationId: string }> {
     const result = await withOrgContext(
-      config.userId,
+      config.userGuid,
       config.tenantId,
       async (client) => {
         const conversationResult = await client.query(`
           INSERT INTO conversations (organization_id, user_id, title)
           VALUES ($1, $2, $3)
           RETURNING id
-        `, [config.tenantId, config.userId, 'Iframe Chat']);
+        `, [config.tenantId, config.userGuid, 'Iframe Chat']);
 
         return conversationResult.rows[0];
       }
     );
 
     logger.info(
-      { conversationId: result.id, intentEid, userId: config.userId, tenantId: config.tenantId },
+      { conversationId: result.id, intentEid, userGuid: config.userGuid, tenantId: config.tenantId },
       'Iframe conversation created with Valkey IDs'
     );
 
@@ -260,7 +253,7 @@ export class IframeService {
         conversationId,
         intentEid,
         sessionId: session.sessionId,
-        userId: config.userId,
+        userGuid: config.userGuid,
         tenantId: config.tenantId,
         existingConversation: !!existingConversationId,
       },
