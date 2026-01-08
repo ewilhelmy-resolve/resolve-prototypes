@@ -1,12 +1,12 @@
 /**
  * EmbedDemoPage - Demo page for testing iframe embedding
  *
- * Public page that demonstrates postMessage API and hashkey-based workflow execution.
+ * Public page that demonstrates postMessage API and sessionKey-based workflow execution.
  * Embeds the /iframe/chat route and provides controls to test communication.
  *
  * Workflow execution flow:
- * 1. Host stores payload in Valkey with a hashkey (simulated here)
- * 2. Host embeds iframe with ?token=xxx&hashkey=yyy
+ * 1. Host stores payload in Valkey with a sessionKey (guid)
+ * 2. Host embeds iframe with ?sessionKey=xxx
  * 3. RITA backend fetches payload from Valkey and calls postEvent webhook
  * 4. Response flows through queue -> message -> SSE to iframe
  */
@@ -27,8 +27,7 @@ export default function EmbedDemoPage() {
 	const [requestCounter, setRequestCounter] = useState(0);
 
 	// Form state
-	const [token, setToken] = useState("dev-iframe-token-2024");
-	const [hashkey, setHashkey] = useState("");
+	const [sessionKey, setSessionKey] = useState("test-local-hashkey-2024");
 	const [messageContent, setMessageContent] = useState("Hello from host page!");
 	const [chatSessionId, setChatSessionId] = useState("workflow-123");
 	const [tabInstanceId, setTabInstanceId] = useState("user-456");
@@ -57,17 +56,14 @@ export default function EmbedDemoPage() {
 	}, []);
 
 	const loadIframe = useCallback(() => {
-		if (!token) {
-			log("Error: Token is required", "error");
+		if (!sessionKey) {
+			log("Error: sessionKey is required", "error");
 			return;
 		}
 
 		const baseUrl = window.location.origin;
-		let url = `${baseUrl}/iframe/chat?token=${encodeURIComponent(token)}`;
-		if (hashkey) {
-			url += `&hashkey=${encodeURIComponent(hashkey)}`;
-			log(`Hashkey provided - workflow will execute on iframe load`, "workflow");
-		}
+		const url = `${baseUrl}/iframe/chat?sessionKey=${encodeURIComponent(sessionKey)}`;
+		log(`SessionKey provided - workflow will execute on iframe load`, "workflow");
 
 		setIframeReady(false);
 		setConnectionStatus("Loading...");
@@ -79,7 +75,7 @@ export default function EmbedDemoPage() {
 		}
 
 		log(`Loading iframe: ${url}`, "outgoing");
-	}, [token, hashkey, log]);
+	}, [sessionKey, log]);
 
 	const sendMessage = useCallback(() => {
 		if (!iframeReady) {
@@ -156,16 +152,16 @@ export default function EmbedDemoPage() {
 
 	const copyRedisCommand = useCallback(() => {
 		const payload = generatePayload();
-		const key = hashkey || `workflow-${Date.now()}`;
+		const key = sessionKey || `workflow-${Date.now()}`;
 		// Base64 encode the payload as expected by backend
 		const base64Payload = btoa(JSON.stringify(payload));
 		const cmd = `redis-cli SET ${key} '${base64Payload}'`;
 		navigator.clipboard.writeText(cmd);
 		log(`Copied redis-cli command to clipboard (key: ${key}, base64 encoded)`, "workflow");
-		if (!hashkey) {
-			setHashkey(key);
+		if (!sessionKey) {
+			setSessionKey(key);
 		}
-	}, [generatePayload, hashkey, log]);
+	}, [generatePayload, sessionKey, log]);
 
 	// Listen for messages from iframe
 	useEffect(() => {
@@ -216,48 +212,32 @@ export default function EmbedDemoPage() {
 				<header className="bg-white rounded-xl p-8 mb-5 shadow-lg">
 					<h1 className="text-2xl font-bold text-gray-900 mb-2">RITA Iframe Embed Demo</h1>
 					<p className="text-gray-600 mb-3">
-						Test the iframe-embeddable chat. No JWT needed - hashkey mechanism handles auth.
+						Test the iframe-embeddable chat. No JWT needed - sessionKey in Valkey handles auth.
 					</p>
 
 					{/* How to Demo */}
 					<details className="bg-purple-50 border border-purple-200 rounded-lg p-3 mb-4">
 						<summary className="font-semibold text-purple-800 cursor-pointer">How to Demo Locally</summary>
 						<ol className="text-xs text-purple-900 mt-2 space-y-1 list-decimal list-inside">
-							<li><strong>Basic chat:</strong> Click "Load Iframe" with default token</li>
-							<li><strong>With workflow:</strong>
-								<ol className="list-[lower-alpha] list-inside ml-4 mt-1">
-									<li>Fill in Workflow Payload Builder fields</li>
-									<li>Click "Copy redis-cli Command"</li>
-									<li>Run the command in terminal (requires Redis/Valkey running)</li>
-									<li>Click "Load Iframe" - workflow executes on load</li>
-								</ol>
-							</li>
+							<li><strong>Setup Valkey:</strong> Store payload with sessionKey in Valkey (see Workflow Payload Builder)</li>
+							<li><strong>Load iframe:</strong> Click "Load Iframe" - workflow executes automatically</li>
 							<li><strong>PostMessage test:</strong> Use "Send Message" after iframe loads</li>
 						</ol>
 						<div className="mt-2 text-[10px] text-purple-700 font-mono bg-purple-100 p-2 rounded">
-							# Start Redis locally:<br/>
+							# Start Valkey locally:<br/>
 							docker run -d -p 6379:6379 redis:alpine
 						</div>
 					</details>
 
 					<div className="flex flex-wrap gap-3 items-center mb-4">
-						<label htmlFor="token" className="font-semibold text-gray-900">Token:</label>
+						<label htmlFor="sessionKey" className="font-semibold text-gray-900">Session Key:</label>
 						<input
-							id="token"
+							id="sessionKey"
 							type="text"
-							value={token}
-							onChange={(e) => setToken(e.target.value)}
-							placeholder="dev-iframe-token-2024"
-							className="px-4 py-2 border-2 border-gray-200 rounded-lg text-sm min-w-[250px] focus:outline-none focus:border-indigo-500"
-						/>
-						<label htmlFor="hashkey" className="font-semibold text-gray-900">Hashkey:</label>
-						<input
-							id="hashkey"
-							type="text"
-							value={hashkey}
-							onChange={(e) => setHashkey(e.target.value)}
-							placeholder="(optional) Valkey key for workflow"
-							className="px-4 py-2 border-2 border-gray-200 rounded-lg text-sm min-w-[250px] focus:outline-none focus:border-indigo-500"
+							value={sessionKey}
+							onChange={(e) => setSessionKey(e.target.value)}
+							placeholder="Valkey session key (guid)"
+							className="px-4 py-2 border-2 border-gray-200 rounded-lg text-sm min-w-[350px] focus:outline-none focus:border-indigo-500"
 						/>
 						<button
 							onClick={loadIframe}
