@@ -1,0 +1,27 @@
+{
+	"required": {
+		"firstName": "First name is required",
+		"lastName": "Last name is required",
+		"email": "Email is required",
+		"organization": "Organization is required",
+		"url": "URL is required",
+		"token": "API token is required",
+		"field": "This field is required"
+	},
+	"format": {
+		"email": "Please enter a valid email address",
+		"url": "Please enter a valid URL"
+	},
+	"length": {
+		"tooLong": "{{field}} is too long",
+		"maxLength": "{{field}} must be at most {{max}} characters",
+		"minLength": "{{field}} must be at least {{min}} characters"
+	},
+	"confirm": {
+		"mustConfirmPermanent": "Must confirm this is permanent",
+		"mustTypeDelete": "Must type 'delete' to confirm"
+	},
+	"form": {
+		"checkFields": "Please check the form fields and correct any errors"
+	}
+}

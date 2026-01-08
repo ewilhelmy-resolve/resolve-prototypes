@@ -1,0 +1,35 @@
+{
+	"upload": {
+		"title": "Upload files",
+		"description": "Upload files to your knowledge base",
+		"dragDrop": "Drag and drop files here, or click to select",
+		"selectFiles": "Select files",
+		"uploading": "Uploading...",
+		"processing": "Processing..."
+	},
+	"status": {
+		"knowledgeFound": "Knowledge found",
+		"knowledgeGap": "Knowledge gap",
+		"pending": "Pending",
+		"processing": "Processing",
+		"completed": "Completed",
+		"failed": "Failed"
+	},
+	"errors": {
+		"unsupportedFileType": {
+			"title": "Unsupported File Type",
+			"description": "The file type you selected is not supported."
+		},
+		"fileTooLarge": {
+			"title": "File Too Large",
+			"description": "The file exceeds the maximum size limit of {{maxSize}}."
+		},
+		"uploadFailed": "Failed to upload file"
+	},
+	"knowledgeBase": {
+		"title": "Knowledge Base",
+		"description": "Manage your uploaded files and documents",
+		"noFiles": "No files uploaded yet",
+		"fileCount": "{{count}} file(s)"
+	}
+}

@@ -2,6 +2,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
 import type React from "react";
 import { useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { Toaster } from "@/components/ui/sonner";
 import { useProfile } from "@/hooks/api/useProfile";
 import { useAuth } from "@/hooks/useAuth";
@@ -13,6 +14,7 @@ import { QueryProvider } from "./providers/QueryProvider";
 import { AppRouter } from "./router";
 
 const AppContent: React.FC = () => {
+	const { t } = useTranslation(["errors", "common"]);
 	const { authenticated, sessionReady, logout } = useAuth();
 	const queryClient = useQueryClient();
 	const {
@@ -45,7 +47,7 @@ const AppContent: React.FC = () => {
 			<div className="flex min-h-screen items-center justify-center bg-background">
 				<div className="flex flex-col items-center gap-4">
 					<Loader2 className="h-8 w-8 animate-spin text-primary" />
-					<p className="text-muted-foreground">Loading...</p>
+					<p className="text-muted-foreground">{t("common:states.loading")}</p>
 				</div>
 			</div>
 		);
@@ -55,9 +57,9 @@ const AppContent: React.FC = () => {
 	if (authenticated && sessionReady && profileError && failureCount >= 3) {
 		return (
 			<CrashPage
-				title="Unable to load your profile"
-				description="We couldn't load your profile after multiple attempts. Please sign in again."
-				actionLabel="Go to Login"
+				title={t("errors:generic.profileLoad.title")}
+				description={t("errors:generic.profileLoad.description")}
+				actionLabel={t("common:actions.goToLogin")}
 				onAction={() => {
 					window.location.href = '/login';
 				}}

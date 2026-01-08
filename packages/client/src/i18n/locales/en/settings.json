@@ -1,0 +1,48 @@
+{
+	"profile": {
+		"title": "Profile",
+		"description": "Manage your personal information",
+		"general": "General",
+		"dangerZone": "Danger zone",
+		"deleteAccount": {
+			"title": "Delete your account",
+			"description": "Permanently delete your entire account and all data you have uploaded.",
+			"descriptionAdmin": "Permanently delete your entire account, organization, and all data you have uploaded. As an owner, this will delete the entire organization and all members.",
+			"confirmPermanent": "I understand this action is permanent and cannot be undone",
+			"confirmData": "I understand all my data will be permanently deleted",
+			"confirmTenantAccess": "I understand all users in this {{context}} will no longer have access",
+			"typeDelete": "Type <strong>delete</strong> to confirm"
+		}
+	},
+	"users": {
+		"title": "Users",
+		"description": "Manage organization members and invitations",
+		"tabs": {
+			"users": "Users",
+			"invitePending": "Invite Pending"
+		},
+		"invite": {
+			"title": "Invite Users",
+			"description": "Add email addresses to invite new users to your workspace.",
+			"defaultRole": "All new users will be assigned the User role by default.",
+			"adminNote": "To grant admin access, update their role later in Settings > Users.",
+			"emailsPlaceholder": "Enter email addresses separated by commas",
+			"maxEmails": "Separate multiple email addresses with commas (max 50)"
+		}
+	},
+	"knowledgeSources": {
+		"title": "Knowledge Sources",
+		"description": "Connect knowledge bases to help RITA answer questions with accurate information.",
+		"loading": "Loading connections...",
+		"lastSync": "Last sync: {{time}}",
+		"comingSoon": "Coming Soon"
+	},
+	"connectionSources": {
+		"title": "Connection Sources",
+		"description": "Connect your knowledge and ticketing sources to enhance RITA's capabilities."
+	},
+	"itsmSources": {
+		"title": "ITSM Sources",
+		"description": "Connect your IT service management platforms."
+	}
+}

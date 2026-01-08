@@ -1,0 +1,34 @@
+{
+	"actions": {
+		"cancel": "Cancel",
+		"save": "Save",
+		"delete": "Delete",
+		"edit": "Edit",
+		"close": "Close",
+		"submit": "Submit",
+		"confirm": "Confirm",
+		"update": "Update",
+		"connect": "Connect",
+		"configure": "Configure",
+		"manage": "Manage",
+		"retry": "Try Again",
+		"goBack": "Go Back",
+		"goToLogin": "Go to Login",
+		"resend": "Resend",
+		"disconnect": "Disconnect"
+	},
+	"states": {
+		"loading": "Loading...",
+		"saving": "Saving...",
+		"deleting": "Deleting...",
+		"connecting": "Connecting...",
+		"updating": "Updating..."
+	},
+	"labels": {
+		"email": "Email",
+		"firstName": "First name",
+		"lastName": "Last name",
+		"organization": "Organization",
+		"required": "*"
+	}
+}
