@@ -73,17 +73,21 @@ export class IframeService {
         clientKey: payload.clientKey ? '[REDACTED]' : undefined,
       };
 
-      // Validate required fields
+      // Validate required fields (accept userId or userGuid)
       const requiredFields = [
         'accessToken', 'refreshToken', 'tabInstanceId', 'tenantId',
         'tenantName', 'chatSessionId', 'clientId', 'clientKey',
-        'tokenExpiry', 'actionsApiBaseUrl', 'userId'
+        'tokenExpiry', 'actionsApiBaseUrl'
       ];
+      const hasUserId = 'userId' in payload || 'userGuid' in payload;
 
       for (const field of requiredFields) {
         if (!(field in payload)) {
           debug.missingFields.push(field);
         }
+      }
+      if (!hasUserId) {
+        debug.missingFields.push('userId or userGuid');
       }
 
       if (debug.missingFields.length > 0) {
@@ -91,6 +95,9 @@ export class IframeService {
         debug.error = `Missing required fields: ${debug.missingFields.join(', ')}`;
         return { config: null, debug };
       }
+
+      // Normalize: use userId or fall back to userGuid
+      const userId = payload.userId || payload.userGuid;
 
       logger.info(
         { hashkey: hashkey.substring(0, 8) + '...', tenantId: payload.tenantId },
@@ -110,7 +117,7 @@ export class IframeService {
           tokenExpiry: payload.tokenExpiry,
           actionsApiBaseUrl: payload.actionsApiBaseUrl,
           context: payload.context,
-          userId: payload.userId,
+          userId,  // normalized from userId or userGuid
         },
         debug,
       };
