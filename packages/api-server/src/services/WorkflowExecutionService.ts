@@ -140,7 +140,7 @@ export class WorkflowExecutionService {
       context: config.context,
       timestamp: new Date().toISOString(),
       // IDs for routing messages back (all from Valkey config)
-      rita_user_id: config.userId,
+      rita_user_id: config.userGuid,
       rita_org_id: config.tenantId,
       rita_conversation_id: config.chatSessionId,
     };
