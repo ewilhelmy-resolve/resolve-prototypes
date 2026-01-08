@@ -1,8 +1,15 @@
 import { withOrgContext } from '../config/database.js';
 import { logger } from '../config/logger.js';
-import { getValkeyClient } from '../config/valkey.js';
+import {
+  getValkeyClient,
+  getRitaOrgId,
+  getRitaUserId,
+  setRitaOrgMapping,
+  setRitaUserMapping,
+} from '../config/valkey.js';
 import { getSessionStore, type CreateSessionData, type Session, type IframeWebhookConfig } from './sessionStore.js';
 import { getSessionService } from './sessionService.js';
+import { pool } from '../config/database.js';
 
 // Valkey key prefix - keys stored as rita:session:{guid}
 const VALKEY_KEY_PREFIX = 'rita:session:';
@@ -142,67 +149,160 @@ export class IframeService {
   }
 
   /**
-   * Create a session for iframe embed using Valkey config IDs
-   * Session uses real user IDs from Valkey (userGuid, tenantId) for SSE routing
+   * Resolve or create Rita organization from Jarvis tenant ID
+   * Uses JIT provisioning with Valkey-cached mapping
    */
-  async createIframeSession(config: IframeWebhookConfig): Promise<{ session: Session; cookie: string }> {
-    const sessionData: CreateSessionData = {
-      userId: config.userGuid,
-      organizationId: config.tenantId,
-      userEmail: `iframe-${config.userGuid.substring(0, 8)}@iframe.internal`,
-      sessionDurationMs: 24 * 60 * 60 * 1000, // 24 hours
-      iframeWebhookConfig: config,
-      isIframeSession: true,
-    };
+  private async resolveRitaOrg(
+    jarvisTenantId: string,
+    tenantName: string
+  ): Promise<{ ritaOrgId: string; wasCreated: boolean }> {
+    // 1. Check Valkey mapping cache
+    let ritaOrgId = await getRitaOrgId(jarvisTenantId);
+    if (ritaOrgId) {
+      // Org exists - update name if changed (Jarvis is source of truth)
+      const orgName = tenantName || `Jarvis Tenant ${jarvisTenantId.substring(0, 8)}`;
+      await pool.query(
+        `UPDATE organizations SET name = $1, updated_at = NOW()
+         WHERE id = $2 AND name != $1`,
+        [orgName, ritaOrgId]
+      );
+      return { ritaOrgId, wasCreated: false };
+    }
 
-    const session = await this.sessionStore.createSession(sessionData);
-    const cookie = this.sessionService.generateSessionCookie(session.sessionId);
+    // 2. Create new org in Rita DB
+    const orgName = tenantName || `Jarvis Tenant ${jarvisTenantId.substring(0, 8)}`;
+    const orgResult = await pool.query(
+      `INSERT INTO organizations (name, created_at)
+       VALUES ($1, NOW())
+       RETURNING id`,
+      [orgName]
+    );
+    ritaOrgId = orgResult.rows[0].id;
+
+    // 3. Save mapping to Valkey
+    await setRitaOrgMapping(jarvisTenantId, ritaOrgId);
 
     logger.info(
-      {
-        sessionId: session.sessionId,
-        userGuid: config.userGuid,
-        tenantId: config.tenantId,
-      },
-      'Iframe session created with Valkey IDs'
+      { jarvisTenantId, ritaOrgId, orgName },
+      'Created Rita org from Jarvis tenant'
     );
 
-    return { session, cookie };
+    return { ritaOrgId, wasCreated: true };
   }
 
   /**
-   * Create a conversation for iframe user using Valkey IDs
+   * Resolve or create Rita user from Jarvis user GUID
+   * Uses JIT provisioning with Valkey-cached mapping
+   */
+  private async resolveRitaUser(
+    jarvisGuid: string,
+    ritaOrgId: string
+  ): Promise<{ ritaUserId: string; wasCreated: boolean }> {
+    // 1. Check Valkey mapping cache
+    let ritaUserId = await getRitaUserId(jarvisGuid);
+    if (ritaUserId) {
+      return { ritaUserId, wasCreated: false };
+    }
+
+    // 2. Create new user in Rita DB with placeholder data
+    const userResult = await pool.query(
+      `INSERT INTO user_profiles (email, keycloak_id, first_name, last_name, active_organization_id, created_at)
+       VALUES ($1, $2, $3, $4, $5, NOW())
+       RETURNING user_id`,
+      [
+        `iframe-${jarvisGuid.substring(0, 8)}@iframe.internal`,
+        `jarvis-${jarvisGuid}`,
+        'Iframe',
+        'User',
+        ritaOrgId
+      ]
+    );
+    ritaUserId = userResult.rows[0].user_id;
+
+    // 3. Save mapping to Valkey
+    await setRitaUserMapping(jarvisGuid, ritaUserId);
+
+    logger.info(
+      { jarvisGuid, ritaUserId, ritaOrgId },
+      'Created Rita user from Jarvis GUID'
+    );
+
+    return { ritaUserId, wasCreated: true };
+  }
+
+  /**
+   * Ensure user is a member of the organization
+   */
+  private async ensureOrgMembership(ritaOrgId: string, ritaUserId: string): Promise<void> {
+    await pool.query(
+      `INSERT INTO organization_members (organization_id, user_id, role, is_active, joined_at)
+       VALUES ($1, $2, 'member', true, NOW())
+       ON CONFLICT (organization_id, user_id) DO NOTHING`,
+      [ritaOrgId, ritaUserId]
+    );
+  }
+
+  /**
+   * Create a conversation for iframe user
+   * Uses JIT provisioning to map Jarvis IDs → Rita IDs
    */
   async createIframeConversation(
     config: IframeWebhookConfig,
     intentEid?: string
-  ): Promise<{ conversationId: string }> {
-    const result = await withOrgContext(
-      config.userGuid,
+  ): Promise<{ conversationId: string; ritaOrgId: string; ritaUserId: string }> {
+    // 1. Resolve Rita org from Jarvis tenant
+    const { ritaOrgId, wasCreated: orgCreated } = await this.resolveRitaOrg(
       config.tenantId,
-      async (client) => {
-        const conversationResult = await client.query(`
-          INSERT INTO conversations (organization_id, user_id, title)
-          VALUES ($1, $2, $3)
-          RETURNING id
-        `, [config.tenantId, config.userGuid, 'Iframe Chat']);
+      config.tenantName
+    );
 
+    // 2. Resolve Rita user from Jarvis GUID
+    const { ritaUserId, wasCreated: userCreated } = await this.resolveRitaUser(
+      config.userGuid,
+      ritaOrgId
+    );
+
+    // 3. Ensure org membership if either was newly created
+    if (orgCreated || userCreated) {
+      await this.ensureOrgMembership(ritaOrgId, ritaUserId);
+    }
+
+    // 4. Create conversation with Rita IDs (using org context for RLS)
+    const result = await withOrgContext(
+      ritaUserId,
+      ritaOrgId,
+      async (client) => {
+        const conversationResult = await client.query(
+          `INSERT INTO conversations (organization_id, user_id, title)
+           VALUES ($1, $2, $3)
+           RETURNING id`,
+          [ritaOrgId, ritaUserId, 'Iframe Chat']
+        );
         return conversationResult.rows[0];
       }
     );
 
     logger.info(
-      { conversationId: result.id, intentEid, userGuid: config.userGuid, tenantId: config.tenantId },
-      'Iframe conversation created with Valkey IDs'
+      {
+        conversationId: result.id,
+        intentEid,
+        jarvisTenantId: config.tenantId,
+        jarvisGuid: config.userGuid,
+        ritaOrgId,
+        ritaUserId,
+        orgCreated,
+        userCreated,
+      },
+      'Iframe conversation created with JIT-provisioned Rita IDs'
     );
 
-    return { conversationId: result.id };
+    return { conversationId: result.id, ritaOrgId, ritaUserId };
   }
 
   /**
    * Validate instantiation and setup iframe session + conversation
    * Requires valid Valkey config (sessionKey).
-   * Session uses real user IDs from Valkey for SSE routing.
+   * Session uses Rita internal IDs (resolved from Jarvis IDs) for SSE routing.
    */
   async validateAndSetup(
     sessionKey: string,
@@ -237,13 +337,37 @@ export class IframeService {
       return { valid: false, error: 'Invalid or missing Valkey configuration', valkeyDebug };
     }
 
-    // Create session with Valkey IDs (for SSE routing)
-    const { session, cookie } = await this.createIframeSession(config);
+    let conversationId: string;
+    let ritaOrgId: string;
+    let ritaUserId: string;
 
-    // Use existing conversation or create new one
-    const conversationId = existingConversationId
-      ? existingConversationId
-      : (await this.createIframeConversation(config, intentEid)).conversationId;
+    if (existingConversationId) {
+      // Existing conversation - still need to resolve Rita IDs for session
+      conversationId = existingConversationId;
+      const { ritaOrgId: orgId } = await this.resolveRitaOrg(config.tenantId, config.tenantName);
+      const { ritaUserId: userId } = await this.resolveRitaUser(config.userGuid, orgId);
+      ritaOrgId = orgId;
+      ritaUserId = userId;
+    } else {
+      // New conversation - this also resolves Rita IDs
+      const result = await this.createIframeConversation(config, intentEid);
+      conversationId = result.conversationId;
+      ritaOrgId = result.ritaOrgId;
+      ritaUserId = result.ritaUserId;
+    }
+
+    // Create session with Rita IDs (for SSE routing and internal operations)
+    const sessionData: CreateSessionData = {
+      userId: ritaUserId,
+      organizationId: ritaOrgId,
+      userEmail: `iframe-${config.userGuid.substring(0, 8)}@iframe.internal`,
+      sessionDurationMs: 24 * 60 * 60 * 1000, // 24 hours
+      iframeWebhookConfig: config, // Keep original Jarvis config for webhooks
+      isIframeSession: true,
+    };
+
+    const session = await this.sessionStore.createSession(sessionData);
+    const cookie = this.sessionService.generateSessionCookie(session.sessionId);
 
     // Store conversationId in session for /execute endpoint to use
     await this.sessionStore.updateSession(session.sessionId, { conversationId });
@@ -253,11 +377,13 @@ export class IframeService {
         conversationId,
         intentEid,
         sessionId: session.sessionId,
-        userGuid: config.userGuid,
-        tenantId: config.tenantId,
+        jarvisTenantId: config.tenantId,
+        jarvisGuid: config.userGuid,
+        ritaOrgId,
+        ritaUserId,
         existingConversation: !!existingConversationId,
       },
-      'Iframe instantiation complete'
+      'Iframe instantiation complete with Rita IDs'
     );
 
     return {
