@@ -61,7 +61,7 @@ describe('WorkflowExecutionService', () => {
     tokenExpiry: Date.now() + 3600000,
     actionsApiBaseUrl: 'https://actions.example.com',
     context: { workflowGuid: 'wf-123' },
-    userId: 'user-from-host-123',
+    userGuid: 'user-from-host-123',
   };
 
   beforeEach(() => {
