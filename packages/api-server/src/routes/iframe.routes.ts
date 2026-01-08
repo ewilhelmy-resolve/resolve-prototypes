@@ -47,8 +47,10 @@ router.post('/validate-instantiation', async (req, res) => {
         debug: {
           valkeyStatus: getValkeyStatus(),
           sessionKeyProvided: !!sessionKey,
-          sessionKeyPrefix: sessionKey?.substring(0, 8) || null,
+          sessionKeyReceived: sessionKey || null,  // Full sessionKey for debugging
+          valkeyKeyUsed: sessionKey ? `rita:session:${sessionKey}` : null,  // Full key used for HGET
           durationMs: duration,
+          valkey: result.valkeyDebug || null,
         },
       });
       return;
@@ -87,6 +89,15 @@ router.post('/validate-instantiation', async (req, res) => {
     res.status(500).json({
       valid: false,
       error: 'Failed to initialize iframe session',
+      debug: {
+        valkeyStatus: getValkeyStatus(),
+        sessionKeyProvided: !!req.body.sessionKey,
+        sessionKeyReceived: req.body.sessionKey || null,
+        valkeyKeyUsed: req.body.sessionKey ? `rita:session:${req.body.sessionKey}` : null,
+        errorMessage: err.message,
+        errorCode: (err as NodeJS.ErrnoException).code,
+        durationMs: duration,
+      },
     });
   }
 });

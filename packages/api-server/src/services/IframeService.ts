@@ -12,14 +12,39 @@ export class IframeService {
   private sessionService = getSessionService();
 
   /**
-   * Fetch iframe webhook config from Valkey
+   * Fetch iframe webhook config from Valkey with debug info
    * Payload is stored as raw JSON by the host app
    * Key format: rita:session:{guid}
    */
-  async fetchValkeyPayload(hashkey: string): Promise<IframeWebhookConfig | null> {
+  async fetchValkeyPayloadWithDebug(hashkey: string): Promise<{
+    config: IframeWebhookConfig | null;
+    debug: {
+      fullKey: string;
+      rawPayload: Record<string, unknown> | null;
+      rawDataLength: number | null;
+      missingFields: string[];
+      error: string | null;
+      durationMs: number;
+    };
+  }> {
     const startTime = Date.now();
-    // Build full key with prefix: rita:session:{guid}
     const fullKey = `${VALKEY_KEY_PREFIX}${hashkey}`;
+    const debug: {
+      fullKey: string;
+      rawPayload: Record<string, unknown> | null;
+      rawDataLength: number | null;
+      missingFields: string[];
+      error: string | null;
+      durationMs: number;
+    } = {
+      fullKey,
+      rawPayload: null,
+      rawDataLength: null,
+      missingFields: [],
+      error: null,
+      durationMs: 0,
+    };
+
     logger.info({ hashkey: hashkey.substring(0, 8) + '...', fullKey }, 'Fetching Valkey payload...');
 
     try {
@@ -28,16 +53,25 @@ export class IframeService {
 
       // Data is stored as hash type: HGET rita:session:{guid} data
       const rawData = await client.hget(fullKey, 'data');
-      const duration = Date.now() - startTime;
+      debug.durationMs = Date.now() - startTime;
 
       if (!rawData) {
-        logger.warn({ hashkey: hashkey.substring(0, 8) + '...', durationMs: duration }, 'Valkey payload not found');
-        return null;
+        logger.warn({ hashkey: hashkey.substring(0, 8) + '...', durationMs: debug.durationMs }, 'Valkey payload not found');
+        debug.error = 'No data found at key';
+        return { config: null, debug };
       }
 
-      logger.info({ hashkey: hashkey.substring(0, 8) + '...', durationMs: duration, dataLength: rawData.length }, 'Valkey payload retrieved');
+      debug.rawDataLength = rawData.length;
+      logger.info({ hashkey: hashkey.substring(0, 8) + '...', durationMs: debug.durationMs, dataLength: rawData.length }, 'Valkey payload retrieved');
 
       const payload = JSON.parse(rawData);
+      // Sanitize: remove tokens for debug output
+      debug.rawPayload = {
+        ...payload,
+        accessToken: payload.accessToken ? '[REDACTED]' : undefined,
+        refreshToken: payload.refreshToken ? '[REDACTED]' : undefined,
+        clientKey: payload.clientKey ? '[REDACTED]' : undefined,
+      };
 
       // Validate required fields
       const requiredFields = [
@@ -48,9 +82,14 @@ export class IframeService {
 
       for (const field of requiredFields) {
         if (!(field in payload)) {
-          logger.warn({ hashkey: hashkey.substring(0, 8) + '...', missingField: field }, 'Invalid Valkey payload - missing required field');
-          return null;
+          debug.missingFields.push(field);
         }
+      }
+
+      if (debug.missingFields.length > 0) {
+        logger.warn({ hashkey: hashkey.substring(0, 8) + '...', missingFields: debug.missingFields }, 'Invalid Valkey payload - missing required fields');
+        debug.error = `Missing required fields: ${debug.missingFields.join(', ')}`;
+        return { config: null, debug };
       }
 
       logger.info(
@@ -59,35 +98,47 @@ export class IframeService {
       );
 
       return {
-        accessToken: payload.accessToken,
-        refreshToken: payload.refreshToken,
-        tabInstanceId: payload.tabInstanceId,
-        tenantId: payload.tenantId,
-        tenantName: payload.tenantName,
-        chatSessionId: payload.chatSessionId,
-        clientId: payload.clientId,
-        clientKey: payload.clientKey,
-        tokenExpiry: payload.tokenExpiry,
-        actionsApiBaseUrl: payload.actionsApiBaseUrl,
-        context: payload.context,
-        userId: payload.userId,
+        config: {
+          accessToken: payload.accessToken,
+          refreshToken: payload.refreshToken,
+          tabInstanceId: payload.tabInstanceId,
+          tenantId: payload.tenantId,
+          tenantName: payload.tenantName,
+          chatSessionId: payload.chatSessionId,
+          clientId: payload.clientId,
+          clientKey: payload.clientKey,
+          tokenExpiry: payload.tokenExpiry,
+          actionsApiBaseUrl: payload.actionsApiBaseUrl,
+          context: payload.context,
+          userId: payload.userId,
+        },
+        debug,
       };
     } catch (error) {
-      const duration = Date.now() - startTime;
+      debug.durationMs = Date.now() - startTime;
       const err = error as Error;
+      debug.error = `${err.name}: ${err.message}`;
       logger.error(
         {
           hashkey: hashkey.substring(0, 8) + '...',
           error: err.message,
           errorName: err.name,
           errorCode: (err as NodeJS.ErrnoException).code,
-          durationMs: duration,
+          durationMs: debug.durationMs,
           stack: err.stack?.split('\n').slice(0, 3).join(' | '),
         },
         'Failed to fetch/parse Valkey payload'
       );
-      return null;
+      return { config: null, debug };
     }
+  }
+
+  /**
+   * Fetch iframe webhook config from Valkey (simple version without debug)
+   */
+  async fetchValkeyPayload(hashkey: string): Promise<IframeWebhookConfig | null> {
+    const result = await this.fetchValkeyPayloadWithDebug(hashkey);
+    return result.config;
   }
 
   /**
@@ -164,6 +215,14 @@ export class IframeService {
     cookie?: string;
     webhookConfigLoaded?: boolean;
     webhookTenantId?: string;
+    valkeyDebug?: {
+      fullKey: string;
+      rawPayload: Record<string, unknown> | null;
+      rawDataLength: number | null;
+      missingFields: string[];
+      error: string | null;
+      durationMs: number;
+    };
   }> {
     // SessionKey (Valkey hashkey) required
     if (!sessionKey) {
@@ -171,11 +230,11 @@ export class IframeService {
       return { valid: false, error: 'sessionKey required' };
     }
 
-    // Fetch and validate Valkey config
-    const config = await this.fetchValkeyPayload(sessionKey);
+    // Fetch and validate Valkey config with debug info
+    const { config, debug: valkeyDebug } = await this.fetchValkeyPayloadWithDebug(sessionKey);
     if (!config) {
       logger.warn({ sessionKey: sessionKey.substring(0, 8) + '...' }, 'Invalid or missing Valkey config');
-      return { valid: false, error: 'Invalid or missing Valkey configuration' };
+      return { valid: false, error: 'Invalid or missing Valkey configuration', valkeyDebug };
     }
 
     // Create session with Valkey IDs (for SSE routing)
