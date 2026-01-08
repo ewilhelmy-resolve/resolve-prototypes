@@ -22,6 +22,7 @@ import memberRoutes from './routes/members.js';
 import organizationRoutes from './routes/organizations.js';
 import sseRoutes from './routes/sse.js';
 import featureFlagRoutes from './routes/featureFlags.js';
+import credentialDelegationRoutes from './routes/credentialDelegations.js';
 import { closeValkeyConnection } from './config/valkey.js';
 import { getRabbitMQService } from './services/rabbitmq.js';
 import { destroySessionStore } from './services/sessionStore.js';
@@ -80,6 +81,9 @@ app.use('/api/iframe', iframeRoutes);
 
 // Invitation routes (mixed auth - some public, some protected)
 app.use('/api/invitations', invitationRoutes);
+
+// Credential delegation routes (mixed auth - some public, some protected)
+app.use('/api/credential-delegations', credentialDelegationRoutes);
 
 // Test SSE endpoint (no auth required)
 app.get('/test-sse', (req, res) => {
