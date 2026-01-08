@@ -1,0 +1,25 @@
+{
+	"input": {
+		"placeholder": "Ask me anything...",
+		"sendButton": "Send",
+		"attachFile": "Attach file"
+	},
+	"emptyState": {
+		"title": "Ask RITA",
+		"description": "Start a conversation with RITA to get help with your questions."
+	},
+	"sidebar": {
+		"newChat": "New Chat",
+		"conversations": "Conversations",
+		"noConversations": "No conversations yet"
+	},
+	"messages": {
+		"thinking": "Thinking...",
+		"streaming": "RITA is typing...",
+		"error": "Failed to send message. Please try again."
+	},
+	"conversation": {
+		"title": "Conversation",
+		"untitled": "Untitled conversation"
+	}
+}

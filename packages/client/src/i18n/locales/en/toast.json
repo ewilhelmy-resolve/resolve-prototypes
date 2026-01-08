@@ -1,0 +1,25 @@
+{
+	"success": {
+		"profileUpdated": "Profile updated successfully",
+		"connectionConfigured": "Connection Configured",
+		"configurationSaved": "Configuration Saved",
+		"invitationResent": "Invitation resent",
+		"invitationsCancelled": "Invitations cancelled",
+		"invitationsSent": "{{count}} invitation(s) sent successfully"
+	},
+	"error": {
+		"profileUpdateFailed": "Failed to update profile",
+		"organizationUpdateFailed": "Failed to update organization",
+		"invitationsFailed": "Failed to send invitations",
+		"invitationsCancelFailed": "Failed to cancel invitations",
+		"connectionFailed": "Connection Failed",
+		"saveFailed": "Save Failed"
+	},
+	"warning": {
+		"responseTimeout": "Response timeout",
+		"partialSuccess": "Partial success"
+	},
+	"info": {
+		"processing": "Processing your request..."
+	}
+}
