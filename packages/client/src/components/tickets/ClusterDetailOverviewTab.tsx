@@ -1,18 +1,18 @@
-import { useState } from "react";
 import { WandSparkles } from "lucide-react";
+import { useState } from "react";
 import {
 	AI_RESPONSE_TYPE,
-	MOCK_AI_RESPONSE,
 	type AIResponseType,
+	MOCK_AI_RESPONSE,
 } from "@/lib/tickets/utils";
-import { EnableAutoRespondModal } from "./EnableAutoRespondModal";
-import { EnableAutoPopulateSheet } from "./EnableAutoPopulateSheet";
-import { CreateKnowledgeArticleSheet } from "./CreateKnowledgeArticleSheet";
-import { AutomationMetricsCard } from "./AutomationMetricsCard";
-import { AutoPilotRecommendations } from "./AutoPilotRecommendations";
-import { RecommendationAlert } from "./RecommendationAlert";
-import { ValidationConfidenceCard } from "./ValidationConfidenceCard";
 import type { KBStatus } from "@/types/cluster";
+import { AutomationMetricsCard } from "./AutomationMetricsCard";
+import { AutomationReadinessMeter } from "./AutomationReadinessMeter";
+import { AutoPilotRecommendations } from "./AutoPilotRecommendations";
+import { CreateKnowledgeArticleSheet } from "./CreateKnowledgeArticleSheet";
+import { EnableAutoPopulateSheet } from "./EnableAutoPopulateSheet";
+import { EnableAutoRespondModal } from "./EnableAutoRespondModal";
+import { RecommendationAlert } from "./RecommendationAlert";
 
 interface ClusterDetailOverviewTabProps {
 	/** Cluster display name */
@@ -26,7 +26,12 @@ interface ClusterDetailOverviewTabProps {
 	/** Called when knowledge article is added */
 	onKnowledgeAdded?: () => void;
 	/** Called when auto-respond is enabled with context */
-	onAutoRespondEnabled?: (ticketGroupName: string, automatedPercentage: number) => void;
+	onAutoRespondEnabled?: (
+		ticketGroupName: string,
+		automatedPercentage: number,
+	) => void;
+	/** Called when user wants to review knowledge */
+	onReviewKnowledge?: () => void;
 }
 
 /**
@@ -41,13 +46,15 @@ export function ClusterDetailOverviewTab({
 	onAutoPopulateEnabled,
 	onKnowledgeAdded,
 	onAutoRespondEnabled,
+	onReviewKnowledge,
 }: ClusterDetailOverviewTabProps) {
 	// Use mock AI response data (TODO: replace with real API)
 	const aiResponse = MOCK_AI_RESPONSE;
 	const [enableModalOpen, setEnableModalOpen] = useState(false);
 	const [autoPopulateSheetOpen, setAutoPopulateSheetOpen] = useState(false);
 	const [selectedType, setSelectedType] = useState<AIResponseType | null>(null);
-	const [createKnowledgeSheetOpen, setCreateKnowledgeSheetOpen] = useState(false);
+	const [createKnowledgeSheetOpen, setCreateKnowledgeSheetOpen] =
+		useState(false);
 
 	const handleEnableClick = (type: AIResponseType) => {
 		setSelectedType(type);
@@ -63,8 +70,19 @@ export function ClusterDetailOverviewTab({
 			{/* Metrics */}
 			<AutomationMetricsCard />
 
-			{/* Validation Confidence */}
-			<ValidationConfidenceCard />
+			{/* Automation Readiness Meter */}
+			<AutomationReadinessMeter
+				reviewed={0}
+				total={16}
+				hasKnowledge={kbStatus !== "GAP"}
+				trustedPercentage={0}
+				onEnableAutoRespond={() => {
+					setSelectedType(AI_RESPONSE_TYPE.AUTO_RESPOND);
+					setEnableModalOpen(true);
+				}}
+				onReviewKnowledge={onReviewKnowledge}
+				onAddKnowledge={() => setCreateKnowledgeSheetOpen(true)}
+			/>
 
 			{/* AutoPilot Recommendations */}
 			<AutoPilotRecommendations onEnableClick={handleEnableClick} />
