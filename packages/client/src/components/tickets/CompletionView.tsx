@@ -6,17 +6,28 @@ import {
 	SheetTitle,
 } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
-import { ThumbsDown, ThumbsUp } from "lucide-react";
-import { Confetti, type ConfettiRef } from "@/components/ui/confetti";
-import { useEffect, useRef } from "react";
+import { useRef } from "react";
 import type { ReviewStats } from "./ReviewAIResponseSheet";
+import {
+	ReviewCompletionStats,
+	type ReviewCompletionStatsRef,
+} from "./ReviewCompletionStats";
 
 interface CompletionViewProps {
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
 	stats: ReviewStats;
-	onEnableAutoRespond?: (stats: ReviewStats) => void;
+	/** Whether this is the first review session for this cluster */
+	isFirstSession?: boolean;
+	/** Whether the cluster has knowledge articles */
+	hasKnowledge?: boolean;
 	onKeepReviewing?: () => void;
+	/** Called when user clicks to add/review knowledge */
+	onReviewKnowledge?: () => void;
+	/** Called when user clicks to add knowledge (no knowledge scenario) */
+	onAddKnowledge?: () => void;
+	/** Called when user clicks to view automation readiness */
+	onViewAutomationReadiness?: () => void;
 }
 
 /**
@@ -29,41 +40,127 @@ interface CompletionViewProps {
  * 
  * @component
  */
+/**
+ * Determine scenario content based on session state and results
+ */
+function getScenarioContent(
+	stats: ReviewStats,
+	isFirstSession: boolean,
+	hasKnowledge: boolean
+) {
+	const isGoodResults = stats.trusted >= stats.totalReviewed / 2;
+
+	// No Knowledge scenario (any session, any results)
+	if (!hasKnowledge) {
+		return {
+			icon: "⚠️",
+			title: "Nice start, knowledge missing",
+			subtitle: "You've started reviewing AI responses for this cluster. Missing knowledge is likely impacting response quality.",
+			message: "Without knowledge, AI responses may lack the context needed to meet expectations.",
+			proTip: "Early reviews help identify the most important gaps to address when creating knowledge.",
+			showConfetti: false,
+			primaryAction: "addKnowledge" as const,
+		};
+	}
+
+	// First session scenarios
+	if (isFirstSession) {
+		if (isGoodResults) {
+			return {
+				icon: "🎇",
+				title: "Nice start, early signs look good",
+				subtitle: "You've started reviewing AI responses for this cluster. Early feedback suggests responses are meeting expectations.",
+				message: "Responses reviewed so far generally met expectations.",
+				proTip: "Continued review helps confirm patterns across more tickets.",
+				showConfetti: true,
+				primaryAction: "keepReviewing" as const,
+			};
+		}
+		return {
+			icon: "📚",
+			title: "Nice start, still learning",
+			subtitle: "You've started reviewing AI responses for this cluster. Based on this session, some responses did not meet expectations.",
+			message: "Some reviewed responses lacked the information needed to meet expectations.",
+			proTip: "Reviewing a few more tickets helps surface patterns and edge cases faster.",
+			showConfetti: false,
+			primaryAction: "reviewKnowledge" as const,
+		};
+	}
+
+	// Subsequent session scenarios
+	if (isGoodResults) {
+		return {
+			icon: "🙌",
+			title: "Responses look aligned",
+			subtitle: "AI responses reviewed in this session consistently met expectations.",
+			message: "Reviewed responses matched expected answers for this cluster.",
+			proTip: "Consistent results contribute to automation readiness over time.",
+			showConfetti: true,
+			primaryAction: "viewAutomationReadiness" as const,
+		};
+	}
+
+	return {
+		icon: "🔧",
+		title: "Responses need improvement",
+		subtitle: "Most AI responses reviewed in this session did not meet expectations.",
+		message: "Several responses lacked the information needed to respond accurately.",
+		proTip: "Improving knowledge coverage often has the biggest impact on response quality.",
+		showConfetti: false,
+		primaryAction: "reviewKnowledge" as const,
+	};
+}
+
 export function CompletionView({
 	open,
 	onOpenChange,
 	stats,
-	onEnableAutoRespond,
+	isFirstSession = false,
+	hasKnowledge = true,
 	onKeepReviewing,
+	onReviewKnowledge,
+	onAddKnowledge,
+	onViewAutomationReadiness,
 }: CompletionViewProps) {
-	const confettiRef = useRef<ConfettiRef>(null);
+	const confettiRef = useRef<ReviewCompletionStatsRef>(null);
 
-	// Fire confetti when completion screen shows
-	useEffect(() => {
-		if (open) {
- 			// Small delay to ensure the component is fully mounted
-			const timer = setTimeout(() => {
-				if (confettiRef.current) {
-					confettiRef.current.fire({
-						particleCount: 100,
-						spread: 70,
-						origin: { x: 0.5, y: 0.6 },
-					});
-				}
-			}, 300);
-
-			return () => clearTimeout(timer);
-		}
-	}, [open]);
+	const scenario = getScenarioContent(stats, isFirstSession, hasKnowledge);
 
 	const handleKeepReviewing = () => {
 		onKeepReviewing?.();
 		onOpenChange(false);
 	};
 
-	const handleEnableAutoRespond = () => {
-		onEnableAutoRespond?.(stats);
+	const handlePrimaryAction = () => {
+		switch (scenario.primaryAction) {
+			case "addKnowledge":
+				onAddKnowledge?.();
+				break;
+			case "reviewKnowledge":
+				onReviewKnowledge?.();
+				break;
+			case "viewAutomationReadiness":
+				onViewAutomationReadiness?.();
+				break;
+			case "keepReviewing":
+				onKeepReviewing?.();
+				break;
+		}
 		onOpenChange(false);
+	};
+
+	// Get button labels based on scenario
+	const getPrimaryButtonLabel = () => {
+		switch (scenario.primaryAction) {
+			case "addKnowledge":
+				return "Add knowledge";
+			case "reviewKnowledge":
+				return "Review knowledge";
+			case "viewAutomationReadiness":
+				return "View automation readiness";
+			case "keepReviewing":
+				return "Keep reviewing";
+		}
 	};
 
 	return (
@@ -78,62 +175,29 @@ export function CompletionView({
 				</SheetHeader>
 
 				{/* Content */}
-				<div className="flex-1 flex flex-col items-center justify-center gap-13 text-center relative">
-					{/* Confetti Canvas */}
-					<Confetti
-						ref={confettiRef}
-						className="absolute inset-0 w-full h-full pointer-events-none"
-						manualstart
-					/>
-
-					{/* Title */}
-					<h2 className="text-3xl mb-28 text-foreground">
-						You reviewed {stats.totalReviewed} tickets
-					</h2>
-
-					{/* Confidence Improvement */}
-					<div className="flex flex-col items-center gap-2">
-						<p className="text-2xl font-serif">
-							Confidence improved by
-						</p>
-						<p className="text-7xl font-serif font-bold text-foreground">
-							{stats.confidenceImprovement}%
-						</p>
-					</div>
-
-					{/* Stats */}
-					<div className="flex items-center justify-center gap-6">
-						<div className="flex items-center gap-1.5">
-							<ThumbsDown className="size-4 text-muted-foreground" />
-							<span className="text-sm text-muted-foreground">
-								Need improvement
-							</span>
-							<span className="text-sm font-semibold">
-								{stats.needsImprovement}
-							</span>
-						</div>
-						<div className="flex items-center gap-1.5">
-							<ThumbsUp className="size-4 text-muted-foreground" />
-							<span className="text-sm text-muted-foreground">Trusted</span>
-							<span className="text-sm font-semibold">
-								{stats.trusted}
-							</span>
-						</div>
-					</div>
-
-					{/* CTA Message */}
-					<p className="text-base font-serif">
-						Ready to enable Auto-Respond for this ticket group?
-					</p>
-				</div>
+				<ReviewCompletionStats
+					ref={confettiRef}
+					icon={scenario.icon}
+					title={scenario.title}
+					subtitle={scenario.subtitle}
+					trusted={stats.trusted}
+					totalReviewed={stats.totalReviewed}
+					needsImprovement={stats.needsImprovement}
+					message={scenario.message}
+					proTip={scenario.proTip}
+					showConfetti={scenario.showConfetti}
+					className="flex-1"
+				/>
 
 				{/* Footer Actions */}
 				<SheetFooter className="flex-row justify-end gap-2">
-					<Button variant="outline" onClick={handleKeepReviewing}>
+					{scenario.primaryAction !== "keepReviewing" && (
+						<Button variant="outline" onClick={handlePrimaryAction}>
+							{getPrimaryButtonLabel()}
+						</Button>
+					)}
+					<Button onClick={handleKeepReviewing}>
 						Keep reviewing
-					</Button>
-					<Button onClick={handleEnableAutoRespond}>
-						Enable Auto-Respond
 					</Button>
 				</SheetFooter>
 			</SheetContent>

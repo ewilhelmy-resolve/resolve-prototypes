@@ -74,9 +74,9 @@ export default function ReviewAIResponseSheet({
 	onNavigate,
 	onApprove,
 	onReject,
-	onEnableAutoRespond,
+	onEnableAutoRespond: _onEnableAutoRespond,
 	onKeepReviewing,
-	onReviewComplete,
+	onReviewComplete: _onReviewComplete,
 }: ReviewAIResponseSheetProps) {
 	const [showFeedback, setShowFeedback] = useState(false);
 	const [isCompleted, setIsCompleted] = useState(false);
@@ -117,12 +117,6 @@ export default function ReviewAIResponseSheet({
 		confidenceImprovement: confidencePercentage,
 	};
 
-	// Handle Enable Auto-Respond click - triggers banner with confetti
-	const handleEnableAutoRespond = (stats: ReviewStats) => {
-		onReviewComplete?.(stats);
-		onEnableAutoRespond?.(stats);
-	};
-
 	// Show completion view when all tickets reviewed
 	if (isCompleted) {
 		return (
@@ -130,7 +124,6 @@ export default function ReviewAIResponseSheet({
 				open={open}
 				onOpenChange={onOpenChange}
 				stats={reviewStats}
-				onEnableAutoRespond={handleEnableAutoRespond}
 				onKeepReviewing={onKeepReviewing}
 			/>
 		);
