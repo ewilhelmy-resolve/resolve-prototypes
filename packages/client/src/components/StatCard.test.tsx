@@ -46,7 +46,10 @@ describe("StatCard", () => {
 		it("does not render badge wrapper when not provided", () => {
 			const { container } = render(<StatCard value={10} label="Total" />);
 			const valueRow = container.querySelector(".flex.items-center.gap-3");
-			expect(valueRow?.children.length).toBe(1);
+			// Badge span is always rendered but empty when no badge provided
+			expect(valueRow?.children.length).toBe(2);
+			const badgeSpan = valueRow?.children[1];
+			expect(badgeSpan?.textContent).toBe("");
 		});
 	});
 

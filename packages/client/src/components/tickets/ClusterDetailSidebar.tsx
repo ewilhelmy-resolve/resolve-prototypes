@@ -73,6 +73,7 @@ export function ClusterDetailSidebar({
 							onAutoPopulateEnabled={onAutoPopulateEnabled}
 							onKnowledgeAdded={onKnowledgeAdded}
 							onAutoRespondEnabled={onAutoRespondEnabled}
+							onReviewKnowledge={() => setActiveTab("knowledge")}
 						/>
 					</TabsContent>
 

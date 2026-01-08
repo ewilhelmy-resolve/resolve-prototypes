@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react";
-import { AlertTriangle, CheckCircle, Loader } from "lucide-react";
+import { AlertTriangle, CheckCircle, Loader, TrendingUp } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { StatCard } from "./StatCard";
 
@@ -34,7 +34,7 @@ export const WithBadge: Story = {
 		value: 12,
 		label: "Processing",
 		badge: (
-			<Badge variant="secondary" className="gap-1">
+			<Badge variant="secondary">
 				<Loader className="h-3 w-3 animate-spin" />
 				Active
 			</Badge>
@@ -47,7 +47,7 @@ export const WithSuccessBadge: Story = {
 		value: 156,
 		label: "Completed",
 		badge: (
-			<Badge className="gap-1">
+			<Badge>
 				<CheckCircle className="h-3 w-3" />
 				Done
 			</Badge>
@@ -60,7 +60,7 @@ export const WithErrorBadge: Story = {
 		value: 3,
 		label: "Failed",
 		badge: (
-			<Badge variant="destructive" className="gap-1">
+			<Badge variant="destructive">
 				<AlertTriangle className="h-3 w-3" />
 				Error
 			</Badge>
@@ -82,17 +82,30 @@ export const StringValue: Story = {
 	},
 };
 
+export const WithTrendBadge: Story = {
+	args: {
+		value: "103k",
+		label: "Tickets last 7 days",
+		badge: (
+			<Badge variant="outline">
+				<TrendingUp className="h-3 w-3" />
+				+4.5%
+			</Badge>
+		),
+	},
+};
+
 export const AllVariants: Story = {
 	render: () => (
 		<div className="grid grid-cols-2 gap-4 w-full">
 			<StatCard value={42} label="Total Documents" />
 			<StatCard
 				value={12}
-				label="Processing"
+				label="Processed"
 				badge={
-					<Badge variant="secondary" className="gap-1">
-						<Loader className="h-3 w-3 animate-spin" />
-						Active
+					<Badge variant="outline">
+						<TrendingUp className="h-3 w-3" />
+						+4.5%
 					</Badge>
 				}
 			/>
@@ -100,7 +113,7 @@ export const AllVariants: Story = {
 				value={156}
 				label="Completed"
 				badge={
-					<Badge className="gap-1">
+					<Badge>
 						<CheckCircle className="h-3 w-3" />
 						Done
 					</Badge>
@@ -110,7 +123,7 @@ export const AllVariants: Story = {
 				value={3}
 				label="Failed"
 				badge={
-					<Badge variant="destructive" className="gap-1">
+					<Badge variant="destructive">
 						<AlertTriangle className="h-3 w-3" />
 						Error
 					</Badge>

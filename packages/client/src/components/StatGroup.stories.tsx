@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react";
-import { CheckCircle, Loader } from "lucide-react";
+import { CheckCircle, Loader, TrendingUp } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { StatCard } from "./StatCard";
 import { StatGroup } from "./StatGroup";
@@ -35,7 +35,7 @@ export const WithBadges: Story = {
 				value={10}
 				label="Processing"
 				badge={
-					<Badge variant="secondary" className="gap-1">
+					<Badge variant="secondary">
 						<Loader className="h-3 w-3 animate-spin" />
 						Active
 					</Badge>
@@ -50,7 +50,7 @@ export const WithBadges: Story = {
 				value={30}
 				label="Completed"
 				badge={
-					<Badge className="gap-1">
+					<Badge>
 						<CheckCircle className="h-3 w-3" />
 						Done
 					</Badge>
@@ -78,7 +78,7 @@ export const KnowledgeBaseStats: Story = {
 				value={12}
 				label="Syncing"
 				badge={
-					<Badge variant="secondary" className="gap-1">
+					<Badge variant="secondary">
 						<Loader className="h-3 w-3 animate-spin" />
 						In Progress
 					</Badge>
@@ -86,6 +86,26 @@ export const KnowledgeBaseStats: Story = {
 			/>
 			<StatCard value={3} label="Connections" />
 			<StatCard value="2.4 GB" label="Storage Used" />
+		</StatGroup>
+	),
+};
+
+export const WithTrendBadge: Story = {
+	render: () => (
+		<StatGroup>
+			<StatCard
+				value="103k"
+				label="Tickets last 7 days"
+				badge={
+					<Badge variant="outline">
+						<TrendingUp className="h-3 w-3" />
+						+4.5%
+					</Badge>
+				}
+			/>
+			<StatCard value={16} label="Handled Automatically" />
+			<StatCard value="12%" label="Automation Rate" />
+			<StatCard value="12hr" label="AI Hours Saved" />
 		</StatGroup>
 	),
 };
