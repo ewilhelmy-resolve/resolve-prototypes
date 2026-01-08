@@ -13,6 +13,12 @@ interface TicketDetailHeaderProps {
 	ticketIds: string[];
 	/** Callback when Review AI response button is clicked */
 	onReviewAIResponse: () => void;
+	/** Optional callback for back navigation - overrides default */
+	onBack?: () => void;
+	/** Optional callback for previous ticket - overrides default */
+	onPrevious?: () => void;
+	/** Optional callback for next ticket - overrides default */
+	onNext?: () => void;
 }
 
 /**
@@ -30,6 +36,9 @@ export function TicketDetailHeader({
 	clusterId,
 	ticketIds,
 	onReviewAIResponse,
+	onBack,
+	onPrevious,
+	onNext,
 }: TicketDetailHeaderProps) {
 	const navigate = useNavigate();
 
@@ -38,20 +47,32 @@ export function TicketDetailHeader({
 	const hasNext = currentIndex < ticketIds.length - 1;
 
 	const handleBack = () => {
-		navigate(clusterId ? `/tickets/${clusterId}` : "/tickets");
+		if (onBack) {
+			onBack();
+		} else {
+			navigate(clusterId ? `/tickets/${clusterId}` : "/tickets");
+		}
 	};
 
 	const handlePrevious = () => {
 		if (hasPrevious) {
-			const prevTicketId = ticketIds[currentIndex - 1];
-			navigate(`/tickets/${clusterId}/${prevTicketId}`);
+			if (onPrevious) {
+				onPrevious();
+			} else {
+				const prevTicketId = ticketIds[currentIndex - 1];
+				navigate(`/tickets/${clusterId}/${prevTicketId}`);
+			}
 		}
 	};
 
 	const handleNext = () => {
 		if (hasNext) {
-			const nextTicketId = ticketIds[currentIndex + 1];
-			navigate(`/tickets/${clusterId}/${nextTicketId}`);
+			if (onNext) {
+				onNext();
+			} else {
+				const nextTicketId = ticketIds[currentIndex + 1];
+				navigate(`/tickets/${clusterId}/${nextTicketId}`);
+			}
 		}
 	};
 
