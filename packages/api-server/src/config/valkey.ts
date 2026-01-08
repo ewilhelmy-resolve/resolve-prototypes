@@ -101,3 +101,75 @@ export async function closeValkeyConnection(): Promise<void> {
     logger.info('Valkey client disconnected');
   }
 }
+
+// =============================================================================
+// Jarvis-to-Rita ID Mapping
+// =============================================================================
+// Maps Jarvis IDs (tenantId, userGuid) to Rita internal IDs (organization_id,
+// user_id). Permanent cache to avoid repeated DB lookups.
+//
+// Note: userGuid is the Keycloak user ID from the shared Keycloak instance
+// used by both Jarvis and Rita for authentication. While Keycloak is shared,
+// Rita maintains its own user_profiles table with additional profile data.
+
+const JARVIS_ORG_PREFIX = 'Rita_jarvis_org:';
+const JARVIS_USER_PREFIX = 'Rita_jarvis_user:';
+
+/**
+ * Get Rita organization ID from Jarvis tenant ID
+ * @returns Rita org UUID or null if not mapped
+ */
+export async function getRitaOrgId(jarvisTenantId: string): Promise<string | null> {
+  const client = getValkeyClient();
+  const data = await client.get(`${JARVIS_ORG_PREFIX}${jarvisTenantId}`);
+  if (!data) return null;
+  try {
+    return JSON.parse(data).organization_id;
+  } catch {
+    logger.warn({ jarvisTenantId }, 'Invalid JSON in Rita org mapping');
+    return null;
+  }
+}
+
+/**
+ * Get Rita user ID from Jarvis user GUID (Keycloak user ID)
+ * @param jarvisGuid - Keycloak user ID from shared Keycloak instance
+ * @returns Rita user_profiles.user_id or null if not mapped
+ */
+export async function getRitaUserId(jarvisGuid: string): Promise<string | null> {
+  const client = getValkeyClient();
+  const data = await client.get(`${JARVIS_USER_PREFIX}${jarvisGuid}`);
+  if (!data) return null;
+  try {
+    return JSON.parse(data).user_id;
+  } catch {
+    logger.warn({ jarvisGuid }, 'Invalid JSON in Rita user mapping');
+    return null;
+  }
+}
+
+/**
+ * Save Jarvis tenant → Rita org mapping
+ */
+export async function setRitaOrgMapping(jarvisTenantId: string, ritaOrgId: string): Promise<void> {
+  const client = getValkeyClient();
+  await client.set(
+    `${JARVIS_ORG_PREFIX}${jarvisTenantId}`,
+    JSON.stringify({ organization_id: ritaOrgId })
+  );
+  logger.info({ jarvisTenantId, ritaOrgId }, 'Saved Jarvis→Rita org mapping');
+}
+
+/**
+ * Save Jarvis user → Rita user mapping
+ * @param jarvisGuid - Keycloak user ID from shared Keycloak instance
+ * @param ritaUserId - Rita user_profiles.user_id
+ */
+export async function setRitaUserMapping(jarvisGuid: string, ritaUserId: string): Promise<void> {
+  const client = getValkeyClient();
+  await client.set(
+    `${JARVIS_USER_PREFIX}${jarvisGuid}`,
+    JSON.stringify({ user_id: ritaUserId })
+  );
+  logger.info({ jarvisGuid, ritaUserId }, 'Saved Jarvis→Rita user mapping');
+}

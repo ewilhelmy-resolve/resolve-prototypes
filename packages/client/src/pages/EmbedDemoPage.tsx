@@ -27,7 +27,7 @@ export default function EmbedDemoPage() {
 	const [requestCounter, setRequestCounter] = useState(0);
 
 	// Form state
-	const [sessionKey, setSessionKey] = useState("test-local-hashkey-2024");
+	const [sessionKey, setSessionKey] = useState("a1b2c3d4-e5f6-7890-abcd-ef1234567890");
 	const [messageContent, setMessageContent] = useState("Hello from host page!");
 	const [chatSessionId, setChatSessionId] = useState("workflow-123");
 	const [tabInstanceId, setTabInstanceId] = useState("user-456");
