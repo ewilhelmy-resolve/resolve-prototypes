@@ -1,5 +1,6 @@
 import { Loader2 } from "lucide-react";
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import {
 	Dialog,
@@ -102,6 +103,7 @@ export default function InviteUsersDialog({
 	open,
 	onOpenChange,
 }: InviteUsersDialogProps) {
+	const { t } = useTranslation("toast");
 	const [emailInput, setEmailInput] = useState("");
 
 	const { mutate: sendInvitations, isPending, reset } = useSendInvitations();
@@ -121,7 +123,7 @@ export default function InviteUsersDialog({
 
 	const handleInvite = () => {
 		if (!validation.valid) {
-			toast.error("Invalid email addresses", {
+			toast.error(t("error.invalidEmails"), {
 				description: validation.error,
 			});
 			return;
@@ -136,10 +138,9 @@ export default function InviteUsersDialog({
 				onSuccess: (data) => {
 					const count = data.invitations.length;
 					toast.success(
-						`${count} invitation${count > 1 ? "s" : ""} sent successfully`,
+						t("success.invitationsSent", { count }),
 						{
-							description:
-								"Users will receive an email with instructions to create their account.",
+							description: t("descriptions.invitationSentDesc"),
 						},
 					);
 					// Close dialog and reset form
@@ -147,7 +148,7 @@ export default function InviteUsersDialog({
 					onOpenChange(false);
 				},
 				onError: (err) => {
-					toast.error("Failed to send invitations", {
+					toast.error(t("error.invitationsFailed"), {
 						description: getErrorMessage(err),
 					});
 					console.error("Failed to send invitations:", err);

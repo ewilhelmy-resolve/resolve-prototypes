@@ -28,7 +28,8 @@ packages/client/src/i18n/
         ├── chat.json
         ├── auth.json
         ├── validation.json
-        └── files.json
+        ├── files.json
+        └── tickets.json
 ```
 
 ### Namespaces
@@ -44,6 +45,7 @@ packages/client/src/i18n/
 | auth | Auth pages |
 | validation | Form validation |
 | files | Knowledge base |
+| tickets | Ticket groups, review, automation |
 
 ### Key Naming Convention
 
@@ -91,48 +93,68 @@ t('welcome.greeting', { name: 'John' }) // "Welcome, {{name}}"
 - [x] Add I18nextProvider
 - [x] Migrate CrashPage (proof)
 
-### Phase 2: Toast & Errors
+### Phase 2: Common & UI Components
 
-- [ ] Create toast.json, errors.json
-- [ ] Update toast helper
-- [ ] Migrate SSEContext toasts
+- [x] Expand common.json with UI keys
+- [x] Migrate UI components (spinner, multi-select, feedback-banner, etc.)
+- [x] Update test setup to mock i18n
 
-### Phase 3: Settings Pages
+### Phase 3: Tickets Feature
 
-- [ ] Create settings.json
-- [ ] Migrate ProfilePage
-- [ ] Migrate SettingsUsers
+- [x] Create tickets.json (~180 keys)
+- [x] Migrate all ticket components (16 files)
+- [x] TicketGroups, ReviewView, FeedbackSection, CompletionView, etc.
 
-### Phase 4: Connection Forms
+### Phase 4: Toast & Errors
+
+- [x] Expand toast.json with all notification keys
+- [x] Migrate connection form toasts (Confluence, ServiceNow, SharePoint, WebSearch)
+- [x] Migrate ConfluenceConfiguration toasts
+- [x] Migrate ProfilePage, useMembers, InviteUsersDialog toasts
+- [x] Migrate FilesV1Content, ChatV1Content toasts
+- [x] Migrate SSEContext toasts
+- [x] Update tests to expect translation keys
+
+### Phase 5: Settings Pages
+
+- [x] Expand settings.json with profile, users, connection sources, knowledge sources, itsm keys
+- [x] Migrate ProfilePage.tsx (form labels, buttons, delete account dialog, validation)
+- [x] Migrate SettingsUsers.tsx (title, tabs)
+- [x] Migrate ConnectionSources.tsx (title, description, loading, error states, buttons)
+- [x] Migrate KnowledgeSources.tsx (title, description, loading, error states, buttons)
+- [x] Migrate ItsmSources.tsx (title, description, loading, error states, buttons)
+- [x] Update ConnectionSources.test.tsx to expect translation keys
+
+### Phase 6: Connection Forms
 
 - [ ] Create connections.json
 - [ ] Migrate connection forms
 
-### Phase 5: Dialogs
+### Phase 7: Dialogs
 
 - [ ] Migrate dialogs
 
-### Phase 6: Auth Pages
+### Phase 8: Auth Pages
 
 - [ ] Create auth.json
 - [ ] Migrate auth pages
 
-### Phase 7: Chat Interface
+### Phase 9: Chat Interface
 
 - [ ] Create chat.json
 - [ ] Migrate chat components
 
-### Phase 8: Validation
+### Phase 10: Validation
 
 - [ ] Create validation.json
 - [ ] Update Zod schemas
 
-### Phase 9: Files
+### Phase 11: Files
 
 - [ ] Create files.json
 - [ ] Migrate file components
 
-### Phase 10: Audit
+### Phase 12: Audit
 
 - [ ] Grep remaining hardcoded strings
 - [ ] Update tests
@@ -140,9 +162,9 @@ t('welcome.greeting', { name: 'John' }) // "Welcome, {{name}}"
 
 ## Current Checkpoint
 
-**Status**: Phase 1 - COMPLETE
-**Next Step**: Phase 2 - Toast & Errors migration
-**Last Updated**: 2026-01-07
+**Status**: Phase 5 - COMPLETE
+**Next Step**: Phase 6 - Connection Forms migration
+**Last Updated**: 2026-01-09
 
 ## Related Docs
 

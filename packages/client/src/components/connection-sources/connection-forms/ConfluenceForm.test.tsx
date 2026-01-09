@@ -235,8 +235,8 @@ describe("ConfluenceForm", () => {
 
 			await waitFor(() => {
 				expect(ritaToast.error).toHaveBeenCalledWith({
-				title: "Validation Error",
-					description: "Please check the form fields and correct any errors",
+				title: "error.validationError",
+					description: "descriptions.checkFormFields",
 				});
 			});
 		});
@@ -259,8 +259,8 @@ describe("ConfluenceForm", () => {
 
 			await waitFor(() => {
 				expect(ritaToast.error).toHaveBeenCalledWith({
-				title: "Validation Error",
-					description: "Please check the form fields and correct any errors",
+				title: "error.validationError",
+					description: "descriptions.checkFormFields",
 				});
 			});
 
@@ -292,8 +292,8 @@ describe("ConfluenceForm", () => {
 
 			await waitFor(() => {
 				expect(ritaToast.error).toHaveBeenCalledWith({
-				title: "Validation Error",
-					description: "Please check the form fields and correct any errors",
+				title: "error.validationError",
+					description: "descriptions.checkFormFields",
 				});
 			});
 
@@ -421,9 +421,8 @@ describe("ConfluenceForm", () => {
 
 			await waitFor(() => {
 				expect(ritaToast.success).toHaveBeenCalledWith({
-				title: "Connection Configured",
-					description:
-						"Your Confluence connection has been configured successfully",
+				title: "success.connectionConfigured",
+					description: "descriptions.confluenceConfigured",
 				});
 			});
 		});
@@ -452,7 +451,7 @@ describe("ConfluenceForm", () => {
 
 			await waitFor(() => {
 				expect(ritaToast.error).toHaveBeenCalledWith({
-				title: "Connection Failed",
+				title: "error.connectionFailed",
 					description: "Verification failed",
 				});
 			});
@@ -482,7 +481,7 @@ describe("ConfluenceForm", () => {
 
 			await waitFor(() => {
 				expect(ritaToast.error).toHaveBeenCalledWith({
-				title: "Connection Failed",
+				title: "error.connectionFailed",
 					description: "Update failed",
 				});
 			});

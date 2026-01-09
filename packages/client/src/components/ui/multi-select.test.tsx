@@ -28,7 +28,7 @@ describe("MultiSelect", () => {
 
 		it("renders default placeholder", () => {
 			render(<MultiSelect {...defaultProps} />);
-			expect(screen.getByText("Select options")).toBeInTheDocument();
+			expect(screen.getByText("placeholders.selectOptions")).toBeInTheDocument();
 		});
 
 		it("renders as combobox", () => {
@@ -84,7 +84,7 @@ describe("MultiSelect", () => {
 				/>
 			);
 
-			const removeBtn = screen.getByLabelText("Remove Option 1 from selection");
+			const removeBtn = screen.getByLabelText("accessibility.removeFromSelection");
 			await user.click(removeBtn);
 
 			expect(onValueChange).toHaveBeenCalledWith([]);
@@ -131,7 +131,7 @@ describe("MultiSelect", () => {
 			);
 
 			const clearBtn = screen.getByLabelText(
-				"Clear all 2 selected options"
+				"accessibility.clearAllSelected"
 			);
 			await user.click(clearBtn);
 

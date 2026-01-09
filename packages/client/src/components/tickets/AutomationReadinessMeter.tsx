@@ -1,6 +1,8 @@
+import { useTranslation } from "react-i18next";
 import { Info } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import {
 	Tooltip,
 	TooltipContent,
@@ -31,35 +33,48 @@ interface AutomationReadinessMeterProps {
 const STATE_CONFIG: Record<
 	ReadinessState,
 	{
-		label: string;
+		labelKey:
+			| "automation.meterStates.ready"
+			| "automation.meterStates.partial"
+			| "automation.meterStates.low"
+			| "automation.meterStates.notReady";
+		descriptionKey:
+			| "automation.descriptions.ready"
+			| "automation.descriptions.partial"
+			| "automation.descriptions.low"
+			| "automation.descriptions.notReady";
 		bgColor: string;
 		textColor: string;
 		borderColor: string;
 	}
 > = {
 	ready: {
-		label: "Ready",
+		labelKey: "automation.meterStates.ready",
+		descriptionKey: "automation.descriptions.ready",
 		bgColor: "bg-green-100",
 		textColor: "text-green-800",
-		borderColor: "border-green-500",
+		borderColor: "border-green-500 border-l-4",
 	},
 	partial: {
-		label: "Partial",
+		labelKey: "automation.meterStates.partial",
+		descriptionKey: "automation.descriptions.partial",
 		bgColor: "bg-orange-100",
 		textColor: "text-orange-800",
-		borderColor: "border-orange-400",
+		borderColor: "border-orange-400 border-l-4",
 	},
 	low: {
-		label: "Low",
+		labelKey: "automation.meterStates.low",
+		descriptionKey: "automation.descriptions.low",
 		bgColor: "bg-yellow-100",
 		textColor: "text-yellow-800",
-		borderColor: "border-yellow-400",
+		borderColor: "border-yellow-400 border-l-4",
 	},
 	"not-ready": {
-		label: "Not ready",
+		labelKey: "automation.meterStates.notReady",
+		descriptionKey: "automation.descriptions.notReady",
 		bgColor: "bg-gray-100",
 		textColor: "text-gray-800",
-		borderColor: "border-gray-300",
+		borderColor: "border-gray-300 border-l-4",
 	},
 };
 
@@ -73,27 +88,20 @@ function getReadinessState(
 	return "low";
 }
 
-function getDescription(state: ReadinessState): string {
-	switch (state) {
-		case "ready":
-			return "Reviewed responses consistently met expectations.";
-		case "partial":
-			return "Based on reviewed responses, some replies still need improvement before automation is recommended.";
-		case "low":
-			return "Based on reviewed responses, several replies need clearer or more complete knowledge";
-		case "not-ready":
-			return "Automation can't be recommended yet because no knowledge exists for this cluster.";
-	}
-}
-
-function getRecommendation(hasKnowledge: boolean, reviewed: number): string {
+function getRecommendationKey(
+	hasKnowledge: boolean,
+	reviewed: number,
+):
+	| "automation.recommendations.createKnowledge"
+	| "automation.recommendations.addKnowledge"
+	| "automation.recommendations.continueReview" {
 	if (!hasKnowledge && reviewed === 0) {
-		return "Create knowledge to enable automation";
+		return "automation.recommendations.createKnowledge";
 	}
 	if (!hasKnowledge) {
-		return "Add knowledge to enhance automation";
+		return "automation.recommendations.addKnowledge";
 	}
-	return "Continue manual review";
+	return "automation.recommendations.continueReview";
 }
 
 /**
@@ -115,88 +123,85 @@ export function AutomationReadinessMeter({
 	onAddKnowledge,
 	className,
 }: AutomationReadinessMeterProps) {
+	const { t } = useTranslation("tickets");
 	const state = getReadinessState(hasKnowledge, trustedPercentage);
 	const config = STATE_CONFIG[state];
-	const description = getDescription(state);
-	const recommendation = getRecommendation(hasKnowledge, reviewed);
+	const description = t(config.descriptionKey);
+	const recommendation = t(getRecommendationKey(hasKnowledge, reviewed));
 
 	const showReviewCount = hasKnowledge || reviewed > 0;
 
 	return (
-		<div className={className}>
-			<div
-				className={`rounded-lg border-2 ${config.borderColor} bg-background p-4`}
-			>
-				<div className="flex flex-col gap-3">
-					{/* Header */}
-					<div className="flex items-start justify-between">
-						<h3 className="text-sm font-semibold">Automation readiness is</h3>
-						<Tooltip>
-							<TooltipTrigger asChild>
-								<button
-									type="button"
-									className="text-muted-foreground hover:text-foreground"
-									aria-label="More information about automation readiness"
-								>
-									<Info className="h-4 w-4" />
-								</button>
-							</TooltipTrigger>
-							<TooltipContent side="left" className="max-w-xs">
-								<p>
-									Automation readiness is calculated based on the percentage of
-									reviewed responses that met expectations.
-								</p>
-							</TooltipContent>
-						</Tooltip>
-					</div>
-
-					{/* Status Badge */}
-					<Badge
-						className={`${config.bgColor} ${config.textColor} border-transparent font-semibold`}
-					>
-						{config.label}
-					</Badge>
-
-					{/* Description */}
-					<p className="text-sm text-foreground">{description}</p>
-
-					{/* Review Count */}
-					{showReviewCount ? (
-						<p className="text-sm text-muted-foreground">
-							Based on {reviewed} of {total} responses reviewed
-						</p>
-					) : (
-						<p className="text-sm text-muted-foreground">
-							No responses reviewed yet
-						</p>
-					)}
-
-					{/* Recommendation */}
-					<div>
-						<p className="text-base text-muted-foreground">Recommendation</p>
-						<p className="text-sm font-medium">{recommendation}</p>
-					</div>
-
-					{/* Action Button */}
-					<div>
-						{state === "ready" && (
-							<Button variant="outline" size="sm" onClick={onEnableAutoRespond}>
-								Enable Auto-Respond
-							</Button>
-						)}
-						{(state === "partial" || state === "low") && (
-							<Button variant="outline" size="sm" onClick={onReviewKnowledge}>
-								Review knowledge
-							</Button>
-						)}
-						{state === "not-ready" && (
-							<Button variant="outline" size="sm" onClick={onAddKnowledge}>
-								Add knowledge
-							</Button>
-						)}
-					</div>
+		<Card className={`${config.borderColor} gap-0 py-0 ${className ?? ""}`}>
+			<CardContent className="flex flex-col gap-3 p-4">
+				{/* Header */}
+				<div className="flex items-start justify-between">
+					<h3 className="text-sm font-semibold">Automation readiness is</h3>
+					<Tooltip>
+						<TooltipTrigger asChild>
+							<button
+								type="button"
+								className="text-muted-foreground hover:text-foreground"
+								aria-label="More information about automation readiness"
+							>
+								<Info className="h-4 w-4" />
+							</button>
+						</TooltipTrigger>
+						<TooltipContent side="left" className="max-w-xs">
+							<p>
+								Automation readiness is calculated based on the percentage of
+								reviewed responses that met expectations.
+							</p>
+						</TooltipContent>
+					</Tooltip>
 				</div>
-			</div>
-		</div>
+
+				{/* Status Badge */}
+				<Badge
+					className={`${config.bgColor} ${config.textColor} border-transparent font-semibold`}
+				>
+					{t(config.labelKey)}
+				</Badge>
+
+				{/* Description */}
+				<p className="text-sm text-foreground">{description}</p>
+
+				{/* Review Count */}
+				{showReviewCount ? (
+					<p className="text-sm text-muted-foreground">
+						Based on {reviewed} of {total} responses reviewed
+					</p>
+				) : (
+					<p className="text-sm text-muted-foreground">
+						No responses reviewed yet
+					</p>
+				)}
+
+				{/* Recommendation */}
+				<div>
+					<p className="text-base text-muted-foreground">Recommendation</p>
+					<p className="text-sm font-medium">{recommendation}</p>
+				</div>
+
+				{/* Action Button */}
+				<div>
+					{state === "ready" && (
+						<Button variant="outline" size="sm" onClick={onEnableAutoRespond}>
+							Enable Auto-Respond
+						</Button>
+					)}
+					{(state === "partial" || state === "low") && (
+						<Button variant="outline" size="sm" onClick={onReviewKnowledge}>
+							Review knowledge
+						</Button>
+					)}
+					{state === "not-ready" && (
+						<Button variant="outline" size="sm" onClick={onAddKnowledge}>
+							Add knowledge
+						</Button>
+					)}
+				</div>
+			</CardContent>
+		</Card>
 	);
 }

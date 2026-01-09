@@ -59,12 +59,12 @@ describe("FeedbackBanner", () => {
 	describe("Dismissible", () => {
 		it("shows dismiss button by default", () => {
 			render(<FeedbackBanner title="Message" />);
-			expect(screen.getByLabelText("Dismiss banner")).toBeInTheDocument();
+			expect(screen.getByLabelText("accessibility.dismissBanner")).toBeInTheDocument();
 		});
 
 		it("hides dismiss button when dismissible is false", () => {
 			render(<FeedbackBanner title="Message" dismissible={false} />);
-			expect(screen.queryByLabelText("Dismiss banner")).not.toBeInTheDocument();
+			expect(screen.queryByLabelText("accessibility.dismissBanner")).not.toBeInTheDocument();
 		});
 
 		it("calls onDismiss when dismiss button is clicked", async () => {
@@ -72,7 +72,7 @@ describe("FeedbackBanner", () => {
 			const onDismiss = vi.fn();
 			render(<FeedbackBanner title="Message" onDismiss={onDismiss} />);
 
-			await user.click(screen.getByLabelText("Dismiss banner"));
+			await user.click(screen.getByLabelText("accessibility.dismissBanner"));
 			expect(onDismiss).toHaveBeenCalledTimes(1);
 		});
 	});

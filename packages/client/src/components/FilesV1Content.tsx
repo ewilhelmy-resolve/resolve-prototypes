@@ -20,6 +20,7 @@ import {
 	Zap,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import { BulkActions } from "@/components/BulkActions";
 import ConfirmDialog from "@/components/dialogs/ConfirmDialog";
@@ -137,6 +138,7 @@ type SortOrder = "asc" | "desc";
 const PAGE_SIZE = 50;
 
 export default function FilesV1Content() {
+	const { t } = useTranslation("toast");
 	const [searchInput, setSearchInput] = useState(""); // User's input (immediate)
 	const [searchQuery, setSearchQuery] = useState(""); // Debounced value (for API)
 	const [statusFilter, setStatusFilter] = useState("All");
@@ -196,11 +198,11 @@ export default function FilesV1Content() {
 	useEffect(() => {
 		if (error) {
 			ritaToast.error({
-				title: "Failed to load files",
+				title: t("error.loadFilesFailed"),
 				description: error instanceof Error ? error.message : "Unable to fetch files. Please try again.",
 			});
 		}
-	}, [error]);
+	}, [error, t]);
 
 	// Reset to page 0 when filters change
 	// biome-ignore lint/correctness/useExhaustiveDependencies: reset page when filters change
@@ -320,18 +322,18 @@ export default function FilesV1Content() {
 		// Show summary toast
 		if (failCount === 0) {
 			ritaToast.success({
-				title: "Documents Deleted",
-				description: `Successfully deleted ${successCount} document${successCount !== 1 ? "s" : ""}`,
+				title: t("success.documentsDeleted"),
+				description: t("descriptions.deletedDocuments", { count: successCount }),
 			});
 		} else if (successCount === 0) {
 			ritaToast.error({
-				title: "Delete Failed",
-				description: `Failed to delete ${failCount} document${failCount !== 1 ? "s" : ""}`,
+				title: t("error.deleteFailed"),
+				description: t("descriptions.deletedFailed", { count: failCount }),
 			});
 		} else {
 			ritaToast.warning({
-				title: "Partial Success",
-				description: `Deleted ${successCount} document${successCount !== 1 ? "s" : ""}, ${failCount} failed`,
+				title: t("warning.partialSuccess"),
+				description: t("descriptions.partialDelete", { success: successCount, failed: failCount }),
 			});
 		}
 	};
@@ -370,8 +372,8 @@ export default function FilesV1Content() {
 
 		// Show initial toast
 		ritaToast.info({
-			title: "Uploading Files",
-			description: `Starting upload of ${filesToUpload.length} file${filesToUpload.length > 1 ? 's' : ''}...`,
+			title: t("info.uploadingFiles"),
+			description: t("descriptions.startingUpload", { count: filesToUpload.length }),
 		});
 
 		// Initialize upload progress for multiple files
@@ -459,27 +461,27 @@ export default function FilesV1Content() {
 
 				if (processed > 0 && failed === 0 && duplicateCount === 0) {
 					ritaToast.success({
-						title: 'Processing Complete',
+						title: t("success.processingComplete"),
 						description: processed === 1
-							? 'File processed successfully'
-							: 'All files processed successfully',
+							? t("descriptions.fileProcessed")
+							: t("descriptions.allFilesProcessed"),
 					});
 				} else if (processed > 0 && failed === 0 && duplicateCount > 0) {
 					ritaToast.success({
-						title: 'Processing Complete',
-						description: `${processed} file${processed > 1 ? 's' : ''} processed${duplicateMsg}`,
+						title: t("success.processingComplete"),
+						description: t("descriptions.filesProcessedDuplicates", { count: processed, duplicates: duplicateCount }),
 					});
 				} else if (processed === 0 && failed > 0) {
 					ritaToast.error({
-						title: 'Processing Failed',
+						title: t("error.processingFailed"),
 						description: failed === 1
-							? `File failed to process${duplicateMsg}`
-							: `All files failed to process${duplicateMsg}`,
+							? `${t("descriptions.fileFailed")}${duplicateMsg}`
+							: `${t("descriptions.allFilesFailed")}${duplicateMsg}`,
 					});
 				} else if (processed > 0 && failed > 0) {
 					ritaToast.warning({
-						title: 'Processing Partially Complete',
-						description: `${processed} successful, ${failed} failed${duplicateMsg}`,
+						title: t("warning.processingPartial"),
+						description: `${t("descriptions.processingPartial", { processed, failed })}${duplicateMsg}`,
 					});
 				}
 
@@ -496,41 +498,40 @@ export default function FilesV1Content() {
 		if (successCount > 0 && errorCount === 0 && duplicateCount === 0) {
 			// All files uploaded successfully
 			ritaToast.info({
-				title: "Files Uploaded",
-				description: `${successCount} file${successCount > 1 ? 's' : ''} uploaded. Processing in background...`,
+				title: t("success.filesUploaded"),
+				description: t("descriptions.uploadedProcessing", { count: successCount }),
 			});
 		} else if (successCount > 0 && duplicateCount > 0 && errorCount === 0) {
 			// Some successful, some duplicates, no errors
 			ritaToast.warning({
-				title: "Files Uploaded",
-				description: `${successCount} file${successCount > 1 ? 's' : ''} uploaded, ${duplicateCount} duplicate${duplicateCount > 1 ? 's' : ''} skipped. Processing in background...`,
+				title: t("success.filesUploaded"),
+				description: t("descriptions.uploadedWithDuplicates", { success: successCount, duplicates: duplicateCount }),
 			});
 		} else if (successCount > 0 && errorCount > 0) {
 			// Mixed success and errors (may also have duplicates)
-			const failedMsg = duplicateCount > 0
-				? `${errorCount} failed, ${duplicateCount} duplicate${duplicateCount > 1 ? 's' : ''} skipped.`
-				: `${errorCount} failed.`;
 			ritaToast.warning({
-				title: "Some Files Uploaded",
-				description: `${successCount} uploaded, ${failedMsg} Processing in background...`,
+				title: t("warning.someFilesUploaded"),
+				description: duplicateCount > 0
+					? t("descriptions.uploadedWithErrorsAndDuplicates", { success: successCount, failed: errorCount, duplicates: duplicateCount })
+					: t("descriptions.uploadedWithErrors", { success: successCount, failed: errorCount }),
 			});
 		} else if (errorCount > 0 || duplicateCount > 0) {
 			// All failed or all duplicates (no successes)
 			if (duplicateCount > 0 && errorCount === 0) {
 				ritaToast.warning({
-					title: "Files Already Exist",
-					description: `${duplicateCount} file${duplicateCount > 1 ? 's are' : ' is'} already in your knowledge base.`,
+					title: t("warning.filesAlreadyExist"),
+					description: t("descriptions.filesAlreadyExist", { count: duplicateCount }),
 				});
 			} else if (duplicateCount > 0 && errorCount > 0) {
 				// Both errors and duplicates, no successes
 				ritaToast.error({
-					title: "Upload Failed",
-					description: `${errorCount} failed, ${duplicateCount} duplicate${duplicateCount > 1 ? 's' : ''} skipped (already in knowledge base).`,
+					title: t("error.uploadFailed"),
+					description: t("descriptions.uploadErrorsAndDuplicates", { errors: errorCount, duplicates: duplicateCount }),
 				});
 			} else {
 				ritaToast.error({
-					title: "Upload Failed",
-					description: errors.length > 0 ? errors[0] : "All uploads failed",
+					title: t("error.uploadFailed"),
+					description: errors.length > 0 ? errors[0] : t("descriptions.uploadAllFailed"),
 				});
 			}
 		}
@@ -545,14 +546,14 @@ export default function FilesV1Content() {
 			{
 				onSuccess: () => {
 					ritaToast.success({
-						title: "Download Started",
-						description: `Downloading ${file.filename}`,
+						title: t("success.downloadStarted"),
+						description: t("descriptions.downloading", { name: file.filename }),
 					});
 				},
 				onError: () => {
 					ritaToast.error({
-						title: "Download Failed",
-						description: `Could not download ${file.filename}`,
+						title: t("error.downloadFailed"),
+						description: t("descriptions.downloadFailed", { name: file.filename }),
 					});
 				},
 			},
@@ -563,14 +564,14 @@ export default function FilesV1Content() {
 		reprocessFileMutation.mutate(file.id, {
 			onSuccess: () => {
 				ritaToast.success({
-					title: "Reprocessing Started",
-					description: `Document ${file.filename} is being reprocessed`,
+					title: t("success.reprocessStarted"),
+					description: t("descriptions.reprocessing", { name: file.filename }),
 				});
 			},
 			onError: () => {
 				ritaToast.error({
-					title: "Reprocess Failed",
-					description: `Could not reprocess ${file.filename}`,
+					title: t("error.reprocessFailed"),
+					description: t("descriptions.reprocessFailed", { name: file.filename }),
 				});
 			},
 		});
@@ -587,14 +588,14 @@ export default function FilesV1Content() {
 			deleteFileMutation.mutate(fileToDelete.id, {
 				onSuccess: () => {
 					ritaToast.success({
-						title: "Document Deleted",
-						description: `${fileName} has been deleted`,
+						title: t("success.documentDeleted"),
+						description: t("descriptions.documentDeleted", { name: fileName }),
 					});
 				},
 				onError: () => {
 					ritaToast.error({
-						title: "Delete Failed",
-						description: `Could not delete ${fileName}`,
+						title: t("error.deleteFailed"),
+						description: t("descriptions.documentDeleteFailed", { name: fileName }),
 					});
 				},
 			});
