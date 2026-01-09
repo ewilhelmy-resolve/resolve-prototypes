@@ -28,7 +28,7 @@ describe('ConnectionActionsMenu', () => {
 		const trigger = screen.getByRole('button');
 		await user.click(trigger);
 
-		const editOption = await screen.findByText('Edit');
+		const editOption = await screen.findByText('actions.edit');
 		expect(editOption).toBeInTheDocument();
 	});
 
@@ -39,7 +39,7 @@ describe('ConnectionActionsMenu', () => {
 		const trigger = screen.getByRole('button');
 		await user.click(trigger);
 
-		const disconnectOption = await screen.findByText('Disconnect');
+		const disconnectOption = await screen.findByText('actions.disconnect');
 		expect(disconnectOption).toBeInTheDocument();
 	});
 
@@ -50,7 +50,7 @@ describe('ConnectionActionsMenu', () => {
 		const trigger = screen.getByRole('button');
 		await user.click(trigger);
 
-		const editOption = await screen.findByText('Edit');
+		const editOption = await screen.findByText('actions.edit');
 		await user.click(editOption);
 
 		expect(mockOnEdit).toHaveBeenCalledTimes(1);
@@ -63,7 +63,7 @@ describe('ConnectionActionsMenu', () => {
 		const trigger = screen.getByRole('button');
 		await user.click(trigger);
 
-		const disconnectOption = await screen.findByText('Disconnect');
+		const disconnectOption = await screen.findByText('actions.disconnect');
 		await user.click(disconnectOption);
 
 		expect(mockOnDisconnect).toHaveBeenCalledTimes(1);
@@ -81,8 +81,8 @@ describe('ConnectionActionsMenu', () => {
 		const trigger = screen.getByRole('button');
 		await user.click(trigger);
 
-		const editOption = await screen.findByText('Edit');
-		const disconnectOption = await screen.findByText('Disconnect');
+		const editOption = await screen.findByText('actions.edit');
+		const disconnectOption = await screen.findByText('actions.disconnect');
 
 		expect(editOption).toBeInTheDocument();
 		expect(disconnectOption).toBeInTheDocument();
@@ -95,7 +95,7 @@ describe('ConnectionActionsMenu', () => {
 		const trigger = screen.getByRole('button');
 		await user.click(trigger);
 
-		const editOption = screen.queryByText('Edit');
+		const editOption = screen.queryByText('actions.edit');
 		expect(editOption).not.toBeInTheDocument();
 	});
 
@@ -106,7 +106,7 @@ describe('ConnectionActionsMenu', () => {
 		const trigger = screen.getByRole('button');
 		await user.click(trigger);
 
-		const disconnectOption = screen.queryByText('Disconnect');
+		const disconnectOption = screen.queryByText('actions.disconnect');
 		expect(disconnectOption).not.toBeInTheDocument();
 	});
 
@@ -117,7 +117,7 @@ describe('ConnectionActionsMenu', () => {
 		const trigger = screen.getByRole('button');
 		await user.click(trigger);
 
-		const disconnectOption = await screen.findByText('Disconnect');
+		const disconnectOption = await screen.findByText('actions.disconnect');
 		expect(disconnectOption.closest('[role="menuitem"]')).toHaveClass('text-destructive');
 	});
 });

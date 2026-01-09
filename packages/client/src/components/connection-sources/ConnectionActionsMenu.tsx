@@ -1,4 +1,5 @@
 import { EllipsisVertical } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import {
 	DropdownMenu,
@@ -20,6 +21,7 @@ export function ConnectionActionsMenu({
 	onEdit,
 	onDisconnect,
 }: ConnectionActionsMenuProps) {
+	const { t } = useTranslation("common");
 	return (
 		<DropdownMenu>
 			<DropdownMenuTrigger asChild>
@@ -29,11 +31,11 @@ export function ConnectionActionsMenu({
 			</DropdownMenuTrigger>
 			<DropdownMenuContent>
 				{onEdit && (
-					<DropdownMenuItem onClick={onEdit}>Edit</DropdownMenuItem>
+					<DropdownMenuItem onClick={onEdit}>{t("actions.edit")}</DropdownMenuItem>
 				)}
 				{onDisconnect && (
 					<DropdownMenuItem className="text-destructive" onClick={onDisconnect}>
-						Disconnect
+						{t("actions.disconnect")}
 					</DropdownMenuItem>
 				)}
 			</DropdownMenuContent>

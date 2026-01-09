@@ -1,5 +1,6 @@
 import { toast as sonnerToast } from "sonner";
 import { CheckCircle2, XCircle, AlertCircle, Info, X } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
 
 export type ToastVariant = "success" | "error" | "warning" | "info";
@@ -60,6 +61,7 @@ const variantConfig = {
  */
 function RitaToast(props: ToastProps) {
 	const { title, description, action, variant, id } = props;
+	const { t } = useTranslation("common");
 
 	const config = variantConfig[variant];
 	const Icon = config.icon;
@@ -99,7 +101,7 @@ function RitaToast(props: ToastProps) {
 			<button
 				className="ml-auto shrink-0 rounded-sm opacity-70 hover:opacity-100 transition-opacity focus:outline-none focus:ring-2 focus:ring-offset-2"
 				onClick={() => sonnerToast.dismiss(id)}
-				aria-label="Close notification"
+				aria-label={t("accessibility.closeNotification")}
 			>
 				<X className="h-4 w-4" />
 			</button>
