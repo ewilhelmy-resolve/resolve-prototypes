@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { WandSparkles } from "lucide-react";
 import { useState } from "react";
 import {
@@ -48,6 +49,7 @@ export function ClusterDetailOverviewTab({
 	onAutoRespondEnabled,
 	onReviewKnowledge,
 }: ClusterDetailOverviewTabProps) {
+	const { t } = useTranslation("tickets");
 	// Use mock AI response data (TODO: replace with real API)
 	const aiResponse = MOCK_AI_RESPONSE;
 	const [enableModalOpen, setEnableModalOpen] = useState(false);
@@ -90,10 +92,10 @@ export function ClusterDetailOverviewTab({
 			{/* Knowledge Gap Detected Card */}
 			{kbStatus === "GAP" && (
 				<RecommendationAlert
-					title="Knowledge Gap Detected"
-					description="No knowledge articles found for this cluster. Rita recommends creating one to enable Auto-Answer."
+					title={t("knowledgeGap.title")}
+					description={t("knowledgeGap.description")}
 					icon={WandSparkles}
-					buttonLabel="Create Knowledge Article"
+					buttonLabel={t("knowledgeGap.createArticle")}
 					onButtonClick={() => setCreateKnowledgeSheetOpen(true)}
 					variant="warning"
 				/>

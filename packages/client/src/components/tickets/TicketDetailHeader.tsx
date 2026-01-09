@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import { ArrowLeft, ChevronDown, ChevronUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -40,6 +41,7 @@ export function TicketDetailHeader({
 	onPrevious,
 	onNext,
 }: TicketDetailHeaderProps) {
+	const { t } = useTranslation("tickets");
 	const navigate = useNavigate();
 
 	const currentIndex = ticketIds.indexOf(ticketId);
@@ -84,7 +86,7 @@ export function TicketDetailHeader({
 					variant="ghost"
 					size="icon"
 					onClick={handleBack}
-					aria-label="Back to cluster"
+					aria-label={t("navigation.backToCluster")}
 				>
 					<ArrowLeft className="h-4 w-4" />
 				</Button>
@@ -97,7 +99,7 @@ export function TicketDetailHeader({
 						size="icon"
 						onClick={handleNext}
 						disabled={!hasNext}
-						aria-label="Next ticket"
+						aria-label={t("navigation.nextTicket")}
 					>
 						<ChevronDown className="h-4 w-4" />
 					</Button>
@@ -107,7 +109,7 @@ export function TicketDetailHeader({
 						size="icon"
 						onClick={handlePrevious}
 						disabled={!hasPrevious}
-						aria-label="Previous ticket"
+						aria-label={t("navigation.previousTicket")}
 					>
 						<ChevronUp className="h-4 w-4" />
 					</Button>
@@ -116,7 +118,7 @@ export function TicketDetailHeader({
 
 			{/* Right side - Review AI response button */}
 			<Button onClick={onReviewAIResponse}>
-				Review AI response
+				{t("review.title")}
 			</Button>
 		</div>
 	);

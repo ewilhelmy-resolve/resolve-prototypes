@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { ChevronLeft, Loader2 } from "lucide-react";
@@ -19,6 +20,7 @@ const getPriorityFromMetadata = (metadata: Record<string, unknown>): TicketPrior
 };
 
 export default function TicketDetailPage() {
+	const { t } = useTranslation("tickets");
 	const { clusterId, ticketId } = useParams<{ clusterId: string; ticketId: string }>();
 	const { data: ticket, isLoading, error } = useTicket(ticketId);
 	const { data: clusterTicketsData } = useClusterTickets(clusterId, { limit: 100 });
@@ -41,11 +43,11 @@ export default function TicketDetailPage() {
 		return (
 			<RitaLayout activePage="tickets">
 				<div className="flex flex-col items-center justify-center min-h-[400px] gap-4">
-					<p className="text-muted-foreground">Ticket not found</p>
+					<p className="text-muted-foreground">{t("page.notFound")}</p>
 					<Button asChild variant="outline">
 						<Link to={clusterId ? `/tickets/${clusterId}` : "/tickets"}>
 							<ChevronLeft className="mr-2 h-4 w-4" />
-							Back to cluster
+							{t("navigation.backToCluster")}
 						</Link>
 					</Button>
 				</div>

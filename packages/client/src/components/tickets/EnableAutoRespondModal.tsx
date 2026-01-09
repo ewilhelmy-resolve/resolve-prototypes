@@ -1,3 +1,4 @@
+import { useTranslation, Trans } from "react-i18next";
 import {
 	Dialog,
 	DialogContent,
@@ -46,6 +47,8 @@ export function EnableAutoRespondModal({
 	onEnable,
 	onAutoRespondEnabled,
 }: EnableAutoRespondModalProps) {
+	const { t } = useTranslation("tickets");
+
 	const handleEnable = () => {
 		console.log("Auto-Respond enabled for:", ticketGroupName);
 		onEnable?.();
@@ -62,13 +65,17 @@ export function EnableAutoRespondModal({
 		<Dialog open={open} onOpenChange={onOpenChange}>
 			<DialogContent className="sm:max-w-xl max-h-[90vh] flex flex-col">
 				<DialogHeader className="flex-none">
-					<DialogTitle>Enable Auto-Respond?</DialogTitle>
+					<DialogTitle>{t("automation.enableAutoRespond.title")}</DialogTitle>
 					<DialogDescription>
-						You're about to enable automated responses for all tickets in{" "}
-						<span className="font-semibold">{ticketGroupName}</span>.
+						<Trans
+							i18nKey="automation.enableAutoRespond.description"
+							ns="tickets"
+							values={{ ticketGroupName }}
+							components={{ 1: <span className="font-semibold" /> }}
+						/>
 					</DialogDescription>
 					<p className="text-sm text-muted-foreground">
-						You can adjust or disable Auto-Respond anytime per ticket group.
+						{t("automation.enableAutoRespond.info")}
 					</p>
 				</DialogHeader>
 

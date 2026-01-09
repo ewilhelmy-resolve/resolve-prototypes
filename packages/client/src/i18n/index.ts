@@ -9,6 +9,7 @@ import connectionsEn from "./locales/en/connections.json";
 import errorsEn from "./locales/en/errors.json";
 import filesEn from "./locales/en/files.json";
 import settingsEn from "./locales/en/settings.json";
+import ticketsEn from "./locales/en/tickets.json";
 import toastEn from "./locales/en/toast.json";
 import validationEn from "./locales/en/validation.json";
 
@@ -23,6 +24,7 @@ export const resources = {
 		errors: errorsEn,
 		files: filesEn,
 		settings: settingsEn,
+		tickets: ticketsEn,
 		toast: toastEn,
 		validation: validationEn,
 	},

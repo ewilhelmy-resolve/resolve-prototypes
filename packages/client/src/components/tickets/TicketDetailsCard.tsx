@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
@@ -38,6 +39,7 @@ export default function TicketDetailsCard({
 	ticket,
 	className,
 }: TicketDetailsCardProps) {
+	const { t } = useTranslation("tickets");
 
 	return (
 		<div className={cn("border rounded-lg p-4 flex flex-col gap-2.5", className)}>
@@ -57,7 +59,7 @@ export default function TicketDetailsCard({
 			<Separator className="h-[1px]" />
 
 			<div className="flex flex-col gap-2">
-				<p className="text-sm text-muted-foreground">Description</p>
+				<p className="text-sm text-muted-foreground">{t("details.description")}</p>
 				<p className="text-base">{ticket.description}</p>
 			</div>
 		</div>
