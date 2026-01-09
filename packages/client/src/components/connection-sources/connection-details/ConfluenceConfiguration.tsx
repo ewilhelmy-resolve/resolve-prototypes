@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { ritaToast } from "@/components/ui/rita-toast";
 import { STATUS } from "@/constants/connectionSources";
@@ -27,6 +28,7 @@ interface ConfluenceConfigurationProps {
 export default function ConfluenceConfiguration({
 	onEdit,
 }: ConfluenceConfigurationProps = {}) {
+	const { t } = useTranslation("toast");
 	const { source } = useConnectionSource();
 	const [selectedSpaces, setSelectedSpaces] = useState<string[]>([]);
 	const updateMutation = useUpdateDataSource();
@@ -63,8 +65,8 @@ export default function ConfluenceConfiguration({
 	const handleSync = async () => {
 		if (!source.backendData) {
 			ritaToast.error({
-				title: "Configuration Error",
-				description: "No backend data available for this source",
+				title: t("error.configurationError"),
+				description: t("descriptions.noBackendData"),
 			});
 			return;
 		}
@@ -85,12 +87,12 @@ export default function ConfluenceConfiguration({
 			await syncMutation.mutateAsync(source.backendData.id);
 
 			ritaToast.success({
-				title: "Sync Started",
-				description: "Your Confluence spaces are being synced",
+				title: t("success.syncStarted"),
+				description: t("descriptions.syncingSpaces"),
 			});
 		} catch (error) {
 			ritaToast.error({
-				title: "Sync Failed",
+				title: t("error.syncFailed"),
 				description:
 					error instanceof Error ? error.message : "Failed to start sync",
 			});
@@ -100,8 +102,8 @@ export default function ConfluenceConfiguration({
 	const handleCancelSync = async () => {
 		if (!source.backendData) {
 			ritaToast.error({
-				title: "Configuration Error",
-				description: "No backend data available for this source",
+				title: t("error.configurationError"),
+				description: t("descriptions.noBackendData"),
 			});
 			return;
 		}

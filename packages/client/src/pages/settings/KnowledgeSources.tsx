@@ -2,6 +2,7 @@
 
 import { Globe } from "lucide-react";
 import { useEffect, useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
 import { CrashPage } from "@/components/CrashPage";
 import RitaSettingsLayout from "@/components/layouts/RitaSettingsLayout";
@@ -20,6 +21,7 @@ import { Button } from "../../components/ui/button";
 import SettingsHeader from "./SettingsHeader";
 
 export default function KnowledgeSources() {
+	const { t } = useTranslation("settings");
 	const { mutate: seedSources, isPending: isSeeding } = useSeedDataSources();
 	const { data: dataSources, isLoading, error } = useDataSources();
 	const isServiceNowEnabled = useFeatureFlag("ENABLE_SERVICENOW");
@@ -57,11 +59,11 @@ export default function KnowledgeSources() {
 				<div className="w-full">
 					<div className="flex flex-col gap-8">
 						<SettingsHeader
-							title="Knowledge Sources"
-							description="Connect knowledge bases to help RITA answer questions with accurate information."
+							title={t("knowledgeSources.title")}
+							description={t("knowledgeSources.description")}
 						/>
 						<div className="max-w-6xl">
-							<div className="text-center py-8">Loading connections...</div>
+							<div className="text-center py-8">{t("knowledgeSources.loading")}</div>
 						</div>
 					</div>
 				</div>
@@ -73,9 +75,9 @@ export default function KnowledgeSources() {
 		return (
 			<RitaSettingsLayout>
 				<CrashPage
-					title="Failed to load data sources"
-					description="An error occurred while fetching connection sources. Please try again."
-					actionLabel="Try Again"
+					title={t("errors.loadDataSourcesFailed")}
+					description={t("errors.loadDataSourcesDescription")}
+					actionLabel={t("errors.tryAgain")}
 					onAction={() => window.location.reload()}
 				/>
 			</RitaSettingsLayout>
@@ -87,8 +89,8 @@ export default function KnowledgeSources() {
 			<div className="flex-1 inline-flex flex-col items-center gap-8 w-full">
 				<div className="self-stretch flex flex-col items-start gap-8">
 					<SettingsHeader
-						title="Knowledge Sources"
-						description="Connect knowledge bases to help RITA answer questions with accurate information."
+						title={t("knowledgeSources.title")}
+						description={t("knowledgeSources.description")}
 					/>
 				</div>
 
@@ -121,7 +123,7 @@ export default function KnowledgeSources() {
 
 										{source.lastSync && (
 											<p className="text-sm text-foreground mt-1">
-												Last sync: {source.lastSync}
+												{t("knowledgeSources.lastSync", { time: source.lastSync })}
 											</p>
 										)}
 										{source.description && (
@@ -147,11 +149,11 @@ export default function KnowledgeSources() {
 									{isEnabled ? (
 										<span>
 											{source.status === STATUS.NOT_CONNECTED
-												? "Configure"
-												: "Manage"}
+												? t("knowledgeSources.configure")
+												: t("knowledgeSources.manage")}
 										</span>
 									) : (
-										<span>Coming Soon</span>
+										<span>{t("knowledgeSources.comingSoon")}</span>
 									)}
 								</Button>
 							</div>

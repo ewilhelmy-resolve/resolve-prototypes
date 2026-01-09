@@ -521,7 +521,7 @@ describe("InviteUsersDialog", () => {
 
 			await waitFor(() => {
 				expect(toast.error).toHaveBeenCalledWith(
-					"Failed to send invitations",
+					"error.invitationsFailed",
 					expect.objectContaining({
 						description: "One or more email addresses are invalid",
 					}),
@@ -562,7 +562,7 @@ describe("InviteUsersDialog", () => {
 
 			await waitFor(() => {
 				expect(toast.error).toHaveBeenCalledWith(
-					"Failed to send invitations",
+					"error.invitationsFailed",
 					expect.objectContaining({
 						description: "Some users already have pending invitations",
 					}),
@@ -603,7 +603,7 @@ describe("InviteUsersDialog", () => {
 
 			await waitFor(() => {
 				expect(toast.error).toHaveBeenCalledWith(
-					"Failed to send invitations",
+					"error.invitationsFailed",
 					expect.objectContaining({
 						description: "Some users already have accounts",
 					}),
@@ -644,7 +644,7 @@ describe("InviteUsersDialog", () => {
 
 			await waitFor(() => {
 				expect(toast.error).toHaveBeenCalledWith(
-					"Failed to send invitations",
+					"error.invitationsFailed",
 					expect.objectContaining({
 						description: "Maximum 50 email addresses allowed per batch",
 					}),
@@ -685,7 +685,7 @@ describe("InviteUsersDialog", () => {
 
 			await waitFor(() => {
 				expect(toast.error).toHaveBeenCalledWith(
-					"Failed to send invitations",
+					"error.invitationsFailed",
 					expect.objectContaining({
 						description:
 							"Your organization has reached the maximum number of users",
