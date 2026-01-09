@@ -134,6 +134,136 @@ class EmailService {
     });
   }
 
+  async sendCredentialDelegation(
+    adminEmail: string,
+    delegationUrl: string,
+    organizationName: string,
+    itsmSystemType: string,
+    delegatedByEmail: string,
+    expiresAt: string
+  ): Promise<void> {
+    const expiryDate = new Date(expiresAt).toLocaleString();
+    const systemDisplayName = itsmSystemType.charAt(0).toUpperCase() + itsmSystemType.slice(1);
+
+    await this.sendEmail({
+      to: adminEmail,
+      subject: `${organizationName} requests ITSM credential setup for ${systemDisplayName}`,
+      text: `${delegatedByEmail} from ${organizationName} has requested you to set up ${systemDisplayName} credentials.\n\nSet up credentials by clicking the link below:\n\n${delegationUrl}\n\nThis link expires on ${expiryDate}.\n\nBest regards,\nThe Rita Team`,
+      html: `
+        <!DOCTYPE html>
+        <html lang="en">
+        <head>
+          <meta charset="UTF-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <title>Help requested to configure ${systemDisplayName}</title>
+        </head>
+        <body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif; background-color: #f5f5f5;">
+          <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color: #f5f5f5;">
+            <tr>
+              <td style="padding: 40px 20px;">
+                <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="600" style="margin: 0 auto; background-color: #ffffff; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                  <!-- Header with Logo -->
+                  <tr>
+                    <td style="padding: 40px 40px 30px 40px;">
+                      <table role="presentation" cellspacing="0" cellpadding="0" border="0">
+                        <tr>
+                          <td>
+                            <span style="font-size: 24px; font-weight: bold; color: #1a1a2e; letter-spacing: -0.5px;">RESOLVE</span>
+                          </td>
+                        </tr>
+                      </table>
+                    </td>
+                  </tr>
+                  
+                  <!-- Main Heading -->
+                  <tr>
+                    <td style="padding: 0 40px 20px 40px;">
+                      <h1 style="margin: 0; font-size: 28px; font-weight: 400; color: #4169e1; line-height: 1.3;">
+                        Help requested to configure ${systemDisplayName}
+                      </h1>
+                    </td>
+                  </tr>
+                  
+                  <!-- Body Text -->
+                  <tr>
+                    <td style="padding: 0 40px 30px 40px;">
+                      <p style="margin: 0; font-size: 16px; line-height: 1.6; color: #333333;">
+                        ${delegatedByEmail} from ${organizationName} has invited you to finish the ${systemDisplayName} setup so Autopilot can import and automate tickets.
+                      </p>
+                    </td>
+                  </tr>
+                  
+                  <!-- CTA Button -->
+                  <tr>
+                    <td style="padding: 0 40px 30px 40px;">
+                      <table role="presentation" cellspacing="0" cellpadding="0" border="0">
+                        <tr>
+                          <td style="border-radius: 25px; background: linear-gradient(135deg, #5b7ff5 0%, #4169e1 100%);">
+                            <a href="${delegationUrl}" target="_blank" style="display: inline-block; padding: 14px 28px; font-size: 16px; font-weight: 500; color: #ffffff; text-decoration: none; border-radius: 25px;">
+                              Configure ${systemDisplayName}
+                            </a>
+                          </td>
+                        </tr>
+                      </table>
+                    </td>
+                  </tr>
+                  
+                  <!-- Disclaimer Text -->
+                  <tr>
+                    <td style="padding: 0 40px 40px 40px;">
+                      <p style="margin: 0; font-size: 14px; line-height: 1.6; color: #666666;">
+                        If you don't have a Resolve account yet, you'll be asked to sign up first. This link gives access only to this configuration screen and expires on ${expiryDate}.
+                      </p>
+                    </td>
+                  </tr>
+                  
+                  <!-- Footer -->
+                  <tr>
+                    <td style="background-color: #1a1a2e; border-radius: 0 0 8px 8px; padding: 25px 40px;">
+                      <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
+                        <tr>
+                          <td style="vertical-align: middle;">
+                            <span style="font-size: 18px; font-weight: bold; color: #ffffff; letter-spacing: -0.5px;">RESOLVE</span>
+                            <span style="color: #4169e1; font-size: 14px;">⚡</span>
+                            <span style="color: #888888; font-size: 14px; margin-left: 20px;">Blog</span>
+                          </td>
+                          <td style="text-align: right; vertical-align: middle;">
+                            <!-- Social Icons -->
+                            <a href="#" style="display: inline-block; margin-left: 12px; text-decoration: none;">
+                              <span style="display: inline-block; width: 32px; height: 32px; background-color: #4169e1; border-radius: 4px; text-align: center; line-height: 32px; color: white; font-weight: bold; font-size: 14px;">in</span>
+                            </a>
+                            <a href="#" style="display: inline-block; margin-left: 12px; text-decoration: none;">
+                              <span style="display: inline-block; width: 32px; height: 32px; background-color: #4169e1; border-radius: 4px; text-align: center; line-height: 32px; color: white; font-size: 16px;">𝕏</span>
+                            </a>
+                            <a href="#" style="display: inline-block; margin-left: 12px; text-decoration: none;">
+                              <span style="display: inline-block; width: 32px; height: 32px; background-color: #4169e1; border-radius: 4px; text-align: center; line-height: 32px; color: white; font-size: 14px;">▶</span>
+                            </a>
+                          </td>
+                        </tr>
+                      </table>
+                    </td>
+                  </tr>
+                </table>
+                
+                <!-- Footer Links -->
+                <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="600" style="margin: 20px auto 0 auto;">
+                  <tr>
+                    <td style="text-align: center;">
+                      <a href="#" style="font-size: 13px; color: #4169e1; text-decoration: none;">Terms of use</a>
+                      <span style="color: #cccccc; margin: 0 8px;">|</span>
+                      <a href="#" style="font-size: 13px; color: #4169e1; text-decoration: none;">Privacy Policy</a>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+          </table>
+        </body>
+        </html>
+      `
+    });
+  }
+
   async sendPasswordReset(email: string, resetUrl: string, expiresAt: string): Promise<void> {
     const expiryDate = new Date(expiresAt).toLocaleString();
 

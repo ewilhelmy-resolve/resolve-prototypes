@@ -159,6 +159,18 @@ interface DataSourceSyncPayload extends BaseWebhookPayload {
   settings: Record<string, any>;
 }
 
+// Credential delegation webhook payload
+interface CredentialDelegationWebhookPayload extends BaseWebhookPayload {
+  source: 'rita-credential-delegation';
+  action: 'send_delegation_email';
+  admin_email: string;
+  delegation_url: string;
+  organization_name: string;
+  itsm_system_type: string;
+  delegation_token_id: string;
+  expires_at: string;
+}
+
 // ITSM ticket sync webhook payload (Autopilot)
 interface SyncTicketsWebhookPayload extends BaseWebhookPayload {
   source: 'rita-chat';
@@ -174,7 +186,7 @@ interface SyncTicketsWebhookPayload extends BaseWebhookPayload {
 }
 
 // Union type for all webhook payloads
-type WebhookPayload = MessageWebhookPayload | DocumentWebhookPayload | DocumentDeletePayload | SignupWebhookPayload | SendInvitationWebhookPayload | AcceptInvitationWebhookPayload | DeleteKeycloakUserPayload | DataSourceVerifyPayload | DataSourceSyncPayload | SyncTicketsWebhookPayload | BaseWebhookPayload;
+type WebhookPayload = MessageWebhookPayload | DocumentWebhookPayload | DocumentDeletePayload | SignupWebhookPayload | SendInvitationWebhookPayload | AcceptInvitationWebhookPayload | DeleteKeycloakUserPayload | DataSourceVerifyPayload | DataSourceSyncPayload | SyncTicketsWebhookPayload | CredentialDelegationWebhookPayload | BaseWebhookPayload;
 
 interface MockResponse {
   message_id: string;
@@ -2172,6 +2184,56 @@ app.post('/webhook', async (req, res) => {
         message: 'Ticket sync triggered successfully',
         ingestion_run_id: ticketsPayload.ingestion_run_id
       });
+
+    } else if (payload.source === 'rita-credential-delegation' && payload.action === 'send_delegation_email') {
+      const delegationPayload = payload as CredentialDelegationWebhookPayload;
+
+      const contextLogger = createContextLogger(webhookLogger, correlationId, {
+        tenantId: delegationPayload.tenant_id,
+        email: delegationPayload.admin_email
+      });
+
+      contextLogger.info({
+        source: delegationPayload.source,
+        action: delegationPayload.action,
+        admin_email: delegationPayload.admin_email,
+        organization_name: delegationPayload.organization_name,
+        itsm_system_type: delegationPayload.itsm_system_type,
+        delegation_token_id: delegationPayload.delegation_token_id,
+        expires_at: delegationPayload.expires_at
+      }, 'Received send_delegation_email webhook');
+
+      // Send delegation email via Mailpit
+      try {
+        await emailService.sendCredentialDelegation(
+          delegationPayload.admin_email,
+          delegationPayload.delegation_url,
+          delegationPayload.organization_name,
+          delegationPayload.itsm_system_type,
+          delegationPayload.user_email || 'Unknown',
+          delegationPayload.expires_at
+        );
+
+        contextLogger.info({
+          admin_email: delegationPayload.admin_email,
+          delegation_token_id: delegationPayload.delegation_token_id
+        }, '📧 Credential delegation email sent successfully via Mailpit');
+
+        return res.status(200).json({
+          success: true,
+          message: 'Credential delegation email sent successfully',
+          admin_email: delegationPayload.admin_email,
+          delegation_token_id: delegationPayload.delegation_token_id
+        });
+      } catch (error) {
+        logError(contextLogger, error as Error, { operation: 'send-delegation-email' });
+
+        return res.status(500).json({
+          success: false,
+          message: 'Failed to send credential delegation email',
+          error: error instanceof Error ? error.message : 'Unknown error'
+        });
+      }
 
     } else {
       const errorLogger = createContextLogger(webhookLogger, correlationId);
