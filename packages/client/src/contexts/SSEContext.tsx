@@ -2,6 +2,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import type React from "react";
 import { createContext, useCallback, useContext, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import i18n from "@/i18n";
 import { ritaToast } from "../components/ui/rita-toast";
 import { fileKeys, type FileDocument } from "../hooks/api/useFiles";
 import { memberKeys } from "../hooks/api/useMembers";
@@ -123,7 +124,7 @@ export const SSEProvider: React.FC<SSEProviderProps> = ({
 				if (updateType === "verification" && event.data.last_verification_error) {
 					const connectionType = event.data.connection_type || "Data source";
 					ritaToast.error({
-						title: `${connectionType} verification failed`,
+						title: i18n.t("error.verificationFailed", { type: connectionType, ns: "toast" }),
 						description: event.data.last_verification_error || "Failed to verify connection",
 						action: {
 							label: "View",
@@ -139,7 +140,7 @@ export const SSEProvider: React.FC<SSEProviderProps> = ({
 
 					if (syncStatus === "completed") {
 						ritaToast.success({
-							title: `${connectionType} sync complete`,
+							title: i18n.t("success.syncComplete", { type: connectionType, ns: "toast" }),
 							action: {
 								label: "View",
 								onClick: () => navigate("/settings/connections"),
@@ -147,7 +148,7 @@ export const SSEProvider: React.FC<SSEProviderProps> = ({
 						});
 					} else if (syncStatus === "failed") {
 						ritaToast.error({
-							title: `${connectionType} sync failed`,
+							title: `${i18n.t("error.syncFailed", { ns: "toast" })}: ${connectionType}`,
 							description: event.data.last_sync_error || "An error occurred",
 							action: {
 								label: "View",
@@ -218,27 +219,27 @@ export const SSEProvider: React.FC<SSEProviderProps> = ({
 							// Show appropriate toast based on results
 							if (processed > 0 && failed === 0 && duplicates === 0) {
 								ritaToast.success({
-									title: 'Processing Complete',
+									title: i18n.t("success.processingComplete", { ns: "toast" }),
 									description: processed === 1
-										? 'File processed successfully'
-										: 'All files processed successfully',
+										? i18n.t("descriptions.fileProcessed", { ns: "toast" })
+										: i18n.t("descriptions.allFilesProcessed", { ns: "toast" }),
 								})
 							} else if (processed > 0 && failed === 0 && duplicates > 0) {
 								ritaToast.success({
-									title: 'Processing Complete',
-									description: `${processed} file${processed > 1 ? 's' : ''} processed${duplicateMsg}`,
+									title: i18n.t("success.processingComplete", { ns: "toast" }),
+									description: i18n.t("descriptions.filesProcessedDuplicates", { count: processed, duplicates, ns: "toast" }),
 								})
 							} else if (processed === 0 && failed > 0) {
 								ritaToast.error({
-									title: 'Processing Failed',
+									title: i18n.t("error.processingFailed", { ns: "toast" }),
 									description: failed === 1
-										? `File failed to process${duplicateMsg}`
-										: `All files failed to process${duplicateMsg}`,
+										? `${i18n.t("descriptions.fileFailed", { ns: "toast" })}${duplicateMsg}`
+										: `${i18n.t("descriptions.allFilesFailed", { ns: "toast" })}${duplicateMsg}`,
 								})
 							} else if (processed > 0 && failed > 0) {
 								ritaToast.warning({
-									title: 'Processing Partially Complete',
-									description: `${processed} successful, ${failed} failed${duplicateMsg}`,
+									title: i18n.t("warning.processingPartial", { ns: "toast" }),
+									description: `${i18n.t("descriptions.processingPartial", { processed, failed, ns: "toast" })}${duplicateMsg}`,
 								})
 							}
 
@@ -255,16 +256,16 @@ export const SSEProvider: React.FC<SSEProviderProps> = ({
 				// Show toast notification based on update type
 				if (event.data.updateType === "name") {
 					ritaToast.success({
-						title: "Organization name updated",
+						title: i18n.t("success.organizationUpdated", { ns: "toast" }),
 					});
 				} else if (event.data.updateType === "role") {
 					ritaToast.info({
-						title: "Your role has been updated",
-						description: "Your permissions may have changed",
+						title: i18n.t("info.roleUpdated", { ns: "toast" }),
+						description: i18n.t("descriptions.permissionsChanged", { ns: "toast" }),
 					});
 				} else if (event.data.updateType === "settings") {
 					ritaToast.success({
-						title: "Organization settings updated",
+						title: i18n.t("success.settingsUpdated", { ns: "toast" }),
 					});
 				}
 			} else if (event.type === "member_role_updated") {
@@ -277,14 +278,14 @@ export const SSEProvider: React.FC<SSEProviderProps> = ({
 					// Current user's role was changed
 					queryClient.invalidateQueries({ queryKey: profileKeys.detail() });
 					ritaToast.info({
-						title: "Your role has been updated",
-						description: `You are now ${event.data.newRole}`,
+						title: i18n.t("info.roleUpdated", { ns: "toast" }),
+						description: i18n.t("descriptions.roleUpdatedDesc", { role: event.data.newRole, ns: "toast" }),
 					});
 				} else {
 					// Another member's role was changed
 					ritaToast.success({
-						title: "Member role updated",
-						description: `${event.data.userEmail} is now ${event.data.newRole}`,
+						title: i18n.t("success.memberRoleUpdated", { ns: "toast" }),
+						description: i18n.t("descriptions.memberRoleUpdatedDesc", { email: event.data.userEmail, role: event.data.newRole, ns: "toast" }),
 					});
 				}
 			} else if (event.type === "member_status_updated") {
@@ -300,23 +301,23 @@ export const SSEProvider: React.FC<SSEProviderProps> = ({
 					if (!event.data.isActive) {
 						// User was deactivated - force logout
 						ritaToast.error({
-							title: "Your account has been deactivated",
-							description: "Contact your organization administrator",
+							title: i18n.t("error.accountDeactivated", { ns: "toast" }),
+							description: i18n.t("descriptions.contactAdmin", { ns: "toast" }),
 						});
 						setTimeout(() => {
 							window.location.href = "/logout";
 						}, 2000);
 					} else {
 						ritaToast.success({
-							title: "Your account has been activated",
+							title: i18n.t("success.accountActivated", { ns: "toast" }),
 						});
 					}
 				} else {
 					// Another member's status was changed
 					const status = event.data.isActive ? "activated" : "deactivated";
 					ritaToast.info({
-						title: `Member ${status}`,
-						description: `${event.data.userEmail} has been ${status}`,
+						title: i18n.t("info.memberStatusChanged", { status, ns: "toast" }),
+						description: i18n.t("descriptions.memberStatus", { email: event.data.userEmail, status, ns: "toast" }),
 					});
 				}
 			} else if (event.type === "member_removed") {
@@ -328,7 +329,7 @@ export const SSEProvider: React.FC<SSEProviderProps> = ({
 				if (profile?.user?.id === event.data.userId) {
 					// Current user was removed - force logout
 					ritaToast.error({
-						title: "You have been removed from the organization",
+						title: i18n.t("error.removedFromOrg", { ns: "toast" }),
 					});
 					setTimeout(() => {
 						window.location.href = "/logout";
@@ -336,8 +337,8 @@ export const SSEProvider: React.FC<SSEProviderProps> = ({
 				} else {
 					// Another member was removed
 					ritaToast.info({
-						title: "Member removed",
-						description: `${event.data.userEmail} has been removed`,
+						title: i18n.t("info.memberRemoved", { ns: "toast" }),
+						description: i18n.t("descriptions.memberRemovedDesc", { email: event.data.userEmail, ns: "toast" }),
 					});
 				}
 			} else if (event.type === "ingestion_run_update") {
@@ -369,12 +370,12 @@ export const SSEProvider: React.FC<SSEProviderProps> = ({
 
 					if (event.data.status === "completed") {
 						ritaToast.success({
-							title: "Ticket sync complete",
-							description: `${event.data.records_processed ?? 0} tickets processed`,
+							title: i18n.t("success.ticketSyncComplete", { ns: "toast" }),
+							description: i18n.t("descriptions.ticketsProcessed", { count: event.data.records_processed ?? 0, ns: "toast" }),
 						});
 					} else if (event.data.status === "failed") {
 						ritaToast.error({
-							title: "Ticket sync failed",
+							title: i18n.t("error.ticketSyncFailed", { ns: "toast" }),
 							description: event.data.error_message || "An error occurred",
 						});
 					}
@@ -393,8 +394,8 @@ export const SSEProvider: React.FC<SSEProviderProps> = ({
 				});
 
 				ritaToast.info({
-					title: "Feature flag updated",
-					description: `${flagName} is now ${isEnabled ? "enabled" : "disabled"}`,
+					title: i18n.t("info.featureFlagUpdated", { ns: "toast" }),
+					description: i18n.t("descriptions.featureFlagDesc", { flag: flagName, status: isEnabled ? "enabled" : "disabled", ns: "toast" }),
 				});
 			} else if (event.type === "dynamic_workflow") {
 				// Dispatch custom event for WorkflowsPage to handle

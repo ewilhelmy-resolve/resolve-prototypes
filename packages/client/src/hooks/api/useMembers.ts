@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import i18n from "@/i18n";
 import { ritaToast } from "@/components/ui/rita-toast";
 import { memberApi } from "@/services/api";
 import { useAuthStore } from "@/stores/auth-store";
@@ -83,7 +84,7 @@ export function useUpdateMemberRole() {
 		onError: (error: any) => {
 			const message = error.message || "Failed to update member role";
 			ritaToast.error({
-				title: "Failed to update role",
+				title: i18n.t("error.roleUpdateFailed", { ns: "toast" }),
 				description: message,
 			});
 		},
@@ -117,7 +118,7 @@ export function useUpdateMemberStatus() {
 		onError: (error: any) => {
 			const message = error.message || "Failed to update member status";
 			ritaToast.error({
-				title: "Failed to update status",
+				title: i18n.t("error.statusUpdateFailed", { ns: "toast" }),
 				description: message,
 			});
 		},
@@ -147,7 +148,7 @@ export function useRemoveMember() {
 		onError: (error: any) => {
 			const message = error.message || "Failed to remove member";
 			ritaToast.error({
-				title: "Failed to remove member",
+				title: i18n.t("error.memberRemoveFailed", { ns: "toast" }),
 				description: message,
 			});
 		},
@@ -185,7 +186,7 @@ export function useUpdateMemberProfile() {
 		onError: (error: any) => {
 			const message = error.message || "Failed to update member profile";
 			ritaToast.error({
-				title: "Failed to update profile",
+				title: i18n.t("error.profileUpdateFailed", { ns: "toast" }),
 				description: message,
 			});
 		},
@@ -213,14 +214,14 @@ export function useDeleteMemberPermanent() {
 			// Invalidate member lists to refetch
 			queryClient.invalidateQueries({ queryKey: memberKeys.lists() });
 			ritaToast.success({
-				title: "Member deleted",
-				description: "Member has been permanently deleted from the system",
+				title: i18n.t("success.memberDeleted", { ns: "toast" }),
+				description: i18n.t("descriptions.memberDeletedDesc", { ns: "toast" }),
 			});
 		},
 		onError: (error: any) => {
 			const message = error.message || "Failed to delete member";
 			ritaToast.error({
-				title: "Failed to delete member",
+				title: i18n.t("error.memberDeleteFailed", { ns: "toast" }),
 				description: message,
 			});
 		},
@@ -247,8 +248,8 @@ export function useDeleteOwnAccount() {
 			memberApi.deleteOwnAccount(reason),
 		onSuccess: () => {
 			ritaToast.success({
-				title: "Account deleted",
-				description: "Your account has been permanently deleted. Logging out...",
+				title: i18n.t("success.accountDeleted", { ns: "toast" }),
+				description: i18n.t("descriptions.accountDeletedDesc", { ns: "toast" }),
 			});
 
 			// Wait briefly to show toast, then logout via auth store
@@ -266,7 +267,7 @@ export function useDeleteOwnAccount() {
 		onError: (error: any) => {
 			const message = error.message || "Failed to delete account";
 			ritaToast.error({
-				title: "Failed to delete account",
+				title: i18n.t("error.accountDeleteFailed", { ns: "toast" }),
 				description: message,
 			});
 		},

@@ -1,4 +1,5 @@
 import { useForm } from "react-hook-form";
+import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { STATUS } from "@/constants/connectionSources";
 import { useConnectionSource } from "@/contexts/ConnectionSourceContext";
@@ -17,6 +18,7 @@ interface WebSearchFormProps {
 }
 
 export function WebSearchForm({ onCancel }: WebSearchFormProps = {}) {
+	const { t } = useTranslation("toast");
 	const { source } = useConnectionSource();
 	const updateMutation = useUpdateDataSource();
 
@@ -36,11 +38,11 @@ export function WebSearchForm({ onCancel }: WebSearchFormProps = {}) {
 				},
 			});
 
-			toast.success("Configuration Saved", {
-				description: "Web Search has been enabled successfully",
+			toast.success(t("success.configurationSaved"), {
+				description: t("descriptions.webSearchEnabled"),
 			});
 		} catch (error) {
-			toast.error("Save Failed", {
+			toast.error(t("error.saveFailed"), {
 				description: error instanceof Error ? error.message : "Failed to save configuration",
 			});
 		}

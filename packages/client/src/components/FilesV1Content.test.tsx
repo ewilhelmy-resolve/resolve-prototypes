@@ -585,7 +585,7 @@ describe("FilesV1Content", () => {
 			await waitFor(() => {
 				expect(ritaToast.info).toHaveBeenCalledWith(
 					expect.objectContaining({
-						title: "Uploading Files",
+						title: "info.uploadingFiles",
 					}),
 				);
 			});
@@ -614,8 +614,8 @@ describe("FilesV1Content", () => {
 			await waitFor(() => {
 				expect(ritaToast.info).toHaveBeenCalledWith(
 					expect.objectContaining({
-						title: "Uploading Files",
-						description: expect.stringContaining("1 file"),
+						title: "info.uploadingFiles",
+						description: "descriptions.startingUpload",
 					}),
 				);
 			});

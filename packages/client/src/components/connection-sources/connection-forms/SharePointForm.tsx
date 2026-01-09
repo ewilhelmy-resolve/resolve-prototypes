@@ -1,4 +1,5 @@
 import { useForm } from "react-hook-form";
+import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { STATUS } from "@/constants/connectionSources";
@@ -25,6 +26,7 @@ interface SharePointFormProps {
 }
 
 export function SharePointForm({ onCancel }: SharePointFormProps = {}) {
+	const { t } = useTranslation("toast");
 	const { source } = useConnectionSource();
 	const verifyMutation = useVerifyDataSource();
 	const updateMutation = useUpdateDataSource();
@@ -52,8 +54,8 @@ export function SharePointForm({ onCancel }: SharePointFormProps = {}) {
 			!formData.clientSecret ||
 			!formData.siteUrl
 		) {
-			toast.error("Validation Error", {
-				description: "Please fill in all authentication fields",
+			toast.error(t("error.validationError"), {
+				description: t("descriptions.fillAuthFields"),
 			});
 			return;
 		}
@@ -88,12 +90,11 @@ export function SharePointForm({ onCancel }: SharePointFormProps = {}) {
 				},
 			});
 
-			toast.success("Connection Configured", {
-				description:
-					"Your SharePoint connection has been configured successfully",
+			toast.success(t("success.connectionConfigured"), {
+				description: t("descriptions.sharePointConfigured"),
 			});
 		} catch (error) {
-			toast.error("Connection Failed", {
+			toast.error(t("error.connectionFailed"), {
 				description:
 					error instanceof Error
 						? error.message

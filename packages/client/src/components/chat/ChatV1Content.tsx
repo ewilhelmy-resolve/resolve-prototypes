@@ -15,6 +15,7 @@ import {
 	Upload /* , PaperclipIcon */,
 } from "lucide-react";
 import { Fragment, useCallback, useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import { Action, Actions } from "@/components/ai-elements/actions";
 import {
@@ -527,6 +528,7 @@ export default function ChatV1Content({
 	fileInputRef,
 	requireKnowledgeBase = true,
 }: ChatV1ContentProps) {
+	const { t } = useTranslation("toast");
 	// Copy state tracking for icon feedback
 	const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
 
@@ -586,19 +588,19 @@ export default function ChatV1Content({
 				uploadFileMutation.mutate(file, {
 					onSuccess: () => {
 						ritaToast.success({
-							title: `Uploaded "${file.name}" to knowledge base`,
+							title: t("success.uploaded", { name: file.name }),
 						});
 					},
 					onError: (error: any) => {
 						ritaToast.error({
-							title: "Upload Failed",
-							description: `Failed to upload "${file.name}": ${error?.message || "Unknown error"}`,
+							title: t("error.uploadFailed"),
+							description: t("descriptions.uploadFailedDesc", { name: file.name, error: error?.message || "Unknown error" }),
 						});
 					},
 				});
 			});
 		},
-		[uploadFileMutation],
+		[uploadFileMutation, t],
 	);
 
 	// Drag-and-drop with file upload functionality (disabled for all users)
@@ -610,7 +612,7 @@ export default function ChatV1Content({
 		maxFileSize: 10 * 1024 * 1024, // 10MB
 		onDrop: handleDragDropUpload,
 		onError: (error) =>
-			ritaToast.error({ title: "Upload Error", description: error }),
+			ritaToast.error({ title: t("error.uploadError"), description: error }),
 	});
 
 	// Scroll container ref for pagination (mutable to allow assignment from contextRef)
@@ -645,13 +647,13 @@ export default function ChatV1Content({
 
 		if (chatStatus === "streaming") {
 			const timeoutId = setTimeout(() => {
-				ritaToast.warning({ title: "Response timeout" });
+				ritaToast.warning({ title: t("warning.responseTimeout") });
 				setTimeoutOverride(true);
 			}, 30000);
 
 			return () => clearTimeout(timeoutId);
 		}
-	}, [chatStatus]);
+	}, [chatStatus, t]);
 
 	// Check for incomplete conversation on navigation
 	useEffect(() => {
@@ -721,13 +723,13 @@ export default function ChatV1Content({
 		try {
 			await navigator.clipboard.writeText(text);
 			setCopiedMessageId(messageId);
-			ritaToast.success({ title: "Message copied to clipboard" });
+			ritaToast.success({ title: t("success.messageCopied") });
 			// Reset copied state after 2 seconds (same as ai-elements pattern)
 			setTimeout(() => setCopiedMessageId(null), 2000);
 		} catch (_error) {
-			ritaToast.error({ title: "Failed to copy message" });
+			ritaToast.error({ title: t("error.copyFailed") });
 		}
-	}, []);
+	}, [t]);
 
 	// Handle direct attachment button click
 	// TODO: Uncomment when re-enabling attachment button

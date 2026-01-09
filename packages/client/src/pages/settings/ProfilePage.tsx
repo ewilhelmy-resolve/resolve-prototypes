@@ -1,6 +1,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useEffect } from "react";
 import { useForm } from "react-hook-form";
+import { useTranslation } from "react-i18next";
 import { z } from "zod";
 import { ConfirmFormDialog } from "@/components/dialogs/ConfirmFormDialog";
 import RitaSettingsLayout from "@/components/layouts/RitaSettingsLayout";
@@ -37,6 +38,7 @@ const profileSchema = z.object({
 type ProfileFormData = z.infer<typeof profileSchema>;
 
 export default function ProfilePage() {
+	const { t } = useTranslation("toast");
 	const { isOwnerOrAdmin } = useProfilePermissions();
 	const isAdmin = isOwnerOrAdmin(); // For delete account section AND organization editing
 	const { data: profile } = useProfile();
@@ -88,7 +90,7 @@ export default function ProfilePage() {
 		const checkAllComplete = () => {
 			completedOperations++;
 			if (completedOperations === totalOperations) {
-				toast.success("Profile updated successfully");
+				toast.success(t("success.profileUpdated"));
 				reset(data);
 			}
 		};
@@ -103,7 +105,7 @@ export default function ProfilePage() {
 				{
 					onSuccess: checkAllComplete,
 					onError: (error) => {
-						toast.error("Failed to update profile", {
+						toast.error(t("error.profileUpdateFailed"), {
 							description: error.message || "Please try again.",
 						});
 					},
@@ -121,7 +123,7 @@ export default function ProfilePage() {
 				{
 					onSuccess: checkAllComplete,
 					onError: (error) => {
-						toast.error("Failed to update organization", {
+						toast.error(t("error.organizationUpdateFailed"), {
 							description: error.message || "Please try again.",
 						});
 					},

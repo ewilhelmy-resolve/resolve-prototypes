@@ -1,4 +1,5 @@
 import { useForm } from "react-hook-form";
+import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
@@ -26,6 +27,7 @@ interface ServiceNowFormProps {
 }
 
 export function ServiceNowForm({ onCancel, onSuccess, onFailure }: ServiceNowFormProps = {}) {
+	const { t } = useTranslation("toast");
 	const { source } = useConnectionSource();
 	const verifyMutation = useVerifyDataSource();
 	const updateMutation = useUpdateDataSource();
@@ -55,8 +57,8 @@ export function ServiceNowForm({ onCancel, onSuccess, onFailure }: ServiceNowFor
 
 		if (!isValid) {
 			ritaToast.error({
-				title: "Validation Error",
-				description: "Please check the form fields and correct any errors",
+				title: t("error.validationError"),
+				description: t("descriptions.checkFormFields"),
 			});
 			return;
 		}
@@ -91,15 +93,14 @@ export function ServiceNowForm({ onCancel, onSuccess, onFailure }: ServiceNowFor
 			});
 
 			ritaToast.success({
-				title: "Connection Configured",
-				description:
-					"Your ServiceNow connection has been configured successfully",
+				title: t("success.connectionConfigured"),
+				description: t("descriptions.serviceNowConfigured"),
 			});
 
 			onSuccess?.();
 		} catch (error) {
 			ritaToast.error({
-				title: "Connection Failed",
+				title: t("error.connectionFailed"),
 				description:
 					error instanceof Error
 						? error.message

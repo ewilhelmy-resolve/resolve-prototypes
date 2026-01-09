@@ -250,8 +250,8 @@ describe("ConfluenceConfiguration", () => {
 
 		await waitFor(() => {
 			expect(ritaToast.success).toHaveBeenCalledWith({
-				title: "Sync Started",
-				description: "Your Confluence spaces are being synced",
+				title: "success.syncStarted",
+				description: "descriptions.syncingSpaces",
 			});
 		});
 	});
@@ -270,7 +270,7 @@ describe("ConfluenceConfiguration", () => {
 
 		await waitFor(() => {
 			expect(ritaToast.error).toHaveBeenCalledWith({
-				title: "Sync Failed",
+				title: "error.syncFailed",
 				description: "Sync failed",
 			});
 		});
@@ -286,8 +286,8 @@ describe("ConfluenceConfiguration", () => {
 
 		await waitFor(() => {
 			expect(ritaToast.error).toHaveBeenCalledWith({
-				title: "Configuration Error",
-				description: "No backend data available for this source",
+				title: "error.configurationError",
+				description: "descriptions.noBackendData",
 			});
 		});
 	});
