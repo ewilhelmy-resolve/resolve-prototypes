@@ -472,7 +472,7 @@ describe('WebhookService', () => {
         transcript: [{ role: 'user', content: 'Hello' }],
       });
 
-      const calledPayload = mockedAxios.post.mock.calls[0][1];
+      const calledPayload = mockedAxios.post.mock.calls[0][1] as Record<string, unknown>;
 
       // Should include ALL Rita internal IDs
       expect(calledPayload.user_id).toBe('user-456');
@@ -517,7 +517,7 @@ describe('WebhookService', () => {
         iframeConfig: mockIframeConfig,
       });
 
-      const calledPayload = mockedAxios.post.mock.calls[0][1];
+      const calledPayload = mockedAxios.post.mock.calls[0][1] as Record<string, unknown>;
 
       // Should include Valkey config fields
       expect(calledPayload.userGuid).toBe('jarvis-user-guid-123');
