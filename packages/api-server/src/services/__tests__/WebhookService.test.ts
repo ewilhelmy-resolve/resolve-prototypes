@@ -450,7 +450,44 @@ describe('WebhookService', () => {
     });
   });
 
-  describe('sendTenantMessageEvent', () => {
+  /**
+   * Webhook Payload Behavior Tests
+   *
+   * Two distinct behaviors:
+   * - sendMessageEvent (rita-chat): Includes ALL Rita internal IDs
+   * - sendTenantMessageEvent (rita-chat-iframe): Only Valkey config + message content
+   */
+  describe('sendMessageEvent - includes Rita internal IDs', () => {
+    it('should include all Rita internal IDs in payload', async () => {
+      mockedAxios.post.mockResolvedValueOnce({ status: 200, data: { success: true } });
+
+      await webhookService.sendMessageEvent({
+        organizationId: 'org-123',
+        userId: 'user-456',
+        userEmail: 'user@example.com',
+        conversationId: 'conv-789',
+        messageId: 'msg-101',
+        customerMessage: 'Hello from Rita Go',
+        documentIds: ['doc-1', 'doc-2'],
+        transcript: [{ role: 'user', content: 'Hello' }],
+      });
+
+      const calledPayload = mockedAxios.post.mock.calls[0][1];
+
+      // Should include ALL Rita internal IDs
+      expect(calledPayload.user_id).toBe('user-456');
+      expect(calledPayload.user_email).toBe('user@example.com');
+      expect(calledPayload.tenant_id).toBe('org-123');
+      expect(calledPayload.conversation_id).toBe('conv-789');
+      expect(calledPayload.message_id).toBe('msg-101');
+      expect(calledPayload.document_ids).toEqual(['doc-1', 'doc-2']);
+      expect(calledPayload.transcript_ids).toEqual({ transcripts: [{ role: 'user', content: 'Hello' }] });
+      expect(calledPayload.customer_message).toBe('Hello from Rita Go');
+      expect(calledPayload.source).toBe('rita-chat');
+    });
+  });
+
+  describe('sendTenantMessageEvent - iframe webhook (no Rita IDs)', () => {
     const mockIframeConfig = {
       accessToken: 'jwt-access-token',
       refreshToken: 'jwt-refresh-token',
@@ -465,7 +502,7 @@ describe('WebhookService', () => {
       userGuid: 'jarvis-user-guid-123',
     };
 
-    it('should spread Valkey config and NOT include Rita internal IDs', async () => {
+    it('should spread Valkey config and only include customer_message', async () => {
       mockedAxios.post.mockResolvedValueOnce({ status: 200, data: { success: true } });
 
       await webhookService.sendTenantMessageEvent({
@@ -475,6 +512,8 @@ describe('WebhookService', () => {
         conversationId: 'rita-conv-id',
         messageId: 'rita-msg-id',
         customerMessage: 'Hello from iframe',
+        documentIds: ['doc-1'],
+        transcript: [{ role: 'user', content: 'Hello' }],
         iframeConfig: mockIframeConfig,
       });
 
@@ -486,16 +525,20 @@ describe('WebhookService', () => {
       expect(calledPayload.chatSessionId).toBe('chat-session-789');
       expect(calledPayload.accessToken).toBe('jwt-access-token');
 
-      // Should include message content
+      // Should include message content only
       expect(calledPayload.customer_message).toBe('Hello from iframe');
       expect(calledPayload.source).toBe('rita-chat-iframe');
       expect(calledPayload.action).toBe('message_created');
+      expect(calledPayload.timestamp).toBeDefined();
 
-      // Should NOT include Rita internal IDs
+      // Should NOT include ANY Rita internal IDs
       expect(calledPayload.user_id).toBeUndefined();
       expect(calledPayload.user_email).toBeUndefined();
       expect(calledPayload.conversation_id).toBeUndefined();
       expect(calledPayload.message_id).toBeUndefined();
+      expect(calledPayload.document_ids).toBeUndefined();
+      expect(calledPayload.transcript_ids).toBeUndefined();
+      expect(calledPayload.tenant_id).toBeUndefined(); // Uses tenantId from Valkey, not tenant_id
     });
 
     it('should call tenant-specific webhook URL with Basic auth', async () => {
