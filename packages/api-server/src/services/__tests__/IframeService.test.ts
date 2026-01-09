@@ -164,13 +164,17 @@ describe('IframeService', () => {
   });
 
   describe('validateAndSetup', () => {
-    // Helper to set up JIT provisioning mocks (uses Jarvis IDs directly)
-    const setupJitMocks = (wasOrgCreated = true, wasUserCreated = true) => {
+    // Helper to set up JIT provisioning mocks (check-first-then-insert pattern)
+    const setupJitMocks = (orgExists = false, userExists = false) => {
       mockPool.query
-        // resolveRitaOrg: uses jarvisTenantId directly
-        .mockResolvedValueOnce({ rows: [{ was_created: wasOrgCreated }] })
-        // resolveRitaUser: uses jarvisGuid directly
-        .mockResolvedValueOnce({ rows: [{ was_created: wasUserCreated }] })
+        // resolveRitaOrg: check if exists
+        .mockResolvedValueOnce({ rows: orgExists ? [{ id: validValkeyPayload.tenantId }] : [] })
+        // resolveRitaOrg: insert or update
+        .mockResolvedValueOnce({ rows: [] })
+        // resolveRitaUser: check if exists by keycloak_id
+        .mockResolvedValueOnce({ rows: userExists ? [{ user_id: validValkeyPayload.userGuid }] : [] })
+        // resolveRitaUser: insert or update
+        .mockResolvedValueOnce({ rows: [{ user_id: validValkeyPayload.userGuid }] })
         // ensureOrgMembership (only if org or user was created)
         .mockResolvedValueOnce({ rows: [] });
     };
@@ -193,7 +197,7 @@ describe('IframeService', () => {
 
     it('should use Jarvis IDs directly as Rita IDs', async () => {
       mockValkeyClient.hget.mockResolvedValueOnce(JSON.stringify(validValkeyPayload));
-      setupJitMocks();
+      setupJitMocks(); // new org, new user
 
       // Mock conversation creation
       mockWithOrgContext.mockImplementation(async (_userId, _orgId, callback) => {
@@ -212,50 +216,51 @@ describe('IframeService', () => {
       expect(result.webhookTenantId).toBe('00F4F67D-3B92-4FD2-A574-7BE22C6BE796');
       expect(result.conversationId).toBe('new-conv-id');
 
-      // Verify org created with jarvisTenantId as ID
+      // Verify org check then insert
+      expect(mockPool.query).toHaveBeenCalledWith(
+        expect.stringContaining('SELECT id FROM organizations'),
+        ['00F4F67D-3B92-4FD2-A574-7BE22C6BE796']
+      );
       expect(mockPool.query).toHaveBeenCalledWith(
         expect.stringContaining('INSERT INTO organizations'),
-        expect.arrayContaining([
-          '00F4F67D-3B92-4FD2-A574-7BE22C6BE796', // jarvisTenantId as org ID
-          'staging', // tenantName
-        ])
+        ['00F4F67D-3B92-4FD2-A574-7BE22C6BE796', 'staging']
       );
 
-      // Verify user created with jarvisGuid as user_id
+      // Verify user check then insert
+      expect(mockPool.query).toHaveBeenCalledWith(
+        expect.stringContaining('SELECT user_id FROM user_profiles'),
+        ['jarvis-275fb79d-0a6f-4336-bc05-1f6fcbaf775b']
+      );
       expect(mockPool.query).toHaveBeenCalledWith(
         expect.stringContaining('INSERT INTO user_profiles'),
-        expect.arrayContaining([
-          '275fb79d-0a6f-4336-bc05-1f6fcbaf775b', // jarvisGuid as user_id
-        ])
+        expect.arrayContaining(['275fb79d-0a6f-4336-bc05-1f6fcbaf775b'])
       );
 
-      // Session uses Jarvis IDs directly (same as Rita IDs now)
+      // Session uses Jarvis IDs
       expect(mockSessionStore.createSession).toHaveBeenCalledWith(
         expect.objectContaining({
-          userId: '275fb79d-0a6f-4336-bc05-1f6fcbaf775b', // jarvisGuid
-          organizationId: '00F4F67D-3B92-4FD2-A574-7BE22C6BE796', // jarvisTenantId
+          userId: '275fb79d-0a6f-4336-bc05-1f6fcbaf775b',
+          organizationId: '00F4F67D-3B92-4FD2-A574-7BE22C6BE796',
           isIframeSession: true,
-          iframeWebhookConfig: expect.objectContaining({
-            userGuid: '275fb79d-0a6f-4336-bc05-1f6fcbaf775b',
-            tenantId: '00F4F67D-3B92-4FD2-A574-7BE22C6BE796',
-          }),
         })
       );
 
       // Conversation created with Jarvis IDs
       expect(mockWithOrgContext).toHaveBeenCalledWith(
-        '275fb79d-0a6f-4336-bc05-1f6fcbaf775b', // jarvisGuid as userId
-        '00F4F67D-3B92-4FD2-A574-7BE22C6BE796', // jarvisTenantId as orgId
+        '275fb79d-0a6f-4336-bc05-1f6fcbaf775b',
+        '00F4F67D-3B92-4FD2-A574-7BE22C6BE796',
         expect.any(Function)
       );
     });
 
     it('should use existing conversation ID if provided', async () => {
       mockValkeyClient.hget.mockResolvedValueOnce(JSON.stringify(validValkeyPayload));
-      // Only org and user resolution needed (no conversation creation)
+      // Org and user resolution with existing records
       mockPool.query
-        .mockResolvedValueOnce({ rows: [{ was_created: false }] }) // existing org
-        .mockResolvedValueOnce({ rows: [{ was_created: false }] }); // existing user
+        .mockResolvedValueOnce({ rows: [{ id: validValkeyPayload.tenantId }] }) // org exists
+        .mockResolvedValueOnce({ rows: [] }) // update org
+        .mockResolvedValueOnce({ rows: [{ user_id: validValkeyPayload.userGuid }] }) // user exists
+        .mockResolvedValueOnce({ rows: [] }); // update user
 
       const result = await iframeService.validateAndSetup(
         'my-session-key',
@@ -314,10 +319,12 @@ describe('IframeService', () => {
 
     it('should skip org membership when both org and user exist', async () => {
       mockValkeyClient.hget.mockResolvedValueOnce(JSON.stringify(validValkeyPayload));
-      // Both org and user already exist (not newly created)
+      // Both org and user already exist
       mockPool.query
-        .mockResolvedValueOnce({ rows: [{ was_created: false }] }) // existing org
-        .mockResolvedValueOnce({ rows: [{ was_created: false }] }); // existing user
+        .mockResolvedValueOnce({ rows: [{ id: validValkeyPayload.tenantId }] }) // org exists
+        .mockResolvedValueOnce({ rows: [] }) // update org
+        .mockResolvedValueOnce({ rows: [{ user_id: validValkeyPayload.userGuid }] }) // user exists
+        .mockResolvedValueOnce({ rows: [] }); // update user
       // No membership query should be called
 
       // Mock conversation creation
@@ -334,13 +341,13 @@ describe('IframeService', () => {
 
       expect(result.valid).toBe(true);
 
-      // Only 2 pool.query calls (org + user), no membership
-      expect(mockPool.query).toHaveBeenCalledTimes(2);
+      // 4 pool.query calls (org check + org update + user check + user update), no membership
+      expect(mockPool.query).toHaveBeenCalledTimes(4);
     });
 
     it('should create org membership when user is new', async () => {
       mockValkeyClient.hget.mockResolvedValueOnce(JSON.stringify(validValkeyPayload));
-      setupJitMocks(false, true); // existing org, new user
+      setupJitMocks(true, false); // existing org, new user
 
       // Mock conversation creation
       mockWithOrgContext.mockImplementation(async (_userId, _orgId, callback) => {
@@ -354,8 +361,8 @@ describe('IframeService', () => {
 
       await iframeService.validateAndSetup('my-session-key');
 
-      // 3 pool.query calls: org + user + membership
-      expect(mockPool.query).toHaveBeenCalledTimes(3);
+      // 5 pool.query calls: org check + org update + user check + user insert + membership
+      expect(mockPool.query).toHaveBeenCalledTimes(5);
       expect(mockPool.query).toHaveBeenLastCalledWith(
         expect.stringContaining('INSERT INTO organization_members'),
         expect.arrayContaining([
@@ -365,7 +372,7 @@ describe('IframeService', () => {
       );
     });
 
-    it('should use ON CONFLICT upsert for org and user', async () => {
+    it('should check-first-then-insert for org and user', async () => {
       mockValkeyClient.hget.mockResolvedValueOnce(JSON.stringify(validValkeyPayload));
       setupJitMocks();
 
@@ -381,13 +388,47 @@ describe('IframeService', () => {
 
       await iframeService.validateAndSetup('my-session-key');
 
-      // Verify org upsert uses ON CONFLICT
-      const orgQuery = mockPool.query.mock.calls[0][0];
-      expect(orgQuery).toContain('ON CONFLICT (id) DO UPDATE');
+      // Verify org check query
+      const orgCheckQuery = mockPool.query.mock.calls[0][0];
+      expect(orgCheckQuery).toContain('SELECT id FROM organizations');
 
-      // Verify user upsert uses ON CONFLICT
-      const userQuery = mockPool.query.mock.calls[1][0];
-      expect(userQuery).toContain('ON CONFLICT (user_id) DO UPDATE');
+      // Verify user check query
+      const userCheckQuery = mockPool.query.mock.calls[2][0];
+      expect(userCheckQuery).toContain('SELECT user_id FROM user_profiles');
+    });
+
+    it('should handle legacy users with old UUID', async () => {
+      const legacyUserId = 'legacy-uuid-12345';
+      mockValkeyClient.hget.mockResolvedValueOnce(JSON.stringify(validValkeyPayload));
+      // Org is new, user exists with legacy UUID
+      mockPool.query
+        .mockResolvedValueOnce({ rows: [] }) // org doesn't exist
+        .mockResolvedValueOnce({ rows: [] }) // insert org
+        .mockResolvedValueOnce({ rows: [{ user_id: legacyUserId }] }) // user exists with legacy UUID
+        .mockResolvedValueOnce({ rows: [] }) // update user
+        .mockResolvedValueOnce({ rows: [] }); // membership
+
+      // Mock conversation creation
+      mockWithOrgContext.mockImplementation(async (_userId, _orgId, callback) => {
+        const mockClient = {
+          query: vi.fn().mockResolvedValue({
+            rows: [{ id: 'conv-id' }],
+          }),
+        };
+        return await callback(mockClient as any);
+      });
+
+      const result = await iframeService.validateAndSetup('my-session-key');
+
+      expect(result.valid).toBe(true);
+
+      // Session should use the legacy user_id (not jarvisGuid)
+      expect(mockSessionStore.createSession).toHaveBeenCalledWith(
+        expect.objectContaining({
+          userId: legacyUserId,
+          organizationId: '00F4F67D-3B92-4FD2-A574-7BE22C6BE796',
+        })
+      );
     });
   });
 });
