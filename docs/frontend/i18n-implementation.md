@@ -117,9 +117,13 @@ t('welcome.greeting', { name: 'John' }) // "Welcome, {{name}}"
 
 ### Phase 5: Settings Pages
 
-- [ ] Create settings.json
-- [ ] Migrate ProfilePage
-- [ ] Migrate SettingsUsers
+- [x] Expand settings.json with profile, users, connection sources, knowledge sources, itsm keys
+- [x] Migrate ProfilePage.tsx (form labels, buttons, delete account dialog, validation)
+- [x] Migrate SettingsUsers.tsx (title, tabs)
+- [x] Migrate ConnectionSources.tsx (title, description, loading, error states, buttons)
+- [x] Migrate KnowledgeSources.tsx (title, description, loading, error states, buttons)
+- [x] Migrate ItsmSources.tsx (title, description, loading, error states, buttons)
+- [x] Update ConnectionSources.test.tsx to expect translation keys
 
 ### Phase 6: Connection Forms
 
@@ -158,8 +162,8 @@ t('welcome.greeting', { name: 'John' }) // "Welcome, {{name}}"
 
 ## Current Checkpoint
 
-**Status**: Phase 4 - COMPLETE
-**Next Step**: Phase 5 - Settings Pages migration
+**Status**: Phase 5 - COMPLETE
+**Next Step**: Phase 6 - Connection Forms migration
 **Last Updated**: 2026-01-09
 
 ## Related Docs

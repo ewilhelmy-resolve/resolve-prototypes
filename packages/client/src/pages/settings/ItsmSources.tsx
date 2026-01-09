@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
 import { CrashPage } from "@/components/CrashPage";
 import RitaSettingsLayout from "@/components/layouts/RitaSettingsLayout";
@@ -20,6 +21,7 @@ import { Button } from "../../components/ui/button";
 import SettingsHeader from "./SettingsHeader";
 
 export default function ItsmSources() {
+	const { t } = useTranslation("settings");
 	const { mutate: seedSources, isPending: isSeeding } = useSeedDataSources();
 	const { data: dataSources, isLoading, error } = useDataSources();
 	const isServiceNowEnabled = useFeatureFlag("ENABLE_SERVICENOW");
@@ -73,11 +75,11 @@ export default function ItsmSources() {
 				<div className="w-full">
 					<div className="flex flex-col gap-8">
 						<SettingsHeader
-							title="ITSM Sources"
-							description="Connect ticketing systems to enable autopilot clustering and automated responses."
+							title={t("itsmSources.title")}
+							description={t("itsmSources.description")}
 						/>
 						<div className="max-w-6xl">
-							<div className="text-center py-8">Loading connections...</div>
+							<div className="text-center py-8">{t("itsmSources.loading")}</div>
 						</div>
 					</div>
 				</div>
@@ -89,9 +91,9 @@ export default function ItsmSources() {
 		return (
 			<RitaSettingsLayout>
 				<CrashPage
-					title="Failed to load data sources"
-					description="An error occurred while fetching connection sources. Please try again."
-					actionLabel="Try Again"
+					title={t("errors.loadDataSourcesFailed")}
+					description={t("errors.loadDataSourcesDescription")}
+					actionLabel={t("errors.tryAgain")}
 					onAction={() => window.location.reload()}
 				/>
 			</RitaSettingsLayout>
@@ -103,8 +105,8 @@ export default function ItsmSources() {
 			<div className="flex-1 inline-flex flex-col items-center gap-8 w-full">
 				<div className="self-stretch flex flex-col items-start gap-8">
 					<SettingsHeader
-						title="ITSM Sources"
-						description="Connect ticketing systems to enable autopilot clustering and automated responses."
+						title={t("itsmSources.title")}
+						description={t("itsmSources.description")}
 					/>
 				</div>
 
@@ -136,7 +138,7 @@ export default function ItsmSources() {
 
 										{source.lastSync && (
 											<p className="text-sm text-foreground mt-1">
-												Last sync: {source.lastSync}
+												{t("itsmSources.lastSync", { time: source.lastSync })}
 											</p>
 										)}
 										{source.description && (
@@ -157,11 +159,11 @@ export default function ItsmSources() {
 									{isEnabled ? (
 										<span>
 											{source.status === STATUS.NOT_CONNECTED
-												? "Configure"
-												: "Manage"}
+												? t("itsmSources.configure")
+												: t("itsmSources.manage")}
 										</span>
 									) : (
-										<span>Coming Soon</span>
+										<span>{t("itsmSources.comingSoon")}</span>
 									)}
 								</Button>
 							</div>

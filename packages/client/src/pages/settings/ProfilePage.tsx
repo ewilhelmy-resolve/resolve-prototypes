@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import i18n from "@/i18n";
 import { useDeleteOwnAccount } from "@/hooks/api/useMembers";
 import { useProfile, useProfilePermissions } from "@/hooks/api/useProfile";
 import { useUpdateOrganization } from "@/hooks/api/useUpdateOrganization";
@@ -26,19 +27,20 @@ import SettingsHeader from "@/pages/settings/SettingsHeader";
 const profileSchema = z.object({
 	firstName: z
 		.string()
-		.min(1, "First name is required")
-		.max(100, "First name is too long"),
+		.min(1, i18n.t("profile.validation.firstNameRequired", { ns: "settings" }))
+		.max(100, i18n.t("profile.validation.firstNameTooLong", { ns: "settings" })),
 	lastName: z
 		.string()
-		.min(1, "Last name is required")
-		.max(100, "Last name is too long"),
-	organization: z.string().min(1, "Organization is required"),
+		.min(1, i18n.t("profile.validation.lastNameRequired", { ns: "settings" }))
+		.max(100, i18n.t("profile.validation.lastNameTooLong", { ns: "settings" })),
+	organization: z.string().min(1, i18n.t("profile.validation.organizationRequired", { ns: "settings" })),
 });
 
 type ProfileFormData = z.infer<typeof profileSchema>;
 
 export default function ProfilePage() {
-	const { t } = useTranslation("toast");
+	const { t } = useTranslation("settings");
+	const { t: tToast } = useTranslation("toast");
 	const { isOwnerOrAdmin } = useProfilePermissions();
 	const isAdmin = isOwnerOrAdmin(); // For delete account section AND organization editing
 	const { data: profile } = useProfile();
@@ -90,7 +92,7 @@ export default function ProfilePage() {
 		const checkAllComplete = () => {
 			completedOperations++;
 			if (completedOperations === totalOperations) {
-				toast.success(t("success.profileUpdated"));
+				toast.success(tToast("success.profileUpdated"));
 				reset(data);
 			}
 		};
@@ -105,7 +107,7 @@ export default function ProfilePage() {
 				{
 					onSuccess: checkAllComplete,
 					onError: (error) => {
-						toast.error(t("error.profileUpdateFailed"), {
+						toast.error(tToast("error.profileUpdateFailed"), {
 							description: error.message || "Please try again.",
 						});
 					},
@@ -123,7 +125,7 @@ export default function ProfilePage() {
 				{
 					onSuccess: checkAllComplete,
 					onError: (error) => {
-						toast.error(t("error.organizationUpdateFailed"), {
+						toast.error(tToast("error.organizationUpdateFailed"), {
 							description: error.message || "Please try again.",
 						});
 					},
@@ -139,16 +141,16 @@ export default function ProfilePage() {
 	// Validation schema for delete account dialog
 	const deleteAccountSchema = z.object({
 		permanent: z.boolean().refine((val) => val === true, {
-			message: "Must confirm this is permanent",
+			message: t("profile.validation.mustConfirmPermanent"),
 		}),
 		data: z.boolean().refine((val) => val === true, {
-			message: "Must confirm data deletion",
+			message: t("profile.validation.mustConfirmData"),
 		}),
 		tenantAccess: z.boolean().refine((val) => val === true, {
-			message: "Must confirm tenant access removal",
+			message: t("profile.validation.mustConfirmTenantAccess"),
 		}),
 		confirmText: z.string().refine((val) => val.toLowerCase() === "delete", {
-			message: 'Must type "delete" to confirm',
+			message: t("profile.validation.mustTypeDelete"),
 		}),
 	});
 
@@ -157,13 +159,13 @@ export default function ProfilePage() {
 			<div className="flex-1 inline-flex flex-col items-center gap-8 w-full">
 				<div className="self-stretch flex flex-col items-start gap-8">
 					<SettingsHeader
-						title="Profile"
-						description="Manage your personal information"
+						title={t("profile.title")}
+						description={t("profile.description")}
 					/>
 				</div>
 
 				<div className="px-6 pb-8 max-w-2xl mx-auto w-full flex flex-col gap-6">
-					<h4 className="text-xl font-normal text-foreground">General</h4>
+					<h4 className="text-xl font-normal text-foreground">{t("profile.general")}</h4>
 
 					<form
 						onSubmit={handleSubmit(handleUpdateProfile)}
@@ -173,7 +175,7 @@ export default function ProfilePage() {
 							<div className="flex flex-col md:flex-row gap-4">
 								<div className="flex flex-col gap-2 flex-1">
 									<Label htmlFor="firstName" className="text-foreground">
-										First name
+										{t("profile.firstName")}
 										<span className="text-destructive ml-1">*</span>
 									</Label>
 									<Input
@@ -189,7 +191,7 @@ export default function ProfilePage() {
 								</div>
 								<div className="flex flex-col gap-2 flex-1">
 									<Label htmlFor="lastName" className="text-foreground">
-										Last name
+										{t("profile.lastName")}
 										<span className="text-destructive ml-1">*</span>
 									</Label>
 									<Input
@@ -208,7 +210,7 @@ export default function ProfilePage() {
 							<div className="flex flex-col gap-4">
 								<div className="flex flex-col gap-2">
 									<Label htmlFor="email" className="text-foreground">
-										Email
+										{t("profile.email")}
 									</Label>
 									<Input
 										id="email"
@@ -220,7 +222,7 @@ export default function ProfilePage() {
 
 								<div className="flex flex-col gap-2">
 									<Label htmlFor="organization" className="text-foreground">
-										Organization
+										{t("profile.organization")}
 										<span className="text-destructive ml-1">*</span>
 									</Label>
 									<Input
@@ -263,8 +265,8 @@ export default function ProfilePage() {
 							}
 						>
 							{isUpdatingProfile || isUpdatingOrganization
-								? "Updating..."
-								: "Update profile"}
+								? t("profile.updating")
+								: t("profile.updateProfile")}
 						</Button>
 					</form>
 
@@ -273,7 +275,7 @@ export default function ProfilePage() {
 							<div className="flex flex-col gap-2.5">
 								<div className="flex flex-col gap-2">
 									<h4 className="text-xl font-normal text-foreground">
-										Danger zone
+										{t("profile.dangerZone")}
 									</h4>
 								</div>
 							</div>
@@ -283,15 +285,13 @@ export default function ProfilePage() {
 									<div className="flex flex-col gap-2">
 										<div className="flex justify-start items-center">
 											<p className="text-base font-bold text-foreground">
-												Delete your account
+												{t("profile.deleteAccount.title")}
 											</p>
 										</div>
 										<p className="text-sm text-foreground">
-											Permanently delete your entire account
-											{isAdmin ? ", organization," : ""} and all data you have
-											uploaded.
-											{isAdmin &&
-												" As an owner, this will delete the entire organization and all members."}
+											{isAdmin
+												? t("profile.deleteAccount.descriptionAdmin")
+												: t("profile.deleteAccount.description")}
 										</p>
 									</div>
 									<ConfirmFormDialog
@@ -300,11 +300,13 @@ export default function ProfilePage() {
 												variant="destructive"
 												disabled={isDeletingAccount}
 											>
-												{isDeletingAccount ? "Deleting..." : "Delete Account"}
+												{isDeletingAccount ? t("profile.deleting") : t("profile.deleteAccountBtn")}
 											</Button>
 										}
-										title="Delete your account"
-										description={`This action cannot be undone. This will permanently delete your account and remove all your data from our servers.${isAdmin ? " As an owner, this will also delete the entire organization and all members." : ""}`}
+										title={t("profile.deleteAccount.title")}
+										description={isAdmin
+											? t("profile.deleteAccount.dialogDescriptionAdmin")
+											: t("profile.deleteAccount.dialogDescription")}
 										validationSchema={deleteAccountSchema}
 										defaultValues={{
 											permanent: false,
@@ -312,7 +314,7 @@ export default function ProfilePage() {
 											tenantAccess: false,
 											confirmText: "",
 										}}
-										actionLabel="Delete Account"
+										actionLabel={t("profile.deleteAccountBtn")}
 										actionVariant="destructive"
 										onConfirm={(data) => {
 											console.log("Delete confirmed with data:", data);
@@ -344,8 +346,7 @@ export default function ProfilePage() {
 															htmlFor="permanent"
 															className="text-sm leading-relaxed cursor-pointer select-none"
 														>
-															I understand this action is permanent and cannot
-															be undone
+															{t("profile.deleteAccount.confirmPermanent")}
 														</label>
 													</div>
 													<div className="flex items-start gap-3">
@@ -362,8 +363,7 @@ export default function ProfilePage() {
 															htmlFor="data"
 															className="text-sm leading-relaxed cursor-pointer select-none"
 														>
-															I understand all my data will be permanently
-															deleted
+															{t("profile.deleteAccount.confirmData")}
 														</label>
 													</div>
 													<div className="flex items-start gap-3">
@@ -384,25 +384,23 @@ export default function ProfilePage() {
 															htmlFor="tenantAccess"
 															className="text-sm leading-relaxed cursor-pointer select-none"
 														>
-															I understand all users in this{" "}
-															{isAdmin ? "organization" : "tenant"} will no
-															longer have access
+															{t("profile.deleteAccount.confirmTenantAccess", {
+																scope: isAdmin ? "organization" : "tenant",
+															})}
 														</label>
 													</div>
 												</div>
 
 												<div className="flex flex-col gap-2">
 													<Label htmlFor="confirmText" className="text-sm">
-														Type{" "}
-														<span className="font-mono font-semibold">
-															delete
-														</span>{" "}
-														to confirm
+														{t("profile.deleteAccount.typeDelete").split("<strong>")[0]}
+														<span className="font-mono font-semibold">delete</span>
+														{t("profile.deleteAccount.typeDelete").split("</strong>")[1]}
 													</Label>
 													<Input
 														id="confirmText"
 														{...form.register("confirmText")}
-														placeholder="Type delete here"
+														placeholder={t("profile.typeDeletePlaceholder")}
 													/>
 												</div>
 											</div>

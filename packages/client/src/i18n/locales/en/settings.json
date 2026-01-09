@@ -4,19 +4,41 @@
 		"description": "Manage your personal information",
 		"general": "General",
 		"dangerZone": "Danger zone",
+		"firstName": "First name",
+		"lastName": "Last name",
+		"email": "Email",
+		"organization": "Organization",
+		"updateProfile": "Update profile",
+		"updating": "Updating...",
+		"deleting": "Deleting...",
+		"deleteAccountBtn": "Delete Account",
+		"typeDeletePlaceholder": "Type delete here",
 		"deleteAccount": {
 			"title": "Delete your account",
 			"description": "Permanently delete your entire account and all data you have uploaded.",
 			"descriptionAdmin": "Permanently delete your entire account, organization, and all data you have uploaded. As an owner, this will delete the entire organization and all members.",
+			"dialogDescription": "This action cannot be undone. This will permanently delete your account and remove all your data from our servers.",
+			"dialogDescriptionAdmin": "This action cannot be undone. This will permanently delete your account and remove all your data from our servers. As an owner, this will also delete the entire organization and all members.",
 			"confirmPermanent": "I understand this action is permanent and cannot be undone",
 			"confirmData": "I understand all my data will be permanently deleted",
-			"confirmTenantAccess": "I understand all users in this {{context}} will no longer have access",
+			"confirmTenantAccess": "I understand all users in this {{scope}} will no longer have access",
 			"typeDelete": "Type <strong>delete</strong> to confirm"
+		},
+		"validation": {
+			"firstNameRequired": "First name is required",
+			"firstNameTooLong": "First name is too long",
+			"lastNameRequired": "Last name is required",
+			"lastNameTooLong": "Last name is too long",
+			"organizationRequired": "Organization is required",
+			"mustConfirmPermanent": "Must confirm this is permanent",
+			"mustConfirmData": "Must confirm data deletion",
+			"mustConfirmTenantAccess": "Must confirm tenant access removal",
+			"mustTypeDelete": "Must type \"delete\" to confirm"
 		}
 	},
 	"users": {
 		"title": "Users",
-		"description": "Manage organization members and invitations",
+		"description": "Manage users and invitations to your organization.",
 		"tabs": {
 			"users": "Users",
 			"invitePending": "Invite Pending"
@@ -35,14 +57,31 @@
 		"description": "Connect knowledge bases to help RITA answer questions with accurate information.",
 		"loading": "Loading connections...",
 		"lastSync": "Last sync: {{time}}",
-		"comingSoon": "Coming Soon"
+		"comingSoon": "Coming Soon",
+		"configure": "Configure",
+		"manage": "Manage"
 	},
 	"connectionSources": {
 		"title": "Connection Sources",
-		"description": "Connect your knowledge and ticketing sources to enhance RITA's capabilities."
+		"description": "Connect your knowledge and ticketing sources to help RITA resolve IT issues faster.",
+		"loading": "Loading connections...",
+		"lastSync": "Last sync: {{time}}",
+		"comingSoon": "Coming Soon",
+		"configure": "Configure",
+		"manage": "Manage"
 	},
 	"itsmSources": {
 		"title": "ITSM Sources",
-		"description": "Connect your IT service management platforms."
+		"description": "Connect ticketing systems to enable autopilot clustering and automated responses.",
+		"loading": "Loading connections...",
+		"lastSync": "Last sync: {{time}}",
+		"comingSoon": "Coming Soon",
+		"configure": "Configure",
+		"manage": "Manage"
+	},
+	"errors": {
+		"loadDataSourcesFailed": "Failed to load data sources",
+		"loadDataSourcesDescription": "An error occurred while fetching connection sources. Please try again.",
+		"tryAgain": "Try Again"
 	}
 }
