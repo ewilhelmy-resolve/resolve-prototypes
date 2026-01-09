@@ -30,12 +30,63 @@
 		}
 	},
 	"form": {
-		"url": "URL",
-		"urlPlaceholder": "https://your-company.atlassian.net",
-		"email": "User email",
-		"emailPlaceholder": "you@company.com",
-		"token": "API token",
-		"tokenPlaceholder": "Enter API token"
+		"sections": {
+			"authentication": "Authentication",
+			"settings": "Settings"
+		},
+		"labels": {
+			"url": "URL",
+			"userEmail": "User email",
+			"apiToken": "API token",
+			"instanceUrl": "Instance URL",
+			"username": "Username",
+			"password": "Password",
+			"tenantId": "Tenant ID",
+			"clientId": "Client ID",
+			"clientSecret": "Client Secret",
+			"siteUrl": "Site URL"
+		},
+		"placeholders": {
+			"confluenceUrl": "https://your-company.atlassian.net",
+			"email": "you@company.com",
+			"apiToken": "Enter API token",
+			"serviceNowUrl": "https://your-instance.service-now.com",
+			"username": "service_account",
+			"password": "Enter password",
+			"tenantId": "your-tenant-id",
+			"clientId": "your-client-id",
+			"secret": "••••••••",
+			"sharePointUrl": "https://your-company.sharepoint.com"
+		},
+		"validation": {
+			"urlRequired": "URL is required",
+			"invalidUrl": "Please enter a valid URL",
+			"emailRequired": "Email is required",
+			"invalidEmail": "Please enter a valid email address",
+			"apiTokenRequired": "API token is required",
+			"apiTokenEmpty": "API token cannot be empty",
+			"instanceUrlRequired": "Instance URL is required",
+			"usernameRequired": "Username is required",
+			"passwordRequired": "Password is required",
+			"tenantIdRequired": "Tenant ID is required",
+			"clientIdRequired": "Client ID is required",
+			"clientSecretRequired": "Client Secret is required",
+			"siteUrlRequired": "Site URL is required"
+		},
+		"buttons": {
+			"connect": "Connect",
+			"connecting": "Connecting...",
+			"cancel": "Cancel"
+		},
+		"alerts": {
+			"verificationFailed": "Verification Failed",
+			"checkCredentials": "Please check your credentials and try again.",
+			"connectionMayTakeTime": "Connection may take time",
+			"canLeavePage": "You can leave this page while it is connecting"
+		},
+		"descriptions": {
+			"webSearchHelp": "Enable web search to supplement answers when knowledge isn't found in your connected sources."
+		}
 	},
 	"messages": {
 		"configureSuccess": "Your {{source}} connection has been configured successfully",

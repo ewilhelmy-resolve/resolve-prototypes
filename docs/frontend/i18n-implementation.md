@@ -127,8 +127,12 @@ t('welcome.greeting', { name: 'John' }) // "Welcome, {{name}}"
 
 ### Phase 6: Connection Forms
 
-- [ ] Create connections.json
-- [ ] Migrate connection forms
+- [x] Expand connections.json with form keys (sections, labels, placeholders, validation, buttons, alerts, descriptions)
+- [x] Migrate ConfluenceForm.tsx (labels, placeholders, validation messages, buttons, alerts)
+- [x] Migrate ServiceNowForm.tsx (labels, placeholders, validation messages, buttons, alerts)
+- [x] Migrate SharePointForm.tsx (labels, placeholders, validation messages, buttons)
+- [x] Migrate WebSearchForm.tsx (section title, description, buttons)
+- [x] Update ConfluenceForm.test.tsx to expect translation keys
 
 ### Phase 7: Dialogs
 
@@ -162,8 +166,8 @@ t('welcome.greeting', { name: 'John' }) // "Welcome, {{name}}"
 
 ## Current Checkpoint
 
-**Status**: Phase 5 - COMPLETE
-**Next Step**: Phase 6 - Connection Forms migration
+**Status**: Phase 6 - COMPLETE
+**Next Step**: Phase 7 - Dialogs migration
 **Last Updated**: 2026-01-09
 
 ## Related Docs
