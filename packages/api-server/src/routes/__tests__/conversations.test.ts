@@ -335,22 +335,25 @@ describe('Conversations Router - Iframe userId Validation', () => {
 
     it('should allow message when iframe config has userGuid', async () => {
       // Session has complete iframe config including userGuid
+      const iframeConfig = {
+        userGuid: 'user-keycloak-guid',
+        tenantId: 'tenant-123',
+        tenantName: 'Test Tenant',
+        chatSessionId: 'chat-456',
+        accessToken: 'token',
+        refreshToken: 'refresh',
+        tabInstanceId: 'tab-789',
+        clientId: 'client',
+        clientKey: 'key',
+        tokenExpiry: Date.now() + 3600000,
+        actionsApiBaseUrl: 'https://api.example.com',
+      };
       mockSessionStore.getSession.mockResolvedValue({
         sessionId: 'test-session-id',
-        iframeWebhookConfig: {
-          userGuid: 'user-keycloak-guid',
-          tenantId: 'tenant-123',
-          tenantName: 'Test Tenant',
-          chatSessionId: 'chat-456',
-          accessToken: 'token',
-          refreshToken: 'refresh',
-          tabInstanceId: 'tab-789',
-          clientId: 'client',
-          clientKey: 'key',
-          tokenExpiry: Date.now() + 3600000,
-          actionsApiBaseUrl: 'https://api.example.com',
-        },
+        iframeWebhookConfig: iframeConfig,
       });
+
+      mockSendTenantMessageEvent.mockClear();
 
       // Setup DB mocks
       mockClient.query
@@ -370,6 +373,16 @@ describe('Conversations Router - Iframe userId Validation', () => {
 
       expect(response.body.message).toBeDefined();
       expect(response.body.webhook.usedTenantConfig).toBe(true);
+
+      // Verify entire iframeConfig (including userGuid) is passed to webhook
+      expect(mockSendTenantMessageEvent).toHaveBeenCalledWith(
+        expect.objectContaining({
+          iframeConfig: expect.objectContaining({
+            userGuid: 'user-keycloak-guid',
+            tenantId: 'tenant-123',
+          }),
+        })
+      );
     });
 
     it('should allow message when no iframe config (regular session)', async () => {

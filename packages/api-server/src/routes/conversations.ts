@@ -334,7 +334,7 @@ router.post('/:conversationId/messages', authenticateUser, async (req, res) => {
     let webhookResponse: WebhookResponse;
 
     if (iframeConfig) {
-      // Iframe embed - use tenant-specific webhook with Valkey credentials
+      // Iframe embed - use tenant-specific webhook with full Valkey config
       console.log(`📤 Using tenant-specific webhook for iframe session (tenant: ${iframeConfig.tenantId})`);
       webhookResponse = await webhookService.sendTenantMessageEvent({
         organizationId: authReq.user.activeOrganizationId,
@@ -346,21 +346,7 @@ router.post('/:conversationId/messages', authenticateUser, async (req, res) => {
         documentIds: [],
         createdAt: result.message.created_at,
         transcript: truncatedTranscript,
-        tenantConfig: {
-          actionsApiBaseUrl: iframeConfig.actionsApiBaseUrl,
-          tenantId: iframeConfig.tenantId,
-          clientId: iframeConfig.clientId,
-          clientKey: iframeConfig.clientKey,
-        },
-        valkeyPayload: {
-          accessToken: iframeConfig.accessToken,
-          refreshToken: iframeConfig.refreshToken,
-          tabInstanceId: iframeConfig.tabInstanceId,
-          tenantName: iframeConfig.tenantName,
-          chatSessionId: iframeConfig.chatSessionId,
-          tokenExpiry: iframeConfig.tokenExpiry,
-          context: iframeConfig.context,
-        },
+        iframeConfig, // Pass entire Valkey config
       });
     } else {
       // Regular chat - use env var webhook
