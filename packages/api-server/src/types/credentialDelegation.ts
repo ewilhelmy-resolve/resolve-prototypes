@@ -10,8 +10,13 @@ export type ItsmSystemType = 'servicenow' | 'jira' | 'confluence';
 
 /**
  * Delegation token status
+ * - pending: waiting for credentials or verification in progress (check credentials_received_at)
+ * - verified: credentials verified successfully
+ * - failed: verification failed (can retry)
+ * - expired: token expired
+ * - cancelled: owner cancelled
  */
-export type DelegationStatus = 'pending' | 'used' | 'verified' | 'expired' | 'cancelled';
+export type DelegationStatus = 'pending' | 'verified' | 'failed' | 'expired' | 'cancelled';
 
 /**
  * Credential delegation token entity
@@ -124,6 +129,19 @@ export interface SubmitCredentialsResponse {
   message: string;
   delegation_id: string;
   status: DelegationStatus;
+}
+
+/**
+ * Delegation status response (for polling)
+ */
+export interface DelegationStatusResponse {
+  delegation_id: string;
+  status: DelegationStatus;
+  itsm_system_type: ItsmSystemType;
+  organization_name: string;
+  submitted_at: string | null;
+  verified_at: string | null;
+  error: string | null;
 }
 
 /**

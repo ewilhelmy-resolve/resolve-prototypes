@@ -6,6 +6,7 @@ import type {
   CreateDelegationResponse,
   DelegationListItem,
   DelegationStatus,
+  DelegationStatusResponse,
   ItsmCredentials,
   ItsmSystemType,
   ListDelegationsQuery,
@@ -339,18 +340,18 @@ export class CredentialDelegationService {
       throw new Error('Token has expired');
     }
 
-    // Check if already used
-    if (delegation.status !== 'pending') {
-      throw new Error('Token has already been used');
+    // Check if can submit (pending or failed allows retry)
+    if (delegation.status !== 'pending' && delegation.status !== 'failed') {
+      throw new Error('Token cannot be used (already verified, expired, or cancelled)');
     }
 
     // Validate credentials have required fields based on system type
     this.validateCredentials(delegation.itsm_system_type, credentials);
 
-    // Update delegation status to 'used' and record timestamp
+    // Update timestamp and reset to pending (clear previous error if retrying)
     await this.pool.query(
       `UPDATE credential_delegation_tokens
-       SET status = 'used', credentials_received_at = NOW()
+       SET status = 'pending', credentials_received_at = NOW(), last_verification_error = NULL
        WHERE id = $1`,
       [delegation.id]
     );
@@ -397,7 +398,52 @@ export class CredentialDelegationService {
       success: true,
       message: 'Credentials submitted successfully. Verification in progress.',
       delegation_id: delegation.id,
-      status: 'used',
+      status: 'pending',
+    };
+  }
+
+  /**
+   * Get delegation status by token (public endpoint for polling)
+   */
+  async getStatus(token: string): Promise<DelegationStatusResponse> {
+    if (!token || token.length !== 64) {
+      throw new Error('Invalid token');
+    }
+
+    const result = await this.pool.query(
+      `SELECT cdt.id, cdt.status, cdt.itsm_system_type,
+              cdt.credentials_received_at, cdt.credentials_verified_at,
+              cdt.last_verification_error, cdt.token_expires_at,
+              o.name as org_name
+       FROM credential_delegation_tokens cdt
+       JOIN organizations o ON cdt.organization_id = o.id
+       WHERE cdt.delegation_token = $1`,
+      [token]
+    );
+
+    if (result.rows.length === 0) {
+      throw new Error('Token not found');
+    }
+
+    const delegation = result.rows[0];
+
+    // Check if expired and update status if needed
+    if (delegation.status === 'pending' && new Date(delegation.token_expires_at) < new Date()) {
+      await this.pool.query(
+        `UPDATE credential_delegation_tokens SET status = 'expired' WHERE id = $1`,
+        [delegation.id]
+      );
+      delegation.status = 'expired';
+    }
+
+    return {
+      delegation_id: delegation.id,
+      status: delegation.status as DelegationStatus,
+      itsm_system_type: delegation.itsm_system_type,
+      organization_name: delegation.org_name,
+      submitted_at: delegation.credentials_received_at?.toISOString() || null,
+      verified_at: delegation.credentials_verified_at?.toISOString() || null,
+      error: delegation.last_verification_error,
     };
   }
 

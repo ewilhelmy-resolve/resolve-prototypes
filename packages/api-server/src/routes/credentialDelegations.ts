@@ -139,6 +139,37 @@ router.post('/submit', async (req, res) => {
 });
 
 /**
+ * GET /api/credential-delegations/status/:token
+ * Get delegation status by token (public endpoint for polling)
+ * Auth: Not required (token is the auth)
+ */
+router.get('/status/:token', async (req, res) => {
+  try {
+    const { token } = req.params;
+
+    if (!token || token.length !== 64) {
+      return res.status(400).json({ error: 'Invalid token' });
+    }
+
+    const result = await credentialDelegationService.getStatus(token);
+    res.json(result);
+  } catch (error) {
+    logger.error({ error }, 'Failed to get delegation status');
+
+    if (error instanceof Error) {
+      if (error.message.includes('not found')) {
+        return res.status(404).json({ error: 'Token not found' });
+      }
+      if (error.message.includes('Invalid')) {
+        return res.status(400).json({ error: error.message });
+      }
+    }
+
+    res.status(500).json({ error: 'Failed to get delegation status' });
+  }
+});
+
+/**
  * GET /api/credential-delegations
  * List delegations for organization
  * Auth: Required (member or higher)
