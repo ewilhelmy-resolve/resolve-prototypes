@@ -199,23 +199,19 @@ export class WebhookService {
     // Build HTTP Basic auth header (clientId:clientKey base64 encoded)
     const authHeader = `Basic ${Buffer.from(`${iframeConfig.clientId}:${iframeConfig.clientKey}`).toString('base64')}`;
 
-    // Build payload: message data + entire Valkey config
+    // Build payload: Valkey config + message content (no Rita-internal IDs)
     const payload: BaseWebhookPayload & Record<string, any> = {
       source: 'rita-chat-iframe',
       action: 'message_created',
-      // Message-specific fields
-      user_email: messageParams.userEmail,
-      user_id: messageParams.userId,
-      conversation_id: messageParams.conversationId,
+      // Spread entire Valkey config first (includes userGuid, tenantId, chatSessionId, etc.)
+      ...iframeConfig,
+      // Message content (platform-relevant fields only)
       customer_message: messageParams.customerMessage,
-      message_id: messageParams.messageId,
       document_ids: messageParams.documentIds || [],
       transcript_ids: messageParams.transcript ? {
         transcripts: messageParams.transcript
       } : undefined,
       timestamp: (messageParams.createdAt || new Date()).toISOString(),
-      // Spread entire Valkey config (includes userGuid, tenantId, tokens, etc.)
-      ...iframeConfig,
     };
 
     return this.sendEventToUrl(webhookUrl, authHeader, payload);

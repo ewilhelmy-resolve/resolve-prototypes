@@ -449,4 +449,79 @@ describe('WebhookService', () => {
       );
     });
   });
+
+  describe('sendTenantMessageEvent', () => {
+    const mockIframeConfig = {
+      accessToken: 'jwt-access-token',
+      refreshToken: 'jwt-refresh-token',
+      tabInstanceId: 'tab-123',
+      tenantId: 'tenant-456',
+      tenantName: 'Test Tenant',
+      chatSessionId: 'chat-session-789',
+      clientId: 'client-abc',
+      clientKey: 'secret-key-xyz',
+      tokenExpiry: Date.now() + 3600000,
+      actionsApiBaseUrl: 'https://actions.example.com',
+      userGuid: 'jarvis-user-guid-123',
+    };
+
+    it('should spread Valkey config and NOT include Rita internal IDs', async () => {
+      mockedAxios.post.mockResolvedValueOnce({ status: 200, data: { success: true } });
+
+      await webhookService.sendTenantMessageEvent({
+        organizationId: 'rita-org-id',
+        userId: 'rita-user-id',
+        userEmail: 'iframe@internal.test',
+        conversationId: 'rita-conv-id',
+        messageId: 'rita-msg-id',
+        customerMessage: 'Hello from iframe',
+        iframeConfig: mockIframeConfig,
+      });
+
+      const calledPayload = mockedAxios.post.mock.calls[0][1];
+
+      // Should include Valkey config fields
+      expect(calledPayload.userGuid).toBe('jarvis-user-guid-123');
+      expect(calledPayload.tenantId).toBe('tenant-456');
+      expect(calledPayload.chatSessionId).toBe('chat-session-789');
+      expect(calledPayload.accessToken).toBe('jwt-access-token');
+
+      // Should include message content
+      expect(calledPayload.customer_message).toBe('Hello from iframe');
+      expect(calledPayload.source).toBe('rita-chat-iframe');
+      expect(calledPayload.action).toBe('message_created');
+
+      // Should NOT include Rita internal IDs
+      expect(calledPayload.user_id).toBeUndefined();
+      expect(calledPayload.user_email).toBeUndefined();
+      expect(calledPayload.conversation_id).toBeUndefined();
+      expect(calledPayload.message_id).toBeUndefined();
+    });
+
+    it('should call tenant-specific webhook URL with Basic auth', async () => {
+      mockedAxios.post.mockResolvedValueOnce({ status: 200, data: { success: true } });
+
+      await webhookService.sendTenantMessageEvent({
+        organizationId: 'rita-org-id',
+        userId: 'rita-user-id',
+        userEmail: 'iframe@internal.test',
+        conversationId: 'rita-conv-id',
+        messageId: 'rita-msg-id',
+        customerMessage: 'Hello',
+        iframeConfig: mockIframeConfig,
+      });
+
+      const expectedAuth = Buffer.from('client-abc:secret-key-xyz').toString('base64');
+
+      expect(mockedAxios.post).toHaveBeenCalledWith(
+        'https://actions.example.com/api/Webhooks/postEvent/tenant-456',
+        expect.any(Object),
+        expect.objectContaining({
+          headers: expect.objectContaining({
+            Authorization: `Basic ${expectedAuth}`,
+          }),
+        })
+      );
+    });
+  });
 });
