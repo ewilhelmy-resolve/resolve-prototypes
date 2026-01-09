@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { Info } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -32,32 +33,45 @@ interface AutomationReadinessMeterProps {
 const STATE_CONFIG: Record<
 	ReadinessState,
 	{
-		label: string;
+		labelKey:
+			| "automation.meterStates.ready"
+			| "automation.meterStates.partial"
+			| "automation.meterStates.low"
+			| "automation.meterStates.notReady";
+		descriptionKey:
+			| "automation.descriptions.ready"
+			| "automation.descriptions.partial"
+			| "automation.descriptions.low"
+			| "automation.descriptions.notReady";
 		bgColor: string;
 		textColor: string;
 		borderColor: string;
 	}
 > = {
 	ready: {
-		label: "Ready",
+		labelKey: "automation.meterStates.ready",
+		descriptionKey: "automation.descriptions.ready",
 		bgColor: "bg-green-100",
 		textColor: "text-green-800",
 		borderColor: "border-green-500 border-l-4",
 	},
 	partial: {
-		label: "Partial",
+		labelKey: "automation.meterStates.partial",
+		descriptionKey: "automation.descriptions.partial",
 		bgColor: "bg-orange-100",
 		textColor: "text-orange-800",
 		borderColor: "border-orange-400 border-l-4",
 	},
 	low: {
-		label: "Low",
+		labelKey: "automation.meterStates.low",
+		descriptionKey: "automation.descriptions.low",
 		bgColor: "bg-yellow-100",
 		textColor: "text-yellow-800",
 		borderColor: "border-yellow-400 border-l-4",
 	},
 	"not-ready": {
-		label: "Not ready",
+		labelKey: "automation.meterStates.notReady",
+		descriptionKey: "automation.descriptions.notReady",
 		bgColor: "bg-gray-100",
 		textColor: "text-gray-800",
 		borderColor: "border-gray-300 border-l-4",
@@ -74,27 +88,20 @@ function getReadinessState(
 	return "low";
 }
 
-function getDescription(state: ReadinessState): string {
-	switch (state) {
-		case "ready":
-			return "Reviewed responses consistently met expectations.";
-		case "partial":
-			return "Based on reviewed responses, some replies still need improvement before automation is recommended.";
-		case "low":
-			return "Based on reviewed responses, several replies need clearer or more complete knowledge";
-		case "not-ready":
-			return "Automation can't be recommended yet because no knowledge exists for this cluster.";
-	}
-}
-
-function getRecommendation(hasKnowledge: boolean, reviewed: number): string {
+function getRecommendationKey(
+	hasKnowledge: boolean,
+	reviewed: number,
+):
+	| "automation.recommendations.createKnowledge"
+	| "automation.recommendations.addKnowledge"
+	| "automation.recommendations.continueReview" {
 	if (!hasKnowledge && reviewed === 0) {
-		return "Create knowledge to enable automation";
+		return "automation.recommendations.createKnowledge";
 	}
 	if (!hasKnowledge) {
-		return "Add knowledge to enhance automation";
+		return "automation.recommendations.addKnowledge";
 	}
-	return "Continue manual review";
+	return "automation.recommendations.continueReview";
 }
 
 /**
@@ -116,10 +123,11 @@ export function AutomationReadinessMeter({
 	onAddKnowledge,
 	className,
 }: AutomationReadinessMeterProps) {
+	const { t } = useTranslation("tickets");
 	const state = getReadinessState(hasKnowledge, trustedPercentage);
 	const config = STATE_CONFIG[state];
-	const description = getDescription(state);
-	const recommendation = getRecommendation(hasKnowledge, reviewed);
+	const description = t(config.descriptionKey);
+	const recommendation = t(getRecommendationKey(hasKnowledge, reviewed));
 
 	const showReviewCount = hasKnowledge || reviewed > 0;
 
@@ -152,7 +160,7 @@ export function AutomationReadinessMeter({
 				<Badge
 					className={`${config.bgColor} ${config.textColor} border-transparent font-semibold`}
 				>
-					{config.label}
+					{t(config.labelKey)}
 				</Badge>
 
 				{/* Description */}

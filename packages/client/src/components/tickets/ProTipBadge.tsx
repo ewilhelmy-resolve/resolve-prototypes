@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { Lightbulb } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -19,6 +20,8 @@ interface ProTipBadgeProps {
  * <ProTipBadge>Continued review helps confirm patterns across more tickets.</ProTipBadge>
  */
 export function ProTipBadge({ children, className }: ProTipBadgeProps) {
+	const { t } = useTranslation("tickets");
+
 	return (
 		<div
 			className={cn(
@@ -28,7 +31,7 @@ export function ProTipBadge({ children, className }: ProTipBadgeProps) {
 		>
 			<Lightbulb className="size-4 text-blue-500 flex-shrink-0 mt-0.5" />
 			<span className="text-sm text-foreground">
-				<span className="font-bold">Pro-tip:</span> {children}
+				<span className="font-bold">{t("proTip.prefix")}</span> {children}
 			</span>
 		</div>
 	);

@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { Crown, WandSparkles } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -39,6 +40,7 @@ export function AutoPilotRecommendations({
 	className,
 	hideHeader = false,
 }: AutoPilotRecommendationsProps) {
+	const { t } = useTranslation("tickets");
 	const recommendations = items ?? getAllAIResponseTypes();
 
 	return (
@@ -48,10 +50,10 @@ export function AutoPilotRecommendations({
 					<>
 						<div className="flex items-center gap-2">
 							<WandSparkles className="h-4 w-4" />
-							<h3>AutoPilot Recommendations</h3>
+							<h3>{t("automation.autopilot.title")}</h3>
 						</div>
 						<p className="text-sm text-muted-foreground">
-							Automate stages of a ticket resolution
+							{t("automation.autopilot.description")}
 						</p>
 					</>
 				)}
@@ -71,7 +73,7 @@ export function AutoPilotRecommendations({
 								{config.comingSoon ? (
 									<Badge variant="outline" className="ml-2">
 										<Crown className="mr-1 h-3 w-3 text-yellow-500" />
-										coming soon
+										{t("automation.autopilot.comingSoon")}
 									</Badge>
 								) : (
 									<Button
@@ -79,7 +81,7 @@ export function AutoPilotRecommendations({
 										size="sm"
 										onClick={() => onEnableClick?.(config.type)}
 									>
-										Enable
+										{t("automation.autopilot.enable")}
 									</Button>
 								)}
 							</div>

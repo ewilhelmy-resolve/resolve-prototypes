@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { ThumbsDown, ThumbsUp } from "lucide-react";
 import { Confetti, type ConfettiRef } from "@/components/ui/confetti";
 import { ProTipBadge } from "./ProTipBadge";
@@ -64,6 +65,7 @@ export const ReviewCompletionStats = forwardRef<
 	},
 	ref
 ) {
+	const { t } = useTranslation("tickets");
 	const confettiRef = useRef<ConfettiRef>(null);
 
 	const fireConfetti = useCallback(() => {
@@ -114,19 +116,19 @@ export const ReviewCompletionStats = forwardRef<
 				<p className="text-7xl font-serif font-light text-foreground">
 					{trusted} / {totalReviewed}
 				</p>
-				<p className="text-sm text-muted-foreground">Trusted responses</p>
+				<p className="text-sm text-muted-foreground">{t("completion.stats.trustedResponses")}</p>
 			</div>
 
 			{/* Stats Row */}
 			<div className="flex items-center justify-center gap-6">
 				<div className="flex items-center gap-1.5">
 					<ThumbsDown className="size-4 text-destructive" />
-					<span className="text-sm text-muted-foreground">Need improvement</span>
+					<span className="text-sm text-muted-foreground">{t("completion.stats.needImprovement")}</span>
 					<span className="text-sm font-semibold">{needsImprovement}</span>
 				</div>
 				<div className="flex items-center gap-1.5">
 					<ThumbsUp className="size-4 text-emerald-500" />
-					<span className="text-sm text-muted-foreground">Trusted</span>
+					<span className="text-sm text-muted-foreground">{t("completion.stats.trusted")}</span>
 					<span className="text-sm font-semibold">{trusted}</span>
 				</div>
 			</div>

@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import {
 	Sheet,
 	SheetContent,
@@ -59,6 +60,7 @@ export function ReviewView({
 	onSubmitFeedback,
 	onCancelFeedback,
 }: ReviewViewProps) {
+	const { t } = useTranslation("tickets");
 	const progressValue = ((currentIndex + 1) / totalTickets) * 100;
 
 	return (
@@ -66,17 +68,17 @@ export function ReviewView({
 			<SheetContent className="flex flex-col gap-6 sm:max-w-2xl w-full p-8">
 				<SheetHeader className="p-0">
 					<SheetTitle className="text-lg font-semibold">
-						Review AI response
+						{t("review.title")}
 					</SheetTitle>
 					<SheetDescription className="text-sm text-muted-foreground">
-						Rita analyzed your KB and similar tickets to draft this response.
+						{t("review.sheetDescription")}
 					</SheetDescription>
 				</SheetHeader>
 
 				{/* Progress Indicator */}
 				<div className="flex items-center gap-3 w-full">
 					<div className="flex items-center gap-1.5 shrink-0">
-						<p className="text-base text-accent-foreground">Tickets:</p>
+						<p className="text-base text-accent-foreground">{t("details.ticketsCount")}</p>
 						<p className="text-base font-bold text-accent-foreground">
 							{currentIndex + 1} of {totalTickets}
 						</p>
@@ -89,7 +91,7 @@ export function ReviewView({
 					<div className="flex-1 flex flex-col gap-6 overflow-y-auto">
 						{/* Ticket Details Section */}
 						<div className="flex flex-col gap-2">
-							<p className="text-sm text-foreground">Ticket Details</p>
+							<p className="text-sm text-foreground">{t("review.ticketDetails")}</p>
 							<div className="border rounded-lg p-4 flex flex-col gap-2.5">
 								<div className="flex items-center gap-2 w-full">
 									<p className="text-base flex-1">{ticket.externalId}</p>
@@ -108,7 +110,7 @@ export function ReviewView({
 								<Separator className="h-[1px]" />
 
 								<div className="flex flex-col gap-2">
-									<p className="text-sm text-muted-foreground">Description</p>
+									<p className="text-sm text-muted-foreground">{t("details.description")}</p>
 									<p className="text-base">{ticket.description}</p>
 								</div>
 							</div>
@@ -135,7 +137,7 @@ export function ReviewView({
 						disabled={showFeedback}
 					>
 						<ThumbsDown className="size-4 text-destructive" />
-						Teach the Bot
+						{t("review.teachTheBot")}
 					</Button>
 					<Button
 						variant="outline"
@@ -144,7 +146,7 @@ export function ReviewView({
 						disabled={showFeedback}
 					>
 						<ThumbsUp className="size-4 text-primary" />
-						Trust the Bot
+						{t("review.trustTheBot")}
 					</Button>
 				</SheetFooter>
 			</SheetContent>
