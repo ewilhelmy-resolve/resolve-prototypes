@@ -144,7 +144,7 @@ export class IframeService {
 
   /**
    * Resolve or create Rita organization from Jarvis tenant ID
-   * Uses Jarvis tenantId directly as Rita organization ID (no mapping needed)
+   * Checks by id first to handle any existing orgs
    */
   private async resolveRitaOrg(
     jarvisTenantId: string,
@@ -152,65 +152,82 @@ export class IframeService {
   ): Promise<{ ritaOrgId: string; wasCreated: boolean }> {
     const orgName = tenantName || `Jarvis Tenant ${jarvisTenantId.substring(0, 8)}`;
 
-    // Use Jarvis tenantId directly as Rita org ID
-    // ON CONFLICT updates name if org exists (Jarvis is source of truth)
-    const result = await pool.query(
+    // 1. Check if org exists by ID
+    const existing = await pool.query(
+      `SELECT id FROM organizations WHERE id = $1`,
+      [jarvisTenantId]
+    );
+
+    if (existing.rows.length > 0) {
+      // Update name if org exists (Jarvis is source of truth)
+      await pool.query(
+        `UPDATE organizations SET name = $1, updated_at = NOW() WHERE id = $2`,
+        [orgName, jarvisTenantId]
+      );
+      return { ritaOrgId: jarvisTenantId, wasCreated: false };
+    }
+
+    // 2. Create new org with jarvisTenantId as id
+    await pool.query(
       `INSERT INTO organizations (id, name, created_at)
-       VALUES ($1, $2, NOW())
-       ON CONFLICT (id) DO UPDATE SET name = $2, updated_at = NOW()
-       RETURNING (xmax = 0) AS was_created`,
+       VALUES ($1, $2, NOW())`,
       [jarvisTenantId, orgName]
     );
 
-    const wasCreated = result.rows[0].was_created;
+    logger.info(
+      { jarvisTenantId, orgName },
+      'Created Rita org using Jarvis tenantId'
+    );
 
-    if (wasCreated) {
-      logger.info(
-        { jarvisTenantId, orgName },
-        'Created Rita org using Jarvis tenantId'
-      );
-    }
-
-    // ritaOrgId === jarvisTenantId (same value)
-    return { ritaOrgId: jarvisTenantId, wasCreated };
+    return { ritaOrgId: jarvisTenantId, wasCreated: true };
   }
 
   /**
    * Resolve or create Rita user from Jarvis user GUID
-   * Uses jarvisGuid directly as Rita user_id (no mapping needed)
+   * Checks by keycloak_id to handle existing users (may have old UUID as user_id)
    */
   private async resolveRitaUser(
     jarvisGuid: string,
     ritaOrgId: string
   ): Promise<{ ritaUserId: string; wasCreated: boolean }> {
-    // Use Jarvis GUID directly as Rita user_id
-    // ON CONFLICT updates active_organization_id if user exists
+    const keycloakId = `jarvis-${jarvisGuid}`;
+
+    // 1. Check if user exists by keycloak_id (handles legacy users with old UUIDs)
+    const existing = await pool.query(
+      `SELECT user_id FROM user_profiles WHERE keycloak_id = $1`,
+      [keycloakId]
+    );
+
+    if (existing.rows.length > 0) {
+      // Update active org for existing user
+      await pool.query(
+        `UPDATE user_profiles SET active_organization_id = $1, updated_at = NOW() WHERE keycloak_id = $2`,
+        [ritaOrgId, keycloakId]
+      );
+      return { ritaUserId: existing.rows[0].user_id, wasCreated: false };
+    }
+
+    // 2. Create new user with jarvisGuid as user_id
     const result = await pool.query(
       `INSERT INTO user_profiles (user_id, email, keycloak_id, first_name, last_name, active_organization_id, created_at)
        VALUES ($1, $2, $3, $4, $5, $6, NOW())
-       ON CONFLICT (user_id) DO UPDATE SET active_organization_id = $6, updated_at = NOW()
-       RETURNING (xmax = 0) AS was_created`,
+       RETURNING user_id`,
       [
         jarvisGuid,
         `iframe-${jarvisGuid.substring(0, 8)}@iframe.internal`,
-        `jarvis-${jarvisGuid}`,
+        keycloakId,
         'Iframe',
         'User',
         ritaOrgId
       ]
     );
 
-    const wasCreated = result.rows[0].was_created;
+    logger.info(
+      { jarvisGuid, ritaOrgId },
+      'Created Rita user using Jarvis GUID'
+    );
 
-    if (wasCreated) {
-      logger.info(
-        { jarvisGuid, ritaOrgId },
-        'Created Rita user using Jarvis GUID'
-      );
-    }
-
-    // ritaUserId === jarvisGuid (same value)
-    return { ritaUserId: jarvisGuid, wasCreated };
+    return { ritaUserId: result.rows[0].user_id, wasCreated: true };
   }
 
   /**
