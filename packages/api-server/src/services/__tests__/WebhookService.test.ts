@@ -502,7 +502,7 @@ describe('WebhookService', () => {
       userGuid: 'jarvis-user-guid-123',
     };
 
-    it('should spread Valkey config and only include customer_message', async () => {
+    it('should include both Valkey config (camelCase) and Rita routing fields (snake_case)', async () => {
       mockedAxios.post.mockResolvedValueOnce({ status: 200, data: { success: true } });
 
       await webhookService.sendTenantMessageEvent({
@@ -519,26 +519,26 @@ describe('WebhookService', () => {
 
       const calledPayload = mockedAxios.post.mock.calls[0][1] as Record<string, unknown>;
 
-      // Should include Valkey config fields
+      // Should include Valkey config fields (camelCase)
       expect(calledPayload.userGuid).toBe('jarvis-user-guid-123');
       expect(calledPayload.tenantId).toBe('tenant-456');
       expect(calledPayload.chatSessionId).toBe('chat-session-789');
       expect(calledPayload.accessToken).toBe('jwt-access-token');
 
-      // Should include message content only
+      // Should include Rita routing fields (snake_case) for RabbitMQ
+      expect(calledPayload.tenant_id).toBe('rita-org-id');
+      expect(calledPayload.user_id).toBe('rita-user-id');
+      expect(calledPayload.user_email).toBe('iframe@internal.test');
+      expect(calledPayload.conversation_id).toBe('rita-conv-id');
+      expect(calledPayload.message_id).toBe('rita-msg-id');
+      expect(calledPayload.document_ids).toEqual(['doc-1']);
+      expect(calledPayload.transcript_ids).toEqual({ transcripts: [{ role: 'user', content: 'Hello' }] });
+
+      // Should include message content
       expect(calledPayload.customer_message).toBe('Hello from iframe');
       expect(calledPayload.source).toBe('rita-chat-iframe');
       expect(calledPayload.action).toBe('message_created');
       expect(calledPayload.timestamp).toBeDefined();
-
-      // Should NOT include ANY Rita internal IDs
-      expect(calledPayload.user_id).toBeUndefined();
-      expect(calledPayload.user_email).toBeUndefined();
-      expect(calledPayload.conversation_id).toBeUndefined();
-      expect(calledPayload.message_id).toBeUndefined();
-      expect(calledPayload.document_ids).toBeUndefined();
-      expect(calledPayload.transcript_ids).toBeUndefined();
-      expect(calledPayload.tenant_id).toBeUndefined(); // Uses tenantId from Valkey, not tenant_id
     });
 
     it('should call tenant-specific webhook URL with Basic auth', async () => {
