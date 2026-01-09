@@ -199,16 +199,16 @@ export class WebhookService {
     // Build HTTP Basic auth header (clientId:clientKey base64 encoded)
     const authHeader = `Basic ${Buffer.from(`${iframeConfig.clientId}:${iframeConfig.clientKey}`).toString('base64')}`;
 
-    // Build payload: Valkey config (camelCase) + Rita routing fields (snake_case)
-    // Platform needs snake_case fields to echo back via RabbitMQ
+    // Build payload: Valkey config (camelCase) + snake_case copies for RabbitMQ
+    // Use Valkey IDs directly (not Rita DB IDs) so platform can echo them back
     const payload: BaseWebhookPayload & Record<string, any> = {
       source: 'rita-chat-iframe',
       action: 'message_created',
       // Spread entire Valkey config (camelCase: userGuid, tenantId, chatSessionId, etc.)
       ...iframeConfig,
-      // Rita routing fields (snake_case) - needed for RabbitMQ response routing
-      tenant_id: messageParams.organizationId,
-      user_id: messageParams.userId,
+      // Snake_case copies of Valkey IDs for RabbitMQ response routing
+      tenant_id: iframeConfig.tenantId,
+      user_id: iframeConfig.userGuid,
       user_email: messageParams.userEmail,
       conversation_id: messageParams.conversationId,
       message_id: messageParams.messageId,

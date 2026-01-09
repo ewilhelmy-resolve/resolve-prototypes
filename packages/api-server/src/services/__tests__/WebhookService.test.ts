@@ -525,9 +525,10 @@ describe('WebhookService', () => {
       expect(calledPayload.chatSessionId).toBe('chat-session-789');
       expect(calledPayload.accessToken).toBe('jwt-access-token');
 
-      // Should include Rita routing fields (snake_case) for RabbitMQ
-      expect(calledPayload.tenant_id).toBe('rita-org-id');
-      expect(calledPayload.user_id).toBe('rita-user-id');
+      // Should include Valkey IDs as snake_case for RabbitMQ routing
+      // (uses Valkey IDs directly, not Rita DB IDs)
+      expect(calledPayload.tenant_id).toBe('tenant-456');
+      expect(calledPayload.user_id).toBe('jarvis-user-guid-123');
       expect(calledPayload.user_email).toBe('iframe@internal.test');
       expect(calledPayload.conversation_id).toBe('rita-conv-id');
       expect(calledPayload.message_id).toBe('rita-msg-id');
