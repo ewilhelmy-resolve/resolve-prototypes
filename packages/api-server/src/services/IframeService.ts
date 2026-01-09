@@ -1,12 +1,6 @@
 import { withOrgContext } from '../config/database.js';
 import { logger } from '../config/logger.js';
-import {
-  getValkeyClient,
-  getRitaOrgId,
-  getRitaUserId,
-  setRitaOrgMapping,
-  setRitaUserMapping,
-} from '../config/valkey.js';
+import { getValkeyClient } from '../config/valkey.js';
 import { getSessionStore, type CreateSessionData, type IframeWebhookConfig } from './sessionStore.js';
 import { getSessionService } from './sessionService.js';
 import { pool } from '../config/database.js';
@@ -150,70 +144,54 @@ export class IframeService {
 
   /**
    * Resolve or create Rita organization from Jarvis tenant ID
-   * Uses JIT provisioning with Valkey-cached mapping
+   * Uses Jarvis tenantId directly as Rita organization ID (no mapping needed)
    */
   private async resolveRitaOrg(
     jarvisTenantId: string,
     tenantName: string
   ): Promise<{ ritaOrgId: string; wasCreated: boolean }> {
-    // 1. Check Valkey mapping cache
-    const ritaOrgId = await getRitaOrgId(jarvisTenantId);
-    if (ritaOrgId) {
-      // Org exists - update name if changed (Jarvis is source of truth)
-      const orgName = tenantName || `Jarvis Tenant ${jarvisTenantId.substring(0, 8)}`;
-      await pool.query(
-        `UPDATE organizations SET name = $1, updated_at = NOW()
-         WHERE id = $2 AND name != $1`,
-        [orgName, ritaOrgId]
+    const orgName = tenantName || `Jarvis Tenant ${jarvisTenantId.substring(0, 8)}`;
+
+    // Use Jarvis tenantId directly as Rita org ID
+    // ON CONFLICT updates name if org exists (Jarvis is source of truth)
+    const result = await pool.query(
+      `INSERT INTO organizations (id, name, created_at)
+       VALUES ($1, $2, NOW())
+       ON CONFLICT (id) DO UPDATE SET name = $2, updated_at = NOW()
+       RETURNING (xmax = 0) AS was_created`,
+      [jarvisTenantId, orgName]
+    );
+
+    const wasCreated = result.rows[0].was_created;
+
+    if (wasCreated) {
+      logger.info(
+        { jarvisTenantId, orgName },
+        'Created Rita org using Jarvis tenantId'
       );
-      return { ritaOrgId, wasCreated: false };
     }
 
-    // 2. Create new org in Rita DB
-    const orgName = tenantName || `Jarvis Tenant ${jarvisTenantId.substring(0, 8)}`;
-    const orgResult = await pool.query(
-      `INSERT INTO organizations (name, created_at)
-       VALUES ($1, NOW())
-       RETURNING id`,
-      [orgName]
-    );
-    const newOrgId: string = orgResult.rows[0].id;
-
-    // 3. Save mapping to Valkey
-    await setRitaOrgMapping(jarvisTenantId, newOrgId);
-
-    logger.info(
-      { jarvisTenantId, ritaOrgId: newOrgId, orgName },
-      'Created Rita org from Jarvis tenant'
-    );
-
-    return { ritaOrgId: newOrgId, wasCreated: true };
+    // ritaOrgId === jarvisTenantId (same value)
+    return { ritaOrgId: jarvisTenantId, wasCreated };
   }
 
   /**
-   * Resolve or create Rita user from Jarvis user GUID (Keycloak user ID)
-   * Uses JIT provisioning with Valkey-cached mapping.
-   *
-   * Note: jarvisGuid is the Keycloak user ID from the shared Keycloak instance
-   * used by both Jarvis and Rita. We create a separate Rita user_profile entry
-   * to store Rita-specific data while maintaining the mapping.
+   * Resolve or create Rita user from Jarvis user GUID
+   * Uses jarvisGuid directly as Rita user_id (no mapping needed)
    */
   private async resolveRitaUser(
     jarvisGuid: string,
     ritaOrgId: string
   ): Promise<{ ritaUserId: string; wasCreated: boolean }> {
-    // 1. Check Valkey mapping cache
-    const ritaUserId = await getRitaUserId(jarvisGuid);
-    if (ritaUserId) {
-      return { ritaUserId, wasCreated: false };
-    }
-
-    // 2. Create new user in Rita DB with placeholder data
-    const userResult = await pool.query(
+    // Use Jarvis GUID directly as Rita user_id
+    // ON CONFLICT updates active_organization_id if user exists
+    const result = await pool.query(
       `INSERT INTO user_profiles (user_id, email, keycloak_id, first_name, last_name, active_organization_id, created_at)
-       VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, NOW())
-       RETURNING user_id`,
+       VALUES ($1, $2, $3, $4, $5, $6, NOW())
+       ON CONFLICT (user_id) DO UPDATE SET active_organization_id = $6, updated_at = NOW()
+       RETURNING (xmax = 0) AS was_created`,
       [
+        jarvisGuid,
         `iframe-${jarvisGuid.substring(0, 8)}@iframe.internal`,
         `jarvis-${jarvisGuid}`,
         'Iframe',
@@ -221,17 +199,18 @@ export class IframeService {
         ritaOrgId
       ]
     );
-    const newUserId: string = userResult.rows[0].user_id;
 
-    // 3. Save mapping to Valkey
-    await setRitaUserMapping(jarvisGuid, newUserId);
+    const wasCreated = result.rows[0].was_created;
 
-    logger.info(
-      { jarvisGuid, ritaUserId: newUserId, ritaOrgId },
-      'Created Rita user from Jarvis GUID'
-    );
+    if (wasCreated) {
+      logger.info(
+        { jarvisGuid, ritaOrgId },
+        'Created Rita user using Jarvis GUID'
+      );
+    }
 
-    return { ritaUserId: newUserId, wasCreated: true };
+    // ritaUserId === jarvisGuid (same value)
+    return { ritaUserId: jarvisGuid, wasCreated };
   }
 
   /**
