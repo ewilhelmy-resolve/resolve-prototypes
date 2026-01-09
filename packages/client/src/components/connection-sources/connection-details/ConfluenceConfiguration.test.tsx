@@ -135,7 +135,7 @@ describe("ConfluenceConfiguration", () => {
 
 		await user.click(menuButton);
 
-		const editOption = await screen.findByText("Edit");
+		const editOption = await screen.findByText("actions.edit");
 		await user.click(editOption);
 
 		expect(mockOnEdit).toHaveBeenCalledTimes(1);
