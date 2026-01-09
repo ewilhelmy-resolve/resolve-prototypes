@@ -6,8 +6,10 @@ import type {
   CreateDelegationResponse,
   DelegationListItem,
   DelegationStatus,
+  ItsmCredentials,
   ItsmSystemType,
   ListDelegationsQuery,
+  SubmitCredentialsResponse,
   VerifyDelegationResponse,
 } from '../types/credentialDelegation.js';
 
@@ -295,6 +297,154 @@ export class CredentialDelegationService {
     logger.info({ delegationId, organizationId, userId }, 'Credential delegation cancelled');
 
     return { success: true };
+  }
+
+  /**
+   * Submit credentials for a delegation token (public endpoint)
+   * Called by IT admin via magic link
+   */
+  async submitCredentials(
+    token: string,
+    credentials: ItsmCredentials
+  ): Promise<SubmitCredentialsResponse> {
+    // Validate token format
+    if (!token || token.length !== 64) {
+      throw new Error('Invalid token');
+    }
+
+    // Get delegation details
+    const result = await this.pool.query(
+      `SELECT cdt.id, cdt.organization_id, cdt.admin_email, cdt.itsm_system_type,
+              cdt.status, cdt.token_expires_at, cdt.created_by_user_id,
+              o.name as org_name, up.email as creator_email
+       FROM credential_delegation_tokens cdt
+       JOIN organizations o ON cdt.organization_id = o.id
+       JOIN user_profiles up ON cdt.created_by_user_id = up.user_id
+       WHERE cdt.delegation_token = $1`,
+      [token]
+    );
+
+    if (result.rows.length === 0) {
+      throw new Error('Invalid or expired token');
+    }
+
+    const delegation = result.rows[0];
+
+    // Check if expired
+    if (new Date(delegation.token_expires_at) < new Date()) {
+      await this.pool.query(
+        `UPDATE credential_delegation_tokens SET status = 'expired' WHERE id = $1`,
+        [delegation.id]
+      );
+      throw new Error('Token has expired');
+    }
+
+    // Check if already used
+    if (delegation.status !== 'pending') {
+      throw new Error('Token has already been used');
+    }
+
+    // Validate credentials have required fields based on system type
+    this.validateCredentials(delegation.itsm_system_type, credentials);
+
+    // Update delegation status to 'used' and record timestamp
+    await this.pool.query(
+      `UPDATE credential_delegation_tokens
+       SET status = 'used', credentials_received_at = NOW()
+       WHERE id = $1`,
+      [delegation.id]
+    );
+
+    // Send webhook to external service for credential verification
+    const webhookResult = await this.webhookService.sendGenericEvent({
+      organizationId: delegation.organization_id,
+      userId: delegation.created_by_user_id,
+      userEmail: delegation.creator_email,
+      source: 'rita-credential-delegation',
+      action: 'verify_delegated_credentials',
+      additionalData: {
+        delegation_id: delegation.id,
+        admin_email: delegation.admin_email,
+        organization_name: delegation.org_name,
+        itsm_system_type: delegation.itsm_system_type,
+        credentials: this.encodeCredentials(credentials),
+      },
+    });
+
+    if (!webhookResult.success) {
+      logger.error(
+        {
+          delegationId: delegation.id,
+          organizationId: delegation.organization_id,
+          webhookError: webhookResult.error,
+        },
+        'Credential verification webhook failed'
+      );
+      // Don't fail - credentials are saved, verification will be retried
+    }
+
+    logger.info(
+      {
+        delegationId: delegation.id,
+        organizationId: delegation.organization_id,
+        adminEmail: delegation.admin_email,
+        itsmSystemType: delegation.itsm_system_type,
+      },
+      'Credentials submitted for delegation'
+    );
+
+    return {
+      success: true,
+      message: 'Credentials submitted successfully. Verification in progress.',
+      delegation_id: delegation.id,
+      status: 'used',
+    };
+  }
+
+  /**
+   * Validate credentials based on ITSM system type
+   */
+  private validateCredentials(systemType: ItsmSystemType, credentials: ItsmCredentials): void {
+    if (!credentials || typeof credentials !== 'object') {
+      throw new Error('Credentials are required');
+    }
+
+    const creds = credentials as unknown as Record<string, unknown>;
+
+    if (!creds.instance_url || typeof creds.instance_url !== 'string') {
+      throw new Error('Instance URL is required');
+    }
+
+    if (systemType === 'servicenow') {
+      if (!creds.username || typeof creds.username !== 'string') {
+        throw new Error('Username is required for ServiceNow');
+      }
+      if (!creds.password || typeof creds.password !== 'string') {
+        throw new Error('Password is required for ServiceNow');
+      }
+    } else if (systemType === 'jira' || systemType === 'confluence') {
+      if (!creds.email || typeof creds.email !== 'string') {
+        throw new Error('Email is required for Jira/Confluence');
+      }
+      if (!creds.api_token || typeof creds.api_token !== 'string') {
+        throw new Error('API token is required for Jira/Confluence');
+      }
+    }
+  }
+
+  /**
+   * Encode credentials for webhook transmission (base64)
+   */
+  private encodeCredentials(credentials: ItsmCredentials): Record<string, string> {
+    const encoded: Record<string, string> = {};
+    for (const [key, value] of Object.entries(credentials)) {
+      if (key === 'password' || key === 'api_token') {
+        encoded[key] = Buffer.from(String(value)).toString('base64');
+      } else {
+        encoded[key] = String(value);
+      }
+    }
+    return encoded;
   }
 
   /**

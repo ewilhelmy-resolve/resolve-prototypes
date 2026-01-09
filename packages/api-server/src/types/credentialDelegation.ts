@@ -86,6 +86,47 @@ export interface DelegationListItem {
 }
 
 /**
+ * ITSM credentials by system type
+ */
+export interface ServiceNowCredentials {
+  instance_url: string;
+  username: string;
+  password: string;
+}
+
+export interface JiraCredentials {
+  instance_url: string;
+  email: string;
+  api_token: string;
+}
+
+export interface ConfluenceCredentials {
+  instance_url: string;
+  email: string;
+  api_token: string;
+}
+
+export type ItsmCredentials = ServiceNowCredentials | JiraCredentials | ConfluenceCredentials;
+
+/**
+ * Submit credentials request body (public endpoint)
+ */
+export interface SubmitCredentialsRequest {
+  token: string;
+  credentials: ItsmCredentials;
+}
+
+/**
+ * Submit credentials response
+ */
+export interface SubmitCredentialsResponse {
+  success: boolean;
+  message: string;
+  delegation_id: string;
+  status: DelegationStatus;
+}
+
+/**
  * Webhook payload for sending delegation email
  */
 export interface DelegationEmailWebhookPayload {
