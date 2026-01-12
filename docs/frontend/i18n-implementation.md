@@ -29,7 +29,8 @@ packages/client/src/i18n/
         ├── auth.json
         ├── validation.json
         ├── files.json
-        └── tickets.json
+        ├── tickets.json
+        └── dialogs.json
 ```
 
 ### Namespaces
@@ -46,6 +47,7 @@ packages/client/src/i18n/
 | validation | Form validation |
 | files | Knowledge base |
 | tickets | Ticket groups, review, automation |
+| dialogs | Dialog components (confirm, invite, welcome) |
 
 ### Key Naming Convention
 
@@ -136,7 +138,12 @@ t('welcome.greeting', { name: 'John' }) // "Welcome, {{name}}"
 
 ### Phase 7: Dialogs
 
-- [ ] Migrate dialogs
+- [x] Create dialogs.json (~40 keys)
+- [x] Migrate ConfirmDialog.tsx (default button labels)
+- [x] Migrate ConfirmFormDialog.tsx (default action/cancel labels)
+- [x] Migrate InviteUsersDialog.tsx (all UI strings, error messages)
+- [x] Migrate WelcomeDialog.tsx (role-based welcome content)
+- [x] Update dialog test files to expect translation keys
 
 ### Phase 8: Auth Pages
 
@@ -166,9 +173,9 @@ t('welcome.greeting', { name: 'John' }) // "Welcome, {{name}}"
 
 ## Current Checkpoint
 
-**Status**: Phase 6 - COMPLETE
-**Next Step**: Phase 7 - Dialogs migration
-**Last Updated**: 2026-01-09
+**Status**: Phase 7 - COMPLETE
+**Next Step**: Phase 8 - Auth pages migration
+**Last Updated**: 2026-01-12
 
 ## Related Docs
 
