@@ -58,7 +58,7 @@ describe("InviteUsersDialog", () => {
 
 			expect(screen.getByRole("dialog")).toBeInTheDocument();
 			expect(
-				screen.getByRole("heading", { name: /invite users/i }),
+				screen.getByRole("heading", { name: /invite\.title/i }),
 			).toBeInTheDocument();
 		});
 
@@ -94,13 +94,9 @@ describe("InviteUsersDialog", () => {
 			);
 
 			expect(
-				screen.getByRole("heading", { name: /invite users/i }),
+				screen.getByRole("heading", { name: /invite\.title/i }),
 			).toBeInTheDocument();
-			expect(
-				screen.getByText(
-					"Add email addresses to invite new users to your workspace.",
-				),
-			).toBeInTheDocument();
+			expect(screen.getByText("invite.description")).toBeInTheDocument();
 		});
 
 		it("should render info alert about user role", () => {
@@ -116,14 +112,8 @@ describe("InviteUsersDialog", () => {
 				</TestWrapper>,
 			);
 
-			expect(
-				screen.getByText(/all new users will be assigned the/i),
-			).toBeInTheDocument();
-			expect(
-				screen.getByText(
-					/to grant admin access, update their role later in settings/i,
-				),
-			).toBeInTheDocument();
+			expect(screen.getByText(/invite\.roleInfoPrefix/i)).toBeInTheDocument();
+			expect(screen.getByText(/invite\.adminHint/i)).toBeInTheDocument();
 		});
 
 		it("should render email input textarea", () => {
@@ -139,11 +129,9 @@ describe("InviteUsersDialog", () => {
 				</TestWrapper>,
 			);
 
-			expect(screen.getByLabelText(/email addresses/i)).toBeInTheDocument();
+			expect(screen.getByLabelText(/invite\.emailLabel/i)).toBeInTheDocument();
 			expect(
-				screen.getByPlaceholderText(
-					/enter email addresses separated by commas/i,
-				),
+				screen.getByPlaceholderText(/invite\.emailPlaceholder/i),
 			).toBeInTheDocument();
 		});
 
@@ -160,11 +148,7 @@ describe("InviteUsersDialog", () => {
 				</TestWrapper>,
 			);
 
-			expect(
-				screen.getByText(
-					/separate multiple email addresses with commas \(max 50\)/i,
-				),
-			).toBeInTheDocument();
+			expect(screen.getByText("invite.emailHint")).toBeInTheDocument();
 		});
 
 		it("should render Cancel and Invite Users buttons", () => {
@@ -181,10 +165,10 @@ describe("InviteUsersDialog", () => {
 			);
 
 			expect(
-				screen.getByRole("button", { name: /cancel/i }),
+				screen.getByRole("button", { name: /actions\.cancel/i }),
 			).toBeInTheDocument();
 			expect(
-				screen.getByRole("button", { name: /invite users/i }),
+				screen.getByRole("button", { name: /invite\.submit/i }),
 			).toBeInTheDocument();
 		});
 	});
@@ -204,7 +188,7 @@ describe("InviteUsersDialog", () => {
 			);
 
 			const inviteButton = screen.getByRole("button", {
-				name: /invite users/i,
+				name: /invite\.submit/i,
 			});
 			expect(inviteButton).toBeDisabled();
 		});
@@ -224,12 +208,12 @@ describe("InviteUsersDialog", () => {
 				</TestWrapper>,
 			);
 
-			const textarea = screen.getByLabelText(/email addresses/i);
+			const textarea = screen.getByLabelText(/invite\.emailLabel/i);
 			await user.type(textarea, "user@example.com");
 
 			await waitFor(() => {
 				const inviteButton = screen.getByRole("button", {
-					name: /invite users/i,
+					name: /invite\.submit/i,
 				});
 				expect(inviteButton).not.toBeDisabled();
 			});
@@ -250,12 +234,12 @@ describe("InviteUsersDialog", () => {
 				</TestWrapper>,
 			);
 
-			const textarea = screen.getByLabelText(/email addresses/i);
+			const textarea = screen.getByLabelText(/invite\.emailLabel/i);
 			await user.type(textarea, "user1@example.com, user2@example.com");
 
 			await waitFor(() => {
 				const inviteButton = screen.getByRole("button", {
-					name: /invite users/i,
+					name: /invite\.submit/i,
 				});
 				expect(inviteButton).not.toBeDisabled();
 			});
@@ -276,12 +260,12 @@ describe("InviteUsersDialog", () => {
 				</TestWrapper>,
 			);
 
-			const textarea = screen.getByLabelText(/email addresses/i);
+			const textarea = screen.getByLabelText(/invite\.emailLabel/i);
 			await user.type(textarea, "invalid-email");
 
 			await waitFor(() => {
 				const inviteButton = screen.getByRole("button", {
-					name: /invite users/i,
+					name: /invite\.submit/i,
 				});
 				expect(inviteButton).toBeDisabled();
 			});
@@ -308,14 +292,14 @@ describe("InviteUsersDialog", () => {
 				(_, i) => `user${i}@example.com`,
 			).join(", ");
 
-			const textarea = screen.getByLabelText(/email addresses/i);
+			const textarea = screen.getByLabelText(/invite\.emailLabel/i);
 			// Use paste instead of type for performance
 			await user.click(textarea);
 			await user.paste(emails);
 
 			await waitFor(() => {
 				const inviteButton = screen.getByRole("button", {
-					name: /invite users/i,
+					name: /invite\.submit/i,
 				});
 				expect(inviteButton).toBeDisabled();
 			});
@@ -340,7 +324,7 @@ describe("InviteUsersDialog", () => {
 			);
 
 			// Enter emails using paste for better performance
-			const textarea = screen.getByLabelText(/email addresses/i);
+			const textarea = screen.getByLabelText(/invite\.emailLabel/i);
 			await user.click(textarea);
 			await user.paste(
 				"user1@example.com, user2@example.com, user3@example.com",
@@ -350,7 +334,7 @@ describe("InviteUsersDialog", () => {
 			await waitFor(
 				() => {
 					const inviteButton = screen.getByRole("button", {
-						name: /invite users/i,
+						name: /invite\.submit/i,
 					});
 					expect(inviteButton).not.toBeDisabled();
 				},
@@ -358,7 +342,7 @@ describe("InviteUsersDialog", () => {
 			);
 
 			const inviteButton = screen.getByRole("button", {
-				name: /invite users/i,
+				name: /invite\.submit/i,
 			});
 			await user.click(inviteButton);
 
@@ -391,9 +375,9 @@ describe("InviteUsersDialog", () => {
 			);
 
 			expect(
-				screen.getByRole("button", { name: /sending/i }),
+				screen.getByRole("button", { name: /invite\.sending/i }),
 			).toBeInTheDocument();
-			expect(screen.getByRole("button", { name: /sending/i })).toBeDisabled();
+			expect(screen.getByRole("button", { name: /invite\.sending/i })).toBeDisabled();
 		});
 
 		it("should disable textarea during submission", () => {
@@ -409,7 +393,7 @@ describe("InviteUsersDialog", () => {
 				</TestWrapper>,
 			);
 
-			const textarea = screen.getByLabelText(/email addresses/i);
+			const textarea = screen.getByLabelText(/invite\.emailLabel/i);
 			expect(textarea).toBeDisabled();
 		});
 
@@ -426,7 +410,7 @@ describe("InviteUsersDialog", () => {
 				</TestWrapper>,
 			);
 
-			const cancelButton = screen.getByRole("button", { name: /cancel/i });
+			const cancelButton = screen.getByRole("button", { name: /actions\.cancel/i });
 			expect(cancelButton).toBeDisabled();
 		});
 	});
@@ -447,7 +431,7 @@ describe("InviteUsersDialog", () => {
 				</TestWrapper>,
 			);
 
-			const cancelButton = screen.getByRole("button", { name: /cancel/i });
+			const cancelButton = screen.getByRole("button", { name: /actions\.cancel/i });
 			await user.click(cancelButton);
 
 			expect(mockOnOpenChange).toHaveBeenCalledWith(false);
@@ -470,7 +454,7 @@ describe("InviteUsersDialog", () => {
 			);
 
 			// Enter some text
-			const textarea = screen.getByLabelText(/email addresses/i);
+			const textarea = screen.getByLabelText(/invite\.emailLabel/i);
 			await user.type(textarea, "test@example.com");
 
 			// Close dialog
@@ -511,11 +495,11 @@ describe("InviteUsersDialog", () => {
 			);
 
 			// Enter email and submit
-			const textarea = screen.getByLabelText(/email addresses/i);
+			const textarea = screen.getByLabelText(/invite\.emailLabel/i);
 			await user.type(textarea, "user@example.com");
 
 			const inviteButton = screen.getByRole("button", {
-				name: /invite users/i,
+				name: /invite\.submit/i,
 			});
 			await user.click(inviteButton);
 
@@ -523,7 +507,7 @@ describe("InviteUsersDialog", () => {
 				expect(toast.error).toHaveBeenCalledWith(
 					"error.invitationsFailed",
 					expect.objectContaining({
-						description: "One or more email addresses are invalid",
+						description: "invite.errors.invalidEmail",
 					}),
 				);
 			});
@@ -552,11 +536,11 @@ describe("InviteUsersDialog", () => {
 			);
 
 			// Enter email and submit
-			const textarea = screen.getByLabelText(/email addresses/i);
+			const textarea = screen.getByLabelText(/invite\.emailLabel/i);
 			await user.type(textarea, "user@example.com");
 
 			const inviteButton = screen.getByRole("button", {
-				name: /invite users/i,
+				name: /invite\.submit/i,
 			});
 			await user.click(inviteButton);
 
@@ -564,7 +548,7 @@ describe("InviteUsersDialog", () => {
 				expect(toast.error).toHaveBeenCalledWith(
 					"error.invitationsFailed",
 					expect.objectContaining({
-						description: "Some users already have pending invitations",
+						description: "invite.errors.duplicatePending",
 					}),
 				);
 			});
@@ -593,11 +577,11 @@ describe("InviteUsersDialog", () => {
 			);
 
 			// Enter email and submit
-			const textarea = screen.getByLabelText(/email addresses/i);
+			const textarea = screen.getByLabelText(/invite\.emailLabel/i);
 			await user.type(textarea, "user@example.com");
 
 			const inviteButton = screen.getByRole("button", {
-				name: /invite users/i,
+				name: /invite\.submit/i,
 			});
 			await user.click(inviteButton);
 
@@ -605,7 +589,7 @@ describe("InviteUsersDialog", () => {
 				expect(toast.error).toHaveBeenCalledWith(
 					"error.invitationsFailed",
 					expect.objectContaining({
-						description: "Some users already have accounts",
+						description: "invite.errors.userExists",
 					}),
 				);
 			});
@@ -634,11 +618,11 @@ describe("InviteUsersDialog", () => {
 			);
 
 			// Enter email and submit
-			const textarea = screen.getByLabelText(/email addresses/i);
+			const textarea = screen.getByLabelText(/invite\.emailLabel/i);
 			await user.type(textarea, "user@example.com");
 
 			const inviteButton = screen.getByRole("button", {
-				name: /invite users/i,
+				name: /invite\.submit/i,
 			});
 			await user.click(inviteButton);
 
@@ -646,7 +630,7 @@ describe("InviteUsersDialog", () => {
 				expect(toast.error).toHaveBeenCalledWith(
 					"error.invitationsFailed",
 					expect.objectContaining({
-						description: "Maximum 50 email addresses allowed per batch",
+						description: "invite.errors.batchExceeded",
 					}),
 				);
 			});
@@ -675,11 +659,11 @@ describe("InviteUsersDialog", () => {
 			);
 
 			// Enter email and submit
-			const textarea = screen.getByLabelText(/email addresses/i);
+			const textarea = screen.getByLabelText(/invite\.emailLabel/i);
 			await user.type(textarea, "user@example.com");
 
 			const inviteButton = screen.getByRole("button", {
-				name: /invite users/i,
+				name: /invite\.submit/i,
 			});
 			await user.click(inviteButton);
 
@@ -687,8 +671,7 @@ describe("InviteUsersDialog", () => {
 				expect(toast.error).toHaveBeenCalledWith(
 					"error.invitationsFailed",
 					expect.objectContaining({
-						description:
-							"Your organization has reached the maximum number of users",
+						description: "invite.errors.tenantLimit",
 					}),
 				);
 			});
@@ -710,7 +693,7 @@ describe("InviteUsersDialog", () => {
 			);
 
 			expect(screen.getByRole("dialog")).toBeInTheDocument();
-			expect(screen.getByLabelText(/email addresses/i)).toBeInTheDocument();
+			expect(screen.getByLabelText(/invite\.emailLabel/i)).toBeInTheDocument();
 		});
 
 		it("should have proper heading hierarchy", () => {
@@ -728,7 +711,7 @@ describe("InviteUsersDialog", () => {
 
 			// DialogTitle creates a heading
 			expect(
-				screen.getByRole("heading", { name: /invite users/i }),
+				screen.getByRole("heading", { name: /invite\.title/i }),
 			).toBeInTheDocument();
 		});
 	});

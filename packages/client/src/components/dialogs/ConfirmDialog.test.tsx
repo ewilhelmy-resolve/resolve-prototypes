@@ -27,8 +27,8 @@ describe("ConfirmDialog", () => {
 
 		it("renders default button labels", () => {
 			render(<ConfirmDialog {...defaultProps} />);
-			expect(screen.getByRole("button", { name: "Confirm" })).toBeInTheDocument();
-			expect(screen.getByRole("button", { name: "Cancel" })).toBeInTheDocument();
+			expect(screen.getByRole("button", { name: "actions.confirm" })).toBeInTheDocument();
+			expect(screen.getByRole("button", { name: "actions.cancel" })).toBeInTheDocument();
 		});
 
 		it("renders custom button labels", () => {
@@ -52,13 +52,13 @@ describe("ConfirmDialog", () => {
 	describe("Variants", () => {
 		it("applies default variant styling", () => {
 			render(<ConfirmDialog {...defaultProps} variant="default" />);
-			const confirmBtn = screen.getByRole("button", { name: "Confirm" });
+			const confirmBtn = screen.getByRole("button", { name: "actions.confirm" });
 			expect(confirmBtn).toHaveClass("bg-primary");
 		});
 
 		it("applies destructive variant styling", () => {
 			render(<ConfirmDialog {...defaultProps} variant="destructive" />);
-			const confirmBtn = screen.getByRole("button", { name: "Confirm" });
+			const confirmBtn = screen.getByRole("button", { name: "actions.confirm" });
 			expect(confirmBtn).toHaveClass("bg-destructive");
 		});
 	});
@@ -77,7 +77,7 @@ describe("ConfirmDialog", () => {
 				/>
 			);
 
-			await user.click(screen.getByRole("button", { name: "Confirm" }));
+			await user.click(screen.getByRole("button", { name: "actions.confirm" }));
 
 			expect(onConfirm).toHaveBeenCalledTimes(1);
 			expect(onOpenChange).toHaveBeenCalledWith(false);
@@ -89,7 +89,7 @@ describe("ConfirmDialog", () => {
 
 			render(<ConfirmDialog {...defaultProps} onOpenChange={onOpenChange} />);
 
-			await user.click(screen.getByRole("button", { name: "Cancel" }));
+			await user.click(screen.getByRole("button", { name: "actions.cancel" }));
 
 			expect(onOpenChange).toHaveBeenCalledWith(false);
 		});
@@ -100,7 +100,7 @@ describe("ConfirmDialog", () => {
 
 			render(<ConfirmDialog {...defaultProps} onConfirm={onConfirm} />);
 
-			await user.click(screen.getByRole("button", { name: "Cancel" }));
+			await user.click(screen.getByRole("button", { name: "actions.cancel" }));
 
 			expect(onConfirm).not.toHaveBeenCalled();
 		});

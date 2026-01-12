@@ -53,7 +53,7 @@ describe("ConfirmFormDialog", () => {
 
 			await user.click(screen.getByRole("button", { name: "Open Dialog" }));
 
-			expect(screen.getByRole("button", { name: "Confirm" })).toBeInTheDocument();
+			expect(screen.getByRole("button", { name: "actions.confirm" })).toBeInTheDocument();
 		});
 
 		it("renders custom action label", async () => {
@@ -73,7 +73,7 @@ describe("ConfirmFormDialog", () => {
 
 			await user.click(screen.getByRole("button", { name: "Open Dialog" }));
 
-			const confirmBtn = screen.getByRole("button", { name: "Confirm" });
+			const confirmBtn = screen.getByRole("button", { name: "actions.confirm" });
 			expect(confirmBtn).toBeDisabled();
 		});
 
@@ -88,7 +88,7 @@ describe("ConfirmFormDialog", () => {
 			await user.click(screen.getByRole("button", { name: "Open Dialog" }));
 
 			await waitFor(() => {
-				const confirmBtn = screen.getByRole("button", { name: "Confirm" });
+				const confirmBtn = screen.getByRole("button", { name: "actions.confirm" });
 				expect(confirmBtn).not.toBeDisabled();
 			});
 		});
@@ -108,7 +108,7 @@ describe("ConfirmFormDialog", () => {
 			await user.click(screen.getByRole("button", { name: "Open Dialog" }));
 
 			await waitFor(async () => {
-				const confirmBtn = screen.getByRole("button", { name: "Confirm" });
+				const confirmBtn = screen.getByRole("button", { name: "actions.confirm" });
 				await user.click(confirmBtn);
 			});
 
@@ -121,7 +121,7 @@ describe("ConfirmFormDialog", () => {
 			render(<ConfirmFormDialog {...defaultProps} onClose={onClose} />);
 
 			await user.click(screen.getByRole("button", { name: "Open Dialog" }));
-			await user.click(screen.getByRole("button", { name: "Cancel" }));
+			await user.click(screen.getByRole("button", { name: "actions.cancel" }));
 
 			expect(onClose).toHaveBeenCalledWith({
 				formData: { name: "" },
@@ -165,7 +165,7 @@ describe("ConfirmFormDialog", () => {
 			await user.click(screen.getByRole("button", { name: "Open Dialog" }));
 
 			await waitFor(() => {
-				const confirmBtn = screen.getByRole("button", { name: "Confirm" });
+				const confirmBtn = screen.getByRole("button", { name: "actions.confirm" });
 				expect(confirmBtn).toHaveClass("bg-destructive");
 			});
 		});

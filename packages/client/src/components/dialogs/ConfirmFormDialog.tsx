@@ -1,6 +1,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useState } from "react";
 import { FormProvider, type UseFormReturn, useForm } from "react-hook-form";
+import { useTranslation } from "react-i18next";
 import type { z } from "zod";
 import {
 	AlertDialog,
@@ -127,7 +128,7 @@ export function ConfirmFormDialog({
 	title,
 	description,
 	children,
-	actionLabel = "Confirm",
+	actionLabel,
 	onConfirm,
 	onClose,
 	onOpenChange,
@@ -136,7 +137,9 @@ export function ConfirmFormDialog({
 	validationSchema,
 	defaultValues = {},
 }: ConfirmFormDialogProps) {
+	const { t } = useTranslation("common");
 	const [internalOpen, setInternalOpen] = useState(false);
+	const resolvedActionLabel = actionLabel ?? t("actions.confirm");
 
 	const form = useForm({
 		resolver: zodResolver(validationSchema as any),
@@ -201,7 +204,7 @@ export function ConfirmFormDialog({
 				)}
 
 				<AlertDialogFooter>
-					<AlertDialogCancel>Cancel</AlertDialogCancel>
+					<AlertDialogCancel>{t("actions.cancel")}</AlertDialogCancel>
 					<AlertDialogAction
 						disabled={!isValid}
 						className={!isValid ? "opacity-50" : ""}
@@ -210,7 +213,7 @@ export function ConfirmFormDialog({
 							className: `bg-destructive hover:bg-destructive/90 ${!isValid ? "opacity-50" : ""}`,
 						})}
 					>
-						{actionLabel}
+						{resolvedActionLabel}
 					</AlertDialogAction>
 				</AlertDialogFooter>
 			</AlertDialogContent>
