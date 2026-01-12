@@ -147,11 +147,24 @@ t('welcome.greeting', { name: 'John' }) // "Welcome, {{name}}"
 
 ### Phase 8: Auth Pages
 
-- [ ] Expand auth.json with validation, signup, verifyEmail, invite sections
-- [ ] Migrate InviteAcceptPage.tsx (Zod schema, error registry, UI strings)
-- [ ] Migrate VerifyEmailPage.tsx, VerifyEmailSentPage.tsx
-- [ ] Migrate SignUpPage.tsx (form validation)
-- [ ] Update tests
+- [x] Expand auth.json (~65 keys: validation, signup, verifyEmail, verifyEmailSent, invite sections)
+- [x] Migrate InviteAcceptPage.tsx (Zod schema with i18n, error messages, UI strings)
+- [x] Migrate VerifyEmailPage.tsx (status messages, buttons)
+- [x] Migrate VerifyEmailSentPage.tsx (verification flow UI)
+- [x] Migrate SignUpPage.tsx (form labels, validation, buttons)
+- [x] Update InviteAcceptPage.test.tsx to expect translation keys
+
+**Zod i18n Pattern**: To avoid TS 5.2.2 compiler bug with complex generics, validation messages are extracted via `useMemo` first, then used in the schema:
+
+```tsx
+const validationMessages = useMemo(() => ({
+  passwordMinLength: t("validation.passwordMinLength", { count: MIN_PASSWORD_LENGTH }),
+}), [t]);
+
+const schema = useMemo(() => z.object({
+  password: z.string().min(MIN_PASSWORD_LENGTH, validationMessages.passwordMinLength),
+}), [validationMessages]);
+```
 
 ### Phase 9: Chat Interface
 
@@ -165,12 +178,26 @@ t('welcome.greeting', { name: 'John' }) // "Welcome, {{name}}"
 - [x] Update ChatV1Content.test.tsx to expect translation keys
 - [x] Update ResponseWithInlineCitations.test.tsx to expect translation keys
 
+**Multi-Namespace Pattern**: Components needing multiple namespaces use array syntax with prefixed keys:
+
+```tsx
+const { t } = useTranslation(["chat", "toast"]);
+// Toast keys: t("toast:success.messageCopied")
+// Chat keys: t("emptyState.title") // default namespace
+```
+
+**Fallback Pattern**: For optional i18n props with defaults:
+
+```tsx
+const resolvedPlaceholder = placeholder ?? t("input.placeholder");
+```
+
 ### Phase 10: Validation
 
 - [x] validation.json already exists with required.*, format.*, length.*, confirm.*, form.* keys
 - [x] Expand validation.json with password validation keys (required.password, format.password, password.minLength/uppercase/lowercase/number/mismatch)
-- [ ] Migrate Zod schemas to use validation namespace (depends on Phase 8 auth pages)
-- [ ] lib/validation.ts - skip (utility functions, no React hooks access)
+- [x] Zod schemas in auth pages use auth.json validation keys (Phase 8 pattern)
+- [x] lib/validation.ts - skipped (utility functions, no React hooks access)
 
 ### Phase 11: Files
 
@@ -185,8 +212,8 @@ t('welcome.greeting', { name: 'John' }) // "Welcome, {{name}}"
 
 ## Current Checkpoint
 
-**Status**: Phase 9 COMPLETE, Phase 10 PARTIAL (validation.json expanded, Zod migration pending)
-**Next Step**: Phase 8 - Auth pages migration (prerequisite for Phase 10 Zod migration)
+**Status**: Phase 10 - COMPLETE
+**Next Step**: Phase 11 - Files namespace
 **Last Updated**: 2026-01-12
 
 ## Related Docs
