@@ -31,7 +31,8 @@ describe("WelcomeDialog", () => {
 	describe("Rendering", () => {
 		it("renders welcome message with user name", () => {
 			render(<WelcomeDialog {...defaultProps} />);
-			expect(screen.getByText(/Welcome to RITA Go, John/)).toBeInTheDocument();
+			// Translation key is "welcome.title" with interpolation
+			expect(screen.getByText(/welcome\.title/)).toBeInTheDocument();
 		});
 
 		it("renders fallback name when user name not available", () => {
@@ -40,31 +41,30 @@ describe("WelcomeDialog", () => {
 			} as any);
 
 			render(<WelcomeDialog {...defaultProps} />);
-			expect(screen.getByText(/Welcome to RITA Go, there/)).toBeInTheDocument();
+			// Still renders the translation key
+			expect(screen.getByText(/welcome\.title/)).toBeInTheDocument();
 		});
 
 		it("renders trial information", () => {
 			render(<WelcomeDialog {...defaultProps} />);
-			expect(
-				screen.getByText(/Enjoy your free 90-day trial/)
-			).toBeInTheDocument();
+			expect(screen.getByText(/welcome\.subtitle/)).toBeInTheDocument();
 		});
 
 		it("renders Get Started button", () => {
 			render(<WelcomeDialog {...defaultProps} />);
-			expect(screen.getByRole("button", { name: "Get Started" })).toBeInTheDocument();
+			expect(screen.getByRole("button", { name: /welcome\.getStarted/i })).toBeInTheDocument();
 		});
 
 		it("renders Learn how link", () => {
 			render(<WelcomeDialog {...defaultProps} />);
 			expect(
-				screen.getByRole("button", { name: /Learn how RITA Go works/ })
+				screen.getByRole("button", { name: /welcome\.learnMore/i })
 			).toBeInTheDocument();
 		});
 
 		it("does not render when closed", () => {
 			render(<WelcomeDialog {...defaultProps} open={false} />);
-			expect(screen.queryByText(/Welcome to RITA Go/)).not.toBeInTheDocument();
+			expect(screen.queryByText(/welcome\.title/)).not.toBeInTheDocument();
 		});
 	});
 
@@ -76,12 +76,8 @@ describe("WelcomeDialog", () => {
 
 			render(<WelcomeDialog {...defaultProps} />);
 
-			expect(
-				screen.getByText(/Connect your knowledge sources/)
-			).toBeInTheDocument();
-			expect(
-				screen.getByText(/Invite your teammates/)
-			).toBeInTheDocument();
+			expect(screen.getByText(/welcome\.admin\.step1/)).toBeInTheDocument();
+			expect(screen.getByText(/welcome\.admin\.step2/)).toBeInTheDocument();
 		});
 
 		it("shows user content for regular users", () => {
@@ -91,10 +87,8 @@ describe("WelcomeDialog", () => {
 
 			render(<WelcomeDialog {...defaultProps} />);
 
-			expect(
-				screen.getByText(/Your Admin has connected your workspace/)
-			).toBeInTheDocument();
-			expect(screen.getByText(/Search verified knowledge/)).toBeInTheDocument();
+			expect(screen.getByText(/welcome\.user\.heading/)).toBeInTheDocument();
+			expect(screen.getByText(/welcome\.user\.step1/)).toBeInTheDocument();
 		});
 	});
 
@@ -104,7 +98,7 @@ describe("WelcomeDialog", () => {
 			const onOpenChange = vi.fn();
 			render(<WelcomeDialog {...defaultProps} onOpenChange={onOpenChange} />);
 
-			await user.click(screen.getByRole("button", { name: "Get Started" }));
+			await user.click(screen.getByRole("button", { name: /welcome\.getStarted/i }));
 
 			expect(onOpenChange).toHaveBeenCalledWith(false);
 		});
@@ -116,7 +110,7 @@ describe("WelcomeDialog", () => {
 			render(<WelcomeDialog {...defaultProps} />);
 
 			await user.click(
-				screen.getByRole("button", { name: /Learn how RITA Go works/ })
+				screen.getByRole("button", { name: /welcome\.learnMore/i })
 			);
 
 			expect(windowOpen).toHaveBeenCalledWith(

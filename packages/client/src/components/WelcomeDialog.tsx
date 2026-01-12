@@ -19,6 +19,7 @@
 "use client";
 
 import { ExternalLink } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { useProfile, useProfilePermissions } from "@/hooks/api/useProfile";
@@ -32,6 +33,7 @@ export default function WelcomeDialog({
 	open,
 	onOpenChange,
 }: WelcomeDialogProps) {
+	const { t } = useTranslation("dialogs");
 	const { data: profile } = useProfile();
 	const { isOwnerOrAdmin } = useProfilePermissions();
 
@@ -46,11 +48,10 @@ export default function WelcomeDialog({
 					<div className="flex flex-col gap-4 sm:gap-6 items-start w-full lg:max-w-md">
 						<div className="flex flex-col gap-2 items-start w-full">
 							<h2 className="text-2xl sm:text-3xl lg:text-4xl font-normal leading-tight text-foreground">
-								Welcome to RITA Go, {firstName}
+								{t("welcome.title", { name: firstName })}
 							</h2>
 							<p className="text-base sm:text-lg font-light leading-relaxed text-foreground">
-								Enjoy your free 90-day trial of Resolve's AI-powered agent for
-								faster, smarter IT support.
+								{t("welcome.subtitle")}
 							</p>
 						</div>
 
@@ -59,24 +60,20 @@ export default function WelcomeDialog({
 								// Admin Copy
 								<>
 									<p className="text-base font-light leading-6 text-foreground">
-									    RITA Go learns from your company's knowledge and tickets
-										(coming soon) to help resolve IT issues automatically.
+										{t("welcome.admin.intro")}
 									</p>
 									<p className="text-base font-light leading-6 text-foreground">
-										In a few steps, you'll:
+										{t("welcome.admin.stepsIntro")}
 									</p>
 									<ul className="list-disc space-y-3 w-full pl-5">
 										<li className="text-base font-light leading-6 text-foreground">
-											Connect your knowledge sources like Confluence,
-											ServiceNow, or SharePoint.
+											{t("welcome.admin.step1")}
 										</li>
 										<li className="text-base font-light leading-6 text-foreground">
-											Invite your teammates to start getting instant answers.
+											{t("welcome.admin.step2")}
 										</li>
 										<li className="text-base font-light leading-6 text-foreground">
-											And coming soon — connect your ITSM for historical
-											ticket data to enrich your workspace and help users
-											resolve issues even faster.
+											{t("welcome.admin.step3")}
 										</li>
 									</ul>
 								</>
@@ -84,23 +81,20 @@ export default function WelcomeDialog({
 								// User Copy
 								<>
 									<h3 className="text-lg font-normal leading-7 text-foreground">
-										Your Admin has connected your workspace.
+										{t("welcome.user.heading")}
 									</h3>
 									<p className="text-base font-light leading-6 text-foreground">
-										RITA Go helps you solve IT issues instantly — from password
-										resets to VPN access — all based on your company's trusted
-										content. Just ask a question or describe the issue, and
-										RITA Go will:
+										{t("welcome.user.intro")}
 									</p>
 									<ul className="list-disc space-y-3 w-full pl-5">
 										<li className="text-base font-light leading-6 text-foreground">
-											Search verified knowledge
+											{t("welcome.user.step1")}
 										</li>
 										<li className="text-base font-light leading-6 text-foreground">
-											Get easy next steps or fixes to issues, fast
+											{t("welcome.user.step2")}
 										</li>
 										<li className="text-base font-light leading-6 text-foreground">
-											Create a ticket if you still need help without overhead
+											{t("welcome.user.step3")}
 										</li>
 									</ul>
 								</>
@@ -111,7 +105,7 @@ export default function WelcomeDialog({
 									onClick={() => onOpenChange(false)}
 									className="w-full sm:w-auto"
 								>
-									Get Started
+									{t("welcome.getStarted")}
 								</Button>
 								<Button
 									variant="link"
@@ -126,7 +120,7 @@ export default function WelcomeDialog({
 										);
 									}}
 								>
-									Learn how RITA Go works
+									{t("welcome.learnMore")}
 									<ExternalLink className="w-4 h-4" />
 								</Button>
 							</div>
