@@ -162,8 +162,11 @@ t('welcome.greeting', { name: 'John' }) // "Welcome, {{name}}"
 
 ### Phase 11: Files
 
-- [ ] Create files.json
-- [ ] Migrate file components
+- [x] Expand files.json with UI strings (~95 keys)
+- [x] Migrate FilesV1Content.tsx (header, dropdown, search, filters, table, pagination, dialogs)
+- [x] Migrate EmptyFilesState.tsx (empty state messaging)
+- [x] Migrate FileUploadRequirements.tsx (file type/size requirements)
+- [x] Update FilesV1Content.test.tsx to expect translation keys
 
 ### Phase 12: Audit
 
@@ -173,8 +176,8 @@ t('welcome.greeting', { name: 'John' }) // "Welcome, {{name}}"
 
 ## Current Checkpoint
 
-**Status**: Phase 7 - COMPLETE
-**Next Step**: Phase 8 - Auth pages migration
+**Status**: Phase 11 - COMPLETE
+**Next Step**: Phase 12 - Final audit
 **Last Updated**: 2026-01-12
 
 ## Related Docs

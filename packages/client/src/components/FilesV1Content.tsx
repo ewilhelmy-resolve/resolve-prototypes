@@ -138,7 +138,7 @@ type SortOrder = "asc" | "desc";
 const PAGE_SIZE = 50;
 
 export default function FilesV1Content() {
-	const { t } = useTranslation("toast");
+	const { t } = useTranslation(["files", "toast"]);
 	const [searchInput, setSearchInput] = useState(""); // User's input (immediate)
 	const [searchQuery, setSearchQuery] = useState(""); // Debounced value (for API)
 	const [statusFilter, setStatusFilter] = useState("All");
@@ -198,7 +198,7 @@ export default function FilesV1Content() {
 	useEffect(() => {
 		if (error) {
 			ritaToast.error({
-				title: t("error.loadFilesFailed"),
+				title: t("toast:error.loadFilesFailed"),
 				description: error instanceof Error ? error.message : "Unable to fetch files. Please try again.",
 			});
 		}
@@ -322,18 +322,18 @@ export default function FilesV1Content() {
 		// Show summary toast
 		if (failCount === 0) {
 			ritaToast.success({
-				title: t("success.documentsDeleted"),
-				description: t("descriptions.deletedDocuments", { count: successCount }),
+				title: t("toast:success.documentsDeleted"),
+				description: t("toast:descriptions.deletedDocuments", { count: successCount }),
 			});
 		} else if (successCount === 0) {
 			ritaToast.error({
-				title: t("error.deleteFailed"),
-				description: t("descriptions.deletedFailed", { count: failCount }),
+				title: t("toast:error.deleteFailed"),
+				description: t("toast:descriptions.deletedFailed", { count: failCount }),
 			});
 		} else {
 			ritaToast.warning({
-				title: t("warning.partialSuccess"),
-				description: t("descriptions.partialDelete", { success: successCount, failed: failCount }),
+				title: t("toast:warning.partialSuccess"),
+				description: t("toast:descriptions.partialDelete", { success: successCount, failed: failCount }),
 			});
 		}
 	};
@@ -372,8 +372,8 @@ export default function FilesV1Content() {
 
 		// Show initial toast
 		ritaToast.info({
-			title: t("info.uploadingFiles"),
-			description: t("descriptions.startingUpload", { count: filesToUpload.length }),
+			title: t("toast:info.uploadingFiles"),
+			description: t("toast:descriptions.startingUpload", { count: filesToUpload.length }),
 		});
 
 		// Initialize upload progress for multiple files
@@ -461,27 +461,27 @@ export default function FilesV1Content() {
 
 				if (processed > 0 && failed === 0 && duplicateCount === 0) {
 					ritaToast.success({
-						title: t("success.processingComplete"),
+						title: t("toast:success.processingComplete"),
 						description: processed === 1
-							? t("descriptions.fileProcessed")
-							: t("descriptions.allFilesProcessed"),
+							? t("toast:descriptions.fileProcessed")
+							: t("toast:descriptions.allFilesProcessed"),
 					});
 				} else if (processed > 0 && failed === 0 && duplicateCount > 0) {
 					ritaToast.success({
-						title: t("success.processingComplete"),
-						description: t("descriptions.filesProcessedDuplicates", { count: processed, duplicates: duplicateCount }),
+						title: t("toast:success.processingComplete"),
+						description: t("toast:descriptions.filesProcessedDuplicates", { count: processed, duplicates: duplicateCount }),
 					});
 				} else if (processed === 0 && failed > 0) {
 					ritaToast.error({
-						title: t("error.processingFailed"),
+						title: t("toast:error.processingFailed"),
 						description: failed === 1
-							? `${t("descriptions.fileFailed")}${duplicateMsg}`
-							: `${t("descriptions.allFilesFailed")}${duplicateMsg}`,
+							? `${t("toast:descriptions.fileFailed")}${duplicateMsg}`
+							: `${t("toast:descriptions.allFilesFailed")}${duplicateMsg}`,
 					});
 				} else if (processed > 0 && failed > 0) {
 					ritaToast.warning({
-						title: t("warning.processingPartial"),
-						description: `${t("descriptions.processingPartial", { processed, failed })}${duplicateMsg}`,
+						title: t("toast:warning.processingPartial"),
+						description: `${t("toast:descriptions.processingPartial", { processed, failed })}${duplicateMsg}`,
 					});
 				}
 
@@ -498,40 +498,40 @@ export default function FilesV1Content() {
 		if (successCount > 0 && errorCount === 0 && duplicateCount === 0) {
 			// All files uploaded successfully
 			ritaToast.info({
-				title: t("success.filesUploaded"),
-				description: t("descriptions.uploadedProcessing", { count: successCount }),
+				title: t("toast:success.filesUploaded"),
+				description: t("toast:descriptions.uploadedProcessing", { count: successCount }),
 			});
 		} else if (successCount > 0 && duplicateCount > 0 && errorCount === 0) {
 			// Some successful, some duplicates, no errors
 			ritaToast.warning({
-				title: t("success.filesUploaded"),
-				description: t("descriptions.uploadedWithDuplicates", { success: successCount, duplicates: duplicateCount }),
+				title: t("toast:success.filesUploaded"),
+				description: t("toast:descriptions.uploadedWithDuplicates", { success: successCount, duplicates: duplicateCount }),
 			});
 		} else if (successCount > 0 && errorCount > 0) {
 			// Mixed success and errors (may also have duplicates)
 			ritaToast.warning({
-				title: t("warning.someFilesUploaded"),
+				title: t("toast:warning.someFilesUploaded"),
 				description: duplicateCount > 0
-					? t("descriptions.uploadedWithErrorsAndDuplicates", { success: successCount, failed: errorCount, duplicates: duplicateCount })
-					: t("descriptions.uploadedWithErrors", { success: successCount, failed: errorCount }),
+					? t("toast:descriptions.uploadedWithErrorsAndDuplicates", { success: successCount, failed: errorCount, duplicates: duplicateCount })
+					: t("toast:descriptions.uploadedWithErrors", { success: successCount, failed: errorCount }),
 			});
 		} else if (errorCount > 0 || duplicateCount > 0) {
 			// All failed or all duplicates (no successes)
 			if (duplicateCount > 0 && errorCount === 0) {
 				ritaToast.warning({
-					title: t("warning.filesAlreadyExist"),
-					description: t("descriptions.filesAlreadyExist", { count: duplicateCount }),
+					title: t("toast:warning.filesAlreadyExist"),
+					description: t("toast:descriptions.filesAlreadyExist", { count: duplicateCount }),
 				});
 			} else if (duplicateCount > 0 && errorCount > 0) {
 				// Both errors and duplicates, no successes
 				ritaToast.error({
-					title: t("error.uploadFailed"),
-					description: t("descriptions.uploadErrorsAndDuplicates", { errors: errorCount, duplicates: duplicateCount }),
+					title: t("toast:error.uploadFailed"),
+					description: t("toast:descriptions.uploadErrorsAndDuplicates", { errors: errorCount, duplicates: duplicateCount }),
 				});
 			} else {
 				ritaToast.error({
-					title: t("error.uploadFailed"),
-					description: errors.length > 0 ? errors[0] : t("descriptions.uploadAllFailed"),
+					title: t("toast:error.uploadFailed"),
+					description: errors.length > 0 ? errors[0] : t("toast:descriptions.uploadAllFailed"),
 				});
 			}
 		}
@@ -546,14 +546,14 @@ export default function FilesV1Content() {
 			{
 				onSuccess: () => {
 					ritaToast.success({
-						title: t("success.downloadStarted"),
-						description: t("descriptions.downloading", { name: file.filename }),
+						title: t("toast:success.downloadStarted"),
+						description: t("toast:descriptions.downloading", { name: file.filename }),
 					});
 				},
 				onError: () => {
 					ritaToast.error({
-						title: t("error.downloadFailed"),
-						description: t("descriptions.downloadFailed", { name: file.filename }),
+						title: t("toast:error.downloadFailed"),
+						description: t("toast:descriptions.downloadFailed", { name: file.filename }),
 					});
 				},
 			},
@@ -564,14 +564,14 @@ export default function FilesV1Content() {
 		reprocessFileMutation.mutate(file.id, {
 			onSuccess: () => {
 				ritaToast.success({
-					title: t("success.reprocessStarted"),
-					description: t("descriptions.reprocessing", { name: file.filename }),
+					title: t("toast:success.reprocessStarted"),
+					description: t("toast:descriptions.reprocessing", { name: file.filename }),
 				});
 			},
 			onError: () => {
 				ritaToast.error({
-					title: t("error.reprocessFailed"),
-					description: t("descriptions.reprocessFailed", { name: file.filename }),
+					title: t("toast:error.reprocessFailed"),
+					description: t("toast:descriptions.reprocessFailed", { name: file.filename }),
 				});
 			},
 		});
@@ -588,14 +588,14 @@ export default function FilesV1Content() {
 			deleteFileMutation.mutate(fileToDelete.id, {
 				onSuccess: () => {
 					ritaToast.success({
-						title: t("success.documentDeleted"),
-						description: t("descriptions.documentDeleted", { name: fileName }),
+						title: t("toast:success.documentDeleted"),
+						description: t("toast:descriptions.documentDeleted", { name: fileName }),
 					});
 				},
 				onError: () => {
 					ritaToast.error({
-						title: t("error.deleteFailed"),
-						description: t("descriptions.documentDeleteFailed", { name: fileName }),
+						title: t("toast:error.deleteFailed"),
+						description: t("toast:descriptions.documentDeleteFailed", { name: fileName }),
 					});
 				},
 			});
@@ -635,7 +635,7 @@ export default function FilesV1Content() {
 		<div className="flex flex-col h-full">
 			{/* Header */}
 			<MainHeader
-				title="Knowledge Articles"
+				title={t("header.title")}
 				action={
 					<DropdownMenu>
 						<DropdownMenuTrigger asChild>
@@ -645,7 +645,7 @@ export default function FilesV1Content() {
 								) : (
 									<Plus className="h-4 w-4" />
 								)}
-								Add Articles
+								{t("header.addButton")}
 							</Button>
 						</DropdownMenuTrigger>
 						<DropdownMenuContent align="end">
@@ -659,7 +659,7 @@ export default function FilesV1Content() {
 								) : (
 									<Upload className="h-4 w-4 mr-2" />
 								)}
-								{uploadingFiles.size > 0 ? `Uploading ${uploadingFiles.size} file${uploadingFiles.size > 1 ? 's' : ''}...` : 'Upload file'}
+								{uploadingFiles.size > 0 ? t("dropdown.uploadingFiles", { count: uploadingFiles.size }) : t("dropdown.uploadFile")}
 							</DropdownMenuItem>
 
 							{/* Connect sources option */}
@@ -667,7 +667,7 @@ export default function FilesV1Content() {
 								onClick={() => navigate("/settings/connections")}
 							>
 								<Plus className="h-4 w-4 mr-2" />
-								Connect sources
+								{t("dropdown.connectSources")}
 								<div className="ml-auto flex gap-1 pl-8">
 									<img
 										src="/connections/icon_confluence.svg"
@@ -808,7 +808,7 @@ export default function FilesV1Content() {
 					{selectedFiles.size === 0 ? (
 						<div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
 							<Input
-								placeholder="Search documents....."
+								placeholder={t("search.placeholder")}
 								value={searchInput}
 								onChange={(e) => setSearchInput(e.target.value)}
 								className="max-w-sm"
@@ -817,13 +817,13 @@ export default function FilesV1Content() {
 								<DropdownMenu>
 									<DropdownMenuTrigger asChild>
 										<Button variant="outline">
-											Source: {sourceFilter}
+											{t("filters.source")} {sourceFilter === "All" ? t("filters.all") : sourceFilter}
 											<ChevronDown className="h-4 w-4" />
 										</Button>
 									</DropdownMenuTrigger>
 									<DropdownMenuContent>
 										<DropdownMenuItem onSelect={() => setSourceFilter("All")}>
-											All Sources
+											{t("filters.allSources")}
 										</DropdownMenuItem>
 										<DropdownMenuItem
 											onSelect={() =>
@@ -849,37 +849,36 @@ export default function FilesV1Content() {
 								<DropdownMenu>
 									<DropdownMenuTrigger asChild>
 										<Button variant="outline">
-											Status:{" "}
+											{t("filters.status")}{" "}
 											{statusFilter === "All"
-												? statusFilter
-												: statusFilter.charAt(0).toUpperCase() +
-													statusFilter.slice(1)}
+												? t("filters.all")
+												: statusFilter.charAt(0).toUpperCase() + statusFilter.slice(1)}
 											<ChevronDown className="h-4 w-4" />
 										</Button>
 									</DropdownMenuTrigger>
 									<DropdownMenuContent>
 										<DropdownMenuItem onSelect={() => setStatusFilter("All")}>
-											All Status
+											{t("filters.allStatus")}
 										</DropdownMenuItem>
 										<DropdownMenuItem
 											onSelect={() => setStatusFilter(FILE_STATUS.PROCESSED)}
 										>
-											Processed
+											{t("status.processed")}
 										</DropdownMenuItem>
 										<DropdownMenuItem
 											onSelect={() => setStatusFilter(FILE_STATUS.PROCESSING)}
 										>
-											Processing
+											{t("status.processing")}
 										</DropdownMenuItem>
 										<DropdownMenuItem
 											onSelect={() => setStatusFilter(FILE_STATUS.FAILED)}
 										>
-											Failed
+											{t("status.failed")}
 										</DropdownMenuItem>
 										<DropdownMenuItem
 											onSelect={() => setStatusFilter(FILE_STATUS.UPLOADED)}
 										>
-											Uploaded
+											{t("status.uploaded")}
 										</DropdownMenuItem>
 									</DropdownMenuContent>
 								</DropdownMenu>
@@ -902,8 +901,8 @@ export default function FilesV1Content() {
 							<Loader className="h-4 w-4 animate-spin text-primary" />
 							<div className="flex-1">
 								<div className="flex justify-between text-sm mb-1">
-									<span>Uploading files...</span>
-									<span>{uploadProgress.current} of {uploadProgress.total}</span>
+									<span>{t("uploadProgress.uploading")}</span>
+									<span>{t("uploadProgress.progress", { current: uploadProgress.current, total: uploadProgress.total })}</span>
 								</div>
 								<Progress value={(uploadProgress.current / uploadProgress.total) * 100} className="h-2" />
 							</div>
@@ -942,7 +941,7 @@ export default function FilesV1Content() {
 												className="text-muted-foreground hover:text-foreground -ml-3"
 												onClick={() => handleSort("filename")}
 											>
-												Name
+												{t("table.name")}
 												{renderSortIcon(sortField, "filename", sortOrder)}
 											</Button>
 										</TableHead>
@@ -953,7 +952,7 @@ export default function FilesV1Content() {
 												className="text-muted-foreground hover:text-foreground -ml-3"
 												onClick={() => handleSort("status")}
 											>
-												Status
+												{t("table.status")}
 												{renderSortIcon(sortField, "status", sortOrder)}
 											</Button>
 										</TableHead>
@@ -964,7 +963,7 @@ export default function FilesV1Content() {
 												className="text-muted-foreground hover:text-foreground -ml-3"
 												onClick={() => handleSort("source")}
 											>
-												Source
+												{t("table.source")}
 												{renderSortIcon(sortField, "source", sortOrder)}
 											</Button>
 										</TableHead>
@@ -975,7 +974,7 @@ export default function FilesV1Content() {
 												className="text-muted-foreground hover:text-foreground -mr-3"
 												onClick={() => handleSort("size")}
 											>
-												Size
+												{t("table.size")}
 												{renderSortIcon(sortField, "size", sortOrder)}
 											</Button>
 										</TableHead>
@@ -996,7 +995,7 @@ export default function FilesV1Content() {
 												className="text-muted-foreground hover:text-foreground -mr-3"
 												onClick={() => handleSort("created_at")}
 											>
-												Last Modified
+												{t("table.lastModified")}
 												{renderSortIcon(sortField, "created_at", sortOrder)}
 											</Button>
 										</TableHead>
@@ -1063,7 +1062,7 @@ export default function FilesV1Content() {
 																				"animate-spin",
 																		)}
 																	/>
-																	<span className="text-xs">Retry</span>
+																	<span className="text-xs">{t("actions.retry")}</span>
 																</Button>
 															)}
 														</div>
@@ -1098,7 +1097,7 @@ export default function FilesV1Content() {
 																			onClick={() => handleDownload(file)}
 																		>
 																			<Download className="h-4 w-4 mr-2" />
-																			Download
+																			{t("actions.download")}
 																		</DropdownMenuItem>
 																	)}
 																{/* Reprocess option - only for manual uploads */}
@@ -1110,7 +1109,7 @@ export default function FilesV1Content() {
 																		<RefreshCw
 																			className={`h-4 w-4 mr-2 ${reprocessFileMutation.isPending ? "animate-spin" : ""}`}
 																		/>
-																		Reprocess
+																		{t("actions.reprocess")}
 																	</DropdownMenuItem>
 																)}
 																{/* Delete option - always available */}
@@ -1120,7 +1119,7 @@ export default function FilesV1Content() {
 																	variant="destructive"
 																>
 																	<Trash2 className="h-4 w-4 mr-2" />
-																	Delete
+																	{t("actions.delete")}
 																</DropdownMenuItem>
 															</DropdownMenuContent>
 														</DropdownMenu>
@@ -1138,10 +1137,10 @@ export default function FilesV1Content() {
 							<p className="text-sm text-muted-foreground">
 								{searchInput || statusFilter !== "All" || sourceFilter !== "All" ? (
 									// Show filtered results info
-									<>Showing {sortedFiles.length} of {totalFiles} articles (filtered)</>
+									t("pagination.showingFiltered", { count: sortedFiles.length, total: totalFiles })
 								) : (
 									// Show pagination range when no filters
-									<>Showing {page * PAGE_SIZE + 1}-{Math.min((page + 1) * PAGE_SIZE, totalFiles)} of {totalFiles} articles</>
+									t("pagination.showing", { start: page * PAGE_SIZE + 1, end: Math.min((page + 1) * PAGE_SIZE, totalFiles), total: totalFiles })
 								)}
 							</p>
 							<div className="flex items-center gap-2">
@@ -1151,8 +1150,7 @@ export default function FilesV1Content() {
 									onClick={handlePrevPage}
 									disabled={!hasPrevPage}
 								>
-								 
-									Previous
+								{t("pagination.previous")}
 								</Button>
 								<Button
 									variant="outline"
@@ -1160,8 +1158,7 @@ export default function FilesV1Content() {
 									onClick={handleNextPage}
 									disabled={!hasNextPage}
 								>
-									Next
-									 
+									{t("pagination.next")}
 								</Button>
 							</div>
 						</div>
@@ -1184,11 +1181,10 @@ export default function FilesV1Content() {
 			<ConfirmDialog
 				open={deleteDialogOpen}
 				onOpenChange={setDeleteDialogOpen}
-				title="Delete Document"
-				description={`Are you sure you want to delete "${fileToDelete?.filename}"? This action cannot be undone.`}
+				title={t("dialogs.deleteTitle")}
+				description={t("dialogs.deleteDescription", { filename: fileToDelete?.filename })}
 				onConfirm={confirmDelete}
-				confirmLabel="Delete"
-				cancelLabel="Cancel"
+				confirmLabel={t("actions.delete")}
 				variant="destructive"
 			/>
 
@@ -1196,11 +1192,10 @@ export default function FilesV1Content() {
 			<ConfirmDialog
 				open={bulkDeleteDialogOpen}
 				onOpenChange={setBulkDeleteDialogOpen}
-				title="Delete Documents"
-				description={`Are you sure you want to delete ${selectedFiles.size} document${selectedFiles.size !== 1 ? "s" : ""}? This action cannot be undone and will permanently remove all selected files from your knowledge base.`}
+				title={t("dialogs.bulkDeleteTitle")}
+				description={t("dialogs.bulkDeleteDescription", { count: selectedFiles.size })}
 				onConfirm={handleConfirmBulkDelete}
-				confirmLabel="Delete"
-				cancelLabel="Cancel"
+				confirmLabel={t("actions.delete")}
 				variant="destructive"
 			/>
 		</div>
