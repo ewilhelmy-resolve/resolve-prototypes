@@ -357,10 +357,9 @@ export class RabbitMQService {
       message_id,
       conversation_id,
       tenant_id: organization_id, // Remap tenant_id from external service to organization_id
-      user_id: payload_user_id,
       response,
-      metadata,           // NEW: Optional metadata for rich message types
-      response_group_id   // NEW: Optional group ID for multi-part responses
+      metadata,           // Optional metadata for rich message types
+      response_group_id   // Optional group ID for multi-part responses
     } = payload;
 
     // Validate minimum required fields
@@ -374,24 +373,23 @@ export class RabbitMQService {
       throw new Error('Invalid message payload: missing required fields');
     }
 
-    // If user_id is missing, fetch it from the conversation
-    let user_id = payload_user_id;
-    if (!user_id) {
-      const client = await pool.connect();
-      try {
-        const conversationResult = await client.query(
-          'SELECT user_id FROM conversations WHERE id = $1 AND organization_id = $2',
-          [conversation_id, organization_id]
-        );
+    // Always fetch user_id from conversation for SSE routing
+    // (payload user_id may be Valkey userGuid which doesn't match SSE subscription)
+    const client = await pool.connect();
+    let user_id: string;
+    try {
+      const conversationResult = await client.query(
+        'SELECT user_id FROM conversations WHERE id = $1 AND organization_id = $2',
+        [conversation_id, organization_id]
+      );
 
-        if (conversationResult.rows.length === 0) {
-          throw new Error(`Conversation ${conversation_id} not found or doesn't belong to organization ${organization_id}`);
-        }
-
-        user_id = conversationResult.rows[0].user_id;
-      } finally {
-        client.release();
+      if (conversationResult.rows.length === 0) {
+        throw new Error(`Conversation ${conversation_id} not found or doesn't belong to organization ${organization_id}`);
       }
+
+      user_id = conversationResult.rows[0].user_id;
+    } finally {
+      client.release();
     }
 
     const messageLogger = queueLogger.child({
@@ -401,7 +399,7 @@ export class RabbitMQService {
       userId: user_id
     });
 
-    messageLogger.info({ userIdSource: payload_user_id ? 'payload' : 'conversation' }, 'Processing message');
+    messageLogger.info({ userIdSource: 'conversation' }, 'Processing message');
     const sseService = getSSEService();
 
     // Process message with organization context
