@@ -147,18 +147,30 @@ t('welcome.greeting', { name: 'John' }) // "Welcome, {{name}}"
 
 ### Phase 8: Auth Pages
 
-- [ ] Create auth.json
-- [ ] Migrate auth pages
+- [ ] Expand auth.json with validation, signup, verifyEmail, invite sections
+- [ ] Migrate InviteAcceptPage.tsx (Zod schema, error registry, UI strings)
+- [ ] Migrate VerifyEmailPage.tsx, VerifyEmailSentPage.tsx
+- [ ] Migrate SignUpPage.tsx (form validation)
+- [ ] Update tests
 
 ### Phase 9: Chat Interface
 
-- [ ] Create chat.json
-- [ ] Migrate chat components
+- [x] Expand chat.json with ~40 keys (input, emptyState, sidebar, messages, deleteDialog, actions, dragDrop, iframe, citations)
+- [x] Migrate ConversationSidebar.tsx (sidebar nav, delete dialog, tooltips)
+- [x] Migrate ChatV1Content.tsx (multi-namespace: chat + toast, empty states, pagination)
+- [x] Migrate ChatInput.tsx (placeholder, knowledge warnings with fallback pattern)
+- [x] Migrate DragDropOverlay.tsx (drop zone UI)
+- [x] Migrate IframeChatPage.tsx (error states, loading)
+- [x] Migrate ResponseWithInlineCitations.tsx (citations UI, modal content)
+- [x] Update ChatV1Content.test.tsx to expect translation keys
+- [x] Update ResponseWithInlineCitations.test.tsx to expect translation keys
 
 ### Phase 10: Validation
 
-- [ ] Create validation.json
-- [ ] Update Zod schemas
+- [x] validation.json already exists with required.*, format.*, length.*, confirm.*, form.* keys
+- [x] Expand validation.json with password validation keys (required.password, format.password, password.minLength/uppercase/lowercase/number/mismatch)
+- [ ] Migrate Zod schemas to use validation namespace (depends on Phase 8 auth pages)
+- [ ] lib/validation.ts - skip (utility functions, no React hooks access)
 
 ### Phase 11: Files
 
@@ -173,8 +185,8 @@ t('welcome.greeting', { name: 'John' }) // "Welcome, {{name}}"
 
 ## Current Checkpoint
 
-**Status**: Phase 7 - COMPLETE
-**Next Step**: Phase 8 - Auth pages migration
+**Status**: Phase 9 COMPLETE, Phase 10 PARTIAL (validation.json expanded, Zod migration pending)
+**Next Step**: Phase 8 - Auth pages migration (prerequisite for Phase 10 Zod migration)
 **Last Updated**: 2026-01-12
 
 ## Related Docs
