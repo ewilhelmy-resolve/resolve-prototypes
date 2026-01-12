@@ -15,6 +15,7 @@ import {
 	Users,
 } from "lucide-react";
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Link, useNavigate } from "react-router-dom";
 import {
 	useConversations,
@@ -62,6 +63,7 @@ function ConversationItem({
 	isActive,
 	onClick,
 }: ConversationItemProps) {
+	const { t } = useTranslation("chat");
 	const [isEditing, setIsEditing] = useState(false);
 	const [editTitle, setEditTitle] = useState(conversation.title);
 	const [showActions, setShowActions] = useState(false);
@@ -115,7 +117,7 @@ function ConversationItem({
 				minute: "2-digit",
 			});
 		} else if (days === 1) {
-			return "Yesterday";
+			return t("sidebar.yesterday");
 		} else if (days < 7) {
 			return date.toLocaleDateString([], { weekday: "short" });
 		} else {
@@ -208,20 +210,18 @@ function ConversationItem({
 							</AlertDialogTrigger>
 							<AlertDialogContent>
 								<AlertDialogHeader>
-									<AlertDialogTitle>Delete Conversation</AlertDialogTitle>
+									<AlertDialogTitle>{t("deleteDialog.title")}</AlertDialogTitle>
 									<AlertDialogDescription>
-										Are you sure you want to delete "{conversation.title}"? This
-										action cannot be undone and will permanently delete all
-										messages in this conversation.
+										{t("deleteDialog.message", { title: conversation.title })}
 									</AlertDialogDescription>
 								</AlertDialogHeader>
 								<AlertDialogFooter>
-									<AlertDialogCancel>Cancel</AlertDialogCancel>
+									<AlertDialogCancel>{t("deleteDialog.cancel")}</AlertDialogCancel>
 									<AlertDialogAction
 										onClick={handleDelete}
 										className="bg-red-600 text-white hover:bg-red-700 focus:ring-red-500"
 									>
-										Delete
+										{t("deleteDialog.delete")}
 									</AlertDialogAction>
 								</AlertDialogFooter>
 							</AlertDialogContent>
@@ -234,6 +234,7 @@ function ConversationItem({
 }
 
 export function ConversationSidebar() {
+	const { t } = useTranslation("chat");
 	const [searchQuery, setSearchQuery] = useState("");
 	const { user, logout } = useAuth();
 	const navigate = useNavigate();
@@ -298,7 +299,7 @@ export function ConversationSidebar() {
 							onClick={handleNewChat}
 						>
 							<Plus className="w-4 h-4 mr-2" />
-							New Chat
+							{t("sidebar.newChat")}
 						</Button>
 
 						<nav className="space-y-2">
@@ -306,7 +307,7 @@ export function ConversationSidebar() {
 								<Search className="w-4 h-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
 								<Input
 									type="text"
-									placeholder="Search conversations..."
+									placeholder={t("sidebar.searchPlaceholder")}
 									value={searchQuery}
 									onChange={(e) => setSearchQuery(e.target.value)}
 									className="pl-10 h-9 bg-gray-50 border-gray-200 focus:bg-white"
@@ -329,7 +330,7 @@ export function ConversationSidebar() {
 										d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
 									/>
 								</svg>
-								Analytics
+								{t("sidebar.analytics")}
 							</Button>
 							<Link to="/files" className="w-full">
 								<Button
@@ -349,7 +350,7 @@ export function ConversationSidebar() {
 											d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"
 										/>
 									</svg>
-									Knowledge Articles
+									{t("sidebar.knowledgeArticles")}
 								</Button>
 							</Link>
 							<Button
@@ -357,7 +358,7 @@ export function ConversationSidebar() {
 								className="w-full justify-start text-gray-700 hover:bg-gray-100"
 							>
 								<Users className="w-4 h-4 mr-3" />
-								Users
+								{t("sidebar.users")}
 							</Button>
 						</nav>
 					</div>
@@ -365,7 +366,7 @@ export function ConversationSidebar() {
 					{/* Recent Chats */}
 					<div className="flex-1 overflow-y-auto p-4">
 						<h3 className="text-sm font-medium text-gray-900 mb-3">
-							Recent Chats
+							{t("sidebar.recentChats")}
 						</h3>
 						{isLoading ? (
 							<div className="space-y-1">
@@ -387,17 +388,17 @@ export function ConversationSidebar() {
 									<div>
 										<Search className="h-8 w-8 mx-auto mb-3 text-sidebar-foreground/40" />
 										<p className="text-sm text-sidebar-foreground/60">
-											No conversations found
+											{t("sidebar.noResults")}
 										</p>
 										<p className="text-xs text-sidebar-foreground/40 mt-1">
-											Try a different search term
+											{t("sidebar.tryDifferentSearch")}
 										</p>
 									</div>
 								) : (
 									<div>
 										<MessageSquare className="h-8 w-8 mx-auto mb-3 text-sidebar-foreground/40" />
 										<p className="text-sm text-sidebar-foreground/60 mb-2">
-											No conversations yet
+											{t("sidebar.noConversations")}
 										</p>
 										<Button
 											variant="outline"
@@ -406,7 +407,7 @@ export function ConversationSidebar() {
 											className="gap-1 border-sidebar-border text-sidebar-foreground hover:bg-sidebar-accent"
 										>
 											<Plus className="h-3 w-3" />
-											Start your first chat
+											{t("sidebar.startFirstChat")}
 										</Button>
 									</div>
 								)}
@@ -453,7 +454,7 @@ export function ConversationSidebar() {
 												</Button>
 											</TooltipTrigger>
 											<TooltipContent>
-												<p>Logout</p>
+												<p>{t("sidebar.logout")}</p>
 											</TooltipContent>
 										</Tooltip>
 									</TooltipProvider>
@@ -477,6 +478,7 @@ export function ConversationSidebar() {
 
 // Toggle button for the sidebar (to be used in the main chat header)
 export function SidebarToggle() {
+	const { t } = useTranslation("chat");
 	const { isSidebarOpen, toggleSidebar } = useUIStore();
 
 	return (
@@ -492,19 +494,19 @@ export function SidebarToggle() {
 						{isSidebarOpen ? (
 							<>
 								<PanelLeftClose className="h-4 w-4" />
-								<span className="hidden sm:inline">Hide Sidebar</span>
+								<span className="hidden sm:inline">{t("sidebar.hideSidebar")}</span>
 							</>
 						) : (
 							<>
 								<PanelLeftOpen className="h-4 w-4" />
-								<span className="hidden sm:inline">Show Sidebar</span>
+								<span className="hidden sm:inline">{t("sidebar.showSidebar")}</span>
 							</>
 						)}
 					</Button>
 				</TooltipTrigger>
 				<TooltipContent>
 					<p>
-						Toggle Sidebar{" "}
+						{t("sidebar.toggleSidebar")}{" "}
 						<kbd className="ml-1 pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground">
 							⌘B
 						</kbd>

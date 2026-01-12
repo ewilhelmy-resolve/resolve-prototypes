@@ -168,8 +168,29 @@ const schema = useMemo(() => z.object({
 
 ### Phase 9: Chat Interface
 
-- [ ] Create chat.json
-- [ ] Migrate chat components
+- [x] Expand chat.json with ~40 keys (input, emptyState, sidebar, messages, deleteDialog, actions, dragDrop, iframe, citations)
+- [x] Migrate ConversationSidebar.tsx (sidebar nav, delete dialog, tooltips)
+- [x] Migrate ChatV1Content.tsx (multi-namespace: chat + toast, empty states, pagination)
+- [x] Migrate ChatInput.tsx (placeholder, knowledge warnings with fallback pattern)
+- [x] Migrate DragDropOverlay.tsx (drop zone UI)
+- [x] Migrate IframeChatPage.tsx (error states, loading)
+- [x] Migrate ResponseWithInlineCitations.tsx (citations UI, modal content)
+- [x] Update ChatV1Content.test.tsx to expect translation keys
+- [x] Update ResponseWithInlineCitations.test.tsx to expect translation keys
+
+**Multi-Namespace Pattern**: Components needing multiple namespaces use array syntax with prefixed keys:
+
+```tsx
+const { t } = useTranslation(["chat", "toast"]);
+// Toast keys: t("toast:success.messageCopied")
+// Chat keys: t("emptyState.title") // default namespace
+```
+
+**Fallback Pattern**: For optional i18n props with defaults:
+
+```tsx
+const resolvedPlaceholder = placeholder ?? t("input.placeholder");
+```
 
 ### Phase 10: Validation
 
@@ -189,8 +210,8 @@ const schema = useMemo(() => z.object({
 
 ## Current Checkpoint
 
-**Status**: Phase 8 - COMPLETE
-**Next Step**: Phase 9 - Chat interface migration
+**Status**: Phase 9 - COMPLETE
+**Next Step**: Phase 10 - Validation namespace
 **Last Updated**: 2026-01-12
 
 ## Related Docs
