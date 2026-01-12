@@ -28,7 +28,8 @@ interface ConfluenceFormProps {
 }
 
 export function ConfluenceForm({ onCancel, onSuccess, onFailure }: ConfluenceFormProps = {}) {
-	const { t } = useTranslation("toast");
+	const { t } = useTranslation("connections");
+	const { t: tToast } = useTranslation("toast");
 	const { source } = useConnectionSource();
 	const verifyMutation = useVerifyDataSource();
 	const updateMutation = useUpdateDataSource();
@@ -63,8 +64,8 @@ export function ConfluenceForm({ onCancel, onSuccess, onFailure }: ConfluenceFor
 		// If validation fails, show errors and stop
 		if (!isValid) {
 			ritaToast.error({
-				title: t("error.validationError"),
-				description: t("descriptions.checkFormFields"),
+				title: tToast("error.validationError"),
+				description: tToast("descriptions.checkFormFields"),
 			});
 			return;
 		}
@@ -99,15 +100,15 @@ export function ConfluenceForm({ onCancel, onSuccess, onFailure }: ConfluenceFor
 			});
 
 			ritaToast.success({
-				title: t("success.connectionConfigured"),
-				description: t("descriptions.confluenceConfigured"),
+				title: tToast("success.connectionConfigured"),
+				description: tToast("descriptions.confluenceConfigured"),
 			});
 
 			// Call onSuccess callback to exit edit mode
 			onSuccess?.();
 		} catch (error) {
 			ritaToast.error({
-				title: t("error.connectionFailed"),
+				title: tToast("error.connectionFailed"),
 				description:
 					error instanceof Error
 						? error.message
@@ -126,61 +127,61 @@ export function ConfluenceForm({ onCancel, onSuccess, onFailure }: ConfluenceFor
 	return (
 		<ConnectionsForm handleSubmit={handleSubmit(onSubmit)} id="connection-form">
 			{/* Authentication */}
-			<FormSection title="Authentication">
+			<FormSection title={t("form.sections.authentication")}>
 				{/* Show error alert when verification fails */}
 				{verificationFailed && (
 					<StatusAlert variant="error" className="mb-4">
-						<p className="font-semibold">Verification Failed</p>
+						<p className="font-semibold">{t("form.alerts.verificationFailed")}</p>
 						<p>{verificationError}</p>
 						<p className="text-sm mt-2">
-							Please check your credentials and try again.
+							{t("form.alerts.checkCredentials")}
 						</p>
 					</StatusAlert>
 				)}
 
 				{/* URL */}
-				<FormField label="URL" errors={errors} name="url" required>
+				<FormField label={t("form.labels.url")} errors={errors} name="url" required>
 					<Input
 						id="url"
 						type="url"
-						placeholder="https://your-company.atlassian.net"
+						placeholder={t("form.placeholders.confluenceUrl")}
 						{...register("url", {
-							required: "URL is required",
+							required: t("form.validation.urlRequired"),
 							pattern: {
 								value: /^https?:\/\/.+/,
-								message: "Please enter a valid URL",
+								message: t("form.validation.invalidUrl"),
 							},
 						})}
 					/>
 				</FormField>
 
 				{/* User email */}
-				<FormField label="User email" errors={errors} name="email" required>
+				<FormField label={t("form.labels.userEmail")} errors={errors} name="email" required>
 					<Input
 						id="email"
 						type="email"
-						placeholder="you@company.com"
+						placeholder={t("form.placeholders.email")}
 						{...register("email", {
-							required: "Email is required",
+							required: t("form.validation.emailRequired"),
 							pattern: {
 								value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
-								message: "Please enter a valid email address",
+								message: t("form.validation.invalidEmail"),
 							},
 						})}
 					/>
 				</FormField>
 
 				{/* API token */}
-				<FormField label="API token" errors={errors} name="token" required>
+				<FormField label={t("form.labels.apiToken")} errors={errors} name="token" required>
 					<Input
 						id="token"
 						type="password"
-						placeholder="Enter API token"
+						placeholder={t("form.placeholders.apiToken")}
 						{...register("token", {
-							required: "API token is required",
+							required: t("form.validation.apiTokenRequired"),
 							minLength: {
 								value: 1,
-								message: "API token cannot be empty",
+								message: t("form.validation.apiTokenEmpty"),
 							},
 						})}
 					/>
@@ -196,24 +197,24 @@ export function ConfluenceForm({ onCancel, onSuccess, onFailure }: ConfluenceFor
 						{verifyMutation.isPending || updateMutation.isPending ? (
 							<>
 								<Spinner className="mr-2" />
-								Connecting...
+								{t("form.buttons.connecting")}
 							</>
 						) : (
-							"Connect"
+							t("form.buttons.connect")
 						)}
 					</Button>
 
 					{onCancel && (
 						<Button type="button" variant="outline" onClick={onCancel}>
-							Cancel
+							{t("form.buttons.cancel")}
 						</Button>
 					)}
 				</div>
 
 				{verifyMutation.isPending && (
 					<StatusAlert variant="info">
-						<p className=" text-accent-foreground">Connection may take time</p>
-						<p>You can leave this page while it is connecting</p>
+						<p className=" text-accent-foreground">{t("form.alerts.connectionMayTakeTime")}</p>
+						<p>{t("form.alerts.canLeavePage")}</p>
 					</StatusAlert>
 				)}
 			</FormSection>

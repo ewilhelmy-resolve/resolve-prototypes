@@ -18,7 +18,8 @@ interface WebSearchFormProps {
 }
 
 export function WebSearchForm({ onCancel }: WebSearchFormProps = {}) {
-	const { t } = useTranslation("toast");
+	const { t } = useTranslation("connections");
+	const { t: tToast } = useTranslation("toast");
 	const { source } = useConnectionSource();
 	const updateMutation = useUpdateDataSource();
 
@@ -38,11 +39,11 @@ export function WebSearchForm({ onCancel }: WebSearchFormProps = {}) {
 				},
 			});
 
-			toast.success(t("success.configurationSaved"), {
-				description: t("descriptions.webSearchEnabled"),
+			toast.success(tToast("success.configurationSaved"), {
+				description: tToast("descriptions.webSearchEnabled"),
 			});
 		} catch (error) {
-			toast.error(t("error.saveFailed"), {
+			toast.error(tToast("error.saveFailed"), {
 				description: error instanceof Error ? error.message : "Failed to save configuration",
 			});
 		}
@@ -56,9 +57,9 @@ export function WebSearchForm({ onCancel }: WebSearchFormProps = {}) {
 	return (
 		<ConnectionsForm handleSubmit={handleSubmit(onSubmit)} id="connection-form">
 			{/* Settings */}
-			<FormSection title="Settings">
+			<FormSection title={t("form.sections.settings")}>
 				<p className="text-sm text-muted-foreground">
-					Enable web search to supplement answers when knowledge isn't found in your connected sources.
+					{t("form.descriptions.webSearchHelp")}
 				</p>
 			</FormSection>
 
@@ -70,7 +71,7 @@ export function WebSearchForm({ onCancel }: WebSearchFormProps = {}) {
 						variant="outline"
 						onClick={onCancel}
 					>
-						Cancel
+						{t("form.buttons.cancel")}
 					</Button>
 				)}
 				<Button
@@ -78,7 +79,7 @@ export function WebSearchForm({ onCancel }: WebSearchFormProps = {}) {
 					type="submit"
 					disabled={updateMutation.isPending}
 				>
-					{updateMutation.isPending ? "Connecting..." : "Connect"}
+					{updateMutation.isPending ? t("form.buttons.connecting") : t("form.buttons.connect")}
 				</Button>
 			</div>
 		</ConnectionsForm>

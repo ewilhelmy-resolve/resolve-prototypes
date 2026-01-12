@@ -6,6 +6,7 @@ import authEn from "./locales/en/auth.json";
 import chatEn from "./locales/en/chat.json";
 import commonEn from "./locales/en/common.json";
 import connectionsEn from "./locales/en/connections.json";
+import dialogsEn from "./locales/en/dialogs.json";
 import errorsEn from "./locales/en/errors.json";
 import filesEn from "./locales/en/files.json";
 import settingsEn from "./locales/en/settings.json";
@@ -21,6 +22,7 @@ export const resources = {
 		chat: chatEn,
 		common: commonEn,
 		connections: connectionsEn,
+		dialogs: dialogsEn,
 		errors: errorsEn,
 		files: filesEn,
 		settings: settingsEn,

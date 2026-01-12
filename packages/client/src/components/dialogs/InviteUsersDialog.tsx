@@ -75,35 +75,13 @@ interface InviteUsersDialogProps {
 	onOpenChange: (open: boolean) => void;
 }
 
-// Error code to user-friendly message mapping
-function getErrorMessage(error: InvitationAPIError): string {
-	switch (error.error) {
-		case InvitationErrorCode.INVALID_EMAIL:
-			return "One or more email addresses are invalid";
-		case InvitationErrorCode.DUPLICATE_PENDING:
-			return "Some users already have pending invitations";
-		case InvitationErrorCode.USER_ALREADY_EXISTS:
-			return "Some users already have accounts";
-		case InvitationErrorCode.BATCH_SIZE_EXCEEDED:
-			return "Maximum 50 email addresses allowed per batch";
-		case InvitationErrorCode.TENANT_LIMIT_EXCEEDED:
-			return "Your organization has reached the maximum number of users";
-		case InvitationErrorCode.UNAUTHORIZED:
-			return "You don't have permission to send invitations";
-		case InvitationErrorCode.FORBIDDEN:
-			return "You don't have permission to send invitations";
-		case InvitationErrorCode.SERVER_ERROR:
-			return "Server error occurred. Please try again later";
-		default:
-			return error.message || "Failed to send invitations";
-	}
-}
-
 export default function InviteUsersDialog({
 	open,
 	onOpenChange,
 }: InviteUsersDialogProps) {
-	const { t } = useTranslation("toast");
+	const { t } = useTranslation("dialogs");
+	const { t: tToast } = useTranslation("toast");
+	const { t: tCommon } = useTranslation("common");
 	const [emailInput, setEmailInput] = useState("");
 
 	const { mutate: sendInvitations, isPending, reset } = useSendInvitations();
@@ -121,9 +99,31 @@ export default function InviteUsersDialog({
 
 	const validation = validateEmails(emailInput);
 
+	const getErrorMessage = (error: InvitationAPIError): string => {
+		switch (error.error) {
+			case InvitationErrorCode.INVALID_EMAIL:
+				return t("invite.errors.invalidEmail");
+			case InvitationErrorCode.DUPLICATE_PENDING:
+				return t("invite.errors.duplicatePending");
+			case InvitationErrorCode.USER_ALREADY_EXISTS:
+				return t("invite.errors.userExists");
+			case InvitationErrorCode.BATCH_SIZE_EXCEEDED:
+				return t("invite.errors.batchExceeded");
+			case InvitationErrorCode.TENANT_LIMIT_EXCEEDED:
+				return t("invite.errors.tenantLimit");
+			case InvitationErrorCode.UNAUTHORIZED:
+			case InvitationErrorCode.FORBIDDEN:
+				return t("invite.errors.unauthorized");
+			case InvitationErrorCode.SERVER_ERROR:
+				return t("invite.errors.serverError");
+			default:
+				return error.message || t("invite.errors.default");
+		}
+	};
+
 	const handleInvite = () => {
 		if (!validation.valid) {
-			toast.error(t("error.invalidEmails"), {
+			toast.error(tToast("error.invalidEmails"), {
 				description: validation.error,
 			});
 			return;
@@ -138,9 +138,9 @@ export default function InviteUsersDialog({
 				onSuccess: (data) => {
 					const count = data.invitations.length;
 					toast.success(
-						t("success.invitationsSent", { count }),
+						tToast("success.invitationsSent", { count }),
 						{
-							description: t("descriptions.invitationSentDesc"),
+							description: tToast("descriptions.invitationSentDesc"),
 						},
 					);
 					// Close dialog and reset form
@@ -148,7 +148,7 @@ export default function InviteUsersDialog({
 					onOpenChange(false);
 				},
 				onError: (err) => {
-					toast.error(t("error.invitationsFailed"), {
+					toast.error(tToast("error.invitationsFailed"), {
 						description: getErrorMessage(err),
 					});
 					console.error("Failed to send invitations:", err);
@@ -161,35 +161,36 @@ export default function InviteUsersDialog({
 		<Dialog open={open} onOpenChange={onOpenChange}>
 			<DialogContent className="sm:max-w-[600px]">
 				<DialogHeader>
-					<DialogTitle>Invite Users</DialogTitle>
+					<DialogTitle>{t("invite.title")}</DialogTitle>
 					<DialogDescription>
-						Add email addresses to invite new users to your workspace.
+						{t("invite.description")}
 					</DialogDescription>
 				</DialogHeader>
 
 				<div className="grid gap-4 py-4">
 					<StatusAlert variant="info">
 						<p className="text-accent-foreground">
-							All new users will be assigned the{" "}
-							<span className="font-semibold inline">User</span> role by default.
+							{t("invite.roleInfoPrefix")}{" "}
+							<span className="font-semibold inline">{t("invite.userRole")}</span>{" "}
+							{t("invite.roleInfoSuffix")}
 						</p>
 						<p>
-							To grant admin access, update their role later in Settings → Users.
+							{t("invite.adminHint")}
 						</p>
 					</StatusAlert>
 
 					<div className="grid gap-2">
-						<Label htmlFor="emails">Email addresses</Label>
+						<Label htmlFor="emails">{t("invite.emailLabel")}</Label>
 						<Textarea
 							id="emails"
-							placeholder="Enter email addresses separated by commas (e.g., user1@example.com, user2@example.com)"
+							placeholder={t("invite.emailPlaceholder")}
 							value={emailInput}
 							onChange={(e) => setEmailInput(e.target.value)}
 							className="min-h-[100px]"
 							disabled={isPending}
 						/>
 						<p className="text-sm text-muted-foreground">
-							Separate multiple email addresses with commas (max 50)
+							{t("invite.emailHint")}
 						</p>
 					</div>
 				</div>
@@ -200,14 +201,14 @@ export default function InviteUsersDialog({
 						onClick={() => onOpenChange(false)}
 						disabled={isPending}
 					>
-						Cancel
+						{tCommon("actions.cancel")}
 					</Button>
 					<Button
 						onClick={handleInvite}
 						disabled={!validation.valid || isPending}
 					>
 						{isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-						{isPending ? "Sending..." : "Invite Users"}
+						{isPending ? t("invite.sending") : t("invite.submit")}
 					</Button>
 				</DialogFooter>
 			</DialogContent>
