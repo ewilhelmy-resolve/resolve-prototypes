@@ -1,5 +1,6 @@
 import { Loader2 } from "lucide-react";
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "../components/ui/button";
@@ -8,6 +9,7 @@ import { useAuth } from "../hooks/useAuth";
 const API_BASE_URL = import.meta.env.VITE_API_URL || "";
 
 export function VerifyEmailPage() {
+	const { t } = useTranslation("auth");
 	const [searchParams] = useSearchParams();
 	const navigate = useNavigate();
 	const { login } = useAuth();
@@ -23,7 +25,7 @@ export function VerifyEmailPage() {
 
 		if (!token) {
 			setStatus("error");
-			setMessage("No verification token provided.");
+			setMessage(t("verifyEmail.noToken"));
 			return;
 		}
 
@@ -53,7 +55,7 @@ export function VerifyEmailPage() {
 		};
 
 		verifyEmail();
-	}, [searchParams]);
+	}, [searchParams, t]);
 
 	const handleSignIn = () => {
 		login(); // Direct redirect to Keycloak
@@ -71,17 +73,16 @@ export function VerifyEmailPage() {
 						<div className="text-center space-y-2 mb-8">
 							{status === "success" && (
 								<Badge variant="default" className="px-3 text-sm mb-7">
-									Email verification
+									{t("verifyEmail.badge")}
 								</Badge>
 							)}
 							<h1 className="text-4xl font-bold tracking-tighter">
-								{status !== "success" && "Email Verification"}
-								{status === "success" && "Email verification successful!"}
+								{status !== "success" && t("verifyEmail.title")}
+								{status === "success" && t("verifyEmail.successTitle")}
 							</h1>
 							<p className="text-muted-foreground">
-								{status === "loading" && "Verifying your email address..."}
-								{status === "error" &&
-									"There was an issue verifying your email."}
+								{status === "loading" && t("verifyEmail.verifying")}
+								{status === "error" && t("verifyEmail.errorMessage")}
 							</p>
 						</div>
 
@@ -92,7 +93,9 @@ export function VerifyEmailPage() {
 								<div className="flex items-center justify-center py-8">
 									<div className="flex items-center gap-3 text-lg">
 										<Loader2 className="h-6 w-6 animate-spin text-blue-400" />
-										<span className="text-muted-foreground">Verifying...</span>
+										<span className="text-muted-foreground">
+											{t("verifyEmail.verifyingShort")}
+										</span>
 									</div>
 								</div>
 							)}
@@ -102,9 +105,9 @@ export function VerifyEmailPage() {
 								<div className="space-y-6">
 									<div className="flex flex-col items-center space-y-4">
 										<div className="text-center space-y-6 mb-4">
-												<p className="text-sm text-muted-foreground">
-												  You can now sign in. Email: {userEmail}
-												</p>
+											<p className="text-sm text-muted-foreground">
+												{t("verifyEmail.successInfo", { email: userEmail })}
+											</p>
 										</div>
 									</div>
 
@@ -113,7 +116,7 @@ export function VerifyEmailPage() {
 										className="w-full h-12 text-base font-medium bg-blue-600 hover:bg-blue-700 text-white"
 									>
 										<div className="flex items-center gap-2">
-											<span>Continue to sign in</span>
+											<span>{t("verifyEmail.continueSignIn")}</span>
 										</div>
 									</Button>
 								</div>
@@ -122,7 +125,7 @@ export function VerifyEmailPage() {
 							{/* Error State */}
 							{status === "error" && (
 								<div className="space-y-6">
-									<div className="flex flex-col items-center space-y-4">										
+									<div className="flex flex-col items-center space-y-4">
 										<div className="text-center">
 											<p className="text-sm text-red-300 bg-red-900/20 border border-red-700 rounded-lg p-4">
 												{message}
@@ -136,7 +139,7 @@ export function VerifyEmailPage() {
 											className="w-full h-12 text-base font-medium bg-blue-600 hover:bg-blue-700 text-white"
 										>
 											<div className="flex items-center gap-2">
-												<span>Try Signing Up Again</span>											
+												<span>{t("verifyEmail.tryAgain")}</span>
 											</div>
 										</Button>
 
@@ -145,7 +148,7 @@ export function VerifyEmailPage() {
 											variant="link"
 											className="w-full h-12 text-blue-400 font-medium"
 										>
-											Sign In
+											{t("verifyEmail.signIn")}
 										</Button>
 									</div>
 								</div>
