@@ -1,5 +1,6 @@
 import express from 'express';
 import { pool } from '../config/database.js';
+import { DataSourceWebhookService } from '../services/DataSourceWebhookService.js';
 import { WebhookService } from '../services/WebhookService.js';
 import { CredentialDelegationService } from '../services/CredentialDelegationService.js';
 import { authenticateUser, requireRole } from '../middleware/auth.js';
@@ -9,7 +10,8 @@ import type { AuthenticatedRequest } from '../types/express.js';
 
 const router = express.Router();
 const webhookService = new WebhookService();
-const credentialDelegationService = new CredentialDelegationService(pool, webhookService);
+const dataSourceWebhookService = new DataSourceWebhookService();
+const credentialDelegationService = new CredentialDelegationService(pool, webhookService, dataSourceWebhookService);
 
 /**
  * POST /api/credential-delegations/create

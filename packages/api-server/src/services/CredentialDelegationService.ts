@@ -1,5 +1,6 @@
 import crypto from 'crypto';
 import type { Pool } from 'pg';
+import type { DataSourceWebhookService } from './DataSourceWebhookService.js';
 import type { WebhookService } from './WebhookService.js';
 import { logger } from '../config/logger.js';
 import type {
@@ -16,12 +17,14 @@ import type {
 
 const CLIENT_URL = process.env.CLIENT_URL || 'http://localhost:5173';
 const TOKEN_EXPIRY_DAYS = 7;
+const TOKEN_EXPIRY_MINUTES = 1;
 const RATE_LIMIT_PER_ORG_PER_DAY = 10;
 
 export class CredentialDelegationService {
   constructor(
     private pool: Pool,
-    private webhookService: WebhookService
+    private webhookService: WebhookService,
+    private dataSourceWebhookService: DataSourceWebhookService
   ) {}
 
   /**
@@ -88,7 +91,7 @@ export class CredentialDelegationService {
 
     // Generate secure token (64-char hex = 32 bytes = 256 bits)
     const token = crypto.randomBytes(32).toString('hex');
-    const expiresAt = new Date(Date.now() + TOKEN_EXPIRY_DAYS * 24 * 60 * 60 * 1000);
+    const expiresAt = new Date(Date.now() + TOKEN_EXPIRY_MINUTES * 60 * 1000);
 
     // Insert delegation token
     const insertResult = await this.pool.query(
@@ -209,9 +212,9 @@ export class CredentialDelegationService {
       return { valid: false, reason: 'expired' };
     }
 
-    // Check if already used/verified
+    // Check if already used/verified - return not_found (shows "Invalid Link")
     if (delegation.status !== 'pending') {
-      return { valid: false, reason: 'used' };
+      return { valid: false, reason: 'not_found' };
     }
 
     return {
@@ -357,18 +360,17 @@ export class CredentialDelegationService {
     );
 
     // Send webhook to external service for credential verification
-    const webhookResult = await this.webhookService.sendGenericEvent({
+    const webhookResult = await this.dataSourceWebhookService.sendVerifyEvent({
       organizationId: delegation.organization_id,
       userId: delegation.created_by_user_id,
       userEmail: delegation.creator_email,
-      source: 'rita-credential-delegation',
-      action: 'verify_delegated_credentials',
-      additionalData: {
+      connectionId: delegation.id,
+      connectionType: delegation.itsm_system_type,
+      credentials: this.encodeCredentials(credentials),
+      settings: {
         delegation_id: delegation.id,
         admin_email: delegation.admin_email,
         organization_name: delegation.org_name,
-        itsm_system_type: delegation.itsm_system_type,
-        credentials: this.encodeCredentials(credentials),
       },
     });
 

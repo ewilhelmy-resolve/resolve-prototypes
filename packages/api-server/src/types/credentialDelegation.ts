@@ -64,7 +64,7 @@ export interface VerifyDelegationResponse {
   system_type?: ItsmSystemType;
   delegated_by?: string;
   expires_at?: string;
-  reason?: 'expired' | 'used' | 'not_found';
+  reason?: 'expired' | 'not_found';
 }
 
 /**

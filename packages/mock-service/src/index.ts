@@ -171,23 +171,6 @@ interface CredentialDelegationEmailPayload extends BaseWebhookPayload {
   expires_at: string;
 }
 
-// Credential delegation webhook payload (verify credentials)
-interface CredentialDelegationVerifyPayload extends BaseWebhookPayload {
-  source: 'rita-credential-delegation';
-  action: 'verify_delegated_credentials';
-  delegation_id: string;
-  admin_email: string;
-  organization_name: string;
-  itsm_system_type: string;
-  credentials: {
-    instance_url: string;
-    username?: string;
-    password?: string;
-    email?: string;
-    api_token?: string;
-  };
-}
-
 // ITSM ticket sync webhook payload (Autopilot)
 interface SyncTicketsWebhookPayload extends BaseWebhookPayload {
   source: 'rita-chat';
@@ -203,7 +186,7 @@ interface SyncTicketsWebhookPayload extends BaseWebhookPayload {
 }
 
 // Union type for all webhook payloads
-type WebhookPayload = MessageWebhookPayload | DocumentWebhookPayload | DocumentDeletePayload | SignupWebhookPayload | SendInvitationWebhookPayload | AcceptInvitationWebhookPayload | DeleteKeycloakUserPayload | DataSourceVerifyPayload | DataSourceSyncPayload | SyncTicketsWebhookPayload | CredentialDelegationEmailPayload | CredentialDelegationVerifyPayload | BaseWebhookPayload;
+type WebhookPayload = MessageWebhookPayload | DocumentWebhookPayload | DocumentDeletePayload | SignupWebhookPayload | SendInvitationWebhookPayload | AcceptInvitationWebhookPayload | DeleteKeycloakUserPayload | DataSourceVerifyPayload | DataSourceSyncPayload | SyncTicketsWebhookPayload | CredentialDelegationEmailPayload | BaseWebhookPayload;
 
 interface MockResponse {
   message_id: string;
@@ -1964,6 +1947,9 @@ app.post('/webhook', async (req, res) => {
 
     } else if (payload.source === 'rita-chat' && payload.action === 'verify_credentials') {
       const verifyPayload = payload as DataSourceVerifyPayload;
+      const delegationId = verifyPayload.settings?.delegation_id;
+      const isDelegation = !!delegationId;
+
       const contextLogger = createContextLogger(webhookLogger, correlationId, {
         tenantId: verifyPayload.tenant_id
       });
@@ -1973,60 +1959,115 @@ app.post('/webhook', async (req, res) => {
         action: verifyPayload.action,
         connection_id: verifyPayload.connection_id,
         connection_type: verifyPayload.connection_type,
-        user_email: verifyPayload.user_email
-      }, 'Received data source verify webhook');
+        user_email: verifyPayload.user_email,
+        is_delegation: isDelegation,
+        delegation_id: delegationId
+      }, isDelegation ? 'Received credential delegation verify webhook' : 'Received data source verify webhook');
 
       // Log raw payload for debugging (easy to copy)
       contextLogger.info({ rawPayload: JSON.stringify(verifyPayload, null, 2) }, 'Raw verify_credentials payload');
 
-      // Publish verification success message to RabbitMQ after 1 second delay
+      // Publish verification message to RabbitMQ after 1 second delay
       setTimeout(async () => {
         try {
           if (!rabbitChannel) {
             throw new Error('RabbitMQ channel not initialized');
           }
 
-          // Simulate verification success with mock options based on connection type
-          let options: Record<string, any> = {};
-          if (verifyPayload.connection_type === 'confluence') {
-            options = {
-              spaces: 'ENG,PROD,DOCS',
-              sites: 'confluence.company.com'
+          if (isDelegation) {
+            // Credential delegation verification
+            // Check for magic passwords to determine success/failure
+            const password = verifyPayload.credentials?.password;
+            const apiToken = verifyPayload.credentials?.api_token;
+            const secret = password || apiToken || '';
+
+            // Decode base64 if encoded
+            let decodedSecret = secret;
+            try {
+              decodedSecret = Buffer.from(secret, 'base64').toString('utf8');
+            } catch {
+              decodedSecret = secret;
+            }
+
+            // Determine success based on magic values
+            let isSuccess = true;
+            let errorMessage: string | null = null;
+
+            if (['invalid', 'fail', 'error'].includes(decodedSecret.toLowerCase())) {
+              isSuccess = false;
+              errorMessage = 'Invalid credentials: authentication failed';
+            } else if (['success', 'valid', 'test'].includes(decodedSecret.toLowerCase())) {
+              isSuccess = true;
+            } else {
+              // Random 80% success rate for other values
+              isSuccess = Math.random() > 0.2;
+              if (!isSuccess) {
+                errorMessage = 'Connection verification failed';
+              }
+            }
+
+            const delegationMessage = {
+              delegation_id: delegationId,
+              status: isSuccess ? 'verified' : 'failed',
+              error: errorMessage
             };
-          } else if (verifyPayload.connection_type === 'servicenow') {
-            options = {
-              knowledge_base: [
-                { title: 'Engineering', sys_id: 'kb_eng_001' },
-                { title: 'IT Support', sys_id: 'kb_it_002' },
-                { title: 'HR Policies', sys_id: 'kb_hr_003' }
-              ]
+
+            await rabbitChannel.assertQueue('credential_delegation_status', { durable: true });
+            rabbitChannel.sendToQueue(
+              'credential_delegation_status',
+              Buffer.from(JSON.stringify(delegationMessage)),
+              { persistent: true }
+            );
+
+            contextLogger.info({
+              delegationId,
+              status: isSuccess ? 'verified' : 'failed',
+              queue: 'credential_delegation_status'
+            }, 'Published delegation verification message to RabbitMQ');
+          } else {
+            // Regular data source verification
+            let options: Record<string, any> = {};
+            if (verifyPayload.connection_type === 'confluence') {
+              options = {
+                spaces: 'ENG,PROD,DOCS',
+                sites: 'confluence.company.com'
+              };
+            } else if (verifyPayload.connection_type === 'servicenow') {
+              options = {
+                knowledge_base: [
+                  { title: 'Engineering', sys_id: 'kb_eng_001' },
+                  { title: 'IT Support', sys_id: 'kb_it_002' },
+                  { title: 'HR Policies', sys_id: 'kb_hr_003' }
+                ]
+              };
+            } else if (verifyPayload.connection_type === 'sharepoint') {
+              options = {
+                sites: ['https://company.sharepoint.com/sites/docs']
+              };
+            }
+
+            const verificationMessage = {
+              type: 'verification',
+              connection_id: verifyPayload.connection_id,
+              tenant_id: verifyPayload.tenant_id,
+              status: 'success',
+              options: options,
+              error: null
             };
-          } else if (verifyPayload.connection_type === 'sharepoint') {
-            options = {
-              sites: ['https://company.sharepoint.com/sites/docs']
-            };
+
+            await rabbitChannel.assertQueue('data_source_status', { durable: true });
+            rabbitChannel.sendToQueue(
+              'data_source_status',
+              Buffer.from(JSON.stringify(verificationMessage)),
+              { persistent: true }
+            );
+
+            contextLogger.info({
+              connectionId: verifyPayload.connection_id,
+              status: 'success',
+              queue: 'data_source_status'
+            }, 'Published verification success message to RabbitMQ');
           }
-
-          const verificationMessage = {
-            type: 'verification',
-            connection_id: verifyPayload.connection_id,
-            tenant_id: verifyPayload.tenant_id,
-            status: 'success',
-            options: options,
-            error: null
-          };
-
-          await rabbitChannel.assertQueue('data_source_status', { durable: true });
-          rabbitChannel.sendToQueue(
-            'data_source_status',
-            Buffer.from(JSON.stringify(verificationMessage)),
-            { persistent: true }
-          );
-
-          contextLogger.info({
-            connectionId: verifyPayload.connection_id,
-            status: 'success'
-          }, 'Published verification success message to RabbitMQ');
         } catch (error) {
           contextLogger.error({ error }, 'Failed to publish verification message');
         }
@@ -2251,99 +2292,6 @@ app.post('/webhook', async (req, res) => {
           error: error instanceof Error ? error.message : 'Unknown error'
         });
       }
-
-    } else if (payload.source === 'rita-credential-delegation' && payload.action === 'verify_delegated_credentials') {
-      const verifyPayload = payload as CredentialDelegationVerifyPayload;
-
-      const contextLogger = createContextLogger(webhookLogger, correlationId, {
-        tenantId: verifyPayload.tenant_id,
-        email: verifyPayload.admin_email
-      });
-
-      contextLogger.info({
-        source: verifyPayload.source,
-        action: verifyPayload.action,
-        delegation_id: verifyPayload.delegation_id,
-        admin_email: verifyPayload.admin_email,
-        organization_name: verifyPayload.organization_name,
-        itsm_system_type: verifyPayload.itsm_system_type,
-        instance_url: verifyPayload.credentials?.instance_url
-      }, 'Received verify_delegated_credentials webhook');
-
-      // Log the full payload for debugging
-      console.log(`\n${'═'.repeat(100)}`);
-      console.log('🔐 CREDENTIAL DELEGATION VERIFICATION WEBHOOK');
-      console.log('═'.repeat(100));
-      console.log(JSON.stringify(verifyPayload, null, 2));
-      console.log(`${'═'.repeat(100)}\n`);
-
-      // Simulate credential verification with delay
-      setTimeout(async () => {
-        try {
-          if (!rabbitChannel) {
-            throw new Error('RabbitMQ channel not initialized');
-          }
-
-          // Decode password/api_token to check for magic values
-          const encodedSecret = verifyPayload.credentials?.password || verifyPayload.credentials?.api_token || '';
-          let decodedSecret = '';
-          try {
-            decodedSecret = Buffer.from(encodedSecret, 'base64').toString('utf-8');
-          } catch { /* ignore decode errors */ }
-
-          // Magic values for testing:
-          // - "invalid" or "fail" → force failure
-          // - "success" or "valid" → force success
-          // - otherwise → random 80% success rate
-          let isSuccess: boolean;
-          let errorMessage = 'Mock verification failed: Invalid credentials';
-
-          if (['invalid', 'fail', 'error'].includes(decodedSecret.toLowerCase())) {
-            isSuccess = false;
-            errorMessage = 'Mock verification failed: Credentials rejected by ITSM system';
-          } else if (['success', 'valid', 'test'].includes(decodedSecret.toLowerCase())) {
-            isSuccess = true;
-          } else {
-            isSuccess = Math.random() > 0.2;
-          }
-
-          const verificationMessage = {
-            type: 'credential_delegation_verification',
-            delegation_id: verifyPayload.delegation_id,
-            tenant_id: verifyPayload.tenant_id,
-            status: isSuccess ? 'verified' : 'failed',
-            error: isSuccess ? null : errorMessage,
-            timestamp: new Date().toISOString()
-          };
-
-          await rabbitChannel.assertQueue('credential_delegation_status', { durable: true });
-          rabbitChannel.sendToQueue(
-            'credential_delegation_status',
-            Buffer.from(JSON.stringify(verificationMessage)),
-            { persistent: true }
-          );
-
-          contextLogger.info({
-            delegationId: verifyPayload.delegation_id,
-            status: isSuccess ? 'verified' : 'failed'
-          }, `Published credential verification ${isSuccess ? 'success' : 'failure'} message to RabbitMQ`);
-
-          console.log(`\n${'─'.repeat(60)}`);
-          console.log(`🔐 CREDENTIAL VERIFICATION ${isSuccess ? '✅ SUCCESS' : '❌ FAILED'}`);
-          console.log(`   Delegation ID: ${verifyPayload.delegation_id}`);
-          console.log(`   Admin Email: ${verifyPayload.admin_email}`);
-          console.log(`   ITSM System: ${verifyPayload.itsm_system_type}`);
-          console.log(`${'─'.repeat(60)}\n`);
-        } catch (error) {
-          contextLogger.error({ error }, 'Failed to publish credential verification message');
-        }
-      }, 2000); // 2 second delay to simulate verification
-
-      return res.status(200).json({
-        success: true,
-        message: 'Credential verification started',
-        delegation_id: verifyPayload.delegation_id
-      });
 
     } else {
       const errorLogger = createContextLogger(webhookLogger, correlationId);
