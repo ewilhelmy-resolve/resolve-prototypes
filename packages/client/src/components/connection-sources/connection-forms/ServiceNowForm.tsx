@@ -27,7 +27,8 @@ interface ServiceNowFormProps {
 }
 
 export function ServiceNowForm({ onCancel, onSuccess, onFailure }: ServiceNowFormProps = {}) {
-	const { t } = useTranslation("toast");
+	const { t } = useTranslation("connections");
+	const { t: tToast } = useTranslation("toast");
 	const { source } = useConnectionSource();
 	const verifyMutation = useVerifyDataSource();
 	const updateMutation = useUpdateDataSource();
@@ -57,8 +58,8 @@ export function ServiceNowForm({ onCancel, onSuccess, onFailure }: ServiceNowFor
 
 		if (!isValid) {
 			ritaToast.error({
-				title: t("error.validationError"),
-				description: t("descriptions.checkFormFields"),
+				title: tToast("error.validationError"),
+				description: tToast("descriptions.checkFormFields"),
 			});
 			return;
 		}
@@ -93,14 +94,14 @@ export function ServiceNowForm({ onCancel, onSuccess, onFailure }: ServiceNowFor
 			});
 
 			ritaToast.success({
-				title: t("success.connectionConfigured"),
-				description: t("descriptions.serviceNowConfigured"),
+				title: tToast("success.connectionConfigured"),
+				description: tToast("descriptions.serviceNowConfigured"),
 			});
 
 			onSuccess?.();
 		} catch (error) {
 			ritaToast.error({
-				title: t("error.connectionFailed"),
+				title: tToast("error.connectionFailed"),
 				description:
 					error instanceof Error
 						? error.message
@@ -118,54 +119,54 @@ export function ServiceNowForm({ onCancel, onSuccess, onFailure }: ServiceNowFor
 	return (
 		<ConnectionsForm handleSubmit={handleSubmit(onSubmit)} id="connection-form">
 			{/* Authentication */}
-			<FormSection title="Authentication">
+			<FormSection title={t("form.sections.authentication")}>
 				{/* Show error alert when verification fails */}
 				{verificationFailed && (
 					<StatusAlert variant="error" className="mb-4">
-						<p className="font-semibold">Verification Failed</p>
+						<p className="font-semibold">{t("form.alerts.verificationFailed")}</p>
 						<p>{verificationError}</p>
 						<p className="text-sm mt-2">
-							Please check your credentials and try again.
+							{t("form.alerts.checkCredentials")}
 						</p>
 					</StatusAlert>
 				)}
 
 				{/* Instance URL */}
-				<FormField label="Instance URL" errors={errors} name="instanceUrl" required>
+				<FormField label={t("form.labels.instanceUrl")} errors={errors} name="instanceUrl" required>
 					<Input
 						id="instance-url"
 						type="url"
-						placeholder="https://your-instance.service-now.com"
+						placeholder={t("form.placeholders.serviceNowUrl")}
 						{...register("instanceUrl", {
-							required: "Instance URL is required",
+							required: t("form.validation.instanceUrlRequired"),
 							pattern: {
 								value: /^https?:\/\/.+/,
-								message: "Please enter a valid URL",
+								message: t("form.validation.invalidUrl"),
 							},
 						})}
 					/>
 				</FormField>
 
 				{/* Username */}
-				<FormField label="Username" errors={errors} name="username" required>
+				<FormField label={t("form.labels.username")} errors={errors} name="username" required>
 					<Input
 						id="username"
 						type="text"
-						placeholder="service_account"
+						placeholder={t("form.placeholders.username")}
 						{...register("username", {
-							required: "Username is required",
+							required: t("form.validation.usernameRequired"),
 						})}
 					/>
 				</FormField>
 
 				{/* Password */}
-				<FormField label="Password" errors={errors} name="password" required>
+				<FormField label={t("form.labels.password")} errors={errors} name="password" required>
 					<Input
 						id="password"
 						type="password"
-						placeholder="Enter password"
+						placeholder={t("form.placeholders.password")}
 						{...register("password", {
-							required: "Password is required",
+							required: t("form.validation.passwordRequired"),
 						})}
 					/>
 				</FormField>
@@ -180,24 +181,24 @@ export function ServiceNowForm({ onCancel, onSuccess, onFailure }: ServiceNowFor
 						{verifyMutation.isPending || updateMutation.isPending ? (
 							<>
 								<Spinner className="mr-2" />
-								Connecting...
+								{t("form.buttons.connecting")}
 							</>
 						) : (
-							"Connect"
+							t("form.buttons.connect")
 						)}
 					</Button>
 
 					{onCancel && (
 						<Button type="button" variant="outline" onClick={onCancel}>
-							Cancel
+							{t("form.buttons.cancel")}
 						</Button>
 					)}
 				</div>
 
 				{verifyMutation.isPending && (
 					<StatusAlert variant="info">
-						<p className="text-accent-foreground">Connection may take time</p>
-						<p>You can leave this page while it is connecting</p>
+						<p className="text-accent-foreground">{t("form.alerts.connectionMayTakeTime")}</p>
+						<p>{t("form.alerts.canLeavePage")}</p>
 					</StatusAlert>
 				)}
 			</FormSection>
