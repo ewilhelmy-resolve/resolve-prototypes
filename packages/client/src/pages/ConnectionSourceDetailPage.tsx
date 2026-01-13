@@ -13,6 +13,7 @@ import {
 	WebSearchForm,
 } from "@/components/connection-sources/connection-forms";
 import RitaSettingsLayout from "@/components/layouts/RitaSettingsLayout";
+import { Separator } from "@/components/ui/separator";
 import {
 	mapDataSourceToUI,
 	SOURCE_METADATA,
@@ -22,6 +23,8 @@ import { ConnectionSourceProvider } from "@/contexts/ConnectionSourceContext";
 import { useDataSource } from "@/hooks/useDataSources";
 import SettingsHeader from "@/pages/settings/SettingsHeader";
 import { BACKEND_STATUS, type DataSourceConnection } from "@/types/dataSource";
+import DelegationInviteBox from "@/components/connection-sources/DelegationInviteBox.tsx";
+import {ItsmSystemType} from "@/hooks/api/useCredentialDelegations.ts";
 
 type ConnectionMode = "knowledge" | "itsm";
 
@@ -205,7 +208,10 @@ export default function ConnectionSourceDetailPage({
 							}
 							description={`Connect your ${sourceTitle} instance to build context for RITA to make better experiences.`}
 						/>
-					</div>
+
+                        <DelegationInviteBox itsmSource={source.type as ItsmSystemType} />
+                        <Separator orientation="horizontal" />
+                    </div>
 
 					{/* Content area - form or view mode */}
 					<div className="w-full max-w-2xl mx-auto flex flex-col gap-8 px-4 md:px-0">
