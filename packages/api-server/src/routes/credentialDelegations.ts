@@ -31,9 +31,9 @@ router.post('/create', authenticateUser, requireRole(['owner', 'admin']), async 
       return res.status(400).json({ error: 'admin_email is required' });
     }
 
-    if (!itsm_system_type || !['servicenow', 'jira', 'confluence'].includes(itsm_system_type)) {
+    if (!itsm_system_type || !['servicenow', 'jira'].includes(itsm_system_type)) {
       return res.status(400).json({
-        error: 'itsm_system_type is required and must be one of: servicenow, jira, confluence',
+        error: 'itsm_system_type is required and must be one of: servicenow, jira',
       });
     }
 

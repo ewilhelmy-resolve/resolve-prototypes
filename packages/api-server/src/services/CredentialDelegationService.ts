@@ -16,8 +16,7 @@ import type {
 } from '../types/credentialDelegation.js';
 
 const CLIENT_URL = process.env.CLIENT_URL || 'http://localhost:5173';
-const TOKEN_EXPIRY_DAYS = 7;
-const TOKEN_EXPIRY_MINUTES = 1;
+const TOKEN_EXPIRY_DAYS = 1;
 const RATE_LIMIT_PER_ORG_PER_DAY = 10;
 
 export class CredentialDelegationService {
@@ -44,7 +43,7 @@ export class CredentialDelegationService {
     }
 
     // Validate ITSM system type
-    if (!['servicenow', 'jira', 'confluence'].includes(itsmSystemType)) {
+    if (!['servicenow', 'jira'].includes(itsmSystemType)) {
       throw new Error('Invalid ITSM system type');
     }
 
@@ -91,7 +90,7 @@ export class CredentialDelegationService {
 
     // Generate secure token (64-char hex = 32 bytes = 256 bits)
     const token = crypto.randomBytes(32).toString('hex');
-    const expiresAt = new Date(Date.now() + TOKEN_EXPIRY_MINUTES * 60 * 1000);
+    const expiresAt = new Date(Date.now() + TOKEN_EXPIRY_DAYS * 24 * 60 * 60 * 1000);
 
     // Insert delegation token
     const insertResult = await this.pool.query(
@@ -366,7 +365,7 @@ export class CredentialDelegationService {
       userEmail: delegation.creator_email,
       connectionId: delegation.id,
       connectionType: delegation.itsm_system_type,
-      credentials: this.encodeCredentials(credentials),
+      credentials: credentials,
       settings: {
         delegation_id: delegation.id,
         admin_email: delegation.admin_email,
@@ -470,12 +469,12 @@ export class CredentialDelegationService {
       if (!creds.password || typeof creds.password !== 'string') {
         throw new Error('Password is required for ServiceNow');
       }
-    } else if (systemType === 'jira' || systemType === 'confluence') {
+    } else if (systemType === 'jira') {
       if (!creds.email || typeof creds.email !== 'string') {
-        throw new Error('Email is required for Jira/Confluence');
+        throw new Error('Email is required for Jira');
       }
       if (!creds.api_token || typeof creds.api_token !== 'string') {
-        throw new Error('API token is required for Jira/Confluence');
+        throw new Error('API token is required for Jira');
       }
     }
   }

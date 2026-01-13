@@ -111,7 +111,7 @@ export interface ConfluenceCredentials {
   api_token: string;
 }
 
-export type ItsmCredentials = ServiceNowCredentials | JiraCredentials | ConfluenceCredentials;
+export type ItsmCredentials = ServiceNowCredentials | JiraCredentials;
 
 /**
  * Submit credentials request body (public endpoint)
