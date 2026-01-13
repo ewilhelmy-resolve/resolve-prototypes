@@ -293,7 +293,7 @@ describe("ResponseWithInlineCitations", () => {
 			);
 
 			await waitFor(() => {
-				const link = screen.getByText("View source").closest("a");
+				const link = screen.getByText("citations.viewSource").closest("a");
 				expect(link).toHaveAttribute("href", "https://example.com/doc1");
 				expect(link).toHaveAttribute("target", "_blank");
 				expect(link).toHaveAttribute("rel", "noopener noreferrer");
@@ -313,7 +313,7 @@ describe("ResponseWithInlineCitations", () => {
 			);
 
 			await waitFor(() => {
-				expect(screen.getByText(/View full document/i)).toBeInTheDocument();
+				expect(screen.getByText("citations.viewFullDocument")).toBeInTheDocument();
 			});
 		});
 
@@ -334,7 +334,7 @@ describe("ResponseWithInlineCitations", () => {
 			);
 
 			await waitFor(() => {
-				expect(screen.getByText(/View full document/i)).toBeInTheDocument();
+				expect(screen.getByText("citations.viewFullDocument")).toBeInTheDocument();
 				expect(screen.getByText("New Format Document")).toBeInTheDocument();
 			});
 		});
@@ -427,8 +427,8 @@ describe("ResponseWithInlineCitations", () => {
 			);
 
 			await waitFor(() => {
-				expect(screen.queryByText("View source")).not.toBeInTheDocument();
-				expect(screen.getByText("Full document available")).toBeInTheDocument();
+				expect(screen.queryByText("citations.viewSource")).not.toBeInTheDocument();
+				expect(screen.getByText("citations.fullDocumentAvailable")).toBeInTheDocument();
 			});
 		});
 
@@ -491,7 +491,7 @@ describe("ResponseWithInlineCitations", () => {
 			);
 
 			await waitFor(() => {
-				expect(screen.getByText("Loading...")).toBeInTheDocument();
+				expect(screen.getByText("citations.loading")).toBeInTheDocument();
 			});
 		});
 
@@ -549,12 +549,12 @@ describe("ResponseWithInlineCitations", () => {
 			);
 
 			await waitFor(() => {
-				const button = screen.getByText(/View full document/i);
+				const button = screen.getByText("citations.viewFullDocument");
 				fireEvent.click(button);
 			});
 
 			await waitFor(() => {
-				expect(screen.getByText("Full document content")).toBeInTheDocument();
+				expect(screen.getByText("citations.fullDocumentContent")).toBeInTheDocument();
 			});
 		});
 
@@ -584,7 +584,7 @@ describe("ResponseWithInlineCitations", () => {
 			);
 
 			await waitFor(() => {
-				const button = screen.getByText(/View full document/i);
+				const button = screen.getByText("citations.viewFullDocument");
 				fireEvent.click(button);
 			});
 
@@ -620,7 +620,7 @@ describe("ResponseWithInlineCitations", () => {
 			);
 
 			await waitFor(() => {
-				const button = screen.getByText(/View full document/i);
+				const button = screen.getByText("citations.viewFullDocument");
 				fireEvent.click(button);
 			});
 
@@ -650,7 +650,7 @@ describe("ResponseWithInlineCitations", () => {
 			);
 
 			await waitFor(() => {
-				const button = screen.getByText(/View full document/i);
+				const button = screen.getByText("citations.viewFullDocument");
 				fireEvent.click(button);
 			});
 
@@ -682,7 +682,7 @@ describe("ResponseWithInlineCitations", () => {
 
 			// Click the button
 			await waitFor(() => {
-				const button = screen.getByText(/View full document/i);
+				const button = screen.getByText("citations.viewFullDocument");
 				fireEvent.click(button);
 			});
 
@@ -723,13 +723,13 @@ describe("ResponseWithInlineCitations", () => {
 			);
 
 			await waitFor(() => {
-				const button = screen.getByText(/View full document/i);
+				const button = screen.getByText("citations.viewFullDocument");
 				fireEvent.click(button);
 			});
 
 			await waitFor(() => {
 				expect(
-					screen.getByText("Error loading document. Please try again."),
+					screen.getByText("citations.errorLoading"),
 				).toBeInTheDocument();
 			});
 
@@ -789,8 +789,8 @@ describe("ResponseWithInlineCitations", () => {
 
 			await waitFor(() => {
 				// Should show both view source link and full document button
-				expect(screen.getByText("View source")).toBeInTheDocument();
-				expect(screen.getByText(/View full document/i)).toBeInTheDocument();
+				expect(screen.getByText("citations.viewSource")).toBeInTheDocument();
+				expect(screen.getByText("citations.viewFullDocument")).toBeInTheDocument();
 			});
 		});
 

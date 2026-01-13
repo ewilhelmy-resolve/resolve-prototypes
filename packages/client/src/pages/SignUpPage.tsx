@@ -1,5 +1,6 @@
 import { Loader2 } from "lucide-react";
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Navigate, useNavigate } from "react-router-dom";
 import { Button } from "../components/ui/button";
 import { Checkbox } from "../components/ui/checkbox";
@@ -10,6 +11,7 @@ import { validateEmail, validatePassword, validateRequired } from "../lib/valida
 const API_BASE_URL = import.meta.env.VITE_API_URL || "";
 
 export function SignUpPage() {
+	const { t } = useTranslation("auth");
 	const navigate = useNavigate();
 	const { authenticated, login, loading, sessionReady } = useAuth();
 	const [signupForm, setSignupForm] = useState({
@@ -119,7 +121,7 @@ export function SignUpPage() {
 		}
 
 		if (!signupForm.password) {
-			errors.password = "Password is required";
+			errors.password = t("validation.passwordRequired");
 		} else {
 			const passwordError = validatePassword(signupForm.password);
 			if (passwordError) {
@@ -172,7 +174,7 @@ export function SignUpPage() {
 			<div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-muted/20">
 				<div className="flex items-center gap-3 text-lg">
 					<Loader2 className="h-6 w-6 animate-spin text-primary" />
-					<span>Loading...</span>
+					<span>{t("signup.loading")}</span>
 				</div>
 			</div>
 		);
@@ -193,11 +195,10 @@ export function SignUpPage() {
 								<img src="/signup-logo-rita.svg" alt="RITA Logo" className="h-28 w-28 object-contain" loading="lazy" />
 							</div>
 							<h1 className="text-4xl font-bold tracking-tighter">
-								Start your automation journey
+								{t("signup.title")}
 							</h1>
 							<p className="text-muted-foreground">
-								Take 2 minutes to share your goals and challenges with IT
-								automation.
+								{t("signup.description")}
 							</p>
 						</div>
 
@@ -213,7 +214,7 @@ export function SignUpPage() {
 								<div className="grid grid-cols-2 gap-4">
 									<div className="space-y-2">
 										<label htmlFor="firstName" className="text-gray-300">
-											First Name
+											{t("signup.firstNameLabel")}
 										</label>
 										<Input
 											id="firstName"
@@ -259,7 +260,7 @@ export function SignUpPage() {
 									</div>
 									<div className="space-y-2">
 										<label htmlFor="lastName" className="text-gray-300">
-											Last Name
+											{t("signup.lastNameLabel")}
 										</label>
 										<Input
 											id="lastName"
@@ -306,7 +307,7 @@ export function SignUpPage() {
 								</div>
 								<div className="space-y-2">
 									<label htmlFor="email" className="text-gray-300">
-										Work email
+										{t("signup.emailLabel")}
 									</label>
 									<Input
 										id="email"
@@ -350,7 +351,7 @@ export function SignUpPage() {
 								</div>
 								<div className="space-y-2">
 									<label htmlFor="company" className="text-gray-300">
-										Company name
+										{t("signup.companyLabel")}
 									</label>
 									<Input
 										id="company"
@@ -394,7 +395,7 @@ export function SignUpPage() {
 								</div>
 								<div className="space-y-2">
 									<label htmlFor="password" className="text-gray-300">
-										Password
+										{t("signup.passwordLabel")}
 									</label>
 									<Input
 										id="password"
@@ -455,7 +456,7 @@ export function SignUpPage() {
 										htmlFor="acceptedTos"
 										className="text-sm text-gray-300 leading-relaxed cursor-pointer"
 									>
-										I agree to the{" "}
+										{t("signup.agreeToTerms")}{" "}
 										<a
 											href="/terms-of-service"
 											target="_blank"
@@ -463,7 +464,7 @@ export function SignUpPage() {
 											className="text-blue-400 hover:underline font-medium"
 											onClick={(e) => e.stopPropagation()}
 										>
-											Terms of Service
+											{t("signup.termsOfService")}
 										</a>
 									</label>
 								</div>
@@ -476,23 +477,23 @@ export function SignUpPage() {
 									{signupLoading ? (
 										<div className="flex items-center gap-2">
 											<Loader2 className="h-5 w-5 animate-spin" />
-											<span>Creating Account...</span>
+											<span>{t("signup.creatingButton")}</span>
 										</div>
 									) : (
-										<span>Continue</span>
+										<span>{t("signup.submitButton")}</span>
 									)}
 								</Button>
 							</form>
 
 							<div className="text-center space-y-3">
 								<p className="text-sm text-muted-foreground">
-									Already have an account?{" "}
+									{t("signup.hasAccount")}{" "}
 									<Button
-									    variant="link"
+										variant="link"
 										onClick={() => login()}
 										className="text-blue-400 hover:underline font-medium mt-0 p-0"
 									>
-										Sign in
+										{t("signup.signInLink")}
 									</Button>
 								</p>
 							</div>

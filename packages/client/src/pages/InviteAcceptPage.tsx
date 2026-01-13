@@ -9,8 +9,9 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { AlertCircle, CheckCircle2, Loader2 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
+import { useTranslation } from "react-i18next";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
@@ -30,83 +31,100 @@ import {
 } from "@/types/invitations";
 
 /**
- * Zod Schema for Invitation Accept Form
- * Enforces password complexity and field requirements
- * Note: Email is not included - it comes from the invitation token and is display-only
- * Uses shared validation constants from @/lib/validation
+ * Get error message for invitation API errors
  */
-const inviteAcceptSchema = z.object({
-	password: z
-		.string()
-		.transform((val) => val.trim())
-		.pipe(
-			z
-				.string()
-				.min(
-					MIN_PASSWORD_LENGTH,
-					`Password must be at least ${MIN_PASSWORD_LENGTH} characters`,
-				)
-				.refine((val) => PASSWORD_REGEX.test(val), {
-					message:
-						"Password must contain uppercase, lowercase, number, and special character",
-				}),
-		),
-	firstName: z
-		.string()
-		.transform((val) => val.trim())
-		.pipe(z.string().min(1, "First name is required")),
-	lastName: z
-		.string()
-		.transform((val) => val.trim())
-		.pipe(z.string().min(1, "Last name is required")),
-});
-
-/**
- * Error code to user-friendly message mapping registry
- */
-const ERROR_MESSAGE_REGISTRY: Record<InvitationErrorCode, string> = {
-	[InvitationErrorCode.INVALID_TOKEN]: "This invitation link is invalid",
-	[InvitationErrorCode.INVITATION_EXPIRED]:
-		"This invitation has expired. Please request a new invitation.",
-	[InvitationErrorCode.INVITATION_ALREADY_ACCEPTED]:
-		"This invitation has already been accepted. You can log in with your credentials.",
-	[InvitationErrorCode.INVITATION_CANCELLED]:
-		"This invitation has been cancelled by an administrator.",
-	[InvitationErrorCode.PASSWORD_TOO_WEAK]:
-		"Password does not meet security requirements",
-	[InvitationErrorCode.PASSWORD_REQUIRED]: "Password is required",
-	[InvitationErrorCode.FIRST_NAME_REQUIRED]: "First name is required",
-	[InvitationErrorCode.LAST_NAME_REQUIRED]: "Last name is required",
-	[InvitationErrorCode.SERVER_ERROR]:
-		"Server error occurred. Please try again later",
-	[InvitationErrorCode.INVALID_EMAIL]: "Invalid email address",
-	[InvitationErrorCode.DUPLICATE_PENDING]:
-		"User already has a pending invitation",
-	[InvitationErrorCode.USER_ALREADY_EXISTS]: "User already has an account",
-	[InvitationErrorCode.BATCH_SIZE_EXCEEDED]:
-		"Maximum 50 email addresses allowed per batch",
-	[InvitationErrorCode.TENANT_LIMIT_EXCEEDED]:
-		"Organization has reached the maximum number of users",
-	[InvitationErrorCode.UNAUTHORIZED]:
-		"You don't have permission to perform this action",
-	[InvitationErrorCode.FORBIDDEN]:
-		"You don't have permission to perform this action",
-};
-
-function getErrorMessage(error: InvitationAPIError): string {
-	return (
-		ERROR_MESSAGE_REGISTRY[error.error] ||
-		error.message ||
-		"Failed to accept invitation"
-	);
+function getErrorMessage(
+	error: InvitationAPIError,
+	errorMessages: Record<InvitationErrorCode, string>,
+	fallback: string,
+): string {
+	return errorMessages[error.error] || error.message || fallback;
 }
 
 export default function InviteAcceptPage() {
+	const { t } = useTranslation("auth");
 	const [searchParams] = useSearchParams();
 	const token = searchParams.get("token");
 	const navigate = useNavigate();
 	const [acceptProgress, setAcceptProgress] = useState(0);
 	const [showSuccess, setShowSuccess] = useState(false);
+
+	// Translated validation messages for Zod schema
+	const validationMessages = useMemo(
+		() => ({
+			passwordMinLength: t("validation.passwordMinLength", {
+				count: MIN_PASSWORD_LENGTH,
+			}),
+			passwordComplexity: t("validation.passwordComplexity"),
+			firstNameRequired: t("validation.firstNameRequired"),
+			lastNameRequired: t("validation.lastNameRequired"),
+		}),
+		[t],
+	);
+
+	// Create schema with translations, memoized
+	const inviteAcceptSchema = useMemo(
+		() =>
+			z.object({
+				password: z
+					.string()
+					.transform((val) => val.trim())
+					.pipe(
+						z
+							.string()
+							.min(MIN_PASSWORD_LENGTH, validationMessages.passwordMinLength)
+							.refine((val) => PASSWORD_REGEX.test(val), {
+								message: validationMessages.passwordComplexity,
+							}),
+					),
+				firstName: z
+					.string()
+					.transform((val) => val.trim())
+					.pipe(z.string().min(1, validationMessages.firstNameRequired)),
+				lastName: z
+					.string()
+					.transform((val) => val.trim())
+					.pipe(z.string().min(1, validationMessages.lastNameRequired)),
+			}),
+		[validationMessages],
+	);
+
+	// Error messages for API errors
+	const errorMessages = useMemo(
+		(): Record<InvitationErrorCode, string> => ({
+			[InvitationErrorCode.INVALID_TOKEN]: t("invite.errors.invalidToken"),
+			[InvitationErrorCode.INVITATION_EXPIRED]: t("invite.errors.expired"),
+			[InvitationErrorCode.INVITATION_ALREADY_ACCEPTED]: t(
+				"invite.errors.alreadyAccepted",
+			),
+			[InvitationErrorCode.INVITATION_CANCELLED]: t("invite.errors.cancelled"),
+			[InvitationErrorCode.PASSWORD_TOO_WEAK]: t("invite.errors.passwordWeak"),
+			[InvitationErrorCode.PASSWORD_REQUIRED]: t(
+				"invite.errors.passwordRequired",
+			),
+			[InvitationErrorCode.FIRST_NAME_REQUIRED]: t(
+				"invite.errors.firstNameRequired",
+			),
+			[InvitationErrorCode.LAST_NAME_REQUIRED]: t(
+				"invite.errors.lastNameRequired",
+			),
+			[InvitationErrorCode.SERVER_ERROR]: t("invite.errors.serverError"),
+			[InvitationErrorCode.INVALID_EMAIL]: t("invite.errors.invalidEmail"),
+			[InvitationErrorCode.DUPLICATE_PENDING]: t(
+				"invite.errors.duplicatePending",
+			),
+			[InvitationErrorCode.USER_ALREADY_EXISTS]: t("invite.errors.userExists"),
+			[InvitationErrorCode.BATCH_SIZE_EXCEEDED]: t(
+				"invite.errors.batchExceeded",
+			),
+			[InvitationErrorCode.TENANT_LIMIT_EXCEEDED]: t(
+				"invite.errors.tenantLimit",
+			),
+			[InvitationErrorCode.UNAUTHORIZED]: t("invite.errors.unauthorized"),
+			[InvitationErrorCode.FORBIDDEN]: t("invite.errors.unauthorized"),
+		}),
+		[t],
+	);
 
 	// Verify invitation token on page load
 	const {
@@ -192,7 +210,7 @@ export default function InviteAcceptPage() {
 			<div className="min-h-screen bg-gradient-to-b from-[#000000] to-[#012C72] flex justify-center items-center px-9">
 				<div className="w-full max-w-md rounded-2xl p-4 flex flex-col justify-center items-center gap-6">
 					<Loader2 className="h-8 w-8 animate-spin text-white" />
-					<p className="text-white text-sm">Verifying invitation...</p>
+					<p className="text-white text-sm">{t("invite.verifying")}</p>
 				</div>
 			</div>
 		);
@@ -209,17 +227,21 @@ export default function InviteAcceptPage() {
 						</div>
 						<div className="w-full flex flex-col justify-start items-center">
 							<h2 className="text-white text-3xl font-normal text-center leading-9 font-serif pb-2">
-								Invalid Invitation
+								{t("invite.invalidTitle")}
 							</h2>
 							<p className="text-white text-sm text-center leading-5">
 								{verifyError
-									? getErrorMessage(verifyError)
-									: "This invitation link is no longer valid."}
+									? getErrorMessage(
+											verifyError,
+											errorMessages,
+											t("invite.errors.default"),
+										)
+									: t("invite.invalidFallback")}
 							</p>
 						</div>
 						<div className="w-full">
 							<Button className="w-full" onClick={() => navigate("/login")}>
-								Go to Login
+								{t("invite.goToLogin")}
 							</Button>
 						</div>
 					</div>
@@ -239,19 +261,18 @@ export default function InviteAcceptPage() {
 						</div>
 						<div className="w-full flex flex-col justify-start items-center">
 							<h2 className="text-white text-3xl font-normal text-center leading-9 font-serif pb-2">
-								Account Created Successfully!
+								{t("invite.successTitle")}
 							</h2>
 							<p className="text-white text-sm text-center leading-5 mb-4">
-								Your account has been created successfully. You can now log in
-								with your credentials.
+								{t("invite.successMessage")}
 							</p>
 							<p className="text-white/70 text-sm text-center leading-5">
-								Redirecting to login page in 3 seconds...
+								{t("invite.redirecting")}
 							</p>
 						</div>
 						<div className="w-full">
 							<Button className="w-full" onClick={() => navigate("/login")}>
-								Go to Login Now
+								{t("invite.goToLoginNow")}
 							</Button>
 						</div>
 					</div>
@@ -285,12 +306,12 @@ export default function InviteAcceptPage() {
 						<div className="w-full flex flex-col justify-start items-center">
 							<div className="w-full flex justify-center items-center pb-2">
 								<h2 className="text-white text-3xl font-normal text-center leading-9 font-serif">
-									You've been invited to RITA Go
+									{t("invite.title")}
 								</h2>
 							</div>
 							<div className="w-full flex justify-center items-center">
 								<p className="text-white text-sm text-center leading-5">
-									To start your 90 day trial generate a password
+									{t("invite.subtitle")}
 								</p>
 							</div>
 						</div>
@@ -301,7 +322,11 @@ export default function InviteAcceptPage() {
 						{/* API Error Alert */}
 						{acceptError && (
 							<StatusAlert variant="warning">
-								{getErrorMessage(acceptError)}
+								{getErrorMessage(
+									acceptError,
+									errorMessages,
+									t("invite.errors.default"),
+								)}
 							</StatusAlert>
 						)}
 
@@ -310,7 +335,7 @@ export default function InviteAcceptPage() {
 							<div className="w-full space-y-2">
 								<Progress value={acceptProgress} className="w-full" />
 								<p className="text-white text-sm text-center">
-									Creating your account...
+									{t("invite.creating")}
 								</p>
 							</div>
 						)}
@@ -318,7 +343,7 @@ export default function InviteAcceptPage() {
 						{/* Email (read-only, display only - NOT submitted) */}
 						<div className="w-full space-y-2">
 							<Label htmlFor="email" className="text-white text-sm">
-								Email
+								{t("invite.emailLabel")}
 							</Label>
 							<Input
 								id="email"
@@ -334,7 +359,7 @@ export default function InviteAcceptPage() {
 						<div className="w-full flex gap-5">
 							<div className="flex-1 space-y-2">
 								<Label htmlFor="firstName" className="text-white text-sm">
-									First name
+									{t("invite.firstNameLabel")}
 								</Label>
 								<Input
 									id="firstName"
@@ -352,7 +377,7 @@ export default function InviteAcceptPage() {
 							</div>
 							<div className="flex-1 space-y-2">
 								<Label htmlFor="lastName" className="text-white text-sm">
-									Last name
+									{t("invite.lastNameLabel")}
 								</Label>
 								<Input
 									id="lastName"
@@ -373,7 +398,7 @@ export default function InviteAcceptPage() {
 						{/* Password */}
 						<div className="w-full space-y-2">
 							<Label htmlFor="password" className="text-white text-sm">
-								Password
+								{t("invite.passwordLabel")}
 							</Label>
 							<Input
 								id="password"
@@ -400,7 +425,7 @@ export default function InviteAcceptPage() {
 								{isAccepting && (
 									<Loader2 className="mr-2 h-4 w-4 animate-spin" />
 								)}
-								{isAccepting ? "Creating Account..." : "Accept Invite"}
+								{isAccepting ? t("invite.creatingButton") : t("invite.acceptButton")}
 							</Button>
 						</div>
 					</div>

@@ -17,6 +17,7 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import ChatV1Content from "../components/chat/ChatV1Content";
 import IframeChatLayout from "../components/layouts/IframeChatLayout";
@@ -171,6 +172,7 @@ function IframeChatContent({
 }
 
 export default function IframeChatPage() {
+	const { t } = useTranslation("chat");
 	const { conversationId: urlConversationId } = useParams<{ conversationId?: string }>();
 	const [searchParams] = useSearchParams();
 	const sessionKey = searchParams.get("sessionKey");
@@ -226,7 +228,7 @@ export default function IframeChatPage() {
 			// sessionKey is required
 			if (!sessionKey) {
 				addDebugLog("error", "Missing sessionKey parameter");
-				setError("Missing sessionKey parameter");
+				setError(t("iframe.missingSessionKey"));
 				setIsLoading(false);
 				return;
 			}
@@ -281,7 +283,7 @@ export default function IframeChatPage() {
 		}
 
 		initializeIframe();
-	}, [urlConversationId, sessionKey, setCurrentConversation, addDebugLog, navigate]);
+	}, [urlConversationId, sessionKey, setCurrentConversation, addDebugLog, navigate, t]);
 
 	// Execute workflow once session is ready
 	// This runs in parent to prevent re-execution on child remounts
@@ -335,7 +337,7 @@ export default function IframeChatPage() {
 				<div className="flex items-center justify-center h-full">
 					<div className="text-center max-w-md px-4">
 						<h2 className="text-xl font-semibold text-gray-900 mb-2">
-							Setup Failed
+							{t("iframe.setupFailed")}
 						</h2>
 						<p className="text-sm text-gray-600">{error}</p>
 					</div>
@@ -350,7 +352,7 @@ export default function IframeChatPage() {
 		return (
 			<IframeChatLayout>
 				<div className="flex items-center justify-center h-full">
-					<div className="text-sm text-gray-500">Initializing...</div>
+					<div className="text-sm text-gray-500">{t("iframe.initializing")}</div>
 				</div>
 				<DebugPanel {...debugPanelProps} />
 			</IframeChatLayout>

@@ -67,7 +67,7 @@ describe("InviteAcceptPage", () => {
 				</TestWrapper>,
 			);
 
-			expect(screen.getByText("Verifying invitation...")).toBeInTheDocument();
+			expect(screen.getByText("invite.verifying")).toBeInTheDocument();
 		});
 	});
 
@@ -96,12 +96,12 @@ describe("InviteAcceptPage", () => {
 				</TestWrapper>,
 			);
 
-			expect(screen.getByText("Invalid Invitation")).toBeInTheDocument();
+			expect(screen.getByText("invite.invalidTitle")).toBeInTheDocument();
 			expect(
-				screen.getByText("This invitation link is invalid"),
+				screen.getByText("invite.errors.invalidToken"),
 			).toBeInTheDocument();
 			expect(
-				screen.getByRole("button", { name: /go to login/i }),
+				screen.getByRole("button", { name: "invite.goToLogin" }),
 			).toBeInTheDocument();
 		});
 
@@ -130,9 +130,7 @@ describe("InviteAcceptPage", () => {
 			);
 
 			expect(
-				screen.getByText(
-					"This invitation has expired. Please request a new invitation.",
-				),
+				screen.getByText("invite.errors.expired"),
 			).toBeInTheDocument();
 		});
 
@@ -161,9 +159,7 @@ describe("InviteAcceptPage", () => {
 			);
 
 			expect(
-				screen.getByText(
-					"This invitation has already been accepted. You can log in with your credentials.",
-				),
+				screen.getByText("invite.errors.alreadyAccepted"),
 			).toBeInTheDocument();
 		});
 
@@ -192,7 +188,7 @@ describe("InviteAcceptPage", () => {
 				</TestWrapper>,
 			);
 
-			const loginButton = screen.getByRole("button", { name: /go to login/i });
+			const loginButton = screen.getByRole("button", { name: "invite.goToLogin" });
 			await user.click(loginButton);
 
 			expect(mockNavigate).toHaveBeenCalledWith("/login");
@@ -230,10 +226,10 @@ describe("InviteAcceptPage", () => {
 			);
 
 			expect(
-				screen.getByText("You've been invited to RITA Go"),
+				screen.getByText("invite.title"),
 			).toBeInTheDocument();
 
-			const emailInput = screen.getByLabelText(/email/i) as HTMLInputElement;
+			const emailInput = screen.getByLabelText("invite.emailLabel") as HTMLInputElement;
 			expect(emailInput).toHaveValue("test@example.com");
 			expect(emailInput).toBeDisabled();
 		});
@@ -257,12 +253,12 @@ describe("InviteAcceptPage", () => {
 				</TestWrapper>,
 			);
 
-			expect(screen.getByLabelText(/email/i)).toBeInTheDocument();
-			expect(screen.getByLabelText(/first name/i)).toBeInTheDocument();
-			expect(screen.getByLabelText(/last name/i)).toBeInTheDocument();
-			expect(screen.getByLabelText(/password/i)).toBeInTheDocument();
+			expect(screen.getByLabelText("invite.emailLabel")).toBeInTheDocument();
+			expect(screen.getByLabelText("invite.firstNameLabel")).toBeInTheDocument();
+			expect(screen.getByLabelText("invite.lastNameLabel")).toBeInTheDocument();
+			expect(screen.getByLabelText("invite.passwordLabel")).toBeInTheDocument();
 			expect(
-				screen.getByRole("button", { name: /accept invite/i }),
+				screen.getByRole("button", { name: "invite.acceptButton" }),
 			).toBeInTheDocument();
 		});
 
@@ -286,7 +282,7 @@ describe("InviteAcceptPage", () => {
 			);
 
 			const submitButton = screen.getByRole("button", {
-				name: /accept invite/i,
+				name: "invite.acceptButton",
 			});
 			expect(submitButton).toBeDisabled();
 		});
@@ -313,13 +309,13 @@ describe("InviteAcceptPage", () => {
 			);
 
 			// Fill in all fields
-			await user.type(screen.getByLabelText(/first name/i), "John");
-			await user.type(screen.getByLabelText(/last name/i), "Doe");
-			await user.type(screen.getByLabelText(/password/i), "SecurePass123!");
+			await user.type(screen.getByLabelText("invite.firstNameLabel"), "John");
+			await user.type(screen.getByLabelText("invite.lastNameLabel"), "Doe");
+			await user.type(screen.getByLabelText("invite.passwordLabel"), "SecurePass123!");
 
 			await waitFor(() => {
 				const submitButton = screen.getByRole("button", {
-					name: /accept invite/i,
+					name: "invite.acceptButton",
 				});
 				expect(submitButton).not.toBeDisabled();
 			});
@@ -346,13 +342,13 @@ describe("InviteAcceptPage", () => {
 				</TestWrapper>,
 			);
 
-			const passwordInput = screen.getByLabelText(/password/i);
+			const passwordInput = screen.getByLabelText("invite.passwordLabel");
 			await user.type(passwordInput, "weak");
 			await user.tab(); // Trigger blur to show validation
 
 			await waitFor(() => {
 				expect(
-					screen.getByText(/password must be at least 8 characters/i),
+					screen.getByText("validation.passwordMinLength"),
 				).toBeInTheDocument();
 			});
 		});
@@ -380,20 +376,20 @@ describe("InviteAcceptPage", () => {
 			);
 
 			// Fill form
-			await user.type(screen.getByLabelText(/first name/i), "John");
-			await user.type(screen.getByLabelText(/last name/i), "Doe");
-			await user.type(screen.getByLabelText(/password/i), "SecurePass123!");
+			await user.type(screen.getByLabelText("invite.firstNameLabel"), "John");
+			await user.type(screen.getByLabelText("invite.lastNameLabel"), "Doe");
+			await user.type(screen.getByLabelText("invite.passwordLabel"), "SecurePass123!");
 
 			// Submit
 			await waitFor(() => {
 				const submitButton = screen.getByRole("button", {
-					name: /accept invite/i,
+					name: "invite.acceptButton",
 				});
 				expect(submitButton).not.toBeDisabled();
 			});
 
 			const submitButton = screen.getByRole("button", {
-				name: /accept invite/i,
+				name: "invite.acceptButton",
 			});
 			await user.click(submitButton);
 
@@ -441,9 +437,9 @@ describe("InviteAcceptPage", () => {
 				</TestWrapper>,
 			);
 
-			expect(screen.getByText("Creating your account...")).toBeInTheDocument();
+			expect(screen.getByText("invite.creating")).toBeInTheDocument();
 			expect(
-				screen.getByRole("button", { name: /creating account/i }),
+				screen.getByRole("button", { name: "invite.creatingButton" }),
 			).toBeDisabled();
 		});
 
@@ -495,7 +491,7 @@ describe("InviteAcceptPage", () => {
 			);
 
 			expect(
-				screen.getByText("Password does not meet security requirements"),
+				screen.getByText("invite.errors.passwordWeak"),
 			).toBeInTheDocument();
 		});
 	});
@@ -565,10 +561,10 @@ describe("InviteAcceptPage", () => {
 				</TestWrapper>,
 			);
 
-			expect(screen.getByLabelText(/email/i)).toBeInTheDocument();
-			expect(screen.getByLabelText(/first name/i)).toBeInTheDocument();
-			expect(screen.getByLabelText(/last name/i)).toBeInTheDocument();
-			expect(screen.getByLabelText(/password/i)).toBeInTheDocument();
+			expect(screen.getByLabelText("invite.emailLabel")).toBeInTheDocument();
+			expect(screen.getByLabelText("invite.firstNameLabel")).toBeInTheDocument();
+			expect(screen.getByLabelText("invite.lastNameLabel")).toBeInTheDocument();
+			expect(screen.getByLabelText("invite.passwordLabel")).toBeInTheDocument();
 		});
 	});
 });
