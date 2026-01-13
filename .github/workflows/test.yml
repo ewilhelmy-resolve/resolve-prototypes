@@ -38,6 +38,8 @@ jobs:
 
     - name: Type check (all packages)
       run: pnpm -r run type-check
+      env:
+        NODE_OPTIONS: --max-old-space-size=4096
 
     - name: Lint (all packages)
       run: pnpm -r run lint
@@ -47,9 +49,6 @@ jobs:
 
     - name: Run client unit tests
       run: pnpm --filter rita-client test:unit
-    
-      env:
-        NODE_OPTIONS: --max-old-space-size=4096
     # E2E tests temporarily disabled - no E2E tests currently implemented
     # - name: Install Playwright browsers
     #   run: cd packages/client && npx playwright install --with-deps chromium
