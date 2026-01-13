@@ -8,6 +8,7 @@
 "use client";
 
 import type { ChatStatus } from "ai";
+import { useTranslation } from "react-i18next";
 import type { PromptInputMessage } from "@/components/ai-elements/prompt-input";
 import {
 	PromptInput,
@@ -64,24 +65,27 @@ export interface ChatInputProps {
 	};
 }
 
-const DEFAULT_NO_KNOWLEDGE_MESSAGE = {
-	admin: "No knowledge found. Upload or connect a knowledge source to get started.",
-	user: "No knowledge found. Reach out to your RITA Go Administrator.",
-};
-
 export function ChatInput({
 	value,
-	placeholder = "Ask me anything...",
+	placeholder,
 	chatStatus,
 	disabled = false,
 	showNoKnowledgeWarning = false,
 	isAdmin = false,
-	noKnowledgeMessage = DEFAULT_NO_KNOWLEDGE_MESSAGE,
+	noKnowledgeMessage,
 	onChange,
 	onSubmit,
 	className,
 	fileUpload,
 }: ChatInputProps) {
+	const { t } = useTranslation("chat");
+
+	// Use translated defaults if no custom messages provided
+	const resolvedPlaceholder = placeholder ?? t("input.placeholder");
+	const resolvedNoKnowledgeMessage = noKnowledgeMessage ?? {
+		admin: t("input.noKnowledgeAdmin"),
+		user: t("input.noKnowledgeUser"),
+	};
 	const isSubmitDisabled =
 		!value.trim() || chatStatus === "streaming" || chatStatus === "submitted";
 
@@ -104,7 +108,7 @@ export function ChatInput({
 						<PromptInputTextarea
 							onChange={(e) => onChange(e.target.value)}
 							value={value}
-							placeholder={placeholder}
+							placeholder={resolvedPlaceholder}
 							disabled={disabled}
 						/>
 					</PromptInputBody>
@@ -120,7 +124,7 @@ export function ChatInput({
 				{showNoKnowledgeWarning && (
 					<div className="mt-0 flex items-center rounded-b-[12px] border border-t-0 border-border bg-muted px-3 py-2">
 						<p className="text-xs text-muted-foreground">
-							{isAdmin ? noKnowledgeMessage.admin : noKnowledgeMessage.user}
+							{isAdmin ? resolvedNoKnowledgeMessage.admin : resolvedNoKnowledgeMessage.user}
 						</p>
 					</div>
 				)}

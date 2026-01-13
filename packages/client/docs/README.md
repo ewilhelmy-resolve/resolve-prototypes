@@ -105,6 +105,67 @@ const { messages } = useConversation(conversationId)
 4. Return with token, store in Keycloak context
 5. API requests include token in Authorization header
 
+## Internationalization (i18n)
+
+Rita Go uses `react-i18next` for internationalization with namespace-based organization.
+
+### Namespace Organization
+
+Translation files are located in `src/i18n/locales/en/`:
+
+| Namespace | Purpose |
+|-----------|---------|
+| `auth` | Authentication pages (login, signup, invite, verify email) |
+| `chat` | Chat interface and messages |
+| `common` | Shared UI elements (buttons, labels) |
+| `connections` | Data source connections |
+| `dialogs` | Modal dialogs (invite users, welcome) |
+| `errors` | Error messages |
+| `files` | File upload/management |
+| `settings` | Settings pages |
+| `tickets` | Ticket-related UI |
+| `toast` | Toast notifications |
+| `validation` | Form validation messages |
+
+### Usage Patterns
+
+**Basic translation:**
+```tsx
+const { t } = useTranslation("auth");
+return <h1>{t("invite.title")}</h1>;
+```
+
+**With interpolation:**
+```tsx
+t("validation.passwordMinLength", { count: 8 })
+// "Password must be at least 8 characters"
+```
+
+**Zod validation with i18n (pattern for translated validation messages):**
+```tsx
+// Create validation messages outside schema
+const validationMessages = useMemo(() => ({
+  passwordMinLength: t("validation.passwordMinLength", { count: MIN_PASSWORD_LENGTH }),
+  passwordComplexity: t("validation.passwordComplexity"),
+}), [t]);
+
+// Use in schema
+const schema = useMemo(() => z.object({
+  password: z.string().min(MIN_PASSWORD_LENGTH, validationMessages.passwordMinLength),
+}), [validationMessages]);
+```
+
+### Testing
+
+Tests mock `react-i18next` to return keys without namespace prefix:
+```tsx
+// In component: t("invite.verifying")
+// Renders as: "invite.verifying" (not "auth.invite.verifying")
+
+// Test assertion:
+expect(screen.getByText("invite.verifying")).toBeInTheDocument();
+```
+
 ## Feature Flags
 
 Rita Go uses a multi-scope feature flag system for controlling features:
