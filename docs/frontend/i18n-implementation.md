@@ -210,7 +210,7 @@ const resolvedPlaceholder = placeholder ?? t("input.placeholder");
 ### Phase 12: Complete Migration (Group by Group)
 
 - [x] Group 1: Pages (HelpPage, ConnectionSourceDetailPage, ClusterDetailPage) → common, connections, tickets namespaces
-- [x] Group 2: Chat UI (ChatUIv1) - SKIPPED (unused component)
+- [x] Group 2: Chat UI (ChatUIv1) - deleted (unused component)
 - [x] Group 3: Tickets/Automation (7 files) → tickets namespace expansion
   - EnableAutoPopulateSheet, EnableAutoRespondModal, ClusterDetailTable
   - TicketTrendsChart, AutomationMetricsCard, AutomationReadinessMeter, KnowledgeTab
