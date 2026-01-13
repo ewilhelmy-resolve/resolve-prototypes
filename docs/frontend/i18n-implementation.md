@@ -207,16 +207,29 @@ const resolvedPlaceholder = placeholder ?? t("input.placeholder");
 - [x] Migrate FileUploadRequirements.tsx (file type/size requirements)
 - [x] Update FilesV1Content.test.tsx to expect translation keys
 
-### Phase 12: Audit
+### Phase 12: Complete Migration (Group by Group)
 
-- [ ] Grep remaining hardcoded strings
-- [ ] Update tests
-- [ ] Final documentation
+- [x] Group 1: Pages (HelpPage, ConnectionSourceDetailPage, ClusterDetailPage) → common, connections, tickets namespaces
+- [x] Group 2: Chat UI (ChatUIv1) - deleted (unused component)
+- [x] Group 3: Tickets/Automation (7 files) → tickets namespace expansion
+  - EnableAutoPopulateSheet, EnableAutoRespondModal, ClusterDetailTable
+  - TicketTrendsChart, AutomationMetricsCard, AutomationReadinessMeter, KnowledgeTab
+- [x] Group 4: User Management (3 files) → settings namespace expansion
+  - EditUserSheet, PendingInvitationsTable, UsersTable
+- [x] Group 5: Connection Configs (5 files) → connections namespace expansion
+  - SharePointConfiguration, WebSearchConfiguration, ConfluenceConfiguration
+  - ServiceNowKBConfiguration, ServiceNowItsmConfiguration
+- [x] Group 6: UI Components (3 files) → common namespace expansion
+  - BulkActions, web-preview, prompt-input
+- [x] Update ConfluenceConfiguration.test.tsx to expect translation keys
+- [x] Update BulkActions.test.tsx to expect translation keys
+
+**Exclusions**: DevToolsPage.tsx (internal dev tool, no translation needed)
 
 ## Current Checkpoint
 
-**Status**: Phases 1-11 COMPLETE
-**Next Step**: Phase 12 - Final audit
+**Status**: ALL PHASES COMPLETE (1-12)
+**Next Step**: None - i18n migration complete
 **Last Updated**: 2026-01-12
 
 ## Related Docs

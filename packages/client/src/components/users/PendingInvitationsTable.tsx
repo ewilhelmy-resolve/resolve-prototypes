@@ -1,5 +1,6 @@
 import { Loader, MoreHorizontal } from "lucide-react";
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { BulkActions } from "@/components/BulkActions";
 import { CrashPage } from "@/components/CrashPage";
 import ConfirmDialog from "@/components/dialogs/ConfirmDialog";
@@ -36,6 +37,7 @@ import {
 } from "@/types/invitations";
 
 export default function PendingInvitationsTable() {
+	const { t } = useTranslation("settings");
 	const [selectedInvitations, setSelectedInvitations] = useState<string[]>([]);
 	const [cancelingInvitation, setCancelingInvitation] =
 		useState<Invitation | null>(null);
@@ -94,13 +96,13 @@ export default function PendingInvitationsTable() {
 			},
 			{
 				onSuccess: () => {
-					toast.success("Invitation resent", {
-						description: `A new invitation has been sent to ${invitation.email}`,
+					toast.success(t("users.invitations.toast.resendSuccess"), {
+						description: t("users.invitations.toast.resendSuccessDesc", { email: invitation.email }),
 					});
 				},
 				onError: (error) => {
-					toast.error("Failed to resend invitation", {
-						description: error.message || "Please try again later",
+					toast.error(t("users.invitations.toast.resendError"), {
+						description: error.message || t("users.invitations.toast.tryAgainLater"),
 					});
 				},
 			},
@@ -121,15 +123,15 @@ export default function PendingInvitationsTable() {
 			},
 			{
 				onSuccess: () => {
-					toast.success("Invitation cancelled", {
-						description: `The invitation to ${cancelingInvitation.email} has been cancelled`,
+					toast.success(t("users.invitations.toast.cancelSuccess"), {
+						description: t("users.invitations.toast.cancelSuccessDesc", { email: cancelingInvitation.email }),
 					});
 					setCancelDialogOpen(false);
 					setCancelingInvitation(null);
 				},
 				onError: (error) => {
-					toast.error("Failed to cancel invitation", {
-						description: error.message || "Please try again later",
+					toast.error(t("users.invitations.toast.cancelError"), {
+						description: error.message || t("users.invitations.toast.tryAgainLater"),
 					});
 				},
 			},
@@ -174,16 +176,16 @@ export default function PendingInvitationsTable() {
 
 		// Show summary toast
 		if (successCount > 0 && failCount === 0) {
-			toast.success("Invitations cancelled", {
-				description: `Successfully cancelled ${successCount} invitation${successCount !== 1 ? "s" : ""}`,
+			toast.success(t("users.invitations.toast.bulkCancelSuccess"), {
+				description: t("users.invitations.toast.bulkCancelSuccessDesc", { count: successCount }),
 			});
 		} else if (failCount > 0 && successCount > 0) {
-			toast.warning("Partial success", {
-				description: `Cancelled ${successCount} invitation${successCount !== 1 ? "s" : ""}, but ${failCount} failed`,
+			toast.warning(t("users.invitations.toast.bulkCancelPartial"), {
+				description: t("users.invitations.toast.bulkCancelPartialDesc", { success: successCount, failed: failCount }),
 			});
 		} else if (failCount > 0) {
-			toast.error("Failed to cancel invitations", {
-				description: `Failed to cancel ${failCount} invitation${failCount !== 1 ? "s" : ""}`,
+			toast.error(t("users.invitations.toast.bulkCancelError"), {
+				description: t("users.invitations.toast.bulkCancelErrorDesc", { count: failCount }),
 			});
 		}
 	};
@@ -201,9 +203,9 @@ export default function PendingInvitationsTable() {
 	if (error) {
 		return (
 			<CrashPage
-				title="Failed to load invitations"
-				description={error.message || "An error occurred while fetching invitations. Please try again."}
-				actionLabel="Try Again"
+				title={t("users.invitations.error.title")}
+				description={error.message || t("users.invitations.error.description")}
+				actionLabel={t("errors.tryAgain")}
 				onAction={() => window.location.reload()}
 			/>
 		);
@@ -220,7 +222,7 @@ export default function PendingInvitationsTable() {
 				{selectedInvitations.length === 0 ? (
 					<div className="flex justify-between items-center py-4">
 						<Input
-							placeholder="Search by email or inviter..."
+							placeholder={t("users.invitations.searchPlaceholder")}
 							className="max-w-sm"
 							value={searchQuery}
 							onChange={(e) => setSearchQuery(e.target.value)}
@@ -230,7 +232,7 @@ export default function PendingInvitationsTable() {
 					<BulkActions
 						selectedItems={selectedInvitations}
 						onDelete={handleBulkCancelClick}
-						deleteLabel="Cancel Invitations"
+						deleteLabel={t("users.invitations.actions.bulkCancel")}
 						onClose={() => setSelectedInvitations([])}
 						itemLabel="invitations"
 					/>
@@ -246,11 +248,11 @@ export default function PendingInvitationsTable() {
 										onCheckedChange={handleSelectAll}
 									/>
 								</TableHead>
-								<TableHead>Email</TableHead>
-								<TableHead>Invited By</TableHead>
-								<TableHead>Invited Date</TableHead>
-								<TableHead>Expires At</TableHead>
-								<TableHead>Status</TableHead>
+								<TableHead>{t("users.invitations.headers.email")}</TableHead>
+								<TableHead>{t("users.invitations.headers.invitedBy")}</TableHead>
+								<TableHead>{t("users.invitations.headers.invitedDate")}</TableHead>
+								<TableHead>{t("users.invitations.headers.expiresAt")}</TableHead>
+								<TableHead>{t("users.invitations.headers.status")}</TableHead>
 								<TableHead className="w-8"></TableHead>
 							</TableRow>
 						</TableHeader>
@@ -275,7 +277,7 @@ export default function PendingInvitationsTable() {
 									</TableCell>
 									<TableCell>
 										<span className="text-sm text-muted-foreground">
-											{invitation.invited_by_name || "Unknown"}
+											{invitation.invited_by_name || t("users.invitations.unknown")}
 										</span>
 									</TableCell>
 									<TableCell className="text-sm text-muted-foreground">
@@ -290,7 +292,7 @@ export default function PendingInvitationsTable() {
 											className="flex items-center gap-1 w-fit"
 										>
 											<Loader className="h-3 w-3" />
-											Pending
+											{t("users.invitations.status.pending")}
 										</Badge>
 									</TableCell>
 									<TableCell>
@@ -309,14 +311,14 @@ export default function PendingInvitationsTable() {
 													onClick={() => handleResendInvitation(invitation)}
 													disabled={isResending}
 												>
-													Resend Invitation
+													{t("users.invitations.actions.resend")}
 												</DropdownMenuItem>
 												<DropdownMenuItem
 													onClick={() => handleCancelInvitation(invitation)}
 													disabled={isCanceling}
 													variant="destructive"
 												>
-													Cancel Invitation
+													{t("users.invitations.actions.cancel")}
 												</DropdownMenuItem>
 											</DropdownMenuContent>
 										</DropdownMenu>
@@ -329,9 +331,8 @@ export default function PendingInvitationsTable() {
 
 				<div className="flex justify-between items-center py-4">
 					<p className="text-sm text-muted-foreground">
-						{invitations.length} Pending Invitation
-						{invitations.length !== 1 ? "s" : ""}
-						{searchQuery && ` (filtered from ${allInvitations.length})`}
+						{t("users.invitations.count", { count: invitations.length })}
+						{searchQuery && t("users.invitations.countFiltered", { total: allInvitations.length })}
 					</p>
 				</div>
 			</div>
@@ -340,11 +341,11 @@ export default function PendingInvitationsTable() {
 			<ConfirmDialog
 				open={cancelDialogOpen}
 				onOpenChange={setCancelDialogOpen}
-				title="Cancel Invitation"
-				description={`Are you sure you want to cancel the invitation for ${cancelingInvitation?.email}? They will no longer be able to accept this invitation.`}
+				title={t("users.invitations.dialogs.cancel.title")}
+				description={t("users.invitations.dialogs.cancel.description", { email: cancelingInvitation?.email })}
 				onConfirm={handleConfirmCancel}
-				confirmLabel="Cancel Invitation"
-				cancelLabel="Keep Invitation"
+				confirmLabel={t("users.invitations.dialogs.cancel.confirmLabel")}
+				cancelLabel={t("users.invitations.dialogs.cancel.cancelLabel")}
 				variant="destructive"
 			/>
 
@@ -352,11 +353,11 @@ export default function PendingInvitationsTable() {
 			<ConfirmDialog
 				open={bulkCancelDialogOpen}
 				onOpenChange={setBulkCancelDialogOpen}
-				title="Cancel Invitations"
-				description={`Are you sure you want to cancel ${selectedInvitations.length} invitation${selectedInvitations.length !== 1 ? "s" : ""}? This action cannot be undone.`}
+				title={t("users.invitations.dialogs.bulkCancel.title")}
+				description={t("users.invitations.dialogs.bulkCancel.description", { count: selectedInvitations.length })}
 				onConfirm={handleConfirmBulkCancel}
-				confirmLabel="Cancel Invitations"
-				cancelLabel="Keep Invitations"
+				confirmLabel={t("users.invitations.dialogs.bulkCancel.confirmLabel")}
+				cancelLabel={t("users.invitations.dialogs.bulkCancel.cancelLabel")}
 				variant="destructive"
 			/>
 		</>

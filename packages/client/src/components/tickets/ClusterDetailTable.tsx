@@ -1,6 +1,7 @@
 // TODO: Uncomment ChevronDown when source filter data is available
 import { /* ChevronDown, */ Loader2, MoreHorizontal } from "lucide-react";
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
 import { BulkActions } from "@/components/BulkActions";
 import { Button } from "@/components/ui/button";
@@ -71,6 +72,7 @@ export function ClusterDetailTable({
 	clusterId,
 	onReviewComplete,
 }: ClusterDetailTableProps) {
+	const { t } = useTranslation("tickets");
 	const [activeTab, setActiveTab] = useState<"needs_response" | "completed">(
 		"needs_response",
 	);
@@ -223,7 +225,7 @@ export function ClusterDetailTable({
 	if (error) {
 		return (
 			<div className="flex min-h-[300px] items-center justify-center">
-				<p className="text-destructive">Failed to load tickets</p>
+				<p className="text-destructive">{t("table.failedToLoad")}</p>
 			</div>
 		);
 	}
@@ -240,8 +242,8 @@ export function ClusterDetailTable({
 							className="w-fit"
 						>
 							<TabsList>
-								<TabsTrigger value="needs_response">Needs Response</TabsTrigger>
-								<TabsTrigger value="completed">Completed</TabsTrigger>
+								<TabsTrigger value="needs_response">{t("table.tabs.needsResponse")}</TabsTrigger>
+								<TabsTrigger value="completed">{t("table.tabs.completed")}</TabsTrigger>
 							</TabsList>
 						</Tabs>
 					</div>
@@ -272,7 +274,7 @@ export function ClusterDetailTable({
 						*/}
 
 						<Input
-							placeholder="Search tickets..."
+							placeholder={t("table.searchPlaceholder")}
 							className="md:w-64 w-full"
 							value={searchQuery}
 							onChange={handleSearchChange}
@@ -285,7 +287,7 @@ export function ClusterDetailTable({
 					actions={[
 						{
 							key: "review",
-							label: "Review AI Responses",
+							label: t("table.actions.reviewAIResponses"),
 							variant: "default",
 							onClick: handleBulkReviewAI,
 						},
@@ -317,7 +319,7 @@ export function ClusterDetailTable({
 									className="h-auto p-0 flex items-center gap-2"
 									onClick={() => handleSort("subject")}
 								>
-									Subject
+									{t("table.headers.subject")}
 									{renderSortIcon(sortField, "subject", sortDir)}
 								</Button>
 							</TableHead>
@@ -327,18 +329,18 @@ export function ClusterDetailTable({
 									className="h-auto p-0 flex items-center gap-2"
 									onClick={() => handleSort("external_id")}
 								>
-									External ID
+									{t("table.headers.externalId")}
 									{renderSortIcon(sortField, "external_id", sortDir)}
 								</Button>
 							</TableHead>
-							<TableHead>Source</TableHead>
+							<TableHead>{t("table.headers.source")}</TableHead>
 							<TableHead className="text-right">
 								<Button
 									variant="ghost"
 									className="h-auto p-0 flex items-center gap-2 ml-auto"
 									onClick={() => handleSort("created_at")}
 								>
-									Created
+									{t("table.headers.created")}
 									{renderSortIcon(sortField, "created_at", sortDir)}
 								</Button>
 							</TableHead>
@@ -349,7 +351,7 @@ export function ClusterDetailTable({
 						{tickets.length === 0 ? (
 							<TableRow>
 								<TableCell colSpan={6} className="h-24 text-center">
-									No tickets found
+									{t("table.noTickets")}
 								</TableCell>
 							</TableRow>
 						) : (
@@ -395,7 +397,7 @@ export function ClusterDetailTable({
 											</DropdownMenuTrigger>
 											<DropdownMenuContent align="end">
 												<DropdownMenuItem onClick={() => reviewAI(row.id)}>
-													Review AI response
+													{t("table.actions.reviewAI")}
 												</DropdownMenuItem>
 											</DropdownMenuContent>
 										</DropdownMenu>
@@ -410,7 +412,7 @@ export function ClusterDetailTable({
 			{/* Table Footer - Pagination */}
 			<div className="flex items-center justify-between py-4">
 				<p className="text-sm text-muted-foreground">
-					{tickets.length} tickets
+					{t("table.pagination.ticketsCount", { count: tickets.length })}
 				</p>
 				<div className="flex gap-2">
 					<Button
@@ -418,14 +420,14 @@ export function ClusterDetailTable({
 						disabled={!cursor}
 						onClick={() => setCursor(undefined)}
 					>
-						First
+						{t("table.pagination.first")}
 					</Button>
 					<Button
 						variant="outline"
 						disabled={!pagination?.has_more}
 						onClick={handleNextPage}
 					>
-						Next
+						{t("table.pagination.next")}
 					</Button>
 				</div>
 			</div>

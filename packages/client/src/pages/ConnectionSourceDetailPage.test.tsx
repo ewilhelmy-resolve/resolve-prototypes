@@ -191,7 +191,7 @@ describe("ConnectionSourceDetailPage", () => {
 			mockDataSourceQuery.isLoading = true;
 			renderWithRouter();
 
-			expect(screen.getByText("Loading connection...")).toBeInTheDocument();
+			expect(screen.getByText("detail.loading")).toBeInTheDocument();
 		});
 	});
 
@@ -257,9 +257,7 @@ describe("ConnectionSourceDetailPage", () => {
 			renderWithRouter();
 
 			expect(
-				screen.getByText(
-					/Connect your Confluence instance to build context for RITA/,
-				),
+				screen.getByText(/detail.connectDescription/),
 			).toBeInTheDocument();
 		});
 	});
@@ -544,7 +542,7 @@ describe("ConnectionSourceDetailPage", () => {
 			mockDataSourceQuery.data = source;
 			renderWithRouter();
 
-			expect(screen.getByText("Configuration not available for this source type")).toBeInTheDocument();
+			expect(screen.getByText("detail.configurationNotAvailable")).toBeInTheDocument();
 		});
 	});
 });

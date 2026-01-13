@@ -17,6 +17,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import type { ChatStatus, FileUIPart } from "ai";
+import { useTranslation } from "react-i18next";
 import {
   ImageIcon,
   Loader2Icon,
@@ -82,6 +83,7 @@ export function PromptInputAttachment({
   className,
   ...props
 }: PromptInputAttachmentProps) {
+  const { t } = useTranslation("common");
   const attachments = usePromptInputAttachments();
 
   return (
@@ -104,7 +106,7 @@ export function PromptInputAttachment({
         </div>
       )}
       <Button
-        aria-label="Remove attachment"
+        aria-label={t("promptInput.removeAttachment")}
         className="-right-1.5 -top-1.5 absolute h-6 w-6 rounded-full opacity-0 group-hover:opacity-100"
         onClick={() => attachments.remove(data.id)}
         size="icon"
@@ -172,10 +174,12 @@ export type PromptInputActionAddAttachmentsProps = ComponentProps<
 };
 
 export const PromptInputActionAddAttachments = ({
-  label = "Add photos or files",
+  label,
   ...props
 }: PromptInputActionAddAttachmentsProps) => {
+  const { t } = useTranslation("common");
   const attachments = usePromptInputAttachments();
+  const resolvedLabel = label ?? t("promptInput.addPhotosOrFiles");
 
   return (
     <DropdownMenuItem
@@ -185,7 +189,7 @@ export const PromptInputActionAddAttachments = ({
         attachments.openFileDialog();
       }}
     >
-      <ImageIcon className="mr-2 size-4" /> {label}
+      <ImageIcon className="mr-2 size-4" /> {resolvedLabel}
     </DropdownMenuItem>
   );
 };
@@ -460,10 +464,12 @@ export type PromptInputTextareaProps = ComponentProps<typeof Textarea>;
 export const PromptInputTextarea = ({
   onChange,
   className,
-  placeholder = "What would you like to know?",
+  placeholder,
   ...props
 }: PromptInputTextareaProps) => {
+  const { t } = useTranslation("common");
   const attachments = usePromptInputAttachments();
+  const resolvedPlaceholder = placeholder ?? t("promptInput.placeholder");
 
   const handleKeyDown: KeyboardEventHandler<HTMLTextAreaElement> = (e) => {
     if (e.key === "Enter") {
@@ -525,7 +531,7 @@ export const PromptInputTextarea = ({
       }}
       onKeyDown={handleKeyDown}
       onPaste={handlePaste}
-      placeholder={placeholder}
+      placeholder={resolvedPlaceholder}
       {...props}
     />
   );

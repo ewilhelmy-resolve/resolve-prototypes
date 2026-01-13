@@ -1,4 +1,5 @@
 import { ArrowRight } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import {
 	Sheet,
 	SheetContent,
@@ -50,6 +51,8 @@ export function EnableAutoPopulateSheet({
 	predictions = DEFAULT_PREDICTIONS,
 	onEnable,
 }: EnableAutoPopulateSheetProps) {
+	const { t } = useTranslation(["tickets", "common"]);
+
 	const handleEnable = () => {
 		console.log("Auto-Populate enabled");
 		onEnable?.();
@@ -64,9 +67,9 @@ export function EnableAutoPopulateSheet({
 		<Sheet open={open} onOpenChange={onOpenChange}>
 			<SheetContent className="w-full sm:max-w-lg flex flex-col p-8" side="right">
 				<SheetHeader className="pl-0">
-					<SheetTitle>Enable Auto-populated</SheetTitle>
+					<SheetTitle>{t("autoPopulate.title")}</SheetTitle>
 					<SheetDescription>
-						New tickets in this group will automatically have fill populate with predicted values.
+						{t("autoPopulate.description")}
 					</SheetDescription>
 				</SheetHeader>
 
@@ -74,10 +77,10 @@ export function EnableAutoPopulateSheet({
 				<div className="flex-1 overflow-auto">
 					{/* Header Row */}
 					<div className="grid grid-cols-[140px_1fr_24px_1fr] gap-2 py-2 bg-muted/50 text-sm font-medium text-muted-foreground">
-						<div>Type</div>
-						<div>Current Value</div>
+						<div>{t("autoPopulate.tableHeaders.type")}</div>
+						<div>{t("autoPopulate.tableHeaders.currentValue")}</div>
 						<div></div>
-						<div>Predicted Value</div>
+						<div>{t("autoPopulate.tableHeaders.predictedValue")}</div>
 					</div>
 
 					{/* Data Rows */}
@@ -101,15 +104,15 @@ export function EnableAutoPopulateSheet({
 				</div>
 
 				{/* Info Alert */}
-				<StatusAlert variant="info" title="Base on AI Predictions">
-					Predictions use past tickets + kb data associated to this ticket group.
+				<StatusAlert variant="info" title={t("autoPopulate.alert.title")}>
+					{t("autoPopulate.alert.description")}
 				</StatusAlert>
 
 				<SheetFooter className="flex-row justify-end gap-2 p-0">
 					<Button variant="outline" onClick={handleCancel}>
-						Cancel
+						{t("common:actions.cancel")}
 					</Button>
-					<Button onClick={handleEnable}>Enable Auto-Populate</Button>
+					<Button onClick={handleEnable}>{t("autoPopulate.enable")}</Button>
 				</SheetFooter>
 			</SheetContent>
 		</Sheet>

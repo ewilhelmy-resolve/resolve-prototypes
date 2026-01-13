@@ -47,7 +47,7 @@ export function EnableAutoRespondModal({
 	onEnable,
 	onAutoRespondEnabled,
 }: EnableAutoRespondModalProps) {
-	const { t } = useTranslation("tickets");
+	const { t } = useTranslation(["tickets", "common"]);
 
 	const handleEnable = () => {
 		console.log("Auto-Respond enabled for:", ticketGroupName);
@@ -91,20 +91,20 @@ export function EnableAutoRespondModal({
 
 					{/* Info Alert */}
 					<StatusAlert variant="info">
-						<p className="font-semibold mb-1">When You Enable Auto-Respond</p>
+						<p className="font-semibold mb-1">{t("autoRespond.whenEnabled")}</p>
 						<ul className="list-disc list-inside space-y-1 text-sm">
-							<li>Send automated responses to {openTicketsCount} currently open tickets</li>
-							<li>Automatically respond to all future tickets in this group</li>
-							<li>Use the responses you've trained Rita with</li>
+							<li>{t("autoRespond.sendToOpen", { count: openTicketsCount })}</li>
+							<li>{t("autoRespond.respondToFuture")}</li>
+							<li>{t("autoRespond.useTrainedResponses")}</li>
 						</ul>
 					</StatusAlert>
 				</div>
 
 				<DialogFooter className="flex-none">
 					<Button variant="outline" onClick={handleCancel}>
-						Cancel
+						{t("common:actions.cancel")}
 					</Button>
-					<Button onClick={handleEnable}>Enable Auto-Respond</Button>
+					<Button onClick={handleEnable}>{t("autoRespond.enableButton")}</Button>
 				</DialogFooter>
 			</DialogContent>
 		</Dialog>
