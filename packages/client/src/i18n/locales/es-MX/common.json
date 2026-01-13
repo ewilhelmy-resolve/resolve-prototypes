@@ -1,0 +1,21 @@
+{
+	"nav": {
+		"home": "Inicio",
+		"knowledgeArticles": "Base de Conocimiento",
+		"tickets": "Tickets",
+		"workflows": "Flujos de Trabajo",
+		"newChat": "Nuevo Chat",
+		"recentChats": "Chats recientes",
+		"loading": "Cargando...",
+		"noConversations": "Sin conversaciones",
+		"ritaGo": "RITA Go",
+		"addArticles": "Agregar Articulos",
+		"inviteUsers": "Invitar Usuarios",
+		"uploadFile": "Subir archivo",
+		"connectSources": "Conectar fuentes",
+		"settings": "Configuracion",
+		"profile": "Perfil",
+		"helpDocumentation": "Documentacion de ayuda",
+		"logOut": "Cerrar sesion"
+	}
+}

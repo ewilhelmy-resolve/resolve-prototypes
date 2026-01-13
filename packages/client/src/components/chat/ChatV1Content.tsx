@@ -449,8 +449,8 @@ function AskRitaEmptyState({
 				<h2 className="text-3xl font-semibold text-foreground">{t("emptyState.title")}</h2>
 				<p className="text-base text-muted-foreground">
 					{hasKnowledge
-						? t("emptyState.withKnowledge")
-						: t("emptyState.noKnowledge")}
+						? t("emptyState.descriptionWithKnowledge")
+						: t("emptyState.descriptionNoKnowledge")}
 				</p>
 			</div>
 
@@ -767,7 +767,7 @@ export default function ChatV1Content({
 								) : (
 									<div className="text-center max-w-md px-4">
 										<h2 className="text-2xl font-semibold text-gray-900 mb-2">
-											{t("emptyState.heading")}
+											{t("emptyState.title")}
 										</h2>
 										<p className="text-sm text-gray-600">
 											{t("emptyState.guestDescription")}

@@ -1,7 +1,7 @@
 import i18n from "i18next";
 import { initReactI18next } from "react-i18next";
 
-// Import all namespaces
+// Import all namespaces - English
 import authEn from "./locales/en/auth.json";
 import chatEn from "./locales/en/chat.json";
 import commonEn from "./locales/en/common.json";
@@ -14,7 +14,27 @@ import ticketsEn from "./locales/en/tickets.json";
 import toastEn from "./locales/en/toast.json";
 import validationEn from "./locales/en/validation.json";
 
+// Import namespaces - Spanish (Mexico) - partial, rest fallback to en
+import chatEsMX from "./locales/es-MX/chat.json";
+import commonEsMX from "./locales/es-MX/common.json";
+
 export const defaultNS = "common";
+
+// Supported languages
+export const SUPPORTED_LANGUAGES = [
+	{ code: "en", label: "English (USA)" },
+	{ code: "es-MX", label: "Espanol (Mexico)" },
+] as const;
+
+export type SupportedLanguage = (typeof SUPPORTED_LANGUAGES)[number]["code"];
+
+// Get saved language from localStorage or default to "en"
+const getSavedLanguage = (): string => {
+	if (typeof window !== "undefined") {
+		return localStorage.getItem("rita_language") || "en";
+	}
+	return "en";
+};
 
 export const resources = {
 	en: {
@@ -30,11 +50,15 @@ export const resources = {
 		toast: toastEn,
 		validation: validationEn,
 	},
+	"es-MX": {
+		chat: chatEsMX,
+		common: commonEsMX,
+	},
 } as const;
 
 i18n.use(initReactI18next).init({
 	resources,
-	lng: "en",
+	lng: getSavedLanguage(),
 	fallbackLng: "en",
 	defaultNS,
 	ns: Object.keys(resources.en),

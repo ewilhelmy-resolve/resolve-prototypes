@@ -1,0 +1,18 @@
+{
+	"input": {
+		"placeholder": "Preguntame lo que sea..."
+	},
+	"emptyState": {
+		"title": "Pregunta a RITA",
+		"description": "Inicia una conversacion con RITA para obtener ayuda con tus preguntas.",
+		"descriptionWithKnowledge": "Diagnostica y resuelve problemas, luego crea automatizaciones para acelerar la remediacion futura",
+		"descriptionNoKnowledge": "Construye el agente de ayuda de tu organizacion agregando conocimiento",
+		"guestDescription": "Inicia una conversacion escribiendo tu pregunta abajo.",
+		"uploadTitle": "Subir un archivo",
+		"uploadDescription": "Agrega conocimiento mediante documentos",
+		"connectionTitle": "Agregar una conexion",
+		"connectionDescription": "Conecta tus fuentes de conocimiento",
+		"fileConstraints": "Tipos de archivo: {{extensions}}; tamaño maximo: {{size}}mb",
+		"privacyInfo": "Todos los archivos y conexiones permanecen dentro del espacio de trabajo de tu organizacion."
+	}
+}
