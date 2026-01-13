@@ -27,9 +27,9 @@ import { ConnectionStatusCard } from "../ConnectionStatusCard";
 import FormSectionTitle from "../form-elements/FormSectionTitle";
 
 const TIME_RANGE_OPTIONS_KEYS = [
-	{ labelKey: "config.timeRanges.last30Days", value: "30" },
-	{ labelKey: "config.timeRanges.last60Days", value: "60" },
-	{ labelKey: "config.timeRanges.last90Days", value: "90" },
+	{ labelKey: "config.timeRanges.last30Days" as const, value: "30" },
+	{ labelKey: "config.timeRanges.last60Days" as const, value: "60" },
+	{ labelKey: "config.timeRanges.last90Days" as const, value: "90" },
 ];
 
 interface ServiceNowItsmConfigurationProps {
