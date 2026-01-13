@@ -15,6 +15,7 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { ExternalLinkIcon } from "lucide-react";
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Streamdown } from "streamdown";
 import {
 	InlineCitation,
@@ -142,6 +143,7 @@ function InlineCitationItem({
 	messageId?: string;
 	onViewDocument: (source: CitationSource) => void;
 }) {
+	const { t } = useTranslation("chat");
   const documentId = getDocumentId(source)
   // Fetch document metadata if source has document ID but no title
   const { data: metadata, isError, isLoading } = useDocumentMetadata(
@@ -163,7 +165,7 @@ function InlineCitationItem({
 	const displayTitle =
 		metadata?.filename ||
 		source.title ||
-		(isLoading ? "Loading..." : undefined);
+		(isLoading ? t("citations.loading") : undefined);
 
   // If no title can be determined (shouldn't happen after loading), hide the citation
   if (!displayTitle) {
@@ -198,7 +200,7 @@ function InlineCitationItem({
               </p>
             ) : documentId ? (
               <p className="text-xs text-muted-foreground">
-                Full document available
+                {t("citations.fullDocumentAvailable")}
               </p>
             ) : null}
 
@@ -222,7 +224,7 @@ function InlineCitationItem({
 										});
 									}}
 								>
-									View source
+									{t("citations.viewSource")}
 									<ExternalLinkIcon className="h-3 w-3" />
 								</a>
 							)}
@@ -234,7 +236,7 @@ function InlineCitationItem({
                   onClick={() => onViewDocument(source)}
                   className="text-xs text-primary hover:underline inline-flex items-center gap-1 text-left"
                 >
-                  View full document →
+                  {t("citations.viewFullDocument")}
                 </button>
               )}
             </div>
@@ -251,6 +253,7 @@ export function ResponseWithInlineCitations({
 	className,
 	messageId,
 }: ResponseWithInlineCitationsProps) {
+	const { t } = useTranslation("chat");
 	const queryClient = useQueryClient();
 	const [modalOpen, setModalOpen] = useState(false);
 	const [modalContent, setModalContent] = useState<{
@@ -294,7 +297,7 @@ export function ResponseWithInlineCitations({
 
 			const content =
 				metadata.metadata?.content ||
-				"Document content is being processed. Please try again later.";
+				t("citations.documentProcessing");
 
 			setModalContent({
 				title: metadata.filename,
@@ -304,7 +307,7 @@ export function ResponseWithInlineCitations({
 			console.error("Error loading document:", error);
 			setModalContent({
 				title: displayTitle,
-				content: "Error loading document. Please try again.",
+				content: t("citations.errorLoading"),
 			});
 		} finally {
 			setIsLoadingDocument(false);
@@ -369,8 +372,8 @@ export function ResponseWithInlineCitations({
 			<Dialog open={modalOpen} onOpenChange={setModalOpen}>
 				<DialogContent className="sm:max-w-5xl max-h-[80vh] overflow-y-auto">
 					<DialogHeader>
-						<DialogTitle>{modalContent?.title || "Document"}</DialogTitle>
-						<DialogDescription>Full document content</DialogDescription>
+						<DialogTitle>{modalContent?.title || t("citations.documentTitle")}</DialogTitle>
+						<DialogDescription>{t("citations.fullDocumentContent")}</DialogDescription>
 					</DialogHeader>
 					<div className="prose dark:prose-invert max-w-none">
 						{isLoadingDocument ? (
@@ -380,7 +383,7 @@ export function ResponseWithInlineCitations({
 						) : modalContent?.content ? (
 							<Streamdown>{modalContent.content}</Streamdown>
 						) : (
-							<p className="text-muted-foreground">No content available</p>
+							<p className="text-muted-foreground">{t("citations.noContent")}</p>
 						)}
 					</div>
 				</DialogContent>

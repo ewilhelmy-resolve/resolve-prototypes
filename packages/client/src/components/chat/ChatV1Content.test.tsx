@@ -188,7 +188,7 @@ describe("ChatV1Content - Attachment Upload Permissions", () => {
 			);
 
 			// Verify basic chat interface is present
-			const textarea = screen.getByPlaceholderText(/ask me anything/i);
+			const textarea = screen.getByPlaceholderText("input.placeholder");
 			expect(textarea).toBeInTheDocument();
 
 			// Verify drag-and-drop overlay is absent (no attachment features)
@@ -266,7 +266,7 @@ describe("ChatV1Content - Attachment Upload Permissions", () => {
 			);
 
 			// Input should be disabled initially (isSending state)
-			const textarea = screen.getByPlaceholderText(/ask me anything/i);
+			const textarea = screen.getByPlaceholderText("input.placeholder");
 			expect(textarea).toBeDisabled();
 
 			// Fast-forward 30 seconds wrapped in act
@@ -359,7 +359,7 @@ describe("ChatV1Content - Attachment Upload Permissions", () => {
 
 			// Input should be enabled (timeout override triggered after useEffect)
 			await waitFor(() => {
-				const textarea = screen.getByPlaceholderText(/ask me anything/i);
+				const textarea = screen.getByPlaceholderText("input.placeholder");
 				expect(textarea).not.toBeDisabled();
 			});
 		});
@@ -390,7 +390,7 @@ describe("ChatV1Content - Attachment Upload Permissions", () => {
 
 			// Input should be enabled (timeout override triggered after useEffect)
 			await waitFor(() => {
-				const textarea = screen.getByPlaceholderText(/ask me anything/i);
+				const textarea = screen.getByPlaceholderText("input.placeholder");
 				expect(textarea).not.toBeDisabled();
 			});
 		});
@@ -425,7 +425,7 @@ describe("ChatV1Content - Attachment Upload Permissions", () => {
 			);
 
 			// Input should be enabled normally (no streaming state)
-			const textarea = screen.getByPlaceholderText(/ask me anything/i);
+			const textarea = screen.getByPlaceholderText("input.placeholder");
 			expect(textarea).not.toBeDisabled();
 		});
 	});

@@ -425,6 +425,7 @@ function AskRitaEmptyState({
 	onUpload: () => void;
 	onConnections: () => void;
 }) {
+	const { t } = useTranslation("chat");
 	const { isOwnerOrAdmin } = useProfilePermissions();
 	// Connection source icons to display
 	const connectionSources = [
@@ -445,11 +446,11 @@ function AskRitaEmptyState({
 	return (
 		<div className="flex flex-col items-center justify-center gap-8 py-12">
 			<div className="text-center space-y-2">
-				<h2 className="text-3xl font-semibold text-foreground">Ask RITA</h2>
+				<h2 className="text-3xl font-semibold text-foreground">{t("emptyState.title")}</h2>
 				<p className="text-base text-muted-foreground">
 					{hasKnowledge
-						? "Diagnose and resolve issues, then create automations to speed up future remediation"
-						: "Build your organization's help agent by adding knowledge"}
+						? t("emptyState.withKnowledge")
+						: t("emptyState.noKnowledge")}
 				</p>
 			</div>
 
@@ -461,18 +462,17 @@ function AskRitaEmptyState({
 							<CardHeader>
 								<div className="flex items-start justify-between">
 									<CardTitle className="text-lg font-medium">
-										Upload a file
+										{t("emptyState.uploadTitle")}
 									</CardTitle>
 									<Upload className="h-5 w-5 text-muted-foreground" />
 								</div>
 								<CardDescription className="text-base">
-									Add knowledge via documents
+									{t("emptyState.uploadDescription")}
 								</CardDescription>
 							</CardHeader>
 							<CardContent>
 								<p className="text-sm text-muted-foreground">
-									File types: {SUPPORTED_DOCUMENT_EXTENSIONS.join(", ")}; max
-									size: {MAX_FILE_SIZE_MB}mb
+									{t("emptyState.fileConstraints", { extensions: SUPPORTED_DOCUMENT_EXTENSIONS.join(", "), size: MAX_FILE_SIZE_MB })}
 								</p>
 							</CardContent>
 						</Card>
@@ -481,10 +481,10 @@ function AskRitaEmptyState({
 						<Card className="cursor-pointer" onClick={onConnections}>
 							<CardHeader>
 								<CardTitle className="text-lg font-medium">
-									Add a connection
+									{t("emptyState.connectionTitle")}
 								</CardTitle>
 								<CardDescription className="text-base">
-									Connect your knowledge sources
+									{t("emptyState.connectionDescription")}
 								</CardDescription>
 							</CardHeader>
 							<CardContent>
@@ -507,7 +507,7 @@ function AskRitaEmptyState({
 					</div>
 
 					<p className="text-xs text-muted-foreground text-center max-w-md">
-						All files and connections stay within your organization's workspace.
+						{t("emptyState.privacyInfo")}
 					</p>
 				</>
 			)}
@@ -528,7 +528,7 @@ export default function ChatV1Content({
 	fileInputRef,
 	requireKnowledgeBase = true,
 }: ChatV1ContentProps) {
-	const { t } = useTranslation("toast");
+	const { t } = useTranslation(["chat", "toast"]);
 	// Copy state tracking for icon feedback
 	const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
 
@@ -588,13 +588,13 @@ export default function ChatV1Content({
 				uploadFileMutation.mutate(file, {
 					onSuccess: () => {
 						ritaToast.success({
-							title: t("success.uploaded", { name: file.name }),
+							title: t("toast:success.uploaded", { name: file.name }),
 						});
 					},
 					onError: (error: any) => {
 						ritaToast.error({
-							title: t("error.uploadFailed"),
-							description: t("descriptions.uploadFailedDesc", { name: file.name, error: error?.message || "Unknown error" }),
+							title: t("toast:error.uploadFailed"),
+							description: t("toast:descriptions.uploadFailedDesc", { name: file.name, error: error?.message || "Unknown error" }),
 						});
 					},
 				});
@@ -612,7 +612,7 @@ export default function ChatV1Content({
 		maxFileSize: 10 * 1024 * 1024, // 10MB
 		onDrop: handleDragDropUpload,
 		onError: (error) =>
-			ritaToast.error({ title: t("error.uploadError"), description: error }),
+			ritaToast.error({ title: t("toast:error.uploadError"), description: error }),
 	});
 
 	// Scroll container ref for pagination (mutable to allow assignment from contextRef)
@@ -647,7 +647,7 @@ export default function ChatV1Content({
 
 		if (chatStatus === "streaming") {
 			const timeoutId = setTimeout(() => {
-				ritaToast.warning({ title: t("warning.responseTimeout") });
+				ritaToast.warning({ title: t("toast:warning.responseTimeout") });
 				setTimeoutOverride(true);
 			}, 30000);
 
@@ -723,11 +723,11 @@ export default function ChatV1Content({
 		try {
 			await navigator.clipboard.writeText(text);
 			setCopiedMessageId(messageId);
-			ritaToast.success({ title: t("success.messageCopied") });
+			ritaToast.success({ title: t("toast:success.messageCopied") });
 			// Reset copied state after 2 seconds (same as ai-elements pattern)
 			setTimeout(() => setCopiedMessageId(null), 2000);
 		} catch (_error) {
-			ritaToast.error({ title: t("error.copyFailed") });
+			ritaToast.error({ title: t("toast:error.copyFailed") });
 		}
 	}, [t]);
 
@@ -767,10 +767,10 @@ export default function ChatV1Content({
 								) : (
 									<div className="text-center max-w-md px-4">
 										<h2 className="text-2xl font-semibold text-gray-900 mb-2">
-											Ask me anything
+											{t("emptyState.heading")}
 										</h2>
 										<p className="text-sm text-gray-600">
-											Start a conversation by typing your question below.
+											{t("emptyState.guestDescription")}
 										</p>
 									</div>
 								)}
@@ -785,7 +785,7 @@ export default function ChatV1Content({
 									<div className="flex justify-center py-4">
 										<Loader size={16} />
 										<span className="ml-2 text-sm text-gray-500">
-											Loading older messages...
+											{t("messages.loadingOlder")}
 										</span>
 									</div>
 								)}
@@ -797,7 +797,7 @@ export default function ChatV1Content({
 									hasPaginationAttempted && (
 										<div className="flex justify-center py-4">
 											<span className="text-sm text-gray-400">
-												Beginning of conversation
+												{t("messages.beginningOfConversation")}
 											</span>
 										</div>
 									)}
@@ -835,7 +835,7 @@ export default function ChatV1Content({
 			{/* Modern input using ChatInput */}
 			<ChatInput
 				value={messageValue}
-				placeholder="Ask me anything..."
+				placeholder={t("input.placeholder")}
 				chatStatus={chatStatus}
 				disabled={isInputDisabled}
 				showNoKnowledgeWarning={requireKnowledgeBase && !hasProcessedOrUploadedFiles}
