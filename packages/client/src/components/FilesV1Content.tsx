@@ -138,7 +138,7 @@ type SortOrder = "asc" | "desc";
 const PAGE_SIZE = 50;
 
 export default function FilesV1Content() {
-	const { t } = useTranslation(["files", "toast"]);
+	const { t } = useTranslation(["kbs", "toast"]);
 	const [searchInput, setSearchInput] = useState(""); // User's input (immediate)
 	const [searchQuery, setSearchQuery] = useState(""); // Debounced value (for API)
 	const [statusFilter, setStatusFilter] = useState("All");

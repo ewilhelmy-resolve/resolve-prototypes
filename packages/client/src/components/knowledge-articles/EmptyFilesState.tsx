@@ -14,7 +14,7 @@ export default function EmptyFilesState({
 	hasActiveFilters = false,
 	onUploadClick,
 }: EmptyFilesStateProps) {
-	const { t } = useTranslation("files");
+	const { t } = useTranslation("kbs");
 
 	return (
 		<div className="bg-background flex flex-col items-center w-full">

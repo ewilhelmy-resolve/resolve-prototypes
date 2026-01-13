@@ -8,7 +8,7 @@ import commonEn from "./locales/en/common.json";
 import connectionsEn from "./locales/en/connections.json";
 import dialogsEn from "./locales/en/dialogs.json";
 import errorsEn from "./locales/en/errors.json";
-import filesEn from "./locales/en/files.json";
+import kbsEn from "./locales/en/kbs.json";
 import settingsEn from "./locales/en/settings.json";
 import ticketsEn from "./locales/en/tickets.json";
 import toastEn from "./locales/en/toast.json";
@@ -24,7 +24,7 @@ export const resources = {
 		connections: connectionsEn,
 		dialogs: dialogsEn,
 		errors: errorsEn,
-		files: filesEn,
+		kbs: kbsEn,
 		settings: settingsEn,
 		tickets: ticketsEn,
 		toast: toastEn,

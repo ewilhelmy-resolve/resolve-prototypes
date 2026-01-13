@@ -28,7 +28,7 @@ interface FileUploadRequirementsProps {
 export function FileUploadRequirements({
 	className = "",
 }: FileUploadRequirementsProps) {
-	const { t } = useTranslation("files");
+	const { t } = useTranslation("kbs");
 	// Format file extensions from constants
 	const fileTypesDisplay = SUPPORTED_DOCUMENT_EXTENSIONS.join(", ");
 

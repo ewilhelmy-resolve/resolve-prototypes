@@ -28,7 +28,7 @@ packages/client/src/i18n/
         ├── chat.json
         ├── auth.json
         ├── validation.json
-        ├── files.json
+        ├── kbs.json
         ├── tickets.json
         └── dialogs.json
 ```
@@ -45,7 +45,7 @@ packages/client/src/i18n/
 | chat | Chat interface |
 | auth | Auth pages |
 | validation | Form validation |
-| files | Knowledge base |
+| kbs | Knowledge base |
 | tickets | Ticket groups, review, automation |
 | dialogs | Dialog components (confirm, invite, welcome) |
 
@@ -147,22 +147,61 @@ t('welcome.greeting', { name: 'John' }) // "Welcome, {{name}}"
 
 ### Phase 8: Auth Pages
 
-- [ ] Create auth.json
-- [ ] Migrate auth pages
+- [x] Expand auth.json (~65 keys: validation, signup, verifyEmail, verifyEmailSent, invite sections)
+- [x] Migrate InviteAcceptPage.tsx (Zod schema with i18n, error messages, UI strings)
+- [x] Migrate VerifyEmailPage.tsx (status messages, buttons)
+- [x] Migrate VerifyEmailSentPage.tsx (verification flow UI)
+- [x] Migrate SignUpPage.tsx (form labels, validation, buttons)
+- [x] Update InviteAcceptPage.test.tsx to expect translation keys
+
+**Zod i18n Pattern**: To avoid TS 5.2.2 compiler bug with complex generics, validation messages are extracted via `useMemo` first, then used in the schema:
+
+```tsx
+const validationMessages = useMemo(() => ({
+  passwordMinLength: t("validation.passwordMinLength", { count: MIN_PASSWORD_LENGTH }),
+}), [t]);
+
+const schema = useMemo(() => z.object({
+  password: z.string().min(MIN_PASSWORD_LENGTH, validationMessages.passwordMinLength),
+}), [validationMessages]);
+```
 
 ### Phase 9: Chat Interface
 
-- [ ] Create chat.json
-- [ ] Migrate chat components
+- [x] Expand chat.json with ~40 keys (input, emptyState, sidebar, messages, deleteDialog, actions, dragDrop, iframe, citations)
+- [x] Migrate ConversationSidebar.tsx (sidebar nav, delete dialog, tooltips)
+- [x] Migrate ChatV1Content.tsx (multi-namespace: chat + toast, empty states, pagination)
+- [x] Migrate ChatInput.tsx (placeholder, knowledge warnings with fallback pattern)
+- [x] Migrate DragDropOverlay.tsx (drop zone UI)
+- [x] Migrate IframeChatPage.tsx (error states, loading)
+- [x] Migrate ResponseWithInlineCitations.tsx (citations UI, modal content)
+- [x] Update ChatV1Content.test.tsx to expect translation keys
+- [x] Update ResponseWithInlineCitations.test.tsx to expect translation keys
+
+**Multi-Namespace Pattern**: Components needing multiple namespaces use array syntax with prefixed keys:
+
+```tsx
+const { t } = useTranslation(["chat", "toast"]);
+// Toast keys: t("toast:success.messageCopied")
+// Chat keys: t("emptyState.title") // default namespace
+```
+
+**Fallback Pattern**: For optional i18n props with defaults:
+
+```tsx
+const resolvedPlaceholder = placeholder ?? t("input.placeholder");
+```
 
 ### Phase 10: Validation
 
-- [ ] Create validation.json
-- [ ] Update Zod schemas
+- [x] validation.json already exists with required.*, format.*, length.*, confirm.*, form.* keys
+- [x] Expand validation.json with password validation keys (required.password, format.password, password.minLength/uppercase/lowercase/number/mismatch)
+- [x] Zod schemas in auth pages use auth.json validation keys (Phase 8 pattern)
+- [x] lib/validation.ts - skipped (utility functions, no React hooks access)
 
-### Phase 11: Files
+### Phase 11: Knowledge Base (kbs)
 
-- [x] Expand files.json with UI strings (~95 keys)
+- [x] Create kbs.json (~95 keys, renamed from files.json)
 - [x] Migrate FilesV1Content.tsx (header, dropdown, search, filters, table, pagination, dialogs)
 - [x] Migrate EmptyFilesState.tsx (empty state messaging)
 - [x] Migrate FileUploadRequirements.tsx (file type/size requirements)
@@ -176,7 +215,7 @@ t('welcome.greeting', { name: 'John' }) // "Welcome, {{name}}"
 
 ## Current Checkpoint
 
-**Status**: Phase 11 - COMPLETE
+**Status**: Phases 1-11 COMPLETE
 **Next Step**: Phase 12 - Final audit
 **Last Updated**: 2026-01-12
 
