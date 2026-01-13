@@ -147,8 +147,24 @@ t('welcome.greeting', { name: 'John' }) // "Welcome, {{name}}"
 
 ### Phase 8: Auth Pages
 
-- [ ] Create auth.json
-- [ ] Migrate auth pages
+- [x] Expand auth.json (~65 keys: validation, signup, verifyEmail, verifyEmailSent, invite sections)
+- [x] Migrate InviteAcceptPage.tsx (Zod schema with i18n, error messages, UI strings)
+- [x] Migrate VerifyEmailPage.tsx (status messages, buttons)
+- [x] Migrate VerifyEmailSentPage.tsx (verification flow UI)
+- [x] Migrate SignUpPage.tsx (form labels, validation, buttons)
+- [x] Update InviteAcceptPage.test.tsx to expect translation keys
+
+**Zod i18n Pattern**: To avoid TS 5.2.2 compiler bug with complex generics, validation messages are extracted via `useMemo` first, then used in the schema:
+
+```tsx
+const validationMessages = useMemo(() => ({
+  passwordMinLength: t("validation.passwordMinLength", { count: MIN_PASSWORD_LENGTH }),
+}), [t]);
+
+const schema = useMemo(() => z.object({
+  password: z.string().min(MIN_PASSWORD_LENGTH, validationMessages.passwordMinLength),
+}), [validationMessages]);
+```
 
 ### Phase 9: Chat Interface
 
@@ -173,8 +189,8 @@ t('welcome.greeting', { name: 'John' }) // "Welcome, {{name}}"
 
 ## Current Checkpoint
 
-**Status**: Phase 7 - COMPLETE
-**Next Step**: Phase 8 - Auth pages migration
+**Status**: Phase 8 - COMPLETE
+**Next Step**: Phase 9 - Chat interface migration
 **Last Updated**: 2026-01-12
 
 ## Related Docs
