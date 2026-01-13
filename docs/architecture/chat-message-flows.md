@@ -282,9 +282,47 @@ LEGACY USER (pre-JIT):
   "conversation_id": "b18c9d56-...",
   "message_id": "2b6a2b62-...",
   "customer_message": "Hello...",
+  "document_ids": [],
+  "transcript_ids": { "transcripts": [...] },
+  "user_email": "iframe-275fb79d@iframe.internal",
   "timestamp": "2024-01-12T..."
 }
 ```
+
+### Webhook Field Reference
+
+| Field | Description | Created When | Updated |
+|-------|-------------|--------------|---------|
+| `source` | Identifies origin app. Rita defines this. Always `rita-chat-iframe` for iframe. | Static | Never |
+| `action` | Event type. Currently only `message_created` for iframe chat. | Per event | Never |
+| `conversation_id` | UUID for chat thread. One conversation = multiple messages. | On `/validate-instantiation` | Never |
+| `message_id` | UUID for each user message. New ID per message sent. | On POST `/messages` | Never |
+| `customer_message` | The user's message text. | Per message | Never |
+| `user_id` | Keycloak userGuid (for platform routing). | From Valkey | Never |
+| `tenant_id` | Organization/tenant ID. | From Valkey | Never |
+| `user_email` | **Synthetic** for iframe: `iframe-{guid-prefix}@iframe.internal`. Not a real email. | On JIT provisioning | Never |
+| `document_ids` | File attachment IDs. **Empty for iframe** (uploads disabled). | Per message | Never |
+| `transcript_ids` | Conversation history for RAG context. Optional. | Per message | Never |
+| `timestamp` | ISO timestamp of event. | Per event | Never |
+
+### Action Types
+
+For **iframe chat**, currently only one action:
+
+| Action | Source | Description |
+|--------|--------|-------------|
+| `message_created` | `rita-chat-iframe` | User sent a chat message |
+
+Other actions exist in Rita (not used by iframe):
+
+| Action | Source | Description |
+|--------|--------|-------------|
+| `document_uploaded` | `rita-documents` | File uploaded to knowledge base |
+| `document_deleted` | `rita-documents` | File removed from knowledge base |
+| `password_reset_request` | `rita-auth` | User requested password reset |
+| `password_reset_complete` | `rita-auth` | User completed password reset |
+
+Future iframe actions could include: `conversation_started`, `typing_indicator`, `conversation_closed`.
 
 ---
 
