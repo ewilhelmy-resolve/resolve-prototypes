@@ -194,8 +194,10 @@ const resolvedPlaceholder = placeholder ?? t("input.placeholder");
 
 ### Phase 10: Validation
 
-- [ ] Create validation.json
-- [ ] Update Zod schemas
+- [x] validation.json already exists with required.*, format.*, length.*, confirm.*, form.* keys
+- [x] Expand validation.json with password validation keys (required.password, format.password, password.minLength/uppercase/lowercase/number/mismatch)
+- [x] Zod schemas in auth pages use auth.json validation keys (Phase 8 pattern)
+- [x] lib/validation.ts - skipped (utility functions, no React hooks access)
 
 ### Phase 11: Files
 
@@ -210,8 +212,8 @@ const resolvedPlaceholder = placeholder ?? t("input.placeholder");
 
 ## Current Checkpoint
 
-**Status**: Phase 9 - COMPLETE
-**Next Step**: Phase 10 - Validation namespace
+**Status**: Phase 10 - COMPLETE
+**Next Step**: Phase 11 - Files namespace
 **Last Updated**: 2026-01-12
 
 ## Related Docs
