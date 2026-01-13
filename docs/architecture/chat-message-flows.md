@@ -1,18 +1,72 @@
 # Chat Message Flows Architecture
 
-This document explains how messages flow through Rita's chat systems, covering both regular Rita Go chats and iframe-embedded chats.
-
-## Overview
-
-Rita has two chat entry points:
-- **Rita Go** (`/chat`) - Main app with Keycloak authentication
-- **Iframe Chat** (`/iframe/chat`) - Embeddable chat using Valkey session config
-
-Both flows converge at the webhook → RabbitMQ → SSE pipeline for responses.
+**Version**: 1.0
+**Last Updated**: 2025-01-13
+**Maintainer**: Engineering Team
 
 ---
 
-## 1. Identity Model
+## Table of Contents
+
+1. [Overview](#overview)
+2. [Identity Model](#identity-model)
+3. [Database Schema](#database-schema)
+4. [Rita Go Chat Flow](#rita-go-chat-flow)
+5. [Iframe Chat Flow](#iframe-chat-flow)
+6. [Webhook Field Reference](#webhook-field-reference)
+7. [RabbitMQ Response Routing](#rabbitmq-response-routing)
+8. [Platform Response Fields](#platform-response-fields)
+9. [Summary](#summary)
+
+---
+
+## Overview
+
+Rita has two chat entry points that converge at the webhook → RabbitMQ → SSE pipeline:
+
+- **Rita Go** (`/chat`) - Main app with Keycloak authentication
+- **Iframe Chat** (`/iframe/chat`) - Embeddable chat using Valkey session config
+
+### High-Level Architecture
+
+```mermaid
+graph TB
+    subgraph "Chat Entry Points"
+        RitaGo[Rita Go /chat]
+        Iframe[Iframe /iframe/chat]
+    end
+
+    subgraph "Rita API Server"
+        API[Express API]
+        SSE[SSE Service]
+        RMQ[RabbitMQ Consumer]
+    end
+
+    subgraph "External"
+        Valkey[(Valkey)]
+        Platform[Actions API]
+        Queue[RabbitMQ]
+    end
+
+    subgraph "Data"
+        DB[(PostgreSQL)]
+    end
+
+    RitaGo -->|Keycloak JWT| API
+    Iframe -->|Session Key| Valkey
+    Valkey -->|Config| API
+    API -->|Webhook| Platform
+    Platform -->|Response| Queue
+    Queue -->|Consume| RMQ
+    RMQ -->|Update| DB
+    RMQ -->|Event| SSE
+    SSE -->|Real-time| RitaGo
+    SSE -->|Real-time| Iframe
+```
+
+---
+
+## Identity Model
 
 ### User ID Types
 
@@ -24,117 +78,83 @@ Both flows converge at the webhook → RabbitMQ → SSE pipeline for responses.
 
 ### Legacy vs New Users
 
-```
-NEW USER (post-JIT):
-  keycloak_id: jarvis-xyz789
-  user_id: xyz789           ← Same as Valkey userGuid
+```mermaid
+graph LR
+    subgraph "NEW USER (post-JIT)"
+        N1[keycloak_id: jarvis-xyz789]
+        N2[user_id: xyz789]
+        N1 -.->|Same| N2
+    end
 
-LEGACY USER (pre-JIT):
-  keycloak_id: jarvis-xyz789
-  user_id: abc123           ← Different from Valkey userGuid
-```
-
----
-
-## 2. Database Schema (Relevant Tables)
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│ user_profiles                                               │
-├─────────────────────────────────────────────────────────────┤
-│ user_id (PK)          │ Rita internal ID                    │
-│ keycloak_id (UNIQUE)  │ "jarvis-{userGuid}" for iframe      │
-│ email                 │                                     │
-│ active_organization_id│ FK → organizations                  │
-└─────────────────────────────────────────────────────────────┘
-                              │
-                              ▼
-┌─────────────────────────────────────────────────────────────┐
-│ conversations                                               │
-├─────────────────────────────────────────────────────────────┤
-│ id (PK)               │ conversation_id                     │
-│ organization_id       │ FK → organizations                  │
-│ user_id               │ FK → user_profiles (Rita user ID)   │
-│ title                 │                                     │
-└─────────────────────────────────────────────────────────────┘
-                              │
-                              ▼
-┌─────────────────────────────────────────────────────────────┐
-│ messages                                                    │
-├─────────────────────────────────────────────────────────────┤
-│ id (PK)               │ message_id                          │
-│ conversation_id       │ FK → conversations                  │
-│ organization_id       │ FK → organizations                  │
-│ user_id               │ FK → user_profiles                  │
-│ role                  │ 'user' | 'assistant'                │
-│ message               │ content text                        │
-│ status                │ 'pending' | 'completed'             │
-└─────────────────────────────────────────────────────────────┘
+    subgraph "LEGACY USER (pre-JIT)"
+        L1[keycloak_id: jarvis-xyz789]
+        L2[user_id: abc123]
+        L1 -.->|Different| L2
+    end
 ```
 
 ---
 
-## 3. Rita Go Regular Chat Flow
+## Database Schema
 
+```mermaid
+erDiagram
+    user_profiles {
+        uuid user_id PK "Rita internal ID"
+        string keycloak_id UK "jarvis-{userGuid} for iframe"
+        string email
+        uuid active_organization_id FK
+    }
+
+    conversations {
+        uuid id PK "conversation_id"
+        uuid organization_id FK
+        uuid user_id FK "Rita user ID"
+        string title
+    }
+
+    messages {
+        uuid id PK "message_id"
+        uuid conversation_id FK
+        uuid organization_id FK
+        uuid user_id FK
+        string role "user | assistant"
+        text message
+        string status "pending | completed"
+    }
+
+    user_profiles ||--o{ conversations : has
+    conversations ||--o{ messages : contains
 ```
-┌──────────────────────────────────────────────────────────────────────────────┐
-│                           RITA GO CHAT FLOW                                  │
-└──────────────────────────────────────────────────────────────────────────────┘
 
-  ┌─────────┐         ┌─────────┐         ┌──────────┐         ┌─────────────┐
-  │ Browser │         │ Rita Go │         │ API      │         │ PostgreSQL  │
-  │         │         │ Client  │         │ Server   │         │             │
-  └────┬────┘         └────┬────┘         └────┬─────┘         └──────┬──────┘
-       │                   │                   │                      │
-       │  1. Keycloak Login                    │                      │
-       │──────────────────►│                   │                      │
-       │                   │                   │                      │
-       │  2. Load Chat UI  │                   │                      │
-       │◄──────────────────│                   │                      │
-       │                   │                   │                      │
-       │                   │  3. Create Session (JWT)                 │
-       │                   │──────────────────►│                      │
-       │                   │                   │                      │
-       │                   │  4. SSE Subscribe │                      │
-       │                   │──────────────────►│  Registers:          │
-       │                   │                   │  userId (Rita DB)    │
-       │                   │                   │  organizationId      │
-       │                   │                   │                      │
-       │  5. User sends message                │                      │
-       │──────────────────►│                   │                      │
-       │                   │                   │                      │
-       │                   │  6. POST /messages                       │
-       │                   │──────────────────►│──────────────────────►
-       │                   │                   │  INSERT message      │
-       │                   │                   │  (status: pending)   │
-       │                   │                   │                      │
-       │                   │                   │  7. Send Webhook     │
-       │                   │                   │─────────────────────────────┐
-       │                   │                   │                             │
-       │                   │                   │         ┌───────────────────▼──┐
-       │                   │                   │         │ Actions API          │
-       │                   │                   │         │ (External Platform)  │
-       │                   │                   │         └───────────┬──────────┘
-       │                   │                   │                     │
-       │                   │                   │         8. Process & respond
-       │                   │                   │                     │
-       │                   │                   │         ┌───────────▼──────────┐
-       │                   │                   │         │ RabbitMQ             │
-       │                   │                   │         │ (chat.responses)     │
-       │                   │                   │         └───────────┬──────────┘
-       │                   │                   │                     │
-       │                   │                   │◄────────────────────┘
-       │                   │                   │  9. Consume message
-       │                   │                   │
-       │                   │                   │  10. Fetch user_id from
-       │                   │                   │      conversations table
-       │                   │                   │
-       │                   │  11. SSE Event    │
-       │                   │◄──────────────────│  Route by:
-       │                   │                   │  userId (from conversation)
-       │  12. Display      │                   │  organizationId
-       │◄──────────────────│                   │
-       │                   │                   │
+---
+
+## Rita Go Chat Flow
+
+```mermaid
+sequenceDiagram
+    participant Browser
+    participant RitaGo as Rita Go Client
+    participant API as API Server
+    participant DB as PostgreSQL
+    participant Platform as Actions API
+    participant Queue as RabbitMQ
+
+    Browser->>RitaGo: 1. Keycloak Login
+    RitaGo->>API: 2. Create Session (JWT)
+    RitaGo->>API: 3. SSE Subscribe (userId, orgId)
+
+    Browser->>RitaGo: 4. User sends message
+    RitaGo->>API: 5. POST /messages
+    API->>DB: 6. INSERT message (pending)
+    API->>Platform: 7. Webhook (message_created)
+
+    Platform->>Queue: 8. Response
+    Queue->>API: 9. Consume message
+    API->>DB: 10. Fetch user_id from conversations
+    API->>DB: 11. Update message + create assistant msg
+    API->>RitaGo: 12. SSE Event (route by conversation user_id)
+    RitaGo->>Browser: 13. Display response
 ```
 
 ### Webhook Payload (Rita Go)
@@ -143,9 +163,9 @@ LEGACY USER (pre-JIT):
 {
   "source": "rita-chat",
   "action": "message_created",
-  "user_id": "abc123-...",        // Rita DB user_id
+  "user_id": "abc123-...",
   "user_email": "user@example.com",
-  "tenant_id": "org456-...",      // organization_id
+  "tenant_id": "org456-...",
   "conversation_id": "conv789-...",
   "message_id": "msg012-...",
   "customer_message": "Hello...",
@@ -155,94 +175,43 @@ LEGACY USER (pre-JIT):
 
 ---
 
-## 4. Iframe Chat Flow
+## Iframe Chat Flow
 
-```
-┌──────────────────────────────────────────────────────────────────────────────┐
-│                           IFRAME CHAT FLOW                                   │
-└──────────────────────────────────────────────────────────────────────────────┘
+```mermaid
+sequenceDiagram
+    participant Host as Host App
+    participant Iframe as Iframe Client
+    participant API as API Server
+    participant Valkey
+    participant DB as PostgreSQL
+    participant Platform as Actions API
+    participant Queue as RabbitMQ
 
-  ┌─────────┐    ┌─────────┐    ┌─────────┐    ┌────────┐    ┌──────────────┐
-  │ Host    │    │ Iframe  │    │ API     │    │ Valkey │    │ PostgreSQL   │
-  │ App     │    │ Client  │    │ Server  │    │        │    │              │
-  └────┬────┘    └────┬────┘    └────┬────┘    └───┬────┘    └──────┬───────┘
-       │              │              │             │                │
-       │  1. Store session config    │             │                │
-       │─────────────────────────────────────────►│                │
-       │  Key: rita:session:{guid}   │             │                │
-       │  Data: {userGuid, tenantId, │             │                │
-       │         clientId, clientKey,│             │                │
-       │         actionsApiBaseUrl}  │             │                │
-       │              │              │             │                │
-       │  2. Load iframe with sessionKey           │                │
-       │─────────────►│              │             │                │
-       │              │              │             │                │
-       │              │  3. POST /iframe/validate-instantiation     │
-       │              │─────────────►│             │                │
-       │              │              │             │                │
-       │              │              │  4. HGET    │                │
-       │              │              │────────────►│                │
-       │              │              │◄────────────│                │
-       │              │              │  Returns: userGuid, tenantId,│
-       │              │              │  clientId, clientKey, etc.   │
-       │              │              │             │                │
-       │              │              │  5. JIT Provisioning         │
-       │              │              │────────────────────────────►│
-       │              │              │  - Resolve/create org        │
-       │              │              │  - Resolve/create user       │
-       │              │              │  - Create conversation       │
-       │              │              │  (stores Rita user_id)       │
-       │              │              │             │                │
-       │              │              │  6. Create session           │
-       │              │              │  userId: Rita DB ID          │
-       │              │              │  organizationId: tenant      │
-       │              │              │  iframeConfig: Valkey data   │
-       │              │              │             │                │
-       │              │◄─────────────│             │                │
-       │              │  Set-Cookie + conversationId               │
-       │              │              │             │                │
-       │              │  7. SSE Subscribe          │                │
-       │              │─────────────►│  Registers: │                │
-       │              │              │  userId (Rita DB ID)         │
-       │              │              │  organizationId              │
-       │              │              │             │                │
-       │  8. User sends message      │             │                │
-       │─────────────►│              │             │                │
-       │              │              │             │                │
-       │              │  9. POST /messages         │                │
-       │              │─────────────►│────────────────────────────►│
-       │              │              │  INSERT message              │
-       │              │              │             │                │
-       │              │              │  10. Send Tenant Webhook     │
-       │              │              │  URL: {actionsApiBaseUrl}/api/Webhooks/postEvent/{tenantId}
-       │              │              │  Auth: Basic {clientId}:{clientKey}
-       │              │              │──────────────────────────────────────────┐
-       │              │              │             │                            │
-       │              │              │             │     ┌─────────────────────▼─┐
-       │              │              │             │     │ Actions API           │
-       │              │              │             │     │ (Tenant-specific URL) │
-       │              │              │             │     └──────────┬────────────┘
-       │              │              │             │                │
-       │              │              │             │     11. Process & respond
-       │              │              │             │                │
-       │              │              │             │     ┌──────────▼────────────┐
-       │              │              │             │     │ RabbitMQ              │
-       │              │              │             │     │ (chat.responses)      │
-       │              │              │             │     └──────────┬────────────┘
-       │              │              │             │                │
-       │              │              │◄─────────────────────────────┘
-       │              │              │  12. Consume message
-       │              │              │  Payload contains Keycloak userGuid
-       │              │              │             │                │
-       │              │              │  13. Fetch user_id from      │
-       │              │              │      conversations table ────────────────►
-       │              │              │  (Returns Rita DB user_id)   │
-       │              │              │             │                │
-       │              │  14. SSE Event             │                │
-       │              │◄─────────────│  Route by:  │                │
-       │              │              │  userId (from conversation)  │
-       │  15. Display │              │  organizationId              │
-       │◄─────────────│              │             │                │
+    Host->>Valkey: 1. Store session config (userGuid, tenantId, creds)
+    Host->>Iframe: 2. Load iframe with sessionKey
+
+    Iframe->>API: 3. POST /iframe/validate-instantiation
+    API->>Valkey: 4. HGET config
+    Valkey-->>API: userGuid, tenantId, clientId, clientKey
+    API->>DB: 5. JIT Provisioning (resolve/create org, user, conversation)
+    API->>API: 6. Create session (userId = Rita DB ID)
+    API-->>Iframe: Set-Cookie + conversationId
+
+    Iframe->>API: 7. SSE Subscribe (Rita userId, orgId)
+    Iframe->>API: 8. POST /iframe/execute
+    API->>Platform: 9. Webhook (workflow_trigger)
+
+    Host->>Iframe: 10. User sends message
+    Iframe->>API: 11. POST /messages
+    API->>DB: 12. INSERT message (pending)
+    API->>Platform: 13. Webhook (message_created)
+
+    Platform->>Queue: 14. Response
+    Queue->>API: 15. Consume message
+    API->>DB: 16. Fetch user_id from conversations
+    API->>DB: 17. Update message + create assistant msg
+    API->>Iframe: 18. SSE Event (route by conversation user_id)
+    Iframe->>Host: 19. Display response
 ```
 
 ### Valkey Session Payload
@@ -269,16 +238,11 @@ LEGACY USER (pre-JIT):
 {
   "source": "rita-chat-iframe",
   "action": "message_created",
-
-  // Valkey IDs (for platform routing)
   "userGuid": "275fb79d-...",
   "tenantId": "00F4F67D-...",
   "chatSessionId": "b974d74f-...",
-
-  // Snake_case copies (for RabbitMQ response)
-  "user_id": "275fb79d-...",      // = userGuid (Keycloak ID)
-  "tenant_id": "00F4F67D-...",    // = tenantId
-
+  "user_id": "275fb79d-...",
+  "tenant_id": "00F4F67D-...",
   "conversation_id": "b18c9d56-...",
   "message_id": "2b6a2b62-...",
   "customer_message": "Hello...",
@@ -289,39 +253,40 @@ LEGACY USER (pre-JIT):
 }
 ```
 
-### Webhook Field Reference
+---
+
+## Webhook Field Reference
 
 | Field | Description | Created When | Updated |
 |-------|-------------|--------------|---------|
-| `source` | Identifies origin app. Rita defines this. Always `rita-chat-iframe` for iframe. | Static | Never |
-| `action` | Event type. Currently only `message_created` for iframe chat. | Per event | Never |
+| `source` | Origin app. Always `rita-chat-iframe` for iframe. | Static | Never |
+| `action` | Event type: `workflow_trigger` or `message_created`. | Per event | Never |
 | `conversation_id` | UUID for chat thread. One conversation = multiple messages. | On `/validate-instantiation` | Never |
-| `message_id` | UUID for each user message. New ID per message sent. | On POST `/messages` | Never |
+| `message_id` | UUID for each user message. New ID per message. | On POST `/messages` | Never |
 | `customer_message` | The user's message text. | Per message | Never |
 | `user_id` | Keycloak userGuid (for platform routing). | From Valkey | Never |
 | `tenant_id` | Organization/tenant ID. | From Valkey | Never |
-| `user_email` | **Synthetic** for iframe: `iframe-{guid-prefix}@iframe.internal`. Not a real email. | On JIT provisioning | Never |
-| `document_ids` | File attachment IDs. **Empty for iframe** (uploads disabled). | Per message | Never |
+| `user_email` | **Synthetic**: `iframe-{guid-prefix}@iframe.internal`. Not real. | On JIT provisioning | Never |
+| `document_ids` | File attachment IDs. **Empty for iframe**. | Per message | Never |
 | `transcript_ids` | Conversation history for RAG context. Optional. | Per message | Never |
-| `timestamp` | ISO timestamp of event. | Per event | Never |
 
 ### Action Types
 
-For **iframe chat**, two actions exist:
+**Iframe chat actions:**
 
-| Action | Source | Triggered By | Description |
-|--------|--------|--------------|-------------|
-| `workflow_trigger` | `rita-chat-iframe` | `/api/iframe/execute` | Sent on iframe load to initialize workflow |
-| `message_created` | `rita-chat-iframe` | `POST /messages` | User sent a chat message |
+| Action | Triggered By | Description |
+|--------|--------------|-------------|
+| `workflow_trigger` | `/api/iframe/execute` | Sent on iframe load |
+| `message_created` | `POST /messages` | User sent a chat message |
 
-Other actions exist in Rita (not used by iframe):
+**Other actions (not iframe):**
 
 | Action | Source | Description |
 |--------|--------|-------------|
-| `document_uploaded` | `rita-documents` | File uploaded to knowledge base |
-| `document_deleted` | `rita-documents` | File removed from knowledge base |
-| `password_reset_request` | `rita-auth` | User requested password reset |
-| `password_reset_complete` | `rita-auth` | User completed password reset |
+| `document_uploaded` | `rita-documents` | File uploaded |
+| `document_deleted` | `rita-documents` | File removed |
+| `password_reset_request` | `rita-auth` | Password reset requested |
+| `password_reset_complete` | `rita-auth` | Password reset completed |
 
 ### FAQ
 
@@ -332,106 +297,54 @@ A: Yes, `workflow_trigger` is sent via `/api/iframe/execute` endpoint.
 A: UUID created by Rita when iframe calls `/api/iframe/validate-instantiation`. Represents a chat thread that holds multiple messages. Never updated after creation.
 
 **Q: Is a new `message_id` created for every message?**
-A: Yes, new UUID generated for each user message. Platform echoes it back in RabbitMQ response so Rita knows which message to mark complete.
+A: Yes, new UUID generated for each user message. Platform echoes it back so Rita knows which message to mark complete.
 
 **Q: Is `user_email` a real email?**
-A: No, it's synthetic for iframe users: `iframe-{guid-prefix}@iframe.internal`. Generated for internal tracking since iframe users don't authenticate with email.
+A: No, it's synthetic for iframe users: `iframe-{guid-prefix}@iframe.internal`.
 
 **Q: Are `document_ids` and `transcript_ids` relevant for iframe?**
-A: `document_ids` is empty (file uploads disabled for iframe). `transcript_ids` contains conversation history for RAG context - platform can use or ignore.
+A: `document_ids` is empty (uploads disabled). `transcript_ids` contains conversation history for RAG context.
 
 ---
 
-## 5. RabbitMQ Response Routing (Critical Path)
+## RabbitMQ Response Routing
 
-```
-┌──────────────────────────────────────────────────────────────────────────────┐
-│                        RABBITMQ → SSE ROUTING                                │
-└──────────────────────────────────────────────────────────────────────────────┘
+### SSE Routing Flow
 
-                    RabbitMQ Message
-                    ┌─────────────────────────────┐
-                    │ {                           │
-                    │   message_id: "msg012",     │
-                    │   conversation_id: "conv789"│
-                    │   tenant_id: "org456",      │
-                    │   user_id: "xyz789", ◄──────┼─── Keycloak userGuid
-                    │   response: "Hello..."      │    (may differ from
-                    │ }                           │     Rita DB user_id)
-                    └─────────────┬───────────────┘
-                                  │
-                                  ▼
-                    ┌─────────────────────────────┐
-                    │   processMessage()          │
-                    │   rabbitmq.ts:355           │
-                    └─────────────┬───────────────┘
-                                  │
-                                  │  CRITICAL FIX:
-                                  │  Always fetch user_id from DB
-                                  │
-                                  ▼
-                    ┌─────────────────────────────┐
-                    │  SELECT user_id             │
-                    │  FROM conversations         │
-                    │  WHERE id = conversation_id │
-                    │  AND organization_id = ...  │
-                    └─────────────┬───────────────┘
-                                  │
-                                  │  Returns Rita DB user_id
-                                  │  (matches SSE subscription)
-                                  │
-                                  ▼
-                    ┌─────────────────────────────┐
-                    │  sseService.sendToUser(     │
-                    │    user_id,    ◄────────────┼─── From conversation table
-                    │    organization_id,         │    (NOT from payload)
-                    │    event                    │
-                    │  )                          │
-                    └─────────────┬───────────────┘
-                                  │
-                                  ▼
-                    ┌─────────────────────────────┐
-                    │  SSE Connection Lookup      │
-                    │  sse.ts:256                 │
-                    │                             │
-                    │  conn.userId === user_id    │
-                    │  &&                         │
-                    │  conn.organizationId ===    │
-                    │    organization_id          │
-                    └─────────────┬───────────────┘
-                                  │
-                                  │  Match found!
-                                  │
-                                  ▼
-                    ┌─────────────────────────────┐
-                    │  Browser receives SSE event │
-                    │  → Chat UI updates          │
-                    └─────────────────────────────┘
+```mermaid
+flowchart TD
+    A[RabbitMQ Message] -->|Contains user_id from webhook| B{processMessage}
+    B -->|CRITICAL| C[SELECT user_id FROM conversations]
+    C -->|Returns Rita DB user_id| D[sseService.sendToUser]
+    D -->|Match by userId + orgId| E[SSE Connection Lookup]
+    E -->|Found| F[Browser receives event]
+    E -->|Not found| G[Message dropped]
 ```
 
-### Why This Fix Was Needed
+### Why Fetch user_id from DB?
 
-```
-BEFORE FIX (broken for legacy users):
-─────────────────────────────────────
-SSE Subscription:    userId = "abc123" (Rita DB)
-RabbitMQ Payload:    user_id = "xyz789" (Keycloak)
-                     ↓
-                     NO MATCH → Message dropped
+```mermaid
+graph LR
+    subgraph "BEFORE FIX (broken)"
+        B1[SSE: userId=abc123]
+        B2[Payload: user_id=xyz789]
+        B1 -.->|No match| B3[Message dropped]
+    end
 
-AFTER FIX (works for all users):
-────────────────────────────────
-SSE Subscription:    userId = "abc123" (Rita DB)
-Conversation Table:  user_id = "abc123" (Rita DB)
-                     ↓
-                     MATCH → Message delivered
+    subgraph "AFTER FIX (works)"
+        A1[SSE: userId=abc123]
+        A2[Conversation: user_id=abc123]
+        A1 -->|Match| A3[Message delivered]
+    end
 ```
+
+The payload's `user_id` may be Keycloak userGuid (for legacy users), which differs from Rita's internal user ID used in SSE subscriptions. The conversation table stores the correct Rita user ID.
 
 ---
 
-## 6. Platform Response: Used vs Ignored Fields
+## Platform Response Fields
 
-The Actions API (platform) returns responses with legacy chat parameters from older integrations. Rita only uses a subset of these fields.
+The Actions API returns legacy chat parameters. Rita only uses a subset.
 
 ### RabbitMQ Response from Platform
 
@@ -444,28 +357,17 @@ The Actions API (platform) returns responses with legacy chat parameters from ol
   "response": "Here is the answer...",
   "metadata": {
     "tableName": "",
-    "columns": [
-      {"key": "Name", "name": "Name", "type": "String"},
-      {"key": "Value", "name": "Value", "type": "String"}
-    ],
+    "columns": [{"key": "Name", "name": "Name", "type": "String"}],
     "data": [
       {"Name": "%chatSessionId%", "Value": "9b5d230e-..."},
-      {"Name": "%tabInstanceId%", "Value": "9729c374-..."},
-      {"Name": "%conversationid%", "Value": "0ce47347-..."},
-      {"Name": "%session%", "Value": "9b5d230e-..."}
+      {"Name": "%conversationid%", "Value": "0ce47347-..."}
     ],
-    "paging": {
-      "pageSize": 2,
-      "pageNumber": 1,
-      "totalRecords": 2,
-      "sortDirection": 0,
-      "columnNameToSortBy": null
-    }
+    "paging": {"pageSize": 2, "totalRecords": 2}
   }
 }
 ```
 
-### Fields Used by Rita
+### Fields Used vs Ignored
 
 | Field | Used | Purpose |
 |-------|------|---------|
@@ -473,40 +375,29 @@ The Actions API (platform) returns responses with legacy chat parameters from ol
 | `conversation_id` | **Yes** | Lookup user_id for SSE routing |
 | `tenant_id` | **Yes** | Maps to organization_id |
 | `response` | **Yes** | Assistant message content |
-| `metadata` | **Yes** | Stored with assistant message (passed through) |
-| `response_group_id` | **Yes** | Groups multi-part responses |
+| `metadata` | **Yes** | Stored with message (passed through) |
+| `user_id` | **No** | Fetched from conversation table instead |
+| `metadata.%conversationid%` | **No** | Platform's conversation ID (not Rita's) |
+| `metadata.%chatSessionId%` | **No** | Platform's session ID |
+| `metadata.paging` | **No** | Legacy pagination |
 
-### Fields Ignored by Rita
-
-| Field | Ignored | Reason |
-|-------|---------|--------|
-| `user_id` | **Yes** | Fetched from conversation table instead |
-| `metadata.tableName` | **Yes** | Legacy table display format |
-| `metadata.columns` | **Yes** | Legacy table column definitions |
-| `metadata.data[].%chatSessionId%` | **Yes** | Platform's session ID, not Rita's |
-| `metadata.data[].%tabInstanceId%` | **Yes** | Platform's tab tracking |
-| `metadata.data[].%conversationid%` | **Yes** | Platform's conversation ID (different from Rita's) |
-| `metadata.data[].%session%` | **Yes** | Platform's session reference |
-| `metadata.paging` | **Yes** | Legacy pagination for table data |
-
-### Key Distinction
+### Platform vs Rita IDs
 
 ```
 PLATFORM IDs (legacy, ignored):
   %conversationid% = "0ce47347-..."  ← Platform's internal conversation
   %chatSessionId%  = "9b5d230e-..."  ← Platform's chat session
-  %session%        = "9b5d230e-..."  ← Platform's session
 
 RITA IDs (used):
-  conversation_id  = "b18c9d56-..."  ← Rita's conversation (from webhook echo)
+  conversation_id  = "b18c9d56-..."  ← Rita's conversation (echoed from webhook)
   message_id       = "2b6a2b62-..."  ← Rita's message ID
 ```
 
-Rita maintains its own conversation tracking independent of the platform's legacy chat system.
-
 ---
 
-## 7. Summary: ID Flow by Chat Type
+## Summary
+
+### ID Flow by Chat Type
 
 | Step | Rita Go | Iframe |
 |------|---------|--------|
