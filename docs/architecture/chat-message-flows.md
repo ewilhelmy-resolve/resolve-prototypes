@@ -307,11 +307,12 @@ LEGACY USER (pre-JIT):
 
 ### Action Types
 
-For **iframe chat**, currently only one action:
+For **iframe chat**, two actions exist:
 
-| Action | Source | Description |
-|--------|--------|-------------|
-| `message_created` | `rita-chat-iframe` | User sent a chat message |
+| Action | Source | Triggered By | Description |
+|--------|--------|--------------|-------------|
+| `workflow_trigger` | `rita-chat-iframe` | `/api/iframe/execute` | Sent on iframe load to initialize workflow |
+| `message_created` | `rita-chat-iframe` | `POST /messages` | User sent a chat message |
 
 Other actions exist in Rita (not used by iframe):
 
@@ -322,7 +323,22 @@ Other actions exist in Rita (not used by iframe):
 | `password_reset_request` | `rita-auth` | User requested password reset |
 | `password_reset_complete` | `rita-auth` | User completed password reset |
 
-Future iframe actions could include: `conversation_started`, `typing_indicator`, `conversation_closed`.
+### FAQ
+
+**Q: Is a webhook sent when the iframe loads?**
+A: Yes, `workflow_trigger` is sent via `/api/iframe/execute` endpoint.
+
+**Q: What is `conversation_id` and when is it created?**
+A: UUID created by Rita when iframe calls `/api/iframe/validate-instantiation`. Represents a chat thread that holds multiple messages. Never updated after creation.
+
+**Q: Is a new `message_id` created for every message?**
+A: Yes, new UUID generated for each user message. Platform echoes it back in RabbitMQ response so Rita knows which message to mark complete.
+
+**Q: Is `user_email` a real email?**
+A: No, it's synthetic for iframe users: `iframe-{guid-prefix}@iframe.internal`. Generated for internal tracking since iframe users don't authenticate with email.
+
+**Q: Are `document_ids` and `transcript_ids` relevant for iframe?**
+A: `document_ids` is empty (file uploads disabled for iframe). `transcript_ids` contains conversation history for RAG context - platform can use or ignore.
 
 ---
 
