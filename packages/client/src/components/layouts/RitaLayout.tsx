@@ -588,7 +588,7 @@ function RitaLayoutContent({ children, activePage = "chat" }: RitaLayoutProps) {
 										variant="secondary"
 										icon={<MailOpen className="w-4 h-4" />}
 									>
-										Invite Users
+										{t("nav.inviteUsers")}
 									</InviteUsersButton>
 								</>
 							)}

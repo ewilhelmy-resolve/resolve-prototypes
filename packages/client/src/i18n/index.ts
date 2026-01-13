@@ -23,7 +23,7 @@ export const defaultNS = "common";
 // Supported languages
 export const SUPPORTED_LANGUAGES = [
 	{ code: "en", label: "English (USA)" },
-	{ code: "es-MX", label: "Espanol (Mexico)" },
+	{ code: "es-MX", label: "Español (Mexico)" },
 ] as const;
 
 export type SupportedLanguage = (typeof SUPPORTED_LANGUAGES)[number]["code"];

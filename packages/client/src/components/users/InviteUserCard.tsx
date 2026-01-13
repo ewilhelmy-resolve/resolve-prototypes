@@ -1,4 +1,5 @@
 import { useProfilePermissions } from "@/hooks/api/useProfile";
+import { useTranslation } from "react-i18next";
 import InviteUsersButton from "./InviteUsersButton";
 
 /**
@@ -6,6 +7,7 @@ import InviteUsersButton from "./InviteUsersButton";
  * Only visible to users with invitation management permissions (admin/owner)
  */
 const InviteUserCard = () => {
+	const { t } = useTranslation();
 	const { canManageInvitations } = useProfilePermissions();
 
 	// Hide card for regular users
@@ -17,10 +19,10 @@ const InviteUserCard = () => {
 		<div className="mt-auto pt-6">
 			<div className="space-y-3 p-4 border border-border rounded-lg bg-blue-50/30">
 				<h3 className="text-base font-semibold text-foreground">
-					Invite Users
+					{t("inviteCard.title")}
 				</h3>
 				<p className="text-sm text-muted-foreground">
-					Invite teammates to use RITA and resolve support faster.
+					{t("inviteCard.description")}
 				</p>
 				<InviteUsersButton className="w-full gap-2 h-9" />
 			</div>

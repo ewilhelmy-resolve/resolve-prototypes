@@ -17,5 +17,9 @@
 		"profile": "Perfil",
 		"helpDocumentation": "Documentacion de ayuda",
 		"logOut": "Cerrar sesion"
+	},
+	"inviteCard": {
+		"title": "Invitar Usuarios",
+		"description": "Invita a tu equipo a usar RITA y resolver soporte mas rapido."
 	}
 }

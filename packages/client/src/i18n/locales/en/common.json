@@ -18,6 +18,10 @@
 		"helpDocumentation": "Help documentation",
 		"logOut": "Log out"
 	},
+	"inviteCard": {
+		"title": "Invite Users",
+		"description": "Invite teammates to use RITA and resolve support faster."
+	},
 	"actions": {
 		"cancel": "Cancel",
 		"save": "Save",
