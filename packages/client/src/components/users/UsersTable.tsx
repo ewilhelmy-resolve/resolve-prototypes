@@ -1,5 +1,6 @@
 import { Ban, Check, ChevronDown, Loader, MoreHorizontal } from "lucide-react";
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { BulkActions } from "@/components/BulkActions";
 import { CrashPage } from "@/components/CrashPage";
 import ConfirmDialog from "@/components/dialogs/ConfirmDialog";
@@ -36,6 +37,7 @@ import type { OrganizationRole } from "@/types/member";
 const PAGE_SIZE = 50;
 
 export default function UsersTable() {
+	const { t } = useTranslation(["settings", "common"]);
 	// Use custom hook for state management
 	const {
 		selectedUsers,
@@ -150,12 +152,12 @@ export default function UsersTable() {
 	if (error) {
 		return (
 			<CrashPage
-				title="Failed to load members"
+				title={t("errors.loadDataSourcesFailed")}
 				description={
 					error.message ||
-					"An error occurred while fetching members. Please try again."
+					t("errors.loadDataSourcesDescription")
 				}
-				actionLabel="Try Again"
+				actionLabel={t("errors.tryAgain")}
 				onAction={() => window.location.reload()}
 			/>
 		);
@@ -314,7 +316,7 @@ export default function UsersTable() {
 				{selectedUsers.length === 0 ? (
 					<div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 py-4">
 						<Input
-							placeholder="Search by name or email..."
+							placeholder={t("users.table.searchByNameOrEmail")}
 							className="max-w-sm"
 							value={searchInput}
 							onChange={(e) => setSearchInput(e.target.value)}
@@ -323,26 +325,26 @@ export default function UsersTable() {
 							<DropdownMenu>
 								<DropdownMenuTrigger asChild>
 									<Button variant="outline">
-										Status:{" "}
+										{t("users.table.status")}:{" "}
 										{statusFilter === "All"
-											? "All"
+											? t("users.table.statusAll")
 											: statusFilter === "active"
-												? "Active"
-												: "Inactive"}
+												? t("users.table.statusActive")
+												: t("users.table.statusInactive")}
 										<ChevronDown className="h-4 w-4 ml-2" />
 									</Button>
 								</DropdownMenuTrigger>
 								<DropdownMenuContent>
 									<DropdownMenuItem onSelect={() => setStatusFilter("All")}>
-										All
+										{t("users.table.statusAll")}
 									</DropdownMenuItem>
 									<DropdownMenuItem onSelect={() => setStatusFilter("active")}>
-										Active
+										{t("users.table.statusActive")}
 									</DropdownMenuItem>
 									<DropdownMenuItem
 										onSelect={() => setStatusFilter("inactive")}
 									>
-										Inactive
+										{t("users.table.statusInactive")}
 									</DropdownMenuItem>
 								</DropdownMenuContent>
 							</DropdownMenu>
@@ -381,7 +383,7 @@ export default function UsersTable() {
 										className="flex items-center gap-2 -ml-3"
 										onClick={() => handleSort("name")}
 									>
-										Name
+										{t("users.table.headers.name")}
 										{renderSortIcon(sortBy, "name", sortOrder)}
 									</Button>
 								</TableHead>
@@ -391,7 +393,7 @@ export default function UsersTable() {
 										className="flex items-center gap-2 -ml-3"
 										onClick={() => handleSort("status")}
 									>
-										Status
+										{t("users.table.headers.status")}
 										{renderSortIcon(sortBy, "status", sortOrder)}
 									</Button>
 								</TableHead>
@@ -401,7 +403,7 @@ export default function UsersTable() {
 										className="flex items-center gap-2 -ml-3"
 										onClick={() => handleSort("role")}
 									>
-										Role
+										{t("users.table.headers.role")}
 										{renderSortIcon(sortBy, "role", sortOrder)}
 									</Button>
 								</TableHead>
@@ -411,7 +413,7 @@ export default function UsersTable() {
 										className="flex items-center gap-2 ml-auto -mr-3"
 										onClick={() => handleSort("conversationsCount")}
 									>
-										Conversations
+										{t("users.table.headers.conversations")}
 										{renderSortIcon(sortBy, "conversationsCount", sortOrder)}
 									</Button>
 								</TableHead>
@@ -421,7 +423,7 @@ export default function UsersTable() {
 										className="flex items-center gap-2 ml-auto"
 										onClick={() => handleSort("joinedAt")}
 									>
-										Joined
+										{t("users.table.headers.joined")}
 										{renderSortIcon(sortBy, "joinedAt", sortOrder)}
 									</Button>
 								</TableHead>
@@ -461,7 +463,7 @@ export default function UsersTable() {
 											) : (
 												<Ban className="h-3 w-3" />
 											)}
-											{member.isActive ? "Active" : "Inactive"}
+											{member.isActive ? t("users.table.statusActive") : t("users.table.statusInactive")}
 										</Badge>
 									</TableCell>
 									<TableCell>
@@ -490,7 +492,7 @@ export default function UsersTable() {
 												<DropdownMenuItem
 													onClick={() => handleEditUser(member)}
 												>
-													Edit
+													{t("users.table.actions.edit")}
 												</DropdownMenuItem>
 												{/*
 												 TODO: Enable activate/deactivate actions when we have a nicer way to prevent those user from logging in
@@ -498,13 +500,13 @@ export default function UsersTable() {
 													<DropdownMenuItem
 														onClick={() => handleDeactivateUser(member)}
 													>
-														Deactivate
+														{t("users.table.actions.deactivate")}
 													</DropdownMenuItem>
 												) : (
 													<DropdownMenuItem
 														onClick={() => handleActivateUser(member)}
 													>
-														Activate
+														{t("users.table.actions.activate")}
 													</DropdownMenuItem>
 												)} */}
 												{/* Hide delete option for current user - they should use Profile page to delete own account */}
@@ -513,7 +515,7 @@ export default function UsersTable() {
 														onClick={() => handleDeleteUser(member)}
 														variant="destructive"
 													>
-														Delete
+														{t("users.table.actions.delete")}
 													</DropdownMenuItem>
 												)}
 											</DropdownMenuContent>
@@ -531,13 +533,11 @@ export default function UsersTable() {
 						<p className="text-sm text-muted-foreground">
 							{searchInput || statusFilter !== "All" ? (
 								<>
-									Showing {members.length} of {totalMembers} users (filtered)
+									{t("users.table.pagination.showingFiltered", { count: members.length, total: totalMembers })}
 								</>
 							) : (
 								<>
-									Showing {page * PAGE_SIZE + 1}-
-									{Math.min((page + 1) * PAGE_SIZE, totalMembers)} of{" "}
-									{totalMembers} users
+									{t("users.table.pagination.showingRange", { start: page * PAGE_SIZE + 1, end: Math.min((page + 1) * PAGE_SIZE, totalMembers), total: totalMembers })}
 								</>
 							)}
 						</p>
@@ -548,7 +548,7 @@ export default function UsersTable() {
 								onClick={handlePrevPage}
 								disabled={!hasPrevPage}
 							>
-								Previous
+								{t("users.table.pagination.previous")}
 							</Button>
 							<Button
 								variant="outline"
@@ -556,7 +556,7 @@ export default function UsersTable() {
 								onClick={handleNextPage}
 								disabled={!hasNextPage}
 							>
-								Next
+								{t("users.table.pagination.next")}
 							</Button>
 						</div>
 					</div>
@@ -578,11 +578,11 @@ export default function UsersTable() {
 			<ConfirmDialog
 				open={deactivateDialogOpen}
 				onOpenChange={setDeactivateDialogOpen}
-				title="Deactivate User"
-				description={`Are you sure you want to deactivate ${deactivatingUser?.email}? They will be blocked from accessing the system immediately.`}
+				title={t("users.dialogs.deactivate.title")}
+				description={t("users.dialogs.deactivate.description", { email: deactivatingUser?.email })}
 				onConfirm={handleConfirmDeactivate}
-				confirmLabel="Deactivate"
-				cancelLabel="Cancel"
+				confirmLabel={t("users.table.actions.deactivate")}
+				cancelLabel={t("common:actions.cancel")}
 				variant="destructive"
 			/>
 
@@ -590,11 +590,11 @@ export default function UsersTable() {
 			<ConfirmDialog
 				open={deleteDialogOpen}
 				onOpenChange={setDeleteDialogOpen}
-				title="Permanently Delete User"
-				description={`Are you sure you want to PERMANENTLY delete ${deletingUser?.email}? This will delete their account from Keycloak, remove all their data (messages, conversations, files), and cannot be undone.${deletingUser?.role === "owner" ? " ⚠️ WARNING: If they are the only member, this will delete the entire organization and all data." : ""}`}
+				title={t("users.dialogs.delete.title")}
+				description={`${t("users.dialogs.delete.description", { email: deletingUser?.email })}${deletingUser?.role === "owner" ? t("users.dialogs.delete.ownerWarning") : ""}`}
 				onConfirm={handleConfirmDelete}
-				confirmLabel="Delete Permanently"
-				cancelLabel="Cancel"
+				confirmLabel={t("users.dialogs.delete.confirmLabel")}
+				cancelLabel={t("common:actions.cancel")}
 				variant="destructive"
 			/>
 
@@ -602,22 +602,22 @@ export default function UsersTable() {
 			<ConfirmDialog
 				open={roleChangeDialogOpen}
 				onOpenChange={setRoleChangeDialogOpen}
-				title="Change User Role"
-				description={`This will change ${editingUser?.email}'s role from ${pendingRoleChange?.oldRole} to ${pendingRoleChange?.newRole}. This may affect their permissions.`}
+				title={t("users.dialogs.roleChange.title")}
+				description={t("users.dialogs.roleChange.description", { email: editingUser?.email, oldRole: pendingRoleChange?.oldRole, newRole: pendingRoleChange?.newRole })}
 				onConfirm={handleConfirmRoleChange}
-				confirmLabel="Confirm"
-				cancelLabel="Cancel"
+				confirmLabel={t("common:actions.confirm")}
+				cancelLabel={t("common:actions.cancel")}
 			/>
 
 			{/* Bulk Delete Confirmation Dialog */}
 			<ConfirmDialog
 				open={bulkDeleteDialogOpen}
 				onOpenChange={setBulkDeleteDialogOpen}
-				title="Permanently Delete Users"
-				description={`Are you sure you want to PERMANENTLY delete ${selectedUsers.length} user${selectedUsers.length !== 1 ? "s" : ""}? This will delete their accounts from Keycloak, remove all their data (messages, conversations, files), and cannot be undone. If any are the only owner, their entire organization will be deleted.`}
+				title={t("users.dialogs.bulkDelete.title")}
+				description={t("users.dialogs.bulkDelete.description", { count: selectedUsers.length })}
 				onConfirm={handleConfirmBulkDelete}
-				confirmLabel="Delete Users Permanently"
-				cancelLabel="Cancel"
+				confirmLabel={t("users.dialogs.bulkDelete.confirmLabel")}
+				cancelLabel={t("common:actions.cancel")}
 				variant="destructive"
 			/>
 		</>

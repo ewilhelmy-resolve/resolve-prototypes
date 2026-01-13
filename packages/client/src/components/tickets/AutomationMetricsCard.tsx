@@ -1,3 +1,5 @@
+import { useTranslation } from "react-i18next";
+
 interface AutomationMetricsCardProps {
 	/** Number of automated tickets */
 	automated?: number;
@@ -25,6 +27,8 @@ export function AutomationMetricsCard({
 	savings = 0,
 	className,
 }: AutomationMetricsCardProps) {
+	const { t } = useTranslation("tickets");
+
 	const formatSavings = (value: number) => {
 		if (value >= 1000) {
 			return `$${(value / 1000).toFixed(1)}k`;
@@ -38,15 +42,15 @@ export function AutomationMetricsCard({
 				<div className="grid grid-cols-3 gap-8 text-center">
 					<div>
 						<div className="text-2xl font-medium">{automated}</div>
-						<div className="text-xs text-muted-foreground">Automated</div>
+						<div className="text-xs text-muted-foreground">{t("metrics.automated")}</div>
 					</div>
 					<div>
 						<div className="text-2xl font-medium">{minsSaved}</div>
-						<div className="text-xs text-muted-foreground">Mins Saved</div>
+						<div className="text-xs text-muted-foreground">{t("metrics.minsSaved")}</div>
 					</div>
 					<div>
 						<div className="text-2xl font-medium">{formatSavings(savings)}</div>
-						<div className="text-xs text-muted-foreground">Savings</div>
+						<div className="text-xs text-muted-foreground">{t("metrics.savings")}</div>
 					</div>
 				</div>
 			</div>

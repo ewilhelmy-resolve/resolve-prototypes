@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { STATUS } from "@/constants/connectionSources";
 import { useConnectionSource } from "@/contexts/ConnectionSourceContext";
@@ -28,6 +29,7 @@ interface ServiceNowKBConfigurationProps {
 export default function ServiceNowKBConfiguration({
 	onEdit,
 }: ServiceNowKBConfigurationProps = {}) {
+	const { t } = useTranslation("connections");
 	const { source } = useConnectionSource();
 	const [selectedKBs, setSelectedKBs] = useState<string[]>([]); // stores sys_ids
 	const updateMutation = useUpdateDataSource();
@@ -71,8 +73,8 @@ export default function ServiceNowKBConfiguration({
 	const handleSync = async () => {
 		if (!source.backendData) {
 			ritaToast.error({
-				title: "Configuration Error",
-				description: "No backend data available for this source",
+				title: t("config.toast.configError"),
+				description: t("config.toast.noBackendData"),
 			});
 			return;
 		}
@@ -98,14 +100,14 @@ export default function ServiceNowKBConfiguration({
 			await syncMutation.mutateAsync(source.backendData.id);
 
 			ritaToast.success({
-				title: "Sync Started",
-				description: "Your ServiceNow knowledge articles are being synced",
+				title: t("config.toast.syncStarted"),
+				description: t("config.toast.syncStartedServiceNowKb"),
 			});
 		} catch (error) {
 			ritaToast.error({
-				title: "Sync Failed",
+				title: t("config.toast.syncFailed"),
 				description:
-					error instanceof Error ? error.message : "Failed to start sync",
+					error instanceof Error ? error.message : t("config.toast.syncFailedDefault"),
 			});
 		}
 	};
@@ -113,8 +115,8 @@ export default function ServiceNowKBConfiguration({
 	const handleCancelSync = async () => {
 		if (!source.backendData) {
 			ritaToast.error({
-				title: "Configuration Error",
-				description: "No backend data available for this source",
+				title: t("config.toast.configError"),
+				description: t("config.toast.noBackendData"),
 			});
 			return;
 		}
@@ -123,14 +125,14 @@ export default function ServiceNowKBConfiguration({
 			await cancelMutation.mutateAsync(source.backendData.id);
 
 			ritaToast.success({
-				title: "Sync Cancelled",
-				description: "Your sync operation has been cancelled",
+				title: t("config.toast.syncCancelled"),
+				description: t("config.toast.syncCancelledDesc"),
 			});
 		} catch (error) {
 			ritaToast.error({
-				title: "Cancel Failed",
+				title: t("config.toast.cancelFailed"),
 				description:
-					error instanceof Error ? error.message : "Failed to cancel sync",
+					error instanceof Error ? error.message : t("config.toast.cancelFailedDefault"),
 			});
 		}
 	};
@@ -139,7 +141,7 @@ export default function ServiceNowKBConfiguration({
 		<div className="w-full flex flex-col gap-2">
 			<div className="flex flex-col gap-2.5">
 				<div className="flex justify-between items-start gap-2">
-					<FormSectionTitle title="ServiceNow Knowledge Base configuration" />
+					<FormSectionTitle title={t("config.titles.servicenowKb")} />
 					<ConnectionActionsMenu onEdit={onEdit} />
 				</div>
 
@@ -150,13 +152,13 @@ export default function ServiceNowKBConfiguration({
 					<div className="flex flex-col gap-1">
 						<div className="border border-border bg-popover rounded-md p-4">
 							<div className="rounded-lg flex items-center justify-between">
-								<Label>Sync in progress...</Label>
+								<Label>{t("config.sync.inProgress")}</Label>
 								<Button
 									onClick={handleCancelSync}
 									disabled={isCancelButtonDisabled}
 									variant="destructive"
 								>
-									{cancelMutation.isPending ? "Cancelling..." : "Cancel Sync"}
+									{cancelMutation.isPending ? t("config.sync.cancelling") : t("config.sync.cancelSync")}
 								</Button>
 							</div>
 						</div>
@@ -171,7 +173,7 @@ export default function ServiceNowKBConfiguration({
 							<div className="border border-border bg-popover rounded-md p-4">
 								<div className="rounded-lg">
 									<Label className="mb-2">
-										Which knowledge bases would you like to sync from?
+										{t("config.labels.kbQuestion")}
 									</Label>
 									<div className="flex flex-col md:flex-row items-start gap-4">
 										<div className="md:flex-1 w-full">
@@ -180,9 +182,9 @@ export default function ServiceNowKBConfiguration({
 												options={availableOptions}
 												defaultValue={selectedKBs}
 												onValueChange={setSelectedKBs}
-												placeholder="Choose knowledge bases..."
+												placeholder={t("config.placeholders.chooseKb")}
 												searchable={true}
-												emptyIndicator="No knowledge bases found."
+												emptyIndicator={t("config.placeholders.noKb")}
 											/>
 										</div>
 										<Button
@@ -192,8 +194,8 @@ export default function ServiceNowKBConfiguration({
 											variant="default"
 										>
 											{updateMutation.isPending || syncMutation.isPending
-												? "Syncing..."
-												: "Sync"}
+												? t("config.sync.syncing")
+												: t("config.sync.sync")}
 										</Button>
 									</div>
 								</div>

@@ -17,6 +17,7 @@ dist/
 build/
 */dist/
 */build/
+*.tsbuildinfo
 
 # Logs
 logs

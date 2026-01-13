@@ -92,5 +92,66 @@
 		"configureSuccess": "Your {{source}} connection has been configured successfully",
 		"verificationFailed": "Verification Failed",
 		"loadFailed": "Failed to load data sources"
+	},
+	"detail": {
+		"loading": "Loading connection...",
+		"unknownSourceType": "Unknown source type",
+		"configurationNotAvailable": "Configuration not available for this source type",
+		"connectDescription": "Connect your {{source}} instance to build context for RITA to make better experiences."
+	},
+	"config": {
+		"titles": {
+			"confluence": "Confluence configuration",
+			"servicenowKb": "ServiceNow Knowledge Base configuration",
+			"servicenowItsm": "ServiceNow ITSM configuration",
+			"sharepoint": "SharePoint",
+			"websearch": "Web Search"
+		},
+		"sync": {
+			"inProgress": "Sync in progress...",
+			"cancelling": "Cancelling...",
+			"cancelSync": "Cancel Sync",
+			"syncing": "Syncing...",
+			"sync": "Sync",
+			"importing": "Importing...",
+			"importTickets": "Import tickets",
+			"importingTickets": "Importing tickets...",
+			"noTicketsYet": "No tickets imported yet",
+			"lastSynced": "Last synced {{time}}",
+			"ticketsCount": "{{count}} tickets",
+			"ticketsSyncFailed": "{{count}} tickets couldn't sync. Common causes: missing fields, permissions, or API limits. Excluded from analysis.",
+			"ticketsOf": "{{processed}} of {{total}} tickets"
+		},
+		"labels": {
+			"spacesQuestion": "Which spaces would you like to sync from?",
+			"kbQuestion": "Which knowledge bases would you like to sync from?",
+			"importFromLast": "Import tickets from the last:",
+			"selectTimeRange": "Select time range"
+		},
+		"placeholders": {
+			"chooseSpaces": "Choose spaces...",
+			"chooseKb": "Choose knowledge bases...",
+			"noSpaces": "No spaces found.",
+			"noKb": "No knowledge bases found."
+		},
+		"timeRanges": {
+			"last30Days": "Last 30 days",
+			"last60Days": "Last 60 days",
+			"last90Days": "Last 90 days"
+		},
+		"toast": {
+			"configError": "Configuration Error",
+			"noBackendData": "No backend data available for this source",
+			"syncStarted": "Sync Started",
+			"syncStartedConfluence": "Your Confluence spaces are being synced",
+			"syncStartedServiceNowKb": "Your ServiceNow knowledge articles are being synced",
+			"syncStartedServiceNowItsm": "Your ServiceNow tickets are being synced",
+			"syncFailed": "Sync Failed",
+			"syncFailedDefault": "Failed to start sync",
+			"syncCancelled": "Sync Cancelled",
+			"syncCancelledDesc": "Your sync operation has been cancelled",
+			"cancelFailed": "Cancel Failed",
+			"cancelFailedDefault": "Failed to cancel sync"
+		}
 	}
 }

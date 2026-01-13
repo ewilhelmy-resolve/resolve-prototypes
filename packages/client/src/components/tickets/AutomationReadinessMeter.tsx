@@ -136,22 +136,19 @@ export function AutomationReadinessMeter({
 			<CardContent className="flex flex-col gap-3 p-4">
 				{/* Header */}
 				<div className="flex items-start justify-between">
-					<h3 className="text-sm font-semibold">Automation readiness is</h3>
+					<h3 className="text-sm font-semibold">{t("readiness.title")}</h3>
 					<Tooltip>
 						<TooltipTrigger asChild>
 							<button
 								type="button"
 								className="text-muted-foreground hover:text-foreground"
-								aria-label="More information about automation readiness"
+								aria-label={t("readiness.tooltip")}
 							>
 								<Info className="h-4 w-4" />
 							</button>
 						</TooltipTrigger>
 						<TooltipContent side="left" className="max-w-xs">
-							<p>
-								Automation readiness is calculated based on the percentage of
-								reviewed responses that met expectations.
-							</p>
+							<p>{t("readiness.tooltip")}</p>
 						</TooltipContent>
 					</Tooltip>
 				</div>
@@ -169,17 +166,17 @@ export function AutomationReadinessMeter({
 				{/* Review Count */}
 				{showReviewCount ? (
 					<p className="text-sm text-muted-foreground">
-						Based on {reviewed} of {total} responses reviewed
+						{t("readiness.reviewedOf", { reviewed, total })}
 					</p>
 				) : (
 					<p className="text-sm text-muted-foreground">
-						No responses reviewed yet
+						{t("readiness.noReviews")}
 					</p>
 				)}
 
 				{/* Recommendation */}
 				<div>
-					<p className="text-base text-muted-foreground">Recommendation</p>
+					<p className="text-base text-muted-foreground">{t("readiness.recommendation")}</p>
 					<p className="text-sm font-medium">{recommendation}</p>
 				</div>
 
@@ -187,17 +184,17 @@ export function AutomationReadinessMeter({
 				<div>
 					{state === "ready" && (
 						<Button variant="outline" size="sm" onClick={onEnableAutoRespond}>
-							Enable Auto-Respond
+							{t("readiness.buttons.enableAutoRespond")}
 						</Button>
 					)}
 					{(state === "partial" || state === "low") && (
 						<Button variant="outline" size="sm" onClick={onReviewKnowledge}>
-							Review knowledge
+							{t("readiness.buttons.reviewKnowledge")}
 						</Button>
 					)}
 					{state === "not-ready" && (
 						<Button variant="outline" size="sm" onClick={onAddKnowledge}>
-							Add knowledge
+							{t("readiness.buttons.addKnowledge")}
 						</Button>
 					)}
 				</div>

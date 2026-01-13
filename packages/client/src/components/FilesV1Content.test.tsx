@@ -166,9 +166,9 @@ describe("FilesV1Content", () => {
 				</TestWrapper>,
 			);
 
-			expect(screen.getByText("Knowledge Articles")).toBeInTheDocument();
+			expect(screen.getByText("header.title")).toBeInTheDocument();
 			expect(
-				screen.getByRole("button", { name: /Add Articles/i }),
+				screen.getByRole("button", { name: /header.addButton/i }),
 			).toBeInTheDocument();
 		});
 
@@ -206,7 +206,7 @@ describe("FilesV1Content", () => {
 			);
 
 			expect(
-				screen.getByPlaceholderText(/Search documents/i),
+				screen.getByPlaceholderText(/search.placeholder/i),
 			).toBeInTheDocument();
 		});
 
@@ -217,8 +217,8 @@ describe("FilesV1Content", () => {
 				</TestWrapper>,
 			);
 
-			expect(screen.getByText(/Source: All/i)).toBeInTheDocument();
-			expect(screen.getByText(/Status: All/i)).toBeInTheDocument();
+			expect(screen.getByText(/filters.source/i)).toBeInTheDocument();
+			expect(screen.getByText(/filters.status/i)).toBeInTheDocument();
 		});
 
 		it("Add Articles button has tooltip with upload requirements", () => {
@@ -229,7 +229,7 @@ describe("FilesV1Content", () => {
 			);
 
 			const uploadButton = screen.getByRole("button", {
-				name: /Add Articles/i,
+				name: /header.addButton/i,
 			});
 			expect(uploadButton).toBeInTheDocument();
 
@@ -317,7 +317,7 @@ describe("FilesV1Content", () => {
 				</TestWrapper>,
 			);
 
-			const searchInput = screen.getByPlaceholderText(/Search documents/i);
+			const searchInput = screen.getByPlaceholderText(/search.placeholder/i);
 
 			// Initial call should have empty search
 			expect(mockUseFiles).toHaveBeenLastCalledWith(
@@ -350,7 +350,7 @@ describe("FilesV1Content", () => {
 				</TestWrapper>,
 			);
 
-			const searchInput = screen.getByPlaceholderText(/Search documents/i);
+			const searchInput = screen.getByPlaceholderText(/search.placeholder/i);
 
 			// Type "con"
 			fireEvent.change(searchInput, { target: { value: "con" } });
@@ -408,7 +408,7 @@ describe("FilesV1Content", () => {
 				</TestWrapper>,
 			);
 
-			const searchInput = screen.getByPlaceholderText(/Search documents/i);
+			const searchInput = screen.getByPlaceholderText(/search.placeholder/i);
 			fireEvent.change(searchInput, { target: { value: "confluence" } });
 
 			// Fast-forward debounce
@@ -444,7 +444,7 @@ describe("FilesV1Content", () => {
 				</TestWrapper>,
 			);
 
-			const searchInput = screen.getByPlaceholderText(/Search documents/i);
+			const searchInput = screen.getByPlaceholderText(/search.placeholder/i);
 			fireEvent.change(searchInput, { target: { value: "nonexistent-file" } });
 
 			// Fast-forward debounce
@@ -473,7 +473,7 @@ describe("FilesV1Content", () => {
 				</TestWrapper>,
 			);
 
-			const searchInput = screen.getByPlaceholderText(/Search documents/i);
+			const searchInput = screen.getByPlaceholderText(/search.placeholder/i);
 			fireEvent.change(searchInput, { target: { value: "test" } });
 
 			// Fast-forward debounce
@@ -496,7 +496,7 @@ describe("FilesV1Content", () => {
 				</TestWrapper>,
 			);
 
-			const statusButton = screen.getByText(/Status: All/i);
+			const statusButton = screen.getByText(/filters.status/i);
 			expect(statusButton).toBeInTheDocument();
 		});
 	});
@@ -509,7 +509,7 @@ describe("FilesV1Content", () => {
 				</TestWrapper>,
 			);
 
-			const sourceButton = screen.getByText(/Source: All/i);
+			const sourceButton = screen.getByText(/filters.source/i);
 			expect(sourceButton).toBeInTheDocument();
 		});
 	});
@@ -556,7 +556,7 @@ describe("FilesV1Content", () => {
 			);
 
 			const uploadButton = screen.getByRole("button", {
-				name: /Add Articles/i,
+				name: /header.addButton/i,
 			});
 			expect(uploadButton).toBeInTheDocument();
 			expect(uploadButton).not.toBeDisabled();
@@ -585,7 +585,7 @@ describe("FilesV1Content", () => {
 			await waitFor(() => {
 				expect(ritaToast.info).toHaveBeenCalledWith(
 					expect.objectContaining({
-						title: "info.uploadingFiles",
+						title: "toast:info.uploadingFiles",
 					}),
 				);
 			});
@@ -614,8 +614,8 @@ describe("FilesV1Content", () => {
 			await waitFor(() => {
 				expect(ritaToast.info).toHaveBeenCalledWith(
 					expect.objectContaining({
-						title: "info.uploadingFiles",
-						description: "descriptions.startingUpload",
+						title: "toast:info.uploadingFiles",
+						description: "toast:descriptions.startingUpload",
 					}),
 				);
 			});
@@ -751,7 +751,7 @@ describe("FilesV1Content", () => {
 			);
 
 			// Apply search filter
-			const searchInput = screen.getByPlaceholderText(/Search documents/i);
+			const searchInput = screen.getByPlaceholderText(/search.placeholder/i);
 			fireEvent.change(searchInput, { target: { value: "nonexistent" } });
 
 			// Fast-forward debounce timer
@@ -792,7 +792,7 @@ describe("FilesV1Content", () => {
 			);
 
 			// Apply search filter
-			const searchInput = screen.getByPlaceholderText(/Search documents/i);
+			const searchInput = screen.getByPlaceholderText(/search.placeholder/i);
 			fireEvent.change(searchInput, { target: { value: "nonexistent" } });
 
 			// Fast-forward debounce
@@ -854,8 +854,8 @@ describe("FilesV1Content", () => {
 				</TestWrapper>,
 			);
 
-			// Footer now shows pagination format: "Showing 1-3 of 3 articles"
-			expect(screen.getByText("Showing 1-3 of 3 articles")).toBeInTheDocument();
+			// Footer now shows pagination format with i18n key
+			expect(screen.getByText(/pagination.showing/i)).toBeInTheDocument();
 		});
 
 		it("does not show footer when no files exist", async () => {
@@ -930,7 +930,7 @@ describe("FilesV1Content", () => {
 			);
 
 			// Initially search is visible
-			expect(screen.getByPlaceholderText(/Search documents/i)).toBeInTheDocument();
+			expect(screen.getByPlaceholderText(/search.placeholder/i)).toBeInTheDocument();
 
 			// Select first file
 			const checkboxes = screen.getAllByRole("checkbox");
@@ -939,7 +939,7 @@ describe("FilesV1Content", () => {
 
 			// Search should be hidden and BulkActions visible
 			expect(await screen.findByTestId("bulk-actions")).toBeInTheDocument();
-			expect(screen.queryByPlaceholderText(/Search documents/i)).not.toBeInTheDocument();
+			expect(screen.queryByPlaceholderText(/search.placeholder/i)).not.toBeInTheDocument();
 		});
 
 		it("clears selection when Clear Selection button is clicked", async () => {
@@ -968,7 +968,7 @@ describe("FilesV1Content", () => {
 			fireEvent.click(clearButton);
 
 			// BulkActions should disappear and search should reappear
-			expect(await screen.findByPlaceholderText(/Search documents/i)).toBeInTheDocument();
+			expect(await screen.findByPlaceholderText(/search.placeholder/i)).toBeInTheDocument();
 			expect(screen.queryByTestId("bulk-actions")).not.toBeInTheDocument();
 		});
 
@@ -998,8 +998,8 @@ describe("FilesV1Content", () => {
 			fireEvent.click(deleteButton);
 
 			// Confirmation dialog should appear
-			expect(await screen.findByText("Delete Documents")).toBeInTheDocument();
-			expect(screen.getByText(/2 documents/)).toBeInTheDocument();
+			expect(await screen.findByText("dialogs.bulkDeleteTitle")).toBeInTheDocument();
+			expect(screen.getByText(/dialogs.bulkDeleteDescription/)).toBeInTheDocument();
 		});
 
 		it("selects all files when select-all checkbox is clicked", async () => {
@@ -1061,7 +1061,7 @@ describe("FilesV1Content", () => {
 			);
 
 			// Progress bar should not be visible
-			expect(screen.queryByText(/Uploading files.../i)).not.toBeInTheDocument();
+			expect(screen.queryByText(/uploadProgress.uploading/i)).not.toBeInTheDocument();
 		});
 
 		it("shows progress bar when uploading multiple files", async () => {
@@ -1109,7 +1109,7 @@ describe("FilesV1Content", () => {
 
 			// Progress bar should appear for multiple files
 			await waitFor(() => {
-				expect(screen.getByText(/Uploading files.../i)).toBeInTheDocument();
+				expect(screen.getByText(/uploadProgress.uploading/i)).toBeInTheDocument();
 			});
 		});
 
@@ -1154,9 +1154,9 @@ describe("FilesV1Content", () => {
 			});
 			fireEvent.change(input);
 
-			// Progress should show total count
+			// Progress should show total count - i18n mock returns the key
 			await waitFor(() => {
-				expect(screen.getByText(/of 2/i)).toBeInTheDocument();
+				expect(screen.getByText(/uploadProgress.progress/i)).toBeInTheDocument();
 			});
 		});
 
@@ -1197,7 +1197,7 @@ describe("FilesV1Content", () => {
 			fireEvent.change(input);
 
 			// Progress bar should NOT appear for single file
-			expect(screen.queryByText(/Uploading files.../i)).not.toBeInTheDocument();
+			expect(screen.queryByText(/uploadProgress.uploading/i)).not.toBeInTheDocument();
 		});
 
 		it("clears progress bar after upload completes", async () => {
@@ -1244,7 +1244,7 @@ describe("FilesV1Content", () => {
 
 			// Progress bar should be cleared after upload
 			await waitFor(() => {
-				expect(screen.queryByText(/Uploading files.../i)).not.toBeInTheDocument();
+				expect(screen.queryByText(/uploadProgress.uploading/i)).not.toBeInTheDocument();
 			});
 		});
 	});
