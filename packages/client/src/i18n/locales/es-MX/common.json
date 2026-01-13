@@ -7,19 +7,19 @@
 		"newChat": "Nuevo Chat",
 		"recentChats": "Chats recientes",
 		"loading": "Cargando...",
-		"noConversations": "Sin conversaciones",
+		"noConversations": "Sin conversaciones aún",
 		"ritaGo": "RITA Go",
-		"addArticles": "Agregar Articulos",
+		"addArticles": "Agregar Artículos",
 		"inviteUsers": "Invitar Usuarios",
-		"uploadFile": "Subir archivo",
-		"connectSources": "Conectar fuentes",
-		"settings": "Configuracion",
+		"uploadFile": "Subir Archivo",
+		"connectSources": "Conectar Fuentes",
+		"settings": "Configuración",
 		"profile": "Perfil",
-		"helpDocumentation": "Documentacion de ayuda",
-		"logOut": "Cerrar sesion"
+		"helpDocumentation": "Documentación de Ayuda",
+		"logOut": "Cerrar Sesión"
 	},
 	"inviteCard": {
 		"title": "Invitar Usuarios",
-		"description": "Invita a tu equipo a usar RITA y resolver soporte mas rapido."
+		"description": "Invita a tu equipo a usar RITA y resolver soporte más rápido."
 	}
 }
