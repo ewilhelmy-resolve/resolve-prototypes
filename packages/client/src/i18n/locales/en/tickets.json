@@ -138,5 +138,99 @@
 	},
 	"proTip": {
 		"prefix": "Pro-tip:"
+	},
+	"clusterDetail": {
+		"backToTickets": "Back to tickets",
+		"failedToLoad": "Failed to load cluster details",
+		"badges": {
+			"tickets": "{{count}} tickets",
+			"open": "{{count}} open",
+			"kbArticles": "{{count}} KB articles"
+		},
+		"banners": {
+			"reviewSuccess": "Great job! You reviewed {{count}} responses.",
+			"reviewSuccessDesc": "{{trusted}} trusted ({{improvement}}% confidence)",
+			"reviewNeedsImprovement": "Review completed with areas for improvement",
+			"reviewNeedsImprovementDesc": "{{count}} responses reviewed. Consider refining AI training data.",
+			"enrichedTickets": "You just enriched tickets for this group!",
+			"knowledgeAdded": "New knowledge added!",
+			"knowledgeAddedDesc": "You just improved your knowledge to better auto-respond to issues.",
+			"automatedWork": "You just automated {{percentage}}% of your work!",
+			"automatedWorkDesc": "Auto-respond is set to respond to all future tickets in \"{{groupName}}\""
+		}
+	},
+	"autoPopulate": {
+		"title": "Enable Auto-populated",
+		"description": "New tickets in this group will automatically have fill populate with predicted values.",
+		"tableHeaders": {
+			"type": "Type",
+			"currentValue": "Current Value",
+			"predictedValue": "Predicted Value"
+		},
+		"alert": {
+			"title": "Base on AI Predictions",
+			"description": "Predictions use past tickets + kb data associated to this ticket group."
+		},
+		"enable": "Enable Auto-Populate"
+	},
+	"autoRespond": {
+		"whenEnabled": "When You Enable Auto-Respond",
+		"sendToOpen": "Send automated responses to {{count}} currently open tickets",
+		"respondToFuture": "Automatically respond to all future tickets in this group",
+		"useTrainedResponses": "Use the responses you've trained Rita with",
+		"enableButton": "Enable Auto-Respond"
+	},
+	"table": {
+		"failedToLoad": "Failed to load tickets",
+		"noTickets": "No tickets found",
+		"searchPlaceholder": "Search tickets...",
+		"tabs": {
+			"needsResponse": "Needs Response",
+			"completed": "Completed"
+		},
+		"headers": {
+			"subject": "Subject",
+			"externalId": "External ID",
+			"source": "Source",
+			"created": "Created"
+		},
+		"actions": {
+			"reviewAI": "Review AI response",
+			"reviewAIResponses": "Review AI Responses"
+		},
+		"pagination": {
+			"ticketsCount": "{{count}} tickets",
+			"first": "First",
+			"next": "Next"
+		}
+	},
+	"trends": {
+		"title": "Ticket Trends",
+		"description": "Rita learned from {{count}} tickets, automatically handled {{percentage}}%",
+		"legend": {
+			"manual": "Manual",
+			"automated": "Automated"
+		}
+	},
+	"metrics": {
+		"automated": "Automated",
+		"minsSaved": "Mins Saved",
+		"savings": "Savings"
+	},
+	"readiness": {
+		"title": "Automation readiness is",
+		"tooltip": "Automation readiness is calculated based on the percentage of reviewed responses that met expectations.",
+		"recommendation": "Recommendation",
+		"reviewedOf": "Based on {{reviewed}} of {{total}} responses reviewed",
+		"noReviews": "No responses reviewed yet",
+		"buttons": {
+			"enableAutoRespond": "Enable Auto-Respond",
+			"reviewKnowledge": "Review knowledge",
+			"addKnowledge": "Add knowledge"
+		}
+	},
+	"knowledge": {
+		"failedToLoad": "Failed to load KB articles",
+		"noArticles": "No knowledge articles linked"
 	}
 }

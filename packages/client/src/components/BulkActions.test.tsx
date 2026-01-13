@@ -33,7 +33,7 @@ describe("BulkActions", () => {
 				/>,
 			);
 
-			expect(screen.getByText("3 files selected")).toBeInTheDocument();
+			expect(screen.getByText("bulk.selected")).toBeInTheDocument();
 		});
 
 		it("renders selection count with singular label for 1 item", () => {
@@ -46,7 +46,7 @@ describe("BulkActions", () => {
 				/>,
 			);
 
-			expect(screen.getByText("1 file selected")).toBeInTheDocument();
+			expect(screen.getByText("bulk.selected")).toBeInTheDocument();
 		});
 
 		it("renders with custom item label", () => {
@@ -59,7 +59,7 @@ describe("BulkActions", () => {
 				/>,
 			);
 
-			expect(screen.getByText("2 users selected")).toBeInTheDocument();
+			expect(screen.getByText("bulk.selected")).toBeInTheDocument();
 		});
 
 		it("renders with count prop (backward compatibility)", () => {
@@ -72,7 +72,7 @@ describe("BulkActions", () => {
 				/>,
 			);
 
-			expect(screen.getByText("5 items selected")).toBeInTheDocument();
+			expect(screen.getByText("bulk.selected")).toBeInTheDocument();
 		});
 
 		it("does not render when count is 0", () => {
@@ -102,7 +102,7 @@ describe("BulkActions", () => {
 				/>,
 			);
 
-			expect(screen.getByText("3 files remaining")).toBeInTheDocument();
+			expect(screen.getByText("bulk.remaining")).toBeInTheDocument();
 		});
 
 		it("shows singular remaining label for 1 item", () => {
@@ -117,7 +117,7 @@ describe("BulkActions", () => {
 				/>,
 			);
 
-			expect(screen.getByText("1 file remaining")).toBeInTheDocument();
+			expect(screen.getByText("bulk.remaining")).toBeInTheDocument();
 		});
 
 		it("shows 0 remaining when all items processed", () => {
@@ -132,7 +132,7 @@ describe("BulkActions", () => {
 				/>,
 			);
 
-			expect(screen.getByText("0 users remaining")).toBeInTheDocument();
+			expect(screen.getByText("bulk.remaining")).toBeInTheDocument();
 		});
 
 		it("shows custom loading label on button", () => {
@@ -151,7 +151,7 @@ describe("BulkActions", () => {
 			expect(screen.getByRole("button", { name: /Removing.../i })).toBeInTheDocument();
 		});
 
-		it("shows default 'Deleting...' label when loading", () => {
+		it("shows default loading label when loading", () => {
 			render(
 				<BulkActions
 					selectedItems={["1", "2"]}
@@ -163,7 +163,7 @@ describe("BulkActions", () => {
 				/>,
 			);
 
-			expect(screen.getByRole("button", { name: /Deleting.../i })).toBeInTheDocument();
+			expect(screen.getByText("bulk.defaultLoadingLabel")).toBeInTheDocument();
 		});
 
 		it("falls back to selected count when remainingCount is null during loading", () => {
@@ -179,7 +179,7 @@ describe("BulkActions", () => {
 			);
 
 			// Should show selected count, not remaining
-			expect(screen.getByText("3 files selected")).toBeInTheDocument();
+			expect(screen.getByText("bulk.selected")).toBeInTheDocument();
 		});
 
 		it("disables delete button during loading", () => {
@@ -194,7 +194,7 @@ describe("BulkActions", () => {
 				/>,
 			);
 
-			const deleteButton = screen.getByRole("button", { name: /Deleting.../i });
+			const deleteButton = screen.getByText("bulk.defaultLoadingLabel").closest("button");
 			expect(deleteButton).toBeDisabled();
 		});
 
@@ -210,7 +210,7 @@ describe("BulkActions", () => {
 				/>,
 			);
 
-			const closeButton = screen.getByRole("button", { name: /Close bulk actions/i });
+			const closeButton = screen.getByRole("button", { name: "bulk.closeAriaLabel" });
 			expect(closeButton).toBeDisabled();
 		});
 	});
@@ -226,7 +226,7 @@ describe("BulkActions", () => {
 				/>,
 			);
 
-			expect(screen.getByRole("button", { name: /Delete/i })).toBeInTheDocument();
+			expect(screen.getByText("bulk.defaultDeleteLabel")).toBeInTheDocument();
 		});
 
 		it("renders delete button with custom label", () => {
@@ -255,7 +255,9 @@ describe("BulkActions", () => {
 				/>,
 			);
 
-			await user.click(screen.getByRole("button", { name: /Delete/i }));
+			const deleteButton = screen.getByText("bulk.defaultDeleteLabel").closest("button");
+			expect(deleteButton).not.toBeNull();
+			await user.click(deleteButton as HTMLButtonElement);
 			expect(mockOnDelete).toHaveBeenCalledTimes(1);
 		});
 	});
@@ -341,7 +343,7 @@ describe("BulkActions", () => {
 				/>,
 			);
 
-			expect(screen.getByRole("button", { name: /Close bulk actions/i })).toBeInTheDocument();
+			expect(screen.getByRole("button", { name: "bulk.closeAriaLabel" })).toBeInTheDocument();
 		});
 
 		it("calls onClose when close button is clicked", async () => {
@@ -356,7 +358,7 @@ describe("BulkActions", () => {
 				/>,
 			);
 
-			await user.click(screen.getByRole("button", { name: /Close bulk actions/i }));
+			await user.click(screen.getByRole("button", { name: "bulk.closeAriaLabel" }));
 			expect(mockOnClose).toHaveBeenCalledTimes(1);
 		});
 	});
@@ -372,7 +374,7 @@ describe("BulkActions", () => {
 				/>,
 			);
 
-			expect(screen.getByRole("region", { name: /Bulk actions bar/i })).toBeInTheDocument();
+			expect(screen.getByRole("region", { name: "bulk.ariaLabel" })).toBeInTheDocument();
 		});
 
 		it("has proper aria-label on close button", () => {
@@ -385,7 +387,7 @@ describe("BulkActions", () => {
 				/>,
 			);
 
-			expect(screen.getByRole("button", { name: /Close bulk actions/i })).toBeInTheDocument();
+			expect(screen.getByRole("button", { name: "bulk.closeAriaLabel" })).toBeInTheDocument();
 		});
 	});
 
@@ -401,7 +403,7 @@ describe("BulkActions", () => {
 				/>,
 			);
 
-			const container = screen.getByRole("region", { name: /Bulk actions bar/i });
+			const container = screen.getByRole("region", { name: "bulk.ariaLabel" });
 			expect(container).toHaveClass("custom-class");
 		});
 
@@ -417,7 +419,7 @@ describe("BulkActions", () => {
 				/>,
 			);
 
-			const closeButton = screen.getByRole("button", { name: /Close bulk actions/i });
+			const closeButton = screen.getByRole("button", { name: "bulk.closeAriaLabel" });
 			expect(closeButton).toHaveClass("opacity-50");
 			expect(closeButton).toHaveClass("cursor-not-allowed");
 		});

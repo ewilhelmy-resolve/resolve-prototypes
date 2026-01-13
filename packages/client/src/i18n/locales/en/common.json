@@ -79,5 +79,36 @@
 	"command": {
 		"paletteTitle": "Command Palette",
 		"paletteDescription": "Search for a command to run..."
+	},
+	"pages": {
+		"help": {
+			"title": "Self Help Resources",
+			"comingSoon": "This page is coming soon"
+		}
+	},
+	"bulk": {
+		"ariaLabel": "Bulk actions bar",
+		"closeAriaLabel": "Close bulk actions",
+		"defaultItemLabel": "items",
+		"defaultDeleteLabel": "Delete",
+		"defaultLoadingLabel": "Deleting...",
+		"remaining": "{{count}} {{label}} remaining",
+		"selected": "{{count}} {{label}} selected"
+	},
+	"webPreview": {
+		"urlPlaceholder": "Enter URL...",
+		"iframeTitle": "Preview",
+		"console": "Console",
+		"noConsoleOutput": "No console output"
+	},
+	"promptInput": {
+		"removeAttachment": "Remove attachment",
+		"addPhotosOrFiles": "Add photos or files",
+		"placeholder": "What would you like to know?",
+		"errors": {
+			"noFilesMatch": "No files match the accepted types.",
+			"filesTooLarge": "All files exceed the maximum size.",
+			"tooManyFiles": "Too many files. Some were not added."
+		}
 	}
 }

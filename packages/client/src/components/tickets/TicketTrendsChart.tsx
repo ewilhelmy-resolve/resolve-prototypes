@@ -1,4 +1,5 @@
 import { Info } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import {
   LineChart,
   Line,
@@ -72,15 +73,17 @@ export function TicketTrendsChart({
   data = generateChartData(),
   height = 192,
 }: TicketTrendsChartProps) {
+  const { t } = useTranslation("tickets");
+
   return (
     <div className="rounded-lg border bg-background p-3">
       <div className="mb-6 flex flex-col gap-2">
         <div className="flex items-center gap-2">
-          <h2 className="font-semibold">Ticket Trends</h2>
+          <h2 className="font-semibold">{t("trends.title")}</h2>
           <Info className="h-4 w-4 text-muted-foreground" />
         </div>
         <p className="text-muted-foreground">
-          Rita learned from 976 tickets, automatically handled 0%
+          {t("trends.description", { count: 976, percentage: 0 })}
         </p>
       </div>
 
@@ -117,14 +120,14 @@ export function TicketTrendsChart({
               className="h-3 w-3 rounded-xs"
               style={{ backgroundColor: "#8b5cf6" }}
             />
-            <span className="text-sm">Manual</span>
+            <span className="text-sm">{t("trends.legend.manual")}</span>
           </div>
           <div className="flex items-center gap-2">
             <div
               className="h-3 w-3 rounded-xs"
               style={{ backgroundColor: "#10b981" }}
             />
-            <span className="text-sm">Automated</span>
+            <span className="text-sm">{t("trends.legend.automated")}</span>
           </div>
         </div>
       </div>

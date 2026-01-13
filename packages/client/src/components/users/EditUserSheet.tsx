@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -49,6 +50,7 @@ export default function EditUserSheet({
 	onSave,
 	isLastActiveOwner = false,
 }: EditUserSheetProps) {
+	const { t } = useTranslation(["settings", "common"]);
 	const { isOwner, isAdmin } = useProfilePermissions();
 	const [selectedRole, setSelectedRole] = useState<OrganizationRole>("user");
 
@@ -79,13 +81,13 @@ export default function EditUserSheet({
 		<Sheet open={open} onOpenChange={onOpenChange}>
 			<SheetContent>
 				<SheetHeader>
-					<SheetTitle>Edit user</SheetTitle>
-					<SheetDescription>Profile information</SheetDescription>
+					<SheetTitle>{t("users.editSheet.title")}</SheetTitle>
+					<SheetDescription>{t("users.editSheet.description")}</SheetDescription>
 				</SheetHeader>
 
 				<div className="flex flex-col gap-4 px-4">
 					<div className="flex flex-col gap-2">
-						<Label htmlFor="name">Name</Label>
+						<Label htmlFor="name">{t("common:labels.name")}</Label>
 						<Input
 							id="name"
 							value={
@@ -99,7 +101,7 @@ export default function EditUserSheet({
 					</div>
 
 					<div className="flex flex-col gap-2">
-						<Label htmlFor="email">Email</Label>
+						<Label htmlFor="email">{t("common:labels.email")}</Label>
 						<Input
 							id="email"
 							type="email"
@@ -110,7 +112,7 @@ export default function EditUserSheet({
 					</div>
 
 					<div className="flex flex-col gap-2">
-						<Label htmlFor="role">Role</Label>
+						<Label htmlFor="role">{t("common:labels.role")}</Label>
 						<Select
 							value={selectedRole}
 							onValueChange={(value) =>
@@ -119,7 +121,7 @@ export default function EditUserSheet({
 							disabled={isLastActiveOwner}
 						>
 							<SelectTrigger id="role">
-								<SelectValue placeholder="Select role" />
+								<SelectValue placeholder={t("common:labels.selectRole")} />
 							</SelectTrigger>
 							<SelectContent>
 								{/* Admins can assign all roles */}
@@ -127,15 +129,15 @@ export default function EditUserSheet({
 									<>
 										<SelectItemWithDescription
 											value="owner"
-											description="Full control over all content, members, and settings"
+											description={t("users.editSheet.roles.ownerDescription")}
 										>
-											Owner
+											{t("users.editSheet.roles.owner")}
 										</SelectItemWithDescription>
 										<SelectItemWithDescription
 											value="admin"
-											description="Can manage users and content, but not other admins/owners"
+											description={t("users.editSheet.roles.adminDescription")}
 										>
-											Admin
+											{t("users.editSheet.roles.admin")}
 										</SelectItemWithDescription>
 									</>
 								)}
@@ -143,31 +145,30 @@ export default function EditUserSheet({
 								{isOwner() && !isAdmin() && (
 									<SelectItemWithDescription
 										value="owner"
-										description="Full control over all content, members, and settings"
+										description={t("users.editSheet.roles.ownerDescription")}
 									>
-										Owner
+										{t("users.editSheet.roles.owner")}
 									</SelectItemWithDescription>
 								)}
 								{/* Both owners and admins can assign User role */}
 								<SelectItemWithDescription
 									value="user"
-									description="Can view and chat with content but not manage users"
+									description={t("users.editSheet.roles.userDescription")}
 								>
-									User
+									{t("users.editSheet.roles.user")}
 								</SelectItemWithDescription>
 							</SelectContent>
 						</Select>
 						{isLastActiveOwner && (
 							<p className="text-sm text-muted-foreground">
-								Cannot change role: This is the only active owner in the organization.
-								Promote another member to owner first.
+								{t("users.editSheet.lastOwnerWarning")}
 							</p>
 						)}
 					</div>
 				</div>
 
 				<SheetFooter className="px-4 flex-row justify-end">
-					<Button onClick={handleSave}>Update</Button>
+					<Button onClick={handleSave}>{t("common:actions.update")}</Button>
 				</SheetFooter>
 			</SheetContent>
 		</Sheet>

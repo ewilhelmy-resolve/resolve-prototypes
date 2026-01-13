@@ -1,4 +1,5 @@
 import { Loader2 } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { Separator } from "@/components/ui/separator";
 import { useClusterKbArticles } from "@/hooks/useClusters";
 import { KnowledgeArticleItem } from "./KnowledgeArticleItem";
@@ -35,6 +36,7 @@ const formatDate = (dateString: string): string => {
  * Displays a list of knowledge articles linked to the cluster
  */
 export default function KnowledgeTab({ clusterId }: KnowledgeTabProps) {
+	const { t } = useTranslation("tickets");
 	const { data: kbArticles, isLoading, error } = useClusterKbArticles(clusterId);
 
 	// Action handlers - currently log to console, will be replaced with API calls
@@ -73,7 +75,7 @@ export default function KnowledgeTab({ clusterId }: KnowledgeTabProps) {
 	if (error) {
 		return (
 			<div className="flex min-h-[100px] items-center justify-center">
-				<p className="text-sm text-destructive">Failed to load KB articles</p>
+				<p className="text-sm text-destructive">{t("knowledge.failedToLoad")}</p>
 			</div>
 		);
 	}
@@ -81,7 +83,7 @@ export default function KnowledgeTab({ clusterId }: KnowledgeTabProps) {
 	if (!kbArticles || kbArticles.length === 0) {
 		return (
 			<div className="flex min-h-[100px] items-center justify-center">
-				<p className="text-sm text-muted-foreground">No knowledge articles linked</p>
+				<p className="text-sm text-muted-foreground">{t("knowledge.noArticles")}</p>
 			</div>
 		);
 	}

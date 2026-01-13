@@ -2,6 +2,7 @@
 
 import { AlertCircle, Loader2 } from "lucide-react";
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
@@ -25,10 +26,10 @@ import { ConnectionActionsMenu } from "../ConnectionActionsMenu";
 import { ConnectionStatusCard } from "../ConnectionStatusCard";
 import FormSectionTitle from "../form-elements/FormSectionTitle";
 
-const TIME_RANGE_OPTIONS = [
-	{ label: "Last 30 days", value: "30" },
-	{ label: "Last 60 days", value: "60" },
-	{ label: "Last 90 days", value: "90" },
+const TIME_RANGE_OPTIONS_KEYS = [
+	{ labelKey: "config.timeRanges.last30Days", value: "30" },
+	{ labelKey: "config.timeRanges.last60Days", value: "60" },
+	{ labelKey: "config.timeRanges.last90Days", value: "90" },
 ];
 
 interface ServiceNowItsmConfigurationProps {
@@ -38,6 +39,7 @@ interface ServiceNowItsmConfigurationProps {
 export default function ServiceNowItsmConfiguration({
 	onEdit,
 }: ServiceNowItsmConfigurationProps = {}) {
+	const { t } = useTranslation("connections");
 	const { source } = useConnectionSource();
 	const syncTickets = useSyncTickets();
 	const cancelMutation = useCancelIngestion();
@@ -55,8 +57,8 @@ export default function ServiceNowItsmConfiguration({
 	const handleSyncTickets = async () => {
 		if (!source.backendData) {
 			ritaToast.error({
-				title: "Configuration Error",
-				description: "No backend data available for this source",
+				title: t("config.toast.configError"),
+				description: t("config.toast.noBackendData"),
 			});
 			return;
 		}
@@ -68,14 +70,14 @@ export default function ServiceNowItsmConfiguration({
 			});
 
 			ritaToast.success({
-				title: "Sync Started",
-				description: "Your ServiceNow tickets are being synced",
+				title: t("config.toast.syncStarted"),
+				description: t("config.toast.syncStartedServiceNowItsm"),
 			});
 		} catch (error) {
 			ritaToast.error({
-				title: "Sync Failed",
+				title: t("config.toast.syncFailed"),
 				description:
-					error instanceof Error ? error.message : "Failed to start sync",
+					error instanceof Error ? error.message : t("config.toast.syncFailedDefault"),
 			});
 		}
 	};
@@ -83,8 +85,8 @@ export default function ServiceNowItsmConfiguration({
 	const handleCancelSync = async () => {
 		if (!source.backendData) {
 			ritaToast.error({
-				title: "Configuration Error",
-				description: "No backend data available for this source",
+				title: t("config.toast.configError"),
+				description: t("config.toast.noBackendData"),
 			});
 			return;
 		}
@@ -93,14 +95,14 @@ export default function ServiceNowItsmConfiguration({
 			await cancelMutation.mutateAsync(source.backendData.id);
 
 			ritaToast.success({
-				title: "Sync Cancelled",
-				description: "Your sync operation has been cancelled",
+				title: t("config.toast.syncCancelled"),
+				description: t("config.toast.syncCancelledDesc"),
 			});
 		} catch (error) {
 			ritaToast.error({
-				title: "Cancel Failed",
+				title: t("config.toast.cancelFailed"),
 				description:
-					error instanceof Error ? error.message : "Failed to cancel sync",
+					error instanceof Error ? error.message : t("config.toast.cancelFailedDefault"),
 			});
 		}
 	};
@@ -109,7 +111,7 @@ export default function ServiceNowItsmConfiguration({
 		<div className="w-full flex flex-col gap-2">
 			<div className="flex flex-col gap-2.5">
 				<div className="flex justify-between items-start gap-2">
-					<FormSectionTitle title="ServiceNow ITSM configuration" />
+					<FormSectionTitle title={t("config.titles.servicenowItsm")} />
 					<ConnectionActionsMenu onEdit={onEdit} />
 				</div>
 
@@ -128,7 +130,7 @@ export default function ServiceNowItsmConfiguration({
 								{/* Import tickets controls */}
 								<div>
 									<Label className="mb-2">
-										Import tickets from the last:
+										{t("config.labels.importFromLast")}
 									</Label>
 									<div className="flex flex-col md:flex-row items-start gap-4 mt-2">
 										<div className="md:flex-1 w-full">
@@ -138,12 +140,12 @@ export default function ServiceNowItsmConfiguration({
 												disabled={isTicketSyncing}
 											>
 												<SelectTrigger className="w-full">
-													<SelectValue placeholder="Select time range" />
+													<SelectValue placeholder={t("config.labels.selectTimeRange")} />
 												</SelectTrigger>
 												<SelectContent>
-													{TIME_RANGE_OPTIONS.map((option) => (
+													{TIME_RANGE_OPTIONS_KEYS.map((option) => (
 														<SelectItem key={option.value} value={option.value}>
-															{option.label}
+															{t(option.labelKey)}
 														</SelectItem>
 													))}
 												</SelectContent>
@@ -156,7 +158,7 @@ export default function ServiceNowItsmConfiguration({
 												className="w-full md:w-fit"
 												variant="destructive"
 											>
-												{cancelMutation.isPending ? "Cancelling..." : "Cancel Sync"}
+												{cancelMutation.isPending ? t("config.sync.cancelling") : t("config.sync.cancelSync")}
 											</Button>
 										) : (
 											<Button
@@ -165,7 +167,7 @@ export default function ServiceNowItsmConfiguration({
 												className="w-full md:w-fit"
 												variant="default"
 											>
-												{syncTickets.isPending ? "Importing..." : "Import tickets"}
+												{syncTickets.isPending ? t("config.sync.importing") : t("config.sync.importTickets")}
 											</Button>
 										)}
 									</div>
@@ -182,22 +184,22 @@ export default function ServiceNowItsmConfiguration({
 													className="flex-1"
 												/>
 												<span className="text-sm text-muted-foreground whitespace-nowrap">
-													{latestIngestionRun.records_processed} of {latestIngestionRun.metadata.progress.total_estimated} tickets
+													{t("config.sync.ticketsOf", { processed: latestIngestionRun.records_processed, total: latestIngestionRun.metadata.progress.total_estimated })}
 												</span>
 											</div>
 										) : (
 											<div className="flex items-center gap-2 text-sm text-muted-foreground">
 												<Loader2 className="h-4 w-4 animate-spin" />
-												Importing tickets...
+												{t("config.sync.importingTickets")}
 											</div>
 										)
 									) : (
 										// Show last sync info when not syncing
 										latestIngestionRun?.completed_at ? (
 											<p className="text-sm text-muted-foreground">
-												Last synced {formatRelativeTime(latestIngestionRun.completed_at)}
+												{t("config.sync.lastSynced", { time: formatRelativeTime(latestIngestionRun.completed_at) })}
 												{latestIngestionRun.records_processed > 0 && (
-													<span> · {latestIngestionRun.records_processed} tickets</span>
+													<span> · {t("config.sync.ticketsCount", { count: latestIngestionRun.records_processed })}</span>
 												)}
 												{latestIngestionRun.records_failed > 0 && (
 													<Tooltip>
@@ -205,16 +207,14 @@ export default function ServiceNowItsmConfiguration({
 															<AlertCircle className="h-4 w-4 text-amber-500 inline ml-1 cursor-help" />
 														</TooltipTrigger>
 														<TooltipContent className="max-w-[250px]">
-															{latestIngestionRun.records_failed} tickets couldn't sync.
-															Common causes: missing fields, permissions, or API limits.
-															Excluded from analysis.
+															{t("config.sync.ticketsSyncFailed", { count: latestIngestionRun.records_failed })}
 														</TooltipContent>
 													</Tooltip>
 												)}
 											</p>
 										) : (
 											<p className="text-sm text-muted-foreground">
-												No tickets imported yet
+												{t("config.sync.noTicketsYet")}
 											</p>
 										)
 									)}
