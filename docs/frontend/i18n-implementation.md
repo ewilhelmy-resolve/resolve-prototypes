@@ -28,7 +28,7 @@ packages/client/src/i18n/
         ├── chat.json
         ├── auth.json
         ├── validation.json
-        ├── files.json
+        ├── kbs.json
         ├── tickets.json
         └── dialogs.json
 ```
@@ -45,7 +45,7 @@ packages/client/src/i18n/
 | chat | Chat interface |
 | auth | Auth pages |
 | validation | Form validation |
-| files | Knowledge base |
+| kbs | Knowledge base |
 | tickets | Ticket groups, review, automation |
 | dialogs | Dialog components (confirm, invite, welcome) |
 
@@ -199,10 +199,13 @@ const resolvedPlaceholder = placeholder ?? t("input.placeholder");
 - [x] Zod schemas in auth pages use auth.json validation keys (Phase 8 pattern)
 - [x] lib/validation.ts - skipped (utility functions, no React hooks access)
 
-### Phase 11: Files
+### Phase 11: Knowledge Base (kbs)
 
-- [ ] Create files.json
-- [ ] Migrate file components
+- [x] Create kbs.json (~95 keys, renamed from files.json)
+- [x] Migrate FilesV1Content.tsx (header, dropdown, search, filters, table, pagination, dialogs)
+- [x] Migrate EmptyFilesState.tsx (empty state messaging)
+- [x] Migrate FileUploadRequirements.tsx (file type/size requirements)
+- [x] Update FilesV1Content.test.tsx to expect translation keys
 
 ### Phase 12: Audit
 
@@ -212,8 +215,8 @@ const resolvedPlaceholder = placeholder ?? t("input.placeholder");
 
 ## Current Checkpoint
 
-**Status**: Phase 10 - COMPLETE
-**Next Step**: Phase 11 - Files namespace
+**Status**: Phases 1-11 COMPLETE
+**Next Step**: Phase 12 - Final audit
 **Last Updated**: 2026-01-12
 
 ## Related Docs
