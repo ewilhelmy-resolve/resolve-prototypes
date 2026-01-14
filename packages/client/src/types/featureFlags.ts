@@ -16,6 +16,7 @@ export type FeatureFlagKey =
   | 'ENABLE_MULTI_FILE_UPLOAD'
   | 'ENABLE_TICKETS_V2'
   | 'ENABLE_WORKFLOWS'
+  | 'ENABLE_LANGUAGE_SWITCHER'
   // Auto Pilot flags (platform-controlled)
   | 'ENABLE_AUTO_PILOT'
   | 'ENABLE_AUTO_PILOT_SUGGESTIONS'
@@ -103,6 +104,13 @@ export const FEATURE_FLAGS: Record<FeatureFlagKey, FeatureFlagConfig> = {
     key: 'ENABLE_WORKFLOWS',
     label: 'Workflows',
     description: 'Enable Workflow Generator dev tool',
+    defaultValue: false,
+    category: 'experimental',
+  },
+  ENABLE_LANGUAGE_SWITCHER: {
+    key: 'ENABLE_LANGUAGE_SWITCHER',
+    label: 'Language Switcher',
+    description: 'Show language dropdown in header (EN/ES-MX)',
     defaultValue: false,
     category: 'experimental',
   },

@@ -67,7 +67,7 @@ describe("InviteUserCard", () => {
 
 			// Card should have proper styling classes
 			const card = screen.getByRole("heading", {
-				name: /invite users/i,
+				name: /inviteCard.title/i,
 			}).parentElement;
 			expect(card).toHaveClass("space-y-3");
 			expect(card).toHaveClass("p-4");
@@ -84,7 +84,7 @@ describe("InviteUserCard", () => {
 				</TestWrapper>,
 			);
 
-			const title = screen.getByRole("heading", { name: /invite users/i });
+			const title = screen.getByRole("heading", { name: /inviteCard.title/i });
 			expect(title).toBeInTheDocument();
 			expect(title).toHaveClass("text-base");
 			expect(title).toHaveClass("font-semibold");
@@ -98,11 +98,7 @@ describe("InviteUserCard", () => {
 				</TestWrapper>,
 			);
 
-			expect(
-				screen.getByText(
-					"Invite teammates to use RITA and resolve support faster.",
-				),
-			).toBeInTheDocument();
+			expect(screen.getByText("inviteCard.description")).toBeInTheDocument();
 		});
 
 		it("should have proper text styling for description", () => {
@@ -112,9 +108,7 @@ describe("InviteUserCard", () => {
 				</TestWrapper>,
 			);
 
-			const description = screen.getByText(
-				"Invite teammates to use RITA and resolve support faster.",
-			);
+			const description = screen.getByText("inviteCard.description");
 			expect(description).toHaveClass("text-sm");
 			expect(description).toHaveClass("text-muted-foreground");
 		});
@@ -157,7 +151,7 @@ describe("InviteUserCard", () => {
 			);
 
 			const container = screen
-				.getByRole("heading", { name: /invite users/i })
+				.getByRole("heading", { name: /inviteCard.title/i })
 				.closest("div")?.parentElement;
 			expect(container).toHaveClass("mt-auto");
 			expect(container).toHaveClass("pt-6");
@@ -177,7 +171,7 @@ describe("InviteUserCard", () => {
 			);
 
 			const card = screen.getByRole("heading", {
-				name: /invite users/i,
+				name: /inviteCard.title/i,
 			}).parentElement;
 			expect(card).toHaveClass("bg-blue-50/30");
 		});
@@ -190,7 +184,7 @@ describe("InviteUserCard", () => {
 			);
 
 			const card = screen.getByRole("heading", {
-				name: /invite users/i,
+				name: /inviteCard.title/i,
 			}).parentElement;
 			expect(card).toHaveClass("rounded-lg");
 		});
@@ -203,7 +197,7 @@ describe("InviteUserCard", () => {
 			);
 
 			const card = screen.getByRole("heading", {
-				name: /invite users/i,
+				name: /inviteCard.title/i,
 			}).parentElement;
 			expect(card).toHaveClass("border");
 			expect(card).toHaveClass("border-border");
@@ -223,7 +217,7 @@ describe("InviteUserCard", () => {
 			);
 
 			const card = screen.getByRole("heading", {
-				name: /invite users/i,
+				name: /inviteCard.title/i,
 			}).parentElement;
 
 			// Get all child elements
@@ -253,7 +247,7 @@ describe("InviteUserCard", () => {
 				</TestWrapper>,
 			);
 
-			const heading = screen.getByRole("heading", { name: /invite users/i });
+			const heading = screen.getByRole("heading", { name: /inviteCard.title/i });
 			expect(heading.tagName).toBe("H3");
 		});
 
@@ -267,7 +261,7 @@ describe("InviteUserCard", () => {
 			// Text should be accessible
 			expect(
 				screen.getByText(
-					"Invite teammates to use RITA and resolve support faster.",
+					"inviteCard.description",
 				),
 			).toBeInTheDocument();
 		});
@@ -280,12 +274,12 @@ describe("InviteUserCard", () => {
 			);
 
 			// Title should use foreground color for proper contrast
-			const title = screen.getByRole("heading", { name: /invite users/i });
+			const title = screen.getByRole("heading", { name: /inviteCard.title/i });
 			expect(title).toHaveClass("text-foreground");
 
 			// Description should use muted foreground
 			const description = screen.getByText(
-				"Invite teammates to use RITA and resolve support faster.",
+				"inviteCard.description",
 			);
 			expect(description).toHaveClass("text-muted-foreground");
 		});
@@ -361,7 +355,7 @@ describe("InviteUserCard", () => {
 			);
 
 			const card = screen.getByRole("heading", {
-				name: /invite users/i,
+				name: /inviteCard.title/i,
 			}).parentElement;
 			expect(card).toHaveClass("space-y-3"); // Vertical spacing between elements
 			expect(card).toHaveClass("p-4"); // Padding around content
@@ -394,7 +388,7 @@ describe("InviteUserCard", () => {
 				container.querySelector('[class*="mt-auto"]'),
 			).not.toBeInTheDocument();
 			expect(
-				screen.queryByRole("heading", { name: /invite users/i }),
+				screen.queryByRole("heading", { name: /inviteCard.title/i }),
 			).not.toBeInTheDocument();
 		});
 
@@ -409,7 +403,7 @@ describe("InviteUserCard", () => {
 
 			// Component should render the card
 			expect(
-				screen.getByRole("heading", { name: /invite users/i }),
+				screen.getByRole("heading", { name: /inviteCard.title/i }),
 			).toBeInTheDocument();
 		});
 	});
