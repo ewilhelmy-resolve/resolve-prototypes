@@ -480,21 +480,6 @@ export class CredentialDelegationService {
   }
 
   /**
-   * Encode credentials for webhook transmission (base64)
-   */
-  private encodeCredentials(credentials: ItsmCredentials): Record<string, string> {
-    const encoded: Record<string, string> = {};
-    for (const [key, value] of Object.entries(credentials)) {
-      if (key === 'password' || key === 'api_token') {
-        encoded[key] = Buffer.from(String(value)).toString('base64');
-      } else {
-        encoded[key] = String(value);
-      }
-    }
-    return encoded;
-  }
-
-  /**
    * Validate email format
    */
   private validateEmail(email: string): boolean {

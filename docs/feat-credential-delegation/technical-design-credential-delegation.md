@@ -1,8 +1,8 @@
 # Technical Design Document: RITA Credential Delegation
 
-**Status:** v1.0
-**Date:** November 26, 2025
-**Feature:** Delegated ITSM Credential Setup for ServiceNow, Jira, and Confluence
+**Status:** v1.1
+**Date:** January 13, 2026
+**Feature:** Delegated ITSM Credential Setup for ServiceNow and Jira
 
 -----
 
@@ -13,9 +13,9 @@ This document outlines the architecture for RITA's Credential Delegation system.
 **Key Architectural Decisions:**
 
 * **Zero Credential Storage:** Rita NEVER stores ITSM credentials - they pass through in memory only and are immediately sent to external service
-* **Magic Link Pattern:** 64-character hex token (256-bit entropy) with 7-day expiration
-* **Single-Use Enforcement:** Atomic database update prevents token reuse (race condition protection)
-* **Real-Time Feedback:** SSE events and polling for verification status
+* **Magic Link Pattern:** 64-character hex token (256-bit entropy) with 24-hour expiration
+* **Retry Support:** Failed verifications can be retried (status reverts to 'pending')
+* **Real-Time Feedback:** Polling for IT admin, SSE events for RITA owner
 
 **Related Documentation:**
 - [Autopilot Ticket Clustering](../feat-autopilot-ticket-cluster/technical-design-autopilot-tickets.md) - Uses credentials configured via this system
@@ -31,16 +31,15 @@ This document outlines the architecture for RITA's Credential Delegation system.
 ### 2.1 Security Model
 
 * **Zero Credential Storage:** Rita NEVER stores ITSM credentials - they pass through in memory only and are immediately sent to external service
-* **Magic Link Pattern:** 64-character hex token (256-bit entropy) with 7-day expiration
-* **Single-Use Enforcement:** Atomic database update prevents token reuse (race condition protection)
-* **Real-Time Feedback:** SSE events notify both delegator and delegate of verification status
+* **Magic Link Pattern:** 64-character hex token (256-bit entropy) with 24-hour expiration
+* **Retry Support:** Failed verifications allow retry (status='pending' or 'failed' can submit again)
+* **Real-Time Feedback:** IT admin polls for status, RITA owner receives SSE events
 * **Audit Trail:** All delegation and verification actions logged for SOC2 compliance
 
 ### 2.2 Supported Systems
 
-* **ServiceNow** - Username/password or API token authentication
+* **ServiceNow** - Username/password authentication
 * **Jira** - API token + email authentication
-* **Confluence** - API token + email authentication (optional delegation for private instances)
 
 ### 2.3 Sequence Diagram
 
@@ -198,9 +197,9 @@ sequenceDiagram
 
 **Token Security:**
 - Generated using `crypto.randomBytes(32).toString('hex')` (matches invitation system pattern)
-- 7-day expiration (configurable)
-- Single-use atomic enforcement prevents race conditions
+- 24-hour expiration (`TOKEN_EXPIRY_DAYS = 1`)
 - Rate limiting: 10 delegations per org per day
+- Retry support: 'pending' or 'failed' status allows resubmission
 
 **Zero Credential Storage:**
 - Credentials never persisted to Rita database
@@ -268,10 +267,10 @@ erDiagram
         uuid organization_id FK "organizations.id ON DELETE CASCADE"
         uuid created_by_user_id FK "user_profiles.user_id"
         text admin_email "IT admin email (not Rita user)"
-        text itsm_system_type "servicenow|jira|confluence"
+        text itsm_system_type "servicenow|jira"
         text delegation_token UK "64-char hex (32 bytes)"
-        timestamp token_expires_at "7 days default"
-        text status "pending|used|verified|expired|cancelled"
+        timestamp token_expires_at "24 hours default"
+        text status "pending|verified|failed|expired|cancelled"
         timestamp credentials_received_at "when IT admin submitted"
         timestamp credentials_verified_at "when external service verified"
         text last_verification_error
@@ -330,9 +329,13 @@ erDiagram
 
 #### Credential Verification Webhook
 
-**Webhook:** Workflow Platform
+**Webhook:** Workflow Platform (via `DataSourceWebhookService.sendVerifyEvent`)
 **Action:** `verify_credentials`
 **Purpose:** Validate ITSM credentials and store securely in external service
+
+**Delegation vs Regular Verification:**
+- Delegations include `settings.delegation_id` to identify the flow
+- Same webhook endpoint, differentiated by `settings.delegation_id` presence
 
 ```json
 {
@@ -341,76 +344,68 @@ erDiagram
   "tenant_id": "org-uuid-123",
   "user_id": "creator-uuid-456",
   "user_email": "owner@company.com",
-  "connection_id": "conn-uuid-789",
+  "connection_id": "delegation-uuid-789",
   "connection_type": "servicenow",
   "credentials": {
+    "instance_url": "https://company.service-now.com",
     "username": "admin@company.com",
     "password": "YmFzZTY0RW5jb2RlZFBhc3N3b3Jk"
   },
   "settings": {
-    "url": "https://company.service-now.com"
+    "delegation_id": "delegation-uuid-789",
+    "admin_email": "itadmin@company.com",
+    "organization_name": "Acme Corp"
   },
-  "timestamp": "2025-11-24T10:00:00Z"
+  "timestamp": "2026-01-13T10:00:00Z"
 }
 ```
 
 **Connection Types:**
 - `servicenow` - Basic auth (username/password)
 - `jira` - API token + email
-- `confluence` - API token + email
 
 **ServiceNow Credentials:**
 ```json
 {
   "credentials": {
+    "instance_url": "https://company.service-now.com",
     "username": "admin@company.com",
-    "password": "YmFzZTY0RW5jb2RlZA=="
-  },
-  "settings": {
-    "url": "https://company.service-now.com"
+    "password": "secretpassword"
   }
 }
 ```
 
-**Jira/Confluence Credentials:**
+**Jira Credentials:**
 ```json
 {
   "credentials": {
-    "api_token": "ATATT3xFfGF0...",
-    "email": "user@company.com"
-  },
-  "settings": {
-    "url": "https://company.atlassian.net"
+    "instance_url": "https://company.atlassian.net",
+    "email": "user@company.com",
+    "api_token": "ATATT3xFfGF0..."
   }
 }
 ```
 
 **Security:**
-- Password base64 encoded to prevent accidental logging
 - Credentials transmitted over HTTPS only
 - Rita NEVER stores credentials in database
 - External service stores with composite key: `(tenant_id, connection_id, connection_type)`
 
 **Response:** HTTP 200 (synchronous acknowledgment)
-**Result:** Arrives asynchronously via RabbitMQ `data_source_status` queue
+**Result:** Arrives asynchronously via RabbitMQ `credential_delegation_status` queue (for delegations)
 
 ---
 
 ### 4.2 RabbitMQ Payloads
 
-**Queue:** `data_source_status`
-*Purpose: Async credential verification results for all data source types (ServiceNow, Jira, Confluence).*
+**Queue:** `credential_delegation_status`
+*Purpose: Async credential verification results for delegation flow.*
 
 **Success Message:**
 ```json
 {
-  "type": "verification",
-  "connection_id": "conn-uuid-789",
-  "tenant_id": "org-uuid-123",
-  "status": "success",
-  "options": {
-    "tables": "incident,problem,change_request"
-  },
+  "delegation_id": "delegation-uuid-789",
+  "status": "verified",
   "error": null
 }
 ```
@@ -418,19 +413,13 @@ erDiagram
 **Failure Message:**
 ```json
 {
-  "type": "verification",
-  "connection_id": "conn-uuid-789",
-  "tenant_id": "org-uuid-123",
+  "delegation_id": "delegation-uuid-789",
   "status": "failed",
-  "options": null,
   "error": "Invalid credentials or insufficient permissions"
 }
 ```
 
-**Options by Connection Type:**
-- ServiceNow: `{"tables": "incident,problem,change_request"}` - Comma-separated table names
-- Jira: `{"projects": "PROJ1,PROJ2,PROJ3"}` - Comma-separated project keys
-- Confluence: `{"spaces": "ENG,PROD,DOCS"}` - Comma-separated space keys
+**Consumer:** `CredentialDelegationStatusConsumer` updates `credential_delegation_tokens` table based on status.
 
 ---
 
@@ -438,59 +427,59 @@ erDiagram
 
 **Authentication & Authorization:**
 - Public endpoints use token-based auth (delegation token IS the auth)
-- Authenticated endpoints require Keycloak JWT token
+- Authenticated endpoints require Keycloak JWT token + session cookie
 
 #### Credential Delegation Endpoints
 
-* **`POST /api/credential-delegations/create`**
-    * Payload: `{ "admin_email": string, "itsm_system_type": "servicenow" | "jira" | "confluence" }`
+* **`POST /api/credential-delegations/create`** (Authenticated)
+    * Payload: `{ "admin_email": string, "itsm_system_type": "servicenow" | "jira" }`
     * Authorization: Requires `admin` or `owner` role
     * Action: Generate 64-char token, INSERT credential_delegation_tokens, send email via webhook
-    * Webhook Call: `WebhookService.sendCredentialDelegationEmail()`
+    * Webhook Call: `WebhookService.sendGenericEvent()`
         - source: `'rita-credential-delegation'`, action: `'send_delegation_email'`
         - Includes: tenant_id, user_id, user_email, admin_email, delegation_url, organization_name, itsm_system_type
-        - Failures logged to `rag_webhook_failures` table
-        - Retry: 3 attempts with exponential backoff
     * Rate limit: 10 delegations per org per day
     * Audit: Logs to `audit_logs` with action `create_credential_delegation`
     * Returns: `{ delegation_id, delegation_url, expires_at, status: "pending" }`
+    * Errors: 400 (invalid input), 409 (duplicate pending), 429 (rate limit)
 
 * **`GET /api/credential-delegations/verify/:token`** (Public)
     * Authorization: None (public endpoint)
     * Action: Validate token exists, not expired, status='pending'
-    * Returns: `{ valid: boolean, org_name, system_type, delegated_by, expires_at }` or `{ valid: false, reason }`
+    * Returns: `{ valid: true, org_name, system_type, delegated_by, expires_at }` or `{ valid: false, reason: "expired" | "not_found" }`
 
 * **`GET /api/credential-delegations/status/:token`** (Public)
     * Authorization: None (token is auth)
     * Purpose: Poll verification status for IT Admin real-time feedback
-    * Action: Check delegation token status
-    * Returns based on status:
-        - `status='used'`: `{ status: "verifying", message: "Checking credentials..." }`
-        - `status='verified'`: `{ status: "success", message: "Credentials verified!", connection_id: "uuid" }`
-        - `status='pending'` (after failure): `{ status: "failed", error: "Invalid credentials or insufficient permissions", allow_retry: true }`
-        - Token not found / wrong status: `404 { error: "Invalid or expired token" }`
-    * Rate limit: 20 requests per minute per token
-    * Used by IT Admin page for polling after credential submission
-    * Typical polling: Every 3 seconds for max 30 seconds (10 polls)
+    * Returns: `{ delegation_id, status, itsm_system_type, organization_name, submitted_at, verified_at, error }`
+    * Status values:
+        - `pending`: Waiting for credentials OR verifying (check `submitted_at`)
+        - `verified`: Credentials verified successfully
+        - `failed`: Verification failed (can retry)
+    * Typical polling: Every 2 seconds via `useDelegationStatus` hook
 
 * **`POST /api/credential-delegations/submit`** (Public)
-    * Payload: `{ "token": string, "credentials": { url, username, password, ... } }`
+    * Payload: `{ "token": string, "credentials": { instance_url, username, password } | { instance_url, email, api_token } }`
     * Authorization: None (public endpoint)
-    * Action: Atomic update status='used', send webhook for verification, credentials NOT stored
+    * Action: Update `credentials_received_at`, send webhook for verification
     * Webhook Call: `DataSourceWebhookService.sendVerifyEvent()`
         - source: `'rita-chat'`, action: `'verify_credentials'`
-        - connection_type: `'servicenow'|'jira'|'confluence'` (identifies system)
-        - Includes: tenant_id, user_id, user_email, connection_id, credentials (password base64 encoded), settings
-        - Same pattern as Confluence verification
-        - Result arrives async via RabbitMQ `data_source_status` queue
-    * Returns: `202 { status: "verifying", polling_url: "/api/credential-delegations/status/:token" }` (result via polling)
-    * Frontend: Immediately starts polling status endpoint every 3s
-    * Error: 409 if token already used (race condition prevention)
+        - connection_type: `'servicenow'|'jira'`
+        - settings: `{ delegation_id, admin_email, organization_name }`
+        - Result arrives async via RabbitMQ `credential_delegation_status` queue
+    * Returns: `{ success: true, message, delegation_id, status: "pending" }`
+    * Allows retry: 'pending' or 'failed' status can resubmit
+    * Errors: 400 (invalid token/credentials), 410 (expired), 409 (already verified/cancelled)
 
-* **`GET /api/credential-delegations`**
-    * Query: `?status=pending|used|verified&system_type=servicenow|jira`
+* **`GET /api/credential-delegations`** (Authenticated)
+    * Query: `?status=pending|verified|failed&system_type=servicenow|jira&limit=50&offset=0`
     * Authorization: Requires `member` role or higher
-    * Returns: List of delegations for organization `[{ id, admin_email, system_type, status, created_at, expires_at, verified_at }]`
+    * Returns: `{ delegations: [{ id, admin_email, system_type, status, created_at, expires_at, verified_at }] }`
+
+* **`DELETE /api/credential-delegations/:id/cancel`** (Authenticated)
+    * Authorization: Requires `admin` or `owner` role
+    * Action: Set status='cancelled' for pending delegations
+    * Returns: `{ success: true }`
 
 -----
 
@@ -690,14 +679,14 @@ CREATE TABLE credential_delegation_tokens (
 
     -- Delegated admin info (not yet authenticated)
     admin_email TEXT NOT NULL,
-    itsm_system_type TEXT NOT NULL CHECK (itsm_system_type IN ('servicenow', 'jira', 'confluence')),
+    itsm_system_type TEXT NOT NULL CHECK (itsm_system_type IN ('servicenow', 'jira')),
 
     -- Token management
     delegation_token TEXT NOT NULL UNIQUE,
     token_expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
 
     -- Status tracking
-    status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'used', 'verified', 'expired', 'cancelled')),
+    status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'verified', 'failed', 'expired', 'cancelled')),
 
     -- Credential submission tracking
     credentials_received_at TIMESTAMP WITH TIME ZONE,  -- when IT admin submitted
@@ -736,8 +725,8 @@ CREATE POLICY "users_access_own_organization_delegations" ON credential_delegati
 COMMENT ON TABLE credential_delegation_tokens IS 'Delegated credential setup links for external ITSM admins';
 COMMENT ON COLUMN credential_delegation_tokens.delegation_token IS '64-char hex token (32 random bytes) sent via email';
 COMMENT ON COLUMN credential_delegation_tokens.admin_email IS 'Email of IT admin (not yet a Rita user)';
-COMMENT ON COLUMN credential_delegation_tokens.itsm_system_type IS 'ServiceNow, Jira, or Confluence';
-COMMENT ON COLUMN credential_delegation_tokens.status IS 'pending → used → verified (or back to pending on failure)';
+COMMENT ON COLUMN credential_delegation_tokens.itsm_system_type IS 'ServiceNow or Jira';
+COMMENT ON COLUMN credential_delegation_tokens.status IS 'pending → verified (or failed, can retry)';
 COMMENT ON COLUMN credential_delegation_tokens.credentials_received_at IS 'When IT admin submitted credentials';
 COMMENT ON COLUMN credential_delegation_tokens.credentials_verified_at IS 'When external service verified';
 ```
@@ -760,3 +749,51 @@ DROP TABLE IF EXISTS credential_delegation_tokens CASCADE;
 ```
 
 **⚠️ Warning:** Rollback will permanently delete all delegation data.
+
+-----
+
+## 8. Frontend Implementation
+
+### 8.1 React Components
+
+**Location:** `packages/client/src/`
+
+| Component | Path | Purpose |
+|-----------|------|---------|
+| `CredentialSetupPage` | `pages/CredentialSetupPage.tsx` | Public page for IT admins to enter credentials via magic link |
+| `LinkExpiredPage` | `pages/LinkExpiredPage.tsx` | Public error page for expired/invalid links |
+| `DelegationInviteBox` | `components/connection-sources/DelegationInviteBox.tsx` | Box with modal for owners to invite IT admins |
+
+### 8.2 Routes
+
+```typescript
+// router.tsx - Public routes (no auth required)
+{ path: "/credential-setup", element: <CredentialSetupPage /> }
+{ path: "/link-expired", element: <LinkExpiredPage /> }
+```
+
+### 8.3 API Hooks
+
+**Location:** `packages/client/src/hooks/api/useCredentialDelegations.ts`
+
+| Hook | Auth | Purpose |
+|------|------|---------|
+| `useVerifyDelegation(token)` | Public | Validate token on page load |
+| `useSubmitCredentials()` | Public | Submit ITSM credentials |
+| `useDelegationStatus(token)` | Public | Poll verification status (2s interval) |
+| `useCreateDelegation()` | Authenticated | Create delegation and send invite email |
+
+### 8.4 Page States (CredentialSetupPage)
+
+```
+loading → valid token? → form → submitting → polling → success/error
+                    ↓
+              invalid → redirect to /link-expired?reason=expired|not_found
+```
+
+### 8.5 Styling
+
+- Public pages use dark gradient background matching login page
+- `bg-gradient-to-br from-black via-[#0d1637] to-[#1a2549]`
+- RITA logo at top
+- Centered card layout

@@ -85,12 +85,6 @@ const SYSTEM_METADATA: Record<
 		description:
 			"Connect your Jira instance to enable RITA to create and manage issues.",
 	},
-	confluence: {
-		title: "Confluence",
-		icon: "/connections/icon_confluence.svg",
-		description:
-			"Connect your Confluence instance to build context for RITA to make better experiences.",
-	},
 };
 
 
@@ -691,7 +685,7 @@ export default function CredentialSetupPage() {
 							verificationError={verificationError}
 						/>
 					)}
-					{(systemType === "jira" || systemType === "confluence") && (
+					{systemType === "jira" && (
 						<JiraCredentialForm
 							systemType={systemType}
 							onSubmit={handleJiraSubmit}
