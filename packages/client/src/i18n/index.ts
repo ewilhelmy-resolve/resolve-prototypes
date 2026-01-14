@@ -6,6 +6,7 @@ import authEn from "./locales/en/auth.json";
 import chatEn from "./locales/en/chat.json";
 import commonEn from "./locales/en/common.json";
 import connectionsEn from "./locales/en/connections.json";
+import credentialDelegationEn from "./locales/en/credentialDelegation.json";
 import dialogsEn from "./locales/en/dialogs.json";
 import errorsEn from "./locales/en/errors.json";
 import kbsEn from "./locales/en/kbs.json";
@@ -22,6 +23,7 @@ export const resources = {
 		chat: chatEn,
 		common: commonEn,
 		connections: connectionsEn,
+		credentialDelegation: credentialDelegationEn,
 		dialogs: dialogsEn,
 		errors: errorsEn,
 		kbs: kbsEn,

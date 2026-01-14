@@ -2,6 +2,7 @@
 
 import { Mail } from "lucide-react";
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import {
 	Dialog,
@@ -16,34 +17,31 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ritaToast } from "@/components/ui/rita-toast";
 import {
-    ItsmSystemType,
-    useCreateDelegation
+	ItsmSystemType,
+	useCreateDelegation,
 } from "@/hooks/api/useCredentialDelegations";
 
 interface DelegationInviteBoxProps {
-    itsmSource: ItsmSystemType;
+	itsmSource: ItsmSystemType;
 }
 
-
-export default function DelegationInviteBox({ itsmSource }: DelegationInviteBoxProps) {
+export default function DelegationInviteBox({
+	itsmSource,
+}: DelegationInviteBoxProps) {
+	const { t } = useTranslation("credentialDelegation");
 	const [isOpen, setIsOpen] = useState(false);
 	const [email, setEmail] = useState("");
 	const createDelegation = useCreateDelegation();
 
-	const systemName =
-        itsmSource === "servicenow"
-			? "ServiceNow"
-			: itsmSource === "jira"
-				? "Jira"
-				: "ITSM not supported";
+	const systemName = t(`systems.${itsmSource}.title`);
 
 	const handleSubmit = async (e: React.FormEvent) => {
 		e.preventDefault();
 
 		if (!email.trim()) {
 			ritaToast.error({
-				title: "Email Required",
-				description: "Please enter the IT admin's email address",
+				title: t("invite.toast.emailRequired.title"),
+				description: t("invite.toast.emailRequired.description"),
 			});
 			return;
 		}
@@ -55,8 +53,8 @@ export default function DelegationInviteBox({ itsmSource }: DelegationInviteBoxP
 			});
 
 			ritaToast.success({
-				title: "Invite Sent",
-				description: `An email has been sent to ${email} with a secure link to set up credentials.`,
+				title: t("invite.toast.success.title"),
+				description: t("invite.toast.success.description", { email }),
 			});
 
 			setEmail("");
@@ -65,10 +63,11 @@ export default function DelegationInviteBox({ itsmSource }: DelegationInviteBoxP
 			const message =
 				error instanceof Error
 					? error.message
-					: (error as { error?: string })?.error || "Failed to send invite";
+					: (error as { error?: string })?.error ||
+						t("invite.toast.error.defaultDescription");
 
 			ritaToast.error({
-				title: "Failed to Send Invite",
+				title: t("invite.toast.error.title"),
 				description: message,
 			});
 		}
@@ -81,40 +80,42 @@ export default function DelegationInviteBox({ itsmSource }: DelegationInviteBoxP
 					<Mail className="h-5 w-5 text-primary" />
 				</div>
 				<div className="flex-1 min-w-0">
-					<h4 className="text-sm font-medium">Delegate Credential Setup</h4>
+					<h4 className="text-sm font-medium">{t("invite.title")}</h4>
 					<p className="text-sm text-muted-foreground mt-1">
-						Send a secure link to your IT admin to set up {systemName}{" "}
-						credentials without sharing them directly.
+						{t("invite.description", { systemName })}
 					</p>
 				</div>
 				<Dialog open={isOpen} onOpenChange={setIsOpen}>
 					<DialogTrigger asChild>
 						<Button variant="outline" size="sm" className="flex-shrink-0">
-							Invite IT Admin
+							{t("invite.button")}
 						</Button>
 					</DialogTrigger>
 					<DialogContent>
 						<DialogHeader>
-							<DialogTitle>Invite IT Admin to configure</DialogTitle>
+							<DialogTitle>{t("invite.dialog.title")}</DialogTitle>
 							<DialogDescription>
-								Enter the email of your {systemName}{" "}
-								administrator. They'll get temporary access for 24 hour to complete setup.
+								{t("invite.dialog.description", { systemName })}
 							</DialogDescription>
 						</DialogHeader>
 						<form onSubmit={handleSubmit}>
 							<div className="grid gap-4 py-4">
 								<div className="grid gap-2">
-									<Label htmlFor="admin-email">IT Admin Email</Label>
+									<Label htmlFor="admin-email">
+										{t("invite.dialog.emailLabel")}
+									</Label>
 									<Input
 										id="admin-email"
 										type="email"
-										placeholder="admin@company.com"
+										placeholder={t("invite.dialog.emailPlaceholder")}
 										value={email}
 										onChange={(e) => setEmail(e.target.value)}
 										autoComplete="email"
 										required
 									/>
-                                    <p className="text-sm text-muted-foreground mt-1">The recipient will receive a secure link with temporary access (24 hours)</p>
+									<p className="text-sm text-muted-foreground mt-1">
+										{t("invite.dialog.emailHint")}
+									</p>
 								</div>
 							</div>
 							<DialogFooter>
@@ -123,10 +124,12 @@ export default function DelegationInviteBox({ itsmSource }: DelegationInviteBoxP
 									variant="ghost"
 									onClick={() => setIsOpen(false)}
 								>
-									Cancel
+									{t("invite.dialog.cancel")}
 								</Button>
 								<Button type="submit" disabled={createDelegation.isPending}>
-									{createDelegation.isPending ? "Sending..." : "Send Invite"}
+									{createDelegation.isPending
+										? t("invite.dialog.sending")
+										: t("invite.dialog.send")}
 								</Button>
 							</DialogFooter>
 						</form>

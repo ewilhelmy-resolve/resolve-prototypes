@@ -114,7 +114,9 @@ export default function ConnectionSourceDetailPage({
 
 	// Get breadcrumb label based on mode
 	const breadcrumbLabel =
-		mode === "knowledge" ? "Knowledge Sources" : "ITSM Sources";
+		mode === "knowledge"
+			? t("detail.breadcrumbs.knowledgeSources")
+			: t("detail.breadcrumbs.itsmSources");
 
 	// Get configuration registry based on mode
 	const configurationRegistry =
