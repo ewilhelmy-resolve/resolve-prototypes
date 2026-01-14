@@ -13,7 +13,6 @@ import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { Trans, useTranslation } from "react-i18next";
 import { Navigate, useSearchParams } from "react-router-dom";
-import PublicPageLayout from "@/components/layouts/PublicPageLayout";
 import ConnectionsForm from "@/components/connection-sources/form-elements/ConnectionsForm";
 import FormField from "@/components/connection-sources/form-elements/FormField";
 import FormSection from "@/components/connection-sources/form-elements/FormSection";
@@ -94,7 +93,7 @@ function PageHeader({
 	const description = t(`systems.${systemType}.description`);
 
 	return (
-		<div className="flex flex-col gap-8 w-full mt-4 px-4 md:px-0">
+		<div className="flex flex-col gap-8 w-3/5 mx-auto py-3">
 			<div className="flex flex-col gap-2 px-6">
 				<div className="flex items-center gap-2">
 					<img
@@ -511,14 +510,12 @@ export default function CredentialSetupPage() {
 	// Render loading state
 	if (pageState === "loading") {
 		return (
-			<PublicPageLayout>
 				<div className="flex-1 flex items-center justify-center p-4">
 					<div className="flex flex-col items-center gap-4">
 						<Spinner className="h-8 w-8" aria-label={t("setup.verifyingLink")} />
 						<p className="text-sm text-muted-foreground">{t("setup.verifyingLink")}</p>
 					</div>
 				</div>
-			</PublicPageLayout>
 		);
 	}
 
@@ -532,7 +529,6 @@ export default function CredentialSetupPage() {
 		const icon = SYSTEM_ICONS[verifyData.system_type];
 		const systemName = t(`systems.${verifyData.system_type}.title`);
 		return (
-			<PublicPageLayout>
 				<div className="flex-1 flex items-center justify-center p-4">
 					<Card className="w-full max-w-md">
 						<CardHeader className="text-center">
@@ -556,7 +552,6 @@ export default function CredentialSetupPage() {
 						</CardContent>
 					</Card>
 				</div>
-			</PublicPageLayout>
 		);
 	}
 
@@ -564,7 +559,6 @@ export default function CredentialSetupPage() {
 	if (pageState === "success" && verifyData?.system_type) {
 		const systemName = t(`systems.${verifyData.system_type}.title`);
 		return (
-			<PublicPageLayout>
 				<div className="flex-1 flex items-center justify-center p-4">
 					<Card className="w-full max-w-md">
 						<CardHeader className="text-center">
@@ -593,7 +587,6 @@ export default function CredentialSetupPage() {
 						</CardContent>
 					</Card>
 				</div>
-			</PublicPageLayout>
 		);
 	}
 
@@ -602,7 +595,6 @@ export default function CredentialSetupPage() {
 		const icon = SYSTEM_ICONS[verifyData.system_type];
 		const systemName = t(`systems.${verifyData.system_type}.title`);
 		return (
-			<PublicPageLayout>
 				<div className="flex-1 flex items-center justify-center p-4">
 					<Card className="w-full max-w-md">
 						<CardHeader className="text-center">
@@ -630,7 +622,6 @@ export default function CredentialSetupPage() {
 						</CardContent>
 					</Card>
 				</div>
-			</PublicPageLayout>
 		);
 	}
 
@@ -640,16 +631,14 @@ export default function CredentialSetupPage() {
 
 	if (!systemType || !verifyData?.org_name || !verifyData?.delegated_by) {
 		return (
-			<PublicPageLayout>
 				<div className="flex-1 flex items-center justify-center p-4">
 					<p className="text-muted-foreground">{t("setup.loading")}</p>
 				</div>
-			</PublicPageLayout>
 		);
 	}
 
 	return (
-		<PublicPageLayout>
+        <>
             <PageHeader
                 systemType={systemType}
                 orgName={verifyData.org_name}
@@ -694,6 +683,6 @@ export default function CredentialSetupPage() {
 					)}
 				</div>
 			</div>
-		</PublicPageLayout>
+        </>
 	);
 }

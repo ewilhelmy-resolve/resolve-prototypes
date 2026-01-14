@@ -1979,24 +1979,20 @@ app.post('/webhook', async (req, res) => {
             // Check for magic passwords to determine success/failure
             const password = verifyPayload.credentials?.password;
             const apiToken = verifyPayload.credentials?.api_token;
-            const secret = password || apiToken || '';
+            const secret = (password || apiToken || '').toLowerCase();
 
-            // Decode base64 if encoded
-            let decodedSecret = secret;
-            try {
-              decodedSecret = Buffer.from(secret, 'base64').toString('utf8');
-            } catch {
-              decodedSecret = secret;
-            }
+            // Magic values for testing (check original value first)
+            const FAIL_VALUES = ['invalid', 'fail', 'error'];
+            const SUCCESS_VALUES = ['success', 'valid', 'test'];
 
             // Determine success based on magic values
             let isSuccess = true;
             let errorMessage: string | null = null;
 
-            if (['invalid', 'fail', 'error'].includes(decodedSecret.toLowerCase())) {
+            if (FAIL_VALUES.includes(secret)) {
               isSuccess = false;
               errorMessage = 'Invalid credentials: authentication failed';
-            } else if (['success', 'valid', 'test'].includes(decodedSecret.toLowerCase())) {
+            } else if (SUCCESS_VALUES.includes(secret)) {
               isSuccess = true;
             } else {
               // Random 80% success rate for other values
@@ -2043,6 +2039,14 @@ app.post('/webhook', async (req, res) => {
             } else if (verifyPayload.connection_type === 'sharepoint') {
               options = {
                 sites: ['https://company.sharepoint.com/sites/docs']
+              };
+            } else if (verifyPayload.connection_type === 'jira') {
+              options = {
+                projects: [
+                  { key: 'ENG', name: 'Engineering' },
+                  { key: 'SUP', name: 'Support' },
+                  { key: 'OPS', name: 'Operations' }
+                ]
               };
             }
 

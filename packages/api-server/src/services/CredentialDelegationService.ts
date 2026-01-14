@@ -211,9 +211,9 @@ export class CredentialDelegationService {
       return { valid: false, reason: 'expired' };
     }
 
-    // Check if already used/verified - return not_found (shows "Invalid Link")
-    if (delegation.status !== 'pending') {
-      return { valid: false, reason: 'not_found' };
+    // Check if already verified - return not_found (shows "Invalid Link")
+    if (['verified', 'cancelled'].includes(delegation.status)) {
+      return { valid: false, reason: 'invalid' };
     }
 
     return {
