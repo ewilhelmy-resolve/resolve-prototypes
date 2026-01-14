@@ -98,9 +98,11 @@ export interface ChatV1ContentProps {
 	fileInputRef: RitaChatState["fileInputRef"];
 
 	// Custom UI text (from Valkey for iframe, undefined for Rita Go)
+	/** Custom title text (e.g., "Ask Workflow Designer" instead of "Ask RITA") */
+	titleText?: string;
 	/** Custom placeholder for input (e.g., "Describe your workflow...") */
 	placeholderText?: string;
-	/** Custom welcome/intro text (e.g., "Welcome to Workflow Designer!") */
+	/** Custom welcome/intro text (e.g., "I can help you build workflow automations.") */
 	welcomeText?: string;
 }
 
@@ -533,6 +535,7 @@ export default function ChatV1Content({
 	uploadStatus,
 	fileInputRef,
 	requireKnowledgeBase = true,
+	titleText,
 	placeholderText,
 	welcomeText,
 }: ChatV1ContentProps) {
@@ -775,7 +778,7 @@ export default function ChatV1Content({
 								) : (
 									<div className="text-center max-w-md px-4">
 										<h2 className="text-2xl font-semibold text-gray-900 mb-2">
-											{t("emptyState.title")}
+											{titleText ?? t("emptyState.title")}
 										</h2>
 										<p className="text-sm text-gray-600">
 											{welcomeText ?? t("emptyState.guestDescription")}

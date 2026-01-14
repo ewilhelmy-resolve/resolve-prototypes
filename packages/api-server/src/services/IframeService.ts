@@ -73,11 +73,13 @@ export class IframeService {
         clientKey: payload.clientKey ? '[REDACTED]' : undefined,
       };
 
-      // Validate required fields (Valkey uses snake_case: tenant_id, user_guid)
+      // Validate required fields (Valkey uses snake_case)
+      // REQUIRED - core identity: tenant_id, user_guid
+      // REQUIRED for webhook execution: actionsApiBaseUrl, clientId, clientKey (validated in WorkflowExecutionService)
+      // Pass-through to Actions API: accessToken, refreshToken, tokenExpiry, tabInstanceId
       const requiredFields = [
-        'accessToken', 'refreshToken', 'tabInstanceId', 'tenant_id',
-        'tenantName', 'clientId', 'clientKey',
-        'tokenExpiry', 'actionsApiBaseUrl', 'user_guid'
+        'tenant_id',
+        'user_guid'
       ];
 
       for (const field of requiredFields) {
@@ -100,18 +102,24 @@ export class IframeService {
       // Map snake_case Valkey fields to camelCase internal type
       return {
         config: {
+          // REQUIRED - core identity
+          tenantId: payload.tenant_id,
+          userGuid: payload.user_guid,
+          // OPTIONAL - conversation handling (omit for new, provide to resume)
+          conversationId: payload.conversation_id,
+          // REQUIRED for webhook execution (Actions API auth)
+          actionsApiBaseUrl: payload.actionsApiBaseUrl,
+          clientId: payload.clientId,
+          clientKey: payload.clientKey,
+          // Pass-through to Actions API (not used by Rita)
           accessToken: payload.accessToken,
           refreshToken: payload.refreshToken,
           tabInstanceId: payload.tabInstanceId,
-          tenantId: payload.tenant_id,
-          tenantName: payload.tenantName,
-          clientId: payload.clientId,
-          clientKey: payload.clientKey,
           tokenExpiry: payload.tokenExpiry,
-          actionsApiBaseUrl: payload.actionsApiBaseUrl,
+          // OPTIONAL - metadata
+          tenantName: payload.tenantName,
           context: payload.context,
-          userGuid: payload.user_guid,
-          // Optional custom UI text from Valkey ui_config object
+          // OPTIONAL - custom UI text from Valkey ui_config object
           uiConfig: payload.ui_config ? {
             titleText: payload.ui_config.title_text,
             welcomeText: payload.ui_config.welcome_text,
@@ -153,7 +161,7 @@ export class IframeService {
    */
   private async resolveRitaOrg(
     jarvisTenantId: string,
-    tenantName: string
+    tenantName?: string
   ): Promise<{ ritaOrgId: string; wasCreated: boolean }> {
     const orgName = tenantName || `Jarvis Tenant ${jarvisTenantId.substring(0, 8)}`;
 
@@ -357,6 +365,7 @@ export class IframeService {
 
     if (isDevSession) {
       // Dev mode: use hardcoded test values (stable UUIDs that persist across restarts)
+      // E2E demo for custom ui_config - shows custom title, welcome, and placeholder text
       logger.info('Using dev test session bypass');
       config = {
         tenantId: 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee',
@@ -369,6 +378,12 @@ export class IframeService {
         clientKey: 'dev-key',
         tokenExpiry: 9999999999,
         actionsApiBaseUrl: 'http://localhost:3001',
+        // E2E demo: custom UI text from Valkey ui_config
+        uiConfig: {
+          titleText: 'Ask Workflow Designer',
+          welcomeText: 'I can help you build workflow automations. Describe what you want to automate.',
+          placeholderText: 'Describe your workflow...',
+        },
       };
     } else {
       // Normal mode: fetch from Valkey
@@ -385,7 +400,10 @@ export class IframeService {
     let ritaOrgId: string;
     let ritaUserId: string;
 
-    if (existingConversationId) {
+    // Use conversation ID from: 1) frontend param, 2) Valkey config, 3) create new
+    const resolvedExistingConversationId = existingConversationId || config.conversationId;
+
+    if (resolvedExistingConversationId) {
       // Existing conversation - resolve Rita IDs first
       const { ritaOrgId: orgId } = await this.resolveRitaOrg(config.tenantId, config.tenantName);
       const { ritaUserId: userId } = await this.resolveRitaUser(config.userGuid, orgId);
@@ -398,16 +416,16 @@ export class IframeService {
       // Verify conversation ownership before using it
       const convCheck = await pool.query(
         `SELECT id FROM conversations WHERE id = $1 AND organization_id = $2 AND user_id = $3`,
-        [existingConversationId, ritaOrgId, ritaUserId]
+        [resolvedExistingConversationId, ritaOrgId, ritaUserId]
       );
       if (convCheck.rows.length === 0) {
         logger.warn(
-          { existingConversationId, ritaOrgId, ritaUserId },
+          { existingConversationId: resolvedExistingConversationId, ritaOrgId, ritaUserId },
           'Conversation not found or not owned by user'
         );
         return { valid: false, error: 'Conversation not found or access denied', valkeyDebug };
       }
-      conversationId = existingConversationId;
+      conversationId = resolvedExistingConversationId;
     } else {
       // New conversation - this also resolves Rita IDs
       const result = await this.createIframeConversation(config, intentEid);
@@ -441,7 +459,7 @@ export class IframeService {
         jarvisGuid: config.userGuid,
         ritaOrgId,
         ritaUserId,
-        existingConversation: !!existingConversationId,
+        existingConversation: !!resolvedExistingConversationId,
       },
       'Iframe instantiation complete with Rita IDs'
     );

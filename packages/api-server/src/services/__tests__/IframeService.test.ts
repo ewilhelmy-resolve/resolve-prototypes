@@ -122,8 +122,9 @@ describe('IframeService', () => {
 
     it('should return null when required fields are missing', async () => {
       const incompletePayload = {
-        tenantId: 'tenant-456',
-        // Missing userId and other required fields
+        // Missing tenant_id and user_guid (the only required fields)
+        tenantName: 'Test Tenant',
+        accessToken: 'token',
       };
       mockValkeyClient.hget.mockResolvedValueOnce(JSON.stringify(incompletePayload));
 
@@ -142,22 +143,31 @@ describe('IframeService', () => {
 
     it('should reject payload missing user_guid', async () => {
       const payloadWithoutUser = {
-        accessToken: 'token',
-        refreshToken: 'refresh',
-        tabInstanceId: 'tab-123',
         tenant_id: 'tenant-456',
-        tenantName: 'Test',
-        clientId: 'client-abc',
-        clientKey: 'key',
-        tokenExpiry: Date.now() + 3600000,
-        actionsApiBaseUrl: 'https://api.example.com',
-        // Missing user_guid
+        // Missing user_guid (required)
       };
       mockValkeyClient.hget.mockResolvedValueOnce(JSON.stringify(payloadWithoutUser));
 
       const result = await iframeService.fetchValkeyPayload('no-user-key');
 
       expect(result).toBeNull();
+    });
+
+    it('should accept minimal payload with only required fields', async () => {
+      const minimalPayload = {
+        tenant_id: 'tenant-123',
+        user_guid: 'user-456',
+      };
+      mockValkeyClient.hget.mockResolvedValueOnce(JSON.stringify(minimalPayload));
+
+      const result = await iframeService.fetchValkeyPayload('minimal-key');
+
+      expect(result).not.toBeNull();
+      expect(result?.tenantId).toBe('tenant-123');
+      expect(result?.userGuid).toBe('user-456');
+      // Optional fields should be undefined
+      expect(result?.accessToken).toBeUndefined();
+      expect(result?.actionsApiBaseUrl).toBeUndefined();
     });
   });
 
@@ -633,9 +643,9 @@ describe('IframeService', () => {
   describe('validateAndSetup - returns ui_config', () => {
     const setupJitMocksForCustomText = () => {
       mockPool.query
-        .mockResolvedValueOnce({ rows: [{ id: validValkeyPayload.tenantId }] }) // org exists
+        .mockResolvedValueOnce({ rows: [{ id: validValkeyPayload.tenant_id }] }) // org exists
         .mockResolvedValueOnce({ rows: [] }) // update org
-        .mockResolvedValueOnce({ rows: [{ user_id: validValkeyPayload.userGuid }] }) // user exists
+        .mockResolvedValueOnce({ rows: [{ user_id: validValkeyPayload.user_guid }] }) // user exists
         .mockResolvedValueOnce({ rows: [] }) // update user
         .mockResolvedValueOnce({ rows: [] }); // membership
 
@@ -675,6 +685,85 @@ describe('IframeService', () => {
 
       expect(result.valid).toBe(true);
       expect(result.uiConfig).toBeUndefined();
+    });
+  });
+
+  /**
+   * Conversation ID from Valkey
+   *
+   * Two flows for conversation handling:
+   * 1. conversation_id omitted: Rita creates new conversation, returns conversationId
+   * 2. conversation_id provided: Rita resumes existing conversation (validates ownership)
+   *
+   * conversation_id can come from:
+   * - Frontend URL param (existingConversationId)
+   * - Valkey payload (conversation_id)
+   * Frontend param takes priority if both provided
+   */
+  describe('validateAndSetup - conversation_id from Valkey', () => {
+    it('should use conversation_id from Valkey payload when provided', async () => {
+      const payloadWithConversationId = {
+        ...validValkeyPayload,
+        conversation_id: 'valkey-conversation-123',
+      };
+      mockValkeyClient.hget.mockResolvedValueOnce(JSON.stringify(payloadWithConversationId));
+      mockPool.query
+        .mockResolvedValueOnce({ rows: [{ id: validValkeyPayload.tenant_id, name: 'staging' }] }) // org exists
+        .mockResolvedValueOnce({ rows: [{ user_id: validValkeyPayload.user_guid }] }) // user exists
+        .mockResolvedValueOnce({ rows: [] }) // user update
+        .mockResolvedValueOnce({ rows: [] }) // membership
+        .mockResolvedValueOnce({ rows: [{ id: 'valkey-conversation-123' }] }); // conversation exists check
+
+      const result = await iframeService.validateAndSetup('session-with-conv-id');
+
+      expect(result.valid).toBe(true);
+      expect(result.conversationId).toBe('valkey-conversation-123');
+    });
+
+    it('should create new conversation when conversation_id not in Valkey', async () => {
+      // No conversation_id in payload = create new
+      mockValkeyClient.hget.mockResolvedValueOnce(JSON.stringify(validValkeyPayload));
+      mockPool.query
+        .mockResolvedValueOnce({ rows: [{ id: validValkeyPayload.tenant_id, name: 'staging' }] }) // org exists
+        .mockResolvedValueOnce({ rows: [{ user_id: validValkeyPayload.user_guid }] }) // user exists
+        .mockResolvedValueOnce({ rows: [] }) // user update
+        .mockResolvedValueOnce({ rows: [] }); // membership
+
+      mockWithOrgContext.mockImplementation(async (_userId, _orgId, callback) => {
+        const mockClient = {
+          query: vi.fn().mockResolvedValue({ rows: [{ id: 'new-conv-id' }] }),
+        };
+        return await callback(mockClient as any);
+      });
+
+      const result = await iframeService.validateAndSetup('session-no-conv-id');
+
+      expect(result.valid).toBe(true);
+      expect(result.conversationId).toBe('new-conv-id');
+    });
+
+    it('should prefer frontend param over Valkey conversation_id', async () => {
+      const payloadWithConversationId = {
+        ...validValkeyPayload,
+        conversation_id: 'valkey-conv-id',
+      };
+      mockValkeyClient.hget.mockResolvedValueOnce(JSON.stringify(payloadWithConversationId));
+      mockPool.query
+        .mockResolvedValueOnce({ rows: [{ id: validValkeyPayload.tenant_id, name: 'staging' }] }) // org exists
+        .mockResolvedValueOnce({ rows: [{ user_id: validValkeyPayload.user_guid }] }) // user exists
+        .mockResolvedValueOnce({ rows: [] }) // user update
+        .mockResolvedValueOnce({ rows: [] }) // membership
+        .mockResolvedValueOnce({ rows: [{ id: 'frontend-conv-id' }] }); // conversation exists check
+
+      // Pass existingConversationId as third param (frontend takes priority)
+      const result = await iframeService.validateAndSetup(
+        'session-key',
+        undefined,
+        'frontend-conv-id'
+      );
+
+      expect(result.valid).toBe(true);
+      expect(result.conversationId).toBe('frontend-conv-id');
     });
   });
 });
