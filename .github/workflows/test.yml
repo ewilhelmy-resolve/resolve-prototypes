@@ -46,8 +46,11 @@ jobs:
         restore-keys: |
           tsbuildinfo-${{ runner.os }}-
 
-    - name: Type check (all packages)
-      run: pnpm -r run type-check
+    - name: Type check api-server
+      run: pnpm --filter rita-api-server type-check
+
+    - name: Type check client
+      run: pnpm --filter rita-client type-check
 
     - name: Lint (all packages)
       run: pnpm -r run lint
