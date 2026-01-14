@@ -451,8 +451,8 @@ async function deleteKeycloakUser(email: string, userId?: string): Promise<void>
 }
 
 function generateMockResponse(payload: WebhookPayload, scenario?: string): MockResponse[] | null {
-  // Only generate responses for rita-chat messages, not document processing
-  if (payload.source !== 'rita-chat') {
+  // Only generate responses for rita-chat messages (regular or iframe), not document processing
+  if (payload.source !== 'rita-chat' && payload.source !== 'rita-chat-iframe') {
     return null;
   }
 
@@ -1812,6 +1812,73 @@ app.get('/blobs', (_req, res) => {
     blobs: blobIds,
     count: blobIds.length
   });
+});
+
+// Tenant-specific webhook endpoint (matches Actions API pattern for iframe embed)
+app.post('/api/Webhooks/postEvent/:tenantId', async (req, res) => {
+  const { tenantId } = req.params;
+  webhookLogger.info({ tenantId, path: req.path }, 'Received tenant-specific webhook');
+
+  // Add tenant_id from URL if not in body (iframe webhooks include it in both places)
+  if (!req.body.tenant_id) {
+    req.body.tenant_id = tenantId;
+  }
+
+  // Forward to main webhook handler by calling next middleware
+  // Instead, just inline the webhook handling here to avoid complexity
+  const correlationId = generateCorrelationId();
+  const timer = new PerformanceTimer(webhookLogger, 'tenant-webhook-processing');
+
+  try {
+    const payload: WebhookPayload = req.body;
+
+    // Handle iframe chat messages
+    if ((payload.source === 'rita-chat-iframe' || payload.source === 'rita-chat') && payload.action === 'message_created') {
+      const messagePayload = payload as MessageWebhookPayload;
+
+      const contextLogger = createContextLogger(webhookLogger, correlationId, {
+        messageId: messagePayload.message_id,
+        tenantId: tenantId,
+        userId: messagePayload.user_id,
+        conversationId: messagePayload.conversation_id
+      });
+
+      contextLogger.info({
+        source: messagePayload.source,
+        action: messagePayload.action,
+        customerMessage: messagePayload.customer_message?.substring(0, 50)
+      }, 'Processing tenant iframe message webhook');
+
+      // Generate mock response
+      const responses = generateMockResponse(messagePayload, undefined);
+
+      if (responses && responses.length > 0) {
+        // Delay before sending response
+        setTimeout(async () => {
+          for (const response of responses) {
+            await publishResponse(response);
+            contextLogger.info({ responseType: response.metadata?.type }, 'Published mock response to queue');
+          }
+        }, MOCK_CONFIG.responseDelay);
+      }
+
+      timer.end({ success: true, tenantId });
+      return res.json({
+        success: true,
+        message: 'Tenant webhook received - mock response will be sent via RabbitMQ',
+        eventId: correlationId
+      });
+    }
+
+    // Unknown webhook type
+    timer.end({ success: false, reason: 'unknown_webhook_type' });
+    return res.status(400).json({ error: 'Unknown webhook type for tenant endpoint' });
+
+  } catch (error) {
+    timer.end({ success: false });
+    webhookLogger.error({ error, tenantId }, 'Tenant webhook processing failed');
+    return res.status(500).json({ error: 'Internal server error' });
+  }
 });
 
 // Webhook endpoint - main automation receiver
