@@ -339,13 +339,10 @@ router.post('/:conversationId/messages', authenticateUser, async (req, res) => {
       webhookResponse = await webhookService.sendTenantMessageEvent({
         organizationId: authReq.user.activeOrganizationId,
         userId: authReq.user.id,
-        userEmail: authReq.user.email,
         conversationId: conversationId,
         messageId: result.message.id,
         customerMessage: result.message.message,
-        documentIds: [],
         createdAt: result.message.created_at,
-        transcript: truncatedTranscript,
         iframeConfig, // Pass entire Valkey config
       });
     } else {
