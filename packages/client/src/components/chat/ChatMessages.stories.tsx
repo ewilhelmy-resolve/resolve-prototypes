@@ -28,7 +28,7 @@ const queryClient = new QueryClient({
 });
 
 const meta: Meta = {
-	title: "Chat/Messages",
+	title: "Features/Chat/Messages",
 	parameters: {
 		layout: "padded",
 		docs: {
@@ -185,7 +185,7 @@ export const SimpleUserMessage: Story = {
 		<Message from="user">
 			<MessageContent variant="contained">
 				<Response>
-					Can you explain what FAQ questions we have about the merger?
+					Can you explain what FAQ questions we have about the company update?
 				</Response>
 			</MessageContent>
 		</Message>
@@ -208,7 +208,7 @@ export const SimpleAssistantMessage: Story = {
 				<MessageContent variant="flat">
 					<Response>
 						Here are some of the most frequently asked questions about the
-						merger between Espressive and Resolve.io.
+						recent organizational changes.
 					</Response>
 				</MessageContent>
 				<Actions>
@@ -254,14 +254,14 @@ export const MessageWithReasoning: Story = {
 							reasoning: {
 								title: "Searching knowledge base",
 								content:
-									"Looking through uploaded documents to find information about the merger FAQ...",
+									"Looking through uploaded documents to find information about the company FAQ...",
 							},
 						},
 					},
 					{
 						id: "part-2",
 						message:
-							"Here are some of the most frequently asked questions about the Espressive & Resolve.io merger.",
+							"Here are some of the most frequently asked questions about the recent organizational changes.",
 					},
 				],
 			}}
@@ -288,7 +288,7 @@ export const MessageWithSources: Story = {
 					{
 						id: "part-1",
 						message:
-							"The merger between Espressive and Resolve.io will be completed by the end of Q2 2024.",
+							"The organizational restructuring will be completed by the end of Q2 2024.",
 					},
 					{
 						id: "part-2",
@@ -296,15 +296,15 @@ export const MessageWithSources: Story = {
 						metadata: {
 							sources: [
 								{
-									title: "Merger FAQ Document",
-									url: "https://example.com/merger-faq.pdf",
+									title: "Company Update FAQ",
+									url: "https://example.com/update-faq.pdf",
 									snippet:
-										"The merger is expected to complete by end of Q2 2024...",
+										"The restructuring is expected to complete by end of Q2 2024...",
 								},
 								{
 									title: "Company Announcement",
 									url: "https://example.com/announcement",
-									snippet: "We are excited to announce the strategic merger...",
+									snippet: "We are excited to announce the organizational update...",
 								},
 							],
 						},
@@ -334,7 +334,7 @@ export const MessageWithTasks: Story = {
 					{
 						id: "part-1",
 						message:
-							"I found several key points about the merger. Let me organize them for you:",
+							"I found several key points about the update. Let me organize them for you:",
 					},
 					{
 						id: "part-2",
@@ -685,14 +685,14 @@ export const ComplexMessage: Story = {
 							reasoning: {
 								title: "Done",
 								content:
-									"Searched through merger documentation and found relevant FAQs",
+									"Searched through company documentation and found relevant FAQs",
 							},
 						},
 					},
 					{
 						id: "part-2",
 						message:
-							"Here are some of the most frequently asked questions about the Espressive & Resolve.io merger:",
+							"Here are some of the most frequently asked questions about the recent organizational changes:",
 					},
 					{
 						id: "part-3",
@@ -725,10 +725,10 @@ export const ComplexMessage: Story = {
 						metadata: {
 							sources: [
 								{
-									title: "Merger FAQ Document.pdf",
-									url: "https://example.com/merger-faq.pdf",
+									title: "Company Update FAQ.pdf",
+									url: "https://example.com/update-faq.pdf",
 									snippet:
-										"Frequently asked questions about the merger between Espressive and Resolve.io...",
+										"Frequently asked questions about the recent organizational changes...",
 								},
 							],
 						},
@@ -787,7 +787,7 @@ export const Conversation: Story = {
 			<Message from="user">
 				<MessageContent variant="contained">
 					<Response>
-						Can you explain what FAQ questions we have about the merger?
+						Can you explain what FAQ questions we have about the company update?
 					</Response>
 				</MessageContent>
 			</Message>
@@ -805,7 +805,7 @@ export const Conversation: Story = {
 							metadata: {
 								reasoning: {
 									title: "Done",
-									content: "Searched knowledge base for merger FAQ information",
+									content: "Searched knowledge base for company FAQ information",
 								},
 							},
 						},
@@ -821,7 +821,7 @@ export const Conversation: Story = {
 
 			<Message from="user">
 				<MessageContent variant="contained">
-					<Response>about espresive merge</Response>
+					<Response>about the company update</Response>
 				</MessageContent>
 			</Message>
 
@@ -838,14 +838,14 @@ export const Conversation: Story = {
 							metadata: {
 								reasoning: {
 									title: "Done",
-									content: "Found relevant merger documentation",
+									content: "Found relevant company documentation",
 								},
 							},
 						},
 						{
 							id: "part-4",
 							message:
-								"Here are some of the most frequently asked questions about the Espressive & Resolve.io merger:",
+								"Here are some of the most frequently asked questions about the recent organizational changes:",
 						},
 						{
 							id: "part-5",

@@ -10,6 +10,7 @@
  */
 
 import { FileIcon, UploadIcon } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { cn } from '@/lib/utils'
 
 export interface DragDropOverlayProps {
@@ -25,6 +26,7 @@ export function DragDropOverlay({
   maxFiles,
   maxFileSize
 }: DragDropOverlayProps) {
+  const { t } = useTranslation("chat")
   if (!isDragging) return null
 
   const formatMaxSize = (bytes?: number) => {
@@ -68,11 +70,11 @@ export function DragDropOverlay({
 
         {/* Main message */}
         <h3 className="text-2xl font-semibold text-foreground mb-2">
-          Drop files here
+          {t("dragDrop.title")}
         </h3>
 
         <p className="text-muted-foreground text-center max-w-md">
-          Release to upload your files to the conversation
+          {t("dragDrop.description")}
         </p>
 
         {/* File constraints */}
@@ -81,12 +83,12 @@ export function DragDropOverlay({
             {accept && (
               <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-background/50 border border-border">
                 <FileIcon className="w-3.5 h-3.5" />
-                <span>Files supported: pdf, txt, doc, docx, md, etc.</span>
+                <span>{t("dragDrop.supportedFiles")}</span>
               </div>
             )}
             {maxFiles && (
               <div className="px-3 py-1.5 rounded-full bg-background/50 border border-border">
-                Up to {maxFiles} file{maxFiles > 1 ? 's' : ''}
+                {t("dragDrop.maxFiles", { count: maxFiles })}
               </div>
             )}
             {maxFileSize && (

@@ -9,18 +9,19 @@ import { ConfirmFormDialog } from "./ConfirmFormDialog";
 
 const meta: Meta<typeof ConfirmFormDialog> = {
 	component: ConfirmFormDialog,
-	title: "Dialogs/ConfirmFormDialog",
+	title: "Components/Overlays/Confirm Form Dialog",
 	tags: ["autodocs"],
 	args: {
 		onConfirm: fn(),
-		open: true, // Default to open so dialogs are visible in Docs view
+		onClose: fn(),
+		onOpenChange: fn(),
 	},
 	parameters: {
-		layout: "fullscreen",
+		layout: "centered",
 		docs: {
 			description: {
 				component:
-					"Confirmation dialog with Zod form validation. Supports custom form content via children prop.",
+					"Flexible confirmation dialog with Zod form validation. Supports both simple text confirmation and complex forms with multiple inputs.",
 			},
 			story: {
 				inline: false,
@@ -40,164 +41,195 @@ const simpleSchema = z.object({
 });
 
 export const Default: Story = {
-	args: {
-		trigger: <Button variant="destructive">Delete Account</Button>,
-		title: "Delete Account",
-		description: "This action cannot be undone. Type 'delete' to confirm.",
-		validationSchema: simpleSchema,
-		defaultValues: { confirmText: "" },
-		actionLabel: "Delete",
-		actionVariant: "destructive",
-		children: (
-			<div className="flex flex-col gap-2 py-4">
-				<Label htmlFor="confirmText">Type "delete" to confirm</Label>
-				<Input id="confirmText" name="confirmText" placeholder="delete" />
-			</div>
-		),
-	},
-};
-
-const checkboxSchema = z.object({
-	acknowledge: z.boolean().refine((val) => val === true, {
-		message: "You must acknowledge to continue",
-	}),
-});
-
-export const WithCheckbox: Story = {
-	args: {
-		trigger: <Button>Submit Request</Button>,
-		title: "Confirm Submission",
-		description: "Please acknowledge the terms before submitting.",
-		validationSchema: checkboxSchema,
-		defaultValues: { acknowledge: false },
-		actionLabel: "Submit",
-		children: (form) => (
-			<div className="flex items-start gap-3 py-4">
-				<Checkbox
-					id="acknowledge"
-					checked={form.watch("acknowledge")}
-					onCheckedChange={(checked) =>
-						form.setValue("acknowledge", checked === true, {
-							shouldValidate: true,
-						})
-					}
-				/>
-				<Label htmlFor="acknowledge" className="text-sm leading-relaxed">
-					I acknowledge that this action cannot be undone and I have reviewed
-					all the information.
-				</Label>
-			</div>
-		),
-	},
+	render: () => (
+		<ConfirmFormDialog
+			trigger={<Button variant="destructive">Delete Item</Button>}
+			title="Delete Item"
+			description="This action cannot be undone. This will permanently delete the item."
+			validationSchema={simpleSchema}
+			defaultValues={{ confirmText: "" }}
+			actionLabel="Delete"
+			actionVariant="destructive"
+			onConfirm={fn()}
+		>
+			{(form) => (
+				<div className="flex flex-col gap-2 py-4">
+					<Label htmlFor="confirmText">
+						Type <strong>delete</strong> to confirm
+					</Label>
+					<Input
+						id="confirmText"
+						placeholder="delete"
+						{...form.register("confirmText")}
+					/>
+					{form.formState.errors.confirmText && (
+						<p className="text-sm text-destructive">
+							{form.formState.errors.confirmText.message as string}
+						</p>
+					)}
+				</div>
+			)}
+		</ConfirmFormDialog>
+	),
 };
 
 const complexSchema = z.object({
-	permanent: z.boolean().refine((val) => val === true),
-	dataLoss: z.boolean().refine((val) => val === true),
-	confirmText: z.string().refine((val) => val.toLowerCase() === "delete"),
+	permanent: z.boolean().refine((val) => val === true, {
+		message: "You must acknowledge this is permanent",
+	}),
+	dataDeleted: z.boolean().refine((val) => val === true, {
+		message: "You must acknowledge data deletion",
+	}),
+	confirmText: z.string().refine((val) => val.toLowerCase() === "delete", {
+		message: "Must type 'delete' to confirm",
+	}),
 });
 
 export const ComplexForm: Story = {
-	args: {
-		trigger: <Button variant="destructive">Delete Organization</Button>,
-		title: "Delete Organization",
-		description:
-			"This will permanently delete your organization and all associated data.",
-		validationSchema: complexSchema,
-		defaultValues: { permanent: false, dataLoss: false, confirmText: "" },
-		actionLabel: "Delete Organization",
-		actionVariant: "destructive",
-		children: (form) => (
-			<div className="flex flex-col gap-6 py-4">
-				<div className="flex flex-col gap-4">
-					<div className="flex items-start gap-3">
-						<Checkbox
-							id="permanent"
-							checked={form.watch("permanent")}
-							onCheckedChange={(checked) =>
-								form.setValue("permanent", checked === true, {
-									shouldValidate: true,
-								})
-							}
-						/>
-						<Label htmlFor="permanent" className="text-sm">
-							I understand this action is permanent
-						</Label>
+	render: () => (
+		<ConfirmFormDialog
+			trigger={<Button variant="destructive">Delete Account</Button>}
+			title="Delete your account"
+			description="This action cannot be undone. All your data will be permanently removed."
+			validationSchema={complexSchema}
+			defaultValues={{ permanent: false, dataDeleted: false, confirmText: "" }}
+			actionLabel="Delete Account"
+			actionVariant="destructive"
+			onConfirm={fn()}
+		>
+			{(form) => (
+				<div className="flex flex-col gap-6 py-4">
+					<div className="flex flex-col gap-4">
+						<div className="flex items-start gap-3">
+							<Checkbox
+								id="permanent"
+								checked={form.watch("permanent")}
+								onCheckedChange={(checked) =>
+									form.setValue("permanent", checked === true, {
+										shouldValidate: true,
+									})
+								}
+							/>
+							<label
+								htmlFor="permanent"
+								className="text-sm leading-none cursor-pointer"
+							>
+								I understand this action is permanent and cannot be undone
+							</label>
+						</div>
+						<div className="flex items-start gap-3">
+							<Checkbox
+								id="dataDeleted"
+								checked={form.watch("dataDeleted")}
+								onCheckedChange={(checked) =>
+									form.setValue("dataDeleted", checked === true, {
+										shouldValidate: true,
+									})
+								}
+							/>
+							<label
+								htmlFor="dataDeleted"
+								className="text-sm leading-none cursor-pointer"
+							>
+								I understand all my data will be deleted
+							</label>
+						</div>
 					</div>
-					<div className="flex items-start gap-3">
-						<Checkbox
-							id="dataLoss"
-							checked={form.watch("dataLoss")}
-							onCheckedChange={(checked) =>
-								form.setValue("dataLoss", checked === true, {
-									shouldValidate: true,
-								})
-							}
-						/>
-						<Label htmlFor="dataLoss" className="text-sm">
-							I understand all data will be lost
+
+					<div className="flex flex-col gap-2">
+						<Label htmlFor="confirmText">
+							Type <strong>delete</strong> to confirm
 						</Label>
+						<Input
+							id="confirmText"
+							placeholder="delete"
+							{...form.register("confirmText")}
+						/>
 					</div>
 				</div>
-				<div className="flex flex-col gap-2">
-					<Label htmlFor="confirmText">Type "delete" to confirm</Label>
-					<Input
-						id="confirmText"
-						{...form.register("confirmText")}
-						placeholder="delete"
-					/>
-				</div>
-			</div>
-		),
-	},
+			)}
+		</ConfirmFormDialog>
+	),
 };
 
 const renameSchema = z.object({
-	newName: z.string().min(1, "Name is required").max(50, "Name too long"),
+	name: z.string().min(1, "Name is required"),
 });
 
-export const RenameForm: Story = {
-	args: {
-		trigger: <Button variant="outline">Rename</Button>,
-		title: "Rename Item",
-		description: "Enter a new name for this item.",
-		validationSchema: renameSchema,
-		defaultValues: { newName: "My Document" },
-		actionLabel: "Rename",
-		children: (form) => (
-			<div className="flex flex-col gap-2 py-4">
-				<Label htmlFor="newName">New name</Label>
-				<Input id="newName" {...form.register("newName")} />
-				{form.formState.errors.newName && (
-					<p className="text-sm text-destructive">
-						{form.formState.errors.newName.message as string}
-					</p>
-				)}
-			</div>
-		),
-	},
+export const DefaultVariant: Story = {
+	render: () => (
+		<ConfirmFormDialog
+			trigger={<Button>Rename Item</Button>}
+			title="Rename Item"
+			description="Enter a new name for this item."
+			validationSchema={renameSchema}
+			defaultValues={{ name: "" }}
+			actionLabel="Rename"
+			actionVariant="default"
+			onConfirm={fn()}
+		>
+			{(form) => (
+				<div className="flex flex-col gap-2 py-4">
+					<Label htmlFor="name">New name</Label>
+					<Input
+						id="name"
+						placeholder="Enter new name"
+						{...form.register("name")}
+					/>
+					{form.formState.errors.name && (
+						<p className="text-sm text-destructive">
+							{form.formState.errors.name.message as string}
+						</p>
+					)}
+				</div>
+			)}
+		</ConfirmFormDialog>
+	),
 };
 
-export const ControlledOpen: Story = {
-	args: {
-		trigger: <Button>Open Dialog</Button>,
-		title: "Controlled Dialog",
-		description: "This dialog is controlled by the open prop.",
-		validationSchema: z.object({ name: z.string().min(1) }),
-		defaultValues: { name: "Pre-filled" },
-		actionLabel: "Confirm",
-		children: (form) => (
-			<div className="flex flex-col gap-2 py-4">
-				<Label htmlFor="name">Name</Label>
-				<Input id="name" {...form.register("name")} />
-			</div>
-		),
-	},
-	parameters: {
-		docs: {
-			description: {
-				story: "Dialog with controlled open state via the open prop",
-			},
-		},
-	},
+const emailSchema = z.object({
+	email: z.string().email("Please enter a valid email address"),
+	reason: z.string().optional(),
+});
+
+export const WithOptionalFields: Story = {
+	render: () => (
+		<ConfirmFormDialog
+			trigger={<Button variant="outline">Transfer Ownership</Button>}
+			title="Transfer Ownership"
+			description="Transfer this project to another user by email."
+			validationSchema={emailSchema}
+			defaultValues={{ email: "", reason: "" }}
+			actionLabel="Transfer"
+			actionVariant="default"
+			onConfirm={fn()}
+		>
+			{(form) => (
+				<div className="flex flex-col gap-4 py-4">
+					<div className="flex flex-col gap-2">
+						<Label htmlFor="email">New owner email *</Label>
+						<Input
+							id="email"
+							type="email"
+							placeholder="user@example.com"
+							{...form.register("email")}
+						/>
+						{form.formState.errors.email && (
+							<p className="text-sm text-destructive">
+								{form.formState.errors.email.message as string}
+							</p>
+						)}
+					</div>
+					<div className="flex flex-col gap-2">
+						<Label htmlFor="reason">Reason (optional)</Label>
+						<Input
+							id="reason"
+							placeholder="Why are you transferring?"
+							{...form.register("reason")}
+						/>
+					</div>
+				</div>
+			)}
+		</ConfirmFormDialog>
+	),
 };

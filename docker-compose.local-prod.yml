@@ -44,6 +44,9 @@ services:
     environment:
       KEYCLOAK_ADMIN: admin
       KEYCLOAK_ADMIN_PASSWORD: admin
+      KC_HOSTNAME_URL: http://localhost:8080
+      KC_HOSTNAME_ADMIN_URL: http://localhost:8080
+      KC_HTTP_ENABLED: true
     ports:
       - "8080:8080"
     volumes:
@@ -52,12 +55,33 @@ services:
     networks:
       - app-network
 
+  mailpit:
+    image: axllent/mailpit:latest
+    restart: unless-stopped
+    ports:
+      - "1025:1025"
+      - "8025:8025"
+    environment:
+      MP_MAX_MESSAGES: 5000
+      MP_DATABASE: /data/mailpit.db
+      MP_SMTP_AUTH_ACCEPT_ANY: 1
+      MP_SMTP_AUTH_ALLOW_INSECURE: 1
+    volumes:
+      - mailpit_data:/data
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8025/api/v1/info"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    networks:
+      - app-network
+
   # Application Services
   # API Server
   api-server:
     build:
-      context: ./packages/api-server
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: packages/api-server/Dockerfile
     environment:
       NODE_ENV: production
       PORT: 3000
@@ -70,7 +94,7 @@ services:
       # Override issuer to match what frontend sees (localhost for browser access)
       KEYCLOAK_ISSUER: http://localhost:8080/realms/rita-chat-realm
       # Automation webhook
-      AUTOMATION_WEBHOOK_URL: ${AUTOMATION_WEBHOOK_URL:-https://external-service.com/webhook}
+      AUTOMATION_WEBHOOK_URL: http://mock-service:3001/webhook
       AUTOMATION_AUTH: ${AUTOMATION_AUTH:-your-secret-token}
       # Client configuration
       CLIENT_URL: http://localhost
@@ -90,11 +114,31 @@ services:
       timeout: 10s
       retries: 3
 
+  # Mock Service
+  mock-service:
+    build:
+      context: .
+      dockerfile: packages/mock-service/Dockerfile
+    environment:
+      NODE_ENV: production
+      MOCK_SERVICE_PORT: 3001
+      RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672
+      KEYCLOAK_URL: http://keycloak:8080
+      KEYCLOAK_REALM: rita-chat-realm
+    ports:
+      - "3001:3001"
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - app-network
+
   # Frontend with Nginx
   frontend:
     build:
-      context: ./packages/client
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: packages/client/Dockerfile
     environment:
       VITE_KEYCLOAK_URL: http://localhost:8080
       VITE_KEYCLOAK_REALM: rita-chat-realm
@@ -104,7 +148,7 @@ services:
       api-server:
         condition: service_healthy
     ports:
-      - "80:80"
+      - "5173:80"
     restart: unless-stopped
     networks:
       - app-network
@@ -117,6 +161,7 @@ services:
 volumes:
   postgres_data:
   rabbitmq_data:
+  mailpit_data:
 
 networks:
   app-network:

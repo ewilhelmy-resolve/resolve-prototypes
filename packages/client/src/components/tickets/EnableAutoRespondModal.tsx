@@ -1,3 +1,4 @@
+import { useTranslation, Trans } from "react-i18next";
 import {
 	Dialog,
 	DialogContent,
@@ -46,6 +47,8 @@ export function EnableAutoRespondModal({
 	onEnable,
 	onAutoRespondEnabled,
 }: EnableAutoRespondModalProps) {
+	const { t } = useTranslation(["tickets", "common"]);
+
 	const handleEnable = () => {
 		console.log("Auto-Respond enabled for:", ticketGroupName);
 		onEnable?.();
@@ -62,13 +65,17 @@ export function EnableAutoRespondModal({
 		<Dialog open={open} onOpenChange={onOpenChange}>
 			<DialogContent className="sm:max-w-xl max-h-[90vh] flex flex-col">
 				<DialogHeader className="flex-none">
-					<DialogTitle>Enable Auto-Respond?</DialogTitle>
+					<DialogTitle>{t("automation.enableAutoRespond.title")}</DialogTitle>
 					<DialogDescription>
-						You're about to enable automated responses for all tickets in{" "}
-						<span className="font-semibold">{ticketGroupName}</span>.
+						<Trans
+							i18nKey="automation.enableAutoRespond.description"
+							ns="tickets"
+							values={{ ticketGroupName }}
+							components={{ 1: <span className="font-semibold" /> }}
+						/>
 					</DialogDescription>
 					<p className="text-sm text-muted-foreground">
-						You can adjust or disable Auto-Respond anytime per ticket group.
+						{t("automation.enableAutoRespond.info")}
 					</p>
 				</DialogHeader>
 
@@ -84,20 +91,20 @@ export function EnableAutoRespondModal({
 
 					{/* Info Alert */}
 					<StatusAlert variant="info">
-						<p className="font-semibold mb-1">When You Enable Auto-Respond</p>
+						<p className="font-semibold mb-1">{t("autoRespond.whenEnabled")}</p>
 						<ul className="list-disc list-inside space-y-1 text-sm">
-							<li>Send automated responses to {openTicketsCount} currently open tickets</li>
-							<li>Automatically respond to all future tickets in this group</li>
-							<li>Use the responses you've trained Rita with</li>
+							<li>{t("autoRespond.sendToOpen", { count: openTicketsCount })}</li>
+							<li>{t("autoRespond.respondToFuture")}</li>
+							<li>{t("autoRespond.useTrainedResponses")}</li>
 						</ul>
 					</StatusAlert>
 				</div>
 
 				<DialogFooter className="flex-none">
 					<Button variant="outline" onClick={handleCancel}>
-						Cancel
+						{t("common:actions.cancel")}
 					</Button>
-					<Button onClick={handleEnable}>Enable Auto-Respond</Button>
+					<Button onClick={handleEnable}>{t("autoRespond.enableButton")}</Button>
 				</DialogFooter>
 			</DialogContent>
 		</Dialog>

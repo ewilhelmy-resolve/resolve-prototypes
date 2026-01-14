@@ -2,6 +2,7 @@
 
 import { Globe } from "lucide-react";
 import { useEffect, useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
 import { CrashPage } from "@/components/CrashPage";
 import { Badge } from "@/components/ui/badge";
@@ -17,6 +18,7 @@ import { Button } from "../../components/ui/button";
 import SettingsHeader from "./SettingsHeader";
 
 export default function ConnectionSources() {
+	const { t } = useTranslation("settings");
 	const { mutate: seedSources, isPending: isSeeding } = useSeedDataSources();
 	const { data: dataSources, isLoading, error } = useDataSources();
 
@@ -46,11 +48,11 @@ export default function ConnectionSources() {
 			<div className="w-full">
 				<div className="flex flex-col gap-8">
 					<SettingsHeader
-						title="Connection Sources"
-						description="Connect your knowledge and ticketing sources to help RITA resolve IT issues faster."
+						title={t("connectionSources.title")}
+						description={t("connectionSources.description")}
 					/>
 					<div className=" max-w-6xl">
-						<div className="text-center py-8">Loading connections...</div>
+						<div className="text-center py-8">{t("connectionSources.loading")}</div>
 					</div>
 				</div>
 			</div>
@@ -60,9 +62,9 @@ export default function ConnectionSources() {
 	if (error) {
 		return (
 			<CrashPage
-				title="Failed to load data sources"
-				description="An error occurred while fetching connection sources. Please try again."
-				actionLabel="Try Again"
+				title={t("errors.loadDataSourcesFailed")}
+				description={t("errors.loadDataSourcesDescription")}
+				actionLabel={t("errors.tryAgain")}
 				onAction={() => window.location.reload()}
 			/>
 		);
@@ -72,8 +74,8 @@ export default function ConnectionSources() {
 		<div className="flex-1 inline-flex flex-col items-center gap-8 w-full">
 			<div className="self-stretch flex flex-col items-start gap-8">
 				<SettingsHeader
-					title="Connection Sources"
-					description="Connect your knowledge and ticketing sources to help RITA resolve IT issues faster."
+					title={t("connectionSources.title")}
+					description={t("connectionSources.description")}
 				/>
 			</div>
 
@@ -104,7 +106,7 @@ export default function ConnectionSources() {
 
 										{source.lastSync && (
 											<p className="text-sm text-foreground mt-1">
-												Last sync: {source.lastSync}
+												{t("connectionSources.lastSync", { time: source.lastSync })}
 											</p>
 										)}
 										{source.description && (
@@ -129,13 +131,13 @@ export default function ConnectionSources() {
 									{source.type === SOURCES.CONFLUENCE && (
 										<span>
 											{source.status === STATUS.NOT_CONNECTED
-												? "Configure"
-												: "Manage"}
+												? t("connectionSources.configure")
+												: t("connectionSources.manage")}
 										</span>
 									)}
 
 									{source.type !== SOURCES.CONFLUENCE && (
-										<span>Coming Soon</span>
+										<span>{t("connectionSources.comingSoon")}</span>
 									)}
 								</Button>
 							</div>

@@ -1,4 +1,5 @@
 import { useForm } from "react-hook-form";
+import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { STATUS } from "@/constants/connectionSources";
 import { useConnectionSource } from "@/contexts/ConnectionSourceContext";
@@ -17,6 +18,8 @@ interface WebSearchFormProps {
 }
 
 export function WebSearchForm({ onCancel }: WebSearchFormProps = {}) {
+	const { t } = useTranslation("connections");
+	const { t: tToast } = useTranslation("toast");
 	const { source } = useConnectionSource();
 	const updateMutation = useUpdateDataSource();
 
@@ -36,11 +39,11 @@ export function WebSearchForm({ onCancel }: WebSearchFormProps = {}) {
 				},
 			});
 
-			toast.success("Configuration Saved", {
-				description: "Web Search has been enabled successfully",
+			toast.success(tToast("success.configurationSaved"), {
+				description: tToast("descriptions.webSearchEnabled"),
 			});
 		} catch (error) {
-			toast.error("Save Failed", {
+			toast.error(tToast("error.saveFailed"), {
 				description: error instanceof Error ? error.message : "Failed to save configuration",
 			});
 		}
@@ -54,9 +57,9 @@ export function WebSearchForm({ onCancel }: WebSearchFormProps = {}) {
 	return (
 		<ConnectionsForm handleSubmit={handleSubmit(onSubmit)} id="connection-form">
 			{/* Settings */}
-			<FormSection title="Settings">
+			<FormSection title={t("form.sections.settings")}>
 				<p className="text-sm text-muted-foreground">
-					Enable web search to supplement answers when knowledge isn't found in your connected sources.
+					{t("form.descriptions.webSearchHelp")}
 				</p>
 			</FormSection>
 
@@ -68,7 +71,7 @@ export function WebSearchForm({ onCancel }: WebSearchFormProps = {}) {
 						variant="outline"
 						onClick={onCancel}
 					>
-						Cancel
+						{t("form.buttons.cancel")}
 					</Button>
 				)}
 				<Button
@@ -76,7 +79,7 @@ export function WebSearchForm({ onCancel }: WebSearchFormProps = {}) {
 					type="submit"
 					disabled={updateMutation.isPending}
 				>
-					{updateMutation.isPending ? "Connecting..." : "Connect"}
+					{updateMutation.isPending ? t("form.buttons.connecting") : t("form.buttons.connect")}
 				</Button>
 			</div>
 		</ConnectionsForm>

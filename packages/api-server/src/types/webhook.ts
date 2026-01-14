@@ -1,8 +1,48 @@
-// WebhookService types for Rita project
-// Maps organization_id to tenant_id for webhook platform compatibility
+/**
+ * WebhookService Types
+ *
+ * Rita has three chat applications that send webhooks to the platform.
+ * Each uses a distinct source to identify where messages originate.
+ *
+ * CHAT SOURCES (ChatWebhookSource):
+ * ┌─────────────────────┬─────────────────────┬─────────────────────────────────┐
+ * │ Source              │ Route               │ Description                     │
+ * ├─────────────────────┼─────────────────────┼─────────────────────────────────┤
+ * │ rita-chat           │ /chat               │ Main Rita app (Keycloak auth)   │
+ * │ rita-chat-iframe    │ /iframe/chat        │ Iframe embed (Valkey IDs)       │
+ * │ rita-chat-workflows │ /jirita             │ Workflow builder (Keycloak)     │
+ * └─────────────────────┴─────────────────────┴─────────────────────────────────┘
+ *
+ * OTHER SOURCES:
+ * - rita-auth: Password reset events
+ * - rita-signup: User signup events (user_signup, resend_verification)
+ * - rita-documents: Document upload/delete events
+ *
+ * Note: Invitation events (send_invitation, accept_invitation) use rita-chat source.
+ *
+ * Note: organization_id maps to tenant_id for webhook platform compatibility.
+ */
+
+/**
+ * Chat webhook sources - three chat apps with common `rita-chat-*` prefix
+ *
+ * @example
+ * // Main app chat
+ * source: 'rita-chat'
+ *
+ * // Iframe embed (Jarvis integration)
+ * source: 'rita-chat-iframe'
+ *
+ * // Workflow builder (/jirita)
+ * source: 'rita-chat-workflows'
+ */
+export type ChatWebhookSource = 'rita-chat' | 'rita-chat-iframe' | 'rita-chat-workflows';
+
+/** All webhook sources including non-chat features */
+export type WebhookSource = ChatWebhookSource | 'rita-auth' | 'rita-signup' | 'rita-documents';
 
 export interface BaseWebhookPayload {
-  source: string;
+  source: WebhookSource | string; // WebhookSource for typed payloads, string for generic
   action: string;
   user_email?: string;
   user_id?: string;
@@ -11,7 +51,7 @@ export interface BaseWebhookPayload {
 }
 
 export interface MessageWebhookPayload extends BaseWebhookPayload {
-  source: 'rita-chat';
+  source: ChatWebhookSource;
   action: 'message_created';
   conversation_id: string;
   customer_message: string;

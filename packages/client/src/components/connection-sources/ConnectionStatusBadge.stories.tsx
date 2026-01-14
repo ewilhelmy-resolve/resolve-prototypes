@@ -4,7 +4,7 @@ import { STATUS } from "@/constants/connectionSources";
 
 const meta: Meta<typeof ConnectionStatusBadge> = {
 	component: ConnectionStatusBadge,
-	title: "Connection Sources/ConnectionStatusBadge",
+	title: "Features/Connections/Status Badge",
 	tags: ["autodocs"],
 	parameters: {
 		layout: "centered",

@@ -5,7 +5,7 @@ import { Trash2, Download, Archive, Mail } from "lucide-react";
 
 const meta: Meta<typeof BulkActions> = {
 	component: BulkActions,
-	title: "Components/BulkActions",
+	title: "Features/Data Management/Bulk Actions",
 	tags: ["autodocs"],
 	parameters: {
 		layout: "fullscreen",

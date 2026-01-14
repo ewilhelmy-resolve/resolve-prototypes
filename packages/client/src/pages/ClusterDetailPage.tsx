@@ -1,6 +1,7 @@
 import confetti from "canvas-confetti";
 import { ArrowLeft, Loader2 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useNavigate, useParams } from "react-router-dom";
 import RitaLayout from "@/components/layouts/RitaLayout";
 import { ClusterDetailSidebar } from "@/components/tickets/ClusterDetailSidebar";
@@ -47,6 +48,7 @@ const fireConfetti = () => {
 };
 
 export default function ClusterDetailPage() {
+	const { t } = useTranslation("tickets");
 	const { id } = useParams<{ id: string }>();
 	const navigate = useNavigate();
 	const { data: cluster, isLoading, error } = useClusterDetails(id);
@@ -74,16 +76,16 @@ export default function ClusterDetailPage() {
 			setBannerData((prev) => ({
 				visible: true,
 				variant: "success",
-				title: `Great job! You reviewed ${totalReviewed} responses.`,
-				description: `${trusted} trusted (${confidenceImprovement}% confidence)`,
+				title: t("clusterDetail.banners.reviewSuccess", { count: totalReviewed }),
+				description: t("clusterDetail.banners.reviewSuccessDesc", { trusted, improvement: confidenceImprovement }),
 				key: prev.key + 1,
 			}));
 		} else {
 			setBannerData((prev) => ({
 				visible: true,
 				variant: "destructive",
-				title: "Review completed with areas for improvement",
-				description: `${totalReviewed} responses reviewed. Consider refining AI training data.`,
+				title: t("clusterDetail.banners.reviewNeedsImprovement"),
+				description: t("clusterDetail.banners.reviewNeedsImprovementDesc", { count: totalReviewed }),
 				key: prev.key + 1,
 			}));
 		}
@@ -94,7 +96,7 @@ export default function ClusterDetailPage() {
 		setBannerData((prev) => ({
 			visible: true,
 			variant: "enriched",
-			title: "You just enriched tickets for this group!",
+			title: t("clusterDetail.banners.enrichedTickets"),
 			key: prev.key + 1,
 		}));
 	};
@@ -104,9 +106,8 @@ export default function ClusterDetailPage() {
 		setBannerData((prev) => ({
 			visible: true,
 			variant: "success",
-			title: "New knowledge added!",
-			description:
-				"You just improved your knowledge to better auto-respond to issues.",
+			title: t("clusterDetail.banners.knowledgeAdded"),
+			description: t("clusterDetail.banners.knowledgeAddedDesc"),
 			key: prev.key + 1,
 		}));
 	};
@@ -119,8 +120,8 @@ export default function ClusterDetailPage() {
 		setBannerData((prev) => ({
 			visible: true,
 			variant: "enriched",
-			title: `You just automated ${automatedPercentage}% of your work!`,
-			description: `Auto-respond is set to respond to all future tickets in "${ticketGroupName}"`,
+			title: t("clusterDetail.banners.automatedWork", { percentage: automatedPercentage }),
+			description: t("clusterDetail.banners.automatedWorkDesc", { groupName: ticketGroupName }),
 			key: prev.key + 1,
 		}));
 	};
@@ -174,9 +175,9 @@ export default function ClusterDetailPage() {
 		return (
 			<RitaLayout activePage="tickets">
 				<div className="flex min-h-screen flex-col items-center justify-center gap-4">
-					<p className="text-destructive">Failed to load cluster details</p>
+					<p className="text-destructive">{t("clusterDetail.failedToLoad")}</p>
 					<Button variant="outline" onClick={handleBack}>
-						Back to tickets
+						{t("clusterDetail.backToTickets")}
 					</Button>
 				</div>
 			</RitaLayout>
@@ -188,17 +189,17 @@ export default function ClusterDetailPage() {
 
 	const badges = [
 		{
-			text: `${cluster.ticket_count} tickets`,
+			text: t("clusterDetail.badges.tickets", { count: cluster.ticket_count }),
 			variant: "secondary" as const,
 			className: "",
 		},
 		{
-			text: `${cluster.open_count} open`,
+			text: t("clusterDetail.badges.open", { count: cluster.open_count }),
 			variant: "secondary" as const,
 			className: "",
 		},
 		{
-			text: `${cluster.kb_articles_count} KB articles`,
+			text: t("clusterDetail.badges.kbArticles", { count: cluster.kb_articles_count }),
 			variant: "secondary" as const,
 			className: "",
 		},
@@ -230,7 +231,7 @@ export default function ClusterDetailPage() {
 									variant="ghost"
 									size="icon"
 									onClick={handleBack}
-									aria-label="Back to tickets"
+									aria-label={t("clusterDetail.backToTickets")}
 								>
 									<ArrowLeft className="h-4 w-4" />
 								</Button>

@@ -18,7 +18,8 @@
     "rootDir": "./src",
     "declaration": false,
     "declarationMap": false,
-    "sourceMap": true
+    "sourceMap": true,
+    "types": ["node", "express", "cors", "nodemailer"]
   },
   "include": ["src/**/*"],
   "exclude": ["node_modules", "dist"]

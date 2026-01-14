@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import { ArrowLeft, ChevronDown, ChevronUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -13,6 +14,12 @@ interface TicketDetailHeaderProps {
 	ticketIds: string[];
 	/** Callback when Review AI response button is clicked */
 	onReviewAIResponse: () => void;
+	/** Optional callback for back navigation - overrides default */
+	onBack?: () => void;
+	/** Optional callback for previous ticket - overrides default */
+	onPrevious?: () => void;
+	/** Optional callback for next ticket - overrides default */
+	onNext?: () => void;
 }
 
 /**
@@ -30,7 +37,11 @@ export function TicketDetailHeader({
 	clusterId,
 	ticketIds,
 	onReviewAIResponse,
+	onBack,
+	onPrevious,
+	onNext,
 }: TicketDetailHeaderProps) {
+	const { t } = useTranslation("tickets");
 	const navigate = useNavigate();
 
 	const currentIndex = ticketIds.indexOf(ticketId);
@@ -38,20 +49,32 @@ export function TicketDetailHeader({
 	const hasNext = currentIndex < ticketIds.length - 1;
 
 	const handleBack = () => {
-		navigate(clusterId ? `/tickets/${clusterId}` : "/tickets");
+		if (onBack) {
+			onBack();
+		} else {
+			navigate(clusterId ? `/tickets/${clusterId}` : "/tickets");
+		}
 	};
 
 	const handlePrevious = () => {
 		if (hasPrevious) {
-			const prevTicketId = ticketIds[currentIndex - 1];
-			navigate(`/tickets/${clusterId}/${prevTicketId}`);
+			if (onPrevious) {
+				onPrevious();
+			} else {
+				const prevTicketId = ticketIds[currentIndex - 1];
+				navigate(`/tickets/${clusterId}/${prevTicketId}`);
+			}
 		}
 	};
 
 	const handleNext = () => {
 		if (hasNext) {
-			const nextTicketId = ticketIds[currentIndex + 1];
-			navigate(`/tickets/${clusterId}/${nextTicketId}`);
+			if (onNext) {
+				onNext();
+			} else {
+				const nextTicketId = ticketIds[currentIndex + 1];
+				navigate(`/tickets/${clusterId}/${nextTicketId}`);
+			}
 		}
 	};
 
@@ -63,7 +86,7 @@ export function TicketDetailHeader({
 					variant="ghost"
 					size="icon"
 					onClick={handleBack}
-					aria-label="Back to cluster"
+					aria-label={t("navigation.backToCluster")}
 				>
 					<ArrowLeft className="h-4 w-4" />
 				</Button>
@@ -76,7 +99,7 @@ export function TicketDetailHeader({
 						size="icon"
 						onClick={handleNext}
 						disabled={!hasNext}
-						aria-label="Next ticket"
+						aria-label={t("navigation.nextTicket")}
 					>
 						<ChevronDown className="h-4 w-4" />
 					</Button>
@@ -86,7 +109,7 @@ export function TicketDetailHeader({
 						size="icon"
 						onClick={handlePrevious}
 						disabled={!hasPrevious}
-						aria-label="Previous ticket"
+						aria-label={t("navigation.previousTicket")}
 					>
 						<ChevronUp className="h-4 w-4" />
 					</Button>
@@ -95,7 +118,7 @@ export function TicketDetailHeader({
 
 			{/* Right side - Review AI response button */}
 			<Button onClick={onReviewAIResponse}>
-				Review AI response
+				{t("review.title")}
 			</Button>
 		</div>
 	);

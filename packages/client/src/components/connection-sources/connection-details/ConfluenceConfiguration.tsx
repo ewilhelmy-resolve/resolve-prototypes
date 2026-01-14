@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { ritaToast } from "@/components/ui/rita-toast";
 import { STATUS } from "@/constants/connectionSources";
@@ -27,6 +28,7 @@ interface ConfluenceConfigurationProps {
 export default function ConfluenceConfiguration({
 	onEdit,
 }: ConfluenceConfigurationProps = {}) {
+	const { t } = useTranslation(["connections", "toast"]);
 	const { source } = useConnectionSource();
 	const [selectedSpaces, setSelectedSpaces] = useState<string[]>([]);
 	const updateMutation = useUpdateDataSource();
@@ -63,8 +65,8 @@ export default function ConfluenceConfiguration({
 	const handleSync = async () => {
 		if (!source.backendData) {
 			ritaToast.error({
-				title: "Configuration Error",
-				description: "No backend data available for this source",
+				title: t("config.toast.configError"),
+				description: t("config.toast.noBackendData"),
 			});
 			return;
 		}
@@ -85,14 +87,14 @@ export default function ConfluenceConfiguration({
 			await syncMutation.mutateAsync(source.backendData.id);
 
 			ritaToast.success({
-				title: "Sync Started",
-				description: "Your Confluence spaces are being synced",
+				title: t("config.toast.syncStarted"),
+				description: t("config.toast.syncStartedConfluence"),
 			});
 		} catch (error) {
 			ritaToast.error({
-				title: "Sync Failed",
+				title: t("config.toast.syncFailed"),
 				description:
-					error instanceof Error ? error.message : "Failed to start sync",
+					error instanceof Error ? error.message : t("config.toast.syncFailedDefault"),
 			});
 		}
 	};
@@ -100,8 +102,8 @@ export default function ConfluenceConfiguration({
 	const handleCancelSync = async () => {
 		if (!source.backendData) {
 			ritaToast.error({
-				title: "Configuration Error",
-				description: "No backend data available for this source",
+				title: t("config.toast.configError"),
+				description: t("config.toast.noBackendData"),
 			});
 			return;
 		}
@@ -110,14 +112,14 @@ export default function ConfluenceConfiguration({
 			await cancelMutation.mutateAsync(source.backendData.id);
 
 			ritaToast.success({
-				title: "Sync Cancelled",
-				description: "Your sync operation has been cancelled",
+				title: t("config.toast.syncCancelled"),
+				description: t("config.toast.syncCancelledDesc"),
 			});
 		} catch (error) {
 			ritaToast.error({
-				title: "Cancel Failed",
+				title: t("config.toast.cancelFailed"),
 				description:
-					error instanceof Error ? error.message : "Failed to cancel sync",
+					error instanceof Error ? error.message : t("config.toast.cancelFailedDefault"),
 			});
 		}
 	};
@@ -126,7 +128,7 @@ export default function ConfluenceConfiguration({
 		<div className="w-full flex flex-col gap-2">
 			<div className="flex flex-col gap-2.5">
 				<div className="flex justify-between items-start gap-2">
-					<FormSectionTitle title="Confluence configuration" />
+					<FormSectionTitle title={t("config.titles.confluence")} />
 					<ConnectionActionsMenu onEdit={onEdit} />
 				</div>
 
@@ -137,13 +139,13 @@ export default function ConfluenceConfiguration({
 					<div className="flex flex-col gap-1">
 						<div className="border border-border bg-popover rounded-md p-4">
 							<div className="rounded-lg flex items-center justify-between">
-								<Label>Sync in progress...</Label>
+								<Label>{t("config.sync.inProgress")}</Label>
 								<Button
 									onClick={handleCancelSync}
 									disabled={isCancelButtonDisabled}
 									variant="destructive"
 								>
-									{cancelMutation.isPending ? "Cancelling..." : "Cancel Sync"}
+									{cancelMutation.isPending ? t("config.sync.cancelling") : t("config.sync.cancelSync")}
 								</Button>
 							</div>
 						</div>
@@ -158,7 +160,7 @@ export default function ConfluenceConfiguration({
 							<div className="border border-border bg-popover rounded-md p-4">
 								<div className="rounded-lg">
 									<Label className="mb-2">
-										Which spaces would you like to sync from?
+										{t("config.labels.spacesQuestion")}
 									</Label>
 									<div className="flex flex-col md:flex-row items-start gap-4">
 										<div className="md:flex-1 w-full">
@@ -167,9 +169,9 @@ export default function ConfluenceConfiguration({
 												options={availableSpaces}
 												defaultValue={selectedSpaces}
 												onValueChange={setSelectedSpaces}
-												placeholder="Choose spaces..."
+												placeholder={t("config.placeholders.chooseSpaces")}
 												searchable={true}
-												emptyIndicator="No spaces found."
+												emptyIndicator={t("config.placeholders.noSpaces")}
 											/>
 										</div>
 										<Button
@@ -179,8 +181,8 @@ export default function ConfluenceConfiguration({
 											variant="default"
 										>
 											{updateMutation.isPending || syncMutation.isPending
-												? "Syncing..."
-												: "Sync"}
+												? t("config.sync.syncing")
+												: t("config.sync.sync")}
 										</Button>
 									</div>
 								</div>

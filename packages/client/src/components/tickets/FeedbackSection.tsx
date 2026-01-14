@@ -2,6 +2,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { AnimatePresence, motion } from "motion/react";
 
 interface FeedbackSectionProps {
@@ -10,11 +11,11 @@ interface FeedbackSectionProps {
 	onCancel: () => void;
 }
 
-const FEEDBACK_REASONS = [
-	"Missing information",
-	"Wrong tone",
-	"Incorrect solution",
-	"Too generic",
+const FEEDBACK_REASON_KEYS = [
+	"missingInfo",
+	"wrongTone",
+	"incorrectSolution",
+	"tooGeneric",
 ] as const;
 
 /**
@@ -29,6 +30,7 @@ const FEEDBACK_REASONS = [
  * @component
  */
 export function FeedbackSection({ show, onSubmit, onCancel }: FeedbackSectionProps) {
+	const { t } = useTranslation("tickets");
 	const [feedbackReasons, setFeedbackReasons] = useState<string[]>([]);
 	const [feedbackText, setFeedbackText] = useState("");
 
@@ -69,33 +71,36 @@ export function FeedbackSection({ show, onSubmit, onCancel }: FeedbackSectionPro
 					className="absolute bg-gray-50 bottom-0 left-0 right-0 p-8 border-t shadow-2xl z-50"
 				>
 					<div className="flex flex-col gap-4">
-						<p className="text-sm font-medium">What was wrong with this response?</p>
-						
+						<p className="text-sm font-medium">{t("feedback.title")}</p>
+
 						<div className="flex flex-wrap gap-2">
-							{FEEDBACK_REASONS.map((reason) => (
-								<Badge
-									key={reason}
-									variant={feedbackReasons.includes(reason) ? "default" : "outline"}
-									onClick={() => handleToggleReason(reason)}
-									className={cn(
-										"cursor-pointer transition-colors hover:bg-accent",
-										feedbackReasons.includes(reason) && "bg-primary text-primary-foreground hover:bg-primary/90"
-									)}
-								>
-									{reason}
-								</Badge>
-							))}
+							{FEEDBACK_REASON_KEYS.map((reasonKey) => {
+								const reason = t(`feedback.reasons.${reasonKey}`);
+								return (
+									<Badge
+										key={reasonKey}
+										variant={feedbackReasons.includes(reason) ? "default" : "outline"}
+										onClick={() => handleToggleReason(reason)}
+										className={cn(
+											"cursor-pointer transition-colors hover:bg-accent",
+											feedbackReasons.includes(reason) && "bg-primary text-primary-foreground hover:bg-primary/90"
+										)}
+									>
+										{reason}
+									</Badge>
+								);
+							})}
 						</div>
 
 						<div className="flex flex-col gap-2">
 							<label htmlFor="feedback-text" className="text-sm font-medium">
-								Enter feedback
+								{t("feedback.enterFeedback")}
 							</label>
 							<textarea
 								id="feedback-text"
 								value={feedbackText}
 								onChange={(e) => setFeedbackText(e.target.value)}
-								placeholder="Describe what was incorrect or missing..."
+								placeholder={t("feedback.placeholder")}
 								className="min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm resize-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
 							/>
 						</div>
@@ -106,14 +111,14 @@ export function FeedbackSection({ show, onSubmit, onCancel }: FeedbackSectionPro
 								size="sm"
 								onClick={handleCancel}
 							>
-								Skip
+								{t("feedback.skip")}
 							</Button>
 							<Button
 								size="sm"
 								onClick={handleSubmit}
 								disabled={!feedbackText.trim()}
 							>
-								Submit feedback
+								{t("feedback.submit")}
 							</Button>
 						</div>
 					</div>

@@ -1,4 +1,5 @@
 import { File, Plus } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { FileUploadRequirements } from "./FileUploadRequirements";
 
@@ -13,6 +14,8 @@ export default function EmptyFilesState({
 	hasActiveFilters = false,
 	onUploadClick,
 }: EmptyFilesStateProps) {
+	const { t } = useTranslation("kbs");
+
 	return (
 		<div className="bg-background flex flex-col items-center w-full">
 			<div className="p-6 border border-border rounded-lg flex flex-col items-center gap-6 w-full">
@@ -20,12 +23,12 @@ export default function EmptyFilesState({
 
 				<div className="flex flex-col items-center gap-2">
 					<h2 className="text-xl font-normal text-foreground text-center leading-7">
-						{hasActiveFilters ? "No articles found" : "No articles yet"}
+						{hasActiveFilters ? t("empty.noArticlesFound") : t("empty.noArticlesYet")}
 					</h2>
 					<p className="text-sm text-muted-foreground text-center">
 						{hasActiveFilters
-							? "Try adjusting your search or filter criteria"
-							: "Upload your knowledge articles to unlock instant answers from RITA"}
+							? t("empty.adjustFilters")
+							: t("empty.uploadPrompt")}
 					</p>
 				</div>
 
@@ -35,7 +38,7 @@ export default function EmptyFilesState({
 							<div className="text-center">
 								<Button variant={"secondary"} onClick={onUploadClick} className="shadow-sm">
 									<Plus className="h-4 w-4" />
-									Add Article
+									{t("empty.addArticle")}
 								</Button>
 							</div>
 							<div>

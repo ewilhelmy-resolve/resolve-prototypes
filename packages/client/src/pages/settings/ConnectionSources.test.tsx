@@ -79,14 +79,14 @@ describe("ConnectionSources", () => {
 			mockDataSourcesQuery.isLoading = true;
 			renderWithRouter(<ConnectionSources />);
 
-			expect(screen.getByText("Loading connections...")).toBeInTheDocument();
+			expect(screen.getByText("connectionSources.loading")).toBeInTheDocument();
 		});
 
 		it("should show loading state when seeding is in progress", () => {
 			mockSeedMutation.isPending = true;
 			renderWithRouter(<ConnectionSources />);
 
-			expect(screen.getByText("Loading connections...")).toBeInTheDocument();
+			expect(screen.getByText("connectionSources.loading")).toBeInTheDocument();
 		});
 
 		it("should call seedSources on mount", () => {
@@ -101,10 +101,10 @@ describe("ConnectionSources", () => {
 			renderWithRouter(<ConnectionSources />);
 
 			expect(
-				screen.getByText("Failed to load data sources"),
+				screen.getByText("errors.loadDataSourcesFailed"),
 			).toBeInTheDocument();
 			expect(
-				screen.getByText("An error occurred while fetching connection sources. Please try again."),
+				screen.getByText("errors.loadDataSourcesDescription"),
 			).toBeInTheDocument();
 		});
 
@@ -112,7 +112,7 @@ describe("ConnectionSources", () => {
 			mockDataSourcesQuery.error = new Error("Failed to fetch");
 			renderWithRouter(<ConnectionSources />);
 
-			expect(screen.getByRole("button", { name: /Try Again/i })).toBeInTheDocument();
+			expect(screen.getByRole("button", { name: /errors.tryAgain/i })).toBeInTheDocument();
 		});
 	});
 
@@ -121,7 +121,7 @@ describe("ConnectionSources", () => {
 			mockDataSourcesQuery.data = [];
 			renderWithRouter(<ConnectionSources />);
 
-			expect(screen.getByText("Connection Sources")).toBeInTheDocument();
+			expect(screen.getByText("connectionSources.title")).toBeInTheDocument();
 		});
 
 		it("should render header with description", () => {
@@ -129,9 +129,7 @@ describe("ConnectionSources", () => {
 			renderWithRouter(<ConnectionSources />);
 
 			expect(
-				screen.getByText(
-					/Connect your knowledge and ticketing sources to help RITA resolve IT issues faster/,
-				),
+				screen.getByText("connectionSources.description"),
 			).toBeInTheDocument();
 		});
 	});
@@ -141,7 +139,7 @@ describe("ConnectionSources", () => {
 			mockDataSourcesQuery.data = [];
 			renderWithRouter(<ConnectionSources />);
 
-			expect(screen.getByText("Connection Sources")).toBeInTheDocument();
+			expect(screen.getByText("connectionSources.title")).toBeInTheDocument();
 			// No source cards should be rendered
 			expect(screen.queryByRole("link")).not.toBeInTheDocument();
 		});
@@ -270,8 +268,8 @@ describe("ConnectionSources", () => {
 			mockDataSourcesQuery.data = [source];
 			renderWithRouter(<ConnectionSources />);
 
-			// Last sync should be shown
-			expect(screen.getByText(/Last sync:/)).toBeInTheDocument();
+			// Last sync should be shown (using translation key pattern)
+			expect(screen.getByText(/connectionSources.lastSync/)).toBeInTheDocument();
 		});
 
 		it("should display status badge", () => {
@@ -290,8 +288,8 @@ describe("ConnectionSources", () => {
 			mockDataSourcesQuery.data = [source];
 			renderWithRouter(<ConnectionSources />);
 
-			// Last sync text should be present
-			expect(screen.getByText(/Last sync:/)).toBeInTheDocument();
+			// Last sync text should be present (using translation key pattern)
+			expect(screen.getByText(/connectionSources.lastSync/)).toBeInTheDocument();
 		});
 
 		it("should display badges", () => {
@@ -352,7 +350,7 @@ describe("ConnectionSources", () => {
 			mockDataSourcesQuery.data = [source];
 			renderWithRouter(<ConnectionSources />);
 
-			const button = screen.getByText("Configure");
+			const button = screen.getByText("connectionSources.configure");
 			expect(button).toBeInTheDocument();
 			expect(button).not.toBeDisabled();
 		});
@@ -366,7 +364,7 @@ describe("ConnectionSources", () => {
 			mockDataSourcesQuery.data = [source];
 			renderWithRouter(<ConnectionSources />);
 
-			const button = screen.getByText("Manage");
+			const button = screen.getByText("connectionSources.manage");
 			expect(button).toBeInTheDocument();
 			expect(button).not.toBeDisabled();
 		});
@@ -379,7 +377,7 @@ describe("ConnectionSources", () => {
 			mockDataSourcesQuery.data = [source];
 			renderWithRouter(<ConnectionSources />);
 
-			const button = screen.getByRole("button", { name: /Coming Soon/i });
+			const button = screen.getByRole("button", { name: /connectionSources.comingSoon/i });
 			expect(button).toBeInTheDocument();
 			expect(button).toBeDisabled();
 		});

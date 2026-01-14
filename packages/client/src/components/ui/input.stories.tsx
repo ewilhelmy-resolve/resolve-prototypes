@@ -7,7 +7,7 @@ import { useState } from "react";
 
 const meta: Meta<typeof Input> = {
 	component: Input,
-	title: "UI/Shadcn/Input",
+	title: "Components/Forms/Input",
 	tags: ["autodocs"],
 	parameters: {
 		layout: "centered",
@@ -126,22 +126,3 @@ export const PasswordToggle: Story = {
 	},
 };
 
-export const FormExample: Story = {
-	render: () => (
-		<div className="grid gap-4">
-			<div className="grid gap-2">
-				<Label htmlFor="name">Name</Label>
-				<Input id="name" placeholder="John Doe" />
-			</div>
-			<div className="grid gap-2">
-				<Label htmlFor="email-form">Email</Label>
-				<Input id="email-form" type="email" placeholder="john@example.com" />
-			</div>
-			<div className="grid gap-2">
-				<Label htmlFor="message">Message</Label>
-				<Input id="message" placeholder="Your message..." />
-			</div>
-			<Button className="w-full">Submit</Button>
-		</div>
-	),
-};

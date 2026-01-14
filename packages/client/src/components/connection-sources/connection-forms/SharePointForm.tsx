@@ -1,4 +1,5 @@
 import { useForm } from "react-hook-form";
+import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { STATUS } from "@/constants/connectionSources";
@@ -25,6 +26,8 @@ interface SharePointFormProps {
 }
 
 export function SharePointForm({ onCancel }: SharePointFormProps = {}) {
+	const { t } = useTranslation("connections");
+	const { t: tToast } = useTranslation("toast");
 	const { source } = useConnectionSource();
 	const verifyMutation = useVerifyDataSource();
 	const updateMutation = useUpdateDataSource();
@@ -52,8 +55,8 @@ export function SharePointForm({ onCancel }: SharePointFormProps = {}) {
 			!formData.clientSecret ||
 			!formData.siteUrl
 		) {
-			toast.error("Validation Error", {
-				description: "Please fill in all authentication fields",
+			toast.error(tToast("error.validationError"), {
+				description: tToast("descriptions.fillAuthFields"),
 			});
 			return;
 		}
@@ -88,12 +91,11 @@ export function SharePointForm({ onCancel }: SharePointFormProps = {}) {
 				},
 			});
 
-			toast.success("Connection Configured", {
-				description:
-					"Your SharePoint connection has been configured successfully",
+			toast.success(tToast("success.connectionConfigured"), {
+				description: tToast("descriptions.sharePointConfigured"),
 			});
 		} catch (error) {
-			toast.error("Connection Failed", {
+			toast.error(tToast("error.connectionFailed"), {
 				description:
 					error instanceof Error
 						? error.message
@@ -114,45 +116,45 @@ export function SharePointForm({ onCancel }: SharePointFormProps = {}) {
 	return (
 		<ConnectionsForm handleSubmit={handleSubmit(onSubmit)} id="connection-form">
 			{/* Authentication */}
-			<FormSection title="Authentication">
+			<FormSection title={t("form.sections.authentication")}>
 				{/* Tenant ID */}
-				<FormField label="Tenant ID" errors={errors} name="tenantId">
+				<FormField label={t("form.labels.tenantId")} errors={errors} name="tenantId">
 					<Input
 						id="tenant-id"
 						type="text"
-						placeholder="your-tenant-id"
-						{...register("tenantId", { required: "Tenant ID is required" })}
+						placeholder={t("form.placeholders.tenantId")}
+						{...register("tenantId", { required: t("form.validation.tenantIdRequired") })}
 					/>
 				</FormField>
 
 				{/* Client ID */}
-				<FormField label="Client ID" errors={errors} name="clientId">
+				<FormField label={t("form.labels.clientId")} errors={errors} name="clientId">
 					<Input
 						id="client-id"
 						type="text"
-						placeholder="your-client-id"
-						{...register("clientId", { required: "Client ID is required" })}
+						placeholder={t("form.placeholders.clientId")}
+						{...register("clientId", { required: t("form.validation.clientIdRequired") })}
 					/>
 				</FormField>
 				{/* Client Secret */}
-				<FormField label="Client Secret" errors={errors} name="clientSecret">
+				<FormField label={t("form.labels.clientSecret")} errors={errors} name="clientSecret">
 					<Input
 						id="client-secret"
 						type="password"
-						placeholder="••••••••"
+						placeholder={t("form.placeholders.secret")}
 						{...register("clientSecret", {
-							required: "Client Secret is required",
+							required: t("form.validation.clientSecretRequired"),
 						})}
 					/>
 				</FormField>
 
 				{/* Site URL */}
-				<FormField label="Site URL" errors={errors} name="siteUrl">
+				<FormField label={t("form.labels.siteUrl")} errors={errors} name="siteUrl">
 					<Input
 						id="site-url"
 						type="url"
-						placeholder="https://your-company.sharepoint.com"
-						{...register("siteUrl", { required: "Site URL is required" })}
+						placeholder={t("form.placeholders.sharePointUrl")}
+						{...register("siteUrl", { required: t("form.validation.siteUrlRequired") })}
 					/>
 				</FormField>
 
@@ -160,7 +162,7 @@ export function SharePointForm({ onCancel }: SharePointFormProps = {}) {
 				<div className="flex justify-end gap-2">
 					{onCancel && (
 						<Button type="button" variant="outline" onClick={onCancel}>
-							Cancel
+							{t("form.buttons.cancel")}
 						</Button>
 					)}
 					<Button
@@ -169,8 +171,8 @@ export function SharePointForm({ onCancel }: SharePointFormProps = {}) {
 						disabled={verifyMutation.isPending || updateMutation.isPending}
 					>
 						{verifyMutation.isPending || updateMutation.isPending
-							? "Connecting..."
-							: "Connect"}
+							? t("form.buttons.connecting")
+							: t("form.buttons.connect")}
 					</Button>
 				</div>
 			</FormSection>

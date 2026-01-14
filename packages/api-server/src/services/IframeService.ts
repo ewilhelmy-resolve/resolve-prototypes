@@ -1,66 +1,51 @@
-import { pool, withOrgContext } from '../config/database.js';
+import { withOrgContext } from '../config/database.js';
 import { logger } from '../config/logger.js';
 import { getValkeyClient } from '../config/valkey.js';
-import { getSessionStore, type CreateSessionData, type Session, type IframeWebhookConfig } from './sessionStore.js';
+import { getSessionStore, type CreateSessionData, type IframeWebhookConfig } from './sessionStore.js';
 import { getSessionService } from './sessionService.js';
+import { pool } from '../config/database.js';
 
 // Valkey key prefix - keys stored as rita:session:{guid}
 const VALKEY_KEY_PREFIX = 'rita:session:';
-
-export interface IframeToken {
-  id: string;
-  token: string;
-  name: string;
-  description: string | null;
-  isActive: boolean;
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-/**
- * PUBLIC SYSTEM CONSTANTS
- *
- * These UUIDs identify the public/guest access system.
- * Users and orgs matching these IDs should have RESTRICTED features:
- * - No file uploads
- * - No data source connections
- * - Limited conversation history
- * - No org settings access
- * - etc.
- *
- * Use isPublicUser() and isPublicOrganization() helpers to check.
- */
-export const PUBLIC_USER_ID = '00000000-0000-0000-0000-000000000002';
-export const PUBLIC_ORG_ID = '00000000-0000-0000-0000-000000000001';
-export const PUBLIC_USER_ROLE = 'public';
-
-/**
- * Check if a user ID is the public guest user
- */
-export function isPublicUser(userId: string): boolean {
-  return userId === PUBLIC_USER_ID;
-}
-
-/**
- * Check if an organization ID is the public system org
- */
-export function isPublicOrganization(organizationId: string): boolean {
-  return organizationId === PUBLIC_ORG_ID;
-}
 
 export class IframeService {
   private sessionStore = getSessionStore();
   private sessionService = getSessionService();
 
   /**
-   * Fetch iframe webhook config from Valkey
+   * Fetch iframe webhook config from Valkey with debug info
    * Payload is stored as raw JSON by the host app
    * Key format: rita:session:{guid}
    */
-  async fetchValkeyPayload(hashkey: string): Promise<IframeWebhookConfig | null> {
+  async fetchValkeyPayloadWithDebug(hashkey: string): Promise<{
+    config: IframeWebhookConfig | null;
+    debug: {
+      fullKey: string;
+      rawPayload: Record<string, unknown> | null;
+      rawDataLength: number | null;
+      missingFields: string[];
+      error: string | null;
+      durationMs: number;
+    };
+  }> {
     const startTime = Date.now();
-    // Build full key with prefix: rita:session:{guid}
     const fullKey = `${VALKEY_KEY_PREFIX}${hashkey}`;
+    const debug: {
+      fullKey: string;
+      rawPayload: Record<string, unknown> | null;
+      rawDataLength: number | null;
+      missingFields: string[];
+      error: string | null;
+      durationMs: number;
+    } = {
+      fullKey,
+      rawPayload: null,
+      rawDataLength: null,
+      missingFields: [],
+      error: null,
+      durationMs: 0,
+    };
+
     logger.info({ hashkey: hashkey.substring(0, 8) + '...', fullKey }, 'Fetching Valkey payload...');
 
     try {
@@ -69,29 +54,43 @@ export class IframeService {
 
       // Data is stored as hash type: HGET rita:session:{guid} data
       const rawData = await client.hget(fullKey, 'data');
-      const duration = Date.now() - startTime;
+      debug.durationMs = Date.now() - startTime;
 
       if (!rawData) {
-        logger.warn({ hashkey: hashkey.substring(0, 8) + '...', durationMs: duration }, 'Valkey payload not found');
-        return null;
+        logger.warn({ hashkey: hashkey.substring(0, 8) + '...', durationMs: debug.durationMs }, 'Valkey payload not found');
+        debug.error = 'No data found at key';
+        return { config: null, debug };
       }
 
-      logger.info({ hashkey: hashkey.substring(0, 8) + '...', durationMs: duration, dataLength: rawData.length }, 'Valkey payload retrieved');
+      debug.rawDataLength = rawData.length;
+      logger.info({ hashkey: hashkey.substring(0, 8) + '...', durationMs: debug.durationMs, dataLength: rawData.length }, 'Valkey payload retrieved');
 
       const payload = JSON.parse(rawData);
+      // Sanitize: remove tokens for debug output
+      debug.rawPayload = {
+        ...payload,
+        accessToken: payload.accessToken ? '[REDACTED]' : undefined,
+        refreshToken: payload.refreshToken ? '[REDACTED]' : undefined,
+        clientKey: payload.clientKey ? '[REDACTED]' : undefined,
+      };
 
       // Validate required fields
       const requiredFields = [
         'accessToken', 'refreshToken', 'tabInstanceId', 'tenantId',
         'tenantName', 'chatSessionId', 'clientId', 'clientKey',
-        'tokenExpiry', 'actionsApiBaseUrl'
+        'tokenExpiry', 'actionsApiBaseUrl', 'userGuid'
       ];
 
       for (const field of requiredFields) {
         if (!(field in payload)) {
-          logger.warn({ hashkey: hashkey.substring(0, 8) + '...', missingField: field }, 'Invalid Valkey payload - missing required field');
-          return null;
+          debug.missingFields.push(field);
         }
+      }
+
+      if (debug.missingFields.length > 0) {
+        logger.warn({ hashkey: hashkey.substring(0, 8) + '...', missingFields: debug.missingFields }, 'Invalid Valkey payload - missing required fields');
+        debug.error = `Missing required fields: ${debug.missingFields.join(', ')}`;
+        return { config: null, debug };
       }
 
       logger.info(
@@ -100,172 +99,275 @@ export class IframeService {
       );
 
       return {
-        accessToken: payload.accessToken,
-        refreshToken: payload.refreshToken,
-        tabInstanceId: payload.tabInstanceId,
-        tenantId: payload.tenantId,
-        tenantName: payload.tenantName,
-        chatSessionId: payload.chatSessionId,
-        clientId: payload.clientId,
-        clientKey: payload.clientKey,
-        tokenExpiry: payload.tokenExpiry,
-        actionsApiBaseUrl: payload.actionsApiBaseUrl,
-        context: payload.context,
+        config: {
+          accessToken: payload.accessToken,
+          refreshToken: payload.refreshToken,
+          tabInstanceId: payload.tabInstanceId,
+          tenantId: payload.tenantId,
+          tenantName: payload.tenantName,
+          chatSessionId: payload.chatSessionId,
+          clientId: payload.clientId,
+          clientKey: payload.clientKey,
+          tokenExpiry: payload.tokenExpiry,
+          actionsApiBaseUrl: payload.actionsApiBaseUrl,
+          context: payload.context,
+          userGuid: payload.userGuid,
+        },
+        debug,
       };
     } catch (error) {
-      const duration = Date.now() - startTime;
+      debug.durationMs = Date.now() - startTime;
       const err = error as Error;
+      debug.error = `${err.name}: ${err.message}`;
       logger.error(
         {
           hashkey: hashkey.substring(0, 8) + '...',
           error: err.message,
           errorName: err.name,
           errorCode: (err as NodeJS.ErrnoException).code,
-          durationMs: duration,
+          durationMs: debug.durationMs,
           stack: err.stack?.split('\n').slice(0, 3).join(' | '),
         },
         'Failed to fetch/parse Valkey payload'
       );
-      return null;
+      return { config: null, debug };
     }
   }
 
   /**
-   * Validate an iframe token against the database
-   * Returns token info if valid, null if invalid/inactive
+   * Fetch iframe webhook config from Valkey (simple version without debug)
    */
-  async validateToken(token: string): Promise<IframeToken | null> {
-    const result = await pool.query(
-      `SELECT id, token, name, description, is_active, created_at, updated_at
-       FROM iframe_tokens
-       WHERE token = $1 AND is_active = true`,
-      [token]
+  async fetchValkeyPayload(hashkey: string): Promise<IframeWebhookConfig | null> {
+    const result = await this.fetchValkeyPayloadWithDebug(hashkey);
+    return result.config;
+  }
+
+  /**
+   * Resolve or create Rita organization from Jarvis tenant ID
+   * Checks by id first to handle any existing orgs
+   */
+  private async resolveRitaOrg(
+    jarvisTenantId: string,
+    tenantName: string
+  ): Promise<{ ritaOrgId: string; wasCreated: boolean }> {
+    const orgName = tenantName || `Jarvis Tenant ${jarvisTenantId.substring(0, 8)}`;
+
+    // 1. Check if org exists by ID
+    const existing = await pool.query(
+      `SELECT id FROM organizations WHERE id = $1`,
+      [jarvisTenantId]
     );
 
-    if (result.rows.length === 0) {
-      logger.warn({ token: token.substring(0, 8) + '...' }, 'Invalid or inactive iframe token');
-      return null;
+    if (existing.rows.length > 0) {
+      // Update name if org exists (Jarvis is source of truth)
+      await pool.query(
+        `UPDATE organizations SET name = $1, updated_at = NOW() WHERE id = $2`,
+        [orgName, jarvisTenantId]
+      );
+      return { ritaOrgId: jarvisTenantId, wasCreated: false };
     }
 
-    const row = result.rows[0];
-    return {
-      id: row.id,
-      token: row.token,
-      name: row.name,
-      description: row.description,
-      isActive: row.is_active,
-      createdAt: row.created_at,
-      updatedAt: row.updated_at,
-    };
-  }
-
-  /**
-   * Create a session for the public guest user
-   * Bypasses Keycloak JWT validation - directly creates session for public user
-   * @param iframeWebhookConfig Optional webhook config from Valkey for tenant-specific webhooks
-   */
-  async createPublicSession(iframeWebhookConfig?: IframeWebhookConfig): Promise<{ session: Session; cookie: string }> {
-    const sessionData: CreateSessionData = {
-      userId: PUBLIC_USER_ID,
-      organizationId: PUBLIC_ORG_ID,
-      userEmail: 'public-guest@internal.system',
-      firstName: 'Public',
-      lastName: 'Guest',
-      sessionDurationMs: 24 * 60 * 60 * 1000, // 24 hours
-      iframeWebhookConfig,
-    };
-
-    const session = await this.sessionStore.createSession(sessionData);
-    const cookie = this.sessionService.generateSessionCookie(session.sessionId);
+    // 2. Create new org with jarvisTenantId as id
+    await pool.query(
+      `INSERT INTO organizations (id, name, created_at)
+       VALUES ($1, $2, NOW())`,
+      [jarvisTenantId, orgName]
+    );
 
     logger.info(
-      {
-        sessionId: session.sessionId,
-        userId: PUBLIC_USER_ID,
-        hasWebhookConfig: !!iframeWebhookConfig,
-        tenantId: iframeWebhookConfig?.tenantId,
-      },
-      'Public iframe session created'
+      { jarvisTenantId, orgName },
+      'Created Rita org using Jarvis tenantId'
     );
 
-    return { session, cookie };
+    return { ritaOrgId: jarvisTenantId, wasCreated: true };
   }
 
   /**
-   * Create a conversation for the public guest user
+   * Resolve or create Rita user from Jarvis user GUID
+   * Checks by keycloak_id to handle existing users (may have old UUID as user_id)
    */
-  async createPublicConversation(tokenId: string, intentEid?: string): Promise<{ conversationId: string }> {
-    const result = await withOrgContext(
-      PUBLIC_USER_ID,
-      PUBLIC_ORG_ID,
-      async (client) => {
-        const conversationResult = await client.query(`
-          INSERT INTO conversations (organization_id, user_id, title, iframe_token_id)
-          VALUES ($1, $2, $3, $4)
-          RETURNING id
-        `, [PUBLIC_ORG_ID, PUBLIC_USER_ID, 'Iframe Chat', tokenId]);
+  private async resolveRitaUser(
+    jarvisGuid: string,
+    ritaOrgId: string
+  ): Promise<{ ritaUserId: string; wasCreated: boolean }> {
+    const keycloakId = `jarvis-${jarvisGuid}`;
 
+    // 1. Check if user exists by keycloak_id (handles legacy users with old UUIDs)
+    const existing = await pool.query(
+      `SELECT user_id FROM user_profiles WHERE keycloak_id = $1`,
+      [keycloakId]
+    );
+
+    if (existing.rows.length > 0) {
+      // Update active org for existing user
+      await pool.query(
+        `UPDATE user_profiles SET active_organization_id = $1, updated_at = NOW() WHERE keycloak_id = $2`,
+        [ritaOrgId, keycloakId]
+      );
+      return { ritaUserId: existing.rows[0].user_id, wasCreated: false };
+    }
+
+    // 2. Create new user with jarvisGuid as user_id
+    const result = await pool.query(
+      `INSERT INTO user_profiles (user_id, email, keycloak_id, first_name, last_name, active_organization_id, created_at)
+       VALUES ($1, $2, $3, $4, $5, $6, NOW())
+       RETURNING user_id`,
+      [
+        jarvisGuid,
+        `iframe-${jarvisGuid.substring(0, 8)}@iframe.internal`,
+        keycloakId,
+        'Iframe',
+        'User',
+        ritaOrgId
+      ]
+    );
+
+    logger.info(
+      { jarvisGuid, ritaOrgId },
+      'Created Rita user using Jarvis GUID'
+    );
+
+    return { ritaUserId: result.rows[0].user_id, wasCreated: true };
+  }
+
+  /**
+   * Ensure user is a member of the organization
+   */
+  private async ensureOrgMembership(ritaOrgId: string, ritaUserId: string): Promise<void> {
+    await pool.query(
+      `INSERT INTO organization_members (organization_id, user_id, role, is_active, joined_at)
+       VALUES ($1, $2, 'member', true, NOW())
+       ON CONFLICT (organization_id, user_id) DO NOTHING`,
+      [ritaOrgId, ritaUserId]
+    );
+  }
+
+  /**
+   * Create a conversation for iframe user
+   * Uses JIT provisioning to map Jarvis IDs → Rita IDs
+   */
+  async createIframeConversation(
+    config: IframeWebhookConfig,
+    intentEid?: string
+  ): Promise<{ conversationId: string; ritaOrgId: string; ritaUserId: string }> {
+    // 1. Resolve Rita org from Jarvis tenant
+    const { ritaOrgId, wasCreated: orgCreated } = await this.resolveRitaOrg(
+      config.tenantId,
+      config.tenantName
+    );
+
+    // 2. Resolve Rita user from Jarvis GUID
+    const { ritaUserId, wasCreated: userCreated } = await this.resolveRitaUser(
+      config.userGuid,
+      ritaOrgId
+    );
+
+    // 3. Ensure org membership if either was newly created
+    if (orgCreated || userCreated) {
+      await this.ensureOrgMembership(ritaOrgId, ritaUserId);
+    }
+
+    // 4. Create conversation with Rita IDs (using org context for RLS)
+    const result = await withOrgContext(
+      ritaUserId,
+      ritaOrgId,
+      async (client) => {
+        const conversationResult = await client.query(
+          `INSERT INTO conversations (organization_id, user_id, title)
+           VALUES ($1, $2, $3)
+           RETURNING id`,
+          [ritaOrgId, ritaUserId, 'Iframe Chat']
+        );
         return conversationResult.rows[0];
       }
     );
 
     logger.info(
-      { conversationId: result.id, tokenId, intentEid },
-      'Public iframe conversation created'
+      {
+        conversationId: result.id,
+        intentEid,
+        jarvisTenantId: config.tenantId,
+        jarvisGuid: config.userGuid,
+        ritaOrgId,
+        ritaUserId,
+        orgCreated,
+        userCreated,
+      },
+      'Iframe conversation created with JIT-provisioned Rita IDs'
     );
 
-    return { conversationId: result.id };
+    return { conversationId: result.id, ritaOrgId, ritaUserId };
   }
 
   /**
-   * Validate instantiation and setup public session + conversation
-   * Requires valid token. If existingConversationId provided, skip conversation creation.
-   * @param hashkey Optional Valkey hashkey containing tenant webhook credentials
+   * Validate instantiation and setup iframe session + conversation
+   * Requires valid Valkey config (sessionKey).
+   * Session uses Rita internal IDs (resolved from Jarvis IDs) for SSE routing.
    */
   async validateAndSetup(
-    token: string,
+    sessionKey: string,
     intentEid?: string,
-    existingConversationId?: string,
-    hashkey?: string
+    existingConversationId?: string
   ): Promise<{
     valid: boolean;
     error?: string;
-    publicUserId?: string;
     conversationId?: string;
     cookie?: string;
-    tokenName?: string;
     webhookConfigLoaded?: boolean;
     webhookTenantId?: string;
+    valkeyDebug?: {
+      fullKey: string;
+      rawPayload: Record<string, unknown> | null;
+      rawDataLength: number | null;
+      missingFields: string[];
+      error: string | null;
+      durationMs: number;
+    };
   }> {
-    // Validate token first
-    if (!token) {
-      logger.warn('Iframe instantiation attempted without token');
-      return { valid: false, error: 'Token required' };
+    // SessionKey (Valkey hashkey) required
+    if (!sessionKey) {
+      logger.warn('Iframe instantiation attempted without sessionKey');
+      return { valid: false, error: 'sessionKey required' };
     }
 
-    const tokenInfo = await this.validateToken(token);
-    if (!tokenInfo) {
-      return { valid: false, error: 'Invalid or inactive token' };
+    // Fetch and validate Valkey config with debug info
+    const { config, debug: valkeyDebug } = await this.fetchValkeyPayloadWithDebug(sessionKey);
+    if (!config) {
+      logger.warn({ sessionKey: sessionKey.substring(0, 8) + '...' }, 'Invalid or missing Valkey config');
+      return { valid: false, error: 'Invalid or missing Valkey configuration', valkeyDebug };
     }
 
-    // Fetch Valkey payload if hashkey provided (for tenant-specific webhook auth)
-    let iframeWebhookConfig: IframeWebhookConfig | undefined;
-    if (hashkey) {
-      const payload = await this.fetchValkeyPayload(hashkey);
-      if (payload) {
-        iframeWebhookConfig = payload;
-      } else {
-        logger.warn({ hashkey: hashkey.substring(0, 8) + '...' }, 'Hashkey provided but Valkey payload invalid/missing - continuing without webhook config');
-      }
+    let conversationId: string;
+    let ritaOrgId: string;
+    let ritaUserId: string;
+
+    if (existingConversationId) {
+      // Existing conversation - still need to resolve Rita IDs for session
+      conversationId = existingConversationId;
+      const { ritaOrgId: orgId } = await this.resolveRitaOrg(config.tenantId, config.tenantName);
+      const { ritaUserId: userId } = await this.resolveRitaUser(config.userGuid, orgId);
+      ritaOrgId = orgId;
+      ritaUserId = userId;
+    } else {
+      // New conversation - this also resolves Rita IDs
+      const result = await this.createIframeConversation(config, intentEid);
+      conversationId = result.conversationId;
+      ritaOrgId = result.ritaOrgId;
+      ritaUserId = result.ritaUserId;
     }
 
-    // Create session for public user with optional webhook config
-    const { session, cookie } = await this.createPublicSession(iframeWebhookConfig);
+    // Create session with Rita IDs (for SSE routing and internal operations)
+    const sessionData: CreateSessionData = {
+      userId: ritaUserId,
+      organizationId: ritaOrgId,
+      userEmail: `iframe-${config.userGuid.substring(0, 8)}@iframe.internal`,
+      sessionDurationMs: 24 * 60 * 60 * 1000, // 24 hours
+      iframeWebhookConfig: config, // Keep original Jarvis config for webhooks
+      isIframeSession: true,
+    };
 
-    // Use existing conversation or create new one
-    const conversationId = existingConversationId
-      ? existingConversationId
-      : (await this.createPublicConversation(tokenInfo.id, intentEid)).conversationId;
+    const session = await this.sessionStore.createSession(sessionData);
+    const cookie = this.sessionService.generateSessionCookie(session.sessionId);
 
     // Store conversationId in session for /execute endpoint to use
     await this.sessionStore.updateSession(session.sessionId, { conversationId });
@@ -275,21 +377,21 @@ export class IframeService {
         conversationId,
         intentEid,
         sessionId: session.sessionId,
+        jarvisTenantId: config.tenantId,
+        jarvisGuid: config.userGuid,
+        ritaOrgId,
+        ritaUserId,
         existingConversation: !!existingConversationId,
-        tokenName: tokenInfo.name,
-        hasWebhookConfig: !!iframeWebhookConfig,
       },
-      'Iframe instantiation complete'
+      'Iframe instantiation complete with Rita IDs'
     );
 
     return {
       valid: true,
-      publicUserId: PUBLIC_USER_ID,
       conversationId,
       cookie,
-      tokenName: tokenInfo.name,
-      webhookConfigLoaded: !!iframeWebhookConfig,
-      webhookTenantId: iframeWebhookConfig?.tenantId,
+      webhookConfigLoaded: true,
+      webhookTenantId: config.tenantId,
     };
   }
 }

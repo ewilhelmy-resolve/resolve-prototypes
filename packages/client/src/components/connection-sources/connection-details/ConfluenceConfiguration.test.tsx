@@ -100,7 +100,7 @@ describe("ConfluenceConfiguration", () => {
 	it("should render configuration title", () => {
 		const source = createMockSource();
 		renderWithProvider(source);
-		expect(screen.getByText("Confluence configuration")).toBeInTheDocument();
+		expect(screen.getByText("config.titles.confluence")).toBeInTheDocument();
 	});
 
 	it("should render connection status card", () => {
@@ -135,7 +135,7 @@ describe("ConfluenceConfiguration", () => {
 
 		await user.click(menuButton);
 
-		const editOption = await screen.findByText("Edit");
+		const editOption = await screen.findByText("actions.edit");
 		await user.click(editOption);
 
 		expect(mockOnEdit).toHaveBeenCalledTimes(1);
@@ -145,7 +145,7 @@ describe("ConfluenceConfiguration", () => {
 		const source = createMockSource();
 		renderWithProvider(source);
 		expect(
-			screen.getByText("Which spaces would you like to sync from?"),
+			screen.getByText("config.labels.spacesQuestion"),
 		).toBeInTheDocument();
 	});
 
@@ -170,8 +170,8 @@ describe("ConfluenceConfiguration", () => {
 
 		// Sync button should not be present (it's inside the hidden spaces dropdown section)
 		expect(screen.queryByRole("button", { name: /^sync$/i })).not.toBeInTheDocument();
-		// Cancel button should be present when syncing
-		expect(screen.getByRole("button", { name: /cancel sync/i })).toBeInTheDocument();
+		// Cancel button should be present when syncing (i18n key: config.sync.cancelSync)
+		expect(screen.getByText("config.sync.cancelSync")).toBeInTheDocument();
 	});
 
 	it("should hide sync button when verifying", () => {
@@ -250,8 +250,8 @@ describe("ConfluenceConfiguration", () => {
 
 		await waitFor(() => {
 			expect(ritaToast.success).toHaveBeenCalledWith({
-				title: "Sync Started",
-				description: "Your Confluence spaces are being synced",
+				title: "config.toast.syncStarted",
+				description: "config.toast.syncStartedConfluence",
 			});
 		});
 	});
@@ -270,7 +270,7 @@ describe("ConfluenceConfiguration", () => {
 
 		await waitFor(() => {
 			expect(ritaToast.error).toHaveBeenCalledWith({
-				title: "Sync Failed",
+				title: "config.toast.syncFailed",
 				description: "Sync failed",
 			});
 		});
@@ -286,8 +286,8 @@ describe("ConfluenceConfiguration", () => {
 
 		await waitFor(() => {
 			expect(ritaToast.error).toHaveBeenCalledWith({
-				title: "Configuration Error",
-				description: "No backend data available for this source",
+				title: "config.toast.configError",
+				description: "config.toast.noBackendData",
 			});
 		});
 	});
@@ -298,7 +298,7 @@ describe("ConfluenceConfiguration", () => {
 
 		renderWithProvider(source);
 
-		expect(screen.getByText("Syncing...")).toBeInTheDocument();
+		expect(screen.getByText("config.sync.syncing")).toBeInTheDocument();
 	});
 
 	describe("Error State Handling", () => {
@@ -310,7 +310,7 @@ describe("ConfluenceConfiguration", () => {
 
 			// Spaces dropdown should not be visible
 			expect(
-				screen.queryByText("Which spaces would you like to sync from?"),
+				screen.queryByText("config.labels.spacesQuestion"),
 			).not.toBeInTheDocument();
 		});
 
@@ -322,7 +322,7 @@ describe("ConfluenceConfiguration", () => {
 
 			// Spaces dropdown should be visible
 			expect(
-				screen.getByText("Which spaces would you like to sync from?"),
+				screen.getByText("config.labels.spacesQuestion"),
 			).toBeInTheDocument();
 		});
 
@@ -334,7 +334,7 @@ describe("ConfluenceConfiguration", () => {
 
 			// Spaces dropdown should be hidden when syncing
 			expect(
-				screen.queryByText("Which spaces would you like to sync from?"),
+				screen.queryByText("config.labels.spacesQuestion"),
 			).not.toBeInTheDocument();
 		});
 
@@ -346,7 +346,7 @@ describe("ConfluenceConfiguration", () => {
 
 			// Spaces dropdown should be hidden when verifying
 			expect(
-				screen.queryByText("Which spaces would you like to sync from?"),
+				screen.queryByText("config.labels.spacesQuestion"),
 			).not.toBeInTheDocument();
 		});
 

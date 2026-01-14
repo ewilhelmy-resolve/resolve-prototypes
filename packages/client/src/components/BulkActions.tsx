@@ -1,6 +1,7 @@
 import { Loader, Trash2, X } from "lucide-react";
 import type React from "react";
 import type { ReactNode } from "react";
+import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -91,14 +92,18 @@ export const BulkActions: React.FC<BulkActionsProps> = ({
 	selectedUsers,
 	actions,
 	onDelete,
-	deleteLabel = "Delete",
+	deleteLabel,
 	onClose,
-	itemLabel = "items",
+	itemLabel,
 	className,
 	isLoading = false,
-	loadingLabel = "Deleting...",
+	loadingLabel,
 	remainingCount,
 }) => {
+	const { t } = useTranslation("common");
+	const resolvedDeleteLabel = deleteLabel ?? t("bulk.defaultDeleteLabel");
+	const resolvedItemLabel = itemLabel ?? t("bulk.defaultItemLabel");
+	const resolvedLoadingLabel = loadingLabel ?? t("bulk.defaultLoadingLabel");
 	// Calculate count from various prop sources (backward compatibility)
 	const count =
 		typeof selectedItems === "number"
@@ -115,7 +120,7 @@ export const BulkActions: React.FC<BulkActionsProps> = ({
 	// Use custom actions or default to delete action
 	const displayActions: BulkAction[] = actions || (onDelete ? [{
 		key: 'delete',
-		label: isLoading ? loadingLabel : deleteLabel,
+		label: isLoading ? resolvedLoadingLabel : resolvedDeleteLabel,
 		icon: isLoading ? <Loader className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />,
 		variant: 'destructive' as const,
 		onClick: onDelete,
@@ -130,13 +135,13 @@ export const BulkActions: React.FC<BulkActionsProps> = ({
 				"px-6 py-4 shadow-sm animate-in fade-in",
 				className,
 			)}
-			aria-label="Bulk actions bar"
+			aria-label={t("bulk.ariaLabel")}
 		>
 			<div className="flex items-center gap-4">
 				<p className="text-base font-medium text-foreground">
 					{isLoading && remainingCount != null
-						? `${remainingCount} ${remainingCount === 1 ? itemLabel.replace(/s$/, '') : itemLabel} remaining`
-						: `${count} ${count === 1 ? itemLabel.replace(/s$/, '') : itemLabel} selected`
+						? t("bulk.remaining", { count: remainingCount, label: remainingCount === 1 ? resolvedItemLabel.replace(/s$/, '') : resolvedItemLabel })
+						: t("bulk.selected", { count, label: count === 1 ? resolvedItemLabel.replace(/s$/, '') : resolvedItemLabel })
 					}
 				</p>
 
@@ -162,7 +167,7 @@ export const BulkActions: React.FC<BulkActionsProps> = ({
 					"text-blue-600 hover:text-blue-800 dark:text-blue-400 transition-colors p-1 hover:bg-blue-100 dark:hover:bg-slate-700 rounded",
 					isLoading && "opacity-50 cursor-not-allowed"
 				)}
-				aria-label="Close bulk actions"
+				aria-label={t("bulk.closeAriaLabel")}
 			>
 				<X className="h-5 w-5" />
 			</button>

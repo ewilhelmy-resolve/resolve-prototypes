@@ -1,5 +1,6 @@
 import { Globe } from "lucide-react";
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Navigate, useNavigate, useParams } from "react-router-dom";
 import ConfluenceConfiguration from "@/components/connection-sources/connection-details/ConfluenceConfiguration";
 import ServiceNowItsmConfiguration from "@/components/connection-sources/connection-details/ServiceNowItsmConfiguration";
@@ -69,6 +70,7 @@ interface ConnectionSourceDetailPageProps {
 export default function ConnectionSourceDetailPage({
 	mode,
 }: ConnectionSourceDetailPageProps) {
+	const { t } = useTranslation("connections");
 	const { id } = useParams<{ id: string }>(); // UUID from backend
 	const navigate = useNavigate();
 	const { data: source, isLoading, error } = useDataSource(id);
@@ -78,7 +80,7 @@ export default function ConnectionSourceDetailPage({
 		return (
 			<RitaSettingsLayout>
 				<div className="flex-1 inline-flex flex-col items-center gap-8 w-full">
-					<div className="text-center py-8">Loading connection...</div>
+					<div className="text-center py-8">{t("detail.loading")}</div>
 				</div>
 			</RitaSettingsLayout>
 		);
@@ -147,7 +149,7 @@ export default function ConnectionSourceDetailPage({
 		const FormComponent = FORM_REGISTRY[sourceData.type];
 
 		if (!FormComponent) {
-			return <div>Unknown source type</div>;
+			return <div>{t("detail.unknownSourceType")}</div>;
 		}
 
 		return (
@@ -166,7 +168,7 @@ export default function ConnectionSourceDetailPage({
 		const ConfigurationComponent = configurationRegistry[sourceData.type];
 
 		if (!ConfigurationComponent) {
-			return <div>Configuration not available for this source type</div>;
+			return <div>{t("detail.configurationNotAvailable")}</div>;
 		}
 
 		return <ConfigurationComponent onEdit={handleEdit} />;
@@ -206,7 +208,7 @@ export default function ConnectionSourceDetailPage({
 									<Globe className="h-5 w-5 flex-shrink-0" />
 								)
 							}
-							description={`Connect your ${sourceTitle} instance to build context for RITA to make better experiences.`}
+							description={t("detail.connectDescription", { source: sourceTitle })}
 						/>
 
                         <DelegationInviteBox itsmSource={source.type as ItsmSystemType} />

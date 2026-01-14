@@ -1,40 +1,57 @@
+/**
+ * Iframe Routes (/iframe/chat)
+ *
+ * Webhook source: rita-chat-iframe
+ *
+ * This is one of three chat applications in Rita:
+ * - rita-chat: Main app (/chat)
+ * - rita-chat-iframe: Iframe embed (/iframe/chat) <-- this file
+ * - rita-chat-workflows: Workflow builder (/jirita)
+ *
+ * Sessions use Valkey IDs (userId, tenantId) from host app.
+ * See types/webhook.ts for ChatWebhookSource type definition.
+ */
 import express from 'express';
 import { getIframeService } from '../services/IframeService.js';
 import { getWorkflowExecutionService } from '../services/WorkflowExecutionService.js';
 import { getValkeyStatus } from '../config/valkey.js';
 import { logger } from '../config/logger.js';
-import { getSessionStore } from '../services/sessionStore.js';
-import { getSessionService } from '../services/sessionService.js';
 
 const router = express.Router();
 
 /**
- * Validate iframe instantiation and setup public session
+ * Validate iframe instantiation and setup session
  * POST /api/iframe/validate-instantiation
  *
- * Requires valid token in request body.
- * Token validated against iframe_tokens table.
+ * Validates Valkey config (sessionKey) for routing IDs.
+ * No token or organization DB checks - IDs come from Valkey.
  */
 router.post('/validate-instantiation', async (req, res) => {
   const startTime = Date.now();
-  logger.info({ hasHashkey: !!(req.body.hashkey || req.body.sessionKey) }, 'Iframe validate-instantiation started');
+  logger.info({ hasSessionKey: !!req.body.sessionKey }, 'Iframe validate-instantiation started');
 
   try {
-    const { token, intentEid, existingConversationId, hashkey, sessionKey } = req.body;
-    // Support both hashkey and sessionKey (portal uses sessionKey)
-    const resolvedHashkey = hashkey || sessionKey;
+    const { intentEid, existingConversationId, sessionKey } = req.body;
 
     const iframeService = getIframeService();
-    const result = await iframeService.validateAndSetup(token, intentEid, existingConversationId, resolvedHashkey);
+    const result = await iframeService.validateAndSetup(sessionKey, intentEid, existingConversationId);
     const duration = Date.now() - startTime;
     logger.info({ durationMs: duration, valid: result.valid }, 'Iframe validate-instantiation completed');
 
     // Handle validation failure
     if (!result.valid) {
-      logger.warn({ error: result.error }, 'Iframe token validation failed');
+      logger.warn({ error: result.error, sessionKey: sessionKey?.substring(0, 8) + '...' }, 'Iframe validation failed');
       res.status(401).json({
         valid: false,
         error: result.error,
+        debug: {
+          valkeyStatus: getValkeyStatus(),
+          sessionKeyProvided: !!sessionKey,
+          sessionKeyReceived: sessionKey || null,  // Full sessionKey for debugging
+          valkeyKeyUsed: sessionKey ? `rita:session:${sessionKey}` : null,  // Full key used for HGET
+          durationMs: duration,
+          valkey: result.valkeyDebug || null,
+        },
       });
       return;
     }
@@ -48,15 +65,13 @@ router.post('/validate-instantiation', async (req, res) => {
       {
         conversationId: result.conversationId,
         intentEid,
-        tokenName: result.tokenName,
-        hasWebhookConfig: !!resolvedHashkey,
+        tenantId: result.webhookTenantId,
       },
       'Iframe instantiation successful'
     );
 
     res.json({
       valid: result.valid,
-      publicUserId: result.publicUserId,
       conversationId: result.conversationId,
       webhookConfigLoaded: result.webhookConfigLoaded,
       webhookTenantId: result.webhookTenantId,
@@ -74,6 +89,15 @@ router.post('/validate-instantiation', async (req, res) => {
     res.status(500).json({
       valid: false,
       error: 'Failed to initialize iframe session',
+      debug: {
+        valkeyStatus: getValkeyStatus(),
+        sessionKeyProvided: !!req.body.sessionKey,
+        sessionKeyReceived: req.body.sessionKey || null,
+        valkeyKeyUsed: req.body.sessionKey ? `rita:session:${req.body.sessionKey}` : null,
+        errorMessage: err.message,
+        errorCode: (err as NodeJS.ErrnoException).code,
+        durationMs: duration,
+      },
     });
   }
 });
@@ -101,11 +125,12 @@ router.get('/debug', async (_req, res) => {
  * Execute workflow from Valkey hashkey
  * POST /api/iframe/execute
  *
+ * No DB checks - all IDs from Valkey config.
  * Flow:
- * 1. Client sends hashkey (stored by host in Valkey)
- * 2. Backend fetches payload from Valkey (contains JWT, tenantId, workflow params)
- * 3. Backend calls Actions API postEvent webhook
- * 4. Response flows through queue -> message -> SSE
+ * 1. Client sends hashkey
+ * 2. Backend fetches payload from Valkey (userId, tenantId, chatSessionId, webhook creds)
+ * 3. Backend calls Actions API postEvent with rita_* routing IDs
+ * 4. Response flows: Actions API → RabbitMQ → SSE → iframe
  */
 router.post('/execute', async (req, res) => {
   const startTime = Date.now();
@@ -126,24 +151,13 @@ router.post('/execute', async (req, res) => {
       return;
     }
 
-    // Get session from cookie to retrieve conversationId and Rita IDs
-    const sessionService = getSessionService();
-    const sessionStore = getSessionStore();
-    const sessionId = sessionService.parseSessionIdFromCookie(req.headers.cookie);
-    const session = sessionId ? await sessionStore.getSession(sessionId) : null;
-
-    if (!session) {
-      logger.warn({ hasSessionId: !!sessionId }, 'Execute called without valid session - workflow will not have Rita IDs');
-    }
-
     logger.info({
       hashkey: resolvedHashkey.substring(0, 8) + '...',
-      hasSession: !!session,
-      conversationId: session?.conversationId,
     }, 'Executing workflow from hashkey');
 
+    // All IDs come from Valkey config (set by host application)
     const workflowService = getWorkflowExecutionService();
-    const result = await workflowService.executeFromHashkey(resolvedHashkey, session);
+    const result = await workflowService.executeFromHashkey(resolvedHashkey);
 
     if (!result.success) {
       logger.warn({

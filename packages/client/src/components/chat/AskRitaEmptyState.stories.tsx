@@ -13,8 +13,11 @@ import {
 	SUPPORTED_DOCUMENT_EXTENSIONS,
 } from "@/lib/constants";
 
+// Use base URL for GitHub Pages compatibility
+const baseUrl = import.meta.env.BASE_URL || "/";
+
 const meta: Meta = {
-	title: "Chat/AskRitaEmptyState",
+	title: "Features/Chat/Empty State",
 	parameters: {
 		layout: "centered",
 		docs: {
@@ -33,15 +36,15 @@ type Story = StoryObj;
 const connectionSources = [
 	{
 		type: SOURCES.CONFLUENCE,
-		icon: `/connections/icon_${SOURCES.CONFLUENCE}.svg`,
+		icon: `${baseUrl}connections/icon_${SOURCES.CONFLUENCE}.svg`,
 	},
 	{
 		type: SOURCES.SHAREPOINT,
-		icon: `/connections/icon_${SOURCES.SHAREPOINT}.svg`,
+		icon: `${baseUrl}connections/icon_${SOURCES.SHAREPOINT}.svg`,
 	},
 	{
 		type: SOURCES.SERVICENOW,
-		icon: `/connections/icon_${SOURCES.SERVICENOW}.svg`,
+		icon: `${baseUrl}connections/icon_${SOURCES.SERVICENOW}.svg`,
 	},
 ];
 

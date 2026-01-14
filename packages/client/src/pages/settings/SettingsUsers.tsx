@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import InviteUsersButton from "@/components/users/InviteUsersButton";
@@ -10,6 +11,7 @@ import SettingsHeader from "@/pages/settings/SettingsHeader";
 import { InvitationStatus } from "@/types/invitations";
 
 export default function SettingsUsers() {
+	const { t } = useTranslation("settings");
 	const [activeTab, setActiveTab] = useState("users");
 	const { isOwnerOrAdmin } = useProfilePermissions();
 	const navigate = useNavigate();
@@ -31,14 +33,14 @@ export default function SettingsUsers() {
 		<div className="flex-1 inline-flex flex-col items-center gap-8 w-full">
 			<div className="self-stretch flex flex-col items-start gap-8">
 				<SettingsHeader
-					title="Users"
-					description="Manage users and invitations to your organization."
+					title={t("users.title")}
+					description={t("users.description")}
 					action={<InviteUsersButton />}
 				/>
 			</div>
 
 			<div className="pb-8 w-full flex flex-col gap-6">
-				{/* 
+				{/*
 				TODO : Hide for now, will implement later
 
 				 <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5">
@@ -94,9 +96,9 @@ export default function SettingsUsers() {
 					className="w-full pr-[2em] px-4 md:px-0"
 				>
 					<TabsList>
-						<TabsTrigger value="users">Users</TabsTrigger>
+						<TabsTrigger value="users">{t("users.tabs.users")}</TabsTrigger>
 						<TabsTrigger value="pending">
-							Invite Pending
+							{t("users.tabs.invitePending")}
 							{pendingCount > 0 && ` (${pendingCount})`}
 						</TabsTrigger>
 					</TabsList>

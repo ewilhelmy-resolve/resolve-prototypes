@@ -2,14 +2,17 @@ import axios, { type AxiosResponse } from 'axios';
 import { pool } from '../config/database.js';
 import type {
   BaseWebhookPayload,
+  ChatWebhookSource,
   DocumentDeletePayload,
   DocumentProcessingPayload,
   MessageWebhookPayload,
   WebhookConfig,
   WebhookError,
   WebhookPayload,
-  WebhookResponse
+  WebhookResponse,
+  WebhookSource
 } from '../types/webhook.js';
+import type { IframeWebhookConfig } from './sessionStore.js';
 
 export class WebhookService {
   private config: WebhookConfig;
@@ -39,9 +42,10 @@ export class WebhookService {
     documentIds?: string[];
     createdAt?: Date;
     transcript?: Array<{ role: string; content: string }>;
+    source?: ChatWebhookSource;
   }): Promise<WebhookResponse> {
     const payload: MessageWebhookPayload = {
-      source: 'rita-chat',
+      source: params.source || 'rita-chat',
       action: 'message_created',
       user_email: params.userEmail,
       user_id: params.userId,
@@ -150,7 +154,7 @@ export class WebhookService {
     organizationId: string;
     userId?: string;
     userEmail?: string;
-    source: string;
+    source: WebhookSource;
     action: string;
     additionalData?: Record<string, any>;
   }): Promise<WebhookResponse> {
@@ -169,7 +173,8 @@ export class WebhookService {
 
   /**
    * Send message event using tenant-specific webhook credentials
-   * Used for iframe embed sessions with Valkey-provided credentials
+   * Used for iframe embed sessions with Valkey-provided credentials.
+   * Spreads entire iframeConfig (Valkey payload) into the webhook payload.
    */
   async sendTenantMessageEvent(params: {
     // Standard message params
@@ -182,59 +187,37 @@ export class WebhookService {
     documentIds?: string[];
     createdAt?: Date;
     transcript?: Array<{ role: string; content: string }>;
-    // Tenant webhook config (from Valkey payload)
-    tenantConfig: {
-      actionsApiBaseUrl: string;
-      tenantId: string;
-      clientId: string;
-      clientKey: string;
-    };
-    // Additional Valkey fields to include in payload
-    valkeyPayload: {
-      accessToken: string;
-      refreshToken: string;
-      tabInstanceId: string;
-      tenantName: string;
-      chatSessionId: string;
-      tokenExpiry: number;
-      context?: Record<string, any>;
-    };
+    // Full Valkey config - spread into payload
+    iframeConfig: IframeWebhookConfig;
   }): Promise<WebhookResponse> {
-    const { tenantConfig, valkeyPayload, ...messageParams } = params;
+    const { iframeConfig, ...messageParams } = params;
 
     // Build tenant-specific webhook URL (remove trailing slash if present)
-    const baseUrl = tenantConfig.actionsApiBaseUrl.replace(/\/$/, '');
-    const webhookUrl = `${baseUrl}/api/Webhooks/postEvent/${tenantConfig.tenantId}`;
+    const baseUrl = iframeConfig.actionsApiBaseUrl.replace(/\/$/, '');
+    const webhookUrl = `${baseUrl}/api/Webhooks/postEvent/${iframeConfig.tenantId}`;
 
     // Build HTTP Basic auth header (clientId:clientKey base64 encoded)
-    const authHeader = `Basic ${Buffer.from(`${tenantConfig.clientId}:${tenantConfig.clientKey}`).toString('base64')}`;
+    const authHeader = `Basic ${Buffer.from(`${iframeConfig.clientId}:${iframeConfig.clientKey}`).toString('base64')}`;
 
-    // Build payload with all Valkey fields + message data
+    // Build payload: Valkey config (camelCase) + snake_case copies for RabbitMQ
+    // Use Valkey IDs directly (not Rita DB IDs) so platform can echo them back
     const payload: BaseWebhookPayload & Record<string, any> = {
       source: 'rita-chat-iframe',
       action: 'message_created',
+      // Spread entire Valkey config (camelCase: userGuid, tenantId, chatSessionId, etc.)
+      ...iframeConfig,
+      // Snake_case copies of Valkey IDs for RabbitMQ response routing
+      tenant_id: iframeConfig.tenantId,
+      user_id: iframeConfig.userGuid,
       user_email: messageParams.userEmail,
-      user_id: messageParams.userId,
-      tenant_id: tenantConfig.tenantId,
       conversation_id: messageParams.conversationId,
-      customer_message: messageParams.customerMessage,
       message_id: messageParams.messageId,
+      customer_message: messageParams.customerMessage,
       document_ids: messageParams.documentIds || [],
       transcript_ids: messageParams.transcript ? {
         transcripts: messageParams.transcript
       } : undefined,
       timestamp: (messageParams.createdAt || new Date()).toISOString(),
-      // Include all Valkey payload fields
-      accessToken: valkeyPayload.accessToken,
-      refreshToken: valkeyPayload.refreshToken,
-      tabInstanceId: valkeyPayload.tabInstanceId,
-      tenantName: valkeyPayload.tenantName,
-      chatSessionId: valkeyPayload.chatSessionId,
-      tokenExpiry: valkeyPayload.tokenExpiry,
-      context: valkeyPayload.context,
-      clientId: tenantConfig.clientId,
-      clientKey: tenantConfig.clientKey,
-      actionsApiBaseUrl: tenantConfig.actionsApiBaseUrl,
     };
 
     return this.sendEventToUrl(webhookUrl, authHeader, payload);

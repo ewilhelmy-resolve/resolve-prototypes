@@ -5,7 +5,7 @@ import { Apple, Banana, Cherry, Grape, Citrus } from "lucide-react";
 
 const meta: Meta<typeof MultiSelect> = {
 	component: MultiSelect,
-	title: "UI/Custom/MultiSelect",
+	title: "Components/Forms/Multi Select",
 	tags: ["autodocs"],
 	args: {
 		onValueChange: fn(),

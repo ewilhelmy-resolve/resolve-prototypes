@@ -13,7 +13,7 @@ import { Label } from "./label";
  
 const meta: Meta<typeof Select> = {
 	component: Select,
-	title: "UI/Shadcn/Select",
+	title: "Components/Forms/Select",
 	tags: ["autodocs"],
 	parameters: {
 		layout: "centered",
@@ -152,38 +152,3 @@ export const WithDefaultValue: Story = {
 	),
 };
 
-export const FormExample: Story = {
-	render: () => (
-		<div className="grid gap-4">
-			<div className="grid gap-2">
-				<Label>Country</Label>
-				<Select>
-					<SelectTrigger>
-						<SelectValue placeholder="Select your country" />
-					</SelectTrigger>
-					<SelectContent>
-						<SelectItem value="us">United States</SelectItem>
-						<SelectItem value="uk">United Kingdom</SelectItem>
-						<SelectItem value="ca">Canada</SelectItem>
-						<SelectItem value="au">Australia</SelectItem>
-						<SelectItem value="de">Germany</SelectItem>
-						<SelectItem value="fr">France</SelectItem>
-					</SelectContent>
-				</Select>
-			</div>
-			<div className="grid gap-2">
-				<Label>Role</Label>
-				<Select>
-					<SelectTrigger>
-						<SelectValue placeholder="Select your role" />
-					</SelectTrigger>
-					<SelectContent>
-						<SelectItem value="admin">Administrator</SelectItem>
-						<SelectItem value="editor">Editor</SelectItem>
-						<SelectItem value="viewer">Viewer</SelectItem>
-					</SelectContent>
-				</Select>
-			</div>
-		</div>
-	),
-};

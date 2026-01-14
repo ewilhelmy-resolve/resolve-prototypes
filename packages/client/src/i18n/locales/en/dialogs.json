@@ -1,0 +1,50 @@
+{
+	"invite": {
+		"title": "Invite Users",
+		"description": "Add email addresses to invite new users to your workspace.",
+		"roleInfoPrefix": "All new users will be assigned the",
+		"roleInfoSuffix": "role by default.",
+		"userRole": "User",
+		"adminHint": "To grant admin access, update their role later in Settings → Users.",
+		"emailLabel": "Email addresses",
+		"emailPlaceholder": "Enter email addresses separated by commas (e.g., user1@example.com, user2@example.com)",
+		"emailHint": "Separate multiple email addresses with commas (max 50)",
+		"submit": "Invite Users",
+		"sending": "Sending...",
+		"validation": {
+			"required": "Please enter at least one email address",
+			"maxBatch": "Maximum 50 email addresses allowed per batch",
+			"invalidFormat": "Invalid email format: {{emails}}"
+		},
+		"errors": {
+			"invalidEmail": "One or more email addresses are invalid",
+			"duplicatePending": "Some users already have pending invitations",
+			"userExists": "Some users already have accounts",
+			"batchExceeded": "Maximum 50 email addresses allowed per batch",
+			"tenantLimit": "Your organization has reached the maximum number of users",
+			"unauthorized": "You don't have permission to send invitations",
+			"serverError": "Server error occurred. Please try again later",
+			"default": "Failed to send invitations"
+		}
+	},
+	"welcome": {
+		"title": "Welcome to RITA Go, {{name}}",
+		"subtitle": "Enjoy your free 90-day trial of Resolve's AI-powered agent for faster, smarter IT support.",
+		"admin": {
+			"intro": "RITA Go learns from your company's knowledge and tickets (coming soon) to help resolve IT issues automatically.",
+			"stepsIntro": "In a few steps, you'll:",
+			"step1": "Connect your knowledge sources like Confluence, ServiceNow, or SharePoint.",
+			"step2": "Invite your teammates to start getting instant answers.",
+			"step3": "And coming soon — connect your ITSM for historical ticket data to enrich your workspace and help users resolve issues even faster."
+		},
+		"user": {
+			"heading": "Your Admin has connected your workspace.",
+			"intro": "RITA Go helps you solve IT issues instantly — from password resets to VPN access — all based on your company's trusted content. Just ask a question or describe the issue, and RITA Go will:",
+			"step1": "Search verified knowledge",
+			"step2": "Get easy next steps or fixes to issues, fast",
+			"step3": "Create a ticket if you still need help without overhead"
+		},
+		"getStarted": "Get Started",
+		"learnMore": "Learn how RITA Go works"
+	}
+}

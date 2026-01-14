@@ -79,6 +79,7 @@ describe('sessionStore', () => {
         clientKey: 'key-jkl',
         tokenExpiry: Date.now() + 3600000,
         actionsApiBaseUrl: 'https://api.example.com',
+        userGuid: 'host-user-123',
       };
 
       const sessionData: CreateSessionData = {
@@ -340,6 +341,7 @@ describe('sessionStore', () => {
           clientKey: 'key-def',
           tokenExpiry: Date.now() + 3600000,
           actionsApiBaseUrl: 'https://api.example.com',
+          userGuid: 'host-user-xyz',
         },
       });
 

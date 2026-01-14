@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { Badge } from "@/components/ui/badge";
 import { FileText } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -65,6 +66,7 @@ export function AIResponseSection({
 	className,
 	maxVisibleArticles = 1,
 }: AIResponseSectionProps) {
+	const { t } = useTranslation("tickets");
 	const typeConfig = getAIResponseTypeConfig(type);
 	const TypeIcon = typeConfig.icon;
 	const visibleArticles = response.kbArticles.slice(0, maxVisibleArticles);
@@ -74,7 +76,7 @@ export function AIResponseSection({
 		<div className={cn("flex-1 flex flex-col gap-2 min-h-0", className)}>
 			{/* Header with label and badge */}
 			<div className="flex items-center gap-2">
-				<p className="text-sm text-foreground">AI-Response</p>
+				<p className="text-sm text-foreground">{t("review.aiResponse")}</p>
 				<Badge className={cn("px-2 py-0.5 border font-semibold gap-1", typeConfig.badgeClasses)}>
 					<TypeIcon className="size-3" />
 					{typeConfig.title}

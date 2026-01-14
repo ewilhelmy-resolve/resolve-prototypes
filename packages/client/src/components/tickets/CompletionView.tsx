@@ -6,17 +6,29 @@ import {
 	SheetTitle,
 } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
-import { ThumbsDown, ThumbsUp } from "lucide-react";
-import { Confetti, type ConfettiRef } from "@/components/ui/confetti";
-import { useEffect, useRef } from "react";
+import { useRef } from "react";
+import { useTranslation } from "react-i18next";
 import type { ReviewStats } from "./ReviewAIResponseSheet";
+import {
+	ReviewCompletionStats,
+	type ReviewCompletionStatsRef,
+} from "./ReviewCompletionStats";
 
 interface CompletionViewProps {
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
 	stats: ReviewStats;
-	onEnableAutoRespond?: (stats: ReviewStats) => void;
+	/** Whether this is the first review session for this cluster */
+	isFirstSession?: boolean;
+	/** Whether the cluster has knowledge articles */
+	hasKnowledge?: boolean;
 	onKeepReviewing?: () => void;
+	/** Called when user clicks to add/review knowledge */
+	onReviewKnowledge?: () => void;
+	/** Called when user clicks to add knowledge (no knowledge scenario) */
+	onAddKnowledge?: () => void;
+	/** Called when user clicks to view automation readiness */
+	onViewAutomationReadiness?: () => void;
 }
 
 /**
@@ -29,41 +41,87 @@ interface CompletionViewProps {
  * 
  * @component
  */
+type ScenarioKey = "noKnowledge" | "firstGood" | "firstBad" | "subsequentGood" | "subsequentBad";
+
+/**
+ * Determine scenario key based on session state and results
+ */
+function getScenarioKey(
+	stats: ReviewStats,
+	isFirstSession: boolean,
+	hasKnowledge: boolean
+): { key: ScenarioKey; icon: string; showConfetti: boolean; primaryAction: "addKnowledge" | "reviewKnowledge" | "viewAutomationReadiness" | "keepReviewing" } {
+	const isGoodResults = stats.trusted >= stats.totalReviewed / 2;
+
+	if (!hasKnowledge) {
+		return { key: "noKnowledge", icon: "⚠️", showConfetti: false, primaryAction: "addKnowledge" };
+	}
+
+	if (isFirstSession) {
+		if (isGoodResults) {
+			return { key: "firstGood", icon: "🎇", showConfetti: true, primaryAction: "keepReviewing" };
+		}
+		return { key: "firstBad", icon: "📚", showConfetti: false, primaryAction: "reviewKnowledge" };
+	}
+
+	if (isGoodResults) {
+		return { key: "subsequentGood", icon: "🙌", showConfetti: true, primaryAction: "viewAutomationReadiness" };
+	}
+
+	return { key: "subsequentBad", icon: "🔧", showConfetti: false, primaryAction: "reviewKnowledge" };
+}
+
 export function CompletionView({
 	open,
 	onOpenChange,
 	stats,
-	onEnableAutoRespond,
+	isFirstSession = false,
+	hasKnowledge = true,
 	onKeepReviewing,
+	onReviewKnowledge,
+	onAddKnowledge,
+	onViewAutomationReadiness,
 }: CompletionViewProps) {
-	const confettiRef = useRef<ConfettiRef>(null);
+	const { t } = useTranslation("tickets");
+	const confettiRef = useRef<ReviewCompletionStatsRef>(null);
 
-	// Fire confetti when completion screen shows
-	useEffect(() => {
-		if (open) {
- 			// Small delay to ensure the component is fully mounted
-			const timer = setTimeout(() => {
-				if (confettiRef.current) {
-					confettiRef.current.fire({
-						particleCount: 100,
-						spread: 70,
-						origin: { x: 0.5, y: 0.6 },
-					});
-				}
-			}, 300);
-
-			return () => clearTimeout(timer);
-		}
-	}, [open]);
+	const scenario = getScenarioKey(stats, isFirstSession, hasKnowledge);
 
 	const handleKeepReviewing = () => {
 		onKeepReviewing?.();
 		onOpenChange(false);
 	};
 
-	const handleEnableAutoRespond = () => {
-		onEnableAutoRespond?.(stats);
+	const handlePrimaryAction = () => {
+		switch (scenario.primaryAction) {
+			case "addKnowledge":
+				onAddKnowledge?.();
+				break;
+			case "reviewKnowledge":
+				onReviewKnowledge?.();
+				break;
+			case "viewAutomationReadiness":
+				onViewAutomationReadiness?.();
+				break;
+			case "keepReviewing":
+				onKeepReviewing?.();
+				break;
+		}
 		onOpenChange(false);
+	};
+
+	// Get button labels based on scenario
+	const getPrimaryButtonLabel = () => {
+		switch (scenario.primaryAction) {
+			case "addKnowledge":
+				return t("completion.actions.addKnowledge");
+			case "reviewKnowledge":
+				return t("completion.actions.reviewKnowledge");
+			case "viewAutomationReadiness":
+				return t("completion.actions.viewAutomationReadiness");
+			case "keepReviewing":
+				return t("completion.actions.keepReviewing");
+		}
 	};
 
 	return (
@@ -74,66 +132,33 @@ export function CompletionView({
 			>
 				{/* Hidden but accessible header for screen readers */}
 				<SheetHeader className="sr-only">
-					<SheetTitle>Review Complete</SheetTitle>
+					<SheetTitle>{t("completion.title")}</SheetTitle>
 				</SheetHeader>
 
 				{/* Content */}
-				<div className="flex-1 flex flex-col items-center justify-center gap-13 text-center relative">
-					{/* Confetti Canvas */}
-					<Confetti
-						ref={confettiRef}
-						className="absolute inset-0 w-full h-full pointer-events-none"
-						manualstart
-					/>
-
-					{/* Title */}
-					<h2 className="text-3xl mb-28 text-foreground">
-						You reviewed {stats.totalReviewed} tickets
-					</h2>
-
-					{/* Confidence Improvement */}
-					<div className="flex flex-col items-center gap-2">
-						<p className="text-2xl font-serif">
-							Confidence improved by
-						</p>
-						<p className="text-7xl font-serif font-bold text-foreground">
-							{stats.confidenceImprovement}%
-						</p>
-					</div>
-
-					{/* Stats */}
-					<div className="flex items-center justify-center gap-6">
-						<div className="flex items-center gap-1.5">
-							<ThumbsDown className="size-4 text-muted-foreground" />
-							<span className="text-sm text-muted-foreground">
-								Need improvement
-							</span>
-							<span className="text-sm font-semibold">
-								{stats.needsImprovement}
-							</span>
-						</div>
-						<div className="flex items-center gap-1.5">
-							<ThumbsUp className="size-4 text-muted-foreground" />
-							<span className="text-sm text-muted-foreground">Trusted</span>
-							<span className="text-sm font-semibold">
-								{stats.trusted}
-							</span>
-						</div>
-					</div>
-
-					{/* CTA Message */}
-					<p className="text-base font-serif">
-						Ready to enable Auto-Respond for this ticket group?
-					</p>
-				</div>
+				<ReviewCompletionStats
+					ref={confettiRef}
+					icon={scenario.icon}
+					title={t(`completion.scenarios.${scenario.key}.title`)}
+					subtitle={t(`completion.scenarios.${scenario.key}.subtitle`)}
+					trusted={stats.trusted}
+					totalReviewed={stats.totalReviewed}
+					needsImprovement={stats.needsImprovement}
+					message={t(`completion.scenarios.${scenario.key}.message`)}
+					proTip={t(`completion.scenarios.${scenario.key}.proTip`)}
+					showConfetti={scenario.showConfetti}
+					className="flex-1"
+				/>
 
 				{/* Footer Actions */}
 				<SheetFooter className="flex-row justify-end gap-2">
-					<Button variant="outline" onClick={handleKeepReviewing}>
-						Keep reviewing
-					</Button>
-					<Button onClick={handleEnableAutoRespond}>
-						Enable Auto-Respond
+					{scenario.primaryAction !== "keepReviewing" && (
+						<Button variant="outline" onClick={handlePrimaryAction}>
+							{getPrimaryButtonLabel()}
+						</Button>
+					)}
+					<Button onClick={handleKeepReviewing}>
+						{t("completion.actions.keepReviewing")}
 					</Button>
 				</SheetFooter>
 			</SheetContent>

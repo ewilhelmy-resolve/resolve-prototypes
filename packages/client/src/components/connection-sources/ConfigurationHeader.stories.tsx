@@ -4,7 +4,7 @@ import { ConfigurationHeader } from "./ConfigurationHeader";
 
 const meta: Meta<typeof ConfigurationHeader> = {
 	component: ConfigurationHeader,
-	title: "Connection Sources/ConfigurationHeader",
+	title: "Features/Connections/Configuration Header",
 	tags: ["autodocs"],
 	parameters: {
 		layout: "fullscreen",

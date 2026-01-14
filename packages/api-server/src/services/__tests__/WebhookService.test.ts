@@ -259,7 +259,7 @@ describe('WebhookService', () => {
         organizationId: 'org-123',
         userId: 'user-456',
         userEmail: 'test@example.com',
-        source: 'rita-test',
+        source: 'rita-chat-workflows',
         action: 'test-action',
         additionalData: {
           custom_field: 'custom_value'
@@ -270,7 +270,7 @@ describe('WebhookService', () => {
       expect(mockedAxios.post).toHaveBeenCalledWith(
         'https://test-webhook.example.com',
         expect.objectContaining({
-          source: 'rita-test',
+          source: 'rita-chat-workflows',
           action: 'test-action',
           tenant_id: 'org-123', // organization_id mapped to tenant_id
           user_email: 'test@example.com',
@@ -299,7 +299,7 @@ describe('WebhookService', () => {
 
         const result = await webhookService.sendGenericEvent({
           organizationId: 'org-123',
-          source: 'test',
+          source: 'rita-chat',
           action: 'test'
         });
 
@@ -324,7 +324,7 @@ describe('WebhookService', () => {
 
         const result = await webhookService.sendGenericEvent({
           organizationId: 'org-123',
-          source: 'test',
+          source: 'rita-chat',
           action: 'test'
         });
 
@@ -356,6 +356,216 @@ describe('WebhookService', () => {
 
       const customService = new WebhookService(customConfig);
       expect(customService).toBeInstanceOf(WebhookService);
+    });
+  });
+
+  /**
+   * Chat Source Tests
+   *
+   * Rita has three chat applications, each with a distinct source:
+   * - rita-chat: Main app (/chat)
+   * - rita-chat-iframe: Iframe embed (/iframe/chat)
+   * - rita-chat-workflows: Workflow builder (/jirita)
+   */
+  describe('chat sources', () => {
+    it('should use rita-chat source by default for sendMessageEvent', async () => {
+      mockedAxios.post.mockResolvedValueOnce({ status: 200, data: { success: true } });
+
+      await webhookService.sendMessageEvent({
+        organizationId: 'org-123',
+        userId: 'user-456',
+        userEmail: 'test@example.com',
+        conversationId: 'conv-789',
+        messageId: 'msg-101',
+        customerMessage: 'Hello',
+      });
+
+      expect(mockedAxios.post).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({ source: 'rita-chat' }),
+        expect.anything()
+      );
+    });
+
+    it('should use rita-chat-iframe source for iframe sessions', async () => {
+      mockedAxios.post.mockResolvedValueOnce({ status: 200, data: { success: true } });
+
+      await webhookService.sendMessageEvent({
+        organizationId: 'org-123',
+        userId: 'user-456',
+        userEmail: 'test@example.com',
+        conversationId: 'conv-789',
+        messageId: 'msg-101',
+        customerMessage: 'Hello from iframe',
+        source: 'rita-chat-iframe',
+      });
+
+      expect(mockedAxios.post).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({ source: 'rita-chat-iframe' }),
+        expect.anything()
+      );
+    });
+
+    it('should use rita-chat-workflows source for workflow chat', async () => {
+      mockedAxios.post.mockResolvedValueOnce({ status: 200, data: { success: true } });
+
+      await webhookService.sendMessageEvent({
+        organizationId: 'org-123',
+        userId: 'user-456',
+        userEmail: 'test@example.com',
+        conversationId: 'conv-789',
+        messageId: 'msg-101',
+        customerMessage: 'Generate workflow',
+        source: 'rita-chat-workflows',
+      });
+
+      expect(mockedAxios.post).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({ source: 'rita-chat-workflows' }),
+        expect.anything()
+      );
+    });
+
+    it('should use correct source in sendGenericEvent for workflows', async () => {
+      mockedAxios.post.mockResolvedValueOnce({ status: 200, data: { success: true } });
+
+      await webhookService.sendGenericEvent({
+        organizationId: 'org-123',
+        userId: 'user-456',
+        userEmail: 'test@example.com',
+        source: 'rita-chat-workflows',
+        action: 'generate_dynamic_workflow',
+        additionalData: { query: 'Create automation' },
+      });
+
+      expect(mockedAxios.post).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          source: 'rita-chat-workflows',
+          action: 'generate_dynamic_workflow',
+        }),
+        expect.anything()
+      );
+    });
+  });
+
+  /**
+   * Webhook Payload Behavior Tests
+   *
+   * Two distinct behaviors:
+   * - sendMessageEvent (rita-chat): Includes ALL Rita internal IDs
+   * - sendTenantMessageEvent (rita-chat-iframe): Only Valkey config + message content
+   */
+  describe('sendMessageEvent - includes Rita internal IDs', () => {
+    it('should include all Rita internal IDs in payload', async () => {
+      mockedAxios.post.mockResolvedValueOnce({ status: 200, data: { success: true } });
+
+      await webhookService.sendMessageEvent({
+        organizationId: 'org-123',
+        userId: 'user-456',
+        userEmail: 'user@example.com',
+        conversationId: 'conv-789',
+        messageId: 'msg-101',
+        customerMessage: 'Hello from Rita Go',
+        documentIds: ['doc-1', 'doc-2'],
+        transcript: [{ role: 'user', content: 'Hello' }],
+      });
+
+      const calledPayload = mockedAxios.post.mock.calls[0][1] as Record<string, unknown>;
+
+      // Should include ALL Rita internal IDs
+      expect(calledPayload.user_id).toBe('user-456');
+      expect(calledPayload.user_email).toBe('user@example.com');
+      expect(calledPayload.tenant_id).toBe('org-123');
+      expect(calledPayload.conversation_id).toBe('conv-789');
+      expect(calledPayload.message_id).toBe('msg-101');
+      expect(calledPayload.document_ids).toEqual(['doc-1', 'doc-2']);
+      expect(calledPayload.transcript_ids).toEqual({ transcripts: [{ role: 'user', content: 'Hello' }] });
+      expect(calledPayload.customer_message).toBe('Hello from Rita Go');
+      expect(calledPayload.source).toBe('rita-chat');
+    });
+  });
+
+  describe('sendTenantMessageEvent - iframe webhook (no Rita IDs)', () => {
+    const mockIframeConfig = {
+      accessToken: 'jwt-access-token',
+      refreshToken: 'jwt-refresh-token',
+      tabInstanceId: 'tab-123',
+      tenantId: 'tenant-456',
+      tenantName: 'Test Tenant',
+      chatSessionId: 'chat-session-789',
+      clientId: 'client-abc',
+      clientKey: 'secret-key-xyz',
+      tokenExpiry: Date.now() + 3600000,
+      actionsApiBaseUrl: 'https://actions.example.com',
+      userGuid: 'jarvis-user-guid-123',
+    };
+
+    it('should include both Valkey config (camelCase) and Rita routing fields (snake_case)', async () => {
+      mockedAxios.post.mockResolvedValueOnce({ status: 200, data: { success: true } });
+
+      await webhookService.sendTenantMessageEvent({
+        organizationId: 'rita-org-id',
+        userId: 'rita-user-id',
+        userEmail: 'iframe@internal.test',
+        conversationId: 'rita-conv-id',
+        messageId: 'rita-msg-id',
+        customerMessage: 'Hello from iframe',
+        documentIds: ['doc-1'],
+        transcript: [{ role: 'user', content: 'Hello' }],
+        iframeConfig: mockIframeConfig,
+      });
+
+      const calledPayload = mockedAxios.post.mock.calls[0][1] as Record<string, unknown>;
+
+      // Should include Valkey config fields (camelCase)
+      expect(calledPayload.userGuid).toBe('jarvis-user-guid-123');
+      expect(calledPayload.tenantId).toBe('tenant-456');
+      expect(calledPayload.chatSessionId).toBe('chat-session-789');
+      expect(calledPayload.accessToken).toBe('jwt-access-token');
+
+      // Should include Valkey IDs as snake_case for RabbitMQ routing
+      // (uses Valkey IDs directly, not Rita DB IDs)
+      expect(calledPayload.tenant_id).toBe('tenant-456');
+      expect(calledPayload.user_id).toBe('jarvis-user-guid-123');
+      expect(calledPayload.user_email).toBe('iframe@internal.test');
+      expect(calledPayload.conversation_id).toBe('rita-conv-id');
+      expect(calledPayload.message_id).toBe('rita-msg-id');
+      expect(calledPayload.document_ids).toEqual(['doc-1']);
+      expect(calledPayload.transcript_ids).toEqual({ transcripts: [{ role: 'user', content: 'Hello' }] });
+
+      // Should include message content
+      expect(calledPayload.customer_message).toBe('Hello from iframe');
+      expect(calledPayload.source).toBe('rita-chat-iframe');
+      expect(calledPayload.action).toBe('message_created');
+      expect(calledPayload.timestamp).toBeDefined();
+    });
+
+    it('should call tenant-specific webhook URL with Basic auth', async () => {
+      mockedAxios.post.mockResolvedValueOnce({ status: 200, data: { success: true } });
+
+      await webhookService.sendTenantMessageEvent({
+        organizationId: 'rita-org-id',
+        userId: 'rita-user-id',
+        userEmail: 'iframe@internal.test',
+        conversationId: 'rita-conv-id',
+        messageId: 'rita-msg-id',
+        customerMessage: 'Hello',
+        iframeConfig: mockIframeConfig,
+      });
+
+      const expectedAuth = Buffer.from('client-abc:secret-key-xyz').toString('base64');
+
+      expect(mockedAxios.post).toHaveBeenCalledWith(
+        'https://actions.example.com/api/Webhooks/postEvent/tenant-456',
+        expect.any(Object),
+        expect.objectContaining({
+          headers: expect.objectContaining({
+            Authorization: `Basic ${expectedAuth}`,
+          }),
+        })
+      );
     });
   });
 });

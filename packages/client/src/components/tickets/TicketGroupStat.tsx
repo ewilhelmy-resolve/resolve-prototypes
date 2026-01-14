@@ -17,6 +17,8 @@ interface TicketGroupStatProps {
 	manualPercentage?: number;
 	/** Automated handling percentage (hardcoded for now) */
 	automatedPercentage?: number;
+	/** Optional click handler - overrides default navigation */
+	onClick?: () => void;
 }
 
 /**
@@ -32,11 +34,12 @@ export function TicketGroupStat({
 	knowledgeStatus,
 	manualPercentage = 100,
 	automatedPercentage = 0,
+	onClick,
 }: TicketGroupStatProps) {
 	const navigate = useNavigate();
 
 	const handleClick = () => {
-		navigate(`/tickets/${id}`);
+		onClick ? onClick() : navigate(`/tickets/${id}`);
 	};
 
 	const getKnowledgeBadge = () => {

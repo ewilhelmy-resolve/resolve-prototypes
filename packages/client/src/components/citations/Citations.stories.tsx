@@ -11,7 +11,7 @@ const queryClient = new QueryClient({
 
 const meta: Meta<typeof Citations> = {
 	component: Citations,
-	title: "Chat/Citations",
+	title: "Features/Chat/Citations",
 	tags: ["autodocs"],
 	parameters: {
 		layout: "fullscreen",

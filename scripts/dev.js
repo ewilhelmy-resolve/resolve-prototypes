@@ -50,9 +50,9 @@ const child = spawn(
 		"-c",
 		"gray,blue,green,yellow",
 		dockerCmd,
-		"npm:dev:api",
-		"npm:dev:client",
-		"npm:dev:mock",
+		"pnpm:dev:api",
+		"pnpm:dev:client",
+		"pnpm:dev:mock",
 	],
 	{
 		stdio: "inherit",

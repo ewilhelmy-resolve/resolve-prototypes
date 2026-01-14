@@ -2,6 +2,9 @@
 node_modules/
 */node_modules/
 
+# pnpm
+.pnpm-store/
+
 # Environment variables
 .env
 .env.local
@@ -14,6 +17,7 @@ dist/
 build/
 */dist/
 */build/
+*.tsbuildinfo
 
 # Logs
 logs

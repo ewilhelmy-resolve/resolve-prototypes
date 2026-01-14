@@ -1,3 +1,13 @@
+/**
+ * Conversation Routes
+ *
+ * Webhook sources:
+ * - rita-chat: Regular session (Keycloak auth)
+ * - rita-chat-iframe: Iframe session (Valkey IDs, isIframeSession=true)
+ *
+ * Source is determined by session.isIframeSession flag.
+ * See types/webhook.ts for ChatWebhookSource type definition.
+ */
 import express from 'express';
 import { withOrgContext } from '../config/database.js';
 import { authenticateUser } from '../middleware/auth.js';
@@ -312,10 +322,19 @@ router.post('/:conversationId/messages', authenticateUser, async (req, res) => {
     const fullSession = await sessionStore.getSession(authReq.session.sessionId);
     const iframeConfig = fullSession?.iframeWebhookConfig;
 
+    // Validate userGuid exists for iframe sessions (required for message routing)
+    if (iframeConfig && !iframeConfig.userGuid) {
+      console.error('❌ Iframe session missing userGuid - cannot route messages');
+      return res.status(400).json({
+        error: 'Iframe configuration missing userGuid - messages cannot be routed',
+        code: 'IFRAME_MISSING_USER_GUID',
+      });
+    }
+
     let webhookResponse: WebhookResponse;
 
     if (iframeConfig) {
-      // Iframe embed - use tenant-specific webhook with Valkey credentials
+      // Iframe embed - use tenant-specific webhook with full Valkey config
       console.log(`📤 Using tenant-specific webhook for iframe session (tenant: ${iframeConfig.tenantId})`);
       webhookResponse = await webhookService.sendTenantMessageEvent({
         organizationId: authReq.user.activeOrganizationId,
@@ -327,24 +346,12 @@ router.post('/:conversationId/messages', authenticateUser, async (req, res) => {
         documentIds: [],
         createdAt: result.message.created_at,
         transcript: truncatedTranscript,
-        tenantConfig: {
-          actionsApiBaseUrl: iframeConfig.actionsApiBaseUrl,
-          tenantId: iframeConfig.tenantId,
-          clientId: iframeConfig.clientId,
-          clientKey: iframeConfig.clientKey,
-        },
-        valkeyPayload: {
-          accessToken: iframeConfig.accessToken,
-          refreshToken: iframeConfig.refreshToken,
-          tabInstanceId: iframeConfig.tabInstanceId,
-          tenantName: iframeConfig.tenantName,
-          chatSessionId: iframeConfig.chatSessionId,
-          tokenExpiry: iframeConfig.tokenExpiry,
-          context: iframeConfig.context,
-        },
+        iframeConfig, // Pass entire Valkey config
       });
     } else {
       // Regular chat - use env var webhook
+      // Use iframe source if this is an iframe session (even without full Valkey config)
+      const source = fullSession?.isIframeSession ? 'rita-chat-iframe' : 'rita-chat';
       webhookResponse = await webhookService.sendMessageEvent({
         organizationId: authReq.user.activeOrganizationId,
         userId: authReq.user.id,
@@ -354,7 +361,8 @@ router.post('/:conversationId/messages', authenticateUser, async (req, res) => {
         customerMessage: result.message.message,
         documentIds: [], // No per-message document attachments - RAG uses all user documents
         createdAt: result.message.created_at,
-        transcript: truncatedTranscript
+        transcript: truncatedTranscript,
+        source,
       });
     }
 
