@@ -766,4 +766,130 @@ describe('IframeService', () => {
       expect(result.conversationId).toBe('frontend-conv-id');
     });
   });
+
+  /**
+   * E2E Valkey Payload Validation
+   *
+   * Validates that a complete Valkey payload (as documented) is correctly parsed.
+   * This test uses the exact JSON structure from docs/architecture/chat-message-flows.md
+   */
+  describe('E2E - complete Valkey payload validation', () => {
+    it('should correctly parse complete documented Valkey payload structure', async () => {
+      // This payload matches the documented structure in chat-message-flows.md
+      const documentedValkeyPayload = {
+        // REQUIRED - core identity
+        tenant_id: 'org-tenant-uuid-123',
+        user_guid: 'user-guid-uuid-456',
+
+        // OPTIONAL - conversation handling
+        conversation_id: 'conv-uuid-789',
+
+        // REQUIRED for webhook execution (Actions API auth)
+        actionsApiBaseUrl: 'https://actions-api.example.com/',
+        clientId: 'client-id-abc',
+        clientKey: 'client-secret-xyz',
+
+        // Pass-through to Actions API (not used by Rita)
+        accessToken: 'eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.test',
+        refreshToken: 'eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.refresh',
+        tokenExpiry: 1767902104,
+        tabInstanceId: 'tab-instance-id',
+
+        // OPTIONAL - metadata
+        tenantName: 'Acme Corporation',
+        context: { designer: 'workflow', feature: 'automation' },
+
+        // OPTIONAL - custom UI text
+        ui_config: {
+          title_text: 'Ask Workflow Designer',
+          welcome_text: 'I can help you build workflow automations.',
+          placeholder_text: 'Describe your workflow...',
+        },
+      };
+
+      mockValkeyClient.hget.mockResolvedValueOnce(JSON.stringify(documentedValkeyPayload));
+
+      const result = await iframeService.fetchValkeyPayload('documented-payload-key');
+
+      // Validate all fields are correctly mapped (snake_case → camelCase)
+      expect(result).not.toBeNull();
+
+      // REQUIRED - core identity
+      expect(result?.tenantId).toBe('org-tenant-uuid-123');
+      expect(result?.userGuid).toBe('user-guid-uuid-456');
+
+      // OPTIONAL - conversation handling
+      expect(result?.conversationId).toBe('conv-uuid-789');
+
+      // REQUIRED for webhook execution
+      expect(result?.actionsApiBaseUrl).toBe('https://actions-api.example.com/');
+      expect(result?.clientId).toBe('client-id-abc');
+      expect(result?.clientKey).toBe('client-secret-xyz');
+
+      // Pass-through fields
+      expect(result?.accessToken).toBe('eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.test');
+      expect(result?.refreshToken).toBe('eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.refresh');
+      expect(result?.tokenExpiry).toBe(1767902104);
+      expect(result?.tabInstanceId).toBe('tab-instance-id');
+
+      // OPTIONAL - metadata
+      expect(result?.tenantName).toBe('Acme Corporation');
+      expect(result?.context).toEqual({ designer: 'workflow', feature: 'automation' });
+
+      // OPTIONAL - custom UI text (snake_case → camelCase)
+      expect(result?.uiConfig).toBeDefined();
+      expect(result?.uiConfig?.titleText).toBe('Ask Workflow Designer');
+      expect(result?.uiConfig?.welcomeText).toBe('I can help you build workflow automations.');
+      expect(result?.uiConfig?.placeholderText).toBe('Describe your workflow...');
+    });
+
+    it('should work with minimal required payload (tenant_id + user_guid only)', async () => {
+      const minimalPayload = {
+        tenant_id: 'minimal-tenant-123',
+        user_guid: 'minimal-user-456',
+      };
+
+      mockValkeyClient.hget.mockResolvedValueOnce(JSON.stringify(minimalPayload));
+
+      const result = await iframeService.fetchValkeyPayload('minimal-payload-key');
+
+      expect(result).not.toBeNull();
+      expect(result?.tenantId).toBe('minimal-tenant-123');
+      expect(result?.userGuid).toBe('minimal-user-456');
+
+      // All optional fields should be undefined
+      expect(result?.conversationId).toBeUndefined();
+      expect(result?.actionsApiBaseUrl).toBeUndefined();
+      expect(result?.clientId).toBeUndefined();
+      expect(result?.clientKey).toBeUndefined();
+      expect(result?.accessToken).toBeUndefined();
+      expect(result?.uiConfig).toBeUndefined();
+    });
+
+    it('should reject payload missing required tenant_id', async () => {
+      const missingTenantPayload = {
+        user_guid: 'user-456',
+        actionsApiBaseUrl: 'https://api.example.com',
+      };
+
+      mockValkeyClient.hget.mockResolvedValueOnce(JSON.stringify(missingTenantPayload));
+
+      const result = await iframeService.fetchValkeyPayload('missing-tenant-key');
+
+      expect(result).toBeNull();
+    });
+
+    it('should reject payload missing required user_guid', async () => {
+      const missingUserPayload = {
+        tenant_id: 'tenant-123',
+        actionsApiBaseUrl: 'https://api.example.com',
+      };
+
+      mockValkeyClient.hget.mockResolvedValueOnce(JSON.stringify(missingUserPayload));
+
+      const result = await iframeService.fetchValkeyPayload('missing-user-key');
+
+      expect(result).toBeNull();
+    });
+  });
 });
