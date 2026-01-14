@@ -4,13 +4,16 @@ import { randomBytes } from 'crypto';
  * Iframe webhook config from Valkey payload
  * Used for tenant-specific webhook auth in embedded iframe chat
  */
+/**
+ * Valkey payload uses snake_case: tenant_id, user_guid
+ * Internal type uses camelCase for TypeScript convention
+ */
 export interface IframeWebhookConfig {
   accessToken: string;
   refreshToken: string;
   tabInstanceId: string;
   tenantId: string;
   tenantName: string;
-  chatSessionId: string;
   clientId: string;
   clientKey: string;
   tokenExpiry: number;
