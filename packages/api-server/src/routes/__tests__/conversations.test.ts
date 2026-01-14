@@ -307,7 +307,6 @@ describe('Conversations Router - Iframe userId Validation', () => {
         sessionId: 'test-session-id',
         iframeWebhookConfig: {
           tenantId: 'tenant-123',
-          chatSessionId: 'chat-456',
           accessToken: 'token',
           refreshToken: 'refresh',
           // userGuid is missing!
@@ -339,7 +338,6 @@ describe('Conversations Router - Iframe userId Validation', () => {
         userGuid: 'user-keycloak-guid',
         tenantId: 'tenant-123',
         tenantName: 'Test Tenant',
-        chatSessionId: 'chat-456',
         accessToken: 'token',
         refreshToken: 'refresh',
         tabInstanceId: 'tab-789',

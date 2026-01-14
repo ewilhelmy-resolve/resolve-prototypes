@@ -494,7 +494,6 @@ describe('WebhookService', () => {
       tabInstanceId: 'tab-123',
       tenantId: 'tenant-456',
       tenantName: 'Test Tenant',
-      chatSessionId: 'chat-session-789',
       clientId: 'client-abc',
       clientKey: 'secret-key-xyz',
       tokenExpiry: Date.now() + 3600000,
@@ -522,7 +521,6 @@ describe('WebhookService', () => {
       // Should include Valkey config fields (camelCase)
       expect(calledPayload.userGuid).toBe('jarvis-user-guid-123');
       expect(calledPayload.tenantId).toBe('tenant-456');
-      expect(calledPayload.chatSessionId).toBe('chat-session-789');
       expect(calledPayload.accessToken).toBe('jwt-access-token');
 
       // Should include Valkey IDs as snake_case for RabbitMQ routing

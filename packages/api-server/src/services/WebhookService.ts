@@ -204,7 +204,7 @@ export class WebhookService {
     const payload: BaseWebhookPayload & Record<string, any> = {
       source: 'rita-chat-iframe',
       action: 'message_created',
-      // Spread entire Valkey config (camelCase: userGuid, tenantId, chatSessionId, etc.)
+      // Spread entire Valkey config (camelCase: userGuid, tenantId, etc.)
       ...iframeConfig,
       // Snake_case copies of Valkey IDs for RabbitMQ response routing
       tenant_id: iframeConfig.tenantId,

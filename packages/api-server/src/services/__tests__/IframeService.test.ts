@@ -60,20 +60,19 @@ import { IframeService } from '../IframeService.js';
 describe('IframeService', () => {
   let iframeService: IframeService;
 
-  // Production Valkey payload structure (from staging environment)
+  // Production Valkey payload structure (snake_case for tenant_id, user_guid)
   const validValkeyPayload = {
     accessToken: 'eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9...',
     refreshToken: 'eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9...',
     tabInstanceId: 'b677747a-fc2b-4960-8553-eb69a9d46507',
     tenantName: 'staging',
-    tenantId: '00F4F67D-3B92-4FD2-A574-7BE22C6BE796',
-    chatSessionId: 'b974d74f-a440-4a78-bbf8-82fb9c5c1518',
+    tenant_id: '00F4F67D-3B92-4FD2-A574-7BE22C6BE796',
     clientId: 'E14730FA-D1B5-4037-ACE3-CF97FBC676C2',
     clientKey: 'secret-client-key',
     tokenExpiry: 1767902104,
     context: { designer: 'workflow' },
     actionsApiBaseUrl: 'https://actions-api-staging.resolve.io/',
-    userGuid: '275fb79d-0a6f-4336-bc05-1f6fcbaf775b',
+    user_guid: '275fb79d-0a6f-4336-bc05-1f6fcbaf775b',
   };
 
   beforeEach(() => {
@@ -83,8 +82,8 @@ describe('IframeService', () => {
     // Default session store behavior
     mockSessionStore.createSession.mockResolvedValue({
       sessionId: 'mock-session-id',
-      userId: validValkeyPayload.userGuid,
-      organizationId: validValkeyPayload.tenantId,
+      userId: validValkeyPayload.user_guid,
+      organizationId: validValkeyPayload.tenant_id,
     });
     mockSessionStore.updateSession.mockResolvedValue({
       sessionId: 'mock-session-id',
@@ -141,19 +140,18 @@ describe('IframeService', () => {
       expect(result).toBeNull();
     });
 
-    it('should reject payload missing userGuid', async () => {
+    it('should reject payload missing user_guid', async () => {
       const payloadWithoutUser = {
         accessToken: 'token',
         refreshToken: 'refresh',
         tabInstanceId: 'tab-123',
-        tenantId: 'tenant-456',
+        tenant_id: 'tenant-456',
         tenantName: 'Test',
-        chatSessionId: 'chat-789',
         clientId: 'client-abc',
         clientKey: 'key',
         tokenExpiry: Date.now() + 3600000,
         actionsApiBaseUrl: 'https://api.example.com',
-        // Missing userGuid
+        // Missing user_guid
       };
       mockValkeyClient.hget.mockResolvedValueOnce(JSON.stringify(payloadWithoutUser));
 
@@ -168,13 +166,13 @@ describe('IframeService', () => {
     const setupJitMocks = (orgExists = false, userExists = false) => {
       mockPool.query
         // resolveRitaOrg: check if exists
-        .mockResolvedValueOnce({ rows: orgExists ? [{ id: validValkeyPayload.tenantId }] : [] })
+        .mockResolvedValueOnce({ rows: orgExists ? [{ id: validValkeyPayload.tenant_id }] : [] })
         // resolveRitaOrg: insert or update
         .mockResolvedValueOnce({ rows: [] })
         // resolveRitaUser: check if exists by keycloak_id
-        .mockResolvedValueOnce({ rows: userExists ? [{ user_id: validValkeyPayload.userGuid }] : [] })
+        .mockResolvedValueOnce({ rows: userExists ? [{ user_id: validValkeyPayload.user_guid }] : [] })
         // resolveRitaUser: insert or update
-        .mockResolvedValueOnce({ rows: [{ user_id: validValkeyPayload.userGuid }] })
+        .mockResolvedValueOnce({ rows: [{ user_id: validValkeyPayload.user_guid }] })
         // ensureOrgMembership (only if org or user was created)
         .mockResolvedValueOnce({ rows: [] });
     };
@@ -257,8 +255,8 @@ describe('IframeService', () => {
       mockValkeyClient.hget.mockResolvedValueOnce(JSON.stringify(validValkeyPayload));
       // Org and user resolution with existing records (name same, no update)
       mockPool.query
-        .mockResolvedValueOnce({ rows: [{ id: validValkeyPayload.tenantId, name: 'staging' }] }) // org exists
-        .mockResolvedValueOnce({ rows: [{ user_id: validValkeyPayload.userGuid }] }) // user exists
+        .mockResolvedValueOnce({ rows: [{ id: validValkeyPayload.tenant_id, name: 'staging' }] }) // org exists
+        .mockResolvedValueOnce({ rows: [{ user_id: validValkeyPayload.user_guid }] }) // user exists
         .mockResolvedValueOnce({ rows: [] }) // update user
         .mockResolvedValueOnce({ rows: [] }) // membership (always called)
         .mockResolvedValueOnce({ rows: [{ id: 'existing-conversation-id' }] }); // conversation ownership check
@@ -322,8 +320,8 @@ describe('IframeService', () => {
       mockValkeyClient.hget.mockResolvedValueOnce(JSON.stringify(validValkeyPayload));
       // Both org and user already exist (org name same, so no update)
       mockPool.query
-        .mockResolvedValueOnce({ rows: [{ id: validValkeyPayload.tenantId, name: 'staging' }] }) // org exists with same name
-        .mockResolvedValueOnce({ rows: [{ user_id: validValkeyPayload.userGuid }] }) // user exists
+        .mockResolvedValueOnce({ rows: [{ id: validValkeyPayload.tenant_id, name: 'staging' }] }) // org exists with same name
+        .mockResolvedValueOnce({ rows: [{ user_id: validValkeyPayload.user_guid }] }) // user exists
         .mockResolvedValueOnce({ rows: [] }) // user update
         .mockResolvedValueOnce({ rows: [] }); // membership (always called)
 
@@ -441,9 +439,9 @@ describe('IframeService', () => {
     // Mock setup helper for existing org/user scenario
     const setupExistingOrgAndUser = () => {
       mockPool.query
-        .mockResolvedValueOnce({ rows: [{ id: validValkeyPayload.tenantId }] }) // org exists
+        .mockResolvedValueOnce({ rows: [{ id: validValkeyPayload.tenant_id }] }) // org exists
         .mockResolvedValueOnce({ rows: [] }) // org update
-        .mockResolvedValueOnce({ rows: [{ user_id: validValkeyPayload.userGuid }] }) // user exists
+        .mockResolvedValueOnce({ rows: [{ user_id: validValkeyPayload.user_guid }] }) // user exists
         .mockResolvedValueOnce({ rows: [] }) // user update
         .mockResolvedValueOnce({ rows: [] }); // membership (expected to be called)
 
@@ -468,8 +466,8 @@ describe('IframeService', () => {
       expect(mockPool.query).toHaveBeenCalledWith(
         expect.stringContaining('INSERT INTO organization_members'),
         expect.arrayContaining([
-          validValkeyPayload.tenantId,
-          validValkeyPayload.userGuid,
+          validValkeyPayload.tenant_id,
+          validValkeyPayload.user_guid,
         ])
       );
     });
@@ -478,8 +476,8 @@ describe('IframeService', () => {
       // Verify conversation belongs to the user before using it
       mockValkeyClient.hget.mockResolvedValueOnce(JSON.stringify(validValkeyPayload));
       mockPool.query
-        .mockResolvedValueOnce({ rows: [{ id: validValkeyPayload.tenantId, name: 'staging' }] }) // org exists
-        .mockResolvedValueOnce({ rows: [{ user_id: validValkeyPayload.userGuid }] }) // user exists
+        .mockResolvedValueOnce({ rows: [{ id: validValkeyPayload.tenant_id, name: 'staging' }] }) // org exists
+        .mockResolvedValueOnce({ rows: [{ user_id: validValkeyPayload.user_guid }] }) // user exists
         .mockResolvedValueOnce({ rows: [] }) // user update
         .mockResolvedValueOnce({ rows: [] }) // membership
         // Conversation ownership check - NOT owned by this user
@@ -499,8 +497,8 @@ describe('IframeService', () => {
       // Valid ownership should succeed
       mockValkeyClient.hget.mockResolvedValueOnce(JSON.stringify(validValkeyPayload));
       mockPool.query
-        .mockResolvedValueOnce({ rows: [{ id: validValkeyPayload.tenantId, name: 'staging' }] }) // org exists
-        .mockResolvedValueOnce({ rows: [{ user_id: validValkeyPayload.userGuid }] }) // user exists
+        .mockResolvedValueOnce({ rows: [{ id: validValkeyPayload.tenant_id, name: 'staging' }] }) // org exists
+        .mockResolvedValueOnce({ rows: [{ user_id: validValkeyPayload.user_guid }] }) // user exists
         .mockResolvedValueOnce({ rows: [] }) // user update
         .mockResolvedValueOnce({ rows: [] }) // membership
         // Conversation ownership check - owned by this user
@@ -523,8 +521,8 @@ describe('IframeService', () => {
       mockValkeyClient.hget.mockResolvedValueOnce(JSON.stringify(validValkeyPayload));
       // Org exists with SAME name as incoming payload
       mockPool.query
-        .mockResolvedValueOnce({ rows: [{ id: validValkeyPayload.tenantId, name: 'staging' }] }) // org exists with same name
-        .mockResolvedValueOnce({ rows: [{ user_id: validValkeyPayload.userGuid }] }) // user exists
+        .mockResolvedValueOnce({ rows: [{ id: validValkeyPayload.tenant_id, name: 'staging' }] }) // org exists with same name
+        .mockResolvedValueOnce({ rows: [{ user_id: validValkeyPayload.user_guid }] }) // user exists
         .mockResolvedValueOnce({ rows: [] }) // user update
         .mockResolvedValueOnce({ rows: [] }); // membership
 
@@ -549,9 +547,9 @@ describe('IframeService', () => {
       mockValkeyClient.hget.mockResolvedValueOnce(JSON.stringify(validValkeyPayload));
       // Org exists with DIFFERENT name
       mockPool.query
-        .mockResolvedValueOnce({ rows: [{ id: validValkeyPayload.tenantId, name: 'old-tenant-name' }] })
+        .mockResolvedValueOnce({ rows: [{ id: validValkeyPayload.tenant_id, name: 'old-tenant-name' }] })
         .mockResolvedValueOnce({ rows: [] }) // org update (when name changed)
-        .mockResolvedValueOnce({ rows: [{ user_id: validValkeyPayload.userGuid }] }) // user exists
+        .mockResolvedValueOnce({ rows: [{ user_id: validValkeyPayload.user_guid }] }) // user exists
         .mockResolvedValueOnce({ rows: [] }) // user update
         .mockResolvedValueOnce({ rows: [] }); // membership
 
@@ -567,7 +565,7 @@ describe('IframeService', () => {
       // UPDATE should be called when name changed
       expect(mockPool.query).toHaveBeenCalledWith(
         expect.stringContaining('UPDATE organizations SET name'),
-        ['staging', validValkeyPayload.tenantId]
+        ['staging', validValkeyPayload.tenant_id]
       );
     });
   });

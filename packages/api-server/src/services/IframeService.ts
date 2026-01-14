@@ -73,11 +73,11 @@ export class IframeService {
         clientKey: payload.clientKey ? '[REDACTED]' : undefined,
       };
 
-      // Validate required fields
+      // Validate required fields (Valkey uses snake_case: tenant_id, user_guid)
       const requiredFields = [
-        'accessToken', 'refreshToken', 'tabInstanceId', 'tenantId',
-        'tenantName', 'chatSessionId', 'clientId', 'clientKey',
-        'tokenExpiry', 'actionsApiBaseUrl', 'userGuid'
+        'accessToken', 'refreshToken', 'tabInstanceId', 'tenant_id',
+        'tenantName', 'clientId', 'clientKey',
+        'tokenExpiry', 'actionsApiBaseUrl', 'user_guid'
       ];
 
       for (const field of requiredFields) {
@@ -93,24 +93,24 @@ export class IframeService {
       }
 
       logger.info(
-        { hashkey: hashkey.substring(0, 8) + '...', tenantId: payload.tenantId },
+        { hashkey: hashkey.substring(0, 8) + '...', tenantId: payload.tenant_id },
         'Valkey payload retrieved successfully'
       );
 
+      // Map snake_case Valkey fields to camelCase internal type
       return {
         config: {
           accessToken: payload.accessToken,
           refreshToken: payload.refreshToken,
           tabInstanceId: payload.tabInstanceId,
-          tenantId: payload.tenantId,
+          tenantId: payload.tenant_id,
           tenantName: payload.tenantName,
-          chatSessionId: payload.chatSessionId,
           clientId: payload.clientId,
           clientKey: payload.clientKey,
           tokenExpiry: payload.tokenExpiry,
           actionsApiBaseUrl: payload.actionsApiBaseUrl,
           context: payload.context,
-          userGuid: payload.userGuid,
+          userGuid: payload.user_guid,
         },
         debug,
       };
@@ -350,7 +350,6 @@ export class IframeService {
         tenantId: 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee',
         tenantName: 'Dev Test Org',
         userGuid: '11111111-2222-3333-4444-555555555555',
-        chatSessionId: 'dev-chat-session',
         tabInstanceId: 'dev-tab-instance',
         accessToken: 'dev-access-token',
         refreshToken: 'dev-refresh-token',
