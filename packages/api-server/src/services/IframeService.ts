@@ -330,8 +330,42 @@ export class IframeService {
       return { valid: false, error: 'sessionKey required' };
     }
 
-    // Fetch and validate Valkey config with debug info
-    const { config, debug: valkeyDebug } = await this.fetchValkeyPayloadWithDebug(sessionKey);
+    // Dev mode bypass - use hardcoded test config for local development
+    const DEV_SESSION_KEY = 'dev-test-session';
+    const isDevSession = sessionKey === DEV_SESSION_KEY && process.env.NODE_ENV !== 'production';
+
+    let config: IframeWebhookConfig | null = null;
+    let valkeyDebug: {
+      fullKey: string;
+      rawPayload: Record<string, unknown> | null;
+      rawDataLength: number | null;
+      missingFields: string[];
+      error: string | null;
+      durationMs: number;
+    } | undefined;
+
+    if (isDevSession) {
+      // Dev mode: use hardcoded test values (stable UUIDs that persist across restarts)
+      logger.info('Using dev test session bypass');
+      config = {
+        tenantId: 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee',
+        tenantName: 'Dev Test Org',
+        userGuid: '11111111-2222-3333-4444-555555555555',
+        chatSessionId: 'dev-chat-session',
+        tabInstanceId: 'dev-tab-instance',
+        accessToken: 'dev-access-token',
+        refreshToken: 'dev-refresh-token',
+        clientId: 'dev-client',
+        clientKey: 'dev-key',
+        tokenExpiry: 9999999999,
+        actionsApiBaseUrl: 'http://localhost:3001',
+      };
+    } else {
+      // Normal mode: fetch from Valkey
+      const result = await this.fetchValkeyPayloadWithDebug(sessionKey);
+      config = result.config;
+      valkeyDebug = result.debug;
+    }
     if (!config) {
       logger.warn({ sessionKey: sessionKey.substring(0, 8) + '...' }, 'Invalid or missing Valkey config');
       return { valid: false, error: 'Invalid or missing Valkey configuration', valkeyDebug };

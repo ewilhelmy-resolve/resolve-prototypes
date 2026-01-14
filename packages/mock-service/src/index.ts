@@ -451,8 +451,8 @@ async function deleteKeycloakUser(email: string, userId?: string): Promise<void>
 }
 
 function generateMockResponse(payload: WebhookPayload, scenario?: string): MockResponse[] | null {
-  // Only generate responses for rita-chat messages, not document processing
-  if (payload.source !== 'rita-chat') {
+  // Only generate responses for rita-chat messages (regular or iframe), not document processing
+  if (payload.source !== 'rita-chat' && payload.source !== 'rita-chat-iframe') {
     return null;
   }
 
@@ -1015,6 +1015,289 @@ Here are some helpful resources [1] [2] [3] for getting started with Rita.`
         }
       ]
     });
+  } else if (content.startsWith('testcode')) {
+    // testcode: Response with multiple code blocks in different languages
+    parts.push({
+      type: 'text',
+      text: `## Code Examples Response
+
+Here are some code examples for your request:
+
+### TypeScript Example
+
+\`\`\`typescript
+interface User {
+  id: string;
+  name: string;
+  email: string;
+  createdAt: Date;
+}
+
+async function fetchUser(id: string): Promise<User> {
+  const response = await fetch(\`/api/users/\${id}\`);
+  if (!response.ok) {
+    throw new Error(\`Failed to fetch user: \${response.statusText}\`);
+  }
+  return response.json();
+}
+
+// Usage
+const user = await fetchUser('123');
+console.log(\`Hello, \${user.name}!\`);
+\`\`\`
+
+### Python Example
+
+\`\`\`python
+from dataclasses import dataclass
+from datetime import datetime
+import aiohttp
+
+@dataclass
+class User:
+    id: str
+    name: str
+    email: str
+    created_at: datetime
+
+async def fetch_user(user_id: str) -> User:
+    async with aiohttp.ClientSession() as session:
+        async with session.get(f'/api/users/{user_id}') as resp:
+            data = await resp.json()
+            return User(**data)
+
+# Usage
+user = await fetch_user('123')
+print(f'Hello, {user.name}!')
+\`\`\`
+
+### Bash Script
+
+\`\`\`bash
+#!/bin/bash
+
+# Fetch user and parse JSON
+USER_ID="123"
+USER_DATA=$(curl -s "https://api.example.com/users/$USER_ID")
+
+NAME=$(echo "$USER_DATA" | jq -r '.name')
+EMAIL=$(echo "$USER_DATA" | jq -r '.email')
+
+echo "User: $NAME ($EMAIL)"
+\`\`\`
+
+### SQL Query
+
+\`\`\`sql
+SELECT
+  u.id,
+  u.name,
+  u.email,
+  COUNT(o.id) as order_count
+FROM users u
+LEFT JOIN orders o ON o.user_id = u.id
+WHERE u.created_at > NOW() - INTERVAL '30 days'
+GROUP BY u.id, u.name, u.email
+HAVING COUNT(o.id) > 5
+ORDER BY order_count DESC
+LIMIT 10;
+\`\`\`
+
+### JSON Configuration
+
+\`\`\`json
+{
+  "apiVersion": "v1",
+  "kind": "ConfigMap",
+  "metadata": {
+    "name": "app-config",
+    "namespace": "production"
+  },
+  "data": {
+    "DATABASE_URL": "postgres://localhost:5432/mydb",
+    "REDIS_URL": "redis://localhost:6379",
+    "LOG_LEVEL": "info"
+  }
+}
+\`\`\`
+
+All examples demonstrate the same concept in different languages.`
+    });
+  } else if (content.startsWith('testlong')) {
+    // testlong: Long response with lots of content to test scrolling
+    parts.push({
+      type: 'reasoning',
+      text: `Generating a comprehensive long response to test UI scrolling behavior:\n\n1. This response contains substantial content\n2. It includes multiple sections and code blocks\n3. Designed to test how the chat widget handles long messages\n4. Pay attention to scroll behavior and code block rendering`,
+      state: 'done'
+    });
+    parts.push({
+      type: 'text',
+      text: `## Comprehensive System Analysis Report
+
+### Executive Summary
+
+This is a detailed analysis report designed to test the rendering of long messages in the chat interface. The report covers multiple aspects of system performance, security, and reliability.
+
+### 1. Performance Metrics
+
+#### 1.1 Response Times
+
+| Endpoint | P50 | P95 | P99 |
+|----------|-----|-----|-----|
+| /api/users | 45ms | 120ms | 250ms |
+| /api/orders | 89ms | 210ms | 450ms |
+| /api/analytics | 156ms | 380ms | 890ms |
+
+#### 1.2 Throughput Analysis
+
+Current system throughput is operating at **78% capacity** with the following breakdown:
+
+- **API Gateway**: 12,500 req/s
+- **Application Server**: 8,200 req/s
+- **Database**: 4,100 queries/s
+- **Cache Hit Rate**: 94.2%
+
+### 2. Infrastructure Overview
+
+\`\`\`yaml
+# Kubernetes Deployment Configuration
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api-server
+  namespace: production
+spec:
+  replicas: 5
+  selector:
+    matchLabels:
+      app: api-server
+  template:
+    metadata:
+      labels:
+        app: api-server
+    spec:
+      containers:
+      - name: api
+        image: registry.example.com/api:v2.3.1
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "250m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        ports:
+        - containerPort: 3000
+\`\`\`
+
+### 3. Security Assessment
+
+#### 3.1 Vulnerability Scan Results
+
+\`\`\`
+SCAN SUMMARY
+============
+Total packages scanned: 1,247
+Critical vulnerabilities: 0
+High vulnerabilities: 2
+Medium vulnerabilities: 8
+Low vulnerabilities: 23
+
+HIGH SEVERITY ISSUES:
+- CVE-2024-1234: lodash < 4.17.21 (fixed in 4.17.21)
+- CVE-2024-5678: axios < 1.6.0 (fixed in 1.6.0)
+
+RECOMMENDED ACTIONS:
+1. Update lodash to version 4.17.21+
+2. Update axios to version 1.6.0+
+\`\`\`
+
+### 4. Database Performance
+
+\`\`\`sql
+-- Slow query analysis
+SELECT
+  query,
+  calls,
+  total_time,
+  mean_time,
+  rows
+FROM pg_stat_statements
+WHERE mean_time > 100
+ORDER BY total_time DESC
+LIMIT 10;
+
+-- Results show 3 queries need optimization
+-- Query 1: User lookup without index
+-- Query 2: Order aggregation full scan
+-- Query 3: Analytics join without filtering
+\`\`\`
+
+### 5. Recommendations
+
+1. **Immediate Actions**
+   - Update security vulnerabilities
+   - Add missing database indexes
+   - Increase cache TTL for static data
+
+2. **Short-term Improvements**
+   - Implement query result caching
+   - Add request rate limiting
+   - Set up automated alerting
+
+3. **Long-term Strategy**
+   - Migrate to event-driven architecture
+   - Implement read replicas for scaling
+   - Consider GraphQL for flexible queries
+
+### 6. Monitoring Dashboard
+
+\`\`\`javascript
+// Grafana dashboard configuration
+const dashboardConfig = {
+  title: "System Overview",
+  panels: [
+    {
+      type: "graph",
+      title: "Request Rate",
+      targets: [
+        { expr: 'rate(http_requests_total[5m])' }
+      ]
+    },
+    {
+      type: "gauge",
+      title: "CPU Usage",
+      targets: [
+        { expr: 'avg(cpu_usage_percent)' }
+      ]
+    },
+    {
+      type: "table",
+      title: "Top Endpoints",
+      targets: [
+        { expr: 'topk(10, http_requests_total)' }
+      ]
+    }
+  ]
+};
+\`\`\`
+
+### Conclusion
+
+The system is performing well overall but requires attention to the identified security vulnerabilities and database optimization opportunities. Implementing the recommended changes should improve both performance and security posture.
+
+---
+
+*Report generated automatically by RITA Analysis Engine v2.3*`
+    });
+    parts.push({
+      type: 'sources',
+      sources: [
+        { url: 'https://docs.example.com/performance', title: 'Performance Best Practices Guide' },
+        { url: 'https://security.example.com/cve', title: 'Security Vulnerability Database' },
+        { url: 'https://kubernetes.io/docs', title: 'Kubernetes Documentation' }
+      ]
+    });
   } else {
     // Default scenario - fall back to original logic
     const useScenario = scenario || MOCK_CONFIG.defaultScenario;
@@ -1529,6 +1812,73 @@ app.get('/blobs', (_req, res) => {
     blobs: blobIds,
     count: blobIds.length
   });
+});
+
+// Tenant-specific webhook endpoint (matches Actions API pattern for iframe embed)
+app.post('/api/Webhooks/postEvent/:tenantId', async (req, res) => {
+  const { tenantId } = req.params;
+  webhookLogger.info({ tenantId, path: req.path }, 'Received tenant-specific webhook');
+
+  // Add tenant_id from URL if not in body (iframe webhooks include it in both places)
+  if (!req.body.tenant_id) {
+    req.body.tenant_id = tenantId;
+  }
+
+  // Forward to main webhook handler by calling next middleware
+  // Instead, just inline the webhook handling here to avoid complexity
+  const correlationId = generateCorrelationId();
+  const timer = new PerformanceTimer(webhookLogger, 'tenant-webhook-processing');
+
+  try {
+    const payload: WebhookPayload = req.body;
+
+    // Handle iframe chat messages
+    if ((payload.source === 'rita-chat-iframe' || payload.source === 'rita-chat') && payload.action === 'message_created') {
+      const messagePayload = payload as MessageWebhookPayload;
+
+      const contextLogger = createContextLogger(webhookLogger, correlationId, {
+        messageId: messagePayload.message_id,
+        tenantId: tenantId,
+        userId: messagePayload.user_id,
+        conversationId: messagePayload.conversation_id
+      });
+
+      contextLogger.info({
+        source: messagePayload.source,
+        action: messagePayload.action,
+        customerMessage: messagePayload.customer_message?.substring(0, 50)
+      }, 'Processing tenant iframe message webhook');
+
+      // Generate mock response
+      const responses = generateMockResponse(messagePayload, undefined);
+
+      if (responses && responses.length > 0) {
+        // Delay before sending response
+        setTimeout(async () => {
+          for (const response of responses) {
+            await publishResponse(response);
+            contextLogger.info({ responseType: response.metadata?.type }, 'Published mock response to queue');
+          }
+        }, MOCK_CONFIG.responseDelay);
+      }
+
+      timer.end({ success: true, tenantId });
+      return res.json({
+        success: true,
+        message: 'Tenant webhook received - mock response will be sent via RabbitMQ',
+        eventId: correlationId
+      });
+    }
+
+    // Unknown webhook type
+    timer.end({ success: false, reason: 'unknown_webhook_type' });
+    return res.status(400).json({ error: 'Unknown webhook type for tenant endpoint' });
+
+  } catch (error) {
+    timer.end({ success: false });
+    webhookLogger.error({ error, tenantId }, 'Tenant webhook processing failed');
+    return res.status(500).json({ error: 'Internal server error' });
+  }
 });
 
 // Webhook endpoint - main automation receiver
