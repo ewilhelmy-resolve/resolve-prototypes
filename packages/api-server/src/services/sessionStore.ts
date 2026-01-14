@@ -18,6 +18,15 @@ export interface IframeWebhookConfig {
   context?: Record<string, any>;
   /** User identifier from host (JWT sub claim) - used for message routing */
   userGuid: string;
+  /** Custom UI text from Valkey ui_config object */
+  uiConfig?: {
+    /** Custom title (e.g., "Ask Workflow Designer" instead of "Ask RITA") */
+    titleText?: string;
+    /** Custom welcome/description text */
+    welcomeText?: string;
+    /** Custom input placeholder (e.g., "Describe your workflow...") */
+    placeholderText?: string;
+  };
 }
 
 export interface Session {

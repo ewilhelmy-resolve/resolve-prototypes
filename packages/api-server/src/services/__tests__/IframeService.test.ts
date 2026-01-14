@@ -431,4 +431,112 @@ describe('IframeService', () => {
       );
     });
   });
+
+  /**
+   * Custom UI Text from Valkey ui_config
+   *
+   * Iframe vs Rita Go behavior:
+   * - Rita Go: Uses hardcoded i18n translations ("Ask RITA", "Ask me anything...")
+   * - Iframe: Uses Valkey-provided ui_config (title_text, welcome_text, placeholder_text)
+   *
+   * This allows Jarvis to customize text per context:
+   * - Activity Designer: "Ask Activity Designer", "I can help configure activities..."
+   * - Workflow Designer: "Ask Workflow Designer", "I can help build automations..."
+   */
+  describe('fetchValkeyPayload - custom UI text (ui_config)', () => {
+    it('should parse ui_config with all three text fields from Valkey', async () => {
+      const payloadWithUiConfig = {
+        ...validValkeyPayload,
+        ui_config: {
+          title_text: 'Ask Workflow Designer',
+          welcome_text: 'I can help you build workflow automations.',
+          placeholder_text: 'Describe your workflow...',
+        },
+      };
+      mockValkeyClient.hget.mockResolvedValueOnce(JSON.stringify(payloadWithUiConfig));
+
+      const result = await iframeService.fetchValkeyPayload('ui-config-key');
+
+      expect(result).not.toBeNull();
+      expect(result?.uiConfig?.titleText).toBe('Ask Workflow Designer');
+      expect(result?.uiConfig?.welcomeText).toBe('I can help you build workflow automations.');
+      expect(result?.uiConfig?.placeholderText).toBe('Describe your workflow...');
+    });
+
+    it('should return undefined uiConfig when not provided in Valkey (uses frontend defaults)', async () => {
+      // Standard payload without ui_config - iframe falls back to i18n defaults
+      mockValkeyClient.hget.mockResolvedValueOnce(JSON.stringify(validValkeyPayload));
+
+      const result = await iframeService.fetchValkeyPayload('no-ui-config-key');
+
+      expect(result).not.toBeNull();
+      expect(result?.uiConfig).toBeUndefined();
+    });
+
+    it('should handle partial ui_config (only some fields provided)', async () => {
+      const payloadWithPartialUiConfig = {
+        ...validValkeyPayload,
+        ui_config: {
+          title_text: 'Ask Activity Designer',
+          // welcome_text and placeholder_text not provided
+        },
+      };
+      mockValkeyClient.hget.mockResolvedValueOnce(JSON.stringify(payloadWithPartialUiConfig));
+
+      const result = await iframeService.fetchValkeyPayload('partial-ui-config-key');
+
+      expect(result).not.toBeNull();
+      expect(result?.uiConfig?.titleText).toBe('Ask Activity Designer');
+      expect(result?.uiConfig?.welcomeText).toBeUndefined();
+      expect(result?.uiConfig?.placeholderText).toBeUndefined();
+    });
+  });
+
+  describe('validateAndSetup - returns ui_config', () => {
+    const setupJitMocksForCustomText = () => {
+      mockPool.query
+        .mockResolvedValueOnce({ rows: [{ id: validValkeyPayload.tenantId }] }) // org exists
+        .mockResolvedValueOnce({ rows: [] }) // update org
+        .mockResolvedValueOnce({ rows: [{ user_id: validValkeyPayload.userGuid }] }) // user exists
+        .mockResolvedValueOnce({ rows: [] }) // update user
+        .mockResolvedValueOnce({ rows: [] }); // membership
+
+      mockWithOrgContext.mockImplementation(async (_userId, _orgId, callback) => {
+        const mockClient = {
+          query: vi.fn().mockResolvedValue({ rows: [{ id: 'conv-id' }] }),
+        };
+        return await callback(mockClient as any);
+      });
+    };
+
+    it('should return ui_config in validateAndSetup response', async () => {
+      const payloadWithUiConfig = {
+        ...validValkeyPayload,
+        ui_config: {
+          title_text: 'Ask Activity Designer',
+          welcome_text: 'I can help you configure activities.',
+          placeholder_text: 'Describe your activity...',
+        },
+      };
+      mockValkeyClient.hget.mockResolvedValueOnce(JSON.stringify(payloadWithUiConfig));
+      setupJitMocksForCustomText();
+
+      const result = await iframeService.validateAndSetup('ui-config-session');
+
+      expect(result.valid).toBe(true);
+      expect(result.uiConfig?.titleText).toBe('Ask Activity Designer');
+      expect(result.uiConfig?.welcomeText).toBe('I can help you configure activities.');
+      expect(result.uiConfig?.placeholderText).toBe('Describe your activity...');
+    });
+
+    it('should return undefined ui_config when not in Valkey (frontend uses defaults)', async () => {
+      mockValkeyClient.hget.mockResolvedValueOnce(JSON.stringify(validValkeyPayload));
+      setupJitMocksForCustomText();
+
+      const result = await iframeService.validateAndSetup('no-ui-config-session');
+
+      expect(result.valid).toBe(true);
+      expect(result.uiConfig).toBeUndefined();
+    });
+  });
 });

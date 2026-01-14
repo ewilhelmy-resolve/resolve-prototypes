@@ -112,6 +112,12 @@ export class IframeService {
           actionsApiBaseUrl: payload.actionsApiBaseUrl,
           context: payload.context,
           userGuid: payload.userGuid,
+          // Optional custom UI text from Valkey ui_config object
+          uiConfig: payload.ui_config ? {
+            titleText: payload.ui_config.title_text,
+            welcomeText: payload.ui_config.welcome_text,
+            placeholderText: payload.ui_config.placeholder_text,
+          } : undefined,
         },
         debug,
       };
@@ -315,6 +321,12 @@ export class IframeService {
     cookie?: string;
     webhookConfigLoaded?: boolean;
     webhookTenantId?: string;
+    /** Custom UI text from Valkey ui_config object */
+    uiConfig?: {
+      titleText?: string;
+      welcomeText?: string;
+      placeholderText?: string;
+    };
     valkeyDebug?: {
       fullKey: string;
       rawPayload: Record<string, unknown> | null;
@@ -426,6 +438,8 @@ export class IframeService {
       cookie,
       webhookConfigLoaded: true,
       webhookTenantId: config.tenantId,
+      // Custom UI text from Valkey ui_config (undefined if not provided)
+      uiConfig: config.uiConfig,
     };
   }
 }

@@ -119,8 +119,14 @@ function DebugPanel({ debug, showDebug, setShowDebug, debugLogs, state }: DebugP
 // Inner component that uses SSE (must be inside SSEProvider)
 function IframeChatContent({
 	conversationId,
+	placeholderText,
+	welcomeText,
 }: {
 	conversationId: string;
+	/** Custom placeholder from Valkey (e.g., "Describe your workflow...") */
+	placeholderText?: string;
+	/** Custom welcome text from Valkey (e.g., "Welcome to Workflow Designer!") */
+	welcomeText?: string;
 }) {
 	const { latestUpdate } = useSSEContext();
 	const { updateMessage } = useConversationStore();
@@ -167,6 +173,8 @@ function IframeChatContent({
 			{...ritaChatState}
 			currentConversationId={conversationId}
 			requireKnowledgeBase={false}
+			placeholderText={placeholderText}
+			welcomeText={welcomeText}
 		/>
 	);
 }
@@ -184,6 +192,10 @@ export default function IframeChatPage() {
 		urlConversationId || null
 	);
 	const [sessionReady, setSessionReady] = useState(false);
+
+	// Custom UI text from Valkey (undefined = use i18n defaults)
+	const [placeholderText, setPlaceholderText] = useState<string | undefined>();
+	const [welcomeText, setWelcomeText] = useState<string | undefined>();
 
 	// Debug state
 	const [showDebug, setShowDebug] = useState(debug);
@@ -251,9 +263,15 @@ export default function IframeChatPage() {
 					addDebugLog("info", "Session initialized successfully", {
 						conversationId: response.conversationId,
 						webhookConfigLoaded: response.webhookConfigLoaded,
+						placeholderText: response.placeholderText,
+						welcomeText: response.welcomeText,
 					});
 					setConversationId(response.conversationId);
 					setCurrentConversation(response.conversationId);
+
+					// Store custom UI text from Valkey (undefined = use i18n defaults)
+					setPlaceholderText(response.placeholderText);
+					setWelcomeText(response.welcomeText);
 
 					// Navigate to URL with conversationId to sync with useChatNavigation
 					// This prevents useChatNavigation from clearing the store when URL has no conversationId
@@ -363,7 +381,11 @@ export default function IframeChatPage() {
 	return (
 		<IframeChatLayout>
 			<SSEProvider apiUrl={apiUrl} enabled={sessionReady}>
-				<IframeChatContent conversationId={conversationId} />
+				<IframeChatContent
+					conversationId={conversationId}
+					placeholderText={placeholderText}
+					welcomeText={welcomeText}
+				/>
 			</SSEProvider>
 			<DebugPanel {...debugPanelProps} />
 		</IframeChatLayout>
