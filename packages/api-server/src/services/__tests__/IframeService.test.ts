@@ -216,9 +216,9 @@ describe('IframeService', () => {
       expect(result.webhookTenantId).toBe('00F4F67D-3B92-4FD2-A574-7BE22C6BE796');
       expect(result.conversationId).toBe('new-conv-id');
 
-      // Verify org check then insert
+      // Verify org check then insert (now selects name for comparison)
       expect(mockPool.query).toHaveBeenCalledWith(
-        expect.stringContaining('SELECT id FROM organizations'),
+        expect.stringContaining('SELECT id, name FROM organizations'),
         ['00F4F67D-3B92-4FD2-A574-7BE22C6BE796']
       );
       expect(mockPool.query).toHaveBeenCalledWith(
@@ -255,12 +255,13 @@ describe('IframeService', () => {
 
     it('should use existing conversation ID if provided', async () => {
       mockValkeyClient.hget.mockResolvedValueOnce(JSON.stringify(validValkeyPayload));
-      // Org and user resolution with existing records
+      // Org and user resolution with existing records (name same, no update)
       mockPool.query
-        .mockResolvedValueOnce({ rows: [{ id: validValkeyPayload.tenantId }] }) // org exists
-        .mockResolvedValueOnce({ rows: [] }) // update org
+        .mockResolvedValueOnce({ rows: [{ id: validValkeyPayload.tenantId, name: 'staging' }] }) // org exists
         .mockResolvedValueOnce({ rows: [{ user_id: validValkeyPayload.userGuid }] }) // user exists
-        .mockResolvedValueOnce({ rows: [] }); // update user
+        .mockResolvedValueOnce({ rows: [] }) // update user
+        .mockResolvedValueOnce({ rows: [] }) // membership (always called)
+        .mockResolvedValueOnce({ rows: [{ id: 'existing-conversation-id' }] }); // conversation ownership check
 
       const result = await iframeService.validateAndSetup(
         'my-session-key',
@@ -317,15 +318,14 @@ describe('IframeService', () => {
       expect(result.conversationId).toBe('intent-conv-id');
     });
 
-    it('should skip org membership when both org and user exist', async () => {
+    it('should always call org membership even when both org and user exist', async () => {
       mockValkeyClient.hget.mockResolvedValueOnce(JSON.stringify(validValkeyPayload));
-      // Both org and user already exist
+      // Both org and user already exist (org name same, so no update)
       mockPool.query
-        .mockResolvedValueOnce({ rows: [{ id: validValkeyPayload.tenantId }] }) // org exists
-        .mockResolvedValueOnce({ rows: [] }) // update org
+        .mockResolvedValueOnce({ rows: [{ id: validValkeyPayload.tenantId, name: 'staging' }] }) // org exists with same name
         .mockResolvedValueOnce({ rows: [{ user_id: validValkeyPayload.userGuid }] }) // user exists
-        .mockResolvedValueOnce({ rows: [] }); // update user
-      // No membership query should be called
+        .mockResolvedValueOnce({ rows: [] }) // user update
+        .mockResolvedValueOnce({ rows: [] }); // membership (always called)
 
       // Mock conversation creation
       mockWithOrgContext.mockImplementation(async (_userId, _orgId, callback) => {
@@ -341,7 +341,7 @@ describe('IframeService', () => {
 
       expect(result.valid).toBe(true);
 
-      // 4 pool.query calls (org check + org update + user check + user update), no membership
+      // 4 pool.query calls: org check (no update since name same) + user check + user update + membership
       expect(mockPool.query).toHaveBeenCalledTimes(4);
     });
 
@@ -388,9 +388,9 @@ describe('IframeService', () => {
 
       await iframeService.validateAndSetup('my-session-key');
 
-      // Verify org check query
+      // Verify org check query (now includes name for comparison)
       const orgCheckQuery = mockPool.query.mock.calls[0][0];
-      expect(orgCheckQuery).toContain('SELECT id FROM organizations');
+      expect(orgCheckQuery).toContain('SELECT id, name FROM organizations');
 
       // Verify user check query
       const userCheckQuery = mockPool.query.mock.calls[2][0];
@@ -475,14 +475,13 @@ describe('IframeService', () => {
     });
 
     it('BUG #2: should reject existingConversationId that does not belong to user/org', async () => {
-      // Currently: existingConversationId is used without ownership validation
-      // Expected: should verify conversation belongs to the user before using it
+      // Verify conversation belongs to the user before using it
       mockValkeyClient.hget.mockResolvedValueOnce(JSON.stringify(validValkeyPayload));
       mockPool.query
-        .mockResolvedValueOnce({ rows: [{ id: validValkeyPayload.tenantId }] }) // org exists
-        .mockResolvedValueOnce({ rows: [] }) // org update
+        .mockResolvedValueOnce({ rows: [{ id: validValkeyPayload.tenantId, name: 'staging' }] }) // org exists
         .mockResolvedValueOnce({ rows: [{ user_id: validValkeyPayload.userGuid }] }) // user exists
         .mockResolvedValueOnce({ rows: [] }) // user update
+        .mockResolvedValueOnce({ rows: [] }) // membership
         // Conversation ownership check - NOT owned by this user
         .mockResolvedValueOnce({ rows: [] });
 
@@ -492,19 +491,18 @@ describe('IframeService', () => {
         'conversation-from-another-user'
       );
 
-      // This assertion will FAIL until bug is fixed
       expect(result.valid).toBe(false);
       expect(result.error).toContain('not found');
     });
 
     it('BUG #2: should accept existingConversationId that belongs to user', async () => {
-      // Complementary test - valid ownership should succeed
+      // Valid ownership should succeed
       mockValkeyClient.hget.mockResolvedValueOnce(JSON.stringify(validValkeyPayload));
       mockPool.query
-        .mockResolvedValueOnce({ rows: [{ id: validValkeyPayload.tenantId }] }) // org exists
-        .mockResolvedValueOnce({ rows: [] }) // org update
+        .mockResolvedValueOnce({ rows: [{ id: validValkeyPayload.tenantId, name: 'staging' }] }) // org exists
         .mockResolvedValueOnce({ rows: [{ user_id: validValkeyPayload.userGuid }] }) // user exists
         .mockResolvedValueOnce({ rows: [] }) // user update
+        .mockResolvedValueOnce({ rows: [] }) // membership
         // Conversation ownership check - owned by this user
         .mockResolvedValueOnce({ rows: [{ id: 'my-valid-conversation' }] });
 

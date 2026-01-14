@@ -1,9 +1,8 @@
-import { withOrgContext } from '../config/database.js';
+import { withOrgContext, pool } from '../config/database.js';
 import { logger } from '../config/logger.js';
 import { getValkeyClient } from '../config/valkey.js';
 import { getSessionStore, type CreateSessionData, type IframeWebhookConfig } from './sessionStore.js';
 import { getSessionService } from './sessionService.js';
-import { pool } from '../config/database.js';
 
 // Valkey key prefix - keys stored as rita:session:{guid}
 const VALKEY_KEY_PREFIX = 'rita:session:';
@@ -152,18 +151,20 @@ export class IframeService {
   ): Promise<{ ritaOrgId: string; wasCreated: boolean }> {
     const orgName = tenantName || `Jarvis Tenant ${jarvisTenantId.substring(0, 8)}`;
 
-    // 1. Check if org exists by ID
+    // 1. Check if org exists by ID (also fetch name for comparison)
     const existing = await pool.query(
-      `SELECT id FROM organizations WHERE id = $1`,
+      `SELECT id, name FROM organizations WHERE id = $1`,
       [jarvisTenantId]
     );
 
     if (existing.rows.length > 0) {
-      // Update name if org exists (Jarvis is source of truth)
-      await pool.query(
-        `UPDATE organizations SET name = $1, updated_at = NOW() WHERE id = $2`,
-        [orgName, jarvisTenantId]
-      );
+      // Only update name if it has changed (Jarvis is source of truth)
+      if (existing.rows[0].name !== orgName) {
+        await pool.query(
+          `UPDATE organizations SET name = $1, updated_at = NOW() WHERE id = $2`,
+          [orgName, jarvisTenantId]
+        );
+      }
       return { ritaOrgId: jarvisTenantId, wasCreated: false };
     }
 
@@ -262,10 +263,8 @@ export class IframeService {
       ritaOrgId
     );
 
-    // 3. Ensure org membership if either was newly created
-    if (orgCreated || userCreated) {
-      await this.ensureOrgMembership(ritaOrgId, ritaUserId);
-    }
+    // 3. Always ensure org membership (ON CONFLICT DO NOTHING handles idempotency)
+    await this.ensureOrgMembership(ritaOrgId, ritaUserId);
 
     // 4. Create conversation with Rita IDs (using org context for RLS)
     const result = await withOrgContext(
@@ -376,12 +375,28 @@ export class IframeService {
     let ritaUserId: string;
 
     if (existingConversationId) {
-      // Existing conversation - still need to resolve Rita IDs for session
-      conversationId = existingConversationId;
+      // Existing conversation - resolve Rita IDs first
       const { ritaOrgId: orgId } = await this.resolveRitaOrg(config.tenantId, config.tenantName);
       const { ritaUserId: userId } = await this.resolveRitaUser(config.userGuid, orgId);
       ritaOrgId = orgId;
       ritaUserId = userId;
+
+      // Always ensure membership for existing conversation path
+      await this.ensureOrgMembership(ritaOrgId, ritaUserId);
+
+      // Verify conversation ownership before using it
+      const convCheck = await pool.query(
+        `SELECT id FROM conversations WHERE id = $1 AND organization_id = $2 AND user_id = $3`,
+        [existingConversationId, ritaOrgId, ritaUserId]
+      );
+      if (convCheck.rows.length === 0) {
+        logger.warn(
+          { existingConversationId, ritaOrgId, ritaUserId },
+          'Conversation not found or not owned by user'
+        );
+        return { valid: false, error: 'Conversation not found or access denied', valkeyDebug };
+      }
+      conversationId = existingConversationId;
     } else {
       // New conversation - this also resolves Rita IDs
       const result = await this.createIframeConversation(config, intentEid);
