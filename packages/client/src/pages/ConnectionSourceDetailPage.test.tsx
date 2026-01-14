@@ -230,7 +230,8 @@ describe("ConnectionSourceDetailPage", () => {
 			mockDataSourceQuery.data = source;
 			renderWithRouter();
 
-			expect(screen.getByText("Knowledge Sources")).toBeInTheDocument();
+			// i18n mock returns the key, not the translated value
+			expect(screen.getByText("detail.breadcrumbs.knowledgeSources")).toBeInTheDocument();
 		});
 
 		it("should render source icon for non-websearch sources", () => {

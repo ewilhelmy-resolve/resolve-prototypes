@@ -45,8 +45,7 @@ type PageState =
 	| "form"
 	| "submitting"
 	| "verifying"
-	| "success"
-	| "failed";
+	| "success";
 
 /**
  * ServiceNow form data
@@ -428,13 +427,14 @@ export default function CredentialSetupPage() {
 		if (status === "verified") {
 			setPageState("success");
 		} else if (status === "failed") {
-			setPageState("failed");
+			// Go back to form with error message shown in StatusAlert
+			setPageState("form");
 			setVerificationError(
-				statusData.error || "Credential verification failed",
+				statusData.error || t("failed.defaultError"),
 			);
 		}
 		// Keep polling for "pending" status
-	}, [statusData, pageState]);
+	}, [statusData, pageState, t]);
 
 	// Handle ServiceNow form submission
 	const handleServiceNowSubmit = async (data: ServiceNowFormData) => {
@@ -458,8 +458,9 @@ export default function CredentialSetupPage() {
 			if (result.status === "verified") {
 				setPageState("success");
 			} else if (result.status === "failed") {
-				setPageState("failed");
-				setVerificationError("Credential verification failed");
+				// Go back to form with error message
+				setPageState("form");
+				setVerificationError(t("failed.defaultError"));
 			} else {
 				setPageState("verifying");
 			}
@@ -490,8 +491,9 @@ export default function CredentialSetupPage() {
 			if (result.status === "verified") {
 				setPageState("success");
 			} else if (result.status === "failed") {
-				setPageState("failed");
-				setVerificationError("Credential verification failed");
+				// Go back to form with error message
+				setPageState("form");
+				setVerificationError(t("failed.defaultError"));
 			} else {
 				setPageState("verifying");
 			}
@@ -500,12 +502,6 @@ export default function CredentialSetupPage() {
 		}
 	};
 
-	// Handle retry
-	const handleRetry = () => {
-		setPageState("form");
-		setVerificationError(null);
-		submitMutation.reset();
-	};
 
 	// Render loading state
 	if (pageState === "loading") {
@@ -590,40 +586,6 @@ export default function CredentialSetupPage() {
 		);
 	}
 
-	// Render failed state
-	if (pageState === "failed" && verifyData?.system_type) {
-		const icon = SYSTEM_ICONS[verifyData.system_type];
-		const systemName = t(`systems.${verifyData.system_type}.title`);
-		return (
-				<div className="flex-1 flex items-center justify-center p-4">
-					<Card className="w-full max-w-md">
-						<CardHeader className="text-center">
-							<div className="mx-auto mb-4">
-								<img
-									src={icon}
-									alt={`${systemName} icon`}
-									className="w-12 h-12"
-								/>
-							</div>
-							<CardTitle>{t("failed.title")}</CardTitle>
-							<CardDescription>
-								{t("failed.description", { systemName })}
-							</CardDescription>
-						</CardHeader>
-						<CardContent className="space-y-4">
-							{verificationError && (
-								<StatusAlert variant="error">
-									<p>{verificationError}</p>
-								</StatusAlert>
-							)}
-							<Button onClick={handleRetry} className="w-full">
-								{t("failed.tryAgain")}
-							</Button>
-						</CardContent>
-					</Card>
-				</div>
-		);
-	}
 
 	// Render form state
 	const systemType = verifyData?.system_type;
