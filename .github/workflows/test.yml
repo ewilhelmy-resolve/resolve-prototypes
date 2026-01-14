@@ -48,8 +48,6 @@ jobs:
 
     - name: Type check (all packages)
       run: pnpm -r run type-check
-      env:
-        NODE_OPTIONS: --max-old-space-size=4096
 
     - name: Lint (all packages)
       run: pnpm -r run lint
