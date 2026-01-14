@@ -116,7 +116,6 @@ jobs:
       - name: Build Frontend
         run: pnpm --filter rita-client build
         env:
-          NODE_OPTIONS: --max-old-space-size=4096
           # Staging environment variables - using prefixed secrets
           VITE_KEYCLOAK_URL: ${{ secrets.STAGING_VITE_KEYCLOAK_URL }}
           VITE_KEYCLOAK_REALM: ${{ secrets.STAGING_VITE_KEYCLOAK_REALM }}
