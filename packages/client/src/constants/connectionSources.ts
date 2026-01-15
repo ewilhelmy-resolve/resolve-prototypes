@@ -48,6 +48,7 @@ export const SOURCES = {
 	SHAREPOINT: "sharepoint",
 	SERVICENOW: "servicenow",
 	WEB_SEARCH: "websearch",
+	JIRA: "jira",
 } as const;
 
 export type SourceId = (typeof SOURCES)[keyof typeof SOURCES];

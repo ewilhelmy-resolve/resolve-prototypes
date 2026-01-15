@@ -108,6 +108,7 @@
 			"confluence": "Confluence configuration",
 			"servicenowKb": "ServiceNow Knowledge Base configuration",
 			"servicenowItsm": "ServiceNow ITSM configuration",
+			"jiraItsm": "Jira ITSM configuration",
 			"sharepoint": "SharePoint",
 			"websearch": "Web Search"
 		},
@@ -150,6 +151,7 @@
 			"syncStartedConfluence": "Your Confluence spaces are being synced",
 			"syncStartedServiceNowKb": "Your ServiceNow knowledge articles are being synced",
 			"syncStartedServiceNowItsm": "Your ServiceNow tickets are being synced",
+			"syncStartedJiraItsm": "Your Jira tickets are being synced",
 			"syncFailed": "Sync Failed",
 			"syncFailedDefault": "Failed to start sync",
 			"syncCancelled": "Sync Cancelled",
