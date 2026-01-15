@@ -368,6 +368,13 @@ export default function CredentialSetupPage() {
 		null,
 	);
 	const [delegationId, setDelegationId] = useState<string | null>(null);
+	const [lastSubmissionTime, setLastSubmissionTime] = useState<number | null>(null);
+	const [submittedCredentials, setSubmittedCredentials] = useState<{
+		url: string;
+		email: string;
+	} | null>(null);
+	const [countdown, setCountdown] = useState(90);
+	const [verifiedAt, setVerifiedAt] = useState<Date | null>(null);
 
 	// Verify token on load
 	const {
@@ -422,10 +429,20 @@ export default function CredentialSetupPage() {
 	useEffect(() => {
 		if (!statusData || pageState !== "verifying") return;
 
+		// Ignore stale cached results from before current submission
+		if (lastSubmissionTime && statusData.submitted_at) {
+			const submittedAt = new Date(statusData.submitted_at).getTime();
+			// Allow 5 second tolerance for clock differences
+			if (submittedAt < lastSubmissionTime - 5000) {
+				return;
+			}
+		}
+
 		const status = statusData.status as DelegationStatus;
 
 		if (status === "verified") {
 			setPageState("success");
+			setVerifiedAt(new Date());
 		} else if (status === "failed") {
 			// Go back to form with error message shown in StatusAlert
 			setPageState("form");
@@ -434,7 +451,25 @@ export default function CredentialSetupPage() {
 			);
 		}
 		// Keep polling for "pending" status
-	}, [statusData, pageState, t]);
+	}, [statusData, pageState, lastSubmissionTime, t]);
+
+	// Countdown timer for success state
+	useEffect(() => {
+		if (pageState !== "success") return;
+
+		const timer = setInterval(() => {
+			setCountdown((prev) => {
+				if (prev <= 1) {
+					clearInterval(timer);
+					window.close();
+					return 0;
+				}
+				return prev - 1;
+			});
+		}, 1000);
+
+		return () => clearInterval(timer);
+	}, [pageState]);
 
 	// Handle ServiceNow form submission
 	const handleServiceNowSubmit = async (data: ServiceNowFormData) => {
@@ -442,6 +477,11 @@ export default function CredentialSetupPage() {
 
 		setPageState("submitting");
 		setVerificationError(null);
+		setLastSubmissionTime(Date.now());
+		setSubmittedCredentials({
+			url: data.instanceUrl,
+			email: data.username,
+		});
 
 		try {
 			const result = await submitMutation.mutateAsync({
@@ -457,6 +497,7 @@ export default function CredentialSetupPage() {
 
 			if (result.status === "verified") {
 				setPageState("success");
+				setVerifiedAt(new Date());
 			} else if (result.status === "failed") {
 				// Go back to form with error message
 				setPageState("form");
@@ -475,6 +516,11 @@ export default function CredentialSetupPage() {
 
 		setPageState("submitting");
 		setVerificationError(null);
+		setLastSubmissionTime(Date.now());
+		setSubmittedCredentials({
+			url: data.url,
+			email: data.email,
+		});
 
 		try {
 			const result = await submitMutation.mutateAsync({
@@ -490,6 +536,7 @@ export default function CredentialSetupPage() {
 
 			if (result.status === "verified") {
 				setPageState("success");
+				setVerifiedAt(new Date());
 			} else if (result.status === "failed") {
 				// Go back to form with error message
 				setPageState("form");
@@ -553,36 +600,73 @@ export default function CredentialSetupPage() {
 
 	// Render success state
 	if (pageState === "success" && verifyData?.system_type) {
-		const systemName = t(`systems.${verifyData.system_type}.title`);
+		const formattedTime = verifiedAt
+			? verifiedAt.toLocaleTimeString("en-US", {
+					hour: "numeric",
+					minute: "2-digit",
+					hour12: true,
+				})
+			: "";
+
+		const handleExitSession = () => {
+			window.close();
+		};
+
 		return (
-				<div className="flex-1 flex items-center justify-center p-4">
-					<Card className="w-full max-w-md">
-						<CardHeader className="text-center">
-							<div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-green-100">
-								<CheckCircle2
-									className="h-6 w-6 text-green-600"
-									aria-hidden="true"
-								/>
+			<>
+				<PageHeader
+					systemType={verifyData.system_type}
+					orgName={verifyData.org_name || ""}
+					delegatedBy={verifyData.delegated_by || ""}
+				/>
+				<div className="flex-1 flex flex-col items-center justify-center p-4 gap-6">
+					<p className="text-lg text-muted-foreground">
+						{t("success.windowCloses", { seconds: countdown })}
+					</p>
+
+					<Card className="w-full max-w-lg">
+						<CardContent className="p-6">
+							<div className="flex items-center justify-between">
+								<div className="flex flex-col gap-2 text-sm">
+									<div className="flex gap-4">
+										<span className="text-muted-foreground w-16">{t("success.urlLabel")}</span>
+										<span>{submittedCredentials?.url || "-"}</span>
+									</div>
+									<div className="flex gap-4">
+										<span className="text-muted-foreground w-16">
+											{verifyData.system_type === "servicenow"
+												? t("success.usernameLabel")
+												: t("success.emailLabel")}
+										</span>
+										<span>{submittedCredentials?.email || "-"}</span>
+									</div>
+									<div className="flex gap-4">
+										<span className="text-muted-foreground w-16">
+											{verifyData.system_type === "servicenow"
+												? t("success.passwordLabel")
+												: t("success.tokenLabel")}
+										</span>
+										<span>{"*".repeat(30)}</span>
+									</div>
+								</div>
+								<div className="flex flex-col items-end gap-2">
+									<span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-green-500 text-green-600 text-xs font-medium">
+										<CheckCircle2 className="h-3.5 w-3.5" />
+										{t("success.connected")}
+									</span>
+									<span className="text-xs text-muted-foreground">
+										{t("success.updatedAt", { time: formattedTime })}
+									</span>
+								</div>
 							</div>
-							<CardTitle>{t("success.title")}</CardTitle>
-							<CardDescription>
-								{t("success.description", { systemName })}
-							</CardDescription>
-						</CardHeader>
-						<CardContent>
-							<StatusAlert variant="success">
-								<p>
-									<Trans
-										i18nKey="success.connectionActive"
-										ns="credentialDelegation"
-										values={{ systemName, orgName: verifyData?.org_name }}
-										components={{ strong: <strong /> }}
-									/>
-								</p>
-							</StatusAlert>
 						</CardContent>
 					</Card>
+
+					<Button onClick={handleExitSession} className="w-full max-w-lg">
+						{t("success.exitSession")}
+					</Button>
 				</div>
+			</>
 		);
 	}
 
@@ -606,12 +690,15 @@ export default function CredentialSetupPage() {
                 orgName={verifyData.org_name}
                 delegatedBy={verifyData.delegated_by}
             />
-			<div className="flex-1 inline-flex flex-col items-center gap-8 w-full px-6 md:px-12 lg:px-24">
+			<div className="flex-1 inline-flex flex-col items-center gap-4 w-full px-6 md:px-12 lg:px-24">
 				{/* Header with icon, title, description */}
 
 
 				{/* Form content */}
 				<div className="w-full max-w-2xl mx-auto flex flex-col gap-8 px-4 md:px-0">
+                    <div className="flex flex-col gap-8">
+                        <h2 className="text-2xl">Configure</h2>
+                    </div>
 					{/* API Error */}
 					{submitMutation.error && (
 						<StatusAlert variant="error">
@@ -620,6 +707,15 @@ export default function CredentialSetupPage() {
 							</p>
 						</StatusAlert>
 					)}
+
+                    {!submitMutation.error && !verificationError && (
+                        <StatusAlert variant="info" className="mb-4">
+                            <p className="font-semibold">{t("form.setupAlertTitle")}</p>
+                            <p className="font-thin">
+                                {t("form.setupAlertBody")}
+                            </p>
+                        </StatusAlert>
+                    )}
 
 					{/* Render form based on system type */}
 					{systemType === "servicenow" && (
@@ -635,13 +731,6 @@ export default function CredentialSetupPage() {
 							isSubmitting={isSubmitting}
 							verificationError={verificationError}
 						/>
-					)}
-
-					{/* Expiry notice */}
-					{verifyData?.expires_at && (
-						<p className="text-xs text-muted-foreground">
-							{t("setup.linkExpiresOn", { date: new Date(verifyData.expires_at).toLocaleDateString() })}
-						</p>
 					)}
 				</div>
 			</div>
