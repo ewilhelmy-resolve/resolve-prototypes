@@ -8,11 +8,11 @@
  * Route: /credential-setup?token=xxx
  */
 
-import { CheckCircle2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { Trans, useTranslation } from "react-i18next";
 import { Navigate, useSearchParams } from "react-router-dom";
+import { ConnectionStatusCard } from "@/components/connection-sources/ConnectionStatusCard";
 import ConnectionsForm from "@/components/connection-sources/form-elements/ConnectionsForm";
 import FormField from "@/components/connection-sources/form-elements/FormField";
 import FormSection from "@/components/connection-sources/form-elements/FormSection";
@@ -28,6 +28,7 @@ import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { Spinner } from "@/components/ui/spinner";
 import { StatusAlert } from "@/components/ui/status-alert";
+import { type ConnectionSource, STATUS } from "@/constants/connectionSources";
 import {
 	type DelegationStatus,
 	type ItsmSystemType,
@@ -612,6 +613,26 @@ export default function CredentialSetupPage() {
 			window.close();
 		};
 
+		// Create mock ConnectionSource for ConnectionStatusCard
+		const successSource: ConnectionSource = {
+			id: delegationId || "delegation",
+			type: verifyData.system_type,
+			title: t(`systems.${verifyData.system_type}.title`),
+			status: STATUS.CONNECTED,
+			lastSync: t("success.updatedAt", { time: formattedTime }),
+			badges: [],
+			settings:
+				verifyData.system_type === "servicenow"
+					? {
+							instanceUrl: submittedCredentials?.url || "",
+							username: submittedCredentials?.email || "",
+						}
+					: {
+							url: submittedCredentials?.url || "",
+							email: submittedCredentials?.email || "",
+						},
+		};
+
 		return (
 			<>
 				<PageHeader
@@ -624,43 +645,9 @@ export default function CredentialSetupPage() {
 						{t("success.windowCloses", { seconds: countdown })}
 					</p>
 
-					<Card className="w-3/5 max-w-lg">
-						<CardContent className="p-6">
-							<div className="flex items-center justify-between">
-								<div className="flex flex-col gap-2 text-sm">
-									<div className="flex gap-4">
-										<span className="text-muted-foreground w-16">{t("success.urlLabel")}</span>
-										<span>{submittedCredentials?.url || "-"}</span>
-									</div>
-									<div className="flex gap-4">
-										<span className="text-muted-foreground w-16">
-											{verifyData.system_type === "servicenow"
-												? t("success.usernameLabel")
-												: t("success.emailLabel")}
-										</span>
-										<span>{submittedCredentials?.email || "-"}</span>
-									</div>
-									<div className="flex gap-4">
-										<span className="text-muted-foreground w-16">
-											{verifyData.system_type === "servicenow"
-												? t("success.passwordLabel")
-												: t("success.tokenLabel")}
-										</span>
-										<span>{"*".repeat(30)}</span>
-									</div>
-								</div>
-								<div className="flex flex-col items-end gap-2">
-									<span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-green-500 text-green-600 text-xs font-medium">
-										<CheckCircle2 className="h-3.5 w-3.5" />
-										{t("success.connected")}
-									</span>
-									<span className="text-xs text-muted-foreground">
-										{t("success.updatedAt", { time: formattedTime })}
-									</span>
-								</div>
-							</div>
-						</CardContent>
-					</Card>
+					<div className="w-3/5 max-w-lg">
+						<ConnectionStatusCard source={successSource} hideStatusMessage />
+					</div>
 
 					<Button onClick={handleExitSession} className="w-full max-w-lg">
 						{t("success.exitSession")}
