@@ -624,7 +624,7 @@ export default function CredentialSetupPage() {
 						{t("success.windowCloses", { seconds: countdown })}
 					</p>
 
-					<Card className="w-full max-w-lg">
+					<Card className="w-3/5 max-w-lg">
 						<CardContent className="p-6">
 							<div className="flex items-center justify-between">
 								<div className="flex flex-col gap-2 text-sm">
