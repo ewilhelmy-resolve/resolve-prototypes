@@ -19,6 +19,14 @@ const CLIENT_URL = process.env.CLIENT_URL || 'http://localhost:5173';
 const TOKEN_EXPIRY_DAYS = 1;
 const RATE_LIMIT_PER_ORG_PER_DAY = 10;
 
+/**
+ * Hash token using SHA-256 for secure storage
+ * Tokens are high-entropy random values, so SHA-256 is sufficient (no need for bcrypt)
+ */
+function hashToken(token: string): string {
+  return crypto.createHash('sha256').update(token).digest('hex');
+}
+
 export class CredentialDelegationService {
   constructor(
     private pool: Pool,
@@ -90,9 +98,10 @@ export class CredentialDelegationService {
 
     // Generate secure token (64-char hex = 32 bytes = 256 bits)
     const token = crypto.randomBytes(32).toString('hex');
+    const tokenHash = hashToken(token);
     const expiresAt = new Date(Date.now() + TOKEN_EXPIRY_DAYS * 24 * 60 * 60 * 1000);
 
-    // Insert delegation token
+    // Insert delegation token (store hash, not plaintext)
     const insertResult = await this.pool.query(
       `INSERT INTO credential_delegation_tokens (
          organization_id,
@@ -104,7 +113,7 @@ export class CredentialDelegationService {
          status
        ) VALUES ($1, $2, $3, $4, $5, $6, 'pending')
        RETURNING id`,
-      [organizationId, createdByUserId, normalizedEmail, itsmSystemType, token, expiresAt]
+      [organizationId, createdByUserId, normalizedEmail, itsmSystemType, tokenHash, expiresAt]
     );
 
     const delegationId = insertResult.rows[0].id;
@@ -185,6 +194,7 @@ export class CredentialDelegationService {
       return { valid: false, reason: 'not_found' };
     }
 
+    const tokenHash = hashToken(token);
     const result = await this.pool.query(
       `SELECT cdt.id, cdt.status, cdt.token_expires_at, cdt.itsm_system_type,
               o.name as org_name, up.email as delegated_by
@@ -192,7 +202,7 @@ export class CredentialDelegationService {
        JOIN organizations o ON cdt.organization_id = o.id
        JOIN user_profiles up ON cdt.created_by_user_id = up.user_id
        WHERE cdt.delegation_token = $1`,
-      [token]
+      [tokenHash]
     );
 
     if (result.rows.length === 0) {
@@ -315,7 +325,8 @@ export class CredentialDelegationService {
       throw new Error('Invalid token');
     }
 
-    // Get delegation details
+    // Get delegation details (lookup by hash)
+    const tokenHash = hashToken(token);
     const result = await this.pool.query(
       `SELECT cdt.id, cdt.organization_id, cdt.admin_email, cdt.itsm_system_type,
               cdt.status, cdt.token_expires_at, cdt.created_by_user_id,
@@ -324,7 +335,7 @@ export class CredentialDelegationService {
        JOIN organizations o ON cdt.organization_id = o.id
        JOIN user_profiles up ON cdt.created_by_user_id = up.user_id
        WHERE cdt.delegation_token = $1`,
-      [token]
+      [tokenHash]
     );
 
     if (result.rows.length === 0) {
@@ -412,6 +423,7 @@ export class CredentialDelegationService {
       throw new Error('Invalid token');
     }
 
+    const tokenHash = hashToken(token);
     const result = await this.pool.query(
       `SELECT cdt.id, cdt.status, cdt.itsm_system_type,
               cdt.credentials_received_at, cdt.credentials_verified_at,
@@ -420,7 +432,7 @@ export class CredentialDelegationService {
        FROM credential_delegation_tokens cdt
        JOIN organizations o ON cdt.organization_id = o.id
        WHERE cdt.delegation_token = $1`,
-      [token]
+      [tokenHash]
     );
 
     if (result.rows.length === 0) {
