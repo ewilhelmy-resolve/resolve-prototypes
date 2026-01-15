@@ -108,6 +108,12 @@ vi.mock("@/components/connection-sources/connection-forms", () => ({
 			{onCancel && <button onClick={onCancel}>Cancel</button>}
 		</div>
 	),
+    JiraForm: ({ onCancel }: { onCancel?: () => void }) => (
+        <div>
+            <div>Jira Form</div>
+            {onCancel && <button onClick={onCancel}>Cancel</button>}
+        </div>
+    ),
 }));
 
 // Mock data
