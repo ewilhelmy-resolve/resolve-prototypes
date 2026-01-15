@@ -72,6 +72,7 @@ export interface VerifyWebhookPayload {
   credentials: Record<string, any>;
   settings: Record<string, any>;
   timestamp: string;
+  is_delegation_setup?: boolean;
 }
 
 /**

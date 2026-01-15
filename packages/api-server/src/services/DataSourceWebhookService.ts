@@ -24,6 +24,7 @@ export class DataSourceWebhookService {
 
   /**
    * Send verify credentials webhook event
+   * @param params.isDelegationSetup - Set to true when called from credential delegation flow
    */
   async sendVerifyEvent(params: {
     organizationId: string;
@@ -33,6 +34,7 @@ export class DataSourceWebhookService {
     connectionType: string;
     credentials: Record<string, any>;
     settings: Record<string, any>;
+    isDelegationSetup?: boolean;
   }): Promise<WebhookResponse> {
     const payload: VerifyWebhookPayload = {
       source: 'rita-chat',
@@ -44,7 +46,8 @@ export class DataSourceWebhookService {
       connection_type: params.connectionType as any,
       credentials: params.credentials,
       settings: params.settings,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
+      ...(params.isDelegationSetup && { is_delegation_setup: true }),
     };
 
     return this.sendEvent(payload);

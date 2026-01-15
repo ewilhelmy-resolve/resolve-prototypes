@@ -371,6 +371,7 @@ export class CredentialDelegationService {
         admin_email: delegation.admin_email,
         organization_name: delegation.org_name,
       },
+      isDelegationSetup: true,
     });
 
     if (!webhookResult.success) {
