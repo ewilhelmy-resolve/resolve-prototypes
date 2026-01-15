@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ritaToast } from "@/components/ui/rita-toast";
+import { StatusAlert } from "@/components/ui/status-alert";
 import {
 	type ItsmSystemType,
 	useCreateDelegation,
@@ -53,65 +54,52 @@ export default function DelegationInviteBox({
 		}
 	};
 
+	const delegateAction = (
+		<ConfirmFormDialog
+			trigger={
+				<Button variant="outline" size="sm">
+					{t("invite.button")}
+				</Button>
+			}
+			title={t("invite.dialog.title")}
+			description={t("invite.dialog.description", { systemName })}
+			validationSchema={emailSchema}
+			defaultValues={{ email: "" }}
+			actionLabel={t("invite.dialog.send")}
+			onConfirm={handleConfirm}
+		>
+			{(form) => (
+				<div className="grid gap-4 py-4">
+					<div className="grid gap-2">
+						<Label htmlFor="admin-email">
+							{t("invite.dialog.emailLabel")}
+						</Label>
+						<Input
+							id="admin-email"
+							type="email"
+							placeholder={t("invite.dialog.emailPlaceholder")}
+							autoComplete="email"
+							{...form.register("email")}
+						/>
+						{form.formState.errors.email && (
+							<p className="text-sm text-destructive">
+								{form.formState.errors.email.message as string}
+							</p>
+						)}
+						<p className="text-sm text-muted-foreground mt-1">
+							{t("invite.dialog.emailHint")}
+						</p>
+					</div>
+				</div>
+			)}
+		</ConfirmFormDialog>
+	);
+
 	return (
-		<div className="w-full border border-blue-200 bg-blue-50 rounded-lg p-4">
-			<div className="flex items-start gap-3">
-				<div className="flex rounded-full bg-primary/10 items-center justify-center">
-					<svg
-						className="w-5 h-5 text-gray-500 flex-shrink-0 mt-0.5"
-						fill="none"
-						stroke="currentColor"
-						viewBox="0 0 24 24"
-					>
-						<circle cx="12" cy="12" r="10" strokeWidth="1.5" />
-						<path strokeWidth="1.5" d="M12 16v-4m0-4h.01" />
-					</svg>
-				</div>
-				<div className="flex-1 min-w-0">
-					<h4 className="text-sm font-medium">{t("invite.title")}</h4>
-					<p className="text-sm text-muted-foreground mt-1">
-						{t("invite.description", { systemName })}
-					</p>
-				</div>
-				<ConfirmFormDialog
-					trigger={
-						<Button variant="outline" size="sm" className="flex-shrink-0">
-							{t("invite.button")}
-						</Button>
-					}
-					title={t("invite.dialog.title")}
-					description={t("invite.dialog.description", { systemName })}
-					validationSchema={emailSchema}
-					defaultValues={{ email: "" }}
-					actionLabel={t("invite.dialog.send")}
-					onConfirm={handleConfirm}
-				>
-					{(form) => (
-						<div className="grid gap-4 py-4">
-							<div className="grid gap-2">
-								<Label htmlFor="admin-email">
-									{t("invite.dialog.emailLabel")}
-								</Label>
-								<Input
-									id="admin-email"
-									type="email"
-									placeholder={t("invite.dialog.emailPlaceholder")}
-									autoComplete="email"
-									{...form.register("email")}
-								/>
-								{form.formState.errors.email && (
-									<p className="text-sm text-destructive">
-										{form.formState.errors.email.message as string}
-									</p>
-								)}
-								<p className="text-sm text-muted-foreground mt-1">
-									{t("invite.dialog.emailHint")}
-								</p>
-							</div>
-						</div>
-					)}
-				</ConfirmFormDialog>
-			</div>
-		</div>
+		<StatusAlert variant="info" title={t("invite.title")} action={delegateAction}>
+			<p className="text-sm">
+				{t("invite.description", { systemName })}
+			</p>
+		</StatusAlert>
 	);
 }

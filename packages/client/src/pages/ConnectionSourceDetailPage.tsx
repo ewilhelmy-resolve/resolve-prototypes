@@ -217,7 +217,9 @@ export default function ConnectionSourceDetailPage({
 							description={t("detail.connectDescription", { source: sourceTitle })}
 						/>
 
-                        <DelegationInviteBox itsmSource={source.type as ItsmSystemType} />
+                        {mode === "itsm" && (
+                            <DelegationInviteBox itsmSource={source.type as ItsmSystemType} />
+                        )}
                         <Separator orientation="horizontal" />
                     </div>
 
