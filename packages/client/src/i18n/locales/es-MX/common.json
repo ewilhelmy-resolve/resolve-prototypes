@@ -1,6 +1,7 @@
 {
 	"nav": {
 		"home": "Inicio",
+		"agents": "Agentes",
 		"knowledgeArticles": "Base de Conocimiento",
 		"tickets": "Tickets",
 		"workflows": "Flujos de Trabajo",

@@ -31,11 +31,21 @@ import { VerifyEmailPage } from "./pages/VerifyEmailPage";
 import { VerifyEmailSentPage } from "./pages/VerifyEmailSentPage";
 import ClustersPage from "./pages/ClustersPage";
 import WorkflowsPage from "./pages/WorkflowsPage";
+import AgentsPage from "./pages/AgentsPage";
+import AgentBuilderPageV2 from "./pages/AgentBuilderPage";
+import AgentChatPage from "./pages/AgentChatPage";
+import AgentTestPage from "./pages/AgentTestPage";
 
 // Feature-flagged tickets page wrapper
 function TicketsPageWithFlag() {
 	const enableTicketsV2 = useFeatureFlag("ENABLE_TICKETS_V2");
 	return enableTicketsV2 ? <ClustersPage /> : <TicketsPage />;
+}
+
+function AgentsFeatureGate({ children }: { children: React.ReactNode }) {
+	const enableAgents = useFeatureFlag("ENABLE_AGENTS");
+	if (!enableAgents) return <Navigate to="/chat" replace />;
+	return children;
 }
 
 const router = createBrowserRouter([
@@ -222,6 +232,67 @@ const router = createBrowserRouter([
 		element: (
 			<ProtectedRoute>
 				<DevToolsPage />
+			</ProtectedRoute>
+		),
+	},
+	// Agent builder (demo experience)
+	{
+		path: "/agents",
+		element: (
+			<ProtectedRoute>
+				<AgentsFeatureGate>
+					<AgentsPage />
+				</AgentsFeatureGate>
+			</ProtectedRoute>
+		),
+	},
+	{
+		path: "/agents/create",
+		element: (
+			<ProtectedRoute>
+				<AgentsFeatureGate>
+					<AgentBuilderPageV2 />
+				</AgentsFeatureGate>
+			</ProtectedRoute>
+		),
+	},
+	{
+		path: "/agents/:id",
+		element: (
+			<ProtectedRoute>
+				<AgentsFeatureGate>
+					<AgentBuilderPageV2 />
+				</AgentsFeatureGate>
+			</ProtectedRoute>
+		),
+	},
+	{
+		path: "/agents/:id/chat",
+		element: (
+			<ProtectedRoute>
+				<AgentsFeatureGate>
+					<AgentChatPage />
+				</AgentsFeatureGate>
+			</ProtectedRoute>
+		),
+	},
+	{
+		path: "/agents/:id/test",
+		element: (
+			<ProtectedRoute>
+				<AgentsFeatureGate>
+					<AgentTestPage />
+				</AgentsFeatureGate>
+			</ProtectedRoute>
+		),
+	},
+	{
+		path: "/agents/test",
+		element: (
+			<ProtectedRoute>
+				<AgentsFeatureGate>
+					<AgentTestPage />
+				</AgentsFeatureGate>
 			</ProtectedRoute>
 		),
 	},

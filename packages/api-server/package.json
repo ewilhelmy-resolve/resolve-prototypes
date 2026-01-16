@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "dotenv -e ../../.env -- tsx watch src/index.ts",
+    "dev": "dotenv -e ../../config/local.env -- tsx watch src/index.ts",
     "build": "tsc",
     "start": "node dist/index.js",
     "type-check": "tsc --noEmit",
@@ -18,9 +18,9 @@
     "test:run": "vitest run",
     "test:coverage": "vitest run --coverage",
     "test:watch": "vitest --watch",
-    "migrate": "dotenv -e ../../.env -- tsx src/database/migrate.ts",
-    "test:auth": "dotenv -e ../../.env -- tsx src/scripts/test-auth.ts",
-    "tail-logs": "dotenv -e ../../.env -- tsx src/scripts/tail-logs.ts"
+    "migrate": "dotenv -e ../../config/local.env -- tsx src/database/migrate.ts",
+    "test:auth": "dotenv -e ../../config/local.env -- tsx src/scripts/test-auth.ts",
+    "tail-logs": "dotenv -e ../../config/local.env -- tsx src/scripts/tail-logs.ts"
   },
   "dependencies": {
     "@types/multer": "2.0.0",

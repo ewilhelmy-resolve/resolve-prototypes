@@ -12,6 +12,7 @@ export type FeatureFlagKey =
   | 'SHOW_WELCOME_MODAL'
   | 'ENABLE_DEBUG_MODE'
   | 'ENABLE_EXPERIMENTAL_FEATURES'
+  | 'ENABLE_AGENTS'
   | 'ENABLE_SERVICENOW'
   | 'ENABLE_MULTI_FILE_UPLOAD'
   | 'ENABLE_TICKETS_V2'
@@ -76,6 +77,13 @@ export const FEATURE_FLAGS: Record<FeatureFlagKey, FeatureFlagConfig> = {
     key: 'ENABLE_EXPERIMENTAL_FEATURES',
     label: 'Experimental Features',
     description: 'Enable beta features and experimental functionality',
+    defaultValue: false,
+    category: 'experimental',
+  },
+  ENABLE_AGENTS: {
+    key: 'ENABLE_AGENTS',
+    label: 'Agents',
+    description: 'Enable the Agents experience (Agents list + agent builder)',
     defaultValue: false,
     category: 'experimental',
   },
