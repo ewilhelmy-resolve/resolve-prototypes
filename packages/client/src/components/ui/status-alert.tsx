@@ -96,7 +96,7 @@ export function StatusAlert({
 				{children}
 			</AlertDescription>
 			{action && (
-				<div className="flex-shrink-0 ml-2">{action}</div>
+				<div className="flex-shrink-0 ml-2 text-black">{action}</div>
 			)}
 		</Alert>
 	);
