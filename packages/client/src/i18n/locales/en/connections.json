@@ -27,6 +27,10 @@
 		"jira": {
 			"title": "Jira",
 			"description": "Import tickets from Jira for autopilot clustering."
+		},
+		"freshdesk": {
+			"title": "Freshdesk",
+			"description": "Import tickets from Freshdesk for autopilot clustering."
 		}
 	},
 	"form": {
@@ -44,7 +48,9 @@
 			"tenantId": "Tenant ID",
 			"clientId": "Client ID",
 			"clientSecret": "Client Secret",
-			"siteUrl": "Site URL"
+			"siteUrl": "Site URL",
+			"freshdeskDomain": "Freshdesk Domain",
+			"apiKey": "API Key"
 		},
 		"placeholders": {
 			"confluenceUrl": "https://your-company.atlassian.net",
@@ -56,7 +62,9 @@
 			"tenantId": "your-tenant-id",
 			"clientId": "your-client-id",
 			"secret": "••••••••",
-			"sharePointUrl": "https://your-company.sharepoint.com"
+			"sharePointUrl": "https://your-company.sharepoint.com",
+			"freshdeskDomain": "https://your-company.freshdesk.com",
+			"apiKey": "Enter your API key"
 		},
 		"validation": {
 			"urlRequired": "URL is required",
@@ -82,7 +90,9 @@
 			"verificationFailed": "Verification Failed",
 			"checkCredentials": "Please check your credentials and try again.",
 			"connectionMayTakeTime": "Connection may take time",
-			"canLeavePage": "You can leave this page while it is connecting"
+			"canLeavePage": "You can leave this page while it is connecting",
+			"comingSoon": "Coming Soon",
+			"freshdeskNotReady": "Freshdesk integration is not yet available. Stay tuned for updates."
 		},
 		"descriptions": {
 			"webSearchHelp": "Enable web search to supplement answers when knowledge isn't found in your connected sources."
@@ -105,7 +115,8 @@
 			"servicenowKb": "ServiceNow Knowledge Base configuration",
 			"servicenowItsm": "ServiceNow ITSM configuration",
 			"sharepoint": "SharePoint",
-			"websearch": "Web Search"
+			"websearch": "Web Search",
+			"freshdeskItsm": "Freshdesk ITSM configuration"
 		},
 		"sync": {
 			"inProgress": "Sync in progress...",
