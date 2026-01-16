@@ -171,6 +171,15 @@ interface CredentialDelegationEmailPayload extends BaseWebhookPayload {
   expires_at: string;
 }
 
+// Credential delegation success email payload
+interface CredentialDelegationSuccessPayload extends BaseWebhookPayload {
+  source: 'rita-credential-delegation';
+  action: 'send_delegation_success_email';
+  owner_email: string;
+  itsm_system_type: string;
+  connection_url: string;
+}
+
 // ITSM ticket sync webhook payload (Autopilot)
 interface SyncTicketsWebhookPayload extends BaseWebhookPayload {
   source: 'rita-chat';
@@ -186,7 +195,7 @@ interface SyncTicketsWebhookPayload extends BaseWebhookPayload {
 }
 
 // Union type for all webhook payloads
-type WebhookPayload = MessageWebhookPayload | DocumentWebhookPayload | DocumentDeletePayload | SignupWebhookPayload | SendInvitationWebhookPayload | AcceptInvitationWebhookPayload | DeleteKeycloakUserPayload | DataSourceVerifyPayload | DataSourceSyncPayload | SyncTicketsWebhookPayload | CredentialDelegationEmailPayload | BaseWebhookPayload;
+type WebhookPayload = MessageWebhookPayload | DocumentWebhookPayload | DocumentDeletePayload | SignupWebhookPayload | SendInvitationWebhookPayload | AcceptInvitationWebhookPayload | DeleteKeycloakUserPayload | DataSourceVerifyPayload | DataSourceSyncPayload | SyncTicketsWebhookPayload | CredentialDelegationEmailPayload | CredentialDelegationSuccessPayload | BaseWebhookPayload;
 
 interface MockResponse {
   message_id: string;
@@ -2003,14 +2012,17 @@ app.post('/webhook', async (req, res) => {
             }
 
             const delegationMessage = {
+              type: 'credential_delegation_verification',
               delegation_id: delegationId,
+              tenant_id: verifyPayload.tenant_id,
               status: isSuccess ? 'verified' : 'failed',
-              error: errorMessage
+              error: errorMessage,
+              timestamp: new Date().toISOString()
             };
 
-            await rabbitChannel.assertQueue('credential_delegation_status', { durable: true });
+            await rabbitChannel.assertQueue('data_source_status', { durable: true });
             rabbitChannel.sendToQueue(
-              'credential_delegation_status',
+              'data_source_status',
               Buffer.from(JSON.stringify(delegationMessage)),
               { persistent: true }
             );
@@ -2018,7 +2030,7 @@ app.post('/webhook', async (req, res) => {
             contextLogger.info({
               delegationId,
               status: isSuccess ? 'verified' : 'failed',
-              queue: 'credential_delegation_status'
+              queue: 'data_source_status'
             }, 'Published delegation verification message to RabbitMQ');
           } else {
             // Regular data source verification
@@ -2293,6 +2305,50 @@ app.post('/webhook', async (req, res) => {
         return res.status(500).json({
           success: false,
           message: 'Failed to send credential delegation email',
+          error: error instanceof Error ? error.message : 'Unknown error'
+        });
+      }
+
+    } else if (payload.source === 'rita-credential-delegation' && payload.action === 'send_delegation_success_email') {
+      const successPayload = payload as CredentialDelegationSuccessPayload;
+
+      const contextLogger = createContextLogger(webhookLogger, correlationId, {
+        tenantId: successPayload.tenant_id,
+        email: successPayload.owner_email
+      });
+
+      contextLogger.info({
+        source: successPayload.source,
+        action: successPayload.action,
+        owner_email: successPayload.owner_email,
+        itsm_system_type: successPayload.itsm_system_type,
+        connection_url: successPayload.connection_url
+      }, 'Received send_delegation_success_email webhook');
+
+      // Send delegation success email via Mailpit
+      try {
+        await emailService.sendDelegationSuccess(
+          successPayload.owner_email,
+          successPayload.itsm_system_type,
+          successPayload.connection_url
+        );
+
+        contextLogger.info({
+          owner_email: successPayload.owner_email,
+          itsm_system_type: successPayload.itsm_system_type
+        }, '📧 Credential delegation success email sent successfully via Mailpit');
+
+        return res.status(200).json({
+          success: true,
+          message: 'Credential delegation success email sent successfully',
+          owner_email: successPayload.owner_email
+        });
+      } catch (error) {
+        logError(contextLogger, error as Error, { operation: 'send-delegation-success-email' });
+
+        return res.status(500).json({
+          success: false,
+          message: 'Failed to send credential delegation success email',
           error: error instanceof Error ? error.message : 'Unknown error'
         });
       }

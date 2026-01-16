@@ -1,7 +1,6 @@
 import amqp from 'amqplib';
 import { pool, withOrgContext } from '../config/database.js';
 import { logError, PerformanceTimer, queueLogger } from '../config/logger.js';
-import { CredentialDelegationStatusConsumer } from '../consumers/CredentialDelegationStatusConsumer.js';
 import { DataSourceStatusConsumer } from '../consumers/DataSourceStatusConsumer.js';
 import { DocumentProcessingConsumer } from '../consumers/DocumentProcessingConsumer.js';
 import { WorkflowConsumer } from '../consumers/WorkflowConsumer.js';
@@ -39,7 +38,6 @@ export class RabbitMQService {
   private connection: any = null;
   private channel: any = null;
   private readonly queueName: string;
-  private credentialDelegationStatusConsumer: CredentialDelegationStatusConsumer;
   private dataSourceStatusConsumer: DataSourceStatusConsumer;
   private documentProcessingConsumer: DocumentProcessingConsumer;
   private workflowConsumer: WorkflowConsumer;
@@ -59,7 +57,6 @@ export class RabbitMQService {
 
   constructor() {
     this.queueName = process.env.QUEUE_NAME || 'chat.responses';
-    this.credentialDelegationStatusConsumer = new CredentialDelegationStatusConsumer();
     this.dataSourceStatusConsumer = new DataSourceStatusConsumer();
     this.documentProcessingConsumer = new DocumentProcessingConsumer();
     this.workflowConsumer = new WorkflowConsumer();
@@ -345,10 +342,7 @@ export class RabbitMQService {
       }
     });
 
-    // Start credential delegation status consumer
-    await this.credentialDelegationStatusConsumer.startConsumer(this.channel);
-
-    // Start unified data source status consumer
+    // Start unified data source status consumer (also handles credential delegation verification)
     await this.dataSourceStatusConsumer.startConsumer(this.channel);
 
     // Start document processing status consumer

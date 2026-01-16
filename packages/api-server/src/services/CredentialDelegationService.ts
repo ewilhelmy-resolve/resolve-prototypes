@@ -361,12 +361,28 @@ export class CredentialDelegationService {
     // Validate credentials have required fields based on system type
     this.validateCredentials(delegation.itsm_system_type, credentials);
 
-    // Update timestamp and reset to pending (clear previous error if retrying)
+    // Extract non-sensitive settings to store (URL, username/email - NOT passwords/tokens)
+    const creds = credentials as unknown as Record<string, unknown>;
+    const submittedSettings =
+      delegation.itsm_system_type === 'servicenow'
+        ? {
+            instanceUrl: creds.instance_url,
+            username: creds.username,
+          }
+        : {
+            url: creds.instance_url,
+            email: creds.email,
+          };
+
+    // Update timestamp, store settings, and reset to pending (clear previous error if retrying)
     await this.pool.query(
       `UPDATE credential_delegation_tokens
-       SET status = 'pending', credentials_received_at = NOW(), last_verification_error = NULL
+       SET status = 'pending',
+           credentials_received_at = NOW(),
+           last_verification_error = NULL,
+           submitted_settings = $2
        WHERE id = $1`,
-      [delegation.id]
+      [delegation.id, JSON.stringify(submittedSettings)]
     );
 
     // Send webhook to external service for credential verification

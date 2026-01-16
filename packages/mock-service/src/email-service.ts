@@ -186,6 +186,29 @@ class EmailService {
     });
   }
 
+  async sendDelegationSuccess(
+    ownerEmail: string,
+    itsmSystemType: string,
+    connectionUrl: string
+  ): Promise<void> {
+    const systemDisplayName = itsmSystemType.charAt(0).toUpperCase() + itsmSystemType.slice(1);
+
+    await this.sendEmail({
+      to: ownerEmail,
+      subject: `${systemDisplayName} is connected`,
+      text: `Someone on your team has setup ${systemDisplayName} in RITAGo and will see your IT tickets in RITAGo.\n\nView connection: ${connectionUrl}\n\nBest regards,\nThe Resolve Team`,
+      html: this.buildEmailTemplate({
+        title: `${systemDisplayName} is connected`,
+        body: `<p style="margin: 0; font-size: 16px; line-height: 1.6; color: #333333;">
+          Someone on your team has setup ${systemDisplayName} in RITAGo and will see your IT tickets in RITAGo
+        </p>`,
+        ctaText: 'Go to connection',
+        ctaUrl: connectionUrl,
+        disclaimer: ''
+      })
+    });
+  }
+
   // Resolve logo SVG - dark version for white backgrounds
   private getResolveLogo(color: string = '#1a1a2e'): string {
     return `<svg width="140" height="27" viewBox="0 0 100 19" fill="none" xmlns="http://www.w3.org/2000/svg">

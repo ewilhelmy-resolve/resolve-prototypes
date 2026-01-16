@@ -154,10 +154,23 @@ export interface IngestionStatusMessage {
 }
 
 /**
+ * RabbitMQ message for credential delegation verification status
+ * Consumed by Rita to update delegation token status and send success email
+ */
+export interface DelegationVerificationMessage {
+  type: 'credential_delegation_verification';  // Discriminator field
+  delegation_id: string;
+  tenant_id: string;
+  status: 'verified' | 'failed';
+  error: string | null;
+  timestamp?: string;
+}
+
+/**
  * Union type for all data source status messages
  * Discriminated by the 'type' field
  */
-export type DataSourceStatusMessage = SyncStatusMessage | VerificationStatusMessage | IngestionStatusMessage;
+export type DataSourceStatusMessage = SyncStatusMessage | VerificationStatusMessage | IngestionStatusMessage | DelegationVerificationMessage;
 
 /**
  * Ingestion run status for ITSM ticket sync
