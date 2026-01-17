@@ -5,9 +5,8 @@ import { useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
 import { CrashPage } from "@/components/CrashPage";
+import { SourceListCard } from "@/components/connection-sources/SourceListCard";
 import RitaSettingsLayout from "@/components/layouts/RitaSettingsLayout";
-import { Badge } from "@/components/ui/badge";
-import { Card } from "@/components/ui/card";
 import {
 	KNOWLEDGE_SOURCES_ORDER,
 	mapDataSourceToUI,
@@ -16,8 +15,6 @@ import {
 } from "@/constants/connectionSources";
 import { useDataSources, useSeedDataSources } from "@/hooks/useDataSources";
 import { useFeatureFlag } from "@/hooks/useFeatureFlags";
-import { ConnectionStatusBadge } from "../../components/connection-sources/ConnectionStatusBadge";
-import { Button } from "../../components/ui/button";
 import SettingsHeader from "./SettingsHeader";
 
 export default function KnowledgeSources() {
@@ -99,65 +96,22 @@ export default function KnowledgeSources() {
 					const isEnabled = enabledKbSources.includes(source.type);
 
 					const cardContent = (
-						<Card
-							className={`p-4 mb-5 border border-border bg-popover transition-colors ${isEnabled ? "hover:bg-accent cursor-pointer" : "cursor-default opacity-75"}`}
-						>
-							<div className="flex flex-col gap-4 sm:flex-row sm:justify-between sm:items-center">
-								<div className="flex flex-col gap-2">
-									<div className="flex flex-col">
-										<div className="flex items-center gap-2 flex-wrap">
-											{source.type !== SOURCES.WEB_SEARCH ? (
-												<img
-													src={`/connections/icon_${source.type}.svg`}
-													alt={`${source.title} icon`}
-													className="w-5 h-5 flex-shrink-0"
-												/>
-											) : (
-												<Globe className="h-5 w-5 flex-shrink-0" />
-											)}
-											<p className="text-base font-bold text-foreground">
-												{source.title}
-											</p>
-											<ConnectionStatusBadge status={source.status} />
-										</div>
-
-										{source.lastSync && (
-											<p className="text-sm text-foreground mt-1">
-												{t("knowledgeSources.lastSync", { time: source.lastSync })}
-											</p>
-										)}
-										{source.description && (
-											<p className="text-sm text-foreground mt-1">
-												{source.description}
-											</p>
-										)}
-									</div>
-									<div className="flex gap-2 flex-wrap">
-										{source.badges.map((badge) => (
-											<Badge key={badge} variant="secondary">
-												{badge}
-											</Badge>
-										))}
-									</div>
-								</div>
-								<Button
-									variant="secondary"
-									size="sm"
-									className="w-full sm:w-auto shrink-0"
-									disabled={!isEnabled}
-								>
-									{isEnabled ? (
-										<span>
-											{source.status === STATUS.NOT_CONNECTED
-												? t("knowledgeSources.configure")
-												: t("knowledgeSources.manage")}
-										</span>
-									) : (
-										<span>{t("knowledgeSources.comingSoon")}</span>
-									)}
-								</Button>
-							</div>
-						</Card>
+						<SourceListCard
+							source={source}
+							isEnabled={isEnabled}
+							actionLabel={
+								source.status === STATUS.NOT_CONNECTED
+									? t("knowledgeSources.configure")
+									: t("knowledgeSources.manage")
+							}
+							disabledLabel={t("knowledgeSources.comingSoon")}
+							lastSyncLabel={t("knowledgeSources.lastSync", { time: "{time}" })}
+							icon={
+								source.type === SOURCES.WEB_SEARCH ? (
+									<Globe className="h-5 w-5 flex-shrink-0" />
+								) : undefined
+							}
+						/>
 					);
 
 					// Only wrap enabled sources with Link
@@ -166,7 +120,7 @@ export default function KnowledgeSources() {
 							<Link
 								key={source.id}
 								to={`/settings/connections/knowledge/${source.id}`}
-								className="block"
+								className="block mb-5"
 							>
 								{cardContent}
 							</Link>
@@ -174,7 +128,11 @@ export default function KnowledgeSources() {
 					}
 
 					// For other sources, just return the card without link
-					return <div key={source.id}>{cardContent}</div>;
+					return (
+						<div key={source.id} className="mb-5">
+							{cardContent}
+						</div>
+					);
 				})}
 				</div>
 			</div>
