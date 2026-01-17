@@ -27,8 +27,6 @@ import {
 import {
   Plus,
   ChevronDown,
-  Headphones,
-  ShieldCheck,
   FileText,
   Sparkles,
   BookOpen,
@@ -259,87 +257,52 @@ export default function AgentsPage() {
         {/* Education banner */}
         {showEducationBanner && (
           <div className="bg-neutral-50 rounded-lg p-4 relative">
+            {/* Close button - top right */}
+            <button
+              onClick={() => setShowEducationBanner(false)}
+              className="absolute top-0 right-0 p-2 rounded-md hover:bg-muted transition-colors"
+              aria-label="Dismiss"
+            >
+              <X className="size-4" />
+            </button>
+
             <div className="flex gap-6 items-start">
               {/* Left content */}
-              <div className="flex-1 flex flex-col gap-2.5 p-2.5">
-                <h2 className="text-2xl font-serif font-semibold">
-                  Build intelligent agent for your team
+              <div className="flex-1 flex flex-col gap-2.5 p-5">
+                <h2 className="text-4xl font-serif">
+                  Build intelligent agents
                 </h2>
                 <p className="text-base text-foreground leading-relaxed">
                   Create AI-powered agents that answer questions from your knowledge base,
                   automate workflows, and help your team be more productive. Connect to your
-                  existing skills and let agents handle repetitive tasks.
+                  existing tools and let agents handle repetitive tasks.
                 </p>
 
-                {/* Action links - 2x2 grid */}
-                <div className="flex flex-col gap-2.5 mt-2">
-                  <div className="flex gap-28">
-                    <button
-                      onClick={() => {/* TODO: link to docs */}}
-                      className="flex items-center gap-2 text-sm font-semibold hover:text-primary transition-colors"
-                    >
-                      <BookOpen className="size-4" />
-                      How to create an agent
-                    </button>
-                    <button
-                      onClick={() => {/* TODO: link to docs */}}
-                      className="flex items-center gap-2 text-sm font-semibold hover:text-primary transition-colors"
-                    >
-                      <Zap className="size-4" />
-                      Adding skills to your agent
-                    </button>
-                  </div>
+                {/* Action links */}
+                <div className="flex gap-28 mt-2">
+                  <button
+                    onClick={() => {/* TODO: link to docs */}}
+                    className="flex items-center gap-2 text-sm font-medium hover:text-primary transition-colors"
+                  >
+                    <BookOpen className="size-4" />
+                    How to create an agent
+                  </button>
+                  <button
+                    onClick={() => {/* TODO: link to docs */}}
+                    className="flex items-center gap-2 text-sm font-medium hover:text-primary transition-colors"
+                  >
+                    <Zap className="size-4" />
+                    Adding skills to your agent
+                  </button>
                 </div>
               </div>
 
-              {/* Right illustration - gradient card with agent previews */}
-              <div className="hidden lg:block w-[445px] h-[210px] rounded-lg overflow-hidden relative flex-shrink-0"
-                style={{ background: "linear-gradient(151deg, rgba(0, 80, 199, 0.9) 49%, rgba(134, 239, 172, 0.9) 113%)" }}
-              >
-                {/* Top card - HelpDesk Advisor */}
-                <div className="absolute left-[30px] top-[19px] bg-white rounded-lg shadow-xl p-3 w-[383px]">
-                  <div className="flex gap-3 items-start mb-2">
-                    <div className="size-[74px] rounded-lg bg-indigo-50 flex items-center justify-center flex-shrink-0">
-                      <Headphones className="size-8" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="font-serif text-xl tracking-tight truncate">HelpDesk Advisor</div>
-                      <div className="text-xs text-muted-foreground">3 skills</div>
-                    </div>
-                  </div>
-                  <div className="flex gap-1.5">
-                    <span className="px-2 py-0.5 bg-secondary rounded-md text-xs font-semibold">Unlock account</span>
-                    <span className="px-2 py-0.5 bg-secondary rounded-md text-xs font-semibold">Reset password</span>
-                    <span className="px-2 py-0.5 bg-secondary rounded-md text-xs font-semibold">Request app access</span>
-                  </div>
-                </div>
-
-                {/* Bottom card - Compliance Checker (partially visible) */}
-                <div className="absolute left-[30px] top-[162px] bg-white rounded-lg shadow-xl p-3 w-[383px]">
-                  <div className="flex gap-3 items-start mb-2">
-                    <div className="size-[74px] rounded-lg bg-teal-200 flex items-center justify-center flex-shrink-0">
-                      <ShieldCheck className="size-8" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="font-serif text-xl tracking-tight truncate">Compliance Checker</div>
-                      <div className="text-xs text-muted-foreground">2 skills</div>
-                    </div>
-                  </div>
-                  <div className="flex gap-1.5">
-                    <span className="px-2 py-0.5 bg-secondary rounded-md text-xs font-semibold">Verify I-9</span>
-                    <span className="px-2 py-0.5 bg-secondary rounded-md text-xs font-semibold">Review docs</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Close button */}
-              <button
-                onClick={() => setShowEducationBanner(false)}
-                className="p-2 rounded-md hover:bg-muted transition-colors flex-shrink-0"
-                aria-label="Dismiss"
-              >
-                <X className="size-4" />
-              </button>
+              {/* Right illustration */}
+              <img
+                src="/src/assets/images/agents-banner-illustration.svg"
+                alt="Agent examples"
+                className="hidden lg:block w-[350px] h-[204px] rounded-lg flex-shrink-0"
+              />
             </div>
           </div>
         )}

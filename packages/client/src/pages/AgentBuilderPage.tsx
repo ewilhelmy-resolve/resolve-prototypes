@@ -27,7 +27,7 @@ import {
 import {
   ArrowLeft, HelpCircle, Send, Check, Play, Clock, FileText, Workflow, MessageSquare,
   Link2, Search, X, Sparkles, Plus, Trash2, Squirrel, ChevronDown, Brain,
-  RotateCcw,
+  RotateCcw, CheckCircle2, XCircle, ChevronRight, Loader2, MessageSquareText,
   // Icon picker icons
   ShieldCheck, TrendingUp, BookOpen, ClipboardList, LineChart, Briefcase, Users,
   Landmark, Truck, Key, Award, Settings, AlertCircle, Rocket, Bot, Headphones,
@@ -47,6 +47,21 @@ interface Message {
   id: string;
   role: "assistant" | "user";
   content: string;
+}
+
+// Debug trace types for test mode
+type DebugStepStatus = "pending" | "running" | "success" | "error";
+
+interface DebugTraceStep {
+  id: string;
+  type: "trigger" | "intent" | "knowledge" | "skill" | "guardrail" | "response";
+  label: string;
+  description: string;
+  status: DebugStepStatus;
+  duration?: number; // milliseconds
+  input?: Record<string, unknown>;
+  output?: Record<string, unknown>;
+  error?: string;
 }
 
 type ConversationStep =
@@ -345,6 +360,10 @@ export default function AgentBuilderPage() {
   const [testMessages, setTestMessages] = useState<Message[]>([]);
   const [testInput, setTestInput] = useState("");
   const [isTestTyping, setIsTestTyping] = useState(false);
+  const [isTestMode, setIsTestMode] = useState(false);
+  const [debugTrace, setDebugTrace] = useState<DebugTraceStep[]>([]);
+  const [expandedStep, setExpandedStep] = useState<string | null>(null);
+  const [showOnlyErrors, setShowOnlyErrors] = useState(false);
   const testMessagesEndRef = useRef<HTMLDivElement>(null);
 
   // Change agent type modal state
@@ -450,9 +469,14 @@ export default function AgentBuilderPage() {
       role: "user",
       content: testInput.trim(),
     };
-    setTestMessages((prev) => [...prev, userMessage]);
+    setTestMessages([userMessage]); // Replace messages for single-turn debug view
     const input = testInput.trim();
     setTestInput("");
+    setExpandedStep(null);
+
+    // Generate debug trace
+    const trace = generateDebugTrace(input);
+    setDebugTrace(trace);
 
     // Simulate agent response
     setIsTestTyping(true);
@@ -545,6 +569,134 @@ export default function AgentBuilderPage() {
 
     // Default response with instructions
     return `Thanks for your question about "${userInput}"\n\nAs ${config.name || "your assistant"}, I'm configured to help based on my instructions.\n\n[This is a preview. In production, I'll provide real answers based on my configuration.]`;
+  };
+
+  // Generate debug trace for a user message
+  const generateDebugTrace = (userInput: string): DebugTraceStep[] => {
+    const input = userInput.toLowerCase();
+    const hasSkills = config.workflows.length > 0;
+    const hasKnowledge = config.knowledgeSources.length > 0;
+    const matchedGuardrail = config.guardrails.find(g => g && input.includes(g.toLowerCase()));
+    const matchedSkill = config.workflows.find(w => {
+      const skillLower = w.toLowerCase();
+      return input.includes(skillLower) ||
+        (skillLower.includes("password") && input.includes("password")) ||
+        (skillLower.includes("unlock") && input.includes("unlock")) ||
+        (skillLower.includes("access") && input.includes("access"));
+    });
+
+    // Failure triggers for testing
+    const isTimeoutTest = input.includes("timeout") || input.includes("slow");
+    const isConnectionError = input.includes("error") || input.includes("fail");
+    const isNoResults = input.includes("nothing") || input.includes("empty");
+
+    const trace: DebugTraceStep[] = [
+      {
+        id: "trigger",
+        type: "trigger",
+        label: "Trigger",
+        description: "User sends a message",
+        status: "success",
+        duration: 12,
+        input: { message: userInput },
+        output: { received: true, timestamp: new Date().toISOString() }
+      },
+      {
+        id: "intent",
+        type: "intent",
+        label: "Intent Detection",
+        description: "Classify user intent",
+        status: "success",
+        duration: 180 + Math.floor(Math.random() * 100),
+        input: { message: userInput },
+        output: {
+          intent: matchedSkill ? "skill_request" : hasKnowledge ? "knowledge_query" : "general_question",
+          confidence: 0.87 + Math.random() * 0.1
+        }
+      }
+    ];
+
+    // Add knowledge search step if agent has knowledge
+    if (hasKnowledge) {
+      const knowledgeFailed = isTimeoutTest || isConnectionError;
+      trace.push({
+        id: "knowledge",
+        type: "knowledge",
+        label: "Knowledge Search",
+        description: knowledgeFailed
+          ? (isTimeoutTest ? "Search timed out" : "Connection failed")
+          : isNoResults
+            ? "No matching documents found"
+            : "Search connected data sources",
+        status: knowledgeFailed ? "error" : "success",
+        duration: isTimeoutTest ? 30000 : (800 + Math.floor(Math.random() * 400)),
+        input: { query: userInput, sources: config.knowledgeSources },
+        output: knowledgeFailed ? undefined : {
+          documentsFound: isNoResults ? 0 : Math.floor(Math.random() * 5) + 1,
+          sources: config.knowledgeSources.slice(0, 2)
+        },
+        error: isTimeoutTest
+          ? "The knowledge search took too long to respond. Try again or check your data source connection."
+          : isConnectionError
+            ? "Couldn't connect to the knowledge source. The service may be temporarily unavailable."
+            : undefined
+      });
+    }
+
+    // Add skill execution step if matched
+    if (matchedSkill) {
+      const skillFailed = isConnectionError && !isTimeoutTest;
+      trace.push({
+        id: "skill",
+        type: "skill",
+        label: `Skill: ${matchedSkill}`,
+        description: skillFailed ? "Skill execution failed" : "Execute matched skill",
+        status: skillFailed ? "error" : "success",
+        duration: skillFailed ? 150 : (600 + Math.floor(Math.random() * 300)),
+        input: { skill: matchedSkill, params: { userInput } },
+        output: skillFailed ? undefined : { executed: true, result: "Action completed" },
+        error: skillFailed ? `The "${matchedSkill}" skill couldn't complete. The connected service isn't responding.` : undefined
+      });
+    }
+
+    // Determine if any previous step failed
+    const hasPreviousError = trace.some(t => t.status === "error");
+
+    // Add guardrail check
+    trace.push({
+      id: "guardrail",
+      type: "guardrail",
+      label: "Guardrail Check",
+      description: matchedGuardrail ? `Blocked: ${matchedGuardrail}` : "All checks passed",
+      status: matchedGuardrail ? "error" : "success",
+      duration: 45 + Math.floor(Math.random() * 30),
+      input: { guardrails: config.guardrails.filter(Boolean) },
+      output: {
+        passed: !matchedGuardrail,
+        blocked: matchedGuardrail || null,
+        checkedRules: config.guardrails.filter(Boolean).length
+      },
+      error: matchedGuardrail ? `Message blocked by guardrail: ${matchedGuardrail}` : undefined
+    });
+
+    // Add response generation
+    const responseFailed = matchedGuardrail || hasPreviousError;
+    trace.push({
+      id: "response",
+      type: "response",
+      label: "Response Generated",
+      description: responseFailed ? "Fallback response generated" : "Generate final response",
+      status: responseFailed ? "error" : "success",
+      duration: 450 + Math.floor(Math.random() * 200),
+      input: { context: "Compiled from previous steps" },
+      output: {
+        responseGenerated: true,
+        fallback: responseFailed,
+        tokenCount: Math.floor(Math.random() * 200) + 50
+      }
+    });
+
+    return trace;
   };
 
   const handleTestKeyDown = (e: React.KeyboardEvent) => {
@@ -2576,188 +2728,293 @@ export default function AgentBuilderPage() {
         {/* Right panel - Preview (interactive) */}
         <div className="w-[400px] flex-shrink-0 flex flex-col bg-white rounded-xl">
           <div className="p-4 border-b flex items-center justify-between">
-            <h2 className="font-medium">Preview</h2>
-            {testMessages.length > 0 && (
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-7 text-xs gap-1"
-                onClick={() => {
-                  setTestMessages([]);
-                  setTestInput("");
-                }}
-              >
-                <RotateCcw className="size-3" />
-                Reset
-              </Button>
-            )}
+            <div className="flex items-center gap-2">
+              <h2 className="font-medium">Preview</h2>
+              {isTestMode && (
+                <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-xs font-medium rounded-full flex items-center gap-1">
+                  <AlertCircle className="size-3" />
+                  Debug
+                </span>
+              )}
+            </div>
+            <div className="flex items-center gap-2">
+              {testMessages.length > 0 && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 text-xs gap-1"
+                  onClick={() => {
+                    setTestMessages([]);
+                    setTestInput("");
+                    setDebugTrace([]);
+                    setExpandedStep(null);
+                  }}
+                >
+                  <RotateCcw className="size-3" />
+                  Reset
+                </Button>
+              )}
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-muted-foreground">Debug</span>
+                <Switch
+                  checked={isTestMode}
+                  onCheckedChange={(checked) => {
+                    setIsTestMode(checked);
+                  }}
+                />
+              </div>
+            </div>
           </div>
-          <div className="flex-1 p-4 flex flex-col overflow-y-auto">
-            {/* Empty state - show when no messages */}
-            {testMessages.length === 0 ? (
-              <div className="flex-1 flex flex-col justify-center">
-                {/* Agent icon and name */}
-                <div className="flex items-center gap-3 mb-3">
-                  <div className={cn(
-                    "size-12 rounded-xl flex items-center justify-center flex-shrink-0",
-                    ICON_COLORS.find(c => c.id === config.iconColorId)?.bg || "bg-slate-800"
-                  )}>
-                    {(() => {
-                      const iconData = AVAILABLE_ICONS.find(i => i.id === config.iconId);
-                      const IconComponent = iconData?.icon || Bot;
-                      return <IconComponent className="size-6 text-white" />;
-                    })()}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <h3 className="text-lg font-medium truncate">{config.name || "Untitled Agent"}</h3>
-                    {config.agentType && (
-                      <span className="text-xs text-muted-foreground">
-                        {AGENT_TYPE_INFO[config.agentType].shortLabel}
-                      </span>
-                    )}
+          <div className="flex-1 flex overflow-hidden relative">
+            {/* Main content: Debug trace above chat */}
+            <div className="flex flex-col overflow-hidden w-full">
+              {/* Debug trace - appears above chat when debug is on */}
+              {isTestMode && debugTrace.length > 0 && (
+                <div className="border-b bg-white">
+                  <div className="py-1">
+                    {debugTrace
+                      .filter(step => !showOnlyErrors || step.status === "error")
+                      .map((step) => (
+                      <div key={step.id}>
+                        <button
+                          onClick={() => setExpandedStep(expandedStep === step.id ? null : step.id)}
+                          className={cn(
+                            "w-full text-left px-4 py-2 flex items-center gap-3 hover:bg-neutral-50 transition-colors",
+                            expandedStep === step.id && "bg-neutral-50"
+                          )}
+                        >
+                          {/* Status icon */}
+                          {step.status === "success" ? (
+                            <CheckCircle2 className="size-4 text-emerald-600 flex-shrink-0" />
+                          ) : step.status === "error" ? (
+                            <XCircle className="size-4 text-red-600 flex-shrink-0" />
+                          ) : step.status === "running" ? (
+                            <Loader2 className="size-4 text-blue-600 flex-shrink-0 animate-spin" />
+                          ) : (
+                            <div className="size-4 rounded-full border-2 border-muted-foreground/30 flex-shrink-0" />
+                          )}
+
+                          {/* Content */}
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs font-medium text-muted-foreground">{step.label}</span>
+                              <span className="text-[11px] text-muted-foreground/60">• {step.duration ? `${step.duration}ms` : "0s"}</span>
+                            </div>
+                            <p className="text-sm text-foreground truncate">
+                              {step.description}
+                            </p>
+                          </div>
+
+                          {/* Arrow */}
+                          <ChevronRight className={cn(
+                            "size-4 text-muted-foreground/50 flex-shrink-0 transition-transform",
+                            expandedStep === step.id && "rotate-90"
+                          )} />
+                        </button>
+
+                        {/* Inline expanded detail */}
+                        {expandedStep === step.id && (
+                          <div className="px-4 pb-3 pt-1 ml-11 border-l-2 border-neutral-200 space-y-2">
+                            {step.error && (
+                              <p className="text-sm text-red-600 bg-red-50 p-2 rounded">
+                                {step.error}
+                              </p>
+                            )}
+                            {step.input && (
+                              <div>
+                                <p className="text-xs font-medium text-muted-foreground mb-1">Input</p>
+                                <pre className="text-xs bg-neutral-50 p-2 rounded border overflow-x-auto max-h-[120px] overflow-y-auto">
+                                  {JSON.stringify(step.input, null, 2)}
+                                </pre>
+                              </div>
+                            )}
+                            {step.output && (
+                              <div>
+                                <p className="text-xs font-medium text-muted-foreground mb-1">Output</p>
+                                <pre className="text-xs bg-neutral-50 p-2 rounded border overflow-x-auto max-h-[120px] overflow-y-auto">
+                                  {JSON.stringify(step.output, null, 2)}
+                                </pre>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    ))}
                   </div>
                 </div>
+              )}
 
-                {/* Description */}
-                {config.description && (
-                  <p className="text-sm text-muted-foreground mb-4 line-clamp-2">
-                    {config.description}
-                  </p>
-                )}
-
-                {/* Conversation starters / Triggers */}
-                {config.conversationStarters.some(s => s.trim()) && (
-                  <div className="space-y-2 mb-4">
-                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                      Try asking
-                    </p>
-                    <div className="space-y-1.5">
-                      {config.conversationStarters
-                        .filter(s => s.trim())
-                        .slice(0, 4)
-                        .map((starter, index) => (
-                          <button
-                            key={index}
-                            onClick={() => {
-                              // Send the starter as user message directly
-                              const userMessage: Message = {
-                                id: `test-user-${Date.now()}`,
-                                role: "user",
-                                content: starter,
-                              };
-                              setTestMessages([userMessage]);
-                              // Simulate response
-                              setIsTestTyping(true);
-                              setTimeout(() => {
-                                const response = generateTestResponse(starter);
-                                setTestMessages(prev => [
-                                  ...prev,
-                                  {
-                                    id: `test-assistant-${Date.now()}`,
-                                    role: "assistant",
-                                    content: response,
-                                  },
-                                ]);
-                                setIsTestTyping(false);
-                              }, 1000 + Math.random() * 500);
-                            }}
-                            className="w-full text-left px-3 py-2 text-sm border rounded-lg hover:bg-primary/5 hover:border-primary/30 transition-colors truncate cursor-pointer"
-                          >
-                            {starter}
-                          </button>
-                        ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Status indicator - only show when not configured */}
-                {!config.description && !config.conversationStarters.some(s => s.trim()) && (
-                  <div className="flex items-center justify-center gap-2 px-3 py-2.5 bg-muted/50 rounded-lg text-sm text-muted-foreground mt-4">
-                    <Clock className="size-4" />
-                    <span>Configure your agent to see preview</span>
-                  </div>
-                )}
-              </div>
-            ) : (
-              /* Chat messages - show when there are messages */
-              <div className="flex-1 space-y-4">
-                {testMessages.map((message) => (
-                  <div key={message.id} className={cn(
-                    "flex gap-3",
-                    message.role === "user" && "justify-end"
-                  )}>
-                    {message.role === "assistant" ? (
-                      <>
-                        <div className={cn(
-                          "size-8 rounded-full flex items-center justify-center flex-shrink-0",
-                          ICON_COLORS.find(c => c.id === config.iconColorId)?.bg || "bg-slate-800"
-                        )}>
-                          {(() => {
-                            const iconData = AVAILABLE_ICONS.find(i => i.id === config.iconId);
-                            const IconComponent = iconData?.icon || Bot;
-                            return <IconComponent className="size-4 text-white" />;
-                          })()}
-                        </div>
-                        <div className="flex-1 max-w-[85%]">
-                          <p className="text-sm whitespace-pre-wrap">
-                            {renderMessageContent(message.content)}
-                          </p>
-                        </div>
-                      </>
-                    ) : (
-                      <div className="bg-primary text-primary-foreground rounded-2xl rounded-br-sm px-3 py-2 max-w-[85%]">
-                        <p className="text-sm whitespace-pre-wrap">{message.content}</p>
-                      </div>
-                    )}
-                  </div>
-                ))}
-
-                {/* Typing indicator */}
-                {isTestTyping && (
-                  <div className="flex gap-3">
+              {/* Chat panel */}
+              <div className="flex-1 flex flex-col p-4 overflow-y-auto">
+              {/* Empty state with agent info */}
+              {testMessages.length === 0 ? (
+                <div className="flex-1 flex flex-col justify-center">
+                  {/* Agent icon and name */}
+                  <div className="flex items-center gap-3 mb-3">
                     <div className={cn(
-                      "size-8 rounded-full flex items-center justify-center flex-shrink-0",
+                      "size-12 rounded-xl flex items-center justify-center flex-shrink-0",
                       ICON_COLORS.find(c => c.id === config.iconColorId)?.bg || "bg-slate-800"
                     )}>
                       {(() => {
                         const iconData = AVAILABLE_ICONS.find(i => i.id === config.iconId);
                         const IconComponent = iconData?.icon || Bot;
-                        return <IconComponent className="size-4 text-white" />;
+                        return <IconComponent className="size-6 text-white" />;
                       })()}
                     </div>
-                    <div className="flex gap-1 items-center py-2">
-                      <span className="size-2 bg-muted-foreground/50 rounded-full animate-bounce" />
-                      <span className="size-2 bg-muted-foreground/50 rounded-full animate-bounce" style={{ animationDelay: "0.1s" }} />
-                      <span className="size-2 bg-muted-foreground/50 rounded-full animate-bounce" style={{ animationDelay: "0.2s" }} />
+                    <div className="flex-1 min-w-0">
+                      <h3 className="text-lg font-medium truncate">{config.name || "Untitled Agent"}</h3>
+                      {config.agentType && (
+                        <span className="text-xs text-muted-foreground">
+                          {AGENT_TYPE_INFO[config.agentType].shortLabel}
+                        </span>
+                      )}
                     </div>
                   </div>
-                )}
-                <div ref={testMessagesEndRef} />
-              </div>
-            )}
 
-            {/* Chat input - always enabled */}
-            <div className="mt-auto pt-4">
-              <div className="relative">
-                <Textarea
-                  value={testInput}
-                  onChange={(e) => setTestInput(e.target.value)}
-                  onKeyDown={handleTestKeyDown}
-                  placeholder="Ask anything..."
-                  className="min-h-[60px] pr-12 resize-none rounded-xl border-muted-foreground/20 text-sm"
-                  disabled={isTestTyping}
-                />
-                <Button
-                  size="icon"
-                  onClick={handleTestSendMessage}
-                  disabled={!testInput.trim() || isTestTyping}
-                  aria-label="Send message"
-                  className="absolute bottom-2 right-2 size-7 rounded-lg"
-                >
-                  <Send className="size-3.5" />
-                </Button>
+                  {/* Description */}
+                  {config.description && (
+                    <p className="text-sm text-muted-foreground mb-4 line-clamp-2">
+                      {config.description}
+                    </p>
+                  )}
+
+                  {/* Conversation starters */}
+                  {config.conversationStarters.some(s => s.trim()) && (
+                    <div className="space-y-2 mb-4">
+                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                        Try asking
+                      </p>
+                      <div className="space-y-1.5">
+                        {config.conversationStarters
+                          .filter(s => s.trim())
+                          .slice(0, 4)
+                          .map((starter, index) => (
+                            <button
+                              key={index}
+                              onClick={() => {
+                                setTestInput(starter);
+                                // Auto-send after setting input
+                                setTimeout(() => {
+                                  const userMessage: Message = {
+                                    id: `test-user-${Date.now()}`,
+                                    role: "user",
+                                    content: starter,
+                                  };
+                                  setTestMessages([userMessage]);
+                                  const trace = generateDebugTrace(starter);
+                                  setDebugTrace(trace);
+                                  setIsTestTyping(true);
+                                  setTimeout(() => {
+                                    const response = generateTestResponse(starter);
+                                    setTestMessages(prev => [...prev, {
+                                      id: `test-assistant-${Date.now()}`,
+                                      role: "assistant",
+                                      content: response,
+                                    }]);
+                                    setIsTestTyping(false);
+                                  }, 1000 + Math.random() * 500);
+                                }, 50);
+                              }}
+                              className="w-full text-left px-3 py-2 text-sm border rounded-lg hover:bg-primary/5 hover:border-primary/30 transition-colors truncate cursor-pointer"
+                            >
+                              {starter}
+                            </button>
+                          ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Status indicator */}
+                  {!config.description && !config.conversationStarters.some(s => s.trim()) && (
+                    <div className="flex items-center justify-center gap-2 px-3 py-2.5 bg-muted/50 rounded-lg text-sm text-muted-foreground mt-4">
+                      <Clock className="size-4" />
+                      <span>Configure your agent to see preview</span>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                /* Chat messages */
+                <div className="flex-1 space-y-4 overflow-y-auto">
+                  {testMessages.map((message) => (
+                    <div key={message.id} className={cn(
+                      "flex gap-3",
+                      message.role === "user" && "justify-end"
+                    )}>
+                      {message.role === "assistant" ? (
+                        <>
+                          <div className={cn(
+                            "size-8 rounded-full flex items-center justify-center flex-shrink-0",
+                            ICON_COLORS.find(c => c.id === config.iconColorId)?.bg || "bg-slate-800"
+                          )}>
+                            {(() => {
+                              const iconData = AVAILABLE_ICONS.find(i => i.id === config.iconId);
+                              const IconComponent = iconData?.icon || Bot;
+                              return <IconComponent className="size-4 text-white" />;
+                            })()}
+                          </div>
+                          <div className="flex-1 max-w-[85%]">
+                            <p className="text-sm whitespace-pre-wrap">
+                              {renderMessageContent(message.content)}
+                            </p>
+                          </div>
+                        </>
+                      ) : (
+                        <div className="bg-primary text-primary-foreground rounded-2xl rounded-br-sm px-3 py-2 max-w-[85%]">
+                          <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+
+                  {/* Typing indicator */}
+                  {isTestTyping && (
+                    <div className="flex gap-3">
+                      <div className={cn(
+                        "size-8 rounded-full flex items-center justify-center flex-shrink-0",
+                        ICON_COLORS.find(c => c.id === config.iconColorId)?.bg || "bg-slate-800"
+                      )}>
+                        {(() => {
+                          const iconData = AVAILABLE_ICONS.find(i => i.id === config.iconId);
+                          const IconComponent = iconData?.icon || Bot;
+                          return <IconComponent className="size-4 text-white" />;
+                        })()}
+                      </div>
+                      <div className="flex gap-1 items-center py-2">
+                        <span className="size-2 bg-muted-foreground/50 rounded-full animate-bounce" />
+                        <span className="size-2 bg-muted-foreground/50 rounded-full animate-bounce" style={{ animationDelay: "0.1s" }} />
+                        <span className="size-2 bg-muted-foreground/50 rounded-full animate-bounce" style={{ animationDelay: "0.2s" }} />
+                      </div>
+                    </div>
+                  )}
+                  <div ref={testMessagesEndRef} />
+                </div>
+              )}
+
+              {/* Chat input - always visible */}
+              <div className="mt-auto pt-4">
+                <div className="relative">
+                  <Textarea
+                    value={testInput}
+                    onChange={(e) => setTestInput(e.target.value)}
+                    onKeyDown={handleTestKeyDown}
+                    placeholder="Ask anything..."
+                    className="min-h-[60px] pr-12 resize-none rounded-xl border-muted-foreground/20 text-sm"
+                    disabled={isTestTyping}
+                  />
+                  <Button
+                    size="icon"
+                    onClick={handleTestSendMessage}
+                    disabled={!testInput.trim() || isTestTyping}
+                    aria-label="Send message"
+                    className="absolute bottom-2 right-2 size-7 rounded-lg"
+                  >
+                    <Send className="size-3.5" />
+                  </Button>
+                </div>
+              </div>
               </div>
             </div>
+
           </div>
         </div>
       </div>
