@@ -524,7 +524,7 @@ CREATE POLICY "users_access_own_organization_delegations" ON credential_delegati
 ### 6.2 Migration File
 
 **File:** `145_add_credential_delegation_tokens.sql` - Creates table
-**File:** `146_credential_delegation_updates.sql` - Adds 'failed' status and `submitted_settings` column
+**File:** `148_credential_delegation_updates.sql` - Adds 'failed' status and `submitted_settings` column
 
 -----
 
