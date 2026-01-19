@@ -3,11 +3,8 @@ import { logError, PerformanceTimer, queueLogger } from '../config/logger.js';
 import { pool } from '../config/database.js';
 import { DataSourceService } from '../services/DataSourceService.js';
 import { getSSEService } from '../services/sse.js';
-import { WebhookService } from '../services/WebhookService.js';
 import type { DataSourceStatusMessage, DelegationVerificationMessage, IngestionStatusMessage, SyncStatusMessage, VerificationStatusMessage } from '../types/dataSource.js';
 import type { DelegationStatus } from '../types/credentialDelegation.js';
-
-const CLIENT_URL = process.env.CLIENT_URL || 'http://localhost:5173';
 
 /**
  * Unified RabbitMQ Consumer for Data Source Status Updates
@@ -17,12 +14,10 @@ const CLIENT_URL = process.env.CLIENT_URL || 'http://localhost:5173';
 export class DataSourceStatusConsumer {
   private readonly queueName: string;
   private dataSourceService: DataSourceService;
-  private webhookService: WebhookService;
 
   constructor() {
     this.queueName = process.env.DATA_SOURCE_STATUS_QUEUE || 'data_source_status';
     this.dataSourceService = new DataSourceService();
-    this.webhookService = new WebhookService();
   }
 
   /**
@@ -488,55 +483,9 @@ export class DataSourceStatusConsumer {
 
         messageLogger.info(
           { connectionId, itsmSystemType: delegation.itsm_system_type },
-          'Created data_source_connection for delegation'
+          'Updated data_source_connection for delegation'
         );
-
-        // Get the creator's email to send success notification
-        const creatorResult = await client.query(
-          `SELECT up.email FROM user_profiles up WHERE up.user_id = $1`,
-          [delegation.created_by_user_id]
-        );
-
-        if (creatorResult.rows.length > 0) {
-          const creatorEmail = creatorResult.rows[0].email;
-          const connectionUrl = `${CLIENT_URL}/settings/connections/itsm/${connectionId}`;
-
-          messageLogger.info(
-            { creatorEmail, connectionUrl },
-            'Sending delegation success email webhook'
-          );
-
-          // Send success notification email to the owner
-          const webhookResult = await this.webhookService.sendGenericEvent({
-            organizationId: delegation.organization_id,
-            userId: delegation.created_by_user_id,
-            userEmail: creatorEmail,
-            source: 'rita-credential-delegation',
-            action: 'send_delegation_success_email',
-            additionalData: {
-              owner_email: creatorEmail,
-              itsm_system_type: delegation.itsm_system_type,
-              connection_url: connectionUrl,
-            },
-          });
-
-          if (!webhookResult.success) {
-            messageLogger.error(
-              { webhookError: webhookResult.error },
-              'Failed to send delegation success email webhook'
-            );
-          } else {
-            messageLogger.info(
-              { ownerEmail: creatorEmail },
-              'Delegation success email webhook sent'
-            );
-          }
-        } else {
-          messageLogger.warn(
-            { userId: delegation.created_by_user_id },
-            'Creator not found in user_profiles, cannot send success email'
-          );
-        }
+        // Note: Success email is sent directly by the platform during credential verification
       } else {
         messageLogger.warn({
           adminEmail: delegation.admin_email,

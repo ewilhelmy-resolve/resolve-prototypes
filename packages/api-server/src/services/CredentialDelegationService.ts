@@ -361,6 +361,17 @@ export class CredentialDelegationService {
     // Validate credentials have required fields based on system type
     this.validateCredentials(delegation.itsm_system_type, credentials);
 
+    // Get existing connection_id to build success URL for owner email
+    const connectionResult = await this.pool.query(
+      `SELECT id FROM data_source_connections
+       WHERE organization_id = $1 AND type = $2`,
+      [delegation.organization_id, delegation.itsm_system_type]
+    );
+    const connectionId = connectionResult.rows[0]?.id;
+    const delegatedSuccessUrl = connectionId
+      ? `${CLIENT_URL}/settings/connections/itsm/${connectionId}`
+      : `${CLIENT_URL}/settings/connections`;
+
     // Extract non-sensitive settings to store (URL, username/email - NOT passwords/tokens)
     const creds = credentials as unknown as Record<string, unknown>;
     const submittedSettings =
@@ -397,6 +408,8 @@ export class CredentialDelegationService {
         delegation_id: delegation.id,
         admin_email: delegation.admin_email,
         organization_name: delegation.org_name,
+        owner_email: delegation.creator_email,
+        delegated_success_url: delegatedSuccessUrl,
       },
       isDelegationSetup: true,
     });
