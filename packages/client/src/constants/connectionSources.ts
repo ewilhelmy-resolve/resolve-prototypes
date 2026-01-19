@@ -48,6 +48,8 @@ export const SOURCES = {
 	SHAREPOINT: "sharepoint",
 	SERVICENOW: "servicenow",
 	WEB_SEARCH: "websearch",
+	JIRA: "jira",
+	FRESHDESK: "freshdesk",
 } as const;
 
 export type SourceId = (typeof SOURCES)[keyof typeof SOURCES];
@@ -61,7 +63,7 @@ export const KNOWLEDGE_SOURCE_TYPES = [
 ] as const;
 
 // ITSM Sources - sync tickets for autopilot
-export const ITSM_SOURCE_TYPES = ["servicenow", "jira"] as const;
+export const ITSM_SOURCE_TYPES = ["servicenow", "jira", "freshdesk"] as const;
 
 // Display order for each section
 export const KNOWLEDGE_SOURCES_ORDER = [
@@ -70,7 +72,7 @@ export const KNOWLEDGE_SOURCES_ORDER = [
 	"servicenow",
 	"websearch",
 ];
-export const ITSM_SOURCES_ORDER = ["servicenow", "jira"];
+export const ITSM_SOURCES_ORDER = ["servicenow", "jira", "freshdesk"];
 
 // Static metadata for each source type (icons, titles, descriptions)
 export const SOURCE_METADATA: Record<
@@ -97,6 +99,10 @@ export const SOURCE_METADATA: Record<
 	jira: {
 		title: "Jira",
 		description: "Import tickets from Jira for autopilot clustering.",
+	},
+	freshdesk: {
+		title: "Freshdesk",
+		description: "Import tickets from Freshdesk for autopilot clustering.",
 	},
 };
 

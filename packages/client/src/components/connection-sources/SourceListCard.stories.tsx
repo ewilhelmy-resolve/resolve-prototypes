@@ -164,6 +164,21 @@ export const ErrorStatus: Story = {
 	},
 };
 
+export const Freshdesk: Story = {
+	args: {
+		source: createMockSource({
+			id: "placeholder-freshdesk",
+			type: SOURCES.FRESHDESK,
+			title: "Freshdesk",
+			status: STATUS.NOT_CONNECTED,
+			description: "Import tickets from Freshdesk for autopilot clustering.",
+		}),
+		isEnabled: false,
+		isPlaceholder: true,
+		disabledLabel: "Coming Soon",
+	},
+};
+
 export const AllVariants: Story = {
 	render: () => (
 		<div className="space-y-4">
@@ -198,7 +213,7 @@ export const AllVariants: Story = {
 				/>
 			</div>
 			<div>
-				<p className="text-sm text-muted-foreground mb-2">Placeholder</p>
+				<p className="text-sm text-muted-foreground mb-2">Placeholder (Jira)</p>
 				<SourceListCard
 					source={createMockSource({
 						id: "placeholder-jira",
@@ -206,6 +221,21 @@ export const AllVariants: Story = {
 						title: "Jira",
 						status: STATUS.NOT_CONNECTED,
 						description: "Import tickets from Jira for autopilot clustering.",
+					})}
+					isEnabled={false}
+					isPlaceholder={true}
+					disabledLabel="Coming Soon"
+				/>
+			</div>
+			<div>
+				<p className="text-sm text-muted-foreground mb-2">Placeholder (Freshdesk)</p>
+				<SourceListCard
+					source={createMockSource({
+						id: "placeholder-freshdesk",
+						type: SOURCES.FRESHDESK,
+						title: "Freshdesk",
+						status: STATUS.NOT_CONNECTED,
+						description: "Import tickets from Freshdesk for autopilot clustering.",
 					})}
 					isEnabled={false}
 					isPlaceholder={true}
