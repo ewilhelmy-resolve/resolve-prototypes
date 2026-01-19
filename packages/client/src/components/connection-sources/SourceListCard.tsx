@@ -40,9 +40,11 @@ export function SourceListCard({
 		if (icon) {
 			return icon;
 		}
+		// Use BASE_URL for production compatibility (handles subpath deployments)
+		const baseUrl = import.meta.env.BASE_URL || "/";
 		return (
 			<img
-				src={`/connections/icon_${source.type}.svg`}
+				src={`${baseUrl}connections/icon_${source.type}.svg`}
 				alt={`${source.title} icon`}
 				className="w-5 h-5 flex-shrink-0"
 			/>
