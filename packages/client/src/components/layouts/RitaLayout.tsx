@@ -13,6 +13,7 @@
 
 "use client";
 
+import { useTranslation } from "react-i18next";
 import {
 	ALargeSmall,
 	CheckCircle,
@@ -66,6 +67,7 @@ import {
 	useSidebar,
 } from "@/components/ui/sidebar";
 import InviteUsersButton from "@/components/users/InviteUsersButton";
+import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import WelcomeDialog from "@/components/WelcomeDialog";
 import { SOURCE_METADATA } from "@/constants/connectionSources";
 import { useConversations } from "@/hooks/api/useConversations";
@@ -104,11 +106,13 @@ function RitaLayoutContent({ children, activePage = "chat" }: RitaLayoutProps) {
 	const [welcomeModalOpen, setWelcomeModalOpen] = useState(false);
 	const navigate = useNavigate();
 	const location = useLocation();
+	const { t } = useTranslation();
 
 	// Feature flags
 	const showWelcomeModal = useFeatureFlag("SHOW_WELCOME_MODAL");
 	const enableMultiFileUpload = useFeatureFlag("ENABLE_MULTI_FILE_UPLOAD");
 	const enableWorkflows = useFeatureFlag("ENABLE_WORKFLOWS");
+	const enableLanguageSwitcher = useFeatureFlag("ENABLE_LANGUAGE_SWITCHER");
 
 	// RITA hooks
 	const { user, logout } = useAuth();
@@ -271,7 +275,7 @@ function RitaLayoutContent({ children, activePage = "chat" }: RitaLayoutProps) {
 									>
 										<Home className="w-4 h-4" />
 										<span className="text-sm text-sidebar-foreground">
-											Home
+											{t("nav.home")}
 										</span>
 									</SidebarMenuButton>
 								</SidebarMenuItem>
@@ -283,7 +287,7 @@ function RitaLayoutContent({ children, activePage = "chat" }: RitaLayoutProps) {
 									>
 										<File className="w-4 h-4" />
 										<span className="text-sm text-sidebar-foreground">
-											Knowledge Articles
+											{t("nav.knowledgeArticles")}
 										</span>
 										{totalKnowledgeBaseFiles > 0 && (
 											<div className="ml-auto flex items-center justify-center px-1 h-5 bg-sidebar-accent rounded text-xs text-sidebar-foreground">
@@ -300,7 +304,7 @@ function RitaLayoutContent({ children, activePage = "chat" }: RitaLayoutProps) {
 									>
 										<Ticket className="w-4 h-4" />
 										<span className="text-sm text-sidebar-foreground">
-											Tickets
+											{t("nav.tickets")}
 										</span>
 									</SidebarMenuButton>
 								</SidebarMenuItem>
@@ -319,7 +323,7 @@ function RitaLayoutContent({ children, activePage = "chat" }: RitaLayoutProps) {
 									>
 										<Workflow className="w-4 h-4" />
 										<span className="text-sm text-sidebar-foreground">
-											Workflows
+											{t("nav.workflows")}
 										</span>
 									</SidebarMenuButton>
 								</SidebarMenuItem>
@@ -334,23 +338,23 @@ function RitaLayoutContent({ children, activePage = "chat" }: RitaLayoutProps) {
 								onClick={handleNewChat}
 							>
 								<SquarePen className="w-4 h-4" />
-								New Chat
+								{t("nav.newChat")}
 							</Button>
 						</SidebarMenuItem>
 					</div>
 
 					<SidebarGroup>
 						<SidebarGroupLabel className="px-2 h-8 rounded-md text-xs text-sidebar-foreground">
-							Recent chats
+							{t("nav.recentChats")}
 						</SidebarGroupLabel>
 						<SidebarMenu className="gap-1">
 							{conversationsLoading ? (
 								<div className="px-2 text-xs text-muted-foreground">
-									Loading...
+									{t("nav.loading")}
 								</div>
 							) : conversations.length === 0 ? (
 								<div className="px-2 text-xs text-muted-foreground">
-									No conversations yet
+									{t("nav.noConversations")}
 								</div>
 							) : (
 								conversations.map((conversation: Conversation) => (
@@ -427,14 +431,14 @@ function RitaLayoutContent({ children, activePage = "chat" }: RitaLayoutProps) {
 											className="w-full px-3 py-2 text-left text-sm text-foreground hover:bg-accent cursor-pointer"
 											onClick={() => navigate("/settings")}
 										>
-											Settings
+											{t("nav.settings")}
 										</button>
 									) : (
 										<button
 											className="w-full px-3 py-2 text-left text-sm text-foreground hover:bg-accent cursor-pointer flex items-center gap-2"
 											onClick={() => navigate("/settings/profile")}
 										>
-											Profile
+											{t("nav.profile")}
 										</button>
 									)}
 									<a
@@ -443,7 +447,7 @@ function RitaLayoutContent({ children, activePage = "chat" }: RitaLayoutProps) {
 										rel="noopener noreferrer"
 										className="w-full px-3 py-2 text-left text-sm text-foreground hover:bg-accent cursor-pointer block"
 									>
-										Help documentation
+										{t("nav.helpDocumentation")}
 									</a>
 									<Separator className="my-1" />
 									<button
@@ -451,7 +455,7 @@ function RitaLayoutContent({ children, activePage = "chat" }: RitaLayoutProps) {
 										onClick={handleSignOut}
 									>
 										<LogOut className="w-4 h-4" />
-										Log out
+										{t("nav.logOut")}
 									</button>
 								</div>
 							</div>
@@ -470,7 +474,7 @@ function RitaLayoutContent({ children, activePage = "chat" }: RitaLayoutProps) {
 							<BreadcrumbList>
 								<BreadcrumbItem>
 									<span className="text-sm text-foreground leading-none">
-										RITA Go
+										{t("nav.ritaGo")}
 									</span>
 								</BreadcrumbItem>
 							</BreadcrumbList>
@@ -504,11 +508,12 @@ function RitaLayoutContent({ children, activePage = "chat" }: RitaLayoutProps) {
 								onClick={handleNewChat}
 							>
 								<SquarePen className="w-4 h-4" />
-								New Chat
+								{t("nav.newChat")}
 							</Button>
 						)}
 					</div>
 					<div className="ml-auto flex items-center gap-2">
+						{enableLanguageSwitcher && <LanguageSwitcher />}
 						{activePage === "chat" &&
 							isOwnerOrAdmin() &&
 							totalKnowledgeBaseFiles > 0 && (
@@ -520,14 +525,14 @@ function RitaLayoutContent({ children, activePage = "chat" }: RitaLayoutProps) {
 												className="gap-2 h-9 px-3 text-sm"
 											>
 												<Plus className="w-4 h-4" />
-												<span className="hidden sm:inline">Add Articles</span>
+												<span className="hidden sm:inline">{t("nav.addArticles")}</span>
 											</Button>
 										</DropdownMenuTrigger>
 										<DropdownMenuContent align="end">
 											{/* Upload file option */}
 											<DropdownMenuItem onClick={openDocumentSelector}>
 												<Upload className="h-4 w-4 mr-2" />
-												Upload file
+												{t("nav.uploadFile")}
 											</DropdownMenuItem>
 
 											{/* Connect sources option */}
@@ -535,7 +540,7 @@ function RitaLayoutContent({ children, activePage = "chat" }: RitaLayoutProps) {
 												onClick={() => navigate("/settings/connections")}
 											>
 												<Plus className="h-4 w-4 mr-2" />
-												Connect sources
+												{t("nav.connectSources")}
 												<div className="ml-auto flex gap-1 pl-8">
 													<img
 														src="/connections/icon_confluence.svg"
@@ -583,7 +588,7 @@ function RitaLayoutContent({ children, activePage = "chat" }: RitaLayoutProps) {
 										variant="secondary"
 										icon={<MailOpen className="w-4 h-4" />}
 									>
-										Invite Users
+										{t("nav.inviteUsers")}
 									</InviteUsersButton>
 								</>
 							)}

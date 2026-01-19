@@ -54,12 +54,14 @@ interface UseIframeMessagingOptions {
 
 /**
  * Post message to parent window (host page)
- * Uses same-origin for security (same-domain deployment)
+ * Uses '*' in dev mode for cross-port testing, same-origin in production
  */
 function postToParent(message: IframeOutboundMessage): void {
 	if (window.parent && window.parent !== window) {
-		// Use same-origin for security - iframe is same-domain deployment
-		window.parent.postMessage(message, window.location.origin);
+		// In dev mode, allow cross-origin for testing (different ports)
+		// In production, same-domain deployment means same origin
+		const targetOrigin = import.meta.env.DEV ? "*" : window.location.origin;
+		window.parent.postMessage(message, targetOrigin);
 	}
 }
 
@@ -67,6 +69,10 @@ function postToParent(message: IframeOutboundMessage): void {
  * Check if origin is allowed
  */
 function isAllowedOrigin(origin: string, allowedOrigins: string[]): boolean {
+	// In dev mode, allow any origin for cross-port testing
+	if (import.meta.env.DEV) {
+		return true;
+	}
 	// If no origins specified, allow same-origin only
 	if (allowedOrigins.length === 0) {
 		return origin === window.location.origin;

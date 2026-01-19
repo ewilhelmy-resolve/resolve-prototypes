@@ -9,9 +9,8 @@
 	"emptyState": {
 		"title": "Ask RITA",
 		"description": "Start a conversation with RITA to get help with your questions.",
-		"heading": "Ask me anything",
-		"withKnowledge": "Diagnose and resolve issues, then create automations to speed up future remediation",
-		"noKnowledge": "Build your organization's help agent by adding knowledge",
+		"descriptionWithKnowledge": "Diagnose and resolve issues, then create automations to speed up future remediation",
+		"descriptionNoKnowledge": "Build your organization's help agent by adding knowledge",
 		"guestDescription": "Start a conversation by typing your question below.",
 		"uploadTitle": "Upload a file",
 		"uploadDescription": "Add knowledge via documents",

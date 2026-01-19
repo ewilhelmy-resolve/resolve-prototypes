@@ -98,6 +98,9 @@ Check `.env.example` files in each package for required configuration.
 - `npm run lint` - Run linting across all packages
 - `docker compose up -d` - Start full stack with Docker
 
+### Build Architecture Note
+Client build (`packages/client`) uses `vite build` without `tsc`. Type checking runs separately via `type-check` script in CI. This prevents OOM errors during build - tsc requires ~4GB heap for full type checking.
+
 ### Iframe Embeddable Chat (Public Guest Access)
 
 RITA Go includes an iframe-embeddable version for integration into host pages on the same domain.

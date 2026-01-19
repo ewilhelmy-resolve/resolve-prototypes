@@ -71,6 +71,18 @@ vi.mock(
 );
 
 vi.mock(
+	"@/components/connection-sources/connection-details/FreshdeskItsmConfiguration",
+	() => ({
+		default: ({ onEdit }: { onEdit: () => void }) => (
+			<div>
+				<div>Freshdesk ITSM Configuration</div>
+				<button onClick={onEdit}>Edit</button>
+			</div>
+		),
+	}),
+);
+
+vi.mock(
 	"@/components/connection-sources/connection-details/WebSearchConfiguration",
 	() => ({
 		default: ({ onEdit }: { onEdit: () => void }) => (
@@ -105,6 +117,12 @@ vi.mock("@/components/connection-sources/connection-forms", () => ({
 	WebSearchForm: ({ onCancel }: { onCancel?: () => void }) => (
 		<div>
 			<div>WebSearch Form</div>
+			{onCancel && <button onClick={onCancel}>Cancel</button>}
+		</div>
+	),
+	FreshdeskForm: ({ onCancel }: { onCancel?: () => void }) => (
+		<div>
+			<div>Freshdesk Form</div>
 			{onCancel && <button onClick={onCancel}>Cancel</button>}
 		</div>
 	),

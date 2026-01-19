@@ -141,6 +141,18 @@
     body {
         @apply bg-background text-foreground;
     }
+    /* Force code blocks to wrap instead of causing horizontal scroll */
+    pre {
+        white-space: pre-wrap !important;
+        word-wrap: break-word !important;
+        overflow-wrap: break-word !important;
+        max-width: 100% !important;
+        overflow-x: hidden !important;
+    }
+    pre code {
+        white-space: pre-wrap !important;
+        word-break: break-word !important;
+    }
     h1, h2, h3, h4 {
         font-family: var(--font-heading);
     }

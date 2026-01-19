@@ -1,4 +1,27 @@
 {
+	"nav": {
+		"home": "Home",
+		"knowledgeArticles": "Knowledge Articles",
+		"tickets": "Tickets",
+		"workflows": "Workflows",
+		"newChat": "New Chat",
+		"recentChats": "Recent chats",
+		"loading": "Loading...",
+		"noConversations": "No conversations yet",
+		"ritaGo": "RITA Go",
+		"addArticles": "Add Articles",
+		"inviteUsers": "Invite Users",
+		"uploadFile": "Upload file",
+		"connectSources": "Connect sources",
+		"settings": "Settings",
+		"profile": "Profile",
+		"helpDocumentation": "Help documentation",
+		"logOut": "Log out"
+	},
+	"inviteCard": {
+		"title": "Invite Users",
+		"description": "Invite teammates to use RITA and resolve support faster."
+	},
 	"actions": {
 		"cancel": "Cancel",
 		"save": "Save",
