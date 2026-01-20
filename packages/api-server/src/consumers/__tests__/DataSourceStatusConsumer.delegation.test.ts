@@ -5,7 +5,8 @@ import type { Channel, ConsumeMessage } from 'amqplib';
 const { mockQuery, mockConnect } = vi.hoisted(() => {
   const mockQuery = vi.fn();
   const mockConnect = vi.fn().mockResolvedValue({
-    query: mockQuery
+    query: mockQuery,
+    release: vi.fn(),
   });
   return { mockQuery, mockConnect };
 });
