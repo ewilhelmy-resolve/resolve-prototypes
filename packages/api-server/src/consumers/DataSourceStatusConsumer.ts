@@ -453,6 +453,7 @@ export class DataSourceStatusConsumer {
                enabled = true,
                last_verification_at = NOW(),
                last_verification_error = NULL,
+               last_sync_status = NULL,
                updated_by = $2,
                updated_at = NOW()
            WHERE organization_id = $3 AND type = $4
