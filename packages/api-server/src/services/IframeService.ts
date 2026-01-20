@@ -258,12 +258,26 @@ export class IframeService {
   }
 
   /**
+   * Find existing conversation by sessionKey
+   * Used to reuse conversation when same sessionKey is used (tab return scenario)
+   */
+  async findConversationBySessionKey(sessionKey: string): Promise<string | null> {
+    const result = await pool.query(
+      `SELECT id FROM conversations WHERE session_key = $1`,
+      [sessionKey]
+    );
+    return result.rows[0]?.id || null;
+  }
+
+  /**
    * Create a conversation for iframe user
    * Uses JIT provisioning to map Jarvis IDs → Rita IDs
+   * Stores sessionKey for conversation reuse on tab return (PLAT-3286)
    */
   async createIframeConversation(
     config: IframeWebhookConfig,
-    intentEid?: string
+    intentEid?: string,
+    sessionKey?: string
   ): Promise<{ conversationId: string; ritaOrgId: string; ritaUserId: string }> {
     // 1. Resolve Rita org from Jarvis tenant
     const { ritaOrgId, wasCreated: orgCreated } = await this.resolveRitaOrg(
@@ -280,16 +294,16 @@ export class IframeService {
     // 3. Always ensure org membership (ON CONFLICT DO NOTHING handles idempotency)
     await this.ensureOrgMembership(ritaOrgId, ritaUserId);
 
-    // 4. Create conversation with Rita IDs (using org context for RLS)
+    // 4. Create conversation with Rita IDs and session_key (using org context for RLS)
     const result = await withOrgContext(
       ritaUserId,
       ritaOrgId,
       async (client) => {
         const conversationResult = await client.query(
-          `INSERT INTO conversations (organization_id, user_id, title)
-           VALUES ($1, $2, $3)
+          `INSERT INTO conversations (organization_id, user_id, title, session_key)
+           VALUES ($1, $2, $3, $4)
            RETURNING id`,
-          [ritaOrgId, ritaUserId, 'Iframe Chat']
+          [ritaOrgId, ritaUserId, 'Iframe Chat', sessionKey || null]
         );
         return conversationResult.rows[0];
       }
@@ -299,6 +313,7 @@ export class IframeService {
       {
         conversationId: result.id,
         intentEid,
+        sessionKey: sessionKey ? sessionKey.substring(0, 8) + '...' : null,
         jarvisTenantId: config.tenantId,
         jarvisGuid: config.userGuid,
         ritaOrgId,
@@ -400,8 +415,19 @@ export class IframeService {
     let ritaOrgId: string;
     let ritaUserId: string;
 
-    // Use conversation ID from: 1) frontend param, 2) Valkey config, 3) create new
-    const resolvedExistingConversationId = existingConversationId || config.conversationId;
+    // Use conversation ID from: 1) frontend param, 2) Valkey config, 3) DB lookup by sessionKey, 4) create new
+    let resolvedExistingConversationId = existingConversationId || config.conversationId;
+
+    // If no conversation ID provided, check if one exists for this sessionKey (tab return scenario)
+    if (!resolvedExistingConversationId) {
+      resolvedExistingConversationId = await this.findConversationBySessionKey(sessionKey) || undefined;
+      if (resolvedExistingConversationId) {
+        logger.info(
+          { sessionKey: sessionKey.substring(0, 8) + '...', conversationId: resolvedExistingConversationId },
+          'Reusing existing conversation for sessionKey'
+        );
+      }
+    }
 
     if (resolvedExistingConversationId) {
       // Existing conversation - resolve Rita IDs first
@@ -427,8 +453,8 @@ export class IframeService {
       }
       conversationId = resolvedExistingConversationId;
     } else {
-      // New conversation - this also resolves Rita IDs
-      const result = await this.createIframeConversation(config, intentEid);
+      // New conversation - this also resolves Rita IDs, stores sessionKey for future reuse
+      const result = await this.createIframeConversation(config, intentEid, sessionKey);
       conversationId = result.conversationId;
       ritaOrgId = result.ritaOrgId;
       ritaUserId = result.ritaUserId;
