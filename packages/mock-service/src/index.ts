@@ -2429,6 +2429,24 @@ app.post('/webhook', async (req, res) => {
                   { key: 'OPS', name: 'Operations' }
                 ]
               };
+            } else if (verifyPayload.connection_type === 'jira_itsm') {
+              options = {
+                projects: [
+                  { key: 'IT', name: 'IT Support' },
+                  { key: 'HELP', name: 'Helpdesk' },
+                  { key: 'SRE', name: 'Site Reliability' }
+                ],
+                issue_types: [
+                  { id: '10001', name: 'Incident' },
+                  { id: '10002', name: 'Service Request' },
+                  { id: '10003', name: 'Problem' }
+                ],
+                statuses: [
+                  { id: '1', name: 'To Do' },
+                  { id: '3', name: 'In Progress' },
+                  { id: '6', name: 'Done' }
+                ]
+              };
             }
 
             const verificationMessage = {

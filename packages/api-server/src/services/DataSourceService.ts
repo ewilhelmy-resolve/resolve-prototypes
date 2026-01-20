@@ -119,6 +119,10 @@ export class DataSourceService {
 		if (data.settings !== undefined) {
 			updates.push(`settings = $${paramIndex++}`);
 			values.push(JSON.stringify(data.settings));
+			// Clear error states when re-configuring credentials
+			updates.push(`last_verification_error = NULL`);
+			updates.push(`last_sync_status = NULL`);
+			updates.push(`last_sync_error = NULL`);
 		}
 
 		if (data.enabled !== undefined) {

@@ -3,6 +3,7 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Navigate, useNavigate, useParams } from "react-router-dom";
 import ConfluenceConfiguration from "@/components/connection-sources/connection-details/ConfluenceConfiguration";
+import FreshdeskItsmConfiguration from "@/components/connection-sources/connection-details/FreshdeskItsmConfiguration";
 import JiraItsmConfiguration from "@/components/connection-sources/connection-details/JiraItsmConfiguration";
 import ServiceNowItsmConfiguration from "@/components/connection-sources/connection-details/ServiceNowItsmConfiguration";
 import ServiceNowKBConfiguration from "@/components/connection-sources/connection-details/ServiceNowKBConfiguration";
@@ -10,6 +11,7 @@ import SharePointConfiguration from "@/components/connection-sources/connection-
 import WebSearchConfiguration from "@/components/connection-sources/connection-details/WebSearchConfiguration";
 import {
 	ConfluenceForm,
+	FreshdeskForm,
 	JiraForm,
 	ServiceNowForm,
 	SharePointForm,
@@ -46,6 +48,8 @@ const FORM_REGISTRY: Record<
 	[SOURCES.SERVICENOW_ITSM]: ServiceNowForm,
 	[SOURCES.WEB_SEARCH]: WebSearchForm,
 	[SOURCES.JIRA]: JiraForm,
+	[SOURCES.FRESHDESK]: FreshdeskForm,
+	[SOURCES.JIRA_ITSM]: JiraForm,
 };
 
 // Registry for Knowledge Sources configuration views
@@ -65,7 +69,8 @@ const ITSM_CONFIGURATION_REGISTRY: Record<
 	React.ComponentType<{ onEdit: () => void }>
 > = {
 	[SOURCES.SERVICENOW_ITSM]: ServiceNowItsmConfiguration,
-	[SOURCES.JIRA]: JiraItsmConfiguration,
+	[SOURCES.JIRA_ITSM]: JiraItsmConfiguration,
+	[SOURCES.FRESHDESK]: FreshdeskItsmConfiguration,
 };
 
 interface ConnectionSourceDetailPageProps {

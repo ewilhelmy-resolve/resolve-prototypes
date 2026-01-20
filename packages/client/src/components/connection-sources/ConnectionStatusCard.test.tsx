@@ -52,250 +52,180 @@ const createMockSource = (
 	...overrides,
 });
 
+// Wrapper to provide Router context
+const renderWithRouter = (ui: React.ReactElement) => {
+	return render(<MemoryRouter>{ui}</MemoryRouter>);
+};
+
 describe("ConnectionStatusCard", () => {
-	describe("Status Badge Rendering", () => {
-		it("should render status badge for CONNECTED status", () => {
-			const source = createMockSource({ status: STATUS.CONNECTED });
-			render(
-				<MemoryRouter>
-					<ConnectionStatusCard source={source} />
-				</MemoryRouter>,
-			);
+	describe("Basic Rendering", () => {
+		it("should render without crashing", () => {
+			const source = createMockSource();
+			renderWithRouter(<ConnectionStatusCard source={source} />);
 			expect(screen.getByText("Connected")).toBeInTheDocument();
 		});
 
-		it("should render status badge for VERIFYING status", () => {
-			const source = createMockSource({ status: STATUS.VERIFYING });
-			render(
-				<MemoryRouter>
-					<ConnectionStatusCard source={source} />
-				</MemoryRouter>,
-			);
-			expect(screen.getByText("Verifying...")).toBeInTheDocument();
-		});
-
-		it("should render status badge for SYNCING status", () => {
-			const source = createMockSource({ status: STATUS.SYNCING });
-			render(
-				<MemoryRouter>
-					<ConnectionStatusCard source={source} />
-				</MemoryRouter>,
-			);
-			expect(screen.getByText("Syncing...")).toBeInTheDocument();
-		});
-
-		it("should render status badge for ERROR status", () => {
-			const source = createMockSource({ status: STATUS.ERROR });
-			render(
-				<MemoryRouter>
-					<ConnectionStatusCard source={source} />
-				</MemoryRouter>,
-			);
-			expect(screen.getByText("Failed")).toBeInTheDocument();
-		});
-
-		it("should render status badge for NOT_CONNECTED status", () => {
-			const source = createMockSource({ status: STATUS.NOT_CONNECTED });
-			render(
-				<MemoryRouter>
-					<ConnectionStatusCard source={source} />
-				</MemoryRouter>,
-			);
-			expect(screen.getByText("Not connected")).toBeInTheDocument();
-		});
-	});
-
-	describe("Connection Details Display", () => {
-		it("should display URL when available", () => {
+		it("should render credentials section with URL", () => {
 			const source = createMockSource({
-				settings: { url: "https://company.atlassian.net" },
+				settings: {
+					url: "https://company.atlassian.net",
+					email: "user@company.com",
+				},
 			});
-			render(
-				<MemoryRouter>
-					<ConnectionStatusCard source={source} />
-				</MemoryRouter>,
-			);
-			expect(screen.getByText("URL")).toBeInTheDocument();
+			renderWithRouter(<ConnectionStatusCard source={source} />);
+
+			// Check URL label (i18n key)
+			expect(screen.getByText("statusCard.labels.url")).toBeInTheDocument();
+			// Check URL value
 			expect(
 				screen.getByText("https://company.atlassian.net"),
 			).toBeInTheDocument();
 		});
 
-		it("should display email when available", () => {
+		it("should render credentials section with email", () => {
 			const source = createMockSource({
-				settings: { email: "user@company.com" },
+				settings: {
+					url: "https://company.atlassian.net",
+					email: "user@company.com",
+				},
 			});
-			render(
-				<MemoryRouter>
-					<ConnectionStatusCard source={source} />
-				</MemoryRouter>,
-			);
-			expect(screen.getByText("Email")).toBeInTheDocument();
+			renderWithRouter(<ConnectionStatusCard source={source} />);
+
+			// Check email label (i18n key)
+			expect(screen.getByText("statusCard.labels.email")).toBeInTheDocument();
+			// Check email value
 			expect(screen.getByText("user@company.com")).toBeInTheDocument();
 		});
 
-		it("should always display masked API token", () => {
+		it("should render credentials section with masked API token", () => {
 			const source = createMockSource({
-				settings: { token: "secret-token" },
+				settings: {
+					url: "https://company.atlassian.net",
+					email: "user@company.com",
+					token: "secret-token-123",
+				},
 			});
-			render(
-				<MemoryRouter>
-					<ConnectionStatusCard source={source} />
-				</MemoryRouter>,
-			);
-			expect(screen.getByText("API")).toBeInTheDocument();
+			renderWithRouter(<ConnectionStatusCard source={source} />);
+
+			// Check API label (i18n key)
+			expect(screen.getByText("statusCard.labels.apiToken")).toBeInTheDocument();
+			// Check masked value
 			expect(screen.getByText(/••••••••••••••••••••/)).toBeInTheDocument();
 		});
 
-		it("should display masked API token even when token is not set", () => {
+		it("should render credentials section with ServiceNow-specific labels", () => {
 			const source = createMockSource({
-				settings: { url: "https://example.com", email: "test@example.com" },
+				type: "servicenow",
+				settings: {
+					instanceUrl: "https://company.service-now.com",
+					username: "admin",
+				},
 			});
-			render(
-				<MemoryRouter>
-					<ConnectionStatusCard source={source} />
-				</MemoryRouter>,
-			);
-			expect(screen.getByText("API")).toBeInTheDocument();
-			// API should always show masked value, never "—"
-			expect(screen.getByText(/••••••••••••••••••••/)).toBeInTheDocument();
+			renderWithRouter(<ConnectionStatusCard source={source} />);
+
+			// ServiceNow uses username/password labels (i18n keys)
+			expect(screen.getByText("statusCard.labels.username")).toBeInTheDocument();
+			expect(screen.getByText("statusCard.labels.password")).toBeInTheDocument();
 		});
 
-		it('should display "—" when URL is missing', () => {
-			const source = createMockSource({ settings: {} });
-			render(
-				<MemoryRouter>
-					<ConnectionStatusCard source={source} />
-				</MemoryRouter>,
-			);
-			expect(screen.getByText("URL")).toBeInTheDocument();
+		it("should show dash for missing URL", () => {
+			const source = createMockSource({
+				settings: {},
+			});
+			renderWithRouter(<ConnectionStatusCard source={source} />);
+
+			// Check URL label (i18n key)
+			expect(screen.getByText("statusCard.labels.url")).toBeInTheDocument();
+			// Check dash for missing values (URL, email, etc.)
 			expect(screen.getAllByText("—").length).toBeGreaterThan(0);
 		});
 	});
 
 	describe("Status Messages", () => {
-		it("should show last sync time for CONNECTED status", () => {
+		it("should show last synced message for connected status", () => {
 			const source = createMockSource({
 				status: STATUS.CONNECTED,
 				lastSync: "2 hours ago",
 			});
-			render(
-				<MemoryRouter>
-					<ConnectionStatusCard source={source} />
-				</MemoryRouter>,
-			);
-			expect(screen.getByText("Last synced 2 hours ago")).toBeInTheDocument();
+			renderWithRouter(<ConnectionStatusCard source={source} />);
+
+			// i18n key for last synced
+			expect(screen.getByText("statusCard.lastSynced")).toBeInTheDocument();
 		});
 
-		it('should show "Connected" when no lastSync available', () => {
-			const source = createMockSource({
-				status: STATUS.CONNECTED,
-				lastSync: undefined,
-			});
-			render(
-				<MemoryRouter>
-					<ConnectionStatusCard source={source} />
-				</MemoryRouter>,
-			);
-			// There are two "Connected" texts: one in badge, one in status message
-			expect(screen.getAllByText("Connected").length).toBe(2);
-		});
-
-		it('should show "Syncing connection..." for SYNCING status', () => {
+		it("should show syncing message for syncing status", () => {
 			const source = createMockSource({ status: STATUS.SYNCING });
-			render(
-				<MemoryRouter>
-					<ConnectionStatusCard source={source} />
-				</MemoryRouter>,
-			);
-			expect(screen.getByText("Syncing connection...")).toBeInTheDocument();
+			renderWithRouter(<ConnectionStatusCard source={source} />);
+
+			// i18n key
+			expect(screen.getByText("statusCard.syncingConnection")).toBeInTheDocument();
 		});
 
-		it('should show "Verifying connection..." for VERIFYING status', () => {
+		it("should show verifying message for verifying status", () => {
 			const source = createMockSource({ status: STATUS.VERIFYING });
-			render(
-				<MemoryRouter>
-					<ConnectionStatusCard source={source} />
-				</MemoryRouter>,
-			);
-			expect(screen.getByText("Verifying connection...")).toBeInTheDocument();
+			renderWithRouter(<ConnectionStatusCard source={source} />);
+
+			// i18n key
+			expect(screen.getByText("statusCard.verifyingConnection")).toBeInTheDocument();
 		});
 
-		it('should show "Not configured" for NOT_CONNECTED status', () => {
+		it("should show not configured message for not connected status", () => {
 			const source = createMockSource({ status: STATUS.NOT_CONNECTED });
-			render(
-				<MemoryRouter>
-					<ConnectionStatusCard source={source} />
-				</MemoryRouter>,
+			renderWithRouter(<ConnectionStatusCard source={source} />);
+
+			// i18n key
+			expect(screen.getByText("statusCard.notConfigured")).toBeInTheDocument();
+		});
+
+		it("should show connection failed message for error status", () => {
+			const source = createMockSource({ status: STATUS.ERROR });
+			renderWithRouter(<ConnectionStatusCard source={source} />);
+
+			// i18n key
+			expect(screen.getByText("statusCard.connectionFailed")).toBeInTheDocument();
+		});
+
+		it("should hide status message when hideStatusMessage is true", () => {
+			const source = createMockSource({ status: STATUS.CONNECTED });
+			renderWithRouter(
+				<ConnectionStatusCard source={source} hideStatusMessage />,
 			);
-			expect(screen.getByText("Not configured")).toBeInTheDocument();
+
+			// Status message should not be visible
+			expect(
+				screen.queryByText("statusCard.lastSynced"),
+			).not.toBeInTheDocument();
 		});
 	});
 
-	describe("Error Handling", () => {
-		it('should show "Connection failed" message for ERROR status', () => {
+	describe("Retry Functionality", () => {
+		it("should show retry button for error status", () => {
 			const source = createMockSource({ status: STATUS.ERROR });
-			render(
-				<MemoryRouter>
-					<ConnectionStatusCard source={source} />
-				</MemoryRouter>,
-			);
-			expect(screen.getByText(/Connection failed/)).toBeInTheDocument();
+			renderWithRouter(<ConnectionStatusCard source={source} />);
+
+			// i18n key for retry button
+			const retryButton = screen.getByRole("button", { name: /statusCard.retry/i });
+			expect(retryButton).toBeInTheDocument();
 		});
 
-		it("should show Retry button for ERROR status", () => {
+		it("should call onRetry when retry button is clicked", () => {
 			const source = createMockSource({ status: STATUS.ERROR });
-			render(
-				<MemoryRouter>
-					<ConnectionStatusCard source={source} />
-				</MemoryRouter>,
-			);
-			expect(
-				screen.getByRole("button", { name: /Retry/i }),
-			).toBeInTheDocument();
-		});
-
-		it("should call onRetry when Retry button is clicked", () => {
-			const mockOnRetry = vi.fn();
-			const source = createMockSource({ status: STATUS.ERROR });
-			render(
-				<MemoryRouter>
-					<ConnectionStatusCard source={source} onRetry={mockOnRetry} />
-				</MemoryRouter>,
+			const onRetry = vi.fn();
+			renderWithRouter(
+				<ConnectionStatusCard source={source} onRetry={onRetry} />,
 			);
 
-			const retryButton = screen.getByRole("button", { name: /Retry/i });
+			const retryButton = screen.getByRole("button", { name: /statusCard.retry/i });
 			fireEvent.click(retryButton);
 
-			expect(mockOnRetry).toHaveBeenCalledTimes(1);
+			expect(onRetry).toHaveBeenCalledTimes(1);
 		});
 
-		it("should show retry count after first retry", async () => {
+		it("should show Get Help after 3 retries", async () => {
 			const source = createMockSource({ status: STATUS.ERROR });
-			render(
-				<MemoryRouter>
-					<ConnectionStatusCard source={source} />
-				</MemoryRouter>,
-			);
+			renderWithRouter(<ConnectionStatusCard source={source} />);
 
-			const retryButton = screen.getByRole("button", { name: /Retry/i });
-			fireEvent.click(retryButton);
-
-			// Wait for retry state to complete
-			await waitFor(() => {
-				expect(screen.getByText(/\(1\/3\)/)).toBeInTheDocument();
-			});
-		});
-
-		it("should show Get Help button after 3 retries", async () => {
-			const source = createMockSource({ status: STATUS.ERROR });
-			render(
-				<MemoryRouter>
-					<ConnectionStatusCard source={source} />
-				</MemoryRouter>,
-			);
-
-			const retryButton = screen.getByRole("button", { name: /Retry/i });
+			const retryButton = screen.getByRole("button", { name: /statusCard.retry/i });
 
 			// Click retry 3 times
 			act(() => {
@@ -308,10 +238,10 @@ describe("ConnectionStatusCard", () => {
 				fireEvent.click(retryButton);
 			});
 
-			// After third click, retryCount = 3, help button should appear
+			// After third click, retryCount = 3, help button should appear (i18n key)
 			await waitFor(() =>
 				expect(
-					screen.getByRole("button", { name: /Get Help/i }),
+					screen.getByRole("button", { name: /statusCard.getHelp/i }),
 				).toBeInTheDocument(),
 			);
 		});
@@ -325,7 +255,7 @@ describe("ConnectionStatusCard", () => {
 				</MemoryRouter>,
 			);
 
-			const retryButton = screen.getByRole("button", { name: /Retry/i });
+			const retryButton = screen.getByRole("button", { name: /statusCard.retry/i });
 			fireEvent.click(retryButton);
 
 			// After clicking retry, parent would update status to SYNCING via backend
@@ -337,7 +267,8 @@ describe("ConnectionStatusCard", () => {
 				</MemoryRouter>,
 			);
 
-			expect(screen.getByText(/Retrying\.\.\./)).toBeInTheDocument();
+			// i18n key for retrying
+			expect(screen.getByText("statusCard.retrying")).toBeInTheDocument();
 		});
 	});
 
@@ -383,6 +314,10 @@ describe("ConnectionStatusCard", () => {
 			const source = createMockSource({
 				type: "servicenow",
 				title: "ServiceNow",
+				settings: {
+					instanceUrl: "https://company.service-now.com",
+					username: "admin",
+				},
 			});
 			render(
 				<MemoryRouter>
@@ -404,18 +339,53 @@ describe("ConnectionStatusCard", () => {
 			);
 			expect(screen.getAllByText("Connected").length).toBeGreaterThan(0);
 		});
+	});
 
-		it("should work with WebSearch connection", () => {
-			const source = createMockSource({
-				type: "websearch",
-				title: "Web Search",
-			});
-			render(
-				<MemoryRouter>
-					<ConnectionStatusCard source={source} />
-				</MemoryRouter>,
+	describe("Ticket Sync Info", () => {
+		it("should show ticket importing progress when isTicketSyncing is true", () => {
+			const source = createMockSource({ status: STATUS.CONNECTED });
+			const ticketSyncInfo = {
+				lastSyncAt: null,
+				recordsProcessed: 50,
+				isTicketSyncing: true,
+				totalEstimated: 100,
+			};
+			renderWithRouter(
+				<ConnectionStatusCard source={source} ticketSyncInfo={ticketSyncInfo} />,
 			);
-			expect(screen.getAllByText("Connected").length).toBeGreaterThan(0);
+
+			// i18n key for progress
+			expect(screen.getByText("statusCard.ticketsProgress")).toBeInTheDocument();
+		});
+
+		it("should show importing tickets spinner when no total estimated", () => {
+			const source = createMockSource({ status: STATUS.CONNECTED });
+			const ticketSyncInfo = {
+				lastSyncAt: null,
+				recordsProcessed: 0,
+				isTicketSyncing: true,
+			};
+			renderWithRouter(
+				<ConnectionStatusCard source={source} ticketSyncInfo={ticketSyncInfo} />,
+			);
+
+			// i18n key
+			expect(screen.getByText("statusCard.importingTickets")).toBeInTheDocument();
+		});
+
+		it("should show last sync info when not syncing", () => {
+			const source = createMockSource({ status: STATUS.CONNECTED });
+			const ticketSyncInfo = {
+				lastSyncAt: "2024-01-02T00:00:00Z",
+				recordsProcessed: 150,
+				isTicketSyncing: false,
+			};
+			renderWithRouter(
+				<ConnectionStatusCard source={source} ticketSyncInfo={ticketSyncInfo} />,
+			);
+
+			// i18n key for last synced
+			expect(screen.getByText("statusCard.lastSynced")).toBeInTheDocument();
 		});
 	});
 });

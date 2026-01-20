@@ -13,6 +13,7 @@ export type FeatureFlagKey =
 	| "ENABLE_DEBUG_MODE"
 	| "ENABLE_EXPERIMENTAL_FEATURES"
 	| "ENABLE_SERVICENOW"
+	| "ENABLE_JIRA"
 	| "ENABLE_MULTI_FILE_UPLOAD"
 	| "ENABLE_TICKETS_V2"
 	| "ENABLE_WORKFLOWS"
@@ -85,6 +86,13 @@ export const FEATURE_FLAGS: Record<FeatureFlagKey, FeatureFlagConfig> = {
 		key: "ENABLE_SERVICENOW",
 		label: "ServiceNow Integration",
 		description: "Enable ServiceNow KB and ITSM sync features",
+		defaultValue: false,
+		category: "experimental",
+	},
+	ENABLE_JIRA: {
+		key: "ENABLE_JIRA",
+		label: "Jira Integration",
+		description: "Enable Jira ITSM ticket sync features",
 		defaultValue: false,
 		category: "experimental",
 	},

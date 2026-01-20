@@ -15,7 +15,7 @@ import FormField from "../form-elements/FormField";
 import FormSection from "../form-elements/FormSection";
 
 export interface JiraFormData {
-	url: string;
+	baseUrl: string;
 	email: string;
 	apiToken: string;
 }
@@ -46,7 +46,7 @@ export function JiraForm({ onCancel, onSuccess, onFailure }: JiraFormProps = {})
 	} = useForm<JiraFormData>({
 		mode: "onSubmit",
 		defaultValues: {
-			url: source.backendData?.settings?.url || "",
+			baseUrl: source.backendData?.settings?.url || "",
 			email: source.backendData?.settings?.email || "",
 			apiToken: "",
 		},
@@ -72,7 +72,7 @@ export function JiraForm({ onCancel, onSuccess, onFailure }: JiraFormProps = {})
 				id: source.id,
 				payload: {
 					settings: {
-						url: formData.url,
+						url: formData.baseUrl,
 					},
 					credentials: {
 						email: formData.email,
@@ -86,7 +86,7 @@ export function JiraForm({ onCancel, onSuccess, onFailure }: JiraFormProps = {})
 				id: source.id,
 				data: {
 					settings: {
-						url: formData.url,
+						url: formData.baseUrl,
 						email: formData.email,
 					},
 					enabled: true,
@@ -117,7 +117,7 @@ export function JiraForm({ onCancel, onSuccess, onFailure }: JiraFormProps = {})
 	};
 
 	return (
-		<ConnectionsForm handleSubmit={handleSubmit(onSubmit)} id="connection-form">
+		<ConnectionsForm handleSubmit={handleSubmit(onSubmit)} id="jira-connection-form">
 			{/* Authentication */}
 			<FormSection title={t("form.sections.authentication")}>
 				{/* Show error alert when verification fails */}
@@ -131,13 +131,13 @@ export function JiraForm({ onCancel, onSuccess, onFailure }: JiraFormProps = {})
 					</StatusAlert>
 				)}
 
-				{/* URL */}
-				<FormField label={t("form.labels.url")} errors={errors} name="url" required>
+				{/* Jira URL */}
+				<FormField label={t("form.labels.jiraUrl")} errors={errors} name="baseUrl" required>
 					<Input
-						id="url"
+						id="jira-base-url"
 						type="url"
-						placeholder={t("form.placeholders.confluenceUrl")}
-						{...register("url", {
+						placeholder={t("form.placeholders.jiraUrl")}
+						{...register("baseUrl", {
 							required: t("form.validation.urlRequired"),
 							pattern: {
 								value: /^https?:\/\/.+/,
@@ -147,16 +147,16 @@ export function JiraForm({ onCancel, onSuccess, onFailure }: JiraFormProps = {})
 					/>
 				</FormField>
 
-				{/* User Email */}
+				{/* Email */}
 				<FormField label={t("form.labels.userEmail")} errors={errors} name="email" required>
 					<Input
-						id="email"
+						id="jira-email"
 						type="email"
 						placeholder={t("form.placeholders.email")}
 						{...register("email", {
 							required: t("form.validation.emailRequired"),
 							pattern: {
-								value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
+								value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
 								message: t("form.validation.invalidEmail"),
 							},
 						})}
@@ -166,7 +166,7 @@ export function JiraForm({ onCancel, onSuccess, onFailure }: JiraFormProps = {})
 				{/* API Token */}
 				<FormField label={t("form.labels.apiToken")} errors={errors} name="apiToken" required>
 					<Input
-						id="apiToken"
+						id="jira-api-token"
 						type="password"
 						placeholder={t("form.placeholders.apiToken")}
 						{...register("apiToken", {

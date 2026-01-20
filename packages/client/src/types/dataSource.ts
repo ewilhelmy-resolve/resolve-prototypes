@@ -7,7 +7,9 @@ export type DataSourceType =
 	| "servicenow_itsm"
 	| "sharepoint"
 	| "websearch"
-	| "jira";
+	| "jira"
+	| "jira_itsm"
+	| "freshdesk";
 
 export type DataSourceStatus = "idle" | "verifying" | "syncing" | "cancelled";
 
