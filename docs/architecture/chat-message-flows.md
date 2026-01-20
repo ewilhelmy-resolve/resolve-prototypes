@@ -216,21 +216,56 @@ sequenceDiagram
 
 ### Valkey Session Payload
 
+Key format: `rita:session:{sessionKey}`
+
 ```json
 {
-  "accessToken": "eyJhbG...",
-  "refreshToken": "eyJhbG...",
-  "tabInstanceId": "b677747a-...",
-  "tenantId": "00F4F67D-...",
-  "tenantName": "staging",
-  "chatSessionId": "b974d74f-...",
+  // REQUIRED - core identity
+  "tenant_id": "00F4F67D-...",
+  "user_guid": "275fb79d-...",
+
+  // OPTIONAL - conversation handling
+  // omit or null = Rita creates new conversation and returns conversationId
+  // provide existing UUID = Rita resumes that conversation
+  "conversation_id": "b18c9d56-...",
+
+  // REQUIRED for webhook execution (Actions API auth)
+  "actionsApiBaseUrl": "https://actions-api-staging.resolve.io/",
   "clientId": "E14730FA-...",
   "clientKey": "secret-key",
+
+  // Pass-through to Actions API (not used by Rita)
+  "accessToken": "eyJhbG...",
+  "refreshToken": "eyJhbG...",
   "tokenExpiry": 1767902104,
-  "actionsApiBaseUrl": "https://actions-api-staging.resolve.io/",
-  "userGuid": "275fb79d-..."
+  "tabInstanceId": "b677747a-...",
+
+  // OPTIONAL - org display name (defaults to "Jarvis Tenant {id}")
+  "tenantName": "staging",
+
+  // OPTIONAL - arbitrary metadata passed through to Actions API webhook
+  "context": { "designer": "workflow" },
+
+  // OPTIONAL - custom UI text for iframe chat
+  // omit entire object or any field to use Rita defaults
+  "ui_config": {
+    "title_text": "Ask Workflow Designer",
+    "welcome_text": "I can help you build workflow automations.",
+    "placeholder_text": "Describe your workflow..."
+  }
 }
 ```
+
+**Field Categories:**
+
+| Category | Fields | Required |
+|----------|--------|----------|
+| Core identity | `tenant_id`, `user_guid` | Yes |
+| Conversation | `conversation_id` | No (Rita creates if omitted) |
+| Webhook auth | `actionsApiBaseUrl`, `clientId`, `clientKey` | For webhook execution |
+| Pass-through | `accessToken`, `refreshToken`, `tokenExpiry`, `tabInstanceId` | No |
+| Metadata | `tenantName`, `context` | No |
+| UI config | `ui_config.*` | No |
 
 ### Iframe Webhook Payload
 
@@ -309,12 +344,24 @@ A: `document_ids` is empty (uploads disabled). `transcript_ids` contains convers
 
 ## RabbitMQ Response Routing
 
+### Required Routing Fields
+
+For RabbitMQ to route responses back to the correct SSE channel, the webhook payload **must include**:
+
+| Field | Purpose |
+|-------|---------|
+| `tenant_id` | Maps to `organization_id` for SSE channel lookup |
+| `conversation_id` | Used to fetch the correct `user_id` from DB for SSE routing |
+| `message_id` | Identifies which message to update |
+
+Without `conversation_id`, Rita cannot determine which user's SSE connection to send the response to.
+
 ### SSE Routing Flow
 
 ```mermaid
 flowchart TD
-    A[RabbitMQ Message] -->|Contains user_id from webhook| B{processMessage}
-    B -->|CRITICAL| C[SELECT user_id FROM conversations]
+    A[RabbitMQ Message] -->|Contains tenant_id, conversation_id| B{processMessage}
+    B -->|CRITICAL| C[SELECT user_id FROM conversations WHERE id = conversation_id]
     C -->|Returns Rita DB user_id| D[sseService.sendToUser]
     D -->|Match by userId + orgId| E[SSE Connection Lookup]
     E -->|Found| F[Browser receives event]
