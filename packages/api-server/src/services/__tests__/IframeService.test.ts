@@ -176,8 +176,11 @@ describe('IframeService', () => {
 
   describe('validateAndSetup', () => {
     // Helper to set up JIT provisioning mocks (check-first-then-insert pattern)
+    // Now includes findConversationBySessionKey as first query
     const setupJitMocks = (orgExists = false, userExists = false) => {
       mockPool.query
+        // findConversationBySessionKey: lookup by session_key (new conversation)
+        .mockResolvedValueOnce({ rows: [] })
         // resolveRitaOrg: check if exists
         .mockResolvedValueOnce({ rows: orgExists ? [{ id: validValkeyPayload.tenantId }] : [] })
         // resolveRitaOrg: insert or update
@@ -227,6 +230,11 @@ describe('IframeService', () => {
       expect(result.webhookTenantId).toBe('00F4F67D-3B92-4FD2-A574-7BE22C6BE796');
       expect(result.conversationId).toBe('new-conv-id');
 
+      // Verify sessionKey lookup (first query)
+      expect(mockPool.query).toHaveBeenCalledWith(
+        expect.stringContaining('SELECT id FROM conversations WHERE session_key'),
+        ['352957ba-4e60-49b2-817f-fb0f236a273e']
+      );
       // Verify org check then insert (now selects name for comparison)
       expect(mockPool.query).toHaveBeenCalledWith(
         expect.stringContaining('SELECT id, name FROM organizations'),
@@ -333,6 +341,7 @@ describe('IframeService', () => {
       mockValkeyClient.hget.mockResolvedValueOnce(JSON.stringify(validValkeyPayload));
       // Both org and user already exist (org name same, so no update)
       mockPool.query
+        .mockResolvedValueOnce({ rows: [] }) // findConversationBySessionKey - not found
         .mockResolvedValueOnce({ rows: [{ id: validValkeyPayload.tenantId, name: 'staging' }] }) // org exists with same name
         .mockResolvedValueOnce({ rows: [{ user_id: validValkeyPayload.userGuid }] }) // user exists
         .mockResolvedValueOnce({ rows: [] }) // user update
@@ -352,8 +361,8 @@ describe('IframeService', () => {
 
       expect(result.valid).toBe(true);
 
-      // 4 pool.query calls: org check (no update since name same) + user check + user update + membership
-      expect(mockPool.query).toHaveBeenCalledTimes(4);
+      // 5 pool.query calls: sessionKey lookup + org check (no update since name same) + user check + user update + membership
+      expect(mockPool.query).toHaveBeenCalledTimes(5);
     });
 
     it('should create org membership when user is new', async () => {
@@ -372,8 +381,8 @@ describe('IframeService', () => {
 
       await iframeService.validateAndSetup('my-session-key');
 
-      // 5 pool.query calls: org check + org update + user check + user insert + membership
-      expect(mockPool.query).toHaveBeenCalledTimes(5);
+      // 6 pool.query calls: sessionKey lookup + org check + org update + user check + user insert + membership
+      expect(mockPool.query).toHaveBeenCalledTimes(6);
       expect(mockPool.query).toHaveBeenLastCalledWith(
         expect.stringContaining('INSERT INTO organization_members'),
         expect.arrayContaining([
@@ -399,12 +408,16 @@ describe('IframeService', () => {
 
       await iframeService.validateAndSetup('my-session-key');
 
-      // Verify org check query (now includes name for comparison)
-      const orgCheckQuery = mockPool.query.mock.calls[0][0];
+      // Call 0: sessionKey lookup
+      const sessionKeyQuery = mockPool.query.mock.calls[0][0];
+      expect(sessionKeyQuery).toContain('SELECT id FROM conversations WHERE session_key');
+
+      // Call 1: org check query (now includes name for comparison)
+      const orgCheckQuery = mockPool.query.mock.calls[1][0];
       expect(orgCheckQuery).toContain('SELECT id, name FROM organizations');
 
-      // Verify user check query
-      const userCheckQuery = mockPool.query.mock.calls[2][0];
+      // Call 3: user check query
+      const userCheckQuery = mockPool.query.mock.calls[3][0];
       expect(userCheckQuery).toContain('SELECT user_id FROM user_profiles');
     });
 
@@ -413,6 +426,7 @@ describe('IframeService', () => {
       mockValkeyClient.hget.mockResolvedValueOnce(JSON.stringify(validValkeyPayload));
       // Org is new, user exists with legacy UUID
       mockPool.query
+        .mockResolvedValueOnce({ rows: [] }) // findConversationBySessionKey - not found
         .mockResolvedValueOnce({ rows: [] }) // org doesn't exist
         .mockResolvedValueOnce({ rows: [] }) // insert org
         .mockResolvedValueOnce({ rows: [{ user_id: legacyUserId }] }) // user exists with legacy UUID
@@ -452,6 +466,7 @@ describe('IframeService', () => {
     // Mock setup helper for existing org/user scenario
     const setupExistingOrgAndUser = () => {
       mockPool.query
+        .mockResolvedValueOnce({ rows: [] }) // findConversationBySessionKey - not found
         .mockResolvedValueOnce({ rows: [{ id: validValkeyPayload.tenantId }] }) // org exists
         .mockResolvedValueOnce({ rows: [] }) // org update
         .mockResolvedValueOnce({ rows: [{ user_id: validValkeyPayload.userGuid }] }) // user exists
@@ -534,6 +549,7 @@ describe('IframeService', () => {
       mockValkeyClient.hget.mockResolvedValueOnce(JSON.stringify(validValkeyPayload));
       // Org exists with SAME name as incoming payload
       mockPool.query
+        .mockResolvedValueOnce({ rows: [] }) // findConversationBySessionKey - not found
         .mockResolvedValueOnce({ rows: [{ id: validValkeyPayload.tenantId, name: 'staging' }] }) // org exists with same name
         .mockResolvedValueOnce({ rows: [{ user_id: validValkeyPayload.userGuid }] }) // user exists
         .mockResolvedValueOnce({ rows: [] }) // user update
@@ -560,6 +576,7 @@ describe('IframeService', () => {
       mockValkeyClient.hget.mockResolvedValueOnce(JSON.stringify(validValkeyPayload));
       // Org exists with DIFFERENT name
       mockPool.query
+        .mockResolvedValueOnce({ rows: [] }) // findConversationBySessionKey - not found
         .mockResolvedValueOnce({ rows: [{ id: validValkeyPayload.tenantId, name: 'old-tenant-name' }] })
         .mockResolvedValueOnce({ rows: [] }) // org update (when name changed)
         .mockResolvedValueOnce({ rows: [{ user_id: validValkeyPayload.userGuid }] }) // user exists
@@ -646,6 +663,7 @@ describe('IframeService', () => {
   describe('validateAndSetup - returns uiConfig (camelCase)', () => {
     const setupJitMocksForCustomText = () => {
       mockPool.query
+        .mockResolvedValueOnce({ rows: [] }) // findConversationBySessionKey - not found
         .mockResolvedValueOnce({ rows: [{ id: validValkeyPayload.tenantId }] }) // org exists
         .mockResolvedValueOnce({ rows: [] }) // update org
         .mockResolvedValueOnce({ rows: [{ user_id: validValkeyPayload.userGuid }] }) // user exists
@@ -727,6 +745,7 @@ describe('IframeService', () => {
       // No conversationId in payload = create new
       mockValkeyClient.hget.mockResolvedValueOnce(JSON.stringify(validValkeyPayload));
       mockPool.query
+        .mockResolvedValueOnce({ rows: [] }) // findConversationBySessionKey - not found
         .mockResolvedValueOnce({ rows: [{ id: validValkeyPayload.tenantId, name: 'staging' }] }) // org exists
         .mockResolvedValueOnce({ rows: [{ user_id: validValkeyPayload.userGuid }] }) // user exists
         .mockResolvedValueOnce({ rows: [] }) // user update
@@ -895,6 +914,190 @@ describe('IframeService', () => {
       const result = await iframeService.fetchValkeyPayload('missing-user-key');
 
       expect(result).toBeNull();
+    });
+  });
+
+  /**
+   * Conversation Reuse by sessionKey (PLAT-3286)
+   *
+   * When user returns to a workflow tab, they use the same sessionKey.
+   * Rita should reuse the existing conversation instead of creating a new one.
+   *
+   * Flow:
+   * 1. First visit: sessionKey A → creates conversation conv-111, stores session_key
+   * 2. Return visit: sessionKey A → finds conv-111 by session_key, reuses it
+   */
+  describe('Conversation reuse by sessionKey', () => {
+    it('should reuse existing conversation when same sessionKey is used', async () => {
+      mockValkeyClient.hget.mockResolvedValueOnce(JSON.stringify(validValkeyPayload));
+      // First: sessionKey lookup finds existing conversation
+      mockPool.query
+        .mockResolvedValueOnce({ rows: [{ id: 'existing-conv-from-session' }] }) // findConversationBySessionKey
+        .mockResolvedValueOnce({ rows: [{ id: validValkeyPayload.tenantId, name: 'staging' }] }) // org exists
+        .mockResolvedValueOnce({ rows: [{ user_id: validValkeyPayload.userGuid }] }) // user exists
+        .mockResolvedValueOnce({ rows: [] }) // user update
+        .mockResolvedValueOnce({ rows: [] }) // membership
+        .mockResolvedValueOnce({ rows: [{ id: 'existing-conv-from-session' }] }); // conversation ownership check
+
+      const result = await iframeService.validateAndSetup('session-key-123');
+
+      expect(result.valid).toBe(true);
+      expect(result.conversationId).toBe('existing-conv-from-session');
+      // Should NOT call withOrgContext (no new conversation created)
+      expect(mockWithOrgContext).not.toHaveBeenCalled();
+    });
+
+    it('should create new conversation when sessionKey has no existing conversation', async () => {
+      mockValkeyClient.hget.mockResolvedValueOnce(JSON.stringify(validValkeyPayload));
+      // First: sessionKey lookup finds nothing
+      mockPool.query
+        .mockResolvedValueOnce({ rows: [] }) // findConversationBySessionKey - not found
+        .mockResolvedValueOnce({ rows: [{ id: validValkeyPayload.tenantId, name: 'staging' }] }) // org exists
+        .mockResolvedValueOnce({ rows: [{ user_id: validValkeyPayload.userGuid }] }) // user exists
+        .mockResolvedValueOnce({ rows: [] }) // user update
+        .mockResolvedValueOnce({ rows: [] }); // membership
+
+      mockWithOrgContext.mockImplementation(async (_userId, _orgId, callback) => {
+        const mockClient = {
+          query: vi.fn().mockResolvedValue({ rows: [{ id: 'new-conv-id' }] }),
+        };
+        return await callback(mockClient as any);
+      });
+
+      const result = await iframeService.validateAndSetup('new-session-key');
+
+      expect(result.valid).toBe(true);
+      expect(result.conversationId).toBe('new-conv-id');
+      // Should create new conversation
+      expect(mockWithOrgContext).toHaveBeenCalled();
+    });
+
+    it('should store session_key when creating new conversation', async () => {
+      mockValkeyClient.hget.mockResolvedValueOnce(JSON.stringify(validValkeyPayload));
+      mockPool.query
+        .mockResolvedValueOnce({ rows: [] }) // findConversationBySessionKey - not found
+        .mockResolvedValueOnce({ rows: [{ id: validValkeyPayload.tenantId, name: 'staging' }] }) // org exists
+        .mockResolvedValueOnce({ rows: [{ user_id: validValkeyPayload.userGuid }] }) // user exists
+        .mockResolvedValueOnce({ rows: [] }) // user update
+        .mockResolvedValueOnce({ rows: [] }); // membership
+
+      let capturedQuery = '';
+      let capturedParams: unknown[] = [];
+      mockWithOrgContext.mockImplementation(async (_userId, _orgId, callback) => {
+        const mockClient = {
+          query: vi.fn().mockImplementation((query, params) => {
+            capturedQuery = query;
+            capturedParams = params;
+            return Promise.resolve({ rows: [{ id: 'new-conv-id' }] });
+          }),
+        };
+        return await callback(mockClient as any);
+      });
+
+      await iframeService.validateAndSetup('my-session-key-xyz');
+
+      // Verify session_key is stored in INSERT
+      expect(capturedQuery).toContain('session_key');
+      expect(capturedParams).toContain('my-session-key-xyz');
+    });
+
+    it('should set source=jarvis when creating new conversation', async () => {
+      mockValkeyClient.hget.mockResolvedValueOnce(JSON.stringify(validValkeyPayload));
+      mockPool.query
+        .mockResolvedValueOnce({ rows: [] }) // findConversationBySessionKey - not found
+        .mockResolvedValueOnce({ rows: [{ id: validValkeyPayload.tenantId, name: 'staging' }] }) // org exists
+        .mockResolvedValueOnce({ rows: [{ user_id: validValkeyPayload.userGuid }] }) // user exists
+        .mockResolvedValueOnce({ rows: [] }) // user update
+        .mockResolvedValueOnce({ rows: [] }); // membership
+
+      let capturedQuery = '';
+      mockWithOrgContext.mockImplementation(async (_userId, _orgId, callback) => {
+        const mockClient = {
+          query: vi.fn().mockImplementation((query) => {
+            capturedQuery = query;
+            return Promise.resolve({ rows: [{ id: 'new-conv-id' }] });
+          }),
+        };
+        return await callback(mockClient as any);
+      });
+
+      await iframeService.validateAndSetup('test-session');
+
+      // Verify source=jarvis is set in INSERT (hardcoded, not param)
+      expect(capturedQuery).toContain('source');
+      expect(capturedQuery).toContain("'jarvis'");
+    });
+
+    it('should use different conversations for different sessionKeys', async () => {
+      // Session A - no existing conversation
+      mockValkeyClient.hget.mockResolvedValueOnce(JSON.stringify(validValkeyPayload));
+      mockPool.query
+        .mockResolvedValueOnce({ rows: [] }) // findConversationBySessionKey - not found for A
+        .mockResolvedValueOnce({ rows: [{ id: validValkeyPayload.tenantId, name: 'staging' }] })
+        .mockResolvedValueOnce({ rows: [{ user_id: validValkeyPayload.userGuid }] })
+        .mockResolvedValueOnce({ rows: [] })
+        .mockResolvedValueOnce({ rows: [] });
+
+      mockWithOrgContext.mockImplementation(async (_userId, _orgId, callback) => {
+        const mockClient = {
+          query: vi.fn().mockResolvedValue({ rows: [{ id: 'conv-for-session-A' }] }),
+        };
+        return await callback(mockClient as any);
+      });
+
+      const resultA = await iframeService.validateAndSetup('session-A');
+      expect(resultA.conversationId).toBe('conv-for-session-A');
+
+      // Reset mocks for session B
+      vi.clearAllMocks();
+      mockSessionStore.createSession.mockResolvedValue({
+        sessionId: 'mock-session-id-2',
+        userId: validValkeyPayload.userGuid,
+        organizationId: validValkeyPayload.tenantId,
+      });
+      mockSessionStore.updateSession.mockResolvedValue({});
+
+      // Session B - no existing conversation
+      mockValkeyClient.hget.mockResolvedValueOnce(JSON.stringify(validValkeyPayload));
+      mockPool.query
+        .mockResolvedValueOnce({ rows: [] }) // findConversationBySessionKey - not found for B
+        .mockResolvedValueOnce({ rows: [{ id: validValkeyPayload.tenantId, name: 'staging' }] })
+        .mockResolvedValueOnce({ rows: [{ user_id: validValkeyPayload.userGuid }] })
+        .mockResolvedValueOnce({ rows: [] })
+        .mockResolvedValueOnce({ rows: [] });
+
+      mockWithOrgContext.mockImplementation(async (_userId, _orgId, callback) => {
+        const mockClient = {
+          query: vi.fn().mockResolvedValue({ rows: [{ id: 'conv-for-session-B' }] }),
+        };
+        return await callback(mockClient as any);
+      });
+
+      const resultB = await iframeService.validateAndSetup('session-B');
+      expect(resultB.conversationId).toBe('conv-for-session-B');
+
+      // Different sessions should have different conversations
+      expect(resultA.conversationId).not.toBe(resultB.conversationId);
+    });
+
+    it('should prioritize existingConversationId param over sessionKey lookup', async () => {
+      mockValkeyClient.hget.mockResolvedValueOnce(JSON.stringify(validValkeyPayload));
+      // Note: findConversationBySessionKey should NOT be called when existingConversationId provided
+      mockPool.query
+        .mockResolvedValueOnce({ rows: [{ id: validValkeyPayload.tenantId, name: 'staging' }] }) // org exists
+        .mockResolvedValueOnce({ rows: [{ user_id: validValkeyPayload.userGuid }] }) // user exists
+        .mockResolvedValueOnce({ rows: [] }) // user update
+        .mockResolvedValueOnce({ rows: [] }) // membership
+        .mockResolvedValueOnce({ rows: [{ id: 'param-conv-id' }] }); // conversation ownership check
+
+      const result = await iframeService.validateAndSetup(
+        'session-key-123',
+        undefined,
+        'param-conv-id' // explicit param takes priority
+      );
+
+      expect(result.valid).toBe(true);
+      expect(result.conversationId).toBe('param-conv-id');
     });
   });
 });
