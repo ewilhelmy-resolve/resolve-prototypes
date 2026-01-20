@@ -457,8 +457,8 @@ describe('WebhookService', () => {
    * - sendMessageEvent (rita-chat): Includes ALL Rita internal IDs
    * - sendTenantMessageEvent (rita-chat-iframe): Only Valkey config + message content
    */
-  describe('sendMessageEvent - includes Rita internal IDs', () => {
-    it('should include all Rita internal IDs in payload', async () => {
+  describe('sendMessageEvent - Rita Go (includes document_ids, transcript_ids)', () => {
+    it('should include document_ids and transcript_ids in payload', async () => {
       mockedAxios.post.mockResolvedValueOnce({ status: 200, data: { success: true } });
 
       await webhookService.sendMessageEvent({
@@ -487,14 +487,13 @@ describe('WebhookService', () => {
     });
   });
 
-  describe('sendTenantMessageEvent - iframe webhook (no Rita IDs)', () => {
+  describe('sendTenantMessageEvent - iframe (NO document_ids, transcript_ids, user_email)', () => {
     const mockIframeConfig = {
       accessToken: 'jwt-access-token',
       refreshToken: 'jwt-refresh-token',
       tabInstanceId: 'tab-123',
       tenantId: 'tenant-456',
       tenantName: 'Test Tenant',
-      chatSessionId: 'chat-session-789',
       clientId: 'client-abc',
       clientKey: 'secret-key-xyz',
       tokenExpiry: Date.now() + 3600000,
@@ -508,12 +507,9 @@ describe('WebhookService', () => {
       await webhookService.sendTenantMessageEvent({
         organizationId: 'rita-org-id',
         userId: 'rita-user-id',
-        userEmail: 'iframe@internal.test',
         conversationId: 'rita-conv-id',
         messageId: 'rita-msg-id',
         customerMessage: 'Hello from iframe',
-        documentIds: ['doc-1'],
-        transcript: [{ role: 'user', content: 'Hello' }],
         iframeConfig: mockIframeConfig,
       });
 
@@ -522,18 +518,18 @@ describe('WebhookService', () => {
       // Should include Valkey config fields (camelCase)
       expect(calledPayload.userGuid).toBe('jarvis-user-guid-123');
       expect(calledPayload.tenantId).toBe('tenant-456');
-      expect(calledPayload.chatSessionId).toBe('chat-session-789');
       expect(calledPayload.accessToken).toBe('jwt-access-token');
 
-      // Should include Valkey IDs as snake_case for RabbitMQ routing
-      // (uses Valkey IDs directly, not Rita DB IDs)
+      // Should include snake_case fields for RabbitMQ routing
       expect(calledPayload.tenant_id).toBe('tenant-456');
-      expect(calledPayload.user_id).toBe('jarvis-user-guid-123');
-      expect(calledPayload.user_email).toBe('iframe@internal.test');
+      expect(calledPayload.user_guid).toBe('jarvis-user-guid-123');
       expect(calledPayload.conversation_id).toBe('rita-conv-id');
       expect(calledPayload.message_id).toBe('rita-msg-id');
-      expect(calledPayload.document_ids).toEqual(['doc-1']);
-      expect(calledPayload.transcript_ids).toEqual({ transcripts: [{ role: 'user', content: 'Hello' }] });
+
+      // Should NOT include user_email, document_ids, or transcript_ids for iframe (SOC2)
+      expect(calledPayload.user_email).toBeUndefined();
+      expect(calledPayload.document_ids).toBeUndefined();
+      expect(calledPayload.transcript_ids).toBeUndefined();
 
       // Should include message content
       expect(calledPayload.customer_message).toBe('Hello from iframe');
@@ -548,7 +544,6 @@ describe('WebhookService', () => {
       await webhookService.sendTenantMessageEvent({
         organizationId: 'rita-org-id',
         userId: 'rita-user-id',
-        userEmail: 'iframe@internal.test',
         conversationId: 'rita-conv-id',
         messageId: 'rita-msg-id',
         customerMessage: 'Hello',

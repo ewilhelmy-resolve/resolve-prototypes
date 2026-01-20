@@ -180,13 +180,10 @@ export class WebhookService {
     // Standard message params
     organizationId: string;
     userId: string;
-    userEmail: string;
     conversationId: string;
     messageId: string;
     customerMessage: string;
-    documentIds?: string[];
     createdAt?: Date;
-    transcript?: Array<{ role: string; content: string }>;
     // Full Valkey config - spread into payload
     iframeConfig: IframeWebhookConfig;
   }): Promise<WebhookResponse> {
@@ -199,24 +196,22 @@ export class WebhookService {
     // Build HTTP Basic auth header (clientId:clientKey base64 encoded)
     const authHeader = `Basic ${Buffer.from(`${iframeConfig.clientId}:${iframeConfig.clientKey}`).toString('base64')}`;
 
-    // Build payload: Valkey config (camelCase) + snake_case copies for RabbitMQ
-    // Use Valkey IDs directly (not Rita DB IDs) so platform can echo them back
+    // Build payload: Valkey config (camelCase) + snake_case for RabbitMQ routing
     const payload: BaseWebhookPayload & Record<string, any> = {
       source: 'rita-chat-iframe',
       action: 'message_created',
-      // Spread entire Valkey config (camelCase: userGuid, tenantId, chatSessionId, etc.)
+      // Spread entire Valkey config (camelCase: userGuid, tenantId, etc.)
       ...iframeConfig,
-      // Snake_case copies of Valkey IDs for RabbitMQ response routing
+      // Snake_case fields for RabbitMQ response routing:
+      // - message_id: to update original message
+      // - conversation_id: to find conversation
+      // - tenant_id: remapped to organization_id
+      // - user_guid: for user identification
       tenant_id: iframeConfig.tenantId,
-      user_id: iframeConfig.userGuid,
-      user_email: messageParams.userEmail,
+      user_guid: iframeConfig.userGuid,
       conversation_id: messageParams.conversationId,
       message_id: messageParams.messageId,
       customer_message: messageParams.customerMessage,
-      document_ids: messageParams.documentIds || [],
-      transcript_ids: messageParams.transcript ? {
-        transcripts: messageParams.transcript
-      } : undefined,
       timestamp: (messageParams.createdAt || new Date()).toISOString(),
     };
 
