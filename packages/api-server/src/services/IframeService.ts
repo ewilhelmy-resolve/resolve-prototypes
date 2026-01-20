@@ -301,8 +301,8 @@ export class IframeService {
       ritaOrgId,
       async (client) => {
         const conversationResult = await client.query(
-          `INSERT INTO conversations (organization_id, user_id, title, session_key)
-           VALUES ($1, $2, $3, $4)
+          `INSERT INTO conversations (organization_id, user_id, title, session_key, source)
+           VALUES ($1, $2, $3, $4, 'iframe')
            RETURNING id`,
           [ritaOrgId, ritaUserId, 'Iframe Chat', sessionKey || null]
         );
