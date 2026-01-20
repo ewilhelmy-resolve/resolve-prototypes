@@ -1001,6 +1001,33 @@ describe('IframeService', () => {
       expect(capturedParams).toContain('my-session-key-xyz');
     });
 
+    it('should set source=iframe when creating new conversation', async () => {
+      mockValkeyClient.hget.mockResolvedValueOnce(JSON.stringify(validValkeyPayload));
+      mockPool.query
+        .mockResolvedValueOnce({ rows: [] }) // findConversationBySessionKey - not found
+        .mockResolvedValueOnce({ rows: [{ id: validValkeyPayload.tenantId, name: 'staging' }] }) // org exists
+        .mockResolvedValueOnce({ rows: [{ user_id: validValkeyPayload.userGuid }] }) // user exists
+        .mockResolvedValueOnce({ rows: [] }) // user update
+        .mockResolvedValueOnce({ rows: [] }); // membership
+
+      let capturedQuery = '';
+      mockWithOrgContext.mockImplementation(async (_userId, _orgId, callback) => {
+        const mockClient = {
+          query: vi.fn().mockImplementation((query) => {
+            capturedQuery = query;
+            return Promise.resolve({ rows: [{ id: 'new-conv-id' }] });
+          }),
+        };
+        return await callback(mockClient as any);
+      });
+
+      await iframeService.validateAndSetup('test-session');
+
+      // Verify source=iframe is set in INSERT (hardcoded, not param)
+      expect(capturedQuery).toContain('source');
+      expect(capturedQuery).toContain("'iframe'");
+    });
+
     it('should use different conversations for different sessionKeys', async () => {
       // Session A - no existing conversation
       mockValkeyClient.hget.mockResolvedValueOnce(JSON.stringify(validValkeyPayload));
