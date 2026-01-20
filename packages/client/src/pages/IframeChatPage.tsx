@@ -119,8 +119,17 @@ function DebugPanel({ debug, showDebug, setShowDebug, debugLogs, state }: DebugP
 // Inner component that uses SSE (must be inside SSEProvider)
 function IframeChatContent({
 	conversationId,
+	titleText,
+	placeholderText,
+	welcomeText,
 }: {
 	conversationId: string;
+	/** Custom title from Valkey (e.g., "Ask Workflow Designer") */
+	titleText?: string;
+	/** Custom placeholder from Valkey (e.g., "Describe your workflow...") */
+	placeholderText?: string;
+	/** Custom welcome text from Valkey (e.g., "I can help you build workflow automations.") */
+	welcomeText?: string;
 }) {
 	const { latestUpdate } = useSSEContext();
 	const { updateMessage } = useConversationStore();
@@ -167,6 +176,9 @@ function IframeChatContent({
 			{...ritaChatState}
 			currentConversationId={conversationId}
 			requireKnowledgeBase={false}
+			titleText={titleText}
+			placeholderText={placeholderText}
+			welcomeText={welcomeText}
 		/>
 	);
 }
@@ -184,6 +196,11 @@ export default function IframeChatPage() {
 		urlConversationId || null
 	);
 	const [sessionReady, setSessionReady] = useState(false);
+
+	// Custom UI text from Valkey (undefined = use i18n defaults)
+	const [titleText, setTitleText] = useState<string | undefined>();
+	const [placeholderText, setPlaceholderText] = useState<string | undefined>();
+	const [welcomeText, setWelcomeText] = useState<string | undefined>();
 
 	// Debug state
 	const [showDebug, setShowDebug] = useState(debug);
@@ -251,9 +268,17 @@ export default function IframeChatPage() {
 					addDebugLog("info", "Session initialized successfully", {
 						conversationId: response.conversationId,
 						webhookConfigLoaded: response.webhookConfigLoaded,
+						titleText: response.titleText,
+						welcomeText: response.welcomeText,
+						placeholderText: response.placeholderText,
 					});
 					setConversationId(response.conversationId);
 					setCurrentConversation(response.conversationId);
+
+					// Store custom UI text from Valkey (undefined = use i18n defaults)
+					setTitleText(response.titleText);
+					setWelcomeText(response.welcomeText);
+					setPlaceholderText(response.placeholderText);
 
 					// Navigate to URL with conversationId to sync with useChatNavigation
 					// This prevents useChatNavigation from clearing the store when URL has no conversationId
@@ -363,7 +388,12 @@ export default function IframeChatPage() {
 	return (
 		<IframeChatLayout>
 			<SSEProvider apiUrl={apiUrl} enabled={sessionReady}>
-				<IframeChatContent conversationId={conversationId} />
+				<IframeChatContent
+					conversationId={conversationId}
+					titleText={titleText}
+					placeholderText={placeholderText}
+					welcomeText={welcomeText}
+				/>
 			</SSEProvider>
 			<DebugPanel {...debugPanelProps} />
 		</IframeChatLayout>

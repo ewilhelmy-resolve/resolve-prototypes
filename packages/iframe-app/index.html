@@ -407,6 +407,11 @@
             background: #f8fafc;
         }
 
+        .mock-btn.active {
+            border-color: #10b981;
+            background: #ecfdf5;
+        }
+
         .mock-btn .mock-label {
             font-weight: 600;
             color: #334155;
@@ -505,9 +510,31 @@
             <span id="devPanelToggle">−</span>
         </div>
         <div class="dev-panel-content">
+            <!-- Tab Simulation (PLAT-3286 Testing) -->
+            <div class="dev-section">
+                <h3>Tab Simulation (PLAT-3286)</h3>
+                <p style="font-size: 10px; color: #64748b; margin-bottom: 8px;">Test conversation reuse across tab returns</p>
+                <div class="mock-btn-grid">
+                    <button class="mock-btn" id="tabBtnA" onclick="loadTabSession('tab-A')">
+                        <span class="mock-label">Tab A</span>
+                        <span class="mock-desc">Workflow Designer</span>
+                    </button>
+                    <button class="mock-btn" id="tabBtnB" onclick="loadTabSession('tab-B')">
+                        <span class="mock-label">Tab B</span>
+                        <span class="mock-desc">Activity Builder</span>
+                    </button>
+                </div>
+                <button class="dev-btn success" onclick="returnToTab()" style="margin-top: 8px;">↩ Return to Same Tab</button>
+                <div style="margin-top: 8px; padding: 8px; background: #f1f5f9; border-radius: 4px; font-size: 10px;">
+                    <div><strong>Current Tab:</strong> <span id="currentTab">None</span></div>
+                    <div><strong>Session Key:</strong> <span id="currentSessionKey">-</span></div>
+                    <div><strong>Conv ID:</strong> <span id="currentConvId">-</span></div>
+                </div>
+            </div>
+
             <!-- Connection Settings -->
             <div class="dev-section">
-                <h3>Connection</h3>
+                <h3>Manual Connection</h3>
                 <input type="text" class="dev-input" id="sessionKey" placeholder="Session Key (Valkey)" value="dev-test-session">
                 <button class="dev-btn primary" onclick="loadIframe()">Load Iframe</button>
                 <div style="margin-top: 8px; font-size: 11px;">
@@ -612,6 +639,13 @@
         let requestCounter = 0;
         let chatOpen = false;
 
+        // Tab simulation state (PLAT-3286)
+        let currentTabId = null;
+        const tabSessions = {
+            'tab-A': { sessionKey: 'test-tab-A', context: 'Workflow Designer', convId: null },
+            'tab-B': { sessionKey: 'test-tab-B', context: 'Activity Builder', convId: null }
+        };
+
         function log(message, type = 'info') {
             const logEl = document.getElementById('eventLog');
             const timestamp = new Date().toLocaleTimeString();
@@ -693,6 +727,94 @@
             log(`Loading: ${url}`, 'outgoing');
         }
 
+        // PLAT-3286: Tab Simulation Functions
+        function loadTabSession(tabId) {
+            const tab = tabSessions[tabId];
+            if (!tab) {
+                log(`Error: Unknown tab ${tabId}`, 'error');
+                return;
+            }
+
+            currentTabId = tabId;
+
+            // Highlight active tab button
+            document.getElementById('tabBtnA')?.classList.remove('active');
+            document.getElementById('tabBtnB')?.classList.remove('active');
+            document.getElementById(`tabBtn${tabId.split('-')[1]}`)?.classList.add('active');
+            const iframe = document.getElementById('ritaIframe');
+
+            // Clear previous convId to simulate fresh navigation
+            tab.convId = null;
+
+            // Load iframe with this tab's sessionKey (no conversationId - let backend find/create)
+            const url = `${RITA_BASE_URL}/iframe/chat?sessionKey=${encodeURIComponent(tab.sessionKey)}`;
+
+            iframeReady = false;
+            updateStatus('Loading...', 'waiting');
+            iframe.src = url;
+
+            // Update Tab Simulation display
+            updateTabDisplay();
+
+            // Open chat widget
+            if (!chatOpen) {
+                toggleChat();
+            }
+
+            log(`Loading ${tabId} (${tab.context}): sessionKey=${tab.sessionKey}`, 'workflow');
+        }
+
+        function returnToTab() {
+            if (!currentTabId) {
+                log('Error: No tab selected. Click Tab A or Tab B first.', 'error');
+                return;
+            }
+
+            const tab = tabSessions[currentTabId];
+            const iframe = document.getElementById('ritaIframe');
+
+            // Reload same sessionKey - should return SAME conversationId
+            const url = `${RITA_BASE_URL}/iframe/chat?sessionKey=${encodeURIComponent(tab.sessionKey)}`;
+
+            iframeReady = false;
+            updateStatus('Loading...', 'waiting');
+            iframe.src = url;
+
+            log(`↩ Returning to ${currentTabId}: sessionKey=${tab.sessionKey}`, 'workflow');
+            log(`Expected: Same convId as before (${tab.convId || 'first load'})`, 'workflow');
+        }
+
+        function updateTabDisplay() {
+            const tab = currentTabId ? tabSessions[currentTabId] : null;
+            document.getElementById('currentTab').textContent = currentTabId || 'None';
+            document.getElementById('currentSessionKey').textContent = tab?.sessionKey || '-';
+            document.getElementById('currentConvId').textContent = tab?.convId || '(waiting...)';
+        }
+
+        function captureConversationId(url) {
+            // Extract conversationId from iframe URL
+            // Format: /iframe/chat/:conversationId?sessionKey=...
+            const match = url.match(/\/iframe\/chat\/([^?/]+)/);
+            if (match && match[1] && currentTabId) {
+                const convId = match[1];
+                const tab = tabSessions[currentTabId];
+                const wasNull = tab.convId === null;
+                const isSame = tab.convId === convId;
+
+                if (wasNull) {
+                    tab.convId = convId;
+                    log(`✓ Conv ID captured: ${convId}`, 'incoming');
+                } else if (isSame) {
+                    log(`✓ PASS: Same conv ID returned! ${convId}`, 'incoming');
+                } else {
+                    log(`✗ FAIL: Different conv ID! Was: ${tab.convId}, Now: ${convId}`, 'error');
+                    tab.convId = convId;
+                }
+
+                updateTabDisplay();
+            }
+        }
+
         function sendMessage() {
             if (!iframeReady) {
                 log('Error: Iframe not ready', 'error');
@@ -756,12 +878,35 @@
                     iframeReady = true;
                     updateStatus('Connected', 'ready');
                     log('READY: Iframe connected', 'incoming');
+
+                    // PLAT-3286: Capture conversationId from iframe URL after navigation
+                    setTimeout(() => {
+                        try {
+                            const iframe = document.getElementById('ritaIframe');
+                            // Note: Same-origin only - works for localhost testing
+                            const iframeUrl = iframe.contentWindow.location.href;
+                            captureConversationId(iframeUrl);
+                        } catch (e) {
+                            // Cross-origin - try from data payload if provided
+                            if (data?.conversationId && currentTabId) {
+                                tabSessions[currentTabId].convId = data.conversationId;
+                                log(`Conv ID from READY: ${data.conversationId}`, 'incoming');
+                                updateTabDisplay();
+                            }
+                        }
+                    }, 100);
                     break;
                 case 'ACK':
                     log(`ACK [${requestId}]: ${success ? 'OK' : error}`, success ? 'incoming' : 'error');
                     break;
                 case 'STATUS':
                     log(`STATUS [${requestId}]: ${JSON.stringify(data).substring(0, 50)}...`, 'incoming');
+                    break;
+                case 'NAVIGATION':
+                    // PLAT-3286: Alternative - iframe sends navigation event with conversationId
+                    if (data?.conversationId && currentTabId) {
+                        captureConversationId(`/iframe/chat/${data.conversationId}`);
+                    }
                     break;
             }
         });

@@ -55,7 +55,6 @@ describe("WorkflowExecutionService", () => {
 		tabInstanceId: "tab-123",
 		tenantId: "tenant-456",
 		tenantName: "Test Tenant",
-		chatSessionId: "chat-789",
 		clientId: "client-abc",
 		clientKey: "secret-key-xyz",
 		tokenExpiry: Date.now() + 3600000,
@@ -171,7 +170,6 @@ describe("WorkflowExecutionService", () => {
 					tenantId: "tenant-456",
 					tenantName: "Test Tenant",
 					tabInstanceId: "tab-123",
-					chatSessionId: "chat-789",
 					userGuid: "user-from-host-123",
 				}),
 				expect.objectContaining({
@@ -385,7 +383,6 @@ describe("WorkflowExecutionService", () => {
 				expect.objectContaining({
 					userGuid: "user-from-host-123",
 					tenantId: "tenant-456",
-					chatSessionId: "chat-789",
 				}),
 				expect.any(Object),
 			);

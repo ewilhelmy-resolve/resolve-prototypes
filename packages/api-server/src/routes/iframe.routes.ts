@@ -75,6 +75,10 @@ router.post('/validate-instantiation', async (req, res) => {
       conversationId: result.conversationId,
       webhookConfigLoaded: result.webhookConfigLoaded,
       webhookTenantId: result.webhookTenantId,
+      // Custom UI text from Valkey ui_config (undefined = use i18n defaults)
+      titleText: result.uiConfig?.titleText,
+      welcomeText: result.uiConfig?.welcomeText,
+      placeholderText: result.uiConfig?.placeholderText,
     });
   } catch (error) {
     const duration = Date.now() - startTime;
@@ -128,7 +132,7 @@ router.get('/debug', async (_req, res) => {
  * No DB checks - all IDs from Valkey config.
  * Flow:
  * 1. Client sends hashkey
- * 2. Backend fetches payload from Valkey (userId, tenantId, chatSessionId, webhook creds)
+ * 2. Backend fetches payload from Valkey (user_guid, tenant_id, webhook creds)
  * 3. Backend calls Actions API postEvent with rita_* routing IDs
  * 4. Response flows: Actions API → RabbitMQ → SSE → iframe
  */

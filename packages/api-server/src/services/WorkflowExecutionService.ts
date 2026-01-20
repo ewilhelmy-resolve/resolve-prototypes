@@ -138,6 +138,11 @@ export class WorkflowExecutionService {
 	): Promise<ExecuteWorkflowResult> {
 		const startTime = Date.now();
 
+		// Validate required webhook fields (already validated in fetchAndValidateConfig, but TypeScript needs explicit checks)
+		if (!config.actionsApiBaseUrl || !config.clientId || !config.clientKey) {
+			throw new Error("Missing required webhook credentials");
+		}
+
 		// Build webhook URL from config (remove trailing slash if present)
 		const baseUrl = config.actionsApiBaseUrl.replace(/\/$/, "");
 		const webhookUrl = `${baseUrl}/api/Webhooks/postEvent/${config.tenantId}`;
