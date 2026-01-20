@@ -62,8 +62,8 @@ router.post('/', authenticateUser, async (req, res) => {
 
         // Insert new conversation
         const conversationResult = await client.query(`
-          INSERT INTO conversations (organization_id, user_id, title)
-          VALUES ($1, $2, $3)
+          INSERT INTO conversations (organization_id, user_id, title, source)
+          VALUES ($1, $2, $3, 'rita_go')
           RETURNING id, title, created_at, updated_at
         `, [authReq.user.activeOrganizationId, authReq.user.id, title.trim()]);
 

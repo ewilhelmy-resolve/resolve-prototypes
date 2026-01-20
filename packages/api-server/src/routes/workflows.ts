@@ -43,8 +43,8 @@ router.post('/generate', authenticateUser, async (req, res) => {
       async (client) => {
         // Create workflow conversation
         const convResult = await client.query(`
-          INSERT INTO conversations (organization_id, user_id, title)
-          VALUES ($1, $2, $3)
+          INSERT INTO conversations (organization_id, user_id, title, source)
+          VALUES ($1, $2, $3, 'rita_go')
           RETURNING id
         `, [authReq.user.activeOrganizationId, authReq.user.id, `Workflow: ${query.trim().substring(0, 50)}`]);
 
