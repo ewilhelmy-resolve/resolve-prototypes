@@ -159,6 +159,18 @@ interface DataSourceSyncPayload extends BaseWebhookPayload {
   settings: Record<string, any>;
 }
 
+// Credential delegation webhook payload (send email)
+interface CredentialDelegationEmailPayload extends BaseWebhookPayload {
+  source: 'rita-credential-delegation';
+  action: 'send_delegation_email';
+  admin_email: string;
+  delegation_url: string;
+  organization_name: string;
+  itsm_system_type: string;
+  delegation_token_id: string;
+  expires_at: string;
+}
+
 // ITSM ticket sync webhook payload (Autopilot)
 interface SyncTicketsWebhookPayload extends BaseWebhookPayload {
   source: 'rita-chat';
@@ -174,7 +186,7 @@ interface SyncTicketsWebhookPayload extends BaseWebhookPayload {
 }
 
 // Union type for all webhook payloads
-type WebhookPayload = MessageWebhookPayload | DocumentWebhookPayload | DocumentDeletePayload | SignupWebhookPayload | SendInvitationWebhookPayload | AcceptInvitationWebhookPayload | DeleteKeycloakUserPayload | DataSourceVerifyPayload | DataSourceSyncPayload | SyncTicketsWebhookPayload | BaseWebhookPayload;
+type WebhookPayload = MessageWebhookPayload | DocumentWebhookPayload | DocumentDeletePayload | SignupWebhookPayload | SendInvitationWebhookPayload | AcceptInvitationWebhookPayload | DeleteKeycloakUserPayload | DataSourceVerifyPayload | DataSourceSyncPayload | SyncTicketsWebhookPayload | CredentialDelegationEmailPayload | BaseWebhookPayload;
 
 interface MockResponse {
   message_id: string;
@@ -2285,6 +2297,9 @@ app.post('/webhook', async (req, res) => {
 
     } else if (payload.source === 'rita-chat' && payload.action === 'verify_credentials') {
       const verifyPayload = payload as DataSourceVerifyPayload;
+      const delegationId = verifyPayload.settings?.delegation_id;
+      const isDelegation = !!delegationId;
+
       const contextLogger = createContextLogger(webhookLogger, correlationId, {
         tenantId: verifyPayload.tenant_id
       });
@@ -2294,60 +2309,140 @@ app.post('/webhook', async (req, res) => {
         action: verifyPayload.action,
         connection_id: verifyPayload.connection_id,
         connection_type: verifyPayload.connection_type,
-        user_email: verifyPayload.user_email
-      }, 'Received data source verify webhook');
+        user_email: verifyPayload.user_email,
+        is_delegation: isDelegation,
+        delegation_id: delegationId
+      }, isDelegation ? 'Received credential delegation verify webhook' : 'Received data source verify webhook');
 
       // Log raw payload for debugging (easy to copy)
       contextLogger.info({ rawPayload: JSON.stringify(verifyPayload, null, 2) }, 'Raw verify_credentials payload');
 
-      // Publish verification success message to RabbitMQ after 1 second delay
+      // Publish verification message to RabbitMQ after 1 second delay
       setTimeout(async () => {
         try {
           if (!rabbitChannel) {
             throw new Error('RabbitMQ channel not initialized');
           }
 
-          // Simulate verification success with mock options based on connection type
-          let options: Record<string, any> = {};
-          if (verifyPayload.connection_type === 'confluence') {
-            options = {
-              spaces: 'ENG,PROD,DOCS',
-              sites: 'confluence.company.com'
+          if (isDelegation) {
+            // Credential delegation verification
+            // Check for magic passwords to determine success/failure
+            const password = verifyPayload.credentials?.password;
+            const apiToken = verifyPayload.credentials?.api_token;
+            const secret = (password || apiToken || '').toLowerCase();
+
+            // Magic values for testing (check original value first)
+            const FAIL_VALUES = ['invalid', 'fail', 'error'];
+            const SUCCESS_VALUES = ['success', 'valid', 'test'];
+
+            // Determine success based on magic values
+            let isSuccess = true;
+            let errorMessage: string | null = null;
+
+            if (FAIL_VALUES.includes(secret)) {
+              isSuccess = false;
+              errorMessage = 'Invalid credentials: authentication failed';
+            } else if (SUCCESS_VALUES.includes(secret)) {
+              isSuccess = true;
+            } else {
+              // Random 80% success rate for other values
+              isSuccess = Math.random() > 0.2;
+              if (!isSuccess) {
+                errorMessage = 'Connection verification failed';
+              }
+            }
+
+            const delegationMessage = {
+              type: 'credential_delegation_verification',
+              delegation_id: delegationId,
+              tenant_id: verifyPayload.tenant_id,
+              status: isSuccess ? 'verified' : 'failed',
+              error: errorMessage,
+              timestamp: new Date().toISOString()
             };
-          } else if (verifyPayload.connection_type === 'servicenow') {
-            options = {
-              knowledge_base: [
-                { title: 'Engineering', sys_id: 'kb_eng_001' },
-                { title: 'IT Support', sys_id: 'kb_it_002' },
-                { title: 'HR Policies', sys_id: 'kb_hr_003' }
-              ]
+
+            await rabbitChannel.assertQueue('data_source_status', { durable: true });
+            rabbitChannel.sendToQueue(
+              'data_source_status',
+              Buffer.from(JSON.stringify(delegationMessage)),
+              { persistent: true }
+            );
+
+            contextLogger.info({
+              delegationId,
+              status: isSuccess ? 'verified' : 'failed',
+              queue: 'data_source_status'
+            }, 'Published delegation verification message to RabbitMQ');
+
+            // Send success email directly to owner if verification succeeded
+            if (isSuccess && verifyPayload.settings?.owner_email) {
+              const { owner_email, delegated_success_url, organization_name } = verifyPayload.settings;
+              try {
+                await emailService.sendDelegationSuccess(
+                  owner_email,
+                  verifyPayload.connection_type,
+                  delegated_success_url || ''
+                );
+                contextLogger.info({
+                  ownerEmail: owner_email,
+                  connectionType: verifyPayload.connection_type
+                }, 'Sent delegation success email to owner');
+              } catch (emailError) {
+                contextLogger.error({ error: emailError }, 'Failed to send delegation success email');
+              }
+            }
+          } else {
+            // Regular data source verification
+            let options: Record<string, any> = {};
+            if (verifyPayload.connection_type === 'confluence') {
+              options = {
+                spaces: 'ENG,PROD,DOCS',
+                sites: 'confluence.company.com'
+              };
+            } else if (verifyPayload.connection_type === 'servicenow') {
+              options = {
+                knowledge_base: [
+                  { title: 'Engineering', sys_id: 'kb_eng_001' },
+                  { title: 'IT Support', sys_id: 'kb_it_002' },
+                  { title: 'HR Policies', sys_id: 'kb_hr_003' }
+                ]
+              };
+            } else if (verifyPayload.connection_type === 'sharepoint') {
+              options = {
+                sites: ['https://company.sharepoint.com/sites/docs']
+              };
+            } else if (verifyPayload.connection_type === 'jira') {
+              options = {
+                projects: [
+                  { key: 'ENG', name: 'Engineering' },
+                  { key: 'SUP', name: 'Support' },
+                  { key: 'OPS', name: 'Operations' }
+                ]
+              };
+            }
+
+            const verificationMessage = {
+              type: 'verification',
+              connection_id: verifyPayload.connection_id,
+              tenant_id: verifyPayload.tenant_id,
+              status: 'success',
+              options: options,
+              error: null
             };
-          } else if (verifyPayload.connection_type === 'sharepoint') {
-            options = {
-              sites: ['https://company.sharepoint.com/sites/docs']
-            };
+
+            await rabbitChannel.assertQueue('data_source_status', { durable: true });
+            rabbitChannel.sendToQueue(
+              'data_source_status',
+              Buffer.from(JSON.stringify(verificationMessage)),
+              { persistent: true }
+            );
+
+            contextLogger.info({
+              connectionId: verifyPayload.connection_id,
+              status: 'success',
+              queue: 'data_source_status'
+            }, 'Published verification success message to RabbitMQ');
           }
-
-          const verificationMessage = {
-            type: 'verification',
-            connection_id: verifyPayload.connection_id,
-            tenant_id: verifyPayload.tenant_id,
-            status: 'success',
-            options: options,
-            error: null
-          };
-
-          await rabbitChannel.assertQueue('data_source_status', { durable: true });
-          rabbitChannel.sendToQueue(
-            'data_source_status',
-            Buffer.from(JSON.stringify(verificationMessage)),
-            { persistent: true }
-          );
-
-          contextLogger.info({
-            connectionId: verifyPayload.connection_id,
-            status: 'success'
-          }, 'Published verification success message to RabbitMQ');
         } catch (error) {
           contextLogger.error({ error }, 'Failed to publish verification message');
         }
@@ -2522,6 +2617,56 @@ app.post('/webhook', async (req, res) => {
         message: 'Ticket sync triggered successfully',
         ingestion_run_id: ticketsPayload.ingestion_run_id
       });
+
+    } else if (payload.source === 'rita-credential-delegation' && payload.action === 'send_delegation_email') {
+      const delegationPayload = payload as CredentialDelegationEmailPayload;
+
+      const contextLogger = createContextLogger(webhookLogger, correlationId, {
+        tenantId: delegationPayload.tenant_id,
+        email: delegationPayload.admin_email
+      });
+
+      contextLogger.info({
+        source: delegationPayload.source,
+        action: delegationPayload.action,
+        admin_email: delegationPayload.admin_email,
+        organization_name: delegationPayload.organization_name,
+        itsm_system_type: delegationPayload.itsm_system_type,
+        delegation_token_id: delegationPayload.delegation_token_id,
+        expires_at: delegationPayload.expires_at
+      }, 'Received send_delegation_email webhook');
+
+      // Send delegation email via Mailpit
+      try {
+        await emailService.sendCredentialDelegation(
+          delegationPayload.admin_email,
+          delegationPayload.delegation_url,
+          delegationPayload.organization_name,
+          delegationPayload.itsm_system_type,
+          delegationPayload.user_email || 'Unknown',
+          delegationPayload.expires_at
+        );
+
+        contextLogger.info({
+          admin_email: delegationPayload.admin_email,
+          delegation_token_id: delegationPayload.delegation_token_id
+        }, '📧 Credential delegation email sent successfully via Mailpit');
+
+        return res.status(200).json({
+          success: true,
+          message: 'Credential delegation email sent successfully',
+          admin_email: delegationPayload.admin_email,
+          delegation_token_id: delegationPayload.delegation_token_id
+        });
+      } catch (error) {
+        logError(contextLogger, error as Error, { operation: 'send-delegation-email' });
+
+        return res.status(500).json({
+          success: false,
+          message: 'Failed to send credential delegation email',
+          error: error instanceof Error ? error.message : 'Unknown error'
+        });
+      }
 
     } else {
       const errorLogger = createContextLogger(webhookLogger, correlationId);

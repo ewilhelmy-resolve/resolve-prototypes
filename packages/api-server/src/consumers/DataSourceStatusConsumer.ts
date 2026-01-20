@@ -1,8 +1,10 @@
 import type { Channel, ConsumeMessage } from 'amqplib';
 import { logError, PerformanceTimer, queueLogger } from '../config/logger.js';
+import { pool } from '../config/database.js';
 import { DataSourceService } from '../services/DataSourceService.js';
 import { getSSEService } from '../services/sse.js';
-import type { DataSourceStatusMessage, IngestionStatusMessage, SyncStatusMessage, VerificationStatusMessage } from '../types/dataSource.js';
+import type { DataSourceStatusMessage, DelegationVerificationMessage, IngestionStatusMessage, SyncStatusMessage, VerificationStatusMessage } from '../types/dataSource.js';
+import type { DelegationStatus } from '../types/credentialDelegation.js';
 
 /**
  * Unified RabbitMQ Consumer for Data Source Status Updates
@@ -39,7 +41,8 @@ export class DataSourceStatusConsumer {
 
         queueLogger.info({
           type: content.type,
-          connectionId: content.connection_id,
+          connectionId: 'connection_id' in content ? content.connection_id : undefined,
+          delegationId: 'delegation_id' in content ? content.delegation_id : undefined,
           tenantId: content.tenant_id
         }, 'Received data source status message');
 
@@ -50,6 +53,8 @@ export class DataSourceStatusConsumer {
           await this.processVerificationStatus(content);
         } else if (content.type === 'ticket_ingestion') {
           await this.processTicketIngestionStatus(content);
+        } else if (content.type === 'credential_delegation_verification') {
+          await this.processDelegationVerificationStatus(content);
         } else {
           throw new Error(`Unknown message type: ${(content as any).type}`);
         }
@@ -58,12 +63,9 @@ export class DataSourceStatusConsumer {
         channel.ack(message);
         timer.end({
           type: content.type,
-          connectionId: content.connection_id,
           success: true
         });
-        queueLogger.info({
-          connectionId: content.connection_id
-        }, 'Data source status processed successfully');
+        queueLogger.info('Data source status processed successfully');
 
       } catch (error) {
         timer.end({ success: false });
@@ -372,5 +374,131 @@ export class DataSourceStatusConsumer {
     }
 
     messageLogger.info('Ticket ingestion status processing completed successfully');
+  }
+
+  /**
+   * Process credential delegation verification status message
+   */
+  private async processDelegationVerificationStatus(payload: DelegationVerificationMessage): Promise<void> {
+    const { delegation_id, tenant_id, status, error } = payload;
+
+    // Validate required fields
+    if (!delegation_id || !status) {
+      queueLogger.error({ payload }, 'Invalid credential delegation status payload: missing required fields');
+      throw new Error('Invalid credential delegation status payload: missing required fields');
+    }
+
+    const messageLogger = queueLogger.child({
+      delegationId: delegation_id,
+      tenantId: tenant_id,
+      status: status
+    });
+
+    messageLogger.info('Processing credential delegation verification status');
+
+    // Map external status to DelegationStatus
+    const newStatus: DelegationStatus = status === 'verified' ? 'verified' : 'failed';
+
+    // Update the credential delegation token
+    const client = await pool.connect();
+    try {
+      const updateResult = await client.query(
+        `UPDATE credential_delegation_tokens
+         SET status = $1,
+             credentials_verified_at = CASE WHEN $1 = 'verified' THEN NOW() ELSE credentials_verified_at END,
+             last_verification_error = $2
+         WHERE id = $3
+         RETURNING id, organization_id, admin_email, itsm_system_type, created_by_user_id, submitted_settings`,
+        [newStatus, error, delegation_id]
+      );
+
+      if (updateResult.rows.length === 0) {
+        messageLogger.error('Delegation not found');
+        throw new Error(`Delegation ${delegation_id} not found`);
+      }
+
+      const delegation = updateResult.rows[0];
+
+      // Create audit log
+      await client.query(
+        `INSERT INTO audit_logs (
+           organization_id, user_id, action, resource_type, resource_id, metadata
+         ) VALUES ($1, NULL, $2, $3, $4, $5)`,
+        [
+          delegation.organization_id,
+          status === 'verified' ? 'credential_delegation_verified' : 'credential_delegation_failed',
+          'credential_delegation',
+          delegation_id,
+          JSON.stringify({
+            admin_email: delegation.admin_email,
+            itsm_system_type: delegation.itsm_system_type,
+            error: error
+          })
+        ]
+      );
+
+      if (status === 'verified') {
+        messageLogger.info({
+          adminEmail: delegation.admin_email,
+          itsmSystemType: delegation.itsm_system_type
+        }, 'Credential delegation verified successfully');
+
+        // Update existing data_source_connections record with submitted settings
+        const settings = delegation.submitted_settings || {};
+
+        const connectionUpdateResult = await client.query(
+          `UPDATE data_source_connections
+           SET settings = $1,
+               status = 'idle',
+               enabled = true,
+               last_verification_at = NOW(),
+               last_verification_error = NULL,
+               last_sync_status = NULL,
+               updated_by = $2,
+               updated_at = NOW()
+           WHERE organization_id = $3 AND type = $4
+           RETURNING id`,
+          [
+            JSON.stringify(settings),
+            delegation.created_by_user_id,
+            delegation.organization_id,
+            delegation.itsm_system_type
+          ]
+        );
+
+        if (connectionUpdateResult.rows.length === 0) {
+          messageLogger.error(
+            { organizationId: delegation.organization_id, type: delegation.itsm_system_type },
+            'No existing data_source_connection found to update'
+          );
+          throw new Error('No existing data_source_connection found for delegation');
+        }
+
+        const connectionId = connectionUpdateResult.rows[0].id;
+
+        // Update delegation token with the connection_id
+        await client.query(
+          `UPDATE credential_delegation_tokens SET connection_id = $1 WHERE id = $2`,
+          [connectionId, delegation_id]
+        );
+
+        messageLogger.info(
+          { connectionId, itsmSystemType: delegation.itsm_system_type },
+          'Updated data_source_connection for delegation'
+        );
+        // Note: Success email is sent directly by the platform during credential verification
+      } else {
+        messageLogger.warn({
+          adminEmail: delegation.admin_email,
+          itsmSystemType: delegation.itsm_system_type,
+          error: error
+        }, 'Credential delegation verification failed');
+      }
+
+    } finally {
+      client.release();
+    }
+
+    messageLogger.info('Credential delegation status processing completed');
   }
 }

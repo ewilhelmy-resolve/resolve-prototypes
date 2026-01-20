@@ -3,6 +3,7 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Navigate, useNavigate, useParams } from "react-router-dom";
 import ConfluenceConfiguration from "@/components/connection-sources/connection-details/ConfluenceConfiguration";
+import JiraItsmConfiguration from "@/components/connection-sources/connection-details/JiraItsmConfiguration";
 import FreshdeskItsmConfiguration from "@/components/connection-sources/connection-details/FreshdeskItsmConfiguration";
 import ServiceNowItsmConfiguration from "@/components/connection-sources/connection-details/ServiceNowItsmConfiguration";
 import ServiceNowKBConfiguration from "@/components/connection-sources/connection-details/ServiceNowKBConfiguration";
@@ -10,12 +11,14 @@ import SharePointConfiguration from "@/components/connection-sources/connection-
 import WebSearchConfiguration from "@/components/connection-sources/connection-details/WebSearchConfiguration";
 import {
 	ConfluenceForm,
+	JiraForm,
 	FreshdeskForm,
 	ServiceNowForm,
 	SharePointForm,
 	WebSearchForm,
 } from "@/components/connection-sources/connection-forms";
 import RitaSettingsLayout from "@/components/layouts/RitaSettingsLayout";
+import { Separator } from "@/components/ui/separator";
 import {
 	mapDataSourceToUI,
 	SOURCE_METADATA,
@@ -25,6 +28,8 @@ import { ConnectionSourceProvider } from "@/contexts/ConnectionSourceContext";
 import { useDataSource } from "@/hooks/useDataSources";
 import SettingsHeader from "@/pages/settings/SettingsHeader";
 import { BACKEND_STATUS, type DataSourceConnection } from "@/types/dataSource";
+import DelegationInviteBox from "@/components/connection-sources/DelegationInviteBox.tsx";
+import {ItsmSystemType} from "@/hooks/api/useCredentialDelegations.ts";
 
 type ConnectionMode = "knowledge" | "itsm";
 
@@ -41,6 +46,7 @@ const FORM_REGISTRY: Record<
 	[SOURCES.SHAREPOINT]: SharePointForm,
 	[SOURCES.SERVICENOW]: ServiceNowForm,
 	[SOURCES.WEB_SEARCH]: WebSearchForm,
+	[SOURCES.JIRA]: JiraForm,
 	[SOURCES.FRESHDESK]: FreshdeskForm,
 };
 
@@ -61,6 +67,7 @@ const ITSM_CONFIGURATION_REGISTRY: Record<
 	React.ComponentType<{ onEdit: () => void }>
 > = {
 	[SOURCES.SERVICENOW]: ServiceNowItsmConfiguration,
+	[SOURCES.JIRA]: JiraItsmConfiguration,
 	[SOURCES.FRESHDESK]: FreshdeskItsmConfiguration,
 };
 
@@ -115,7 +122,9 @@ export default function ConnectionSourceDetailPage({
 
 	// Get breadcrumb label based on mode
 	const breadcrumbLabel =
-		mode === "knowledge" ? "Knowledge Sources" : "ITSM Sources";
+		mode === "knowledge"
+			? t("detail.breadcrumbs.knowledgeSources")
+			: t("detail.breadcrumbs.itsmSources");
 
 	// Get configuration registry based on mode
 	const configurationRegistry =
@@ -211,7 +220,12 @@ export default function ConnectionSourceDetailPage({
 							}
 							description={t("detail.connectDescription", { source: sourceTitle })}
 						/>
-					</div>
+
+                        {mode === "itsm" && (!isConfigured || isEditMode) && (
+                            <DelegationInviteBox itsmSource={source.type as ItsmSystemType} />
+                        )}
+                        <Separator orientation="horizontal" />
+                    </div>
 
 					{/* Content area - form or view mode */}
 					<div className="w-full max-w-2xl mx-auto flex flex-col gap-8 px-4 md:px-0">

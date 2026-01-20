@@ -342,7 +342,7 @@ export class RabbitMQService {
       }
     });
 
-    // Start unified data source status consumer
+    // Start unified data source status consumer (also handles credential delegation verification)
     await this.dataSourceStatusConsumer.startConsumer(this.channel);
 
     // Start document processing status consumer

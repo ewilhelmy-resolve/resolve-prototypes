@@ -71,6 +71,7 @@
 	"descriptions": {
 		"confluenceConfigured": "Your Confluence connection has been configured successfully",
 		"serviceNowConfigured": "Your ServiceNow connection has been configured successfully",
+		"jiraConfigured": "Your Jira connection has been configured successfully",
 		"sharePointConfigured": "Your SharePoint connection has been configured successfully",
 		"webSearchEnabled": "Web Search has been enabled successfully",
 		"syncingSpaces": "Your Confluence spaces are being synced",

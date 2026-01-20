@@ -31,6 +31,8 @@ import { VerifyEmailPage } from "./pages/VerifyEmailPage";
 import { VerifyEmailSentPage } from "./pages/VerifyEmailSentPage";
 import ClustersPage from "./pages/ClustersPage";
 import WorkflowsPage from "./pages/WorkflowsPage";
+import CredentialSetupPage from "./pages/CredentialSetupPage";
+import LinkExpiredPage from "./pages/LinkExpiredPage";
 
 // Feature-flagged tickets page wrapper
 function TicketsPageWithFlag() {
@@ -229,6 +231,16 @@ const router = createBrowserRouter([
 	{
 		path: "/test/dropdown",
 		element: <DropdownTestPage />,
+	},
+	// Credential setup (public, magic link for IT admins)
+	{
+		path: "/credential-setup",
+		element: <CredentialSetupPage />,
+	},
+	// Link expired page (public, for invalid/expired magic links)
+	{
+		path: "/link-expired",
+		element: <LinkExpiredPage />,
 	},
 	// Auth and utility pages
 	{

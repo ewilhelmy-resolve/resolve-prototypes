@@ -15,6 +15,8 @@ interface StatusAlertProps {
 	iconSize?: string;
 	/** Optional title for the alert */
 	title?: string;
+	/** Optional action element (button) displayed on the right */
+	action?: React.ReactNode;
 }
 
 /**
@@ -53,6 +55,7 @@ export function StatusAlert({
 	className,
 	iconSize = "size-4",
 	title,
+	action,
 }: StatusAlertProps) {
 	// Determine icon based on variant
 	const Icon = {
@@ -85,13 +88,16 @@ export function StatusAlert({
 				className
 			)}
 		>
-			<Icon className={cn(iconSize, iconStyles)} />
+			<Icon className={cn(iconSize, iconStyles, "flex-shrink-0")} />
 			<AlertDescription className="flex-1">
 				{title && (
 					<p className="font-semibold mb-1">{title}</p>
 				)}
 				{children}
 			</AlertDescription>
+			{action && (
+				<div className="flex-shrink-0 ml-2 text-black">{action}</div>
+			)}
 		</Alert>
 	);
 }

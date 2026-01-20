@@ -107,13 +107,18 @@
 		"loading": "Loading connection...",
 		"unknownSourceType": "Unknown source type",
 		"configurationNotAvailable": "Configuration not available for this source type",
-		"connectDescription": "Connect your {{source}} instance to build context for RITA to make better experiences."
+		"connectDescription": "Connect your {{source}} instance to build context for RITA to make better experiences.",
+		"breadcrumbs": {
+			"knowledgeSources": "Knowledge Sources",
+			"itsmSources": "ITSM Sources"
+		}
 	},
 	"config": {
 		"titles": {
 			"confluence": "Confluence configuration",
 			"servicenowKb": "ServiceNow Knowledge Base configuration",
 			"servicenowItsm": "ServiceNow ITSM configuration",
+			"jiraItsm": "Jira ITSM configuration",
 			"sharepoint": "SharePoint",
 			"websearch": "Web Search",
 			"freshdeskItsm": "Freshdesk ITSM configuration"
@@ -157,6 +162,7 @@
 			"syncStartedConfluence": "Your Confluence spaces are being synced",
 			"syncStartedServiceNowKb": "Your ServiceNow knowledge articles are being synced",
 			"syncStartedServiceNowItsm": "Your ServiceNow tickets are being synced",
+			"syncStartedJiraItsm": "Your Jira tickets are being synced",
 			"syncFailed": "Sync Failed",
 			"syncFailedDefault": "Failed to start sync",
 			"syncCancelled": "Sync Cancelled",
