@@ -2400,11 +2400,21 @@ app.post('/webhook', async (req, res) => {
                 sites: 'confluence.company.com'
               };
             } else if (verifyPayload.connection_type === 'servicenow') {
+              // ServiceNow Knowledge Base connection
               options = {
                 knowledge_base: [
                   { title: 'Engineering', sys_id: 'kb_eng_001' },
                   { title: 'IT Support', sys_id: 'kb_it_002' },
                   { title: 'HR Policies', sys_id: 'kb_hr_003' }
+                ]
+              };
+            } else if (verifyPayload.connection_type === 'servicenow_itsm') {
+              // ServiceNow ITSM connection (for ticket sync)
+              options = {
+                itsm_tables: [
+                  { title: 'Incidents', sys_id: 'incident' },
+                  { title: 'Problems', sys_id: 'problem' },
+                  { title: 'Changes', sys_id: 'change_request' }
                 ]
               };
             } else if (verifyPayload.connection_type === 'sharepoint') {

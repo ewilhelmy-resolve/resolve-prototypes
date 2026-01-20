@@ -46,6 +46,7 @@ export const SOURCES = {
 	CONFLUENCE: "confluence",
 	SHAREPOINT: "sharepoint",
 	SERVICENOW: "servicenow",
+	SERVICENOW_ITSM: "servicenow_itsm",
 	WEB_SEARCH: "websearch",
 	JIRA: "jira",
 	FRESHDESK: "freshdesk",
@@ -62,7 +63,7 @@ export const KNOWLEDGE_SOURCE_TYPES = [
 ] as const;
 
 // ITSM Sources - sync tickets for autopilot
-export const ITSM_SOURCE_TYPES = ["servicenow", "jira", "freshdesk"] as const;
+export const ITSM_SOURCE_TYPES = ["servicenow_itsm", "jira"] as const;
 
 // Display order for each section
 export const KNOWLEDGE_SOURCES_ORDER = [
@@ -71,7 +72,7 @@ export const KNOWLEDGE_SOURCES_ORDER = [
 	"servicenow",
 	"websearch",
 ];
-export const ITSM_SOURCES_ORDER = ["servicenow", "jira", "freshdesk"];
+export const ITSM_SOURCES_ORDER = ["servicenow_itsm", "jira"];
 
 // Static metadata for each source type (icons, titles, descriptions)
 export const SOURCE_METADATA: Record<
@@ -85,7 +86,11 @@ export const SOURCE_METADATA: Record<
 		title: "Confluence",
 	},
 	servicenow: {
-		title: "ServiceNow",
+		title: "ServiceNow Knowledge",
+	},
+	servicenow_itsm: {
+		title: "ServiceNow ITSM",
+		description: "Import tickets for Autopilot clustering.",
 	},
 	sharepoint: {
 		title: "SharePoint",

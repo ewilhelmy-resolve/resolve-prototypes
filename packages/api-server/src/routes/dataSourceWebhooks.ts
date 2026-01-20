@@ -373,12 +373,11 @@ router.post('/:id/sync-tickets', authenticateUser, async (req, res) => {
       });
     }
 
-    // TODO: Check itsm_enabled flag once migration is applied
-    // For now, allow servicenow and jira types
-    if (!['servicenow', 'jira'].includes(dataSource.type)) {
+    // Only allow ITSM-specific connection types
+    if (!['servicenow_itsm', 'jira'].includes(dataSource.type)) {
       return res.status(400).json({
         error: 'Invalid data source type',
-        message: 'Ticket sync is only supported for ServiceNow and Jira connections'
+        message: 'Ticket sync is only supported for ServiceNow ITSM and Jira connections'
       });
     }
 

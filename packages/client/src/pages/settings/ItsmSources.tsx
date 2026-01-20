@@ -25,7 +25,7 @@ export default function ItsmSources() {
 
 	// Sources that are clickable (configured for ITSM sync)
 	const enabledItsmSources: string[] = isServiceNowEnabled
-		? [SOURCES.SERVICENOW]
+		? [SOURCES.SERVICENOW_ITSM]
 		: [];
 
 	// Seed on mount (idempotent - safe to call multiple times)

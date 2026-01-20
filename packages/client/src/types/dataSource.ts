@@ -1,7 +1,7 @@
 // Data Source Connection Types
 // Matches backend schema from packages/api-server/src/types/dataSource.ts
 
-export type DataSourceType = 'confluence' | 'servicenow' | 'sharepoint' | 'websearch' | 'jira';
+export type DataSourceType = 'confluence' | 'servicenow' | 'servicenow_itsm' | 'sharepoint' | 'websearch' | 'jira';
 
 export type DataSourceStatus = 'idle' | 'verifying' | 'syncing' | 'cancelled';
 
