@@ -122,8 +122,9 @@ describe('IframeService', () => {
 
     it('should return null when required fields are missing', async () => {
       const incompletePayload = {
-        tenantId: 'tenant-456',
-        // Missing userId and other required fields
+        // Missing tenant_id and user_guid (the only required fields)
+        tenantName: 'Test Tenant',
+        accessToken: 'token',
       };
       mockValkeyClient.hget.mockResolvedValueOnce(JSON.stringify(incompletePayload));
 
@@ -142,22 +143,31 @@ describe('IframeService', () => {
 
     it('should reject payload missing user_guid', async () => {
       const payloadWithoutUser = {
-        accessToken: 'token',
-        refreshToken: 'refresh',
-        tabInstanceId: 'tab-123',
         tenant_id: 'tenant-456',
-        tenantName: 'Test',
-        clientId: 'client-abc',
-        clientKey: 'key',
-        tokenExpiry: Date.now() + 3600000,
-        actionsApiBaseUrl: 'https://api.example.com',
-        // Missing user_guid
+        // Missing user_guid (required)
       };
       mockValkeyClient.hget.mockResolvedValueOnce(JSON.stringify(payloadWithoutUser));
 
       const result = await iframeService.fetchValkeyPayload('no-user-key');
 
       expect(result).toBeNull();
+    });
+
+    it('should accept minimal payload with only required fields', async () => {
+      const minimalPayload = {
+        tenant_id: 'tenant-123',
+        user_guid: 'user-456',
+      };
+      mockValkeyClient.hget.mockResolvedValueOnce(JSON.stringify(minimalPayload));
+
+      const result = await iframeService.fetchValkeyPayload('minimal-key');
+
+      expect(result).not.toBeNull();
+      expect(result?.tenantId).toBe('tenant-123');
+      expect(result?.userGuid).toBe('user-456');
+      // Optional fields should be undefined
+      expect(result?.accessToken).toBeUndefined();
+      expect(result?.actionsApiBaseUrl).toBeUndefined();
     });
   });
 
@@ -567,6 +577,319 @@ describe('IframeService', () => {
         expect.stringContaining('UPDATE organizations SET name'),
         ['staging', validValkeyPayload.tenant_id]
       );
+    });
+  });
+
+  /**
+   * Custom UI Text from Valkey ui_config
+   *
+   * Iframe vs Rita Go behavior:
+   * - Rita Go: Uses hardcoded i18n translations ("Ask RITA", "Ask me anything...")
+   * - Iframe: Uses Valkey-provided ui_config (title_text, welcome_text, placeholder_text)
+   *
+   * This allows Jarvis to customize text per context:
+   * - Activity Designer: "Ask Activity Designer", "I can help configure activities..."
+   * - Workflow Designer: "Ask Workflow Designer", "I can help build automations..."
+   */
+  describe('fetchValkeyPayload - custom UI text (ui_config)', () => {
+    it('should parse ui_config with all three text fields from Valkey', async () => {
+      const payloadWithUiConfig = {
+        ...validValkeyPayload,
+        ui_config: {
+          title_text: 'Ask Workflow Designer',
+          welcome_text: 'I can help you build workflow automations.',
+          placeholder_text: 'Describe your workflow...',
+        },
+      };
+      mockValkeyClient.hget.mockResolvedValueOnce(JSON.stringify(payloadWithUiConfig));
+
+      const result = await iframeService.fetchValkeyPayload('ui-config-key');
+
+      expect(result).not.toBeNull();
+      expect(result?.uiConfig?.titleText).toBe('Ask Workflow Designer');
+      expect(result?.uiConfig?.welcomeText).toBe('I can help you build workflow automations.');
+      expect(result?.uiConfig?.placeholderText).toBe('Describe your workflow...');
+    });
+
+    it('should return undefined uiConfig when not provided in Valkey (uses frontend defaults)', async () => {
+      // Standard payload without ui_config - iframe falls back to i18n defaults
+      mockValkeyClient.hget.mockResolvedValueOnce(JSON.stringify(validValkeyPayload));
+
+      const result = await iframeService.fetchValkeyPayload('no-ui-config-key');
+
+      expect(result).not.toBeNull();
+      expect(result?.uiConfig).toBeUndefined();
+    });
+
+    it('should handle partial ui_config (only some fields provided)', async () => {
+      const payloadWithPartialUiConfig = {
+        ...validValkeyPayload,
+        ui_config: {
+          title_text: 'Ask Activity Designer',
+          // welcome_text and placeholder_text not provided
+        },
+      };
+      mockValkeyClient.hget.mockResolvedValueOnce(JSON.stringify(payloadWithPartialUiConfig));
+
+      const result = await iframeService.fetchValkeyPayload('partial-ui-config-key');
+
+      expect(result).not.toBeNull();
+      expect(result?.uiConfig?.titleText).toBe('Ask Activity Designer');
+      expect(result?.uiConfig?.welcomeText).toBeUndefined();
+      expect(result?.uiConfig?.placeholderText).toBeUndefined();
+    });
+  });
+
+  describe('validateAndSetup - returns ui_config', () => {
+    const setupJitMocksForCustomText = () => {
+      mockPool.query
+        .mockResolvedValueOnce({ rows: [{ id: validValkeyPayload.tenant_id }] }) // org exists
+        .mockResolvedValueOnce({ rows: [] }) // update org
+        .mockResolvedValueOnce({ rows: [{ user_id: validValkeyPayload.user_guid }] }) // user exists
+        .mockResolvedValueOnce({ rows: [] }) // update user
+        .mockResolvedValueOnce({ rows: [] }); // membership
+
+      mockWithOrgContext.mockImplementation(async (_userId, _orgId, callback) => {
+        const mockClient = {
+          query: vi.fn().mockResolvedValue({ rows: [{ id: 'conv-id' }] }),
+        };
+        return await callback(mockClient as any);
+      });
+    };
+
+    it('should return ui_config in validateAndSetup response', async () => {
+      const payloadWithUiConfig = {
+        ...validValkeyPayload,
+        ui_config: {
+          title_text: 'Ask Activity Designer',
+          welcome_text: 'I can help you configure activities.',
+          placeholder_text: 'Describe your activity...',
+        },
+      };
+      mockValkeyClient.hget.mockResolvedValueOnce(JSON.stringify(payloadWithUiConfig));
+      setupJitMocksForCustomText();
+
+      const result = await iframeService.validateAndSetup('ui-config-session');
+
+      expect(result.valid).toBe(true);
+      expect(result.uiConfig?.titleText).toBe('Ask Activity Designer');
+      expect(result.uiConfig?.welcomeText).toBe('I can help you configure activities.');
+      expect(result.uiConfig?.placeholderText).toBe('Describe your activity...');
+    });
+
+    it('should return undefined ui_config when not in Valkey (frontend uses defaults)', async () => {
+      mockValkeyClient.hget.mockResolvedValueOnce(JSON.stringify(validValkeyPayload));
+      setupJitMocksForCustomText();
+
+      const result = await iframeService.validateAndSetup('no-ui-config-session');
+
+      expect(result.valid).toBe(true);
+      expect(result.uiConfig).toBeUndefined();
+    });
+  });
+
+  /**
+   * Conversation ID from Valkey
+   *
+   * Two flows for conversation handling:
+   * 1. conversation_id omitted: Rita creates new conversation, returns conversationId
+   * 2. conversation_id provided: Rita resumes existing conversation (validates ownership)
+   *
+   * conversation_id can come from:
+   * - Frontend URL param (existingConversationId)
+   * - Valkey payload (conversation_id)
+   * Frontend param takes priority if both provided
+   */
+  describe('validateAndSetup - conversation_id from Valkey', () => {
+    it('should use conversation_id from Valkey payload when provided', async () => {
+      const payloadWithConversationId = {
+        ...validValkeyPayload,
+        conversation_id: 'valkey-conversation-123',
+      };
+      mockValkeyClient.hget.mockResolvedValueOnce(JSON.stringify(payloadWithConversationId));
+      mockPool.query
+        .mockResolvedValueOnce({ rows: [{ id: validValkeyPayload.tenant_id, name: 'staging' }] }) // org exists
+        .mockResolvedValueOnce({ rows: [{ user_id: validValkeyPayload.user_guid }] }) // user exists
+        .mockResolvedValueOnce({ rows: [] }) // user update
+        .mockResolvedValueOnce({ rows: [] }) // membership
+        .mockResolvedValueOnce({ rows: [{ id: 'valkey-conversation-123' }] }); // conversation exists check
+
+      const result = await iframeService.validateAndSetup('session-with-conv-id');
+
+      expect(result.valid).toBe(true);
+      expect(result.conversationId).toBe('valkey-conversation-123');
+    });
+
+    it('should create new conversation when conversation_id not in Valkey', async () => {
+      // No conversation_id in payload = create new
+      mockValkeyClient.hget.mockResolvedValueOnce(JSON.stringify(validValkeyPayload));
+      mockPool.query
+        .mockResolvedValueOnce({ rows: [{ id: validValkeyPayload.tenant_id, name: 'staging' }] }) // org exists
+        .mockResolvedValueOnce({ rows: [{ user_id: validValkeyPayload.user_guid }] }) // user exists
+        .mockResolvedValueOnce({ rows: [] }) // user update
+        .mockResolvedValueOnce({ rows: [] }); // membership
+
+      mockWithOrgContext.mockImplementation(async (_userId, _orgId, callback) => {
+        const mockClient = {
+          query: vi.fn().mockResolvedValue({ rows: [{ id: 'new-conv-id' }] }),
+        };
+        return await callback(mockClient as any);
+      });
+
+      const result = await iframeService.validateAndSetup('session-no-conv-id');
+
+      expect(result.valid).toBe(true);
+      expect(result.conversationId).toBe('new-conv-id');
+    });
+
+    it('should prefer frontend param over Valkey conversation_id', async () => {
+      const payloadWithConversationId = {
+        ...validValkeyPayload,
+        conversation_id: 'valkey-conv-id',
+      };
+      mockValkeyClient.hget.mockResolvedValueOnce(JSON.stringify(payloadWithConversationId));
+      mockPool.query
+        .mockResolvedValueOnce({ rows: [{ id: validValkeyPayload.tenant_id, name: 'staging' }] }) // org exists
+        .mockResolvedValueOnce({ rows: [{ user_id: validValkeyPayload.user_guid }] }) // user exists
+        .mockResolvedValueOnce({ rows: [] }) // user update
+        .mockResolvedValueOnce({ rows: [] }) // membership
+        .mockResolvedValueOnce({ rows: [{ id: 'frontend-conv-id' }] }); // conversation exists check
+
+      // Pass existingConversationId as third param (frontend takes priority)
+      const result = await iframeService.validateAndSetup(
+        'session-key',
+        undefined,
+        'frontend-conv-id'
+      );
+
+      expect(result.valid).toBe(true);
+      expect(result.conversationId).toBe('frontend-conv-id');
+    });
+  });
+
+  /**
+   * E2E Valkey Payload Validation
+   *
+   * Validates that a complete Valkey payload (as documented) is correctly parsed.
+   * This test uses the exact JSON structure from docs/architecture/chat-message-flows.md
+   */
+  describe('E2E - complete Valkey payload validation', () => {
+    it('should correctly parse complete documented Valkey payload structure', async () => {
+      // This payload matches the documented structure in chat-message-flows.md
+      const documentedValkeyPayload = {
+        // REQUIRED - core identity
+        tenant_id: 'org-tenant-uuid-123',
+        user_guid: 'user-guid-uuid-456',
+
+        // OPTIONAL - conversation handling
+        conversation_id: 'conv-uuid-789',
+
+        // REQUIRED for webhook execution (Actions API auth)
+        actionsApiBaseUrl: 'https://actions-api.example.com/',
+        clientId: 'client-id-abc',
+        clientKey: 'client-secret-xyz',
+
+        // Pass-through to Actions API (not used by Rita)
+        accessToken: 'eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.test',
+        refreshToken: 'eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.refresh',
+        tokenExpiry: 1767902104,
+        tabInstanceId: 'tab-instance-id',
+
+        // OPTIONAL - metadata
+        tenantName: 'Acme Corporation',
+        context: { designer: 'workflow', feature: 'automation' },
+
+        // OPTIONAL - custom UI text
+        ui_config: {
+          title_text: 'Ask Workflow Designer',
+          welcome_text: 'I can help you build workflow automations.',
+          placeholder_text: 'Describe your workflow...',
+        },
+      };
+
+      mockValkeyClient.hget.mockResolvedValueOnce(JSON.stringify(documentedValkeyPayload));
+
+      const result = await iframeService.fetchValkeyPayload('documented-payload-key');
+
+      // Validate all fields are correctly mapped (snake_case → camelCase)
+      expect(result).not.toBeNull();
+
+      // REQUIRED - core identity
+      expect(result?.tenantId).toBe('org-tenant-uuid-123');
+      expect(result?.userGuid).toBe('user-guid-uuid-456');
+
+      // OPTIONAL - conversation handling
+      expect(result?.conversationId).toBe('conv-uuid-789');
+
+      // REQUIRED for webhook execution
+      expect(result?.actionsApiBaseUrl).toBe('https://actions-api.example.com/');
+      expect(result?.clientId).toBe('client-id-abc');
+      expect(result?.clientKey).toBe('client-secret-xyz');
+
+      // Pass-through fields
+      expect(result?.accessToken).toBe('eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.test');
+      expect(result?.refreshToken).toBe('eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.refresh');
+      expect(result?.tokenExpiry).toBe(1767902104);
+      expect(result?.tabInstanceId).toBe('tab-instance-id');
+
+      // OPTIONAL - metadata
+      expect(result?.tenantName).toBe('Acme Corporation');
+      expect(result?.context).toEqual({ designer: 'workflow', feature: 'automation' });
+
+      // OPTIONAL - custom UI text (snake_case → camelCase)
+      expect(result?.uiConfig).toBeDefined();
+      expect(result?.uiConfig?.titleText).toBe('Ask Workflow Designer');
+      expect(result?.uiConfig?.welcomeText).toBe('I can help you build workflow automations.');
+      expect(result?.uiConfig?.placeholderText).toBe('Describe your workflow...');
+    });
+
+    it('should work with minimal required payload (tenant_id + user_guid only)', async () => {
+      const minimalPayload = {
+        tenant_id: 'minimal-tenant-123',
+        user_guid: 'minimal-user-456',
+      };
+
+      mockValkeyClient.hget.mockResolvedValueOnce(JSON.stringify(minimalPayload));
+
+      const result = await iframeService.fetchValkeyPayload('minimal-payload-key');
+
+      expect(result).not.toBeNull();
+      expect(result?.tenantId).toBe('minimal-tenant-123');
+      expect(result?.userGuid).toBe('minimal-user-456');
+
+      // All optional fields should be undefined
+      expect(result?.conversationId).toBeUndefined();
+      expect(result?.actionsApiBaseUrl).toBeUndefined();
+      expect(result?.clientId).toBeUndefined();
+      expect(result?.clientKey).toBeUndefined();
+      expect(result?.accessToken).toBeUndefined();
+      expect(result?.uiConfig).toBeUndefined();
+    });
+
+    it('should reject payload missing required tenant_id', async () => {
+      const missingTenantPayload = {
+        user_guid: 'user-456',
+        actionsApiBaseUrl: 'https://api.example.com',
+      };
+
+      mockValkeyClient.hget.mockResolvedValueOnce(JSON.stringify(missingTenantPayload));
+
+      const result = await iframeService.fetchValkeyPayload('missing-tenant-key');
+
+      expect(result).toBeNull();
+    });
+
+    it('should reject payload missing required user_guid', async () => {
+      const missingUserPayload = {
+        tenant_id: 'tenant-123',
+        actionsApiBaseUrl: 'https://api.example.com',
+      };
+
+      mockValkeyClient.hget.mockResolvedValueOnce(JSON.stringify(missingUserPayload));
+
+      const result = await iframeService.fetchValkeyPayload('missing-user-key');
+
+      expect(result).toBeNull();
     });
   });
 });

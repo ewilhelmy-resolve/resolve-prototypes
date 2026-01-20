@@ -189,6 +189,11 @@ export class WebhookService {
   }): Promise<WebhookResponse> {
     const { iframeConfig, ...messageParams } = params;
 
+    // Validate required webhook fields
+    if (!iframeConfig.actionsApiBaseUrl || !iframeConfig.clientId || !iframeConfig.clientKey) {
+      throw new Error('Missing required webhook credentials (actionsApiBaseUrl, clientId, clientKey)');
+    }
+
     // Build tenant-specific webhook URL (remove trailing slash if present)
     const baseUrl = iframeConfig.actionsApiBaseUrl.replace(/\/$/, '');
     const webhookUrl = `${baseUrl}/api/Webhooks/postEvent/${iframeConfig.tenantId}`;

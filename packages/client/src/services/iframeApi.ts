@@ -17,6 +17,12 @@ export interface ValidateInstantiationResponse {
   conversationId?: string;
   error?: string;
   webhookConfigLoaded?: boolean;
+  /** Custom title text from Valkey (e.g., "Ask Workflow Designer") */
+  titleText?: string;
+  /** Custom welcome text from Valkey (e.g., "I can help you build workflow automations.") */
+  welcomeText?: string;
+  /** Custom placeholder text from Valkey (e.g., "Describe your workflow...") */
+  placeholderText?: string;
 }
 
 export interface ExecuteWorkflowResponse {

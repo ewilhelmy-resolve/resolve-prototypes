@@ -5,22 +5,60 @@ import { randomBytes } from 'crypto';
  * Used for tenant-specific webhook auth in embedded iframe chat
  */
 /**
- * Valkey payload uses snake_case: tenant_id, user_guid
+ * Valkey payload config for iframe chat
+ * Valkey uses snake_case (tenant_id, user_guid, conversation_id)
  * Internal type uses camelCase for TypeScript convention
+ *
+ * REQUIRED - core identity:
+ *   tenantId, userGuid
+ *
+ * OPTIONAL - conversation handling:
+ *   conversationId (omit for new, provide to resume)
+ *
+ * REQUIRED for webhook execution (Actions API auth):
+ *   actionsApiBaseUrl, clientId, clientKey
+ *
+ * Pass-through to Actions API (not used by Rita):
+ *   accessToken, refreshToken, tokenExpiry, tabInstanceId
+ *
+ * OPTIONAL - metadata:
+ *   tenantName (defaults to "Jarvis Tenant {id}")
+ *   context (arbitrary metadata for Actions API)
+ *   ui_config (custom UI text)
  */
 export interface IframeWebhookConfig {
-  accessToken: string;
-  refreshToken: string;
-  tabInstanceId: string;
+  // REQUIRED - core identity
   tenantId: string;
-  tenantName: string;
-  clientId: string;
-  clientKey: string;
-  tokenExpiry: number;
-  actionsApiBaseUrl: string;
-  context?: Record<string, any>;
-  /** User identifier from host (JWT sub claim) - used for message routing */
   userGuid: string;
+
+  // OPTIONAL - conversation handling (omit for new, provide to resume)
+  conversationId?: string;
+
+  // REQUIRED for webhook execution (Actions API auth)
+  // Optional for iframe chat without webhooks
+  actionsApiBaseUrl?: string;
+  clientId?: string;
+  clientKey?: string;
+
+  // Pass-through to Actions API (not used by Rita)
+  accessToken?: string;
+  refreshToken?: string;
+  tabInstanceId?: string;
+  tokenExpiry?: number;
+
+  // OPTIONAL - metadata
+  tenantName?: string;
+  context?: Record<string, unknown>;
+
+  /** OPTIONAL - Custom UI text from Valkey ui_config object */
+  uiConfig?: {
+    /** Custom title (e.g., "Ask Workflow Designer" instead of "Ask RITA") */
+    titleText?: string;
+    /** Custom welcome/description text */
+    welcomeText?: string;
+    /** Custom input placeholder (e.g., "Describe your workflow...") */
+    placeholderText?: string;
+  };
 }
 
 export interface Session {

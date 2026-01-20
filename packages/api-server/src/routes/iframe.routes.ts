@@ -75,6 +75,10 @@ router.post('/validate-instantiation', async (req, res) => {
       conversationId: result.conversationId,
       webhookConfigLoaded: result.webhookConfigLoaded,
       webhookTenantId: result.webhookTenantId,
+      // Custom UI text from Valkey ui_config (undefined = use i18n defaults)
+      titleText: result.uiConfig?.titleText,
+      welcomeText: result.uiConfig?.welcomeText,
+      placeholderText: result.uiConfig?.placeholderText,
     });
   } catch (error) {
     const duration = Date.now() - startTime;
