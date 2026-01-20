@@ -60,19 +60,21 @@ import { IframeService } from '../IframeService.js';
 describe('IframeService', () => {
   let iframeService: IframeService;
 
-  // Production Valkey payload structure (snake_case for tenant_id, user_guid)
+  // Canonical Valkey payload from platform (camelCase as received from Jarvis)
+  // Platform stores in camelCase: tenantId, userGuid, uiConfig, chatSessionId
   const validValkeyPayload = {
     accessToken: 'eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9...',
     refreshToken: 'eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9...',
-    tabInstanceId: 'b677747a-fc2b-4960-8553-eb69a9d46507',
+    tabInstanceId: '62ea2274-8ecc-4390-9c16-2a007cd97850',
     tenantName: 'staging',
-    tenant_id: '00F4F67D-3B92-4FD2-A574-7BE22C6BE796',
+    tenantId: '00F4F67D-3B92-4FD2-A574-7BE22C6BE796',
+    chatSessionId: 'b08c2f5c-2071-4e69-b753-dd381c41bf64',
     clientId: 'E14730FA-D1B5-4037-ACE3-CF97FBC676C2',
-    clientKey: 'secret-client-key',
-    tokenExpiry: 1767902104,
-    context: { designer: 'workflow' },
+    clientKey: 'O$Q2K!NPQ)XQO9ZI0!I&O97UVANMX16P',
+    tokenExpiry: 1768945670,
+    context: { designer: 'activity', activityId: 2209, activityName: 'HandleAiActivityCreateResponse' },
     actionsApiBaseUrl: 'https://actions-api-staging.resolve.io/',
-    user_guid: '275fb79d-0a6f-4336-bc05-1f6fcbaf775b',
+    userGuid: '472e6672-b1f5-4ee4-86d8-3804eb8d064d',
   };
 
   beforeEach(() => {
@@ -82,8 +84,8 @@ describe('IframeService', () => {
     // Default session store behavior
     mockSessionStore.createSession.mockResolvedValue({
       sessionId: 'mock-session-id',
-      userId: validValkeyPayload.user_guid,
-      organizationId: validValkeyPayload.tenant_id,
+      userId: validValkeyPayload.userGuid,
+      organizationId: validValkeyPayload.tenantId,
     });
     mockSessionStore.updateSession.mockResolvedValue({
       sessionId: 'mock-session-id',
@@ -92,14 +94,15 @@ describe('IframeService', () => {
   });
 
   describe('fetchValkeyPayload', () => {
-    it('should fetch and parse valid payload from Valkey', async () => {
+    it('should fetch and parse valid camelCase payload from Valkey', async () => {
       mockValkeyClient.hget.mockResolvedValueOnce(JSON.stringify(validValkeyPayload));
 
       const result = await iframeService.fetchValkeyPayload('352957ba-4e60-49b2-817f-fb0f236a273e');
 
       expect(result).not.toBeNull();
       expect(result?.tenantId).toBe('00F4F67D-3B92-4FD2-A574-7BE22C6BE796');
-      expect(result?.userGuid).toBe('275fb79d-0a6f-4336-bc05-1f6fcbaf775b');
+      expect(result?.userGuid).toBe('472e6672-b1f5-4ee4-86d8-3804eb8d064d');
+      expect(result?.chatSessionId).toBe('b08c2f5c-2071-4e69-b753-dd381c41bf64');
       expect(result?.actionsApiBaseUrl).toBe('https://actions-api-staging.resolve.io/');
       expect(mockValkeyClient.hget).toHaveBeenCalledWith('rita:session:352957ba-4e60-49b2-817f-fb0f236a273e', 'data');
     });
@@ -122,7 +125,7 @@ describe('IframeService', () => {
 
     it('should return null when required fields are missing', async () => {
       const incompletePayload = {
-        // Missing tenant_id and user_guid (the only required fields)
+        // Missing tenantId and userGuid (the only required fields)
         tenantName: 'Test Tenant',
         accessToken: 'token',
       };
@@ -141,10 +144,10 @@ describe('IframeService', () => {
       expect(result).toBeNull();
     });
 
-    it('should reject payload missing user_guid', async () => {
+    it('should reject payload missing userGuid', async () => {
       const payloadWithoutUser = {
-        tenant_id: 'tenant-456',
-        // Missing user_guid (required)
+        tenantId: 'tenant-456',
+        // Missing userGuid (required)
       };
       mockValkeyClient.hget.mockResolvedValueOnce(JSON.stringify(payloadWithoutUser));
 
@@ -153,10 +156,10 @@ describe('IframeService', () => {
       expect(result).toBeNull();
     });
 
-    it('should accept minimal payload with only required fields', async () => {
+    it('should accept minimal payload with only required fields (camelCase)', async () => {
       const minimalPayload = {
-        tenant_id: 'tenant-123',
-        user_guid: 'user-456',
+        tenantId: 'tenant-123',
+        userGuid: 'user-456',
       };
       mockValkeyClient.hget.mockResolvedValueOnce(JSON.stringify(minimalPayload));
 
@@ -179,13 +182,13 @@ describe('IframeService', () => {
         // findConversationBySessionKey: lookup by session_key (new conversation)
         .mockResolvedValueOnce({ rows: [] })
         // resolveRitaOrg: check if exists
-        .mockResolvedValueOnce({ rows: orgExists ? [{ id: validValkeyPayload.tenant_id }] : [] })
+        .mockResolvedValueOnce({ rows: orgExists ? [{ id: validValkeyPayload.tenantId }] : [] })
         // resolveRitaOrg: insert or update
         .mockResolvedValueOnce({ rows: [] })
         // resolveRitaUser: check if exists by keycloak_id
-        .mockResolvedValueOnce({ rows: userExists ? [{ user_id: validValkeyPayload.user_guid }] : [] })
+        .mockResolvedValueOnce({ rows: userExists ? [{ user_id: validValkeyPayload.userGuid }] : [] })
         // resolveRitaUser: insert or update
-        .mockResolvedValueOnce({ rows: [{ user_id: validValkeyPayload.user_guid }] })
+        .mockResolvedValueOnce({ rows: [{ user_id: validValkeyPayload.userGuid }] })
         // ensureOrgMembership (only if org or user was created)
         .mockResolvedValueOnce({ rows: [] });
     };
@@ -206,7 +209,7 @@ describe('IframeService', () => {
       expect(result.error).toBe('Invalid or missing Valkey configuration');
     });
 
-    it('should use Jarvis IDs directly as Rita IDs', async () => {
+    it('should use Jarvis IDs directly as Rita IDs (camelCase payload)', async () => {
       mockValkeyClient.hget.mockResolvedValueOnce(JSON.stringify(validValkeyPayload));
       setupJitMocks(); // new org, new user
 
@@ -242,20 +245,20 @@ describe('IframeService', () => {
         ['00F4F67D-3B92-4FD2-A574-7BE22C6BE796', 'staging']
       );
 
-      // Verify user check then insert
+      // Verify user check then insert (userGuid from camelCase payload)
       expect(mockPool.query).toHaveBeenCalledWith(
         expect.stringContaining('SELECT user_id FROM user_profiles'),
-        ['jarvis-275fb79d-0a6f-4336-bc05-1f6fcbaf775b']
+        ['jarvis-472e6672-b1f5-4ee4-86d8-3804eb8d064d']
       );
       expect(mockPool.query).toHaveBeenCalledWith(
         expect.stringContaining('INSERT INTO user_profiles'),
-        expect.arrayContaining(['275fb79d-0a6f-4336-bc05-1f6fcbaf775b'])
+        expect.arrayContaining(['472e6672-b1f5-4ee4-86d8-3804eb8d064d'])
       );
 
-      // Session uses Jarvis IDs
+      // Session uses Jarvis IDs (camelCase from Valkey)
       expect(mockSessionStore.createSession).toHaveBeenCalledWith(
         expect.objectContaining({
-          userId: '275fb79d-0a6f-4336-bc05-1f6fcbaf775b',
+          userId: '472e6672-b1f5-4ee4-86d8-3804eb8d064d',
           organizationId: '00F4F67D-3B92-4FD2-A574-7BE22C6BE796',
           isIframeSession: true,
         })
@@ -263,7 +266,7 @@ describe('IframeService', () => {
 
       // Conversation created with Jarvis IDs
       expect(mockWithOrgContext).toHaveBeenCalledWith(
-        '275fb79d-0a6f-4336-bc05-1f6fcbaf775b',
+        '472e6672-b1f5-4ee4-86d8-3804eb8d064d',
         '00F4F67D-3B92-4FD2-A574-7BE22C6BE796',
         expect.any(Function)
       );
@@ -273,8 +276,8 @@ describe('IframeService', () => {
       mockValkeyClient.hget.mockResolvedValueOnce(JSON.stringify(validValkeyPayload));
       // Org and user resolution with existing records (name same, no update)
       mockPool.query
-        .mockResolvedValueOnce({ rows: [{ id: validValkeyPayload.tenant_id, name: 'staging' }] }) // org exists
-        .mockResolvedValueOnce({ rows: [{ user_id: validValkeyPayload.user_guid }] }) // user exists
+        .mockResolvedValueOnce({ rows: [{ id: validValkeyPayload.tenantId, name: 'staging' }] }) // org exists
+        .mockResolvedValueOnce({ rows: [{ user_id: validValkeyPayload.userGuid }] }) // user exists
         .mockResolvedValueOnce({ rows: [] }) // update user
         .mockResolvedValueOnce({ rows: [] }) // membership (always called)
         .mockResolvedValueOnce({ rows: [{ id: 'existing-conversation-id' }] }); // conversation ownership check
@@ -339,8 +342,8 @@ describe('IframeService', () => {
       // Both org and user already exist (org name same, so no update)
       mockPool.query
         .mockResolvedValueOnce({ rows: [] }) // findConversationBySessionKey - not found
-        .mockResolvedValueOnce({ rows: [{ id: validValkeyPayload.tenant_id, name: 'staging' }] }) // org exists with same name
-        .mockResolvedValueOnce({ rows: [{ user_id: validValkeyPayload.user_guid }] }) // user exists
+        .mockResolvedValueOnce({ rows: [{ id: validValkeyPayload.tenantId, name: 'staging' }] }) // org exists with same name
+        .mockResolvedValueOnce({ rows: [{ user_id: validValkeyPayload.userGuid }] }) // user exists
         .mockResolvedValueOnce({ rows: [] }) // user update
         .mockResolvedValueOnce({ rows: [] }); // membership (always called)
 
@@ -383,8 +386,8 @@ describe('IframeService', () => {
       expect(mockPool.query).toHaveBeenLastCalledWith(
         expect.stringContaining('INSERT INTO organization_members'),
         expect.arrayContaining([
-          '00F4F67D-3B92-4FD2-A574-7BE22C6BE796', // orgId
-          '275fb79d-0a6f-4336-bc05-1f6fcbaf775b', // userId
+          '00F4F67D-3B92-4FD2-A574-7BE22C6BE796', // orgId (from tenantId)
+          '472e6672-b1f5-4ee4-86d8-3804eb8d064d', // userId (from userGuid)
         ])
       );
     });
@@ -464,9 +467,9 @@ describe('IframeService', () => {
     const setupExistingOrgAndUser = () => {
       mockPool.query
         .mockResolvedValueOnce({ rows: [] }) // findConversationBySessionKey - not found
-        .mockResolvedValueOnce({ rows: [{ id: validValkeyPayload.tenant_id }] }) // org exists
+        .mockResolvedValueOnce({ rows: [{ id: validValkeyPayload.tenantId }] }) // org exists
         .mockResolvedValueOnce({ rows: [] }) // org update
-        .mockResolvedValueOnce({ rows: [{ user_id: validValkeyPayload.user_guid }] }) // user exists
+        .mockResolvedValueOnce({ rows: [{ user_id: validValkeyPayload.userGuid }] }) // user exists
         .mockResolvedValueOnce({ rows: [] }) // user update
         .mockResolvedValueOnce({ rows: [] }); // membership (expected to be called)
 
@@ -491,8 +494,8 @@ describe('IframeService', () => {
       expect(mockPool.query).toHaveBeenCalledWith(
         expect.stringContaining('INSERT INTO organization_members'),
         expect.arrayContaining([
-          validValkeyPayload.tenant_id,
-          validValkeyPayload.user_guid,
+          validValkeyPayload.tenantId,
+          validValkeyPayload.userGuid,
         ])
       );
     });
@@ -501,8 +504,8 @@ describe('IframeService', () => {
       // Verify conversation belongs to the user before using it
       mockValkeyClient.hget.mockResolvedValueOnce(JSON.stringify(validValkeyPayload));
       mockPool.query
-        .mockResolvedValueOnce({ rows: [{ id: validValkeyPayload.tenant_id, name: 'staging' }] }) // org exists
-        .mockResolvedValueOnce({ rows: [{ user_id: validValkeyPayload.user_guid }] }) // user exists
+        .mockResolvedValueOnce({ rows: [{ id: validValkeyPayload.tenantId, name: 'staging' }] }) // org exists
+        .mockResolvedValueOnce({ rows: [{ user_id: validValkeyPayload.userGuid }] }) // user exists
         .mockResolvedValueOnce({ rows: [] }) // user update
         .mockResolvedValueOnce({ rows: [] }) // membership
         // Conversation ownership check - NOT owned by this user
@@ -522,8 +525,8 @@ describe('IframeService', () => {
       // Valid ownership should succeed
       mockValkeyClient.hget.mockResolvedValueOnce(JSON.stringify(validValkeyPayload));
       mockPool.query
-        .mockResolvedValueOnce({ rows: [{ id: validValkeyPayload.tenant_id, name: 'staging' }] }) // org exists
-        .mockResolvedValueOnce({ rows: [{ user_id: validValkeyPayload.user_guid }] }) // user exists
+        .mockResolvedValueOnce({ rows: [{ id: validValkeyPayload.tenantId, name: 'staging' }] }) // org exists
+        .mockResolvedValueOnce({ rows: [{ user_id: validValkeyPayload.userGuid }] }) // user exists
         .mockResolvedValueOnce({ rows: [] }) // user update
         .mockResolvedValueOnce({ rows: [] }) // membership
         // Conversation ownership check - owned by this user
@@ -547,8 +550,8 @@ describe('IframeService', () => {
       // Org exists with SAME name as incoming payload
       mockPool.query
         .mockResolvedValueOnce({ rows: [] }) // findConversationBySessionKey - not found
-        .mockResolvedValueOnce({ rows: [{ id: validValkeyPayload.tenant_id, name: 'staging' }] }) // org exists with same name
-        .mockResolvedValueOnce({ rows: [{ user_id: validValkeyPayload.user_guid }] }) // user exists
+        .mockResolvedValueOnce({ rows: [{ id: validValkeyPayload.tenantId, name: 'staging' }] }) // org exists with same name
+        .mockResolvedValueOnce({ rows: [{ user_id: validValkeyPayload.userGuid }] }) // user exists
         .mockResolvedValueOnce({ rows: [] }) // user update
         .mockResolvedValueOnce({ rows: [] }); // membership
 
@@ -574,9 +577,9 @@ describe('IframeService', () => {
       // Org exists with DIFFERENT name
       mockPool.query
         .mockResolvedValueOnce({ rows: [] }) // findConversationBySessionKey - not found
-        .mockResolvedValueOnce({ rows: [{ id: validValkeyPayload.tenant_id, name: 'old-tenant-name' }] })
+        .mockResolvedValueOnce({ rows: [{ id: validValkeyPayload.tenantId, name: 'old-tenant-name' }] })
         .mockResolvedValueOnce({ rows: [] }) // org update (when name changed)
-        .mockResolvedValueOnce({ rows: [{ user_id: validValkeyPayload.user_guid }] }) // user exists
+        .mockResolvedValueOnce({ rows: [{ user_id: validValkeyPayload.userGuid }] }) // user exists
         .mockResolvedValueOnce({ rows: [] }) // user update
         .mockResolvedValueOnce({ rows: [] }); // membership
 
@@ -592,7 +595,7 @@ describe('IframeService', () => {
       // UPDATE should be called when name changed
       expect(mockPool.query).toHaveBeenCalledWith(
         expect.stringContaining('UPDATE organizations SET name'),
-        ['staging', validValkeyPayload.tenant_id]
+        ['staging', validValkeyPayload.tenantId]
       );
     });
   });
@@ -608,14 +611,14 @@ describe('IframeService', () => {
    * - Activity Designer: "Ask Activity Designer", "I can help configure activities..."
    * - Workflow Designer: "Ask Workflow Designer", "I can help build automations..."
    */
-  describe('fetchValkeyPayload - custom UI text (ui_config)', () => {
-    it('should parse ui_config with all three text fields from Valkey', async () => {
+  describe('fetchValkeyPayload - custom UI text (uiConfig camelCase)', () => {
+    it('should parse uiConfig with all three text fields from Valkey (camelCase)', async () => {
       const payloadWithUiConfig = {
         ...validValkeyPayload,
-        ui_config: {
-          title_text: 'Ask Workflow Designer',
-          welcome_text: 'I can help you build workflow automations.',
-          placeholder_text: 'Describe your workflow...',
+        uiConfig: {
+          titleText: 'Ask Workflow Designer',
+          welcomeText: 'I can help you build workflow automations.',
+          placeholderText: 'Describe your workflow...',
         },
       };
       mockValkeyClient.hget.mockResolvedValueOnce(JSON.stringify(payloadWithUiConfig));
@@ -629,7 +632,7 @@ describe('IframeService', () => {
     });
 
     it('should return undefined uiConfig when not provided in Valkey (uses frontend defaults)', async () => {
-      // Standard payload without ui_config - iframe falls back to i18n defaults
+      // Standard payload without uiConfig - iframe falls back to i18n defaults
       mockValkeyClient.hget.mockResolvedValueOnce(JSON.stringify(validValkeyPayload));
 
       const result = await iframeService.fetchValkeyPayload('no-ui-config-key');
@@ -638,12 +641,12 @@ describe('IframeService', () => {
       expect(result?.uiConfig).toBeUndefined();
     });
 
-    it('should handle partial ui_config (only some fields provided)', async () => {
+    it('should handle partial uiConfig (only some fields provided)', async () => {
       const payloadWithPartialUiConfig = {
         ...validValkeyPayload,
-        ui_config: {
-          title_text: 'Ask Activity Designer',
-          // welcome_text and placeholder_text not provided
+        uiConfig: {
+          titleText: 'Ask Activity Designer',
+          // welcomeText and placeholderText not provided
         },
       };
       mockValkeyClient.hget.mockResolvedValueOnce(JSON.stringify(payloadWithPartialUiConfig));
@@ -657,13 +660,13 @@ describe('IframeService', () => {
     });
   });
 
-  describe('validateAndSetup - returns ui_config', () => {
+  describe('validateAndSetup - returns uiConfig (camelCase)', () => {
     const setupJitMocksForCustomText = () => {
       mockPool.query
         .mockResolvedValueOnce({ rows: [] }) // findConversationBySessionKey - not found
-        .mockResolvedValueOnce({ rows: [{ id: validValkeyPayload.tenant_id }] }) // org exists
+        .mockResolvedValueOnce({ rows: [{ id: validValkeyPayload.tenantId }] }) // org exists
         .mockResolvedValueOnce({ rows: [] }) // update org
-        .mockResolvedValueOnce({ rows: [{ user_id: validValkeyPayload.user_guid }] }) // user exists
+        .mockResolvedValueOnce({ rows: [{ user_id: validValkeyPayload.userGuid }] }) // user exists
         .mockResolvedValueOnce({ rows: [] }) // update user
         .mockResolvedValueOnce({ rows: [] }); // membership
 
@@ -675,13 +678,13 @@ describe('IframeService', () => {
       });
     };
 
-    it('should return ui_config in validateAndSetup response', async () => {
+    it('should return uiConfig in validateAndSetup response (camelCase from Valkey)', async () => {
       const payloadWithUiConfig = {
         ...validValkeyPayload,
-        ui_config: {
-          title_text: 'Ask Activity Designer',
-          welcome_text: 'I can help you configure activities.',
-          placeholder_text: 'Describe your activity...',
+        uiConfig: {
+          titleText: 'Ask Activity Designer',
+          welcomeText: 'I can help you configure activities.',
+          placeholderText: 'Describe your activity...',
         },
       };
       mockValkeyClient.hget.mockResolvedValueOnce(JSON.stringify(payloadWithUiConfig));
@@ -695,7 +698,7 @@ describe('IframeService', () => {
       expect(result.uiConfig?.placeholderText).toBe('Describe your activity...');
     });
 
-    it('should return undefined ui_config when not in Valkey (frontend uses defaults)', async () => {
+    it('should return undefined uiConfig when not in Valkey (frontend uses defaults)', async () => {
       mockValkeyClient.hget.mockResolvedValueOnce(JSON.stringify(validValkeyPayload));
       setupJitMocksForCustomText();
 
@@ -707,27 +710,27 @@ describe('IframeService', () => {
   });
 
   /**
-   * Conversation ID from Valkey
+   * Conversation ID from Valkey (camelCase)
    *
    * Two flows for conversation handling:
-   * 1. conversation_id omitted: Rita creates new conversation, returns conversationId
-   * 2. conversation_id provided: Rita resumes existing conversation (validates ownership)
+   * 1. conversationId omitted: Rita creates new conversation, returns conversationId
+   * 2. conversationId provided: Rita resumes existing conversation (validates ownership)
    *
-   * conversation_id can come from:
+   * conversationId can come from:
    * - Frontend URL param (existingConversationId)
-   * - Valkey payload (conversation_id)
+   * - Valkey payload (conversationId - camelCase from platform)
    * Frontend param takes priority if both provided
    */
-  describe('validateAndSetup - conversation_id from Valkey', () => {
-    it('should use conversation_id from Valkey payload when provided', async () => {
+  describe('validateAndSetup - conversationId from Valkey (camelCase)', () => {
+    it('should use conversationId from Valkey payload when provided', async () => {
       const payloadWithConversationId = {
         ...validValkeyPayload,
-        conversation_id: 'valkey-conversation-123',
+        conversationId: 'valkey-conversation-123',
       };
       mockValkeyClient.hget.mockResolvedValueOnce(JSON.stringify(payloadWithConversationId));
       mockPool.query
-        .mockResolvedValueOnce({ rows: [{ id: validValkeyPayload.tenant_id, name: 'staging' }] }) // org exists
-        .mockResolvedValueOnce({ rows: [{ user_id: validValkeyPayload.user_guid }] }) // user exists
+        .mockResolvedValueOnce({ rows: [{ id: validValkeyPayload.tenantId, name: 'staging' }] }) // org exists
+        .mockResolvedValueOnce({ rows: [{ user_id: validValkeyPayload.userGuid }] }) // user exists
         .mockResolvedValueOnce({ rows: [] }) // user update
         .mockResolvedValueOnce({ rows: [] }) // membership
         .mockResolvedValueOnce({ rows: [{ id: 'valkey-conversation-123' }] }); // conversation exists check
@@ -738,13 +741,13 @@ describe('IframeService', () => {
       expect(result.conversationId).toBe('valkey-conversation-123');
     });
 
-    it('should create new conversation when conversation_id not in Valkey', async () => {
-      // No conversation_id in payload = create new
+    it('should create new conversation when conversationId not in Valkey', async () => {
+      // No conversationId in payload = create new
       mockValkeyClient.hget.mockResolvedValueOnce(JSON.stringify(validValkeyPayload));
       mockPool.query
         .mockResolvedValueOnce({ rows: [] }) // findConversationBySessionKey - not found
-        .mockResolvedValueOnce({ rows: [{ id: validValkeyPayload.tenant_id, name: 'staging' }] }) // org exists
-        .mockResolvedValueOnce({ rows: [{ user_id: validValkeyPayload.user_guid }] }) // user exists
+        .mockResolvedValueOnce({ rows: [{ id: validValkeyPayload.tenantId, name: 'staging' }] }) // org exists
+        .mockResolvedValueOnce({ rows: [{ user_id: validValkeyPayload.userGuid }] }) // user exists
         .mockResolvedValueOnce({ rows: [] }) // user update
         .mockResolvedValueOnce({ rows: [] }); // membership
 
@@ -761,15 +764,15 @@ describe('IframeService', () => {
       expect(result.conversationId).toBe('new-conv-id');
     });
 
-    it('should prefer frontend param over Valkey conversation_id', async () => {
+    it('should prefer frontend param over Valkey conversationId', async () => {
       const payloadWithConversationId = {
         ...validValkeyPayload,
-        conversation_id: 'valkey-conv-id',
+        conversationId: 'valkey-conv-id',
       };
       mockValkeyClient.hget.mockResolvedValueOnce(JSON.stringify(payloadWithConversationId));
       mockPool.query
-        .mockResolvedValueOnce({ rows: [{ id: validValkeyPayload.tenant_id, name: 'staging' }] }) // org exists
-        .mockResolvedValueOnce({ rows: [{ user_id: validValkeyPayload.user_guid }] }) // user exists
+        .mockResolvedValueOnce({ rows: [{ id: validValkeyPayload.tenantId, name: 'staging' }] }) // org exists
+        .mockResolvedValueOnce({ rows: [{ user_id: validValkeyPayload.userGuid }] }) // user exists
         .mockResolvedValueOnce({ rows: [] }) // user update
         .mockResolvedValueOnce({ rows: [] }) // membership
         .mockResolvedValueOnce({ rows: [{ id: 'frontend-conv-id' }] }); // conversation exists check
@@ -783,6 +786,134 @@ describe('IframeService', () => {
 
       expect(result.valid).toBe(true);
       expect(result.conversationId).toBe('frontend-conv-id');
+    });
+  });
+
+  /**
+   * E2E Valkey Payload Validation (camelCase)
+   *
+   * Validates that a complete Valkey payload (as sent by platform) is correctly parsed.
+   * Platform stores all fields in camelCase: tenantId, userGuid, uiConfig, etc.
+   */
+  describe('E2E - complete Valkey payload validation (camelCase from platform)', () => {
+    it('should correctly parse canonical platform payload (all camelCase)', async () => {
+      // This payload matches the CANONICAL structure from platform (Jarvis)
+      const canonicalPlatformPayload = {
+        // REQUIRED - core identity (camelCase)
+        tenantId: '00F4F67D-3B92-4FD2-A574-7BE22C6BE796',
+        userGuid: '472e6672-b1f5-4ee4-86d8-3804eb8d064d',
+
+        // OPTIONAL - conversation handling (camelCase)
+        conversationId: 'conv-uuid-789',
+
+        // REQUIRED for webhook execution (Actions API auth)
+        actionsApiBaseUrl: 'https://actions-api-staging.resolve.io/',
+        clientId: 'E14730FA-D1B5-4037-ACE3-CF97FBC676C2',
+        clientKey: 'O$Q2K!NPQ)XQO9ZI0!I&O97UVANMX16P',
+
+        // Pass-through to Actions API (not used by Rita)
+        accessToken: 'eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.test',
+        refreshToken: 'eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.refresh',
+        tokenExpiry: 1768945670,
+        tabInstanceId: '62ea2274-8ecc-4390-9c16-2a007cd97850',
+        chatSessionId: 'b08c2f5c-2071-4e69-b753-dd381c41bf64',
+
+        // OPTIONAL - metadata
+        tenantName: 'staging',
+        context: { designer: 'activity', activityId: 2209, activityName: 'HandleAiActivityCreateResponse' },
+
+        // OPTIONAL - custom UI text (camelCase from platform)
+        uiConfig: {
+          titleText: 'Jarvis Activity Builder',
+          welcomeText: 'Start by just describing in detail what you want the activity to do.',
+          placeholderText: 'Enter a description of what the activity should do.',
+        },
+      };
+
+      mockValkeyClient.hget.mockResolvedValueOnce(JSON.stringify(canonicalPlatformPayload));
+
+      const result = await iframeService.fetchValkeyPayload('canonical-payload-key');
+
+      // Validate all fields are correctly parsed (camelCase stays camelCase)
+      expect(result).not.toBeNull();
+
+      // REQUIRED - core identity
+      expect(result?.tenantId).toBe('00F4F67D-3B92-4FD2-A574-7BE22C6BE796');
+      expect(result?.userGuid).toBe('472e6672-b1f5-4ee4-86d8-3804eb8d064d');
+
+      // OPTIONAL - conversation handling
+      expect(result?.conversationId).toBe('conv-uuid-789');
+
+      // REQUIRED for webhook execution
+      expect(result?.actionsApiBaseUrl).toBe('https://actions-api-staging.resolve.io/');
+      expect(result?.clientId).toBe('E14730FA-D1B5-4037-ACE3-CF97FBC676C2');
+      expect(result?.clientKey).toBe('O$Q2K!NPQ)XQO9ZI0!I&O97UVANMX16P');
+
+      // Pass-through fields
+      expect(result?.accessToken).toBe('eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.test');
+      expect(result?.refreshToken).toBe('eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.refresh');
+      expect(result?.tokenExpiry).toBe(1768945670);
+      expect(result?.tabInstanceId).toBe('62ea2274-8ecc-4390-9c16-2a007cd97850');
+      expect(result?.chatSessionId).toBe('b08c2f5c-2071-4e69-b753-dd381c41bf64');
+
+      // OPTIONAL - metadata
+      expect(result?.tenantName).toBe('staging');
+      expect(result?.context).toEqual({ designer: 'activity', activityId: 2209, activityName: 'HandleAiActivityCreateResponse' });
+
+      // OPTIONAL - custom UI text (camelCase)
+      expect(result?.uiConfig).toBeDefined();
+      expect(result?.uiConfig?.titleText).toBe('Jarvis Activity Builder');
+      expect(result?.uiConfig?.welcomeText).toBe('Start by just describing in detail what you want the activity to do.');
+      expect(result?.uiConfig?.placeholderText).toBe('Enter a description of what the activity should do.');
+    });
+
+    it('should work with minimal required payload (tenantId + userGuid only)', async () => {
+      const minimalPayload = {
+        tenantId: 'minimal-tenant-123',
+        userGuid: 'minimal-user-456',
+      };
+
+      mockValkeyClient.hget.mockResolvedValueOnce(JSON.stringify(minimalPayload));
+
+      const result = await iframeService.fetchValkeyPayload('minimal-payload-key');
+
+      expect(result).not.toBeNull();
+      expect(result?.tenantId).toBe('minimal-tenant-123');
+      expect(result?.userGuid).toBe('minimal-user-456');
+
+      // All optional fields should be undefined
+      expect(result?.conversationId).toBeUndefined();
+      expect(result?.actionsApiBaseUrl).toBeUndefined();
+      expect(result?.clientId).toBeUndefined();
+      expect(result?.clientKey).toBeUndefined();
+      expect(result?.accessToken).toBeUndefined();
+      expect(result?.uiConfig).toBeUndefined();
+    });
+
+    it('should reject payload missing required tenantId (camelCase)', async () => {
+      const missingTenantPayload = {
+        userGuid: 'user-456',
+        actionsApiBaseUrl: 'https://api.example.com',
+      };
+
+      mockValkeyClient.hget.mockResolvedValueOnce(JSON.stringify(missingTenantPayload));
+
+      const result = await iframeService.fetchValkeyPayload('missing-tenant-key');
+
+      expect(result).toBeNull();
+    });
+
+    it('should reject payload missing required userGuid (camelCase)', async () => {
+      const missingUserPayload = {
+        tenantId: 'tenant-123',
+        actionsApiBaseUrl: 'https://api.example.com',
+      };
+
+      mockValkeyClient.hget.mockResolvedValueOnce(JSON.stringify(missingUserPayload));
+
+      const result = await iframeService.fetchValkeyPayload('missing-user-key');
+
+      expect(result).toBeNull();
     });
   });
 
@@ -802,8 +933,8 @@ describe('IframeService', () => {
       // First: sessionKey lookup finds existing conversation
       mockPool.query
         .mockResolvedValueOnce({ rows: [{ id: 'existing-conv-from-session' }] }) // findConversationBySessionKey
-        .mockResolvedValueOnce({ rows: [{ id: validValkeyPayload.tenant_id, name: 'staging' }] }) // org exists
-        .mockResolvedValueOnce({ rows: [{ user_id: validValkeyPayload.user_guid }] }) // user exists
+        .mockResolvedValueOnce({ rows: [{ id: validValkeyPayload.tenantId, name: 'staging' }] }) // org exists
+        .mockResolvedValueOnce({ rows: [{ user_id: validValkeyPayload.userGuid }] }) // user exists
         .mockResolvedValueOnce({ rows: [] }) // user update
         .mockResolvedValueOnce({ rows: [] }) // membership
         .mockResolvedValueOnce({ rows: [{ id: 'existing-conv-from-session' }] }); // conversation ownership check
@@ -821,8 +952,8 @@ describe('IframeService', () => {
       // First: sessionKey lookup finds nothing
       mockPool.query
         .mockResolvedValueOnce({ rows: [] }) // findConversationBySessionKey - not found
-        .mockResolvedValueOnce({ rows: [{ id: validValkeyPayload.tenant_id, name: 'staging' }] }) // org exists
-        .mockResolvedValueOnce({ rows: [{ user_id: validValkeyPayload.user_guid }] }) // user exists
+        .mockResolvedValueOnce({ rows: [{ id: validValkeyPayload.tenantId, name: 'staging' }] }) // org exists
+        .mockResolvedValueOnce({ rows: [{ user_id: validValkeyPayload.userGuid }] }) // user exists
         .mockResolvedValueOnce({ rows: [] }) // user update
         .mockResolvedValueOnce({ rows: [] }); // membership
 
@@ -845,8 +976,8 @@ describe('IframeService', () => {
       mockValkeyClient.hget.mockResolvedValueOnce(JSON.stringify(validValkeyPayload));
       mockPool.query
         .mockResolvedValueOnce({ rows: [] }) // findConversationBySessionKey - not found
-        .mockResolvedValueOnce({ rows: [{ id: validValkeyPayload.tenant_id, name: 'staging' }] }) // org exists
-        .mockResolvedValueOnce({ rows: [{ user_id: validValkeyPayload.user_guid }] }) // user exists
+        .mockResolvedValueOnce({ rows: [{ id: validValkeyPayload.tenantId, name: 'staging' }] }) // org exists
+        .mockResolvedValueOnce({ rows: [{ user_id: validValkeyPayload.userGuid }] }) // user exists
         .mockResolvedValueOnce({ rows: [] }) // user update
         .mockResolvedValueOnce({ rows: [] }); // membership
 
@@ -875,8 +1006,8 @@ describe('IframeService', () => {
       mockValkeyClient.hget.mockResolvedValueOnce(JSON.stringify(validValkeyPayload));
       mockPool.query
         .mockResolvedValueOnce({ rows: [] }) // findConversationBySessionKey - not found for A
-        .mockResolvedValueOnce({ rows: [{ id: validValkeyPayload.tenant_id, name: 'staging' }] })
-        .mockResolvedValueOnce({ rows: [{ user_id: validValkeyPayload.user_guid }] })
+        .mockResolvedValueOnce({ rows: [{ id: validValkeyPayload.tenantId, name: 'staging' }] })
+        .mockResolvedValueOnce({ rows: [{ user_id: validValkeyPayload.userGuid }] })
         .mockResolvedValueOnce({ rows: [] })
         .mockResolvedValueOnce({ rows: [] });
 
@@ -894,8 +1025,8 @@ describe('IframeService', () => {
       vi.clearAllMocks();
       mockSessionStore.createSession.mockResolvedValue({
         sessionId: 'mock-session-id-2',
-        userId: validValkeyPayload.user_guid,
-        organizationId: validValkeyPayload.tenant_id,
+        userId: validValkeyPayload.userGuid,
+        organizationId: validValkeyPayload.tenantId,
       });
       mockSessionStore.updateSession.mockResolvedValue({});
 
@@ -903,8 +1034,8 @@ describe('IframeService', () => {
       mockValkeyClient.hget.mockResolvedValueOnce(JSON.stringify(validValkeyPayload));
       mockPool.query
         .mockResolvedValueOnce({ rows: [] }) // findConversationBySessionKey - not found for B
-        .mockResolvedValueOnce({ rows: [{ id: validValkeyPayload.tenant_id, name: 'staging' }] })
-        .mockResolvedValueOnce({ rows: [{ user_id: validValkeyPayload.user_guid }] })
+        .mockResolvedValueOnce({ rows: [{ id: validValkeyPayload.tenantId, name: 'staging' }] })
+        .mockResolvedValueOnce({ rows: [{ user_id: validValkeyPayload.userGuid }] })
         .mockResolvedValueOnce({ rows: [] })
         .mockResolvedValueOnce({ rows: [] });
 
@@ -926,8 +1057,8 @@ describe('IframeService', () => {
       mockValkeyClient.hget.mockResolvedValueOnce(JSON.stringify(validValkeyPayload));
       // Note: findConversationBySessionKey should NOT be called when existingConversationId provided
       mockPool.query
-        .mockResolvedValueOnce({ rows: [{ id: validValkeyPayload.tenant_id, name: 'staging' }] }) // org exists
-        .mockResolvedValueOnce({ rows: [{ user_id: validValkeyPayload.user_guid }] }) // user exists
+        .mockResolvedValueOnce({ rows: [{ id: validValkeyPayload.tenantId, name: 'staging' }] }) // org exists
+        .mockResolvedValueOnce({ rows: [{ user_id: validValkeyPayload.userGuid }] }) // user exists
         .mockResolvedValueOnce({ rows: [] }) // user update
         .mockResolvedValueOnce({ rows: [] }) // membership
         .mockResolvedValueOnce({ rows: [{ id: 'param-conv-id' }] }); // conversation ownership check
@@ -940,132 +1071,6 @@ describe('IframeService', () => {
 
       expect(result.valid).toBe(true);
       expect(result.conversationId).toBe('param-conv-id');
-    });
-  });
-
-  /**
-   * E2E Valkey Payload Validation
-   *
-   * Validates that a complete Valkey payload (as documented) is correctly parsed.
-   * This test uses the exact JSON structure from docs/architecture/chat-message-flows.md
-   */
-  describe('E2E - complete Valkey payload validation', () => {
-    it('should correctly parse complete documented Valkey payload structure', async () => {
-      // This payload matches the documented structure in chat-message-flows.md
-      const documentedValkeyPayload = {
-        // REQUIRED - core identity
-        tenant_id: 'org-tenant-uuid-123',
-        user_guid: 'user-guid-uuid-456',
-
-        // OPTIONAL - conversation handling
-        conversation_id: 'conv-uuid-789',
-
-        // REQUIRED for webhook execution (Actions API auth)
-        actionsApiBaseUrl: 'https://actions-api.example.com/',
-        clientId: 'client-id-abc',
-        clientKey: 'client-secret-xyz',
-
-        // Pass-through to Actions API (not used by Rita)
-        accessToken: 'eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.test',
-        refreshToken: 'eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.refresh',
-        tokenExpiry: 1767902104,
-        tabInstanceId: 'tab-instance-id',
-
-        // OPTIONAL - metadata
-        tenantName: 'Acme Corporation',
-        context: { designer: 'workflow', feature: 'automation' },
-
-        // OPTIONAL - custom UI text
-        ui_config: {
-          title_text: 'Ask Workflow Designer',
-          welcome_text: 'I can help you build workflow automations.',
-          placeholder_text: 'Describe your workflow...',
-        },
-      };
-
-      mockValkeyClient.hget.mockResolvedValueOnce(JSON.stringify(documentedValkeyPayload));
-
-      const result = await iframeService.fetchValkeyPayload('documented-payload-key');
-
-      // Validate all fields are correctly mapped (snake_case → camelCase)
-      expect(result).not.toBeNull();
-
-      // REQUIRED - core identity
-      expect(result?.tenantId).toBe('org-tenant-uuid-123');
-      expect(result?.userGuid).toBe('user-guid-uuid-456');
-
-      // OPTIONAL - conversation handling
-      expect(result?.conversationId).toBe('conv-uuid-789');
-
-      // REQUIRED for webhook execution
-      expect(result?.actionsApiBaseUrl).toBe('https://actions-api.example.com/');
-      expect(result?.clientId).toBe('client-id-abc');
-      expect(result?.clientKey).toBe('client-secret-xyz');
-
-      // Pass-through fields
-      expect(result?.accessToken).toBe('eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.test');
-      expect(result?.refreshToken).toBe('eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.refresh');
-      expect(result?.tokenExpiry).toBe(1767902104);
-      expect(result?.tabInstanceId).toBe('tab-instance-id');
-
-      // OPTIONAL - metadata
-      expect(result?.tenantName).toBe('Acme Corporation');
-      expect(result?.context).toEqual({ designer: 'workflow', feature: 'automation' });
-
-      // OPTIONAL - custom UI text (snake_case → camelCase)
-      expect(result?.uiConfig).toBeDefined();
-      expect(result?.uiConfig?.titleText).toBe('Ask Workflow Designer');
-      expect(result?.uiConfig?.welcomeText).toBe('I can help you build workflow automations.');
-      expect(result?.uiConfig?.placeholderText).toBe('Describe your workflow...');
-    });
-
-    it('should work with minimal required payload (tenant_id + user_guid only)', async () => {
-      const minimalPayload = {
-        tenant_id: 'minimal-tenant-123',
-        user_guid: 'minimal-user-456',
-      };
-
-      mockValkeyClient.hget.mockResolvedValueOnce(JSON.stringify(minimalPayload));
-
-      const result = await iframeService.fetchValkeyPayload('minimal-payload-key');
-
-      expect(result).not.toBeNull();
-      expect(result?.tenantId).toBe('minimal-tenant-123');
-      expect(result?.userGuid).toBe('minimal-user-456');
-
-      // All optional fields should be undefined
-      expect(result?.conversationId).toBeUndefined();
-      expect(result?.actionsApiBaseUrl).toBeUndefined();
-      expect(result?.clientId).toBeUndefined();
-      expect(result?.clientKey).toBeUndefined();
-      expect(result?.accessToken).toBeUndefined();
-      expect(result?.uiConfig).toBeUndefined();
-    });
-
-    it('should reject payload missing required tenant_id', async () => {
-      const missingTenantPayload = {
-        user_guid: 'user-456',
-        actionsApiBaseUrl: 'https://api.example.com',
-      };
-
-      mockValkeyClient.hget.mockResolvedValueOnce(JSON.stringify(missingTenantPayload));
-
-      const result = await iframeService.fetchValkeyPayload('missing-tenant-key');
-
-      expect(result).toBeNull();
-    });
-
-    it('should reject payload missing required user_guid', async () => {
-      const missingUserPayload = {
-        tenant_id: 'tenant-123',
-        actionsApiBaseUrl: 'https://api.example.com',
-      };
-
-      mockValkeyClient.hget.mockResolvedValueOnce(JSON.stringify(missingUserPayload));
-
-      const result = await iframeService.fetchValkeyPayload('missing-user-key');
-
-      expect(result).toBeNull();
     });
   });
 });

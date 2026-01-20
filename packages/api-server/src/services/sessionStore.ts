@@ -6,8 +6,8 @@ import { randomBytes } from 'crypto';
  */
 /**
  * Valkey payload config for iframe chat
- * Valkey uses snake_case (tenant_id, user_guid, conversation_id)
- * Internal type uses camelCase for TypeScript convention
+ * Platform stores in camelCase (tenantId, userGuid, uiConfig)
+ * Webhook sends snake_case copies for RabbitMQ routing (tenant_id, user_id)
  *
  * REQUIRED - core identity:
  *   tenantId, userGuid
@@ -19,12 +19,12 @@ import { randomBytes } from 'crypto';
  *   actionsApiBaseUrl, clientId, clientKey
  *
  * Pass-through to Actions API (not used by Rita):
- *   accessToken, refreshToken, tokenExpiry, tabInstanceId
+ *   accessToken, refreshToken, tokenExpiry, tabInstanceId, chatSessionId
  *
  * OPTIONAL - metadata:
  *   tenantName (defaults to "Jarvis Tenant {id}")
  *   context (arbitrary metadata for Actions API)
- *   ui_config (custom UI text)
+ *   uiConfig (custom UI text)
  */
 export interface IframeWebhookConfig {
   // REQUIRED - core identity
@@ -44,6 +44,7 @@ export interface IframeWebhookConfig {
   accessToken?: string;
   refreshToken?: string;
   tabInstanceId?: string;
+  chatSessionId?: string;
   tokenExpiry?: number;
 
   // OPTIONAL - metadata

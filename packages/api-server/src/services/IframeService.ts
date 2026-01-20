@@ -73,13 +73,13 @@ export class IframeService {
         clientKey: payload.clientKey ? '[REDACTED]' : undefined,
       };
 
-      // Validate required fields (Valkey uses snake_case)
-      // REQUIRED - core identity: tenant_id, user_guid
+      // Validate required fields (Platform sends camelCase)
+      // REQUIRED - core identity: tenantId, userGuid
       // REQUIRED for webhook execution: actionsApiBaseUrl, clientId, clientKey (validated in WorkflowExecutionService)
       // Pass-through to Actions API: accessToken, refreshToken, tokenExpiry, tabInstanceId
       const requiredFields = [
-        'tenant_id',
-        'user_guid'
+        'tenantId',
+        'userGuid'
       ];
 
       for (const field of requiredFields) {
@@ -95,18 +95,18 @@ export class IframeService {
       }
 
       logger.info(
-        { hashkey: hashkey.substring(0, 8) + '...', tenantId: payload.tenant_id },
+        { hashkey: hashkey.substring(0, 8) + '...', tenantId: payload.tenantId },
         'Valkey payload retrieved successfully'
       );
 
-      // Map snake_case Valkey fields to camelCase internal type
+      // Platform sends camelCase - map directly to internal type
       return {
         config: {
-          // REQUIRED - core identity
-          tenantId: payload.tenant_id,
-          userGuid: payload.user_guid,
+          // REQUIRED - core identity (camelCase from platform)
+          tenantId: payload.tenantId,
+          userGuid: payload.userGuid,
           // OPTIONAL - conversation handling (omit for new, provide to resume)
-          conversationId: payload.conversation_id,
+          conversationId: payload.conversationId,
           // REQUIRED for webhook execution (Actions API auth)
           actionsApiBaseUrl: payload.actionsApiBaseUrl,
           clientId: payload.clientId,
@@ -118,12 +118,13 @@ export class IframeService {
           tokenExpiry: payload.tokenExpiry,
           // OPTIONAL - metadata
           tenantName: payload.tenantName,
+          chatSessionId: payload.chatSessionId,
           context: payload.context,
-          // OPTIONAL - custom UI text from Valkey ui_config object
-          uiConfig: payload.ui_config ? {
-            titleText: payload.ui_config.title_text,
-            welcomeText: payload.ui_config.welcome_text,
-            placeholderText: payload.ui_config.placeholder_text,
+          // OPTIONAL - custom UI text (camelCase from platform)
+          uiConfig: payload.uiConfig ? {
+            titleText: payload.uiConfig.titleText,
+            welcomeText: payload.uiConfig.welcomeText,
+            placeholderText: payload.uiConfig.placeholderText,
           } : undefined,
         },
         debug,
