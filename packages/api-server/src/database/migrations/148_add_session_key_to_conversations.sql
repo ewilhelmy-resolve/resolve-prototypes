@@ -12,4 +12,8 @@ ON conversations(session_key) WHERE session_key IS NOT NULL;
 -- Index for cleanup queries: find all iframe conversations
 CREATE INDEX idx_conversations_source ON conversations(source) WHERE source IS NOT NULL;
 
--- Common source values: 'rita_go', 'iframe', 'api'
+-- Source values:
+--   'rita_go'   - RITA Go web app conversations
+--   'jarvis'    - Jarvis iframe embed conversations
+--   'workflows' - JIRITA workflow conversations
+--   NULL        - legacy/pre-migration conversations (default)

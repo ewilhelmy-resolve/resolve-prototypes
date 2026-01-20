@@ -1001,7 +1001,7 @@ describe('IframeService', () => {
       expect(capturedParams).toContain('my-session-key-xyz');
     });
 
-    it('should set source=iframe when creating new conversation', async () => {
+    it('should set source=jarvis when creating new conversation', async () => {
       mockValkeyClient.hget.mockResolvedValueOnce(JSON.stringify(validValkeyPayload));
       mockPool.query
         .mockResolvedValueOnce({ rows: [] }) // findConversationBySessionKey - not found
@@ -1023,9 +1023,9 @@ describe('IframeService', () => {
 
       await iframeService.validateAndSetup('test-session');
 
-      // Verify source=iframe is set in INSERT (hardcoded, not param)
+      // Verify source=jarvis is set in INSERT (hardcoded, not param)
       expect(capturedQuery).toContain('source');
-      expect(capturedQuery).toContain("'iframe'");
+      expect(capturedQuery).toContain("'jarvis'");
     });
 
     it('should use different conversations for different sessionKeys', async () => {
