@@ -7,7 +7,11 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import type { ConnectionSource } from "@/constants/connectionSources";
-import { formatRelativeTime, SOURCES, STATUS } from "@/constants/connectionSources";
+import {
+	formatRelativeTime,
+	SOURCES,
+	STATUS,
+} from "@/constants/connectionSources";
 import { ConnectionStatusBadge } from "./ConnectionStatusBadge";
 
 interface TicketSyncInfo {
@@ -30,7 +34,9 @@ interface ConnectionStatusCardProps {
  * Returns labels and values for URL, user identifier, and credential fields
  */
 function getDisplayFields(source: ConnectionSource) {
-	const isServiceNow = source.type === SOURCES.SERVICENOW;
+	const isServiceNow =
+		source.type === SOURCES.SERVICENOW ||
+		source.type === SOURCES.SERVICENOW_ITSM;
 
 	// URL field
 	let urlValue = source.settings?.url || "—";
@@ -39,17 +45,17 @@ function getDisplayFields(source: ConnectionSource) {
 	}
 
 	// User identifier field (username vs email)
-	const userLabelKey = isServiceNow 
-		? "statusCard.labels.username" as const
-		: "statusCard.labels.email" as const;
+	const userLabelKey = isServiceNow
+		? ("statusCard.labels.username" as const)
+		: ("statusCard.labels.email" as const);
 	const userValue = isServiceNow
 		? source.settings?.username || "—"
 		: source.settings?.email || "—";
 
 	// Credential field label (password vs API token)
-	const credentialLabelKey = isServiceNow 
-		? "statusCard.labels.password" as const
-		: "statusCard.labels.apiToken" as const;
+	const credentialLabelKey = isServiceNow
+		? ("statusCard.labels.password" as const)
+		: ("statusCard.labels.apiToken" as const);
 
 	return {
 		urlValue,
@@ -78,7 +84,9 @@ export function ConnectionStatusCard({
 	const showHelp = retryCount >= maxRetries;
 
 	// Show retrying state when syncing/verifying after a retry attempt
-	const isRetrying = retryCount > 0 && (source.status === STATUS.SYNCING || source.status === STATUS.VERIFYING);
+	const isRetrying =
+		retryCount > 0 &&
+		(source.status === STATUS.SYNCING || source.status === STATUS.VERIFYING);
 
 	const handleRetry = () => {
 		setRetryCount((prev) => prev + 1);
@@ -101,7 +109,7 @@ export function ConnectionStatusCard({
 						size="sm"
 						variant="outline"
 						onClick={() => {
-							navigate('/help');
+							navigate("/help");
 						}}
 					>
 						{t("statusCard.getHelp")}
@@ -124,16 +132,10 @@ export function ConnectionStatusCard({
 			return (
 				<div className="flex items-center gap-3">
 					<div className="text-sm text-destructive">
-						<div>
-							{t("statusCard.connectionFailed")}
-						</div>
+						<div>{t("statusCard.connectionFailed")}</div>
 						<div>{retryCount > 0 && `(${retryCount}/${maxRetries})`}</div>
 					</div>
-					<Button
-						size="sm"
-						variant="outline"
-						onClick={handleRetry}
-					>
+					<Button size="sm" variant="outline" onClick={handleRetry}>
 						<RefreshCw className="h-3 w-3 mr-1.5" />
 						{t("statusCard.retry")}
 					</Button>
@@ -145,14 +147,16 @@ export function ConnectionStatusCard({
 		if (ticketSyncInfo?.isTicketSyncing) {
 			// Show progress bar if we have total_estimated
 			if (ticketSyncInfo.totalEstimated && ticketSyncInfo.totalEstimated > 0) {
-				const progress = (ticketSyncInfo.recordsProcessed / ticketSyncInfo.totalEstimated) * 100;
+				const progress =
+					(ticketSyncInfo.recordsProcessed / ticketSyncInfo.totalEstimated) *
+					100;
 				return (
 					<div className="flex items-center gap-2">
 						<Progress value={progress} className="w-24" />
 						<span className="text-sm text-muted-foreground whitespace-nowrap">
-							{t("statusCard.ticketsProgress", { 
-								processed: ticketSyncInfo.recordsProcessed, 
-								total: ticketSyncInfo.totalEstimated 
+							{t("statusCard.ticketsProgress", {
+								processed: ticketSyncInfo.recordsProcessed,
+								total: ticketSyncInfo.totalEstimated,
 							})}
 						</span>
 					</div>
@@ -195,9 +199,17 @@ export function ConnectionStatusCard({
 				if (ticketSyncInfo?.lastSyncAt) {
 					return (
 						<p className="text-sm text-foreground whitespace-nowrap">
-							{t("statusCard.lastSynced", { time: formatRelativeTime(ticketSyncInfo.lastSyncAt) })}
+							{t("statusCard.lastSynced", {
+								time: formatRelativeTime(ticketSyncInfo.lastSyncAt),
+							})}
 							{ticketSyncInfo.recordsProcessed > 0 && (
-								<span> · {t("statusCard.ticketsCount", { count: ticketSyncInfo.recordsProcessed })}</span>
+								<span>
+									{" "}
+									·{" "}
+									{t("statusCard.ticketsCount", {
+										count: ticketSyncInfo.recordsProcessed,
+									})}
+								</span>
 							)}
 						</p>
 					);
