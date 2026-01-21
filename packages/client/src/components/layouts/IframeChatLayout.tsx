@@ -18,7 +18,7 @@ export interface IframeChatLayoutProps {
 export default function IframeChatLayout({ children }: IframeChatLayoutProps) {
 	return (
 		<div className="flex h-screen w-full overflow-hidden bg-background">
-			<main className="flex-1 flex flex-col overflow-y-auto min-w-0 w-full">
+			<main className="relative flex-1 flex flex-col overflow-y-auto min-w-0 w-full">
 				{children}
 			</main>
 		</div>
