@@ -346,17 +346,26 @@ export default function IframeChatPage() {
 	}, [conversationId, triggerDownload]);
 
 	// Download full metadata (JAR-69)
+	// TODO: CLIEN-20 Clean up debugging payloads
 	const downloadMetadata = useCallback(() => {
 		const messages = useConversationStore.getState().messages;
 		const data = {
 			exportedAt: new Date().toISOString(),
 			conversationId,
 			sessionKey,
-			tenantId: valkeyConfig?.tenantId,
-			chatSessionId: valkeyConfig?.chatSessionId,
-			tabInstanceId: valkeyConfig?.tabInstanceId,
-			tenantName: valkeyConfig?.tenantName,
-			apiUrl,
+			// Valkey config from validate-instantiation
+			valkeyConfig: {
+				tenantId: valkeyConfig?.tenantId,
+				chatSessionId: valkeyConfig?.chatSessionId,
+				tabInstanceId: valkeyConfig?.tabInstanceId,
+				tenantName: valkeyConfig?.tenantName,
+			},
+			// Debug info
+			debug: {
+				apiUrl,
+				logs: debugLogs,
+			},
+			// Full message objects
 			messages: messages.map((m) => ({
 				id: m.id,
 				role: m.role,
@@ -367,7 +376,7 @@ export default function IframeChatPage() {
 			})),
 		};
 		triggerDownload(data, `metadata-${conversationId}-${Date.now()}.json`);
-	}, [conversationId, sessionKey, valkeyConfig, triggerDownload]);
+	}, [conversationId, sessionKey, valkeyConfig, debugLogs, triggerDownload]);
 
 	// Initialize iframe session on mount (always required for auth)
 	useEffect(() => {
