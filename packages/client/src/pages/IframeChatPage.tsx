@@ -33,6 +33,7 @@ import {
 import { useRitaChat } from "../hooks/useRitaChat";
 import { iframeApi } from "../services/iframeApi";
 import { useConversationStore } from "../stores/conversationStore";
+import { useFeatureFlagsStore } from "../stores/feature-flags-store";
 
 // Debug log entry
 interface DebugLogEntry {
@@ -280,6 +281,14 @@ export default function IframeChatPage() {
 
 	// Valkey config for dev tools export (JAR-69)
 	const [valkeyConfig, setValkeyConfig] = useState<ValkeyConfig | null>(null);
+
+	// Initialize platform feature flags for iframe (uses tenantId from valkeyConfig)
+	const flagsStore = useFeatureFlagsStore();
+	useEffect(() => {
+		if (valkeyConfig?.tenantId && !flagsStore.initialized) {
+			flagsStore.initialize(valkeyConfig.tenantId);
+		}
+	}, [valkeyConfig?.tenantId, flagsStore]);
 
 	// Debug state
 	const [showDebug, setShowDebug] = useState(debug);
