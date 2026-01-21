@@ -317,20 +317,17 @@ export default function IframeChatPage() {
 			chatSessionId: valkeyConfig?.chatSessionId,
 			tabInstanceId: valkeyConfig?.tabInstanceId,
 			tenantName: valkeyConfig?.tenantName,
-			// Transcript
-			transcript: messages.map((m) => ({
-				id: m.id,
-				role: m.role,
-				message: m.message,
-				timestamp: m.timestamp,
-				status: m.status,
-				metadata: m.metadata,
-			})),
-			// Debug info
-			debug: {
-				apiUrl,
-				exportSource: "iframe-dev-tools",
-			},
+			// Transcript as simple "Role: message" strings
+			// Filter out thinking/sources metadata and empty messages
+			transcript: messages
+				.filter(
+					(m) =>
+						!m.metadata?.sources && !m.metadata?.reasoning && m.message?.trim(),
+				)
+				.map((m) => {
+					const role = m.role === "user" ? "User" : "Bot";
+					return `${role}: ${m.message}`;
+				}),
 		};
 
 		const blob = new Blob([JSON.stringify(data, null, 2)], {
