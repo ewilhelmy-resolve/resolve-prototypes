@@ -187,6 +187,35 @@ router.post("/:id/verify", authenticateUser, async (req, res) => {
 					"failed",
 				);
 			} else {
+				// Update related connection settings with the same credentials
+				// This syncs instanceUrl and username (password not stored in DB)
+				if (validated.settings || validated.credentials) {
+					const updatedSettings = {
+						...relatedDataSource.settings,
+						...(validated.settings || {}),
+						// Copy username from credentials if provided
+						...(validated.credentials?.username
+							? { username: validated.credentials.username }
+							: {}),
+					};
+
+					await dataSourceService.updateDataSource(
+						relatedDataSource.id,
+						authReq.user.activeOrganizationId,
+						authReq.user.id,
+						{ settings: updatedSettings, enabled: true },
+					);
+
+					console.log(
+						"[DataSourceWebhook] Related connection settings synced:",
+						{
+							relatedConnectionId: relatedDataSource.id,
+							relatedType: relatedDataSource.type,
+							settings: updatedSettings,
+						},
+					);
+				}
+
 				console.log(
 					"[DataSourceWebhook] Related connection verification started:",
 					{
