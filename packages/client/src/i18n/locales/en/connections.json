@@ -176,7 +176,7 @@
 		}
 	},
 	"servicenow": {
-		"applyToRelated": "Also apply credentials to {{target}} connection",
+		"applyToRelated": "Apply credentials to {{target}} connection",
 		"knowledgeBase": "Knowledge Base",
 		"itsm": "ITSM"
 	}
