@@ -191,24 +191,24 @@ export function ConnectionStatusCard({
 							<div className="flex items-center gap-2">
 								<p className="text-sm text-muted-foreground w-20 shrink-0">URL</p>
 								<p className="text-sm text-foreground truncate">
-									{source.type === SOURCES.SERVICENOW
+									{source.type === SOURCES.SERVICENOW || source.type === SOURCES.SERVICENOW_ITSM
 										? source.settings?.instanceUrl || "—"
 										: source.settings?.url || "—"}
 								</p>
 							</div>
 							<div className="flex items-center gap-2">
 								<p className="text-sm text-muted-foreground w-20 shrink-0">
-									{source.type === SOURCES.SERVICENOW ? "Username" : "Email"}
+									{source.type === SOURCES.SERVICENOW || source.type === SOURCES.SERVICENOW_ITSM ? "Username" : "Email"}
 								</p>
 								<p className="text-sm text-foreground truncate">
-									{source.type === SOURCES.SERVICENOW
+									{source.type === SOURCES.SERVICENOW || source.type === SOURCES.SERVICENOW_ITSM
 										? source.settings?.username || "—"
 										: source.settings?.email || "—"}
 								</p>
 							</div>
 							<div className="flex items-center gap-2">
 								<p className="text-sm text-muted-foreground w-20 shrink-0">
-									{source.type === SOURCES.SERVICENOW ? "Password" : "API"}
+									{source.type === SOURCES.SERVICENOW || source.type === SOURCES.SERVICENOW_ITSM ? "Password" : "API"}
 								</p>
 								<p className="text-sm text-foreground truncate">
 									••••••••••••••••••••

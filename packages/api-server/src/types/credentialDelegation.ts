@@ -5,8 +5,9 @@
 
 /**
  * Supported ITSM system types for credential delegation
+ * Note: 'servicenow_itsm' (not 'servicenow') - KB uses separate connection
  */
-export type ItsmSystemType = 'servicenow' | 'jira';
+export type ItsmSystemType = 'servicenow_itsm' | 'jira';
 
 /**
  * Delegation token status

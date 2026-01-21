@@ -70,7 +70,7 @@ interface JiraFormData {
  * System icons
  */
 const SYSTEM_ICONS: Record<ItsmSystemType, string> = {
-	servicenow: "/connections/icon_servicenow.svg",
+	servicenow_itsm: "/connections/icon_servicenow_itsm.svg",
 	jira: "/connections/icon_jira.svg",
 };
 
@@ -622,7 +622,7 @@ export default function CredentialSetupPage() {
 			lastSync: t("success.updatedAt", { time: formattedTime }),
 			badges: [],
 			settings:
-				verifyData.system_type === "servicenow"
+				verifyData.system_type === "servicenow_itsm"
 					? {
 							instanceUrl: submittedCredentials?.url || "",
 							username: submittedCredentials?.email || "",
@@ -705,7 +705,7 @@ export default function CredentialSetupPage() {
                     )}
 
 					{/* Render form based on system type */}
-					{systemType === "servicenow" && (
+					{systemType === "servicenow_itsm" && (
 						<ServiceNowCredentialForm
 							onSubmit={handleServiceNowSubmit}
 							isSubmitting={isSubmitting}

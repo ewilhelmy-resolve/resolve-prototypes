@@ -51,7 +51,7 @@ export class CredentialDelegationService {
     }
 
     // Validate ITSM system type
-    if (!['servicenow', 'jira'].includes(itsmSystemType)) {
+    if (!['servicenow_itsm', 'jira'].includes(itsmSystemType)) {
       throw new Error('Invalid ITSM system type');
     }
 
@@ -375,7 +375,7 @@ export class CredentialDelegationService {
     // Extract non-sensitive settings to store (URL, username/email - NOT passwords/tokens)
     const creds = credentials as unknown as Record<string, unknown>;
     const submittedSettings =
-      delegation.itsm_system_type === 'servicenow'
+      delegation.itsm_system_type === 'servicenow_itsm'
         ? {
             instanceUrl: creds.instance_url,
             username: creds.username,
@@ -504,7 +504,7 @@ export class CredentialDelegationService {
       throw new Error('Instance URL is required');
     }
 
-    if (systemType === 'servicenow') {
+    if (systemType === 'servicenow_itsm') {
       if (!creds.username || typeof creds.username !== 'string') {
         throw new Error('Username is required for ServiceNow');
       }

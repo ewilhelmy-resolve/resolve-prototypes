@@ -6,6 +6,7 @@
 export const ALLOWED_DATA_SOURCE_TYPES = [
   'confluence',
   'servicenow',
+  'servicenow_itsm',
   'sharepoint',
   'websearch',
   'jira'
@@ -31,8 +32,13 @@ export const DEFAULT_DATA_SOURCES = [
   },
   {
     type: 'servicenow' as DataSourceType,
-    name: 'ServiceNow',
-    description: 'Connect your ServiceNow instance'
+    name: 'ServiceNow Knowledge',
+    description: 'Connect your ServiceNow knowledge base'
+  },
+  {
+    type: 'servicenow_itsm' as DataSourceType,
+    name: 'ServiceNow ITSM',
+    description: 'Import tickets from ServiceNow for Autopilot'
   },
   {
     type: 'sharepoint' as DataSourceType,
