@@ -67,7 +67,13 @@ interface DebugPanelProps {
 
 // Floating toolbar header (shows when feature flag enabled)
 // Extensible for future features: logout, theme select, etc.
-function IframeToolbar({ onDownload }: { onDownload: () => void }) {
+function IframeToolbar({
+	onDownloadConversation,
+	onDownloadMetadata,
+}: {
+	onDownloadConversation: () => void;
+	onDownloadMetadata: () => void;
+}) {
 	const devToolsEnabled = useFeatureFlag("ENABLE_IFRAME_DEV_TOOLS");
 
 	if (!devToolsEnabled) return null;
@@ -76,17 +82,24 @@ function IframeToolbar({ onDownload }: { onDownload: () => void }) {
 		<div className="absolute top-0 left-0 right-0 z-40 flex items-center justify-between px-3 py-2 bg-gray-900/90 backdrop-blur-sm border-b border-gray-700">
 			<span className="text-xs text-gray-400 font-medium">Dev Tools</span>
 			<div className="flex items-center gap-2">
-				{/* Download button */}
 				<button
 					type="button"
-					onClick={onDownload}
+					onClick={onDownloadConversation}
 					className="flex items-center gap-1.5 px-2.5 py-1 bg-blue-600 hover:bg-blue-500 rounded text-white text-xs transition-colors"
-					title="Download conversation data as JSON"
+					title="Download conversation ID and transcript"
 				>
 					<Download className="w-3.5 h-3.5" />
-					Download JSON
+					Conversation
 				</button>
-				{/* Future: Add more actions here (logout, theme, etc.) */}
+				<button
+					type="button"
+					onClick={onDownloadMetadata}
+					className="flex items-center gap-1.5 px-2.5 py-1 bg-gray-600 hover:bg-gray-500 rounded text-white text-xs transition-colors"
+					title="Download full metadata and message objects"
+				>
+					<Download className="w-3.5 h-3.5" />
+					Metadata
+				</button>
 			</div>
 		</div>
 	);
@@ -304,42 +317,57 @@ export default function IframeChatPage() {
 		[],
 	);
 
-	// Download conversation data as JSON (JAR-69)
-	const downloadConversationData = useCallback(() => {
-		const messages = useConversationStore.getState().messages;
-
-		const data = {
-			exportedAt: new Date().toISOString(),
-			conversationId,
-			sessionKey,
-			// Valkey/platform data
-			tenantId: valkeyConfig?.tenantId,
-			chatSessionId: valkeyConfig?.chatSessionId,
-			tabInstanceId: valkeyConfig?.tabInstanceId,
-			tenantName: valkeyConfig?.tenantName,
-			// Transcript as simple "Role: message" strings
-			// Filter out thinking/sources metadata and empty messages
-			transcript: messages
-				.filter(
-					(m) =>
-						!m.metadata?.sources && !m.metadata?.reasoning && m.message?.trim(),
-				)
-				.map((m) => {
-					const role = m.role === "user" ? "User" : "Bot";
-					return `${role}: ${m.message}`;
-				}),
-		};
-
+	// Helper to trigger file download
+	const triggerDownload = useCallback((data: object, filename: string) => {
 		const blob = new Blob([JSON.stringify(data, null, 2)], {
 			type: "application/json",
 		});
 		const url = URL.createObjectURL(blob);
 		const a = document.createElement("a");
 		a.href = url;
-		a.download = `conversation-${conversationId}-${Date.now()}.json`;
+		a.download = filename;
 		a.click();
 		URL.revokeObjectURL(url);
-	}, [conversationId, sessionKey, valkeyConfig]);
+	}, []);
+
+	// Download simple conversation (JAR-69)
+	const downloadConversation = useCallback(() => {
+		const messages = useConversationStore.getState().messages;
+		const data = {
+			conversationId,
+			transcript: messages
+				.filter(
+					(m) =>
+						!m.metadata?.sources && !m.metadata?.reasoning && m.message?.trim(),
+				)
+				.map((m) => `${m.role === "user" ? "User" : "Bot"}: ${m.message}`),
+		};
+		triggerDownload(data, `conversation-${conversationId}.json`);
+	}, [conversationId, triggerDownload]);
+
+	// Download full metadata (JAR-69)
+	const downloadMetadata = useCallback(() => {
+		const messages = useConversationStore.getState().messages;
+		const data = {
+			exportedAt: new Date().toISOString(),
+			conversationId,
+			sessionKey,
+			tenantId: valkeyConfig?.tenantId,
+			chatSessionId: valkeyConfig?.chatSessionId,
+			tabInstanceId: valkeyConfig?.tabInstanceId,
+			tenantName: valkeyConfig?.tenantName,
+			apiUrl,
+			messages: messages.map((m) => ({
+				id: m.id,
+				role: m.role,
+				message: m.message,
+				timestamp: m.timestamp,
+				status: m.status,
+				metadata: m.metadata,
+			})),
+		};
+		triggerDownload(data, `metadata-${conversationId}-${Date.now()}.json`);
+	}, [conversationId, sessionKey, valkeyConfig, triggerDownload]);
 
 	// Initialize iframe session on mount (always required for auth)
 	useEffect(() => {
@@ -542,7 +570,10 @@ export default function IframeChatPage() {
 					welcomeText={welcomeText}
 				/>
 			</SSEProvider>
-			<IframeToolbar onDownload={downloadConversationData} />
+			<IframeToolbar
+				onDownloadConversation={downloadConversation}
+				onDownloadMetadata={downloadMetadata}
+			/>
 			<DebugPanel {...debugPanelProps} />
 		</IframeChatLayout>
 	);
