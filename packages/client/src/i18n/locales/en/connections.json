@@ -16,6 +16,10 @@
 			"title": "ServiceNow",
 			"description": "Connect to ServiceNow for ITSM integration."
 		},
+		"servicenow_itsm": {
+			"title": "ServiceNow ITSM",
+			"description": "Connect to ServiceNow for ITSM ticket integration."
+		},
 		"sharepoint": {
 			"title": "SharePoint",
 			"description": "Import documents from SharePoint."
@@ -170,5 +174,10 @@
 			"cancelFailed": "Cancel Failed",
 			"cancelFailedDefault": "Failed to cancel sync"
 		}
+	},
+	"servicenow": {
+		"applyToRelated": "Also apply credentials to {{target}} connection",
+		"knowledgeBase": "Knowledge Base",
+		"itsm": "ITSM"
 	}
 }

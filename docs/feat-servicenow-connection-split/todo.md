@@ -64,3 +64,43 @@
 - [x] Test ITSM verification independent of KB
 - [x] Test credential delegation for servicenow_itsm
 - [x] Verify UI displays correct titles and icons
+
+---
+
+## Phase 2: Credential Sync (KB ↔ ITSM)
+
+> See `credential-sync-plan.md` for full details
+
+### Frontend
+
+- [x] Add `applyToRelated` checkbox to `ServiceNowForm.tsx`
+  - State: `const [applyToRelated, setApplyToRelated] = useState(false)`
+  - Placement: Above Connect button
+  - Label: "Also apply credentials to {KB|ITSM} connection"
+- [x] Update verify mutation payload in `useDataSources.ts`
+  - Add `apply_to_related?: boolean` to payload type (in `dataSource.ts`)
+- [x] Add i18n keys in `connections.json`
+  - `servicenow.applyToRelated`
+  - `servicenow.knowledgeBase`
+  - `servicenow.itsm`
+- [ ] Test checkbox appears on both KB and ITSM forms
+
+### Backend
+
+- [x] Add `apply_to_related` to verify endpoint request schema
+- [x] Validate `apply_to_related` only allowed for `servicenow`/`servicenow_itsm` types
+- [x] Implement related connection lookup (org + type)
+  - Added `getDataSourceByType()` to `DataSourceService`
+- [x] Implement parallel verification (both connections)
+- [x] Update primary connection status (always)
+- [x] Update related connection status (only if verify succeeded)
+- [x] Add logging for related sync (success/failure/not-found)
+- [ ] Add tests for credential sync flow
+
+### Testing
+
+- [ ] Test ITSM form → checkbox syncs to KB
+- [ ] Test KB form → checkbox syncs to ITSM
+- [ ] Test checkbox unchecked → only primary updated
+- [ ] Test related connection not found → no-op, primary still works
+- [ ] Test related verify fails → primary still succeeds

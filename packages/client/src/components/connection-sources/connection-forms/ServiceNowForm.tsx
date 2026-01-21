@@ -1,7 +1,11 @@
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { ritaToast } from "@/components/ui/rita-toast";
 import { Spinner } from "@/components/ui/spinner";
 import { StatusAlert } from "@/components/ui/status-alert";
 import { useConnectionSource } from "@/contexts/ConnectionSourceContext";
@@ -9,7 +13,6 @@ import {
 	useUpdateDataSource,
 	useVerifyDataSource,
 } from "@/hooks/useDataSources";
-import { ritaToast } from "@/components/ui/rita-toast";
 import ConnectionsForm from "../form-elements/ConnectionsForm";
 import FormField from "../form-elements/FormField";
 import FormSection from "../form-elements/FormSection";
@@ -26,12 +29,25 @@ interface ServiceNowFormProps {
 	onFailure?: () => void;
 }
 
-export function ServiceNowForm({ onCancel, onSuccess, onFailure }: ServiceNowFormProps = {}) {
+export function ServiceNowForm({
+	onCancel,
+	onSuccess,
+	onFailure,
+}: ServiceNowFormProps = {}) {
 	const { t } = useTranslation("connections");
 	const { t: tToast } = useTranslation("toast");
 	const { source } = useConnectionSource();
 	const verifyMutation = useVerifyDataSource();
 	const updateMutation = useUpdateDataSource();
+
+	// State for syncing credentials to related connection (KB ↔ ITSM)
+	const [applyToRelated, setApplyToRelated] = useState(false);
+
+	// Determine if this is KB or ITSM form based on source type
+	const isItsmForm = source.type === "servicenow_itsm";
+	const relatedConnectionLabel = isItsmForm
+		? t("servicenow.knowledgeBase")
+		: t("servicenow.itsm");
 
 	// Check for verification failure state
 	const verificationError = source.backendData?.last_verification_error;
@@ -78,6 +94,7 @@ export function ServiceNowForm({ onCancel, onSuccess, onFailure }: ServiceNowFor
 						username: formData.username,
 						password: formData.password,
 					},
+					apply_to_related: applyToRelated,
 				},
 			});
 
@@ -123,16 +140,21 @@ export function ServiceNowForm({ onCancel, onSuccess, onFailure }: ServiceNowFor
 				{/* Show error alert when verification fails */}
 				{verificationFailed && (
 					<StatusAlert variant="error" className="mb-4">
-						<p className="font-semibold">{t("form.alerts.verificationFailed")}</p>
-						<p>{verificationError}</p>
-						<p className="text-sm mt-2">
-							{t("form.alerts.checkCredentials")}
+						<p className="font-semibold">
+							{t("form.alerts.verificationFailed")}
 						</p>
+						<p>{verificationError}</p>
+						<p className="text-sm mt-2">{t("form.alerts.checkCredentials")}</p>
 					</StatusAlert>
 				)}
 
 				{/* Instance URL */}
-				<FormField label={t("form.labels.instanceUrl")} errors={errors} name="instanceUrl" required>
+				<FormField
+					label={t("form.labels.instanceUrl")}
+					errors={errors}
+					name="instanceUrl"
+					required
+				>
 					<Input
 						id="instance-url"
 						type="url"
@@ -148,7 +170,12 @@ export function ServiceNowForm({ onCancel, onSuccess, onFailure }: ServiceNowFor
 				</FormField>
 
 				{/* Username */}
-				<FormField label={t("form.labels.username")} errors={errors} name="username" required>
+				<FormField
+					label={t("form.labels.username")}
+					errors={errors}
+					name="username"
+					required
+				>
 					<Input
 						id="username"
 						type="text"
@@ -160,7 +187,12 @@ export function ServiceNowForm({ onCancel, onSuccess, onFailure }: ServiceNowFor
 				</FormField>
 
 				{/* Password */}
-				<FormField label={t("form.labels.password")} errors={errors} name="password" required>
+				<FormField
+					label={t("form.labels.password")}
+					errors={errors}
+					name="password"
+					required
+				>
 					<Input
 						id="password"
 						type="password"
@@ -170,6 +202,21 @@ export function ServiceNowForm({ onCancel, onSuccess, onFailure }: ServiceNowFor
 						})}
 					/>
 				</FormField>
+
+				{/* Apply to related connection checkbox */}
+				<div className="flex items-center gap-2">
+					<Checkbox
+						id="apply-to-related"
+						checked={applyToRelated}
+						onCheckedChange={(checked) => setApplyToRelated(checked === true)}
+					/>
+					<Label
+						htmlFor="apply-to-related"
+						className="text-sm font-normal cursor-pointer"
+					>
+						{t("servicenow.applyToRelated", { target: relatedConnectionLabel })}
+					</Label>
+				</div>
 
 				{/* Connect Button with optional Cancel */}
 				<div className="flex justify-start gap-2 w-full">
@@ -197,7 +244,9 @@ export function ServiceNowForm({ onCancel, onSuccess, onFailure }: ServiceNowFor
 
 				{verifyMutation.isPending && (
 					<StatusAlert variant="info">
-						<p className="text-accent-foreground">{t("form.alerts.connectionMayTakeTime")}</p>
+						<p className="text-accent-foreground">
+							{t("form.alerts.connectionMayTakeTime")}
+						</p>
 						<p>{t("form.alerts.canLeavePage")}</p>
 					</StatusAlert>
 				)}

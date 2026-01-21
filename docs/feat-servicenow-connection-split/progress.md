@@ -109,7 +109,79 @@ Migration now passes ✅
 
 ---
 
-## Next Steps
-1. ~~Run migration on local DB~~ ✅
-2. ~~Test end-to-end manually~~ ✅
-3. Ready for PR/commit
+---
+
+## 2026-01-21: Credential Sync Planning
+
+### What we did
+- Discussed UX for syncing credentials between KB and ITSM connections
+- Created `credential-sync-plan.md` with full technical design
+- Updated `todo.md` with Phase 2 tasks
+
+### Key decisions
+- **Checkbox placement:** Above Connect button on both forms
+- **Direction:** Bidirectional (KB→ITSM and ITSM→KB)
+- **Sync behavior:** One-time copy, connections independent after
+- **Overwrite:** Yes, no warning (user opted in)
+- **Credentials only:** `instance_url`, `username`, `password` (not spaces/kb selection)
+- **Lookup:** Simple 1:1 by org + type, no matching on instance_url or enabled status
+- **Error handling:** Primary always succeeds, related failure just logged
+- **API field:** `apply_to_related?: boolean` in verify request
+
+### Useful info for next agent
+- Plan doc: `docs/feat-servicenow-connection-split/credential-sync-plan.md`
+- ServiceNow form: `packages/client/src/components/connection-sources/connection-forms/ServiceNowForm.tsx`
+- Verify endpoint: `packages/api-server/src/routes/data-sources.ts`
+- Related lookup: `servicenow` ↔ `servicenow_itsm` by `organization_id` + `type`
+
+### Next steps
+- ~~Implement frontend checkbox in `ServiceNowForm.tsx`~~ ✅
+- ~~Update verify mutation payload~~ ✅
+- ~~Add backend `apply_to_related` handling in verify endpoint~~ ✅
+- Manual testing of credential sync flow
+
+---
+
+## 2026-01-21: Credential Sync Implementation
+
+### What we did
+- Implemented frontend checkbox in `ServiceNowForm.tsx`
+- Added `apply_to_related` field to `VerifyDataSourceRequest` type
+- Added i18n keys for checkbox label
+- Updated backend verify endpoint with parallel verification logic
+- Added `getDataSourceByType()` method to `DataSourceService`
+
+### Files modified
+
+**Frontend (3 files):**
+1. `packages/client/src/components/connection-sources/connection-forms/ServiceNowForm.tsx`
+   - Added `applyToRelated` state
+   - Added checkbox UI above Connect button
+   - Pass `apply_to_related` to verify mutation
+2. `packages/client/src/types/dataSource.ts`
+   - Added `apply_to_related?: boolean` to `VerifyDataSourceRequest`
+3. `packages/client/src/i18n/locales/en/connections.json`
+   - Added `servicenow.applyToRelated`, `servicenow.knowledgeBase`, `servicenow.itsm`
+   - Added `servicenow_itsm` source metadata
+
+**Backend (2 files):**
+1. `packages/api-server/src/routes/dataSourceWebhooks.ts`
+   - Added `apply_to_related` to schema
+   - Added validation for ServiceNow types only
+   - Added related connection lookup
+   - Implemented parallel webhook calls
+   - Added logging for related sync results
+2. `packages/api-server/src/services/DataSourceService.ts`
+   - Added `getDataSourceByType()` method
+
+### Key implementation details
+- Checkbox determines `isItsmForm` from `source.type === "servicenow_itsm"`
+- Related type lookup: `servicenow` ↔ `servicenow_itsm`
+- Both webhooks run in parallel via `Promise.all()`
+- Primary failure → revert both statuses, return error
+- Related failure → log warning, revert related status, primary still succeeds
+- No related connection → log info, continue with primary only
+
+### Next steps
+- Manual testing of credential sync flow
+- Add unit tests for new backend logic
