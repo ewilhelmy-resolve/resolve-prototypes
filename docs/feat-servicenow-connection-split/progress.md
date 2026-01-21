@@ -138,7 +138,28 @@ Migration now passes ✅
 - ~~Implement frontend checkbox in `ServiceNowForm.tsx`~~ ✅
 - ~~Update verify mutation payload~~ ✅
 - ~~Add backend `apply_to_related` handling in verify endpoint~~ ✅
-- Manual testing of credential sync flow
+- ~~Manual testing of credential sync flow~~ ✅
+
+---
+
+## 2026-01-21: Credential Sync Bug Fix
+
+### What we did
+- Fixed bug where related connection settings weren't persisted to DB
+- Added `updateDataSource()` call after successful webhook for related connection
+
+### Issue
+Webhook was sending credentials to external service, but settings (instanceUrl, username) weren't being saved to the related connection's `data_source_connections` row.
+
+### Fix
+After related webhook succeeds, call `dataSourceService.updateDataSource()` to persist:
+- `instanceUrl` from `validated.settings`
+- `username` from `validated.credentials`
+- `enabled: true`
+
+### Verified
+- Both `servicenow` and `servicenow_itsm` connections now have matching settings after sync
+- Tested KB → ITSM and ITSM → KB directions
 
 ---
 

@@ -99,8 +99,8 @@
 
 ### Testing
 
-- [ ] Test ITSM form → checkbox syncs to KB
-- [ ] Test KB form → checkbox syncs to ITSM
+- [x] Test ITSM form → checkbox syncs to KB
+- [x] Test KB form → checkbox syncs to ITSM
 - [ ] Test checkbox unchecked → only primary updated
 - [ ] Test related connection not found → no-op, primary still works
 - [ ] Test related verify fails → primary still succeeds
