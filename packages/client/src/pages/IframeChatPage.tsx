@@ -23,6 +23,7 @@ import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { Loader } from "../components/ai-elements/loader";
 import ChatV1Content from "../components/chat/ChatV1Content";
 import IframeChatLayout from "../components/layouts/IframeChatLayout";
+import { Button } from "../components/ui/button";
 import { SSEProvider, useSSEContext } from "../contexts/SSEContext";
 import { useFeatureFlag } from "../hooks/useFeatureFlags";
 import {
@@ -82,24 +83,23 @@ function IframeToolbar({
 		<div className="absolute top-0 left-0 right-0 z-40 flex items-center justify-between px-3 py-2 bg-gray-900/90 backdrop-blur-sm border-b border-gray-700">
 			<span className="text-xs text-gray-400 font-medium">Dev Tools</span>
 			<div className="flex items-center gap-2">
-				<button
-					type="button"
+				<Button
+					size="sm"
 					onClick={onDownloadConversation}
-					className="flex items-center gap-1.5 px-2.5 py-1 bg-blue-600 hover:bg-blue-500 rounded text-white text-xs transition-colors"
 					title="Download conversation ID and transcript"
 				>
 					<Download className="w-3.5 h-3.5" />
 					Conversation
-				</button>
-				<button
-					type="button"
+				</Button>
+				<Button
+					size="sm"
+					variant="secondary"
 					onClick={onDownloadMetadata}
-					className="flex items-center gap-1.5 px-2.5 py-1 bg-gray-600 hover:bg-gray-500 rounded text-white text-xs transition-colors"
 					title="Download full metadata and message objects"
 				>
 					<Download className="w-3.5 h-3.5" />
 					Metadata
-				</button>
+				</Button>
 			</div>
 		</div>
 	);
