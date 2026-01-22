@@ -2,6 +2,7 @@ import { useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { ritaToast } from "@/components/ui/rita-toast";
 import { Spinner } from "@/components/ui/spinner";
 import { StatusAlert } from "@/components/ui/status-alert";
 import { useConnectionSource } from "@/contexts/ConnectionSourceContext";
@@ -9,7 +10,6 @@ import {
 	useUpdateDataSource,
 	useVerifyDataSource,
 } from "@/hooks/useDataSources";
-import { ritaToast } from "@/components/ui/rita-toast";
 import ConnectionsForm from "../form-elements/ConnectionsForm";
 import FormField from "../form-elements/FormField";
 import FormSection from "../form-elements/FormSection";
@@ -26,7 +26,11 @@ interface JiraFormProps {
 	onFailure?: () => void;
 }
 
-export function JiraForm({ onCancel, onSuccess, onFailure }: JiraFormProps = {}) {
+export function JiraForm({
+	onCancel,
+	onSuccess,
+	onFailure,
+}: JiraFormProps = {}) {
 	const { t } = useTranslation("connections");
 	const { t: tToast } = useTranslation("toast");
 	const { source } = useConnectionSource();
@@ -73,10 +77,10 @@ export function JiraForm({ onCancel, onSuccess, onFailure }: JiraFormProps = {})
 				payload: {
 					settings: {
 						url: formData.baseUrl,
+						email: formData.email,
 					},
 					credentials: {
-						email: formData.email,
-						api_token: formData.apiToken,
+						apiToken: formData.apiToken,
 					},
 				},
 			});
@@ -117,22 +121,30 @@ export function JiraForm({ onCancel, onSuccess, onFailure }: JiraFormProps = {})
 	};
 
 	return (
-		<ConnectionsForm handleSubmit={handleSubmit(onSubmit)} id="jira-connection-form">
+		<ConnectionsForm
+			handleSubmit={handleSubmit(onSubmit)}
+			id="jira-connection-form"
+		>
 			{/* Authentication */}
 			<FormSection title={t("form.sections.authentication")}>
 				{/* Show error alert when verification fails */}
 				{verificationFailed && (
 					<StatusAlert variant="error" className="mb-4">
-						<p className="font-semibold">{t("form.alerts.verificationFailed")}</p>
-						<p>{verificationError}</p>
-						<p className="text-sm mt-2">
-							{t("form.alerts.checkCredentials")}
+						<p className="font-semibold">
+							{t("form.alerts.verificationFailed")}
 						</p>
+						<p>{verificationError}</p>
+						<p className="text-sm mt-2">{t("form.alerts.checkCredentials")}</p>
 					</StatusAlert>
 				)}
 
 				{/* Jira URL */}
-				<FormField label={t("form.labels.jiraUrl")} errors={errors} name="baseUrl" required>
+				<FormField
+					label={t("form.labels.jiraUrl")}
+					errors={errors}
+					name="baseUrl"
+					required
+				>
 					<Input
 						id="jira-base-url"
 						type="url"
@@ -148,7 +160,12 @@ export function JiraForm({ onCancel, onSuccess, onFailure }: JiraFormProps = {})
 				</FormField>
 
 				{/* Email */}
-				<FormField label={t("form.labels.userEmail")} errors={errors} name="email" required>
+				<FormField
+					label={t("form.labels.userEmail")}
+					errors={errors}
+					name="email"
+					required
+				>
 					<Input
 						id="jira-email"
 						type="email"
@@ -164,7 +181,12 @@ export function JiraForm({ onCancel, onSuccess, onFailure }: JiraFormProps = {})
 				</FormField>
 
 				{/* API Token */}
-				<FormField label={t("form.labels.apiToken")} errors={errors} name="apiToken" required>
+				<FormField
+					label={t("form.labels.apiToken")}
+					errors={errors}
+					name="apiToken"
+					required
+				>
 					<Input
 						id="jira-api-token"
 						type="password"
@@ -201,7 +223,9 @@ export function JiraForm({ onCancel, onSuccess, onFailure }: JiraFormProps = {})
 
 				{verifyMutation.isPending && (
 					<StatusAlert variant="info">
-						<p className="text-accent-foreground">{t("form.alerts.connectionMayTakeTime")}</p>
+						<p className="text-accent-foreground">
+							{t("form.alerts.connectionMayTakeTime")}
+						</p>
 						<p>{t("form.alerts.canLeavePage")}</p>
 					</StatusAlert>
 				)}
