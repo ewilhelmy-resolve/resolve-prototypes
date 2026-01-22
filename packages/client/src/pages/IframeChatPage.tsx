@@ -16,7 +16,14 @@
  * Debug mode: Add ?debug=true to URL to see debug panel
  */
 
-import { Bug, ChevronDown, ChevronUp, Download } from "lucide-react";
+import {
+	Bug,
+	ChevronDown,
+	ChevronUp,
+	Download,
+	ScrollText,
+	Wrench,
+} from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
@@ -24,6 +31,14 @@ import { Loader } from "../components/ai-elements/loader";
 import ChatV1Content from "../components/chat/ChatV1Content";
 import IframeChatLayout from "../components/layouts/IframeChatLayout";
 import { Button } from "../components/ui/button";
+import {
+	DropdownMenu,
+	DropdownMenuContent,
+	DropdownMenuItem,
+	DropdownMenuLabel,
+	DropdownMenuSeparator,
+	DropdownMenuTrigger,
+} from "../components/ui/dropdown-menu";
 import { SSEProvider, useSSEContext } from "../contexts/SSEContext";
 import { useFeatureFlag } from "../hooks/useFeatureFlags";
 import {
@@ -67,42 +82,55 @@ interface DebugPanelProps {
 	};
 }
 
-// Floating toolbar header (shows when feature flag enabled)
-// Extensible for future features: logout, theme select, etc.
-function IframeToolbar({
+// Dev tools dropdown for input toolbar (shows when feature flag enabled)
+function IframeDevTools({
 	onDownloadConversation,
 	onDownloadMetadata,
+	onShowActivityLog,
 }: {
 	onDownloadConversation: () => void;
 	onDownloadMetadata: () => void;
+	onShowActivityLog: () => void;
 }) {
 	const devToolsEnabled = useFeatureFlag("ENABLE_IFRAME_DEV_TOOLS");
 
 	if (!devToolsEnabled) return null;
 
 	return (
-		<div className="absolute top-0 left-0 right-0 z-40 flex items-center justify-between px-3 py-2 bg-gray-900/90 backdrop-blur-sm border-b border-gray-700">
-			<span className="text-xs text-gray-400 font-medium">Dev Tools</span>
-			<div className="flex items-center gap-2">
-				<Button
-					size="sm"
+		<DropdownMenu>
+			<DropdownMenuTrigger asChild>
+				<Button size="icon" variant="ghost" className="h-8 w-8 hover:bg-accent">
+					<Wrench className="h-4 w-4" />
+				</Button>
+			</DropdownMenuTrigger>
+			<DropdownMenuContent align="start" side="top" className="w-48">
+				<DropdownMenuLabel className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+					Downloads
+				</DropdownMenuLabel>
+				<DropdownMenuItem
 					onClick={onDownloadConversation}
-					title="Download conversation ID and transcript"
+					className="cursor-pointer"
 				>
-					<Download className="w-3.5 h-3.5" />
+					<Download className="mr-2 h-4 w-4" />
 					Conversation
-				</Button>
-				<Button
-					size="sm"
-					variant="secondary"
+				</DropdownMenuItem>
+				<DropdownMenuItem
 					onClick={onDownloadMetadata}
-					title="Download full metadata and message objects"
+					className="cursor-pointer"
 				>
-					<Download className="w-3.5 h-3.5" />
-					Metadata
-				</Button>
-			</div>
-		</div>
+					<Download className="mr-2 h-4 w-4" />
+					Full Metadata
+				</DropdownMenuItem>
+				<DropdownMenuSeparator />
+				<DropdownMenuItem
+					onClick={onShowActivityLog}
+					className="cursor-pointer"
+				>
+					<ScrollText className="mr-2 h-4 w-4" />
+					Activity Log
+				</DropdownMenuItem>
+			</DropdownMenuContent>
+		</DropdownMenu>
 	);
 }
 
@@ -195,6 +223,7 @@ function IframeChatContent({
 	titleText,
 	placeholderText,
 	welcomeText,
+	leftToolbarContent,
 }: {
 	conversationId: string;
 	/** Custom title from Valkey (e.g., "Ask Workflow Designer") */
@@ -203,6 +232,8 @@ function IframeChatContent({
 	placeholderText?: string;
 	/** Custom welcome text from Valkey (e.g., "I can help you build workflow automations.") */
 	welcomeText?: string;
+	/** Custom content for left side of input toolbar */
+	leftToolbarContent?: React.ReactNode;
 }) {
 	const { latestUpdate } = useSSEContext();
 	const { updateMessage } = useConversationStore();
@@ -254,6 +285,7 @@ function IframeChatContent({
 			titleText={titleText}
 			placeholderText={placeholderText}
 			welcomeText={welcomeText}
+			leftToolbarContent={leftToolbarContent}
 		/>
 	);
 }
@@ -577,6 +609,15 @@ export default function IframeChatPage() {
 		);
 	}
 
+	// Dev tools element for input toolbar
+	const devToolsElement = (
+		<IframeDevTools
+			onDownloadConversation={downloadConversation}
+			onDownloadMetadata={downloadMetadata}
+			onShowActivityLog={() => setShowDebug(true)}
+		/>
+	);
+
 	// Render chat with SSE provider (session cookie enables SSE auth)
 	return (
 		<IframeChatLayout>
@@ -586,12 +627,9 @@ export default function IframeChatPage() {
 					titleText={titleText}
 					placeholderText={placeholderText}
 					welcomeText={welcomeText}
+					leftToolbarContent={devToolsElement}
 				/>
 			</SSEProvider>
-			<IframeToolbar
-				onDownloadConversation={downloadConversation}
-				onDownloadMetadata={downloadMetadata}
-			/>
 			<DebugPanel {...debugPanelProps} />
 		</IframeChatLayout>
 	);
