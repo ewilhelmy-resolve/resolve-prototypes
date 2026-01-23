@@ -307,6 +307,43 @@ export class IframeService {
 	}
 
 	/**
+	 * Find existing conversation by activityId
+	 * Used to reuse conversation when same activity is opened (activity-based chat)
+	 */
+	async findConversationByActivityId(
+		activityId: number,
+		orgId: string,
+	): Promise<string | null> {
+		const result = await pool.query(
+			`SELECT conversation_id FROM activity_contexts
+			 WHERE activity_id = $1 AND organization_id = $2`,
+			[activityId, orgId],
+		);
+		return result.rows[0]?.conversation_id || null;
+	}
+
+	/**
+	 * Link an activity to a conversation
+	 * Creates or updates the activity_contexts record
+	 */
+	async linkActivityToConversation(
+		activityId: number,
+		orgId: string,
+		conversationId: string,
+	): Promise<void> {
+		await pool.query(
+			`INSERT INTO activity_contexts (activity_id, organization_id, conversation_id)
+			 VALUES ($1, $2, $3)
+			 ON CONFLICT (activity_id, organization_id) DO UPDATE SET conversation_id = $3`,
+			[activityId, orgId, conversationId],
+		);
+		logger.info(
+			{ activityId, orgId, conversationId },
+			"Linked activity to conversation",
+		);
+	}
+
+	/**
 	 * Create a conversation for iframe user
 	 * Uses JIT provisioning to map Jarvis IDs → Rita IDs
 	 * Stores sessionKey for conversation reuse on tab return (PLAT-3286)
@@ -471,11 +508,37 @@ export class IframeService {
 		let ritaOrgId: string;
 		let ritaUserId: string;
 
-		// Use conversation ID from: 1) frontend param, 2) Valkey config, 3) DB lookup by sessionKey, 4) create new
+		// Resolve Rita org early (needed for activityId lookup)
+		const { ritaOrgId: resolvedOrgId } = await this.resolveRitaOrg(
+			config.tenantId,
+			config.tenantName,
+		);
+		ritaOrgId = resolvedOrgId;
+
+		// Extract activityId from context if available
+		const activityId = config.context?.activityId as number | undefined;
+
+		// Use conversation ID from: 1) frontend param, 2) Valkey config, 3) activityId lookup, 4) sessionKey lookup, 5) create new
 		let resolvedExistingConversationId =
 			existingConversationId || config.conversationId;
 
-		// If no conversation ID provided, check if one exists for this sessionKey (tab return scenario)
+		// If no conversation ID provided, check by activityId first (activity-based chat)
+		if (!resolvedExistingConversationId && activityId) {
+			resolvedExistingConversationId =
+				(await this.findConversationByActivityId(activityId, ritaOrgId)) ||
+				undefined;
+			if (resolvedExistingConversationId) {
+				logger.info(
+					{
+						activityId,
+						conversationId: resolvedExistingConversationId,
+					},
+					"Reusing existing conversation for activityId",
+				);
+			}
+		}
+
+		// Fallback: check by sessionKey (tab return scenario)
 		if (!resolvedExistingConversationId) {
 			resolvedExistingConversationId =
 				(await this.findConversationBySessionKey(sessionKey)) || undefined;
@@ -491,16 +554,11 @@ export class IframeService {
 		}
 
 		if (resolvedExistingConversationId) {
-			// Existing conversation - resolve Rita IDs first
-			const { ritaOrgId: orgId } = await this.resolveRitaOrg(
-				config.tenantId,
-				config.tenantName,
-			);
+			// Existing conversation - resolve user (org already resolved above)
 			const { ritaUserId: userId } = await this.resolveRitaUser(
 				config.userGuid,
-				orgId,
+				ritaOrgId,
 			);
-			ritaOrgId = orgId;
 			ritaUserId = userId;
 
 			// Always ensure membership for existing conversation path
@@ -537,6 +595,15 @@ export class IframeService {
 			conversationId = result.conversationId;
 			ritaOrgId = result.ritaOrgId;
 			ritaUserId = result.ritaUserId;
+
+			// Link activity to conversation (if activityId available)
+			if (activityId) {
+				await this.linkActivityToConversation(
+					activityId,
+					ritaOrgId,
+					conversationId,
+				);
+			}
 		}
 
 		// Create session with Rita IDs (for SSE routing and internal operations)
