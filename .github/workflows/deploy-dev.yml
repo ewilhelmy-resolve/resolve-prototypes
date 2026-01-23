@@ -101,7 +101,7 @@ jobs:
           echo "frontend-image=${FRONTEND_IMAGE}" >> $GITHUB_OUTPUT
 
       - uses: pnpm/action-setup@v4
-      
+
       - name: Setup Node.js for builds
         uses: actions/setup-node@v4
         with:
