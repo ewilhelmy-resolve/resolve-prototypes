@@ -110,23 +110,13 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
-      - name: Install root dependencies
-        run: npm ci --legacy-peer-deps
-
       - name: Build API Server
-        run: |
-          cd packages/api-server
-          npm ci --legacy-peer-deps
-          npm run build
+        run: pnpm --filter rita-api-server build
 
       - name: Build Frontend
-        run: |
-          cd packages/client
-          rm -rf node_modules package-lock.json
-          npm install --legacy-peer-deps
-          npm run build
+        run: pnpm --filter rita-client build
         env:
-          # DEV environment variables - using prefixed secrets
+          # Staging environment variables - using prefixed secrets
           VITE_KEYCLOAK_URL: ${{ secrets.DEV_VITE_KEYCLOAK_URL }}
           VITE_KEYCLOAK_REALM: ${{ secrets.DEV_VITE_KEYCLOAK_REALM }}
           VITE_KEYCLOAK_CLIENT_ID: ${{ secrets.DEV_VITE_KEYCLOAK_CLIENT_ID }}
