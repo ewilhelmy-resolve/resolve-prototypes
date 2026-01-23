@@ -10,6 +10,39 @@ Embeddable iframe version of RITA Go chat for integration into host portals (e.g
 4. **User Already Authenticated** - User logged into host portal = logged into Rita
 5. **Valkey Available** - Redis/Valkey accessible to both host and Rita backend
 
+## Activity-Based Conversation Mapping
+
+Conversations are linked by **activityId** from the Valkey `context` object.
+
+**Lookup behavior:**
+- `context.activityId` present → same activity always reuses same conversation
+- No activityId → new conversation every time (no context to tie to)
+
+**How it works:**
+- Host stores `context: { activityId: 1234, activityName: "Display Value" }` in Valkey
+- Multiple sessionKeys with same activityId share one conversation
+- Activity → conversation links stored in `activity_contexts` table
+- sessionKey is stored for tracking/audit only, not used for lookup
+
+**Benefits:**
+- User returns to same activity = continues same conversation
+- Different browser tabs with same activity = same conversation
+- New activity = new conversation (isolated context)
+- No activityId = fresh start every time (stateless embed)
+
+**Valkey payload with activityId:**
+```json
+{
+  "tenantId": "...",
+  "userGuid": "...",
+  "context": {
+    "designer": "activity",
+    "activityId": 1234,
+    "activityName": "Display Value"
+  }
+}
+```
+
 ## ID Mapping
 
 | Valkey Field | Webhook Field | SSE Routing | Source |
