@@ -35,13 +35,16 @@ const PORT = process.env.PORT || 3000;
 app.use(healthCheckLoggingMiddleware);
 app.use(requestLoggingMiddleware);
 
+// CORS origins - only allow localhost in development
+const corsOrigins = [process.env.CLIENT_URL || "http://localhost:5173"];
+if (process.env.NODE_ENV !== "production") {
+	corsOrigins.push("http://localhost:5174"); // iframe demo app (dev only)
+}
+
 // Basic middleware
 app.use(
 	cors({
-		origin: [
-			process.env.CLIENT_URL || "http://localhost:5173",
-			"http://localhost:5174", // iframe demo app
-		],
+		origin: corsOrigins,
 		credentials: true,
 		methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
 		allowedHeaders: ["Content-Type", "Authorization", "Cookie"],
