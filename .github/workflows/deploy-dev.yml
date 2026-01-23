@@ -201,7 +201,7 @@ jobs:
                -e DATABASE_URL="${{ secrets.DEV_DATABASE_URL }}" \
                -e NODE_ENV=production \
                rita-api-server:dev \
-               node dist/database/migrate.js; then
+               node packages/api-server/dist/database/migrate.js; then
                echo "✅ Migrations completed successfully"
              else
                echo "❌ Migration failed - deployment aborted"
