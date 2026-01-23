@@ -70,6 +70,7 @@ export type ClusterSortOption = "volume" | "automation" | "recent";
  */
 export interface ClusterListQueryOptions {
 	sort?: ClusterSortOption;
+	includeInactive?: boolean;
 }
 
 /**
