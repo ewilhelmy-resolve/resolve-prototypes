@@ -4,49 +4,61 @@
  */
 
 export const ALLOWED_DATA_SOURCE_TYPES = [
-  'confluence',
-  'servicenow',
-  'sharepoint',
-  'websearch',
-  'jira'
+	"confluence",
+	"servicenow",
+	"servicenow_itsm",
+	"sharepoint",
+	"websearch",
+	"jira",
+	"jira_itsm",
 ] as const;
 
-export type DataSourceType = typeof ALLOWED_DATA_SOURCE_TYPES[number];
+export type DataSourceType = (typeof ALLOWED_DATA_SOURCE_TYPES)[number];
 
 /**
  * Type guard to validate data source types
  */
 export function isValidDataSourceType(type: string): type is DataSourceType {
-  return ALLOWED_DATA_SOURCE_TYPES.includes(type as DataSourceType);
+	return ALLOWED_DATA_SOURCE_TYPES.includes(type as DataSourceType);
 }
 
 /**
  * Default data sources to seed for new organizations
  */
 export const DEFAULT_DATA_SOURCES = [
-  {
-    type: 'confluence' as DataSourceType,
-    name: 'Confluence',
-    description: 'Connect your Atlassian Confluence workspace'
-  },
-  {
-    type: 'servicenow' as DataSourceType,
-    name: 'ServiceNow',
-    description: 'Connect your ServiceNow instance'
-  },
-  {
-    type: 'sharepoint' as DataSourceType,
-    name: 'SharePoint',
-    description: 'Connect your Microsoft SharePoint'
-  },
-  {
-    type: 'websearch' as DataSourceType,
-    name: 'Web Search',
-    description: 'Search the public web'
-  },
-  {
-    type: 'jira' as DataSourceType,
-    name: 'Jira',
-    description: 'Connect your Atlassian Jira instance'
-  }
+	{
+		type: "confluence" as DataSourceType,
+		name: "Confluence",
+		description: "Connect your Atlassian Confluence workspace",
+	},
+	{
+		type: "servicenow" as DataSourceType,
+		name: "ServiceNow Knowledge",
+		description: "Connect your ServiceNow knowledge base",
+	},
+	{
+		type: "servicenow_itsm" as DataSourceType,
+		name: "ServiceNow ITSM",
+		description: "Import tickets from ServiceNow for Autopilot",
+	},
+	{
+		type: "sharepoint" as DataSourceType,
+		name: "SharePoint",
+		description: "Connect your Microsoft SharePoint",
+	},
+	{
+		type: "websearch" as DataSourceType,
+		name: "Web Search",
+		description: "Search the public web",
+	},
+	{
+		type: "jira" as DataSourceType,
+		name: "Jira",
+		description: "Connect your Atlassian Jira instance",
+	},
+	{
+		type: "jira_itsm" as DataSourceType,
+		name: "Jira ITSM",
+		description: "Import tickets from Jira for Autopilot clustering",
+	},
 ] as const;

@@ -7,9 +7,16 @@ import { ProtectedRoute } from "./components/auth/ProtectedRoute";
 import { RoleProtectedRoute } from "./components/auth/RoleProtectedRoute";
 import { RootLayout } from "./components/layouts/RootLayout";
 import { useFeatureFlag } from "./hooks/useFeatureFlags";
+import AgentBuilderPageV2 from "./pages/AgentBuilderPage";
+import AgentChatPage from "./pages/AgentChatPage";
+import AgentsPage from "./pages/AgentsPage";
+import AgentTestPage from "./pages/AgentTestPage";
 import ChatV1Page from "./pages/ChatV1Page";
+import ClusterDetailPage from "./pages/ClusterDetailPage";
+import ClustersPage from "./pages/ClustersPage";
 import ConnectionSourceDetailPage from "./pages/ConnectionSourceDetailPage";
 import ContactPage from "./pages/ContactPage";
+import CredentialSetupPage from "./pages/CredentialSetupPage";
 import DevToolsPage from "./pages/DevToolsPage";
 import DropdownTestPage from "./pages/DropdownTestPage";
 import EmbedDemoPage from "./pages/EmbedDemoPage";
@@ -17,24 +24,19 @@ import FilesV1Page from "./pages/FilesV1Page";
 import HelpPage from "./pages/HelpPage";
 import IframeChatPage from "./pages/IframeChatPage";
 import InviteAcceptPage from "./pages/InviteAcceptPage";
+import LinkExpiredPage from "./pages/LinkExpiredPage";
 import { NotFoundPage } from "./pages/NotFoundPage";
 import { SignUpPage } from "./pages/SignUpPage";
-import ProfilePage from "./pages/settings/ProfilePage";
-import KnowledgeSources from "./pages/settings/KnowledgeSources";
 import ItsmSources from "./pages/settings/ItsmSources";
+import KnowledgeSources from "./pages/settings/KnowledgeSources";
+import ProfilePage from "./pages/settings/ProfilePage";
 import TermsOfService from "./pages/TermsOfService";
-import TicketsPage from "./pages/TicketsPage";
-import ClusterDetailPage from "./pages/ClusterDetailPage";
 import TicketDetailPage from "./pages/TicketDetailPage";
+import TicketsPage from "./pages/TicketsPage";
 import UsersSettingsPage from "./pages/UsersSettingsPage";
 import { VerifyEmailPage } from "./pages/VerifyEmailPage";
 import { VerifyEmailSentPage } from "./pages/VerifyEmailSentPage";
-import ClustersPage from "./pages/ClustersPage";
 import WorkflowsPage from "./pages/WorkflowsPage";
-import AgentsPage from "./pages/AgentsPage";
-import AgentBuilderPageV2 from "./pages/AgentBuilderPage";
-import AgentChatPage from "./pages/AgentChatPage";
-import AgentTestPage from "./pages/AgentTestPage";
 
 // Feature-flagged tickets page wrapper
 function TicketsPageWithFlag() {
@@ -300,6 +302,16 @@ const router = createBrowserRouter([
 	{
 		path: "/test/dropdown",
 		element: <DropdownTestPage />,
+	},
+	// Credential setup (public, magic link for IT admins)
+	{
+		path: "/credential-setup",
+		element: <CredentialSetupPage />,
+	},
+	// Link expired page (public, for invalid/expired magic links)
+	{
+		path: "/link-expired",
+		element: <LinkExpiredPage />,
 	},
 	// Auth and utility pages
 	{

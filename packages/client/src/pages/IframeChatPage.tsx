@@ -16,19 +16,39 @@
  * Debug mode: Add ?debug=true to URL to see debug panel
  */
 
+import {
+	Bug,
+	ChevronDown,
+	ChevronUp,
+	Download,
+	ScrollText,
+	Wrench,
+} from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { Loader } from "../components/ai-elements/loader";
 import ChatV1Content from "../components/chat/ChatV1Content";
 import IframeChatLayout from "../components/layouts/IframeChatLayout";
-import { SSEProvider } from "../contexts/SSEContext";
-import { useSSEContext } from "../contexts/SSEContext";
+import { Button } from "../components/ui/button";
+import {
+	DropdownMenu,
+	DropdownMenuContent,
+	DropdownMenuItem,
+	DropdownMenuLabel,
+	DropdownMenuSeparator,
+	DropdownMenuTrigger,
+} from "../components/ui/dropdown-menu";
+import { SSEProvider, useSSEContext } from "../contexts/SSEContext";
+import { useFeatureFlag } from "../hooks/useFeatureFlags";
+import {
+	type HostMessageMetadata,
+	useIframeMessaging,
+} from "../hooks/useIframeMessaging";
 import { useRitaChat } from "../hooks/useRitaChat";
-import { useIframeMessaging, type HostMessageMetadata } from "../hooks/useIframeMessaging";
-import { useConversationStore } from "../stores/conversationStore";
 import { iframeApi } from "../services/iframeApi";
-import { Loader } from "../components/ai-elements/loader";
-import { Bug, ChevronDown, ChevronUp } from "lucide-react";
+import { useConversationStore } from "../stores/conversationStore";
+import { useFeatureFlagsStore } from "../stores/feature-flags-store";
 
 // Debug log entry
 interface DebugLogEntry {
@@ -36,6 +56,14 @@ interface DebugLogEntry {
 	level: "info" | "error" | "warn";
 	message: string;
 	data?: Record<string, unknown>;
+}
+
+// Valkey config for dev tools export
+interface ValkeyConfig {
+	tenantId?: string;
+	chatSessionId?: string;
+	tabInstanceId?: string;
+	tenantName?: string;
 }
 
 // Debug panel props
@@ -54,8 +82,66 @@ interface DebugPanelProps {
 	};
 }
 
+// Dev tools dropdown for input toolbar (shows when feature flag enabled)
+function IframeDevTools({
+	onDownloadConversation,
+	onDownloadMetadata,
+	onShowActivityLog,
+}: {
+	onDownloadConversation: () => void;
+	onDownloadMetadata: () => void;
+	onShowActivityLog: () => void;
+}) {
+	const devToolsEnabled = useFeatureFlag("ENABLE_IFRAME_DEV_TOOLS");
+
+	if (!devToolsEnabled) return null;
+
+	return (
+		<DropdownMenu>
+			<DropdownMenuTrigger asChild>
+				<Button size="icon" variant="ghost" className="h-8 w-8 hover:bg-accent">
+					<Wrench className="h-4 w-4" />
+				</Button>
+			</DropdownMenuTrigger>
+			<DropdownMenuContent align="start" side="top" className="w-48">
+				<DropdownMenuLabel className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+					Downloads
+				</DropdownMenuLabel>
+				<DropdownMenuItem
+					onClick={onDownloadConversation}
+					className="cursor-pointer"
+				>
+					<Download className="mr-2 h-4 w-4" />
+					Conversation
+				</DropdownMenuItem>
+				<DropdownMenuItem
+					onClick={onDownloadMetadata}
+					className="cursor-pointer"
+				>
+					<Download className="mr-2 h-4 w-4" />
+					Full Metadata
+				</DropdownMenuItem>
+				<DropdownMenuSeparator />
+				<DropdownMenuItem
+					onClick={onShowActivityLog}
+					className="cursor-pointer"
+				>
+					<ScrollText className="mr-2 h-4 w-4" />
+					Activity Log
+				</DropdownMenuItem>
+			</DropdownMenuContent>
+		</DropdownMenu>
+	);
+}
+
 // Debug panel component (moved outside to avoid nested component definition)
-function DebugPanel({ debug, showDebug, setShowDebug, debugLogs, state }: DebugPanelProps) {
+function DebugPanel({
+	debug,
+	showDebug,
+	setShowDebug,
+	debugLogs,
+	state,
+}: Omit<DebugPanelProps, "onDownload">) {
 	if (!debug && !showDebug) return null;
 
 	return (
@@ -69,7 +155,11 @@ function DebugPanel({ debug, showDebug, setShowDebug, debugLogs, state }: DebugP
 					<Bug className="w-4 h-4" />
 					Debug Panel ({debugLogs.length} logs)
 				</span>
-				{showDebug ? <ChevronDown className="w-4 h-4" /> : <ChevronUp className="w-4 h-4" />}
+				{showDebug ? (
+					<ChevronDown className="w-4 h-4" />
+				) : (
+					<ChevronUp className="w-4 h-4" />
+				)}
 			</button>
 			{showDebug && (
 				<div className="flex-1 overflow-auto p-2 space-y-2">
@@ -77,14 +167,20 @@ function DebugPanel({ debug, showDebug, setShowDebug, debugLogs, state }: DebugP
 					<div className="bg-gray-800 rounded p-2">
 						<div className="font-semibold mb-1">State:</div>
 						<pre className="text-[10px] overflow-x-auto">
-							{JSON.stringify({
-								isLoading: state.isLoading,
-								sessionReady: state.sessionReady,
-								error: state.error,
-								conversationId: state.conversationId,
-								sessionKey: state.sessionKey ? state.sessionKey.substring(0, 12) + "..." : null,
-								apiUrl: state.apiUrl,
-							}, null, 2)}
+							{JSON.stringify(
+								{
+									isLoading: state.isLoading,
+									sessionReady: state.sessionReady,
+									error: state.error,
+									conversationId: state.conversationId,
+									sessionKey: state.sessionKey
+										? `${state.sessionKey.substring(0, 12)}...`
+										: null,
+									apiUrl: state.apiUrl,
+								},
+								null,
+								2,
+							)}
 						</pre>
 					</div>
 					{/* Logs */}
@@ -95,12 +191,17 @@ function DebugPanel({ debug, showDebug, setShowDebug, debugLogs, state }: DebugP
 								<div
 									key={`${log.timestamp}-${i}`}
 									className={`text-[10px] ${
-										log.level === "error" ? "text-red-400" :
-										log.level === "warn" ? "text-yellow-400" : "text-green-400"
+										log.level === "error"
+											? "text-red-400"
+											: log.level === "warn"
+												? "text-yellow-400"
+												: "text-green-400"
 									}`}
 								>
-									<span className="text-gray-500">{log.timestamp.split("T")[1].split(".")[0]}</span>
-									{" "}{log.message}
+									<span className="text-gray-500">
+										{log.timestamp.split("T")[1].split(".")[0]}
+									</span>{" "}
+									{log.message}
 									{log.data ? (
 										<pre className="ml-4 text-gray-400 overflow-x-auto">
 											{JSON.stringify(log.data, null, 2)}
@@ -122,6 +223,7 @@ function IframeChatContent({
 	titleText,
 	placeholderText,
 	welcomeText,
+	leftToolbarContent,
 }: {
 	conversationId: string;
 	/** Custom title from Valkey (e.g., "Ask Workflow Designer") */
@@ -130,6 +232,8 @@ function IframeChatContent({
 	placeholderText?: string;
 	/** Custom welcome text from Valkey (e.g., "I can help you build workflow automations.") */
 	welcomeText?: string;
+	/** Custom content for left side of input toolbar */
+	leftToolbarContent?: React.ReactNode;
 }) {
 	const { latestUpdate } = useSSEContext();
 	const { updateMessage } = useConversationStore();
@@ -150,12 +254,14 @@ function IframeChatContent({
 		async (content: string, metadata: HostMessageMetadata) => {
 			// Convert metadata to Record<string, string> for API
 			const apiMetadata: Record<string, string> = {};
-			if (metadata.chatSessionId) apiMetadata.chatSessionId = metadata.chatSessionId;
-			if (metadata.tabInstanceId) apiMetadata.tabInstanceId = metadata.tabInstanceId;
+			if (metadata.chatSessionId)
+				apiMetadata.chatSessionId = metadata.chatSessionId;
+			if (metadata.tabInstanceId)
+				apiMetadata.tabInstanceId = metadata.tabInstanceId;
 
 			await ritaChatState.sendMessageWithContent(content, apiMetadata);
 		},
-		[ritaChatState]
+		[ritaChatState],
 	);
 
 	// Enable postMessage communication with host page
@@ -179,13 +285,16 @@ function IframeChatContent({
 			titleText={titleText}
 			placeholderText={placeholderText}
 			welcomeText={welcomeText}
+			leftToolbarContent={leftToolbarContent}
 		/>
 	);
 }
 
 export default function IframeChatPage() {
 	const { t } = useTranslation("chat");
-	const { conversationId: urlConversationId } = useParams<{ conversationId?: string }>();
+	const { conversationId: urlConversationId } = useParams<{
+		conversationId?: string;
+	}>();
 	const [searchParams] = useSearchParams();
 	const sessionKey = searchParams.get("sessionKey");
 	const debug = searchParams.get("debug") === "true";
@@ -193,7 +302,7 @@ export default function IframeChatPage() {
 	const [isLoading, setIsLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
 	const [conversationId, setConversationId] = useState<string | null>(
-		urlConversationId || null
+		urlConversationId || null,
 	);
 	const [sessionReady, setSessionReady] = useState(false);
 
@@ -201,6 +310,17 @@ export default function IframeChatPage() {
 	const [titleText, setTitleText] = useState<string | undefined>();
 	const [placeholderText, setPlaceholderText] = useState<string | undefined>();
 	const [welcomeText, setWelcomeText] = useState<string | undefined>();
+
+	// Valkey config for dev tools export (JAR-69)
+	const [valkeyConfig, setValkeyConfig] = useState<ValkeyConfig | null>(null);
+
+	// Initialize platform feature flags for iframe (uses tenantId from valkeyConfig)
+	const flagsStore = useFeatureFlagsStore();
+	useEffect(() => {
+		if (valkeyConfig?.tenantId && !flagsStore.initialized) {
+			flagsStore.initialize(valkeyConfig.tenantId);
+		}
+	}, [valkeyConfig?.tenantId, flagsStore]);
 
 	// Debug state
 	const [showDebug, setShowDebug] = useState(debug);
@@ -213,18 +333,91 @@ export default function IframeChatPage() {
 	const workflowExecutedRef = useRef(false);
 
 	// Debug logging helper
-	const addDebugLog = useCallback((level: DebugLogEntry["level"], message: string, data?: Record<string, unknown>) => {
-		const entry: DebugLogEntry = {
-			timestamp: new Date().toISOString(),
-			level,
-			message,
-			data,
-		};
-		setDebugLogs((prev) => [...prev, entry]);
-		// Also log to console
-		const consoleFn = level === "error" ? console.error : level === "warn" ? console.warn : console.log;
-		consoleFn(`[IframeDebug] ${message}`, data || "");
+	const addDebugLog = useCallback(
+		(
+			level: DebugLogEntry["level"],
+			message: string,
+			data?: Record<string, unknown>,
+		) => {
+			const entry: DebugLogEntry = {
+				timestamp: new Date().toISOString(),
+				level,
+				message,
+				data,
+			};
+			setDebugLogs((prev) => [...prev, entry]);
+			// Also log to console
+			const consoleFn =
+				level === "error"
+					? console.error
+					: level === "warn"
+						? console.warn
+						: console.log;
+			consoleFn(`[IframeDebug] ${message}`, data || "");
+		},
+		[],
+	);
+
+	// Helper to trigger file download
+	const triggerDownload = useCallback((data: object, filename: string) => {
+		const blob = new Blob([JSON.stringify(data, null, 2)], {
+			type: "application/json",
+		});
+		const url = URL.createObjectURL(blob);
+		const a = document.createElement("a");
+		a.href = url;
+		a.download = filename;
+		a.click();
+		URL.revokeObjectURL(url);
 	}, []);
+
+	// Download simple conversation (JAR-69)
+	const downloadConversation = useCallback(() => {
+		const messages = useConversationStore.getState().messages;
+		const data = {
+			conversationId,
+			transcript: messages
+				.filter(
+					(m) =>
+						!m.metadata?.sources && !m.metadata?.reasoning && m.message?.trim(),
+				)
+				.map((m) => `${m.role === "user" ? "User" : "Bot"}: ${m.message}`),
+		};
+		triggerDownload(data, `conversation-${conversationId}.json`);
+	}, [conversationId, triggerDownload]);
+
+	// Download full metadata (JAR-69)
+	// TODO: CLIEN-20 Clean up debugging payloads
+	const downloadMetadata = useCallback(() => {
+		const messages = useConversationStore.getState().messages;
+		const data = {
+			exportedAt: new Date().toISOString(),
+			conversationId,
+			sessionKey,
+			// Valkey config from validate-instantiation
+			valkeyConfig: {
+				tenantId: valkeyConfig?.tenantId,
+				chatSessionId: valkeyConfig?.chatSessionId,
+				tabInstanceId: valkeyConfig?.tabInstanceId,
+				tenantName: valkeyConfig?.tenantName,
+			},
+			// Debug info
+			debug: {
+				apiUrl,
+				logs: debugLogs,
+			},
+			// Full message objects
+			messages: messages.map((m) => ({
+				id: m.id,
+				role: m.role,
+				message: m.message,
+				timestamp: m.timestamp,
+				status: m.status,
+				metadata: m.metadata,
+			})),
+		};
+		triggerDownload(data, `metadata-${conversationId}-${Date.now()}.json`);
+	}, [conversationId, sessionKey, valkeyConfig, debugLogs, triggerDownload]);
 
 	// Initialize iframe session on mount (always required for auth)
 	useEffect(() => {
@@ -237,7 +430,7 @@ export default function IframeChatPage() {
 
 		async function initializeIframe() {
 			addDebugLog("info", "Starting initialization", {
-				sessionKey: sessionKey ? sessionKey.substring(0, 8) + "..." : "null",
+				sessionKey: sessionKey ? `${sessionKey.substring(0, 8)}...` : "null",
 				existingConversationId: urlConversationId || "null",
 				apiUrl: currentApiUrl,
 			});
@@ -262,7 +455,9 @@ export default function IframeChatPage() {
 				});
 
 				const duration = Date.now() - startTime;
-				addDebugLog("info", `API response received (${duration}ms)`, { ...response });
+				addDebugLog("info", `API response received (${duration}ms)`, {
+					...response,
+				});
 
 				if (response.valid && response.conversationId) {
 					addDebugLog("info", "Session initialized successfully", {
@@ -279,6 +474,14 @@ export default function IframeChatPage() {
 					setTitleText(response.titleText);
 					setWelcomeText(response.welcomeText);
 					setPlaceholderText(response.placeholderText);
+
+					// Store Valkey config for dev tools export (JAR-69)
+					setValkeyConfig({
+						tenantId: response.webhookTenantId,
+						chatSessionId: response.chatSessionId,
+						tabInstanceId: response.tabInstanceId,
+						tenantName: response.tenantName,
+					});
 
 					// Navigate to URL with conversationId to sync with useChatNavigation
 					// This prevents useChatNavigation from clearing the store when URL has no conversationId
@@ -308,7 +511,14 @@ export default function IframeChatPage() {
 		}
 
 		initializeIframe();
-	}, [urlConversationId, sessionKey, setCurrentConversation, addDebugLog, navigate, t]);
+	}, [
+		urlConversationId,
+		sessionKey,
+		setCurrentConversation,
+		addDebugLog,
+		navigate,
+		t,
+	]);
 
 	// Execute workflow once session is ready
 	// This runs in parent to prevent re-execution on child remounts
@@ -322,9 +532,15 @@ export default function IframeChatPage() {
 			try {
 				const result = await iframeApi.executeWorkflow(key);
 				if (result.success) {
-					console.log("[IframeChatPage] Workflow executed, eventId:", result.eventId);
+					console.log(
+						"[IframeChatPage] Workflow executed, eventId:",
+						result.eventId,
+					);
 				} else {
-					console.error("[IframeChatPage] Workflow execution failed:", result.error);
+					console.error(
+						"[IframeChatPage] Workflow execution failed:",
+						result.error,
+					);
 				}
 			} catch (err) {
 				console.error("[IframeChatPage] Workflow execution error:", err);
@@ -340,7 +556,14 @@ export default function IframeChatPage() {
 		showDebug,
 		setShowDebug,
 		debugLogs,
-		state: { isLoading, sessionReady, error, conversationId, sessionKey, apiUrl },
+		state: {
+			isLoading,
+			sessionReady,
+			error,
+			conversationId,
+			sessionKey,
+			apiUrl,
+		},
 	};
 
 	// Loading state
@@ -377,12 +600,23 @@ export default function IframeChatPage() {
 		return (
 			<IframeChatLayout>
 				<div className="flex items-center justify-center h-full">
-					<div className="text-sm text-gray-500">{t("iframe.initializing")}</div>
+					<div className="text-sm text-gray-500">
+						{t("iframe.initializing")}
+					</div>
 				</div>
 				<DebugPanel {...debugPanelProps} />
 			</IframeChatLayout>
 		);
 	}
+
+	// Dev tools element for input toolbar
+	const devToolsElement = (
+		<IframeDevTools
+			onDownloadConversation={downloadConversation}
+			onDownloadMetadata={downloadMetadata}
+			onShowActivityLog={() => setShowDebug(true)}
+		/>
+	);
 
 	// Render chat with SSE provider (session cookie enables SSE auth)
 	return (
@@ -393,6 +627,7 @@ export default function IframeChatPage() {
 					titleText={titleText}
 					placeholderText={placeholderText}
 					welcomeText={welcomeText}
+					leftToolbarContent={devToolsElement}
 				/>
 			</SSEProvider>
 			<DebugPanel {...debugPanelProps} />

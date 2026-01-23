@@ -104,6 +104,8 @@ export interface ChatV1ContentProps {
 	placeholderText?: string;
 	/** Custom welcome/intro text (e.g., "I can help you build workflow automations.") */
 	welcomeText?: string;
+	/** Custom content for left side of input toolbar */
+	leftToolbarContent?: React.ReactNode;
 }
 
 /**
@@ -454,7 +456,9 @@ function AskRitaEmptyState({
 	return (
 		<div className="flex flex-col items-center justify-center gap-8 py-12">
 			<div className="text-center space-y-2">
-				<h2 className="text-3xl font-semibold text-foreground">{t("emptyState.title")}</h2>
+				<h2 className="text-3xl font-semibold text-foreground">
+					{t("emptyState.title")}
+				</h2>
 				<p className="text-base text-muted-foreground">
 					{hasKnowledge
 						? t("emptyState.descriptionWithKnowledge")
@@ -480,7 +484,10 @@ function AskRitaEmptyState({
 							</CardHeader>
 							<CardContent>
 								<p className="text-sm text-muted-foreground">
-									{t("emptyState.fileConstraints", { extensions: SUPPORTED_DOCUMENT_EXTENSIONS.join(", "), size: MAX_FILE_SIZE_MB })}
+									{t("emptyState.fileConstraints", {
+										extensions: SUPPORTED_DOCUMENT_EXTENSIONS.join(", "),
+										size: MAX_FILE_SIZE_MB,
+									})}
 								</p>
 							</CardContent>
 						</Card>
@@ -538,6 +545,7 @@ export default function ChatV1Content({
 	titleText,
 	placeholderText,
 	welcomeText,
+	leftToolbarContent,
 }: ChatV1ContentProps) {
 	const { t } = useTranslation(["chat", "toast"]);
 	// Copy state tracking for icon feedback
@@ -605,7 +613,10 @@ export default function ChatV1Content({
 					onError: (error: any) => {
 						ritaToast.error({
 							title: t("toast:error.uploadFailed"),
-							description: t("toast:descriptions.uploadFailedDesc", { name: file.name, error: error?.message || "Unknown error" }),
+							description: t("toast:descriptions.uploadFailedDesc", {
+								name: file.name,
+								error: error?.message || "Unknown error",
+							}),
 						});
 					},
 				});
@@ -623,7 +634,10 @@ export default function ChatV1Content({
 		maxFileSize: 10 * 1024 * 1024, // 10MB
 		onDrop: handleDragDropUpload,
 		onError: (error) =>
-			ritaToast.error({ title: t("toast:error.uploadError"), description: error }),
+			ritaToast.error({
+				title: t("toast:error.uploadError"),
+				description: error,
+			}),
 	});
 
 	// Scroll container ref for pagination (mutable to allow assignment from contextRef)
@@ -730,17 +744,20 @@ export default function ChatV1Content({
 	);
 
 	// Handle copy action with visual feedback
-	const handleCopy = useCallback(async (text: string, messageId: string) => {
-		try {
-			await navigator.clipboard.writeText(text);
-			setCopiedMessageId(messageId);
-			ritaToast.success({ title: t("toast:success.messageCopied") });
-			// Reset copied state after 2 seconds (same as ai-elements pattern)
-			setTimeout(() => setCopiedMessageId(null), 2000);
-		} catch (_error) {
-			ritaToast.error({ title: t("toast:error.copyFailed") });
-		}
-	}, [t]);
+	const handleCopy = useCallback(
+		async (text: string, messageId: string) => {
+			try {
+				await navigator.clipboard.writeText(text);
+				setCopiedMessageId(messageId);
+				ritaToast.success({ title: t("toast:success.messageCopied") });
+				// Reset copied state after 2 seconds (same as ai-elements pattern)
+				setTimeout(() => setCopiedMessageId(null), 2000);
+			} catch (_error) {
+				ritaToast.error({ title: t("toast:error.copyFailed") });
+			}
+		},
+		[t],
+	);
 
 	// Handle direct attachment button click
 	// TODO: Uncomment when re-enabling attachment button
@@ -849,7 +866,9 @@ export default function ChatV1Content({
 				placeholder={placeholderText ?? t("input.placeholder")}
 				chatStatus={chatStatus}
 				disabled={isInputDisabled}
-				showNoKnowledgeWarning={requireKnowledgeBase && !hasProcessedOrUploadedFiles}
+				showNoKnowledgeWarning={
+					requireKnowledgeBase && !hasProcessedOrUploadedFiles
+				}
 				isAdmin={isAdmin}
 				onChange={handleMessageChange}
 				onSubmit={handlePromptSubmit}
@@ -859,6 +878,7 @@ export default function ChatV1Content({
 					maxFiles: undefined,
 					maxFileSize: undefined,
 				}}
+				leftToolbarContent={leftToolbarContent}
 			/>
 
 			{/* Hidden file input for chat message attachments (currently disabled) */}

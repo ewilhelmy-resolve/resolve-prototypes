@@ -12,7 +12,6 @@ import {
 	BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
 import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
 import { useSidebar } from "@/components/ui/sidebar";
 
 interface HeaderBreadcrumbItem {
@@ -142,8 +141,6 @@ export default function SettingsHeader({
 					</p>
 				)}
 			</div>
-
-			<Separator orientation="horizontal" />
 		</div>
 	);
 }

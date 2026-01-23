@@ -1,4 +1,27 @@
 {
+	"statusCard": {
+		"labels": {
+			"url": "URL",
+			"email": "Email",
+			"username": "Username",
+			"password": "Password",
+			"apiToken": "API"
+		},
+		"multipleAttemptsFailed": "Multiple attempts failed",
+		"getHelp": "Get Help",
+		"retrying": "Retrying... ({{current}}/{{max}})",
+		"connectionFailed": "Connection failed",
+		"retry": "Retry",
+		"ticketsProgress": "{{processed}} of {{total}} tickets",
+		"importingTickets": "Importing tickets...",
+		"syncingConnection": "Syncing connection...",
+		"verifyingConnection": "Verifying connection...",
+		"syncCancelled": "Sync cancelled by user",
+		"lastSynced": "Last synced {{time}}",
+		"ticketsCount": "{{count}} tickets",
+		"connected": "Connected",
+		"notConfigured": "Not configured"
+	},
 	"status": {
 		"notConnected": "Not connected",
 		"connected": "Connected",
@@ -16,6 +39,10 @@
 			"title": "ServiceNow",
 			"description": "Connect to ServiceNow for ITSM integration."
 		},
+		"servicenow_itsm": {
+			"title": "ServiceNow ITSM",
+			"description": "Connect to ServiceNow for ITSM ticket integration."
+		},
 		"sharepoint": {
 			"title": "SharePoint",
 			"description": "Import documents from SharePoint."
@@ -27,6 +54,10 @@
 		"jira": {
 			"title": "Jira",
 			"description": "Import tickets from Jira for autopilot clustering."
+		},
+		"jira_itsm": {
+			"title": "Jira",
+			"description": "Import tickets from Jira for Autopilot clustering."
 		},
 		"freshdesk": {
 			"title": "Freshdesk",
@@ -50,7 +81,8 @@
 			"clientSecret": "Client Secret",
 			"siteUrl": "Site URL",
 			"freshdeskDomain": "Freshdesk Domain",
-			"apiKey": "API Key"
+			"apiKey": "API Key",
+			"jiraUrl": "Jira URL"
 		},
 		"placeholders": {
 			"confluenceUrl": "https://your-company.atlassian.net",
@@ -64,7 +96,8 @@
 			"secret": "••••••••",
 			"sharePointUrl": "https://your-company.sharepoint.com",
 			"freshdeskDomain": "https://your-company.freshdesk.com",
-			"apiKey": "Enter your API key"
+			"apiKey": "Enter your API key",
+			"jiraUrl": "https://your-company.atlassian.net"
 		},
 		"validation": {
 			"urlRequired": "URL is required",
@@ -107,13 +140,18 @@
 		"loading": "Loading connection...",
 		"unknownSourceType": "Unknown source type",
 		"configurationNotAvailable": "Configuration not available for this source type",
-		"connectDescription": "Connect your {{source}} instance to build context for RITA to make better experiences."
+		"connectDescription": "Connect your {{source}} instance to build context for RITA to make better experiences.",
+		"breadcrumbs": {
+			"knowledgeSources": "Knowledge Sources",
+			"itsmSources": "ITSM Sources"
+		}
 	},
 	"config": {
 		"titles": {
 			"confluence": "Confluence configuration",
 			"servicenowKb": "ServiceNow Knowledge Base configuration",
 			"servicenowItsm": "ServiceNow ITSM configuration",
+			"jiraItsm": "Jira ITSM configuration",
 			"sharepoint": "SharePoint",
 			"websearch": "Web Search",
 			"freshdeskItsm": "Freshdesk ITSM configuration"
@@ -157,6 +195,7 @@
 			"syncStartedConfluence": "Your Confluence spaces are being synced",
 			"syncStartedServiceNowKb": "Your ServiceNow knowledge articles are being synced",
 			"syncStartedServiceNowItsm": "Your ServiceNow tickets are being synced",
+			"syncStartedJiraItsm": "Your Jira tickets are being synced",
 			"syncFailed": "Sync Failed",
 			"syncFailedDefault": "Failed to start sync",
 			"syncCancelled": "Sync Cancelled",
@@ -164,5 +203,10 @@
 			"cancelFailed": "Cancel Failed",
 			"cancelFailedDefault": "Failed to cancel sync"
 		}
+	},
+	"servicenow": {
+		"applyToRelated": "Apply credentials to {{target}} connection",
+		"knowledgeBase": "Knowledge Base",
+		"itsm": "ITSM"
 	}
 }

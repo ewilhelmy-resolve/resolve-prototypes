@@ -22,11 +22,13 @@ export default function ItsmSources() {
 	const { mutate: seedSources, isPending: isSeeding } = useSeedDataSources();
 	const { data: dataSources, isLoading, error } = useDataSources();
 	const isServiceNowEnabled = useFeatureFlag("ENABLE_SERVICENOW");
+	const isJiraEnabled = useFeatureFlag("ENABLE_JIRA");
 
 	// Sources that are clickable (configured for ITSM sync)
-	const enabledItsmSources: string[] = isServiceNowEnabled
-		? [SOURCES.SERVICENOW]
-		: [];
+	const enabledItsmSources: string[] = [
+		...(isServiceNowEnabled ? [SOURCES.SERVICENOW_ITSM] : []),
+		...(isJiraEnabled ? [SOURCES.JIRA_ITSM] : []),
+	];
 
 	// Seed on mount (idempotent - safe to call multiple times)
 	useEffect(() => {
@@ -108,45 +110,45 @@ export default function ItsmSources() {
 				</div>
 
 				<div className="px-6 pb-8 max-w-2xl mx-auto w-full">
-				{uiSources.map((source) => {
-					const isEnabled = enabledItsmSources.includes(source.type);
-					const isPlaceholder = source.id.startsWith("placeholder-");
+					{uiSources.map((source) => {
+						const isEnabled = enabledItsmSources.includes(source.type);
+						const isPlaceholder = source.id.startsWith("placeholder-");
 
-					const cardContent = (
-						<SourceListCard
-							source={source}
-							isEnabled={isEnabled}
-							isPlaceholder={isPlaceholder}
-							actionLabel={
-								source.status === STATUS.NOT_CONNECTED
-									? t("itsmSources.configure")
-									: t("itsmSources.manage")
-							}
-							disabledLabel={t("itsmSources.comingSoon")}
-							lastSyncLabel={t("itsmSources.lastSync", { time: "{time}" })}
-						/>
-					);
-
-					// Only wrap enabled sources with Link
-					if (isEnabled && !isPlaceholder) {
-						return (
-							<Link
-								key={source.id}
-								to={`/settings/connections/itsm/${source.id}`}
-								className="block mb-5"
-							>
-								{cardContent}
-							</Link>
+						const cardContent = (
+							<SourceListCard
+								source={source}
+								isEnabled={isEnabled}
+								isPlaceholder={isPlaceholder}
+								actionLabel={
+									source.status === STATUS.NOT_CONNECTED
+										? t("itsmSources.configure")
+										: t("itsmSources.manage")
+								}
+								disabledLabel={t("itsmSources.comingSoon")}
+								lastSyncLabel={t("itsmSources.lastSync", { time: "{time}" })}
+							/>
 						);
-					}
 
-					// For other sources, just return the card without link
-					return (
-						<div key={source.id} className="mb-5">
-							{cardContent}
-						</div>
-					);
-				})}
+						// Only wrap enabled sources with Link
+						if (isEnabled && !isPlaceholder) {
+							return (
+								<Link
+									key={source.id}
+									to={`/settings/connections/itsm/${source.id}`}
+									className="block mb-5"
+								>
+									{cardContent}
+								</Link>
+							);
+						}
+
+						// For other sources, just return the card without link
+						return (
+							<div key={source.id} className="mb-5">
+								{cardContent}
+							</div>
+						);
+					})}
 				</div>
 			</div>
 		</RitaSettingsLayout>

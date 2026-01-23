@@ -126,6 +126,12 @@ vi.mock("@/components/connection-sources/connection-forms", () => ({
 			{onCancel && <button onClick={onCancel}>Cancel</button>}
 		</div>
 	),
+	JiraForm: ({ onCancel }: { onCancel?: () => void }) => (
+		<div>
+			<div>Jira Form</div>
+			{onCancel && <button onClick={onCancel}>Cancel</button>}
+		</div>
+	),
 }));
 
 // Mock data
@@ -248,7 +254,10 @@ describe("ConnectionSourceDetailPage", () => {
 			mockDataSourceQuery.data = source;
 			renderWithRouter();
 
-			expect(screen.getByText("Knowledge Sources")).toBeInTheDocument();
+			// i18n mock returns the key, not the translated value
+			expect(
+				screen.getByText("detail.breadcrumbs.knowledgeSources"),
+			).toBeInTheDocument();
 		});
 
 		it("should render source icon for non-websearch sources", () => {
@@ -274,9 +283,7 @@ describe("ConnectionSourceDetailPage", () => {
 			mockDataSourceQuery.data = source;
 			renderWithRouter();
 
-			expect(
-				screen.getByText(/detail.connectDescription/),
-			).toBeInTheDocument();
+			expect(screen.getByText(/detail.connectDescription/)).toBeInTheDocument();
 		});
 	});
 
@@ -311,18 +318,22 @@ describe("ConnectionSourceDetailPage", () => {
 			mockDataSourceQuery.data = source;
 			renderWithRouter("/settings/connections/knowledge/source-123");
 
-			expect(screen.getByText("ServiceNow KB Configuration")).toBeInTheDocument();
+			expect(
+				screen.getByText("ServiceNow KB Configuration"),
+			).toBeInTheDocument();
 		});
 
-		it("should show ITSM configuration view for configured ServiceNow source in itsm mode", () => {
+		it("should show ITSM configuration view for configured ServiceNow ITSM source in itsm mode", () => {
 			const source = createMockDataSource({
-				type: "servicenow",
+				type: "servicenow_itsm",
 				last_verification_at: "2024-01-01T00:00:00Z",
 			});
 			mockDataSourceQuery.data = source;
 			renderWithRouter("/settings/connections/itsm/source-123");
 
-			expect(screen.getByText("ServiceNow ITSM Configuration")).toBeInTheDocument();
+			expect(
+				screen.getByText("ServiceNow ITSM Configuration"),
+			).toBeInTheDocument();
 		});
 
 		it("should show configuration view for configured WebSearch source", () => {
@@ -560,7 +571,9 @@ describe("ConnectionSourceDetailPage", () => {
 			mockDataSourceQuery.data = source;
 			renderWithRouter();
 
-			expect(screen.getByText("detail.configurationNotAvailable")).toBeInTheDocument();
+			expect(
+				screen.getByText("detail.configurationNotAvailable"),
+			).toBeInTheDocument();
 		});
 	});
 });

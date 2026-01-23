@@ -17,6 +17,7 @@
  * - rita-auth: Password reset events
  * - rita-signup: User signup events (user_signup, resend_verification)
  * - rita-documents: Document upload/delete events
+ * - rita-credential-delegation: Delegated ITSM credential setup events
  *
  * Note: Invitation events (send_invitation, accept_invitation) use rita-chat source.
  *
@@ -36,49 +37,57 @@
  * // Workflow builder (/jirita)
  * source: 'rita-chat-workflows'
  */
-export type ChatWebhookSource = 'rita-chat' | 'rita-chat-iframe' | 'rita-chat-workflows';
+export type ChatWebhookSource =
+	| "rita-chat"
+	| "rita-chat-iframe"
+	| "rita-chat-workflows";
 
 /** All webhook sources including non-chat features */
-export type WebhookSource = ChatWebhookSource | 'rita-auth' | 'rita-signup' | 'rita-documents';
+export type WebhookSource =
+	| ChatWebhookSource
+	| "rita-auth"
+	| "rita-signup"
+	| "rita-documents"
+	| "rita-credential-delegation";
 
 export interface BaseWebhookPayload {
-  source: WebhookSource | string; // WebhookSource for typed payloads, string for generic
-  action: string;
-  user_email?: string;
-  user_id?: string;
-  tenant_id?: string; // Webhook platform expects tenant_id (maps to organization_id). Optional for public/unauthenticated flows like password reset.
-  timestamp?: string;
+	source: WebhookSource | string; // WebhookSource for typed payloads, string for generic
+	action: string;
+	user_email?: string;
+	user_id?: string;
+	tenant_id?: string; // Webhook platform expects tenant_id (maps to organization_id). Optional for public/unauthenticated flows like password reset.
+	timestamp?: string;
 }
 
 export interface MessageWebhookPayload extends BaseWebhookPayload {
-  source: ChatWebhookSource;
-  action: 'message_created';
-  conversation_id: string;
-  customer_message: string;
-  message_id: string;
-  document_ids?: string[];
-  transcript_ids?: {
-    transcripts: Array<{ role: string; content: string }>;
-  };
+	source: ChatWebhookSource;
+	action: "message_created";
+	conversation_id: string;
+	customer_message: string;
+	message_id: string;
+	document_ids?: string[];
+	transcript_ids?: {
+		transcripts: Array<{ role: string; content: string }>;
+	};
 }
 
 export interface DocumentProcessingPayload extends BaseWebhookPayload {
-  source: 'rita-documents';
-  action: 'document_uploaded';
-  blob_metadata_id: string; // blob_metadata.id
-  blob_id: string; // blobs.blob_id
-  document_url: string;
-  file_type: string;
-  file_size: number;
-  original_filename: string;
+	source: "rita-documents";
+	action: "document_uploaded";
+	blob_metadata_id: string; // blob_metadata.id
+	blob_id: string; // blobs.blob_id
+	document_url: string;
+	file_type: string;
+	file_size: number;
+	original_filename: string;
 }
 
 export interface DocumentDeletePayload extends BaseWebhookPayload {
-  source: 'rita-documents';
-  action: 'document_deleted';
-  blob_metadata_id: string; // blob_metadata.id
-  blob_id: string; // blobs.blob_id
-  article_id: string; // Temporary field for Barista compatibility (maps to blob_id)
+	source: "rita-documents";
+	action: "document_deleted";
+	blob_metadata_id: string; // blob_metadata.id
+	blob_id: string; // blobs.blob_id
+	article_id: string; // Temporary field for Barista compatibility (maps to blob_id)
 }
 
 /**
@@ -86,10 +95,10 @@ export interface DocumentDeletePayload extends BaseWebhookPayload {
  * Triggered when user requests password reset
  */
 export interface PasswordResetRequestPayload extends BaseWebhookPayload {
-  source: 'rita-auth';
-  action: 'password_reset_request';
-  reset_url: string;
-  expires_at: string; // ISO timestamp
+	source: "rita-auth";
+	action: "password_reset_request";
+	reset_url: string;
+	expires_at: string; // ISO timestamp
 }
 
 /**
@@ -97,37 +106,37 @@ export interface PasswordResetRequestPayload extends BaseWebhookPayload {
  * Triggered when user submits new password
  */
 export interface PasswordResetCompletePayload extends BaseWebhookPayload {
-  source: 'rita-auth';
-  action: 'password_reset_complete';
-  password: string; // Base64 encoded
+	source: "rita-auth";
+	action: "password_reset_complete";
+	password: string; // Base64 encoded
 }
 
 export interface WebhookResponse {
-  success: boolean;
-  data?: any;
-  status: number;
-  error?: string;
+	success: boolean;
+	data?: any;
+	status: number;
+	error?: string;
 }
 
 export interface WebhookConfig {
-  url: string;
-  authHeader: string;
-  timeout: number;
-  retryAttempts: number;
-  retryDelay: number;
+	url: string;
+	authHeader: string;
+	timeout: number;
+	retryAttempts: number;
+	retryDelay: number;
 }
 
 export interface WebhookError extends Error {
-  status?: number;
-  response?: any;
-  isRetryable: boolean;
+	status?: number;
+	response?: any;
+	isRetryable: boolean;
 }
 
 // Union type for all webhook payloads
 export type WebhookPayload =
-  | MessageWebhookPayload
-  | DocumentProcessingPayload
-  | DocumentDeletePayload
-  | PasswordResetRequestPayload
-  | PasswordResetCompletePayload
-  | (BaseWebhookPayload & Record<string, any>);
+	| MessageWebhookPayload
+	| DocumentProcessingPayload
+	| DocumentDeletePayload
+	| PasswordResetRequestPayload
+	| PasswordResetCompletePayload
+	| (BaseWebhookPayload & Record<string, any>);

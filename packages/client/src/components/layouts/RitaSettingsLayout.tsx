@@ -37,7 +37,7 @@ function SettingsContent({ children }: { children?: ReactNode }) {
 	return (
 		<main
 			className={cn(
-				"w-full transition-[margin] duration-200 ease-linear",
+				"w-full transition-[margin] duration-200 ease-linear mr-4",
 				open ? "md:ml-[calc(var(--sidebar-width)+2em)]" : "md:ml-6",
 			)}
 		>
