@@ -228,4 +228,33 @@ router.post("/execute", async (req, res) => {
 	}
 });
 
+/**
+ * Delete iframe conversation
+ * DELETE /api/iframe/conversation/:conversationId
+ *
+ * Deletes conversation and all messages (cascade via FK).
+ * Used by "Clear Chat" feature to start fresh.
+ */
+router.delete("/conversation/:conversationId", async (req, res) => {
+	const { conversationId } = req.params;
+
+	if (!conversationId) {
+		res.status(400).json({ success: false, error: "Missing conversationId" });
+		return;
+	}
+
+	try {
+		const iframeService = getIframeService();
+		await iframeService.deleteConversation(conversationId);
+		res.json({ success: true });
+	} catch (error) {
+		const err = error as Error;
+		logger.error(
+			{ conversationId, error: err.message },
+			"Failed to delete conversation",
+		);
+		res.status(500).json({ success: false, error: "Failed to delete" });
+	}
+});
+
 export default router;

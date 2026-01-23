@@ -22,6 +22,7 @@ import {
 	ChevronUp,
 	Download,
 	ScrollText,
+	Trash2,
 	Wrench,
 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -77,6 +78,25 @@ interface DebugPanelProps {
 		apiUrl: string;
 	};
 	valkeyPayload: ValkeyPayload | null;
+}
+
+// Clear chat button (shows when feature flag enabled)
+function IframeClearChat({ onClear }: { onClear: () => void }) {
+	const devToolsEnabled = useFeatureFlag("ENABLE_IFRAME_DEV_TOOLS");
+
+	if (!devToolsEnabled) return null;
+
+	return (
+		<Button
+			size="icon"
+			variant="ghost"
+			className="h-8 w-8 hover:bg-accent"
+			onClick={onClear}
+			title="Clear conversation"
+		>
+			<Trash2 className="h-4 w-4" />
+		</Button>
+	);
 }
 
 // Dev tools dropdown for input toolbar (shows when feature flag enabled)
@@ -424,6 +444,59 @@ export default function IframeChatPage() {
 		triggerDownload(data, `metadata-${conversationId}-${Date.now()}.json`);
 	}, [conversationId, sessionKey, valkeyPayload, debugLogs, triggerDownload]);
 
+	// Clear chat handler - deletes conversation and creates a new one
+	const handleClearChat = useCallback(async () => {
+		if (!conversationId || !sessionKey) return;
+
+		// Confirm with user
+		if (!window.confirm("Clear all messages? This cannot be undone.")) return;
+
+		try {
+			addDebugLog("info", "Clearing chat...", { conversationId });
+
+			// Delete current conversation
+			await iframeApi.deleteConversation(conversationId);
+
+			// Clear local state
+			useConversationStore.getState().clearCurrentConversation();
+			setDebugLogs([]);
+
+			// Reset refs to allow re-initialization
+			initRef.current = false;
+			workflowExecutedRef.current = false;
+
+			// Re-initialize to get new conversation (don't pass existingConversationId)
+			const response = await iframeApi.validateInstantiation({ sessionKey });
+
+			if (response.valid && response.conversationId) {
+				setConversationId(response.conversationId);
+				setCurrentConversation(response.conversationId);
+
+				// Navigate to new conversation URL
+				const params = new URLSearchParams(window.location.search);
+				navigate(`/iframe/chat/${response.conversationId}?${params}`, {
+					replace: true,
+				});
+
+				addDebugLog("info", "Chat cleared, new conversation created", {
+					newConversationId: response.conversationId,
+				});
+			} else {
+				addDebugLog("error", "Failed to create new conversation", {
+					error: response.error,
+				});
+			}
+		} catch (err) {
+			addDebugLog("error", "Failed to clear chat", { error: String(err) });
+		}
+	}, [
+		conversationId,
+		sessionKey,
+		navigate,
+		setCurrentConversation,
+		addDebugLog,
+	]);
+
 	// Initialize iframe session on mount (always required for auth)
 	useEffect(() => {
 		// Guard against StrictMode double-mount
@@ -614,11 +687,14 @@ export default function IframeChatPage() {
 
 	// Dev tools element for input toolbar
 	const devToolsElement = (
-		<IframeDevTools
-			onDownloadConversation={downloadConversation}
-			onDownloadMetadata={downloadMetadata}
-			onShowActivityLog={() => setShowDebug(true)}
-		/>
+		<>
+			<IframeClearChat onClear={handleClearChat} />
+			<IframeDevTools
+				onDownloadConversation={downloadConversation}
+				onDownloadMetadata={downloadMetadata}
+				onShowActivityLog={() => setShowDebug(true)}
+			/>
+		</>
 	);
 
 	// Render chat with SSE provider (session cookie enables SSE auth)

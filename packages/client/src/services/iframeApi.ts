@@ -75,4 +75,22 @@ export const iframeApi = {
 
 		return response.json();
 	},
+
+	/**
+	 * Delete iframe conversation
+	 * Used by "Clear Chat" feature to delete conversation and start fresh
+	 */
+	deleteConversation: async (
+		conversationId: string,
+	): Promise<{ success: boolean; error?: string }> => {
+		const response = await fetch(
+			`${API_BASE_URL}/api/iframe/conversation/${conversationId}`,
+			{
+				method: "DELETE",
+				credentials: "include",
+			},
+		);
+
+		return response.json();
+	},
 };

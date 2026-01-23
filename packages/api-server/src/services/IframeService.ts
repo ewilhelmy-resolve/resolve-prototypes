@@ -339,6 +339,17 @@ export class IframeService {
 	}
 
 	/**
+	 * Delete a conversation by ID
+	 * Messages cascade delete via FK constraint
+	 */
+	async deleteConversation(conversationId: string): Promise<void> {
+		await pool.query(`DELETE FROM conversations WHERE id = $1`, [
+			conversationId,
+		]);
+		logger.info({ conversationId }, "Iframe conversation deleted");
+	}
+
+	/**
 	 * Create a conversation for iframe user
 	 * Uses JIT provisioning to map Jarvis IDs → Rita IDs
 	 * Conversation reuse is via activityId (activity_contexts table), not sessionKey
