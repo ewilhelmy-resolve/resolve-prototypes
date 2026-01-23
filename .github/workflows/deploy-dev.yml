@@ -125,7 +125,7 @@ jobs:
       - name: Build and push API Server image
         uses: docker/build-push-action@v5
         with:
-          context: ./packages/api-server
+          context: .
           file: ./packages/api-server/Dockerfile.prod
           push: true
           tags: ${{ steps.meta.outputs.api-server-image }}
