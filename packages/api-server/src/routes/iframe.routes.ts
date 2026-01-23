@@ -87,6 +87,8 @@ router.post("/validate-instantiation", async (req, res) => {
 			titleText: result.uiConfig?.titleText,
 			welcomeText: result.uiConfig?.welcomeText,
 			placeholderText: result.uiConfig?.placeholderText,
+			// Full Valkey payload for dev tools (sensitive fields excluded)
+			valkeyPayload: result.valkeyPayload,
 		});
 	} catch (error) {
 		const duration = Date.now() - startTime;

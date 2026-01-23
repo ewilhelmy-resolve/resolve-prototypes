@@ -58,13 +58,9 @@ interface DebugLogEntry {
 	data?: Record<string, unknown>;
 }
 
-// Valkey config for dev tools export
-interface ValkeyConfig {
-	tenantId?: string;
-	chatSessionId?: string;
-	tabInstanceId?: string;
-	tenantName?: string;
-}
+// Full Valkey payload for dev tools export
+// Sensitive fields (accessToken, refreshToken, clientKey) are redacted by backend
+type ValkeyPayload = Record<string, unknown>;
 
 // Debug panel props
 interface DebugPanelProps {
@@ -80,6 +76,7 @@ interface DebugPanelProps {
 		sessionKey: string | null;
 		apiUrl: string;
 	};
+	valkeyPayload: ValkeyPayload | null;
 }
 
 // Dev tools dropdown for input toolbar (shows when feature flag enabled)
@@ -141,7 +138,8 @@ function DebugPanel({
 	setShowDebug,
 	debugLogs,
 	state,
-}: Omit<DebugPanelProps, "onDownload">) {
+	valkeyPayload,
+}: DebugPanelProps) {
 	if (!debug && !showDebug) return null;
 
 	return (
@@ -183,6 +181,15 @@ function DebugPanel({
 							)}
 						</pre>
 					</div>
+					{/* Valkey Payload */}
+					{valkeyPayload && (
+						<div className="bg-gray-800 rounded p-2">
+							<div className="font-semibold mb-1">Valkey Payload:</div>
+							<pre className="text-[10px] overflow-x-auto">
+								{JSON.stringify(valkeyPayload, null, 2)}
+							</pre>
+						</div>
+					)}
 					{/* Logs */}
 					<div className="bg-gray-800 rounded p-2">
 						<div className="font-semibold mb-1">Logs:</div>
@@ -311,16 +318,19 @@ export default function IframeChatPage() {
 	const [placeholderText, setPlaceholderText] = useState<string | undefined>();
 	const [welcomeText, setWelcomeText] = useState<string | undefined>();
 
-	// Valkey config for dev tools export (JAR-69)
-	const [valkeyConfig, setValkeyConfig] = useState<ValkeyConfig | null>(null);
+	// Full Valkey payload for dev tools export (JAR-69)
+	const [valkeyPayload, setValkeyPayload] = useState<ValkeyPayload | null>(
+		null,
+	);
 
-	// Initialize platform feature flags for iframe (uses tenantId from valkeyConfig)
+	// Initialize platform feature flags for iframe (uses tenantId from valkeyPayload)
 	const flagsStore = useFeatureFlagsStore();
+	const tenantId = valkeyPayload?.tenantId as string | undefined;
 	useEffect(() => {
-		if (valkeyConfig?.tenantId && !flagsStore.initialized) {
-			flagsStore.initialize(valkeyConfig.tenantId);
+		if (tenantId && !flagsStore.initialized) {
+			flagsStore.initialize(tenantId);
 		}
-	}, [valkeyConfig?.tenantId, flagsStore]);
+	}, [tenantId, flagsStore]);
 
 	// Debug state
 	const [showDebug, setShowDebug] = useState(debug);
@@ -394,13 +404,8 @@ export default function IframeChatPage() {
 			exportedAt: new Date().toISOString(),
 			conversationId,
 			sessionKey,
-			// Valkey config from validate-instantiation
-			valkeyConfig: {
-				tenantId: valkeyConfig?.tenantId,
-				chatSessionId: valkeyConfig?.chatSessionId,
-				tabInstanceId: valkeyConfig?.tabInstanceId,
-				tenantName: valkeyConfig?.tenantName,
-			},
+			// Full Valkey payload from validate-instantiation (sensitive fields excluded by backend)
+			valkeyPayload,
 			// Debug info
 			debug: {
 				apiUrl,
@@ -417,7 +422,7 @@ export default function IframeChatPage() {
 			})),
 		};
 		triggerDownload(data, `metadata-${conversationId}-${Date.now()}.json`);
-	}, [conversationId, sessionKey, valkeyConfig, debugLogs, triggerDownload]);
+	}, [conversationId, sessionKey, valkeyPayload, debugLogs, triggerDownload]);
 
 	// Initialize iframe session on mount (always required for auth)
 	useEffect(() => {
@@ -475,13 +480,10 @@ export default function IframeChatPage() {
 					setWelcomeText(response.welcomeText);
 					setPlaceholderText(response.placeholderText);
 
-					// Store Valkey config for dev tools export (JAR-69)
-					setValkeyConfig({
-						tenantId: response.webhookTenantId,
-						chatSessionId: response.chatSessionId,
-						tabInstanceId: response.tabInstanceId,
-						tenantName: response.tenantName,
-					});
+					// Store full Valkey payload for dev tools export (JAR-69)
+					if (response.valkeyPayload) {
+						setValkeyPayload(response.valkeyPayload);
+					}
 
 					// Navigate to URL with conversationId to sync with useChatNavigation
 					// This prevents useChatNavigation from clearing the store when URL has no conversationId
@@ -564,6 +566,7 @@ export default function IframeChatPage() {
 			sessionKey,
 			apiUrl,
 		},
+		valkeyPayload,
 	};
 
 	// Loading state

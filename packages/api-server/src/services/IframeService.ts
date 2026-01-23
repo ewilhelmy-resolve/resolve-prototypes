@@ -422,6 +422,8 @@ export class IframeService {
 			welcomeText?: string;
 			placeholderText?: string;
 		};
+		/** Full Valkey payload for dev tools (sensitive fields redacted) */
+		valkeyPayload?: Record<string, unknown>;
 	}> {
 		// SessionKey (Valkey hashkey) required
 		if (!sessionKey) {
@@ -576,6 +578,14 @@ export class IframeService {
 			tenantName: config.tenantName,
 			// Custom UI text from Valkey ui_config (undefined if not provided)
 			uiConfig: config.uiConfig,
+			// Full Valkey payload for dev tools (sensitive fields redacted)
+			valkeyPayload: {
+				...config,
+				// Redact sensitive authentication fields
+				accessToken: config.accessToken ? "[REDACTED]" : undefined,
+				refreshToken: config.refreshToken ? "[REDACTED]" : undefined,
+				clientKey: config.clientKey ? "[REDACTED]" : undefined,
+			},
 		};
 	}
 }
