@@ -70,19 +70,15 @@ export interface ClusterKbLinks {
 export interface Clusters {
 	config: Generated<Json | null>;
 	created_at: Generated<Timestamp | null>;
-	/**
-	 * Stable ID from Workflow Platform for idempotent upsert
-	 */
-	external_cluster_id: string;
 	id: Generated<string>;
 	/**
 	 * Knowledge base coverage: PENDING (checking), FOUND (has KB), GAP (missing KB)
 	 */
 	kb_status: Generated<string | null>;
 	/**
-	 * ML model that generated this cluster
+	 * ML model that generated this cluster (required)
 	 */
-	model_id: string | null;
+	model_id: string;
 	name: string;
 	organization_id: string;
 	/**
@@ -280,6 +276,10 @@ export interface MigrationHistory {
 }
 
 export interface MlModels {
+	/**
+	 * Whether this is the active model for the org (one per org, enforced by WF)
+	 */
+	active: Generated<boolean>;
 	created_at: Generated<Timestamp | null>;
 	/**
 	 * Model ID from ML team system (used in API calls)
