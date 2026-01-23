@@ -422,14 +422,6 @@ export class IframeService {
 			welcomeText?: string;
 			placeholderText?: string;
 		};
-		valkeyDebug?: {
-			fullKey: string;
-			rawPayload: Record<string, unknown> | null;
-			rawDataLength: number | null;
-			missingFields: string[];
-			error: string | null;
-			durationMs: number;
-		};
 	}> {
 		// SessionKey (Valkey hashkey) required
 		if (!sessionKey) {
@@ -437,10 +429,8 @@ export class IframeService {
 			return { valid: false, error: "sessionKey required" };
 		}
 
-		// Fetch config from Valkey (dev mode handled in fetchValkeyPayloadWithDebug)
-		const result = await this.fetchValkeyPayloadWithDebug(sessionKey);
-		const config = result.config;
-		const valkeyDebug = result.debug;
+		// Fetch config from Valkey (dev mode handled in getDevMockPayload)
+		const config = await this.fetchValkeyPayload(sessionKey);
 
 		if (!config) {
 			logger.warn(
@@ -450,7 +440,6 @@ export class IframeService {
 			return {
 				valid: false,
 				error: "Invalid or missing Valkey configuration",
-				valkeyDebug,
 			};
 		}
 
@@ -519,7 +508,6 @@ export class IframeService {
 				return {
 					valid: false,
 					error: "Conversation not found or access denied",
-					valkeyDebug,
 				};
 			}
 			conversationId = resolvedExistingConversationId;
