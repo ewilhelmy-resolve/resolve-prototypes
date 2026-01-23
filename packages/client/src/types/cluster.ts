@@ -4,12 +4,12 @@
 /**
  * KB status values for clusters
  */
-export type KBStatus = 'PENDING' | 'FOUND' | 'GAP';
+export type KBStatus = "PENDING" | "FOUND" | "GAP";
 
 /**
  * Rita status values for tickets
  */
-export type RitaStatus = 'NEEDS_RESPONSE' | 'COMPLETED';
+export type RitaStatus = "NEEDS_RESPONSE" | "COMPLETED";
 
 /**
  * Cluster configuration
@@ -40,8 +40,7 @@ export interface ClusterListItem {
 export interface ClusterDetails {
 	id: string;
 	organization_id: string;
-	model_id: string | null;
-	external_cluster_id: string;
+	model_id: string;
 	name: string;
 	subcluster_name: string | null;
 	config: ClusterConfig;
@@ -95,7 +94,7 @@ export interface PaginationInfo {
 /**
  * Sort options for cluster list
  */
-export type ClusterSortOption = 'volume' | 'automation' | 'recent';
+export type ClusterSortOption = "volume" | "automation" | "recent";
 
 /**
  * Query params for listing clusters
@@ -107,18 +106,18 @@ export interface ClustersQueryParams {
 /**
  * Sort options for cluster tickets
  */
-export type TicketSortOption = 'created_at' | 'external_id' | 'subject';
+export type TicketSortOption = "created_at" | "external_id" | "subject";
 
 /**
  * Sort direction
  */
-export type SortDirection = 'asc' | 'desc';
+export type SortDirection = "asc" | "desc";
 
 /**
  * Query params for cluster tickets
  */
 export interface ClusterTicketsQueryParams {
-	tab?: 'needs_response' | 'completed';
+	tab?: "needs_response" | "completed";
 	cursor?: string;
 	limit?: number;
 	search?: string;
