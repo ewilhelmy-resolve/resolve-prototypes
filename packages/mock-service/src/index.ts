@@ -1,7 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { type Channel, connect } from "amqplib";
 import axios from "axios";
 import cors from "cors";
 import { config } from "dotenv";
@@ -14,10 +13,10 @@ import {
 	logError,
 	logger,
 	PerformanceTimer,
-	rabbitLogger,
 	webhookLogger,
 } from "./config/logger.js";
 import { emailService } from "./email-service.js";
+import { getRabbitMQService } from "./services/rabbitmq.js";
 import { syncServiceNowData } from "./servicenow-sync.js";
 
 // Load environment from root .env file
@@ -217,117 +216,13 @@ interface MessagePart {
 	[key: string]: any;
 }
 
-// RabbitMQ connection
-let rabbitConnection: Awaited<ReturnType<typeof connect>> | null = null;
-let rabbitChannel: Channel | null = null;
-
 // Track cancelled sync operations to prevent sending sync_completed
 const cancelledSyncConnections = new Set<string>();
 
-async function connectRabbitMQ(): Promise<void> {
-	const timer = new PerformanceTimer(rabbitLogger, "connect-rabbitmq");
-	try {
-		rabbitLogger.info(
-			{ url: MOCK_CONFIG.rabbitUrl },
-			"Connecting to RabbitMQ...",
-		);
-		rabbitConnection = await connect(MOCK_CONFIG.rabbitUrl);
-		rabbitChannel = await rabbitConnection.createChannel();
-
-		await rabbitChannel.assertQueue(MOCK_CONFIG.queueName, { durable: true });
-		timer.end({ queueName: MOCK_CONFIG.queueName, success: true });
-		rabbitLogger.info(
-			{ queueName: MOCK_CONFIG.queueName },
-			"Connected to RabbitMQ successfully",
-		);
-	} catch (error) {
-		timer.end({ success: false });
-		logError(rabbitLogger, error as Error, {
-			operation: "connect-rabbitmq",
-			url: MOCK_CONFIG.rabbitUrl,
-		});
-		throw error;
-	}
-}
-
+// Helper to publish response to default queue
 async function publishResponse(response: MockResponse): Promise<void> {
-	const timer = new PerformanceTimer(rabbitLogger, "publish-response");
-	const contextLogger = createContextLogger(
-		rabbitLogger,
-		generateCorrelationId(),
-		{
-			messageId: response.message_id,
-			tenantId: response.tenant_id,
-			userId: response.user_id,
-		},
-	);
-
-	try {
-		if (!rabbitChannel) {
-			throw new Error("RabbitMQ channel not initialized");
-		}
-
-		const messageBuffer = Buffer.from(JSON.stringify(response));
-		rabbitChannel.sendToQueue(MOCK_CONFIG.queueName, messageBuffer, {
-			persistent: true,
-		});
-
-		timer.end({
-			messageId: response.message_id,
-			queueName: MOCK_CONFIG.queueName,
-			success: true,
-		});
-		contextLogger.info(
-			{
-				queueName: MOCK_CONFIG.queueName,
-			},
-			"Published response to queue",
-		);
-	} catch (error) {
-		timer.end({ success: false });
-		logError(contextLogger, error as Error, { operation: "publish-response" });
-		throw error;
-	}
-}
-
-async function publishToQueue(queueName: string, message: any): Promise<void> {
-	const timer = new PerformanceTimer(rabbitLogger, "publish-to-queue");
-	const contextLogger = createContextLogger(
-		rabbitLogger,
-		generateCorrelationId(),
-	);
-
-	try {
-		if (!rabbitChannel) {
-			throw new Error("RabbitMQ channel not initialized");
-		}
-
-		// Assert queue exists
-		await rabbitChannel.assertQueue(queueName, { durable: true });
-
-		const messageBuffer = Buffer.from(JSON.stringify(message));
-		rabbitChannel.sendToQueue(queueName, messageBuffer, {
-			persistent: true,
-		});
-
-		timer.end({
-			queueName,
-			success: true,
-		});
-		contextLogger.info(
-			{
-				queueName,
-			},
-			"Published message to queue",
-		);
-	} catch (error) {
-		timer.end({ success: false });
-		logError(contextLogger, error as Error, {
-			operation: "publish-to-queue",
-			queueName,
-		});
-		throw error;
-	}
+	const rabbitmqService = getRabbitMQService();
+	await rabbitmqService.publishToQueue(MOCK_CONFIG.queueName, response);
 }
 
 // Keycloak Admin API functions
@@ -2621,9 +2516,7 @@ app.post("/webhook", async (req, res) => {
 			// Publish verification message to RabbitMQ after 1 second delay
 			setTimeout(async () => {
 				try {
-					if (!rabbitChannel) {
-						throw new Error("RabbitMQ channel not initialized");
-					}
+					const rabbitmqService = getRabbitMQService();
 
 					if (isDelegation) {
 						// Credential delegation verification
@@ -2662,13 +2555,9 @@ app.post("/webhook", async (req, res) => {
 							timestamp: new Date().toISOString(),
 						};
 
-						await rabbitChannel.assertQueue("data_source_status", {
-							durable: true,
-						});
-						rabbitChannel.sendToQueue(
+						await rabbitmqService.publishToQueue(
 							"data_source_status",
-							Buffer.from(JSON.stringify(delegationMessage)),
-							{ persistent: true },
+							delegationMessage,
 						);
 
 						contextLogger.info(
@@ -2771,13 +2660,9 @@ app.post("/webhook", async (req, res) => {
 							error: null,
 						};
 
-						await rabbitChannel.assertQueue("data_source_status", {
-							durable: true,
-						});
-						rabbitChannel.sendToQueue(
+						await rabbitmqService.publishToQueue(
 							"data_source_status",
-							Buffer.from(JSON.stringify(verificationMessage)),
-							{ persistent: true },
+							verificationMessage,
 						);
 
 						contextLogger.info(
@@ -2837,9 +2722,7 @@ app.post("/webhook", async (req, res) => {
 						return;
 					}
 
-					if (!rabbitChannel) {
-						throw new Error("RabbitMQ channel not initialized");
-					}
+					const rabbitmqService = getRabbitMQService();
 
 					const syncMessage = {
 						type: "sync",
@@ -2850,14 +2733,7 @@ app.post("/webhook", async (req, res) => {
 						timestamp: new Date().toISOString(),
 					};
 
-					await rabbitChannel.assertQueue("data_source_status", {
-						durable: true,
-					});
-					rabbitChannel.sendToQueue(
-						"data_source_status",
-						Buffer.from(JSON.stringify(syncMessage)),
-						{ persistent: true },
-					);
+					await rabbitmqService.publishToQueue("data_source_status", syncMessage);
 
 					contextLogger.info(
 						{
@@ -2907,13 +2783,7 @@ app.post("/webhook", async (req, res) => {
 			// Start async data sync and progress reporting
 			(async () => {
 				try {
-					if (!rabbitChannel) {
-						throw new Error("RabbitMQ channel not initialized");
-					}
-
-					await rabbitChannel.assertQueue("data_source_status", {
-						durable: true,
-					});
+					const rabbitmqService = getRabbitMQService();
 
 					let totalTickets: number;
 					let ticketsCreated = 0;
@@ -2937,10 +2807,9 @@ app.post("/webhook", async (req, res) => {
 							total_estimated: 270, // ~10 per cluster * 27 clusters
 							timestamp: new Date().toISOString(),
 						};
-						rabbitChannel.sendToQueue(
+						await rabbitmqService.publishToQueue(
 							"data_source_status",
-							Buffer.from(JSON.stringify(initialMessage)),
-							{ persistent: true },
+							initialMessage,
 						);
 
 						// Perform actual data insertion
@@ -2981,10 +2850,9 @@ app.post("/webhook", async (req, res) => {
 						timestamp: new Date().toISOString(),
 					};
 
-					rabbitChannel.sendToQueue(
+					await rabbitmqService.publishToQueue(
 						"data_source_status",
-						Buffer.from(JSON.stringify(completedMessage)),
-						{ persistent: true },
+						completedMessage,
 					);
 
 					contextLogger.info(
@@ -3000,7 +2868,8 @@ app.post("/webhook", async (req, res) => {
 					contextLogger.error({ error }, "Failed to sync tickets");
 
 					// Send failure message
-					if (rabbitChannel) {
+					try {
+						const rabbitmqService = getRabbitMQService();
 						const failedMessage = {
 							type: "ticket_ingestion",
 							tenant_id: ticketsPayload.tenant_id,
@@ -3015,10 +2884,14 @@ app.post("/webhook", async (req, res) => {
 							timestamp: new Date().toISOString(),
 						};
 
-						rabbitChannel.sendToQueue(
+						await rabbitmqService.publishToQueue(
 							"data_source_status",
-							Buffer.from(JSON.stringify(failedMessage)),
-							{ persistent: true },
+							failedMessage,
+						);
+					} catch (publishError) {
+						contextLogger.error(
+							{ error: publishError },
+							"Failed to publish failure message",
 						);
 					}
 				}
@@ -3257,9 +3130,7 @@ app.post("/webhook", async (req, res) => {
 			// Publish processing_completed message to RabbitMQ after 3 second delay
 			setTimeout(async () => {
 				try {
-					if (!rabbitChannel) {
-						throw new Error("RabbitMQ channel not initialized");
-					}
+					const rabbitmqService = getRabbitMQService();
 
 					// Randomly simulate successful or failed document processing
 					const isSuccess = Math.random() > 0.5; // 50% success rate
@@ -3281,13 +3152,9 @@ app.post("/webhook", async (req, res) => {
 							"Mock processing error: Failed to extract text from document";
 					}
 
-					await rabbitChannel.assertQueue("document_processing_status", {
-						durable: true,
-					});
-					rabbitChannel.sendToQueue(
+					await rabbitmqService.publishToQueue(
 						"document_processing_status",
-						Buffer.from(JSON.stringify(processingMessage)),
-						{ persistent: true },
+						processingMessage,
 					);
 
 					contextLogger.info(
@@ -3397,15 +3264,23 @@ app.listen(PORT, async () => {
 		"Rita Mock Automation Service started",
 	);
 
-	// Initialize RabbitMQ connection
+	// Initialize RabbitMQ with automatic retry on failure
+	const rabbitmqService = getRabbitMQService();
 	try {
-		await connectRabbitMQ();
+		await rabbitmqService.connect();
+		logger.info("RabbitMQ connected successfully");
 	} catch (error) {
-		logError(logger, error as Error, {
-			operation: "startup",
-			component: "rabbitmq-initialization",
-		});
-		process.exit(1);
+		// Don't crash the server - automatic reconnection will handle this
+		logger.warn(
+			{
+				error: (error as Error).message,
+				errorCode: (error as any).code,
+			},
+			"RabbitMQ initial connection failed - will retry automatically in background",
+		);
+
+		// Start reconnection in background (access private method via bracket notation)
+		(rabbitmqService as any).reconnect();
 	}
 });
 
@@ -3415,14 +3290,8 @@ process.on("SIGINT", async () => {
 	shutdownLogger.info({}, "Mock service shutting down gracefully...");
 
 	try {
-		if (rabbitChannel) {
-			await rabbitChannel.close();
-			shutdownLogger.info({}, "RabbitMQ channel closed");
-		}
-		if (rabbitConnection) {
-			await rabbitConnection.close();
-			shutdownLogger.info({}, "RabbitMQ connection closed");
-		}
+		const rabbitmqService = getRabbitMQService();
+		await rabbitmqService.close();
 		shutdownLogger.info({}, "Graceful shutdown completed");
 	} catch (error) {
 		logError(shutdownLogger, error as Error, {
