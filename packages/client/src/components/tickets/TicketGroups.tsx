@@ -1,3 +1,6 @@
+import { ChevronDown, Loader2 } from "lucide-react";
+import { useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -7,18 +10,43 @@ import {
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useClusters } from "@/hooks/useClusters";
-import { ChevronDown, Loader2 } from "lucide-react";
-import { useTranslation } from "react-i18next";
+import type { KBStatus, PeriodFilter } from "@/types/cluster";
 import { TicketGroupStat } from "./TicketGroupStat";
 
-interface TicketGroupsProps {
-	period?: string;
-}
+type KBFilterOption = KBStatus | "all";
 
-export default function TicketGroups({ period }: TicketGroupsProps) {
+export default function TicketGroups() {
 	const { t } = useTranslation("tickets");
-	const { data: clusters, isLoading, error } = useClusters();
-	const effectivePeriod = period ?? t("groups.periods.last90Days");
+
+	// Filter state
+	const [period, setPeriod] = useState<PeriodFilter>("last90");
+	const [kbFilter, setKbFilter] = useState<KBFilterOption>("all");
+
+	// Fetch clusters with period filter
+	const { data: clusters, isLoading, error } = useClusters({ period });
+
+	// Client-side kb_status filtering
+	const filteredClusters = useMemo(() => {
+		if (!clusters) return [];
+		if (kbFilter === "all") return clusters;
+		return clusters.filter((c) => c.kb_status === kbFilter);
+	}, [clusters, kbFilter]);
+
+	// Period display labels
+	const periodLabels: Record<PeriodFilter, string> = {
+		last30: t("groups.periods.last30Days"),
+		last90: t("groups.periods.last90Days"),
+		last6months: t("groups.periods.last6Months"),
+		lastyear: t("groups.periods.lastYear"),
+	};
+
+	// KB filter display labels
+	const kbFilterLabels: Record<KBFilterOption, string> = {
+		all: t("groups.filterOptions.all"),
+		FOUND: t("groups.filterOptions.knowledgeFound"),
+		GAP: t("groups.filterOptions.knowledgeGap"),
+		PENDING: t("groups.filterOptions.pending"),
+	};
 
 	// Build display title from name + subcluster_name
 	const getDisplayTitle = (name: string, subclusterName: string | null) => {
@@ -44,7 +72,7 @@ export default function TicketGroups({ period }: TicketGroupsProps) {
 		);
 	}
 
-	const totalCount = clusters?.length ?? 0;
+	const totalCount = filteredClusters.length;
 
 	return (
 		<div className="flex min-h-screen w-full flex-col items-center">
@@ -53,45 +81,66 @@ export default function TicketGroups({ period }: TicketGroupsProps) {
 					<div className="flex w-full flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
 						<div className="flex flex-col gap-1.5">
 							<div className="flex items-center gap-1.5">
-								<h1 className="text-base font-bold text-card-foreground">{t("page.title")}</h1>
+								<h1 className="text-base font-bold text-card-foreground">
+									{t("page.title")}
+								</h1>
 								<Badge variant="outline">{totalCount}</Badge>
 							</div>
-							<p className="text-sm text-muted-foreground">{t("page.subtitle")}</p>
+							<p className="text-sm text-muted-foreground">
+								{t("page.subtitle", {
+									period: periodLabels[period].toLowerCase(),
+								})}
+							</p>
 						</div>
 						<div className="flex gap-2">
+							{/* Period dropdown */}
 							<DropdownMenu>
 								<DropdownMenuTrigger asChild>
 									<Button variant="outline" size="sm">
-										{effectivePeriod}
+										{periodLabels[period]}
 										<ChevronDown />
 									</Button>
 								</DropdownMenuTrigger>
 								<DropdownMenuContent>
-									<DropdownMenuItem>{t("groups.periods.last30Days")}</DropdownMenuItem>
-									<DropdownMenuItem>{t("groups.periods.last90Days")}</DropdownMenuItem>
-									<DropdownMenuItem>{t("groups.periods.last6Months")}</DropdownMenuItem>
-									<DropdownMenuItem>{t("groups.periods.lastYear")}</DropdownMenuItem>
+									{(
+										[
+											"last30",
+											"last90",
+											"last6months",
+											"lastyear",
+										] as PeriodFilter[]
+									).map((p) => (
+										<DropdownMenuItem key={p} onClick={() => setPeriod(p)}>
+											{periodLabels[p]}
+										</DropdownMenuItem>
+									))}
 								</DropdownMenuContent>
 							</DropdownMenu>
+
+							{/* KB Status dropdown */}
 							<DropdownMenu>
 								<DropdownMenuTrigger asChild>
 									<Button variant="outline" size="sm">
-										{t("groups.filterBy")}
+										{kbFilterLabels[kbFilter]}
 										<ChevronDown />
 									</Button>
 								</DropdownMenuTrigger>
 								<DropdownMenuContent>
-									<DropdownMenuItem>{t("groups.filterOptions.all")}</DropdownMenuItem>
-									<DropdownMenuItem>{t("groups.filterOptions.knowledgeFound")}</DropdownMenuItem>
-									<DropdownMenuItem>{t("groups.filterOptions.knowledgeGap")}</DropdownMenuItem>
+									{(["all", "FOUND", "GAP", "PENDING"] as KBFilterOption[]).map(
+										(k) => (
+											<DropdownMenuItem key={k} onClick={() => setKbFilter(k)}>
+												{kbFilterLabels[k]}
+											</DropdownMenuItem>
+										),
+									)}
 								</DropdownMenuContent>
 							</DropdownMenu>
 						</div>
 					</div>
 
-					{clusters && clusters.length > 0 ? (
+					{filteredClusters.length > 0 ? (
 						<div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3">
-							{clusters.map((cluster) => (
+							{filteredClusters.map((cluster) => (
 								<TicketGroupStat
 									key={cluster.id}
 									id={cluster.id}

@@ -1,5 +1,6 @@
--- Add session_key and source columns to conversations (PLAT-3286)
--- session_key: links iframe conversations to Valkey sessions for reuse
+-- Add session_key and source columns to conversations (JAR-71)
+-- session_key: DROPPED in migration 155. Conversation reuse is via activity_contexts
+--   table (migration 154) using context.activityId from Valkey.
 -- source: tracks conversation origin for cleanup/analytics
 
 ALTER TABLE conversations ADD COLUMN session_key TEXT;
