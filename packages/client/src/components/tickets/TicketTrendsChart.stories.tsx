@@ -27,7 +27,29 @@ export default meta;
 type Story = StoryObj<typeof TicketTrendsChart>;
 
 export const Default: Story = {
-	args: {},
+	args: {
+		data: [
+			{ month: "Jan", manual: 80, automated: 10 },
+			{ month: "Feb", manual: 75, automated: 15 },
+			{ month: "Mar", manual: 70, automated: 20 },
+			{ month: "Apr", manual: 60, automated: 30 },
+			{ month: "May", manual: 50, automated: 40 },
+			{ month: "Jun", manual: 40, automated: 50 },
+		],
+	},
+};
+
+export const EmptyState: Story = {
+	args: {
+		data: undefined,
+	},
+	parameters: {
+		docs: {
+			description: {
+				story: "Empty state shown when no trend data is available yet.",
+			},
+		},
+	},
 };
 
 export const CustomData: Story = {
