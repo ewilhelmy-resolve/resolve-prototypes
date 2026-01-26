@@ -354,7 +354,7 @@ export default function AgentBuilderPage() {
   const [showTypeConfirmation, setShowTypeConfirmation] = useState(false);
   const [showTriggerPhrases, setShowTriggerPhrases] = useState(false);
   const [suggestedTriggerPhrases, setSuggestedTriggerPhrases] = useState<string[]>([]);
-  const [showGuardrails, setShowGuardrails] = useState(false);
+  const [showGuardrails, setShowGuardrails] = useState(true);
   const [guardrailInput, setGuardrailInput] = useState("");
 
   // Test tab state
@@ -418,7 +418,7 @@ export default function AgentBuilderPage() {
   const [showInstructionsModal, setShowInstructionsModal] = useState(false);
 
   // Conversation starters customization toggle
-  const [showCustomStarters, setShowCustomStarters] = useState(false);
+  const [showCustomStarters, setShowCustomStarters] = useState(true);
 
   // Description visibility toggle
   const [showDescription, setShowDescription] = useState(false);

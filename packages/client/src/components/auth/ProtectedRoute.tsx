@@ -3,6 +3,8 @@ import { Navigate } from 'react-router-dom';
 import { useAuthStore } from '@/stores/auth-store.ts';
 import { SSEProvider } from '@/contexts/SSEContext';
 
+const DEMO_MODE = import.meta.env.VITE_DEMO_MODE === 'true';
+
 interface ProtectedRouteProps {
   children: React.ReactNode;
 }
@@ -10,6 +12,15 @@ interface ProtectedRouteProps {
 export function ProtectedRoute({ children }: ProtectedRouteProps) {
   const { authenticated, loading, initialized, error } = useAuthStore();
   const apiUrl = import.meta.env.VITE_API_URL || '';
+
+  // Demo mode: bypass auth completely
+  if (DEMO_MODE) {
+    return (
+      <SSEProvider apiUrl={apiUrl} enabled={true}>
+        {children}
+      </SSEProvider>
+    );
+  }
 
   // Wait for initialization to complete
   if (!initialized || loading) {

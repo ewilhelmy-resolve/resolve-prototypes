@@ -5,6 +5,8 @@ import { useProfile } from '@/hooks/api/useProfile';
 import { SSEProvider } from '@/contexts/SSEContext';
 import type { OrganizationRole } from '@/types/profile';
 
+const DEMO_MODE = import.meta.env.VITE_DEMO_MODE === 'true';
+
 interface RoleProtectedRouteProps {
   children: React.ReactNode;
   allowedRoles: OrganizationRole[];
@@ -34,6 +36,15 @@ export function RoleProtectedRoute({
   const { authenticated, loading, initialized, error } = useAuthStore();
   const { data: profile, isLoading: isProfileLoading } = useProfile();
   const apiUrl = import.meta.env.VITE_API_URL || '';
+
+  // Demo mode: bypass auth and role checks
+  if (DEMO_MODE) {
+    return (
+      <SSEProvider apiUrl={apiUrl} enabled={true}>
+        {children}
+      </SSEProvider>
+    );
+  }
 
   // Wait for auth initialization
   if (!initialized || loading) {
