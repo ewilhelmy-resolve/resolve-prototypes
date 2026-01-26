@@ -1,11 +1,7 @@
-import { useTranslation } from "react-i18next";
 import { WandSparkles } from "lucide-react";
 import { useState } from "react";
-import {
-	AI_RESPONSE_TYPE,
-	type AIResponseType,
-	MOCK_AI_RESPONSE,
-} from "@/lib/tickets/utils";
+import { useTranslation } from "react-i18next";
+import { AI_RESPONSE_TYPE, type AIResponseType } from "@/lib/tickets/utils";
 import type { KBStatus } from "@/types/cluster";
 import { AutomationMetricsCard } from "./AutomationMetricsCard";
 import { AutomationReadinessMeter } from "./AutomationReadinessMeter";
@@ -50,8 +46,6 @@ export function ClusterDetailOverviewTab({
 	onReviewKnowledge,
 }: ClusterDetailOverviewTabProps) {
 	const { t } = useTranslation("tickets");
-	// Use mock AI response data (TODO: replace with real API)
-	const aiResponse = MOCK_AI_RESPONSE;
 	const [enableModalOpen, setEnableModalOpen] = useState(false);
 	const [autoPopulateSheetOpen, setAutoPopulateSheetOpen] = useState(false);
 	const [selectedType, setSelectedType] = useState<AIResponseType | null>(null);
@@ -108,7 +102,6 @@ export function ClusterDetailOverviewTab({
 					onOpenChange={setEnableModalOpen}
 					ticketGroupName={clusterName}
 					openTicketsCount={openTicketsCount}
-					aiResponse={aiResponse}
 					onAutoRespondEnabled={onAutoRespondEnabled}
 				/>
 			)}
