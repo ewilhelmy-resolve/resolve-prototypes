@@ -1,5 +1,11 @@
 - In all interactions and commit messages, be extremely concise and sacrifice
   grammar for the sake of concision.
+- **Always use `pnpm` instead of `npm` or `yarn` for all package management commands.**
+- **Never add Claude as author in git commit messages** (no `Co-authored-by: Claude`, no AI attribution).
+- **Commit messages must follow Conventional Commits**: `type(scope): message`
+  - Types: `feat`, `fix`, `docs`, `style`, `refactor`, `test`, `chore`
+  - Keep subject line under 50 chars, no period at end
+  - Examples: `feat(chat): add SSE reconnect`, `fix(auth): handle token expiry`
 
 ## Plans
 
@@ -59,15 +65,15 @@ Both the client and server are run locally in development mode. The client runs 
 1. **RITA Go Frontend Development** (packages/client/)
    ```bash
    cd packages/client
-   npm install
-   npm run dev
+   pnpm install
+   pnpm dev
    ```
 
 2. **Backend Development** (packages/api-server/)
    ```bash
    cd packages/api-server
-   npm install
-   npm run dev
+   pnpm install
+   pnpm dev
    ```
 
 3. **Full Stack Development**
@@ -86,16 +92,16 @@ Both the client and server are run locally in development mode. The client runs 
 Check `.env.example` files in each package for required configuration.
 
 ### Command Shortcuts
-- `npm run dev:client` - Start client development server (port 5173)
-- `npm run dev:api` - Start API server (port 3000)
-- `npm run dev:mock` - Start mock service
-- `npm run dev:theme` - Start Keycloak theme development
-- `npm run dev:iframe-app` - Start iframe app host (port 5174)
-- `npm test` - Run test suite
-- `npm run type-check` - Run TypeScript type checking across all packages
-- `npm run build` - Build API server and client for production
-- `npm run build:theme` - Build Keycloak theme
-- `npm run lint` - Run linting across all packages
+- `pnpm dev:client` - Start client development server (port 5173)
+- `pnpm dev:api` - Start API server (port 3000)
+- `pnpm dev:mock` - Start mock service
+- `pnpm dev:theme` - Start Keycloak theme development
+- `pnpm dev:iframe-app` - Start iframe app host (port 5174)
+- `pnpm test` - Run test suite
+- `pnpm type-check` - Run TypeScript type checking across all packages
+- `pnpm build` - Build API server and client for production
+- `pnpm build:theme` - Build Keycloak theme
+- `pnpm lint` - Run linting across all packages
 - `docker compose up -d` - Start full stack with Docker
 
 ### Build Architecture Note

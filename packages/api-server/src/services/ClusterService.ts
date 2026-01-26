@@ -58,6 +58,7 @@ export class ClusterService {
 	/**
 	 * List all clusters for an organization with ticket counts
 	 * Uses LATERAL subquery for efficient ticket count calculation with period filtering
+	 * By default, only returns clusters from active models
 	 */
 	async getClusters(
 		organizationId: string,
@@ -65,6 +66,7 @@ export class ClusterService {
 	): Promise<ClusterListItem[]> {
 		const sort = options.sort || "recent";
 		const period = options.period;
+		const includeInactive = options.includeInactive || false;
 
 		// Calculate date cutoff for period filter
 		let dateCutoff: Date | null = null;
@@ -101,12 +103,15 @@ export class ClusterService {
 				orderBy = "c.created_at DESC";
 		}
 
-		// Build query params
-		const values: (string | Date)[] = [organizationId];
+		// Build query params - $1=orgId, $2=includeInactive, $3=dateCutoff (optional)
+		const values: (string | boolean | Date)[] = [
+			organizationId,
+			includeInactive,
+		];
 		let ticketDateCondition = "";
 		if (dateCutoff) {
 			values.push(dateCutoff);
-			ticketDateCondition = "AND t.created_at >= $2";
+			ticketDateCondition = `AND t.created_at >= $${values.length}`;
 		}
 
 		const query = `
@@ -121,6 +126,7 @@ export class ClusterService {
         COALESCE(ticket_counts.ticket_count, 0) AS ticket_count,
         COALESCE(ticket_counts.needs_response_count, 0) AS needs_response_count
       FROM clusters c
+      JOIN ml_models m ON c.model_id = m.id
       LEFT JOIN LATERAL (
         SELECT
           COUNT(*)::int AS ticket_count,
@@ -129,6 +135,7 @@ export class ClusterService {
         WHERE t.cluster_id = c.id ${ticketDateCondition}
       ) ticket_counts ON true
       WHERE c.organization_id = $1
+        AND ($2 = true OR m.active = true)
       ORDER BY ${orderBy}
     `;
 

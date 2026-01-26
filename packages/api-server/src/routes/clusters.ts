@@ -10,6 +10,7 @@ const clusterService = new ClusterService();
 const listQuerySchema = z.object({
 	sort: z.enum(["volume", "automation", "recent"]).optional(),
 	period: z.enum(["last30", "last90", "last6months", "lastyear"]).optional(),
+	include_inactive: z.coerce.boolean().optional(),
 });
 
 const ticketsQuerySchema = z.object({
@@ -36,7 +37,11 @@ router.get("/", async (req, res) => {
 
 		const clusters = await clusterService.getClusters(
 			authReq.user.activeOrganizationId,
-			{ sort: query.sort, period: query.period },
+			{
+				sort: query.sort,
+				period: query.period,
+				includeInactive: query.include_inactive,
+			},
 		);
 
 		res.json({ data: clusters });
