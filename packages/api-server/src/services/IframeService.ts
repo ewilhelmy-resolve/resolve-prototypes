@@ -1,6 +1,6 @@
 import { pool, withOrgContext } from "../config/database.js";
 import { logger } from "../config/logger.js";
-import { getValkeyClient } from "../config/valkey.js";
+import { getDevMockPayload, getValkeyClient } from "../config/valkey.js";
 import { getSessionService } from "./sessionService.js";
 import {
 	type CreateSessionData,
@@ -55,11 +55,20 @@ export class IframeService {
 		);
 
 		try {
-			const client = getValkeyClient();
-			logger.debug({ fullKey }, "Valkey client obtained, executing HGET...");
+			// Dev mode: return mock payload for dev-* and demo-* session keys
+			const devMockData = getDevMockPayload(hashkey);
+			let rawData: string | null;
 
-			// Data is stored as hash type: HGET rita:session:{guid} data
-			const rawData = await client.hget(fullKey, "data");
+			if (devMockData) {
+				rawData = devMockData;
+				debug.durationMs = Date.now() - startTime;
+			} else {
+				const client = getValkeyClient();
+				logger.debug({ fullKey }, "Valkey client obtained, executing HGET...");
+
+				// Data is stored as hash type: HGET rita:session:{guid} data
+				rawData = await client.hget(fullKey, "data");
+			}
 			debug.durationMs = Date.now() - startTime;
 
 			if (!rawData) {
@@ -190,7 +199,7 @@ export class IframeService {
 	 * Resolve or create Rita organization from Jarvis tenant ID
 	 * Checks by id first to handle any existing orgs
 	 */
-	private async resolveRitaOrg(
+	async resolveRitaOrg(
 		jarvisTenantId: string,
 		tenantName?: string,
 	): Promise<{ ritaOrgId: string; wasCreated: boolean }> {
@@ -233,7 +242,7 @@ export class IframeService {
 	 * Resolve or create Rita user from Jarvis user GUID
 	 * Checks by keycloak_id to handle existing users (may have old UUID as user_id)
 	 */
-	private async resolveRitaUser(
+	async resolveRitaUser(
 		jarvisGuid: string,
 		ritaOrgId: string,
 	): Promise<{ ritaUserId: string; wasCreated: boolean }> {
@@ -280,7 +289,7 @@ export class IframeService {
 	/**
 	 * Ensure user is a member of the organization
 	 */
-	private async ensureOrgMembership(
+	async ensureOrgMembership(
 		ritaOrgId: string,
 		ritaUserId: string,
 	): Promise<void> {
@@ -293,41 +302,74 @@ export class IframeService {
 	}
 
 	/**
-	 * Find existing conversation by sessionKey
-	 * Used to reuse conversation when same sessionKey is used (tab return scenario)
+	 * Find existing conversation by activityId
+	 * Used to reuse conversation when same activity is opened (activity-based chat)
 	 */
-	async findConversationBySessionKey(
-		sessionKey: string,
+	async findConversationByActivityId(
+		activityId: number,
+		orgId: string,
 	): Promise<string | null> {
 		const result = await pool.query(
-			`SELECT id FROM conversations WHERE session_key = $1`,
-			[sessionKey],
+			`SELECT conversation_id FROM activity_contexts
+			 WHERE activity_id = $1 AND organization_id = $2`,
+			[activityId, orgId],
 		);
-		return result.rows[0]?.id || null;
+		return result.rows[0]?.conversation_id || null;
+	}
+
+	/**
+	 * Link an activity to a conversation
+	 * Creates or updates the activity_contexts record
+	 */
+	async linkActivityToConversation(
+		activityId: number,
+		orgId: string,
+		conversationId: string,
+	): Promise<void> {
+		await pool.query(
+			`INSERT INTO activity_contexts (activity_id, organization_id, conversation_id)
+			 VALUES ($1, $2, $3)
+			 ON CONFLICT (activity_id, organization_id) DO UPDATE SET conversation_id = $3`,
+			[activityId, orgId, conversationId],
+		);
+		logger.info(
+			{ activityId, orgId, conversationId },
+			"Linked activity to conversation",
+		);
+	}
+
+	/**
+	 * Delete a conversation by ID
+	 * Messages cascade delete via FK constraint
+	 */
+	async deleteConversation(conversationId: string): Promise<void> {
+		await pool.query(`DELETE FROM conversations WHERE id = $1`, [
+			conversationId,
+		]);
+		logger.info({ conversationId }, "Iframe conversation deleted");
 	}
 
 	/**
 	 * Create a conversation for iframe user
 	 * Uses JIT provisioning to map Jarvis IDs → Rita IDs
-	 * Stores sessionKey for conversation reuse on tab return (PLAT-3286)
+	 * Conversation reuse is via activityId (activity_contexts table), not sessionKey
 	 */
 	async createIframeConversation(
 		config: IframeWebhookConfig,
 		intentEid?: string,
-		sessionKey?: string,
+		preResolvedOrgId?: string,
 	): Promise<{
 		conversationId: string;
 		ritaOrgId: string;
 		ritaUserId: string;
 	}> {
-		// 1. Resolve Rita org from Jarvis tenant
-		const { ritaOrgId, wasCreated: orgCreated } = await this.resolveRitaOrg(
-			config.tenantId,
-			config.tenantName,
-		);
+		// 1. Use pre-resolved org or resolve from Jarvis tenant
+		const ritaOrgId =
+			preResolvedOrgId ||
+			(await this.resolveRitaOrg(config.tenantId, config.tenantName)).ritaOrgId;
 
 		// 2. Resolve Rita user from Jarvis GUID
-		const { ritaUserId, wasCreated: userCreated } = await this.resolveRitaUser(
+		const { ritaUserId } = await this.resolveRitaUser(
 			config.userGuid,
 			ritaOrgId,
 		);
@@ -335,16 +377,16 @@ export class IframeService {
 		// 3. Always ensure org membership (ON CONFLICT DO NOTHING handles idempotency)
 		await this.ensureOrgMembership(ritaOrgId, ritaUserId);
 
-		// 4. Create conversation with Rita IDs and session_key (using org context for RLS)
+		// 4. Create conversation with Rita IDs (using org context for RLS)
 		const result = await withOrgContext(
 			ritaUserId,
 			ritaOrgId,
 			async (client) => {
 				const conversationResult = await client.query(
-					`INSERT INTO conversations (organization_id, user_id, title, session_key, source)
-           VALUES ($1, $2, $3, $4, 'jarvis')
+					`INSERT INTO conversations (organization_id, user_id, title, source)
+           VALUES ($1, $2, $3, 'jarvis')
            RETURNING id`,
-					[ritaOrgId, ritaUserId, "Iframe Chat", sessionKey || null],
+					[ritaOrgId, ritaUserId, "Iframe Chat"],
 				);
 				return conversationResult.rows[0];
 			},
@@ -354,13 +396,10 @@ export class IframeService {
 			{
 				conversationId: result.id,
 				intentEid,
-				sessionKey: sessionKey ? `${sessionKey.substring(0, 8)}...` : null,
 				jarvisTenantId: config.tenantId,
 				jarvisGuid: config.userGuid,
 				ritaOrgId,
 				ritaUserId,
-				orgCreated,
-				userCreated,
 			},
 			"Iframe conversation created with JIT-provisioned Rita IDs",
 		);
@@ -394,14 +433,8 @@ export class IframeService {
 			welcomeText?: string;
 			placeholderText?: string;
 		};
-		valkeyDebug?: {
-			fullKey: string;
-			rawPayload: Record<string, unknown> | null;
-			rawDataLength: number | null;
-			missingFields: string[];
-			error: string | null;
-			durationMs: number;
-		};
+		/** Full Valkey payload for dev tools (sensitive fields redacted) */
+		valkeyPayload?: Record<string, unknown>;
 	}> {
 		// SessionKey (Valkey hashkey) required
 		if (!sessionKey) {
@@ -409,52 +442,9 @@ export class IframeService {
 			return { valid: false, error: "sessionKey required" };
 		}
 
-		// Dev mode bypass - use hardcoded test config for local development
-		const DEV_SESSION_KEY = "dev-test-session";
-		const isDevSession =
-			sessionKey === DEV_SESSION_KEY && process.env.NODE_ENV !== "production";
+		// Fetch config from Valkey (dev mode handled in getDevMockPayload)
+		const config = await this.fetchValkeyPayload(sessionKey);
 
-		let config: IframeWebhookConfig | null = null;
-		let valkeyDebug:
-			| {
-					fullKey: string;
-					rawPayload: Record<string, unknown> | null;
-					rawDataLength: number | null;
-					missingFields: string[];
-					error: string | null;
-					durationMs: number;
-			  }
-			| undefined;
-
-		if (isDevSession) {
-			// Dev mode: use hardcoded test values (stable UUIDs that persist across restarts)
-			// E2E demo for custom ui_config - shows custom title, welcome, and placeholder text
-			logger.info("Using dev test session bypass");
-			config = {
-				tenantId: "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
-				tenantName: "Dev Test Org",
-				userGuid: "11111111-2222-3333-4444-555555555555",
-				tabInstanceId: "dev-tab-instance",
-				accessToken: "dev-access-token",
-				refreshToken: "dev-refresh-token",
-				clientId: "dev-client",
-				clientKey: "dev-key",
-				tokenExpiry: 9999999999,
-				actionsApiBaseUrl: "http://localhost:3001",
-				// E2E demo: custom UI text from Valkey ui_config
-				uiConfig: {
-					titleText: "Ask Workflow Designer",
-					welcomeText:
-						"I can help you build workflow automations. Describe what you want to automate.",
-					placeholderText: "Describe your workflow...",
-				},
-			};
-		} else {
-			// Normal mode: fetch from Valkey
-			const result = await this.fetchValkeyPayloadWithDebug(sessionKey);
-			config = result.config;
-			valkeyDebug = result.debug;
-		}
 		if (!config) {
 			logger.warn(
 				{ sessionKey: `${sessionKey.substring(0, 8)}...` },
@@ -463,7 +453,6 @@ export class IframeService {
 			return {
 				valid: false,
 				error: "Invalid or missing Valkey configuration",
-				valkeyDebug,
 			};
 		}
 
@@ -471,36 +460,45 @@ export class IframeService {
 		let ritaOrgId: string;
 		let ritaUserId: string;
 
-		// Use conversation ID from: 1) frontend param, 2) Valkey config, 3) DB lookup by sessionKey, 4) create new
+		// Resolve Rita org early (needed for activityId lookup)
+		const { ritaOrgId: resolvedOrgId } = await this.resolveRitaOrg(
+			config.tenantId,
+			config.tenantName,
+		);
+		ritaOrgId = resolvedOrgId;
+
+		// Extract activityId from context if available
+		const activityId = config.context?.activityId as number | undefined;
+
+		// Use conversation ID from: 1) frontend param, 2) Valkey config, 3) activityId lookup, 4) sessionKey lookup, 5) create new
 		let resolvedExistingConversationId =
 			existingConversationId || config.conversationId;
 
-		// If no conversation ID provided, check if one exists for this sessionKey (tab return scenario)
-		if (!resolvedExistingConversationId) {
+		// If no conversation ID provided, check by activityId first (activity-based chat)
+		if (!resolvedExistingConversationId && activityId) {
 			resolvedExistingConversationId =
-				(await this.findConversationBySessionKey(sessionKey)) || undefined;
+				(await this.findConversationByActivityId(activityId, ritaOrgId)) ||
+				undefined;
 			if (resolvedExistingConversationId) {
 				logger.info(
 					{
-						sessionKey: `${sessionKey.substring(0, 8)}...`,
+						activityId,
 						conversationId: resolvedExistingConversationId,
 					},
-					"Reusing existing conversation for sessionKey",
+					"Reusing existing conversation for activityId",
 				);
 			}
 		}
 
+		// No activityId = no context to tie conversation to, always create new
+		// (sessionKey is stored for tracking but not used for lookup)
+
 		if (resolvedExistingConversationId) {
-			// Existing conversation - resolve Rita IDs first
-			const { ritaOrgId: orgId } = await this.resolveRitaOrg(
-				config.tenantId,
-				config.tenantName,
-			);
+			// Existing conversation - resolve user (org already resolved above)
 			const { ritaUserId: userId } = await this.resolveRitaUser(
 				config.userGuid,
-				orgId,
+				ritaOrgId,
 			);
-			ritaOrgId = orgId;
 			ritaUserId = userId;
 
 			// Always ensure membership for existing conversation path
@@ -523,20 +521,28 @@ export class IframeService {
 				return {
 					valid: false,
 					error: "Conversation not found or access denied",
-					valkeyDebug,
 				};
 			}
 			conversationId = resolvedExistingConversationId;
 		} else {
-			// New conversation - this also resolves Rita IDs, stores sessionKey for future reuse
+			// New conversation - pass pre-resolved org to avoid duplicate lookup
 			const result = await this.createIframeConversation(
 				config,
 				intentEid,
-				sessionKey,
+				ritaOrgId,
 			);
 			conversationId = result.conversationId;
 			ritaOrgId = result.ritaOrgId;
 			ritaUserId = result.ritaUserId;
+
+			// Link activity to conversation (if activityId available)
+			if (activityId) {
+				await this.linkActivityToConversation(
+					activityId,
+					ritaOrgId,
+					conversationId,
+				);
+			}
 		}
 
 		// Create session with Rita IDs (for SSE routing and internal operations)
@@ -583,6 +589,14 @@ export class IframeService {
 			tenantName: config.tenantName,
 			// Custom UI text from Valkey ui_config (undefined if not provided)
 			uiConfig: config.uiConfig,
+			// Full Valkey payload for dev tools (sensitive fields redacted)
+			valkeyPayload: {
+				...config,
+				// Redact sensitive authentication fields
+				accessToken: config.accessToken ? "[REDACTED]" : undefined,
+				refreshToken: config.refreshToken ? "[REDACTED]" : undefined,
+				clientKey: config.clientKey ? "[REDACTED]" : undefined,
+			},
 		};
 	}
 }
