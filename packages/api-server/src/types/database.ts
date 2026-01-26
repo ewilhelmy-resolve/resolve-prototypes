@@ -23,6 +23,14 @@ export type JsonValue = JsonArray | JsonObject | JsonPrimitive;
 
 export type Timestamp = ColumnType<Date, Date | string, Date | string>;
 
+export interface ActivityContexts {
+	activity_id: number;
+	conversation_id: string;
+	created_at: Generated<Timestamp | null>;
+	id: Generated<string>;
+	organization_id: string;
+}
+
 export interface AuditLogs {
 	action: string;
 	created_at: Generated<Timestamp | null>;
@@ -92,7 +100,6 @@ export interface Conversations {
 	created_at: Generated<Timestamp | null>;
 	id: Generated<string>;
 	organization_id: string;
-	session_key: string | null;
 	source: string | null;
 	title: string;
 	updated_at: Generated<Timestamp | null>;
@@ -479,6 +486,7 @@ export interface UserProfiles {
 }
 
 export interface DB {
+	activity_contexts: ActivityContexts;
 	audit_logs: AuditLogs;
 	blob_metadata: BlobMetadata;
 	blobs: Blobs;
