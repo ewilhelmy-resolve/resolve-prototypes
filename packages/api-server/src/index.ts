@@ -15,6 +15,7 @@ import clusterRoutes from "./routes/clusters.js";
 import conversationRoutes from "./routes/conversations.js";
 import credentialDelegationRoutes from "./routes/credentialDelegations.js";
 import dataSourceRoutes from "./routes/dataSources.js";
+import docsRoutes from "./routes/docs.js";
 import featureFlagRoutes from "./routes/featureFlags.js";
 import filesRoutes from "./routes/files.js";
 import iframeRoutes from "./routes/iframe.routes.js";
@@ -78,6 +79,9 @@ app.get("/health", (_req, res) => {
 });
 
 // Webhook routes (no auth required)
+
+// API Documentation (no auth required)
+app.use("/api-docs", docsRoutes);
 
 // Authentication routes (no auth required)
 app.use("/auth", authRoutes);
