@@ -97,10 +97,16 @@ export interface PaginationInfo {
 export type ClusterSortOption = "volume" | "automation" | "recent";
 
 /**
+ * Period filter for ticket counts
+ */
+export type PeriodFilter = "last30" | "last90" | "last6months" | "lastyear";
+
+/**
  * Query params for listing clusters
  */
 export interface ClustersQueryParams {
 	sort?: ClusterSortOption;
+	period?: PeriodFilter;
 }
 
 /**
