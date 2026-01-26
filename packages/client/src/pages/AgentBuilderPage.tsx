@@ -2486,22 +2486,15 @@ ${skillNames.map((name) => `- ${name}`).join("\n")}
                       </div>
                 </div>
 
-                {/* Conversation Starters Section - Collapsible */}
+                {/* Conversation Starters Section */}
                 <div className="space-y-2">
-                  <button
-                    onClick={() => setShowCustomStarters(!showCustomStarters)}
-                    className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
-                  >
-                    <ChevronRight className={cn("size-4 transition-transform", showCustomStarters && "rotate-90")} />
-                    <span>Conversation starters</span>
-                  </button>
-
-                  {showCustomStarters && (
-                    <div className="pl-6 space-y-2">
-                      <p className="text-sm text-muted-foreground">
-                        By default, starters are generated from skills. Add custom ones below.
-                      </p>
-                      {/* Input with inline tags */}
+                  <div>
+                    <label className="text-sm font-medium text-foreground">Conversation starters</label>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      By default, starters are generated from skills. Add custom ones below.
+                    </p>
+                  </div>
+                    {/* Input with inline tags */}
                       <div className="border rounded-md min-h-9 px-3 py-1.5 flex items-center gap-1 flex-wrap">
                         {/* Added starters as solid badges */}
                         {config.conversationStarters.map((starter, index) => (
@@ -2540,25 +2533,16 @@ ${skillNames.map((name) => `- ${name}`).join("\n")}
                           />
                         )}
                       </div>
-                    </div>
-                  )}
                 </div>
 
-                {/* Guardrails Section - Collapsible */}
+                {/* Guardrails Section */}
                 <div className="space-y-2">
-                  <button
-                    onClick={() => setShowGuardrails(!showGuardrails)}
-                    className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
-                  >
-                    <ChevronRight className={cn("size-4 transition-transform", showGuardrails && "rotate-90")} />
-                    <span>Guardrails</span>
-                  </button>
-
-                  {showGuardrails && (
-                    <div className="pl-6 space-y-3">
-                      <p className="text-sm text-muted-foreground">
-                        Topics or requests the agent should NOT handle
-                      </p>
+                  <div>
+                    <label className="text-sm font-medium text-foreground">Guardrails</label>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      Topics or requests the agent should NOT handle
+                    </p>
+                  </div>
 
                       {config.guardrails.length > 0 && (
                         <div className="space-y-2">
@@ -2604,8 +2588,6 @@ ${skillNames.map((name) => `- ${name}`).join("\n")}
                         <Plus className="size-4" />
                         Add guardrail
                       </Button>
-                    </div>
-                  )}
                 </div>
 
               </div>
