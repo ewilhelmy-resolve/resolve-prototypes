@@ -57,6 +57,7 @@ export class ClusterService {
 
 	/**
 	 * List all clusters for an organization with ticket counts
+	 * Uses LATERAL subquery for efficient ticket count calculation with period filtering
 	 * By default, only returns clusters from active models
 	 */
 	async getClusters(
@@ -64,28 +65,57 @@ export class ClusterService {
 		options: ClusterListQueryOptions = {},
 	): Promise<ClusterListItem[]> {
 		const sort = options.sort || "recent";
+		const period = options.period;
 		const includeInactive = options.includeInactive || false;
+
+		// Calculate date cutoff for period filter
+		let dateCutoff: Date | null = null;
+		if (period) {
+			const now = new Date();
+			switch (period) {
+				case "last30":
+					dateCutoff = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+					break;
+				case "last90":
+					dateCutoff = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
+					break;
+				case "last6months":
+					dateCutoff = new Date(now.setMonth(now.getMonth() - 6));
+					break;
+				case "lastyear":
+					dateCutoff = new Date(now.setFullYear(now.getFullYear() - 1));
+					break;
+			}
+		}
 
 		// Determine ORDER BY clause
 		let orderBy: string;
 		switch (sort) {
 			case "volume":
-				orderBy = "ticket_count DESC, c.created_at DESC";
+				orderBy = "ticket_counts.ticket_count DESC, c.created_at DESC";
 				break;
 			case "automation":
-				// Sort by auto_respond enabled, then by ticket count
 				orderBy =
-					"(c.config->>'auto_respond')::boolean DESC NULLS LAST, ticket_count DESC";
+					"(c.config->>'auto_respond')::boolean DESC NULLS LAST, ticket_counts.ticket_count DESC";
 				break;
 			case "recent":
 			default:
 				orderBy = "c.created_at DESC";
 		}
 
-		const result = await pool.query<
-			ClusterListItem & { ticket_count: string; needs_response_count: string }
-		>(
-			`SELECT
+		// Build query params - $1=orgId, $2=includeInactive, $3=dateCutoff (optional)
+		const values: (string | boolean | Date)[] = [
+			organizationId,
+			includeInactive,
+		];
+		let ticketDateCondition = "";
+		if (dateCutoff) {
+			values.push(dateCutoff);
+			ticketDateCondition = `AND t.created_at >= $${values.length}`;
+		}
+
+		const query = `
+      SELECT
         c.id,
         c.name,
         c.subcluster_name,
@@ -93,23 +123,24 @@ export class ClusterService {
         c.config,
         c.created_at,
         c.updated_at,
-        COALESCE(COUNT(t.id), 0)::text AS ticket_count,
-        COALESCE(COUNT(t.id) FILTER (WHERE t.rita_status = 'NEEDS_RESPONSE'), 0)::text AS needs_response_count
+        COALESCE(ticket_counts.ticket_count, 0) AS ticket_count,
+        COALESCE(ticket_counts.needs_response_count, 0) AS needs_response_count
       FROM clusters c
       JOIN ml_models m ON c.model_id = m.id
-      LEFT JOIN tickets t ON t.cluster_id = c.id
+      LEFT JOIN LATERAL (
+        SELECT
+          COUNT(*)::int AS ticket_count,
+          COUNT(*) FILTER (WHERE t.rita_status = 'NEEDS_RESPONSE')::int AS needs_response_count
+        FROM tickets t
+        WHERE t.cluster_id = c.id ${ticketDateCondition}
+      ) ticket_counts ON true
       WHERE c.organization_id = $1
         AND ($2 = true OR m.active = true)
-      GROUP BY c.id
-      ORDER BY ${orderBy}`,
-			[organizationId, includeInactive],
-		);
+      ORDER BY ${orderBy}
+    `;
 
-		return result.rows.map((row) => ({
-			...row,
-			ticket_count: parseInt(row.ticket_count, 10),
-			needs_response_count: parseInt(row.needs_response_count, 10),
-		}));
+		const result = await pool.query<ClusterListItem>(query, values);
+		return result.rows;
 	}
 
 	/**

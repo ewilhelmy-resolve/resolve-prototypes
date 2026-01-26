@@ -1,7 +1,7 @@
 {
 	"page": {
 		"title": "Ticket Groups",
-		"subtitle": "Based on the last 90 days",
+		"subtitle": "Based on the {{period}}",
 		"notFound": "Ticket not found"
 	},
 	"groups": {
@@ -11,7 +11,8 @@
 		"filterOptions": {
 			"all": "All",
 			"knowledgeFound": "Knowledge found",
-			"knowledgeGap": "Knowledge gap"
+			"knowledgeGap": "Knowledge gap",
+			"pending": "Pending"
 		},
 		"periods": {
 			"last30Days": "Last 30 days",
