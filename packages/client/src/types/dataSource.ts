@@ -7,7 +7,6 @@ export type DataSourceType =
 	| "servicenow_itsm"
 	| "sharepoint"
 	| "websearch"
-	| "jira"
 	| "jira_itsm"
 	| "freshdesk";
 
