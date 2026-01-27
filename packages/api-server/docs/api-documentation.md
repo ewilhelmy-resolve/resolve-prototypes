@@ -60,9 +60,11 @@ packages/api-server/
     ├── schemas/                    # Zod schemas with OpenAPI metadata
     │   ├── common.ts               # Error, pagination
     │   ├── cluster.ts
+    │   ├── conversation.ts
     │   └── dataSource.ts
     └── routes/                     # Route registrations
         ├── clusters.docs.ts
+        ├── conversations.docs.ts
         └── dataSources.docs.ts
 ```
 
@@ -74,8 +76,8 @@ packages/api-server/
 |-------------|-----------|--------|------|
 | `/api/clusters` | 4 | ✅ Done | `clusters.docs.ts` |
 | `/api/data-sources` | 9 | ✅ Done | `dataSources.docs.ts` |
+| `/api/conversations` | 6 | ✅ Done | `conversations.docs.ts` |
 | `/auth` | 8 | ⬜ TODO | - |
-| `/api/conversations` | 6 | ⬜ TODO | - |
 | `/api/files` | 6 | ⬜ TODO | - |
 | `/api/organizations/members` | 7 | ⬜ TODO | - |
 | `/api/organizations` | 5 | ⬜ TODO | - |
@@ -87,7 +89,7 @@ packages/api-server/
 | `/api/iframe` | 4 | ⬜ TODO | - |
 | `/health` | 1 | ⬜ TODO | - |
 
-**Progress: 13/67 endpoints (19%)**
+**Progress: 19/67 endpoints (28%)**
 
 ### AsyncAPI (Async Communication)
 
