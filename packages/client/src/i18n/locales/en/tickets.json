@@ -16,6 +16,8 @@
 	"groups": {
 		"failedToLoad": "Failed to load ticket groups",
 		"noGroups": "No ticket groups found",
+		"trainingInProgress": "Model training in progress",
+		"trainingDescription": "Ticket groups will appear when training completes. This usually takes a few minutes.",
 		"filterBy": "Filter by",
 		"filterOptions": {
 			"all": "All",

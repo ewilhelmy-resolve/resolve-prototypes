@@ -27,11 +27,21 @@ export const ticketKeys = {
 };
 
 /**
+ * Options for useClusters hook
+ */
+interface UseClustersOptions extends ClustersQueryParams {
+	/** Whether the query should be enabled (default: true) */
+	enabled?: boolean;
+}
+
+/**
  * List all clusters for the organization
- * @param params - Query params (sort, period)
+ * @param options - Query params (sort, period) and enabled flag
  * @returns Query with array of clusters
  */
-export function useClusters(params?: ClustersQueryParams) {
+export function useClusters(options?: UseClustersOptions) {
+	const { enabled = true, ...params } = options ?? {};
+
 	return useQuery({
 		queryKey: clusterKeys.list(params),
 		queryFn: async () => {
@@ -39,6 +49,7 @@ export function useClusters(params?: ClustersQueryParams) {
 			return response.data;
 		},
 		staleTime: 30000, // 30 seconds
+		enabled,
 	});
 }
 

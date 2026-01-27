@@ -277,7 +277,7 @@ erDiagram
         date training_start_date
         date training_end_date
         boolean active "One active per org (enforced by WF)"
-        jsonb metadata "Flexible field for future ML properties"
+        jsonb metadata "training_state: not_started|in_progress|failed|complete"
         timestamp created_at
         timestamp updated_at
     }
@@ -1018,7 +1018,30 @@ EXECUTE FUNCTION update_updated_at_column();
 COMMENT ON TABLE ml_models IS 'ML classification models (populated by WF from ML team endpoints)';
 COMMENT ON COLUMN ml_models.external_model_id IS 'Model ID from ML team system (used in API calls)';
 COMMENT ON COLUMN ml_models.active IS 'Whether this is the active model for the org (one per org, enforced by WF)';
+COMMENT ON COLUMN ml_models.metadata IS 'JSONB with training_state and other ML properties';
 ```
+
+##### ml_models.metadata Schema
+
+The `metadata` JSONB column stores ML-specific properties set by Workflow Platform:
+
+```typescript
+interface MlModelMetadata {
+  /** Training state set by Workflow Platform during model training */
+  training_state?: 'not_started' | 'in_progress' | 'failed' | 'complete';
+  // Future: additional ML properties
+}
+```
+
+**Training State Values:**
+| Value | Description | Frontend Behavior |
+|-------|-------------|-------------------|
+| `not_started` | Model created but training hasn't begun | Show empty state |
+| `in_progress` | Workflow Platform is training the model | Show skeleton UI + poll every 10s |
+| `failed` | Training failed (check logs) | Show empty state |
+| `complete` | Training finished, clusters available | Fetch and display clusters |
+
+**API Endpoint:** `GET /api/ml-models/active` returns the active model with metadata for the organization.
 
 #### clusters Table
 

@@ -20,6 +20,7 @@ import filesRoutes from "./routes/files.js";
 import iframeRoutes from "./routes/iframe.routes.js";
 import invitationRoutes from "./routes/invitations.js";
 import memberRoutes from "./routes/members.js";
+import mlModelRoutes from "./routes/mlModels.js";
 import organizationRoutes from "./routes/organizations.js";
 import sseRoutes from "./routes/sse.js";
 import ticketRoutes from "./routes/tickets.js";
@@ -147,6 +148,12 @@ app.use(
 	organizationRoutes,
 );
 app.use("/api/clusters", authenticateUser, addUserContextToLogs, clusterRoutes);
+app.use(
+	"/api/ml-models",
+	authenticateUser,
+	addUserContextToLogs,
+	mlModelRoutes,
+);
 app.use("/api/tickets", authenticateUser, addUserContextToLogs, ticketRoutes);
 app.use(
 	"/api/conversations",

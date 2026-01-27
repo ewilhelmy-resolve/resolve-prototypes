@@ -9,8 +9,11 @@ import {
 	DropdownMenuItem,
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { StatusAlert } from "@/components/ui/status-alert";
+import { useActiveModel } from "@/hooks/useActiveModel";
 import { useClusters } from "@/hooks/useClusters";
 import type { KBStatus, PeriodFilter } from "@/types/cluster";
+import { TicketGroupSkeleton } from "./TicketGroupSkeleton";
 import { TicketGroupStat } from "./TicketGroupStat";
 
 type KBFilterOption = KBStatus | "all";
@@ -22,8 +25,18 @@ export default function TicketGroups() {
 	const [period, setPeriod] = useState<PeriodFilter>("last90");
 	const [kbFilter, setKbFilter] = useState<KBFilterOption>("all");
 
-	// Fetch clusters with period filter
-	const { data: clusters, isLoading, error } = useClusters({ period });
+	// Fetch active model to check training state
+	const { data: activeModel, isLoading: isModelLoading } = useActiveModel();
+	const trainingState = activeModel?.metadata?.training_state;
+	const isTraining = trainingState === "in_progress";
+	const canShowClusters = trainingState === "complete";
+
+	// Fetch clusters only when model training is complete
+	const {
+		data: clusters,
+		isLoading: isClustersLoading,
+		error,
+	} = useClusters({ period, enabled: canShowClusters });
 
 	// Client-side kb_status filtering
 	const filteredClusters = useMemo(() => {
@@ -56,7 +69,17 @@ export default function TicketGroups() {
 		return name;
 	};
 
-	if (isLoading) {
+	// Show spinner while checking model state initially
+	if (isModelLoading) {
+		return (
+			<div className="flex min-h-[400px] w-full items-center justify-center">
+				<Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+			</div>
+		);
+	}
+
+	// Show spinner while loading clusters (model training complete)
+	if (canShowClusters && isClustersLoading) {
 		return (
 			<div className="flex min-h-[400px] w-full items-center justify-center">
 				<Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
@@ -138,7 +161,22 @@ export default function TicketGroups() {
 						</div>
 					</div>
 
-					{filteredClusters.length > 0 ? (
+					{isTraining ? (
+						// Training in progress: show banner + skeleton grid
+						<div className="flex flex-col gap-6">
+							<StatusAlert
+								variant="info"
+								title={t("groups.trainingInProgress")}
+							>
+								<p>{t("groups.trainingDescription")}</p>
+							</StatusAlert>
+							<div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3">
+								{[...Array(6)].map((_, i) => (
+									<TicketGroupSkeleton key={i} />
+								))}
+							</div>
+						</div>
+					) : filteredClusters.length > 0 ? (
 						<div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3">
 							{filteredClusters.map((cluster) => (
 								<TicketGroupStat

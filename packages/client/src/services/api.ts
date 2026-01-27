@@ -597,4 +597,13 @@ export const ticketsApi = {
 		),
 };
 
+// ML Models API
+export const mlModelsApi = {
+	// Get active model for the organization
+	getActive: () =>
+		apiRequest<import("../types/mlModel").ActiveModelResponse>(
+			"/api/ml-models/active",
+		),
+};
+
 export { ApiError };
