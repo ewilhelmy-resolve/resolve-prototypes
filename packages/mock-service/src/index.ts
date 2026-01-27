@@ -1850,18 +1850,20 @@ app.get("/api/files/:documentId/metadata", (req, res) => {
 	// For testing, treat documentId as blob_id
 	if (!blobExists(documentId)) {
 		contextLogger.warn({}, "Document not found");
-		return res.status(404).json({
+		res.status(404).json({
 			error: "Document not found",
 		});
+		return;
 	}
 
 	const blobContent = getBlobContent(documentId);
 
 	if (!blobContent) {
 		contextLogger.error({}, "Document exists but metadata retrieval failed");
-		return res.status(500).json({
+		res.status(500).json({
 			error: "Failed to retrieve document metadata",
 		});
+		return;
 	}
 
 	// Return metadata with content for citations
@@ -1903,18 +1905,20 @@ app.get("/api/files/:documentId/download", (req, res) => {
 	// For testing, treat documentId as blob_id
 	if (!blobExists(documentId)) {
 		contextLogger.warn({}, "Document not found");
-		return res.status(404).json({
+		res.status(404).json({
 			error: "Document not found",
 		});
+		return;
 	}
 
 	const blobContent = getBlobContent(documentId);
 
 	if (!blobContent) {
 		contextLogger.error({}, "Document exists but download failed");
-		return res.status(500).json({
+		res.status(500).json({
 			error: "Failed to download document",
 		});
+		return;
 	}
 
 	// Set headers for file download
@@ -1951,20 +1955,22 @@ app.get("/blobs/:blob_id", (req, res) => {
 
 	if (!blobExists(blob_id)) {
 		contextLogger.warn({}, "Blob not found");
-		return res.status(404).json({
+		res.status(404).json({
 			error: "Blob not found",
 			blob_id,
 		});
+		return;
 	}
 
 	const blobContent = getBlobContent(blob_id);
 
 	if (!blobContent) {
 		contextLogger.error({}, "Blob exists but content retrieval failed");
-		return res.status(500).json({
+		res.status(500).json({
 			error: "Failed to retrieve blob content",
 			blob_id,
 		});
+		return;
 	}
 
 	contextLogger.info(
@@ -2058,26 +2064,27 @@ app.post("/api/Webhooks/postEvent/:tenantId", async (req, res) => {
 			}
 
 			timer.end({ success: true, tenantId });
-			return res.json({
+			res.json({
 				success: true,
 				message:
 					"Tenant webhook received - mock response will be sent via RabbitMQ",
 				eventId: correlationId,
 			});
+			return;
 		}
 
 		// Unknown webhook type
 		timer.end({ success: false, reason: "unknown_webhook_type" });
-		return res
-			.status(400)
-			.json({ error: "Unknown webhook type for tenant endpoint" });
+		res.status(400).json({ error: "Unknown webhook type for tenant endpoint" });
+		return;
 	} catch (error) {
 		timer.end({ success: false });
 		webhookLogger.error(
 			{ error, tenantId },
 			"Tenant webhook processing failed",
 		);
-		return res.status(500).json({ error: "Internal server error" });
+		res.status(500).json({ error: "Internal server error" });
+		return;
 	}
 });
 
@@ -2100,9 +2107,10 @@ app.post("/webhook", async (req, res) => {
 				},
 				"Webhook validation failed - missing basic required fields",
 			);
-			return res.status(400).json({
+			res.status(400).json({
 				error: "Missing required fields: source, action",
 			});
+			return;
 		}
 
 		// Require tenant_id for all webhooks
@@ -2116,9 +2124,10 @@ app.post("/webhook", async (req, res) => {
 				},
 				"Webhook validation failed - missing tenant_id",
 			);
-			return res.status(400).json({
+			res.status(400).json({
 				error: "Missing required field: tenant_id",
 			});
+			return;
 		}
 
 		// Handle different webhook types
@@ -2168,10 +2177,11 @@ app.post("/webhook", async (req, res) => {
 					},
 					"Message webhook validation failed - missing required fields",
 				);
-				return res.status(400).json({
+				res.status(400).json({
 					error:
 						"Missing required fields for message webhook: message_id, conversation_id, customer_message",
 				});
+				return;
 			}
 		} else if (
 			payload.source === "rita-documents" &&
@@ -2217,10 +2227,11 @@ app.post("/webhook", async (req, res) => {
 					},
 					"Document webhook validation failed - missing required fields",
 				);
-				return res.status(400).json({
+				res.status(400).json({
 					error:
 						"Missing required fields for document webhook: blob_metadata_id, blob_id, document_url, file_type",
 				});
+				return;
 			}
 		} else if (
 			payload.source === "rita-documents" &&
@@ -2255,10 +2266,11 @@ app.post("/webhook", async (req, res) => {
 					},
 					"Document deletion webhook validation failed - missing required fields",
 				);
-				return res.status(400).json({
+				res.status(400).json({
 					error:
 						"Missing required fields for document deletion webhook: blob_metadata_id, blob_id",
 				});
+				return;
 			}
 
 			// Log deletion event prominently
@@ -2269,12 +2281,13 @@ app.post("/webhook", async (req, res) => {
 			console.log(`${"═".repeat(100)}\n`);
 
 			// Acknowledge successful receipt (Barista would perform vector database cleanup here)
-			return res.status(200).json({
+			res.status(200).json({
 				message: "Document deletion webhook received",
 				blob_metadata_id: deletePayload.blob_metadata_id,
 				blob_id: deletePayload.blob_id,
 				status: "acknowledged",
 			});
+			return;
 		} else if (
 			payload.source === "rita-signup" &&
 			payload.action === "user_signup"
@@ -2321,10 +2334,11 @@ app.post("/webhook", async (req, res) => {
 					},
 					"Signup webhook validation failed - missing required fields",
 				);
-				return res.status(400).json({
+				res.status(400).json({
 					error:
 						"Missing required fields for signup webhook: user_email, first_name, last_name, company, password, verification_token",
 				});
+				return;
 			}
 		} else if (
 			payload.source === "rita-chat" &&
@@ -2369,21 +2383,23 @@ app.post("/webhook", async (req, res) => {
 					"📧 Invitation emails sent successfully via Mailpit",
 				);
 
-				return res.status(200).json({
+				res.status(200).json({
 					success: true,
 					message: "Invitation emails sent successfully",
 					invitations_sent: invitationPayload.invitations.length,
 				});
+				return;
 			} catch (error) {
 				logError(contextLogger, error as Error, {
 					operation: "send-invitations",
 				});
 
-				return res.status(500).json({
+				res.status(500).json({
 					success: false,
 					message: "Failed to send invitation emails",
 					error: error instanceof Error ? error.message : "Unknown error",
 				});
+				return;
 			}
 		} else if (
 			payload.source === "rita-chat" &&
@@ -2450,22 +2466,24 @@ app.post("/webhook", async (req, res) => {
 				console.log("User can now sign in to the application!");
 				console.log(`${"=".repeat(80)}\n`);
 
-				return res.status(200).json({
+				res.status(200).json({
 					success: true,
 					message: "Invitation accepted, user created in Keycloak",
 					keycloak_user_id: keycloakUserId,
 					email: acceptPayload.user_email,
 				});
+				return;
 			} catch (error) {
 				logError(contextLogger, error as Error, {
 					operation: "accept-invitation-processing",
 				});
 
-				return res.status(200).json({
+				res.status(200).json({
 					success: false,
 					message: "Invitation webhook received but user creation failed",
 					error: error instanceof Error ? error.message : "Unknown error",
 				});
+				return;
 			}
 		} else if (
 			payload.source === "rita-member-management" &&
@@ -2564,7 +2582,7 @@ app.post("/webhook", async (req, res) => {
 				}
 				console.log(`${"=".repeat(80)}\n`);
 
-				return res.status(200).json({
+				res.status(200).json({
 					success: true,
 					message: `Keycloak user(s) deleted successfully (${totalUsersDeleted} total)`,
 					email: deletePayload.user_email,
@@ -2573,17 +2591,19 @@ app.post("/webhook", async (req, res) => {
 					total_users_deleted: totalUsersDeleted,
 					additional_users_deleted: additionalUsersDeleted,
 				});
+				return;
 			} catch (error) {
 				logError(contextLogger, error as Error, {
 					operation: "delete-keycloak-user-processing",
 				});
 
-				return res.status(500).json({
+				res.status(500).json({
 					success: false,
 					message: "Failed to delete Keycloak user",
 					error: error instanceof Error ? error.message : "Unknown error",
 					email: deletePayload.user_email,
 				});
+				return;
 			}
 		} else if (
 			payload.source === "rita-chat" &&
@@ -2797,10 +2817,11 @@ app.post("/webhook", async (req, res) => {
 				}
 			}, 1000);
 
-			return res.status(200).json({
+			res.status(200).json({
 				success: true,
 				message: "Verification started",
 			});
+			return;
 		} else if (
 			payload.source === "rita-chat" &&
 			payload.action === "trigger_sync"
@@ -2874,10 +2895,11 @@ app.post("/webhook", async (req, res) => {
 				}
 			}, 20000);
 
-			return res.status(200).json({
+			res.status(200).json({
 				success: true,
 				message: "Sync triggered successfully",
 			});
+			return;
 		} else if (
 			payload.source === "rita-chat" &&
 			payload.action === "sync_tickets"
@@ -3024,11 +3046,12 @@ app.post("/webhook", async (req, res) => {
 				}
 			})();
 
-			return res.status(200).json({
+			res.status(200).json({
 				success: true,
 				message: "Ticket sync triggered successfully",
 				ingestion_run_id: ticketsPayload.ingestion_run_id,
 			});
+			return;
 		} else if (
 			payload.source === "rita-credential-delegation" &&
 			payload.action === "send_delegation_email"
@@ -3072,22 +3095,24 @@ app.post("/webhook", async (req, res) => {
 					"📧 Credential delegation email sent successfully via Mailpit",
 				);
 
-				return res.status(200).json({
+				res.status(200).json({
 					success: true,
 					message: "Credential delegation email sent successfully",
 					admin_email: delegationPayload.admin_email,
 					delegation_token_id: delegationPayload.delegation_token_id,
 				});
+				return;
 			} catch (error) {
 				logError(contextLogger, error as Error, {
 					operation: "send-delegation-email",
 				});
 
-				return res.status(500).json({
+				res.status(500).json({
 					success: false,
 					message: "Failed to send credential delegation email",
 					error: error instanceof Error ? error.message : "Unknown error",
 				});
+				return;
 			}
 		} else {
 			const errorLogger = createContextLogger(webhookLogger, correlationId);
@@ -3100,9 +3125,10 @@ app.post("/webhook", async (req, res) => {
 				},
 				"Unsupported webhook type",
 			);
-			return res.status(400).json({
+			res.status(400).json({
 				error: `Unsupported webhook type: ${basePayload.source}:${basePayload.action}`,
 			});
+			return;
 		}
 
 		const contextLogger = createContextLogger(webhookLogger, correlationId, {
@@ -3128,7 +3154,8 @@ app.post("/webhook", async (req, res) => {
 				},
 				"Webhook authentication failed",
 			);
-			return res.status(401).json({ error: "Unauthorized" });
+			res.status(401).json({ error: "Unauthorized" });
+			return;
 		}
 
 		contextLogger.info({}, "Webhook authenticated successfully");
