@@ -521,6 +521,14 @@ export class CredentialDelegationService {
 	}
 
 	/**
+	 * Validate URL format
+	 */
+	private validateUrl(url: string): boolean {
+		const urlRegex = /^https?:\/\/[\w.-]+\.[a-zA-Z]{2,}(:\d+)?(\/.*)?$/;
+		return urlRegex.test(url);
+	}
+
+	/**
 	 * Validate credentials based on ITSM system type
 	 */
 	private validateCredentials(
@@ -535,6 +543,12 @@ export class CredentialDelegationService {
 
 		if (!creds.instance_url || typeof creds.instance_url !== "string") {
 			throw new Error("Instance URL is required");
+		}
+
+		if (!this.validateUrl(creds.instance_url)) {
+			throw new Error(
+				"Invalid URL format. URL must start with http:// or https:// and contain a valid domain",
+			);
 		}
 
 		if (systemType === "servicenow_itsm") {

@@ -178,7 +178,7 @@ function ServiceNowCredentialForm({
 						{...register("instanceUrl", {
 							required: t("form.servicenow.instanceUrlRequired"),
 							pattern: {
-								value: /^https?:\/\/.+/,
+								value: /^https?:\/\/[\w.-]+\.[a-zA-Z]{2,}(:\d+)?(\/.*)?$/,
 								message: t("form.servicenow.invalidUrl"),
 							},
 						})}
@@ -304,7 +304,7 @@ function JiraCredentialForm({
 						{...register("url", {
 							required: t("form.jira.urlRequired"),
 							pattern: {
-								value: /^https?:\/\/.+/,
+								value: /^https?:\/\/[\w.-]+\.[a-zA-Z]{2,}(:\d+)?(\/.*)?$/,
 								message: t("form.jira.invalidUrl"),
 							},
 						})}

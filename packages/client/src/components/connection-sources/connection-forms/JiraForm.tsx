@@ -152,7 +152,7 @@ export function JiraForm({
 						{...register("baseUrl", {
 							required: t("form.validation.urlRequired"),
 							pattern: {
-								value: /^https?:\/\/.+/,
+								value: /^https?:\/\/[\w.-]+\.[a-zA-Z]{2,}(:\d+)?(\/.*)?$/,
 								message: t("form.validation.invalidUrl"),
 							},
 						})}
