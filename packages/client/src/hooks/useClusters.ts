@@ -1,40 +1,41 @@
-import { useQuery } from '@tanstack/react-query';
-import { clustersApi, ticketsApi } from '@/services/api';
+import { useQuery } from "@tanstack/react-query";
+import { clustersApi, ticketsApi } from "@/services/api";
 import type {
-	ClusterSortOption,
+	ClustersQueryParams,
 	ClusterTicketsQueryParams,
-} from '@/types/cluster';
+} from "@/types/cluster";
 
 // Query Keys
 export const clusterKeys = {
-	all: ['clusters'] as const,
-	lists: () => [...clusterKeys.all, 'list'] as const,
-	list: (sort?: ClusterSortOption) => [...clusterKeys.lists(), { sort }] as const,
-	details: () => [...clusterKeys.all, 'detail'] as const,
+	all: ["clusters"] as const,
+	lists: () => [...clusterKeys.all, "list"] as const,
+	list: (params?: ClustersQueryParams) =>
+		[...clusterKeys.lists(), params] as const,
+	details: () => [...clusterKeys.all, "detail"] as const,
 	detail: (id: string) => [...clusterKeys.details(), id] as const,
-	tickets: () => [...clusterKeys.all, 'tickets'] as const,
+	tickets: () => [...clusterKeys.all, "tickets"] as const,
 	ticketList: (id: string, params?: ClusterTicketsQueryParams) =>
 		[...clusterKeys.tickets(), id, params] as const,
-	kbArticles: () => [...clusterKeys.all, 'kb-articles'] as const,
+	kbArticles: () => [...clusterKeys.all, "kb-articles"] as const,
 	kbArticleList: (id: string) => [...clusterKeys.kbArticles(), id] as const,
 };
 
 export const ticketKeys = {
-	all: ['tickets'] as const,
-	details: () => [...ticketKeys.all, 'detail'] as const,
+	all: ["tickets"] as const,
+	details: () => [...ticketKeys.all, "detail"] as const,
 	detail: (id: string) => [...ticketKeys.details(), id] as const,
 };
 
 /**
  * List all clusters for the organization
- * @param sort - Sort option (volume, automation, recent)
+ * @param params - Query params (sort, period)
  * @returns Query with array of clusters
  */
-export function useClusters(sort?: ClusterSortOption) {
+export function useClusters(params?: ClustersQueryParams) {
 	return useQuery({
-		queryKey: clusterKeys.list(sort),
+		queryKey: clusterKeys.list(params),
 		queryFn: async () => {
-			const response = await clustersApi.list({ sort });
+			const response = await clustersApi.list(params);
 			return response.data;
 		},
 		staleTime: 30000, // 30 seconds
@@ -66,7 +67,7 @@ export function useClusterDetails(id: string | undefined) {
  */
 export function useClusterTickets(
 	id: string | undefined,
-	params?: ClusterTicketsQueryParams
+	params?: ClusterTicketsQueryParams,
 ) {
 	return useQuery({
 		queryKey: clusterKeys.ticketList(id!, params),

@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
-import { resolve } from "node:path";
+import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import { type Channel, connect } from "amqplib";
 import axios from "axios";
 import cors from "cors";
@@ -17,9 +18,11 @@ import {
 	webhookLogger,
 } from "./config/logger.js";
 import { emailService } from "./email-service.js";
+import { syncServiceNowData } from "./servicenow-sync.js";
 
 // Load environment from root .env file
-config({ path: resolve(process.cwd(), "../../.env") });
+const __dirname = dirname(fileURLToPath(import.meta.url));
+config({ path: resolve(__dirname, "../../../.env") });
 
 const app = express();
 const PORT = process.env.MOCK_SERVICE_PORT || 3001;
@@ -2731,6 +2734,14 @@ app.post("/webhook", async (req, res) => {
 							options = {
 								sites: ["https://company.sharepoint.com/sites/docs"],
 							};
+						} else if (verifyPayload.connection_type === "jira") {
+							options = {
+								projects: [
+									{ key: "ENG", name: "Engineering" },
+									{ key: "SUP", name: "Support" },
+									{ key: "OPS", name: "Operations" },
+								],
+							};
 						} else if (verifyPayload.connection_type === "jira_itsm") {
 							options = {
 								projects: [
@@ -2890,12 +2901,11 @@ app.post("/webhook", async (req, res) => {
 				"Received sync_tickets webhook",
 			);
 
-			// Simulate ticket sync with batch progress updates
-			const totalTickets = Math.floor(Math.random() * 150) + 50; // 50-200 tickets
-			const batchSize = 25;
-			let processed = 0;
+			// For ServiceNow ITSM, insert actual test data into the database
+			const isServiceNow = ticketsPayload.connection_type === "servicenow_itsm";
 
-			const sendProgressMessage = async () => {
+			// Start async data sync and progress reporting
+			(async () => {
 				try {
 					if (!rabbitChannel) {
 						throw new Error("RabbitMQ channel not initialized");
@@ -2905,82 +2915,114 @@ app.post("/webhook", async (req, res) => {
 						durable: true,
 					});
 
-					processed += batchSize;
-					const isComplete = processed >= totalTickets;
+					let totalTickets: number;
+					let ticketsCreated = 0;
 
-					if (isComplete) {
-						// Final completed message
-						const recordsFailed = Math.floor(Math.random() * 4) + 1; // 1-4 failures (always some for testing)
-						const ingestionMessage = {
-							type: "ticket_ingestion",
-							tenant_id: ticketsPayload.tenant_id,
-							user_id: ticketsPayload.user_id,
-							ingestion_run_id: ticketsPayload.ingestion_run_id,
-							connection_id: ticketsPayload.connection_id,
-							status: "completed",
-							records_processed: totalTickets,
-							records_failed: recordsFailed,
-							total_estimated: totalTickets,
-							timestamp: new Date().toISOString(),
-						};
-
-						rabbitChannel.sendToQueue(
-							"data_source_status",
-							Buffer.from(JSON.stringify(ingestionMessage)),
-							{ persistent: true },
-						);
-
+					if (isServiceNow) {
+						// Insert actual data for ServiceNow ITSM
 						contextLogger.info(
-							{
-								ingestionRunId: ticketsPayload.ingestion_run_id,
-								recordsProcessed: totalTickets,
-								recordsFailed,
-							},
-							"Published ticket_ingestion completed message",
+							"Inserting ServiceNow test data into database...",
 						);
-					} else {
-						// Progress message
-						const ingestionMessage = {
+
+						// Send initial progress message
+						const initialMessage = {
 							type: "ticket_ingestion",
 							tenant_id: ticketsPayload.tenant_id,
 							user_id: ticketsPayload.user_id,
 							ingestion_run_id: ticketsPayload.ingestion_run_id,
 							connection_id: ticketsPayload.connection_id,
 							status: "running",
-							records_processed: processed,
+							records_processed: 0,
 							records_failed: 0,
-							total_estimated: totalTickets,
+							total_estimated: 270, // ~10 per cluster * 27 clusters
+							timestamp: new Date().toISOString(),
+						};
+						rabbitChannel.sendToQueue(
+							"data_source_status",
+							Buffer.from(JSON.stringify(initialMessage)),
+							{ persistent: true },
+						);
+
+						// Perform actual data insertion
+						const syncResult = await syncServiceNowData(
+							ticketsPayload.tenant_id,
+							ticketsPayload.connection_id,
+							ticketsPayload.ingestion_run_id,
+						);
+
+						totalTickets = syncResult.ticketsCreated;
+						ticketsCreated = syncResult.ticketsCreated;
+
+						contextLogger.info(
+							{
+								modelId: syncResult.modelId,
+								clustersCreated: syncResult.clustersCreated,
+								ticketsCreated: syncResult.ticketsCreated,
+							},
+							"ServiceNow data inserted successfully",
+						);
+					} else {
+						// For other ITSM types, just simulate (no actual data insertion)
+						totalTickets = Math.floor(Math.random() * 150) + 50;
+						await new Promise((resolve) => setTimeout(resolve, 2000));
+					}
+
+					// Send completion message with actual counts
+					const completedMessage = {
+						type: "ticket_ingestion",
+						tenant_id: ticketsPayload.tenant_id,
+						user_id: ticketsPayload.user_id,
+						ingestion_run_id: ticketsPayload.ingestion_run_id,
+						connection_id: ticketsPayload.connection_id,
+						status: "completed",
+						records_processed: totalTickets,
+						records_failed: 0,
+						total_estimated: totalTickets,
+						timestamp: new Date().toISOString(),
+					};
+
+					rabbitChannel.sendToQueue(
+						"data_source_status",
+						Buffer.from(JSON.stringify(completedMessage)),
+						{ persistent: true },
+					);
+
+					contextLogger.info(
+						{
+							ingestionRunId: ticketsPayload.ingestion_run_id,
+							recordsProcessed: totalTickets,
+							ticketsCreated,
+							isServiceNow,
+						},
+						"Published ticket_ingestion completed message",
+					);
+				} catch (error) {
+					contextLogger.error({ error }, "Failed to sync tickets");
+
+					// Send failure message
+					if (rabbitChannel) {
+						const failedMessage = {
+							type: "ticket_ingestion",
+							tenant_id: ticketsPayload.tenant_id,
+							user_id: ticketsPayload.user_id,
+							ingestion_run_id: ticketsPayload.ingestion_run_id,
+							connection_id: ticketsPayload.connection_id,
+							status: "failed",
+							records_processed: 0,
+							records_failed: 0,
+							total_estimated: 0,
+							error: error instanceof Error ? error.message : "Unknown error",
 							timestamp: new Date().toISOString(),
 						};
 
 						rabbitChannel.sendToQueue(
 							"data_source_status",
-							Buffer.from(JSON.stringify(ingestionMessage)),
+							Buffer.from(JSON.stringify(failedMessage)),
 							{ persistent: true },
 						);
-
-						contextLogger.info(
-							{
-								ingestionRunId: ticketsPayload.ingestion_run_id,
-								recordsProcessed: processed,
-								totalEstimated: totalTickets,
-							},
-							"Published ticket_ingestion progress message",
-						);
-
-						// Schedule next progress update
-						setTimeout(sendProgressMessage, 2000);
 					}
-				} catch (error) {
-					contextLogger.error(
-						{ error },
-						"Failed to publish ticket_ingestion message",
-					);
 				}
-			};
-
-			// Start first progress update after 2 seconds
-			setTimeout(sendProgressMessage, 2000);
+			})();
 
 			return res.status(200).json({
 				success: true,
