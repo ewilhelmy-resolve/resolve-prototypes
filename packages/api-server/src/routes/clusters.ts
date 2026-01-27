@@ -1,26 +1,160 @@
 import express from "express";
 import { z } from "zod";
+import { registry } from "../docs/openapi.js";
+import {
+	ClusterDetailsResponseSchema,
+	ClusterKbArticlesResponseSchema,
+	ClusterListQuerySchema,
+	ClusterListResponseSchema,
+	ClusterTicketsQuerySchema,
+	ClusterTicketsResponseSchema,
+} from "../schemas/cluster.js";
+import {
+	ErrorResponseSchema,
+	ValidationErrorSchema,
+} from "../schemas/common.js";
 import { ClusterService } from "../services/ClusterService.js";
 import type { AuthenticatedRequest } from "../types/express.js";
 
 const router = express.Router();
 const clusterService = new ClusterService();
 
-// Validation schemas
-const listQuerySchema = z.object({
-	sort: z.enum(["volume", "automation", "recent"]).optional(),
-	period: z.enum(["last30", "last90", "last6months", "lastyear"]).optional(),
-	include_inactive: z.coerce.boolean().optional(),
+// ============================================================================
+// OpenAPI Documentation Registration
+// ============================================================================
+
+registry.registerPath({
+	method: "get",
+	path: "/api/clusters",
+	tags: ["Clusters"],
+	summary: "List clusters",
+	description:
+		"List all ticket clusters for the organization with ticket counts",
+	security: [{ bearerAuth: [] }, { cookieAuth: [] }],
+	request: { query: ClusterListQuerySchema },
+	responses: {
+		200: {
+			description: "List of clusters",
+			content: { "application/json": { schema: ClusterListResponseSchema } },
+		},
+		400: {
+			description: "Validation error",
+			content: { "application/json": { schema: ValidationErrorSchema } },
+		},
+		401: {
+			description: "Unauthorized",
+			content: { "application/json": { schema: ErrorResponseSchema } },
+		},
+		500: {
+			description: "Server error",
+			content: { "application/json": { schema: ErrorResponseSchema } },
+		},
+	},
 });
 
-const ticketsQuerySchema = z.object({
-	tab: z.enum(["needs_response", "completed"]).optional(),
-	cursor: z.string().datetime().optional(),
-	limit: z.coerce.number().int().min(1).max(100).optional(),
-	search: z.string().optional(),
-	sort: z.enum(["created_at", "external_id", "subject"]).optional(),
-	sort_dir: z.enum(["asc", "desc"]).optional(),
-	source: z.string().optional(),
+registry.registerPath({
+	method: "get",
+	path: "/api/clusters/{id}/details",
+	tags: ["Clusters"],
+	summary: "Get cluster details",
+	description:
+		"Get cluster metadata including KB articles count and ticket counts",
+	security: [{ bearerAuth: [] }, { cookieAuth: [] }],
+	request: {
+		params: z.object({
+			id: z.string().uuid().openapi({ description: "Cluster ID" }),
+		}),
+	},
+	responses: {
+		200: {
+			description: "Cluster details",
+			content: { "application/json": { schema: ClusterDetailsResponseSchema } },
+		},
+		401: {
+			description: "Unauthorized",
+			content: { "application/json": { schema: ErrorResponseSchema } },
+		},
+		404: {
+			description: "Cluster not found",
+			content: { "application/json": { schema: ErrorResponseSchema } },
+		},
+		500: {
+			description: "Server error",
+			content: { "application/json": { schema: ErrorResponseSchema } },
+		},
+	},
+});
+
+registry.registerPath({
+	method: "get",
+	path: "/api/clusters/{id}/tickets",
+	tags: ["Clusters"],
+	summary: "Get cluster tickets",
+	description:
+		"Get paginated list of tickets in a cluster with filtering and sorting",
+	security: [{ bearerAuth: [] }, { cookieAuth: [] }],
+	request: {
+		params: z.object({
+			id: z.string().uuid().openapi({ description: "Cluster ID" }),
+		}),
+		query: ClusterTicketsQuerySchema,
+	},
+	responses: {
+		200: {
+			description: "Paginated list of tickets",
+			content: { "application/json": { schema: ClusterTicketsResponseSchema } },
+		},
+		400: {
+			description: "Validation error",
+			content: { "application/json": { schema: ValidationErrorSchema } },
+		},
+		401: {
+			description: "Unauthorized",
+			content: { "application/json": { schema: ErrorResponseSchema } },
+		},
+		404: {
+			description: "Cluster not found",
+			content: { "application/json": { schema: ErrorResponseSchema } },
+		},
+		500: {
+			description: "Server error",
+			content: { "application/json": { schema: ErrorResponseSchema } },
+		},
+	},
+});
+
+registry.registerPath({
+	method: "get",
+	path: "/api/clusters/{id}/kb-articles",
+	tags: ["Clusters"],
+	summary: "Get cluster KB articles",
+	description: "Get knowledge base articles linked to a cluster",
+	security: [{ bearerAuth: [] }, { cookieAuth: [] }],
+	request: {
+		params: z.object({
+			id: z.string().uuid().openapi({ description: "Cluster ID" }),
+		}),
+	},
+	responses: {
+		200: {
+			description: "List of KB articles",
+			content: {
+				"application/json": { schema: ClusterKbArticlesResponseSchema },
+			},
+		},
+		401: {
+			description: "Unauthorized",
+			content: { "application/json": { schema: ErrorResponseSchema } },
+		},
+		404: {
+			description: "Cluster not found",
+			content: { "application/json": { schema: ErrorResponseSchema } },
+		},
+		500: {
+			description: "Server error",
+			content: { "application/json": { schema: ErrorResponseSchema } },
+		},
+	},
 });
 
 /**
@@ -33,7 +167,7 @@ router.get("/", async (req, res) => {
 	const authReq = req as AuthenticatedRequest;
 
 	try {
-		const query = listQuerySchema.parse(req.query);
+		const query = ClusterListQuerySchema.parse(req.query);
 
 		const clusters = await clusterService.getClusters(
 			authReq.user.activeOrganizationId,
@@ -97,7 +231,7 @@ router.get("/:id/tickets", async (req, res) => {
 
 	try {
 		// Validate query params
-		const query = ticketsQuerySchema.parse(req.query);
+		const query = ClusterTicketsQuerySchema.parse(req.query);
 
 		// Check cluster exists
 		const exists = await clusterService.clusterExists(

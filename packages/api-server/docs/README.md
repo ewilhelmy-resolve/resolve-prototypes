@@ -28,6 +28,11 @@ The Rita API Server is a TypeScript/Node.js backend service that provides:
 - [Architecture](../../../docs/architecture/) - System design and architecture
 - [Setup Guides](../../../docs/setup/) - Environment configuration
 
+### API Documentation
+- **[API Documentation Guide](./api-documentation.md)** - OpenAPI/AsyncAPI setup & progress
+- **[Swagger UI](http://localhost:3000/api-docs)** - Interactive REST API docs (when running)
+- **[AsyncAPI Spec](./asyncapi.yaml)** - SSE, RabbitMQ, Webhooks documentation
+
 ### API Server Specific
 - `src/routes/` - API endpoint definitions
 - `src/services/` - Business logic and external integrations
@@ -39,8 +44,8 @@ The Rita API Server is a TypeScript/Node.js backend service that provides:
 ### Running Locally
 ```bash
 cd packages/api-server
-npm install
-npm run dev
+pnpm install
+pnpm dev
 ```
 
 ### Environment Variables
@@ -53,9 +58,9 @@ See `.env.example` for required configuration:
 
 ### Testing
 ```bash
-npm test                    # Run all tests
-npm run test:unit          # Unit tests only
-npm run test:integration   # Integration tests only
+pnpm test                   # Run all tests
+pnpm test:run              # Run tests once
+pnpm test:coverage         # Run with coverage
 ```
 
 ## Key Concepts

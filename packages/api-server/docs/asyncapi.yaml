@@ -1,0 +1,980 @@
+asyncapi: 3.0.0
+info:
+  title: Rita Async API
+  version: 1.0.0
+  description: |
+    Async communication patterns for Rita API Server.
+
+    This spec documents:
+    - Server-Sent Events (SSE) for real-time push notifications
+    - RabbitMQ message queues for async processing
+    - Outgoing webhooks to external services
+
+    **REST API**: See [OpenAPI spec](/api-docs/openapi.json) for REST endpoints.
+
+servers:
+  development:
+    host: localhost:3000
+    protocol: http
+    description: Development server
+
+channels:
+  # ==========================================================================
+  # SSE Channel
+  # ==========================================================================
+  sse-events:
+    address: /api/sse/events
+    description: |
+      Server-Sent Events endpoint for real-time updates.
+
+      **Connection**: `GET /api/sse/events` (requires authentication)
+
+      **Heartbeat**: Server sends heartbeat every 30 seconds.
+      Connections inactive for 5 minutes are closed.
+
+      **Client Example**:
+      ```javascript
+      const eventSource = new EventSource('/api/sse/events', {
+        withCredentials: true
+      });
+      eventSource.onmessage = (e) => {
+        const event = JSON.parse(e.data);
+        console.log(event.type, event.data);
+      };
+      ```
+    messages:
+      messageUpdate:
+        $ref: '#/components/messages/MessageUpdateEvent'
+      newMessage:
+        $ref: '#/components/messages/NewMessageEvent'
+      dataSourceUpdate:
+        $ref: '#/components/messages/DataSourceUpdateEvent'
+      documentUpdate:
+        $ref: '#/components/messages/DocumentUpdateEvent'
+      memberRoleUpdated:
+        $ref: '#/components/messages/MemberRoleUpdatedEvent'
+      memberStatusUpdated:
+        $ref: '#/components/messages/MemberStatusUpdatedEvent'
+      memberRemoved:
+        $ref: '#/components/messages/MemberRemovedEvent'
+      memberDeletedPermanent:
+        $ref: '#/components/messages/MemberDeletedPermanentEvent'
+      memberDeletedOwnAccount:
+        $ref: '#/components/messages/MemberDeletedOwnAccountEvent'
+      ingestionRunUpdate:
+        $ref: '#/components/messages/IngestionRunUpdateEvent'
+      featureFlagUpdate:
+        $ref: '#/components/messages/FeatureFlagUpdateEvent'
+      dynamicWorkflow:
+        $ref: '#/components/messages/DynamicWorkflowEvent'
+
+  # ==========================================================================
+  # RabbitMQ Channels
+  # ==========================================================================
+  chat-responses:
+    address: chat.responses
+    description: |
+      Chat message responses from the AI platform.
+      Rita consumes these to update message status and send SSE events.
+    messages:
+      chatResponse:
+        $ref: '#/components/messages/ChatResponseMessage'
+
+  data-source-status:
+    address: data_source_status
+    description: |
+      Data source operation status updates.
+      Handles verification, sync, ticket ingestion, and credential delegation.
+    messages:
+      syncStatus:
+        $ref: '#/components/messages/SyncStatusMessage'
+      verificationStatus:
+        $ref: '#/components/messages/VerificationStatusMessage'
+      ingestionStatus:
+        $ref: '#/components/messages/IngestionStatusMessage'
+      delegationVerification:
+        $ref: '#/components/messages/DelegationVerificationMessage'
+
+  document-processing:
+    address: document_processing_status
+    description: |
+      Document processing results from the AI platform.
+      Rita updates blob_metadata and sends SSE events.
+    messages:
+      documentProcessing:
+        $ref: '#/components/messages/DocumentProcessingMessage'
+
+  workflow-responses:
+    address: workflow.responses
+    description: |
+      Workflow execution results from the AI platform.
+      Rita sends dynamic_workflow SSE events.
+    messages:
+      workflowResponse:
+        $ref: '#/components/messages/WorkflowResponseMessage'
+
+  # ==========================================================================
+  # Outgoing Webhooks
+  # ==========================================================================
+  automation-webhook:
+    address: ${AUTOMATION_WEBHOOK_URL}
+    description: |
+      Outgoing webhooks to external automation platform.
+
+      **Retry Policy**: 3 attempts with exponential backoff (1s, 2s, 4s)
+      **Timeout**: 10 seconds
+      **Failed webhooks**: Stored in `rag_webhook_failures` table
+    messages:
+      messageCreated:
+        $ref: '#/components/messages/MessageCreatedWebhook'
+      documentUploaded:
+        $ref: '#/components/messages/DocumentUploadedWebhook'
+      documentDeleted:
+        $ref: '#/components/messages/DocumentDeletedWebhook'
+      verifyCredentials:
+        $ref: '#/components/messages/VerifyCredentialsWebhook'
+      triggerSync:
+        $ref: '#/components/messages/TriggerSyncWebhook'
+      syncTickets:
+        $ref: '#/components/messages/SyncTicketsWebhook'
+
+components:
+  messages:
+    # ========================================================================
+    # SSE Events
+    # ========================================================================
+    MessageUpdateEvent:
+      name: message_update
+      title: Message Update
+      summary: Chat message status changed
+      description: Sent when a user's message status changes (pending → processing → completed/failed)
+      payload:
+        type: object
+        required: [type, data]
+        properties:
+          type:
+            const: message_update
+          data:
+            type: object
+            required: [messageId, status]
+            properties:
+              messageId:
+                type: string
+                format: uuid
+              status:
+                type: string
+                enum: [pending, processing, completed, failed]
+              responseContent:
+                type: string
+                description: Assistant response text (when completed)
+              errorMessage:
+                type: string
+                description: Error message (when failed)
+              processedAt:
+                type: string
+                format: date-time
+
+    NewMessageEvent:
+      name: new_message
+      title: New Message
+      summary: New message in conversation
+      description: Sent when assistant response is ready
+      payload:
+        type: object
+        required: [type, data]
+        properties:
+          type:
+            const: new_message
+          data:
+            type: object
+            required: [messageId, conversationId, role, message, userId, createdAt]
+            properties:
+              messageId:
+                type: string
+                format: uuid
+              conversationId:
+                type: string
+                format: uuid
+              role:
+                type: string
+                enum: [user, assistant]
+              message:
+                type: string
+              metadata:
+                type: object
+              response_group_id:
+                type: string
+              userId:
+                type: string
+                format: uuid
+              createdAt:
+                type: string
+                format: date-time
+
+    DataSourceUpdateEvent:
+      name: data_source_update
+      title: Data Source Update
+      summary: Data source connection status changed
+      description: Sent when verification or sync status changes. Broadcast to all org users.
+      payload:
+        type: object
+        required: [type, data]
+        properties:
+          type:
+            const: data_source_update
+          data:
+            type: object
+            required: [connection_id, status, timestamp]
+            properties:
+              connection_id:
+                type: string
+                format: uuid
+              connection_type:
+                type: string
+                enum: [confluence, servicenow, servicenow_itsm, sharepoint, websearch, jira, jira_itsm]
+              status:
+                type: string
+                enum: [idle, verifying, syncing, cancelled]
+              last_sync_status:
+                type: string
+                enum: [completed, failed]
+                nullable: true
+              last_sync_at:
+                type: string
+                format: date-time
+                nullable: true
+              last_sync_error:
+                type: string
+              documents_processed:
+                type: integer
+              last_verification_at:
+                type: string
+                format: date-time
+                nullable: true
+              last_verification_error:
+                type: string
+                nullable: true
+              latest_options:
+                type: object
+                description: Options returned from verification (e.g., available spaces)
+                nullable: true
+              timestamp:
+                type: string
+                format: date-time
+
+    DocumentUpdateEvent:
+      name: document_update
+      title: Document Update
+      summary: Document processing completed
+      description: Sent when document processing finishes (success or failure)
+      payload:
+        type: object
+        required: [type, data]
+        properties:
+          type:
+            const: document_update
+          data:
+            type: object
+            required: [blob_metadata_id, filename, status, timestamp]
+            properties:
+              blob_metadata_id:
+                type: string
+                format: uuid
+              filename:
+                type: string
+              status:
+                type: string
+                enum: [processed, failed]
+              processed_markdown:
+                type: string
+                description: Extracted markdown (when processed)
+              error_message:
+                type: string
+                description: Error message (when failed)
+              timestamp:
+                type: string
+                format: date-time
+
+    MemberRoleUpdatedEvent:
+      name: member_role_updated
+      title: Member Role Updated
+      summary: Organization member role changed
+      payload:
+        type: object
+        required: [type, data]
+        properties:
+          type:
+            const: member_role_updated
+          data:
+            type: object
+            required: [userId, userEmail, oldRole, newRole, updatedBy, timestamp]
+            properties:
+              userId:
+                type: string
+                format: uuid
+              userEmail:
+                type: string
+                format: email
+              oldRole:
+                type: string
+                enum: [owner, admin, user]
+              newRole:
+                type: string
+                enum: [owner, admin, user]
+              updatedBy:
+                type: string
+                format: uuid
+              timestamp:
+                type: string
+                format: date-time
+
+    MemberStatusUpdatedEvent:
+      name: member_status_updated
+      title: Member Status Updated
+      summary: Organization member activated/deactivated
+      payload:
+        type: object
+        required: [type, data]
+        properties:
+          type:
+            const: member_status_updated
+          data:
+            type: object
+            required: [userId, userEmail, isActive, updatedBy, timestamp]
+            properties:
+              userId:
+                type: string
+                format: uuid
+              userEmail:
+                type: string
+                format: email
+              isActive:
+                type: boolean
+              updatedBy:
+                type: string
+                format: uuid
+              timestamp:
+                type: string
+                format: date-time
+
+    MemberRemovedEvent:
+      name: member_removed
+      title: Member Removed
+      summary: Member removed from organization (soft delete)
+      payload:
+        type: object
+        required: [type, data]
+        properties:
+          type:
+            const: member_removed
+          data:
+            type: object
+            required: [userId, userEmail, removedBy, timestamp]
+            properties:
+              userId:
+                type: string
+                format: uuid
+              userEmail:
+                type: string
+                format: email
+              removedBy:
+                type: string
+                format: uuid
+              timestamp:
+                type: string
+                format: date-time
+
+    MemberDeletedPermanentEvent:
+      name: member_deleted_permanent
+      title: Member Deleted Permanently
+      summary: Member permanently deleted by admin (hard delete)
+      payload:
+        type: object
+        required: [type, data]
+        properties:
+          type:
+            const: member_deleted_permanent
+          data:
+            type: object
+            required: [userId, userEmail, deletedBy, reason, timestamp]
+            properties:
+              userId:
+                type: string
+                format: uuid
+              userEmail:
+                type: string
+                format: email
+              deletedBy:
+                type: string
+                format: uuid
+              reason:
+                type: string
+              timestamp:
+                type: string
+                format: date-time
+
+    MemberDeletedOwnAccountEvent:
+      name: member_deleted_own_account
+      title: Member Deleted Own Account
+      summary: User deleted their own account
+      payload:
+        type: object
+        required: [type, data]
+        properties:
+          type:
+            const: member_deleted_own_account
+          data:
+            type: object
+            required: [userId, userEmail, reason, timestamp]
+            properties:
+              userId:
+                type: string
+                format: uuid
+              userEmail:
+                type: string
+                format: email
+              reason:
+                type: string
+              timestamp:
+                type: string
+                format: date-time
+
+    IngestionRunUpdateEvent:
+      name: ingestion_run_update
+      title: Ingestion Run Update
+      summary: ITSM ticket ingestion progress
+      description: Sent during Autopilot ticket sync from ServiceNow/Jira ITSM
+      payload:
+        type: object
+        required: [type, data]
+        properties:
+          type:
+            const: ingestion_run_update
+          data:
+            type: object
+            required: [ingestion_run_id, connection_id, status, timestamp]
+            properties:
+              ingestion_run_id:
+                type: string
+                format: uuid
+              connection_id:
+                type: string
+                format: uuid
+              status:
+                type: string
+                enum: [running, completed, failed]
+              records_processed:
+                type: integer
+              records_failed:
+                type: integer
+              total_estimated:
+                type: integer
+              error_message:
+                type: string
+              timestamp:
+                type: string
+                format: date-time
+
+    FeatureFlagUpdateEvent:
+      name: feature_flag_update
+      title: Feature Flag Update
+      summary: Feature flag value changed
+      payload:
+        type: object
+        required: [type, data]
+        properties:
+          type:
+            const: feature_flag_update
+          data:
+            type: object
+            required: [flagName, platformFlagName, environment, organizationId, isEnabled, timestamp]
+            properties:
+              flagName:
+                type: string
+              platformFlagName:
+                type: string
+              environment:
+                type: string
+              organizationId:
+                type: string
+                format: uuid
+              isEnabled:
+                type: boolean
+              timestamp:
+                type: string
+                format: date-time
+
+    DynamicWorkflowEvent:
+      name: dynamic_workflow
+      title: Dynamic Workflow
+      summary: Workflow builder execution updates
+      payload:
+        type: object
+        required: [type, data]
+        properties:
+          type:
+            const: dynamic_workflow
+          data:
+            type: object
+            required: [action, timestamp]
+            properties:
+              action:
+                type: string
+                enum: [workflow_created, workflow_executed, progress_update]
+              workflow:
+                type: array
+                description: Workflow tasks
+                items:
+                  type: object
+                  properties:
+                    task_id:
+                      type: string
+                    description:
+                      type: string
+                    inputs:
+                      type: array
+                      items:
+                        type: string
+                    outputs:
+                      type: array
+                      items:
+                        type: string
+                    action:
+                      type: string
+                      enum: [reuse, create, modify]
+                    snippet:
+                      type: object
+              mappings:
+                type: object
+              visualization:
+                type: string
+                description: Mermaid diagram
+              result:
+                description: Execution result
+              progress:
+                type: string
+              error:
+                type: string
+              timestamp:
+                type: string
+                format: date-time
+
+    # ========================================================================
+    # RabbitMQ Messages
+    # ========================================================================
+    ChatResponseMessage:
+      name: chat_response
+      title: Chat Response
+      summary: AI response for chat message
+      payload:
+        type: object
+        required: [tenant_id, conversation_id, message_id, response]
+        properties:
+          tenant_id:
+            type: string
+            format: uuid
+            description: Maps to organization_id
+          conversation_id:
+            type: string
+            format: uuid
+          message_id:
+            type: string
+            format: uuid
+          response:
+            type: string
+          metadata:
+            type: object
+
+    SyncStatusMessage:
+      name: sync_status
+      title: Sync Status
+      summary: Document sync status update
+      payload:
+        type: object
+        required: [type, connection_id, tenant_id, status]
+        properties:
+          type:
+            const: sync
+            description: Discriminator field
+          connection_id:
+            type: string
+            format: uuid
+          tenant_id:
+            type: string
+            format: uuid
+          status:
+            type: string
+            enum: [sync_started, sync_completed, sync_failed, sync_cancelled]
+          error_message:
+            type: string
+          documents_processed:
+            type: integer
+          timestamp:
+            type: string
+            format: date-time
+
+    VerificationStatusMessage:
+      name: verification_status
+      title: Verification Status
+      summary: Credential verification result
+      payload:
+        type: object
+        required: [type, connection_id, tenant_id, status]
+        properties:
+          type:
+            const: verification
+            description: Discriminator field
+          connection_id:
+            type: string
+            format: uuid
+          tenant_id:
+            type: string
+            format: uuid
+          status:
+            type: string
+            enum: [success, failed]
+          options:
+            type: object
+            description: Available options (e.g., Confluence spaces)
+            nullable: true
+          error:
+            type: string
+            nullable: true
+
+    IngestionStatusMessage:
+      name: ingestion_status
+      title: Ingestion Status
+      summary: ITSM ticket ingestion progress
+      payload:
+        type: object
+        required: [type, tenant_id, user_id, ingestion_run_id, connection_id, status]
+        properties:
+          type:
+            const: ticket_ingestion
+            description: Discriminator field
+          tenant_id:
+            type: string
+            format: uuid
+          user_id:
+            type: string
+            format: uuid
+          ingestion_run_id:
+            type: string
+            format: uuid
+          connection_id:
+            type: string
+            format: uuid
+          status:
+            type: string
+            enum: [running, completed, failed]
+          records_processed:
+            type: integer
+          records_failed:
+            type: integer
+          total_estimated:
+            type: integer
+          error_message:
+            type: string
+          timestamp:
+            type: string
+            format: date-time
+
+    DelegationVerificationMessage:
+      name: delegation_verification
+      title: Delegation Verification
+      summary: Credential delegation verification result
+      payload:
+        type: object
+        required: [type, delegation_id, tenant_id, status]
+        properties:
+          type:
+            const: credential_delegation_verification
+            description: Discriminator field
+          delegation_id:
+            type: string
+            format: uuid
+          tenant_id:
+            type: string
+            format: uuid
+          status:
+            type: string
+            enum: [verified, failed]
+          error:
+            type: string
+            nullable: true
+          timestamp:
+            type: string
+            format: date-time
+
+    DocumentProcessingMessage:
+      name: document_processing
+      title: Document Processing
+      summary: Document processing result
+      payload:
+        type: object
+        required: [tenant_id, blob_metadata_id, status]
+        properties:
+          tenant_id:
+            type: string
+            format: uuid
+          blob_metadata_id:
+            type: string
+            format: uuid
+          status:
+            type: string
+            enum: [processing_completed, processing_failed]
+          processed_markdown:
+            type: string
+          error_message:
+            type: string
+
+    WorkflowResponseMessage:
+      name: workflow_response
+      title: Workflow Response
+      summary: Workflow execution result
+      payload:
+        type: object
+        required: [type, tenant_id, user_id, conversation_id]
+        properties:
+          type:
+            type: string
+            enum: [workflow_created, workflow_executed, progress_update]
+          tenant_id:
+            type: string
+            format: uuid
+          user_id:
+            type: string
+            format: uuid
+          conversation_id:
+            type: string
+            format: uuid
+          workflow:
+            type: array
+          result:
+            type: object
+          error:
+            type: string
+
+    # ========================================================================
+    # Outgoing Webhooks
+    # ========================================================================
+    MessageCreatedWebhook:
+      name: message_created
+      title: Message Created Webhook
+      summary: Sent when user submits a chat message
+      payload:
+        type: object
+        required: [source, action, user_email, user_id, tenant_id, conversation_id, customer_message, message_id]
+        properties:
+          source:
+            type: string
+            enum: [rita-chat, rita-chat-iframe, rita-chat-workflows]
+          action:
+            const: message_created
+          user_email:
+            type: string
+            format: email
+          user_id:
+            type: string
+            format: uuid
+          tenant_id:
+            type: string
+            format: uuid
+          conversation_id:
+            type: string
+            format: uuid
+          customer_message:
+            type: string
+          message_id:
+            type: string
+            format: uuid
+          document_ids:
+            type: array
+            items:
+              type: string
+              format: uuid
+          transcript_ids:
+            type: object
+            properties:
+              transcripts:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    role:
+                      type: string
+                    content:
+                      type: string
+          timestamp:
+            type: string
+            format: date-time
+
+    DocumentUploadedWebhook:
+      name: document_uploaded
+      title: Document Uploaded Webhook
+      summary: Sent when document is uploaded for processing
+      payload:
+        type: object
+        required: [source, action, tenant_id, blob_metadata_id, blob_id, document_url, file_type, file_size, original_filename]
+        properties:
+          source:
+            const: rita-documents
+          action:
+            const: document_uploaded
+          tenant_id:
+            type: string
+            format: uuid
+          blob_metadata_id:
+            type: string
+            format: uuid
+          blob_id:
+            type: string
+            format: uuid
+          document_url:
+            type: string
+            format: uri
+          file_type:
+            type: string
+          file_size:
+            type: integer
+          original_filename:
+            type: string
+          timestamp:
+            type: string
+            format: date-time
+
+    DocumentDeletedWebhook:
+      name: document_deleted
+      title: Document Deleted Webhook
+      summary: Sent before document deletion for external cleanup
+      payload:
+        type: object
+        required: [source, action, tenant_id, blob_metadata_id, blob_id, article_id]
+        properties:
+          source:
+            const: rita-documents
+          action:
+            const: document_deleted
+          tenant_id:
+            type: string
+            format: uuid
+          blob_metadata_id:
+            type: string
+            format: uuid
+          blob_id:
+            type: string
+            format: uuid
+          article_id:
+            type: string
+            description: Legacy field for compatibility
+          timestamp:
+            type: string
+            format: date-time
+
+    VerifyCredentialsWebhook:
+      name: verify_credentials
+      title: Verify Credentials Webhook
+      summary: Sent to verify data source credentials
+      payload:
+        type: object
+        required: [source, action, tenant_id, user_id, user_email, connection_id, connection_type, credentials, settings]
+        properties:
+          source:
+            const: rita-chat
+          action:
+            const: verify_credentials
+          tenant_id:
+            type: string
+            format: uuid
+          user_id:
+            type: string
+            format: uuid
+          user_email:
+            type: string
+            format: email
+          connection_id:
+            type: string
+            format: uuid
+          connection_type:
+            type: string
+            enum: [confluence, servicenow, servicenow_itsm, sharepoint, websearch, jira, jira_itsm]
+          credentials:
+            type: object
+            description: Connection-specific credentials
+          settings:
+            type: object
+            description: Connection settings
+          is_delegation_setup:
+            type: boolean
+          timestamp:
+            type: string
+            format: date-time
+
+    TriggerSyncWebhook:
+      name: trigger_sync
+      title: Trigger Sync Webhook
+      summary: Sent to trigger document sync
+      payload:
+        type: object
+        required: [source, action, tenant_id, user_id, user_email, connection_id, connection_type, settings]
+        properties:
+          source:
+            const: rita-chat
+          action:
+            const: trigger_sync
+          tenant_id:
+            type: string
+            format: uuid
+          user_id:
+            type: string
+            format: uuid
+          user_email:
+            type: string
+            format: email
+          connection_id:
+            type: string
+            format: uuid
+          connection_type:
+            type: string
+            enum: [confluence, servicenow, servicenow_itsm, sharepoint, websearch, jira, jira_itsm]
+          settings:
+            type: object
+          timestamp:
+            type: string
+            format: date-time
+
+    SyncTicketsWebhook:
+      name: sync_tickets
+      title: Sync Tickets Webhook
+      summary: Sent to trigger ITSM ticket sync for Autopilot
+      payload:
+        type: object
+        required: [source, action, tenant_id, user_id, user_email, connection_id, connection_type, ingestion_run_id, settings]
+        properties:
+          source:
+            const: rita-chat
+          action:
+            const: sync_tickets
+          tenant_id:
+            type: string
+            format: uuid
+          user_id:
+            type: string
+            format: uuid
+          user_email:
+            type: string
+            format: email
+          connection_id:
+            type: string
+            format: uuid
+          connection_type:
+            type: string
+            enum: [servicenow_itsm, jira_itsm]
+          ingestion_run_id:
+            type: string
+            format: uuid
+          settings:
+            type: object
+          timestamp:
+            type: string
+            format: date-time
