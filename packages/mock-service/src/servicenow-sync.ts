@@ -314,13 +314,14 @@ export async function syncServiceNowData(
 	return withTransaction(async (client: pg.PoolClient) => {
 		// 1. Create/update ml_model
 		const externalModelId = `mock-model-${organizationId.substring(0, 8)}`;
+		const modelMetadata = JSON.stringify({ training_state: "complete" });
 		const modelResult = await client.query<{ id: string }>(
-			`INSERT INTO ml_models (organization_id, external_model_id, model_name, active)
-       VALUES ($1, $2, 'ServiceNow ITSM Model', true)
+			`INSERT INTO ml_models (organization_id, external_model_id, model_name, active, metadata)
+       VALUES ($1, $2, 'ServiceNow ITSM Model', true, $3::jsonb)
        ON CONFLICT (organization_id, external_model_id)
-       DO UPDATE SET active = true, updated_at = NOW()
+       DO UPDATE SET active = true, metadata = $3::jsonb, updated_at = NOW()
        RETURNING id`,
-			[organizationId, externalModelId],
+			[organizationId, externalModelId, modelMetadata],
 		);
 		const modelId = modelResult.rows[0].id;
 		logger.debug({ modelId }, "ML model created/updated");

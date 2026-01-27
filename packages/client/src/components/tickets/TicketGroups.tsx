@@ -1,4 +1,4 @@
-import { ChevronDown, Loader2 } from "lucide-react";
+import { ChevronDown } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Badge } from "@/components/ui/badge";
@@ -9,6 +9,7 @@ import {
 	DropdownMenuItem,
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Spinner } from "@/components/ui/spinner";
 import { StatusAlert } from "@/components/ui/status-alert";
 import { useActiveModel } from "@/hooks/useActiveModel";
 import { useClusters } from "@/hooks/useClusters";
@@ -73,7 +74,7 @@ export default function TicketGroups() {
 	if (isModelLoading) {
 		return (
 			<div className="flex min-h-[400px] w-full items-center justify-center">
-				<Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+				<Spinner className="size-8 text-muted-foreground" />
 			</div>
 		);
 	}
@@ -82,7 +83,7 @@ export default function TicketGroups() {
 	if (canShowClusters && isClustersLoading) {
 		return (
 			<div className="flex min-h-[400px] w-full items-center justify-center">
-				<Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+				<Spinner className="size-8 text-muted-foreground" />
 			</div>
 		);
 	}

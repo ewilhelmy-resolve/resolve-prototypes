@@ -1,11 +1,21 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { MlModelService } from "../MlModelService.js";
 
-// Mock database
-const mockQuery = vi.fn();
-vi.mock("../../config/database.js", () => ({
-	pool: {
-		query: (sql: string, params: unknown[]) => mockQuery(sql, params),
+// Mock Kysely db
+const mockExecuteTakeFirst = vi.fn();
+vi.mock("../../config/kysely.js", () => ({
+	db: {
+		selectFrom: () => ({
+			select: () => ({
+				where: () => ({
+					where: () => ({
+						limit: () => ({
+							executeTakeFirst: mockExecuteTakeFirst,
+						}),
+					}),
+				}),
+			}),
+		}),
 	},
 }));
 
@@ -34,19 +44,16 @@ describe("MlModelService", () => {
 				updated_at: new Date(),
 			};
 
-			mockQuery.mockResolvedValueOnce({ rows: [mockModel] });
+			mockExecuteTakeFirst.mockResolvedValueOnce(mockModel);
 
 			const result = await mlModelService.getActiveModel(organizationId);
 
 			expect(result).toEqual(mockModel);
-			expect(mockQuery).toHaveBeenCalledWith(
-				expect.stringContaining("WHERE organization_id = $1 AND active = true"),
-				[organizationId],
-			);
+			expect(mockExecuteTakeFirst).toHaveBeenCalled();
 		});
 
 		it("should return null when no active model exists", async () => {
-			mockQuery.mockResolvedValueOnce({ rows: [] });
+			mockExecuteTakeFirst.mockResolvedValueOnce(undefined);
 
 			const result = await mlModelService.getActiveModel(organizationId);
 
@@ -67,7 +74,7 @@ describe("MlModelService", () => {
 				updated_at: new Date(),
 			};
 
-			mockQuery.mockResolvedValueOnce({ rows: [mockModel] });
+			mockExecuteTakeFirst.mockResolvedValueOnce(mockModel);
 
 			const result = await mlModelService.getActiveModel(organizationId);
 
@@ -88,7 +95,7 @@ describe("MlModelService", () => {
 				updated_at: new Date(),
 			};
 
-			mockQuery.mockResolvedValueOnce({ rows: [mockModel] });
+			mockExecuteTakeFirst.mockResolvedValueOnce(mockModel);
 
 			const result = await mlModelService.getActiveModel(organizationId);
 
