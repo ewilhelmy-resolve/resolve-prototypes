@@ -1,4 +1,4 @@
-import { registry, z } from "../openapi.js";
+import { z } from "../openapi.js";
 import { PaginationInfoSchema } from "./common.js";
 
 // ============================================================================
