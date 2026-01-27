@@ -51,10 +51,6 @@
 			"title": "Web Search (LGA)",
 			"description": "Use web results to supplement answers when knowledge isn't found."
 		},
-		"jira": {
-			"title": "Jira",
-			"description": "Import tickets from Jira for autopilot clustering."
-		},
 		"jira_itsm": {
 			"title": "Jira",
 			"description": "Import tickets from Jira for Autopilot clustering."

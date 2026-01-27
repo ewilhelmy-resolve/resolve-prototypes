@@ -71,9 +71,8 @@ interface JiraFormData {
  */
 const SYSTEM_ICONS: Record<ItsmSystemType, string> = {
 	servicenow_itsm: "/connections/icon_servicenow_itsm.svg",
-	jira: "/connections/icon_jira.svg",
+	jira_itsm: "/connections/icon_jira_itsm.svg",
 };
-
 
 /**
  * Page header component matching settings pages style
@@ -105,9 +104,7 @@ function PageHeader({
 						{title}
 					</h3>
 				</div>
-				<p className="text-sm text-muted-foreground leading-5">
-					{description}
-				</p>
+				<p className="text-sm text-muted-foreground leading-5">{description}</p>
 				<p className="text-sm text-muted-foreground leading-5">
 					<Trans
 						i18nKey="setup.invitedBy"
@@ -163,13 +160,16 @@ function ServiceNowCredentialForm({
 					<StatusAlert variant="error" className="mb-4">
 						<p className="font-semibold">{t("form.verificationFailed")}</p>
 						<p>{verificationError}</p>
-						<p className="text-sm mt-2">
-							{t("form.checkCredentials")}
-						</p>
+						<p className="text-sm mt-2">{t("form.checkCredentials")}</p>
 					</StatusAlert>
 				)}
 
-				<FormField label={t("form.servicenow.instanceUrl")} errors={errors} name="instanceUrl" required>
+				<FormField
+					label={t("form.servicenow.instanceUrl")}
+					errors={errors}
+					name="instanceUrl"
+					required
+				>
 					<Input
 						id="instanceUrl"
 						type="url"
@@ -178,14 +178,19 @@ function ServiceNowCredentialForm({
 						{...register("instanceUrl", {
 							required: t("form.servicenow.instanceUrlRequired"),
 							pattern: {
-								value: /^https?:\/\/.+/,
+								value: /^https?:\/\/[\w.-]+\.[a-zA-Z]{2,}(:\d+)?(\/.*)?$/,
 								message: t("form.servicenow.invalidUrl"),
 							},
 						})}
 					/>
 				</FormField>
 
-				<FormField label={t("form.servicenow.username")} errors={errors} name="username" required>
+				<FormField
+					label={t("form.servicenow.username")}
+					errors={errors}
+					name="username"
+					required
+				>
 					<Input
 						id="username"
 						type="text"
@@ -197,7 +202,12 @@ function ServiceNowCredentialForm({
 					/>
 				</FormField>
 
-				<FormField label={t("form.servicenow.password")} errors={errors} name="password" required>
+				<FormField
+					label={t("form.servicenow.password")}
+					errors={errors}
+					name="password"
+					required
+				>
 					<Input
 						id="password"
 						type="password"
@@ -210,11 +220,7 @@ function ServiceNowCredentialForm({
 				</FormField>
 
 				<div className="flex justify-start gap-2 w-full">
-					<Button
-						type="button"
-						onClick={handleConnect}
-						disabled={isSubmitting}
-					>
+					<Button type="button" onClick={handleConnect} disabled={isSubmitting}>
 						{isSubmitting ? (
 							<>
 								<Spinner className="mr-2" />
@@ -228,7 +234,9 @@ function ServiceNowCredentialForm({
 
 				{isSubmitting && (
 					<StatusAlert variant="info">
-						<p className="text-accent-foreground">{t("form.connectionMayTakeTime")}</p>
+						<p className="text-accent-foreground">
+							{t("form.connectionMayTakeTime")}
+						</p>
 						<p>{t("form.doNotClosePage")}</p>
 					</StatusAlert>
 				)}
@@ -278,13 +286,16 @@ function JiraCredentialForm({
 					<StatusAlert variant="error" className="mb-4">
 						<p className="font-semibold">{t("form.verificationFailed")}</p>
 						<p>{verificationError}</p>
-						<p className="text-sm mt-2">
-							{t("form.checkCredentials")}
-						</p>
+						<p className="text-sm mt-2">{t("form.checkCredentials")}</p>
 					</StatusAlert>
 				)}
 
-				<FormField label={t("form.jira.url")} errors={errors} name="url" required>
+				<FormField
+					label={t("form.jira.url")}
+					errors={errors}
+					name="url"
+					required
+				>
 					<Input
 						id="url"
 						type="url"
@@ -293,14 +304,19 @@ function JiraCredentialForm({
 						{...register("url", {
 							required: t("form.jira.urlRequired"),
 							pattern: {
-								value: /^https?:\/\/.+/,
+								value: /^https?:\/\/[\w.-]+\.[a-zA-Z]{2,}(:\d+)?(\/.*)?$/,
 								message: t("form.jira.invalidUrl"),
 							},
 						})}
 					/>
 				</FormField>
 
-				<FormField label={t("form.jira.email")} errors={errors} name="email" required>
+				<FormField
+					label={t("form.jira.email")}
+					errors={errors}
+					name="email"
+					required
+				>
 					<Input
 						id="email"
 						type="email"
@@ -316,7 +332,12 @@ function JiraCredentialForm({
 					/>
 				</FormField>
 
-				<FormField label={t("form.jira.apiToken")} errors={errors} name="token" required>
+				<FormField
+					label={t("form.jira.apiToken")}
+					errors={errors}
+					name="token"
+					required
+				>
 					<Input
 						id="token"
 						type="password"
@@ -329,11 +350,7 @@ function JiraCredentialForm({
 				</FormField>
 
 				<div className="flex justify-start gap-2 w-full">
-					<Button
-						type="button"
-						onClick={handleConnect}
-						disabled={isSubmitting}
-					>
+					<Button type="button" onClick={handleConnect} disabled={isSubmitting}>
 						{isSubmitting ? (
 							<>
 								<Spinner className="mr-2" />
@@ -347,7 +364,9 @@ function JiraCredentialForm({
 
 				{isSubmitting && (
 					<StatusAlert variant="info">
-						<p className="text-accent-foreground">{t("form.connectionMayTakeTime")}</p>
+						<p className="text-accent-foreground">
+							{t("form.connectionMayTakeTime")}
+						</p>
 						<p>{t("form.doNotClosePage")}</p>
 					</StatusAlert>
 				)}
@@ -369,7 +388,9 @@ export default function CredentialSetupPage() {
 		null,
 	);
 	const [delegationId, setDelegationId] = useState<string | null>(null);
-	const [lastSubmissionTime, setLastSubmissionTime] = useState<number | null>(null);
+	const [lastSubmissionTime, setLastSubmissionTime] = useState<number | null>(
+		null,
+	);
 	const [submittedCredentials, setSubmittedCredentials] = useState<{
 		url: string;
 		email: string;
@@ -447,9 +468,7 @@ export default function CredentialSetupPage() {
 		} else if (status === "failed") {
 			// Go back to form with error message shown in StatusAlert
 			setPageState("form");
-			setVerificationError(
-				statusData.error || t("failed.defaultError"),
-			);
+			setVerificationError(statusData.error || t("failed.defaultError"));
 		}
 		// Keep polling for "pending" status
 	}, [statusData, pageState, lastSubmissionTime, t]);
@@ -550,22 +569,28 @@ export default function CredentialSetupPage() {
 		}
 	};
 
-
 	// Render loading state
 	if (pageState === "loading") {
 		return (
-				<div className="flex-1 flex items-center justify-center p-4">
-					<div className="flex flex-col items-center gap-4">
-						<Spinner className="h-8 w-8" aria-label={t("setup.verifyingLink")} />
-						<p className="text-sm text-muted-foreground">{t("setup.verifyingLink")}</p>
-					</div>
+			<div className="flex-1 flex items-center justify-center p-4">
+				<div className="flex flex-col items-center gap-4">
+					<Spinner className="h-8 w-8" aria-label={t("setup.verifyingLink")} />
+					<p className="text-sm text-muted-foreground">
+						{t("setup.verifyingLink")}
+					</p>
 				</div>
+			</div>
 		);
 	}
 
 	// Redirect to link expired page for invalid tokens
 	if (pageState === "invalid") {
-		return <Navigate to={`/link-expired?reason=${invalidReason || "not_found"}`} replace />;
+		return (
+			<Navigate
+				to={`/link-expired?reason=${invalidReason || "not_found"}`}
+				replace
+			/>
+		);
 	}
 
 	// Render verifying state (polling)
@@ -573,29 +598,29 @@ export default function CredentialSetupPage() {
 		const icon = SYSTEM_ICONS[verifyData.system_type];
 		const systemName = t(`systems.${verifyData.system_type}.title`);
 		return (
-				<div className="flex-1 flex items-center justify-center p-4">
-					<Card className="w-full max-w-md">
-						<CardHeader className="text-center">
-							<div className="mx-auto mb-4">
-								<img
-									src={icon}
-									alt={`${systemName} icon`}
-									className="w-12 h-12"
-								/>
-							</div>
-							<CardTitle>{t("verifying.title")}</CardTitle>
-							<CardDescription>
-								{t("verifying.description", { systemName })}
-							</CardDescription>
-						</CardHeader>
-						<CardContent className="flex flex-col items-center justify-center py-4">
-							<Spinner className="h-8 w-8" aria-label={t("verifying.title")} />
-							<p className="mt-4 text-sm text-muted-foreground">
-								{t("verifying.pleaseWait")}
-							</p>
-						</CardContent>
-					</Card>
-				</div>
+			<div className="flex-1 flex items-center justify-center p-4">
+				<Card className="w-full max-w-md">
+					<CardHeader className="text-center">
+						<div className="mx-auto mb-4">
+							<img
+								src={icon}
+								alt={`${systemName} icon`}
+								className="w-12 h-12"
+							/>
+						</div>
+						<CardTitle>{t("verifying.title")}</CardTitle>
+						<CardDescription>
+							{t("verifying.description", { systemName })}
+						</CardDescription>
+					</CardHeader>
+					<CardContent className="flex flex-col items-center justify-center py-4">
+						<Spinner className="h-8 w-8" aria-label={t("verifying.title")} />
+						<p className="mt-4 text-sm text-muted-foreground">
+							{t("verifying.pleaseWait")}
+						</p>
+					</CardContent>
+				</Card>
+			</div>
 		);
 	}
 
@@ -657,52 +682,46 @@ export default function CredentialSetupPage() {
 		);
 	}
 
-
 	// Render form state
 	const systemType = verifyData?.system_type;
 	const isSubmitting = pageState === "submitting";
 
 	if (!systemType || !verifyData?.org_name || !verifyData?.delegated_by) {
 		return (
-				<div className="flex-1 flex items-center justify-center p-4">
-					<p className="text-muted-foreground">{t("setup.loading")}</p>
-				</div>
+			<div className="flex-1 flex items-center justify-center p-4">
+				<p className="text-muted-foreground">{t("setup.loading")}</p>
+			</div>
 		);
 	}
 
 	return (
-        <>
-            <PageHeader
-                systemType={systemType}
-                orgName={verifyData.org_name}
-                delegatedBy={verifyData.delegated_by}
-            />
+		<>
+			<PageHeader
+				systemType={systemType}
+				orgName={verifyData.org_name}
+				delegatedBy={verifyData.delegated_by}
+			/>
 			<div className="flex-1 inline-flex flex-col items-center gap-4 w-full px-6 md:px-12 lg:px-24">
 				{/* Header with icon, title, description */}
 
-
 				{/* Form content */}
 				<div className="w-full max-w-2xl mx-auto flex flex-col gap-8 px-4 md:px-0">
-                    <div className="flex flex-col gap-8">
-                        <h2 className="text-2xl">Configure</h2>
-                    </div>
+					<div className="flex flex-col gap-8">
+						<h2 className="text-2xl">Configure</h2>
+					</div>
 					{/* API Error */}
 					{submitMutation.error && (
 						<StatusAlert variant="error">
-							<p>
-								{submitMutation.error.error || t("form.submitFailed")}
-							</p>
+							<p>{submitMutation.error.error || t("form.submitFailed")}</p>
 						</StatusAlert>
 					)}
 
-                    {!submitMutation.error && !verificationError && (
-                        <StatusAlert variant="info" className="mb-4">
-                            <p className="font-semibold">{t("form.setupAlertTitle")}</p>
-                            <p className="font-thin">
-                                {t("form.setupAlertBody")}
-                            </p>
-                        </StatusAlert>
-                    )}
+					{!submitMutation.error && !verificationError && (
+						<StatusAlert variant="info" className="mb-4">
+							<p className="font-semibold">{t("form.setupAlertTitle")}</p>
+							<p className="font-thin">{t("form.setupAlertBody")}</p>
+						</StatusAlert>
+					)}
 
 					{/* Render form based on system type */}
 					{systemType === "servicenow_itsm" && (
@@ -712,7 +731,7 @@ export default function CredentialSetupPage() {
 							verificationError={verificationError}
 						/>
 					)}
-					{systemType === "jira" && (
+					{systemType === "jira_itsm" && (
 						<JiraCredentialForm
 							onSubmit={handleJiraSubmit}
 							isSubmitting={isSubmitting}
@@ -721,6 +740,6 @@ export default function CredentialSetupPage() {
 					)}
 				</div>
 			</div>
-        </>
+		</>
 	);
 }
