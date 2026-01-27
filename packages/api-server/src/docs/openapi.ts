@@ -3,6 +3,7 @@ import {
 	OpenAPIRegistry,
 	OpenApiGeneratorV31,
 } from "@asteasolutions/zod-to-openapi";
+import type { OpenAPIObject } from "openapi3-ts/oas31";
 import { z } from "zod";
 
 // Extend Zod with OpenAPI support
@@ -29,7 +30,7 @@ registry.registerComponent("securitySchemes", "cookieAuth", {
 /**
  * Generate OpenAPI document from registered schemas and paths
  */
-export function generateOpenAPIDocument() {
+export function generateOpenAPIDocument(): OpenAPIObject {
 	const generator = new OpenApiGeneratorV31(registry.definitions);
 
 	return generator.generateDocument({
