@@ -9,6 +9,7 @@ import { fileURLToPath } from "url";
 
 // Import route docs to register all paths
 import "../src/docs/routes/clusters.docs.js";
+import "../src/docs/routes/conversations.docs.js";
 import "../src/docs/routes/dataSources.docs.js";
 
 import { generateOpenAPIDocument } from "../src/docs/openapi.js";

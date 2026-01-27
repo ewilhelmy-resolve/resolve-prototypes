@@ -4,6 +4,7 @@ import { generateOpenAPIDocument } from "../docs/openapi.js";
 
 // Import route docs to register paths
 import "../docs/routes/clusters.docs.js";
+import "../docs/routes/conversations.docs.js";
 import "../docs/routes/dataSources.docs.js";
 
 const router = Router();

@@ -465,6 +465,231 @@
 					"updated_at"
 				]
 			},
+			"ConversationResponse": {
+				"type": "object",
+				"properties": {
+					"conversation": {
+						"$ref": "#/components/schemas/Conversation"
+					}
+				},
+				"required": ["conversation"]
+			},
+			"Conversation": {
+				"type": "object",
+				"properties": {
+					"id": {
+						"type": "string",
+						"format": "uuid",
+						"example": "550e8400-e29b-41d4-a716-446655440000"
+					},
+					"title": {
+						"type": "string",
+						"example": "Password Reset Help"
+					},
+					"created_at": {
+						"type": "string",
+						"format": "date-time",
+						"example": "2024-01-15T10:30:00.000Z"
+					},
+					"updated_at": {
+						"type": "string",
+						"format": "date-time",
+						"example": "2024-01-15T10:30:00.000Z"
+					}
+				},
+				"required": ["id", "title", "created_at", "updated_at"]
+			},
+			"CreateConversationRequest": {
+				"type": "object",
+				"properties": {
+					"title": {
+						"type": "string",
+						"minLength": 1,
+						"maxLength": 255,
+						"description": "Conversation title",
+						"example": "Password Reset Help"
+					}
+				},
+				"required": ["title"]
+			},
+			"ConversationsListResponse": {
+				"type": "object",
+				"properties": {
+					"conversations": {
+						"type": "array",
+						"items": {
+							"$ref": "#/components/schemas/Conversation"
+						}
+					},
+					"total": {
+						"type": "integer",
+						"description": "Total conversations",
+						"example": 42
+					},
+					"limit": {
+						"type": "integer",
+						"example": 20
+					},
+					"offset": {
+						"type": "integer",
+						"example": 0
+					}
+				},
+				"required": ["conversations", "total", "limit", "offset"]
+			},
+			"MessagesResponse": {
+				"type": "object",
+				"properties": {
+					"messages": {
+						"type": "array",
+						"items": {
+							"$ref": "#/components/schemas/Message"
+						}
+					},
+					"hasMore": {
+						"type": "boolean",
+						"description": "Whether more messages exist"
+					},
+					"nextCursor": {
+						"type": ["string", "null"],
+						"format": "date-time",
+						"description": "Cursor for next page"
+					}
+				},
+				"required": ["messages", "hasMore", "nextCursor"]
+			},
+			"Message": {
+				"type": "object",
+				"properties": {
+					"id": {
+						"type": "string",
+						"format": "uuid",
+						"example": "550e8400-e29b-41d4-a716-446655440001"
+					},
+					"message": {
+						"type": "string",
+						"example": "How do I reset my password?"
+					},
+					"role": {
+						"$ref": "#/components/schemas/MessageRole"
+					},
+					"response_content": {
+						"type": ["string", "null"],
+						"description": "Assistant response content"
+					},
+					"status": {
+						"$ref": "#/components/schemas/MessageStatus"
+					},
+					"created_at": {
+						"type": "string",
+						"format": "date-time",
+						"example": "2024-01-15T10:30:00.000Z"
+					},
+					"processed_at": {
+						"type": ["string", "null"],
+						"format": "date-time",
+						"description": "When message was processed"
+					},
+					"error_message": {
+						"type": ["string", "null"],
+						"description": "Error message if failed"
+					},
+					"metadata": {
+						"type": ["object", "null"],
+						"additionalProperties": {},
+						"description": "Additional metadata"
+					},
+					"response_group_id": {
+						"type": ["string", "null"],
+						"format": "uuid",
+						"description": "Group ID for related responses"
+					},
+					"user_email": {
+						"type": ["string", "null"],
+						"format": "email",
+						"description": "Email of message sender"
+					}
+				},
+				"required": [
+					"id",
+					"message",
+					"role",
+					"response_content",
+					"status",
+					"created_at",
+					"processed_at",
+					"error_message",
+					"metadata",
+					"response_group_id",
+					"user_email"
+				]
+			},
+			"MessageRole": {
+				"type": "string",
+				"enum": ["user", "assistant"],
+				"description": "Message sender role"
+			},
+			"MessageStatus": {
+				"type": "string",
+				"enum": ["pending", "sent", "failed"],
+				"description": "Message delivery status"
+			},
+			"MessageCreatedResponse": {
+				"type": "object",
+				"properties": {
+					"message": {
+						"$ref": "#/components/schemas/Message"
+					},
+					"webhook": {
+						"type": "object",
+						"properties": {
+							"success": {
+								"type": "boolean"
+							},
+							"error": {
+								"type": ["string", "null"]
+							}
+						},
+						"required": ["success", "error"],
+						"description": "Webhook delivery result"
+					}
+				},
+				"required": ["message", "webhook"]
+			},
+			"CreateMessageRequest": {
+				"type": "object",
+				"properties": {
+					"content": {
+						"type": "string",
+						"minLength": 1,
+						"description": "Message content",
+						"example": "How do I reset my password?"
+					}
+				},
+				"required": ["content"]
+			},
+			"UpdateConversationRequest": {
+				"type": "object",
+				"properties": {
+					"title": {
+						"type": "string",
+						"minLength": 1,
+						"maxLength": 255,
+						"description": "New conversation title",
+						"example": "Updated Title"
+					}
+				},
+				"required": ["title"]
+			},
+			"DeleteConversationResponse": {
+				"type": "object",
+				"properties": {
+					"success": {
+						"type": "boolean"
+					}
+				},
+				"required": ["success"]
+			},
 			"DataSourceListResponse": {
 				"type": "object",
 				"properties": {
@@ -1107,6 +1332,482 @@
 					},
 					"404": {
 						"description": "Cluster not found",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "Server error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/api/conversations": {
+			"post": {
+				"tags": ["Conversations"],
+				"summary": "Create conversation",
+				"description": "Create a new chat conversation",
+				"security": [
+					{
+						"bearerAuth": []
+					},
+					{
+						"cookieAuth": []
+					}
+				],
+				"requestBody": {
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/components/schemas/CreateConversationRequest"
+							}
+						}
+					}
+				},
+				"responses": {
+					"201": {
+						"description": "Conversation created",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ConversationResponse"
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "Validation error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ValidationError"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Unauthorized",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "Server error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					}
+				}
+			},
+			"get": {
+				"tags": ["Conversations"],
+				"summary": "List conversations",
+				"description": "List user's chat conversations with pagination",
+				"security": [
+					{
+						"bearerAuth": []
+					},
+					{
+						"cookieAuth": []
+					}
+				],
+				"parameters": [
+					{
+						"schema": {
+							"type": "integer",
+							"minimum": 1,
+							"maximum": 100,
+							"default": 20,
+							"description": "Results per page"
+						},
+						"required": false,
+						"description": "Results per page",
+						"name": "limit",
+						"in": "query"
+					},
+					{
+						"schema": {
+							"type": ["integer", "null"],
+							"minimum": 0,
+							"default": 0,
+							"description": "Number of results to skip"
+						},
+						"required": false,
+						"description": "Number of results to skip",
+						"name": "offset",
+						"in": "query"
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "List of conversations",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ConversationsListResponse"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Unauthorized",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "Server error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/api/conversations/{conversationId}/messages": {
+			"get": {
+				"tags": ["Conversations"],
+				"summary": "Get conversation messages",
+				"description": "Get paginated messages for a conversation using cursor-based pagination",
+				"security": [
+					{
+						"bearerAuth": []
+					},
+					{
+						"cookieAuth": []
+					}
+				],
+				"parameters": [
+					{
+						"schema": {
+							"type": "string",
+							"format": "uuid",
+							"description": "Conversation ID"
+						},
+						"required": true,
+						"description": "Conversation ID",
+						"name": "conversationId",
+						"in": "path"
+					},
+					{
+						"schema": {
+							"type": "integer",
+							"minimum": 1,
+							"maximum": 100,
+							"default": 100,
+							"description": "Results per page"
+						},
+						"required": false,
+						"description": "Results per page",
+						"name": "limit",
+						"in": "query"
+					},
+					{
+						"schema": {
+							"type": "string",
+							"format": "date-time",
+							"description": "Cursor for pagination (ISO timestamp)"
+						},
+						"required": false,
+						"description": "Cursor for pagination (ISO timestamp)",
+						"name": "before",
+						"in": "query"
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "List of messages",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/MessagesResponse"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Unauthorized",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Conversation not found",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "Server error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					}
+				}
+			},
+			"post": {
+				"tags": ["Conversations"],
+				"summary": "Send message",
+				"description": "Send a new message to a conversation. Triggers webhook for processing.",
+				"security": [
+					{
+						"bearerAuth": []
+					},
+					{
+						"cookieAuth": []
+					}
+				],
+				"parameters": [
+					{
+						"schema": {
+							"type": "string",
+							"format": "uuid",
+							"description": "Conversation ID"
+						},
+						"required": true,
+						"description": "Conversation ID",
+						"name": "conversationId",
+						"in": "path"
+					}
+				],
+				"requestBody": {
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/components/schemas/CreateMessageRequest"
+							}
+						}
+					}
+				},
+				"responses": {
+					"201": {
+						"description": "Message sent",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/MessageCreatedResponse"
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "Validation error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ValidationError"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Unauthorized",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Conversation not found",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "Server error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/api/conversations/{conversationId}": {
+			"patch": {
+				"tags": ["Conversations"],
+				"summary": "Update conversation",
+				"description": "Update conversation title",
+				"security": [
+					{
+						"bearerAuth": []
+					},
+					{
+						"cookieAuth": []
+					}
+				],
+				"parameters": [
+					{
+						"schema": {
+							"type": "string",
+							"format": "uuid",
+							"description": "Conversation ID"
+						},
+						"required": true,
+						"description": "Conversation ID",
+						"name": "conversationId",
+						"in": "path"
+					}
+				],
+				"requestBody": {
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/components/schemas/UpdateConversationRequest"
+							}
+						}
+					}
+				},
+				"responses": {
+					"200": {
+						"description": "Conversation updated",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ConversationResponse"
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "Validation error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ValidationError"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Unauthorized",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Conversation not found",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "Server error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					}
+				}
+			},
+			"delete": {
+				"tags": ["Conversations"],
+				"summary": "Delete conversation",
+				"description": "Delete a conversation and all its messages",
+				"security": [
+					{
+						"bearerAuth": []
+					},
+					{
+						"cookieAuth": []
+					}
+				],
+				"parameters": [
+					{
+						"schema": {
+							"type": "string",
+							"format": "uuid",
+							"description": "Conversation ID"
+						},
+						"required": true,
+						"description": "Conversation ID",
+						"name": "conversationId",
+						"in": "path"
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "Conversation deleted",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/DeleteConversationResponse"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Unauthorized",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Conversation not found",
 						"content": {
 							"application/json": {
 								"schema": {
