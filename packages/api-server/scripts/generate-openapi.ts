@@ -7,10 +7,10 @@ import { writeFileSync } from "fs";
 import { dirname, join } from "path";
 import { fileURLToPath } from "url";
 
-// Import route docs to register all paths
-import "../src/docs/routes/clusters.docs.js";
-import "../src/docs/routes/conversations.docs.js";
-import "../src/docs/routes/dataSources.docs.js";
+// Import routes to register their OpenAPI docs
+import "../src/routes/clusters.js";
+import "../src/routes/conversations.js";
+import "../src/routes/dataSources.js";
 
 import { generateOpenAPIDocument } from "../src/docs/openapi.js";
 

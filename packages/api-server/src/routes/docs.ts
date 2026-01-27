@@ -2,10 +2,8 @@ import { Router } from "express";
 import swaggerUi from "swagger-ui-express";
 import { generateOpenAPIDocument } from "../docs/openapi.js";
 
-// Import route docs to register paths
-import "../docs/routes/clusters.docs.js";
-import "../docs/routes/conversations.docs.js";
-import "../docs/routes/dataSources.docs.js";
+// Routes self-register their docs when imported
+// (imported via index.ts/main app)
 
 const router = Router();
 

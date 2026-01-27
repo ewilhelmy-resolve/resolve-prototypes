@@ -24,6 +24,32 @@ We use two complementary specs:
 | **OpenAPI 3.1** | REST endpoints | `/api-docs` (Swagger UI) |
 | **AsyncAPI 3.0** | SSE, RabbitMQ, Webhooks | [asyncapi.yaml](./asyncapi.yaml) |
 
+## Architecture: Single Source of Truth
+
+Zod schemas serve as **single source of truth** for both validation AND documentation:
+
+```
+src/
+├── schemas/                    # SINGLE SOURCE - Zod + .openapi() metadata
+│   ├── common.ts               # Error, pagination, helpers
+│   ├── cluster.ts              # Cluster schemas
+│   ├── conversation.ts         # Conversation schemas
+│   └── dataSource.ts           # Data source schemas
+├── routes/
+│   ├── clusters.ts             # Route handlers + colocated docs
+│   ├── conversations.ts        # Route handlers + colocated docs
+│   ├── dataSources.ts          # Route handlers + colocated docs
+│   └── docs.ts                 # Serves Swagger UI
+└── docs/
+    └── openapi.ts              # Registry singleton
+```
+
+**Benefits:**
+- No schema duplication between validation and docs
+- Changes auto-sync - modify once, updates everywhere
+- Type-safe validation AND documentation
+- Docs live next to the routes they document
+
 ## Tools
 
 | Tool | Purpose |
@@ -31,11 +57,6 @@ We use two complementary specs:
 | `@asteasolutions/zod-to-openapi` | Generate OpenAPI from Zod schemas |
 | `swagger-ui-express` | Interactive API docs at `/api-docs` |
 | `@apidevtools/swagger-parser` | Validate spec in CI |
-
-**Why zod-to-openapi?**
-- Extends existing Zod validation schemas
-- Type-safe - schema changes auto-update docs
-- No JSDoc comments or separate spec files to maintain
 
 ## Scripts
 
@@ -55,17 +76,18 @@ packages/api-server/
 ├── scripts/
 │   ├── generate-openapi.ts
 │   └── validate-openapi.ts
-└── src/docs/
-    ├── openapi.ts                  # Registry + generator
-    ├── schemas/                    # Zod schemas with OpenAPI metadata
+└── src/
+    ├── docs/
+    │   └── openapi.ts              # Registry + generator
+    ├── schemas/                    # Shared Zod schemas
     │   ├── common.ts               # Error, pagination
     │   ├── cluster.ts
     │   ├── conversation.ts
     │   └── dataSource.ts
-    └── routes/                     # Route registrations
-        ├── clusters.docs.ts
-        ├── conversations.docs.ts
-        └── dataSources.docs.ts
+    └── routes/                     # Routes with colocated docs
+        ├── clusters.ts
+        ├── conversations.ts
+        └── dataSources.ts
 ```
 
 ## Documentation Progress
@@ -74,9 +96,9 @@ packages/api-server/
 
 | Route Group | Endpoints | Status | File |
 |-------------|-----------|--------|------|
-| `/api/clusters` | 4 | ✅ Done | `clusters.docs.ts` |
-| `/api/data-sources` | 9 | ✅ Done | `dataSources.docs.ts` |
-| `/api/conversations` | 6 | ✅ Done | `conversations.docs.ts` |
+| `/api/clusters` | 4 | ✅ Done | `clusters.ts` |
+| `/api/data-sources` | 9 | ✅ Done | `dataSources.ts` |
+| `/api/conversations` | 6 | ✅ Done | `conversations.ts` |
 | `/auth` | 8 | ⬜ TODO | - |
 | `/api/files` | 6 | ⬜ TODO | - |
 | `/api/organizations/members` | 7 | ⬜ TODO | - |
@@ -103,56 +125,91 @@ packages/api-server/
 
 ## Adding New Endpoint Docs
 
-### 1. Create schema file (if needed)
+### 1. Create/update schema file
 
 ```typescript
-// src/docs/schemas/conversation.ts
-import { z } from "../openapi.js";
+// src/schemas/myFeature.ts
+import { z } from "../docs/openapi.js";
 
-export const ConversationSchema = z.object({
+// Request schema - used for BOTH validation and docs
+export const CreateMyFeatureSchema = z.object({
+  name: z.string().min(1).max(255).openapi({ example: "My Feature" }),
+  enabled: z.boolean().optional().openapi({ default: true }),
+}).openapi("CreateMyFeatureRequest");
+
+// Response schema
+export const MyFeatureSchema = z.object({
   id: z.string().uuid(),
-  title: z.string(),
-  // ...
-}).openapi("Conversation");
+  name: z.string(),
+  enabled: z.boolean(),
+  created_at: z.string().datetime(),
+}).openapi("MyFeature");
+
+export const MyFeatureResponseSchema = z.object({
+  data: MyFeatureSchema,
+}).openapi("MyFeatureResponse");
 ```
 
-### 2. Create route docs file
+### 2. Add route with colocated docs
 
 ```typescript
-// src/docs/routes/conversations.docs.ts
-import { registry, z } from "../openapi.js";
-import { ConversationSchema } from "../schemas/conversation.js";
-import { ErrorResponseSchema } from "../schemas/common.js";
+// src/routes/myFeature.ts
+import express from "express";
+import { z } from "zod";
+import { registry } from "../docs/openapi.js";
+import { ErrorResponseSchema, ValidationErrorSchema } from "../schemas/common.js";
+import { CreateMyFeatureSchema, MyFeatureResponseSchema } from "../schemas/myFeature.js";
+
+const router = express.Router();
+
+// ============================================================================
+// OpenAPI Documentation Registration
+// ============================================================================
 
 registry.registerPath({
-  method: "get",
-  path: "/api/conversations",
-  tags: ["Conversations"],
-  summary: "List conversations",
-  description: "List user's conversations",
+  method: "post",
+  path: "/api/my-feature",
+  tags: ["MyFeature"],
+  summary: "Create my feature",
+  description: "Create a new feature instance",
   security: [{ bearerAuth: [] }, { cookieAuth: [] }],
+  request: {
+    body: { content: { "application/json": { schema: CreateMyFeatureSchema } } },
+  },
   responses: {
-    200: {
-      description: "List of conversations",
-      content: {
-        "application/json": {
-          schema: z.object({ data: z.array(ConversationSchema) }),
-        },
-      },
-    },
-    401: {
-      description: "Unauthorized",
-      content: { "application/json": { schema: ErrorResponseSchema } },
-    },
+    201: { description: "Created", content: { "application/json": { schema: MyFeatureResponseSchema } } },
+    400: { description: "Validation error", content: { "application/json": { schema: ValidationErrorSchema } } },
+    401: { description: "Unauthorized", content: { "application/json": { schema: ErrorResponseSchema } } },
+    500: { description: "Server error", content: { "application/json": { schema: ErrorResponseSchema } } },
   },
 });
+
+// ============================================================================
+// Route Handlers
+// ============================================================================
+
+router.post("/", async (req, res) => {
+  try {
+    // Same schema validates request AND documents API
+    const validated = CreateMyFeatureSchema.parse(req.body);
+    // ... handler logic
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ error: "Validation error", details: error.issues });
+    }
+    res.status(500).json({ error: "Failed" });
+  }
+});
+
+export default router;
 ```
 
-### 3. Import in docs.ts
+### 3. Update scripts (if new route file)
+
+Add import to `scripts/generate-openapi.ts` and `scripts/validate-openapi.ts`:
 
 ```typescript
-// src/routes/docs.ts
-import "../docs/routes/conversations.docs.js";
+import "../src/routes/myFeature.js";
 ```
 
 ### 4. Regenerate spec
@@ -184,6 +241,24 @@ Or generate HTML docs:
 ```bash
 npx @asyncapi/cli generate fromTemplate docs/asyncapi.yaml @asyncapi/html-template -o docs/async-html
 ```
+
+---
+
+## Known Issues
+
+### Missing Auth Middleware (TODO)
+
+Some routes use `authReq.user` but don't have `authenticateUser` middleware. They may rely on app-level auth or this could be a bug:
+
+| Route | File | Issue |
+|-------|------|-------|
+| `GET /api/clusters` | `clusters.ts:158` | No `authenticateUser` |
+| `GET /api/clusters/:id/details` | `clusters.ts:191` | No `authenticateUser` |
+| `GET /api/clusters/:id/tickets` | `clusters.ts:220` | No `authenticateUser` |
+| `GET /api/clusters/:id/kb-articles` | `clusters.ts:273` | No `authenticateUser` |
+| `GET /api/tickets/:id` | `tickets.ts:12` | No `authenticateUser` |
+
+**Action:** Verify if these routes should require auth, and add middleware if needed.
 
 ---
 

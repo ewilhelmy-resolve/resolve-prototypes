@@ -1,4 +1,4 @@
-import { z } from "../openapi.js";
+import { z } from "../docs/openapi.js";
 
 // ============================================================================
 // Enums
