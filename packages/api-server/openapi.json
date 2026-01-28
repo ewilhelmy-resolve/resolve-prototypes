@@ -10,8 +10,8 @@
 	},
 	"servers": [
 		{
-			"url": "http://localhost:3000",
-			"description": "Development server"
+			"url": "/",
+			"description": "Current server"
 		}
 	],
 	"tags": [
@@ -999,6 +999,218 @@
 				},
 				"required": ["success"]
 			},
+			"CreateDelegationResponse": {
+				"type": "object",
+				"properties": {
+					"success": {
+						"type": "boolean",
+						"enum": [true]
+					},
+					"delegation_id": {
+						"type": "string",
+						"format": "uuid"
+					},
+					"message": {
+						"type": "string",
+						"example": "Credential delegation email sent"
+					},
+					"expires_at": {
+						"type": "string",
+						"format": "date-time"
+					}
+				},
+				"required": ["success", "delegation_id", "message", "expires_at"]
+			},
+			"CreateDelegationRequest": {
+				"type": "object",
+				"properties": {
+					"admin_email": {
+						"type": "string",
+						"format": "email",
+						"description": "IT admin email to send delegation to"
+					},
+					"itsm_system_type": {
+						"type": "string",
+						"enum": ["servicenow_itsm", "jira"],
+						"description": "ITSM system type"
+					}
+				},
+				"required": ["admin_email", "itsm_system_type"]
+			},
+			"VerifyDelegationResponse": {
+				"type": "object",
+				"properties": {
+					"valid": {
+						"type": "boolean"
+					},
+					"organization_name": {
+						"type": "string"
+					},
+					"itsm_system_type": {
+						"type": "string",
+						"enum": ["servicenow_itsm", "jira"],
+						"description": "ITSM system type"
+					},
+					"expires_at": {
+						"type": "string",
+						"format": "date-time"
+					},
+					"reason": {
+						"type": "string",
+						"description": "Reason if invalid"
+					}
+				},
+				"required": ["valid"]
+			},
+			"SubmitCredentialsResponse": {
+				"type": "object",
+				"properties": {
+					"success": {
+						"type": "boolean",
+						"enum": [true]
+					},
+					"delegation_id": {
+						"type": "string",
+						"format": "uuid"
+					},
+					"message": {
+						"type": "string",
+						"example": "Credentials submitted successfully"
+					}
+				},
+				"required": ["success", "delegation_id", "message"]
+			},
+			"SubmitCredentialsRequest": {
+				"type": "object",
+				"properties": {
+					"token": {
+						"type": "string",
+						"minLength": 64,
+						"maxLength": 64,
+						"description": "Delegation token"
+					},
+					"credentials": {
+						"type": "object",
+						"additionalProperties": {},
+						"description": "ITSM credentials (varies by system type)",
+						"example": {
+							"instance_url": "https://company.service-now.com",
+							"username": "admin",
+							"password": "***"
+						}
+					}
+				},
+				"required": ["token", "credentials"]
+			},
+			"DelegationStatusResponse": {
+				"type": "object",
+				"properties": {
+					"status": {
+						"type": "string",
+						"enum": ["pending", "completed", "expired", "cancelled"],
+						"description": "Delegation status"
+					},
+					"itsm_system_type": {
+						"type": "string",
+						"enum": ["servicenow_itsm", "jira"],
+						"description": "ITSM system type"
+					},
+					"created_at": {
+						"type": "string",
+						"format": "date-time"
+					},
+					"expires_at": {
+						"type": "string",
+						"format": "date-time"
+					},
+					"completed_at": {
+						"type": ["string", "null"],
+						"format": "date-time"
+					}
+				},
+				"required": [
+					"status",
+					"itsm_system_type",
+					"created_at",
+					"expires_at",
+					"completed_at"
+				]
+			},
+			"DelegationListResponse": {
+				"type": "object",
+				"properties": {
+					"delegations": {
+						"type": "array",
+						"items": {
+							"$ref": "#/components/schemas/CredentialDelegation"
+						}
+					}
+				},
+				"required": ["delegations"]
+			},
+			"CredentialDelegation": {
+				"type": "object",
+				"properties": {
+					"id": {
+						"type": "string",
+						"format": "uuid",
+						"description": "Delegation ID"
+					},
+					"adminEmail": {
+						"type": "string",
+						"format": "email",
+						"description": "IT admin email"
+					},
+					"itsmSystemType": {
+						"type": "string",
+						"enum": ["servicenow_itsm", "jira"],
+						"description": "ITSM system type"
+					},
+					"status": {
+						"type": "string",
+						"enum": ["pending", "completed", "expired", "cancelled"],
+						"description": "Delegation status"
+					},
+					"createdAt": {
+						"type": "string",
+						"format": "date-time",
+						"description": "Created timestamp"
+					},
+					"expiresAt": {
+						"type": "string",
+						"format": "date-time",
+						"description": "Expiration timestamp"
+					},
+					"completedAt": {
+						"type": ["string", "null"],
+						"format": "date-time",
+						"description": "Completion timestamp"
+					}
+				},
+				"required": [
+					"id",
+					"adminEmail",
+					"itsmSystemType",
+					"status",
+					"createdAt",
+					"expiresAt",
+					"completedAt"
+				]
+			},
+			"CancelDelegationResponse": {
+				"type": "object",
+				"properties": {
+					"success": {
+						"type": "boolean",
+						"enum": [true]
+					},
+					"message": {
+						"type": "string",
+						"example": "Delegation cancelled"
+					}
+				},
+				"required": ["success", "message"]
+			},
 			"DataSourceListResponse": {
 				"type": "object",
 				"properties": {
@@ -1109,8 +1321,8 @@
 					"servicenow_itsm",
 					"sharepoint",
 					"websearch",
-					"jira",
-					"jira_itsm"
+					"jira_itsm",
+					"freshdesk"
 				],
 				"description": "Type of data source connection"
 			},
@@ -1267,6 +1479,963 @@
 				},
 				"required": ["success", "message", "connection_id", "ingestion_run_id"]
 			},
+			"FlagCheckResponse": {
+				"type": "object",
+				"properties": {
+					"flagName": {
+						"type": "string",
+						"description": "Feature flag name"
+					},
+					"isEnabled": {
+						"type": "boolean",
+						"description": "Whether flag is enabled for tenant"
+					}
+				},
+				"required": ["flagName", "isEnabled"]
+			},
+			"BatchFlagsResponse": {
+				"type": "object",
+				"properties": {
+					"flags": {
+						"type": "object",
+						"additionalProperties": {
+							"type": "boolean"
+						},
+						"description": "Map of flag names to enabled status"
+					}
+				},
+				"required": ["flags"]
+			},
+			"BatchFlagsRequest": {
+				"type": "object",
+				"properties": {
+					"flagNames": {
+						"type": "array",
+						"items": {
+							"type": "string"
+						},
+						"minItems": 1,
+						"description": "Array of flag names to check"
+					}
+				},
+				"required": ["flagNames"]
+			},
+			"UpdateFlagRuleResponse": {
+				"type": "object",
+				"properties": {
+					"success": {
+						"type": "boolean",
+						"enum": [true]
+					},
+					"flagName": {
+						"type": "string",
+						"description": "Feature flag name"
+					},
+					"isEnabled": {
+						"type": "boolean",
+						"description": "New enabled status"
+					}
+				},
+				"required": ["success", "flagName", "isEnabled"]
+			},
+			"UpdateFlagRuleRequest": {
+				"type": "object",
+				"properties": {
+					"isEnabled": {
+						"type": "boolean",
+						"description": "New enabled status for flag"
+					}
+				},
+				"required": ["isEnabled"]
+			},
+			"FileUploadResponse": {
+				"type": "object",
+				"properties": {
+					"document": {
+						"$ref": "#/components/schemas/Document"
+					}
+				},
+				"required": ["document"]
+			},
+			"Document": {
+				"type": "object",
+				"properties": {
+					"id": {
+						"type": "string",
+						"format": "uuid",
+						"description": "Document ID"
+					},
+					"filename": {
+						"type": "string",
+						"description": "File name",
+						"example": "guide.pdf"
+					},
+					"size": {
+						"type": "number",
+						"description": "File size in bytes",
+						"example": 102400
+					},
+					"type": {
+						"type": "string",
+						"description": "MIME type",
+						"example": "application/pdf"
+					},
+					"status": {
+						"type": "string",
+						"enum": ["processing", "ready", "failed"],
+						"description": "File processing status"
+					},
+					"source": {
+						"type": "string",
+						"enum": ["manual", "confluence", "jira", "sharepoint"],
+						"description": "Source of the file"
+					},
+					"created_at": {
+						"type": "string",
+						"format": "date-time",
+						"description": "Creation timestamp"
+					}
+				},
+				"required": ["id", "filename", "size", "type", "status", "created_at"]
+			},
+			"FileConflictResponse": {
+				"type": "object",
+				"properties": {
+					"error": {
+						"type": "string",
+						"enum": ["File already uploaded"]
+					},
+					"existing_filename": {
+						"type": "string",
+						"description": "Name of existing file with same content"
+					}
+				},
+				"required": ["error", "existing_filename"]
+			},
+			"FileContentResponse": {
+				"type": "object",
+				"properties": {
+					"document": {
+						"type": "object",
+						"properties": {
+							"id": {
+								"type": "string",
+								"format": "uuid"
+							},
+							"filename": {
+								"type": "string"
+							},
+							"size": {
+								"type": "number"
+							},
+							"type": {
+								"type": "string"
+							},
+							"status": {
+								"type": "string",
+								"enum": ["processing", "ready", "failed"],
+								"description": "File processing status"
+							},
+							"created_at": {
+								"type": "string",
+								"format": "date-time"
+							}
+						},
+						"required": [
+							"id",
+							"filename",
+							"size",
+							"type",
+							"status",
+							"created_at"
+						]
+					}
+				},
+				"required": ["document"]
+			},
+			"FileContentRequest": {
+				"type": "object",
+				"properties": {
+					"content": {
+						"type": "string",
+						"description": "Text content to store"
+					},
+					"filename": {
+						"type": "string",
+						"description": "File name for the content",
+						"example": "notes.txt"
+					},
+					"metadata": {
+						"type": "object",
+						"additionalProperties": {},
+						"description": "Optional metadata"
+					}
+				},
+				"required": ["content", "filename"]
+			},
+			"FileMetadataResponse": {
+				"type": "object",
+				"properties": {
+					"id": {
+						"type": "string",
+						"format": "uuid",
+						"description": "Document ID"
+					},
+					"organization_id": {
+						"type": "string",
+						"format": "uuid",
+						"description": "Organization ID"
+					},
+					"user_id": {
+						"type": "string",
+						"format": "uuid",
+						"description": "Uploader user ID"
+					},
+					"filename": {
+						"type": "string",
+						"description": "File name"
+					},
+					"file_size": {
+						"type": "number",
+						"description": "File size in bytes"
+					},
+					"mime_type": {
+						"type": "string",
+						"description": "MIME type"
+					},
+					"status": {
+						"type": "string",
+						"enum": ["processing", "ready", "failed"],
+						"description": "File processing status"
+					},
+					"processed_markdown": {
+						"type": ["string", "null"],
+						"description": "Processed content as markdown"
+					},
+					"metadata": {
+						"type": "object",
+						"additionalProperties": {},
+						"description": "File metadata including content"
+					},
+					"created_at": {
+						"type": "string",
+						"format": "date-time",
+						"description": "Creation timestamp"
+					},
+					"updated_at": {
+						"type": ["string", "null"],
+						"format": "date-time",
+						"description": "Last update timestamp"
+					},
+					"blob_id": {
+						"type": "string",
+						"description": "Blob storage ID"
+					},
+					"_lookup_strategy": {
+						"type": "string",
+						"description": "Debug: lookup method used"
+					}
+				},
+				"required": [
+					"id",
+					"organization_id",
+					"user_id",
+					"filename",
+					"file_size",
+					"mime_type",
+					"status",
+					"processed_markdown",
+					"metadata",
+					"created_at",
+					"updated_at",
+					"blob_id"
+				]
+			},
+			"FileListResponse": {
+				"type": "object",
+				"properties": {
+					"documents": {
+						"type": "array",
+						"items": {
+							"$ref": "#/components/schemas/FileListItem"
+						}
+					},
+					"total": {
+						"type": "number",
+						"description": "Total count matching filters"
+					},
+					"limit": {
+						"type": "number"
+					},
+					"offset": {
+						"type": "number"
+					}
+				},
+				"required": ["documents", "total", "limit", "offset"]
+			},
+			"FileListItem": {
+				"type": "object",
+				"properties": {
+					"id": {
+						"type": "string",
+						"format": "uuid"
+					},
+					"file_name": {
+						"type": "string"
+					},
+					"file_size": {
+						"type": "number"
+					},
+					"mime_type": {
+						"type": "string"
+					},
+					"status": {
+						"type": "string",
+						"enum": ["processing", "ready", "failed"],
+						"description": "File processing status"
+					},
+					"metadata": {
+						"type": ["object", "null"],
+						"additionalProperties": {}
+					},
+					"user_id": {
+						"type": "string",
+						"format": "uuid"
+					},
+					"created_at": {
+						"type": "string",
+						"format": "date-time"
+					},
+					"updated_at": {
+						"type": ["string", "null"],
+						"format": "date-time"
+					},
+					"source": {
+						"type": ["string", "null"],
+						"enum": ["manual", "confluence", "jira", "sharepoint", null],
+						"description": "Source of the file"
+					},
+					"content_type": {
+						"type": "string",
+						"enum": ["text", "binary"]
+					}
+				},
+				"required": [
+					"id",
+					"file_name",
+					"file_size",
+					"mime_type",
+					"status",
+					"metadata",
+					"user_id",
+					"created_at",
+					"updated_at",
+					"source",
+					"content_type"
+				]
+			},
+			"FileProcessResponse": {
+				"type": "object",
+				"properties": {
+					"success": {
+						"type": "boolean",
+						"enum": [true]
+					},
+					"message": {
+						"type": "string",
+						"example": "Document sent for processing"
+					},
+					"document_id": {
+						"type": "string",
+						"format": "uuid"
+					}
+				},
+				"required": ["success", "message", "document_id"]
+			},
+			"FileProcessRequest": {
+				"type": "object",
+				"properties": {
+					"enable_processing": {
+						"type": "boolean",
+						"description": "Must be true to trigger processing",
+						"example": true
+					}
+				},
+				"required": ["enable_processing"]
+			},
+			"FileDeleteResponse": {
+				"type": "object",
+				"properties": {
+					"deleted": {
+						"type": "boolean",
+						"enum": [true]
+					},
+					"document_id": {
+						"type": "string",
+						"format": "uuid"
+					},
+					"blob_id": {
+						"type": "string"
+					}
+				},
+				"required": ["deleted", "document_id", "blob_id"]
+			},
+			"IframeValidateResponse": {
+				"type": "object",
+				"properties": {
+					"valid": {
+						"type": "boolean",
+						"description": "Whether validation succeeded"
+					},
+					"conversationId": {
+						"type": "string",
+						"format": "uuid",
+						"description": "Conversation ID"
+					},
+					"webhookConfigLoaded": {
+						"type": "boolean",
+						"description": "Whether webhook config loaded"
+					},
+					"webhookTenantId": {
+						"type": "string",
+						"description": "Tenant ID from webhook config"
+					},
+					"titleText": {
+						"type": "string",
+						"description": "Custom title text from Valkey"
+					},
+					"welcomeText": {
+						"type": "string",
+						"description": "Custom welcome text from Valkey"
+					},
+					"placeholderText": {
+						"type": "string",
+						"description": "Custom placeholder text from Valkey"
+					},
+					"valkeyPayload": {
+						"type": "object",
+						"additionalProperties": {},
+						"description": "Full Valkey payload (dev tools)"
+					},
+					"error": {
+						"type": "string",
+						"description": "Error message if validation failed"
+					}
+				},
+				"required": ["valid"]
+			},
+			"IframeValidateRequest": {
+				"type": "object",
+				"properties": {
+					"sessionKey": {
+						"type": "string",
+						"description": "Valkey session key"
+					},
+					"intentEid": {
+						"type": "string",
+						"description": "Optional intent EID for tracking"
+					},
+					"existingConversationId": {
+						"type": "string",
+						"format": "uuid",
+						"description": "Existing conversation ID to resume"
+					}
+				},
+				"required": ["sessionKey"]
+			},
+			"IframeDebugResponse": {
+				"type": "object",
+				"properties": {
+					"timestamp": {
+						"type": "string",
+						"format": "date-time",
+						"description": "Current timestamp"
+					},
+					"valkey": {
+						"type": "object",
+						"properties": {
+							"connected": {
+								"type": "boolean",
+								"description": "Valkey connection status"
+							},
+							"url": {
+								"type": "string",
+								"description": "Valkey URL (masked)"
+							}
+						},
+						"required": ["connected"],
+						"description": "Valkey status"
+					},
+					"environment": {
+						"type": "object",
+						"additionalProperties": {
+							"type": "string"
+						},
+						"description": "Environment variable status (set/not set)"
+					}
+				},
+				"required": ["timestamp", "valkey", "environment"]
+			},
+			"IframeExecuteResponse": {
+				"type": "object",
+				"properties": {
+					"success": {
+						"type": "boolean",
+						"description": "Whether execution started"
+					},
+					"eventId": {
+						"type": "string",
+						"description": "Event ID for tracking"
+					},
+					"error": {
+						"type": "string",
+						"description": "Error message if failed"
+					},
+					"debug": {
+						"type": "object",
+						"properties": {
+							"valkeyStatus": {},
+							"totalDurationMs": {
+								"type": "number"
+							},
+							"errorCode": {
+								"type": "string"
+							},
+							"errorDetails": {
+								"type": "string"
+							}
+						},
+						"description": "Debug information"
+					}
+				},
+				"required": ["success"]
+			},
+			"IframeExecuteRequest": {
+				"type": "object",
+				"properties": {
+					"hashkey": {
+						"type": "string",
+						"description": "Valkey hashkey for workflow"
+					},
+					"sessionKey": {
+						"type": "string",
+						"description": "Alternative to hashkey (portal uses this)"
+					}
+				}
+			},
+			"IframeDeleteConversationResponse": {
+				"type": "object",
+				"properties": {
+					"success": {
+						"type": "boolean",
+						"description": "Whether deletion succeeded"
+					},
+					"error": {
+						"type": "string",
+						"description": "Error message if failed"
+					}
+				},
+				"required": ["success"]
+			},
+			"SendInvitationsResponse": {
+				"type": "object",
+				"properties": {
+					"successCount": {
+						"type": "number",
+						"description": "Number of successful invitations"
+					},
+					"failureCount": {
+						"type": "number",
+						"description": "Number of failed invitations"
+					},
+					"results": {
+						"type": "array",
+						"items": {
+							"$ref": "#/components/schemas/SendInvitationsResult"
+						}
+					}
+				},
+				"required": ["successCount", "failureCount", "results"]
+			},
+			"SendInvitationsResult": {
+				"type": "object",
+				"properties": {
+					"email": {
+						"type": "string",
+						"format": "email"
+					},
+					"success": {
+						"type": "boolean"
+					},
+					"error": {
+						"type": "string",
+						"description": "Error message if failed"
+					}
+				},
+				"required": ["email", "success"]
+			},
+			"SendInvitationsRequest": {
+				"type": "object",
+				"properties": {
+					"emails": {
+						"type": "array",
+						"items": {
+							"type": "string",
+							"format": "email"
+						},
+						"minItems": 1,
+						"maxItems": 50,
+						"description": "Email addresses to invite (max 50)"
+					}
+				},
+				"required": ["emails"]
+			},
+			"VerifyInvitationResponse": {
+				"type": "object",
+				"properties": {
+					"valid": {
+						"type": "boolean"
+					},
+					"email": {
+						"type": "string",
+						"format": "email"
+					},
+					"organizationName": {
+						"type": "string"
+					},
+					"expiresAt": {
+						"type": "string",
+						"format": "date-time"
+					},
+					"error": {
+						"type": "string",
+						"description": "Error if invalid"
+					},
+					"code": {
+						"type": "string",
+						"description": "Error code if invalid"
+					}
+				},
+				"required": ["valid"]
+			},
+			"AcceptInvitationResponse": {
+				"type": "object",
+				"properties": {
+					"success": {
+						"type": "boolean",
+						"enum": [true]
+					},
+					"message": {
+						"type": "string",
+						"example": "Account created successfully. You can sign in shortly."
+					},
+					"email": {
+						"type": "string",
+						"format": "email"
+					}
+				},
+				"required": ["success", "message", "email"]
+			},
+			"AcceptInvitationRequest": {
+				"type": "object",
+				"properties": {
+					"token": {
+						"type": "string",
+						"minLength": 64,
+						"maxLength": 64,
+						"description": "Invitation token from email"
+					},
+					"firstName": {
+						"type": "string",
+						"minLength": 1,
+						"description": "User first name"
+					},
+					"lastName": {
+						"type": "string",
+						"minLength": 1,
+						"description": "User last name"
+					},
+					"password": {
+						"type": "string",
+						"minLength": 1,
+						"description": "User password"
+					}
+				},
+				"required": ["token", "firstName", "lastName", "password"]
+			},
+			"InvitationListResponse": {
+				"type": "object",
+				"properties": {
+					"invitations": {
+						"type": "array",
+						"items": {
+							"$ref": "#/components/schemas/Invitation"
+						}
+					}
+				},
+				"required": ["invitations"]
+			},
+			"Invitation": {
+				"type": "object",
+				"properties": {
+					"id": {
+						"type": "string",
+						"format": "uuid",
+						"description": "Invitation ID"
+					},
+					"email": {
+						"type": "string",
+						"format": "email",
+						"description": "Invited email address"
+					},
+					"status": {
+						"type": "string",
+						"enum": ["pending", "accepted", "expired", "cancelled"],
+						"description": "Invitation status"
+					},
+					"invitedBy": {
+						"type": "string",
+						"format": "uuid",
+						"description": "User who sent invitation"
+					},
+					"createdAt": {
+						"type": "string",
+						"format": "date-time",
+						"description": "Invitation created at"
+					},
+					"expiresAt": {
+						"type": "string",
+						"format": "date-time",
+						"description": "Invitation expires at"
+					},
+					"acceptedAt": {
+						"type": ["string", "null"],
+						"format": "date-time",
+						"description": "When invitation was accepted"
+					}
+				},
+				"required": [
+					"id",
+					"email",
+					"status",
+					"invitedBy",
+					"createdAt",
+					"expiresAt",
+					"acceptedAt"
+				]
+			},
+			"CancelInvitationResponse": {
+				"type": "object",
+				"properties": {
+					"success": {
+						"type": "boolean",
+						"enum": [true]
+					},
+					"message": {
+						"type": "string",
+						"example": "Invitation cancelled"
+					}
+				},
+				"required": ["success", "message"]
+			},
+			"MemberListResponse": {
+				"type": "object",
+				"properties": {
+					"members": {
+						"type": "array",
+						"items": {
+							"$ref": "#/components/schemas/Member"
+						}
+					},
+					"total": {
+						"type": "number",
+						"description": "Total matching members"
+					},
+					"limit": {
+						"type": "number"
+					},
+					"offset": {
+						"type": "number"
+					}
+				},
+				"required": ["members", "total", "limit", "offset"]
+			},
+			"Member": {
+				"type": "object",
+				"properties": {
+					"userId": {
+						"type": "string",
+						"format": "uuid",
+						"description": "User ID"
+					},
+					"email": {
+						"type": "string",
+						"format": "email",
+						"description": "User email"
+					},
+					"name": {
+						"type": ["string", "null"],
+						"description": "User full name"
+					},
+					"firstName": {
+						"type": ["string", "null"],
+						"description": "User first name"
+					},
+					"lastName": {
+						"type": ["string", "null"],
+						"description": "User last name"
+					},
+					"role": {
+						"type": "string",
+						"enum": ["owner", "admin", "user"],
+						"description": "Member role in organization"
+					},
+					"isActive": {
+						"type": "boolean",
+						"description": "Whether member is active"
+					},
+					"joinedAt": {
+						"type": "string",
+						"format": "date-time",
+						"description": "When user joined the org"
+					},
+					"conversationsCount": {
+						"type": "number",
+						"description": "Number of conversations"
+					}
+				},
+				"required": [
+					"userId",
+					"email",
+					"name",
+					"firstName",
+					"lastName",
+					"role",
+					"isActive",
+					"joinedAt",
+					"conversationsCount"
+				]
+			},
+			"MemberDetailResponse": {
+				"type": "object",
+				"properties": {
+					"member": {
+						"$ref": "#/components/schemas/Member"
+					}
+				},
+				"required": ["member"]
+			},
+			"UpdateRoleResponse": {
+				"type": "object",
+				"properties": {
+					"success": {
+						"type": "boolean",
+						"enum": [true]
+					},
+					"member": {
+						"$ref": "#/components/schemas/Member"
+					},
+					"message": {
+						"type": "string",
+						"example": "Member role updated successfully"
+					}
+				},
+				"required": ["success", "member", "message"]
+			},
+			"UpdateRoleRequest": {
+				"type": "object",
+				"properties": {
+					"role": {
+						"type": "string",
+						"enum": ["owner", "admin", "user"],
+						"description": "Member role in organization"
+					}
+				},
+				"required": ["role"]
+			},
+			"UpdateStatusResponse": {
+				"type": "object",
+				"properties": {
+					"success": {
+						"type": "boolean",
+						"enum": [true]
+					},
+					"member": {
+						"$ref": "#/components/schemas/Member"
+					},
+					"message": {
+						"type": "string",
+						"example": "Member activated successfully"
+					}
+				},
+				"required": ["success", "member", "message"]
+			},
+			"UpdateStatusRequest": {
+				"type": "object",
+				"properties": {
+					"isActive": {
+						"type": "boolean",
+						"description": "Whether to activate or deactivate"
+					}
+				},
+				"required": ["isActive"]
+			},
+			"RemoveMemberResponse": {
+				"type": "object",
+				"properties": {
+					"success": {
+						"type": "boolean",
+						"enum": [true]
+					},
+					"message": {
+						"type": "string",
+						"example": "Member removed from organization"
+					},
+					"removedMember": {
+						"type": "object",
+						"properties": {
+							"userId": {
+								"type": "string",
+								"format": "uuid"
+							},
+							"email": {
+								"type": "string",
+								"format": "email"
+							}
+						},
+						"required": ["userId", "email"]
+					}
+				},
+				"required": ["success", "message", "removedMember"]
+			},
+			"DeletePermanentResponse": {
+				"type": "object",
+				"properties": {
+					"success": {
+						"type": "boolean",
+						"enum": [true]
+					},
+					"message": {
+						"type": "string",
+						"example": "Account permanently deleted"
+					},
+					"removedMember": {
+						"type": "object",
+						"properties": {
+							"userId": {
+								"type": "string",
+								"format": "uuid"
+							},
+							"email": {
+								"type": "string",
+								"format": "email"
+							}
+						},
+						"required": ["userId", "email"]
+					}
+				},
+				"required": ["success", "message", "removedMember"]
+			},
 			"ActiveModelResponse": {
 				"type": "object",
 				"properties": {
@@ -1358,6 +2527,217 @@
 				"additionalProperties": {},
 				"description": "Model metadata including training state"
 			},
+			"OrganizationListResponse": {
+				"type": "object",
+				"properties": {
+					"organizations": {
+						"type": "array",
+						"items": {
+							"$ref": "#/components/schemas/OrganizationListItem"
+						}
+					}
+				},
+				"required": ["organizations"]
+			},
+			"OrganizationListItem": {
+				"type": "object",
+				"properties": {
+					"id": {
+						"type": "string",
+						"format": "uuid"
+					},
+					"name": {
+						"type": "string"
+					},
+					"role": {
+						"type": "string",
+						"enum": ["owner", "admin", "member"],
+						"description": "User role in organization"
+					},
+					"joined_at": {
+						"type": "string",
+						"format": "date-time",
+						"description": "When user joined this org"
+					},
+					"is_active": {
+						"type": "boolean",
+						"description": "Whether this is user's active org"
+					}
+				},
+				"required": ["id", "name", "role", "joined_at", "is_active"]
+			},
+			"SwitchOrgResponse": {
+				"type": "object",
+				"properties": {
+					"success": {
+						"type": "boolean",
+						"enum": [true]
+					},
+					"activeOrganizationId": {
+						"type": "string",
+						"format": "uuid"
+					},
+					"message": {
+						"type": "string",
+						"example": "Active organization switched successfully"
+					}
+				},
+				"required": ["success", "activeOrganizationId", "message"]
+			},
+			"SwitchOrgRequest": {
+				"type": "object",
+				"properties": {
+					"organizationId": {
+						"type": "string",
+						"format": "uuid",
+						"description": "Target organization ID"
+					}
+				},
+				"required": ["organizationId"]
+			},
+			"CreateOrgResponse": {
+				"type": "object",
+				"properties": {
+					"organization": {
+						"$ref": "#/components/schemas/Organization"
+					},
+					"message": {
+						"type": "string",
+						"example": "Organization created successfully"
+					}
+				},
+				"required": ["organization", "message"]
+			},
+			"Organization": {
+				"type": "object",
+				"properties": {
+					"id": {
+						"type": "string",
+						"format": "uuid",
+						"description": "Organization ID"
+					},
+					"name": {
+						"type": "string",
+						"description": "Organization name",
+						"example": "Acme Inc"
+					},
+					"created_at": {
+						"type": "string",
+						"format": "date-time",
+						"description": "Creation timestamp"
+					},
+					"updated_at": {
+						"type": ["string", "null"],
+						"format": "date-time",
+						"description": "Last update timestamp"
+					}
+				},
+				"required": ["id", "name", "created_at"]
+			},
+			"CreateOrgRequest": {
+				"type": "object",
+				"properties": {
+					"name": {
+						"type": "string",
+						"minLength": 1,
+						"description": "Organization name",
+						"example": "New Company"
+					}
+				},
+				"required": ["name"]
+			},
+			"CurrentOrgResponse": {
+				"type": "object",
+				"properties": {
+					"organization": {
+						"type": "object",
+						"properties": {
+							"id": {
+								"type": "string",
+								"format": "uuid"
+							},
+							"name": {
+								"type": "string"
+							},
+							"created_at": {
+								"type": "string",
+								"format": "date-time"
+							},
+							"user_role": {
+								"type": "string",
+								"enum": ["owner", "admin", "member"],
+								"description": "User role in organization"
+							},
+							"member_count": {
+								"type": ["number", "null"],
+								"description": "Total members in org"
+							}
+						},
+						"required": [
+							"id",
+							"name",
+							"created_at",
+							"user_role",
+							"member_count"
+						]
+					}
+				},
+				"required": ["organization"]
+			},
+			"UpdateOrgResponse": {
+				"type": "object",
+				"properties": {
+					"success": {
+						"type": "boolean",
+						"enum": [true]
+					},
+					"organization": {
+						"$ref": "#/components/schemas/Organization"
+					}
+				},
+				"required": ["success", "organization"]
+			},
+			"UpdateOrgRequest": {
+				"type": "object",
+				"properties": {
+					"name": {
+						"type": "string",
+						"minLength": 1,
+						"maxLength": 100,
+						"description": "New organization name"
+					}
+				},
+				"required": ["name"]
+			},
+			"SSEStatsResponse": {
+				"type": "object",
+				"properties": {
+					"timestamp": {
+						"type": "string",
+						"format": "date-time",
+						"description": "Current timestamp"
+					},
+					"totalConnections": {
+						"type": "number",
+						"description": "Total active SSE connections"
+					},
+					"connectionsByOrg": {
+						"type": "object",
+						"additionalProperties": {
+							"type": "number"
+						},
+						"description": "Connections grouped by organization"
+					},
+					"connectionsByUser": {
+						"type": "object",
+						"additionalProperties": {
+							"type": "number"
+						},
+						"description": "Connections grouped by user"
+					}
+				},
+				"required": ["timestamp", "totalConnections"]
+			},
 			"TicketResponse": {
 				"type": "object",
 				"properties": {
@@ -1366,6 +2746,42 @@
 					}
 				},
 				"required": ["data"]
+			},
+			"WorkflowGenerateResponse": {
+				"type": "object",
+				"properties": {
+					"success": {
+						"type": "boolean",
+						"enum": [true]
+					},
+					"conversationId": {
+						"type": "string",
+						"format": "uuid",
+						"description": "Created conversation ID"
+					},
+					"messageId": {
+						"type": "string",
+						"format": "uuid",
+						"description": "Created message ID"
+					}
+				},
+				"required": ["success", "conversationId", "messageId"]
+			},
+			"WorkflowGenerateRequest": {
+				"type": "object",
+				"properties": {
+					"query": {
+						"type": "string",
+						"minLength": 1,
+						"description": "Workflow query/prompt"
+					},
+					"index_name": {
+						"type": "string",
+						"description": "Index name for search",
+						"example": "qasa_snippets3"
+					}
+				},
+				"required": ["query"]
 			},
 			"HealthResponse": {
 				"type": "object",
@@ -2763,6 +4179,463 @@
 				}
 			}
 		},
+		"/api/credential-delegations/create": {
+			"post": {
+				"tags": ["Credential Delegations"],
+				"summary": "Create credential delegation",
+				"description": "Create a new credential delegation and send email to IT admin. Rate limited to 10 per org per day.",
+				"security": [
+					{
+						"bearerAuth": []
+					},
+					{
+						"cookieAuth": []
+					}
+				],
+				"requestBody": {
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/components/schemas/CreateDelegationRequest"
+							}
+						}
+					}
+				},
+				"responses": {
+					"201": {
+						"description": "Delegation created and email sent",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/CreateDelegationResponse"
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "Invalid input",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Unauthorized",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					},
+					"403": {
+						"description": "Forbidden - requires owner/admin role",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					},
+					"409": {
+						"description": "Delegation already exists for this admin",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					},
+					"429": {
+						"description": "Rate limit exceeded (10/day)",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "Server error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/api/credential-delegations/verify/{token}": {
+			"get": {
+				"tags": ["Credential Delegations"],
+				"summary": "Verify delegation token",
+				"description": "Verify a delegation token and return details. Public endpoint - token is the auth.",
+				"security": [],
+				"parameters": [
+					{
+						"schema": {
+							"type": "string",
+							"minLength": 64,
+							"maxLength": 64,
+							"description": "Delegation token"
+						},
+						"required": true,
+						"description": "Delegation token",
+						"name": "token",
+						"in": "path"
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "Token verification result",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/VerifyDelegationResponse"
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "Invalid token format",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/VerifyDelegationResponse"
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "Server error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/VerifyDelegationResponse"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/api/credential-delegations/submit": {
+			"post": {
+				"tags": ["Credential Delegations"],
+				"summary": "Submit ITSM credentials",
+				"description": "Submit ITSM credentials via delegation token. Public endpoint - token is the auth.",
+				"security": [],
+				"requestBody": {
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/components/schemas/SubmitCredentialsRequest"
+							}
+						}
+					}
+				},
+				"responses": {
+					"200": {
+						"description": "Credentials submitted",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/SubmitCredentialsResponse"
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "Invalid input or credentials",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					},
+					"409": {
+						"description": "Token already used",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					},
+					"410": {
+						"description": "Token expired",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "Server error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/api/credential-delegations/status/{token}": {
+			"get": {
+				"tags": ["Credential Delegations"],
+				"summary": "Get delegation status",
+				"description": "Get delegation status by token. Public endpoint for polling.",
+				"security": [],
+				"parameters": [
+					{
+						"schema": {
+							"type": "string",
+							"minLength": 64,
+							"maxLength": 64,
+							"description": "Delegation token"
+						},
+						"required": true,
+						"description": "Delegation token",
+						"name": "token",
+						"in": "path"
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "Delegation status",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/DelegationStatusResponse"
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "Invalid token",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Token not found",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "Server error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/api/credential-delegations": {
+			"get": {
+				"tags": ["Credential Delegations"],
+				"summary": "List delegations",
+				"description": "List credential delegations for the organization.",
+				"security": [
+					{
+						"bearerAuth": []
+					},
+					{
+						"cookieAuth": []
+					}
+				],
+				"parameters": [
+					{
+						"schema": {
+							"type": "string",
+							"enum": ["pending", "completed", "expired", "cancelled"],
+							"description": "Filter by status"
+						},
+						"required": false,
+						"description": "Filter by status",
+						"name": "status",
+						"in": "query"
+					},
+					{
+						"schema": {
+							"type": "string",
+							"enum": ["servicenow_itsm", "jira"],
+							"description": "Filter by ITSM system"
+						},
+						"required": false,
+						"description": "Filter by ITSM system",
+						"name": "system_type",
+						"in": "query"
+					},
+					{
+						"schema": {
+							"type": "integer",
+							"minimum": 1,
+							"maximum": 100,
+							"description": "Max results"
+						},
+						"required": false,
+						"description": "Max results",
+						"name": "limit",
+						"in": "query"
+					},
+					{
+						"schema": {
+							"type": ["integer", "null"],
+							"minimum": 0,
+							"description": "Pagination offset"
+						},
+						"required": false,
+						"description": "Pagination offset",
+						"name": "offset",
+						"in": "query"
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "Delegation list",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/DelegationListResponse"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Unauthorized",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "Server error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/api/credential-delegations/{id}/cancel": {
+			"delete": {
+				"tags": ["Credential Delegations"],
+				"summary": "Cancel delegation",
+				"description": "Cancel a pending credential delegation.",
+				"security": [
+					{
+						"bearerAuth": []
+					},
+					{
+						"cookieAuth": []
+					}
+				],
+				"parameters": [
+					{
+						"schema": {
+							"type": "string",
+							"format": "uuid",
+							"description": "Delegation ID"
+						},
+						"required": true,
+						"description": "Delegation ID",
+						"name": "id",
+						"in": "path"
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "Delegation cancelled",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/CancelDelegationResponse"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Unauthorized",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					},
+					"403": {
+						"description": "Forbidden - requires owner/admin role",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Delegation not found or cannot be cancelled",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "Server error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
 		"/api/data-sources": {
 			"get": {
 				"tags": ["Data Sources"],
@@ -3366,6 +5239,2153 @@
 				}
 			}
 		},
+		"/api/feature-flags/{flagName}": {
+			"get": {
+				"tags": ["Feature Flags"],
+				"summary": "Check feature flag",
+				"description": "Check if a feature flag is enabled for the current tenant.",
+				"security": [
+					{
+						"bearerAuth": []
+					},
+					{
+						"cookieAuth": []
+					}
+				],
+				"parameters": [
+					{
+						"schema": {
+							"type": "string",
+							"description": "Feature flag name"
+						},
+						"required": true,
+						"description": "Feature flag name",
+						"name": "flagName",
+						"in": "path"
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "Flag status",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/FlagCheckResponse"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Unauthorized",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "Server error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/api/feature-flags/batch": {
+			"post": {
+				"tags": ["Feature Flags"],
+				"summary": "Check multiple flags",
+				"description": "Check multiple feature flags in one request.",
+				"security": [
+					{
+						"bearerAuth": []
+					},
+					{
+						"cookieAuth": []
+					}
+				],
+				"requestBody": {
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/components/schemas/BatchFlagsRequest"
+							}
+						}
+					}
+				},
+				"responses": {
+					"200": {
+						"description": "Batch flag status",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/BatchFlagsResponse"
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "Invalid input",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Unauthorized",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "Server error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/api/feature-flags/{flagName}/rules": {
+			"post": {
+				"tags": ["Feature Flags"],
+				"summary": "Update flag rule",
+				"description": "Update a feature flag rule for the organization. Requires admin or owner role.",
+				"security": [
+					{
+						"bearerAuth": []
+					},
+					{
+						"cookieAuth": []
+					}
+				],
+				"parameters": [
+					{
+						"schema": {
+							"type": "string",
+							"description": "Feature flag name"
+						},
+						"required": true,
+						"description": "Feature flag name",
+						"name": "flagName",
+						"in": "path"
+					}
+				],
+				"requestBody": {
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/components/schemas/UpdateFlagRuleRequest"
+							}
+						}
+					}
+				},
+				"responses": {
+					"200": {
+						"description": "Flag rule updated",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/UpdateFlagRuleResponse"
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "Invalid input",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Unauthorized",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					},
+					"403": {
+						"description": "Forbidden - requires admin/owner role",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "Server error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/api/files/upload": {
+			"post": {
+				"tags": ["Files"],
+				"summary": "Upload file",
+				"description": "Upload a file to the organization knowledge base. Supports images, PDFs, text, and Office documents up to 100MB. Files are deduplicated by content hash.",
+				"security": [
+					{
+						"bearerAuth": []
+					},
+					{
+						"cookieAuth": []
+					}
+				],
+				"requestBody": {
+					"content": {
+						"multipart/form-data": {
+							"schema": {
+								"type": "object",
+								"properties": {
+									"file": {
+										"description": "File to upload"
+									},
+									"filename": {
+										"type": "string",
+										"description": "Optional explicit filename (UTF-8)"
+									},
+									"content": {
+										"type": "string",
+										"description": "Optional text content override"
+									}
+								}
+							}
+						}
+					}
+				},
+				"responses": {
+					"200": {
+						"description": "File uploaded successfully",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/FileUploadResponse"
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "No file provided or file type not allowed",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Unauthorized",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					},
+					"403": {
+						"description": "Forbidden - requires owner/admin role",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					},
+					"409": {
+						"description": "File already exists (same content hash)",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/FileConflictResponse"
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "Server error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/api/files/content": {
+			"post": {
+				"tags": ["Files"],
+				"summary": "Create text content",
+				"description": "Create text content in the organization knowledge base. Stored as a blob for consistency and deduplication.",
+				"security": [
+					{
+						"bearerAuth": []
+					},
+					{
+						"cookieAuth": []
+					}
+				],
+				"requestBody": {
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/components/schemas/FileContentRequest"
+							}
+						}
+					}
+				},
+				"responses": {
+					"200": {
+						"description": "Content created successfully",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/FileContentResponse"
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "Content and filename are required",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Unauthorized",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					},
+					"403": {
+						"description": "Forbidden - requires owner/admin role",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "Server error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/api/files/{documentId}/metadata": {
+			"get": {
+				"tags": ["Files"],
+				"summary": "Get file metadata",
+				"description": "Get metadata for a document (used for citations). Returns metadata without raw blob content. Supports both new (blob_metadata.id) and legacy (blob_id) formats.",
+				"security": [
+					{
+						"bearerAuth": []
+					},
+					{
+						"cookieAuth": []
+					}
+				],
+				"parameters": [
+					{
+						"schema": {
+							"type": "string",
+							"description": "Document ID or blob ID"
+						},
+						"required": true,
+						"description": "Document ID or blob ID",
+						"name": "documentId",
+						"in": "path"
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "File metadata",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/FileMetadataResponse"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Unauthorized",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Document not found",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "Server error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/api/files/{documentId}/download": {
+			"get": {
+				"tags": ["Files"],
+				"summary": "Download file",
+				"description": "Download a file from the organization knowledge base.",
+				"security": [
+					{
+						"bearerAuth": []
+					},
+					{
+						"cookieAuth": []
+					}
+				],
+				"parameters": [
+					{
+						"schema": {
+							"type": "string",
+							"format": "uuid",
+							"description": "Document ID"
+						},
+						"required": true,
+						"description": "Document ID",
+						"name": "documentId",
+						"in": "path"
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "File content (binary)",
+						"content": {
+							"application/octet-stream": {
+								"schema": {}
+							}
+						}
+					},
+					"401": {
+						"description": "Unauthorized",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					},
+					"403": {
+						"description": "Forbidden - requires owner/admin role",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Document not found",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "Server error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/api/files": {
+			"get": {
+				"tags": ["Files"],
+				"summary": "List files",
+				"description": "List all files in the organization with pagination, sorting, and filtering.",
+				"security": [
+					{
+						"bearerAuth": []
+					},
+					{
+						"cookieAuth": []
+					}
+				],
+				"parameters": [
+					{
+						"schema": {
+							"type": "integer",
+							"minimum": 1,
+							"maximum": 100,
+							"default": 50,
+							"description": "Max results",
+							"example": 50
+						},
+						"required": false,
+						"description": "Max results",
+						"name": "limit",
+						"in": "query"
+					},
+					{
+						"schema": {
+							"type": ["integer", "null"],
+							"minimum": 0,
+							"default": 0,
+							"description": "Pagination offset",
+							"example": 0
+						},
+						"required": false,
+						"description": "Pagination offset",
+						"name": "offset",
+						"in": "query"
+					},
+					{
+						"schema": {
+							"type": "string",
+							"enum": [
+								"filename",
+								"size",
+								"type",
+								"status",
+								"source",
+								"created_at"
+							],
+							"default": "created_at",
+							"description": "Sort field"
+						},
+						"required": false,
+						"description": "Sort field",
+						"name": "sort_by",
+						"in": "query"
+					},
+					{
+						"schema": {
+							"type": "string",
+							"enum": ["ASC", "DESC", "asc", "desc"],
+							"default": "DESC",
+							"description": "Sort direction"
+						},
+						"required": false,
+						"description": "Sort direction",
+						"name": "sort_order",
+						"in": "query"
+					},
+					{
+						"schema": {
+							"type": "string",
+							"description": "Search filename (case-insensitive)"
+						},
+						"required": false,
+						"description": "Search filename (case-insensitive)",
+						"name": "search",
+						"in": "query"
+					},
+					{
+						"schema": {
+							"type": "string",
+							"description": "Filter by status (or 'all')"
+						},
+						"required": false,
+						"description": "Filter by status (or 'all')",
+						"name": "status",
+						"in": "query"
+					},
+					{
+						"schema": {
+							"type": "string",
+							"description": "Filter by source (or 'all')"
+						},
+						"required": false,
+						"description": "Filter by source (or 'all')",
+						"name": "source",
+						"in": "query"
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "Paginated file list",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/FileListResponse"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Unauthorized",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "Server error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/api/files/{documentId}/process": {
+			"post": {
+				"tags": ["Files"],
+				"summary": "Trigger document processing",
+				"description": "Trigger document processing via webhook to external services. Allows reprocessing for any status.",
+				"security": [
+					{
+						"bearerAuth": []
+					},
+					{
+						"cookieAuth": []
+					}
+				],
+				"parameters": [
+					{
+						"schema": {
+							"type": "string",
+							"format": "uuid",
+							"description": "Document ID"
+						},
+						"required": true,
+						"description": "Document ID",
+						"name": "documentId",
+						"in": "path"
+					}
+				],
+				"requestBody": {
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/components/schemas/FileProcessRequest"
+							}
+						}
+					}
+				},
+				"responses": {
+					"200": {
+						"description": "Document sent for processing",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/FileProcessResponse"
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "enable_processing not set to true",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Unauthorized",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					},
+					"403": {
+						"description": "Forbidden - requires owner/admin role",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Document not found",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "Server error or webhook failed",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/api/files/{documentId}": {
+			"delete": {
+				"tags": ["Files"],
+				"summary": "Delete file",
+				"description": "Delete a file from the organization. Sends webhook to external services for cleanup before database deletion. Blob is preserved if referenced by other metadata.",
+				"security": [
+					{
+						"bearerAuth": []
+					},
+					{
+						"cookieAuth": []
+					}
+				],
+				"parameters": [
+					{
+						"schema": {
+							"type": "string",
+							"format": "uuid",
+							"description": "Document ID"
+						},
+						"required": true,
+						"description": "Document ID",
+						"name": "documentId",
+						"in": "path"
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "File deleted successfully",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/FileDeleteResponse"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Unauthorized",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					},
+					"403": {
+						"description": "Forbidden - requires owner/admin role",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Document not found",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "Server error or webhook failed",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/api/iframe/validate-instantiation": {
+			"post": {
+				"tags": ["Iframe"],
+				"summary": "Validate iframe instantiation",
+				"description": "Validate Valkey session key and setup iframe session. No auth required - sessionKey is the auth.",
+				"security": [],
+				"requestBody": {
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/components/schemas/IframeValidateRequest"
+							}
+						}
+					}
+				},
+				"responses": {
+					"200": {
+						"description": "Validation successful",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/IframeValidateResponse"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Validation failed - invalid session",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/IframeValidateResponse"
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "Server error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/api/iframe/debug": {
+			"get": {
+				"tags": ["Iframe"],
+				"summary": "Debug iframe config",
+				"description": "Check Valkey status and environment configuration for debugging.",
+				"security": [],
+				"responses": {
+					"200": {
+						"description": "Debug information",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/IframeDebugResponse"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/api/iframe/execute": {
+			"post": {
+				"tags": ["Iframe"],
+				"summary": "Execute workflow",
+				"description": "Execute workflow from Valkey hashkey. No auth required - hashkey provides context.",
+				"security": [],
+				"requestBody": {
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/components/schemas/IframeExecuteRequest"
+							}
+						}
+					}
+				},
+				"responses": {
+					"200": {
+						"description": "Execution started",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/IframeExecuteResponse"
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "Invalid input or execution failed",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/IframeExecuteResponse"
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "Server error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/IframeExecuteResponse"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/api/iframe/conversation/{conversationId}": {
+			"delete": {
+				"tags": ["Iframe"],
+				"summary": "Delete conversation",
+				"description": "Delete iframe conversation and all messages. Used for 'Clear Chat' feature.",
+				"security": [],
+				"parameters": [
+					{
+						"schema": {
+							"type": "string",
+							"format": "uuid",
+							"description": "Conversation ID to delete"
+						},
+						"required": true,
+						"description": "Conversation ID to delete",
+						"name": "conversationId",
+						"in": "path"
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "Conversation deleted",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/IframeDeleteConversationResponse"
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "Missing conversationId",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/IframeDeleteConversationResponse"
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "Deletion failed",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/IframeDeleteConversationResponse"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/api/invitations/send": {
+			"post": {
+				"tags": ["Invitations"],
+				"summary": "Send invitations",
+				"description": "Send invitations to multiple email addresses. Rate limited to 50 per org per hour.",
+				"security": [
+					{
+						"bearerAuth": []
+					},
+					{
+						"cookieAuth": []
+					}
+				],
+				"requestBody": {
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/components/schemas/SendInvitationsRequest"
+							}
+						}
+					}
+				},
+				"responses": {
+					"200": {
+						"description": "Invitations sent (partial success possible)",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/SendInvitationsResponse"
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "Invalid input",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Unauthorized",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					},
+					"403": {
+						"description": "Forbidden - requires owner/admin role",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					},
+					"429": {
+						"description": "Rate limit exceeded (50/hour)",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "Server error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/api/invitations/verify/{token}": {
+			"get": {
+				"tags": ["Invitations"],
+				"summary": "Verify invitation token",
+				"description": "Verify an invitation token and return invitation details. Public endpoint.",
+				"security": [],
+				"parameters": [
+					{
+						"schema": {
+							"type": "string",
+							"minLength": 64,
+							"maxLength": 64,
+							"description": "Invitation token"
+						},
+						"required": true,
+						"description": "Invitation token",
+						"name": "token",
+						"in": "path"
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "Token verification result",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/VerifyInvitationResponse"
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "Invalid token format",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "Server error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/api/invitations/accept": {
+			"post": {
+				"tags": ["Invitations"],
+				"summary": "Accept invitation",
+				"description": "Accept invitation and create account. Public endpoint. Rate limited to 5 attempts per token per hour.",
+				"security": [],
+				"requestBody": {
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/components/schemas/AcceptInvitationRequest"
+							}
+						}
+					}
+				},
+				"responses": {
+					"200": {
+						"description": "Account created",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/AcceptInvitationResponse"
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "Invalid input, already accepted, expired, or account exists",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					},
+					"429": {
+						"description": "Too many attempts",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "Server error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/api/invitations": {
+			"get": {
+				"tags": ["Invitations"],
+				"summary": "List invitations",
+				"description": "List invitations for the organization with optional status filter.",
+				"security": [
+					{
+						"bearerAuth": []
+					},
+					{
+						"cookieAuth": []
+					}
+				],
+				"parameters": [
+					{
+						"schema": {
+							"type": "string",
+							"enum": ["pending", "accepted", "expired", "cancelled"],
+							"description": "Filter by status"
+						},
+						"required": false,
+						"description": "Filter by status",
+						"name": "status",
+						"in": "query"
+					},
+					{
+						"schema": {
+							"type": "integer",
+							"minimum": 1,
+							"maximum": 100,
+							"default": 50,
+							"description": "Max results"
+						},
+						"required": false,
+						"description": "Max results",
+						"name": "limit",
+						"in": "query"
+					},
+					{
+						"schema": {
+							"type": ["integer", "null"],
+							"minimum": 0,
+							"default": 0,
+							"description": "Pagination offset"
+						},
+						"required": false,
+						"description": "Pagination offset",
+						"name": "offset",
+						"in": "query"
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "Invitation list",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/InvitationListResponse"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Unauthorized",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					},
+					"403": {
+						"description": "Forbidden - requires owner/admin role",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "Server error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/api/invitations/{id}/cancel": {
+			"delete": {
+				"tags": ["Invitations"],
+				"summary": "Cancel invitation",
+				"description": "Cancel a pending invitation.",
+				"security": [
+					{
+						"bearerAuth": []
+					},
+					{
+						"cookieAuth": []
+					}
+				],
+				"parameters": [
+					{
+						"schema": {
+							"type": "string",
+							"format": "uuid",
+							"description": "Invitation ID"
+						},
+						"required": true,
+						"description": "Invitation ID",
+						"name": "id",
+						"in": "path"
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "Invitation cancelled",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/CancelInvitationResponse"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Unauthorized",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					},
+					"403": {
+						"description": "Forbidden - requires owner/admin role",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Invitation not found or cannot be cancelled",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "Server error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/api/organizations/members": {
+			"get": {
+				"tags": ["Members"],
+				"summary": "List organization members",
+				"description": "List all members in the organization with filtering, pagination, and sorting.",
+				"security": [
+					{
+						"bearerAuth": []
+					},
+					{
+						"cookieAuth": []
+					}
+				],
+				"parameters": [
+					{
+						"schema": {
+							"type": "string",
+							"enum": ["owner", "admin", "user"],
+							"description": "Filter by role"
+						},
+						"required": false,
+						"description": "Filter by role",
+						"name": "role",
+						"in": "query"
+					},
+					{
+						"schema": {
+							"type": "string",
+							"enum": ["active", "inactive"],
+							"description": "Filter by status"
+						},
+						"required": false,
+						"description": "Filter by status",
+						"name": "status",
+						"in": "query"
+					},
+					{
+						"schema": {
+							"type": "string",
+							"description": "Search by name/email"
+						},
+						"required": false,
+						"description": "Search by name/email",
+						"name": "search",
+						"in": "query"
+					},
+					{
+						"schema": {
+							"type": "integer",
+							"minimum": 1,
+							"maximum": 100,
+							"default": 50,
+							"description": "Max results"
+						},
+						"required": false,
+						"description": "Max results",
+						"name": "limit",
+						"in": "query"
+					},
+					{
+						"schema": {
+							"type": ["integer", "null"],
+							"minimum": 0,
+							"default": 0,
+							"description": "Pagination offset"
+						},
+						"required": false,
+						"description": "Pagination offset",
+						"name": "offset",
+						"in": "query"
+					},
+					{
+						"schema": {
+							"type": "string",
+							"enum": [
+								"name",
+								"role",
+								"status",
+								"joinedAt",
+								"conversationsCount"
+							],
+							"default": "joinedAt",
+							"description": "Sort field"
+						},
+						"required": false,
+						"description": "Sort field",
+						"name": "sortBy",
+						"in": "query"
+					},
+					{
+						"schema": {
+							"type": "string",
+							"enum": ["asc", "desc"],
+							"default": "desc",
+							"description": "Sort direction"
+						},
+						"required": false,
+						"description": "Sort direction",
+						"name": "sortOrder",
+						"in": "query"
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "Paginated member list",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/MemberListResponse"
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "Invalid query parameters",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Unauthorized",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					},
+					"403": {
+						"description": "Forbidden - requires owner/admin role",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "Server error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/api/organizations/members/{userId}": {
+			"get": {
+				"tags": ["Members"],
+				"summary": "Get member details",
+				"description": "Get detailed information about a specific organization member.",
+				"security": [
+					{
+						"bearerAuth": []
+					},
+					{
+						"cookieAuth": []
+					}
+				],
+				"parameters": [
+					{
+						"schema": {
+							"type": "string",
+							"format": "uuid",
+							"description": "Target user ID"
+						},
+						"required": true,
+						"description": "Target user ID",
+						"name": "userId",
+						"in": "path"
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "Member details",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/MemberDetailResponse"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Unauthorized",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					},
+					"403": {
+						"description": "Forbidden - requires owner/admin role",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Member not found",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "Server error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					}
+				}
+			},
+			"delete": {
+				"tags": ["Members"],
+				"summary": "Remove member (soft delete)",
+				"description": "Remove a member from the organization. Preserves user account. Cannot remove self or last owner.",
+				"security": [
+					{
+						"bearerAuth": []
+					},
+					{
+						"cookieAuth": []
+					}
+				],
+				"parameters": [
+					{
+						"schema": {
+							"type": "string",
+							"format": "uuid",
+							"description": "Target user ID"
+						},
+						"required": true,
+						"description": "Target user ID",
+						"name": "userId",
+						"in": "path"
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "Member removed",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/RemoveMemberResponse"
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "Cannot remove self",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Unauthorized",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					},
+					"403": {
+						"description": "Forbidden - requires owner/admin role",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Member not found",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					},
+					"409": {
+						"description": "Cannot remove last active owner",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "Server error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/api/organizations/members/{userId}/role": {
+			"patch": {
+				"tags": ["Members"],
+				"summary": "Update member role",
+				"description": "Update a member's role. Requires owner role. Cannot change own role or demote last owner.",
+				"security": [
+					{
+						"bearerAuth": []
+					},
+					{
+						"cookieAuth": []
+					}
+				],
+				"parameters": [
+					{
+						"schema": {
+							"type": "string",
+							"format": "uuid",
+							"description": "Target user ID"
+						},
+						"required": true,
+						"description": "Target user ID",
+						"name": "userId",
+						"in": "path"
+					}
+				],
+				"requestBody": {
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/components/schemas/UpdateRoleRequest"
+							}
+						}
+					}
+				},
+				"responses": {
+					"200": {
+						"description": "Role updated",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/UpdateRoleResponse"
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "Invalid role or cannot modify self",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Unauthorized",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					},
+					"403": {
+						"description": "Forbidden - requires owner role",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Member not found",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					},
+					"409": {
+						"description": "Cannot demote last active owner",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "Server error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/api/organizations/members/{userId}/status": {
+			"patch": {
+				"tags": ["Members"],
+				"summary": "Update member status",
+				"description": "Activate or deactivate a member. Cannot change own status or deactivate last owner.",
+				"security": [
+					{
+						"bearerAuth": []
+					},
+					{
+						"cookieAuth": []
+					}
+				],
+				"parameters": [
+					{
+						"schema": {
+							"type": "string",
+							"format": "uuid",
+							"description": "Target user ID"
+						},
+						"required": true,
+						"description": "Target user ID",
+						"name": "userId",
+						"in": "path"
+					}
+				],
+				"requestBody": {
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/components/schemas/UpdateStatusRequest"
+							}
+						}
+					}
+				},
+				"responses": {
+					"200": {
+						"description": "Status updated",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/UpdateStatusResponse"
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "Invalid status or cannot modify self",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Unauthorized",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					},
+					"403": {
+						"description": "Forbidden - requires owner/admin role",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Member not found",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					},
+					"409": {
+						"description": "Cannot deactivate last active owner",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "Server error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/api/organizations/members/self/permanent": {
+			"delete": {
+				"tags": ["Members"],
+				"summary": "Delete own account",
+				"description": "Permanently delete your own account. Triggers Keycloak deletion webhook.",
+				"security": [
+					{
+						"bearerAuth": []
+					},
+					{
+						"cookieAuth": []
+					}
+				],
+				"parameters": [
+					{
+						"schema": {
+							"type": "string",
+							"description": "Optional deletion reason"
+						},
+						"required": false,
+						"description": "Optional deletion reason",
+						"name": "reason",
+						"in": "query"
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "Account deleted",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/DeletePermanentResponse"
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "Cannot delete if last active owner",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Unauthorized",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "User not found",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "Server error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					},
+					"502": {
+						"description": "Keycloak webhook failed",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/api/organizations/members/{userId}/permanent": {
+			"delete": {
+				"tags": ["Members"],
+				"summary": "Delete member permanently",
+				"description": "Permanently delete a member. Requires owner role. Triggers Keycloak deletion webhook.",
+				"security": [
+					{
+						"bearerAuth": []
+					},
+					{
+						"cookieAuth": []
+					}
+				],
+				"parameters": [
+					{
+						"schema": {
+							"type": "string",
+							"format": "uuid",
+							"description": "Target user ID"
+						},
+						"required": true,
+						"description": "Target user ID",
+						"name": "userId",
+						"in": "path"
+					},
+					{
+						"schema": {
+							"type": "string",
+							"description": "Optional deletion reason"
+						},
+						"required": false,
+						"description": "Optional deletion reason",
+						"name": "reason",
+						"in": "query"
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "Member permanently deleted",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/DeletePermanentResponse"
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "Cannot delete self or last active owner",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Unauthorized",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					},
+					"403": {
+						"description": "Forbidden - requires owner role",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Member not found",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "Server error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					},
+					"502": {
+						"description": "Keycloak webhook failed",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
 		"/api/ml-models/active": {
 			"get": {
 				"tags": ["ML Models"],
@@ -3402,6 +7422,426 @@
 					},
 					"500": {
 						"description": "Server error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/api/organizations": {
+			"get": {
+				"tags": ["Organizations"],
+				"summary": "List user organizations",
+				"description": "Get all organizations the authenticated user is a member of.",
+				"security": [
+					{
+						"bearerAuth": []
+					},
+					{
+						"cookieAuth": []
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "List of organizations",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/OrganizationListResponse"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Unauthorized",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "Server error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/api/organizations/switch": {
+			"post": {
+				"tags": ["Organizations"],
+				"summary": "Switch active organization",
+				"description": "Switch the user's active organization. User must be a member of the target organization.",
+				"security": [
+					{
+						"bearerAuth": []
+					},
+					{
+						"cookieAuth": []
+					}
+				],
+				"requestBody": {
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/components/schemas/SwitchOrgRequest"
+							}
+						}
+					}
+				},
+				"responses": {
+					"200": {
+						"description": "Organization switched successfully",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/SwitchOrgResponse"
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "Organization ID is required",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Unauthorized",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					},
+					"403": {
+						"description": "Not a member of target organization",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "Server error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/api/organizations/create": {
+			"post": {
+				"tags": ["Organizations"],
+				"summary": "Create organization",
+				"description": "Create a new organization. The creating user becomes the owner.",
+				"security": [
+					{
+						"bearerAuth": []
+					},
+					{
+						"cookieAuth": []
+					}
+				],
+				"requestBody": {
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/components/schemas/CreateOrgRequest"
+							}
+						}
+					}
+				},
+				"responses": {
+					"201": {
+						"description": "Organization created",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/CreateOrgResponse"
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "Organization name is required",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Unauthorized",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "Server error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/api/organizations/current": {
+			"get": {
+				"tags": ["Organizations"],
+				"summary": "Get current organization",
+				"description": "Get details of the user's currently active organization.",
+				"security": [
+					{
+						"bearerAuth": []
+					},
+					{
+						"cookieAuth": []
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "Current organization details",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/CurrentOrgResponse"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Unauthorized",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Organization not found",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "Server error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/api/organizations/{id}": {
+			"patch": {
+				"tags": ["Organizations"],
+				"summary": "Update organization",
+				"description": "Update organization name. Requires owner or admin role. Can only update active organization.",
+				"security": [
+					{
+						"bearerAuth": []
+					},
+					{
+						"cookieAuth": []
+					}
+				],
+				"parameters": [
+					{
+						"schema": {
+							"type": "string",
+							"format": "uuid",
+							"description": "Organization ID"
+						},
+						"required": true,
+						"description": "Organization ID",
+						"name": "id",
+						"in": "path"
+					}
+				],
+				"requestBody": {
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/components/schemas/UpdateOrgRequest"
+							}
+						}
+					}
+				},
+				"responses": {
+					"200": {
+						"description": "Organization updated",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/UpdateOrgResponse"
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "Validation error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Unauthorized",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					},
+					"403": {
+						"description": "Forbidden - requires owner/admin or not active org",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Organization not found",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "Server error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/api/sse/events": {
+			"get": {
+				"tags": ["SSE"],
+				"summary": "SSE events stream",
+				"description": "Server-Sent Events endpoint for real-time updates. Returns a stream of events.",
+				"security": [
+					{
+						"bearerAuth": []
+					},
+					{
+						"cookieAuth": []
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "SSE event stream",
+						"content": {
+							"text/event-stream": {
+								"schema": {
+									"type": "string",
+									"description": "SSE event stream"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Unauthorized - user context required",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/api/sse/stats": {
+			"get": {
+				"tags": ["SSE"],
+				"summary": "SSE connection stats",
+				"description": "Get current SSE connection statistics for monitoring.",
+				"security": [
+					{
+						"bearerAuth": []
+					},
+					{
+						"cookieAuth": []
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "Connection statistics",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/SSEStatsResponse"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Unauthorized",
 						"content": {
 							"application/json": {
 								"schema": {
@@ -3472,6 +7912,72 @@
 					},
 					"500": {
 						"description": "Server error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/api/workflows/generate": {
+			"post": {
+				"tags": ["Workflows"],
+				"summary": "Generate workflow",
+				"description": "Generate a dynamic workflow from a query. Creates conversation and message, then sends webhook.",
+				"security": [
+					{
+						"bearerAuth": []
+					},
+					{
+						"cookieAuth": []
+					}
+				],
+				"requestBody": {
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/components/schemas/WorkflowGenerateRequest"
+							}
+						}
+					}
+				},
+				"responses": {
+					"200": {
+						"description": "Workflow generation started",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/WorkflowGenerateResponse"
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "Invalid input - query required",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Unauthorized",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "Workflow generation failed",
 						"content": {
 							"application/json": {
 								"schema": {
