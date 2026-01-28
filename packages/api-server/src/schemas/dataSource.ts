@@ -11,7 +11,6 @@ export const DataSourceTypeSchema = z
 		"servicenow_itsm",
 		"sharepoint",
 		"websearch",
-		"jira",
 		"jira_itsm",
 	])
 	.openapi("DataSourceType", { description: "Type of data source connection" });
