@@ -118,26 +118,42 @@ export function SharePointForm({ onCancel }: SharePointFormProps = {}) {
 			{/* Authentication */}
 			<FormSection title={t("form.sections.authentication")}>
 				{/* Tenant ID */}
-				<FormField label={t("form.labels.tenantId")} errors={errors} name="tenantId">
+				<FormField
+					label={t("form.labels.tenantId")}
+					errors={errors}
+					name="tenantId"
+				>
 					<Input
 						id="tenant-id"
 						type="text"
 						placeholder={t("form.placeholders.tenantId")}
-						{...register("tenantId", { required: t("form.validation.tenantIdRequired") })}
+						{...register("tenantId", {
+							required: t("form.validation.tenantIdRequired"),
+						})}
 					/>
 				</FormField>
 
 				{/* Client ID */}
-				<FormField label={t("form.labels.clientId")} errors={errors} name="clientId">
+				<FormField
+					label={t("form.labels.clientId")}
+					errors={errors}
+					name="clientId"
+				>
 					<Input
 						id="client-id"
 						type="text"
 						placeholder={t("form.placeholders.clientId")}
-						{...register("clientId", { required: t("form.validation.clientIdRequired") })}
+						{...register("clientId", {
+							required: t("form.validation.clientIdRequired"),
+						})}
 					/>
 				</FormField>
 				{/* Client Secret */}
-				<FormField label={t("form.labels.clientSecret")} errors={errors} name="clientSecret">
+				<FormField
+					label={t("form.labels.clientSecret")}
+					errors={errors}
+					name="clientSecret"
+				>
 					<Input
 						id="client-secret"
 						type="password"
@@ -149,12 +165,22 @@ export function SharePointForm({ onCancel }: SharePointFormProps = {}) {
 				</FormField>
 
 				{/* Site URL */}
-				<FormField label={t("form.labels.siteUrl")} errors={errors} name="siteUrl">
+				<FormField
+					label={t("form.labels.siteUrl")}
+					errors={errors}
+					name="siteUrl"
+				>
 					<Input
 						id="site-url"
 						type="url"
 						placeholder={t("form.placeholders.sharePointUrl")}
-						{...register("siteUrl", { required: t("form.validation.siteUrlRequired") })}
+						{...register("siteUrl", {
+							required: t("form.validation.siteUrlRequired"),
+							pattern: {
+								value: /^https?:\/\/[\w.-]+\.[a-zA-Z]{2,}(:\d+)?(\/.*)?$/,
+								message: t("form.validation.invalidUrl"),
+							},
+						})}
 					/>
 				</FormField>
 

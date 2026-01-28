@@ -17,6 +17,7 @@ import {
 	SharePointForm,
 	WebSearchForm,
 } from "@/components/connection-sources/connection-forms";
+import DelegationInviteBox from "@/components/connection-sources/DelegationInviteBox.tsx";
 import RitaSettingsLayout from "@/components/layouts/RitaSettingsLayout";
 import { Separator } from "@/components/ui/separator";
 import {
@@ -25,11 +26,10 @@ import {
 	SOURCES,
 } from "@/constants/connectionSources";
 import { ConnectionSourceProvider } from "@/contexts/ConnectionSourceContext";
+import type { ItsmSystemType } from "@/hooks/api/useCredentialDelegations.ts";
 import { useDataSource } from "@/hooks/useDataSources";
 import SettingsHeader from "@/pages/settings/SettingsHeader";
 import { BACKEND_STATUS, type DataSourceConnection } from "@/types/dataSource";
-import DelegationInviteBox from "@/components/connection-sources/DelegationInviteBox.tsx";
-import {ItsmSystemType} from "@/hooks/api/useCredentialDelegations.ts";
 
 type ConnectionMode = "knowledge" | "itsm";
 
@@ -47,7 +47,7 @@ const FORM_REGISTRY: Record<
 	[SOURCES.SERVICENOW]: ServiceNowForm,
 	[SOURCES.SERVICENOW_ITSM]: ServiceNowForm,
 	[SOURCES.WEB_SEARCH]: WebSearchForm,
-	[SOURCES.JIRA]: JiraForm,
+	[SOURCES.JIRA_ITSM]: JiraForm,
 	[SOURCES.FRESHDESK]: FreshdeskForm,
 	[SOURCES.JIRA_ITSM]: JiraForm,
 };
@@ -220,14 +220,16 @@ export default function ConnectionSourceDetailPage({
 									<Globe className="h-5 w-5 flex-shrink-0" />
 								)
 							}
-							description={t("detail.connectDescription", { source: sourceTitle })}
+							description={t("detail.connectDescription", {
+								source: sourceTitle,
+							})}
 						/>
 
-                        {mode === "itsm" && (!isConfigured || isEditMode) && (
-                            <DelegationInviteBox itsmSource={source.type as ItsmSystemType} />
-                        )}
-                        <Separator orientation="horizontal" />
-                    </div>
+						{mode === "itsm" && (!isConfigured || isEditMode) && (
+							<DelegationInviteBox itsmSource={source.type as ItsmSystemType} />
+						)}
+						<Separator orientation="horizontal" />
+					</div>
 
 					{/* Content area - form or view mode */}
 					<div className="w-full max-w-2xl mx-auto flex flex-col gap-8 px-4 md:px-0">
