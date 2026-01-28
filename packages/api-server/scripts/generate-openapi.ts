@@ -33,7 +33,7 @@ const __dirname = dirname(__filename);
 const spec = generateOpenAPIDocument();
 const outputPath = join(__dirname, "..", "openapi.json");
 
-writeFileSync(outputPath, JSON.stringify(spec, null, 2));
+writeFileSync(outputPath, JSON.stringify(spec, null, "\t"));
 
 console.log(`OpenAPI spec generated at: ${outputPath}`);
 console.log(`Paths documented: ${Object.keys(spec.paths || {}).length}`);
