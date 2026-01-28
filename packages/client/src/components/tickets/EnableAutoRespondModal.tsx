@@ -1,4 +1,5 @@
-import { useTranslation, Trans } from "react-i18next";
+import { Trans, useTranslation } from "react-i18next";
+import { Button } from "@/components/ui/button";
 import {
 	Dialog,
 	DialogContent,
@@ -7,10 +8,9 @@ import {
 	DialogHeader,
 	DialogTitle,
 } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
 import { StatusAlert } from "@/components/ui/status-alert";
-import { AIResponseSection, type AIResponseData } from "./AIResponseSection";
 import { AI_RESPONSE_TYPE } from "@/lib/tickets/utils";
+import { type AIResponseData, AIResponseSection } from "./AIResponseSection";
 
 interface EnableAutoRespondModalProps {
 	open: boolean;
@@ -19,12 +19,15 @@ interface EnableAutoRespondModalProps {
 	ticketGroupName: string;
 	/** Number of currently open tickets that will receive automated responses */
 	openTicketsCount: number;
-	/** AI response preview data */
-	aiResponse: AIResponseData;
+	/** AI response preview data (optional - shows empty state if not provided) */
+	aiResponse?: AIResponseData;
 	/** Called when user confirms enabling auto-respond */
 	onEnable?: () => void;
 	/** Called after auto-respond is enabled with context for banner */
-	onAutoRespondEnabled?: (ticketGroupName: string, automatedPercentage: number) => void;
+	onAutoRespondEnabled?: (
+		ticketGroupName: string,
+		automatedPercentage: number,
+	) => void;
 }
 
 /**
@@ -32,7 +35,7 @@ interface EnableAutoRespondModalProps {
  *
  * Displays:
  * - Confirmation header with ticket group name
- * - AI response preview using AIResponseSection
+ * - AI response preview using AIResponseSection (or empty state if no response)
  * - Info alert explaining what happens when enabled
  * - Cancel/Enable actions
  *
@@ -50,7 +53,6 @@ export function EnableAutoRespondModal({
 	const { t } = useTranslation(["tickets", "common"]);
 
 	const handleEnable = () => {
-		console.log("Auto-Respond enabled for:", ticketGroupName);
 		onEnable?.();
 		// Pass ticket group name and a mock automated percentage (would come from real data)
 		onAutoRespondEnabled?.(ticketGroupName, 12);
@@ -63,7 +65,7 @@ export function EnableAutoRespondModal({
 
 	return (
 		<Dialog open={open} onOpenChange={onOpenChange}>
-			<DialogContent className="sm:max-w-xl max-h-[90vh] flex flex-col">
+			<DialogContent className="flex max-h-[90vh] flex-col sm:max-w-xl">
 				<DialogHeader className="flex-none">
 					<DialogTitle>{t("automation.enableAutoRespond.title")}</DialogTitle>
 					<DialogDescription>
@@ -80,20 +82,30 @@ export function EnableAutoRespondModal({
 				</DialogHeader>
 
 				{/* Scrollable Content */}
-				<div className="flex-1 overflow-y-auto space-y-4 py-2">
+				<div className="flex-1 space-y-4 overflow-y-auto py-2">
 					{/* AI Response Preview */}
-					<AIResponseSection
-						type={AI_RESPONSE_TYPE.AUTO_RESPOND}
-						response={aiResponse}
-						maxVisibleArticles={1}
-						className="flex-none"
-					/>
+					{aiResponse ? (
+						<AIResponseSection
+							type={AI_RESPONSE_TYPE.AUTO_RESPOND}
+							response={aiResponse}
+							maxVisibleArticles={1}
+							className="flex-none"
+						/>
+					) : (
+						<div className="flex items-center justify-center rounded-lg border bg-muted/50 p-8">
+							<p className="text-muted-foreground">
+								{t("review.noAiResponse")}
+							</p>
+						</div>
+					)}
 
 					{/* Info Alert */}
 					<StatusAlert variant="info">
-						<p className="font-semibold mb-1">{t("autoRespond.whenEnabled")}</p>
-						<ul className="list-disc list-inside space-y-1 text-sm">
-							<li>{t("autoRespond.sendToOpen", { count: openTicketsCount })}</li>
+						<p className="mb-1 font-semibold">{t("autoRespond.whenEnabled")}</p>
+						<ul className="list-inside list-disc space-y-1 text-sm">
+							<li>
+								{t("autoRespond.sendToOpen", { count: openTicketsCount })}
+							</li>
 							<li>{t("autoRespond.respondToFuture")}</li>
 							<li>{t("autoRespond.useTrainedResponses")}</li>
 						</ul>
@@ -104,7 +116,9 @@ export function EnableAutoRespondModal({
 					<Button variant="outline" onClick={handleCancel}>
 						{t("common:actions.cancel")}
 					</Button>
-					<Button onClick={handleEnable}>{t("autoRespond.enableButton")}</Button>
+					<Button onClick={handleEnable} disabled={!aiResponse}>
+						{t("autoRespond.enableButton")}
+					</Button>
 				</DialogFooter>
 			</DialogContent>
 		</Dialog>

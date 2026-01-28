@@ -63,6 +63,9 @@ export interface ChatInputProps {
 		maxFiles?: number;
 		maxFileSize?: number;
 	};
+
+	/** Custom content for left side of toolbar (next to send button) */
+	leftToolbarContent?: React.ReactNode;
 }
 
 export function ChatInput({
@@ -77,6 +80,7 @@ export function ChatInput({
 	onSubmit,
 	className,
 	fileUpload,
+	leftToolbarContent,
 }: ChatInputProps) {
 	const { t } = useTranslation("chat");
 
@@ -114,9 +118,13 @@ export function ChatInput({
 					</PromptInputBody>
 					<PromptInputToolbar>
 						<PromptInputTools>
+							{leftToolbarContent}
 							{/* TODO: Re-enable attachment button when backend support is ready */}
 						</PromptInputTools>
-						<PromptInputSubmit disabled={isSubmitDisabled} status={chatStatus} />
+						<PromptInputSubmit
+							disabled={isSubmitDisabled}
+							status={chatStatus}
+						/>
 					</PromptInputToolbar>
 				</PromptInput>
 
@@ -124,7 +132,9 @@ export function ChatInput({
 				{showNoKnowledgeWarning && (
 					<div className="mt-0 flex items-center rounded-b-[12px] border border-t-0 border-border bg-muted px-3 py-2">
 						<p className="text-xs text-muted-foreground">
-							{isAdmin ? resolvedNoKnowledgeMessage.admin : resolvedNoKnowledgeMessage.user}
+							{isAdmin
+								? resolvedNoKnowledgeMessage.admin
+								: resolvedNoKnowledgeMessage.user}
 						</p>
 					</div>
 				)}

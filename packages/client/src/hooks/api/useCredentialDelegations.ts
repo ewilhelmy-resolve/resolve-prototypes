@@ -10,8 +10,9 @@ import keycloak from "@/services/keycloak";
 
 /**
  * ITSM system types
+ * Note: 'servicenow_itsm' (not 'servicenow') - KB uses separate connection
  */
-export type ItsmSystemType = "servicenow" | "jira";
+export type ItsmSystemType = "servicenow_itsm" | "jira_itsm";
 
 /**
  * Delegation status

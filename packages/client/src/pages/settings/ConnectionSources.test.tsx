@@ -112,7 +112,9 @@ describe("ConnectionSources", () => {
 			mockDataSourcesQuery.error = new Error("Failed to fetch");
 			renderWithRouter(<ConnectionSources />);
 
-			expect(screen.getByRole("button", { name: /errors.tryAgain/i })).toBeInTheDocument();
+			expect(
+				screen.getByRole("button", { name: /errors.tryAgain/i }),
+			).toBeInTheDocument();
 		});
 	});
 
@@ -167,7 +169,7 @@ describe("ConnectionSources", () => {
 				createMockDataSource({
 					id: "3",
 					type: "servicenow",
-					name: "ServiceNow",
+					name: "config.source.servicenow",
 				}),
 			];
 			mockDataSourcesQuery.data = sources;
@@ -175,7 +177,11 @@ describe("ConnectionSources", () => {
 
 			expect(screen.getByText("Confluence")).toBeInTheDocument();
 			expect(screen.getByText("SharePoint")).toBeInTheDocument();
-			expect(screen.getByText("ServiceNow")).toBeInTheDocument();
+			// Match ServiceNow text
+			const sourceElement = screen.getByText((content) => {
+				return content.includes("ServiceNow");
+			});
+			expect(sourceElement).toBeInTheDocument();
 		});
 
 		it("should only render Confluence sources as clickable links", () => {
@@ -217,7 +223,7 @@ describe("ConnectionSources", () => {
 				createMockDataSource({
 					id: "3",
 					type: "servicenow",
-					name: "ServiceNow",
+					name: "config.source.servicenow",
 				}),
 				createMockDataSource({
 					id: "1",
@@ -235,7 +241,11 @@ describe("ConnectionSources", () => {
 			// Verify all sources are displayed in correct order
 			expect(screen.getByText("Confluence")).toBeInTheDocument();
 			expect(screen.getByText("SharePoint")).toBeInTheDocument();
-			expect(screen.getByText("ServiceNow")).toBeInTheDocument();
+			// Match ServiceNow text
+			const sourceElement = screen.getByText((content) => {
+				return content.includes("ServiceNow");
+			});
+			expect(sourceElement).toBeInTheDocument();
 			expect(screen.getByText("Web Search (LGA)")).toBeInTheDocument();
 		});
 	});
@@ -269,7 +279,9 @@ describe("ConnectionSources", () => {
 			renderWithRouter(<ConnectionSources />);
 
 			// Last sync should be shown (using translation key pattern)
-			expect(screen.getByText(/connectionSources.lastSync/)).toBeInTheDocument();
+			expect(
+				screen.getByText(/connectionSources.lastSync/),
+			).toBeInTheDocument();
 		});
 
 		it("should display status badge", () => {
@@ -289,7 +301,9 @@ describe("ConnectionSources", () => {
 			renderWithRouter(<ConnectionSources />);
 
 			// Last sync text should be present (using translation key pattern)
-			expect(screen.getByText(/connectionSources.lastSync/)).toBeInTheDocument();
+			expect(
+				screen.getByText(/connectionSources.lastSync/),
+			).toBeInTheDocument();
 		});
 
 		it("should display badges", () => {
@@ -377,7 +391,9 @@ describe("ConnectionSources", () => {
 			mockDataSourcesQuery.data = [source];
 			renderWithRouter(<ConnectionSources />);
 
-			const button = screen.getByRole("button", { name: /connectionSources.comingSoon/i });
+			const button = screen.getByRole("button", {
+				name: /connectionSources.comingSoon/i,
+			});
 			expect(button).toBeInTheDocument();
 			expect(button).toBeDisabled();
 		});
@@ -387,7 +403,7 @@ describe("ConnectionSources", () => {
 		it("should link Confluence source to detail page", () => {
 			const source = createMockDataSource({
 				id: "source-123",
-				type: "confluence"
+				type: "confluence",
 			});
 			mockDataSourcesQuery.data = [source];
 			renderWithRouter(<ConnectionSources />);
@@ -425,8 +441,16 @@ describe("ConnectionSources", () => {
 
 		it("should create multiple links when multiple Confluence sources exist", () => {
 			const sources = [
-				createMockDataSource({ id: "1", type: "confluence", name: "Confluence 1" }),
-				createMockDataSource({ id: "2", type: "confluence", name: "Confluence 2" }),
+				createMockDataSource({
+					id: "1",
+					type: "confluence",
+					name: "Confluence 1",
+				}),
+				createMockDataSource({
+					id: "2",
+					type: "confluence",
+					name: "Confluence 2",
+				}),
 			];
 			mockDataSourcesQuery.data = sources;
 			renderWithRouter(<ConnectionSources />);
@@ -455,16 +479,16 @@ describe("ConnectionSources", () => {
 			expect(screen.getByText("Syncing...")).toBeInTheDocument();
 		});
 
-		it("should render source with error last_sync_status", () => {
+		it("should render source with error status when verification failed", () => {
 			const source = createMockDataSource({
 				status: "idle",
-				last_sync_status: "failed",
-				last_sync_error: "Connection timeout",
+				last_verification_at: "2024-01-01T00:00:00Z",
+				last_verification_error: "Connection timeout",
 			});
 			mockDataSourcesQuery.data = [source];
 			renderWithRouter(<ConnectionSources />);
 
-			// Should show Failed status
+			// Should show Failed status (ERROR state shows "Failed" badge)
 			expect(screen.getByText("Failed")).toBeInTheDocument();
 		});
 	});

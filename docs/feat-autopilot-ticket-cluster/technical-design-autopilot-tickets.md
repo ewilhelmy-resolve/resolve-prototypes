@@ -83,7 +83,7 @@ sequenceDiagram
     WP->>WP: Classify tickets → assign cluster IDs
 
     loop For Each Cluster
-        WP->>DB: UPSERT clusters<br/>(organization_id, external_cluster_id, name, config)
+        WP->>DB: UPSERT clusters<br/>(organization_id, model_id, name, subcluster_name, config)
         WP->>DB: UPDATE tickets SET cluster_id<br/>WHERE organization_id = $tenant_id AND external_id IN (...)
     end
 
@@ -276,7 +276,8 @@ erDiagram
         text model_name
         date training_start_date
         date training_end_date
-        jsonb metadata "Flexible field for future ML properties"
+        boolean active "One active per org (enforced by WF)"
+        jsonb metadata "training_state: not_started|in_progress|failed|complete"
         timestamp created_at
         timestamp updated_at
     }
@@ -284,8 +285,7 @@ erDiagram
     clusters {
         uuid id PK "Auto-generated internal ID"
         uuid organization_id FK "organizations.id ON DELETE CASCADE"
-        uuid model_id FK "ml_models.id - which model generated this cluster"
-        text external_cluster_id UK "Stable ID from Workflow Platform"
+        uuid model_id FK "ml_models.id ON DELETE CASCADE (required)"
         string name "Cluster Name"
         text subcluster_name "NULL = top-level cluster only"
         jsonb config "{auto_respond: boolean, auto_populate: boolean}"
@@ -677,9 +677,9 @@ WF now owns all autopilot data writes. Key patterns:
     * Example: `WHERE organization_id = $tenant_id`
 
 2.  **Idempotency Pattern (WF implements):**
-    * **Clusters:** `INSERT ... ON CONFLICT (organization_id, external_cluster_id) DO UPDATE SET name = EXCLUDED.name, kb_status = EXCLUDED.kb_status, updated_at = NOW()`
+    * **Clusters:** `INSERT ... ON CONFLICT (organization_id, model_id, name, COALESCE(subcluster_name, '')) DO UPDATE SET kb_status = EXCLUDED.kb_status, config = EXCLUDED.config, updated_at = NOW()`
     * **Tickets:** `INSERT ... ON CONFLICT (organization_id, external_id) DO UPDATE SET cluster_id = EXCLUDED.cluster_id, external_status = EXCLUDED.external_status, updated_at = NOW()`
-    * Conflict targets use unique constraints (org + external ID)
+    * Conflict targets use unique constraints/indexes
 
 3.  **Transaction Scope:**
     * Process entire batch in single Postgres transaction
@@ -989,6 +989,7 @@ CREATE TABLE ml_models (
     model_name TEXT NOT NULL,
     training_start_date DATE,
     training_end_date DATE,
+    active BOOLEAN NOT NULL DEFAULT false,  -- One active per org (enforced by WF)
     metadata JSONB DEFAULT '{}'::jsonb,  -- Flexible field for future ML properties
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
@@ -998,6 +999,7 @@ CREATE TABLE ml_models (
 -- Indexes
 CREATE INDEX idx_ml_models_organization_id ON ml_models(organization_id);
 CREATE INDEX idx_ml_models_external_model_id ON ml_models(external_model_id);
+CREATE INDEX idx_ml_models_active ON ml_models(organization_id, active) WHERE active = true;
 
 -- Row-Level Security
 ALTER TABLE ml_models ENABLE ROW LEVEL SECURITY;
@@ -1015,7 +1017,31 @@ EXECUTE FUNCTION update_updated_at_column();
 -- Comments
 COMMENT ON TABLE ml_models IS 'ML classification models (populated by WF from ML team endpoints)';
 COMMENT ON COLUMN ml_models.external_model_id IS 'Model ID from ML team system (used in API calls)';
+COMMENT ON COLUMN ml_models.active IS 'Whether this is the active model for the org (one per org, enforced by WF)';
+COMMENT ON COLUMN ml_models.metadata IS 'JSONB with training_state and other ML properties';
 ```
+
+##### ml_models.metadata Schema
+
+The `metadata` JSONB column stores ML-specific properties set by Workflow Platform:
+
+```typescript
+interface MlModelMetadata {
+  /** Training state set by Workflow Platform during model training */
+  training_state?: 'not_started' | 'in_progress' | 'failed' | 'complete';
+  // Future: additional ML properties
+}
+```
+
+**Training State Values:**
+| Value | Description | Frontend Behavior |
+|-------|-------------|-------------------|
+| `not_started` | Model created but training hasn't begun | Show empty state |
+| `in_progress` | Workflow Platform is training the model | Show skeleton UI + poll every 10s |
+| `failed` | Training failed (check logs) | Show empty state |
+| `complete` | Training finished, clusters available | Fetch and display clusters |
+
+**API Endpoint:** `GET /api/ml-models/active` returns the active model with metadata for the organization.
 
 #### clusters Table
 
@@ -1024,28 +1050,26 @@ COMMENT ON COLUMN ml_models.external_model_id IS 'Model ID from ML team system (
 CREATE TABLE clusters (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),  -- Internal auto-generated ID
     organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
-    model_id UUID REFERENCES ml_models(id) ON DELETE SET NULL,  -- ML model that generated this cluster
-    external_cluster_id TEXT NOT NULL,  -- Stable ID from Workflow Platform
-    name TEXT NOT NULL,  -- Cluster name (can repeat across rows)
+    model_id UUID NOT NULL REFERENCES ml_models(id) ON DELETE CASCADE,  -- ML model that generated this cluster (required)
+    name TEXT NOT NULL,  -- Cluster name (can repeat across rows with different subclusters)
     subcluster_name TEXT,  -- Subcluster name (NULL = top-level cluster only)
     config JSONB DEFAULT '{}'::jsonb,
     kb_status TEXT DEFAULT 'PENDING' CHECK (kb_status IN ('PENDING', 'FOUND', 'GAP')),
 
     -- Timestamps
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-
-    -- Unique constraint: one external_cluster_id per organization
-    CONSTRAINT uq_clusters_external_id_org UNIQUE (organization_id, external_cluster_id)
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
 -- Indexes
 CREATE INDEX idx_clusters_organization_id ON clusters(organization_id);
 CREATE INDEX idx_clusters_model_id ON clusters(model_id);
-CREATE INDEX idx_clusters_external_cluster_id ON clusters(external_cluster_id);
 CREATE INDEX idx_clusters_kb_status ON clusters(kb_status);
 CREATE INDEX idx_clusters_created_at ON clusters(created_at DESC);
-CREATE INDEX idx_clusters_config ON clusters USING GIN (config);  -- FUTURE
+
+-- Natural key constraint for idempotent upserts (COALESCE handles NULL subcluster_name)
+CREATE UNIQUE INDEX uq_clusters_org_model_name_subcluster
+    ON clusters (organization_id, model_id, name, COALESCE(subcluster_name, ''));
 
 -- Row-Level Security
 ALTER TABLE clusters ENABLE ROW LEVEL SECURITY;
@@ -1063,10 +1087,10 @@ EXECUTE FUNCTION update_updated_at_column();
 -- Comments
 COMMENT ON TABLE clusters IS 'AI-generated ticket clusters from Workflow Platform (system-generated)';
 COMMENT ON COLUMN clusters.id IS 'Internal auto-generated UUID for internal references';
-COMMENT ON COLUMN clusters.model_id IS 'ML model that generated this cluster';
-COMMENT ON COLUMN clusters.external_cluster_id IS 'Stable cluster ID provided by Workflow Platform (used for upsert matching)';
+COMMENT ON COLUMN clusters.model_id IS 'ML model that generated this cluster (required)';
 COMMENT ON COLUMN clusters.subcluster_name IS 'Subcluster name (NULL = top-level cluster only)';
 COMMENT ON COLUMN clusters.config IS 'JSONB config: {auto_respond: boolean, auto_populate: boolean}';
+COMMENT ON INDEX uq_clusters_org_model_name_subcluster IS 'Natural key for idempotent upsert by WF';
 ```
 
 #### tickets Table

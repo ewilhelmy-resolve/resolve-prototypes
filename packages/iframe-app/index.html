@@ -510,25 +510,36 @@
             <span id="devPanelToggle">−</span>
         </div>
         <div class="dev-panel-content">
-            <!-- Tab Simulation (PLAT-3286 Testing) -->
+            <!-- Activity-Based Conversation Testing -->
             <div class="dev-section">
-                <h3>Tab Simulation (PLAT-3286)</h3>
-                <p style="font-size: 10px; color: #64748b; margin-bottom: 8px;">Test conversation reuse across tab returns</p>
+                <h3>Activity Scenarios</h3>
+                <p style="font-size: 10px; color: #64748b; margin-bottom: 8px;">Test activity-based conversation mapping (activityId from Valkey context)</p>
                 <div class="mock-btn-grid">
-                    <button class="mock-btn" id="tabBtnA" onclick="loadTabSession('tab-A')">
-                        <span class="mock-label">Tab A</span>
-                        <span class="mock-desc">Workflow Designer</span>
+                    <button class="mock-btn" id="actBtnA1" onclick="loadActivitySession('activity-1001', 'session-A')">
+                        <span class="mock-label">Act 1001 (A)</span>
+                        <span class="mock-desc">Session A</span>
                     </button>
-                    <button class="mock-btn" id="tabBtnB" onclick="loadTabSession('tab-B')">
-                        <span class="mock-label">Tab B</span>
-                        <span class="mock-desc">Activity Builder</span>
+                    <button class="mock-btn" id="actBtnA2" onclick="loadActivitySession('activity-1001', 'session-B')">
+                        <span class="mock-label">Act 1001 (B)</span>
+                        <span class="mock-desc">Session B (same conv!)</span>
+                    </button>
+                    <button class="mock-btn" id="actBtnB1" onclick="loadActivitySession('activity-2002', 'session-C')">
+                        <span class="mock-label">Act 2002</span>
+                        <span class="mock-desc">Different activity</span>
+                    </button>
+                    <button class="mock-btn" id="actBtnNoAct" onclick="loadActivitySession(null, 'session-no-activity')">
+                        <span class="mock-label">No Activity</span>
+                        <span class="mock-desc">New conv each time</span>
                     </button>
                 </div>
-                <button class="dev-btn success" onclick="returnToTab()" style="margin-top: 8px;">↩ Return to Same Tab</button>
                 <div style="margin-top: 8px; padding: 8px; background: #f1f5f9; border-radius: 4px; font-size: 10px;">
-                    <div><strong>Current Tab:</strong> <span id="currentTab">None</span></div>
+                    <div><strong>Activity ID:</strong> <span id="currentActivityId">-</span></div>
                     <div><strong>Session Key:</strong> <span id="currentSessionKey">-</span></div>
                     <div><strong>Conv ID:</strong> <span id="currentConvId">-</span></div>
+                    <div style="margin-top: 4px; padding-top: 4px; border-top: 1px solid #e2e8f0;">
+                        <strong>Test:</strong> Act 1001 (A) and (B) = same Conv ID<br>
+                        No Activity = new Conv ID each time
+                    </div>
                 </div>
             </div>
 
@@ -639,11 +650,19 @@
         let requestCounter = 0;
         let chatOpen = false;
 
-        // Tab simulation state (PLAT-3286)
-        let currentTabId = null;
-        const tabSessions = {
-            'tab-A': { sessionKey: 'test-tab-A', context: 'Workflow Designer', convId: null },
-            'tab-B': { sessionKey: 'test-tab-B', context: 'Activity Builder', convId: null }
+        // Activity-based conversation testing state
+        let currentActivityId = null;
+        let currentSessionKey = null;
+        let lastConvId = null;
+
+        // Activity sessions: different sessionKeys can share same activityId → same conversation
+        // Dev bypass: session keys starting with "dev-" or "demo-" skip Valkey lookup
+        // Format: dev-activity-{id} or demo-activity-{id}-{suffix}
+        const activitySessions = {
+            'activity-1001-session-A': { activityId: 1001, sessionKey: 'dev-activity-1001-A', activityName: 'Activity 1001' },
+            'activity-1001-session-B': { activityId: 1001, sessionKey: 'dev-activity-1001-B', activityName: 'Activity 1001' },
+            'activity-2002-session-C': { activityId: 2002, sessionKey: 'dev-activity-2002', activityName: 'Activity 2002' },
+            'no-activity-session-no-activity': { activityId: null, sessionKey: 'dev-no-activity-' + Date.now(), activityName: null }
         };
 
         function log(message, type = 'info') {
@@ -727,91 +746,65 @@
             log(`Loading: ${url}`, 'outgoing');
         }
 
-        // PLAT-3286: Tab Simulation Functions
-        function loadTabSession(tabId) {
-            const tab = tabSessions[tabId];
-            if (!tab) {
-                log(`Error: Unknown tab ${tabId}`, 'error');
+        // Activity-based conversation functions
+        async function loadActivitySession(activityId, sessionSuffix) {
+            const key = `${activityId || 'no-activity'}-${sessionSuffix}`;
+            const session = activitySessions[key];
+
+            if (!session) {
+                log(`Error: Unknown session ${key}`, 'error');
                 return;
             }
 
-            currentTabId = tabId;
+            currentActivityId = session.activityId;
+            currentSessionKey = session.sessionKey;
 
-            // Highlight active tab button
-            document.getElementById('tabBtnA')?.classList.remove('active');
-            document.getElementById('tabBtnB')?.classList.remove('active');
-            document.getElementById(`tabBtn${tabId.split('-')[1]}`)?.classList.add('active');
+            // Highlight active button
+            document.querySelectorAll('.mock-btn').forEach(btn => btn.classList.remove('active'));
+            event?.target?.closest('.mock-btn')?.classList.add('active');
+
             const iframe = document.getElementById('ritaIframe');
-
-            // Clear previous convId to simulate fresh navigation
-            tab.convId = null;
-
-            // Load iframe with this tab's sessionKey (no conversationId - let backend find/create)
-            const url = `${RITA_BASE_URL}/iframe/chat?sessionKey=${encodeURIComponent(tab.sessionKey)}`;
+            const url = `${RITA_BASE_URL}/iframe/chat?sessionKey=${encodeURIComponent(session.sessionKey)}`;
 
             iframeReady = false;
             updateStatus('Loading...', 'waiting');
             iframe.src = url;
 
-            // Update Tab Simulation display
-            updateTabDisplay();
+            updateActivityDisplay();
 
-            // Open chat widget
             if (!chatOpen) {
                 toggleChat();
             }
 
-            log(`Loading ${tabId} (${tab.context}): sessionKey=${tab.sessionKey}`, 'workflow');
-        }
-
-        function returnToTab() {
-            if (!currentTabId) {
-                log('Error: No tab selected. Click Tab A or Tab B first.', 'error');
-                return;
+            log(`Loading: activityId=${session.activityId || 'none'}, sessionKey=${session.sessionKey}`, 'workflow');
+            if (session.activityId) {
+                log(`Activity "${session.activityName}" - should reuse conversation for same activityId`, 'info');
             }
-
-            const tab = tabSessions[currentTabId];
-            const iframe = document.getElementById('ritaIframe');
-
-            // Reload same sessionKey - should return SAME conversationId
-            const url = `${RITA_BASE_URL}/iframe/chat?sessionKey=${encodeURIComponent(tab.sessionKey)}`;
-
-            iframeReady = false;
-            updateStatus('Loading...', 'waiting');
-            iframe.src = url;
-
-            log(`↩ Returning to ${currentTabId}: sessionKey=${tab.sessionKey}`, 'workflow');
-            log(`Expected: Same convId as before (${tab.convId || 'first load'})`, 'workflow');
         }
 
-        function updateTabDisplay() {
-            const tab = currentTabId ? tabSessions[currentTabId] : null;
-            document.getElementById('currentTab').textContent = currentTabId || 'None';
-            document.getElementById('currentSessionKey').textContent = tab?.sessionKey || '-';
-            document.getElementById('currentConvId').textContent = tab?.convId || '(waiting...)';
+        function updateActivityDisplay() {
+            document.getElementById('currentActivityId').textContent = currentActivityId || 'none';
+            document.getElementById('currentSessionKey').textContent = currentSessionKey || '-';
+            document.getElementById('currentConvId').textContent = lastConvId || '(waiting...)';
         }
 
         function captureConversationId(url) {
             // Extract conversationId from iframe URL
             // Format: /iframe/chat/:conversationId?sessionKey=...
             const match = url.match(/\/iframe\/chat\/([^?/]+)/);
-            if (match && match[1] && currentTabId) {
+            if (match && match[1]) {
                 const convId = match[1];
-                const tab = tabSessions[currentTabId];
-                const wasNull = tab.convId === null;
-                const isSame = tab.convId === convId;
 
-                if (wasNull) {
-                    tab.convId = convId;
-                    log(`✓ Conv ID captured: ${convId}`, 'incoming');
-                } else if (isSame) {
-                    log(`✓ PASS: Same conv ID returned! ${convId}`, 'incoming');
+                if (lastConvId && lastConvId !== convId) {
+                    log(`Conv ID changed: ${lastConvId} → ${convId}`, 'workflow');
+                } else if (lastConvId === convId) {
+                    log(`✓ Same Conv ID reused: ${convId}`, 'incoming');
                 } else {
-                    log(`✗ FAIL: Different conv ID! Was: ${tab.convId}, Now: ${convId}`, 'error');
-                    tab.convId = convId;
+                    log(`Conv ID captured: ${convId}`, 'incoming');
                 }
 
-                updateTabDisplay();
+                lastConvId = convId;
+                updateActivityDisplay();
             }
         }
 
@@ -879,7 +872,7 @@
                     updateStatus('Connected', 'ready');
                     log('READY: Iframe connected', 'incoming');
 
-                    // PLAT-3286: Capture conversationId from iframe URL after navigation
+                    // Capture conversationId from iframe URL after navigation
                     setTimeout(() => {
                         try {
                             const iframe = document.getElementById('ritaIframe');
@@ -888,10 +881,10 @@
                             captureConversationId(iframeUrl);
                         } catch (e) {
                             // Cross-origin - try from data payload if provided
-                            if (data?.conversationId && currentTabId) {
-                                tabSessions[currentTabId].convId = data.conversationId;
+                            if (data?.conversationId) {
+                                lastConvId = data.conversationId;
                                 log(`Conv ID from READY: ${data.conversationId}`, 'incoming');
-                                updateTabDisplay();
+                                updateActivityDisplay();
                             }
                         }
                     }, 100);
@@ -903,8 +896,8 @@
                     log(`STATUS [${requestId}]: ${JSON.stringify(data).substring(0, 50)}...`, 'incoming');
                     break;
                 case 'NAVIGATION':
-                    // PLAT-3286: Alternative - iframe sends navigation event with conversationId
-                    if (data?.conversationId && currentTabId) {
+                    // Capture conversationId from navigation event
+                    if (data?.conversationId) {
                         captureConversationId(`/iframe/chat/${data.conversationId}`);
                     }
                     break;

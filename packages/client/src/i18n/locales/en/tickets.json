@@ -1,17 +1,29 @@
 {
+	"header": {
+		"description": "Rita learned from <strong>{{ticketCount}}</strong> tickets this month <strong>across {{clusterCount}} issue types</strong>",
+		"stats": {
+			"ticketsLast7Days": "Tickets last 7 days",
+			"handledAutomatically": "Handled Automatically",
+			"automationRate": "Automation Rate",
+			"aiHoursSaved": "AI hours saved"
+		}
+	},
 	"page": {
 		"title": "Ticket Groups",
-		"subtitle": "Based on the last 90 days",
+		"subtitle": "Based on the {{period}}",
 		"notFound": "Ticket not found"
 	},
 	"groups": {
 		"failedToLoad": "Failed to load ticket groups",
 		"noGroups": "No ticket groups found",
+		"trainingInProgress": "Model training in progress",
+		"trainingDescription": "Ticket groups will appear when training completes. This usually takes a few minutes.",
 		"filterBy": "Filter by",
 		"filterOptions": {
 			"all": "All",
 			"knowledgeFound": "Knowledge found",
-			"knowledgeGap": "Knowledge gap"
+			"knowledgeGap": "Knowledge gap",
+			"pending": "Pending"
 		},
 		"periods": {
 			"last30Days": "Last 30 days",
@@ -35,7 +47,8 @@
 		"ticketDetails": "Ticket Details",
 		"trustTheBot": "Trust the Bot",
 		"teachTheBot": "Teach the Bot",
-		"aiResponse": "AI-Response"
+		"aiResponse": "AI-Response",
+		"noAiResponse": "AI response not available"
 	},
 	"feedback": {
 		"title": "What was wrong with this response?",
@@ -160,18 +173,19 @@
 		}
 	},
 	"autoPopulate": {
-		"title": "Enable Auto-populated",
-		"description": "New tickets in this group will automatically have fill populate with predicted values.",
+		"title": "Enable Auto-Populate",
+		"description": "New tickets in this group will be automatically populated with predicted values.",
 		"tableHeaders": {
 			"type": "Type",
 			"currentValue": "Current Value",
 			"predictedValue": "Predicted Value"
 		},
 		"alert": {
-			"title": "Base on AI Predictions",
+			"title": "Based on AI Predictions",
 			"description": "Predictions use past tickets + kb data associated to this ticket group."
 		},
-		"enable": "Enable Auto-Populate"
+		"enable": "Enable Auto-Populate",
+		"noPredictions": "No predictions available"
 	},
 	"autoRespond": {
 		"whenEnabled": "When You Enable Auto-Respond",
@@ -207,6 +221,7 @@
 	"trends": {
 		"title": "Ticket Trends",
 		"description": "Rita learned from {{count}} tickets, automatically handled {{percentage}}%",
+		"emptyState": "Trend data coming soon",
 		"legend": {
 			"manual": "Manual",
 			"automated": "Automated"

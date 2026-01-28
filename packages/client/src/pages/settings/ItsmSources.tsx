@@ -22,11 +22,13 @@ export default function ItsmSources() {
 	const { mutate: seedSources, isPending: isSeeding } = useSeedDataSources();
 	const { data: dataSources, isLoading, error } = useDataSources();
 	const isServiceNowEnabled = useFeatureFlag("ENABLE_SERVICENOW");
+	const isJiraEnabled = useFeatureFlag("ENABLE_JIRA");
 
 	// Sources that are clickable (configured for ITSM sync)
-	const enabledItsmSources: string[] = isServiceNowEnabled
-		? [SOURCES.SERVICENOW]
-		: [];
+	const enabledItsmSources: string[] = [
+		...(isServiceNowEnabled ? [SOURCES.SERVICENOW_ITSM] : []),
+		...(isJiraEnabled ? [SOURCES.JIRA_ITSM] : []),
+	];
 
 	// Seed on mount (idempotent - safe to call multiple times)
 	useEffect(() => {

@@ -1,4 +1,27 @@
 {
+	"statusCard": {
+		"labels": {
+			"url": "URL",
+			"email": "Email",
+			"username": "Username",
+			"password": "Password",
+			"apiToken": "API"
+		},
+		"multipleAttemptsFailed": "Multiple attempts failed",
+		"getHelp": "Get Help",
+		"retrying": "Retrying... ({{current}}/{{max}})",
+		"connectionFailed": "Connection failed",
+		"retry": "Retry",
+		"ticketsProgress": "{{processed}} of {{total}} tickets",
+		"importingTickets": "Importing tickets...",
+		"syncingConnection": "Syncing connection...",
+		"verifyingConnection": "Verifying connection...",
+		"syncCancelled": "Sync cancelled by user",
+		"lastSynced": "Last synced {{time}}",
+		"ticketsCount": "{{count}} tickets",
+		"connected": "Connected",
+		"notConfigured": "Not configured"
+	},
 	"status": {
 		"notConnected": "Not connected",
 		"connected": "Connected",
@@ -16,6 +39,10 @@
 			"title": "ServiceNow",
 			"description": "Connect to ServiceNow for ITSM integration."
 		},
+		"servicenow_itsm": {
+			"title": "ServiceNow ITSM",
+			"description": "Connect to ServiceNow for ITSM ticket integration."
+		},
 		"sharepoint": {
 			"title": "SharePoint",
 			"description": "Import documents from SharePoint."
@@ -24,9 +51,9 @@
 			"title": "Web Search (LGA)",
 			"description": "Use web results to supplement answers when knowledge isn't found."
 		},
-		"jira": {
+		"jira_itsm": {
 			"title": "Jira",
-			"description": "Import tickets from Jira for autopilot clustering."
+			"description": "Import tickets from Jira for Autopilot clustering."
 		},
 		"freshdesk": {
 			"title": "Freshdesk",
@@ -50,7 +77,8 @@
 			"clientSecret": "Client Secret",
 			"siteUrl": "Site URL",
 			"freshdeskDomain": "Freshdesk Domain",
-			"apiKey": "API Key"
+			"apiKey": "API Key",
+			"jiraUrl": "Jira URL"
 		},
 		"placeholders": {
 			"confluenceUrl": "https://your-company.atlassian.net",
@@ -64,7 +92,8 @@
 			"secret": "••••••••",
 			"sharePointUrl": "https://your-company.sharepoint.com",
 			"freshdeskDomain": "https://your-company.freshdesk.com",
-			"apiKey": "Enter your API key"
+			"apiKey": "Enter your API key",
+			"jiraUrl": "https://your-company.atlassian.net"
 		},
 		"validation": {
 			"urlRequired": "URL is required",
@@ -170,5 +199,10 @@
 			"cancelFailed": "Cancel Failed",
 			"cancelFailedDefault": "Failed to cancel sync"
 		}
+	},
+	"servicenow": {
+		"applyToRelated": "Apply credentials to {{target}} connection",
+		"knowledgeBase": "Knowledge Base",
+		"itsm": "ITSM"
 	}
 }

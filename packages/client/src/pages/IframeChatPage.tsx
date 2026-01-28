@@ -16,7 +16,15 @@
  * Debug mode: Add ?debug=true to URL to see debug panel
  */
 
-import { Bug, ChevronDown, ChevronUp, Download } from "lucide-react";
+import {
+	Bug,
+	ChevronDown,
+	ChevronUp,
+	Download,
+	ScrollText,
+	Trash2,
+	Wrench,
+} from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
@@ -24,6 +32,14 @@ import { Loader } from "../components/ai-elements/loader";
 import ChatV1Content from "../components/chat/ChatV1Content";
 import IframeChatLayout from "../components/layouts/IframeChatLayout";
 import { Button } from "../components/ui/button";
+import {
+	DropdownMenu,
+	DropdownMenuContent,
+	DropdownMenuItem,
+	DropdownMenuLabel,
+	DropdownMenuSeparator,
+	DropdownMenuTrigger,
+} from "../components/ui/dropdown-menu";
 import { SSEProvider, useSSEContext } from "../contexts/SSEContext";
 import { useFeatureFlag } from "../hooks/useFeatureFlags";
 import {
@@ -43,13 +59,9 @@ interface DebugLogEntry {
 	data?: Record<string, unknown>;
 }
 
-// Valkey config for dev tools export
-interface ValkeyConfig {
-	tenantId?: string;
-	chatSessionId?: string;
-	tabInstanceId?: string;
-	tenantName?: string;
-}
+// Full Valkey payload for dev tools export
+// Sensitive fields (accessToken, refreshToken, clientKey) are redacted by backend
+type ValkeyPayload = Record<string, unknown>;
 
 // Debug panel props
 interface DebugPanelProps {
@@ -65,44 +77,77 @@ interface DebugPanelProps {
 		sessionKey: string | null;
 		apiUrl: string;
 	};
+	valkeyPayload: ValkeyPayload | null;
 }
 
-// Floating toolbar header (shows when feature flag enabled)
-// Extensible for future features: logout, theme select, etc.
-function IframeToolbar({
+// Clear chat button (shows when feature flag enabled)
+function IframeClearChat({ onClear }: { onClear: () => void }) {
+	const devToolsEnabled = useFeatureFlag("ENABLE_IFRAME_DEV_TOOLS");
+
+	if (!devToolsEnabled) return null;
+
+	return (
+		<Button
+			size="icon"
+			variant="ghost"
+			className="h-8 w-8 hover:bg-accent"
+			onClick={onClear}
+			title="Clear conversation"
+		>
+			<Trash2 className="h-4 w-4" />
+		</Button>
+	);
+}
+
+// Dev tools dropdown for input toolbar (shows when feature flag enabled)
+function IframeDevTools({
 	onDownloadConversation,
 	onDownloadMetadata,
+	onShowActivityLog,
 }: {
 	onDownloadConversation: () => void;
 	onDownloadMetadata: () => void;
+	onShowActivityLog: () => void;
 }) {
 	const devToolsEnabled = useFeatureFlag("ENABLE_IFRAME_DEV_TOOLS");
 
 	if (!devToolsEnabled) return null;
 
 	return (
-		<div className="absolute top-0 left-0 right-0 z-40 flex items-center justify-between px-3 py-2 bg-gray-900/90 backdrop-blur-sm border-b border-gray-700">
-			<span className="text-xs text-gray-400 font-medium">Dev Tools</span>
-			<div className="flex items-center gap-2">
-				<Button
-					size="sm"
+		<DropdownMenu>
+			<DropdownMenuTrigger asChild>
+				<Button size="icon" variant="ghost" className="h-8 w-8 hover:bg-accent">
+					<Wrench className="h-4 w-4" />
+				</Button>
+			</DropdownMenuTrigger>
+			<DropdownMenuContent align="start" side="top" className="w-48">
+				<DropdownMenuLabel className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+					Downloads
+				</DropdownMenuLabel>
+				<DropdownMenuItem
 					onClick={onDownloadConversation}
-					title="Download conversation ID and transcript"
+					className="cursor-pointer"
 				>
-					<Download className="w-3.5 h-3.5" />
+					<Download className="mr-2 h-4 w-4" />
 					Conversation
-				</Button>
-				<Button
-					size="sm"
-					variant="secondary"
+				</DropdownMenuItem>
+				<DropdownMenuItem
 					onClick={onDownloadMetadata}
-					title="Download full metadata and message objects"
+					className="cursor-pointer"
 				>
-					<Download className="w-3.5 h-3.5" />
-					Metadata
-				</Button>
-			</div>
-		</div>
+					<Download className="mr-2 h-4 w-4" />
+					Full Metadata
+				</DropdownMenuItem>
+				<DropdownMenuSeparator />
+				<DropdownMenuItem
+					onClick={onShowActivityLog}
+					className="cursor-pointer"
+				>
+					<ScrollText className="mr-2 h-4 w-4" />
+					Activity Log
+				</DropdownMenuItem>
+			</DropdownMenuContent>
+		</DropdownMenu>
 	);
 }
 
@@ -113,7 +158,8 @@ function DebugPanel({
 	setShowDebug,
 	debugLogs,
 	state,
-}: Omit<DebugPanelProps, "onDownload">) {
+	valkeyPayload,
+}: DebugPanelProps) {
 	if (!debug && !showDebug) return null;
 
 	return (
@@ -155,6 +201,15 @@ function DebugPanel({
 							)}
 						</pre>
 					</div>
+					{/* Valkey Payload */}
+					{valkeyPayload && (
+						<div className="bg-gray-800 rounded p-2">
+							<div className="font-semibold mb-1">Valkey Payload:</div>
+							<pre className="text-[10px] overflow-x-auto">
+								{JSON.stringify(valkeyPayload, null, 2)}
+							</pre>
+						</div>
+					)}
 					{/* Logs */}
 					<div className="bg-gray-800 rounded p-2">
 						<div className="font-semibold mb-1">Logs:</div>
@@ -195,6 +250,7 @@ function IframeChatContent({
 	titleText,
 	placeholderText,
 	welcomeText,
+	leftToolbarContent,
 }: {
 	conversationId: string;
 	/** Custom title from Valkey (e.g., "Ask Workflow Designer") */
@@ -203,6 +259,8 @@ function IframeChatContent({
 	placeholderText?: string;
 	/** Custom welcome text from Valkey (e.g., "I can help you build workflow automations.") */
 	welcomeText?: string;
+	/** Custom content for left side of input toolbar */
+	leftToolbarContent?: React.ReactNode;
 }) {
 	const { latestUpdate } = useSSEContext();
 	const { updateMessage } = useConversationStore();
@@ -254,6 +312,7 @@ function IframeChatContent({
 			titleText={titleText}
 			placeholderText={placeholderText}
 			welcomeText={welcomeText}
+			leftToolbarContent={leftToolbarContent}
 		/>
 	);
 }
@@ -279,8 +338,19 @@ export default function IframeChatPage() {
 	const [placeholderText, setPlaceholderText] = useState<string | undefined>();
 	const [welcomeText, setWelcomeText] = useState<string | undefined>();
 
-	// Valkey config for dev tools export (JAR-69)
-	const [valkeyConfig, setValkeyConfig] = useState<ValkeyConfig | null>(null);
+	// Full Valkey payload for dev tools export (JAR-69)
+	const [valkeyPayload, setValkeyPayload] = useState<ValkeyPayload | null>(
+		null,
+	);
+
+	// Initialize platform feature flags for iframe (uses tenantId from valkeyPayload)
+	const flagsStore = useFeatureFlagsStore();
+	const tenantId = valkeyPayload?.tenantId as string | undefined;
+	useEffect(() => {
+		if (tenantId && !flagsStore.initialized) {
+			flagsStore.initialize(tenantId);
+		}
+	}, [tenantId, flagsStore]);
 
 	// Initialize platform feature flags for iframe (uses tenantId from valkeyConfig)
 	const { initialize: initializeFlags, initialized: flagsInitialized } =
@@ -363,13 +433,8 @@ export default function IframeChatPage() {
 			exportedAt: new Date().toISOString(),
 			conversationId,
 			sessionKey,
-			// Valkey config from validate-instantiation
-			valkeyConfig: {
-				tenantId: valkeyConfig?.tenantId,
-				chatSessionId: valkeyConfig?.chatSessionId,
-				tabInstanceId: valkeyConfig?.tabInstanceId,
-				tenantName: valkeyConfig?.tenantName,
-			},
+			// Full Valkey payload from validate-instantiation (sensitive fields excluded by backend)
+			valkeyPayload,
 			// Debug info
 			debug: {
 				apiUrl,
@@ -386,7 +451,60 @@ export default function IframeChatPage() {
 			})),
 		};
 		triggerDownload(data, `metadata-${conversationId}-${Date.now()}.json`);
-	}, [conversationId, sessionKey, valkeyConfig, debugLogs, triggerDownload]);
+	}, [conversationId, sessionKey, valkeyPayload, debugLogs, triggerDownload]);
+
+	// Clear chat handler - deletes conversation and creates a new one
+	const handleClearChat = useCallback(async () => {
+		if (!conversationId || !sessionKey) return;
+
+		// Confirm with user
+		if (!window.confirm("Clear all messages? This cannot be undone.")) return;
+
+		try {
+			addDebugLog("info", "Clearing chat...", { conversationId });
+
+			// Delete current conversation
+			await iframeApi.deleteConversation(conversationId);
+
+			// Clear local state
+			useConversationStore.getState().clearCurrentConversation();
+			setDebugLogs([]);
+
+			// Reset refs to allow re-initialization
+			initRef.current = false;
+			workflowExecutedRef.current = false;
+
+			// Re-initialize to get new conversation (don't pass existingConversationId)
+			const response = await iframeApi.validateInstantiation({ sessionKey });
+
+			if (response.valid && response.conversationId) {
+				setConversationId(response.conversationId);
+				setCurrentConversation(response.conversationId);
+
+				// Navigate to new conversation URL
+				const params = new URLSearchParams(window.location.search);
+				navigate(`/iframe/chat/${response.conversationId}?${params}`, {
+					replace: true,
+				});
+
+				addDebugLog("info", "Chat cleared, new conversation created", {
+					newConversationId: response.conversationId,
+				});
+			} else {
+				addDebugLog("error", "Failed to create new conversation", {
+					error: response.error,
+				});
+			}
+		} catch (err) {
+			addDebugLog("error", "Failed to clear chat", { error: String(err) });
+		}
+	}, [
+		conversationId,
+		sessionKey,
+		navigate,
+		setCurrentConversation,
+		addDebugLog,
+	]);
 
 	// Initialize iframe session on mount (always required for auth)
 	useEffect(() => {
@@ -444,13 +562,10 @@ export default function IframeChatPage() {
 					setWelcomeText(response.welcomeText);
 					setPlaceholderText(response.placeholderText);
 
-					// Store Valkey config for dev tools export (JAR-69)
-					setValkeyConfig({
-						tenantId: response.webhookTenantId,
-						chatSessionId: response.chatSessionId,
-						tabInstanceId: response.tabInstanceId,
-						tenantName: response.tenantName,
-					});
+					// Store full Valkey payload for dev tools export (JAR-69)
+					if (response.valkeyPayload) {
+						setValkeyPayload(response.valkeyPayload);
+					}
 
 					// Navigate to URL with conversationId to sync with useChatNavigation
 					// This prevents useChatNavigation from clearing the store when URL has no conversationId
@@ -533,6 +648,7 @@ export default function IframeChatPage() {
 			sessionKey,
 			apiUrl,
 		},
+		valkeyPayload,
 	};
 
 	// Loading state
@@ -578,6 +694,18 @@ export default function IframeChatPage() {
 		);
 	}
 
+	// Dev tools element for input toolbar
+	const devToolsElement = (
+		<>
+			<IframeClearChat onClear={handleClearChat} />
+			<IframeDevTools
+				onDownloadConversation={downloadConversation}
+				onDownloadMetadata={downloadMetadata}
+				onShowActivityLog={() => setShowDebug(true)}
+			/>
+		</>
+	);
+
 	// Render chat with SSE provider (session cookie enables SSE auth)
 	return (
 		<IframeChatLayout>
@@ -587,12 +715,9 @@ export default function IframeChatPage() {
 					titleText={titleText}
 					placeholderText={placeholderText}
 					welcomeText={welcomeText}
+					leftToolbarContent={devToolsElement}
 				/>
 			</SSEProvider>
-			<IframeToolbar
-				onDownloadConversation={downloadConversation}
-				onDownloadMetadata={downloadMetadata}
-			/>
 			<DebugPanel {...debugPanelProps} />
 		</IframeChatLayout>
 	);
