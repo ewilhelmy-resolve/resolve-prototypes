@@ -40,3 +40,5 @@ console.log(`Paths documented: ${Object.keys(spec.paths || {}).length}`);
 console.log(
 	`Schemas defined: ${Object.keys(spec.components?.schemas || {}).length}`,
 );
+
+process.exit(0);
