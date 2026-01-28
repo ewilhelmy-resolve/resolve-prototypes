@@ -15,6 +15,7 @@ import clusterRoutes from "./routes/clusters.js";
 import conversationRoutes from "./routes/conversations.js";
 import credentialDelegationRoutes from "./routes/credentialDelegations.js";
 import dataSourceRoutes from "./routes/dataSources.js";
+// IMPORTANT: docs.ts must be imported AFTER all routes so OpenAPI spec includes all paths
 import docsRoutes from "./routes/docs.js";
 import featureFlagRoutes from "./routes/featureFlags.js";
 import filesRoutes from "./routes/files.js";

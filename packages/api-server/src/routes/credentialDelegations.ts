@@ -1,7 +1,20 @@
 import express from "express";
 import { pool } from "../config/database.js";
 import { logger } from "../config/logger.js";
+import { registry, z } from "../docs/openapi.js";
 import { authenticateUser, requireRole } from "../middleware/auth.js";
+import { ErrorResponseSchema } from "../schemas/common.js";
+import {
+	CancelDelegationResponseSchema,
+	CreateDelegationRequestSchema,
+	CreateDelegationResponseSchema,
+	DelegationListQuerySchema,
+	DelegationListResponseSchema,
+	DelegationStatusResponseSchema,
+	SubmitCredentialsRequestSchema,
+	SubmitCredentialsResponseSchema,
+	VerifyDelegationResponseSchema,
+} from "../schemas/credentialDelegation.js";
 import { CredentialDelegationService } from "../services/CredentialDelegationService.js";
 import { DataSourceWebhookService } from "../services/DataSourceWebhookService.js";
 import { WebhookService } from "../services/WebhookService.js";
@@ -11,6 +24,233 @@ import type {
 	SubmitCredentialsRequest,
 } from "../types/credentialDelegation.js";
 import type { AuthenticatedRequest } from "../types/express.js";
+
+// ============================================================================
+// OpenAPI Documentation Registration
+// ============================================================================
+
+registry.registerPath({
+	method: "post",
+	path: "/api/credential-delegations/create",
+	tags: ["Credential Delegations"],
+	summary: "Create credential delegation",
+	description:
+		"Create a new credential delegation and send email to IT admin. Rate limited to 10 per org per day.",
+	security: [{ bearerAuth: [] }, { cookieAuth: [] }],
+	request: {
+		body: {
+			content: {
+				"application/json": { schema: CreateDelegationRequestSchema },
+			},
+		},
+	},
+	responses: {
+		201: {
+			description: "Delegation created and email sent",
+			content: {
+				"application/json": { schema: CreateDelegationResponseSchema },
+			},
+		},
+		400: {
+			description: "Invalid input",
+			content: { "application/json": { schema: ErrorResponseSchema } },
+		},
+		401: {
+			description: "Unauthorized",
+			content: { "application/json": { schema: ErrorResponseSchema } },
+		},
+		403: {
+			description: "Forbidden - requires owner/admin role",
+			content: { "application/json": { schema: ErrorResponseSchema } },
+		},
+		409: {
+			description: "Delegation already exists for this admin",
+			content: { "application/json": { schema: ErrorResponseSchema } },
+		},
+		429: {
+			description: "Rate limit exceeded (10/day)",
+			content: { "application/json": { schema: ErrorResponseSchema } },
+		},
+		500: {
+			description: "Server error",
+			content: { "application/json": { schema: ErrorResponseSchema } },
+		},
+	},
+});
+
+registry.registerPath({
+	method: "get",
+	path: "/api/credential-delegations/verify/{token}",
+	tags: ["Credential Delegations"],
+	summary: "Verify delegation token",
+	description:
+		"Verify a delegation token and return details. Public endpoint - token is the auth.",
+	security: [],
+	request: {
+		params: z.object({
+			token: z.string().length(64).openapi({ description: "Delegation token" }),
+		}),
+	},
+	responses: {
+		200: {
+			description: "Token verification result",
+			content: {
+				"application/json": { schema: VerifyDelegationResponseSchema },
+			},
+		},
+		400: {
+			description: "Invalid token format",
+			content: {
+				"application/json": { schema: VerifyDelegationResponseSchema },
+			},
+		},
+		500: {
+			description: "Server error",
+			content: {
+				"application/json": { schema: VerifyDelegationResponseSchema },
+			},
+		},
+	},
+});
+
+registry.registerPath({
+	method: "post",
+	path: "/api/credential-delegations/submit",
+	tags: ["Credential Delegations"],
+	summary: "Submit ITSM credentials",
+	description:
+		"Submit ITSM credentials via delegation token. Public endpoint - token is the auth.",
+	security: [],
+	request: {
+		body: {
+			content: {
+				"application/json": { schema: SubmitCredentialsRequestSchema },
+			},
+		},
+	},
+	responses: {
+		200: {
+			description: "Credentials submitted",
+			content: {
+				"application/json": { schema: SubmitCredentialsResponseSchema },
+			},
+		},
+		400: {
+			description: "Invalid input or credentials",
+			content: { "application/json": { schema: ErrorResponseSchema } },
+		},
+		409: {
+			description: "Token already used",
+			content: { "application/json": { schema: ErrorResponseSchema } },
+		},
+		410: {
+			description: "Token expired",
+			content: { "application/json": { schema: ErrorResponseSchema } },
+		},
+		500: {
+			description: "Server error",
+			content: { "application/json": { schema: ErrorResponseSchema } },
+		},
+	},
+});
+
+registry.registerPath({
+	method: "get",
+	path: "/api/credential-delegations/status/{token}",
+	tags: ["Credential Delegations"],
+	summary: "Get delegation status",
+	description: "Get delegation status by token. Public endpoint for polling.",
+	security: [],
+	request: {
+		params: z.object({
+			token: z.string().length(64).openapi({ description: "Delegation token" }),
+		}),
+	},
+	responses: {
+		200: {
+			description: "Delegation status",
+			content: {
+				"application/json": { schema: DelegationStatusResponseSchema },
+			},
+		},
+		400: {
+			description: "Invalid token",
+			content: { "application/json": { schema: ErrorResponseSchema } },
+		},
+		404: {
+			description: "Token not found",
+			content: { "application/json": { schema: ErrorResponseSchema } },
+		},
+		500: {
+			description: "Server error",
+			content: { "application/json": { schema: ErrorResponseSchema } },
+		},
+	},
+});
+
+registry.registerPath({
+	method: "get",
+	path: "/api/credential-delegations",
+	tags: ["Credential Delegations"],
+	summary: "List delegations",
+	description: "List credential delegations for the organization.",
+	security: [{ bearerAuth: [] }, { cookieAuth: [] }],
+	request: {
+		query: DelegationListQuerySchema,
+	},
+	responses: {
+		200: {
+			description: "Delegation list",
+			content: { "application/json": { schema: DelegationListResponseSchema } },
+		},
+		401: {
+			description: "Unauthorized",
+			content: { "application/json": { schema: ErrorResponseSchema } },
+		},
+		500: {
+			description: "Server error",
+			content: { "application/json": { schema: ErrorResponseSchema } },
+		},
+	},
+});
+
+registry.registerPath({
+	method: "delete",
+	path: "/api/credential-delegations/{id}/cancel",
+	tags: ["Credential Delegations"],
+	summary: "Cancel delegation",
+	description: "Cancel a pending credential delegation.",
+	security: [{ bearerAuth: [] }, { cookieAuth: [] }],
+	request: {
+		params: z.object({
+			id: z.string().uuid().openapi({ description: "Delegation ID" }),
+		}),
+	},
+	responses: {
+		200: {
+			description: "Delegation cancelled",
+			content: {
+				"application/json": { schema: CancelDelegationResponseSchema },
+			},
+		},
+		401: {
+			description: "Unauthorized",
+			content: { "application/json": { schema: ErrorResponseSchema } },
+		},
+		403: {
+			description: "Forbidden - requires owner/admin role",
+			content: { "application/json": { schema: ErrorResponseSchema } },
+		},
+		404: {
+			description: "Delegation not found or cannot be cancelled",
+			content: { "application/json": { schema: ErrorResponseSchema } },
+		},
+		500: {
+			description: "Server error",
+			content: { "application/json": { schema: ErrorResponseSchema } },
+		},
+	},
+});
 
 const router = express.Router();
 const webhookService = new WebhookService();
@@ -50,7 +290,7 @@ router.post(
 			) {
 				return res.status(400).json({
 					error:
-						"itsm_system_type is required and must be one of: servicenow_itsm, jira",
+						"itsm_system_type is required and must be one of: servicenow_itsm, jira_itsm",
 				});
 			}
 

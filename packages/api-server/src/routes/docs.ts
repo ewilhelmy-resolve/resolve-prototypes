@@ -2,6 +2,9 @@ import { Router } from "express";
 import swaggerUi from "swagger-ui-express";
 import { generateOpenAPIDocument } from "../docs/openapi.js";
 
+// Import schemas that register OpenAPI paths (not imported via routes)
+import "../schemas/health.js";
+
 // Routes self-register their docs when imported
 // (imported via index.ts/main app)
 
@@ -19,7 +22,7 @@ const swaggerOptions: swaggerUi.SwaggerUiOptions = {
 	},
 };
 
-// Generate spec once and cache (regenerate on server restart)
+// Generate spec lazily on first request (after all routes are imported)
 let cachedSpec: ReturnType<typeof generateOpenAPIDocument> | null = null;
 
 function getSpec() {
@@ -29,9 +32,12 @@ function getSpec() {
 	return cachedSpec;
 }
 
-// Swagger UI
+// Swagger UI - use lazy setup to ensure all routes are registered first
 router.use("/", swaggerUi.serve);
-router.get("/", swaggerUi.setup(getSpec(), swaggerOptions));
+router.get("/", (req, res, next) => {
+	// Generate spec on first request, not at import time
+	swaggerUi.setup(getSpec(), swaggerOptions)(req, res, next);
+});
 
 // JSON endpoint for tooling/CI
 router.get("/openapi.json", (_req, res) => {

@@ -57,8 +57,8 @@ See AsyncAPI spec for event documentation.
 		},
 		servers: [
 			{
-				url: "http://localhost:3000",
-				description: "Development server",
+				url: "/",
+				description: "Current server",
 			},
 		],
 		tags: [

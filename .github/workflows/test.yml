@@ -57,6 +57,15 @@ jobs:
     - name: Lint (all packages)
       run: pnpm -r run lint
 
+    - name: Verify OpenAPI spec is up-to-date
+      run: |
+        pnpm --filter rita-api-server docs:generate
+        git diff --exit-code packages/api-server/openapi.json || \
+          (echo "❌ OpenAPI spec out of date. Run 'pnpm --filter rita-api-server docs:generate' and commit." && exit 1)
+      env:
+        LOG_LEVEL: silent
+        DATABASE_URL: postgresql://dummy:dummy@localhost:5432/dummy
+
     - name: Run API server unit tests
       run: pnpm --filter rita-api-server test:run
 
