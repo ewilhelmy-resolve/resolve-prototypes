@@ -352,15 +352,6 @@ export default function IframeChatPage() {
 		}
 	}, [tenantId, flagsStore]);
 
-	// Initialize platform feature flags for iframe (uses tenantId from valkeyConfig)
-	const { initialize: initializeFlags, initialized: flagsInitialized } =
-		useFeatureFlagsStore();
-	useEffect(() => {
-		if (valkeyConfig?.tenantId && !flagsInitialized) {
-			initializeFlags(valkeyConfig.tenantId);
-		}
-	}, [valkeyConfig?.tenantId, flagsInitialized, initializeFlags]);
-
 	// Debug state
 	const [showDebug, setShowDebug] = useState(debug);
 	const [debugLogs, setDebugLogs] = useState<DebugLogEntry[]>([]);
