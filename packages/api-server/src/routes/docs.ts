@@ -2,6 +2,9 @@ import { Router } from "express";
 import swaggerUi from "swagger-ui-express";
 import { generateOpenAPIDocument } from "../docs/openapi.js";
 
+// Import schemas that register OpenAPI paths (not imported via routes)
+import "../schemas/health.js";
+
 // Routes self-register their docs when imported
 // (imported via index.ts/main app)
 

@@ -92,6 +92,334 @@
 			}
 		},
 		"schemas": {
+			"SignupResponse": {
+				"type": "object",
+				"properties": {
+					"success": {
+						"type": "boolean",
+						"enum": [true]
+					},
+					"message": {
+						"type": "string",
+						"description": "Success message",
+						"example": "Signup successful. Please check your email for verification instructions."
+					}
+				},
+				"required": ["success", "message"]
+			},
+			"ErrorResponse": {
+				"type": "object",
+				"properties": {
+					"error": {
+						"type": "string",
+						"description": "Error message",
+						"example": "Resource not found"
+					},
+					"code": {
+						"type": "string",
+						"description": "Error code",
+						"example": "NOT_FOUND"
+					},
+					"details": {
+						"description": "Additional error details"
+					}
+				},
+				"required": ["error"]
+			},
+			"SignupRequest": {
+				"type": "object",
+				"properties": {
+					"firstName": {
+						"type": "string",
+						"minLength": 1,
+						"description": "User first name",
+						"example": "John"
+					},
+					"lastName": {
+						"type": "string",
+						"minLength": 1,
+						"description": "User last name",
+						"example": "Doe"
+					},
+					"email": {
+						"type": "string",
+						"format": "email",
+						"description": "User email address",
+						"example": "john@example.com"
+					},
+					"company": {
+						"type": "string",
+						"minLength": 1,
+						"description": "Company name",
+						"example": "Acme Inc"
+					},
+					"password": {
+						"type": "string",
+						"minLength": 1,
+						"description": "User password"
+					},
+					"tosAcceptedAt": {
+						"type": "string",
+						"format": "date-time",
+						"description": "Timestamp when TOS was accepted"
+					}
+				},
+				"required": ["firstName", "lastName", "email", "company", "password"]
+			},
+			"ResendVerificationResponse": {
+				"type": "object",
+				"properties": {
+					"success": {
+						"type": "boolean",
+						"enum": [true]
+					},
+					"message": {
+						"type": "string",
+						"description": "Generic response (does not reveal if email exists)",
+						"example": "If a pending verification exists, a new email has been sent"
+					}
+				},
+				"required": ["success", "message"]
+			},
+			"ResendVerificationRequest": {
+				"type": "object",
+				"properties": {
+					"email": {
+						"type": "string",
+						"format": "email",
+						"description": "Email address to resend verification to"
+					}
+				},
+				"required": ["email"]
+			},
+			"LoginResponse": {
+				"type": "object",
+				"properties": {
+					"success": {
+						"type": "boolean",
+						"enum": [true]
+					},
+					"user": {
+						"$ref": "#/components/schemas/AuthUser"
+					},
+					"session": {
+						"$ref": "#/components/schemas/AuthSession"
+					}
+				},
+				"required": ["success", "user", "session"]
+			},
+			"AuthUser": {
+				"type": "object",
+				"properties": {
+					"id": {
+						"type": "string",
+						"format": "uuid",
+						"description": "User ID"
+					},
+					"email": {
+						"type": "string",
+						"format": "email",
+						"description": "User email address"
+					},
+					"firstName": {
+						"type": ["string", "null"],
+						"description": "User first name"
+					},
+					"lastName": {
+						"type": ["string", "null"],
+						"description": "User last name"
+					},
+					"organizationId": {
+						"type": ["string", "null"],
+						"format": "uuid",
+						"description": "Active organization ID"
+					}
+				},
+				"required": ["id", "email", "firstName", "lastName", "organizationId"]
+			},
+			"AuthSession": {
+				"type": "object",
+				"properties": {
+					"id": {
+						"type": "string",
+						"description": "Session ID"
+					},
+					"expiresAt": {
+						"type": "string",
+						"format": "date-time",
+						"description": "Session expiration timestamp"
+					},
+					"lastAccessedAt": {
+						"type": "string",
+						"format": "date-time",
+						"description": "Last access timestamp"
+					}
+				},
+				"required": ["id", "expiresAt"]
+			},
+			"LoginRequest": {
+				"type": "object",
+				"properties": {
+					"accessToken": {
+						"type": "string",
+						"description": "Keycloak access token from client-side authentication"
+					}
+				},
+				"required": ["accessToken"]
+			},
+			"LogoutResponse": {
+				"type": "object",
+				"properties": {
+					"success": {
+						"type": "boolean",
+						"enum": [true]
+					},
+					"message": {
+						"type": "string",
+						"description": "Logout confirmation",
+						"example": "Logged out successfully"
+					}
+				},
+				"required": ["success", "message"]
+			},
+			"LogoutAllResponse": {
+				"type": "object",
+				"properties": {
+					"success": {
+						"type": "boolean",
+						"enum": [true]
+					},
+					"deletedSessions": {
+						"type": "number",
+						"description": "Number of sessions that were destroyed",
+						"example": 3
+					}
+				},
+				"required": ["success", "deletedSessions"]
+			},
+			"VerifyEmailResponse": {
+				"type": "object",
+				"properties": {
+					"success": {
+						"type": "boolean",
+						"enum": [true]
+					},
+					"message": {
+						"type": "string",
+						"description": "Verification confirmation",
+						"example": "Email verified successfully. You can now sign in."
+					},
+					"email": {
+						"type": "string",
+						"format": "email",
+						"description": "Verified email address"
+					}
+				},
+				"required": ["success", "message", "email"]
+			},
+			"VerifyEmailRequest": {
+				"type": "object",
+				"properties": {
+					"token": {
+						"type": "string",
+						"description": "Email verification token from the verification link"
+					}
+				},
+				"required": ["token"]
+			},
+			"SessionResponse": {
+				"type": "object",
+				"properties": {
+					"authenticated": {
+						"type": "boolean",
+						"enum": [true]
+					},
+					"user": {
+						"$ref": "#/components/schemas/AuthUser"
+					},
+					"session": {
+						"$ref": "#/components/schemas/AuthSession"
+					}
+				},
+				"required": ["authenticated", "user", "session"]
+			},
+			"SessionUnauthenticatedResponse": {
+				"type": "object",
+				"properties": {
+					"authenticated": {
+						"type": "boolean",
+						"enum": [false]
+					},
+					"error": {
+						"type": "string",
+						"description": "Error message"
+					}
+				},
+				"required": ["authenticated", "error"]
+			},
+			"ProfileResponse": {
+				"type": "object",
+				"properties": {
+					"success": {
+						"type": "boolean",
+						"enum": [true]
+					},
+					"user": {
+						"$ref": "#/components/schemas/AuthUser"
+					}
+				},
+				"required": ["success", "user"]
+			},
+			"UpdateProfileResponse": {
+				"type": "object",
+				"properties": {
+					"success": {
+						"type": "boolean",
+						"enum": [true]
+					},
+					"user": {
+						"$ref": "#/components/schemas/UpdatedUser"
+					}
+				},
+				"required": ["success", "user"]
+			},
+			"UpdatedUser": {
+				"type": "object",
+				"properties": {
+					"id": {
+						"type": "string",
+						"format": "uuid"
+					},
+					"email": {
+						"type": "string",
+						"format": "email"
+					},
+					"firstName": {
+						"type": ["string", "null"]
+					},
+					"lastName": {
+						"type": ["string", "null"]
+					}
+				},
+				"required": ["id", "email", "firstName", "lastName"]
+			},
+			"UpdateProfileRequest": {
+				"type": "object",
+				"properties": {
+					"firstName": {
+						"type": "string",
+						"minLength": 1,
+						"maxLength": 100,
+						"description": "New first name"
+					},
+					"lastName": {
+						"type": "string",
+						"minLength": 1,
+						"maxLength": 100,
+						"description": "New last name"
+					}
+				}
+			},
 			"ClusterListResponse": {
 				"type": "object",
 				"properties": {
@@ -214,25 +542,6 @@
 					}
 				},
 				"required": ["error", "details"]
-			},
-			"ErrorResponse": {
-				"type": "object",
-				"properties": {
-					"error": {
-						"type": "string",
-						"description": "Error message",
-						"example": "Resource not found"
-					},
-					"code": {
-						"type": "string",
-						"description": "Error code",
-						"example": "NOT_FOUND"
-					},
-					"details": {
-						"description": "Additional error details"
-					}
-				},
-				"required": ["error"]
 			},
 			"ClusterDetailsResponse": {
 				"type": "object",
@@ -957,11 +1266,636 @@
 					}
 				},
 				"required": ["success", "message", "connection_id", "ingestion_run_id"]
+			},
+			"ActiveModelResponse": {
+				"type": "object",
+				"properties": {
+					"data": {
+						"$ref": "#/components/schemas/MlModel"
+					}
+				},
+				"required": ["data"]
+			},
+			"MlModel": {
+				"type": ["object", "null"],
+				"properties": {
+					"id": {
+						"type": "string",
+						"format": "uuid",
+						"description": "Model ID"
+					},
+					"organization_id": {
+						"type": "string",
+						"format": "uuid",
+						"description": "Organization ID"
+					},
+					"model_name": {
+						"type": "string",
+						"description": "Model name",
+						"example": "ticket-classifier-v1"
+					},
+					"external_model_id": {
+						"type": "string",
+						"description": "External model reference ID",
+						"example": "model_abc123"
+					},
+					"active": {
+						"type": "boolean",
+						"description": "Whether this model is currently active",
+						"example": true
+					},
+					"metadata": {
+						"$ref": "#/components/schemas/MlModelMetadata"
+					},
+					"training_start_date": {
+						"type": ["string", "null"],
+						"format": "date-time",
+						"description": "When training started",
+						"example": "2024-01-15T10:30:00.000Z"
+					},
+					"training_end_date": {
+						"type": ["string", "null"],
+						"format": "date-time",
+						"description": "When training completed",
+						"example": "2024-01-15T12:30:00.000Z"
+					},
+					"created_at": {
+						"type": ["string", "null"],
+						"format": "date-time",
+						"description": "Creation timestamp",
+						"example": "2024-01-15T10:30:00.000Z"
+					},
+					"updated_at": {
+						"type": ["string", "null"],
+						"format": "date-time",
+						"description": "Last update timestamp",
+						"example": "2024-01-15T10:30:00.000Z"
+					}
+				},
+				"required": [
+					"id",
+					"organization_id",
+					"model_name",
+					"external_model_id",
+					"active",
+					"metadata",
+					"training_start_date",
+					"training_end_date",
+					"created_at",
+					"updated_at"
+				],
+				"description": "Active ML model or null if none active"
+			},
+			"MlModelMetadata": {
+				"type": ["object", "null"],
+				"properties": {
+					"training_state": {
+						"type": "string",
+						"enum": ["not_started", "in_progress", "failed", "complete"],
+						"description": "Model training state"
+					}
+				},
+				"additionalProperties": {},
+				"description": "Model metadata including training state"
+			},
+			"TicketResponse": {
+				"type": "object",
+				"properties": {
+					"data": {
+						"$ref": "#/components/schemas/Ticket"
+					}
+				},
+				"required": ["data"]
+			},
+			"HealthResponse": {
+				"type": "object",
+				"properties": {
+					"status": {
+						"type": "string",
+						"enum": ["ok", "degraded"],
+						"description": "Overall health status",
+						"example": "ok"
+					},
+					"timestamp": {
+						"type": "string",
+						"format": "date-time",
+						"description": "Health check timestamp",
+						"example": "2024-01-15T10:30:00.000Z"
+					},
+					"services": {
+						"type": "object",
+						"properties": {
+							"api": {
+								"type": "string",
+								"enum": ["ok"],
+								"description": "API service status"
+							},
+							"rabbitmq": {
+								"$ref": "#/components/schemas/RabbitMQHealth"
+							}
+						},
+						"required": ["api", "rabbitmq"]
+					}
+				},
+				"required": ["status", "timestamp", "services"]
+			},
+			"RabbitMQHealth": {
+				"type": "object",
+				"properties": {
+					"status": {
+						"type": "string",
+						"enum": ["connected", "disconnected", "connecting"],
+						"description": "RabbitMQ connection status",
+						"example": "connected"
+					},
+					"lastConnectedAt": {
+						"type": ["string", "null"],
+						"format": "date-time",
+						"description": "Last successful connection timestamp"
+					},
+					"reconnectAttempts": {
+						"type": "number",
+						"description": "Number of reconnection attempts",
+						"example": 0
+					},
+					"consecutiveFailures": {
+						"type": "number",
+						"description": "Number of consecutive failures",
+						"example": 0
+					},
+					"message": {
+						"type": "string",
+						"description": "Additional status message"
+					}
+				},
+				"required": [
+					"status",
+					"lastConnectedAt",
+					"reconnectAttempts",
+					"consecutiveFailures"
+				]
 			}
 		},
 		"parameters": {}
 	},
 	"paths": {
+		"/auth/signup": {
+			"post": {
+				"tags": ["Auth"],
+				"summary": "Sign up new user",
+				"description": "Creates a pending user and triggers webhook for email verification. User must verify email before they can log in.",
+				"security": [],
+				"requestBody": {
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/components/schemas/SignupRequest"
+							}
+						}
+					}
+				},
+				"responses": {
+					"200": {
+						"description": "Signup initiated, verification email sent",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/SignupResponse"
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "Validation error or email already exists",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "Server error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/auth/resend-verification": {
+			"post": {
+				"tags": ["Auth"],
+				"summary": "Resend verification email",
+				"description": "Resends the verification email for pending signups. Rate limited to 1 request per 5 minutes per email.",
+				"security": [],
+				"requestBody": {
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/components/schemas/ResendVerificationRequest"
+							}
+						}
+					}
+				},
+				"responses": {
+					"200": {
+						"description": "Request processed (does not reveal if email exists)",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ResendVerificationResponse"
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "Validation error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					},
+					"429": {
+						"description": "Rate limited - wait 5 minutes",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "Server error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/auth/login": {
+			"post": {
+				"tags": ["Auth"],
+				"summary": "Create session from Keycloak token",
+				"description": "Creates a session cookie from a Keycloak access token. Used for browser-based flows where cookies are needed (e.g., SSE).",
+				"security": [],
+				"requestBody": {
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/components/schemas/LoginRequest"
+							}
+						}
+					}
+				},
+				"responses": {
+					"200": {
+						"description": "Login successful, session cookie set",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/LoginResponse"
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "Access token required",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Invalid Keycloak token",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "Server error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/auth/logout": {
+			"delete": {
+				"tags": ["Auth"],
+				"summary": "Logout current session",
+				"description": "Destroys the current session and clears the session cookie.",
+				"security": [],
+				"responses": {
+					"200": {
+						"description": "Logout successful",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/LogoutResponse"
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "Server error (session still cleared)",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/auth/logout-all": {
+			"delete": {
+				"tags": ["Auth"],
+				"summary": "Logout from all devices",
+				"description": "Destroys all sessions for the current user across all devices. Requires a valid session.",
+				"security": [],
+				"responses": {
+					"200": {
+						"description": "All sessions destroyed",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/LogoutAllResponse"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "No valid session",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "Server error (current session still cleared)",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/auth/verify-email": {
+			"post": {
+				"tags": ["Auth"],
+				"summary": "Verify email address",
+				"description": "Verifies a signup token from the email verification link. Marks user as ready for Keycloak signin.",
+				"security": [],
+				"requestBody": {
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/components/schemas/VerifyEmailRequest"
+							}
+						}
+					}
+				},
+				"responses": {
+					"200": {
+						"description": "Email verified successfully",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/VerifyEmailResponse"
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "Invalid/expired token or account already exists",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "Server error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/auth/session": {
+			"get": {
+				"tags": ["Auth"],
+				"summary": "Check session status",
+				"description": "Returns the current session status and user info if authenticated.",
+				"security": [],
+				"responses": {
+					"200": {
+						"description": "Session is valid",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/SessionResponse"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "No session or invalid session",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/SessionUnauthenticatedResponse"
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "Server error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/auth/profile": {
+			"get": {
+				"tags": ["Auth"],
+				"summary": "Get user profile",
+				"description": "Returns the current authenticated user's profile information.",
+				"security": [
+					{
+						"bearerAuth": []
+					},
+					{
+						"cookieAuth": []
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "Profile retrieved",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ProfileResponse"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Unauthorized",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "User not found",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "Server error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					}
+				}
+			},
+			"patch": {
+				"tags": ["Auth"],
+				"summary": "Update user profile",
+				"description": "Updates the authenticated user's firstName and/or lastName.",
+				"security": [
+					{
+						"bearerAuth": []
+					},
+					{
+						"cookieAuth": []
+					}
+				],
+				"requestBody": {
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/components/schemas/UpdateProfileRequest"
+							}
+						}
+					}
+				},
+				"responses": {
+					"200": {
+						"description": "Profile updated",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/UpdateProfileResponse"
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "Validation error or no fields to update",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Unauthorized",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "User not found",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "Server error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
 		"/api/clusters": {
 			"get": {
 				"tags": ["Clusters"],
@@ -2216,7 +3150,7 @@
 			"post": {
 				"tags": ["Data Sources"],
 				"summary": "Verify credentials",
-				"description": "Initiate credential verification for a data source. Returns immediately with status \"verifying\".\nFinal result arrives via SSE event `data_source_update`.",
+				"description": "Initiate credential verification for a data source. Returns immediately with status \"verifying\". Final result arrives via SSE event `data_source_update`.",
 				"security": [
 					{
 						"bearerAuth": []
@@ -2286,7 +3220,7 @@
 			"post": {
 				"tags": ["Data Sources"],
 				"summary": "Trigger sync",
-				"description": "Initiate document sync from the data source. Returns immediately with status \"syncing\".\nProgress and completion arrive via SSE event `data_source_update`.",
+				"description": "Initiate document sync from the data source. Returns immediately with status \"syncing\". Progress and completion arrive via SSE event `data_source_update`.",
 				"security": [
 					{
 						"bearerAuth": []
@@ -2356,7 +3290,7 @@
 			"post": {
 				"tags": ["Data Sources"],
 				"summary": "Sync ITSM tickets",
-				"description": "Initiate ITSM ticket ingestion for Autopilot clustering. Only valid for ITSM data sources (servicenow_itsm, jira_itsm).\nReturns HTTP 202 Accepted. Progress arrives via SSE event `ingestion_run_update`.",
+				"description": "Initiate ITSM ticket ingestion for Autopilot clustering. Only valid for ITSM data sources (servicenow_itsm, jira_itsm). Returns HTTP 202 Accepted. Progress arrives via SSE event `ingestion_run_update`.",
 				"security": [
 					{
 						"bearerAuth": []
@@ -2425,6 +3359,153 @@
 							"application/json": {
 								"schema": {
 									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/api/ml-models/active": {
+			"get": {
+				"tags": ["ML Models"],
+				"summary": "Get active ML model",
+				"description": "Returns the currently active ML model for the user's organization",
+				"security": [
+					{
+						"bearerAuth": []
+					},
+					{
+						"cookieAuth": []
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "Active model or null if none active",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ActiveModelResponse"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Unauthorized",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "Server error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/api/tickets/{id}": {
+			"get": {
+				"tags": ["Tickets"],
+				"summary": "Get ticket by ID",
+				"description": "Retrieve a single ticket by its ID",
+				"security": [
+					{
+						"bearerAuth": []
+					},
+					{
+						"cookieAuth": []
+					}
+				],
+				"parameters": [
+					{
+						"schema": {
+							"type": "string",
+							"format": "uuid",
+							"description": "Ticket ID"
+						},
+						"required": true,
+						"description": "Ticket ID",
+						"name": "id",
+						"in": "path"
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "Ticket details",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/TicketResponse"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Unauthorized",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Ticket not found",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "Server error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/health": {
+			"get": {
+				"tags": ["Health"],
+				"summary": "Health check",
+				"description": "Check API server health and service status",
+				"security": [],
+				"responses": {
+					"200": {
+						"description": "Server is healthy",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/HealthResponse"
+								}
+							}
+						}
+					},
+					"503": {
+						"description": "Server is degraded",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/HealthResponse"
 								}
 							}
 						}

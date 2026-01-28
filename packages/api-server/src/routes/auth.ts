@@ -1,12 +1,292 @@
 import crypto from "crypto";
 import express from "express";
-import { z } from "zod";
 import { logger } from "../config/logger.js";
+import { registry, z } from "../docs/openapi.js";
 import { authenticateUser } from "../middleware/auth.js";
 import { authRepository } from "../repositories/AuthRepository.js";
+import {
+	LoginRequestSchema,
+	LoginResponseSchema,
+	LogoutAllResponseSchema,
+	LogoutResponseSchema,
+	ProfileResponseSchema,
+	ResendVerificationRequestSchema,
+	ResendVerificationResponseSchema,
+	SessionResponseSchema,
+	SessionUnauthenticatedSchema,
+	SignupRequestSchema,
+	SignupResponseSchema,
+	UpdateProfileRequestSchema,
+	UpdateProfileResponseSchema,
+	VerifyEmailRequestSchema,
+	VerifyEmailResponseSchema,
+} from "../schemas/auth.js";
+import { ErrorResponseSchema } from "../schemas/common.js";
 import { getSessionService } from "../services/sessionService.js";
 import { WebhookService } from "../services/WebhookService.js";
 import type { AuthenticatedRequest } from "../types/express.js";
+
+// ============================================================================
+// OpenAPI Documentation Registration
+// ============================================================================
+
+registry.registerPath({
+	method: "post",
+	path: "/auth/signup",
+	tags: ["Auth"],
+	summary: "Sign up new user",
+	description:
+		"Creates a pending user and triggers webhook for email verification. User must verify email before they can log in.",
+	security: [],
+	request: {
+		body: {
+			content: { "application/json": { schema: SignupRequestSchema } },
+		},
+	},
+	responses: {
+		200: {
+			description: "Signup initiated, verification email sent",
+			content: { "application/json": { schema: SignupResponseSchema } },
+		},
+		400: {
+			description: "Validation error or email already exists",
+			content: { "application/json": { schema: ErrorResponseSchema } },
+		},
+		500: {
+			description: "Server error",
+			content: { "application/json": { schema: ErrorResponseSchema } },
+		},
+	},
+});
+
+registry.registerPath({
+	method: "post",
+	path: "/auth/resend-verification",
+	tags: ["Auth"],
+	summary: "Resend verification email",
+	description:
+		"Resends the verification email for pending signups. Rate limited to 1 request per 5 minutes per email.",
+	security: [],
+	request: {
+		body: {
+			content: {
+				"application/json": { schema: ResendVerificationRequestSchema },
+			},
+		},
+	},
+	responses: {
+		200: {
+			description: "Request processed (does not reveal if email exists)",
+			content: {
+				"application/json": { schema: ResendVerificationResponseSchema },
+			},
+		},
+		400: {
+			description: "Validation error",
+			content: { "application/json": { schema: ErrorResponseSchema } },
+		},
+		429: {
+			description: "Rate limited - wait 5 minutes",
+			content: { "application/json": { schema: ErrorResponseSchema } },
+		},
+		500: {
+			description: "Server error",
+			content: { "application/json": { schema: ErrorResponseSchema } },
+		},
+	},
+});
+
+registry.registerPath({
+	method: "post",
+	path: "/auth/login",
+	tags: ["Auth"],
+	summary: "Create session from Keycloak token",
+	description:
+		"Creates a session cookie from a Keycloak access token. Used for browser-based flows where cookies are needed (e.g., SSE).",
+	security: [],
+	request: {
+		body: {
+			content: { "application/json": { schema: LoginRequestSchema } },
+		},
+	},
+	responses: {
+		200: {
+			description: "Login successful, session cookie set",
+			content: { "application/json": { schema: LoginResponseSchema } },
+		},
+		400: {
+			description: "Access token required",
+			content: { "application/json": { schema: ErrorResponseSchema } },
+		},
+		401: {
+			description: "Invalid Keycloak token",
+			content: { "application/json": { schema: ErrorResponseSchema } },
+		},
+		500: {
+			description: "Server error",
+			content: { "application/json": { schema: ErrorResponseSchema } },
+		},
+	},
+});
+
+registry.registerPath({
+	method: "delete",
+	path: "/auth/logout",
+	tags: ["Auth"],
+	summary: "Logout current session",
+	description: "Destroys the current session and clears the session cookie.",
+	security: [],
+	responses: {
+		200: {
+			description: "Logout successful",
+			content: { "application/json": { schema: LogoutResponseSchema } },
+		},
+		500: {
+			description: "Server error (session still cleared)",
+			content: { "application/json": { schema: ErrorResponseSchema } },
+		},
+	},
+});
+
+registry.registerPath({
+	method: "delete",
+	path: "/auth/logout-all",
+	tags: ["Auth"],
+	summary: "Logout from all devices",
+	description:
+		"Destroys all sessions for the current user across all devices. Requires a valid session.",
+	security: [],
+	responses: {
+		200: {
+			description: "All sessions destroyed",
+			content: { "application/json": { schema: LogoutAllResponseSchema } },
+		},
+		401: {
+			description: "No valid session",
+			content: { "application/json": { schema: ErrorResponseSchema } },
+		},
+		500: {
+			description: "Server error (current session still cleared)",
+			content: { "application/json": { schema: ErrorResponseSchema } },
+		},
+	},
+});
+
+registry.registerPath({
+	method: "post",
+	path: "/auth/verify-email",
+	tags: ["Auth"],
+	summary: "Verify email address",
+	description:
+		"Verifies a signup token from the email verification link. Marks user as ready for Keycloak signin.",
+	security: [],
+	request: {
+		body: {
+			content: { "application/json": { schema: VerifyEmailRequestSchema } },
+		},
+	},
+	responses: {
+		200: {
+			description: "Email verified successfully",
+			content: { "application/json": { schema: VerifyEmailResponseSchema } },
+		},
+		400: {
+			description: "Invalid/expired token or account already exists",
+			content: { "application/json": { schema: ErrorResponseSchema } },
+		},
+		500: {
+			description: "Server error",
+			content: { "application/json": { schema: ErrorResponseSchema } },
+		},
+	},
+});
+
+registry.registerPath({
+	method: "get",
+	path: "/auth/session",
+	tags: ["Auth"],
+	summary: "Check session status",
+	description:
+		"Returns the current session status and user info if authenticated.",
+	security: [],
+	responses: {
+		200: {
+			description: "Session is valid",
+			content: { "application/json": { schema: SessionResponseSchema } },
+		},
+		401: {
+			description: "No session or invalid session",
+			content: { "application/json": { schema: SessionUnauthenticatedSchema } },
+		},
+		500: {
+			description: "Server error",
+			content: { "application/json": { schema: ErrorResponseSchema } },
+		},
+	},
+});
+
+registry.registerPath({
+	method: "get",
+	path: "/auth/profile",
+	tags: ["Auth"],
+	summary: "Get user profile",
+	description: "Returns the current authenticated user's profile information.",
+	security: [{ bearerAuth: [] }, { cookieAuth: [] }],
+	responses: {
+		200: {
+			description: "Profile retrieved",
+			content: { "application/json": { schema: ProfileResponseSchema } },
+		},
+		401: {
+			description: "Unauthorized",
+			content: { "application/json": { schema: ErrorResponseSchema } },
+		},
+		404: {
+			description: "User not found",
+			content: { "application/json": { schema: ErrorResponseSchema } },
+		},
+		500: {
+			description: "Server error",
+			content: { "application/json": { schema: ErrorResponseSchema } },
+		},
+	},
+});
+
+registry.registerPath({
+	method: "patch",
+	path: "/auth/profile",
+	tags: ["Auth"],
+	summary: "Update user profile",
+	description: "Updates the authenticated user's firstName and/or lastName.",
+	security: [{ bearerAuth: [] }, { cookieAuth: [] }],
+	request: {
+		body: {
+			content: { "application/json": { schema: UpdateProfileRequestSchema } },
+		},
+	},
+	responses: {
+		200: {
+			description: "Profile updated",
+			content: { "application/json": { schema: UpdateProfileResponseSchema } },
+		},
+		400: {
+			description: "Validation error or no fields to update",
+			content: { "application/json": { schema: ErrorResponseSchema } },
+		},
+		401: {
+			description: "Unauthorized",
+			content: { "application/json": { schema: ErrorResponseSchema } },
+		},
+		404: {
+			description: "User not found",
+			content: { "application/json": { schema: ErrorResponseSchema } },
+		},
+		500: {
+			description: "Server error",
+			content: { "application/json": { schema: ErrorResponseSchema } },
+		},
+	},
+});
 
 const router = express.Router();
 const sessionService = getSessionService();
