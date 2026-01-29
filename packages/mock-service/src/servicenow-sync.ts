@@ -289,32 +289,143 @@ function generateSourceMetadata(ticketNum: number, subject: string): object {
 }
 
 export interface SyncResult {
-	modelId: string;
+	modelId: string | null;
 	clustersCreated: number;
 	ticketsCreated: number;
 }
 
+export interface SyncSettings {
+	username?: string;
+	instanceUrl?: string;
+	time_range_days?: number;
+	[key: string]: unknown;
+}
+
+// Training state scenarios based on username convention
+type TrainingScenario = "null" | "failed" | "progress" | "complete";
+
+// Delay before transitioning from in_progress to complete (ms)
+const TRAINING_COMPLETE_DELAY = 15000; // 15 seconds
+
+/**
+ * Determine training scenario from username
+ * - mock-null: Don't create ml_model
+ * - mock-failed: Create with training_state: "failed"
+ * - mock-progress: Create with training_state: "in_progress" (stays there)
+ * - (default): Create with in_progress, transition to complete after delay
+ */
+function getTrainingScenario(username: string | undefined): TrainingScenario {
+	if (!username) return "complete";
+
+	const lowerUsername = username.toLowerCase();
+	if (lowerUsername === "mock-null") return "null";
+	if (lowerUsername === "mock-failed") return "failed";
+	if (lowerUsername === "mock-progress") return "progress";
+	return "complete";
+}
+
+/**
+ * Update ML model training state (used for delayed transitions)
+ */
+async function updateModelTrainingState(
+	organizationId: string,
+	modelId: string,
+	state: string,
+): Promise<void> {
+	const { query } = await import("./database.js");
+	const metadata = JSON.stringify({ training_state: state });
+
+	await query(
+		`UPDATE ml_models SET metadata = $1::jsonb, updated_at = NOW() WHERE id = $2 AND organization_id = $3`,
+		[metadata, modelId, organizationId],
+	);
+
+	logger.info(
+		{ modelId, organizationId, state },
+		"Updated ML model training state",
+	);
+}
+
 /**
  * Simulate ServiceNow ITSM sync by inserting realistic test data
+ *
+ * Username convention for testing different training states:
+ * - mock-null: Don't create ml_model (test "no model" state)
+ * - mock-failed: Create model with training_state: "failed"
+ * - mock-progress: Create with training_state: "in_progress" (stays)
+ * - (any other): Create with in_progress → complete after 15s delay
  */
 export async function syncServiceNowData(
 	organizationId: string,
 	connectionId: string,
 	ingestionRunId: string,
+	settings?: SyncSettings,
 ): Promise<SyncResult> {
+	const username = settings?.username;
+	const scenario = getTrainingScenario(username);
+
 	logger.info(
 		{
 			organizationId,
 			connectionId,
 			ingestionRunId,
+			username,
+			scenario,
 		},
 		"Starting ServiceNow data sync",
 	);
 
+	// Handle mock-null scenario: clean up existing data but don't create model
+	if (scenario === "null") {
+		const { query } = await import("./database.js");
+
+		// Clean up existing tickets, clusters, and models
+		await query(`DELETE FROM tickets WHERE organization_id = $1`, [
+			organizationId,
+		]);
+		await query(`DELETE FROM clusters WHERE organization_id = $1`, [
+			organizationId,
+		]);
+		await query(`DELETE FROM ml_models WHERE organization_id = $1`, [
+			organizationId,
+		]);
+
+		logger.info(
+			{ scenario, organizationId },
+			"Mock-null scenario: cleaned up data, skipping model creation",
+		);
+		return {
+			modelId: null,
+			clustersCreated: 0,
+			ticketsCreated: 0,
+		};
+	}
+
+	// Determine initial training state
+	const initialState =
+		scenario === "failed"
+			? "failed"
+			: scenario === "progress"
+				? "in_progress"
+				: "in_progress"; // complete scenario starts as in_progress
+
 	return withTransaction(async (client: pg.PoolClient) => {
-		// 1. Create/update ml_model
+		// 0. Clean up existing tickets and clusters for this organization
+		// This ensures consistent behavior on repeated syncs
+		await client.query(`DELETE FROM tickets WHERE organization_id = $1`, [
+			organizationId,
+		]);
+		await client.query(`DELETE FROM clusters WHERE organization_id = $1`, [
+			organizationId,
+		]);
+		logger.debug(
+			{ organizationId },
+			"Cleaned up existing tickets and clusters",
+		);
+
+		// 1. Create/update ml_model with appropriate training state
 		const externalModelId = `mock-model-${organizationId.substring(0, 8)}`;
-		const modelMetadata = JSON.stringify({ training_state: "complete" });
+		const modelMetadata = JSON.stringify({ training_state: initialState });
 		const modelResult = await client.query<{ id: string }>(
 			`INSERT INTO ml_models (organization_id, external_model_id, model_name, active, metadata)
        VALUES ($1, $2, 'ServiceNow ITSM Model', true, $3::jsonb)
@@ -324,7 +435,7 @@ export async function syncServiceNowData(
 			[organizationId, externalModelId, modelMetadata],
 		);
 		const modelId = modelResult.rows[0].id;
-		logger.debug({ modelId }, "ML model created/updated");
+		logger.debug({ modelId, initialState }, "ML model created/updated");
 
 		// 2. Create clusters
 		const clusterMap = new Map<string, string>();
@@ -381,9 +492,29 @@ export async function syncServiceNowData(
 				modelId,
 				clustersCreated: clusterMap.size,
 				ticketsCreated,
+				initialState,
+				scenario,
 			},
 			"ServiceNow data sync completed",
 		);
+
+		// Schedule delayed transition to complete for default scenario
+		if (scenario === "complete") {
+			setTimeout(async () => {
+				try {
+					await updateModelTrainingState(organizationId, modelId, "complete");
+					logger.info(
+						{ modelId, delay: TRAINING_COMPLETE_DELAY },
+						"Training state transitioned to complete after delay",
+					);
+				} catch (error) {
+					logger.error(
+						{ error, modelId },
+						"Failed to transition training state to complete",
+					);
+				}
+			}, TRAINING_COMPLETE_DELAY);
+		}
 
 		return {
 			modelId,

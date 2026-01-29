@@ -16,8 +16,13 @@
 	"groups": {
 		"failedToLoad": "Failed to load ticket groups",
 		"noGroups": "No ticket groups found",
+		"noSourceConnected": "Connect an ITSM source to start analyzing tickets",
+		"connectSource": "Connect ITSM Source",
 		"trainingInProgress": "Model training in progress",
 		"trainingDescription": "Ticket groups will appear when training completes. This usually takes a few minutes.",
+		"trainingFailed": "Training failed",
+		"trainingFailedDescription": "There was an issue analyzing your tickets. Please check your ITSM connection and try syncing again.",
+		"goToItsmConnections": "Go to ITSM Connections",
 		"filterBy": "Filter by",
 		"filterOptions": {
 			"all": "All",
