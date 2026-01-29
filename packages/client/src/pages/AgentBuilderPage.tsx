@@ -25,9 +25,14 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
   ArrowLeft, HelpCircle, Send, Check, Play, Clock, FileText, Workflow, MessageSquare,
   Link2, Search, X, Sparkles, Plus, Trash2, Squirrel, ChevronDown, Brain,
-  RotateCcw, CheckCircle2, XCircle, ChevronRight, Loader2, MessageSquareText,
+  RotateCcw, CheckCircle2, XCircle, ChevronRight, Loader2, MessageSquareText, Bug,
   // Icon picker icons
   ShieldCheck, TrendingUp, BookOpen, ClipboardList, LineChart, Briefcase, Users,
   Landmark, Truck, Key, Award, Settings, AlertCircle, Rocket, Bot, Headphones,
@@ -242,7 +247,7 @@ const MOCK_SAVED_AGENTS: Record<string, AgentConfig> = {
     knowledgeSources: ["IT Security Policy", "Employee FAQ"],
     workflows: ["Reset password", "Unlock account", "Request system access"],
     hasRequiredConnections: true,
-    instructions: "",
+    instructions: "You are a friendly and knowledgeable IT HelpDesk Advisor.\n\n## Your Role\nHelp employees troubleshoot and resolve common technical issues. Provide clear, step-by-step guidance that non-technical users can follow.\n\n## Guidelines\n- Always greet users warmly and acknowledge their issue\n- Ask clarifying questions to understand the problem before suggesting solutions\n- Provide numbered step-by-step instructions when walking through solutions\n- Use simple, non-technical language whenever possible\n- If a solution doesn't work, offer alternative approaches\n- Know when to escalate: if an issue requires physical access, admin privileges, or is beyond self-service, direct users to submit a ticket\n\n## Common Issues You Handle\n- Password resets and account lockouts\n- VPN connection problems\n- Software installation requests\n- Email and calendar issues\n- Printer and peripheral setup\n- Network connectivity troubleshooting\n\n## Escalation\nIf you cannot resolve an issue or it requires hands-on IT support, help the user create a support ticket with all relevant details.",
     conversationStarters: [
       "I forgot my password",
       "My account is locked",
@@ -315,6 +320,7 @@ export default function AgentBuilderPage() {
   // Default to configure tab
   const [activeTab, setActiveTab] = useState<"configure" | "access">("configure");
   const [showTestModal, setShowTestModal] = useState(false);
+  const [showPreview, setShowPreview] = useState(false);
   const [inputValue, setInputValue] = useState("");
   const [step, setStep] = useState<ConversationStep>(isEditing || isDuplicate ? "done" : "start");
   const [isTyping, setIsTyping] = useState(false);
@@ -365,6 +371,7 @@ export default function AgentBuilderPage() {
   const [debugTrace, setDebugTrace] = useState<DebugTraceStep[]>([]);
   const [expandedStep, setExpandedStep] = useState<string | null>(null);
   const [showOnlyErrors, setShowOnlyErrors] = useState(false);
+  const [showDebugPanel, setShowDebugPanel] = useState(false);
   const testMessagesEndRef = useRef<HTMLDivElement>(null);
 
   // Change agent type modal state
@@ -638,25 +645,27 @@ ${skillNames.map((name) => `- ${name}`).join("\n")}
 
     const trace: DebugTraceStep[] = [
       {
-        id: "trigger",
+        id: "branch",
         type: "trigger",
-        label: "Trigger",
-        description: "User sends a message",
+        label: "Branch",
+        description: "Decide on next step",
         status: "success",
-        duration: 12,
+        duration: 120,
         input: { message: userInput },
-        output: { received: true, timestamp: new Date().toISOString() }
+        output: {
+          decision: matchedSkill ? "execute_skill" : hasKnowledge ? "search_knowledge" : "direct_response"
+        }
       },
       {
-        id: "intent",
+        id: "plan",
         type: "intent",
-        label: "Intent Detection",
-        description: "Classify user intent",
+        label: "Plan & Execute",
+        description: "Identify the appropriate tools and initiate their execution",
         status: "success",
         duration: 180 + Math.floor(Math.random() * 100),
         input: { message: userInput },
         output: {
-          intent: matchedSkill ? "skill_request" : hasKnowledge ? "knowledge_query" : "general_question",
+          plan: matchedSkill ? ["search_knowledge", "execute_skill", "respond"] : hasKnowledge ? ["search_knowledge", "respond"] : ["respond"],
           confidence: 0.87 + Math.random() * 0.1
         }
       }
@@ -668,12 +677,12 @@ ${skillNames.map((name) => `- ${name}`).join("\n")}
       trace.push({
         id: "knowledge",
         type: "knowledge",
-        label: "Knowledge Search",
+        label: "Company search",
         description: knowledgeFailed
           ? (isTimeoutTest ? "Search timed out" : "Connection failed")
           : isNoResults
-            ? "No matching documents found"
-            : "Search connected data sources",
+            ? "No relevant company knowledge found"
+            : "Checking for any relevant company knowledge",
         status: knowledgeFailed ? "error" : "success",
         duration: isTimeoutTest ? 30000 : (800 + Math.floor(Math.random() * 400)),
         input: { query: userInput, sources: config.knowledgeSources },
@@ -708,30 +717,32 @@ ${skillNames.map((name) => `- ${name}`).join("\n")}
     // Determine if any previous step failed
     const hasPreviousError = trace.some(t => t.status === "error");
 
-    // Add guardrail check
-    trace.push({
-      id: "guardrail",
-      type: "guardrail",
-      label: "Guardrail Check",
-      description: matchedGuardrail ? `Blocked: ${matchedGuardrail}` : "All checks passed",
-      status: matchedGuardrail ? "error" : "success",
-      duration: 45 + Math.floor(Math.random() * 30),
-      input: { guardrails: config.guardrails.filter(Boolean) },
-      output: {
-        passed: !matchedGuardrail,
-        blocked: matchedGuardrail || null,
-        checkedRules: config.guardrails.filter(Boolean).length
-      },
-      error: matchedGuardrail ? `Message blocked by guardrail: ${matchedGuardrail}` : undefined
-    });
+    // Add guardrail check only if there are guardrails
+    if (config.guardrails.filter(Boolean).length > 0) {
+      trace.push({
+        id: "guardrail",
+        type: "guardrail",
+        label: "Guardrail",
+        description: matchedGuardrail ? `Blocked topic: ${matchedGuardrail}` : "Verify response meets safety guidelines",
+        status: matchedGuardrail ? "error" : "success",
+        duration: 45 + Math.floor(Math.random() * 30),
+        input: { guardrails: config.guardrails.filter(Boolean) },
+        output: {
+          passed: !matchedGuardrail,
+          blocked: matchedGuardrail || null,
+          checkedRules: config.guardrails.filter(Boolean).length
+        },
+        error: matchedGuardrail ? `Message blocked by guardrail: ${matchedGuardrail}` : undefined
+      });
+    }
 
     // Add response generation
     const responseFailed = matchedGuardrail || hasPreviousError;
     trace.push({
       id: "response",
       type: "response",
-      label: "Response Generated",
-      description: responseFailed ? "Fallback response generated" : "Generate final response",
+      label: "Respond",
+      description: responseFailed ? "Generate fallback response" : "Respond",
       status: responseFailed ? "error" : "success",
       duration: 450 + Math.floor(Math.random() * 200),
       input: { context: "Compiled from previous steps" },
@@ -1981,7 +1992,6 @@ ${skillNames.map((name) => `- ${name}`).join("\n")}
               state: { agentConfig: config }
             })}
             disabled={!config.name || config.name === "my agent" || (!config.description && !config.instructions && !config.conversationStarters.some(s => s.trim()))}
-            title={(!config.name || config.name === "my agent" || (!config.description && !config.instructions && !config.conversationStarters.some(s => s.trim()))) ? "Configure your agent before testing" : undefined}
           >
             <Play className="size-4" />
             Test
@@ -2018,8 +2028,9 @@ ${skillNames.map((name) => `- ${name}`).join("\n")}
       <div className="flex flex-1 overflow-hidden p-4 gap-4 justify-center">
         {/* Left panel - Configure/Access */}
         <div className="flex flex-col flex-1 max-w-3xl bg-white rounded-xl">
-          {/* Centered Tabs */}
-          <div className="flex justify-center pt-4 pb-2">
+          {/* Tabs with Preview toggle */}
+          <div className="flex items-center justify-between px-4 pt-4 pb-2">
+            <div className="w-20" /> {/* Spacer for centering */}
             <Tabs
               value={activeTab}
               onValueChange={(v) => setActiveTab(v as "configure" | "access")}
@@ -2029,6 +2040,15 @@ ${skillNames.map((name) => `- ${name}`).join("\n")}
                 <TabsTrigger value="access" className="px-8">Access</TabsTrigger>
               </TabsList>
             </Tabs>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="gap-1.5"
+              onClick={() => setShowPreview(!showPreview)}
+            >
+              <MessageSquare className="size-4" />
+              {showPreview ? "Hide" : "Preview"}
+            </Button>
           </div>
 
           {/* HIDDEN: Chat Assistant Tab - preserved for future AI-contextual features
@@ -2286,7 +2306,21 @@ ${skillNames.map((name) => `- ${name}`).join("\n")}
                       <div className="flex items-center gap-3">
                         <div className="flex items-center gap-1">
                           <span className="text-sm">Default personality</span>
-                          <HelpCircle className="size-4 text-muted-foreground" />
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <HelpCircle className="size-4 text-muted-foreground cursor-help" />
+                            </TooltipTrigger>
+                            <TooltipContent side="top" className="max-w-xs">
+                              <p className="font-medium mb-1">Adds the following guidelines to the system prompt:</p>
+                              <ul className="list-disc pl-4 text-xs space-y-0.5">
+                                <li>Do not restate your identity unless explicitly requested by the user.</li>
+                                <li>Provide helpful, accurate, and informative responses to user questions.</li>
+                                <li>Ask clarifying questions when needed to better understand the task or provide more relevant information.</li>
+                                <li>Maintain a polite, professional, and respectful tone at all times.</li>
+                                <li>Keep responses clear, concise, and focused on the user's intent.</li>
+                              </ul>
+                            </TooltipContent>
+                          </Tooltip>
                         </div>
                         <Switch defaultChecked />
                       </div>
@@ -2762,33 +2796,79 @@ ${skillNames.map((name) => `- ${name}`).join("\n")}
           )}
         </div>
 
-        {/* Right panel - Preview (interactive) */}
-        <div className="w-[400px] flex-shrink-0 flex flex-col bg-white rounded-xl">
-          <div className="p-4 border-b flex items-center justify-between">
-            <h2 className="font-medium">Preview</h2>
-            {testMessages.length > 0 && (
+        {/* Right panel - Preview (toggleable) */}
+        {showPreview && <div className="w-[400px] flex-shrink-0 flex flex-col bg-white rounded-xl border border-border p-5">
+          {/* Header */}
+          <div className="flex items-center justify-between mb-8">
+            <h2 className="font-heading text-xl">Preview</h2>
+            <div className="flex items-center gap-1">
+              {testMessages.length > 0 && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 text-xs gap-1"
+                  onClick={() => {
+                    setTestMessages([]);
+                    setTestInput("");
+                  }}
+                >
+                  <RotateCcw className="size-3" />
+                  Reset
+                </Button>
+              )}
               <Button
                 variant="ghost"
-                size="sm"
-                className="h-7 text-xs gap-1"
-                onClick={() => {
-                  setTestMessages([]);
-                  setTestInput("");
-                  setDebugTrace([]);
-                  setExpandedStep(null);
-                }}
+                size="icon"
+                className="size-7"
+                onClick={() => setShowPreview(false)}
               >
-                <RotateCcw className="size-3" />
-                Reset
+                <X className="size-4" />
               </Button>
-            )}
+            </div>
           </div>
-          <div className="flex-1 flex overflow-hidden relative">
-            <div className="flex flex-col overflow-hidden w-full">
-              {/* Chat panel */}
-              <div className="flex-1 flex flex-col p-4 overflow-y-auto">
-              {/* Empty state with agent info */}
+
+          {/* Debug trace panel - hidden for preview, only used in test page */}
+          {false && (
+            <div className="border-b bg-muted/30 max-h-[200px] overflow-y-auto">
+              {debugTrace.map((step) => (
+                <button
+                  key={step.id}
+                  onClick={() => setExpandedStep(expandedStep === step.id ? null : step.id)}
+                  className={cn(
+                    "w-full text-left px-4 py-2 flex items-center gap-3 hover:bg-muted/50 transition-colors",
+                    expandedStep === step.id && "bg-muted/50"
+                  )}
+                >
+                  {step.status === "success" ? (
+                    <CheckCircle2 className="size-4 text-emerald-600 flex-shrink-0" />
+                  ) : step.status === "error" ? (
+                    <XCircle className="size-4 text-red-600 flex-shrink-0" />
+                  ) : step.status === "running" ? (
+                    <Loader2 className="size-4 text-blue-600 flex-shrink-0 animate-spin" />
+                  ) : (
+                    <div className="size-4 rounded-full border-2 border-muted-foreground/30 flex-shrink-0" />
+                  )}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-medium text-muted-foreground">{step.label}</span>
+                      {step.duration && <span className="text-[10px] text-muted-foreground/60">{step.duration}ms</span>}
+                    </div>
+                    <p className="text-sm truncate">{step.description}</p>
+                  </div>
+                  <ChevronRight className={cn(
+                    "size-4 text-muted-foreground/50 flex-shrink-0 transition-transform",
+                    expandedStep === step.id && "rotate-90"
+                  )} />
+                </button>
+              ))}
+            </div>
+          )}
+          {/* Chat content */}
+          <div className="flex-1 flex flex-col overflow-hidden">
+            {/* Messages area */}
+            <div className="flex-1 overflow-y-auto p-4 space-y-4">
               {testMessages.length === 0 ? (
+                /* Preview state - shows agent card as you build */
                 <div className="flex-1 flex flex-col justify-center">
                   {/* Agent icon and name */}
                   <div className="flex items-center gap-3 mb-3">
@@ -2820,11 +2900,9 @@ ${skillNames.map((name) => `- ${name}`).join("\n")}
                     </p>
                   )}
 
-                  {/* Conversation starters - show custom or auto-generated from skills */}
+                  {/* Conversation starters */}
                   {(() => {
-                    // Get custom starters
                     const customStarters = config.conversationStarters.filter(s => s.trim());
-                    // Get auto-generated from skills
                     const autoStarters: string[] = [];
                     config.workflows.forEach((skillName) => {
                       const skill = AVAILABLE_SKILLS.find(s => s.name === skillName);
@@ -2832,57 +2910,31 @@ ${skillNames.map((name) => `- ${name}`).join("\n")}
                         autoStarters.push(...skill.starters);
                       }
                     });
-                    // Use custom if any, otherwise use auto-generated
                     const displayStarters = customStarters.length > 0 ? customStarters : autoStarters;
 
                     if (displayStarters.length === 0) return null;
 
                     return (
-                    <div className="space-y-2 mb-4">
-                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                        Try asking
-                      </p>
-                      <div className="space-y-1.5">
-                        {displayStarters
-                          .slice(0, 4)
-                          .map((starter, index) => (
+                      <div className="space-y-2 mb-4">
+                        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                          Try asking
+                        </p>
+                        <div className="space-y-1.5">
+                          {displayStarters.slice(0, 4).map((starter, index) => (
                             <button
                               key={index}
-                              onClick={() => {
-                                setTestInput(starter);
-                                // Auto-send after setting input
-                                setTimeout(() => {
-                                  const userMessage: Message = {
-                                    id: `test-user-${Date.now()}`,
-                                    role: "user",
-                                    content: starter,
-                                  };
-                                  setTestMessages([userMessage]);
-                                  const trace = generateDebugTrace(starter);
-                                  setDebugTrace(trace);
-                                  setIsTestTyping(true);
-                                  setTimeout(() => {
-                                    const response = generateTestResponse(starter);
-                                    setTestMessages(prev => [...prev, {
-                                      id: `test-assistant-${Date.now()}`,
-                                      role: "assistant",
-                                      content: response,
-                                    }]);
-                                    setIsTestTyping(false);
-                                  }, 1000 + Math.random() * 500);
-                                }, 50);
-                              }}
+                              onClick={() => handleTestStarterClick(starter)}
                               className="w-full text-left px-3 py-2 text-sm border rounded-lg hover:bg-primary/5 hover:border-primary/30 transition-colors truncate cursor-pointer"
                             >
                               {starter}
                             </button>
                           ))}
+                        </div>
                       </div>
-                    </div>
                     );
                   })()}
 
-                  {/* Status indicator */}
+                  {/* Status indicator when nothing configured */}
                   {!config.description && !config.conversationStarters.some(s => s.trim()) && config.workflows.length === 0 && (
                     <div className="flex items-center justify-center gap-2 px-3 py-2.5 bg-muted/50 rounded-lg text-sm text-muted-foreground mt-4">
                       <Clock className="size-4" />
@@ -2892,7 +2944,7 @@ ${skillNames.map((name) => `- ${name}`).join("\n")}
                 </div>
               ) : (
                 /* Chat messages */
-                <div className="flex-1 space-y-4 overflow-y-auto">
+                <>
                   {testMessages.map((message) => (
                     <div key={message.id} className={cn(
                       "flex gap-3",
@@ -2901,7 +2953,7 @@ ${skillNames.map((name) => `- ${name}`).join("\n")}
                       {message.role === "assistant" ? (
                         <>
                           <div className={cn(
-                            "size-8 rounded-full flex items-center justify-center flex-shrink-0",
+                            "size-7 rounded-full flex items-center justify-center flex-shrink-0",
                             ICON_COLORS.find(c => c.id === config.iconColorId)?.bg || "bg-slate-800"
                           )}>
                             {(() => {
@@ -2929,7 +2981,7 @@ ${skillNames.map((name) => `- ${name}`).join("\n")}
                   {isTestTyping && (
                     <div className="flex gap-3">
                       <div className={cn(
-                        "size-8 rounded-full flex items-center justify-center flex-shrink-0",
+                        "size-7 rounded-full flex items-center justify-center flex-shrink-0",
                         ICON_COLORS.find(c => c.id === config.iconColorId)?.bg || "bg-slate-800"
                       )}>
                         {(() => {
@@ -2947,228 +2999,35 @@ ${skillNames.map((name) => `- ${name}`).join("\n")}
                     </div>
                   )}
                   <div ref={testMessagesEndRef} />
-                </div>
+                </>
               )}
-
-              {/* Chat input - always visible */}
-              <div className="mt-auto pt-4">
-                <div className="relative">
-                  <Textarea
-                    value={testInput}
-                    onChange={(e) => setTestInput(e.target.value)}
-                    onKeyDown={handleTestKeyDown}
-                    placeholder="Ask anything..."
-                    className="min-h-[60px] pr-12 resize-none rounded-xl border-muted-foreground/20 text-sm"
-                    disabled={isTestTyping}
-                  />
-                  <Button
-                    size="icon"
-                    onClick={handleTestSendMessage}
-                    disabled={!testInput.trim() || isTestTyping}
-                    aria-label="Send message"
-                    className="absolute bottom-2 right-2 size-7 rounded-lg"
-                  >
-                    <Send className="size-3.5" />
-                  </Button>
-                </div>
-              </div>
-              </div>
             </div>
 
+            {/* Input */}
+            <div className="p-4 border-t">
+              <div className="relative">
+                <Textarea
+                  value={testInput}
+                  onChange={(e) => setTestInput(e.target.value)}
+                  onKeyDown={handleTestKeyDown}
+                  placeholder="Ask anything..."
+                  className="min-h-[48px] max-h-[100px] pr-12 resize-none rounded-lg text-sm"
+                  disabled={isTestTyping}
+                />
+                <Button
+                  size="icon"
+                  onClick={handleTestSendMessage}
+                  disabled={!testInput.trim() || isTestTyping}
+                  aria-label="Send message"
+                  className="absolute bottom-2 right-2 size-7 rounded-md"
+                >
+                  <Send className="size-3.5" />
+                </Button>
+              </div>
+            </div>
           </div>
-        </div>
+        </div>}
       </div>
-
-      {/* Full-screen Test Modal */}
-      {showTestModal && (
-        <div className="fixed inset-0 z-50 bg-white flex flex-col">
-          {/* Test Modal Header */}
-          <header className="flex items-center justify-between px-4 py-3 border-b bg-white">
-            <div className="flex items-center gap-3">
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => setShowTestModal(false)}
-                aria-label="Close test mode"
-              >
-                <ArrowLeft className="size-5" />
-              </Button>
-              <div className="flex items-center gap-2">
-                <div className={cn(
-                  "size-8 rounded-lg flex items-center justify-center",
-                  ICON_COLORS.find(c => c.id === config.iconColorId)?.bg || "bg-slate-800"
-                )}>
-                  {(() => {
-                    const iconData = AVAILABLE_ICONS.find(i => i.id === config.iconId);
-                    const colorData = ICON_COLORS.find(c => c.id === config.iconColorId);
-                    const IconComponent = iconData?.icon || Bot;
-                    return <IconComponent className={cn("size-5", colorData?.text || "text-white")} />;
-                  })()}
-                </div>
-                <div>
-                  <h1 className="text-lg font-medium">{config.name}</h1>
-                  <p className="text-xs text-muted-foreground">Test Mode</p>
-                </div>
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  setTestMessages([]);
-                  setTestInput("");
-                }}
-              >
-                Clear chat
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setShowTestModal(false)}
-              >
-                Exit test
-              </Button>
-            </div>
-          </header>
-
-          {/* Test Chat Area */}
-          <div className="flex-1 flex justify-center overflow-hidden bg-muted/30">
-            <div className="w-full max-w-3xl flex flex-col bg-white border-x">
-              {/* Messages */}
-              <div className="flex-1 overflow-y-auto px-6 py-6 space-y-4">
-                {/* Conversation starters - show when no test messages yet or only welcome */}
-                {testMessages.length <= 1 && (() => {
-                  const customStarters = config.conversationStarters.filter(s => s.trim());
-                  const autoStarters: string[] = [];
-                  config.workflows.forEach((skillName) => {
-                    const skill = AVAILABLE_SKILLS.find(s => s.name === skillName);
-                    if (skill?.starters) {
-                      autoStarters.push(...skill.starters);
-                    }
-                  });
-                  const displayStarters = customStarters.length > 0 ? customStarters : autoStarters;
-                  if (displayStarters.length === 0) return null;
-
-                  return (
-                  <div className="mb-6">
-                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-3">
-                      Try asking
-                    </p>
-                    <div className="flex flex-wrap gap-2">
-                      {displayStarters
-                        .slice(0, 4)
-                        .map((starter, index) => (
-                          <button
-                            key={index}
-                            onClick={() => handleTestStarterClick(starter)}
-                            className="px-4 py-2.5 text-sm border rounded-xl hover:bg-muted/50 transition-colors text-left"
-                          >
-                            {starter}
-                          </button>
-                        ))}
-                    </div>
-                  </div>
-                  );
-                })()}
-
-                {testMessages.map((message) => (
-                  <div key={message.id}>
-                    <div
-                      className={cn(
-                        "flex gap-3",
-                        message.role === "user" && "justify-end"
-                      )}
-                    >
-                      {message.role === "assistant" ? (
-                        <div className="max-w-[80%]">
-                          <div className="flex items-center gap-2 mb-2">
-                            <div className={cn(
-                              "size-8 rounded-full flex items-center justify-center",
-                              ICON_COLORS.find(c => c.id === config.iconColorId)?.bg || "bg-slate-800"
-                            )}>
-                              {(() => {
-                                const iconData = AVAILABLE_ICONS.find(i => i.id === config.iconId);
-                                const IconComponent = iconData?.icon || Bot;
-                                return <IconComponent className="size-5 text-white" />;
-                              })()}
-                            </div>
-                            <span className="text-sm font-medium">{config.name}</span>
-                          </div>
-                          <div className="ml-10">
-                            <p className="text-sm whitespace-pre-wrap leading-relaxed">
-                              {renderMessageContent(message.content)}
-                            </p>
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="bg-primary text-primary-foreground rounded-2xl rounded-br-sm px-4 py-2.5 max-w-[70%]">
-                          <p className="text-sm whitespace-pre-wrap">
-                            {message.content}
-                          </p>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                ))}
-
-                {isTestTyping && (
-                  <div className="flex items-center gap-3">
-                    <div className={cn(
-                      "size-8 rounded-full flex items-center justify-center",
-                      ICON_COLORS.find(c => c.id === config.iconColorId)?.bg || "bg-slate-800"
-                    )}>
-                      {(() => {
-                        const iconData = AVAILABLE_ICONS.find(i => i.id === config.iconId);
-                        const IconComponent = iconData?.icon || Bot;
-                        return <IconComponent className="size-5 text-white" />;
-                      })()}
-                    </div>
-                    <div className="flex gap-1">
-                      <span className="size-2 bg-muted-foreground/50 rounded-full animate-bounce" />
-                      <span
-                        className="size-2 bg-muted-foreground/50 rounded-full animate-bounce"
-                        style={{ animationDelay: "0.1s" }}
-                      />
-                      <span
-                        className="size-2 bg-muted-foreground/50 rounded-full animate-bounce"
-                        style={{ animationDelay: "0.2s" }}
-                      />
-                    </div>
-                  </div>
-                )}
-                <div ref={testMessagesEndRef} />
-              </div>
-
-              {/* Test Input */}
-              <div className="p-4 border-t bg-white">
-                <div className="relative">
-                  <Textarea
-                    value={testInput}
-                    onChange={(e) => setTestInput(e.target.value)}
-                    onKeyDown={handleTestKeyDown}
-                    placeholder="Test your agent by asking a question..."
-                    className="min-h-[60px] max-h-[120px] pr-14 resize-none rounded-xl border-muted-foreground/20"
-                    disabled={isTestTyping}
-                  />
-                  <Button
-                    size="icon"
-                    onClick={handleTestSendMessage}
-                    disabled={!testInput.trim() || isTestTyping}
-                    aria-label="Send test message"
-                    className="absolute bottom-3 right-3 size-8 rounded-lg"
-                  >
-                    <Send className="size-4" />
-                  </Button>
-                </div>
-                <p className="text-xs text-muted-foreground mt-2 text-center">
-                  This is a simulated test environment. Responses demonstrate how the agent would behave.
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Change Agent Type Modal */}
       {showChangeTypeModal && (
@@ -3670,7 +3529,21 @@ ${skillNames.map((name) => `- ${name}`).join("\n")}
               <div className="flex items-center gap-3">
                 <div className="flex items-center gap-1">
                   <span className="text-sm">Default personality</span>
-                  <HelpCircle className="size-4 text-muted-foreground" />
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <HelpCircle className="size-4 text-muted-foreground cursor-help" />
+                    </TooltipTrigger>
+                    <TooltipContent side="top" className="max-w-xs">
+                      <p className="font-medium mb-1">Adds the following guidelines to the system prompt:</p>
+                      <ul className="list-disc pl-4 text-xs space-y-0.5">
+                        <li>Do not restate your identity unless explicitly requested by the user.</li>
+                        <li>Provide helpful, accurate, and informative responses to user questions.</li>
+                        <li>Ask clarifying questions when needed to better understand the task or provide more relevant information.</li>
+                        <li>Maintain a polite, professional, and respectful tone at all times.</li>
+                        <li>Keep responses clear, concise, and focused on the user's intent.</li>
+                      </ul>
+                    </TooltipContent>
+                  </Tooltip>
                 </div>
                 <Switch defaultChecked />
               </div>

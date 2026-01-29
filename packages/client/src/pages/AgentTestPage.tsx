@@ -49,6 +49,8 @@ import {
   Star,
   Target,
   ThumbsUp,
+  ThumbsDown,
+  Pencil,
   Wrench,
   Calendar,
   Coffee,
@@ -60,6 +62,7 @@ import {
   Package,
   ShoppingCart,
 } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
 
 // Icon mapping - extended
 const ICON_MAP: Record<string, React.ElementType> = {
@@ -176,6 +179,9 @@ interface ChatMessage {
   id: string;
   role: "user" | "assistant";
   content: string;
+  feedback?: "up" | "down" | null;
+  feedbackText?: string;
+  feedbackExpanded?: boolean;
 }
 
 export default function AgentTestPage() {
@@ -193,6 +199,42 @@ export default function AgentTestPage() {
   const [isLoading, setIsLoading] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  const handleFeedback = (messageId: string, feedback: "up" | "down") => {
+    setMessages((prev) =>
+      prev.map((msg) =>
+        msg.id === messageId
+          ? {
+              ...msg,
+              feedback,
+              feedbackExpanded: feedback === "down",
+            }
+          : msg
+      )
+    );
+  };
+
+  const handleFeedbackTextChange = (messageId: string, text: string) => {
+    setMessages((prev) =>
+      prev.map((msg) =>
+        msg.id === messageId ? { ...msg, feedbackText: text } : msg
+      )
+    );
+  };
+
+  const handleEditInstructions = (feedbackText?: string) => {
+    // Navigate back to builder with feedback context
+    if (agentId) {
+      navigate(`/agents/${agentId}`, {
+        state: {
+          focusInstructions: true,
+          feedback: feedbackText
+        }
+      });
+    } else {
+      navigate(-1);
+    }
+  };
 
   // Auto-scroll to bottom
   useEffect(() => {
@@ -339,25 +381,96 @@ export default function AgentTestPage() {
 
               {/* Messages */}
               {messages.map((msg) => (
-                <div
-                  key={msg.id}
-                  className={cn("flex gap-3", msg.role === "user" ? "justify-end" : "justify-start")}
-                >
+                <div key={msg.id} className="space-y-2">
+                  <div
+                    className={cn("flex gap-3", msg.role === "user" ? "justify-end" : "justify-start")}
+                  >
+                    {msg.role === "assistant" && (
+                      <div className={cn("size-8 rounded-lg flex items-center justify-center flex-shrink-0", color.bg)}>
+                        <Icon className={cn("size-4", color.text)} />
+                      </div>
+                    )}
+                    <div
+                      className={cn(
+                        "max-w-[75%] px-4 py-3 rounded-2xl",
+                        msg.role === "user"
+                          ? "bg-primary text-primary-foreground rounded-br-md"
+                          : "bg-muted rounded-bl-md"
+                      )}
+                    >
+                      <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
+                    </div>
+                  </div>
+
+                  {/* Feedback UI for assistant messages */}
                   {msg.role === "assistant" && (
-                    <div className={cn("size-8 rounded-lg flex items-center justify-center flex-shrink-0", color.bg)}>
-                      <Icon className={cn("size-4", color.text)} />
+                    <div className="ml-11 space-y-2">
+                      {/* Thumbs up/down buttons - hide after feedback given */}
+                      {!msg.feedback && (
+                        <div className="flex items-center gap-1">
+                          <span className="text-xs text-muted-foreground mr-2">How was this response?</span>
+                          <button
+                            onClick={() => handleFeedback(msg.id, "up")}
+                            className="p-1.5 rounded-md transition-colors hover:bg-muted text-muted-foreground hover:text-foreground"
+                            aria-label="Good response"
+                          >
+                            <ThumbsUp className="size-4" />
+                          </button>
+                          <button
+                            onClick={() => handleFeedback(msg.id, "down")}
+                            className="p-1.5 rounded-md transition-colors hover:bg-muted text-muted-foreground hover:text-foreground"
+                            aria-label="Bad response"
+                          >
+                            <ThumbsDown className="size-4" />
+                          </button>
+                        </div>
+                      )}
+
+                      {/* Thumbs up feedback response */}
+                      {msg.feedback === "up" && (
+                        <div className="flex items-center gap-2 text-sm text-emerald-600">
+                          <ThumbsUp className="size-4" />
+                          <span>Thanks for the feedback!</span>
+                        </div>
+                      )}
+
+                      {/* Thumbs down feedback with improvement suggestions */}
+                      {msg.feedback === "down" && (
+                        <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 space-y-3">
+                          <div className="flex items-center gap-2 text-sm text-amber-700">
+                            <ThumbsDown className="size-4" />
+                            <span>Thanks for the feedback!</span>
+                          </div>
+                          <div>
+                            <label className="text-sm font-medium text-amber-800">
+                              What could be better?
+                            </label>
+                            <Textarea
+                              placeholder="e.g., Tone was too formal, missed key info..."
+                              value={msg.feedbackText || ""}
+                              onChange={(e) => handleFeedbackTextChange(msg.id, e.target.value)}
+                              className="mt-1.5 text-sm bg-white border-amber-200 focus:border-amber-400 resize-none"
+                              rows={2}
+                            />
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <p className="text-xs text-amber-700">
+                              Tip: Edit your agent's instructions to improve responses
+                            </p>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="gap-1.5 border-amber-300 text-amber-800 hover:bg-amber-100"
+                              onClick={() => handleEditInstructions(msg.feedbackText)}
+                            >
+                              <Pencil className="size-3" />
+                              Edit Instructions
+                            </Button>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   )}
-                  <div
-                    className={cn(
-                      "max-w-[75%] px-4 py-3 rounded-2xl",
-                      msg.role === "user"
-                        ? "bg-primary text-primary-foreground rounded-br-md"
-                        : "bg-muted rounded-bl-md"
-                    )}
-                  >
-                    <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
-                  </div>
                 </div>
               ))}
 

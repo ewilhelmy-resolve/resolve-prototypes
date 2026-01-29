@@ -13,38 +13,36 @@ import { Button } from "@/components/ui/button";
 import { FeedbackBanner } from "@/components/ui/feedback-banner";
 import { useClusterDetails } from "@/hooks/useClusters";
 import { KB_STATUS_BADGE_STYLES } from "@/lib/constants";
+import { useDemoStore } from "@/stores/demo-store";
 
-/** Fire confetti animation for success/enriched banners */
+/** Fire confetti animation for success/enriched banners (stops after 2 sec) */
 const fireConfetti = () => {
 	const defaults = {
 		spread: 360,
-		ticks: 100,
-		gravity: 0.3,
-		decay: 0.96,
-		startVelocity: 30,
+		ticks: 50,
+		gravity: 0.5,
+		decay: 0.94,
+		startVelocity: 25,
 	};
 
 	const shoot = () => {
 		confetti({
 			...defaults,
-			particleCount: 40,
+			particleCount: 30,
 			scalar: 1.2,
-			shapes: ["star", "square", "circle"],
-		});
-
-		confetti({
-			...defaults,
-			particleCount: 10,
-			scalar: 0.75,
 			shapes: ["star", "square", "circle"],
 		});
 	};
 
+	// Quick bursts
 	setTimeout(shoot, 0);
-	setTimeout(shoot, 100);
-	setTimeout(shoot, 200);
-	setTimeout(shoot, 400);
-	setTimeout(shoot, 600);
+	setTimeout(shoot, 150);
+	setTimeout(shoot, 300);
+
+	// Force stop after 2 seconds
+	setTimeout(() => {
+		confetti.reset();
+	}, 2000);
 };
 
 export default function ClusterDetailPage() {
@@ -64,12 +62,26 @@ export default function ClusterDetailPage() {
 		key: number;
 	}>({ visible: false, variant: "success", title: "", key: 0 });
 
+	// Review stats for readiness meter (demo flow)
+	const [reviewStats, setReviewStats] = useState<{
+		reviewed: number;
+		trusted: number;
+		total: number;
+	}>({ reviewed: 0, trusted: 0, total: 16 });
+
 	const handleBack = () => {
 		navigate("/tickets");
 	};
 
 	const handleReviewComplete = (stats: ReviewStats) => {
 		const { trusted, totalReviewed, confidenceImprovement } = stats;
+
+		// Update review stats for readiness meter
+		setReviewStats((prev) => ({
+			reviewed: prev.reviewed + totalReviewed,
+			trusted: prev.trusted + trusted,
+			total: prev.total,
+		}));
 
 		if (confidenceImprovement > 0) {
 			fireConfetti();
@@ -112,10 +124,17 @@ export default function ClusterDetailPage() {
 		}));
 	};
 
+	const enableAutomation = useDemoStore((state) => state.enableAutomation);
+
 	const handleAutoRespondEnabled = (
 		ticketGroupName: string,
 		automatedPercentage: number,
 	) => {
+		// Update demo store with cluster ticket count (use 500 as fallback for demo)
+		const ticketCount = cluster?.ticket_count || 500;
+		console.log("[Demo] Auto-Respond enabled for", ticketGroupName, "- updating store with", ticketCount, "tickets");
+		enableAutomation(ticketCount);
+
 		fireConfetti();
 		setBannerData((prev) => ({
 			visible: true,
@@ -268,6 +287,7 @@ export default function ClusterDetailPage() {
 					clusterName={title}
 					knowledgeCount={cluster.kb_articles_count}
 					kbStatus={cluster.kb_status}
+					reviewStats={reviewStats}
 					onAutoPopulateEnabled={handleAutoPopulateEnabled}
 					onKnowledgeAdded={handleKnowledgeAdded}
 					onAutoRespondEnabled={handleAutoRespondEnabled}

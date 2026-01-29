@@ -20,6 +20,8 @@ interface AutomationReadinessMeterProps {
 	hasKnowledge: boolean;
 	/** Percentage of trusted/positive reviews (0-100) */
 	trustedPercentage: number;
+	/** Whether automation is already enabled */
+	isAutomationEnabled?: boolean;
 	/** Called when Enable Auto-Respond button clicked */
 	onEnableAutoRespond?: () => void;
 	/** Called when Review knowledge button clicked */
@@ -118,6 +120,7 @@ export function AutomationReadinessMeter({
 	total,
 	hasKnowledge,
 	trustedPercentage,
+	isAutomationEnabled = false,
 	onEnableAutoRespond,
 	onReviewKnowledge,
 	onAddKnowledge,
@@ -182,20 +185,28 @@ export function AutomationReadinessMeter({
 
 				{/* Action Button */}
 				<div>
-					{state === "ready" && (
-						<Button variant="outline" size="sm" onClick={onEnableAutoRespond}>
-							{t("readiness.buttons.enableAutoRespond")}
+					{isAutomationEnabled ? (
+						<Button variant="outline" size="sm" disabled className="bg-green-50 text-green-700 border-green-200">
+							Auto-Respond Enabled
 						</Button>
-					)}
-					{(state === "partial" || state === "low") && (
-						<Button variant="outline" size="sm" onClick={onReviewKnowledge}>
-							{t("readiness.buttons.reviewKnowledge")}
-						</Button>
-					)}
-					{state === "not-ready" && (
-						<Button variant="outline" size="sm" onClick={onAddKnowledge}>
-							{t("readiness.buttons.addKnowledge")}
-						</Button>
+					) : (
+						<>
+							{state === "ready" && (
+								<Button variant="outline" size="sm" onClick={onEnableAutoRespond}>
+									{t("readiness.buttons.enableAutoRespond")}
+								</Button>
+							)}
+							{(state === "partial" || state === "low") && (
+								<Button variant="outline" size="sm" onClick={onReviewKnowledge}>
+									{t("readiness.buttons.reviewKnowledge")}
+								</Button>
+							)}
+							{state === "not-ready" && (
+								<Button variant="outline" size="sm" onClick={onAddKnowledge}>
+									{t("readiness.buttons.addKnowledge")}
+								</Button>
+							)}
+						</>
 					)}
 				</div>
 			</CardContent>

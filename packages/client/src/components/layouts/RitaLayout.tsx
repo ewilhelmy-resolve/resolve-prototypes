@@ -205,7 +205,12 @@ function RitaLayoutContent({ children, activePage = "chat" }: RitaLayoutProps) {
 	}, [profile?.user?.id]);
 
 	// Show welcome modal on first load if user hasn't seen it, or if feature flag is manually enabled
+	// Skip in demo mode
+	const isDemoMode = import.meta.env.VITE_DEMO_MODE === 'true';
 	useEffect(() => {
+		// Skip modal in demo mode
+		if (isDemoMode) return;
+
 		// Feature flag explicitly enabled in devtools - always show
 		if (showWelcomeModal) {
 			setWelcomeModalOpen(true);
@@ -218,7 +223,7 @@ function RitaLayoutContent({ children, activePage = "chat" }: RitaLayoutProps) {
 			// Mark as seen immediately to prevent showing on refresh
 			markWelcomeModalAsSeen();
 		}
-	}, [showWelcomeModal, hasSeenWelcomeModal, markWelcomeModalAsSeen]);
+	}, [showWelcomeModal, hasSeenWelcomeModal, markWelcomeModalAsSeen, isDemoMode]);
 
 	// Handle modal close
 	const handleWelcomeModalClose = (open: boolean) => {

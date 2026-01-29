@@ -237,6 +237,11 @@ const router = createBrowserRouter([
 			</ProtectedRoute>
 		),
 	},
+	// Redirect /agent to /agents
+	{
+		path: "/agent",
+		element: <Navigate to="/agents" replace />,
+	},
 	// Agent builder (demo experience)
 	{
 		path: "/agents",

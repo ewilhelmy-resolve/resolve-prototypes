@@ -87,7 +87,7 @@ export const FEATURE_FLAGS: Record<FeatureFlagKey, FeatureFlagConfig> = {
 		key: "ENABLE_AGENTS",
 		label: "Agents",
 		description: "Enable the Agents experience (Agents list + agent builder)",
-		defaultValue: false,
+		defaultValue: true,
 		category: "experimental",
 	},
 	ENABLE_SERVICENOW: {
@@ -115,7 +115,7 @@ export const FEATURE_FLAGS: Record<FeatureFlagKey, FeatureFlagConfig> = {
 		key: "ENABLE_TICKETS_V2",
 		label: "Tickets",
 		description: "Enable new tickets page UI",
-		defaultValue: false,
+		defaultValue: true,
 		category: "experimental",
 	},
 	ENABLE_WORKFLOWS: {

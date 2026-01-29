@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { CompletionView } from "./CompletionView";
 import { ReviewView } from "./ReviewView";
 import { AI_RESPONSE_TYPE, getTicketGroup, MOCK_AI_RESPONSE, type AIResponseType } from "@/lib/tickets/utils";
@@ -76,12 +76,13 @@ export default function ReviewAIResponseSheet({
 	onReject,
 	onEnableAutoRespond: _onEnableAutoRespond,
 	onKeepReviewing,
-	onReviewComplete: _onReviewComplete,
+	onReviewComplete,
 }: ReviewAIResponseSheetProps) {
 	const [showFeedback, setShowFeedback] = useState(false);
 	const [isCompleted, setIsCompleted] = useState(false);
 	const [trustedCount, setTrustedCount] = useState(0);
 	const [rejectedCount, setRejectedCount] = useState(0);
+	const hasCalledComplete = useRef(false);
 
 	const currentTicket = tickets[currentIndex];
 	const ticketGroup = ticketGroupId ? getTicketGroup(ticketGroupId) : undefined;
@@ -95,8 +96,25 @@ export default function ReviewAIResponseSheet({
 			setTrustedCount(0);
 			setRejectedCount(0);
 			setShowFeedback(false);
+			hasCalledComplete.current = false;
 		}
 	}, [open]);
+
+	// Call onReviewComplete once when all reviews are done
+	useEffect(() => {
+		if (isCompleted && onReviewComplete && !hasCalledComplete.current) {
+			hasCalledComplete.current = true;
+			const finalStats: ReviewStats = {
+				totalReviewed: tickets.length,
+				trusted: trustedCount,
+				needsImprovement: rejectedCount,
+				confidenceImprovement: trustedCount > 0
+					? Math.round((trustedCount / tickets.length) * 100)
+					: 0,
+			};
+			onReviewComplete(finalStats);
+		}
+	}, [isCompleted, trustedCount, rejectedCount, tickets.length, onReviewComplete]);
 
 	// Don't render if no tickets or no AI response data
 	if (tickets.length === 0 || !aiResponse) {

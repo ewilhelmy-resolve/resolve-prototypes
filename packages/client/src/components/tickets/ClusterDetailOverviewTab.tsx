@@ -6,6 +6,7 @@ import {
 	type AIResponseType,
 	MOCK_AI_RESPONSE,
 } from "@/lib/tickets/utils";
+import { useDemoStore } from "@/stores/demo-store";
 import type { KBStatus } from "@/types/cluster";
 import { AutomationMetricsCard } from "./AutomationMetricsCard";
 import { AutomationReadinessMeter } from "./AutomationReadinessMeter";
@@ -22,6 +23,8 @@ interface ClusterDetailOverviewTabProps {
 	openTicketsCount?: number;
 	/** Knowledge base status from cluster API */
 	kbStatus?: KBStatus;
+	/** Review stats for readiness meter */
+	reviewStats?: { reviewed: number; trusted: number; total: number };
 	/** Called when auto-populate is enabled */
 	onAutoPopulateEnabled?: () => void;
 	/** Called when knowledge article is added */
@@ -44,6 +47,7 @@ export function ClusterDetailOverviewTab({
 	clusterName = "Cluster",
 	openTicketsCount = 0,
 	kbStatus,
+	reviewStats = { reviewed: 0, trusted: 0, total: 16 },
 	onAutoPopulateEnabled,
 	onKnowledgeAdded,
 	onAutoRespondEnabled,
@@ -52,6 +56,9 @@ export function ClusterDetailOverviewTab({
 	const { t } = useTranslation("tickets");
 	// Use mock AI response data (TODO: replace with real API)
 	const aiResponse = MOCK_AI_RESPONSE;
+	// Check if automation is enabled for this cluster (demo flow)
+	const ticketsAutomated = useDemoStore((state) => state.ticketsAutomated);
+	const isAutomationEnabled = ticketsAutomated > 0;
 	const [enableModalOpen, setEnableModalOpen] = useState(false);
 	const [autoPopulateSheetOpen, setAutoPopulateSheetOpen] = useState(false);
 	const [selectedType, setSelectedType] = useState<AIResponseType | null>(null);
@@ -74,10 +81,15 @@ export function ClusterDetailOverviewTab({
 
 			{/* Automation Readiness Meter */}
 			<AutomationReadinessMeter
-				reviewed={0}
-				total={16}
+				reviewed={reviewStats.reviewed}
+				total={reviewStats.total}
 				hasKnowledge={kbStatus !== "GAP"}
-				trustedPercentage={0}
+				trustedPercentage={
+					reviewStats.reviewed > 0
+						? Math.round((reviewStats.trusted / reviewStats.reviewed) * 100)
+						: 0
+				}
+				isAutomationEnabled={isAutomationEnabled}
 				onEnableAutoRespond={() => {
 					setSelectedType(AI_RESPONSE_TYPE.AUTO_RESPOND);
 					setEnableModalOpen(true);

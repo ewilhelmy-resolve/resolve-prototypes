@@ -113,7 +113,12 @@ export function useProfile() {
 export function useProfilePermissions() {
   const { data: profile } = useProfile()
 
+  // Demo mode: grant full admin access
+  const isDemoMode = import.meta.env.VITE_DEMO_MODE === 'true'
+
   const hasRole = (role: OrganizationRole | OrganizationRole[]) => {
+    // In demo mode, always return true for admin/owner checks
+    if (isDemoMode) return true
     if (!profile?.organization.role) return false
     const roles = Array.isArray(role) ? role : [role]
     return roles.includes(profile.organization.role)
@@ -121,15 +126,15 @@ export function useProfilePermissions() {
 
   return {
     hasRole,
-    isOwner: () => hasRole('owner'),
-    isAdmin: () => hasRole('admin'),
-    isOwnerOrAdmin: () => hasRole(['owner', 'admin']),
+    isOwner: () => isDemoMode || hasRole('owner'),
+    isAdmin: () => isDemoMode || hasRole('admin'),
+    isOwnerOrAdmin: () => isDemoMode || hasRole(['owner', 'admin']),
 
     // Feature permissions
-    canManageInvitations: () => hasRole(['owner', 'admin']),
-    canManageMembers: () => hasRole(['owner', 'admin']),
-    canManageOrganization: () => hasRole('owner'),
-    canDeleteConversations: () => hasRole(['owner', 'admin']),
-    canManageFiles: () => hasRole(['owner', 'admin']),
+    canManageInvitations: () => isDemoMode || hasRole(['owner', 'admin']),
+    canManageMembers: () => isDemoMode || hasRole(['owner', 'admin']),
+    canManageOrganization: () => isDemoMode || hasRole('owner'),
+    canDeleteConversations: () => isDemoMode || hasRole(['owner', 'admin']),
+    canManageFiles: () => isDemoMode || hasRole(['owner', 'admin']),
   }
 }

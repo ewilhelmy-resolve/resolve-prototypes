@@ -54,7 +54,7 @@ interface AgentsTableProps {
   onDelete?: (agent: Agent) => void;
 }
 
-type SortField = "status" | "updatedBy" | "owner" | "lastUpdated";
+type SortField = "status" | "updatedBy" | "lastUpdated";
 type SortDirection = "asc" | "desc";
 
 const avatarColors: Record<string, string> = {
@@ -94,11 +94,6 @@ export function AgentsTable({
       case "updatedBy":
         comparison = (a.updatedBy?.initials || "").localeCompare(
           b.updatedBy?.initials || ""
-        );
-        break;
-      case "owner":
-        comparison = (a.owner?.initials || "").localeCompare(
-          b.owner?.initials || ""
         );
         break;
       case "lastUpdated":
@@ -145,11 +140,6 @@ export function AgentsTable({
             <TableHead className="w-[136px]">
               <SortableHeader field="updatedBy" align="center">
                 Updated by
-              </SortableHeader>
-            </TableHead>
-            <TableHead className="w-[123px]">
-              <SortableHeader field="owner" align="center">
-                Owner
               </SortableHeader>
             </TableHead>
             <TableHead className="w-[162px]">
@@ -210,23 +200,6 @@ export function AgentsTable({
                         )}
                       >
                         {agent.updatedBy.initials}
-                      </AvatarFallback>
-                    </Avatar>
-                  ) : (
-                    <span className="text-muted-foreground">--</span>
-                  )}
-                </div>
-              </TableCell>
-              <TableCell>
-                <div className="flex justify-center">
-                  {agent.owner ? (
-                    <Avatar className="size-10">
-                      <AvatarFallback
-                        className={cn(
-                          avatarColors[agent.owner.color] || "bg-muted"
-                        )}
-                      >
-                        {agent.owner.initials}
                       </AvatarFallback>
                     </Avatar>
                   ) : (
