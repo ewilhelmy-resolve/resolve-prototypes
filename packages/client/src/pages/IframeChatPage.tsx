@@ -531,6 +531,9 @@ export default function IframeChatPage() {
 		});
 	}, [sessionKey, titleText, addDebugLog]);
 
+	// Check for mock mode (skip backend, use fake data for demo)
+	const mockMode = searchParams.get("mock") === "true";
+
 	// Initialize iframe session on mount (always required for auth)
 	useEffect(() => {
 		// Guard against StrictMode double-mount
@@ -545,7 +548,21 @@ export default function IframeChatPage() {
 				sessionKey: sessionKey ? `${sessionKey.substring(0, 8)}...` : "null",
 				existingConversationId: urlConversationId || "null",
 				apiUrl: currentApiUrl,
+				mockMode,
 			});
+
+			// Mock mode: skip backend entirely for demo/testing
+			if (mockMode) {
+				addDebugLog("info", "Mock mode enabled - skipping backend");
+				const mockConversationId = `mock-conv-${Date.now()}`;
+				setConversationId(mockConversationId);
+				setCurrentConversation(mockConversationId);
+				setTitleText("UI Schema Demo (Mock Mode)");
+				setWelcomeText("This is running without a backend. Try the schema renderer demo at /demo/schema-renderer");
+				setSessionReady(true);
+				setIsLoading(false);
+				return;
+			}
 
 			// sessionKey is required
 			if (!sessionKey) {
