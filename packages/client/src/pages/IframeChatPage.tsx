@@ -612,7 +612,18 @@ export default function IframeChatPage() {
 					error: errorMsg,
 					stack: errorStack || "no stack",
 				});
-				setError("Failed to connect to server");
+				// Provide specific error message based on error type
+				let userError = "Failed to connect to server";
+				if (errorMsg.includes("fetch") || errorMsg.includes("network")) {
+					userError = `Network error: API server not reachable at ${currentApiUrl}`;
+				} else if (errorMsg.includes("CORS")) {
+					userError = "CORS error: API server blocking cross-origin requests";
+				} else if (errorMsg.includes("timeout")) {
+					userError = "Connection timeout: Server took too long to respond";
+				} else {
+					userError = `Connection failed: ${errorMsg}`;
+				}
+				setError(userError);
 			} finally {
 				setIsLoading(false);
 				addDebugLog("info", "Initialization complete", { isLoading: "false" });

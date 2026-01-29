@@ -33,6 +33,7 @@ import ClustersPage from "./pages/ClustersPage";
 import WorkflowsPage from "./pages/WorkflowsPage";
 import CredentialSetupPage from "./pages/CredentialSetupPage";
 import LinkExpiredPage from "./pages/LinkExpiredPage";
+import SchemaRendererDemo from "./pages/SchemaRendererDemo";
 
 // Feature-flagged tickets page wrapper
 function TicketsPageWithFlag() {
@@ -231,6 +232,11 @@ const router = createBrowserRouter([
 	{
 		path: "/test/dropdown",
 		element: <DropdownTestPage />,
+	},
+	// Schema renderer demo (public, no backend required)
+	{
+		path: "/demo/schema-renderer",
+		element: <SchemaRendererDemo />,
 	},
 	// Credential setup (public, magic link for IT admins)
 	{
