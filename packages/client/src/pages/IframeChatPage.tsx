@@ -21,6 +21,7 @@ import {
 	ChevronDown,
 	ChevronUp,
 	Download,
+	Maximize2,
 	ScrollText,
 	Trash2,
 	Wrench,
@@ -48,6 +49,7 @@ import {
 } from "../hooks/useIframeMessaging";
 import { useRitaChat } from "../hooks/useRitaChat";
 import { iframeApi } from "../services/iframeApi";
+import { isInIframe, openExpandedModal } from "../utils/hostModal";
 import { useConversationStore } from "../stores/conversationStore";
 import { useFeatureFlagsStore } from "../stores/feature-flags-store";
 
@@ -95,6 +97,28 @@ function IframeClearChat({ onClear }: { onClear: () => void }) {
 			title="Clear conversation"
 		>
 			<Trash2 className="h-4 w-4" />
+		</Button>
+	);
+}
+
+// Expand button to open modal in host page (always visible when in iframe)
+function IframeExpandButton({
+	onExpand,
+}: {
+	onExpand: () => void;
+}) {
+	// Only show if we're actually in an iframe
+	if (!isInIframe()) return null;
+
+	return (
+		<Button
+			size="icon"
+			variant="ghost"
+			className="h-8 w-8 hover:bg-accent"
+			onClick={onExpand}
+			title="Expand to full view"
+		>
+			<Maximize2 className="h-4 w-4" />
 		</Button>
 	);
 }
@@ -497,6 +521,16 @@ export default function IframeChatPage() {
 		addDebugLog,
 	]);
 
+	// Expand to full modal view in host page
+	const handleExpand = useCallback(() => {
+		if (!sessionKey) return;
+
+		const method = openExpandedModal(sessionKey, titleText || "RITA Assistant");
+		addDebugLog("info", `Expand modal requested via ${method}`, {
+			sessionKey: sessionKey.substring(0, 8) + "...",
+		});
+	}, [sessionKey, titleText, addDebugLog]);
+
 	// Initialize iframe session on mount (always required for auth)
 	useEffect(() => {
 		// Guard against StrictMode double-mount
@@ -688,6 +722,7 @@ export default function IframeChatPage() {
 	// Dev tools element for input toolbar
 	const devToolsElement = (
 		<>
+			<IframeExpandButton onExpand={handleExpand} />
 			<IframeClearChat onClear={handleClearChat} />
 			<IframeDevTools
 				onDownloadConversation={downloadConversation}
