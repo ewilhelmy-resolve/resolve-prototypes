@@ -468,3 +468,420 @@ export function closeFullscreenContent(): void {
 		window.parent.postMessage({ type: "RITA_CLOSE_FULLSCREEN" }, "*");
 	}
 }
+
+// ============================================
+// Form Modal in Host Page
+// ============================================
+
+const FORM_MODAL_STYLES = `
+  #rita-form-modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.8);
+    z-index: 10001;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    animation: ritaFormFadeIn 0.2s ease;
+  }
+  @keyframes ritaFormFadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+  #rita-form-modal {
+    background: white;
+    border-radius: 12px;
+    width: 95%;
+    max-width: 600px;
+    max-height: 90vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    box-shadow: 0 25px 80px rgba(0, 0, 0, 0.4);
+  }
+  #rita-form-modal.size-full {
+    max-width: 95vw;
+    width: 95vw;
+    height: 90vh;
+    max-height: 90vh;
+  }
+  #rita-form-modal.size-xl { max-width: 1200px; }
+  #rita-form-modal.size-lg { max-width: 900px; }
+  #rita-form-modal.size-md { max-width: 600px; }
+  #rita-form-modal.size-sm { max-width: 400px; }
+  #rita-form-modal-header {
+    background: #f8fafc;
+    border-bottom: 1px solid #e2e8f0;
+    padding: 16px 20px;
+    flex-shrink: 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+  }
+  #rita-form-modal-header-text h3 {
+    margin: 0 0 4px 0;
+    font-size: 18px;
+    font-weight: 600;
+    color: #1e293b;
+  }
+  #rita-form-modal-header-text p {
+    margin: 0;
+    font-size: 14px;
+    color: #64748b;
+  }
+  #rita-form-modal-close {
+    background: #e2e8f0;
+    border: none;
+    color: #64748b;
+    width: 32px;
+    height: 32px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s;
+    flex-shrink: 0;
+  }
+  #rita-form-modal-close:hover {
+    background: #cbd5e1;
+    color: #1e293b;
+  }
+  #rita-form-modal-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px;
+  }
+  #rita-form-modal-footer {
+    background: #f8fafc;
+    border-top: 1px solid #e2e8f0;
+    padding: 12px 20px;
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    flex-shrink: 0;
+  }
+  .rita-form-field {
+    margin-bottom: 16px;
+  }
+  .rita-form-field label {
+    display: block;
+    font-size: 14px;
+    font-weight: 500;
+    color: #374151;
+    margin-bottom: 6px;
+  }
+  .rita-form-field input,
+  .rita-form-field select,
+  .rita-form-field textarea {
+    width: 100%;
+    padding: 10px 12px;
+    font-size: 14px;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    background: white;
+    color: #1e293b;
+    transition: border-color 0.15s, box-shadow 0.15s;
+  }
+  .rita-form-field input:focus,
+  .rita-form-field select:focus,
+  .rita-form-field textarea:focus {
+    outline: none;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+  }
+  .rita-form-field textarea {
+    min-height: 100px;
+    resize: vertical;
+  }
+  .rita-form-btn {
+    padding: 10px 20px;
+    font-size: 14px;
+    font-weight: 500;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .rita-form-btn-cancel {
+    background: white;
+    border: 1px solid #d1d5db;
+    color: #374151;
+  }
+  .rita-form-btn-cancel:hover {
+    background: #f9fafb;
+    border-color: #9ca3af;
+  }
+  .rita-form-btn-submit {
+    background: #3b82f6;
+    border: 1px solid #3b82f6;
+    color: white;
+  }
+  .rita-form-btn-submit:hover {
+    background: #2563eb;
+    border-color: #2563eb;
+  }
+  .rita-form-btn-destructive {
+    background: #ef4444;
+    border: 1px solid #ef4444;
+    color: white;
+  }
+  .rita-form-btn-destructive:hover {
+    background: #dc2626;
+    border-color: #dc2626;
+  }
+  @media (prefers-color-scheme: dark) {
+    #rita-form-modal { background: #1e293b; }
+    #rita-form-modal-header { background: #0f172a; border-color: #334155; }
+    #rita-form-modal-header-text h3 { color: #f1f5f9; }
+    #rita-form-modal-header-text p { color: #94a3b8; }
+    #rita-form-modal-close { background: #334155; color: #94a3b8; }
+    #rita-form-modal-close:hover { background: #475569; color: #f1f5f9; }
+    #rita-form-modal-footer { background: #0f172a; border-color: #334155; }
+    .rita-form-field label { color: #e2e8f0; }
+    .rita-form-field input,
+    .rita-form-field select,
+    .rita-form-field textarea {
+      background: #1e293b;
+      border-color: #475569;
+      color: #f1f5f9;
+    }
+    .rita-form-btn-cancel {
+      background: #334155;
+      border-color: #475569;
+      color: #e2e8f0;
+    }
+    .rita-form-btn-cancel:hover {
+      background: #475569;
+    }
+  }
+`;
+
+export interface FormModalField {
+	type: "input" | "select" | "textarea";
+	name: string;
+	label?: string;
+	placeholder?: string;
+	inputType?: string;
+	options?: Array<{ label: string; value: string }>;
+	defaultValue?: string;
+}
+
+export interface FormModalConfig {
+	title: string;
+	description?: string;
+	size?: "sm" | "md" | "lg" | "xl" | "full";
+	fields: FormModalField[];
+	submitLabel?: string;
+	cancelLabel?: string;
+	submitVariant?: "default" | "destructive";
+	onSubmit: (data: Record<string, string>) => void;
+	onCancel: () => void;
+}
+
+function closeFormModalInHost(): void {
+	try {
+		const overlay = window.parent.document.getElementById(
+			"rita-form-modal-overlay",
+		);
+		if (overlay) {
+			overlay.style.animation = "ritaFormFadeIn 0.15s ease reverse";
+			setTimeout(() => overlay.remove(), 150);
+		}
+	} catch {
+		// Cross-origin, ignore
+	}
+}
+
+function renderFormField(field: FormModalField): string {
+	const labelHtml = field.label
+		? `<label for="rita-field-${field.name}">${field.label}</label>`
+		: "";
+
+	if (field.type === "select" && field.options) {
+		const optionsHtml = field.options
+			.map(
+				(opt) =>
+					`<option value="${opt.value}" ${opt.value === field.defaultValue ? "selected" : ""}>${opt.label}</option>`,
+			)
+			.join("");
+		return `
+			<div class="rita-form-field">
+				${labelHtml}
+				<select id="rita-field-${field.name}" name="${field.name}">
+					<option value="">${field.placeholder || "Select..."}</option>
+					${optionsHtml}
+				</select>
+			</div>
+		`;
+	}
+
+	if (field.type === "textarea" || field.inputType === "textarea") {
+		return `
+			<div class="rita-form-field">
+				${labelHtml}
+				<textarea
+					id="rita-field-${field.name}"
+					name="${field.name}"
+					placeholder="${field.placeholder || ""}"
+				>${field.defaultValue || ""}</textarea>
+			</div>
+		`;
+	}
+
+	return `
+		<div class="rita-form-field">
+			${labelHtml}
+			<input
+				type="${field.inputType || "text"}"
+				id="rita-field-${field.name}"
+				name="${field.name}"
+				placeholder="${field.placeholder || ""}"
+				value="${field.defaultValue || ""}"
+			/>
+		</div>
+	`;
+}
+
+/**
+ * Open a form modal in the host page
+ * Renders form fields and handles submit/cancel
+ */
+export function openFormModal(config: FormModalConfig): boolean {
+	if (!isInIframe()) return false;
+
+	if (!canAccessParentDocument()) {
+		// Cross-origin: send via postMessage (host must handle rendering)
+		window.parent.postMessage(
+			{
+				type: "RITA_FORM_MODAL",
+				payload: {
+					title: config.title,
+					description: config.description,
+					size: config.size,
+					fields: config.fields,
+					submitLabel: config.submitLabel,
+					cancelLabel: config.cancelLabel,
+					submitVariant: config.submitVariant,
+				},
+			},
+			"*",
+		);
+		return true;
+	}
+
+	const parentDoc = window.parent.document;
+
+	// Inject styles if not present
+	if (!parentDoc.getElementById("rita-form-modal-styles")) {
+		const style = parentDoc.createElement("style");
+		style.id = "rita-form-modal-styles";
+		style.textContent = FORM_MODAL_STYLES;
+		parentDoc.head.appendChild(style);
+	}
+
+	// Remove existing overlay
+	parentDoc.getElementById("rita-form-modal-overlay")?.remove();
+
+	// Build form fields HTML
+	const fieldsHtml = config.fields.map(renderFormField).join("");
+
+	const submitBtnClass =
+		config.submitVariant === "destructive"
+			? "rita-form-btn rita-form-btn-destructive"
+			: "rita-form-btn rita-form-btn-submit";
+
+	// Create overlay
+	const overlay = parentDoc.createElement("div");
+	overlay.id = "rita-form-modal-overlay";
+	overlay.innerHTML = `
+		<div id="rita-form-modal" class="size-${config.size || "full"}">
+			<div id="rita-form-modal-header">
+				<div id="rita-form-modal-header-text">
+					<h3>${config.title}</h3>
+					${config.description ? `<p>${config.description}</p>` : ""}
+				</div>
+				<button type="button" id="rita-form-modal-close">×</button>
+			</div>
+			<form id="rita-form-modal-form">
+				<div id="rita-form-modal-body">
+					${fieldsHtml}
+				</div>
+				<div id="rita-form-modal-footer">
+					<button type="button" class="rita-form-btn rita-form-btn-cancel" id="rita-form-cancel">
+						${config.cancelLabel || "Cancel"}
+					</button>
+					<button type="submit" class="${submitBtnClass}">
+						${config.submitLabel || "Submit"}
+					</button>
+				</div>
+			</form>
+		</div>
+	`;
+
+	// Close on backdrop click
+	overlay.addEventListener("click", (e) => {
+		if (e.target === overlay) {
+			closeFormModalInHost();
+			config.onCancel();
+		}
+	});
+
+	// Cancel button
+	const cancelBtn = overlay.querySelector("#rita-form-cancel");
+	cancelBtn?.addEventListener("click", () => {
+		closeFormModalInHost();
+		config.onCancel();
+	});
+
+	// Close button (X in corner)
+	const closeBtn = overlay.querySelector("#rita-form-modal-close");
+	closeBtn?.addEventListener("click", () => {
+		closeFormModalInHost();
+		config.onCancel();
+	});
+
+	// Form submit
+	const form = overlay.querySelector(
+		"#rita-form-modal-form",
+	) as HTMLFormElement;
+	form?.addEventListener("submit", (e) => {
+		e.preventDefault();
+		const formData = new FormData(form);
+		const data: Record<string, string> = {};
+		formData.forEach((value, key) => {
+			data[key] = value.toString();
+		});
+		closeFormModalInHost();
+		config.onSubmit(data);
+	});
+
+	// Escape key
+	const escHandler = (e: KeyboardEvent) => {
+		if (e.key === "Escape") {
+			closeFormModalInHost();
+			config.onCancel();
+			parentDoc.removeEventListener("keydown", escHandler);
+		}
+	};
+	parentDoc.addEventListener("keydown", escHandler);
+
+	parentDoc.body.appendChild(overlay);
+	return true;
+}
+
+/**
+ * Close form modal in host
+ */
+export function closeFormModal(): void {
+	if (!isInIframe()) return;
+
+	if (canAccessParentDocument()) {
+		closeFormModalInHost();
+	} else {
+		window.parent.postMessage({ type: "RITA_CLOSE_FORM_MODAL" }, "*");
+	}
+}

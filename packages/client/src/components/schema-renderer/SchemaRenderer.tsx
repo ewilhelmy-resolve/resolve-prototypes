@@ -8,7 +8,15 @@
  */
 
 import { AlertCircle } from "lucide-react";
-import { Component, type ErrorInfo, type ReactNode, useState } from "react";
+import {
+	Component,
+	type ErrorInfo,
+	type ReactNode,
+	useEffect,
+	useRef,
+	useState,
+} from "react";
+import { toast } from "../../lib/toast";
 import type {
 	ButtonComponent,
 	CardComponent,
@@ -27,6 +35,11 @@ import type {
 	UISchema,
 } from "../../types/uiSchema";
 import { evaluateCondition, validateUISchema } from "../../types/uiSchema";
+import {
+	type FormModalField,
+	isInIframe,
+	openFormModal,
+} from "../../utils/hostModal";
 import { Alert, AlertDescription, AlertTitle } from "../ui/alert";
 import { Button } from "../ui/button";
 import {
@@ -158,6 +171,59 @@ export function SchemaRenderer({
 		{},
 	);
 	const [openModalId, setOpenModalId] = useState<string | null>(null);
+	const [actionLog, setActionLog] = useState<
+		Array<{ action: string; data: Record<string, unknown>; timestamp: string }>
+	>([]);
+	const [showLogPanel, setShowLogPanel] = useState(false);
+
+	// Track pending modal submission handler for cross-origin postMessage
+	const pendingModalSubmitRef = useRef<{
+		action: string;
+		modalTitle: string;
+	} | null>(null);
+
+	// Listen for form modal submissions from host (cross-origin)
+	useEffect(() => {
+		const handleMessage = (event: MessageEvent) => {
+			const { type, data } = event.data || {};
+
+			if (type === "FORM_MODAL_SUBMITTED" && pendingModalSubmitRef.current) {
+				const { action, modalTitle } = pendingModalSubmitRef.current;
+				pendingModalSubmitRef.current = null;
+
+				// Log the action
+				const logEntry = {
+					action,
+					data: data || {},
+					timestamp: new Date().toISOString(),
+				};
+				setActionLog((prev) => [logEntry, ...prev]);
+
+				// Call the action handler
+				onAction?.({
+					action,
+					data,
+					messageId,
+					conversationId,
+					timestamp: logEntry.timestamp,
+				});
+
+				// Show toast with View Log action
+				toast.success(`${modalTitle} saved`, {
+					description: `Action: ${action}`,
+					action: {
+						label: "View Log",
+						onClick: () => setShowLogPanel(true),
+					},
+				});
+			} else if (type === "FORM_MODAL_CANCELLED") {
+				pendingModalSubmitRef.current = null;
+			}
+		};
+
+		window.addEventListener("message", handleMessage);
+		return () => window.removeEventListener("message", handleMessage);
+	}, [messageId, conversationId, onAction]);
 
 	// Validate schema (JAR-81)
 	const validation = validateUISchema(schema);
@@ -193,6 +259,81 @@ export function SchemaRenderer({
 	};
 
 	const handleOpenModal = (modalId: string) => {
+		const modal = schema.modals?.[modalId];
+		if (!modal) return;
+
+		// In iframe context, open modal in host page
+		if (isInIframe()) {
+			const fields: FormModalField[] = [];
+			for (const c of modal.children) {
+				if (c.type === "input") {
+					fields.push({
+						type: c.inputType === "textarea" ? "textarea" : "input",
+						name: c.name,
+						label: c.label,
+						placeholder: c.placeholder,
+						inputType: c.inputType,
+						defaultValue: c.defaultValue,
+					});
+				} else if (c.type === "select") {
+					fields.push({
+						type: "select",
+						name: c.name,
+						label: c.label,
+						placeholder: c.placeholder,
+						options: c.options,
+						defaultValue: c.defaultValue,
+					});
+				}
+			}
+
+			// Set pending ref for cross-origin postMessage handling
+			if (modal.submitAction) {
+				pendingModalSubmitRef.current = {
+					action: modal.submitAction,
+					modalTitle: modal.title,
+				};
+			}
+
+			openFormModal({
+				title: modal.title,
+				description: modal.description,
+				size: modal.size || "full",
+				fields,
+				submitLabel: modal.submitLabel,
+				cancelLabel: modal.cancelLabel,
+				submitVariant:
+					modal.submitVariant === "destructive" ? "destructive" : "default",
+				onSubmit: (data) => {
+					// Same-origin: callback is called directly
+					pendingModalSubmitRef.current = null;
+
+					if (modal.submitAction) {
+						const logEntry = {
+							action: modal.submitAction,
+							data: data as Record<string, unknown>,
+							timestamp: new Date().toISOString(),
+						};
+						setActionLog((prev) => [logEntry, ...prev]);
+						handleAction(modal.submitAction, data);
+
+						toast.success(`${modal.title} saved`, {
+							description: `Action: ${modal.submitAction}`,
+							action: {
+								label: "View Log",
+								onClick: () => setShowLogPanel(true),
+							},
+						});
+					}
+				},
+				onCancel: () => {
+					pendingModalSubmitRef.current = null;
+				},
+			});
+			return;
+		}
+
+		// Not in iframe - use inline Dialog
 		setModalFormData({}); // Reset modal form data
 		setOpenModalId(modalId);
 	};
@@ -202,9 +343,23 @@ export function SchemaRenderer({
 		setModalFormData({});
 	};
 
-	const handleModalSubmit = (action: string) => {
+	const handleModalSubmit = (action: string, modalTitle: string) => {
+		const logEntry = {
+			action,
+			data: modalFormData as Record<string, unknown>,
+			timestamp: new Date().toISOString(),
+		};
+		setActionLog((prev) => [logEntry, ...prev]);
 		handleAction(action, modalFormData);
 		handleCloseModal();
+
+		toast.success(`${modalTitle} saved`, {
+			description: `Action: ${action}`,
+			action: {
+				label: "View Log",
+				onClick: () => setShowLogPanel(true),
+			},
+		});
 	};
 
 	const renderComponent = (
@@ -390,6 +545,50 @@ export function SchemaRenderer({
 					onSubmit={handleModalSubmit}
 					renderComponent={renderModalComponent}
 				/>
+			)}
+
+			{/* Action Log Panel */}
+			{showLogPanel && (
+				<Dialog open={showLogPanel} onOpenChange={setShowLogPanel}>
+					<DialogContent className="sm:max-w-lg">
+						<DialogHeader>
+							<DialogTitle>Action Log</DialogTitle>
+							<DialogDescription>
+								Recent form submissions and actions
+							</DialogDescription>
+						</DialogHeader>
+						<div className="max-h-[400px] overflow-y-auto space-y-2">
+							{actionLog.length === 0 ? (
+								<p className="text-sm text-muted-foreground text-center py-4">
+									No actions logged yet
+								</p>
+							) : (
+								actionLog.map((entry, i) => (
+									<div
+										key={i}
+										className="p-3 rounded-md bg-muted/50 text-sm space-y-1"
+									>
+										<div className="flex justify-between items-center">
+											<span className="font-medium">{entry.action}</span>
+											<span className="text-xs text-muted-foreground">
+												{new Date(entry.timestamp).toLocaleTimeString()}
+											</span>
+										</div>
+										<pre className="text-xs text-muted-foreground overflow-x-auto">
+											{JSON.stringify(entry.data, null, 2)}
+										</pre>
+									</div>
+								))
+							)}
+						</div>
+						<DialogFooter>
+							<Button variant="outline" onClick={() => setActionLog([])}>
+								Clear Log
+							</Button>
+							<Button onClick={() => setShowLogPanel(false)}>Close</Button>
+						</DialogFooter>
+					</DialogContent>
+				</Dialog>
 			)}
 		</SchemaErrorBoundary>
 	);
@@ -662,7 +861,7 @@ function ModalRenderer({
 	modal: ModalDefinition;
 	open: boolean;
 	onClose: () => void;
-	onSubmit: (action: string) => void;
+	onSubmit: (action: string, title: string) => void;
 	renderComponent: (component: UIComponent, index: number) => React.ReactNode;
 }) {
 	const sizeClass = modalSizeClasses[modal.size || "full"];
@@ -691,7 +890,7 @@ function ModalRenderer({
 					{modal.submitAction && (
 						<Button
 							variant={modal.submitVariant || "default"}
-							onClick={() => onSubmit(modal.submitAction!)}
+							onClick={() => onSubmit(modal.submitAction!, modal.title)}
 						>
 							{modal.submitLabel || "Submit"}
 						</Button>
