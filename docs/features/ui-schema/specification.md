@@ -368,9 +368,16 @@ Define modals in the `modals` object with unique IDs:
 
 **Submit Variants:** `default`, `destructive`
 
-### Auto-Opening Modals
+### Auto-Opening Modals (Forced Mode)
 
-Use `autoOpenModal` to force-open a modal when the schema renders. This is useful for mandatory credential prompts or required user input.
+Use `autoOpenModal` to force-open a modal when the schema renders. This is essential for:
+- Mandatory credential prompts before workflow execution
+- Required user input that blocks further progress
+- Authentication flows that must complete before proceeding
+
+**Best Practice: Always include a fallback button**
+
+Since users may accidentally close the modal (ESC key, click outside, cancel button), always provide a button in the underlying card that reopens the same modal:
 
 ```json
 {
@@ -379,31 +386,62 @@ Use `autoOpenModal` to force-open a modal when the schema renders. This is usefu
     {
       "type": "card",
       "title": "Authentication Required",
+      "description": "This action requires valid credentials to proceed",
       "children": [
-        { "type": "text", "content": "Please complete authentication to continue.", "variant": "muted" }
+        {
+          "type": "text",
+          "content": "The credential form has been opened automatically. Please complete authentication to continue.",
+          "variant": "muted"
+        },
+        {
+          "type": "button",
+          "label": "Enter Credentials",
+          "opensModal": "auth-modal"
+        }
       ]
     }
   ],
   "modals": {
     "auth-modal": {
       "title": "Enter Credentials",
+      "description": "Authenticate to continue with this workflow",
       "size": "md",
       "children": [
+        { "type": "input", "name": "apiEndpoint", "label": "API Endpoint", "placeholder": "https://api.example.com" },
         { "type": "input", "name": "apiKey", "label": "API Key", "inputType": "password" },
-        { "type": "select", "name": "authType", "label": "Auth Type", "options": [
-          { "label": "Bearer Token", "value": "bearer" },
-          { "label": "API Key Header", "value": "api-key" }
-        ]}
+        {
+          "type": "select",
+          "name": "authType",
+          "label": "Authentication Type",
+          "options": [
+            { "label": "Bearer Token", "value": "bearer" },
+            { "label": "API Key Header", "value": "api-key" },
+            { "label": "Basic Auth", "value": "basic" }
+          ]
+        }
       ],
       "submitAction": "authenticate",
-      "submitLabel": "Authenticate"
+      "submitLabel": "Authenticate",
+      "cancelLabel": "Cancel"
     }
   },
   "autoOpenModal": "auth-modal"
 }
 ```
 
-The modal opens automatically 100ms after the schema renders. Users cannot dismiss it until they submit or cancel.
+**How it works:**
+
+1. Schema renders with `autoOpenModal: "auth-modal"`
+2. Modal opens automatically after 100ms delay
+3. User sees fullscreen modal in host page (outside iframe)
+4. If user closes modal accidentally → they see the card with "Enter Credentials" button
+5. Button click reopens the same modal via `opensModal: "auth-modal"`
+
+**Key points:**
+- The `autoOpenModal` value must match a key in the `modals` object
+- The fallback button's `opensModal` should reference the same modal ID
+- Modal renders in host page for maximum screen real estate
+- Toast notification confirms successful submission
 
 ### Modal Actions
 
@@ -668,7 +706,9 @@ When a user clicks a button or submits a form, an action payload is sent to the 
 }
 ```
 
-### Forced Credential Prompt
+### Forced Credential Prompt (with Fallback Button)
+
+Combines `autoOpenModal` with a fallback button for reopening if closed accidentally. See [Auto-Opening Modals](#auto-opening-modals-forced-mode) for detailed explanation.
 
 ```json
 {
@@ -677,6 +717,7 @@ When a user clicks a button or submits a form, an action payload is sent to the 
     {
       "type": "card",
       "title": "Authentication Required",
+      "description": "This action requires valid credentials to proceed",
       "children": [
         { "type": "text", "content": "The credential form will open automatically. Click below if closed accidentally.", "variant": "muted" },
         { "type": "button", "label": "Enter Credentials", "opensModal": "auth-modal" }
