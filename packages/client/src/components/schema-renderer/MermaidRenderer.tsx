@@ -2,14 +2,14 @@
  * MermaidRenderer
  *
  * Renders Mermaid diagrams with optional fullscreen expansion.
- * Supports same-origin host modal injection for iframe context.
+ * Uses generic hostModal utilities for fullscreen in iframe context.
  */
 
 import { Check, Copy, Maximize2, Minimize2 } from "lucide-react";
 import mermaid from "mermaid";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
-import { canAccessParentDocument, isInIframe } from "../../utils/hostModal";
+import { isInIframe, openFullscreenContent } from "../../utils/hostModal";
 import { Button } from "../ui/button";
 
 // Initialize mermaid with default config
@@ -26,103 +26,6 @@ interface MermaidRendererProps {
 	expandable?: boolean;
 	className?: string;
 }
-
-// Fullscreen modal styles for host injection
-const FULLSCREEN_MODAL_STYLES = `
-  #rita-mermaid-modal-overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: rgba(0, 0, 0, 0.8);
-    z-index: 10001;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    animation: ritaMermaidFadeIn 0.2s ease;
-  }
-  @keyframes ritaMermaidFadeIn {
-    from { opacity: 0; }
-    to { opacity: 1; }
-  }
-  #rita-mermaid-modal {
-    background: white;
-    border-radius: 12px;
-    width: 95%;
-    max-width: 1200px;
-    height: 90%;
-    max-height: 800px;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-    box-shadow: 0 25px 80px rgba(0, 0, 0, 0.4);
-  }
-  #rita-mermaid-modal-header {
-    background: #f8fafc;
-    border-bottom: 1px solid #e2e8f0;
-    padding: 12px 16px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-  }
-  #rita-mermaid-modal-header h3 {
-    margin: 0;
-    font-size: 14px;
-    font-weight: 600;
-    color: #1e293b;
-  }
-  #rita-mermaid-modal-close {
-    background: #e2e8f0;
-    border: none;
-    color: #64748b;
-    width: 28px;
-    height: 28px;
-    border-radius: 6px;
-    cursor: pointer;
-    font-size: 18px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: all 0.15s;
-  }
-  #rita-mermaid-modal-close:hover {
-    background: #cbd5e1;
-    color: #1e293b;
-  }
-  #rita-mermaid-modal-body {
-    flex: 1;
-    overflow: auto;
-    padding: 24px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-  #rita-mermaid-modal-body svg {
-    max-width: 100%;
-    max-height: 100%;
-  }
-  @media (prefers-color-scheme: dark) {
-    #rita-mermaid-modal {
-      background: #1e293b;
-    }
-    #rita-mermaid-modal-header {
-      background: #0f172a;
-      border-color: #334155;
-    }
-    #rita-mermaid-modal-header h3 {
-      color: #f1f5f9;
-    }
-    #rita-mermaid-modal-close {
-      background: #334155;
-      color: #94a3b8;
-    }
-    #rita-mermaid-modal-close:hover {
-      background: #475569;
-      color: #f1f5f9;
-    }
-  }
-`;
 
 export function MermaidRenderer({
 	code,
@@ -164,62 +67,11 @@ export function MermaidRenderer({
 
 	// Open fullscreen in host document (iframe context)
 	const openFullscreenInHost = useCallback(() => {
-		if (!canAccessParentDocument()) {
-			// Fallback: open in local fullscreen mode
+		const result = openFullscreenContent(svgContent, title || "Diagram");
+		// If not in iframe, fall back to local fullscreen
+		if (result === "none") {
 			setIsFullscreen(true);
-			return;
 		}
-
-		const parentDoc = window.parent.document;
-
-		// Inject styles if not present
-		if (!parentDoc.getElementById("rita-mermaid-modal-styles")) {
-			const style = parentDoc.createElement("style");
-			style.id = "rita-mermaid-modal-styles";
-			style.textContent = FULLSCREEN_MODAL_STYLES;
-			parentDoc.head.appendChild(style);
-		}
-
-		// Remove existing modal
-		parentDoc.getElementById("rita-mermaid-modal-overlay")?.remove();
-
-		// Create modal
-		const overlay = parentDoc.createElement("div");
-		overlay.id = "rita-mermaid-modal-overlay";
-		overlay.innerHTML = `
-			<div id="rita-mermaid-modal">
-				<div id="rita-mermaid-modal-header">
-					<h3>${title || "Diagram"}</h3>
-					<button id="rita-mermaid-modal-close">×</button>
-				</div>
-				<div id="rita-mermaid-modal-body">
-					${svgContent}
-				</div>
-			</div>
-		`;
-
-		// Close handlers
-		const closeModal = () => {
-			overlay.style.animation = "ritaMermaidFadeIn 0.15s ease reverse";
-			setTimeout(() => overlay.remove(), 150);
-		};
-
-		overlay.addEventListener("click", (e) => {
-			if (e.target === overlay) closeModal();
-		});
-
-		const closeBtn = overlay.querySelector("#rita-mermaid-modal-close");
-		closeBtn?.addEventListener("click", closeModal);
-
-		const escHandler = (e: KeyboardEvent) => {
-			if (e.key === "Escape") {
-				closeModal();
-				parentDoc.removeEventListener("keydown", escHandler);
-			}
-		};
-		parentDoc.addEventListener("keydown", escHandler);
-
-		parentDoc.body.appendChild(overlay);
 	}, [svgContent, title]);
 
 	// Handle fullscreen toggle

@@ -25,7 +25,7 @@ import type {
 	UIComponent,
 	UISchema,
 } from "../../types/uiSchema";
-import { validateUISchema } from "../../types/uiSchema";
+import { evaluateCondition, validateUISchema } from "../../types/uiSchema";
 import { Alert, AlertDescription, AlertTitle } from "../ui/alert";
 import { Button } from "../ui/button";
 import {
@@ -179,6 +179,11 @@ export function SchemaRenderer({
 		component: UIComponent,
 		index: number,
 	): React.ReactNode => {
+		// Check conditional rendering
+		if (!evaluateCondition(component.if, formData)) {
+			return null;
+		}
+
 		const key = component.id || `${component.type}-${index}`;
 
 		switch (component.type) {

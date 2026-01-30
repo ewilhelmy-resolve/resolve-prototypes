@@ -128,10 +128,7 @@ export function isInIframe(): boolean {
 /**
  * Inject modal directly into host page DOM (same-origin only)
  */
-function injectModalIntoHost(
-	iframeSrc: string,
-	title: string,
-): boolean {
+function injectModalIntoHost(iframeSrc: string, title: string): boolean {
 	if (!canAccessParentDocument()) return false;
 
 	const parentDoc = window.parent.document;
@@ -156,7 +153,9 @@ function injectModalIntoHost(
 	}
 
 	// Set up close function on parent window
-	(window.parent as Window & { __ritaCloseModal?: () => void }).__ritaCloseModal = () => {
+	(
+		window.parent as Window & { __ritaCloseModal?: () => void }
+	).__ritaCloseModal = () => {
 		closeModalInHost();
 	};
 
@@ -192,10 +191,7 @@ function closeModalInHost(): void {
 /**
  * Request host to open modal via postMessage (cross-origin fallback)
  */
-function requestModalViaPostMessage(
-	iframeSrc: string,
-	title: string,
-): void {
+function requestModalViaPostMessage(iframeSrc: string, title: string): void {
 	window.parent.postMessage(
 		{
 			type: "RITA_OPEN_MODAL",
@@ -250,5 +246,225 @@ export function closeExpandedModal(): void {
 		closeModalInHost();
 	} else {
 		requestCloseViaPostMessage();
+	}
+}
+
+// ============================================
+// Generic Fullscreen Content
+// ============================================
+
+const FULLSCREEN_CONTENT_STYLES = `
+  #rita-fullscreen-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.8);
+    z-index: 10001;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    animation: ritaFullscreenFadeIn 0.2s ease;
+  }
+  @keyframes ritaFullscreenFadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+  #rita-fullscreen-modal {
+    background: white;
+    border-radius: 12px;
+    width: 95%;
+    max-width: 1200px;
+    height: 90%;
+    max-height: 800px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    box-shadow: 0 25px 80px rgba(0, 0, 0, 0.4);
+  }
+  #rita-fullscreen-header {
+    background: #f8fafc;
+    border-bottom: 1px solid #e2e8f0;
+    padding: 12px 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-shrink: 0;
+  }
+  #rita-fullscreen-header h3 {
+    margin: 0;
+    font-size: 14px;
+    font-weight: 600;
+    color: #1e293b;
+  }
+  #rita-fullscreen-close {
+    background: #e2e8f0;
+    border: none;
+    color: #64748b;
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s;
+  }
+  #rita-fullscreen-close:hover {
+    background: #cbd5e1;
+    color: #1e293b;
+  }
+  #rita-fullscreen-body {
+    flex: 1;
+    overflow: auto;
+    padding: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  #rita-fullscreen-body > * {
+    max-width: 100%;
+    max-height: 100%;
+  }
+  @media (prefers-color-scheme: dark) {
+    #rita-fullscreen-modal {
+      background: #1e293b;
+    }
+    #rita-fullscreen-header {
+      background: #0f172a;
+      border-color: #334155;
+    }
+    #rita-fullscreen-header h3 {
+      color: #f1f5f9;
+    }
+    #rita-fullscreen-close {
+      background: #334155;
+      color: #94a3b8;
+    }
+    #rita-fullscreen-close:hover {
+      background: #475569;
+      color: #f1f5f9;
+    }
+  }
+`;
+
+/**
+ * Close fullscreen content in host
+ */
+function closeFullscreenInHost(): void {
+	try {
+		const overlay = window.parent.document.getElementById(
+			"rita-fullscreen-overlay",
+		);
+		if (overlay) {
+			overlay.style.animation = "ritaFullscreenFadeIn 0.15s ease reverse";
+			setTimeout(() => overlay.remove(), 150);
+		}
+	} catch {
+		// Cross-origin, ignore
+	}
+}
+
+/**
+ * Open fullscreen content in host page
+ * Works for any HTML content (diagrams, code, images, etc.)
+ *
+ * @param content - HTML content to display
+ * @param title - Modal title
+ * @param customStyles - Optional additional CSS styles
+ * @returns Method used: 'inject' | 'postMessage' | 'none'
+ */
+export function openFullscreenContent(
+	content: string,
+	title: string,
+	customStyles?: string,
+): "inject" | "postMessage" | "none" {
+	if (!isInIframe()) return "none";
+
+	// Try direct injection first (same-origin)
+	if (canAccessParentDocument()) {
+		const parentDoc = window.parent.document;
+
+		// Inject base styles if not present
+		if (!parentDoc.getElementById("rita-fullscreen-styles")) {
+			const style = parentDoc.createElement("style");
+			style.id = "rita-fullscreen-styles";
+			style.textContent = FULLSCREEN_CONTENT_STYLES;
+			parentDoc.head.appendChild(style);
+		}
+
+		// Inject custom styles if provided
+		if (customStyles) {
+			const existingCustom = parentDoc.getElementById(
+				"rita-fullscreen-custom-styles",
+			);
+			if (existingCustom) existingCustom.remove();
+			const customStyle = parentDoc.createElement("style");
+			customStyle.id = "rita-fullscreen-custom-styles";
+			customStyle.textContent = customStyles;
+			parentDoc.head.appendChild(customStyle);
+		}
+
+		// Remove existing overlay
+		parentDoc.getElementById("rita-fullscreen-overlay")?.remove();
+
+		// Create overlay
+		const overlay = parentDoc.createElement("div");
+		overlay.id = "rita-fullscreen-overlay";
+		overlay.innerHTML = `
+			<div id="rita-fullscreen-modal">
+				<div id="rita-fullscreen-header">
+					<h3>${title}</h3>
+					<button id="rita-fullscreen-close">×</button>
+				</div>
+				<div id="rita-fullscreen-body">
+					${content}
+				</div>
+			</div>
+		`;
+
+		// Close handlers
+		overlay.addEventListener("click", (e) => {
+			if (e.target === overlay) closeFullscreenInHost();
+		});
+
+		const closeBtn = overlay.querySelector("#rita-fullscreen-close");
+		closeBtn?.addEventListener("click", () => closeFullscreenInHost());
+
+		const escHandler = (e: KeyboardEvent) => {
+			if (e.key === "Escape") {
+				closeFullscreenInHost();
+				parentDoc.removeEventListener("keydown", escHandler);
+			}
+		};
+		parentDoc.addEventListener("keydown", escHandler);
+
+		parentDoc.body.appendChild(overlay);
+		return "inject";
+	}
+
+	// Fall back to postMessage (cross-origin)
+	window.parent.postMessage(
+		{
+			type: "RITA_FULLSCREEN_CONTENT",
+			payload: { content, title, customStyles },
+		},
+		"*",
+	);
+	return "postMessage";
+}
+
+/**
+ * Close fullscreen content
+ */
+export function closeFullscreenContent(): void {
+	if (!isInIframe()) return;
+
+	if (canAccessParentDocument()) {
+		closeFullscreenInHost();
+	} else {
+		window.parent.postMessage({ type: "RITA_CLOSE_FULLSCREEN" }, "*");
 	}
 }

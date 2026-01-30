@@ -13,9 +13,25 @@ import { z } from "zod";
 // Zod Schemas (for validation)
 // ============================================================================
 
+// Conditional rendering schema
+const ConditionalSchema = z.object({
+	field: z.string(),
+	operator: z.enum([
+		"eq",
+		"neq",
+		"exists",
+		"notExists",
+		"gt",
+		"lt",
+		"contains",
+	]),
+	value: z.unknown().optional(),
+});
+
 const BaseComponentSchema = z.object({
 	id: z.string().optional(),
 	className: z.string().optional(),
+	if: ConditionalSchema.optional(),
 });
 
 const TextComponentSchema = BaseComponentSchema.extend({
@@ -173,10 +189,18 @@ export function validateUISchema(schema: unknown): SchemaValidationResult {
 // TypeScript Interfaces (for type safety in components)
 // ============================================================================
 
+// Conditional rendering props
+export interface ConditionalProps {
+	field: string;
+	operator: "eq" | "neq" | "exists" | "notExists" | "gt" | "lt" | "contains";
+	value?: unknown;
+}
+
 // Base component with common properties
 interface BaseComponent {
 	id?: string;
 	className?: string;
+	if?: ConditionalProps;
 }
 
 // Text display
@@ -306,4 +330,47 @@ export interface UIActionPayload {
 	messageId: string;
 	conversationId: string;
 	timestamp: string;
+}
+
+// ============================================================================
+// Conditional Rendering Helper
+// ============================================================================
+
+/**
+ * Evaluate a conditional expression against form data context
+ * @param condition - The condition to evaluate
+ * @param context - Form data context (field values)
+ * @returns true if condition passes (component should render), false otherwise
+ */
+export function evaluateCondition(
+	condition: ConditionalProps | undefined,
+	context: Record<string, unknown>,
+): boolean {
+	if (!condition) return true;
+
+	const { field, operator, value } = condition;
+	const fieldValue = context[field];
+
+	switch (operator) {
+		case "eq":
+			return fieldValue === value;
+		case "neq":
+			return fieldValue !== value;
+		case "exists":
+			return (
+				fieldValue !== undefined && fieldValue !== "" && fieldValue !== null
+			);
+		case "notExists":
+			return (
+				fieldValue === undefined || fieldValue === "" || fieldValue === null
+			);
+		case "gt":
+			return Number(fieldValue) > Number(value);
+		case "lt":
+			return Number(fieldValue) < Number(value);
+		case "contains":
+			return String(fieldValue ?? "").includes(String(value ?? ""));
+		default:
+			return true;
+	}
 }
