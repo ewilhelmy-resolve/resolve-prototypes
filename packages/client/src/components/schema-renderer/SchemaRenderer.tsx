@@ -231,19 +231,30 @@ export function SchemaRenderer({
 
 	// Auto-open modal if specified in schema (for forced credential prompts, etc.)
 	// Effect defined before early return to satisfy hook rules; uses ref to access handleOpenModal
+	// Uses setTimeout to ensure handleOpenModalRef is populated from current render
 	useEffect(() => {
 		const modalId = schema?.autoOpenModal;
-		if (
-			modalId &&
-			autoOpenedRef.current !== modalId &&
-			handleOpenModalRef.current
-		) {
-			autoOpenedRef.current = modalId;
-			const timer = setTimeout(() => {
-				handleOpenModalRef.current?.(modalId);
-			}, 300);
-			return () => clearTimeout(timer);
-		}
+		console.log("[SchemaRenderer] Auto-open effect:", {
+			modalId,
+			alreadyOpened: autoOpenedRef.current,
+			hasHandler: !!handleOpenModalRef.current,
+		});
+		if (!modalId || autoOpenedRef.current === modalId) return;
+
+		// Use setTimeout to run after current render completes and ref is populated
+		const timer = setTimeout(() => {
+			console.log("[SchemaRenderer] Auto-open timeout fired:", {
+				modalId,
+				alreadyOpened: autoOpenedRef.current,
+				hasHandler: !!handleOpenModalRef.current,
+			});
+			if (handleOpenModalRef.current && autoOpenedRef.current !== modalId) {
+				console.log("[SchemaRenderer] Calling handleOpenModal for:", modalId);
+				autoOpenedRef.current = modalId;
+				handleOpenModalRef.current(modalId);
+			}
+		}, 100);
+		return () => clearTimeout(timer);
 	}, [schema?.autoOpenModal]);
 
 	// Validate schema (JAR-81)
@@ -280,8 +291,17 @@ export function SchemaRenderer({
 	};
 
 	const handleOpenModal = (modalId: string) => {
+		console.log("[SchemaRenderer] handleOpenModal called:", {
+			modalId,
+			hasModals: !!schema.modals,
+			modalIds: schema.modals ? Object.keys(schema.modals) : [],
+			isInIframe: isInIframe(),
+		});
 		const modal = schema.modals?.[modalId];
-		if (!modal) return;
+		if (!modal) {
+			console.log("[SchemaRenderer] Modal not found:", modalId);
+			return;
+		}
 
 		// In iframe context, open modal in host page
 		if (isInIframe()) {

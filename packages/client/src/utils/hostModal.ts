@@ -751,10 +751,17 @@ function renderFormField(field: FormModalField): string {
  * Renders form fields and handles submit/cancel
  */
 export function openFormModal(config: FormModalConfig): boolean {
+	console.log("[hostModal] openFormModal called:", {
+		title: config.title,
+		isInIframe: isInIframe(),
+		canAccessParent: canAccessParentDocument(),
+		fieldCount: config.fields.length,
+	});
 	if (!isInIframe()) return false;
 
 	if (!canAccessParentDocument()) {
 		// Cross-origin: send via postMessage (host must handle rendering)
+		console.log("[hostModal] Sending RITA_FORM_MODAL via postMessage");
 		window.parent.postMessage(
 			{
 				type: "RITA_FORM_MODAL",

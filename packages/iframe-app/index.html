@@ -751,49 +751,6 @@
                 <button class="dev-btn secondary" onclick="getStatus()">Get Status</button>
             </div>
 
-            <!-- Modal Demos -->
-            <div class="dev-section">
-                <h3>Modal Approaches Demo</h3>
-                <p style="font-size: 10px; color: #64748b; margin-bottom: 10px;">Compare UX of different modal strategies when iframe can't expand</p>
-
-                <button class="modal-demo-btn" onclick="demoModalInIframe()">
-                    <div class="modal-demo-icon constrained">📦</div>
-                    <div class="modal-demo-text">
-                        <h4>1. Modal Within Iframe</h4>
-                        <p>Constrained to iframe bounds. No host changes needed but limited space.</p>
-                    </div>
-                </button>
-
-                <button class="modal-demo-btn" onclick="demoHostModal()">
-                    <div class="modal-demo-icon host">🖼️</div>
-                    <div class="modal-demo-text">
-                        <h4>2. Host Opens Modal</h4>
-                        <p>postMessage → Host renders full-screen modal. Best UX, requires host integration.</p>
-                    </div>
-                </button>
-
-                <button class="modal-demo-btn" onclick="demoPopupWindow()">
-                    <div class="modal-demo-icon popup">🪟</div>
-                    <div class="modal-demo-text">
-                        <h4>3. Popup Window</h4>
-                        <p>window.open() new browser window. Works without host but feels dated.</p>
-                    </div>
-                </button>
-
-                <button class="modal-demo-btn" onclick="demoSelfInjectModal()" style="border-color: #10b981; background: #ecfdf5;">
-                    <div class="modal-demo-icon" style="background: #d1fae5;">💉</div>
-                    <div class="modal-demo-text">
-                        <h4>4. Self-Inject (Recommended)</h4>
-                        <p>Iframe injects modal into host DOM. Zero Jarvis code needed. Same-origin only.</p>
-                    </div>
-                </button>
-
-                <div style="margin-top: 8px; padding: 8px; background: #ecfdf5; border-radius: 4px; font-size: 10px; border: 1px solid #10b981;">
-                    <strong>✅ Option 4 works because:</strong> RITA + Jarvis = same origin in production.<br>
-                    <span style="color: #64748b;">(Dev uses postMessage fallback since localhost ports differ)</span>
-                </div>
-            </div>
-
             <!-- Mock Responses -->
             <div class="dev-section">
                 <h3>Trigger Mock Response</h3>
