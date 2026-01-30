@@ -4,16 +4,16 @@ import { createContext, useCallback, useContext, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import i18n from "@/i18n";
 import { ritaToast } from "../components/ui/rita-toast";
-import { fileKeys, type FileDocument } from "../hooks/api/useFiles";
+import { type FileDocument, fileKeys } from "../hooks/api/useFiles";
 import { memberKeys } from "../hooks/api/useMembers";
 import { profileKeys } from "../hooks/api/useProfile";
 import { dataSourceKeys, ingestionRunKeys } from "../hooks/useDataSources";
-import type { IngestionRun } from "../types/dataSource";
 import { useSSE } from "../hooks/useSSE";
 import type { SSEEvent } from "../services/EventSourceSSEClient";
 import type { Message } from "../stores/conversationStore";
 import { useConversationStore } from "../stores/conversationStore";
 import { useFeatureFlagsStore } from "../stores/feature-flags-store";
+import type { IngestionRun } from "../types/dataSource";
 
 interface MessageUpdate {
 	messageId: string;
@@ -53,6 +53,22 @@ export const SSEProvider: React.FC<SSEProviderProps> = ({
 
 	const handleMessage = useCallback(
 		(event: SSEEvent) => {
+			// Log all SSE events clearly to console for debugging
+			console.log(
+				`%c[SSE] ⬇️ ${event.type}`,
+				"color: #10b981; font-weight: bold",
+				{
+					type: event.type,
+					...event.data,
+					// Highlight routing fields
+					_routing: {
+						conversationId: event.data.conversationId,
+						userId: event.data.userId,
+						messageId: event.data.messageId,
+					},
+				},
+			);
+
 			if (event.type === "message_update") {
 				const update: MessageUpdate = {
 					messageId: event.data.messageId,
@@ -121,11 +137,19 @@ export const SSEProvider: React.FC<SSEProviderProps> = ({
 				});
 
 				// Show toast notification for verification failures
-				if (updateType === "verification" && event.data.last_verification_error) {
+				if (
+					updateType === "verification" &&
+					event.data.last_verification_error
+				) {
 					const connectionType = event.data.connection_type || "Data source";
 					ritaToast.error({
-						title: i18n.t("error.verificationFailed", { type: connectionType, ns: "toast" }),
-						description: event.data.last_verification_error || "Failed to verify connection",
+						title: i18n.t("error.verificationFailed", {
+							type: connectionType,
+							ns: "toast",
+						}),
+						description:
+							event.data.last_verification_error ||
+							"Failed to verify connection",
 						action: {
 							label: "View",
 							onClick: () => navigate("/settings/connections"),
@@ -140,7 +164,10 @@ export const SSEProvider: React.FC<SSEProviderProps> = ({
 
 					if (syncStatus === "completed") {
 						ritaToast.success({
-							title: i18n.t("success.syncComplete", { type: connectionType, ns: "toast" }),
+							title: i18n.t("success.syncComplete", {
+								type: connectionType,
+								ns: "toast",
+							}),
 							action: {
 								label: "View",
 								onClick: () => navigate("/settings/connections"),
@@ -159,95 +186,115 @@ export const SSEProvider: React.FC<SSEProviderProps> = ({
 				}
 			} else if (event.type === "document_update") {
 				// Handle document processing status updates
-				const processingKey = 'rita-processing-files'
-				const stored = sessionStorage.getItem(processingKey)
-				const isBatchUpload = !!stored
+				const processingKey = "rita-processing-files";
+				const stored = sessionStorage.getItem(processingKey);
+				const isBatchUpload = !!stored;
 
 				// Update document status in cache (no refetch)
-				queryClient.setQueriesData<{ documents: FileDocument[]; total: number; limit: number; offset: number }>(
-					{ queryKey: fileKeys.lists() },
-					(oldData) => {
-						if (!oldData) return oldData
-						return {
-							...oldData,
-							documents: oldData.documents.map((doc) =>
-								doc.filename === event.data.filename
-									? { ...doc, status: event.data.status }
-									: doc
-							),
-						}
-					}
-				)
+				queryClient.setQueriesData<{
+					documents: FileDocument[];
+					total: number;
+					limit: number;
+					offset: number;
+				}>({ queryKey: fileKeys.lists() }, (oldData) => {
+					if (!oldData) return oldData;
+					return {
+						...oldData,
+						documents: oldData.documents.map((doc) =>
+							doc.filename === event.data.filename
+								? { ...doc, status: event.data.status }
+								: doc,
+						),
+					};
+				});
 
 				// If not a batch upload, refetch immediately for single file updates
 				if (!isBatchUpload) {
-					queryClient.invalidateQueries({ queryKey: fileKeys.lists(), refetchType: 'active' })
+					queryClient.invalidateQueries({
+						queryKey: fileKeys.lists(),
+						refetchType: "active",
+					});
 				}
 
 				// Track processing results in sessionStorage for summary toast
 				try {
 					if (stored) {
-						const data = JSON.parse(stored)
-						const status = event.data.status
+						const data = JSON.parse(stored);
+						const status = event.data.status;
 
 						// Update counts based on status
-						if (status === 'processed') {
-							data.processed = (data.processed || 0) + 1
-						} else if (status === 'failed') {
-							data.failed = (data.failed || 0) + 1
+						if (status === "processed") {
+							data.processed = (data.processed || 0) + 1;
+						} else if (status === "failed") {
+							data.failed = (data.failed || 0) + 1;
 						}
 						// Ignore other statuses (processing, pending, etc.)
 
 						// Save updated counts
-						sessionStorage.setItem(processingKey, JSON.stringify(data))
+						sessionStorage.setItem(processingKey, JSON.stringify(data));
 
 						// Check if all files processed AND uploads are complete
-						const total = data.total || 0
-						const allProcessed = total > 0 && (data.processed + data.failed) >= total
+						const total = data.total || 0;
+						const allProcessed =
+							total > 0 && data.processed + data.failed >= total;
 
 						if (allProcessed && !data.uploading) {
-							const processed = data.processed || 0
-							const failed = data.failed || 0
-							const duplicates = data.duplicates || 0
+							const processed = data.processed || 0;
+							const failed = data.failed || 0;
+							const duplicates = data.duplicates || 0;
 
 							// Final refetch to sync with server after batch completes
-							queryClient.invalidateQueries({ queryKey: fileKeys.lists(), refetchType: 'active' })
+							queryClient.invalidateQueries({
+								queryKey: fileKeys.lists(),
+								refetchType: "active",
+							});
 
 							// Build description with duplicates if any
-							const duplicateMsg = duplicates > 0 ? `, ${duplicates} duplicate${duplicates > 1 ? 's' : ''} skipped` : ''
+							const duplicateMsg =
+								duplicates > 0
+									? `, ${duplicates} duplicate${duplicates > 1 ? "s" : ""} skipped`
+									: "";
 
 							// Show appropriate toast based on results
 							if (processed > 0 && failed === 0 && duplicates === 0) {
 								ritaToast.success({
 									title: i18n.t("success.processingComplete", { ns: "toast" }),
-									description: processed === 1
-										? i18n.t("descriptions.fileProcessed", { ns: "toast" })
-										: i18n.t("descriptions.allFilesProcessed", { ns: "toast" }),
-								})
+									description:
+										processed === 1
+											? i18n.t("descriptions.fileProcessed", { ns: "toast" })
+											: i18n.t("descriptions.allFilesProcessed", {
+													ns: "toast",
+												}),
+								});
 							} else if (processed > 0 && failed === 0 && duplicates > 0) {
 								ritaToast.success({
 									title: i18n.t("success.processingComplete", { ns: "toast" }),
-									description: i18n.t("descriptions.filesProcessedDuplicates", { count: processed, duplicates, ns: "toast" }),
-								})
+									description: i18n.t("descriptions.filesProcessedDuplicates", {
+										count: processed,
+										duplicates,
+										ns: "toast",
+									}),
+								});
 							} else if (processed === 0 && failed > 0) {
 								ritaToast.error({
 									title: i18n.t("error.processingFailed", { ns: "toast" }),
-									description: failed === 1
-										? `${i18n.t("descriptions.fileFailed", { ns: "toast" })}${duplicateMsg}`
-										: `${i18n.t("descriptions.allFilesFailed", { ns: "toast" })}${duplicateMsg}`,
-								})
+									description:
+										failed === 1
+											? `${i18n.t("descriptions.fileFailed", { ns: "toast" })}${duplicateMsg}`
+											: `${i18n.t("descriptions.allFilesFailed", { ns: "toast" })}${duplicateMsg}`,
+								});
 							} else if (processed > 0 && failed > 0) {
 								ritaToast.warning({
 									title: i18n.t("warning.processingPartial", { ns: "toast" }),
 									description: `${i18n.t("descriptions.processingPartial", { processed, failed, ns: "toast" })}${duplicateMsg}`,
-								})
+								});
 							}
 
-							sessionStorage.removeItem(processingKey)
+							sessionStorage.removeItem(processingKey);
 						}
 					}
 				} catch (e) {
-					console.error('[SSE] Error processing document_update:', e)
+					console.error("[SSE] Error processing document_update:", e);
 				}
 			} else if (event.type === "organization_update") {
 				// Invalidate profile cache to refetch with updated data
@@ -261,7 +308,9 @@ export const SSEProvider: React.FC<SSEProviderProps> = ({
 				} else if (event.data.updateType === "role") {
 					ritaToast.info({
 						title: i18n.t("info.roleUpdated", { ns: "toast" }),
-						description: i18n.t("descriptions.permissionsChanged", { ns: "toast" }),
+						description: i18n.t("descriptions.permissionsChanged", {
+							ns: "toast",
+						}),
 					});
 				} else if (event.data.updateType === "settings") {
 					ritaToast.success({
@@ -279,13 +328,20 @@ export const SSEProvider: React.FC<SSEProviderProps> = ({
 					queryClient.invalidateQueries({ queryKey: profileKeys.detail() });
 					ritaToast.info({
 						title: i18n.t("info.roleUpdated", { ns: "toast" }),
-						description: i18n.t("descriptions.roleUpdatedDesc", { role: event.data.newRole, ns: "toast" }),
+						description: i18n.t("descriptions.roleUpdatedDesc", {
+							role: event.data.newRole,
+							ns: "toast",
+						}),
 					});
 				} else {
 					// Another member's role was changed
 					ritaToast.success({
 						title: i18n.t("success.memberRoleUpdated", { ns: "toast" }),
-						description: i18n.t("descriptions.memberRoleUpdatedDesc", { email: event.data.userEmail, role: event.data.newRole, ns: "toast" }),
+						description: i18n.t("descriptions.memberRoleUpdatedDesc", {
+							email: event.data.userEmail,
+							role: event.data.newRole,
+							ns: "toast",
+						}),
 					});
 				}
 			} else if (event.type === "member_status_updated") {
@@ -317,7 +373,11 @@ export const SSEProvider: React.FC<SSEProviderProps> = ({
 					const status = event.data.isActive ? "activated" : "deactivated";
 					ritaToast.info({
 						title: i18n.t("info.memberStatusChanged", { status, ns: "toast" }),
-						description: i18n.t("descriptions.memberStatus", { email: event.data.userEmail, status, ns: "toast" }),
+						description: i18n.t("descriptions.memberStatus", {
+							email: event.data.userEmail,
+							status,
+							ns: "toast",
+						}),
 					});
 				}
 			} else if (event.type === "member_removed") {
@@ -338,7 +398,10 @@ export const SSEProvider: React.FC<SSEProviderProps> = ({
 					// Another member was removed
 					ritaToast.info({
 						title: i18n.t("info.memberRemoved", { ns: "toast" }),
-						description: i18n.t("descriptions.memberRemovedDesc", { email: event.data.userEmail, ns: "toast" }),
+						description: i18n.t("descriptions.memberRemovedDesc", {
+							email: event.data.userEmail,
+							ns: "toast",
+						}),
 					});
 				}
 			} else if (event.type === "ingestion_run_update") {
@@ -351,7 +414,8 @@ export const SSEProvider: React.FC<SSEProviderProps> = ({
 							if (!old) return old;
 							return {
 								...old,
-								records_processed: event.data.records_processed ?? old.records_processed,
+								records_processed:
+									event.data.records_processed ?? old.records_processed,
 								records_failed: event.data.records_failed ?? old.records_failed,
 								metadata: {
 									...old.metadata,
@@ -371,7 +435,10 @@ export const SSEProvider: React.FC<SSEProviderProps> = ({
 					if (event.data.status === "completed") {
 						ritaToast.success({
 							title: i18n.t("success.ticketSyncComplete", { ns: "toast" }),
-							description: i18n.t("descriptions.ticketsProcessed", { count: event.data.records_processed ?? 0, ns: "toast" }),
+							description: i18n.t("descriptions.ticketsProcessed", {
+								count: event.data.records_processed ?? 0,
+								ns: "toast",
+							}),
 						});
 					} else if (event.data.status === "failed") {
 						ritaToast.error({
@@ -395,7 +462,11 @@ export const SSEProvider: React.FC<SSEProviderProps> = ({
 
 				ritaToast.info({
 					title: i18n.t("info.featureFlagUpdated", { ns: "toast" }),
-					description: i18n.t("descriptions.featureFlagDesc", { flag: flagName, status: isEnabled ? "enabled" : "disabled", ns: "toast" }),
+					description: i18n.t("descriptions.featureFlagDesc", {
+						flag: flagName,
+						status: isEnabled ? "enabled" : "disabled",
+						ns: "toast",
+					}),
 				});
 			} else if (event.type === "dynamic_workflow") {
 				// Dispatch custom event for WorkflowsPage to handle

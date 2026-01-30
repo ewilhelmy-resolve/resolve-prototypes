@@ -73,15 +73,6 @@ interface DebugPanelProps {
 	showDebug: boolean;
 	setShowDebug: (show: boolean) => void;
 	debugLogs: DebugLogEntry[];
-	state: {
-		isLoading: boolean;
-		sessionReady: boolean;
-		error: string | null;
-		conversationId: string | null;
-		sessionKey: string | null;
-		apiUrl: string;
-	};
-	valkeyPayload: ValkeyPayload | null;
 }
 
 // Clear chat button (shows when feature flag enabled)
@@ -290,6 +281,96 @@ const DEMO_SCHEMAS: Record<string, { name: string; schema: any }> = {
 							],
 						},
 					],
+				},
+			],
+		},
+	},
+	codereview: {
+		name: "Code Review (diff)",
+		schema: {
+			version: "1",
+			components: [
+				{ type: "text", content: "Code Review Request", variant: "heading" },
+				{
+					type: "text",
+					content: "PR #142: Fix authentication bug",
+					variant: "subheading",
+				},
+				{
+					type: "card",
+					title: "src/auth/login.ts",
+					description: "+4 -1 lines changed",
+					children: [
+						{
+							type: "text",
+							content: "function validateSession(token) {",
+							variant: "diff-context",
+						},
+						{
+							type: "text",
+							content: "-  return redirect('/dashboard');",
+							variant: "diff-remove",
+						},
+						{ type: "text", content: "+  if (!token) {", variant: "diff-add" },
+						{
+							type: "text",
+							content: "+    return redirect('/login');",
+							variant: "diff-add",
+						},
+						{ type: "text", content: "+  }", variant: "diff-add" },
+						{
+							type: "text",
+							content: "+  return redirect('/dashboard');",
+							variant: "diff-add",
+						},
+						{ type: "text", content: "}", variant: "diff-context" },
+					],
+				},
+				{
+					type: "row",
+					gap: 8,
+					children: [
+						{
+							type: "button",
+							label: "Approve",
+							action: "approve_pr",
+							variant: "default",
+						},
+						{
+							type: "button",
+							label: "Request Changes",
+							action: "request_changes",
+							variant: "outline",
+						},
+					],
+				},
+			],
+		},
+	},
+	diagram: {
+		name: "Diagram (Mermaid)",
+		schema: {
+			version: "1",
+			components: [
+				{ type: "text", content: "Workflow Flow", variant: "heading" },
+				{
+					type: "diagram",
+					title: "User Authentication Flow",
+					expandable: true,
+					code: `flowchart TD
+    A[User Request] --> B{Has Token?}
+    B -->|Yes| C[Validate Token]
+    B -->|No| D[Redirect to Login]
+    C -->|Valid| E[Grant Access]
+    C -->|Invalid| D
+    E --> F[Load Dashboard]
+    D --> G[Show Login Form]
+    G --> H[Submit Credentials]
+    H --> I{Valid?}
+    I -->|Yes| J[Create Session]
+    I -->|No| K[Show Error]
+    J --> E
+    K --> G`,
 				},
 			],
 		},
@@ -643,8 +724,6 @@ function DebugPanel({
 	showDebug,
 	setShowDebug,
 	debugLogs,
-	state,
-	valkeyPayload,
 }: DebugPanelProps) {
 	const logsEndRef = useRef<HTMLDivElement>(null);
 
@@ -677,44 +756,15 @@ function DebugPanel({
 				)}
 			</button>
 			{showDebug && (
-				<div className="flex-1 overflow-auto p-2 space-y-2">
-					{/* Current State */}
-					<div className="bg-gray-800 rounded p-2">
-						<div className="font-semibold mb-1">State:</div>
-						<pre className="text-[10px] overflow-x-auto">
-							{JSON.stringify(
-								{
-									isLoading: state.isLoading,
-									sessionReady: state.sessionReady,
-									error: state.error,
-									conversationId: state.conversationId,
-									sessionKey: state.sessionKey
-										? `${state.sessionKey.substring(0, 12)}...`
-										: null,
-									apiUrl: state.apiUrl,
-								},
-								null,
-								2,
-							)}
-						</pre>
-					</div>
-					{/* Valkey Payload */}
-					{valkeyPayload && (
-						<div className="bg-gray-800 rounded p-2">
-							<div className="font-semibold mb-1">Valkey Payload:</div>
-							<pre className="text-[10px] overflow-x-auto">
-								{JSON.stringify(valkeyPayload, null, 2)}
-							</pre>
-						</div>
-					)}
-					{/* Logs */}
+				<div className="flex-1 overflow-auto p-2">
+					{/* Activity Log - SSE & Webhooks only */}
 					<div className="bg-gray-800 rounded p-2">
 						<div className="font-semibold mb-1">Activity Log:</div>
 						<div className="text-[9px] text-slate-500 mb-2 flex gap-3">
-							<span>⬇️ SSE Event (Platform → RabbitMQ → Jarvis)</span>
+							<span>⬇️ SSE (Platform → Jarvis)</span>
 							<span>⬆️ Webhook (Jarvis → Platform)</span>
 						</div>
-						<div className="space-y-1 max-h-32 overflow-auto">
+						<div className="space-y-1 max-h-40 overflow-auto">
 							{debugLogs.map((log, i) => (
 								<div
 									key={`${log.timestamp}-${i}`}
@@ -1213,15 +1263,6 @@ export default function IframeChatPage() {
 		showDebug,
 		setShowDebug,
 		debugLogs,
-		state: {
-			isLoading,
-			sessionReady,
-			error,
-			conversationId,
-			sessionKey,
-			apiUrl,
-		},
-		valkeyPayload,
 	};
 
 	// Loading state
