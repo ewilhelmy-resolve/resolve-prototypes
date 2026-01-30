@@ -51,9 +51,9 @@ import {
 } from "../hooks/useIframeMessaging";
 import { useRitaChat } from "../hooks/useRitaChat";
 import { iframeApi } from "../services/iframeApi";
-import { isInIframe, openExpandedModal } from "../utils/hostModal";
 import { useConversationStore } from "../stores/conversationStore";
 import { useFeatureFlagsStore } from "../stores/feature-flags-store";
+import { isInIframe, openExpandedModal } from "../utils/hostModal";
 
 // Debug log entry
 interface DebugLogEntry {
@@ -111,7 +111,11 @@ const DEMO_SCHEMAS: Record<string, { name: string; schema: any }> = {
 			version: "1",
 			components: [
 				{ type: "text", content: "Hello from Platform!", variant: "heading" },
-				{ type: "text", content: "This UI was rendered from JSON schema sent via RabbitMQ.", variant: "muted" },
+				{
+					type: "text",
+					content: "This UI was rendered from JSON schema sent via RabbitMQ.",
+					variant: "muted",
+				},
 				{ type: "button", label: "Acknowledge", action: "acknowledge_clicked" },
 			],
 		},
@@ -121,7 +125,11 @@ const DEMO_SCHEMAS: Record<string, { name: string; schema: any }> = {
 		schema: {
 			version: "1",
 			components: [
-				{ type: "text", content: "Configure Workflow Trigger", variant: "heading" },
+				{
+					type: "text",
+					content: "Configure Workflow Trigger",
+					variant: "heading",
+				},
 				{
 					type: "card",
 					title: "Trigger Settings",
@@ -131,7 +139,13 @@ const DEMO_SCHEMAS: Record<string, { name: string; schema: any }> = {
 							submitAction: "save_trigger_config",
 							submitLabel: "Save Configuration",
 							children: [
-								{ type: "input", name: "workflowName", label: "Workflow Name", placeholder: "My Automation", required: true },
+								{
+									type: "input",
+									name: "workflowName",
+									label: "Workflow Name",
+									placeholder: "My Automation",
+									required: true,
+								},
 								{
 									type: "select",
 									name: "triggerEvent",
@@ -142,7 +156,83 @@ const DEMO_SCHEMAS: Record<string, { name: string; schema: any }> = {
 										{ label: "On Status Change", value: "status_change" },
 									],
 								},
-								{ type: "input", name: "filter", label: "Filter Condition", placeholder: "priority = 'high'", inputType: "textarea" },
+								{
+									type: "input",
+									name: "filter",
+									label: "Filter Condition",
+									placeholder: "priority = 'high'",
+									inputType: "textarea",
+								},
+							],
+						},
+					],
+				},
+			],
+		},
+	},
+	date: {
+		name: "Date (select fields)",
+		schema: {
+			version: "1",
+			components: [
+				{ type: "text", content: "Select a Date", variant: "heading" },
+				{
+					type: "text",
+					content: "Choose month, day, and year.",
+					variant: "muted",
+				},
+				{
+					type: "card",
+					title: "Date Selection",
+					children: [
+						{
+							type: "form",
+							submitAction: "submit_date",
+							submitLabel: "Confirm Date",
+							children: [
+								{
+									type: "row",
+									gap: 12,
+									children: [
+										{
+											type: "select",
+											name: "month",
+											label: "Month",
+											options: [
+												{ label: "January", value: "01" },
+												{ label: "February", value: "02" },
+												{ label: "March", value: "03" },
+												{ label: "April", value: "04" },
+												{ label: "May", value: "05" },
+												{ label: "June", value: "06" },
+												{ label: "July", value: "07" },
+												{ label: "August", value: "08" },
+												{ label: "September", value: "09" },
+												{ label: "October", value: "10" },
+												{ label: "November", value: "11" },
+												{ label: "December", value: "12" },
+											],
+										},
+										{
+											type: "select",
+											name: "day",
+											label: "Day",
+											options: Array.from({ length: 31 }, (_, i) => ({
+												label: String(i + 1),
+												value: String(i + 1).padStart(2, "0"),
+											})),
+										},
+										{
+											type: "select",
+											name: "year",
+											label: "Year",
+											options: Array.from({ length: 100 }, (_, i) => {
+												const year = new Date().getFullYear() - i;
+												return { label: String(year), value: String(year) };
+											}),
+										},
+									],
+								},
 							],
 						},
 					],
@@ -160,9 +250,26 @@ const DEMO_SCHEMAS: Record<string, { name: string; schema: any }> = {
 					type: "row",
 					gap: 12,
 					children: [
-						{ type: "stat", label: "Total Tickets", value: "1,234", change: "+12%", changeType: "positive" },
-						{ type: "stat", label: "Open Issues", value: "42", change: "-5%", changeType: "negative" },
-						{ type: "stat", label: "Avg Response", value: "2.4h", changeType: "neutral" },
+						{
+							type: "stat",
+							label: "Total Tickets",
+							value: "1,234",
+							change: "+12%",
+							changeType: "positive",
+						},
+						{
+							type: "stat",
+							label: "Open Issues",
+							value: "42",
+							change: "-5%",
+							changeType: "negative",
+						},
+						{
+							type: "stat",
+							label: "Avg Response",
+							value: "2.4h",
+							changeType: "neutral",
+						},
 					],
 				},
 				{
@@ -187,25 +294,6 @@ const DEMO_SCHEMAS: Record<string, { name: string; schema: any }> = {
 			],
 		},
 	},
-	actions: {
-		name: "Actions (button row)",
-		schema: {
-			version: "1",
-			components: [
-				{ type: "text", content: "Workflow Actions", variant: "heading" },
-				{ type: "text", content: "Choose an action for this workflow:", variant: "muted" },
-				{
-					type: "row",
-					gap: 8,
-					children: [
-						{ type: "button", label: "Enable", action: "enable_workflow", variant: "default" },
-						{ type: "button", label: "Disable", action: "disable_workflow", variant: "outline" },
-						{ type: "button", label: "Delete", action: "delete_workflow", variant: "destructive" },
-					],
-				},
-			],
-		},
-	},
 };
 
 // Floating dev panel for mock mode - simulates Platform sending schema
@@ -214,15 +302,89 @@ function MockPlatformPanel({
 	isOpen,
 	onToggle,
 	onLog,
+	onOpenActivityLog,
 }: {
 	conversationId: string;
 	isOpen: boolean;
 	onToggle: () => void;
-	onLog: (level: "info" | "error" | "warn", message: string, data?: Record<string, unknown>) => void;
+	onLog: (
+		level: "info" | "error" | "warn",
+		message: string,
+		data?: Record<string, unknown>,
+	) => void;
+	onOpenActivityLog: () => void;
 }) {
 	const { addMessage } = useConversationStore();
 	const [selectedPreset, setSelectedPreset] = useState("simple");
-	const [customJson, setCustomJson] = useState(JSON.stringify(DEMO_SCHEMAS.simple.schema, null, 2));
+	const [customJson, setCustomJson] = useState(
+		JSON.stringify(
+			{
+				version: "1",
+				components: [
+					{ type: "text", content: "Code Review Request", variant: "heading" },
+					{
+						type: "text",
+						content: "PR #142: Fix authentication bug",
+						variant: "subheading",
+					},
+					{
+						type: "card",
+						title: "src/auth/login.ts",
+						description: "+4 -1 lines changed",
+						children: [
+							{
+								type: "text",
+								content: "function validateSession(token) {",
+								variant: "diff-context",
+							},
+							{
+								type: "text",
+								content: "-  return redirect('/dashboard');",
+								variant: "diff-remove",
+							},
+							{
+								type: "text",
+								content: "+  if (!token) {",
+								variant: "diff-add",
+							},
+							{
+								type: "text",
+								content: "+    return redirect('/login');",
+								variant: "diff-add",
+							},
+							{ type: "text", content: "+  }", variant: "diff-add" },
+							{
+								type: "text",
+								content: "+  return redirect('/dashboard');",
+								variant: "diff-add",
+							},
+							{ type: "text", content: "}", variant: "diff-context" },
+						],
+					},
+					{
+						type: "row",
+						gap: 8,
+						children: [
+							{
+								type: "button",
+								label: "Approve",
+								action: "approve_pr",
+								variant: "default",
+							},
+							{
+								type: "button",
+								label: "Request Changes",
+								action: "request_changes",
+								variant: "outline",
+							},
+						],
+					},
+				],
+			},
+			null,
+			2,
+		),
+	);
 	const [useCustom, setUseCustom] = useState(false);
 	const [lastSentSchema, setLastSentSchema] = useState<any>(null);
 
@@ -234,11 +396,13 @@ function MockPlatformPanel({
 
 	const handleSendSchema = () => {
 		try {
-			const schema = useCustom ? JSON.parse(customJson) : DEMO_SCHEMAS[selectedPreset].schema;
+			const schema = useCustom
+				? JSON.parse(customJson)
+				: DEMO_SCHEMAS[selectedPreset].schema;
 			setLastSentSchema(schema);
 
 			// Log what platform is sending
-			onLog("info", "📥 Platform → RabbitMQ: Sending ui_schema", {
+			onLog("info", "⬇️ SSE Event received (ui_schema)", {
 				componentCount: schema.components?.length,
 				types: schema.components?.map((c: any) => c.type),
 			});
@@ -258,27 +422,18 @@ function MockPlatformPanel({
 				},
 			});
 
-			onLog("info", "📤 SSE → Client: Message received & rendered", {
+			onLog("info", "⬇️ UI schema rendered in Jarvis", {
 				messageId,
-				schema: JSON.stringify(schema).substring(0, 100) + "...",
+				schema: `${JSON.stringify(schema).substring(0, 100)}...`,
 			});
 		} catch (e) {
 			onLog("error", "Failed to parse JSON", { error: (e as Error).message });
-			alert("Invalid JSON: " + (e as Error).message);
+			alert(`Invalid JSON: ${(e as Error).message}`);
 		}
 	};
 
 	if (!isOpen) {
-		return (
-			<button
-				type="button"
-				onClick={onToggle}
-				className="fixed top-4 right-4 z-50 bg-blue-600 text-white px-3 py-2 rounded-lg shadow-lg hover:bg-blue-700 text-sm font-medium flex items-center gap-2"
-			>
-				<Code className="w-4 h-4" />
-				Platform Simulator
-			</button>
-		);
+		return null;
 	}
 
 	return (
@@ -289,7 +444,11 @@ function MockPlatformPanel({
 					<Code className="w-4 h-4 text-blue-400" />
 					<span className="font-semibold text-sm">Platform Simulator</span>
 				</div>
-				<button type="button" onClick={onToggle} className="text-slate-400 hover:text-white">
+				<button
+					type="button"
+					onClick={onToggle}
+					className="text-slate-400 hover:text-white"
+				>
 					×
 				</button>
 			</div>
@@ -323,7 +482,9 @@ function MockPlatformPanel({
 							type="button"
 							onClick={() => setUseCustom(true)}
 							className={`px-2 py-1 rounded text-xs ${
-								useCustom ? "bg-blue-600 text-white" : "bg-slate-700 text-slate-300 hover:bg-slate-600"
+								useCustom
+									? "bg-blue-600 text-white"
+									: "bg-slate-700 text-slate-300 hover:bg-slate-600"
 							}`}
 						>
 							Custom
@@ -351,14 +512,18 @@ function MockPlatformPanel({
 					className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded font-medium text-sm flex items-center justify-center gap-2"
 				>
 					<Send className="w-4 h-4" />
-					Send to RITA Chat
+					Send to Jarvis
 				</button>
 
 				{/* Last sent indicator */}
 				{lastSentSchema && (
-					<div className="text-xs text-green-400 bg-green-900/30 rounded p-2">
-						✓ Schema sent - check chat below
-					</div>
+					<button
+						type="button"
+						onClick={onOpenActivityLog}
+						className="w-full text-xs text-green-400 bg-green-900/30 hover:bg-green-900/50 rounded p-2 text-left transition-colors"
+					>
+						✓ Schema sent - click to view activity log
+					</button>
 				)}
 			</div>
 		</div>
@@ -366,11 +531,7 @@ function MockPlatformPanel({
 }
 
 // Expand button to open modal in host page (always visible when in iframe)
-function IframeExpandButton({
-	onExpand,
-}: {
-	onExpand: () => void;
-}) {
+function IframeExpandButton({ onExpand }: { onExpand: () => void }) {
 	// Only show if we're actually in an iframe
 	if (!isInIframe()) return null;
 
@@ -387,19 +548,24 @@ function IframeExpandButton({
 	);
 }
 
-// Dev tools dropdown for input toolbar (shows when feature flag enabled)
+// Dev tools dropdown for input toolbar (shows when feature flag enabled OR mock mode)
 function IframeDevTools({
 	onDownloadConversation,
 	onDownloadMetadata,
 	onShowActivityLog,
+	onShowPlatformSimulator,
+	isMockMode,
 }: {
 	onDownloadConversation: () => void;
 	onDownloadMetadata: () => void;
 	onShowActivityLog: () => void;
+	onShowPlatformSimulator?: () => void;
+	isMockMode?: boolean;
 }) {
 	const devToolsEnabled = useFeatureFlag("ENABLE_IFRAME_DEV_TOOLS");
 
-	if (!devToolsEnabled) return null;
+	// Show if dev tools enabled OR in mock mode
+	if (!devToolsEnabled && !isMockMode) return null;
 
 	return (
 		<DropdownMenu>
@@ -408,32 +574,64 @@ function IframeDevTools({
 					<Wrench className="h-4 w-4" />
 				</Button>
 			</DropdownMenuTrigger>
-			<DropdownMenuContent align="start" side="top" className="w-48">
-				<DropdownMenuLabel className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-					Downloads
-				</DropdownMenuLabel>
-				<DropdownMenuItem
-					onClick={onDownloadConversation}
-					className="cursor-pointer"
-				>
-					<Download className="mr-2 h-4 w-4" />
-					Conversation
-				</DropdownMenuItem>
-				<DropdownMenuItem
-					onClick={onDownloadMetadata}
-					className="cursor-pointer"
-				>
-					<Download className="mr-2 h-4 w-4" />
-					Full Metadata
-				</DropdownMenuItem>
-				<DropdownMenuSeparator />
-				<DropdownMenuItem
-					onClick={onShowActivityLog}
-					className="cursor-pointer"
-				>
-					<ScrollText className="mr-2 h-4 w-4" />
-					Activity Log
-				</DropdownMenuItem>
+			<DropdownMenuContent align="start" side="top" className="w-56">
+				{/* Mock Mode Demo Tools */}
+				{isMockMode && (
+					<>
+						<DropdownMenuLabel className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+							Demo Tools
+						</DropdownMenuLabel>
+						<DropdownMenuItem
+							onClick={onShowPlatformSimulator}
+							className="cursor-pointer"
+						>
+							<Code className="mr-2 h-4 w-4" />
+							Platform Simulator
+						</DropdownMenuItem>
+						<DropdownMenuItem
+							onClick={onShowActivityLog}
+							className="cursor-pointer"
+						>
+							<ScrollText className="mr-2 h-4 w-4" />
+							Activity Log
+						</DropdownMenuItem>
+						<DropdownMenuSeparator />
+					</>
+				)}
+				{/* Standard dev tools */}
+				{devToolsEnabled && (
+					<>
+						<DropdownMenuLabel className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+							Downloads
+						</DropdownMenuLabel>
+						<DropdownMenuItem
+							onClick={onDownloadConversation}
+							className="cursor-pointer"
+						>
+							<Download className="mr-2 h-4 w-4" />
+							Conversation
+						</DropdownMenuItem>
+						<DropdownMenuItem
+							onClick={onDownloadMetadata}
+							className="cursor-pointer"
+						>
+							<Download className="mr-2 h-4 w-4" />
+							Full Metadata
+						</DropdownMenuItem>
+						{!isMockMode && (
+							<>
+								<DropdownMenuSeparator />
+								<DropdownMenuItem
+									onClick={onShowActivityLog}
+									className="cursor-pointer"
+								>
+									<ScrollText className="mr-2 h-4 w-4" />
+									Activity Log
+								</DropdownMenuItem>
+							</>
+						)}
+					</>
+				)}
 			</DropdownMenuContent>
 		</DropdownMenu>
 	);
@@ -448,6 +646,17 @@ function DebugPanel({
 	state,
 	valkeyPayload,
 }: DebugPanelProps) {
+	const logsEndRef = useRef<HTMLDivElement>(null);
+
+	// Auto-scroll to bottom when new logs added
+	const logCount = debugLogs.length;
+	// biome-ignore lint/correctness/useExhaustiveDependencies: logCount triggers scroll on new logs
+	useEffect(() => {
+		if (showDebug && logsEndRef.current) {
+			logsEndRef.current.scrollIntoView({ behavior: "smooth" });
+		}
+	}, [logCount, showDebug]);
+
 	if (!debug && !showDebug) return null;
 
 	return (
@@ -500,7 +709,11 @@ function DebugPanel({
 					)}
 					{/* Logs */}
 					<div className="bg-gray-800 rounded p-2">
-						<div className="font-semibold mb-1">Logs:</div>
+						<div className="font-semibold mb-1">Activity Log:</div>
+						<div className="text-[9px] text-slate-500 mb-2 flex gap-3">
+							<span>⬇️ SSE Event (Platform → RabbitMQ → Jarvis)</span>
+							<span>⬆️ Webhook (Jarvis → Platform)</span>
+						</div>
 						<div className="space-y-1 max-h-32 overflow-auto">
 							{debugLogs.map((log, i) => (
 								<div
@@ -524,6 +737,7 @@ function DebugPanel({
 									) : null}
 								</div>
 							))}
+							<div ref={logsEndRef} />
 						</div>
 					</div>
 				</div>
@@ -795,7 +1009,7 @@ export default function IframeChatPage() {
 
 		const method = openExpandedModal(sessionKey, titleText || "RITA Assistant");
 		addDebugLog("info", `Expand modal requested via ${method}`, {
-			sessionKey: sessionKey.substring(0, 8) + "...",
+			sessionKey: `${sessionKey.substring(0, 8)}...`,
 		});
 	}, [sessionKey, titleText, addDebugLog]);
 
@@ -823,7 +1037,9 @@ export default function IframeChatPage() {
 				setConversationId(mockConversationId);
 				setCurrentConversation(mockConversationId);
 				setTitleText("UI Schema Demo (Mock Mode)");
-				setWelcomeText("This is running without a backend. Try the schema renderer demo at /demo/schema-renderer");
+				setWelcomeText(
+					"This is running without a backend. Try the schema renderer demo at /demo/schema-renderer",
+				);
 				setSessionReady(true);
 				setIsLoading(false);
 				return;
@@ -920,6 +1136,7 @@ export default function IframeChatPage() {
 		addDebugLog,
 		navigate,
 		t,
+		mockMode,
 	]);
 
 	// Listen for UI action events (mock mode) to log to debug panel
@@ -928,18 +1145,37 @@ export default function IframeChatPage() {
 
 		const handleUIAction = (event: CustomEvent) => {
 			const payload = event.detail;
-			addDebugLog("info", "🚀 Client → Webhook: Action sent to Platform", {
-				action: payload.action,
+			addDebugLog("info", "⬆️ Webhook sent to Platform", {
+				event: payload.action,
 				data: payload.data,
 				messageId: payload.messageId,
+				conversationId: payload.conversationId,
 			});
 		};
 
 		window.addEventListener("rita:ui-action", handleUIAction as EventListener);
 		return () => {
-			window.removeEventListener("rita:ui-action", handleUIAction as EventListener);
+			window.removeEventListener(
+				"rita:ui-action",
+				handleUIAction as EventListener,
+			);
 		};
 	}, [mockMode, addDebugLog]);
+
+	// Listen for open activity log events (from toast action button)
+	useEffect(() => {
+		const handleOpenActivityLog = () => {
+			setShowDebug(true);
+		};
+
+		window.addEventListener("rita:open-activity-log", handleOpenActivityLog);
+		return () => {
+			window.removeEventListener(
+				"rita:open-activity-log",
+				handleOpenActivityLog,
+			);
+		};
+	}, []);
 
 	// Execute workflow once session is ready
 	// This runs in parent to prevent re-execution on child remounts
@@ -1040,6 +1276,8 @@ export default function IframeChatPage() {
 				onDownloadConversation={downloadConversation}
 				onDownloadMetadata={downloadMetadata}
 				onShowActivityLog={() => setShowDebug(true)}
+				onShowPlatformSimulator={() => setShowPlatformPanel(true)}
+				isMockMode={mockMode}
 			/>
 		</>
 	);
@@ -1063,6 +1301,7 @@ export default function IframeChatPage() {
 					isOpen={showPlatformPanel}
 					onToggle={() => setShowPlatformPanel((v) => !v)}
 					onLog={addDebugLog}
+					onOpenActivityLog={() => setShowDebug(true)}
 				/>
 			)}
 			<DebugPanel {...debugPanelProps} />

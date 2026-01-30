@@ -160,7 +160,7 @@ export function SchemaRenderer({
 	}
 
 	return (
-		<div className="schema-renderer space-y-3">
+		<div className="schema-renderer space-y-3 w-full overflow-hidden">
 			{schema.components.map((component, index) =>
 				renderComponent(component, index),
 			)}
@@ -171,11 +171,18 @@ export function SchemaRenderer({
 // Individual component renderers
 
 function TextRenderer({ component }: { component: TextComponent }) {
-	const variants = {
+	const variants: Record<string, string> = {
 		default: "text-sm",
 		muted: "text-sm text-muted-foreground",
 		heading: "text-lg font-semibold",
 		subheading: "text-base font-medium",
+		code: "text-xs font-mono bg-muted px-1 py-0.5 rounded",
+		"diff-add":
+			"text-xs font-mono bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400 px-2 py-0.5 border-l-2 border-green-500",
+		"diff-remove":
+			"text-xs font-mono bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400 px-2 py-0.5 border-l-2 border-red-500",
+		"diff-context":
+			"text-xs font-mono bg-muted/50 text-muted-foreground px-2 py-0.5",
 	};
 	return (
 		<p
@@ -194,7 +201,7 @@ function StatRenderer({ component }: { component: StatComponent }) {
 	};
 	return (
 		<div
-			className={`p-4 rounded-lg border bg-card ${component.className || ""}`}
+			className={`p-4 rounded-lg border bg-card flex-1 min-w-0 ${component.className || ""}`}
 		>
 			<div className="text-xs text-muted-foreground uppercase tracking-wide">
 				{component.label}
@@ -294,7 +301,7 @@ function CardRenderer({
 	children: React.ReactNode;
 }) {
 	return (
-		<Card className={component.className}>
+		<Card className={`w-full overflow-hidden ${component.className || ""}`}>
 			{(component.title || component.description) && (
 				<CardHeader className="pb-3">
 					{component.title && (
@@ -319,7 +326,7 @@ function RowRenderer({
 }) {
 	return (
 		<div
-			className={`flex flex-wrap items-start ${component.className || ""}`}
+			className={`flex flex-wrap items-start w-full overflow-hidden ${component.className || ""}`}
 			style={{ gap: component.gap ?? 12 }}
 		>
 			{children}
@@ -369,8 +376,10 @@ function FormRenderer({
 
 function TableRenderer({ component }: { component: TableComponent }) {
 	return (
-		<div className={`rounded-md border ${component.className || ""}`}>
-			<table className="w-full text-sm">
+		<div
+			className={`rounded-md border w-full overflow-x-auto ${component.className || ""}`}
+		>
+			<table className="w-full text-sm min-w-0">
 				<thead>
 					<tr className="border-b bg-muted/50">
 						{component.columns.map((col) => (

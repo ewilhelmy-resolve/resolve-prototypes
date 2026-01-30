@@ -806,14 +806,20 @@ export default function ChatV1Content({
 
 			// Dispatch event for debug panel to capture
 			window.dispatchEvent(
-				new CustomEvent("rita:ui-action", { detail: payload })
+				new CustomEvent("rita:ui-action", { detail: payload }),
 			);
 
 			ritaToast.success({
 				title: `🚀 Action: ${payload.action}`,
-				description: payload.data
-					? `Data: ${JSON.stringify(payload.data)}`
-					: "No data payload",
+				description:
+					payload.data && Object.keys(payload.data).length > 0
+						? JSON.stringify(payload.data)
+						: `messageId: ${payload.messageId}`,
+				action: {
+					label: "View Log",
+					onClick: () =>
+						window.dispatchEvent(new CustomEvent("rita:open-activity-log")),
+				},
 			});
 			return;
 		}
