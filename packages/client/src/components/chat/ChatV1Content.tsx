@@ -797,17 +797,25 @@ export default function ChatV1Content({
 	const handleSchemaAction = useCallback(async (payload: UIActionPayload) => {
 		console.log("[SchemaAction] Received action:", payload);
 
-		// Check if we're in mock mode (no backend)
-		const isMockMode = window.location.search.includes("mock=true");
+		// Check if we're in dev mode (mock, dev-*, demo-* session keys)
+		const searchParams = new URLSearchParams(window.location.search);
+		const sessionKey = searchParams.get("sessionKey") || "";
+		const isMockMode = searchParams.get("mock") === "true";
+		const isDevMode =
+			isMockMode ||
+			sessionKey.startsWith("dev-") ||
+			sessionKey.startsWith("demo-");
+
+		// Dispatch event for debug panel in dev mode
+		if (isDevMode) {
+			window.dispatchEvent(
+				new CustomEvent("rita:ui-action", { detail: payload }),
+			);
+		}
 
 		if (isMockMode) {
 			// In mock mode, just log and show success - no backend call
 			console.log("[SchemaAction] Mock mode - action payload:", payload);
-
-			// Dispatch event for debug panel to capture
-			window.dispatchEvent(
-				new CustomEvent("rita:ui-action", { detail: payload }),
-			);
 
 			ritaToast.success({
 				title: `🚀 Action: ${payload.action}`,
@@ -832,6 +840,11 @@ export default function ChatV1Content({
 				ritaToast.success({
 					title: "Action sent",
 					description: payload.action,
+					action: {
+						label: "View Log",
+						onClick: () =>
+							window.dispatchEvent(new CustomEvent("rita:open-activity-log")),
+					},
 				});
 			} else {
 				ritaToast.error({

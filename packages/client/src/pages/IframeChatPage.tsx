@@ -22,7 +22,6 @@ import {
 	ChevronUp,
 	Code,
 	Download,
-	Maximize2,
 	ScrollText,
 	Send,
 	Trash2,
@@ -53,7 +52,6 @@ import { useRitaChat } from "../hooks/useRitaChat";
 import { iframeApi } from "../services/iframeApi";
 import { useConversationStore } from "../stores/conversationStore";
 import { useFeatureFlagsStore } from "../stores/feature-flags-store";
-import { isInIframe, openExpandedModal } from "../utils/hostModal";
 
 // Debug log entry
 interface DebugLogEntry {
@@ -397,6 +395,16 @@ function MockPlatformPanel({
 }) {
 	const { addMessage } = useConversationStore();
 	const [selectedPreset, setSelectedPreset] = useState("simple");
+	const [isSmallViewport, setIsSmallViewport] = useState(
+		window.innerWidth < 500,
+	);
+
+	// Detect small viewport for compact layout
+	useEffect(() => {
+		const handleResize = () => setIsSmallViewport(window.innerWidth < 500);
+		window.addEventListener("resize", handleResize);
+		return () => window.removeEventListener("resize", handleResize);
+	}, []);
 	const [customJson, setCustomJson] = useState(
 		JSON.stringify(
 			{
@@ -517,6 +525,100 @@ function MockPlatformPanel({
 		return null;
 	}
 
+	// Compact layout for small viewports (iframe widget)
+	if (isSmallViewport) {
+		return (
+			<div className="fixed left-2 right-2 top-2 bottom-[50%] z-50 bg-slate-900 text-white rounded-lg shadow-2xl overflow-hidden flex flex-col">
+				{/* Header */}
+				<div className="flex items-center justify-between px-3 py-1.5 bg-slate-800 border-b border-slate-700 shrink-0">
+					<div className="flex items-center gap-2">
+						<Code className="w-3 h-3 text-blue-400" />
+						<span className="font-semibold text-[10px]">
+							Platform Simulator
+						</span>
+					</div>
+					<button
+						type="button"
+						onClick={onToggle}
+						className="text-slate-400 hover:text-white text-sm leading-none"
+					>
+						×
+					</button>
+				</div>
+
+				{/* Two-column content */}
+				<div className="flex-1 flex overflow-hidden">
+					{/* Left: Schema presets */}
+					<div className="w-20 shrink-0 p-2 border-r border-slate-700 overflow-auto">
+						<div className="text-[9px] text-slate-500 mb-1">Schema</div>
+						<div className="flex flex-col gap-1">
+							{Object.entries(DEMO_SCHEMAS).map(([key, { name }]) => (
+								<button
+									key={key}
+									type="button"
+									onClick={() => handlePresetChange(key)}
+									className={`px-1.5 py-1 rounded text-[9px] text-left ${
+										selectedPreset === key && !useCustom
+											? "bg-blue-600 text-white"
+											: "bg-slate-800 text-slate-300 hover:bg-slate-700"
+									}`}
+								>
+									{name.split(" ")[0]}
+								</button>
+							))}
+							<button
+								type="button"
+								onClick={() => setUseCustom(true)}
+								className={`px-1.5 py-1 rounded text-[9px] text-left ${
+									useCustom
+										? "bg-blue-600 text-white"
+										: "bg-slate-800 text-slate-300 hover:bg-slate-700"
+								}`}
+							>
+								Custom
+							</button>
+						</div>
+					</div>
+
+					{/* Right: JSON editor */}
+					<div className="flex-1 flex flex-col overflow-hidden">
+						<textarea
+							className="flex-1 bg-slate-800 text-slate-200 text-[9px] font-mono p-2 border-none focus:outline-none resize-none"
+							value={customJson}
+							onChange={(e) => {
+								setCustomJson(e.target.value);
+								setUseCustom(true);
+							}}
+						/>
+					</div>
+				</div>
+
+				{/* Fixed bottom: Send button */}
+				<div className="shrink-0 p-2 bg-slate-800 border-t border-slate-700 flex gap-2">
+					<button
+						type="button"
+						onClick={handleSendSchema}
+						className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-1.5 rounded font-medium text-[10px] flex items-center justify-center gap-1"
+					>
+						<Send className="w-3 h-3" />
+						Send
+					</button>
+					{lastSentSchema && (
+						<button
+							type="button"
+							onClick={onOpenActivityLog}
+							className="px-2 text-[9px] text-green-400 bg-green-900/30 hover:bg-green-900/50 rounded"
+							title="View activity log"
+						>
+							✓ Log
+						</button>
+					)}
+				</div>
+			</div>
+		);
+	}
+
+	// Large viewport layout (original)
 	return (
 		<div className="fixed top-4 right-4 z-50 w-96 bg-slate-900 text-white rounded-lg shadow-2xl overflow-hidden">
 			{/* Header */}
@@ -538,7 +640,7 @@ function MockPlatformPanel({
 			<div className="p-4 space-y-4 max-h-[70vh] overflow-auto">
 				{/* Flow indicator */}
 				<div className="text-xs text-slate-400 bg-slate-800 rounded p-2">
-					Platform → RabbitMQ → SSE → RITA Chat
+					Platform → RabbitMQ → SSE → Jarvis Chat
 				</div>
 
 				{/* Preset buttons */}
@@ -611,24 +713,6 @@ function MockPlatformPanel({
 	);
 }
 
-// Expand button to open modal in host page (always visible when in iframe)
-function IframeExpandButton({ onExpand }: { onExpand: () => void }) {
-	// Only show if we're actually in an iframe
-	if (!isInIframe()) return null;
-
-	return (
-		<Button
-			size="icon"
-			variant="ghost"
-			className="h-8 w-8 hover:bg-accent"
-			onClick={onExpand}
-			title="Expand to full view"
-		>
-			<Maximize2 className="h-4 w-4" />
-		</Button>
-	);
-}
-
 // Dev tools dropdown for input toolbar (shows when feature flag enabled OR mock mode)
 function IframeDevTools({
 	onDownloadConversation,
@@ -656,32 +740,28 @@ function IframeDevTools({
 				</Button>
 			</DropdownMenuTrigger>
 			<DropdownMenuContent align="start" side="top" className="w-56">
-				{/* Mock Mode Demo Tools */}
-				{isMockMode && (
-					<>
-						<DropdownMenuLabel className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-							Demo Tools
-						</DropdownMenuLabel>
-						<DropdownMenuItem
-							onClick={onShowPlatformSimulator}
-							className="cursor-pointer"
-						>
-							<Code className="mr-2 h-4 w-4" />
-							Platform Simulator
-						</DropdownMenuItem>
-						<DropdownMenuItem
-							onClick={onShowActivityLog}
-							className="cursor-pointer"
-						>
-							<ScrollText className="mr-2 h-4 w-4" />
-							Activity Log
-						</DropdownMenuItem>
-						<DropdownMenuSeparator />
-					</>
-				)}
-				{/* Standard dev tools */}
+				{/* Demo Tools - available in mock mode OR dev tools */}
+				<DropdownMenuLabel className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+					Demo Tools
+				</DropdownMenuLabel>
+				<DropdownMenuItem
+					onClick={onShowPlatformSimulator}
+					className="cursor-pointer"
+				>
+					<Code className="mr-2 h-4 w-4" />
+					Platform Simulator
+				</DropdownMenuItem>
+				<DropdownMenuItem
+					onClick={onShowActivityLog}
+					className="cursor-pointer"
+				>
+					<ScrollText className="mr-2 h-4 w-4" />
+					Activity Log
+				</DropdownMenuItem>
+				{/* Download tools - only when dev tools feature flag enabled */}
 				{devToolsEnabled && (
 					<>
+						<DropdownMenuSeparator />
 						<DropdownMenuLabel className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
 							Downloads
 						</DropdownMenuLabel>
@@ -699,18 +779,6 @@ function IframeDevTools({
 							<Download className="mr-2 h-4 w-4" />
 							Full Metadata
 						</DropdownMenuItem>
-						{!isMockMode && (
-							<>
-								<DropdownMenuSeparator />
-								<DropdownMenuItem
-									onClick={onShowActivityLog}
-									className="cursor-pointer"
-								>
-									<ScrollText className="mr-2 h-4 w-4" />
-									Activity Log
-								</DropdownMenuItem>
-							</>
-						)}
 					</>
 				)}
 			</DropdownMenuContent>
@@ -878,6 +946,11 @@ export default function IframeChatPage() {
 	const sessionKey = searchParams.get("sessionKey");
 	const debug = searchParams.get("debug") === "true";
 	const mockMode = searchParams.get("mock") === "true";
+	// Dev mode: mock mode OR using dev/demo session keys (for iframe-app testing)
+	const isDevMode =
+		mockMode ||
+		sessionKey?.startsWith("dev-") ||
+		sessionKey?.startsWith("demo-");
 
 	const [isLoading, setIsLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
@@ -909,7 +982,7 @@ export default function IframeChatPage() {
 	const [showDebug, setShowDebug] = useState(debug);
 	const [debugLogs, setDebugLogs] = useState<DebugLogEntry[]>([]);
 
-	// Mock platform panel state
+	// Mock platform panel state (only in mock mode - backend is skipped)
 	const [showPlatformPanel, setShowPlatformPanel] = useState(mockMode);
 
 	const navigate = useNavigate();
@@ -1053,16 +1126,6 @@ export default function IframeChatPage() {
 		addDebugLog,
 	]);
 
-	// Expand to full modal view in host page
-	const handleExpand = useCallback(() => {
-		if (!sessionKey) return;
-
-		const method = openExpandedModal(sessionKey, titleText || "RITA Assistant");
-		addDebugLog("info", `Expand modal requested via ${method}`, {
-			sessionKey: `${sessionKey.substring(0, 8)}...`,
-		});
-	}, [sessionKey, titleText, addDebugLog]);
-
 	// Initialize iframe session on mount (always required for auth)
 	useEffect(() => {
 		// Guard against StrictMode double-mount
@@ -1189,9 +1252,9 @@ export default function IframeChatPage() {
 		mockMode,
 	]);
 
-	// Listen for UI action events (mock mode) to log to debug panel
+	// Listen for UI action events (dev mode) to log to debug panel
 	useEffect(() => {
-		if (!mockMode) return;
+		if (!isDevMode) return;
 
 		const handleUIAction = (event: CustomEvent) => {
 			const payload = event.detail;
@@ -1210,7 +1273,7 @@ export default function IframeChatPage() {
 				handleUIAction as EventListener,
 			);
 		};
-	}, [mockMode, addDebugLog]);
+	}, [isDevMode, addDebugLog]);
 
 	// Listen for open activity log events (from toast action button)
 	useEffect(() => {
@@ -1311,14 +1374,13 @@ export default function IframeChatPage() {
 	// Dev tools element for input toolbar
 	const devToolsElement = (
 		<>
-			<IframeExpandButton onExpand={handleExpand} />
 			<IframeClearChat onClear={handleClearChat} />
 			<IframeDevTools
 				onDownloadConversation={downloadConversation}
 				onDownloadMetadata={downloadMetadata}
 				onShowActivityLog={() => setShowDebug(true)}
 				onShowPlatformSimulator={() => setShowPlatformPanel(true)}
-				isMockMode={mockMode}
+				isMockMode={isDevMode}
 			/>
 		</>
 	);
@@ -1335,8 +1397,8 @@ export default function IframeChatPage() {
 					leftToolbarContent={devToolsElement}
 				/>
 			</SSEProvider>
-			{/* Mock platform simulator panel */}
-			{mockMode && conversationId && (
+			{/* Platform simulator panel (dev mode) */}
+			{isDevMode && conversationId && (
 				<MockPlatformPanel
 					conversationId={conversationId}
 					isOpen={showPlatformPanel}
