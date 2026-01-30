@@ -1502,10 +1502,10 @@
             }
         }
 
-        // Init
+        // Init - auto-load iframe on page load
         window.addEventListener('DOMContentLoaded', () => {
-            updateStatus('Not loaded', 'waiting');
-            log('Platform simulator ready. Load iframe to start.', 'info');
+            log('Platform simulator ready. Loading iframe...', 'info');
+            loadIframe();
         });
     </script>
 </body>
