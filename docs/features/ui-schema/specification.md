@@ -434,11 +434,13 @@ Since users may accidentally close the modal (ESC key, click outside, cancel but
 1. Schema renders with `autoOpenModal: "auth-modal"`
 2. Modal opens automatically after 100ms delay
 3. User sees fullscreen modal in host page (outside iframe)
-4. If user closes modal accidentally → they see the card with "Enter Credentials" button
-5. Button click reopens the same modal via `opensModal: "auth-modal"`
+4. **Backdrop click and ESC key are disabled** - modal can only be closed via Cancel/Close button
+5. If user closes modal via Cancel → they see the card with "Enter Credentials" button
+6. Button click reopens the modal (but without forced mode - can close via backdrop)
 
 **Key points:**
 - The `autoOpenModal` value must match a key in the `modals` object
+- Auto-opened modals have `preventBackdropClose: true` automatically
 - The fallback button's `opensModal` should reference the same modal ID
 - Modal renders in host page for maximum screen real estate
 - Toast notification confirms successful submission
