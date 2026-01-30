@@ -182,6 +182,10 @@ export function SchemaRenderer({
 		modalTitle: string;
 	} | null>(null);
 
+	// Track auto-open modal (ref defined early to satisfy hook rules)
+	const autoOpenedRef = useRef<string | null>(null);
+	const handleOpenModalRef = useRef<((modalId: string) => void) | null>(null);
+
 	// Listen for form modal submissions from host (cross-origin)
 	useEffect(() => {
 		const handleMessage = (event: MessageEvent) => {
@@ -224,6 +228,23 @@ export function SchemaRenderer({
 		window.addEventListener("message", handleMessage);
 		return () => window.removeEventListener("message", handleMessage);
 	}, [messageId, conversationId, onAction]);
+
+	// Auto-open modal if specified in schema (for forced credential prompts, etc.)
+	// Effect defined before early return to satisfy hook rules; uses ref to access handleOpenModal
+	useEffect(() => {
+		const modalId = schema?.autoOpenModal;
+		if (
+			modalId &&
+			autoOpenedRef.current !== modalId &&
+			handleOpenModalRef.current
+		) {
+			autoOpenedRef.current = modalId;
+			const timer = setTimeout(() => {
+				handleOpenModalRef.current?.(modalId);
+			}, 300);
+			return () => clearTimeout(timer);
+		}
+	}, [schema?.autoOpenModal]);
 
 	// Validate schema (JAR-81)
 	const validation = validateUISchema(schema);
@@ -337,6 +358,9 @@ export function SchemaRenderer({
 		setModalFormData({}); // Reset modal form data
 		setOpenModalId(modalId);
 	};
+
+	// Populate ref for auto-open effect (after handleOpenModal is defined)
+	handleOpenModalRef.current = handleOpenModal;
 
 	const handleCloseModal = () => {
 		setOpenModalId(null);
@@ -890,7 +914,11 @@ function ModalRenderer({
 					{modal.submitAction && (
 						<Button
 							variant={modal.submitVariant || "default"}
-							onClick={() => onSubmit(modal.submitAction!, modal.title)}
+							onClick={() => {
+								if (modal.submitAction) {
+									onSubmit(modal.submitAction, modal.title);
+								}
+							}}
 						>
 							{modal.submitLabel || "Submit"}
 						</Button>

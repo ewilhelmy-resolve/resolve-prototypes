@@ -176,6 +176,8 @@ export const UISchemaValidator = z.object({
 	version: z.literal("1").optional(),
 	components: z.array(UIComponentSchema),
 	modals: z.record(z.string(), ModalDefinitionSchema).optional(),
+	/** Auto-open a modal when schema renders (for forced credential prompts, etc.) */
+	autoOpenModal: z.string().optional(),
 });
 
 // ============================================================================
@@ -351,6 +353,8 @@ export interface UISchema {
 	version?: "1";
 	components: UIComponent[];
 	modals?: Record<string, ModalDefinition>;
+	/** Auto-open a modal when schema renders (for forced credential prompts, etc.) */
+	autoOpenModal?: string;
 }
 
 // Action callback payload sent back to platform

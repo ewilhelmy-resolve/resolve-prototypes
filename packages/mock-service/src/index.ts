@@ -1426,6 +1426,71 @@ Configure your service credentials below.`,
 				},
 			},
 		});
+	} else if (content.startsWith("testforcemodal")) {
+		// testforcemodal: Auto-open modal immediately (forced credential prompt)
+		parts.push({
+			type: "text",
+			text: `## Credential Required
+
+Your session requires authentication. Please enter your credentials.`,
+			metadata: {
+				ui_schema: {
+					version: "1",
+					components: [
+						{
+							type: "card",
+							title: "Authentication Required",
+							description: "This action requires valid credentials to proceed",
+							children: [
+								{
+									type: "text",
+									content:
+										"The credential form has been opened automatically. Please complete authentication to continue.",
+									variant: "muted",
+								},
+							],
+						},
+					],
+					modals: {
+						"auth-modal": {
+							title: "Enter Credentials",
+							description: "Authenticate to continue with this workflow",
+							size: "md",
+							children: [
+								{
+									type: "input",
+									name: "apiEndpoint",
+									label: "API Endpoint",
+									placeholder: "https://api.example.com",
+								},
+								{
+									type: "input",
+									name: "apiKey",
+									label: "API Key",
+									inputType: "password",
+									placeholder: "Enter your API key",
+								},
+								{
+									type: "select",
+									name: "authType",
+									label: "Authentication Type",
+									placeholder: "Select auth type",
+									options: [
+										{ label: "Bearer Token", value: "bearer" },
+										{ label: "API Key Header", value: "api-key" },
+										{ label: "Basic Auth", value: "basic" },
+									],
+								},
+							],
+							submitAction: "authenticate",
+							submitLabel: "Authenticate",
+							cancelLabel: "Cancel",
+						},
+					},
+					autoOpenModal: "auth-modal",
+				},
+			},
+		});
 	} else {
 		// Default scenario - fall back to original logic
 		const useScenario = scenario || MOCK_CONFIG.defaultScenario;
