@@ -31,6 +31,9 @@ import ItsmSources from "./pages/settings/ItsmSources";
 import KnowledgeSources from "./pages/settings/KnowledgeSources";
 import ProfilePage from "./pages/settings/ProfilePage";
 import TermsOfService from "./pages/TermsOfService";
+import SchedulerDashboardPage from "./pages/SchedulerDashboardPage";
+import SchedulerGroupDetailPage from "./pages/SchedulerGroupDetailPage";
+import SchedulerDetailPage from "./pages/SchedulerDetailPage";
 import TicketDetailPage from "./pages/TicketDetailPage";
 import TicketsPage from "./pages/TicketsPage";
 import UsersSettingsPage from "./pages/UsersSettingsPage";
@@ -126,6 +129,31 @@ const router = createBrowserRouter([
 		element: (
 			<RoleProtectedRoute allowedRoles={["owner", "admin"]}>
 				<TicketDetailPage />
+			</RoleProtectedRoute>
+		),
+	},
+	// Scheduler Dashboard
+	{
+		path: "/scheduler",
+		element: (
+			<RoleProtectedRoute allowedRoles={["owner", "admin"]}>
+				<SchedulerDashboardPage />
+			</RoleProtectedRoute>
+		),
+	},
+	{
+		path: "/scheduler/group/:groupId",
+		element: (
+			<RoleProtectedRoute allowedRoles={["owner", "admin"]}>
+				<SchedulerGroupDetailPage />
+			</RoleProtectedRoute>
+		),
+	},
+	{
+		path: "/scheduler/:workflowId",
+		element: (
+			<RoleProtectedRoute allowedRoles={["owner", "admin"]}>
+				<SchedulerDetailPage />
 			</RoleProtectedRoute>
 		),
 	},

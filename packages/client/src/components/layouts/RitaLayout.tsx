@@ -17,6 +17,7 @@ import { useTranslation } from "react-i18next";
 import {
 	ALargeSmall,
 	Bot,
+	Calendar,
 	CheckCircle,
 	ChevronDown,
 	File,
@@ -87,7 +88,7 @@ import { memo } from "react";
 export interface RitaLayoutProps {
 	children: React.ReactNode;
 	/** Current active page for navigation highlighting */
-	activePage?: "chat" | "files" | "automations" | "tickets" | "users";
+	activePage?: "chat" | "files" | "automations" | "tickets" | "users" | "scheduler";
 }
 
 // Logo component memoized to prevent re-renders
@@ -326,6 +327,18 @@ function RitaLayoutContent({ children, activePage = "chat" }: RitaLayoutProps) {
 										<Ticket className="w-4 h-4" />
 										<span className="text-sm text-sidebar-foreground">
 											{t("nav.tickets")}
+										</span>
+									</SidebarMenuButton>
+								</SidebarMenuItem>
+								<SidebarMenuItem>
+									<SidebarMenuButton
+										className="flex items-center gap-2 px-2 py-2 h-8 rounded-md"
+										onClick={() => navigate("/scheduler")}
+										isActive={location.pathname.startsWith("/scheduler")}
+									>
+										<Calendar className="w-4 h-4" />
+										<span className="text-sm text-sidebar-foreground">
+											Scheduler
 										</span>
 									</SidebarMenuButton>
 								</SidebarMenuItem>
