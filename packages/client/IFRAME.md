@@ -126,21 +126,74 @@ Conversations are linked by **activityId** from the Valkey `context` object.
 
 ## Quick Start (Development)
 
-### 1. Start Dev Servers
-
 ```bash
-# Terminal 1: Start API server (required)
-npm run dev:api
+# Install dependencies
+pnpm install
 
-# Terminal 2: Start RITA client
-npm run dev:client
+# Terminal 1: API server (localhost:3000)
+pnpm dev:api
+
+# Terminal 2: Jarvis client (localhost:5173)
+pnpm dev:client
+
+# Terminal 3: Test host page (localhost:5174)
+pnpm dev:iframe-app
 ```
 
-### 2. Test Locally
+**Open http://localhost:5174** - Test host page with Platform Simulator for testing UI schemas.
 
-Open directly: http://localhost:5173/iframe/chat?token=dev-iframe-token-2024
+Direct iframe URL: http://localhost:5173/iframe/chat?token=dev-iframe-token-2024
 
-Or use the iframe-app host demo: http://localhost:5174 (run `npm run dev:iframe-app`)
+## Dynamic UI Schema Rendering
+
+Platform can send JSON UI schemas via SSE that render as interactive shadcn/ui components in the chat.
+
+### Flow
+
+```
+Platform → RabbitMQ → API Server → SSE → Jarvis → SchemaRenderer → User
+                                                         ↓
+                                              User clicks button
+                                                         ↓
+                                              POST /action → Platform
+```
+
+### Supported Components
+
+| Type | Description |
+|------|-------------|
+| `text` | Text with variants (heading, muted, code, diff-*) |
+| `button` | Action triggers |
+| `input` | Form inputs (text, email, textarea) |
+| `select` | Dropdown selection |
+| `stat` | Metric cards |
+| `card` | Container with title |
+| `row`/`column` | Layout |
+| `form` | Collects inputs, submits action |
+| `table` | Data tables |
+| `diagram` | Mermaid diagrams with fullscreen |
+
+### Example Schema
+
+```json
+{
+  "version": "1",
+  "components": [
+    { "type": "text", "content": "Approve request?", "variant": "heading" },
+    { "type": "button", "label": "Approve", "action": "approve", "variant": "default" },
+    { "type": "button", "label": "Reject", "action": "reject", "variant": "destructive" }
+  ]
+}
+```
+
+### Testing with Platform Simulator
+
+The iframe-app host (localhost:5174) includes a **Platform Simulator** panel:
+- Send mock UI schemas without backend
+- Test all component types
+- View action payloads in debug console
+
+See `docs/features/ui-schema/specification.md` for full schema spec.
 
 ## Integration Example
 
