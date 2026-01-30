@@ -20,9 +20,11 @@ import {
 	Bug,
 	ChevronDown,
 	ChevronUp,
+	Code,
 	Download,
 	Maximize2,
 	ScrollText,
+	Send,
 	Trash2,
 	Wrench,
 } from "lucide-react";
@@ -98,6 +100,268 @@ function IframeClearChat({ onClear }: { onClear: () => void }) {
 		>
 			<Trash2 className="h-4 w-4" />
 		</Button>
+	);
+}
+
+// Example schemas for demo
+const DEMO_SCHEMAS: Record<string, { name: string; schema: any }> = {
+	simple: {
+		name: "Simple (text + button)",
+		schema: {
+			version: "1",
+			components: [
+				{ type: "text", content: "Hello from Platform!", variant: "heading" },
+				{ type: "text", content: "This UI was rendered from JSON schema sent via RabbitMQ.", variant: "muted" },
+				{ type: "button", label: "Acknowledge", action: "acknowledge_clicked" },
+			],
+		},
+	},
+	form: {
+		name: "Form (workflow config)",
+		schema: {
+			version: "1",
+			components: [
+				{ type: "text", content: "Configure Workflow Trigger", variant: "heading" },
+				{
+					type: "card",
+					title: "Trigger Settings",
+					children: [
+						{
+							type: "form",
+							submitAction: "save_trigger_config",
+							submitLabel: "Save Configuration",
+							children: [
+								{ type: "input", name: "workflowName", label: "Workflow Name", placeholder: "My Automation", required: true },
+								{
+									type: "select",
+									name: "triggerEvent",
+									label: "Trigger Event",
+									options: [
+										{ label: "On Ticket Created", value: "ticket_created" },
+										{ label: "On SLA Breach", value: "sla_breach" },
+										{ label: "On Status Change", value: "status_change" },
+									],
+								},
+								{ type: "input", name: "filter", label: "Filter Condition", placeholder: "priority = 'high'", inputType: "textarea" },
+							],
+						},
+					],
+				},
+			],
+		},
+	},
+	dashboard: {
+		name: "Dashboard (stats + table)",
+		schema: {
+			version: "1",
+			components: [
+				{ type: "text", content: "Activity Summary", variant: "heading" },
+				{
+					type: "row",
+					gap: 12,
+					children: [
+						{ type: "stat", label: "Total Tickets", value: "1,234", change: "+12%", changeType: "positive" },
+						{ type: "stat", label: "Open Issues", value: "42", change: "-5%", changeType: "negative" },
+						{ type: "stat", label: "Avg Response", value: "2.4h", changeType: "neutral" },
+					],
+				},
+				{
+					type: "card",
+					title: "Recent Tickets",
+					children: [
+						{
+							type: "table",
+							columns: [
+								{ key: "id", label: "ID" },
+								{ key: "title", label: "Title" },
+								{ key: "status", label: "Status" },
+							],
+							rows: [
+								{ id: "TKT-001", title: "Login issue", status: "Open" },
+								{ id: "TKT-002", title: "Payment failed", status: "Pending" },
+								{ id: "TKT-003", title: "Reset password", status: "Closed" },
+							],
+						},
+					],
+				},
+			],
+		},
+	},
+	actions: {
+		name: "Actions (button row)",
+		schema: {
+			version: "1",
+			components: [
+				{ type: "text", content: "Workflow Actions", variant: "heading" },
+				{ type: "text", content: "Choose an action for this workflow:", variant: "muted" },
+				{
+					type: "row",
+					gap: 8,
+					children: [
+						{ type: "button", label: "Enable", action: "enable_workflow", variant: "default" },
+						{ type: "button", label: "Disable", action: "disable_workflow", variant: "outline" },
+						{ type: "button", label: "Delete", action: "delete_workflow", variant: "destructive" },
+					],
+				},
+			],
+		},
+	},
+};
+
+// Floating dev panel for mock mode - simulates Platform sending schema
+function MockPlatformPanel({
+	conversationId,
+	isOpen,
+	onToggle,
+	onLog,
+}: {
+	conversationId: string;
+	isOpen: boolean;
+	onToggle: () => void;
+	onLog: (level: "info" | "error" | "warn", message: string, data?: Record<string, unknown>) => void;
+}) {
+	const { addMessage } = useConversationStore();
+	const [selectedPreset, setSelectedPreset] = useState("simple");
+	const [customJson, setCustomJson] = useState(JSON.stringify(DEMO_SCHEMAS.simple.schema, null, 2));
+	const [useCustom, setUseCustom] = useState(false);
+	const [lastSentSchema, setLastSentSchema] = useState<any>(null);
+
+	const handlePresetChange = (preset: string) => {
+		setSelectedPreset(preset);
+		setCustomJson(JSON.stringify(DEMO_SCHEMAS[preset].schema, null, 2));
+		setUseCustom(false);
+	};
+
+	const handleSendSchema = () => {
+		try {
+			const schema = useCustom ? JSON.parse(customJson) : DEMO_SCHEMAS[selectedPreset].schema;
+			setLastSentSchema(schema);
+
+			// Log what platform is sending
+			onLog("info", "📥 Platform → RabbitMQ: Sending ui_schema", {
+				componentCount: schema.components?.length,
+				types: schema.components?.map((c: any) => c.type),
+			});
+
+			// Simulate Platform sending message via RabbitMQ → SSE → Client
+			const messageId = `platform-${Date.now()}`;
+			addMessage({
+				id: messageId,
+				role: "assistant",
+				message: "",
+				timestamp: new Date(),
+				conversation_id: conversationId,
+				status: "completed",
+				metadata: {
+					ui_schema: schema,
+					turn_complete: true,
+				},
+			});
+
+			onLog("info", "📤 SSE → Client: Message received & rendered", {
+				messageId,
+				schema: JSON.stringify(schema).substring(0, 100) + "...",
+			});
+		} catch (e) {
+			onLog("error", "Failed to parse JSON", { error: (e as Error).message });
+			alert("Invalid JSON: " + (e as Error).message);
+		}
+	};
+
+	if (!isOpen) {
+		return (
+			<button
+				type="button"
+				onClick={onToggle}
+				className="fixed top-4 right-4 z-50 bg-blue-600 text-white px-3 py-2 rounded-lg shadow-lg hover:bg-blue-700 text-sm font-medium flex items-center gap-2"
+			>
+				<Code className="w-4 h-4" />
+				Platform Simulator
+			</button>
+		);
+	}
+
+	return (
+		<div className="fixed top-4 right-4 z-50 w-96 bg-slate-900 text-white rounded-lg shadow-2xl overflow-hidden">
+			{/* Header */}
+			<div className="flex items-center justify-between px-4 py-3 bg-slate-800 border-b border-slate-700">
+				<div className="flex items-center gap-2">
+					<Code className="w-4 h-4 text-blue-400" />
+					<span className="font-semibold text-sm">Platform Simulator</span>
+				</div>
+				<button type="button" onClick={onToggle} className="text-slate-400 hover:text-white">
+					×
+				</button>
+			</div>
+
+			{/* Content */}
+			<div className="p-4 space-y-4 max-h-[70vh] overflow-auto">
+				{/* Flow indicator */}
+				<div className="text-xs text-slate-400 bg-slate-800 rounded p-2">
+					Platform → RabbitMQ → SSE → RITA Chat
+				</div>
+
+				{/* Preset buttons */}
+				<div>
+					<div className="text-xs text-slate-400 mb-2">Select Schema:</div>
+					<div className="flex flex-wrap gap-1">
+						{Object.entries(DEMO_SCHEMAS).map(([key, { name }]) => (
+							<button
+								key={key}
+								type="button"
+								onClick={() => handlePresetChange(key)}
+								className={`px-2 py-1 rounded text-xs ${
+									selectedPreset === key && !useCustom
+										? "bg-blue-600 text-white"
+										: "bg-slate-700 text-slate-300 hover:bg-slate-600"
+								}`}
+							>
+								{name.split(" ")[0]}
+							</button>
+						))}
+						<button
+							type="button"
+							onClick={() => setUseCustom(true)}
+							className={`px-2 py-1 rounded text-xs ${
+								useCustom ? "bg-blue-600 text-white" : "bg-slate-700 text-slate-300 hover:bg-slate-600"
+							}`}
+						>
+							Custom
+						</button>
+					</div>
+				</div>
+
+				{/* JSON editor */}
+				<div>
+					<div className="text-xs text-slate-400 mb-1">JSON Schema:</div>
+					<textarea
+						className="w-full h-48 bg-slate-800 text-slate-200 text-xs font-mono p-2 rounded border border-slate-700 focus:border-blue-500 focus:outline-none"
+						value={customJson}
+						onChange={(e) => {
+							setCustomJson(e.target.value);
+							setUseCustom(true);
+						}}
+					/>
+				</div>
+
+				{/* Send button */}
+				<button
+					type="button"
+					onClick={handleSendSchema}
+					className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded font-medium text-sm flex items-center justify-center gap-2"
+				>
+					<Send className="w-4 h-4" />
+					Send to RITA Chat
+				</button>
+
+				{/* Last sent indicator */}
+				{lastSentSchema && (
+					<div className="text-xs text-green-400 bg-green-900/30 rounded p-2">
+						✓ Schema sent - check chat below
+					</div>
+				)}
+			</div>
+		</div>
 	);
 }
 
@@ -349,6 +613,7 @@ export default function IframeChatPage() {
 	const [searchParams] = useSearchParams();
 	const sessionKey = searchParams.get("sessionKey");
 	const debug = searchParams.get("debug") === "true";
+	const mockMode = searchParams.get("mock") === "true";
 
 	const [isLoading, setIsLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
@@ -379,6 +644,9 @@ export default function IframeChatPage() {
 	// Debug state
 	const [showDebug, setShowDebug] = useState(debug);
 	const [debugLogs, setDebugLogs] = useState<DebugLogEntry[]>([]);
+
+	// Mock platform panel state
+	const [showPlatformPanel, setShowPlatformPanel] = useState(mockMode);
 
 	const navigate = useNavigate();
 	const apiUrl = import.meta.env.VITE_API_URL || "";
@@ -530,9 +798,6 @@ export default function IframeChatPage() {
 			sessionKey: sessionKey.substring(0, 8) + "...",
 		});
 	}, [sessionKey, titleText, addDebugLog]);
-
-	// Check for mock mode (skip backend, use fake data for demo)
-	const mockMode = searchParams.get("mock") === "true";
 
 	// Initialize iframe session on mount (always required for auth)
 	useEffect(() => {
@@ -763,7 +1028,7 @@ export default function IframeChatPage() {
 	// Render chat with SSE provider (session cookie enables SSE auth)
 	return (
 		<IframeChatLayout>
-			<SSEProvider apiUrl={apiUrl} enabled={sessionReady}>
+			<SSEProvider apiUrl={apiUrl} enabled={sessionReady && !mockMode}>
 				<IframeChatContent
 					conversationId={conversationId}
 					titleText={titleText}
@@ -772,6 +1037,15 @@ export default function IframeChatPage() {
 					leftToolbarContent={devToolsElement}
 				/>
 			</SSEProvider>
+			{/* Mock platform simulator panel */}
+			{mockMode && conversationId && (
+				<MockPlatformPanel
+					conversationId={conversationId}
+					isOpen={showPlatformPanel}
+					onToggle={() => setShowPlatformPanel((v) => !v)}
+					onLog={addDebugLog}
+				/>
+			)}
 			<DebugPanel {...debugPanelProps} />
 		</IframeChatLayout>
 	);
