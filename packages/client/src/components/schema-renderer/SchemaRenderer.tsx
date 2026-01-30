@@ -22,6 +22,7 @@ import type {
 	CardComponent,
 	ColumnComponent,
 	DiagramComponent,
+	DividerComponent,
 	FormComponent,
 	InputComponent,
 	ModalDefinition,
@@ -511,6 +512,14 @@ export function SchemaRenderer({
 					/>
 				);
 
+			case "divider":
+				return (
+					<DividerRenderer
+						key={key}
+						component={component as DividerComponent}
+					/>
+				);
+
 			default:
 				return (
 					<div key={key} className="text-sm text-muted-foreground">
@@ -891,6 +900,19 @@ function DiagramRenderer({ component }: { component: DiagramComponent }) {
 			title={component.title}
 			expandable={component.expandable}
 			className={component.className}
+		/>
+	);
+}
+
+function DividerRenderer({ component }: { component: DividerComponent }) {
+	const spacingClasses = {
+		sm: "my-2",
+		md: "my-4",
+		lg: "my-6",
+	};
+	return (
+		<hr
+			className={`border-t border-border ${spacingClasses[component.spacing || "md"]} ${component.className || ""}`}
 		/>
 	);
 }

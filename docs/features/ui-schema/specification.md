@@ -320,6 +320,25 @@ Mermaid diagram rendering.
 
 ---
 
+### divider
+
+Horizontal line separator.
+
+```json
+{
+  "type": "divider",
+  "spacing": "md"
+}
+```
+
+| Prop | Type | Required | Default | Description |
+|------|------|----------|---------|-------------|
+| `spacing` | `string` | No | `"md"` | Vertical spacing |
+
+**Spacing:** `sm` (8px), `md` (16px), `lg` (24px)
+
+---
+
 ## Modals
 
 Modals provide fullscreen dialogs for forms and complex interactions. They render in the host page (outside the iframe) for maximum space.

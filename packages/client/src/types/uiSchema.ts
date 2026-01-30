@@ -143,6 +143,11 @@ const DiagramComponentSchema = BaseComponentSchema.extend({
 	expandable: z.boolean().optional(),
 });
 
+const DividerComponentSchema = BaseComponentSchema.extend({
+	type: z.literal("divider"),
+	spacing: z.enum(["sm", "md", "lg"]).optional(),
+});
+
 // Modal definition schema
 const ModalDefinitionSchema = z.object({
 	title: z.string(),
@@ -169,6 +174,7 @@ const UIComponentSchema = z.discriminatedUnion("type", [
 	RowComponentSchema,
 	ColumnComponentSchema,
 	DiagramComponentSchema,
+	DividerComponentSchema,
 	FormComponentSchema,
 ]);
 
@@ -322,6 +328,12 @@ export interface DiagramComponent extends BaseComponent {
 	expandable?: boolean; // Allow fullscreen expansion
 }
 
+// Horizontal divider
+export interface DividerComponent extends BaseComponent {
+	type: "divider";
+	spacing?: "sm" | "md" | "lg"; // Vertical spacing around divider
+}
+
 // Modal definition (referenced by ID in schema.modals)
 export interface ModalDefinition {
 	title: string;
@@ -346,7 +358,8 @@ export type UIComponent =
 	| ColumnComponent
 	| FormComponent
 	| TableComponent
-	| DiagramComponent;
+	| DiagramComponent
+	| DividerComponent;
 
 // Root schema object
 export interface UISchema {
