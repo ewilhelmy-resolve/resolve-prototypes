@@ -797,6 +797,27 @@ export default function ChatV1Content({
 	const handleSchemaAction = useCallback(async (payload: UIActionPayload) => {
 		console.log("[SchemaAction] Received action:", payload);
 
+		// Check if we're in mock mode (no backend)
+		const isMockMode = window.location.search.includes("mock=true");
+
+		if (isMockMode) {
+			// In mock mode, just log and show success - no backend call
+			console.log("[SchemaAction] Mock mode - action payload:", payload);
+
+			// Dispatch event for debug panel to capture
+			window.dispatchEvent(
+				new CustomEvent("rita:ui-action", { detail: payload })
+			);
+
+			ritaToast.success({
+				title: `🚀 Action: ${payload.action}`,
+				description: payload.data
+					? `Data: ${JSON.stringify(payload.data)}`
+					: "No data payload",
+			});
+			return;
+		}
+
 		try {
 			// Send action to platform via backend API
 			const response = await iframeApi.sendUIAction(payload);

@@ -922,6 +922,25 @@ export default function IframeChatPage() {
 		t,
 	]);
 
+	// Listen for UI action events (mock mode) to log to debug panel
+	useEffect(() => {
+		if (!mockMode) return;
+
+		const handleUIAction = (event: CustomEvent) => {
+			const payload = event.detail;
+			addDebugLog("info", "🚀 Client → Webhook: Action sent to Platform", {
+				action: payload.action,
+				data: payload.data,
+				messageId: payload.messageId,
+			});
+		};
+
+		window.addEventListener("rita:ui-action", handleUIAction as EventListener);
+		return () => {
+			window.removeEventListener("rita:ui-action", handleUIAction as EventListener);
+		};
+	}, [mockMode, addDebugLog]);
+
 	// Execute workflow once session is ready
 	// This runs in parent to prevent re-execution on child remounts
 	useEffect(() => {
