@@ -89,7 +89,8 @@ const SelectComponentSchema = BaseComponentSchema.extend({
 const ButtonComponentSchema = BaseComponentSchema.extend({
 	type: z.literal("button"),
 	label: z.string(),
-	action: z.string(),
+	action: z.string().optional(), // Optional if opensModal is used
+	opensModal: z.string().optional(), // Modal ID to open
 	variant: z
 		.enum(["default", "destructive", "outline", "secondary", "ghost"])
 		.optional(),
@@ -142,6 +143,20 @@ const DiagramComponentSchema = BaseComponentSchema.extend({
 	expandable: z.boolean().optional(),
 });
 
+// Modal definition schema
+const ModalDefinitionSchema = z.object({
+	title: z.string(),
+	description: z.string().optional(),
+	size: z.enum(["sm", "md", "lg", "xl", "full"]).optional(), // Default: full
+	children: z.array(z.any()),
+	submitAction: z.string().optional(),
+	submitLabel: z.string().optional(),
+	cancelLabel: z.string().optional(),
+	submitVariant: z
+		.enum(["default", "destructive", "outline", "secondary", "ghost"])
+		.optional(),
+});
+
 // Component schema using discriminated union
 const UIComponentSchema = z.discriminatedUnion("type", [
 	TextComponentSchema,
@@ -160,6 +175,7 @@ const UIComponentSchema = z.discriminatedUnion("type", [
 export const UISchemaValidator = z.object({
 	version: z.literal("1").optional(),
 	components: z.array(UIComponentSchema),
+	modals: z.record(z.string(), ModalDefinitionSchema).optional(),
 });
 
 // ============================================================================
@@ -253,7 +269,8 @@ export interface SelectComponent extends BaseComponent {
 export interface ButtonComponent extends BaseComponent {
 	type: "button";
 	label: string;
-	action: string; // Action identifier sent back to platform
+	action?: string; // Action identifier sent back to platform
+	opensModal?: string; // Modal ID to open (alternative to action)
 	variant?: "default" | "destructive" | "outline" | "secondary" | "ghost";
 	disabled?: boolean;
 }
@@ -303,6 +320,18 @@ export interface DiagramComponent extends BaseComponent {
 	expandable?: boolean; // Allow fullscreen expansion
 }
 
+// Modal definition (referenced by ID in schema.modals)
+export interface ModalDefinition {
+	title: string;
+	description?: string;
+	size?: "sm" | "md" | "lg" | "xl" | "full"; // Default: full
+	children: UIComponent[];
+	submitAction?: string; // Action to trigger on submit
+	submitLabel?: string; // Default: "Submit"
+	cancelLabel?: string; // Default: "Cancel"
+	submitVariant?: "default" | "destructive" | "outline" | "secondary" | "ghost";
+}
+
 // Union of all component types
 export type UIComponent =
 	| TextComponent
@@ -321,6 +350,7 @@ export type UIComponent =
 export interface UISchema {
 	version?: "1";
 	components: UIComponent[];
+	modals?: Record<string, ModalDefinition>;
 }
 
 // Action callback payload sent back to platform

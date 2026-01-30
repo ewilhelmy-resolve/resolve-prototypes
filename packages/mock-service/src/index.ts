@@ -16,8 +16,8 @@ import {
 	webhookLogger,
 } from "./config/logger.js";
 import { emailService } from "./email-service.js";
-import { getRabbitMQService } from "./services/rabbitmq.js";
 import { syncServiceNowData } from "./servicenow-sync.js";
+import { getRabbitMQService } from "./services/rabbitmq.js";
 
 // Load environment from root .env file
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -212,7 +212,7 @@ interface MockResponse {
 }
 
 interface MessagePart {
-	type: "text" | "reasoning" | "sources" | "tasks" | "files";
+	type: "text" | "reasoning" | "sources" | "tasks" | "files" | "ui_schema";
 	[key: string]: any;
 }
 
@@ -1342,6 +1342,112 @@ The system is performing well overall but requires attention to the identified s
 					title: "Kubernetes Documentation",
 				},
 			],
+		});
+	} else if (content.startsWith("testmodal")) {
+		// testmodal: UI Schema with modal form
+		parts.push({
+			type: "text",
+			text: `## Modal Form Demo
+
+Click the button below to open a form in a fullscreen modal.`,
+		});
+		parts.push({
+			type: "ui_schema",
+			ui_schema: {
+				version: "1",
+				components: [
+					{
+						type: "card",
+						title: "User Management",
+						description: "Click to edit user details in a modal form",
+						children: [
+							{
+								type: "row",
+								gap: 8,
+								children: [
+									{
+										type: "button",
+										label: "Edit User",
+										opensModal: "edit-user-modal",
+									},
+									{
+										type: "button",
+										label: "Delete User",
+										opensModal: "confirm-delete",
+										variant: "destructive",
+									},
+								],
+							},
+						],
+					},
+				],
+				modals: {
+					"edit-user-modal": {
+						title: "Edit User Profile",
+						description: "Update the user's information below",
+						size: "full",
+						children: [
+							{
+								type: "input",
+								name: "firstName",
+								label: "First Name",
+								placeholder: "John",
+							},
+							{
+								type: "input",
+								name: "lastName",
+								label: "Last Name",
+								placeholder: "Doe",
+							},
+							{
+								type: "input",
+								name: "email",
+								label: "Email",
+								inputType: "email",
+								placeholder: "john@example.com",
+							},
+							{
+								type: "select",
+								name: "role",
+								label: "Role",
+								placeholder: "Select a role",
+								options: [
+									{ label: "Admin", value: "admin" },
+									{ label: "Editor", value: "editor" },
+									{ label: "Viewer", value: "viewer" },
+								],
+							},
+							{
+								type: "input",
+								name: "notes",
+								label: "Notes",
+								inputType: "textarea",
+								placeholder: "Additional notes...",
+							},
+						],
+						submitAction: "save-user",
+						submitLabel: "Save Changes",
+						cancelLabel: "Cancel",
+					},
+					"confirm-delete": {
+						title: "Confirm Deletion",
+						description: "This action cannot be undone.",
+						size: "md",
+						children: [
+							{
+								type: "text",
+								content:
+									"Are you sure you want to delete this user? All their data will be permanently removed.",
+								variant: "muted",
+							},
+						],
+						submitAction: "delete-user",
+						submitLabel: "Delete User",
+						submitVariant: "destructive",
+						cancelLabel: "Cancel",
+					},
+				},
+			},
 		});
 	} else {
 		// Default scenario - fall back to original logic
@@ -2733,7 +2839,10 @@ app.post("/webhook", async (req, res) => {
 						timestamp: new Date().toISOString(),
 					};
 
-					await rabbitmqService.publishToQueue("data_source_status", syncMessage);
+					await rabbitmqService.publishToQueue(
+						"data_source_status",
+						syncMessage,
+					);
 
 					contextLogger.info(
 						{

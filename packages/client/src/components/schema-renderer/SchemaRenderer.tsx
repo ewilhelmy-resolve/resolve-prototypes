@@ -16,6 +16,7 @@ import type {
 	DiagramComponent,
 	FormComponent,
 	InputComponent,
+	ModalDefinition,
 	RowComponent,
 	SelectComponent,
 	StatComponent,
@@ -35,6 +36,14 @@ import {
 	CardHeader,
 	CardTitle,
 } from "../ui/card";
+import {
+	Dialog,
+	DialogContent,
+	DialogDescription,
+	DialogFooter,
+	DialogHeader,
+	DialogTitle,
+} from "../ui/dialog";
 import { Input } from "../ui/input";
 import { Label } from "../ui/label";
 import {
@@ -145,6 +154,10 @@ export function SchemaRenderer({
 	onAction,
 }: SchemaRendererProps) {
 	const [formData, setFormData] = useState<Record<string, string>>({});
+	const [modalFormData, setModalFormData] = useState<Record<string, string>>(
+		{},
+	);
+	const [openModalId, setOpenModalId] = useState<string | null>(null);
 
 	// Validate schema (JAR-81)
 	const validation = validateUISchema(schema);
@@ -173,6 +186,25 @@ export function SchemaRenderer({
 
 	const handleInputChange = (name: string, value: string) => {
 		setFormData((prev) => ({ ...prev, [name]: value }));
+	};
+
+	const handleModalInputChange = (name: string, value: string) => {
+		setModalFormData((prev) => ({ ...prev, [name]: value }));
+	};
+
+	const handleOpenModal = (modalId: string) => {
+		setModalFormData({}); // Reset modal form data
+		setOpenModalId(modalId);
+	};
+
+	const handleCloseModal = () => {
+		setOpenModalId(null);
+		setModalFormData({});
+	};
+
+	const handleModalSubmit = (action: string) => {
+		handleAction(action, modalFormData);
+		handleCloseModal();
 	};
 
 	const renderComponent = (
@@ -218,7 +250,13 @@ export function SchemaRenderer({
 					<ButtonRenderer
 						key={key}
 						component={component}
-						onClick={() => handleAction(component.action)}
+						onClick={() => {
+							if (component.opensModal) {
+								handleOpenModal(component.opensModal);
+							} else if (component.action) {
+								handleAction(component.action);
+							}
+						}}
 					/>
 				);
 
@@ -274,6 +312,63 @@ export function SchemaRenderer({
 		}
 	};
 
+	// Render modal content components
+	const renderModalComponent = (
+		component: UIComponent,
+		index: number,
+	): React.ReactNode => {
+		if (!evaluateCondition(component.if, modalFormData)) {
+			return null;
+		}
+
+		const key = component.id || `modal-${component.type}-${index}`;
+
+		switch (component.type) {
+			case "text":
+				return <TextRenderer key={key} component={component} />;
+			case "input":
+				return (
+					<InputRenderer
+						key={key}
+						component={component}
+						value={modalFormData[component.name] || ""}
+						onChange={(value) => handleModalInputChange(component.name, value)}
+					/>
+				);
+			case "select":
+				return (
+					<SelectRenderer
+						key={key}
+						component={component}
+						value={modalFormData[component.name] || ""}
+						onChange={(value) => handleModalInputChange(component.name, value)}
+					/>
+				);
+			case "row":
+				return (
+					<RowRenderer key={key} component={component}>
+						{component.children.map((child, i) =>
+							renderModalComponent(child, i),
+						)}
+					</RowRenderer>
+				);
+			case "column":
+				return (
+					<ColumnRenderer key={key} component={component}>
+						{component.children.map((child, i) =>
+							renderModalComponent(child, i),
+						)}
+					</ColumnRenderer>
+				);
+			default:
+				return renderComponent(component, index);
+		}
+	};
+
+	// Get current open modal definition
+	const currentModal =
+		openModalId && schema.modals ? schema.modals[openModalId] : null;
+
 	if (!schema?.components?.length) {
 		return null;
 	}
@@ -285,6 +380,17 @@ export function SchemaRenderer({
 					renderComponent(component, index),
 				)}
 			</div>
+
+			{/* Modal rendering */}
+			{currentModal && (
+				<ModalRenderer
+					modal={currentModal}
+					open={!!openModalId}
+					onClose={handleCloseModal}
+					onSubmit={handleModalSubmit}
+					renderComponent={renderModalComponent}
+				/>
+			)}
 		</SchemaErrorBoundary>
 	);
 }
@@ -534,6 +640,65 @@ function DiagramRenderer({ component }: { component: DiagramComponent }) {
 			expandable={component.expandable}
 			className={component.className}
 		/>
+	);
+}
+
+// Modal size classes
+const modalSizeClasses: Record<string, string> = {
+	sm: "sm:max-w-sm",
+	md: "sm:max-w-md",
+	lg: "sm:max-w-lg",
+	xl: "sm:max-w-xl",
+	full: "sm:max-w-[95vw] sm:max-h-[95vh] w-[95vw] h-[95vh]",
+};
+
+function ModalRenderer({
+	modal,
+	open,
+	onClose,
+	onSubmit,
+	renderComponent,
+}: {
+	modal: ModalDefinition;
+	open: boolean;
+	onClose: () => void;
+	onSubmit: (action: string) => void;
+	renderComponent: (component: UIComponent, index: number) => React.ReactNode;
+}) {
+	const sizeClass = modalSizeClasses[modal.size || "full"];
+
+	return (
+		<Dialog open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
+			<DialogContent
+				className={`${sizeClass} flex flex-col`}
+				showCloseButton={true}
+			>
+				<DialogHeader>
+					<DialogTitle>{modal.title}</DialogTitle>
+					{modal.description && (
+						<DialogDescription>{modal.description}</DialogDescription>
+					)}
+				</DialogHeader>
+
+				<div className="flex-1 overflow-y-auto space-y-4 py-4">
+					{modal.children.map((child, index) => renderComponent(child, index))}
+				</div>
+
+				<DialogFooter>
+					<Button variant="outline" onClick={onClose}>
+						{modal.cancelLabel || "Cancel"}
+					</Button>
+					{modal.submitAction && (
+						<Button
+							variant={modal.submitVariant || "default"}
+							onClick={() => onSubmit(modal.submitAction!)}
+						>
+							{modal.submitLabel || "Submit"}
+						</Button>
+					)}
+				</DialogFooter>
+			</DialogContent>
+		</Dialog>
 	);
 }
 

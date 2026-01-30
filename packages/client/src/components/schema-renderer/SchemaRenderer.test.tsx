@@ -615,4 +615,187 @@ describe("SchemaRenderer", () => {
 			expect(screen.getByText("Test")).toBeInTheDocument();
 		});
 	});
+
+	describe("Modal Component", () => {
+		it("opens modal when button with opensModal is clicked", async () => {
+			const user = userEvent.setup();
+			const schema: UISchema = {
+				version: "1",
+				components: [
+					{ type: "button", label: "Open Form", opensModal: "test-modal" },
+				],
+				modals: {
+					"test-modal": {
+						title: "Test Modal",
+						description: "A test modal",
+						children: [{ type: "text", content: "Modal content" }],
+					},
+				},
+			};
+
+			render(<SchemaRenderer schema={schema} {...defaultProps} />);
+
+			// Modal not visible initially
+			expect(screen.queryByText("Test Modal")).not.toBeInTheDocument();
+
+			// Click button to open modal
+			await user.click(screen.getByRole("button", { name: "Open Form" }));
+
+			// Modal should be visible
+			expect(screen.getByText("Test Modal")).toBeInTheDocument();
+			expect(screen.getByText("A test modal")).toBeInTheDocument();
+			expect(screen.getByText("Modal content")).toBeInTheDocument();
+		});
+
+		it("closes modal when cancel is clicked", async () => {
+			const user = userEvent.setup();
+			const schema: UISchema = {
+				version: "1",
+				components: [{ type: "button", label: "Open", opensModal: "my-modal" }],
+				modals: {
+					"my-modal": {
+						title: "My Modal",
+						cancelLabel: "Close",
+						children: [],
+					},
+				},
+			};
+
+			render(<SchemaRenderer schema={schema} {...defaultProps} />);
+
+			await user.click(screen.getByRole("button", { name: "Open" }));
+			expect(screen.getByText("My Modal")).toBeInTheDocument();
+
+			await user.click(screen.getByRole("button", { name: "Close" }));
+			expect(screen.queryByText("My Modal")).not.toBeInTheDocument();
+		});
+
+		it("submits modal form data on submit click", async () => {
+			const user = userEvent.setup();
+			const onAction = vi.fn();
+			const schema: UISchema = {
+				version: "1",
+				components: [
+					{ type: "button", label: "Edit", opensModal: "edit-modal" },
+				],
+				modals: {
+					"edit-modal": {
+						title: "Edit User",
+						submitAction: "save-user",
+						submitLabel: "Save",
+						children: [{ type: "input", name: "username", label: "Username" }],
+					},
+				},
+			};
+
+			render(
+				<SchemaRenderer
+					schema={schema}
+					{...defaultProps}
+					onAction={onAction}
+				/>,
+			);
+
+			await user.click(screen.getByRole("button", { name: "Edit" }));
+			await user.type(screen.getByLabelText("Username"), "johndoe");
+			await user.click(screen.getByRole("button", { name: "Save" }));
+
+			expect(onAction).toHaveBeenCalledWith(
+				expect.objectContaining({
+					action: "save-user",
+					data: { username: "johndoe" },
+				}),
+			);
+
+			// Modal should close after submit
+			expect(screen.queryByText("Edit User")).not.toBeInTheDocument();
+		});
+
+		it("renders modal with custom cancel label", async () => {
+			const user = userEvent.setup();
+			const schema: UISchema = {
+				version: "1",
+				components: [{ type: "button", label: "Open", opensModal: "modal" }],
+				modals: {
+					modal: {
+						title: "Custom Modal",
+						cancelLabel: "Dismiss",
+						children: [],
+					},
+				},
+			};
+
+			render(<SchemaRenderer schema={schema} {...defaultProps} />);
+
+			await user.click(screen.getByRole("button", { name: "Open" }));
+			expect(
+				screen.getByRole("button", { name: "Dismiss" }),
+			).toBeInTheDocument();
+		});
+
+		it("renders destructive submit button variant", async () => {
+			const user = userEvent.setup();
+			const schema: UISchema = {
+				version: "1",
+				components: [
+					{ type: "button", label: "Delete", opensModal: "confirm" },
+				],
+				modals: {
+					confirm: {
+						title: "Confirm Delete",
+						submitAction: "delete",
+						submitLabel: "Delete",
+						submitVariant: "destructive",
+						children: [{ type: "text", content: "Are you sure?" }],
+					},
+				},
+			};
+
+			render(<SchemaRenderer schema={schema} {...defaultProps} />);
+
+			await user.click(screen.getByRole("button", { name: "Delete" }));
+			expect(screen.getByText("Are you sure?")).toBeInTheDocument();
+			expect(
+				screen.getByRole("button", { name: /delete/i }),
+			).toBeInTheDocument();
+		});
+
+		it("resets modal form data when reopened", async () => {
+			const user = userEvent.setup();
+			const onAction = vi.fn();
+			const schema: UISchema = {
+				version: "1",
+				components: [
+					{ type: "button", label: "Open", opensModal: "form-modal" },
+				],
+				modals: {
+					"form-modal": {
+						title: "Form",
+						submitAction: "submit",
+						cancelLabel: "Cancel",
+						children: [{ type: "input", name: "field", label: "Field" }],
+					},
+				},
+			};
+
+			render(
+				<SchemaRenderer
+					schema={schema}
+					{...defaultProps}
+					onAction={onAction}
+				/>,
+			);
+
+			// Open modal and type something
+			await user.click(screen.getByRole("button", { name: "Open" }));
+			await user.type(screen.getByLabelText("Field"), "test value");
+
+			// Close modal
+			await user.click(screen.getByRole("button", { name: "Cancel" }));
+
+			// Reopen modal - should be empty
+			await user.click(screen.getByRole("button", { name: "Open" }));
+			expect(screen.getByLabelText("Field")).toHaveValue("");
+		});
+	});
 });
