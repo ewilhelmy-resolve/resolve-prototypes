@@ -140,7 +140,7 @@ npm run dev:client
 
 Open directly: http://localhost:5173/iframe/chat?token=dev-iframe-token-2024
 
-Or use the built-in demo: http://localhost:5173/embeddemo
+Or use the iframe-app host demo: http://localhost:5174 (run `npm run dev:iframe-app`)
 
 ## Integration Example
 
@@ -379,24 +379,30 @@ VITE_API_URL=http://localhost:3000
 
 ## Testing
 
-### Built-in Demo Page
+### Iframe Demo Host
 
-The `/embeddemo` route provides a built-in testing environment that deploys with the main app:
+The `packages/iframe-app` provides a host page demo for testing iframe integration:
 
-**URL**: `http://localhost:5173/embeddemo`
+**URL**: `http://localhost:5174`
 
 **Features**:
-- No separate dev server needed
-- Token and hashkey configuration
-- Send Message via postMessage
+- Simulates Resolve Actions host page
+- Activity-based conversation testing
+- Modal approaches demo (self-inject, host modal, popup)
+- Mock response triggers
 - Event log with color-coded entries
-- Workflow execution flow explanation
 
 **Usage**:
 ```bash
-# Just start the client (no separate demo server needed)
+# Terminal 1: Start API server
+npm run dev:api
+
+# Terminal 2: Start client
 npm run dev:client
-# Open http://localhost:5173/embeddemo
+
+# Terminal 3: Start iframe demo host
+npm run dev:iframe-app
+# Open http://localhost:5174
 ```
 
 ### Manual Testing Checklist
@@ -443,6 +449,6 @@ Same as main app - see `.env.example` in project root
 - `packages/api-server/src/routes/iframe.routes.ts` - API endpoints
 - `packages/api-server/src/config/valkey.ts` - Valkey client
 - `packages/client/src/pages/IframeChatPage.tsx` - Iframe chat page
-- `packages/client/src/pages/EmbedDemoPage.tsx` - Built-in demo page (/embeddemo)
 - `packages/client/src/services/iframeApi.ts` - Frontend API client
 - `packages/client/src/hooks/useIframeMessaging.ts` - PostMessage handler hook
+- `packages/iframe-app/index.html` - Iframe demo host page
