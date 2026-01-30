@@ -8,6 +8,7 @@ Platform sends JSON schemas via RabbitMQ → SSE, Jarvis validates with Zod and 
 
 - [Schema Format](#schema-format)
 - [Component Types](#component-types)
+- [Modals](#modals)
 - [Conditional Rendering](#conditional-rendering)
 - [Action Payloads](#action-payloads)
 - [Examples](#examples)
@@ -20,9 +21,16 @@ Platform sends JSON schemas via RabbitMQ → SSE, Jarvis validates with Zod and 
 {
   "version": "1",
   "components": [
-    { "type": "text", "props": { "content": "Hello" } },
-    { "type": "button", "props": { "label": "Click", "action": "submit" } }
-  ]
+    { "type": "text", "content": "Hello" },
+    { "type": "button", "label": "Click", "action": "submit" }
+  ],
+  "modals": {
+    "my-modal": {
+      "title": "Modal Title",
+      "children": [...]
+    }
+  },
+  "autoOpenModal": "my-modal"
 }
 ```
 
@@ -30,6 +38,8 @@ Platform sends JSON schemas via RabbitMQ → SSE, Jarvis validates with Zod and 
 |-------|------|----------|-------------|
 | `version` | `"1"` | No | Schema version (default: "1") |
 | `components` | `Component[]` | Yes | Array of UI components |
+| `modals` | `Record<string, Modal>` | No | Modal definitions (keyed by ID) |
+| `autoOpenModal` | `string` | No | Modal ID to open automatically on render |
 
 ---
 
@@ -60,25 +70,37 @@ Display text with styling variants.
 
 ### button
 
-Trigger actions when clicked.
+Trigger actions or open modals when clicked.
 
 ```json
 {
   "type": "button",
-  "props": {
-    "label": "Approve",
-    "action": "approve_request",
-    "variant": "default"
-  }
+  "label": "Approve",
+  "action": "approve_request",
+  "variant": "default"
+}
+```
+
+**Open a modal instead of action:**
+
+```json
+{
+  "type": "button",
+  "label": "Configure",
+  "opensModal": "config-modal",
+  "variant": "outline"
 }
 ```
 
 | Prop | Type | Required | Default | Description |
 |------|------|----------|---------|-------------|
 | `label` | `string` | Yes | - | Button text |
-| `action` | `string` | Yes | - | Action identifier sent to webhook |
+| `action` | `string` | No* | - | Action identifier sent to webhook |
+| `opensModal` | `string` | No* | - | Modal ID to open (alternative to action) |
 | `variant` | `string` | No | `"default"` | Button style |
 | `disabled` | `boolean` | No | `false` | Disable button |
+
+*Either `action` or `opensModal` should be provided.
 
 **Variants:** `default`, `destructive`, `outline`, `secondary`, `ghost`
 
@@ -298,6 +320,101 @@ Mermaid diagram rendering.
 
 ---
 
+## Modals
+
+Modals provide fullscreen dialogs for forms and complex interactions. They render in the host page (outside the iframe) for maximum space.
+
+### Defining Modals
+
+Define modals in the `modals` object with unique IDs:
+
+```json
+{
+  "version": "1",
+  "components": [
+    { "type": "text", "content": "Click button to configure" },
+    { "type": "button", "label": "Configure API", "opensModal": "api-config" }
+  ],
+  "modals": {
+    "api-config": {
+      "title": "API Configuration",
+      "description": "Enter your API credentials",
+      "size": "md",
+      "children": [
+        { "type": "input", "name": "apiKey", "label": "API Key", "inputType": "password" },
+        { "type": "input", "name": "endpoint", "label": "Endpoint URL" }
+      ],
+      "submitAction": "save_api_config",
+      "submitLabel": "Save Configuration"
+    }
+  }
+}
+```
+
+### Modal Properties
+
+| Prop | Type | Required | Default | Description |
+|------|------|----------|---------|-------------|
+| `title` | `string` | Yes | - | Modal title |
+| `description` | `string` | No | - | Modal description |
+| `size` | `string` | No | `"full"` | Modal size |
+| `children` | `Component[]` | Yes | - | Modal content components |
+| `submitAction` | `string` | No | - | Action to trigger on submit |
+| `submitLabel` | `string` | No | `"Submit"` | Submit button text |
+| `cancelLabel` | `string` | No | `"Cancel"` | Cancel button text |
+| `submitVariant` | `string` | No | `"default"` | Submit button style |
+
+**Sizes:** `sm` (400px), `md` (600px), `lg` (900px), `xl` (1200px), `full` (95vw)
+
+**Submit Variants:** `default`, `destructive`
+
+### Auto-Opening Modals
+
+Use `autoOpenModal` to force-open a modal when the schema renders. This is useful for mandatory credential prompts or required user input.
+
+```json
+{
+  "version": "1",
+  "components": [
+    {
+      "type": "card",
+      "title": "Authentication Required",
+      "children": [
+        { "type": "text", "content": "Please complete authentication to continue.", "variant": "muted" }
+      ]
+    }
+  ],
+  "modals": {
+    "auth-modal": {
+      "title": "Enter Credentials",
+      "size": "md",
+      "children": [
+        { "type": "input", "name": "apiKey", "label": "API Key", "inputType": "password" },
+        { "type": "select", "name": "authType", "label": "Auth Type", "options": [
+          { "label": "Bearer Token", "value": "bearer" },
+          { "label": "API Key Header", "value": "api-key" }
+        ]}
+      ],
+      "submitAction": "authenticate",
+      "submitLabel": "Authenticate"
+    }
+  },
+  "autoOpenModal": "auth-modal"
+}
+```
+
+The modal opens automatically 100ms after the schema renders. Users cannot dismiss it until they submit or cancel.
+
+### Modal Actions
+
+When a modal is submitted:
+1. Form data is collected from all input/select fields
+2. Action payload is sent with `action` = modal's `submitAction`
+3. A toast notification confirms the submission
+4. The action log can be viewed via the toast's "View Log" button
+
+---
+
 ## Conditional Rendering
 
 All components support the `if` prop for conditional display based on form data.
@@ -514,6 +631,81 @@ When a user clicks a button or submits a form, an action payload is sent to the 
       ]
     }
   ]
+}
+```
+
+### Modal with Form
+
+```json
+{
+  "version": "1",
+  "components": [
+    {
+      "type": "card",
+      "title": "API Configuration",
+      "description": "Configure your integration settings",
+      "children": [
+        { "type": "text", "content": "Click the button below to set up your API credentials.", "variant": "muted" },
+        { "type": "button", "label": "Configure Credentials", "opensModal": "credentials-modal" }
+      ]
+    }
+  ],
+  "modals": {
+    "credentials-modal": {
+      "title": "Enter API Credentials",
+      "description": "These credentials will be used for all API requests",
+      "size": "md",
+      "children": [
+        { "type": "input", "name": "hostname", "label": "API Hostname", "placeholder": "https://api.example.com" },
+        { "type": "input", "name": "username", "label": "Username", "placeholder": "your-username" },
+        { "type": "input", "name": "apiKey", "label": "API Key", "inputType": "password", "placeholder": "Enter your API key" }
+      ],
+      "submitAction": "save_credentials",
+      "submitLabel": "Save Credentials",
+      "cancelLabel": "Cancel"
+    }
+  }
+}
+```
+
+### Forced Credential Prompt
+
+```json
+{
+  "version": "1",
+  "components": [
+    {
+      "type": "card",
+      "title": "Authentication Required",
+      "children": [
+        { "type": "text", "content": "This workflow requires authentication. The credential form will open automatically.", "variant": "muted" }
+      ]
+    }
+  ],
+  "modals": {
+    "auth-modal": {
+      "title": "Enter Credentials",
+      "description": "Authenticate to continue with this workflow",
+      "size": "md",
+      "children": [
+        { "type": "input", "name": "apiEndpoint", "label": "API Endpoint", "placeholder": "https://api.example.com" },
+        { "type": "input", "name": "apiKey", "label": "API Key", "inputType": "password" },
+        {
+          "type": "select",
+          "name": "authType",
+          "label": "Authentication Type",
+          "options": [
+            { "label": "Bearer Token", "value": "bearer" },
+            { "label": "API Key Header", "value": "api-key" },
+            { "label": "Basic Auth", "value": "basic" }
+          ]
+        }
+      ],
+      "submitAction": "authenticate",
+      "submitLabel": "Authenticate"
+    }
+  },
+  "autoOpenModal": "auth-modal"
 }
 ```
 
