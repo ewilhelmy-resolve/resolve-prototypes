@@ -1,5 +1,4 @@
 import type { Meta, StoryObj } from "@storybook/react";
-import { fn } from "@storybook/test";
 import { ChevronDown } from "lucide-react";
 import { Link, MemoryRouter } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
@@ -10,7 +9,6 @@ import {
 	DropdownMenuItem,
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { InfiniteScrollContainer } from "@/components/ui/infinite-scroll-container";
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
 import { StatusAlert } from "@/components/ui/status-alert";
@@ -29,7 +27,7 @@ const meta: Meta = {
 		docs: {
 			description: {
 				component:
-					"Displays ticket groups (clusters) with infinite scroll pagination. Supports filtering by period, KB status, and search. This page shows visual states - the actual component fetches data from the API.",
+					"Displays ticket groups (clusters) with prev/next button pagination. Supports filtering by period, KB status, and search. This page shows visual states - the actual component fetches data from the API.",
 			},
 		},
 	},
@@ -172,82 +170,93 @@ const Header = ({
 	</div>
 );
 
+// Pagination buttons component
+const PaginationButtons = ({
+	hasPrev = false,
+	hasNext = true,
+}: {
+	hasPrev?: boolean;
+	hasNext?: boolean;
+}) => (
+	<div className="flex items-center justify-end py-4">
+		<div className="flex gap-2">
+			<Button variant="outline" size="sm" disabled={!hasPrev}>
+				Previous
+			</Button>
+			<Button variant="outline" size="sm" disabled={!hasNext}>
+				Next
+			</Button>
+		</div>
+	</div>
+);
+
 /**
- * Default state - shows grid with clusters and infinite scroll
+ * Default state - shows grid with clusters and pagination buttons
  */
 export const WithClusters: Story = {
 	render: () => (
 		<PageWrapper>
 			<Header count={mockClusters.length} />
 			<Input placeholder="Search groups..." className="max-w-sm" />
-			<InfiniteScrollContainer
-				hasMore={true}
-				isLoading={false}
-				onLoadMore={fn()}
-			>
-				<div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3">
-					{mockClusters.map((cluster) => (
-						<TicketGroupStat
-							key={cluster.id}
-							id={cluster.id}
-							title={
-								cluster.subcluster_name
-									? `${cluster.name} - ${cluster.subcluster_name}`
-									: cluster.name
-							}
-							count={cluster.ticket_count}
-							knowledgeStatus={cluster.kb_status}
-						/>
-					))}
-				</div>
-			</InfiniteScrollContainer>
+			<div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3">
+				{mockClusters.map((cluster) => (
+					<TicketGroupStat
+						key={cluster.id}
+						id={cluster.id}
+						title={
+							cluster.subcluster_name
+								? `${cluster.name} - ${cluster.subcluster_name}`
+								: cluster.name
+						}
+						count={cluster.ticket_count}
+						knowledgeStatus={cluster.kb_status}
+					/>
+				))}
+			</div>
+			<PaginationButtons hasPrev={false} hasNext={true} />
 		</PageWrapper>
 	),
 	parameters: {
 		docs: {
 			description: {
 				story:
-					"Shows ticket groups with infinite scroll. Scroll down to load more.",
+					"Shows ticket groups with pagination buttons. Use Previous/Next to navigate pages.",
 			},
 		},
 	},
 };
 
 /**
- * Loading more clusters - shows grid with loading spinner
+ * Middle page - shows both prev and next buttons enabled
  */
-export const LoadingMore: Story = {
+export const MiddlePage: Story = {
 	render: () => (
 		<PageWrapper>
-			<Header count={mockClusters.length} />
+			<Header count={mockClusters.length} subtitle="Page 2 of 4" />
 			<Input placeholder="Search groups..." className="max-w-sm" />
-			<InfiniteScrollContainer
-				hasMore={true}
-				isLoading={true}
-				onLoadMore={fn()}
-			>
-				<div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3">
-					{mockClusters.map((cluster) => (
-						<TicketGroupStat
-							key={cluster.id}
-							id={cluster.id}
-							title={
-								cluster.subcluster_name
-									? `${cluster.name} - ${cluster.subcluster_name}`
-									: cluster.name
-							}
-							count={cluster.ticket_count}
-							knowledgeStatus={cluster.kb_status}
-						/>
-					))}
-				</div>
-			</InfiniteScrollContainer>
+			<div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3">
+				{mockClusters.slice(0, 6).map((cluster) => (
+					<TicketGroupStat
+						key={cluster.id}
+						id={cluster.id}
+						title={
+							cluster.subcluster_name
+								? `${cluster.name} - ${cluster.subcluster_name}`
+								: cluster.name
+						}
+						count={cluster.ticket_count}
+						knowledgeStatus={cluster.kb_status}
+					/>
+				))}
+			</div>
+			<PaginationButtons hasPrev={true} hasNext={true} />
 		</PageWrapper>
 	),
 	parameters: {
 		docs: {
 			description: {
-				story: "Shows loading state when fetching more clusters.",
+				story:
+					"Shows both Previous and Next buttons enabled when on a middle page.",
 			},
 		},
 	},
@@ -281,31 +290,25 @@ export const Empty: Story = {
 export const WithSearch: Story = {
 	render: () => (
 		<PageWrapper>
-			<Header count={2} subtitle="Showing groups from the last 90 days" />
+			<Header count={1} subtitle="Showing groups from the last 90 days" />
 			<Input
 				placeholder="Search groups..."
 				className="max-w-sm"
 				defaultValue="Network"
 			/>
-			<InfiniteScrollContainer
-				hasMore={false}
-				isLoading={false}
-				onLoadMore={fn()}
-			>
-				<div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3">
-					{mockClusters
-						.filter((c) => c.name.toLowerCase().includes("network"))
-						.map((cluster) => (
-							<TicketGroupStat
-								key={cluster.id}
-								id={cluster.id}
-								title={cluster.name}
-								count={cluster.ticket_count}
-								knowledgeStatus={cluster.kb_status}
-							/>
-						))}
-				</div>
-			</InfiniteScrollContainer>
+			<div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3">
+				{mockClusters
+					.filter((c) => c.name.toLowerCase().includes("network"))
+					.map((cluster) => (
+						<TicketGroupStat
+							key={cluster.id}
+							id={cluster.id}
+							title={cluster.name}
+							count={cluster.ticket_count}
+							knowledgeStatus={cluster.kb_status}
+						/>
+					))}
+			</div>
 		</PageWrapper>
 	),
 	parameters: {

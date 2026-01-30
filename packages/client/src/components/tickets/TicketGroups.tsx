@@ -1,5 +1,5 @@
 import { ChevronDown } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
@@ -10,12 +10,11 @@ import {
 	DropdownMenuItem,
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { InfiniteScrollContainer } from "@/components/ui/infinite-scroll-container";
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
 import { StatusAlert } from "@/components/ui/status-alert";
 import { useActiveModel } from "@/hooks/useActiveModel";
-import { useInfiniteClusters } from "@/hooks/useClusters";
+import { useClusters } from "@/hooks/useClusters";
 import { useDebounce } from "@/hooks/useDebounce";
 import {
 	KB_FILTER_ALL,
@@ -42,6 +41,17 @@ export default function TicketGroups() {
 	const [searchInput, setSearchInput] = useState("");
 	const debouncedSearch = useDebounce(searchInput, 500);
 
+	// Cursor pagination state
+	const [cursorHistory, setCursorHistory] = useState<string[]>([]);
+	const [currentCursor, setCurrentCursor] = useState<string | undefined>();
+
+	// Reset cursors when filters change (including search)
+	// biome-ignore lint/correctness/useExhaustiveDependencies: intentionally reset on filter changes
+	useEffect(() => {
+		setCursorHistory([]);
+		setCurrentCursor(undefined);
+	}, [period, kbFilter, debouncedSearch]);
+
 	// Fetch active model to check training state
 	const { data: activeModel, isLoading: isModelLoading } = useActiveModel();
 	const trainingState = activeModel?.metadata?.training_state;
@@ -53,24 +63,24 @@ export default function TicketGroups() {
 	// kb_status now goes to server (not client filtering)
 	const kbStatusParam = kbFilter === KB_FILTER_ALL ? undefined : kbFilter;
 
-	// Fetch clusters with infinite scroll pagination
+	// Fetch clusters with server-side filters and pagination
 	const {
-		data,
+		data: clustersResponse,
 		isLoading: isClustersLoading,
-		isFetchingNextPage,
-		hasNextPage,
-		fetchNextPage,
 		error,
-	} = useInfiniteClusters({
+	} = useClusters({
 		period,
 		limit: PAGE_SIZE,
+		cursor: currentCursor,
 		kb_status: kbStatusParam,
 		search: debouncedSearch || undefined,
 		enabled: canShowClusters,
 	});
 
-	// Flatten pages into single array
-	const clusters = data?.pages.flatMap((page) => page.data) ?? [];
+	const clusters = clustersResponse?.data ?? [];
+	const pagination = clustersResponse?.pagination;
+	const hasNextPage = pagination?.has_more ?? false;
+	const hasPrevPage = cursorHistory.length > 0;
 
 	// Period display labels
 	const periodLabels: Record<PeriodFilter, string> = {
@@ -96,6 +106,20 @@ export default function TicketGroups() {
 		return name;
 	};
 
+	// Navigation handlers
+	const handleNextPage = () => {
+		if (pagination?.next_cursor) {
+			setCursorHistory((prev) => [...prev, currentCursor ?? ""]);
+			setCurrentCursor(pagination.next_cursor);
+		}
+	};
+
+	const handlePrevPage = () => {
+		const prevCursor = cursorHistory[cursorHistory.length - 1];
+		setCursorHistory((prev) => prev.slice(0, -1));
+		setCurrentCursor(prevCursor || undefined);
+	};
+
 	// Show spinner while checking model state initially
 	if (isModelLoading) {
 		return (
@@ -107,7 +131,8 @@ export default function TicketGroups() {
 
 	// Show spinner only on initial load (no cached data)
 	// Don't show during refetches to avoid losing search input focus
-	const isInitialLoading = canShowClusters && isClustersLoading && !data;
+	const isInitialLoading =
+		canShowClusters && isClustersLoading && !clustersResponse;
 	if (isInitialLoading) {
 		return (
 			<div className="flex min-h-[400px] w-full items-center justify-center">
@@ -124,8 +149,6 @@ export default function TicketGroups() {
 		);
 	}
 
-	const totalCount = clusters.length;
-
 	return (
 		<div className="flex min-h-screen w-full flex-col items-center">
 			<div className="flex w-full items-start justify-center py-6">
@@ -136,7 +159,7 @@ export default function TicketGroups() {
 								<h1 className="text-base font-bold text-card-foreground">
 									{t("page.title")}
 								</h1>
-								<Badge variant="outline">{totalCount}</Badge>
+								<Badge variant="outline">{clusters.length}</Badge>
 							</div>
 							<p className="text-sm text-muted-foreground">
 								{t("page.subtitle", {
@@ -247,11 +270,7 @@ export default function TicketGroups() {
 							</div>
 						</div>
 					) : clusters.length > 0 ? (
-						<InfiniteScrollContainer
-							hasMore={hasNextPage ?? false}
-							isLoading={isFetchingNextPage}
-							onLoadMore={fetchNextPage}
-						>
+						<>
 							<div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3">
 								{clusters.map((cluster) => (
 									<TicketGroupStat
@@ -266,7 +285,31 @@ export default function TicketGroups() {
 									/>
 								))}
 							</div>
-						</InfiniteScrollContainer>
+
+							{/* Pagination */}
+							{(hasPrevPage || hasNextPage) && (
+								<div className="flex items-center justify-end py-4">
+									<div className="flex gap-2">
+										<Button
+											variant="outline"
+											size="sm"
+											onClick={handlePrevPage}
+											disabled={!hasPrevPage}
+										>
+											{t("groups.pagination.previous")}
+										</Button>
+										<Button
+											variant="outline"
+											size="sm"
+											onClick={handleNextPage}
+											disabled={!hasNextPage}
+										>
+											{t("groups.pagination.next")}
+										</Button>
+									</div>
+								</div>
+							)}
+						</>
 					) : (
 						<div className="flex min-h-[200px] items-center justify-center">
 							<p className="text-muted-foreground">{t("groups.noGroups")}</p>

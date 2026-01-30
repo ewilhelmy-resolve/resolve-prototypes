@@ -1,4 +1,8 @@
-import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
+import {
+	keepPreviousData,
+	useInfiniteQuery,
+	useQuery,
+} from "@tanstack/react-query";
 import { clustersApi, ticketsApi } from "@/services/api";
 import type {
 	ClustersQueryParams,
@@ -58,6 +62,7 @@ export function useClusters(options?: UseClustersOptions) {
 			return response; // Returns { data, pagination }
 		},
 		staleTime: 30000, // 30 seconds
+		placeholderData: keepPreviousData, // Keep previous data while fetching to avoid focus loss
 		enabled,
 	});
 }
