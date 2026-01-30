@@ -3,9 +3,12 @@
  *
  * Renders JSON UI schema as React components.
  * Maps schema types → shadcn/ui components.
+ *
+ * JAR-81: Validates schema with Zod, handles errors gracefully.
  */
 
-import { useState } from "react";
+import { AlertCircle } from "lucide-react";
+import { Component, type ErrorInfo, type ReactNode, useState } from "react";
 import type {
 	ButtonComponent,
 	CardComponent,
@@ -21,6 +24,8 @@ import type {
 	UIComponent,
 	UISchema,
 } from "../../types/uiSchema";
+import { validateUISchema } from "../../types/uiSchema";
+import { Alert, AlertDescription, AlertTitle } from "../ui/alert";
 import { Button } from "../ui/button";
 import {
 	Card,
@@ -40,6 +45,83 @@ import {
 } from "../ui/select";
 import { Textarea } from "../ui/textarea";
 
+// ============================================================================
+// Error Boundary for graceful error handling
+// ============================================================================
+
+interface ErrorBoundaryProps {
+	children: ReactNode;
+	fallback?: ReactNode;
+}
+
+interface ErrorBoundaryState {
+	hasError: boolean;
+	error?: Error;
+}
+
+class SchemaErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
+	constructor(props: ErrorBoundaryProps) {
+		super(props);
+		this.state = { hasError: false };
+	}
+
+	static getDerivedStateFromError(error: Error): ErrorBoundaryState {
+		return { hasError: true, error };
+	}
+
+	componentDidCatch(error: Error, errorInfo: ErrorInfo) {
+		console.error("[SchemaRenderer] Render error:", error, errorInfo);
+	}
+
+	render() {
+		if (this.state.hasError) {
+			return this.props.fallback || (
+				<SchemaErrorFallback
+					title="Render Error"
+					message={this.state.error?.message || "Failed to render UI schema"}
+				/>
+			);
+		}
+		return this.props.children;
+	}
+}
+
+// ============================================================================
+// Error Fallback UI
+// ============================================================================
+
+function SchemaErrorFallback({
+	title,
+	message,
+	details,
+}: {
+	title: string;
+	message: string;
+	details?: string[];
+}) {
+	return (
+		<Alert variant="destructive" className="w-full">
+			<AlertCircle className="h-4 w-4" />
+			<AlertTitle>{title}</AlertTitle>
+			<AlertDescription>
+				<p>{message}</p>
+				{details && details.length > 0 && (
+					<ul className="mt-2 text-xs list-disc list-inside">
+						{details.slice(0, 3).map((detail, i) => (
+							<li key={i}>{detail}</li>
+						))}
+						{details.length > 3 && <li>...and {details.length - 3} more errors</li>}
+					</ul>
+				)}
+			</AlertDescription>
+		</Alert>
+	);
+}
+
+// ============================================================================
+// Main Component
+// ============================================================================
+
 interface SchemaRendererProps {
 	schema: UISchema;
 	messageId: string;
@@ -54,6 +136,21 @@ export function SchemaRenderer({
 	onAction,
 }: SchemaRendererProps) {
 	const [formData, setFormData] = useState<Record<string, string>>({});
+
+	// Validate schema (JAR-81)
+	const validation = validateUISchema(schema);
+	if (!validation.valid) {
+		const errorMessages = validation.errors?.issues.map(
+			(issue) => `${String(issue.path.join("."))}: ${issue.message}`
+		);
+		return (
+			<SchemaErrorFallback
+				title="Invalid Schema"
+				message="The UI schema failed validation"
+				details={errorMessages}
+			/>
+		);
+	}
 
 	const handleAction = (action: string, data?: Record<string, unknown>) => {
 		onAction?.({
@@ -160,11 +257,13 @@ export function SchemaRenderer({
 	}
 
 	return (
-		<div className="schema-renderer space-y-3 w-full overflow-hidden">
-			{schema.components.map((component, index) =>
-				renderComponent(component, index),
-			)}
-		</div>
+		<SchemaErrorBoundary>
+			<div className="schema-renderer space-y-3 w-full overflow-hidden">
+				{schema.components.map((component, index) =>
+					renderComponent(component, index),
+				)}
+			</div>
+		</SchemaErrorBoundary>
 	);
 }
 

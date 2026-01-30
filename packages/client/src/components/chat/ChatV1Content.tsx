@@ -310,7 +310,7 @@ function GroupedMessage({
 
 							{/* Render dynamic UI schema if present */}
 							{part.metadata?.ui_schema && conversationId && (
-								<div className="mt-4">
+								<div className="mt-4 w-full">
 									<SchemaRenderer
 										schema={part.metadata.ui_schema}
 										messageId={part.id}
@@ -401,7 +401,7 @@ function SimpleMessage({
 					<Response>{message.message}</Response>
 					{/* Render dynamic UI schema if present */}
 					{message.metadata?.ui_schema && conversationId && (
-						<div className="mt-4">
+						<div className="mt-4 w-full">
 							<SchemaRenderer
 								schema={message.metadata.ui_schema}
 								messageId={message.id}
