@@ -678,7 +678,8 @@ When a user clicks a button or submits a form, an action payload is sent to the 
       "type": "card",
       "title": "Authentication Required",
       "children": [
-        { "type": "text", "content": "This workflow requires authentication. The credential form will open automatically.", "variant": "muted" }
+        { "type": "text", "content": "The credential form will open automatically. Click below if closed accidentally.", "variant": "muted" },
+        { "type": "button", "label": "Enter Credentials", "opensModal": "auth-modal" }
       ]
     }
   ],
