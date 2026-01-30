@@ -95,6 +95,14 @@ export const WithTrendBadge: Story = {
 	},
 };
 
+export const Loading: Story = {
+	args: {
+		value: 0,
+		label: "Total Documents",
+		loading: true,
+	},
+};
+
 export const AllVariants: Story = {
 	render: () => (
 		<div className="grid grid-cols-2 gap-4 w-full">
@@ -129,6 +137,7 @@ export const AllVariants: Story = {
 					</Badge>
 				}
 			/>
+			<StatCard value={0} label="Loading State" loading={true} />
 		</div>
 	),
 };

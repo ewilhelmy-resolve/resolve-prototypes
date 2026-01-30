@@ -16,8 +16,8 @@ import {
 	webhookLogger,
 } from "./config/logger.js";
 import { emailService } from "./email-service.js";
-import { getRabbitMQService } from "./services/rabbitmq.js";
 import { syncServiceNowData } from "./servicenow-sync.js";
+import { getRabbitMQService } from "./services/rabbitmq.js";
 
 // Load environment from root .env file
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -181,6 +181,7 @@ interface SyncTicketsWebhookPayload extends BaseWebhookPayload {
 	ingestion_run_id: string;
 	settings: {
 		instanceUrl?: string;
+		username?: string;
 		time_range_days?: number;
 		itsm_tables?: string[];
 	};
@@ -2754,7 +2755,10 @@ app.post("/webhook", async (req, res) => {
 						timestamp: new Date().toISOString(),
 					};
 
-					await rabbitmqService.publishToQueue("data_source_status", syncMessage);
+					await rabbitmqService.publishToQueue(
+						"data_source_status",
+						syncMessage,
+					);
 
 					contextLogger.info(
 						{
@@ -2835,10 +2839,12 @@ app.post("/webhook", async (req, res) => {
 						);
 
 						// Perform actual data insertion
+						// Pass settings to enable username-based training state scenarios
 						const syncResult = await syncServiceNowData(
 							ticketsPayload.tenant_id,
 							ticketsPayload.connection_id,
 							ticketsPayload.ingestion_run_id,
+							ticketsPayload.settings,
 						);
 
 						totalTickets = syncResult.ticketsCreated;
@@ -2852,6 +2858,46 @@ app.post("/webhook", async (req, res) => {
 							},
 							"ServiceNow data inserted successfully",
 						);
+
+						// Simulate realistic sync time with partial progress updates
+						// 0s: 0 tickets (already sent)
+						// 2s: ~50% progress
+						// 4s: ~80% progress
+						// 5s: complete
+						const progressUpdates = [
+							{ delay: 2000, percent: 0.5 },
+							{ delay: 2000, percent: 0.8 },
+						];
+
+						for (const update of progressUpdates) {
+							await new Promise((resolve) => setTimeout(resolve, update.delay));
+							const progressMessage = {
+								type: "ticket_ingestion",
+								tenant_id: ticketsPayload.tenant_id,
+								user_id: ticketsPayload.user_id,
+								ingestion_run_id: ticketsPayload.ingestion_run_id,
+								connection_id: ticketsPayload.connection_id,
+								status: "running",
+								records_processed: Math.floor(totalTickets * update.percent),
+								records_failed: 0,
+								total_estimated: totalTickets,
+								timestamp: new Date().toISOString(),
+							};
+							await rabbitmqService.publishToQueue(
+								"data_source_status",
+								progressMessage,
+							);
+							contextLogger.info(
+								{
+									percent: update.percent * 100,
+									processed: progressMessage.records_processed,
+								},
+								"Sent progress update",
+							);
+						}
+
+						// Final delay before completion
+						await new Promise((resolve) => setTimeout(resolve, 1000));
 					} else {
 						// For other ITSM types, just simulate (no actual data insertion)
 						totalTickets = Math.floor(Math.random() * 150) + 50;

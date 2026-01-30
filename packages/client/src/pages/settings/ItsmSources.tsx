@@ -6,6 +6,7 @@ import { Link } from "react-router-dom";
 import { CrashPage } from "@/components/CrashPage";
 import { SourceListCard } from "@/components/connection-sources/SourceListCard";
 import RitaSettingsLayout from "@/components/layouts/RitaSettingsLayout";
+import { StatusAlert } from "@/components/ui/status-alert";
 import {
 	ITSM_SOURCES_ORDER,
 	mapDataSourceToUI,
@@ -13,6 +14,7 @@ import {
 	SOURCES,
 	STATUS,
 } from "@/constants/connectionSources";
+import { useActiveModel } from "@/hooks/useActiveModel";
 import { useDataSources, useSeedDataSources } from "@/hooks/useDataSources";
 import { useFeatureFlag } from "@/hooks/useFeatureFlags";
 import SettingsHeader from "./SettingsHeader";
@@ -23,6 +25,11 @@ export default function ItsmSources() {
 	const { data: dataSources, isLoading, error } = useDataSources();
 	const isServiceNowEnabled = useFeatureFlag("ENABLE_SERVICENOW");
 	const isJiraEnabled = useFeatureFlag("ENABLE_JIRA");
+
+	// Check training state for banner
+	const { data: activeModel } = useActiveModel();
+	const trainingState = activeModel?.metadata?.training_state;
+	const isTraining = trainingState === "in_progress";
 
 	// Sources that are clickable (configured for ITSM sync)
 	const enabledItsmSources: string[] = [
@@ -110,45 +117,55 @@ export default function ItsmSources() {
 				</div>
 
 				<div className="px-6 pb-8 max-w-2xl mx-auto w-full">
-				{uiSources.map((source) => {
-					const isEnabled = enabledItsmSources.includes(source.type);
-					const isPlaceholder = source.id.startsWith("placeholder-");
-
-					const cardContent = (
-						<SourceListCard
-							source={source}
-							isEnabled={isEnabled}
-							isPlaceholder={isPlaceholder}
-							actionLabel={
-								source.status === STATUS.NOT_CONNECTED
-									? t("itsmSources.configure")
-									: t("itsmSources.manage")
-							}
-							disabledLabel={t("itsmSources.comingSoon")}
-							lastSyncLabel={t("itsmSources.lastSync", { time: "{time}" })}
-						/>
-					);
-
-					// Only wrap enabled sources with Link
-					if (isEnabled && !isPlaceholder) {
-						return (
-							<Link
-								key={source.id}
-								to={`/settings/connections/itsm/${source.id}`}
-								className="block mb-5"
+					{isTraining && (
+						<div className="mb-6">
+							<StatusAlert
+								variant="info"
+								title={t("itsmSources.trainingInProgress")}
 							>
-								{cardContent}
-							</Link>
-						);
-					}
-
-					// For other sources, just return the card without link
-					return (
-						<div key={source.id} className="mb-5">
-							{cardContent}
+								<p>{t("itsmSources.trainingDescription")}</p>
+							</StatusAlert>
 						</div>
-					);
-				})}
+					)}
+					{uiSources.map((source) => {
+						const isEnabled = enabledItsmSources.includes(source.type);
+						const isPlaceholder = source.id.startsWith("placeholder-");
+
+						const cardContent = (
+							<SourceListCard
+								source={source}
+								isEnabled={isEnabled}
+								isPlaceholder={isPlaceholder}
+								actionLabel={
+									source.status === STATUS.NOT_CONNECTED
+										? t("itsmSources.configure")
+										: t("itsmSources.manage")
+								}
+								disabledLabel={t("itsmSources.comingSoon")}
+								lastSyncLabel={t("itsmSources.lastSync", { time: "{time}" })}
+							/>
+						);
+
+						// Only wrap enabled sources with Link
+						if (isEnabled && !isPlaceholder) {
+							return (
+								<Link
+									key={source.id}
+									to={`/settings/connections/itsm/${source.id}`}
+									className="block mb-5"
+								>
+									{cardContent}
+								</Link>
+							);
+						}
+
+						// For other sources, just return the card without link
+						return (
+							<div key={source.id} className="mb-5">
+								{cardContent}
+							</div>
+						);
+					})}
 				</div>
 			</div>
 		</RitaSettingsLayout>

@@ -5,6 +5,7 @@ import type {
 	UpdateDataSourceRequest,
 	VerifyDataSourceRequest,
 } from "@/types/dataSource";
+import { mlModelKeys, signalSyncStarted } from "./useActiveModel";
 
 // Query Keys
 export const dataSourceKeys = {
@@ -206,6 +207,10 @@ export function useSyncTickets() {
 		onSuccess: (_, { id }) => {
 			// Invalidate ingestion run query to show new syncing state
 			queryClient.invalidateQueries({ queryKey: ingestionRunKeys.latest(id) });
+			// Signal that a sync just started - this triggers aggressive polling
+			// for the active model to quickly catch the training state change
+			signalSyncStarted();
+			queryClient.invalidateQueries({ queryKey: mlModelKeys.active() });
 		},
 	});
 }

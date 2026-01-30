@@ -1,6 +1,7 @@
 import { ChevronDown } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { Link } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -29,7 +30,9 @@ export default function TicketGroups() {
 	// Fetch active model to check training state
 	const { data: activeModel, isLoading: isModelLoading } = useActiveModel();
 	const trainingState = activeModel?.metadata?.training_state;
+	const hasNoModel = !isModelLoading && activeModel === null;
 	const isTraining = trainingState === "in_progress";
+	const isFailed = trainingState === "failed";
 	const canShowClusters = trainingState === "complete";
 
 	// Fetch clusters only when model training is complete
@@ -162,7 +165,34 @@ export default function TicketGroups() {
 						</div>
 					</div>
 
-					{isTraining ? (
+					{hasNoModel ? (
+						// No model: show connect source empty state
+						<div className="flex min-h-[300px] flex-col items-center justify-center gap-4">
+							<p className="text-muted-foreground">
+								{t("groups.noSourceConnected")}
+							</p>
+							<Button asChild variant="outline" size="sm">
+								<Link to="/settings/connections/itsm">
+									{t("groups.connectSource")}
+								</Link>
+							</Button>
+						</div>
+					) : isFailed ? (
+						// Training failed: show error banner + empty state
+						<div className="flex flex-col gap-6">
+							<StatusAlert variant="error" title={t("groups.trainingFailed")}>
+								<p className="mb-3">{t("groups.trainingFailedDescription")}</p>
+								<Button asChild variant="outline" size="sm">
+									<Link to="/settings/connections/itsm">
+										{t("groups.goToItsmConnections")}
+									</Link>
+								</Button>
+							</StatusAlert>
+							<div className="flex min-h-[200px] items-center justify-center">
+								<p className="text-muted-foreground">{t("groups.noGroups")}</p>
+							</div>
+						</div>
+					) : isTraining ? (
 						// Training in progress: show banner + skeleton grid
 						<div className="flex flex-col gap-6">
 							<StatusAlert

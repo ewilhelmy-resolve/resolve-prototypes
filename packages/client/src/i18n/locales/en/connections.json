@@ -167,6 +167,10 @@
 			"ticketsSyncFailed": "{{count}} tickets couldn't sync. Common causes: missing fields, permissions, or API limits. Excluded from analysis.",
 			"ticketsOf": "{{processed}} of {{total}} tickets"
 		},
+		"training": {
+			"inProgress": "Model training in progress",
+			"description": "Rita is analyzing your tickets to create ticket groups. This usually takes a few minutes."
+		},
 		"labels": {
 			"spacesQuestion": "Which spaces would you like to sync from?",
 			"kbQuestion": "Which knowledge bases would you like to sync from?",
