@@ -36,8 +36,8 @@ interface UseClustersOptions extends ClustersQueryParams {
 
 /**
  * List all clusters for the organization
- * @param options - Query params (sort, period) and enabled flag
- * @returns Query with array of clusters
+ * @param options - Query params (sort, period, limit, cursor, kb_status, search) and enabled flag
+ * @returns Query with clusters and pagination info
  */
 export function useClusters(options?: UseClustersOptions) {
 	const { enabled = true, ...params } = options ?? {};
@@ -46,7 +46,7 @@ export function useClusters(options?: UseClustersOptions) {
 		queryKey: clusterKeys.list(params),
 		queryFn: async () => {
 			const response = await clustersApi.list(params);
-			return response.data;
+			return response; // Returns { data, pagination }
 		},
 		staleTime: 30000, // 30 seconds
 		enabled,

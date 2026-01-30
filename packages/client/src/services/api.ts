@@ -548,6 +548,10 @@ export const clustersApi = {
 		const searchParams = new URLSearchParams();
 		if (params?.sort) searchParams.append("sort", params.sort);
 		if (params?.period) searchParams.append("period", params.period);
+		if (params?.limit) searchParams.append("limit", params.limit.toString());
+		if (params?.cursor) searchParams.append("cursor", params.cursor);
+		if (params?.kb_status) searchParams.append("kb_status", params.kb_status);
+		if (params?.search) searchParams.append("search", params.search);
 
 		const queryString = searchParams.toString();
 		return apiRequest<import("../types/cluster").ClustersResponse>(

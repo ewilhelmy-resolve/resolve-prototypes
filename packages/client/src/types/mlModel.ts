@@ -8,6 +8,16 @@ export type TrainingState =
 	| "complete";
 
 /**
+ * Training state constants for type-safe comparisons
+ */
+export const TRAINING_STATES = {
+	NOT_STARTED: "not_started",
+	IN_PROGRESS: "in_progress",
+	FAILED: "failed",
+	COMPLETE: "complete",
+} as const satisfies Record<string, TrainingState>;
+
+/**
  * ML Model metadata structure
  */
 export interface MlModelMetadata {

@@ -24,6 +24,7 @@
 		"trainingFailedDescription": "There was an issue analyzing your tickets. Please check your ITSM connection and try syncing again.",
 		"goToItsmConnections": "Go to ITSM Connections",
 		"filterBy": "Filter by",
+		"searchPlaceholder": "Search by topic name...",
 		"filterOptions": {
 			"all": "All",
 			"knowledgeFound": "Knowledge found",
@@ -35,6 +36,10 @@
 			"last90Days": "Last 90 days",
 			"last6Months": "Last 6 months",
 			"lastYear": "Last year"
+		},
+		"pagination": {
+			"previous": "Previous",
+			"next": "Next"
 		}
 	},
 	"navigation": {
