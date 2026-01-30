@@ -13,6 +13,7 @@ import type {
 	ButtonComponent,
 	CardComponent,
 	ColumnComponent,
+	DiagramComponent,
 	FormComponent,
 	InputComponent,
 	RowComponent,
@@ -44,6 +45,7 @@ import {
 	SelectValue,
 } from "../ui/select";
 import { Textarea } from "../ui/textarea";
+import { MermaidRenderer } from "./MermaidRenderer";
 
 // ============================================================================
 // Error Boundary for graceful error handling
@@ -59,7 +61,10 @@ interface ErrorBoundaryState {
 	error?: Error;
 }
 
-class SchemaErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
+class SchemaErrorBoundary extends Component<
+	ErrorBoundaryProps,
+	ErrorBoundaryState
+> {
 	constructor(props: ErrorBoundaryProps) {
 		super(props);
 		this.state = { hasError: false };
@@ -75,11 +80,13 @@ class SchemaErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySta
 
 	render() {
 		if (this.state.hasError) {
-			return this.props.fallback || (
-				<SchemaErrorFallback
-					title="Render Error"
-					message={this.state.error?.message || "Failed to render UI schema"}
-				/>
+			return (
+				this.props.fallback || (
+					<SchemaErrorFallback
+						title="Render Error"
+						message={this.state.error?.message || "Failed to render UI schema"}
+					/>
+				)
 			);
 		}
 		return this.props.children;
@@ -110,7 +117,9 @@ function SchemaErrorFallback({
 						{details.slice(0, 3).map((detail, i) => (
 							<li key={i}>{detail}</li>
 						))}
-						{details.length > 3 && <li>...and {details.length - 3} more errors</li>}
+						{details.length > 3 && (
+							<li>...and {details.length - 3} more errors</li>
+						)}
 					</ul>
 				)}
 			</AlertDescription>
@@ -141,7 +150,7 @@ export function SchemaRenderer({
 	const validation = validateUISchema(schema);
 	if (!validation.valid) {
 		const errorMessages = validation.errors?.issues.map(
-			(issue) => `${String(issue.path.join("."))}: ${issue.message}`
+			(issue) => `${String(issue.path.join("."))}: ${issue.message}`,
 		);
 		return (
 			<SchemaErrorFallback
@@ -242,6 +251,14 @@ export function SchemaRenderer({
 
 			case "table":
 				return <TableRenderer key={key} component={component} />;
+
+			case "diagram":
+				return (
+					<DiagramRenderer
+						key={key}
+						component={component as DiagramComponent}
+					/>
+				);
 
 			default:
 				return (
@@ -501,6 +518,17 @@ function TableRenderer({ component }: { component: TableComponent }) {
 				</tbody>
 			</table>
 		</div>
+	);
+}
+
+function DiagramRenderer({ component }: { component: DiagramComponent }) {
+	return (
+		<MermaidRenderer
+			code={component.code}
+			title={component.title}
+			expandable={component.expandable}
+			className={component.className}
+		/>
 	);
 }
 

@@ -21,7 +21,18 @@ const BaseComponentSchema = z.object({
 const TextComponentSchema = BaseComponentSchema.extend({
 	type: z.literal("text"),
 	content: z.string(),
-	variant: z.enum(["default", "muted", "heading", "subheading", "code", "diff-add", "diff-remove", "diff-context"]).optional(),
+	variant: z
+		.enum([
+			"default",
+			"muted",
+			"heading",
+			"subheading",
+			"code",
+			"diff-add",
+			"diff-remove",
+			"diff-context",
+		])
+		.optional(),
 });
 
 const StatComponentSchema = BaseComponentSchema.extend({
@@ -37,7 +48,9 @@ const InputComponentSchema = BaseComponentSchema.extend({
 	name: z.string(),
 	label: z.string().optional(),
 	placeholder: z.string().optional(),
-	inputType: z.enum(["text", "email", "number", "password", "textarea"]).optional(),
+	inputType: z
+		.enum(["text", "email", "number", "password", "textarea"])
+		.optional(),
 	required: z.boolean().optional(),
 	defaultValue: z.string().optional(),
 });
@@ -61,7 +74,9 @@ const ButtonComponentSchema = BaseComponentSchema.extend({
 	type: z.literal("button"),
 	label: z.string(),
 	action: z.string(),
-	variant: z.enum(["default", "destructive", "outline", "secondary", "ghost"]).optional(),
+	variant: z
+		.enum(["default", "destructive", "outline", "secondary", "ghost"])
+		.optional(),
 	disabled: z.boolean().optional(),
 });
 
@@ -104,6 +119,13 @@ const FormComponentSchema = BaseComponentSchema.extend({
 	children: z.array(z.any()),
 });
 
+const DiagramComponentSchema = BaseComponentSchema.extend({
+	type: z.literal("diagram"),
+	code: z.string(),
+	title: z.string().optional(),
+	expandable: z.boolean().optional(),
+});
+
 // Component schema using discriminated union
 const UIComponentSchema = z.discriminatedUnion("type", [
 	TextComponentSchema,
@@ -115,6 +137,7 @@ const UIComponentSchema = z.discriminatedUnion("type", [
 	CardComponentSchema,
 	RowComponentSchema,
 	ColumnComponentSchema,
+	DiagramComponentSchema,
 	FormComponentSchema,
 ]);
 
@@ -160,7 +183,15 @@ interface BaseComponent {
 export interface TextComponent extends BaseComponent {
 	type: "text";
 	content: string;
-	variant?: "default" | "muted" | "heading" | "subheading" | "code" | "diff-add" | "diff-remove" | "diff-context";
+	variant?:
+		| "default"
+		| "muted"
+		| "heading"
+		| "subheading"
+		| "code"
+		| "diff-add"
+		| "diff-remove"
+		| "diff-context";
 }
 
 // Stat card (single metric)
@@ -240,6 +271,14 @@ export interface TableComponent extends BaseComponent {
 	rows: Array<Record<string, string | number>>;
 }
 
+// Mermaid diagram
+export interface DiagramComponent extends BaseComponent {
+	type: "diagram";
+	code: string; // Mermaid diagram code
+	title?: string;
+	expandable?: boolean; // Allow fullscreen expansion
+}
+
 // Union of all component types
 export type UIComponent =
 	| TextComponent
@@ -251,7 +290,8 @@ export type UIComponent =
 	| RowComponent
 	| ColumnComponent
 	| FormComponent
-	| TableComponent;
+	| TableComponent
+	| DiagramComponent;
 
 // Root schema object
 export interface UISchema {
