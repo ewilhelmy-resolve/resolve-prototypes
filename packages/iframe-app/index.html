@@ -1717,10 +1717,10 @@
 
             document.body.insertAdjacentHTML('beforeend', modalHTML);
 
-            // Close on overlay click
+            // Close on overlay click (unless preventBackdropClose is set)
             const overlay = document.getElementById('rita-form-modal-overlay');
             overlay.addEventListener('click', (e) => {
-                if (e.target === overlay) {
+                if (e.target === overlay && !config.preventBackdropClose) {
                     closeFormModal();
                     // Notify iframe that modal was cancelled
                     document.getElementById('ritaIframe').contentWindow.postMessage({
@@ -1761,9 +1761,9 @@
                 log(`Form submitted: ${JSON.stringify(data).substring(0, 50)}...`, 'outgoing');
             });
 
-            // Escape key
+            // Escape key (unless preventBackdropClose is set)
             const escHandler = (e) => {
-                if (e.key === 'Escape') {
+                if (e.key === 'Escape' && !config.preventBackdropClose) {
                     closeFormModal();
                     document.getElementById('ritaIframe').contentWindow.postMessage({
                         type: 'FORM_MODAL_CANCELLED'

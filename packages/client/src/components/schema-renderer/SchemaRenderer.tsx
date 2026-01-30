@@ -184,7 +184,10 @@ export function SchemaRenderer({
 
 	// Track auto-open modal (ref defined early to satisfy hook rules)
 	const autoOpenedRef = useRef<string | null>(null);
-	const handleOpenModalRef = useRef<((modalId: string) => void) | null>(null);
+	const handleOpenModalRef = useRef<
+		| ((modalId: string, options?: { preventBackdropClose?: boolean }) => void)
+		| null
+	>(null);
 
 	// Listen for form modal submissions from host (cross-origin)
 	useEffect(() => {
@@ -251,7 +254,8 @@ export function SchemaRenderer({
 			if (handleOpenModalRef.current && autoOpenedRef.current !== modalId) {
 				console.log("[SchemaRenderer] Calling handleOpenModal for:", modalId);
 				autoOpenedRef.current = modalId;
-				handleOpenModalRef.current(modalId);
+				// Auto-opened modals prevent backdrop close (forced mode)
+				handleOpenModalRef.current(modalId, { preventBackdropClose: true });
 			}
 		}, 100);
 		return () => clearTimeout(timer);
@@ -290,12 +294,16 @@ export function SchemaRenderer({
 		setModalFormData((prev) => ({ ...prev, [name]: value }));
 	};
 
-	const handleOpenModal = (modalId: string) => {
+	const handleOpenModal = (
+		modalId: string,
+		options?: { preventBackdropClose?: boolean },
+	) => {
 		console.log("[SchemaRenderer] handleOpenModal called:", {
 			modalId,
 			hasModals: !!schema.modals,
 			modalIds: schema.modals ? Object.keys(schema.modals) : [],
 			isInIframe: isInIframe(),
+			preventBackdropClose: options?.preventBackdropClose,
 		});
 		const modal = schema.modals?.[modalId];
 		if (!modal) {
@@ -345,6 +353,7 @@ export function SchemaRenderer({
 				cancelLabel: modal.cancelLabel,
 				submitVariant:
 					modal.submitVariant === "destructive" ? "destructive" : "default",
+				preventBackdropClose: options?.preventBackdropClose,
 				onSubmit: (data) => {
 					// Same-origin: callback is called directly
 					pendingModalSubmitRef.current = null;

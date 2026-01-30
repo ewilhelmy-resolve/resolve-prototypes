@@ -678,6 +678,7 @@ export interface FormModalConfig {
 	submitLabel?: string;
 	cancelLabel?: string;
 	submitVariant?: "default" | "destructive";
+	preventBackdropClose?: boolean; // Prevent closing on backdrop click/ESC (for forced modals)
 	onSubmit: (data: Record<string, string>) => void;
 	onCancel: () => void;
 }
@@ -773,6 +774,7 @@ export function openFormModal(config: FormModalConfig): boolean {
 					submitLabel: config.submitLabel,
 					cancelLabel: config.cancelLabel,
 					submitVariant: config.submitVariant,
+					preventBackdropClose: config.preventBackdropClose,
 				},
 			},
 			"*",
@@ -829,9 +831,9 @@ export function openFormModal(config: FormModalConfig): boolean {
 		</div>
 	`;
 
-	// Close on backdrop click
+	// Close on backdrop click (unless preventBackdropClose is set)
 	overlay.addEventListener("click", (e) => {
-		if (e.target === overlay) {
+		if (e.target === overlay && !config.preventBackdropClose) {
 			closeFormModalInHost();
 			config.onCancel();
 		}
@@ -866,9 +868,9 @@ export function openFormModal(config: FormModalConfig): boolean {
 		config.onSubmit(data);
 	});
 
-	// Escape key
+	// Escape key (unless preventBackdropClose is set)
 	const escHandler = (e: KeyboardEvent) => {
-		if (e.key === "Escape") {
+		if (e.key === "Escape" && !config.preventBackdropClose) {
 			closeFormModalInHost();
 			config.onCancel();
 			parentDoc.removeEventListener("keydown", escHandler);
