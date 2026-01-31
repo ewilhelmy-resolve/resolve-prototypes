@@ -9,12 +9,13 @@ Migrate 93+ raw pg queries across 11 files to type-safe Kysely.
 
 ---
 
-## Current Checkpoint (2024-01-23)
+## Current Checkpoint (2025-01-30)
 
 **Completed:**
 - Phase 1: Foundation setup ✅
 - `middleware/auth.ts` → AuthRepository (2 queries) ✅
 - `routes/auth.ts` → AuthRepository (11 queries) ✅
+- `services/ClusterService.ts` → ClusterService (6 methods, ~8 queries) ✅
 
 **Files created:**
 - `src/config/kysely.ts` - Kysely instance
@@ -22,6 +23,7 @@ Migrate 93+ raw pg queries across 11 files to type-safe Kysely.
 - `src/types/database.ts` - Generated types (22 tables)
 - `src/repositories/AuthRepository.ts` - Auth queries
 - `src/repositories/index.ts` - Repository exports
+- `src/services/ClusterService.ts` - Fully Kysely (no repository pattern)
 
 ---
 
@@ -50,7 +52,7 @@ Migrate 93+ raw pg queries across 11 files to type-safe Kysely.
 | Status | File | Repository | Queries | Notes |
 |--------|------|------------|---------|-------|
 | [ ] | `sessionService.ts` | SessionRepository.ts | 5 | User provisioning txn |
-| [ ] | `ClusterService.ts` | ClusterRepository.ts | 8 | Dynamic ORDER BY, JOINs |
+| [x] | `ClusterService.ts` | (inline) | 6 | Dynamic ORDER BY, JOINs, cursor pagination |
 | [ ] | `IframeService.ts` | IframeRepository.ts | 10 | withOrgContext, JIT provision |
 
 ### Tier 3 - Complex (15+ queries)
@@ -102,6 +104,28 @@ await db.insertInto('table')
 await withKyselyOrgContext(userId, orgId, async (trx) => {
   return await trx.insertInto('conversations').values({...}).returningAll().executeTakeFirstOrThrow();
 });
+```
+
+### Composite Cursor Pagination (timestamp + id)
+```typescript
+// Parse cursor: "2024-01-15T10:00:00.000Z_uuid"
+const separatorIndex = cursor.lastIndexOf("_");
+const cursorTimestamp = cursor.substring(0, separatorIndex);
+const cursorId = cursor.substring(separatorIndex + 1);
+
+// Use date_trunc to handle JS Date millisecond precision vs PostgreSQL microseconds
+query = query.where((eb) =>
+  eb.or([
+    eb(sql`date_trunc('milliseconds', c.created_at)`, "<", sql`${new Date(cursorTimestamp)}::timestamptz`),
+    eb.and([
+      eb(sql`date_trunc('milliseconds', c.created_at)`, "=", sql`${new Date(cursorTimestamp)}::timestamptz`),
+      eb("c.id", "<", cursorId),
+    ]),
+  ]),
+);
+
+// Build cursor for response
+const nextCursor = `${lastRow.created_at.toISOString()}_${lastRow.id}`;
 ```
 
 ---

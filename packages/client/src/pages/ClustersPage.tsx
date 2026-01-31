@@ -7,6 +7,7 @@ import TicketGroups from "@/components/tickets/TicketGroups";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useActiveModel } from "@/hooks/useActiveModel";
 import { useClusters } from "@/hooks/useClusters";
+import { TRAINING_STATES } from "@/types/mlModel";
 
 export default function ClustersPage() {
 	const { t } = useTranslation("tickets");
@@ -17,19 +18,19 @@ export default function ClustersPage() {
 
 	// Determine loading states
 	const hasNoModel = !isModelLoading && activeModel === null;
-	const isTraining = trainingState === "in_progress";
-	const canShowData = trainingState === "complete";
+	const isTraining = trainingState === TRAINING_STATES.IN_PROGRESS;
+	const canShowData = trainingState === TRAINING_STATES.COMPLETE;
 
 	// Show skeletons only when: loading model OR training in progress
 	// NOT when there's no model - that should show empty state
 	const showSkeletons = isModelLoading || isTraining;
 
 	// Only fetch clusters when training is complete
-	const { data: clusters } = useClusters({ enabled: canShowData });
+	const { data: clustersResponse } = useClusters({ enabled: canShowData });
 
-	const totalTickets =
-		clusters?.reduce((sum, c) => sum + c.ticket_count, 0) ?? 0;
-	const clusterCount = clusters?.length ?? 0;
+	const clusters = clustersResponse?.data ?? [];
+	const totalTickets = clusters.reduce((sum, c) => sum + c.ticket_count, 0);
+	const clusterCount = clusters.length;
 
 	// Header description: skeleton when loading/training, empty string when no model, real data otherwise
 	const headerDescription = showSkeletons ? (

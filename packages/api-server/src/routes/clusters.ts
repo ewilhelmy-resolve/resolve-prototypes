@@ -162,6 +162,10 @@ registry.registerPath({
  * List all clusters for the organization with ticket counts
  * Query params:
  *   - sort: volume | automation | recent (default: recent)
+ *   - limit: number of results (default 25, max 100)
+ *   - cursor: ISO timestamp for pagination
+ *   - kb_status: filter by KB status
+ *   - search: search in name and subcluster_name
  */
 router.get("/", async (req, res) => {
 	const authReq = req as AuthenticatedRequest;
@@ -169,16 +173,23 @@ router.get("/", async (req, res) => {
 	try {
 		const query = ClusterListQuerySchema.parse(req.query);
 
-		const clusters = await clusterService.getClusters(
+		const result = await clusterService.getClusters(
 			authReq.user.activeOrganizationId,
 			{
 				sort: query.sort,
 				period: query.period,
 				includeInactive: query.include_inactive,
+				limit: query.limit,
+				cursor: query.cursor,
+				kbStatus: query.kb_status,
+				search: query.search,
 			},
 		);
 
-		res.json({ data: clusters });
+		res.json({
+			data: result.clusters,
+			pagination: result.pagination,
+		});
 	} catch (error) {
 		if (error instanceof z.ZodError) {
 			return res.status(400).json({

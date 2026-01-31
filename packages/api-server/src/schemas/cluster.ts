@@ -44,6 +44,24 @@ export const ClusterListQuerySchema = z
 			.boolean()
 			.optional()
 			.openapi({ description: "Include inactive clusters" }),
+		limit: z.coerce
+			.number()
+			.int()
+			.min(1)
+			.max(100)
+			.optional()
+			.openapi({ description: "Results per page", default: 25 }),
+		cursor: z
+			.string()
+			.optional()
+			.openapi({ description: "Pagination cursor (timestamp_id format)" }),
+		kb_status: KBStatusSchema.optional().openapi({
+			description: "Filter by knowledge base status",
+		}),
+		search: z
+			.string()
+			.optional()
+			.openapi({ description: "Search in cluster name and subcluster name" }),
 	})
 	.openapi("ClusterListQuery");
 
@@ -190,6 +208,7 @@ export const KbArticleSchema = z
 export const ClusterListResponseSchema = z
 	.object({
 		data: z.array(ClusterListItemSchema),
+		pagination: PaginationInfoSchema,
 	})
 	.openapi("ClusterListResponse");
 
