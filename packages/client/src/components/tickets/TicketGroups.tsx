@@ -1,5 +1,5 @@
 import { ChevronDown } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
@@ -10,44 +10,77 @@ import {
 	DropdownMenuItem,
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
 import { StatusAlert } from "@/components/ui/status-alert";
 import { useActiveModel } from "@/hooks/useActiveModel";
 import { useClusters } from "@/hooks/useClusters";
-import type { KBStatus, PeriodFilter } from "@/types/cluster";
+import { useDebounce } from "@/hooks/useDebounce";
+import {
+	KB_FILTER_ALL,
+	KB_STATUSES,
+	type KBStatus,
+	type PeriodFilter,
+} from "@/types/cluster";
+import { TRAINING_STATES } from "@/types/mlModel";
 import { TicketGroupSkeleton } from "./TicketGroupSkeleton";
 import { TicketGroupStat } from "./TicketGroupStat";
 
-type KBFilterOption = KBStatus | "all";
+type KBFilterOption = KBStatus | typeof KB_FILTER_ALL;
+
+const PAGE_SIZE = 9;
 
 export default function TicketGroups() {
 	const { t } = useTranslation("tickets");
 
 	// Filter state
 	const [period, setPeriod] = useState<PeriodFilter>("last90");
-	const [kbFilter, setKbFilter] = useState<KBFilterOption>("all");
+	const [kbFilter, setKbFilter] = useState<KBFilterOption>(KB_FILTER_ALL);
+
+	// Search state with debounce
+	const [searchInput, setSearchInput] = useState("");
+	const debouncedSearch = useDebounce(searchInput, 500);
+
+	// Cursor pagination state
+	const [cursorHistory, setCursorHistory] = useState<string[]>([]);
+	const [currentCursor, setCurrentCursor] = useState<string | undefined>();
+
+	// Reset cursors when filters change (including search)
+	// biome-ignore lint/correctness/useExhaustiveDependencies: intentionally reset on filter changes
+	useEffect(() => {
+		setCursorHistory([]);
+		setCurrentCursor(undefined);
+	}, [period, kbFilter, debouncedSearch]);
 
 	// Fetch active model to check training state
 	const { data: activeModel, isLoading: isModelLoading } = useActiveModel();
 	const trainingState = activeModel?.metadata?.training_state;
 	const hasNoModel = !isModelLoading && activeModel === null;
-	const isTraining = trainingState === "in_progress";
-	const isFailed = trainingState === "failed";
-	const canShowClusters = trainingState === "complete";
+	const isTraining = trainingState === TRAINING_STATES.IN_PROGRESS;
+	const isFailed = trainingState === TRAINING_STATES.FAILED;
+	const canShowClusters = trainingState === TRAINING_STATES.COMPLETE;
 
-	// Fetch clusters only when model training is complete
+	// kb_status now goes to server (not client filtering)
+	const kbStatusParam = kbFilter === KB_FILTER_ALL ? undefined : kbFilter;
+
+	// Fetch clusters with server-side filters and pagination
 	const {
-		data: clusters,
+		data: clustersResponse,
 		isLoading: isClustersLoading,
 		error,
-	} = useClusters({ period, enabled: canShowClusters });
+	} = useClusters({
+		period,
+		limit: PAGE_SIZE,
+		cursor: currentCursor,
+		kb_status: kbStatusParam,
+		search: debouncedSearch || undefined,
+		enabled: canShowClusters,
+	});
 
-	// Client-side kb_status filtering
-	const filteredClusters = useMemo(() => {
-		if (!clusters) return [];
-		if (kbFilter === "all") return clusters;
-		return clusters.filter((c) => c.kb_status === kbFilter);
-	}, [clusters, kbFilter]);
+	const clusters = clustersResponse?.data ?? [];
+	const pagination = clustersResponse?.pagination;
+	const hasNextPage = pagination?.has_more ?? false;
+	const hasPrevPage = cursorHistory.length > 0;
 
 	// Period display labels
 	const periodLabels: Record<PeriodFilter, string> = {
@@ -59,10 +92,10 @@ export default function TicketGroups() {
 
 	// KB filter display labels
 	const kbFilterLabels: Record<KBFilterOption, string> = {
-		all: t("groups.filterOptions.all"),
-		FOUND: t("groups.filterOptions.knowledgeFound"),
-		GAP: t("groups.filterOptions.knowledgeGap"),
-		PENDING: t("groups.filterOptions.pending"),
+		[KB_FILTER_ALL]: t("groups.filterOptions.all"),
+		[KB_STATUSES.FOUND]: t("groups.filterOptions.knowledgeFound"),
+		[KB_STATUSES.GAP]: t("groups.filterOptions.knowledgeGap"),
+		[KB_STATUSES.PENDING]: t("groups.filterOptions.pending"),
 	};
 
 	// Build display title from name + subcluster_name
@@ -71,6 +104,20 @@ export default function TicketGroups() {
 			return `${name} - ${subclusterName}`;
 		}
 		return name;
+	};
+
+	// Navigation handlers
+	const handleNextPage = () => {
+		if (pagination?.next_cursor) {
+			setCursorHistory((prev) => [...prev, currentCursor ?? ""]);
+			setCurrentCursor(pagination.next_cursor);
+		}
+	};
+
+	const handlePrevPage = () => {
+		const prevCursor = cursorHistory[cursorHistory.length - 1];
+		setCursorHistory((prev) => prev.slice(0, -1));
+		setCurrentCursor(prevCursor || undefined);
 	};
 
 	// Show spinner while checking model state initially
@@ -82,8 +129,11 @@ export default function TicketGroups() {
 		);
 	}
 
-	// Show spinner while loading clusters (model training complete)
-	if (canShowClusters && isClustersLoading) {
+	// Show spinner only on initial load (no cached data)
+	// Don't show during refetches to avoid losing search input focus
+	const isInitialLoading =
+		canShowClusters && isClustersLoading && !clustersResponse;
+	if (isInitialLoading) {
 		return (
 			<div className="flex min-h-[400px] w-full items-center justify-center">
 				<Spinner className="size-8 text-muted-foreground" />
@@ -99,8 +149,6 @@ export default function TicketGroups() {
 		);
 	}
 
-	const totalCount = filteredClusters.length;
-
 	return (
 		<div className="flex min-h-screen w-full flex-col items-center">
 			<div className="flex w-full items-start justify-center py-6">
@@ -111,7 +159,7 @@ export default function TicketGroups() {
 								<h1 className="text-base font-bold text-card-foreground">
 									{t("page.title")}
 								</h1>
-								<Badge variant="outline">{totalCount}</Badge>
+								<Badge variant="outline">{clusters.length}</Badge>
 							</div>
 							<p className="text-sm text-muted-foreground">
 								{t("page.subtitle", {
@@ -119,7 +167,7 @@ export default function TicketGroups() {
 								})}
 							</p>
 						</div>
-						<div className="flex gap-2">
+						<div className="flex flex-wrap gap-2">
 							{/* Period dropdown */}
 							<DropdownMenu>
 								<DropdownMenuTrigger asChild>
@@ -153,17 +201,31 @@ export default function TicketGroups() {
 									</Button>
 								</DropdownMenuTrigger>
 								<DropdownMenuContent>
-									{(["all", "FOUND", "GAP", "PENDING"] as KBFilterOption[]).map(
-										(k) => (
-											<DropdownMenuItem key={k} onClick={() => setKbFilter(k)}>
-												{kbFilterLabels[k]}
-											</DropdownMenuItem>
-										),
-									)}
+									{(
+										[
+											KB_FILTER_ALL,
+											KB_STATUSES.FOUND,
+											KB_STATUSES.GAP,
+											KB_STATUSES.PENDING,
+										] as KBFilterOption[]
+									).map((k) => (
+										<DropdownMenuItem key={k} onClick={() => setKbFilter(k)}>
+											{kbFilterLabels[k]}
+										</DropdownMenuItem>
+									))}
 								</DropdownMenuContent>
 							</DropdownMenu>
 						</div>
 					</div>
+
+					{/* Search input row */}
+					<Input
+						placeholder={t("groups.searchPlaceholder")}
+						className="max-w-sm"
+						value={searchInput}
+						onChange={(e) => setSearchInput(e.target.value)}
+						disabled={hasNoModel || isTraining}
+					/>
 
 					{hasNoModel ? (
 						// No model: show connect source empty state
@@ -207,18 +269,47 @@ export default function TicketGroups() {
 								))}
 							</div>
 						</div>
-					) : filteredClusters.length > 0 ? (
-						<div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3">
-							{filteredClusters.map((cluster) => (
-								<TicketGroupStat
-									key={cluster.id}
-									id={cluster.id}
-									title={getDisplayTitle(cluster.name, cluster.subcluster_name)}
-									count={cluster.ticket_count}
-									knowledgeStatus={cluster.kb_status}
-								/>
-							))}
-						</div>
+					) : clusters.length > 0 ? (
+						<>
+							<div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3">
+								{clusters.map((cluster) => (
+									<TicketGroupStat
+										key={cluster.id}
+										id={cluster.id}
+										title={getDisplayTitle(
+											cluster.name,
+											cluster.subcluster_name,
+										)}
+										count={cluster.ticket_count}
+										knowledgeStatus={cluster.kb_status}
+									/>
+								))}
+							</div>
+
+							{/* Pagination */}
+							{(hasPrevPage || hasNextPage) && (
+								<div className="flex items-center justify-end py-4">
+									<div className="flex gap-2">
+										<Button
+											variant="outline"
+											size="sm"
+											onClick={handlePrevPage}
+											disabled={!hasPrevPage}
+										>
+											{t("groups.pagination.previous")}
+										</Button>
+										<Button
+											variant="outline"
+											size="sm"
+											onClick={handleNextPage}
+											disabled={!hasNextPage}
+										>
+											{t("groups.pagination.next")}
+										</Button>
+									</div>
+								</div>
+							)}
+						</>
 					) : (
 						<div className="flex min-h-[200px] items-center justify-center">
 							<p className="text-muted-foreground">{t("groups.noGroups")}</p>

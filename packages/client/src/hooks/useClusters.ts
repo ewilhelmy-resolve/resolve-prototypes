@@ -1,4 +1,8 @@
-import { useQuery } from "@tanstack/react-query";
+import {
+	keepPreviousData,
+	useInfiniteQuery,
+	useQuery,
+} from "@tanstack/react-query";
 import { clustersApi, ticketsApi } from "@/services/api";
 import type {
 	ClustersQueryParams,
@@ -35,9 +39,18 @@ interface UseClustersOptions extends ClustersQueryParams {
 }
 
 /**
+ * Options for useInfiniteClusters hook
+ */
+interface UseInfiniteClustersOptions
+	extends Omit<ClustersQueryParams, "cursor"> {
+	/** Whether the query should be enabled (default: true) */
+	enabled?: boolean;
+}
+
+/**
  * List all clusters for the organization
- * @param options - Query params (sort, period) and enabled flag
- * @returns Query with array of clusters
+ * @param options - Query params (sort, period, limit, cursor, kb_status, search) and enabled flag
+ * @returns Query with clusters and pagination info
  */
 export function useClusters(options?: UseClustersOptions) {
 	const { enabled = true, ...params } = options ?? {};
@@ -46,9 +59,37 @@ export function useClusters(options?: UseClustersOptions) {
 		queryKey: clusterKeys.list(params),
 		queryFn: async () => {
 			const response = await clustersApi.list(params);
-			return response.data;
+			return response; // Returns { data, pagination }
 		},
 		staleTime: 30000, // 30 seconds
+		placeholderData: keepPreviousData, // Keep previous data while fetching to avoid focus loss
+		enabled,
+	});
+}
+
+/**
+ * List clusters with infinite scroll pagination
+ * @param options - Query params (sort, period, limit, kb_status, search) and enabled flag
+ * @returns Infinite query with clusters pages and pagination helpers
+ */
+export function useInfiniteClusters(options?: UseInfiniteClustersOptions) {
+	const { enabled = true, ...params } = options ?? {};
+
+	return useInfiniteQuery({
+		queryKey: [...clusterKeys.lists(), "infinite", params],
+		queryFn: async ({ pageParam }) => {
+			const response = await clustersApi.list({
+				...params,
+				cursor: pageParam,
+			});
+			return response;
+		},
+		initialPageParam: undefined as string | undefined,
+		getNextPageParam: (lastPage) =>
+			lastPage.pagination.has_more
+				? lastPage.pagination.next_cursor
+				: undefined,
+		staleTime: 30000,
 		enabled,
 	});
 }
