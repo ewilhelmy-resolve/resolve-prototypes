@@ -29,7 +29,7 @@
 				"hooks": [
 					{
 						"type": "command",
-						"command": "cd \"$CLAUDE_PROJECT_DIR\" && pnpm run type-check"
+						"command": "cd \"$CLAUDE_PROJECT_DIR\" && pnpm run type-check && if echo \"$TOOL_INPUT\" | grep -qE 'packages/api-server/src/(routes|schemas|docs)/'; then pnpm --filter rita-api-server docs:generate; fi"
 					}
 				]
 			}
