@@ -86,7 +86,7 @@ function RitaToast(props: ToastProps) {
 				<div className="ml-5 shrink-0">
 					<button
 						className={cn(
-							"rounded px-3 py-1 text-sm font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2",
+							"rounded px-3 py-1 text-sm font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 cursor-pointer",
 							config.buttonClass,
 						)}
 						onClick={() => {

@@ -350,6 +350,39 @@ export class IframeService {
 	}
 
 	/**
+	 * Send UI action back to platform
+	 * Used by SchemaRenderer when user interacts with dynamic UI components
+	 * TODO: Integrate with WorkflowExecutionService to call Actions API
+	 */
+	async sendUIAction(payload: {
+		action: string;
+		data?: Record<string, unknown>;
+		messageId: string;
+		conversationId: string;
+		timestamp: string;
+	}): Promise<void> {
+		// For now, log the action. In production, this would:
+		// 1. Look up the webhook config for this conversation
+		// 2. Call the Actions API with the action payload
+		// 3. Handle the response/error
+		logger.info(
+			{
+				action: payload.action,
+				messageId: payload.messageId,
+				conversationId: payload.conversationId,
+				hasData: !!payload.data,
+				dataKeys: payload.data ? Object.keys(payload.data) : [],
+			},
+			"UI action received - forwarding to platform",
+		);
+
+		// TODO: Implement webhook call to Actions API
+		// const session = await this.sessionStore.getSessionByConversationId(payload.conversationId);
+		// const workflowService = getWorkflowExecutionService();
+		// await workflowService.sendUIAction(session.iframeWebhookConfig, payload);
+	}
+
+	/**
 	 * Create a conversation for iframe user
 	 * Uses JIT provisioning to map Jarvis IDs → Rita IDs
 	 * Conversation reuse is via activityId (activity_contexts table), not sessionKey

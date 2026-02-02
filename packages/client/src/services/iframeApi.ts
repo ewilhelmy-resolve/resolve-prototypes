@@ -38,6 +38,19 @@ export interface ExecuteWorkflowResponse {
 	error?: string;
 }
 
+export interface UIActionRequest {
+	action: string;
+	data?: Record<string, unknown>;
+	messageId: string;
+	conversationId: string;
+	timestamp: string;
+}
+
+export interface UIActionResponse {
+	success: boolean;
+	error?: string;
+}
+
 export const iframeApi = {
 	/**
 	 * Validate iframe instantiation and create session
@@ -90,6 +103,21 @@ export const iframeApi = {
 				credentials: "include",
 			},
 		);
+
+		return response.json();
+	},
+
+	/**
+	 * Send UI action back to platform
+	 * Used by SchemaRenderer when user interacts with dynamic UI components
+	 */
+	sendUIAction: async (request: UIActionRequest): Promise<UIActionResponse> => {
+		const response = await fetch(`${API_BASE_URL}/api/iframe/ui-action`, {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			credentials: "include",
+			body: JSON.stringify(request),
+		});
 
 		return response.json();
 	},

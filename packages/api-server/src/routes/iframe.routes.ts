@@ -383,4 +383,53 @@ router.delete("/conversation/:conversationId", async (req, res) => {
 	}
 });
 
+/**
+ * Send UI action back to platform
+ * POST /api/iframe/ui-action
+ *
+ * Used by SchemaRenderer when user interacts with dynamic UI components.
+ * Forwards action payload to platform via webhook.
+ */
+router.post("/ui-action", async (req, res) => {
+	const { action, data, messageId, conversationId, timestamp } = req.body;
+
+	if (!action || !messageId || !conversationId) {
+		res.status(400).json({
+			success: false,
+			error: "Missing required fields: action, messageId, conversationId",
+		});
+		return;
+	}
+
+	try {
+		logger.info(
+			{
+				action,
+				messageId,
+				conversationId,
+				hasData: !!data,
+			},
+			"Processing UI action",
+		);
+
+		const iframeService = getIframeService();
+		await iframeService.sendUIAction({
+			action,
+			data,
+			messageId,
+			conversationId,
+			timestamp,
+		});
+
+		res.json({ success: true });
+	} catch (error) {
+		const err = error as Error;
+		logger.error(
+			{ action, conversationId, error: err.message },
+			"Failed to send UI action",
+		);
+		res.status(500).json({ success: false, error: err.message });
+	}
+});
+
 export default router;

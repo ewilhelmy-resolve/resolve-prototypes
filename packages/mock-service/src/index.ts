@@ -214,7 +214,8 @@ interface MockResponse {
 
 interface MessagePart {
 	type: "text" | "reasoning" | "sources" | "tasks" | "files";
-	[key: string]: any;
+	metadata?: Record<string, unknown>;
+	[key: string]: unknown;
 }
 
 // Track cancelled sync operations to prevent sending sync_completed
@@ -1344,6 +1345,159 @@ The system is performing well overall but requires attention to the identified s
 				},
 			],
 		});
+	} else if (content.startsWith("testmodal")) {
+		// testmodal: UI Schema with modal form for API credentials
+		parts.push({
+			type: "text",
+			text: `## API Configuration
+
+Configure your service credentials below.`,
+			metadata: {
+				ui_schema: {
+					version: "1",
+					components: [
+						{
+							type: "card",
+							title: "ServiceNow Connection",
+							description: "Connect to your ServiceNow instance",
+							children: [
+								{
+									type: "row",
+									gap: 8,
+									children: [
+										{
+											type: "button",
+											label: "Configure Credentials",
+											opensModal: "credentials-modal",
+										},
+										{
+											type: "button",
+											label: "Test Connection",
+											action: "test-connection",
+											variant: "outline",
+										},
+									],
+								},
+							],
+						},
+					],
+					modals: {
+						"credentials-modal": {
+							title: "ServiceNow Credentials",
+							description:
+								"Enter your ServiceNow instance details to establish connection",
+							size: "lg",
+							children: [
+								{
+									type: "input",
+									name: "hostname",
+									label: "Instance Hostname",
+									placeholder: "your-instance.service-now.com",
+								},
+								{
+									type: "input",
+									name: "username",
+									label: "Username",
+									placeholder: "admin",
+								},
+								{
+									type: "input",
+									name: "apiKey",
+									label: "API Key",
+									inputType: "password",
+									placeholder: "Enter your API key",
+								},
+								{
+									type: "select",
+									name: "environment",
+									label: "Environment",
+									placeholder: "Select environment",
+									options: [
+										{ label: "Production", value: "prod" },
+										{ label: "Staging", value: "staging" },
+										{ label: "Development", value: "dev" },
+									],
+								},
+							],
+							submitAction: "save-credentials",
+							submitLabel: "Save Credentials",
+							cancelLabel: "Cancel",
+						},
+					},
+				},
+			},
+		});
+	} else if (content.startsWith("testforcemodal")) {
+		// testforcemodal: Auto-open modal immediately (forced credential prompt)
+		parts.push({
+			type: "text",
+			text: `## Credential Required
+
+Your session requires authentication. Please enter your credentials.`,
+			metadata: {
+				ui_schema: {
+					version: "1",
+					components: [
+						{
+							type: "card",
+							title: "Authentication Required",
+							description: "This action requires valid credentials to proceed",
+							children: [
+								{
+									type: "text",
+									content:
+										"The credential form has been opened automatically. Please complete authentication to continue.",
+									variant: "muted",
+								},
+								{
+									type: "button",
+									label: "Enter Credentials",
+									opensModal: "auth-modal",
+									variant: "default",
+								},
+							],
+						},
+					],
+					modals: {
+						"auth-modal": {
+							title: "Enter Credentials",
+							description: "Authenticate to continue with this workflow",
+							size: "md",
+							children: [
+								{
+									type: "input",
+									name: "apiEndpoint",
+									label: "API Endpoint",
+									placeholder: "https://api.example.com",
+								},
+								{
+									type: "input",
+									name: "apiKey",
+									label: "API Key",
+									inputType: "password",
+									placeholder: "Enter your API key",
+								},
+								{
+									type: "select",
+									name: "authType",
+									label: "Authentication Type",
+									placeholder: "Select auth type",
+									options: [
+										{ label: "Bearer Token", value: "bearer" },
+										{ label: "API Key Header", value: "api-key" },
+										{ label: "Basic Auth", value: "basic" },
+									],
+								},
+							],
+							submitAction: "authenticate",
+							submitLabel: "Authenticate",
+							cancelLabel: "Cancel",
+						},
+					},
+					autoOpenModal: "auth-modal",
+				},
+			},
+		});
 	} else {
 		// Default scenario - fall back to original logic
 		const useScenario = scenario || MOCK_CONFIG.defaultScenario;
@@ -1680,6 +1834,7 @@ This is a basic response format. Set \`MOCK_SCENARIO\` environment variable to g
 				response: part.text,
 				response_group_id: responseGroupId,
 				metadata: {
+					...part.metadata, // Include part metadata (e.g., ui_schema)
 					turn_complete: isLastPart,
 				},
 			});
