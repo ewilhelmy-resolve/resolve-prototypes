@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Trans, useTranslation } from "react-i18next";
 import RitaLayout from "@/components/layouts/RitaLayout";
 import { MainHeader } from "@/components/MainHeader";
@@ -7,10 +8,12 @@ import TicketGroups from "@/components/tickets/TicketGroups";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useActiveModel } from "@/hooks/useActiveModel";
 import { useClusters } from "@/hooks/useClusters";
+import type { PeriodFilter } from "@/types/cluster";
 import { TRAINING_STATES } from "@/types/mlModel";
 
 export default function ClustersPage() {
 	const { t } = useTranslation("tickets");
+	const [period, setPeriod] = useState<PeriodFilter>("last90");
 
 	// Get training state from active model
 	const { data: activeModel, isLoading: isModelLoading } = useActiveModel();
@@ -25,10 +28,18 @@ export default function ClustersPage() {
 	// NOT when there's no model - that should show empty state
 	const showSkeletons = isModelLoading || isTraining;
 
-	// Only fetch clusters when training is complete (default period: last90)
+	// Period display labels
+	const periodLabels: Record<PeriodFilter, string> = {
+		last30: t("groups.periods.last30Days"),
+		last90: t("groups.periods.last90Days"),
+		last6months: t("groups.periods.last6Months"),
+		lastyear: t("groups.periods.lastYear"),
+	};
+
+	// Only fetch clusters when training is complete
 	const { data: clustersResponse } = useClusters({
 		enabled: canShowData,
-		period: "last90",
+		period,
 	});
 
 	const totals = clustersResponse?.totals;
@@ -47,7 +58,7 @@ export default function ClustersPage() {
 			values={{
 				ticketCount: totalTickets.toLocaleString(),
 				clusterCount,
-				period: t("groups.periods.last90Days").toLowerCase(),
+				period: periodLabels[period].toLowerCase(),
 			}}
 			components={{ strong: <span className="font-semibold" /> }}
 		/>
@@ -83,7 +94,7 @@ export default function ClustersPage() {
 					</StatGroup>
 				}
 			/>
-			<TicketGroups />
+			<TicketGroups period={period} onPeriodChange={setPeriod} />
 		</RitaLayout>
 	);
 }

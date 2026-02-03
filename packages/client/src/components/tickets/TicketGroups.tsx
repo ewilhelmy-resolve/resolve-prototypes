@@ -30,11 +30,16 @@ type KBFilterOption = KBStatus | typeof KB_FILTER_ALL;
 
 const PAGE_SIZE = 9;
 
-export default function TicketGroups() {
-	const { t } = useTranslation("tickets");
+interface TicketGroupsProps {
+	period: PeriodFilter;
+	onPeriodChange: (period: PeriodFilter) => void;
+}
 
-	// Filter state
-	const [period, setPeriod] = useState<PeriodFilter>("last90");
+export default function TicketGroups({
+	period,
+	onPeriodChange,
+}: TicketGroupsProps) {
+	const { t } = useTranslation("tickets");
 	const [kbFilter, setKbFilter] = useState<KBFilterOption>(KB_FILTER_ALL);
 
 	// Search state with debounce
@@ -186,7 +191,7 @@ export default function TicketGroups() {
 											"lastyear",
 										] as PeriodFilter[]
 									).map((p) => (
-										<DropdownMenuItem key={p} onClick={() => setPeriod(p)}>
+										<DropdownMenuItem key={p} onClick={() => onPeriodChange(p)}>
 											{periodLabels[p]}
 										</DropdownMenuItem>
 									))}
