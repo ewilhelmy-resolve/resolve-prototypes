@@ -1,6 +1,6 @@
 {
 	"header": {
-		"description": "Rita learned from <strong>{{ticketCount}}</strong> tickets this month <strong>across {{clusterCount}} issue types</strong>",
+		"description": "Rita learned from <strong>{{ticketCount}}</strong> tickets in the {{period}} <strong>across {{clusterCount}} issue types</strong>",
 		"stats": {
 			"ticketsLast7Days": "Tickets last 7 days",
 			"handledAutomatically": "Handled Automatically",

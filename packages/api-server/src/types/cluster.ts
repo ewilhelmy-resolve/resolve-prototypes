@@ -110,6 +110,14 @@ export interface PaginationInfo {
 }
 
 /**
+ * Totals for cluster list response
+ */
+export interface ClusterTotals {
+	total_clusters: number;
+	total_tickets: number;
+}
+
+/**
  * Sort options for cluster tickets
  */
 export type TicketSortOption = "created_at" | "external_id" | "subject";

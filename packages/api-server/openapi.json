@@ -431,9 +431,12 @@
 					},
 					"pagination": {
 						"$ref": "#/components/schemas/PaginationInfo"
+					},
+					"totals": {
+						"$ref": "#/components/schemas/ClusterTotals"
 					}
 				},
-				"required": ["data", "pagination"]
+				"required": ["data", "pagination", "totals"]
 			},
 			"ClusterListItem": {
 				"type": "object",
@@ -523,6 +526,22 @@
 					}
 				},
 				"required": ["next_cursor", "has_more"]
+			},
+			"ClusterTotals": {
+				"type": "object",
+				"properties": {
+					"total_clusters": {
+						"type": "integer",
+						"description": "Total clusters matching filters",
+						"example": 27
+					},
+					"total_tickets": {
+						"type": "integer",
+						"description": "Total tickets across matching clusters",
+						"example": 238
+					}
+				},
+				"required": ["total_clusters", "total_tickets"]
 			},
 			"ValidationError": {
 				"type": "object",

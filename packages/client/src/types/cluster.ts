@@ -151,11 +151,20 @@ export interface ClusterTicketsQueryParams {
 }
 
 /**
+ * Totals for cluster list response
+ */
+export interface ClusterTotals {
+	total_clusters: number;
+	total_tickets: number;
+}
+
+/**
  * Response for GET /api/clusters
  */
 export interface ClustersResponse {
 	data: ClusterListItem[];
 	pagination: PaginationInfo;
+	totals: ClusterTotals;
 }
 
 /**

@@ -30,11 +30,16 @@ type KBFilterOption = KBStatus | typeof KB_FILTER_ALL;
 
 const PAGE_SIZE = 9;
 
-export default function TicketGroups() {
-	const { t } = useTranslation("tickets");
+interface TicketGroupsProps {
+	period: PeriodFilter;
+	onPeriodChange: (period: PeriodFilter) => void;
+}
 
-	// Filter state
-	const [period, setPeriod] = useState<PeriodFilter>("last90");
+export default function TicketGroups({
+	period,
+	onPeriodChange,
+}: TicketGroupsProps) {
+	const { t } = useTranslation("tickets");
 	const [kbFilter, setKbFilter] = useState<KBFilterOption>(KB_FILTER_ALL);
 
 	// Search state with debounce
@@ -79,6 +84,7 @@ export default function TicketGroups() {
 
 	const clusters = clustersResponse?.data ?? [];
 	const pagination = clustersResponse?.pagination;
+	const totals = clustersResponse?.totals;
 	const hasNextPage = pagination?.has_more ?? false;
 	const hasPrevPage = cursorHistory.length > 0;
 
@@ -159,7 +165,7 @@ export default function TicketGroups() {
 								<h1 className="text-base font-bold text-card-foreground">
 									{t("page.title")}
 								</h1>
-								<Badge variant="outline">{clusters.length}</Badge>
+								<Badge variant="outline">{totals?.total_clusters ?? 0}</Badge>
 							</div>
 							<p className="text-sm text-muted-foreground">
 								{t("page.subtitle", {
@@ -185,7 +191,7 @@ export default function TicketGroups() {
 											"lastyear",
 										] as PeriodFilter[]
 									).map((p) => (
-										<DropdownMenuItem key={p} onClick={() => setPeriod(p)}>
+										<DropdownMenuItem key={p} onClick={() => onPeriodChange(p)}>
 											{periodLabels[p]}
 										</DropdownMenuItem>
 									))}
