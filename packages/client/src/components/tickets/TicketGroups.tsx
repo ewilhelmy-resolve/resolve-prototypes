@@ -79,6 +79,7 @@ export default function TicketGroups() {
 
 	const clusters = clustersResponse?.data ?? [];
 	const pagination = clustersResponse?.pagination;
+	const totals = clustersResponse?.totals;
 	const hasNextPage = pagination?.has_more ?? false;
 	const hasPrevPage = cursorHistory.length > 0;
 
@@ -159,7 +160,7 @@ export default function TicketGroups() {
 								<h1 className="text-base font-bold text-card-foreground">
 									{t("page.title")}
 								</h1>
-								<Badge variant="outline">{clusters.length}</Badge>
+								<Badge variant="outline">{totals?.total_clusters ?? 0}</Badge>
 							</div>
 							<p className="text-sm text-muted-foreground">
 								{t("page.subtitle", {

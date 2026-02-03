@@ -205,10 +205,24 @@ export const KbArticleSchema = z
 // Response Schemas
 // ============================================================================
 
+export const ClusterTotalsSchema = z
+	.object({
+		total_clusters: z
+			.number()
+			.int()
+			.openapi({ description: "Total clusters matching filters", example: 27 }),
+		total_tickets: z.number().int().openapi({
+			description: "Total tickets across matching clusters",
+			example: 238,
+		}),
+	})
+	.openapi("ClusterTotals");
+
 export const ClusterListResponseSchema = z
 	.object({
 		data: z.array(ClusterListItemSchema),
 		pagination: PaginationInfoSchema,
+		totals: ClusterTotalsSchema,
 	})
 	.openapi("ClusterListResponse");
 

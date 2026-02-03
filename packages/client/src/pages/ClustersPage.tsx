@@ -25,12 +25,15 @@ export default function ClustersPage() {
 	// NOT when there's no model - that should show empty state
 	const showSkeletons = isModelLoading || isTraining;
 
-	// Only fetch clusters when training is complete
-	const { data: clustersResponse } = useClusters({ enabled: canShowData });
+	// Only fetch clusters when training is complete (default period: last90)
+	const { data: clustersResponse } = useClusters({
+		enabled: canShowData,
+		period: "last90",
+	});
 
-	const clusters = clustersResponse?.data ?? [];
-	const totalTickets = clusters.reduce((sum, c) => sum + c.ticket_count, 0);
-	const clusterCount = clusters.length;
+	const totals = clustersResponse?.totals;
+	const totalTickets = totals?.total_tickets ?? 0;
+	const clusterCount = totals?.total_clusters ?? 0;
 
 	// Header description: skeleton when loading/training, empty string when no model, real data otherwise
 	const headerDescription = showSkeletons ? (
@@ -44,6 +47,7 @@ export default function ClustersPage() {
 			values={{
 				ticketCount: totalTickets.toLocaleString(),
 				clusterCount,
+				period: t("groups.periods.last90Days").toLowerCase(),
 			}}
 			components={{ strong: <span className="font-semibold" /> }}
 		/>

@@ -5,6 +5,7 @@ import type {
 	ClusterListItem,
 	ClusterListQueryOptions,
 	ClusterTicketsQueryOptions,
+	ClusterTotals,
 	KBStatus,
 	KbArticle,
 	PaginationInfo,
@@ -77,7 +78,11 @@ export class ClusterService {
 	async getClusters(
 		organizationId: string,
 		options: ClusterListQueryOptions = {},
-	): Promise<{ clusters: ClusterListItem[]; pagination: PaginationInfo }> {
+	): Promise<{
+		clusters: ClusterListItem[];
+		pagination: PaginationInfo;
+		totals: ClusterTotals;
+	}> {
 		const sort = options.sort || "recent";
 		const period = options.period;
 		const includeInactive = options.includeInactive || false;
@@ -254,11 +259,62 @@ export class ClusterService {
 			updated_at: row.updated_at as Date,
 		}));
 
+		// Build totals query (same filters, no pagination)
+		let totalsTicketSubquery = db
+			.selectFrom("tickets as t")
+			.select(["t.cluster_id", sql<number>`COUNT(*)`.as("cnt")]);
+
+		if (dateCutoff) {
+			totalsTicketSubquery = totalsTicketSubquery.where(
+				"t.created_at",
+				">=",
+				dateCutoff,
+			);
+		}
+
+		const totalsTicketCounts = totalsTicketSubquery
+			.groupBy("t.cluster_id")
+			.as("ttc");
+
+		let totalsQuery = db
+			.selectFrom("clusters as c")
+			.innerJoin("ml_models as m", "m.id", "c.model_id")
+			.leftJoin(totalsTicketCounts, "ttc.cluster_id", "c.id")
+			.select([
+				sql<number>`COUNT(DISTINCT c.id)`.as("total_clusters"),
+				sql<number>`COALESCE(SUM(ttc.cnt), 0)`.as("total_tickets"),
+			])
+			.where("c.organization_id", "=", organizationId);
+
+		if (!includeInactive) {
+			totalsQuery = totalsQuery.where("m.active", "=", true);
+		}
+
+		if (options.kbStatus) {
+			totalsQuery = totalsQuery.where("c.kb_status", "=", options.kbStatus);
+		}
+
+		if (options.search) {
+			const searchPattern = `%${options.search}%`;
+			totalsQuery = totalsQuery.where((eb) =>
+				eb.or([
+					eb("c.name", "ilike", searchPattern),
+					eb("c.subcluster_name", "ilike", searchPattern),
+				]),
+			);
+		}
+
+		const totalsResult = await totalsQuery.executeTakeFirst();
+
 		return {
 			clusters,
 			pagination: {
 				next_cursor: nextCursor,
 				has_more: hasMore,
+			},
+			totals: {
+				total_clusters: Number(totalsResult?.total_clusters ?? 0),
+				total_tickets: Number(totalsResult?.total_tickets ?? 0),
 			},
 		};
 	}

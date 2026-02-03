@@ -189,6 +189,7 @@ router.get("/", async (req, res) => {
 		res.json({
 			data: result.clusters,
 			pagination: result.pagination,
+			totals: result.totals,
 		});
 	} catch (error) {
 		if (error instanceof z.ZodError) {
