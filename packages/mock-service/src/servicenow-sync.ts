@@ -453,8 +453,36 @@ export async function syncServiceNowData(
 		logger.debug({ clusterCount: clusterMap.size }, "Clusters created/updated");
 
 		// 3. Create tickets with weighted distribution (5-15 per cluster)
+		// Spread tickets across different time periods for testing filters
 		let ticketNum = 10001;
 		let ticketsCreated = 0;
+
+		// Date ranges for testing period filters
+		const getRandomCreatedAt = (): Date => {
+			const now = new Date();
+			const rand = Math.random();
+			if (rand < 0.3) {
+				// 30% in last 30 days
+				return new Date(
+					now.getTime() - Math.random() * 30 * 24 * 60 * 60 * 1000,
+				);
+			} else if (rand < 0.5) {
+				// 20% in 30-90 days ago
+				return new Date(
+					now.getTime() - (30 + Math.random() * 60) * 24 * 60 * 60 * 1000,
+				);
+			} else if (rand < 0.75) {
+				// 25% in 90 days - 6 months ago
+				return new Date(
+					now.getTime() - (90 + Math.random() * 90) * 24 * 60 * 60 * 1000,
+				);
+			} else {
+				// 25% in 6 months - 1 year ago
+				return new Date(
+					now.getTime() - (180 + Math.random() * 185) * 24 * 60 * 60 * 1000,
+				);
+			}
+		};
 
 		for (const [clusterName, clusterId] of clusterMap) {
 			const ticketsPerCluster = 5 + Math.floor(Math.random() * 11); // 5-15
@@ -463,12 +491,13 @@ export async function syncServiceNowData(
 				const subject = getRandomSubject(clusterName);
 				const externalId = `INC00${ticketNum}`;
 				const sourceMetadata = generateSourceMetadata(ticketNum, subject);
+				const createdAt = getRandomCreatedAt();
 
 				const insertResult = await client.query(
 					`INSERT INTO tickets (
             organization_id, cluster_id, data_source_connection_id,
-            external_id, subject, external_status, rita_status, source_metadata
-          ) VALUES ($1, $2, $3, $4, $5, 'New', 'NEEDS_RESPONSE', $6)
+            external_id, subject, external_status, rita_status, source_metadata, created_at
+          ) VALUES ($1, $2, $3, $4, $5, 'New', 'NEEDS_RESPONSE', $6, $7)
           ON CONFLICT (organization_id, external_id) DO NOTHING`,
 					[
 						organizationId,
@@ -477,6 +506,7 @@ export async function syncServiceNowData(
 						externalId,
 						subject,
 						JSON.stringify(sourceMetadata),
+						createdAt,
 					],
 				);
 
