@@ -1,17 +1,19 @@
-import { useTranslation } from "react-i18next";
-import { useState } from "react";
-import { useParams, Link } from "react-router-dom";
 import { ChevronLeft, Loader2 } from "lucide-react";
+import { useState } from "react";
+import { useTranslation } from "react-i18next";
+import { Link, useParams } from "react-router-dom";
 import RitaLayout from "@/components/layouts/RitaLayout";
-import { Button } from "@/components/ui/button";
-import TicketDetailsCard from "@/components/tickets/TicketDetailsCard";
-import { TicketDetailHeader } from "@/components/tickets/TicketDetailHeader";
 import ReviewAIResponseSheet from "@/components/tickets/ReviewAIResponseSheet";
+import { TicketDetailHeader } from "@/components/tickets/TicketDetailHeader";
 import type { TicketPriority } from "@/components/tickets/TicketDetailsCard";
-import { useTicket, useClusterTickets } from "@/hooks/useClusters";
+import TicketDetailsCard from "@/components/tickets/TicketDetailsCard";
+import { Button } from "@/components/ui/button";
+import { useClusterTickets, useTicket } from "@/hooks/useClusters";
 
 // Extract priority from source_metadata or default to medium
-const getPriorityFromMetadata = (metadata: Record<string, unknown>): TicketPriority => {
+const getPriorityFromMetadata = (
+	metadata: Record<string, unknown>,
+): TicketPriority => {
 	const priority = metadata?.priority as string | undefined;
 	if (priority && ["low", "medium", "high", "critical"].includes(priority)) {
 		return priority as TicketPriority;
@@ -21,9 +23,14 @@ const getPriorityFromMetadata = (metadata: Record<string, unknown>): TicketPrior
 
 export default function TicketDetailPage() {
 	const { t } = useTranslation("tickets");
-	const { clusterId, ticketId } = useParams<{ clusterId: string; ticketId: string }>();
+	const { clusterId, ticketId } = useParams<{
+		clusterId: string;
+		ticketId: string;
+	}>();
 	const { data: ticket, isLoading, error } = useTicket(ticketId);
-	const { data: clusterTicketsData } = useClusterTickets(clusterId, { limit: 100 });
+	const { data: clusterTicketsData } = useClusterTickets(clusterId, {
+		limit: 100,
+	});
 	const [reviewSheetOpen, setReviewSheetOpen] = useState(false);
 
 	// Get ticket IDs from cluster for navigation
@@ -59,7 +66,7 @@ export default function TicketDetailPage() {
 	const ticketForCard = {
 		id: ticket.external_id,
 		title: ticket.subject,
-		description: ticket.cluster_text || "No description available.",
+		description: ticket.description || "No description available.",
 		priority: getPriorityFromMetadata(ticket.source_metadata),
 	};
 
@@ -99,13 +106,15 @@ export default function TicketDetailPage() {
 					open={reviewSheetOpen}
 					onOpenChange={setReviewSheetOpen}
 					ticketGroupId={clusterId}
-					tickets={[{
-						id: ticket.id,
-						externalId: ticket.external_id,
-						title: ticket.subject,
-						description: ticket.cluster_text || "No description available.",
-						priority: ticketForCard.priority,
-					}]}
+					tickets={[
+						{
+							id: ticket.id,
+							externalId: ticket.external_id,
+							title: ticket.subject,
+							description: ticket.description || "No description available.",
+							priority: ticketForCard.priority,
+						},
+					]}
 					currentIndex={0}
 					onNavigate={() => {}}
 					onApprove={handleApprove}

@@ -31,6 +31,9 @@ export const TicketSchema = z
 			description: "Ticket subject/title",
 			example: "Password reset request",
 		}),
+		description: z.string().nullable().openapi({
+			description: "Human-readable ticket description",
+		}),
 		external_status: z.string().openapi({
 			description: "Status from ITSM system",
 			example: "Open",
