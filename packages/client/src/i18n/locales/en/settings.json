@@ -191,7 +191,9 @@
 		"lastSync": "Last sync: {{time}}",
 		"comingSoon": "Coming Soon",
 		"configure": "Configure",
-		"manage": "Manage"
+		"manage": "Manage",
+		"trainingInProgress": "Model training in progress",
+		"trainingDescription": "Rita is analyzing your tickets to create ticket groups. This usually takes a few minutes."
 	},
 	"errors": {
 		"loadDataSourcesFailed": "Failed to load data sources",

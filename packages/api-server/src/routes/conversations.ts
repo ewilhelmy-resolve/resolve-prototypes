@@ -9,8 +9,26 @@
  * See types/webhook.ts for ChatWebhookSource type definition.
  */
 import express from "express";
+import { z } from "zod";
 import { withOrgContext } from "../config/database.js";
+import { registry } from "../docs/openapi.js";
 import { authenticateUser } from "../middleware/auth.js";
+import {
+	ErrorResponseSchema,
+	ValidationErrorSchema,
+} from "../schemas/common.js";
+import {
+	ConversationResponseSchema,
+	ConversationsListResponseSchema,
+	CreateConversationSchema,
+	CreateMessageSchema,
+	DeleteConversationResponseSchema,
+	GetMessagesQuerySchema,
+	ListConversationsQuerySchema,
+	MessageCreatedResponseSchema,
+	MessagesResponseSchema,
+	UpdateConversationSchema,
+} from "../schemas/conversation.js";
 import { getSessionStore } from "../services/sessionStore.js";
 import { WebhookService } from "../services/WebhookService.js";
 import type { AuthenticatedRequest } from "../types/express.js";
@@ -18,6 +36,225 @@ import type { WebhookResponse } from "../types/webhook.js";
 
 const router = express.Router();
 const webhookService = new WebhookService();
+
+// ============================================================================
+// OpenAPI Documentation Registration
+// ============================================================================
+
+registry.registerPath({
+	method: "post",
+	path: "/api/conversations",
+	tags: ["Conversations"],
+	summary: "Create conversation",
+	description: "Create a new chat conversation",
+	security: [{ bearerAuth: [] }, { cookieAuth: [] }],
+	request: {
+		body: {
+			content: { "application/json": { schema: CreateConversationSchema } },
+		},
+	},
+	responses: {
+		201: {
+			description: "Conversation created",
+			content: { "application/json": { schema: ConversationResponseSchema } },
+		},
+		400: {
+			description: "Validation error",
+			content: { "application/json": { schema: ValidationErrorSchema } },
+		},
+		401: {
+			description: "Unauthorized",
+			content: { "application/json": { schema: ErrorResponseSchema } },
+		},
+		500: {
+			description: "Server error",
+			content: { "application/json": { schema: ErrorResponseSchema } },
+		},
+	},
+});
+
+registry.registerPath({
+	method: "get",
+	path: "/api/conversations",
+	tags: ["Conversations"],
+	summary: "List conversations",
+	description: "List user's chat conversations with pagination",
+	security: [{ bearerAuth: [] }, { cookieAuth: [] }],
+	request: { query: ListConversationsQuerySchema },
+	responses: {
+		200: {
+			description: "List of conversations",
+			content: {
+				"application/json": { schema: ConversationsListResponseSchema },
+			},
+		},
+		401: {
+			description: "Unauthorized",
+			content: { "application/json": { schema: ErrorResponseSchema } },
+		},
+		500: {
+			description: "Server error",
+			content: { "application/json": { schema: ErrorResponseSchema } },
+		},
+	},
+});
+
+registry.registerPath({
+	method: "get",
+	path: "/api/conversations/{conversationId}/messages",
+	tags: ["Conversations"],
+	summary: "Get conversation messages",
+	description:
+		"Get paginated messages for a conversation using cursor-based pagination",
+	security: [{ bearerAuth: [] }, { cookieAuth: [] }],
+	request: {
+		params: z.object({
+			conversationId: z
+				.string()
+				.uuid()
+				.openapi({ description: "Conversation ID" }),
+		}),
+		query: GetMessagesQuerySchema,
+	},
+	responses: {
+		200: {
+			description: "List of messages",
+			content: { "application/json": { schema: MessagesResponseSchema } },
+		},
+		401: {
+			description: "Unauthorized",
+			content: { "application/json": { schema: ErrorResponseSchema } },
+		},
+		404: {
+			description: "Conversation not found",
+			content: { "application/json": { schema: ErrorResponseSchema } },
+		},
+		500: {
+			description: "Server error",
+			content: { "application/json": { schema: ErrorResponseSchema } },
+		},
+	},
+});
+
+registry.registerPath({
+	method: "post",
+	path: "/api/conversations/{conversationId}/messages",
+	tags: ["Conversations"],
+	summary: "Send message",
+	description:
+		"Send a new message to a conversation. Triggers webhook for processing.",
+	security: [{ bearerAuth: [] }, { cookieAuth: [] }],
+	request: {
+		params: z.object({
+			conversationId: z
+				.string()
+				.uuid()
+				.openapi({ description: "Conversation ID" }),
+		}),
+		body: { content: { "application/json": { schema: CreateMessageSchema } } },
+	},
+	responses: {
+		201: {
+			description: "Message sent",
+			content: { "application/json": { schema: MessageCreatedResponseSchema } },
+		},
+		400: {
+			description: "Validation error",
+			content: { "application/json": { schema: ValidationErrorSchema } },
+		},
+		401: {
+			description: "Unauthorized",
+			content: { "application/json": { schema: ErrorResponseSchema } },
+		},
+		404: {
+			description: "Conversation not found",
+			content: { "application/json": { schema: ErrorResponseSchema } },
+		},
+		500: {
+			description: "Server error",
+			content: { "application/json": { schema: ErrorResponseSchema } },
+		},
+	},
+});
+
+registry.registerPath({
+	method: "patch",
+	path: "/api/conversations/{conversationId}",
+	tags: ["Conversations"],
+	summary: "Update conversation",
+	description: "Update conversation title",
+	security: [{ bearerAuth: [] }, { cookieAuth: [] }],
+	request: {
+		params: z.object({
+			conversationId: z
+				.string()
+				.uuid()
+				.openapi({ description: "Conversation ID" }),
+		}),
+		body: {
+			content: { "application/json": { schema: UpdateConversationSchema } },
+		},
+	},
+	responses: {
+		200: {
+			description: "Conversation updated",
+			content: { "application/json": { schema: ConversationResponseSchema } },
+		},
+		400: {
+			description: "Validation error",
+			content: { "application/json": { schema: ValidationErrorSchema } },
+		},
+		401: {
+			description: "Unauthorized",
+			content: { "application/json": { schema: ErrorResponseSchema } },
+		},
+		404: {
+			description: "Conversation not found",
+			content: { "application/json": { schema: ErrorResponseSchema } },
+		},
+		500: {
+			description: "Server error",
+			content: { "application/json": { schema: ErrorResponseSchema } },
+		},
+	},
+});
+
+registry.registerPath({
+	method: "delete",
+	path: "/api/conversations/{conversationId}",
+	tags: ["Conversations"],
+	summary: "Delete conversation",
+	description: "Delete a conversation and all its messages",
+	security: [{ bearerAuth: [] }, { cookieAuth: [] }],
+	request: {
+		params: z.object({
+			conversationId: z
+				.string()
+				.uuid()
+				.openapi({ description: "Conversation ID" }),
+		}),
+	},
+	responses: {
+		200: {
+			description: "Conversation deleted",
+			content: {
+				"application/json": { schema: DeleteConversationResponseSchema },
+			},
+		},
+		401: {
+			description: "Unauthorized",
+			content: { "application/json": { schema: ErrorResponseSchema } },
+		},
+		404: {
+			description: "Conversation not found",
+			content: { "application/json": { schema: ErrorResponseSchema } },
+		},
+		500: {
+			description: "Server error",
+			content: { "application/json": { schema: ErrorResponseSchema } },
+		},
+	},
+});
 
 // Configuration: Maximum conversations per user before automatic cleanup
 const MAX_CONVERSATIONS_PER_USER = parseInt(
@@ -29,11 +266,7 @@ const MAX_CONVERSATIONS_PER_USER = parseInt(
 router.post("/", authenticateUser, async (req, res) => {
 	const authReq = req as AuthenticatedRequest;
 	try {
-		const { title } = req.body;
-
-		if (!title || title.trim().length === 0) {
-			return res.status(400).json({ error: "Conversation title is required" });
-		}
+		const { title } = CreateConversationSchema.parse(req.body);
 
 		const result = await withOrgContext(
 			authReq.user.id,
@@ -87,6 +320,11 @@ router.post("/", authenticateUser, async (req, res) => {
 
 		res.status(201).json({ conversation: result });
 	} catch (error) {
+		if (error instanceof z.ZodError) {
+			return res
+				.status(400)
+				.json({ error: "Validation error", details: error.issues });
+		}
 		console.error("Error creating conversation:", error);
 		res.status(500).json({ error: "Failed to create conversation" });
 	}
@@ -96,8 +334,9 @@ router.post("/", authenticateUser, async (req, res) => {
 router.get("/", authenticateUser, async (req, res) => {
 	const authReq = req as AuthenticatedRequest;
 	try {
-		const limit = parseInt(req.query.limit as string, 10) || 100;
-		const offset = parseInt(req.query.offset as string, 10) || 0;
+		const { limit = 20, offset = 0 } = ListConversationsQuerySchema.parse(
+			req.query,
+		);
 
 		const result = await withOrgContext(
 			authReq.user.id,
@@ -136,6 +375,11 @@ router.get("/", authenticateUser, async (req, res) => {
 
 		res.json(result);
 	} catch (error) {
+		if (error instanceof z.ZodError) {
+			return res
+				.status(400)
+				.json({ error: "Validation error", details: error.issues });
+		}
 		console.error("Error fetching conversations:", error);
 		res.status(500).json({ error: "Failed to fetch conversations" });
 	}
@@ -146,8 +390,7 @@ router.get("/:conversationId/messages", authenticateUser, async (req, res) => {
 	const authReq = req as AuthenticatedRequest;
 	try {
 		const { conversationId } = req.params;
-		const limit = parseInt(req.query.limit as string, 10) || 100;
-		const before = req.query.before as string | undefined; // ISO timestamp cursor for older messages
+		const { limit = 100, before } = GetMessagesQuerySchema.parse(req.query);
 
 		const result = await withOrgContext(
 			authReq.user.id,
@@ -251,6 +494,11 @@ router.get("/:conversationId/messages", authenticateUser, async (req, res) => {
 
 		res.json(result);
 	} catch (error) {
+		if (error instanceof z.ZodError) {
+			return res
+				.status(400)
+				.json({ error: "Validation error", details: error.issues });
+		}
 		console.error("Error fetching messages for conversation:", error);
 		res.status(500).json({ error: "Failed to fetch messages" });
 	}
@@ -261,11 +509,7 @@ router.post("/:conversationId/messages", authenticateUser, async (req, res) => {
 	const authReq = req as AuthenticatedRequest;
 	try {
 		const { conversationId } = req.params;
-		const { content } = req.body;
-
-		if (!content || content.trim().length === 0) {
-			return res.status(400).json({ error: "Message content is required" });
-		}
+		const { content } = CreateMessageSchema.parse(req.body);
 
 		const result = await withOrgContext(
 			authReq.user.id,
@@ -454,6 +698,11 @@ router.post("/:conversationId/messages", authenticateUser, async (req, res) => {
 			},
 		});
 	} catch (error) {
+		if (error instanceof z.ZodError) {
+			return res
+				.status(400)
+				.json({ error: "Validation error", details: error.issues });
+		}
 		console.error("Error creating message:", error);
 		res.status(500).json({ error: "Failed to create message" });
 	}
@@ -464,11 +713,7 @@ router.patch("/:conversationId", authenticateUser, async (req, res) => {
 	const authReq = req as AuthenticatedRequest;
 	try {
 		const { conversationId } = req.params;
-		const { title } = req.body;
-
-		if (!title || title.trim().length === 0) {
-			return res.status(400).json({ error: "Conversation title is required" });
-		}
+		const { title } = UpdateConversationSchema.parse(req.body);
 
 		const result = await withOrgContext(
 			authReq.user.id,
@@ -510,6 +755,11 @@ router.patch("/:conversationId", authenticateUser, async (req, res) => {
 
 		res.json({ conversation: result });
 	} catch (error) {
+		if (error instanceof z.ZodError) {
+			return res
+				.status(400)
+				.json({ error: "Validation error", details: error.issues });
+		}
 		console.error("Error updating conversation:", error);
 		res.status(500).json({ error: "Failed to update conversation" });
 	}

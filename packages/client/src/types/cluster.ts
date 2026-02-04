@@ -7,6 +7,20 @@
 export type KBStatus = "PENDING" | "FOUND" | "GAP";
 
 /**
+ * KB status constants for type-safe comparisons
+ */
+export const KB_STATUSES = {
+	PENDING: "PENDING",
+	FOUND: "FOUND",
+	GAP: "GAP",
+} as const satisfies Record<string, KBStatus>;
+
+/**
+ * KB filter "all" option for UI dropdowns
+ */
+export const KB_FILTER_ALL = "all" as const;
+
+/**
  * Rita status values for tickets
  */
 export type RitaStatus = "NEEDS_RESPONSE" | "COMPLETED";
@@ -97,10 +111,20 @@ export interface PaginationInfo {
 export type ClusterSortOption = "volume" | "automation" | "recent";
 
 /**
+ * Period filter for ticket counts
+ */
+export type PeriodFilter = "last30" | "last90" | "last6months" | "lastyear";
+
+/**
  * Query params for listing clusters
  */
 export interface ClustersQueryParams {
 	sort?: ClusterSortOption;
+	period?: PeriodFilter;
+	limit?: number;
+	cursor?: string;
+	kb_status?: KBStatus;
+	search?: string;
 }
 
 /**
@@ -127,10 +151,20 @@ export interface ClusterTicketsQueryParams {
 }
 
 /**
+ * Totals for cluster list response
+ */
+export interface ClusterTotals {
+	total_clusters: number;
+	total_tickets: number;
+}
+
+/**
  * Response for GET /api/clusters
  */
 export interface ClustersResponse {
 	data: ClusterListItem[];
+	pagination: PaginationInfo;
+	totals: ClusterTotals;
 }
 
 /**

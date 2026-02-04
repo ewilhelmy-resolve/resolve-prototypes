@@ -1,7 +1,16 @@
-import { useState, useEffect, useRef } from "react";
+import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
+import {
+	Sheet,
+	SheetContent,
+	SheetDescription,
+	SheetHeader,
+	SheetTitle,
+} from "@/components/ui/sheet";
+import { AI_RESPONSE_TYPE, type AIResponseType } from "@/lib/tickets/utils";
+import type { AIResponseData } from "./AIResponseSection";
 import { CompletionView } from "./CompletionView";
 import { ReviewView } from "./ReviewView";
-import { AI_RESPONSE_TYPE, getTicketGroup, MOCK_AI_RESPONSE, type AIResponseType } from "@/lib/tickets/utils";
 
 /**
  * Ticket priority level
@@ -9,7 +18,10 @@ import { AI_RESPONSE_TYPE, getTicketGroup, MOCK_AI_RESPONSE, type AIResponseType
 export type TicketPriority = "low" | "medium" | "high" | "critical";
 
 // Re-export types from AIResponseSection for backwards compatibility
-export type { KBArticle, AIResponseData as AIResponse } from "./AIResponseSection";
+export type {
+	AIResponseData as AIResponse,
+	KBArticle,
+} from "./AIResponseSection";
 
 /**
  * Ticket details for review
@@ -35,8 +47,10 @@ export interface ReviewStats {
 interface ReviewAIResponseSheetProps {
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
-	/** Ticket group ID to get AI response data */
+	/** Ticket group ID (for future API integration) */
 	ticketGroupId?: string;
+	/** AI response data to review */
+	aiResponse?: AIResponseData;
 	tickets: ReviewTicket[];
 	currentIndex: number;
 	/** AI response type being reviewed (default: AI_RESPONSE_TYPE.AUTO_RESPOND) */
@@ -62,12 +76,15 @@ interface ReviewAIResponseSheetProps {
  * - Knowledge base article references
  * - Approve/reject actions
  *
+ * When no AI response is available, displays an empty state message.
+ *
  * @component
  */
 export default function ReviewAIResponseSheet({
 	open,
 	onOpenChange,
-	ticketGroupId,
+	ticketGroupId: _ticketGroupId,
+	aiResponse,
 	tickets,
 	currentIndex,
 	aiResponseType = AI_RESPONSE_TYPE.AUTO_RESPOND,
@@ -76,18 +93,15 @@ export default function ReviewAIResponseSheet({
 	onReject,
 	onEnableAutoRespond: _onEnableAutoRespond,
 	onKeepReviewing,
-	onReviewComplete,
+	onReviewComplete: _onReviewComplete,
 }: ReviewAIResponseSheetProps) {
+	const { t } = useTranslation("tickets");
 	const [showFeedback, setShowFeedback] = useState(false);
 	const [isCompleted, setIsCompleted] = useState(false);
 	const [trustedCount, setTrustedCount] = useState(0);
 	const [rejectedCount, setRejectedCount] = useState(0);
-	const hasCalledComplete = useRef(false);
 
 	const currentTicket = tickets[currentIndex];
-	const ticketGroup = ticketGroupId ? getTicketGroup(ticketGroupId) : undefined;
-	// Use ticket group AI response or fallback to mock data (TODO: replace with real API)
-	const aiResponse = ticketGroup?.aiResponse ?? MOCK_AI_RESPONSE;
 
 	// Reset state when sheet opens
 	useEffect(() => {
@@ -96,37 +110,41 @@ export default function ReviewAIResponseSheet({
 			setTrustedCount(0);
 			setRejectedCount(0);
 			setShowFeedback(false);
-			hasCalledComplete.current = false;
 		}
 	}, [open]);
 
-	// Call onReviewComplete once when all reviews are done
-	useEffect(() => {
-		if (isCompleted && onReviewComplete && !hasCalledComplete.current) {
-			hasCalledComplete.current = true;
-			const finalStats: ReviewStats = {
-				totalReviewed: tickets.length,
-				trusted: trustedCount,
-				needsImprovement: rejectedCount,
-				confidenceImprovement: trustedCount > 0
-					? Math.round((trustedCount / tickets.length) * 100)
-					: 0,
-			};
-			onReviewComplete(finalStats);
-		}
-	}, [isCompleted, trustedCount, rejectedCount, tickets.length, onReviewComplete]);
-
-	// Don't render if no tickets or no AI response data
-	if (tickets.length === 0 || !aiResponse) {
+	// Don't render if no tickets
+	if (tickets.length === 0) {
 		return null;
+	}
+
+	// Show empty state if no AI response available
+	if (!aiResponse) {
+		return (
+			<Sheet open={open} onOpenChange={onOpenChange}>
+				<SheetContent
+					className="flex w-full flex-col p-8 sm:max-w-lg"
+					side="right"
+				>
+					<SheetHeader className="pl-0">
+						<SheetTitle>{t("review.title")}</SheetTitle>
+						<SheetDescription>{t("review.sheetDescription")}</SheetDescription>
+					</SheetHeader>
+					<div className="flex flex-1 items-center justify-center">
+						<p className="text-muted-foreground">{t("review.noAiResponse")}</p>
+					</div>
+				</SheetContent>
+			</Sheet>
+		);
 	}
 
 	// Calculate review stats for completion screen
 	// Calculate confidence improvement based on trusted percentage
-	const totalReviewed = isCompleted ? tickets.length : trustedCount + rejectedCount;
-	const confidencePercentage = totalReviewed > 0
-		? Math.round((trustedCount / totalReviewed) * 100)
-		: 0;
+	const totalReviewed = isCompleted
+		? tickets.length
+		: trustedCount + rejectedCount;
+	const confidencePercentage =
+		totalReviewed > 0 ? Math.round((trustedCount / totalReviewed) * 100) : 0;
 
 	const reviewStats: ReviewStats = {
 		totalReviewed,

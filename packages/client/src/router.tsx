@@ -19,21 +19,21 @@ import ContactPage from "./pages/ContactPage";
 import CredentialSetupPage from "./pages/CredentialSetupPage";
 import DevToolsPage from "./pages/DevToolsPage";
 import DropdownTestPage from "./pages/DropdownTestPage";
-import EmbedDemoPage from "./pages/EmbedDemoPage";
 import FilesV1Page from "./pages/FilesV1Page";
 import HelpPage from "./pages/HelpPage";
 import IframeChatPage from "./pages/IframeChatPage";
 import InviteAcceptPage from "./pages/InviteAcceptPage";
 import LinkExpiredPage from "./pages/LinkExpiredPage";
 import { NotFoundPage } from "./pages/NotFoundPage";
+import SchedulerDashboardPage from "./pages/SchedulerDashboardPage";
+import SchedulerDetailPage from "./pages/SchedulerDetailPage";
+import SchedulerGroupDetailPage from "./pages/SchedulerGroupDetailPage";
+import SchemaRendererDemo from "./pages/SchemaRendererDemo";
 import { SignUpPage } from "./pages/SignUpPage";
 import ItsmSources from "./pages/settings/ItsmSources";
 import KnowledgeSources from "./pages/settings/KnowledgeSources";
 import ProfilePage from "./pages/settings/ProfilePage";
 import TermsOfService from "./pages/TermsOfService";
-import SchedulerDashboardPage from "./pages/SchedulerDashboardPage";
-import SchedulerGroupDetailPage from "./pages/SchedulerGroupDetailPage";
-import SchedulerDetailPage from "./pages/SchedulerDetailPage";
 import TicketDetailPage from "./pages/TicketDetailPage";
 import TicketsPage from "./pages/TicketsPage";
 import UsersSettingsPage from "./pages/UsersSettingsPage";
@@ -85,11 +85,6 @@ const router = createBrowserRouter([
 	{
 		path: "/iframe/chat/:conversationId",
 		element: <IframeChatPage />,
-	},
-	// Embed demo page (public, for testing iframe integration)
-	{
-		path: "/embeddemo",
-		element: <EmbedDemoPage />,
 	},
 	// JIRITA - Workflow builder (dev tool, feature-flagged)
 	{
@@ -335,6 +330,11 @@ const router = createBrowserRouter([
 	{
 		path: "/test/dropdown",
 		element: <DropdownTestPage />,
+	},
+	// Schema renderer demo (public, no backend required)
+	{
+		path: "/demo/schema-renderer",
+		element: <SchemaRendererDemo />,
 	},
 	// Credential setup (public, magic link for IT admins)
 	{

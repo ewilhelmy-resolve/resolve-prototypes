@@ -66,11 +66,21 @@ export interface ClusterListItem {
 export type ClusterSortOption = "volume" | "automation" | "recent";
 
 /**
+ * Period filter for ticket counts
+ */
+export type PeriodFilter = "last30" | "last90" | "last6months" | "lastyear";
+
+/**
  * Query options for listing clusters
  */
 export interface ClusterListQueryOptions {
 	sort?: ClusterSortOption;
+	period?: PeriodFilter;
 	includeInactive?: boolean;
+	limit?: number;
+	cursor?: string;
+	kbStatus?: KBStatus;
+	search?: string;
 }
 
 /**
@@ -97,6 +107,14 @@ export interface Ticket {
 export interface PaginationInfo {
 	next_cursor: string | null;
 	has_more: boolean;
+}
+
+/**
+ * Totals for cluster list response
+ */
+export interface ClusterTotals {
+	total_clusters: number;
+	total_tickets: number;
 }
 
 /**

@@ -20,8 +20,10 @@ import {
 	Bug,
 	ChevronDown,
 	ChevronUp,
+	Code,
 	Download,
 	ScrollText,
+	Send,
 	Trash2,
 	Wrench,
 } from "lucide-react";
@@ -69,15 +71,6 @@ interface DebugPanelProps {
 	showDebug: boolean;
 	setShowDebug: (show: boolean) => void;
 	debugLogs: DebugLogEntry[];
-	state: {
-		isLoading: boolean;
-		sessionReady: boolean;
-		error: string | null;
-		conversationId: string | null;
-		sessionKey: string | null;
-		apiUrl: string;
-	};
-	valkeyPayload: ValkeyPayload | null;
 }
 
 // Clear chat button (shows when feature flag enabled)
@@ -99,19 +92,645 @@ function IframeClearChat({ onClear }: { onClear: () => void }) {
 	);
 }
 
-// Dev tools dropdown for input toolbar (shows when feature flag enabled)
+// Example schemas for demo
+const DEMO_SCHEMAS: Record<string, { name: string; schema: any }> = {
+	simple: {
+		name: "Simple (text + button)",
+		schema: {
+			version: "1",
+			components: [
+				{ type: "text", content: "Hello from Platform!", variant: "heading" },
+				{
+					type: "text",
+					content: "This UI was rendered from JSON schema sent via RabbitMQ.",
+					variant: "muted",
+				},
+				{ type: "button", label: "Acknowledge", action: "acknowledge_clicked" },
+			],
+		},
+	},
+	form: {
+		name: "Form (workflow config)",
+		schema: {
+			version: "1",
+			components: [
+				{
+					type: "text",
+					content: "Configure Workflow Trigger",
+					variant: "heading",
+				},
+				{
+					type: "card",
+					title: "Trigger Settings",
+					children: [
+						{
+							type: "form",
+							submitAction: "save_trigger_config",
+							submitLabel: "Save Configuration",
+							children: [
+								{
+									type: "input",
+									name: "workflowName",
+									label: "Workflow Name",
+									placeholder: "My Automation",
+									required: true,
+								},
+								{
+									type: "select",
+									name: "triggerEvent",
+									label: "Trigger Event",
+									options: [
+										{ label: "On Ticket Created", value: "ticket_created" },
+										{ label: "On SLA Breach", value: "sla_breach" },
+										{ label: "On Status Change", value: "status_change" },
+									],
+								},
+								{
+									type: "input",
+									name: "filter",
+									label: "Filter Condition",
+									placeholder: "priority = 'high'",
+									inputType: "textarea",
+								},
+							],
+						},
+					],
+				},
+			],
+		},
+	},
+	date: {
+		name: "Date (select fields)",
+		schema: {
+			version: "1",
+			components: [
+				{ type: "text", content: "Select a Date", variant: "heading" },
+				{
+					type: "text",
+					content: "Choose month, day, and year.",
+					variant: "muted",
+				},
+				{
+					type: "card",
+					title: "Date Selection",
+					children: [
+						{
+							type: "form",
+							submitAction: "submit_date",
+							submitLabel: "Confirm Date",
+							children: [
+								{
+									type: "row",
+									gap: 12,
+									children: [
+										{
+											type: "select",
+											name: "month",
+											label: "Month",
+											options: [
+												{ label: "January", value: "01" },
+												{ label: "February", value: "02" },
+												{ label: "March", value: "03" },
+												{ label: "April", value: "04" },
+												{ label: "May", value: "05" },
+												{ label: "June", value: "06" },
+												{ label: "July", value: "07" },
+												{ label: "August", value: "08" },
+												{ label: "September", value: "09" },
+												{ label: "October", value: "10" },
+												{ label: "November", value: "11" },
+												{ label: "December", value: "12" },
+											],
+										},
+										{
+											type: "select",
+											name: "day",
+											label: "Day",
+											options: Array.from({ length: 31 }, (_, i) => ({
+												label: String(i + 1),
+												value: String(i + 1).padStart(2, "0"),
+											})),
+										},
+										{
+											type: "select",
+											name: "year",
+											label: "Year",
+											options: Array.from({ length: 100 }, (_, i) => {
+												const year = new Date().getFullYear() - i;
+												return { label: String(year), value: String(year) };
+											}),
+										},
+									],
+								},
+							],
+						},
+					],
+				},
+			],
+		},
+	},
+	dashboard: {
+		name: "Dashboard (stats + table)",
+		schema: {
+			version: "1",
+			components: [
+				{ type: "text", content: "Activity Summary", variant: "heading" },
+				{
+					type: "row",
+					gap: 12,
+					children: [
+						{
+							type: "stat",
+							label: "Total Tickets",
+							value: "1,234",
+							change: "+12%",
+							changeType: "positive",
+						},
+						{
+							type: "stat",
+							label: "Open Issues",
+							value: "42",
+							change: "-5%",
+							changeType: "negative",
+						},
+						{
+							type: "stat",
+							label: "Avg Response",
+							value: "2.4h",
+							changeType: "neutral",
+						},
+					],
+				},
+				{
+					type: "card",
+					title: "Recent Tickets",
+					children: [
+						{
+							type: "table",
+							columns: [
+								{ key: "id", label: "ID" },
+								{ key: "title", label: "Title" },
+								{ key: "status", label: "Status" },
+							],
+							rows: [
+								{ id: "TKT-001", title: "Login issue", status: "Open" },
+								{ id: "TKT-002", title: "Payment failed", status: "Pending" },
+								{ id: "TKT-003", title: "Reset password", status: "Closed" },
+							],
+						},
+					],
+				},
+			],
+		},
+	},
+	codereview: {
+		name: "Code Review (diff)",
+		schema: {
+			version: "1",
+			components: [
+				{ type: "text", content: "Code Review Request", variant: "heading" },
+				{
+					type: "text",
+					content: "PR #142: Fix authentication bug",
+					variant: "subheading",
+				},
+				{
+					type: "card",
+					title: "src/auth/login.ts",
+					description: "+4 -1 lines changed",
+					children: [
+						{
+							type: "text",
+							content: "function validateSession(token) {",
+							variant: "diff-context",
+						},
+						{
+							type: "text",
+							content: "-  return redirect('/dashboard');",
+							variant: "diff-remove",
+						},
+						{ type: "text", content: "+  if (!token) {", variant: "diff-add" },
+						{
+							type: "text",
+							content: "+    return redirect('/login');",
+							variant: "diff-add",
+						},
+						{ type: "text", content: "+  }", variant: "diff-add" },
+						{
+							type: "text",
+							content: "+  return redirect('/dashboard');",
+							variant: "diff-add",
+						},
+						{ type: "text", content: "}", variant: "diff-context" },
+					],
+				},
+				{
+					type: "row",
+					gap: 8,
+					children: [
+						{
+							type: "button",
+							label: "Approve",
+							action: "approve_pr",
+							variant: "default",
+						},
+						{
+							type: "button",
+							label: "Request Changes",
+							action: "request_changes",
+							variant: "outline",
+						},
+					],
+				},
+			],
+		},
+	},
+	diagram: {
+		name: "Diagram (Mermaid)",
+		schema: {
+			version: "1",
+			components: [
+				{ type: "text", content: "Workflow Flow", variant: "heading" },
+				{
+					type: "diagram",
+					title: "User Authentication Flow",
+					expandable: true,
+					code: `flowchart TD
+    A[User Request] --> B{Has Token?}
+    B -->|Yes| C[Validate Token]
+    B -->|No| D[Redirect to Login]
+    C -->|Valid| E[Grant Access]
+    C -->|Invalid| D
+    E --> F[Load Dashboard]
+    D --> G[Show Login Form]
+    G --> H[Submit Credentials]
+    H --> I{Valid?}
+    I -->|Yes| J[Create Session]
+    I -->|No| K[Show Error]
+    J --> E
+    K --> G`,
+				},
+			],
+		},
+	},
+};
+
+// Floating dev panel for mock mode - simulates Platform sending schema
+function MockPlatformPanel({
+	conversationId,
+	isOpen,
+	onToggle,
+	onLog,
+	onOpenActivityLog,
+}: {
+	conversationId: string;
+	isOpen: boolean;
+	onToggle: () => void;
+	onLog: (
+		level: "info" | "error" | "warn",
+		message: string,
+		data?: Record<string, unknown>,
+	) => void;
+	onOpenActivityLog: () => void;
+}) {
+	const { addMessage } = useConversationStore();
+	const [selectedPreset, setSelectedPreset] = useState("simple");
+	const [isSmallViewport, setIsSmallViewport] = useState(
+		window.innerWidth < 500,
+	);
+
+	// Detect small viewport for compact layout
+	useEffect(() => {
+		const handleResize = () => setIsSmallViewport(window.innerWidth < 500);
+		window.addEventListener("resize", handleResize);
+		return () => window.removeEventListener("resize", handleResize);
+	}, []);
+	const [customJson, setCustomJson] = useState(
+		JSON.stringify(
+			{
+				version: "1",
+				components: [
+					{ type: "text", content: "Code Review Request", variant: "heading" },
+					{
+						type: "text",
+						content: "PR #142: Fix authentication bug",
+						variant: "subheading",
+					},
+					{
+						type: "card",
+						title: "src/auth/login.ts",
+						description: "+4 -1 lines changed",
+						children: [
+							{
+								type: "text",
+								content: "function validateSession(token) {",
+								variant: "diff-context",
+							},
+							{
+								type: "text",
+								content: "-  return redirect('/dashboard');",
+								variant: "diff-remove",
+							},
+							{
+								type: "text",
+								content: "+  if (!token) {",
+								variant: "diff-add",
+							},
+							{
+								type: "text",
+								content: "+    return redirect('/login');",
+								variant: "diff-add",
+							},
+							{ type: "text", content: "+  }", variant: "diff-add" },
+							{
+								type: "text",
+								content: "+  return redirect('/dashboard');",
+								variant: "diff-add",
+							},
+							{ type: "text", content: "}", variant: "diff-context" },
+						],
+					},
+					{
+						type: "row",
+						gap: 8,
+						children: [
+							{
+								type: "button",
+								label: "Approve",
+								action: "approve_pr",
+								variant: "default",
+							},
+							{
+								type: "button",
+								label: "Request Changes",
+								action: "request_changes",
+								variant: "outline",
+							},
+						],
+					},
+				],
+			},
+			null,
+			2,
+		),
+	);
+	const [useCustom, setUseCustom] = useState(false);
+	const [lastSentSchema, setLastSentSchema] = useState<any>(null);
+
+	const handlePresetChange = (preset: string) => {
+		setSelectedPreset(preset);
+		setCustomJson(JSON.stringify(DEMO_SCHEMAS[preset].schema, null, 2));
+		setUseCustom(false);
+	};
+
+	const handleSendSchema = () => {
+		try {
+			const schema = useCustom
+				? JSON.parse(customJson)
+				: DEMO_SCHEMAS[selectedPreset].schema;
+			setLastSentSchema(schema);
+
+			// Log what platform is sending
+			onLog("info", "⬇️ SSE Event received (ui_schema)", {
+				componentCount: schema.components?.length,
+				types: schema.components?.map((c: any) => c.type),
+			});
+
+			// Simulate Platform sending message via RabbitMQ → SSE → Client
+			const messageId = `platform-${Date.now()}`;
+			addMessage({
+				id: messageId,
+				role: "assistant",
+				message: "",
+				timestamp: new Date(),
+				conversation_id: conversationId,
+				status: "completed",
+				metadata: {
+					ui_schema: schema,
+					turn_complete: true,
+				},
+			});
+
+			onLog("info", "⬇️ UI schema rendered in Jarvis", {
+				messageId,
+				schema: `${JSON.stringify(schema).substring(0, 100)}...`,
+			});
+		} catch (e) {
+			onLog("error", "Failed to parse JSON", { error: (e as Error).message });
+			alert(`Invalid JSON: ${(e as Error).message}`);
+		}
+	};
+
+	if (!isOpen) {
+		return null;
+	}
+
+	// Compact layout for small viewports (iframe widget)
+	if (isSmallViewport) {
+		return (
+			<div className="fixed left-2 right-2 top-2 bottom-[50%] z-50 bg-slate-900 text-white rounded-lg shadow-2xl overflow-hidden flex flex-col">
+				{/* Header */}
+				<div className="flex items-center justify-between px-3 py-1.5 bg-slate-800 border-b border-slate-700 shrink-0">
+					<div className="flex items-center gap-2">
+						<Code className="w-3 h-3 text-blue-400" />
+						<span className="font-semibold text-[10px]">
+							Platform Simulator
+						</span>
+					</div>
+					<button
+						type="button"
+						onClick={onToggle}
+						className="text-slate-400 hover:text-white text-sm leading-none"
+					>
+						×
+					</button>
+				</div>
+
+				{/* Two-column content */}
+				<div className="flex-1 flex overflow-hidden">
+					{/* Left: Schema presets */}
+					<div className="w-20 shrink-0 p-2 border-r border-slate-700 overflow-auto">
+						<div className="text-[9px] text-slate-500 mb-1">Schema</div>
+						<div className="flex flex-col gap-1">
+							{Object.entries(DEMO_SCHEMAS).map(([key, { name }]) => (
+								<button
+									key={key}
+									type="button"
+									onClick={() => handlePresetChange(key)}
+									className={`px-1.5 py-1 rounded text-[9px] text-left ${
+										selectedPreset === key && !useCustom
+											? "bg-blue-600 text-white"
+											: "bg-slate-800 text-slate-300 hover:bg-slate-700"
+									}`}
+								>
+									{name.split(" ")[0]}
+								</button>
+							))}
+							<button
+								type="button"
+								onClick={() => setUseCustom(true)}
+								className={`px-1.5 py-1 rounded text-[9px] text-left ${
+									useCustom
+										? "bg-blue-600 text-white"
+										: "bg-slate-800 text-slate-300 hover:bg-slate-700"
+								}`}
+							>
+								Custom
+							</button>
+						</div>
+					</div>
+
+					{/* Right: JSON editor */}
+					<div className="flex-1 flex flex-col overflow-hidden">
+						<textarea
+							className="flex-1 bg-slate-800 text-slate-200 text-[9px] font-mono p-2 border-none focus:outline-none resize-none"
+							value={customJson}
+							onChange={(e) => {
+								setCustomJson(e.target.value);
+								setUseCustom(true);
+							}}
+						/>
+					</div>
+				</div>
+
+				{/* Fixed bottom: Send button */}
+				<div className="shrink-0 p-2 bg-slate-800 border-t border-slate-700 flex gap-2">
+					<button
+						type="button"
+						onClick={handleSendSchema}
+						className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-1.5 rounded font-medium text-[10px] flex items-center justify-center gap-1"
+					>
+						<Send className="w-3 h-3" />
+						Send
+					</button>
+					{lastSentSchema && (
+						<button
+							type="button"
+							onClick={onOpenActivityLog}
+							className="px-2 text-[9px] text-green-400 bg-green-900/30 hover:bg-green-900/50 rounded"
+							title="View activity log"
+						>
+							✓ Log
+						</button>
+					)}
+				</div>
+			</div>
+		);
+	}
+
+	// Large viewport layout (original)
+	return (
+		<div className="fixed top-4 right-4 z-50 w-96 bg-slate-900 text-white rounded-lg shadow-2xl overflow-hidden">
+			{/* Header */}
+			<div className="flex items-center justify-between px-4 py-3 bg-slate-800 border-b border-slate-700">
+				<div className="flex items-center gap-2">
+					<Code className="w-4 h-4 text-blue-400" />
+					<span className="font-semibold text-sm">Platform Simulator</span>
+				</div>
+				<button
+					type="button"
+					onClick={onToggle}
+					className="text-slate-400 hover:text-white"
+				>
+					×
+				</button>
+			</div>
+
+			{/* Content */}
+			<div className="p-4 space-y-4 max-h-[70vh] overflow-auto">
+				{/* Flow indicator */}
+				<div className="text-xs text-slate-400 bg-slate-800 rounded p-2">
+					Platform → RabbitMQ → SSE → Jarvis Chat
+				</div>
+
+				{/* Preset buttons */}
+				<div>
+					<div className="text-xs text-slate-400 mb-2">Select Schema:</div>
+					<div className="flex flex-wrap gap-1">
+						{Object.entries(DEMO_SCHEMAS).map(([key, { name }]) => (
+							<button
+								key={key}
+								type="button"
+								onClick={() => handlePresetChange(key)}
+								className={`px-2 py-1 rounded text-xs ${
+									selectedPreset === key && !useCustom
+										? "bg-blue-600 text-white"
+										: "bg-slate-700 text-slate-300 hover:bg-slate-600"
+								}`}
+							>
+								{name.split(" ")[0]}
+							</button>
+						))}
+						<button
+							type="button"
+							onClick={() => setUseCustom(true)}
+							className={`px-2 py-1 rounded text-xs ${
+								useCustom
+									? "bg-blue-600 text-white"
+									: "bg-slate-700 text-slate-300 hover:bg-slate-600"
+							}`}
+						>
+							Custom
+						</button>
+					</div>
+				</div>
+
+				{/* JSON editor */}
+				<div>
+					<div className="text-xs text-slate-400 mb-1">JSON Schema:</div>
+					<textarea
+						className="w-full h-48 bg-slate-800 text-slate-200 text-xs font-mono p-2 rounded border border-slate-700 focus:border-blue-500 focus:outline-none"
+						value={customJson}
+						onChange={(e) => {
+							setCustomJson(e.target.value);
+							setUseCustom(true);
+						}}
+					/>
+				</div>
+
+				{/* Send button */}
+				<button
+					type="button"
+					onClick={handleSendSchema}
+					className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded font-medium text-sm flex items-center justify-center gap-2"
+				>
+					<Send className="w-4 h-4" />
+					Send to Jarvis
+				</button>
+
+				{/* Last sent indicator */}
+				{lastSentSchema && (
+					<button
+						type="button"
+						onClick={onOpenActivityLog}
+						className="w-full text-xs text-green-400 bg-green-900/30 hover:bg-green-900/50 rounded p-2 text-left transition-colors"
+					>
+						✓ Schema sent - click to view activity log
+					</button>
+				)}
+			</div>
+		</div>
+	);
+}
+
+// Dev tools dropdown for input toolbar (shows when feature flag enabled OR mock mode)
 function IframeDevTools({
 	onDownloadConversation,
 	onDownloadMetadata,
 	onShowActivityLog,
+	onShowPlatformSimulator,
+	isMockMode,
 }: {
 	onDownloadConversation: () => void;
 	onDownloadMetadata: () => void;
 	onShowActivityLog: () => void;
+	onShowPlatformSimulator?: () => void;
+	isMockMode?: boolean;
 }) {
 	const devToolsEnabled = useFeatureFlag("ENABLE_IFRAME_DEV_TOOLS");
 
-	if (!devToolsEnabled) return null;
+	// Show if dev tools enabled OR in mock mode
+	if (!devToolsEnabled && !isMockMode) return null;
 
 	return (
 		<DropdownMenu>
@@ -120,25 +739,18 @@ function IframeDevTools({
 					<Wrench className="h-4 w-4" />
 				</Button>
 			</DropdownMenuTrigger>
-			<DropdownMenuContent align="start" side="top" className="w-48">
+			<DropdownMenuContent align="start" side="top" className="w-56">
+				{/* Demo Tools - available in mock mode OR dev tools */}
 				<DropdownMenuLabel className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-					Downloads
+					Demo Tools
 				</DropdownMenuLabel>
 				<DropdownMenuItem
-					onClick={onDownloadConversation}
+					onClick={onShowPlatformSimulator}
 					className="cursor-pointer"
 				>
-					<Download className="mr-2 h-4 w-4" />
-					Conversation
+					<Code className="mr-2 h-4 w-4" />
+					Platform Simulator
 				</DropdownMenuItem>
-				<DropdownMenuItem
-					onClick={onDownloadMetadata}
-					className="cursor-pointer"
-				>
-					<Download className="mr-2 h-4 w-4" />
-					Full Metadata
-				</DropdownMenuItem>
-				<DropdownMenuSeparator />
 				<DropdownMenuItem
 					onClick={onShowActivityLog}
 					className="cursor-pointer"
@@ -146,6 +758,29 @@ function IframeDevTools({
 					<ScrollText className="mr-2 h-4 w-4" />
 					Activity Log
 				</DropdownMenuItem>
+				{/* Download tools - only when dev tools feature flag enabled */}
+				{devToolsEnabled && (
+					<>
+						<DropdownMenuSeparator />
+						<DropdownMenuLabel className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+							Downloads
+						</DropdownMenuLabel>
+						<DropdownMenuItem
+							onClick={onDownloadConversation}
+							className="cursor-pointer"
+						>
+							<Download className="mr-2 h-4 w-4" />
+							Conversation
+						</DropdownMenuItem>
+						<DropdownMenuItem
+							onClick={onDownloadMetadata}
+							className="cursor-pointer"
+						>
+							<Download className="mr-2 h-4 w-4" />
+							Full Metadata
+						</DropdownMenuItem>
+					</>
+				)}
 			</DropdownMenuContent>
 		</DropdownMenu>
 	);
@@ -157,9 +792,18 @@ function DebugPanel({
 	showDebug,
 	setShowDebug,
 	debugLogs,
-	state,
-	valkeyPayload,
 }: DebugPanelProps) {
+	const logsEndRef = useRef<HTMLDivElement>(null);
+
+	// Auto-scroll to bottom when new logs added
+	const logCount = debugLogs.length;
+	// biome-ignore lint/correctness/useExhaustiveDependencies: logCount triggers scroll on new logs
+	useEffect(() => {
+		if (showDebug && logsEndRef.current) {
+			logsEndRef.current.scrollIntoView({ behavior: "smooth" });
+		}
+	}, [logCount, showDebug]);
+
 	if (!debug && !showDebug) return null;
 
 	return (
@@ -180,40 +824,15 @@ function DebugPanel({
 				)}
 			</button>
 			{showDebug && (
-				<div className="flex-1 overflow-auto p-2 space-y-2">
-					{/* Current State */}
+				<div className="flex-1 overflow-auto p-2">
+					{/* Activity Log - SSE & Webhooks only */}
 					<div className="bg-gray-800 rounded p-2">
-						<div className="font-semibold mb-1">State:</div>
-						<pre className="text-[10px] overflow-x-auto">
-							{JSON.stringify(
-								{
-									isLoading: state.isLoading,
-									sessionReady: state.sessionReady,
-									error: state.error,
-									conversationId: state.conversationId,
-									sessionKey: state.sessionKey
-										? `${state.sessionKey.substring(0, 12)}...`
-										: null,
-									apiUrl: state.apiUrl,
-								},
-								null,
-								2,
-							)}
-						</pre>
-					</div>
-					{/* Valkey Payload */}
-					{valkeyPayload && (
-						<div className="bg-gray-800 rounded p-2">
-							<div className="font-semibold mb-1">Valkey Payload:</div>
-							<pre className="text-[10px] overflow-x-auto">
-								{JSON.stringify(valkeyPayload, null, 2)}
-							</pre>
+						<div className="font-semibold mb-1">Activity Log:</div>
+						<div className="text-[9px] text-slate-500 mb-2 flex gap-3">
+							<span>⬇️ SSE (Platform → Jarvis)</span>
+							<span>⬆️ Webhook (Jarvis → Platform)</span>
 						</div>
-					)}
-					{/* Logs */}
-					<div className="bg-gray-800 rounded p-2">
-						<div className="font-semibold mb-1">Logs:</div>
-						<div className="space-y-1 max-h-32 overflow-auto">
+						<div className="space-y-1 max-h-40 overflow-auto">
 							{debugLogs.map((log, i) => (
 								<div
 									key={`${log.timestamp}-${i}`}
@@ -236,6 +855,7 @@ function DebugPanel({
 									) : null}
 								</div>
 							))}
+							<div ref={logsEndRef} />
 						</div>
 					</div>
 				</div>
@@ -325,6 +945,12 @@ export default function IframeChatPage() {
 	const [searchParams] = useSearchParams();
 	const sessionKey = searchParams.get("sessionKey");
 	const debug = searchParams.get("debug") === "true";
+	const mockMode = searchParams.get("mock") === "true";
+	// Dev mode: mock mode OR using dev/demo session keys (for iframe-app testing)
+	const isDevMode =
+		mockMode ||
+		sessionKey?.startsWith("dev-") ||
+		sessionKey?.startsWith("demo-");
 
 	const [isLoading, setIsLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
@@ -355,6 +981,9 @@ export default function IframeChatPage() {
 	// Debug state
 	const [showDebug, setShowDebug] = useState(debug);
 	const [debugLogs, setDebugLogs] = useState<DebugLogEntry[]>([]);
+
+	// Mock platform panel state (only in mock mode - backend is skipped)
+	const [showPlatformPanel, setShowPlatformPanel] = useState(mockMode);
 
 	const navigate = useNavigate();
 	const apiUrl = import.meta.env.VITE_API_URL || "";
@@ -511,7 +1140,23 @@ export default function IframeChatPage() {
 				sessionKey: sessionKey ? `${sessionKey.substring(0, 8)}...` : "null",
 				existingConversationId: urlConversationId || "null",
 				apiUrl: currentApiUrl,
+				mockMode,
 			});
+
+			// Mock mode: skip backend entirely for demo/testing
+			if (mockMode) {
+				addDebugLog("info", "Mock mode enabled - skipping backend");
+				const mockConversationId = `mock-conv-${Date.now()}`;
+				setConversationId(mockConversationId);
+				setCurrentConversation(mockConversationId);
+				setTitleText("UI Schema Demo (Mock Mode)");
+				setWelcomeText(
+					"This is running without a backend. Try the schema renderer demo at /demo/schema-renderer",
+				);
+				setSessionReady(true);
+				setIsLoading(false);
+				return;
+			}
 
 			// sessionKey is required
 			if (!sessionKey) {
@@ -578,7 +1223,18 @@ export default function IframeChatPage() {
 					error: errorMsg,
 					stack: errorStack || "no stack",
 				});
-				setError("Failed to connect to server");
+				// Provide specific error message based on error type
+				let userError = "Failed to connect to server";
+				if (errorMsg.includes("fetch") || errorMsg.includes("network")) {
+					userError = `Network error: API server not reachable at ${currentApiUrl}`;
+				} else if (errorMsg.includes("CORS")) {
+					userError = "CORS error: API server blocking cross-origin requests";
+				} else if (errorMsg.includes("timeout")) {
+					userError = "Connection timeout: Server took too long to respond";
+				} else {
+					userError = `Connection failed: ${errorMsg}`;
+				}
+				setError(userError);
 			} finally {
 				setIsLoading(false);
 				addDebugLog("info", "Initialization complete", { isLoading: "false" });
@@ -593,7 +1249,46 @@ export default function IframeChatPage() {
 		addDebugLog,
 		navigate,
 		t,
+		mockMode,
 	]);
+
+	// Listen for UI action events (dev mode) to log to debug panel
+	useEffect(() => {
+		if (!isDevMode) return;
+
+		const handleUIAction = (event: CustomEvent) => {
+			const payload = event.detail;
+			addDebugLog("info", "⬆️ Webhook sent to Platform", {
+				event: payload.action,
+				data: payload.data,
+				messageId: payload.messageId,
+				conversationId: payload.conversationId,
+			});
+		};
+
+		window.addEventListener("rita:ui-action", handleUIAction as EventListener);
+		return () => {
+			window.removeEventListener(
+				"rita:ui-action",
+				handleUIAction as EventListener,
+			);
+		};
+	}, [isDevMode, addDebugLog]);
+
+	// Listen for open activity log events (from toast action button)
+	useEffect(() => {
+		const handleOpenActivityLog = () => {
+			setShowDebug(true);
+		};
+
+		window.addEventListener("rita:open-activity-log", handleOpenActivityLog);
+		return () => {
+			window.removeEventListener(
+				"rita:open-activity-log",
+				handleOpenActivityLog,
+			);
+		};
+	}, []);
 
 	// Execute workflow once session is ready
 	// This runs in parent to prevent re-execution on child remounts
@@ -631,15 +1326,6 @@ export default function IframeChatPage() {
 		showDebug,
 		setShowDebug,
 		debugLogs,
-		state: {
-			isLoading,
-			sessionReady,
-			error,
-			conversationId,
-			sessionKey,
-			apiUrl,
-		},
-		valkeyPayload,
 	};
 
 	// Loading state
@@ -693,6 +1379,8 @@ export default function IframeChatPage() {
 				onDownloadConversation={downloadConversation}
 				onDownloadMetadata={downloadMetadata}
 				onShowActivityLog={() => setShowDebug(true)}
+				onShowPlatformSimulator={() => setShowPlatformPanel(true)}
+				isMockMode={isDevMode}
 			/>
 		</>
 	);
@@ -700,7 +1388,7 @@ export default function IframeChatPage() {
 	// Render chat with SSE provider (session cookie enables SSE auth)
 	return (
 		<IframeChatLayout>
-			<SSEProvider apiUrl={apiUrl} enabled={sessionReady}>
+			<SSEProvider apiUrl={apiUrl} enabled={sessionReady && !mockMode}>
 				<IframeChatContent
 					conversationId={conversationId}
 					titleText={titleText}
@@ -709,6 +1397,16 @@ export default function IframeChatPage() {
 					leftToolbarContent={devToolsElement}
 				/>
 			</SSEProvider>
+			{/* Platform simulator panel (dev mode) */}
+			{isDevMode && conversationId && (
+				<MockPlatformPanel
+					conversationId={conversationId}
+					isOpen={showPlatformPanel}
+					onToggle={() => setShowPlatformPanel((v) => !v)}
+					onLog={addDebugLog}
+					onOpenActivityLog={() => setShowDebug(true)}
+				/>
+			)}
 			<DebugPanel {...debugPanelProps} />
 		</IframeChatLayout>
 	);

@@ -2,6 +2,7 @@ import { useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { ritaToast } from "@/components/ui/rita-toast";
 import { Spinner } from "@/components/ui/spinner";
 import { StatusAlert } from "@/components/ui/status-alert";
 import { useConnectionSource } from "@/contexts/ConnectionSourceContext";
@@ -9,7 +10,6 @@ import {
 	useUpdateDataSource,
 	useVerifyDataSource,
 } from "@/hooks/useDataSources";
-import { ritaToast } from "@/components/ui/rita-toast";
 import ConnectionsForm from "../form-elements/ConnectionsForm";
 import FormField from "../form-elements/FormField";
 import FormSection from "../form-elements/FormSection";
@@ -27,7 +27,11 @@ interface ConfluenceFormProps {
 	onFailure?: () => void;
 }
 
-export function ConfluenceForm({ onCancel, onSuccess, onFailure }: ConfluenceFormProps = {}) {
+export function ConfluenceForm({
+	onCancel,
+	onSuccess,
+	onFailure,
+}: ConfluenceFormProps = {}) {
 	const { t } = useTranslation("connections");
 	const { t: tToast } = useTranslation("toast");
 	const { source } = useConnectionSource();
@@ -131,16 +135,21 @@ export function ConfluenceForm({ onCancel, onSuccess, onFailure }: ConfluenceFor
 				{/* Show error alert when verification fails */}
 				{verificationFailed && (
 					<StatusAlert variant="error" className="mb-4">
-						<p className="font-semibold">{t("form.alerts.verificationFailed")}</p>
-						<p>{verificationError}</p>
-						<p className="text-sm mt-2">
-							{t("form.alerts.checkCredentials")}
+						<p className="font-semibold">
+							{t("form.alerts.verificationFailed")}
 						</p>
+						<p>{verificationError}</p>
+						<p className="text-sm mt-2">{t("form.alerts.checkCredentials")}</p>
 					</StatusAlert>
 				)}
 
 				{/* URL */}
-				<FormField label={t("form.labels.url")} errors={errors} name="url" required>
+				<FormField
+					label={t("form.labels.url")}
+					errors={errors}
+					name="url"
+					required
+				>
 					<Input
 						id="url"
 						type="url"
@@ -148,7 +157,7 @@ export function ConfluenceForm({ onCancel, onSuccess, onFailure }: ConfluenceFor
 						{...register("url", {
 							required: t("form.validation.urlRequired"),
 							pattern: {
-								value: /^https?:\/\/.+/,
+								value: /^https?:\/\/[\w.-]+\.[a-zA-Z]{2,}(:\d+)?(\/.*)?$/,
 								message: t("form.validation.invalidUrl"),
 							},
 						})}
@@ -156,7 +165,12 @@ export function ConfluenceForm({ onCancel, onSuccess, onFailure }: ConfluenceFor
 				</FormField>
 
 				{/* User email */}
-				<FormField label={t("form.labels.userEmail")} errors={errors} name="email" required>
+				<FormField
+					label={t("form.labels.userEmail")}
+					errors={errors}
+					name="email"
+					required
+				>
 					<Input
 						id="email"
 						type="email"
@@ -172,7 +186,12 @@ export function ConfluenceForm({ onCancel, onSuccess, onFailure }: ConfluenceFor
 				</FormField>
 
 				{/* API token */}
-				<FormField label={t("form.labels.apiToken")} errors={errors} name="token" required>
+				<FormField
+					label={t("form.labels.apiToken")}
+					errors={errors}
+					name="token"
+					required
+				>
 					<Input
 						id="token"
 						type="password"
@@ -213,7 +232,9 @@ export function ConfluenceForm({ onCancel, onSuccess, onFailure }: ConfluenceFor
 
 				{verifyMutation.isPending && (
 					<StatusAlert variant="info">
-						<p className=" text-accent-foreground">{t("form.alerts.connectionMayTakeTime")}</p>
+						<p className=" text-accent-foreground">
+							{t("form.alerts.connectionMayTakeTime")}
+						</p>
 						<p>{t("form.alerts.canLeavePage")}</p>
 					</StatusAlert>
 				)}

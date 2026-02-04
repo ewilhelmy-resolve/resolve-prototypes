@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
-import { resolve } from "node:path";
-import { type Channel, connect } from "amqplib";
+import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import axios from "axios";
 import cors from "cors";
 import { config } from "dotenv";
@@ -13,13 +13,15 @@ import {
 	logError,
 	logger,
 	PerformanceTimer,
-	rabbitLogger,
 	webhookLogger,
 } from "./config/logger.js";
 import { emailService } from "./email-service.js";
+import { syncServiceNowData } from "./servicenow-sync.js";
+import { getRabbitMQService } from "./services/rabbitmq.js";
 
 // Load environment from root .env file
-config({ path: resolve(process.cwd(), "../../.env") });
+const __dirname = dirname(fileURLToPath(import.meta.url));
+config({ path: resolve(__dirname, "../../../.env") });
 
 const app = express();
 const PORT = process.env.MOCK_SERVICE_PORT || 3001;
@@ -179,6 +181,7 @@ interface SyncTicketsWebhookPayload extends BaseWebhookPayload {
 	ingestion_run_id: string;
 	settings: {
 		instanceUrl?: string;
+		username?: string;
 		time_range_days?: number;
 		itsm_tables?: string[];
 	};
@@ -211,120 +214,17 @@ interface MockResponse {
 
 interface MessagePart {
 	type: "text" | "reasoning" | "sources" | "tasks" | "files";
-	[key: string]: any;
+	metadata?: Record<string, unknown>;
+	[key: string]: unknown;
 }
-
-// RabbitMQ connection
-let rabbitConnection: Awaited<ReturnType<typeof connect>> | null = null;
-let rabbitChannel: Channel | null = null;
 
 // Track cancelled sync operations to prevent sending sync_completed
 const cancelledSyncConnections = new Set<string>();
 
-async function connectRabbitMQ(): Promise<void> {
-	const timer = new PerformanceTimer(rabbitLogger, "connect-rabbitmq");
-	try {
-		rabbitLogger.info(
-			{ url: MOCK_CONFIG.rabbitUrl },
-			"Connecting to RabbitMQ...",
-		);
-		rabbitConnection = await connect(MOCK_CONFIG.rabbitUrl);
-		rabbitChannel = await rabbitConnection.createChannel();
-
-		await rabbitChannel.assertQueue(MOCK_CONFIG.queueName, { durable: true });
-		timer.end({ queueName: MOCK_CONFIG.queueName, success: true });
-		rabbitLogger.info(
-			{ queueName: MOCK_CONFIG.queueName },
-			"Connected to RabbitMQ successfully",
-		);
-	} catch (error) {
-		timer.end({ success: false });
-		logError(rabbitLogger, error as Error, {
-			operation: "connect-rabbitmq",
-			url: MOCK_CONFIG.rabbitUrl,
-		});
-		throw error;
-	}
-}
-
+// Helper to publish response to default queue
 async function publishResponse(response: MockResponse): Promise<void> {
-	const timer = new PerformanceTimer(rabbitLogger, "publish-response");
-	const contextLogger = createContextLogger(
-		rabbitLogger,
-		generateCorrelationId(),
-		{
-			messageId: response.message_id,
-			tenantId: response.tenant_id,
-			userId: response.user_id,
-		},
-	);
-
-	try {
-		if (!rabbitChannel) {
-			throw new Error("RabbitMQ channel not initialized");
-		}
-
-		const messageBuffer = Buffer.from(JSON.stringify(response));
-		rabbitChannel.sendToQueue(MOCK_CONFIG.queueName, messageBuffer, {
-			persistent: true,
-		});
-
-		timer.end({
-			messageId: response.message_id,
-			queueName: MOCK_CONFIG.queueName,
-			success: true,
-		});
-		contextLogger.info(
-			{
-				queueName: MOCK_CONFIG.queueName,
-			},
-			"Published response to queue",
-		);
-	} catch (error) {
-		timer.end({ success: false });
-		logError(contextLogger, error as Error, { operation: "publish-response" });
-		throw error;
-	}
-}
-
-async function publishToQueue(queueName: string, message: any): Promise<void> {
-	const timer = new PerformanceTimer(rabbitLogger, "publish-to-queue");
-	const contextLogger = createContextLogger(
-		rabbitLogger,
-		generateCorrelationId(),
-	);
-
-	try {
-		if (!rabbitChannel) {
-			throw new Error("RabbitMQ channel not initialized");
-		}
-
-		// Assert queue exists
-		await rabbitChannel.assertQueue(queueName, { durable: true });
-
-		const messageBuffer = Buffer.from(JSON.stringify(message));
-		rabbitChannel.sendToQueue(queueName, messageBuffer, {
-			persistent: true,
-		});
-
-		timer.end({
-			queueName,
-			success: true,
-		});
-		contextLogger.info(
-			{
-				queueName,
-			},
-			"Published message to queue",
-		);
-	} catch (error) {
-		timer.end({ success: false });
-		logError(contextLogger, error as Error, {
-			operation: "publish-to-queue",
-			queueName,
-		});
-		throw error;
-	}
+	const rabbitmqService = getRabbitMQService();
+	await rabbitmqService.publishToQueue(MOCK_CONFIG.queueName, response);
 }
 
 // Keycloak Admin API functions
@@ -1445,6 +1345,159 @@ The system is performing well overall but requires attention to the identified s
 				},
 			],
 		});
+	} else if (content.startsWith("testmodal")) {
+		// testmodal: UI Schema with modal form for API credentials
+		parts.push({
+			type: "text",
+			text: `## API Configuration
+
+Configure your service credentials below.`,
+			metadata: {
+				ui_schema: {
+					version: "1",
+					components: [
+						{
+							type: "card",
+							title: "ServiceNow Connection",
+							description: "Connect to your ServiceNow instance",
+							children: [
+								{
+									type: "row",
+									gap: 8,
+									children: [
+										{
+											type: "button",
+											label: "Configure Credentials",
+											opensModal: "credentials-modal",
+										},
+										{
+											type: "button",
+											label: "Test Connection",
+											action: "test-connection",
+											variant: "outline",
+										},
+									],
+								},
+							],
+						},
+					],
+					modals: {
+						"credentials-modal": {
+							title: "ServiceNow Credentials",
+							description:
+								"Enter your ServiceNow instance details to establish connection",
+							size: "lg",
+							children: [
+								{
+									type: "input",
+									name: "hostname",
+									label: "Instance Hostname",
+									placeholder: "your-instance.service-now.com",
+								},
+								{
+									type: "input",
+									name: "username",
+									label: "Username",
+									placeholder: "admin",
+								},
+								{
+									type: "input",
+									name: "apiKey",
+									label: "API Key",
+									inputType: "password",
+									placeholder: "Enter your API key",
+								},
+								{
+									type: "select",
+									name: "environment",
+									label: "Environment",
+									placeholder: "Select environment",
+									options: [
+										{ label: "Production", value: "prod" },
+										{ label: "Staging", value: "staging" },
+										{ label: "Development", value: "dev" },
+									],
+								},
+							],
+							submitAction: "save-credentials",
+							submitLabel: "Save Credentials",
+							cancelLabel: "Cancel",
+						},
+					},
+				},
+			},
+		});
+	} else if (content.startsWith("testforcemodal")) {
+		// testforcemodal: Auto-open modal immediately (forced credential prompt)
+		parts.push({
+			type: "text",
+			text: `## Credential Required
+
+Your session requires authentication. Please enter your credentials.`,
+			metadata: {
+				ui_schema: {
+					version: "1",
+					components: [
+						{
+							type: "card",
+							title: "Authentication Required",
+							description: "This action requires valid credentials to proceed",
+							children: [
+								{
+									type: "text",
+									content:
+										"The credential form has been opened automatically. Please complete authentication to continue.",
+									variant: "muted",
+								},
+								{
+									type: "button",
+									label: "Enter Credentials",
+									opensModal: "auth-modal",
+									variant: "default",
+								},
+							],
+						},
+					],
+					modals: {
+						"auth-modal": {
+							title: "Enter Credentials",
+							description: "Authenticate to continue with this workflow",
+							size: "md",
+							children: [
+								{
+									type: "input",
+									name: "apiEndpoint",
+									label: "API Endpoint",
+									placeholder: "https://api.example.com",
+								},
+								{
+									type: "input",
+									name: "apiKey",
+									label: "API Key",
+									inputType: "password",
+									placeholder: "Enter your API key",
+								},
+								{
+									type: "select",
+									name: "authType",
+									label: "Authentication Type",
+									placeholder: "Select auth type",
+									options: [
+										{ label: "Bearer Token", value: "bearer" },
+										{ label: "API Key Header", value: "api-key" },
+										{ label: "Basic Auth", value: "basic" },
+									],
+								},
+							],
+							submitAction: "authenticate",
+							submitLabel: "Authenticate",
+							cancelLabel: "Cancel",
+						},
+					},
+					autoOpenModal: "auth-modal",
+				},
+			},
+		});
 	} else {
 		// Default scenario - fall back to original logic
 		const useScenario = scenario || MOCK_CONFIG.defaultScenario;
@@ -1781,6 +1834,7 @@ This is a basic response format. Set \`MOCK_SCENARIO\` environment variable to g
 				response: part.text,
 				response_group_id: responseGroupId,
 				metadata: {
+					...part.metadata, // Include part metadata (e.g., ui_schema)
 					turn_complete: isLastPart,
 				},
 			});
@@ -1847,18 +1901,20 @@ app.get("/api/files/:documentId/metadata", (req, res) => {
 	// For testing, treat documentId as blob_id
 	if (!blobExists(documentId)) {
 		contextLogger.warn({}, "Document not found");
-		return res.status(404).json({
+		res.status(404).json({
 			error: "Document not found",
 		});
+		return;
 	}
 
 	const blobContent = getBlobContent(documentId);
 
 	if (!blobContent) {
 		contextLogger.error({}, "Document exists but metadata retrieval failed");
-		return res.status(500).json({
+		res.status(500).json({
 			error: "Failed to retrieve document metadata",
 		});
+		return;
 	}
 
 	// Return metadata with content for citations
@@ -1900,18 +1956,20 @@ app.get("/api/files/:documentId/download", (req, res) => {
 	// For testing, treat documentId as blob_id
 	if (!blobExists(documentId)) {
 		contextLogger.warn({}, "Document not found");
-		return res.status(404).json({
+		res.status(404).json({
 			error: "Document not found",
 		});
+		return;
 	}
 
 	const blobContent = getBlobContent(documentId);
 
 	if (!blobContent) {
 		contextLogger.error({}, "Document exists but download failed");
-		return res.status(500).json({
+		res.status(500).json({
 			error: "Failed to download document",
 		});
+		return;
 	}
 
 	// Set headers for file download
@@ -1948,20 +2006,22 @@ app.get("/blobs/:blob_id", (req, res) => {
 
 	if (!blobExists(blob_id)) {
 		contextLogger.warn({}, "Blob not found");
-		return res.status(404).json({
+		res.status(404).json({
 			error: "Blob not found",
 			blob_id,
 		});
+		return;
 	}
 
 	const blobContent = getBlobContent(blob_id);
 
 	if (!blobContent) {
 		contextLogger.error({}, "Blob exists but content retrieval failed");
-		return res.status(500).json({
+		res.status(500).json({
 			error: "Failed to retrieve blob content",
 			blob_id,
 		});
+		return;
 	}
 
 	contextLogger.info(
@@ -2055,26 +2115,27 @@ app.post("/api/Webhooks/postEvent/:tenantId", async (req, res) => {
 			}
 
 			timer.end({ success: true, tenantId });
-			return res.json({
+			res.json({
 				success: true,
 				message:
 					"Tenant webhook received - mock response will be sent via RabbitMQ",
 				eventId: correlationId,
 			});
+			return;
 		}
 
 		// Unknown webhook type
 		timer.end({ success: false, reason: "unknown_webhook_type" });
-		return res
-			.status(400)
-			.json({ error: "Unknown webhook type for tenant endpoint" });
+		res.status(400).json({ error: "Unknown webhook type for tenant endpoint" });
+		return;
 	} catch (error) {
 		timer.end({ success: false });
 		webhookLogger.error(
 			{ error, tenantId },
 			"Tenant webhook processing failed",
 		);
-		return res.status(500).json({ error: "Internal server error" });
+		res.status(500).json({ error: "Internal server error" });
+		return;
 	}
 });
 
@@ -2097,9 +2158,10 @@ app.post("/webhook", async (req, res) => {
 				},
 				"Webhook validation failed - missing basic required fields",
 			);
-			return res.status(400).json({
+			res.status(400).json({
 				error: "Missing required fields: source, action",
 			});
+			return;
 		}
 
 		// Require tenant_id for all webhooks
@@ -2113,9 +2175,10 @@ app.post("/webhook", async (req, res) => {
 				},
 				"Webhook validation failed - missing tenant_id",
 			);
-			return res.status(400).json({
+			res.status(400).json({
 				error: "Missing required field: tenant_id",
 			});
+			return;
 		}
 
 		// Handle different webhook types
@@ -2165,10 +2228,11 @@ app.post("/webhook", async (req, res) => {
 					},
 					"Message webhook validation failed - missing required fields",
 				);
-				return res.status(400).json({
+				res.status(400).json({
 					error:
 						"Missing required fields for message webhook: message_id, conversation_id, customer_message",
 				});
+				return;
 			}
 		} else if (
 			payload.source === "rita-documents" &&
@@ -2214,10 +2278,11 @@ app.post("/webhook", async (req, res) => {
 					},
 					"Document webhook validation failed - missing required fields",
 				);
-				return res.status(400).json({
+				res.status(400).json({
 					error:
 						"Missing required fields for document webhook: blob_metadata_id, blob_id, document_url, file_type",
 				});
+				return;
 			}
 		} else if (
 			payload.source === "rita-documents" &&
@@ -2252,10 +2317,11 @@ app.post("/webhook", async (req, res) => {
 					},
 					"Document deletion webhook validation failed - missing required fields",
 				);
-				return res.status(400).json({
+				res.status(400).json({
 					error:
 						"Missing required fields for document deletion webhook: blob_metadata_id, blob_id",
 				});
+				return;
 			}
 
 			// Log deletion event prominently
@@ -2266,12 +2332,13 @@ app.post("/webhook", async (req, res) => {
 			console.log(`${"═".repeat(100)}\n`);
 
 			// Acknowledge successful receipt (Barista would perform vector database cleanup here)
-			return res.status(200).json({
+			res.status(200).json({
 				message: "Document deletion webhook received",
 				blob_metadata_id: deletePayload.blob_metadata_id,
 				blob_id: deletePayload.blob_id,
 				status: "acknowledged",
 			});
+			return;
 		} else if (
 			payload.source === "rita-signup" &&
 			payload.action === "user_signup"
@@ -2318,10 +2385,11 @@ app.post("/webhook", async (req, res) => {
 					},
 					"Signup webhook validation failed - missing required fields",
 				);
-				return res.status(400).json({
+				res.status(400).json({
 					error:
 						"Missing required fields for signup webhook: user_email, first_name, last_name, company, password, verification_token",
 				});
+				return;
 			}
 		} else if (
 			payload.source === "rita-chat" &&
@@ -2366,21 +2434,23 @@ app.post("/webhook", async (req, res) => {
 					"📧 Invitation emails sent successfully via Mailpit",
 				);
 
-				return res.status(200).json({
+				res.status(200).json({
 					success: true,
 					message: "Invitation emails sent successfully",
 					invitations_sent: invitationPayload.invitations.length,
 				});
+				return;
 			} catch (error) {
 				logError(contextLogger, error as Error, {
 					operation: "send-invitations",
 				});
 
-				return res.status(500).json({
+				res.status(500).json({
 					success: false,
 					message: "Failed to send invitation emails",
 					error: error instanceof Error ? error.message : "Unknown error",
 				});
+				return;
 			}
 		} else if (
 			payload.source === "rita-chat" &&
@@ -2447,22 +2517,24 @@ app.post("/webhook", async (req, res) => {
 				console.log("User can now sign in to the application!");
 				console.log(`${"=".repeat(80)}\n`);
 
-				return res.status(200).json({
+				res.status(200).json({
 					success: true,
 					message: "Invitation accepted, user created in Keycloak",
 					keycloak_user_id: keycloakUserId,
 					email: acceptPayload.user_email,
 				});
+				return;
 			} catch (error) {
 				logError(contextLogger, error as Error, {
 					operation: "accept-invitation-processing",
 				});
 
-				return res.status(200).json({
+				res.status(200).json({
 					success: false,
 					message: "Invitation webhook received but user creation failed",
 					error: error instanceof Error ? error.message : "Unknown error",
 				});
+				return;
 			}
 		} else if (
 			payload.source === "rita-member-management" &&
@@ -2561,7 +2633,7 @@ app.post("/webhook", async (req, res) => {
 				}
 				console.log(`${"=".repeat(80)}\n`);
 
-				return res.status(200).json({
+				res.status(200).json({
 					success: true,
 					message: `Keycloak user(s) deleted successfully (${totalUsersDeleted} total)`,
 					email: deletePayload.user_email,
@@ -2570,17 +2642,19 @@ app.post("/webhook", async (req, res) => {
 					total_users_deleted: totalUsersDeleted,
 					additional_users_deleted: additionalUsersDeleted,
 				});
+				return;
 			} catch (error) {
 				logError(contextLogger, error as Error, {
 					operation: "delete-keycloak-user-processing",
 				});
 
-				return res.status(500).json({
+				res.status(500).json({
 					success: false,
 					message: "Failed to delete Keycloak user",
 					error: error instanceof Error ? error.message : "Unknown error",
 					email: deletePayload.user_email,
 				});
+				return;
 			}
 		} else if (
 			payload.source === "rita-chat" &&
@@ -2618,9 +2692,7 @@ app.post("/webhook", async (req, res) => {
 			// Publish verification message to RabbitMQ after 1 second delay
 			setTimeout(async () => {
 				try {
-					if (!rabbitChannel) {
-						throw new Error("RabbitMQ channel not initialized");
-					}
+					const rabbitmqService = getRabbitMQService();
 
 					if (isDelegation) {
 						// Credential delegation verification
@@ -2659,13 +2731,9 @@ app.post("/webhook", async (req, res) => {
 							timestamp: new Date().toISOString(),
 						};
 
-						await rabbitChannel.assertQueue("data_source_status", {
-							durable: true,
-						});
-						rabbitChannel.sendToQueue(
+						await rabbitmqService.publishToQueue(
 							"data_source_status",
-							Buffer.from(JSON.stringify(delegationMessage)),
-							{ persistent: true },
+							delegationMessage,
 						);
 
 						contextLogger.info(
@@ -2768,13 +2836,9 @@ app.post("/webhook", async (req, res) => {
 							error: null,
 						};
 
-						await rabbitChannel.assertQueue("data_source_status", {
-							durable: true,
-						});
-						rabbitChannel.sendToQueue(
+						await rabbitmqService.publishToQueue(
 							"data_source_status",
-							Buffer.from(JSON.stringify(verificationMessage)),
-							{ persistent: true },
+							verificationMessage,
 						);
 
 						contextLogger.info(
@@ -2794,10 +2858,11 @@ app.post("/webhook", async (req, res) => {
 				}
 			}, 1000);
 
-			return res.status(200).json({
+			res.status(200).json({
 				success: true,
 				message: "Verification started",
 			});
+			return;
 		} else if (
 			payload.source === "rita-chat" &&
 			payload.action === "trigger_sync"
@@ -2834,9 +2899,7 @@ app.post("/webhook", async (req, res) => {
 						return;
 					}
 
-					if (!rabbitChannel) {
-						throw new Error("RabbitMQ channel not initialized");
-					}
+					const rabbitmqService = getRabbitMQService();
 
 					const syncMessage = {
 						type: "sync",
@@ -2847,13 +2910,9 @@ app.post("/webhook", async (req, res) => {
 						timestamp: new Date().toISOString(),
 					};
 
-					await rabbitChannel.assertQueue("data_source_status", {
-						durable: true,
-					});
-					rabbitChannel.sendToQueue(
+					await rabbitmqService.publishToQueue(
 						"data_source_status",
-						Buffer.from(JSON.stringify(syncMessage)),
-						{ persistent: true },
+						syncMessage,
 					);
 
 					contextLogger.info(
@@ -2871,10 +2930,11 @@ app.post("/webhook", async (req, res) => {
 				}
 			}, 20000);
 
-			return res.status(200).json({
+			res.status(200).json({
 				success: true,
 				message: "Sync triggered successfully",
 			});
+			return;
 		} else if (
 			payload.source === "rita-chat" &&
 			payload.action === "sync_tickets"
@@ -2898,103 +2958,174 @@ app.post("/webhook", async (req, res) => {
 				"Received sync_tickets webhook",
 			);
 
-			// Simulate ticket sync with batch progress updates
-			const totalTickets = Math.floor(Math.random() * 150) + 50; // 50-200 tickets
-			const batchSize = 25;
-			let processed = 0;
+			// For ServiceNow ITSM, insert actual test data into the database
+			const isServiceNow = ticketsPayload.connection_type === "servicenow_itsm";
 
-			const sendProgressMessage = async () => {
+			// Start async data sync and progress reporting
+			(async () => {
 				try {
-					if (!rabbitChannel) {
-						throw new Error("RabbitMQ channel not initialized");
-					}
+					const rabbitmqService = getRabbitMQService();
 
-					await rabbitChannel.assertQueue("data_source_status", {
-						durable: true,
-					});
+					let totalTickets: number;
+					let ticketsCreated = 0;
 
-					processed += batchSize;
-					const isComplete = processed >= totalTickets;
-
-					if (isComplete) {
-						// Final completed message
-						const recordsFailed = Math.floor(Math.random() * 4) + 1; // 1-4 failures (always some for testing)
-						const ingestionMessage = {
-							type: "ticket_ingestion",
-							tenant_id: ticketsPayload.tenant_id,
-							user_id: ticketsPayload.user_id,
-							ingestion_run_id: ticketsPayload.ingestion_run_id,
-							connection_id: ticketsPayload.connection_id,
-							status: "completed",
-							records_processed: totalTickets,
-							records_failed: recordsFailed,
-							total_estimated: totalTickets,
-							timestamp: new Date().toISOString(),
-						};
-
-						rabbitChannel.sendToQueue(
-							"data_source_status",
-							Buffer.from(JSON.stringify(ingestionMessage)),
-							{ persistent: true },
-						);
-
+					if (isServiceNow) {
+						// Insert actual data for ServiceNow ITSM
 						contextLogger.info(
-							{
-								ingestionRunId: ticketsPayload.ingestion_run_id,
-								recordsProcessed: totalTickets,
-								recordsFailed,
-							},
-							"Published ticket_ingestion completed message",
+							"Inserting ServiceNow test data into database...",
 						);
-					} else {
-						// Progress message
-						const ingestionMessage = {
+
+						// Send initial progress message
+						const initialMessage = {
 							type: "ticket_ingestion",
 							tenant_id: ticketsPayload.tenant_id,
 							user_id: ticketsPayload.user_id,
 							ingestion_run_id: ticketsPayload.ingestion_run_id,
 							connection_id: ticketsPayload.connection_id,
 							status: "running",
-							records_processed: processed,
+							records_processed: 0,
 							records_failed: 0,
-							total_estimated: totalTickets,
+							total_estimated: 270, // ~10 per cluster * 27 clusters
 							timestamp: new Date().toISOString(),
 						};
-
-						rabbitChannel.sendToQueue(
+						await rabbitmqService.publishToQueue(
 							"data_source_status",
-							Buffer.from(JSON.stringify(ingestionMessage)),
-							{ persistent: true },
+							initialMessage,
 						);
+
+						// Perform actual data insertion
+						// Pass settings to enable username-based training state scenarios
+						const syncResult = await syncServiceNowData(
+							ticketsPayload.tenant_id,
+							ticketsPayload.connection_id,
+							ticketsPayload.ingestion_run_id,
+							ticketsPayload.settings,
+						);
+
+						totalTickets = syncResult.ticketsCreated;
+						ticketsCreated = syncResult.ticketsCreated;
 
 						contextLogger.info(
 							{
-								ingestionRunId: ticketsPayload.ingestion_run_id,
-								recordsProcessed: processed,
-								totalEstimated: totalTickets,
+								modelId: syncResult.modelId,
+								clustersCreated: syncResult.clustersCreated,
+								ticketsCreated: syncResult.ticketsCreated,
 							},
-							"Published ticket_ingestion progress message",
+							"ServiceNow data inserted successfully",
 						);
 
-						// Schedule next progress update
-						setTimeout(sendProgressMessage, 2000);
+						// Simulate realistic sync time with partial progress updates
+						// 0s: 0 tickets (already sent)
+						// 2s: ~50% progress
+						// 4s: ~80% progress
+						// 5s: complete
+						const progressUpdates = [
+							{ delay: 2000, percent: 0.5 },
+							{ delay: 2000, percent: 0.8 },
+						];
+
+						for (const update of progressUpdates) {
+							await new Promise((resolve) => setTimeout(resolve, update.delay));
+							const progressMessage = {
+								type: "ticket_ingestion",
+								tenant_id: ticketsPayload.tenant_id,
+								user_id: ticketsPayload.user_id,
+								ingestion_run_id: ticketsPayload.ingestion_run_id,
+								connection_id: ticketsPayload.connection_id,
+								status: "running",
+								records_processed: Math.floor(totalTickets * update.percent),
+								records_failed: 0,
+								total_estimated: totalTickets,
+								timestamp: new Date().toISOString(),
+							};
+							await rabbitmqService.publishToQueue(
+								"data_source_status",
+								progressMessage,
+							);
+							contextLogger.info(
+								{
+									percent: update.percent * 100,
+									processed: progressMessage.records_processed,
+								},
+								"Sent progress update",
+							);
+						}
+
+						// Final delay before completion
+						await new Promise((resolve) => setTimeout(resolve, 1000));
+					} else {
+						// For other ITSM types, just simulate (no actual data insertion)
+						totalTickets = Math.floor(Math.random() * 150) + 50;
+						await new Promise((resolve) => setTimeout(resolve, 2000));
 					}
-				} catch (error) {
-					contextLogger.error(
-						{ error },
-						"Failed to publish ticket_ingestion message",
+
+					// Send completion message with actual counts
+					const completedMessage = {
+						type: "ticket_ingestion",
+						tenant_id: ticketsPayload.tenant_id,
+						user_id: ticketsPayload.user_id,
+						ingestion_run_id: ticketsPayload.ingestion_run_id,
+						connection_id: ticketsPayload.connection_id,
+						status: "completed",
+						records_processed: totalTickets,
+						records_failed: 0,
+						total_estimated: totalTickets,
+						timestamp: new Date().toISOString(),
+					};
+
+					await rabbitmqService.publishToQueue(
+						"data_source_status",
+						completedMessage,
 					);
+
+					contextLogger.info(
+						{
+							ingestionRunId: ticketsPayload.ingestion_run_id,
+							recordsProcessed: totalTickets,
+							ticketsCreated,
+							isServiceNow,
+						},
+						"Published ticket_ingestion completed message",
+					);
+				} catch (error) {
+					contextLogger.error({ error }, "Failed to sync tickets");
+
+					// Send failure message
+					try {
+						const rabbitmqService = getRabbitMQService();
+						const failedMessage = {
+							type: "ticket_ingestion",
+							tenant_id: ticketsPayload.tenant_id,
+							user_id: ticketsPayload.user_id,
+							ingestion_run_id: ticketsPayload.ingestion_run_id,
+							connection_id: ticketsPayload.connection_id,
+							status: "failed",
+							records_processed: 0,
+							records_failed: 0,
+							total_estimated: 0,
+							error: error instanceof Error ? error.message : "Unknown error",
+							timestamp: new Date().toISOString(),
+						};
+
+						await rabbitmqService.publishToQueue(
+							"data_source_status",
+							failedMessage,
+						);
+					} catch (publishError) {
+						contextLogger.error(
+							{ error: publishError },
+							"Failed to publish failure message",
+						);
+					}
 				}
-			};
+			})();
 
-			// Start first progress update after 2 seconds
-			setTimeout(sendProgressMessage, 2000);
-
-			return res.status(200).json({
+			res.status(200).json({
 				success: true,
 				message: "Ticket sync triggered successfully",
 				ingestion_run_id: ticketsPayload.ingestion_run_id,
 			});
+			return;
 		} else if (
 			payload.source === "rita-credential-delegation" &&
 			payload.action === "send_delegation_email"
@@ -3038,22 +3169,24 @@ app.post("/webhook", async (req, res) => {
 					"📧 Credential delegation email sent successfully via Mailpit",
 				);
 
-				return res.status(200).json({
+				res.status(200).json({
 					success: true,
 					message: "Credential delegation email sent successfully",
 					admin_email: delegationPayload.admin_email,
 					delegation_token_id: delegationPayload.delegation_token_id,
 				});
+				return;
 			} catch (error) {
 				logError(contextLogger, error as Error, {
 					operation: "send-delegation-email",
 				});
 
-				return res.status(500).json({
+				res.status(500).json({
 					success: false,
 					message: "Failed to send credential delegation email",
 					error: error instanceof Error ? error.message : "Unknown error",
 				});
+				return;
 			}
 		} else {
 			const errorLogger = createContextLogger(webhookLogger, correlationId);
@@ -3066,9 +3199,10 @@ app.post("/webhook", async (req, res) => {
 				},
 				"Unsupported webhook type",
 			);
-			return res.status(400).json({
+			res.status(400).json({
 				error: `Unsupported webhook type: ${basePayload.source}:${basePayload.action}`,
 			});
+			return;
 		}
 
 		const contextLogger = createContextLogger(webhookLogger, correlationId, {
@@ -3094,7 +3228,8 @@ app.post("/webhook", async (req, res) => {
 				},
 				"Webhook authentication failed",
 			);
-			return res.status(401).json({ error: "Unauthorized" });
+			res.status(401).json({ error: "Unauthorized" });
+			return;
 		}
 
 		contextLogger.info({}, "Webhook authenticated successfully");
@@ -3223,9 +3358,7 @@ app.post("/webhook", async (req, res) => {
 			// Publish processing_completed message to RabbitMQ after 3 second delay
 			setTimeout(async () => {
 				try {
-					if (!rabbitChannel) {
-						throw new Error("RabbitMQ channel not initialized");
-					}
+					const rabbitmqService = getRabbitMQService();
 
 					// Randomly simulate successful or failed document processing
 					const isSuccess = Math.random() > 0.5; // 50% success rate
@@ -3247,13 +3380,9 @@ app.post("/webhook", async (req, res) => {
 							"Mock processing error: Failed to extract text from document";
 					}
 
-					await rabbitChannel.assertQueue("document_processing_status", {
-						durable: true,
-					});
-					rabbitChannel.sendToQueue(
+					await rabbitmqService.publishToQueue(
 						"document_processing_status",
-						Buffer.from(JSON.stringify(processingMessage)),
-						{ persistent: true },
+						processingMessage,
 					);
 
 					contextLogger.info(
@@ -3363,15 +3492,23 @@ app.listen(PORT, async () => {
 		"Rita Mock Automation Service started",
 	);
 
-	// Initialize RabbitMQ connection
+	// Initialize RabbitMQ with automatic retry on failure
+	const rabbitmqService = getRabbitMQService();
 	try {
-		await connectRabbitMQ();
+		await rabbitmqService.connect();
+		logger.info("RabbitMQ connected successfully");
 	} catch (error) {
-		logError(logger, error as Error, {
-			operation: "startup",
-			component: "rabbitmq-initialization",
-		});
-		process.exit(1);
+		// Don't crash the server - automatic reconnection will handle this
+		logger.warn(
+			{
+				error: (error as Error).message,
+				errorCode: (error as any).code,
+			},
+			"RabbitMQ initial connection failed - will retry automatically in background",
+		);
+
+		// Start reconnection in background (access private method via bracket notation)
+		(rabbitmqService as any).reconnect();
 	}
 });
 
@@ -3381,14 +3518,8 @@ process.on("SIGINT", async () => {
 	shutdownLogger.info({}, "Mock service shutting down gracefully...");
 
 	try {
-		if (rabbitChannel) {
-			await rabbitChannel.close();
-			shutdownLogger.info({}, "RabbitMQ channel closed");
-		}
-		if (rabbitConnection) {
-			await rabbitConnection.close();
-			shutdownLogger.info({}, "RabbitMQ connection closed");
-		}
+		const rabbitmqService = getRabbitMQService();
+		await rabbitmqService.close();
 		shutdownLogger.info({}, "Graceful shutdown completed");
 	} catch (error) {
 		logError(shutdownLogger, error as Error, {

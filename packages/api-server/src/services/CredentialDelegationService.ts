@@ -51,7 +51,7 @@ export class CredentialDelegationService {
 		}
 
 		// Validate ITSM system type
-		if (!["servicenow_itsm", "jira"].includes(itsmSystemType)) {
+		if (!["servicenow_itsm", "jira_itsm"].includes(itsmSystemType)) {
 			throw new Error("Invalid ITSM system type");
 		}
 
@@ -521,6 +521,14 @@ export class CredentialDelegationService {
 	}
 
 	/**
+	 * Validate URL format
+	 */
+	private validateUrl(url: string): boolean {
+		const urlRegex = /^https?:\/\/[\w.-]+\.[a-zA-Z]{2,}(:\d+)?(\/.*)?$/;
+		return urlRegex.test(url);
+	}
+
+	/**
 	 * Validate credentials based on ITSM system type
 	 */
 	private validateCredentials(
@@ -537,6 +545,12 @@ export class CredentialDelegationService {
 			throw new Error("Instance URL is required");
 		}
 
+		if (!this.validateUrl(creds.instance_url)) {
+			throw new Error(
+				"Invalid URL format. URL must start with http:// or https:// and contain a valid domain",
+			);
+		}
+
 		if (systemType === "servicenow_itsm") {
 			if (!creds.username || typeof creds.username !== "string") {
 				throw new Error("Username is required for ServiceNow");
@@ -544,7 +558,7 @@ export class CredentialDelegationService {
 			if (!creds.password || typeof creds.password !== "string") {
 				throw new Error("Password is required for ServiceNow");
 			}
-		} else if (systemType === "jira") {
+		} else if (systemType === "jira_itsm") {
 			if (!creds.email || typeof creds.email !== "string") {
 				throw new Error("Email is required for Jira");
 			}

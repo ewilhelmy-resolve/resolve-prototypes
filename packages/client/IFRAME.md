@@ -126,21 +126,74 @@ Conversations are linked by **activityId** from the Valkey `context` object.
 
 ## Quick Start (Development)
 
-### 1. Start Dev Servers
-
 ```bash
-# Terminal 1: Start API server (required)
-npm run dev:api
+# Install dependencies
+pnpm install
 
-# Terminal 2: Start RITA client
-npm run dev:client
+# Terminal 1: API server (localhost:3000)
+pnpm dev:api
+
+# Terminal 2: Jarvis client (localhost:5173)
+pnpm dev:client
+
+# Terminal 3: Test host page (localhost:5174)
+pnpm dev:iframe-app
 ```
 
-### 2. Test Locally
+**Open http://localhost:5174** - Test host page with Platform Simulator for testing UI schemas.
 
-Open directly: http://localhost:5173/iframe/chat?token=dev-iframe-token-2024
+Direct iframe URL: http://localhost:5173/iframe/chat?token=dev-iframe-token-2024
 
-Or use the built-in demo: http://localhost:5173/embeddemo
+## Dynamic UI Schema Rendering
+
+Platform can send JSON UI schemas via SSE that render as interactive shadcn/ui components in the chat.
+
+### Flow
+
+```
+Platform → RabbitMQ → API Server → SSE → Jarvis → SchemaRenderer → User
+                                                         ↓
+                                              User clicks button
+                                                         ↓
+                                              POST /action → Platform
+```
+
+### Supported Components
+
+| Type | Description |
+|------|-------------|
+| `text` | Text with variants (heading, muted, code, diff-*) |
+| `button` | Action triggers |
+| `input` | Form inputs (text, email, textarea) |
+| `select` | Dropdown selection |
+| `stat` | Metric cards |
+| `card` | Container with title |
+| `row`/`column` | Layout |
+| `form` | Collects inputs, submits action |
+| `table` | Data tables |
+| `diagram` | Mermaid diagrams with fullscreen |
+
+### Example Schema
+
+```json
+{
+  "version": "1",
+  "components": [
+    { "type": "text", "content": "Approve request?", "variant": "heading" },
+    { "type": "button", "label": "Approve", "action": "approve", "variant": "default" },
+    { "type": "button", "label": "Reject", "action": "reject", "variant": "destructive" }
+  ]
+}
+```
+
+### Testing with Platform Simulator
+
+The iframe-app host (localhost:5174) includes a **Platform Simulator** panel:
+- Send mock UI schemas without backend
+- Test all component types
+- View action payloads in debug console
+
+See `docs/features/ui-schema/specification.md` for full schema spec.
 
 ## Integration Example
 
@@ -379,24 +432,30 @@ VITE_API_URL=http://localhost:3000
 
 ## Testing
 
-### Built-in Demo Page
+### Iframe Demo Host
 
-The `/embeddemo` route provides a built-in testing environment that deploys with the main app:
+The `packages/iframe-app` provides a host page demo for testing iframe integration:
 
-**URL**: `http://localhost:5173/embeddemo`
+**URL**: `http://localhost:5174`
 
 **Features**:
-- No separate dev server needed
-- Token and hashkey configuration
-- Send Message via postMessage
+- Simulates Resolve Actions host page
+- Activity-based conversation testing
+- Modal approaches demo (self-inject, host modal, popup)
+- Mock response triggers
 - Event log with color-coded entries
-- Workflow execution flow explanation
 
 **Usage**:
 ```bash
-# Just start the client (no separate demo server needed)
+# Terminal 1: Start API server
+npm run dev:api
+
+# Terminal 2: Start client
 npm run dev:client
-# Open http://localhost:5173/embeddemo
+
+# Terminal 3: Start iframe demo host
+npm run dev:iframe-app
+# Open http://localhost:5174
 ```
 
 ### Manual Testing Checklist
@@ -443,6 +502,6 @@ Same as main app - see `.env.example` in project root
 - `packages/api-server/src/routes/iframe.routes.ts` - API endpoints
 - `packages/api-server/src/config/valkey.ts` - Valkey client
 - `packages/client/src/pages/IframeChatPage.tsx` - Iframe chat page
-- `packages/client/src/pages/EmbedDemoPage.tsx` - Built-in demo page (/embeddemo)
 - `packages/client/src/services/iframeApi.ts` - Frontend API client
 - `packages/client/src/hooks/useIframeMessaging.ts` - PostMessage handler hook
+- `packages/iframe-app/index.html` - Iframe demo host page

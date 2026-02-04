@@ -48,7 +48,6 @@ export const SOURCES = {
 	SERVICENOW: "servicenow",
 	SERVICENOW_ITSM: "servicenow_itsm",
 	WEB_SEARCH: "websearch",
-	JIRA: "jira",
 	JIRA_ITSM: "jira_itsm",
 	FRESHDESK: "freshdesk",
 } as const;
@@ -104,10 +103,6 @@ export const SOURCE_METADATA: Record<
 		title: "Web Search (LGA)",
 		description:
 			"Use web results to supplement answers when knowledge isn't found.",
-	},
-	jira: {
-		title: "Jira",
-		description: "Import tickets from Jira for autopilot clustering.",
 	},
 	jira_itsm: {
 		title: "Jira",

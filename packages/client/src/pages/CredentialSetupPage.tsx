@@ -71,7 +71,7 @@ interface JiraFormData {
  */
 const SYSTEM_ICONS: Record<ItsmSystemType, string> = {
 	servicenow_itsm: "/connections/icon_servicenow_itsm.svg",
-	jira: "/connections/icon_jira.svg",
+	jira_itsm: "/connections/icon_jira_itsm.svg",
 };
 
 /**
@@ -178,7 +178,7 @@ function ServiceNowCredentialForm({
 						{...register("instanceUrl", {
 							required: t("form.servicenow.instanceUrlRequired"),
 							pattern: {
-								value: /^https?:\/\/.+/,
+								value: /^https?:\/\/[\w.-]+\.[a-zA-Z]{2,}(:\d+)?(\/.*)?$/,
 								message: t("form.servicenow.invalidUrl"),
 							},
 						})}
@@ -304,7 +304,7 @@ function JiraCredentialForm({
 						{...register("url", {
 							required: t("form.jira.urlRequired"),
 							pattern: {
-								value: /^https?:\/\/.+/,
+								value: /^https?:\/\/[\w.-]+\.[a-zA-Z]{2,}(:\d+)?(\/.*)?$/,
 								message: t("form.jira.invalidUrl"),
 							},
 						})}
@@ -731,7 +731,7 @@ export default function CredentialSetupPage() {
 							verificationError={verificationError}
 						/>
 					)}
-					{systemType === "jira" && (
+					{systemType === "jira_itsm" && (
 						<JiraCredentialForm
 							onSubmit={handleJiraSubmit}
 							isSubmitting={isSubmitting}

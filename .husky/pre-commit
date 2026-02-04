@@ -1,2 +1,8 @@
 npx lint-staged
 npm run type-check
+
+# Generate OpenAPI docs only if api-server files are staged
+if git diff --cached --name-only | grep -q "^packages/api-server/"; then
+  pnpm --filter rita-api-server docs:generate
+  git add packages/api-server/openapi.json
+fi

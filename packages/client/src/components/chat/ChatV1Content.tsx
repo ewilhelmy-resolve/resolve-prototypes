@@ -65,12 +65,15 @@ import {
 	validateFileForUpload,
 } from "@/lib/constants";
 import { formatAbsoluteTime } from "@/lib/date-utils";
+import { iframeApi } from "@/services/iframeApi";
 import type {
 	GroupedChatMessage,
 	Message as RitaMessage,
 	SimpleChatMessage,
 } from "@/stores/conversationStore";
 import { useConversationStore } from "@/stores/conversationStore";
+import type { UIActionPayload } from "@/types/uiSchema";
+import { SchemaRenderer } from "../schema-renderer";
 import { ResponseWithInlineCitations } from "./ResponseWithInlineCitations";
 
 export interface ChatV1ContentProps {
@@ -196,12 +199,16 @@ function GroupedMessage({
 	isCopied,
 	chatStatus,
 	isLastMessage,
+	conversationId,
+	onSchemaAction,
 }: {
 	message: GroupedChatMessage;
 	onCopy: (text: string, messageId: string) => void;
 	isCopied: boolean;
 	chatStatus: ChatStatus;
 	isLastMessage: boolean;
+	conversationId: string | null;
+	onSchemaAction?: (payload: any) => void;
 }) {
 	// Only the last message can be actively streaming
 	const isThisMessageStreaming =
@@ -300,6 +307,18 @@ function GroupedMessage({
 									))}
 								</div>
 							)}
+
+							{/* Render dynamic UI schema if present */}
+							{part.metadata?.ui_schema && conversationId && (
+								<div className="mt-4 w-full">
+									<SchemaRenderer
+										schema={part.metadata.ui_schema}
+										messageId={part.id}
+										conversationId={conversationId}
+										onAction={onSchemaAction}
+									/>
+								</div>
+							)}
 						</Fragment>
 					))}
 				</MessageContent>
@@ -356,10 +375,14 @@ function SimpleMessage({
 	message,
 	onCopy,
 	isCopied,
+	conversationId,
+	onSchemaAction,
 }: {
 	message: SimpleChatMessage;
 	onCopy: (text: string, messageId: string) => void;
 	isCopied: boolean;
+	conversationId: string | null;
+	onSchemaAction?: (payload: any) => void;
 }) {
 	// Hover state for timestamp visibility
 	const [isHovering, setIsHovering] = useState(false);
@@ -376,6 +399,17 @@ function SimpleMessage({
 					variant={message.role === "assistant" ? "flat" : "contained"}
 				>
 					<Response>{message.message}</Response>
+					{/* Render dynamic UI schema if present */}
+					{message.metadata?.ui_schema && conversationId && (
+						<div className="mt-4 w-full">
+							<SchemaRenderer
+								schema={message.metadata.ui_schema}
+								messageId={message.id}
+								conversationId={conversationId}
+								onAction={onSchemaAction}
+							/>
+						</div>
+					)}
 				</MessageContent>
 
 				{/* Actions and timestamp row - always show for assistant messages */}
@@ -759,6 +793,74 @@ export default function ChatV1Content({
 		[t],
 	);
 
+	// Handle UI schema action callbacks (from dynamic UI components)
+	const handleSchemaAction = useCallback(async (payload: UIActionPayload) => {
+		console.log("[SchemaAction] Received action:", payload);
+
+		// Check if we're in dev mode (mock, dev-*, demo-* session keys)
+		const searchParams = new URLSearchParams(window.location.search);
+		const sessionKey = searchParams.get("sessionKey") || "";
+		const isMockMode = searchParams.get("mock") === "true";
+		const isDevMode =
+			isMockMode ||
+			sessionKey.startsWith("dev-") ||
+			sessionKey.startsWith("demo-");
+
+		// Dispatch event for debug panel in dev mode
+		if (isDevMode) {
+			window.dispatchEvent(
+				new CustomEvent("rita:ui-action", { detail: payload }),
+			);
+		}
+
+		if (isMockMode) {
+			// In mock mode, just log and show success - no backend call
+			console.log("[SchemaAction] Mock mode - action payload:", payload);
+
+			ritaToast.success({
+				title: `🚀 Action: ${payload.action}`,
+				description:
+					payload.data && Object.keys(payload.data).length > 0
+						? JSON.stringify(payload.data)
+						: `messageId: ${payload.messageId}`,
+				action: {
+					label: "View Log",
+					onClick: () =>
+						window.dispatchEvent(new CustomEvent("rita:open-activity-log")),
+				},
+			});
+			return;
+		}
+
+		try {
+			// Send action to platform via backend API
+			const response = await iframeApi.sendUIAction(payload);
+
+			if (response.success) {
+				ritaToast.success({
+					title: "Action sent",
+					description: payload.action,
+					action: {
+						label: "View Log",
+						onClick: () =>
+							window.dispatchEvent(new CustomEvent("rita:open-activity-log")),
+					},
+				});
+			} else {
+				ritaToast.error({
+					title: "Action failed",
+					description: response.error || "Unknown error",
+				});
+			}
+		} catch (error) {
+			console.error("[SchemaAction] Failed to send action:", error);
+			ritaToast.error({
+				title: "Action failed",
+				description: error instanceof Error ? error.message : "Network error",
+			});
+		}
+	}, []);
+
 	// Handle direct attachment button click
 	// TODO: Uncomment when re-enabling attachment button
 	// const handleAttachmentClick = useCallback(() => {
@@ -842,12 +944,16 @@ export default function ChatV1Content({
 													isCopied={copiedMessageId === chatMessage.id}
 													chatStatus={chatStatus}
 													isLastMessage={isLastMessage}
+													conversationId={currentConversationId}
+													onSchemaAction={handleSchemaAction}
 												/>
 											) : (
 												<SimpleMessage
 													message={chatMessage as SimpleChatMessage}
 													onCopy={handleCopy}
 													isCopied={copiedMessageId === chatMessage.id}
+													conversationId={currentConversationId}
+													onSchemaAction={handleSchemaAction}
 												/>
 											)}
 										</Fragment>

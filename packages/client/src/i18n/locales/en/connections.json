@@ -51,10 +51,6 @@
 			"title": "Web Search (LGA)",
 			"description": "Use web results to supplement answers when knowledge isn't found."
 		},
-		"jira": {
-			"title": "Jira",
-			"description": "Import tickets from Jira for autopilot clustering."
-		},
 		"jira_itsm": {
 			"title": "Jira",
 			"description": "Import tickets from Jira for Autopilot clustering."
@@ -170,6 +166,10 @@
 			"ticketsCount": "{{count}} tickets",
 			"ticketsSyncFailed": "{{count}} tickets couldn't sync. Common causes: missing fields, permissions, or API limits. Excluded from analysis.",
 			"ticketsOf": "{{processed}} of {{total}} tickets"
+		},
+		"training": {
+			"inProgress": "Model training in progress",
+			"description": "Rita is analyzing your tickets to create ticket groups. This usually takes a few minutes."
 		},
 		"labels": {
 			"spacesQuestion": "Which spaces would you like to sync from?",

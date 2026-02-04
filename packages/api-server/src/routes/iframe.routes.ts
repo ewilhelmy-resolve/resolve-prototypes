@@ -14,8 +14,134 @@
 import express from "express";
 import { logger } from "../config/logger.js";
 import { getValkeyStatus } from "../config/valkey.js";
+import { registry, z } from "../docs/openapi.js";
+import { ErrorResponseSchema } from "../schemas/common.js";
+import {
+	IframeDebugResponseSchema,
+	IframeDeleteConversationResponseSchema,
+	IframeExecuteRequestSchema,
+	IframeExecuteResponseSchema,
+	IframeValidateRequestSchema,
+	IframeValidateResponseSchema,
+} from "../schemas/iframe.js";
 import { getIframeService } from "../services/IframeService.js";
 import { getWorkflowExecutionService } from "../services/WorkflowExecutionService.js";
+
+// ============================================================================
+// OpenAPI Documentation Registration
+// ============================================================================
+
+registry.registerPath({
+	method: "post",
+	path: "/api/iframe/validate-instantiation",
+	tags: ["Iframe"],
+	summary: "Validate iframe instantiation",
+	description:
+		"Validate Valkey session key and setup iframe session. No auth required - sessionKey is the auth.",
+	security: [],
+	request: {
+		body: {
+			content: { "application/json": { schema: IframeValidateRequestSchema } },
+		},
+	},
+	responses: {
+		200: {
+			description: "Validation successful",
+			content: { "application/json": { schema: IframeValidateResponseSchema } },
+		},
+		401: {
+			description: "Validation failed - invalid session",
+			content: { "application/json": { schema: IframeValidateResponseSchema } },
+		},
+		500: {
+			description: "Server error",
+			content: { "application/json": { schema: ErrorResponseSchema } },
+		},
+	},
+});
+
+registry.registerPath({
+	method: "get",
+	path: "/api/iframe/debug",
+	tags: ["Iframe"],
+	summary: "Debug iframe config",
+	description:
+		"Check Valkey status and environment configuration for debugging.",
+	security: [],
+	responses: {
+		200: {
+			description: "Debug information",
+			content: { "application/json": { schema: IframeDebugResponseSchema } },
+		},
+	},
+});
+
+registry.registerPath({
+	method: "post",
+	path: "/api/iframe/execute",
+	tags: ["Iframe"],
+	summary: "Execute workflow",
+	description:
+		"Execute workflow from Valkey hashkey. No auth required - hashkey provides context.",
+	security: [],
+	request: {
+		body: {
+			content: { "application/json": { schema: IframeExecuteRequestSchema } },
+		},
+	},
+	responses: {
+		200: {
+			description: "Execution started",
+			content: { "application/json": { schema: IframeExecuteResponseSchema } },
+		},
+		400: {
+			description: "Invalid input or execution failed",
+			content: { "application/json": { schema: IframeExecuteResponseSchema } },
+		},
+		500: {
+			description: "Server error",
+			content: { "application/json": { schema: IframeExecuteResponseSchema } },
+		},
+	},
+});
+
+registry.registerPath({
+	method: "delete",
+	path: "/api/iframe/conversation/{conversationId}",
+	tags: ["Iframe"],
+	summary: "Delete conversation",
+	description:
+		"Delete iframe conversation and all messages. Used for 'Clear Chat' feature.",
+	security: [],
+	request: {
+		params: z.object({
+			conversationId: z
+				.string()
+				.uuid()
+				.openapi({ description: "Conversation ID to delete" }),
+		}),
+	},
+	responses: {
+		200: {
+			description: "Conversation deleted",
+			content: {
+				"application/json": { schema: IframeDeleteConversationResponseSchema },
+			},
+		},
+		400: {
+			description: "Missing conversationId",
+			content: {
+				"application/json": { schema: IframeDeleteConversationResponseSchema },
+			},
+		},
+		500: {
+			description: "Deletion failed",
+			content: {
+				"application/json": { schema: IframeDeleteConversationResponseSchema },
+			},
+		},
+	},
+});
 
 const router = express.Router();
 
@@ -254,6 +380,55 @@ router.delete("/conversation/:conversationId", async (req, res) => {
 			"Failed to delete conversation",
 		);
 		res.status(500).json({ success: false, error: "Failed to delete" });
+	}
+});
+
+/**
+ * Send UI action back to platform
+ * POST /api/iframe/ui-action
+ *
+ * Used by SchemaRenderer when user interacts with dynamic UI components.
+ * Forwards action payload to platform via webhook.
+ */
+router.post("/ui-action", async (req, res) => {
+	const { action, data, messageId, conversationId, timestamp } = req.body;
+
+	if (!action || !messageId || !conversationId) {
+		res.status(400).json({
+			success: false,
+			error: "Missing required fields: action, messageId, conversationId",
+		});
+		return;
+	}
+
+	try {
+		logger.info(
+			{
+				action,
+				messageId,
+				conversationId,
+				hasData: !!data,
+			},
+			"Processing UI action",
+		);
+
+		const iframeService = getIframeService();
+		await iframeService.sendUIAction({
+			action,
+			data,
+			messageId,
+			conversationId,
+			timestamp,
+		});
+
+		res.json({ success: true });
+	} catch (error) {
+		const err = error as Error;
+		logger.error(
+			{ action, conversationId, error: err.message },
+			"Failed to send UI action",
+		);
+		res.status(500).json({ success: false, error: err.message });
 	}
 });
 

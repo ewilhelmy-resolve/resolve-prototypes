@@ -15,11 +15,14 @@ import clusterRoutes from "./routes/clusters.js";
 import conversationRoutes from "./routes/conversations.js";
 import credentialDelegationRoutes from "./routes/credentialDelegations.js";
 import dataSourceRoutes from "./routes/dataSources.js";
+// IMPORTANT: docs.ts must be imported AFTER all routes so OpenAPI spec includes all paths
+import docsRoutes from "./routes/docs.js";
 import featureFlagRoutes from "./routes/featureFlags.js";
 import filesRoutes from "./routes/files.js";
 import iframeRoutes from "./routes/iframe.routes.js";
 import invitationRoutes from "./routes/invitations.js";
 import memberRoutes from "./routes/members.js";
+import mlModelRoutes from "./routes/mlModels.js";
 import organizationRoutes from "./routes/organizations.js";
 import sseRoutes from "./routes/sse.js";
 import ticketRoutes from "./routes/tickets.js";
@@ -44,7 +47,7 @@ if (process.env.NODE_ENV !== "production") {
 // Basic middleware
 app.use(
 	cors({
-origin: corsOrigins,
+		origin: corsOrigins,
 		credentials: true,
 		methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
 		allowedHeaders: ["Content-Type", "Authorization", "Cookie"],
@@ -78,6 +81,9 @@ app.get("/health", (_req, res) => {
 });
 
 // Webhook routes (no auth required)
+
+// API Documentation (no auth required)
+app.use("/api-docs", docsRoutes);
 
 // Authentication routes (no auth required)
 app.use("/auth", authRoutes);
@@ -147,6 +153,12 @@ app.use(
 	organizationRoutes,
 );
 app.use("/api/clusters", authenticateUser, addUserContextToLogs, clusterRoutes);
+app.use(
+	"/api/ml-models",
+	authenticateUser,
+	addUserContextToLogs,
+	mlModelRoutes,
+);
 app.use("/api/tickets", authenticateUser, addUserContextToLogs, ticketRoutes);
 app.use(
 	"/api/conversations",

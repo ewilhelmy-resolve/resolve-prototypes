@@ -1,8 +1,8 @@
 import { useState } from "react";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import type { KBStatus } from "@/types/cluster";
 import { ClusterDetailOverviewTab } from "./ClusterDetailOverviewTab";
 import KnowledgeTab from "./KnowledgeTab";
-import type { KBStatus } from "@/types/cluster";
 
 interface ClusterDetailSidebarProps {
 	/** Cluster ID from URL params */
@@ -15,14 +15,15 @@ interface ClusterDetailSidebarProps {
 	knowledgeCount?: number;
 	/** Knowledge base status from cluster API */
 	kbStatus?: KBStatus;
-	/** Review stats for readiness meter */
-	reviewStats?: { reviewed: number; trusted: number; total: number };
 	/** Called when auto-populate is enabled */
 	onAutoPopulateEnabled?: () => void;
 	/** Called when knowledge article is added */
 	onKnowledgeAdded?: () => void;
 	/** Called when auto-respond is enabled with context */
-	onAutoRespondEnabled?: (ticketGroupName: string, automatedPercentage: number) => void;
+	onAutoRespondEnabled?: (
+		ticketGroupName: string,
+		automatedPercentage: number,
+	) => void;
 }
 
 /**
@@ -47,7 +48,6 @@ export function ClusterDetailSidebar({
 	openTicketsCount = 0,
 	knowledgeCount = 0,
 	kbStatus,
-	reviewStats,
 	onAutoPopulateEnabled,
 	onKnowledgeAdded,
 	onAutoRespondEnabled,
@@ -73,7 +73,6 @@ export function ClusterDetailSidebar({
 							clusterName={clusterName}
 							openTicketsCount={openTicketsCount}
 							kbStatus={kbStatus}
-							reviewStats={reviewStats}
 							onAutoPopulateEnabled={onAutoPopulateEnabled}
 							onKnowledgeAdded={onKnowledgeAdded}
 							onAutoRespondEnabled={onAutoRespondEnabled}

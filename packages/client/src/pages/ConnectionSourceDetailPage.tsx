@@ -47,7 +47,7 @@ const FORM_REGISTRY: Record<
 	[SOURCES.SERVICENOW]: ServiceNowForm,
 	[SOURCES.SERVICENOW_ITSM]: ServiceNowForm,
 	[SOURCES.WEB_SEARCH]: WebSearchForm,
-	[SOURCES.JIRA]: JiraForm,
+	[SOURCES.JIRA_ITSM]: JiraForm,
 	[SOURCES.FRESHDESK]: FreshdeskForm,
 	[SOURCES.JIRA_ITSM]: JiraForm,
 };

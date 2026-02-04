@@ -162,7 +162,7 @@ export function ServiceNowForm({
 						{...register("instanceUrl", {
 							required: t("form.validation.instanceUrlRequired"),
 							pattern: {
-								value: /^https?:\/\/.+/,
+								value: /^https?:\/\/[\w.-]+\.[a-zA-Z]{2,}(:\d+)?(\/.*)?$/,
 								message: t("form.validation.invalidUrl"),
 							},
 						})}

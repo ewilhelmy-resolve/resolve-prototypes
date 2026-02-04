@@ -11,9 +11,56 @@
 import express from "express";
 import { withOrgContext } from "../config/database.js";
 import { logger } from "../config/logger.js";
+import { registry } from "../docs/openapi.js";
 import { authenticateUser } from "../middleware/auth.js";
+import { ErrorResponseSchema } from "../schemas/common.js";
+import {
+	WorkflowGenerateRequestSchema,
+	WorkflowGenerateResponseSchema,
+} from "../schemas/workflow.js";
 import { WebhookService } from "../services/WebhookService.js";
 import type { AuthenticatedRequest } from "../types/express.js";
+
+// ============================================================================
+// OpenAPI Documentation Registration
+// ============================================================================
+
+registry.registerPath({
+	method: "post",
+	path: "/api/workflows/generate",
+	tags: ["Workflows"],
+	summary: "Generate workflow",
+	description:
+		"Generate a dynamic workflow from a query. Creates conversation and message, then sends webhook.",
+	security: [{ bearerAuth: [] }, { cookieAuth: [] }],
+	request: {
+		body: {
+			content: {
+				"application/json": { schema: WorkflowGenerateRequestSchema },
+			},
+		},
+	},
+	responses: {
+		200: {
+			description: "Workflow generation started",
+			content: {
+				"application/json": { schema: WorkflowGenerateResponseSchema },
+			},
+		},
+		400: {
+			description: "Invalid input - query required",
+			content: { "application/json": { schema: ErrorResponseSchema } },
+		},
+		401: {
+			description: "Unauthorized",
+			content: { "application/json": { schema: ErrorResponseSchema } },
+		},
+		500: {
+			description: "Workflow generation failed",
+			content: { "application/json": { schema: ErrorResponseSchema } },
+		},
+	},
+});
 
 const router = express.Router();
 const webhookService = new WebhookService();

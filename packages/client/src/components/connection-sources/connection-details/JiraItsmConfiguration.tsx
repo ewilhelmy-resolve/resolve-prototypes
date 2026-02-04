@@ -14,6 +14,7 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select";
+import { StatusAlert } from "@/components/ui/status-alert";
 import {
 	Tooltip,
 	TooltipContent,
@@ -21,6 +22,7 @@ import {
 } from "@/components/ui/tooltip";
 import { formatRelativeTime, STATUS } from "@/constants/connectionSources";
 import { useConnectionSource } from "@/contexts/ConnectionSourceContext";
+import { useActiveModel } from "@/hooks/useActiveModel";
 import {
 	useCancelIngestion,
 	useLatestIngestionRun,
@@ -56,6 +58,11 @@ export default function JiraItsmConfiguration({
 	const isTicketSyncing =
 		latestIngestionRun?.status === "running" ||
 		latestIngestionRun?.status === "pending";
+
+	// Check training state for banner
+	const { data: activeModel } = useActiveModel();
+	const trainingState = activeModel?.metadata?.training_state;
+	const isTraining = trainingState === "in_progress";
 
 	const isVerifying =
 		source.status.toLowerCase() === STATUS.VERIFYING.toLowerCase();
@@ -134,6 +141,13 @@ export default function JiraItsmConfiguration({
 					onRetry={handleSyncTickets}
 					hideStatusMessage
 				/>
+
+				{/* Training in progress banner */}
+				{isTraining && (
+					<StatusAlert variant="info" title={t("config.training.inProgress")}>
+						<p>{t("config.training.description")}</p>
+					</StatusAlert>
+				)}
 
 				{/* ITSM Sync Section - show when connected and not verifying */}
 				{source.status.toLowerCase() !== STATUS.ERROR.toLowerCase() &&

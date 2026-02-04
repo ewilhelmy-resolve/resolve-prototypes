@@ -9,8 +9,8 @@ export const ALLOWED_DATA_SOURCE_TYPES = [
 	"servicenow_itsm",
 	"sharepoint",
 	"websearch",
-	"jira",
 	"jira_itsm",
+	"freshdesk",
 ] as const;
 
 export type DataSourceType = (typeof ALLOWED_DATA_SOURCE_TYPES)[number];
@@ -52,13 +52,13 @@ export const DEFAULT_DATA_SOURCES = [
 		description: "Search the public web",
 	},
 	{
-		type: "jira" as DataSourceType,
+		type: "jira_itsm" as DataSourceType,
 		name: "Jira",
-		description: "Connect your Atlassian Jira instance",
+		description: "Import tickets from Jira for Autopilot clustering",
 	},
 	{
-		type: "jira_itsm" as DataSourceType,
-		name: "Jira ITSM",
-		description: "Import tickets from Jira for Autopilot clustering",
+		type: "freshdesk" as DataSourceType,
+		name: "Freshdesk",
+		description: "Import tickets from Freshdesk for Autopilot clustering",
 	},
 ] as const;

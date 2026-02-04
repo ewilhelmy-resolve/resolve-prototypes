@@ -62,8 +62,8 @@ export default function ClusterDetailPage() {
 		key: number;
 	}>({ visible: false, variant: "success", title: "", key: 0 });
 
-	// Review stats for readiness meter (demo flow)
-	const [reviewStats, setReviewStats] = useState<{
+	// Review stats for readiness meter (demo flow) - keeping setter for future use
+	const [_reviewStats, setReviewStats] = useState<{
 		reviewed: number;
 		trusted: number;
 		total: number;
@@ -88,8 +88,13 @@ export default function ClusterDetailPage() {
 			setBannerData((prev) => ({
 				visible: true,
 				variant: "success",
-				title: t("clusterDetail.banners.reviewSuccess", { count: totalReviewed }),
-				description: t("clusterDetail.banners.reviewSuccessDesc", { trusted, improvement: confidenceImprovement }),
+				title: t("clusterDetail.banners.reviewSuccess", {
+					count: totalReviewed,
+				}),
+				description: t("clusterDetail.banners.reviewSuccessDesc", {
+					trusted,
+					improvement: confidenceImprovement,
+				}),
 				key: prev.key + 1,
 			}));
 		} else {
@@ -97,7 +102,9 @@ export default function ClusterDetailPage() {
 				visible: true,
 				variant: "destructive",
 				title: t("clusterDetail.banners.reviewNeedsImprovement"),
-				description: t("clusterDetail.banners.reviewNeedsImprovementDesc", { count: totalReviewed }),
+				description: t("clusterDetail.banners.reviewNeedsImprovementDesc", {
+					count: totalReviewed,
+				}),
 				key: prev.key + 1,
 			}));
 		}
@@ -132,15 +139,25 @@ export default function ClusterDetailPage() {
 	) => {
 		// Update demo store with cluster ticket count (use 500 as fallback for demo)
 		const ticketCount = cluster?.ticket_count || 500;
-		console.log("[Demo] Auto-Respond enabled for", ticketGroupName, "- updating store with", ticketCount, "tickets");
+		console.log(
+			"[Demo] Auto-Respond enabled for",
+			ticketGroupName,
+			"- updating store with",
+			ticketCount,
+			"tickets",
+		);
 		enableAutomation(ticketCount);
 
 		fireConfetti();
 		setBannerData((prev) => ({
 			visible: true,
 			variant: "enriched",
-			title: t("clusterDetail.banners.automatedWork", { percentage: automatedPercentage }),
-			description: t("clusterDetail.banners.automatedWorkDesc", { groupName: ticketGroupName }),
+			title: t("clusterDetail.banners.automatedWork", {
+				percentage: automatedPercentage,
+			}),
+			description: t("clusterDetail.banners.automatedWorkDesc", {
+				groupName: ticketGroupName,
+			}),
 			key: prev.key + 1,
 		}));
 	};
@@ -218,7 +235,9 @@ export default function ClusterDetailPage() {
 			className: "",
 		},
 		{
-			text: t("clusterDetail.badges.kbArticles", { count: cluster.kb_articles_count }),
+			text: t("clusterDetail.badges.kbArticles", {
+				count: cluster.kb_articles_count,
+			}),
 			variant: "secondary" as const,
 			className: "",
 		},
@@ -287,7 +306,6 @@ export default function ClusterDetailPage() {
 					clusterName={title}
 					knowledgeCount={cluster.kb_articles_count}
 					kbStatus={cluster.kb_status}
-					reviewStats={reviewStats}
 					onAutoPopulateEnabled={handleAutoPopulateEnabled}
 					onKnowledgeAdded={handleKnowledgeAdded}
 					onAutoRespondEnabled={handleAutoRespondEnabled}
