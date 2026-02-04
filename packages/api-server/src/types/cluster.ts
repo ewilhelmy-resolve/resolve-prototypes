@@ -93,6 +93,7 @@ export interface Ticket {
 	data_source_connection_id: string | null;
 	external_id: string;
 	subject: string;
+	description: string | null;
 	external_status: string;
 	cluster_text: string | null;
 	rita_status: RitaStatus;

@@ -694,6 +694,10 @@
 						"type": "string",
 						"example": "Cannot reset password"
 					},
+					"description": {
+						"type": ["string", "null"],
+						"description": "Human-readable ticket description"
+					},
 					"external_status": {
 						"type": "string",
 						"description": "Status in source system",
@@ -727,6 +731,7 @@
 					"data_source_connection_id",
 					"external_id",
 					"subject",
+					"description",
 					"external_status",
 					"cluster_text",
 					"rita_status",

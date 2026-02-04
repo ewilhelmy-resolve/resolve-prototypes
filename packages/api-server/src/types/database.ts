@@ -447,6 +447,10 @@ export interface Tickets {
 	created_at: Generated<Timestamp | null>;
 	data_source_connection_id: string | null;
 	/**
+	 * Human-readable ticket description for display (set by ingestion)
+	 */
+	description: string | null;
+	/**
 	 * Ticket ID from ITSM system (Jira/ServiceNow)
 	 */
 	external_id: string;

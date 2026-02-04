@@ -496,8 +496,8 @@ export async function syncServiceNowData(
 				const insertResult = await client.query(
 					`INSERT INTO tickets (
             organization_id, cluster_id, data_source_connection_id,
-            external_id, subject, external_status, rita_status, source_metadata, created_at
-          ) VALUES ($1, $2, $3, $4, $5, 'New', 'NEEDS_RESPONSE', $6, $7)
+            external_id, subject, description, external_status, rita_status, source_metadata, created_at
+          ) VALUES ($1, $2, $3, $4, $5, $6, 'New', 'NEEDS_RESPONSE', $7, $8)
           ON CONFLICT (organization_id, external_id) DO NOTHING`,
 					[
 						organizationId,
@@ -505,6 +505,7 @@ export async function syncServiceNowData(
 						connectionId,
 						externalId,
 						subject,
+						subject, // description uses same value as subject
 						JSON.stringify(sourceMetadata),
 						createdAt,
 					],

@@ -168,6 +168,10 @@ export const TicketSchema = z
 			.string()
 			.openapi({ description: "External ticket ID", example: "INC0012345" }),
 		subject: z.string().openapi({ example: "Cannot reset password" }),
+		description: z
+			.string()
+			.nullable()
+			.openapi({ description: "Human-readable ticket description" }),
 		external_status: z
 			.string()
 			.openapi({ description: "Status in source system", example: "Open" }),
