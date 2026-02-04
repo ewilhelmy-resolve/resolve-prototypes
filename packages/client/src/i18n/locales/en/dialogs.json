@@ -28,10 +28,10 @@
 		}
 	},
 	"welcome": {
-		"title": "Welcome to RITA Go, {{name}}",
+		"title": "Welcome to RITA, {{name}}",
 		"subtitle": "Enjoy your free 90-day trial of Resolve's AI-powered agent for faster, smarter IT support.",
 		"admin": {
-			"intro": "RITA Go learns from your company's knowledge and tickets (coming soon) to help resolve IT issues automatically.",
+			"intro": "RITA learns from your company's knowledge and tickets (coming soon) to help resolve IT issues automatically.",
 			"stepsIntro": "In a few steps, you'll:",
 			"step1": "Connect your knowledge sources like Confluence, ServiceNow, or SharePoint.",
 			"step2": "Invite your teammates to start getting instant answers.",
@@ -39,12 +39,12 @@
 		},
 		"user": {
 			"heading": "Your Admin has connected your workspace.",
-			"intro": "RITA Go helps you solve IT issues instantly — from password resets to VPN access — all based on your company's trusted content. Just ask a question or describe the issue, and RITA Go will:",
+			"intro": "RITA helps you solve IT issues instantly — from password resets to VPN access — all based on your company's trusted content. Just ask a question or describe the issue, and RITA will:",
 			"step1": "Search verified knowledge",
 			"step2": "Get easy next steps or fixes to issues, fast",
 			"step3": "Create a ticket if you still need help without overhead"
 		},
 		"getStarted": "Get Started",
-		"learnMore": "Learn how RITA Go works"
+		"learnMore": "Learn how RITA works"
 	}
 }

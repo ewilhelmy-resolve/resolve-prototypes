@@ -1,6 +1,6 @@
-# RITA Go Iframe Integration
+# RITA Iframe Integration
 
-Embeddable iframe version of RITA Go chat for integration into host portals (e.g., Jarvis).
+Embeddable iframe version of RITA chat for integration into host portals (e.g., Jarvis).
 
 ## Assumptions
 

@@ -17,7 +17,7 @@ Automatically generates production-ready React/TypeScript components from Figma 
 
 1. **IMMEDIATELY extracts design context** using Figma MCP tools (auto-allowed, no permission needed)
 2. **Shows design preview** and asks about component splitting preference
-3. **Generates TypeScript components** following RITA Go standards
+3. **Generates TypeScript components** following RITA standards
 4. **Splits repeated patterns** into reusable components (if user confirms)
 5. **Uses semantic naming** based on feature name (e.g., payments-dashboard → PaymentCard.tsx)
 
@@ -59,7 +59,7 @@ packages/client/src/components/payments/
 - Lucide icons from `lucide-react`
 - Proper TypeScript interfaces
 
-**Follow RITA Go standards:**
+**Follow RITA standards:**
 - Component-Based Architecture (CBA)
 - Accessibility (ARIA labels, keyboard nav)
 - Zod validation for forms

@@ -1,7 +1,7 @@
 /**
  * Feature Flags Type Definitions
  *
- * Centralized feature flag registry for RITA Go.
+ * Centralized feature flag registry for RITA.
  * All feature flags must be registered here with their default values.
  */
 

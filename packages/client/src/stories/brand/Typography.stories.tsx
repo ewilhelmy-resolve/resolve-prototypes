@@ -8,7 +8,7 @@ const meta: Meta = {
 		docs: {
 			description: {
 				component:
-					"Typography system for RITA Go. Uses Season Mix for headings and Helvetica for body text.",
+					"Typography system for RITA. Uses Season Mix for headings and Helvetica for body text.",
 			},
 		},
 	},
@@ -79,7 +79,9 @@ export const FontFamilies: Story = {
 						</div>
 						<div>
 							<span className="text-muted-foreground">Tailwind:</span>
-							<code className="ml-2 bg-muted px-2 py-0.5 rounded">font-sans</code>
+							<code className="ml-2 bg-muted px-2 py-0.5 rounded">
+								font-sans
+							</code>
 						</div>
 					</div>
 					<div className="font-sans text-lg">
@@ -105,7 +107,9 @@ export const FontFamilies: Story = {
 					<div className="grid grid-cols-2 gap-4 text-sm">
 						<div>
 							<span className="text-muted-foreground">Tailwind:</span>
-							<code className="ml-2 bg-muted px-2 py-0.5 rounded">font-mono</code>
+							<code className="ml-2 bg-muted px-2 py-0.5 rounded">
+								font-mono
+							</code>
 						</div>
 					</div>
 					<div className="font-mono text-base">
@@ -184,7 +188,9 @@ export const TypeScale: Story = {
 							<code className="text-xs text-muted-foreground w-20 shrink-0">
 								text-lg
 							</code>
-							<span className="text-lg">Large body text for lead paragraphs</span>
+							<span className="text-lg">
+								Large body text for lead paragraphs
+							</span>
 						</div>
 						<div className="flex items-baseline gap-4">
 							<code className="text-xs text-muted-foreground w-20 shrink-0">
@@ -204,7 +210,9 @@ export const TypeScale: Story = {
 							<code className="text-xs text-muted-foreground w-20 shrink-0">
 								text-xs
 							</code>
-							<span className="text-xs">Extra small for captions and labels</span>
+							<span className="text-xs">
+								Extra small for captions and labels
+							</span>
 						</div>
 					</div>
 				</div>
@@ -294,12 +302,12 @@ export const UsageExample: Story = {
 			<h1 className="text-2xl font-bold text-foreground">Real World Example</h1>
 
 			<article className="p-6 rounded-lg border border-border bg-card space-y-4">
-				<h1 className="font-heading text-3xl">Welcome to RITA Go</h1>
+				<h1 className="font-heading text-3xl">Welcome to RITA</h1>
 				<p className="text-lg text-muted-foreground">
 					Your intelligent assistant for workplace productivity.
 				</p>
 				<p className="text-base">
-					RITA Go helps you find answers quickly by searching through your
+					RITA helps you find answers quickly by searching through your
 					organization's knowledge base. Ask questions in natural language and
 					get accurate, sourced responses.
 				</p>
@@ -318,7 +326,7 @@ export const UsageExample: Story = {
 				<h3 className="font-medium mb-2">Code</h3>
 				<pre className="text-xs font-mono overflow-x-auto">
 					{`<article className="p-6 rounded-lg border border-border bg-card">
-  <h1 className="font-heading text-3xl">Welcome to RITA Go</h1>
+  <h1 className="font-heading text-3xl">Welcome to RITA</h1>
   <p className="text-lg text-muted-foreground">Subtitle...</p>
   <p className="text-base">Body text...</p>
   <h2 className="font-heading text-xl">Section heading</h2>

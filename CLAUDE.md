@@ -21,20 +21,20 @@ This is the Rita project with modern TypeScript/React architecture that replaces
 
 Rita is structured as a modern microservices architecture:
 - `packages/api-server/` - TypeScript API server with Express, RabbitMQ and PostgreSQL
-- `packages/client/` - **RITA Go** React/TypeScript/Shadcn/Tailwind/Zustand frontend with Keycloak authentication
+- `packages/client/` - **RITA** React/TypeScript/Shadcn/Tailwind/Zustand frontend with Keycloak authentication
 - `packages/mock-service/` - Mock external service for development
 
-## Frontend Development Standards (RITA Go)
+## Frontend Development Standards (RITA)
 
 ### Default Agent Usage
-The Rita project uses the **fe-enterprise-agent** as the default for ALL frontend development tasks in RITA Go (`packages/client/`). The agent enforces:
+The Rita project uses the **fe-enterprise-agent** as the default for ALL frontend development tasks in RITA (`packages/client/`). The agent enforces:
 
 - **SOC2 Type II compliance** - Security, availability, processing integrity, confidentiality, privacy
 - **WCAG 2.1 AA accessibility** - Full screen reader and keyboard navigation support
 - **Component-Based Architecture (CBA)** - Modular, reusable, independently deployable components
 - **Platform-Driven Architecture** - Thin frontend, backend-heavy business logic
 - **Server-Sent Events (SSE)** - Real-time updates via EventSource API
-- **RITA Go → Actions → Rabbit → RITA Go Pattern** - Asynchronous message flow for all user actions
+- **RITA → Actions → Rabbit → RITA Pattern** - Asynchronous message flow for all user actions
 
 ### Required Technical Stack
 - **React 18+** with **TypeScript 5+** (strict mode)
@@ -58,11 +58,11 @@ The Rita project uses the **fe-enterprise-agent** as the default for ALL fronten
 
 ## Development Workflow
 
-### For New Development (RITA Go)
+### For New Development (RITA)
 
 Both the client and server are run locally in development mode. The client runs on port 5173 and the server runs on port 3000, before trying to run them check that they are not already running.
 
-1. **RITA Go Frontend Development** (packages/client/)
+1. **RITA Frontend Development** (packages/client/)
    ```bash
    cd packages/client
    pnpm install
@@ -84,8 +84,8 @@ Both the client and server are run locally in development mode. The client runs 
 
 ### Important Rules
 - Focus development on the Rita project packages/ architecture
-- All new features go in RITA Go (packages/client/) and packages/api-server/
-- RITA Go components must follow fe-enterprise-agent standards
+- All new features go in RITA (packages/client/) and packages/api-server/
+- RITA components must follow fe-enterprise-agent standards
 - No commits until all tests pass
 
 ### Environment Variables
@@ -109,7 +109,7 @@ Client build (`packages/client`) uses `vite build` without `tsc`. Type checking 
 
 ### Iframe Embeddable Chat (Public Guest Access)
 
-RITA Go includes an iframe-embeddable version for integration into host pages on the same domain.
+RITA includes an iframe-embeddable version for integration into host pages on the same domain.
 
 **Key Features**:
 - Minimal UI (no sidebar, no navigation)

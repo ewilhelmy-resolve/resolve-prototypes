@@ -216,7 +216,9 @@ function ConversationItem({
 									</AlertDialogDescription>
 								</AlertDialogHeader>
 								<AlertDialogFooter>
-									<AlertDialogCancel>{t("deleteDialog.cancel")}</AlertDialogCancel>
+									<AlertDialogCancel>
+										{t("deleteDialog.cancel")}
+									</AlertDialogCancel>
 									<AlertDialogAction
 										onClick={handleDelete}
 										className="bg-red-600 text-white hover:bg-red-700 focus:ring-red-500"
@@ -286,7 +288,7 @@ export function ConversationSidebar() {
 							<div className="bg-white text-blue-600 px-2 py-1 rounded font-bold text-sm">
 								RESOLVE
 							</div>
-							<span className="text-sm opacity-90">RITA Go</span>
+							<span className="text-sm opacity-90">RITA</span>
 						</div>
 					</div>
 
@@ -494,12 +496,16 @@ export function SidebarToggle() {
 						{isSidebarOpen ? (
 							<>
 								<PanelLeftClose className="h-4 w-4" />
-								<span className="hidden sm:inline">{t("sidebar.hideSidebar")}</span>
+								<span className="hidden sm:inline">
+									{t("sidebar.hideSidebar")}
+								</span>
 							</>
 						) : (
 							<>
 								<PanelLeftOpen className="h-4 w-4" />
-								<span className="hidden sm:inline">{t("sidebar.showSidebar")}</span>
+								<span className="hidden sm:inline">
+									{t("sidebar.showSidebar")}
+								</span>
 							</>
 						)}
 					</Button>

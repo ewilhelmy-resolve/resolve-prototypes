@@ -1,5 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react";
 import { useTranslation } from "react-i18next";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
 	Card,
@@ -8,7 +9,6 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 
 const meta: Meta = {
 	title: "Translations/Overview",
@@ -80,8 +80,8 @@ export const Overview: Story = {
 				<div className="space-y-2">
 					<h1 className="text-2xl font-semibold">Translations (i18n)</h1>
 					<p className="text-muted-foreground">
-						RITA Go uses react-i18next for internationalization. Translations
-						are organized by namespace for maintainability.
+						RITA uses react-i18next for internationalization. Translations are
+						organized by namespace for maintainability.
 					</p>
 				</div>
 
@@ -281,7 +281,9 @@ export const CommonNamespace: Story = {
 							{t("labels.lastName")}
 						</div>
 						<div>
-							<span className="text-muted-foreground">labels.organization:</span>{" "}
+							<span className="text-muted-foreground">
+								labels.organization:
+							</span>{" "}
 							{t("labels.organization")}
 						</div>
 					</div>
@@ -323,7 +325,9 @@ export const WithInterpolation: Story = {
 
 					<Card>
 						<CardHeader className="pb-2">
-							<CardTitle className="text-sm">Field name interpolation</CardTitle>
+							<CardTitle className="text-sm">
+								Field name interpolation
+							</CardTitle>
 						</CardHeader>
 						<CardContent>
 							<code className="text-xs bg-muted px-2 py-1 rounded block mb-2">
@@ -341,7 +345,8 @@ export const WithInterpolation: Story = {
 						</CardHeader>
 						<CardContent>
 							<code className="text-xs bg-muted px-2 py-1 rounded block mb-2">
-								t('settings:knowledgeSources.lastSync', {"{ time: '2 hours ago' }"})
+								t('settings:knowledgeSources.lastSync',{" "}
+								{"{ time: '2 hours ago' }"})
 							</code>
 							<p className="text-sm">
 								{t("settings:knowledgeSources.lastSync", {

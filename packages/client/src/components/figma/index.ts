@@ -2,7 +2,7 @@
  * Figma Components Export Barrel
  *
  * This file exports all Figma-generated and customized components
- * for easy importing throughout the RITA Go application.
+ * for easy importing throughout the RITA application.
  *
  * Usage:
  * import { FigmaButton, CustomHeroSection } from '@/components/figma'

@@ -34,7 +34,7 @@ export default function WelcomeDialog({
 			<DialogContent className="w-[547px] p-6 bg-background border border-border rounded-lg">
 				<DialogHeader className="flex flex-col gap-1.5 items-center">
 					<DialogTitle className="text-4xl font-normal text-foreground text-center leading-10">
-						Welcome to RITA Go
+						Welcome to RITA
 					</DialogTitle>
 					<DialogDescription className="text-base font-light text-black text-center leading-6">
 						Get started by uploading knowledge articles to unlock instant

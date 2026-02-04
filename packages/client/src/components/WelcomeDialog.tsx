@@ -3,7 +3,7 @@
  *
  * Displays personalized onboarding content based on user role:
  * - Admin/Owner: Steps to connect knowledge sources and invite teammates
- * - Regular User: Info about using RITAGo for IT support
+ * - Regular User: Info about using RITA for IT support
  *
  * Features:
  * - Two-column layout (content left, visual mockup right)
@@ -112,8 +112,8 @@ export default function WelcomeDialog({
 									className="gap-2 w-full sm:w-auto justify-center sm:justify-start"
 									onClick={() => {
 										window.open(
-                      // TODO: Update URL when RITA Go docs are live https://docs.resolve.com/ritago
-                      // we use this old URL temporarily to avoid broken link
+											// TODO: Update URL when RITA docs are live https://docs.resolve.com/rita
+											// we use this old URL temporarily to avoid broken link
 											"https://help.resolve.io/rita-go/",
 											"_blank",
 											"noopener,noreferrer",
@@ -131,7 +131,7 @@ export default function WelcomeDialog({
 					<div className="hidden lg:flex flex-col gap-2 items-center justify-center w-full lg:max-w-lg">
 						<img
 							src="/images/welcome-modal-mockup.png"
-							alt="RITA Go chat interface showing password reset conversation"
+							alt="RITA chat interface showing password reset conversation"
 							className="w-full h-full rounded-2xl object-cover"
 						/>
 					</div>
