@@ -8,7 +8,7 @@ const meta: Meta = {
 		docs: {
 			description: {
 				component:
-					"Color palette extracted from the RITA Go design system. All colors are defined as CSS custom properties in index.css and automatically adapt to light/dark modes.",
+					"Color palette extracted from the RITA design system. All colors are defined as CSS custom properties in index.css and automatically adapt to light/dark modes.",
 			},
 		},
 	},
@@ -43,7 +43,9 @@ function ColorSwatch({ name, variable, hex, description }: ColorSwatchProps) {
 					</code>
 				</div>
 				{description && (
-					<div className="text-sm text-muted-foreground mt-1">{description}</div>
+					<div className="text-sm text-muted-foreground mt-1">
+						{description}
+					</div>
 				)}
 			</div>
 		</div>
@@ -70,11 +72,13 @@ export const AllColors: Story = {
 	render: () => (
 		<div className="space-y-8 max-w-4xl">
 			<div>
-				<h1 className="text-2xl font-bold text-foreground mb-2">Color System</h1>
+				<h1 className="text-2xl font-bold text-foreground mb-2">
+					Color System
+				</h1>
 				<p className="text-muted-foreground">
-					RITA Go uses semantic color tokens that automatically adapt between
-					light and dark modes. Toggle the background in the toolbar to preview
-					dark mode.
+					RITA uses semantic color tokens that automatically adapt between light
+					and dark modes. Toggle the background in the toolbar to preview dark
+					mode.
 				</p>
 			</div>
 

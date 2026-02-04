@@ -66,7 +66,7 @@ graph TB
     end
 
     subgraph "Clients"
-        Frontend[RITA Go Frontend]
+        Frontend[RITA Frontend]
     end
 
     API -->|1. User Request| ExtService
@@ -126,7 +126,7 @@ stateDiagram-v2
 
 ```mermaid
 sequenceDiagram
-    participant Client as RITA Go Client
+    participant Client as RITA Client
     participant API as API Server
     participant DB as PostgreSQL
     participant RMQ as RabbitMQ

@@ -2,7 +2,7 @@
 
 ## Overview
 
-Platform feature flags enable per-tenant control of features via the Platform Actions API. RITA Go uses a **relay proxy** through the api-server with **in-memory LRU caching** and **SSE real-time broadcasts**.
+Platform feature flags enable per-tenant control of features via the Platform Actions API. RITA uses a **relay proxy** through the api-server with **in-memory LRU caching** and **SSE real-time broadcasts**.
 
 **Status**: ✅ **IMPLEMENTED**
 
@@ -25,7 +25,7 @@ Platform feature flags enable per-tenant control of features via the Platform Ac
 
 ```
 ┌─────────────┐      ┌─────────────────────────────┐      ┌─────────────────┐
-│  RITA Go    │ ──── │  api-server                 │      │ Platform API    │
+│  RITA    │ ──── │  api-server                 │      │ Platform API    │
 │  (Client)   │      │  (Relay + LRU Cache)        │      │ (strangler)     │
 └─────────────┘      └─────────────────────────────┘      └─────────────────┘
        │                          │                               │

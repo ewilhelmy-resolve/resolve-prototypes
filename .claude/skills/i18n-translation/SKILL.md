@@ -5,7 +5,7 @@ description: Extract strings, generate translation keys, validate completeness. 
 
 # i18n Translation Manager
 
-Manage internationalization for RITA Go React components.
+Manage internationalization for RITA React components.
 
 ## When This Skill Triggers
 

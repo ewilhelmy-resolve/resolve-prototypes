@@ -1,76 +1,92 @@
-import nodemailer from 'nodemailer';
-import type { Transporter } from 'nodemailer';
-import { logger } from './config/logger.js';
+import type { Transporter } from "nodemailer";
+import nodemailer from "nodemailer";
+import { logger } from "./config/logger.js";
 
 interface EmailOptions {
-  to: string;
-  subject: string;
-  text: string;
-  html?: string;
+	to: string;
+	subject: string;
+	text: string;
+	html?: string;
 }
 
 class EmailService {
-  private transporter: Transporter;
+	private transporter: Transporter;
 
-  constructor() {
-    // Auto-detect SMTP host based on environment
-    // Default to 'localhost' for local development (most common case)
-    // Use 'mailpit' only when explicitly running in Docker
-    const defaultHost = process.env.SMTP_HOST || 'localhost';
+	constructor() {
+		// Auto-detect SMTP host based on environment
+		// Default to 'localhost' for local development (most common case)
+		// Use 'mailpit' only when explicitly running in Docker
+		const defaultHost = process.env.SMTP_HOST || "localhost";
 
-    this.transporter = nodemailer.createTransport({
-      host: defaultHost,
-      port: parseInt(process.env.SMTP_PORT || '1025', 10),
-      secure: process.env.SMTP_SECURE === 'true',
-      auth: process.env.SMTP_AUTH === 'true' ? {
-        user: process.env.SMTP_USER || '',
-        pass: process.env.SMTP_PASS || ''
-      } : undefined
-    });
+		this.transporter = nodemailer.createTransport({
+			host: defaultHost,
+			port: parseInt(process.env.SMTP_PORT || "1025", 10),
+			secure: process.env.SMTP_SECURE === "true",
+			auth:
+				process.env.SMTP_AUTH === "true"
+					? {
+							user: process.env.SMTP_USER || "",
+							pass: process.env.SMTP_PASS || "",
+						}
+					: undefined,
+		});
 
-    logger.info({
-      host: defaultHost,
-      port: parseInt(process.env.SMTP_PORT || '1025', 10)
-    }, '📧 Email service initialized');
-  }
+		logger.info(
+			{
+				host: defaultHost,
+				port: parseInt(process.env.SMTP_PORT || "1025", 10),
+			},
+			"📧 Email service initialized",
+		);
+	}
 
-  async sendEmail(options: EmailOptions): Promise<void> {
-    const mailOptions = {
-      from: `"${process.env.SMTP_FROM_NAME || 'Rita Platform'}" <${process.env.SMTP_FROM || 'noreply@rita.local'}>`,
-      to: options.to,
-      subject: options.subject,
-      text: options.text,
-      html: options.html || options.text
-    };
+	async sendEmail(options: EmailOptions): Promise<void> {
+		const mailOptions = {
+			from: `"${process.env.SMTP_FROM_NAME || "Rita Platform"}" <${process.env.SMTP_FROM || "noreply@rita.local"}>`,
+			to: options.to,
+			subject: options.subject,
+			text: options.text,
+			html: options.html || options.text,
+		};
 
-    try {
-      const info = await this.transporter.sendMail(mailOptions);
-      logger.info({
-        messageId: info.messageId,
-        to: options.to,
-        subject: options.subject
-      }, '📧 Email sent successfully');
-      console.log(`📬 Preview URL: http://localhost:8025`);
-    } catch (error) {
-      logger.error({ error, to: options.to, subject: options.subject }, '❌ Failed to send email');
+		try {
+			const info = await this.transporter.sendMail(mailOptions);
+			logger.info(
+				{
+					messageId: info.messageId,
+					to: options.to,
+					subject: options.subject,
+				},
+				"📧 Email sent successfully",
+			);
+			console.log(`📬 Preview URL: http://localhost:8025`);
+		} catch (error) {
+			logger.error(
+				{ error, to: options.to, subject: options.subject },
+				"❌ Failed to send email",
+			);
 
-      // Fallback to console logging
-      console.log(`\n${'='.repeat(80)}`);
-      console.log('📧 EMAIL (Fallback - Mailpit unavailable)');
-      console.log('='.repeat(80));
-      console.log(`To: ${options.to}`);
-      console.log(`Subject: ${options.subject}`);
-      console.log(`Body:\n${options.text}`);
-      console.log(`${'='.repeat(80)}\n`);
-    }
-  }
+			// Fallback to console logging
+			console.log(`\n${"=".repeat(80)}`);
+			console.log("📧 EMAIL (Fallback - Mailpit unavailable)");
+			console.log("=".repeat(80));
+			console.log(`To: ${options.to}`);
+			console.log(`Subject: ${options.subject}`);
+			console.log(`Body:\n${options.text}`);
+			console.log(`${"=".repeat(80)}\n`);
+		}
+	}
 
-  async sendSignupVerification(email: string, name: string, verificationUrl: string): Promise<void> {
-    await this.sendEmail({
-      to: email,
-      subject: 'Verify Your Rita Account',
-      text: `Hi ${name},\n\nWelcome to Rita! Please verify your email address by clicking the link below:\n\n${verificationUrl}\n\nIf you didn't create this account, please ignore this email.\n\nBest regards,\nThe Rita Team`,
-      html: `
+	async sendSignupVerification(
+		email: string,
+		name: string,
+		verificationUrl: string,
+	): Promise<void> {
+		await this.sendEmail({
+			to: email,
+			subject: "Verify Your Rita Account",
+			text: `Hi ${name},\n\nWelcome to Rita! Please verify your email address by clicking the link below:\n\n${verificationUrl}\n\nIf you didn't create this account, please ignore this email.\n\nBest regards,\nThe Rita Team`,
+			html: `
         <!DOCTYPE html>
         <html>
         <head>
@@ -92,24 +108,24 @@ class EmailService {
           <p style="color: #6B7280; font-size: 12px; text-align: center;">Best regards,<br>The Rita Team</p>
         </body>
         </html>
-      `
-    });
-  }
+      `,
+		});
+	}
 
-  async sendInvitation(
-    email: string,
-    invitedByName: string,
-    organizationName: string,
-    invitationUrl: string,
-    expiresAt: string
-  ): Promise<void> {
-    const expiryDate = new Date(expiresAt).toLocaleString();
+	async sendInvitation(
+		email: string,
+		invitedByName: string,
+		organizationName: string,
+		invitationUrl: string,
+		expiresAt: string,
+	): Promise<void> {
+		const expiryDate = new Date(expiresAt).toLocaleString();
 
-    await this.sendEmail({
-      to: email,
-      subject: `You're invited to join ${organizationName} on Rita`,
-      text: `${invitedByName} has invited you to join ${organizationName} on Rita.\n\nAccept your invitation by clicking the link below:\n\n${invitationUrl}\n\nThis invitation expires on ${expiryDate}.\n\nBest regards,\nThe Rita Team`,
-      html: `
+		await this.sendEmail({
+			to: email,
+			subject: `You're invited to join ${organizationName} on Rita`,
+			text: `${invitedByName} has invited you to join ${organizationName} on Rita.\n\nAccept your invitation by clicking the link below:\n\n${invitationUrl}\n\nThis invitation expires on ${expiryDate}.\n\nBest regards,\nThe Rita Team`,
+			html: `
         <!DOCTYPE html>
         <html>
         <head>
@@ -130,88 +146,94 @@ class EmailService {
           <p style="color: #6B7280; font-size: 12px; text-align: center;">Best regards,<br>The Rita Team</p>
         </body>
         </html>
-      `
-    });
-  }
+      `,
+		});
+	}
 
-  async sendPasswordReset(email: string, resetUrl: string, expiresAt: string): Promise<void> {
-      const expiryDate = new Date(expiresAt).toLocaleString();
+	async sendPasswordReset(
+		email: string,
+		resetUrl: string,
+		expiresAt: string,
+	): Promise<void> {
+		const expiryDate = new Date(expiresAt).toLocaleString();
 
-      await this.sendEmail({
-              to: email,
-              subject: 'Reset Your Resolve Password',
-              text: `You requested a password reset for your Resolve account.\n\nReset your password by clicking the link below:\n\n${resetUrl}\n\nThis link expires on ${expiryDate}.\n\nIf you didn't request this, please ignore this email.\n\nBest regards,\nThe Resolve Team`,
-              html: this.buildEmailTemplate({
-                  title: 'Reset your password',
-                  body: `<p style="margin: 0; font-size: 16px; line-height: 1.6; color: #333333;">
+		await this.sendEmail({
+			to: email,
+			subject: "Reset Your Resolve Password",
+			text: `You requested a password reset for your Resolve account.\n\nReset your password by clicking the link below:\n\n${resetUrl}\n\nThis link expires on ${expiryDate}.\n\nIf you didn't request this, please ignore this email.\n\nBest regards,\nThe Resolve Team`,
+			html: this.buildEmailTemplate({
+				title: "Reset your password",
+				body: `<p style="margin: 0; font-size: 16px; line-height: 1.6; color: #333333;">
             You requested a password reset for your Resolve account.
           </p>
           <p style="margin: 16px 0 0 0; font-size: 16px; line-height: 1.6; color: #333333;">
             Click the button below to create a new password.
           </p>`,
-                  ctaText: 'Reset password',
-                  ctaUrl: resetUrl,
-                  disclaimer: `If you didn't request this, please ignore this email. This link expires on ${expiryDate}.`
-              })
-          });
-  }
+				ctaText: "Reset password",
+				ctaUrl: resetUrl,
+				disclaimer: `If you didn't request this, please ignore this email. This link expires on ${expiryDate}.`,
+			}),
+		});
+	}
 
-  async sendCredentialDelegation(
-    adminEmail: string,
-    delegationUrl: string,
-    organizationName: string,
-    itsmSystemType: string,
-    delegatedByEmail: string,
-    expiresAt: string
-  ): Promise<void> {
-    const expiryDate = new Date(expiresAt).toLocaleString();
-    const systemDisplayName = itsmSystemType.charAt(0).toUpperCase() + itsmSystemType.slice(1);
+	async sendCredentialDelegation(
+		adminEmail: string,
+		delegationUrl: string,
+		organizationName: string,
+		itsmSystemType: string,
+		delegatedByEmail: string,
+		expiresAt: string,
+	): Promise<void> {
+		const expiryDate = new Date(expiresAt).toLocaleString();
+		const systemDisplayName =
+			itsmSystemType.charAt(0).toUpperCase() + itsmSystemType.slice(1);
 
-    await this.sendEmail({
-      to: adminEmail,
-      subject: `Temporary access to connect ${systemDisplayName}`,
-      text: `${delegatedByEmail} from ${organizationName} has requested you to set up ${systemDisplayName} credentials.\n\nSet up credentials by clicking the link below:\n\n${delegationUrl}\n\nThis link expires on ${expiryDate}.\n\nBest regards,\nThe Resolve Team`,
-      html: this.buildEmailTemplate({
-        title: `Temporary access to connect ${systemDisplayName}`,
-        body: `<p style="margin: 0; font-size: 16px; line-height: 1.6; color: #333333;">
+		await this.sendEmail({
+			to: adminEmail,
+			subject: `Temporary access to connect ${systemDisplayName}`,
+			text: `${delegatedByEmail} from ${organizationName} has requested you to set up ${systemDisplayName} credentials.\n\nSet up credentials by clicking the link below:\n\n${delegationUrl}\n\nThis link expires on ${expiryDate}.\n\nBest regards,\nThe Resolve Team`,
+			html: this.buildEmailTemplate({
+				title: `Temporary access to connect ${systemDisplayName}`,
+				body: `<p style="margin: 0; font-size: 16px; line-height: 1.6; color: #333333;">
           A Resolve admin on your team has given you temporary access to Resolve so you can enter ${systemDisplayName} credentials.
         </p>
         <p style="margin: 16px 0 0 0; font-size: 16px; line-height: 1.6; color: #333333;">
           This one step allows Autopilot to import tickets. Please note your access is limited to this setup step only.
         </p>`,
-        ctaText: 'Complete connection',
-        ctaUrl: delegationUrl,
-        disclaimer: `This link gives access only to this configuration screen and expires in 24 hours.`
-      })
-    });
-  }
+				ctaText: "Complete connection",
+				ctaUrl: delegationUrl,
+				disclaimer: `This link gives access only to this configuration screen and expires in 24 hours.`,
+			}),
+		});
+	}
 
-  async sendDelegationSuccess(
-    ownerEmail: string,
-    itsmSystemType: string,
-    connectionUrl: string
-  ): Promise<void> {
-    const systemDisplayName = itsmSystemType.charAt(0).toUpperCase() + itsmSystemType.slice(1);
+	async sendDelegationSuccess(
+		ownerEmail: string,
+		itsmSystemType: string,
+		connectionUrl: string,
+	): Promise<void> {
+		const systemDisplayName =
+			itsmSystemType.charAt(0).toUpperCase() + itsmSystemType.slice(1);
 
-    await this.sendEmail({
-      to: ownerEmail,
-      subject: `${systemDisplayName} is connected`,
-      text: `Someone on your team has setup ${systemDisplayName} in RITAGo and will see your IT tickets in RITAGo.\n\nView connection: ${connectionUrl}\n\nBest regards,\nThe Resolve Team`,
-      html: this.buildEmailTemplate({
-        title: `${systemDisplayName} is connected`,
-        body: `<p style="margin: 0; font-size: 16px; line-height: 1.6; color: #333333;">
-          Someone on your team has setup ${systemDisplayName} in RITAGo and will see your IT tickets in RITAGo
+		await this.sendEmail({
+			to: ownerEmail,
+			subject: `${systemDisplayName} is connected`,
+			text: `Someone on your team has setup ${systemDisplayName} in RITA and will see your IT tickets in RITA.\n\nView connection: ${connectionUrl}\n\nBest regards,\nThe Resolve Team`,
+			html: this.buildEmailTemplate({
+				title: `${systemDisplayName} is connected`,
+				body: `<p style="margin: 0; font-size: 16px; line-height: 1.6; color: #333333;">
+          Someone on your team has setup ${systemDisplayName} in RITA and will see your IT tickets in RITA
         </p>`,
-        ctaText: 'Go to connection',
-        ctaUrl: connectionUrl,
-        disclaimer: ''
-      })
-    });
-  }
+				ctaText: "Go to connection",
+				ctaUrl: connectionUrl,
+				disclaimer: "",
+			}),
+		});
+	}
 
-  // Resolve logo SVG - dark version for white backgrounds
-  private getResolveLogo(color: string = '#1a1a2e'): string {
-    return `<svg width="140" height="27" viewBox="0 0 100 19" fill="none" xmlns="http://www.w3.org/2000/svg">
+	// Resolve logo SVG - dark version for white backgrounds
+	private getResolveLogo(color: string = "#1a1a2e"): string {
+		return `<svg width="140" height="27" viewBox="0 0 100 19" fill="none" xmlns="http://www.w3.org/2000/svg">
       <path d="M96.0801 3.875H93.7709C93.5371 3.875 93.3617 4.04852 93.3617 4.27987V5.08961C93.3324 5.08961 93.3325 5.08961 93.3325 5.08961H91.6079C91.4909 5.08961 91.374 5.14745 91.2863 5.23421L89.9125 6.88261H82.7803C82.5465 6.88261 82.3711 7.05613 82.3711 7.28751C82.3711 7.51887 82.5465 7.69238 82.7803 7.69238H89.854H90.0879C90.2048 7.69238 90.3217 7.63454 90.4094 7.54779L91.7832 5.89935H93.3325C93.3617 5.89935 93.3617 5.89935 93.3617 5.89935V6.5645C93.3617 6.79585 93.5371 6.96937 93.7709 6.96937H96.0801C96.3139 6.96937 96.4893 6.79585 96.4893 6.5645V4.27987C96.4893 4.04852 96.3139 3.875 96.0801 3.875ZM95.6709 6.15963H94.2094V4.71366H95.6709V6.15963Z" fill="${color}"></path>
       <path d="M96.0797 11.9718H93.7705C93.5366 11.9718 93.3612 12.1453 93.3612 12.3767V13.0996C93.332 13.0996 93.332 13.0996 93.332 13.0996H91.7828L90.409 11.4512C90.3213 11.3645 90.2044 11.3066 90.0874 11.3066H89.8828H89.8536L83.0137 11.3645C82.7799 11.3645 82.6045 11.538 82.6045 11.7693C82.6045 12.0007 82.7799 12.1742 83.0137 12.1742L89.8828 12.1164L91.2567 13.7359C91.3443 13.8226 91.4613 13.8805 91.5782 13.8805H93.3028C93.332 13.8805 93.332 13.8805 93.332 13.8805V14.6034C93.332 14.8348 93.5074 15.0083 93.7412 15.0083H96.0504C96.2843 15.0083 96.4596 14.8348 96.4596 14.6034V12.3767C96.4889 12.1453 96.3135 11.9718 96.0797 11.9718ZM95.6704 14.2564H94.2089V12.8104H95.6704V14.2564Z" fill="${color}"></path>
       <path d="M99.6168 8.30078H97.3076V10.5854H99.6168V8.30078Z" fill="${color}"></path>
@@ -230,16 +252,16 @@ class EmailService {
       <path d="M80.6464 17.8145L80.6172 17.988C80.6172 17.988 80.6172 18.0169 80.6464 18.0169H80.8218V18.9134C80.8218 18.9423 80.8218 18.9423 80.851 18.9423H80.9972C81.0264 18.9423 81.0264 18.9423 81.0264 18.9134V18.0169H81.2018C81.231 18.0169 81.231 18.0169 81.231 17.988V17.8434C81.231 17.8434 81.231 17.8145 81.2018 17.8145H80.6464Z" fill="${color}"></path>
       <path d="M81.903 17.8145C81.8738 17.8145 81.8738 17.8145 81.8738 17.8434L81.7276 18.5374L81.5815 17.8434C81.5815 17.8145 81.5815 17.8145 81.5523 17.8145H81.3769C81.3476 17.8145 81.3477 17.8145 81.3477 17.8434V18.9134C81.3477 18.9423 81.3476 18.9423 81.3769 18.9423H81.4938C81.523 18.9423 81.523 18.9423 81.523 18.9134V18.2772L81.6692 18.9134C81.6692 18.9423 81.6692 18.9423 81.6984 18.9423H81.7569C81.7861 18.9423 81.7861 18.9423 81.7861 18.9134L81.9323 18.2772V18.9134C81.9323 18.9423 81.9323 18.9423 81.9615 18.9423H82.0784C82.1077 18.9423 82.1076 18.9423 82.1076 18.9134V17.8434C82.1076 17.8145 82.1077 17.8145 82.0784 17.8145H81.903Z" fill="${color}"></path>
     </svg>`;
-  }
+	}
 
-  private buildEmailTemplate(params: {
-    title: string;
-    body: string;
-    ctaText: string;
-    ctaUrl: string;
-    disclaimer: string;
-  }): string {
-    return `
+	private buildEmailTemplate(params: {
+		title: string;
+		body: string;
+		ctaText: string;
+		ctaUrl: string;
+		disclaimer: string;
+	}): string {
+		return `
       <!DOCTYPE html>
       <html lang="en">
       <head>
@@ -255,7 +277,7 @@ class EmailService {
                 <!-- Header with Logo -->
                 <tr>
                   <td style="padding: 40px 40px 30px 40px;">
-                    ${this.getResolveLogo('#1a1a2e')}
+                    ${this.getResolveLogo("#1a1a2e")}
                   </td>
                 </tr>
 
@@ -305,7 +327,7 @@ class EmailService {
                     <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
                       <tr>
                         <td style="vertical-align: middle;">
-                          ${this.getResolveLogo('#ffffff')}
+                          ${this.getResolveLogo("#ffffff")}
                         </td>
                         <td style="text-align: right; vertical-align: middle;">
                           <!-- Social Icons -->
@@ -341,7 +363,7 @@ class EmailService {
       </body>
       </html>
     `;
-  }
+	}
 }
 
 export const emailService = new EmailService();

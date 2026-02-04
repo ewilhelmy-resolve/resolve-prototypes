@@ -39,7 +39,7 @@ export function generateOpenAPIDocument(): OpenAPIObject {
 			title: "Rita API",
 			version: "1.0.0",
 			description: `
-Rita API Server for the RITA Go application.
+Rita API Server for the RITA application.
 
 ## Authentication
 Most endpoints require authentication via Keycloak JWT token or session cookie.

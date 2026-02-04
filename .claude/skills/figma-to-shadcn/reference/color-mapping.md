@@ -132,7 +132,7 @@ When converting Figma colors:
 
 ---
 
-## Real-World Examples from RITA Go
+## Real-World Examples from RITA
 
 ### Example 1: bg-secondary for Headers/Panels
 From [packages/client/src/components/ai-elements/inline-citation.tsx](packages/client/src/components/ai-elements/inline-citation.tsx:155):

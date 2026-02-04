@@ -1,11 +1,11 @@
 # Figma-to-React Development Workflow
-**RITA Go Frontend - Design-to-Production System**
+**RITA Frontend - Design-to-Production System**
 
 ---
 
 ## 🎯 **Overview**
 
-This document establishes the **recommended workflow** for all production page development in RITA Go. This Figma-to-React process eliminates manual styling, ensures design consistency, and creates zero friction between design and development teams.
+This document establishes the **recommended workflow** for all production page development in RITA. This Figma-to-React process eliminates manual styling, ensures design consistency, and creates zero friction between design and development teams.
 
 ### **Design-to-Production Approach**
 We encourage using components generated through the Design-to-Production Figma process for all production pages in `packages/client/src/pages/`.
@@ -108,7 +108,7 @@ src/
          │                                               │
          │                                               ▼
          │                                      ┌─────────────────┐
-         │                                      │   RITA Go App   │
+         │                                      │   RITA App   │
          │                                      │                 │
          │                                      │ 4. Components   │
          │                                      │    integrated   │
@@ -361,6 +361,6 @@ Located at: `src/test/login/FigmaLoginPage.tsx`
 
 ## 🎉 **Ready for Production**
 
-This workflow has been validated with a complete login page POC and is ready for implementation across all RITA Go pages. The approach scales from simple forms to complex dashboard interfaces while maintaining design consistency and development speed.
+This workflow has been validated with a complete login page POC and is ready for implementation across all RITA pages. The approach scales from simple forms to complex dashboard interfaces while maintaining design consistency and development speed.
 
 **Next Implementation**: Apply this same pattern to dashboard pages, onboarding flows, and chat interfaces using the established Pro Blocks foundation with custom Rita components strategy.

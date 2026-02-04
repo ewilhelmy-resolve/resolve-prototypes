@@ -1,5 +1,5 @@
 /**
- * Shared test mocks for RITA Go components
+ * Shared test mocks for RITA components
  */
 
 export * from "./handlers";

@@ -2,11 +2,11 @@
 
 ## Overview
 
-This document describes the design and implementation of a centralized Profile Store for the RITA Go frontend application. The Profile Store provides a single source of truth for user context, including user information and organization membership with role-based permissions.
+This document describes the design and implementation of a centralized Profile Store for the RITA frontend application. The Profile Store provides a single source of truth for user context, including user information and organization membership with role-based permissions.
 
 ## Problem Statement
 
-Currently, the RITA Go frontend:
+Currently, the RITA frontend:
 - ❌ Has no access to user's organization role
 - ❌ Cannot implement role-based UI (show/hide features for owner/admin/user)
 - ❌ Cannot enforce client-side permission checks
@@ -32,7 +32,7 @@ But the frontend has no mechanism to fetch and store this data.
 
 ### Hybrid Approach: TanStack Query + Zustand
 
-RITA Go follows a **hybrid state management pattern** (consistent with existing patterns for conversations and data sources):
+RITA follows a **hybrid state management pattern** (consistent with existing patterns for conversations and data sources):
 
 - **TanStack Query**: Manages server state (fetching, caching, invalidation, refetching)
 - **Zustand Store**: Provides convenience accessors and permission helpers (read-only computed state)

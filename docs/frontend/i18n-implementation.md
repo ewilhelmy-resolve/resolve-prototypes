@@ -2,7 +2,7 @@
 
 ## Overview
 
-Internationalization system for RITA Go using react-i18next with feature-based namespace organization.
+Internationalization system for RITA using react-i18next with feature-based namespace organization.
 
 ## Tech Stack
 

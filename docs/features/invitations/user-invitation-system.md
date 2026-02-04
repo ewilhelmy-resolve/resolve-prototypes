@@ -81,7 +81,7 @@ COMMENT ON COLUMN pending_invitations.status IS 'Current status of the invitatio
 ```mermaid
 sequenceDiagram
     participant Owner as Organization Owner
-    participant RG as RITA Go (Client)
+    participant RG as RITA (Client)
     participant API as Rita API Server
     participant Webhook as Automation Platform
     participant Invited as Invited User
@@ -1186,7 +1186,7 @@ console.log(`[WebhookService] Webhook failure stored in database`, {
 
 ---
 
-## Frontend Components (RITA Go)
+## Frontend Components (RITA)
 
 ### Invitation Management Page
 
@@ -1601,7 +1601,7 @@ COMMENT ON TABLE pending_invitations IS 'Stores organization user invitations un
 
 ### Phase 3: Frontend Implementation
 
-1. **Create Invitation Components** (RITA Go)
+1. **Create Invitation Components** (RITA)
    - `InvitationForm.tsx`
    - `InvitationList.tsx`
    - `InvitationStats.tsx`

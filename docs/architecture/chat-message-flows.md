@@ -11,7 +11,7 @@
 1. [Overview](#overview)
 2. [Identity Model](#identity-model)
 3. [Database Schema](#database-schema)
-4. [Rita Go Chat Flow](#rita-go-chat-flow)
+4. [RITA Chat Flow](#rita-go-chat-flow)
 5. [Iframe Chat Flow](#iframe-chat-flow)
 6. [Webhook Field Reference](#webhook-field-reference)
 7. [RabbitMQ Response Routing](#rabbitmq-response-routing)
@@ -24,7 +24,7 @@
 
 Rita has two chat entry points that converge at the webhook → RabbitMQ → SSE pipeline:
 
-- **Rita Go** (`/chat`) - Main app with Keycloak authentication
+- **RITA** (`/chat`) - Main app with Keycloak authentication
 - **Iframe Chat** (`/iframe/chat`) - Embeddable chat using Valkey session config
 
 ### High-Level Architecture
@@ -32,7 +32,7 @@ Rita has two chat entry points that converge at the webhook → RabbitMQ → SSE
 ```mermaid
 graph TB
     subgraph "Chat Entry Points"
-        RitaGo[Rita Go /chat]
+        RitaGo[RITA /chat]
         Iframe[Iframe /iframe/chat]
     end
 
@@ -129,12 +129,12 @@ erDiagram
 
 ---
 
-## Rita Go Chat Flow
+## RITA Chat Flow
 
 ```mermaid
 sequenceDiagram
     participant Browser
-    participant RitaGo as Rita Go Client
+    participant RitaGo as RITA Client
     participant API as API Server
     participant DB as PostgreSQL
     participant Platform as Actions API
@@ -157,7 +157,7 @@ sequenceDiagram
     RitaGo->>Browser: 13. Display response
 ```
 
-### Webhook Payload (Rita Go)
+### Webhook Payload (RITA)
 
 ```json
 {
@@ -446,7 +446,7 @@ RITA IDs (used):
 
 ### ID Flow by Chat Type
 
-| Step | Rita Go | Iframe |
+| Step | RITA | Iframe |
 |------|---------|--------|
 | Auth | Keycloak JWT | Valkey session |
 | Session userId | Rita DB ID | Rita DB ID (JIT resolved) |

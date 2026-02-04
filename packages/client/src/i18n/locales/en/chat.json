@@ -4,7 +4,7 @@
 		"sendButton": "Send",
 		"attachFile": "Attach file",
 		"noKnowledgeAdmin": "No knowledge found. Upload or connect a knowledge source to get started.",
-		"noKnowledgeUser": "No knowledge found. Reach out to your RITA Go Administrator."
+		"noKnowledgeUser": "No knowledge found. Reach out to your RITA Administrator."
 	},
 	"emptyState": {
 		"title": "Ask RITA",

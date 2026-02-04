@@ -9,7 +9,7 @@ This document explains the authentication architecture for the Rita project, whi
 ## Architecture Components
 
 ### Core Components
-- **RITA Go (Client)**: React/TypeScript frontend with Zustand state management
+- **RITA (Client)**: React/TypeScript frontend with Zustand state management
 - **API Server**: Node.js backend with session management
 - **Keycloak**: Identity provider and authentication server
 
@@ -24,7 +24,7 @@ This document explains the authentication architecture for the Rita project, whi
 ```mermaid
 sequenceDiagram
     participant U as User
-    participant RG as RITA Go (Client)
+    participant RG as RITA (Client)
     participant API as API Server
     participant Webhook as External Service
     participant KC as Keycloak
@@ -325,7 +325,7 @@ Rita supports inviting users to join existing organizations. The invitation syst
 ```mermaid
 sequenceDiagram
     participant Owner as Org Owner
-    participant Client as RITA Go
+    participant Client as RITA
     participant API as Rita API Server
     participant DB as PostgreSQL
     participant Webhook as External Service
@@ -585,7 +585,7 @@ The signup process involves coordination between Rita API, an external webhook s
 ```mermaid
 sequenceDiagram
     participant U as User
-    participant Client as RITA Go
+    participant Client as RITA
     participant API as Rita API Server
     participant DB as PostgreSQL
     participant Webhook as External Service

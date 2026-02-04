@@ -130,7 +130,7 @@ jobs:
     #       sleep 2
     #     done
 
-    # - name: Run E2E tests (RITA Go)
+    # - name: Run E2E tests (RITA)
     #   run: pnpm test
     #   env:
     #     CI: true

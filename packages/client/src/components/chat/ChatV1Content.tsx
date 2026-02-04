@@ -100,7 +100,7 @@ export interface ChatV1ContentProps {
 	// Refs
 	fileInputRef: RitaChatState["fileInputRef"];
 
-	// Custom UI text (from Valkey for iframe, undefined for Rita Go)
+	// Custom UI text (from Valkey for iframe, undefined for RITA)
 	/** Custom title text (e.g., "Ask Workflow Designer" instead of "Ask RITA") */
 	titleText?: string;
 	/** Custom placeholder for input (e.g., "Describe your workflow...") */

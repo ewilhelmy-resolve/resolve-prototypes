@@ -1,7 +1,7 @@
 # Settings Feature Implementation
 
 ## Overview
-Implementation of a new Settings page for RITA Go with its own unique layout and design system component from Figma-to-shadcn.
+Implementation of a new Settings page for RITA with its own unique layout and design system component from Figma-to-shadcn.
 
 ## Feature Requirements
 - Standalone settings page with unique layout (not shared with other pages)
@@ -70,5 +70,5 @@ https://rdhlrr8yducbb6dq.public.blob.vercel-storage.com/figma-to-shadcn/RitaSett
 
 ## Notes
 - Settings page intentionally uses different layout pattern than other V1 pages
-- Maintains consistency with RITA Go enterprise standards
+- Maintains consistency with RITA enterprise standards
 - Follows SOC2 compliance requirements for settings management
