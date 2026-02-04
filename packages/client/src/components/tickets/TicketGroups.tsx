@@ -28,7 +28,7 @@ import { TicketGroupStat } from "./TicketGroupStat";
 
 type KBFilterOption = KBStatus | typeof KB_FILTER_ALL;
 
-const PAGE_SIZE = 9;
+const PAGE_SIZE = 12;
 
 interface TicketGroupsProps {
 	period: PeriodFilter;
