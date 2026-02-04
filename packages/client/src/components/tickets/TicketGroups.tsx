@@ -158,7 +158,7 @@ export default function TicketGroups({
 	return (
 		<div className="flex min-h-screen w-full flex-col items-center">
 			<div className="flex w-full items-start justify-center py-6">
-				<div className="flex w-full flex-col gap-6 px-6">
+				<div className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-6">
 					<div className="flex w-full flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
 						<div className="flex flex-col gap-1.5">
 							<div className="flex items-center gap-1.5">
@@ -269,7 +269,7 @@ export default function TicketGroups({
 							>
 								<p>{t("groups.trainingDescription")}</p>
 							</StatusAlert>
-							<div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3">
+							<div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-5">
 								{[...Array(6)].map((_, i) => (
 									<TicketGroupSkeleton key={i} />
 								))}
@@ -277,7 +277,7 @@ export default function TicketGroups({
 						</div>
 					) : clusters.length > 0 ? (
 						<>
-							<div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3">
+							<div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-5">
 								{clusters.map((cluster) => (
 									<TicketGroupStat
 										key={cluster.id}
