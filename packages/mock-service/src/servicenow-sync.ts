@@ -169,6 +169,36 @@ function getRandomSubject(clusterName: string): string {
 	return `General support request for ${clusterName}`;
 }
 
+const DESCRIPTION_PREFIXES = [
+	"Hi, I need help with this issue: ",
+	"This started happening today. ",
+	"Urgent request - ",
+	"",
+	"Hello, ",
+	"I'm experiencing an issue: ",
+];
+
+const DESCRIPTION_SUFFIXES = [
+	" Please advise.",
+	" This is blocking my work.",
+	" Thanks in advance.",
+	"",
+	" Can someone help?",
+	" Any help appreciated.",
+];
+
+function generateDescription(subject: string): string {
+	const prefix =
+		DESCRIPTION_PREFIXES[
+			Math.floor(Math.random() * DESCRIPTION_PREFIXES.length)
+		];
+	const suffix =
+		DESCRIPTION_SUFFIXES[
+			Math.floor(Math.random() * DESCRIPTION_SUFFIXES.length)
+		];
+	return `${prefix}${subject}${suffix}`;
+}
+
 function generateSourceMetadata(ticketNum: number, subject: string): object {
 	const now = new Date().toISOString();
 	const sysId = crypto.randomUUID();
@@ -493,6 +523,7 @@ export async function syncServiceNowData(
 				const sourceMetadata = generateSourceMetadata(ticketNum, subject);
 				const createdAt = getRandomCreatedAt();
 
+				const description = generateDescription(subject);
 				const insertResult = await client.query(
 					`INSERT INTO tickets (
             organization_id, cluster_id, data_source_connection_id,
@@ -505,7 +536,7 @@ export async function syncServiceNowData(
 						connectionId,
 						externalId,
 						subject,
-						subject, // description uses same value as subject
+						description,
 						JSON.stringify(sourceMetadata),
 						createdAt,
 					],
