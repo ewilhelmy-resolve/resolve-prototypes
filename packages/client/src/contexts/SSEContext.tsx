@@ -117,10 +117,63 @@ export const SSEProvider: React.FC<SSEProviderProps> = ({
 					response_group_id: event.data.response_group_id,
 					timestamp: new Date(event.data.createdAt),
 					conversation_id: event.data.conversationId,
-					status: "completed",
+					status:
+						event.data.metadata?.type === "ui_form_request"
+							? "pending"
+							: "completed",
 				};
 
 				addMessage(newMessage);
+
+				// If this is a UI form request with interrupt=true, send to host for full-page modal
+				if (
+					event.data.metadata?.type === "ui_form_request" &&
+					event.data.metadata?.interrupt
+				) {
+					const uiSchema = event.data.metadata.ui_schema;
+					const modalEntries = Object.entries(uiSchema?.modals || {});
+
+					if (modalEntries.length > 0) {
+						const [, modal] = modalEntries[0] as [string, any];
+
+						// Transform ui_schema children to host's fields format
+						const fields = (modal.children || [])
+							.filter(
+								(child: any) =>
+									child.type === "input" || child.type === "select",
+							)
+							.map((child: any) => ({
+								name: child.name,
+								label: child.label,
+								type: child.type,
+								inputType: child.inputType,
+								placeholder: child.placeholder,
+								defaultValue: child.defaultValue,
+								options: child.options,
+								required: child.required,
+							}));
+
+						// Send RITA_FORM_MODAL to host for full-page modal
+						window.parent.postMessage(
+							{
+								type: "RITA_FORM_MODAL",
+								payload: {
+									requestId: event.data.metadata.request_id,
+									messageId: event.data.messageId,
+									title: modal.title,
+									description: modal.description,
+									size: modal.size || "md",
+									fields,
+									submitAction: modal.submitAction,
+									submitLabel: modal.submitLabel,
+									cancelLabel: modal.cancelLabel,
+									submitVariant: modal.submitVariant,
+								},
+							},
+							"*",
+						);
+					}
+				}
 			} else if (event.type === "data_source_update") {
 				// Handle data source connection updates (verification, sync status changes)
 				// Determine update type based on which fields are present
@@ -475,6 +528,8 @@ export const SSEProvider: React.FC<SSEProviderProps> = ({
 				});
 				window.dispatchEvent(workflowEvent);
 			}
+			// Note: ui_form_request events are now handled via new_message with metadata.type = 'ui_form_request'
+			// The form request detection happens in the new_message handler above
 		},
 		[navigate, queryClient],
 	);

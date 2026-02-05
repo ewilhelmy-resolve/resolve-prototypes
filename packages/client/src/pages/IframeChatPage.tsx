@@ -871,6 +871,8 @@ function IframeChatContent({
 	placeholderText,
 	welcomeText,
 	leftToolbarContent,
+	onFormSubmit,
+	onFormCancel,
 }: {
 	conversationId: string;
 	/** Custom title from Valkey (e.g., "Ask Workflow Designer") */
@@ -881,6 +883,14 @@ function IframeChatContent({
 	welcomeText?: string;
 	/** Custom content for left side of input toolbar */
 	leftToolbarContent?: React.ReactNode;
+	/** Handler for inline form submission */
+	onFormSubmit?: (
+		requestId: string,
+		action: string,
+		data: Record<string, string>,
+	) => Promise<void>;
+	/** Handler for inline form cancellation */
+	onFormCancel?: (requestId: string) => Promise<void>;
 }) {
 	const { latestUpdate } = useSSEContext();
 	const { updateMessage } = useConversationStore();
@@ -933,6 +943,8 @@ function IframeChatContent({
 			placeholderText={placeholderText}
 			welcomeText={welcomeText}
 			leftToolbarContent={leftToolbarContent}
+			onFormSubmit={onFormSubmit}
+			onFormCancel={onFormCancel}
 		/>
 	);
 }
@@ -1328,6 +1340,28 @@ export default function IframeChatPage() {
 		debugLogs,
 	};
 
+	// UI Form Request handlers (must be before early returns for hooks rules)
+	const handleFormSubmit = useCallback(
+		async (requestId: string, action: string, data: Record<string, string>) => {
+			addDebugLog("info", "⬆️ UI Form submitted", { requestId, action, data });
+			await iframeApi.submitUIFormResponse({
+				requestId,
+				action,
+				status: "submitted",
+				data,
+			});
+		},
+		[addDebugLog],
+	);
+
+	const handleFormCancel = useCallback(
+		async (requestId: string) => {
+			addDebugLog("info", "⬆️ UI Form cancelled", { requestId });
+			await iframeApi.submitUIFormResponse({ requestId, status: "cancelled" });
+		},
+		[addDebugLog],
+	);
+
 	// Loading state
 	if (isLoading) {
 		return (
@@ -1395,6 +1429,8 @@ export default function IframeChatPage() {
 					placeholderText={placeholderText}
 					welcomeText={welcomeText}
 					leftToolbarContent={devToolsElement}
+					onFormSubmit={handleFormSubmit}
+					onFormCancel={handleFormCancel}
 				/>
 			</SSEProvider>
 			{/* Platform simulator panel (dev mode) */}

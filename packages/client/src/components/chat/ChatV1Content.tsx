@@ -74,6 +74,7 @@ import type {
 import { useConversationStore } from "@/stores/conversationStore";
 import type { UIActionPayload } from "@/types/uiSchema";
 import { SchemaRenderer } from "../schema-renderer";
+import { InlineFormRequest } from "../ui-form-request/InlineFormRequest";
 import { ResponseWithInlineCitations } from "./ResponseWithInlineCitations";
 
 export interface ChatV1ContentProps {
@@ -109,6 +110,14 @@ export interface ChatV1ContentProps {
 	welcomeText?: string;
 	/** Custom content for left side of input toolbar */
 	leftToolbarContent?: React.ReactNode;
+	/** Handler for inline form submission */
+	onFormSubmit?: (
+		requestId: string,
+		action: string,
+		data: Record<string, string>,
+	) => Promise<void>;
+	/** Handler for inline form cancellation */
+	onFormCancel?: (requestId: string) => Promise<void>;
 }
 
 /**
@@ -377,15 +386,27 @@ function SimpleMessage({
 	isCopied,
 	conversationId,
 	onSchemaAction,
+	onFormSubmit,
+	onFormCancel,
 }: {
 	message: SimpleChatMessage;
 	onCopy: (text: string, messageId: string) => void;
 	isCopied: boolean;
 	conversationId: string | null;
 	onSchemaAction?: (payload: any) => void;
+	onFormSubmit?: (
+		requestId: string,
+		action: string,
+		data: Record<string, string>,
+	) => Promise<void>;
+	onFormCancel?: (requestId: string) => Promise<void>;
 }) {
 	// Hover state for timestamp visibility
 	const [isHovering, setIsHovering] = useState(false);
+
+	// Check if this is a UI form request message
+	const isFormRequest = message.metadata?.type === "ui_form_request";
+	const isInterruptForm = isFormRequest && message.metadata?.interrupt;
 
 	return (
 		<Message from={message.role}>
@@ -398,9 +419,38 @@ function SimpleMessage({
 				<MessageContent
 					variant={message.role === "assistant" ? "flat" : "contained"}
 				>
-					<Response>{message.message}</Response>
-					{/* Render dynamic UI schema if present */}
-					{message.metadata?.ui_schema && conversationId && (
+					{/* Render UI form request inline (if not interrupt mode) */}
+					{isFormRequest &&
+						!isInterruptForm &&
+						message.metadata?.ui_schema &&
+						onFormSubmit && (
+							<InlineFormRequest
+								requestId={message.metadata.request_id}
+								uiSchema={message.metadata.ui_schema}
+								status={message.metadata.status || "pending"}
+								formData={message.metadata.form_data}
+								submittedAt={message.metadata.submitted_at}
+								onSubmit={onFormSubmit}
+								onCancel={onFormCancel}
+							/>
+						)}
+
+					{/* For interrupt form requests, show a compact placeholder */}
+					{isFormRequest && isInterruptForm && (
+						<div className="text-sm text-muted-foreground italic">
+							{message.metadata?.status === "completed"
+								? "Form submitted"
+								: "Form requested (see modal)"}
+						</div>
+					)}
+
+					{/* Regular message content */}
+					{!isFormRequest && message.message && (
+						<Response>{message.message}</Response>
+					)}
+
+					{/* Render dynamic UI schema if present (not form request) */}
+					{!isFormRequest && message.metadata?.ui_schema && conversationId && (
 						<div className="mt-4 w-full">
 							<SchemaRenderer
 								schema={message.metadata.ui_schema}
@@ -413,7 +463,7 @@ function SimpleMessage({
 				</MessageContent>
 
 				{/* Actions and timestamp row - always show for assistant messages */}
-				{message.role === "assistant" && (
+				{message.role === "assistant" && !isFormRequest && (
 					<div className="flex items-center justify-between gap-2">
 						{/* Copy action - only show if there's text content */}
 						{hasSimpleCopyableContent(message) ? (
@@ -441,6 +491,17 @@ function SimpleMessage({
 						>
 							{formatAbsoluteTime(message.timestamp)}
 						</div>
+					</div>
+				)}
+
+				{/* Timestamp for form requests */}
+				{message.role === "assistant" && isFormRequest && (
+					<div
+						className={`text-xs text-gray-500 mt-1 transition-opacity ${
+							isHovering ? "opacity-100" : "opacity-0"
+						}`}
+					>
+						{formatAbsoluteTime(message.timestamp)}
 					</div>
 				)}
 
@@ -580,6 +641,8 @@ export default function ChatV1Content({
 	placeholderText,
 	welcomeText,
 	leftToolbarContent,
+	onFormSubmit: propsFormSubmit,
+	onFormCancel: propsFormCancel,
 }: ChatV1ContentProps) {
 	const { t } = useTranslation(["chat", "toast"]);
 	// Copy state tracking for icon feedback
@@ -861,6 +924,66 @@ export default function ChatV1Content({
 		}
 	}, []);
 
+	// Handle form submission from inline UI form request
+	// Use props handler if provided (iframe context), otherwise use internal handler
+	const handleFormSubmit = useCallback(
+		async (
+			requestId: string,
+			action: string,
+			data: Record<string, string>,
+		): Promise<void> => {
+			console.log("[FormSubmit] Submitting form:", { requestId, action, data });
+
+			// Use props handler if provided (iframe context)
+			if (propsFormSubmit) {
+				return propsFormSubmit(requestId, action, data);
+			}
+
+			// Fallback: Send via iframeApi using form response endpoint
+			try {
+				const response = await iframeApi.submitUIFormResponse({
+					requestId,
+					action,
+					status: "submitted",
+					data,
+				});
+
+				if (response.success) {
+					ritaToast.success({
+						title: "Form submitted",
+						description: action,
+					});
+				} else {
+					throw new Error(response.error || "Unknown error");
+				}
+			} catch (error) {
+				console.error("[FormSubmit] Failed:", error);
+				ritaToast.error({
+					title: "Form submission failed",
+					description: error instanceof Error ? error.message : "Network error",
+				});
+				throw error;
+			}
+		},
+		[propsFormSubmit],
+	);
+
+	// Handle form cancellation
+	// Use props handler if provided (iframe context), otherwise use internal handler
+	const handleFormCancel = useCallback(
+		async (requestId: string): Promise<void> => {
+			console.log("[FormCancel] Cancelling form:", requestId);
+
+			// Use props handler if provided (iframe context)
+			if (propsFormCancel) {
+				return propsFormCancel(requestId);
+			}
+
+			// Fallback: just log - could send cancellation event to platform
+		},
+		[propsFormCancel],
+	);
+
 	// Handle direct attachment button click
 	// TODO: Uncomment when re-enabling attachment button
 	// const handleAttachmentClick = useCallback(() => {
@@ -954,6 +1077,8 @@ export default function ChatV1Content({
 													isCopied={copiedMessageId === chatMessage.id}
 													conversationId={currentConversationId}
 													onSchemaAction={handleSchemaAction}
+													onFormSubmit={handleFormSubmit}
+													onFormCancel={handleFormCancel}
 												/>
 											)}
 										</Fragment>

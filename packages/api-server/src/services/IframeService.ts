@@ -383,6 +383,127 @@ export class IframeService {
 	}
 
 	/**
+	 * Send UI form response back to platform
+	 * Used by UIFormRequestModal when user submits or cancels a form
+	 * Sends webhook to Platform with form data for workflow correlation
+	 */
+	async sendUIFormResponse(payload: {
+		requestId: string;
+		action?: string;
+		status: "submitted" | "cancelled";
+		data?: Record<string, unknown>;
+	}): Promise<void> {
+		const { requestId, action, status, data } = payload;
+
+		// 1. Look up the pending form request from database
+		const client = await pool.connect();
+		try {
+			const result = await client.query(
+				`SELECT id, tenant_id, user_id, workflow_id, activity_id, conversation_id, status
+				 FROM ui_form_requests WHERE id = $1`,
+				[requestId],
+			);
+
+			if (result.rows.length === 0) {
+				throw new Error(`Form request ${requestId} not found`);
+			}
+
+			const formRequest = result.rows[0];
+
+			if (formRequest.status !== "pending") {
+				throw new Error(
+					`Form request ${requestId} already ${formRequest.status}`,
+				);
+			}
+
+			// 2. Update form request status in database
+			await client.query(
+				`UPDATE ui_form_requests
+				 SET status = $1, form_data = $2, submitted_at = NOW()
+				 WHERE id = $3`,
+				[status, data ? JSON.stringify(data) : null, requestId],
+			);
+
+			logger.info(
+				{
+					requestId,
+					workflowId: formRequest.workflow_id,
+					activityId: formRequest.activity_id,
+					status,
+					action,
+					hasData: !!data,
+				},
+				"UI form response stored",
+			);
+
+			// 3. Get webhook config from session (lookup by conversation if available)
+			let webhookConfig: IframeWebhookConfig | null = null;
+			if (formRequest.conversation_id) {
+				const session = await this.sessionStore.getSessionByConversationId(
+					formRequest.conversation_id,
+				);
+				webhookConfig = session?.iframeWebhookConfig || null;
+			}
+
+			// 4. Send webhook to Platform if we have config
+			if (
+				webhookConfig?.actionsApiBaseUrl &&
+				webhookConfig?.clientId &&
+				webhookConfig?.clientKey
+			) {
+				const baseUrl = webhookConfig.actionsApiBaseUrl.replace(/\/$/, "");
+				const webhookUrl = `${baseUrl}/api/Webhooks/postEvent/${webhookConfig.tenantId}`;
+				const authHeader = `Basic ${Buffer.from(`${webhookConfig.clientId}:${webhookConfig.clientKey}`).toString("base64")}`;
+
+				const webhookPayload = {
+					source: "rita-chat-iframe" as const,
+					action: "ui_form_response",
+					tenant_id: webhookConfig.tenantId,
+					user_id: webhookConfig.userGuid,
+					workflow_id: formRequest.workflow_id,
+					activity_id: formRequest.activity_id,
+					request_id: requestId,
+					status,
+					form_action: action,
+					data: data || {},
+					timestamp: new Date().toISOString(),
+				};
+
+				// Use axios directly for custom URL
+				const axios = (await import("axios")).default;
+				await axios.post(webhookUrl, webhookPayload, {
+					headers: {
+						Authorization: authHeader,
+						"Content-Type": "application/json",
+					},
+					timeout: 10000,
+				});
+
+				logger.info(
+					{
+						requestId,
+						workflowId: formRequest.workflow_id,
+						activityId: formRequest.activity_id,
+						webhookUrl,
+					},
+					"UI form response webhook sent to platform",
+				);
+			} else {
+				logger.warn(
+					{
+						requestId,
+						hasConversationId: !!formRequest.conversation_id,
+						hasWebhookConfig: !!webhookConfig,
+					},
+					"No webhook config available for UI form response",
+				);
+			}
+		} finally {
+			client.release();
+		}
+	}
+
+	/**
 	 * Create a conversation for iframe user
 	 * Uses JIT provisioning to map Jarvis IDs → Rita IDs
 	 * Conversation reuse is via activityId (activity_contexts table), not sessionKey

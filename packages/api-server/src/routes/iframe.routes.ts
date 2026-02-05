@@ -384,6 +384,62 @@ router.delete("/conversation/:conversationId", async (req, res) => {
 });
 
 /**
+ * Submit UI form response back to platform
+ * POST /api/iframe/ui-form-response
+ *
+ * Used by UIFormRequestModal when user submits or cancels a form.
+ * Sends webhook to Platform with form data for workflow correlation.
+ */
+router.post("/ui-form-response", async (req, res) => {
+	const { requestId, action, status, data } = req.body;
+
+	if (!requestId || !status) {
+		res.status(400).json({
+			success: false,
+			error: "Missing required fields: requestId, status",
+		});
+		return;
+	}
+
+	if (status !== "submitted" && status !== "cancelled") {
+		res.status(400).json({
+			success: false,
+			error: "Invalid status: must be 'submitted' or 'cancelled'",
+		});
+		return;
+	}
+
+	try {
+		logger.info(
+			{
+				requestId,
+				action,
+				status,
+				hasData: !!data,
+			},
+			"Processing UI form response",
+		);
+
+		const iframeService = getIframeService();
+		await iframeService.sendUIFormResponse({
+			requestId,
+			action,
+			status,
+			data,
+		});
+
+		res.json({ success: true });
+	} catch (error) {
+		const err = error as Error;
+		logger.error(
+			{ requestId, status, error: err.message },
+			"Failed to send UI form response",
+		);
+		res.status(500).json({ success: false, error: err.message });
+	}
+});
+
+/**
  * Send UI action back to platform
  * POST /api/iframe/ui-action
  *
