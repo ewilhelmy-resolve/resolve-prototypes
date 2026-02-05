@@ -1955,7 +1955,7 @@ export default function SchedulerDashboardPage() {
 									</DropdownMenuTrigger>
 									<DropdownMenuContent align="end" className="w-44 p-1">
 										<DropdownMenuItem
-											onClick={() => toggleKanbanFilter("failed")}
+											onSelect={() => toggleKanbanFilter("failed")}
 											className="gap-2 cursor-pointer"
 										>
 											<div
@@ -1974,7 +1974,7 @@ export default function SchedulerDashboardPage() {
 											Failed
 										</DropdownMenuItem>
 										<DropdownMenuItem
-											onClick={() => toggleKanbanFilter("executing")}
+											onSelect={() => toggleKanbanFilter("executing")}
 											className="gap-2 cursor-pointer"
 										>
 											<div
@@ -1993,7 +1993,7 @@ export default function SchedulerDashboardPage() {
 											Executing
 										</DropdownMenuItem>
 										<DropdownMenuItem
-											onClick={() => toggleKanbanFilter("scheduled")}
+											onSelect={() => toggleKanbanFilter("scheduled")}
 											className="gap-2 cursor-pointer"
 										>
 											<div
@@ -2012,7 +2012,7 @@ export default function SchedulerDashboardPage() {
 											Scheduled
 										</DropdownMenuItem>
 										<DropdownMenuItem
-											onClick={() => toggleKanbanFilter("healthy")}
+											onSelect={() => toggleKanbanFilter("healthy")}
 											className="gap-2 cursor-pointer"
 										>
 											<div
@@ -2130,10 +2130,10 @@ export default function SchedulerDashboardPage() {
 												<div className="flex-1 flex items-center gap-2">
 													{isDisabled ? (
 														<ScheduledIcon className="size-5 shrink-0" />
-													) : isExecuting ? (
-														<ExecutingIcon className="size-5 shrink-0" />
 													) : isFailed ? (
 														<FailedIcon className="size-5 shrink-0" />
+													) : isExecuting ? (
+														<ExecutingIcon className="size-5 shrink-0" />
 													) : (
 														<SuccessIcon className="size-5 shrink-0" />
 													)}
