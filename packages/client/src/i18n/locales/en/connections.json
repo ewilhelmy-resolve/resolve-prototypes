@@ -173,14 +173,17 @@
 		},
 		"labels": {
 			"spacesQuestion": "Which spaces would you like to sync from?",
+			"projectsQuestion": "Which projects would you like to sync from?",
 			"kbQuestion": "Which knowledge bases would you like to sync from?",
 			"importFromLast": "Import tickets from the last:",
 			"selectTimeRange": "Select time range"
 		},
 		"placeholders": {
 			"chooseSpaces": "Choose spaces...",
+			"chooseProjects": "Choose projects...",
 			"chooseKb": "Choose knowledge bases...",
 			"noSpaces": "No spaces found.",
+			"noProjects": "No projects found.",
 			"noKb": "No knowledge bases found."
 		},
 		"timeRanges": {
@@ -191,6 +194,7 @@
 		"toast": {
 			"configError": "Configuration Error",
 			"noBackendData": "No backend data available for this source",
+			"selectAtLeastOneSpace": "Please select at least one project to sync",
 			"syncStarted": "Sync Started",
 			"syncStartedConfluence": "Your Confluence spaces are being synced",
 			"syncStartedServiceNowKb": "Your ServiceNow knowledge articles are being synced",
