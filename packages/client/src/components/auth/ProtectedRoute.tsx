@@ -3,7 +3,7 @@ import { Navigate } from 'react-router-dom';
 import { useAuthStore } from '@/stores/auth-store.ts';
 import { SSEProvider } from '@/contexts/SSEContext';
 
-const DEMO_MODE = import.meta.env.VITE_DEMO_MODE === 'true';
+const DEMO_MODE = true; // Hardcoded for demo deployment
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
