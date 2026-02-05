@@ -124,13 +124,15 @@
 			"ready": "Ready",
 			"partial": "Partial",
 			"low": "Low",
-			"notReady": "Not ready"
+			"notReady": "Not ready",
+			"comingSoon": "Coming soon!"
 		},
 		"descriptions": {
 			"ready": "Reviewed responses consistently met expectations.",
 			"partial": "Based on reviewed responses, some replies still need improvement before automation is recommended.",
 			"low": "Based on reviewed responses, several replies need clearer or more complete knowledge",
-			"notReady": "Automation can't be recommended yet because no knowledge exists for this cluster."
+			"notReady": "Automation can't be recommended yet because no knowledge exists for this cluster.",
+			"comingSoon": "Evaluates whether a ticket cluster is ready for safe automation based on volume, consistency, and validation signals."
 		},
 		"recommendations": {
 			"createKnowledge": "Create knowledge to enable automation",
@@ -244,6 +246,7 @@
 	},
 	"readiness": {
 		"title": "Automation readiness is",
+		"titleComingSoon": "Automation Confidence Meter",
 		"tooltip": "Automation readiness is calculated based on the percentage of reviewed responses that met expectations.",
 		"recommendation": "Recommendation",
 		"reviewedOf": "Based on {{reviewed}} of {{total}} responses reviewed",

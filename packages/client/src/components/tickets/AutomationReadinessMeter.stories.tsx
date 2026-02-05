@@ -81,3 +81,14 @@ export const NotReadyNoReviews: Story = {
 		trustedPercentage: 0,
 	},
 };
+
+/** Coming soon state: data not yet available */
+export const ComingSoon: Story = {
+	args: {
+		reviewed: 0,
+		total: 0,
+		hasKnowledge: false,
+		trustedPercentage: 0,
+		forceState: "coming-soon",
+	},
+};
