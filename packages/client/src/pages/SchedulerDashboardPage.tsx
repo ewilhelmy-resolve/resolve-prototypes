@@ -1787,7 +1787,7 @@ export default function SchedulerDashboardPage() {
 
 			{/* DESIGN E: Kanban Workflows - Board view by group */}
 			{designMode === "kanban" && (
-				<div className="flex flex-col h-[calc(100vh-135px)] bg-background">
+				<div className="flex flex-col flex-1 min-h-0 bg-background">
 					{/* Workflow Tabs - right after blue header */}
 					<div className="px-4 pt-3 border-b border-[#d1d5db] overflow-x-auto">
 						<div className="flex gap-1 min-w-max">
@@ -2210,7 +2210,7 @@ export default function SchedulerDashboardPage() {
 											{kanbanFilteredWorkflows.filter(w => w.status === "enabled" && calculateSuccessRate(w) >= 70).length}
 										</Badge>
 									</div>
-									<div className="flex-1 p-2 bg-emerald-50/50 rounded-b-sm border border-t-0 border-emerald-200 space-y-1.5 overflow-y-auto max-h-[calc(100vh-400px)]">
+									<div className="flex-1 p-2 bg-emerald-50/50 rounded-b-sm border border-t-0 border-emerald-200 space-y-1.5 overflow-y-auto max-h-[50vh] md:max-h-[calc(100vh-400px)]">
 										{kanbanFilteredWorkflows
 											.filter(w => w.status === "enabled" && calculateSuccessRate(w) >= 70)
 											.map((workflow) => (
@@ -2232,7 +2232,7 @@ export default function SchedulerDashboardPage() {
 											{kanbanFilteredWorkflows.filter(w => w.status === "enabled" && calculateSuccessRate(w) < 70).length}
 										</Badge>
 									</div>
-									<div className="flex-1 p-2 bg-red-50/50 rounded-b-sm border border-t-0 border-red-200 space-y-1.5 overflow-y-auto max-h-[calc(100vh-400px)]">
+									<div className="flex-1 p-2 bg-red-50/50 rounded-b-sm border border-t-0 border-red-200 space-y-1.5 overflow-y-auto max-h-[50vh] md:max-h-[calc(100vh-400px)]">
 										{kanbanFilteredWorkflows
 											.filter(w => w.status === "enabled" && calculateSuccessRate(w) < 70)
 											.map((workflow) => (
@@ -2254,7 +2254,7 @@ export default function SchedulerDashboardPage() {
 											{kanbanFilteredWorkflows.filter(w => w.status === "disabled").length}
 										</Badge>
 									</div>
-									<div className="flex-1 p-2 bg-muted/30 rounded-b-sm border border-t-0 space-y-1.5 overflow-y-auto max-h-[calc(100vh-400px)]">
+									<div className="flex-1 p-2 bg-muted/30 rounded-b-sm border border-t-0 space-y-1.5 overflow-y-auto max-h-[50vh] md:max-h-[calc(100vh-400px)]">
 										{kanbanFilteredWorkflows
 											.filter(w => w.status === "disabled")
 											.map((workflow) => (
@@ -2324,7 +2324,7 @@ export default function SchedulerDashboardPage() {
 											</div>
 
 											{/* Column Cards */}
-											<div className="flex-1 p-2 bg-muted/30 rounded-b-sm border border-t-0 space-y-1.5 overflow-y-auto max-h-[calc(100vh-320px)]">
+											<div className="flex-1 p-2 bg-muted/30 rounded-b-sm border border-t-0 space-y-1.5 overflow-y-auto max-h-[50vh] md:max-h-[calc(100vh-320px)]">
 												{workflows.map((workflow) => (
 													<KanbanWorkflowCard
 														key={workflow.id}
