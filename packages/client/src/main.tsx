@@ -11,10 +11,14 @@ if (!container) {
   throw new Error('Root element not found');
 }
 
-// Initialize authentication before React renders
-// This ensures auth state is ready when components mount
-console.log('Main: Starting authentication initialization...');
-useAuthStore.getState().initialize();
+// Skip auth initialization in demo mode
+const DEMO_MODE = true; // Hardcoded for demo deployment
+if (!DEMO_MODE) {
+  // Initialize authentication before React renders
+  // This ensures auth state is ready when components mount
+  console.log('Main: Starting authentication initialization...');
+  useAuthStore.getState().initialize();
+}
 
 const root = createRoot(container);
 root.render(
