@@ -1346,158 +1346,200 @@ The system is performing well overall but requires attention to the identified s
 			],
 		});
 	} else if (content.startsWith("testmodal")) {
-		// testmodal: UI Schema with modal form for API credentials
-		parts.push({
-			type: "text",
-			text: `## API Configuration
-
-Configure your service credentials below.`,
-			metadata: {
-				ui_schema: {
-					version: "1",
-					components: [
-						{
-							type: "card",
-							title: "ServiceNow Connection",
-							description: "Connect to your ServiceNow instance",
-							children: [
-								{
-									type: "row",
-									gap: 8,
-									children: [
-										{
-											type: "button",
-											label: "Configure Credentials",
-											opensModal: "credentials-modal",
-										},
-										{
-											type: "button",
-											label: "Test Connection",
-											action: "test-connection",
-											variant: "outline",
-										},
-									],
-								},
-							],
-						},
-					],
-					modals: {
-						"credentials-modal": {
-							title: "ServiceNow Credentials",
-							description:
-								"Enter your ServiceNow instance details to establish connection",
-							size: "lg",
-							children: [
-								{
-									type: "input",
-									name: "hostname",
-									label: "Instance Hostname",
-									placeholder: "your-instance.service-now.com",
-								},
-								{
-									type: "input",
-									name: "username",
-									label: "Username",
-									placeholder: "admin",
-								},
-								{
-									type: "input",
-									name: "apiKey",
-									label: "API Key",
-									inputType: "password",
-									placeholder: "Enter your API key",
-								},
-								{
-									type: "select",
-									name: "environment",
-									label: "Environment",
-									placeholder: "Select environment",
-									options: [
-										{ label: "Production", value: "prod" },
-										{ label: "Staging", value: "staging" },
-										{ label: "Development", value: "dev" },
-									],
-								},
-							],
-							submitAction: "save-credentials",
-							submitLabel: "Save Credentials",
-							cancelLabel: "Cancel",
+		// testmodal: UI form request displayed inline in chat (interrupt=false)
+		// This is the new message-based form request format
+		// Note: iframe sends user_guid/userGuid instead of user_id
+		const userId =
+			messagePayload.user_id ||
+			(messagePayload as any).user_guid ||
+			(messagePayload as any).userGuid;
+		return [
+			{
+				message_id: messagePayload.message_id,
+				conversation_id: messagePayload.conversation_id,
+				tenant_id: messagePayload.tenant_id,
+				user_id: userId,
+				response: JSON.stringify({
+					type: "ui_form_request",
+					user_id: userId,
+					workflow_id: "mock-workflow-inline-form",
+					activity_id: `mock-activity-${Date.now()}`,
+					interrupt: false, // Render inline in chat bubble
+					conversation_id: messagePayload.conversation_id,
+					ui_schema: {
+						version: "1",
+						modals: {
+							"inline-form": {
+								title: "ServiceNow Connection",
+								description: "Configure your ServiceNow instance credentials",
+								size: "md",
+								children: [
+									{
+										type: "input",
+										name: "hostname",
+										label: "Instance Hostname",
+										placeholder: "your-instance.service-now.com",
+									},
+									{
+										type: "input",
+										name: "username",
+										label: "Username",
+										placeholder: "admin",
+									},
+									{
+										type: "input",
+										name: "apiKey",
+										label: "API Key",
+										inputType: "password",
+										placeholder: "Enter your API key",
+									},
+									{
+										type: "select",
+										name: "environment",
+										label: "Environment",
+										placeholder: "Select environment",
+										options: [
+											{ label: "Production", value: "prod" },
+											{ label: "Staging", value: "staging" },
+											{ label: "Development", value: "dev" },
+										],
+									},
+								],
+								submitAction: "save-credentials",
+								submitLabel: "Save Credentials",
+								cancelLabel: "Cancel",
+							},
 						},
 					},
-				},
+				}),
 			},
-		});
+		];
 	} else if (content.startsWith("testforcemodal")) {
-		// testforcemodal: Auto-open modal immediately (forced credential prompt)
-		parts.push({
-			type: "text",
-			text: `## Credential Required
-
-Your session requires authentication. Please enter your credentials.`,
-			metadata: {
-				ui_schema: {
-					version: "1",
-					components: [
-						{
-							type: "card",
-							title: "Authentication Required",
-							description: "This action requires valid credentials to proceed",
-							children: [
-								{
-									type: "text",
-									content:
-										"The credential form has been opened automatically. Please complete authentication to continue.",
-									variant: "muted",
-								},
-								{
-									type: "button",
-									label: "Enter Credentials",
-									opensModal: "auth-modal",
-									variant: "default",
-								},
-							],
-						},
-					],
-					modals: {
-						"auth-modal": {
-							title: "Enter Credentials",
-							description: "Authenticate to continue with this workflow",
-							size: "md",
-							children: [
-								{
-									type: "input",
-									name: "apiEndpoint",
-									label: "API Endpoint",
-									placeholder: "https://api.example.com",
-								},
-								{
-									type: "input",
-									name: "apiKey",
-									label: "API Key",
-									inputType: "password",
-									placeholder: "Enter your API key",
-								},
-								{
-									type: "select",
-									name: "authType",
-									label: "Authentication Type",
-									placeholder: "Select auth type",
-									options: [
-										{ label: "Bearer Token", value: "bearer" },
-										{ label: "API Key Header", value: "api-key" },
-										{ label: "Basic Auth", value: "basic" },
-									],
-								},
-							],
-							submitAction: "authenticate",
-							submitLabel: "Authenticate",
-							cancelLabel: "Cancel",
+		// testforcemodal: UI form request as modal overlay (interrupt=true)
+		// Opens immediately as modal, interrupting user flow
+		// Note: iframe sends user_guid/userGuid instead of user_id
+		const userId =
+			messagePayload.user_id ||
+			(messagePayload as any).user_guid ||
+			(messagePayload as any).userGuid;
+		return [
+			{
+				message_id: messagePayload.message_id,
+				conversation_id: messagePayload.conversation_id,
+				tenant_id: messagePayload.tenant_id,
+				user_id: userId,
+				response: JSON.stringify({
+					type: "ui_form_request",
+					user_id: userId,
+					workflow_id: "mock-workflow-modal-form",
+					activity_id: `mock-activity-${Date.now()}`,
+					interrupt: true, // Open as modal immediately
+					conversation_id: messagePayload.conversation_id,
+					ui_schema: {
+						version: "1",
+						modals: {
+							"auth-modal": {
+								title: "Authentication Required",
+								description:
+									"This workflow requires authentication to continue",
+								size: "md",
+								children: [
+									{
+										type: "text",
+										content: "Please provide your API credentials to proceed.",
+										variant: "muted",
+									},
+									{
+										type: "input",
+										name: "apiEndpoint",
+										label: "API Endpoint",
+										placeholder: "https://api.example.com",
+									},
+									{
+										type: "input",
+										name: "apiKey",
+										label: "API Key",
+										inputType: "password",
+										placeholder: "Enter your API key",
+									},
+									{
+										type: "select",
+										name: "authType",
+										label: "Authentication Type",
+										placeholder: "Select auth type",
+										options: [
+											{ label: "Bearer Token", value: "bearer" },
+											{ label: "API Key Header", value: "api-key" },
+											{ label: "Basic Auth", value: "basic" },
+										],
+									},
+								],
+								submitAction: "authenticate",
+								submitLabel: "Authenticate",
+								cancelLabel: "Cancel",
+							},
 						},
 					},
-					autoOpenModal: "auth-modal",
-				},
+				}),
 			},
-		});
+		];
+	} else if (content.startsWith("testinlineform")) {
+		// testinlineform: Alternative inline form test case
+		// Note: iframe sends user_guid/userGuid instead of user_id
+		const userId =
+			messagePayload.user_id ||
+			(messagePayload as any).user_guid ||
+			(messagePayload as any).userGuid;
+		return [
+			{
+				message_id: messagePayload.message_id,
+				conversation_id: messagePayload.conversation_id,
+				tenant_id: messagePayload.tenant_id,
+				user_id: userId,
+				response: JSON.stringify({
+					type: "ui_form_request",
+					user_id: userId,
+					workflow_id: "mock-workflow-feedback",
+					activity_id: `mock-activity-${Date.now()}`,
+					interrupt: false,
+					conversation_id: messagePayload.conversation_id,
+					ui_schema: {
+						version: "1",
+						modals: {
+							"feedback-form": {
+								title: "Quick Feedback",
+								description: "Help us improve by providing feedback",
+								size: "sm",
+								children: [
+									{
+										type: "select",
+										name: "rating",
+										label: "How was this response?",
+										placeholder: "Select rating",
+										options: [
+											{ label: "Excellent", value: "5" },
+											{ label: "Good", value: "4" },
+											{ label: "Average", value: "3" },
+											{ label: "Below Average", value: "2" },
+											{ label: "Poor", value: "1" },
+										],
+									},
+									{
+										type: "input",
+										name: "comment",
+										label: "Additional Comments",
+										inputType: "textarea",
+										placeholder: "Any additional feedback?",
+									},
+								],
+								submitAction: "submit-feedback",
+								submitLabel: "Submit Feedback",
+							},
+						},
+					},
+				}),
+			},
+		];
 	} else {
 		// Default scenario - fall back to original logic
 		const useScenario = scenario || MOCK_CONFIG.defaultScenario;

@@ -51,6 +51,18 @@ export interface UIActionResponse {
 	error?: string;
 }
 
+export interface UIFormResponseRequest {
+	requestId: string;
+	action?: string;
+	status: "submitted" | "cancelled";
+	data?: Record<string, unknown>;
+}
+
+export interface UIFormResponseResult {
+	success: boolean;
+	error?: string;
+}
+
 export const iframeApi = {
 	/**
 	 * Validate iframe instantiation and create session
@@ -118,6 +130,26 @@ export const iframeApi = {
 			credentials: "include",
 			body: JSON.stringify(request),
 		});
+
+		return response.json();
+	},
+
+	/**
+	 * Submit UI form response back to platform
+	 * Used by UIFormRequestModal when user submits or cancels a form
+	 */
+	submitUIFormResponse: async (
+		request: UIFormResponseRequest,
+	): Promise<UIFormResponseResult> => {
+		const response = await fetch(
+			`${API_BASE_URL}/api/iframe/ui-form-response`,
+			{
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				credentials: "include",
+				body: JSON.stringify(request),
+			},
+		);
 
 		return response.json();
 	},
