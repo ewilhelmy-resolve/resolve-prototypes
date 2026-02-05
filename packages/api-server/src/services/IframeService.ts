@@ -451,9 +451,6 @@ export class IframeService {
 				webhookConfig?.clientId &&
 				webhookConfig?.clientKey
 			) {
-				const { WebhookService } = await import("./WebhookService.js");
-				const webhookService = new WebhookService();
-
 				const baseUrl = webhookConfig.actionsApiBaseUrl.replace(/\/$/, "");
 				const webhookUrl = `${baseUrl}/api/Webhooks/postEvent/${webhookConfig.tenantId}`;
 				const authHeader = `Basic ${Buffer.from(`${webhookConfig.clientId}:${webhookConfig.clientKey}`).toString("base64")}`;
