@@ -80,6 +80,7 @@ export default function TicketGroups({
 		kb_status: kbStatusParam,
 		search: debouncedSearch || undefined,
 		enabled: canShowClusters,
+		sort: "volume",
 	});
 
 	const clusters = clustersResponse?.data ?? [];

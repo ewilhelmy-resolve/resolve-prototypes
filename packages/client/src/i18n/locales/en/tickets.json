@@ -2,6 +2,7 @@
 	"header": {
 		"description": "Rita learned from <strong>{{ticketCount}}</strong> tickets in the {{period}} <strong>across {{clusterCount}} issue types</strong>",
 		"stats": {
+			"totalTickets": "Total tickets",
 			"ticketsLast7Days": "Tickets last 7 days",
 			"handledAutomatically": "Handled Automatically",
 			"automationRate": "Automation Rate",
