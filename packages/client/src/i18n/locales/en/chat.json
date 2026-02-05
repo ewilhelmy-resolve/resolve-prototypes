@@ -1,0 +1,83 @@
+{
+	"input": {
+		"placeholder": "Ask me anything...",
+		"sendButton": "Send",
+		"attachFile": "Attach file",
+		"noKnowledgeAdmin": "No knowledge found. Upload or connect a knowledge source to get started.",
+		"noKnowledgeUser": "No knowledge found. Reach out to your RITA Go Administrator."
+	},
+	"emptyState": {
+		"title": "Ask RITA",
+		"description": "Start a conversation with RITA to get help with your questions.",
+		"descriptionWithKnowledge": "Diagnose and resolve issues, then create automations to speed up future remediation",
+		"descriptionNoKnowledge": "Build your organization's help agent by adding knowledge",
+		"guestDescription": "Start a conversation by typing your question below.",
+		"uploadTitle": "Upload a file",
+		"uploadDescription": "Add knowledge via documents",
+		"connectionTitle": "Add a connection",
+		"connectionDescription": "Connect your knowledge sources",
+		"fileConstraints": "File types: {{extensions}}; max size: {{size}}mb",
+		"privacyInfo": "All files and connections stay within your organization's workspace."
+	},
+	"sidebar": {
+		"newChat": "New Chat",
+		"conversations": "Conversations",
+		"noConversations": "No conversations yet",
+		"searchPlaceholder": "Search conversations...",
+		"analytics": "Analytics",
+		"knowledgeArticles": "Knowledge Articles",
+		"users": "Users",
+		"recentChats": "Recent Chats",
+		"yesterday": "Yesterday",
+		"noResults": "No conversations found",
+		"tryDifferentSearch": "Try a different search term",
+		"startFirstChat": "Start your first chat",
+		"logout": "Logout",
+		"toggleSidebar": "Toggle Sidebar",
+		"hideSidebar": "Hide Sidebar",
+		"showSidebar": "Show Sidebar"
+	},
+	"messages": {
+		"thinking": "Thinking...",
+		"streaming": "RITA is typing...",
+		"error": "Failed to send message. Please try again.",
+		"loadingOlder": "Loading older messages...",
+		"beginningOfConversation": "Beginning of conversation"
+	},
+	"conversation": {
+		"title": "Conversation",
+		"untitled": "Untitled conversation"
+	},
+	"deleteDialog": {
+		"title": "Delete Conversation",
+		"message": "Are you sure you want to delete \"{{title}}\"? This action cannot be undone and will permanently delete all messages in this conversation.",
+		"cancel": "Cancel",
+		"delete": "Delete"
+	},
+	"actions": {
+		"copyMessage": "Copy message"
+	},
+	"citations": {
+		"loading": "Loading...",
+		"fullDocumentAvailable": "Full document available",
+		"viewSource": "View source",
+		"viewFullDocument": "View full document →",
+		"documentProcessing": "Document content is being processed. Please try again later.",
+		"errorLoading": "Error loading document. Please try again.",
+		"documentTitle": "Document",
+		"fullDocumentContent": "Full document content",
+		"noContent": "No content available"
+	},
+	"dragDrop": {
+		"title": "Drop files here",
+		"description": "Release to upload your files to the conversation",
+		"supportedFiles": "Files supported: pdf, txt, doc, docx, md, etc.",
+		"maxFiles": "Up to {{count}} file",
+		"maxFiles_plural": "Up to {{count}} files"
+	},
+	"iframe": {
+		"missingSessionKey": "Missing sessionKey parameter",
+		"setupFailed": "Setup Failed",
+		"initializing": "Initializing..."
+	}
+}

@@ -1,0 +1,41 @@
+Data Source Sync Status
+========================
+
+Sends data source sync status updates to Rita via RabbitMQ.
+
+PREREQUISITES
+-------------
+Set these workflow variables before using:
+• %rita_rabbitmq_url%
+• %rita_data_source_status_queue_name%
+• %tenant_id%
+• %connection_id%
+• %sync_status% (sync_completed | sync_failed)
+
+OPTIONAL VARIABLES
+------------------
+• %sync_error% - Error details (for sync_failed)
+• %documents_processed% - Count of synced documents (for sync_completed)
+
+HOW IT WORKS
+------------
+All fields are populated from workflow variables, typically set by:
+• Previous automation script (e.g., data source connector)
+• Conditional logic based on sync result
+• Try-catch error handling blocks
+
+FIELDS
+------
+• Status: One of sync_completed, sync_failed
+• Sync Error: Error description (when status = sync_failed)
+• Documents Processed: Document count (when status = sync_completed)
+
+EXAMPLES
+--------
+Completed:
+- %sync_status%: "sync_completed"
+- %documents_processed%: "150"
+
+Failed:
+- %sync_status%: "sync_failed"
+- %sync_error%: "Connection timeout after 30s"

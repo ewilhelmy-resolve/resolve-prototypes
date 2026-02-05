@@ -1,0 +1,212 @@
+{
+	"statusCard": {
+		"labels": {
+			"url": "URL",
+			"email": "Email",
+			"username": "Username",
+			"password": "Password",
+			"apiToken": "API"
+		},
+		"multipleAttemptsFailed": "Multiple attempts failed",
+		"getHelp": "Get Help",
+		"retrying": "Retrying... ({{current}}/{{max}})",
+		"connectionFailed": "Connection failed",
+		"retry": "Retry",
+		"ticketsProgress": "{{processed}} of {{total}} tickets",
+		"importingTickets": "Importing tickets...",
+		"syncingConnection": "Syncing connection...",
+		"verifyingConnection": "Verifying connection...",
+		"syncCancelled": "Sync cancelled by user",
+		"lastSynced": "Last synced {{time}}",
+		"ticketsCount": "{{count}} tickets",
+		"connected": "Connected",
+		"notConfigured": "Not configured"
+	},
+	"status": {
+		"notConnected": "Not connected",
+		"connected": "Connected",
+		"syncing": "Syncing",
+		"verifying": "Verifying",
+		"cancelled": "Cancelled",
+		"error": "Error"
+	},
+	"sources": {
+		"confluence": {
+			"title": "Confluence",
+			"description": "Import knowledge base articles from Confluence."
+		},
+		"servicenow": {
+			"title": "ServiceNow",
+			"description": "Connect to ServiceNow for ITSM integration."
+		},
+		"servicenow_itsm": {
+			"title": "ServiceNow ITSM",
+			"description": "Connect to ServiceNow for ITSM ticket integration."
+		},
+		"sharepoint": {
+			"title": "SharePoint",
+			"description": "Import documents from SharePoint."
+		},
+		"websearch": {
+			"title": "Web Search (LGA)",
+			"description": "Use web results to supplement answers when knowledge isn't found."
+		},
+		"jira_itsm": {
+			"title": "Jira",
+			"description": "Import tickets from Jira for Autopilot clustering."
+		},
+		"freshdesk": {
+			"title": "Freshdesk",
+			"description": "Import tickets from Freshdesk for autopilot clustering."
+		}
+	},
+	"form": {
+		"sections": {
+			"authentication": "Authentication",
+			"settings": "Settings"
+		},
+		"labels": {
+			"url": "URL",
+			"userEmail": "User email",
+			"apiToken": "API token",
+			"instanceUrl": "Instance URL",
+			"username": "Username",
+			"password": "Password",
+			"tenantId": "Tenant ID",
+			"clientId": "Client ID",
+			"clientSecret": "Client Secret",
+			"siteUrl": "Site URL",
+			"freshdeskDomain": "Freshdesk Domain",
+			"apiKey": "API Key",
+			"jiraUrl": "Jira URL"
+		},
+		"placeholders": {
+			"confluenceUrl": "https://your-company.atlassian.net",
+			"email": "you@company.com",
+			"apiToken": "Enter API token",
+			"serviceNowUrl": "https://your-instance.service-now.com",
+			"username": "service_account",
+			"password": "Enter password",
+			"tenantId": "your-tenant-id",
+			"clientId": "your-client-id",
+			"secret": "••••••••",
+			"sharePointUrl": "https://your-company.sharepoint.com",
+			"freshdeskDomain": "https://your-company.freshdesk.com",
+			"apiKey": "Enter your API key",
+			"jiraUrl": "https://your-company.atlassian.net"
+		},
+		"validation": {
+			"urlRequired": "URL is required",
+			"invalidUrl": "Please enter a valid URL",
+			"emailRequired": "Email is required",
+			"invalidEmail": "Please enter a valid email address",
+			"apiTokenRequired": "API token is required",
+			"apiTokenEmpty": "API token cannot be empty",
+			"instanceUrlRequired": "Instance URL is required",
+			"usernameRequired": "Username is required",
+			"passwordRequired": "Password is required",
+			"tenantIdRequired": "Tenant ID is required",
+			"clientIdRequired": "Client ID is required",
+			"clientSecretRequired": "Client Secret is required",
+			"siteUrlRequired": "Site URL is required"
+		},
+		"buttons": {
+			"connect": "Connect",
+			"connecting": "Connecting...",
+			"cancel": "Cancel"
+		},
+		"alerts": {
+			"verificationFailed": "Verification Failed",
+			"checkCredentials": "Please check your credentials and try again.",
+			"connectionMayTakeTime": "Connection may take time",
+			"canLeavePage": "You can leave this page while it is connecting",
+			"comingSoon": "Coming Soon",
+			"freshdeskNotReady": "Freshdesk integration is not yet available. Stay tuned for updates."
+		},
+		"descriptions": {
+			"webSearchHelp": "Enable web search to supplement answers when knowledge isn't found in your connected sources."
+		}
+	},
+	"messages": {
+		"configureSuccess": "Your {{source}} connection has been configured successfully",
+		"verificationFailed": "Verification Failed",
+		"loadFailed": "Failed to load data sources"
+	},
+	"detail": {
+		"loading": "Loading connection...",
+		"unknownSourceType": "Unknown source type",
+		"configurationNotAvailable": "Configuration not available for this source type",
+		"connectDescription": "Connect your {{source}} instance to build context for RITA to make better experiences.",
+		"breadcrumbs": {
+			"knowledgeSources": "Knowledge Sources",
+			"itsmSources": "ITSM Sources"
+		}
+	},
+	"config": {
+		"titles": {
+			"confluence": "Confluence configuration",
+			"servicenowKb": "ServiceNow Knowledge Base configuration",
+			"servicenowItsm": "ServiceNow ITSM configuration",
+			"jiraItsm": "Jira ITSM configuration",
+			"sharepoint": "SharePoint",
+			"websearch": "Web Search",
+			"freshdeskItsm": "Freshdesk ITSM configuration"
+		},
+		"sync": {
+			"inProgress": "Sync in progress...",
+			"cancelling": "Cancelling...",
+			"cancelSync": "Cancel Sync",
+			"syncing": "Syncing...",
+			"sync": "Sync",
+			"importing": "Importing...",
+			"importTickets": "Import tickets",
+			"importingTickets": "Importing tickets...",
+			"noTicketsYet": "No tickets imported yet",
+			"lastSynced": "Last synced {{time}}",
+			"ticketsCount": "{{count}} tickets",
+			"ticketsSyncFailed": "{{count}} tickets couldn't sync. Common causes: missing fields, permissions, or API limits. Excluded from analysis.",
+			"ticketsOf": "{{processed}} of {{total}} tickets"
+		},
+		"training": {
+			"inProgress": "Model training in progress",
+			"description": "Rita is analyzing your tickets to create ticket groups. This usually takes a few minutes."
+		},
+		"labels": {
+			"spacesQuestion": "Which spaces would you like to sync from?",
+			"kbQuestion": "Which knowledge bases would you like to sync from?",
+			"importFromLast": "Import tickets from the last:",
+			"selectTimeRange": "Select time range"
+		},
+		"placeholders": {
+			"chooseSpaces": "Choose spaces...",
+			"chooseKb": "Choose knowledge bases...",
+			"noSpaces": "No spaces found.",
+			"noKb": "No knowledge bases found."
+		},
+		"timeRanges": {
+			"last30Days": "Last 30 days",
+			"last60Days": "Last 60 days",
+			"last90Days": "Last 90 days"
+		},
+		"toast": {
+			"configError": "Configuration Error",
+			"noBackendData": "No backend data available for this source",
+			"syncStarted": "Sync Started",
+			"syncStartedConfluence": "Your Confluence spaces are being synced",
+			"syncStartedServiceNowKb": "Your ServiceNow knowledge articles are being synced",
+			"syncStartedServiceNowItsm": "Your ServiceNow tickets are being synced",
+			"syncStartedJiraItsm": "Your Jira tickets are being synced",
+			"syncFailed": "Sync Failed",
+			"syncFailedDefault": "Failed to start sync",
+			"syncCancelled": "Sync Cancelled",
+			"syncCancelledDesc": "Your sync operation has been cancelled",
+			"cancelFailed": "Cancel Failed",
+			"cancelFailedDefault": "Failed to cancel sync"
+		}
+	},
+	"servicenow": {
+		"applyToRelated": "Apply credentials to {{target}} connection",
+		"knowledgeBase": "Knowledge Base",
+		"itsm": "ITSM"
+	}
+}

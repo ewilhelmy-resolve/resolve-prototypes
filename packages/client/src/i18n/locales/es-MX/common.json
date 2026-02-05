@@ -1,0 +1,26 @@
+{
+	"nav": {
+		"home": "Inicio",
+		"agents": "Agentes",
+		"knowledgeArticles": "Base de Conocimiento",
+		"tickets": "Tickets",
+		"workflows": "Flujos de Trabajo",
+		"newChat": "Nuevo Chat",
+		"recentChats": "Chats recientes",
+		"loading": "Cargando...",
+		"noConversations": "Sin conversaciones aún",
+		"ritaGo": "RITA Go",
+		"addArticles": "Agregar Artículos",
+		"inviteUsers": "Invitar Usuarios",
+		"uploadFile": "Subir Archivo",
+		"connectSources": "Conectar Fuentes",
+		"settings": "Configuración",
+		"profile": "Perfil",
+		"helpDocumentation": "Documentación de Ayuda",
+		"logOut": "Cerrar Sesión"
+	},
+	"inviteCard": {
+		"title": "Invitar Usuarios",
+		"description": "Invita a tu equipo a usar RITA y resolver soporte más rápido."
+	}
+}

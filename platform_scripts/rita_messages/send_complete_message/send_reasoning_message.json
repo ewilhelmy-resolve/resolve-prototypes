@@ -1,0 +1,137 @@
+{
+  "innerCode": 200,
+  "data": {
+    "name": "Rita Reasoning Message",
+    "description": "Sends a reasoning-only message to Rita. Use this to show step-by-step analysis or thinking process to the user.",
+    "Timeout": null,
+    "class": [],
+    "rootSettings": {
+      "isCollapse": false,
+      "activitySettings": [
+        {
+          "value": "%rita_rabbitmq_url%",
+          "required": true,
+          "key": "rabbitmq_url",
+          "label": "RabbitMQ URL",
+          "labelKey": "rabbitmq_url",
+          "baseType": "control",
+          "controlType": "hidden"
+        },
+        {
+          "value": "%rita_chat_queue_name%",
+          "required": true,
+          "key": "queue_name",
+          "label": "Queue Name",
+          "labelKey": "queue_name",
+          "baseType": "control",
+          "controlType": "hidden"
+        },
+        {
+          "value": "",
+          "required": false,
+          "key": "text_content",
+          "label": "Text Content",
+          "labelKey": "text_content",
+          "baseType": "control",
+          "controlType": "hidden",
+          "styleClass": "xl-textarea"
+        },
+        {
+          "value": "Thinking...",
+          "required": false,
+          "key": "reasoning_title",
+          "label": "Reasoning Title",
+          "labelKey": "reasoning_title",
+          "baseType": "control",
+          "controlType": "textbox"
+        },
+        {
+          "value": "",
+          "required": true,
+          "key": "reasoning_content",
+          "label": "Reasoning Content",
+          "labelKey": "reasoning_content",
+          "baseType": "control",
+          "controlType": "textarea",
+          "styleClass": "xl-textarea"
+        },
+        {
+          "value": "",
+          "required": false,
+          "key": "sources",
+          "label": "Sources",
+          "labelKey": "sources",
+          "baseType": "control",
+          "controlType": "hidden"
+        },
+        {
+          "value": "",
+          "required": false,
+          "key": "tasks",
+          "label": "Tasks",
+          "labelKey": "tasks",
+          "baseType": "control",
+          "controlType": "hidden"
+        },
+        {
+          "value": "",
+          "required": false,
+          "key": "response_group_id",
+          "label": "Response group id",
+          "labelKey": "response_group_id",
+          "baseType": "control",
+          "controlType": "hidden"
+        },
+        {
+          "value": "%tenant_id%",
+          "required": true,
+          "key": "tenant_id",
+          "label": "Tenant ID",
+          "labelKey": "tenant_id",
+          "baseType": "control",
+          "controlType": "hidden"
+        },
+        {
+          "value": "%message_id%",
+          "required": true,
+          "key": "message_id",
+          "label": "Message ID",
+          "labelKey": "message_id",
+          "baseType": "control",
+          "controlType": "hidden"
+        },
+        {
+          "value": "%conversation_id%",
+          "required": true,
+          "key": "conversation_id",
+          "label": "Conversation ID",
+          "labelKey": "conversation_id",
+          "baseType": "control",
+          "controlType": "hidden"
+        },
+        {
+          "value": false,
+          "required": false,
+          "key": "turn_complete",
+          "label": "Turn complete - If not set, shows a spinner after this message",
+          "labelKey": "turn_complete",
+          "baseType": "control",
+          "controlType": "checkbox"
+        },
+        {
+          "value": "",
+          "required": false,
+          "key": "citation_variant",
+          "label": "Citation variant",
+          "labelKey": "citation_variant",
+          "baseType": "control",
+          "controlType": "hidden"
+        }
+      ],
+      "index": "1",
+      "label": "main",
+      "labelKey": null
+    }
+  },
+  "message": "SUCCESS"
+}

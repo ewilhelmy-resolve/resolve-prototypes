@@ -1,0 +1,42 @@
+Document Processing Status
+==========================
+
+Sends document processing status updates to Rita via RabbitMQ.
+
+PREREQUISITES
+-------------
+Set these workflow variables before using:
+• %rita_rabbitmq_url%
+• %rita_document_processing_queue_name%
+• %tenant_id%
+• %blob_metadata_id%
+• %processing_status% (processing_completed | processing_failed)
+
+OPTIONAL VARIABLES
+------------------
+• %user_id% - User who uploaded the document
+• %processed_markdown% - Extracted markdown content (for processing_completed)
+• %processing_error% - Error details (for processing_failed)
+
+HOW IT WORKS
+------------
+All fields are populated from workflow variables, typically set by:
+• Document processing automation (RAG service)
+• Try-catch error handling blocks
+• Conditional logic based on processing result
+
+FIELDS
+------
+• Status: One of processing_completed, processing_failed
+• Processed Markdown: Extracted text content (when status = processing_completed)
+• Processing Error: Error description (when status = processing_failed)
+
+EXAMPLES
+--------
+Completed:
+- %processing_status%: "processing_completed"
+- %processed_markdown%: "# Document Title\n\nExtracted content..."
+
+Failed:
+- %processing_status%: "processing_failed"
+- %processing_error%: "Unable to parse PDF: Corrupted file"

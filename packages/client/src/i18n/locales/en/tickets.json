@@ -1,0 +1,261 @@
+{
+	"header": {
+		"description": "Rita learned from <strong>{{ticketCount}}</strong> tickets in the {{period}} <strong>across {{clusterCount}} issue types</strong>",
+		"stats": {
+			"ticketsLast7Days": "Tickets last 7 days",
+			"handledAutomatically": "Handled Automatically",
+			"automationRate": "Automation Rate",
+			"aiHoursSaved": "AI hours saved"
+		}
+	},
+	"page": {
+		"title": "Ticket Groups",
+		"subtitle": "Based on the {{period}}",
+		"notFound": "Ticket not found"
+	},
+	"groups": {
+		"failedToLoad": "Failed to load ticket groups",
+		"noGroups": "No ticket groups found",
+		"noSourceConnected": "Connect an ITSM source to start analyzing tickets",
+		"connectSource": "Connect ITSM Source",
+		"trainingInProgress": "Model training in progress",
+		"trainingDescription": "Ticket groups will appear when training completes. This usually takes a few minutes.",
+		"trainingFailed": "Training failed",
+		"trainingFailedDescription": "There was an issue analyzing your tickets. Please check your ITSM connection and try syncing again.",
+		"goToItsmConnections": "Go to ITSM Connections",
+		"filterBy": "Filter by",
+		"searchPlaceholder": "Search by topic name...",
+		"filterOptions": {
+			"all": "All",
+			"knowledgeFound": "Knowledge found",
+			"knowledgeGap": "Knowledge gap",
+			"pending": "Pending"
+		},
+		"periods": {
+			"last30Days": "Last 30 days",
+			"last90Days": "Last 90 days",
+			"last6Months": "Last 6 months",
+			"lastYear": "Last year"
+		},
+		"pagination": {
+			"previous": "Previous",
+			"next": "Next"
+		}
+	},
+	"navigation": {
+		"backToCluster": "Back to cluster",
+		"nextTicket": "Next ticket",
+		"previousTicket": "Previous ticket"
+	},
+	"details": {
+		"description": "Description",
+		"ticketsCount": "Tickets:"
+	},
+	"review": {
+		"title": "Review AI response",
+		"sheetDescription": "Rita analyzed your KB and similar tickets to draft this response.",
+		"ticketDetails": "Ticket Details",
+		"trustTheBot": "Trust the Bot",
+		"teachTheBot": "Teach the Bot",
+		"aiResponse": "AI-Response",
+		"noAiResponse": "AI response not available"
+	},
+	"feedback": {
+		"title": "What was wrong with this response?",
+		"reasons": {
+			"missingInfo": "Missing information",
+			"wrongTone": "Wrong tone",
+			"incorrectSolution": "Incorrect solution",
+			"tooGeneric": "Too generic"
+		},
+		"enterFeedback": "Enter feedback",
+		"placeholder": "Describe what was incorrect or missing...",
+		"skip": "Skip",
+		"submit": "Submit feedback"
+	},
+	"completion": {
+		"title": "Review Complete",
+		"stats": {
+			"trustedResponses": "Trusted responses",
+			"needImprovement": "Need improvement",
+			"trusted": "Trusted"
+		},
+		"actions": {
+			"addKnowledge": "Add knowledge",
+			"reviewKnowledge": "Review knowledge",
+			"viewAutomationReadiness": "View automation readiness",
+			"keepReviewing": "Keep reviewing"
+		},
+		"scenarios": {
+			"noKnowledge": {
+				"title": "Nice start, knowledge missing",
+				"subtitle": "You've started reviewing AI responses for this cluster. Missing knowledge is likely impacting response quality.",
+				"message": "Without knowledge, AI responses may lack the context needed to meet expectations.",
+				"proTip": "Early reviews help identify the most important gaps to address when creating knowledge."
+			},
+			"firstGood": {
+				"title": "Nice start, early signs look good",
+				"subtitle": "You've started reviewing AI responses for this cluster. Early feedback suggests responses are meeting expectations.",
+				"message": "Responses reviewed so far generally met expectations.",
+				"proTip": "Continued review helps confirm patterns across more tickets."
+			},
+			"firstBad": {
+				"title": "Nice start, still learning",
+				"subtitle": "You've started reviewing AI responses for this cluster. Based on this session, some responses did not meet expectations.",
+				"message": "Some reviewed responses lacked the information needed to meet expectations.",
+				"proTip": "Reviewing a few more tickets helps surface patterns and edge cases faster."
+			},
+			"subsequentGood": {
+				"title": "Responses look aligned",
+				"subtitle": "AI responses reviewed in this session consistently met expectations.",
+				"message": "Reviewed responses matched expected answers for this cluster.",
+				"proTip": "Consistent results contribute to automation readiness over time."
+			},
+			"subsequentBad": {
+				"title": "Responses need improvement",
+				"subtitle": "Most AI responses reviewed in this session did not meet expectations.",
+				"message": "Several responses lacked the information needed to respond accurately.",
+				"proTip": "Improving knowledge coverage often has the biggest impact on response quality."
+			}
+		}
+	},
+	"automation": {
+		"meterStates": {
+			"ready": "Ready",
+			"partial": "Partial",
+			"low": "Low",
+			"notReady": "Not ready"
+		},
+		"descriptions": {
+			"ready": "Reviewed responses consistently met expectations.",
+			"partial": "Based on reviewed responses, some replies still need improvement before automation is recommended.",
+			"low": "Based on reviewed responses, several replies need clearer or more complete knowledge",
+			"notReady": "Automation can't be recommended yet because no knowledge exists for this cluster."
+		},
+		"recommendations": {
+			"createKnowledge": "Create knowledge to enable automation",
+			"addKnowledge": "Add knowledge to enhance automation",
+			"continueReview": "Continue manual review"
+		},
+		"autopilot": {
+			"title": "AutoPilot Recommendations",
+			"description": "Automate stages of a ticket resolution",
+			"comingSoon": "coming soon",
+			"enable": "Enable"
+		},
+		"enableAutoRespond": {
+			"title": "Enable Auto-Respond?",
+			"description": "You're about to enable automated responses for all tickets in {{ticketGroupName}}.",
+			"info": "You can adjust or disable Auto-Respond anytime per ticket group."
+		}
+	},
+	"knowledgeGap": {
+		"title": "Knowledge Gap Detected",
+		"description": "No knowledge articles found for this cluster. Rita recommends creating one to enable Auto-Answer.",
+		"createArticle": "Create Knowledge Article"
+	},
+	"comingSoon": {
+		"title": "Tickets coming soon",
+		"description": "Leverage your existing ITSM data for intelligent analysis.",
+		"details": "RITA enable historical tickets into quickly analyze patterns, improve responses, and strengthen automation for common L1/L2 tickets."
+	},
+	"proTip": {
+		"prefix": "Pro-tip:"
+	},
+	"clusterDetail": {
+		"backToTickets": "Back to tickets",
+		"failedToLoad": "Failed to load cluster details",
+		"badges": {
+			"tickets": "{{count}} tickets",
+			"open": "{{count}} open",
+			"kbArticles": "{{count}} KB articles"
+		},
+		"banners": {
+			"reviewSuccess": "Great job! You reviewed {{count}} responses.",
+			"reviewSuccessDesc": "{{trusted}} trusted ({{improvement}}% confidence)",
+			"reviewNeedsImprovement": "Review completed with areas for improvement",
+			"reviewNeedsImprovementDesc": "{{count}} responses reviewed. Consider refining AI training data.",
+			"enrichedTickets": "You just enriched tickets for this group!",
+			"knowledgeAdded": "New knowledge added!",
+			"knowledgeAddedDesc": "You just improved your knowledge to better auto-respond to issues.",
+			"automatedWork": "You just automated {{percentage}}% of your work!",
+			"automatedWorkDesc": "Auto-respond is set to respond to all future tickets in \"{{groupName}}\""
+		}
+	},
+	"autoPopulate": {
+		"title": "Enable Auto-Populate",
+		"description": "New tickets in this group will be automatically populated with predicted values.",
+		"tableHeaders": {
+			"type": "Type",
+			"currentValue": "Current Value",
+			"predictedValue": "Predicted Value"
+		},
+		"alert": {
+			"title": "Based on AI Predictions",
+			"description": "Predictions use past tickets + kb data associated to this ticket group."
+		},
+		"enable": "Enable Auto-Populate",
+		"noPredictions": "No predictions available"
+	},
+	"autoRespond": {
+		"whenEnabled": "When You Enable Auto-Respond",
+		"sendToOpen": "Send automated responses to {{count}} currently open tickets",
+		"respondToFuture": "Automatically respond to all future tickets in this group",
+		"useTrainedResponses": "Use the responses you've trained Rita with",
+		"enableButton": "Enable Auto-Respond"
+	},
+	"table": {
+		"failedToLoad": "Failed to load tickets",
+		"noTickets": "No tickets found",
+		"searchPlaceholder": "Search tickets...",
+		"tabs": {
+			"needsResponse": "Needs Response",
+			"completed": "Completed"
+		},
+		"headers": {
+			"subject": "Subject",
+			"externalId": "External ID",
+			"source": "Source",
+			"created": "Created"
+		},
+		"actions": {
+			"reviewAI": "Review AI response",
+			"reviewAIResponses": "Review AI Responses"
+		},
+		"pagination": {
+			"ticketsCount": "{{count}} tickets",
+			"first": "First",
+			"next": "Next"
+		}
+	},
+	"trends": {
+		"title": "Ticket Trends",
+		"description": "Rita learned from {{count}} tickets, automatically handled {{percentage}}%",
+		"emptyState": "Trend data coming soon",
+		"legend": {
+			"manual": "Manual",
+			"automated": "Automated"
+		}
+	},
+	"metrics": {
+		"automated": "Automated",
+		"minsSaved": "Mins Saved",
+		"savings": "Savings"
+	},
+	"readiness": {
+		"title": "Automation readiness is",
+		"tooltip": "Automation readiness is calculated based on the percentage of reviewed responses that met expectations.",
+		"recommendation": "Recommendation",
+		"reviewedOf": "Based on {{reviewed}} of {{total}} responses reviewed",
+		"noReviews": "No responses reviewed yet",
+		"buttons": {
+			"enableAutoRespond": "Enable Auto-Respond",
+			"reviewKnowledge": "Review knowledge",
+			"addKnowledge": "Add knowledge"
+		}
+	},
+	"knowledge": {
+		"failedToLoad": "Failed to load KB articles",
+		"noArticles": "No knowledge articles linked"
+	}
+}

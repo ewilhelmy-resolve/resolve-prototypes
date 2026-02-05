@@ -1,0 +1,57 @@
+# Production environment - Uses pre-built images from GitHub Container Registry
+# External services (database, RabbitMQ, Keycloak) are managed separately
+
+services:
+  # API Server
+  api-server:
+    image: ${CONTAINER_REGISTRY:-ghcr.io}/${GITHUB_REPOSITORY_OWNER:-resolve-io}/${IMAGE_PREFIX:-rita}-api-server:${TAG:-latest}
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      # External database connections
+      DATABASE_URL: ${DATABASE_URL}
+      RABBITMQ_URL: ${RABBITMQ_URL}
+      # Keycloak configuration
+      KEYCLOAK_URL: ${KEYCLOAK_URL}
+      KEYCLOAK_REALM: ${KEYCLOAK_REALM}
+      KEYCLOAK_ISSUER: ${KEYCLOAK_ISSUER}
+      # Automation webhook
+      AUTOMATION_WEBHOOK_URL: ${AUTOMATION_WEBHOOK_URL}
+      AUTOMATION_AUTH: ${AUTOMATION_AUTH}
+      # Client configuration
+      CLIENT_URL: ${CLIENT_URL:-https://yourapp.com}
+    restart: unless-stopped
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Frontend with Nginx
+  frontend:
+    image: ${CONTAINER_REGISTRY:-ghcr.io}/${GITHUB_REPOSITORY_OWNER:-resolve-io}/${IMAGE_PREFIX:-rita}-frontend:${TAG:-latest}
+    environment:
+      VITE_KEYCLOAK_URL: ${KEYCLOAK_URL}
+      VITE_KEYCLOAK_REALM: ${KEYCLOAK_REALM}
+      VITE_KEYCLOAK_CLIENT_ID: ${KEYCLOAK_CLIENT_ID}
+      VITE_API_URL: ""  # Use relative URLs (handled by nginx proxy)
+    depends_on:
+      api-server:
+        condition: service_healthy
+    ports:
+      - "80:80"
+    restart: unless-stopped
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+networks:
+  app-network:
+    name: resolve-onboarding_default
+    external: true

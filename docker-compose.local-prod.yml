@@ -1,0 +1,168 @@
+# Local Production Environment - Complete stack for testing
+# Includes both infrastructure and application services
+
+services:
+  # Infrastructure Services
+  postgres:
+    image: pgvector/pgvector:pg15
+    environment:
+      POSTGRES_DB: onboarding
+      POSTGRES_USER: rita
+      POSTGRES_PASSWORD: rita
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U rita -d onboarding"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - app-network
+
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    networks:
+      - app-network
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:24.0.4
+    environment:
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: admin
+      KC_HOSTNAME_URL: http://localhost:8080
+      KC_HOSTNAME_ADMIN_URL: http://localhost:8080
+      KC_HTTP_ENABLED: true
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./keycloak/realm-export.json:/opt/keycloak/data/import/realm-export.json
+    command: start-dev --import-realm
+    networks:
+      - app-network
+
+  mailpit:
+    image: axllent/mailpit:latest
+    restart: unless-stopped
+    ports:
+      - "1025:1025"
+      - "8025:8025"
+    environment:
+      MP_MAX_MESSAGES: 5000
+      MP_DATABASE: /data/mailpit.db
+      MP_SMTP_AUTH_ACCEPT_ANY: 1
+      MP_SMTP_AUTH_ALLOW_INSECURE: 1
+    volumes:
+      - mailpit_data:/data
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8025/api/v1/info"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    networks:
+      - app-network
+
+  # Application Services
+  # API Server
+  api-server:
+    build:
+      context: .
+      dockerfile: packages/api-server/Dockerfile
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      # Internal Docker connections
+      DATABASE_URL: postgresql://rita:rita@postgres:5432/onboarding
+      RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672
+      # Keycloak configuration - using Docker service name for internal API communication
+      KEYCLOAK_URL: http://keycloak:8080
+      KEYCLOAK_REALM: rita-chat-realm
+      # Override issuer to match what frontend sees (localhost for browser access)
+      KEYCLOAK_ISSUER: http://localhost:8080/realms/rita-chat-realm
+      # Automation webhook
+      AUTOMATION_WEBHOOK_URL: http://mock-service:3001/webhook
+      AUTOMATION_AUTH: ${AUTOMATION_AUTH:-your-secret-token}
+      # Client configuration
+      CLIENT_URL: http://localhost
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      keycloak:
+        condition: service_started
+    restart: unless-stopped
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Mock Service
+  mock-service:
+    build:
+      context: .
+      dockerfile: packages/mock-service/Dockerfile
+    environment:
+      NODE_ENV: production
+      MOCK_SERVICE_PORT: 3001
+      RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672
+      KEYCLOAK_URL: http://keycloak:8080
+      KEYCLOAK_REALM: rita-chat-realm
+    ports:
+      - "3001:3001"
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - app-network
+
+  # Frontend with Nginx
+  frontend:
+    build:
+      context: .
+      dockerfile: packages/client/Dockerfile
+    environment:
+      VITE_KEYCLOAK_URL: http://localhost:8080
+      VITE_KEYCLOAK_REALM: rita-chat-realm
+      VITE_KEYCLOAK_CLIENT_ID: rita-chat-client
+      VITE_API_URL: ""  # Use relative URLs (handled by nginx proxy)
+    depends_on:
+      api-server:
+        condition: service_healthy
+    ports:
+      - "5173:80"
+    restart: unless-stopped
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+volumes:
+  postgres_data:
+  rabbitmq_data:
+  mailpit_data:
+
+networks:
+  app-network:
+    driver: bridge

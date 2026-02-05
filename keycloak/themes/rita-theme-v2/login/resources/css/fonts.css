@@ -1,0 +1,22 @@
+/* Season Mix Font Family - Load from resources/fonts/ */
+@font-face {
+    font-family: 'Season Mix';
+    src: url('../fonts/SeasonMix-Regular.ttf') format('truetype');
+    font-weight: 400;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'Season Mix';
+    src: url('../fonts/SeasonMix-RegularItalic.ttf') format('truetype');
+    font-weight: 400;
+    font-style: italic;
+    font-display: swap;
+}
+
+/* Apply to headings */
+h1, h2, h3, h4, h5, h6 {
+    font-family: 'Season Mix', serif;
+    letter-spacing: -0.05em;
+}

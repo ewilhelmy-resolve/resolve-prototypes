@@ -1,0 +1,32 @@
+Rita Complete Message
+=====================
+
+Sends a comprehensive message to Rita with all available components (text, reasoning, sources, tasks).
+
+PREREQUISITES
+-------------
+Set these workflow variables before using:
+• %rita_rabbitmq_url%
+• %rita_chat_queue_name%
+• %tenant_id%
+• %message_id%
+• %conversation_id%
+
+FIELDS
+------
+• Text Content: Main response text (markdown supported)
+• Reasoning Title: Display title for reasoning section (default: "Thinking...")
+• Reasoning Content: Step-by-step analysis or thinking process
+• Sources: JSON array of source objects
+  Format: [{"url": "...", "title": "...", "snippet": "...", "blob_id": "..."}]
+• Tasks: JSON array of task objects
+  Format: [{"title": "...", "items": ["..."], "defaultOpen": true/false}]
+• Turn Complete: Checkbox - uncheck to show spinner after message
+
+EXAMPLE
+-------
+Text: "Here's your deployment plan"
+Reasoning Title: "Planning"
+Reasoning Content: "1. Check resources\n2. Validate config\n3. Deploy"
+Tasks: [{"title": "Setup", "items": ["Install deps", "Configure"], "defaultOpen": true}]
+Turn Complete: ☑ (checked = final message, unchecked = more coming)

@@ -1,0 +1,36 @@
+{
+	"required": {
+		"firstName": "First name is required",
+		"lastName": "Last name is required",
+		"email": "Email is required",
+		"password": "Password is required",
+		"organization": "Organization is required",
+		"url": "URL is required",
+		"token": "API token is required",
+		"field": "This field is required"
+	},
+	"format": {
+		"email": "Please enter a valid email address",
+		"url": "Please enter a valid URL",
+		"password": "Password must contain uppercase, lowercase, number, and special character"
+	},
+	"password": {
+		"minLength": "Password must be at least {{min}} characters",
+		"uppercase": "Password must contain at least one uppercase letter",
+		"lowercase": "Password must contain at least one lowercase letter",
+		"number": "Password must contain at least one number",
+		"mismatch": "Passwords don't match"
+	},
+	"length": {
+		"tooLong": "{{field}} is too long",
+		"maxLength": "{{field}} must be at most {{max}} characters",
+		"minLength": "{{field}} must be at least {{min}} characters"
+	},
+	"confirm": {
+		"mustConfirmPermanent": "Must confirm this is permanent",
+		"mustTypeDelete": "Must type 'delete' to confirm"
+	},
+	"form": {
+		"checkFields": "Please check the form fields and correct any errors"
+	}
+}

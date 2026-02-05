@@ -1,0 +1,97 @@
+{
+	"upload": {
+		"title": "Upload files",
+		"description": "Upload files to your knowledge base",
+		"dragDrop": "Drag and drop files here, or click to select",
+		"selectFiles": "Select files",
+		"uploading": "Uploading...",
+		"processing": "Processing..."
+	},
+	"status": {
+		"knowledgeFound": "Knowledge found",
+		"knowledgeGap": "Knowledge gap",
+		"pending": "Pending",
+		"processing": "Processing",
+		"processed": "Processed",
+		"completed": "Completed",
+		"failed": "Failed",
+		"uploaded": "Uploaded",
+		"syncing": "Syncing"
+	},
+	"errors": {
+		"unsupportedFileType": {
+			"title": "Unsupported File Type",
+			"description": "The file type you selected is not supported."
+		},
+		"fileTooLarge": {
+			"title": "File Too Large",
+			"description": "The file exceeds the maximum size limit of {{maxSize}}."
+		},
+		"uploadFailed": "Failed to upload file"
+	},
+	"knowledgeBase": {
+		"title": "Knowledge Base",
+		"description": "Manage your uploaded files and documents",
+		"noFiles": "No files uploaded yet",
+		"fileCount": "{{count}} file(s)"
+	},
+	"header": {
+		"title": "Knowledge Articles",
+		"addButton": "Add Articles"
+	},
+	"dropdown": {
+		"uploadFile": "Upload file",
+		"uploadingFiles": "Uploading {{count}} file(s)...",
+		"connectSources": "Connect sources"
+	},
+	"search": {
+		"placeholder": "Search documents....."
+	},
+	"filters": {
+		"source": "Source:",
+		"status": "Status:",
+		"all": "All",
+		"allSources": "All Sources",
+		"allStatus": "All Status"
+	},
+	"table": {
+		"name": "Name",
+		"status": "Status",
+		"source": "Source",
+		"size": "Size",
+		"lastModified": "Last Modified"
+	},
+	"actions": {
+		"retry": "Retry",
+		"download": "Download",
+		"reprocess": "Reprocess",
+		"delete": "Delete"
+	},
+	"pagination": {
+		"showing": "Showing {{start}}-{{end}} of {{total}} articles",
+		"showingFiltered": "Showing {{count}} of {{total}} articles (filtered)",
+		"previous": "Previous",
+		"next": "Next"
+	},
+	"dialogs": {
+		"deleteTitle": "Delete Document",
+		"deleteDescription": "Are you sure you want to delete \"{{filename}}\"? This action cannot be undone.",
+		"bulkDeleteTitle": "Delete Documents",
+		"bulkDeleteDescription": "Are you sure you want to delete {{count}} document(s)? This action cannot be undone and will permanently remove all selected files from your knowledge base."
+	},
+	"empty": {
+		"noArticlesFound": "No articles found",
+		"noArticlesYet": "No articles yet",
+		"adjustFilters": "Try adjusting your search or filter criteria",
+		"uploadPrompt": "Upload your knowledge articles to unlock instant answers from RITA",
+		"addArticle": "Add Article"
+	},
+	"requirements": {
+		"fileTypes": "File types: {{types}}",
+		"maxSize": "Max size: {{size}}mb"
+	},
+	"uploadProgress": {
+		"uploading": "Uploading files...",
+		"progress": "{{current}} of {{total}}"
+	}
+}

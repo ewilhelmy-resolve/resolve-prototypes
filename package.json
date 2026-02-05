@@ -1,0 +1,45 @@
+{
+	"name": "rita-chat",
+	"version": "1.0.0",
+	"private": true,
+	"packageManager": "pnpm@9.15.0",
+	"pnpm": {
+		"overrides": {
+			"@types/express-serve-static-core": "^5.0.0"
+		}
+	},
+	"scripts": {
+		"dev": "node scripts/dev.js",
+		"docker:stop": "docker compose down",
+		"dev:restart": "pnpm run docker:stop && pnpm run dev",
+		"dev:api": "pnpm --filter rita-api-server dev",
+		"dev:client": "pnpm --filter rita-client dev",
+		"dev:mock": "pnpm --filter rita-mock-service dev",
+		"dev:theme": "pnpm --filter keycloak-rita-theme dev",
+		"dev:iframe-app": "pnpm --filter @rita/iframe-app dev",
+		"migrate": "pnpm --filter rita-api-server migrate",
+		"test:auth": "pnpm --filter rita-api-server test:auth",
+		"test": "pnpm --filter rita-client test:unit:run",
+		"build": "pnpm --filter rita-api-server build && pnpm --filter rita-client build",
+		"build:theme": "pnpm --filter keycloak-rita-theme build",
+		"lint": "pnpm -r run lint",
+		"type-check": "pnpm -r run type-check",
+		"prepare": "husky",
+		"setup": "node scripts/setup.js",
+		"storybook": "pnpm --filter rita-client storybook",
+		"build-storybook": "pnpm --filter rita-client build-storybook",
+		"deploy-storybook": "pnpm --filter rita-client deploy-storybook"
+	},
+	"devDependencies": {
+		"@biomejs/biome": "2.2.4",
+		"concurrently": "9.2.1",
+		"dotenv-cli": "7.4.2",
+		"husky": "9.1.7",
+		"lint-staged": "16.2.3"
+	},
+	"lint-staged": {
+		"*.{js,ts,cjs,mjs,jsx,tsx,json,jsonc}": [
+			"biome check --write --no-errors-on-unmatched --files-ignore-unknown=true"
+		]
+	}
+}

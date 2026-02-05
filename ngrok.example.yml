@@ -1,0 +1,13 @@
+
+version: 3
+
+agent:
+  authtoken: your_token
+
+tunnels:
+  web_app:
+    addr: 80
+    proto: http
+  mock-server:
+    addr: 3001
+    proto: http

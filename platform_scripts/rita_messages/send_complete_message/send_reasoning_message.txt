@@ -1,0 +1,26 @@
+Rita Reasoning Message
+======================
+
+Sends step-by-step reasoning/analysis to Rita UI.
+
+PREREQUISITES
+-------------
+Set these workflow variables before using:
+• %rita_rabbitmq_url%
+• %rita_chat_queue_name%
+• %tenant_id%
+• %message_id%
+• %conversation_id%
+
+FIELDS
+------
+• Reasoning Title: Display title (default: "Thinking...")
+• Reasoning Content: Step-by-step analysis (required)
+
+EXAMPLE
+-------
+Title: "Analyzing Requirements"
+Content:
+1. Check user permissions
+2. Validate input data
+3. Generate recommendations

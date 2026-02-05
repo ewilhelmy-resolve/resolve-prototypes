@@ -1,0 +1,35 @@
+<style>
+	/* Sidebar item hover - stronger contrast (non-selected items only) */
+	[data-nodetype="component"]:not([data-selected="true"]):hover,
+	[data-nodetype="story"]:not([data-selected="true"]):hover,
+	[data-nodetype="document"]:not([data-selected="true"]):hover,
+	[data-nodetype="group"]:not([data-selected="true"]):hover,
+	button[data-parent-id]:hover {
+		background-color: #E8E8E8 !important;
+	}
+
+	/* Hover text color for non-selected */
+	[data-nodetype]:not([data-selected="true"]):hover span {
+		color: #000000 !important;
+	}
+
+	/* Selected item - using RITA teal for clear selection */
+	[data-selected="true"] {
+		background-color: #0EC0C0 !important;
+		border-radius: 4px;
+	}
+
+	[data-selected="true"] span {
+		color: #FFFFFF !important;
+		font-weight: 500;
+	}
+
+	[data-selected="true"] svg {
+		color: #FFFFFF !important;
+	}
+
+	/* Root folders hover */
+	[data-nodetype="root"]:hover > button {
+		background-color: #F0F0F0 !important;
+	}
+</style>

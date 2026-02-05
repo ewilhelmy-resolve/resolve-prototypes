@@ -1,0 +1,50 @@
+-- Migration: Add composite index for efficient message pagination
+--
+-- WHY THIS INDEX IS NECESSARY:
+--
+-- Existing indexes (from migrations 101 & 106):
+--   - idx_messages_conversation_id ON messages(conversation_id)
+--   - idx_messages_organization_id ON messages(organization_id)
+--
+-- While these indexes allow filtering by conversation, they do NOT optimize
+-- the specific pagination query pattern we need:
+--
+--   SELECT * FROM messages
+--   WHERE conversation_id = $1 AND created_at < $2
+--   ORDER BY created_at DESC, id DESC
+--   LIMIT 50
+--
+-- Without this composite index, PostgreSQL must:
+--   1. Use idx_messages_conversation_id to find matching rows
+--   2. Load those rows into memory
+--   3. Sort them by created_at DESC (separate sort operation)
+--   4. Apply the created_at < $2 filter during the sort
+--
+-- With this composite index, PostgreSQL can:
+--   1. Use the index to filter by conversation_id
+--   2. Continue using the SAME index to scan in created_at DESC order
+--   3. Stop scanning when LIMIT is reached (no separate sort needed)
+--   4. Use id DESC as a tie-breaker for messages with identical timestamps
+--
+-- Performance impact:
+--   - Without: O(n log n) where n = total messages in conversation
+--   - With: O(limit) = O(50) constant time
+--
+-- For conversations with 500+ messages, this is the difference between:
+--   - 50ms+ query time (full table scan + sort)
+--   - <5ms query time (index-only scan)
+
+-- Create composite index on (conversation_id, created_at DESC, id DESC)
+CREATE INDEX IF NOT EXISTS idx_messages_conversation_created
+ON messages(conversation_id, created_at DESC, id DESC);
+
+-- Performance verification (run manually after migration):
+-- EXPLAIN ANALYZE
+-- SELECT * FROM messages
+-- WHERE conversation_id = 'some-uuid' AND created_at < NOW()
+-- ORDER BY created_at DESC, id DESC
+-- LIMIT 50;
+--
+-- Expected output should show:
+--   "Index Scan using idx_messages_conversation_created"
+--   NOT "Sort" or "Seq Scan"

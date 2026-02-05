@@ -1,0 +1,138 @@
+{
+	"nav": {
+		"home": "Home",
+		"agents": "Agents",
+		"knowledgeArticles": "Knowledge Articles",
+		"tickets": "Tickets",
+		"workflows": "Workflows",
+		"newChat": "New Chat",
+		"recentChats": "Recent chats",
+		"loading": "Loading...",
+		"noConversations": "No conversations yet",
+		"ritaGo": "RITA Go",
+		"addArticles": "Add Articles",
+		"inviteUsers": "Invite Users",
+		"uploadFile": "Upload file",
+		"connectSources": "Connect sources",
+		"settings": "Settings",
+		"profile": "Profile",
+		"helpDocumentation": "Help documentation",
+		"logOut": "Log out"
+	},
+	"inviteCard": {
+		"title": "Invite Users",
+		"description": "Invite teammates to use RITA and resolve support faster."
+	},
+	"actions": {
+		"cancel": "Cancel",
+		"save": "Save",
+		"delete": "Delete",
+		"edit": "Edit",
+		"close": "Close",
+		"submit": "Submit",
+		"confirm": "Confirm",
+		"update": "Update",
+		"connect": "Connect",
+		"configure": "Configure",
+		"manage": "Manage",
+		"retry": "Try Again",
+		"goBack": "Go Back",
+		"goToLogin": "Go to Login",
+		"resend": "Resend",
+		"disconnect": "Disconnect",
+		"previous": "Previous",
+		"next": "Next",
+		"clear": "Clear",
+		"clearAll": "Clear All",
+		"selectAll": "Select All",
+		"search": "Search",
+		"rename": "Rename",
+		"enable": "Enable",
+		"disable": "Disable",
+		"dismiss": "Dismiss"
+	},
+	"states": {
+		"loading": "Loading...",
+		"saving": "Saving...",
+		"deleting": "Deleting...",
+		"connecting": "Connecting...",
+		"updating": "Updating...",
+		"processing": "Processing...",
+		"noResults": "No results found",
+		"noOptions": "No options selected"
+	},
+	"labels": {
+		"email": "Email",
+		"firstName": "First name",
+		"lastName": "Last name",
+		"organization": "Organization",
+		"required": "*",
+		"name": "Name",
+		"role": "Role",
+		"description": "Description",
+		"selectOption": "Select option",
+		"selectRole": "Select role",
+		"morePages": "More pages",
+		"more": "More"
+	},
+	"placeholders": {
+		"search": "Search...",
+		"searchOptions": "Search options...",
+		"selectOptions": "Select options"
+	},
+	"accessibility": {
+		"close": "Close",
+		"closeNotification": "Close notification",
+		"dismissBanner": "Dismiss banner",
+		"toggleSidebar": "Toggle Sidebar",
+		"goToPreviousPage": "Go to previous page",
+		"goToNextPage": "Go to next page",
+		"breadcrumb": "breadcrumb",
+		"removeFromSelection": "Remove {{item}} from selection",
+		"clearAllSelected": "Clear all {{count}} selected options",
+		"searchOptions": "Search through available options",
+		"selectAllOptions": "Select all {{count}} options",
+		"optionSelected": "{{option}}, selected",
+		"optionNotSelected": "{{option}}, not selected"
+	},
+	"multiSelect": {
+		"instructions": "Multi-select dropdown. Use arrow keys to navigate, Enter to select, and Escape to close.",
+		"searchHelp": "Type to filter options. Use arrow keys to navigate results.",
+		"optionsCount": "{{count}} options"
+	},
+	"command": {
+		"paletteTitle": "Command Palette",
+		"paletteDescription": "Search for a command to run..."
+	},
+	"pages": {
+		"help": {
+			"title": "Self Help Resources",
+			"comingSoon": "This page is coming soon"
+		}
+	},
+	"bulk": {
+		"ariaLabel": "Bulk actions bar",
+		"closeAriaLabel": "Close bulk actions",
+		"defaultItemLabel": "items",
+		"defaultDeleteLabel": "Delete",
+		"defaultLoadingLabel": "Deleting...",
+		"remaining": "{{count}} {{label}} remaining",
+		"selected": "{{count}} {{label}} selected"
+	},
+	"webPreview": {
+		"urlPlaceholder": "Enter URL...",
+		"iframeTitle": "Preview",
+		"console": "Console",
+		"noConsoleOutput": "No console output"
+	},
+	"promptInput": {
+		"removeAttachment": "Remove attachment",
+		"addPhotosOrFiles": "Add photos or files",
+		"placeholder": "What would you like to know?",
+		"errors": {
+			"noFilesMatch": "No files match the accepted types.",
+			"filesTooLarge": "All files exceed the maximum size.",
+			"tooManyFiles": "Too many files. Some were not added."
+		}
+	}
+}

@@ -1,0 +1,46 @@
+# Production runtime - expects pre-built artifacts from GitHub Actions
+FROM node:20-slim AS base
+ENV PNPM_HOME="/pnpm"
+ENV PATH="$PNPM_HOME:$PATH"
+RUN corepack enable
+
+FROM base AS production
+
+# Install curl for health checks
+RUN apt-get update && apt-get install -y --no-install-recommends curl && rm -rf /var/lib/apt/lists/*
+
+# Create app directory
+WORKDIR /app
+
+# Create non-root user
+RUN addgroup --system --gid 1001 nodejs && adduser --system --uid 1001 appuser
+
+# Copy workspace files for pnpm
+COPY pnpm-lock.yaml pnpm-workspace.yaml package.json ./
+COPY packages/api-server/package.json ./packages/api-server/
+
+# Install only production dependencies
+RUN pnpm install --prod --frozen-lockfile --ignore-scripts --filter rita-api-server
+
+# Copy pre-built application (built in GitHub Actions)
+COPY packages/api-server/dist ./packages/api-server/dist
+
+# Copy migration files (needed for database migrations)
+COPY packages/api-server/src/database/migrations ./packages/api-server/dist/database/migrations
+
+# Change ownership to appuser
+RUN chown -R appuser:nodejs /app
+USER appuser
+
+# Expose port
+EXPOSE 3000
+
+# Environment
+ENV NODE_ENV=production
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
+    CMD curl -f http://localhost:3000/health || exit 1
+
+# Start the application
+CMD ["node", "packages/api-server/dist/index.js"]

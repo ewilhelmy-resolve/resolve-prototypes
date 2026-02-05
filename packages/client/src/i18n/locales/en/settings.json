@@ -1,0 +1,203 @@
+{
+	"profile": {
+		"title": "Profile",
+		"description": "Manage your personal information",
+		"general": "General",
+		"dangerZone": "Danger zone",
+		"firstName": "First name",
+		"lastName": "Last name",
+		"email": "Email",
+		"organization": "Organization",
+		"updateProfile": "Update profile",
+		"updating": "Updating...",
+		"deleting": "Deleting...",
+		"deleteAccountBtn": "Delete Account",
+		"typeDeletePlaceholder": "Type delete here",
+		"deleteAccount": {
+			"title": "Delete your account",
+			"description": "Permanently delete your entire account and all data you have uploaded.",
+			"descriptionAdmin": "Permanently delete your entire account, organization, and all data you have uploaded. As an owner, this will delete the entire organization and all members.",
+			"dialogDescription": "This action cannot be undone. This will permanently delete your account and remove all your data from our servers.",
+			"dialogDescriptionAdmin": "This action cannot be undone. This will permanently delete your account and remove all your data from our servers. As an owner, this will also delete the entire organization and all members.",
+			"confirmPermanent": "I understand this action is permanent and cannot be undone",
+			"confirmData": "I understand all my data will be permanently deleted",
+			"confirmTenantAccess": "I understand all users in this {{scope}} will no longer have access",
+			"typeDelete": "Type <strong>delete</strong> to confirm"
+		},
+		"validation": {
+			"firstNameRequired": "First name is required",
+			"firstNameTooLong": "First name is too long",
+			"lastNameRequired": "Last name is required",
+			"lastNameTooLong": "Last name is too long",
+			"organizationRequired": "Organization is required",
+			"mustConfirmPermanent": "Must confirm this is permanent",
+			"mustConfirmData": "Must confirm data deletion",
+			"mustConfirmTenantAccess": "Must confirm tenant access removal",
+			"mustTypeDelete": "Must type \"delete\" to confirm"
+		}
+	},
+	"users": {
+		"title": "Users",
+		"description": "Manage users and invitations to your organization.",
+		"tabs": {
+			"users": "Users",
+			"invitePending": "Invite Pending"
+		},
+		"invite": {
+			"title": "Invite Users",
+			"description": "Add email addresses to invite new users to your workspace.",
+			"defaultRole": "All new users will be assigned the User role by default.",
+			"adminNote": "To grant admin access, update their role later in Settings > Users.",
+			"emailsPlaceholder": "Enter email addresses separated by commas",
+			"maxEmails": "Separate multiple email addresses with commas (max 50)"
+		},
+		"editSheet": {
+			"title": "Edit user",
+			"description": "Profile information",
+			"lastOwnerWarning": "Cannot change role: This is the only active owner in the organization. Promote another member to owner first.",
+			"roles": {
+				"owner": "Owner",
+				"ownerDescription": "Full control over all content, members, and settings",
+				"admin": "Admin",
+				"adminDescription": "Can manage users and content, but not other admins/owners",
+				"user": "User",
+				"userDescription": "Can view and chat with content but not manage users"
+			}
+		},
+		"table": {
+			"searchByNameOrEmail": "Search by name or email...",
+			"status": "Status",
+			"statusAll": "All",
+			"statusActive": "Active",
+			"statusInactive": "Inactive",
+			"headers": {
+				"name": "Name",
+				"status": "Status",
+				"role": "Role",
+				"conversations": "Conversations",
+				"joined": "Joined"
+			},
+			"actions": {
+				"edit": "Edit",
+				"deactivate": "Deactivate",
+				"activate": "Activate",
+				"delete": "Delete"
+			},
+			"pagination": {
+				"showingFiltered": "Showing {{count}} of {{total}} users (filtered)",
+				"showingRange": "Showing {{start}}-{{end}} of {{total}} users",
+				"previous": "Previous",
+				"next": "Next"
+			}
+		},
+		"dialogs": {
+			"deactivate": {
+				"title": "Deactivate User",
+				"description": "Are you sure you want to deactivate {{email}}? They will be blocked from accessing the system immediately."
+			},
+			"delete": {
+				"title": "Permanently Delete User",
+				"description": "Are you sure you want to PERMANENTLY delete {{email}}? This will delete their account from Keycloak, remove all their data (messages, conversations, files), and cannot be undone.",
+				"ownerWarning": " WARNING: If they are the only member, this will delete the entire organization and all data.",
+				"confirmLabel": "Delete Permanently"
+			},
+			"roleChange": {
+				"title": "Change User Role",
+				"description": "This will change {{email}}'s role from {{oldRole}} to {{newRole}}. This may affect their permissions."
+			},
+			"bulkDelete": {
+				"title": "Permanently Delete Users",
+				"description": "Are you sure you want to PERMANENTLY delete {{count}} user(s)? This will delete their accounts from Keycloak, remove all their data (messages, conversations, files), and cannot be undone. If any are the only owner, their entire organization will be deleted.",
+				"confirmLabel": "Delete Users Permanently"
+			}
+		},
+		"invitations": {
+			"searchPlaceholder": "Search by email or inviter...",
+			"headers": {
+				"email": "Email",
+				"invitedBy": "Invited By",
+				"invitedDate": "Invited Date",
+				"expiresAt": "Expires At",
+				"status": "Status"
+			},
+			"status": {
+				"pending": "Pending"
+			},
+			"actions": {
+				"resend": "Resend Invitation",
+				"cancel": "Cancel Invitation",
+				"bulkCancel": "Cancel Invitations"
+			},
+			"unknown": "Unknown",
+			"count": "{{count}} Pending Invitation(s)",
+			"countFiltered": " (filtered from {{total}})",
+			"toast": {
+				"resendSuccess": "Invitation resent",
+				"resendSuccessDesc": "A new invitation has been sent to {{email}}",
+				"resendError": "Failed to resend invitation",
+				"cancelSuccess": "Invitation cancelled",
+				"cancelSuccessDesc": "The invitation to {{email}} has been cancelled",
+				"cancelError": "Failed to cancel invitation",
+				"bulkCancelSuccess": "Invitations cancelled",
+				"bulkCancelSuccessDesc": "Successfully cancelled {{count}} invitation(s)",
+				"bulkCancelPartial": "Partial success",
+				"bulkCancelPartialDesc": "Cancelled {{success}} invitation(s), but {{failed}} failed",
+				"bulkCancelError": "Failed to cancel invitations",
+				"bulkCancelErrorDesc": "Failed to cancel {{count}} invitation(s)",
+				"tryAgainLater": "Please try again later"
+			},
+			"dialogs": {
+				"cancel": {
+					"title": "Cancel Invitation",
+					"description": "Are you sure you want to cancel the invitation for {{email}}? They will no longer be able to accept this invitation.",
+					"confirmLabel": "Cancel Invitation",
+					"cancelLabel": "Keep Invitation"
+				},
+				"bulkCancel": {
+					"title": "Cancel Invitations",
+					"description": "Are you sure you want to cancel {{count}} invitation(s)? This action cannot be undone.",
+					"confirmLabel": "Cancel Invitations",
+					"cancelLabel": "Keep Invitations"
+				}
+			},
+			"error": {
+				"title": "Failed to load invitations",
+				"description": "An error occurred while fetching invitations. Please try again."
+			}
+		}
+	},
+	"knowledgeSources": {
+		"title": "Knowledge Sources",
+		"description": "Connect knowledge bases to help RITA answer questions with accurate information.",
+		"loading": "Loading connections...",
+		"lastSync": "Last sync: {{time}}",
+		"comingSoon": "Coming Soon",
+		"configure": "Configure",
+		"manage": "Manage"
+	},
+	"connectionSources": {
+		"title": "Connection Sources",
+		"description": "Connect your knowledge and ticketing sources to help RITA resolve IT issues faster.",
+		"loading": "Loading connections...",
+		"lastSync": "Last sync: {{time}}",
+		"comingSoon": "Coming Soon",
+		"configure": "Configure",
+		"manage": "Manage"
+	},
+	"itsmSources": {
+		"title": "ITSM Sources",
+		"description": "Connect ticketing systems to enable autopilot clustering and automated responses.",
+		"loading": "Loading connections...",
+		"lastSync": "Last sync: {{time}}",
+		"comingSoon": "Coming Soon",
+		"configure": "Configure",
+		"manage": "Manage",
+		"trainingInProgress": "Model training in progress",
+		"trainingDescription": "Rita is analyzing your tickets to create ticket groups. This usually takes a few minutes."
+	},
+	"errors": {
+		"loadDataSourcesFailed": "Failed to load data sources",
+		"loadDataSourcesDescription": "An error occurred while fetching connection sources. Please try again.",
+		"tryAgain": "Try Again"
+	}
+}
