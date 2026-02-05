@@ -1789,8 +1789,8 @@ export default function SchedulerDashboardPage() {
 			{designMode === "kanban" && (
 				<div className="flex flex-col h-[calc(100vh-135px)] bg-background">
 					{/* Workflow Tabs - right after blue header */}
-					<div className="px-4 pt-3 border-b border-[#d1d5db]">
-						<div className="flex gap-1">
+					<div className="px-4 pt-3 border-b border-[#d1d5db] overflow-x-auto">
+						<div className="flex gap-1 min-w-max">
 							<button className="flex items-center gap-1 p-1 text-[11px] border border-b-0 rounded-t-[6px] bg-white text-[#003057] border-[#d1d5db]">
 								<span>Open Incidents (11)</span>
 								<X className="size-4 text-[#003057]/60 hover:text-[#003057]" />
@@ -1807,7 +1807,7 @@ export default function SchedulerDashboardPage() {
 					</div>
 
 					{/* Metric Cards */}
-					<div className="px-6 pt-4 pb-2">
+					<div className="px-4 md:px-6 pt-4 pb-2 overflow-x-auto">
 						<StatGroup>
 							<StatCard
 								value={aggregateStats.totalRuns.toLocaleString()}
@@ -1829,8 +1829,8 @@ export default function SchedulerDashboardPage() {
 					</div>
 
 					{/* Section Header */}
-					<div className="px-6 py-4">
-						<div className="flex items-start justify-between">
+					<div className="px-4 md:px-6 py-4">
+						<div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
 							<div>
 								<div className="flex items-center gap-2">
 									<h2 className="text-base font-medium">Scheduled workflows</h2>
@@ -1843,7 +1843,7 @@ export default function SchedulerDashboardPage() {
 								</p>
 							</div>
 
-							<div className="flex items-center gap-2">
+							<div className="flex flex-wrap items-center gap-2">
 								<DropdownMenu>
 									<DropdownMenuTrigger asChild>
 										<Button variant="outline" size="sm" className="gap-2 h-8">
@@ -2042,7 +2042,7 @@ export default function SchedulerDashboardPage() {
 
 					{/* Active filter chips - above columns */}
 					{kanbanFilters.size > 0 && (
-						<div className="flex items-center gap-2 px-6 pb-3">
+						<div className="flex flex-wrap items-center gap-2 px-4 md:px-6 pb-3">
 							{kanbanFilters.has("failed") && (
 								<button
 									onClick={() => toggleKanbanFilter("failed")}
@@ -2087,23 +2087,23 @@ export default function SchedulerDashboardPage() {
 					)}
 
 					{/* Workflow Board */}
-					<div className="flex-1 overflow-x-auto px-6 pb-6">
+					<div className="flex-1 overflow-x-auto px-4 md:px-6 pb-6">
 						{kanbanGroupBy === "none" && kanbanDisplay === "list" ? (
 							/* Ungrouped: Table list view matching Figma design */
 							<div className="border rounded-sm overflow-hidden">
-								{/* Header row */}
-								<div className="flex items-center gap-6 px-3 py-3 bg-white border-b">
+								{/* Header row - hidden on mobile */}
+								<div className="hidden md:flex items-center gap-6 px-3 py-3 bg-white border-b">
 									<div className="flex-1 flex items-center gap-2">
 										<span className="text-base font-normal text-foreground">Name</span>
 									</div>
-									<div className="w-[200px] flex items-center gap-1">
+									<div className="w-[200px] flex items-center gap-1 shrink-0">
 										<span className="text-base font-normal text-foreground">Last run</span>
 										<ChevronDown className="size-4 text-muted-foreground" />
 									</div>
-									<div className="w-[200px]">
+									<div className="w-[200px] shrink-0">
 										<span className="text-base font-normal text-foreground">Next run</span>
 									</div>
-									<div className="w-[100px] text-right">
+									<div className="w-[100px] text-right shrink-0">
 										<span className="text-base font-normal text-foreground">Status</span>
 									</div>
 								</div>
@@ -2124,10 +2124,10 @@ export default function SchedulerDashboardPage() {
 												onKeyDown={(e) =>
 													e.key === "Enter" && setSelectedWorkflow(workflow.id)
 												}
-												className="flex items-center gap-6 px-3 py-3 hover:bg-muted/30 cursor-pointer bg-white"
+												className="flex flex-col md:flex-row md:items-center gap-2 md:gap-6 px-3 py-3 hover:bg-muted/30 cursor-pointer bg-white"
 											>
 												{/* Status icon + Name */}
-												<div className="flex-1 flex items-center gap-2">
+												<div className="flex-1 flex items-center gap-2 min-w-0">
 													{isDisabled ? (
 														<ScheduledIcon className="size-5 shrink-0" />
 													) : isFailed ? (
@@ -2139,7 +2139,7 @@ export default function SchedulerDashboardPage() {
 													)}
 													<span
 														className={cn(
-															"text-base font-normal",
+															"text-base font-normal truncate",
 															isDisabled && "text-muted-foreground",
 														)}
 													>
@@ -2147,18 +2147,26 @@ export default function SchedulerDashboardPage() {
 													</span>
 												</div>
 
-												{/* Last run */}
-												<div className="w-[200px] text-base font-normal text-foreground">
+												{/* Mobile: condensed info row */}
+												<div className="flex md:hidden items-center justify-between pl-7 text-sm text-muted-foreground">
+													<span>Next: {formatDate(workflow.nextRunTime)}</span>
+													<span className={cn("tabular-nums", isDisabled && "text-muted-foreground")}>
+														{rate}%
+													</span>
+												</div>
+
+												{/* Desktop: Last run */}
+												<div className="hidden md:block w-[200px] text-base font-normal text-foreground shrink-0">
 													{isDisabled ? "--" : (workflow.lastRunTime ? formatDate(workflow.lastRunTime) : "--")}
 												</div>
 
-												{/* Next run */}
-												<div className="w-[200px] text-base font-normal text-foreground">
+												{/* Desktop: Next run */}
+												<div className="hidden md:block w-[200px] text-base font-normal text-foreground shrink-0">
 													{formatDate(workflow.nextRunTime)}
 												</div>
 
-												{/* Status with gauge */}
-												<div className="w-[100px] flex items-center gap-1 justify-end">
+												{/* Desktop: Status with gauge */}
+												<div className="hidden md:flex w-[100px] items-center gap-1 justify-end shrink-0">
 													<span
 														className={cn(
 															"text-sm tabular-nums",
@@ -2192,9 +2200,9 @@ export default function SchedulerDashboardPage() {
 							</div>
 						) : kanbanGroupBy === "none" && kanbanDisplay === "kanban" ? (
 							/* Ungrouped: Board view by status */
-							<div className="flex gap-4 h-full pb-2" style={{ minWidth: "max-content" }}>
+							<div className="flex gap-3 md:gap-4 h-full pb-2" style={{ minWidth: "max-content" }}>
 								{/* Success Column */}
-								<div className="flex flex-col w-[300px] shrink-0">
+								<div className="flex flex-col w-[260px] md:w-[300px] shrink-0">
 									<div className="flex items-center gap-2 px-2 py-2 bg-emerald-50 rounded-t-sm border border-b-0 border-emerald-200">
 										<SuccessIcon className="size-5" />
 										<span className="text-sm font-medium text-emerald-700">Success</span>
@@ -2216,7 +2224,7 @@ export default function SchedulerDashboardPage() {
 									</div>
 								</div>
 								{/* Failed Column */}
-								<div className="flex flex-col w-[300px] shrink-0">
+								<div className="flex flex-col w-[260px] md:w-[300px] shrink-0">
 									<div className="flex items-center gap-2 px-2 py-2 bg-red-50 rounded-t-sm border border-b-0 border-red-200">
 										<FailedIcon className="size-5" />
 										<span className="text-sm font-medium text-red-700">Failed</span>
@@ -2238,7 +2246,7 @@ export default function SchedulerDashboardPage() {
 									</div>
 								</div>
 								{/* Scheduled/Paused Column */}
-								<div className="flex flex-col w-[300px] shrink-0">
+								<div className="flex flex-col w-[260px] md:w-[300px] shrink-0">
 									<div className="flex items-center gap-2 px-2 py-2 bg-muted/50 rounded-t-sm border border-b-0">
 										<ScheduledIcon className="size-5" />
 										<span className="text-sm font-medium text-muted-foreground">Scheduled</span>
@@ -2285,7 +2293,7 @@ export default function SchedulerDashboardPage() {
 									return (
 										<div
 											key={group.id}
-											className="flex flex-col w-[300px] shrink-0"
+											className="flex flex-col w-[260px] md:w-[300px] shrink-0"
 										>
 											{/* Column Header */}
 											<div className="flex items-center gap-2 px-2 py-2 bg-muted/30 rounded-t-sm border border-b-0">
