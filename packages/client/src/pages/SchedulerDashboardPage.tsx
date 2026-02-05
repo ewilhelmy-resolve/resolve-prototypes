@@ -929,7 +929,7 @@ export default function SchedulerDashboardPage() {
 	const navigate = useNavigate();
 	const [searchParams] = useSearchParams();
 	const isActionsNav = searchParams.get("nav") === "actions";
-	const [designMode, setDesignMode] = useState<DesignMode>("figma");
+	const [designMode, setDesignMode] = useState<DesignMode>("kanban");
 	const [layoutMode, setLayoutMode] = useState<LayoutMode>("grouped");
 	const [linearLayoutMode, setLinearLayoutMode] =
 		useState<LinearLayoutMode>("table");
@@ -942,9 +942,9 @@ export default function SchedulerDashboardPage() {
 	const [figmaViewMode, setFigmaViewMode] = useState<FigmaViewMode>("grid");
 	const [groupHealthFilter, setGroupHealthFilter] =
 		useState<GroupHealthFilter>("all");
-	const [kanbanGroupBy, setKanbanGroupBy] = useState<"tags" | "none">("tags");
+	const [kanbanGroupBy, setKanbanGroupBy] = useState<"tags" | "none">("none");
 	const [kanbanDisplay, setKanbanDisplay] = useState<"kanban" | "list">(
-		"kanban",
+		"list",
 	);
 	const [kanbanFilters, setKanbanFilters] = useState<
 		Set<"failed" | "scheduled" | "executing">
@@ -1104,31 +1104,6 @@ export default function SchedulerDashboardPage() {
 
 	return (
 		<Layout {...layoutProps}>
-			{/* Design Mode Switcher - sticky at top */}
-			<div className="border-b bg-muted/30 px-6 py-2">
-				<Tabs
-					value={designMode}
-					onValueChange={(v) => setDesignMode(v as DesignMode)}
-				>
-					<TabsList className="h-8">
-						<TabsTrigger value="original" className="text-xs px-3 h-6">
-							A: Stats Header
-						</TabsTrigger>
-						<TabsTrigger value="grouped" className="text-xs px-3 h-6">
-							B: Sidebar Groups
-						</TabsTrigger>
-						<TabsTrigger value="linear" className="text-xs px-3 h-6">
-							C: Linear Style
-						</TabsTrigger>
-						<TabsTrigger value="figma" className="text-xs px-3 h-6">
-							D: Figma Style
-						</TabsTrigger>
-						<TabsTrigger value="kanban" className="text-xs px-3 h-6">
-							E: Kanban
-						</TabsTrigger>
-					</TabsList>
-				</Tabs>
-			</div>
 
 			{/* DESIGN A: Original - Stats Header + Card Grid */}
 			{designMode === "original" && (
