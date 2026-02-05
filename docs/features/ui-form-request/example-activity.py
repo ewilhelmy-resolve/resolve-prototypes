@@ -46,7 +46,7 @@ MQ_PORT = 5671
 MQ_USERNAME = "expressmq"
 MQ_PASSWORD = "1Q!Vm@3p00fx"
 MQ_VHOST = "onboarding"
-MQ_QUEUE = "chat.requests"
+MQ_QUEUE = "chat.responses"
 
 
 def execute(tenant_id, conversation_id, user_id, ui_schema, interrupt):

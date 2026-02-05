@@ -9,7 +9,7 @@ Minimal working example using existing RabbitMQ Push Activity:
 ```
 Activity: RabbitMQ Push Activity
 Inputs:
-  queue_name: chat.requests
+  queue_name: chat.responses
   message: |
     {
       "type": "ui_form_request",
@@ -106,7 +106,7 @@ Inputs:
 
 | Aspect | Raw RabbitMQ Push | Wrapper Activity |
 |--------|-------------------|------------------|
-| Queue name | Must specify `chat.requests` | Hardcoded |
+| Queue name | Must specify `chat.responses` | Hardcoded |
 | Message format | Must construct full JSON with `type` | Just provide `ui_schema` |
 | Error prevention | Can forget `type` field | Always correct |
 | Discoverability | Generic activity | Purpose-built for forms |
@@ -122,7 +122,7 @@ Platform Workflow
 ┌──────────────────────┐
 │ RabbitMQ Push        │  ← Existing activity
 │ Activity             │
-│  queue: chat.requests│
+│  queue: chat.responses│
 │  message: {...}      │
 └──────────┬───────────┘
            │
@@ -158,7 +158,7 @@ Configure the RabbitMQ Push Activity with these inputs:
 | `username` | `${env.RABBITMQ_USER}` | |
 | `password` | `${env.RABBITMQ_PASS}` | |
 | `vhost` | `/` | Default virtual host |
-| `queue_name` | `chat.requests` | **Required** - Jarvis consumer queue |
+| `queue_name` | `chat.responses` | **Required** - Jarvis consumer queue |
 | `message` | JSON string | See Message Format below |
 | `tenant_id` | `${workflow.tenantId}` | Current tenant |
 | `message_id` | `${uuid()}` | Unique ID |
@@ -494,7 +494,7 @@ For complete schema spec, see `docs/features/ui-form-request/platform-developer-
 
 ### Debug Steps
 
-1. **Check queue**: Verify message arrives in `chat.requests`
+1. **Check queue**: Verify message arrives in `chat.responses`
 2. **Check consumer logs**: Look for routing decision in Jarvis API logs
 3. **Check SSE connection**: Verify user's browser has active EventSource
 4. **Check browser console**: Look for SSE events and form rendering errors
@@ -506,7 +506,7 @@ For complete schema spec, see `docs/features/ui-form-request/platform-developer-
 
 ### Platform Side
 
-- [ ] RabbitMQ Push Activity configured with `queue_name: chat.requests`
+- [ ] RabbitMQ Push Activity configured with `queue_name: chat.responses`
 - [ ] Message JSON includes `type: "ui_form_request"`
 - [ ] Message includes `user_id`
 - [ ] Valid `ui_schema` with at least one modal
