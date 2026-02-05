@@ -144,7 +144,7 @@ export function InlineFormRequest({
 						key={key}
 						className={`flex flex-wrap items-start gap-3 ${component.className || ""}`}
 					>
-						{component.children.map((child, i) => renderComponent(child, i))}
+						{(component.children ?? []).map((child, i) => renderComponent(child, i))}
 					</div>
 				);
 
@@ -154,7 +154,7 @@ export function InlineFormRequest({
 						key={key}
 						className={`flex flex-col gap-3 ${component.className || ""}`}
 					>
-						{component.children.map((child, i) => renderComponent(child, i))}
+						{(component.children ?? []).map((child, i) => renderComponent(child, i))}
 					</div>
 				);
 
@@ -182,8 +182,8 @@ export function InlineFormRequest({
 			</CardHeader>
 
 			<CardContent className="space-y-3 pb-3">
-				{modal.children.map((child, index) =>
-					renderComponent(child as UIComponent, index),
+				{(modal.children ?? (modal as any).fields ?? []).map((child: UIComponent, index: number) =>
+					renderComponent(child, index),
 				)}
 				{error && <div className="text-sm text-destructive">{error}</div>}
 			</CardContent>
