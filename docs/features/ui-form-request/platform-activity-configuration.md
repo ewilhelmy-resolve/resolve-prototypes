@@ -14,15 +14,14 @@ Inputs:
     {
       "type": "ui_form_request",
       "user_id": "${workflow.userGuid}",
-      "workflow_id": "${workflow.id}",
       "ui_schema": {
         "version": "1",
         "modals": {
           "simple-form": {
             "title": "Enter Information",
             "submitAction": "submit",
-            "children": [
-              { "type": "input", "name": "value", "label": "Value", "required": true }
+            "fields": [
+              { "type": "text", "name": "value", "label": "Value", "required": true }
             ]
           }
         }
@@ -79,15 +78,6 @@ A wrapper activity that simplifies sending UI form requests. Based on the existi
         {
           "value": "",
           "required": true,
-          "key": "workflow_id",
-          "label": "workflow id",
-          "labelKey": "workflow_id",
-          "baseType": "control",
-          "controlType": "textbox"
-        },
-        {
-          "value": "",
-          "required": true,
           "key": "ui_schema",
           "label": "UI Schema (JSON)",
           "labelKey": "ui_schema",
@@ -133,7 +123,6 @@ Inputs:
  - tenant_id: Target tenant
  - conversation_id: Target conversation
  - user_id: Target user's Valkey userGuid
- - workflow_id: For webhook response correlation
  - ui_schema: JSON string with form definition
  - interrupt: Boolean, open modal immediately (default true)
 
@@ -155,7 +144,7 @@ def install_and_import(package):
     else:
         globals()[package] = sys.modules[package]
 
-def execute(tenant_id, conversation_id, user_id, workflow_id, ui_schema, interrupt):
+def execute(tenant_id, conversation_id, user_id, ui_schema, interrupt):
     """
     Send a UI form request to Jarvis chat iframe.
     """
@@ -197,7 +186,6 @@ def execute(tenant_id, conversation_id, user_id, workflow_id, ui_schema, interru
         inner_message = {
             "type": "ui_form_request",
             "user_id": user_id,
-            "workflow_id": workflow_id,
             "interrupt": interrupt_bool,
             "ui_schema": ui_schema_obj
         }
@@ -423,7 +411,7 @@ The `message` field must be a JSON string:
 |-------|----------|-------------|
 | `type` | Yes | Must be `"ui_form_request"` |
 | `user_id` | Yes | Target user's Valkey userGuid |
-| `workflow_id` | Yes | For correlation when response returns |
+| `workflow_id` | No | Optional, for webhook response correlation |
 | `ui_schema` | Yes | Form definition (see schema spec) |
 | `interrupt` | No | If `true`, modal opens immediately (default: `true`) |
 | `conversation_id` | No | Link to specific chat conversation |
@@ -736,7 +724,7 @@ For complete schema spec, see `docs/features/ui-form-request/platform-developer-
 
 - [ ] RabbitMQ Push Activity configured with `queue_name: chat.requests`
 - [ ] Message JSON includes `type: "ui_form_request"`
-- [ ] Message includes `user_id`, `workflow_id`
+- [ ] Message includes `user_id`
 - [ ] Valid `ui_schema` with at least one modal
 - [ ] Webhook handler at `/api/Webhooks/postEvent/{tenantId}`
 - [ ] Workflow can receive and process webhook response
