@@ -637,6 +637,38 @@ function FailedIcon({ className }: { className?: string }) {
 	);
 }
 
+function ExecutingIcon({ className }: { className?: string }) {
+	return (
+		<svg
+			className={className}
+			width="20"
+			height="20"
+			viewBox="0 0 20 20"
+			fill="none"
+			xmlns="http://www.w3.org/2000/svg"
+		>
+			<path
+				d="M0 6C0 2.68629 2.68629 0 6 0H14C17.3137 0 20 2.68629 20 6V14C20 17.3137 17.3137 20 14 20H6C2.68629 20 0 17.3137 0 14V6Z"
+				fill="#FEFCE8"
+			/>
+			<g clipPath="url(#clip0_executing)">
+				<path
+					d="M10 7V10H7.75M15 10C15 12.7614 12.7614 15 10 15C7.23858 15 5 12.7614 5 10C5 7.23858 7.23858 5 10 5C12.7614 5 15 7.23858 15 10Z"
+					stroke="#CA8A04"
+					strokeWidth="1.25"
+					strokeLinecap="round"
+					strokeLinejoin="round"
+				/>
+			</g>
+			<defs>
+				<clipPath id="clip0_executing">
+					<rect width="12" height="12" fill="white" transform="translate(4 4)" />
+				</clipPath>
+			</defs>
+		</svg>
+	);
+}
+
 function KanbanWorkflowCard({
 	workflow,
 	onClick,
@@ -779,12 +811,12 @@ const EXECUTING_WORKFLOW_IDS = [
 
 function getWorkflowFilterStatus(
 	workflow: ScheduledWorkflow,
-): "success" | "failed" | "scheduled" | "executing" {
+): "healthy" | "failed" | "scheduled" | "executing" {
 	if (workflow.status === "disabled") return "scheduled";
 	const rate = calculateSuccessRate(workflow);
 	if (rate < 70) return "failed";
 	if (EXECUTING_WORKFLOW_IDS.includes(workflow.id)) return "executing";
-	return "success";
+	return "healthy";
 }
 
 /**
@@ -831,17 +863,17 @@ function WorkflowDetailPanel({
 			{/* Schedule Info */}
 			<div className="p-4 border-b grid grid-cols-2 gap-4">
 				<div className="flex items-start gap-2">
+					<Calendar className="size-4 text-muted-foreground mt-0.5" />
+					<div>
+						<p className="text-xs text-muted-foreground">Last Run</p>
+						<p className="text-sm">{detail.status === "disabled" ? "--" : formatDate(detail.lastRunTime)}</p>
+					</div>
+				</div>
+				<div className="flex items-start gap-2">
 					<Clock className="size-4 text-muted-foreground mt-0.5" />
 					<div>
 						<p className="text-xs text-muted-foreground">Next Run</p>
 						<p className="text-sm">{formatDate(detail.nextRunTime)}</p>
-					</div>
-				</div>
-				<div className="flex items-start gap-2">
-					<Calendar className="size-4 text-muted-foreground mt-0.5" />
-					<div>
-						<p className="text-xs text-muted-foreground">Last Run</p>
-						<p className="text-sm">{formatDate(detail.lastRunTime)}</p>
 					</div>
 				</div>
 			</div>
@@ -946,15 +978,16 @@ export default function SchedulerDashboardPage() {
 	const [kanbanDisplay, setKanbanDisplay] = useState<"kanban" | "list">(
 		"list",
 	);
+	const [timeFilter, setTimeFilter] = useState<"7days" | "15days" | "all">("7days");
 	const [kanbanFilters, setKanbanFilters] = useState<
-		Set<"failed" | "scheduled" | "executing">
+		Set<"failed" | "scheduled" | "executing" | "healthy">
 	>(new Set());
 	const [expandedKanbanGroups, setExpandedKanbanGroups] = useState<Set<string>>(
 		new Set(WORKFLOW_GROUPS.map((g) => g.id)),
 	);
 
 	// Toggle kanban filter
-	const toggleKanbanFilter = (filter: "failed" | "scheduled" | "executing") => {
+	const toggleKanbanFilter = (filter: "failed" | "scheduled" | "executing" | "healthy") => {
 		setKanbanFilters((prev) => {
 			const next = new Set(prev);
 			if (next.has(filter)) {
@@ -1046,12 +1079,30 @@ export default function SchedulerDashboardPage() {
 
 	// Filter workflows for kanban based on active filters
 	const kanbanFilteredWorkflows = useMemo(() => {
-		if (kanbanFilters.size === 0) return MOCK_SCHEDULED_WORKFLOWS;
-		return MOCK_SCHEDULED_WORKFLOWS.filter((w) => {
-			const status = getWorkflowFilterStatus(w);
-			return kanbanFilters.has(status as "failed" | "scheduled" | "executing");
-		});
-	}, [kanbanFilters]);
+		let workflows = MOCK_SCHEDULED_WORKFLOWS;
+
+		// Filter by future scheduled time (nextRunTime)
+		if (timeFilter !== "all") {
+			const now = new Date();
+			const daysAhead = timeFilter === "7days" ? 7 : 15;
+			const cutoffDate = new Date(now.getTime() + daysAhead * 24 * 60 * 60 * 1000);
+			workflows = workflows.filter((w) => {
+				if (!w.nextRunTime) return true; // Include if no next run time
+				const nextRun = new Date(w.nextRunTime);
+				return nextRun <= cutoffDate;
+			});
+		}
+
+		// Filter by status
+		if (kanbanFilters.size > 0) {
+			workflows = workflows.filter((w) => {
+				const status = getWorkflowFilterStatus(w);
+				return kanbanFilters.has(status);
+			});
+		}
+
+		return workflows;
+	}, [kanbanFilters, timeFilter]);
 
 	// Group workflows by tag for Linear table/board view
 	const workflowsByTag = useMemo(() => {
@@ -1104,6 +1155,7 @@ export default function SchedulerDashboardPage() {
 
 	return (
 		<Layout {...layoutProps}>
+			<div className={isActionsNav ? "[&_*]:!font-sans [&_h1]:!font-sans [&_h2]:!font-sans [&_h3]:!font-sans [&_h4]:!font-sans" : ""}>
 
 			{/* DESIGN A: Original - Stats Header + Card Grid */}
 			{designMode === "original" && (
@@ -1736,42 +1788,45 @@ export default function SchedulerDashboardPage() {
 			{/* DESIGN E: Kanban Workflows - Board view by group */}
 			{designMode === "kanban" && (
 				<div className="flex flex-col h-[calc(100vh-135px)] bg-background">
-					{/* Stats Header */}
-					<MainHeader
-						title="Scheduler Dashboard"
-						description={
-							<span>
-								Monitoring{" "}
-								<span className="font-semibold">{aggregateStats.total}</span>{" "}
-								scheduled workflows
-								{" \u2022 "}
-								<span className="font-semibold">{aggregateStats.enabled}</span>{" "}
-								enabled,{" "}
-								<span className="font-semibold">{aggregateStats.disabled}</span>{" "}
-								disabled
-							</span>
-						}
-						stats={
-							<StatGroup>
-								<StatCard
-									value={aggregateStats.totalRuns.toLocaleString()}
-									label="Total Executions"
-								/>
-								<StatCard
-									value={`${aggregateStats.overallSuccessRate}%`}
-									label="Success Rate"
-								/>
-								<StatCard
-									value={stats.healthy.toString()}
-									label="Healthy Workflows"
-								/>
-								<StatCard
-									value={stats.critical.toString()}
-									label="Needs Attention"
-								/>
-							</StatGroup>
-						}
-					/>
+					{/* Workflow Tabs - right after blue header */}
+					<div className="px-4 pt-3 border-b border-[#d1d5db]">
+						<div className="flex gap-1">
+							<button className="flex items-center gap-1 p-1 text-[11px] border border-b-0 rounded-t-[6px] bg-white text-[#003057] border-[#d1d5db]">
+								<span>Open Incidents (11)</span>
+								<X className="size-4 text-[#003057]/60 hover:text-[#003057]" />
+							</button>
+							<button className="flex items-center gap-1 p-1 text-[11px] border border-b-0 rounded-t-[6px] bg-white text-[#003057] border-[#d1d5db]">
+								<span>Running workflows (7)</span>
+								<X className="size-4 text-[#003057]/60 hover:text-[#003057]" />
+							</button>
+							<button className="flex items-center gap-1 p-1 text-[11px] border border-b-0 rounded-t-[6px] bg-[#1B416A] text-white border-[#265a93]">
+								<span>Scheduled workflows</span>
+								<X className="size-4 text-white/60 hover:text-white" />
+							</button>
+						</div>
+					</div>
+
+					{/* Metric Cards */}
+					<div className="px-6 pt-4 pb-2">
+						<StatGroup>
+							<StatCard
+								value={aggregateStats.totalRuns.toLocaleString()}
+								label="Total Executions"
+							/>
+							<StatCard
+								value={`${aggregateStats.overallSuccessRate}%`}
+								label="Success Rate"
+							/>
+							<StatCard
+								value={stats.healthy.toString()}
+								label="Healthy Workflows"
+							/>
+							<StatCard
+								value={stats.critical.toString()}
+								label="Needs Attention"
+							/>
+						</StatGroup>
+					</div>
 
 					{/* Section Header */}
 					<div className="px-6 py-4">
@@ -1784,7 +1839,7 @@ export default function SchedulerDashboardPage() {
 									</Badge>
 								</div>
 								<p className="text-sm text-muted-foreground mt-1">
-									Based on the next 7 days
+									{timeFilter === "7days" ? "Scheduled for the next 7 days" : timeFilter === "15days" ? "Scheduled for the next 15 days" : "All scheduled workflows"}
 								</p>
 							</div>
 
@@ -1792,14 +1847,23 @@ export default function SchedulerDashboardPage() {
 								<DropdownMenu>
 									<DropdownMenuTrigger asChild>
 										<Button variant="outline" size="sm" className="gap-2 h-8">
-											Next 7 days
+											{timeFilter === "7days" ? "Next 7 days" : timeFilter === "15days" ? "Next 15 days" : "All scheduled"}
 											<ChevronDown className="size-3" />
 										</Button>
 									</DropdownMenuTrigger>
 									<DropdownMenuContent align="end">
-										<DropdownMenuItem>Next 24 hours</DropdownMenuItem>
-										<DropdownMenuItem>Next 7 days</DropdownMenuItem>
-										<DropdownMenuItem>Next 30 days</DropdownMenuItem>
+										<DropdownMenuItem onClick={() => setTimeFilter("7days")}>
+											Next 7 days
+											{timeFilter === "7days" && <CheckCircle2 className="size-3 ml-auto text-primary" />}
+										</DropdownMenuItem>
+										<DropdownMenuItem onClick={() => setTimeFilter("15days")}>
+											Next 15 days
+											{timeFilter === "15days" && <CheckCircle2 className="size-3 ml-auto text-primary" />}
+										</DropdownMenuItem>
+										<DropdownMenuItem onClick={() => setTimeFilter("all")}>
+											All scheduled
+											{timeFilter === "all" && <CheckCircle2 className="size-3 ml-auto text-primary" />}
+										</DropdownMenuItem>
 									</DropdownMenuContent>
 								</DropdownMenu>
 
@@ -1818,22 +1882,14 @@ export default function SchedulerDashboardPage() {
 									</DropdownMenuTrigger>
 									<DropdownMenuContent align="end">
 										<DropdownMenuItem
-											onClick={() =>
-												kanbanGroupBy !== "none" && setKanbanDisplay("kanban")
-											}
-											className={cn(
-												"gap-2",
-												kanbanGroupBy === "none" &&
-													"opacity-50 cursor-not-allowed",
-											)}
-											disabled={kanbanGroupBy === "none"}
+											onClick={() => setKanbanDisplay("kanban")}
+											className="gap-2"
 										>
 											<Kanban className="size-4" />
 											Board view
-											{kanbanDisplay === "kanban" &&
-												kanbanGroupBy !== "none" && (
-													<CheckCircle2 className="size-3 ml-auto text-primary" />
-												)}
+											{kanbanDisplay === "kanban" && (
+												<CheckCircle2 className="size-3 ml-auto text-primary" />
+											)}
 										</DropdownMenuItem>
 										<DropdownMenuItem
 											onClick={() => setKanbanDisplay("list")}
@@ -1864,10 +1920,7 @@ export default function SchedulerDashboardPage() {
 											GROUP BY
 										</div>
 										<DropdownMenuItem
-											onClick={() => {
-												setKanbanGroupBy("none");
-												setKanbanDisplay("list");
-											}}
+											onClick={() => setKanbanGroupBy("none")}
 											className="gap-2"
 										>
 											<LayoutGrid className="size-4" />
@@ -1877,7 +1930,10 @@ export default function SchedulerDashboardPage() {
 											)}
 										</DropdownMenuItem>
 										<DropdownMenuItem
-											onClick={() => setKanbanGroupBy("tags")}
+											onClick={() => {
+												setKanbanGroupBy("tags");
+												setKanbanDisplay("kanban");
+											}}
 											className="gap-2"
 										>
 											<Columns3 className="size-4" />
@@ -1897,73 +1953,83 @@ export default function SchedulerDashboardPage() {
 											<ChevronDown className="size-3" />
 										</Button>
 									</DropdownMenuTrigger>
-									<DropdownMenuContent align="end" className="w-48">
+									<DropdownMenuContent align="end" className="w-44 p-1">
 										<DropdownMenuItem
 											onClick={() => toggleKanbanFilter("failed")}
-											className="gap-2"
+											className="gap-2 cursor-pointer"
 										>
 											<div
 												className={cn(
 													"size-4 rounded border flex items-center justify-center",
 													kanbanFilters.has("failed")
 														? "bg-primary border-primary"
-														: "border-border",
+														: "border-gray-300 bg-white",
 												)}
 											>
 												{kanbanFilters.has("failed") && (
-													<CheckCircle2 className="size-3 text-primary-foreground" />
+													<CheckCircle2 className="size-3 text-white" />
 												)}
 											</div>
 											<FailedIcon className="size-4" />
 											Failed
 										</DropdownMenuItem>
 										<DropdownMenuItem
-											onClick={() => toggleKanbanFilter("scheduled")}
-											className="gap-2"
-										>
-											<div
-												className={cn(
-													"size-4 rounded border flex items-center justify-center",
-													kanbanFilters.has("scheduled")
-														? "bg-primary border-primary"
-														: "border-border",
-												)}
-											>
-												{kanbanFilters.has("scheduled") && (
-													<CheckCircle2 className="size-3 text-primary-foreground" />
-												)}
-											</div>
-											<ScheduledIcon className="size-4" />
-											Not Started
-										</DropdownMenuItem>
-										<DropdownMenuItem
 											onClick={() => toggleKanbanFilter("executing")}
-											className="gap-2"
+											className="gap-2 cursor-pointer"
 										>
 											<div
 												className={cn(
 													"size-4 rounded border flex items-center justify-center",
 													kanbanFilters.has("executing")
 														? "bg-primary border-primary"
-														: "border-border",
+														: "border-gray-300 bg-white",
 												)}
 											>
 												{kanbanFilters.has("executing") && (
-													<CheckCircle2 className="size-3 text-primary-foreground" />
+													<CheckCircle2 className="size-3 text-white" />
 												)}
 											</div>
-											<Clock className="size-4" />
+											<ExecutingIcon className="size-4" />
 											Executing
 										</DropdownMenuItem>
-										{kanbanFilters.size > 0 && (
-											<DropdownMenuItem
-												onClick={() => setKanbanFilters(new Set())}
-												className="gap-2 text-muted-foreground"
+										<DropdownMenuItem
+											onClick={() => toggleKanbanFilter("scheduled")}
+											className="gap-2 cursor-pointer"
+										>
+											<div
+												className={cn(
+													"size-4 rounded border flex items-center justify-center",
+													kanbanFilters.has("scheduled")
+														? "bg-primary border-primary"
+														: "border-gray-300 bg-white",
+												)}
 											>
-												<X className="size-4" />
-												Clear all filters
-											</DropdownMenuItem>
-										)}
+												{kanbanFilters.has("scheduled") && (
+													<CheckCircle2 className="size-3 text-white" />
+												)}
+											</div>
+											<ScheduledIcon className="size-4" />
+											Scheduled
+										</DropdownMenuItem>
+										<DropdownMenuItem
+											onClick={() => toggleKanbanFilter("healthy")}
+											className="gap-2 cursor-pointer"
+										>
+											<div
+												className={cn(
+													"size-4 rounded border flex items-center justify-center",
+													kanbanFilters.has("healthy")
+														? "bg-primary border-primary"
+														: "border-gray-300 bg-white",
+												)}
+											>
+												{kanbanFilters.has("healthy") && (
+													<CheckCircle2 className="size-3 text-white" />
+												)}
+											</div>
+											<SuccessIcon className="size-4" />
+											Healthy
+										</DropdownMenuItem>
 									</DropdownMenuContent>
 								</DropdownMenu>
 
@@ -2002,8 +2068,18 @@ export default function SchedulerDashboardPage() {
 									onClick={() => toggleKanbanFilter("executing")}
 									className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-xs bg-amber-50 border border-amber-200 text-amber-700 hover:bg-amber-100"
 								>
-									<Clock className="size-4" />
+									<ExecutingIcon className="size-4" />
 									Executing
+									<X className="size-3" />
+								</button>
+							)}
+							{kanbanFilters.has("healthy") && (
+								<button
+									onClick={() => toggleKanbanFilter("healthy")}
+									className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-xs bg-green-50 border border-green-200 text-green-700 hover:bg-green-100"
+								>
+									<SuccessIcon className="size-4" />
+									Healthy
 									<X className="size-3" />
 								</button>
 							)}
@@ -2012,87 +2088,177 @@ export default function SchedulerDashboardPage() {
 
 					{/* Workflow Board */}
 					<div className="flex-1 overflow-x-auto px-6 pb-6">
-						{kanbanGroupBy === "none" ? (
-							/* Ungrouped: Flat list view matching accordion row style */
-							<div className="border rounded-sm overflow-hidden divide-y">
-								{kanbanFilteredWorkflows.map((workflow) => {
-									const rate = calculateSuccessRate(workflow);
-									const isDisabled = workflow.status === "disabled";
-									const isFailed = workflow.status === "enabled" && rate < 70;
+						{kanbanGroupBy === "none" && kanbanDisplay === "list" ? (
+							/* Ungrouped: Table list view matching Figma design */
+							<div className="border rounded-sm overflow-hidden">
+								{/* Header row */}
+								<div className="flex items-center gap-6 px-3 py-3 bg-white border-b">
+									<div className="flex-1 flex items-center gap-2">
+										<span className="text-base font-normal text-foreground">Name</span>
+									</div>
+									<div className="w-[200px] flex items-center gap-1">
+										<span className="text-base font-normal text-foreground">Last run</span>
+										<ChevronDown className="size-4 text-muted-foreground" />
+									</div>
+									<div className="w-[200px]">
+										<span className="text-base font-normal text-foreground">Next run</span>
+									</div>
+									<div className="w-[100px] text-right">
+										<span className="text-base font-normal text-foreground">Status</span>
+									</div>
+								</div>
+								{/* Data rows */}
+								<div className="divide-y">
+									{kanbanFilteredWorkflows.map((workflow) => {
+										const rate = calculateSuccessRate(workflow);
+										const isDisabled = workflow.status === "disabled";
+										const isFailed = workflow.status === "enabled" && rate < 70;
+										const isExecuting = EXECUTING_WORKFLOW_IDS.includes(workflow.id);
 
-									return (
-										<div
-											key={workflow.id}
-											role="button"
-											tabIndex={0}
-											onClick={() => setSelectedWorkflow(workflow.id)}
-											onKeyDown={(e) =>
-												e.key === "Enter" && setSelectedWorkflow(workflow.id)
-											}
-											className="flex items-center gap-4 px-4 py-3 hover:bg-muted/30 cursor-pointer"
-										>
-											{/* Status icon */}
-											{isDisabled ? (
-												<ScheduledIcon className="size-5 shrink-0" />
-											) : isFailed ? (
-												<FailedIcon className="size-5 shrink-0" />
-											) : (
-												<SuccessIcon className="size-5 shrink-0" />
-											)}
-
-											{/* Name */}
-											<span
-												className={cn(
-													"flex-1 text-sm",
-													isDisabled && "text-muted-foreground",
-												)}
+										return (
+											<div
+												key={workflow.id}
+												role="button"
+												tabIndex={0}
+												onClick={() => setSelectedWorkflow(workflow.id)}
+												onKeyDown={(e) =>
+													e.key === "Enter" && setSelectedWorkflow(workflow.id)
+												}
+												className="flex items-center gap-6 px-3 py-3 hover:bg-muted/30 cursor-pointer bg-white"
 											>
-												{workflow.name}
-											</span>
-
-											{/* Last run */}
-											<div className="text-xs text-muted-foreground w-48">
-												<span className="text-foreground">Last run:</span>{" "}
-												{formatDate(workflow.lastRunTime)}
-											</div>
-
-											{/* Next run */}
-											<div className="text-xs text-muted-foreground w-52">
-												<span className="text-foreground">Next run:</span>{" "}
-												{formatDate(workflow.nextRunTime)}
-											</div>
-
-											{/* Sparkline + Rate */}
-											<div className="flex items-center gap-2 w-24 justify-end">
-												<div className="flex items-end gap-px h-3">
-													{workflow.recentExecutions
-														.slice(-8)
-														.map((status, i) => (
-															<div
-																key={i}
-																className={cn(
-																	"w-1 rounded-sm h-full",
-																	isDisabled
-																		? "bg-muted-foreground/40"
-																		: status === "success"
-																			? "bg-emerald-500"
-																			: "bg-red-400",
-																)}
-															/>
-														))}
-												</div>
-												<span
-													className={cn(
-														"text-sm tabular-nums",
-														isDisabled && "text-muted-foreground",
+												{/* Status icon + Name */}
+												<div className="flex-1 flex items-center gap-2">
+													{isDisabled ? (
+														<ScheduledIcon className="size-5 shrink-0" />
+													) : isExecuting ? (
+														<ExecutingIcon className="size-5 shrink-0" />
+													) : isFailed ? (
+														<FailedIcon className="size-5 shrink-0" />
+													) : (
+														<SuccessIcon className="size-5 shrink-0" />
 													)}
-												>
-													{rate}%
-												</span>
+													<span
+														className={cn(
+															"text-base font-normal",
+															isDisabled && "text-muted-foreground",
+														)}
+													>
+														{workflow.name}
+													</span>
+												</div>
+
+												{/* Last run */}
+												<div className="w-[200px] text-base font-normal text-foreground">
+													{isDisabled ? "--" : (workflow.lastRunTime ? formatDate(workflow.lastRunTime) : "--")}
+												</div>
+
+												{/* Next run */}
+												<div className="w-[200px] text-base font-normal text-foreground">
+													{formatDate(workflow.nextRunTime)}
+												</div>
+
+												{/* Status with gauge */}
+												<div className="w-[100px] flex items-center gap-1 justify-end">
+													<span
+														className={cn(
+															"text-sm tabular-nums",
+															isDisabled && "text-muted-foreground",
+														)}
+													>
+														{rate}%
+													</span>
+													<div className="flex items-end gap-px h-[10px]">
+														{workflow.recentExecutions
+															.slice(-8)
+															.map((status, i) => (
+																<div
+																	key={i}
+																	className={cn(
+																		"w-[3px] rounded-sm h-full",
+																		isDisabled
+																			? "bg-muted-foreground/40"
+																			: status === "success"
+																				? "bg-emerald-500"
+																				: "bg-red-400",
+																	)}
+																/>
+															))}
+													</div>
+												</div>
 											</div>
-										</div>
-									);
-								})}
+										);
+									})}
+								</div>
+							</div>
+						) : kanbanGroupBy === "none" && kanbanDisplay === "kanban" ? (
+							/* Ungrouped: Board view by status */
+							<div className="flex gap-4 h-full pb-2" style={{ minWidth: "max-content" }}>
+								{/* Success Column */}
+								<div className="flex flex-col w-[300px] shrink-0">
+									<div className="flex items-center gap-2 px-2 py-2 bg-emerald-50 rounded-t-sm border border-b-0 border-emerald-200">
+										<SuccessIcon className="size-5" />
+										<span className="text-sm font-medium text-emerald-700">Success</span>
+										<Badge variant="secondary" className="text-xs ml-auto">
+											{kanbanFilteredWorkflows.filter(w => w.status === "enabled" && calculateSuccessRate(w) >= 70).length}
+										</Badge>
+									</div>
+									<div className="flex-1 p-2 bg-emerald-50/50 rounded-b-sm border border-t-0 border-emerald-200 space-y-1.5 overflow-y-auto max-h-[calc(100vh-400px)]">
+										{kanbanFilteredWorkflows
+											.filter(w => w.status === "enabled" && calculateSuccessRate(w) >= 70)
+											.map((workflow) => (
+												<KanbanWorkflowCard
+													key={workflow.id}
+													workflow={workflow}
+													onClick={() => setSelectedWorkflow(workflow.id)}
+													isSelected={selectedWorkflow === workflow.id}
+												/>
+											))}
+									</div>
+								</div>
+								{/* Failed Column */}
+								<div className="flex flex-col w-[300px] shrink-0">
+									<div className="flex items-center gap-2 px-2 py-2 bg-red-50 rounded-t-sm border border-b-0 border-red-200">
+										<FailedIcon className="size-5" />
+										<span className="text-sm font-medium text-red-700">Failed</span>
+										<Badge variant="secondary" className="text-xs ml-auto">
+											{kanbanFilteredWorkflows.filter(w => w.status === "enabled" && calculateSuccessRate(w) < 70).length}
+										</Badge>
+									</div>
+									<div className="flex-1 p-2 bg-red-50/50 rounded-b-sm border border-t-0 border-red-200 space-y-1.5 overflow-y-auto max-h-[calc(100vh-400px)]">
+										{kanbanFilteredWorkflows
+											.filter(w => w.status === "enabled" && calculateSuccessRate(w) < 70)
+											.map((workflow) => (
+												<KanbanWorkflowCard
+													key={workflow.id}
+													workflow={workflow}
+													onClick={() => setSelectedWorkflow(workflow.id)}
+													isSelected={selectedWorkflow === workflow.id}
+												/>
+											))}
+									</div>
+								</div>
+								{/* Scheduled/Paused Column */}
+								<div className="flex flex-col w-[300px] shrink-0">
+									<div className="flex items-center gap-2 px-2 py-2 bg-muted/50 rounded-t-sm border border-b-0">
+										<ScheduledIcon className="size-5" />
+										<span className="text-sm font-medium text-muted-foreground">Scheduled</span>
+										<Badge variant="secondary" className="text-xs ml-auto">
+											{kanbanFilteredWorkflows.filter(w => w.status === "disabled").length}
+										</Badge>
+									</div>
+									<div className="flex-1 p-2 bg-muted/30 rounded-b-sm border border-t-0 space-y-1.5 overflow-y-auto max-h-[calc(100vh-400px)]">
+										{kanbanFilteredWorkflows
+											.filter(w => w.status === "disabled")
+											.map((workflow) => (
+												<KanbanWorkflowCard
+													key={workflow.id}
+													workflow={workflow}
+													onClick={() => setSelectedWorkflow(workflow.id)}
+													isSelected={selectedWorkflow === workflow.id}
+												/>
+											))}
+									</div>
+								</div>
 							</div>
 						) : kanbanDisplay === "kanban" ? (
 							/* Grouped by tags: Horizontal scroll kanban */
@@ -2343,6 +2509,7 @@ export default function SchedulerDashboardPage() {
 					</Sheet>
 				</div>
 			)}
+			</div>
 		</Layout>
 	);
 }
