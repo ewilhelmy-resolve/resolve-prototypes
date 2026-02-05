@@ -1403,7 +1403,7 @@ export default function SchedulerDashboardPage() {
 						open={!!selectedWorkflow}
 						onOpenChange={(open) => !open && setSelectedWorkflow(null)}
 					>
-						<SheetContent className="!w-[640px] !max-w-[640px] p-0 overflow-auto">
+						<SheetContent className="w-full sm:!w-[640px] sm:!max-w-[640px] p-0 overflow-auto">
 							{selectedDetail && (
 								<WorkflowDetailPanel
 									detail={selectedDetail}
@@ -1554,7 +1554,7 @@ export default function SchedulerDashboardPage() {
 						open={!!selectedWorkflow}
 						onOpenChange={(open) => !open && setSelectedWorkflow(null)}
 					>
-						<SheetContent className="!w-[640px] !max-w-[640px] p-0 overflow-auto">
+						<SheetContent className="w-full sm:!w-[640px] sm:!max-w-[640px] p-0 overflow-auto">
 							{selectedDetail && (
 								<WorkflowDetailPanel
 									detail={selectedDetail}
@@ -2506,7 +2506,7 @@ export default function SchedulerDashboardPage() {
 						open={!!selectedWorkflow}
 						onOpenChange={(open) => !open && setSelectedWorkflow(null)}
 					>
-						<SheetContent className="!w-[640px] !max-w-[640px] p-0 overflow-auto">
+						<SheetContent className="w-full sm:!w-[640px] sm:!max-w-[640px] p-0 overflow-auto">
 							{selectedDetail && (
 								<WorkflowDetailPanel
 									detail={selectedDetail}
