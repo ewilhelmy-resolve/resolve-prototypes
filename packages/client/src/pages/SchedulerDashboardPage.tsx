@@ -21,7 +21,8 @@ import {
 	X,
 } from "lucide-react";
 import { useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { ActionsLayout } from "@/components/layouts/ActionsLayout";
 import RitaLayout from "@/components/layouts/RitaLayout";
 import { MainHeader } from "@/components/MainHeader";
 import { StatCard } from "@/components/StatCard";
@@ -926,6 +927,8 @@ function WorkflowDetailPanel({
 
 export default function SchedulerDashboardPage() {
 	const navigate = useNavigate();
+	const [searchParams] = useSearchParams();
+	const isActionsNav = searchParams.get("nav") === "actions";
 	const [designMode, setDesignMode] = useState<DesignMode>("figma");
 	const [layoutMode, setLayoutMode] = useState<LayoutMode>("grouped");
 	const [linearLayoutMode, setLinearLayoutMode] =
@@ -1096,8 +1099,11 @@ export default function SchedulerDashboardPage() {
 		});
 	};
 
+	const Layout = isActionsNav ? ActionsLayout : RitaLayout;
+	const layoutProps = isActionsNav ? {} : { activePage: "scheduler" as const };
+
 	return (
-		<RitaLayout activePage="scheduler">
+		<Layout {...layoutProps}>
 			{/* Design Mode Switcher - sticky at top */}
 			<div className="border-b bg-muted/30 px-6 py-2">
 				<Tabs
@@ -2362,6 +2368,6 @@ export default function SchedulerDashboardPage() {
 					</Sheet>
 				</div>
 			)}
-		</RitaLayout>
+		</Layout>
 	);
 }
