@@ -13,7 +13,7 @@ import { getSSEService } from "./sse.js";
 interface ParsedUIFormRequest {
 	type: "ui_form_request";
 	user_id: string;
-	workflow_id: string;
+	workflow_id?: string;
 	activity_id?: string;
 	interrupt?: boolean;
 	conversation_id?: string;
@@ -655,12 +655,11 @@ export class RabbitMQService {
 				return null;
 			}
 
-			// Validate required fields
-			if (!parsed.user_id || !parsed.workflow_id || !parsed.ui_schema) {
+			// Validate required fields (workflow_id is optional)
+			if (!parsed.user_id || !parsed.ui_schema) {
 				queueLogger.warn(
 					{
 						hasUserId: !!parsed.user_id,
-						hasWorkflowId: !!parsed.workflow_id,
 						hasUISchema: !!parsed.ui_schema,
 					},
 					"Invalid ui_form_request: missing required fields",
