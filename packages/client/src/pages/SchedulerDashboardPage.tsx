@@ -1920,7 +1920,10 @@ export default function SchedulerDashboardPage() {
 											GROUP BY
 										</div>
 										<DropdownMenuItem
-											onClick={() => setKanbanGroupBy("none")}
+											onClick={() => {
+												setKanbanGroupBy("none");
+												setKanbanDisplay("list");
+											}}
 											className="gap-2"
 										>
 											<LayoutGrid className="size-4" />
