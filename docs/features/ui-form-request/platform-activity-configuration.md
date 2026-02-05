@@ -35,211 +35,10 @@ Inputs:
 
 A wrapper activity that simplifies sending UI form requests. Based on the existing "Publish Message to Rabbit" activity format.
 
-### Frontend Code (JSON)
+### Activity Files
 
-```json
-{
-  "innerCode": 200,
-  "data": {
-    "name": "UI Form Request",
-    "description": "Send a UI form request to Jarvis chat iframe. RabbitMQ connection from env vars.",
-    "Timeout": "00:05:00",
-    "class": [],
-    "rootSettings": {
-      "isCollapse": false,
-      "activitySettings": [
-        {
-          "value": "",
-          "required": true,
-          "key": "tenant_id",
-          "label": "tenant id",
-          "labelKey": "tenant_id",
-          "baseType": "control",
-          "controlType": "textbox"
-        },
-        {
-          "value": "",
-          "required": true,
-          "key": "conversation_id",
-          "label": "conversation id",
-          "labelKey": "conversation_id",
-          "baseType": "control",
-          "controlType": "textbox"
-        },
-        {
-          "value": "",
-          "required": true,
-          "key": "user_id",
-          "label": "user id (Valkey userGuid)",
-          "labelKey": "user_id",
-          "baseType": "control",
-          "controlType": "textbox"
-        },
-        {
-          "value": "",
-          "required": true,
-          "key": "ui_schema",
-          "label": "UI Schema (JSON)",
-          "labelKey": "ui_schema",
-          "baseType": "control",
-          "controlType": "textarea",
-          "styleClass": "xl-textarea"
-        },
-        {
-          "value": true,
-          "key": "interrupt",
-          "label": "Open Modal Immediately",
-          "labelKey": "interrupt",
-          "baseType": "control",
-          "controlType": "checkbox"
-        }
-      ],
-      "index": "1",
-      "label": "main",
-      "labelKey": null
-    }
-  },
-  "message": "SUCCESS"
-}
-```
-
-### Backend Code (Python)
-
-```python
-"""
-UI Form Request Activity
-
-Sends a UI form request to Jarvis chat iframe via RabbitMQ.
-RabbitMQ connection details are read from environment variables.
-
-Environment Variables Required:
- - RABBITMQ_HOST: RabbitMQ host
- - RABBITMQ_PORT: RabbitMQ port (default 5671)
- - RABBITMQ_USERNAME: RabbitMQ username
- - RABBITMQ_PASSWORD: RabbitMQ password
- - RABBITMQ_VHOST: Virtual host (default "/")
-
-Inputs:
- - tenant_id: Target tenant
- - conversation_id: Target conversation
- - user_id: Target user's Valkey userGuid
- - ui_schema: JSON string with form definition
- - interrupt: Boolean, open modal immediately (default true)
-
-Return: JSON dict with status and message_id
-"""
-
-import sys
-import os
-import json
-import uuid
-
-def install_and_import(package):
-    import subprocess
-    try:
-        __import__(package)
-    except ImportError:
-        subprocess.check_call([sys.executable, "-m", "pip", "install", package])
-        globals()[package] = __import__(package)
-    else:
-        globals()[package] = sys.modules[package]
-
-def execute(tenant_id, conversation_id, user_id, ui_schema, interrupt):
-    """
-    Send a UI form request to Jarvis chat iframe.
-    """
-    try:
-        # Read RabbitMQ connection from environment variables
-        host = os.environ.get('RABBITMQ_HOST')
-        port = os.environ.get('RABBITMQ_PORT', '5671')
-        username = os.environ.get('RABBITMQ_USERNAME')
-        password = os.environ.get('RABBITMQ_PASSWORD')
-        vhost = os.environ.get('RABBITMQ_VHOST', '/')
-
-        # Validate required env vars
-        if not host:
-            return {"status": "error", "error": "RABBITMQ_HOST environment variable not set", "error_type": "ConfigError"}
-        if not username:
-            return {"status": "error", "error": "RABBITMQ_USERNAME environment variable not set", "error_type": "ConfigError"}
-        if not password:
-            return {"status": "error", "error": "RABBITMQ_PASSWORD environment variable not set", "error_type": "ConfigError"}
-
-        # Convert port to int
-        port_int = int(port)
-
-        # Parse ui_schema if string
-        if isinstance(ui_schema, str):
-            ui_schema_obj = json.loads(ui_schema)
-        else:
-            ui_schema_obj = ui_schema
-
-        # Convert interrupt to boolean
-        if isinstance(interrupt, bool):
-            interrupt_bool = interrupt
-        else:
-            interrupt_bool = str(interrupt).lower() in ("true", "1", "yes")
-
-        # Generate message ID
-        message_id = str(uuid.uuid4())
-
-        # Construct the inner message (type: ui_form_request)
-        inner_message = {
-            "type": "ui_form_request",
-            "user_id": user_id,
-            "interrupt": interrupt_bool,
-            "ui_schema": ui_schema_obj
-        }
-
-        # Install and import pika
-        install_and_import('pika')
-        pika = globals().get('pika')
-
-        # Create connection with SSL for AMQPS
-        credentials = pika.PlainCredentials(username, password)
-
-        import ssl
-        ssl_options = pika.SSLOptions(ssl.create_default_context())
-        connection = pika.BlockingConnection(
-            pika.ConnectionParameters(
-                host=host,
-                port=port_int,
-                credentials=credentials,
-                virtual_host=vhost,
-                ssl_options=ssl_options
-            )
-        )
-        channel = connection.channel()
-
-        # Declare queue (idempotent)
-        queue_name = "chat.requests"
-        channel.queue_declare(queue=queue_name, durable=True)
-
-        # Construct message body (same format as Publish Message to Rabbit)
-        # The "response" field contains the JSON-encoded inner message
-        message_body = json.dumps({
-            "tenant_id": tenant_id,
-            "message_id": message_id,
-            "response": json.dumps(inner_message),
-            "conversation_id": conversation_id
-        })
-
-        # Publish message
-        channel.basic_publish(exchange='', routing_key=queue_name, body=message_body)
-
-        # Close connection
-        connection.close()
-
-        return {
-            "status": "success",
-            "message": "UI Form Request sent to chat.requests queue",
-            "message_id": message_id
-        }
-
-    except json.JSONDecodeError as e:
-        return {"status": "error", "error": f"Invalid ui_schema JSON: {str(e)}", "error_type": "JSONDecodeError"}
-    except Exception as e:
-        return {"status": "error", "error": str(e), "error_type": type(e).__name__}
-```
+- **Frontend (JSON):** [`example-activity.json`](example-activity.json)
+- **Backend (Python):** [`example-activity.py`](example-activity.py)
 
 ### Message JSON (What Gets Sent)
 
@@ -249,7 +48,6 @@ The activity constructs this JSON and passes it to RabbitMQ Push Activity's `mes
 {
   "type": "ui_form_request",
   "user_id": "user-guid-here",
-  "workflow_id": "workflow-123",
   "interrupt": true,
   "ui_schema": {
     "version": "1",
@@ -284,37 +82,24 @@ The `response` field contains the inner message as a JSON-encoded string.
 ```
 Activity: UI Form Request Activity
 Inputs:
-  # Connection (from env)
-  host: ${env.RABBITMQ_HOST}
-  port: ${env.RABBITMQ_PORT}
-  username: ${env.RABBITMQ_USER}
-  password: ${env.RABBITMQ_PASS}
-
-  # Routing
   tenant_id: ${workflow.tenantId}
   conversation_id: ${workflow.conversationId}
   user_id: ${workflow.userGuid}
-
-  # Correlation
-  workflow_id: ${workflow.id}
-
-  # Form
-  ui_schema:
-    version: "1"
-    modals:
-      user-info:
-        title: "Enter Your Information"
-        submitAction: "submit_info"
-        children:
-          - type: input
-            name: full_name
-            label: "Full Name"
-            required: true
-          - type: input
-            name: email
-            label: "Email"
-            inputType: email
-            required: true
+  ui_schema: |
+    {
+      "version": "1",
+      "modals": {
+        "user-info": {
+          "title": "Enter Your Information",
+          "submitAction": "submit_info",
+          "children": [
+            { "type": "input", "name": "full_name", "label": "Full Name", "required": true },
+            { "type": "input", "name": "email", "label": "Email", "inputType": "email", "required": true }
+          ]
+        }
+      }
+    }
+  interrupt: true
 ```
 
 ### Benefits Over Raw RabbitMQ Push
@@ -391,7 +176,6 @@ The `message` field must be a JSON string:
 {
   "type": "ui_form_request",
   "user_id": "<target user's Valkey userGuid>",
-  "workflow_id": "<current workflow ID>",
   "ui_schema": {
     "version": "1",
     "modals": {

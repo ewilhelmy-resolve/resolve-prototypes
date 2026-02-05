@@ -1,13 +1,33 @@
 """
-UI Form Request Activity - Example Python code for Platform
+UI Form Request Activity
 
-Sends a UI form request to RITA chat iframe via RabbitMQ.
+Send a UI form request to RITA chat iframe via RabbitMQ.
+Connection details hardcoded (same staging RabbitMQ as other activities).
+
+Inputs (must match JSON activitySettings keys in order):
+ - tenant_id: Target tenant
+ - conversation_id: Target conversation
+ - user_id: Target user's Valkey userGuid
+ - ui_schema: JSON string with form definition
+ - interrupt: Open modal immediately
+
+Return: JSON dict with status and message_id
 """
 
 import sys
-import os
 import json
 import uuid
+
+# --- FIX: avoid UnicodeEncodeError on Windows cp1252 consoles ---
+try:
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+except Exception:
+    import io
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
+    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8", errors="replace")
+# --------------------------------------------------------------
+
 
 def install_and_import(package):
     import subprocess
@@ -19,36 +39,18 @@ def install_and_import(package):
     else:
         globals()[package] = sys.modules[package]
 
-def execute(tenant_id, conversation_id, user_id, ui_schema, interrupt=True):
-    """
-    Send a UI form request to RITA chat iframe.
 
-    Args:
-        tenant_id: Target tenant
-        conversation_id: Target conversation
-        user_id: Target user's Valkey userGuid
-        ui_schema: JSON string or dict with form definition
-        interrupt: If True, modal opens immediately (default True)
+# RabbitMQ connection (staging)
+MQ_HOST = "b-a5618860-509b-4e36-97bd-39d02589a4d2.mq.us-east-1.amazonaws.com"
+MQ_PORT = 5671
+MQ_USERNAME = "expressmq"
+MQ_PASSWORD = "1Q!Vm@3p00fx"
+MQ_VHOST = "onboarding"
+MQ_QUEUE = "chat.requests"
 
-    Returns:
-        dict with status and message_id
-    """
+
+def execute(tenant_id, conversation_id, user_id, ui_schema, interrupt):
     try:
-        host = os.environ.get('RABBITMQ_HOST')
-        port = os.environ.get('RABBITMQ_PORT', '5671')
-        username = os.environ.get('RABBITMQ_USERNAME')
-        password = os.environ.get('RABBITMQ_PASSWORD')
-        vhost = os.environ.get('RABBITMQ_VHOST', '/')
-
-        if not host:
-            return {"status": "error", "error": "RABBITMQ_HOST not set"}
-        if not username:
-            return {"status": "error", "error": "RABBITMQ_USERNAME not set"}
-        if not password:
-            return {"status": "error", "error": "RABBITMQ_PASSWORD not set"}
-
-        port_int = int(port)
-
         if isinstance(ui_schema, str):
             ui_schema_obj = json.loads(ui_schema)
         else:
@@ -68,44 +70,69 @@ def execute(tenant_id, conversation_id, user_id, ui_schema, interrupt=True):
             "ui_schema": ui_schema_obj
         }
 
-        install_and_import('pika')
-        pika = globals().get('pika')
+        install_and_import("pika")
+        pika = globals().get("pika")
 
-        credentials = pika.PlainCredentials(username, password)
+        credentials = pika.PlainCredentials(MQ_USERNAME, MQ_PASSWORD)
 
         import ssl
         ssl_options = pika.SSLOptions(ssl.create_default_context())
+
         connection = pika.BlockingConnection(
             pika.ConnectionParameters(
-                host=host,
-                port=port_int,
+                host=MQ_HOST,
+                port=MQ_PORT,
                 credentials=credentials,
-                virtual_host=vhost,
+                virtual_host=MQ_VHOST,
                 ssl_options=ssl_options
             )
         )
         channel = connection.channel()
 
-        queue_name = "chat.requests"
-        channel.queue_declare(queue=queue_name, durable=True)
+        # Passive declare - queue already exists with custom args
+        channel.queue_declare(queue=MQ_QUEUE, passive=True)
 
-        message_body = json.dumps({
+        inner_json = json.dumps(inner_message, ensure_ascii=False)
+
+        body_obj = {
             "tenant_id": tenant_id,
             "message_id": message_id,
-            "response": json.dumps(inner_message),
+            "response": inner_json,
             "conversation_id": conversation_id
-        })
+        }
+        message_body = json.dumps(body_obj, ensure_ascii=False)
 
-        channel.basic_publish(exchange='', routing_key=queue_name, body=message_body)
+        properties = pika.BasicProperties(
+            content_type="application/json",
+            content_encoding="utf-8",
+            delivery_mode=2,
+            headers={
+                "tenant_id": tenant_id,
+                "message_id": message_id,
+                "conversation_id": conversation_id
+            }
+        )
+
+        channel.basic_publish(
+            exchange="",
+            routing_key=MQ_QUEUE,
+            body=message_body,
+            properties=properties
+        )
+
+        channel.close()
         connection.close()
 
         return {
             "status": "success",
             "message": "UI Form Request sent",
-            "message_id": message_id
+            "message_id": message_id,
+            "queue": MQ_QUEUE,
+            "bytes_sent": len(message_body),
+            "body_sent": body_obj
         }
 
     except json.JSONDecodeError as e:
-        return {"status": "error", "error": f"Invalid ui_schema JSON: {str(e)}"}
+        return {"status": "error", "error": "Invalid ui_schema JSON: " + str(e), "error_type": "JSONDecodeError"}
     except Exception as e:
-        return {"status": "error", "error": str(e)}
+        return {"status": "error", "error": str(e), "error_type": type(e).__name__}
