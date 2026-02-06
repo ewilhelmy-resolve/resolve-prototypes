@@ -8,6 +8,15 @@ export const RitaStatusSchema = z
 	.enum(["NEEDS_RESPONSE", "COMPLETED"])
 	.openapi({ description: "Rita automation status" });
 
+export const TicketCustomFieldsSchema = z
+	.object({
+		is_usable: z.boolean().optional().openapi({
+			description: "Whether ticket is eligible for cluster assignment",
+		}),
+	})
+	.passthrough()
+	.openapi("TicketCustomFields");
+
 export const TicketSchema = z
 	.object({
 		id: z.string().uuid().openapi({ description: "Ticket ID" }),
@@ -44,6 +53,9 @@ export const TicketSchema = z
 		rita_status: RitaStatusSchema,
 		source_metadata: z.record(z.string(), z.any()).openapi({
 			description: "Additional metadata from source system",
+		}),
+		custom_fields: TicketCustomFieldsSchema.nullable().openapi({
+			description: "Flexible field for ingestion data (e.g., is_usable)",
 		}),
 		created_at: z.string().datetime().openapi({
 			description: "Creation timestamp",

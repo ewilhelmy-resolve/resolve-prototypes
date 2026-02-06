@@ -296,7 +296,13 @@ export interface MlModels {
 	metadata: Generated<Json | null>;
 	model_name: string;
 	organization_id: string;
+	/**
+	 * When model training completed
+	 */
 	training_end_date: Timestamp | null;
+	/**
+	 * When model training started
+	 */
 	training_start_date: Timestamp | null;
 	updated_at: Generated<Timestamp | null>;
 }
@@ -445,6 +451,10 @@ export interface Tickets {
 	 */
 	cluster_text: string | null;
 	created_at: Generated<Timestamp | null>;
+	/**
+	 * Flexible field for ingestion data (e.g., is_usable for cluster assignment eligibility)
+	 */
+	custom_fields: Json | null;
 	data_source_connection_id: string | null;
 	/**
 	 * Human-readable ticket description for display (set by ingestion)
