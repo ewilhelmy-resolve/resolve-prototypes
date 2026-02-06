@@ -72,8 +72,8 @@ export default function ClustersPage() {
 				stats={
 					<StatGroup>
 						<StatCard
-							value="--"
-							label={t("header.stats.ticketsLast7Days")}
+							value={totalTickets.toLocaleString()}
+							label={t("header.stats.totalTickets")}
 							loading={showSkeletons}
 						/>
 						<StatCard
