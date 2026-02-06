@@ -137,10 +137,10 @@ export const SSEProvider: React.FC<SSEProviderProps> = ({
 						const [, modal] = modalEntries[0] as [string, any];
 
 						// Transform ui_schema children to host's fields format
-						const fields = (modal.children || [])
+						const fields = (modal.children ?? modal.fields ?? [])
 							.filter(
 								(child: any) =>
-									child.type === "input" || child.type === "select",
+									child.type === "input" || child.type === "select" || child.type === "text" || child.type === "textarea",
 							)
 							.map((child: any) => ({
 								name: child.name,
