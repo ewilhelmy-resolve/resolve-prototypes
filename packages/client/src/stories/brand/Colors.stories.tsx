@@ -221,6 +221,15 @@ export const AllColors: Story = {
 				<ColorSwatch name="Chart 4" variable="--chart-4" hex="#EAB308" />
 				<ColorSwatch name="Chart 5" variable="--chart-5" hex="#F59E0B" />
 			</ColorGroup>
+
+			<ColorGroup title="Brand Accents">
+				<ColorSwatch
+					name="RITA Teal"
+					variable="--rita-teal"
+					hex="#0EC0C0"
+					description="Brand accent color for automation indicators"
+				/>
+			</ColorGroup>
 		</div>
 	),
 };
@@ -233,13 +242,12 @@ export const BrandColors: Story = {
 
 			<div className="grid grid-cols-2 gap-4">
 				<div className="space-y-2">
-					<div
-						className="h-24 rounded-lg flex items-end p-3"
-						style={{ backgroundColor: "#0EC0C0" }}
-					>
+					<div className="h-24 rounded-lg flex items-end p-3 bg-rita-teal">
 						<span className="text-white font-medium">RITA Teal</span>
 					</div>
-					<code className="text-xs text-muted-foreground">#0EC0C0</code>
+					<code className="text-xs text-muted-foreground">
+						bg-rita-teal / #0EC0C0
+					</code>
 				</div>
 
 				<div className="space-y-2">
