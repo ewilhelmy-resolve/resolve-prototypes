@@ -26,7 +26,7 @@ import {
 	SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import type { ModalDefinition, UIComponent } from "@/types/uiSchema";
+import type { ModalDefinition } from "@/types/uiSchema";
 import { evaluateCondition } from "@/types/uiSchema";
 
 interface InlineFormRequestProps {
@@ -99,11 +99,11 @@ export function InlineFormRequest({
 		}
 	};
 
-	// Render a component from the modal's children
-	const renderComponent = (
-		component: UIComponent,
-		index: number,
-	): React.ReactNode => {
+	// Render a component from the modal's children/fields
+	// Platform schemas use untyped fields (e.g. type:"text" as input, type:"textarea")
+	// so we accept any and map to our internal component types
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	const renderComponent = (component: any, index: number): React.ReactNode => {
 		const displayData = isCompleted ? existingFormData || formData : formData;
 
 		if (!evaluateCondition(component.if, displayData)) {
@@ -114,6 +114,18 @@ export function InlineFormRequest({
 
 		switch (component.type) {
 			case "text":
+				// "text" with a name = input field; "text" with content = static display
+				if (component.name) {
+					return (
+						<InputRenderer
+							key={key}
+							component={component}
+							value={displayData[component.name] || component.defaultValue || ""}
+							onChange={(value: string) => handleInputChange(component.name, value)}
+							disabled={isCompleted || isSubmitting}
+						/>
+					);
+				}
 				return <TextRenderer key={key} component={component} />;
 
 			case "input":
@@ -122,7 +134,18 @@ export function InlineFormRequest({
 						key={key}
 						component={component}
 						value={displayData[component.name] || component.defaultValue || ""}
-						onChange={(value) => handleInputChange(component.name, value)}
+						onChange={(value: string) => handleInputChange(component.name, value)}
+						disabled={isCompleted || isSubmitting}
+					/>
+				);
+
+			case "textarea":
+				return (
+					<InputRenderer
+						key={key}
+						component={{ ...component, inputType: "textarea" }}
+						value={displayData[component.name] || component.defaultValue || ""}
+						onChange={(value: string) => handleInputChange(component.name, value)}
 						disabled={isCompleted || isSubmitting}
 					/>
 				);
@@ -133,7 +156,7 @@ export function InlineFormRequest({
 						key={key}
 						component={component}
 						value={displayData[component.name] || component.defaultValue || ""}
-						onChange={(value) => handleInputChange(component.name, value)}
+						onChange={(value: string) => handleInputChange(component.name, value)}
 						disabled={isCompleted || isSubmitting}
 					/>
 				);
@@ -144,7 +167,7 @@ export function InlineFormRequest({
 						key={key}
 						className={`flex flex-wrap items-start gap-3 ${component.className || ""}`}
 					>
-						{(component.children ?? []).map((child, i) => renderComponent(child, i))}
+						{(component.children ?? []).map((child: any, i: number) => renderComponent(child, i))}
 					</div>
 				);
 
@@ -154,7 +177,7 @@ export function InlineFormRequest({
 						key={key}
 						className={`flex flex-col gap-3 ${component.className || ""}`}
 					>
-						{(component.children ?? []).map((child, i) => renderComponent(child, i))}
+						{(component.children ?? []).map((child: any, i: number) => renderComponent(child, i))}
 					</div>
 				);
 
@@ -182,7 +205,7 @@ export function InlineFormRequest({
 			</CardHeader>
 
 			<CardContent className="space-y-3 pb-3">
-				{(modal.children ?? (modal as any).fields ?? []).map((child: UIComponent, index: number) =>
+				{(modal.children ?? (modal as any).fields ?? []).map((child: any, index: number) =>
 					renderComponent(child, index),
 				)}
 				{error && <div className="text-sm text-destructive">{error}</div>}
