@@ -69,13 +69,12 @@ export const Pending: Story = {
 	},
 };
 
-export const CustomPercentages: Story = {
+export const PartialAutomation: Story = {
 	args: {
 		id: "cluster-127",
 		title: "Software Installation",
 		count: 156,
 		knowledgeStatus: "FOUND",
-		manualPercentage: 30,
 		automatedPercentage: 70,
 	},
 };
@@ -86,7 +85,6 @@ export const HighAutomation: Story = {
 		title: "Account Lockouts",
 		count: 89,
 		knowledgeStatus: "FOUND",
-		manualPercentage: 10,
 		automatedPercentage: 90,
 	},
 };
@@ -106,7 +104,16 @@ export const LargeCount: Story = {
 		title: "General IT Support",
 		count: 1247,
 		knowledgeStatus: "FOUND",
-		manualPercentage: 45,
 		automatedPercentage: 55,
+	},
+};
+
+export const ZeroAutomation: Story = {
+	args: {
+		id: "cluster-131",
+		title: "New Ticket Type",
+		count: 12,
+		knowledgeStatus: "PENDING",
+		automatedPercentage: 0,
 	},
 };
