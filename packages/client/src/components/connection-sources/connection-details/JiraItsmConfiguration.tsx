@@ -3,6 +3,16 @@
 import { AlertCircle, Loader2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import {
+	AlertDialog,
+	AlertDialogAction,
+	AlertDialogCancel,
+	AlertDialogContent,
+	AlertDialogDescription,
+	AlertDialogFooter,
+	AlertDialogHeader,
+	AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
@@ -55,6 +65,7 @@ export default function JiraItsmConfiguration({
 	const updateMutation = useUpdateDataSource();
 	const [selectedTimeRange, setSelectedTimeRange] = useState("30");
 	const [selectedSpaces, setSelectedSpaces] = useState<string[]>([]);
+	const [showRemovalConfirm, setShowRemovalConfirm] = useState(false);
 
 	// Track ticket sync status via ingestion runs (separate from knowledge sync)
 	const { data: latestIngestionRun } = useLatestIngestionRun(
@@ -86,16 +97,28 @@ export default function JiraItsmConfiguration({
 		});
 	}, [source.backendData?.latest_options]);
 
+	// Track previously saved project keys to detect removals
+	const savedProjectKeys: string[] = useMemo(() => {
+		const projectKeys = source.backendData?.settings?.project_keys;
+		return Array.isArray(projectKeys) ? projectKeys : [];
+	}, [source.backendData?.settings]);
+
 	// Initialize selected projects from settings.project_keys (already configured)
 	useEffect(() => {
-		const projectKeys = source.backendData?.settings?.project_keys;
-		if (Array.isArray(projectKeys) && projectKeys.length > 0) {
-			setSelectedSpaces(projectKeys);
+		if (savedProjectKeys.length > 0) {
+			setSelectedSpaces(savedProjectKeys);
 		}
-	}, [source.backendData?.settings]);
+	}, [savedProjectKeys]);
 
 	const hasSpacesAvailable = availableSpaces.length > 0;
 	const hasSpacesSelected = selectedSpaces.length > 0;
+
+	// Check if user has unselected any previously synced projects
+	const removedProjects = useMemo(() => {
+		if (savedProjectKeys.length === 0) return [];
+		return savedProjectKeys.filter((key) => !selectedSpaces.includes(key));
+	}, [savedProjectKeys, selectedSpaces]);
+	const hasRemovedProjects = removedProjects.length > 0;
 
 	const isSyncButtonDisabled =
 		isTicketSyncing ||
@@ -105,7 +128,8 @@ export default function JiraItsmConfiguration({
 		(hasSpacesAvailable && !hasSpacesSelected);
 	const isCancelButtonDisabled = cancelMutation.isPending;
 
-	const handleSyncTickets = async () => {
+	// Show confirmation dialog if projects removed, otherwise sync directly
+	const handleSyncTickets = () => {
 		if (!source.backendData) {
 			ritaToast.error({
 				title: t("config.toast.configError"),
@@ -122,6 +146,19 @@ export default function JiraItsmConfiguration({
 			});
 			return;
 		}
+
+		// Show confirmation if removing projects
+		if (hasRemovedProjects) {
+			setShowRemovalConfirm(true);
+			return;
+		}
+
+		performSync();
+	};
+
+	// Actual sync logic
+	const performSync = async () => {
+		if (!source.backendData) return;
 
 		try {
 			// Step 1: Update selected project keys in settings (if projects available)
@@ -235,6 +272,16 @@ export default function JiraItsmConfiguration({
 												</div>
 											</div>
 										</div>
+									)}
+
+									{/* Warning when projects are removed */}
+									{hasRemovedProjects && (
+										<StatusAlert
+											variant="error"
+											title={t("config.warnings.projectsRemovedTitle")}
+										>
+											<p>{t("config.warnings.projectsRemovedDescription")}</p>
+										</StatusAlert>
 									)}
 
 									{/*Import tickets controls */}
@@ -364,6 +411,35 @@ export default function JiraItsmConfiguration({
 						</div>
 					)}
 			</div>
+
+			{/* Confirmation dialog for project removal */}
+			<AlertDialog
+				open={showRemovalConfirm}
+				onOpenChange={setShowRemovalConfirm}
+			>
+				<AlertDialogContent>
+					<AlertDialogHeader>
+						<AlertDialogTitle>
+							{t("config.warnings.projectsRemovedTitle")}
+						</AlertDialogTitle>
+						<AlertDialogDescription>
+							{t("config.warnings.projectsRemovedDescription")}
+						</AlertDialogDescription>
+					</AlertDialogHeader>
+					<AlertDialogFooter>
+						<AlertDialogCancel>{t("config.warnings.cancel")}</AlertDialogCancel>
+						<AlertDialogAction
+							onClick={() => {
+								setShowRemovalConfirm(false);
+								performSync();
+							}}
+							className="bg-destructive text-white hover:bg-destructive/90"
+						>
+							{t("config.warnings.confirm")}
+						</AlertDialogAction>
+					</AlertDialogFooter>
+				</AlertDialogContent>
+			</AlertDialog>
 		</div>
 	);
 }
