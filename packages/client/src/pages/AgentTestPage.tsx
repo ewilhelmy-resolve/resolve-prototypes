@@ -1,12 +1,11 @@
 /**
- * AgentTestPage - Full-page test mode for agents
+ * AgentTestPage - Test & Iterate mode for agents
  *
  * Features:
- * - Full-screen chat interface
- * - Test scenarios panel (suggested prompts)
- * - Guardrails indicator
- * - Reset and publish controls
- * - Supports both URL params (/agents/:id/test) and navigation state
+ * - Left panel: Editable config (inline iteration)
+ * - Right panel: Chat test interface
+ * - No back-to-form flow - iterate in place
+ * - Publish is just confirmation
  */
 
 import { useState, useRef, useEffect } from "react";
@@ -25,8 +24,7 @@ import {
   BookOpen,
   RotateCcw,
   CheckCircle,
-  Lightbulb,
-  ShieldAlert,
+  ChevronDown,
   ChevronRight,
   TrendingUp,
   ClipboardList,
@@ -61,8 +59,31 @@ import {
   Map,
   Package,
   ShoppingCart,
+  MessageSquare,
+  Sparkles,
+  Shield,
+  Play,
+  X,
+  Plus,
+  Trash2,
+  Save,
 } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 // Icon mapping - extended
 const ICON_MAP: Record<string, React.ElementType> = {
@@ -119,7 +140,7 @@ const MOCK_SAVED_AGENTS: Record<string, AgentConfig> = {
   "1": {
     name: "HelpDesk Advisor",
     description: "Answers IT support questions",
-    instructions: "Help users with IT-related questions. Be patient and thorough.",
+    instructions: "Help users with IT-related questions. Be patient and thorough. Always verify the user's identity before making changes to their account.",
     role: "IT Support Specialist",
     completionCriteria: "When the user's issue is resolved or escalated",
     iconId: "headphones",
@@ -181,7 +202,6 @@ interface ChatMessage {
   content: string;
   feedback?: "up" | "down" | null;
   feedbackText?: string;
-  feedbackExpanded?: boolean;
 }
 
 export default function AgentTestPage() {
@@ -192,49 +212,26 @@ export default function AgentTestPage() {
   // Try to load config from: 1) navigation state, 2) URL params
   const stateConfig = (location.state?.config || location.state?.agentConfig) as AgentConfig | undefined;
   const urlConfig = agentId ? MOCK_SAVED_AGENTS[agentId] : undefined;
-  const config = stateConfig || urlConfig;
+  const initialConfig = stateConfig || urlConfig;
 
+  // Editable config state
+  const [config, setConfig] = useState<AgentConfig | null>(initialConfig || null);
+  const [hasChanges, setHasChanges] = useState(false);
+
+  // Chat state
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const handleFeedback = (messageId: string, feedback: "up" | "down") => {
-    setMessages((prev) =>
-      prev.map((msg) =>
-        msg.id === messageId
-          ? {
-              ...msg,
-              feedback,
-              feedbackExpanded: feedback === "down",
-            }
-          : msg
-      )
-    );
-  };
+  // Panel state
+  const [expandedSections, setExpandedSections] = useState<Set<string>>(
+    new Set(["instructions", "starters"])
+  );
 
-  const handleFeedbackTextChange = (messageId: string, text: string) => {
-    setMessages((prev) =>
-      prev.map((msg) =>
-        msg.id === messageId ? { ...msg, feedbackText: text } : msg
-      )
-    );
-  };
-
-  const handleEditInstructions = (feedbackText?: string) => {
-    // Navigate back to builder with feedback context
-    if (agentId) {
-      navigate(`/agents/${agentId}`, {
-        state: {
-          focusInstructions: true,
-          feedback: feedbackText
-        }
-      });
-    } else {
-      navigate(-1);
-    }
-  };
+  // Publish dialog
+  const [showPublishDialog, setShowPublishDialog] = useState(false);
 
   // Auto-scroll to bottom
   useEffect(() => {
@@ -246,16 +243,13 @@ export default function AgentTestPage() {
     inputRef.current?.focus();
   }, []);
 
-  // Handle no config (direct navigation without ID or state)
+  // Handle no config
   if (!config) {
     return (
       <div className="h-screen flex items-center justify-center bg-background">
         <div className="text-center space-y-4">
           <Bot className="size-12 mx-auto text-muted-foreground" />
           <p className="text-muted-foreground">No agent configuration found.</p>
-          <p className="text-sm text-muted-foreground">
-            Navigate here from the agent builder or use a valid agent ID.
-          </p>
           <Button onClick={() => navigate("/agents")}>Back to Agents</Button>
         </div>
       </div>
@@ -265,12 +259,30 @@ export default function AgentTestPage() {
   const Icon = ICON_MAP[config.iconId] || Bot;
   const color = COLOR_MAP[config.iconColorId] || COLOR_MAP.slate;
 
-  // Generate suggested test prompts based on agent config
-  const testSuggestions = [
-    ...config.conversationStarters.filter((s) => s.trim()),
-    ...(config.workflows.length > 0 ? [`Can you help me with ${config.workflows[0].toLowerCase()}?`] : []),
-    ...(config.guardrails.length > 0 ? [`What can you tell me about ${config.guardrails[0]}?`] : []),
-  ].slice(0, 5);
+  const toggleSection = (section: string) => {
+    setExpandedSections((prev) => {
+      const next = new Set(prev);
+      if (next.has(section)) {
+        next.delete(section);
+      } else {
+        next.add(section);
+      }
+      return next;
+    });
+  };
+
+  const updateConfig = (updates: Partial<AgentConfig>) => {
+    setConfig((prev) => (prev ? { ...prev, ...updates } : prev));
+    setHasChanges(true);
+  };
+
+  const handleFeedback = (messageId: string, feedback: "up" | "down") => {
+    setMessages((prev) =>
+      prev.map((msg) =>
+        msg.id === messageId ? { ...msg, feedback } : msg
+      )
+    );
+  };
 
   const handleSend = async () => {
     if (!input.trim() || isLoading) return;
@@ -285,7 +297,6 @@ export default function AgentTestPage() {
     setInput("");
     setIsLoading(true);
 
-    // Simulate agent response based on configuration
     await new Promise((r) => setTimeout(r, 800 + Math.random() * 800));
 
     const assistantMessage: ChatMessage = {
@@ -296,11 +307,6 @@ export default function AgentTestPage() {
 
     setMessages((prev) => [...prev, assistantMessage]);
     setIsLoading(false);
-  };
-
-  const handleSuggestionClick = (suggestion: string) => {
-    setInput(suggestion);
-    inputRef.current?.focus();
   };
 
   const handleReset = () => {
@@ -318,37 +324,84 @@ export default function AgentTestPage() {
   };
 
   const handlePublish = () => {
-    // Navigate back to builder - would trigger publish in real implementation
-    if (agentId) {
-      navigate(`/agents/${agentId}`, { state: { triggerPublish: true } });
-    } else {
-      navigate(-1);
-    }
+    setShowPublishDialog(true);
+  };
+
+  const confirmPublish = () => {
+    // Would publish the agent here
+    setShowPublishDialog(false);
+    navigate("/agents", { state: { published: true, agentName: config.name } });
+  };
+
+  const handleStarterClick = (starter: string) => {
+    setInput(starter);
+    inputRef.current?.focus();
+  };
+
+  const addStarter = () => {
+    updateConfig({
+      conversationStarters: [...config.conversationStarters, ""],
+    });
+  };
+
+  const updateStarter = (index: number, value: string) => {
+    const newStarters = [...config.conversationStarters];
+    newStarters[index] = value;
+    updateConfig({ conversationStarters: newStarters });
+  };
+
+  const removeStarter = (index: number) => {
+    updateConfig({
+      conversationStarters: config.conversationStarters.filter((_, i) => i !== index),
+    });
+  };
+
+  const addGuardrail = () => {
+    updateConfig({
+      guardrails: [...config.guardrails, ""],
+    });
+  };
+
+  const updateGuardrail = (index: number, value: string) => {
+    const newGuardrails = [...config.guardrails];
+    newGuardrails[index] = value;
+    updateConfig({ guardrails: newGuardrails });
+  };
+
+  const removeGuardrail = (index: number) => {
+    updateConfig({
+      guardrails: config.guardrails.filter((_, i) => i !== index),
+    });
   };
 
   return (
     <div className="h-screen flex flex-col bg-background">
       {/* Header */}
-      <header className="flex items-center justify-between px-5 py-3 border-b bg-white">
+      <header className="flex items-center justify-between px-4 py-3 border-b bg-white">
         <div className="flex items-center gap-3">
-          <Button variant="ghost" size="icon" onClick={handleBack} aria-label="Back to editor">
+          <Button variant="ghost" size="icon" onClick={handleBack}>
             <ArrowLeft className="size-4" />
           </Button>
           <div className={cn("size-8 rounded-lg flex items-center justify-center", color.bg)}>
             <Icon className={cn("size-4", color.text)} />
           </div>
-          <div>
+          <div className="flex items-center gap-2">
             <span className="font-medium">{config.name}</span>
-            <span className="text-xs text-muted-foreground ml-2 px-2 py-0.5 bg-amber-100 text-amber-700 rounded">
-              Test Mode
-            </span>
+            <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200">
+              Test & Iterate
+            </Badge>
+            {hasChanges && (
+              <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
+                Unsaved changes
+              </Badge>
+            )}
           </div>
         </div>
 
         <div className="flex items-center gap-2">
           <Button variant="outline" size="sm" onClick={handleReset} className="gap-2">
             <RotateCcw className="size-4" />
-            Reset
+            Reset Chat
           </Button>
           <Button size="sm" onClick={handlePublish} className="gap-2">
             <CheckCircle className="size-4" />
@@ -359,11 +412,218 @@ export default function AgentTestPage() {
 
       {/* Main content */}
       <div className="flex-1 flex overflow-hidden">
-        {/* Chat area */}
+        {/* Left panel - Editable Config */}
+        <div className="w-80 border-r bg-white overflow-y-auto flex-shrink-0">
+          <div className="p-4 border-b">
+            <h2 className="font-medium flex items-center gap-2">
+              <Settings className="size-4" />
+              Agent Configuration
+            </h2>
+            <p className="text-xs text-muted-foreground mt-1">
+              Edit settings and test immediately
+            </p>
+          </div>
+
+          <div className="divide-y">
+            {/* Basic Info */}
+            <Collapsible
+              open={expandedSections.has("basic")}
+              onOpenChange={() => toggleSection("basic")}
+            >
+              <CollapsibleTrigger className="w-full px-4 py-3 flex items-center justify-between hover:bg-muted/50 transition-colors">
+                <span className="text-sm font-medium">Basic Info</span>
+                <ChevronRight
+                  className={cn(
+                    "size-4 text-muted-foreground transition-transform",
+                    expandedSections.has("basic") && "rotate-90"
+                  )}
+                />
+              </CollapsibleTrigger>
+              <CollapsibleContent className="px-4 pb-4 space-y-3">
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground">Name</label>
+                  <Input
+                    value={config.name}
+                    onChange={(e) => updateConfig({ name: e.target.value })}
+                    className="mt-1"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground">Description</label>
+                  <Textarea
+                    value={config.description}
+                    onChange={(e) => updateConfig({ description: e.target.value })}
+                    className="mt-1 resize-none"
+                    rows={2}
+                  />
+                </div>
+              </CollapsibleContent>
+            </Collapsible>
+
+            {/* Instructions */}
+            <Collapsible
+              open={expandedSections.has("instructions")}
+              onOpenChange={() => toggleSection("instructions")}
+            >
+              <CollapsibleTrigger className="w-full px-4 py-3 flex items-center justify-between hover:bg-muted/50 transition-colors">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-medium">System Prompt</span>
+                  <Sparkles className="size-3 text-amber-500" />
+                </div>
+                <ChevronRight
+                  className={cn(
+                    "size-4 text-muted-foreground transition-transform",
+                    expandedSections.has("instructions") && "rotate-90"
+                  )}
+                />
+              </CollapsibleTrigger>
+              <CollapsibleContent className="px-4 pb-4">
+                <Textarea
+                  value={config.instructions}
+                  onChange={(e) => updateConfig({ instructions: e.target.value })}
+                  placeholder="Describe how the agent should behave..."
+                  className="resize-none text-sm"
+                  rows={6}
+                />
+                <p className="text-xs text-muted-foreground mt-2">
+                  This guides how the agent responds. Be specific about tone, boundaries, and behavior.
+                </p>
+              </CollapsibleContent>
+            </Collapsible>
+
+            {/* Conversation Starters */}
+            <Collapsible
+              open={expandedSections.has("starters")}
+              onOpenChange={() => toggleSection("starters")}
+            >
+              <CollapsibleTrigger className="w-full px-4 py-3 flex items-center justify-between hover:bg-muted/50 transition-colors">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-medium">Conversation Starters</span>
+                  <Badge variant="secondary" className="text-xs">
+                    {config.conversationStarters.filter((s) => s.trim()).length}
+                  </Badge>
+                </div>
+                <ChevronRight
+                  className={cn(
+                    "size-4 text-muted-foreground transition-transform",
+                    expandedSections.has("starters") && "rotate-90"
+                  )}
+                />
+              </CollapsibleTrigger>
+              <CollapsibleContent className="px-4 pb-4 space-y-2">
+                {config.conversationStarters.map((starter, index) => (
+                  <div key={index} className="flex gap-2">
+                    <Input
+                      value={starter}
+                      onChange={(e) => updateStarter(index, e.target.value)}
+                      placeholder="e.g., How do I reset my password?"
+                      className="text-sm"
+                    />
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="size-8 shrink-0"
+                      onClick={() => removeStarter(index)}
+                    >
+                      <Trash2 className="size-3" />
+                    </Button>
+                  </div>
+                ))}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="w-full gap-2"
+                  onClick={addStarter}
+                >
+                  <Plus className="size-3" />
+                  Add Starter
+                </Button>
+              </CollapsibleContent>
+            </Collapsible>
+
+            {/* Guardrails */}
+            <Collapsible
+              open={expandedSections.has("guardrails")}
+              onOpenChange={() => toggleSection("guardrails")}
+            >
+              <CollapsibleTrigger className="w-full px-4 py-3 flex items-center justify-between hover:bg-muted/50 transition-colors">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-medium">Guardrails</span>
+                  <Shield className="size-3 text-red-500" />
+                </div>
+                <ChevronRight
+                  className={cn(
+                    "size-4 text-muted-foreground transition-transform",
+                    expandedSections.has("guardrails") && "rotate-90"
+                  )}
+                />
+              </CollapsibleTrigger>
+              <CollapsibleContent className="px-4 pb-4 space-y-2">
+                <p className="text-xs text-muted-foreground mb-2">
+                  Topics the agent will decline to discuss
+                </p>
+                {config.guardrails.map((guardrail, index) => (
+                  <div key={index} className="flex gap-2">
+                    <Input
+                      value={guardrail}
+                      onChange={(e) => updateGuardrail(index, e.target.value)}
+                      placeholder="e.g., salary information"
+                      className="text-sm"
+                    />
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="size-8 shrink-0"
+                      onClick={() => removeGuardrail(index)}
+                    >
+                      <Trash2 className="size-3" />
+                    </Button>
+                  </div>
+                ))}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="w-full gap-2"
+                  onClick={addGuardrail}
+                >
+                  <Plus className="size-3" />
+                  Add Guardrail
+                </Button>
+              </CollapsibleContent>
+            </Collapsible>
+
+            {/* Knowledge & Skills (read-only summary) */}
+            <div className="px-4 py-3">
+              <h3 className="text-sm font-medium mb-3">Connected Resources</h3>
+              <div className="space-y-2 text-sm">
+                <div className="flex items-center justify-between text-muted-foreground">
+                  <span className="flex items-center gap-2">
+                    <BookOpen className="size-3" />
+                    Knowledge Sources
+                  </span>
+                  <span className="font-medium text-foreground">{config.knowledgeSources.length}</span>
+                </div>
+                <div className="flex items-center justify-between text-muted-foreground">
+                  <span className="flex items-center gap-2">
+                    <Zap className="size-3" />
+                    Skills
+                  </span>
+                  <span className="font-medium text-foreground">{config.workflows.length}</span>
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground mt-3">
+                Edit knowledge and skills in the full builder
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Right panel - Chat Test */}
         <div className="flex-1 flex flex-col">
+          {/* Chat area */}
           <div className="flex-1 overflow-y-auto">
             <div className="max-w-2xl mx-auto py-6 px-4 space-y-4">
-              {/* Welcome message */}
+              {/* Welcome / Empty state */}
               {messages.length === 0 && (
                 <div className="text-center py-8 space-y-4">
                   <div className={cn("size-16 rounded-xl flex items-center justify-center mx-auto", color.bg)}>
@@ -373,9 +633,32 @@ export default function AgentTestPage() {
                     <h2 className="text-xl font-semibold">{config.name}</h2>
                     <p className="text-muted-foreground mt-1">{config.description}</p>
                   </div>
-                  <p className="text-sm text-muted-foreground max-w-md mx-auto">
-                    Test your agent by sending messages below. Responses are simulated based on the agent's configuration.
-                  </p>
+
+                  {/* Quick test prompts */}
+                  {config.conversationStarters.filter((s) => s.trim()).length > 0 && (
+                    <div className="pt-4">
+                      <p className="text-sm text-muted-foreground mb-3">Try a conversation starter:</p>
+                      <div className="flex flex-wrap justify-center gap-2">
+                        {config.conversationStarters
+                          .filter((s) => s.trim())
+                          .slice(0, 4)
+                          .map((starter, index) => (
+                            <button
+                              key={index}
+                              onClick={() => handleStarterClick(starter)}
+                              className="px-3 py-1.5 text-sm border rounded-full hover:bg-muted transition-colors"
+                            >
+                              {starter}
+                            </button>
+                          ))}
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="flex items-center justify-center gap-2 pt-4 text-sm text-muted-foreground">
+                    <Play className="size-4" />
+                    <span>Send a message to test your agent</span>
+                  </div>
                 </div>
               )}
 
@@ -402,79 +685,44 @@ export default function AgentTestPage() {
                     </div>
                   </div>
 
-                  {/* Feedback UI for assistant messages */}
+                  {/* Feedback for assistant messages */}
                   {msg.role === "assistant" && (
-                    <div className="ml-11 space-y-2">
-                      {/* Thumbs up/down buttons - hide after feedback given */}
-                      {!msg.feedback && (
-                        <div className="flex items-center gap-1">
-                          <span className="text-xs text-muted-foreground mr-2">How was this response?</span>
-                          <button
-                            onClick={() => handleFeedback(msg.id, "up")}
-                            className="p-1.5 rounded-md transition-colors hover:bg-muted text-muted-foreground hover:text-foreground"
-                            aria-label="Good response"
-                          >
-                            <ThumbsUp className="size-4" />
-                          </button>
-                          <button
-                            onClick={() => handleFeedback(msg.id, "down")}
-                            className="p-1.5 rounded-md transition-colors hover:bg-muted text-muted-foreground hover:text-foreground"
-                            aria-label="Bad response"
-                          >
-                            <ThumbsDown className="size-4" />
-                          </button>
-                        </div>
-                      )}
-
-                      {/* Thumbs up feedback response */}
-                      {msg.feedback === "up" && (
-                        <div className="flex items-center gap-2 text-sm text-emerald-600">
-                          <ThumbsUp className="size-4" />
-                          <span>Thanks for the feedback!</span>
-                        </div>
-                      )}
-
-                      {/* Thumbs down feedback with improvement suggestions */}
+                    <div className="ml-11 flex items-center gap-2">
+                      <span className="text-xs text-muted-foreground">Was this helpful?</span>
+                      <button
+                        onClick={() => handleFeedback(msg.id, "up")}
+                        className={cn(
+                          "p-1 rounded transition-colors",
+                          msg.feedback === "up"
+                            ? "text-emerald-600 bg-emerald-50"
+                            : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                        )}
+                      >
+                        <ThumbsUp className="size-3" />
+                      </button>
+                      <button
+                        onClick={() => handleFeedback(msg.id, "down")}
+                        className={cn(
+                          "p-1 rounded transition-colors",
+                          msg.feedback === "down"
+                            ? "text-red-600 bg-red-50"
+                            : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                        )}
+                      >
+                        <ThumbsDown className="size-3" />
+                      </button>
                       {msg.feedback === "down" && (
-                        <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 space-y-3">
-                          <div className="flex items-center gap-2 text-sm text-amber-700">
-                            <ThumbsDown className="size-4" />
-                            <span>Thanks for the feedback!</span>
-                          </div>
-                          <div>
-                            <label className="text-sm font-medium text-amber-800">
-                              What could be better?
-                            </label>
-                            <Textarea
-                              placeholder="e.g., Tone was too formal, missed key info..."
-                              value={msg.feedbackText || ""}
-                              onChange={(e) => handleFeedbackTextChange(msg.id, e.target.value)}
-                              className="mt-1.5 text-sm bg-white border-amber-200 focus:border-amber-400 resize-none"
-                              rows={2}
-                            />
-                          </div>
-                          <div className="flex items-center justify-between">
-                            <p className="text-xs text-amber-700">
-                              Tip: Edit your agent's instructions to improve responses
-                            </p>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="gap-1.5 border-amber-300 text-amber-800 hover:bg-amber-100"
-                              onClick={() => handleEditInstructions(msg.feedbackText)}
-                            >
-                              <Pencil className="size-3" />
-                              Edit Instructions
-                            </Button>
-                          </div>
-                        </div>
+                        <span className="text-xs text-amber-600 flex items-center gap-1">
+                          <Pencil className="size-3" />
+                          Try adjusting the system prompt
+                        </span>
                       )}
                     </div>
                   )}
                 </div>
               ))}
 
-              {/* Loading indicator */}
+              {/* Loading */}
               {isLoading && (
                 <div className="flex gap-3">
                   <div className={cn("size-8 rounded-lg flex items-center justify-center flex-shrink-0", color.bg)}>
@@ -490,7 +738,7 @@ export default function AgentTestPage() {
             </div>
           </div>
 
-          {/* Input area */}
+          {/* Input */}
           <div className="border-t bg-white px-4 py-4">
             <div className="max-w-2xl mx-auto">
               <div className="flex gap-2">
@@ -514,83 +762,77 @@ export default function AgentTestPage() {
                 </Button>
               </div>
               <p className="text-xs text-muted-foreground text-center mt-3">
-                Test conversation - responses are simulated based on agent configuration
+                Responses are simulated based on your configuration
               </p>
             </div>
           </div>
         </div>
-
-        {/* Right panel - Test Scenarios */}
-        <div className="w-80 border-l bg-white p-4 overflow-y-auto hidden lg:block">
-          {/* Test suggestions */}
-          <div className="mb-6">
-            <div className="flex items-center gap-2 mb-3">
-              <Lightbulb className="size-4 text-amber-500" />
-              <h3 className="font-medium text-sm">Try these prompts</h3>
-            </div>
-            <div className="space-y-2">
-              {testSuggestions.map((suggestion, idx) => (
-                <button
-                  key={idx}
-                  onClick={() => handleSuggestionClick(suggestion)}
-                  className="w-full text-left px-3 py-2 text-sm border rounded-lg hover:bg-muted transition-colors flex items-center gap-2 group"
-                >
-                  <ChevronRight className="size-3 text-muted-foreground group-hover:text-primary transition-colors" />
-                  <span className="line-clamp-2">{suggestion}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Guardrails indicator */}
-          {config.guardrails.length > 0 && (
-            <div className="mb-6">
-              <div className="flex items-center gap-2 mb-3">
-                <ShieldAlert className="size-4 text-red-500" />
-                <h3 className="font-medium text-sm">Guardrails active</h3>
-              </div>
-              <div className="bg-red-50 border border-red-100 rounded-lg p-3">
-                <p className="text-xs text-red-700 mb-2">Agent will decline questions about:</p>
-                <div className="flex flex-wrap gap-1">
-                  {config.guardrails.map((guardrail, idx) => (
-                    <span
-                      key={idx}
-                      className="px-2 py-0.5 bg-red-100 text-red-700 text-xs rounded"
-                    >
-                      {guardrail}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Agent capabilities */}
-          <div>
-            <h3 className="font-medium text-sm mb-3">Agent capabilities</h3>
-            <div className="space-y-2 text-sm text-muted-foreground">
-              <div className="flex items-center justify-between">
-                <span>Type</span>
-                <span className="font-medium text-foreground capitalize">{config.agentType || "Not set"}</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span>Knowledge sources</span>
-                <span className="font-medium text-foreground">{config.knowledgeSources.length}</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span>Skills</span>
-                <span className="font-medium text-foreground">{config.workflows.length}</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span>Starters</span>
-                <span className="font-medium text-foreground">
-                  {config.conversationStarters.filter((s) => s.trim()).length}
-                </span>
-              </div>
-            </div>
-          </div>
-        </div>
       </div>
+
+      {/* Publish Confirmation Dialog */}
+      <Dialog open={showPublishDialog} onOpenChange={setShowPublishDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <CheckCircle className="size-5 text-emerald-600" />
+              Publish Agent
+            </DialogTitle>
+            <DialogDescription>
+              Review your agent configuration before publishing.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            {/* Agent summary */}
+            <div className="flex items-start gap-3 p-3 bg-muted/50 rounded-lg">
+              <div className={cn("size-10 rounded-lg flex items-center justify-center", color.bg)}>
+                <Icon className={cn("size-5", color.text)} />
+              </div>
+              <div className="flex-1 min-w-0">
+                <h3 className="font-medium">{config.name}</h3>
+                <p className="text-sm text-muted-foreground line-clamp-2">{config.description}</p>
+              </div>
+            </div>
+
+            {/* Config summary */}
+            <div className="grid grid-cols-2 gap-3 text-sm">
+              <div className="flex items-center justify-between p-2 bg-muted/30 rounded">
+                <span className="text-muted-foreground">Starters</span>
+                <span className="font-medium">{config.conversationStarters.filter((s) => s.trim()).length}</span>
+              </div>
+              <div className="flex items-center justify-between p-2 bg-muted/30 rounded">
+                <span className="text-muted-foreground">Guardrails</span>
+                <span className="font-medium">{config.guardrails.filter((g) => g.trim()).length}</span>
+              </div>
+              <div className="flex items-center justify-between p-2 bg-muted/30 rounded">
+                <span className="text-muted-foreground">Knowledge</span>
+                <span className="font-medium">{config.knowledgeSources.length}</span>
+              </div>
+              <div className="flex items-center justify-between p-2 bg-muted/30 rounded">
+                <span className="text-muted-foreground">Skills</span>
+                <span className="font-medium">{config.workflows.length}</span>
+              </div>
+            </div>
+
+            {hasChanges && (
+              <div className="flex items-center gap-2 p-2 bg-blue-50 border border-blue-200 rounded text-sm text-blue-700">
+                <AlertCircle className="size-4" />
+                You have unsaved changes that will be published
+              </div>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowPublishDialog(false)}>
+              Cancel
+            </Button>
+            <Button onClick={confirmPublish} className="gap-2">
+              <Rocket className="size-4" />
+              Publish Agent
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
