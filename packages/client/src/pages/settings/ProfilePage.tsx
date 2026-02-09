@@ -9,6 +9,8 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
+import { useUIStore } from "@/stores/uiStore";
 import i18n from "@/i18n";
 import { useDeleteOwnAccount } from "@/hooks/api/useMembers";
 import { useProfile, useProfilePermissions } from "@/hooks/api/useProfile";
@@ -50,6 +52,8 @@ export default function ProfilePage() {
 		useUpdateOrganization();
 	const { mutate: deleteOwnAccount, isPending: isDeletingAccount } =
 		useDeleteOwnAccount();
+	const headerStyle = useUIStore((state) => state.headerStyle);
+	const setHeaderStyle = useUIStore((state) => state.setHeaderStyle);
 
 	const {
 		register,
@@ -269,6 +273,25 @@ export default function ProfilePage() {
 								: t("profile.updateProfile")}
 						</Button>
 					</form>
+
+					{/* Display Settings */}
+					<div className="flex flex-col gap-4 pt-4 border-t">
+						<h4 className="text-xl font-normal text-foreground">Display</h4>
+						<div className="flex items-center justify-between p-4 border rounded-md bg-neutral-50">
+							<div className="flex flex-col gap-1">
+								<p className="text-sm font-medium">Resolve Actions Header</p>
+								<p className="text-xs text-muted-foreground">
+									Show Resolve Actions branding for demos
+								</p>
+							</div>
+							<Switch
+								checked={headerStyle === 'resolve'}
+								onCheckedChange={(checked) =>
+									setHeaderStyle(checked ? 'resolve' : 'rita')
+								}
+							/>
+						</div>
+					</div>
 
 					{isAdmin && (
 						<div className="flex flex-col gap-6">

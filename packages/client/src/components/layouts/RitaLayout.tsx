@@ -13,6 +13,7 @@
 
 "use client";
 
+import { useTranslation } from "react-i18next";
 import {
 	ALargeSmall,
 	Bot,
@@ -29,12 +30,10 @@ import {
 	Upload,
 	Workflow,
 } from "lucide-react";
-import { memo, useCallback, useEffect, useRef, useState } from "react";
-import { useTranslation } from "react-i18next";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Loader } from "@/components/ai-elements/loader";
-import { LanguageSwitcher } from "@/components/LanguageSwitcher";
-import { ConversationList } from "@/components/sidebar/ConversationList";
+import { ConversationListItem } from "@/components/sidebar/ConversationListItem";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
 	Breadcrumb,
@@ -60,6 +59,7 @@ import {
 	SidebarContent,
 	SidebarFooter,
 	SidebarGroup,
+	SidebarGroupLabel,
 	SidebarHeader,
 	SidebarMenu,
 	SidebarMenuButton,
@@ -69,9 +69,10 @@ import {
 	useSidebar,
 } from "@/components/ui/sidebar";
 import InviteUsersButton from "@/components/users/InviteUsersButton";
+import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import WelcomeDialog from "@/components/WelcomeDialog";
 import { SOURCE_METADATA } from "@/constants/connectionSources";
-import { useInfiniteConversations } from "@/hooks/api/useConversations";
+import { useConversations } from "@/hooks/api/useConversations";
 import { useProfile, useProfilePermissions } from "@/hooks/api/useProfile";
 import { useAuth } from "@/hooks/useAuth";
 import { useChatNavigation } from "@/hooks/useChatNavigation";
@@ -80,7 +81,11 @@ import { useFeatureFlag } from "@/hooks/useFeatureFlags";
 import { useKnowledgeBase } from "@/hooks/useKnowledgeBase";
 import { SUPPORTED_DOCUMENT_TYPES } from "@/lib/constants";
 import { cn } from "@/lib/utils";
+import type { Conversation } from "@/stores/conversationStore";
 import type { DataSourceConnection } from "@/types/dataSource";
+import { memo } from "react";
+import { useUIStore } from "@/stores/uiStore";
+import { ActionsLayout } from "./ActionsLayout";
 
 export interface RitaLayoutProps {
 	children: React.ReactNode;
@@ -92,7 +97,7 @@ export interface RitaLayoutProps {
 // Using background-image instead of <img> for better caching
 const RitaLogo = memo(() => (
 	<div
-		className="w-[175px] h-[28px] bg-no-repeat bg-center bg-contain"
+		className="w-[179px] h-[18px] bg-no-repeat bg-center bg-contain"
 		style={{ backgroundImage: "url('/logo-rita.svg')" }}
 		role="img"
 		aria-label="RITA Logo"
@@ -118,13 +123,8 @@ function RitaLayoutContent({ children, activePage = "chat" }: RitaLayoutProps) {
 	const { user, logout } = useAuth();
 	const { data: profile } = useProfile();
 	const { isOwnerOrAdmin } = useProfilePermissions();
-	const {
-		data: conversationsData,
-		isLoading: conversationsLoading,
-		hasNextPage,
-		isFetchingNextPage,
-		fetchNextPage,
-	} = useInfiniteConversations();
+	const { data: conversationsData, isLoading: conversationsLoading } =
+		useConversations();
 	const { data: dataSources } = useDataSources();
 	const { handleNewChat, handleConversationClick, currentConversationId } =
 		useChatNavigation();
@@ -137,8 +137,7 @@ function RitaLayoutContent({ children, activePage = "chat" }: RitaLayoutProps) {
 		uploadingFiles,
 	} = useKnowledgeBase();
 
-	const conversations =
-		conversationsData?.pages.flatMap((p) => p.conversations) ?? [];
+	const conversations = conversationsData || [];
 
 	// Filter synced sources (completed + enabled)
 	const syncedSources =
@@ -184,7 +183,8 @@ function RitaLayoutContent({ children, activePage = "chat" }: RitaLayoutProps) {
 		const storageKey = `rita_welcome_seen_${userId}`;
 
 		// Check localStorage first (persists across sessions)
-		const hasSeenInLocalStorage = localStorage.getItem(storageKey) === "true";
+		const hasSeenInLocalStorage =
+			localStorage.getItem(storageKey) === "true";
 		// Check cookie as fallback
 		const hasSeenInCookie = document.cookie.includes(`${storageKey}=true`);
 		return hasSeenInLocalStorage || hasSeenInCookie;
@@ -344,7 +344,7 @@ function RitaLayoutContent({ children, activePage = "chat" }: RitaLayoutProps) {
 										</span>
 									</SidebarMenuButton>
 								</SidebarMenuItem>
-							</SidebarMenu>
+								</SidebarMenu>
 						</SidebarGroup>
 					)}
 
@@ -379,15 +379,31 @@ function RitaLayoutContent({ children, activePage = "chat" }: RitaLayoutProps) {
 						</SidebarMenuItem>
 					</div>
 
-					<ConversationList
-						conversations={conversations}
-						isLoading={conversationsLoading}
-						isFetchingNextPage={isFetchingNextPage}
-						hasNextPage={hasNextPage ?? false}
-						onLoadMore={() => fetchNextPage()}
-						currentConversationId={currentConversationId}
-						onConversationClick={handleConversationClick}
-					/>
+					<SidebarGroup>
+						<SidebarGroupLabel className="px-2 h-8 rounded-md text-xs text-sidebar-foreground">
+							{t("nav.recentChats")}
+						</SidebarGroupLabel>
+						<SidebarMenu className="gap-1">
+							{conversationsLoading ? (
+								<div className="px-2 text-xs text-muted-foreground">
+									{t("nav.loading")}
+								</div>
+							) : conversations.length === 0 ? (
+								<div className="px-2 text-xs text-muted-foreground">
+									{t("nav.noConversations")}
+								</div>
+							) : (
+								conversations.map((conversation: Conversation) => (
+									<ConversationListItem
+										key={conversation.id}
+										conversation={conversation}
+										isActive={conversation.id === currentConversationId}
+										onClick={handleConversationClick}
+									/>
+								))
+							)}
+						</SidebarMenu>
+					</SidebarGroup>
 				</SidebarContent>
 
 				<SidebarFooter className="p-2 border-t border-sidebar-border">
@@ -545,9 +561,7 @@ function RitaLayoutContent({ children, activePage = "chat" }: RitaLayoutProps) {
 												className="gap-2 h-9 px-3 text-sm"
 											>
 												<Plus className="w-4 h-4" />
-												<span className="hidden sm:inline">
-													{t("nav.addArticles")}
-												</span>
+												<span className="hidden sm:inline">{t("nav.addArticles")}</span>
 											</Button>
 										</DropdownMenuTrigger>
 										<DropdownMenuContent align="end">
@@ -637,6 +651,7 @@ function RitaLayoutContent({ children, activePage = "chat" }: RitaLayoutProps) {
 				disabled={uploadingFiles.size > 0}
 			/>
 
+
 			{/* Welcome Modal */}
 			<WelcomeDialog
 				open={welcomeModalOpen}
@@ -647,6 +662,13 @@ function RitaLayoutContent({ children, activePage = "chat" }: RitaLayoutProps) {
 }
 
 export default function RitaLayout(props: RitaLayoutProps) {
+	const headerStyle = useUIStore((state) => state.headerStyle);
+
+	// If Resolve header style is selected, use ActionsLayout
+	if (headerStyle === "resolve") {
+		return <ActionsLayout>{props.children}</ActionsLayout>;
+	}
+
 	return (
 		<SidebarProvider className="w-screen">
 			<RitaLayoutContent {...props} />

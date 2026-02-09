@@ -24,6 +24,7 @@ import { useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { ActionsLayout } from "@/components/layouts/ActionsLayout";
 import RitaLayout from "@/components/layouts/RitaLayout";
+import { useUIStore } from "@/stores/uiStore";
 import { MainHeader } from "@/components/MainHeader";
 import { StatCard } from "@/components/StatCard";
 import { StatGroup } from "@/components/StatGroup";
@@ -960,7 +961,9 @@ function WorkflowDetailPanel({
 export default function SchedulerDashboardPage() {
 	const navigate = useNavigate();
 	const [searchParams] = useSearchParams();
-	const isActionsNav = searchParams.get("nav") === "actions";
+	const headerStyle = useUIStore((state) => state.headerStyle);
+	// URL param takes precedence, then fall back to uiStore setting
+	const isActionsNav = searchParams.get("nav") === "actions" || headerStyle === "resolve";
 	const [designMode, setDesignMode] = useState<DesignMode>("kanban");
 	const [layoutMode, setLayoutMode] = useState<LayoutMode>("grouped");
 	const [linearLayoutMode, setLinearLayoutMode] =
