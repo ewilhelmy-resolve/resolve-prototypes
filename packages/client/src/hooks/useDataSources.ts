@@ -229,5 +229,12 @@ export function useLatestIngestionRun(connectionId: string | undefined) {
 		},
 		enabled: !!connectionId,
 		staleTime: 10000, // 10 seconds - more frequent refresh for active syncs
+		refetchInterval: (query) => {
+			const status = query.state.data?.status;
+			if (status === "pending" || status === "running") {
+				return 5000; // 5s polling during active ingestion
+			}
+			return false;
+		},
 	});
 }
