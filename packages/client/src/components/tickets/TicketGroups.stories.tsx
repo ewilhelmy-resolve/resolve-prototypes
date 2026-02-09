@@ -413,8 +413,8 @@ export const ImportingTickets: Story = {
 						Tickets are being imported from your ITSM source. Training will
 						begin automatically once import completes.
 					</p>
-					<div className="mt-3 flex items-center gap-3">
-						<Progress value={45} className="flex-1" />
+					<div className="w-full">
+						<Progress value={45} className=" bg-white" />
 						<span className="text-sm text-muted-foreground whitespace-nowrap">
 							450 of 1000 tickets
 						</span>
@@ -451,8 +451,8 @@ export const ReImportWithClusters: Story = {
 					Tickets are being imported from your ITSM source. Training will begin
 					automatically once import completes.
 				</p>
-				<div className="mt-3 flex items-center gap-3">
-					<Progress value={30} className="flex-1" />
+				<div className="w-full">
+					<Progress value={30} className="bg-white" />
 					<span className="text-sm text-muted-foreground whitespace-nowrap">
 						300 of 1000 tickets
 					</span>

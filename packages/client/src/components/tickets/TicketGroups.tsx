@@ -273,14 +273,14 @@ export default function TicketGroups({
 							<StatusAlert variant="info" title={t("groups.importingTickets")}>
 								<p>{t("groups.importingDescription")}</p>
 								{latestRun?.metadata?.progress?.total_estimated && (
-									<div className="mt-3 flex items-center gap-3">
+									<div className="w-full">
 										<Progress
 											value={
 												(latestRun.records_processed /
 													latestRun.metadata.progress.total_estimated) *
 												100
 											}
-											className="flex-1"
+											className="bg-white"
 										/>
 										<span className="text-sm text-muted-foreground whitespace-nowrap">
 											{t("groups.importingProgress", {
@@ -322,14 +322,14 @@ export default function TicketGroups({
 								>
 									<p>{t("groups.importingDescription")}</p>
 									{latestRun?.metadata?.progress?.total_estimated && (
-										<div className="mt-3 flex items-center gap-3">
+										<div className="w-full">
 											<Progress
 												value={
 													(latestRun.records_processed /
 														latestRun.metadata.progress.total_estimated) *
 													100
 												}
-												className="flex-1"
+												className="bg-white"
 											/>
 											<span className="text-sm text-muted-foreground whitespace-nowrap">
 												{t("groups.importingProgress", {
