@@ -47,7 +47,6 @@ import { WizardFloatBuilder } from "@/components/agents/WizardFloatBuilder";
 import { CanvasBuilder } from "@/components/agents/CanvasBuilder";
 import { useAutoSave } from "@/hooks/useAutoSave";
 import { SaveStatusIndicator } from "@/components/agents/SaveStatusIndicator";
-import { AgentTestPanel } from "@/components/agents/AgentTestPanel";
 
 interface Message {
   id: string;
@@ -321,7 +320,6 @@ export default function AgentBuilderPage() {
   // Default to configure tab
   const [activeTab, setActiveTab] = useState<"configure" | "access">("configure");
   const [showTestModal, setShowTestModal] = useState(false);
-  const [showPreview, setShowPreview] = useState(true);
   const [inputValue, setInputValue] = useState("");
   const [step, setStep] = useState<ConversationStep>(isEditing || isDuplicate ? "done" : "start");
   const [isTyping, setIsTyping] = useState(false);
@@ -2029,9 +2027,8 @@ ${skillNames.map((name) => `- ${name}`).join("\n")}
       <div className="flex flex-1 overflow-hidden p-4 gap-4 justify-center">
         {/* Left panel - Configure/Access */}
         <div className="flex flex-col flex-1 max-w-3xl bg-white rounded-xl">
-          {/* Tabs with Preview toggle */}
-          <div className="flex items-center justify-between px-4 pt-4 pb-2">
-            <div className="w-20" /> {/* Spacer for centering */}
+          {/* Tabs */}
+          <div className="flex items-center justify-center px-4 pt-4 pb-2">
             <Tabs
               value={activeTab}
               onValueChange={(v) => setActiveTab(v as "configure" | "access")}
@@ -2041,15 +2038,6 @@ ${skillNames.map((name) => `- ${name}`).join("\n")}
                 <TabsTrigger value="access" className="px-8">Access</TabsTrigger>
               </TabsList>
             </Tabs>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="gap-1.5"
-              onClick={() => setShowPreview(!showPreview)}
-            >
-              <MessageSquare className="size-4" />
-              {showPreview ? "Hide" : "Preview"}
-            </Button>
           </div>
 
           {/* HIDDEN: Chat Assistant Tab - preserved for future AI-contextual features
@@ -2796,43 +2784,6 @@ ${skillNames.map((name) => `- ${name}`).join("\n")}
             </div>
           )}
         </div>
-
-        {/* Right panel - Test & Evaluate (toggleable) */}
-        {showPreview && (
-          <AgentTestPanel
-            config={{
-              name: config.name,
-              description: config.description,
-              instructions: config.instructions,
-              role: config.role,
-              iconId: config.iconId,
-              iconColorId: config.iconColorId,
-              agentType: config.agentType,
-              conversationStarters: config.conversationStarters,
-              knowledgeSources: config.knowledgeSources,
-              workflows: config.workflows,
-              guardrails: config.guardrails,
-            }}
-            onClose={() => setShowPreview(false)}
-            onTest={() => navigate(isEditing ? `/agents/${agentId}/test` : "/agents/test", {
-              state: { agentConfig: config }
-            })}
-            iconComponent={(() => {
-              const iconData = AVAILABLE_ICONS.find(i => i.id === config.iconId);
-              const colorData = ICON_COLORS.find(c => c.id === config.iconColorId);
-              const IconComponent = iconData?.icon || Bot;
-              return (
-                <div className={cn(
-                  "size-8 rounded-lg flex items-center justify-center flex-shrink-0",
-                  colorData?.bg || "bg-slate-800"
-                )}>
-                  <IconComponent className={cn("size-4", colorData?.text || "text-white")} />
-                </div>
-              );
-            })()}
-            className="w-[400px] flex-shrink-0 h-full"
-          />
-        )}
       </div>
 
       {/* Change Agent Type Modal */}

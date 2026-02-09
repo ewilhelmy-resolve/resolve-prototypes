@@ -210,6 +210,20 @@ export default function AgentTestPage() {
         setPhase("idle");
       }
       setFeedbackHistory([]);
+    } else if (feedbackHistory.length >= 2) {
+      // After 3+ poor/ok ratings, proactively suggest config improvements
+      const suggestion = generateConfigSuggestion(feedbackHistory);
+      addMessage({
+        type: "system",
+        content: "This response still isn't meeting expectations. Based on your feedback, I recommend updating the agent's instructions:"
+      });
+      addMessage({
+        type: "suggestion",
+        content: suggestion.message,
+        suggestion
+      });
+      setPhase("awaiting-suggestion-response");
+      setFeedbackHistory([]);
     } else {
       setPhase("awaiting-feedback");
       inputRef.current?.focus();
@@ -695,27 +709,52 @@ function generateResponse(
 function generateConfigSuggestion(feedbackHistory: string[]): ConfigSuggestion {
   const allFeedback = feedbackHistory.join(" ").toLowerCase();
 
-  if (allFeedback.includes("step") || allFeedback.includes("detail")) {
+  if (allFeedback.includes("step") || allFeedback.includes("detail") || allFeedback.includes("how")) {
     return {
-      message: "The agent should provide more detailed responses.",
+      message: "Add step-by-step guidance to instructions",
       updateType: "instructions",
-      updateValue: "Always provide step-by-step instructions when helping users complete tasks."
+      updateValue: "Always provide step-by-step instructions when helping users complete tasks. Include numbered steps and expected outcomes."
     };
   }
 
-  if (allFeedback.includes("friendly") || allFeedback.includes("tone")) {
+  if (allFeedback.includes("friendly") || allFeedback.includes("tone") || allFeedback.includes("nicer")) {
     return {
-      message: "The agent should use a friendlier tone.",
+      message: "Improve tone in instructions",
       updateType: "instructions",
-      updateValue: "Use a warm, friendly tone. Acknowledge user concerns with empathy."
+      updateValue: "Use a warm, friendly tone. Acknowledge user concerns with empathy before providing solutions."
     };
   }
 
-  if (allFeedback.includes("helpful") || allFeedback.includes("not")) {
+  if (allFeedback.includes("helpful") || allFeedback.includes("not") || allFeedback.includes("wrong") || allFeedback.includes("bad")) {
     return {
-      message: "The agent should be more action-oriented.",
+      message: "Make agent more action-oriented",
       updateType: "instructions",
-      updateValue: "Focus on taking concrete actions to resolve user issues."
+      updateValue: "Focus on taking concrete actions to resolve user issues. Don't just acknowledge problems - actively work to fix them."
+    };
+  }
+
+  if (allFeedback.includes("specific") || allFeedback.includes("vague") || allFeedback.includes("general")) {
+    return {
+      message: "Add specificity to responses",
+      updateType: "instructions",
+      updateValue: "Provide specific, actionable answers. Avoid generic responses. Include concrete details, numbers, and next steps."
+    };
+  }
+
+  if (allFeedback.includes("short") || allFeedback.includes("brief") || allFeedback.includes("concise")) {
+    return {
+      message: "Keep responses concise",
+      updateType: "instructions",
+      updateValue: "Keep responses brief and to the point. Lead with the answer, then provide supporting details only if needed."
+    };
+  }
+
+  // Default suggestion based on multiple poor ratings
+  if (feedbackHistory.length >= 2) {
+    return {
+      message: "Improve response quality based on feedback patterns",
+      updateType: "instructions",
+      updateValue: "When responding: Be specific and actionable. Confirm understanding before proceeding. Provide clear next steps."
     };
   }
 

@@ -9,6 +9,9 @@ interface UIState {
   // Theme
   theme: 'light' | 'dark' | 'system'
 
+  // Header style for demo purposes
+  headerStyle: 'rita' | 'resolve'
+
   // Notification preferences
   enableNotifications: boolean
   enableSounds: boolean
@@ -23,6 +26,7 @@ interface UIState {
   setSidebarOpen: (open: boolean) => void
   setSidebarWidth: (width: number) => void
   setTheme: (theme: 'light' | 'dark' | 'system') => void
+  setHeaderStyle: (style: 'rita' | 'resolve') => void
   setNotifications: (enabled: boolean) => void
   setSounds: (enabled: boolean) => void
   setMessageGrouping: (enabled: boolean) => void
@@ -39,6 +43,7 @@ export const useUIStore = create<UIState>()(
         isSidebarOpen: typeof window !== 'undefined' ? window.innerWidth >= 1024 : true, // Open on desktop by default
         sidebarWidth: 280,
         theme: 'system',
+        headerStyle: 'rita',
         enableNotifications: true,
         enableSounds: false,
         messageGrouping: true,
@@ -57,6 +62,9 @@ export const useUIStore = create<UIState>()(
 
         setTheme: (theme) =>
           set({ theme }),
+
+        setHeaderStyle: (headerStyle) =>
+          set({ headerStyle }),
 
         setNotifications: (enabled) =>
           set({ enableNotifications: enabled }),
@@ -78,6 +86,7 @@ export const useUIStore = create<UIState>()(
             isSidebarOpen: true,
             sidebarWidth: 280,
             theme: 'system',
+            headerStyle: 'rita',
             enableNotifications: true,
             enableSounds: false,
             messageGrouping: true,
@@ -91,6 +100,7 @@ export const useUIStore = create<UIState>()(
         partialize: (state) => ({
           sidebarWidth: state.sidebarWidth,
           theme: state.theme,
+          headerStyle: state.headerStyle,
           enableNotifications: state.enableNotifications,
           enableSounds: state.enableSounds,
           messageGrouping: state.messageGrouping,

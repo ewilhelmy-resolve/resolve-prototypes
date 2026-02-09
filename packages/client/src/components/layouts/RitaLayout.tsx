@@ -84,6 +84,8 @@ import { cn } from "@/lib/utils";
 import type { Conversation } from "@/stores/conversationStore";
 import type { DataSourceConnection } from "@/types/dataSource";
 import { memo } from "react";
+import { useUIStore } from "@/stores/uiStore";
+import { ActionsLayout } from "./ActionsLayout";
 
 export interface RitaLayoutProps {
 	children: React.ReactNode;
@@ -660,6 +662,13 @@ function RitaLayoutContent({ children, activePage = "chat" }: RitaLayoutProps) {
 }
 
 export default function RitaLayout(props: RitaLayoutProps) {
+	const headerStyle = useUIStore((state) => state.headerStyle);
+
+	// If Resolve header style is selected, use ActionsLayout
+	if (headerStyle === "resolve") {
+		return <ActionsLayout>{props.children}</ActionsLayout>;
+	}
+
 	return (
 		<SidebarProvider className="w-screen">
 			<RitaLayoutContent {...props} />
