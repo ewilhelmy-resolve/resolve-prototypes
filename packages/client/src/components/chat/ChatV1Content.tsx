@@ -50,6 +50,13 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@/components/ui/card";
+import {
+	Dialog,
+	DialogContent,
+	DialogDescription,
+	DialogHeader,
+	DialogTitle,
+} from "@/components/ui/dialog";
 import { ritaToast } from "@/components/ui/rita-toast";
 import { SOURCE_METADATA, SOURCES } from "@/constants/connectionSources";
 import { useUploadFile } from "@/hooks/api/useFiles";
@@ -76,6 +83,11 @@ import type {
 } from "@/stores/conversationStore";
 import { useConversationStore } from "@/stores/conversationStore";
 import type { UIActionPayload } from "@/types/uiSchema";
+import {
+	canAccessParentDocument,
+	openFormModal as hostOpenFormModal,
+	isInIframe,
+} from "@/utils/hostModal";
 import { SchemaRenderer } from "../schema-renderer";
 import { InlineFormRequest } from "../ui-form-request/InlineFormRequest";
 import { ResponseWithInlineCitations } from "./ResponseWithInlineCitations";
@@ -406,12 +418,17 @@ function SimpleMessage({
 }) {
 	// Hover state for timestamp visibility
 	const [isHovering, setIsHovering] = useState(false);
+	// Fallback dialog state for cross-origin hosts without embed script
+	const [showFallbackDialog, setShowFallbackDialog] = useState(false);
 
 	// Check if this is a UI form request message
 	const isFormRequest = message.metadata?.type === "ui_form_request";
 	const isInterruptForm = isFormRequest && message.metadata?.interrupt;
 
-	// Send RITA_FORM_MODAL postMessage to host for interrupt forms
+	// Trigger form modal with tiered fallback:
+	// Tier 0: same-origin → inject into host DOM
+	// Tier 1: cross-origin + embed script → host renders modal, sends ACK
+	// Tier 2: cross-origin, no embed script → in-iframe Dialog fallback
 	const triggerHostModal = useCallback(() => {
 		if (!message.metadata?.ui_schema) return;
 		const uiSchema = message.metadata.ui_schema;
@@ -420,13 +437,7 @@ function SimpleMessage({
 
 		const [, modal] = modalEntries[0] as [string, any];
 		const fields = (modal.children ?? modal.fields ?? [])
-			.filter(
-				(child: any) =>
-					child.type === "input" ||
-					child.type === "select" ||
-					child.type === "text" ||
-					child.type === "textarea",
-			)
+			.filter((child: any) => child.name)
 			.map((child: any) => ({
 				name: child.name,
 				label: child.label,
@@ -438,25 +449,70 @@ function SimpleMessage({
 				required: child.required,
 			}));
 
-		window.parent.postMessage(
-			{
-				type: "RITA_FORM_MODAL",
-				payload: {
-					requestId: message.metadata.request_id,
-					messageId: message.id,
-					title: modal.title,
-					description: modal.description,
-					size: modal.size || "md",
-					fields,
-					submitAction: modal.submitAction,
-					submitLabel: modal.submitLabel,
-					cancelLabel: modal.cancelLabel,
-					submitVariant: modal.submitVariant,
+		// Tier 0: same-origin — inject form modal into host DOM
+		if (isInIframe() && canAccessParentDocument()) {
+			hostOpenFormModal({
+				title: modal.title,
+				description: modal.description,
+				size: modal.size || "md",
+				fields,
+				submitLabel: modal.submitLabel,
+				cancelLabel: modal.cancelLabel,
+				submitVariant: modal.submitVariant,
+				preventBackdropClose: true,
+				onSubmit: (data) => {
+					onFormSubmit?.(
+						message.metadata!.request_id,
+						modal.submitAction || "submit",
+						data,
+					);
 				},
-			},
-			"*",
-		);
-	}, [message.metadata, message.id]);
+				onCancel: () => {
+					onFormCancel?.(message.metadata!.request_id);
+				},
+			});
+			return;
+		}
+
+		// Cross-origin: send postMessage + wait for ACK
+		if (isInIframe()) {
+			const payload = {
+				requestId: message.metadata.request_id,
+				messageId: message.id,
+				title: modal.title,
+				description: modal.description,
+				size: modal.size || "md",
+				fields,
+				submitAction: modal.submitAction,
+				submitLabel: modal.submitLabel,
+				cancelLabel: modal.cancelLabel,
+				submitVariant: modal.submitVariant,
+			};
+
+			let ackReceived = false;
+			const onAck = (evt: MessageEvent) => {
+				if (evt.data?.type === "RITA_FORM_MODAL_ACK") {
+					ackReceived = true;
+					window.removeEventListener("message", onAck);
+				}
+			};
+			window.addEventListener("message", onAck);
+
+			window.parent.postMessage({ type: "RITA_FORM_MODAL", payload }, "*");
+
+			// Tier 2 fallback: if no ACK in 300ms, open in-iframe dialog
+			setTimeout(() => {
+				window.removeEventListener("message", onAck);
+				if (!ackReceived) {
+					setShowFallbackDialog(true);
+				}
+			}, 300);
+			return;
+		}
+
+		// Not in iframe — open fallback dialog directly
+		setShowFallbackDialog(true);
+	}, [message.metadata, message.id, onFormSubmit, onFormCancel]);
 
 	// Auto-trigger host modal once for pending interrupt forms loaded from history
 	const modalTriggered = useRef(false);
@@ -550,6 +606,62 @@ function SimpleMessage({
 								</Card>
 							);
 						})()}
+
+					{/* Tier 2 fallback: in-iframe Dialog for interrupt forms */}
+					{isFormRequest &&
+						isInterruptForm &&
+						message.metadata?.ui_schema &&
+						onFormSubmit && (
+							<Dialog
+								open={showFallbackDialog}
+								onOpenChange={(open) => {
+									if (!open) {
+										setShowFallbackDialog(false);
+										onFormCancel?.(message.metadata!.request_id);
+									}
+								}}
+							>
+								<DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+									<DialogHeader>
+										<DialogTitle>
+											{(() => {
+												const entries = Object.entries(
+													message.metadata?.ui_schema?.modals || {},
+												);
+												return entries.length > 0
+													? (entries[0][1] as any).title || "Form"
+													: "Form";
+											})()}
+										</DialogTitle>
+										<DialogDescription>
+											{(() => {
+												const entries = Object.entries(
+													message.metadata?.ui_schema?.modals || {},
+												);
+												return entries.length > 0
+													? (entries[0][1] as any).description || ""
+													: "";
+											})()}
+										</DialogDescription>
+									</DialogHeader>
+									<InlineFormRequest
+										requestId={message.metadata.request_id}
+										uiSchema={message.metadata.ui_schema}
+										status={message.metadata.status || "pending"}
+										formData={message.metadata.form_data}
+										submittedAt={message.metadata.submitted_at}
+										onSubmit={async (reqId, action, data) => {
+											setShowFallbackDialog(false);
+											await onFormSubmit(reqId, action, data);
+										}}
+										onCancel={async (reqId) => {
+											setShowFallbackDialog(false);
+											await onFormCancel?.(reqId);
+										}}
+									/>
+								</DialogContent>
+							</Dialog>
+						)}
 
 					{/* Regular message content */}
 					{!isFormRequest && message.message && (

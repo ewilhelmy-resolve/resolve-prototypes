@@ -1214,6 +1214,8 @@
                     break;
                 case 'RITA_FORM_MODAL':
                     log('Received RITA_FORM_MODAL from iframe', 'incoming');
+                    // ACK so iframe knows host will handle rendering
+                    document.getElementById('ritaIframe')?.contentWindow?.postMessage({ type: 'RITA_FORM_MODAL_ACK' }, '*');
                     openFormModal(payload);
                     break;
                 case 'RITA_CLOSE_FORM_MODAL':
@@ -1804,7 +1806,8 @@
                     closeFormModal();
                     // Notify iframe that modal was cancelled
                     document.getElementById('ritaIframe').contentWindow.postMessage({
-                        type: 'FORM_MODAL_CANCELLED'
+                        type: 'FORM_MODAL_CANCELLED',
+                        requestId: config.requestId
                     }, '*');
                 }
             });
@@ -1836,6 +1839,8 @@
                 // Send form data back to iframe
                 document.getElementById('ritaIframe').contentWindow.postMessage({
                     type: 'FORM_MODAL_SUBMITTED',
+                    requestId: config.requestId,
+                    action: config.submitAction,
                     data
                 }, '*');
                 log(`Form submitted: ${JSON.stringify(data).substring(0, 50)}...`, 'outgoing');
@@ -1846,7 +1851,8 @@
                 if (e.key === 'Escape' && !config.preventBackdropClose) {
                     closeFormModal();
                     document.getElementById('ritaIframe').contentWindow.postMessage({
-                        type: 'FORM_MODAL_CANCELLED'
+                        type: 'FORM_MODAL_CANCELLED',
+                        requestId: config.requestId
                     }, '*');
                     document.removeEventListener('keydown', escHandler);
                 }
