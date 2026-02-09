@@ -51,7 +51,9 @@ export class CredentialDelegationService {
 		}
 
 		// Validate ITSM system type
-		if (!["servicenow_itsm", "jira_itsm"].includes(itsmSystemType)) {
+		if (
+			!["servicenow_itsm", "jira_itsm", "ivanti_itsm"].includes(itsmSystemType)
+		) {
 			throw new Error("Invalid ITSM system type");
 		}
 
@@ -401,16 +403,23 @@ export class CredentialDelegationService {
 
 		// Extract non-sensitive settings to store (URL, username/email - NOT passwords/tokens)
 		const creds = credentials as unknown as Record<string, unknown>;
-		const submittedSettings =
-			delegation.itsm_system_type === "servicenow_itsm"
-				? {
-						instanceUrl: creds.instance_url,
-						username: creds.username,
-					}
-				: {
-						url: creds.instance_url,
-						email: creds.email,
-					};
+		let submittedSettings: Record<string, unknown>;
+		if (delegation.itsm_system_type === "servicenow_itsm") {
+			submittedSettings = {
+				instanceUrl: creds.instance_url,
+				username: creds.username,
+			};
+		} else if (delegation.itsm_system_type === "ivanti_itsm") {
+			submittedSettings = {
+				url: creds.url,
+			};
+		} else {
+			// jira_itsm
+			submittedSettings = {
+				url: creds.instance_url,
+				email: creds.email,
+			};
+		}
 
 		// Update timestamp, store settings, and reset to pending (clear previous error if retrying)
 		await this.pool.query(
@@ -540,6 +549,22 @@ export class CredentialDelegationService {
 		}
 
 		const creds = credentials as unknown as Record<string, unknown>;
+
+		// Ivanti uses 'url' field, others use 'instance_url'
+		if (systemType === "ivanti_itsm") {
+			if (!creds.url || typeof creds.url !== "string") {
+				throw new Error("URL is required");
+			}
+			if (!this.validateUrl(creds.url)) {
+				throw new Error(
+					"Invalid URL format. URL must start with http:// or https:// and contain a valid domain",
+				);
+			}
+			if (!creds.api_key || typeof creds.api_key !== "string") {
+				throw new Error("API key is required for Ivanti");
+			}
+			return;
+		}
 
 		if (!creds.instance_url || typeof creds.instance_url !== "string") {
 			throw new Error("Instance URL is required");

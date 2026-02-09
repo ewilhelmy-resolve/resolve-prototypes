@@ -1058,7 +1058,7 @@
 					},
 					"itsm_system_type": {
 						"type": "string",
-						"enum": ["servicenow_itsm", "jira"],
+						"enum": ["servicenow_itsm", "jira_itsm", "ivanti_itsm"],
 						"description": "ITSM system type"
 					}
 				},
@@ -1075,7 +1075,7 @@
 					},
 					"itsm_system_type": {
 						"type": "string",
-						"enum": ["servicenow_itsm", "jira"],
+						"enum": ["servicenow_itsm", "jira_itsm", "ivanti_itsm"],
 						"description": "ITSM system type"
 					},
 					"expires_at": {
@@ -1139,7 +1139,7 @@
 					},
 					"itsm_system_type": {
 						"type": "string",
-						"enum": ["servicenow_itsm", "jira"],
+						"enum": ["servicenow_itsm", "jira_itsm", "ivanti_itsm"],
 						"description": "ITSM system type"
 					},
 					"created_at": {
@@ -1190,7 +1190,7 @@
 					},
 					"itsmSystemType": {
 						"type": "string",
-						"enum": ["servicenow_itsm", "jira"],
+						"enum": ["servicenow_itsm", "jira_itsm", "ivanti_itsm"],
 						"description": "ITSM system type"
 					},
 					"status": {
@@ -1349,7 +1349,8 @@
 					"sharepoint",
 					"websearch",
 					"jira_itsm",
-					"freshdesk"
+					"freshdesk",
+					"ivanti_itsm"
 				],
 				"description": "Type of data source connection"
 			},
@@ -4566,7 +4567,7 @@
 					{
 						"schema": {
 							"type": "string",
-							"enum": ["servicenow_itsm", "jira"],
+							"enum": ["servicenow_itsm", "jira_itsm", "ivanti_itsm"],
 							"description": "Filter by ITSM system"
 						},
 						"required": false,
@@ -5239,7 +5240,7 @@
 			"post": {
 				"tags": ["Data Sources"],
 				"summary": "Sync ITSM tickets",
-				"description": "Initiate ITSM ticket ingestion for Autopilot clustering. Only valid for ITSM data sources (servicenow_itsm, jira_itsm). Returns HTTP 202 Accepted. Progress arrives via SSE event `ingestion_run_update`.",
+				"description": "Initiate ITSM ticket ingestion for Autopilot clustering. Only valid for ITSM data sources (servicenow_itsm, jira_itsm, freshdesk, ivanti_itsm). Returns HTTP 202 Accepted. Progress arrives via SSE event `ingestion_run_update`.",
 				"security": [
 					{
 						"bearerAuth": []

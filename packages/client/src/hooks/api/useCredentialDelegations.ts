@@ -12,7 +12,7 @@ import keycloak from "@/services/keycloak";
  * ITSM system types
  * Note: 'servicenow_itsm' (not 'servicenow') - KB uses separate connection
  */
-export type ItsmSystemType = "servicenow_itsm" | "jira_itsm";
+export type ItsmSystemType = "servicenow_itsm" | "jira_itsm" | "ivanti_itsm";
 
 /**
  * Delegation status
@@ -54,7 +54,18 @@ export interface JiraCredentials {
 	api_token: string;
 }
 
-export type ItsmCredentials = ServiceNowCredentials | JiraCredentials;
+/**
+ * Ivanti credentials
+ */
+export interface IvantiCredentials {
+	url: string;
+	api_key: string;
+}
+
+export type ItsmCredentials =
+	| ServiceNowCredentials
+	| JiraCredentials
+	| IvantiCredentials;
 
 /**
  * Submit credentials request

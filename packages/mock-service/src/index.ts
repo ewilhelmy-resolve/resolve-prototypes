@@ -2855,6 +2855,15 @@ app.post("/webhook", async (req, res) => {
 							options = {
 								spaces: "IT:IT Support,HELP:Helpdesk,SRE:Site Reliability",
 							};
+						} else if (verifyPayload.connection_type === "ivanti_itsm") {
+							// Ivanti ITSM connection (for ticket sync) - same structure as ServiceNow
+							options = {
+								itsm_tables: [
+									{ title: "Incidents", sys_id: "incident" },
+									{ title: "Problems", sys_id: "problem" },
+									{ title: "Service Requests", sys_id: "service_request" },
+								],
+							};
 						}
 
 						const verificationMessage = {
@@ -2988,8 +2997,10 @@ app.post("/webhook", async (req, res) => {
 				"Received sync_tickets webhook",
 			);
 
-			// For ServiceNow ITSM, insert actual test data into the database
+			// For ServiceNow ITSM and Ivanti ITSM, insert actual test data into the database
 			const isServiceNow = ticketsPayload.connection_type === "servicenow_itsm";
+			const isIvanti = ticketsPayload.connection_type === "ivanti_itsm";
+			const useRealData = isServiceNow || isIvanti;
 
 			// Start async data sync and progress reporting
 			(async () => {
@@ -2999,10 +3010,10 @@ app.post("/webhook", async (req, res) => {
 					let totalTickets: number;
 					let ticketsCreated = 0;
 
-					if (isServiceNow) {
-						// Insert actual data for ServiceNow ITSM
+					if (useRealData) {
+						// Insert actual data for ServiceNow/Ivanti ITSM
 						contextLogger.info(
-							"Inserting ServiceNow test data into database...",
+							`Inserting ${isServiceNow ? "ServiceNow" : "Ivanti"} test data into database...`,
 						);
 
 						// Send initial progress message
@@ -3113,7 +3124,8 @@ app.post("/webhook", async (req, res) => {
 							ingestionRunId: ticketsPayload.ingestion_run_id,
 							recordsProcessed: totalTickets,
 							ticketsCreated,
-							isServiceNow,
+							connectionType: ticketsPayload.connection_type,
+							useRealData,
 						},
 						"Published ticket_ingestion completed message",
 					);

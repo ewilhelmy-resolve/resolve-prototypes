@@ -9,7 +9,7 @@ export const DelegationStatusSchema = z
 	.openapi({ description: "Delegation status" });
 
 export const ItsmSystemTypeSchema = z
-	.enum(["servicenow_itsm", "jira"])
+	.enum(["servicenow_itsm", "jira_itsm", "ivanti_itsm"])
 	.openapi({ description: "ITSM system type" });
 
 export const DelegationSchema = z

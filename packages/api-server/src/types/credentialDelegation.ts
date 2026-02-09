@@ -7,7 +7,7 @@
  * Supported ITSM system types for credential delegation
  * Note: 'servicenow_itsm' (not 'servicenow') - KB uses separate connection
  */
-export type ItsmSystemType = "servicenow_itsm" | "jira_itsm";
+export type ItsmSystemType = "servicenow_itsm" | "jira_itsm" | "ivanti_itsm";
 
 /**
  * Delegation token status
@@ -92,7 +92,15 @@ export interface JiraCredentials {
 	api_token: string;
 }
 
-export type ItsmCredentials = ServiceNowCredentials | JiraCredentials;
+export interface IvantiCredentials {
+	url: string;
+	api_key: string;
+}
+
+export type ItsmCredentials =
+	| ServiceNowCredentials
+	| JiraCredentials
+	| IvantiCredentials;
 
 /**
  * Submit credentials request body (public endpoint)

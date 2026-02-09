@@ -50,6 +50,7 @@ export const SOURCES = {
 	WEB_SEARCH: "websearch",
 	JIRA_ITSM: "jira_itsm",
 	FRESHDESK: "freshdesk",
+	IVANTI_ITSM: "ivanti_itsm",
 } as const;
 
 export type SourceId = (typeof SOURCES)[keyof typeof SOURCES];
@@ -67,6 +68,7 @@ export const ITSM_SOURCE_TYPES = [
 	"servicenow_itsm",
 	"jira_itsm",
 	"freshdesk",
+	"ivanti_itsm",
 ] as const;
 
 // Display order for each section
@@ -76,7 +78,12 @@ export const KNOWLEDGE_SOURCES_ORDER = [
 	"servicenow",
 	"websearch",
 ];
-export const ITSM_SOURCES_ORDER = ["servicenow_itsm", "jira_itsm", "freshdesk"];
+export const ITSM_SOURCES_ORDER = [
+	"servicenow_itsm",
+	"jira_itsm",
+	"freshdesk",
+	"ivanti_itsm",
+];
 
 // Static metadata for each source type (icons, titles, descriptions)
 export const SOURCE_METADATA: Record<
@@ -111,6 +118,10 @@ export const SOURCE_METADATA: Record<
 	freshdesk: {
 		title: "Freshdesk",
 		description: "Import tickets from Freshdesk for autopilot clustering.",
+	},
+	ivanti_itsm: {
+		title: "Ivanti",
+		description: "Import tickets from Ivanti for Autopilot clustering.",
 	},
 };
 
