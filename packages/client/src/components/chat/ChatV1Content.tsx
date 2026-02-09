@@ -10,8 +10,10 @@
 
 import type { ChatStatus } from "ai";
 import {
+	CheckCircle2,
 	CheckIcon,
 	CopyIcon,
+	PenLine,
 	Upload /* , PaperclipIcon */,
 } from "lucide-react";
 import { Fragment, useCallback, useEffect, useRef, useState } from "react";
@@ -40,6 +42,7 @@ import {
 } from "@/components/ai-elements/task";
 import { ChatInput } from "@/components/chat/ChatInput";
 import { Citations } from "@/components/citations";
+import { Button } from "@/components/ui/button";
 import {
 	Card,
 	CardContent,
@@ -408,6 +411,66 @@ function SimpleMessage({
 	const isFormRequest = message.metadata?.type === "ui_form_request";
 	const isInterruptForm = isFormRequest && message.metadata?.interrupt;
 
+	// Send RITA_FORM_MODAL postMessage to host for interrupt forms
+	const triggerHostModal = useCallback(() => {
+		if (!message.metadata?.ui_schema) return;
+		const uiSchema = message.metadata.ui_schema;
+		const modalEntries = Object.entries(uiSchema?.modals || {});
+		if (modalEntries.length === 0) return;
+
+		const [, modal] = modalEntries[0] as [string, any];
+		const fields = (modal.children ?? modal.fields ?? [])
+			.filter(
+				(child: any) =>
+					child.type === "input" ||
+					child.type === "select" ||
+					child.type === "text" ||
+					child.type === "textarea",
+			)
+			.map((child: any) => ({
+				name: child.name,
+				label: child.label,
+				type: child.type,
+				inputType: child.inputType,
+				placeholder: child.placeholder,
+				defaultValue: child.defaultValue,
+				options: child.options,
+				required: child.required,
+			}));
+
+		window.parent.postMessage(
+			{
+				type: "RITA_FORM_MODAL",
+				payload: {
+					requestId: message.metadata.request_id,
+					messageId: message.id,
+					title: modal.title,
+					description: modal.description,
+					size: modal.size || "md",
+					fields,
+					submitAction: modal.submitAction,
+					submitLabel: modal.submitLabel,
+					cancelLabel: modal.cancelLabel,
+					submitVariant: modal.submitVariant,
+				},
+			},
+			"*",
+		);
+	}, [message.metadata, message.id]);
+
+	// Auto-trigger host modal once for pending interrupt forms loaded from history
+	const modalTriggered = useRef(false);
+	useEffect(() => {
+		if (
+			modalTriggered.current ||
+			!isInterruptForm ||
+			message.metadata?.status === "completed"
+		)
+			return;
+		modalTriggered.current = true;
+		triggerHostModal();
+	}, [isInterruptForm, message.metadata?.status, triggerHostModal]);
+
 	return (
 		<Message from={message.role}>
 			<div
@@ -435,14 +498,58 @@ function SimpleMessage({
 							/>
 						)}
 
-					{/* For interrupt form requests, show a compact placeholder */}
-					{isFormRequest && isInterruptForm && (
-						<div className="text-sm text-muted-foreground italic">
-							{message.metadata?.status === "completed"
-								? "Form submitted"
-								: "Form requested (see modal)"}
-						</div>
-					)}
+					{/* For interrupt form requests, show card with open/submitted state */}
+					{isFormRequest &&
+						isInterruptForm &&
+						(() => {
+							const schema = message.metadata?.ui_schema;
+							const entries = Object.entries(schema?.modals || {});
+							const modal = entries.length > 0 ? (entries[0][1] as any) : null;
+							const isCompleted = message.metadata?.status === "completed";
+
+							return (
+								<Card className="w-full max-w-lg">
+									<CardHeader className="pb-2">
+										<div className="flex items-start justify-between">
+											<div>
+												<CardTitle className="text-base">
+													{modal?.title || "Form request"}
+												</CardTitle>
+												{modal?.description && (
+													<CardDescription className="mt-1">
+														{modal.description}
+													</CardDescription>
+												)}
+											</div>
+											{isCompleted && (
+												<CheckCircle2 className="h-5 w-5 text-green-500 flex-shrink-0" />
+											)}
+										</div>
+									</CardHeader>
+									<CardContent className="pt-0">
+										{isCompleted ? (
+											<span className="text-xs text-muted-foreground">
+												Submitted{" "}
+												{message.metadata?.submitted_at
+													? new Date(
+															message.metadata.submitted_at,
+														).toLocaleString()
+													: ""}
+											</span>
+										) : (
+											<Button
+												variant="outline"
+												size="sm"
+												onClick={triggerHostModal}
+											>
+												<PenLine className="mr-2 h-4 w-4" />
+												Open form
+											</Button>
+										)}
+									</CardContent>
+								</Card>
+							);
+						})()}
 
 					{/* Regular message content */}
 					{!isFormRequest && message.message && (
