@@ -47,6 +47,7 @@ import { WizardFloatBuilder } from "@/components/agents/WizardFloatBuilder";
 import { CanvasBuilder } from "@/components/agents/CanvasBuilder";
 import { useAutoSave } from "@/hooks/useAutoSave";
 import { SaveStatusIndicator } from "@/components/agents/SaveStatusIndicator";
+import { AgentTestPanel } from "@/components/agents/AgentTestPanel";
 
 interface Message {
   id: string;
@@ -320,7 +321,7 @@ export default function AgentBuilderPage() {
   // Default to configure tab
   const [activeTab, setActiveTab] = useState<"configure" | "access">("configure");
   const [showTestModal, setShowTestModal] = useState(false);
-  const [showPreview, setShowPreview] = useState(false);
+  const [showPreview, setShowPreview] = useState(true);
   const [inputValue, setInputValue] = useState("");
   const [step, setStep] = useState<ConversationStep>(isEditing || isDuplicate ? "done" : "start");
   const [isTyping, setIsTyping] = useState(false);
@@ -2796,237 +2797,42 @@ ${skillNames.map((name) => `- ${name}`).join("\n")}
           )}
         </div>
 
-        {/* Right panel - Preview (toggleable) */}
-        {showPreview && <div className="w-[400px] flex-shrink-0 flex flex-col bg-white rounded-xl border border-border p-5">
-          {/* Header */}
-          <div className="flex items-center justify-between mb-8">
-            <h2 className="font-heading text-xl">Preview</h2>
-            <div className="flex items-center gap-1">
-              {testMessages.length > 0 && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-7 text-xs gap-1"
-                  onClick={() => {
-                    setTestMessages([]);
-                    setTestInput("");
-                  }}
-                >
-                  <RotateCcw className="size-3" />
-                  Reset
-                </Button>
-              )}
-              <Button
-                variant="ghost"
-                size="icon"
-                className="size-7"
-                onClick={() => setShowPreview(false)}
-              >
-                <X className="size-4" />
-              </Button>
-            </div>
-          </div>
-
-          {/* Debug trace panel - hidden for preview, only used in test page */}
-          {false && (
-            <div className="border-b bg-muted/30 max-h-[200px] overflow-y-auto">
-              {debugTrace.map((step) => (
-                <button
-                  key={step.id}
-                  onClick={() => setExpandedStep(expandedStep === step.id ? null : step.id)}
-                  className={cn(
-                    "w-full text-left px-4 py-2 flex items-center gap-3 hover:bg-muted/50 transition-colors",
-                    expandedStep === step.id && "bg-muted/50"
-                  )}
-                >
-                  {step.status === "success" ? (
-                    <CheckCircle2 className="size-4 text-emerald-600 flex-shrink-0" />
-                  ) : step.status === "error" ? (
-                    <XCircle className="size-4 text-red-600 flex-shrink-0" />
-                  ) : step.status === "running" ? (
-                    <Loader2 className="size-4 text-blue-600 flex-shrink-0 animate-spin" />
-                  ) : (
-                    <div className="size-4 rounded-full border-2 border-muted-foreground/30 flex-shrink-0" />
-                  )}
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs font-medium text-muted-foreground">{step.label}</span>
-                      {step.duration && <span className="text-[10px] text-muted-foreground/60">{step.duration}ms</span>}
-                    </div>
-                    <p className="text-sm truncate">{step.description}</p>
-                  </div>
-                  <ChevronRight className={cn(
-                    "size-4 text-muted-foreground/50 flex-shrink-0 transition-transform",
-                    expandedStep === step.id && "rotate-90"
-                  )} />
-                </button>
-              ))}
-            </div>
-          )}
-          {/* Chat content */}
-          <div className="flex-1 flex flex-col overflow-hidden">
-            {/* Messages area */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-4">
-              {testMessages.length === 0 ? (
-                /* Preview state - shows agent card as you build */
-                <div className="flex-1 flex flex-col justify-center">
-                  {/* Agent icon and name */}
-                  <div className="flex items-center gap-3 mb-3">
-                    <div className={cn(
-                      "size-12 rounded-xl flex items-center justify-center flex-shrink-0",
-                      ICON_COLORS.find(c => c.id === config.iconColorId)?.bg || "bg-slate-800"
-                    )}>
-                      {(() => {
-                        const iconData = AVAILABLE_ICONS.find(i => i.id === config.iconId);
-                        const colorData = ICON_COLORS.find(c => c.id === config.iconColorId);
-                        const IconComponent = iconData?.icon || Bot;
-                        return <IconComponent className={cn("size-6", colorData?.text || "text-white")} />;
-                      })()}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <h3 className="text-lg font-medium truncate">{config.name || "Untitled Agent"}</h3>
-                      {config.agentType && (
-                        <span className="text-xs text-muted-foreground">
-                          {AGENT_TYPE_INFO[config.agentType].shortLabel}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Description */}
-                  {config.description && (
-                    <p className="text-sm text-muted-foreground mb-4 line-clamp-2">
-                      {config.description}
-                    </p>
-                  )}
-
-                  {/* Conversation starters */}
-                  {(() => {
-                    const customStarters = config.conversationStarters.filter(s => s.trim());
-                    const autoStarters: string[] = [];
-                    config.workflows.forEach((skillName) => {
-                      const skill = AVAILABLE_SKILLS.find(s => s.name === skillName);
-                      if (skill?.starters) {
-                        autoStarters.push(...skill.starters);
-                      }
-                    });
-                    const displayStarters = customStarters.length > 0 ? customStarters : autoStarters;
-
-                    if (displayStarters.length === 0) return null;
-
-                    return (
-                      <div className="space-y-2 mb-4">
-                        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                          Try asking
-                        </p>
-                        <div className="space-y-1.5">
-                          {displayStarters.slice(0, 4).map((starter, index) => (
-                            <button
-                              key={index}
-                              onClick={() => handleTestStarterClick(starter)}
-                              className="w-full text-left px-3 py-2 text-sm border rounded-lg hover:bg-primary/5 hover:border-primary/30 transition-colors truncate cursor-pointer"
-                            >
-                              {starter}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    );
-                  })()}
-
-                  {/* Status indicator when nothing configured */}
-                  {!config.description && !config.conversationStarters.some(s => s.trim()) && config.workflows.length === 0 && (
-                    <div className="flex items-center justify-center gap-2 px-3 py-2.5 bg-muted/50 rounded-lg text-sm text-muted-foreground mt-4">
-                      <Clock className="size-4" />
-                      <span>Configure your agent to see preview</span>
-                    </div>
-                  )}
+        {/* Right panel - Test & Evaluate (toggleable) */}
+        {showPreview && (
+          <AgentTestPanel
+            config={{
+              name: config.name,
+              description: config.description,
+              instructions: config.instructions,
+              role: config.role,
+              iconId: config.iconId,
+              iconColorId: config.iconColorId,
+              agentType: config.agentType,
+              conversationStarters: config.conversationStarters,
+              knowledgeSources: config.knowledgeSources,
+              workflows: config.workflows,
+              guardrails: config.guardrails,
+            }}
+            onClose={() => setShowPreview(false)}
+            onTest={() => navigate(isEditing ? `/agents/${agentId}/test` : "/agents/test", {
+              state: { agentConfig: config }
+            })}
+            iconComponent={(() => {
+              const iconData = AVAILABLE_ICONS.find(i => i.id === config.iconId);
+              const colorData = ICON_COLORS.find(c => c.id === config.iconColorId);
+              const IconComponent = iconData?.icon || Bot;
+              return (
+                <div className={cn(
+                  "size-8 rounded-lg flex items-center justify-center flex-shrink-0",
+                  colorData?.bg || "bg-slate-800"
+                )}>
+                  <IconComponent className={cn("size-4", colorData?.text || "text-white")} />
                 </div>
-              ) : (
-                /* Chat messages */
-                <>
-                  {testMessages.map((message) => (
-                    <div key={message.id} className={cn(
-                      "flex gap-3",
-                      message.role === "user" && "justify-end"
-                    )}>
-                      {message.role === "assistant" ? (
-                        <>
-                          <div className={cn(
-                            "size-7 rounded-full flex items-center justify-center flex-shrink-0",
-                            ICON_COLORS.find(c => c.id === config.iconColorId)?.bg || "bg-slate-800"
-                          )}>
-                            {(() => {
-                              const iconData = AVAILABLE_ICONS.find(i => i.id === config.iconId);
-                              const colorData = ICON_COLORS.find(c => c.id === config.iconColorId);
-                              const IconComponent = iconData?.icon || Bot;
-                              return <IconComponent className={cn("size-4", colorData?.text || "text-white")} />;
-                            })()}
-                          </div>
-                          <div className="flex-1 max-w-[85%]">
-                            <p className="text-sm whitespace-pre-wrap">
-                              {renderMessageContent(message.content)}
-                            </p>
-                          </div>
-                        </>
-                      ) : (
-                        <div className="bg-primary text-primary-foreground rounded-2xl rounded-br-sm px-3 py-2 max-w-[85%]">
-                          <p className="text-sm whitespace-pre-wrap">{message.content}</p>
-                        </div>
-                      )}
-                    </div>
-                  ))}
-
-                  {/* Typing indicator */}
-                  {isTestTyping && (
-                    <div className="flex gap-3">
-                      <div className={cn(
-                        "size-7 rounded-full flex items-center justify-center flex-shrink-0",
-                        ICON_COLORS.find(c => c.id === config.iconColorId)?.bg || "bg-slate-800"
-                      )}>
-                        {(() => {
-                          const iconData = AVAILABLE_ICONS.find(i => i.id === config.iconId);
-                          const colorData = ICON_COLORS.find(c => c.id === config.iconColorId);
-                          const IconComponent = iconData?.icon || Bot;
-                          return <IconComponent className={cn("size-4", colorData?.text || "text-white")} />;
-                        })()}
-                      </div>
-                      <div className="flex gap-1 items-center py-2">
-                        <span className="size-2 bg-muted-foreground/50 rounded-full animate-bounce" />
-                        <span className="size-2 bg-muted-foreground/50 rounded-full animate-bounce" style={{ animationDelay: "0.1s" }} />
-                        <span className="size-2 bg-muted-foreground/50 rounded-full animate-bounce" style={{ animationDelay: "0.2s" }} />
-                      </div>
-                    </div>
-                  )}
-                  <div ref={testMessagesEndRef} />
-                </>
-              )}
-            </div>
-
-            {/* Input */}
-            <div className="p-4 border-t">
-              <div className="relative">
-                <Textarea
-                  value={testInput}
-                  onChange={(e) => setTestInput(e.target.value)}
-                  onKeyDown={handleTestKeyDown}
-                  placeholder="Ask anything..."
-                  className="min-h-[48px] max-h-[100px] pr-12 resize-none rounded-lg text-sm"
-                  disabled={isTestTyping}
-                />
-                <Button
-                  size="icon"
-                  onClick={handleTestSendMessage}
-                  disabled={!testInput.trim() || isTestTyping}
-                  aria-label="Send message"
-                  className="absolute bottom-2 right-2 size-7 rounded-md"
-                >
-                  <Send className="size-3.5" />
-                </Button>
-              </div>
-            </div>
-          </div>
-        </div>}
+              );
+            })()}
+            className="w-[400px] flex-shrink-0 h-full"
+          />
+        )}
       </div>
 
       {/* Change Agent Type Modal */}
