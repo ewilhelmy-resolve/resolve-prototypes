@@ -1362,6 +1362,38 @@ export default function IframeChatPage() {
 		[addDebugLog],
 	);
 
+	// Listen for FORM_MODAL_SUBMITTED / FORM_MODAL_CANCELLED from host embed script (Tier 1)
+	useEffect(() => {
+		const handler = (event: MessageEvent) => {
+			const msg = event.data;
+			if (!msg || typeof msg !== "object") return;
+
+			if (msg.type === "FORM_MODAL_SUBMITTED" && msg.requestId) {
+				addDebugLog("info", "⬇️ Host form submitted", {
+					requestId: msg.requestId,
+					action: msg.action,
+				});
+				iframeApi.submitUIFormResponse({
+					requestId: msg.requestId,
+					action: msg.action,
+					status: "submitted",
+					data: msg.data,
+				});
+			} else if (msg.type === "FORM_MODAL_CANCELLED" && msg.requestId) {
+				addDebugLog("info", "⬇️ Host form cancelled", {
+					requestId: msg.requestId,
+				});
+				iframeApi.submitUIFormResponse({
+					requestId: msg.requestId,
+					status: "cancelled",
+				});
+			}
+		};
+
+		window.addEventListener("message", handler);
+		return () => window.removeEventListener("message", handler);
+	}, [addDebugLog]);
+
 	// Loading state
 	if (isLoading) {
 		return (

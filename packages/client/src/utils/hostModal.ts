@@ -661,7 +661,7 @@ const FORM_MODAL_STYLES = `
 `;
 
 export interface FormModalField {
-	type: "input" | "select" | "textarea";
+	type: string;
 	name: string;
 	label?: string;
 	placeholder?: string;
