@@ -1364,7 +1364,7 @@ export default function IframeChatPage() {
 
 	// Listen for FORM_MODAL_SUBMITTED / FORM_MODAL_CANCELLED from host embed script (Tier 1)
 	useEffect(() => {
-		const handler = (event: MessageEvent) => {
+		const handler = async (event: MessageEvent) => {
 			const msg = event.data;
 			if (!msg || typeof msg !== "object") return;
 
@@ -1373,20 +1373,36 @@ export default function IframeChatPage() {
 					requestId: msg.requestId,
 					action: msg.action,
 				});
-				iframeApi.submitUIFormResponse({
+				await iframeApi.submitUIFormResponse({
 					requestId: msg.requestId,
 					action: msg.action,
 					status: "submitted",
 					data: msg.data,
 				});
+				// Update local store to mark form as completed
+				const { messages: storeMessages, updateMessage: storeUpdate } = useConversationStore.getState();
+				const formMsg = storeMessages.find((m) => m.metadata?.request_id === msg.requestId);
+				if (formMsg) {
+					storeUpdate(formMsg.id, {
+						metadata: { ...formMsg.metadata, status: "completed", form_data: msg.data, form_action: msg.action, submitted_at: new Date().toISOString() },
+					});
+				}
 			} else if (msg.type === "FORM_MODAL_CANCELLED" && msg.requestId) {
 				addDebugLog("info", "⬇️ Host form cancelled", {
 					requestId: msg.requestId,
 				});
-				iframeApi.submitUIFormResponse({
+				await iframeApi.submitUIFormResponse({
 					requestId: msg.requestId,
 					status: "cancelled",
 				});
+				// Update local store to mark form as cancelled
+				const { messages: cancelMessages, updateMessage: cancelUpdate } = useConversationStore.getState();
+				const cancelMsg = cancelMessages.find((m) => m.metadata?.request_id === msg.requestId);
+				if (cancelMsg) {
+					cancelUpdate(cancelMsg.id, {
+						metadata: { ...cancelMsg.metadata, status: "cancelled", submitted_at: new Date().toISOString() },
+					});
+				}
 			}
 		};
 
