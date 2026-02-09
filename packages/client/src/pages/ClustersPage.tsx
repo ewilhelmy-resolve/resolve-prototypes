@@ -8,6 +8,7 @@ import TicketGroups from "@/components/tickets/TicketGroups";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useActiveModel } from "@/hooks/useActiveModel";
 import { useClusters } from "@/hooks/useClusters";
+import { useIsIngesting } from "@/hooks/useIsIngesting";
 import type { PeriodFilter } from "@/types/cluster";
 import { TRAINING_STATES } from "@/types/mlModel";
 
@@ -19,14 +20,18 @@ export default function ClustersPage() {
 	const { data: activeModel, isLoading: isModelLoading } = useActiveModel();
 	const trainingState = activeModel?.metadata?.training_state;
 
+	// Check if any ITSM source is actively importing tickets
+	const { isIngesting } = useIsIngesting();
+
 	// Determine loading states
 	const hasNoModel = !isModelLoading && activeModel === null;
 	const isTraining = trainingState === TRAINING_STATES.IN_PROGRESS;
 	const canShowData = trainingState === TRAINING_STATES.COMPLETE;
 
-	// Show skeletons only when: loading model OR training in progress
-	// NOT when there's no model - that should show empty state
-	const showSkeletons = isModelLoading || isTraining;
+	// Show skeletons for first-time import (no completed model yet)
+	// Re-imports keep existing clusters visible with just a banner
+	const isFirstImport = isIngesting && !canShowData;
+	const showSkeletons = isModelLoading || isTraining || isFirstImport;
 
 	// Period display labels
 	const periodLabels: Record<PeriodFilter, string> = {
