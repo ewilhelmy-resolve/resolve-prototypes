@@ -1373,21 +1373,21 @@ The system is performing well overall but requires attention to the identified s
 								title: "ServiceNow Connection",
 								description: "Configure your ServiceNow instance credentials",
 								size: "md",
-								children: [
+								fields: [
 									{
-										type: "input",
+										type: "text",
 										name: "hostname",
 										label: "Instance Hostname",
 										placeholder: "your-instance.service-now.com",
 									},
 									{
-										type: "input",
+										type: "text",
 										name: "username",
 										label: "Username",
 										placeholder: "admin",
 									},
 									{
-										type: "input",
+										type: "text",
 										name: "apiKey",
 										label: "API Key",
 										inputType: "password",
@@ -1438,44 +1438,45 @@ The system is performing well overall but requires attention to the identified s
 					ui_schema: {
 						version: "1",
 						modals: {
-							"auth-modal": {
-								title: "Authentication Required",
-								description:
-									"This workflow requires authentication to continue",
+							customerInfo: {
+								title: "Customer Information",
+								description: "Please provide the customer details",
 								size: "md",
-								children: [
+								fields: [
 									{
 										type: "text",
-										content: "Please provide your API credentials to proceed.",
-										variant: "muted",
+										name: "customerName",
+										label: "Customer Name",
+										required: true,
+										placeholder: "Enter customer name",
 									},
 									{
-										type: "input",
-										name: "apiEndpoint",
-										label: "API Endpoint",
-										placeholder: "https://api.example.com",
-									},
-									{
-										type: "input",
-										name: "apiKey",
-										label: "API Key",
-										inputType: "password",
-										placeholder: "Enter your API key",
+										type: "text",
+										name: "email",
+										label: "Email Address",
+										required: true,
+										placeholder: "customer@example.com",
 									},
 									{
 										type: "select",
-										name: "authType",
-										label: "Authentication Type",
-										placeholder: "Select auth type",
+										name: "priority",
+										label: "Priority Level",
+										required: true,
 										options: [
-											{ label: "Bearer Token", value: "bearer" },
-											{ label: "API Key Header", value: "api-key" },
-											{ label: "Basic Auth", value: "basic" },
+											{ label: "Low", value: "low" },
+											{ label: "Medium", value: "medium" },
+											{ label: "High", value: "high" },
 										],
 									},
+									{
+										type: "textarea",
+										name: "notes",
+										label: "Additional Notes",
+										placeholder: "Any additional information...",
+									},
 								],
-								submitAction: "authenticate",
-								submitLabel: "Authenticate",
+								submitAction: "submit_customer_info",
+								submitLabel: "Submit",
 								cancelLabel: "Cancel",
 							},
 						},

@@ -720,6 +720,7 @@
             <div class="dev-section">
                 <h3>Manual Connection</h3>
                 <input type="text" class="dev-input" id="sessionKey" placeholder="Session Key (Valkey)" value="dev-test-session">
+                <input type="text" class="dev-input" id="conversationIdInput" placeholder="Conversation ID (optional)" style="margin-top: 4px;">
                 <button class="dev-btn primary" onclick="loadIframe()">Load Iframe</button>
                 <div style="margin-top: 8px; font-size: 11px;">
                     <span class="status-dot" id="statusDot"></span>
@@ -943,7 +944,9 @@
                 return;
             }
 
-            const url = `${RITA_BASE_URL}/iframe/chat?sessionKey=${encodeURIComponent(sessionKey)}`;
+            const convId = document.getElementById('conversationIdInput').value.trim();
+            const chatPath = convId ? `/iframe/chat/${convId}` : '/iframe/chat';
+            const url = `${RITA_BASE_URL}${chatPath}?sessionKey=${encodeURIComponent(sessionKey)}`;
 
             iframeReady = false;
             updateStatus('Loading...', 'waiting');
@@ -1216,6 +1219,9 @@
                 case 'RITA_CLOSE_FORM_MODAL':
                     log('Received RITA_CLOSE_FORM_MODAL from iframe', 'incoming');
                     closeFormModal();
+                    break;
+                default:
+                    log(`[postMessage] ${type}: ${JSON.stringify(event.data).substring(0, 200)}`, 'info');
                     break;
             }
         });
