@@ -477,7 +477,7 @@ export class IframeService {
 					request_id: requestId,
 					status,
 					form_action: action,
-					data: data || {},
+					form_data: data || {},
 					timestamp: submittedAt,
 				};
 
