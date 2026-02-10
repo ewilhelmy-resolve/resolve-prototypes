@@ -54,6 +54,16 @@ export interface Message {
 		turn_complete?: boolean; // UI hint: true = turn finished, false/undefined = more messages coming
 		// Dynamic UI schema - when present, render UI components from JSON schema
 		ui_schema?: UISchema;
+		// UI form request fields (metadata.type === "ui_form_request")
+		type?: string;
+		request_id?: string;
+		interrupt?: boolean;
+		status?: "pending" | "completed" | "cancelled";
+		form_data?: Record<string, string>;
+		form_action?: string;
+		submitted_at?: string;
+		workflow_id?: string;
+		activity_id?: string;
 	};
 
 	// Grouping for multi-part AI responses

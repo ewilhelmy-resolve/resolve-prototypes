@@ -395,52 +395,64 @@ export class IframeService {
 	}): Promise<void> {
 		const { requestId, action, status, data } = payload;
 
-		// 1. Look up the pending form request from database
+		// 1. Look up the message containing this form request
 		const client = await pool.connect();
 		try {
-			const result = await client.query(
-				`SELECT id, tenant_id, user_id, workflow_id, activity_id, conversation_id, status
-				 FROM ui_form_requests WHERE id = $1`,
+			const msgResult = await client.query(
+				`SELECT id, metadata, conversation_id, organization_id, user_id
+				 FROM messages
+				 WHERE metadata->>'request_id' = $1
+				   AND metadata->>'type' = 'ui_form_request'
+				 LIMIT 1`,
 				[requestId],
 			);
 
-			if (result.rows.length === 0) {
+			if (msgResult.rows.length === 0) {
 				throw new Error(`Form request ${requestId} not found`);
 			}
 
-			const formRequest = result.rows[0];
+			const msg = msgResult.rows[0];
+			const existingMetadata = msg.metadata || {};
 
-			if (formRequest.status !== "pending") {
+			if (existingMetadata.status === "completed") {
 				throw new Error(
-					`Form request ${requestId} already ${formRequest.status}`,
+					`Form request ${requestId} already completed`,
 				);
 			}
 
-			// 2. Update form request status in database
+			// 2. Update message metadata to mark form as answered
+			const submittedAt = new Date().toISOString();
+			const updatedMetadata = {
+				...existingMetadata,
+				status: status === "submitted" ? "completed" : "cancelled",
+				form_data: data || null,
+				form_action: action || null,
+				submitted_at: submittedAt,
+			};
+
 			await client.query(
-				`UPDATE ui_form_requests
-				 SET status = $1, form_data = $2, submitted_at = NOW()
-				 WHERE id = $3`,
-				[status, data ? JSON.stringify(data) : null, requestId],
+				`UPDATE messages SET metadata = $1 WHERE id = $2`,
+				[JSON.stringify(updatedMetadata), msg.id],
 			);
 
 			logger.info(
 				{
 					requestId,
-					workflowId: formRequest.workflow_id,
-					activityId: formRequest.activity_id,
+					messageId: msg.id,
+					workflowId: existingMetadata.workflow_id,
+					activityId: existingMetadata.activity_id,
 					status,
 					action,
 					hasData: !!data,
 				},
-				"UI form response stored",
+				"UI form response stored in message metadata",
 			);
 
 			// 3. Get webhook config from session (lookup by conversation if available)
 			let webhookConfig: IframeWebhookConfig | null = null;
-			if (formRequest.conversation_id) {
+			if (msg.conversation_id) {
 				const session = await this.sessionStore.getSessionByConversationId(
-					formRequest.conversation_id,
+					msg.conversation_id,
 				);
 				webhookConfig = session?.iframeWebhookConfig || null;
 			}
@@ -460,13 +472,13 @@ export class IframeService {
 					action: "ui_form_response",
 					tenant_id: webhookConfig.tenantId,
 					user_id: webhookConfig.userGuid,
-					workflow_id: formRequest.workflow_id,
-					activity_id: formRequest.activity_id,
+					workflow_id: existingMetadata.workflow_id,
+					activity_id: existingMetadata.activity_id,
 					request_id: requestId,
 					status,
 					form_action: action,
 					data: data || {},
-					timestamp: new Date().toISOString(),
+					timestamp: submittedAt,
 				};
 
 				// Use axios directly for custom URL
@@ -482,8 +494,8 @@ export class IframeService {
 				logger.info(
 					{
 						requestId,
-						workflowId: formRequest.workflow_id,
-						activityId: formRequest.activity_id,
+						workflowId: existingMetadata.workflow_id,
+						activityId: existingMetadata.activity_id,
 						webhookUrl,
 					},
 					"UI form response webhook sent to platform",
@@ -492,7 +504,7 @@ export class IframeService {
 				logger.warn(
 					{
 						requestId,
-						hasConversationId: !!formRequest.conversation_id,
+						hasConversationId: !!msg.conversation_id,
 						hasWebhookConfig: !!webhookConfig,
 					},
 					"No webhook config available for UI form response",

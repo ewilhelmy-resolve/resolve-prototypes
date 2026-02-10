@@ -1,0 +1,90 @@
+{
+  "innerCode": 200,
+  "data": {
+    "name": "Handle Form Response",
+    "description": "Receives and prints form response data from a RITA iframe webhook event.",
+    "Timeout": null,
+    "class": [],
+    "rootSettings": {
+      "isCollapse": false,
+      "activitySettings": [
+        {
+          "value": "",
+          "required": true,
+          "key": "request_id",
+          "label": "Request ID",
+          "labelKey": "request_id",
+          "baseType": "control",
+          "controlType": "textbox"
+        },
+        {
+          "value": "",
+          "required": true,
+          "key": "status",
+          "label": "Status",
+          "labelKey": "status",
+          "baseType": "control",
+          "controlType": "textbox"
+        },
+        {
+          "value": "",
+          "required": false,
+          "key": "form_action",
+          "label": "Form Action",
+          "labelKey": "form_action",
+          "baseType": "control",
+          "controlType": "textbox"
+        },
+        {
+          "value": "",
+          "required": true,
+          "key": "form_data",
+          "label": "Form Data (JSON)",
+          "labelKey": "form_data",
+          "baseType": "control",
+          "controlType": "textarea"
+        },
+        {
+          "value": "%tenant_id%",
+          "required": true,
+          "key": "tenant_id",
+          "label": "Tenant ID",
+          "labelKey": "tenant_id",
+          "baseType": "control",
+          "controlType": "hidden"
+        },
+        {
+          "value": "%user_id%",
+          "required": false,
+          "key": "user_id",
+          "label": "User ID",
+          "labelKey": "user_id",
+          "baseType": "control",
+          "controlType": "hidden"
+        },
+        {
+          "value": "%workflow_id%",
+          "required": false,
+          "key": "workflow_id",
+          "label": "Workflow ID",
+          "labelKey": "workflow_id",
+          "baseType": "control",
+          "controlType": "hidden"
+        },
+        {
+          "value": "%activity_id%",
+          "required": false,
+          "key": "activity_id",
+          "label": "Activity ID",
+          "labelKey": "activity_id",
+          "baseType": "control",
+          "controlType": "hidden"
+        }
+      ],
+      "index": "1",
+      "label": "main",
+      "labelKey": null
+    }
+  },
+  "message": "SUCCESS"
+}

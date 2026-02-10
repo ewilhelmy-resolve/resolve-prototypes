@@ -1,0 +1,42 @@
+Handle Form Response
+====================
+
+Receives and prints form response data from a RITA iframe webhook event (ui_form_response).
+No RabbitMQ — this activity just processes incoming webhook data and prints field values.
+
+PREREQUISITES
+-------------
+Wire a webhook event trigger to this activity in a workflow.
+The webhook payload from api-server posts to:
+  POST {actionsApiBaseUrl}/api/Webhooks/postEvent/{tenantId}
+
+Set these workflow variables:
+• %tenant_id%
+• %user_id% (optional)
+• %workflow_id% (optional)
+• %activity_id% (optional)
+
+FIELDS
+------
+• Request ID: UUID identifying the original form request
+• Status: "submitted" or "cancelled"
+• Form Action: The submit action name from the modal (e.g. "save_config")
+• Form Data (JSON): JSON object with field name/value pairs
+  Format: {"fieldName": "fieldValue", ...}
+
+EXAMPLE
+-------
+Request ID: "a1b2c3d4-..."
+Status: "submitted"
+Form Action: "save_config"
+Form Data: {"server_url": "https://example.com", "api_key": "sk-123", "enabled": true}
+
+Output:
+  === Form Response: a1b2c3d4-... ===
+  Status: submitted
+  Form Action: save_config
+  --- Form Fields (3 fields) ---
+    Field: server_url = https://example.com
+    Field: api_key = sk-123
+    Field: enabled = True
+  === End Form Response ===

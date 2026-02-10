@@ -516,16 +516,12 @@ function SimpleMessage({
 
 	// Auto-trigger host modal once for pending interrupt forms loaded from history
 	const modalTriggered = useRef(false);
+	const isFormAnswered = message.metadata?.status === "completed" || message.metadata?.status === "cancelled";
 	useEffect(() => {
-		if (
-			modalTriggered.current ||
-			!isInterruptForm ||
-			message.metadata?.status === "completed"
-		)
-			return;
+		if (modalTriggered.current || !isInterruptForm || isFormAnswered) return;
 		modalTriggered.current = true;
 		triggerHostModal();
-	}, [isInterruptForm, message.metadata?.status, triggerHostModal]);
+	}, [isInterruptForm, isFormAnswered, triggerHostModal]);
 
 	return (
 		<Message from={message.role}>
@@ -561,7 +557,7 @@ function SimpleMessage({
 							const schema = message.metadata?.ui_schema;
 							const entries = Object.entries(schema?.modals || {});
 							const modal = entries.length > 0 ? (entries[0][1] as any) : null;
-							const isCompleted = message.metadata?.status === "completed";
+							const isCompleted = message.metadata?.status === "completed" || message.metadata?.status === "cancelled";
 
 							return (
 								<Card className="w-full max-w-lg">
@@ -1143,6 +1139,28 @@ export default function ChatV1Content({
 		}
 	}, []);
 
+	// Mark a form request message as completed in the local store
+	const markFormCompleted = useCallback(
+		(requestId: string, action: string, data: Record<string, string>) => {
+			const { messages, updateMessage } = useConversationStore.getState();
+			const msg = messages.find(
+				(m) => m.metadata?.request_id === requestId,
+			);
+			if (msg) {
+				updateMessage(msg.id, {
+					metadata: {
+						...msg.metadata,
+						status: "completed",
+						form_data: data,
+						form_action: action,
+						submitted_at: new Date().toISOString(),
+					},
+				});
+			}
+		},
+		[],
+	);
+
 	// Handle form submission from inline UI form request
 	// Use props handler if provided (iframe context), otherwise use internal handler
 	const handleFormSubmit = useCallback(
@@ -1155,7 +1173,9 @@ export default function ChatV1Content({
 
 			// Use props handler if provided (iframe context)
 			if (propsFormSubmit) {
-				return propsFormSubmit(requestId, action, data);
+				await propsFormSubmit(requestId, action, data);
+				markFormCompleted(requestId, action, data);
+				return;
 			}
 
 			// Fallback: Send via iframeApi using form response endpoint
@@ -1168,6 +1188,7 @@ export default function ChatV1Content({
 				});
 
 				if (response.success) {
+					markFormCompleted(requestId, action, data);
 					ritaToast.success({
 						title: "Form submitted",
 						description: action,
@@ -1184,8 +1205,25 @@ export default function ChatV1Content({
 				throw error;
 			}
 		},
-		[propsFormSubmit],
+		[propsFormSubmit, markFormCompleted],
 	);
+
+	// Mark a form request message as cancelled in the local store
+	const markFormCancelled = useCallback((requestId: string) => {
+		const { messages, updateMessage } = useConversationStore.getState();
+		const msg = messages.find(
+			(m) => m.metadata?.request_id === requestId,
+		);
+		if (msg) {
+			updateMessage(msg.id, {
+				metadata: {
+					...msg.metadata,
+					status: "cancelled",
+					submitted_at: new Date().toISOString(),
+				},
+			});
+		}
+	}, []);
 
 	// Handle form cancellation
 	// Use props handler if provided (iframe context), otherwise use internal handler
@@ -1195,12 +1233,12 @@ export default function ChatV1Content({
 
 			// Use props handler if provided (iframe context)
 			if (propsFormCancel) {
-				return propsFormCancel(requestId);
+				await propsFormCancel(requestId);
 			}
 
-			// Fallback: just log - could send cancellation event to platform
+			markFormCancelled(requestId);
 		},
-		[propsFormCancel],
+		[propsFormCancel, markFormCancelled],
 	);
 
 	// Handle direct attachment button click
