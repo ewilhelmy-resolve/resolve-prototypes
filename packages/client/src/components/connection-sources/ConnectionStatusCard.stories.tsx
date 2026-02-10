@@ -96,6 +96,19 @@ export const ServiceNowSource: Story = {
 	},
 };
 
+export const IvantiSource: Story = {
+	args: {
+		source: createMockSource({
+			type: SOURCES.IVANTI_ITSM,
+			title: "Ivanti",
+			status: STATUS.CONNECTED,
+			settings: {
+				url: "https://company.trysaasit.com",
+			},
+		}),
+	},
+};
+
 export const WithTicketSync: Story = {
 	args: {
 		source: createMockSource({
