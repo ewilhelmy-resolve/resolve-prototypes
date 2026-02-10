@@ -10,5 +10,5 @@ export const CHAT_PAGINATION = {
  * Sidebar conversation list pagination configuration
  */
 export const SIDEBAR_PAGINATION = {
-	PAGE_SIZE: 20,
+	PAGE_SIZE: 16, // Min number of conversations to load per page in the sidebar
 } as const;
