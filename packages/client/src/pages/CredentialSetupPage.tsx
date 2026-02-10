@@ -24,7 +24,9 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Spinner } from "@/components/ui/spinner";
 import { StatusAlert } from "@/components/ui/status-alert";
@@ -36,6 +38,13 @@ import {
 	useSubmitCredentials,
 	useVerifyDelegation,
 } from "@/hooks/api/useCredentialDelegations";
+
+// Map ITSM types to their related knowledge base connection (only for types that have one)
+const RELATED_CONNECTION_LABELS: Partial<Record<ItsmSystemType, string>> = {
+	servicenow_itsm: "Knowledge Base",
+	jira_itsm: "Confluence",
+	// freshservice, freshdesk, etc. - no related connections
+};
 
 /**
  * Page states
@@ -135,12 +144,19 @@ function ServiceNowCredentialForm({
 	onSubmit,
 	isSubmitting,
 	verificationError,
+	showApplyToRelated,
+	applyToRelated,
+	onApplyToRelatedChange,
 }: {
 	onSubmit: (data: ServiceNowFormData) => void;
 	isSubmitting: boolean;
 	verificationError?: string | null;
+	showApplyToRelated: boolean;
+	applyToRelated: boolean;
+	onApplyToRelatedChange: (checked: boolean) => void;
 }) {
 	const { t } = useTranslation("credentialDelegation");
+	const relatedConnectionLabel = RELATED_CONNECTION_LABELS.servicenow_itsm;
 	const {
 		register,
 		handleSubmit,
@@ -228,6 +244,25 @@ function ServiceNowCredentialForm({
 					/>
 				</FormField>
 
+				{showApplyToRelated && (
+					<div className="flex items-center gap-2">
+						<Checkbox
+							id="apply-to-related-sn"
+							checked={applyToRelated}
+							onCheckedChange={(checked) =>
+								onApplyToRelatedChange(checked === true)
+							}
+							disabled={isSubmitting}
+						/>
+						<Label
+							htmlFor="apply-to-related-sn"
+							className="text-sm font-normal cursor-pointer"
+						>
+							{t("form.applyToRelated", { target: relatedConnectionLabel })}
+						</Label>
+					</div>
+				)}
+
 				<div className="flex justify-start gap-2 w-full">
 					<Button type="button" onClick={handleConnect} disabled={isSubmitting}>
 						{isSubmitting ? (
@@ -261,12 +296,19 @@ function JiraCredentialForm({
 	onSubmit,
 	isSubmitting,
 	verificationError,
+	showApplyToRelated,
+	applyToRelated,
+	onApplyToRelatedChange,
 }: {
 	onSubmit: (data: JiraFormData) => void;
 	isSubmitting: boolean;
 	verificationError?: string | null;
+	showApplyToRelated: boolean;
+	applyToRelated: boolean;
+	onApplyToRelatedChange: (checked: boolean) => void;
 }) {
 	const { t } = useTranslation("credentialDelegation");
+	const relatedConnectionLabel = RELATED_CONNECTION_LABELS.jira_itsm;
 	const {
 		register,
 		handleSubmit,
@@ -357,6 +399,25 @@ function JiraCredentialForm({
 						})}
 					/>
 				</FormField>
+
+				{showApplyToRelated && (
+					<div className="flex items-center gap-2">
+						<Checkbox
+							id="apply-to-related-jira"
+							checked={applyToRelated}
+							onCheckedChange={(checked) =>
+								onApplyToRelatedChange(checked === true)
+							}
+							disabled={isSubmitting}
+						/>
+						<Label
+							htmlFor="apply-to-related-jira"
+							className="text-sm font-normal cursor-pointer"
+						>
+							{t("form.applyToRelated", { target: relatedConnectionLabel })}
+						</Label>
+					</div>
+				)}
 
 				<div className="flex justify-start gap-2 w-full">
 					<Button type="button" onClick={handleConnect} disabled={isSubmitting}>
@@ -514,6 +575,7 @@ export default function CredentialSetupPage() {
 	} | null>(null);
 	const [countdown, setCountdown] = useState(90);
 	const [verifiedAt, setVerifiedAt] = useState<Date | null>(null);
+	const [applyToRelated, setApplyToRelated] = useState(false);
 
 	// Verify token on load
 	const {
@@ -557,6 +619,10 @@ export default function CredentialSetupPage() {
 		if (verifyData) {
 			if (verifyData.valid) {
 				setPageState("form");
+				// Initialize applyToRelated from delegation settings
+				if (verifyData.apply_to_related) {
+					setApplyToRelated(true);
+				}
 			} else {
 				setPageState("invalid");
 				setInvalidReason(verifyData.reason);
@@ -628,6 +694,7 @@ export default function CredentialSetupPage() {
 					username: data.username,
 					password: data.password,
 				},
+				apply_to_related: applyToRelated,
 			});
 
 			setDelegationId(result.delegation_id);
@@ -667,6 +734,7 @@ export default function CredentialSetupPage() {
 					email: data.email,
 					api_token: data.token,
 				},
+				apply_to_related: applyToRelated,
 			});
 
 			setDelegationId(result.delegation_id);
@@ -892,6 +960,9 @@ export default function CredentialSetupPage() {
 							onSubmit={handleServiceNowSubmit}
 							isSubmitting={isSubmitting}
 							verificationError={verificationError}
+							showApplyToRelated={verifyData?.apply_to_related ?? false}
+							applyToRelated={applyToRelated}
+							onApplyToRelatedChange={setApplyToRelated}
 						/>
 					)}
 					{systemType === "jira_itsm" && (
@@ -899,6 +970,9 @@ export default function CredentialSetupPage() {
 							onSubmit={handleJiraSubmit}
 							isSubmitting={isSubmitting}
 							verificationError={verificationError}
+							showApplyToRelated={verifyData?.apply_to_related ?? false}
+							applyToRelated={applyToRelated}
+							onApplyToRelatedChange={setApplyToRelated}
 						/>
 					)}
 					{systemType === "ivanti_itsm" && (

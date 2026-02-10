@@ -108,6 +108,10 @@ export interface Conversations {
 
 export interface CredentialDelegationTokens {
 	admin_email: string;
+	/**
+	 * Whether to apply credentials to related connection (e.g., KB for ITSM)
+	 */
+	apply_to_related: Generated<boolean | null>;
 	connection_id: string | null;
 	created_at: Generated<Timestamp | null>;
 	created_by_user_id: string;
