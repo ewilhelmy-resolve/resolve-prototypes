@@ -34,6 +34,7 @@ export interface VerifyDelegationResponse {
 	delegated_by?: string;
 	expires_at?: string;
 	reason?: "expired" | "not_found";
+	apply_to_related?: boolean;
 }
 
 /**
@@ -62,6 +63,7 @@ export type ItsmCredentials = ServiceNowCredentials | JiraCredentials;
 export interface SubmitCredentialsRequest {
 	token: string;
 	credentials: ItsmCredentials;
+	apply_to_related?: boolean;
 }
 
 /**
@@ -101,6 +103,7 @@ export interface CredentialDelegationError {
 export interface CreateDelegationRequest {
 	admin_email: string;
 	itsm_system_type: ItsmSystemType;
+	apply_to_related?: boolean;
 }
 
 /**
