@@ -81,8 +81,8 @@ export const KNOWLEDGE_SOURCES_ORDER = [
 export const ITSM_SOURCES_ORDER = [
 	"servicenow_itsm",
 	"jira_itsm",
-	"freshdesk",
 	"ivanti_itsm",
+	"freshdesk",
 ];
 
 // Static metadata for each source type (icons, titles, descriptions)
