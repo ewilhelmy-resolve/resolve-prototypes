@@ -110,7 +110,7 @@ export default function ClustersPage() {
 					</div>
 				}
 				stats={
-					<StatGroup>
+					<StatGroup columns={5}>
 						<StatCard
 							value={totalTickets.toLocaleString()}
 							label={t("header.stats.totalTickets")}

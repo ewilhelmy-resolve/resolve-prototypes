@@ -24,9 +24,19 @@ describe("StatGroup", () => {
 		expect(grid).toHaveClass("grid");
 	});
 
-	it("has responsive column classes", () => {
+	it("defaults to 4 columns", () => {
 		const { container } = render(
 			<StatGroup>
+				<div>Child</div>
+			</StatGroup>,
+		);
+		const grid = container.firstChild;
+		expect(grid).toHaveClass("grid-cols-1", "lg:grid-cols-4");
+	});
+
+	it("accepts custom column count", () => {
+		const { container } = render(
+			<StatGroup columns={5}>
 				<div>Child</div>
 			</StatGroup>,
 		);
