@@ -20,6 +20,16 @@ const TOKEN_EXPIRY_DAYS = 1;
 const RATE_LIMIT_PER_ORG_PER_DAY = 10;
 
 /**
+ * Mapping of ITSM types to their related knowledge base connection types
+ * Used for credential sharing between related connections
+ */
+const RELATED_CONNECTION_TYPES: Record<string, string | undefined> = {
+	servicenow_itsm: "servicenow", // ServiceNow ITSM → ServiceNow KB
+	jira_itsm: "confluence", // Jira ITSM → Confluence
+	// freshdesk, freshservice - no related connections
+};
+
+/**
  * Hash token using SHA-256 for secure storage
  * Tokens are high-entropy random values, so SHA-256 is sufficient (no need for bcrypt)
  */
@@ -42,6 +52,7 @@ export class CredentialDelegationService {
 		createdByUserId: string,
 		adminEmail: string,
 		itsmSystemType: ItsmSystemType,
+		applyToRelated = false,
 	): Promise<CreateDelegationResponse> {
 		const normalizedEmail = adminEmail.trim().toLowerCase();
 
@@ -119,8 +130,9 @@ export class CredentialDelegationService {
          itsm_system_type,
          delegation_token,
          token_expires_at,
-         status
-       ) VALUES ($1, $2, $3, $4, $5, $6, 'pending')
+         status,
+         apply_to_related
+       ) VALUES ($1, $2, $3, $4, $5, $6, 'pending', $7)
        RETURNING id`,
 			[
 				organizationId,
@@ -129,6 +141,7 @@ export class CredentialDelegationService {
 				itsmSystemType,
 				tokenHash,
 				expiresAt,
+				applyToRelated,
 			],
 		);
 
@@ -213,7 +226,7 @@ export class CredentialDelegationService {
 		const tokenHash = hashToken(token);
 		const result = await this.pool.query(
 			`SELECT cdt.id, cdt.status, cdt.token_expires_at, cdt.itsm_system_type,
-              o.name as org_name, up.email as delegated_by
+              cdt.apply_to_related, o.name as org_name, up.email as delegated_by
        FROM credential_delegation_tokens cdt
        JOIN organizations o ON cdt.organization_id = o.id
        JOIN user_profiles up ON cdt.created_by_user_id = up.user_id
@@ -248,6 +261,7 @@ export class CredentialDelegationService {
 			system_type: delegation.itsm_system_type,
 			delegated_by: delegation.delegated_by,
 			expires_at: delegation.token_expires_at.toISOString(),
+			apply_to_related: delegation.apply_to_related ?? false,
 		};
 	}
 
@@ -344,6 +358,7 @@ export class CredentialDelegationService {
 	async submitCredentials(
 		token: string,
 		credentials: ItsmCredentials,
+		applyToRelated?: boolean,
 	): Promise<SubmitCredentialsResponse> {
 		// Validate token format
 		if (!token || token.length !== 64) {
@@ -355,7 +370,7 @@ export class CredentialDelegationService {
 		const result = await this.pool.query(
 			`SELECT cdt.id, cdt.organization_id, cdt.admin_email, cdt.itsm_system_type,
               cdt.status, cdt.token_expires_at, cdt.created_by_user_id,
-              o.name as org_name, up.email as creator_email
+              cdt.apply_to_related, o.name as org_name, up.email as creator_email
        FROM credential_delegation_tokens cdt
        JOIN organizations o ON cdt.organization_id = o.id
        JOIN user_profiles up ON cdt.created_by_user_id = up.user_id
@@ -423,12 +438,29 @@ export class CredentialDelegationService {
 			[delegation.id, JSON.stringify(submittedSettings)],
 		);
 
-		// Send webhook to external service for credential verification
+		// Also update the primary connection settings in data_source_connections
+		if (connectionId) {
+			await this.pool.query(
+				`UPDATE data_source_connections
+				 SET settings = COALESCE(settings, '{}'::jsonb) || $2::jsonb,
+				     updated_at = NOW()
+				 WHERE id = $1`,
+				[connectionId, JSON.stringify(submittedSettings)],
+			);
+		}
+
+		// Determine final apply_to_related value (parameter overrides stored value if provided)
+		const finalApplyToRelated =
+			applyToRelated !== undefined
+				? applyToRelated
+				: (delegation.apply_to_related ?? false);
+
+		// Send webhook to external service for credential verification (primary ITSM connection)
 		const webhookResult = await this.dataSourceWebhookService.sendVerifyEvent({
 			organizationId: delegation.organization_id,
 			userId: delegation.created_by_user_id,
 			userEmail: delegation.creator_email,
-			connectionId: delegation.id,
+			connectionId: connectionId || delegation.id,
 			connectionType: delegation.itsm_system_type,
 			credentials: credentials,
 			settings: {
@@ -453,12 +485,103 @@ export class CredentialDelegationService {
 			// Don't fail - credentials are saved, verification will be retried
 		}
 
+		// If apply_to_related is true, send a second verify event for the related connection
+		if (finalApplyToRelated) {
+			const relatedType = RELATED_CONNECTION_TYPES[delegation.itsm_system_type];
+
+			if (relatedType) {
+				// Find the related connection for this organization
+				const relatedConnectionResult = await this.pool.query(
+					`SELECT id FROM data_source_connections
+					 WHERE organization_id = $1 AND type = $2`,
+					[delegation.organization_id, relatedType],
+				);
+
+				if (relatedConnectionResult.rows.length > 0) {
+					const relatedConnectionId = relatedConnectionResult.rows[0].id;
+
+					// Build settings for the related connection based on its type
+					const relatedSettings =
+						relatedType === "servicenow"
+							? {
+									instanceUrl: creds.instance_url,
+									username: creds.username,
+								}
+							: {
+									// Confluence uses same Atlassian credentials as Jira
+									url: creds.instance_url,
+									email: creds.email,
+								};
+
+					// Update the related connection settings in the database
+					await this.pool.query(
+						`UPDATE data_source_connections
+						 SET settings = COALESCE(settings, '{}'::jsonb) || $2::jsonb,
+						     updated_at = NOW()
+						 WHERE id = $1`,
+						[relatedConnectionId, JSON.stringify(relatedSettings)],
+					);
+
+					logger.info(
+						{
+							delegationId: delegation.id,
+							organizationId: delegation.organization_id,
+							relatedType,
+							relatedConnectionId,
+						},
+						"Sending verify event for related connection",
+					);
+
+					const relatedWebhookResult =
+						await this.dataSourceWebhookService.sendVerifyEvent({
+							organizationId: delegation.organization_id,
+							userId: delegation.created_by_user_id,
+							userEmail: delegation.creator_email,
+							connectionId: relatedConnectionId,
+							connectionType: relatedType,
+							credentials: credentials,
+							settings: {
+								delegation_id: delegation.id,
+								admin_email: delegation.admin_email,
+								organization_name: delegation.org_name,
+								owner_email: delegation.creator_email,
+								is_related_connection: true,
+								primary_connection_type: delegation.itsm_system_type,
+							},
+							isDelegationSetup: true,
+						});
+
+					if (!relatedWebhookResult.success) {
+						logger.error(
+							{
+								delegationId: delegation.id,
+								organizationId: delegation.organization_id,
+								relatedType,
+								webhookError: relatedWebhookResult.error,
+							},
+							"Related connection verification webhook failed",
+						);
+					}
+				} else {
+					logger.warn(
+						{
+							delegationId: delegation.id,
+							organizationId: delegation.organization_id,
+							relatedType,
+						},
+						"Related connection not found for apply_to_related",
+					);
+				}
+			}
+		}
+
 		logger.info(
 			{
 				delegationId: delegation.id,
 				organizationId: delegation.organization_id,
 				adminEmail: delegation.admin_email,
 				itsmSystemType: delegation.itsm_system_type,
+				applyToRelated: finalApplyToRelated,
 			},
 			"Credentials submitted for delegation",
 		);

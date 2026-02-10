@@ -1060,6 +1060,10 @@
 						"type": "string",
 						"enum": ["servicenow_itsm", "jira"],
 						"description": "ITSM system type"
+					},
+					"apply_to_related": {
+						"type": "boolean",
+						"description": "Apply credentials to related connection (e.g., KB for ITSM)"
 					}
 				},
 				"required": ["admin_email", "itsm_system_type"]
@@ -1085,6 +1089,10 @@
 					"reason": {
 						"type": "string",
 						"description": "Reason if invalid"
+					},
+					"apply_to_related": {
+						"type": "boolean",
+						"description": "Whether to apply credentials to related connection"
 					}
 				},
 				"required": ["valid"]
@@ -1125,6 +1133,10 @@
 							"username": "admin",
 							"password": "***"
 						}
+					},
+					"apply_to_related": {
+						"type": "boolean",
+						"description": "Apply credentials to related connection (overrides delegation setting if provided)"
 					}
 				},
 				"required": ["token", "credentials"]
