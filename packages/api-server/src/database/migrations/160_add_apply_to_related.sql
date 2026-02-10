@@ -1,4 +1,4 @@
--- Migration: 159_add_apply_to_related.sql
+-- Migration: 160_add_apply_to_related.sql
 -- Add apply_to_related column to credential_delegation_tokens table
 -- This flag indicates whether credentials should also be applied to related connections
 -- (e.g., Confluence for Jira ITSM, Knowledge Base for ServiceNow ITSM)
