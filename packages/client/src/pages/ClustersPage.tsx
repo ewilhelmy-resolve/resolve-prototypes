@@ -1,3 +1,4 @@
+import { ChevronDown, Settings } from "lucide-react";
 import { useState } from "react";
 import { Trans, useTranslation } from "react-i18next";
 import RitaLayout from "@/components/layouts/RitaLayout";
@@ -5,6 +6,13 @@ import { MainHeader } from "@/components/MainHeader";
 import { StatCard } from "@/components/StatCard";
 import { StatGroup } from "@/components/StatGroup";
 import TicketGroups from "@/components/tickets/TicketGroups";
+import { Button } from "@/components/ui/button";
+import {
+	DropdownMenu,
+	DropdownMenuContent,
+	DropdownMenuItem,
+	DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useActiveModel } from "@/hooks/useActiveModel";
 import { useClusters } from "@/hooks/useClusters";
@@ -49,7 +57,6 @@ export default function ClustersPage() {
 
 	const totals = clustersResponse?.totals;
 	const totalTickets = totals?.total_tickets ?? 0;
-	const clusterCount = totals?.total_clusters ?? 0;
 
 	// Header description: skeleton when loading/training, empty string when no model, real data otherwise
 	const headerDescription = showSkeletons ? (
@@ -62,7 +69,6 @@ export default function ClustersPage() {
 			ns="tickets"
 			values={{
 				ticketCount: totalTickets.toLocaleString(),
-				clusterCount,
 				period: periodLabels[period].toLowerCase(),
 			}}
 			components={{ strong: <span className="font-semibold" /> }}
@@ -74,6 +80,35 @@ export default function ClustersPage() {
 			<MainHeader
 				title="Tickets"
 				description={headerDescription}
+				action={
+					<div className="flex items-center gap-2">
+						<DropdownMenu>
+							<DropdownMenuTrigger asChild>
+								<Button variant="outline" size="sm">
+									{periodLabels[period]}
+									<ChevronDown />
+								</Button>
+							</DropdownMenuTrigger>
+							<DropdownMenuContent>
+								{(
+									[
+										"last30",
+										"last90",
+										"last6months",
+										"lastyear",
+									] as PeriodFilter[]
+								).map((p) => (
+									<DropdownMenuItem key={p} onClick={() => setPeriod(p)}>
+										{periodLabels[p]}
+									</DropdownMenuItem>
+								))}
+							</DropdownMenuContent>
+						</DropdownMenu>
+						<Button variant="outline" size="icon">
+							<Settings className="h-4 w-4" />
+						</Button>
+					</div>
+				}
 				stats={
 					<StatGroup>
 						<StatCard
@@ -83,23 +118,28 @@ export default function ClustersPage() {
 						/>
 						<StatCard
 							value="0"
-							label={t("header.stats.handledAutomatically")}
+							label={t("header.stats.totalTicketsAutomated")}
 							loading={showSkeletons}
 						/>
 						<StatCard
 							value="0%"
-							label={t("header.stats.automationRate")}
+							label={t("header.stats.automationPercentage")}
+							loading={showSkeletons}
+						/>
+						<StatCard
+							value="$0"
+							label={t("header.stats.moneySaved")}
 							loading={showSkeletons}
 						/>
 						<StatCard
 							value="0hr"
-							label={t("header.stats.aiHoursSaved")}
+							label={t("header.stats.timeSaved")}
 							loading={showSkeletons}
 						/>
 					</StatGroup>
 				}
 			/>
-			<TicketGroups period={period} onPeriodChange={setPeriod} />
+			<TicketGroups period={period} />
 		</RitaLayout>
 	);
 }

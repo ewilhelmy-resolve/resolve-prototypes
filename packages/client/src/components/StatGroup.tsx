@@ -26,6 +26,6 @@ interface StatGroupProps {
  */
 export function StatGroup({ children }: StatGroupProps) {
 	return (
-		<div className="grid grid-cols-1 lg:grid-cols-4 gap-4">{children}</div>
+		<div className="grid grid-cols-1 lg:grid-cols-5 gap-4">{children}</div>
 	);
 }
