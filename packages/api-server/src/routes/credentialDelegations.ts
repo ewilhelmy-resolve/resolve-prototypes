@@ -286,11 +286,13 @@ router.post(
 
 			if (
 				!itsm_system_type ||
-				!["servicenow_itsm", "jira_itsm"].includes(itsm_system_type)
+				!["servicenow_itsm", "jira_itsm", "ivanti_itsm"].includes(
+					itsm_system_type,
+				)
 			) {
 				return res.status(400).json({
 					error:
-						"itsm_system_type is required and must be one of: servicenow_itsm, jira_itsm",
+						"itsm_system_type is required and must be one of: servicenow_itsm, jira_itsm, ivanti_itsm",
 				});
 			}
 

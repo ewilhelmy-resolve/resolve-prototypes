@@ -96,6 +96,33 @@ export const ServiceNowSource: Story = {
 	},
 };
 
+export const IvantiSource: Story = {
+	args: {
+		source: createMockSource({
+			type: SOURCES.IVANTI_ITSM,
+			title: "Ivanti",
+			status: STATUS.CONNECTED,
+			settings: {
+				url: "https://company.trysaasit.com",
+			},
+		}),
+	},
+};
+
+export const JiraSource: Story = {
+	args: {
+		source: createMockSource({
+			type: SOURCES.JIRA_ITSM,
+			title: "Jira",
+			status: STATUS.CONNECTED,
+			settings: {
+				url: "https://company.atlassian.net",
+				email: "admin@company.com",
+			},
+		}),
+	},
+};
+
 export const WithTicketSync: Story = {
 	args: {
 		source: createMockSource({

@@ -37,6 +37,7 @@ function getDisplayFields(source: ConnectionSource) {
 	const isServiceNow =
 		source.type === SOURCES.SERVICENOW ||
 		source.type === SOURCES.SERVICENOW_ITSM;
+	const isIvanti = source.type === SOURCES.IVANTI_ITSM;
 
 	// URL field
 	let urlValue = source.settings?.url || "—";
@@ -45,17 +46,36 @@ function getDisplayFields(source: ConnectionSource) {
 	}
 
 	// User identifier field (username vs email)
-	const userLabelKey = isServiceNow
-		? ("statusCard.labels.username" as const)
-		: ("statusCard.labels.email" as const);
-	const userValue = isServiceNow
-		? source.settings?.username || "—"
-		: source.settings?.email || "—";
+	// Ivanti doesn't have a user field - only URL + API Key
+	let userLabelKey:
+		| "statusCard.labels.username"
+		| "statusCard.labels.email"
+		| null;
+	let userValue: string | null;
 
-	// Credential field label (password vs API token)
-	const credentialLabelKey = isServiceNow
-		? ("statusCard.labels.password" as const)
-		: ("statusCard.labels.apiToken" as const);
+	if (isIvanti) {
+		userLabelKey = null;
+		userValue = null;
+	} else if (isServiceNow) {
+		userLabelKey = "statusCard.labels.username";
+		userValue = source.settings?.username || "—";
+	} else {
+		userLabelKey = "statusCard.labels.email";
+		userValue = source.settings?.email || "—";
+	}
+
+	// Credential field label (password vs API token vs API key)
+	let credentialLabelKey:
+		| "statusCard.labels.password"
+		| "statusCard.labels.apiToken"
+		| "statusCard.labels.apiKey";
+	if (isServiceNow) {
+		credentialLabelKey = "statusCard.labels.password";
+	} else if (isIvanti) {
+		credentialLabelKey = "statusCard.labels.apiKey";
+	} else {
+		credentialLabelKey = "statusCard.labels.apiToken";
+	}
 
 	return {
 		urlValue,
@@ -250,14 +270,16 @@ export function ConnectionStatusCard({
 									{displayFields.urlValue}
 								</p>
 							</div>
-							<div className="flex items-center gap-2">
-								<p className="text-sm text-muted-foreground w-20 shrink-0">
-									{t(displayFields.userLabelKey)}
-								</p>
-								<p className="text-sm text-foreground truncate">
-									{displayFields.userValue}
-								</p>
-							</div>
+							{displayFields.userLabelKey && displayFields.userValue && (
+								<div className="flex items-center gap-2">
+									<p className="text-sm text-muted-foreground w-20 shrink-0">
+										{t(displayFields.userLabelKey)}
+									</p>
+									<p className="text-sm text-foreground truncate">
+										{displayFields.userValue}
+									</p>
+								</div>
+							)}
 							<div className="flex items-center gap-2">
 								<p className="text-sm text-muted-foreground w-20 shrink-0">
 									{t(displayFields.credentialLabelKey)}

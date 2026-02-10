@@ -83,6 +83,30 @@ vi.mock(
 );
 
 vi.mock(
+	"@/components/connection-sources/connection-details/IvantiItsmConfiguration",
+	() => ({
+		default: ({ onEdit }: { onEdit: () => void }) => (
+			<div>
+				<div>Ivanti ITSM Configuration</div>
+				<button onClick={onEdit}>Edit</button>
+			</div>
+		),
+	}),
+);
+
+vi.mock(
+	"@/components/connection-sources/connection-details/JiraItsmConfiguration",
+	() => ({
+		default: ({ onEdit }: { onEdit: () => void }) => (
+			<div>
+				<div>Jira ITSM Configuration</div>
+				<button onClick={onEdit}>Edit</button>
+			</div>
+		),
+	}),
+);
+
+vi.mock(
 	"@/components/connection-sources/connection-details/WebSearchConfiguration",
 	() => ({
 		default: ({ onEdit }: { onEdit: () => void }) => (
@@ -129,6 +153,12 @@ vi.mock("@/components/connection-sources/connection-forms", () => ({
 	JiraForm: ({ onCancel }: { onCancel?: () => void }) => (
 		<div>
 			<div>Jira Form</div>
+			{onCancel && <button onClick={onCancel}>Cancel</button>}
+		</div>
+	),
+	IvantiForm: ({ onCancel }: { onCancel?: () => void }) => (
+		<div>
+			<div>Ivanti Form</div>
 			{onCancel && <button onClick={onCancel}>Cancel</button>}
 		</div>
 	),

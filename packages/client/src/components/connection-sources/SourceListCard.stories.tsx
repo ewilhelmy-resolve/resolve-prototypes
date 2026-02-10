@@ -179,11 +179,30 @@ export const Freshdesk: Story = {
 	},
 };
 
+export const Ivanti: Story = {
+	args: {
+		source: createMockSource({
+			type: SOURCES.IVANTI_ITSM,
+			title: "Ivanti",
+			status: STATUS.CONNECTED,
+			description: "Import tickets from Ivanti for Autopilot clustering.",
+			settings: {
+				url: "https://company.trysaasit.com",
+			},
+		}),
+		isEnabled: true,
+		actionLabel: "Manage",
+		lastSyncLabel: "Last synced {time}",
+	},
+};
+
 export const AllVariants: Story = {
 	render: () => (
 		<div className="space-y-4">
 			<div>
-				<p className="text-sm text-muted-foreground mb-2">Enabled + Connected</p>
+				<p className="text-sm text-muted-foreground mb-2">
+					Enabled + Connected
+				</p>
 				<SourceListCard
 					source={createMockSource({ status: STATUS.CONNECTED })}
 					isEnabled={true}
@@ -228,18 +247,38 @@ export const AllVariants: Story = {
 				/>
 			</div>
 			<div>
-				<p className="text-sm text-muted-foreground mb-2">Placeholder (Freshdesk)</p>
+				<p className="text-sm text-muted-foreground mb-2">
+					Placeholder (Freshdesk)
+				</p>
 				<SourceListCard
 					source={createMockSource({
 						id: "placeholder-freshdesk",
 						type: SOURCES.FRESHDESK,
 						title: "Freshdesk",
 						status: STATUS.NOT_CONNECTED,
-						description: "Import tickets from Freshdesk for autopilot clustering.",
+						description:
+							"Import tickets from Freshdesk for autopilot clustering.",
 					})}
 					isEnabled={false}
 					isPlaceholder={true}
 					disabledLabel="Coming Soon"
+				/>
+			</div>
+			<div>
+				<p className="text-sm text-muted-foreground mb-2">Ivanti (Connected)</p>
+				<SourceListCard
+					source={createMockSource({
+						type: SOURCES.IVANTI_ITSM,
+						title: "Ivanti",
+						status: STATUS.CONNECTED,
+						description: "Import tickets from Ivanti for Autopilot clustering.",
+						settings: {
+							url: "https://company.trysaasit.com",
+						},
+					})}
+					isEnabled={true}
+					actionLabel="Manage"
+					lastSyncLabel="Last synced {time}"
 				/>
 			</div>
 			<div>

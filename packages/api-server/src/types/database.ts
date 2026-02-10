@@ -123,7 +123,7 @@ export interface CredentialDelegationTokens {
 	delegation_token: string;
 	id: Generated<string>;
 	/**
-	 * ITSM connection type: servicenow_itsm, jira_itsm
+	 * ITSM connection type: servicenow_itsm, jira_itsm, ivanti_itsm
 	 */
 	itsm_system_type: string;
 	last_verification_error: string | null;

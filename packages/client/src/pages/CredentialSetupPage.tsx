@@ -76,11 +76,20 @@ interface JiraFormData {
 }
 
 /**
+ * Ivanti form data
+ */
+interface IvantiFormData {
+	url: string;
+	apiKey: string;
+}
+
+/**
  * System icons
  */
 const SYSTEM_ICONS: Record<ItsmSystemType, string> = {
 	servicenow_itsm: "/connections/icon_servicenow_itsm.svg",
 	jira_itsm: "/connections/icon_jira_itsm.svg",
+	ivanti_itsm: "/connections/icon_ivanti_itsm.svg",
 };
 
 /**
@@ -436,6 +445,114 @@ function JiraCredentialForm({
 	);
 }
 
+/**
+ * Ivanti credential form
+ */
+function IvantiCredentialForm({
+	onSubmit,
+	isSubmitting,
+	verificationError,
+}: {
+	onSubmit: (data: IvantiFormData) => void;
+	isSubmitting: boolean;
+	verificationError?: string | null;
+}) {
+	const { t } = useTranslation("credentialDelegation");
+	const {
+		register,
+		handleSubmit,
+		formState: { errors },
+		getValues,
+		trigger,
+	} = useForm<IvantiFormData>({
+		mode: "onSubmit",
+		defaultValues: {
+			url: "",
+			apiKey: "",
+		},
+	});
+
+	const handleConnect = async () => {
+		const isValid = await trigger();
+		if (!isValid) return;
+		onSubmit(getValues());
+	};
+
+	return (
+		<ConnectionsForm handleSubmit={handleSubmit(onSubmit)} id="credential-form">
+			<FormSection title={t("form.authentication")}>
+				{verificationError && (
+					<StatusAlert variant="error" className="mb-4">
+						<p className="font-semibold">{t("form.verificationFailed")}</p>
+						<p>{verificationError}</p>
+						<p className="text-sm mt-2">{t("form.checkCredentials")}</p>
+					</StatusAlert>
+				)}
+
+				<FormField
+					label={t("form.ivanti.url")}
+					errors={errors}
+					name="url"
+					required
+				>
+					<Input
+						id="url"
+						type="url"
+						placeholder={t("form.ivanti.urlPlaceholder")}
+						disabled={isSubmitting}
+						{...register("url", {
+							required: t("form.ivanti.urlRequired"),
+							pattern: {
+								value: /^https?:\/\/[\w.-]+\.[a-zA-Z]{2,}(:\d+)?(\/.*)?$/,
+								message: t("form.ivanti.invalidUrl"),
+							},
+						})}
+					/>
+				</FormField>
+
+				<FormField
+					label={t("form.ivanti.apiKey")}
+					errors={errors}
+					name="apiKey"
+					required
+				>
+					<Input
+						id="apiKey"
+						type="password"
+						placeholder={t("form.ivanti.apiKeyPlaceholder")}
+						disabled={isSubmitting}
+						{...register("apiKey", {
+							required: t("form.ivanti.apiKeyRequired"),
+						})}
+					/>
+				</FormField>
+
+				<div className="flex justify-start gap-2 w-full">
+					<Button type="button" onClick={handleConnect} disabled={isSubmitting}>
+						{isSubmitting ? (
+							<>
+								<Spinner className="mr-2" />
+								{t("form.connecting")}
+							</>
+						) : (
+							t("form.connect")
+						)}
+					</Button>
+				</div>
+
+				{isSubmitting && (
+					<StatusAlert variant="info">
+						<p className="text-accent-foreground">
+							{t("form.connectionMayTakeTime")}
+						</p>
+						<p>{t("form.doNotClosePage")}</p>
+					</StatusAlert>
+				)}
+			</FormSection>
+		</ConnectionsForm>
+	);
+}
+
 export default function CredentialSetupPage() {
 	const { t } = useTranslation("credentialDelegation");
 	const [searchParams] = useSearchParams();
@@ -637,6 +754,44 @@ export default function CredentialSetupPage() {
 		}
 	};
 
+	// Handle Ivanti form submission
+	const handleIvantiSubmit = async (data: IvantiFormData) => {
+		if (!token) return;
+
+		setPageState("submitting");
+		setVerificationError(null);
+		setLastSubmissionTime(Date.now());
+		setSubmittedCredentials({
+			url: data.url,
+			email: "", // Ivanti doesn't have email field
+		});
+
+		try {
+			const result = await submitMutation.mutateAsync({
+				token,
+				credentials: {
+					url: data.url,
+					api_key: data.apiKey,
+				},
+			});
+
+			setDelegationId(result.delegation_id);
+
+			if (result.status === "verified") {
+				setPageState("success");
+				setVerifiedAt(new Date());
+			} else if (result.status === "failed") {
+				// Go back to form with error message
+				setPageState("form");
+				setVerificationError(t("failed.defaultError"));
+			} else {
+				setPageState("verifying");
+			}
+		} catch {
+			setPageState("form");
+		}
+	};
+
 	// Render loading state
 	if (pageState === "loading") {
 		return (
@@ -707,6 +862,23 @@ export default function CredentialSetupPage() {
 		};
 
 		// Create mock ConnectionSource for ConnectionStatusCard
+		let settings: Record<string, string>;
+		if (verifyData.system_type === "servicenow_itsm") {
+			settings = {
+				instanceUrl: submittedCredentials?.url || "",
+				username: submittedCredentials?.email || "",
+			};
+		} else if (verifyData.system_type === "ivanti_itsm") {
+			settings = {
+				url: submittedCredentials?.url || "",
+			};
+		} else {
+			settings = {
+				url: submittedCredentials?.url || "",
+				email: submittedCredentials?.email || "",
+			};
+		}
+
 		const successSource: ConnectionSource = {
 			id: delegationId || "delegation",
 			type: verifyData.system_type,
@@ -714,16 +886,7 @@ export default function CredentialSetupPage() {
 			status: STATUS.CONNECTED,
 			lastSync: t("success.updatedAt", { time: formattedTime }),
 			badges: [],
-			settings:
-				verifyData.system_type === "servicenow_itsm"
-					? {
-							instanceUrl: submittedCredentials?.url || "",
-							username: submittedCredentials?.email || "",
-						}
-					: {
-							url: submittedCredentials?.url || "",
-							email: submittedCredentials?.email || "",
-						},
+			settings,
 		};
 
 		return (
@@ -810,6 +973,13 @@ export default function CredentialSetupPage() {
 							showApplyToRelated={verifyData?.apply_to_related ?? false}
 							applyToRelated={applyToRelated}
 							onApplyToRelatedChange={setApplyToRelated}
+						/>
+					)}
+					{systemType === "ivanti_itsm" && (
+						<IvantiCredentialForm
+							onSubmit={handleIvantiSubmit}
+							isSubmitting={isSubmitting}
+							verificationError={verificationError}
 						/>
 					)}
 				</div>
