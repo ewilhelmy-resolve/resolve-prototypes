@@ -46,7 +46,10 @@
 	},
 	"conversation": {
 		"title": "Conversation",
-		"untitled": "Untitled conversation"
+		"untitled": "Untitled conversation",
+		"renameTitle": "Rename Conversation",
+		"renameDescription": "Enter a new title for this conversation.",
+		"titlePlaceholder": "Conversation title"
 	},
 	"deleteDialog": {
 		"title": "Delete Conversation",

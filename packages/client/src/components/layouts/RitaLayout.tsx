@@ -32,7 +32,7 @@ import { useTranslation } from "react-i18next";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Loader } from "@/components/ai-elements/loader";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
-import { ConversationListItem } from "@/components/sidebar/ConversationListItem";
+import { ConversationList } from "@/components/sidebar/ConversationList";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
 	Breadcrumb,
@@ -58,7 +58,6 @@ import {
 	SidebarContent,
 	SidebarFooter,
 	SidebarGroup,
-	SidebarGroupLabel,
 	SidebarHeader,
 	SidebarMenu,
 	SidebarMenuButton,
@@ -70,7 +69,7 @@ import {
 import InviteUsersButton from "@/components/users/InviteUsersButton";
 import WelcomeDialog from "@/components/WelcomeDialog";
 import { SOURCE_METADATA } from "@/constants/connectionSources";
-import { useConversations } from "@/hooks/api/useConversations";
+import { useInfiniteConversations } from "@/hooks/api/useConversations";
 import { useProfile, useProfilePermissions } from "@/hooks/api/useProfile";
 import { useAuth } from "@/hooks/useAuth";
 import { useChatNavigation } from "@/hooks/useChatNavigation";
@@ -79,7 +78,6 @@ import { useFeatureFlag } from "@/hooks/useFeatureFlags";
 import { useKnowledgeBase } from "@/hooks/useKnowledgeBase";
 import { SUPPORTED_DOCUMENT_TYPES } from "@/lib/constants";
 import { cn } from "@/lib/utils";
-import type { Conversation } from "@/stores/conversationStore";
 import type { DataSourceConnection } from "@/types/dataSource";
 
 export interface RitaLayoutProps {
@@ -117,8 +115,13 @@ function RitaLayoutContent({ children, activePage = "chat" }: RitaLayoutProps) {
 	const { user, logout } = useAuth();
 	const { data: profile } = useProfile();
 	const { isOwnerOrAdmin } = useProfilePermissions();
-	const { data: conversationsData, isLoading: conversationsLoading } =
-		useConversations();
+	const {
+		data: conversationsData,
+		isLoading: conversationsLoading,
+		hasNextPage,
+		isFetchingNextPage,
+		fetchNextPage,
+	} = useInfiniteConversations();
 	const { data: dataSources } = useDataSources();
 	const { handleNewChat, handleConversationClick, currentConversationId } =
 		useChatNavigation();
@@ -131,7 +134,8 @@ function RitaLayoutContent({ children, activePage = "chat" }: RitaLayoutProps) {
 		uploadingFiles,
 	} = useKnowledgeBase();
 
-	const conversations = conversationsData || [];
+	const conversations =
+		conversationsData?.pages.flatMap((p) => p.conversations) ?? [];
 
 	// Filter synced sources (completed + enabled)
 	const syncedSources =
@@ -341,31 +345,15 @@ function RitaLayoutContent({ children, activePage = "chat" }: RitaLayoutProps) {
 						</SidebarMenuItem>
 					</div>
 
-					<SidebarGroup>
-						<SidebarGroupLabel className="px-2 h-8 rounded-md text-xs text-sidebar-foreground">
-							{t("nav.recentChats")}
-						</SidebarGroupLabel>
-						<SidebarMenu className="gap-1">
-							{conversationsLoading ? (
-								<div className="px-2 text-xs text-muted-foreground">
-									{t("nav.loading")}
-								</div>
-							) : conversations.length === 0 ? (
-								<div className="px-2 text-xs text-muted-foreground">
-									{t("nav.noConversations")}
-								</div>
-							) : (
-								conversations.map((conversation: Conversation) => (
-									<ConversationListItem
-										key={conversation.id}
-										conversation={conversation}
-										isActive={conversation.id === currentConversationId}
-										onClick={handleConversationClick}
-									/>
-								))
-							)}
-						</SidebarMenu>
-					</SidebarGroup>
+					<ConversationList
+						conversations={conversations}
+						isLoading={conversationsLoading}
+						isFetchingNextPage={isFetchingNextPage}
+						hasNextPage={hasNextPage ?? false}
+						onLoadMore={() => fetchNextPage()}
+						currentConversationId={currentConversationId}
+						onConversationClick={handleConversationClick}
+					/>
 				</SidebarContent>
 
 				<SidebarFooter className="p-2 border-t border-sidebar-border">
