@@ -1809,7 +1809,7 @@
             });
 
             // Cancel button — explicit cancel
-            document.getElementById('rita-form-cancel').addEventListener('click', () => {
+            overlay.querySelector('#rita-form-cancel').addEventListener('click', () => {
                 closeFormModal();
                 document.getElementById('ritaIframe')?.contentWindow?.postMessage({
                     type: 'FORM_MODAL_CANCELLED',
@@ -1819,13 +1819,13 @@
             });
 
             // Close button (X in corner) — just dismiss, don't cancel
-            document.getElementById('rita-form-modal-close').addEventListener('click', () => {
+            overlay.querySelector('#rita-form-modal-close').addEventListener('click', () => {
                 closeFormModal();
                 log('Form dismissed (X button)', 'info');
             });
 
             // Form submit
-            document.getElementById('rita-form-modal-form').addEventListener('submit', (e) => {
+            overlay.querySelector('#rita-form-modal-form').addEventListener('submit', (e) => {
                 e.preventDefault();
                 const formData = new FormData(e.target);
                 const data = {};
@@ -1857,10 +1857,7 @@
 
         function closeFormModal() {
             const overlay = document.getElementById('rita-form-modal-overlay');
-            if (overlay) {
-                overlay.style.animation = 'ritaFormFadeIn 0.15s ease reverse';
-                setTimeout(() => overlay.remove(), 150);
-            }
+            if (overlay) overlay.remove();
         }
 
         // Init - auto-load iframe on page load
