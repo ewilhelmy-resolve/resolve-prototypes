@@ -831,26 +831,24 @@ export function openFormModal(config: FormModalConfig): boolean {
 		</div>
 	`;
 
-	// Close on backdrop click (unless preventBackdropClose is set)
+	// Close on backdrop click — just dismiss, don't cancel
 	overlay.addEventListener("click", (e) => {
-		if (e.target === overlay && !config.preventBackdropClose) {
+		if (e.target === overlay) {
 			closeFormModalInHost();
-			config.onCancel();
 		}
 	});
 
-	// Cancel button
+	// Cancel button — explicit cancel
 	const cancelBtn = overlay.querySelector("#rita-form-cancel");
 	cancelBtn?.addEventListener("click", () => {
 		closeFormModalInHost();
 		config.onCancel();
 	});
 
-	// Close button (X in corner)
+	// Close button (X in corner) — just dismiss, don't cancel
 	const closeBtn = overlay.querySelector("#rita-form-modal-close");
 	closeBtn?.addEventListener("click", () => {
 		closeFormModalInHost();
-		config.onCancel();
 	});
 
 	// Form submit
@@ -868,11 +866,10 @@ export function openFormModal(config: FormModalConfig): boolean {
 		config.onSubmit(data);
 	});
 
-	// Escape key (unless preventBackdropClose is set)
+	// Escape key — just dismiss, don't cancel
 	const escHandler = (e: KeyboardEvent) => {
-		if (e.key === "Escape" && !config.preventBackdropClose) {
+		if (e.key === "Escape") {
 			closeFormModalInHost();
-			config.onCancel();
 			parentDoc.removeEventListener("keydown", escHandler);
 		}
 	};

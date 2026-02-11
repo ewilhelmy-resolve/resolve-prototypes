@@ -615,7 +615,7 @@ function SimpleMessage({
 									}
 								}}
 							>
-								<DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+								<DialogContent className="max-w-2xl max-h-[85vh] flex flex-col">
 									<DialogHeader>
 										<DialogTitle>
 											{(() => {
@@ -638,21 +638,23 @@ function SimpleMessage({
 											})()}
 										</DialogDescription>
 									</DialogHeader>
-									<InlineFormRequest
-										requestId={message.metadata.request_id}
-										uiSchema={message.metadata.ui_schema}
-										status={message.metadata.status || "pending"}
-										formData={message.metadata.form_data}
-										submittedAt={message.metadata.submitted_at}
-										onSubmit={async (reqId, action, data) => {
-											setShowFallbackDialog(false);
-											await onFormSubmit(reqId, action, data);
-										}}
-										onCancel={async (reqId) => {
-											setShowFallbackDialog(false);
-											await onFormCancel?.(reqId);
-										}}
-									/>
+									<div className="flex-1 overflow-y-auto min-h-0">
+										<InlineFormRequest
+											requestId={message.metadata.request_id}
+											uiSchema={message.metadata.ui_schema}
+											status={message.metadata.status || "pending"}
+											formData={message.metadata.form_data}
+											submittedAt={message.metadata.submitted_at}
+											onSubmit={async (reqId, action, data) => {
+												setShowFallbackDialog(false);
+												await onFormSubmit(reqId, action, data);
+											}}
+											onCancel={async (reqId) => {
+												setShowFallbackDialog(false);
+												await onFormCancel?.(reqId);
+											}}
+										/>
+									</div>
 								</DialogContent>
 							</Dialog>
 						)}
