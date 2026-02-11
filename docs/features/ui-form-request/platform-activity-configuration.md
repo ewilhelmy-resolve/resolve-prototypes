@@ -38,7 +38,7 @@ A wrapper activity that simplifies sending UI form requests. Based on the existi
 ### Activity Files
 
 - **Frontend (JSON):** [`example-activity.json`](example-activity.json)
-- **Backend (Python):** [`example-activity.py`](example-activity.py)
+- **Backend (Python):** [`request_ui_form.py`](request_ui_form.py)
 
 ### Message JSON (What Gets Sent)
 
