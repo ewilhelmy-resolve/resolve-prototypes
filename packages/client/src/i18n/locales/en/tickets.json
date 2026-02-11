@@ -1,12 +1,13 @@
 {
 	"header": {
-		"description": "Rita learned from <strong>{{ticketCount}}</strong> tickets in the {{period}} <strong>across {{clusterCount}} issue types</strong>",
+		"description": "RITA learned from <strong>{{ticketCount}}</strong> tickets for <strong>{{period}}</strong>",
 		"stats": {
 			"totalTickets": "Total tickets",
 			"ticketsLast7Days": "Tickets last 7 days",
-			"handledAutomatically": "Handled Automatically",
-			"automationRate": "Automation Rate",
-			"aiHoursSaved": "AI hours saved"
+			"totalTicketsAutomated": "Total Tickets Automated",
+			"automationPercentage": "Automation %",
+			"moneySaved": "Money Saved",
+			"timeSaved": "Time Saved"
 		}
 	},
 	"page": {
