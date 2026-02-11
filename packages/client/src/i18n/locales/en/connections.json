@@ -177,6 +177,13 @@
 			"inProgress": "Model training in progress",
 			"description": "Rita is analyzing your tickets to create ticket groups. This usually takes a few minutes."
 		},
+		"autoSync": {
+			"label": "Auto-sync tickets",
+			"description": "Automatically sync new tickets when they're created",
+			"enabled": "Auto-sync enabled",
+			"disabled": "Auto-sync disabled",
+			"error": "Failed to update auto-sync setting"
+		},
 		"warnings": {
 			"projectsRemovedTitle": "Projects will be removed",
 			"projectsRemovedDescription": "Tickets from unselected projects will be deleted when you sync. This action cannot be undone.",

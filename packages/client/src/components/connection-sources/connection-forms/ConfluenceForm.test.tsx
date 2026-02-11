@@ -10,7 +10,7 @@ import { ConnectionSourceProvider } from "@/contexts/ConnectionSourceContext";
 import { ConfluenceForm } from "./ConfluenceForm";
 
 // Define DataSourceConnection type locally for the test
-type DataSourceType = 'confluence' | 'sharepoint' | 'servicenow' | 'websearch';
+type DataSourceType = "confluence" | "sharepoint" | "servicenow" | "websearch";
 
 type DataSourceConnection = {
 	id: string;
@@ -20,9 +20,10 @@ type DataSourceConnection = {
 	description: string | null;
 	settings: Record<string, any>;
 	latest_options: Record<string, any> | null;
-	status: 'idle' | 'verifying' | 'syncing';
-	last_sync_status: 'completed' | 'failed' | null;
+	status: "idle" | "verifying" | "syncing";
+	last_sync_status: "completed" | "failed" | null;
 	enabled: boolean;
+	auto_sync: boolean;
 	last_verification_at: string | null;
 	last_verification_error: string | null;
 	last_sync_at: string | null;
@@ -68,6 +69,7 @@ const baseBackendData = {
 	status: "idle",
 	last_sync_status: null,
 	enabled: false,
+	auto_sync: true,
 	last_verification_at: null,
 	last_verification_error: null,
 	last_sync_at: null,
@@ -99,7 +101,11 @@ const renderWithProvider = (
 ) => {
 	return render(
 		<ConnectionSourceProvider source={source}>
-			<ConfluenceForm onCancel={onCancel} onSuccess={onSuccess} onFailure={onFailure} />
+			<ConfluenceForm
+				onCancel={onCancel}
+				onSuccess={onSuccess}
+				onFailure={onFailure}
+			/>
 		</ConnectionSourceProvider>,
 	);
 };
@@ -113,7 +119,9 @@ describe("ConfluenceForm", () => {
 		it("should render authentication section", () => {
 			const source = createMockSource();
 			renderWithProvider(source);
-			expect(screen.getByText("form.sections.authentication")).toBeInTheDocument();
+			expect(
+				screen.getByText("form.sections.authentication"),
+			).toBeInTheDocument();
 		});
 
 		it("should render URL input field with required indicator", () => {
@@ -128,7 +136,9 @@ describe("ConfluenceForm", () => {
 		it("should render email input field with required indicator", () => {
 			const source = createMockSource();
 			renderWithProvider(source);
-			expect(screen.getByLabelText(/form.labels.userEmail/i)).toBeInTheDocument();
+			expect(
+				screen.getByLabelText(/form.labels.userEmail/i),
+			).toBeInTheDocument();
 			expect(
 				screen.getByPlaceholderText("form.placeholders.email"),
 			).toBeInTheDocument();
@@ -137,8 +147,12 @@ describe("ConfluenceForm", () => {
 		it("should render API token input field with required indicator", () => {
 			const source = createMockSource();
 			renderWithProvider(source);
-			expect(screen.getByLabelText(/form.labels.apiToken/i)).toBeInTheDocument();
-			expect(screen.getByPlaceholderText("form.placeholders.apiToken")).toBeInTheDocument();
+			expect(
+				screen.getByLabelText(/form.labels.apiToken/i),
+			).toBeInTheDocument();
+			expect(
+				screen.getByPlaceholderText("form.placeholders.apiToken"),
+			).toBeInTheDocument();
 		});
 
 		it("should render Connect button", () => {
@@ -178,7 +192,9 @@ describe("ConfluenceForm", () => {
 				} as DataSourceConnection,
 			});
 			renderWithProvider(source);
-			const urlInput = screen.getByLabelText(/form.labels.url/i) as HTMLInputElement;
+			const urlInput = screen.getByLabelText(
+				/form.labels.url/i,
+			) as HTMLInputElement;
 			expect(urlInput.value).toBe("https://company.atlassian.net");
 		});
 
@@ -208,7 +224,9 @@ describe("ConfluenceForm", () => {
 				} as DataSourceConnection,
 			});
 			renderWithProvider(source);
-			const tokenInput = screen.getByLabelText(/form.labels.apiToken/i) as HTMLInputElement;
+			const tokenInput = screen.getByLabelText(
+				/form.labels.apiToken/i,
+			) as HTMLInputElement;
 			expect(tokenInput.value).toBe("");
 		});
 	});
@@ -221,7 +239,9 @@ describe("ConfluenceForm", () => {
 			const source = createMockSource();
 			renderWithProvider(source);
 
-			const connectButton = screen.getByRole("button", { name: /form.buttons.connect/i });
+			const connectButton = screen.getByRole("button", {
+				name: /form.buttons.connect/i,
+			});
 			expect(connectButton).not.toBeDisabled();
 		});
 
@@ -230,12 +250,14 @@ describe("ConfluenceForm", () => {
 			const source = createMockSource();
 			renderWithProvider(source);
 
-			const connectButton = screen.getByRole("button", { name: /form.buttons.connect/i });
+			const connectButton = screen.getByRole("button", {
+				name: /form.buttons.connect/i,
+			});
 			fireEvent.click(connectButton);
 
 			await waitFor(() => {
 				expect(ritaToast.error).toHaveBeenCalledWith({
-				title: "error.validationError",
+					title: "error.validationError",
 					description: "descriptions.checkFormFields",
 				});
 			});
@@ -254,12 +276,14 @@ describe("ConfluenceForm", () => {
 			fireEvent.change(emailInput, { target: { value: "user@company.com" } });
 			fireEvent.change(tokenInput, { target: { value: "secret-token" } });
 
-			const connectButton = screen.getByRole("button", { name: /form.buttons.connect/i });
+			const connectButton = screen.getByRole("button", {
+				name: /form.buttons.connect/i,
+			});
 			fireEvent.click(connectButton);
 
 			await waitFor(() => {
 				expect(ritaToast.error).toHaveBeenCalledWith({
-				title: "error.validationError",
+					title: "error.validationError",
 					description: "descriptions.checkFormFields",
 				});
 			});
@@ -287,12 +311,14 @@ describe("ConfluenceForm", () => {
 			fireEvent.change(emailInput, { target: { value: "invalid-email" } });
 			fireEvent.change(tokenInput, { target: { value: "secret-token" } });
 
-			const connectButton = screen.getByRole("button", { name: /form.buttons.connect/i });
+			const connectButton = screen.getByRole("button", {
+				name: /form.buttons.connect/i,
+			});
 			fireEvent.click(connectButton);
 
 			await waitFor(() => {
 				expect(ritaToast.error).toHaveBeenCalledWith({
-				title: "error.validationError",
+					title: "error.validationError",
 					description: "descriptions.checkFormFields",
 				});
 			});
@@ -341,7 +367,9 @@ describe("ConfluenceForm", () => {
 			fireEvent.change(emailInput, { target: { value: "user@company.com" } });
 			fireEvent.change(tokenInput, { target: { value: "secret-token" } });
 
-			const connectButton = screen.getByRole("button", { name: /form.buttons.connect/i });
+			const connectButton = screen.getByRole("button", {
+				name: /form.buttons.connect/i,
+			});
 			fireEvent.click(connectButton);
 
 			// Should call verify mutation (not show validation error)
@@ -366,7 +394,9 @@ describe("ConfluenceForm", () => {
 			fireEvent.change(emailInput, { target: { value: "user@company.com" } });
 			fireEvent.change(tokenInput, { target: { value: "secret-token" } });
 
-			const connectButton = screen.getByRole("button", { name: /form.buttons.connect/i });
+			const connectButton = screen.getByRole("button", {
+				name: /form.buttons.connect/i,
+			});
 			fireEvent.click(connectButton);
 
 			await waitFor(() => {
@@ -416,12 +446,14 @@ describe("ConfluenceForm", () => {
 			fireEvent.change(emailInput, { target: { value: "user@company.com" } });
 			fireEvent.change(tokenInput, { target: { value: "secret-token" } });
 
-			const connectButton = screen.getByRole("button", { name: /form.buttons.connect/i });
+			const connectButton = screen.getByRole("button", {
+				name: /form.buttons.connect/i,
+			});
 			fireEvent.click(connectButton);
 
 			await waitFor(() => {
 				expect(ritaToast.success).toHaveBeenCalledWith({
-				title: "success.connectionConfigured",
+					title: "success.connectionConfigured",
 					description: "descriptions.confluenceConfigured",
 				});
 			});
@@ -446,12 +478,14 @@ describe("ConfluenceForm", () => {
 			fireEvent.change(emailInput, { target: { value: "user@company.com" } });
 			fireEvent.change(tokenInput, { target: { value: "secret-token" } });
 
-			const connectButton = screen.getByRole("button", { name: /form.buttons.connect/i });
+			const connectButton = screen.getByRole("button", {
+				name: /form.buttons.connect/i,
+			});
 			fireEvent.click(connectButton);
 
 			await waitFor(() => {
 				expect(ritaToast.error).toHaveBeenCalledWith({
-				title: "error.connectionFailed",
+					title: "error.connectionFailed",
 					description: "Verification failed",
 				});
 			});
@@ -476,12 +510,14 @@ describe("ConfluenceForm", () => {
 			fireEvent.change(emailInput, { target: { value: "user@company.com" } });
 			fireEvent.change(tokenInput, { target: { value: "secret-token" } });
 
-			const connectButton = screen.getByRole("button", { name: /form.buttons.connect/i });
+			const connectButton = screen.getByRole("button", {
+				name: /form.buttons.connect/i,
+			});
 			fireEvent.click(connectButton);
 
 			await waitFor(() => {
 				expect(ritaToast.error).toHaveBeenCalledWith({
-				title: "error.connectionFailed",
+					title: "error.connectionFailed",
 					description: "Update failed",
 				});
 			});
@@ -494,7 +530,9 @@ describe("ConfluenceForm", () => {
 			const source = createMockSource();
 			renderWithProvider(source);
 
-			const connectButton = screen.getByRole("button", { name: /form.buttons.connecting/i });
+			const connectButton = screen.getByRole("button", {
+				name: /form.buttons.connecting/i,
+			});
 			expect(connectButton).toBeDisabled();
 
 			mockVerifyMutation.isPending = false; // Reset
@@ -505,7 +543,9 @@ describe("ConfluenceForm", () => {
 			const source = createMockSource();
 			renderWithProvider(source);
 
-			const connectButton = screen.getByRole("button", { name: /form.buttons.connecting/i });
+			const connectButton = screen.getByRole("button", {
+				name: /form.buttons.connecting/i,
+			});
 			expect(connectButton).toBeDisabled();
 
 			mockUpdateMutation.isPending = false; // Reset
@@ -538,9 +578,7 @@ describe("ConfluenceForm", () => {
 			expect(
 				screen.getByText("form.alerts.connectionMayTakeTime"),
 			).toBeInTheDocument();
-			expect(
-				screen.getByText("form.alerts.canLeavePage"),
-			).toBeInTheDocument();
+			expect(screen.getByText("form.alerts.canLeavePage")).toBeInTheDocument();
 
 			mockVerifyMutation.isPending = false; // Reset
 		});
@@ -581,7 +619,9 @@ describe("ConfluenceForm", () => {
 			const source = createMockSource();
 			renderWithProvider(source, mockOnCancel);
 
-			const cancelButton = screen.getByRole("button", { name: /form.buttons.cancel/i });
+			const cancelButton = screen.getByRole("button", {
+				name: /form.buttons.cancel/i,
+			});
 			fireEvent.click(cancelButton);
 
 			expect(mockOnCancel).toHaveBeenCalledTimes(1);
@@ -604,7 +644,9 @@ describe("ConfluenceForm", () => {
 			fireEvent.change(emailInput, { target: { value: "user@company.com" } });
 			fireEvent.change(tokenInput, { target: { value: "secret-token" } });
 
-			const connectButton = screen.getByRole("button", { name: /form.buttons.connect/i });
+			const connectButton = screen.getByRole("button", {
+				name: /form.buttons.connect/i,
+			});
 			fireEvent.click(connectButton);
 
 			await waitFor(() => {
@@ -632,7 +674,9 @@ describe("ConfluenceForm", () => {
 			fireEvent.change(emailInput, { target: { value: "user@company.com" } });
 			fireEvent.change(tokenInput, { target: { value: "secret-token" } });
 
-			const connectButton = screen.getByRole("button", { name: /form.buttons.connect/i });
+			const connectButton = screen.getByRole("button", {
+				name: /form.buttons.connect/i,
+			});
 			fireEvent.click(connectButton);
 
 			await waitFor(() => {
@@ -663,7 +707,9 @@ describe("ConfluenceForm", () => {
 			fireEvent.change(emailInput, { target: { value: "user@company.com" } });
 			fireEvent.change(tokenInput, { target: { value: "secret-token" } });
 
-			const connectButton = screen.getByRole("button", { name: /form.buttons.connect/i });
+			const connectButton = screen.getByRole("button", {
+				name: /form.buttons.connect/i,
+			});
 			fireEvent.click(connectButton);
 
 			await waitFor(() => {

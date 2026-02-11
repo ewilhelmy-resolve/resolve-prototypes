@@ -41,6 +41,7 @@ import {
 } from "@/hooks/useDataSources";
 import { parseAvailableSpaces } from "@/lib/dataSourceUtils";
 import { MultiSelect, type MultiSelectOption } from "../../ui/multi-select";
+import { AutoSyncToggle } from "../AutoSyncToggle";
 import { ConnectionActionsMenu } from "../ConnectionActionsMenu";
 import { ConnectionStatusCard } from "../ConnectionStatusCard";
 import FormSectionTitle from "../form-elements/FormSectionTitle";
@@ -406,6 +407,15 @@ export default function JiraItsmConfiguration({
 											</p>
 										)}
 									</div>
+
+									{/* Auto-sync toggle - only visible when ML model is active */}
+									{source.backendData && (
+										<AutoSyncToggle
+											connectionId={source.backendData.id}
+											currentValue={source.backendData.auto_sync}
+											disabled={isTicketSyncing}
+										/>
+									)}
 								</div>
 							</div>
 						</div>

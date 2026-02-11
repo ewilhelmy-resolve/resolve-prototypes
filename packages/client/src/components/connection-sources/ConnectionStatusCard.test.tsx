@@ -2,7 +2,13 @@
  * ConnectionStatusCard.test.tsx - Unit tests for connection status card component
  */
 
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import {
+	act,
+	fireEvent,
+	render,
+	screen,
+	waitFor,
+} from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { describe, expect, it, vi } from "vitest";
 import type { ConnectionSource } from "@/constants/connectionSources";
@@ -40,6 +46,7 @@ const createMockSource = (
 		status: "idle",
 		last_sync_status: "completed",
 		enabled: true,
+		auto_sync: true,
 		last_verification_at: "2024-01-01T00:00:00Z",
 		last_verification_error: null,
 		last_sync_at: "2024-01-02T00:00:00Z",
@@ -108,7 +115,9 @@ describe("ConnectionStatusCard", () => {
 			renderWithRouter(<ConnectionStatusCard source={source} />);
 
 			// Check API label (i18n key)
-			expect(screen.getByText("statusCard.labels.apiToken")).toBeInTheDocument();
+			expect(
+				screen.getByText("statusCard.labels.apiToken"),
+			).toBeInTheDocument();
 			// Check masked value
 			expect(screen.getByText(/••••••••••••••••••••/)).toBeInTheDocument();
 		});
@@ -124,8 +133,12 @@ describe("ConnectionStatusCard", () => {
 			renderWithRouter(<ConnectionStatusCard source={source} />);
 
 			// ServiceNow uses username/password labels (i18n keys)
-			expect(screen.getByText("statusCard.labels.username")).toBeInTheDocument();
-			expect(screen.getByText("statusCard.labels.password")).toBeInTheDocument();
+			expect(
+				screen.getByText("statusCard.labels.username"),
+			).toBeInTheDocument();
+			expect(
+				screen.getByText("statusCard.labels.password"),
+			).toBeInTheDocument();
 		});
 
 		it("should show dash for missing URL", () => {
@@ -158,7 +171,9 @@ describe("ConnectionStatusCard", () => {
 			renderWithRouter(<ConnectionStatusCard source={source} />);
 
 			// i18n key
-			expect(screen.getByText("statusCard.syncingConnection")).toBeInTheDocument();
+			expect(
+				screen.getByText("statusCard.syncingConnection"),
+			).toBeInTheDocument();
 		});
 
 		it("should show verifying message for verifying status", () => {
@@ -166,7 +181,9 @@ describe("ConnectionStatusCard", () => {
 			renderWithRouter(<ConnectionStatusCard source={source} />);
 
 			// i18n key
-			expect(screen.getByText("statusCard.verifyingConnection")).toBeInTheDocument();
+			expect(
+				screen.getByText("statusCard.verifyingConnection"),
+			).toBeInTheDocument();
 		});
 
 		it("should show not configured message for not connected status", () => {
@@ -182,7 +199,9 @@ describe("ConnectionStatusCard", () => {
 			renderWithRouter(<ConnectionStatusCard source={source} />);
 
 			// i18n key
-			expect(screen.getByText("statusCard.connectionFailed")).toBeInTheDocument();
+			expect(
+				screen.getByText("statusCard.connectionFailed"),
+			).toBeInTheDocument();
 		});
 
 		it("should hide status message when hideStatusMessage is true", () => {
@@ -204,7 +223,9 @@ describe("ConnectionStatusCard", () => {
 			renderWithRouter(<ConnectionStatusCard source={source} />);
 
 			// i18n key for retry button
-			const retryButton = screen.getByRole("button", { name: /statusCard.retry/i });
+			const retryButton = screen.getByRole("button", {
+				name: /statusCard.retry/i,
+			});
 			expect(retryButton).toBeInTheDocument();
 		});
 
@@ -215,7 +236,9 @@ describe("ConnectionStatusCard", () => {
 				<ConnectionStatusCard source={source} onRetry={onRetry} />,
 			);
 
-			const retryButton = screen.getByRole("button", { name: /statusCard.retry/i });
+			const retryButton = screen.getByRole("button", {
+				name: /statusCard.retry/i,
+			});
 			fireEvent.click(retryButton);
 
 			expect(onRetry).toHaveBeenCalledTimes(1);
@@ -225,7 +248,9 @@ describe("ConnectionStatusCard", () => {
 			const source = createMockSource({ status: STATUS.ERROR });
 			renderWithRouter(<ConnectionStatusCard source={source} />);
 
-			const retryButton = screen.getByRole("button", { name: /statusCard.retry/i });
+			const retryButton = screen.getByRole("button", {
+				name: /statusCard.retry/i,
+			});
 
 			// Click retry 3 times
 			act(() => {
@@ -255,7 +280,9 @@ describe("ConnectionStatusCard", () => {
 				</MemoryRouter>,
 			);
 
-			const retryButton = screen.getByRole("button", { name: /statusCard.retry/i });
+			const retryButton = screen.getByRole("button", {
+				name: /statusCard.retry/i,
+			});
 			fireEvent.click(retryButton);
 
 			// After clicking retry, parent would update status to SYNCING via backend
@@ -351,11 +378,16 @@ describe("ConnectionStatusCard", () => {
 				totalEstimated: 100,
 			};
 			renderWithRouter(
-				<ConnectionStatusCard source={source} ticketSyncInfo={ticketSyncInfo} />,
+				<ConnectionStatusCard
+					source={source}
+					ticketSyncInfo={ticketSyncInfo}
+				/>,
 			);
 
 			// i18n key for progress
-			expect(screen.getByText("statusCard.ticketsProgress")).toBeInTheDocument();
+			expect(
+				screen.getByText("statusCard.ticketsProgress"),
+			).toBeInTheDocument();
 		});
 
 		it("should show importing tickets spinner when no total estimated", () => {
@@ -366,11 +398,16 @@ describe("ConnectionStatusCard", () => {
 				isTicketSyncing: true,
 			};
 			renderWithRouter(
-				<ConnectionStatusCard source={source} ticketSyncInfo={ticketSyncInfo} />,
+				<ConnectionStatusCard
+					source={source}
+					ticketSyncInfo={ticketSyncInfo}
+				/>,
 			);
 
 			// i18n key
-			expect(screen.getByText("statusCard.importingTickets")).toBeInTheDocument();
+			expect(
+				screen.getByText("statusCard.importingTickets"),
+			).toBeInTheDocument();
 		});
 
 		it("should show last sync info when not syncing", () => {
@@ -381,7 +418,10 @@ describe("ConnectionStatusCard", () => {
 				isTicketSyncing: false,
 			};
 			renderWithRouter(
-				<ConnectionStatusCard source={source} ticketSyncInfo={ticketSyncInfo} />,
+				<ConnectionStatusCard
+					source={source}
+					ticketSyncInfo={ticketSyncInfo}
+				/>,
 			);
 
 			// i18n key for last synced

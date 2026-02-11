@@ -130,6 +130,11 @@ export class DataSourceService {
 			values.push(data.enabled);
 		}
 
+		if (data.auto_sync !== undefined) {
+			updates.push(`auto_sync = $${paramIndex++}`);
+			values.push(data.auto_sync);
+		}
+
 		if (updates.length === 0) {
 			// No updates, just return current data
 			return this.getDataSource(id, organizationId);

@@ -184,6 +184,7 @@ const createMockDataSource = (
 	status: "idle",
 	last_sync_status: "completed",
 	enabled: true,
+	auto_sync: true,
 	last_verification_at: "2024-01-01T00:00:00Z",
 	last_verification_error: null,
 	last_sync_at: "2024-01-02T00:00:00Z",
