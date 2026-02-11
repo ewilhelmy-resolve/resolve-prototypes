@@ -213,10 +213,10 @@
 			});
 		}
 
-		// Overlay click
+		// Overlay click — dismiss only (no cancel)
 		overlay.addEventListener("click", (e) => {
-			if (e.target === overlay && !config.preventBackdropClose) {
-				doCancel();
+			if (e.target === overlay) {
+				closeModal();
 			}
 		});
 
@@ -225,10 +225,10 @@
 			.getElementById("rita-form-cancel")
 			.addEventListener("click", doCancel);
 
-		// Close (X) button
+		// Close (X) button — dismiss only (no cancel)
 		document
 			.getElementById("rita-form-modal-close")
-			.addEventListener("click", doCancel);
+			.addEventListener("click", closeModal);
 
 		// Form submit
 		document
@@ -249,10 +249,10 @@
 				});
 			});
 
-		// ESC key
+		// ESC key — dismiss only (no cancel)
 		escHandler = (e) => {
-			if (e.key === "Escape" && !config.preventBackdropClose) {
-				doCancel();
+			if (e.key === "Escape") {
+				closeModal();
 			}
 		};
 		document.addEventListener("keydown", escHandler);
