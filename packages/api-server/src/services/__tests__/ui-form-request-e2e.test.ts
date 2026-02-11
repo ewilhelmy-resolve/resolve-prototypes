@@ -223,7 +223,7 @@ describe("UI Form Request E2E", () => {
 				(c: any) => c[2]?.type === "new_message",
 			);
 			expect(sseCall).toBeDefined();
-			expect(sseCall![2].data.metadata.type).toBe("ui_form_request");
+			expect(sseCall?.[2].data.metadata.type).toBe("ui_form_request");
 		});
 	});
 
