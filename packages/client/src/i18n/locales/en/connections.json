@@ -5,7 +5,8 @@
 			"email": "Email",
 			"username": "Username",
 			"password": "Password",
-			"apiToken": "API"
+			"apiToken": "API",
+			"apiKey": "API Key"
 		},
 		"multipleAttemptsFailed": "Multiple attempts failed",
 		"getHelp": "Get Help",
@@ -58,6 +59,10 @@
 		"freshdesk": {
 			"title": "Freshdesk",
 			"description": "Import tickets from Freshdesk for autopilot clustering."
+		},
+		"ivanti_itsm": {
+			"title": "Ivanti",
+			"description": "Import tickets from Ivanti for Autopilot clustering."
 		}
 	},
 	"form": {
@@ -150,7 +155,8 @@
 			"jiraItsm": "Jira ITSM configuration",
 			"sharepoint": "SharePoint",
 			"websearch": "Web Search",
-			"freshdeskItsm": "Freshdesk ITSM configuration"
+			"freshdeskItsm": "Freshdesk ITSM configuration",
+			"ivantiItsm": "Ivanti ITSM configuration"
 		},
 		"sync": {
 			"inProgress": "Sync in progress...",
@@ -206,6 +212,7 @@
 			"syncStartedServiceNowKb": "Your ServiceNow knowledge articles are being synced",
 			"syncStartedServiceNowItsm": "Your ServiceNow tickets are being synced",
 			"syncStartedJiraItsm": "Your Jira tickets are being synced",
+			"syncStartedIvantiItsm": "Your Ivanti tickets are being synced",
 			"syncFailed": "Sync Failed",
 			"syncFailedDefault": "Failed to start sync",
 			"syncCancelled": "Sync Cancelled",

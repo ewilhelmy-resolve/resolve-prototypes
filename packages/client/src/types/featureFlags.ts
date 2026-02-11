@@ -15,6 +15,7 @@ export type FeatureFlagKey =
 	| "ENABLE_AGENTS"
 	| "ENABLE_SERVICENOW"
 	| "ENABLE_JIRA"
+	| "ENABLE_IVANTI"
 	| "ENABLE_MULTI_FILE_UPLOAD"
 	| "ENABLE_TICKETS_V2"
 	| "ENABLE_WORKFLOWS"
@@ -101,6 +102,13 @@ export const FEATURE_FLAGS: Record<FeatureFlagKey, FeatureFlagConfig> = {
 		key: "ENABLE_JIRA",
 		label: "Jira Integration",
 		description: "Enable Jira ITSM ticket sync features",
+		defaultValue: false,
+		category: "experimental",
+	},
+	ENABLE_IVANTI: {
+		key: "ENABLE_IVANTI",
+		label: "Ivanti Integration",
+		description: "Enable Ivanti ITSM ticket sync features",
 		defaultValue: false,
 		category: "experimental",
 	},

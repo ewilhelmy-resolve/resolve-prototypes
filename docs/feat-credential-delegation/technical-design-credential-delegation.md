@@ -44,6 +44,7 @@ This document outlines the architecture for RITA's Credential Delegation system.
 
 * **ServiceNow** - Username/password authentication
 * **Jira** - API token + email authentication
+* **Ivanti** - API key authentication
 
 ### 2.3 Sequence Diagram
 

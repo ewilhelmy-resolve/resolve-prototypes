@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { Navigate, useNavigate, useParams } from "react-router-dom";
 import ConfluenceConfiguration from "@/components/connection-sources/connection-details/ConfluenceConfiguration";
 import FreshdeskItsmConfiguration from "@/components/connection-sources/connection-details/FreshdeskItsmConfiguration";
+import IvantiItsmConfiguration from "@/components/connection-sources/connection-details/IvantiItsmConfiguration";
 import JiraItsmConfiguration from "@/components/connection-sources/connection-details/JiraItsmConfiguration";
 import ServiceNowItsmConfiguration from "@/components/connection-sources/connection-details/ServiceNowItsmConfiguration";
 import ServiceNowKBConfiguration from "@/components/connection-sources/connection-details/ServiceNowKBConfiguration";
@@ -12,6 +13,7 @@ import WebSearchConfiguration from "@/components/connection-sources/connection-d
 import {
 	ConfluenceForm,
 	FreshdeskForm,
+	IvantiForm,
 	JiraForm,
 	ServiceNowForm,
 	SharePointForm,
@@ -49,7 +51,7 @@ const FORM_REGISTRY: Record<
 	[SOURCES.WEB_SEARCH]: WebSearchForm,
 	[SOURCES.JIRA_ITSM]: JiraForm,
 	[SOURCES.FRESHDESK]: FreshdeskForm,
-	[SOURCES.JIRA_ITSM]: JiraForm,
+	[SOURCES.IVANTI_ITSM]: IvantiForm,
 };
 
 // Registry for Knowledge Sources configuration views
@@ -71,6 +73,7 @@ const ITSM_CONFIGURATION_REGISTRY: Record<
 	[SOURCES.SERVICENOW_ITSM]: ServiceNowItsmConfiguration,
 	[SOURCES.JIRA_ITSM]: JiraItsmConfiguration,
 	[SOURCES.FRESHDESK]: FreshdeskItsmConfiguration,
+	[SOURCES.IVANTI_ITSM]: IvantiItsmConfiguration,
 };
 
 interface ConnectionSourceDetailPageProps {

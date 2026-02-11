@@ -45,6 +45,7 @@
 		"pino-http": "10.5.0",
 		"pino-pretty": "13.1.1",
 		"pino-roll": "3.1.0",
+		"rollbar": "2.26.5",
 		"swagger-ui-express": "^5.0.1",
 		"zod": "4.1.11"
 	},

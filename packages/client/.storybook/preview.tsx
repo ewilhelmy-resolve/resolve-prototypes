@@ -24,7 +24,12 @@ const preview: Preview = {
 					"Brand Identity",
 					["Colors", "Typography", "Logo"],
 					"Translations",
-					["Overview", "Common Actions", "Interpolation", "Available Namespaces"],
+					[
+						"Overview",
+						"Common Actions",
+						"Interpolation",
+						"Available Namespaces",
+					],
 					"Components",
 					[
 						"Actions",
@@ -36,7 +41,7 @@ const preview: Preview = {
 						"Overlays",
 					],
 					"Features",
-					["Chat"],
+					["Chat", "Knowledge Articles"],
 				],
 			},
 		},

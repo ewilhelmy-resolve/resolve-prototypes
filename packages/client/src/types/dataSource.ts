@@ -8,7 +8,8 @@ export type DataSourceType =
 	| "sharepoint"
 	| "websearch"
 	| "jira_itsm"
-	| "freshdesk";
+	| "freshdesk"
+	| "ivanti_itsm";
 
 export type DataSourceStatus = "idle" | "verifying" | "syncing" | "cancelled";
 

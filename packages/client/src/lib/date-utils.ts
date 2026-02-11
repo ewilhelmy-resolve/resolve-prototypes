@@ -56,3 +56,19 @@ export function formatDate(dateString: string): string {
 		minute: "2-digit",
 	});
 }
+
+/**
+ * Format a Date object safely, handling null/undefined
+ * @param date - Date object, null, or undefined
+ * @returns Formatted date string or "N/A" if invalid
+ */
+export function formatDateSafe(date: Date | null | undefined): string {
+	if (!date) return "N/A";
+	return new Intl.DateTimeFormat("en-US", {
+		day: "2-digit",
+		month: "short",
+		year: "numeric",
+		hour: "2-digit",
+		minute: "2-digit",
+	}).format(date);
+}

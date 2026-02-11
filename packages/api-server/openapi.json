@@ -1058,8 +1058,12 @@
 					},
 					"itsm_system_type": {
 						"type": "string",
-						"enum": ["servicenow_itsm", "jira"],
+						"enum": ["servicenow_itsm", "jira_itsm", "ivanti_itsm"],
 						"description": "ITSM system type"
+					},
+					"apply_to_related": {
+						"type": "boolean",
+						"description": "Apply credentials to related connection (e.g., KB for ITSM)"
 					}
 				},
 				"required": ["admin_email", "itsm_system_type"]
@@ -1075,7 +1079,7 @@
 					},
 					"itsm_system_type": {
 						"type": "string",
-						"enum": ["servicenow_itsm", "jira"],
+						"enum": ["servicenow_itsm", "jira_itsm", "ivanti_itsm"],
 						"description": "ITSM system type"
 					},
 					"expires_at": {
@@ -1085,6 +1089,10 @@
 					"reason": {
 						"type": "string",
 						"description": "Reason if invalid"
+					},
+					"apply_to_related": {
+						"type": "boolean",
+						"description": "Whether to apply credentials to related connection"
 					}
 				},
 				"required": ["valid"]
@@ -1125,6 +1133,10 @@
 							"username": "admin",
 							"password": "***"
 						}
+					},
+					"apply_to_related": {
+						"type": "boolean",
+						"description": "Apply credentials to related connection (overrides delegation setting if provided)"
 					}
 				},
 				"required": ["token", "credentials"]
@@ -1139,7 +1151,7 @@
 					},
 					"itsm_system_type": {
 						"type": "string",
-						"enum": ["servicenow_itsm", "jira"],
+						"enum": ["servicenow_itsm", "jira_itsm", "ivanti_itsm"],
 						"description": "ITSM system type"
 					},
 					"created_at": {
@@ -1190,7 +1202,7 @@
 					},
 					"itsmSystemType": {
 						"type": "string",
-						"enum": ["servicenow_itsm", "jira"],
+						"enum": ["servicenow_itsm", "jira_itsm", "ivanti_itsm"],
 						"description": "ITSM system type"
 					},
 					"status": {
@@ -1349,7 +1361,8 @@
 					"sharepoint",
 					"websearch",
 					"jira_itsm",
-					"freshdesk"
+					"freshdesk",
+					"ivanti_itsm"
 				],
 				"description": "Type of data source connection"
 			},
@@ -4566,7 +4579,7 @@
 					{
 						"schema": {
 							"type": "string",
-							"enum": ["servicenow_itsm", "jira"],
+							"enum": ["servicenow_itsm", "jira_itsm", "ivanti_itsm"],
 							"description": "Filter by ITSM system"
 						},
 						"required": false,
@@ -5239,7 +5252,7 @@
 			"post": {
 				"tags": ["Data Sources"],
 				"summary": "Sync ITSM tickets",
-				"description": "Initiate ITSM ticket ingestion for Autopilot clustering. Only valid for ITSM data sources (servicenow_itsm, jira_itsm). Returns HTTP 202 Accepted. Progress arrives via SSE event `ingestion_run_update`.",
+				"description": "Initiate ITSM ticket ingestion for Autopilot clustering. Only valid for ITSM data sources (servicenow_itsm, jira_itsm, freshdesk, ivanti_itsm). Returns HTTP 202 Accepted. Progress arrives via SSE event `ingestion_run_update`.",
 				"security": [
 					{
 						"bearerAuth": []
