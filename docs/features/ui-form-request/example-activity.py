@@ -52,7 +52,16 @@ MQ_QUEUE = "chat.responses"
 def execute(tenant_id, conversation_id, user_id, ui_schema, interrupt):
     try:
         if isinstance(ui_schema, str):
-            ui_schema_obj = json.loads(ui_schema)
+            # Strip BOM, leading/trailing whitespace and wrapping quotes
+            ui_schema = ui_schema.strip().lstrip('\ufeff')
+            if ui_schema.startswith('"') and ui_schema.endswith('"'):
+                ui_schema = json.loads(ui_schema)  # unwrap double-encoded string
+            if isinstance(ui_schema, str):
+                # Replace real newlines/tabs with escaped versions for valid JSON
+                ui_schema = ui_schema.replace('\r\n', '\\n').replace('\r', '\\n').replace('\n', '\\n').replace('\t', '\\t')
+                ui_schema_obj = json.loads(ui_schema)
+            else:
+                ui_schema_obj = ui_schema
         else:
             ui_schema_obj = ui_schema
 
