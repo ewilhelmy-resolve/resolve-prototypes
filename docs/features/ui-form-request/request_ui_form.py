@@ -2,9 +2,10 @@
 UI Form Request Activity
 
 Send a UI form request to RITA chat iframe via RabbitMQ.
-Connection details hardcoded (same staging RabbitMQ as other activities).
+Connection via rabbitmq_url (parsed by pika.URLParameters), no hardcoded creds.
 
 Inputs (must match JSON activitySettings keys in order):
+ - rabbitmq_url: RabbitMQ connection URL (amqp:// or amqps://)
  - tenant_id: Target tenant
  - conversation_id: Target conversation
  - user_id: Target user's Valkey userGuid
@@ -28,6 +29,8 @@ except Exception:
     sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8", errors="replace")
 # --------------------------------------------------------------
 
+QUEUE_NAME = "chat.responses"
+
 
 def install_and_import(package):
     import subprocess
@@ -40,29 +43,21 @@ def install_and_import(package):
         globals()[package] = sys.modules[package]
 
 
-# RabbitMQ connection (staging)
-MQ_HOST = "b-a5618860-509b-4e36-97bd-39d02589a4d2.mq.us-east-1.amazonaws.com"
-MQ_PORT = 5671
-MQ_USERNAME = "expressmq"
-MQ_PASSWORD = "1Q!Vm@3p00fx"
-MQ_VHOST = "onboarding"
-MQ_QUEUE = "chat.responses"
-
-
-def execute(tenant_id, conversation_id, user_id, ui_schema, interrupt):
+def execute(rabbitmq_url, tenant_id, conversation_id, user_id, ui_schema, interrupt):
     try:
-        # DEBUG: print raw value to see what platform passes
-        print("DEBUG ui_schema type:", type(ui_schema).__name__)
-        print("DEBUG ui_schema repr:", repr(ui_schema[:300]) if isinstance(ui_schema, str) else repr(ui_schema))
-        print("DEBUG ui_schema first 5 chars:", [ui_schema[i] for i in range(min(5, len(ui_schema)))] if isinstance(ui_schema, str) else "N/A")
+        # Validate rabbitmq_url
+        if not rabbitmq_url or not rabbitmq_url.strip():
+            return {"status": "error", "error": "rabbitmq_url is required"}
+        rabbitmq_url = rabbitmq_url.strip()
+        if not (rabbitmq_url.startswith('amqp://') or rabbitmq_url.startswith('amqps://')):
+            return {"status": "error", "error": "rabbitmq_url must start with amqp:// or amqps://"}
 
+        # Parse ui_schema
         if isinstance(ui_schema, str):
-            # Strip BOM, leading/trailing whitespace and wrapping quotes
             ui_schema = ui_schema.strip().lstrip('\ufeff')
             if ui_schema.startswith('"') and ui_schema.endswith('"'):
                 ui_schema = json.loads(ui_schema)  # unwrap double-encoded string
             if isinstance(ui_schema, str):
-                # Remove real newlines/carriage returns/tabs — they're just whitespace
                 ui_schema = ui_schema.replace('\r\n', ' ').replace('\r', ' ').replace('\n', ' ').replace('\t', ' ')
                 ui_schema_obj = json.loads(ui_schema)
             else:
@@ -87,24 +82,13 @@ def execute(tenant_id, conversation_id, user_id, ui_schema, interrupt):
         install_and_import("pika")
         pika = globals().get("pika")
 
-        credentials = pika.PlainCredentials(MQ_USERNAME, MQ_PASSWORD)
-
-        import ssl
-        ssl_options = pika.SSLOptions(ssl.create_default_context())
-
         connection = pika.BlockingConnection(
-            pika.ConnectionParameters(
-                host=MQ_HOST,
-                port=MQ_PORT,
-                credentials=credentials,
-                virtual_host=MQ_VHOST,
-                ssl_options=ssl_options
-            )
+            pika.URLParameters(rabbitmq_url)
         )
         channel = connection.channel()
 
         # Passive declare - queue already exists with custom args
-        channel.queue_declare(queue=MQ_QUEUE, passive=True)
+        channel.queue_declare(queue=QUEUE_NAME, passive=True)
 
         inner_json = json.dumps(inner_message, ensure_ascii=False)
 
@@ -129,7 +113,7 @@ def execute(tenant_id, conversation_id, user_id, ui_schema, interrupt):
 
         channel.basic_publish(
             exchange="",
-            routing_key=MQ_QUEUE,
+            routing_key=QUEUE_NAME,
             body=message_body,
             properties=properties
         )
@@ -141,7 +125,7 @@ def execute(tenant_id, conversation_id, user_id, ui_schema, interrupt):
             "status": "success",
             "message": "UI Form Request sent",
             "message_id": message_id,
-            "queue": MQ_QUEUE,
+            "queue": QUEUE_NAME,
             "bytes_sent": len(message_body),
             "body_sent": body_obj
         }

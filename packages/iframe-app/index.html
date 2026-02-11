@@ -1799,33 +1799,29 @@
 
             document.body.insertAdjacentHTML('beforeend', modalHTML);
 
-            // Close on overlay click (unless preventBackdropClose is set)
+            // Close on overlay click — just dismiss, don't cancel
             const overlay = document.getElementById('rita-form-modal-overlay');
             overlay.addEventListener('click', (e) => {
-                if (e.target === overlay && !config.preventBackdropClose) {
+                if (e.target === overlay) {
                     closeFormModal();
-                    // Notify iframe that modal was cancelled
-                    document.getElementById('ritaIframe').contentWindow.postMessage({
-                        type: 'FORM_MODAL_CANCELLED',
-                        requestId: config.requestId
-                    }, '*');
+                    log('Form dismissed (backdrop click)', 'info');
                 }
             });
 
-            // Cancel button
+            // Cancel button — explicit cancel
             document.getElementById('rita-form-cancel').addEventListener('click', () => {
                 closeFormModal();
-                document.getElementById('ritaIframe').contentWindow.postMessage({
-                    type: 'FORM_MODAL_CANCELLED'
+                document.getElementById('ritaIframe')?.contentWindow?.postMessage({
+                    type: 'FORM_MODAL_CANCELLED',
+                    requestId: config.requestId
                 }, '*');
+                log('Form cancelled', 'info');
             });
 
-            // Close button (X in corner)
+            // Close button (X in corner) — just dismiss, don't cancel
             document.getElementById('rita-form-modal-close').addEventListener('click', () => {
                 closeFormModal();
-                document.getElementById('ritaIframe').contentWindow.postMessage({
-                    type: 'FORM_MODAL_CANCELLED'
-                }, '*');
+                log('Form dismissed (X button)', 'info');
             });
 
             // Form submit
@@ -1837,7 +1833,7 @@
 
                 closeFormModal();
                 // Send form data back to iframe
-                document.getElementById('ritaIframe').contentWindow.postMessage({
+                document.getElementById('ritaIframe')?.contentWindow?.postMessage({
                     type: 'FORM_MODAL_SUBMITTED',
                     requestId: config.requestId,
                     action: config.submitAction,
@@ -1846,15 +1842,12 @@
                 log(`Form submitted: ${JSON.stringify(data).substring(0, 50)}...`, 'outgoing');
             });
 
-            // Escape key (unless preventBackdropClose is set)
+            // Escape key — just dismiss, don't cancel
             const escHandler = (e) => {
-                if (e.key === 'Escape' && !config.preventBackdropClose) {
+                if (e.key === 'Escape') {
                     closeFormModal();
-                    document.getElementById('ritaIframe').contentWindow.postMessage({
-                        type: 'FORM_MODAL_CANCELLED',
-                        requestId: config.requestId
-                    }, '*');
                     document.removeEventListener('keydown', escHandler);
+                    log('Form dismissed (ESC)', 'info');
                 }
             };
             document.addEventListener('keydown', escHandler);
