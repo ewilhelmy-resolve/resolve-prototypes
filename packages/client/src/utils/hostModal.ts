@@ -179,10 +179,7 @@ function closeModalInHost(): void {
 		const overlay = window.parent.document.getElementById(
 			"rita-injected-modal-overlay",
 		);
-		if (overlay) {
-			overlay.style.animation = "ritaModalFadeIn 0.2s ease reverse";
-			setTimeout(() => overlay.remove(), 200);
-		}
+		if (overlay) overlay.remove();
 	} catch {
 		// Cross-origin, ignore
 	}
@@ -358,10 +355,7 @@ function closeFullscreenInHost(): void {
 		const overlay = window.parent.document.getElementById(
 			"rita-fullscreen-overlay",
 		);
-		if (overlay) {
-			overlay.style.animation = "ritaFullscreenFadeIn 0.15s ease reverse";
-			setTimeout(() => overlay.remove(), 150);
-		}
+		if (overlay) overlay.remove();
 	} catch {
 		// Cross-origin, ignore
 	}
@@ -688,10 +682,7 @@ function closeFormModalInHost(): void {
 		const overlay = window.parent.document.getElementById(
 			"rita-form-modal-overlay",
 		);
-		if (overlay) {
-			overlay.style.animation = "ritaFormFadeIn 0.15s ease reverse";
-			setTimeout(() => overlay.remove(), 150);
-		}
+		if (overlay) overlay.remove();
 	} catch {
 		// Cross-origin, ignore
 	}

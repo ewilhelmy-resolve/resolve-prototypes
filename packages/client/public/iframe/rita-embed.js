@@ -65,12 +65,7 @@
 	// ---- Close modal ----
 	function closeModal() {
 		var overlay = document.getElementById("rita-form-modal-overlay");
-		if (overlay) {
-			overlay.style.animation = "ritaFormFadeIn 0.15s ease reverse";
-			setTimeout(() => {
-				overlay.remove();
-			}, 150);
-		}
+		if (overlay) overlay.remove();
 		if (escHandler) {
 			document.removeEventListener("keydown", escHandler);
 			escHandler = null;
@@ -221,18 +216,18 @@
 		});
 
 		// Cancel button
-		document
-			.getElementById("rita-form-cancel")
+		overlay
+			.querySelector("#rita-form-cancel")
 			.addEventListener("click", doCancel);
 
 		// Close (X) button — dismiss only (no cancel)
-		document
-			.getElementById("rita-form-modal-close")
+		overlay
+			.querySelector("#rita-form-modal-close")
 			.addEventListener("click", closeModal);
 
 		// Form submit
-		document
-			.getElementById("rita-form-modal-form")
+		overlay
+			.querySelector("#rita-form-modal-form")
 			.addEventListener("submit", (e) => {
 				e.preventDefault();
 				var fd = new FormData(e.target);
