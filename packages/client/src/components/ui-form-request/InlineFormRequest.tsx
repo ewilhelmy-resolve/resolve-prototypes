@@ -7,6 +7,8 @@
 
 import { CheckCircle2, Loader2 } from "lucide-react";
 import { useState } from "react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { Button } from "@/components/ui/button";
 import {
 	Card,
@@ -260,11 +262,59 @@ function TextRenderer({
 		subheading: "text-sm font-medium",
 	};
 	return (
-		<p
+		<div
 			className={`${variants[component.variant || "default"]} ${component.className || ""}`}
 		>
-			{component.content}
-		</p>
+			<ReactMarkdown
+				remarkPlugins={[remarkGfm]}
+				components={{
+					h1: ({ children }) => (
+						<h1 className="text-xl font-bold mb-2">{children}</h1>
+					),
+					h2: ({ children }) => (
+						<h2 className="text-lg font-semibold mb-2">{children}</h2>
+					),
+					h3: ({ children }) => (
+						<h3 className="text-base font-semibold mb-1">{children}</h3>
+					),
+					h4: ({ children }) => (
+						<h4 className="text-sm font-semibold mb-1">{children}</h4>
+					),
+					p: ({ children }) => (
+						<p className="mb-1 last:mb-0">{children}</p>
+					),
+					table: ({ children }) => (
+						<table className="w-full text-sm border-collapse my-2">
+							{children}
+						</table>
+					),
+					th: ({ children }) => (
+						<th className="border border-border px-2 py-1 text-left font-medium bg-muted/50">
+							{children}
+						</th>
+					),
+					td: ({ children }) => (
+						<td className="border border-border px-2 py-1">{children}</td>
+					),
+					ul: ({ children }) => (
+						<ul className="list-disc list-inside mb-1">{children}</ul>
+					),
+					ol: ({ children }) => (
+						<ol className="list-decimal list-inside mb-1">{children}</ol>
+					),
+					strong: ({ children }) => (
+						<strong className="font-semibold">{children}</strong>
+					),
+					code: ({ children }) => (
+						<code className="bg-muted px-1 py-0.5 rounded text-xs font-mono">
+							{children}
+						</code>
+					),
+				}}
+			>
+				{component.content}
+			</ReactMarkdown>
+		</div>
 	);
 }
 
