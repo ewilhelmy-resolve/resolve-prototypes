@@ -19,7 +19,7 @@ export const Welcome: Story = {
 		<div className="max-w-3xl space-y-8">
 			<div className="space-y-4">
 				<div className="flex items-center gap-4">
-					<img src={logoSrc} alt="RITA Go" className="h-10" />
+					<img src={logoSrc} alt="RITA" className="h-10" />
 					<span className="text-2xl font-medium text-muted-foreground">
 						Design System
 					</span>
@@ -65,10 +65,7 @@ export const Welcome: Story = {
 					Component Categories
 				</h2>
 				<div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-					<CategoryCard
-						title="Actions"
-						items={["Button", "Dropdown Menu"]}
-					/>
+					<CategoryCard title="Actions" items={["Button", "Dropdown Menu"]} />
 					<CategoryCard
 						title="Data Display"
 						items={["Badge", "Card", "Avatar", "Table"]}

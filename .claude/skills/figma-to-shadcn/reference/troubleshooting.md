@@ -100,7 +100,7 @@ Claude: "split_components: yes"
 
 **Solution:**
 
-Always generate in RITA Go structure:
+Always generate in RITA structure:
 ```
 packages/client/src/components/
   ├── {feature-name}/
@@ -193,7 +193,7 @@ npm install react-hook-form @hookform/resolvers zod
 npm install lucide-react react-hook-form @hookform/resolvers zod
 ```
 
-**Expected versions (RITA Go):**
+**Expected versions (RITA):**
 ```json
 {
   "lucide-react": "^0.460.0",

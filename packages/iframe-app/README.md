@@ -1,6 +1,6 @@
 # RITA Iframe Demo
 
-Demo application for testing the iframe-embeddable version of RITA Go chat.
+Demo application for testing the iframe-embeddable version of RITA chat.
 
 ## Overview
 

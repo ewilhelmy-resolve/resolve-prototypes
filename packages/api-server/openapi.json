@@ -3,7 +3,7 @@
 	"info": {
 		"title": "Rita API",
 		"version": "1.0.0",
-		"description": "Rita API Server for the RITA Go application.\n\n## Authentication\nMost endpoints require authentication via Keycloak JWT token or session cookie.\n\n## Organization Context\nAll data is scoped to the user's active organization (tenant).\n\n## Real-time Updates\nFor real-time updates, connect to the SSE endpoint at `/api/sse/events`.\nSee AsyncAPI spec for event documentation.",
+		"description": "Rita API Server for the RITA application.\n\n## Authentication\nMost endpoints require authentication via Keycloak JWT token or session cookie.\n\n## Organization Context\nAll data is scoped to the user's active organization (tenant).\n\n## Real-time Updates\nFor real-time updates, connect to the SSE endpoint at `/api/sse/events`.\nSee AsyncAPI spec for event documentation.",
 		"contact": {
 			"name": "Rita Team"
 		}
@@ -694,6 +694,10 @@
 						"type": "string",
 						"example": "Cannot reset password"
 					},
+					"description": {
+						"type": ["string", "null"],
+						"description": "Human-readable ticket description"
+					},
 					"external_status": {
 						"type": "string",
 						"description": "Status in source system",
@@ -727,6 +731,7 @@
 					"data_source_connection_id",
 					"external_id",
 					"subject",
+					"description",
 					"external_status",
 					"cluster_text",
 					"rita_status",

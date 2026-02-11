@@ -871,6 +871,8 @@ function IframeChatContent({
 	placeholderText,
 	welcomeText,
 	leftToolbarContent,
+	onFormSubmit,
+	onFormCancel,
 }: {
 	conversationId: string;
 	/** Custom title from Valkey (e.g., "Ask Workflow Designer") */
@@ -881,6 +883,14 @@ function IframeChatContent({
 	welcomeText?: string;
 	/** Custom content for left side of input toolbar */
 	leftToolbarContent?: React.ReactNode;
+	/** Handler for inline form submission */
+	onFormSubmit?: (
+		requestId: string,
+		action: string,
+		data: Record<string, string>,
+	) => Promise<void>;
+	/** Handler for inline form cancellation */
+	onFormCancel?: (requestId: string) => Promise<void>;
 }) {
 	const { latestUpdate } = useSSEContext();
 	const { updateMessage } = useConversationStore();
@@ -933,6 +943,8 @@ function IframeChatContent({
 			placeholderText={placeholderText}
 			welcomeText={welcomeText}
 			leftToolbarContent={leftToolbarContent}
+			onFormSubmit={onFormSubmit}
+			onFormCancel={onFormCancel}
 		/>
 	);
 }
@@ -1328,6 +1340,76 @@ export default function IframeChatPage() {
 		debugLogs,
 	};
 
+	// UI Form Request handlers (must be before early returns for hooks rules)
+	const handleFormSubmit = useCallback(
+		async (requestId: string, action: string, data: Record<string, string>) => {
+			addDebugLog("info", "⬆️ UI Form submitted", { requestId, action, data });
+			await iframeApi.submitUIFormResponse({
+				requestId,
+				action,
+				status: "submitted",
+				data,
+			});
+		},
+		[addDebugLog],
+	);
+
+	const handleFormCancel = useCallback(
+		async (requestId: string) => {
+			addDebugLog("info", "⬆️ UI Form cancelled", { requestId });
+			await iframeApi.submitUIFormResponse({ requestId, status: "cancelled" });
+		},
+		[addDebugLog],
+	);
+
+	// Listen for FORM_MODAL_SUBMITTED / FORM_MODAL_CANCELLED from host embed script (Tier 1)
+	useEffect(() => {
+		const handler = async (event: MessageEvent) => {
+			const msg = event.data;
+			if (!msg || typeof msg !== "object") return;
+
+			if (msg.type === "FORM_MODAL_SUBMITTED" && msg.requestId) {
+				addDebugLog("info", "⬇️ Host form submitted", {
+					requestId: msg.requestId,
+					action: msg.action,
+				});
+				await iframeApi.submitUIFormResponse({
+					requestId: msg.requestId,
+					action: msg.action,
+					status: "submitted",
+					data: msg.data,
+				});
+				// Update local store to mark form as completed
+				const { messages: storeMessages, updateMessage: storeUpdate } = useConversationStore.getState();
+				const formMsg = storeMessages.find((m) => m.metadata?.request_id === msg.requestId);
+				if (formMsg) {
+					storeUpdate(formMsg.id, {
+						metadata: { ...formMsg.metadata, status: "completed", form_data: msg.data, form_action: msg.action, submitted_at: new Date().toISOString() },
+					});
+				}
+			} else if (msg.type === "FORM_MODAL_CANCELLED" && msg.requestId) {
+				addDebugLog("info", "⬇️ Host form cancelled", {
+					requestId: msg.requestId,
+				});
+				await iframeApi.submitUIFormResponse({
+					requestId: msg.requestId,
+					status: "cancelled",
+				});
+				// Update local store to mark form as cancelled
+				const { messages: cancelMessages, updateMessage: cancelUpdate } = useConversationStore.getState();
+				const cancelMsg = cancelMessages.find((m) => m.metadata?.request_id === msg.requestId);
+				if (cancelMsg) {
+					cancelUpdate(cancelMsg.id, {
+						metadata: { ...cancelMsg.metadata, status: "cancelled", submitted_at: new Date().toISOString() },
+					});
+				}
+			}
+		};
+
+		window.addEventListener("message", handler);
+		return () => window.removeEventListener("message", handler);
+	}, [addDebugLog]);
+
 	// Loading state
 	if (isLoading) {
 		return (
@@ -1395,6 +1477,8 @@ export default function IframeChatPage() {
 					placeholderText={placeholderText}
 					welcomeText={welcomeText}
 					leftToolbarContent={devToolsElement}
+					onFormSubmit={handleFormSubmit}
+					onFormCancel={handleFormCancel}
 				/>
 			</SSEProvider>
 			{/* Platform simulator panel (dev mode) */}

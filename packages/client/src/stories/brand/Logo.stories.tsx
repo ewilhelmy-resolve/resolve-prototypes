@@ -12,7 +12,7 @@ const meta: Meta = {
 		docs: {
 			description: {
 				component:
-					"RITA Go logo assets and usage guidelines. The logo features the RITA wordmark with the distinctive teal accent.",
+					"RITA logo assets and usage guidelines. The logo features the RITA wordmark with the distinctive teal accent.",
 			},
 		},
 	},
@@ -26,7 +26,7 @@ export const Default: Story = {
 	render: () => (
 		<div className="space-y-8">
 			<div className="p-8 bg-white rounded-lg border border-border">
-				<img src={logoSrc} alt="RITA Go Logo" className="h-8" />
+				<img src={logoSrc} alt="RITA Logo" className="h-8" />
 			</div>
 			<div className="text-sm text-muted-foreground">
 				<strong>File:</strong> /public/logo-rita.svg
@@ -40,11 +40,7 @@ export const OnDarkBackground: Story = {
 	render: () => (
 		<div className="space-y-8">
 			<div className="p-8 bg-black rounded-lg">
-				<img
-					src={logoSrc}
-					alt="RITA Go Logo"
-					className="h-8 invert"
-				/>
+				<img src={logoSrc} alt="RITA Logo" className="h-8 invert" />
 			</div>
 			<div className="text-sm text-muted-foreground">
 				Use <code className="bg-muted px-1 rounded">invert</code> class for dark
@@ -63,13 +59,15 @@ export const Sizes: Story = {
 			<div className="space-y-4">
 				<div className="flex items-center gap-4 p-4 border border-border rounded-lg">
 					<code className="text-xs text-muted-foreground w-16">h-6</code>
-					<img src={logoSrc} alt="RITA Go Logo" className="h-6" />
-					<span className="text-sm text-muted-foreground">Small - Nav items</span>
+					<img src={logoSrc} alt="RITA Logo" className="h-6" />
+					<span className="text-sm text-muted-foreground">
+						Small - Nav items
+					</span>
 				</div>
 
 				<div className="flex items-center gap-4 p-4 border border-border rounded-lg">
 					<code className="text-xs text-muted-foreground w-16">h-8</code>
-					<img src={logoSrc} alt="RITA Go Logo" className="h-8" />
+					<img src={logoSrc} alt="RITA Logo" className="h-8" />
 					<span className="text-sm text-muted-foreground">
 						Default - Headers
 					</span>
@@ -77,16 +75,14 @@ export const Sizes: Story = {
 
 				<div className="flex items-center gap-4 p-4 border border-border rounded-lg">
 					<code className="text-xs text-muted-foreground w-16">h-12</code>
-					<img src={logoSrc} alt="RITA Go Logo" className="h-12" />
+					<img src={logoSrc} alt="RITA Logo" className="h-12" />
 					<span className="text-sm text-muted-foreground">Large - Hero</span>
 				</div>
 
 				<div className="flex items-center gap-4 p-4 border border-border rounded-lg">
 					<code className="text-xs text-muted-foreground w-16">h-16</code>
-					<img src={logoSrc} alt="RITA Go Logo" className="h-16" />
-					<span className="text-sm text-muted-foreground">
-						XL - Marketing
-					</span>
+					<img src={logoSrc} alt="RITA Logo" className="h-16" />
+					<span className="text-sm text-muted-foreground">XL - Marketing</span>
 				</div>
 			</div>
 		</div>
@@ -105,7 +101,7 @@ export const ClearSpace: Story = {
 
 			<div className="p-8 bg-muted/50 rounded-lg flex items-center justify-center">
 				<div className="border-2 border-dashed border-primary/30 p-6">
-					<img src={logoSrc} alt="RITA Go Logo" className="h-8" />
+					<img src={logoSrc} alt="RITA Logo" className="h-8" />
 				</div>
 			</div>
 		</div>
@@ -152,14 +148,12 @@ export const BrandMark: Story = {
 								fill="none"
 								xmlns="http://www.w3.org/2000/svg"
 							>
-								<rect
-									x="10"
-									y="10"
-									width="4"
-									height="4"
-									fill="#0EC0C0"
+								<rect x="10" y="10" width="4" height="4" fill="#0EC0C0" />
+								<path
+									d="M12 2v6M12 16v6M2 12h6M16 12h6"
+									stroke="#0EC0C0"
+									strokeWidth="2"
 								/>
-								<path d="M12 2v6M12 16v6M2 12h6M16 12h6" stroke="#0EC0C0" strokeWidth="2" />
 							</svg>
 						</div>
 						<span className="text-sm text-muted-foreground">

@@ -720,6 +720,7 @@
             <div class="dev-section">
                 <h3>Manual Connection</h3>
                 <input type="text" class="dev-input" id="sessionKey" placeholder="Session Key (Valkey)" value="dev-test-session">
+                <input type="text" class="dev-input" id="conversationIdInput" placeholder="Conversation ID (optional)" style="margin-top: 4px;">
                 <button class="dev-btn primary" onclick="loadIframe()">Load Iframe</button>
                 <div style="margin-top: 8px; font-size: 11px;">
                     <span class="status-dot" id="statusDot"></span>
@@ -751,42 +752,46 @@
                 <button class="dev-btn secondary" onclick="getStatus()">Get Status</button>
             </div>
 
-            <!-- Mock Responses -->
+            <!-- UI Form Requests (Direct Injection) -->
             <div class="dev-section">
-                <h3>Trigger Mock Response</h3>
-                <p style="font-size: 10px; color: #64748b; margin-bottom: 8px;">Send message then response via RabbitMQ</p>
+                <h3>🎯 UI Form Requests</h3>
+                <p style="font-size: 10px; color: #64748b; margin-bottom: 8px;">Simulate Platform sending form requests</p>
+                <div style="display: flex; flex-direction: column; gap: 6px;">
+                    <button class="dev-btn primary" onclick="sendInlineForm()" style="text-align: left; padding: 10px 12px;">
+                        <strong>📝 Inline Form</strong>
+                        <span style="display: block; font-size: 10px; opacity: 0.8; margin-top: 2px;">interrupt=false → renders in chat bubble</span>
+                    </button>
+                    <button class="dev-btn" onclick="sendModalForm()" style="text-align: left; padding: 10px 12px; background: #7c3aed; color: white;">
+                        <strong>🔲 Modal Form</strong>
+                        <span style="display: block; font-size: 10px; opacity: 0.8; margin-top: 2px;">interrupt=true → opens modal overlay</span>
+                    </button>
+                    <button class="dev-btn secondary" onclick="sendFeedbackForm()" style="text-align: left; padding: 10px 12px;">
+                        <strong>⭐ Quick Feedback</strong>
+                        <span style="display: block; font-size: 10px; opacity: 0.8; margin-top: 2px;">Small inline rating form</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Mock Chat Responses -->
+            <div class="dev-section">
+                <h3>Mock Responses</h3>
+                <p style="font-size: 10px; color: #64748b; margin-bottom: 8px;">Send via RabbitMQ mock service</p>
                 <div class="mock-btn-grid">
                     <button class="mock-btn" onclick="triggerMock('test1')">
-                        <span class="mock-label">test1</span>
-                        <span class="mock-desc">Text only</span>
+                        <span class="mock-label">text</span>
+                        <span class="mock-desc">Simple text</span>
                     </button>
                     <button class="mock-btn" onclick="triggerMock('test2')">
-                        <span class="mock-label">test2</span>
-                        <span class="mock-desc">Reasoning + Text</span>
+                        <span class="mock-label">reasoning</span>
+                        <span class="mock-desc">With thinking</span>
                     </button>
                     <button class="mock-btn" onclick="triggerMock('test3')">
-                        <span class="mock-label">test3</span>
-                        <span class="mock-desc">With Sources</span>
-                    </button>
-                    <button class="mock-btn" onclick="triggerMock('test4')">
-                        <span class="mock-label">test4</span>
-                        <span class="mock-desc">With Tasks</span>
+                        <span class="mock-label">sources</span>
+                        <span class="mock-desc">With citations</span>
                     </button>
                     <button class="mock-btn" onclick="triggerMock('testcode')">
-                        <span class="mock-label">testcode</span>
+                        <span class="mock-label">code</span>
                         <span class="mock-desc">Code blocks</span>
-                    </button>
-                    <button class="mock-btn" onclick="triggerMock('testlong')">
-                        <span class="mock-label">testlong</span>
-                        <span class="mock-desc">Long response</span>
-                    </button>
-                    <button class="mock-btn" onclick="triggerMock('testmodal')">
-                        <span class="mock-label">testmodal</span>
-                        <span class="mock-desc">Modal form</span>
-                    </button>
-                    <button class="mock-btn" onclick="triggerMock('testforcemodal')">
-                        <span class="mock-label">testforce</span>
-                        <span class="mock-desc">Auto-open modal</span>
                     </button>
                 </div>
             </div>
@@ -939,7 +944,9 @@
                 return;
             }
 
-            const url = `${RITA_BASE_URL}/iframe/chat?sessionKey=${encodeURIComponent(sessionKey)}`;
+            const convId = document.getElementById('conversationIdInput').value.trim();
+            const chatPath = convId ? `/iframe/chat/${convId}` : '/iframe/chat';
+            const url = `${RITA_BASE_URL}${chatPath}?sessionKey=${encodeURIComponent(sessionKey)}`;
 
             iframeReady = false;
             updateStatus('Loading...', 'waiting');
@@ -1068,6 +1075,76 @@
             log(`MOCK [${requestId}]: Triggered "${testType}"`, 'workflow');
         }
 
+        // ============================================
+        // UI Form Request Functions
+        // ============================================
+
+        function sendInlineForm() {
+            if (!iframeReady) {
+                log('Error: Iframe not ready. Load iframe first.', 'error');
+                return;
+            }
+
+            // Ensure chat widget is open
+            if (!chatOpen) {
+                toggleChat();
+            }
+
+            // Send testmodal keyword - mock service returns ui_form_request with interrupt=false
+            const requestId = `req_${++requestCounter}`;
+            document.getElementById('ritaIframe').contentWindow.postMessage({
+                type: 'SEND_MESSAGE',
+                payload: { content: 'testmodal' },
+                requestId
+            }, '*');
+            log(`📝 INLINE FORM [${requestId}]: Sending form request (interrupt=false)`, 'workflow');
+            log('Form will appear in chat as a message bubble', 'info');
+        }
+
+        function sendModalForm() {
+            if (!iframeReady) {
+                log('Error: Iframe not ready. Load iframe first.', 'error');
+                return;
+            }
+
+            // Ensure chat widget is open
+            if (!chatOpen) {
+                toggleChat();
+            }
+
+            // Send testforcemodal keyword - mock service returns ui_form_request with interrupt=true
+            const requestId = `req_${++requestCounter}`;
+            document.getElementById('ritaIframe').contentWindow.postMessage({
+                type: 'SEND_MESSAGE',
+                payload: { content: 'testforcemodal' },
+                requestId
+            }, '*');
+            log(`🔲 MODAL FORM [${requestId}]: Sending form request (interrupt=true)`, 'workflow');
+            log('Form will open as modal overlay immediately', 'info');
+        }
+
+        function sendFeedbackForm() {
+            if (!iframeReady) {
+                log('Error: Iframe not ready. Load iframe first.', 'error');
+                return;
+            }
+
+            // Ensure chat widget is open
+            if (!chatOpen) {
+                toggleChat();
+            }
+
+            // Send testinlineform keyword - mock service returns a feedback-style inline form
+            const requestId = `req_${++requestCounter}`;
+            document.getElementById('ritaIframe').contentWindow.postMessage({
+                type: 'SEND_MESSAGE',
+                payload: { content: 'testinlineform' },
+                requestId
+            }, '*');
+            log(`⭐ FEEDBACK FORM [${requestId}]: Sending quick feedback form`, 'workflow');
+            log('Simple rating form will appear inline in chat', 'info');
+        }
+
         // Listen for iframe messages
         window.addEventListener('message', (event) => {
             const { type, requestId, success, error, data, payload } = event.data || {};
@@ -1137,11 +1214,16 @@
                     break;
                 case 'RITA_FORM_MODAL':
                     log('Received RITA_FORM_MODAL from iframe', 'incoming');
+                    // ACK so iframe knows host will handle rendering
+                    document.getElementById('ritaIframe')?.contentWindow?.postMessage({ type: 'RITA_FORM_MODAL_ACK' }, '*');
                     openFormModal(payload);
                     break;
                 case 'RITA_CLOSE_FORM_MODAL':
                     log('Received RITA_CLOSE_FORM_MODAL from iframe', 'incoming');
                     closeFormModal();
+                    break;
+                default:
+                    log(`[postMessage] ${type}: ${JSON.stringify(event.data).substring(0, 200)}`, 'info');
                     break;
             }
         });
@@ -1724,7 +1806,8 @@
                     closeFormModal();
                     // Notify iframe that modal was cancelled
                     document.getElementById('ritaIframe').contentWindow.postMessage({
-                        type: 'FORM_MODAL_CANCELLED'
+                        type: 'FORM_MODAL_CANCELLED',
+                        requestId: config.requestId
                     }, '*');
                 }
             });
@@ -1756,6 +1839,8 @@
                 // Send form data back to iframe
                 document.getElementById('ritaIframe').contentWindow.postMessage({
                     type: 'FORM_MODAL_SUBMITTED',
+                    requestId: config.requestId,
+                    action: config.submitAction,
                     data
                 }, '*');
                 log(`Form submitted: ${JSON.stringify(data).substring(0, 50)}...`, 'outgoing');
@@ -1766,7 +1851,8 @@
                 if (e.key === 'Escape' && !config.preventBackdropClose) {
                     closeFormModal();
                     document.getElementById('ritaIframe').contentWindow.postMessage({
-                        type: 'FORM_MODAL_CANCELLED'
+                        type: 'FORM_MODAL_CANCELLED',
+                        requestId: config.requestId
                     }, '*');
                     document.removeEventListener('keydown', escHandler);
                 }

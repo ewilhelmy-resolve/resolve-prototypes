@@ -1,6 +1,6 @@
-# Rita Go (Client) Documentation
+# RITA (Client) Documentation
 
-This directory contains documentation specific to the Rita Go frontend application (`packages/client/`).
+This directory contains documentation specific to the RITA frontend application (`packages/client/`).
 
 ## Structure
 
@@ -14,7 +14,7 @@ Package-specific docs live here. For project-wide documentation, see [`docs/`](.
 
 ## Overview
 
-Rita Go is the enterprise frontend for Rita, built with:
+RITA is the enterprise frontend for Rita, built with:
 - **React 18+** with **TypeScript 5+** (strict mode)
 - **TanStack Query v5** for server state management
 - **Zustand** for lightweight client state
@@ -32,7 +32,7 @@ Rita Go is the enterprise frontend for Rita, built with:
 - [Figma to React Workflow](../../../docs/frontend/figma_to_react_workflow.md) - Design-to-code process
 - [Figma to Code Process](../../../docs/frontend/figma-to-code-process.md) - shadcn/ui integration
 
-### Rita Go Specific
+### RITA Specific
 - `src/components/` - React components (UI, layouts, feature components)
 - `src/hooks/` - Custom React hooks
 - `src/lib/` - Utilities and helpers
@@ -72,7 +72,7 @@ npm run preview           # Preview production build locally
 ## Key Concepts
 
 ### Component-Based Architecture (CBA)
-Rita Go follows strict CBA principles:
+RITA follows strict CBA principles:
 - **Modular Components**: Single responsibility, reusable
 - **Composition**: Build complex UIs from simple components
 - **Accessibility**: WCAG 2.1 AA compliance
@@ -107,7 +107,7 @@ const { messages } = useConversation(conversationId)
 
 ## Internationalization (i18n)
 
-Rita Go uses `react-i18next` for internationalization with namespace-based organization.
+RITA uses `react-i18next` for internationalization with namespace-based organization.
 
 ### Namespace Organization
 
@@ -168,7 +168,7 @@ expect(screen.getByText("invite.verifying")).toBeInTheDocument();
 
 ## Feature Flags
 
-Rita Go uses a multi-scope feature flag system for controlling features:
+RITA uses a multi-scope feature flag system for controlling features:
 - **Local**: Development flags (localStorage)
 - **Tenant**: Organization-level flags (future: API-based)
 - **User**: User-level flags (future: API-based)
@@ -180,7 +180,7 @@ Access DevTools at `/devtools` to toggle local flags.
 ## UI Component Strategy
 
 ### shadcn/ui + Figma-to-shadcn
-Rita Go uses shadcn/ui as the component foundation:
+RITA uses shadcn/ui as the component foundation:
 
 ```bash
 # Install components from shadcn registry
@@ -196,7 +196,7 @@ See [Figma to Code Process](../../../docs/frontend/figma-to-code-process.md) for
 
 ## SOC2 Type II Compliance
 
-Rita Go is built for SOC2 certification:
+RITA is built for SOC2 certification:
 - **Security**: Keycloak SSO, token-based auth, secure HTTP-only cookies
 - **Availability**: Error boundaries, graceful degradation, loading states
 - **Processing Integrity**: Form validation, optimistic UI with rollback
@@ -214,7 +214,7 @@ When adding new features:
 6. Update this README if needed
 
 ### Enterprise Standards
-All Rita Go development must follow **fe-enterprise-agent** standards (see [CLAUDE.md](../../../CLAUDE.md)):
+All RITA development must follow **fe-enterprise-agent** standards (see [CLAUDE.md](../../../CLAUDE.md)):
 - SOC2 Type II compliance
 - WCAG 2.1 AA accessibility
 - Component-Based Architecture

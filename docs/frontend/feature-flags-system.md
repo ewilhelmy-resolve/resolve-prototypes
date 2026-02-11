@@ -1,6 +1,6 @@
 # Feature Flags System
 
-RITA Go uses a **two-tier feature flag system**:
+RITA uses a **two-tier feature flag system**:
 
 1. **Platform Flags** - Per-tenant control via Platform Actions API (relay proxy)
 2. **Local Flags** - Per-browser localStorage for dev/experimental features

@@ -1,7 +1,7 @@
 /**
  * useIframeMessaging - Handle postMessage communication with host page
  *
- * Enables host page (Jarvis) to send commands to RITA Go iframe.
+ * Enables host page (Jarvis) to send commands to RITA iframe.
  * Used only in IframeChatPage for embedded chat scenarios.
  *
  * Protocol:
@@ -46,7 +46,7 @@ interface UseIframeMessagingOptions {
 	allowedOrigins?: string[]; // Empty = same-origin only
 	onSendMessage?: (
 		content: string,
-		metadata: HostMessageMetadata
+		metadata: HostMessageMetadata,
 	) => Promise<void>;
 	onGetStatus?: () => Record<string, unknown>;
 	onClearChat?: () => void;
@@ -158,7 +158,7 @@ export function useIframeMessaging({
 					console.warn("[IframeMessaging] Unknown message type:", type);
 			}
 		},
-		[allowedOrigins, onSendMessage, onGetStatus, onClearChat]
+		[allowedOrigins, onSendMessage, onGetStatus, onClearChat],
 	);
 
 	useEffect(() => {

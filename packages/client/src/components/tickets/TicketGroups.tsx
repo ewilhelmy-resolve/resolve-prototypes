@@ -11,11 +11,13 @@ import {
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
+import { Progress } from "@/components/ui/progress";
 import { Spinner } from "@/components/ui/spinner";
 import { StatusAlert } from "@/components/ui/status-alert";
 import { useActiveModel } from "@/hooks/useActiveModel";
 import { useClusters } from "@/hooks/useClusters";
 import { useDebounce } from "@/hooks/useDebounce";
+import { useIsIngesting } from "@/hooks/useIsIngesting";
 import {
 	KB_FILTER_ALL,
 	KB_STATUSES,
@@ -28,7 +30,7 @@ import { TicketGroupStat } from "./TicketGroupStat";
 
 type KBFilterOption = KBStatus | typeof KB_FILTER_ALL;
 
-const PAGE_SIZE = 9;
+const PAGE_SIZE = 12;
 
 interface TicketGroupsProps {
 	period: PeriodFilter;
@@ -65,6 +67,10 @@ export default function TicketGroups({
 	const isFailed = trainingState === TRAINING_STATES.FAILED;
 	const canShowClusters = trainingState === TRAINING_STATES.COMPLETE;
 
+	// Check if ITSM source is actively importing tickets
+	const { isIngesting, latestRun } = useIsIngesting();
+	const isFirstImport = isIngesting && !canShowClusters;
+
 	// kb_status now goes to server (not client filtering)
 	const kbStatusParam = kbFilter === KB_FILTER_ALL ? undefined : kbFilter;
 
@@ -80,6 +86,7 @@ export default function TicketGroups({
 		kb_status: kbStatusParam,
 		search: debouncedSearch || undefined,
 		enabled: canShowClusters,
+		sort: "volume",
 	});
 
 	const clusters = clustersResponse?.data ?? [];
@@ -158,7 +165,7 @@ export default function TicketGroups({
 	return (
 		<div className="flex min-h-screen w-full flex-col items-center">
 			<div className="flex w-full items-start justify-center py-6">
-				<div className="flex w-full flex-col gap-6 px-6">
+				<div className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-6">
 					<div className="flex w-full flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
 						<div className="flex flex-col gap-1.5">
 							<div className="flex items-center gap-1.5">
@@ -230,7 +237,7 @@ export default function TicketGroups({
 						className="max-w-sm"
 						value={searchInput}
 						onChange={(e) => setSearchInput(e.target.value)}
-						disabled={hasNoModel || isTraining}
+						disabled={hasNoModel || isTraining || isFirstImport}
 					/>
 
 					{hasNoModel ? (
@@ -260,6 +267,36 @@ export default function TicketGroups({
 								<p className="text-muted-foreground">{t("groups.noGroups")}</p>
 							</div>
 						</div>
+					) : isFirstImport ? (
+						// First-time import: show banner + progress + skeleton grid
+						<div className="flex flex-col gap-6">
+							<StatusAlert variant="info" title={t("groups.importingTickets")}>
+								<p>{t("groups.importingDescription")}</p>
+								{latestRun?.metadata?.progress?.total_estimated && (
+									<div className="w-full">
+										<Progress
+											value={
+												(latestRun.records_processed /
+													latestRun.metadata.progress.total_estimated) *
+												100
+											}
+											className="bg-white"
+										/>
+										<span className="text-sm text-muted-foreground whitespace-nowrap">
+											{t("groups.importingProgress", {
+												processed: latestRun.records_processed,
+												total: latestRun.metadata.progress.total_estimated,
+											})}
+										</span>
+									</div>
+								)}
+							</StatusAlert>
+							<div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-5">
+								{[...Array(6)].map((_, i) => (
+									<TicketGroupSkeleton key={i} />
+								))}
+							</div>
+						</div>
 					) : isTraining ? (
 						// Training in progress: show banner + skeleton grid
 						<div className="flex flex-col gap-6">
@@ -269,7 +306,7 @@ export default function TicketGroups({
 							>
 								<p>{t("groups.trainingDescription")}</p>
 							</StatusAlert>
-							<div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3">
+							<div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-5">
 								{[...Array(6)].map((_, i) => (
 									<TicketGroupSkeleton key={i} />
 								))}
@@ -277,7 +314,34 @@ export default function TicketGroups({
 						</div>
 					) : clusters.length > 0 ? (
 						<>
-							<div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3">
+							{/* Re-import banner: show above existing clusters */}
+							{isIngesting && (
+								<StatusAlert
+									variant="info"
+									title={t("groups.importingTickets")}
+								>
+									<p>{t("groups.importingDescription")}</p>
+									{latestRun?.metadata?.progress?.total_estimated && (
+										<div className="w-full">
+											<Progress
+												value={
+													(latestRun.records_processed /
+														latestRun.metadata.progress.total_estimated) *
+													100
+												}
+												className="bg-white"
+											/>
+											<span className="text-sm text-muted-foreground whitespace-nowrap">
+												{t("groups.importingProgress", {
+													processed: latestRun.records_processed,
+													total: latestRun.metadata.progress.total_estimated,
+												})}
+											</span>
+										</div>
+									)}
+								</StatusAlert>
+							)}
+							<div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-5">
 								{clusters.map((cluster) => (
 									<TicketGroupStat
 										key={cluster.id}

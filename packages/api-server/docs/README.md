@@ -14,7 +14,7 @@ Package-specific docs live here. For project-wide documentation, see [`docs/`](.
 ## Overview
 
 The Rita API Server is a TypeScript/Node.js backend service that provides:
-- RESTful API endpoints for Rita Go frontend
+- RESTful API endpoints for RITA frontend
 - Server-Sent Events (SSE) for real-time updates
 - PostgreSQL database integration
 - RabbitMQ message queue integration

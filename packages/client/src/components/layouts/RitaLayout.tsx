@@ -13,7 +13,6 @@
 
 "use client";
 
-import { useTranslation } from "react-i18next";
 import {
 	ALargeSmall,
 	Bot,
@@ -30,9 +29,11 @@ import {
 	Upload,
 	Workflow,
 } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Loader } from "@/components/ai-elements/loader";
+import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { ConversationListItem } from "@/components/sidebar/ConversationListItem";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
@@ -69,7 +70,6 @@ import {
 	useSidebar,
 } from "@/components/ui/sidebar";
 import InviteUsersButton from "@/components/users/InviteUsersButton";
-import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import WelcomeDialog from "@/components/WelcomeDialog";
 import { SOURCE_METADATA } from "@/constants/connectionSources";
 import { useConversations } from "@/hooks/api/useConversations";
@@ -83,7 +83,6 @@ import { SUPPORTED_DOCUMENT_TYPES } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 import type { Conversation } from "@/stores/conversationStore";
 import type { DataSourceConnection } from "@/types/dataSource";
-import { memo } from "react";
 
 export interface RitaLayoutProps {
 	children: React.ReactNode;
@@ -95,7 +94,7 @@ export interface RitaLayoutProps {
 // Using background-image instead of <img> for better caching
 const RitaLogo = memo(() => (
 	<div
-		className="w-[179px] h-[18px] bg-no-repeat bg-center bg-contain"
+		className="w-[175px] h-[28px] bg-no-repeat bg-center bg-contain"
 		style={{ backgroundImage: "url('/logo-rita.svg')" }}
 		role="img"
 		aria-label="RITA Logo"
@@ -181,8 +180,7 @@ function RitaLayoutContent({ children, activePage = "chat" }: RitaLayoutProps) {
 		const storageKey = `rita_welcome_seen_${userId}`;
 
 		// Check localStorage first (persists across sessions)
-		const hasSeenInLocalStorage =
-			localStorage.getItem(storageKey) === "true";
+		const hasSeenInLocalStorage = localStorage.getItem(storageKey) === "true";
 		// Check cookie as fallback
 		const hasSeenInCookie = document.cookie.includes(`${storageKey}=true`);
 		return hasSeenInLocalStorage || hasSeenInCookie;
@@ -342,7 +340,7 @@ function RitaLayoutContent({ children, activePage = "chat" }: RitaLayoutProps) {
 										</span>
 									</SidebarMenuButton>
 								</SidebarMenuItem>
-								</SidebarMenu>
+							</SidebarMenu>
 						</SidebarGroup>
 					)}
 
@@ -559,7 +557,9 @@ function RitaLayoutContent({ children, activePage = "chat" }: RitaLayoutProps) {
 												className="gap-2 h-9 px-3 text-sm"
 											>
 												<Plus className="w-4 h-4" />
-												<span className="hidden sm:inline">{t("nav.addArticles")}</span>
+												<span className="hidden sm:inline">
+													{t("nav.addArticles")}
+												</span>
 											</Button>
 										</DropdownMenuTrigger>
 										<DropdownMenuContent align="end">
@@ -648,7 +648,6 @@ function RitaLayoutContent({ children, activePage = "chat" }: RitaLayoutProps) {
 				multiple={enableMultiFileUpload}
 				disabled={uploadingFiles.size > 0}
 			/>
-
 
 			{/* Welcome Modal */}
 			<WelcomeDialog

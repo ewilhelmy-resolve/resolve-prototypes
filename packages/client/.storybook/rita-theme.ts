@@ -11,7 +11,7 @@ export const ritaTheme = create({
 	base: "light",
 
 	// Brand
-	brandTitle: "RITA Go Design System",
+	brandTitle: "RITA Design System",
 	brandUrl: baseUrl,
 	brandImage: `${baseUrl}logo-rita.svg`,
 	brandTarget: "_self",
@@ -61,7 +61,7 @@ export const ritaDarkTheme = create({
 	base: "dark",
 
 	// Brand
-	brandTitle: "RITA Go Design System",
+	brandTitle: "RITA Design System",
 	brandUrl: baseUrl,
 	brandImage: `${baseUrl}logo-rita.svg`,
 	brandTarget: "_self",

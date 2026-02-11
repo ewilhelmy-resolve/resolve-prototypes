@@ -218,11 +218,11 @@ class EmailService {
 		await this.sendEmail({
 			to: ownerEmail,
 			subject: `${systemDisplayName} is connected`,
-			text: `Someone on your team has setup ${systemDisplayName} in RITAGo and will see your IT tickets in RITAGo.\n\nView connection: ${connectionUrl}\n\nBest regards,\nThe Resolve Team`,
+			text: `Someone on your team has setup ${systemDisplayName} in RITA and will see your IT tickets in RITA.\n\nView connection: ${connectionUrl}\n\nBest regards,\nThe Resolve Team`,
 			html: this.buildEmailTemplate({
 				title: `${systemDisplayName} is connected`,
 				body: `<p style="margin: 0; font-size: 16px; line-height: 1.6; color: #333333;">
-          Someone on your team has setup ${systemDisplayName} in RITAGo and will see your IT tickets in RITAGo
+          Someone on your team has setup ${systemDisplayName} in RITA and will see your IT tickets in RITA
         </p>`,
 				ctaText: "Go to connection",
 				ctaUrl: connectionUrl,

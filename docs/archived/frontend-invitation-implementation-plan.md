@@ -366,7 +366,7 @@ Create: `src/hooks/api/useInvitations.ts`
 
 ### Authentication Strategy ✅
 
-RITA Go uses **cookie-based authentication** with Keycloak, not Bearer tokens. The hooks follow the same pattern as `src/services/api.ts`:
+RITA uses **cookie-based authentication** with Keycloak, not Bearer tokens. The hooks follow the same pattern as `src/services/api.ts`:
 
 **Key Requirements:**
 1. **No Authorization header** - Backend validates session cookies, not Bearer tokens
@@ -1334,7 +1334,7 @@ Component reads:   const token = searchParams.get("token")
 
 **Issue**: Initial implementation used Bearer token auth with `localStorage.getItem("auth_token")`, causing 401 errors.
 
-**Root Cause**: RITA Go uses **cookie-based authentication** with Keycloak, not Bearer tokens.
+**Root Cause**: RITA uses **cookie-based authentication** with Keycloak, not Bearer tokens.
 
 **Solution**: Updated `fetchWithAuth()` in `useInvitations.ts` to match `src/services/api.ts` pattern:
 - Removed Authorization header

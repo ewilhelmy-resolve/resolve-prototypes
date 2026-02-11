@@ -10,6 +10,7 @@ import {
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
+import { Progress } from "@/components/ui/progress";
 import { Spinner } from "@/components/ui/spinner";
 import { StatusAlert } from "@/components/ui/status-alert";
 import { TicketGroupSkeleton } from "./TicketGroupSkeleton";
@@ -393,6 +394,93 @@ export const TrainingInProgress: Story = {
 		docs: {
 			description: {
 				story: "Shown when ML model is training - displays skeleton cards.",
+			},
+		},
+	},
+};
+
+/**
+ * First-time import - importing tickets with progress bar and skeleton grid
+ */
+export const ImportingTickets: Story = {
+	render: () => (
+		<PageWrapper>
+			<Header count={0} />
+			<Input placeholder="Search groups..." className="max-w-sm" disabled />
+			<div className="flex flex-col gap-6">
+				<StatusAlert variant="info" title="Importing tickets">
+					<p>
+						Tickets are being imported from your ITSM source. Training will
+						begin automatically once import completes.
+					</p>
+					<div className="w-full">
+						<Progress value={45} className=" bg-white" />
+						<span className="text-sm text-muted-foreground whitespace-nowrap">
+							450 of 1000 tickets
+						</span>
+					</div>
+				</StatusAlert>
+				<div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3">
+					{[...Array(6)].map((_, i) => (
+						<TicketGroupSkeleton key={i} />
+					))}
+				</div>
+			</div>
+		</PageWrapper>
+	),
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"First-time import: tickets are being imported with progress bar and skeleton grid.",
+			},
+		},
+	},
+};
+
+/**
+ * Re-import with existing clusters - banner above existing data
+ */
+export const ReImportWithClusters: Story = {
+	render: () => (
+		<PageWrapper>
+			<Header count={mockClusters.length} />
+			<Input placeholder="Search groups..." className="max-w-sm" />
+			<StatusAlert variant="info" title="Importing tickets">
+				<p>
+					Tickets are being imported from your ITSM source. Training will begin
+					automatically once import completes.
+				</p>
+				<div className="w-full">
+					<Progress value={30} className="bg-white" />
+					<span className="text-sm text-muted-foreground whitespace-nowrap">
+						300 of 1000 tickets
+					</span>
+				</div>
+			</StatusAlert>
+			<div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3">
+				{mockClusters.map((cluster) => (
+					<TicketGroupStat
+						key={cluster.id}
+						id={cluster.id}
+						title={
+							cluster.subcluster_name
+								? `${cluster.name} - ${cluster.subcluster_name}`
+								: cluster.name
+						}
+						count={cluster.ticket_count}
+						knowledgeStatus={cluster.kb_status}
+					/>
+				))}
+			</div>
+			<PaginationButtons hasPrev={false} hasNext={true} />
+		</PageWrapper>
+	),
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"Re-import: existing clusters remain visible with an importing banner and progress bar above.",
 			},
 		},
 	},

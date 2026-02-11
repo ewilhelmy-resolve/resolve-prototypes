@@ -23,7 +23,7 @@ Users access password reset through the Keycloak login page.
 
 ```
 ┌─────────────┐       ┌─────────────┐       ┌─────────────┐
-│  RITA Go    │──────▶│  Keycloak   │──────▶│  SMTP       │
+│  RITA    │──────▶│  Keycloak   │──────▶│  SMTP       │
 │  (Client)   │       │  (Auth)     │       │  (Email)    │
 └─────────────┘       └─────────────┘       └─────────────┘
                              │
@@ -36,7 +36,7 @@ Users access password reset through the Keycloak login page.
 
 ### Components
 
-- **RITA Go**: Redirects unauthenticated users to Keycloak
+- **RITA**: Redirects unauthenticated users to Keycloak
 - **Keycloak**: Handles entire password reset flow
 - **Rita Theme**: Custom FreeMarker templates (`rita-theme-v2`)
 - **SMTP**: Email delivery (Mailpit for dev, production SMTP for prod)

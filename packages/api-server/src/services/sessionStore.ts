@@ -100,6 +100,7 @@ export interface CreateSessionData {
 export interface SessionStore {
 	createSession(data: CreateSessionData): Promise<Session>;
 	getSession(sessionId: string): Promise<Session | null>;
+	getSessionByConversationId(conversationId: string): Promise<Session | null>;
 	updateSession(
 		sessionId: string,
 		updates: Partial<Session>,
@@ -164,6 +165,22 @@ class InMemorySessionStore implements SessionStore {
 		}
 
 		return session;
+	}
+
+	async getSessionByConversationId(
+		conversationId: string,
+	): Promise<Session | null> {
+		for (const session of this.sessions.values()) {
+			if (session.conversationId === conversationId) {
+				// Check if session is expired
+				if (session.expiresAt < new Date()) {
+					this.sessions.delete(session.sessionId);
+					continue;
+				}
+				return session;
+			}
+		}
+		return null;
 	}
 
 	async updateSession(

@@ -8,7 +8,7 @@
  * - See: keycloak/themes/rita-theme-v2/login/login-reset-password.ftl
  *
  * This React component is kept as a design reference for potential future
- * Keycloak theme customizations or RITA Go admin features.
+ * Keycloak theme customizations or RITA admin features.
  *
  * ---
  *
@@ -221,7 +221,7 @@ export default function ResetPasswordPage() {
 							<div className="w-6 h-6 flex justify-start items-center">
 								<img
 									src="/logo-mark.svg"
-									alt="RITA Go Logo"
+									alt="RITA Logo"
 									width="24"
 									height="24"
 								/>
@@ -282,7 +282,9 @@ export default function ResetPasswordPage() {
 								</button>
 							</div>
 							{errors.password && (
-								<p className="text-sm text-red-400">{errors.password.message}</p>
+								<p className="text-sm text-red-400">
+									{errors.password.message}
+								</p>
 							)}
 						</div>
 

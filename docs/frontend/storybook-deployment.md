@@ -2,7 +2,7 @@
 
 ## Overview
 
-RITA Go Storybook is deployed to GitHub Pages for component documentation and design system reference.
+RITA Storybook is deployed to GitHub Pages for component documentation and design system reference.
 
 **Live URL:** `https://resolve-io.github.io/resolve-onboarding/`
 
