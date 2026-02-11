@@ -51,8 +51,22 @@ MQ_QUEUE = "chat.responses"
 
 def execute(tenant_id, conversation_id, user_id, ui_schema, interrupt):
     try:
+        # DEBUG: print raw value to see what platform passes
+        print("DEBUG ui_schema type:", type(ui_schema).__name__)
+        print("DEBUG ui_schema repr:", repr(ui_schema[:300]) if isinstance(ui_schema, str) else repr(ui_schema))
+        print("DEBUG ui_schema first 5 chars:", [ui_schema[i] for i in range(min(5, len(ui_schema)))] if isinstance(ui_schema, str) else "N/A")
+
         if isinstance(ui_schema, str):
-            ui_schema_obj = json.loads(ui_schema)
+            # Strip BOM, leading/trailing whitespace and wrapping quotes
+            ui_schema = ui_schema.strip().lstrip('\ufeff')
+            if ui_schema.startswith('"') and ui_schema.endswith('"'):
+                ui_schema = json.loads(ui_schema)  # unwrap double-encoded string
+            if isinstance(ui_schema, str):
+                # Remove real newlines/carriage returns/tabs — they're just whitespace
+                ui_schema = ui_schema.replace('\r\n', ' ').replace('\r', ' ').replace('\n', ' ').replace('\t', ' ')
+                ui_schema_obj = json.loads(ui_schema)
+            else:
+                ui_schema_obj = ui_schema
         else:
             ui_schema_obj = ui_schema
 

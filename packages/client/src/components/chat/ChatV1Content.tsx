@@ -459,7 +459,6 @@ function SimpleMessage({
 				submitLabel: modal.submitLabel,
 				cancelLabel: modal.cancelLabel,
 				submitVariant: modal.submitVariant,
-				preventBackdropClose: true,
 				onSubmit: (data) => {
 					onFormSubmit?.(
 						message.metadata!.request_id,
@@ -468,7 +467,7 @@ function SimpleMessage({
 					);
 				},
 				onCancel: () => {
-					onFormCancel?.(message.metadata!.request_id);
+					// Just close — don't cancel the request so user can reopen
 				},
 			});
 			return;
@@ -512,7 +511,7 @@ function SimpleMessage({
 
 		// Not in iframe — open fallback dialog directly
 		setShowFallbackDialog(true);
-	}, [message.metadata, message.id, onFormSubmit, onFormCancel]);
+	}, [message.metadata, message.id, onFormSubmit]);
 
 	// Auto-trigger host modal once for pending interrupt forms loaded from history
 	const modalTriggered = useRef(false);
@@ -613,7 +612,6 @@ function SimpleMessage({
 								onOpenChange={(open) => {
 									if (!open) {
 										setShowFallbackDialog(false);
-										onFormCancel?.(message.metadata!.request_id);
 									}
 								}}
 							>
