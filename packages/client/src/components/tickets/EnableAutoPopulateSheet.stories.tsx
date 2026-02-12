@@ -20,7 +20,7 @@ const meta: Meta<typeof EnableAutoPopulateSheet> = {
 			},
 			story: {
 				inline: false,
-				iframeHeight: 500,
+				iframeHeight: 700,
 			},
 		},
 	},

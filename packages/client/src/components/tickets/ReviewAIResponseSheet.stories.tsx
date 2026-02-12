@@ -22,7 +22,7 @@ const meta: Meta<typeof ReviewAIResponseSheet> = {
 			},
 			story: {
 				inline: false,
-				iframeHeight: 600,
+				iframeHeight: 700,
 			},
 		},
 	},
