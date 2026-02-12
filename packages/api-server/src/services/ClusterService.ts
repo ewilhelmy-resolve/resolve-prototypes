@@ -402,6 +402,9 @@ export class ClusterService {
 			cluster_text: row.cluster_text,
 			rita_status: row.rita_status as RitaStatus,
 			source_metadata: row.source_metadata as Record<string, any>,
+			requester: row.requester,
+			assigned_to: row.assigned_to,
+			priority: row.priority,
 			created_at: row.created_at as Date,
 			updated_at: row.updated_at as Date,
 		}));
@@ -497,6 +500,9 @@ export class ClusterService {
 			cluster_text: row.cluster_text,
 			rita_status: row.rita_status as RitaStatus,
 			source_metadata: row.source_metadata as Record<string, any>,
+			requester: row.requester,
+			assigned_to: row.assigned_to,
+			priority: row.priority,
 			created_at: row.created_at as Date,
 			updated_at: row.updated_at as Date,
 		};

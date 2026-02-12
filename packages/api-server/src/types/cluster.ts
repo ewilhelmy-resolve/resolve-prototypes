@@ -98,6 +98,9 @@ export interface Ticket {
 	cluster_text: string | null;
 	rita_status: RitaStatus;
 	source_metadata: Record<string, any>;
+	requester: string | null;
+	assigned_to: string | null;
+	priority: string | null;
 	created_at: Date;
 	updated_at: Date;
 }

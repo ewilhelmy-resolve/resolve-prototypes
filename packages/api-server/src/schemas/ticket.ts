@@ -54,6 +54,16 @@ export const TicketSchema = z
 		source_metadata: z.record(z.string(), z.any()).openapi({
 			description: "Additional metadata from source system",
 		}),
+		requester: z.string().nullable().openapi({
+			description: "Ticket requester from ITSM",
+		}),
+		assigned_to: z.string().nullable().openapi({
+			description: "Assigned agent from ITSM",
+		}),
+		priority: z.string().nullable().openapi({
+			description: "Ticket priority from ITSM",
+			example: "Medium",
+		}),
 		custom_fields: TicketCustomFieldsSchema.nullable().openapi({
 			description: "Flexible field for ingestion data (e.g., is_usable)",
 		}),
