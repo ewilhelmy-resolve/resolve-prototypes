@@ -1,5 +1,5 @@
-import { describe, it, expect } from "vitest";
 import { render, screen } from "@testing-library/react";
+import { describe, expect, it } from "vitest";
 import { StatGroup } from "./StatGroup";
 
 describe("StatGroup", () => {
@@ -8,7 +8,7 @@ describe("StatGroup", () => {
 			<StatGroup>
 				<div data-testid="child-1">Child 1</div>
 				<div data-testid="child-2">Child 2</div>
-			</StatGroup>
+			</StatGroup>,
 		);
 		expect(screen.getByTestId("child-1")).toBeInTheDocument();
 		expect(screen.getByTestId("child-2")).toBeInTheDocument();
@@ -18,27 +18,37 @@ describe("StatGroup", () => {
 		const { container } = render(
 			<StatGroup>
 				<div>Child</div>
-			</StatGroup>
+			</StatGroup>,
 		);
 		const grid = container.firstChild;
 		expect(grid).toHaveClass("grid");
 	});
 
-	it("has responsive column classes", () => {
+	it("defaults to 4 columns", () => {
 		const { container } = render(
 			<StatGroup>
 				<div>Child</div>
-			</StatGroup>
+			</StatGroup>,
 		);
 		const grid = container.firstChild;
 		expect(grid).toHaveClass("grid-cols-1", "lg:grid-cols-4");
+	});
+
+	it("accepts custom column count", () => {
+		const { container } = render(
+			<StatGroup columns={5}>
+				<div>Child</div>
+			</StatGroup>,
+		);
+		const grid = container.firstChild;
+		expect(grid).toHaveClass("grid-cols-1", "lg:grid-cols-5");
 	});
 
 	it("has gap between items", () => {
 		const { container } = render(
 			<StatGroup>
 				<div>Child</div>
-			</StatGroup>
+			</StatGroup>,
 		);
 		const grid = container.firstChild;
 		expect(grid).toHaveClass("gap-4");
@@ -51,7 +61,7 @@ describe("StatGroup", () => {
 				<div>Card 2</div>
 				<div>Card 3</div>
 				<div>Card 4</div>
-			</StatGroup>
+			</StatGroup>,
 		);
 		expect(screen.getByText("Card 1")).toBeInTheDocument();
 		expect(screen.getByText("Card 2")).toBeInTheDocument();

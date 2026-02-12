@@ -64,7 +64,7 @@ describe("SchemaRenderer", () => {
 
 			render(<SchemaRenderer schema={schema} {...defaultProps} />);
 			const heading = screen.getByText("Title");
-			expect(heading).toHaveClass("text-lg", "font-semibold");
+			expect(heading.closest("div")).toHaveClass("text-lg", "font-semibold");
 		});
 
 		it("renders text with muted variant", () => {
@@ -74,7 +74,9 @@ describe("SchemaRenderer", () => {
 			};
 
 			render(<SchemaRenderer schema={schema} {...defaultProps} />);
-			expect(screen.getByText("Muted")).toHaveClass("text-muted-foreground");
+			expect(screen.getByText("Muted").closest("div")).toHaveClass(
+				"text-muted-foreground",
+			);
 		});
 
 		it("applies custom className", () => {
@@ -86,7 +88,75 @@ describe("SchemaRenderer", () => {
 			};
 
 			render(<SchemaRenderer schema={schema} {...defaultProps} />);
-			expect(screen.getByText("Custom")).toHaveClass("custom-class");
+			expect(screen.getByText("Custom").closest("div")).toHaveClass(
+				"custom-class",
+			);
+		});
+	});
+
+	describe("Text Component - Markdown Rendering", () => {
+		it("renders markdown headings", () => {
+			const schema: UISchema = {
+				version: "1",
+				components: [{ type: "text", content: "### Section Title" }],
+			};
+
+			render(<SchemaRenderer schema={schema} {...defaultProps} />);
+			const h3 = screen.getByText("Section Title");
+			expect(h3.tagName).toBe("H3");
+			expect(h3).toHaveClass("text-base", "font-semibold");
+		});
+
+		it("renders bold text", () => {
+			const schema: UISchema = {
+				version: "1",
+				components: [{ type: "text", content: "This is **bold** text" }],
+			};
+
+			render(<SchemaRenderer schema={schema} {...defaultProps} />);
+			const strong = screen.getByText("bold");
+			expect(strong.tagName).toBe("STRONG");
+			expect(strong).toHaveClass("font-semibold");
+		});
+
+		it("renders markdown tables", () => {
+			const schema: UISchema = {
+				version: "1",
+				components: [
+					{
+						type: "text",
+						content:
+							"| Name | Age |\n| --- | --- |\n| Alice | 30 |\n| Bob | 25 |",
+					},
+				],
+			};
+
+			const { container } = render(
+				<SchemaRenderer schema={schema} {...defaultProps} />,
+			);
+			const table = container.querySelector("table");
+			expect(table).toBeInTheDocument();
+			expect(screen.getByText("Name")).toBeInTheDocument();
+			expect(screen.getByText("Alice")).toBeInTheDocument();
+			const th = container.querySelector("th");
+			expect(th).toHaveClass("border", "border-border");
+		});
+
+		it("renders markdown lists", () => {
+			const schema: UISchema = {
+				version: "1",
+				components: [
+					{ type: "text", content: "- Item one\n- Item two\n- Item three" },
+				],
+			};
+
+			const { container } = render(
+				<SchemaRenderer schema={schema} {...defaultProps} />,
+			);
+			const ul = container.querySelector("ul");
+			expect(ul).toBeInTheDocument();
+			expect(ul).toHaveClass("list-disc", "list-inside");
+			expect(screen.getByText("Item one")).toBeInTheDocument();
 		});
 	});
 

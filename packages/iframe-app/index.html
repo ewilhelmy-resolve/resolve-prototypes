@@ -1799,37 +1799,33 @@
 
             document.body.insertAdjacentHTML('beforeend', modalHTML);
 
-            // Close on overlay click (unless preventBackdropClose is set)
+            // Close on overlay click — just dismiss, don't cancel
             const overlay = document.getElementById('rita-form-modal-overlay');
             overlay.addEventListener('click', (e) => {
-                if (e.target === overlay && !config.preventBackdropClose) {
+                if (e.target === overlay) {
                     closeFormModal();
-                    // Notify iframe that modal was cancelled
-                    document.getElementById('ritaIframe').contentWindow.postMessage({
-                        type: 'FORM_MODAL_CANCELLED',
-                        requestId: config.requestId
-                    }, '*');
+                    log('Form dismissed (backdrop click)', 'info');
                 }
             });
 
-            // Cancel button
-            document.getElementById('rita-form-cancel').addEventListener('click', () => {
+            // Cancel button — explicit cancel
+            overlay.querySelector('#rita-form-cancel').addEventListener('click', () => {
                 closeFormModal();
-                document.getElementById('ritaIframe').contentWindow.postMessage({
-                    type: 'FORM_MODAL_CANCELLED'
+                document.getElementById('ritaIframe')?.contentWindow?.postMessage({
+                    type: 'FORM_MODAL_CANCELLED',
+                    requestId: config.requestId
                 }, '*');
+                log('Form cancelled', 'info');
             });
 
-            // Close button (X in corner)
-            document.getElementById('rita-form-modal-close').addEventListener('click', () => {
+            // Close button (X in corner) — just dismiss, don't cancel
+            overlay.querySelector('#rita-form-modal-close').addEventListener('click', () => {
                 closeFormModal();
-                document.getElementById('ritaIframe').contentWindow.postMessage({
-                    type: 'FORM_MODAL_CANCELLED'
-                }, '*');
+                log('Form dismissed (X button)', 'info');
             });
 
             // Form submit
-            document.getElementById('rita-form-modal-form').addEventListener('submit', (e) => {
+            overlay.querySelector('#rita-form-modal-form').addEventListener('submit', (e) => {
                 e.preventDefault();
                 const formData = new FormData(e.target);
                 const data = {};
@@ -1837,7 +1833,7 @@
 
                 closeFormModal();
                 // Send form data back to iframe
-                document.getElementById('ritaIframe').contentWindow.postMessage({
+                document.getElementById('ritaIframe')?.contentWindow?.postMessage({
                     type: 'FORM_MODAL_SUBMITTED',
                     requestId: config.requestId,
                     action: config.submitAction,
@@ -1846,15 +1842,12 @@
                 log(`Form submitted: ${JSON.stringify(data).substring(0, 50)}...`, 'outgoing');
             });
 
-            // Escape key (unless preventBackdropClose is set)
+            // Escape key — just dismiss, don't cancel
             const escHandler = (e) => {
-                if (e.key === 'Escape' && !config.preventBackdropClose) {
+                if (e.key === 'Escape') {
                     closeFormModal();
-                    document.getElementById('ritaIframe').contentWindow.postMessage({
-                        type: 'FORM_MODAL_CANCELLED',
-                        requestId: config.requestId
-                    }, '*');
                     document.removeEventListener('keydown', escHandler);
+                    log('Form dismissed (ESC)', 'info');
                 }
             };
             document.addEventListener('keydown', escHandler);
@@ -1864,10 +1857,7 @@
 
         function closeFormModal() {
             const overlay = document.getElementById('rita-form-modal-overlay');
-            if (overlay) {
-                overlay.style.animation = 'ritaFormFadeIn 0.15s ease reverse';
-                setTimeout(() => overlay.remove(), 150);
-            }
+            if (overlay) overlay.remove();
         }
 
         // Init - auto-load iframe on page load

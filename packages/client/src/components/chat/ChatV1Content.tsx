@@ -459,7 +459,6 @@ function SimpleMessage({
 				submitLabel: modal.submitLabel,
 				cancelLabel: modal.cancelLabel,
 				submitVariant: modal.submitVariant,
-				preventBackdropClose: true,
 				onSubmit: (data) => {
 					onFormSubmit?.(
 						message.metadata!.request_id,
@@ -468,7 +467,7 @@ function SimpleMessage({
 					);
 				},
 				onCancel: () => {
-					onFormCancel?.(message.metadata!.request_id);
+					// Just close — don't cancel the request so user can reopen
 				},
 			});
 			return;
@@ -512,7 +511,7 @@ function SimpleMessage({
 
 		// Not in iframe — open fallback dialog directly
 		setShowFallbackDialog(true);
-	}, [message.metadata, message.id, onFormSubmit, onFormCancel]);
+	}, [message.metadata, message.id, onFormSubmit]);
 
 	// Auto-trigger host modal once for pending interrupt forms loaded from history
 	const modalTriggered = useRef(false);
@@ -613,11 +612,10 @@ function SimpleMessage({
 								onOpenChange={(open) => {
 									if (!open) {
 										setShowFallbackDialog(false);
-										onFormCancel?.(message.metadata!.request_id);
 									}
 								}}
 							>
-								<DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+								<DialogContent className="max-w-2xl max-h-[85vh] flex flex-col">
 									<DialogHeader>
 										<DialogTitle>
 											{(() => {
@@ -640,21 +638,23 @@ function SimpleMessage({
 											})()}
 										</DialogDescription>
 									</DialogHeader>
-									<InlineFormRequest
-										requestId={message.metadata.request_id}
-										uiSchema={message.metadata.ui_schema}
-										status={message.metadata.status || "pending"}
-										formData={message.metadata.form_data}
-										submittedAt={message.metadata.submitted_at}
-										onSubmit={async (reqId, action, data) => {
-											setShowFallbackDialog(false);
-											await onFormSubmit(reqId, action, data);
-										}}
-										onCancel={async (reqId) => {
-											setShowFallbackDialog(false);
-											await onFormCancel?.(reqId);
-										}}
-									/>
+									<div className="flex-1 overflow-y-auto min-h-0">
+										<InlineFormRequest
+											requestId={message.metadata.request_id}
+											uiSchema={message.metadata.ui_schema}
+											status={message.metadata.status || "pending"}
+											formData={message.metadata.form_data}
+											submittedAt={message.metadata.submitted_at}
+											onSubmit={async (reqId, action, data) => {
+												setShowFallbackDialog(false);
+												await onFormSubmit(reqId, action, data);
+											}}
+											onCancel={async (reqId) => {
+												setShowFallbackDialog(false);
+												await onFormCancel?.(reqId);
+											}}
+										/>
+									</div>
 								</DialogContent>
 							</Dialog>
 						)}

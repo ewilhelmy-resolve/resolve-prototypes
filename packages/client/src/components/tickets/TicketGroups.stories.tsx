@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, Search } from "lucide-react";
 import { Link, MemoryRouter } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -28,7 +28,7 @@ const meta: Meta = {
 		docs: {
 			description: {
 				component:
-					"Displays ticket groups (clusters) with prev/next button pagination. Supports filtering by period, KB status, and search. This page shows visual states - the actual component fetches data from the API.",
+					"Displays ticket groups (clusters) with prev/next button pagination. Supports filtering by KB status and search. Period filter lives in the parent ClustersPage. This page shows visual states - the actual component fetches data from the API.",
 			},
 		},
 	},
@@ -120,15 +120,19 @@ const PageWrapper = ({ children }: { children: React.ReactNode }) => (
 	</div>
 );
 
-// Shared header component
+// Shared header component matching actual TicketGroups layout
 const Header = ({
 	title = "Ticket Groups",
 	count = 0,
-	subtitle = "Showing groups from the last 90 days",
+	subtitle = "Based on the last 90 days",
+	searchDisabled = false,
+	searchValue,
 }: {
 	title?: string;
 	count?: number;
 	subtitle?: string;
+	searchDisabled?: boolean;
+	searchValue?: string;
 }) => (
 	<div className="flex w-full flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
 		<div className="flex flex-col gap-1.5">
@@ -138,25 +142,23 @@ const Header = ({
 			</div>
 			<p className="text-sm text-muted-foreground">{subtitle}</p>
 		</div>
-		<div className="flex flex-wrap gap-2">
+		<div className="flex flex-wrap items-center gap-2">
+			{/* Search input with icon */}
+			<div className="relative">
+				<Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+				<Input
+					placeholder="Search groups..."
+					className="max-w-sm pl-10"
+					disabled={searchDisabled}
+					defaultValue={searchValue}
+				/>
+			</div>
+
+			{/* KB Status dropdown */}
 			<DropdownMenu>
 				<DropdownMenuTrigger asChild>
 					<Button variant="outline" size="sm">
-						Last 90 Days
-						<ChevronDown />
-					</Button>
-				</DropdownMenuTrigger>
-				<DropdownMenuContent>
-					<DropdownMenuItem>Last 30 Days</DropdownMenuItem>
-					<DropdownMenuItem>Last 90 Days</DropdownMenuItem>
-					<DropdownMenuItem>Last 6 Months</DropdownMenuItem>
-					<DropdownMenuItem>Last Year</DropdownMenuItem>
-				</DropdownMenuContent>
-			</DropdownMenu>
-			<DropdownMenu>
-				<DropdownMenuTrigger asChild>
-					<Button variant="outline" size="sm">
-						All
+						Filter by
 						<ChevronDown />
 					</Button>
 				</DropdownMenuTrigger>
@@ -198,8 +200,7 @@ export const WithClusters: Story = {
 	render: () => (
 		<PageWrapper>
 			<Header count={mockClusters.length} />
-			<Input placeholder="Search groups..." className="max-w-sm" />
-			<div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3">
+			<div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-5">
 				{mockClusters.map((cluster) => (
 					<TicketGroupStat
 						key={cluster.id}
@@ -234,8 +235,7 @@ export const MiddlePage: Story = {
 	render: () => (
 		<PageWrapper>
 			<Header count={mockClusters.length} subtitle="Page 2 of 4" />
-			<Input placeholder="Search groups..." className="max-w-sm" />
-			<div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3">
+			<div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-5">
 				{mockClusters.slice(0, 6).map((cluster) => (
 					<TicketGroupStat
 						key={cluster.id}
@@ -270,7 +270,6 @@ export const Empty: Story = {
 	render: () => (
 		<PageWrapper>
 			<Header count={0} />
-			<Input placeholder="Search groups..." className="max-w-sm" />
 			<div className="flex min-h-[200px] items-center justify-center">
 				<p className="text-muted-foreground">No groups available</p>
 			</div>
@@ -291,13 +290,12 @@ export const Empty: Story = {
 export const WithSearch: Story = {
 	render: () => (
 		<PageWrapper>
-			<Header count={1} subtitle="Showing groups from the last 90 days" />
-			<Input
-				placeholder="Search groups..."
-				className="max-w-sm"
-				defaultValue="Network"
+			<Header
+				count={1}
+				subtitle="Based on the last 90 days"
+				searchValue="Network"
 			/>
-			<div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3">
+			<div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-5">
 				{mockClusters
 					.filter((c) => c.name.toLowerCase().includes("network"))
 					.map((cluster) => (
@@ -345,8 +343,7 @@ export const Loading: Story = {
 export const NoModelConnected: Story = {
 	render: () => (
 		<PageWrapper>
-			<Header count={0} />
-			<Input placeholder="Search groups..." className="max-w-sm" disabled />
+			<Header count={0} searchDisabled />
 			<div className="flex min-h-[300px] flex-col items-center justify-center gap-4">
 				<p className="text-muted-foreground">
 					No data source connected. Connect a source to see ticket groups.
@@ -373,8 +370,7 @@ export const NoModelConnected: Story = {
 export const TrainingInProgress: Story = {
 	render: () => (
 		<PageWrapper>
-			<Header count={0} />
-			<Input placeholder="Search groups..." className="max-w-sm" disabled />
+			<Header count={0} searchDisabled />
 			<div className="flex flex-col gap-6">
 				<StatusAlert variant="info" title="Training in Progress">
 					<p>
@@ -382,7 +378,7 @@ export const TrainingInProgress: Story = {
 						few minutes.
 					</p>
 				</StatusAlert>
-				<div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3">
+				<div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-5">
 					{[...Array(6)].map((_, i) => (
 						<TicketGroupSkeleton key={i} />
 					))}
@@ -405,8 +401,7 @@ export const TrainingInProgress: Story = {
 export const ImportingTickets: Story = {
 	render: () => (
 		<PageWrapper>
-			<Header count={0} />
-			<Input placeholder="Search groups..." className="max-w-sm" disabled />
+			<Header count={0} searchDisabled />
 			<div className="flex flex-col gap-6">
 				<StatusAlert variant="info" title="Importing tickets">
 					<p>
@@ -420,7 +415,7 @@ export const ImportingTickets: Story = {
 						</span>
 					</div>
 				</StatusAlert>
-				<div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3">
+				<div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-5">
 					{[...Array(6)].map((_, i) => (
 						<TicketGroupSkeleton key={i} />
 					))}
@@ -445,7 +440,6 @@ export const ReImportWithClusters: Story = {
 	render: () => (
 		<PageWrapper>
 			<Header count={mockClusters.length} />
-			<Input placeholder="Search groups..." className="max-w-sm" />
 			<StatusAlert variant="info" title="Importing tickets">
 				<p>
 					Tickets are being imported from your ITSM source. Training will begin
@@ -458,7 +452,7 @@ export const ReImportWithClusters: Story = {
 					</span>
 				</div>
 			</StatusAlert>
-			<div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3">
+			<div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-5">
 				{mockClusters.map((cluster) => (
 					<TicketGroupStat
 						key={cluster.id}
@@ -492,8 +486,7 @@ export const ReImportWithClusters: Story = {
 export const TrainingFailed: Story = {
 	render: () => (
 		<PageWrapper>
-			<Header count={0} />
-			<Input placeholder="Search groups..." className="max-w-sm" disabled />
+			<Header count={0} searchDisabled />
 			<div className="flex flex-col gap-6">
 				<StatusAlert variant="error" title="Training Failed">
 					<p className="mb-3">

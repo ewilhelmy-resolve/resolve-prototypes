@@ -65,12 +65,7 @@
 	// ---- Close modal ----
 	function closeModal() {
 		var overlay = document.getElementById("rita-form-modal-overlay");
-		if (overlay) {
-			overlay.style.animation = "ritaFormFadeIn 0.15s ease reverse";
-			setTimeout(() => {
-				overlay.remove();
-			}, 150);
-		}
+		if (overlay) overlay.remove();
 		if (escHandler) {
 			document.removeEventListener("keydown", escHandler);
 			escHandler = null;
@@ -213,26 +208,26 @@
 			});
 		}
 
-		// Overlay click
+		// Overlay click — dismiss only (no cancel)
 		overlay.addEventListener("click", (e) => {
-			if (e.target === overlay && !config.preventBackdropClose) {
-				doCancel();
+			if (e.target === overlay) {
+				closeModal();
 			}
 		});
 
 		// Cancel button
-		document
-			.getElementById("rita-form-cancel")
+		overlay
+			.querySelector("#rita-form-cancel")
 			.addEventListener("click", doCancel);
 
-		// Close (X) button
-		document
-			.getElementById("rita-form-modal-close")
-			.addEventListener("click", doCancel);
+		// Close (X) button — dismiss only (no cancel)
+		overlay
+			.querySelector("#rita-form-modal-close")
+			.addEventListener("click", closeModal);
 
 		// Form submit
-		document
-			.getElementById("rita-form-modal-form")
+		overlay
+			.querySelector("#rita-form-modal-form")
 			.addEventListener("submit", (e) => {
 				e.preventDefault();
 				var fd = new FormData(e.target);
@@ -249,10 +244,10 @@
 				});
 			});
 
-		// ESC key
+		// ESC key — dismiss only (no cancel)
 		escHandler = (e) => {
-			if (e.key === "Escape" && !config.preventBackdropClose) {
-				doCancel();
+			if (e.key === "Escape") {
+				closeModal();
 			}
 		};
 		document.addEventListener("keydown", escHandler);

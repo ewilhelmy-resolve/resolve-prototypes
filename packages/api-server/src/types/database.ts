@@ -140,6 +140,10 @@ export interface CredentialDelegationTokens {
 }
 
 export interface DataSourceConnections {
+	/**
+	 * Whether to automatically sync tickets on schedule (ITSM only)
+	 */
+	auto_sync: Generated<boolean>;
 	created_at: Generated<Timestamp | null>;
 	created_by: string;
 	description: string | null;

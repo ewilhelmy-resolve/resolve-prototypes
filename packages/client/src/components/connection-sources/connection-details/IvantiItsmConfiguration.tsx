@@ -28,6 +28,7 @@ import {
 	useLatestIngestionRun,
 	useSyncTickets,
 } from "@/hooks/useDataSources";
+import { AutoSyncToggle } from "../AutoSyncToggle";
 import { ConnectionActionsMenu } from "../ConnectionActionsMenu";
 import { ConnectionStatusCard } from "../ConnectionStatusCard";
 import FormSectionTitle from "../form-elements/FormSectionTitle";
@@ -277,6 +278,15 @@ export default function IvantiItsmConfiguration({
 											</p>
 										)}
 									</div>
+
+									{/* Auto-sync toggle - only visible when ML model is active */}
+									{source.backendData && (
+										<AutoSyncToggle
+											connectionId={source.backendData.id}
+											currentValue={source.backendData.auto_sync}
+											disabled={isTicketSyncing}
+										/>
+									)}
 								</div>
 							</div>
 						</div>

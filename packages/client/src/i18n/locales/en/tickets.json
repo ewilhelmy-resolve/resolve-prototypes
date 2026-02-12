@@ -1,12 +1,13 @@
 {
 	"header": {
-		"description": "Rita learned from <strong>{{ticketCount}}</strong> tickets in the {{period}} <strong>across {{clusterCount}} issue types</strong>",
+		"description": "RITA learned from <strong>{{ticketCount}}</strong> tickets for <strong>{{period}}</strong>",
 		"stats": {
 			"totalTickets": "Total tickets",
 			"ticketsLast7Days": "Tickets last 7 days",
-			"handledAutomatically": "Handled Automatically",
-			"automationRate": "Automation Rate",
-			"aiHoursSaved": "AI hours saved"
+			"totalTicketsAutomated": "Total Tickets Automated",
+			"automationPercentage": "Automation %",
+			"moneySaved": "Money Saved",
+			"timeSaved": "Time Saved"
 		}
 	},
 	"page": {
@@ -264,5 +265,22 @@
 	"knowledge": {
 		"failedToLoad": "Failed to load KB articles",
 		"noArticles": "No knowledge articles linked"
+	},
+	"ticketSettings": {
+		"title": "Ticket settings",
+		"description": "Customize dashboard metrics",
+		"savingsSection": "How should we calculate savings?",
+		"timeSavedSection": "How should we calculate time saved?",
+		"costPerTicket": "Cost per ticket",
+		"costHelper": "Used to calculate total money saved from automated tickets.",
+		"avgTimePerTicket": "Average time per ticket",
+		"timeHelper": "Used to calculate total time saved from automated tickets.",
+		"timeUnit": {
+			"minutes": "Minutes"
+		},
+		"validation": {
+			"costMustBePositive": "Cost must be greater than zero",
+			"timeMustBePositive": "Time must be greater than zero"
+		}
 	}
 }
