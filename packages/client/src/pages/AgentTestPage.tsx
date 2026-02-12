@@ -28,12 +28,13 @@ import {
   Rocket,
   ThumbsUp,
   ThumbsDown,
-  Minus,
   Zap,
   Database,
   ChevronDown,
   ChevronUp,
   RefreshCw,
+  Copy,
+  MoreHorizontal,
 } from "lucide-react";
 import {
   Dialog,
@@ -136,6 +137,7 @@ export default function AgentTestPage() {
   const [config, setConfig] = useState<AgentConfig | null>(initialConfig || null);
   const [messages, setMessages] = useState<TestMessage[]>([]);
   const [input, setInput] = useState("");
+  const [feedbackInput, setFeedbackInput] = useState("");
   const [phase, setPhase] = useState<TestPhase>("idle");
   const [isLoading, setIsLoading] = useState(false);
   const [feedbackHistory, setFeedbackHistory] = useState<string[]>([]);
@@ -252,10 +254,10 @@ export default function AgentTestPage() {
   };
 
   const handleFeedbackSubmit = async () => {
-    if (!input.trim()) return;
+    if (!feedbackInput.trim()) return;
 
-    const feedback = input.trim();
-    setInput("");
+    const feedback = feedbackInput.trim();
+    setFeedbackInput("");
 
     const newFeedbackHistory = [...feedbackHistory, feedback];
     setFeedbackHistory(newFeedbackHistory);
@@ -289,21 +291,19 @@ export default function AgentTestPage() {
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
-      if (phase === "idle" && input.trim()) {
+      // Bottom input always starts a new test (except during processing or suggestion)
+      if (input.trim() && phase !== "processing" && phase !== "awaiting-suggestion-response") {
         handleStartTest(input.trim());
         setInput("");
-      } else if (phase === "awaiting-feedback" && input.trim()) {
-        handleFeedbackSubmit();
       }
     }
   };
 
   const handleSend = () => {
-    if (phase === "idle" && input.trim()) {
+    // Bottom input always starts a new test (except during processing or suggestion)
+    if (input.trim() && phase !== "processing" && phase !== "awaiting-suggestion-response") {
       handleStartTest(input.trim());
       setInput("");
-    } else if (phase === "awaiting-feedback" && input.trim()) {
-      handleFeedbackSubmit();
     }
   };
 
@@ -373,51 +373,51 @@ export default function AgentTestPage() {
             </div>
           ) : (
             /* Messages */
-            <div className="space-y-6">
+            <div className="space-y-4">
               {messages.map((msg) => (
                 <div key={msg.id}>
                   {/* User message */}
                   {msg.type === "user" && (
-                    <div className="flex justify-end mb-6">
-                      <div className="bg-slate-800 text-white rounded-2xl rounded-br-sm px-4 py-2.5 max-w-[80%]">
-                        <p className="text-sm">{msg.content}</p>
+                    <div className="flex justify-end mb-4">
+                      <div className="bg-foreground text-background rounded-xl rounded-br-sm px-3 py-2 max-w-[80%]">
+                        <p className="text-[13px]">{msg.content}</p>
                       </div>
                     </div>
                   )}
 
                   {/* Agent response */}
                   {(msg.type === "agent" || msg.type === "agent-retry") && (
-                    <div className="space-y-3 mb-6">
+                    <div className="space-y-2 mb-4">
                       {msg.type === "agent-retry" && (
-                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                          <RefreshCw className="size-3" />
+                        <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground ml-9">
+                          <RefreshCw className="size-2.5" />
                           <span>Revision {msg.iterationNumber}</span>
                         </div>
                       )}
 
-                      <div className="flex gap-3">
-                        <div className={cn("size-8 rounded-lg flex items-center justify-center flex-shrink-0", color.bg)}>
-                          <Icon className={cn("size-4", color.text)} />
+                      <div className="flex gap-2.5">
+                        <div className={cn("size-6 rounded-md flex items-center justify-center flex-shrink-0", color.bg)}>
+                          <Icon className={cn("size-3", color.text)} />
                         </div>
                         <div className="flex-1 min-w-0">
-                          <div className="bg-white rounded-2xl rounded-tl-sm px-4 py-3 border shadow-sm">
-                            <p className="text-sm whitespace-pre-wrap leading-relaxed">{msg.content}</p>
+                          <div className="bg-white rounded-xl rounded-tl-sm px-3 py-2.5 border border-border/50 shadow-sm">
+                            <p className="text-[13px] whitespace-pre-wrap leading-relaxed">{msg.content}</p>
 
                             {/* Sources */}
                             {msg.sourcesUsed && msg.sourcesUsed.length > 0 && (
                               <>
                                 <button
                                   onClick={() => setExpandedSources(expandedSources === msg.id ? null : msg.id)}
-                                  className="flex items-center gap-1 mt-3 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                                  className="flex items-center gap-1 mt-2 text-[10px] text-muted-foreground hover:text-foreground transition-colors"
                                 >
-                                  {expandedSources === msg.id ? <ChevronUp className="size-3" /> : <ChevronDown className="size-3" />}
+                                  {expandedSources === msg.id ? <ChevronUp className="size-2.5" /> : <ChevronDown className="size-2.5" />}
                                   Sources ({msg.sourcesUsed.length})
                                 </button>
                                 {expandedSources === msg.id && (
-                                  <div className="mt-2 space-y-1">
+                                  <div className="mt-1.5 space-y-0.5">
                                     {msg.sourcesUsed.map((source, i) => (
-                                      <div key={i} className="flex items-center gap-2 text-xs text-muted-foreground">
-                                        {source.type === "knowledge" ? <Database className="size-3" /> : <Zap className="size-3" />}
+                                      <div key={i} className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
+                                        {source.type === "knowledge" ? <Database className="size-2.5" /> : <Zap className="size-2.5" />}
                                         {source.name}
                                       </div>
                                     ))}
@@ -427,21 +427,75 @@ export default function AgentTestPage() {
                             )}
                           </div>
 
-                          {/* Rating buttons */}
-                          {phase === "awaiting-rating" && messages[messages.length - 1]?.id === msg.id && (
-                            <div className="mt-4 flex items-center gap-4">
-                              <span className="text-xs text-muted-foreground">Rate this response:</span>
-                              <div className="flex gap-1">
-                                <Button size="sm" variant="ghost" className="h-8 gap-1.5" onClick={() => handleRating("good")}>
-                                  <ThumbsUp className="size-3.5" /> Good
-                                </Button>
-                                <Button size="sm" variant="ghost" className="h-8 gap-1.5" onClick={() => handleRating("acceptable")}>
-                                  <Minus className="size-3.5" /> OK
-                                </Button>
-                                <Button size="sm" variant="ghost" className="h-8 gap-1.5" onClick={() => handleRating("poor")}>
-                                  <ThumbsDown className="size-3.5" /> Poor
-                                </Button>
+                          {/* Postman-style rating icons */}
+                          {(phase === "awaiting-rating" || phase === "awaiting-feedback") && messages[messages.length - 1]?.id === msg.id && (
+                            <div className="mt-3 space-y-3">
+                              {/* Icon row */}
+                              <div className="flex items-center justify-end gap-1">
+                                <button
+                                  onClick={() => navigator.clipboard.writeText(msg.content)}
+                                  className="size-7 flex items-center justify-center text-muted-foreground/60 hover:text-muted-foreground hover:bg-muted/50 rounded transition-colors"
+                                  title="Copy"
+                                >
+                                  <Copy className="size-4" />
+                                </button>
+                                <button
+                                  onClick={() => handleRating("good")}
+                                  className="size-7 flex items-center justify-center text-muted-foreground/60 hover:text-muted-foreground hover:bg-muted/50 rounded transition-colors"
+                                  title="Good response"
+                                >
+                                  <ThumbsUp className="size-4" />
+                                </button>
+                                <button
+                                  onClick={() => handleRating("poor")}
+                                  className={cn(
+                                    "size-7 flex items-center justify-center rounded transition-colors",
+                                    phase === "awaiting-feedback"
+                                      ? "text-muted-foreground bg-muted/50"
+                                      : "text-muted-foreground/60 hover:text-muted-foreground hover:bg-muted/50"
+                                  )}
+                                  title="Bad response"
+                                >
+                                  <ThumbsDown className="size-4" />
+                                </button>
+                                <button
+                                  className="size-7 flex items-center justify-center text-muted-foreground/60 hover:text-muted-foreground hover:bg-muted/50 rounded transition-colors"
+                                  title="More options"
+                                >
+                                  <MoreHorizontal className="size-4" />
+                                </button>
                               </div>
+
+                              {/* Feedback textarea - Postman style */}
+                              {phase === "awaiting-feedback" && (
+                                <div className="space-y-2">
+                                  <textarea
+                                    value={feedbackInput}
+                                    onChange={(e) => setFeedbackInput(e.target.value)}
+                                    placeholder="Help us improve. What went wrong?"
+                                    className="w-full h-20 px-3 py-2 text-sm border rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/30"
+                                    autoFocus
+                                  />
+                                  <div className="flex justify-end gap-2">
+                                    <button
+                                      onClick={() => {
+                                        setFeedbackInput("");
+                                        setPhase("awaiting-rating");
+                                      }}
+                                      className="h-8 px-4 text-sm text-muted-foreground hover:text-foreground transition-colors"
+                                    >
+                                      Cancel
+                                    </button>
+                                    <button
+                                      onClick={handleFeedbackSubmit}
+                                      disabled={!feedbackInput.trim()}
+                                      className="h-8 px-4 text-sm font-medium bg-orange-500 text-white rounded-md hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                    >
+                                      Submit
+                                    </button>
+                                  </div>
+                                </div>
+                              )}
                             </div>
                           )}
                         </div>
@@ -451,44 +505,50 @@ export default function AgentTestPage() {
 
                   {/* User feedback */}
                   {msg.type === "user-feedback" && (
-                    <div className="flex justify-end mb-6">
-                      <div className="bg-muted rounded-2xl rounded-br-sm px-4 py-2.5 max-w-[80%]">
-                        <p className="text-sm italic text-muted-foreground">{msg.content}</p>
+                    <div className="flex justify-end mb-4">
+                      <div className="bg-muted/60 rounded-xl rounded-br-sm px-3 py-2 max-w-[80%]">
+                        <p className="text-[12px] italic text-muted-foreground">{msg.content}</p>
                       </div>
                     </div>
                   )}
 
                   {/* System message */}
                   {msg.type === "system" && (
-                    <p className="text-xs text-muted-foreground text-center py-3">{msg.content}</p>
+                    <p className="text-[11px] text-muted-foreground text-center py-2">{msg.content}</p>
                   )}
 
                   {/* Suggestion */}
                   {msg.type === "suggestion" && msg.suggestion && (
-                    <div className="max-w-md mx-auto my-6">
-                      <div className="border rounded-xl p-4 bg-white">
-                        <div className="flex items-start gap-3">
-                          <Zap className="size-4 text-muted-foreground mt-0.5" />
+                    <div className="max-w-sm mx-auto my-4">
+                      <div className="border border-border/50 rounded-lg p-3 bg-white">
+                        <div className="flex items-start gap-2">
+                          <Zap className="size-3.5 text-amber-500 mt-0.5" />
                           <div className="flex-1">
-                            <p className="text-sm font-medium">Suggested improvement</p>
-                            <p className="text-xs text-muted-foreground mt-1">{msg.content}</p>
-                            <div className="mt-3 p-2 bg-muted/50 rounded text-xs font-mono">
+                            <p className="text-[12px] font-medium">Suggested improvement</p>
+                            <p className="text-[11px] text-muted-foreground mt-0.5">{msg.content}</p>
+                            <div className="mt-2 p-2 bg-muted/40 rounded text-[11px] font-mono leading-relaxed">
                               {msg.suggestion.updateValue}
                             </div>
                           </div>
                         </div>
                         {!msg.suggestion.applied && phase === "awaiting-suggestion-response" && (
-                          <div className="flex gap-2 mt-4 pt-3 border-t">
-                            <Button size="sm" onClick={() => handleSuggestionResponse(true)}>
-                              Apply to config
-                            </Button>
-                            <Button size="sm" variant="ghost" onClick={() => handleSuggestionResponse(false)}>
+                          <div className="flex gap-2 mt-3 pt-2 border-t border-border/50">
+                            <button
+                              onClick={() => handleSuggestionResponse(true)}
+                              className="h-7 px-3 text-[11px] font-medium bg-foreground text-background rounded hover:bg-foreground/90 transition-colors"
+                            >
+                              Apply
+                            </button>
+                            <button
+                              onClick={() => handleSuggestionResponse(false)}
+                              className="h-7 px-3 text-[11px] text-muted-foreground hover:text-foreground rounded hover:bg-muted/50 transition-colors"
+                            >
                               Skip
-                            </Button>
+                            </button>
                           </div>
                         )}
                         {msg.suggestion.applied && (
-                          <p className="text-xs text-emerald-600 mt-3 pt-3 border-t">✓ Applied to config</p>
+                          <p className="text-[10px] text-emerald-600 mt-2 pt-2 border-t border-border/50">Applied</p>
                         )}
                       </div>
                     </div>
@@ -514,8 +574,8 @@ export default function AgentTestPage() {
         </div>
       </div>
 
-      {/* Input */}
-      <div className="border-t bg-white px-4 py-4">
+      {/* Input - always visible for new prompts */}
+      <div className="border-t bg-white px-4 py-3">
         <div className="max-w-2xl mx-auto">
           <div className="relative">
             <Textarea
@@ -523,22 +583,18 @@ export default function AgentTestPage() {
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder={
-                phase === "idle" ? "Type a prompt to test..." :
-                phase === "awaiting-feedback" ? "What should be different?" :
-                phase === "awaiting-rating" ? "Rate the response above" :
-                "..."
-              }
-              className="min-h-[48px] max-h-[120px] pr-12 resize-none"
-              disabled={isLoading || phase === "awaiting-rating" || phase === "awaiting-suggestion-response"}
+              placeholder="Test another prompt..."
+              className="min-h-[40px] max-h-[100px] pr-10 text-sm resize-none border-muted-foreground/20 focus:border-muted-foreground/40"
+              disabled={isLoading || phase === "awaiting-suggestion-response"}
             />
             <Button
               size="icon"
+              variant="ghost"
               onClick={handleSend}
-              disabled={!input.trim() || isLoading || phase === "awaiting-rating" || phase === "awaiting-suggestion-response"}
-              className="absolute bottom-2 right-2"
+              disabled={!input.trim() || isLoading || phase === "awaiting-suggestion-response"}
+              className="absolute bottom-1.5 right-1.5 size-7"
             >
-              <Send className="size-4" />
+              <Send className="size-3.5" />
             </Button>
           </div>
         </div>
