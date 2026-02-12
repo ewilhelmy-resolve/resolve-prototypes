@@ -161,6 +161,8 @@ interface SchemaRendererProps {
 	messageId: string;
 	conversationId: string;
 	onAction?: (payload: UIActionPayload) => void;
+	/** Force inline Dialog modals instead of host modal delegation (for embedded/Storybook contexts) */
+	forceInlineModals?: boolean;
 }
 
 export function SchemaRenderer({
@@ -168,6 +170,7 @@ export function SchemaRenderer({
 	messageId,
 	conversationId,
 	onAction,
+	forceInlineModals,
 }: SchemaRendererProps) {
 	const [formData, setFormData] = useState<Record<string, string>>({});
 	const [modalFormData, setModalFormData] = useState<Record<string, string>>(
@@ -314,8 +317,8 @@ export function SchemaRenderer({
 			return;
 		}
 
-		// In iframe context, open modal in host page
-		if (isInIframe()) {
+		// In iframe context, open modal in host page (unless forceInlineModals)
+		if (isInIframe() && !forceInlineModals) {
 			const fields: FormModalField[] = [];
 			for (const c of modal.children) {
 				if (c.type === "input") {
@@ -693,9 +696,7 @@ function TextRenderer({ component }: { component: TextComponent }) {
 					h4: ({ children }) => (
 						<h4 className="text-sm font-semibold mb-1">{children}</h4>
 					),
-					p: ({ children }) => (
-						<p className="mb-1 last:mb-0">{children}</p>
-					),
+					p: ({ children }) => <p className="mb-1 last:mb-0">{children}</p>,
 					table: ({ children }) => (
 						<table className="w-full text-sm border-collapse my-2">
 							{children}
