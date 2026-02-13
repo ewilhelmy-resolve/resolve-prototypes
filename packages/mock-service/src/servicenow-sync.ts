@@ -199,7 +199,63 @@ function generateDescription(subject: string): string {
 	return `${prefix}${subject}${suffix}`;
 }
 
-function generateSourceMetadata(ticketNum: number, subject: string): object {
+// Realistic requester identities
+const REQUESTERS = [
+	"adams@acme.com",
+	"jsmith@acme.com",
+	"maria.garcia@acme.com",
+	"chen.wei@acme.com",
+	"bob.wilson@acme.com",
+	"sarah.jones@acme.com",
+	"alex.kim@acme.com",
+	"lisa.brown@acme.com",
+	"david.lee@acme.com",
+	"emma.taylor@acme.com",
+];
+
+// Realistic assigned-to agents (some empty to simulate unassigned)
+const ASSIGNED_TO_AGENTS = [
+	"IT Help Desk",
+	"John Support",
+	"Network Team",
+	"Desktop Support",
+	"Security Team",
+	"",
+	"",
+	"",
+];
+
+// Priority values matching ServiceNow convention
+const PRIORITIES = ["Low", "Medium", "High", "Critical"];
+const PRIORITY_WEIGHTS = [0.2, 0.5, 0.2, 0.1]; // weighted distribution
+
+function getRandomRequester(): string {
+	return REQUESTERS[Math.floor(Math.random() * REQUESTERS.length)];
+}
+
+function getRandomAssignedTo(): string {
+	return ASSIGNED_TO_AGENTS[
+		Math.floor(Math.random() * ASSIGNED_TO_AGENTS.length)
+	];
+}
+
+function getRandomPriority(): string {
+	const rand = Math.random();
+	let cumulative = 0;
+	for (let i = 0; i < PRIORITIES.length; i++) {
+		cumulative += PRIORITY_WEIGHTS[i];
+		if (rand < cumulative) return PRIORITIES[i];
+	}
+	return "Medium";
+}
+
+function generateSourceMetadata(
+	ticketNum: number,
+	subject: string,
+	requester: string,
+	assignedTo: string,
+	priority: string,
+): object {
 	const now = new Date().toISOString();
 	const sysId = crypto.randomUUID();
 
@@ -230,14 +286,14 @@ function generateSourceMetadata(ticketNum: number, subject: string): object {
 		due_date: { value: "", display_value: "" },
 		location: { value: "", display_value: "" },
 		made_sla: { value: "true", display_value: "true" },
-		priority: { value: "5", display_value: "5 - Planning" },
+		priority: { value: priority, display_value: priority },
 		severity: { value: "3", display_value: "3 - Low" },
 		sys_tags: { value: "", display_value: "" },
 		work_end: { value: "", display_value: "" },
 		caller_id: {
 			link: "https://dev280992.service-now.com/api/now/table/sys_user/62826bf03710200044e0bfc8bcbe5df1",
 			value: "62826bf03710200044e0bfc8bcbe5df1",
-			display_value: "Abel A Tuter",
+			display_value: requester,
 		},
 		caused_by: { value: "", display_value: "" },
 		closed_at: { value: "", display_value: "" },
@@ -264,7 +320,7 @@ function generateSourceMetadata(ticketNum: number, subject: string): object {
 		watch_list: { value: "", display_value: "" },
 		work_notes: { value: "", display_value: "" },
 		work_start: { value: "", display_value: "" },
-		assigned_to: { value: "", display_value: "" },
+		assigned_to: { value: assignedTo || "", display_value: assignedTo || "" },
 		close_notes: { value: "", display_value: "" },
 		description: { value: subject, display_value: subject },
 		hold_reason: { value: "", display_value: "" },
@@ -520,15 +576,25 @@ export async function syncServiceNowData(
 			for (let i = 0; i < ticketsPerCluster; i++) {
 				const subject = getRandomSubject(clusterName);
 				const externalId = `INC00${ticketNum}`;
-				const sourceMetadata = generateSourceMetadata(ticketNum, subject);
+				const requester = getRandomRequester();
+				const assignedTo = getRandomAssignedTo();
+				const priority = getRandomPriority();
+				const sourceMetadata = generateSourceMetadata(
+					ticketNum,
+					subject,
+					requester,
+					assignedTo,
+					priority,
+				);
 				const createdAt = getRandomCreatedAt();
 
 				const description = generateDescription(subject);
 				const insertResult = await client.query(
 					`INSERT INTO tickets (
             organization_id, cluster_id, data_source_connection_id,
-            external_id, subject, description, external_status, rita_status, source_metadata, created_at
-          ) VALUES ($1, $2, $3, $4, $5, $6, 'New', 'NEEDS_RESPONSE', $7, $8)
+            external_id, subject, description, external_status, rita_status, source_metadata, created_at,
+            requester, assigned_to, priority
+          ) VALUES ($1, $2, $3, $4, $5, $6, 'New', 'NEEDS_RESPONSE', $7, $8, $9, $10, $11)
           ON CONFLICT (organization_id, external_id) DO NOTHING`,
 					[
 						organizationId,
@@ -539,6 +605,9 @@ export async function syncServiceNowData(
 						description,
 						JSON.stringify(sourceMetadata),
 						createdAt,
+						requester,
+						assignedTo || null,
+						priority,
 					],
 				);
 
