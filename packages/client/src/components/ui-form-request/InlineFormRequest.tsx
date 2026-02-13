@@ -7,8 +7,6 @@
 
 import { CheckCircle2, Loader2 } from "lucide-react";
 import { useState } from "react";
-import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
 import { Button } from "@/components/ui/button";
 import {
 	Card,
@@ -18,25 +16,13 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import {
-	Select,
-	SelectContent,
-	SelectItem,
-	SelectTrigger,
-	SelectValue,
-} from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
-import type { ModalDefinition } from "@/types/uiSchema";
-import { evaluateCondition } from "@/types/uiSchema";
+import type { UISchema } from "@/types/uiSchema";
+import { parseSchema } from "@/types/uiSchema";
+import { SchemaRenderer } from "../schema-renderer";
 
 interface InlineFormRequestProps {
 	requestId: string;
-	uiSchema: {
-		version?: "1";
-		modals: Record<string, ModalDefinition>;
-	};
+	uiSchema: Record<string, unknown>;
 	status: "pending" | "completed";
 	formData?: Record<string, string>;
 	submittedAt?: string;
@@ -46,6 +32,21 @@ interface InlineFormRequestProps {
 		data: Record<string, string>,
 	) => Promise<void>;
 	onCancel?: (requestId: string) => Promise<void>;
+}
+
+/** Extract title/description/submitAction from parsed schema root element */
+function extractFormProps(parsed: UISchema) {
+	const rootEl = parsed.elements[parsed.root];
+	if (!rootEl) return { title: "Form", submitLabel: "Submit", cancelLabel: "Cancel" };
+
+	return {
+		title: (rootEl.props?.title as string) || "Form",
+		description: rootEl.props?.description as string | undefined,
+		submitAction: rootEl.props?.submitAction as string | undefined,
+		submitLabel: (rootEl.props?.submitLabel as string) || "Submit",
+		cancelLabel: (rootEl.props?.cancelLabel as string) || "Cancel",
+		submitVariant: rootEl.props?.submitVariant as string | undefined,
+	};
 }
 
 export function InlineFormRequest({
@@ -63,26 +64,28 @@ export function InlineFormRequest({
 	const [isSubmitting, setIsSubmitting] = useState(false);
 	const [error, setError] = useState<string>();
 
-	// Get the first modal from the schema
-	const modalEntries = Object.entries(uiSchema.modals || {});
-	if (modalEntries.length === 0) {
-		return null;
-	}
+	const parsed = parseSchema(uiSchema);
+	if (!parsed) return null;
 
-	const [, modal] = modalEntries[0];
+	const {
+		title,
+		description,
+		submitAction,
+		submitLabel,
+		cancelLabel,
+		submitVariant,
+	} = extractFormProps(parsed);
+	const rootEl = parsed.elements[parsed.root];
+	const isFormRoot = rootEl?.type === "Form";
 	const isCompleted = status === "completed";
 
-	const handleInputChange = (name: string, value: string) => {
-		setFormData((prev) => ({ ...prev, [name]: value }));
-	};
-
 	const handleSubmit = async () => {
-		if (!modal.submitAction || isCompleted) return;
+		if (!submitAction || isCompleted) return;
 
 		setIsSubmitting(true);
 		setError(undefined);
 		try {
-			await onSubmit(requestId, modal.submitAction, formData);
+			await onSubmit(requestId, submitAction, formData);
 		} catch (err) {
 			setError(err instanceof Error ? err.message : "Failed to submit form");
 			setIsSubmitting(false);
@@ -95,125 +98,56 @@ export function InlineFormRequest({
 		setIsSubmitting(true);
 		try {
 			await onCancel(requestId);
-		} catch (err) {
-			// Ignore cancel errors
+		} catch (_err) {
 			setIsSubmitting(false);
 		}
 	};
 
-	// Render a component from the modal's children/fields
-	// Platform schemas use untyped fields (e.g. type:"text" as input, type:"textarea")
-	// so we accept any and map to our internal component types
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	const renderComponent = (component: any, index: number): React.ReactNode => {
-		const displayData = isCompleted ? existingFormData || formData : formData;
-
-		if (!evaluateCondition(component.if, displayData)) {
-			return null;
-		}
-
-		const key = component.id || `${component.type}-${index}`;
-
-		switch (component.type) {
-			case "text":
-				// "text" with a name = input field; "text" with content = static display
-				if (component.name) {
-					return (
-						<InputRenderer
-							key={key}
-							component={component}
-							value={displayData[component.name] || component.defaultValue || ""}
-							onChange={(value: string) => handleInputChange(component.name, value)}
-							disabled={isCompleted || isSubmitting}
-						/>
-					);
-				}
-				return <TextRenderer key={key} component={component} />;
-
-			case "input":
-				return (
-					<InputRenderer
-						key={key}
-						component={component}
-						value={displayData[component.name] || component.defaultValue || ""}
-						onChange={(value: string) => handleInputChange(component.name, value)}
-						disabled={isCompleted || isSubmitting}
-					/>
-				);
-
-			case "textarea":
-				return (
-					<InputRenderer
-						key={key}
-						component={{ ...component, inputType: "textarea" }}
-						value={displayData[component.name] || component.defaultValue || ""}
-						onChange={(value: string) => handleInputChange(component.name, value)}
-						disabled={isCompleted || isSubmitting}
-					/>
-				);
-
-			case "select":
-				return (
-					<SelectRenderer
-						key={key}
-						component={component}
-						value={displayData[component.name] || component.defaultValue || ""}
-						onChange={(value: string) => handleInputChange(component.name, value)}
-						disabled={isCompleted || isSubmitting}
-					/>
-				);
-
-			case "row":
-				return (
-					<div
-						key={key}
-						className={`flex flex-wrap items-start gap-3 ${component.className || ""}`}
-					>
-						{(component.children ?? []).map((child: any, i: number) => renderComponent(child, i))}
-					</div>
-				);
-
-			case "column":
-				return (
-					<div
-						key={key}
-						className={`flex flex-col gap-3 ${component.className || ""}`}
-					>
-						{(component.children ?? []).map((child: any, i: number) => renderComponent(child, i))}
-					</div>
-				);
-
-			default:
-				return null;
+	// Collect form data from SchemaRenderer actions
+	const handleAction = (payload: {
+		action: string;
+		data?: Record<string, unknown>;
+	}) => {
+		if (payload.data) {
+			setFormData((prev) => ({
+				...prev,
+				...(payload.data as Record<string, string>),
+			}));
 		}
 	};
 
 	return (
 		<Card className="w-full max-w-lg">
-			<CardHeader className="pb-3">
-				<div className="flex items-start justify-between">
-					<div>
-						<CardTitle className="text-base">{modal.title}</CardTitle>
-						{modal.description && (
-							<CardDescription className="mt-1">
-								{modal.description}
-							</CardDescription>
+			{isFormRoot && (
+				<CardHeader className="pb-3">
+					<div className="flex items-start justify-between">
+						<div>
+							<CardTitle className="text-base">{title}</CardTitle>
+							{description && (
+								<CardDescription className="mt-1">
+									{description}
+								</CardDescription>
+							)}
+						</div>
+						{isCompleted && (
+							<CheckCircle2 className="h-5 w-5 text-green-500 flex-shrink-0" />
 						)}
 					</div>
-					{isCompleted && (
-						<CheckCircle2 className="h-5 w-5 text-green-500 flex-shrink-0" />
-					)}
-				</div>
-			</CardHeader>
+				</CardHeader>
+			)}
 
 			<CardContent className="space-y-3 pb-3">
-				{(modal.children ?? (modal as any).fields ?? []).map((child: any, index: number) =>
-					renderComponent(child, index),
-				)}
+				<SchemaRenderer
+					schema={uiSchema}
+					messageId={requestId}
+					conversationId=""
+					onAction={handleAction}
+					disabled={isCompleted || isSubmitting}
+				/>
 				{error && <div className="text-sm text-destructive">{error}</div>}
 			</CardContent>
 
-			{!isCompleted && modal.submitAction && (
+			{!isCompleted && submitAction && (
 				<CardFooter className="flex justify-end gap-2 pt-0">
 					{onCancel && (
 						<Button
@@ -222,17 +156,24 @@ export function InlineFormRequest({
 							onClick={handleCancel}
 							disabled={isSubmitting}
 						>
-							{modal.cancelLabel || "Cancel"}
+							{cancelLabel}
 						</Button>
 					)}
 					<Button
-						variant={modal.submitVariant || "default"}
+						variant={
+							(submitVariant as
+								| "default"
+								| "destructive"
+								| "outline"
+								| "secondary"
+								| "ghost") || "default"
+						}
 						size="sm"
 						onClick={handleSubmit}
 						disabled={isSubmitting}
 					>
 						{isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-						{modal.submitLabel || "Submit"}
+						{submitLabel}
 					</Button>
 				</CardFooter>
 			)}
@@ -245,164 +186,6 @@ export function InlineFormRequest({
 				</CardFooter>
 			)}
 		</Card>
-	);
-}
-
-// Simple component renderers (same as UIFormRequestModal)
-
-function TextRenderer({
-	component,
-}: {
-	component: { content: string; variant?: string; className?: string };
-}) {
-	const variants: Record<string, string> = {
-		default: "text-sm",
-		muted: "text-sm text-muted-foreground",
-		heading: "text-base font-semibold",
-		subheading: "text-sm font-medium",
-	};
-	return (
-		<div
-			className={`${variants[component.variant || "default"]} ${component.className || ""}`}
-		>
-			<ReactMarkdown
-				remarkPlugins={[remarkGfm]}
-				components={{
-					h1: ({ children }) => (
-						<h1 className="text-xl font-bold mb-2">{children}</h1>
-					),
-					h2: ({ children }) => (
-						<h2 className="text-lg font-semibold mb-2">{children}</h2>
-					),
-					h3: ({ children }) => (
-						<h3 className="text-base font-semibold mb-1">{children}</h3>
-					),
-					h4: ({ children }) => (
-						<h4 className="text-sm font-semibold mb-1">{children}</h4>
-					),
-					p: ({ children }) => (
-						<p className="mb-1 last:mb-0">{children}</p>
-					),
-					table: ({ children }) => (
-						<table className="w-full text-sm border-collapse my-2">
-							{children}
-						</table>
-					),
-					th: ({ children }) => (
-						<th className="border border-border px-2 py-1 text-left font-medium bg-muted/50">
-							{children}
-						</th>
-					),
-					td: ({ children }) => (
-						<td className="border border-border px-2 py-1">{children}</td>
-					),
-					ul: ({ children }) => (
-						<ul className="list-disc list-inside mb-1">{children}</ul>
-					),
-					ol: ({ children }) => (
-						<ol className="list-decimal list-inside mb-1">{children}</ol>
-					),
-					strong: ({ children }) => (
-						<strong className="font-semibold">{children}</strong>
-					),
-					code: ({ children }) => (
-						<code className="bg-muted px-1 py-0.5 rounded text-xs font-mono">
-							{children}
-						</code>
-					),
-				}}
-			>
-				{component.content}
-			</ReactMarkdown>
-		</div>
-	);
-}
-
-function InputRenderer({
-	component,
-	value,
-	onChange,
-	disabled,
-}: {
-	component: {
-		name: string;
-		label?: string;
-		placeholder?: string;
-		inputType?: string;
-		required?: boolean;
-		className?: string;
-	};
-	value: string;
-	onChange: (value: string) => void;
-	disabled?: boolean;
-}) {
-	const InputEl = component.inputType === "textarea" ? Textarea : Input;
-	return (
-		<div className={`space-y-1 ${component.className || ""}`}>
-			{component.label && (
-				<Label htmlFor={component.name} className="text-sm">
-					{component.label}
-					{component.required && (
-						<span className="text-destructive ml-1">*</span>
-					)}
-				</Label>
-			)}
-			<InputEl
-				id={component.name}
-				name={component.name}
-				type={component.inputType || "text"}
-				placeholder={component.placeholder}
-				value={value}
-				onChange={(e) => onChange(e.target.value)}
-				required={component.required}
-				disabled={disabled}
-				className="text-sm"
-			/>
-		</div>
-	);
-}
-
-function SelectRenderer({
-	component,
-	value,
-	onChange,
-	disabled,
-}: {
-	component: {
-		name: string;
-		label?: string;
-		placeholder?: string;
-		options: Array<{ label: string; value: string }>;
-		required?: boolean;
-		className?: string;
-	};
-	value: string;
-	onChange: (value: string) => void;
-	disabled?: boolean;
-}) {
-	return (
-		<div className={`space-y-1 ${component.className || ""}`}>
-			{component.label && (
-				<Label className="text-sm">
-					{component.label}
-					{component.required && (
-						<span className="text-destructive ml-1">*</span>
-					)}
-				</Label>
-			)}
-			<Select value={value} onValueChange={onChange} disabled={disabled}>
-				<SelectTrigger className="text-sm">
-					<SelectValue placeholder={component.placeholder || "Select..."} />
-				</SelectTrigger>
-				<SelectContent>
-					{component.options.map((opt) => (
-						<SelectItem key={opt.value} value={opt.value}>
-							{opt.label}
-						</SelectItem>
-					))}
-				</SelectContent>
-			</Select>
-		</div>
 	);
 }
 

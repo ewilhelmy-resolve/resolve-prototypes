@@ -10,149 +10,177 @@ import { SchemaRenderer } from "../components/schema-renderer";
 import { SchemaDebugPanel } from "../components/schema-renderer/SchemaDebugPanel";
 import type { UIActionPayload, UISchema } from "../types/uiSchema";
 
-// Example schemas for demo
+// Example schemas for demo (json-render.dev format)
 const EXAMPLE_SCHEMAS: Record<string, UISchema> = {
 	simple: {
-		version: "1",
-		components: [
-			{ type: "text", content: "Hello from Platform!", variant: "heading" },
-			{
-				type: "text",
-				content: "This UI was generated from JSON schema.",
-				variant: "muted",
+		root: "column",
+		elements: {
+			column: { type: "Column", children: ["heading", "subtext", "btn"] },
+			heading: {
+				type: "Text",
+				props: { text: "Hello from Platform!", variant: "heading" },
 			},
-			{ type: "button", label: "Click Me", action: "button_clicked" },
-		],
+			subtext: {
+				type: "Text",
+				props: {
+					text: "This UI was generated from JSON schema.",
+					variant: "muted",
+				},
+			},
+			btn: {
+				type: "Button",
+				props: { label: "Click Me", action: "button_clicked" },
+			},
+		},
 	},
 	form: {
-		version: "1",
-		components: [
-			{ type: "text", content: "Configure Workflow", variant: "heading" },
-			{
-				type: "form",
-				submitAction: "save_config",
-				submitLabel: "Save Configuration",
-				children: [
-					{
-						type: "input",
-						name: "workflowName",
-						label: "Workflow Name",
-						placeholder: "My Automation",
-						required: true,
-					},
-					{
-						type: "select",
-						name: "trigger",
-						label: "Trigger Event",
-						options: [
-							{ label: "On Ticket Created", value: "ticket_created" },
-							{ label: "On SLA Breach", value: "sla_breach" },
-							{ label: "On Status Change", value: "status_change" },
-						],
-					},
-					{
-						type: "input",
-						name: "filter",
-						label: "Filter Condition",
-						placeholder: "priority = 'high'",
-						inputType: "textarea",
-					},
-				],
+		root: "column",
+		elements: {
+			column: { type: "Column", children: ["heading", "form"] },
+			heading: {
+				type: "Text",
+				props: { text: "Configure Workflow", variant: "heading" },
 			},
-		],
+			form: {
+				type: "Form",
+				props: {
+					submitAction: "save_config",
+					submitLabel: "Save Configuration",
+				},
+				children: ["workflowName", "trigger", "filter"],
+			},
+			workflowName: {
+				type: "Input",
+				props: {
+					name: "workflowName",
+					label: "Workflow Name",
+					placeholder: "My Automation",
+					required: true,
+				},
+			},
+			trigger: {
+				type: "Select",
+				props: {
+					name: "trigger",
+					label: "Trigger Event",
+					options: [
+						{ label: "On Ticket Created", value: "ticket_created" },
+						{ label: "On SLA Breach", value: "sla_breach" },
+						{ label: "On Status Change", value: "status_change" },
+					],
+				},
+			},
+			filter: {
+				type: "Input",
+				props: {
+					name: "filter",
+					label: "Filter Condition",
+					placeholder: "priority = 'high'",
+					inputType: "textarea",
+				},
+			},
+		},
 	},
 	dashboard: {
-		version: "1",
-		components: [
-			{ type: "text", content: "Activity Dashboard", variant: "heading" },
-			{
-				type: "row",
-				gap: 16,
-				children: [
-					{
-						type: "stat",
-						label: "Total Tickets",
-						value: "1,234",
-						change: "+12%",
-						changeType: "positive",
-					},
-					{
-						type: "stat",
-						label: "Open Issues",
-						value: "42",
-						change: "-5%",
-						changeType: "negative",
-					},
-					{
-						type: "stat",
-						label: "Avg Response",
-						value: "2.4h",
-						changeType: "neutral",
-					},
-				],
+		root: "column",
+		elements: {
+			column: {
+				type: "Column",
+				children: ["heading", "statsRow", "activityCard"],
 			},
-			{
-				type: "card",
-				title: "Recent Activity",
-				description: "Last 24 hours",
-				children: [
-					{
-						type: "table",
-						columns: [
-							{ key: "ticket", label: "Ticket" },
-							{ key: "status", label: "Status" },
-							{ key: "priority", label: "Priority" },
-						],
-						rows: [
-							{ ticket: "TKT-001", status: "Open", priority: "High" },
-							{ ticket: "TKT-002", status: "Pending", priority: "Medium" },
-							{ ticket: "TKT-003", status: "Closed", priority: "Low" },
-						],
-					},
-				],
+			heading: {
+				type: "Text",
+				props: { text: "Activity Dashboard", variant: "heading" },
 			},
-		],
+			statsRow: {
+				type: "Row",
+				props: { gap: 16 },
+				children: ["totalStat", "openStat", "avgStat"],
+			},
+			totalStat: {
+				type: "Stat",
+				props: {
+					label: "Total Tickets",
+					value: "1,234",
+					change: "+12%",
+					changeType: "positive",
+				},
+			},
+			openStat: {
+				type: "Stat",
+				props: {
+					label: "Open Issues",
+					value: "42",
+					change: "-5%",
+					changeType: "negative",
+				},
+			},
+			avgStat: {
+				type: "Stat",
+				props: {
+					label: "Avg Response",
+					value: "2.4h",
+					changeType: "neutral",
+				},
+			},
+			activityCard: {
+				type: "Card",
+				props: { title: "Recent Activity", description: "Last 24 hours" },
+				children: ["activityTable"],
+			},
+			activityTable: {
+				type: "Table",
+				props: {
+					columns: [
+						{ key: "ticket", label: "Ticket" },
+						{ key: "status", label: "Status" },
+						{ key: "priority", label: "Priority" },
+					],
+					rows: [
+						{ ticket: "TKT-001", status: "Open", priority: "High" },
+						{ ticket: "TKT-002", status: "Pending", priority: "Medium" },
+						{ ticket: "TKT-003", status: "Closed", priority: "Low" },
+					],
+				},
+			},
+		},
 	},
 	card: {
-		version: "1",
-		components: [
-			{
-				type: "card",
-				title: "Workflow Settings",
-				description: "Configure automation behavior",
-				children: [
-					{
-						type: "text",
-						content: "Choose how this workflow behaves:",
-						variant: "subheading",
-					},
-					{
-						type: "row",
-						gap: 8,
-						children: [
-							{
-								type: "button",
-								label: "Enable",
-								action: "enable_workflow",
-								variant: "default",
-							},
-							{
-								type: "button",
-								label: "Disable",
-								action: "disable_workflow",
-								variant: "outline",
-							},
-							{
-								type: "button",
-								label: "Delete",
-								action: "delete_workflow",
-								variant: "destructive",
-							},
-						],
-					},
-				],
+		root: "card",
+		elements: {
+			card: {
+				type: "Card",
+				props: {
+					title: "Workflow Settings",
+					description: "Configure automation behavior",
+				},
+				children: ["text", "btnRow"],
 			},
-		],
+			text: {
+				type: "Text",
+				props: {
+					text: "Choose how this workflow behaves:",
+					variant: "subheading",
+				},
+			},
+			btnRow: {
+				type: "Row",
+				props: { gap: 8 },
+				children: ["enableBtn", "disableBtn", "deleteBtn"],
+			},
+			enableBtn: {
+				type: "Button",
+				props: { label: "Enable", action: "enable_workflow", variant: "default" },
+			},
+			disableBtn: {
+				type: "Button",
+				props: { label: "Disable", action: "disable_workflow", variant: "outline" },
+			},
+			deleteBtn: {
+				type: "Button",
+				props: { label: "Delete", action: "delete_workflow", variant: "destructive" },
+			},
+		},
 	},
 };
 

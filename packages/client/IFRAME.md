@@ -162,27 +162,34 @@ Platform → RabbitMQ → API Server → SSE → Jarvis → SchemaRenderer → U
 
 | Type | Description |
 |------|-------------|
-| `text` | Text with variants (heading, muted, code, diff-*) |
-| `button` | Action triggers |
-| `input` | Form inputs (text, email, textarea) |
-| `select` | Dropdown selection |
-| `stat` | Metric cards |
-| `card` | Container with title |
-| `row`/`column` | Layout |
-| `form` | Collects inputs, submits action |
-| `table` | Data tables |
-| `diagram` | Mermaid diagrams with fullscreen |
+| `Text` | Text with variants (heading, muted, code, diff-*) |
+| `Button` | Action triggers |
+| `Input` | Form inputs (text, email, textarea) |
+| `Select` | Dropdown selection |
+| `Stat` | Metric cards |
+| `Card` | Container with title |
+| `Row`/`Column` | Layout |
+| `Form` | Collects inputs, submits action |
+| `Table` | Data tables |
+| `Diagram` | Mermaid diagrams with fullscreen |
+| `Image` | Image display |
+| `Badge` | Status badges |
+| `Alert` | Alert messages |
+| `Link` | Hyperlinks |
+| `Progress` | Progress bars |
+| `List` | Ordered/unordered lists |
 
 ### Example Schema
 
 ```json
 {
-  "version": "1",
-  "components": [
-    { "type": "text", "content": "Approve request?", "variant": "heading" },
-    { "type": "button", "label": "Approve", "action": "approve", "variant": "default" },
-    { "type": "button", "label": "Reject", "action": "reject", "variant": "destructive" }
-  ]
+  "root": "main",
+  "elements": {
+    "main": { "type": "Column", "children": ["heading", "approveBtn", "rejectBtn"] },
+    "heading": { "type": "Text", "props": { "text": "Approve request?", "variant": "heading" } },
+    "approveBtn": { "type": "Button", "props": { "label": "Approve", "action": "approve" } },
+    "rejectBtn": { "type": "Button", "props": { "label": "Reject", "action": "reject", "variant": "destructive" } }
+  }
 }
 ```
 

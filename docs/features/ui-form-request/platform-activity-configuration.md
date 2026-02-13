@@ -15,16 +15,17 @@ Inputs:
       "type": "ui_form_request",
       "user_id": "${workflow.userGuid}",
       "ui_schema": {
-        "version": "1",
-        "modals": {
-          "simple-form": {
-            "title": "Enter Information",
-            "submitAction": "submit",
-            "fields": [
-              { "type": "text", "name": "value", "label": "Value", "required": true }
-            ]
-          }
-        }
+        "root": "form",
+        "elements": {
+          "form": {
+            "type": "Form",
+            "props": { "title": "Enter Information", "submitAction": "submit" },
+            "children": ["valueInput"]
+          },
+          "valueInput": { "type": "Input", "props": { "name": "value", "label": "Value", "required": true } }
+        },
+        "dialogs": { "simple-form": "form" },
+        "autoOpenDialog": "simple-form"
       }
     }
 ```
@@ -50,16 +51,17 @@ The activity constructs this JSON and passes it to RabbitMQ Push Activity's `mes
   "user_id": "user-guid-here",
   "interrupt": true,
   "ui_schema": {
-    "version": "1",
-    "modals": {
-      "my-form": {
-        "title": "Form Title",
-        "submitAction": "submit",
-        "children": [
-          { "type": "input", "name": "field1", "label": "Field 1", "required": true }
-        ]
-      }
-    }
+    "root": "form",
+    "elements": {
+      "form": {
+        "type": "Form",
+        "props": { "title": "Form Title", "submitAction": "submit" },
+        "children": ["field1"]
+      },
+      "field1": { "type": "Input", "props": { "name": "field1", "label": "Field 1", "required": true } }
+    },
+    "dialogs": { "my-form": "form" },
+    "autoOpenDialog": "my-form"
   }
 }
 ```
@@ -87,17 +89,18 @@ Inputs:
   user_id: ${workflow.userGuid}
   ui_schema: |
     {
-      "version": "1",
-      "modals": {
-        "user-info": {
-          "title": "Enter Your Information",
-          "submitAction": "submit_info",
-          "children": [
-            { "type": "input", "name": "full_name", "label": "Full Name", "required": true },
-            { "type": "input", "name": "email", "label": "Email", "inputType": "email", "required": true }
-          ]
-        }
-      }
+      "root": "form",
+      "elements": {
+        "form": {
+          "type": "Form",
+          "props": { "title": "Enter Your Information", "submitAction": "submit_info" },
+          "children": ["fullName", "email"]
+        },
+        "fullName": { "type": "Input", "props": { "name": "full_name", "label": "Full Name", "required": true } },
+        "email": { "type": "Input", "props": { "name": "email", "label": "Email", "inputType": "email", "required": true } }
+      },
+      "dialogs": { "user-info": "form" },
+      "autoOpenDialog": "user-info"
     }
   interrupt: true
 ```
@@ -177,14 +180,12 @@ The `message` field must be a JSON string:
   "type": "ui_form_request",
   "user_id": "<target user's Valkey userGuid>",
   "ui_schema": {
-    "version": "1",
-    "modals": {
-      "<modal-id>": {
-        "title": "Form Title",
-        "submitAction": "action_name",
-        "children": [<components>]
-      }
-    }
+    "root": "<root-element-id>",
+    "elements": {
+      "<id>": { "type": "Form", "props": { "title": "Form Title", "submitAction": "action_name" }, "children": ["<child-ids>"] }
+    },
+    "dialogs": { "<dialog-name>": "<element-id>" },
+    "autoOpenDialog": "<dialog-name>"
   }
 }
 ```
@@ -273,37 +274,24 @@ Match response to waiting workflow using:
   "workflow_id": "${workflow.id}",
   "interrupt": true,
   "ui_schema": {
-    "version": "1",
-    "modals": {
-      "credentials": {
-        "title": "ServiceNow Credentials",
-        "description": "Enter your credentials to connect.",
-        "submitAction": "submit_credentials",
-        "submitLabel": "Connect",
-        "children": [
-          {
-            "type": "input",
-            "name": "instance_url",
-            "label": "Instance URL",
-            "placeholder": "https://your-instance.service-now.com",
-            "required": true
-          },
-          {
-            "type": "input",
-            "name": "username",
-            "label": "Username",
-            "required": true
-          },
-          {
-            "type": "input",
-            "name": "password",
-            "label": "Password",
-            "inputType": "password",
-            "required": true
-          }
-        ]
-      }
-    }
+    "root": "main",
+    "elements": {
+      "main": {
+        "type": "Form",
+        "props": {
+          "title": "ServiceNow Credentials",
+          "description": "Enter your credentials to connect.",
+          "submitAction": "submit_credentials",
+          "submitLabel": "Connect"
+        },
+        "children": ["instanceUrl", "username", "password"]
+      },
+      "instanceUrl": { "type": "Input", "props": { "name": "instance_url", "label": "Instance URL", "placeholder": "https://your-instance.service-now.com", "required": true } },
+      "username": { "type": "Input", "props": { "name": "username", "label": "Username", "required": true } },
+      "password": { "type": "Input", "props": { "name": "password", "label": "Password", "inputType": "password", "required": true } }
+    },
+    "dialogs": { "credentials": "main" },
+    "autoOpenDialog": "credentials"
   }
 }
 ```
@@ -316,37 +304,26 @@ Match response to waiting workflow using:
   "user_id": "${workflow.approverGuid}",
   "workflow_id": "${workflow.id}",
   "ui_schema": {
-    "version": "1",
-    "modals": {
-      "approval": {
-        "title": "Expense Approval Required",
-        "description": "Review and approve the following expense request.",
-        "submitAction": "approve",
-        "submitLabel": "Approve",
-        "cancelAction": "reject",
-        "cancelLabel": "Reject",
-        "children": [
-          {
-            "type": "text",
-            "content": "**Requester:** ${expense.requesterName}"
-          },
-          {
-            "type": "text",
-            "content": "**Amount:** $${expense.amount}"
-          },
-          {
-            "type": "text",
-            "content": "**Description:** ${expense.description}"
-          },
-          {
-            "type": "input",
-            "name": "comments",
-            "label": "Comments (optional)",
-            "inputType": "textarea"
-          }
-        ]
-      }
-    }
+    "root": "main",
+    "elements": {
+      "main": {
+        "type": "Form",
+        "props": {
+          "title": "Expense Approval Required",
+          "description": "Review and approve the following expense request.",
+          "submitAction": "approve",
+          "submitLabel": "Approve",
+          "cancelLabel": "Reject"
+        },
+        "children": ["requester", "amount", "desc", "comments"]
+      },
+      "requester": { "type": "Text", "props": { "text": "**Requester:** ${expense.requesterName}" } },
+      "amount": { "type": "Text", "props": { "text": "**Amount:** $${expense.amount}" } },
+      "desc": { "type": "Text", "props": { "text": "**Description:** ${expense.description}" } },
+      "comments": { "type": "Input", "props": { "name": "comments", "label": "Comments (optional)", "inputType": "textarea" } }
+    },
+    "dialogs": { "approval": "main" },
+    "autoOpenDialog": "approval"
   }
 }
 ```
@@ -359,42 +336,39 @@ Match response to waiting workflow using:
   "user_id": "${workflow.userGuid}",
   "workflow_id": "${workflow.id}",
   "ui_schema": {
-    "version": "1",
-    "modals": {
-      "options": {
-        "title": "Configure Integration",
-        "submitAction": "configure",
-        "children": [
-          {
-            "type": "select",
-            "name": "environment",
-            "label": "Environment",
-            "required": true,
-            "options": [
-              { "value": "prod", "label": "Production" },
-              { "value": "staging", "label": "Staging" },
-              { "value": "dev", "label": "Development" }
-            ]
-          },
-          {
-            "type": "select",
-            "name": "sync_frequency",
-            "label": "Sync Frequency",
-            "options": [
-              { "value": "realtime", "label": "Real-time" },
-              { "value": "hourly", "label": "Hourly" },
-              { "value": "daily", "label": "Daily" }
-            ]
-          },
-          {
-            "type": "input",
-            "name": "webhook_url",
-            "label": "Webhook URL (optional)",
-            "placeholder": "https://..."
-          }
-        ]
-      }
-    }
+    "root": "main",
+    "elements": {
+      "main": {
+        "type": "Form",
+        "props": { "title": "Configure Integration", "submitAction": "configure" },
+        "children": ["env", "freq", "webhook"]
+      },
+      "env": {
+        "type": "Select",
+        "props": {
+          "name": "environment", "label": "Environment", "required": true,
+          "options": [
+            { "value": "prod", "label": "Production" },
+            { "value": "staging", "label": "Staging" },
+            { "value": "dev", "label": "Development" }
+          ]
+        }
+      },
+      "freq": {
+        "type": "Select",
+        "props": {
+          "name": "sync_frequency", "label": "Sync Frequency",
+          "options": [
+            { "value": "realtime", "label": "Real-time" },
+            { "value": "hourly", "label": "Hourly" },
+            { "value": "daily", "label": "Daily" }
+          ]
+        }
+      },
+      "webhook": { "type": "Input", "props": { "name": "webhook_url", "label": "Webhook URL (optional)", "placeholder": "https://..." } }
+    },
+    "dialogs": { "options": "main" },
+    "autoOpenDialog": "options"
   }
 }
 ```
@@ -407,23 +381,25 @@ Match response to waiting workflow using:
 
 | Type | Description |
 |------|-------------|
-| `text` | Static markdown text |
-| `input` | Text input field |
-| `select` | Dropdown selection |
-| `row` | Horizontal layout container |
-| `column` | Vertical layout container |
+| `Text` | Static markdown text |
+| `Input` | Text input field |
+| `Select` | Dropdown selection |
+| `Row` | Horizontal layout container |
+| `Column` | Vertical layout container |
 
 ### Input Properties
 
-```
+```json
 {
-  "type": "input",
-  "name": "field_name",
-  "label": "Display Label",
-  "placeholder": "Hint text",
-  "required": true,
-  "inputType": "text" | "password" | "email" | "textarea",
-  "defaultValue": "initial value"
+  "type": "Input",
+  "props": {
+    "name": "field_name",
+    "label": "Display Label",
+    "placeholder": "Hint text",
+    "required": true,
+    "inputType": "text | password | email | textarea",
+    "defaultValue": "initial value"
+  }
 }
 ```
 
@@ -431,27 +407,31 @@ Match response to waiting workflow using:
 
 ```json
 {
-  "type": "select",
-  "name": "field_name",
-  "label": "Display Label",
-  "required": true,
-  "options": [
-    { "value": "key", "label": "Display Text" }
-  ]
+  "type": "Select",
+  "props": {
+    "name": "field_name",
+    "label": "Display Label",
+    "required": true,
+    "options": [
+      { "value": "key", "label": "Display Text" }
+    ]
+  }
 }
 ```
 
-### Modal Properties
+### Dialog Properties
 
-```
+```json
 {
-  "title": "Modal Title",
-  "description": "Optional description text",
-  "submitAction": "action_name",
-  "submitLabel": "Button Text",
-  "cancelAction": "cancel_action",
-  "cancelLabel": "Cancel Button Text",
-  "children": [<array of components>]
+  "type": "Form",
+  "props": {
+    "title": "Dialog Title",
+    "description": "Optional description text",
+    "submitAction": "action_name",
+    "submitLabel": "Button Text",
+    "cancelLabel": "Cancel Button Text"
+  },
+  "children": ["<child-element-ids>"]
 }
 ```
 
@@ -509,7 +489,7 @@ For complete schema spec, see `docs/features/ui-form-request/platform-developer-
 - [ ] RabbitMQ Push Activity configured with `queue_name: chat.responses`
 - [ ] Message JSON includes `type: "ui_form_request"`
 - [ ] Message includes `user_id`
-- [ ] Valid `ui_schema` with at least one modal
+- [ ] Valid `ui_schema` with root/elements (and dialogs if modal needed)
 - [ ] Webhook handler at `/api/Webhooks/postEvent/{tenantId}`
 - [ ] Workflow can receive and process webhook response
 - [ ] Correlation logic matches `workflow_id`
