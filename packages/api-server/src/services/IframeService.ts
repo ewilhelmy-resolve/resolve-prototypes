@@ -339,6 +339,37 @@ export class IframeService {
 	}
 
 	/**
+	 * Store conversationId in Valkey session hash for Platform Activity lookup (JAR-95)
+	 * Adds a "conversationId" field to the rita:session:{guid} hash
+	 */
+	async storeConversationIdInValkey(
+		sessionKey: string,
+		conversationId: string,
+	): Promise<void> {
+		try {
+			const client = getValkeyClient();
+			const fullKey = `${VALKEY_KEY_PREFIX}${sessionKey}`;
+			await client.hset(fullKey, "conversationId", conversationId);
+			logger.info(
+				{
+					sessionKey: `${sessionKey.substring(0, 8)}...`,
+					conversationId,
+				},
+				"Stored conversationId in Valkey session hash",
+			);
+		} catch (error) {
+			// Non-fatal: log but don't fail the setup
+			logger.error(
+				{
+					error: (error as Error).message,
+					sessionKey: `${sessionKey.substring(0, 8)}...`,
+				},
+				"Failed to store conversationId in Valkey",
+			);
+		}
+	}
+
+	/**
 	 * Delete a conversation by ID
 	 * Messages cascade delete via FK constraint
 	 */
@@ -728,6 +759,9 @@ export class IframeService {
 		await this.sessionStore.updateSession(session.sessionId, {
 			conversationId,
 		});
+
+		// Write conversationId back to Valkey for Platform Activity lookup (JAR-95)
+		await this.storeConversationIdInValkey(sessionKey, conversationId);
 
 		logger.info(
 			{
