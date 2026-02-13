@@ -659,7 +659,7 @@ export function SchemaRenderer({
 // ============================================================================
 
 function TextRenderer({ el }: { el: UIElement }) {
-	const content = p<string>(el, "content", "");
+	const content = p<string>(el, "content") || p<string>(el, "text", "");
 	const variant = p<string>(el, "variant", "default");
 	const className = p<string>(el, "className", "");
 

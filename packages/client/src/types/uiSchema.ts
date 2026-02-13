@@ -109,9 +109,38 @@ export const UISchemaValidator = z.object({
 // Schema Parser
 // ============================================================================
 
-/** Parse and validate raw input as UISchema. Returns null if invalid. */
+/** Parse and validate raw input as UISchema. Returns null if invalid.
+ *  Handles:
+ *  - Standard: { root, elements }
+ *  - Flat single element: { elements: { type, props, children } }
+ *  - Bare element: { type, props, children }
+ */
 export function parseSchema(raw: unknown): UISchema | null {
 	if (!raw || typeof raw !== "object") return null;
+
+	const obj = raw as Record<string, unknown>;
+
+	// Bare element: { type, props }
+	if ("type" in obj && typeof obj.type === "string") {
+		return {
+			root: "main",
+			elements: { main: obj as unknown as UIElement },
+		};
+	}
+
+	// Flat single element: { elements: { type, props } }
+	if (
+		"elements" in obj &&
+		obj.elements &&
+		typeof obj.elements === "object" &&
+		"type" in (obj.elements as Record<string, unknown>)
+	) {
+		return {
+			root: "main",
+			elements: { main: obj.elements as unknown as UIElement },
+		};
+	}
+
 	const result = UISchemaValidator.safeParse(raw);
 	return result.success ? result.data : null;
 }
