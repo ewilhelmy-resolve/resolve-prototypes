@@ -339,6 +339,35 @@ export class IframeService {
 	}
 
 	/**
+	 * Store conversationId inside the Valkey session data object for Platform Activity lookup (JAR-95)
+	 * Reads existing data JSON, merges conversationId, writes back
+	 */
+	async storeConversationIdInValkey(
+		sessionKey: string,
+		conversationId: string,
+	): Promise<void> {
+		try {
+			const client = getValkeyClient();
+			const fullKey = `${VALKEY_KEY_PREFIX}${sessionKey}`;
+
+			// Read existing data, merge conversationId, write back
+			const rawData = await client.hget(fullKey, "data");
+			const data = rawData ? JSON.parse(rawData) : {};
+			data.conversationId = conversationId;
+			await client.hset(fullKey, "data", JSON.stringify(data));
+		} catch (error) {
+			// Non-fatal: log but don't fail the setup
+			logger.error(
+				{
+					error: (error as Error).message,
+					sessionKey: `${sessionKey.substring(0, 8)}...`,
+				},
+				"Failed to store conversationId in Valkey",
+			);
+		}
+	}
+
+	/**
 	 * Delete a conversation by ID
 	 * Messages cascade delete via FK constraint
 	 */
@@ -380,6 +409,139 @@ export class IframeService {
 		// const session = await this.sessionStore.getSessionByConversationId(payload.conversationId);
 		// const workflowService = getWorkflowExecutionService();
 		// await workflowService.sendUIAction(session.iframeWebhookConfig, payload);
+	}
+
+	/**
+	 * Send UI form response back to platform
+	 * Used by UIFormRequestModal when user submits or cancels a form
+	 * Sends webhook to Platform with form data for workflow correlation
+	 */
+	async sendUIFormResponse(payload: {
+		requestId: string;
+		action?: string;
+		status: "submitted" | "cancelled";
+		data?: Record<string, unknown>;
+	}): Promise<void> {
+		const { requestId, action, status, data } = payload;
+
+		// 1. Look up the message containing this form request
+		const client = await pool.connect();
+		try {
+			const msgResult = await client.query(
+				`SELECT id, metadata, conversation_id, organization_id, user_id
+				 FROM messages
+				 WHERE metadata->>'request_id' = $1
+				   AND metadata->>'type' = 'ui_form_request'
+				 LIMIT 1`,
+				[requestId],
+			);
+
+			if (msgResult.rows.length === 0) {
+				throw new Error(`Form request ${requestId} not found`);
+			}
+
+			const msg = msgResult.rows[0];
+			const existingMetadata = msg.metadata || {};
+
+			if (existingMetadata.status === "completed") {
+				throw new Error(
+					`Form request ${requestId} already completed`,
+				);
+			}
+
+			// 2. Update message metadata to mark form as answered
+			const submittedAt = new Date().toISOString();
+			const updatedMetadata = {
+				...existingMetadata,
+				status: status === "submitted" ? "completed" : "cancelled",
+				form_data: data || null,
+				form_action: action || null,
+				submitted_at: submittedAt,
+			};
+
+			await client.query(
+				`UPDATE messages SET metadata = $1 WHERE id = $2`,
+				[JSON.stringify(updatedMetadata), msg.id],
+			);
+
+			logger.info(
+				{
+					requestId,
+					messageId: msg.id,
+					workflowId: existingMetadata.workflow_id,
+					activityId: existingMetadata.activity_id,
+					status,
+					action,
+					hasData: !!data,
+				},
+				"UI form response stored in message metadata",
+			);
+
+			// 3. Get webhook config from session (lookup by conversation if available)
+			let webhookConfig: IframeWebhookConfig | null = null;
+			if (msg.conversation_id) {
+				const session = await this.sessionStore.getSessionByConversationId(
+					msg.conversation_id,
+				);
+				webhookConfig = session?.iframeWebhookConfig || null;
+			}
+
+			// 4. Send webhook to Platform if we have config
+			if (
+				webhookConfig?.actionsApiBaseUrl &&
+				webhookConfig?.clientId &&
+				webhookConfig?.clientKey
+			) {
+				const baseUrl = webhookConfig.actionsApiBaseUrl.replace(/\/$/, "");
+				const webhookUrl = `${baseUrl}/api/Webhooks/postEvent/${webhookConfig.tenantId}`;
+				const authHeader = `Basic ${Buffer.from(`${webhookConfig.clientId}:${webhookConfig.clientKey}`).toString("base64")}`;
+
+				const webhookPayload = {
+					source: "rita-chat-iframe" as const,
+					action: "ui_form_response",
+					tenant_id: webhookConfig.tenantId,
+					user_id: webhookConfig.userGuid,
+					workflow_id: existingMetadata.workflow_id,
+					activity_id: existingMetadata.activity_id,
+					request_id: requestId,
+					status,
+					form_action: action,
+					form_data: data || {},
+					timestamp: submittedAt,
+				};
+
+				// Use axios directly for custom URL
+				const axios = (await import("axios")).default;
+				await axios.post(webhookUrl, webhookPayload, {
+					headers: {
+						Authorization: authHeader,
+						"Content-Type": "application/json",
+					},
+					timeout: 10000,
+				});
+
+				logger.info(
+					{
+						requestId,
+						workflowId: existingMetadata.workflow_id,
+						activityId: existingMetadata.activity_id,
+						webhookUrl,
+					},
+					"UI form response webhook sent to platform",
+				);
+			} else {
+				logger.warn(
+					{
+						requestId,
+						hasConversationId: !!msg.conversation_id,
+						hasWebhookConfig: !!webhookConfig,
+					},
+					"No webhook config available for UI form response",
+				);
+			}
+		} finally {
+			client.release();
+		}
 	}
 
 	/**
@@ -595,6 +757,9 @@ export class IframeService {
 		await this.sessionStore.updateSession(session.sessionId, {
 			conversationId,
 		});
+
+		// Write conversationId back to Valkey for Platform Activity lookup (JAR-95)
+		await this.storeConversationIdInValkey(sessionKey, conversationId);
 
 		logger.info(
 			{

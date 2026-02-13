@@ -1,5 +1,5 @@
+import { Info, Sparkles } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { Info } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -8,8 +8,14 @@ import {
 	TooltipContent,
 	TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { cn } from "@/lib/utils";
 
-export type ReadinessState = "ready" | "partial" | "low" | "not-ready";
+export type ReadinessState =
+	| "ready"
+	| "partial"
+	| "low"
+	| "not-ready"
+	| "coming-soon";
 
 interface AutomationReadinessMeterProps {
 	/** Number of reviewed responses */
@@ -22,6 +28,8 @@ interface AutomationReadinessMeterProps {
 	trustedPercentage: number;
 	/** Whether automation is already enabled */
 	isAutomationEnabled?: boolean;
+	/** Force a specific state (overrides calculated state) */
+	forceState?: ReadinessState;
 	/** Called when Enable Auto-Respond button clicked */
 	onEnableAutoRespond?: () => void;
 	/** Called when Review knowledge button clicked */
@@ -39,12 +47,14 @@ const STATE_CONFIG: Record<
 			| "automation.meterStates.ready"
 			| "automation.meterStates.partial"
 			| "automation.meterStates.low"
-			| "automation.meterStates.notReady";
+			| "automation.meterStates.notReady"
+			| "automation.meterStates.comingSoon";
 		descriptionKey:
 			| "automation.descriptions.ready"
 			| "automation.descriptions.partial"
 			| "automation.descriptions.low"
-			| "automation.descriptions.notReady";
+			| "automation.descriptions.notReady"
+			| "automation.descriptions.comingSoon";
 		bgColor: string;
 		textColor: string;
 		borderColor: string;
@@ -77,6 +87,13 @@ const STATE_CONFIG: Record<
 		bgColor: "bg-gray-100",
 		textColor: "text-gray-800",
 		borderColor: "border-gray-300 border-l-4",
+	},
+	"coming-soon": {
+		labelKey: "automation.meterStates.comingSoon",
+		descriptionKey: "automation.descriptions.comingSoon",
+		bgColor: "bg-blue-100",
+		textColor: "text-blue-800",
+		borderColor: "border-gray-200 border-l-4",
 	},
 };
 
@@ -114,6 +131,7 @@ function getRecommendationKey(
  * - Partial (orange): 50-79% trusted reviews, has knowledge
  * - Low (yellow): <50% trusted reviews, has knowledge
  * - Not ready (gray): no knowledge exists
+ * - Coming soon (blue): data not yet available
  */
 export function AutomationReadinessMeter({
 	reviewed,
@@ -121,94 +139,124 @@ export function AutomationReadinessMeter({
 	hasKnowledge,
 	trustedPercentage,
 	isAutomationEnabled = false,
+	forceState,
 	onEnableAutoRespond,
 	onReviewKnowledge,
 	onAddKnowledge,
 	className,
 }: AutomationReadinessMeterProps) {
 	const { t } = useTranslation("tickets");
-	const state = getReadinessState(hasKnowledge, trustedPercentage);
+	const state =
+		forceState ?? getReadinessState(hasKnowledge, trustedPercentage);
 	const config = STATE_CONFIG[state];
 	const description = t(config.descriptionKey);
 	const recommendation = t(getRecommendationKey(hasKnowledge, reviewed));
 
-	const showReviewCount = hasKnowledge || reviewed > 0;
+	const isComingSoon = state === "coming-soon";
+	const showReviewCount = !isComingSoon && (hasKnowledge || reviewed > 0);
 
 	return (
 		<Card className={`${config.borderColor} gap-0 py-0 ${className ?? ""}`}>
-			<CardContent className="flex flex-col gap-3 p-4">
-				{/* Header */}
-				<div className="flex items-start justify-between">
-					<h3 className="text-sm font-semibold">{t("readiness.title")}</h3>
-					<Tooltip>
-						<TooltipTrigger asChild>
-							<button
-								type="button"
-								className="text-muted-foreground hover:text-foreground"
-								aria-label={t("readiness.tooltip")}
-							>
-								<Info className="h-4 w-4" />
-							</button>
-						</TooltipTrigger>
-						<TooltipContent side="left" className="max-w-xs">
-							<p>{t("readiness.tooltip")}</p>
-						</TooltipContent>
-					</Tooltip>
-				</div>
-
-				{/* Status Badge */}
-				<Badge
-					className={`${config.bgColor} ${config.textColor} border-transparent font-semibold`}
-				>
-					{t(config.labelKey)}
-				</Badge>
+			<CardContent
+				className={cn(
+					"flex flex-col gap-3 p-4",
+					isComingSoon && "bg-sidebar-primary-foreground",
+				)}
+			>
+				{isComingSoon ? (
+					<div className="text-center">
+						{/* Coming Soon: Badge first, then title */}
+						<Badge
+							className={`${config.bgColor} ${config.textColor} border-transparent font-semibold`}
+						>
+							<Sparkles className="mr-1 h-3 w-3" />
+							<span className="text-black">{t(config.labelKey)}</span>
+						</Badge>
+						<h3 className="text-sm font-semibold">
+							{t("readiness.titleComingSoon")}
+						</h3>
+					</div>
+				) : (
+					<>
+						{/* Normal: Header with tooltip, then badge */}
+						<div className="flex items-start justify-between">
+							<h3 className="text-sm font-semibold">{t("readiness.title")}</h3>
+							<Tooltip>
+								<TooltipTrigger asChild>
+									<button
+										type="button"
+										className="text-muted-foreground hover:text-foreground"
+										aria-label={t("readiness.tooltip")}
+									>
+										<Info className="h-4 w-4" />
+									</button>
+								</TooltipTrigger>
+								<TooltipContent side="left" className="max-w-xs">
+									<p>{t("readiness.tooltip")}</p>
+								</TooltipContent>
+							</Tooltip>
+						</div>
+						<Badge
+							className={`${config.bgColor} ${config.textColor} border-transparent font-semibold`}
+						>
+							{t(config.labelKey)}
+						</Badge>
+					</>
+				)}
 
 				{/* Description */}
 				<p className="text-sm text-foreground">{description}</p>
 
 				{/* Review Count */}
-				{showReviewCount ? (
-					<p className="text-sm text-muted-foreground">
-						{t("readiness.reviewedOf", { reviewed, total })}
-					</p>
-				) : (
-					<p className="text-sm text-muted-foreground">
-						{t("readiness.noReviews")}
-					</p>
-				)}
+				{!isComingSoon &&
+					(showReviewCount ? (
+						<p className="text-sm text-muted-foreground">
+							{t("readiness.reviewedOf", { reviewed, total })}
+						</p>
+					) : (
+						<p className="text-sm text-muted-foreground">
+							{t("readiness.noReviews")}
+						</p>
+					))}
 
 				{/* Recommendation */}
-				<div>
-					<p className="text-base text-muted-foreground">{t("readiness.recommendation")}</p>
-					<p className="text-sm font-medium">{recommendation}</p>
-				</div>
+				{!isComingSoon && (
+					<div>
+						<p className="text-base text-muted-foreground">
+							{t("readiness.recommendation")}
+						</p>
+						<p className="text-sm font-medium">{recommendation}</p>
+					</div>
+				)}
 
 				{/* Action Button */}
-				<div>
-					{isAutomationEnabled ? (
-						<Button variant="outline" size="sm" disabled className="bg-green-50 text-green-700 border-green-200">
-							Auto-Respond Enabled
-						</Button>
-					) : (
-						<>
-							{state === "ready" && (
-								<Button variant="outline" size="sm" onClick={onEnableAutoRespond}>
-									{t("readiness.buttons.enableAutoRespond")}
-								</Button>
-							)}
-							{(state === "partial" || state === "low") && (
-								<Button variant="outline" size="sm" onClick={onReviewKnowledge}>
-									{t("readiness.buttons.reviewKnowledge")}
-								</Button>
-							)}
-							{state === "not-ready" && (
-								<Button variant="outline" size="sm" onClick={onAddKnowledge}>
-									{t("readiness.buttons.addKnowledge")}
-								</Button>
-							)}
-						</>
-					)}
-				</div>
+				{!isComingSoon && (
+					<div>
+						{isAutomationEnabled ? (
+							<Button variant="outline" size="sm" disabled className="bg-green-50 text-green-700 border-green-200">
+								Auto-Respond Enabled
+							</Button>
+						) : (
+							<>
+								{state === "ready" && (
+									<Button variant="outline" size="sm" onClick={onEnableAutoRespond}>
+										{t("readiness.buttons.enableAutoRespond")}
+									</Button>
+								)}
+								{(state === "partial" || state === "low") && (
+									<Button variant="outline" size="sm" onClick={onReviewKnowledge}>
+										{t("readiness.buttons.reviewKnowledge")}
+									</Button>
+								)}
+								{state === "not-ready" && (
+									<Button variant="outline" size="sm" onClick={onAddKnowledge}>
+										{t("readiness.buttons.addKnowledge")}
+									</Button>
+								)}
+							</>
+						)}
+					</div>
+				)}
 			</CardContent>
 		</Card>
 	);

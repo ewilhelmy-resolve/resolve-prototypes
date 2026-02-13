@@ -108,6 +108,10 @@ export interface Conversations {
 
 export interface CredentialDelegationTokens {
 	admin_email: string;
+	/**
+	 * Whether to apply credentials to related connection (e.g., KB for ITSM)
+	 */
+	apply_to_related: Generated<boolean | null>;
 	connection_id: string | null;
 	created_at: Generated<Timestamp | null>;
 	created_by_user_id: string;
@@ -119,7 +123,7 @@ export interface CredentialDelegationTokens {
 	delegation_token: string;
 	id: Generated<string>;
 	/**
-	 * ITSM connection type: servicenow_itsm, jira_itsm
+	 * ITSM connection type: servicenow_itsm, jira_itsm, ivanti_itsm
 	 */
 	itsm_system_type: string;
 	last_verification_error: string | null;
@@ -136,6 +140,10 @@ export interface CredentialDelegationTokens {
 }
 
 export interface DataSourceConnections {
+	/**
+	 * Whether to automatically sync tickets on schedule (ITSM only)
+	 */
+	auto_sync: Generated<boolean>;
 	created_at: Generated<Timestamp | null>;
 	created_by: string;
 	description: string | null;
@@ -296,7 +304,13 @@ export interface MlModels {
 	metadata: Generated<Json | null>;
 	model_name: string;
 	organization_id: string;
+	/**
+	 * When model training completed
+	 */
 	training_end_date: Timestamp | null;
+	/**
+	 * When model training started
+	 */
 	training_start_date: Timestamp | null;
 	updated_at: Generated<Timestamp | null>;
 }
@@ -436,6 +450,7 @@ export interface SyncCancellationRequests {
 }
 
 export interface Tickets {
+	assigned_to: string | null;
 	/**
 	 * NULL until classification workflow assigns cluster
 	 */
@@ -445,7 +460,15 @@ export interface Tickets {
 	 */
 	cluster_text: string | null;
 	created_at: Generated<Timestamp | null>;
+	/**
+	 * Flexible field for ingestion data (e.g., is_usable for cluster assignment eligibility)
+	 */
+	custom_fields: Json | null;
 	data_source_connection_id: string | null;
+	/**
+	 * Human-readable ticket description for display (set by ingestion)
+	 */
+	description: string | null;
 	/**
 	 * Ticket ID from ITSM system (Jira/ServiceNow)
 	 */
@@ -453,6 +476,8 @@ export interface Tickets {
 	external_status: string;
 	id: Generated<string>;
 	organization_id: string;
+	priority: string | null;
+	requester: string | null;
 	/**
 	 * Rita processing status: NEEDS_RESPONSE or COMPLETED
 	 */

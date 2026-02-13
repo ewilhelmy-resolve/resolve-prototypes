@@ -83,6 +83,30 @@ vi.mock(
 );
 
 vi.mock(
+	"@/components/connection-sources/connection-details/IvantiItsmConfiguration",
+	() => ({
+		default: ({ onEdit }: { onEdit: () => void }) => (
+			<div>
+				<div>Ivanti ITSM Configuration</div>
+				<button onClick={onEdit}>Edit</button>
+			</div>
+		),
+	}),
+);
+
+vi.mock(
+	"@/components/connection-sources/connection-details/JiraItsmConfiguration",
+	() => ({
+		default: ({ onEdit }: { onEdit: () => void }) => (
+			<div>
+				<div>Jira ITSM Configuration</div>
+				<button onClick={onEdit}>Edit</button>
+			</div>
+		),
+	}),
+);
+
+vi.mock(
 	"@/components/connection-sources/connection-details/WebSearchConfiguration",
 	() => ({
 		default: ({ onEdit }: { onEdit: () => void }) => (
@@ -132,6 +156,12 @@ vi.mock("@/components/connection-sources/connection-forms", () => ({
 			{onCancel && <button onClick={onCancel}>Cancel</button>}
 		</div>
 	),
+	IvantiForm: ({ onCancel }: { onCancel?: () => void }) => (
+		<div>
+			<div>Ivanti Form</div>
+			{onCancel && <button onClick={onCancel}>Cancel</button>}
+		</div>
+	),
 }));
 
 // Mock data
@@ -154,6 +184,7 @@ const createMockDataSource = (
 	status: "idle",
 	last_sync_status: "completed",
 	enabled: true,
+	auto_sync: true,
 	last_verification_at: "2024-01-01T00:00:00Z",
 	last_verification_error: null,
 	last_sync_at: "2024-01-02T00:00:00Z",

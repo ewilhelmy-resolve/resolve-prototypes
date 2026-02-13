@@ -13,6 +13,7 @@ export const DataSourceTypeSchema = z
 		"websearch",
 		"jira_itsm",
 		"freshdesk",
+		"ivanti_itsm",
 	])
 	.openapi("DataSourceType", { description: "Type of data source connection" });
 
@@ -58,6 +59,10 @@ export const UpdateDataSourceRequestSchema = z
 			.boolean()
 			.optional()
 			.openapi({ description: "Enable/disable the connection" }),
+		auto_sync: z
+			.boolean()
+			.optional()
+			.openapi({ description: "Enable/disable automatic ticket sync" }),
 	})
 	.openapi("UpdateDataSourceRequest");
 
@@ -90,6 +95,9 @@ export const DataSourceConnectionSchema = z
 
 		// Control
 		enabled: z.boolean(),
+		auto_sync: z.boolean().openapi({
+			description: "Whether to automatically sync tickets on schedule",
+		}),
 
 		// Audit
 		created_by: z.string().uuid(),

@@ -760,8 +760,8 @@ describe("IframeService", () => {
 	/**
 	 * Custom UI Text from Valkey ui_config
 	 *
-	 * Iframe vs Rita Go behavior:
-	 * - Rita Go: Uses hardcoded i18n translations ("Ask RITA", "Ask me anything...")
+	 * Iframe vs RITA behavior:
+	 * - RITA: Uses hardcoded i18n translations ("Ask RITA", "Ask me anything...")
 	 * - Iframe: Uses Valkey-provided ui_config (title_text, welcome_text, placeholder_text)
 	 *
 	 * This allows Jarvis to customize text per context:

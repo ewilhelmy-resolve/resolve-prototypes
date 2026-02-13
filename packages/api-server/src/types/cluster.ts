@@ -93,10 +93,14 @@ export interface Ticket {
 	data_source_connection_id: string | null;
 	external_id: string;
 	subject: string;
+	description: string | null;
 	external_status: string;
 	cluster_text: string | null;
 	rita_status: RitaStatus;
 	source_metadata: Record<string, any>;
+	requester: string | null;
+	assigned_to: string | null;
+	priority: string | null;
 	created_at: Date;
 	updated_at: Date;
 }

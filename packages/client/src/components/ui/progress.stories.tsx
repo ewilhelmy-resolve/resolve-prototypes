@@ -114,3 +114,29 @@ export const FileUpload: Story = {
 		</div>
 	),
 };
+
+export const CustomIndicatorColor: Story = {
+	args: {
+		value: 70,
+		indicatorClassName: "bg-rita-teal",
+	},
+};
+
+export const ColorVariants: Story = {
+	render: () => (
+		<div className="grid gap-4">
+			<div className="grid gap-2">
+				<span className="text-sm">Default (Primary)</span>
+				<Progress value={60} />
+			</div>
+			<div className="grid gap-2">
+				<span className="text-sm">RITA Teal</span>
+				<Progress value={60} indicatorClassName="bg-rita-teal" />
+			</div>
+			<div className="grid gap-2">
+				<span className="text-sm">Chart Colors</span>
+				<Progress value={60} indicatorClassName="bg-chart-1" />
+			</div>
+		</div>
+	),
+};

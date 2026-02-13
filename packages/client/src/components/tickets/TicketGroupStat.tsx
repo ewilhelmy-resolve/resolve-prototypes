@@ -1,7 +1,7 @@
 import { useNavigate } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
 import { KB_STATUS_BADGE_STYLES } from "@/lib/constants";
-import { cn } from "@/lib/utils";
 import type { KBStatus } from "@/types/cluster";
 
 interface TicketGroupStatProps {
@@ -32,7 +32,6 @@ export function TicketGroupStat({
 	title,
 	count,
 	knowledgeStatus,
-	manualPercentage = 100,
 	automatedPercentage = 0,
 	onClick,
 }: TicketGroupStatProps) {
@@ -70,26 +69,17 @@ export function TicketGroupStat({
 
 			{/* Progress Bar */}
 			<div className="flex flex-col gap-2">
-				<div className="h-2 w-full rounded-full bg-muted overflow-hidden flex">
-					<div
-						className={cn("h-full bg-primary")}
-						style={{ width: `${manualPercentage}%` }}
-					/>
-					<div
-						className={cn("h-full bg-green-500")}
-						style={{ width: `${automatedPercentage}%` }}
-					/>
-				</div>
-				<div className="flex justify-between text-xs text-muted-foreground">
-					<span>{manualPercentage}% Manual</span>
-					<span>{automatedPercentage}% Automated</span>
+				<Progress
+					value={automatedPercentage}
+					indicatorClassName="bg-rita-teal"
+				/>
+				<div className="text-xs text-muted-foreground">
+					<span>{automatedPercentage}% Automate</span>
 				</div>
 			</div>
 
 			{/* Knowledge Status Badge */}
-			<div>
-				{getKnowledgeBadge()}
-			</div>
+			<div>{getKnowledgeBadge()}</div>
 		</button>
 	);
 }

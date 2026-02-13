@@ -80,8 +80,19 @@ async function apiRequest<T>(
 
 // Conversation API
 export const conversationApi = {
-	getConversations: () =>
-		apiRequest<{ conversations: any[] }>("/api/conversations"),
+	getConversations: (params?: { limit?: number; offset?: number }) => {
+		const searchParams = new URLSearchParams();
+		if (params?.limit != null) searchParams.set("limit", String(params.limit));
+		if (params?.offset != null)
+			searchParams.set("offset", String(params.offset));
+		const query = searchParams.toString();
+		return apiRequest<{
+			conversations: any[];
+			total: number;
+			limit: number;
+			offset: number;
+		}>(`/api/conversations${query ? `?${query}` : ""}`);
+	},
 
 	createConversation: (data: { title: string }) =>
 		apiRequest<{ conversation: any }>("/api/conversations", {

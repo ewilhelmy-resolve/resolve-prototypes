@@ -3,9 +3,12 @@
  * Used with ?nav=actions URL param
  */
 
-import { Bell, ChevronDown, Plus, Search, User, X } from "lucide-react";
+import { Bell, Bot, Calendar, ChevronDown, Home, Plus, Search, Ticket, User, X } from "lucide-react";
 import type { ReactNode } from "react";
+import { useState } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
+import { useUIStore } from "@/stores/uiStore";
 
 // Resolve Actions logo SVG
 function ResolveActionsLogo({ className }: { className?: string }) {
@@ -115,6 +118,18 @@ export function ActionsLayout({
 	onTabChange,
 	onTabClose,
 }: ActionsLayoutProps) {
+	const setHeaderStyle = useUIStore((state) => state.setHeaderStyle);
+	const navigate = useNavigate();
+	const location = useLocation();
+	const [showNavDropdown, setShowNavDropdown] = useState(false);
+
+	const navItems = [
+		{ path: "/chat", label: "Home", icon: Home },
+		{ path: "/agents", label: "Agents", icon: Bot },
+		{ path: "/scheduler", label: "Scheduler", icon: Calendar },
+		{ path: "/tickets", label: "Tickets", icon: Ticket },
+	];
+
 	return (
 		<div className="flex flex-col h-screen bg-background">
 			{/* Top Bar - Dark Navy */}
@@ -134,12 +149,51 @@ export function ActionsLayout({
 				<div className="flex items-center gap-5">
 					<Bell className="size-5 text-gray-300 cursor-pointer hover:text-white" />
 					<Plus className="size-5 text-gray-300 cursor-pointer hover:text-white" />
-					<div className="flex items-center gap-2">
-						<span className="text-xs text-gray-300 font-semibold">Demo</span>
-						<div className="size-6 rounded-full bg-gray-200 flex items-center justify-center">
-							<User className="size-4 text-gray-500" />
-						</div>
-						<ChevronDown className="size-4 text-gray-300" />
+					<div className="relative">
+						<button
+							onClick={() => setShowNavDropdown(!showNavDropdown)}
+							className="flex items-center gap-2 hover:opacity-80"
+						>
+							<span className="text-xs text-gray-300 font-semibold">Demo</span>
+							<div className="size-6 rounded-full bg-gray-200 flex items-center justify-center">
+								<User className="size-4 text-gray-500" />
+							</div>
+							<ChevronDown className={cn("size-4 text-gray-300 transition-transform", showNavDropdown && "rotate-180")} />
+						</button>
+						{showNavDropdown && (
+							<div className="absolute right-0 top-full mt-2 w-48 bg-white rounded-md shadow-lg border border-gray-200 py-1 z-50">
+								<div className="px-3 py-2 border-b border-gray-100">
+									<p className="text-xs text-gray-500">Navigate to</p>
+								</div>
+								{navItems.map((item) => (
+									<button
+										key={item.path}
+										onClick={() => {
+											navigate(item.path);
+											setShowNavDropdown(false);
+										}}
+										className={cn(
+											"w-full px-3 py-2 text-left text-sm flex items-center gap-2 hover:bg-gray-50",
+											location.pathname.startsWith(item.path) && "bg-gray-100 text-blue-600"
+										)}
+									>
+										<item.icon className="size-4" />
+										{item.label}
+									</button>
+								))}
+								<div className="border-t border-gray-100 mt-1 pt-1">
+									<button
+										onClick={() => {
+											setHeaderStyle("rita");
+											setShowNavDropdown(false);
+										}}
+										className="w-full px-3 py-2 text-left text-sm flex items-center gap-2 hover:bg-gray-50 text-gray-600"
+									>
+										Switch to RITA
+									</button>
+								</div>
+							</div>
+						)}
 					</div>
 				</div>
 			</div>

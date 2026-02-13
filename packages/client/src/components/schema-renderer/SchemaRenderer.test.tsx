@@ -1,7 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
-import type { UIActionPayload, UISchema } from "../../types/uiSchema";
+import type { UIActionPayload } from "../../types/uiSchema";
 import { SchemaRenderer } from "./SchemaRenderer";
 
 // Mock MermaidRenderer to avoid async mermaid rendering in tests
@@ -14,6 +14,17 @@ vi.mock("./MermaidRenderer", () => ({
 	),
 }));
 
+/** Helper: build a flat-elements schema */
+function schema(
+	elements: Record<
+		string,
+		{ type: string; props?: Record<string, unknown>; children?: string[] }
+	>,
+	root = "main",
+) {
+	return { root, elements };
+}
+
 describe("SchemaRenderer", () => {
 	const defaultProps = {
 		messageId: "msg-123",
@@ -21,114 +32,177 @@ describe("SchemaRenderer", () => {
 	};
 
 	describe("Schema Validation", () => {
-		it("renders error for invalid schema", () => {
-			const invalidSchema = {
-				version: "1",
-				components: [{ type: "invalid", content: "test" }],
-			} as unknown as UISchema;
-
-			render(<SchemaRenderer schema={invalidSchema} {...defaultProps} />);
-
-			expect(screen.getByText("Invalid Schema")).toBeInTheDocument();
-			expect(
-				screen.getByText("The UI schema failed validation"),
-			).toBeInTheDocument();
+		it("renders error for invalid schema (no elements)", () => {
+			render(
+				<SchemaRenderer schema={{ bad: true }} {...defaultProps} />,
+			);
+			expect(screen.getByText(/Invalid Schema/)).toBeInTheDocument();
 		});
 
-		it("renders nothing for empty components array", () => {
-			const emptySchema: UISchema = { version: "1", components: [] };
+		it("renders nothing for empty Column root", () => {
+			const s = schema({ main: { type: "Column", children: [] } });
 			const { container } = render(
-				<SchemaRenderer schema={emptySchema} {...defaultProps} />,
+				<SchemaRenderer schema={s} {...defaultProps} />,
 			);
-
 			expect(container.querySelector(".schema-renderer")).toBeNull();
+		});
+
+		it("renders error when root references missing element", () => {
+			const s = { root: "missing", elements: { other: { type: "Text" } } };
+			render(<SchemaRenderer schema={s} {...defaultProps} />);
+			expect(screen.getByText(/not found/)).toBeInTheDocument();
 		});
 	});
 
 	describe("Text Component", () => {
 		it("renders text with default variant", () => {
-			const schema: UISchema = {
-				version: "1",
-				components: [{ type: "text", content: "Hello World" }],
-			};
-
-			render(<SchemaRenderer schema={schema} {...defaultProps} />);
+			const s = schema({
+				main: { type: "Text", props: { text: "Hello World" } },
+			});
+			render(<SchemaRenderer schema={s} {...defaultProps} />);
 			expect(screen.getByText("Hello World")).toBeInTheDocument();
 		});
 
 		it("renders text with heading variant", () => {
-			const schema: UISchema = {
-				version: "1",
-				components: [{ type: "text", content: "Title", variant: "heading" }],
-			};
-
-			render(<SchemaRenderer schema={schema} {...defaultProps} />);
+			const s = schema({
+				main: {
+					type: "Text",
+					props: { text: "Title", variant: "heading" },
+				},
+			});
+			render(<SchemaRenderer schema={s} {...defaultProps} />);
 			const heading = screen.getByText("Title");
-			expect(heading).toHaveClass("text-lg", "font-semibold");
+			expect(heading.closest("div")).toHaveClass("text-lg", "font-semibold");
 		});
 
 		it("renders text with muted variant", () => {
-			const schema: UISchema = {
-				version: "1",
-				components: [{ type: "text", content: "Muted", variant: "muted" }],
-			};
-
-			render(<SchemaRenderer schema={schema} {...defaultProps} />);
-			expect(screen.getByText("Muted")).toHaveClass("text-muted-foreground");
+			const s = schema({
+				main: {
+					type: "Text",
+					props: { text: "Muted", variant: "muted" },
+				},
+			});
+			render(<SchemaRenderer schema={s} {...defaultProps} />);
+			expect(screen.getByText("Muted").closest("div")).toHaveClass(
+				"text-muted-foreground",
+			);
 		});
 
 		it("applies custom className", () => {
-			const schema: UISchema = {
-				version: "1",
-				components: [
-					{ type: "text", content: "Custom", className: "custom-class" },
-				],
-			};
+			const s = schema({
+				main: {
+					type: "Text",
+					props: { text: "Custom", className: "custom-class" },
+				},
+			});
+			render(<SchemaRenderer schema={s} {...defaultProps} />);
+			expect(screen.getByText("Custom").closest("div")).toHaveClass(
+				"custom-class",
+			);
+		});
+	});
 
-			render(<SchemaRenderer schema={schema} {...defaultProps} />);
-			expect(screen.getByText("Custom")).toHaveClass("custom-class");
+	describe("Text Component - Markdown Rendering", () => {
+		it("renders markdown headings", () => {
+			const s = schema({
+				main: { type: "Text", props: { text: "### Section Title" } },
+			});
+			render(<SchemaRenderer schema={s} {...defaultProps} />);
+			const h3 = screen.getByText("Section Title");
+			expect(h3.tagName).toBe("H3");
+			expect(h3).toHaveClass("text-base", "font-semibold");
+		});
+
+		it("renders bold text", () => {
+			const s = schema({
+				main: {
+					type: "Text",
+					props: { text: "This is **bold** text" },
+				},
+			});
+			render(<SchemaRenderer schema={s} {...defaultProps} />);
+			const strong = screen.getByText("bold");
+			expect(strong.tagName).toBe("STRONG");
+			expect(strong).toHaveClass("font-semibold");
+		});
+
+		it("renders markdown tables", () => {
+			const s = schema({
+				main: {
+					type: "Text",
+					props: {
+						text:
+							"| Name | Age |\n| --- | --- |\n| Alice | 30 |\n| Bob | 25 |",
+					},
+				},
+			});
+			const { container } = render(
+				<SchemaRenderer schema={s} {...defaultProps} />,
+			);
+			const table = container.querySelector("table");
+			expect(table).toBeInTheDocument();
+			expect(screen.getByText("Name")).toBeInTheDocument();
+			expect(screen.getByText("Alice")).toBeInTheDocument();
+			const th = container.querySelector("th");
+			expect(th).toHaveClass("border", "border-border");
+		});
+
+		it("renders markdown lists", () => {
+			const s = schema({
+				main: {
+					type: "Text",
+					props: { text: "- Item one\n- Item two\n- Item three" },
+				},
+			});
+			const { container } = render(
+				<SchemaRenderer schema={s} {...defaultProps} />,
+			);
+			const ul = container.querySelector("ul");
+			expect(ul).toBeInTheDocument();
+			expect(ul).toHaveClass("list-disc", "list-inside");
+			expect(screen.getByText("Item one")).toBeInTheDocument();
 		});
 	});
 
 	describe("Stat Component", () => {
 		it("renders stat with label and value", () => {
-			const schema: UISchema = {
-				version: "1",
-				components: [{ type: "stat", label: "Total Users", value: 1234 }],
-			};
-
-			render(<SchemaRenderer schema={schema} {...defaultProps} />);
+			const s = schema({
+				main: {
+					type: "Stat",
+					props: { label: "Total Users", value: 1234 },
+				},
+			});
+			render(<SchemaRenderer schema={s} {...defaultProps} />);
 			expect(screen.getByText("Total Users")).toBeInTheDocument();
 			expect(screen.getByText("1234")).toBeInTheDocument();
 		});
 
 		it("renders stat with change indicator", () => {
-			const schema: UISchema = {
-				version: "1",
-				components: [
-					{
-						type: "stat",
+			const s = schema({
+				main: {
+					type: "Stat",
+					props: {
 						label: "Revenue",
 						value: "$10k",
 						change: "+15%",
 						changeType: "positive",
 					},
-				],
-			};
-
-			render(<SchemaRenderer schema={schema} {...defaultProps} />);
+				},
+			});
+			render(<SchemaRenderer schema={s} {...defaultProps} />);
 			expect(screen.getByText("+15%")).toHaveClass("text-green-600");
 		});
 	});
 
 	describe("Button Component", () => {
 		it("renders button with label", () => {
-			const schema: UISchema = {
-				version: "1",
-				components: [{ type: "button", label: "Click Me", action: "submit" }],
-			};
-
-			render(<SchemaRenderer schema={schema} {...defaultProps} />);
+			const s = schema({
+				main: {
+					type: "Button",
+					props: { label: "Click Me", action: "submit" },
+				},
+			});
+			render(<SchemaRenderer schema={s} {...defaultProps} />);
 			expect(
 				screen.getByRole("button", { name: "Click Me" }),
 			).toBeInTheDocument();
@@ -137,14 +211,16 @@ describe("SchemaRenderer", () => {
 		it("calls onAction when clicked", async () => {
 			const user = userEvent.setup();
 			const onAction = vi.fn();
-			const schema: UISchema = {
-				version: "1",
-				components: [{ type: "button", label: "Submit", action: "do_submit" }],
-			};
+			const s = schema({
+				main: {
+					type: "Button",
+					props: { label: "Submit", action: "do_submit" },
+				},
+			});
 
 			render(
 				<SchemaRenderer
-					schema={schema}
+					schema={s}
 					{...defaultProps}
 					onAction={onAction}
 				/>,
@@ -163,32 +239,28 @@ describe("SchemaRenderer", () => {
 		});
 
 		it("renders disabled button", () => {
-			const schema: UISchema = {
-				version: "1",
-				components: [
-					{ type: "button", label: "Disabled", action: "noop", disabled: true },
-				],
-			};
-
-			render(<SchemaRenderer schema={schema} {...defaultProps} />);
+			const s = schema({
+				main: {
+					type: "Button",
+					props: { label: "Disabled", action: "noop", disabled: true },
+				},
+			});
+			render(<SchemaRenderer schema={s} {...defaultProps} />);
 			expect(screen.getByRole("button", { name: "Disabled" })).toBeDisabled();
 		});
 
 		it("renders button with variant", () => {
-			const schema: UISchema = {
-				version: "1",
-				components: [
-					{
-						type: "button",
+			const s = schema({
+				main: {
+					type: "Button",
+					props: {
 						label: "Delete",
 						action: "delete",
 						variant: "destructive",
 					},
-				],
-			};
-
-			render(<SchemaRenderer schema={schema} {...defaultProps} />);
-			// Just verify it renders - variant classes are applied by shadcn
+				},
+			});
+			render(<SchemaRenderer schema={s} {...defaultProps} />);
 			expect(
 				screen.getByRole("button", { name: "Delete" }),
 			).toBeInTheDocument();
@@ -197,70 +269,63 @@ describe("SchemaRenderer", () => {
 
 	describe("Input Component", () => {
 		it("renders input with label", () => {
-			const schema: UISchema = {
-				version: "1",
-				components: [{ type: "input", name: "email", label: "Email Address" }],
-			};
-
-			render(<SchemaRenderer schema={schema} {...defaultProps} />);
+			const s = schema({
+				main: {
+					type: "Input",
+					props: { name: "email", label: "Email Address" },
+				},
+			});
+			render(<SchemaRenderer schema={s} {...defaultProps} />);
 			expect(screen.getByLabelText("Email Address")).toBeInTheDocument();
 		});
 
 		it("renders input with placeholder", () => {
-			const schema: UISchema = {
-				version: "1",
-				components: [
-					{
-						type: "input",
-						name: "search",
-						placeholder: "Search...",
-					},
-				],
-			};
-
-			render(<SchemaRenderer schema={schema} {...defaultProps} />);
+			const s = schema({
+				main: {
+					type: "Input",
+					props: { name: "search", placeholder: "Search..." },
+				},
+			});
+			render(<SchemaRenderer schema={s} {...defaultProps} />);
 			expect(screen.getByPlaceholderText("Search...")).toBeInTheDocument();
 		});
 
 		it("updates form data on input change", async () => {
 			const user = userEvent.setup();
-			const schema: UISchema = {
-				version: "1",
-				components: [{ type: "input", name: "username", label: "Username" }],
-			};
-
-			render(<SchemaRenderer schema={schema} {...defaultProps} />);
+			const s = schema({
+				main: {
+					type: "Input",
+					props: { name: "username", label: "Username" },
+				},
+			});
+			render(<SchemaRenderer schema={s} {...defaultProps} />);
 			const input = screen.getByLabelText("Username");
 			await user.type(input, "testuser");
-
 			expect(input).toHaveValue("testuser");
 		});
 
 		it("renders textarea for textarea inputType", () => {
-			const schema: UISchema = {
-				version: "1",
-				components: [
-					{
-						type: "input",
+			const s = schema({
+				main: {
+					type: "Input",
+					props: {
 						name: "description",
 						label: "Description",
 						inputType: "textarea",
 					},
-				],
-			};
-
-			render(<SchemaRenderer schema={schema} {...defaultProps} />);
+				},
+			});
+			render(<SchemaRenderer schema={s} {...defaultProps} />);
 			expect(screen.getByLabelText("Description").tagName).toBe("TEXTAREA");
 		});
 	});
 
 	describe("Select Component", () => {
 		it("renders select with label and placeholder", () => {
-			const schema: UISchema = {
-				version: "1",
-				components: [
-					{
-						type: "select",
+			const s = schema({
+				main: {
+					type: "Select",
+					props: {
 						name: "country",
 						label: "Country",
 						placeholder: "Choose country",
@@ -269,11 +334,9 @@ describe("SchemaRenderer", () => {
 							{ label: "Canada", value: "ca" },
 						],
 					},
-				],
-			};
-
-			render(<SchemaRenderer schema={schema} {...defaultProps} />);
-
+				},
+			});
+			render(<SchemaRenderer schema={s} {...defaultProps} />);
 			expect(screen.getByText("Country")).toBeInTheDocument();
 			expect(screen.getByRole("combobox")).toBeInTheDocument();
 		});
@@ -281,56 +344,38 @@ describe("SchemaRenderer", () => {
 
 	describe("Card Component", () => {
 		it("renders card with title and description", () => {
-			const schema: UISchema = {
-				version: "1",
-				components: [
-					{
-						type: "card",
-						title: "Card Title",
-						description: "Card description",
-						children: [{ type: "text", content: "Card content" }],
-					},
-				],
-			};
-
-			render(<SchemaRenderer schema={schema} {...defaultProps} />);
+			const s = schema({
+				main: {
+					type: "Card",
+					props: { title: "Card Title", description: "Card description" },
+					children: ["content"],
+				},
+				content: { type: "Text", props: { text: "Card content" } },
+			});
+			render(<SchemaRenderer schema={s} {...defaultProps} />);
 			expect(screen.getByText("Card Title")).toBeInTheDocument();
 			expect(screen.getByText("Card description")).toBeInTheDocument();
 			expect(screen.getByText("Card content")).toBeInTheDocument();
 		});
 
 		it("renders card without header when no title/description", () => {
-			const schema: UISchema = {
-				version: "1",
-				components: [
-					{
-						type: "card",
-						children: [{ type: "text", content: "Just content" }],
-					},
-				],
-			};
-
-			render(<SchemaRenderer schema={schema} {...defaultProps} />);
+			const s = schema({
+				main: { type: "Card", children: ["content"] },
+				content: { type: "Text", props: { text: "Just content" } },
+			});
+			render(<SchemaRenderer schema={s} {...defaultProps} />);
 			expect(screen.getByText("Just content")).toBeInTheDocument();
 		});
 	});
 
 	describe("Row Component", () => {
 		it("renders children horizontally", () => {
-			const schema: UISchema = {
-				version: "1",
-				components: [
-					{
-						type: "row",
-						children: [
-							{ type: "text", content: "Left" },
-							{ type: "text", content: "Right" },
-						],
-					},
-				],
-			};
-
-			render(<SchemaRenderer schema={schema} {...defaultProps} />);
+			const s = schema({
+				main: { type: "Row", children: ["left", "right"] },
+				left: { type: "Text", props: { text: "Left" } },
+				right: { type: "Text", props: { text: "Right" } },
+			});
+			render(<SchemaRenderer schema={s} {...defaultProps} />);
 			expect(screen.getByText("Left")).toBeInTheDocument();
 			expect(screen.getByText("Right")).toBeInTheDocument();
 		});
@@ -338,20 +383,15 @@ describe("SchemaRenderer", () => {
 
 	describe("Column Component", () => {
 		it("renders children vertically", () => {
-			const schema: UISchema = {
-				version: "1",
-				components: [
-					{
-						type: "column",
-						children: [
-							{ type: "text", content: "Top" },
-							{ type: "text", content: "Bottom" },
-						],
-					},
-				],
-			};
-
-			render(<SchemaRenderer schema={schema} {...defaultProps} />);
+			const s = schema(
+				{
+					col: { type: "Column", children: ["top", "bottom"] },
+					top: { type: "Text", props: { text: "Top" } },
+					bottom: { type: "Text", props: { text: "Bottom" } },
+				},
+				"col",
+			);
+			render(<SchemaRenderer schema={s} {...defaultProps} />);
 			expect(screen.getByText("Top")).toBeInTheDocument();
 			expect(screen.getByText("Bottom")).toBeInTheDocument();
 		});
@@ -361,21 +401,21 @@ describe("SchemaRenderer", () => {
 		it("submits form data on submit", async () => {
 			const user = userEvent.setup();
 			const onAction = vi.fn();
-			const schema: UISchema = {
-				version: "1",
-				components: [
-					{
-						type: "form",
-						submitAction: "submit_form",
-						submitLabel: "Send",
-						children: [{ type: "input", name: "name", label: "Name" }],
-					},
-				],
-			};
+			const s = schema({
+				main: {
+					type: "Form",
+					props: { submitAction: "submit_form", submitLabel: "Send" },
+					children: ["nameInput"],
+				},
+				nameInput: {
+					type: "Input",
+					props: { name: "name", label: "Name" },
+				},
+			});
 
 			render(
 				<SchemaRenderer
-					schema={schema}
+					schema={s}
 					{...defaultProps}
 					onAction={onAction}
 				/>,
@@ -393,18 +433,13 @@ describe("SchemaRenderer", () => {
 		});
 
 		it("uses default submit label when not specified", () => {
-			const schema: UISchema = {
-				version: "1",
-				components: [
-					{
-						type: "form",
-						submitAction: "submit",
-						children: [],
-					},
-				],
-			};
-
-			render(<SchemaRenderer schema={schema} {...defaultProps} />);
+			const s = schema({
+				main: {
+					type: "Form",
+					props: { submitAction: "submit" },
+				},
+			});
+			render(<SchemaRenderer schema={s} {...defaultProps} />);
 			expect(
 				screen.getByRole("button", { name: "Submit" }),
 			).toBeInTheDocument();
@@ -413,11 +448,10 @@ describe("SchemaRenderer", () => {
 
 	describe("Table Component", () => {
 		it("renders table with columns and rows", () => {
-			const schema: UISchema = {
-				version: "1",
-				components: [
-					{
-						type: "table",
+			const s = schema({
+				main: {
+					type: "Table",
+					props: {
 						columns: [
 							{ key: "name", label: "Name" },
 							{ key: "age", label: "Age" },
@@ -427,16 +461,11 @@ describe("SchemaRenderer", () => {
 							{ name: "Bob", age: 25 },
 						],
 					},
-				],
-			};
-
-			render(<SchemaRenderer schema={schema} {...defaultProps} />);
-
-			// Check headers
+				},
+			});
+			render(<SchemaRenderer schema={s} {...defaultProps} />);
 			expect(screen.getByText("Name")).toBeInTheDocument();
 			expect(screen.getByText("Age")).toBeInTheDocument();
-
-			// Check rows
 			expect(screen.getByText("Alice")).toBeInTheDocument();
 			expect(screen.getByText("30")).toBeInTheDocument();
 			expect(screen.getByText("Bob")).toBeInTheDocument();
@@ -446,19 +475,13 @@ describe("SchemaRenderer", () => {
 
 	describe("Diagram Component", () => {
 		it("renders MermaidRenderer with code and title", () => {
-			const schema: UISchema = {
-				version: "1",
-				components: [
-					{
-						type: "diagram",
-						code: "graph TD; A-->B;",
-						title: "Flow Chart",
-					},
-				],
-			};
-
-			render(<SchemaRenderer schema={schema} {...defaultProps} />);
-
+			const s = schema({
+				main: {
+					type: "Diagram",
+					props: { code: "graph TD; A-->B;", title: "Flow Chart" },
+				},
+			});
+			render(<SchemaRenderer schema={s} {...defaultProps} />);
 			expect(screen.getByTestId("mermaid-renderer")).toBeInTheDocument();
 			expect(screen.getByText("Flow Chart")).toBeInTheDocument();
 			expect(screen.getByText("graph TD; A-->B;")).toBeInTheDocument();
@@ -468,95 +491,82 @@ describe("SchemaRenderer", () => {
 	describe("Conditional Rendering", () => {
 		it("shows component when eq condition is met via input", async () => {
 			const user = userEvent.setup();
-			const schema: UISchema = {
-				version: "1",
-				components: [
-					{
-						type: "input",
-						name: "type",
-						label: "Type",
+			const s = schema(
+				{
+					col: { type: "Column", children: ["typeInput", "condText"] },
+					typeInput: {
+						type: "Input",
+						props: { name: "type", label: "Type" },
 					},
-					{
-						type: "text",
-						content: "You typed hello",
-						if: { field: "type", operator: "eq", value: "hello" },
+					condText: {
+						type: "Text",
+						props: {
+							text: "You typed hello",
+							if: { field: "type", operator: "eq", value: "hello" },
+						},
 					},
-				],
-			};
+				},
+				"col",
+			);
 
-			render(<SchemaRenderer schema={schema} {...defaultProps} />);
+			render(<SchemaRenderer schema={s} {...defaultProps} />);
 
-			// Initially hidden
 			expect(screen.queryByText("You typed hello")).not.toBeInTheDocument();
-
-			// Type "hello"
 			await user.type(screen.getByLabelText("Type"), "hello");
-
-			// Now visible
 			expect(screen.getByText("You typed hello")).toBeInTheDocument();
 		});
 
 		it("hides component when exists condition is false", () => {
-			const schema: UISchema = {
-				version: "1",
-				components: [
-					{
-						type: "text",
-						content: "Has value",
+			const s = schema({
+				main: {
+					type: "Text",
+					props: {
+						text: "Has value",
 						if: { field: "name", operator: "exists" },
 					},
-				],
-			};
-
-			render(<SchemaRenderer schema={schema} {...defaultProps} />);
-
-			// No input has been filled, so field doesn't exist
+				},
+			});
+			render(<SchemaRenderer schema={s} {...defaultProps} />);
 			expect(screen.queryByText("Has value")).not.toBeInTheDocument();
 		});
 
 		it("shows component when notExists condition is true", () => {
-			const schema: UISchema = {
-				version: "1",
-				components: [
-					{
-						type: "text",
-						content: "No value yet",
+			const s = schema({
+				main: {
+					type: "Text",
+					props: {
+						text: "No value yet",
 						if: { field: "name", operator: "notExists" },
 					},
-				],
-			};
-
-			render(<SchemaRenderer schema={schema} {...defaultProps} />);
+				},
+			});
+			render(<SchemaRenderer schema={s} {...defaultProps} />);
 			expect(screen.getByText("No value yet")).toBeInTheDocument();
 		});
 
 		it("shows component when exists condition becomes true", async () => {
 			const user = userEvent.setup();
-			const schema: UISchema = {
-				version: "1",
-				components: [
-					{
-						type: "input",
-						name: "name",
-						label: "Name",
+			const s = schema(
+				{
+					col: { type: "Column", children: ["nameInput", "condText"] },
+					nameInput: {
+						type: "Input",
+						props: { name: "name", label: "Name" },
 					},
-					{
-						type: "text",
-						content: "Name entered!",
-						if: { field: "name", operator: "exists" },
+					condText: {
+						type: "Text",
+						props: {
+							text: "Name entered!",
+							if: { field: "name", operator: "exists" },
+						},
 					},
-				],
-			};
+				},
+				"col",
+			);
 
-			render(<SchemaRenderer schema={schema} {...defaultProps} />);
-
-			// Initially hidden
+			render(<SchemaRenderer schema={s} {...defaultProps} />);
 			expect(screen.queryByText("Name entered!")).not.toBeInTheDocument();
-
-			// Type something
 			await user.type(screen.getByLabelText("Name"), "John");
-
-			// Now visible
 			expect(screen.getByText("Name entered!")).toBeInTheDocument();
 		});
 	});
@@ -565,14 +575,16 @@ describe("SchemaRenderer", () => {
 		it("includes correct metadata in action payload", async () => {
 			const user = userEvent.setup();
 			const onAction = vi.fn();
-			const schema: UISchema = {
-				version: "1",
-				components: [{ type: "button", label: "Test", action: "test_action" }],
-			};
+			const s = schema({
+				main: {
+					type: "Button",
+					props: { label: "Test", action: "test_action" },
+				},
+			});
 
 			render(
 				<SchemaRenderer
-					schema={schema}
+					schema={s}
 					messageId="test-msg"
 					conversationId="test-conv"
 					onAction={onAction}
@@ -590,78 +602,493 @@ describe("SchemaRenderer", () => {
 	});
 
 	describe("Unknown Component", () => {
-		it("renders validation error for unknown component type", () => {
-			// Intentionally testing invalid schema - cast to bypass TS checks
-			const schema = {
-				version: "1",
-				components: [{ type: "unknown_type" }],
-			} as unknown as UISchema;
+		it("renders nothing for unknown type with no children", () => {
+			const s = schema({
+				main: { type: "Column", children: ["child"] },
+				child: { type: "unknown_type" },
+			});
+			render(<SchemaRenderer schema={s} {...defaultProps} />);
+			// Should not show error text, just render nothing
+			expect(
+				screen.queryByText(/Unknown component type/),
+			).not.toBeInTheDocument();
+		});
 
-			render(<SchemaRenderer schema={schema} {...defaultProps} />);
-			expect(screen.getByText("Invalid Schema")).toBeInTheDocument();
+		it("renders children for unknown type with children", () => {
+			const s = schema({
+				main: { type: "CustomWidget", children: ["inner"] },
+				inner: { type: "Text", props: { text: "Inner content" } },
+			});
+			render(<SchemaRenderer schema={s} {...defaultProps} />);
+			expect(screen.getByText("Inner content")).toBeInTheDocument();
 		});
 	});
 
-	describe("Component IDs", () => {
-		it("uses provided id for key", () => {
-			const schema: UISchema = {
-				version: "1",
-				components: [{ type: "text", content: "Test", id: "custom-id" }],
-			};
+	describe("Type Aliases", () => {
+		it("renders Heading as Text with heading variant", () => {
+			const s = schema({
+				main: {
+					type: "Heading",
+					props: { text: "My Heading", variant: "heading" },
+				},
+			});
+			render(<SchemaRenderer schema={s} {...defaultProps} />);
+			expect(screen.getByText("My Heading")).toBeInTheDocument();
+		});
 
-			render(<SchemaRenderer schema={schema} {...defaultProps} />);
+		it("renders Paragraph as Text", () => {
+			const s = schema({
+				main: { type: "Paragraph", props: { text: "Para text" } },
+			});
+			render(<SchemaRenderer schema={s} {...defaultProps} />);
+			expect(screen.getByText("Para text")).toBeInTheDocument();
+		});
 
-			// Component renders successfully (key is used internally)
-			expect(screen.getByText("Test")).toBeInTheDocument();
+		it("renders TextInput as Input", () => {
+			const s = schema({
+				main: {
+					type: "TextInput",
+					props: { name: "field", label: "Field" },
+				},
+			});
+			render(<SchemaRenderer schema={s} {...defaultProps} />);
+			expect(screen.getByLabelText("Field")).toBeInTheDocument();
+		});
+
+		it("renders Dropdown as Select", () => {
+			const s = schema({
+				main: {
+					type: "Dropdown",
+					props: {
+						name: "color",
+						label: "Color",
+						options: [{ label: "Red", value: "red" }],
+					},
+				},
+			});
+			render(<SchemaRenderer schema={s} {...defaultProps} />);
+			expect(screen.getByText("Color")).toBeInTheDocument();
+		});
+
+		it("renders Container/Box/Section/Group as Column", () => {
+			for (const type of ["Container", "Box", "Section", "Group"]) {
+				const s = schema({
+					main: { type, children: ["child"] },
+					child: { type: "Text", props: { text: `${type} child` } },
+				});
+				const { unmount } = render(
+					<SchemaRenderer schema={s} {...defaultProps} />,
+				);
+				expect(screen.getByText(`${type} child`)).toBeInTheDocument();
+				unmount();
+			}
+		});
+
+		it("renders HStack as Row", () => {
+			const s = schema({
+				main: { type: "HStack", children: ["a", "b"] },
+				a: { type: "Text", props: { text: "Left" } },
+				b: { type: "Text", props: { text: "Right" } },
+			});
+			render(<SchemaRenderer schema={s} {...defaultProps} />);
+			expect(screen.getByText("Left")).toBeInTheDocument();
+			expect(screen.getByText("Right")).toBeInTheDocument();
+		});
+
+		it("renders VStack as Column", () => {
+			const s = schema({
+				main: { type: "VStack", children: ["a", "b"] },
+				a: { type: "Text", props: { text: "Top" } },
+				b: { type: "Text", props: { text: "Bottom" } },
+			});
+			render(<SchemaRenderer schema={s} {...defaultProps} />);
+			expect(screen.getByText("Top")).toBeInTheDocument();
+			expect(screen.getByText("Bottom")).toBeInTheDocument();
+		});
+
+		it("renders Divider as Separator", () => {
+			const s = schema({
+				main: { type: "Column", children: ["a", "div", "b"] },
+				a: { type: "Text", props: { text: "Above" } },
+				div: { type: "Divider" },
+				b: { type: "Text", props: { text: "Below" } },
+			});
+			const { container } = render(
+				<SchemaRenderer schema={s} {...defaultProps} />,
+			);
+			expect(container.querySelector("hr")).toBeInTheDocument();
 		});
 	});
 
-	describe("Modal Component", () => {
-		it("opens modal when button with opensModal is clicked", async () => {
+	describe("Stack Direction", () => {
+		it("renders Stack with direction=horizontal as Row", () => {
+			const s = schema({
+				main: {
+					type: "Stack",
+					props: { direction: "horizontal" },
+					children: ["a", "b"],
+				},
+				a: { type: "Text", props: { text: "A" } },
+				b: { type: "Text", props: { text: "B" } },
+			});
+			const { container } = render(
+				<SchemaRenderer schema={s} {...defaultProps} />,
+			);
+			// Row renders flex-wrap, Column renders flex-col
+			expect(container.querySelector(".flex-wrap")).toBeInTheDocument();
+		});
+
+		it("renders Stack with direction=vertical as Column", () => {
+			const s = schema({
+				main: {
+					type: "Stack",
+					props: { direction: "vertical" },
+					children: ["a"],
+				},
+				a: { type: "Text", props: { text: "A" } },
+			});
+			const { container } = render(
+				<SchemaRenderer schema={s} {...defaultProps} />,
+			);
+			expect(container.querySelector(".flex-col")).toBeInTheDocument();
+		});
+	});
+
+	describe("String Gap Values", () => {
+		it("applies numeric gap from string label", () => {
+			const s = schema({
+				main: {
+					type: "Row",
+					props: { gap: "lg" },
+					children: ["a"],
+				},
+				a: { type: "Text", props: { text: "Gap test" } },
+			});
+			const { container } = render(
+				<SchemaRenderer schema={s} {...defaultProps} />,
+			);
+			const row = container.querySelector(".flex-wrap");
+			expect(row).toHaveStyle({ gap: "16px" });
+		});
+
+		it("defaults unknown string gap to 12", () => {
+			const s = schema(
+				{
+					root: { type: "Row", children: ["col"] },
+					col: {
+						type: "Column",
+						props: { gap: "unknown" },
+						children: ["a"],
+					},
+					a: { type: "Text", props: { text: "Gap test" } },
+				},
+				"root",
+			);
+			const { container } = render(
+				<SchemaRenderer schema={s} {...defaultProps} />,
+			);
+			const col = container.querySelector(".flex-col");
+			expect(col).toHaveStyle({ gap: "12px" });
+		});
+	});
+
+	describe("Button Variant Aliases", () => {
+		it("maps primary variant to default", () => {
+			const s = schema({
+				main: {
+					type: "Button",
+					props: { label: "Primary", variant: "primary", action: "x" },
+				},
+			});
+			render(<SchemaRenderer schema={s} {...defaultProps} />);
+			expect(
+				screen.getByRole("button", { name: "Primary" }),
+			).toBeInTheDocument();
+		});
+
+		it("maps danger variant to destructive", () => {
+			const s = schema({
+				main: {
+					type: "Button",
+					props: { label: "Danger", variant: "danger", action: "x" },
+				},
+			});
+			render(<SchemaRenderer schema={s} {...defaultProps} />);
+			expect(
+				screen.getByRole("button", { name: "Danger" }),
+			).toBeInTheDocument();
+		});
+	});
+
+	describe("Input type prop fallback", () => {
+		it("uses type prop as fallback for inputType", () => {
+			const s = schema({
+				main: {
+					type: "Input",
+					props: { name: "pw", label: "Password", type: "password" },
+				},
+			});
+			render(<SchemaRenderer schema={s} {...defaultProps} />);
+			expect(screen.getByLabelText("Password")).toHaveAttribute(
+				"type",
+				"password",
+			);
+		});
+	});
+
+	describe("on Event Props", () => {
+		it("reads action from on.press.action", async () => {
 			const user = userEvent.setup();
-			const schema: UISchema = {
-				version: "1",
-				components: [
-					{ type: "button", label: "Open Form", opensModal: "test-modal" },
-				],
-				modals: {
-					"test-modal": {
-						title: "Test Modal",
-						description: "A test modal",
-						children: [{ type: "text", content: "Modal content" }],
+			const onAction = vi.fn();
+			const s = {
+				root: "main",
+				elements: {
+					main: {
+						type: "Button",
+						props: { label: "Press" },
+						on: { press: { action: "pressed_action" } },
 					},
 				},
 			};
+			render(
+				<SchemaRenderer
+					schema={s}
+					{...defaultProps}
+					onAction={onAction}
+				/>,
+			);
+			await user.click(screen.getByRole("button", { name: "Press" }));
+			expect(onAction).toHaveBeenCalledWith(
+				expect.objectContaining({ action: "pressed_action" }),
+			);
+		});
 
-			render(<SchemaRenderer schema={schema} {...defaultProps} />);
+		it("reads action from on.click.action", async () => {
+			const user = userEvent.setup();
+			const onAction = vi.fn();
+			const s = {
+				root: "main",
+				elements: {
+					main: {
+						type: "Button",
+						props: { label: "Click" },
+						on: { click: { action: "clicked_action" } },
+					},
+				},
+			};
+			render(
+				<SchemaRenderer
+					schema={s}
+					{...defaultProps}
+					onAction={onAction}
+				/>,
+			);
+			await user.click(screen.getByRole("button", { name: "Click" }));
+			expect(onAction).toHaveBeenCalledWith(
+				expect.objectContaining({ action: "clicked_action" }),
+			);
+		});
+	});
 
-			// Modal not visible initially
+	describe("Visible Conditional", () => {
+		it("hides element when visible condition fails", () => {
+			const s = {
+				root: "main",
+				elements: {
+					main: {
+						type: "Text",
+						props: { text: "Hidden" },
+						visible: {
+							path: "$data.form.isDirty",
+							operator: "eq",
+							value: "true",
+						},
+					},
+				},
+			};
+			render(<SchemaRenderer schema={s} {...defaultProps} />);
+			expect(screen.queryByText("Hidden")).not.toBeInTheDocument();
+		});
+	});
+
+	describe("Image Component", () => {
+		it("renders image with src and alt", () => {
+			const s = schema({
+				main: {
+					type: "Image",
+					props: { src: "https://example.com/img.png", alt: "Test image" },
+				},
+			});
+			render(<SchemaRenderer schema={s} {...defaultProps} />);
+			const img = screen.getByAltText("Test image");
+			expect(img).toHaveAttribute("src", "https://example.com/img.png");
+		});
+
+		it("renders nothing when src is empty", () => {
+			const s = schema({
+				main: { type: "Image", props: { src: "" } },
+			});
+			const { container } = render(
+				<SchemaRenderer schema={s} {...defaultProps} />,
+			);
+			expect(container.querySelector("img")).not.toBeInTheDocument();
+		});
+	});
+
+	describe("Badge Component", () => {
+		it("renders badge with text", () => {
+			const s = schema({
+				main: { type: "Badge", props: { text: "New" } },
+			});
+			render(<SchemaRenderer schema={s} {...defaultProps} />);
+			expect(screen.getByText("New")).toBeInTheDocument();
+		});
+
+		it("renders badge with label prop", () => {
+			const s = schema({
+				main: { type: "Badge", props: { label: "Beta" } },
+			});
+			render(<SchemaRenderer schema={s} {...defaultProps} />);
+			expect(screen.getByText("Beta")).toBeInTheDocument();
+		});
+	});
+
+	describe("Alert Component", () => {
+		it("renders alert with title and message", () => {
+			const s = schema({
+				main: {
+					type: "Alert",
+					props: { title: "Warning", message: "Something went wrong" },
+				},
+			});
+			render(<SchemaRenderer schema={s} {...defaultProps} />);
+			expect(screen.getByText("Warning")).toBeInTheDocument();
+			expect(screen.getByText("Something went wrong")).toBeInTheDocument();
+		});
+	});
+
+	describe("Link Component", () => {
+		it("renders link with href and text", () => {
+			const s = schema({
+				main: {
+					type: "Link",
+					props: {
+						href: "https://example.com",
+						text: "Example",
+						target: "_blank",
+					},
+				},
+			});
+			render(<SchemaRenderer schema={s} {...defaultProps} />);
+			const link = screen.getByText("Example");
+			expect(link.closest("a")).toHaveAttribute(
+				"href",
+				"https://example.com",
+			);
+			expect(link.closest("a")).toHaveAttribute("target", "_blank");
+			expect(link.closest("a")).toHaveAttribute(
+				"rel",
+				"noopener noreferrer",
+			);
+		});
+	});
+
+	describe("Progress Component", () => {
+		it("renders progress with label and value", () => {
+			const s = schema({
+				main: {
+					type: "Progress",
+					props: { value: 75, max: 100, label: "Upload" },
+				},
+			});
+			render(<SchemaRenderer schema={s} {...defaultProps} />);
+			expect(screen.getByText("Upload")).toBeInTheDocument();
+			expect(screen.getByText("75%")).toBeInTheDocument();
+		});
+	});
+
+	describe("List Component", () => {
+		it("renders unordered list", () => {
+			const s = schema({
+				main: {
+					type: "List",
+					props: { items: ["Apple", "Banana", "Cherry"] },
+				},
+			});
+			render(<SchemaRenderer schema={s} {...defaultProps} />);
+			expect(screen.getByText("Apple")).toBeInTheDocument();
+			expect(screen.getByText("Banana")).toBeInTheDocument();
+			expect(screen.getByText("Cherry")).toBeInTheDocument();
+		});
+
+		it("renders ordered list", () => {
+			const s = schema({
+				main: {
+					type: "List",
+					props: { items: ["First", "Second"], ordered: true },
+				},
+			});
+			const { container } = render(
+				<SchemaRenderer schema={s} {...defaultProps} />,
+			);
+			expect(container.querySelector("ol")).toBeInTheDocument();
+		});
+	});
+
+	describe("Dialog Component", () => {
+		it("opens dialog when button with opensDialog is clicked", async () => {
+			const user = userEvent.setup();
+			const s = {
+				root: "btn",
+				elements: {
+					btn: {
+						type: "Button",
+						props: { label: "Open Form", opensDialog: "test-dialog" },
+					},
+					dialogForm: {
+						type: "Form",
+						props: {
+							title: "Test Modal",
+							description: "A test modal",
+							submitAction: "save",
+						},
+						children: ["dialogText"],
+					},
+					dialogText: {
+						type: "Text",
+						props: { text: "Modal content" },
+					},
+				},
+				dialogs: { "test-dialog": "dialogForm" },
+			};
+
+			render(<SchemaRenderer schema={s} {...defaultProps} />);
+
 			expect(screen.queryByText("Test Modal")).not.toBeInTheDocument();
-
-			// Click button to open modal
 			await user.click(screen.getByRole("button", { name: "Open Form" }));
-
-			// Modal should be visible
 			expect(screen.getByText("Test Modal")).toBeInTheDocument();
 			expect(screen.getByText("A test modal")).toBeInTheDocument();
 			expect(screen.getByText("Modal content")).toBeInTheDocument();
 		});
 
-		it("closes modal when cancel is clicked", async () => {
+		it("closes dialog when cancel is clicked", async () => {
 			const user = userEvent.setup();
-			const schema: UISchema = {
-				version: "1",
-				components: [{ type: "button", label: "Open", opensModal: "my-modal" }],
-				modals: {
-					"my-modal": {
-						title: "My Modal",
-						cancelLabel: "Close",
-						children: [],
+			const s = {
+				root: "btn",
+				elements: {
+					btn: {
+						type: "Button",
+						props: { label: "Open", opensDialog: "my-dialog" },
+					},
+					dlg: {
+						type: "Form",
+						props: { title: "My Modal", cancelLabel: "Close" },
 					},
 				},
+				dialogs: { "my-dialog": "dlg" },
 			};
 
-			render(<SchemaRenderer schema={schema} {...defaultProps} />);
+			render(<SchemaRenderer schema={s} {...defaultProps} />);
 
 			await user.click(screen.getByRole("button", { name: "Open" }));
 			expect(screen.getByText("My Modal")).toBeInTheDocument();
@@ -670,27 +1097,36 @@ describe("SchemaRenderer", () => {
 			expect(screen.queryByText("My Modal")).not.toBeInTheDocument();
 		});
 
-		it("submits modal form data on submit click", async () => {
+		it("submits dialog form data on submit click", async () => {
 			const user = userEvent.setup();
 			const onAction = vi.fn();
-			const schema: UISchema = {
-				version: "1",
-				components: [
-					{ type: "button", label: "Edit", opensModal: "edit-modal" },
-				],
-				modals: {
-					"edit-modal": {
-						title: "Edit User",
-						submitAction: "save-user",
-						submitLabel: "Save",
-						children: [{ type: "input", name: "username", label: "Username" }],
+			const s = {
+				root: "btn",
+				elements: {
+					btn: {
+						type: "Button",
+						props: { label: "Edit", opensDialog: "edit-dialog" },
+					},
+					editForm: {
+						type: "Form",
+						props: {
+							title: "Edit User",
+							submitAction: "save-user",
+							submitLabel: "Save",
+						},
+						children: ["usernameInput"],
+					},
+					usernameInput: {
+						type: "Input",
+						props: { name: "username", label: "Username" },
 					},
 				},
+				dialogs: { "edit-dialog": "editForm" },
 			};
 
 			render(
 				<SchemaRenderer
-					schema={schema}
+					schema={s}
 					{...defaultProps}
 					onAction={onAction}
 				/>,
@@ -707,25 +1143,27 @@ describe("SchemaRenderer", () => {
 				}),
 			);
 
-			// Modal should close after submit
 			expect(screen.queryByText("Edit User")).not.toBeInTheDocument();
 		});
 
-		it("renders modal with custom cancel label", async () => {
+		it("renders dialog with custom cancel label", async () => {
 			const user = userEvent.setup();
-			const schema: UISchema = {
-				version: "1",
-				components: [{ type: "button", label: "Open", opensModal: "modal" }],
-				modals: {
-					modal: {
-						title: "Custom Modal",
-						cancelLabel: "Dismiss",
-						children: [],
+			const s = {
+				root: "btn",
+				elements: {
+					btn: {
+						type: "Button",
+						props: { label: "Open", opensDialog: "dlg" },
+					},
+					dlgEl: {
+						type: "Form",
+						props: { title: "Custom Modal", cancelLabel: "Dismiss" },
 					},
 				},
+				dialogs: { dlg: "dlgEl" },
 			};
 
-			render(<SchemaRenderer schema={schema} {...defaultProps} />);
+			render(<SchemaRenderer schema={s} {...defaultProps} />);
 
 			await user.click(screen.getByRole("button", { name: "Open" }));
 			expect(
@@ -735,23 +1173,32 @@ describe("SchemaRenderer", () => {
 
 		it("renders destructive submit button variant", async () => {
 			const user = userEvent.setup();
-			const schema: UISchema = {
-				version: "1",
-				components: [
-					{ type: "button", label: "Delete", opensModal: "confirm" },
-				],
-				modals: {
-					confirm: {
-						title: "Confirm Delete",
-						submitAction: "delete",
-						submitLabel: "Delete",
-						submitVariant: "destructive",
-						children: [{ type: "text", content: "Are you sure?" }],
+			const s = {
+				root: "btn",
+				elements: {
+					btn: {
+						type: "Button",
+						props: { label: "Delete", opensDialog: "confirm" },
+					},
+					confirmForm: {
+						type: "Form",
+						props: {
+							title: "Confirm Delete",
+							submitAction: "delete",
+							submitLabel: "Delete",
+							submitVariant: "destructive",
+						},
+						children: ["confirmText"],
+					},
+					confirmText: {
+						type: "Text",
+						props: { text: "Are you sure?" },
 					},
 				},
+				dialogs: { confirm: "confirmForm" },
 			};
 
-			render(<SchemaRenderer schema={schema} {...defaultProps} />);
+			render(<SchemaRenderer schema={s} {...defaultProps} />);
 
 			await user.click(screen.getByRole("button", { name: "Delete" }));
 			expect(screen.getByText("Are you sure?")).toBeInTheDocument();
@@ -760,40 +1207,46 @@ describe("SchemaRenderer", () => {
 			).toBeInTheDocument();
 		});
 
-		it("resets modal form data when reopened", async () => {
+		it("resets dialog form data when reopened", async () => {
 			const user = userEvent.setup();
 			const onAction = vi.fn();
-			const schema: UISchema = {
-				version: "1",
-				components: [
-					{ type: "button", label: "Open", opensModal: "form-modal" },
-				],
-				modals: {
-					"form-modal": {
-						title: "Form",
-						submitAction: "submit",
-						cancelLabel: "Cancel",
-						children: [{ type: "input", name: "field", label: "Field" }],
+			const s = {
+				root: "btn",
+				elements: {
+					btn: {
+						type: "Button",
+						props: { label: "Open", opensDialog: "form-dlg" },
+					},
+					formEl: {
+						type: "Form",
+						props: {
+							title: "Form",
+							submitAction: "submit",
+							cancelLabel: "Cancel",
+						},
+						children: ["fieldInput"],
+					},
+					fieldInput: {
+						type: "Input",
+						props: { name: "field", label: "Field" },
 					},
 				},
+				dialogs: { "form-dlg": "formEl" },
 			};
 
 			render(
 				<SchemaRenderer
-					schema={schema}
+					schema={s}
 					{...defaultProps}
 					onAction={onAction}
 				/>,
 			);
 
-			// Open modal and type something
 			await user.click(screen.getByRole("button", { name: "Open" }));
 			await user.type(screen.getByLabelText("Field"), "test value");
 
-			// Close modal
 			await user.click(screen.getByRole("button", { name: "Cancel" }));
 
-			// Reopen modal - should be empty
 			await user.click(screen.getByRole("button", { name: "Open" }));
 			expect(screen.getByLabelText("Field")).toHaveValue("");
 		});

@@ -1,4 +1,4 @@
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, Search } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
@@ -11,11 +11,13 @@ import {
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
+import { Progress } from "@/components/ui/progress";
 import { Spinner } from "@/components/ui/spinner";
 import { StatusAlert } from "@/components/ui/status-alert";
 import { useActiveModel } from "@/hooks/useActiveModel";
 import { useClusters } from "@/hooks/useClusters";
 import { useDebounce } from "@/hooks/useDebounce";
+import { useIsIngesting } from "@/hooks/useIsIngesting";
 import {
 	KB_FILTER_ALL,
 	KB_STATUSES,
@@ -28,17 +30,13 @@ import { TicketGroupStat } from "./TicketGroupStat";
 
 type KBFilterOption = KBStatus | typeof KB_FILTER_ALL;
 
-const PAGE_SIZE = 9;
+const PAGE_SIZE = 12;
 
 interface TicketGroupsProps {
 	period: PeriodFilter;
-	onPeriodChange: (period: PeriodFilter) => void;
 }
 
-export default function TicketGroups({
-	period,
-	onPeriodChange,
-}: TicketGroupsProps) {
+export default function TicketGroups({ period }: TicketGroupsProps) {
 	const { t } = useTranslation("tickets");
 	const [kbFilter, setKbFilter] = useState<KBFilterOption>(KB_FILTER_ALL);
 
@@ -65,6 +63,10 @@ export default function TicketGroups({
 	const isFailed = trainingState === TRAINING_STATES.FAILED;
 	const canShowClusters = trainingState === TRAINING_STATES.COMPLETE;
 
+	// Check if ITSM source is actively importing tickets
+	const { isIngesting, latestRun } = useIsIngesting();
+	const isFirstImport = isIngesting && !canShowClusters;
+
 	// kb_status now goes to server (not client filtering)
 	const kbStatusParam = kbFilter === KB_FILTER_ALL ? undefined : kbFilter;
 
@@ -80,6 +82,7 @@ export default function TicketGroups({
 		kb_status: kbStatusParam,
 		search: debouncedSearch || undefined,
 		enabled: canShowClusters,
+		sort: "volume",
 	});
 
 	const clusters = clustersResponse?.data ?? [];
@@ -87,14 +90,6 @@ export default function TicketGroups({
 	const totals = clustersResponse?.totals;
 	const hasNextPage = pagination?.has_more ?? false;
 	const hasPrevPage = cursorHistory.length > 0;
-
-	// Period display labels
-	const periodLabels: Record<PeriodFilter, string> = {
-		last30: t("groups.periods.last30Days"),
-		last90: t("groups.periods.last90Days"),
-		last6months: t("groups.periods.last6Months"),
-		lastyear: t("groups.periods.lastYear"),
-	};
 
 	// KB filter display labels
 	const kbFilterLabels: Record<KBFilterOption, string> = {
@@ -156,172 +151,199 @@ export default function TicketGroups({
 	}
 
 	return (
-		<div className="flex min-h-screen w-full flex-col items-center">
-			<div className="flex w-full items-start justify-center py-6">
-				<div className="flex w-full flex-col gap-6 px-6">
-					<div className="flex w-full flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
-						<div className="flex flex-col gap-1.5">
-							<div className="flex items-center gap-1.5">
-								<h1 className="text-base font-bold text-card-foreground">
-									{t("page.title")}
-								</h1>
-								<Badge variant="outline">{totals?.total_clusters ?? 0}</Badge>
-							</div>
-							<p className="text-sm text-muted-foreground">
-								{t("page.subtitle", {
-									period: periodLabels[period].toLowerCase(),
-								})}
-							</p>
+		<div className="flex w-full flex-col">
+			<div className="flex w-full flex-col gap-6 px-6 py-6">
+				<div className="flex w-full flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
+					<div className="flex flex-col gap-1.5">
+						<div className="flex items-center gap-1.5">
+							<h1 className="text-base font-bold text-card-foreground">
+								{t("page.title")}
+							</h1>
+							<Badge variant="outline">{totals?.total_clusters ?? 0}</Badge>
 						</div>
-						<div className="flex flex-wrap gap-2">
-							{/* Period dropdown */}
-							<DropdownMenu>
-								<DropdownMenuTrigger asChild>
-									<Button variant="outline" size="sm">
-										{periodLabels[period]}
-										<ChevronDown />
-									</Button>
-								</DropdownMenuTrigger>
-								<DropdownMenuContent>
-									{(
-										[
-											"last30",
-											"last90",
-											"last6months",
-											"lastyear",
-										] as PeriodFilter[]
-									).map((p) => (
-										<DropdownMenuItem key={p} onClick={() => onPeriodChange(p)}>
-											{periodLabels[p]}
-										</DropdownMenuItem>
-									))}
-								</DropdownMenuContent>
-							</DropdownMenu>
-
-							{/* KB Status dropdown */}
-							<DropdownMenu>
-								<DropdownMenuTrigger asChild>
-									<Button variant="outline" size="sm">
-										{kbFilterLabels[kbFilter]}
-										<ChevronDown />
-									</Button>
-								</DropdownMenuTrigger>
-								<DropdownMenuContent>
-									{(
-										[
-											KB_FILTER_ALL,
-											KB_STATUSES.FOUND,
-											KB_STATUSES.GAP,
-											KB_STATUSES.PENDING,
-										] as KBFilterOption[]
-									).map((k) => (
-										<DropdownMenuItem key={k} onClick={() => setKbFilter(k)}>
-											{kbFilterLabels[k]}
-										</DropdownMenuItem>
-									))}
-								</DropdownMenuContent>
-							</DropdownMenu>
-						</div>
+						<p className="text-sm text-muted-foreground">
+							{t("page.subtitle", {
+								period: t(
+									`groups.periods.${({ last30: "last30Days", last90: "last90Days", last6months: "last6Months", lastyear: "lastYear" } as const)[period]}`,
+								).toLowerCase(),
+							})}
+						</p>
 					</div>
+					<div className="flex flex-wrap items-center gap-2">
+						{/* Search input with icon */}
+						<div className="relative">
+							<Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+							<Input
+								placeholder={t("groups.searchPlaceholder")}
+								className="max-w-sm pl-10"
+								value={searchInput}
+								onChange={(e) => setSearchInput(e.target.value)}
+								disabled={hasNoModel || isTraining || isFirstImport}
+							/>
+						</div>
 
-					{/* Search input row */}
-					<Input
-						placeholder={t("groups.searchPlaceholder")}
-						className="max-w-sm"
-						value={searchInput}
-						onChange={(e) => setSearchInput(e.target.value)}
-						disabled={hasNoModel || isTraining}
-					/>
+						{/* KB Status dropdown */}
+						<DropdownMenu>
+							<DropdownMenuTrigger asChild>
+								<Button variant="outline" size="sm">
+									{t("groups.filterBy")}
+									<ChevronDown />
+								</Button>
+							</DropdownMenuTrigger>
+							<DropdownMenuContent>
+								{(
+									[
+										KB_FILTER_ALL,
+										KB_STATUSES.FOUND,
+										KB_STATUSES.GAP,
+										KB_STATUSES.PENDING,
+									] as KBFilterOption[]
+								).map((k) => (
+									<DropdownMenuItem key={k} onClick={() => setKbFilter(k)}>
+										{kbFilterLabels[k]}
+									</DropdownMenuItem>
+								))}
+							</DropdownMenuContent>
+						</DropdownMenu>
+					</div>
+				</div>
 
-					{hasNoModel ? (
-						// No model: show connect source empty state
-						<div className="flex min-h-[300px] flex-col items-center justify-center gap-4">
-							<p className="text-muted-foreground">
-								{t("groups.noSourceConnected")}
-							</p>
+				{hasNoModel ? (
+					// No model: show connect source empty state
+					<div className="flex min-h-[300px] flex-col items-center justify-center gap-4">
+						<p className="text-muted-foreground">
+							{t("groups.noSourceConnected")}
+						</p>
+						<Button asChild variant="outline" size="sm">
+							<Link to="/settings/connections/itsm">
+								{t("groups.connectSource")}
+							</Link>
+						</Button>
+					</div>
+				) : isFailed ? (
+					// Training failed: show error banner + empty state
+					<div className="flex flex-col gap-6">
+						<StatusAlert variant="error" title={t("groups.trainingFailed")}>
+							<p className="mb-3">{t("groups.trainingFailedDescription")}</p>
 							<Button asChild variant="outline" size="sm">
 								<Link to="/settings/connections/itsm">
-									{t("groups.connectSource")}
+									{t("groups.goToItsmConnections")}
 								</Link>
 							</Button>
-						</div>
-					) : isFailed ? (
-						// Training failed: show error banner + empty state
-						<div className="flex flex-col gap-6">
-							<StatusAlert variant="error" title={t("groups.trainingFailed")}>
-								<p className="mb-3">{t("groups.trainingFailedDescription")}</p>
-								<Button asChild variant="outline" size="sm">
-									<Link to="/settings/connections/itsm">
-										{t("groups.goToItsmConnections")}
-									</Link>
-								</Button>
-							</StatusAlert>
-							<div className="flex min-h-[200px] items-center justify-center">
-								<p className="text-muted-foreground">{t("groups.noGroups")}</p>
-							</div>
-						</div>
-					) : isTraining ? (
-						// Training in progress: show banner + skeleton grid
-						<div className="flex flex-col gap-6">
-							<StatusAlert
-								variant="info"
-								title={t("groups.trainingInProgress")}
-							>
-								<p>{t("groups.trainingDescription")}</p>
-							</StatusAlert>
-							<div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3">
-								{[...Array(6)].map((_, i) => (
-									<TicketGroupSkeleton key={i} />
-								))}
-							</div>
-						</div>
-					) : clusters.length > 0 ? (
-						<>
-							<div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3">
-								{clusters.map((cluster) => (
-									<TicketGroupStat
-										key={cluster.id}
-										id={cluster.id}
-										title={getDisplayTitle(
-											cluster.name,
-											cluster.subcluster_name,
-										)}
-										count={cluster.ticket_count}
-										knowledgeStatus={cluster.kb_status}
-									/>
-								))}
-							</div>
-
-							{/* Pagination */}
-							{(hasPrevPage || hasNextPage) && (
-								<div className="flex items-center justify-end py-4">
-									<div className="flex gap-2">
-										<Button
-											variant="outline"
-											size="sm"
-											onClick={handlePrevPage}
-											disabled={!hasPrevPage}
-										>
-											{t("groups.pagination.previous")}
-										</Button>
-										<Button
-											variant="outline"
-											size="sm"
-											onClick={handleNextPage}
-											disabled={!hasNextPage}
-										>
-											{t("groups.pagination.next")}
-										</Button>
-									</div>
-								</div>
-							)}
-						</>
-					) : (
+						</StatusAlert>
 						<div className="flex min-h-[200px] items-center justify-center">
 							<p className="text-muted-foreground">{t("groups.noGroups")}</p>
 						</div>
-					)}
-				</div>
+					</div>
+				) : isFirstImport ? (
+					// First-time import: show banner + progress + skeleton grid
+					<div className="flex flex-col gap-6">
+						<StatusAlert variant="info" title={t("groups.importingTickets")}>
+							<p>{t("groups.importingDescription")}</p>
+							{latestRun?.metadata?.progress?.total_estimated && (
+								<div className="w-full">
+									<Progress
+										value={
+											(latestRun.records_processed /
+												latestRun.metadata.progress.total_estimated) *
+											100
+										}
+										className="bg-white"
+									/>
+									<span className="text-sm text-muted-foreground whitespace-nowrap">
+										{t("groups.importingProgress", {
+											processed: latestRun.records_processed,
+											total: latestRun.metadata.progress.total_estimated,
+										})}
+									</span>
+								</div>
+							)}
+						</StatusAlert>
+						<div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-5">
+							{[...Array(6)].map((_, i) => (
+								<TicketGroupSkeleton key={i} />
+							))}
+						</div>
+					</div>
+				) : isTraining ? (
+					// Training in progress: show banner + skeleton grid
+					<div className="flex flex-col gap-6">
+						<StatusAlert variant="info" title={t("groups.trainingInProgress")}>
+							<p>{t("groups.trainingDescription")}</p>
+						</StatusAlert>
+						<div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-5">
+							{[...Array(6)].map((_, i) => (
+								<TicketGroupSkeleton key={i} />
+							))}
+						</div>
+					</div>
+				) : clusters.length > 0 ? (
+					<>
+						{/* Re-import banner: show above existing clusters */}
+						{isIngesting && (
+							<StatusAlert variant="info" title={t("groups.importingTickets")}>
+								<p>{t("groups.importingDescription")}</p>
+								{latestRun?.metadata?.progress?.total_estimated && (
+									<div className="w-full">
+										<Progress
+											value={
+												(latestRun.records_processed /
+													latestRun.metadata.progress.total_estimated) *
+												100
+											}
+											className="bg-white"
+										/>
+										<span className="text-sm text-muted-foreground whitespace-nowrap">
+											{t("groups.importingProgress", {
+												processed: latestRun.records_processed,
+												total: latestRun.metadata.progress.total_estimated,
+											})}
+										</span>
+									</div>
+								)}
+							</StatusAlert>
+						)}
+						<div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-5">
+							{clusters.map((cluster) => (
+								<TicketGroupStat
+									key={cluster.id}
+									id={cluster.id}
+									title={getDisplayTitle(cluster.name, cluster.subcluster_name)}
+									count={cluster.ticket_count}
+									knowledgeStatus={cluster.kb_status}
+								/>
+							))}
+						</div>
+
+						{/* Pagination */}
+						{(hasPrevPage || hasNextPage) && (
+							<div className="flex items-center justify-end py-4">
+								<div className="flex gap-2">
+									<Button
+										variant="outline"
+										size="sm"
+										onClick={handlePrevPage}
+										disabled={!hasPrevPage}
+									>
+										{t("groups.pagination.previous")}
+									</Button>
+									<Button
+										variant="outline"
+										size="sm"
+										onClick={handleNextPage}
+										disabled={!hasNextPage}
+									>
+										{t("groups.pagination.next")}
+									</Button>
+								</div>
+							</div>
+						)}
+					</>
+				) : (
+					<div className="flex min-h-[200px] items-center justify-center">
+						<p className="text-muted-foreground">{t("groups.noGroups")}</p>
+					</div>
+				)}
 			</div>
 		</div>
 	);

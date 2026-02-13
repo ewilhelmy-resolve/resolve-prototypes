@@ -274,7 +274,7 @@ router.post(
 	async (req, res) => {
 		const authReq = req as AuthenticatedRequest;
 		try {
-			const { admin_email, itsm_system_type } =
+			const { admin_email, itsm_system_type, apply_to_related } =
 				req.body as CreateDelegationRequest;
 			const userId = authReq.user.id;
 			const organizationId = authReq.user.activeOrganizationId;
@@ -286,11 +286,13 @@ router.post(
 
 			if (
 				!itsm_system_type ||
-				!["servicenow_itsm", "jira_itsm"].includes(itsm_system_type)
+				!["servicenow_itsm", "jira_itsm", "ivanti_itsm"].includes(
+					itsm_system_type,
+				)
 			) {
 				return res.status(400).json({
 					error:
-						"itsm_system_type is required and must be one of: servicenow_itsm, jira_itsm",
+						"itsm_system_type is required and must be one of: servicenow_itsm, jira_itsm, ivanti_itsm",
 				});
 			}
 
@@ -299,6 +301,7 @@ router.post(
 				userId,
 				admin_email,
 				itsm_system_type,
+				apply_to_related ?? false,
 			);
 
 			logger.info(
@@ -361,7 +364,8 @@ router.get("/verify/:token", async (req, res) => {
  */
 router.post("/submit", async (req, res) => {
 	try {
-		const { token, credentials } = req.body as SubmitCredentialsRequest;
+		const { token, credentials, apply_to_related } =
+			req.body as SubmitCredentialsRequest;
 
 		if (!token || typeof token !== "string") {
 			return res.status(400).json({ error: "Token is required" });
@@ -374,6 +378,7 @@ router.post("/submit", async (req, res) => {
 		const result = await credentialDelegationService.submitCredentials(
 			token,
 			credentials,
+			apply_to_related,
 		);
 
 		logger.info(

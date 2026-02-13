@@ -24,7 +24,9 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Spinner } from "@/components/ui/spinner";
 import { StatusAlert } from "@/components/ui/status-alert";
@@ -36,6 +38,13 @@ import {
 	useSubmitCredentials,
 	useVerifyDelegation,
 } from "@/hooks/api/useCredentialDelegations";
+
+// Map ITSM types to their related knowledge base connection (only for types that have one)
+const RELATED_CONNECTION_LABELS: Partial<Record<ItsmSystemType, string>> = {
+	servicenow_itsm: "Knowledge Base",
+	jira_itsm: "Confluence",
+	// freshservice, freshdesk, etc. - no related connections
+};
 
 /**
  * Page states
@@ -67,11 +76,20 @@ interface JiraFormData {
 }
 
 /**
+ * Ivanti form data
+ */
+interface IvantiFormData {
+	url: string;
+	apiKey: string;
+}
+
+/**
  * System icons
  */
 const SYSTEM_ICONS: Record<ItsmSystemType, string> = {
 	servicenow_itsm: "/connections/icon_servicenow_itsm.svg",
 	jira_itsm: "/connections/icon_jira_itsm.svg",
+	ivanti_itsm: "/connections/icon_ivanti_itsm.svg",
 };
 
 /**
@@ -126,12 +144,19 @@ function ServiceNowCredentialForm({
 	onSubmit,
 	isSubmitting,
 	verificationError,
+	showApplyToRelated,
+	applyToRelated,
+	onApplyToRelatedChange,
 }: {
 	onSubmit: (data: ServiceNowFormData) => void;
 	isSubmitting: boolean;
 	verificationError?: string | null;
+	showApplyToRelated: boolean;
+	applyToRelated: boolean;
+	onApplyToRelatedChange: (checked: boolean) => void;
 }) {
 	const { t } = useTranslation("credentialDelegation");
+	const relatedConnectionLabel = RELATED_CONNECTION_LABELS.servicenow_itsm;
 	const {
 		register,
 		handleSubmit,
@@ -219,6 +244,25 @@ function ServiceNowCredentialForm({
 					/>
 				</FormField>
 
+				{showApplyToRelated && (
+					<div className="flex items-center gap-2">
+						<Checkbox
+							id="apply-to-related-sn"
+							checked={applyToRelated}
+							onCheckedChange={(checked) =>
+								onApplyToRelatedChange(checked === true)
+							}
+							disabled={isSubmitting}
+						/>
+						<Label
+							htmlFor="apply-to-related-sn"
+							className="text-sm font-normal cursor-pointer"
+						>
+							{t("form.applyToRelated", { target: relatedConnectionLabel })}
+						</Label>
+					</div>
+				)}
+
 				<div className="flex justify-start gap-2 w-full">
 					<Button type="button" onClick={handleConnect} disabled={isSubmitting}>
 						{isSubmitting ? (
@@ -252,12 +296,19 @@ function JiraCredentialForm({
 	onSubmit,
 	isSubmitting,
 	verificationError,
+	showApplyToRelated,
+	applyToRelated,
+	onApplyToRelatedChange,
 }: {
 	onSubmit: (data: JiraFormData) => void;
 	isSubmitting: boolean;
 	verificationError?: string | null;
+	showApplyToRelated: boolean;
+	applyToRelated: boolean;
+	onApplyToRelatedChange: (checked: boolean) => void;
 }) {
 	const { t } = useTranslation("credentialDelegation");
+	const relatedConnectionLabel = RELATED_CONNECTION_LABELS.jira_itsm;
 	const {
 		register,
 		handleSubmit,
@@ -349,6 +400,133 @@ function JiraCredentialForm({
 					/>
 				</FormField>
 
+				{showApplyToRelated && (
+					<div className="flex items-center gap-2">
+						<Checkbox
+							id="apply-to-related-jira"
+							checked={applyToRelated}
+							onCheckedChange={(checked) =>
+								onApplyToRelatedChange(checked === true)
+							}
+							disabled={isSubmitting}
+						/>
+						<Label
+							htmlFor="apply-to-related-jira"
+							className="text-sm font-normal cursor-pointer"
+						>
+							{t("form.applyToRelated", { target: relatedConnectionLabel })}
+						</Label>
+					</div>
+				)}
+
+				<div className="flex justify-start gap-2 w-full">
+					<Button type="button" onClick={handleConnect} disabled={isSubmitting}>
+						{isSubmitting ? (
+							<>
+								<Spinner className="mr-2" />
+								{t("form.connecting")}
+							</>
+						) : (
+							t("form.connect")
+						)}
+					</Button>
+				</div>
+
+				{isSubmitting && (
+					<StatusAlert variant="info">
+						<p className="text-accent-foreground">
+							{t("form.connectionMayTakeTime")}
+						</p>
+						<p>{t("form.doNotClosePage")}</p>
+					</StatusAlert>
+				)}
+			</FormSection>
+		</ConnectionsForm>
+	);
+}
+
+/**
+ * Ivanti credential form
+ */
+function IvantiCredentialForm({
+	onSubmit,
+	isSubmitting,
+	verificationError,
+}: {
+	onSubmit: (data: IvantiFormData) => void;
+	isSubmitting: boolean;
+	verificationError?: string | null;
+}) {
+	const { t } = useTranslation("credentialDelegation");
+	const {
+		register,
+		handleSubmit,
+		formState: { errors },
+		getValues,
+		trigger,
+	} = useForm<IvantiFormData>({
+		mode: "onSubmit",
+		defaultValues: {
+			url: "",
+			apiKey: "",
+		},
+	});
+
+	const handleConnect = async () => {
+		const isValid = await trigger();
+		if (!isValid) return;
+		onSubmit(getValues());
+	};
+
+	return (
+		<ConnectionsForm handleSubmit={handleSubmit(onSubmit)} id="credential-form">
+			<FormSection title={t("form.authentication")}>
+				{verificationError && (
+					<StatusAlert variant="error" className="mb-4">
+						<p className="font-semibold">{t("form.verificationFailed")}</p>
+						<p>{verificationError}</p>
+						<p className="text-sm mt-2">{t("form.checkCredentials")}</p>
+					</StatusAlert>
+				)}
+
+				<FormField
+					label={t("form.ivanti.url")}
+					errors={errors}
+					name="url"
+					required
+				>
+					<Input
+						id="url"
+						type="url"
+						placeholder={t("form.ivanti.urlPlaceholder")}
+						disabled={isSubmitting}
+						{...register("url", {
+							required: t("form.ivanti.urlRequired"),
+							pattern: {
+								value: /^https?:\/\/[\w.-]+\.[a-zA-Z]{2,}(:\d+)?(\/.*)?$/,
+								message: t("form.ivanti.invalidUrl"),
+							},
+						})}
+					/>
+				</FormField>
+
+				<FormField
+					label={t("form.ivanti.apiKey")}
+					errors={errors}
+					name="apiKey"
+					required
+				>
+					<Input
+						id="apiKey"
+						type="password"
+						placeholder={t("form.ivanti.apiKeyPlaceholder")}
+						disabled={isSubmitting}
+						{...register("apiKey", {
+							required: t("form.ivanti.apiKeyRequired"),
+						})}
+					/>
+				</FormField>
+
 				<div className="flex justify-start gap-2 w-full">
 					<Button type="button" onClick={handleConnect} disabled={isSubmitting}>
 						{isSubmitting ? (
@@ -397,6 +575,7 @@ export default function CredentialSetupPage() {
 	} | null>(null);
 	const [countdown, setCountdown] = useState(90);
 	const [verifiedAt, setVerifiedAt] = useState<Date | null>(null);
+	const [applyToRelated, setApplyToRelated] = useState(false);
 
 	// Verify token on load
 	const {
@@ -440,6 +619,10 @@ export default function CredentialSetupPage() {
 		if (verifyData) {
 			if (verifyData.valid) {
 				setPageState("form");
+				// Initialize applyToRelated from delegation settings
+				if (verifyData.apply_to_related) {
+					setApplyToRelated(true);
+				}
 			} else {
 				setPageState("invalid");
 				setInvalidReason(verifyData.reason);
@@ -511,6 +694,7 @@ export default function CredentialSetupPage() {
 					username: data.username,
 					password: data.password,
 				},
+				apply_to_related: applyToRelated,
 			});
 
 			setDelegationId(result.delegation_id);
@@ -549,6 +733,45 @@ export default function CredentialSetupPage() {
 					instance_url: data.url,
 					email: data.email,
 					api_token: data.token,
+				},
+				apply_to_related: applyToRelated,
+			});
+
+			setDelegationId(result.delegation_id);
+
+			if (result.status === "verified") {
+				setPageState("success");
+				setVerifiedAt(new Date());
+			} else if (result.status === "failed") {
+				// Go back to form with error message
+				setPageState("form");
+				setVerificationError(t("failed.defaultError"));
+			} else {
+				setPageState("verifying");
+			}
+		} catch {
+			setPageState("form");
+		}
+	};
+
+	// Handle Ivanti form submission
+	const handleIvantiSubmit = async (data: IvantiFormData) => {
+		if (!token) return;
+
+		setPageState("submitting");
+		setVerificationError(null);
+		setLastSubmissionTime(Date.now());
+		setSubmittedCredentials({
+			url: data.url,
+			email: "", // Ivanti doesn't have email field
+		});
+
+		try {
+			const result = await submitMutation.mutateAsync({
+				token,
+				credentials: {
+					url: data.url,
+					api_key: data.apiKey,
 				},
 			});
 
@@ -639,6 +862,23 @@ export default function CredentialSetupPage() {
 		};
 
 		// Create mock ConnectionSource for ConnectionStatusCard
+		let settings: Record<string, string>;
+		if (verifyData.system_type === "servicenow_itsm") {
+			settings = {
+				instanceUrl: submittedCredentials?.url || "",
+				username: submittedCredentials?.email || "",
+			};
+		} else if (verifyData.system_type === "ivanti_itsm") {
+			settings = {
+				url: submittedCredentials?.url || "",
+			};
+		} else {
+			settings = {
+				url: submittedCredentials?.url || "",
+				email: submittedCredentials?.email || "",
+			};
+		}
+
 		const successSource: ConnectionSource = {
 			id: delegationId || "delegation",
 			type: verifyData.system_type,
@@ -646,16 +886,7 @@ export default function CredentialSetupPage() {
 			status: STATUS.CONNECTED,
 			lastSync: t("success.updatedAt", { time: formattedTime }),
 			badges: [],
-			settings:
-				verifyData.system_type === "servicenow_itsm"
-					? {
-							instanceUrl: submittedCredentials?.url || "",
-							username: submittedCredentials?.email || "",
-						}
-					: {
-							url: submittedCredentials?.url || "",
-							email: submittedCredentials?.email || "",
-						},
+			settings,
 		};
 
 		return (
@@ -729,11 +960,24 @@ export default function CredentialSetupPage() {
 							onSubmit={handleServiceNowSubmit}
 							isSubmitting={isSubmitting}
 							verificationError={verificationError}
+							showApplyToRelated={verifyData?.apply_to_related ?? false}
+							applyToRelated={applyToRelated}
+							onApplyToRelatedChange={setApplyToRelated}
 						/>
 					)}
 					{systemType === "jira_itsm" && (
 						<JiraCredentialForm
 							onSubmit={handleJiraSubmit}
+							isSubmitting={isSubmitting}
+							verificationError={verificationError}
+							showApplyToRelated={verifyData?.apply_to_related ?? false}
+							applyToRelated={applyToRelated}
+							onApplyToRelatedChange={setApplyToRelated}
+						/>
+					)}
+					{systemType === "ivanti_itsm" && (
+						<IvantiCredentialForm
+							onSubmit={handleIvantiSubmit}
 							isSubmitting={isSubmitting}
 							verificationError={verificationError}
 						/>

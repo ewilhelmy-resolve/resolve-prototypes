@@ -9,7 +9,7 @@ export const DelegationStatusSchema = z
 	.openapi({ description: "Delegation status" });
 
 export const ItsmSystemTypeSchema = z
-	.enum(["servicenow_itsm", "jira"])
+	.enum(["servicenow_itsm", "jira_itsm", "ivanti_itsm"])
 	.openapi({ description: "ITSM system type" });
 
 export const DelegationSchema = z
@@ -45,6 +45,10 @@ export const CreateDelegationRequestSchema = z
 			.email()
 			.openapi({ description: "IT admin email to send delegation to" }),
 		itsm_system_type: ItsmSystemTypeSchema,
+		apply_to_related: z.boolean().optional().openapi({
+			description:
+				"Apply credentials to related connection (e.g., KB for ITSM)",
+		}),
 	})
 	.openapi("CreateDelegationRequest");
 
@@ -70,6 +74,9 @@ export const VerifyDelegationResponseSchema = z
 		itsm_system_type: ItsmSystemTypeSchema.optional(),
 		expires_at: z.string().datetime().optional(),
 		reason: z.string().optional().openapi({ description: "Reason if invalid" }),
+		apply_to_related: z.boolean().optional().openapi({
+			description: "Whether to apply credentials to related connection",
+		}),
 	})
 	.openapi("VerifyDelegationResponse");
 
@@ -87,6 +94,10 @@ export const SubmitCredentialsRequestSchema = z
 				username: "admin",
 				password: "***",
 			},
+		}),
+		apply_to_related: z.boolean().optional().openapi({
+			description:
+				"Apply credentials to related connection (overrides delegation setting if provided)",
 		}),
 	})
 	.openapi("SubmitCredentialsRequest");

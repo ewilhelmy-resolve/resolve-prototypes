@@ -1,0 +1,72 @@
+{
+  "innerCode": 200,
+  "data": {
+    "name": "UI Form Request",
+    "description": "Send a UI form request to RITA chat iframe via RabbitMQ",
+    "Timeout": "00:05:00",
+    "class": [],
+    "rootSettings": {
+      "isCollapse": false,
+      "activitySettings": [
+        {
+          "value": "%rita_rabbitmq_url%",
+          "required": true,
+          "key": "rabbitmq_url",
+          "label": "RabbitMQ URL",
+          "labelKey": "rabbitmq_url",
+          "baseType": "control",
+          "controlType": "hidden"
+        },
+        {
+          "value": "%tenant_id%",
+          "required": true,
+          "key": "tenant_id",
+          "label": "Tenant ID",
+          "labelKey": "tenant_id",
+          "baseType": "control",
+          "controlType": "textbox"
+        },
+        {
+          "value": "",
+          "required": true,
+          "key": "conversation_id",
+          "label": "conversation id",
+          "labelKey": "conversation_id",
+          "baseType": "control",
+          "controlType": "textbox"
+        },
+        {
+          "value": "",
+          "required": true,
+          "key": "user_id",
+          "label": "user id (Valkey userGuid)",
+          "labelKey": "user_id",
+          "baseType": "control",
+          "controlType": "textbox"
+        },
+        {
+          "value": "",
+          "required": true,
+          "key": "ui_schema",
+          "label": "UI Schema (JSON)",
+          "labelKey": "ui_schema",
+          "baseType": "control",
+          "controlType": "textarea",
+          "styleClass": "xl-textarea"
+        },
+        {
+          "value": true,
+          "key": "interrupt",
+          "label": "Open Modal Immediately",
+          "labelKey": "interrupt",
+          "baseType": "control",
+          "controlType": "checkbox"
+        }
+      ],
+      "index": "1",
+      "label": "main",
+      "labelKey": null
+    }
+  },
+  "message": "SUCCESS"
+}

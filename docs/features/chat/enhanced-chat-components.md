@@ -1,6 +1,6 @@
 # Enhanced Chat Components - shadcn AI Chatbot Integration
 
-**RITA Go Frontend - Professional Chat Interface Components**
+**RITA Frontend - Professional Chat Interface Components**
 
 ---
 

@@ -1,13 +1,13 @@
 import type { Meta, StoryObj } from "@storybook/react";
-import TicketDetailsCard from "./TicketDetailsCard";
 import type { TicketDetails } from "./TicketDetailsCard";
+import TicketDetailsCard from "./TicketDetailsCard";
 
 const meta: Meta<typeof TicketDetailsCard> = {
 	component: TicketDetailsCard,
 	title: "Features/Tickets/Ticket Details Card",
 	tags: ["autodocs"],
 	parameters: {
-		layout: "centered",
+		layout: "padded",
 		docs: {
 			description: {
 				component:
@@ -17,7 +17,7 @@ const meta: Meta<typeof TicketDetailsCard> = {
 	},
 	decorators: [
 		(Story) => (
-			<div className="w-96">
+			<div className="w-full">
 				<Story />
 			</div>
 		),
@@ -33,6 +33,10 @@ const baseTicket: TicketDetails = {
 	description:
 		"User reports that after completing the password reset process, they are unable to log into their email account. The error message states 'Invalid credentials' even though the new password was just set.",
 	priority: "medium",
+	requester: "adams@acme.com",
+	status: "Open",
+	assignedTo: "IT Help Desk",
+	createdAt: "2025-10-09T13:23:23.000Z",
 };
 
 export const Default: Story = {
@@ -47,7 +51,8 @@ export const LowPriority: Story = {
 			...baseTicket,
 			id: "INC-1002",
 			title: "Request for additional monitor",
-			description: "Employee requesting a second monitor for their workstation.",
+			description:
+				"Employee requesting a second monitor for their workstation.",
 			priority: "low",
 		},
 	},
@@ -75,6 +80,32 @@ export const CriticalPriority: Story = {
 			description:
 				"Production database is unreachable. All customer-facing applications are affected. Immediate action required.",
 			priority: "critical",
+			assignedTo: "Security Team",
+		},
+	},
+};
+
+export const UnsetPriority: Story = {
+	args: {
+		ticket: {
+			...baseTicket,
+			id: "INC-1006",
+			title: "General inquiry about system access",
+			description: "New employee asking about system access procedures.",
+			priority: null,
+		},
+	},
+};
+
+export const Unassigned: Story = {
+	args: {
+		ticket: {
+			...baseTicket,
+			id: "INC-1007",
+			title: "Wi-Fi not connecting in building 3",
+			description: "Cannot connect to corporate Wi-Fi from the third floor.",
+			assignedTo: null,
+			requester: null,
 		},
 	},
 };

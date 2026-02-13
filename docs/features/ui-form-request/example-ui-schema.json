@@ -1,0 +1,54 @@
+{
+	"root": {
+		"type": "Form",
+		"props": {
+			"title": "Customer Information",
+			"description": "Please provide the customer details",
+			"submitAction": "submit_customer_info",
+			"submitLabel": "Submit",
+			"cancelLabel": "Cancel"
+		},
+		"children": [
+			{
+				"type": "Input",
+				"props": {
+					"name": "customerName",
+					"label": "Customer Name",
+					"placeholder": "Enter customer name",
+					"required": true
+				}
+			},
+			{
+				"type": "Input",
+				"props": {
+					"name": "email",
+					"label": "Email Address",
+					"placeholder": "customer@example.com",
+					"required": true
+				}
+			},
+			{
+				"type": "Select",
+				"props": {
+					"name": "priority",
+					"label": "Priority Level",
+					"required": true,
+					"options": [
+						{ "label": "Low", "value": "low" },
+						{ "label": "Medium", "value": "medium" },
+						{ "label": "High", "value": "high" }
+					]
+				}
+			},
+			{
+				"type": "Input",
+				"props": {
+					"name": "notes",
+					"label": "Additional Notes",
+					"inputType": "textarea",
+					"placeholder": "Any additional information..."
+				}
+			}
+		]
+	}
+}

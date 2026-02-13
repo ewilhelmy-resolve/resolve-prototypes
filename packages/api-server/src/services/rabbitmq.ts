@@ -1,10 +1,24 @@
 import amqp from "amqplib";
+import { randomUUID } from "crypto";
 import { pool, withOrgContext } from "../config/database.js";
 import { logError, PerformanceTimer, queueLogger } from "../config/logger.js";
 import { DataSourceStatusConsumer } from "../consumers/DataSourceStatusConsumer.js";
 import { DocumentProcessingConsumer } from "../consumers/DocumentProcessingConsumer.js";
 import { WorkflowConsumer } from "../consumers/WorkflowConsumer.js";
 import { getSSEService } from "./sse.js";
+
+/**
+ * Parsed UI form request from message response field
+ */
+interface ParsedUIFormRequest {
+	type: "ui_form_request";
+	user_id?: string;
+	workflow_id?: string;
+	activity_id?: string;
+	interrupt?: boolean;
+	conversation_id?: string;
+	ui_schema: Record<string, unknown>;
+}
 
 // Connection state types
 type ConnectionStatus =
@@ -454,6 +468,13 @@ export class RabbitMQService {
 			throw new Error("Invalid message payload: missing required fields");
 		}
 
+		// Check if this is a UI form request (response contains JSON with type: "ui_form_request")
+		const uiFormRequest = this.tryParseUIFormRequest(response);
+		if (uiFormRequest) {
+			await this.processUIFormRequestMessage(payload, uiFormRequest);
+			return;
+		}
+
 		// Always fetch user_id from conversation for SSE routing
 		// (payload user_id may be Valkey userGuid which doesn't match SSE subscription)
 		const client = await pool.connect();
@@ -600,6 +621,216 @@ export class RabbitMQService {
 			{ finalStatus: "completed" },
 			"Message processing completed successfully",
 		);
+	}
+
+	/**
+	 * Try to parse response field as UI form request
+	 */
+	private tryParseUIFormRequest(response: string): ParsedUIFormRequest | null {
+		if (!response) return null;
+
+		try {
+			const parsed = JSON.parse(response);
+			if (parsed?.type !== "ui_form_request") {
+				return null;
+			}
+
+			// Validate required fields (user_id resolved from conversation, not response)
+			if (!parsed.ui_schema) {
+				queueLogger.warn(
+					{ hasUISchema: false },
+					"Invalid ui_form_request: missing ui_schema",
+				);
+				return null;
+			}
+
+			return parsed as ParsedUIFormRequest;
+		} catch {
+			// Not JSON - treat as regular chat message
+			return null;
+		}
+	}
+
+	/**
+	 * Process UI form request as a chat message with metadata
+	 */
+	private async processUIFormRequestMessage(
+		payload: any,
+		formRequest: ParsedUIFormRequest,
+	): Promise<void> {
+		const {
+			message_id,
+			conversation_id: messageConversationId,
+			tenant_id: organization_id,
+		} = payload;
+
+		const {
+			workflow_id,
+			activity_id,
+			ui_schema,
+			interrupt = true,
+		} = formRequest;
+		const conversation_id =
+			formRequest.conversation_id || messageConversationId;
+
+		// Generate unique request ID for correlation
+		const requestId = randomUUID();
+
+		const messageLogger = queueLogger.child({
+			requestId,
+			messageId: message_id,
+			conversationId: conversation_id,
+			organizationId: organization_id,
+			workflowId: workflow_id,
+			activityId: activity_id,
+		});
+
+		messageLogger.info("Processing UI form request as chat message");
+
+		// Fetch user_id from conversation for SSE routing
+		const client = await pool.connect();
+		let user_id: string;
+		try {
+			const conversationResult = await client.query(
+				"SELECT user_id FROM conversations WHERE id = $1 AND organization_id = $2",
+				[conversation_id, organization_id],
+			);
+
+			if (conversationResult.rows.length === 0) {
+				throw new Error(
+					`Conversation ${conversation_id} not found or doesn't belong to organization ${organization_id}`,
+				);
+			}
+
+			user_id = conversationResult.rows[0].user_id;
+		} finally {
+			client.release();
+		}
+
+		const sseService = getSSEService();
+
+		// Process message with organization context
+		await withOrgContext(user_id, organization_id, async (client) => {
+			// If there's an original user message, mark it completed
+			if (message_id) {
+				const messageCheck = await client.query(
+					"SELECT id FROM messages WHERE id = $1 AND organization_id = $2",
+					[message_id, organization_id],
+				);
+
+				if (messageCheck.rows.length > 0) {
+					await client.query(
+						`
+            UPDATE messages
+            SET status = $1, processed_at = $2
+            WHERE id = $3
+          `,
+						["completed", new Date(), message_id],
+					);
+				}
+			}
+
+			// Build form request metadata
+			const formMetadata = {
+				type: "ui_form_request",
+				request_id: requestId,
+				workflow_id,
+				activity_id,
+				ui_schema,
+				interrupt,
+				status: "pending", // Form is pending user submission
+			};
+
+			// Create assistant message with form metadata (empty message content - UI is in metadata)
+			const assistantMessageResult = await client.query(
+				`
+        INSERT INTO messages (organization_id, conversation_id, user_id, message, metadata, role, status, created_at)
+        VALUES ($1, $2, $3, $4, $5, 'assistant', 'pending', NOW())
+        RETURNING id
+      `,
+				[
+					organization_id,
+					conversation_id,
+					user_id,
+					"",
+					JSON.stringify(formMetadata),
+				],
+			);
+
+			const assistantMessageId = assistantMessageResult.rows[0].id;
+
+			// Log the form request for audit trail
+			await client.query(
+				`
+        INSERT INTO audit_logs (organization_id, user_id, action, resource_type, resource_id, metadata)
+        VALUES ($1, $2, 'ui_form_request_created', 'message', $3, $4)
+      `,
+				[
+					organization_id,
+					user_id,
+					assistantMessageId,
+					JSON.stringify({
+						request_id: requestId,
+						workflow_id,
+						activity_id,
+						interrupt,
+						conversation_id,
+					}),
+				],
+			);
+
+			messageLogger.info(
+				{ assistantMessageId },
+				"UI form request message created",
+			);
+
+			// Send SSE events
+			try {
+				// Mark original user message completed (if exists)
+				if (message_id) {
+					sseService.sendToUser(user_id, organization_id, {
+						type: "message_update",
+						data: {
+							messageId: message_id,
+							status: "completed" as any,
+							responseContent: undefined,
+							errorMessage: undefined,
+							processedAt: new Date().toISOString(),
+						},
+					});
+				}
+
+				// Send new_message event with form metadata
+				// Client will detect metadata.type === 'ui_form_request' and handle appropriately
+				sseService.sendToUser(user_id, organization_id, {
+					type: "new_message",
+					data: {
+						messageId: assistantMessageId,
+						conversationId: conversation_id,
+						role: "assistant",
+						message: "", // Empty - UI is in metadata
+						metadata: formMetadata,
+						userId: user_id,
+						createdAt: new Date().toISOString(),
+					},
+				});
+
+				messageLogger.info(
+					{ eventType: "new_message", interrupt },
+					"SSE event sent for UI form request",
+				);
+			} catch (sseError) {
+				messageLogger.warn(
+					{
+						error:
+							sseError instanceof Error ? sseError.message : String(sseError),
+					},
+					"Failed to send SSE event for UI form request",
+				);
+			}
+		});
+
+		messageLogger.info("UI form request processing completed");
 	}
 
 	private async storeMessageFailure(message: any, error: Error): Promise<void> {

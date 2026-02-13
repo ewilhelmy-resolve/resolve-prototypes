@@ -1,6 +1,7 @@
 import cors from "cors";
 import express from "express";
 import { logger } from "./config/logger.js";
+import { reportError, rollbar } from "./config/rollbar.js";
 import { closeValkeyConnection } from "./config/valkey.js";
 import { authenticateUser } from "./middleware/auth.js";
 import {
@@ -10,6 +11,7 @@ import {
 	logApiOperation,
 	requestLoggingMiddleware,
 } from "./middleware/logging.js";
+import { rollbarErrorMiddleware } from "./middleware/rollbar.js";
 import authRoutes from "./routes/auth.js";
 import clusterRoutes from "./routes/clusters.js";
 import conversationRoutes from "./routes/conversations.js";
@@ -53,6 +55,7 @@ app.use(
 		allowedHeaders: ["Content-Type", "Authorization", "Cookie"],
 	}),
 );
+
 app.use(express.json());
 
 // Health check endpoint
@@ -224,6 +227,12 @@ app.get(
 );
 
 // Error handling middleware (must be last)
+// Rollbar error handler - reports errors to Rollbar
+app.use(rollbarErrorMiddleware);
+// Use Rollbar's built-in error handler if available
+if (rollbar) {
+	app.use(rollbar.errorHandler());
+}
 app.use(errorLoggingMiddleware);
 
 app.listen(PORT, async () => {
@@ -323,6 +332,9 @@ process.on("SIGINT", async () => {
 
 // Handle uncaught exceptions
 process.on("uncaughtException", (error) => {
+	// Report to Rollbar
+	reportError(error);
+
 	logger.fatal(
 		{
 			error: {
@@ -338,6 +350,11 @@ process.on("uncaughtException", (error) => {
 
 // Handle unhandled promise rejections
 process.on("unhandledRejection", (reason, promise) => {
+	// Report to Rollbar
+	if (reason instanceof Error) {
+		reportError(reason);
+	}
+
 	logger.fatal(
 		{
 			reason:

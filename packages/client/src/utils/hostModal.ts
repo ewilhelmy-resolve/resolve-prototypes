@@ -179,10 +179,7 @@ function closeModalInHost(): void {
 		const overlay = window.parent.document.getElementById(
 			"rita-injected-modal-overlay",
 		);
-		if (overlay) {
-			overlay.style.animation = "ritaModalFadeIn 0.2s ease reverse";
-			setTimeout(() => overlay.remove(), 200);
-		}
+		if (overlay) overlay.remove();
 	} catch {
 		// Cross-origin, ignore
 	}
@@ -358,10 +355,7 @@ function closeFullscreenInHost(): void {
 		const overlay = window.parent.document.getElementById(
 			"rita-fullscreen-overlay",
 		);
-		if (overlay) {
-			overlay.style.animation = "ritaFullscreenFadeIn 0.15s ease reverse";
-			setTimeout(() => overlay.remove(), 150);
-		}
+		if (overlay) overlay.remove();
 	} catch {
 		// Cross-origin, ignore
 	}
@@ -661,13 +655,56 @@ const FORM_MODAL_STYLES = `
 `;
 
 export interface FormModalField {
-	type: "input" | "select" | "textarea";
+	type: string;
 	name: string;
 	label?: string;
 	placeholder?: string;
 	inputType?: string;
 	options?: Array<{ label: string; value: string }>;
 	defaultValue?: string;
+}
+
+/**
+ * Walk elements map from a given element ID and extract form fields (Input/Select).
+ * Uses json-render.dev flat elements format with string-reference children.
+ */
+export function extractFormFields(
+	elements: Record<string, { type: string; props?: Record<string, unknown>; children?: string[] }>,
+	elementId: string,
+): FormModalField[] {
+	const element = elements[elementId];
+	if (!element) return [];
+
+	const fields: FormModalField[] = [];
+	const props = element.props || {};
+
+	if (element.type === "Input") {
+		fields.push({
+			type: (props.inputType as string) === "textarea" ? "textarea" : "input",
+			name: (props.name as string) || "",
+			label: props.label as string | undefined,
+			placeholder: props.placeholder as string | undefined,
+			inputType: props.inputType as string | undefined,
+			defaultValue: props.defaultValue as string | undefined,
+		});
+	} else if (element.type === "Select") {
+		fields.push({
+			type: "select",
+			name: (props.name as string) || "",
+			label: props.label as string | undefined,
+			placeholder: props.placeholder as string | undefined,
+			options: props.options as
+				| Array<{ label: string; value: string }>
+				| undefined,
+			defaultValue: props.defaultValue as string | undefined,
+		});
+	}
+
+	for (const childId of element.children || []) {
+		fields.push(...extractFormFields(elements, childId));
+	}
+
+	return fields;
 }
 
 export interface FormModalConfig {
@@ -688,10 +725,7 @@ function closeFormModalInHost(): void {
 		const overlay = window.parent.document.getElementById(
 			"rita-form-modal-overlay",
 		);
-		if (overlay) {
-			overlay.style.animation = "ritaFormFadeIn 0.15s ease reverse";
-			setTimeout(() => overlay.remove(), 150);
-		}
+		if (overlay) overlay.remove();
 	} catch {
 		// Cross-origin, ignore
 	}
@@ -831,26 +865,24 @@ export function openFormModal(config: FormModalConfig): boolean {
 		</div>
 	`;
 
-	// Close on backdrop click (unless preventBackdropClose is set)
+	// Close on backdrop click — just dismiss, don't cancel
 	overlay.addEventListener("click", (e) => {
-		if (e.target === overlay && !config.preventBackdropClose) {
+		if (e.target === overlay) {
 			closeFormModalInHost();
-			config.onCancel();
 		}
 	});
 
-	// Cancel button
+	// Cancel button — explicit cancel
 	const cancelBtn = overlay.querySelector("#rita-form-cancel");
 	cancelBtn?.addEventListener("click", () => {
 		closeFormModalInHost();
 		config.onCancel();
 	});
 
-	// Close button (X in corner)
+	// Close button (X in corner) — just dismiss, don't cancel
 	const closeBtn = overlay.querySelector("#rita-form-modal-close");
 	closeBtn?.addEventListener("click", () => {
 		closeFormModalInHost();
-		config.onCancel();
 	});
 
 	// Form submit
@@ -868,11 +900,10 @@ export function openFormModal(config: FormModalConfig): boolean {
 		config.onSubmit(data);
 	});
 
-	// Escape key (unless preventBackdropClose is set)
+	// Escape key — just dismiss, don't cancel
 	const escHandler = (e: KeyboardEvent) => {
-		if (e.key === "Escape" && !config.preventBackdropClose) {
+		if (e.key === "Escape") {
 			closeFormModalInHost();
-			config.onCancel();
 			parentDoc.removeEventListener("keydown", escHandler);
 		}
 	};

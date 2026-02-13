@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/select";
 import { StatusAlert } from "@/components/ui/status-alert";
 import { useConnectionSource } from "@/contexts/ConnectionSourceContext";
+import { AutoSyncToggle } from "../AutoSyncToggle";
 import { ConnectionActionsMenu } from "../ConnectionActionsMenu";
 import { ConnectionStatusCard } from "../ConnectionStatusCard";
 import FormSectionTitle from "../form-elements/FormSectionTitle";
@@ -60,7 +61,9 @@ export default function FreshdeskItsmConfiguration({
 									<div className="md:flex-1 w-full">
 										<Select value="30" disabled>
 											<SelectTrigger className="w-full">
-												<SelectValue placeholder={t("config.labels.selectTimeRange")} />
+												<SelectValue
+													placeholder={t("config.labels.selectTimeRange")}
+												/>
 											</SelectTrigger>
 											<SelectContent>
 												{TIME_RANGE_OPTIONS_KEYS.map((option) => (
@@ -87,6 +90,15 @@ export default function FreshdeskItsmConfiguration({
 									{t("config.sync.noTicketsYet")}
 								</p>
 							</div>
+
+							{/* Auto-sync toggle - only visible when ML model is active */}
+							{source.backendData && (
+								<AutoSyncToggle
+									connectionId={source.backendData.id}
+									currentValue={source.backendData.auto_sync}
+									disabled={true}
+								/>
+							)}
 						</div>
 					</div>
 				</div>

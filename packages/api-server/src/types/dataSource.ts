@@ -29,6 +29,7 @@ export interface DataSourceConnection {
 
 	// Control
 	enabled: boolean;
+	auto_sync: boolean;
 
 	// Audit
 	created_by: string;
@@ -55,6 +56,7 @@ export interface UpdateDataSourceRequest {
 	description?: string;
 	settings?: Record<string, any>;
 	enabled?: boolean;
+	auto_sync?: boolean;
 }
 
 /**

@@ -8,7 +8,8 @@ export type DataSourceType =
 	| "sharepoint"
 	| "websearch"
 	| "jira_itsm"
-	| "freshdesk";
+	| "freshdesk"
+	| "ivanti_itsm";
 
 export type DataSourceStatus = "idle" | "verifying" | "syncing" | "cancelled";
 
@@ -62,6 +63,7 @@ export interface DataSourceConnection {
 	latest_options: Record<string, any> | null;
 
 	enabled: boolean;
+	auto_sync: boolean;
 
 	// Verification tracking
 	last_verification_at: string | null; // ISO timestamp (null = never configured)
@@ -130,6 +132,7 @@ export interface UpdateDataSourceRequest {
 	description?: string;
 	settings?: Record<string, any>;
 	enabled?: boolean;
+	auto_sync?: boolean;
 }
 
 /**

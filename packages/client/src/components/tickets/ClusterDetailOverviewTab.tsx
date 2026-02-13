@@ -69,9 +69,10 @@ export function ClusterDetailOverviewTab({
 			{/* Automation Readiness Meter */}
 			<AutomationReadinessMeter
 				reviewed={0}
-				total={16}
-				hasKnowledge={kbStatus !== "GAP"}
+				total={0}
+				hasKnowledge={false}
 				trustedPercentage={0}
+				forceState="coming-soon"
 				onEnableAutoRespond={() => {
 					setSelectedType(AI_RESPONSE_TYPE.AUTO_RESPOND);
 					setEnableModalOpen(true);

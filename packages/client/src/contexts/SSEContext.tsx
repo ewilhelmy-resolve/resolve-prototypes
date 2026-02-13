@@ -117,10 +117,18 @@ export const SSEProvider: React.FC<SSEProviderProps> = ({
 					response_group_id: event.data.response_group_id,
 					timestamp: new Date(event.data.createdAt),
 					conversation_id: event.data.conversationId,
-					status: "completed",
+					status:
+						event.data.metadata?.type === "ui_form_request"
+							? "pending"
+							: "completed",
 				};
 
 				addMessage(newMessage);
+
+				// Interrupt form modals (interrupt=true) are triggered by
+				// ChatV1Content's SimpleMessage component on render via triggerHostModal().
+				// That handles all tiers: same-origin injection, cross-origin ACK, and
+				// in-iframe Dialog fallback.
 			} else if (event.type === "data_source_update") {
 				// Handle data source connection updates (verification, sync status changes)
 				// Determine update type based on which fields are present
@@ -475,6 +483,8 @@ export const SSEProvider: React.FC<SSEProviderProps> = ({
 				});
 				window.dispatchEvent(workflowEvent);
 			}
+			// Note: ui_form_request events are now handled via new_message with metadata.type = 'ui_form_request'
+			// The form request detection happens in the new_message handler above
 		},
 		[navigate, queryClient],
 	);

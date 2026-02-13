@@ -5,7 +5,8 @@
 			"email": "Email",
 			"username": "Username",
 			"password": "Password",
-			"apiToken": "API"
+			"apiToken": "API",
+			"apiKey": "API Key"
 		},
 		"multipleAttemptsFailed": "Multiple attempts failed",
 		"getHelp": "Get Help",
@@ -58,6 +59,10 @@
 		"freshdesk": {
 			"title": "Freshdesk",
 			"description": "Import tickets from Freshdesk for autopilot clustering."
+		},
+		"ivanti_itsm": {
+			"title": "Ivanti",
+			"description": "Import tickets from Ivanti for Autopilot clustering."
 		}
 	},
 	"form": {
@@ -150,7 +155,8 @@
 			"jiraItsm": "Jira ITSM configuration",
 			"sharepoint": "SharePoint",
 			"websearch": "Web Search",
-			"freshdeskItsm": "Freshdesk ITSM configuration"
+			"freshdeskItsm": "Freshdesk ITSM configuration",
+			"ivantiItsm": "Ivanti ITSM configuration"
 		},
 		"sync": {
 			"inProgress": "Sync in progress...",
@@ -171,16 +177,32 @@
 			"inProgress": "Model training in progress",
 			"description": "Rita is analyzing your tickets to create ticket groups. This usually takes a few minutes."
 		},
+		"autoSync": {
+			"label": "Auto-sync tickets",
+			"description": "Automatically sync new tickets when they're created",
+			"enabled": "Auto-sync enabled",
+			"disabled": "Auto-sync disabled",
+			"error": "Failed to update auto-sync setting"
+		},
+		"warnings": {
+			"projectsRemovedTitle": "Projects will be removed",
+			"projectsRemovedDescription": "Tickets from unselected projects will be deleted when you sync. This action cannot be undone.",
+			"cancel": "Cancel",
+			"confirm": "Continue and import tickets"
+		},
 		"labels": {
 			"spacesQuestion": "Which spaces would you like to sync from?",
+			"projectsQuestion": "Which projects would you like to sync from?",
 			"kbQuestion": "Which knowledge bases would you like to sync from?",
 			"importFromLast": "Import tickets from the last:",
 			"selectTimeRange": "Select time range"
 		},
 		"placeholders": {
 			"chooseSpaces": "Choose spaces...",
+			"chooseProjects": "Choose projects...",
 			"chooseKb": "Choose knowledge bases...",
 			"noSpaces": "No spaces found.",
+			"noProjects": "No projects found.",
 			"noKb": "No knowledge bases found."
 		},
 		"timeRanges": {
@@ -191,11 +213,13 @@
 		"toast": {
 			"configError": "Configuration Error",
 			"noBackendData": "No backend data available for this source",
+			"selectAtLeastOneSpace": "Please select at least one project to sync",
 			"syncStarted": "Sync Started",
 			"syncStartedConfluence": "Your Confluence spaces are being synced",
 			"syncStartedServiceNowKb": "Your ServiceNow knowledge articles are being synced",
 			"syncStartedServiceNowItsm": "Your ServiceNow tickets are being synced",
 			"syncStartedJiraItsm": "Your Jira tickets are being synced",
+			"syncStartedIvantiItsm": "Your Ivanti tickets are being synced",
 			"syncFailed": "Sync Failed",
 			"syncFailedDefault": "Failed to start sync",
 			"syncCancelled": "Sync Cancelled",

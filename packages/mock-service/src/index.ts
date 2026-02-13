@@ -1346,69 +1346,68 @@ The system is performing well overall but requires attention to the identified s
 			],
 		});
 	} else if (content.startsWith("testmodal")) {
-		// testmodal: UI Schema with modal form for API credentials
-		parts.push({
-			type: "text",
-			text: `## API Configuration
-
-Configure your service credentials below.`,
-			metadata: {
-				ui_schema: {
-					version: "1",
-					components: [
-						{
-							type: "card",
-							title: "ServiceNow Connection",
-							description: "Connect to your ServiceNow instance",
-							children: [
-								{
-									type: "row",
-									gap: 8,
-									children: [
-										{
-											type: "button",
-											label: "Configure Credentials",
-											opensModal: "credentials-modal",
-										},
-										{
-											type: "button",
-											label: "Test Connection",
-											action: "test-connection",
-											variant: "outline",
-										},
-									],
+		// testmodal: UI form request displayed inline in chat (interrupt=false)
+		// This is the new message-based form request format
+		// Note: iframe sends user_guid/userGuid instead of user_id
+		const userId =
+			messagePayload.user_id ||
+			(messagePayload as any).user_guid ||
+			(messagePayload as any).userGuid;
+		return [
+			{
+				message_id: messagePayload.message_id,
+				conversation_id: messagePayload.conversation_id,
+				tenant_id: messagePayload.tenant_id,
+				user_id: userId,
+				response: JSON.stringify({
+					type: "ui_form_request",
+					user_id: userId,
+					workflow_id: "mock-workflow-inline-form",
+					activity_id: `mock-activity-${Date.now()}`,
+					interrupt: false, // Render inline in chat bubble
+					conversation_id: messagePayload.conversation_id,
+					ui_schema: {
+						root: "form",
+						elements: {
+							form: {
+								type: "Form",
+								props: {
+									title: "ServiceNow Connection",
+									description: "Configure your ServiceNow instance credentials",
+									submitAction: "save-credentials",
+									submitLabel: "Save Credentials",
+									cancelLabel: "Cancel",
 								},
-							],
-						},
-					],
-					modals: {
-						"credentials-modal": {
-							title: "ServiceNow Credentials",
-							description:
-								"Enter your ServiceNow instance details to establish connection",
-							size: "lg",
-							children: [
-								{
-									type: "input",
+								children: ["hostname", "username", "apiKey", "environment"],
+							},
+							hostname: {
+								type: "Input",
+								props: {
 									name: "hostname",
 									label: "Instance Hostname",
 									placeholder: "your-instance.service-now.com",
 								},
-								{
-									type: "input",
+							},
+							username: {
+								type: "Input",
+								props: {
 									name: "username",
 									label: "Username",
 									placeholder: "admin",
 								},
-								{
-									type: "input",
+							},
+							apiKey: {
+								type: "Input",
+								props: {
 									name: "apiKey",
 									label: "API Key",
 									inputType: "password",
 									placeholder: "Enter your API key",
 								},
-								{
-									type: "select",
+							},
+							environment: {
+								type: "Select",
+								props: {
 									name: "environment",
 									label: "Environment",
 									placeholder: "Select environment",
@@ -1418,86 +1417,201 @@ Configure your service credentials below.`,
 										{ label: "Development", value: "dev" },
 									],
 								},
-							],
-							submitAction: "save-credentials",
-							submitLabel: "Save Credentials",
-							cancelLabel: "Cancel",
+							},
 						},
 					},
-				},
+				}),
 			},
-		});
+		];
 	} else if (content.startsWith("testforcemodal")) {
-		// testforcemodal: Auto-open modal immediately (forced credential prompt)
-		parts.push({
-			type: "text",
-			text: `## Credential Required
-
-Your session requires authentication. Please enter your credentials.`,
-			metadata: {
-				ui_schema: {
-					version: "1",
-					components: [
-						{
-							type: "card",
-							title: "Authentication Required",
-							description: "This action requires valid credentials to proceed",
-							children: [
-								{
-									type: "text",
-									content:
-										"The credential form has been opened automatically. Please complete authentication to continue.",
-									variant: "muted",
+		// testforcemodal: UI form request as modal overlay (interrupt=true)
+		// Opens immediately as modal, interrupting user flow
+		// Note: iframe sends user_guid/userGuid instead of user_id
+		const userId =
+			messagePayload.user_id ||
+			(messagePayload as any).user_guid ||
+			(messagePayload as any).userGuid;
+		return [
+			{
+				message_id: messagePayload.message_id,
+				conversation_id: messagePayload.conversation_id,
+				tenant_id: messagePayload.tenant_id,
+				user_id: userId,
+				response: JSON.stringify({
+					type: "ui_form_request",
+					user_id: userId,
+					workflow_id: "mock-workflow-modal-form",
+					activity_id: `mock-activity-${Date.now()}`,
+					interrupt: true, // Open as modal immediately
+					conversation_id: messagePayload.conversation_id,
+					ui_schema: {
+						root: "form",
+						elements: {
+							form: {
+								type: "Form",
+								props: {
+									title: "Customer Information",
+									description: "Please provide the customer details",
+									submitAction: "submit_customer_info",
+									submitLabel: "Submit",
+									cancelLabel: "Cancel",
 								},
-								{
-									type: "button",
-									label: "Enter Credentials",
-									opensModal: "auth-modal",
-									variant: "default",
+								children: ["customerName", "email", "priority", "notes"],
+							},
+							customerName: {
+								type: "Input",
+								props: {
+									name: "customerName",
+									label: "Customer Name",
+									required: true,
+									placeholder: "Enter customer name",
 								},
-							],
-						},
-					],
-					modals: {
-						"auth-modal": {
-							title: "Enter Credentials",
-							description: "Authenticate to continue with this workflow",
-							size: "md",
-							children: [
-								{
-									type: "input",
-									name: "apiEndpoint",
-									label: "API Endpoint",
-									placeholder: "https://api.example.com",
+							},
+							email: {
+								type: "Input",
+								props: {
+									name: "email",
+									label: "Email Address",
+									required: true,
+									placeholder: "customer@example.com",
 								},
-								{
-									type: "input",
-									name: "apiKey",
-									label: "API Key",
-									inputType: "password",
-									placeholder: "Enter your API key",
-								},
-								{
-									type: "select",
-									name: "authType",
-									label: "Authentication Type",
-									placeholder: "Select auth type",
+							},
+							priority: {
+								type: "Select",
+								props: {
+									name: "priority",
+									label: "Priority Level",
+									required: true,
 									options: [
-										{ label: "Bearer Token", value: "bearer" },
-										{ label: "API Key Header", value: "api-key" },
-										{ label: "Basic Auth", value: "basic" },
+										{ label: "Low", value: "low" },
+										{ label: "Medium", value: "medium" },
+										{ label: "High", value: "high" },
 									],
 								},
-							],
-							submitAction: "authenticate",
-							submitLabel: "Authenticate",
-							cancelLabel: "Cancel",
+							},
+							notes: {
+								type: "Input",
+								props: {
+									name: "notes",
+									label: "Additional Notes",
+									inputType: "textarea",
+									placeholder: "Any additional information...",
+								},
+							},
 						},
 					},
-					autoOpenModal: "auth-modal",
-				},
+				}),
 			},
-		});
+		];
+	} else if (content.startsWith("testcustom:")) {
+		// testcustom:<interrupt>:<base64-json> - custom UI schema from dev controls
+		// Use original (non-lowercased) message for base64 since base64 is case-sensitive
+		const rawContent = messagePayload.customer_message;
+		const parts_split = rawContent.split(":");
+		const interruptFlag = parts_split[1] === "1";
+		const base64Json = parts_split.slice(2).join(":"); // rejoin in case base64 has colons
+		let uiSchema: any;
+		try {
+			uiSchema = JSON.parse(
+				Buffer.from(base64Json, "base64").toString("utf-8"),
+			);
+		} catch {
+			return [
+				{
+					message_id: messagePayload.message_id,
+					conversation_id: messagePayload.conversation_id,
+					tenant_id: messagePayload.tenant_id,
+					user_id:
+						messagePayload.user_id ||
+						(messagePayload as any).user_guid ||
+						(messagePayload as any).userGuid,
+					response: "Error: Invalid base64 or JSON in testcustom payload",
+				},
+			];
+		}
+		const userId =
+			messagePayload.user_id ||
+			(messagePayload as any).user_guid ||
+			(messagePayload as any).userGuid;
+		return [
+			{
+				message_id: messagePayload.message_id,
+				conversation_id: messagePayload.conversation_id,
+				tenant_id: messagePayload.tenant_id,
+				user_id: userId,
+				response: JSON.stringify({
+					type: "ui_form_request",
+					user_id: userId,
+					workflow_id: "mock-workflow-custom-schema",
+					activity_id: `mock-activity-${Date.now()}`,
+					interrupt: interruptFlag,
+					conversation_id: messagePayload.conversation_id,
+					ui_schema: uiSchema,
+				}),
+			},
+		];
+	} else if (content.startsWith("testinlineform")) {
+		// testinlineform: Alternative inline form test case
+		// Note: iframe sends user_guid/userGuid instead of user_id
+		const userId =
+			messagePayload.user_id ||
+			(messagePayload as any).user_guid ||
+			(messagePayload as any).userGuid;
+		return [
+			{
+				message_id: messagePayload.message_id,
+				conversation_id: messagePayload.conversation_id,
+				tenant_id: messagePayload.tenant_id,
+				user_id: userId,
+				response: JSON.stringify({
+					type: "ui_form_request",
+					user_id: userId,
+					workflow_id: "mock-workflow-feedback",
+					activity_id: `mock-activity-${Date.now()}`,
+					interrupt: false,
+					conversation_id: messagePayload.conversation_id,
+					ui_schema: {
+						root: "form",
+						elements: {
+							form: {
+								type: "Form",
+								props: {
+									title: "Quick Feedback",
+									description: "Help us improve by providing feedback",
+									submitAction: "submit-feedback",
+									submitLabel: "Submit Feedback",
+								},
+								children: ["rating", "comment"],
+							},
+							rating: {
+								type: "Select",
+								props: {
+									name: "rating",
+									label: "How was this response?",
+									placeholder: "Select rating",
+									options: [
+										{ label: "Excellent", value: "5" },
+										{ label: "Good", value: "4" },
+										{ label: "Average", value: "3" },
+										{ label: "Below Average", value: "2" },
+										{ label: "Poor", value: "1" },
+									],
+								},
+							},
+							comment: {
+								type: "Input",
+								props: {
+									name: "comment",
+									label: "Additional Comments",
+									inputType: "textarea",
+									placeholder: "Any additional feedback?",
+								},
+							},
+						},
+					},
+				}),
+			},
+		];
 	} else {
 		// Default scenario - fall back to original logic
 		const useScenario = scenario || MOCK_CONFIG.defaultScenario;
@@ -2808,21 +2922,17 @@ app.post("/webhook", async (req, res) => {
 								],
 							};
 						} else if (verifyPayload.connection_type === "jira_itsm") {
+							// spaces as "KEY:Name" format (e.g., "IT:IT Support,HELP:Helpdesk")
 							options = {
-								projects: [
-									{ key: "IT", name: "IT Support" },
-									{ key: "HELP", name: "Helpdesk" },
-									{ key: "SRE", name: "Site Reliability" },
-								],
-								issue_types: [
-									{ id: "10001", name: "Incident" },
-									{ id: "10002", name: "Service Request" },
-									{ id: "10003", name: "Problem" },
-								],
-								statuses: [
-									{ id: "1", name: "To Do" },
-									{ id: "3", name: "In Progress" },
-									{ id: "6", name: "Done" },
+								spaces: "IT:IT Support,HELP:Helpdesk,SRE:Site Reliability",
+							};
+						} else if (verifyPayload.connection_type === "ivanti_itsm") {
+							// Ivanti ITSM connection (for ticket sync) - same structure as ServiceNow
+							options = {
+								itsm_tables: [
+									{ title: "Incidents", sys_id: "incident" },
+									{ title: "Problems", sys_id: "problem" },
+									{ title: "Service Requests", sys_id: "service_request" },
 								],
 							};
 						}
@@ -2958,8 +3068,10 @@ app.post("/webhook", async (req, res) => {
 				"Received sync_tickets webhook",
 			);
 
-			// For ServiceNow ITSM, insert actual test data into the database
+			// For ServiceNow ITSM and Ivanti ITSM, insert actual test data into the database
 			const isServiceNow = ticketsPayload.connection_type === "servicenow_itsm";
+			const isIvanti = ticketsPayload.connection_type === "ivanti_itsm";
+			const useRealData = isServiceNow || isIvanti;
 
 			// Start async data sync and progress reporting
 			(async () => {
@@ -2969,10 +3081,10 @@ app.post("/webhook", async (req, res) => {
 					let totalTickets: number;
 					let ticketsCreated = 0;
 
-					if (isServiceNow) {
-						// Insert actual data for ServiceNow ITSM
+					if (useRealData) {
+						// Insert actual data for ServiceNow/Ivanti ITSM
 						contextLogger.info(
-							"Inserting ServiceNow test data into database...",
+							`Inserting ${isServiceNow ? "ServiceNow" : "Ivanti"} test data into database...`,
 						);
 
 						// Send initial progress message
@@ -3083,7 +3195,8 @@ app.post("/webhook", async (req, res) => {
 							ingestionRunId: ticketsPayload.ingestion_run_id,
 							recordsProcessed: totalTickets,
 							ticketsCreated,
-							isServiceNow,
+							connectionType: ticketsPayload.connection_type,
+							useRealData,
 						},
 						"Published ticket_ingestion completed message",
 					);

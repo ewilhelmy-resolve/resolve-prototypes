@@ -15,7 +15,7 @@ import { ReviewView } from "./ReviewView";
 /**
  * Ticket priority level
  */
-export type TicketPriority = "low" | "medium" | "high" | "critical";
+export type TicketPriority = "low" | "medium" | "high" | "critical" | null;
 
 // Re-export types from AIResponseSection for backwards compatibility
 export type {

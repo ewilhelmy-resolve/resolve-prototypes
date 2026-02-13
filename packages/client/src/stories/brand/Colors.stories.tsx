@@ -8,7 +8,7 @@ const meta: Meta = {
 		docs: {
 			description: {
 				component:
-					"Color palette extracted from the RITA Go design system. All colors are defined as CSS custom properties in index.css and automatically adapt to light/dark modes.",
+					"Color palette extracted from the RITA design system. All colors are defined as CSS custom properties in index.css and automatically adapt to light/dark modes.",
 			},
 		},
 	},
@@ -43,7 +43,9 @@ function ColorSwatch({ name, variable, hex, description }: ColorSwatchProps) {
 					</code>
 				</div>
 				{description && (
-					<div className="text-sm text-muted-foreground mt-1">{description}</div>
+					<div className="text-sm text-muted-foreground mt-1">
+						{description}
+					</div>
 				)}
 			</div>
 		</div>
@@ -70,11 +72,13 @@ export const AllColors: Story = {
 	render: () => (
 		<div className="space-y-8 max-w-4xl">
 			<div>
-				<h1 className="text-2xl font-bold text-foreground mb-2">Color System</h1>
+				<h1 className="text-2xl font-bold text-foreground mb-2">
+					Color System
+				</h1>
 				<p className="text-muted-foreground">
-					RITA Go uses semantic color tokens that automatically adapt between
-					light and dark modes. Toggle the background in the toolbar to preview
-					dark mode.
+					RITA uses semantic color tokens that automatically adapt between light
+					and dark modes. Toggle the background in the toolbar to preview dark
+					mode.
 				</p>
 			</div>
 
@@ -217,6 +221,15 @@ export const AllColors: Story = {
 				<ColorSwatch name="Chart 4" variable="--chart-4" hex="#EAB308" />
 				<ColorSwatch name="Chart 5" variable="--chart-5" hex="#F59E0B" />
 			</ColorGroup>
+
+			<ColorGroup title="Brand Accents">
+				<ColorSwatch
+					name="RITA Teal"
+					variable="--rita-teal"
+					hex="#0EC0C0"
+					description="Brand accent color for automation indicators"
+				/>
+			</ColorGroup>
 		</div>
 	),
 };
@@ -229,13 +242,12 @@ export const BrandColors: Story = {
 
 			<div className="grid grid-cols-2 gap-4">
 				<div className="space-y-2">
-					<div
-						className="h-24 rounded-lg flex items-end p-3"
-						style={{ backgroundColor: "#0EC0C0" }}
-					>
+					<div className="h-24 rounded-lg flex items-end p-3 bg-rita-teal">
 						<span className="text-white font-medium">RITA Teal</span>
 					</div>
-					<code className="text-xs text-muted-foreground">#0EC0C0</code>
+					<code className="text-xs text-muted-foreground">
+						bg-rita-teal / #0EC0C0
+					</code>
 				</div>
 
 				<div className="space-y-2">

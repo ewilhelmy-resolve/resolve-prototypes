@@ -1,7 +1,7 @@
 /**
  * Customized Figma Components
  *
- * This directory contains RITA Go-specific customizations of
+ * This directory contains RITA-specific customizations of
  * Figma-generated components. These can be manually edited
  * to meet enterprise requirements.
  */
@@ -11,4 +11,4 @@
 // export { default as RitaHeroSection } from './RitaHeroSection'
 // export { default as RitaDashboard } from './RitaDashboard'
 
-export {}
+export {};

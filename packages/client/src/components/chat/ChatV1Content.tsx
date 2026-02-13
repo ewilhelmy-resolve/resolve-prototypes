@@ -10,8 +10,10 @@
 
 import type { ChatStatus } from "ai";
 import {
+	CheckCircle2,
 	CheckIcon,
 	CopyIcon,
+	PenLine,
 	Upload /* , PaperclipIcon */,
 } from "lucide-react";
 import { Fragment, useCallback, useEffect, useRef, useState } from "react";
@@ -40,6 +42,7 @@ import {
 } from "@/components/ai-elements/task";
 import { ChatInput } from "@/components/chat/ChatInput";
 import { Citations } from "@/components/citations";
+import { Button } from "@/components/ui/button";
 import {
 	Card,
 	CardContent,
@@ -47,6 +50,13 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@/components/ui/card";
+import {
+	Dialog,
+	DialogContent,
+	DialogDescription,
+	DialogHeader,
+	DialogTitle,
+} from "@/components/ui/dialog";
 import { ritaToast } from "@/components/ui/rita-toast";
 import { SOURCE_METADATA, SOURCES } from "@/constants/connectionSources";
 import { useUploadFile } from "@/hooks/api/useFiles";
@@ -73,7 +83,15 @@ import type {
 } from "@/stores/conversationStore";
 import { useConversationStore } from "@/stores/conversationStore";
 import type { UIActionPayload } from "@/types/uiSchema";
+import { parseSchema } from "@/types/uiSchema";
+import {
+	canAccessParentDocument,
+	extractFormFields,
+	openFormModal as hostOpenFormModal,
+	isInIframe,
+} from "@/utils/hostModal";
 import { SchemaRenderer } from "../schema-renderer";
+import { InlineFormRequest } from "../ui-form-request/InlineFormRequest";
 import { ResponseWithInlineCitations } from "./ResponseWithInlineCitations";
 
 export interface ChatV1ContentProps {
@@ -100,7 +118,7 @@ export interface ChatV1ContentProps {
 	// Refs
 	fileInputRef: RitaChatState["fileInputRef"];
 
-	// Custom UI text (from Valkey for iframe, undefined for Rita Go)
+	// Custom UI text (from Valkey for iframe, undefined for RITA)
 	/** Custom title text (e.g., "Ask Workflow Designer" instead of "Ask RITA") */
 	titleText?: string;
 	/** Custom placeholder for input (e.g., "Describe your workflow...") */
@@ -109,6 +127,14 @@ export interface ChatV1ContentProps {
 	welcomeText?: string;
 	/** Custom content for left side of input toolbar */
 	leftToolbarContent?: React.ReactNode;
+	/** Handler for inline form submission */
+	onFormSubmit?: (
+		requestId: string,
+		action: string,
+		data: Record<string, string>,
+	) => Promise<void>;
+	/** Handler for inline form cancellation */
+	onFormCancel?: (requestId: string) => Promise<void>;
 }
 
 /**
@@ -377,15 +403,127 @@ function SimpleMessage({
 	isCopied,
 	conversationId,
 	onSchemaAction,
+	onFormSubmit,
+	onFormCancel,
 }: {
 	message: SimpleChatMessage;
 	onCopy: (text: string, messageId: string) => void;
 	isCopied: boolean;
 	conversationId: string | null;
 	onSchemaAction?: (payload: any) => void;
+	onFormSubmit?: (
+		requestId: string,
+		action: string,
+		data: Record<string, string>,
+	) => Promise<void>;
+	onFormCancel?: (requestId: string) => Promise<void>;
 }) {
 	// Hover state for timestamp visibility
 	const [isHovering, setIsHovering] = useState(false);
+	// Fallback dialog state for cross-origin hosts without embed script
+	const [showFallbackDialog, setShowFallbackDialog] = useState(false);
+
+	// Check if this is a UI form request message
+	const isFormRequest = message.metadata?.type === "ui_form_request";
+	const isInterruptForm = isFormRequest && message.metadata?.interrupt;
+
+	// Trigger form modal with tiered fallback:
+	// Tier 0: same-origin → inject into host DOM
+	// Tier 1: cross-origin + embed script → host renders modal, sends ACK
+	// Tier 2: cross-origin, no embed script → in-iframe Dialog fallback
+	const triggerHostModal = useCallback(() => {
+		if (!message.metadata?.ui_schema) return;
+		const uiSchema = message.metadata.ui_schema;
+
+		const parsed = parseSchema(uiSchema);
+		if (!parsed) return;
+
+		const rootEl = parsed.elements[parsed.root];
+		if (!rootEl) return;
+
+		const title = (rootEl.props?.title as string) || "Form";
+		const description = rootEl.props?.description as string | undefined;
+		const size = ((rootEl.props?.size as string) || "md") as
+			| "sm"
+			| "md"
+			| "lg"
+			| "xl"
+			| "full";
+		const submitAction = (rootEl.props?.submitAction as string) || "submit";
+		const submitLabel = rootEl.props?.submitLabel as string | undefined;
+		const cancelLabel = rootEl.props?.cancelLabel as string | undefined;
+		const submitVariant = rootEl.props?.submitVariant as string | undefined;
+		const fields = extractFormFields(parsed.elements, parsed.root);
+
+		// Tier 0: same-origin — inject form modal into host DOM
+		if (isInIframe() && canAccessParentDocument()) {
+			hostOpenFormModal({
+				title,
+				description,
+				size,
+				fields,
+				submitLabel,
+				cancelLabel,
+				submitVariant:
+					submitVariant === "destructive" ? "destructive" : "default",
+				onSubmit: (data) => {
+					onFormSubmit?.(message.metadata!.request_id, submitAction, data);
+				},
+				onCancel: () => {
+					// Just close — don't cancel the request so user can reopen
+				},
+			});
+			return;
+		}
+
+		// Cross-origin: send postMessage + wait for ACK
+		if (isInIframe()) {
+			const payload = {
+				requestId: message.metadata.request_id,
+				messageId: message.id,
+				title,
+				description,
+				size,
+				fields,
+				submitAction,
+				submitLabel,
+				cancelLabel,
+				submitVariant,
+			};
+
+			let ackReceived = false;
+			const onAck = (evt: MessageEvent) => {
+				if (evt.data?.type === "RITA_FORM_MODAL_ACK") {
+					ackReceived = true;
+					window.removeEventListener("message", onAck);
+				}
+			};
+			window.addEventListener("message", onAck);
+
+			window.parent.postMessage({ type: "RITA_FORM_MODAL", payload }, "*");
+
+			// Tier 2 fallback: if no ACK in 300ms, open in-iframe dialog
+			setTimeout(() => {
+				window.removeEventListener("message", onAck);
+				if (!ackReceived) {
+					setShowFallbackDialog(true);
+				}
+			}, 300);
+			return;
+		}
+
+		// Not in iframe — open fallback dialog directly
+		setShowFallbackDialog(true);
+	}, [message.metadata, message.id, onFormSubmit]);
+
+	// Auto-trigger host modal once for pending interrupt forms loaded from history
+	const modalTriggered = useRef(false);
+	const isFormAnswered = message.metadata?.status === "completed";
+	useEffect(() => {
+		if (modalTriggered.current || !isInterruptForm || isFormAnswered) return;
+		modalTriggered.current = true;
+		triggerHostModal();
+	}, [isInterruptForm, isFormAnswered, triggerHostModal]);
 
 	return (
 		<Message from={message.role}>
@@ -398,9 +536,133 @@ function SimpleMessage({
 				<MessageContent
 					variant={message.role === "assistant" ? "flat" : "contained"}
 				>
-					<Response>{message.message}</Response>
-					{/* Render dynamic UI schema if present */}
-					{message.metadata?.ui_schema && conversationId && (
+					{/* Render UI form request inline (if not interrupt mode) */}
+					{isFormRequest &&
+						!isInterruptForm &&
+						message.metadata?.ui_schema &&
+						onFormSubmit && (
+							<InlineFormRequest
+								requestId={message.metadata.request_id}
+								uiSchema={message.metadata.ui_schema}
+								status={message.metadata.status || "pending"}
+								formData={message.metadata.form_data}
+								submittedAt={message.metadata.submitted_at}
+								onSubmit={onFormSubmit}
+								onCancel={onFormCancel}
+							/>
+						)}
+
+					{/* For interrupt form requests, show card with open/submitted state */}
+					{isFormRequest &&
+						isInterruptForm &&
+						(() => {
+							const _parsed = parseSchema(message.metadata?.ui_schema);
+							const _rootEl = _parsed ? _parsed.elements[_parsed.root] : null;
+							const title =
+								(_rootEl?.props?.title as string) || "Form request";
+							const description = _rootEl?.props?.description as
+								| string
+								| undefined;
+							const isCompleted = message.metadata?.status === "completed";
+
+							return (
+								<Card className="w-full max-w-lg">
+									<CardHeader className="pb-2">
+										<div className="flex items-start justify-between">
+											<div>
+												<CardTitle className="text-base">{title}</CardTitle>
+												{description && (
+													<CardDescription className="mt-1">
+														{description}
+													</CardDescription>
+												)}
+											</div>
+											{isCompleted && (
+												<CheckCircle2 className="h-5 w-5 text-green-500 flex-shrink-0" />
+											)}
+										</div>
+									</CardHeader>
+									<CardContent className="pt-0">
+										{isCompleted ? (
+											<span className="text-xs text-muted-foreground">
+												Submitted{" "}
+												{message.metadata?.submitted_at
+													? new Date(
+															message.metadata.submitted_at,
+														).toLocaleString()
+													: ""}
+											</span>
+										) : (
+											<Button
+												variant="outline"
+												size="sm"
+												onClick={triggerHostModal}
+											>
+												<PenLine className="mr-2 h-4 w-4" />
+												Open form
+											</Button>
+										)}
+									</CardContent>
+								</Card>
+							);
+						})()}
+
+					{/* Tier 2 fallback: in-iframe Dialog for interrupt forms */}
+					{isFormRequest &&
+						isInterruptForm &&
+						message.metadata?.ui_schema &&
+						onFormSubmit && (
+							<Dialog
+								open={showFallbackDialog}
+								onOpenChange={(open) => {
+									if (!open) {
+										setShowFallbackDialog(false);
+									}
+								}}
+							>
+								<DialogContent className="max-w-2xl max-h-[85vh] flex flex-col">
+									<DialogHeader>
+										<DialogTitle>
+											{(() => {
+												const _p = parseSchema(message.metadata?.ui_schema);
+												return (_p ? (_p.elements[_p.root]?.props?.title as string) : null) || "Form";
+											})()}
+										</DialogTitle>
+										<DialogDescription>
+											{(() => {
+												const _p = parseSchema(message.metadata?.ui_schema);
+												return (_p ? (_p.elements[_p.root]?.props?.description as string) : null) || "";
+											})()}
+										</DialogDescription>
+									</DialogHeader>
+									<div className="flex-1 overflow-y-auto min-h-0">
+										<InlineFormRequest
+											requestId={message.metadata.request_id}
+											uiSchema={message.metadata.ui_schema}
+											status={message.metadata.status || "pending"}
+											formData={message.metadata.form_data}
+											submittedAt={message.metadata.submitted_at}
+											onSubmit={async (reqId, action, data) => {
+												setShowFallbackDialog(false);
+												await onFormSubmit(reqId, action, data);
+											}}
+											onCancel={async (reqId) => {
+												setShowFallbackDialog(false);
+												await onFormCancel?.(reqId);
+											}}
+										/>
+									</div>
+								</DialogContent>
+							</Dialog>
+						)}
+
+					{/* Regular message content (hide raw JSON for legacy form requests) */}
+					{!isFormRequest && message.message && (
+						<Response>{message.message}</Response>
+					)}
+
+					{/* Render dynamic UI schema if present (not form request) */}
+					{!isFormRequest && message.metadata?.ui_schema && conversationId && (
 						<div className="mt-4 w-full">
 							<SchemaRenderer
 								schema={message.metadata.ui_schema}
@@ -413,7 +675,7 @@ function SimpleMessage({
 				</MessageContent>
 
 				{/* Actions and timestamp row - always show for assistant messages */}
-				{message.role === "assistant" && (
+				{message.role === "assistant" && !isFormRequest && (
 					<div className="flex items-center justify-between gap-2">
 						{/* Copy action - only show if there's text content */}
 						{hasSimpleCopyableContent(message) ? (
@@ -441,6 +703,17 @@ function SimpleMessage({
 						>
 							{formatAbsoluteTime(message.timestamp)}
 						</div>
+					</div>
+				)}
+
+				{/* Timestamp for form requests */}
+				{message.role === "assistant" && isFormRequest && (
+					<div
+						className={`text-xs text-gray-500 mt-1 transition-opacity ${
+							isHovering ? "opacity-100" : "opacity-0"
+						}`}
+					>
+						{formatAbsoluteTime(message.timestamp)}
 					</div>
 				)}
 
@@ -580,6 +853,8 @@ export default function ChatV1Content({
 	placeholderText,
 	welcomeText,
 	leftToolbarContent,
+	onFormSubmit: propsFormSubmit,
+	onFormCancel: propsFormCancel,
 }: ChatV1ContentProps) {
 	const { t } = useTranslation(["chat", "toast"]);
 	// Copy state tracking for icon feedback
@@ -861,6 +1136,88 @@ export default function ChatV1Content({
 		}
 	}, []);
 
+	// Mark a form request message as completed in the local store
+	const markFormCompleted = useCallback(
+		(requestId: string, action: string, data: Record<string, string>) => {
+			const { messages, updateMessage } = useConversationStore.getState();
+			const msg = messages.find((m) => m.metadata?.request_id === requestId);
+			if (msg) {
+				updateMessage(msg.id, {
+					metadata: {
+						...msg.metadata,
+						status: "completed",
+						form_data: data,
+						form_action: action,
+						submitted_at: new Date().toISOString(),
+					},
+				});
+			}
+		},
+		[],
+	);
+
+	// Handle form submission from inline UI form request
+	// Use props handler if provided (iframe context), otherwise use internal handler
+	const handleFormSubmit = useCallback(
+		async (
+			requestId: string,
+			action: string,
+			data: Record<string, string>,
+		): Promise<void> => {
+			console.log("[FormSubmit] Submitting form:", { requestId, action, data });
+
+			// Use props handler if provided (iframe context)
+			if (propsFormSubmit) {
+				await propsFormSubmit(requestId, action, data);
+				markFormCompleted(requestId, action, data);
+				return;
+			}
+
+			// Fallback: Send via iframeApi using form response endpoint
+			try {
+				const response = await iframeApi.submitUIFormResponse({
+					requestId,
+					action,
+					status: "submitted",
+					data,
+				});
+
+				if (response.success) {
+					markFormCompleted(requestId, action, data);
+					ritaToast.success({
+						title: "Form submitted",
+						description: action,
+					});
+				} else {
+					throw new Error(response.error || "Unknown error");
+				}
+			} catch (error) {
+				console.error("[FormSubmit] Failed:", error);
+				ritaToast.error({
+					title: "Form submission failed",
+					description: error instanceof Error ? error.message : "Network error",
+				});
+				throw error;
+			}
+		},
+		[propsFormSubmit, markFormCompleted],
+	);
+
+	// Mark a form request message as cancelled in the local store
+	// Handle form cancellation — dismiss only, don't mark as answered
+	// User can reopen the form later
+	const handleFormCancel = useCallback(
+		async (requestId: string): Promise<void> => {
+			console.log("[FormCancel] Dismissing form:", requestId);
+
+			// Use props handler if provided (iframe context)
+			if (propsFormCancel) {
+				await propsFormCancel(requestId);
+			}
+		},
+		[propsFormCancel],
+	);
+
 	// Handle direct attachment button click
 	// TODO: Uncomment when re-enabling attachment button
 	// const handleAttachmentClick = useCallback(() => {
@@ -954,6 +1311,8 @@ export default function ChatV1Content({
 													isCopied={copiedMessageId === chatMessage.id}
 													conversationId={currentConversationId}
 													onSchemaAction={handleSchemaAction}
+													onFormSubmit={handleFormSubmit}
+													onFormCancel={handleFormCancel}
 												/>
 											)}
 										</Fragment>

@@ -32,8 +32,8 @@ import type {
 	TicketSortOption,
 } from "@/types/cluster";
 import ReviewAIResponseSheet, {
-	type ReviewTicket,
 	type ReviewStats,
+	type ReviewTicket,
 } from "./ReviewAIResponseSheet";
 
 interface ClusterDetailTableProps {
@@ -160,7 +160,7 @@ export function ClusterDetailTable({
 		id: ticket.id,
 		externalId: ticket.external_id,
 		title: ticket.subject,
-		description: ticket.cluster_text || "No description provided.",
+		description: ticket.description || "No description provided.",
 		priority: "medium",
 	});
 
@@ -242,8 +242,12 @@ export function ClusterDetailTable({
 							className="w-fit"
 						>
 							<TabsList>
-								<TabsTrigger value="needs_response">{t("table.tabs.needsResponse")}</TabsTrigger>
-								<TabsTrigger value="completed">{t("table.tabs.completed")}</TabsTrigger>
+								<TabsTrigger value="needs_response">
+									{t("table.tabs.needsResponse")}
+								</TabsTrigger>
+								<TabsTrigger value="completed">
+									{t("table.tabs.completed")}
+								</TabsTrigger>
 							</TabsList>
 						</Tabs>
 					</div>

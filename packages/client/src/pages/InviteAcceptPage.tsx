@@ -295,7 +295,7 @@ export default function InviteAcceptPage() {
 							<div className="w-6 h-6 flex justify-start items-center">
 								<img
 									src="/logo-mark.svg"
-									alt="RITA Go Logo"
+									alt="RITA Logo"
 									width="24"
 									height="24"
 								/>
@@ -425,7 +425,9 @@ export default function InviteAcceptPage() {
 								{isAccepting && (
 									<Loader2 className="mr-2 h-4 w-4 animate-spin" />
 								)}
-								{isAccepting ? t("invite.creatingButton") : t("invite.acceptButton")}
+								{isAccepting
+									? t("invite.creatingButton")
+									: t("invite.acceptButton")}
 							</Button>
 						</div>
 					</div>

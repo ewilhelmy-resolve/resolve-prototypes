@@ -8,6 +8,15 @@ export const RitaStatusSchema = z
 	.enum(["NEEDS_RESPONSE", "COMPLETED"])
 	.openapi({ description: "Rita automation status" });
 
+export const TicketCustomFieldsSchema = z
+	.object({
+		is_usable: z.boolean().optional().openapi({
+			description: "Whether ticket is eligible for cluster assignment",
+		}),
+	})
+	.passthrough()
+	.openapi("TicketCustomFields");
+
 export const TicketSchema = z
 	.object({
 		id: z.string().uuid().openapi({ description: "Ticket ID" }),
@@ -31,6 +40,9 @@ export const TicketSchema = z
 			description: "Ticket subject/title",
 			example: "Password reset request",
 		}),
+		description: z.string().nullable().openapi({
+			description: "Human-readable ticket description",
+		}),
 		external_status: z.string().openapi({
 			description: "Status from ITSM system",
 			example: "Open",
@@ -41,6 +53,19 @@ export const TicketSchema = z
 		rita_status: RitaStatusSchema,
 		source_metadata: z.record(z.string(), z.any()).openapi({
 			description: "Additional metadata from source system",
+		}),
+		requester: z.string().nullable().openapi({
+			description: "Ticket requester from ITSM",
+		}),
+		assigned_to: z.string().nullable().openapi({
+			description: "Assigned agent from ITSM",
+		}),
+		priority: z.string().nullable().openapi({
+			description: "Ticket priority from ITSM",
+			example: "Medium",
+		}),
+		custom_fields: TicketCustomFieldsSchema.nullable().openapi({
+			description: "Flexible field for ingestion data (e.g., is_usable)",
 		}),
 		created_at: z.string().datetime().openapi({
 			description: "Creation timestamp",

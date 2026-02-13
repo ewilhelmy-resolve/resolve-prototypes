@@ -1,11 +1,13 @@
 {
 	"header": {
-		"description": "Rita learned from <strong>{{ticketCount}}</strong> tickets in the {{period}} <strong>across {{clusterCount}} issue types</strong>",
+		"description": "RITA learned from <strong>{{ticketCount}}</strong> tickets for <strong>{{period}}</strong>",
 		"stats": {
+			"totalTickets": "Total tickets",
 			"ticketsLast7Days": "Tickets last 7 days",
-			"handledAutomatically": "Handled Automatically",
-			"automationRate": "Automation Rate",
-			"aiHoursSaved": "AI hours saved"
+			"totalTicketsAutomated": "Total Tickets Automated",
+			"automationPercentage": "Automation %",
+			"moneySaved": "Money Saved",
+			"timeSaved": "Time Saved"
 		}
 	},
 	"page": {
@@ -18,6 +20,9 @@
 		"noGroups": "No ticket groups found",
 		"noSourceConnected": "Connect an ITSM source to start analyzing tickets",
 		"connectSource": "Connect ITSM Source",
+		"importingTickets": "Importing tickets",
+		"importingDescription": "Tickets are being imported from your ITSM source. Training will begin automatically once import completes.",
+		"importingProgress": "{{processed}} of {{total}} tickets",
 		"trainingInProgress": "Model training in progress",
 		"trainingDescription": "Ticket groups will appear when training completes. This usually takes a few minutes.",
 		"trainingFailed": "Training failed",
@@ -49,7 +54,11 @@
 	},
 	"details": {
 		"description": "Description",
-		"ticketsCount": "Tickets:"
+		"ticketsCount": "Tickets:",
+		"requester": "Requester",
+		"status": "Status",
+		"assignedTo": "Assigned to",
+		"created": "Created"
 	},
 	"review": {
 		"title": "Review AI response",
@@ -124,13 +133,15 @@
 			"ready": "Ready",
 			"partial": "Partial",
 			"low": "Low",
-			"notReady": "Not ready"
+			"notReady": "Not ready",
+			"comingSoon": "Coming soon!"
 		},
 		"descriptions": {
 			"ready": "Reviewed responses consistently met expectations.",
 			"partial": "Based on reviewed responses, some replies still need improvement before automation is recommended.",
 			"low": "Based on reviewed responses, several replies need clearer or more complete knowledge",
-			"notReady": "Automation can't be recommended yet because no knowledge exists for this cluster."
+			"notReady": "Automation can't be recommended yet because no knowledge exists for this cluster.",
+			"comingSoon": "Evaluates whether a ticket cluster is ready for safe automation based on volume, consistency, and validation signals."
 		},
 		"recommendations": {
 			"createKnowledge": "Create knowledge to enable automation",
@@ -244,6 +255,7 @@
 	},
 	"readiness": {
 		"title": "Automation readiness is",
+		"titleComingSoon": "Automation Confidence Meter",
 		"tooltip": "Automation readiness is calculated based on the percentage of reviewed responses that met expectations.",
 		"recommendation": "Recommendation",
 		"reviewedOf": "Based on {{reviewed}} of {{total}} responses reviewed",
@@ -257,5 +269,22 @@
 	"knowledge": {
 		"failedToLoad": "Failed to load KB articles",
 		"noArticles": "No knowledge articles linked"
+	},
+	"ticketSettings": {
+		"title": "Ticket settings",
+		"description": "Customize dashboard metrics",
+		"savingsSection": "How should we calculate savings?",
+		"timeSavedSection": "How should we calculate time saved?",
+		"costPerTicket": "Cost per ticket",
+		"costHelper": "Used to calculate total money saved from automated tickets.",
+		"avgTimePerTicket": "Average time per ticket",
+		"timeHelper": "Used to calculate total time saved from automated tickets.",
+		"timeUnit": {
+			"minutes": "Minutes"
+		},
+		"validation": {
+			"costMustBePositive": "Cost must be greater than zero",
+			"timeMustBePositive": "Time must be greater than zero"
+		}
 	}
 }

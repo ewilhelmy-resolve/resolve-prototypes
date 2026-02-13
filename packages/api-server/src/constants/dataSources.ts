@@ -11,6 +11,7 @@ export const ALLOWED_DATA_SOURCE_TYPES = [
 	"websearch",
 	"jira_itsm",
 	"freshdesk",
+	"ivanti_itsm",
 ] as const;
 
 export type DataSourceType = (typeof ALLOWED_DATA_SOURCE_TYPES)[number];
@@ -60,5 +61,10 @@ export const DEFAULT_DATA_SOURCES = [
 		type: "freshdesk" as DataSourceType,
 		name: "Freshdesk",
 		description: "Import tickets from Freshdesk for Autopilot clustering",
+	},
+	{
+		type: "ivanti_itsm" as DataSourceType,
+		name: "Ivanti",
+		description: "Import tickets from Ivanti for Autopilot clustering",
 	},
 ] as const;

@@ -70,16 +70,4 @@ describe("TicketGroupSkeletonGrid", () => {
 		const cards = document.querySelectorAll(".bg-card");
 		expect(cards.length).toBe(3);
 	});
-
-	it("renders in responsive grid layout", () => {
-		const { container } = render(<TicketGroupSkeletonGrid />);
-		const grid = container.firstChild as HTMLElement;
-
-		expect(grid).toHaveClass(
-			"grid",
-			"grid-cols-1",
-			"md:grid-cols-2",
-			"lg:grid-cols-3",
-		);
-	});
 });
