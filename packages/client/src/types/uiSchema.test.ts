@@ -2,7 +2,10 @@ import { describe, expect, it } from "vitest";
 import {
 	type ConditionalProps,
 	evaluateCondition,
+	normalizeSchema,
 	type UISchema,
+	type UISchemaV2,
+	UISchemaV2Validator,
 	validateUISchema,
 } from "./uiSchema";
 
@@ -382,5 +385,185 @@ describe("validateUISchema", () => {
 		};
 		const result = validateUISchema(schema);
 		expect(result.valid).toBe(false);
+	});
+});
+
+describe("UISchemaV2Validator", () => {
+	it("validates a V2 schema with root element", () => {
+		const schema: UISchemaV2 = {
+			root: {
+				type: "Text",
+				props: { content: "Hello" },
+			},
+		};
+		const result = UISchemaV2Validator.safeParse(schema);
+		expect(result.success).toBe(true);
+	});
+
+	it("validates V2 schema with nested children", () => {
+		const schema: UISchemaV2 = {
+			root: {
+				type: "Column",
+				children: [
+					{ type: "Text", props: { content: "Hello" } },
+					{ type: "Button", props: { label: "Click", action: "click" } },
+				],
+			},
+		};
+		const result = UISchemaV2Validator.safeParse(schema);
+		expect(result.success).toBe(true);
+	});
+
+	it("validates V2 schema with dialogs", () => {
+		const schema: UISchemaV2 = {
+			root: {
+				type: "Button",
+				props: { label: "Open", opensDialog: "my-dialog" },
+			},
+			dialogs: {
+				"my-dialog": {
+					type: "Form",
+					props: { title: "Edit", submitAction: "save" },
+					children: [{ type: "Input", props: { name: "name", label: "Name" } }],
+				},
+			},
+			autoOpenDialog: "my-dialog",
+		};
+		const result = UISchemaV2Validator.safeParse(schema);
+		expect(result.success).toBe(true);
+	});
+
+	it("rejects schema without root", () => {
+		const result = UISchemaV2Validator.safeParse({ dialogs: {} });
+		expect(result.success).toBe(false);
+	});
+});
+
+describe("normalizeSchema", () => {
+	it("returns null for null/undefined input", () => {
+		expect(normalizeSchema(null)).toBeNull();
+		expect(normalizeSchema(undefined)).toBeNull();
+	});
+
+	it("passes through valid V2 schema", () => {
+		const v2: UISchemaV2 = {
+			root: { type: "Text", props: { content: "Hi" } },
+		};
+		const result = normalizeSchema(v2);
+		expect(result).not.toBeNull();
+		expect(result!.root.type).toBe("Text");
+		expect(result!.root.props?.content).toBe("Hi");
+	});
+
+	it("converts V1 components format to V2", () => {
+		const v1 = {
+			version: "1",
+			components: [
+				{ type: "text", content: "Hello", variant: "heading" },
+				{ type: "button", label: "Click", action: "click" },
+			],
+		};
+		const result = normalizeSchema(v1);
+		expect(result).not.toBeNull();
+		expect(result!.root.type).toBe("Column");
+		expect(result!.root.children).toHaveLength(2);
+		expect(result!.root.children![0].type).toBe("Text");
+		expect(result!.root.children![0].props?.content).toBe("Hello");
+		expect(result!.root.children![1].type).toBe("Button");
+		expect(result!.root.children![1].props?.label).toBe("Click");
+	});
+
+	it("converts V1 modals format to V2 Form root", () => {
+		const v1 = {
+			version: "1",
+			modals: {
+				"my-form": {
+					title: "My Form",
+					description: "Fill it out",
+					submitAction: "save",
+					submitLabel: "Save",
+					children: [
+						{ type: "input", name: "name", label: "Name" },
+						{
+							type: "select",
+							name: "opt",
+							label: "Option",
+							options: [{ label: "A", value: "a" }],
+						},
+					],
+				},
+			},
+		};
+		const result = normalizeSchema(v1);
+		expect(result).not.toBeNull();
+		expect(result!.root.type).toBe("Form");
+		expect(result!.root.props?.title).toBe("My Form");
+		expect(result!.root.props?.description).toBe("Fill it out");
+		expect(result!.root.props?.submitAction).toBe("save");
+		expect(result!.root.children).toHaveLength(2);
+		expect(result!.root.children![0].type).toBe("Input");
+		expect(result!.root.children![1].type).toBe("Select");
+	});
+
+	it("maps divider to Separator", () => {
+		const v1 = {
+			version: "1",
+			components: [{ type: "divider" }],
+		};
+		const result = normalizeSchema(v1);
+		// Single component → becomes root directly (no Column wrapper)
+		expect(result!.root.type).toBe("Separator");
+	});
+
+	it("maps textarea type to Input with inputType", () => {
+		const v1 = {
+			version: "1",
+			components: [{ type: "textarea", name: "notes", label: "Notes" }],
+		};
+		const result = normalizeSchema(v1);
+		// Single component → becomes root directly
+		expect(result!.root.type).toBe("Input");
+		expect(result!.root.props?.inputType).toBe("textarea");
+	});
+
+	it("converts modals to dialogs and opensModal to opensDialog", () => {
+		const v1 = {
+			version: "1",
+			components: [{ type: "button", label: "Edit", opensModal: "edit-form" }],
+			modals: {
+				"edit-form": {
+					title: "Edit",
+					children: [{ type: "text", content: "Form" }],
+				},
+			},
+		};
+		const result = normalizeSchema(v1);
+		// Single component → becomes root directly
+		expect(result!.root.props?.opensDialog).toBe("edit-form");
+		expect(result!.dialogs).toBeDefined();
+		expect(result!.dialogs!["edit-form"]).toBeDefined();
+	});
+
+	it("handles text with name field as Input", () => {
+		const v1 = {
+			version: "1",
+			modals: {
+				form: {
+					title: "Form",
+					submitAction: "save",
+					children: [
+						{
+							type: "text",
+							name: "username",
+							label: "Username",
+							placeholder: "Enter name",
+						},
+					],
+				},
+			},
+		};
+		const result = normalizeSchema(v1);
+		expect(result!.root.children![0].type).toBe("Input");
+		expect(result!.root.children![0].props?.name).toBe("username");
 	});
 });

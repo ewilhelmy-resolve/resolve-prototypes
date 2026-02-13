@@ -664,6 +664,58 @@ export interface FormModalField {
 	defaultValue?: string;
 }
 
+/**
+ * Walk a V2 UIElement tree and extract form fields (Input/Select) as FormModalField[]
+ */
+export function extractFormFields(element: {
+	type: string;
+	props?: Record<string, unknown>;
+	children?: unknown[];
+}): FormModalField[] {
+	const fields: FormModalField[] = [];
+	const props = element.props || {};
+
+	if (element.type === "Input") {
+		fields.push({
+			type: (props.inputType as string) === "textarea" ? "textarea" : "input",
+			name: (props.name as string) || "",
+			label: props.label as string | undefined,
+			placeholder: props.placeholder as string | undefined,
+			inputType: props.inputType as string | undefined,
+			defaultValue: props.defaultValue as string | undefined,
+		});
+	} else if (element.type === "Select") {
+		fields.push({
+			type: "select",
+			name: (props.name as string) || "",
+			label: props.label as string | undefined,
+			placeholder: props.placeholder as string | undefined,
+			options: props.options as
+				| Array<{ label: string; value: string }>
+				| undefined,
+			defaultValue: props.defaultValue as string | undefined,
+		});
+	}
+
+	if (Array.isArray(element.children)) {
+		for (const child of element.children) {
+			if (child && typeof child === "object") {
+				fields.push(
+					...extractFormFields(
+						child as {
+							type: string;
+							props?: Record<string, unknown>;
+							children?: unknown[];
+						},
+					),
+				);
+			}
+		}
+	}
+
+	return fields;
+}
+
 export interface FormModalConfig {
 	title: string;
 	description?: string;

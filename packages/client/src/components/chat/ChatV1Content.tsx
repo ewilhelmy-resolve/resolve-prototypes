@@ -83,8 +83,10 @@ import type {
 } from "@/stores/conversationStore";
 import { useConversationStore } from "@/stores/conversationStore";
 import type { UIActionPayload } from "@/types/uiSchema";
+import { normalizeSchema } from "@/types/uiSchema";
 import {
 	canAccessParentDocument,
+	extractFormFields,
 	openFormModal as hostOpenFormModal,
 	isInIframe,
 } from "@/utils/hostModal";
@@ -432,39 +434,39 @@ function SimpleMessage({
 	const triggerHostModal = useCallback(() => {
 		if (!message.metadata?.ui_schema) return;
 		const uiSchema = message.metadata.ui_schema;
-		const modalEntries = Object.entries(uiSchema?.modals || {});
-		if (modalEntries.length === 0) return;
 
-		const [, modal] = modalEntries[0] as [string, any];
-		const fields = (modal.children ?? modal.fields ?? [])
-			.filter((child: any) => child.name)
-			.map((child: any) => ({
-				name: child.name,
-				label: child.label,
-				type: child.type,
-				inputType: child.inputType,
-				placeholder: child.placeholder,
-				defaultValue: child.defaultValue,
-				options: child.options,
-				required: child.required,
-			}));
+		// Normalize to V2 and extract fields
+		const normalized = normalizeSchema(uiSchema);
+		if (!normalized) return;
+
+		const root = normalized.root;
+		const title = (root.props?.title as string) || "Form";
+		const description = root.props?.description as string | undefined;
+		const size = ((root.props?.size as string) || "md") as
+			| "sm"
+			| "md"
+			| "lg"
+			| "xl"
+			| "full";
+		const submitAction = (root.props?.submitAction as string) || "submit";
+		const submitLabel = root.props?.submitLabel as string | undefined;
+		const cancelLabel = root.props?.cancelLabel as string | undefined;
+		const submitVariant = root.props?.submitVariant as string | undefined;
+		const fields = extractFormFields(root);
 
 		// Tier 0: same-origin — inject form modal into host DOM
 		if (isInIframe() && canAccessParentDocument()) {
 			hostOpenFormModal({
-				title: modal.title,
-				description: modal.description,
-				size: modal.size || "md",
+				title,
+				description,
+				size,
 				fields,
-				submitLabel: modal.submitLabel,
-				cancelLabel: modal.cancelLabel,
-				submitVariant: modal.submitVariant,
+				submitLabel,
+				cancelLabel,
+				submitVariant:
+					submitVariant === "destructive" ? "destructive" : "default",
 				onSubmit: (data) => {
-					onFormSubmit?.(
-						message.metadata!.request_id,
-						modal.submitAction || "submit",
-						data,
-					);
+					onFormSubmit?.(message.metadata!.request_id, submitAction, data);
 				},
 				onCancel: () => {
 					// Just close — don't cancel the request so user can reopen
@@ -478,14 +480,14 @@ function SimpleMessage({
 			const payload = {
 				requestId: message.metadata.request_id,
 				messageId: message.id,
-				title: modal.title,
-				description: modal.description,
-				size: modal.size || "md",
+				title,
+				description,
+				size,
 				fields,
-				submitAction: modal.submitAction,
-				submitLabel: modal.submitLabel,
-				cancelLabel: modal.cancelLabel,
-				submitVariant: modal.submitVariant,
+				submitAction,
+				submitLabel,
+				cancelLabel,
+				submitVariant,
 			};
 
 			let ackReceived = false;
@@ -515,7 +517,9 @@ function SimpleMessage({
 
 	// Auto-trigger host modal once for pending interrupt forms loaded from history
 	const modalTriggered = useRef(false);
-	const isFormAnswered = message.metadata?.status === "completed" || message.metadata?.status === "cancelled";
+	const isFormAnswered =
+		message.metadata?.status === "completed" ||
+		message.metadata?.status === "cancelled";
 	useEffect(() => {
 		if (modalTriggered.current || !isInterruptForm || isFormAnswered) return;
 		modalTriggered.current = true;
@@ -553,22 +557,25 @@ function SimpleMessage({
 					{isFormRequest &&
 						isInterruptForm &&
 						(() => {
-							const schema = message.metadata?.ui_schema;
-							const entries = Object.entries(schema?.modals || {});
-							const modal = entries.length > 0 ? (entries[0][1] as any) : null;
-							const isCompleted = message.metadata?.status === "completed" || message.metadata?.status === "cancelled";
+							const normalized = normalizeSchema(message.metadata?.ui_schema);
+							const title =
+								(normalized?.root.props?.title as string) || "Form request";
+							const description = normalized?.root.props?.description as
+								| string
+								| undefined;
+							const isCompleted =
+								message.metadata?.status === "completed" ||
+								message.metadata?.status === "cancelled";
 
 							return (
 								<Card className="w-full max-w-lg">
 									<CardHeader className="pb-2">
 										<div className="flex items-start justify-between">
 											<div>
-												<CardTitle className="text-base">
-													{modal?.title || "Form request"}
-												</CardTitle>
-												{modal?.description && (
+												<CardTitle className="text-base">{title}</CardTitle>
+												{description && (
 													<CardDescription className="mt-1">
-														{modal.description}
+														{description}
 													</CardDescription>
 												)}
 											</div>
@@ -618,24 +625,12 @@ function SimpleMessage({
 								<DialogContent className="max-w-2xl max-h-[85vh] flex flex-col">
 									<DialogHeader>
 										<DialogTitle>
-											{(() => {
-												const entries = Object.entries(
-													message.metadata?.ui_schema?.modals || {},
-												);
-												return entries.length > 0
-													? (entries[0][1] as any).title || "Form"
-													: "Form";
-											})()}
+											{(normalizeSchema(message.metadata?.ui_schema)?.root.props
+												?.title as string) || "Form"}
 										</DialogTitle>
 										<DialogDescription>
-											{(() => {
-												const entries = Object.entries(
-													message.metadata?.ui_schema?.modals || {},
-												);
-												return entries.length > 0
-													? (entries[0][1] as any).description || ""
-													: "";
-											})()}
+											{(normalizeSchema(message.metadata?.ui_schema)?.root.props
+												?.description as string) || ""}
 										</DialogDescription>
 									</DialogHeader>
 									<div className="flex-1 overflow-y-auto min-h-0">
@@ -659,7 +654,7 @@ function SimpleMessage({
 							</Dialog>
 						)}
 
-					{/* Regular message content */}
+					{/* Regular message content (hide raw JSON for legacy form requests) */}
 					{!isFormRequest && message.message && (
 						<Response>{message.message}</Response>
 					)}
@@ -1143,9 +1138,7 @@ export default function ChatV1Content({
 	const markFormCompleted = useCallback(
 		(requestId: string, action: string, data: Record<string, string>) => {
 			const { messages, updateMessage } = useConversationStore.getState();
-			const msg = messages.find(
-				(m) => m.metadata?.request_id === requestId,
-			);
+			const msg = messages.find((m) => m.metadata?.request_id === requestId);
 			if (msg) {
 				updateMessage(msg.id, {
 					metadata: {
@@ -1211,9 +1204,7 @@ export default function ChatV1Content({
 	// Mark a form request message as cancelled in the local store
 	const markFormCancelled = useCallback((requestId: string) => {
 		const { messages, updateMessage } = useConversationStore.getState();
-		const msg = messages.find(
-			(m) => m.metadata?.request_id === requestId,
-		);
+		const msg = messages.find((m) => m.metadata?.request_id === requestId);
 		if (msg) {
 			updateMessage(msg.id, {
 				metadata: {

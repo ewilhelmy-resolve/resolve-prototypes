@@ -23,6 +23,7 @@ import type {
 	ButtonComponent,
 	CardComponent,
 	ColumnComponent,
+	ConditionalProps,
 	DiagramComponent,
 	DividerComponent,
 	FormComponent,
@@ -35,9 +36,15 @@ import type {
 	TextComponent,
 	UIActionPayload,
 	UIComponent,
+	UIElement,
 	UISchema,
+	UISchemaV2,
 } from "../../types/uiSchema";
-import { evaluateCondition, validateUISchema } from "../../types/uiSchema";
+import {
+	evaluateCondition,
+	normalizeSchema,
+	validateUISchema,
+} from "../../types/uiSchema";
 import {
 	type FormModalField,
 	isInIframe,
@@ -157,10 +164,17 @@ function SchemaErrorFallback({
 // ============================================================================
 
 interface SchemaRendererProps {
-	schema: UISchema;
+	/** Accepts V1 UISchema, V2 UISchemaV2, or any raw schema object */
+	schema: UISchema | UISchemaV2 | Record<string, unknown>;
 	messageId: string;
 	conversationId: string;
 	onAction?: (payload: UIActionPayload) => void;
+	disabled?: boolean;
+}
+
+/** Helper: extract a prop value from UIElement.props */
+function p<T = unknown>(el: UIElement, key: string, fallback?: T): T {
+	return ((el.props?.[key] as T) ?? fallback) as T;
 }
 
 export function SchemaRenderer({
@@ -168,12 +182,13 @@ export function SchemaRenderer({
 	messageId,
 	conversationId,
 	onAction,
+	disabled = false,
 }: SchemaRendererProps) {
 	const [formData, setFormData] = useState<Record<string, string>>({});
 	const [modalFormData, setModalFormData] = useState<Record<string, string>>(
 		{},
 	);
-	const [openModalId, setOpenModalId] = useState<string | null>(null);
+	const [openDialogId, setOpenDialogId] = useState<string | null>(null);
 	const [actionLog, setActionLog] = useState<
 		Array<{ action: string; data: Record<string, unknown>; timestamp: string }>
 	>([]);
@@ -185,12 +200,25 @@ export function SchemaRenderer({
 		modalTitle: string;
 	} | null>(null);
 
-	// Track auto-open modal (ref defined early to satisfy hook rules)
+	// Track auto-open dialog (ref defined early to satisfy hook rules)
 	const autoOpenedRef = useRef<string | null>(null);
-	const handleOpenModalRef = useRef<
-		| ((modalId: string, options?: { preventBackdropClose?: boolean }) => void)
+	const handleOpenDialogRef = useRef<
+		| ((dialogId: string, options?: { preventBackdropClose?: boolean }) => void)
 		| null
 	>(null);
+
+	// Normalize schema to V2 (memoized via ref to avoid re-normalizing every render)
+	const normalizedRef = useRef<{ input: unknown; output: UISchemaV2 | null }>({
+		input: undefined,
+		output: null,
+	});
+	if (normalizedRef.current.input !== schema) {
+		normalizedRef.current = {
+			input: schema,
+			output: normalizeSchema(schema),
+		};
+	}
+	const normalized = normalizedRef.current.output;
 
 	// Listen for form modal submissions from host (cross-origin)
 	useEffect(() => {
@@ -235,48 +263,37 @@ export function SchemaRenderer({
 		return () => window.removeEventListener("message", handleMessage);
 	}, [messageId, conversationId, onAction]);
 
-	// Auto-open modal if specified in schema (for forced credential prompts, etc.)
-	// Effect defined before early return to satisfy hook rules; uses ref to access handleOpenModal
-	// Uses setTimeout to ensure handleOpenModalRef is populated from current render
+	// Auto-open dialog if specified in schema
 	useEffect(() => {
-		const modalId = schema?.autoOpenModal;
-		console.log("[SchemaRenderer] Auto-open effect:", {
-			modalId,
-			alreadyOpened: autoOpenedRef.current,
-			hasHandler: !!handleOpenModalRef.current,
-		});
-		if (!modalId || autoOpenedRef.current === modalId) return;
+		const dialogId = normalized?.autoOpenDialog;
+		if (!dialogId || autoOpenedRef.current === dialogId) return;
 
-		// Use setTimeout to run after current render completes and ref is populated
 		const timer = setTimeout(() => {
-			console.log("[SchemaRenderer] Auto-open timeout fired:", {
-				modalId,
-				alreadyOpened: autoOpenedRef.current,
-				hasHandler: !!handleOpenModalRef.current,
-			});
-			if (handleOpenModalRef.current && autoOpenedRef.current !== modalId) {
-				console.log("[SchemaRenderer] Calling handleOpenModal for:", modalId);
-				autoOpenedRef.current = modalId;
-				// Auto-opened modals prevent backdrop close (forced mode)
-				handleOpenModalRef.current(modalId, { preventBackdropClose: true });
+			if (handleOpenDialogRef.current && autoOpenedRef.current !== dialogId) {
+				autoOpenedRef.current = dialogId;
+				handleOpenDialogRef.current(dialogId, { preventBackdropClose: true });
 			}
 		}, 100);
 		return () => clearTimeout(timer);
-	}, [schema?.autoOpenModal]);
+	}, [normalized?.autoOpenDialog]);
 
-	// Validate schema (JAR-81)
-	const validation = validateUISchema(schema);
-	if (!validation.valid) {
-		const errorMessages = validation.errors?.issues.map(
-			(issue) => `${String(issue.path.join("."))}: ${issue.message}`,
-		);
-		return (
-			<SchemaErrorFallback
-				title="Invalid Schema"
-				message="The UI schema failed validation"
-				details={errorMessages}
-			/>
-		);
+	// Early return if normalization fails
+	if (!normalized) {
+		// Try legacy validation for better error messages
+		const validation = validateUISchema(schema);
+		if (!validation.valid) {
+			const errorMessages = validation.errors?.issues.map(
+				(issue) => `${String(issue.path.join("."))}: ${issue.message}`,
+			);
+			return (
+				<SchemaErrorFallback
+					title="Invalid Schema"
+					message="The UI schema failed validation"
+					details={errorMessages}
+				/>
+			);
+		}
+		return null;
 	}
 
 	const handleAction = (action: string, data?: Record<string, unknown>) => {
@@ -297,81 +314,89 @@ export function SchemaRenderer({
 		setModalFormData((prev) => ({ ...prev, [name]: value }));
 	};
 
-	const handleOpenModal = (
-		modalId: string,
+	/** Extract FormModalField[] from a V2 UIElement tree for host modal */
+	const extractFieldsFromElement = (el: UIElement): FormModalField[] => {
+		const fields: FormModalField[] = [];
+		if (el.type === "Input") {
+			fields.push({
+				type: p<string>(el, "inputType") === "textarea" ? "textarea" : "input",
+				name: p<string>(el, "name", ""),
+				label: p<string>(el, "label"),
+				placeholder: p<string>(el, "placeholder"),
+				inputType: p<string>(el, "inputType"),
+				defaultValue: p<string>(el, "defaultValue"),
+			});
+		} else if (el.type === "Select") {
+			fields.push({
+				type: "select",
+				name: p<string>(el, "name", ""),
+				label: p<string>(el, "label"),
+				placeholder: p<string>(el, "placeholder"),
+				options: p<Array<{ label: string; value: string }>>(el, "options"),
+				defaultValue: p<string>(el, "defaultValue"),
+			});
+		}
+		if (el.children) {
+			for (const child of el.children) {
+				fields.push(...extractFieldsFromElement(child));
+			}
+		}
+		return fields;
+	};
+
+	const handleOpenDialog = (
+		dialogId: string,
 		options?: { preventBackdropClose?: boolean },
 	) => {
-		console.log("[SchemaRenderer] handleOpenModal called:", {
-			modalId,
-			hasModals: !!schema.modals,
-			modalIds: schema.modals ? Object.keys(schema.modals) : [],
-			isInIframe: isInIframe(),
-			preventBackdropClose: options?.preventBackdropClose,
-		});
-		const modal = schema.modals?.[modalId];
-		if (!modal) {
-			console.log("[SchemaRenderer] Modal not found:", modalId);
-			return;
-		}
+		const dialog = normalized.dialogs?.[dialogId];
+		if (!dialog) return;
+
+		const title = p<string>(dialog, "title", "");
+		const description = p<string>(dialog, "description");
+		const size = p<string>(dialog, "size", "full") as
+			| "sm"
+			| "md"
+			| "lg"
+			| "xl"
+			| "full";
+		const submitAction = p<string>(dialog, "submitAction");
+		const submitLabel = p<string>(dialog, "submitLabel");
+		const cancelLabel = p<string>(dialog, "cancelLabel");
+		const submitVariant = p<string>(dialog, "submitVariant");
 
 		// In iframe context, open modal in host page
 		if (isInIframe()) {
-			const fields: FormModalField[] = [];
-			for (const c of modal.children) {
-				if (c.type === "input") {
-					fields.push({
-						type: c.inputType === "textarea" ? "textarea" : "input",
-						name: c.name,
-						label: c.label,
-						placeholder: c.placeholder,
-						inputType: c.inputType,
-						defaultValue: c.defaultValue,
-					});
-				} else if (c.type === "select") {
-					fields.push({
-						type: "select",
-						name: c.name,
-						label: c.label,
-						placeholder: c.placeholder,
-						options: c.options,
-						defaultValue: c.defaultValue,
-					});
-				}
-			}
+			const fields = extractFieldsFromElement(dialog);
 
-			// Set pending ref for cross-origin postMessage handling
-			if (modal.submitAction) {
+			if (submitAction) {
 				pendingModalSubmitRef.current = {
-					action: modal.submitAction,
-					modalTitle: modal.title,
+					action: submitAction,
+					modalTitle: title,
 				};
 			}
 
 			openFormModal({
-				title: modal.title,
-				description: modal.description,
-				size: modal.size || "full",
+				title,
+				description,
+				size,
 				fields,
-				submitLabel: modal.submitLabel,
-				cancelLabel: modal.cancelLabel,
+				submitLabel,
+				cancelLabel,
 				submitVariant:
-					modal.submitVariant === "destructive" ? "destructive" : "default",
+					submitVariant === "destructive" ? "destructive" : "default",
 				preventBackdropClose: options?.preventBackdropClose,
 				onSubmit: (data) => {
-					// Same-origin: callback is called directly
 					pendingModalSubmitRef.current = null;
-
-					if (modal.submitAction) {
+					if (submitAction) {
 						const logEntry = {
-							action: modal.submitAction,
+							action: submitAction,
 							data: data as Record<string, unknown>,
 							timestamp: new Date().toISOString(),
 						};
 						setActionLog((prev) => [logEntry, ...prev]);
-						handleAction(modal.submitAction, data);
-
-						toast.success(`${modal.title} saved`, {
-							description: `Action: ${modal.submitAction}`,
+						handleAction(submitAction, data);
+						toast.success(`${title} saved`, {
+							description: `Action: ${submitAction}`,
 							action: {
 								label: "View Log",
 								onClick: () => setShowLogPanel(true),
@@ -387,19 +412,19 @@ export function SchemaRenderer({
 		}
 
 		// Not in iframe - use inline Dialog
-		setModalFormData({}); // Reset modal form data
-		setOpenModalId(modalId);
+		setModalFormData({});
+		setOpenDialogId(dialogId);
 	};
 
-	// Populate ref for auto-open effect (after handleOpenModal is defined)
-	handleOpenModalRef.current = handleOpenModal;
+	// Populate ref for auto-open effect
+	handleOpenDialogRef.current = handleOpenDialog;
 
-	const handleCloseModal = () => {
-		setOpenModalId(null);
+	const handleCloseDialog = () => {
+		setOpenDialogId(null);
 		setModalFormData({});
 	};
 
-	const handleModalSubmit = (action: string, modalTitle: string) => {
+	const handleDialogSubmit = (action: string, dialogTitle: string) => {
 		const logEntry = {
 			action,
 			data: modalFormData as Record<string, unknown>,
@@ -407,9 +432,9 @@ export function SchemaRenderer({
 		};
 		setActionLog((prev) => [logEntry, ...prev]);
 		handleAction(action, modalFormData);
-		handleCloseModal();
+		handleCloseDialog();
 
-		toast.success(`${modalTitle} saved`, {
+		toast.success(`${dialogTitle} saved`, {
 			description: `Action: ${action}`,
 			action: {
 				label: "View Log",
@@ -418,196 +443,294 @@ export function SchemaRenderer({
 		});
 	};
 
-	const renderComponent = (
-		component: UIComponent,
+	/** Render a V2 UIElement tree */
+	const renderElement = (
+		element: UIElement,
 		index: number,
+		context: Record<string, string> = formData,
+		onInputChange: (name: string, value: string) => void = handleInputChange,
 	): React.ReactNode => {
 		// Check conditional rendering
-		if (!evaluateCondition(component.if, formData)) {
-			return null;
-		}
+		const condIf = element.props?.if as ConditionalProps | undefined;
+		if (condIf && !evaluateCondition(condIf, context)) return null;
 
-		const key = component.id || `${component.type}-${index}`;
+		const key = p<string>(element, "id") || `${element.type}-${index}`;
 
-		switch (component.type) {
-			case "text":
-				return <TextRenderer key={key} component={component} />;
-
-			case "stat":
-				return <StatRenderer key={key} component={component} />;
-
-			case "input":
+		switch (element.type) {
+			case "Text":
+				return (
+					<TextRenderer
+						key={key}
+						component={{
+							type: "text",
+							content: p<string>(element, "content", ""),
+							variant: p(element, "variant"),
+							className: p<string>(element, "className"),
+						}}
+					/>
+				);
+			case "Stat":
+				return (
+					<StatRenderer
+						key={key}
+						component={{
+							type: "stat",
+							label: p<string>(element, "label", ""),
+							value: p<string | number>(element, "value", ""),
+							change: p<string>(element, "change"),
+							changeType: p(element, "changeType"),
+							className: p<string>(element, "className"),
+						}}
+					/>
+				);
+			case "Input":
 				return (
 					<InputRenderer
 						key={key}
-						component={component}
-						value={formData[component.name] || ""}
-						onChange={(value) => handleInputChange(component.name, value)}
+						component={{
+							type: "input",
+							name: p<string>(element, "name", ""),
+							label: p<string>(element, "label"),
+							placeholder: p<string>(element, "placeholder"),
+							inputType: p(element, "inputType"),
+							required: p<boolean>(element, "required"),
+							className: p<string>(element, "className"),
+						}}
+						value={
+							context[p<string>(element, "name", "")] ||
+							p<string>(element, "defaultValue", "")
+						}
+						onChange={(value) =>
+							onInputChange(p<string>(element, "name", ""), value)
+						}
+						disabled={disabled}
 					/>
 				);
-
-			case "select":
+			case "Select":
 				return (
 					<SelectRenderer
 						key={key}
-						component={component}
-						value={formData[component.name] || ""}
-						onChange={(value) => handleInputChange(component.name, value)}
+						component={{
+							type: "select",
+							name: p<string>(element, "name", ""),
+							label: p<string>(element, "label"),
+							placeholder: p<string>(element, "placeholder"),
+							options: p<Array<{ label: string; value: string }>>(
+								element,
+								"options",
+								[],
+							),
+							required: p<boolean>(element, "required"),
+							className: p<string>(element, "className"),
+						}}
+						value={
+							context[p<string>(element, "name", "")] ||
+							p<string>(element, "defaultValue", "")
+						}
+						onChange={(value) =>
+							onInputChange(p<string>(element, "name", ""), value)
+						}
+						disabled={disabled}
 					/>
 				);
-
-			case "button":
+			case "Button":
 				return (
 					<ButtonRenderer
 						key={key}
-						component={component}
+						component={{
+							type: "button",
+							label: p<string>(element, "label", ""),
+							variant: p(element, "variant"),
+							disabled: disabled || p<boolean>(element, "disabled"),
+							className: p<string>(element, "className"),
+						}}
 						onClick={() => {
-							if (component.opensModal) {
-								handleOpenModal(component.opensModal);
-							} else if (component.action) {
-								handleAction(component.action);
+							const opensDialog = p<string>(element, "opensDialog");
+							const action = p<string>(element, "action");
+							if (opensDialog) {
+								handleOpenDialog(opensDialog);
+							} else if (action) {
+								handleAction(action);
 							}
 						}}
 					/>
 				);
-
-			case "card":
+			case "Card":
 				return (
-					<CardRenderer key={key} component={component}>
-						{component.children.map((child, i) => renderComponent(child, i))}
+					<CardRenderer
+						key={key}
+						component={{
+							type: "card",
+							title: p<string>(element, "title"),
+							description: p<string>(element, "description"),
+							className: p<string>(element, "className"),
+							children: [] as UIComponent[],
+						}}
+					>
+						{(element.children || []).map((child, i) =>
+							renderElement(child, i, context, onInputChange),
+						)}
 					</CardRenderer>
 				);
-
-			case "row":
+			case "Row":
 				return (
-					<RowRenderer key={key} component={component}>
-						{component.children.map((child, i) => renderComponent(child, i))}
+					<RowRenderer
+						key={key}
+						component={{
+							type: "row",
+							gap: p<number>(element, "gap"),
+							className: p<string>(element, "className"),
+							children: [] as UIComponent[],
+						}}
+					>
+						{(element.children || []).map((child, i) =>
+							renderElement(child, i, context, onInputChange),
+						)}
 					</RowRenderer>
 				);
-
-			case "column":
+			case "Column":
 				return (
-					<ColumnRenderer key={key} component={component}>
-						{component.children.map((child, i) => renderComponent(child, i))}
+					<ColumnRenderer
+						key={key}
+						component={{
+							type: "column",
+							gap: p<number>(element, "gap"),
+							className: p<string>(element, "className"),
+							children: [] as UIComponent[],
+						}}
+					>
+						{(element.children || []).map((child, i) =>
+							renderElement(child, i, context, onInputChange),
+						)}
 					</ColumnRenderer>
 				);
-
-			case "form":
+			case "Form": {
+				const submitAction = p<string>(element, "submitAction", "");
 				return (
 					<FormRenderer
 						key={key}
-						component={component}
-						onSubmit={() => handleAction(component.submitAction, formData)}
+						component={{
+							type: "form",
+							submitAction,
+							submitLabel: p<string>(element, "submitLabel"),
+							className: p<string>(element, "className"),
+							children: [] as UIComponent[],
+						}}
+						onSubmit={() => handleAction(submitAction, formData)}
 					>
-						{component.children.map((child, i) => renderComponent(child, i))}
+						{(element.children || []).map((child, i) =>
+							renderElement(child, i, context, onInputChange),
+						)}
 					</FormRenderer>
 				);
-
-			case "table":
-				return <TableRenderer key={key} component={component} />;
-
-			case "diagram":
+			}
+			case "Table":
+				return (
+					<TableRenderer
+						key={key}
+						component={{
+							type: "table",
+							columns: p<Array<{ key: string; label: string }>>(
+								element,
+								"columns",
+								[],
+							),
+							rows: p<Array<Record<string, string | number>>>(
+								element,
+								"rows",
+								[],
+							),
+							className: p<string>(element, "className"),
+						}}
+					/>
+				);
+			case "Diagram":
 				return (
 					<DiagramRenderer
 						key={key}
-						component={component as DiagramComponent}
+						component={{
+							type: "diagram",
+							code: p<string>(element, "code", ""),
+							title: p<string>(element, "title"),
+							expandable: p<boolean>(element, "expandable"),
+							className: p<string>(element, "className"),
+						}}
 					/>
 				);
-
-			case "divider":
+			case "Separator":
 				return (
 					<DividerRenderer
 						key={key}
-						component={component as DividerComponent}
+						component={{
+							type: "divider",
+							spacing: p(element, "spacing"),
+							className: p<string>(element, "className"),
+						}}
 					/>
 				);
-
 			default:
 				return (
 					<div key={key} className="text-sm text-muted-foreground">
-						Unknown component type: {(component as UIComponent).type}
+						Unknown component type: {element.type}
 					</div>
 				);
 		}
 	};
 
-	// Render modal content components
-	const renderModalComponent = (
-		component: UIComponent,
-		index: number,
-	): React.ReactNode => {
-		if (!evaluateCondition(component.if, modalFormData)) {
-			return null;
-		}
+	// Get current open dialog definition
+	const currentDialog =
+		openDialogId && normalized.dialogs
+			? normalized.dialogs[openDialogId]
+			: null;
 
-		const key = component.id || `modal-${component.type}-${index}`;
-
-		switch (component.type) {
-			case "text":
-				return <TextRenderer key={key} component={component} />;
-			case "input":
-				return (
-					<InputRenderer
-						key={key}
-						component={component}
-						value={modalFormData[component.name] || ""}
-						onChange={(value) => handleModalInputChange(component.name, value)}
-					/>
-				);
-			case "select":
-				return (
-					<SelectRenderer
-						key={key}
-						component={component}
-						value={modalFormData[component.name] || ""}
-						onChange={(value) => handleModalInputChange(component.name, value)}
-					/>
-				);
-			case "row":
-				return (
-					<RowRenderer key={key} component={component}>
-						{component.children.map((child, i) =>
-							renderModalComponent(child, i),
-						)}
-					</RowRenderer>
-				);
-			case "column":
-				return (
-					<ColumnRenderer key={key} component={component}>
-						{component.children.map((child, i) =>
-							renderModalComponent(child, i),
-						)}
-					</ColumnRenderer>
-				);
-			default:
-				return renderComponent(component, index);
-		}
-	};
-
-	// Get current open modal definition
-	const currentModal =
-		openModalId && schema.modals ? schema.modals[openModalId] : null;
-
-	if (!schema?.components?.length) {
+	// Check if root has content to render
+	const root = normalized.root;
+	if (!root) return null;
+	// Column wrapper with no children = empty schema
+	if (
+		root.type === "Column" &&
+		(!root.children || root.children.length === 0)
+	) {
 		return null;
 	}
 
 	return (
 		<SchemaErrorBoundary>
 			<div className="schema-renderer space-y-3 w-full overflow-hidden">
-				{schema.components.map((component, index) =>
-					renderComponent(component, index),
-				)}
+				{root.type === "Column" && root.children
+					? root.children.map((child, i) => renderElement(child, i))
+					: renderElement(root, 0)}
 			</div>
 
-			{/* Modal rendering */}
-			{currentModal && (
+			{/* Dialog rendering */}
+			{currentDialog && (
 				<ModalRenderer
-					modal={currentModal}
-					open={!!openModalId}
-					onClose={handleCloseModal}
-					onSubmit={handleModalSubmit}
-					renderComponent={renderModalComponent}
+					modal={{
+						title: p<string>(currentDialog, "title", ""),
+						description: p<string>(currentDialog, "description"),
+						size: p(currentDialog, "size", "full"),
+						children: [] as UIComponent[],
+						submitAction: p<string>(currentDialog, "submitAction"),
+						submitLabel: p<string>(currentDialog, "submitLabel"),
+						cancelLabel: p<string>(currentDialog, "cancelLabel"),
+						submitVariant: p(currentDialog, "submitVariant"),
+					}}
+					open={!!openDialogId}
+					onClose={handleCloseDialog}
+					onSubmit={handleDialogSubmit}
+					renderComponent={(_comp, index) => {
+						const children = currentDialog.children || [];
+						if (index < children.length) {
+							return renderElement(
+								children[index],
+								index,
+								modalFormData,
+								handleModalInputChange,
+							);
+						}
+						return null;
+					}}
+					dialogChildren={currentDialog.children}
 				/>
 			)}
 
@@ -693,9 +816,7 @@ function TextRenderer({ component }: { component: TextComponent }) {
 					h4: ({ children }) => (
 						<h4 className="text-sm font-semibold mb-1">{children}</h4>
 					),
-					p: ({ children }) => (
-						<p className="mb-1 last:mb-0">{children}</p>
-					),
+					p: ({ children }) => <p className="mb-1 last:mb-0">{children}</p>,
 					table: ({ children }) => (
 						<table className="w-full text-sm border-collapse my-2">
 							{children}
@@ -760,10 +881,12 @@ function InputRenderer({
 	component,
 	value,
 	onChange,
+	disabled,
 }: {
 	component: InputComponent;
 	value: string;
 	onChange: (value: string) => void;
+	disabled?: boolean;
 }) {
 	const InputEl = component.inputType === "textarea" ? Textarea : Input;
 	return (
@@ -779,6 +902,7 @@ function InputRenderer({
 				value={value}
 				onChange={(e) => onChange(e.target.value)}
 				required={component.required}
+				disabled={disabled}
 			/>
 		</div>
 	);
@@ -788,15 +912,17 @@ function SelectRenderer({
 	component,
 	value,
 	onChange,
+	disabled,
 }: {
 	component: SelectComponent;
 	value: string;
 	onChange: (value: string) => void;
+	disabled?: boolean;
 }) {
 	return (
 		<div className={`space-y-1.5 ${component.className || ""}`}>
 			{component.label && <Label>{component.label}</Label>}
-			<Select value={value} onValueChange={onChange}>
+			<Select value={value} onValueChange={onChange} disabled={disabled}>
 				<SelectTrigger>
 					<SelectValue placeholder={component.placeholder || "Select..."} />
 				</SelectTrigger>
@@ -982,14 +1108,22 @@ function ModalRenderer({
 	onClose,
 	onSubmit,
 	renderComponent,
+	dialogChildren,
 }: {
 	modal: ModalDefinition;
 	open: boolean;
 	onClose: () => void;
 	onSubmit: (action: string, title: string) => void;
 	renderComponent: (component: UIComponent, index: number) => React.ReactNode;
+	/** V2 dialog children (UIElement[]) — used instead of modal.children when present */
+	dialogChildren?: UIElement[];
 }) {
 	const sizeClass = modalSizeClasses[modal.size || "full"];
+
+	// Use V2 dialogChildren if provided, otherwise fall back to modal.children
+	const childCount = dialogChildren
+		? dialogChildren.length
+		: modal.children.length;
 
 	return (
 		<Dialog open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
@@ -1005,7 +1139,11 @@ function ModalRenderer({
 				</DialogHeader>
 
 				<div className="flex-1 overflow-y-auto space-y-4 py-4">
-					{modal.children.map((child, index) => renderComponent(child, index))}
+					{Array.from({ length: childCount }, (_, index) =>
+						dialogChildren
+							? renderComponent({} as UIComponent, index)
+							: renderComponent(modal.children[index], index),
+					)}
 				</div>
 
 				<DialogFooter>

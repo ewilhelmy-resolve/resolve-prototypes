@@ -92,270 +92,361 @@ function IframeClearChat({ onClear }: { onClear: () => void }) {
 	);
 }
 
-// Example schemas for demo
+// Example schemas for demo (V2 format)
 const DEMO_SCHEMAS: Record<string, { name: string; schema: any }> = {
 	simple: {
 		name: "Simple (text + button)",
 		schema: {
-			version: "1",
-			components: [
-				{ type: "text", content: "Hello from Platform!", variant: "heading" },
-				{
-					type: "text",
-					content: "This UI was rendered from JSON schema sent via RabbitMQ.",
-					variant: "muted",
-				},
-				{ type: "button", label: "Acknowledge", action: "acknowledge_clicked" },
-			],
+			root: {
+				type: "Column",
+				children: [
+					{
+						type: "Text",
+						props: { content: "Hello from Platform!", variant: "heading" },
+					},
+					{
+						type: "Text",
+						props: {
+							content:
+								"This UI was rendered from JSON schema sent via RabbitMQ.",
+							variant: "muted",
+						},
+					},
+					{
+						type: "Button",
+						props: { label: "Acknowledge", action: "acknowledge_clicked" },
+					},
+				],
+			},
 		},
 	},
 	form: {
 		name: "Form (workflow config)",
 		schema: {
-			version: "1",
-			components: [
-				{
-					type: "text",
-					content: "Configure Workflow Trigger",
-					variant: "heading",
-				},
-				{
-					type: "card",
-					title: "Trigger Settings",
-					children: [
-						{
-							type: "form",
-							submitAction: "save_trigger_config",
-							submitLabel: "Save Configuration",
-							children: [
-								{
-									type: "input",
-									name: "workflowName",
-									label: "Workflow Name",
-									placeholder: "My Automation",
-									required: true,
-								},
-								{
-									type: "select",
-									name: "triggerEvent",
-									label: "Trigger Event",
-									options: [
-										{ label: "On Ticket Created", value: "ticket_created" },
-										{ label: "On SLA Breach", value: "sla_breach" },
-										{ label: "On Status Change", value: "status_change" },
-									],
-								},
-								{
-									type: "input",
-									name: "filter",
-									label: "Filter Condition",
-									placeholder: "priority = 'high'",
-									inputType: "textarea",
-								},
-							],
+			root: {
+				type: "Column",
+				children: [
+					{
+						type: "Text",
+						props: {
+							content: "Configure Workflow Trigger",
+							variant: "heading",
 						},
-					],
-				},
-			],
+					},
+					{
+						type: "Card",
+						props: { title: "Trigger Settings" },
+						children: [
+							{
+								type: "Form",
+								props: {
+									submitAction: "save_trigger_config",
+									submitLabel: "Save Configuration",
+								},
+								children: [
+									{
+										type: "Input",
+										props: {
+											name: "workflowName",
+											label: "Workflow Name",
+											placeholder: "My Automation",
+											required: true,
+										},
+									},
+									{
+										type: "Select",
+										props: {
+											name: "triggerEvent",
+											label: "Trigger Event",
+											options: [
+												{ label: "On Ticket Created", value: "ticket_created" },
+												{ label: "On SLA Breach", value: "sla_breach" },
+												{ label: "On Status Change", value: "status_change" },
+											],
+										},
+									},
+									{
+										type: "Input",
+										props: {
+											name: "filter",
+											label: "Filter Condition",
+											placeholder: "priority = 'high'",
+											inputType: "textarea",
+										},
+									},
+								],
+							},
+						],
+					},
+				],
+			},
 		},
 	},
 	date: {
 		name: "Date (select fields)",
 		schema: {
-			version: "1",
-			components: [
-				{ type: "text", content: "Select a Date", variant: "heading" },
-				{
-					type: "text",
-					content: "Choose month, day, and year.",
-					variant: "muted",
-				},
-				{
-					type: "card",
-					title: "Date Selection",
-					children: [
-						{
-							type: "form",
-							submitAction: "submit_date",
-							submitLabel: "Confirm Date",
-							children: [
-								{
-									type: "row",
-									gap: 12,
-									children: [
-										{
-											type: "select",
-											name: "month",
-											label: "Month",
-											options: [
-												{ label: "January", value: "01" },
-												{ label: "February", value: "02" },
-												{ label: "March", value: "03" },
-												{ label: "April", value: "04" },
-												{ label: "May", value: "05" },
-												{ label: "June", value: "06" },
-												{ label: "July", value: "07" },
-												{ label: "August", value: "08" },
-												{ label: "September", value: "09" },
-												{ label: "October", value: "10" },
-												{ label: "November", value: "11" },
-												{ label: "December", value: "12" },
-											],
-										},
-										{
-											type: "select",
-											name: "day",
-											label: "Day",
-											options: Array.from({ length: 31 }, (_, i) => ({
-												label: String(i + 1),
-												value: String(i + 1).padStart(2, "0"),
-											})),
-										},
-										{
-											type: "select",
-											name: "year",
-											label: "Year",
-											options: Array.from({ length: 100 }, (_, i) => {
-												const year = new Date().getFullYear() - i;
-												return { label: String(year), value: String(year) };
-											}),
-										},
-									],
-								},
-							],
+			root: {
+				type: "Column",
+				children: [
+					{
+						type: "Text",
+						props: { content: "Select a Date", variant: "heading" },
+					},
+					{
+						type: "Text",
+						props: {
+							content: "Choose month, day, and year.",
+							variant: "muted",
 						},
-					],
-				},
-			],
+					},
+					{
+						type: "Card",
+						props: { title: "Date Selection" },
+						children: [
+							{
+								type: "Form",
+								props: {
+									submitAction: "submit_date",
+									submitLabel: "Confirm Date",
+								},
+								children: [
+									{
+										type: "Row",
+										props: { gap: 12 },
+										children: [
+											{
+												type: "Select",
+												props: {
+													name: "month",
+													label: "Month",
+													options: [
+														{ label: "January", value: "01" },
+														{ label: "February", value: "02" },
+														{ label: "March", value: "03" },
+														{ label: "April", value: "04" },
+														{ label: "May", value: "05" },
+														{ label: "June", value: "06" },
+														{ label: "July", value: "07" },
+														{ label: "August", value: "08" },
+														{ label: "September", value: "09" },
+														{ label: "October", value: "10" },
+														{ label: "November", value: "11" },
+														{ label: "December", value: "12" },
+													],
+												},
+											},
+											{
+												type: "Select",
+												props: {
+													name: "day",
+													label: "Day",
+													options: Array.from({ length: 31 }, (_, i) => ({
+														label: String(i + 1),
+														value: String(i + 1).padStart(2, "0"),
+													})),
+												},
+											},
+											{
+												type: "Select",
+												props: {
+													name: "year",
+													label: "Year",
+													options: Array.from({ length: 100 }, (_, i) => {
+														const year = new Date().getFullYear() - i;
+														return { label: String(year), value: String(year) };
+													}),
+												},
+											},
+										],
+									},
+								],
+							},
+						],
+					},
+				],
+			},
 		},
 	},
 	dashboard: {
 		name: "Dashboard (stats + table)",
 		schema: {
-			version: "1",
-			components: [
-				{ type: "text", content: "Activity Summary", variant: "heading" },
-				{
-					type: "row",
-					gap: 12,
-					children: [
-						{
-							type: "stat",
-							label: "Total Tickets",
-							value: "1,234",
-							change: "+12%",
-							changeType: "positive",
-						},
-						{
-							type: "stat",
-							label: "Open Issues",
-							value: "42",
-							change: "-5%",
-							changeType: "negative",
-						},
-						{
-							type: "stat",
-							label: "Avg Response",
-							value: "2.4h",
-							changeType: "neutral",
-						},
-					],
-				},
-				{
-					type: "card",
-					title: "Recent Tickets",
-					children: [
-						{
-							type: "table",
-							columns: [
-								{ key: "id", label: "ID" },
-								{ key: "title", label: "Title" },
-								{ key: "status", label: "Status" },
-							],
-							rows: [
-								{ id: "TKT-001", title: "Login issue", status: "Open" },
-								{ id: "TKT-002", title: "Payment failed", status: "Pending" },
-								{ id: "TKT-003", title: "Reset password", status: "Closed" },
-							],
-						},
-					],
-				},
-			],
+			root: {
+				type: "Column",
+				children: [
+					{
+						type: "Text",
+						props: { content: "Activity Summary", variant: "heading" },
+					},
+					{
+						type: "Row",
+						props: { gap: 12 },
+						children: [
+							{
+								type: "Stat",
+								props: {
+									label: "Total Tickets",
+									value: "1,234",
+									change: "+12%",
+									changeType: "positive",
+								},
+							},
+							{
+								type: "Stat",
+								props: {
+									label: "Open Issues",
+									value: "42",
+									change: "-5%",
+									changeType: "negative",
+								},
+							},
+							{
+								type: "Stat",
+								props: {
+									label: "Avg Response",
+									value: "2.4h",
+									changeType: "neutral",
+								},
+							},
+						],
+					},
+					{
+						type: "Card",
+						props: { title: "Recent Tickets" },
+						children: [
+							{
+								type: "Table",
+								props: {
+									columns: [
+										{ key: "id", label: "ID" },
+										{ key: "title", label: "Title" },
+										{ key: "status", label: "Status" },
+									],
+									rows: [
+										{ id: "TKT-001", title: "Login issue", status: "Open" },
+										{
+											id: "TKT-002",
+											title: "Payment failed",
+											status: "Pending",
+										},
+										{
+											id: "TKT-003",
+											title: "Reset password",
+											status: "Closed",
+										},
+									],
+								},
+							},
+						],
+					},
+				],
+			},
 		},
 	},
 	codereview: {
 		name: "Code Review (diff)",
 		schema: {
-			version: "1",
-			components: [
-				{ type: "text", content: "Code Review Request", variant: "heading" },
-				{
-					type: "text",
-					content: "PR #142: Fix authentication bug",
-					variant: "subheading",
-				},
-				{
-					type: "card",
-					title: "src/auth/login.ts",
-					description: "+4 -1 lines changed",
-					children: [
-						{
-							type: "text",
-							content: "function validateSession(token) {",
-							variant: "diff-context",
+			root: {
+				type: "Column",
+				children: [
+					{
+						type: "Text",
+						props: { content: "Code Review Request", variant: "heading" },
+					},
+					{
+						type: "Text",
+						props: {
+							content: "PR #142: Fix authentication bug",
+							variant: "subheading",
 						},
-						{
-							type: "text",
-							content: "-  return redirect('/dashboard');",
-							variant: "diff-remove",
+					},
+					{
+						type: "Card",
+						props: {
+							title: "src/auth/login.ts",
+							description: "+4 -1 lines changed",
 						},
-						{ type: "text", content: "+  if (!token) {", variant: "diff-add" },
-						{
-							type: "text",
-							content: "+    return redirect('/login');",
-							variant: "diff-add",
-						},
-						{ type: "text", content: "+  }", variant: "diff-add" },
-						{
-							type: "text",
-							content: "+  return redirect('/dashboard');",
-							variant: "diff-add",
-						},
-						{ type: "text", content: "}", variant: "diff-context" },
-					],
-				},
-				{
-					type: "row",
-					gap: 8,
-					children: [
-						{
-							type: "button",
-							label: "Approve",
-							action: "approve_pr",
-							variant: "default",
-						},
-						{
-							type: "button",
-							label: "Request Changes",
-							action: "request_changes",
-							variant: "outline",
-						},
-					],
-				},
-			],
+						children: [
+							{
+								type: "Text",
+								props: {
+									content: "function validateSession(token) {",
+									variant: "diff-context",
+								},
+							},
+							{
+								type: "Text",
+								props: {
+									content: "-  return redirect('/dashboard');",
+									variant: "diff-remove",
+								},
+							},
+							{
+								type: "Text",
+								props: { content: "+  if (!token) {", variant: "diff-add" },
+							},
+							{
+								type: "Text",
+								props: {
+									content: "+    return redirect('/login');",
+									variant: "diff-add",
+								},
+							},
+							{ type: "Text", props: { content: "+  }", variant: "diff-add" } },
+							{
+								type: "Text",
+								props: {
+									content: "+  return redirect('/dashboard');",
+									variant: "diff-add",
+								},
+							},
+							{
+								type: "Text",
+								props: { content: "}", variant: "diff-context" },
+							},
+						],
+					},
+					{
+						type: "Row",
+						props: { gap: 8 },
+						children: [
+							{
+								type: "Button",
+								props: {
+									label: "Approve",
+									action: "approve_pr",
+									variant: "default",
+								},
+							},
+							{
+								type: "Button",
+								props: {
+									label: "Request Changes",
+									action: "request_changes",
+									variant: "outline",
+								},
+							},
+						],
+					},
+				],
+			},
 		},
 	},
 	diagram: {
 		name: "Diagram (Mermaid)",
 		schema: {
-			version: "1",
-			components: [
-				{ type: "text", content: "Workflow Flow", variant: "heading" },
-				{
-					type: "diagram",
-					title: "User Authentication Flow",
-					expandable: true,
-					code: `flowchart TD
+			root: {
+				type: "Column",
+				children: [
+					{
+						type: "Text",
+						props: { content: "Workflow Flow", variant: "heading" },
+					},
+					{
+						type: "Diagram",
+						props: {
+							title: "User Authentication Flow",
+							expandable: true,
+							code: `flowchart TD
     A[User Request] --> B{Has Token?}
     B -->|Yes| C[Validate Token]
     B -->|No| D[Redirect to Login]
@@ -369,8 +460,10 @@ const DEMO_SCHEMAS: Record<string, { name: string; schema: any }> = {
     I -->|No| K[Show Error]
     J --> E
     K --> G`,
-				},
-			],
+						},
+					},
+				],
+			},
 		},
 	},
 };
@@ -408,67 +501,93 @@ function MockPlatformPanel({
 	const [customJson, setCustomJson] = useState(
 		JSON.stringify(
 			{
-				version: "1",
-				components: [
-					{ type: "text", content: "Code Review Request", variant: "heading" },
-					{
-						type: "text",
-						content: "PR #142: Fix authentication bug",
-						variant: "subheading",
-					},
-					{
-						type: "card",
-						title: "src/auth/login.ts",
-						description: "+4 -1 lines changed",
-						children: [
-							{
-								type: "text",
-								content: "function validateSession(token) {",
-								variant: "diff-context",
+				root: {
+					type: "Column",
+					children: [
+						{
+							type: "Text",
+							props: { content: "Code Review Request", variant: "heading" },
+						},
+						{
+							type: "Text",
+							props: {
+								content: "PR #142: Fix authentication bug",
+								variant: "subheading",
 							},
-							{
-								type: "text",
-								content: "-  return redirect('/dashboard');",
-								variant: "diff-remove",
+						},
+						{
+							type: "Card",
+							props: {
+								title: "src/auth/login.ts",
+								description: "+4 -1 lines changed",
 							},
-							{
-								type: "text",
-								content: "+  if (!token) {",
-								variant: "diff-add",
-							},
-							{
-								type: "text",
-								content: "+    return redirect('/login');",
-								variant: "diff-add",
-							},
-							{ type: "text", content: "+  }", variant: "diff-add" },
-							{
-								type: "text",
-								content: "+  return redirect('/dashboard');",
-								variant: "diff-add",
-							},
-							{ type: "text", content: "}", variant: "diff-context" },
-						],
-					},
-					{
-						type: "row",
-						gap: 8,
-						children: [
-							{
-								type: "button",
-								label: "Approve",
-								action: "approve_pr",
-								variant: "default",
-							},
-							{
-								type: "button",
-								label: "Request Changes",
-								action: "request_changes",
-								variant: "outline",
-							},
-						],
-					},
-				],
+							children: [
+								{
+									type: "Text",
+									props: {
+										content: "function validateSession(token) {",
+										variant: "diff-context",
+									},
+								},
+								{
+									type: "Text",
+									props: {
+										content: "-  return redirect('/dashboard');",
+										variant: "diff-remove",
+									},
+								},
+								{
+									type: "Text",
+									props: { content: "+  if (!token) {", variant: "diff-add" },
+								},
+								{
+									type: "Text",
+									props: {
+										content: "+    return redirect('/login');",
+										variant: "diff-add",
+									},
+								},
+								{
+									type: "Text",
+									props: { content: "+  }", variant: "diff-add" },
+								},
+								{
+									type: "Text",
+									props: {
+										content: "+  return redirect('/dashboard');",
+										variant: "diff-add",
+									},
+								},
+								{
+									type: "Text",
+									props: { content: "}", variant: "diff-context" },
+								},
+							],
+						},
+						{
+							type: "Row",
+							props: { gap: 8 },
+							children: [
+								{
+									type: "Button",
+									props: {
+										label: "Approve",
+										action: "approve_pr",
+										variant: "default",
+									},
+								},
+								{
+									type: "Button",
+									props: {
+										label: "Request Changes",
+										action: "request_changes",
+										variant: "outline",
+									},
+								},
+							],
+						},
+					],
+				},
 			},
 			null,
 			2,
@@ -1380,11 +1499,20 @@ export default function IframeChatPage() {
 					data: msg.data,
 				});
 				// Update local store to mark form as completed
-				const { messages: storeMessages, updateMessage: storeUpdate } = useConversationStore.getState();
-				const formMsg = storeMessages.find((m) => m.metadata?.request_id === msg.requestId);
+				const { messages: storeMessages, updateMessage: storeUpdate } =
+					useConversationStore.getState();
+				const formMsg = storeMessages.find(
+					(m) => m.metadata?.request_id === msg.requestId,
+				);
 				if (formMsg) {
 					storeUpdate(formMsg.id, {
-						metadata: { ...formMsg.metadata, status: "completed", form_data: msg.data, form_action: msg.action, submitted_at: new Date().toISOString() },
+						metadata: {
+							...formMsg.metadata,
+							status: "completed",
+							form_data: msg.data,
+							form_action: msg.action,
+							submitted_at: new Date().toISOString(),
+						},
 					});
 				}
 			} else if (msg.type === "FORM_MODAL_CANCELLED" && msg.requestId) {
@@ -1396,11 +1524,18 @@ export default function IframeChatPage() {
 					status: "cancelled",
 				});
 				// Update local store to mark form as cancelled
-				const { messages: cancelMessages, updateMessage: cancelUpdate } = useConversationStore.getState();
-				const cancelMsg = cancelMessages.find((m) => m.metadata?.request_id === msg.requestId);
+				const { messages: cancelMessages, updateMessage: cancelUpdate } =
+					useConversationStore.getState();
+				const cancelMsg = cancelMessages.find(
+					(m) => m.metadata?.request_id === msg.requestId,
+				);
 				if (cancelMsg) {
 					cancelUpdate(cancelMsg.id, {
-						metadata: { ...cancelMsg.metadata, status: "cancelled", submitted_at: new Date().toISOString() },
+						metadata: {
+							...cancelMsg.metadata,
+							status: "cancelled",
+							submitted_at: new Date().toISOString(),
+						},
 					});
 				}
 			}

@@ -380,6 +380,213 @@ export interface UIActionPayload {
 }
 
 // ============================================================================
+// V2 Schema Types (json-render.dev nested format)
+// ============================================================================
+
+/** Single element in the V2 tree */
+export interface UIElement {
+	type: string;
+	props?: Record<string, unknown>;
+	children?: UIElement[];
+}
+
+/** V2 root schema */
+export interface UISchemaV2 {
+	root: UIElement;
+	dialogs?: Record<string, UIElement>;
+	autoOpenDialog?: string;
+}
+
+// ============================================================================
+// V2 Zod Validators
+// ============================================================================
+
+const UIElementSchema: z.ZodType<UIElement> = z.lazy(() =>
+	z.object({
+		type: z.string(),
+		props: z.record(z.string(), z.unknown()).optional(),
+		children: z.array(UIElementSchema).optional(),
+	}),
+);
+
+export const UISchemaV2Validator = z.object({
+	root: UIElementSchema,
+	dialogs: z.record(z.string(), UIElementSchema).optional(),
+	autoOpenDialog: z.string().optional(),
+});
+
+// ============================================================================
+// Schema Normalizer (V1 → V2)
+// ============================================================================
+
+/** Map lowercase V1 type → PascalCase V2 type */
+const TYPE_MAP: Record<string, string> = {
+	text: "Text",
+	stat: "Stat",
+	input: "Input",
+	select: "Select",
+	button: "Button",
+	card: "Card",
+	row: "Row",
+	column: "Column",
+	form: "Form",
+	table: "Table",
+	diagram: "Diagram",
+	divider: "Separator",
+	textarea: "Input",
+};
+
+/** Convert a V1 component to a V2 UIElement */
+function convertComponent(comp: Record<string, unknown>): UIElement {
+	const { type: rawType, id, className, children: rawChildren, ...rest } = comp;
+	const typeStr = String(rawType || "");
+
+	// Handle "text" with name → Input (InlineFormRequest quirk)
+	if (typeStr === "text" && rest.name) {
+		const props: Record<string, unknown> = { ...rest };
+		if (id) props.id = id;
+		if (className) props.className = className;
+		props.inputType = props.inputType || "text";
+		return { type: "Input", props };
+	}
+
+	// Handle "textarea" → Input with inputType
+	if (typeStr === "textarea") {
+		const props: Record<string, unknown> = { ...rest };
+		if (id) props.id = id;
+		if (className) props.className = className;
+		props.inputType = "textarea";
+		return { type: "Input", props };
+	}
+
+	const mappedType = TYPE_MAP[typeStr] || typeStr;
+	const props: Record<string, unknown> = { ...rest };
+	if (id) props.id = id;
+	if (className) props.className = className;
+
+	// Rename opensModal → opensDialog
+	if (props.opensModal !== undefined) {
+		props.opensDialog = props.opensModal;
+		delete props.opensModal;
+	}
+
+	const element: UIElement = { type: mappedType, props };
+
+	// Convert children recursively
+	if (Array.isArray(rawChildren)) {
+		element.children = rawChildren.map((c: unknown) =>
+			convertComponent(c as Record<string, unknown>),
+		);
+	}
+
+	return element;
+}
+
+/** Convert a V1 ModalDefinition to a V2 UIElement (Form root) */
+function convertModal(modal: Record<string, unknown>): UIElement {
+	const {
+		title,
+		description,
+		size,
+		children: rawChildren,
+		fields: rawFields,
+		submitAction,
+		submitLabel,
+		cancelLabel,
+		submitVariant,
+	} = modal;
+
+	const childArr = (rawChildren ?? rawFields ?? []) as Record<
+		string,
+		unknown
+	>[];
+	const convertedChildren = childArr.map((c) => convertComponent(c));
+
+	const props: Record<string, unknown> = {};
+	if (title !== undefined) props.title = title;
+	if (description !== undefined) props.description = description;
+	if (size !== undefined) props.size = size;
+	if (submitAction !== undefined) props.submitAction = submitAction;
+	if (submitLabel !== undefined) props.submitLabel = submitLabel;
+	if (cancelLabel !== undefined) props.cancelLabel = cancelLabel;
+	if (submitVariant !== undefined) props.submitVariant = submitVariant;
+
+	return { type: "Form", props, children: convertedChildren };
+}
+
+/**
+ * Normalize any known schema format into UISchemaV2.
+ * - V2 (has `root`) → validate & return
+ * - Format 1 (has `components` array) → wrap in Column root
+ * - Format 2 (has `modals` only) → take first modal, build Form root
+ * - Returns null if unrecognizable
+ */
+export function normalizeSchema(raw: unknown): UISchemaV2 | null {
+	if (!raw || typeof raw !== "object") return null;
+	const obj = raw as Record<string, unknown>;
+
+	// Already V2 format
+	if (obj.root && typeof obj.root === "object") {
+		const parsed = UISchemaV2Validator.safeParse(obj);
+		if (parsed.success) return parsed.data;
+		// If V2 shape but validation fails, try to use as-is
+		return obj as unknown as UISchemaV2;
+	}
+
+	// Format 1: { components: [...], modals?: {...}, autoOpenModal?: string }
+	if (Array.isArray(obj.components)) {
+		const components = obj.components as Record<string, unknown>[];
+		const convertedComponents = components.map((c) => convertComponent(c));
+
+		const root: UIElement =
+			convertedComponents.length === 1
+				? convertedComponents[0]
+				: { type: "Column", children: convertedComponents };
+
+		const result: UISchemaV2 = { root };
+
+		// Convert modals → dialogs
+		if (obj.modals && typeof obj.modals === "object") {
+			const modals = obj.modals as Record<string, Record<string, unknown>>;
+			result.dialogs = {};
+			for (const [id, modal] of Object.entries(modals)) {
+				result.dialogs[id] = convertModal(modal);
+			}
+		}
+
+		// Map autoOpenModal → autoOpenDialog
+		if (obj.autoOpenModal) {
+			result.autoOpenDialog = String(obj.autoOpenModal);
+		}
+
+		return result;
+	}
+
+	// Format 2: { modals: {...} } only (no components)
+	if (obj.modals && typeof obj.modals === "object" && !obj.components) {
+		const modals = obj.modals as Record<string, Record<string, unknown>>;
+		const entries = Object.entries(modals);
+		if (entries.length === 0) return null;
+
+		const [, firstModal] = entries[0];
+		const root = convertModal(firstModal);
+
+		// If there are more modals, add them as dialogs
+		const result: UISchemaV2 = { root };
+		if (entries.length > 1) {
+			result.dialogs = {};
+			for (const [id, modal] of entries.slice(1)) {
+				result.dialogs[id] = convertModal(modal);
+			}
+		}
+
+		return result;
+	}
+
+	return null;
+}
+
+// ============================================================================
 // Conditional Rendering Helper
 // ============================================================================
 

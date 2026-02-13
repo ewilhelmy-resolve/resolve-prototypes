@@ -21,7 +21,7 @@ describe("SchemaRenderer", () => {
 	};
 
 	describe("Schema Validation", () => {
-		it("renders error for invalid schema", () => {
+		it("renders unknown type message for invalid component type", () => {
 			const invalidSchema = {
 				version: "1",
 				components: [{ type: "invalid", content: "test" }],
@@ -29,10 +29,8 @@ describe("SchemaRenderer", () => {
 
 			render(<SchemaRenderer schema={invalidSchema} {...defaultProps} />);
 
-			expect(screen.getByText("Invalid Schema")).toBeInTheDocument();
-			expect(
-				screen.getByText("The UI schema failed validation"),
-			).toBeInTheDocument();
+			// normalizeSchema converts V1→V2, unknown types render as "Unknown component type"
+			expect(screen.getByText(/Unknown component type/)).toBeInTheDocument();
 		});
 
 		it("renders nothing for empty components array", () => {
@@ -660,7 +658,7 @@ describe("SchemaRenderer", () => {
 	});
 
 	describe("Unknown Component", () => {
-		it("renders validation error for unknown component type", () => {
+		it("renders unknown type message for unknown component type", () => {
 			// Intentionally testing invalid schema - cast to bypass TS checks
 			const schema = {
 				version: "1",
@@ -668,7 +666,7 @@ describe("SchemaRenderer", () => {
 			} as unknown as UISchema;
 
 			render(<SchemaRenderer schema={schema} {...defaultProps} />);
-			expect(screen.getByText("Invalid Schema")).toBeInTheDocument();
+			expect(screen.getByText(/Unknown component type/)).toBeInTheDocument();
 		});
 	});
 

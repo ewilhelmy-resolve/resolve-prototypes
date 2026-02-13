@@ -12,32 +12,12 @@ import { getSSEService } from "./sse.js";
  */
 interface ParsedUIFormRequest {
 	type: "ui_form_request";
-	user_id: string;
+	user_id?: string;
 	workflow_id?: string;
 	activity_id?: string;
 	interrupt?: boolean;
 	conversation_id?: string;
-	ui_schema: {
-		version?: "1";
-		modals: Record<
-			string,
-			{
-				title: string;
-				description?: string;
-				size?: "sm" | "md" | "lg" | "xl" | "full";
-				children: unknown[];
-				submitAction?: string;
-				submitLabel?: string;
-				cancelLabel?: string;
-				submitVariant?:
-					| "default"
-					| "destructive"
-					| "outline"
-					| "secondary"
-					| "ghost";
-			}
-		>;
-	};
+	ui_schema: Record<string, unknown>;
 }
 
 // Connection state types
@@ -655,14 +635,11 @@ export class RabbitMQService {
 				return null;
 			}
 
-			// Validate required fields (workflow_id is optional)
-			if (!parsed.user_id || !parsed.ui_schema) {
+			// Validate required fields (user_id resolved from conversation, not response)
+			if (!parsed.ui_schema) {
 				queueLogger.warn(
-					{
-						hasUserId: !!parsed.user_id,
-						hasUISchema: !!parsed.ui_schema,
-					},
-					"Invalid ui_form_request: missing required fields",
+					{ hasUISchema: false },
+					"Invalid ui_form_request: missing ui_schema",
 				);
 				return null;
 			}
