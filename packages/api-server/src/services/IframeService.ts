@@ -355,14 +355,6 @@ export class IframeService {
 			const data = rawData ? JSON.parse(rawData) : {};
 			data.conversationId = conversationId;
 			await client.hset(fullKey, "data", JSON.stringify(data));
-
-			logger.info(
-				{
-					sessionKey: `${sessionKey.substring(0, 8)}...`,
-					conversationId,
-				},
-				"Stored conversationId in Valkey session data",
-			);
 		} catch (error) {
 			// Non-fatal: log but don't fail the setup
 			logger.error(
