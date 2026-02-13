@@ -18,7 +18,7 @@ const EXAMPLE_SCHEMAS: Record<string, UISchema> = {
 			column: { type: "Column", children: ["heading", "subtext", "btn"] },
 			heading: {
 				type: "Text",
-				props: { content: "Hello from Platform!", variant: "heading" },
+				props: { text: "Hello from Platform!", variant: "heading" },
 			},
 			subtext: {
 				type: "Text",
@@ -39,7 +39,7 @@ const EXAMPLE_SCHEMAS: Record<string, UISchema> = {
 			column: { type: "Column", children: ["heading", "form"] },
 			heading: {
 				type: "Text",
-				props: { content: "Configure Workflow", variant: "heading" },
+				props: { text: "Configure Workflow", variant: "heading" },
 			},
 			form: {
 				type: "Form",
@@ -90,7 +90,7 @@ const EXAMPLE_SCHEMAS: Record<string, UISchema> = {
 			},
 			heading: {
 				type: "Text",
-				props: { content: "Activity Dashboard", variant: "heading" },
+				props: { text: "Activity Dashboard", variant: "heading" },
 			},
 			statsRow: {
 				type: "Row",

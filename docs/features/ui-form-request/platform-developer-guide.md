@@ -162,7 +162,7 @@ interface UIElement {
 
 | Type | Purpose | Key Props |
 |------|---------|-----------|
-| `Text` | Display text | `content`, `variant` (`default`/`muted`/`heading`/`subheading`) |
+| `Text` | Display text | `text`, `variant` (`default`/`muted`/`heading`/`subheading`) |
 | `Input` | Text input | `name`, `label`, `placeholder`, `inputType` (`text`/`password`/`email`/`textarea`), `required`, `defaultValue` |
 | `Select` | Dropdown | `name`, `label`, `placeholder`, `required`, `options: {label, value}[]` |
 | `Button` | Action button | `label`, `action`, `variant`, `opensDialog` |
@@ -194,7 +194,7 @@ interface ConditionalRule {
 ### Text (Display Only)
 
 ```json
-{ "type": "Text", "props": { "content": "Please enter your credentials below.", "variant": "muted" } }
+{ "type": "Text", "props": { "text": "Please enter your credentials below.", "variant": "muted" } }
 ```
 
 ### Input Field

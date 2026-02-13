@@ -21,7 +21,7 @@ Platform sends JSON schemas via RabbitMQ → SSE, Jarvis validates with Zod and 
 {
   "version": "1",
   "components": [
-    { "type": "text", "content": "Hello" },
+    { "type": "text", "text": "Hello" },
     { "type": "button", "label": "Click", "action": "submit" }
   ],
   "modals": {
@@ -53,7 +53,7 @@ Display text with styling variants.
 {
   "type": "text",
   "props": {
-    "content": "Welcome to the dashboard",
+    "text": "Welcome to the dashboard",
     "variant": "heading"
   }
 }
@@ -61,7 +61,7 @@ Display text with styling variants.
 
 | Prop | Type | Required | Default | Description |
 |------|------|----------|---------|-------------|
-| `content` | `string` | Yes | - | Text to display |
+| `text` | `string` | Yes | - | Text to display |
 | `variant` | `string` | No | `"default"` | Style variant |
 
 **Variants:** `default`, `heading`, `subheading`, `muted`, `label`, `code`, `diff-add`, `diff-remove`, `diff-context`
@@ -206,7 +206,7 @@ Container with optional title/description.
     "description": "Review the information below"
   },
   "children": [
-    { "type": "text", "props": { "content": "John Doe" } }
+    { "type": "text", "props": { "text": "John Doe" } }
   ]
 }
 ```
@@ -351,7 +351,7 @@ Define modals in the `modals` object with unique IDs:
 {
   "version": "1",
   "components": [
-    { "type": "text", "content": "Click button to configure" },
+    { "type": "text", "text": "Click button to configure" },
     { "type": "button", "label": "Configure API", "opensModal": "api-config" }
   ],
   "modals": {
@@ -409,7 +409,7 @@ Since users may accidentally close the modal (ESC key, click outside, cancel but
       "children": [
         {
           "type": "text",
-          "content": "The credential form has been opened automatically. Please complete authentication to continue.",
+          "text": "The credential form has been opened automatically. Please complete authentication to continue.",
           "variant": "muted"
         },
         {
@@ -481,7 +481,7 @@ All components support the `if` prop for conditional display based on form data.
 ```json
 {
   "type": "text",
-  "props": { "content": "Premium features unlocked!" },
+  "props": { "text": "Premium features unlocked!" },
   "if": {
     "field": "plan",
     "operator": "eq",
@@ -574,8 +574,8 @@ When a user clicks a button or submits a form, an action payload is sent to the 
 {
   "version": "1",
   "components": [
-    { "type": "text", "props": { "content": "Confirm Action", "variant": "heading" } },
-    { "type": "text", "props": { "content": "Are you sure you want to proceed?", "variant": "muted" } },
+    { "type": "text", "props": { "text": "Confirm Action", "variant": "heading" } },
+    { "type": "text", "props": { "text": "Are you sure you want to proceed?", "variant": "muted" } },
     {
       "type": "row",
       "props": { "gap": 2 },
@@ -627,7 +627,7 @@ When a user clicks a button or submits a form, an action payload is sent to the 
 {
   "version": "1",
   "components": [
-    { "type": "text", "props": { "content": "Dashboard", "variant": "heading" } },
+    { "type": "text", "props": { "text": "Dashboard", "variant": "heading" } },
     {
       "type": "row",
       "props": { "gap": 4 },
@@ -704,7 +704,7 @@ When a user clicks a button or submits a form, an action payload is sent to the 
       "title": "API Configuration",
       "description": "Configure your integration settings",
       "children": [
-        { "type": "text", "content": "Click the button below to set up your API credentials.", "variant": "muted" },
+        { "type": "text", "text": "Click the button below to set up your API credentials.", "variant": "muted" },
         { "type": "button", "label": "Configure Credentials", "opensModal": "credentials-modal" }
       ]
     }
@@ -740,7 +740,7 @@ Combines `autoOpenModal` with a fallback button for reopening if closed accident
       "title": "Authentication Required",
       "description": "This action requires valid credentials to proceed",
       "children": [
-        { "type": "text", "content": "The credential form will open automatically. Click below if closed accidentally.", "variant": "muted" },
+        { "type": "text", "text": "The credential form will open automatically. Click below if closed accidentally.", "variant": "muted" },
         { "type": "button", "label": "Enter Credentials", "opensModal": "auth-modal" }
       ]
     }
@@ -782,7 +782,7 @@ Schemas are validated at runtime using Zod. Invalid schemas:
 - Fall back gracefully (no crash)
 
 **Common validation errors:**
-- Missing required props (`content`, `name`, `action`, etc.)
+- Missing required props (`text`, `name`, `action`, etc.)
 - Invalid `type` value
 - Malformed `options` array
 - Invalid `variant` or `changeType` values

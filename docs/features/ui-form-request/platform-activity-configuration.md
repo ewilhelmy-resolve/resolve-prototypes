@@ -328,15 +328,15 @@ Match response to waiting workflow using:
         "children": [
           {
             "type": "text",
-            "content": "**Requester:** ${expense.requesterName}"
+            "text": "**Requester:** ${expense.requesterName}"
           },
           {
             "type": "text",
-            "content": "**Amount:** $${expense.amount}"
+            "text": "**Amount:** $${expense.amount}"
           },
           {
             "type": "text",
-            "content": "**Description:** ${expense.description}"
+            "text": "**Description:** ${expense.description}"
           },
           {
             "type": "input",
