@@ -159,5 +159,5 @@ export function parseSchema(raw: unknown): UISchema | null {
 	}
 
 	const result = UISchemaValidator.safeParse(raw);
-	return result.success ? result.data : null;
+	return result.success ? (result.data as UISchema) : null;
 }

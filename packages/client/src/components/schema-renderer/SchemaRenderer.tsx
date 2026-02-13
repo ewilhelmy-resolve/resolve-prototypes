@@ -60,7 +60,6 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "../ui/select";
-import { Separator } from "../ui/separator";
 import { Textarea } from "../ui/textarea";
 import { MermaidRenderer } from "./MermaidRenderer";
 
