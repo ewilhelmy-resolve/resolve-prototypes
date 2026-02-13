@@ -136,7 +136,7 @@ interface UIFormResponsePayload {
 
 The UI schema uses a nested tree format with a single `root` element. All component types use PascalCase and properties are grouped under a `props` object.
 
-> **Backward compatibility:** The client normalizes legacy V1 schemas (with `version: "1"` + `modals`/`components`) at read time. New integrations should use V2 exclusively.
+> **Note:** The client only accepts the V2 format below. Legacy V1 schemas (`version: "1"` + `modals`/`components`) are not supported.
 
 ### Root Schema
 

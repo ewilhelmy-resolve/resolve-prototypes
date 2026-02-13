@@ -23,7 +23,7 @@ const EXAMPLE_SCHEMAS: Record<string, UISchema> = {
 			subtext: {
 				type: "Text",
 				props: {
-					content: "This UI was generated from JSON schema.",
+					text: "This UI was generated from JSON schema.",
 					variant: "muted",
 				},
 			},
@@ -159,7 +159,7 @@ const EXAMPLE_SCHEMAS: Record<string, UISchema> = {
 			text: {
 				type: "Text",
 				props: {
-					content: "Choose how this workflow behaves:",
+					text: "Choose how this workflow behaves:",
 					variant: "subheading",
 				},
 			},
