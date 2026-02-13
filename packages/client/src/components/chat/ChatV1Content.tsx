@@ -517,9 +517,7 @@ function SimpleMessage({
 
 	// Auto-trigger host modal once for pending interrupt forms loaded from history
 	const modalTriggered = useRef(false);
-	const isFormAnswered =
-		message.metadata?.status === "completed" ||
-		message.metadata?.status === "cancelled";
+	const isFormAnswered = message.metadata?.status === "completed";
 	useEffect(() => {
 		if (modalTriggered.current || !isInterruptForm || isFormAnswered) return;
 		modalTriggered.current = true;
@@ -563,9 +561,7 @@ function SimpleMessage({
 							const description = normalized?.root.props?.description as
 								| string
 								| undefined;
-							const isCompleted =
-								message.metadata?.status === "completed" ||
-								message.metadata?.status === "cancelled";
+							const isCompleted = message.metadata?.status === "completed";
 
 							return (
 								<Card className="w-full max-w-lg">
@@ -1202,34 +1198,18 @@ export default function ChatV1Content({
 	);
 
 	// Mark a form request message as cancelled in the local store
-	const markFormCancelled = useCallback((requestId: string) => {
-		const { messages, updateMessage } = useConversationStore.getState();
-		const msg = messages.find((m) => m.metadata?.request_id === requestId);
-		if (msg) {
-			updateMessage(msg.id, {
-				metadata: {
-					...msg.metadata,
-					status: "cancelled",
-					submitted_at: new Date().toISOString(),
-				},
-			});
-		}
-	}, []);
-
-	// Handle form cancellation
-	// Use props handler if provided (iframe context), otherwise use internal handler
+	// Handle form cancellation — dismiss only, don't mark as answered
+	// User can reopen the form later
 	const handleFormCancel = useCallback(
 		async (requestId: string): Promise<void> => {
-			console.log("[FormCancel] Cancelling form:", requestId);
+			console.log("[FormCancel] Dismissing form:", requestId);
 
 			// Use props handler if provided (iframe context)
 			if (propsFormCancel) {
 				await propsFormCancel(requestId);
 			}
-
-			markFormCancelled(requestId);
 		},
-		[propsFormCancel, markFormCancelled],
+		[propsFormCancel],
 	);
 
 	// Handle direct attachment button click
