@@ -777,22 +777,24 @@
                 <h3>Custom UI Schema</h3>
                 <p style="font-size: 10px; color: #64748b; margin-bottom: 8px;">Paste raw UI schema JSON, send through full pipeline</p>
                 <textarea class="dev-input" id="customSchemaInput" rows="10" style="font-family: Monaco, Menlo, monospace; font-size: 10px; resize: vertical;">{
-  "root": {
-    "type": "Form",
-    "props": {
-      "title": "Custom Form",
-      "description": "Dev controls test form",
-      "submitAction": "custom-submit",
-      "submitLabel": "Submit"
+  "root": "form",
+  "elements": {
+    "form": {
+      "type": "Form",
+      "props": {
+        "title": "Custom Form",
+        "description": "Dev controls test form",
+        "submitAction": "custom-submit",
+        "submitLabel": "Submit"
+      },
+      "children": ["text", "name", "priority"]
     },
-    "children": [
-      { "type": "Text", "props": { "content": "Fill out the fields below." } },
-      { "type": "Input", "props": { "name": "name", "label": "Name", "placeholder": "Enter name" } },
-      { "type": "Select", "props": { "name": "priority", "label": "Priority", "options": [
-        { "label": "Low", "value": "low" },
-        { "label": "High", "value": "high" }
-      ]}}
-    ]
+    "text": { "type": "Text", "props": { "content": "Fill out the fields below." } },
+    "name": { "type": "Input", "props": { "name": "name", "label": "Name", "placeholder": "Enter name" } },
+    "priority": { "type": "Select", "props": { "name": "priority", "label": "Priority", "options": [
+      { "label": "Low", "value": "low" },
+      { "label": "High", "value": "high" }
+    ]}}
   }
 }</textarea>
                 <div style="display: flex; gap: 6px; margin-bottom: 8px;">

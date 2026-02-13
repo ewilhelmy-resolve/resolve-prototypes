@@ -11,14 +11,10 @@
 
 import { ChevronDown, ChevronUp, Code, Eye, Send } from "lucide-react";
 import { useState } from "react";
-import type {
-	UIActionPayload,
-	UISchema,
-	UISchemaV2,
-} from "../../types/uiSchema";
+import type { UIActionPayload, UISchema } from "../../types/uiSchema";
 
 interface SchemaDebugPanelProps {
-	schema: UISchema | UISchemaV2 | Record<string, unknown> | null;
+	schema: UISchema | Record<string, unknown> | null;
 	lastAction: UIActionPayload | null;
 	actionHistory: UIActionPayload[];
 	isVisible: boolean;
@@ -173,7 +169,7 @@ export function useSchemaDebug() {
 	const [actionHistory, setActionHistory] = useState<UIActionPayload[]>([]);
 	const [lastAction, setLastAction] = useState<UIActionPayload | null>(null);
 	const [currentSchema, setCurrentSchema] = useState<
-		UISchema | UISchemaV2 | Record<string, unknown> | null
+		UISchema | Record<string, unknown> | null
 	>(null);
 
 	const recordAction = (action: UIActionPayload) => {
@@ -182,7 +178,7 @@ export function useSchemaDebug() {
 	};
 
 	const recordSchema = (
-		schema: UISchema | UISchemaV2 | Record<string, unknown>,
+		schema: UISchema | Record<string, unknown>,
 	) => {
 		setCurrentSchema(schema);
 	};

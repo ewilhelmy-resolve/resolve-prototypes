@@ -92,361 +92,359 @@ function IframeClearChat({ onClear }: { onClear: () => void }) {
 	);
 }
 
-// Example schemas for demo (V2 format)
-const DEMO_SCHEMAS: Record<string, { name: string; schema: any }> = {
+// Example schemas for demo (json-render.dev format)
+const DEMO_SCHEMAS: Record<string, { name: string; schema: object }> = {
 	simple: {
 		name: "Simple (text + button)",
 		schema: {
-			root: {
-				type: "Column",
-				children: [
-					{
-						type: "Text",
-						props: { content: "Hello from Platform!", variant: "heading" },
+			root: "column",
+			elements: {
+				column: { type: "Column", children: ["heading", "subtext", "btn"] },
+				heading: {
+					type: "Text",
+					props: { content: "Hello from Platform!", variant: "heading" },
+				},
+				subtext: {
+					type: "Text",
+					props: {
+						content:
+							"This UI was rendered from JSON schema sent via RabbitMQ.",
+						variant: "muted",
 					},
-					{
-						type: "Text",
-						props: {
-							content:
-								"This UI was rendered from JSON schema sent via RabbitMQ.",
-							variant: "muted",
-						},
-					},
-					{
-						type: "Button",
-						props: { label: "Acknowledge", action: "acknowledge_clicked" },
-					},
-				],
+				},
+				btn: {
+					type: "Button",
+					props: { label: "Acknowledge", action: "acknowledge_clicked" },
+				},
 			},
 		},
 	},
 	form: {
 		name: "Form (workflow config)",
 		schema: {
-			root: {
-				type: "Column",
-				children: [
-					{
-						type: "Text",
-						props: {
-							content: "Configure Workflow Trigger",
-							variant: "heading",
-						},
+			root: "column",
+			elements: {
+				column: { type: "Column", children: ["heading", "card"] },
+				heading: {
+					type: "Text",
+					props: {
+						content: "Configure Workflow Trigger",
+						variant: "heading",
 					},
-					{
-						type: "Card",
-						props: { title: "Trigger Settings" },
-						children: [
-							{
-								type: "Form",
-								props: {
-									submitAction: "save_trigger_config",
-									submitLabel: "Save Configuration",
-								},
-								children: [
-									{
-										type: "Input",
-										props: {
-											name: "workflowName",
-											label: "Workflow Name",
-											placeholder: "My Automation",
-											required: true,
-										},
-									},
-									{
-										type: "Select",
-										props: {
-											name: "triggerEvent",
-											label: "Trigger Event",
-											options: [
-												{ label: "On Ticket Created", value: "ticket_created" },
-												{ label: "On SLA Breach", value: "sla_breach" },
-												{ label: "On Status Change", value: "status_change" },
-											],
-										},
-									},
-									{
-										type: "Input",
-										props: {
-											name: "filter",
-											label: "Filter Condition",
-											placeholder: "priority = 'high'",
-											inputType: "textarea",
-										},
-									},
-								],
-							},
+				},
+				card: {
+					type: "Card",
+					props: { title: "Trigger Settings" },
+					children: ["form"],
+				},
+				form: {
+					type: "Form",
+					props: {
+						submitAction: "save_trigger_config",
+						submitLabel: "Save Configuration",
+					},
+					children: ["workflowName", "triggerEvent", "filter"],
+				},
+				workflowName: {
+					type: "Input",
+					props: {
+						name: "workflowName",
+						label: "Workflow Name",
+						placeholder: "My Automation",
+						required: true,
+					},
+				},
+				triggerEvent: {
+					type: "Select",
+					props: {
+						name: "triggerEvent",
+						label: "Trigger Event",
+						options: [
+							{ label: "On Ticket Created", value: "ticket_created" },
+							{ label: "On SLA Breach", value: "sla_breach" },
+							{ label: "On Status Change", value: "status_change" },
 						],
 					},
-				],
+				},
+				filter: {
+					type: "Input",
+					props: {
+						name: "filter",
+						label: "Filter Condition",
+						placeholder: "priority = 'high'",
+						inputType: "textarea",
+					},
+				},
 			},
 		},
 	},
 	date: {
 		name: "Date (select fields)",
 		schema: {
-			root: {
-				type: "Column",
-				children: [
-					{
-						type: "Text",
-						props: { content: "Select a Date", variant: "heading" },
+			root: "column",
+			elements: {
+				column: {
+					type: "Column",
+					children: ["heading", "subtext", "card"],
+				},
+				heading: {
+					type: "Text",
+					props: { content: "Select a Date", variant: "heading" },
+				},
+				subtext: {
+					type: "Text",
+					props: {
+						content: "Choose month, day, and year.",
+						variant: "muted",
 					},
-					{
-						type: "Text",
-						props: {
-							content: "Choose month, day, and year.",
-							variant: "muted",
-						},
+				},
+				card: {
+					type: "Card",
+					props: { title: "Date Selection" },
+					children: ["form"],
+				},
+				form: {
+					type: "Form",
+					props: {
+						submitAction: "submit_date",
+						submitLabel: "Confirm Date",
 					},
-					{
-						type: "Card",
-						props: { title: "Date Selection" },
-						children: [
-							{
-								type: "Form",
-								props: {
-									submitAction: "submit_date",
-									submitLabel: "Confirm Date",
-								},
-								children: [
-									{
-										type: "Row",
-										props: { gap: 12 },
-										children: [
-											{
-												type: "Select",
-												props: {
-													name: "month",
-													label: "Month",
-													options: [
-														{ label: "January", value: "01" },
-														{ label: "February", value: "02" },
-														{ label: "March", value: "03" },
-														{ label: "April", value: "04" },
-														{ label: "May", value: "05" },
-														{ label: "June", value: "06" },
-														{ label: "July", value: "07" },
-														{ label: "August", value: "08" },
-														{ label: "September", value: "09" },
-														{ label: "October", value: "10" },
-														{ label: "November", value: "11" },
-														{ label: "December", value: "12" },
-													],
-												},
-											},
-											{
-												type: "Select",
-												props: {
-													name: "day",
-													label: "Day",
-													options: Array.from({ length: 31 }, (_, i) => ({
-														label: String(i + 1),
-														value: String(i + 1).padStart(2, "0"),
-													})),
-												},
-											},
-											{
-												type: "Select",
-												props: {
-													name: "year",
-													label: "Year",
-													options: Array.from({ length: 100 }, (_, i) => {
-														const year = new Date().getFullYear() - i;
-														return { label: String(year), value: String(year) };
-													}),
-												},
-											},
-										],
-									},
-								],
-							},
+					children: ["dateRow"],
+				},
+				dateRow: {
+					type: "Row",
+					props: { gap: 12 },
+					children: ["month", "day", "year"],
+				},
+				month: {
+					type: "Select",
+					props: {
+						name: "month",
+						label: "Month",
+						options: [
+							{ label: "January", value: "01" },
+							{ label: "February", value: "02" },
+							{ label: "March", value: "03" },
+							{ label: "April", value: "04" },
+							{ label: "May", value: "05" },
+							{ label: "June", value: "06" },
+							{ label: "July", value: "07" },
+							{ label: "August", value: "08" },
+							{ label: "September", value: "09" },
+							{ label: "October", value: "10" },
+							{ label: "November", value: "11" },
+							{ label: "December", value: "12" },
 						],
 					},
-				],
+				},
+				day: {
+					type: "Select",
+					props: {
+						name: "day",
+						label: "Day",
+						options: Array.from({ length: 31 }, (_, i) => ({
+							label: String(i + 1),
+							value: String(i + 1).padStart(2, "0"),
+						})),
+					},
+				},
+				year: {
+					type: "Select",
+					props: {
+						name: "year",
+						label: "Year",
+						options: Array.from({ length: 100 }, (_, i) => {
+							const yr = new Date().getFullYear() - i;
+							return { label: String(yr), value: String(yr) };
+						}),
+					},
+				},
 			},
 		},
 	},
 	dashboard: {
 		name: "Dashboard (stats + table)",
 		schema: {
-			root: {
-				type: "Column",
-				children: [
-					{
-						type: "Text",
-						props: { content: "Activity Summary", variant: "heading" },
+			root: "column",
+			elements: {
+				column: {
+					type: "Column",
+					children: ["heading", "statsRow", "ticketCard"],
+				},
+				heading: {
+					type: "Text",
+					props: { content: "Activity Summary", variant: "heading" },
+				},
+				statsRow: {
+					type: "Row",
+					props: { gap: 12 },
+					children: ["totalStat", "openStat", "avgStat"],
+				},
+				totalStat: {
+					type: "Stat",
+					props: {
+						label: "Total Tickets",
+						value: "1,234",
+						change: "+12%",
+						changeType: "positive",
 					},
-					{
-						type: "Row",
-						props: { gap: 12 },
-						children: [
-							{
-								type: "Stat",
-								props: {
-									label: "Total Tickets",
-									value: "1,234",
-									change: "+12%",
-									changeType: "positive",
-								},
-							},
-							{
-								type: "Stat",
-								props: {
-									label: "Open Issues",
-									value: "42",
-									change: "-5%",
-									changeType: "negative",
-								},
-							},
-							{
-								type: "Stat",
-								props: {
-									label: "Avg Response",
-									value: "2.4h",
-									changeType: "neutral",
-								},
-							},
+				},
+				openStat: {
+					type: "Stat",
+					props: {
+						label: "Open Issues",
+						value: "42",
+						change: "-5%",
+						changeType: "negative",
+					},
+				},
+				avgStat: {
+					type: "Stat",
+					props: {
+						label: "Avg Response",
+						value: "2.4h",
+						changeType: "neutral",
+					},
+				},
+				ticketCard: {
+					type: "Card",
+					props: { title: "Recent Tickets" },
+					children: ["ticketTable"],
+				},
+				ticketTable: {
+					type: "Table",
+					props: {
+						columns: [
+							{ key: "id", label: "ID" },
+							{ key: "title", label: "Title" },
+							{ key: "status", label: "Status" },
+						],
+						rows: [
+							{ id: "TKT-001", title: "Login issue", status: "Open" },
+							{ id: "TKT-002", title: "Payment failed", status: "Pending" },
+							{ id: "TKT-003", title: "Reset password", status: "Closed" },
 						],
 					},
-					{
-						type: "Card",
-						props: { title: "Recent Tickets" },
-						children: [
-							{
-								type: "Table",
-								props: {
-									columns: [
-										{ key: "id", label: "ID" },
-										{ key: "title", label: "Title" },
-										{ key: "status", label: "Status" },
-									],
-									rows: [
-										{ id: "TKT-001", title: "Login issue", status: "Open" },
-										{
-											id: "TKT-002",
-											title: "Payment failed",
-											status: "Pending",
-										},
-										{
-											id: "TKT-003",
-											title: "Reset password",
-											status: "Closed",
-										},
-									],
-								},
-							},
-						],
-					},
-				],
+				},
 			},
 		},
 	},
 	codereview: {
 		name: "Code Review (diff)",
 		schema: {
-			root: {
-				type: "Column",
-				children: [
-					{
-						type: "Text",
-						props: { content: "Code Review Request", variant: "heading" },
+			root: "column",
+			elements: {
+				column: {
+					type: "Column",
+					children: ["heading", "prTitle", "diffCard", "btnRow"],
+				},
+				heading: {
+					type: "Text",
+					props: { content: "Code Review Request", variant: "heading" },
+				},
+				prTitle: {
+					type: "Text",
+					props: {
+						content: "PR #142: Fix authentication bug",
+						variant: "subheading",
 					},
-					{
-						type: "Text",
-						props: {
-							content: "PR #142: Fix authentication bug",
-							variant: "subheading",
-						},
+				},
+				diffCard: {
+					type: "Card",
+					props: {
+						title: "src/auth/login.ts",
+						description: "+4 -1 lines changed",
 					},
-					{
-						type: "Card",
-						props: {
-							title: "src/auth/login.ts",
-							description: "+4 -1 lines changed",
-						},
-						children: [
-							{
-								type: "Text",
-								props: {
-									content: "function validateSession(token) {",
-									variant: "diff-context",
-								},
-							},
-							{
-								type: "Text",
-								props: {
-									content: "-  return redirect('/dashboard');",
-									variant: "diff-remove",
-								},
-							},
-							{
-								type: "Text",
-								props: { content: "+  if (!token) {", variant: "diff-add" },
-							},
-							{
-								type: "Text",
-								props: {
-									content: "+    return redirect('/login');",
-									variant: "diff-add",
-								},
-							},
-							{ type: "Text", props: { content: "+  }", variant: "diff-add" } },
-							{
-								type: "Text",
-								props: {
-									content: "+  return redirect('/dashboard');",
-									variant: "diff-add",
-								},
-							},
-							{
-								type: "Text",
-								props: { content: "}", variant: "diff-context" },
-							},
-						],
+					children: [
+						"diff1",
+						"diff2",
+						"diff3",
+						"diff4",
+						"diff5",
+						"diff6",
+						"diff7",
+					],
+				},
+				diff1: {
+					type: "Text",
+					props: {
+						content: "function validateSession(token) {",
+						variant: "diff-context",
 					},
-					{
-						type: "Row",
-						props: { gap: 8 },
-						children: [
-							{
-								type: "Button",
-								props: {
-									label: "Approve",
-									action: "approve_pr",
-									variant: "default",
-								},
-							},
-							{
-								type: "Button",
-								props: {
-									label: "Request Changes",
-									action: "request_changes",
-									variant: "outline",
-								},
-							},
-						],
+				},
+				diff2: {
+					type: "Text",
+					props: {
+						content: "-  return redirect('/dashboard');",
+						variant: "diff-remove",
 					},
-				],
+				},
+				diff3: {
+					type: "Text",
+					props: { content: "+  if (!token) {", variant: "diff-add" },
+				},
+				diff4: {
+					type: "Text",
+					props: {
+						content: "+    return redirect('/login');",
+						variant: "diff-add",
+					},
+				},
+				diff5: {
+					type: "Text",
+					props: { content: "+  }", variant: "diff-add" },
+				},
+				diff6: {
+					type: "Text",
+					props: {
+						content: "+  return redirect('/dashboard');",
+						variant: "diff-add",
+					},
+				},
+				diff7: {
+					type: "Text",
+					props: { content: "}", variant: "diff-context" },
+				},
+				btnRow: {
+					type: "Row",
+					props: { gap: 8 },
+					children: ["approveBtn", "changesBtn"],
+				},
+				approveBtn: {
+					type: "Button",
+					props: {
+						label: "Approve",
+						action: "approve_pr",
+						variant: "default",
+					},
+				},
+				changesBtn: {
+					type: "Button",
+					props: {
+						label: "Request Changes",
+						action: "request_changes",
+						variant: "outline",
+					},
+				},
 			},
 		},
 	},
 	diagram: {
 		name: "Diagram (Mermaid)",
 		schema: {
-			root: {
-				type: "Column",
-				children: [
-					{
-						type: "Text",
-						props: { content: "Workflow Flow", variant: "heading" },
-					},
-					{
-						type: "Diagram",
-						props: {
-							title: "User Authentication Flow",
-							expandable: true,
-							code: `flowchart TD
+			root: "column",
+			elements: {
+				column: { type: "Column", children: ["heading", "diagram"] },
+				heading: {
+					type: "Text",
+					props: { content: "Workflow Flow", variant: "heading" },
+				},
+				diagram: {
+					type: "Diagram",
+					props: {
+						title: "User Authentication Flow",
+						expandable: true,
+						code: `flowchart TD
     A[User Request] --> B{Has Token?}
     B -->|Yes| C[Validate Token]
     B -->|No| D[Redirect to Login]
@@ -460,9 +458,8 @@ const DEMO_SCHEMAS: Record<string, { name: string; schema: any }> = {
     I -->|No| K[Show Error]
     J --> E
     K --> G`,
-						},
 					},
-				],
+				},
 			},
 		},
 	},
@@ -499,99 +496,7 @@ function MockPlatformPanel({
 		return () => window.removeEventListener("resize", handleResize);
 	}, []);
 	const [customJson, setCustomJson] = useState(
-		JSON.stringify(
-			{
-				root: {
-					type: "Column",
-					children: [
-						{
-							type: "Text",
-							props: { content: "Code Review Request", variant: "heading" },
-						},
-						{
-							type: "Text",
-							props: {
-								content: "PR #142: Fix authentication bug",
-								variant: "subheading",
-							},
-						},
-						{
-							type: "Card",
-							props: {
-								title: "src/auth/login.ts",
-								description: "+4 -1 lines changed",
-							},
-							children: [
-								{
-									type: "Text",
-									props: {
-										content: "function validateSession(token) {",
-										variant: "diff-context",
-									},
-								},
-								{
-									type: "Text",
-									props: {
-										content: "-  return redirect('/dashboard');",
-										variant: "diff-remove",
-									},
-								},
-								{
-									type: "Text",
-									props: { content: "+  if (!token) {", variant: "diff-add" },
-								},
-								{
-									type: "Text",
-									props: {
-										content: "+    return redirect('/login');",
-										variant: "diff-add",
-									},
-								},
-								{
-									type: "Text",
-									props: { content: "+  }", variant: "diff-add" },
-								},
-								{
-									type: "Text",
-									props: {
-										content: "+  return redirect('/dashboard');",
-										variant: "diff-add",
-									},
-								},
-								{
-									type: "Text",
-									props: { content: "}", variant: "diff-context" },
-								},
-							],
-						},
-						{
-							type: "Row",
-							props: { gap: 8 },
-							children: [
-								{
-									type: "Button",
-									props: {
-										label: "Approve",
-										action: "approve_pr",
-										variant: "default",
-									},
-								},
-								{
-									type: "Button",
-									props: {
-										label: "Request Changes",
-										action: "request_changes",
-										variant: "outline",
-									},
-								},
-							],
-						},
-					],
-				},
-			},
-			null,
-			2,
-		),
+		JSON.stringify(DEMO_SCHEMAS.codereview.schema, null, 2),
 	);
 	const [useCustom, setUseCustom] = useState(false);
 	const [lastSentSchema, setLastSentSchema] = useState<any>(null);
@@ -611,8 +516,10 @@ function MockPlatformPanel({
 
 			// Log what platform is sending
 			onLog("info", "⬇️ SSE Event received (ui_schema)", {
-				componentCount: schema.components?.length,
-				types: schema.components?.map((c: any) => c.type),
+				root: schema.root,
+				elementCount: schema.elements
+					? Object.keys(schema.elements).length
+					: 0,
 			});
 
 			// Simulate Platform sending message via RabbitMQ → SSE → Client

@@ -2,11 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
 	type ConditionalProps,
 	evaluateCondition,
-	normalizeSchema,
-	type UISchema,
-	type UISchemaV2,
-	UISchemaV2Validator,
-	validateUISchema,
+	parseSchema,
+	UISchemaValidator,
 } from "./uiSchema";
 
 describe("evaluateCondition", () => {
@@ -248,322 +245,154 @@ describe("evaluateCondition", () => {
 	});
 });
 
-describe("validateUISchema", () => {
-	it("validates a valid schema", () => {
-		const schema: UISchema = {
-			version: "1",
-			components: [
-				{ type: "text", content: "Hello" },
-				{ type: "button", label: "Click", action: "submit" },
-			],
-		};
-		const result = validateUISchema(schema);
-		expect(result.valid).toBe(true);
-		expect(result.data).toEqual(schema);
-	});
-
-	it("validates schema with conditional components", () => {
-		const schema: UISchema = {
-			version: "1",
-			components: [
-				{
-					type: "text",
-					content: "Conditional text",
-					if: { field: "show", operator: "eq", value: true },
-				},
-			],
-		};
-		const result = validateUISchema(schema);
-		expect(result.valid).toBe(true);
-	});
-
-	it("rejects schema with invalid component type", () => {
+describe("UISchemaValidator", () => {
+	it("validates minimal schema", () => {
 		const schema = {
-			version: "1",
-			components: [{ type: "invalid", content: "test" }],
-		};
-		const result = validateUISchema(schema);
-		expect(result.valid).toBe(false);
-		expect(result.errors).toBeDefined();
-	});
-
-	it("rejects schema with missing required props", () => {
-		const schema = {
-			version: "1",
-			components: [{ type: "text" }], // missing content
-		};
-		const result = validateUISchema(schema);
-		expect(result.valid).toBe(false);
-	});
-
-	it("validates nested components", () => {
-		const schema: UISchema = {
-			version: "1",
-			components: [
-				{
-					type: "card",
-					title: "Card Title",
-					children: [
-						{ type: "text", content: "Inside card" },
-						{ type: "button", label: "Action", action: "do_something" },
-					],
-				},
-			],
-		};
-		const result = validateUISchema(schema);
-		expect(result.valid).toBe(true);
-	});
-
-	it("validates form with inputs", () => {
-		const schema: UISchema = {
-			version: "1",
-			components: [
-				{
-					type: "form",
-					submitAction: "submit_form",
-					submitLabel: "Submit",
-					children: [
-						{
-							type: "input",
-							name: "email",
-							label: "Email",
-							inputType: "email",
-						},
-						{
-							type: "select",
-							name: "country",
-							options: [
-								{ label: "USA", value: "us" },
-								{ label: "UK", value: "uk" },
-							],
-						},
-					],
-				},
-			],
-		};
-		const result = validateUISchema(schema);
-		expect(result.valid).toBe(true);
-	});
-
-	it("validates conditional operator values", () => {
-		const validOperators = [
-			"eq",
-			"neq",
-			"exists",
-			"notExists",
-			"gt",
-			"lt",
-			"contains",
-		] as const;
-
-		for (const operator of validOperators) {
-			const schema: UISchema = {
-				version: "1",
-				components: [
-					{
-						type: "text",
-						content: "test",
-						if: { field: "test", operator, value: "value" },
-					},
-				],
-			};
-			const result = validateUISchema(schema);
-			expect(result.valid).toBe(true);
-		}
-	});
-
-	it("rejects invalid conditional operator", () => {
-		const schema = {
-			version: "1",
-			components: [
-				{
-					type: "text",
-					content: "test",
-					if: { field: "test", operator: "invalid", value: "value" },
-				},
-			],
-		};
-		const result = validateUISchema(schema);
-		expect(result.valid).toBe(false);
-	});
-});
-
-describe("UISchemaV2Validator", () => {
-	it("validates a V2 schema with root element", () => {
-		const schema: UISchemaV2 = {
-			root: {
-				type: "Text",
-				props: { content: "Hello" },
+			root: "main",
+			elements: {
+				main: { type: "Text", props: { content: "Hello" } },
 			},
 		};
-		const result = UISchemaV2Validator.safeParse(schema);
+		const result = UISchemaValidator.safeParse(schema);
 		expect(result.success).toBe(true);
 	});
 
-	it("validates V2 schema with nested children", () => {
-		const schema: UISchemaV2 = {
-			root: {
-				type: "Column",
-				children: [
-					{ type: "Text", props: { content: "Hello" } },
-					{ type: "Button", props: { label: "Click", action: "click" } },
-				],
+	it("validates schema with children references", () => {
+		const schema = {
+			root: "column",
+			elements: {
+				column: { type: "Column", children: ["heading", "btn"] },
+				heading: { type: "Text", props: { content: "Hello" } },
+				btn: { type: "Button", props: { label: "Click", action: "click" } },
 			},
 		};
-		const result = UISchemaV2Validator.safeParse(schema);
+		const result = UISchemaValidator.safeParse(schema);
 		expect(result.success).toBe(true);
 	});
 
-	it("validates V2 schema with dialogs", () => {
-		const schema: UISchemaV2 = {
-			root: {
-				type: "Button",
-				props: { label: "Open", opensDialog: "my-dialog" },
-			},
-			dialogs: {
-				"my-dialog": {
+	it("validates schema with dialogs", () => {
+		const schema = {
+			root: "btn",
+			elements: {
+				btn: {
+					type: "Button",
+					props: { label: "Open", opensDialog: "my-dialog" },
+				},
+				dialogForm: {
 					type: "Form",
 					props: { title: "Edit", submitAction: "save" },
-					children: [{ type: "Input", props: { name: "name", label: "Name" } }],
+					children: ["nameInput"],
+				},
+				nameInput: {
+					type: "Input",
+					props: { name: "name", label: "Name" },
 				},
 			},
+			dialogs: { "my-dialog": "dialogForm" },
 			autoOpenDialog: "my-dialog",
 		};
-		const result = UISchemaV2Validator.safeParse(schema);
+		const result = UISchemaValidator.safeParse(schema);
 		expect(result.success).toBe(true);
 	});
 
 	it("rejects schema without root", () => {
-		const result = UISchemaV2Validator.safeParse({ dialogs: {} });
+		const result = UISchemaValidator.safeParse({
+			elements: { main: { type: "Text" } },
+		});
+		expect(result.success).toBe(false);
+	});
+
+	it("rejects schema without elements", () => {
+		const result = UISchemaValidator.safeParse({ root: "main" });
+		expect(result.success).toBe(false);
+	});
+
+	it("rejects schema with non-string root", () => {
+		const result = UISchemaValidator.safeParse({
+			root: { type: "Text" },
+			elements: {},
+		});
+		expect(result.success).toBe(false);
+	});
+
+	it("rejects schema with non-string children", () => {
+		const result = UISchemaValidator.safeParse({
+			root: "main",
+			elements: {
+				main: {
+					type: "Column",
+					children: [{ type: "Text", props: { content: "inline" } }],
+				},
+			},
+		});
 		expect(result.success).toBe(false);
 	});
 });
 
-describe("normalizeSchema", () => {
+describe("parseSchema", () => {
 	it("returns null for null/undefined input", () => {
-		expect(normalizeSchema(null)).toBeNull();
-		expect(normalizeSchema(undefined)).toBeNull();
+		expect(parseSchema(null)).toBeNull();
+		expect(parseSchema(undefined)).toBeNull();
 	});
 
-	it("passes through valid V2 schema", () => {
-		const v2: UISchemaV2 = {
-			root: { type: "Text", props: { content: "Hi" } },
-		};
-		const result = normalizeSchema(v2);
-		expect(result).not.toBeNull();
-		expect(result!.root.type).toBe("Text");
-		expect(result!.root.props?.content).toBe("Hi");
+	it("returns null for non-object input", () => {
+		expect(parseSchema("string")).toBeNull();
+		expect(parseSchema(42)).toBeNull();
 	});
 
-	it("converts V1 components format to V2", () => {
-		const v1 = {
-			version: "1",
-			components: [
-				{ type: "text", content: "Hello", variant: "heading" },
-				{ type: "button", label: "Click", action: "click" },
-			],
-		};
-		const result = normalizeSchema(v1);
-		expect(result).not.toBeNull();
-		expect(result!.root.type).toBe("Column");
-		expect(result!.root.children).toHaveLength(2);
-		expect(result!.root.children![0].type).toBe("Text");
-		expect(result!.root.children![0].props?.content).toBe("Hello");
-		expect(result!.root.children![1].type).toBe("Button");
-		expect(result!.root.children![1].props?.label).toBe("Click");
-	});
-
-	it("converts V1 modals format to V2 Form root", () => {
-		const v1 = {
-			version: "1",
-			modals: {
-				"my-form": {
-					title: "My Form",
-					description: "Fill it out",
-					submitAction: "save",
-					submitLabel: "Save",
-					children: [
-						{ type: "input", name: "name", label: "Name" },
-						{
-							type: "select",
-							name: "opt",
-							label: "Option",
-							options: [{ label: "A", value: "a" }],
-						},
-					],
-				},
+	it("parses valid schema", () => {
+		const schema = {
+			root: "main",
+			elements: {
+				main: { type: "Text", props: { content: "Hi" } },
 			},
 		};
-		const result = normalizeSchema(v1);
+		const result = parseSchema(schema);
 		expect(result).not.toBeNull();
-		expect(result!.root.type).toBe("Form");
-		expect(result!.root.props?.title).toBe("My Form");
-		expect(result!.root.props?.description).toBe("Fill it out");
-		expect(result!.root.props?.submitAction).toBe("save");
-		expect(result!.root.children).toHaveLength(2);
-		expect(result!.root.children![0].type).toBe("Input");
-		expect(result!.root.children![1].type).toBe("Select");
+		expect(result!.root).toBe("main");
+		expect(result!.elements.main.type).toBe("Text");
+		expect(result!.elements.main.props?.content).toBe("Hi");
 	});
 
-	it("maps divider to Separator", () => {
-		const v1 = {
-			version: "1",
-			components: [{ type: "divider" }],
-		};
-		const result = normalizeSchema(v1);
-		// Single component → becomes root directly (no Column wrapper)
-		expect(result!.root.type).toBe("Separator");
-	});
-
-	it("maps textarea type to Input with inputType", () => {
-		const v1 = {
-			version: "1",
-			components: [{ type: "textarea", name: "notes", label: "Notes" }],
-		};
-		const result = normalizeSchema(v1);
-		// Single component → becomes root directly
-		expect(result!.root.type).toBe("Input");
-		expect(result!.root.props?.inputType).toBe("textarea");
-	});
-
-	it("converts modals to dialogs and opensModal to opensDialog", () => {
-		const v1 = {
-			version: "1",
-			components: [{ type: "button", label: "Edit", opensModal: "edit-form" }],
-			modals: {
-				"edit-form": {
-					title: "Edit",
-					children: [{ type: "text", content: "Form" }],
+	it("parses schema with dialogs", () => {
+		const schema = {
+			root: "btn",
+			elements: {
+				btn: {
+					type: "Button",
+					props: { label: "Open", opensDialog: "dlg" },
 				},
-			},
-		};
-		const result = normalizeSchema(v1);
-		// Single component → becomes root directly
-		expect(result!.root.props?.opensDialog).toBe("edit-form");
-		expect(result!.dialogs).toBeDefined();
-		expect(result!.dialogs!["edit-form"]).toBeDefined();
-	});
-
-	it("handles text with name field as Input", () => {
-		const v1 = {
-			version: "1",
-			modals: {
 				form: {
-					title: "Form",
-					submitAction: "save",
-					children: [
-						{
-							type: "text",
-							name: "username",
-							label: "Username",
-							placeholder: "Enter name",
-						},
-					],
+					type: "Form",
+					props: { title: "My Form", submitAction: "save" },
+					children: ["input"],
+				},
+				input: {
+					type: "Input",
+					props: { name: "name", label: "Name" },
+				},
+			},
+			dialogs: { dlg: "form" },
+		};
+		const result = parseSchema(schema);
+		expect(result).not.toBeNull();
+		expect(result!.dialogs?.dlg).toBe("form");
+	});
+
+	it("returns null for invalid schema (missing elements)", () => {
+		expect(parseSchema({ root: "main" })).toBeNull();
+	});
+
+	it("returns null for schema with inline children (not string refs)", () => {
+		const schema = {
+			root: "main",
+			elements: {
+				main: {
+					type: "Column",
+					children: [{ type: "Text", props: { content: "inline" } }],
 				},
 			},
 		};
-		const result = normalizeSchema(v1);
-		expect(result!.root.children![0].type).toBe("Input");
-		expect(result!.root.children![0].props?.name).toBe("username");
+		expect(parseSchema(schema)).toBeNull();
 	});
 });

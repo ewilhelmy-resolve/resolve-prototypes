@@ -83,7 +83,7 @@ import type {
 } from "@/stores/conversationStore";
 import { useConversationStore } from "@/stores/conversationStore";
 import type { UIActionPayload } from "@/types/uiSchema";
-import { normalizeSchema } from "@/types/uiSchema";
+import { parseSchema } from "@/types/uiSchema";
 import {
 	canAccessParentDocument,
 	extractFormFields,
@@ -435,24 +435,25 @@ function SimpleMessage({
 		if (!message.metadata?.ui_schema) return;
 		const uiSchema = message.metadata.ui_schema;
 
-		// Normalize to V2 and extract fields
-		const normalized = normalizeSchema(uiSchema);
-		if (!normalized) return;
+		const parsed = parseSchema(uiSchema);
+		if (!parsed) return;
 
-		const root = normalized.root;
-		const title = (root.props?.title as string) || "Form";
-		const description = root.props?.description as string | undefined;
-		const size = ((root.props?.size as string) || "md") as
+		const rootEl = parsed.elements[parsed.root];
+		if (!rootEl) return;
+
+		const title = (rootEl.props?.title as string) || "Form";
+		const description = rootEl.props?.description as string | undefined;
+		const size = ((rootEl.props?.size as string) || "md") as
 			| "sm"
 			| "md"
 			| "lg"
 			| "xl"
 			| "full";
-		const submitAction = (root.props?.submitAction as string) || "submit";
-		const submitLabel = root.props?.submitLabel as string | undefined;
-		const cancelLabel = root.props?.cancelLabel as string | undefined;
-		const submitVariant = root.props?.submitVariant as string | undefined;
-		const fields = extractFormFields(root);
+		const submitAction = (rootEl.props?.submitAction as string) || "submit";
+		const submitLabel = rootEl.props?.submitLabel as string | undefined;
+		const cancelLabel = rootEl.props?.cancelLabel as string | undefined;
+		const submitVariant = rootEl.props?.submitVariant as string | undefined;
+		const fields = extractFormFields(parsed.elements, parsed.root);
 
 		// Tier 0: same-origin — inject form modal into host DOM
 		if (isInIframe() && canAccessParentDocument()) {
@@ -555,10 +556,11 @@ function SimpleMessage({
 					{isFormRequest &&
 						isInterruptForm &&
 						(() => {
-							const normalized = normalizeSchema(message.metadata?.ui_schema);
+							const _parsed = parseSchema(message.metadata?.ui_schema);
+							const _rootEl = _parsed ? _parsed.elements[_parsed.root] : null;
 							const title =
-								(normalized?.root.props?.title as string) || "Form request";
-							const description = normalized?.root.props?.description as
+								(_rootEl?.props?.title as string) || "Form request";
+							const description = _rootEl?.props?.description as
 								| string
 								| undefined;
 							const isCompleted = message.metadata?.status === "completed";
@@ -621,12 +623,16 @@ function SimpleMessage({
 								<DialogContent className="max-w-2xl max-h-[85vh] flex flex-col">
 									<DialogHeader>
 										<DialogTitle>
-											{(normalizeSchema(message.metadata?.ui_schema)?.root.props
-												?.title as string) || "Form"}
+											{(() => {
+												const _p = parseSchema(message.metadata?.ui_schema);
+												return (_p ? (_p.elements[_p.root]?.props?.title as string) : null) || "Form";
+											})()}
 										</DialogTitle>
 										<DialogDescription>
-											{(normalizeSchema(message.metadata?.ui_schema)?.root.props
-												?.description as string) || ""}
+											{(() => {
+												const _p = parseSchema(message.metadata?.ui_schema);
+												return (_p ? (_p.elements[_p.root]?.props?.description as string) : null) || "";
+											})()}
 										</DialogDescription>
 									</DialogHeader>
 									<div className="flex-1 overflow-y-auto min-h-0">

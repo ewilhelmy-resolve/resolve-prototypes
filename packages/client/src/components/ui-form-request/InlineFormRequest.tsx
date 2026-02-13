@@ -16,8 +16,8 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@/components/ui/card";
-import type { UISchemaV2 } from "@/types/uiSchema";
-import { normalizeSchema } from "@/types/uiSchema";
+import type { UISchema } from "@/types/uiSchema";
+import { parseSchema } from "@/types/uiSchema";
 import { SchemaRenderer } from "../schema-renderer";
 
 interface InlineFormRequestProps {
@@ -34,16 +34,18 @@ interface InlineFormRequestProps {
 	onCancel?: (requestId: string) => Promise<void>;
 }
 
-/** Extract title/description/submitAction from normalized schema root */
-function extractFormProps(normalized: UISchemaV2) {
-	const root = normalized.root;
+/** Extract title/description/submitAction from parsed schema root element */
+function extractFormProps(parsed: UISchema) {
+	const rootEl = parsed.elements[parsed.root];
+	if (!rootEl) return { title: "Form", submitLabel: "Submit", cancelLabel: "Cancel" };
+
 	return {
-		title: (root.props?.title as string) || "Form",
-		description: root.props?.description as string | undefined,
-		submitAction: root.props?.submitAction as string | undefined,
-		submitLabel: (root.props?.submitLabel as string) || "Submit",
-		cancelLabel: (root.props?.cancelLabel as string) || "Cancel",
-		submitVariant: root.props?.submitVariant as string | undefined,
+		title: (rootEl.props?.title as string) || "Form",
+		description: rootEl.props?.description as string | undefined,
+		submitAction: rootEl.props?.submitAction as string | undefined,
+		submitLabel: (rootEl.props?.submitLabel as string) || "Submit",
+		cancelLabel: (rootEl.props?.cancelLabel as string) || "Cancel",
+		submitVariant: rootEl.props?.submitVariant as string | undefined,
 	};
 }
 
@@ -62,8 +64,8 @@ export function InlineFormRequest({
 	const [isSubmitting, setIsSubmitting] = useState(false);
 	const [error, setError] = useState<string>();
 
-	const normalized = normalizeSchema(uiSchema);
-	if (!normalized) return null;
+	const parsed = parseSchema(uiSchema);
+	if (!parsed) return null;
 
 	const {
 		title,
@@ -72,8 +74,9 @@ export function InlineFormRequest({
 		submitLabel,
 		cancelLabel,
 		submitVariant,
-	} = extractFormProps(normalized);
-	const isFormRoot = normalized.root.type === "Form";
+	} = extractFormProps(parsed);
+	const rootEl = parsed.elements[parsed.root];
+	const isFormRoot = rootEl?.type === "Form";
 	const isCompleted = status === "completed";
 
 	const handleSubmit = async () => {

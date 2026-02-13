@@ -1367,55 +1367,57 @@ The system is performing well overall but requires attention to the identified s
 					interrupt: false, // Render inline in chat bubble
 					conversation_id: messagePayload.conversation_id,
 					ui_schema: {
-						root: {
-							type: "Form",
-							props: {
-								title: "ServiceNow Connection",
-								description: "Configure your ServiceNow instance credentials",
-								submitAction: "save-credentials",
-								submitLabel: "Save Credentials",
-								cancelLabel: "Cancel",
+						root: "form",
+						elements: {
+							form: {
+								type: "Form",
+								props: {
+									title: "ServiceNow Connection",
+									description: "Configure your ServiceNow instance credentials",
+									submitAction: "save-credentials",
+									submitLabel: "Save Credentials",
+									cancelLabel: "Cancel",
+								},
+								children: ["hostname", "username", "apiKey", "environment"],
 							},
-							children: [
-								{
-									type: "Input",
-									props: {
-										name: "hostname",
-										label: "Instance Hostname",
-										placeholder: "your-instance.service-now.com",
-									},
+							hostname: {
+								type: "Input",
+								props: {
+									name: "hostname",
+									label: "Instance Hostname",
+									placeholder: "your-instance.service-now.com",
 								},
-								{
-									type: "Input",
-									props: {
-										name: "username",
-										label: "Username",
-										placeholder: "admin",
-									},
+							},
+							username: {
+								type: "Input",
+								props: {
+									name: "username",
+									label: "Username",
+									placeholder: "admin",
 								},
-								{
-									type: "Input",
-									props: {
-										name: "apiKey",
-										label: "API Key",
-										inputType: "password",
-										placeholder: "Enter your API key",
-									},
+							},
+							apiKey: {
+								type: "Input",
+								props: {
+									name: "apiKey",
+									label: "API Key",
+									inputType: "password",
+									placeholder: "Enter your API key",
 								},
-								{
-									type: "Select",
-									props: {
-										name: "environment",
-										label: "Environment",
-										placeholder: "Select environment",
-										options: [
-											{ label: "Production", value: "prod" },
-											{ label: "Staging", value: "staging" },
-											{ label: "Development", value: "dev" },
-										],
-									},
+							},
+							environment: {
+								type: "Select",
+								props: {
+									name: "environment",
+									label: "Environment",
+									placeholder: "Select environment",
+									options: [
+										{ label: "Production", value: "prod" },
+										{ label: "Staging", value: "staging" },
+										{ label: "Development", value: "dev" },
+									],
 								},
-							],
+							},
 						},
 					},
 				}),
@@ -1443,57 +1445,59 @@ The system is performing well overall but requires attention to the identified s
 					interrupt: true, // Open as modal immediately
 					conversation_id: messagePayload.conversation_id,
 					ui_schema: {
-						root: {
-							type: "Form",
-							props: {
-								title: "Customer Information",
-								description: "Please provide the customer details",
-								submitAction: "submit_customer_info",
-								submitLabel: "Submit",
-								cancelLabel: "Cancel",
+						root: "form",
+						elements: {
+							form: {
+								type: "Form",
+								props: {
+									title: "Customer Information",
+									description: "Please provide the customer details",
+									submitAction: "submit_customer_info",
+									submitLabel: "Submit",
+									cancelLabel: "Cancel",
+								},
+								children: ["customerName", "email", "priority", "notes"],
 							},
-							children: [
-								{
-									type: "Input",
-									props: {
-										name: "customerName",
-										label: "Customer Name",
-										required: true,
-										placeholder: "Enter customer name",
-									},
+							customerName: {
+								type: "Input",
+								props: {
+									name: "customerName",
+									label: "Customer Name",
+									required: true,
+									placeholder: "Enter customer name",
 								},
-								{
-									type: "Input",
-									props: {
-										name: "email",
-										label: "Email Address",
-										required: true,
-										placeholder: "customer@example.com",
-									},
+							},
+							email: {
+								type: "Input",
+								props: {
+									name: "email",
+									label: "Email Address",
+									required: true,
+									placeholder: "customer@example.com",
 								},
-								{
-									type: "Select",
-									props: {
-										name: "priority",
-										label: "Priority Level",
-										required: true,
-										options: [
-											{ label: "Low", value: "low" },
-											{ label: "Medium", value: "medium" },
-											{ label: "High", value: "high" },
-										],
-									},
+							},
+							priority: {
+								type: "Select",
+								props: {
+									name: "priority",
+									label: "Priority Level",
+									required: true,
+									options: [
+										{ label: "Low", value: "low" },
+										{ label: "Medium", value: "medium" },
+										{ label: "High", value: "high" },
+									],
 								},
-								{
-									type: "Input",
-									props: {
-										name: "notes",
-										label: "Additional Notes",
-										inputType: "textarea",
-										placeholder: "Any additional information...",
-									},
+							},
+							notes: {
+								type: "Input",
+								props: {
+									name: "notes",
+									label: "Additional Notes",
+									inputType: "textarea",
+									placeholder: "Any additional information...",
 								},
-							],
+							},
 						},
 					},
 				}),
@@ -1567,40 +1571,42 @@ The system is performing well overall but requires attention to the identified s
 					interrupt: false,
 					conversation_id: messagePayload.conversation_id,
 					ui_schema: {
-						root: {
-							type: "Form",
-							props: {
-								title: "Quick Feedback",
-								description: "Help us improve by providing feedback",
-								submitAction: "submit-feedback",
-								submitLabel: "Submit Feedback",
+						root: "form",
+						elements: {
+							form: {
+								type: "Form",
+								props: {
+									title: "Quick Feedback",
+									description: "Help us improve by providing feedback",
+									submitAction: "submit-feedback",
+									submitLabel: "Submit Feedback",
+								},
+								children: ["rating", "comment"],
 							},
-							children: [
-								{
-									type: "Select",
-									props: {
-										name: "rating",
-										label: "How was this response?",
-										placeholder: "Select rating",
-										options: [
-											{ label: "Excellent", value: "5" },
-											{ label: "Good", value: "4" },
-											{ label: "Average", value: "3" },
-											{ label: "Below Average", value: "2" },
-											{ label: "Poor", value: "1" },
-										],
-									},
+							rating: {
+								type: "Select",
+								props: {
+									name: "rating",
+									label: "How was this response?",
+									placeholder: "Select rating",
+									options: [
+										{ label: "Excellent", value: "5" },
+										{ label: "Good", value: "4" },
+										{ label: "Average", value: "3" },
+										{ label: "Below Average", value: "2" },
+										{ label: "Poor", value: "1" },
+									],
 								},
-								{
-									type: "Input",
-									props: {
-										name: "comment",
-										label: "Additional Comments",
-										inputType: "textarea",
-										placeholder: "Any additional feedback?",
-									},
+							},
+							comment: {
+								type: "Input",
+								props: {
+									name: "comment",
+									label: "Additional Comments",
+									inputType: "textarea",
+									placeholder: "Any additional feedback?",
 								},
-							],
+							},
 						},
 					},
 				}),

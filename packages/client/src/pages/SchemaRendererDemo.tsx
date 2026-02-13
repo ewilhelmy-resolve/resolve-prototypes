@@ -8,192 +8,178 @@
 import { useState } from "react";
 import { SchemaRenderer } from "../components/schema-renderer";
 import { SchemaDebugPanel } from "../components/schema-renderer/SchemaDebugPanel";
-import type { UIActionPayload, UISchemaV2 } from "../types/uiSchema";
+import type { UIActionPayload, UISchema } from "../types/uiSchema";
 
-// Example schemas for demo (V2 format)
-const EXAMPLE_SCHEMAS: Record<string, UISchemaV2> = {
+// Example schemas for demo (json-render.dev format)
+const EXAMPLE_SCHEMAS: Record<string, UISchema> = {
 	simple: {
-		root: {
-			type: "Column",
-			children: [
-				{
-					type: "Text",
-					props: { content: "Hello from Platform!", variant: "heading" },
+		root: "column",
+		elements: {
+			column: { type: "Column", children: ["heading", "subtext", "btn"] },
+			heading: {
+				type: "Text",
+				props: { content: "Hello from Platform!", variant: "heading" },
+			},
+			subtext: {
+				type: "Text",
+				props: {
+					content: "This UI was generated from JSON schema.",
+					variant: "muted",
 				},
-				{
-					type: "Text",
-					props: {
-						content: "This UI was generated from JSON schema.",
-						variant: "muted",
-					},
-				},
-				{
-					type: "Button",
-					props: { label: "Click Me", action: "button_clicked" },
-				},
-			],
+			},
+			btn: {
+				type: "Button",
+				props: { label: "Click Me", action: "button_clicked" },
+			},
 		},
 	},
 	form: {
-		root: {
-			type: "Column",
-			children: [
-				{
-					type: "Text",
-					props: { content: "Configure Workflow", variant: "heading" },
+		root: "column",
+		elements: {
+			column: { type: "Column", children: ["heading", "form"] },
+			heading: {
+				type: "Text",
+				props: { content: "Configure Workflow", variant: "heading" },
+			},
+			form: {
+				type: "Form",
+				props: {
+					submitAction: "save_config",
+					submitLabel: "Save Configuration",
 				},
-				{
-					type: "Form",
-					props: {
-						submitAction: "save_config",
-						submitLabel: "Save Configuration",
-					},
-					children: [
-						{
-							type: "Input",
-							props: {
-								name: "workflowName",
-								label: "Workflow Name",
-								placeholder: "My Automation",
-								required: true,
-							},
-						},
-						{
-							type: "Select",
-							props: {
-								name: "trigger",
-								label: "Trigger Event",
-								options: [
-									{ label: "On Ticket Created", value: "ticket_created" },
-									{ label: "On SLA Breach", value: "sla_breach" },
-									{ label: "On Status Change", value: "status_change" },
-								],
-							},
-						},
-						{
-							type: "Input",
-							props: {
-								name: "filter",
-								label: "Filter Condition",
-								placeholder: "priority = 'high'",
-								inputType: "textarea",
-							},
-						},
+				children: ["workflowName", "trigger", "filter"],
+			},
+			workflowName: {
+				type: "Input",
+				props: {
+					name: "workflowName",
+					label: "Workflow Name",
+					placeholder: "My Automation",
+					required: true,
+				},
+			},
+			trigger: {
+				type: "Select",
+				props: {
+					name: "trigger",
+					label: "Trigger Event",
+					options: [
+						{ label: "On Ticket Created", value: "ticket_created" },
+						{ label: "On SLA Breach", value: "sla_breach" },
+						{ label: "On Status Change", value: "status_change" },
 					],
 				},
-			],
+			},
+			filter: {
+				type: "Input",
+				props: {
+					name: "filter",
+					label: "Filter Condition",
+					placeholder: "priority = 'high'",
+					inputType: "textarea",
+				},
+			},
 		},
 	},
 	dashboard: {
-		root: {
-			type: "Column",
-			children: [
-				{
-					type: "Text",
-					props: { content: "Activity Dashboard", variant: "heading" },
+		root: "column",
+		elements: {
+			column: {
+				type: "Column",
+				children: ["heading", "statsRow", "activityCard"],
+			},
+			heading: {
+				type: "Text",
+				props: { content: "Activity Dashboard", variant: "heading" },
+			},
+			statsRow: {
+				type: "Row",
+				props: { gap: 16 },
+				children: ["totalStat", "openStat", "avgStat"],
+			},
+			totalStat: {
+				type: "Stat",
+				props: {
+					label: "Total Tickets",
+					value: "1,234",
+					change: "+12%",
+					changeType: "positive",
 				},
-				{
-					type: "Row",
-					props: { gap: 16 },
-					children: [
-						{
-							type: "Stat",
-							props: {
-								label: "Total Tickets",
-								value: "1,234",
-								change: "+12%",
-								changeType: "positive",
-							},
-						},
-						{
-							type: "Stat",
-							props: {
-								label: "Open Issues",
-								value: "42",
-								change: "-5%",
-								changeType: "negative",
-							},
-						},
-						{
-							type: "Stat",
-							props: {
-								label: "Avg Response",
-								value: "2.4h",
-								changeType: "neutral",
-							},
-						},
+			},
+			openStat: {
+				type: "Stat",
+				props: {
+					label: "Open Issues",
+					value: "42",
+					change: "-5%",
+					changeType: "negative",
+				},
+			},
+			avgStat: {
+				type: "Stat",
+				props: {
+					label: "Avg Response",
+					value: "2.4h",
+					changeType: "neutral",
+				},
+			},
+			activityCard: {
+				type: "Card",
+				props: { title: "Recent Activity", description: "Last 24 hours" },
+				children: ["activityTable"],
+			},
+			activityTable: {
+				type: "Table",
+				props: {
+					columns: [
+						{ key: "ticket", label: "Ticket" },
+						{ key: "status", label: "Status" },
+						{ key: "priority", label: "Priority" },
+					],
+					rows: [
+						{ ticket: "TKT-001", status: "Open", priority: "High" },
+						{ ticket: "TKT-002", status: "Pending", priority: "Medium" },
+						{ ticket: "TKT-003", status: "Closed", priority: "Low" },
 					],
 				},
-				{
-					type: "Card",
-					props: { title: "Recent Activity", description: "Last 24 hours" },
-					children: [
-						{
-							type: "Table",
-							props: {
-								columns: [
-									{ key: "ticket", label: "Ticket" },
-									{ key: "status", label: "Status" },
-									{ key: "priority", label: "Priority" },
-								],
-								rows: [
-									{ ticket: "TKT-001", status: "Open", priority: "High" },
-									{ ticket: "TKT-002", status: "Pending", priority: "Medium" },
-									{ ticket: "TKT-003", status: "Closed", priority: "Low" },
-								],
-							},
-						},
-					],
-				},
-			],
+			},
 		},
 	},
 	card: {
-		root: {
-			type: "Card",
-			props: {
-				title: "Workflow Settings",
-				description: "Configure automation behavior",
+		root: "card",
+		elements: {
+			card: {
+				type: "Card",
+				props: {
+					title: "Workflow Settings",
+					description: "Configure automation behavior",
+				},
+				children: ["text", "btnRow"],
 			},
-			children: [
-				{
-					type: "Text",
-					props: {
-						content: "Choose how this workflow behaves:",
-						variant: "subheading",
-					},
+			text: {
+				type: "Text",
+				props: {
+					content: "Choose how this workflow behaves:",
+					variant: "subheading",
 				},
-				{
-					type: "Row",
-					props: { gap: 8 },
-					children: [
-						{
-							type: "Button",
-							props: {
-								label: "Enable",
-								action: "enable_workflow",
-								variant: "default",
-							},
-						},
-						{
-							type: "Button",
-							props: {
-								label: "Disable",
-								action: "disable_workflow",
-								variant: "outline",
-							},
-						},
-						{
-							type: "Button",
-							props: {
-								label: "Delete",
-								action: "delete_workflow",
-								variant: "destructive",
-							},
-						},
-					],
-				},
-			],
+			},
+			btnRow: {
+				type: "Row",
+				props: { gap: 8 },
+				children: ["enableBtn", "disableBtn", "deleteBtn"],
+			},
+			enableBtn: {
+				type: "Button",
+				props: { label: "Enable", action: "enable_workflow", variant: "default" },
+			},
+			disableBtn: {
+				type: "Button",
+				props: { label: "Disable", action: "disable_workflow", variant: "outline" },
+			},
+			deleteBtn: {
+				type: "Button",
+				props: { label: "Delete", action: "delete_workflow", variant: "destructive" },
+			},
 		},
 	},
 };
@@ -206,7 +192,7 @@ export default function SchemaRendererDemo() {
 	const [debugVisible, setDebugVisible] = useState(true);
 
 	const currentSchema = useCustom
-		? (JSON.parse(customSchema || "null") as UISchemaV2 | null)
+		? (JSON.parse(customSchema || "null") as UISchema | null)
 		: EXAMPLE_SCHEMAS[selectedSchema];
 
 	const handleAction = (payload: UIActionPayload) => {

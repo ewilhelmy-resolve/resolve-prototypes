@@ -665,13 +665,16 @@ export interface FormModalField {
 }
 
 /**
- * Walk a V2 UIElement tree and extract form fields (Input/Select) as FormModalField[]
+ * Walk elements map from a given element ID and extract form fields (Input/Select).
+ * Uses json-render.dev flat elements format with string-reference children.
  */
-export function extractFormFields(element: {
-	type: string;
-	props?: Record<string, unknown>;
-	children?: unknown[];
-}): FormModalField[] {
+export function extractFormFields(
+	elements: Record<string, { type: string; props?: Record<string, unknown>; children?: string[] }>,
+	elementId: string,
+): FormModalField[] {
+	const element = elements[elementId];
+	if (!element) return [];
+
 	const fields: FormModalField[] = [];
 	const props = element.props || {};
 
@@ -697,20 +700,8 @@ export function extractFormFields(element: {
 		});
 	}
 
-	if (Array.isArray(element.children)) {
-		for (const child of element.children) {
-			if (child && typeof child === "object") {
-				fields.push(
-					...extractFormFields(
-						child as {
-							type: string;
-							props?: Record<string, unknown>;
-							children?: unknown[];
-						},
-					),
-				);
-			}
-		}
+	for (const childId of element.children || []) {
+		fields.push(...extractFormFields(elements, childId));
 	}
 
 	return fields;

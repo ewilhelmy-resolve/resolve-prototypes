@@ -1,10 +1,11 @@
 /**
  * SchemaRenderer
  *
- * Renders JSON UI schema as React components.
- * Maps schema types → shadcn/ui components.
+ * Renders json-render.dev UI schema as React components.
+ * Maps element types → shadcn/ui components.
  *
- * JAR-81: Validates schema with Zod, handles errors gracefully.
+ * Schema format: { root: "id", elements: { id: { type, props, children } } }
+ * @see https://json-render.dev/docs/schemas
  */
 
 import { AlertCircle } from "lucide-react";
@@ -20,31 +21,12 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { toast } from "../../lib/toast";
 import type {
-	ButtonComponent,
-	CardComponent,
-	ColumnComponent,
 	ConditionalProps,
-	DiagramComponent,
-	DividerComponent,
-	FormComponent,
-	InputComponent,
-	ModalDefinition,
-	RowComponent,
-	SelectComponent,
-	StatComponent,
-	TableComponent,
-	TextComponent,
 	UIActionPayload,
-	UIComponent,
 	UIElement,
 	UISchema,
-	UISchemaV2,
 } from "../../types/uiSchema";
-import {
-	evaluateCondition,
-	normalizeSchema,
-	validateUISchema,
-} from "../../types/uiSchema";
+import { evaluateCondition, parseSchema } from "../../types/uiSchema";
 import {
 	type FormModalField,
 	isInIframe,
@@ -80,7 +62,7 @@ import { Textarea } from "../ui/textarea";
 import { MermaidRenderer } from "./MermaidRenderer";
 
 // ============================================================================
-// Error Boundary for graceful error handling
+// Error Boundary
 // ============================================================================
 
 interface ErrorBoundaryProps {
@@ -160,21 +142,25 @@ function SchemaErrorFallback({
 }
 
 // ============================================================================
+// Helpers
+// ============================================================================
+
+/** Extract a prop value from UIElement.props */
+function p<T = unknown>(el: UIElement, key: string, fallback?: T): T {
+	return ((el.props?.[key] as T) ?? fallback) as T;
+}
+
+// ============================================================================
 // Main Component
 // ============================================================================
 
 interface SchemaRendererProps {
-	/** Accepts V1 UISchema, V2 UISchemaV2, or any raw schema object */
-	schema: UISchema | UISchemaV2 | Record<string, unknown>;
+	/** Accepts UISchema or any raw schema object */
+	schema: UISchema | Record<string, unknown>;
 	messageId: string;
 	conversationId: string;
 	onAction?: (payload: UIActionPayload) => void;
 	disabled?: boolean;
-}
-
-/** Helper: extract a prop value from UIElement.props */
-function p<T = unknown>(el: UIElement, key: string, fallback?: T): T {
-	return ((el.props?.[key] as T) ?? fallback) as T;
 }
 
 export function SchemaRenderer({
@@ -194,31 +180,31 @@ export function SchemaRenderer({
 	>([]);
 	const [showLogPanel, setShowLogPanel] = useState(false);
 
-	// Track pending modal submission handler for cross-origin postMessage
+	// Cross-origin postMessage handler ref
 	const pendingModalSubmitRef = useRef<{
 		action: string;
 		modalTitle: string;
 	} | null>(null);
 
-	// Track auto-open dialog (ref defined early to satisfy hook rules)
+	// Auto-open dialog tracking
 	const autoOpenedRef = useRef<string | null>(null);
 	const handleOpenDialogRef = useRef<
 		| ((dialogId: string, options?: { preventBackdropClose?: boolean }) => void)
 		| null
 	>(null);
 
-	// Normalize schema to V2 (memoized via ref to avoid re-normalizing every render)
-	const normalizedRef = useRef<{ input: unknown; output: UISchemaV2 | null }>({
+	// Parse and validate schema (memoized via ref)
+	const parsedRef = useRef<{ input: unknown; output: UISchema | null }>({
 		input: undefined,
 		output: null,
 	});
-	if (normalizedRef.current.input !== schema) {
-		normalizedRef.current = {
+	if (parsedRef.current.input !== schema) {
+		parsedRef.current = {
 			input: schema,
-			output: normalizeSchema(schema),
+			output: parseSchema(schema),
 		};
 	}
-	const normalized = normalizedRef.current.output;
+	const parsed = parsedRef.current.output;
 
 	// Listen for form modal submissions from host (cross-origin)
 	useEffect(() => {
@@ -229,7 +215,6 @@ export function SchemaRenderer({
 				const { action, modalTitle } = pendingModalSubmitRef.current;
 				pendingModalSubmitRef.current = null;
 
-				// Log the action
 				const logEntry = {
 					action,
 					data: data || {},
@@ -237,7 +222,6 @@ export function SchemaRenderer({
 				};
 				setActionLog((prev) => [logEntry, ...prev]);
 
-				// Call the action handler
 				onAction?.({
 					action,
 					data,
@@ -246,7 +230,6 @@ export function SchemaRenderer({
 					timestamp: logEntry.timestamp,
 				});
 
-				// Show toast with View Log action
 				toast.success(`${modalTitle} saved`, {
 					description: `Action: ${action}`,
 					action: {
@@ -265,35 +248,42 @@ export function SchemaRenderer({
 
 	// Auto-open dialog if specified in schema
 	useEffect(() => {
-		const dialogId = normalized?.autoOpenDialog;
-		if (!dialogId || autoOpenedRef.current === dialogId) return;
+		const dialogName = parsed?.autoOpenDialog;
+		if (!dialogName || autoOpenedRef.current === dialogName) return;
 
 		const timer = setTimeout(() => {
-			if (handleOpenDialogRef.current && autoOpenedRef.current !== dialogId) {
-				autoOpenedRef.current = dialogId;
-				handleOpenDialogRef.current(dialogId, { preventBackdropClose: true });
+			if (
+				handleOpenDialogRef.current &&
+				autoOpenedRef.current !== dialogName
+			) {
+				autoOpenedRef.current = dialogName;
+				handleOpenDialogRef.current(dialogName, {
+					preventBackdropClose: true,
+				});
 			}
 		}, 100);
 		return () => clearTimeout(timer);
-	}, [normalized?.autoOpenDialog]);
+	}, [parsed?.autoOpenDialog]);
 
-	// Early return if normalization fails
-	if (!normalized) {
-		// Try legacy validation for better error messages
-		const validation = validateUISchema(schema);
-		if (!validation.valid) {
-			const errorMessages = validation.errors?.issues.map(
-				(issue) => `${String(issue.path.join("."))}: ${issue.message}`,
-			);
-			return (
-				<SchemaErrorFallback
-					title="Invalid Schema"
-					message="The UI schema failed validation"
-					details={errorMessages}
-				/>
-			);
-		}
-		return null;
+	// Early return if parse fails
+	if (!parsed) {
+		return (
+			<SchemaErrorFallback
+				title="Invalid Schema"
+				message="Schema must have root (string) and elements (map)"
+			/>
+		);
+	}
+
+	const { elements } = parsed;
+	const rootElement = elements[parsed.root];
+	if (!rootElement) {
+		return (
+			<SchemaErrorFallback
+				title="Invalid Schema"
+				message={`Root element "${parsed.root}" not found in elements`}
+			/>
+		);
 	}
 
 	const handleAction = (action: string, data?: Record<string, unknown>) => {
@@ -314,8 +304,11 @@ export function SchemaRenderer({
 		setModalFormData((prev) => ({ ...prev, [name]: value }));
 	};
 
-	/** Extract FormModalField[] from a V2 UIElement tree for host modal */
-	const extractFieldsFromElement = (el: UIElement): FormModalField[] => {
+	/** Extract FormModalField[] from an element tree for host modal */
+	const extractFieldsFromId = (elementId: string): FormModalField[] => {
+		const el = elements[elementId];
+		if (!el) return [];
+
 		const fields: FormModalField[] = [];
 		if (el.type === "Input") {
 			fields.push({
@@ -336,19 +329,19 @@ export function SchemaRenderer({
 				defaultValue: p<string>(el, "defaultValue"),
 			});
 		}
-		if (el.children) {
-			for (const child of el.children) {
-				fields.push(...extractFieldsFromElement(child));
-			}
+		for (const childId of el.children || []) {
+			fields.push(...extractFieldsFromId(childId));
 		}
 		return fields;
 	};
 
 	const handleOpenDialog = (
-		dialogId: string,
+		dialogName: string,
 		options?: { preventBackdropClose?: boolean },
 	) => {
-		const dialog = normalized.dialogs?.[dialogId];
+		const dialogElementId = parsed.dialogs?.[dialogName];
+		if (!dialogElementId) return;
+		const dialog = elements[dialogElementId];
 		if (!dialog) return;
 
 		const title = p<string>(dialog, "title", "");
@@ -366,7 +359,7 @@ export function SchemaRenderer({
 
 		// In iframe context, open modal in host page
 		if (isInIframe()) {
-			const fields = extractFieldsFromElement(dialog);
+			const fields = extractFieldsFromId(dialogElementId);
 
 			if (submitAction) {
 				pendingModalSubmitRef.current = {
@@ -413,7 +406,7 @@ export function SchemaRenderer({
 
 		// Not in iframe - use inline Dialog
 		setModalFormData({});
-		setOpenDialogId(dialogId);
+		setOpenDialogId(dialogName);
 	};
 
 	// Populate ref for auto-open effect
@@ -443,59 +436,38 @@ export function SchemaRenderer({
 		});
 	};
 
-	/** Render a V2 UIElement tree */
+	/** Render an element by its ID in the elements map */
 	const renderElement = (
-		element: UIElement,
+		elementId: string,
 		index: number,
 		context: Record<string, string> = formData,
 		onInputChange: (name: string, value: string) => void = handleInputChange,
 	): React.ReactNode => {
+		const element = elements[elementId];
+		if (!element) {
+			return (
+				<div key={elementId} className="text-sm text-muted-foreground">
+					Unknown element: {elementId}
+				</div>
+			);
+		}
+
 		// Check conditional rendering
 		const condIf = element.props?.if as ConditionalProps | undefined;
 		if (condIf && !evaluateCondition(condIf, context)) return null;
 
-		const key = p<string>(element, "id") || `${element.type}-${index}`;
+		const key = p<string>(element, "id") || `${elementId}-${index}`;
 
 		switch (element.type) {
 			case "Text":
-				return (
-					<TextRenderer
-						key={key}
-						component={{
-							type: "text",
-							content: p<string>(element, "content", ""),
-							variant: p(element, "variant"),
-							className: p<string>(element, "className"),
-						}}
-					/>
-				);
+				return <TextRenderer key={key} el={element} />;
 			case "Stat":
-				return (
-					<StatRenderer
-						key={key}
-						component={{
-							type: "stat",
-							label: p<string>(element, "label", ""),
-							value: p<string | number>(element, "value", ""),
-							change: p<string>(element, "change"),
-							changeType: p(element, "changeType"),
-							className: p<string>(element, "className"),
-						}}
-					/>
-				);
+				return <StatRenderer key={key} el={element} />;
 			case "Input":
 				return (
 					<InputRenderer
 						key={key}
-						component={{
-							type: "input",
-							name: p<string>(element, "name", ""),
-							label: p<string>(element, "label"),
-							placeholder: p<string>(element, "placeholder"),
-							inputType: p(element, "inputType"),
-							required: p<boolean>(element, "required"),
-							className: p<string>(element, "className"),
-						}}
+						el={element}
 						value={
 							context[p<string>(element, "name", "")] ||
 							p<string>(element, "defaultValue", "")
@@ -510,19 +482,7 @@ export function SchemaRenderer({
 				return (
 					<SelectRenderer
 						key={key}
-						component={{
-							type: "select",
-							name: p<string>(element, "name", ""),
-							label: p<string>(element, "label"),
-							placeholder: p<string>(element, "placeholder"),
-							options: p<Array<{ label: string; value: string }>>(
-								element,
-								"options",
-								[],
-							),
-							required: p<boolean>(element, "required"),
-							className: p<string>(element, "className"),
-						}}
+						el={element}
 						value={
 							context[p<string>(element, "name", "")] ||
 							p<string>(element, "defaultValue", "")
@@ -537,13 +497,8 @@ export function SchemaRenderer({
 				return (
 					<ButtonRenderer
 						key={key}
-						component={{
-							type: "button",
-							label: p<string>(element, "label", ""),
-							variant: p(element, "variant"),
-							disabled: disabled || p<boolean>(element, "disabled"),
-							className: p<string>(element, "className"),
-						}}
+						el={element}
+						disabled={disabled}
 						onClick={() => {
 							const opensDialog = p<string>(element, "opensDialog");
 							const action = p<string>(element, "action");
@@ -557,50 +512,25 @@ export function SchemaRenderer({
 				);
 			case "Card":
 				return (
-					<CardRenderer
-						key={key}
-						component={{
-							type: "card",
-							title: p<string>(element, "title"),
-							description: p<string>(element, "description"),
-							className: p<string>(element, "className"),
-							children: [] as UIComponent[],
-						}}
-					>
-						{(element.children || []).map((child, i) =>
-							renderElement(child, i, context, onInputChange),
+					<CardRenderer key={key} el={element}>
+						{(element.children || []).map((childId, i) =>
+							renderElement(childId, i, context, onInputChange),
 						)}
 					</CardRenderer>
 				);
 			case "Row":
 				return (
-					<RowRenderer
-						key={key}
-						component={{
-							type: "row",
-							gap: p<number>(element, "gap"),
-							className: p<string>(element, "className"),
-							children: [] as UIComponent[],
-						}}
-					>
-						{(element.children || []).map((child, i) =>
-							renderElement(child, i, context, onInputChange),
+					<RowRenderer key={key} el={element}>
+						{(element.children || []).map((childId, i) =>
+							renderElement(childId, i, context, onInputChange),
 						)}
 					</RowRenderer>
 				);
 			case "Column":
 				return (
-					<ColumnRenderer
-						key={key}
-						component={{
-							type: "column",
-							gap: p<number>(element, "gap"),
-							className: p<string>(element, "className"),
-							children: [] as UIComponent[],
-						}}
-					>
-						{(element.children || []).map((child, i) =>
-							renderElement(child, i, context, onInputChange),
+					<ColumnRenderer key={key} el={element}>
+						{(element.children || []).map((childId, i) =>
+							renderElement(childId, i, context, onInputChange),
 						)}
 					</ColumnRenderer>
 				);
@@ -609,65 +539,21 @@ export function SchemaRenderer({
 				return (
 					<FormRenderer
 						key={key}
-						component={{
-							type: "form",
-							submitAction,
-							submitLabel: p<string>(element, "submitLabel"),
-							className: p<string>(element, "className"),
-							children: [] as UIComponent[],
-						}}
+						el={element}
 						onSubmit={() => handleAction(submitAction, formData)}
 					>
-						{(element.children || []).map((child, i) =>
-							renderElement(child, i, context, onInputChange),
+						{(element.children || []).map((childId, i) =>
+							renderElement(childId, i, context, onInputChange),
 						)}
 					</FormRenderer>
 				);
 			}
 			case "Table":
-				return (
-					<TableRenderer
-						key={key}
-						component={{
-							type: "table",
-							columns: p<Array<{ key: string; label: string }>>(
-								element,
-								"columns",
-								[],
-							),
-							rows: p<Array<Record<string, string | number>>>(
-								element,
-								"rows",
-								[],
-							),
-							className: p<string>(element, "className"),
-						}}
-					/>
-				);
+				return <TableRenderer key={key} el={element} />;
 			case "Diagram":
-				return (
-					<DiagramRenderer
-						key={key}
-						component={{
-							type: "diagram",
-							code: p<string>(element, "code", ""),
-							title: p<string>(element, "title"),
-							expandable: p<boolean>(element, "expandable"),
-							className: p<string>(element, "className"),
-						}}
-					/>
-				);
+				return <DiagramRenderer key={key} el={element} />;
 			case "Separator":
-				return (
-					<DividerRenderer
-						key={key}
-						component={{
-							type: "divider",
-							spacing: p(element, "spacing"),
-							className: p<string>(element, "className"),
-						}}
-					/>
-				);
+				return <DividerRenderer key={key} el={element} />;
 			default:
 				return (
 					<div key={key} className="text-sm text-muted-foreground">
@@ -677,19 +563,17 @@ export function SchemaRenderer({
 		}
 	};
 
-	// Get current open dialog definition
-	const currentDialog =
-		openDialogId && normalized.dialogs
-			? normalized.dialogs[openDialogId]
-			: null;
+	// Resolve current open dialog
+	const currentDialogElementId =
+		openDialogId && parsed.dialogs ? parsed.dialogs[openDialogId] : null;
+	const currentDialog = currentDialogElementId
+		? elements[currentDialogElementId]
+		: null;
 
-	// Check if root has content to render
-	const root = normalized.root;
-	if (!root) return null;
-	// Column wrapper with no children = empty schema
+	// Empty schema check
 	if (
-		root.type === "Column" &&
-		(!root.children || root.children.length === 0)
+		rootElement.type === "Column" &&
+		(!rootElement.children || rootElement.children.length === 0)
 	) {
 		return null;
 	}
@@ -697,40 +581,29 @@ export function SchemaRenderer({
 	return (
 		<SchemaErrorBoundary>
 			<div className="schema-renderer space-y-3 w-full overflow-hidden">
-				{root.type === "Column" && root.children
-					? root.children.map((child, i) => renderElement(child, i))
-					: renderElement(root, 0)}
+				{rootElement.type === "Column" && rootElement.children
+					? rootElement.children.map((childId, i) =>
+							renderElement(childId, i),
+						)
+					: renderElement(parsed.root, 0)}
 			</div>
 
 			{/* Dialog rendering */}
-			{currentDialog && (
+			{currentDialog && currentDialogElementId && (
 				<ModalRenderer
-					modal={{
-						title: p<string>(currentDialog, "title", ""),
-						description: p<string>(currentDialog, "description"),
-						size: p(currentDialog, "size", "full"),
-						children: [] as UIComponent[],
-						submitAction: p<string>(currentDialog, "submitAction"),
-						submitLabel: p<string>(currentDialog, "submitLabel"),
-						cancelLabel: p<string>(currentDialog, "cancelLabel"),
-						submitVariant: p(currentDialog, "submitVariant"),
-					}}
+					dialog={currentDialog}
+					dialogElementId={currentDialogElementId}
 					open={!!openDialogId}
 					onClose={handleCloseDialog}
 					onSubmit={handleDialogSubmit}
-					renderComponent={(_comp, index) => {
-						const children = currentDialog.children || [];
-						if (index < children.length) {
-							return renderElement(
-								children[index],
-								index,
-								modalFormData,
-								handleModalInputChange,
-							);
-						}
-						return null;
-					}}
-					dialogChildren={currentDialog.children}
+					renderElement={(childId, index) =>
+						renderElement(
+							childId,
+							index,
+							modalFormData,
+							handleModalInputChange,
+						)
+					}
 				/>
 			)}
 
@@ -781,9 +654,15 @@ export function SchemaRenderer({
 	);
 }
 
-// Individual component renderers
+// ============================================================================
+// Sub-Renderers (each takes UIElement directly)
+// ============================================================================
 
-function TextRenderer({ component }: { component: TextComponent }) {
+function TextRenderer({ el }: { el: UIElement }) {
+	const content = p<string>(el, "content", "");
+	const variant = p<string>(el, "variant", "default");
+	const className = p<string>(el, "className", "");
+
 	const variants: Record<string, string> = {
 		default: "text-sm",
 		muted: "text-sm text-muted-foreground",
@@ -797,10 +676,9 @@ function TextRenderer({ component }: { component: TextComponent }) {
 		"diff-context":
 			"text-xs font-mono bg-muted/50 text-muted-foreground px-2 py-0.5",
 	};
+
 	return (
-		<div
-			className={`${variants[component.variant || "default"]} ${component.className || ""}`}
-		>
+		<div className={`${variants[variant] || variants.default} ${className}`}>
 			<ReactMarkdown
 				remarkPlugins={[remarkGfm]}
 				components={{
@@ -846,31 +724,36 @@ function TextRenderer({ component }: { component: TextComponent }) {
 					),
 				}}
 			>
-				{component.content}
+				{content}
 			</ReactMarkdown>
 		</div>
 	);
 }
 
-function StatRenderer({ component }: { component: StatComponent }) {
-	const changeColors = {
+function StatRenderer({ el }: { el: UIElement }) {
+	const label = p<string>(el, "label", "");
+	const value = p<string | number>(el, "value", "");
+	const change = p<string>(el, "change");
+	const changeType = p<string>(el, "changeType", "neutral");
+	const className = p<string>(el, "className", "");
+
+	const changeColors: Record<string, string> = {
 		positive: "text-green-600",
 		negative: "text-red-600",
 		neutral: "text-muted-foreground",
 	};
+
 	return (
 		<div
-			className={`p-4 rounded-lg border bg-card flex-1 min-w-0 ${component.className || ""}`}
+			className={`p-4 rounded-lg border bg-card flex-1 min-w-0 ${className}`}
 		>
 			<div className="text-xs text-muted-foreground uppercase tracking-wide">
-				{component.label}
+				{label}
 			</div>
-			<div className="text-2xl font-bold mt-1">{component.value}</div>
-			{component.change && (
-				<div
-					className={`text-xs mt-1 ${changeColors[component.changeType || "neutral"]}`}
-				>
-					{component.change}
+			<div className="text-2xl font-bold mt-1">{value}</div>
+			{change && (
+				<div className={`text-xs mt-1 ${changeColors[changeType] || ""}`}>
+					{change}
 				</div>
 			)}
 		</div>
@@ -878,30 +761,36 @@ function StatRenderer({ component }: { component: StatComponent }) {
 }
 
 function InputRenderer({
-	component,
+	el,
 	value,
 	onChange,
 	disabled,
 }: {
-	component: InputComponent;
+	el: UIElement;
 	value: string;
 	onChange: (value: string) => void;
 	disabled?: boolean;
 }) {
-	const InputEl = component.inputType === "textarea" ? Textarea : Input;
+	const name = p<string>(el, "name", "");
+	const label = p<string>(el, "label");
+	const placeholder = p<string>(el, "placeholder");
+	const inputType = p<string>(el, "inputType", "text");
+	const required = p<boolean>(el, "required");
+	const className = p<string>(el, "className", "");
+
+	const InputEl = inputType === "textarea" ? Textarea : Input;
+
 	return (
-		<div className={`space-y-1.5 ${component.className || ""}`}>
-			{component.label && (
-				<Label htmlFor={component.name}>{component.label}</Label>
-			)}
+		<div className={`space-y-1.5 ${className}`}>
+			{label && <Label htmlFor={name}>{label}</Label>}
 			<InputEl
-				id={component.name}
-				name={component.name}
-				type={component.inputType || "text"}
-				placeholder={component.placeholder}
+				id={name}
+				name={name}
+				type={inputType}
+				placeholder={placeholder}
 				value={value}
 				onChange={(e) => onChange(e.target.value)}
-				required={component.required}
+				required={required}
 				disabled={disabled}
 			/>
 		</div>
@@ -909,25 +798,34 @@ function InputRenderer({
 }
 
 function SelectRenderer({
-	component,
+	el,
 	value,
 	onChange,
 	disabled,
 }: {
-	component: SelectComponent;
+	el: UIElement;
 	value: string;
 	onChange: (value: string) => void;
 	disabled?: boolean;
 }) {
+	const label = p<string>(el, "label");
+	const placeholder = p<string>(el, "placeholder", "Select...");
+	const options = p<Array<{ label: string; value: string }>>(
+		el,
+		"options",
+		[],
+	);
+	const className = p<string>(el, "className", "");
+
 	return (
-		<div className={`space-y-1.5 ${component.className || ""}`}>
-			{component.label && <Label>{component.label}</Label>}
+		<div className={`space-y-1.5 ${className}`}>
+			{label && <Label>{label}</Label>}
 			<Select value={value} onValueChange={onChange} disabled={disabled}>
 				<SelectTrigger>
-					<SelectValue placeholder={component.placeholder || "Select..."} />
+					<SelectValue placeholder={placeholder} />
 				</SelectTrigger>
 				<SelectContent>
-					{component.options.map((opt) => (
+					{options.map((opt) => (
 						<SelectItem key={opt.value} value={opt.value}>
 							{opt.label}
 						</SelectItem>
@@ -939,41 +837,53 @@ function SelectRenderer({
 }
 
 function ButtonRenderer({
-	component,
+	el,
 	onClick,
+	disabled,
 }: {
-	component: ButtonComponent;
+	el: UIElement;
 	onClick: () => void;
+	disabled?: boolean;
 }) {
+	const label = p<string>(el, "label", "");
+	const variant = p<string>(el, "variant", "default") as
+		| "default"
+		| "destructive"
+		| "outline"
+		| "secondary"
+		| "ghost";
+	const elDisabled = p<boolean>(el, "disabled");
+	const className = p<string>(el, "className");
+
 	return (
 		<Button
-			variant={component.variant || "default"}
-			disabled={component.disabled}
+			variant={variant}
+			disabled={disabled || elDisabled}
 			onClick={onClick}
-			className={component.className}
+			className={className}
 		>
-			{component.label}
+			{label}
 		</Button>
 	);
 }
 
 function CardRenderer({
-	component,
+	el,
 	children,
 }: {
-	component: CardComponent;
+	el: UIElement;
 	children: React.ReactNode;
 }) {
+	const title = p<string>(el, "title");
+	const description = p<string>(el, "description");
+	const className = p<string>(el, "className", "");
+
 	return (
-		<Card className={`w-full overflow-hidden ${component.className || ""}`}>
-			{(component.title || component.description) && (
+		<Card className={`w-full overflow-hidden ${className}`}>
+			{(title || description) && (
 				<CardHeader className="pb-3">
-					{component.title && (
-						<CardTitle className="text-base">{component.title}</CardTitle>
-					)}
-					{component.description && (
-						<CardDescription>{component.description}</CardDescription>
-					)}
+					{title && <CardTitle className="text-base">{title}</CardTitle>}
+					{description && <CardDescription>{description}</CardDescription>}
 				</CardHeader>
 			)}
 			<CardContent className="space-y-3">{children}</CardContent>
@@ -982,16 +892,19 @@ function CardRenderer({
 }
 
 function RowRenderer({
-	component,
+	el,
 	children,
 }: {
-	component: RowComponent;
+	el: UIElement;
 	children: React.ReactNode;
 }) {
+	const gap = p<number>(el, "gap", 12);
+	const className = p<string>(el, "className", "");
+
 	return (
 		<div
-			className={`flex flex-wrap items-start w-full overflow-hidden ${component.className || ""}`}
-			style={{ gap: component.gap ?? 12 }}
+			className={`flex flex-wrap items-start w-full overflow-hidden ${className}`}
+			style={{ gap }}
 		>
 			{children}
 		</div>
@@ -999,54 +912,63 @@ function RowRenderer({
 }
 
 function ColumnRenderer({
-	component,
+	el,
 	children,
 }: {
-	component: ColumnComponent;
+	el: UIElement;
 	children: React.ReactNode;
 }) {
+	const gap = p<number>(el, "gap", 12);
+	const className = p<string>(el, "className", "");
+
 	return (
-		<div
-			className={`flex flex-col ${component.className || ""}`}
-			style={{ gap: component.gap ?? 12 }}
-		>
+		<div className={`flex flex-col ${className}`} style={{ gap }}>
 			{children}
 		</div>
 	);
 }
 
 function FormRenderer({
-	component,
+	el,
 	children,
 	onSubmit,
 }: {
-	component: FormComponent;
+	el: UIElement;
 	children: React.ReactNode;
 	onSubmit: () => void;
 }) {
+	const submitLabel = p<string>(el, "submitLabel", "Submit");
+	const className = p<string>(el, "className", "");
+
 	return (
 		<form
-			className={`space-y-4 ${component.className || ""}`}
+			className={`space-y-4 ${className}`}
 			onSubmit={(e) => {
 				e.preventDefault();
 				onSubmit();
 			}}
 		>
 			{children}
-			<Button type="submit">{component.submitLabel || "Submit"}</Button>
+			<Button type="submit">{submitLabel}</Button>
 		</form>
 	);
 }
 
-function TableRenderer({ component }: { component: TableComponent }) {
+function TableRenderer({ el }: { el: UIElement }) {
+	const columns = p<Array<{ key: string; label: string }>>(
+		el,
+		"columns",
+		[],
+	);
+	const rows = p<Array<Record<string, string | number>>>(el, "rows", []);
+	const className = p<string>(el, "className", "");
+
 	return (
-		<div
-			className={`rounded-md border w-full overflow-x-auto ${component.className || ""}`}
-		>
+		<div className={`rounded-md border w-full overflow-x-auto ${className}`}>
 			<table className="w-full text-sm min-w-0">
 				<thead>
 					<tr className="border-b bg-muted/50">
-						{component.columns.map((col) => (
+						{columns.map((col) => (
 							<th key={col.key} className="px-3 py-2 text-left font-medium">
 								{col.label}
 							</th>
@@ -1054,9 +976,9 @@ function TableRenderer({ component }: { component: TableComponent }) {
 					</tr>
 				</thead>
 				<tbody>
-					{component.rows.map((row, i) => (
+					{rows.map((row, i) => (
 						<tr key={i} className="border-b last:border-0">
-							{component.columns.map((col) => (
+							{columns.map((col) => (
 								<td key={col.key} className="px-3 py-2">
 									{row[col.key]}
 								</td>
@@ -1069,31 +991,38 @@ function TableRenderer({ component }: { component: TableComponent }) {
 	);
 }
 
-function DiagramRenderer({ component }: { component: DiagramComponent }) {
+function DiagramRenderer({ el }: { el: UIElement }) {
 	return (
 		<MermaidRenderer
-			code={component.code}
-			title={component.title}
-			expandable={component.expandable}
-			className={component.className}
+			code={p<string>(el, "code", "")}
+			title={p<string>(el, "title")}
+			expandable={p<boolean>(el, "expandable")}
+			className={p<string>(el, "className")}
 		/>
 	);
 }
 
-function DividerRenderer({ component }: { component: DividerComponent }) {
-	const spacingClasses = {
+function DividerRenderer({ el }: { el: UIElement }) {
+	const spacing = p<string>(el, "spacing", "md");
+	const className = p<string>(el, "className", "");
+
+	const spacingClasses: Record<string, string> = {
 		sm: "my-2",
 		md: "my-4",
 		lg: "my-6",
 	};
+
 	return (
 		<hr
-			className={`border-t border-border ${spacingClasses[component.spacing || "md"]} ${component.className || ""}`}
+			className={`border-t border-border ${spacingClasses[spacing] || spacingClasses.md} ${className}`}
 		/>
 	);
 }
 
-// Modal size classes
+// ============================================================================
+// Modal Renderer
+// ============================================================================
+
 const modalSizeClasses: Record<string, string> = {
 	sm: "sm:max-w-sm",
 	md: "sm:max-w-md",
@@ -1103,27 +1032,34 @@ const modalSizeClasses: Record<string, string> = {
 };
 
 function ModalRenderer({
-	modal,
+	dialog,
+	dialogElementId: _dialogElementId,
 	open,
 	onClose,
 	onSubmit,
-	renderComponent,
-	dialogChildren,
+	renderElement,
 }: {
-	modal: ModalDefinition;
+	dialog: UIElement;
+	dialogElementId: string;
 	open: boolean;
 	onClose: () => void;
 	onSubmit: (action: string, title: string) => void;
-	renderComponent: (component: UIComponent, index: number) => React.ReactNode;
-	/** V2 dialog children (UIElement[]) — used instead of modal.children when present */
-	dialogChildren?: UIElement[];
+	renderElement: (childId: string, index: number) => React.ReactNode;
 }) {
-	const sizeClass = modalSizeClasses[modal.size || "full"];
+	const title = p<string>(dialog, "title", "");
+	const description = p<string>(dialog, "description");
+	const size = p<string>(dialog, "size", "full");
+	const submitAction = p<string>(dialog, "submitAction");
+	const submitLabel = p<string>(dialog, "submitLabel", "Submit");
+	const cancelLabel = p<string>(dialog, "cancelLabel", "Cancel");
+	const submitVariant = p<string>(dialog, "submitVariant", "default") as
+		| "default"
+		| "destructive"
+		| "outline"
+		| "secondary"
+		| "ghost";
 
-	// Use V2 dialogChildren if provided, otherwise fall back to modal.children
-	const childCount = dialogChildren
-		? dialogChildren.length
-		: modal.children.length;
+	const sizeClass = modalSizeClasses[size] || modalSizeClasses.full;
 
 	return (
 		<Dialog open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
@@ -1132,34 +1068,28 @@ function ModalRenderer({
 				showCloseButton={true}
 			>
 				<DialogHeader>
-					<DialogTitle>{modal.title}</DialogTitle>
-					{modal.description && (
-						<DialogDescription>{modal.description}</DialogDescription>
+					<DialogTitle>{title}</DialogTitle>
+					{description && (
+						<DialogDescription>{description}</DialogDescription>
 					)}
 				</DialogHeader>
 
 				<div className="flex-1 overflow-y-auto space-y-4 py-4">
-					{Array.from({ length: childCount }, (_, index) =>
-						dialogChildren
-							? renderComponent({} as UIComponent, index)
-							: renderComponent(modal.children[index], index),
+					{(dialog.children || []).map((childId, index) =>
+						renderElement(childId, index),
 					)}
 				</div>
 
 				<DialogFooter>
 					<Button variant="outline" onClick={onClose}>
-						{modal.cancelLabel || "Cancel"}
+						{cancelLabel}
 					</Button>
-					{modal.submitAction && (
+					{submitAction && (
 						<Button
-							variant={modal.submitVariant || "default"}
-							onClick={() => {
-								if (modal.submitAction) {
-									onSubmit(modal.submitAction, modal.title);
-								}
-							}}
+							variant={submitVariant}
+							onClick={() => onSubmit(submitAction, title)}
 						>
-							{modal.submitLabel || "Submit"}
+							{submitLabel}
 						</Button>
 					)}
 				</DialogFooter>

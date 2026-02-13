@@ -14,12 +14,14 @@ describe("InlineFormRequest - Markdown Rendering", () => {
 			<InlineFormRequest
 				{...defaultProps}
 				uiSchema={{
-					modals: {
-						"test-modal": {
-							title: "Test",
-							submitAction: "submit",
-							children: [{ type: "text", content }],
+					root: "form",
+					elements: {
+						form: {
+							type: "Form",
+							props: { title: "Test", submitAction: "submit" },
+							children: ["txt"],
 						},
+						txt: { type: "Text", props: { content } },
 					},
 				}}
 			/>,
