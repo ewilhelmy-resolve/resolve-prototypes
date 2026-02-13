@@ -452,7 +452,9 @@ export class RabbitMQService {
 			response,
 			metadata, // Optional metadata for rich message types
 			response_group_id, // Optional group ID for multi-part responses
+			timestamp: producerTimestamp, // Optional timestamp from the producer (e.g. poll_chained.py)
 		} = payload;
+		const messageTimestamp = producerTimestamp || new Date().toISOString();
 
 		// Validate minimum required fields
 		if (!message_id || !organization_id || !conversation_id) {
@@ -534,7 +536,7 @@ export class RabbitMQService {
 			const assistantMessageResult = await client.query(
 				`
         INSERT INTO messages (organization_id, conversation_id, user_id, message, metadata, response_group_id, role, status, created_at)
-        VALUES ($1, $2, $3, $4, $5, $6, 'assistant', 'completed', NOW())
+        VALUES ($1, $2, $3, $4, $5, $6, 'assistant', 'completed', $7)
         RETURNING id
       `,
 				[
@@ -544,6 +546,7 @@ export class RabbitMQService {
 					response,
 					metadata ? JSON.stringify(metadata) : null,
 					response_group_id,
+					messageTimestamp,
 				],
 			);
 
@@ -597,7 +600,7 @@ export class RabbitMQService {
 						metadata: metadata,
 						response_group_id: response_group_id,
 						userId: user_id,
-						createdAt: new Date().toISOString(),
+						createdAt: messageTimestamp,
 					},
 				});
 
