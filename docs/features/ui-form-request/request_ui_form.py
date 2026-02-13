@@ -5,12 +5,16 @@ Send a UI form request to RITA chat iframe via RabbitMQ.
 Connection via rabbitmq_url (parsed by pika.URLParameters), no hardcoded creds.
 
 Inputs (must match JSON activitySettings keys in order):
- - rabbitmq_url: RabbitMQ connection URL (amqp:// or amqps://)
- - tenant_id: Target tenant
- - conversation_id: Target conversation
- - user_id: Target user's Valkey userGuid
- - ui_schema: JSON string with form definition
- - interrupt: Open modal immediately
+ - rabbitmq_url: string (REQUIRED) - RabbitMQ connection URL
+   From global: %rita_rabbitmq_url%
+ - tenant_id: string (REQUIRED) - Target tenant
+   From global: %tenant_id%
+ - conversation_id: string (REQUIRED) - Target conversation
+   From global: %conversation_id%
+ - user_id: string (REQUIRED) - Target user's Valkey userGuid
+   From global: %user_id%
+ - ui_schema: string (REQUIRED) - JSON string with form definition
+ - interrupt: bool (OPTIONAL) - Open modal immediately
 
 Return: JSON dict with status and message_id
 """

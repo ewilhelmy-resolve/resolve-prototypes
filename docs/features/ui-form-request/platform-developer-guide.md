@@ -132,95 +132,59 @@ interface UIFormResponsePayload {
 
 ---
 
-## 3. UI Schema Specification
+## 3. UI Schema Specification (V2)
+
+The UI schema uses a nested tree format with a single `root` element. All component types use PascalCase and properties are grouped under a `props` object.
+
+> **Note:** The client only accepts the V2 format below. Legacy V1 schemas (`version: "1"` + `modals`/`components`) are not supported.
 
 ### Root Schema
 
 ```typescript
-interface UISchema {
-  version: '1';
-  autoOpenModal?: string;  // Modal ID to auto-open
-  modals: Record<string, ModalDefinition>;
+interface UISchemaV2 {
+  root: UIElement;                         // Root element tree
+  dialogs?: Record<string, UIElement>;     // Named dialog trees (opened by Button.opensDialog)
+  autoOpenDialog?: string;                 // Dialog ID to auto-open
 }
 ```
 
-### Modal Definition
+### UIElement
 
 ```typescript
-interface ModalDefinition {
-  title: string;
-  description?: string;
-  size?: 'sm' | 'md' | 'lg' | 'xl' | 'full';
-
-  submitAction: string;     // Action name in response
-  submitLabel?: string;     // Default: "Submit"
-  submitVariant?: 'default' | 'destructive';
-  cancelLabel?: string;     // Default: "Cancel"
-
-  children: UIComponent[];
+interface UIElement {
+  type: string;                            // PascalCase component name
+  props?: Record<string, unknown>;         // Component-specific properties
+  children?: UIElement[];                  // Nested child elements
 }
 ```
 
 ### Component Types
 
+| Type | Purpose | Key Props |
+|------|---------|-----------|
+| `Text` | Display text | `text`, `variant` (`default`/`muted`/`heading`/`subheading`) |
+| `Input` | Text input | `name`, `label`, `placeholder`, `inputType` (`text`/`password`/`email`/`textarea`), `required`, `defaultValue` |
+| `Select` | Dropdown | `name`, `label`, `placeholder`, `required`, `options: {label, value}[]` |
+| `Button` | Action button | `label`, `action`, `variant`, `opensDialog` |
+| `Form` | Form container | `title`, `description`, `submitAction`, `submitLabel`, `cancelLabel`, `submitVariant` |
+| `Card` | Card container | `title`, `description` |
+| `Row` | Horizontal layout | `gap` |
+| `Column` | Vertical layout | `gap` |
+| `Table` | Data table | `columns: {key, label}[]`, `rows: Record<string,string>[]` |
+| `Stat` | Statistic display | `label`, `value`, `change`, `changeType` |
+| `Diagram` | Mermaid diagram | `code`, `title` |
+| `Separator` | Divider line | `spacing` |
+
+### Conditional Rendering
+
+Any element can include an `if` prop for conditional display:
+
 ```typescript
-// Display text
-interface TextComponent {
-  type: 'text';
-  content: string;
-  variant?: 'default' | 'muted' | 'heading' | 'subheading';
-}
-
-// Text input
-interface InputComponent {
-  type: 'input';
-  name: string;              // Field name in response.data
-  label?: string;
-  placeholder?: string;
-  inputType?: 'text' | 'password' | 'email' | 'textarea';
-  required?: boolean;
-  defaultValue?: string;
-  if?: ConditionalRule;
-}
-
-// Dropdown select
-interface SelectComponent {
-  type: 'select';
-  name: string;
-  label?: string;
-  placeholder?: string;
-  required?: boolean;
-  defaultValue?: string;
-  options: Array<{ label: string; value: string }>;
-  if?: ConditionalRule;
-}
-
-// Horizontal layout
-interface RowComponent {
-  type: 'row';
-  gap?: number;
-  children: UIComponent[];
-}
-
-// Vertical layout
-interface ColumnComponent {
-  type: 'column';
-  gap?: number;
-  children: UIComponent[];
-}
-
-// Conditional rendering
 interface ConditionalRule {
-  field: string;   // Name of field to check
-  equals: string;  // Value to match
+  field: string;
+  operator: 'eq' | 'neq' | 'exists' | 'notExists' | 'gt' | 'lt' | 'contains';
+  value?: unknown;
 }
-
-type UIComponent =
-  | TextComponent
-  | InputComponent
-  | SelectComponent
-  | RowComponent
-  | ColumnComponent;
 ```
 
 ---
@@ -230,61 +194,42 @@ type UIComponent =
 ### Text (Display Only)
 
 ```json
-{
-  "type": "text",
-  "content": "Please enter your credentials below.",
-  "variant": "muted"
-}
+{ "type": "Text", "props": { "text": "Please enter your credentials below.", "variant": "muted" } }
 ```
 
 ### Input Field
 
 ```json
-{
-  "type": "input",
-  "name": "username",
-  "label": "Username",
-  "placeholder": "Enter username",
-  "required": true
-}
+{ "type": "Input", "props": { "name": "username", "label": "Username", "placeholder": "Enter username", "required": true } }
 ```
 
 ### Password Field
 
 ```json
-{
-  "type": "input",
-  "name": "password",
-  "label": "Password",
-  "inputType": "password",
-  "required": true
-}
+{ "type": "Input", "props": { "name": "password", "label": "Password", "inputType": "password", "required": true } }
 ```
 
 ### Textarea
 
 ```json
-{
-  "type": "input",
-  "name": "comments",
-  "label": "Comments",
-  "inputType": "textarea"
-}
+{ "type": "Input", "props": { "name": "comments", "label": "Comments", "inputType": "textarea" } }
 ```
 
 ### Select (Dropdown)
 
 ```json
 {
-  "type": "select",
-  "name": "environment",
-  "label": "Environment",
-  "required": true,
-  "options": [
-    { "label": "Production", "value": "prod" },
-    { "label": "Staging", "value": "staging" },
-    { "label": "Development", "value": "dev" }
-  ]
+  "type": "Select",
+  "props": {
+    "name": "environment",
+    "label": "Environment",
+    "required": true,
+    "options": [
+      { "label": "Production", "value": "prod" },
+      { "label": "Staging", "value": "staging" },
+      { "label": "Development", "value": "dev" }
+    ]
+  }
 }
 ```
 
@@ -292,11 +237,11 @@ type UIComponent =
 
 ```json
 {
-  "type": "row",
-  "gap": 12,
+  "type": "Row",
+  "props": { "gap": 12 },
   "children": [
-    { "type": "input", "name": "first_name", "label": "First Name" },
-    { "type": "input", "name": "last_name", "label": "Last Name" }
+    { "type": "Input", "props": { "name": "first_name", "label": "First Name" } },
+    { "type": "Input", "props": { "name": "last_name", "label": "Last Name" } }
   ]
 }
 ```
@@ -305,13 +250,12 @@ type UIComponent =
 
 ```json
 {
-  "type": "input",
-  "name": "rejection_reason",
-  "label": "Rejection Reason",
-  "required": true,
-  "if": {
-    "field": "decision",
-    "equals": "reject"
+  "type": "Input",
+  "props": {
+    "name": "rejection_reason",
+    "label": "Rejection Reason",
+    "required": true,
+    "if": { "field": "decision", "operator": "eq", "value": "reject" }
   }
 }
 ```
@@ -333,37 +277,19 @@ type UIComponent =
   "timeout_seconds": 300,
   "priority": "high",
   "ui_schema": {
-    "version": "1",
-    "autoOpenModal": "credentials",
-    "modals": {
-      "credentials": {
+    "root": {
+      "type": "Form",
+      "props": {
         "title": "ServiceNow Credentials",
         "description": "Enter your ServiceNow instance credentials to connect.",
         "submitAction": "submit_credentials",
-        "submitLabel": "Connect",
-        "children": [
-          {
-            "type": "input",
-            "name": "instance_url",
-            "label": "Instance URL",
-            "placeholder": "https://your-instance.service-now.com",
-            "required": true
-          },
-          {
-            "type": "input",
-            "name": "username",
-            "label": "Username",
-            "required": true
-          },
-          {
-            "type": "input",
-            "name": "password",
-            "label": "Password",
-            "inputType": "password",
-            "required": true
-          }
-        ]
-      }
+        "submitLabel": "Connect"
+      },
+      "children": [
+        { "type": "Input", "props": { "name": "instance_url", "label": "Instance URL", "placeholder": "https://your-instance.service-now.com", "required": true } },
+        { "type": "Input", "props": { "name": "username", "label": "Username", "required": true } },
+        { "type": "Input", "props": { "name": "password", "label": "Password", "inputType": "password", "required": true } }
+      ]
     }
   }
 }
@@ -405,17 +331,18 @@ type UIComponent =
   "timeout_seconds": 86400,
   "priority": "high",
   "ui_schema": {
-    "version": "1",
-    "autoOpenModal": "approval",
-    "modals": {
-      "approval": {
+    "root": {
+      "type": "Form",
+      "props": {
         "title": "Approve Change Request",
         "description": "CR-12345: Production database migration scheduled for tonight.",
         "submitAction": "submit_decision",
-        "submitLabel": "Submit Decision",
-        "children": [
-          {
-            "type": "select",
+        "submitLabel": "Submit Decision"
+      },
+      "children": [
+        {
+          "type": "Select",
+          "props": {
             "name": "decision",
             "label": "Your Decision",
             "required": true,
@@ -424,22 +351,19 @@ type UIComponent =
               { "label": "Reject", "value": "reject" },
               { "label": "Request More Information", "value": "more_info" }
             ]
-          },
-          {
-            "type": "input",
+          }
+        },
+        {
+          "type": "Input",
+          "props": {
             "name": "reason",
             "label": "Reason (required for rejection)",
             "inputType": "textarea",
-            "if": { "field": "decision", "equals": "reject" }
-          },
-          {
-            "type": "input",
-            "name": "comments",
-            "label": "Additional Comments",
-            "inputType": "textarea"
+            "if": { "field": "decision", "operator": "eq", "value": "reject" }
           }
-        ]
-      }
+        },
+        { "type": "Input", "props": { "name": "comments", "label": "Additional Comments", "inputType": "textarea" } }
+      ]
     }
   }
 }
@@ -478,24 +402,18 @@ type UIComponent =
   "correlation_id": "config-req-789",
   "workflow_id": "wf-automation-setup",
   "ui_schema": {
-    "version": "1",
-    "autoOpenModal": "config",
-    "modals": {
-      "config": {
+    "root": {
+      "type": "Form",
+      "props": {
         "title": "Configure Automation Trigger",
         "submitAction": "save_config",
-        "submitLabel": "Save",
-        "size": "lg",
-        "children": [
-          {
-            "type": "input",
-            "name": "automation_name",
-            "label": "Automation Name",
-            "placeholder": "My Automation",
-            "required": true
-          },
-          {
-            "type": "select",
+        "submitLabel": "Save"
+      },
+      "children": [
+        { "type": "Input", "props": { "name": "automation_name", "label": "Automation Name", "placeholder": "My Automation", "required": true } },
+        {
+          "type": "Select",
+          "props": {
             "name": "trigger_event",
             "label": "Trigger When",
             "required": true,
@@ -504,34 +422,16 @@ type UIComponent =
               { "label": "Ticket Updated", "value": "ticket_updated" },
               { "label": "SLA Breached", "value": "sla_breach" }
             ]
-          },
-          {
-            "type": "row",
-            "children": [
-              {
-                "type": "select",
-                "name": "priority_filter",
-                "label": "Priority",
-                "options": [
-                  { "label": "Any", "value": "any" },
-                  { "label": "Critical", "value": "critical" },
-                  { "label": "High", "value": "high" }
-                ]
-              },
-              {
-                "type": "select",
-                "name": "category_filter",
-                "label": "Category",
-                "options": [
-                  { "label": "Any", "value": "any" },
-                  { "label": "Hardware", "value": "hardware" },
-                  { "label": "Software", "value": "software" }
-                ]
-              }
-            ]
           }
-        ]
-      }
+        },
+        {
+          "type": "Row",
+          "children": [
+            { "type": "Select", "props": { "name": "priority_filter", "label": "Priority", "options": [{ "label": "Any", "value": "any" }, { "label": "Critical", "value": "critical" }, { "label": "High", "value": "high" }] } },
+            { "type": "Select", "props": { "name": "category_filter", "label": "Category", "options": [{ "label": "Any", "value": "any" }, { "label": "Hardware", "value": "hardware" }, { "label": "Software", "value": "software" }] } }
+          ]
+        }
+      ]
     }
   }
 }

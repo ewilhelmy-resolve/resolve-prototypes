@@ -664,6 +664,49 @@ export interface FormModalField {
 	defaultValue?: string;
 }
 
+/**
+ * Walk elements map from a given element ID and extract form fields (Input/Select).
+ * Uses json-render.dev flat elements format with string-reference children.
+ */
+export function extractFormFields(
+	elements: Record<string, { type: string; props?: Record<string, unknown>; children?: string[] }>,
+	elementId: string,
+): FormModalField[] {
+	const element = elements[elementId];
+	if (!element) return [];
+
+	const fields: FormModalField[] = [];
+	const props = element.props || {};
+
+	if (element.type === "Input") {
+		fields.push({
+			type: (props.inputType as string) === "textarea" ? "textarea" : "input",
+			name: (props.name as string) || "",
+			label: props.label as string | undefined,
+			placeholder: props.placeholder as string | undefined,
+			inputType: props.inputType as string | undefined,
+			defaultValue: props.defaultValue as string | undefined,
+		});
+	} else if (element.type === "Select") {
+		fields.push({
+			type: "select",
+			name: (props.name as string) || "",
+			label: props.label as string | undefined,
+			placeholder: props.placeholder as string | undefined,
+			options: props.options as
+				| Array<{ label: string; value: string }>
+				| undefined,
+			defaultValue: props.defaultValue as string | undefined,
+		});
+	}
+
+	for (const childId of element.children || []) {
+		fields.push(...extractFormFields(elements, childId));
+	}
+
+	return fields;
+}
+
 export interface FormModalConfig {
 	title: string;
 	description?: string;

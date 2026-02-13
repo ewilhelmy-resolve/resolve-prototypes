@@ -190,15 +190,12 @@ const UUID_PATTERN = /^[0-9a-f-]{36}$/i;
   "timeout_seconds": 300,
   "priority": "high",
   "ui_schema": {
-    "version": "1",
-    "autoOpenModal": "cred-form",
-    "modals": {
-      "cred-form": {
-        "title": "ServiceNow Credentials",
-        "submitAction": "submit_credentials",
-        "children": [...]
-      }
-    }
+    "root": "main",
+    "elements": {
+      "main": { "type": "Form", "props": { "title": "ServiceNow Credentials", "submitAction": "submit_credentials" }, "children": ["..."] }
+    },
+    "dialogs": { "cred-form": "main" },
+    "autoOpenDialog": "cred-form"
   }
 }
 ```
@@ -249,28 +246,20 @@ interface UIFormRequestSSEPayload {
 
 ```typescript
 interface UISchema {
-  version: '1';
-  autoOpenModal?: string;  // Modal ID to auto-open
-  modals: Record<string, ModalDefinition>;
+  root: string;                              // ID of root element
+  elements: Record<string, UIElement>;       // Flat map of element ID → definition
+  dialogs?: Record<string, string>;          // Dialog name → element ID
+  autoOpenDialog?: string;                   // Dialog name to auto-open
 }
 ```
 
-### Modal Definition
+### UIElement
 
 ```typescript
-interface ModalDefinition {
-  title: string;
-  description?: string;
-  size?: 'sm' | 'md' | 'lg' | 'xl' | 'full';
-
-  // Submit configuration
-  submitAction?: string;     // Action name in response
-  submitLabel?: string;      // Button text (default: "Submit")
-  submitVariant?: 'default' | 'destructive';
-  cancelLabel?: string;      // Cancel button text
-
-  // Form fields
-  children: UIComponent[];
+interface UIElement {
+  type: string;                              // PascalCase component name
+  props?: Record<string, unknown>;           // Component-specific properties
+  children?: string[];                       // IDs of child elements
 }
 ```
 
@@ -278,58 +267,23 @@ interface ModalDefinition {
 
 #### Text (display only)
 ```typescript
-{
-  type: 'text';
-  content: string;
-  variant?: 'default' | 'muted' | 'heading' | 'subheading';
-}
+{ type: 'Text', props: { text: string, variant?: 'default' | 'muted' | 'heading' | 'subheading' } }
 ```
 
 #### Input (user entry)
 ```typescript
-{
-  type: 'input';
-  name: string;              // Field name in response.data
-  label?: string;
-  placeholder?: string;
-  inputType?: 'text' | 'password' | 'email' | 'textarea';
-  required?: boolean;
-  defaultValue?: string;     // Pre-populated value
-}
+{ type: 'Input', props: { name: string, label?: string, placeholder?: string, inputType?: 'text' | 'password' | 'email' | 'textarea', required?: boolean, defaultValue?: string } }
 ```
 
 #### Select (dropdown)
 ```typescript
-{
-  type: 'select';
-  name: string;              // Field name in response.data
-  label?: string;
-  placeholder?: string;
-  required?: boolean;
-  defaultValue?: string;     // Pre-selected value
-  options: Array<{
-    label: string;
-    value: string;
-  }>;
-}
+{ type: 'Select', props: { name: string, label?: string, placeholder?: string, required?: boolean, defaultValue?: string, options: Array<{ label: string, value: string }> } }
 ```
 
-#### Layout: Row
+#### Layout: Row / Column
 ```typescript
-{
-  type: 'row';
-  gap?: number;
-  children: UIComponent[];
-}
-```
-
-#### Layout: Column
-```typescript
-{
-  type: 'column';
-  gap?: number;
-  children: UIComponent[];
-}
+{ type: 'Row', props: { gap?: number }, children: ['child1', 'child2'] }
+{ type: 'Column', props: { gap?: number }, children: ['child1', 'child2'] }
 ```
 
 ### Pre-Populating Values
@@ -361,15 +315,7 @@ Use `defaultValue` on input/select components:
 ### Conditional Rendering
 
 ```typescript
-{
-  type: 'input';
-  name: 'rejection_reason';
-  label: 'Rejection Reason';
-  if: {
-    field: 'decision';
-    equals: 'reject';
-  }
-}
+{ type: 'Input', props: { name: 'rejection_reason', label: 'Rejection Reason', if: { field: 'decision', operator: 'eq', value: 'reject' } } }
 ```
 
 ---

@@ -14,7 +14,7 @@ import { useState } from "react";
 import type { UIActionPayload, UISchema } from "../../types/uiSchema";
 
 interface SchemaDebugPanelProps {
-	schema: UISchema | null;
+	schema: UISchema | Record<string, unknown> | null;
 	lastAction: UIActionPayload | null;
 	actionHistory: UIActionPayload[];
 	isVisible: boolean;
@@ -168,14 +168,18 @@ export function useSchemaDebug() {
 	const [isVisible, setIsVisible] = useState(false);
 	const [actionHistory, setActionHistory] = useState<UIActionPayload[]>([]);
 	const [lastAction, setLastAction] = useState<UIActionPayload | null>(null);
-	const [currentSchema, setCurrentSchema] = useState<UISchema | null>(null);
+	const [currentSchema, setCurrentSchema] = useState<
+		UISchema | Record<string, unknown> | null
+	>(null);
 
 	const recordAction = (action: UIActionPayload) => {
 		setLastAction(action);
 		setActionHistory((prev) => [...prev, action]);
 	};
 
-	const recordSchema = (schema: UISchema) => {
+	const recordSchema = (
+		schema: UISchema | Record<string, unknown>,
+	) => {
 		setCurrentSchema(schema);
 	};
 

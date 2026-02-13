@@ -1367,47 +1367,56 @@ The system is performing well overall but requires attention to the identified s
 					interrupt: false, // Render inline in chat bubble
 					conversation_id: messagePayload.conversation_id,
 					ui_schema: {
-						version: "1",
-						modals: {
-							"inline-form": {
-								title: "ServiceNow Connection",
-								description: "Configure your ServiceNow instance credentials",
-								size: "md",
-								fields: [
-									{
-										type: "text",
-										name: "hostname",
-										label: "Instance Hostname",
-										placeholder: "your-instance.service-now.com",
-									},
-									{
-										type: "text",
-										name: "username",
-										label: "Username",
-										placeholder: "admin",
-									},
-									{
-										type: "text",
-										name: "apiKey",
-										label: "API Key",
-										inputType: "password",
-										placeholder: "Enter your API key",
-									},
-									{
-										type: "select",
-										name: "environment",
-										label: "Environment",
-										placeholder: "Select environment",
-										options: [
-											{ label: "Production", value: "prod" },
-											{ label: "Staging", value: "staging" },
-											{ label: "Development", value: "dev" },
-										],
-									},
-								],
-								submitAction: "save-credentials",
-								submitLabel: "Save Credentials",
-								cancelLabel: "Cancel",
+						root: "form",
+						elements: {
+							form: {
+								type: "Form",
+								props: {
+									title: "ServiceNow Connection",
+									description: "Configure your ServiceNow instance credentials",
+									submitAction: "save-credentials",
+									submitLabel: "Save Credentials",
+									cancelLabel: "Cancel",
+								},
+								children: ["hostname", "username", "apiKey", "environment"],
+							},
+							hostname: {
+								type: "Input",
+								props: {
+									name: "hostname",
+									label: "Instance Hostname",
+									placeholder: "your-instance.service-now.com",
+								},
+							},
+							username: {
+								type: "Input",
+								props: {
+									name: "username",
+									label: "Username",
+									placeholder: "admin",
+								},
+							},
+							apiKey: {
+								type: "Input",
+								props: {
+									name: "apiKey",
+									label: "API Key",
+									inputType: "password",
+									placeholder: "Enter your API key",
+								},
+							},
+							environment: {
+								type: "Select",
+								props: {
+									name: "environment",
+									label: "Environment",
+									placeholder: "Select environment",
+									options: [
+										{ label: "Production", value: "prod" },
+										{ label: "Staging", value: "staging" },
+										{ label: "Development", value: "dev" },
+									],
+								},
 							},
 						},
 					},
@@ -1436,51 +1445,108 @@ The system is performing well overall but requires attention to the identified s
 					interrupt: true, // Open as modal immediately
 					conversation_id: messagePayload.conversation_id,
 					ui_schema: {
-						version: "1",
-						modals: {
-							customerInfo: {
-								title: "Customer Information",
-								description: "Please provide the customer details",
-								size: "md",
-								fields: [
-									{
-										type: "text",
-										name: "customerName",
-										label: "Customer Name",
-										required: true,
-										placeholder: "Enter customer name",
-									},
-									{
-										type: "text",
-										name: "email",
-										label: "Email Address",
-										required: true,
-										placeholder: "customer@example.com",
-									},
-									{
-										type: "select",
-										name: "priority",
-										label: "Priority Level",
-										required: true,
-										options: [
-											{ label: "Low", value: "low" },
-											{ label: "Medium", value: "medium" },
-											{ label: "High", value: "high" },
-										],
-									},
-									{
-										type: "textarea",
-										name: "notes",
-										label: "Additional Notes",
-										placeholder: "Any additional information...",
-									},
-								],
-								submitAction: "submit_customer_info",
-								submitLabel: "Submit",
-								cancelLabel: "Cancel",
+						root: "form",
+						elements: {
+							form: {
+								type: "Form",
+								props: {
+									title: "Customer Information",
+									description: "Please provide the customer details",
+									submitAction: "submit_customer_info",
+									submitLabel: "Submit",
+									cancelLabel: "Cancel",
+								},
+								children: ["customerName", "email", "priority", "notes"],
+							},
+							customerName: {
+								type: "Input",
+								props: {
+									name: "customerName",
+									label: "Customer Name",
+									required: true,
+									placeholder: "Enter customer name",
+								},
+							},
+							email: {
+								type: "Input",
+								props: {
+									name: "email",
+									label: "Email Address",
+									required: true,
+									placeholder: "customer@example.com",
+								},
+							},
+							priority: {
+								type: "Select",
+								props: {
+									name: "priority",
+									label: "Priority Level",
+									required: true,
+									options: [
+										{ label: "Low", value: "low" },
+										{ label: "Medium", value: "medium" },
+										{ label: "High", value: "high" },
+									],
+								},
+							},
+							notes: {
+								type: "Input",
+								props: {
+									name: "notes",
+									label: "Additional Notes",
+									inputType: "textarea",
+									placeholder: "Any additional information...",
+								},
 							},
 						},
 					},
+				}),
+			},
+		];
+	} else if (content.startsWith("testcustom:")) {
+		// testcustom:<interrupt>:<base64-json> - custom UI schema from dev controls
+		// Use original (non-lowercased) message for base64 since base64 is case-sensitive
+		const rawContent = messagePayload.customer_message;
+		const parts_split = rawContent.split(":");
+		const interruptFlag = parts_split[1] === "1";
+		const base64Json = parts_split.slice(2).join(":"); // rejoin in case base64 has colons
+		let uiSchema: any;
+		try {
+			uiSchema = JSON.parse(
+				Buffer.from(base64Json, "base64").toString("utf-8"),
+			);
+		} catch {
+			return [
+				{
+					message_id: messagePayload.message_id,
+					conversation_id: messagePayload.conversation_id,
+					tenant_id: messagePayload.tenant_id,
+					user_id:
+						messagePayload.user_id ||
+						(messagePayload as any).user_guid ||
+						(messagePayload as any).userGuid,
+					response: "Error: Invalid base64 or JSON in testcustom payload",
+				},
+			];
+		}
+		const userId =
+			messagePayload.user_id ||
+			(messagePayload as any).user_guid ||
+			(messagePayload as any).userGuid;
+		return [
+			{
+				message_id: messagePayload.message_id,
+				conversation_id: messagePayload.conversation_id,
+				tenant_id: messagePayload.tenant_id,
+				user_id: userId,
+				response: JSON.stringify({
+					type: "ui_form_request",
+					user_id: userId,
+					workflow_id: "mock-workflow-custom-schema",
+					activity_id: `mock-activity-${Date.now()}`,
+					interrupt: interruptFlag,
+					conversation_id: messagePayload.conversation_id,
+					ui_schema: uiSchema,
 				}),
 			},
 		];
@@ -1505,36 +1571,41 @@ The system is performing well overall but requires attention to the identified s
 					interrupt: false,
 					conversation_id: messagePayload.conversation_id,
 					ui_schema: {
-						version: "1",
-						modals: {
-							"feedback-form": {
-								title: "Quick Feedback",
-								description: "Help us improve by providing feedback",
-								size: "sm",
-								children: [
-									{
-										type: "select",
-										name: "rating",
-										label: "How was this response?",
-										placeholder: "Select rating",
-										options: [
-											{ label: "Excellent", value: "5" },
-											{ label: "Good", value: "4" },
-											{ label: "Average", value: "3" },
-											{ label: "Below Average", value: "2" },
-											{ label: "Poor", value: "1" },
-										],
-									},
-									{
-										type: "input",
-										name: "comment",
-										label: "Additional Comments",
-										inputType: "textarea",
-										placeholder: "Any additional feedback?",
-									},
-								],
-								submitAction: "submit-feedback",
-								submitLabel: "Submit Feedback",
+						root: "form",
+						elements: {
+							form: {
+								type: "Form",
+								props: {
+									title: "Quick Feedback",
+									description: "Help us improve by providing feedback",
+									submitAction: "submit-feedback",
+									submitLabel: "Submit Feedback",
+								},
+								children: ["rating", "comment"],
+							},
+							rating: {
+								type: "Select",
+								props: {
+									name: "rating",
+									label: "How was this response?",
+									placeholder: "Select rating",
+									options: [
+										{ label: "Excellent", value: "5" },
+										{ label: "Good", value: "4" },
+										{ label: "Average", value: "3" },
+										{ label: "Below Average", value: "2" },
+										{ label: "Poor", value: "1" },
+									],
+								},
+							},
+							comment: {
+								type: "Input",
+								props: {
+									name: "comment",
+									label: "Additional Comments",
+									inputType: "textarea",
+									placeholder: "Any additional feedback?",
+								},
 							},
 						},
 					},

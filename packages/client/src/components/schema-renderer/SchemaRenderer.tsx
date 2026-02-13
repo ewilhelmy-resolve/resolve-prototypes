@@ -1,13 +1,14 @@
 /**
  * SchemaRenderer
  *
- * Renders JSON UI schema as React components.
- * Maps schema types → shadcn/ui components.
+ * Renders json-render.dev UI schema as React components.
+ * Maps element types → shadcn/ui components.
  *
- * JAR-81: Validates schema with Zod, handles errors gracefully.
+ * Schema format: { root: "id", elements: { id: { type, props, children } } }
+ * @see https://json-render.dev/docs/schemas
  */
 
-import { AlertCircle } from "lucide-react";
+import { AlertCircle, ExternalLink, Info } from "lucide-react";
 import {
 	Component,
 	type ErrorInfo,
@@ -20,30 +21,19 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { toast } from "../../lib/toast";
 import type {
-	ButtonComponent,
-	CardComponent,
-	ColumnComponent,
-	DiagramComponent,
-	DividerComponent,
-	FormComponent,
-	InputComponent,
-	ModalDefinition,
-	RowComponent,
-	SelectComponent,
-	StatComponent,
-	TableComponent,
-	TextComponent,
+	ConditionalProps,
 	UIActionPayload,
-	UIComponent,
+	UIElement,
 	UISchema,
 } from "../../types/uiSchema";
-import { evaluateCondition, validateUISchema } from "../../types/uiSchema";
+import { evaluateCondition, parseSchema } from "../../types/uiSchema";
 import {
 	type FormModalField,
 	isInIframe,
 	openFormModal,
 } from "../../utils/hostModal";
 import { Alert, AlertDescription, AlertTitle } from "../ui/alert";
+import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
 import {
 	Card,
@@ -62,6 +52,7 @@ import {
 } from "../ui/dialog";
 import { Input } from "../ui/input";
 import { Label } from "../ui/label";
+import { Progress } from "../ui/progress";
 import {
 	Select,
 	SelectContent,
@@ -73,7 +64,7 @@ import { Textarea } from "../ui/textarea";
 import { MermaidRenderer } from "./MermaidRenderer";
 
 // ============================================================================
-// Error Boundary for graceful error handling
+// Error Boundary
 // ============================================================================
 
 interface ErrorBoundaryProps {
@@ -153,14 +144,25 @@ function SchemaErrorFallback({
 }
 
 // ============================================================================
+// Helpers
+// ============================================================================
+
+/** Extract a prop value from UIElement.props */
+function p<T = unknown>(el: UIElement, key: string, fallback?: T): T {
+	return ((el.props?.[key] as T) ?? fallback) as T;
+}
+
+// ============================================================================
 // Main Component
 // ============================================================================
 
 interface SchemaRendererProps {
-	schema: UISchema;
+	/** Accepts UISchema or any raw schema object */
+	schema: UISchema | Record<string, unknown>;
 	messageId: string;
 	conversationId: string;
 	onAction?: (payload: UIActionPayload) => void;
+	disabled?: boolean;
 }
 
 export function SchemaRenderer({
@@ -168,29 +170,43 @@ export function SchemaRenderer({
 	messageId,
 	conversationId,
 	onAction,
+	disabled = false,
 }: SchemaRendererProps) {
 	const [formData, setFormData] = useState<Record<string, string>>({});
 	const [modalFormData, setModalFormData] = useState<Record<string, string>>(
 		{},
 	);
-	const [openModalId, setOpenModalId] = useState<string | null>(null);
+	const [openDialogId, setOpenDialogId] = useState<string | null>(null);
 	const [actionLog, setActionLog] = useState<
 		Array<{ action: string; data: Record<string, unknown>; timestamp: string }>
 	>([]);
 	const [showLogPanel, setShowLogPanel] = useState(false);
 
-	// Track pending modal submission handler for cross-origin postMessage
+	// Cross-origin postMessage handler ref
 	const pendingModalSubmitRef = useRef<{
 		action: string;
 		modalTitle: string;
 	} | null>(null);
 
-	// Track auto-open modal (ref defined early to satisfy hook rules)
+	// Auto-open dialog tracking
 	const autoOpenedRef = useRef<string | null>(null);
-	const handleOpenModalRef = useRef<
-		| ((modalId: string, options?: { preventBackdropClose?: boolean }) => void)
+	const handleOpenDialogRef = useRef<
+		| ((dialogId: string, options?: { preventBackdropClose?: boolean }) => void)
 		| null
 	>(null);
+
+	// Parse and validate schema (memoized via ref)
+	const parsedRef = useRef<{ input: unknown; output: UISchema | null }>({
+		input: undefined,
+		output: null,
+	});
+	if (parsedRef.current.input !== schema) {
+		parsedRef.current = {
+			input: schema,
+			output: parseSchema(schema),
+		};
+	}
+	const parsed = parsedRef.current.output;
 
 	// Listen for form modal submissions from host (cross-origin)
 	useEffect(() => {
@@ -201,7 +217,6 @@ export function SchemaRenderer({
 				const { action, modalTitle } = pendingModalSubmitRef.current;
 				pendingModalSubmitRef.current = null;
 
-				// Log the action
 				const logEntry = {
 					action,
 					data: data || {},
@@ -209,7 +224,6 @@ export function SchemaRenderer({
 				};
 				setActionLog((prev) => [logEntry, ...prev]);
 
-				// Call the action handler
 				onAction?.({
 					action,
 					data,
@@ -218,7 +232,6 @@ export function SchemaRenderer({
 					timestamp: logEntry.timestamp,
 				});
 
-				// Show toast with View Log action
 				toast.success(`${modalTitle} saved`, {
 					description: `Action: ${action}`,
 					action: {
@@ -235,46 +248,42 @@ export function SchemaRenderer({
 		return () => window.removeEventListener("message", handleMessage);
 	}, [messageId, conversationId, onAction]);
 
-	// Auto-open modal if specified in schema (for forced credential prompts, etc.)
-	// Effect defined before early return to satisfy hook rules; uses ref to access handleOpenModal
-	// Uses setTimeout to ensure handleOpenModalRef is populated from current render
+	// Auto-open dialog if specified in schema
 	useEffect(() => {
-		const modalId = schema?.autoOpenModal;
-		console.log("[SchemaRenderer] Auto-open effect:", {
-			modalId,
-			alreadyOpened: autoOpenedRef.current,
-			hasHandler: !!handleOpenModalRef.current,
-		});
-		if (!modalId || autoOpenedRef.current === modalId) return;
+		const dialogName = parsed?.autoOpenDialog;
+		if (!dialogName || autoOpenedRef.current === dialogName) return;
 
-		// Use setTimeout to run after current render completes and ref is populated
 		const timer = setTimeout(() => {
-			console.log("[SchemaRenderer] Auto-open timeout fired:", {
-				modalId,
-				alreadyOpened: autoOpenedRef.current,
-				hasHandler: !!handleOpenModalRef.current,
-			});
-			if (handleOpenModalRef.current && autoOpenedRef.current !== modalId) {
-				console.log("[SchemaRenderer] Calling handleOpenModal for:", modalId);
-				autoOpenedRef.current = modalId;
-				// Auto-opened modals prevent backdrop close (forced mode)
-				handleOpenModalRef.current(modalId, { preventBackdropClose: true });
+			if (
+				handleOpenDialogRef.current &&
+				autoOpenedRef.current !== dialogName
+			) {
+				autoOpenedRef.current = dialogName;
+				handleOpenDialogRef.current(dialogName, {
+					preventBackdropClose: true,
+				});
 			}
 		}, 100);
 		return () => clearTimeout(timer);
-	}, [schema?.autoOpenModal]);
+	}, [parsed?.autoOpenDialog]);
 
-	// Validate schema (JAR-81)
-	const validation = validateUISchema(schema);
-	if (!validation.valid) {
-		const errorMessages = validation.errors?.issues.map(
-			(issue) => `${String(issue.path.join("."))}: ${issue.message}`,
-		);
+	// Early return if parse fails
+	if (!parsed) {
 		return (
 			<SchemaErrorFallback
 				title="Invalid Schema"
-				message="The UI schema failed validation"
-				details={errorMessages}
+				message="Schema must have root (string) and elements (map)"
+			/>
+		);
+	}
+
+	const { elements } = parsed;
+	const rootElement = elements[parsed.root];
+	if (!rootElement) {
+		return (
+			<SchemaErrorFallback
+				title="Invalid Schema"
+				message={`Root element "${parsed.root}" not found in elements`}
 			/>
 		);
 	}
@@ -297,81 +306,92 @@ export function SchemaRenderer({
 		setModalFormData((prev) => ({ ...prev, [name]: value }));
 	};
 
-	const handleOpenModal = (
-		modalId: string,
+	/** Extract FormModalField[] from an element tree for host modal */
+	const extractFieldsFromId = (elementId: string): FormModalField[] => {
+		const el = elements[elementId];
+		if (!el) return [];
+
+		const fields: FormModalField[] = [];
+		if (el.type === "Input") {
+			fields.push({
+				type: p<string>(el, "inputType") === "textarea" ? "textarea" : "input",
+				name: p<string>(el, "name", ""),
+				label: p<string>(el, "label"),
+				placeholder: p<string>(el, "placeholder"),
+				inputType: p<string>(el, "inputType"),
+				defaultValue: p<string>(el, "defaultValue"),
+			});
+		} else if (el.type === "Select") {
+			fields.push({
+				type: "select",
+				name: p<string>(el, "name", ""),
+				label: p<string>(el, "label"),
+				placeholder: p<string>(el, "placeholder"),
+				options: p<Array<{ label: string; value: string }>>(el, "options"),
+				defaultValue: p<string>(el, "defaultValue"),
+			});
+		}
+		for (const childId of el.children || []) {
+			fields.push(...extractFieldsFromId(childId));
+		}
+		return fields;
+	};
+
+	const handleOpenDialog = (
+		dialogName: string,
 		options?: { preventBackdropClose?: boolean },
 	) => {
-		console.log("[SchemaRenderer] handleOpenModal called:", {
-			modalId,
-			hasModals: !!schema.modals,
-			modalIds: schema.modals ? Object.keys(schema.modals) : [],
-			isInIframe: isInIframe(),
-			preventBackdropClose: options?.preventBackdropClose,
-		});
-		const modal = schema.modals?.[modalId];
-		if (!modal) {
-			console.log("[SchemaRenderer] Modal not found:", modalId);
-			return;
-		}
+		const dialogElementId = parsed.dialogs?.[dialogName];
+		if (!dialogElementId) return;
+		const dialog = elements[dialogElementId];
+		if (!dialog) return;
+
+		const title = p<string>(dialog, "title", "");
+		const description = p<string>(dialog, "description");
+		const size = p<string>(dialog, "size", "full") as
+			| "sm"
+			| "md"
+			| "lg"
+			| "xl"
+			| "full";
+		const submitAction = p<string>(dialog, "submitAction");
+		const submitLabel = p<string>(dialog, "submitLabel");
+		const cancelLabel = p<string>(dialog, "cancelLabel");
+		const submitVariant = p<string>(dialog, "submitVariant");
 
 		// In iframe context, open modal in host page
 		if (isInIframe()) {
-			const fields: FormModalField[] = [];
-			for (const c of modal.children) {
-				if (c.type === "input") {
-					fields.push({
-						type: c.inputType === "textarea" ? "textarea" : "input",
-						name: c.name,
-						label: c.label,
-						placeholder: c.placeholder,
-						inputType: c.inputType,
-						defaultValue: c.defaultValue,
-					});
-				} else if (c.type === "select") {
-					fields.push({
-						type: "select",
-						name: c.name,
-						label: c.label,
-						placeholder: c.placeholder,
-						options: c.options,
-						defaultValue: c.defaultValue,
-					});
-				}
-			}
+			const fields = extractFieldsFromId(dialogElementId);
 
-			// Set pending ref for cross-origin postMessage handling
-			if (modal.submitAction) {
+			if (submitAction) {
 				pendingModalSubmitRef.current = {
-					action: modal.submitAction,
-					modalTitle: modal.title,
+					action: submitAction,
+					modalTitle: title,
 				};
 			}
 
 			openFormModal({
-				title: modal.title,
-				description: modal.description,
-				size: modal.size || "full",
+				title,
+				description,
+				size,
 				fields,
-				submitLabel: modal.submitLabel,
-				cancelLabel: modal.cancelLabel,
+				submitLabel,
+				cancelLabel,
 				submitVariant:
-					modal.submitVariant === "destructive" ? "destructive" : "default",
+					submitVariant === "destructive" ? "destructive" : "default",
 				preventBackdropClose: options?.preventBackdropClose,
 				onSubmit: (data) => {
-					// Same-origin: callback is called directly
 					pendingModalSubmitRef.current = null;
-
-					if (modal.submitAction) {
+					if (submitAction) {
 						const logEntry = {
-							action: modal.submitAction,
+							action: submitAction,
 							data: data as Record<string, unknown>,
 							timestamp: new Date().toISOString(),
 						};
 						setActionLog((prev) => [logEntry, ...prev]);
-						handleAction(modal.submitAction, data);
-
-						toast.success(`${modal.title} saved`, {
-							description: `Action: ${modal.submitAction}`,
+						handleAction(submitAction, data);
+						toast.success(`${title} saved`, {
+							description: `Action: ${submitAction}`,
 							action: {
 								label: "View Log",
 								onClick: () => setShowLogPanel(true),
@@ -387,19 +407,19 @@ export function SchemaRenderer({
 		}
 
 		// Not in iframe - use inline Dialog
-		setModalFormData({}); // Reset modal form data
-		setOpenModalId(modalId);
+		setModalFormData({});
+		setOpenDialogId(dialogName);
 	};
 
-	// Populate ref for auto-open effect (after handleOpenModal is defined)
-	handleOpenModalRef.current = handleOpenModal;
+	// Populate ref for auto-open effect
+	handleOpenDialogRef.current = handleOpenDialog;
 
-	const handleCloseModal = () => {
-		setOpenModalId(null);
+	const handleCloseDialog = () => {
+		setOpenDialogId(null);
 		setModalFormData({});
 	};
 
-	const handleModalSubmit = (action: string, modalTitle: string) => {
+	const handleDialogSubmit = (action: string, dialogTitle: string) => {
 		const logEntry = {
 			action,
 			data: modalFormData as Record<string, unknown>,
@@ -407,9 +427,9 @@ export function SchemaRenderer({
 		};
 		setActionLog((prev) => [logEntry, ...prev]);
 		handleAction(action, modalFormData);
-		handleCloseModal();
+		handleCloseDialog();
 
-		toast.success(`${modalTitle} saved`, {
+		toast.success(`${dialogTitle} saved`, {
 			description: `Action: ${action}`,
 			action: {
 				label: "View Log",
@@ -418,196 +438,231 @@ export function SchemaRenderer({
 		});
 	};
 
-	const renderComponent = (
-		component: UIComponent,
+	/** Render an element by its ID in the elements map */
+	const renderElement = (
+		elementId: string,
 		index: number,
+		context: Record<string, string> = formData,
+		onInputChange: (name: string, value: string) => void = handleInputChange,
 	): React.ReactNode => {
-		// Check conditional rendering
-		if (!evaluateCondition(component.if, formData)) {
-			return null;
+		const element = elements[elementId];
+		if (!element) {
+			return (
+				<div key={elementId} className="text-sm text-muted-foreground">
+					Unknown element: {elementId}
+				</div>
+			);
 		}
 
-		const key = component.id || `${component.type}-${index}`;
+		// Check conditional rendering (props.if)
+		const condIf = element.props?.if as ConditionalProps | undefined;
+		if (condIf && !evaluateCondition(condIf, context)) return null;
 
-		switch (component.type) {
-			case "text":
-				return <TextRenderer key={key} component={component} />;
+		// Check visible conditional (json-render.dev spec)
+		if (element.visible) {
+			const field = element.visible.path?.replace(/^\$data\./, "") || "";
+			if (
+				!evaluateCondition(
+					{
+						field,
+						operator: element.visible.operator,
+						value: element.visible.value,
+					},
+					context,
+				)
+			)
+				return null;
+		}
 
-			case "stat":
-				return <StatRenderer key={key} component={component} />;
+		const key = p<string>(element, "id") || `${elementId}-${index}`;
 
-			case "input":
+		const renderChildren = () =>
+			(element.children || []).map((childId, i) =>
+				renderElement(childId, i, context, onInputChange),
+			);
+
+		// Resolve type (normalize aliases)
+		let type = element.type;
+
+		// Stack direction-aware alias
+		if (type === "Stack") {
+			const dir = p<string>(element, "direction", "vertical");
+			type = dir === "horizontal" ? "Row" : "Column";
+		}
+
+		// Type alias map
+		const typeAliases: Record<string, string> = {
+			Heading: "Text",
+			Paragraph: "Text",
+			Label: "Text",
+			TextInput: "Input",
+			TextField: "Input",
+			Dropdown: "Select",
+			Container: "Column",
+			Box: "Column",
+			Section: "Column",
+			Group: "Column",
+			VStack: "Column",
+			HStack: "Row",
+			Divider: "Separator",
+			Hr: "Separator",
+			Img: "Image",
+		};
+		type = typeAliases[type] || type;
+
+		switch (type) {
+			case "Text":
+				return <TextRenderer key={key} el={element} />;
+			case "Stat":
+				return <StatRenderer key={key} el={element} />;
+			case "Input":
 				return (
 					<InputRenderer
 						key={key}
-						component={component}
-						value={formData[component.name] || ""}
-						onChange={(value) => handleInputChange(component.name, value)}
+						el={element}
+						value={
+							context[p<string>(element, "name", "")] ||
+							p<string>(element, "defaultValue", "")
+						}
+						onChange={(value) =>
+							onInputChange(p<string>(element, "name", ""), value)
+						}
+						disabled={disabled}
 					/>
 				);
-
-			case "select":
+			case "Select":
 				return (
 					<SelectRenderer
 						key={key}
-						component={component}
-						value={formData[component.name] || ""}
-						onChange={(value) => handleInputChange(component.name, value)}
+						el={element}
+						value={
+							context[p<string>(element, "name", "")] ||
+							p<string>(element, "defaultValue", "")
+						}
+						onChange={(value) =>
+							onInputChange(p<string>(element, "name", ""), value)
+						}
+						disabled={disabled}
 					/>
 				);
-
-			case "button":
+			case "Button":
 				return (
 					<ButtonRenderer
 						key={key}
-						component={component}
+						el={element}
+						disabled={disabled}
 						onClick={() => {
-							if (component.opensModal) {
-								handleOpenModal(component.opensModal);
-							} else if (component.action) {
-								handleAction(component.action);
+							const opensDialog = p<string>(element, "opensDialog");
+							const action =
+								p<string>(element, "action") ||
+								(element.on?.press?.action as string | undefined) ||
+								(element.on?.click?.action as string | undefined);
+							if (opensDialog) {
+								handleOpenDialog(opensDialog);
+							} else if (action) {
+								handleAction(action);
 							}
 						}}
 					/>
 				);
-
-			case "card":
+			case "Card":
 				return (
-					<CardRenderer key={key} component={component}>
-						{component.children.map((child, i) => renderComponent(child, i))}
+					<CardRenderer key={key} el={element}>
+						{renderChildren()}
 					</CardRenderer>
 				);
-
-			case "row":
+			case "Row":
 				return (
-					<RowRenderer key={key} component={component}>
-						{component.children.map((child, i) => renderComponent(child, i))}
+					<RowRenderer key={key} el={element}>
+						{renderChildren()}
 					</RowRenderer>
 				);
-
-			case "column":
+			case "Column":
 				return (
-					<ColumnRenderer key={key} component={component}>
-						{component.children.map((child, i) => renderComponent(child, i))}
+					<ColumnRenderer key={key} el={element}>
+						{renderChildren()}
 					</ColumnRenderer>
 				);
-
-			case "form":
+			case "Form": {
+				const submitAction = p<string>(element, "submitAction", "");
 				return (
 					<FormRenderer
 						key={key}
-						component={component}
-						onSubmit={() => handleAction(component.submitAction, formData)}
+						el={element}
+						onSubmit={() => handleAction(submitAction, formData)}
 					>
-						{component.children.map((child, i) => renderComponent(child, i))}
+						{renderChildren()}
 					</FormRenderer>
 				);
-
-			case "table":
-				return <TableRenderer key={key} component={component} />;
-
-			case "diagram":
-				return (
-					<DiagramRenderer
-						key={key}
-						component={component as DiagramComponent}
-					/>
-				);
-
-			case "divider":
-				return (
-					<DividerRenderer
-						key={key}
-						component={component as DividerComponent}
-					/>
-				);
-
+			}
+			case "Table":
+				return <TableRenderer key={key} el={element} />;
+			case "Diagram":
+				return <DiagramRenderer key={key} el={element} />;
+			case "Separator":
+				return <DividerRenderer key={key} el={element} />;
+			case "Image":
+				return <ImageRenderer key={key} el={element} />;
+			case "Badge":
+				return <BadgeRenderer key={key} el={element} />;
+			case "Alert":
+				return <AlertRenderer key={key} el={element} />;
+			case "Link":
+				return <LinkRenderer key={key} el={element} />;
+			case "Progress":
+				return <ProgressRenderer key={key} el={element} />;
+			case "List":
+				return <ListRenderer key={key} el={element} />;
 			default:
-				return (
-					<div key={key} className="text-sm text-muted-foreground">
-						Unknown component type: {(component as UIComponent).type}
-					</div>
-				);
+				// Graceful fallback: render children if they exist
+				if (element.children?.length) {
+					return <div key={key}>{renderChildren()}</div>;
+				}
+				return null;
 		}
 	};
 
-	// Render modal content components
-	const renderModalComponent = (
-		component: UIComponent,
-		index: number,
-	): React.ReactNode => {
-		if (!evaluateCondition(component.if, modalFormData)) {
-			return null;
-		}
+	// Resolve current open dialog
+	const currentDialogElementId =
+		openDialogId && parsed.dialogs ? parsed.dialogs[openDialogId] : null;
+	const currentDialog = currentDialogElementId
+		? elements[currentDialogElementId]
+		: null;
 
-		const key = component.id || `modal-${component.type}-${index}`;
-
-		switch (component.type) {
-			case "text":
-				return <TextRenderer key={key} component={component} />;
-			case "input":
-				return (
-					<InputRenderer
-						key={key}
-						component={component}
-						value={modalFormData[component.name] || ""}
-						onChange={(value) => handleModalInputChange(component.name, value)}
-					/>
-				);
-			case "select":
-				return (
-					<SelectRenderer
-						key={key}
-						component={component}
-						value={modalFormData[component.name] || ""}
-						onChange={(value) => handleModalInputChange(component.name, value)}
-					/>
-				);
-			case "row":
-				return (
-					<RowRenderer key={key} component={component}>
-						{component.children.map((child, i) =>
-							renderModalComponent(child, i),
-						)}
-					</RowRenderer>
-				);
-			case "column":
-				return (
-					<ColumnRenderer key={key} component={component}>
-						{component.children.map((child, i) =>
-							renderModalComponent(child, i),
-						)}
-					</ColumnRenderer>
-				);
-			default:
-				return renderComponent(component, index);
-		}
-	};
-
-	// Get current open modal definition
-	const currentModal =
-		openModalId && schema.modals ? schema.modals[openModalId] : null;
-
-	if (!schema?.components?.length) {
+	// Empty schema check
+	if (
+		rootElement.type === "Column" &&
+		(!rootElement.children || rootElement.children.length === 0)
+	) {
 		return null;
 	}
 
 	return (
 		<SchemaErrorBoundary>
 			<div className="schema-renderer space-y-3 w-full overflow-hidden">
-				{schema.components.map((component, index) =>
-					renderComponent(component, index),
-				)}
+				{rootElement.type === "Column" && rootElement.children
+					? rootElement.children.map((childId, i) =>
+							renderElement(childId, i),
+						)
+					: renderElement(parsed.root, 0)}
 			</div>
 
-			{/* Modal rendering */}
-			{currentModal && (
+			{/* Dialog rendering */}
+			{currentDialog && currentDialogElementId && (
 				<ModalRenderer
-					modal={currentModal}
-					open={!!openModalId}
-					onClose={handleCloseModal}
-					onSubmit={handleModalSubmit}
-					renderComponent={renderModalComponent}
+					dialog={currentDialog}
+					dialogElementId={currentDialogElementId}
+					open={!!openDialogId}
+					onClose={handleCloseDialog}
+					onSubmit={handleDialogSubmit}
+					renderElement={(childId, index) =>
+						renderElement(
+							childId,
+							index,
+							modalFormData,
+							handleModalInputChange,
+						)
+					}
 				/>
 			)}
 
@@ -658,9 +713,15 @@ export function SchemaRenderer({
 	);
 }
 
-// Individual component renderers
+// ============================================================================
+// Sub-Renderers (each takes UIElement directly)
+// ============================================================================
 
-function TextRenderer({ component }: { component: TextComponent }) {
+function TextRenderer({ el }: { el: UIElement }) {
+	const content = p<string>(el, "content") || p<string>(el, "text", "");
+	const variant = p<string>(el, "variant", "default");
+	const className = p<string>(el, "className", "");
+
 	const variants: Record<string, string> = {
 		default: "text-sm",
 		muted: "text-sm text-muted-foreground",
@@ -674,10 +735,9 @@ function TextRenderer({ component }: { component: TextComponent }) {
 		"diff-context":
 			"text-xs font-mono bg-muted/50 text-muted-foreground px-2 py-0.5",
 	};
+
 	return (
-		<div
-			className={`${variants[component.variant || "default"]} ${component.className || ""}`}
-		>
+		<div className={`${variants[variant] || variants.default} ${className}`}>
 			<ReactMarkdown
 				remarkPlugins={[remarkGfm]}
 				components={{
@@ -693,9 +753,7 @@ function TextRenderer({ component }: { component: TextComponent }) {
 					h4: ({ children }) => (
 						<h4 className="text-sm font-semibold mb-1">{children}</h4>
 					),
-					p: ({ children }) => (
-						<p className="mb-1 last:mb-0">{children}</p>
-					),
+					p: ({ children }) => <p className="mb-1 last:mb-0">{children}</p>,
 					table: ({ children }) => (
 						<table className="w-full text-sm border-collapse my-2">
 							{children}
@@ -725,31 +783,36 @@ function TextRenderer({ component }: { component: TextComponent }) {
 					),
 				}}
 			>
-				{component.content}
+				{content}
 			</ReactMarkdown>
 		</div>
 	);
 }
 
-function StatRenderer({ component }: { component: StatComponent }) {
-	const changeColors = {
+function StatRenderer({ el }: { el: UIElement }) {
+	const label = p<string>(el, "label", "");
+	const value = p<string | number>(el, "value", "");
+	const change = p<string>(el, "change");
+	const changeType = p<string>(el, "changeType", "neutral");
+	const className = p<string>(el, "className", "");
+
+	const changeColors: Record<string, string> = {
 		positive: "text-green-600",
 		negative: "text-red-600",
 		neutral: "text-muted-foreground",
 	};
+
 	return (
 		<div
-			className={`p-4 rounded-lg border bg-card flex-1 min-w-0 ${component.className || ""}`}
+			className={`p-4 rounded-lg border bg-card flex-1 min-w-0 ${className}`}
 		>
 			<div className="text-xs text-muted-foreground uppercase tracking-wide">
-				{component.label}
+				{label}
 			</div>
-			<div className="text-2xl font-bold mt-1">{component.value}</div>
-			{component.change && (
-				<div
-					className={`text-xs mt-1 ${changeColors[component.changeType || "neutral"]}`}
-				>
-					{component.change}
+			<div className="text-2xl font-bold mt-1">{value}</div>
+			{change && (
+				<div className={`text-xs mt-1 ${changeColors[changeType] || ""}`}>
+					{change}
 				</div>
 			)}
 		</div>
@@ -757,51 +820,71 @@ function StatRenderer({ component }: { component: StatComponent }) {
 }
 
 function InputRenderer({
-	component,
+	el,
 	value,
 	onChange,
+	disabled,
 }: {
-	component: InputComponent;
+	el: UIElement;
 	value: string;
 	onChange: (value: string) => void;
+	disabled?: boolean;
 }) {
-	const InputEl = component.inputType === "textarea" ? Textarea : Input;
+	const name = p<string>(el, "name", "");
+	const label = p<string>(el, "label");
+	const placeholder = p<string>(el, "placeholder");
+	const inputType = p<string>(el, "inputType") || p<string>(el, "type", "text");
+	const required = p<boolean>(el, "required");
+	const className = p<string>(el, "className", "");
+
+	const InputEl = inputType === "textarea" ? Textarea : Input;
+
 	return (
-		<div className={`space-y-1.5 ${component.className || ""}`}>
-			{component.label && (
-				<Label htmlFor={component.name}>{component.label}</Label>
-			)}
+		<div className={`space-y-1.5 ${className}`}>
+			{label && <Label htmlFor={name}>{label}</Label>}
 			<InputEl
-				id={component.name}
-				name={component.name}
-				type={component.inputType || "text"}
-				placeholder={component.placeholder}
+				id={name}
+				name={name}
+				type={inputType}
+				placeholder={placeholder}
 				value={value}
 				onChange={(e) => onChange(e.target.value)}
-				required={component.required}
+				required={required}
+				disabled={disabled}
 			/>
 		</div>
 	);
 }
 
 function SelectRenderer({
-	component,
+	el,
 	value,
 	onChange,
+	disabled,
 }: {
-	component: SelectComponent;
+	el: UIElement;
 	value: string;
 	onChange: (value: string) => void;
+	disabled?: boolean;
 }) {
+	const label = p<string>(el, "label");
+	const placeholder = p<string>(el, "placeholder", "Select...");
+	const options = p<Array<{ label: string; value: string }>>(
+		el,
+		"options",
+		[],
+	);
+	const className = p<string>(el, "className", "");
+
 	return (
-		<div className={`space-y-1.5 ${component.className || ""}`}>
-			{component.label && <Label>{component.label}</Label>}
-			<Select value={value} onValueChange={onChange}>
+		<div className={`space-y-1.5 ${className}`}>
+			{label && <Label>{label}</Label>}
+			<Select value={value} onValueChange={onChange} disabled={disabled}>
 				<SelectTrigger>
-					<SelectValue placeholder={component.placeholder || "Select..."} />
+					<SelectValue placeholder={placeholder} />
 				</SelectTrigger>
 				<SelectContent>
-					{component.options.map((opt) => (
+					{options.map((opt) => (
 						<SelectItem key={opt.value} value={opt.value}>
 							{opt.label}
 						</SelectItem>
@@ -813,41 +896,58 @@ function SelectRenderer({
 }
 
 function ButtonRenderer({
-	component,
+	el,
 	onClick,
+	disabled,
 }: {
-	component: ButtonComponent;
+	el: UIElement;
 	onClick: () => void;
+	disabled?: boolean;
 }) {
+	const label = p<string>(el, "label", "");
+	const variantMap: Record<string, string> = {
+		primary: "default",
+		danger: "destructive",
+	};
+	const rawVariant = p<string>(el, "variant", "default");
+	const variant = (variantMap[rawVariant] || rawVariant) as
+		| "default"
+		| "destructive"
+		| "outline"
+		| "secondary"
+		| "ghost";
+	const elDisabled = p<boolean>(el, "disabled");
+	const className = p<string>(el, "className");
+
 	return (
 		<Button
-			variant={component.variant || "default"}
-			disabled={component.disabled}
+			variant={variant}
+			disabled={disabled || elDisabled}
 			onClick={onClick}
-			className={component.className}
+			className={className}
 		>
-			{component.label}
+			{label}
 		</Button>
 	);
 }
 
 function CardRenderer({
-	component,
+	el,
 	children,
 }: {
-	component: CardComponent;
+	el: UIElement;
 	children: React.ReactNode;
 }) {
+	const title = p<string>(el, "title");
+	const description = p<string>(el, "description");
+	const className = p<string>(el, "className", "");
+
 	return (
-		<Card className={`w-full overflow-hidden ${component.className || ""}`}>
-			{(component.title || component.description) && (
+		<Card className={`w-full overflow-hidden ${className}`}>
+			{(title || description) && (
 				<CardHeader className="pb-3">
-					{component.title && (
-						<CardTitle className="text-base">{component.title}</CardTitle>
-					)}
-					{component.description && (
-						<CardDescription>{component.description}</CardDescription>
-					)}
+					{title && <CardTitle className="text-base">{title}</CardTitle>}
+					{description && <CardDescription>{description}</CardDescription>}
 				</CardHeader>
 			)}
 			<CardContent className="space-y-3">{children}</CardContent>
@@ -855,17 +955,34 @@ function CardRenderer({
 	);
 }
 
+const gapMap: Record<string, number> = {
+	xs: 4,
+	sm: 8,
+	md: 12,
+	lg: 16,
+	xl: 24,
+};
+
+function resolveGap(el: UIElement): number {
+	const raw = el.props?.gap;
+	if (typeof raw === "string") return gapMap[raw] ?? 12;
+	return (raw as number) ?? 12;
+}
+
 function RowRenderer({
-	component,
+	el,
 	children,
 }: {
-	component: RowComponent;
+	el: UIElement;
 	children: React.ReactNode;
 }) {
+	const gap = resolveGap(el);
+	const className = p<string>(el, "className", "");
+
 	return (
 		<div
-			className={`flex flex-wrap items-start w-full overflow-hidden ${component.className || ""}`}
-			style={{ gap: component.gap ?? 12 }}
+			className={`flex flex-wrap items-start w-full overflow-hidden ${className}`}
+			style={{ gap }}
 		>
 			{children}
 		</div>
@@ -873,54 +990,63 @@ function RowRenderer({
 }
 
 function ColumnRenderer({
-	component,
+	el,
 	children,
 }: {
-	component: ColumnComponent;
+	el: UIElement;
 	children: React.ReactNode;
 }) {
+	const gap = resolveGap(el);
+	const className = p<string>(el, "className", "");
+
 	return (
-		<div
-			className={`flex flex-col ${component.className || ""}`}
-			style={{ gap: component.gap ?? 12 }}
-		>
+		<div className={`flex flex-col ${className}`} style={{ gap }}>
 			{children}
 		</div>
 	);
 }
 
 function FormRenderer({
-	component,
+	el,
 	children,
 	onSubmit,
 }: {
-	component: FormComponent;
+	el: UIElement;
 	children: React.ReactNode;
 	onSubmit: () => void;
 }) {
+	const submitLabel = p<string>(el, "submitLabel", "Submit");
+	const className = p<string>(el, "className", "");
+
 	return (
 		<form
-			className={`space-y-4 ${component.className || ""}`}
+			className={`space-y-4 ${className}`}
 			onSubmit={(e) => {
 				e.preventDefault();
 				onSubmit();
 			}}
 		>
 			{children}
-			<Button type="submit">{component.submitLabel || "Submit"}</Button>
+			<Button type="submit">{submitLabel}</Button>
 		</form>
 	);
 }
 
-function TableRenderer({ component }: { component: TableComponent }) {
+function TableRenderer({ el }: { el: UIElement }) {
+	const columns = p<Array<{ key: string; label: string }>>(
+		el,
+		"columns",
+		[],
+	);
+	const rows = p<Array<Record<string, string | number>>>(el, "rows", []);
+	const className = p<string>(el, "className", "");
+
 	return (
-		<div
-			className={`rounded-md border w-full overflow-x-auto ${component.className || ""}`}
-		>
+		<div className={`rounded-md border w-full overflow-x-auto ${className}`}>
 			<table className="w-full text-sm min-w-0">
 				<thead>
 					<tr className="border-b bg-muted/50">
-						{component.columns.map((col) => (
+						{columns.map((col) => (
 							<th key={col.key} className="px-3 py-2 text-left font-medium">
 								{col.label}
 							</th>
@@ -928,9 +1054,9 @@ function TableRenderer({ component }: { component: TableComponent }) {
 					</tr>
 				</thead>
 				<tbody>
-					{component.rows.map((row, i) => (
+					{rows.map((row, i) => (
 						<tr key={i} className="border-b last:border-0">
-							{component.columns.map((col) => (
+							{columns.map((col) => (
 								<td key={col.key} className="px-3 py-2">
 									{row[col.key]}
 								</td>
@@ -943,31 +1069,156 @@ function TableRenderer({ component }: { component: TableComponent }) {
 	);
 }
 
-function DiagramRenderer({ component }: { component: DiagramComponent }) {
+function DiagramRenderer({ el }: { el: UIElement }) {
 	return (
 		<MermaidRenderer
-			code={component.code}
-			title={component.title}
-			expandable={component.expandable}
-			className={component.className}
+			code={p<string>(el, "code", "")}
+			title={p<string>(el, "title")}
+			expandable={p<boolean>(el, "expandable")}
+			className={p<string>(el, "className")}
 		/>
 	);
 }
 
-function DividerRenderer({ component }: { component: DividerComponent }) {
-	const spacingClasses = {
+function DividerRenderer({ el }: { el: UIElement }) {
+	const spacing = p<string>(el, "spacing", "md");
+	const className = p<string>(el, "className", "");
+
+	const spacingClasses: Record<string, string> = {
 		sm: "my-2",
 		md: "my-4",
 		lg: "my-6",
 	};
+
 	return (
 		<hr
-			className={`border-t border-border ${spacingClasses[component.spacing || "md"]} ${component.className || ""}`}
+			className={`border-t border-border ${spacingClasses[spacing] || spacingClasses.md} ${className}`}
 		/>
 	);
 }
 
-// Modal size classes
+// ============================================================================
+// New Sub-Renderers (json-render.dev compatibility)
+// ============================================================================
+
+function ImageRenderer({ el }: { el: UIElement }) {
+	const src = p<string>(el, "src", "");
+	const alt = p<string>(el, "alt", "");
+	const width = p<number | string>(el, "width");
+	const height = p<number | string>(el, "height");
+	const className = p<string>(el, "className", "");
+
+	if (!src) return null;
+	return (
+		<img
+			src={src}
+			alt={alt}
+			width={width}
+			height={height}
+			className={`max-w-full ${className}`}
+		/>
+	);
+}
+
+function BadgeRenderer({ el }: { el: UIElement }) {
+	const text = p<string>(el, "text") || p<string>(el, "label", "");
+	const variantMap: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
+		success: "default",
+		warning: "secondary",
+		destructive: "destructive",
+		default: "default",
+	};
+	const rawVariant = p<string>(el, "variant", "default");
+	const variant = variantMap[rawVariant] || "default";
+	const className = p<string>(el, "className", "");
+
+	return (
+		<Badge variant={variant} className={className}>
+			{text}
+		</Badge>
+	);
+}
+
+function AlertRenderer({ el }: { el: UIElement }) {
+	const title = p<string>(el, "title");
+	const message = p<string>(el, "message") || p<string>(el, "text", "");
+	const rawVariant = p<string>(el, "variant", "default");
+	const variant = rawVariant === "destructive" || rawVariant === "warning"
+		? "destructive"
+		: "default";
+	const className = p<string>(el, "className", "");
+
+	return (
+		<Alert variant={variant} className={className}>
+			{rawVariant === "info" && <Info className="h-4 w-4" />}
+			{(rawVariant === "destructive" || rawVariant === "warning") && (
+				<AlertCircle className="h-4 w-4" />
+			)}
+			{title && <AlertTitle>{title}</AlertTitle>}
+			{message && <AlertDescription>{message}</AlertDescription>}
+		</Alert>
+	);
+}
+
+function LinkRenderer({ el }: { el: UIElement }) {
+	const href = p<string>(el, "href", "#");
+	const text = p<string>(el, "text") || p<string>(el, "label", href);
+	const target = p<string>(el, "target");
+	const className = p<string>(el, "className", "");
+
+	return (
+		<a
+			href={href}
+			target={target}
+			rel={target === "_blank" ? "noopener noreferrer" : undefined}
+			className={`text-primary underline underline-offset-4 hover:text-primary/80 inline-flex items-center gap-1 ${className}`}
+		>
+			{text}
+			{target === "_blank" && <ExternalLink className="h-3 w-3" />}
+		</a>
+	);
+}
+
+function ProgressRenderer({ el }: { el: UIElement }) {
+	const value = p<number>(el, "value", 0);
+	const max = p<number>(el, "max", 100);
+	const label = p<string>(el, "label");
+	const className = p<string>(el, "className", "");
+	const pct = Math.round((value / max) * 100);
+
+	return (
+		<div className={`space-y-1.5 ${className}`}>
+			{label && (
+				<div className="flex justify-between text-sm">
+					<span>{label}</span>
+					<span className="text-muted-foreground">{pct}%</span>
+				</div>
+			)}
+			<Progress value={pct} />
+		</div>
+	);
+}
+
+function ListRenderer({ el }: { el: UIElement }) {
+	const items = p<string[]>(el, "items", []);
+	const ordered = p<boolean>(el, "ordered", false);
+	const className = p<string>(el, "className", "");
+	const Tag = ordered ? "ol" : "ul";
+	const listStyle = ordered ? "list-decimal" : "list-disc";
+
+	return (
+		<Tag className={`${listStyle} list-inside text-sm space-y-1 ${className}`}>
+			{items.map((item, i) => (
+				<li key={i}>{item}</li>
+			))}
+		</Tag>
+	);
+}
+
+// ============================================================================
+// Modal Renderer
+// ============================================================================
+
 const modalSizeClasses: Record<string, string> = {
 	sm: "sm:max-w-sm",
 	md: "sm:max-w-md",
@@ -977,19 +1228,34 @@ const modalSizeClasses: Record<string, string> = {
 };
 
 function ModalRenderer({
-	modal,
+	dialog,
+	dialogElementId: _dialogElementId,
 	open,
 	onClose,
 	onSubmit,
-	renderComponent,
+	renderElement,
 }: {
-	modal: ModalDefinition;
+	dialog: UIElement;
+	dialogElementId: string;
 	open: boolean;
 	onClose: () => void;
 	onSubmit: (action: string, title: string) => void;
-	renderComponent: (component: UIComponent, index: number) => React.ReactNode;
+	renderElement: (childId: string, index: number) => React.ReactNode;
 }) {
-	const sizeClass = modalSizeClasses[modal.size || "full"];
+	const title = p<string>(dialog, "title", "");
+	const description = p<string>(dialog, "description");
+	const size = p<string>(dialog, "size", "full");
+	const submitAction = p<string>(dialog, "submitAction");
+	const submitLabel = p<string>(dialog, "submitLabel", "Submit");
+	const cancelLabel = p<string>(dialog, "cancelLabel", "Cancel");
+	const submitVariant = p<string>(dialog, "submitVariant", "default") as
+		| "default"
+		| "destructive"
+		| "outline"
+		| "secondary"
+		| "ghost";
+
+	const sizeClass = modalSizeClasses[size] || modalSizeClasses.full;
 
 	return (
 		<Dialog open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
@@ -998,30 +1264,28 @@ function ModalRenderer({
 				showCloseButton={true}
 			>
 				<DialogHeader>
-					<DialogTitle>{modal.title}</DialogTitle>
-					{modal.description && (
-						<DialogDescription>{modal.description}</DialogDescription>
+					<DialogTitle>{title}</DialogTitle>
+					{description && (
+						<DialogDescription>{description}</DialogDescription>
 					)}
 				</DialogHeader>
 
 				<div className="flex-1 overflow-y-auto space-y-4 py-4">
-					{modal.children.map((child, index) => renderComponent(child, index))}
+					{(dialog.children || []).map((childId, index) =>
+						renderElement(childId, index),
+					)}
 				</div>
 
 				<DialogFooter>
 					<Button variant="outline" onClick={onClose}>
-						{modal.cancelLabel || "Cancel"}
+						{cancelLabel}
 					</Button>
-					{modal.submitAction && (
+					{submitAction && (
 						<Button
-							variant={modal.submitVariant || "default"}
-							onClick={() => {
-								if (modal.submitAction) {
-									onSubmit(modal.submitAction, modal.title);
-								}
-							}}
+							variant={submitVariant}
+							onClick={() => onSubmit(submitAction, title)}
 						>
-							{modal.submitLabel || "Submit"}
+							{submitLabel}
 						</Button>
 					)}
 				</DialogFooter>
