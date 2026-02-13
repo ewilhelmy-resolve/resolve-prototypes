@@ -73,6 +73,7 @@ export function InlineFormRequest({
 		cancelLabel,
 		submitVariant,
 	} = extractFormProps(normalized);
+	const isFormRoot = normalized.root.type === "Form";
 	const isCompleted = status === "completed";
 
 	const handleSubmit = async () => {
@@ -114,19 +115,23 @@ export function InlineFormRequest({
 
 	return (
 		<Card className="w-full max-w-lg">
-			<CardHeader className="pb-3">
-				<div className="flex items-start justify-between">
-					<div>
-						<CardTitle className="text-base">{title}</CardTitle>
-						{description && (
-							<CardDescription className="mt-1">{description}</CardDescription>
+			{isFormRoot && (
+				<CardHeader className="pb-3">
+					<div className="flex items-start justify-between">
+						<div>
+							<CardTitle className="text-base">{title}</CardTitle>
+							{description && (
+								<CardDescription className="mt-1">
+									{description}
+								</CardDescription>
+							)}
+						</div>
+						{isCompleted && (
+							<CheckCircle2 className="h-5 w-5 text-green-500 flex-shrink-0" />
 						)}
 					</div>
-					{isCompleted && (
-						<CheckCircle2 className="h-5 w-5 text-green-500 flex-shrink-0" />
-					)}
-				</div>
-			</CardHeader>
+				</CardHeader>
+			)}
 
 			<CardContent className="space-y-3 pb-3">
 				<SchemaRenderer
