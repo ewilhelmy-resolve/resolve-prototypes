@@ -18,6 +18,8 @@ export interface UIElement {
 	type: string;
 	props?: Record<string, unknown>;
 	children?: string[]; // element IDs referencing elements map
+	visible?: VisibleCondition; // json-render.dev visibility conditional
+	on?: Record<string, Record<string, unknown>>; // json-render.dev event handlers
 }
 
 /**
@@ -47,6 +49,13 @@ export interface UIActionPayload {
 
 export interface ConditionalProps {
 	field: string;
+	operator: "eq" | "neq" | "exists" | "notExists" | "gt" | "lt" | "contains";
+	value?: unknown;
+}
+
+/** json-render.dev `visible` conditional format */
+export interface VisibleCondition {
+	path: string; // e.g. "$data.form.isDirty"
 	operator: "eq" | "neq" | "exists" | "notExists" | "gt" | "lt" | "contains";
 	value?: unknown;
 }
@@ -96,6 +105,14 @@ const UIElementSchema = z.object({
 	type: z.string(),
 	props: z.record(z.string(), z.unknown()).optional(),
 	children: z.array(z.string()).optional(),
+	visible: z
+		.object({
+			path: z.string(),
+			operator: z.string(),
+			value: z.unknown().optional(),
+		})
+		.optional(),
+	on: z.record(z.string(), z.record(z.string(), z.unknown())).optional(),
 });
 
 export const UISchemaValidator = z.object({

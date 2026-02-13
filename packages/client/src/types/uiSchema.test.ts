@@ -250,7 +250,7 @@ describe("UISchemaValidator", () => {
 		const schema = {
 			root: "main",
 			elements: {
-				main: { type: "Text", props: { content: "Hello" } },
+				main: { type: "Text", props: { text: "Hello" } },
 			},
 		};
 		const result = UISchemaValidator.safeParse(schema);
@@ -262,7 +262,7 @@ describe("UISchemaValidator", () => {
 			root: "column",
 			elements: {
 				column: { type: "Column", children: ["heading", "btn"] },
-				heading: { type: "Text", props: { content: "Hello" } },
+				heading: { type: "Text", props: { text: "Hello" } },
 				btn: { type: "Button", props: { label: "Click", action: "click" } },
 			},
 		};
@@ -321,7 +321,7 @@ describe("UISchemaValidator", () => {
 			elements: {
 				main: {
 					type: "Column",
-					children: [{ type: "Text", props: { content: "inline" } }],
+					children: [{ type: "Text", props: { text: "inline" } }],
 				},
 			},
 		});
@@ -344,14 +344,14 @@ describe("parseSchema", () => {
 		const schema = {
 			root: "main",
 			elements: {
-				main: { type: "Text", props: { content: "Hi" } },
+				main: { type: "Text", props: { text: "Hi" } },
 			},
 		};
 		const result = parseSchema(schema);
 		expect(result).not.toBeNull();
 		expect(result!.root).toBe("main");
 		expect(result!.elements.main.type).toBe("Text");
-		expect(result!.elements.main.props?.content).toBe("Hi");
+		expect(result!.elements.main.props?.text).toBe("Hi");
 	});
 
 	it("parses schema with dialogs", () => {
@@ -389,7 +389,7 @@ describe("parseSchema", () => {
 			elements: {
 				main: {
 					type: "Column",
-					children: [{ type: "Text", props: { content: "inline" } }],
+					children: [{ type: "Text", props: { text: "inline" } }],
 				},
 			},
 		};

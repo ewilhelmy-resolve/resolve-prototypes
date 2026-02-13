@@ -57,7 +57,7 @@ describe("SchemaRenderer", () => {
 	describe("Text Component", () => {
 		it("renders text with default variant", () => {
 			const s = schema({
-				main: { type: "Text", props: { content: "Hello World" } },
+				main: { type: "Text", props: { text: "Hello World" } },
 			});
 			render(<SchemaRenderer schema={s} {...defaultProps} />);
 			expect(screen.getByText("Hello World")).toBeInTheDocument();
@@ -67,7 +67,7 @@ describe("SchemaRenderer", () => {
 			const s = schema({
 				main: {
 					type: "Text",
-					props: { content: "Title", variant: "heading" },
+					props: { text: "Title", variant: "heading" },
 				},
 			});
 			render(<SchemaRenderer schema={s} {...defaultProps} />);
@@ -79,7 +79,7 @@ describe("SchemaRenderer", () => {
 			const s = schema({
 				main: {
 					type: "Text",
-					props: { content: "Muted", variant: "muted" },
+					props: { text: "Muted", variant: "muted" },
 				},
 			});
 			render(<SchemaRenderer schema={s} {...defaultProps} />);
@@ -92,7 +92,7 @@ describe("SchemaRenderer", () => {
 			const s = schema({
 				main: {
 					type: "Text",
-					props: { content: "Custom", className: "custom-class" },
+					props: { text: "Custom", className: "custom-class" },
 				},
 			});
 			render(<SchemaRenderer schema={s} {...defaultProps} />);
@@ -105,7 +105,7 @@ describe("SchemaRenderer", () => {
 	describe("Text Component - Markdown Rendering", () => {
 		it("renders markdown headings", () => {
 			const s = schema({
-				main: { type: "Text", props: { content: "### Section Title" } },
+				main: { type: "Text", props: { text: "### Section Title" } },
 			});
 			render(<SchemaRenderer schema={s} {...defaultProps} />);
 			const h3 = screen.getByText("Section Title");
@@ -117,7 +117,7 @@ describe("SchemaRenderer", () => {
 			const s = schema({
 				main: {
 					type: "Text",
-					props: { content: "This is **bold** text" },
+					props: { text: "This is **bold** text" },
 				},
 			});
 			render(<SchemaRenderer schema={s} {...defaultProps} />);
@@ -131,7 +131,7 @@ describe("SchemaRenderer", () => {
 				main: {
 					type: "Text",
 					props: {
-						content:
+						text:
 							"| Name | Age |\n| --- | --- |\n| Alice | 30 |\n| Bob | 25 |",
 					},
 				},
@@ -151,7 +151,7 @@ describe("SchemaRenderer", () => {
 			const s = schema({
 				main: {
 					type: "Text",
-					props: { content: "- Item one\n- Item two\n- Item three" },
+					props: { text: "- Item one\n- Item two\n- Item three" },
 				},
 			});
 			const { container } = render(
@@ -350,7 +350,7 @@ describe("SchemaRenderer", () => {
 					props: { title: "Card Title", description: "Card description" },
 					children: ["content"],
 				},
-				content: { type: "Text", props: { content: "Card content" } },
+				content: { type: "Text", props: { text: "Card content" } },
 			});
 			render(<SchemaRenderer schema={s} {...defaultProps} />);
 			expect(screen.getByText("Card Title")).toBeInTheDocument();
@@ -361,7 +361,7 @@ describe("SchemaRenderer", () => {
 		it("renders card without header when no title/description", () => {
 			const s = schema({
 				main: { type: "Card", children: ["content"] },
-				content: { type: "Text", props: { content: "Just content" } },
+				content: { type: "Text", props: { text: "Just content" } },
 			});
 			render(<SchemaRenderer schema={s} {...defaultProps} />);
 			expect(screen.getByText("Just content")).toBeInTheDocument();
@@ -372,8 +372,8 @@ describe("SchemaRenderer", () => {
 		it("renders children horizontally", () => {
 			const s = schema({
 				main: { type: "Row", children: ["left", "right"] },
-				left: { type: "Text", props: { content: "Left" } },
-				right: { type: "Text", props: { content: "Right" } },
+				left: { type: "Text", props: { text: "Left" } },
+				right: { type: "Text", props: { text: "Right" } },
 			});
 			render(<SchemaRenderer schema={s} {...defaultProps} />);
 			expect(screen.getByText("Left")).toBeInTheDocument();
@@ -386,8 +386,8 @@ describe("SchemaRenderer", () => {
 			const s = schema(
 				{
 					col: { type: "Column", children: ["top", "bottom"] },
-					top: { type: "Text", props: { content: "Top" } },
-					bottom: { type: "Text", props: { content: "Bottom" } },
+					top: { type: "Text", props: { text: "Top" } },
+					bottom: { type: "Text", props: { text: "Bottom" } },
 				},
 				"col",
 			);
@@ -501,7 +501,7 @@ describe("SchemaRenderer", () => {
 					condText: {
 						type: "Text",
 						props: {
-							content: "You typed hello",
+							text: "You typed hello",
 							if: { field: "type", operator: "eq", value: "hello" },
 						},
 					},
@@ -521,7 +521,7 @@ describe("SchemaRenderer", () => {
 				main: {
 					type: "Text",
 					props: {
-						content: "Has value",
+						text: "Has value",
 						if: { field: "name", operator: "exists" },
 					},
 				},
@@ -535,7 +535,7 @@ describe("SchemaRenderer", () => {
 				main: {
 					type: "Text",
 					props: {
-						content: "No value yet",
+						text: "No value yet",
 						if: { field: "name", operator: "notExists" },
 					},
 				},
@@ -556,7 +556,7 @@ describe("SchemaRenderer", () => {
 					condText: {
 						type: "Text",
 						props: {
-							content: "Name entered!",
+							text: "Name entered!",
 							if: { field: "name", operator: "exists" },
 						},
 					},
@@ -602,12 +602,436 @@ describe("SchemaRenderer", () => {
 	});
 
 	describe("Unknown Component", () => {
-		it("renders unknown type message for unknown component type", () => {
+		it("renders nothing for unknown type with no children", () => {
 			const s = schema({
-				main: { type: "unknown_type" },
+				main: { type: "Column", children: ["child"] },
+				child: { type: "unknown_type" },
 			});
 			render(<SchemaRenderer schema={s} {...defaultProps} />);
-			expect(screen.getByText(/Unknown component type/)).toBeInTheDocument();
+			// Should not show error text, just render nothing
+			expect(
+				screen.queryByText(/Unknown component type/),
+			).not.toBeInTheDocument();
+		});
+
+		it("renders children for unknown type with children", () => {
+			const s = schema({
+				main: { type: "CustomWidget", children: ["inner"] },
+				inner: { type: "Text", props: { text: "Inner content" } },
+			});
+			render(<SchemaRenderer schema={s} {...defaultProps} />);
+			expect(screen.getByText("Inner content")).toBeInTheDocument();
+		});
+	});
+
+	describe("Type Aliases", () => {
+		it("renders Heading as Text with heading variant", () => {
+			const s = schema({
+				main: {
+					type: "Heading",
+					props: { text: "My Heading", variant: "heading" },
+				},
+			});
+			render(<SchemaRenderer schema={s} {...defaultProps} />);
+			expect(screen.getByText("My Heading")).toBeInTheDocument();
+		});
+
+		it("renders Paragraph as Text", () => {
+			const s = schema({
+				main: { type: "Paragraph", props: { text: "Para text" } },
+			});
+			render(<SchemaRenderer schema={s} {...defaultProps} />);
+			expect(screen.getByText("Para text")).toBeInTheDocument();
+		});
+
+		it("renders TextInput as Input", () => {
+			const s = schema({
+				main: {
+					type: "TextInput",
+					props: { name: "field", label: "Field" },
+				},
+			});
+			render(<SchemaRenderer schema={s} {...defaultProps} />);
+			expect(screen.getByLabelText("Field")).toBeInTheDocument();
+		});
+
+		it("renders Dropdown as Select", () => {
+			const s = schema({
+				main: {
+					type: "Dropdown",
+					props: {
+						name: "color",
+						label: "Color",
+						options: [{ label: "Red", value: "red" }],
+					},
+				},
+			});
+			render(<SchemaRenderer schema={s} {...defaultProps} />);
+			expect(screen.getByText("Color")).toBeInTheDocument();
+		});
+
+		it("renders Container/Box/Section/Group as Column", () => {
+			for (const type of ["Container", "Box", "Section", "Group"]) {
+				const s = schema({
+					main: { type, children: ["child"] },
+					child: { type: "Text", props: { text: `${type} child` } },
+				});
+				const { unmount } = render(
+					<SchemaRenderer schema={s} {...defaultProps} />,
+				);
+				expect(screen.getByText(`${type} child`)).toBeInTheDocument();
+				unmount();
+			}
+		});
+
+		it("renders HStack as Row", () => {
+			const s = schema({
+				main: { type: "HStack", children: ["a", "b"] },
+				a: { type: "Text", props: { text: "Left" } },
+				b: { type: "Text", props: { text: "Right" } },
+			});
+			render(<SchemaRenderer schema={s} {...defaultProps} />);
+			expect(screen.getByText("Left")).toBeInTheDocument();
+			expect(screen.getByText("Right")).toBeInTheDocument();
+		});
+
+		it("renders VStack as Column", () => {
+			const s = schema({
+				main: { type: "VStack", children: ["a", "b"] },
+				a: { type: "Text", props: { text: "Top" } },
+				b: { type: "Text", props: { text: "Bottom" } },
+			});
+			render(<SchemaRenderer schema={s} {...defaultProps} />);
+			expect(screen.getByText("Top")).toBeInTheDocument();
+			expect(screen.getByText("Bottom")).toBeInTheDocument();
+		});
+
+		it("renders Divider as Separator", () => {
+			const s = schema({
+				main: { type: "Column", children: ["a", "div", "b"] },
+				a: { type: "Text", props: { text: "Above" } },
+				div: { type: "Divider" },
+				b: { type: "Text", props: { text: "Below" } },
+			});
+			const { container } = render(
+				<SchemaRenderer schema={s} {...defaultProps} />,
+			);
+			expect(container.querySelector("hr")).toBeInTheDocument();
+		});
+	});
+
+	describe("Stack Direction", () => {
+		it("renders Stack with direction=horizontal as Row", () => {
+			const s = schema({
+				main: {
+					type: "Stack",
+					props: { direction: "horizontal" },
+					children: ["a", "b"],
+				},
+				a: { type: "Text", props: { text: "A" } },
+				b: { type: "Text", props: { text: "B" } },
+			});
+			const { container } = render(
+				<SchemaRenderer schema={s} {...defaultProps} />,
+			);
+			// Row renders flex-wrap, Column renders flex-col
+			expect(container.querySelector(".flex-wrap")).toBeInTheDocument();
+		});
+
+		it("renders Stack with direction=vertical as Column", () => {
+			const s = schema({
+				main: {
+					type: "Stack",
+					props: { direction: "vertical" },
+					children: ["a"],
+				},
+				a: { type: "Text", props: { text: "A" } },
+			});
+			const { container } = render(
+				<SchemaRenderer schema={s} {...defaultProps} />,
+			);
+			expect(container.querySelector(".flex-col")).toBeInTheDocument();
+		});
+	});
+
+	describe("String Gap Values", () => {
+		it("applies numeric gap from string label", () => {
+			const s = schema({
+				main: {
+					type: "Row",
+					props: { gap: "lg" },
+					children: ["a"],
+				},
+				a: { type: "Text", props: { text: "Gap test" } },
+			});
+			const { container } = render(
+				<SchemaRenderer schema={s} {...defaultProps} />,
+			);
+			const row = container.querySelector(".flex-wrap");
+			expect(row).toHaveStyle({ gap: "16px" });
+		});
+
+		it("defaults unknown string gap to 12", () => {
+			const s = schema(
+				{
+					root: { type: "Row", children: ["col"] },
+					col: {
+						type: "Column",
+						props: { gap: "unknown" },
+						children: ["a"],
+					},
+					a: { type: "Text", props: { text: "Gap test" } },
+				},
+				"root",
+			);
+			const { container } = render(
+				<SchemaRenderer schema={s} {...defaultProps} />,
+			);
+			const col = container.querySelector(".flex-col");
+			expect(col).toHaveStyle({ gap: "12px" });
+		});
+	});
+
+	describe("Button Variant Aliases", () => {
+		it("maps primary variant to default", () => {
+			const s = schema({
+				main: {
+					type: "Button",
+					props: { label: "Primary", variant: "primary", action: "x" },
+				},
+			});
+			render(<SchemaRenderer schema={s} {...defaultProps} />);
+			expect(
+				screen.getByRole("button", { name: "Primary" }),
+			).toBeInTheDocument();
+		});
+
+		it("maps danger variant to destructive", () => {
+			const s = schema({
+				main: {
+					type: "Button",
+					props: { label: "Danger", variant: "danger", action: "x" },
+				},
+			});
+			render(<SchemaRenderer schema={s} {...defaultProps} />);
+			expect(
+				screen.getByRole("button", { name: "Danger" }),
+			).toBeInTheDocument();
+		});
+	});
+
+	describe("Input type prop fallback", () => {
+		it("uses type prop as fallback for inputType", () => {
+			const s = schema({
+				main: {
+					type: "Input",
+					props: { name: "pw", label: "Password", type: "password" },
+				},
+			});
+			render(<SchemaRenderer schema={s} {...defaultProps} />);
+			expect(screen.getByLabelText("Password")).toHaveAttribute(
+				"type",
+				"password",
+			);
+		});
+	});
+
+	describe("on Event Props", () => {
+		it("reads action from on.press.action", async () => {
+			const user = userEvent.setup();
+			const onAction = vi.fn();
+			const s = {
+				root: "main",
+				elements: {
+					main: {
+						type: "Button",
+						props: { label: "Press" },
+						on: { press: { action: "pressed_action" } },
+					},
+				},
+			};
+			render(
+				<SchemaRenderer
+					schema={s}
+					{...defaultProps}
+					onAction={onAction}
+				/>,
+			);
+			await user.click(screen.getByRole("button", { name: "Press" }));
+			expect(onAction).toHaveBeenCalledWith(
+				expect.objectContaining({ action: "pressed_action" }),
+			);
+		});
+
+		it("reads action from on.click.action", async () => {
+			const user = userEvent.setup();
+			const onAction = vi.fn();
+			const s = {
+				root: "main",
+				elements: {
+					main: {
+						type: "Button",
+						props: { label: "Click" },
+						on: { click: { action: "clicked_action" } },
+					},
+				},
+			};
+			render(
+				<SchemaRenderer
+					schema={s}
+					{...defaultProps}
+					onAction={onAction}
+				/>,
+			);
+			await user.click(screen.getByRole("button", { name: "Click" }));
+			expect(onAction).toHaveBeenCalledWith(
+				expect.objectContaining({ action: "clicked_action" }),
+			);
+		});
+	});
+
+	describe("Visible Conditional", () => {
+		it("hides element when visible condition fails", () => {
+			const s = {
+				root: "main",
+				elements: {
+					main: {
+						type: "Text",
+						props: { text: "Hidden" },
+						visible: {
+							path: "$data.form.isDirty",
+							operator: "eq",
+							value: "true",
+						},
+					},
+				},
+			};
+			render(<SchemaRenderer schema={s} {...defaultProps} />);
+			expect(screen.queryByText("Hidden")).not.toBeInTheDocument();
+		});
+	});
+
+	describe("Image Component", () => {
+		it("renders image with src and alt", () => {
+			const s = schema({
+				main: {
+					type: "Image",
+					props: { src: "https://example.com/img.png", alt: "Test image" },
+				},
+			});
+			render(<SchemaRenderer schema={s} {...defaultProps} />);
+			const img = screen.getByAltText("Test image");
+			expect(img).toHaveAttribute("src", "https://example.com/img.png");
+		});
+
+		it("renders nothing when src is empty", () => {
+			const s = schema({
+				main: { type: "Image", props: { src: "" } },
+			});
+			const { container } = render(
+				<SchemaRenderer schema={s} {...defaultProps} />,
+			);
+			expect(container.querySelector("img")).not.toBeInTheDocument();
+		});
+	});
+
+	describe("Badge Component", () => {
+		it("renders badge with text", () => {
+			const s = schema({
+				main: { type: "Badge", props: { text: "New" } },
+			});
+			render(<SchemaRenderer schema={s} {...defaultProps} />);
+			expect(screen.getByText("New")).toBeInTheDocument();
+		});
+
+		it("renders badge with label prop", () => {
+			const s = schema({
+				main: { type: "Badge", props: { label: "Beta" } },
+			});
+			render(<SchemaRenderer schema={s} {...defaultProps} />);
+			expect(screen.getByText("Beta")).toBeInTheDocument();
+		});
+	});
+
+	describe("Alert Component", () => {
+		it("renders alert with title and message", () => {
+			const s = schema({
+				main: {
+					type: "Alert",
+					props: { title: "Warning", message: "Something went wrong" },
+				},
+			});
+			render(<SchemaRenderer schema={s} {...defaultProps} />);
+			expect(screen.getByText("Warning")).toBeInTheDocument();
+			expect(screen.getByText("Something went wrong")).toBeInTheDocument();
+		});
+	});
+
+	describe("Link Component", () => {
+		it("renders link with href and text", () => {
+			const s = schema({
+				main: {
+					type: "Link",
+					props: {
+						href: "https://example.com",
+						text: "Example",
+						target: "_blank",
+					},
+				},
+			});
+			render(<SchemaRenderer schema={s} {...defaultProps} />);
+			const link = screen.getByText("Example");
+			expect(link.closest("a")).toHaveAttribute(
+				"href",
+				"https://example.com",
+			);
+			expect(link.closest("a")).toHaveAttribute("target", "_blank");
+			expect(link.closest("a")).toHaveAttribute(
+				"rel",
+				"noopener noreferrer",
+			);
+		});
+	});
+
+	describe("Progress Component", () => {
+		it("renders progress with label and value", () => {
+			const s = schema({
+				main: {
+					type: "Progress",
+					props: { value: 75, max: 100, label: "Upload" },
+				},
+			});
+			render(<SchemaRenderer schema={s} {...defaultProps} />);
+			expect(screen.getByText("Upload")).toBeInTheDocument();
+			expect(screen.getByText("75%")).toBeInTheDocument();
+		});
+	});
+
+	describe("List Component", () => {
+		it("renders unordered list", () => {
+			const s = schema({
+				main: {
+					type: "List",
+					props: { items: ["Apple", "Banana", "Cherry"] },
+				},
+			});
+			render(<SchemaRenderer schema={s} {...defaultProps} />);
+			expect(screen.getByText("Apple")).toBeInTheDocument();
+			expect(screen.getByText("Banana")).toBeInTheDocument();
+			expect(screen.getByText("Cherry")).toBeInTheDocument();
+		});
+
+		it("renders ordered list", () => {
+			const s = schema({
+				main: {
+					type: "List",
+					props: { items: ["First", "Second"], ordered: true },
+				},
+			});
+			const { container } = render(
+				<SchemaRenderer schema={s} {...defaultProps} />,
+			);
+			expect(container.querySelector("ol")).toBeInTheDocument();
 		});
 	});
 
@@ -632,7 +1056,7 @@ describe("SchemaRenderer", () => {
 					},
 					dialogText: {
 						type: "Text",
-						props: { content: "Modal content" },
+						props: { text: "Modal content" },
 					},
 				},
 				dialogs: { "test-dialog": "dialogForm" },
@@ -768,7 +1192,7 @@ describe("SchemaRenderer", () => {
 					},
 					confirmText: {
 						type: "Text",
-						props: { content: "Are you sure?" },
+						props: { text: "Are you sure?" },
 					},
 				},
 				dialogs: { confirm: "confirmForm" },

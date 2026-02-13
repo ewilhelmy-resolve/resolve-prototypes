@@ -8,7 +8,7 @@
  * @see https://json-render.dev/docs/schemas
  */
 
-import { AlertCircle } from "lucide-react";
+import { AlertCircle, ExternalLink, Info } from "lucide-react";
 import {
 	Component,
 	type ErrorInfo,
@@ -33,6 +33,7 @@ import {
 	openFormModal,
 } from "../../utils/hostModal";
 import { Alert, AlertDescription, AlertTitle } from "../ui/alert";
+import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
 import {
 	Card,
@@ -51,6 +52,7 @@ import {
 } from "../ui/dialog";
 import { Input } from "../ui/input";
 import { Label } from "../ui/label";
+import { Progress } from "../ui/progress";
 import {
 	Select,
 	SelectContent,
@@ -58,6 +60,7 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "../ui/select";
+import { Separator } from "../ui/separator";
 import { Textarea } from "../ui/textarea";
 import { MermaidRenderer } from "./MermaidRenderer";
 
@@ -452,13 +455,63 @@ export function SchemaRenderer({
 			);
 		}
 
-		// Check conditional rendering
+		// Check conditional rendering (props.if)
 		const condIf = element.props?.if as ConditionalProps | undefined;
 		if (condIf && !evaluateCondition(condIf, context)) return null;
 
+		// Check visible conditional (json-render.dev spec)
+		if (element.visible) {
+			const field = element.visible.path?.replace(/^\$data\./, "") || "";
+			if (
+				!evaluateCondition(
+					{
+						field,
+						operator: element.visible.operator,
+						value: element.visible.value,
+					},
+					context,
+				)
+			)
+				return null;
+		}
+
 		const key = p<string>(element, "id") || `${elementId}-${index}`;
 
-		switch (element.type) {
+		const renderChildren = () =>
+			(element.children || []).map((childId, i) =>
+				renderElement(childId, i, context, onInputChange),
+			);
+
+		// Resolve type (normalize aliases)
+		let type = element.type;
+
+		// Stack direction-aware alias
+		if (type === "Stack") {
+			const dir = p<string>(element, "direction", "vertical");
+			type = dir === "horizontal" ? "Row" : "Column";
+		}
+
+		// Type alias map
+		const typeAliases: Record<string, string> = {
+			Heading: "Text",
+			Paragraph: "Text",
+			Label: "Text",
+			TextInput: "Input",
+			TextField: "Input",
+			Dropdown: "Select",
+			Container: "Column",
+			Box: "Column",
+			Section: "Column",
+			Group: "Column",
+			VStack: "Column",
+			HStack: "Row",
+			Divider: "Separator",
+			Hr: "Separator",
+			Img: "Image",
+		};
+		type = typeAliases[type] || type;
+
+		switch (type) {
 			case "Text":
 				return <TextRenderer key={key} el={element} />;
 			case "Stat":
@@ -501,7 +554,10 @@ export function SchemaRenderer({
 						disabled={disabled}
 						onClick={() => {
 							const opensDialog = p<string>(element, "opensDialog");
-							const action = p<string>(element, "action");
+							const action =
+								p<string>(element, "action") ||
+								(element.on?.press?.action as string | undefined) ||
+								(element.on?.click?.action as string | undefined);
 							if (opensDialog) {
 								handleOpenDialog(opensDialog);
 							} else if (action) {
@@ -513,25 +569,19 @@ export function SchemaRenderer({
 			case "Card":
 				return (
 					<CardRenderer key={key} el={element}>
-						{(element.children || []).map((childId, i) =>
-							renderElement(childId, i, context, onInputChange),
-						)}
+						{renderChildren()}
 					</CardRenderer>
 				);
 			case "Row":
 				return (
 					<RowRenderer key={key} el={element}>
-						{(element.children || []).map((childId, i) =>
-							renderElement(childId, i, context, onInputChange),
-						)}
+						{renderChildren()}
 					</RowRenderer>
 				);
 			case "Column":
 				return (
 					<ColumnRenderer key={key} el={element}>
-						{(element.children || []).map((childId, i) =>
-							renderElement(childId, i, context, onInputChange),
-						)}
+						{renderChildren()}
 					</ColumnRenderer>
 				);
 			case "Form": {
@@ -542,9 +592,7 @@ export function SchemaRenderer({
 						el={element}
 						onSubmit={() => handleAction(submitAction, formData)}
 					>
-						{(element.children || []).map((childId, i) =>
-							renderElement(childId, i, context, onInputChange),
-						)}
+						{renderChildren()}
 					</FormRenderer>
 				);
 			}
@@ -554,12 +602,24 @@ export function SchemaRenderer({
 				return <DiagramRenderer key={key} el={element} />;
 			case "Separator":
 				return <DividerRenderer key={key} el={element} />;
+			case "Image":
+				return <ImageRenderer key={key} el={element} />;
+			case "Badge":
+				return <BadgeRenderer key={key} el={element} />;
+			case "Alert":
+				return <AlertRenderer key={key} el={element} />;
+			case "Link":
+				return <LinkRenderer key={key} el={element} />;
+			case "Progress":
+				return <ProgressRenderer key={key} el={element} />;
+			case "List":
+				return <ListRenderer key={key} el={element} />;
 			default:
-				return (
-					<div key={key} className="text-sm text-muted-foreground">
-						Unknown component type: {element.type}
-					</div>
-				);
+				// Graceful fallback: render children if they exist
+				if (element.children?.length) {
+					return <div key={key}>{renderChildren()}</div>;
+				}
+				return null;
 		}
 	};
 
@@ -774,7 +834,7 @@ function InputRenderer({
 	const name = p<string>(el, "name", "");
 	const label = p<string>(el, "label");
 	const placeholder = p<string>(el, "placeholder");
-	const inputType = p<string>(el, "inputType", "text");
+	const inputType = p<string>(el, "inputType") || p<string>(el, "type", "text");
 	const required = p<boolean>(el, "required");
 	const className = p<string>(el, "className", "");
 
@@ -846,7 +906,12 @@ function ButtonRenderer({
 	disabled?: boolean;
 }) {
 	const label = p<string>(el, "label", "");
-	const variant = p<string>(el, "variant", "default") as
+	const variantMap: Record<string, string> = {
+		primary: "default",
+		danger: "destructive",
+	};
+	const rawVariant = p<string>(el, "variant", "default");
+	const variant = (variantMap[rawVariant] || rawVariant) as
 		| "default"
 		| "destructive"
 		| "outline"
@@ -891,6 +956,20 @@ function CardRenderer({
 	);
 }
 
+const gapMap: Record<string, number> = {
+	xs: 4,
+	sm: 8,
+	md: 12,
+	lg: 16,
+	xl: 24,
+};
+
+function resolveGap(el: UIElement): number {
+	const raw = el.props?.gap;
+	if (typeof raw === "string") return gapMap[raw] ?? 12;
+	return (raw as number) ?? 12;
+}
+
 function RowRenderer({
 	el,
 	children,
@@ -898,7 +977,7 @@ function RowRenderer({
 	el: UIElement;
 	children: React.ReactNode;
 }) {
-	const gap = p<number>(el, "gap", 12);
+	const gap = resolveGap(el);
 	const className = p<string>(el, "className", "");
 
 	return (
@@ -918,7 +997,7 @@ function ColumnRenderer({
 	el: UIElement;
 	children: React.ReactNode;
 }) {
-	const gap = p<number>(el, "gap", 12);
+	const gap = resolveGap(el);
 	const className = p<string>(el, "className", "");
 
 	return (
@@ -1016,6 +1095,124 @@ function DividerRenderer({ el }: { el: UIElement }) {
 		<hr
 			className={`border-t border-border ${spacingClasses[spacing] || spacingClasses.md} ${className}`}
 		/>
+	);
+}
+
+// ============================================================================
+// New Sub-Renderers (json-render.dev compatibility)
+// ============================================================================
+
+function ImageRenderer({ el }: { el: UIElement }) {
+	const src = p<string>(el, "src", "");
+	const alt = p<string>(el, "alt", "");
+	const width = p<number | string>(el, "width");
+	const height = p<number | string>(el, "height");
+	const className = p<string>(el, "className", "");
+
+	if (!src) return null;
+	return (
+		<img
+			src={src}
+			alt={alt}
+			width={width}
+			height={height}
+			className={`max-w-full ${className}`}
+		/>
+	);
+}
+
+function BadgeRenderer({ el }: { el: UIElement }) {
+	const text = p<string>(el, "text") || p<string>(el, "label", "");
+	const variantMap: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
+		success: "default",
+		warning: "secondary",
+		destructive: "destructive",
+		default: "default",
+	};
+	const rawVariant = p<string>(el, "variant", "default");
+	const variant = variantMap[rawVariant] || "default";
+	const className = p<string>(el, "className", "");
+
+	return (
+		<Badge variant={variant} className={className}>
+			{text}
+		</Badge>
+	);
+}
+
+function AlertRenderer({ el }: { el: UIElement }) {
+	const title = p<string>(el, "title");
+	const message = p<string>(el, "message") || p<string>(el, "text", "");
+	const rawVariant = p<string>(el, "variant", "default");
+	const variant = rawVariant === "destructive" || rawVariant === "warning"
+		? "destructive"
+		: "default";
+	const className = p<string>(el, "className", "");
+
+	return (
+		<Alert variant={variant} className={className}>
+			{rawVariant === "info" && <Info className="h-4 w-4" />}
+			{(rawVariant === "destructive" || rawVariant === "warning") && (
+				<AlertCircle className="h-4 w-4" />
+			)}
+			{title && <AlertTitle>{title}</AlertTitle>}
+			{message && <AlertDescription>{message}</AlertDescription>}
+		</Alert>
+	);
+}
+
+function LinkRenderer({ el }: { el: UIElement }) {
+	const href = p<string>(el, "href", "#");
+	const text = p<string>(el, "text") || p<string>(el, "label", href);
+	const target = p<string>(el, "target");
+	const className = p<string>(el, "className", "");
+
+	return (
+		<a
+			href={href}
+			target={target}
+			rel={target === "_blank" ? "noopener noreferrer" : undefined}
+			className={`text-primary underline underline-offset-4 hover:text-primary/80 inline-flex items-center gap-1 ${className}`}
+		>
+			{text}
+			{target === "_blank" && <ExternalLink className="h-3 w-3" />}
+		</a>
+	);
+}
+
+function ProgressRenderer({ el }: { el: UIElement }) {
+	const value = p<number>(el, "value", 0);
+	const max = p<number>(el, "max", 100);
+	const label = p<string>(el, "label");
+	const className = p<string>(el, "className", "");
+	const pct = Math.round((value / max) * 100);
+
+	return (
+		<div className={`space-y-1.5 ${className}`}>
+			{label && (
+				<div className="flex justify-between text-sm">
+					<span>{label}</span>
+					<span className="text-muted-foreground">{pct}%</span>
+				</div>
+			)}
+			<Progress value={pct} />
+		</div>
+	);
+}
+
+function ListRenderer({ el }: { el: UIElement }) {
+	const items = p<string[]>(el, "items", []);
+	const ordered = p<boolean>(el, "ordered", false);
+	const className = p<string>(el, "className", "");
+	const Tag = ordered ? "ol" : "ul";
+	const listStyle = ordered ? "list-decimal" : "list-disc";
+
+	return (
+		<Tag className={`${listStyle} list-inside text-sm space-y-1 ${className}`}>
+			{items.map((item, i) => (
+				<li key={i}>{item}</li>
+			))}
+		</Tag>
 	);
 }
 
