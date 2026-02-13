@@ -170,15 +170,27 @@ const EXAMPLE_SCHEMAS: Record<string, UISchema> = {
 			},
 			enableBtn: {
 				type: "Button",
-				props: { label: "Enable", action: "enable_workflow", variant: "default" },
+				props: {
+					label: "Enable",
+					action: "enable_workflow",
+					variant: "default",
+				},
 			},
 			disableBtn: {
 				type: "Button",
-				props: { label: "Disable", action: "disable_workflow", variant: "outline" },
+				props: {
+					label: "Disable",
+					action: "disable_workflow",
+					variant: "outline",
+				},
 			},
 			deleteBtn: {
 				type: "Button",
-				props: { label: "Delete", action: "delete_workflow", variant: "destructive" },
+				props: {
+					label: "Delete",
+					action: "delete_workflow",
+					variant: "destructive",
+				},
 			},
 		},
 	},

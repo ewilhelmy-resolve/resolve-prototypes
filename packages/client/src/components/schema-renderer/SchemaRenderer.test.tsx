@@ -33,9 +33,7 @@ describe("SchemaRenderer", () => {
 
 	describe("Schema Validation", () => {
 		it("renders error for invalid schema (no elements)", () => {
-			render(
-				<SchemaRenderer schema={{ bad: true }} {...defaultProps} />,
-			);
+			render(<SchemaRenderer schema={{ bad: true }} {...defaultProps} />);
 			expect(screen.getByText(/Invalid Schema/)).toBeInTheDocument();
 		});
 
@@ -131,8 +129,7 @@ describe("SchemaRenderer", () => {
 				main: {
 					type: "Text",
 					props: {
-						text:
-							"| Name | Age |\n| --- | --- |\n| Alice | 30 |\n| Bob | 25 |",
+						text: "| Name | Age |\n| --- | --- |\n| Alice | 30 |\n| Bob | 25 |",
 					},
 				},
 			});
@@ -219,11 +216,7 @@ describe("SchemaRenderer", () => {
 			});
 
 			render(
-				<SchemaRenderer
-					schema={s}
-					{...defaultProps}
-					onAction={onAction}
-				/>,
+				<SchemaRenderer schema={s} {...defaultProps} onAction={onAction} />,
 			);
 
 			await user.click(screen.getByRole("button", { name: "Submit" }));
@@ -414,11 +407,7 @@ describe("SchemaRenderer", () => {
 			});
 
 			render(
-				<SchemaRenderer
-					schema={s}
-					{...defaultProps}
-					onAction={onAction}
-				/>,
+				<SchemaRenderer schema={s} {...defaultProps} onAction={onAction} />,
 			);
 
 			await user.type(screen.getByLabelText("Name"), "John Doe");
@@ -851,11 +840,7 @@ describe("SchemaRenderer", () => {
 				},
 			};
 			render(
-				<SchemaRenderer
-					schema={s}
-					{...defaultProps}
-					onAction={onAction}
-				/>,
+				<SchemaRenderer schema={s} {...defaultProps} onAction={onAction} />,
 			);
 			await user.click(screen.getByRole("button", { name: "Press" }));
 			expect(onAction).toHaveBeenCalledWith(
@@ -877,11 +862,7 @@ describe("SchemaRenderer", () => {
 				},
 			};
 			render(
-				<SchemaRenderer
-					schema={s}
-					{...defaultProps}
-					onAction={onAction}
-				/>,
+				<SchemaRenderer schema={s} {...defaultProps} onAction={onAction} />,
 			);
 			await user.click(screen.getByRole("button", { name: "Click" }));
 			expect(onAction).toHaveBeenCalledWith(
@@ -981,15 +962,9 @@ describe("SchemaRenderer", () => {
 			});
 			render(<SchemaRenderer schema={s} {...defaultProps} />);
 			const link = screen.getByText("Example");
-			expect(link.closest("a")).toHaveAttribute(
-				"href",
-				"https://example.com",
-			);
+			expect(link.closest("a")).toHaveAttribute("href", "https://example.com");
 			expect(link.closest("a")).toHaveAttribute("target", "_blank");
-			expect(link.closest("a")).toHaveAttribute(
-				"rel",
-				"noopener noreferrer",
-			);
+			expect(link.closest("a")).toHaveAttribute("rel", "noopener noreferrer");
 		});
 	});
 
@@ -1125,11 +1100,7 @@ describe("SchemaRenderer", () => {
 			};
 
 			render(
-				<SchemaRenderer
-					schema={s}
-					{...defaultProps}
-					onAction={onAction}
-				/>,
+				<SchemaRenderer schema={s} {...defaultProps} onAction={onAction} />,
 			);
 
 			await user.click(screen.getByRole("button", { name: "Edit" }));
@@ -1235,11 +1206,7 @@ describe("SchemaRenderer", () => {
 			};
 
 			render(
-				<SchemaRenderer
-					schema={s}
-					{...defaultProps}
-					onAction={onAction}
-				/>,
+				<SchemaRenderer schema={s} {...defaultProps} onAction={onAction} />,
 			);
 
 			await user.click(screen.getByRole("button", { name: "Open" }));
