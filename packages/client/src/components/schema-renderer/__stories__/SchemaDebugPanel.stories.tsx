@@ -23,11 +23,18 @@ type Story = StoryObj<typeof SchemaDebugPanel>;
 export const Default: Story = {
 	args: {
 		schema: {
-			version: "1",
-			components: [
-				{ type: "text", content: "Hello World", variant: "heading" },
-				{ type: "button", label: "Click Me", action: "test" },
-			],
+			root: "root",
+			elements: {
+				root: { type: "Column", children: ["heading", "btn"] },
+				heading: {
+					type: "Text",
+					props: { content: "Hello World", variant: "heading" },
+				},
+				btn: {
+					type: "Button",
+					props: { label: "Click Me", action: "test" },
+				},
+			},
 		},
 		lastAction: null,
 		actionHistory: [],
@@ -39,11 +46,18 @@ export const Default: Story = {
 export const WithActions: Story = {
 	args: {
 		schema: {
-			version: "1",
-			components: [
-				{ type: "text", content: "Dashboard", variant: "heading" },
-				{ type: "stat", label: "Users", value: 42 },
-			],
+			root: "root",
+			elements: {
+				root: { type: "Column", children: ["heading", "stat"] },
+				heading: {
+					type: "Text",
+					props: { content: "Dashboard", variant: "heading" },
+				},
+				stat: {
+					type: "Stat",
+					props: { label: "Users", value: 42 },
+				},
+			},
 		},
 		lastAction: {
 			action: "delete_item",
@@ -76,8 +90,13 @@ export const WithActions: Story = {
 export const Collapsed: Story = {
 	args: {
 		schema: {
-			version: "1",
-			components: [{ type: "text", content: "Hidden panel", variant: "muted" }],
+			root: "main",
+			elements: {
+				main: {
+					type: "Text",
+					props: { content: "Hidden panel", variant: "muted" },
+				},
+			},
 		},
 		lastAction: null,
 		actionHistory: [],

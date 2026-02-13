@@ -54,7 +54,11 @@
 	},
 	"details": {
 		"description": "Description",
-		"ticketsCount": "Tickets:"
+		"ticketsCount": "Tickets:",
+		"requester": "Requester",
+		"status": "Status",
+		"assignedTo": "Assigned to",
+		"created": "Created"
 	},
 	"review": {
 		"title": "Review AI response",

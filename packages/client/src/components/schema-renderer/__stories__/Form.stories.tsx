@@ -1,6 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react";
 import { expect, fn, userEvent, within } from "@storybook/test";
-import type { UISchema } from "@/types/uiSchema";
 import { SchemaStoryWrapper } from "./SchemaStoryWrapper";
 
 const meta = {
@@ -13,42 +12,47 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof SchemaStoryWrapper>;
 
-const defaultFormSchema: UISchema = {
-	version: "1",
-	components: [
-		{
-			type: "form",
-			submitAction: "submit_user",
-			children: [
-				{
-					type: "input",
-					name: "name",
-					label: "Name",
-					placeholder: "Enter your name",
-					required: true,
-				},
-				{
-					type: "input",
-					name: "email",
-					label: "Email",
-					inputType: "email",
-					placeholder: "user@example.com",
-					required: true,
-				},
-				{
-					type: "select",
-					name: "role",
-					label: "Role",
-					placeholder: "Select a role",
-					options: [
-						{ label: "Admin", value: "admin" },
-						{ label: "Editor", value: "editor" },
-						{ label: "Viewer", value: "viewer" },
-					],
-				},
-			],
+const defaultFormSchema = {
+	root: "form",
+	elements: {
+		form: {
+			type: "Form",
+			props: { submitAction: "submit_user" },
+			children: ["name-input", "email-input", "role-select"],
 		},
-	],
+		"name-input": {
+			type: "Input",
+			props: {
+				name: "name",
+				label: "Name",
+				placeholder: "Enter your name",
+				required: true,
+			},
+		},
+		"email-input": {
+			type: "Input",
+			props: {
+				name: "email",
+				label: "Email",
+				inputType: "email",
+				placeholder: "user@example.com",
+				required: true,
+			},
+		},
+		"role-select": {
+			type: "Select",
+			props: {
+				name: "role",
+				label: "Role",
+				placeholder: "Select a role",
+				options: [
+					{ label: "Admin", value: "admin" },
+					{ label: "Editor", value: "editor" },
+					{ label: "Viewer", value: "viewer" },
+				],
+			},
+		},
+	},
 };
 
 export const Default: Story = {
@@ -60,38 +64,45 @@ export const Default: Story = {
 export const CustomSubmitLabel: Story = {
 	args: {
 		schema: {
-			version: "1",
-			components: [
-				{
-					type: "form",
-					submitAction: "save_config",
-					submitLabel: "Save Configuration",
-					children: [
-						{
-							type: "input",
-							name: "host",
-							label: "Host",
-							placeholder: "api.example.com",
-						},
-						{
-							type: "input",
-							name: "port",
-							label: "Port",
-							inputType: "number",
-							placeholder: "8080",
-						},
-						{
-							type: "select",
-							name: "protocol",
-							label: "Protocol",
-							options: [
-								{ label: "HTTPS", value: "https" },
-								{ label: "HTTP", value: "http" },
-							],
-						},
-					],
+			root: "form",
+			elements: {
+				form: {
+					type: "Form",
+					props: {
+						submitAction: "save_config",
+						submitLabel: "Save Configuration",
+					},
+					children: ["host-input", "port-input", "protocol-select"],
 				},
-			],
+				"host-input": {
+					type: "Input",
+					props: {
+						name: "host",
+						label: "Host",
+						placeholder: "api.example.com",
+					},
+				},
+				"port-input": {
+					type: "Input",
+					props: {
+						name: "port",
+						label: "Port",
+						inputType: "number",
+						placeholder: "8080",
+					},
+				},
+				"protocol-select": {
+					type: "Select",
+					props: {
+						name: "protocol",
+						label: "Protocol",
+						options: [
+							{ label: "HTTPS", value: "https" },
+							{ label: "HTTP", value: "http" },
+						],
+					},
+				},
+			},
 		},
 	},
 };

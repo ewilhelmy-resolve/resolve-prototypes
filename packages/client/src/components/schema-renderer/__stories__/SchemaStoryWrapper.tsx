@@ -3,7 +3,7 @@ import type { UISchema } from "@/types/uiSchema";
 import { SchemaRenderer } from "../SchemaRenderer";
 
 interface SchemaStoryWrapperProps {
-	schema: UISchema;
+	schema: UISchema | Record<string, unknown>;
 	onAction?: (payload: unknown) => void;
 }
 

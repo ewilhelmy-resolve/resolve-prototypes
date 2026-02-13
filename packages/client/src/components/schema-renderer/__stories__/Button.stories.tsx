@@ -15,10 +15,8 @@ type Story = StoryObj<typeof SchemaStoryWrapper>;
 export const Default: Story = {
 	args: {
 		schema: {
-			version: "1",
-			components: [
-				{ type: "button", label: "Click Me", action: "default_action" },
-			],
+			type: "Button",
+			props: { label: "Click Me", action: "default_action" },
 		},
 	},
 };
@@ -26,15 +24,12 @@ export const Default: Story = {
 export const Destructive: Story = {
 	args: {
 		schema: {
-			version: "1",
-			components: [
-				{
-					type: "button",
-					label: "Delete",
-					action: "delete_action",
-					variant: "destructive",
-				},
-			],
+			type: "Button",
+			props: {
+				label: "Delete",
+				action: "delete_action",
+				variant: "destructive",
+			},
 		},
 	},
 };
@@ -42,15 +37,12 @@ export const Destructive: Story = {
 export const Outline: Story = {
 	args: {
 		schema: {
-			version: "1",
-			components: [
-				{
-					type: "button",
-					label: "Cancel",
-					action: "cancel_action",
-					variant: "outline",
-				},
-			],
+			type: "Button",
+			props: {
+				label: "Cancel",
+				action: "cancel_action",
+				variant: "outline",
+			},
 		},
 	},
 };
@@ -58,15 +50,12 @@ export const Outline: Story = {
 export const Secondary: Story = {
 	args: {
 		schema: {
-			version: "1",
-			components: [
-				{
-					type: "button",
-					label: "Secondary",
-					action: "secondary_action",
-					variant: "secondary",
-				},
-			],
+			type: "Button",
+			props: {
+				label: "Secondary",
+				action: "secondary_action",
+				variant: "secondary",
+			},
 		},
 	},
 };
@@ -74,15 +63,12 @@ export const Secondary: Story = {
 export const Ghost: Story = {
 	args: {
 		schema: {
-			version: "1",
-			components: [
-				{
-					type: "button",
-					label: "Ghost",
-					action: "ghost_action",
-					variant: "ghost",
-				},
-			],
+			type: "Button",
+			props: {
+				label: "Ghost",
+				action: "ghost_action",
+				variant: "ghost",
+			},
 		},
 	},
 };
@@ -90,15 +76,12 @@ export const Ghost: Story = {
 export const Disabled: Story = {
 	args: {
 		schema: {
-			version: "1",
-			components: [
-				{
-					type: "button",
-					label: "Disabled",
-					action: "disabled_action",
-					disabled: true,
-				},
-			],
+			type: "Button",
+			props: {
+				label: "Disabled",
+				action: "disabled_action",
+				disabled: true,
+			},
 		},
 	},
 };
@@ -108,64 +91,52 @@ export const AllVariants: Story = {
 		<div className="flex flex-row gap-3">
 			<SchemaStoryWrapper
 				schema={{
-					version: "1",
-					components: [{ type: "button", label: "Default", action: "default" }],
+					type: "Button",
+					props: { label: "Default", action: "default" },
 				}}
 				onAction={fn()}
 			/>
 			<SchemaStoryWrapper
 				schema={{
-					version: "1",
-					components: [
-						{
-							type: "button",
-							label: "Destructive",
-							action: "destructive",
-							variant: "destructive",
-						},
-					],
+					type: "Button",
+					props: {
+						label: "Destructive",
+						action: "destructive",
+						variant: "destructive",
+					},
 				}}
 				onAction={fn()}
 			/>
 			<SchemaStoryWrapper
 				schema={{
-					version: "1",
-					components: [
-						{
-							type: "button",
-							label: "Outline",
-							action: "outline",
-							variant: "outline",
-						},
-					],
+					type: "Button",
+					props: {
+						label: "Outline",
+						action: "outline",
+						variant: "outline",
+					},
 				}}
 				onAction={fn()}
 			/>
 			<SchemaStoryWrapper
 				schema={{
-					version: "1",
-					components: [
-						{
-							type: "button",
-							label: "Secondary",
-							action: "secondary",
-							variant: "secondary",
-						},
-					],
+					type: "Button",
+					props: {
+						label: "Secondary",
+						action: "secondary",
+						variant: "secondary",
+					},
 				}}
 				onAction={fn()}
 			/>
 			<SchemaStoryWrapper
 				schema={{
-					version: "1",
-					components: [
-						{
-							type: "button",
-							label: "Ghost",
-							action: "ghost",
-							variant: "ghost",
-						},
-					],
+					type: "Button",
+					props: {
+						label: "Ghost",
+						action: "ghost",
+						variant: "ghost",
+					},
 				}}
 				onAction={fn()}
 			/>

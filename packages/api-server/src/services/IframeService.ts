@@ -339,6 +339,35 @@ export class IframeService {
 	}
 
 	/**
+	 * Store conversationId inside the Valkey session data object for Platform Activity lookup (JAR-95)
+	 * Reads existing data JSON, merges conversationId, writes back
+	 */
+	async storeConversationIdInValkey(
+		sessionKey: string,
+		conversationId: string,
+	): Promise<void> {
+		try {
+			const client = getValkeyClient();
+			const fullKey = `${VALKEY_KEY_PREFIX}${sessionKey}`;
+
+			// Read existing data, merge conversationId, write back
+			const rawData = await client.hget(fullKey, "data");
+			const data = rawData ? JSON.parse(rawData) : {};
+			data.conversationId = conversationId;
+			await client.hset(fullKey, "data", JSON.stringify(data));
+		} catch (error) {
+			// Non-fatal: log but don't fail the setup
+			logger.error(
+				{
+					error: (error as Error).message,
+					sessionKey: `${sessionKey.substring(0, 8)}...`,
+				},
+				"Failed to store conversationId in Valkey",
+			);
+		}
+	}
+
+	/**
 	 * Delete a conversation by ID
 	 * Messages cascade delete via FK constraint
 	 */
@@ -415,9 +444,7 @@ export class IframeService {
 			const existingMetadata = msg.metadata || {};
 
 			if (existingMetadata.status === "completed") {
-				throw new Error(
-					`Form request ${requestId} already completed`,
-				);
+				throw new Error(`Form request ${requestId} already completed`);
 			}
 
 			// 2. Update message metadata to mark form as answered
@@ -430,10 +457,10 @@ export class IframeService {
 				submitted_at: submittedAt,
 			};
 
-			await client.query(
-				`UPDATE messages SET metadata = $1 WHERE id = $2`,
-				[JSON.stringify(updatedMetadata), msg.id],
-			);
+			await client.query(`UPDATE messages SET metadata = $1 WHERE id = $2`, [
+				JSON.stringify(updatedMetadata),
+				msg.id,
+			]);
 
 			logger.info(
 				{
@@ -728,6 +755,9 @@ export class IframeService {
 		await this.sessionStore.updateSession(session.sessionId, {
 			conversationId,
 		});
+
+		// Write conversationId back to Valkey for Platform Activity lookup (JAR-95)
+		await this.storeConversationIdInValkey(sessionKey, conversationId);
 
 		logger.info(
 			{

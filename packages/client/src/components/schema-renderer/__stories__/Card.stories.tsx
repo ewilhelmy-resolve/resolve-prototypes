@@ -1,5 +1,4 @@
 import type { Meta, StoryObj } from "@storybook/react";
-import type { UISchema } from "@/types/uiSchema";
 import { SchemaStoryWrapper } from "./SchemaStoryWrapper";
 
 const meta = {
@@ -15,149 +14,162 @@ type Story = StoryObj<typeof SchemaStoryWrapper>;
 export const Default: Story = {
 	args: {
 		schema: {
-			version: "1",
-			components: [
-				{
-					type: "card",
-					title: "Overview",
-					description: "Summary of current system status",
-					children: [
-						{
-							type: "text",
-							content: "All systems are operating normally.",
-						},
-					],
+			root: "card",
+			elements: {
+				card: {
+					type: "Card",
+					props: {
+						title: "Overview",
+						description: "Summary of current system status",
+					},
+					children: ["text"],
 				},
-			],
-		} satisfies UISchema,
+				text: {
+					type: "Text",
+					props: { content: "All systems are operating normally." },
+				},
+			},
+		},
 	},
 };
 
 export const WithoutHeader: Story = {
 	args: {
 		schema: {
-			version: "1",
-			components: [
-				{
-					type: "card",
-					children: [
-						{ type: "text", content: "This card has no title or description." },
-						{
-							type: "text",
-							content: "It only contains child components.",
-							variant: "muted",
-						},
-					],
+			root: "card",
+			elements: {
+				card: { type: "Card", children: ["t0", "t1"] },
+				t0: {
+					type: "Text",
+					props: { content: "This card has no title or description." },
 				},
-			],
-		} satisfies UISchema,
+				t1: {
+					type: "Text",
+					props: {
+						content: "It only contains child components.",
+						variant: "muted",
+					},
+				},
+			},
+		},
 	},
 };
 
 export const WithForm: Story = {
 	args: {
 		schema: {
-			version: "1",
-			components: [
-				{
-					type: "card",
-					title: "Create Account",
-					description: "Enter your details below",
-					children: [
-						{
-							type: "form",
-							submitAction: "create-account",
-							submitLabel: "Create",
-							children: [
-								{
-									type: "input",
-									name: "fullName",
-									label: "Full Name",
-									placeholder: "Jane Doe",
-									required: true,
-								},
-								{
-									type: "input",
-									name: "email",
-									label: "Email",
-									placeholder: "jane@example.com",
-									inputType: "email",
-									required: true,
-								},
-								{
-									type: "select",
-									name: "role",
-									label: "Role",
-									placeholder: "Select a role",
-									options: [
-										{ label: "Admin", value: "admin" },
-										{ label: "Editor", value: "editor" },
-										{ label: "Viewer", value: "viewer" },
-									],
-								},
-							],
-						},
-					],
+			root: "card",
+			elements: {
+				card: {
+					type: "Card",
+					props: {
+						title: "Create Account",
+						description: "Enter your details below",
+					},
+					children: ["form"],
 				},
-			],
-		} satisfies UISchema,
+				form: {
+					type: "Form",
+					props: { submitAction: "create-account", submitLabel: "Create" },
+					children: ["name-input", "email-input", "role-select"],
+				},
+				"name-input": {
+					type: "Input",
+					props: {
+						name: "fullName",
+						label: "Full Name",
+						placeholder: "Jane Doe",
+						required: true,
+					},
+				},
+				"email-input": {
+					type: "Input",
+					props: {
+						name: "email",
+						label: "Email",
+						placeholder: "jane@example.com",
+						inputType: "email",
+						required: true,
+					},
+				},
+				"role-select": {
+					type: "Select",
+					props: {
+						name: "role",
+						label: "Role",
+						placeholder: "Select a role",
+						options: [
+							{ label: "Admin", value: "admin" },
+							{ label: "Editor", value: "editor" },
+							{ label: "Viewer", value: "viewer" },
+						],
+					},
+				},
+			},
+		},
 	},
 };
 
 export const NestedCards: Story = {
 	args: {
 		schema: {
-			version: "1",
-			components: [
-				{
-					type: "card",
-					title: "Parent Card",
-					description: "Contains a nested card",
-					children: [
-						{ type: "text", content: "Content before nested card." },
-						{
-							type: "card",
-							title: "Nested Card",
-							children: [
-								{
-									type: "text",
-									content: "This card is nested inside the parent.",
-								},
-							],
-						},
-					],
+			root: "parent",
+			elements: {
+				parent: {
+					type: "Card",
+					props: {
+						title: "Parent Card",
+						description: "Contains a nested card",
+					},
+					children: ["text", "child"],
 				},
-			],
-		} satisfies UISchema,
+				text: {
+					type: "Text",
+					props: { content: "Content before nested card." },
+				},
+				child: {
+					type: "Card",
+					props: { title: "Nested Card" },
+					children: ["child-text"],
+				},
+				"child-text": {
+					type: "Text",
+					props: { content: "This card is nested inside the parent." },
+				},
+			},
+		},
 	},
 };
 
 export const WithTable: Story = {
 	args: {
 		schema: {
-			version: "1",
-			components: [
-				{
-					type: "card",
-					title: "Recent Orders",
-					description: "Last 3 orders placed",
-					children: [
-						{
-							type: "table",
-							columns: [
-								{ key: "id", label: "Order ID" },
-								{ key: "customer", label: "Customer" },
-								{ key: "total", label: "Total" },
-							],
-							rows: [
-								{ id: "ORD-001", customer: "Alice", total: "$120.00" },
-								{ id: "ORD-002", customer: "Bob", total: "$85.50" },
-								{ id: "ORD-003", customer: "Carol", total: "$210.75" },
-							],
-						},
-					],
+			root: "card",
+			elements: {
+				card: {
+					type: "Card",
+					props: {
+						title: "Recent Orders",
+						description: "Last 3 orders placed",
+					},
+					children: ["table"],
 				},
-			],
-		} satisfies UISchema,
+				table: {
+					type: "Table",
+					props: {
+						columns: [
+							{ key: "id", label: "Order ID" },
+							{ key: "customer", label: "Customer" },
+							{ key: "total", label: "Total" },
+						],
+						rows: [
+							{ id: "ORD-001", customer: "Alice", total: "$120.00" },
+							{ id: "ORD-002", customer: "Bob", total: "$85.50" },
+							{ id: "ORD-003", customer: "Carol", total: "$210.75" },
+						],
+					},
+				},
+			},
+		},
 	},
 };

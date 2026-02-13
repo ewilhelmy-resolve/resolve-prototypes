@@ -1,5 +1,4 @@
 import type { Meta, StoryObj } from "@storybook/react";
-import type { UISchema } from "@/types/uiSchema";
 import { SchemaStoryWrapper } from "./SchemaStoryWrapper";
 
 const meta = {
@@ -15,66 +14,66 @@ type Story = StoryObj<typeof SchemaStoryWrapper>;
 export const Default: Story = {
 	args: {
 		schema: {
-			version: "1",
-			components: [
-				{
-					type: "column",
-					children: [
-						{ type: "text", content: "First row" },
-						{ type: "text", content: "Second row" },
-						{ type: "text", content: "Third row" },
-					],
-				},
-			],
-		} satisfies UISchema,
+			root: "col",
+			elements: {
+				col: { type: "Column", children: ["t0", "t1", "t2"] },
+				t0: { type: "Text", props: { content: "First row" } },
+				t1: { type: "Text", props: { content: "Second row" } },
+				t2: { type: "Text", props: { content: "Third row" } },
+			},
+		},
 	},
 };
 
 export const CustomGap: Story = {
 	args: {
 		schema: {
-			version: "1",
-			components: [
-				{
-					type: "column",
-					gap: 24,
-					children: [
-						{ type: "text", content: "Spaced item one" },
-						{ type: "text", content: "Spaced item two" },
-						{ type: "text", content: "Spaced item three" },
-					],
+			root: "col",
+			elements: {
+				col: {
+					type: "Column",
+					props: { gap: 24 },
+					children: ["t0", "t1", "t2"],
 				},
-			],
-		} satisfies UISchema,
+				t0: { type: "Text", props: { content: "Spaced item one" } },
+				t1: { type: "Text", props: { content: "Spaced item two" } },
+				t2: { type: "Text", props: { content: "Spaced item three" } },
+			},
+		},
 	},
 };
 
 export const MixedChildren: Story = {
 	args: {
 		schema: {
-			version: "1",
-			components: [
-				{
-					type: "column",
-					children: [
-						{
-							type: "stat",
-							label: "Active Users",
-							value: 1284,
-							change: "+12%",
-							changeType: "positive",
-						},
-						{ type: "divider", spacing: "sm" },
-						{
-							type: "text",
-							content:
-								"User activity has been steadily increasing this quarter.",
-							variant: "muted",
-						},
-						{ type: "button", label: "View Details", action: "view-details" },
-					],
+			root: "col",
+			elements: {
+				col: {
+					type: "Column",
+					children: ["stat", "divider", "text", "btn"],
 				},
-			],
-		} satisfies UISchema,
+				stat: {
+					type: "Stat",
+					props: {
+						label: "Active Users",
+						value: 1284,
+						change: "+12%",
+						changeType: "positive",
+					},
+				},
+				divider: { type: "Separator", props: { spacing: "sm" } },
+				text: {
+					type: "Text",
+					props: {
+						content: "User activity has been steadily increasing this quarter.",
+						variant: "muted",
+					},
+				},
+				btn: {
+					type: "Button",
+					props: { label: "View Details", action: "view-details" },
+				},
+			},
+		},
 	},
 };

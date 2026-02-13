@@ -450,6 +450,7 @@ export interface SyncCancellationRequests {
 }
 
 export interface Tickets {
+	assigned_to: string | null;
 	/**
 	 * NULL until classification workflow assigns cluster
 	 */
@@ -475,6 +476,8 @@ export interface Tickets {
 	external_status: string;
 	id: Generated<string>;
 	organization_id: string;
+	priority: string | null;
+	requester: string | null;
 	/**
 	 * Rita processing status: NEEDS_RESPONSE or COMPLETED
 	 */

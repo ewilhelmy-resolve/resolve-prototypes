@@ -15,14 +15,8 @@ type Story = StoryObj<typeof SchemaStoryWrapper>;
 export const Default: Story = {
 	args: {
 		schema: {
-			version: "1",
-			components: [
-				{
-					type: "input",
-					name: "username",
-					label: "Username",
-				},
-			],
+			type: "Input",
+			props: { name: "username", label: "Username" },
 		},
 	},
 };
@@ -30,15 +24,12 @@ export const Default: Story = {
 export const WithPlaceholder: Story = {
 	args: {
 		schema: {
-			version: "1",
-			components: [
-				{
-					type: "input",
-					name: "search",
-					label: "Search",
-					placeholder: "Type to search...",
-				},
-			],
+			type: "Input",
+			props: {
+				name: "search",
+				label: "Search",
+				placeholder: "Type to search...",
+			},
 		},
 	},
 };
@@ -46,15 +37,12 @@ export const WithPlaceholder: Story = {
 export const Required: Story = {
 	args: {
 		schema: {
-			version: "1",
-			components: [
-				{
-					type: "input",
-					name: "email",
-					label: "Email Address",
-					required: true,
-				},
-			],
+			type: "Input",
+			props: {
+				name: "email",
+				label: "Email Address",
+				required: true,
+			},
 		},
 	},
 };
@@ -62,16 +50,13 @@ export const Required: Story = {
 export const EmailType: Story = {
 	args: {
 		schema: {
-			version: "1",
-			components: [
-				{
-					type: "input",
-					name: "email",
-					label: "Email",
-					inputType: "email",
-					placeholder: "user@example.com",
-				},
-			],
+			type: "Input",
+			props: {
+				name: "email",
+				label: "Email",
+				inputType: "email",
+				placeholder: "user@example.com",
+			},
 		},
 	},
 };
@@ -79,16 +64,13 @@ export const EmailType: Story = {
 export const NumberType: Story = {
 	args: {
 		schema: {
-			version: "1",
-			components: [
-				{
-					type: "input",
-					name: "age",
-					label: "Age",
-					inputType: "number",
-					placeholder: "25",
-				},
-			],
+			type: "Input",
+			props: {
+				name: "age",
+				label: "Age",
+				inputType: "number",
+				placeholder: "25",
+			},
 		},
 	},
 };
@@ -96,16 +78,13 @@ export const NumberType: Story = {
 export const PasswordType: Story = {
 	args: {
 		schema: {
-			version: "1",
-			components: [
-				{
-					type: "input",
-					name: "password",
-					label: "Password",
-					inputType: "password",
-					placeholder: "Enter password",
-				},
-			],
+			type: "Input",
+			props: {
+				name: "password",
+				label: "Password",
+				inputType: "password",
+				placeholder: "Enter password",
+			},
 		},
 	},
 };
@@ -113,16 +92,13 @@ export const PasswordType: Story = {
 export const TextareaType: Story = {
 	args: {
 		schema: {
-			version: "1",
-			components: [
-				{
-					type: "input",
-					name: "description",
-					label: "Description",
-					inputType: "textarea",
-					placeholder: "Enter a detailed description...",
-				},
-			],
+			type: "Input",
+			props: {
+				name: "description",
+				label: "Description",
+				inputType: "textarea",
+				placeholder: "Enter a detailed description...",
+			},
 		},
 	},
 };
@@ -130,15 +106,12 @@ export const TextareaType: Story = {
 export const WithDefaultValue: Story = {
 	args: {
 		schema: {
-			version: "1",
-			components: [
-				{
-					type: "input",
-					name: "name",
-					label: "Display Name",
-					defaultValue: "John Doe",
-				},
-			],
+			type: "Input",
+			props: {
+				name: "name",
+				label: "Display Name",
+				defaultValue: "John Doe",
+			},
 		},
 	},
 };
@@ -148,76 +121,61 @@ export const AllTypes: Story = {
 		<div className="flex flex-col gap-4 max-w-md">
 			<SchemaStoryWrapper
 				schema={{
-					version: "1",
-					components: [
-						{
-							type: "input",
-							name: "text",
-							label: "Text",
-							inputType: "text",
-							placeholder: "Plain text",
-						},
-					],
+					type: "Input",
+					props: {
+						name: "text",
+						label: "Text",
+						inputType: "text",
+						placeholder: "Plain text",
+					},
 				}}
 				onAction={fn()}
 			/>
 			<SchemaStoryWrapper
 				schema={{
-					version: "1",
-					components: [
-						{
-							type: "input",
-							name: "email",
-							label: "Email",
-							inputType: "email",
-							placeholder: "user@example.com",
-						},
-					],
+					type: "Input",
+					props: {
+						name: "email",
+						label: "Email",
+						inputType: "email",
+						placeholder: "user@example.com",
+					},
 				}}
 				onAction={fn()}
 			/>
 			<SchemaStoryWrapper
 				schema={{
-					version: "1",
-					components: [
-						{
-							type: "input",
-							name: "number",
-							label: "Number",
-							inputType: "number",
-							placeholder: "42",
-						},
-					],
+					type: "Input",
+					props: {
+						name: "number",
+						label: "Number",
+						inputType: "number",
+						placeholder: "42",
+					},
 				}}
 				onAction={fn()}
 			/>
 			<SchemaStoryWrapper
 				schema={{
-					version: "1",
-					components: [
-						{
-							type: "input",
-							name: "password",
-							label: "Password",
-							inputType: "password",
-							placeholder: "Secret",
-						},
-					],
+					type: "Input",
+					props: {
+						name: "password",
+						label: "Password",
+						inputType: "password",
+						placeholder: "Secret",
+					},
 				}}
 				onAction={fn()}
 			/>
 			<SchemaStoryWrapper
 				schema={{
-					version: "1",
-					components: [
-						{
-							type: "input",
-							name: "textarea",
-							label: "Textarea",
-							inputType: "textarea",
-							placeholder: "Multi-line input",
-						},
-					],
+					type: "Input",
+					props: {
+						name: "textarea",
+						label: "Textarea",
+						inputType: "textarea",
+						placeholder: "Multi-line input",
+					},
 				}}
 				onAction={fn()}
 			/>

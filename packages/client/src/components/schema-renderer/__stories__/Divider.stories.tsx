@@ -15,12 +15,13 @@ type Story = StoryObj<typeof SchemaStoryWrapper>;
 export const Default: Story = {
 	args: {
 		schema: {
-			version: "1",
-			components: [
-				{ type: "text", content: "Content above divider" },
-				{ type: "divider" },
-				{ type: "text", content: "Content below divider" },
-			],
+			root: "root",
+			elements: {
+				root: { type: "Column", children: ["t0", "d0", "t1"] },
+				t0: { type: "Text", props: { content: "Content above divider" } },
+				d0: { type: "Separator" },
+				t1: { type: "Text", props: { content: "Content below divider" } },
+			},
 		},
 	},
 };
@@ -28,12 +29,13 @@ export const Default: Story = {
 export const Small: Story = {
 	args: {
 		schema: {
-			version: "1",
-			components: [
-				{ type: "text", content: "Content above" },
-				{ type: "divider", spacing: "sm" },
-				{ type: "text", content: "Content below" },
-			],
+			root: "root",
+			elements: {
+				root: { type: "Column", children: ["t0", "d0", "t1"] },
+				t0: { type: "Text", props: { content: "Content above" } },
+				d0: { type: "Separator", props: { spacing: "sm" } },
+				t1: { type: "Text", props: { content: "Content below" } },
+			},
 		},
 	},
 };
@@ -41,12 +43,13 @@ export const Small: Story = {
 export const Medium: Story = {
 	args: {
 		schema: {
-			version: "1",
-			components: [
-				{ type: "text", content: "Content above" },
-				{ type: "divider", spacing: "md" },
-				{ type: "text", content: "Content below" },
-			],
+			root: "root",
+			elements: {
+				root: { type: "Column", children: ["t0", "d0", "t1"] },
+				t0: { type: "Text", props: { content: "Content above" } },
+				d0: { type: "Separator", props: { spacing: "md" } },
+				t1: { type: "Text", props: { content: "Content below" } },
+			},
 		},
 	},
 };
@@ -54,12 +57,13 @@ export const Medium: Story = {
 export const Large: Story = {
 	args: {
 		schema: {
-			version: "1",
-			components: [
-				{ type: "text", content: "Content above" },
-				{ type: "divider", spacing: "lg" },
-				{ type: "text", content: "Content below" },
-			],
+			root: "root",
+			elements: {
+				root: { type: "Column", children: ["t0", "d0", "t1"] },
+				t0: { type: "Text", props: { content: "Content above" } },
+				d0: { type: "Separator", props: { spacing: "lg" } },
+				t1: { type: "Text", props: { content: "Content below" } },
+			},
 		},
 	},
 };
@@ -70,16 +74,22 @@ export const AllSpacings: Story = {
 			<div>
 				<SchemaStoryWrapper
 					schema={{
-						version: "1",
-						components: [
-							{ type: "text", content: "Small spacing", variant: "subheading" },
-							{ type: "divider", spacing: "sm" },
-							{
-								type: "text",
-								content: "Below small divider",
-								variant: "muted",
+						root: "root",
+						elements: {
+							root: { type: "Column", children: ["t0", "d0", "t1"] },
+							t0: {
+								type: "Text",
+								props: { content: "Small spacing", variant: "subheading" },
 							},
-						],
+							d0: { type: "Separator", props: { spacing: "sm" } },
+							t1: {
+								type: "Text",
+								props: {
+									content: "Below small divider",
+									variant: "muted",
+								},
+							},
+						},
 					}}
 					onAction={fn()}
 				/>
@@ -87,20 +97,25 @@ export const AllSpacings: Story = {
 			<div>
 				<SchemaStoryWrapper
 					schema={{
-						version: "1",
-						components: [
-							{
-								type: "text",
-								content: "Medium spacing (default)",
-								variant: "subheading",
+						root: "root",
+						elements: {
+							root: { type: "Column", children: ["t0", "d0", "t1"] },
+							t0: {
+								type: "Text",
+								props: {
+									content: "Medium spacing (default)",
+									variant: "subheading",
+								},
 							},
-							{ type: "divider", spacing: "md" },
-							{
-								type: "text",
-								content: "Below medium divider",
-								variant: "muted",
+							d0: { type: "Separator", props: { spacing: "md" } },
+							t1: {
+								type: "Text",
+								props: {
+									content: "Below medium divider",
+									variant: "muted",
+								},
 							},
-						],
+						},
 					}}
 					onAction={fn()}
 				/>
@@ -108,16 +123,22 @@ export const AllSpacings: Story = {
 			<div>
 				<SchemaStoryWrapper
 					schema={{
-						version: "1",
-						components: [
-							{ type: "text", content: "Large spacing", variant: "subheading" },
-							{ type: "divider", spacing: "lg" },
-							{
-								type: "text",
-								content: "Below large divider",
-								variant: "muted",
+						root: "root",
+						elements: {
+							root: { type: "Column", children: ["t0", "d0", "t1"] },
+							t0: {
+								type: "Text",
+								props: { content: "Large spacing", variant: "subheading" },
 							},
-						],
+							d0: { type: "Separator", props: { spacing: "lg" } },
+							t1: {
+								type: "Text",
+								props: {
+									content: "Below large divider",
+									variant: "muted",
+								},
+							},
+						},
 					}}
 					onAction={fn()}
 				/>

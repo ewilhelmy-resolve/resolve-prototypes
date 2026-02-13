@@ -13,36 +13,40 @@ export default meta;
 type Story = StoryObj<typeof InlineFormRequest>;
 
 const credentialSchema = {
-	version: "1" as const,
-	modals: {
-		"cred-form": {
-			title: "Connect ServiceNow",
-			description: "Provide credentials to connect",
-			submitAction: "save_credentials",
-			submitLabel: "Connect",
-			cancelLabel: "Skip",
-			children: [
-				{
-					type: "input" as const,
-					name: "instance_url",
-					label: "Instance URL",
-					placeholder: "https://dev12345.service-now.com",
-					required: true,
-				},
-				{
-					type: "input" as const,
-					name: "username",
-					label: "Username",
-					required: true,
-				},
-				{
-					type: "input" as const,
-					name: "password",
-					label: "Password",
-					inputType: "password" as const,
-					required: true,
-				},
-			],
+	root: "form",
+	elements: {
+		form: {
+			type: "Form",
+			props: {
+				title: "Connect ServiceNow",
+				description: "Provide credentials to connect",
+				submitAction: "save_credentials",
+				submitLabel: "Connect",
+				cancelLabel: "Skip",
+			},
+			children: ["i-url", "i-user", "i-pass"],
+		},
+		"i-url": {
+			type: "Input",
+			props: {
+				name: "instance_url",
+				label: "Instance URL",
+				placeholder: "https://dev12345.service-now.com",
+				required: true,
+			},
+		},
+		"i-user": {
+			type: "Input",
+			props: { name: "username", label: "Username", required: true },
+		},
+		"i-pass": {
+			type: "Input",
+			props: {
+				name: "password",
+				label: "Password",
+				inputType: "password",
+				required: true,
+			},
 		},
 	},
 };
@@ -76,60 +80,74 @@ export const WithConditionalFields: Story = {
 	args: {
 		requestId: "req-003",
 		uiSchema: {
-			version: "1",
-			modals: {
-				"auth-form": {
-					title: "Authentication Setup",
-					description: "Choose authentication method",
-					submitAction: "save_auth",
-					submitLabel: "Save",
+			root: "form",
+			elements: {
+				form: {
+					type: "Form",
+					props: {
+						title: "Authentication Setup",
+						description: "Choose authentication method",
+						submitAction: "save_auth",
+						submitLabel: "Save",
+					},
 					children: [
-						{
-							type: "select" as const,
-							name: "auth_type",
-							label: "Auth Type",
-							options: [
-								{ label: "Basic Auth", value: "basic" },
-								{ label: "OAuth 2.0", value: "oauth" },
-							],
-						},
-						{
-							type: "input" as const,
-							name: "username",
-							label: "Username",
-							required: true,
-						},
-						{
-							type: "input" as const,
-							name: "password",
-							label: "Password",
-							inputType: "password" as const,
-							required: true,
-						},
-						{
-							type: "input" as const,
-							name: "client_id",
-							label: "Client ID",
-							required: true,
-							if: {
-								field: "auth_type",
-								operator: "eq" as const,
-								value: "oauth",
-							},
-						},
-						{
-							type: "input" as const,
-							name: "client_secret",
-							label: "Client Secret",
-							inputType: "password" as const,
-							required: true,
-							if: {
-								field: "auth_type",
-								operator: "eq" as const,
-								value: "oauth",
-							},
-						},
+						"sel-auth",
+						"i-user",
+						"i-pass",
+						"i-client-id",
+						"i-client-secret",
 					],
+				},
+				"sel-auth": {
+					type: "Select",
+					props: {
+						name: "auth_type",
+						label: "Auth Type",
+						options: [
+							{ label: "Basic Auth", value: "basic" },
+							{ label: "OAuth 2.0", value: "oauth" },
+						],
+					},
+				},
+				"i-user": {
+					type: "Input",
+					props: { name: "username", label: "Username", required: true },
+				},
+				"i-pass": {
+					type: "Input",
+					props: {
+						name: "password",
+						label: "Password",
+						inputType: "password",
+						required: true,
+					},
+				},
+				"i-client-id": {
+					type: "Input",
+					props: {
+						name: "client_id",
+						label: "Client ID",
+						required: true,
+						if: {
+							field: "auth_type",
+							operator: "eq",
+							value: "oauth",
+						},
+					},
+				},
+				"i-client-secret": {
+					type: "Input",
+					props: {
+						name: "client_secret",
+						label: "Client Secret",
+						inputType: "password",
+						required: true,
+						if: {
+							field: "auth_type",
+							operator: "eq",
+							value: "oauth",
+						},
+					},
 				},
 			},
 		},
@@ -164,18 +182,29 @@ export const PlatformUntypedFields: Story = {
 	args: {
 		requestId: "req-005",
 		uiSchema: {
-			version: "1",
-			modals: {
-				"untyped-form": {
-					title: "Platform Fields Demo",
-					description: "Shows how platform sends untyped fields",
-					submitAction: "save_fields",
-					submitLabel: "Save",
-					children: [
-						{ type: "text", name: "field1", label: "Text-as-Input" } as any,
-						{ type: "textarea", name: "notes", label: "Notes" } as any,
-						{ type: "text", content: "Static text" } as any,
-					],
+			root: "form",
+			elements: {
+				form: {
+					type: "Form",
+					props: {
+						title: "Platform Fields Demo",
+						description: "Shows how platform sends untyped fields",
+						submitAction: "save_fields",
+						submitLabel: "Save",
+					},
+					children: ["f1", "f2", "f3"],
+				},
+				f1: {
+					type: "Text",
+					props: { name: "field1", label: "Text-as-Input" },
+				},
+				f2: {
+					type: "Text",
+					props: { name: "notes", label: "Notes" },
+				},
+				f3: {
+					type: "Text",
+					props: { content: "Static text" },
 				},
 			},
 		},

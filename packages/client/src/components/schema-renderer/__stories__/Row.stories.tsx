@@ -1,5 +1,4 @@
 import type { Meta, StoryObj } from "@storybook/react";
-import type { UISchema } from "@/types/uiSchema";
 import { SchemaStoryWrapper } from "./SchemaStoryWrapper";
 
 const meta = {
@@ -15,97 +14,92 @@ type Story = StoryObj<typeof SchemaStoryWrapper>;
 export const Default: Story = {
 	args: {
 		schema: {
-			version: "1",
-			components: [
-				{
-					type: "row",
-					children: [
-						{ type: "text", content: "First item" },
-						{ type: "text", content: "Second item" },
-						{ type: "text", content: "Third item" },
-					],
-				},
-			],
-		} satisfies UISchema,
+			root: "row",
+			elements: {
+				row: { type: "Row", children: ["t0", "t1", "t2"] },
+				t0: { type: "Text", props: { content: "First item" } },
+				t1: { type: "Text", props: { content: "Second item" } },
+				t2: { type: "Text", props: { content: "Third item" } },
+			},
+		},
 	},
 };
 
 export const CustomGap: Story = {
 	args: {
 		schema: {
-			version: "1",
-			components: [
-				{
-					type: "row",
-					gap: 32,
-					children: [
-						{ type: "text", content: "Wide gap left" },
-						{ type: "text", content: "Wide gap center" },
-						{ type: "text", content: "Wide gap right" },
-					],
+			root: "row",
+			elements: {
+				row: {
+					type: "Row",
+					props: { gap: 32 },
+					children: ["t0", "t1", "t2"],
 				},
-			],
-		} satisfies UISchema,
+				t0: { type: "Text", props: { content: "Wide gap left" } },
+				t1: { type: "Text", props: { content: "Wide gap center" } },
+				t2: { type: "Text", props: { content: "Wide gap right" } },
+			},
+		},
 	},
 };
 
 export const MixedChildren: Story = {
 	args: {
 		schema: {
-			version: "1",
-			components: [
-				{
-					type: "row",
-					children: [
-						{
-							type: "stat",
-							label: "Revenue",
-							value: "$12,400",
-							change: "+8%",
-							changeType: "positive",
-						},
-						{ type: "button", label: "Refresh", action: "refresh" },
-						{
-							type: "text",
-							content: "Last updated 5 min ago",
-							variant: "muted",
-						},
-					],
+			root: "row",
+			elements: {
+				row: { type: "Row", children: ["stat", "btn", "text"] },
+				stat: {
+					type: "Stat",
+					props: {
+						label: "Revenue",
+						value: "$12,400",
+						change: "+8%",
+						changeType: "positive",
+					},
 				},
-			],
-		} satisfies UISchema,
+				btn: {
+					type: "Button",
+					props: { label: "Refresh", action: "refresh" },
+				},
+				text: {
+					type: "Text",
+					props: {
+						content: "Last updated 5 min ago",
+						variant: "muted",
+					},
+				},
+			},
+		},
 	},
 };
 
 export const NestedRows: Story = {
 	args: {
 		schema: {
-			version: "1",
-			components: [
-				{
-					type: "row",
-					gap: 16,
-					children: [
-						{
-							type: "row",
-							gap: 8,
-							children: [
-								{ type: "text", content: "A1" },
-								{ type: "text", content: "A2" },
-							],
-						},
-						{
-							type: "row",
-							gap: 8,
-							children: [
-								{ type: "text", content: "B1" },
-								{ type: "text", content: "B2" },
-								{ type: "text", content: "B3" },
-							],
-						},
-					],
+			root: "outer",
+			elements: {
+				outer: {
+					type: "Row",
+					props: { gap: 16 },
+					children: ["inner-a", "inner-b"],
 				},
-			],
-		} satisfies UISchema,
+				"inner-a": {
+					type: "Row",
+					props: { gap: 8 },
+					children: ["a1", "a2"],
+				},
+				a1: { type: "Text", props: { content: "A1" } },
+				a2: { type: "Text", props: { content: "A2" } },
+				"inner-b": {
+					type: "Row",
+					props: { gap: 8 },
+					children: ["b1", "b2", "b3"],
+				},
+				b1: { type: "Text", props: { content: "B1" } },
+				b2: { type: "Text", props: { content: "B2" } },
+				b3: { type: "Text", props: { content: "B3" } },
+			},
+		},
 	},
 };

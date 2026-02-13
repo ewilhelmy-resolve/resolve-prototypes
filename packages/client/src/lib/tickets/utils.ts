@@ -89,6 +89,8 @@ export function getPriorityColor(priority: TicketPriority): string {
 			return "bg-yellow-50 text-yellow-800 border-yellow-400";
 		case "low":
 			return "bg-blue-50 text-blue-800 border-blue-400";
+		default:
+			return "bg-gray-50 text-gray-600 border-gray-300";
 	}
 }
 
@@ -125,5 +127,6 @@ export function getConfidenceLabel(score: number): string {
  * @returns Formatted priority string
  */
 export function formatPriority(priority: TicketPriority): string {
+	if (!priority) return "Unset";
 	return priority.charAt(0).toUpperCase() + priority.slice(1);
 }

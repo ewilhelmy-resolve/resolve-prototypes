@@ -15,8 +15,8 @@ type Story = StoryObj<typeof SchemaStoryWrapper>;
 export const Default: Story = {
 	args: {
 		schema: {
-			version: "1",
-			components: [{ type: "stat", label: "Total Users", value: "1,234" }],
+			type: "Stat",
+			props: { label: "Total Users", value: "1,234" },
 		},
 	},
 };
@@ -24,16 +24,13 @@ export const Default: Story = {
 export const PositiveChange: Story = {
 	args: {
 		schema: {
-			version: "1",
-			components: [
-				{
-					type: "stat",
-					label: "Revenue",
-					value: "$52,000",
-					change: "+12%",
-					changeType: "positive",
-				},
-			],
+			type: "Stat",
+			props: {
+				label: "Revenue",
+				value: "$52,000",
+				change: "+12%",
+				changeType: "positive",
+			},
 		},
 	},
 };
@@ -41,16 +38,13 @@ export const PositiveChange: Story = {
 export const NegativeChange: Story = {
 	args: {
 		schema: {
-			version: "1",
-			components: [
-				{
-					type: "stat",
-					label: "Churn Rate",
-					value: "3.2%",
-					change: "-5%",
-					changeType: "negative",
-				},
-			],
+			type: "Stat",
+			props: {
+				label: "Churn Rate",
+				value: "3.2%",
+				change: "-5%",
+				changeType: "negative",
+			},
 		},
 	},
 };
@@ -58,16 +52,13 @@ export const NegativeChange: Story = {
 export const NeutralChange: Story = {
 	args: {
 		schema: {
-			version: "1",
-			components: [
-				{
-					type: "stat",
-					label: "Avg Response Time",
-					value: "245ms",
-					change: "0%",
-					changeType: "neutral",
-				},
-			],
+			type: "Stat",
+			props: {
+				label: "Avg Response Time",
+				value: "245ms",
+				change: "0%",
+				changeType: "neutral",
+			},
 		},
 	},
 };
@@ -75,8 +66,8 @@ export const NeutralChange: Story = {
 export const NumericValue: Story = {
 	args: {
 		schema: {
-			version: "1",
-			components: [{ type: "stat", label: "Open Tickets", value: 87 }],
+			type: "Stat",
+			props: { label: "Open Tickets", value: 87 },
 		},
 	},
 };
@@ -86,46 +77,37 @@ export const AllVariants: Story = {
 		<div className="flex flex-row gap-4">
 			<SchemaStoryWrapper
 				schema={{
-					version: "1",
-					components: [
-						{
-							type: "stat",
-							label: "Revenue",
-							value: "$52,000",
-							change: "+12%",
-							changeType: "positive",
-						},
-					],
+					type: "Stat",
+					props: {
+						label: "Revenue",
+						value: "$52,000",
+						change: "+12%",
+						changeType: "positive",
+					},
 				}}
 				onAction={fn()}
 			/>
 			<SchemaStoryWrapper
 				schema={{
-					version: "1",
-					components: [
-						{
-							type: "stat",
-							label: "Churn Rate",
-							value: "3.2%",
-							change: "-5%",
-							changeType: "negative",
-						},
-					],
+					type: "Stat",
+					props: {
+						label: "Churn Rate",
+						value: "3.2%",
+						change: "-5%",
+						changeType: "negative",
+					},
 				}}
 				onAction={fn()}
 			/>
 			<SchemaStoryWrapper
 				schema={{
-					version: "1",
-					components: [
-						{
-							type: "stat",
-							label: "Latency",
-							value: "245ms",
-							change: "0%",
-							changeType: "neutral",
-						},
-					],
+					type: "Stat",
+					props: {
+						label: "Latency",
+						value: "245ms",
+						change: "0%",
+						changeType: "neutral",
+					},
 				}}
 				onAction={fn()}
 			/>

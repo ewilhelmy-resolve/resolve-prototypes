@@ -5,21 +5,9 @@ import { Link, useParams } from "react-router-dom";
 import RitaLayout from "@/components/layouts/RitaLayout";
 import ReviewAIResponseSheet from "@/components/tickets/ReviewAIResponseSheet";
 import { TicketDetailHeader } from "@/components/tickets/TicketDetailHeader";
-import type { TicketPriority } from "@/components/tickets/TicketDetailsCard";
 import TicketDetailsCard from "@/components/tickets/TicketDetailsCard";
 import { Button } from "@/components/ui/button";
 import { useClusterTickets, useTicket } from "@/hooks/useClusters";
-
-// Extract priority from source_metadata or default to medium
-const getPriorityFromMetadata = (
-	metadata: Record<string, unknown>,
-): TicketPriority => {
-	const priority = metadata?.priority as string | undefined;
-	if (priority && ["low", "medium", "high", "critical"].includes(priority)) {
-		return priority as TicketPriority;
-	}
-	return "medium";
-};
 
 export default function TicketDetailPage() {
 	const { t } = useTranslation("tickets");
@@ -67,7 +55,12 @@ export default function TicketDetailPage() {
 		id: ticket.external_id,
 		title: ticket.subject,
 		description: ticket.description || "No description available.",
-		priority: getPriorityFromMetadata(ticket.source_metadata),
+		priority:
+			(ticket.priority as "low" | "medium" | "high" | "critical") ?? null,
+		requester: ticket.requester,
+		status: ticket.external_status,
+		assignedTo: ticket.assigned_to,
+		createdAt: ticket.created_at,
 	};
 
 	const handleApprove = (id: string) => {

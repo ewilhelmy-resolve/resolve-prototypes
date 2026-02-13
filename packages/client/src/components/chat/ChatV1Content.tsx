@@ -83,8 +83,10 @@ import type {
 } from "@/stores/conversationStore";
 import { useConversationStore } from "@/stores/conversationStore";
 import type { UIActionPayload } from "@/types/uiSchema";
+import { parseSchema } from "@/types/uiSchema";
 import {
 	canAccessParentDocument,
+	extractFormFields,
 	openFormModal as hostOpenFormModal,
 	isInIframe,
 } from "@/utils/hostModal";
@@ -432,39 +434,40 @@ function SimpleMessage({
 	const triggerHostModal = useCallback(() => {
 		if (!message.metadata?.ui_schema) return;
 		const uiSchema = message.metadata.ui_schema;
-		const modalEntries = Object.entries(uiSchema?.modals || {});
-		if (modalEntries.length === 0) return;
 
-		const [, modal] = modalEntries[0] as [string, any];
-		const fields = (modal.children ?? modal.fields ?? [])
-			.filter((child: any) => child.name)
-			.map((child: any) => ({
-				name: child.name,
-				label: child.label,
-				type: child.type,
-				inputType: child.inputType,
-				placeholder: child.placeholder,
-				defaultValue: child.defaultValue,
-				options: child.options,
-				required: child.required,
-			}));
+		const parsed = parseSchema(uiSchema);
+		if (!parsed) return;
+
+		const rootEl = parsed.elements[parsed.root];
+		if (!rootEl) return;
+
+		const title = (rootEl.props?.title as string) || "Form";
+		const description = rootEl.props?.description as string | undefined;
+		const size = ((rootEl.props?.size as string) || "md") as
+			| "sm"
+			| "md"
+			| "lg"
+			| "xl"
+			| "full";
+		const submitAction = (rootEl.props?.submitAction as string) || "submit";
+		const submitLabel = rootEl.props?.submitLabel as string | undefined;
+		const cancelLabel = rootEl.props?.cancelLabel as string | undefined;
+		const submitVariant = rootEl.props?.submitVariant as string | undefined;
+		const fields = extractFormFields(parsed.elements, parsed.root);
 
 		// Tier 0: same-origin — inject form modal into host DOM
 		if (isInIframe() && canAccessParentDocument()) {
 			hostOpenFormModal({
-				title: modal.title,
-				description: modal.description,
-				size: modal.size || "md",
+				title,
+				description,
+				size,
 				fields,
-				submitLabel: modal.submitLabel,
-				cancelLabel: modal.cancelLabel,
-				submitVariant: modal.submitVariant,
+				submitLabel,
+				cancelLabel,
+				submitVariant:
+					submitVariant === "destructive" ? "destructive" : "default",
 				onSubmit: (data) => {
-					onFormSubmit?.(
-						message.metadata!.request_id,
-						modal.submitAction || "submit",
-						data,
-					);
+					onFormSubmit?.(message.metadata!.request_id, submitAction, data);
 				},
 				onCancel: () => {
 					// Just close — don't cancel the request so user can reopen
@@ -478,14 +481,14 @@ function SimpleMessage({
 			const payload = {
 				requestId: message.metadata.request_id,
 				messageId: message.id,
-				title: modal.title,
-				description: modal.description,
-				size: modal.size || "md",
+				title,
+				description,
+				size,
 				fields,
-				submitAction: modal.submitAction,
-				submitLabel: modal.submitLabel,
-				cancelLabel: modal.cancelLabel,
-				submitVariant: modal.submitVariant,
+				submitAction,
+				submitLabel,
+				cancelLabel,
+				submitVariant,
 			};
 
 			let ackReceived = false;
@@ -515,7 +518,7 @@ function SimpleMessage({
 
 	// Auto-trigger host modal once for pending interrupt forms loaded from history
 	const modalTriggered = useRef(false);
-	const isFormAnswered = message.metadata?.status === "completed" || message.metadata?.status === "cancelled";
+	const isFormAnswered = message.metadata?.status === "completed";
 	useEffect(() => {
 		if (modalTriggered.current || !isInterruptForm || isFormAnswered) return;
 		modalTriggered.current = true;
@@ -553,22 +556,23 @@ function SimpleMessage({
 					{isFormRequest &&
 						isInterruptForm &&
 						(() => {
-							const schema = message.metadata?.ui_schema;
-							const entries = Object.entries(schema?.modals || {});
-							const modal = entries.length > 0 ? (entries[0][1] as any) : null;
-							const isCompleted = message.metadata?.status === "completed" || message.metadata?.status === "cancelled";
+							const _parsed = parseSchema(message.metadata?.ui_schema);
+							const _rootEl = _parsed ? _parsed.elements[_parsed.root] : null;
+							const title = (_rootEl?.props?.title as string) || "Form request";
+							const description = _rootEl?.props?.description as
+								| string
+								| undefined;
+							const isCompleted = message.metadata?.status === "completed";
 
 							return (
 								<Card className="w-full max-w-lg">
 									<CardHeader className="pb-2">
 										<div className="flex items-start justify-between">
 											<div>
-												<CardTitle className="text-base">
-													{modal?.title || "Form request"}
-												</CardTitle>
-												{modal?.description && (
+												<CardTitle className="text-base">{title}</CardTitle>
+												{description && (
 													<CardDescription className="mt-1">
-														{modal.description}
+														{description}
 													</CardDescription>
 												)}
 											</div>
@@ -619,22 +623,23 @@ function SimpleMessage({
 									<DialogHeader>
 										<DialogTitle>
 											{(() => {
-												const entries = Object.entries(
-													message.metadata?.ui_schema?.modals || {},
+												const _p = parseSchema(message.metadata?.ui_schema);
+												return (
+													(_p
+														? (_p.elements[_p.root]?.props?.title as string)
+														: null) || "Form"
 												);
-												return entries.length > 0
-													? (entries[0][1] as any).title || "Form"
-													: "Form";
 											})()}
 										</DialogTitle>
 										<DialogDescription>
 											{(() => {
-												const entries = Object.entries(
-													message.metadata?.ui_schema?.modals || {},
+												const _p = parseSchema(message.metadata?.ui_schema);
+												return (
+													(_p
+														? (_p.elements[_p.root]?.props
+																?.description as string)
+														: null) || ""
 												);
-												return entries.length > 0
-													? (entries[0][1] as any).description || ""
-													: "";
 											})()}
 										</DialogDescription>
 									</DialogHeader>
@@ -659,7 +664,7 @@ function SimpleMessage({
 							</Dialog>
 						)}
 
-					{/* Regular message content */}
+					{/* Regular message content (hide raw JSON for legacy form requests) */}
 					{!isFormRequest && message.message && (
 						<Response>{message.message}</Response>
 					)}
@@ -1143,9 +1148,7 @@ export default function ChatV1Content({
 	const markFormCompleted = useCallback(
 		(requestId: string, action: string, data: Record<string, string>) => {
 			const { messages, updateMessage } = useConversationStore.getState();
-			const msg = messages.find(
-				(m) => m.metadata?.request_id === requestId,
-			);
+			const msg = messages.find((m) => m.metadata?.request_id === requestId);
 			if (msg) {
 				updateMessage(msg.id, {
 					metadata: {
@@ -1209,36 +1212,18 @@ export default function ChatV1Content({
 	);
 
 	// Mark a form request message as cancelled in the local store
-	const markFormCancelled = useCallback((requestId: string) => {
-		const { messages, updateMessage } = useConversationStore.getState();
-		const msg = messages.find(
-			(m) => m.metadata?.request_id === requestId,
-		);
-		if (msg) {
-			updateMessage(msg.id, {
-				metadata: {
-					...msg.metadata,
-					status: "cancelled",
-					submitted_at: new Date().toISOString(),
-				},
-			});
-		}
-	}, []);
-
-	// Handle form cancellation
-	// Use props handler if provided (iframe context), otherwise use internal handler
+	// Handle form cancellation — dismiss only, don't mark as answered
+	// User can reopen the form later
 	const handleFormCancel = useCallback(
 		async (requestId: string): Promise<void> => {
-			console.log("[FormCancel] Cancelling form:", requestId);
+			console.log("[FormCancel] Dismissing form:", requestId);
 
 			// Use props handler if provided (iframe context)
 			if (propsFormCancel) {
 				await propsFormCancel(requestId);
 			}
-
-			markFormCancelled(requestId);
 		},
-		[propsFormCancel, markFormCancelled],
+		[propsFormCancel],
 	);
 
 	// Handle direct attachment button click

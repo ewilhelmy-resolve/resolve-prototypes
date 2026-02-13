@@ -1,6 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react";
 import { fn } from "@storybook/test";
-import type { UISchema } from "@/types/uiSchema";
 import { SchemaStoryWrapper } from "./SchemaStoryWrapper";
 
 const meta = {
@@ -13,9 +12,9 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof SchemaStoryWrapper>;
 
-const textSchema = (content: string, variant?: string): UISchema => ({
-	version: "1",
-	components: [{ type: "text", content, variant }],
+const textSchema = (content: string, variant?: string) => ({
+	type: "Text",
+	props: { content, ...(variant && { variant }) },
 });
 
 export const Default: Story = {

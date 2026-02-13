@@ -1,14 +1,14 @@
 # JSON UI Schema Specification
 
-Dynamic UI rendering for Jarvis iframe using the [json-render.dev](https://json-render.dev) standard.
+Dynamic UI rendering using the [json-render.dev](https://json-render.dev) format.
 
-Platform sends JSON schemas via RabbitMQ → SSE, Jarvis validates with Zod and renders shadcn/ui components. This foundation enables future AI skills to auto-generate UIs from approved components.
+Platform sends JSON schemas via RabbitMQ → SSE, RITA validates with Zod and renders shadcn/ui components.
 
 ## Table of Contents
 
 - [Schema Format](#schema-format)
 - [Component Types](#component-types)
-- [Modals](#modals)
+- [Dialogs](#dialogs)
 - [Conditional Rendering](#conditional-rendering)
 - [Action Payloads](#action-payloads)
 - [Examples](#examples)
@@ -17,43 +17,65 @@ Platform sends JSON schemas via RabbitMQ → SSE, Jarvis validates with Zod and 
 
 ## Schema Format
 
+Flat element map with string-reference children.
+
 ```json
 {
-  "version": "1",
-  "components": [
-    { "type": "text", "content": "Hello" },
-    { "type": "button", "label": "Click", "action": "submit" }
-  ],
-  "modals": {
-    "my-modal": {
-      "title": "Modal Title",
-      "children": [...]
-    }
+  "root": "main",
+  "elements": {
+    "main": { "type": "Column", "children": ["heading", "btn"] },
+    "heading": { "type": "Text", "props": { "text": "Hello" } },
+    "btn": { "type": "Button", "props": { "label": "Click", "action": "submit" } }
   },
-  "autoOpenModal": "my-modal"
+  "dialogs": {
+    "my-dialog": "dialogEl"
+  },
+  "autoOpenDialog": "my-dialog"
 }
 ```
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `version` | `"1"` | No | Schema version (default: "1") |
-| `components` | `Component[]` | Yes | Array of UI components |
-| `modals` | `Record<string, Modal>` | No | Modal definitions (keyed by ID) |
-| `autoOpenModal` | `string` | No | Modal ID to open automatically on render |
+| `root` | `string` | Yes | ID of root element in elements map |
+| `elements` | `Record<string, UIElement>` | Yes | Flat map of element ID → definition |
+| `dialogs` | `Record<string, string>` | No | Dialog name → element ID |
+| `autoOpenDialog` | `string` | No | Dialog name to auto-open on render |
+
+### UIElement
+
+```json
+{ "type": "Text", "props": { "text": "Hello" }, "children": ["child1"] }
+```
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `type` | `string` | Yes | PascalCase component type |
+| `props` | `object` | No | Component-specific properties |
+| `children` | `string[]` | No | IDs of child elements in elements map |
+| `visible` | `object` | No | json-render.dev visibility conditional |
+| `on` | `object` | No | json-render.dev event handlers |
+
+### Shorthand Formats
+
+Bare element (auto-wrapped as root):
+
+```json
+{ "type": "Text", "props": { "text": "Hello world" } }
+```
 
 ---
 
 ## Component Types
 
-### text
+### Text
 
-Display text with styling variants.
+Display text with markdown support and styling variants.
 
 ```json
 {
-  "type": "text",
+  "type": "Text",
   "props": {
-    "content": "Welcome to the dashboard",
+    "text": "Welcome to the dashboard",
     "variant": "heading"
   }
 }
@@ -61,58 +83,65 @@ Display text with styling variants.
 
 | Prop | Type | Required | Default | Description |
 |------|------|----------|---------|-------------|
-| `content` | `string` | Yes | - | Text to display |
+| `text` | `string` | Yes | - | Text/markdown content |
 | `variant` | `string` | No | `"default"` | Style variant |
+| `className` | `string` | No | - | Custom CSS class |
 
-**Variants:** `default`, `heading`, `subheading`, `muted`, `label`, `code`, `diff-add`, `diff-remove`, `diff-context`
+**Variants:** `default`, `heading`, `subheading`, `muted`, `code`, `diff-add`, `diff-remove`, `diff-context`
 
 ---
 
-### button
+### Button
 
-Trigger actions or open modals when clicked.
+Trigger actions or open dialogs.
 
 ```json
 {
-  "type": "button",
-  "label": "Approve",
-  "action": "approve_request",
-  "variant": "default"
+  "type": "Button",
+  "props": { "label": "Approve", "action": "approve_request", "variant": "default" }
 }
 ```
 
-**Open a modal instead of action:**
+**Open a dialog:**
 
 ```json
 {
-  "type": "button",
-  "label": "Configure",
-  "opensModal": "config-modal",
-  "variant": "outline"
+  "type": "Button",
+  "props": { "label": "Configure", "opensDialog": "config-dialog", "variant": "outline" }
 }
 ```
 
 | Prop | Type | Required | Default | Description |
 |------|------|----------|---------|-------------|
 | `label` | `string` | Yes | - | Button text |
-| `action` | `string` | No* | - | Action identifier sent to webhook |
-| `opensModal` | `string` | No* | - | Modal ID to open (alternative to action) |
+| `action` | `string` | No* | - | Action identifier sent on click |
+| `opensDialog` | `string` | No* | - | Dialog name to open |
 | `variant` | `string` | No | `"default"` | Button style |
 | `disabled` | `boolean` | No | `false` | Disable button |
 
-*Either `action` or `opensModal` should be provided.
+*Either `action` or `opensDialog` should be provided.
 
-**Variants:** `default`, `destructive`, `outline`, `secondary`, `ghost`
+**Variants:** `default`, `primary` (→default), `destructive`, `danger` (→destructive), `outline`, `secondary`, `ghost`
+
+**Event handler alternative** (json-render.dev):
+
+```json
+{
+  "type": "Button",
+  "props": { "label": "Save" },
+  "on": { "press": { "action": "save" } }
+}
+```
 
 ---
 
-### input
+### Input
 
 Text input fields for forms.
 
 ```json
 {
-  "type": "input",
+  "type": "Input",
   "props": {
     "name": "email",
     "label": "Email Address",
@@ -128,7 +157,7 @@ Text input fields for forms.
 | `name` | `string` | Yes | - | Field name (used in form data) |
 | `label` | `string` | No | - | Label text |
 | `placeholder` | `string` | No | - | Placeholder text |
-| `inputType` | `string` | No | `"text"` | Input type |
+| `inputType` | `string` | No | `"text"` | Input type (also accepts `type` as fallback) |
 | `required` | `boolean` | No | `false` | Mark as required |
 | `defaultValue` | `string` | No | - | Initial value |
 
@@ -136,13 +165,13 @@ Text input fields for forms.
 
 ---
 
-### select
+### Select
 
 Dropdown selection.
 
 ```json
 {
-  "type": "select",
+  "type": "Select",
   "props": {
     "name": "priority",
     "label": "Priority",
@@ -168,21 +197,18 @@ Dropdown selection.
 
 ---
 
-### form
+### Form
 
 Groups inputs with submit action.
 
 ```json
 {
-  "type": "form",
+  "type": "Form",
   "props": {
     "submitAction": "create_ticket",
     "submitLabel": "Create Ticket"
   },
-  "children": [
-    { "type": "input", "props": { "name": "title", "label": "Title" } },
-    { "type": "select", "props": { "name": "type", "options": [...] } }
-  ]
+  "children": ["titleInput", "typeSelect"]
 }
 ```
 
@@ -190,24 +216,21 @@ Groups inputs with submit action.
 |------|------|----------|---------|-------------|
 | `submitAction` | `string` | Yes | - | Action identifier on submit |
 | `submitLabel` | `string` | No | `"Submit"` | Submit button text |
-| `children` | `Component[]` | Yes | - | Form field components |
 
 ---
 
-### card
+### Card
 
 Container with optional title/description.
 
 ```json
 {
-  "type": "card",
+  "type": "Card",
   "props": {
     "title": "User Details",
     "description": "Review the information below"
   },
-  "children": [
-    { "type": "text", "props": { "content": "John Doe" } }
-  ]
+  "children": ["content"]
 }
 ```
 
@@ -215,39 +238,34 @@ Container with optional title/description.
 |------|------|----------|---------|-------------|
 | `title` | `string` | No | - | Card title |
 | `description` | `string` | No | - | Card description |
-| `children` | `Component[]` | No | - | Child components |
 
 ---
 
-### row / column
+### Row / Column
 
 Layout containers.
 
 ```json
 {
-  "type": "row",
-  "props": { "gap": 4 },
-  "children": [
-    { "type": "button", "props": { "label": "Cancel", "action": "cancel", "variant": "outline" } },
-    { "type": "button", "props": { "label": "Confirm", "action": "confirm" } }
-  ]
+  "type": "Row",
+  "props": { "gap": 12 },
+  "children": ["cancelBtn", "confirmBtn"]
 }
 ```
 
 | Prop | Type | Required | Default | Description |
 |------|------|----------|---------|-------------|
-| `gap` | `number` | No | `2` | Spacing (Tailwind gap units) |
-| `children` | `Component[]` | Yes | - | Child components |
+| `gap` | `number \| string` | No | `12` | Spacing in px, or named: `xs`(4), `sm`(8), `md`(12), `lg`(16), `xl`(24) |
 
 ---
 
-### stat
+### Stat
 
 Metric display with change indicator.
 
 ```json
 {
-  "type": "stat",
+  "type": "Stat",
   "props": {
     "label": "Active Users",
     "value": "1,234",
@@ -261,20 +279,18 @@ Metric display with change indicator.
 |------|------|----------|---------|-------------|
 | `label` | `string` | Yes | - | Metric label |
 | `value` | `string \| number` | Yes | - | Metric value |
-| `change` | `string` | No | - | Change indicator (e.g., "+12%") |
-| `changeType` | `string` | No | `"neutral"` | Change styling |
-
-**Change Types:** `positive` (green), `negative` (red), `neutral` (gray)
+| `change` | `string` | No | - | Change indicator |
+| `changeType` | `string` | No | `"neutral"` | `positive` (green), `negative` (red), `neutral` (gray) |
 
 ---
 
-### table
+### Table
 
 Data table display.
 
 ```json
 {
-  "type": "table",
+  "type": "Table",
   "props": {
     "columns": [
       { "key": "name", "label": "Name" },
@@ -297,13 +313,13 @@ Data table display.
 
 ---
 
-### diagram
+### Diagram
 
 Mermaid diagram rendering.
 
 ```json
 {
-  "type": "diagram",
+  "type": "Diagram",
   "props": {
     "title": "Workflow",
     "code": "graph TD\n  A[Start] --> B[Process]\n  B --> C[End]",
@@ -320,172 +336,251 @@ Mermaid diagram rendering.
 
 ---
 
-### divider
+### Separator
 
-Horizontal line separator.
+Horizontal line divider.
 
 ```json
-{
-  "type": "divider",
-  "spacing": "md"
-}
+{ "type": "Separator", "props": { "spacing": "md" } }
 ```
 
 | Prop | Type | Required | Default | Description |
 |------|------|----------|---------|-------------|
-| `spacing` | `string` | No | `"md"` | Vertical spacing |
-
-**Spacing:** `sm` (8px), `md` (16px), `lg` (24px)
+| `spacing` | `string` | No | `"md"` | `sm` (8px), `md` (16px), `lg` (24px) |
 
 ---
 
-## Modals
-
-Modals provide fullscreen dialogs for forms and complex interactions. They render in the host page (outside the iframe) for maximum space.
-
-### Defining Modals
-
-Define modals in the `modals` object with unique IDs:
+### Image
 
 ```json
-{
-  "version": "1",
-  "components": [
-    { "type": "text", "content": "Click button to configure" },
-    { "type": "button", "label": "Configure API", "opensModal": "api-config" }
-  ],
-  "modals": {
-    "api-config": {
-      "title": "API Configuration",
-      "description": "Enter your API credentials",
-      "size": "md",
-      "children": [
-        { "type": "input", "name": "apiKey", "label": "API Key", "inputType": "password" },
-        { "type": "input", "name": "endpoint", "label": "Endpoint URL" }
-      ],
-      "submitAction": "save_api_config",
-      "submitLabel": "Save Configuration"
-    }
-  }
-}
+{ "type": "Image", "props": { "src": "https://example.com/img.png", "alt": "Logo", "width": 200 } }
 ```
-
-### Modal Properties
 
 | Prop | Type | Required | Default | Description |
 |------|------|----------|---------|-------------|
-| `title` | `string` | Yes | - | Modal title |
-| `description` | `string` | No | - | Modal description |
-| `size` | `string` | No | `"full"` | Modal size |
-| `children` | `Component[]` | Yes | - | Modal content components |
-| `submitAction` | `string` | No | - | Action to trigger on submit |
-| `submitLabel` | `string` | No | `"Submit"` | Submit button text |
-| `cancelLabel` | `string` | No | `"Cancel"` | Cancel button text |
-| `submitVariant` | `string` | No | `"default"` | Submit button style |
+| `src` | `string` | Yes | - | Image URL |
+| `alt` | `string` | No | `""` | Alt text |
+| `width` | `number` | No | - | Width |
+| `height` | `number` | No | - | Height |
 
-**Sizes:** `sm` (400px), `md` (600px), `lg` (900px), `xl` (1200px), `full` (95vw)
+---
 
-**Submit Variants:** `default`, `destructive`
+### Badge
 
-### Auto-Opening Modals (Forced Mode)
+```json
+{ "type": "Badge", "props": { "text": "New", "variant": "default" } }
+```
 
-Use `autoOpenModal` to force-open a modal when the schema renders. This is essential for:
-- Mandatory credential prompts before workflow execution
-- Required user input that blocks further progress
-- Authentication flows that must complete before proceeding
+| Prop | Type | Required | Default | Description |
+|------|------|----------|---------|-------------|
+| `text` | `string` | Yes | - | Badge text (also accepts `label`) |
+| `variant` | `string` | No | `"default"` | `default`, `success`, `warning`, `destructive` |
 
-**Best Practice: Always include a fallback button**
+---
 
-Since users may accidentally close the modal (ESC key, click outside, cancel button), always provide a button in the underlying card that reopens the same modal:
+### Alert
+
+```json
+{ "type": "Alert", "props": { "title": "Warning", "message": "Check your input", "variant": "warning" } }
+```
+
+| Prop | Type | Required | Default | Description |
+|------|------|----------|---------|-------------|
+| `title` | `string` | No | - | Alert title |
+| `message` | `string` | No | - | Alert body (also accepts `text`) |
+| `variant` | `string` | No | `"default"` | `default`, `info`, `warning`, `destructive` |
+
+---
+
+### Link
+
+```json
+{ "type": "Link", "props": { "href": "https://example.com", "text": "Visit", "target": "_blank" } }
+```
+
+| Prop | Type | Required | Default | Description |
+|------|------|----------|---------|-------------|
+| `href` | `string` | Yes | - | URL |
+| `text` | `string` | No | href | Link text (also accepts `label`) |
+| `target` | `string` | No | - | `_blank` for new tab |
+
+---
+
+### Progress
+
+```json
+{ "type": "Progress", "props": { "value": 75, "max": 100, "label": "Upload" } }
+```
+
+| Prop | Type | Required | Default | Description |
+|------|------|----------|---------|-------------|
+| `value` | `number` | Yes | `0` | Current value |
+| `max` | `number` | No | `100` | Maximum value |
+| `label` | `string` | No | - | Label with percentage |
+
+---
+
+### List
+
+```json
+{ "type": "List", "props": { "items": ["Apple", "Banana", "Cherry"], "ordered": false } }
+```
+
+| Prop | Type | Required | Default | Description |
+|------|------|----------|---------|-------------|
+| `items` | `string[]` | Yes | - | List items |
+| `ordered` | `boolean` | No | `false` | Ordered (numbered) list |
+
+---
+
+### Type Aliases
+
+These types are mapped to existing renderers for json-render.dev compatibility:
+
+| Alias | Maps To | Notes |
+|-------|---------|-------|
+| `Heading`, `Paragraph`, `Label` | `Text` | |
+| `TextInput`, `TextField` | `Input` | |
+| `Dropdown` | `Select` | |
+| `Container`, `Box`, `Section`, `Group`, `VStack` | `Column` | |
+| `HStack` | `Row` | |
+| `Stack` | `Column` or `Row` | Based on `direction` prop (`horizontal` → Row) |
+| `Divider`, `Hr` | `Separator` | |
+| `Img` | `Image` | |
+
+Unknown types render their children if present, otherwise render nothing.
+
+---
+
+## Dialogs
+
+Dialogs provide fullscreen modals for forms and complex interactions. In iframe context, they render in the host page for maximum space.
+
+### Defining Dialogs
+
+Define dialogs in the `dialogs` map. Keys are dialog names, values are element IDs:
 
 ```json
 {
-  "version": "1",
-  "components": [
-    {
-      "type": "card",
-      "title": "Authentication Required",
-      "description": "This action requires valid credentials to proceed",
-      "children": [
-        {
-          "type": "text",
-          "content": "The credential form has been opened automatically. Please complete authentication to continue.",
-          "variant": "muted"
-        },
-        {
-          "type": "button",
-          "label": "Enter Credentials",
-          "opensModal": "auth-modal"
-        }
-      ]
-    }
-  ],
-  "modals": {
-    "auth-modal": {
-      "title": "Enter Credentials",
-      "description": "Authenticate to continue with this workflow",
-      "size": "md",
-      "children": [
-        { "type": "input", "name": "apiEndpoint", "label": "API Endpoint", "placeholder": "https://api.example.com" },
-        { "type": "input", "name": "apiKey", "label": "API Key", "inputType": "password" },
-        {
-          "type": "select",
-          "name": "authType",
-          "label": "Authentication Type",
-          "options": [
-            { "label": "Bearer Token", "value": "bearer" },
-            { "label": "API Key Header", "value": "api-key" },
-            { "label": "Basic Auth", "value": "basic" }
-          ]
-        }
-      ],
-      "submitAction": "authenticate",
-      "submitLabel": "Authenticate",
-      "cancelLabel": "Cancel"
+  "root": "main",
+  "elements": {
+    "main": { "type": "Column", "children": ["text", "btn"] },
+    "text": { "type": "Text", "props": { "text": "Click button to configure" } },
+    "btn": { "type": "Button", "props": { "label": "Configure API", "opensDialog": "api-config" } },
+    "apiConfigForm": {
+      "type": "Form",
+      "props": {
+        "title": "API Configuration",
+        "description": "Enter your API credentials",
+        "size": "md",
+        "submitAction": "save_api_config",
+        "submitLabel": "Save Configuration"
+      },
+      "children": ["apiKey", "endpoint"]
+    },
+    "apiKey": { "type": "Input", "props": { "name": "apiKey", "label": "API Key", "inputType": "password" } },
+    "endpoint": { "type": "Input", "props": { "name": "endpoint", "label": "Endpoint URL" } }
+  },
+  "dialogs": { "api-config": "apiConfigForm" }
+}
+```
+
+### Dialog Properties
+
+| Prop | Type | Required | Default | Description |
+|------|------|----------|---------|-------------|
+| `title` | `string` | Yes | - | Dialog title |
+| `description` | `string` | No | - | Dialog description |
+| `size` | `string` | No | `"full"` | Dialog size |
+| `submitAction` | `string` | No | - | Action to trigger on submit |
+| `submitLabel` | `string` | No | `"Submit"` | Submit button text |
+| `cancelLabel` | `string` | No | `"Cancel"` | Cancel button text |
+| `submitVariant` | `string` | No | `"default"` | `default` or `destructive` |
+
+**Sizes:** `sm` (400px), `md` (600px), `lg` (900px), `xl` (1200px), `full` (95vw)
+
+### Auto-Opening Dialogs (Forced Mode)
+
+Use `autoOpenDialog` to force-open a dialog on render. Essential for:
+- Mandatory credential prompts
+- Required user input blocking progress
+- Authentication flows
+
+**Best Practice: Always include a fallback button** since users can close via Cancel:
+
+```json
+{
+  "root": "main",
+  "elements": {
+    "main": {
+      "type": "Card",
+      "props": {
+        "title": "Authentication Required",
+        "description": "This action requires valid credentials"
+      },
+      "children": ["text", "btn"]
+    },
+    "text": { "type": "Text", "props": { "text": "The credential form has been opened automatically. Please complete authentication to continue.", "variant": "muted" } },
+    "btn": { "type": "Button", "props": { "label": "Enter Credentials", "opensDialog": "auth-dialog" } },
+    "authForm": {
+      "type": "Form",
+      "props": {
+        "title": "Enter Credentials",
+        "description": "Authenticate to continue with this workflow",
+        "size": "md",
+        "submitAction": "authenticate",
+        "submitLabel": "Authenticate"
+      },
+      "children": ["apiEndpoint", "apiKeyInput", "authType"]
+    },
+    "apiEndpoint": { "type": "Input", "props": { "name": "apiEndpoint", "label": "API Endpoint", "placeholder": "https://api.example.com" } },
+    "apiKeyInput": { "type": "Input", "props": { "name": "apiKey", "label": "API Key", "inputType": "password" } },
+    "authType": {
+      "type": "Select",
+      "props": {
+        "name": "authType",
+        "label": "Authentication Type",
+        "options": [
+          { "label": "Bearer Token", "value": "bearer" },
+          { "label": "API Key Header", "value": "api-key" },
+          { "label": "Basic Auth", "value": "basic" }
+        ]
+      }
     }
   },
-  "autoOpenModal": "auth-modal"
+  "dialogs": { "auth-dialog": "authForm" },
+  "autoOpenDialog": "auth-dialog"
 }
 ```
 
 **How it works:**
 
-1. Schema renders with `autoOpenModal: "auth-modal"`
-2. Modal opens automatically after 100ms delay
-3. User sees fullscreen modal in host page (outside iframe)
-4. **Backdrop click and ESC key are disabled** - modal can only be closed via Cancel/Close button
-5. If user closes modal via Cancel → they see the card with "Enter Credentials" button
-6. Button click reopens the modal (but without forced mode - can close via backdrop)
+1. Schema renders with `autoOpenDialog: "auth-dialog"`
+2. Dialog opens automatically after 100ms delay
+3. **Backdrop click and ESC are disabled** for auto-opened dialogs
+4. If user closes via Cancel → fallback button visible
+5. Button click reopens dialog (without forced mode)
 
 **Key points:**
-- The `autoOpenModal` value must match a key in the `modals` object
-- Auto-opened modals have `preventBackdropClose: true` automatically
-- The fallback button's `opensModal` should reference the same modal ID
-- Modal renders in host page for maximum screen real estate
+- `autoOpenDialog` value must match a key in `dialogs`
+- Auto-opened dialogs have `preventBackdropClose: true` automatically
+- Dialog renders in host page in iframe context
 - Toast notification confirms successful submission
-
-### Modal Actions
-
-When a modal is submitted:
-1. Form data is collected from all input/select fields
-2. Action payload is sent with `action` = modal's `submitAction`
-3. A toast notification confirms the submission
-4. The action log can be viewed via the toast's "View Log" button
 
 ---
 
 ## Conditional Rendering
 
-All components support the `if` prop for conditional display based on form data.
+### `if` prop
+
+All elements support `if` in props for conditional display based on form data:
 
 ```json
 {
-  "type": "text",
-  "props": { "content": "Premium features unlocked!" },
-  "if": {
-    "field": "plan",
-    "operator": "eq",
-    "value": "premium"
+  "type": "Text",
+  "props": {
+    "text": "Premium features unlocked!",
+    "if": { "field": "plan", "operator": "eq", "value": "premium" }
   }
 }
 ```
@@ -508,28 +603,15 @@ All components support the `if` prop for conditional display based on form data.
 | `exists` | Field has non-empty value | No |
 | `notExists` | Field is empty/undefined | No |
 
-**Example: Show error when validation fails**
+### `visible` conditional (json-render.dev)
+
+Element-level visibility using `$data.` path prefix:
 
 ```json
 {
-  "type": "card",
-  "children": [
-    {
-      "type": "select",
-      "props": {
-        "name": "action",
-        "options": [
-          { "label": "Approve", "value": "approve" },
-          { "label": "Reject", "value": "reject" }
-        ]
-      }
-    },
-    {
-      "type": "input",
-      "props": { "name": "reason", "label": "Rejection Reason" },
-      "if": { "field": "action", "operator": "eq", "value": "reject" }
-    }
-  ]
+  "type": "Text",
+  "props": { "text": "Form is dirty" },
+  "visible": { "path": "$data.form.isDirty", "operator": "eq", "value": true }
 }
 ```
 
@@ -537,17 +619,12 @@ All components support the `if` prop for conditional display based on form data.
 
 ## Action Payloads
 
-When a user clicks a button or submits a form, an action payload is sent to the Platform webhook.
-
-**Payload Structure:**
+When a user clicks a button or submits a form, an action payload is sent.
 
 ```json
 {
   "action": "approve_request",
-  "data": {
-    "title": "User input value",
-    "priority": "high"
-  },
+  "data": { "title": "User input value", "priority": "high" },
   "messageId": "msg-550e8400-e29b-41d4-a716-446655440000",
   "conversationId": "conv-550e8400-e29b-41d4-a716-446655440001",
   "timestamp": "2024-01-15T10:30:00.000Z"
@@ -562,8 +639,6 @@ When a user clicks a button or submits a form, an action payload is sent to the 
 | `conversationId` | `string` | Current conversation ID |
 | `timestamp` | `string` | ISO 8601 timestamp |
 
-**Endpoint:** `POST /api/iframe/ui-action`
-
 ---
 
 ## Examples
@@ -572,52 +647,63 @@ When a user clicks a button or submits a form, an action payload is sent to the 
 
 ```json
 {
-  "version": "1",
-  "components": [
-    { "type": "text", "props": { "content": "Confirm Action", "variant": "heading" } },
-    { "type": "text", "props": { "content": "Are you sure you want to proceed?", "variant": "muted" } },
-    {
-      "type": "row",
-      "props": { "gap": 2 },
-      "children": [
-        { "type": "button", "props": { "label": "Cancel", "action": "cancel", "variant": "outline" } },
-        { "type": "button", "props": { "label": "Confirm", "action": "confirm" } }
-      ]
-    }
-  ]
+  "root": "main",
+  "elements": {
+    "main": { "type": "Column", "children": ["heading", "subtext", "buttons"] },
+    "heading": { "type": "Text", "props": { "text": "Confirm Action", "variant": "heading" } },
+    "subtext": { "type": "Text", "props": { "text": "Are you sure you want to proceed?", "variant": "muted" } },
+    "buttons": {
+      "type": "Row",
+      "props": { "gap": 8 },
+      "children": ["cancelBtn", "confirmBtn"]
+    },
+    "cancelBtn": { "type": "Button", "props": { "label": "Cancel", "action": "cancel", "variant": "outline" } },
+    "confirmBtn": { "type": "Button", "props": { "label": "Confirm", "action": "confirm" } }
+  }
 }
 ```
 
-### Form with Validation
+### Form with Conditional Fields
 
 ```json
 {
-  "version": "1",
-  "components": [
-    {
-      "type": "form",
+  "root": "form",
+  "elements": {
+    "form": {
+      "type": "Form",
+      "props": { "submitAction": "submit_request" },
+      "children": ["requestType", "steps", "useCase"]
+    },
+    "requestType": {
+      "type": "Select",
       "props": {
-        "submitAction": "create_ticket",
-        "submitLabel": "Create Ticket"
-      },
-      "children": [
-        { "type": "input", "props": { "name": "title", "label": "Title", "required": true } },
-        {
-          "type": "select",
-          "props": {
-            "name": "priority",
-            "label": "Priority",
-            "options": [
-              { "label": "Low", "value": "low" },
-              { "label": "Medium", "value": "medium" },
-              { "label": "High", "value": "high" }
-            ]
-          }
-        },
-        { "type": "input", "props": { "name": "description", "label": "Description", "inputType": "textarea" } }
-      ]
+        "name": "requestType",
+        "label": "Request Type",
+        "options": [
+          { "label": "Bug Report", "value": "bug" },
+          { "label": "Feature Request", "value": "feature" }
+        ]
+      }
+    },
+    "steps": {
+      "type": "Input",
+      "props": {
+        "name": "steps",
+        "label": "Steps to Reproduce",
+        "inputType": "textarea",
+        "if": { "field": "requestType", "operator": "eq", "value": "bug" }
+      }
+    },
+    "useCase": {
+      "type": "Input",
+      "props": {
+        "name": "useCase",
+        "label": "Use Case Description",
+        "inputType": "textarea",
+        "if": { "field": "requestType", "operator": "eq", "value": "feature" }
+      }
     }
-  ]
+  }
 }
 ```
 
@@ -625,20 +711,20 @@ When a user clicks a button or submits a form, an action payload is sent to the 
 
 ```json
 {
-  "version": "1",
-  "components": [
-    { "type": "text", "props": { "content": "Dashboard", "variant": "heading" } },
-    {
-      "type": "row",
-      "props": { "gap": 4 },
-      "children": [
-        { "type": "stat", "props": { "label": "Total Users", "value": "1,234", "change": "+12%", "changeType": "positive" } },
-        { "type": "stat", "props": { "label": "Active Sessions", "value": "89", "change": "-5%", "changeType": "negative" } },
-        { "type": "stat", "props": { "label": "Avg Response", "value": "2.3s", "changeType": "neutral" } }
-      ]
+  "root": "main",
+  "elements": {
+    "main": { "type": "Column", "children": ["heading", "statsRow", "table"] },
+    "heading": { "type": "Text", "props": { "text": "Dashboard", "variant": "heading" } },
+    "statsRow": {
+      "type": "Row",
+      "props": { "gap": 16 },
+      "children": ["s1", "s2", "s3"]
     },
-    {
-      "type": "table",
+    "s1": { "type": "Stat", "props": { "label": "Total Users", "value": "1,234", "change": "+12%", "changeType": "positive" } },
+    "s2": { "type": "Stat", "props": { "label": "Active Sessions", "value": "89", "change": "-5%", "changeType": "negative" } },
+    "s3": { "type": "Stat", "props": { "label": "Avg Response", "value": "2.3s", "changeType": "neutral" } },
+    "table": {
+      "type": "Table",
       "props": {
         "columns": [
           { "key": "name", "label": "Name" },
@@ -651,124 +737,7 @@ When a user clicks a button or submits a form, an action payload is sent to the 
         ]
       }
     }
-  ]
-}
-```
-
-### Conditional Form Fields
-
-```json
-{
-  "version": "1",
-  "components": [
-    {
-      "type": "form",
-      "props": { "submitAction": "submit_request" },
-      "children": [
-        {
-          "type": "select",
-          "props": {
-            "name": "requestType",
-            "label": "Request Type",
-            "options": [
-              { "label": "Bug Report", "value": "bug" },
-              { "label": "Feature Request", "value": "feature" },
-              { "label": "Question", "value": "question" }
-            ]
-          }
-        },
-        {
-          "type": "input",
-          "props": { "name": "steps", "label": "Steps to Reproduce", "inputType": "textarea" },
-          "if": { "field": "requestType", "operator": "eq", "value": "bug" }
-        },
-        {
-          "type": "input",
-          "props": { "name": "useCase", "label": "Use Case Description", "inputType": "textarea" },
-          "if": { "field": "requestType", "operator": "eq", "value": "feature" }
-        }
-      ]
-    }
-  ]
-}
-```
-
-### Modal with Form
-
-```json
-{
-  "version": "1",
-  "components": [
-    {
-      "type": "card",
-      "title": "API Configuration",
-      "description": "Configure your integration settings",
-      "children": [
-        { "type": "text", "content": "Click the button below to set up your API credentials.", "variant": "muted" },
-        { "type": "button", "label": "Configure Credentials", "opensModal": "credentials-modal" }
-      ]
-    }
-  ],
-  "modals": {
-    "credentials-modal": {
-      "title": "Enter API Credentials",
-      "description": "These credentials will be used for all API requests",
-      "size": "md",
-      "children": [
-        { "type": "input", "name": "hostname", "label": "API Hostname", "placeholder": "https://api.example.com" },
-        { "type": "input", "name": "username", "label": "Username", "placeholder": "your-username" },
-        { "type": "input", "name": "apiKey", "label": "API Key", "inputType": "password", "placeholder": "Enter your API key" }
-      ],
-      "submitAction": "save_credentials",
-      "submitLabel": "Save Credentials",
-      "cancelLabel": "Cancel"
-    }
   }
-}
-```
-
-### Forced Credential Prompt (with Fallback Button)
-
-Combines `autoOpenModal` with a fallback button for reopening if closed accidentally. See [Auto-Opening Modals](#auto-opening-modals-forced-mode) for detailed explanation.
-
-```json
-{
-  "version": "1",
-  "components": [
-    {
-      "type": "card",
-      "title": "Authentication Required",
-      "description": "This action requires valid credentials to proceed",
-      "children": [
-        { "type": "text", "content": "The credential form will open automatically. Click below if closed accidentally.", "variant": "muted" },
-        { "type": "button", "label": "Enter Credentials", "opensModal": "auth-modal" }
-      ]
-    }
-  ],
-  "modals": {
-    "auth-modal": {
-      "title": "Enter Credentials",
-      "description": "Authenticate to continue with this workflow",
-      "size": "md",
-      "children": [
-        { "type": "input", "name": "apiEndpoint", "label": "API Endpoint", "placeholder": "https://api.example.com" },
-        { "type": "input", "name": "apiKey", "label": "API Key", "inputType": "password" },
-        {
-          "type": "select",
-          "name": "authType",
-          "label": "Authentication Type",
-          "options": [
-            { "label": "Bearer Token", "value": "bearer" },
-            { "label": "API Key Header", "value": "api-key" },
-            { "label": "Basic Auth", "value": "basic" }
-          ]
-        }
-      ],
-      "submitAction": "authenticate",
-      "submitLabel": "Authenticate"
-    }
-  },
-  "autoOpenModal": "auth-modal"
 }
 ```
 
@@ -782,7 +751,7 @@ Schemas are validated at runtime using Zod. Invalid schemas:
 - Fall back gracefully (no crash)
 
 **Common validation errors:**
-- Missing required props (`content`, `name`, `action`, etc.)
+- Missing required props (`text`, `name`, `action`, etc.)
 - Invalid `type` value
 - Malformed `options` array
 - Invalid `variant` or `changeType` values

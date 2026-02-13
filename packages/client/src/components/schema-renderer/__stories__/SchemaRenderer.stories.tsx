@@ -18,71 +18,93 @@ type Story = StoryObj<typeof SchemaStoryWrapper>;
 export const InvalidSchema: Story = {
 	args: {
 		schema: {
-			version: "1",
-			components: [{ type: "unknown_type" }],
+			root: "main",
+			elements: { main: { type: "unknown_type" } },
 		} as unknown as UISchema,
 	},
 };
 
 export const EmptySchema: Story = {
 	args: {
-		schema: { version: "1", components: [] },
+		schema: {
+			root: "root",
+			elements: { root: { type: "Column", children: [] } },
+		},
 	},
 };
 
 export const Dashboard: Story = {
 	args: {
 		schema: {
-			version: "1",
-			components: [
-				{ type: "text", content: "Activity Dashboard", variant: "heading" },
-				{
-					type: "row",
-					gap: 16,
-					children: [
-						{
-							type: "stat",
-							label: "Total Tickets",
-							value: "1,234",
-							change: "+12%",
-							changeType: "positive",
-						},
-						{
-							type: "stat",
-							label: "Open Issues",
-							value: 42,
-							change: "-5%",
-							changeType: "negative",
-						},
-						{
-							type: "stat",
-							label: "Avg Response",
-							value: "2.4h",
-							changeType: "neutral",
-						},
-					],
+			root: "root",
+			elements: {
+				root: {
+					type: "Column",
+					children: ["heading", "stats-row", "divider", "activity-card"],
 				},
-				{ type: "divider", spacing: "md" },
-				{
-					type: "card",
-					title: "Recent Activity",
-					description: "Last 24 hours",
-					children: [
-						{
-							type: "table",
-							columns: [
-								{ key: "ticket", label: "Ticket" },
-								{ key: "status", label: "Status" },
-								{ key: "priority", label: "Priority" },
-							],
-							rows: [
-								{ ticket: "TKT-001", status: "Open", priority: "High" },
-								{ ticket: "TKT-002", status: "Pending", priority: "Medium" },
-							],
-						},
-					],
+				heading: {
+					type: "Text",
+					props: { content: "Activity Dashboard", variant: "heading" },
 				},
-			],
+				"stats-row": {
+					type: "Row",
+					props: { gap: 16 },
+					children: ["stat-tickets", "stat-issues", "stat-response"],
+				},
+				"stat-tickets": {
+					type: "Stat",
+					props: {
+						label: "Total Tickets",
+						value: "1,234",
+						change: "+12%",
+						changeType: "positive",
+					},
+				},
+				"stat-issues": {
+					type: "Stat",
+					props: {
+						label: "Open Issues",
+						value: 42,
+						change: "-5%",
+						changeType: "negative",
+					},
+				},
+				"stat-response": {
+					type: "Stat",
+					props: {
+						label: "Avg Response",
+						value: "2.4h",
+						changeType: "neutral",
+					},
+				},
+				divider: { type: "Separator", props: { spacing: "md" } },
+				"activity-card": {
+					type: "Card",
+					props: {
+						title: "Recent Activity",
+						description: "Last 24 hours",
+					},
+					children: ["activity-table"],
+				},
+				"activity-table": {
+					type: "Table",
+					props: {
+						columns: [
+							{ key: "ticket", label: "Ticket" },
+							{ key: "status", label: "Status" },
+							{ key: "priority", label: "Priority" },
+						],
+						rows: [
+							{ ticket: "TKT-001", status: "Open", priority: "High" },
+							{
+								ticket: "TKT-002",
+								status: "Pending",
+								priority: "Medium",
+							},
+						],
+					},
+				},
+			},
 		},
 	},
 };
@@ -90,41 +112,52 @@ export const Dashboard: Story = {
 export const WorkflowForm: Story = {
 	args: {
 		schema: {
-			version: "1",
-			components: [
-				{ type: "text", content: "Configure Workflow", variant: "heading" },
-				{
-					type: "form",
-					submitAction: "save_config",
-					submitLabel: "Save Configuration",
-					children: [
-						{
-							type: "input",
-							name: "workflowName",
-							label: "Workflow Name",
-							placeholder: "My Automation",
-							required: true,
-						},
-						{
-							type: "select",
-							name: "trigger",
-							label: "Trigger Event",
-							options: [
-								{ label: "On Ticket Created", value: "ticket_created" },
-								{ label: "On SLA Breach", value: "sla_breach" },
-								{ label: "On Status Change", value: "status_change" },
-							],
-						},
-						{
-							type: "input",
-							name: "filter",
-							label: "Filter Condition",
-							placeholder: "priority = 'high'",
-							inputType: "textarea",
-						},
-					],
+			root: "root",
+			elements: {
+				root: { type: "Column", children: ["heading", "form"] },
+				heading: {
+					type: "Text",
+					props: { content: "Configure Workflow", variant: "heading" },
 				},
-			],
+				form: {
+					type: "Form",
+					props: {
+						submitAction: "save_config",
+						submitLabel: "Save Configuration",
+					},
+					children: ["workflow-name", "trigger-select", "filter-input"],
+				},
+				"workflow-name": {
+					type: "Input",
+					props: {
+						name: "workflowName",
+						label: "Workflow Name",
+						placeholder: "My Automation",
+						required: true,
+					},
+				},
+				"trigger-select": {
+					type: "Select",
+					props: {
+						name: "trigger",
+						label: "Trigger Event",
+						options: [
+							{ label: "On Ticket Created", value: "ticket_created" },
+							{ label: "On SLA Breach", value: "sla_breach" },
+							{ label: "On Status Change", value: "status_change" },
+						],
+					},
+				},
+				"filter-input": {
+					type: "Input",
+					props: {
+						name: "filter",
+						label: "Filter Condition",
+						placeholder: "priority = 'high'",
+						inputType: "textarea",
+					},
+				},
+			},
 		},
 	},
 };
@@ -133,15 +166,21 @@ function SchemaPlayground() {
 	const [json, setJson] = useState(
 		JSON.stringify(
 			{
-				version: "1",
-				components: [
-					{
-						type: "text",
-						content: "Edit JSON to see changes",
-						variant: "heading",
+				root: "root",
+				elements: {
+					root: { type: "Column", children: ["heading", "btn"] },
+					heading: {
+						type: "Text",
+						props: {
+							content: "Edit JSON to see changes",
+							variant: "heading",
+						},
 					},
-					{ type: "button", label: "Click Me", action: "test" },
-				],
+					btn: {
+						type: "Button",
+						props: { label: "Click Me", action: "test" },
+					},
+				},
 			},
 			null,
 			2,

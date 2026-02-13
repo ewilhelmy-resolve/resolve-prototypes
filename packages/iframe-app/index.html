@@ -772,6 +772,40 @@
                 </div>
             </div>
 
+            <!-- Custom UI Schema -->
+            <div class="dev-section">
+                <h3>Custom UI Schema</h3>
+                <p style="font-size: 10px; color: #64748b; margin-bottom: 8px;">Paste raw UI schema JSON, send through full pipeline</p>
+                <textarea class="dev-input" id="customSchemaInput" rows="10" style="font-family: Monaco, Menlo, monospace; font-size: 10px; resize: vertical;">{
+  "root": "form",
+  "elements": {
+    "form": {
+      "type": "Form",
+      "props": {
+        "title": "Custom Form",
+        "description": "Dev controls test form",
+        "submitAction": "custom-submit",
+        "submitLabel": "Submit"
+      },
+      "children": ["text", "name", "priority"]
+    },
+    "text": { "type": "Text", "props": { "content": "Fill out the fields below." } },
+    "name": { "type": "Input", "props": { "name": "name", "label": "Name", "placeholder": "Enter name" } },
+    "priority": { "type": "Select", "props": { "name": "priority", "label": "Priority", "options": [
+      { "label": "Low", "value": "low" },
+      { "label": "High", "value": "high" }
+    ]}}
+  }
+}</textarea>
+                <div style="display: flex; gap: 6px; margin-bottom: 8px;">
+                    <select class="dev-input" id="customSchemaInterrupt" style="flex: 1; margin-bottom: 0;">
+                        <option value="0">inline (interrupt=false)</option>
+                        <option value="1">modal (interrupt=true)</option>
+                    </select>
+                </div>
+                <button class="dev-btn primary" onclick="sendCustomSchema()">Send Custom Schema</button>
+            </div>
+
             <!-- Mock Chat Responses -->
             <div class="dev-section">
                 <h3>Mock Responses</h3>
@@ -1143,6 +1177,43 @@
             }, '*');
             log(`⭐ FEEDBACK FORM [${requestId}]: Sending quick feedback form`, 'workflow');
             log('Simple rating form will appear inline in chat', 'info');
+        }
+
+        function sendCustomSchema() {
+            if (!iframeReady) {
+                log('Error: Iframe not ready. Load iframe first.', 'error');
+                return;
+            }
+
+            const schemaText = document.getElementById('customSchemaInput').value.trim();
+            if (!schemaText) {
+                log('Error: Schema JSON is empty', 'error');
+                return;
+            }
+
+            // Validate JSON
+            try {
+                JSON.parse(schemaText);
+            } catch (e) {
+                log('Error: Invalid JSON - ' + e.message, 'error');
+                return;
+            }
+
+            const interrupt = document.getElementById('customSchemaInterrupt').value;
+            const encoded = btoa(unescape(encodeURIComponent(schemaText)));
+            const content = `testcustom:${interrupt}:${encoded}`;
+
+            if (!chatOpen) {
+                toggleChat();
+            }
+
+            const requestId = `req_${++requestCounter}`;
+            document.getElementById('ritaIframe').contentWindow.postMessage({
+                type: 'SEND_MESSAGE',
+                payload: { content },
+                requestId
+            }, '*');
+            log(`CUSTOM SCHEMA [${requestId}]: interrupt=${interrupt === '1' ? 'true' : 'false'}`, 'workflow');
         }
 
         // Listen for iframe messages
