@@ -339,8 +339,8 @@ export class IframeService {
 	}
 
 	/**
-	 * Store conversationId in Valkey session hash for Platform Activity lookup (JAR-95)
-	 * Adds a "conversationId" field to the rita:session:{guid} hash
+	 * Store conversationId inside the Valkey session data object for Platform Activity lookup (JAR-95)
+	 * Reads existing data JSON, merges conversationId, writes back
 	 */
 	async storeConversationIdInValkey(
 		sessionKey: string,
@@ -349,13 +349,19 @@ export class IframeService {
 		try {
 			const client = getValkeyClient();
 			const fullKey = `${VALKEY_KEY_PREFIX}${sessionKey}`;
-			await client.hset(fullKey, "conversationId", conversationId);
+
+			// Read existing data, merge conversationId, write back
+			const rawData = await client.hget(fullKey, "data");
+			const data = rawData ? JSON.parse(rawData) : {};
+			data.conversationId = conversationId;
+			await client.hset(fullKey, "data", JSON.stringify(data));
+
 			logger.info(
 				{
 					sessionKey: `${sessionKey.substring(0, 8)}...`,
 					conversationId,
 				},
-				"Stored conversationId in Valkey session hash",
+				"Stored conversationId in Valkey session data",
 			);
 		} catch (error) {
 			// Non-fatal: log but don't fail the setup
