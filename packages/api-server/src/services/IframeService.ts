@@ -444,9 +444,7 @@ export class IframeService {
 			const existingMetadata = msg.metadata || {};
 
 			if (existingMetadata.status === "completed") {
-				throw new Error(
-					`Form request ${requestId} already completed`,
-				);
+				throw new Error(`Form request ${requestId} already completed`);
 			}
 
 			// 2. Update message metadata to mark form as answered
@@ -459,10 +457,10 @@ export class IframeService {
 				submitted_at: submittedAt,
 			};
 
-			await client.query(
-				`UPDATE messages SET metadata = $1 WHERE id = $2`,
-				[JSON.stringify(updatedMetadata), msg.id],
-			);
+			await client.query(`UPDATE messages SET metadata = $1 WHERE id = $2`, [
+				JSON.stringify(updatedMetadata),
+				msg.id,
+			]);
 
 			logger.info(
 				{

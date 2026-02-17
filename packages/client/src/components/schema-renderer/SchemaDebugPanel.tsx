@@ -177,9 +177,7 @@ export function useSchemaDebug() {
 		setActionHistory((prev) => [...prev, action]);
 	};
 
-	const recordSchema = (
-		schema: UISchema | Record<string, unknown>,
-	) => {
+	const recordSchema = (schema: UISchema | Record<string, unknown>) => {
 		setCurrentSchema(schema);
 	};
 

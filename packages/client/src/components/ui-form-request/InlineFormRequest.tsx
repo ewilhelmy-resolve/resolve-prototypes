@@ -37,7 +37,8 @@ interface InlineFormRequestProps {
 /** Extract title/description/submitAction from parsed schema root element */
 function extractFormProps(parsed: UISchema) {
 	const rootEl = parsed.elements[parsed.root];
-	if (!rootEl) return { title: "Form", submitLabel: "Submit", cancelLabel: "Cancel" };
+	if (!rootEl)
+		return { title: "Form", submitLabel: "Submit", cancelLabel: "Cancel" };
 
 	return {
 		title: (rootEl.props?.title as string) || "Form",

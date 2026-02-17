@@ -13,11 +13,15 @@ const meta: Meta<typeof EnableAutoRespondModal> = {
 		onAutoRespondEnabled: fn(),
 	},
 	parameters: {
-		layout: "centered",
+		layout: "fullscreen",
 		docs: {
 			description: {
 				component:
 					"Modal for confirming Auto-Respond enablement. Shows AI response preview and explains what happens when enabled.",
+			},
+			story: {
+				inline: false,
+				iframeHeight: 800,
 			},
 		},
 	},

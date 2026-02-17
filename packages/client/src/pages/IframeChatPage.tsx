@@ -107,8 +107,7 @@ const DEMO_SCHEMAS: Record<string, { name: string; schema: object }> = {
 				subtext: {
 					type: "Text",
 					props: {
-						content:
-							"This UI was rendered from JSON schema sent via RabbitMQ.",
+						content: "This UI was rendered from JSON schema sent via RabbitMQ.",
 						variant: "muted",
 					},
 				},
@@ -517,9 +516,7 @@ function MockPlatformPanel({
 			// Log what platform is sending
 			onLog("info", "⬇️ SSE Event received (ui_schema)", {
 				root: schema.root,
-				elementCount: schema.elements
-					? Object.keys(schema.elements).length
-					: 0,
+				elementCount: schema.elements ? Object.keys(schema.elements).length : 0,
 			});
 
 			// Simulate Platform sending message via RabbitMQ → SSE → Client

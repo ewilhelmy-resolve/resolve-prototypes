@@ -669,7 +669,10 @@ export interface FormModalField {
  * Uses json-render.dev flat elements format with string-reference children.
  */
 export function extractFormFields(
-	elements: Record<string, { type: string; props?: Record<string, unknown>; children?: string[] }>,
+	elements: Record<
+		string,
+		{ type: string; props?: Record<string, unknown>; children?: string[] }
+	>,
 	elementId: string,
 ): FormModalField[] {
 	const element = elements[elementId];

@@ -558,8 +558,7 @@ function SimpleMessage({
 						(() => {
 							const _parsed = parseSchema(message.metadata?.ui_schema);
 							const _rootEl = _parsed ? _parsed.elements[_parsed.root] : null;
-							const title =
-								(_rootEl?.props?.title as string) || "Form request";
+							const title = (_rootEl?.props?.title as string) || "Form request";
 							const description = _rootEl?.props?.description as
 								| string
 								| undefined;
@@ -625,13 +624,22 @@ function SimpleMessage({
 										<DialogTitle>
 											{(() => {
 												const _p = parseSchema(message.metadata?.ui_schema);
-												return (_p ? (_p.elements[_p.root]?.props?.title as string) : null) || "Form";
+												return (
+													(_p
+														? (_p.elements[_p.root]?.props?.title as string)
+														: null) || "Form"
+												);
 											})()}
 										</DialogTitle>
 										<DialogDescription>
 											{(() => {
 												const _p = parseSchema(message.metadata?.ui_schema);
-												return (_p ? (_p.elements[_p.root]?.props?.description as string) : null) || "";
+												return (
+													(_p
+														? (_p.elements[_p.root]?.props
+																?.description as string)
+														: null) || ""
+												);
 											})()}
 										</DialogDescription>
 									</DialogHeader>
