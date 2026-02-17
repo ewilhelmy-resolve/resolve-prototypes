@@ -5,7 +5,7 @@
  * Each describe block maps to a specific issue that was fixed.
  */
 
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 // Mock modules that throw on import without env vars
 vi.mock("../../config/kysely.js", () => ({ db: {} }));
@@ -314,13 +314,6 @@ describe("sessionService", () => {
 						trxSelectFrom
 							.mockReturnValueOnce(mockQueryBuilder({ company: "TestCo" })) // pending_users
 							.mockReturnValueOnce(mockQueryBuilder([])); // pending_invitations (returns array)
-						// Fix: invitations.execute returns array
-						const invProxy = {
-							selectFrom: () => mockQueryBuilder({ company: "TestCo" }),
-							insertInto: () => mockQueryBuilder({ user_id: "new-user-id" }),
-							updateTable: () => mockQueryBuilder(),
-							deleteFrom: () => mockQueryBuilder(),
-						};
 						return fn(trx);
 					}),
 				})),
