@@ -115,7 +115,7 @@ export class SessionService {
 			.executeTakeFirst();
 
 		if (existingUser) {
-			await this.backfillUserNames(existingUser, firstName, lastName);
+			await this.backfillUserNames(this.db, existingUser, firstName, lastName);
 			if (!existingUser.active_organization_id) {
 				throw new Error("User has no active organization");
 			}
@@ -150,6 +150,7 @@ export class SessionService {
 	}
 
 	private async backfillUserNames(
+		executor: Kysely<DB> | Transaction<DB>,
 		user: {
 			user_id: string;
 			email: string | null;
@@ -162,7 +163,7 @@ export class SessionService {
 		if (user.first_name && user.last_name) return;
 		if (!firstName && !lastName) return;
 
-		await this.db
+		await executor
 			.updateTable("user_profiles")
 			.set({ first_name: firstName, last_name: lastName })
 			.where("user_id", "=", user.user_id)
@@ -258,7 +259,8 @@ export class SessionService {
 				id: existing.user_id,
 				// biome-ignore lint/style/noNonNullAssertion: email is NOT NULL in DB
 				email: existing.email!,
-				activeOrganizationId: existing.active_organization_id as string,
+				// biome-ignore lint/style/noNonNullAssertion: winner txn guarantees org id is set
+				activeOrganizationId: existing.active_organization_id!,
 				firstName: existing.first_name ?? null,
 				lastName: existing.last_name ?? null,
 			};
@@ -373,11 +375,12 @@ export class SessionService {
 	generateSessionCookie(sessionId: string, maxAgeMs?: number): string {
 		const isProduction = process.env.NODE_ENV === "production";
 		const domain = process.env.COOKIE_DOMAIN || undefined;
-		const maxAge = maxAgeMs ?? 24 * 60 * 60 * 1000; // default 24 hours
+		// Convert ms to seconds for Set-Cookie Max-Age (RFC 6265)
+		const maxAgeSec = Math.floor((maxAgeMs ?? 24 * 60 * 60 * 1000) / 1000);
 
 		const cookieOptions = [
 			`rita_session=${sessionId}`,
-			`Max-Age=${maxAge}`,
+			`Max-Age=${maxAgeSec}`,
 			"Path=/",
 			"HttpOnly",
 			"SameSite=Lax",
@@ -413,7 +416,7 @@ export class SessionService {
 	}
 }
 
-let sessionService: SessionService;
+let sessionService: SessionService | undefined;
 export function getSessionService(): SessionService {
 	if (!sessionService) {
 		sessionService = new SessionService();
@@ -422,5 +425,5 @@ export function getSessionService(): SessionService {
 }
 
 export function destroySessionService(): void {
-	sessionService = undefined as unknown as SessionService;
+	sessionService = undefined;
 }

@@ -271,7 +271,7 @@ describe("sessionService", () => {
 			});
 			const cookie = service.generateSessionCookie("sess-id", 3600000);
 
-			expect(cookie).toContain("Max-Age=3600000");
+			expect(cookie).toContain("Max-Age=3600");
 			expect(cookie).toContain("rita_session=sess-id");
 		});
 
@@ -280,9 +280,9 @@ describe("sessionService", () => {
 				sessionStore: createMockSessionStore(),
 			});
 			const cookie = service.generateSessionCookie("sess-id");
-			const expected24h = 24 * 60 * 60 * 1000;
+			const expected24hSec = 24 * 60 * 60;
 
-			expect(cookie).toContain(`Max-Age=${expected24h}`);
+			expect(cookie).toContain(`Max-Age=${expected24hSec}`);
 		});
 	});
 
@@ -334,8 +334,8 @@ describe("sessionService", () => {
 					iss: "",
 					aud: "",
 				});
-			} catch {
-				// May fail due to mock limitations, that's OK
+			} catch (e) {
+				expect(e).toBeInstanceOf(Error);
 			}
 
 			// Key assertion: transaction was called (reads happen inside it)
