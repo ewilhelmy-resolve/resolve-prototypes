@@ -1,18 +1,31 @@
 import * as jose from "jose";
-import { sql } from "kysely";
+import { type Kysely, sql, type Transaction } from "kysely";
 import { db } from "../config/kysely.js";
 import { logger } from "../config/logger.js";
+import type { DB } from "../types/database.js";
 import {
 	type CreateSessionData,
 	getSessionStore,
 	type Session,
+	type SessionStore,
 } from "./sessionStore.js";
+
+export class UserProvisioningError extends Error {
+	public readonly cause: unknown;
+	constructor(message: string, cause: unknown) {
+		super(message);
+		this.name = "UserProvisioningError";
+		this.cause = cause;
+	}
+}
 
 // Keycloak configuration from environment variables (same as middleware)
 const KEYCLOAK_URL = process.env.KEYCLOAK_URL || "http://localhost:8080";
 const KEYCLOAK_REALM = process.env.KEYCLOAK_REALM || "rita-chat-realm";
 const KEYCLOAK_ISSUER =
 	process.env.KEYCLOAK_ISSUER || `${KEYCLOAK_URL}/realms/${KEYCLOAK_REALM}`;
+// jose handles JWKS caching and auto-refresh internally.
+// Keys cached in memory; refreshed when unknown kid encountered or cache TTL expires.
 const JWKS = jose.createRemoteJWKSet(
 	new URL(
 		`${KEYCLOAK_URL}/realms/${KEYCLOAK_REALM}/protocol/openid-connect/certs`,
@@ -20,8 +33,18 @@ const JWKS = jose.createRemoteJWKSet(
 );
 
 export class SessionService {
-	private sessionStore = getSessionStore();
+	private sessionStore: SessionStore;
+	private db: Kysely<DB>;
 
+	constructor(deps?: { sessionStore?: SessionStore; db?: Kysely<DB> }) {
+		this.sessionStore = deps?.sessionStore ?? getSessionStore();
+		this.db = deps?.db ?? db;
+	}
+
+	/**
+	 * Authenticate Keycloak token, provision user if first login, create session.
+	 * Flow: JWT verify → findOrCreateUser → session + cookie
+	 */
 	async createSessionFromKeycloak(
 		keycloakAccessToken: string,
 		sessionDurationMs?: number,
@@ -39,24 +62,20 @@ export class SessionService {
 
 			const user = await this.findOrCreateUser(payload);
 
-			// Query user_profiles to get first_name and last_name from database
-			const userProfile = await db
-				.selectFrom("user_profiles")
-				.select(["first_name", "last_name"])
-				.where("user_id", "=", user.id)
-				.executeTakeFirst();
-
 			const sessionData: CreateSessionData = {
 				userId: user.id,
 				organizationId: user.activeOrganizationId,
 				userEmail: user.email,
-				firstName: userProfile?.first_name || undefined,
-				lastName: userProfile?.last_name || undefined,
+				firstName: user.firstName || undefined,
+				lastName: user.lastName || undefined,
 				sessionDurationMs,
 			};
 
 			const session = await this.sessionStore.createSession(sessionData);
-			const cookie = this.generateSessionCookie(session.sessionId);
+			const cookie = this.generateSessionCookie(
+				session.sessionId,
+				sessionDurationMs,
+			);
 
 			logger.info(
 				{ sessionId: session.sessionId, userId: user.id },
@@ -70,18 +89,20 @@ export class SessionService {
 		}
 	}
 
-	public async findOrCreateUser(
-		tokenPayload: jose.JWTPayload,
-	): Promise<{ id: string; email: string; activeOrganizationId: string }> {
+	public async findOrCreateUser(tokenPayload: jose.JWTPayload): Promise<{
+		id: string;
+		email: string;
+		activeOrganizationId: string;
+		firstName: string | null;
+		lastName: string | null;
+	}> {
 		// biome-ignore lint/style/noNonNullAssertion: must be non-null
 		const keycloakId = tokenPayload.sub!;
-		const email = tokenPayload.email as string;
-
-		// Extract names from Keycloak JWT token (single source of truth)
+		const email = tokenPayload.email as string; // validated non-null on L49
 		const firstName = (tokenPayload.given_name as string) || null;
 		const lastName = (tokenPayload.family_name as string) || null;
 
-		const existingUser = await db
+		const existingUser = await this.db
 			.selectFrom("user_profiles")
 			.select([
 				"user_id",
@@ -94,33 +115,17 @@ export class SessionService {
 			.executeTakeFirst();
 
 		if (existingUser) {
-			const user = existingUser;
-
-			// Backfill names for existing users created before first and last names were added
-			if (!user.first_name || !user.last_name) {
-				if (firstName || lastName) {
-					await db
-						.updateTable("user_profiles")
-						.set({ first_name: firstName, last_name: lastName })
-						.where("user_id", "=", user.user_id)
-						.execute();
-
-					logger.info(
-						{
-							userId: user.user_id,
-							email: user.email,
-							hadFirstName: !!user.first_name,
-							hadLastName: !!user.last_name,
-						},
-						"Backfilled user names from Keycloak token",
-					);
-				}
+			await this.backfillUserNames(existingUser, firstName, lastName);
+			if (!existingUser.active_organization_id) {
+				throw new Error("User has no active organization");
 			}
-
 			return {
-				id: user.user_id,
-				email: user.email as string,
-				activeOrganizationId: user.active_organization_id as string,
+				id: existingUser.user_id,
+				// biome-ignore lint/style/noNonNullAssertion: email is NOT NULL in DB
+				email: existingUser.email!,
+				activeOrganizationId: existingUser.active_organization_id,
+				firstName: existingUser.first_name ?? null,
+				lastName: existingUser.last_name ?? null,
 			};
 		}
 
@@ -129,19 +134,79 @@ export class SessionService {
 			"New user detected. Starting provisioning...",
 		);
 
-		// Check pending_users for company name (signup flow only)
-		const pendingUserResult = await db
+		try {
+			return await this.db.transaction().execute((trx) =>
+				this.provisionNewUser(trx, {
+					email,
+					keycloakId,
+					firstName,
+					lastName,
+				}),
+			);
+		} catch (error) {
+			logger.error({ error, keycloakId }, "Failed to provision new user");
+			throw new UserProvisioningError("Failed to provision new user.", error);
+		}
+	}
+
+	private async backfillUserNames(
+		user: {
+			user_id: string;
+			email: string | null;
+			first_name: string | null;
+			last_name: string | null;
+		},
+		firstName: string | null,
+		lastName: string | null,
+	): Promise<void> {
+		if (user.first_name && user.last_name) return;
+		if (!firstName && !lastName) return;
+
+		await this.db
+			.updateTable("user_profiles")
+			.set({ first_name: firstName, last_name: lastName })
+			.where("user_id", "=", user.user_id)
+			.execute();
+
+		logger.info(
+			{
+				userId: user.user_id,
+				email: user.email,
+				hadFirstName: !!user.first_name,
+				hadLastName: !!user.last_name,
+			},
+			"Backfilled user names from Keycloak token",
+		);
+	}
+
+	private async provisionNewUser(
+		trx: Transaction<DB>,
+		params: {
+			email: string;
+			keycloakId: string;
+			firstName: string | null;
+			lastName: string | null;
+		},
+	): Promise<{
+		id: string;
+		email: string;
+		activeOrganizationId: string;
+		firstName: string | null;
+		lastName: string | null;
+	}> {
+		const { email, keycloakId, firstName, lastName } = params;
+
+		// Read inside transaction to prevent stale data from concurrent changes
+		const pendingUserResult = await trx
 			.selectFrom("pending_users")
 			.select("company")
 			.where("email", "=", email)
 			.orderBy("created_at", "desc")
 			.limit(1)
 			.executeTakeFirst();
-
 		const company = pendingUserResult?.company ?? null;
 
-		// Check for accepted invitations FIRST (before creating anything)
-		const invitations = await db
+		const invitations = await trx
 			.selectFrom("pending_invitations")
 			.select(["id", "organization_id"])
 			.where("email", "=", email)
@@ -149,7 +214,6 @@ export class SessionService {
 			.orderBy("created_at", "asc")
 			.execute();
 
-		// Log data sources for debugging
 		logger.debug(
 			{
 				email,
@@ -163,112 +227,121 @@ export class SessionService {
 			"User provisioning data sources",
 		);
 
-		try {
-			return await db.transaction().execute(async (trx) => {
-				// Generate UUID for new user and insert directly into user_profiles with names
-				const newUserResult = await trx
-					.insertInto("user_profiles")
-					.values({
-						user_id: sql`gen_random_uuid()`,
-						email,
-						keycloak_id: keycloakId,
-						first_name: firstName,
-						last_name: lastName,
-					})
-					.returning("user_id")
-					.executeTakeFirstOrThrow();
-				const newUserId = newUserResult.user_id;
+		// ON CONFLICT handles concurrent keycloak_id race
+		const newUserResult = await trx
+			.insertInto("user_profiles")
+			.values({
+				user_id: sql`gen_random_uuid()`,
+				email,
+				keycloak_id: keycloakId,
+				first_name: firstName,
+				last_name: lastName,
+			})
+			.onConflict((oc) => oc.column("keycloak_id").doNothing())
+			.returning("user_id")
+			.executeTakeFirst();
 
-				let activeOrganizationId: string;
-
-				if (invitations.length > 0) {
-					// User was invited - add to invited org(s), DON'T create personal org
-					logger.info(
-						{ userId: newUserId, email, invitationCount: invitations.length },
-						"User has accepted invitations. Adding to invited organization(s).",
-					);
-
-					for (const invitation of invitations) {
-						await trx
-							.insertInto("organization_members")
-							.values({
-								organization_id: invitation.organization_id,
-								user_id: newUserId,
-								role: "user",
-							})
-							.onConflict((oc) =>
-								oc.columns(["organization_id", "user_id"]).doNothing(),
-							)
-							.execute();
-					}
-
-					// Set first invited org as active
-					activeOrganizationId = invitations[0].organization_id;
-
-					await trx
-						.updateTable("user_profiles")
-						.set({ active_organization_id: activeOrganizationId })
-						.where("user_id", "=", newUserId)
-						.execute();
-
-					logger.info(
-						{ userId: newUserId, organizationId: activeOrganizationId },
-						"Invited user provisioned successfully (no personal org created)",
-					);
-				} else {
-					// Normal signup flow - create personal organization
-					const organizationName = company || `${email}'s Organization`;
-					const newOrgResult = await trx
-						.insertInto("organizations")
-						.values({ name: organizationName })
-						.returning("id")
-						.executeTakeFirstOrThrow();
-					activeOrganizationId = newOrgResult.id;
-
-					await trx
-						.insertInto("organization_members")
-						.values({
-							organization_id: activeOrganizationId,
-							user_id: newUserId,
-							role: "owner",
-						})
-						.execute();
-
-					await trx
-						.updateTable("user_profiles")
-						.set({ active_organization_id: activeOrganizationId })
-						.where("user_id", "=", newUserId)
-						.execute();
-
-					logger.info(
-						{ userId: newUserId, organizationId: activeOrganizationId },
-						"New user provisioned successfully with personal organization",
-					);
-				}
-
-				// Cleanup: Delete verified pending_users record (company name already used)
-				if (company) {
-					await trx
-						.deleteFrom("pending_users")
-						.where("email", "=", email)
-						.where("status", "=", "verified")
-						.execute();
-					logger.debug(
-						{ email },
-						"Cleaned up verified pending_users record after user provisioning",
-					);
-				}
-
-				return {
-					id: newUserId,
-					email: email,
-					activeOrganizationId: activeOrganizationId,
-				};
-			});
-		} catch (error) {
-			logger.error({ error, keycloakId }, "Failed to provision new user");
-			throw new Error("Failed to provision new user.");
+		// Lost race — another request already created this user
+		if (!newUserResult) {
+			const existing = await trx
+				.selectFrom("user_profiles")
+				.select([
+					"user_id",
+					"email",
+					"active_organization_id",
+					"first_name",
+					"last_name",
+				])
+				.where("keycloak_id", "=", keycloakId)
+				.executeTakeFirstOrThrow();
+			return {
+				id: existing.user_id,
+				// biome-ignore lint/style/noNonNullAssertion: email is NOT NULL in DB
+				email: existing.email!,
+				activeOrganizationId: existing.active_organization_id as string,
+				firstName: existing.first_name ?? null,
+				lastName: existing.last_name ?? null,
+			};
 		}
+
+		const newUserId = newUserResult.user_id;
+		let activeOrganizationId: string;
+
+		if (invitations.length > 0) {
+			logger.info(
+				{ userId: newUserId, email, invitationCount: invitations.length },
+				"User has accepted invitations. Adding to invited organization(s).",
+			);
+
+			for (const invitation of invitations) {
+				await trx
+					.insertInto("organization_members")
+					.values({
+						organization_id: invitation.organization_id,
+						user_id: newUserId,
+						role: "user",
+					})
+					.onConflict((oc) =>
+						oc.columns(["organization_id", "user_id"]).doNothing(),
+					)
+					.execute();
+			}
+
+			activeOrganizationId = invitations[0].organization_id;
+			await trx
+				.updateTable("user_profiles")
+				.set({ active_organization_id: activeOrganizationId })
+				.where("user_id", "=", newUserId)
+				.execute();
+
+			logger.info(
+				{ userId: newUserId, organizationId: activeOrganizationId },
+				"Invited user provisioned successfully (no personal org created)",
+			);
+		} else {
+			const organizationName = company || `${email}'s Organization`;
+			const newOrgResult = await trx
+				.insertInto("organizations")
+				.values({ name: organizationName })
+				.returning("id")
+				.executeTakeFirstOrThrow();
+			activeOrganizationId = newOrgResult.id;
+
+			await trx
+				.insertInto("organization_members")
+				.values({
+					organization_id: activeOrganizationId,
+					user_id: newUserId,
+					role: "owner",
+				})
+				.execute();
+
+			await trx
+				.updateTable("user_profiles")
+				.set({ active_organization_id: activeOrganizationId })
+				.where("user_id", "=", newUserId)
+				.execute();
+
+			logger.info(
+				{ userId: newUserId, organizationId: activeOrganizationId },
+				"New user provisioned successfully with personal organization",
+			);
+		}
+
+		// Cleanup: Delete verified pending_users record (company name already used)
+		if (company) {
+			await trx
+				.deleteFrom("pending_users")
+				.where("email", "=", email)
+				.where("status", "=", "verified")
+				.execute();
+			logger.debug(
+				{ email },
+				"Cleaned up verified pending_users record after user provisioning",
+			);
+		}
+
+		return { id: newUserId, email, activeOrganizationId, firstName, lastName };
 	}
 
 	async getValidSession(sessionId: string): Promise<Session | null> {
@@ -297,10 +370,10 @@ export class SessionService {
 		return deletedCount;
 	}
 
-	generateSessionCookie(sessionId: string): string {
+	generateSessionCookie(sessionId: string, maxAgeMs?: number): string {
 		const isProduction = process.env.NODE_ENV === "production";
 		const domain = process.env.COOKIE_DOMAIN || undefined;
-		const maxAge = 24 * 60 * 60 * 1000; // 24 hours
+		const maxAge = maxAgeMs ?? 24 * 60 * 60 * 1000; // default 24 hours
 
 		const cookieOptions = [
 			`rita_session=${sessionId}`,
@@ -346,4 +419,8 @@ export function getSessionService(): SessionService {
 		sessionService = new SessionService();
 	}
 	return sessionService;
+}
+
+export function destroySessionService(): void {
+	sessionService = undefined as unknown as SessionService;
 }
