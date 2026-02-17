@@ -24,7 +24,6 @@ import { useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { ActionsLayout } from "@/components/layouts/ActionsLayout";
 import RitaLayout from "@/components/layouts/RitaLayout";
-import { useUIStore } from "@/stores/uiStore";
 import { MainHeader } from "@/components/MainHeader";
 import { StatCard } from "@/components/StatCard";
 import { StatGroup } from "@/components/StatGroup";
@@ -48,7 +47,6 @@ import {
 	TableHeader,
 	TableRow,
 } from "@/components/ui/table";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
 	getMockWorkflowDetail,
 	MOCK_SCHEDULED_WORKFLOWS,
@@ -56,6 +54,7 @@ import {
 	WORKFLOW_GROUPS,
 } from "@/data/mock-scheduler";
 import { cn } from "@/lib/utils";
+import { useUIStore } from "@/stores/uiStore";
 import type {
 	ScheduledWorkflow,
 	WorkflowDetail,
@@ -663,7 +662,12 @@ function ExecutingIcon({ className }: { className?: string }) {
 			</g>
 			<defs>
 				<clipPath id="clip0_executing">
-					<rect width="12" height="12" fill="white" transform="translate(4 4)" />
+					<rect
+						width="12"
+						height="12"
+						fill="white"
+						transform="translate(4 4)"
+					/>
 				</clipPath>
 			</defs>
 		</svg>
@@ -867,7 +871,11 @@ function WorkflowDetailPanel({
 					<Calendar className="size-4 text-muted-foreground mt-0.5" />
 					<div>
 						<p className="text-xs text-muted-foreground">Last Run</p>
-						<p className="text-sm">{detail.status === "disabled" ? "--" : formatDate(detail.lastRunTime)}</p>
+						<p className="text-sm">
+							{detail.status === "disabled"
+								? "--"
+								: formatDate(detail.lastRunTime)}
+						</p>
 					</div>
 				</div>
 				<div className="flex items-start gap-2">
@@ -963,8 +971,9 @@ export default function SchedulerDashboardPage() {
 	const [searchParams] = useSearchParams();
 	const headerStyle = useUIStore((state) => state.headerStyle);
 	// URL param takes precedence, then fall back to uiStore setting
-	const isActionsNav = searchParams.get("nav") === "actions" || headerStyle === "resolve";
-	const [designMode, setDesignMode] = useState<DesignMode>("kanban");
+	const isActionsNav =
+		searchParams.get("nav") === "actions" || headerStyle === "resolve";
+	const [designMode] = useState<DesignMode>("kanban");
 	const [layoutMode, setLayoutMode] = useState<LayoutMode>("grouped");
 	const [linearLayoutMode, setLinearLayoutMode] =
 		useState<LinearLayoutMode>("table");
@@ -978,10 +987,10 @@ export default function SchedulerDashboardPage() {
 	const [groupHealthFilter, setGroupHealthFilter] =
 		useState<GroupHealthFilter>("all");
 	const [kanbanGroupBy, setKanbanGroupBy] = useState<"tags" | "none">("none");
-	const [kanbanDisplay, setKanbanDisplay] = useState<"kanban" | "list">(
-		"list",
+	const [kanbanDisplay, setKanbanDisplay] = useState<"kanban" | "list">("list");
+	const [timeFilter, setTimeFilter] = useState<"7days" | "15days" | "all">(
+		"7days",
 	);
-	const [timeFilter, setTimeFilter] = useState<"7days" | "15days" | "all">("7days");
 	const [kanbanFilters, setKanbanFilters] = useState<
 		Set<"failed" | "scheduled" | "executing" | "healthy">
 	>(new Set());
@@ -990,7 +999,9 @@ export default function SchedulerDashboardPage() {
 	);
 
 	// Toggle kanban filter
-	const toggleKanbanFilter = (filter: "failed" | "scheduled" | "executing" | "healthy") => {
+	const toggleKanbanFilter = (
+		filter: "failed" | "scheduled" | "executing" | "healthy",
+	) => {
 		setKanbanFilters((prev) => {
 			const next = new Set(prev);
 			if (next.has(filter)) {
@@ -1088,7 +1099,9 @@ export default function SchedulerDashboardPage() {
 		if (timeFilter !== "all") {
 			const now = new Date();
 			const daysAhead = timeFilter === "7days" ? 7 : 15;
-			const cutoffDate = new Date(now.getTime() + daysAhead * 24 * 60 * 60 * 1000);
+			const cutoffDate = new Date(
+				now.getTime() + daysAhead * 24 * 60 * 60 * 1000,
+			);
 			workflows = workflows.filter((w) => {
 				if (!w.nextRunTime) return true; // Include if no next run time
 				const nextRun = new Date(w.nextRunTime);
@@ -1158,212 +1171,404 @@ export default function SchedulerDashboardPage() {
 
 	return (
 		<Layout {...layoutProps}>
-			<div className={isActionsNav ? "[&_*]:!font-sans [&_h1]:!font-sans [&_h2]:!font-sans [&_h3]:!font-sans [&_h4]:!font-sans" : ""}>
+			<div
+				className={
+					isActionsNav
+						? "[&_*]:!font-sans [&_h1]:!font-sans [&_h2]:!font-sans [&_h3]:!font-sans [&_h4]:!font-sans"
+						: ""
+				}
+			>
+				{/* DESIGN A: Original - Stats Header + Card Grid */}
+				{designMode === "original" && (
+					<>
+						<MainHeader
+							title="Scheduler Dashboard"
+							description={
+								<span>
+									Monitoring{" "}
+									<span className="font-semibold">{aggregateStats.total}</span>{" "}
+									scheduled workflows
+									{" \u2022 "}
+									<span className="font-semibold">
+										{aggregateStats.enabled}
+									</span>{" "}
+									enabled,{" "}
+									<span className="font-semibold">
+										{aggregateStats.disabled}
+									</span>{" "}
+									disabled
+								</span>
+							}
+							stats={
+								<StatGroup>
+									<StatCard
+										value={aggregateStats.totalRuns.toLocaleString()}
+										label="Total Executions"
+									/>
+									<StatCard
+										value={`${aggregateStats.overallSuccessRate}%`}
+										label="Success Rate"
+									/>
+									<StatCard
+										value={stats.healthy.toString()}
+										label="Healthy Workflows"
+									/>
+									<StatCard
+										value={stats.critical.toString()}
+										label="Needs Attention"
+									/>
+								</StatGroup>
+							}
+						/>
 
-			{/* DESIGN A: Original - Stats Header + Card Grid */}
-			{designMode === "original" && (
-				<>
-					<MainHeader
-						title="Scheduler Dashboard"
-						description={
-							<span>
-								Monitoring{" "}
-								<span className="font-semibold">{aggregateStats.total}</span>{" "}
-								scheduled workflows
-								{" \u2022 "}
-								<span className="font-semibold">{aggregateStats.enabled}</span>{" "}
-								enabled,{" "}
-								<span className="font-semibold">{aggregateStats.disabled}</span>{" "}
-								disabled
+						{/* Filter Bar */}
+						<div className="px-6 py-4 border-b bg-background flex items-center justify-between">
+							<span className="text-sm text-muted-foreground">
+								Showing {filteredByStatus.length} workflow
+								{filteredByStatus.length !== 1 ? "s" : ""}
 							</span>
-						}
-						stats={
-							<StatGroup>
-								<StatCard
-									value={aggregateStats.totalRuns.toLocaleString()}
-									label="Total Executions"
-								/>
-								<StatCard
-									value={`${aggregateStats.overallSuccessRate}%`}
-									label="Success Rate"
-								/>
-								<StatCard
-									value={stats.healthy.toString()}
-									label="Healthy Workflows"
-								/>
-								<StatCard
-									value={stats.critical.toString()}
-									label="Needs Attention"
-								/>
-							</StatGroup>
-						}
-					/>
-
-					{/* Filter Bar */}
-					<div className="px-6 py-4 border-b bg-background flex items-center justify-between">
-						<span className="text-sm text-muted-foreground">
-							Showing {filteredByStatus.length} workflow
-							{filteredByStatus.length !== 1 ? "s" : ""}
-						</span>
-						<DropdownMenu>
-							<DropdownMenuTrigger asChild>
-								<Button variant="outline" size="sm" className="gap-2">
-									<Filter className="size-4" />
-									{statusFilter === "all"
-										? "All Status"
-										: statusFilter === "enabled"
-											? "Enabled"
-											: "Disabled"}
-								</Button>
-							</DropdownMenuTrigger>
-							<DropdownMenuContent align="end">
-								<DropdownMenuItem onClick={() => setStatusFilter("all")}>
-									All Status
-								</DropdownMenuItem>
-								<DropdownMenuItem onClick={() => setStatusFilter("enabled")}>
-									Enabled Only
-								</DropdownMenuItem>
-								<DropdownMenuItem onClick={() => setStatusFilter("disabled")}>
-									Disabled Only
-								</DropdownMenuItem>
-							</DropdownMenuContent>
-						</DropdownMenu>
-					</div>
-
-					{/* Workflow Cards Grid */}
-					<div className="p-6">
-						<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-							{sortedWorkflows.map((workflow) => (
-								<WorkflowCard key={workflow.id} workflow={workflow} />
-							))}
+							<DropdownMenu>
+								<DropdownMenuTrigger asChild>
+									<Button variant="outline" size="sm" className="gap-2">
+										<Filter className="size-4" />
+										{statusFilter === "all"
+											? "All Status"
+											: statusFilter === "enabled"
+												? "Enabled"
+												: "Disabled"}
+									</Button>
+								</DropdownMenuTrigger>
+								<DropdownMenuContent align="end">
+									<DropdownMenuItem onClick={() => setStatusFilter("all")}>
+										All Status
+									</DropdownMenuItem>
+									<DropdownMenuItem onClick={() => setStatusFilter("enabled")}>
+										Enabled Only
+									</DropdownMenuItem>
+									<DropdownMenuItem onClick={() => setStatusFilter("disabled")}>
+										Disabled Only
+									</DropdownMenuItem>
+								</DropdownMenuContent>
+							</DropdownMenu>
 						</div>
-					</div>
-				</>
-			)}
 
-			{/* DESIGN B: Grouped - Sidebar + Columns + Sheet */}
-			{designMode === "grouped" && (
-				<div className="flex h-[calc(100vh-135px)]">
-					{/* Left Sidebar - Groups */}
-					<div className="w-56 border-r bg-muted/30 flex-shrink-0">
-						<div className="p-4 border-b">
-							<h2 className="font-medium text-sm">Groups</h2>
-						</div>
-						<ScrollArea className="h-[calc(100%-57px)]">
-							<div className="p-2">
-								{WORKFLOW_GROUPS.map((group) => (
-									<button
-										key={group.id}
-										className={cn(
-											"w-full text-left px-3 py-2 rounded-md text-sm transition-colors",
-											"hover:bg-muted",
-											selectedGroup === group.id && "bg-muted font-medium",
-										)}
-										onClick={() => setSelectedGroup(group.id)}
-									>
-										<div className="flex items-center justify-between">
-											<span>{group.name}</span>
-											<span className="text-xs text-muted-foreground">
-												{group.count}
-											</span>
-										</div>
-									</button>
+						{/* Workflow Cards Grid */}
+						<div className="p-6">
+							<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+								{sortedWorkflows.map((workflow) => (
+									<WorkflowCard key={workflow.id} workflow={workflow} />
 								))}
 							</div>
-						</ScrollArea>
-					</div>
+						</div>
+					</>
+				)}
 
-					{/* Main Content */}
-					<div className="flex-1 flex flex-col min-w-0">
-						{/* Header */}
-						<div className="px-6 py-4 border-b flex items-center justify-between">
-							<div>
-								<h1 className="text-lg font-medium">Scheduler</h1>
-								<p className="text-sm text-muted-foreground">
-									{stats.total} workflows &middot;{" "}
-									<span className="text-emerald-600">
-										{stats.healthy} healthy
-									</span>
-									{stats.warning > 0 && (
-										<>
-											,{" "}
-											<span className="text-amber-600">
-												{stats.warning} warning
-											</span>
-										</>
-									)}
-									{stats.critical > 0 && (
-										<>
-											,{" "}
-											<span className="text-red-600">
-												{stats.critical} critical
-											</span>
-										</>
-									)}
-								</p>
+				{/* DESIGN B: Grouped - Sidebar + Columns + Sheet */}
+				{designMode === "grouped" && (
+					<div className="flex h-[calc(100vh-135px)]">
+						{/* Left Sidebar - Groups */}
+						<div className="w-56 border-r bg-muted/30 flex-shrink-0">
+							<div className="p-4 border-b">
+								<h2 className="font-medium text-sm">Groups</h2>
+							</div>
+							<ScrollArea className="h-[calc(100%-57px)]">
+								<div className="p-2">
+									{WORKFLOW_GROUPS.map((group) => (
+										<button
+											key={group.id}
+											className={cn(
+												"w-full text-left px-3 py-2 rounded-md text-sm transition-colors",
+												"hover:bg-muted",
+												selectedGroup === group.id && "bg-muted font-medium",
+											)}
+											onClick={() => setSelectedGroup(group.id)}
+										>
+											<div className="flex items-center justify-between">
+												<span>{group.name}</span>
+												<span className="text-xs text-muted-foreground">
+													{group.count}
+												</span>
+											</div>
+										</button>
+									))}
+								</div>
+							</ScrollArea>
+						</div>
+
+						{/* Main Content */}
+						<div className="flex-1 flex flex-col min-w-0">
+							{/* Header */}
+							<div className="px-6 py-4 border-b flex items-center justify-between">
+								<div>
+									<h1 className="text-lg font-medium">Scheduler</h1>
+									<p className="text-sm text-muted-foreground">
+										{stats.total} workflows &middot;{" "}
+										<span className="text-emerald-600">
+											{stats.healthy} healthy
+										</span>
+										{stats.warning > 0 && (
+											<>
+												,{" "}
+												<span className="text-amber-600">
+													{stats.warning} warning
+												</span>
+											</>
+										)}
+										{stats.critical > 0 && (
+											<>
+												,{" "}
+												<span className="text-red-600">
+													{stats.critical} critical
+												</span>
+											</>
+										)}
+									</p>
+								</div>
+
+								{/* Layout Switcher */}
+								<div className="flex items-center gap-1 bg-muted rounded-lg p-1">
+									<Button
+										variant={layoutMode === "grid" ? "secondary" : "ghost"}
+										size="sm"
+										className="h-7 w-7 p-0"
+										onClick={() => setLayoutMode("grid")}
+									>
+										<LayoutGrid className="size-4" />
+									</Button>
+									<Button
+										variant={layoutMode === "grouped" ? "secondary" : "ghost"}
+										size="sm"
+										className="h-7 w-7 p-0"
+										onClick={() => setLayoutMode("grouped")}
+									>
+										<Columns3 className="size-4" />
+									</Button>
+									<Button
+										variant={layoutMode === "list" ? "secondary" : "ghost"}
+										size="sm"
+										className="h-7 w-7 p-0"
+										onClick={() => setLayoutMode("list")}
+									>
+										<List className="size-4" />
+									</Button>
+								</div>
 							</div>
 
-							{/* Layout Switcher */}
-							<div className="flex items-center gap-1 bg-muted rounded-lg p-1">
-								<Button
-									variant={layoutMode === "grid" ? "secondary" : "ghost"}
-									size="sm"
-									className="h-7 w-7 p-0"
-									onClick={() => setLayoutMode("grid")}
-								>
-									<LayoutGrid className="size-4" />
-								</Button>
-								<Button
-									variant={layoutMode === "grouped" ? "secondary" : "ghost"}
-									size="sm"
-									className="h-7 w-7 p-0"
-									onClick={() => setLayoutMode("grouped")}
-								>
-									<Columns3 className="size-4" />
-								</Button>
-								<Button
-									variant={layoutMode === "list" ? "secondary" : "ghost"}
-									size="sm"
-									className="h-7 w-7 p-0"
-									onClick={() => setLayoutMode("list")}
-								>
-									<List className="size-4" />
-								</Button>
+							{/* Content Area */}
+							<ScrollArea className="flex-1">
+								<div className="p-6">
+									{/* Grid View */}
+									{layoutMode === "grid" && (
+										<div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
+											{filteredWorkflows.map((workflow) => (
+												<WorkflowTile
+													key={workflow.id}
+													workflow={workflow}
+													onClick={() => setSelectedWorkflow(workflow.id)}
+													isSelected={selectedWorkflow === workflow.id}
+												/>
+											))}
+										</div>
+									)}
+
+									{/* Grouped View (BMC-style columns) */}
+									{layoutMode === "grouped" && (
+										<div className="flex gap-4 overflow-x-auto pb-4">
+											{Object.entries(groupedWorkflows).map(
+												([groupName, workflows]) => (
+													<div key={groupName} className="flex-shrink-0 w-64">
+														<div className="sticky top-0 bg-background pb-2 mb-2 border-b">
+															<h3 className="text-sm font-medium">
+																{groupName}
+															</h3>
+															<p className="text-xs text-muted-foreground">
+																{workflows.length} workflows
+															</p>
+														</div>
+														<div className="space-y-2">
+															{workflows.map((workflow) => (
+																<WorkflowTile
+																	key={workflow.id}
+																	workflow={workflow}
+																	onClick={() =>
+																		setSelectedWorkflow(workflow.id)
+																	}
+																	isSelected={selectedWorkflow === workflow.id}
+																/>
+															))}
+														</div>
+													</div>
+												),
+											)}
+										</div>
+									)}
+
+									{/* List View */}
+									{layoutMode === "list" && (
+										<div className="border rounded-lg overflow-hidden">
+											<div className="flex items-center gap-4 px-4 py-2 bg-muted/50 text-xs font-medium text-muted-foreground border-b">
+												<div className="w-2" />
+												<div className="flex-1">Name</div>
+												<div className="w-20 text-right">Last Run</div>
+												<div className="w-20 text-right">Next Run</div>
+												<div className="w-12 text-right">Health</div>
+											</div>
+											{filteredWorkflows.map((workflow) => (
+												<WorkflowRow
+													key={workflow.id}
+													workflow={workflow}
+													onClick={() => setSelectedWorkflow(workflow.id)}
+													isSelected={selectedWorkflow === workflow.id}
+												/>
+											))}
+										</div>
+									)}
+								</div>
+							</ScrollArea>
+						</div>
+
+						{/* Detail Sheet */}
+						<Sheet
+							open={!!selectedWorkflow}
+							onOpenChange={(open) => !open && setSelectedWorkflow(null)}
+						>
+							<SheetContent className="w-full sm:!w-[640px] sm:!max-w-[640px] p-0 overflow-auto">
+								{selectedDetail && (
+									<WorkflowDetailPanel
+										detail={selectedDetail}
+										onClose={() => setSelectedWorkflow(null)}
+									/>
+								)}
+							</SheetContent>
+						</Sheet>
+					</div>
+				)}
+
+				{/* DESIGN C: Linear Style - Table or Board */}
+				{designMode === "linear" && (
+					<div className="flex flex-col h-[calc(100vh-135px)] bg-background">
+						{/* Header */}
+						<div className="flex items-center justify-between px-4 py-3 border-b">
+							<div className="flex items-center gap-3">
+								<h1 className="text-sm font-medium">Scheduled Workflows</h1>
+								<span className="text-xs text-muted-foreground">
+									{MOCK_SCHEDULED_WORKFLOWS.length}
+								</span>
+							</div>
+							<div className="flex items-center gap-2">
+								{/* View Switcher */}
+								<div className="flex items-center gap-1 bg-muted rounded p-0.5">
+									<Button
+										variant="ghost"
+										size="sm"
+										className={cn(
+											"h-6 w-6 p-0",
+											linearLayoutMode === "table"
+												? "bg-background shadow-sm"
+												: "text-muted-foreground hover:text-foreground hover:bg-transparent",
+										)}
+										onClick={() => setLinearLayoutMode("table")}
+									>
+										<List className="size-3.5" />
+									</Button>
+									<Button
+										variant="ghost"
+										size="sm"
+										className={cn(
+											"h-6 w-6 p-0",
+											linearLayoutMode === "board"
+												? "bg-background shadow-sm"
+												: "text-muted-foreground hover:text-foreground hover:bg-transparent",
+										)}
+										onClick={() => setLinearLayoutMode("board")}
+									>
+										<Kanban className="size-3.5" />
+									</Button>
+								</div>
 							</div>
 						</div>
 
-						{/* Content Area */}
-						<ScrollArea className="flex-1">
-							<div className="p-6">
-								{/* Grid View */}
-								{layoutMode === "grid" && (
-									<div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
-										{filteredWorkflows.map((workflow) => (
-											<WorkflowTile
-												key={workflow.id}
-												workflow={workflow}
-												onClick={() => setSelectedWorkflow(workflow.id)}
-												isSelected={selectedWorkflow === workflow.id}
-											/>
-										))}
-									</div>
-								)}
+						{/* Table View */}
+						{linearLayoutMode === "table" && (
+							<ScrollArea className="flex-1">
+								<div className="divide-y divide-border">
+									{WORKFLOW_GROUPS.filter((g) => g.id !== "all").map(
+										(group) => {
+											const workflows = workflowsByTag[group.id] || [];
+											if (workflows.length === 0) return null;
+											const isExpanded = expandedGroups.has(group.id);
 
-								{/* Grouped View (BMC-style columns) */}
-								{layoutMode === "grouped" && (
-									<div className="flex gap-4 overflow-x-auto pb-4">
-										{Object.entries(groupedWorkflows).map(
-											([groupName, workflows]) => (
-												<div key={groupName} className="flex-shrink-0 w-64">
-													<div className="sticky top-0 bg-background pb-2 mb-2 border-b">
-														<h3 className="text-sm font-medium">{groupName}</h3>
-														<p className="text-xs text-muted-foreground">
-															{workflows.length} workflows
-														</p>
+											return (
+												<div key={group.id}>
+													{/* Group Header */}
+													<button
+														className="flex items-center gap-2 w-full px-4 py-2 hover:bg-muted/50 text-left"
+														onClick={() => toggleGroup(group.id)}
+													>
+														{isExpanded ? (
+															<ChevronDown className="size-3 text-muted-foreground" />
+														) : (
+															<ChevronRight className="size-3 text-muted-foreground" />
+														)}
+														<span className="text-xs font-medium text-foreground">
+															{group.name}
+														</span>
+														<span className="text-xs text-muted-foreground">
+															{workflows.length}
+														</span>
+													</button>
+
+													{/* Group Items */}
+													{isExpanded && (
+														<div className="divide-y divide-border/50">
+															{workflows.map((workflow) => (
+																<LinearTableRow
+																	key={workflow.id}
+																	workflow={workflow}
+																	onClick={() =>
+																		setSelectedWorkflow(workflow.id)
+																	}
+																	isSelected={selectedWorkflow === workflow.id}
+																/>
+															))}
+														</div>
+													)}
+												</div>
+											);
+										},
+									)}
+								</div>
+							</ScrollArea>
+						)}
+
+						{/* Board View - Columns by Tag/Group */}
+						{linearLayoutMode === "board" && (
+							<div className="flex-1 overflow-x-auto p-4">
+								<div className="flex gap-6 h-full">
+									{WORKFLOW_GROUPS.filter((g) => g.id !== "all").map(
+										(group) => {
+											const workflows = workflowsByTag[group.id] || [];
+											if (workflows.length === 0) return null;
+
+											return (
+												<div
+													key={group.id}
+													className="flex-shrink-0 w-64 flex flex-col"
+												>
+													{/* Column Header */}
+													<div className="flex items-center gap-2 px-1 py-2 mb-2">
+														<span className="text-sm font-medium truncate">
+															{group.name}
+														</span>
+														<span className="text-xs text-muted-foreground bg-muted border border-border px-1.5 py-0.5 rounded">
+															{workflows.length}
+														</span>
 													</div>
-													<div className="space-y-2">
+
+													{/* Column Cards */}
+													<div className="flex-1 space-y-2">
 														{workflows.map((workflow) => (
-															<WorkflowTile
+															<LinearBoardCard
 																key={workflow.id}
 																workflow={workflow}
 																onClick={() => setSelectedWorkflow(workflow.id)}
@@ -1372,222 +1577,276 @@ export default function SchedulerDashboardPage() {
 														))}
 													</div>
 												</div>
-											),
-										)}
-									</div>
-								)}
-
-								{/* List View */}
-								{layoutMode === "list" && (
-									<div className="border rounded-lg overflow-hidden">
-										<div className="flex items-center gap-4 px-4 py-2 bg-muted/50 text-xs font-medium text-muted-foreground border-b">
-											<div className="w-2" />
-											<div className="flex-1">Name</div>
-											<div className="w-20 text-right">Last Run</div>
-											<div className="w-20 text-right">Next Run</div>
-											<div className="w-12 text-right">Health</div>
-										</div>
-										{filteredWorkflows.map((workflow) => (
-											<WorkflowRow
-												key={workflow.id}
-												workflow={workflow}
-												onClick={() => setSelectedWorkflow(workflow.id)}
-												isSelected={selectedWorkflow === workflow.id}
-											/>
-										))}
-									</div>
-								)}
-							</div>
-						</ScrollArea>
-					</div>
-
-					{/* Detail Sheet */}
-					<Sheet
-						open={!!selectedWorkflow}
-						onOpenChange={(open) => !open && setSelectedWorkflow(null)}
-					>
-						<SheetContent className="w-full sm:!w-[640px] sm:!max-w-[640px] p-0 overflow-auto">
-							{selectedDetail && (
-								<WorkflowDetailPanel
-									detail={selectedDetail}
-									onClose={() => setSelectedWorkflow(null)}
-								/>
-							)}
-						</SheetContent>
-					</Sheet>
-				</div>
-			)}
-
-			{/* DESIGN C: Linear Style - Table or Board */}
-			{designMode === "linear" && (
-				<div className="flex flex-col h-[calc(100vh-135px)] bg-background">
-					{/* Header */}
-					<div className="flex items-center justify-between px-4 py-3 border-b">
-						<div className="flex items-center gap-3">
-							<h1 className="text-sm font-medium">Scheduled Workflows</h1>
-							<span className="text-xs text-muted-foreground">
-								{MOCK_SCHEDULED_WORKFLOWS.length}
-							</span>
-						</div>
-						<div className="flex items-center gap-2">
-							{/* View Switcher */}
-							<div className="flex items-center gap-1 bg-muted rounded p-0.5">
-								<Button
-									variant="ghost"
-									size="sm"
-									className={cn(
-										"h-6 w-6 p-0",
-										linearLayoutMode === "table"
-											? "bg-background shadow-sm"
-											: "text-muted-foreground hover:text-foreground hover:bg-transparent",
+											);
+										},
 									)}
-									onClick={() => setLinearLayoutMode("table")}
-								>
-									<List className="size-3.5" />
-								</Button>
-								<Button
-									variant="ghost"
-									size="sm"
-									className={cn(
-										"h-6 w-6 p-0",
-										linearLayoutMode === "board"
-											? "bg-background shadow-sm"
-											: "text-muted-foreground hover:text-foreground hover:bg-transparent",
-									)}
-									onClick={() => setLinearLayoutMode("board")}
-								>
-									<Kanban className="size-3.5" />
-								</Button>
+								</div>
 							</div>
-						</div>
+						)}
+
+						{/* Detail Sheet */}
+						<Sheet
+							open={!!selectedWorkflow}
+							onOpenChange={(open) => !open && setSelectedWorkflow(null)}
+						>
+							<SheetContent className="w-full sm:!w-[640px] sm:!max-w-[640px] p-0 overflow-auto">
+								{selectedDetail && (
+									<WorkflowDetailPanel
+										detail={selectedDetail}
+										onClose={() => setSelectedWorkflow(null)}
+									/>
+								)}
+							</SheetContent>
+						</Sheet>
 					</div>
+				)}
 
-					{/* Table View */}
-					{linearLayoutMode === "table" && (
-						<ScrollArea className="flex-1">
-							<div className="divide-y divide-border">
-								{WORKFLOW_GROUPS.filter((g) => g.id !== "all").map((group) => {
-									const workflows = workflowsByTag[group.id] || [];
-									if (workflows.length === 0) return null;
-									const isExpanded = expandedGroups.has(group.id);
+				{/* DESIGN D: Figma Style - Stats Header + Group Cards Grid */}
+				{designMode === "figma" && (
+					<div className="flex flex-col h-[calc(100vh-135px)] bg-background overflow-auto">
+						{/* Stats Header */}
+						<MainHeader
+							title="Scheduler Dashboard"
+							description={
+								<span>
+									Monitoring{" "}
+									<span className="font-semibold">{aggregateStats.total}</span>{" "}
+									scheduled workflows
+									{" \u2022 "}
+									<span className="font-semibold">
+										{aggregateStats.enabled}
+									</span>{" "}
+									enabled,{" "}
+									<span className="font-semibold">
+										{aggregateStats.disabled}
+									</span>{" "}
+									disabled
+								</span>
+							}
+							stats={
+								<StatGroup>
+									<StatCard
+										value={aggregateStats.totalRuns.toLocaleString()}
+										label="Total Executions"
+									/>
+									<StatCard
+										value={`${aggregateStats.overallSuccessRate}%`}
+										label="Success Rate"
+									/>
+									<StatCard
+										value={stats.healthy.toString()}
+										label="Healthy Workflows"
+									/>
+									<StatCard
+										value={stats.critical.toString()}
+										label="Needs Attention"
+									/>
+								</StatGroup>
+							}
+						/>
 
-									return (
-										<div key={group.id}>
-											{/* Group Header */}
-											<button
-												className="flex items-center gap-2 w-full px-4 py-2 hover:bg-muted/50 text-left"
-												onClick={() => toggleGroup(group.id)}
-											>
-												{isExpanded ? (
-													<ChevronDown className="size-3 text-muted-foreground" />
-												) : (
-													<ChevronRight className="size-3 text-muted-foreground" />
-												)}
-												<span className="text-xs font-medium text-foreground">
-													{group.name}
-												</span>
-												<span className="text-xs text-muted-foreground">
-													{workflows.length}
-												</span>
-											</button>
+						{/* Section Header */}
+						<div className="px-6 py-4">
+							<div className="flex items-start justify-between">
+								<div>
+									<div className="flex items-center gap-2">
+										<h2 className="text-base font-medium">
+											Scheduled workflow groups
+										</h2>
+										<Badge variant="secondary" className="text-xs">
+											{filteredGroups.length}
+										</Badge>
+									</div>
+									<p className="text-sm text-muted-foreground mt-1">
+										Based on the last 7 days
+									</p>
+								</div>
 
-											{/* Group Items */}
-											{isExpanded && (
-												<div className="divide-y divide-border/50">
-													{workflows.map((workflow) => (
-														<LinearTableRow
-															key={workflow.id}
-															workflow={workflow}
-															onClick={() => setSelectedWorkflow(workflow.id)}
-															isSelected={selectedWorkflow === workflow.id}
-														/>
-													))}
-												</div>
-											)}
-										</div>
-									);
-								})}
-							</div>
-						</ScrollArea>
-					)}
-
-					{/* Board View - Columns by Tag/Group */}
-					{linearLayoutMode === "board" && (
-						<div className="flex-1 overflow-x-auto p-4">
-							<div className="flex gap-6 h-full">
-								{WORKFLOW_GROUPS.filter((g) => g.id !== "all").map((group) => {
-									const workflows = workflowsByTag[group.id] || [];
-									if (workflows.length === 0) return null;
-
-									return (
-										<div
-											key={group.id}
-											className="flex-shrink-0 w-64 flex flex-col"
+								<div className="flex items-center gap-2">
+									{/* View Mode Toggle */}
+									<div className="flex items-center gap-1 border rounded-md p-0.5">
+										<Button
+											variant={figmaViewMode === "grid" ? "secondary" : "ghost"}
+											size="sm"
+											className="h-7 w-7 p-0"
+											onClick={() => setFigmaViewMode("grid")}
 										>
-											{/* Column Header */}
-											<div className="flex items-center gap-2 px-1 py-2 mb-2">
-												<span className="text-sm font-medium truncate">
-													{group.name}
-												</span>
-												<span className="text-xs text-muted-foreground bg-muted border border-border px-1.5 py-0.5 rounded">
-													{workflows.length}
-												</span>
-											</div>
+											<LayoutGrid className="size-4" />
+										</Button>
+										<Button
+											variant={figmaViewMode === "list" ? "secondary" : "ghost"}
+											size="sm"
+											className="h-7 w-7 p-0"
+											onClick={() => setFigmaViewMode("list")}
+										>
+											<List className="size-4" />
+										</Button>
+									</div>
 
-											{/* Column Cards */}
-											<div className="flex-1 space-y-2">
-												{workflows.map((workflow) => (
-													<LinearBoardCard
-														key={workflow.id}
-														workflow={workflow}
-														onClick={() => setSelectedWorkflow(workflow.id)}
-														isSelected={selectedWorkflow === workflow.id}
-													/>
-												))}
-											</div>
-										</div>
-									);
-								})}
+									<DropdownMenu>
+										<DropdownMenuTrigger asChild>
+											<Button variant="outline" size="sm" className="gap-2 h-8">
+												{groupHealthFilter === "all"
+													? "All Groups"
+													: groupHealthFilter === "healthy"
+														? "Healthy"
+														: "Needs Attention"}
+												<ChevronDown className="size-3" />
+											</Button>
+										</DropdownMenuTrigger>
+										<DropdownMenuContent align="end">
+											<DropdownMenuItem
+												onClick={() => setGroupHealthFilter("all")}
+											>
+												All Groups
+											</DropdownMenuItem>
+											<DropdownMenuItem
+												onClick={() => setGroupHealthFilter("healthy")}
+											>
+												Healthy ({">"}90%)
+											</DropdownMenuItem>
+											<DropdownMenuItem
+												onClick={() => setGroupHealthFilter("needs-attention")}
+											>
+												Needs Attention ({"<"}90%)
+											</DropdownMenuItem>
+										</DropdownMenuContent>
+									</DropdownMenu>
+
+									<Button variant="outline" size="icon" className="size-8">
+										<RefreshCw className="size-4" />
+									</Button>
+								</div>
 							</div>
 						</div>
-					)}
 
-					{/* Detail Sheet */}
-					<Sheet
-						open={!!selectedWorkflow}
-						onOpenChange={(open) => !open && setSelectedWorkflow(null)}
-					>
-						<SheetContent className="w-full sm:!w-[640px] sm:!max-w-[640px] p-0 overflow-auto">
-							{selectedDetail && (
-								<WorkflowDetailPanel
-									detail={selectedDetail}
-									onClose={() => setSelectedWorkflow(null)}
-								/>
-							)}
-						</SheetContent>
-					</Sheet>
-				</div>
-			)}
+						{/* Group Cards Grid View */}
+						{figmaViewMode === "grid" && (
+							<div className="px-6 pb-6 flex-1">
+								<div className="grid grid-cols-3 gap-4">
+									{filteredGroups.map((group) => {
+										const workflows = workflowsByTag[group.id] || [];
+										return (
+											<FigmaGroupCard
+												key={group.id}
+												group={group}
+												workflows={workflows}
+												onClick={() => navigate(`/scheduler/group/${group.id}`)}
+											/>
+										);
+									})}
+								</div>
+							</div>
+						)}
 
-			{/* DESIGN D: Figma Style - Stats Header + Group Cards Grid */}
-			{designMode === "figma" && (
-				<div className="flex flex-col h-[calc(100vh-135px)] bg-background overflow-auto">
-					{/* Stats Header */}
-					<MainHeader
-						title="Scheduler Dashboard"
-						description={
-							<span>
-								Monitoring{" "}
-								<span className="font-semibold">{aggregateStats.total}</span>{" "}
-								scheduled workflows
-								{" \u2022 "}
-								<span className="font-semibold">{aggregateStats.enabled}</span>{" "}
-								enabled,{" "}
-								<span className="font-semibold">{aggregateStats.disabled}</span>{" "}
-								disabled
-							</span>
-						}
-						stats={
+						{/* Group List View */}
+						{figmaViewMode === "list" && (
+							<div className="px-6 pb-6 flex-1">
+								<div className="border rounded-sm overflow-hidden">
+									<Table>
+										<TableHeader>
+											<TableRow>
+												<TableHead>Group Name</TableHead>
+												<TableHead className="w-[100px] text-center">
+													Workflows
+												</TableHead>
+												<TableHead className="w-[120px] text-center">
+													Success Rate
+												</TableHead>
+												<TableHead className="w-[100px] text-center">
+													Failed
+												</TableHead>
+												<TableHead className="w-[120px] text-center">
+													Total Runs
+												</TableHead>
+											</TableRow>
+										</TableHeader>
+										<TableBody>
+											{filteredGroups.map((group) => {
+												const workflows = workflowsByTag[group.id] || [];
+												const totalRuns = workflows.reduce(
+													(sum, w) => sum + w.totalRuns,
+													0,
+												);
+												const totalSuccess = workflows.reduce(
+													(sum, w) => sum + w.successCount,
+													0,
+												);
+												const totalFailure = workflows.reduce(
+													(sum, w) => sum + w.failureCount,
+													0,
+												);
+												const successRate =
+													totalRuns > 0
+														? Math.round((totalSuccess / totalRuns) * 100)
+														: 100;
+
+												return (
+													<TableRow
+														key={group.id}
+														className="cursor-pointer hover:bg-muted/50"
+														onClick={() =>
+															navigate(`/scheduler/group/${group.id}`)
+														}
+													>
+														<TableCell className="font-medium">
+															{group.name}
+														</TableCell>
+														<TableCell className="text-center">
+															{workflows.length}
+														</TableCell>
+														<TableCell className="text-center">
+															<span
+																className={cn(
+																	"font-medium",
+																	successRate >= 90
+																		? "text-teal-600"
+																		: "text-red-500",
+																)}
+															>
+																{successRate}%
+															</span>
+														</TableCell>
+														<TableCell className="text-center text-red-500">
+															{totalFailure.toLocaleString()}
+														</TableCell>
+														<TableCell className="text-center text-muted-foreground">
+															{totalRuns.toLocaleString()}
+														</TableCell>
+													</TableRow>
+												);
+											})}
+										</TableBody>
+									</Table>
+								</div>
+							</div>
+						)}
+					</div>
+				)}
+
+				{/* DESIGN E: Kanban Workflows - Board view by group */}
+				{designMode === "kanban" && (
+					<div className="flex flex-col flex-1 min-h-0 bg-background">
+						{/* Workflow Tabs - right after blue header */}
+						<div className="px-4 pt-3 border-b border-[#d1d5db] overflow-x-auto">
+							<div className="flex gap-1 min-w-max">
+								<button className="flex items-center gap-1 p-1 text-[11px] border border-b-0 rounded-t-[6px] bg-white text-[#003057] border-[#d1d5db]">
+									<span>Open Incidents (11)</span>
+									<X className="size-4 text-[#003057]/60 hover:text-[#003057]" />
+								</button>
+								<button className="flex items-center gap-1 p-1 text-[11px] border border-b-0 rounded-t-[6px] bg-white text-[#003057] border-[#d1d5db]">
+									<span>Running workflows (7)</span>
+									<X className="size-4 text-[#003057]/60 hover:text-[#003057]" />
+								</button>
+								<button className="flex items-center gap-1 p-1 text-[11px] border border-b-0 rounded-t-[6px] bg-[#1B416A] text-white border-[#265a93]">
+									<span>Scheduled workflows</span>
+									<X className="size-4 text-white/60 hover:text-white" />
+								</button>
+							</div>
+						</div>
+
+						{/* Metric Cards */}
+						<div className="px-4 md:px-6 pt-4 pb-2 overflow-x-auto">
 							<StatGroup>
 								<StatCard
 									value={aggregateStats.totalRuns.toLocaleString()}
@@ -1606,732 +1865,451 @@ export default function SchedulerDashboardPage() {
 									label="Needs Attention"
 								/>
 							</StatGroup>
-						}
-					/>
+						</div>
 
-					{/* Section Header */}
-					<div className="px-6 py-4">
-						<div className="flex items-start justify-between">
-							<div>
-								<div className="flex items-center gap-2">
-									<h2 className="text-base font-medium">
-										Scheduled workflow groups
-									</h2>
-									<Badge variant="secondary" className="text-xs">
-										{filteredGroups.length}
-									</Badge>
-								</div>
-								<p className="text-sm text-muted-foreground mt-1">
-									Based on the last 7 days
-								</p>
-							</div>
-
-							<div className="flex items-center gap-2">
-								{/* View Mode Toggle */}
-								<div className="flex items-center gap-1 border rounded-md p-0.5">
-									<Button
-										variant={figmaViewMode === "grid" ? "secondary" : "ghost"}
-										size="sm"
-										className="h-7 w-7 p-0"
-										onClick={() => setFigmaViewMode("grid")}
-									>
-										<LayoutGrid className="size-4" />
-									</Button>
-									<Button
-										variant={figmaViewMode === "list" ? "secondary" : "ghost"}
-										size="sm"
-										className="h-7 w-7 p-0"
-										onClick={() => setFigmaViewMode("list")}
-									>
-										<List className="size-4" />
-									</Button>
+						{/* Section Header */}
+						<div className="px-4 md:px-6 py-4">
+							<div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
+								<div>
+									<div className="flex items-center gap-2">
+										<h2 className="text-base font-medium">
+											Scheduled workflows
+										</h2>
+										<Badge variant="secondary" className="text-xs">
+											{MOCK_SCHEDULED_WORKFLOWS.length}
+										</Badge>
+									</div>
+									<p className="text-sm text-muted-foreground mt-1">
+										{timeFilter === "7days"
+											? "Scheduled for the next 7 days"
+											: timeFilter === "15days"
+												? "Scheduled for the next 15 days"
+												: "All scheduled workflows"}
+									</p>
 								</div>
 
-								<DropdownMenu>
-									<DropdownMenuTrigger asChild>
-										<Button variant="outline" size="sm" className="gap-2 h-8">
-											{groupHealthFilter === "all"
-												? "All Groups"
-												: groupHealthFilter === "healthy"
-													? "Healthy"
-													: "Needs Attention"}
-											<ChevronDown className="size-3" />
-										</Button>
-									</DropdownMenuTrigger>
-									<DropdownMenuContent align="end">
-										<DropdownMenuItem
-											onClick={() => setGroupHealthFilter("all")}
-										>
-											All Groups
-										</DropdownMenuItem>
-										<DropdownMenuItem
-											onClick={() => setGroupHealthFilter("healthy")}
-										>
-											Healthy ({">"}90%)
-										</DropdownMenuItem>
-										<DropdownMenuItem
-											onClick={() => setGroupHealthFilter("needs-attention")}
-										>
-											Needs Attention ({"<"}90%)
-										</DropdownMenuItem>
-									</DropdownMenuContent>
-								</DropdownMenu>
+								<div className="flex flex-wrap items-center gap-2">
+									<DropdownMenu>
+										<DropdownMenuTrigger asChild>
+											<Button variant="outline" size="sm" className="gap-2 h-8">
+												{timeFilter === "7days"
+													? "Next 7 days"
+													: timeFilter === "15days"
+														? "Next 15 days"
+														: "All scheduled"}
+												<ChevronDown className="size-3" />
+											</Button>
+										</DropdownMenuTrigger>
+										<DropdownMenuContent align="end">
+											<DropdownMenuItem onClick={() => setTimeFilter("7days")}>
+												Next 7 days
+												{timeFilter === "7days" && (
+													<CheckCircle2 className="size-3 ml-auto text-primary" />
+												)}
+											</DropdownMenuItem>
+											<DropdownMenuItem onClick={() => setTimeFilter("15days")}>
+												Next 15 days
+												{timeFilter === "15days" && (
+													<CheckCircle2 className="size-3 ml-auto text-primary" />
+												)}
+											</DropdownMenuItem>
+											<DropdownMenuItem onClick={() => setTimeFilter("all")}>
+												All scheduled
+												{timeFilter === "all" && (
+													<CheckCircle2 className="size-3 ml-auto text-primary" />
+												)}
+											</DropdownMenuItem>
+										</DropdownMenuContent>
+									</DropdownMenu>
 
-								<Button variant="outline" size="icon" className="size-8">
-									<RefreshCw className="size-4" />
-								</Button>
-							</div>
-						</div>
-					</div>
+									{/* Display dropdown */}
+									<DropdownMenu>
+										<DropdownMenuTrigger asChild>
+											<Button variant="outline" size="sm" className="gap-2 h-8">
+												{kanbanDisplay === "kanban" ? (
+													<Kanban className="size-3" />
+												) : (
+													<List className="size-3" />
+												)}
+												{kanbanDisplay === "kanban" ? "Board" : "List"}
+												<ChevronDown className="size-3" />
+											</Button>
+										</DropdownMenuTrigger>
+										<DropdownMenuContent align="end">
+											<DropdownMenuItem
+												onClick={() => setKanbanDisplay("kanban")}
+												className="gap-2"
+											>
+												<Kanban className="size-4" />
+												Board view
+												{kanbanDisplay === "kanban" && (
+													<CheckCircle2 className="size-3 ml-auto text-primary" />
+												)}
+											</DropdownMenuItem>
+											<DropdownMenuItem
+												onClick={() => setKanbanDisplay("list")}
+												className="gap-2"
+											>
+												<List className="size-4" />
+												List view
+												{kanbanDisplay === "list" && (
+													<CheckCircle2 className="size-3 ml-auto text-primary" />
+												)}
+											</DropdownMenuItem>
+										</DropdownMenuContent>
+									</DropdownMenu>
 
-					{/* Group Cards Grid View */}
-					{figmaViewMode === "grid" && (
-						<div className="px-6 pb-6 flex-1">
-							<div className="grid grid-cols-3 gap-4">
-								{filteredGroups.map((group) => {
-									const workflows = workflowsByTag[group.id] || [];
-									return (
-										<FigmaGroupCard
-											key={group.id}
-											group={group}
-											workflows={workflows}
-											onClick={() => navigate(`/scheduler/group/${group.id}`)}
-										/>
-									);
-								})}
-							</div>
-						</div>
-					)}
+									{/* Group by dropdown */}
+									<DropdownMenu>
+										<DropdownMenuTrigger asChild>
+											<Button variant="outline" size="sm" className="gap-2 h-8">
+												Group by:{" "}
+												<span className="text-primary">
+													{kanbanGroupBy === "none" ? "None" : "Tags"}
+												</span>
+												<ChevronDown className="size-3" />
+											</Button>
+										</DropdownMenuTrigger>
+										<DropdownMenuContent align="end" className="w-48">
+											<div className="px-2 py-1.5 text-xs font-medium text-muted-foreground">
+												GROUP BY
+											</div>
+											<DropdownMenuItem
+												onClick={() => {
+													setKanbanGroupBy("none");
+													setKanbanDisplay("list");
+												}}
+												className="gap-2"
+											>
+												<LayoutGrid className="size-4" />
+												None
+												{kanbanGroupBy === "none" && (
+													<CheckCircle2 className="size-3 ml-auto text-primary" />
+												)}
+											</DropdownMenuItem>
+											<DropdownMenuItem
+												onClick={() => {
+													setKanbanGroupBy("tags");
+													setKanbanDisplay("kanban");
+												}}
+												className="gap-2"
+											>
+												<Columns3 className="size-4" />
+												Tags
+												{kanbanGroupBy === "tags" && (
+													<CheckCircle2 className="size-3 ml-auto text-primary" />
+												)}
+											</DropdownMenuItem>
+										</DropdownMenuContent>
+									</DropdownMenu>
 
-					{/* Group List View */}
-					{figmaViewMode === "list" && (
-						<div className="px-6 pb-6 flex-1">
-							<div className="border rounded-sm overflow-hidden">
-								<Table>
-									<TableHeader>
-										<TableRow>
-											<TableHead>Group Name</TableHead>
-											<TableHead className="w-[100px] text-center">
-												Workflows
-											</TableHead>
-											<TableHead className="w-[120px] text-center">
-												Success Rate
-											</TableHead>
-											<TableHead className="w-[100px] text-center">
+									<DropdownMenu>
+										<DropdownMenuTrigger asChild>
+											<Button variant="outline" size="sm" className="gap-2 h-8">
+												<Filter className="size-3" />
+												Filter
+												<ChevronDown className="size-3" />
+											</Button>
+										</DropdownMenuTrigger>
+										<DropdownMenuContent align="end" className="w-44 p-1">
+											<DropdownMenuItem
+												onSelect={() => toggleKanbanFilter("failed")}
+												className="gap-2 cursor-pointer"
+											>
+												<div
+													className={cn(
+														"size-4 rounded border flex items-center justify-center",
+														kanbanFilters.has("failed")
+															? "bg-primary border-primary"
+															: "border-gray-300 bg-white",
+													)}
+												>
+													{kanbanFilters.has("failed") && (
+														<CheckCircle2 className="size-3 text-white" />
+													)}
+												</div>
+												<FailedIcon className="size-4" />
 												Failed
-											</TableHead>
-											<TableHead className="w-[120px] text-center">
-												Total Runs
-											</TableHead>
-										</TableRow>
-									</TableHeader>
-									<TableBody>
-										{filteredGroups.map((group) => {
-											const workflows = workflowsByTag[group.id] || [];
-											const totalRuns = workflows.reduce(
-												(sum, w) => sum + w.totalRuns,
-												0,
+											</DropdownMenuItem>
+											<DropdownMenuItem
+												onSelect={() => toggleKanbanFilter("executing")}
+												className="gap-2 cursor-pointer"
+											>
+												<div
+													className={cn(
+														"size-4 rounded border flex items-center justify-center",
+														kanbanFilters.has("executing")
+															? "bg-primary border-primary"
+															: "border-gray-300 bg-white",
+													)}
+												>
+													{kanbanFilters.has("executing") && (
+														<CheckCircle2 className="size-3 text-white" />
+													)}
+												</div>
+												<ExecutingIcon className="size-4" />
+												Executing
+											</DropdownMenuItem>
+											<DropdownMenuItem
+												onSelect={() => toggleKanbanFilter("scheduled")}
+												className="gap-2 cursor-pointer"
+											>
+												<div
+													className={cn(
+														"size-4 rounded border flex items-center justify-center",
+														kanbanFilters.has("scheduled")
+															? "bg-primary border-primary"
+															: "border-gray-300 bg-white",
+													)}
+												>
+													{kanbanFilters.has("scheduled") && (
+														<CheckCircle2 className="size-3 text-white" />
+													)}
+												</div>
+												<ScheduledIcon className="size-4" />
+												Scheduled
+											</DropdownMenuItem>
+											<DropdownMenuItem
+												onSelect={() => toggleKanbanFilter("healthy")}
+												className="gap-2 cursor-pointer"
+											>
+												<div
+													className={cn(
+														"size-4 rounded border flex items-center justify-center",
+														kanbanFilters.has("healthy")
+															? "bg-primary border-primary"
+															: "border-gray-300 bg-white",
+													)}
+												>
+													{kanbanFilters.has("healthy") && (
+														<CheckCircle2 className="size-3 text-white" />
+													)}
+												</div>
+												<SuccessIcon className="size-4" />
+												Healthy
+											</DropdownMenuItem>
+										</DropdownMenuContent>
+									</DropdownMenu>
+
+									<Button variant="outline" size="icon" className="size-8">
+										<RefreshCw className="size-4" />
+									</Button>
+								</div>
+							</div>
+						</div>
+
+						{/* Active filter chips - above columns */}
+						{kanbanFilters.size > 0 && (
+							<div className="flex flex-wrap items-center gap-2 px-4 md:px-6 pb-3">
+								{kanbanFilters.has("failed") && (
+									<button
+										onClick={() => toggleKanbanFilter("failed")}
+										className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-xs bg-red-50 border border-red-200 text-red-700 hover:bg-red-100"
+									>
+										<FailedIcon className="size-4" />
+										Failed
+										<X className="size-3" />
+									</button>
+								)}
+								{kanbanFilters.has("scheduled") && (
+									<button
+										onClick={() => toggleKanbanFilter("scheduled")}
+										className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-xs bg-muted border border-border text-foreground hover:bg-muted/80"
+									>
+										<ScheduledIcon className="size-4" />
+										Not Started
+										<X className="size-3" />
+									</button>
+								)}
+								{kanbanFilters.has("executing") && (
+									<button
+										onClick={() => toggleKanbanFilter("executing")}
+										className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-xs bg-amber-50 border border-amber-200 text-amber-700 hover:bg-amber-100"
+									>
+										<ExecutingIcon className="size-4" />
+										Executing
+										<X className="size-3" />
+									</button>
+								)}
+								{kanbanFilters.has("healthy") && (
+									<button
+										onClick={() => toggleKanbanFilter("healthy")}
+										className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-xs bg-green-50 border border-green-200 text-green-700 hover:bg-green-100"
+									>
+										<SuccessIcon className="size-4" />
+										Healthy
+										<X className="size-3" />
+									</button>
+								)}
+							</div>
+						)}
+
+						{/* Workflow Board */}
+						<div className="flex-1 overflow-x-auto px-4 md:px-6 pb-6">
+							{kanbanGroupBy === "none" && kanbanDisplay === "list" ? (
+								/* Ungrouped: Table list view matching Figma design */
+								<div className="border rounded-sm overflow-hidden">
+									{/* Header row - hidden on mobile */}
+									<div className="hidden md:flex items-center gap-6 px-3 py-3 bg-white border-b">
+										<div className="flex-1 flex items-center gap-2">
+											<span className="text-base font-normal text-foreground">
+												Name
+											</span>
+										</div>
+										<div className="w-[200px] flex items-center gap-1 shrink-0">
+											<span className="text-base font-normal text-foreground">
+												Last run
+											</span>
+											<ChevronDown className="size-4 text-muted-foreground" />
+										</div>
+										<div className="w-[200px] shrink-0">
+											<span className="text-base font-normal text-foreground">
+												Next run
+											</span>
+										</div>
+										<div className="w-[100px] text-right shrink-0">
+											<span className="text-base font-normal text-foreground">
+												Status
+											</span>
+										</div>
+									</div>
+									{/* Data rows */}
+									<div className="divide-y">
+										{kanbanFilteredWorkflows.map((workflow) => {
+											const rate = calculateSuccessRate(workflow);
+											const isDisabled = workflow.status === "disabled";
+											const isFailed =
+												workflow.status === "enabled" && rate < 70;
+											const isExecuting = EXECUTING_WORKFLOW_IDS.includes(
+												workflow.id,
 											);
-											const totalSuccess = workflows.reduce(
-												(sum, w) => sum + w.successCount,
-												0,
-											);
-											const totalFailure = workflows.reduce(
-												(sum, w) => sum + w.failureCount,
-												0,
-											);
-											const successRate =
-												totalRuns > 0
-													? Math.round((totalSuccess / totalRuns) * 100)
-													: 100;
 
 											return (
-												<TableRow
-													key={group.id}
-													className="cursor-pointer hover:bg-muted/50"
-													onClick={() =>
-														navigate(`/scheduler/group/${group.id}`)
+												<div
+													key={workflow.id}
+													role="button"
+													tabIndex={0}
+													onClick={() => setSelectedWorkflow(workflow.id)}
+													onKeyDown={(e) =>
+														e.key === "Enter" &&
+														setSelectedWorkflow(workflow.id)
 													}
+													className="flex flex-col md:flex-row md:items-center gap-2 md:gap-6 px-3 py-3 hover:bg-muted/30 cursor-pointer bg-white"
 												>
-													<TableCell className="font-medium">
-														{group.name}
-													</TableCell>
-													<TableCell className="text-center">
-														{workflows.length}
-													</TableCell>
-													<TableCell className="text-center">
+													{/* Status icon + Name */}
+													<div className="flex-1 flex items-center gap-2 min-w-0">
+														{isDisabled ? (
+															<ScheduledIcon className="size-5 shrink-0" />
+														) : isFailed ? (
+															<FailedIcon className="size-5 shrink-0" />
+														) : isExecuting ? (
+															<ExecutingIcon className="size-5 shrink-0" />
+														) : (
+															<SuccessIcon className="size-5 shrink-0" />
+														)}
 														<span
 															className={cn(
-																"font-medium",
-																successRate >= 90
-																	? "text-teal-600"
-																	: "text-red-500",
+																"text-base font-normal truncate",
+																isDisabled && "text-muted-foreground",
 															)}
 														>
-															{successRate}%
+															{workflow.name}
 														</span>
-													</TableCell>
-													<TableCell className="text-center text-red-500">
-														{totalFailure.toLocaleString()}
-													</TableCell>
-													<TableCell className="text-center text-muted-foreground">
-														{totalRuns.toLocaleString()}
-													</TableCell>
-												</TableRow>
-											);
-										})}
-									</TableBody>
-								</Table>
-							</div>
-						</div>
-					)}
-				</div>
-			)}
+													</div>
 
-			{/* DESIGN E: Kanban Workflows - Board view by group */}
-			{designMode === "kanban" && (
-				<div className="flex flex-col flex-1 min-h-0 bg-background">
-					{/* Workflow Tabs - right after blue header */}
-					<div className="px-4 pt-3 border-b border-[#d1d5db] overflow-x-auto">
-						<div className="flex gap-1 min-w-max">
-							<button className="flex items-center gap-1 p-1 text-[11px] border border-b-0 rounded-t-[6px] bg-white text-[#003057] border-[#d1d5db]">
-								<span>Open Incidents (11)</span>
-								<X className="size-4 text-[#003057]/60 hover:text-[#003057]" />
-							</button>
-							<button className="flex items-center gap-1 p-1 text-[11px] border border-b-0 rounded-t-[6px] bg-white text-[#003057] border-[#d1d5db]">
-								<span>Running workflows (7)</span>
-								<X className="size-4 text-[#003057]/60 hover:text-[#003057]" />
-							</button>
-							<button className="flex items-center gap-1 p-1 text-[11px] border border-b-0 rounded-t-[6px] bg-[#1B416A] text-white border-[#265a93]">
-								<span>Scheduled workflows</span>
-								<X className="size-4 text-white/60 hover:text-white" />
-							</button>
-						</div>
-					</div>
+													{/* Mobile: condensed info row */}
+													<div className="flex md:hidden items-center justify-between pl-7 text-sm text-muted-foreground">
+														<span>
+															Next: {formatDate(workflow.nextRunTime)}
+														</span>
+														<span
+															className={cn(
+																"tabular-nums",
+																isDisabled && "text-muted-foreground",
+															)}
+														>
+															{rate}%
+														</span>
+													</div>
 
-					{/* Metric Cards */}
-					<div className="px-4 md:px-6 pt-4 pb-2 overflow-x-auto">
-						<StatGroup>
-							<StatCard
-								value={aggregateStats.totalRuns.toLocaleString()}
-								label="Total Executions"
-							/>
-							<StatCard
-								value={`${aggregateStats.overallSuccessRate}%`}
-								label="Success Rate"
-							/>
-							<StatCard
-								value={stats.healthy.toString()}
-								label="Healthy Workflows"
-							/>
-							<StatCard
-								value={stats.critical.toString()}
-								label="Needs Attention"
-							/>
-						</StatGroup>
-					</div>
+													{/* Desktop: Last run */}
+													<div className="hidden md:block w-[200px] text-base font-normal text-foreground shrink-0">
+														{isDisabled
+															? "--"
+															: workflow.lastRunTime
+																? formatDate(workflow.lastRunTime)
+																: "--"}
+													</div>
 
-					{/* Section Header */}
-					<div className="px-4 md:px-6 py-4">
-						<div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
-							<div>
-								<div className="flex items-center gap-2">
-									<h2 className="text-base font-medium">Scheduled workflows</h2>
-									<Badge variant="secondary" className="text-xs">
-										{MOCK_SCHEDULED_WORKFLOWS.length}
-									</Badge>
-								</div>
-								<p className="text-sm text-muted-foreground mt-1">
-									{timeFilter === "7days" ? "Scheduled for the next 7 days" : timeFilter === "15days" ? "Scheduled for the next 15 days" : "All scheduled workflows"}
-								</p>
-							</div>
+													{/* Desktop: Next run */}
+													<div className="hidden md:block w-[200px] text-base font-normal text-foreground shrink-0">
+														{formatDate(workflow.nextRunTime)}
+													</div>
 
-							<div className="flex flex-wrap items-center gap-2">
-								<DropdownMenu>
-									<DropdownMenuTrigger asChild>
-										<Button variant="outline" size="sm" className="gap-2 h-8">
-											{timeFilter === "7days" ? "Next 7 days" : timeFilter === "15days" ? "Next 15 days" : "All scheduled"}
-											<ChevronDown className="size-3" />
-										</Button>
-									</DropdownMenuTrigger>
-									<DropdownMenuContent align="end">
-										<DropdownMenuItem onClick={() => setTimeFilter("7days")}>
-											Next 7 days
-											{timeFilter === "7days" && <CheckCircle2 className="size-3 ml-auto text-primary" />}
-										</DropdownMenuItem>
-										<DropdownMenuItem onClick={() => setTimeFilter("15days")}>
-											Next 15 days
-											{timeFilter === "15days" && <CheckCircle2 className="size-3 ml-auto text-primary" />}
-										</DropdownMenuItem>
-										<DropdownMenuItem onClick={() => setTimeFilter("all")}>
-											All scheduled
-											{timeFilter === "all" && <CheckCircle2 className="size-3 ml-auto text-primary" />}
-										</DropdownMenuItem>
-									</DropdownMenuContent>
-								</DropdownMenu>
-
-								{/* Display dropdown */}
-								<DropdownMenu>
-									<DropdownMenuTrigger asChild>
-										<Button variant="outline" size="sm" className="gap-2 h-8">
-											{kanbanDisplay === "kanban" ? (
-												<Kanban className="size-3" />
-											) : (
-												<List className="size-3" />
-											)}
-											{kanbanDisplay === "kanban" ? "Board" : "List"}
-											<ChevronDown className="size-3" />
-										</Button>
-									</DropdownMenuTrigger>
-									<DropdownMenuContent align="end">
-										<DropdownMenuItem
-											onClick={() => setKanbanDisplay("kanban")}
-											className="gap-2"
-										>
-											<Kanban className="size-4" />
-											Board view
-											{kanbanDisplay === "kanban" && (
-												<CheckCircle2 className="size-3 ml-auto text-primary" />
-											)}
-										</DropdownMenuItem>
-										<DropdownMenuItem
-											onClick={() => setKanbanDisplay("list")}
-											className="gap-2"
-										>
-											<List className="size-4" />
-											List view
-											{kanbanDisplay === "list" && (
-												<CheckCircle2 className="size-3 ml-auto text-primary" />
-											)}
-										</DropdownMenuItem>
-									</DropdownMenuContent>
-								</DropdownMenu>
-
-								{/* Group by dropdown */}
-								<DropdownMenu>
-									<DropdownMenuTrigger asChild>
-										<Button variant="outline" size="sm" className="gap-2 h-8">
-											Group by:{" "}
-											<span className="text-primary">
-												{kanbanGroupBy === "none" ? "None" : "Tags"}
-											</span>
-											<ChevronDown className="size-3" />
-										</Button>
-									</DropdownMenuTrigger>
-									<DropdownMenuContent align="end" className="w-48">
-										<div className="px-2 py-1.5 text-xs font-medium text-muted-foreground">
-											GROUP BY
-										</div>
-										<DropdownMenuItem
-											onClick={() => {
-												setKanbanGroupBy("none");
-												setKanbanDisplay("list");
-											}}
-											className="gap-2"
-										>
-											<LayoutGrid className="size-4" />
-											None
-											{kanbanGroupBy === "none" && (
-												<CheckCircle2 className="size-3 ml-auto text-primary" />
-											)}
-										</DropdownMenuItem>
-										<DropdownMenuItem
-											onClick={() => {
-												setKanbanGroupBy("tags");
-												setKanbanDisplay("kanban");
-											}}
-											className="gap-2"
-										>
-											<Columns3 className="size-4" />
-											Tags
-											{kanbanGroupBy === "tags" && (
-												<CheckCircle2 className="size-3 ml-auto text-primary" />
-											)}
-										</DropdownMenuItem>
-									</DropdownMenuContent>
-								</DropdownMenu>
-
-								<DropdownMenu>
-									<DropdownMenuTrigger asChild>
-										<Button variant="outline" size="sm" className="gap-2 h-8">
-											<Filter className="size-3" />
-											Filter
-											<ChevronDown className="size-3" />
-										</Button>
-									</DropdownMenuTrigger>
-									<DropdownMenuContent align="end" className="w-44 p-1">
-										<DropdownMenuItem
-											onSelect={() => toggleKanbanFilter("failed")}
-											className="gap-2 cursor-pointer"
-										>
-											<div
-												className={cn(
-													"size-4 rounded border flex items-center justify-center",
-													kanbanFilters.has("failed")
-														? "bg-primary border-primary"
-														: "border-gray-300 bg-white",
-												)}
-											>
-												{kanbanFilters.has("failed") && (
-													<CheckCircle2 className="size-3 text-white" />
-												)}
-											</div>
-											<FailedIcon className="size-4" />
-											Failed
-										</DropdownMenuItem>
-										<DropdownMenuItem
-											onSelect={() => toggleKanbanFilter("executing")}
-											className="gap-2 cursor-pointer"
-										>
-											<div
-												className={cn(
-													"size-4 rounded border flex items-center justify-center",
-													kanbanFilters.has("executing")
-														? "bg-primary border-primary"
-														: "border-gray-300 bg-white",
-												)}
-											>
-												{kanbanFilters.has("executing") && (
-													<CheckCircle2 className="size-3 text-white" />
-												)}
-											</div>
-											<ExecutingIcon className="size-4" />
-											Executing
-										</DropdownMenuItem>
-										<DropdownMenuItem
-											onSelect={() => toggleKanbanFilter("scheduled")}
-											className="gap-2 cursor-pointer"
-										>
-											<div
-												className={cn(
-													"size-4 rounded border flex items-center justify-center",
-													kanbanFilters.has("scheduled")
-														? "bg-primary border-primary"
-														: "border-gray-300 bg-white",
-												)}
-											>
-												{kanbanFilters.has("scheduled") && (
-													<CheckCircle2 className="size-3 text-white" />
-												)}
-											</div>
-											<ScheduledIcon className="size-4" />
-											Scheduled
-										</DropdownMenuItem>
-										<DropdownMenuItem
-											onSelect={() => toggleKanbanFilter("healthy")}
-											className="gap-2 cursor-pointer"
-										>
-											<div
-												className={cn(
-													"size-4 rounded border flex items-center justify-center",
-													kanbanFilters.has("healthy")
-														? "bg-primary border-primary"
-														: "border-gray-300 bg-white",
-												)}
-											>
-												{kanbanFilters.has("healthy") && (
-													<CheckCircle2 className="size-3 text-white" />
-												)}
-											</div>
-											<SuccessIcon className="size-4" />
-											Healthy
-										</DropdownMenuItem>
-									</DropdownMenuContent>
-								</DropdownMenu>
-
-								<Button variant="outline" size="icon" className="size-8">
-									<RefreshCw className="size-4" />
-								</Button>
-							</div>
-						</div>
-					</div>
-
-					{/* Active filter chips - above columns */}
-					{kanbanFilters.size > 0 && (
-						<div className="flex flex-wrap items-center gap-2 px-4 md:px-6 pb-3">
-							{kanbanFilters.has("failed") && (
-								<button
-									onClick={() => toggleKanbanFilter("failed")}
-									className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-xs bg-red-50 border border-red-200 text-red-700 hover:bg-red-100"
-								>
-									<FailedIcon className="size-4" />
-									Failed
-									<X className="size-3" />
-								</button>
-							)}
-							{kanbanFilters.has("scheduled") && (
-								<button
-									onClick={() => toggleKanbanFilter("scheduled")}
-									className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-xs bg-muted border border-border text-foreground hover:bg-muted/80"
-								>
-									<ScheduledIcon className="size-4" />
-									Not Started
-									<X className="size-3" />
-								</button>
-							)}
-							{kanbanFilters.has("executing") && (
-								<button
-									onClick={() => toggleKanbanFilter("executing")}
-									className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-xs bg-amber-50 border border-amber-200 text-amber-700 hover:bg-amber-100"
-								>
-									<ExecutingIcon className="size-4" />
-									Executing
-									<X className="size-3" />
-								</button>
-							)}
-							{kanbanFilters.has("healthy") && (
-								<button
-									onClick={() => toggleKanbanFilter("healthy")}
-									className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-xs bg-green-50 border border-green-200 text-green-700 hover:bg-green-100"
-								>
-									<SuccessIcon className="size-4" />
-									Healthy
-									<X className="size-3" />
-								</button>
-							)}
-						</div>
-					)}
-
-					{/* Workflow Board */}
-					<div className="flex-1 overflow-x-auto px-4 md:px-6 pb-6">
-						{kanbanGroupBy === "none" && kanbanDisplay === "list" ? (
-							/* Ungrouped: Table list view matching Figma design */
-							<div className="border rounded-sm overflow-hidden">
-								{/* Header row - hidden on mobile */}
-								<div className="hidden md:flex items-center gap-6 px-3 py-3 bg-white border-b">
-									<div className="flex-1 flex items-center gap-2">
-										<span className="text-base font-normal text-foreground">Name</span>
-									</div>
-									<div className="w-[200px] flex items-center gap-1 shrink-0">
-										<span className="text-base font-normal text-foreground">Last run</span>
-										<ChevronDown className="size-4 text-muted-foreground" />
-									</div>
-									<div className="w-[200px] shrink-0">
-										<span className="text-base font-normal text-foreground">Next run</span>
-									</div>
-									<div className="w-[100px] text-right shrink-0">
-										<span className="text-base font-normal text-foreground">Status</span>
-									</div>
-								</div>
-								{/* Data rows */}
-								<div className="divide-y">
-									{kanbanFilteredWorkflows.map((workflow) => {
-										const rate = calculateSuccessRate(workflow);
-										const isDisabled = workflow.status === "disabled";
-										const isFailed = workflow.status === "enabled" && rate < 70;
-										const isExecuting = EXECUTING_WORKFLOW_IDS.includes(workflow.id);
-
-										return (
-											<div
-												key={workflow.id}
-												role="button"
-												tabIndex={0}
-												onClick={() => setSelectedWorkflow(workflow.id)}
-												onKeyDown={(e) =>
-													e.key === "Enter" && setSelectedWorkflow(workflow.id)
-												}
-												className="flex flex-col md:flex-row md:items-center gap-2 md:gap-6 px-3 py-3 hover:bg-muted/30 cursor-pointer bg-white"
-											>
-												{/* Status icon + Name */}
-												<div className="flex-1 flex items-center gap-2 min-w-0">
-													{isDisabled ? (
-														<ScheduledIcon className="size-5 shrink-0" />
-													) : isFailed ? (
-														<FailedIcon className="size-5 shrink-0" />
-													) : isExecuting ? (
-														<ExecutingIcon className="size-5 shrink-0" />
-													) : (
-														<SuccessIcon className="size-5 shrink-0" />
-													)}
-													<span
-														className={cn(
-															"text-base font-normal truncate",
-															isDisabled && "text-muted-foreground",
-														)}
-													>
-														{workflow.name}
-													</span>
-												</div>
-
-												{/* Mobile: condensed info row */}
-												<div className="flex md:hidden items-center justify-between pl-7 text-sm text-muted-foreground">
-													<span>Next: {formatDate(workflow.nextRunTime)}</span>
-													<span className={cn("tabular-nums", isDisabled && "text-muted-foreground")}>
-														{rate}%
-													</span>
-												</div>
-
-												{/* Desktop: Last run */}
-												<div className="hidden md:block w-[200px] text-base font-normal text-foreground shrink-0">
-													{isDisabled ? "--" : (workflow.lastRunTime ? formatDate(workflow.lastRunTime) : "--")}
-												</div>
-
-												{/* Desktop: Next run */}
-												<div className="hidden md:block w-[200px] text-base font-normal text-foreground shrink-0">
-													{formatDate(workflow.nextRunTime)}
-												</div>
-
-												{/* Desktop: Status with gauge */}
-												<div className="hidden md:flex w-[100px] items-center gap-1 justify-end shrink-0">
-													<span
-														className={cn(
-															"text-sm tabular-nums",
-															isDisabled && "text-muted-foreground",
-														)}
-													>
-														{rate}%
-													</span>
-													<div className="flex items-end gap-px h-[10px]">
-														{workflow.recentExecutions
-															.slice(-8)
-															.map((status, i) => (
-																<div
-																	key={i}
-																	className={cn(
-																		"w-[3px] rounded-sm h-full",
-																		isDisabled
-																			? "bg-muted-foreground/40"
-																			: status === "success"
-																				? "bg-emerald-500"
-																				: "bg-red-400",
-																	)}
-																/>
-															))}
+													{/* Desktop: Status with gauge */}
+													<div className="hidden md:flex w-[100px] items-center gap-1 justify-end shrink-0">
+														<span
+															className={cn(
+																"text-sm tabular-nums",
+																isDisabled && "text-muted-foreground",
+															)}
+														>
+															{rate}%
+														</span>
+														<div className="flex items-end gap-px h-[10px]">
+															{workflow.recentExecutions
+																.slice(-8)
+																.map((status, i) => (
+																	<div
+																		key={i}
+																		className={cn(
+																			"w-[3px] rounded-sm h-full",
+																			isDisabled
+																				? "bg-muted-foreground/40"
+																				: status === "success"
+																					? "bg-emerald-500"
+																					: "bg-red-400",
+																		)}
+																	/>
+																))}
+														</div>
 													</div>
 												</div>
-											</div>
-										);
-									})}
-								</div>
-							</div>
-						) : kanbanGroupBy === "none" && kanbanDisplay === "kanban" ? (
-							/* Ungrouped: Board view by status */
-							<div className="flex gap-3 md:gap-4 h-full pb-2" style={{ minWidth: "max-content" }}>
-								{/* Success Column */}
-								<div className="flex flex-col w-[260px] md:w-[300px] shrink-0">
-									<div className="flex items-center gap-2 px-2 py-2 bg-emerald-50 rounded-t-sm border border-b-0 border-emerald-200">
-										<SuccessIcon className="size-5" />
-										<span className="text-sm font-medium text-emerald-700">Success</span>
-										<Badge variant="secondary" className="text-xs ml-auto">
-											{kanbanFilteredWorkflows.filter(w => w.status === "enabled" && calculateSuccessRate(w) >= 70).length}
-										</Badge>
-									</div>
-									<div className="flex-1 p-2 bg-emerald-50/50 rounded-b-sm border border-t-0 border-emerald-200 space-y-1.5 overflow-y-auto max-h-[50vh] md:max-h-[calc(100vh-400px)]">
-										{kanbanFilteredWorkflows
-											.filter(w => w.status === "enabled" && calculateSuccessRate(w) >= 70)
-											.map((workflow) => (
-												<KanbanWorkflowCard
-													key={workflow.id}
-													workflow={workflow}
-													onClick={() => setSelectedWorkflow(workflow.id)}
-													isSelected={selectedWorkflow === workflow.id}
-												/>
-											))}
+											);
+										})}
 									</div>
 								</div>
-								{/* Failed Column */}
-								<div className="flex flex-col w-[260px] md:w-[300px] shrink-0">
-									<div className="flex items-center gap-2 px-2 py-2 bg-red-50 rounded-t-sm border border-b-0 border-red-200">
-										<FailedIcon className="size-5" />
-										<span className="text-sm font-medium text-red-700">Failed</span>
-										<Badge variant="secondary" className="text-xs ml-auto">
-											{kanbanFilteredWorkflows.filter(w => w.status === "enabled" && calculateSuccessRate(w) < 70).length}
-										</Badge>
-									</div>
-									<div className="flex-1 p-2 bg-red-50/50 rounded-b-sm border border-t-0 border-red-200 space-y-1.5 overflow-y-auto max-h-[50vh] md:max-h-[calc(100vh-400px)]">
-										{kanbanFilteredWorkflows
-											.filter(w => w.status === "enabled" && calculateSuccessRate(w) < 70)
-											.map((workflow) => (
-												<KanbanWorkflowCard
-													key={workflow.id}
-													workflow={workflow}
-													onClick={() => setSelectedWorkflow(workflow.id)}
-													isSelected={selectedWorkflow === workflow.id}
-												/>
-											))}
-									</div>
-								</div>
-								{/* Scheduled/Paused Column */}
-								<div className="flex flex-col w-[260px] md:w-[300px] shrink-0">
-									<div className="flex items-center gap-2 px-2 py-2 bg-muted/50 rounded-t-sm border border-b-0">
-										<ScheduledIcon className="size-5" />
-										<span className="text-sm font-medium text-muted-foreground">Scheduled</span>
-										<Badge variant="secondary" className="text-xs ml-auto">
-											{kanbanFilteredWorkflows.filter(w => w.status === "disabled").length}
-										</Badge>
-									</div>
-									<div className="flex-1 p-2 bg-muted/30 rounded-b-sm border border-t-0 space-y-1.5 overflow-y-auto max-h-[50vh] md:max-h-[calc(100vh-400px)]">
-										{kanbanFilteredWorkflows
-											.filter(w => w.status === "disabled")
-											.map((workflow) => (
-												<KanbanWorkflowCard
-													key={workflow.id}
-													workflow={workflow}
-													onClick={() => setSelectedWorkflow(workflow.id)}
-													isSelected={selectedWorkflow === workflow.id}
-												/>
-											))}
-									</div>
-								</div>
-							</div>
-						) : kanbanDisplay === "kanban" ? (
-							/* Grouped by tags: Horizontal scroll kanban */
-							<div
-								className="flex gap-4 h-full pb-2"
-								style={{ minWidth: "max-content" }}
-							>
-								{WORKFLOW_GROUPS.filter((g) => g.id !== "all").map((group) => {
-									const workflows = workflowsByTag[group.id] || [];
-									if (workflows.length === 0) return null;
-
-									// Calculate group status
-									const failedCount = workflows.filter(
-										(w) =>
-											w.status === "enabled" && calculateSuccessRate(w) < 70,
-									).length;
-									const executingCount = workflows.filter((w) =>
-										EXECUTING_WORKFLOW_IDS.includes(w.id),
-									).length;
-									const scheduledCount = workflows.filter(
-										(w) => w.status === "disabled",
-									).length;
-
-									return (
-										<div
-											key={group.id}
-											className="flex flex-col w-[260px] md:w-[300px] shrink-0"
-										>
-											{/* Column Header */}
-											<div className="flex items-center gap-2 px-2 py-2 bg-muted/30 rounded-t-sm border border-b-0">
-												<span className="text-sm font-medium truncate flex-1">
-													{group.name}
-												</span>
-												<Badge variant="secondary" className="text-xs shrink-0">
-													{workflows.length}
-												</Badge>
-												{/* Status indicator */}
-												{executingCount > 0 ? (
-													<span className="inline-flex items-center gap-1 text-xs text-amber-600">
-														<Clock className="size-3 animate-pulse" />
-														Processing...
-													</span>
-												) : failedCount > 0 ? (
-													<span className="inline-flex items-center gap-1 text-xs text-red-600">
-														<FailedIcon className="size-4" />
-														{failedCount} failed
-													</span>
-												) : scheduledCount > 0 &&
-													scheduledCount === workflows.length ? (
-													<span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
-														<ScheduledIcon className="size-4" />
-														Scheduled
-													</span>
-												) : null}
-											</div>
-
-											{/* Column Cards */}
-											<div className="flex-1 p-2 bg-muted/30 rounded-b-sm border border-t-0 space-y-1.5 overflow-y-auto max-h-[50vh] md:max-h-[calc(100vh-320px)]">
-												{workflows.map((workflow) => (
+							) : kanbanGroupBy === "none" && kanbanDisplay === "kanban" ? (
+								/* Ungrouped: Board view by status */
+								<div
+									className="flex gap-3 md:gap-4 h-full pb-2"
+									style={{ minWidth: "max-content" }}
+								>
+									{/* Success Column */}
+									<div className="flex flex-col w-[260px] md:w-[300px] shrink-0">
+										<div className="flex items-center gap-2 px-2 py-2 bg-emerald-50 rounded-t-sm border border-b-0 border-emerald-200">
+											<SuccessIcon className="size-5" />
+											<span className="text-sm font-medium text-emerald-700">
+												Success
+											</span>
+											<Badge variant="secondary" className="text-xs ml-auto">
+												{
+													kanbanFilteredWorkflows.filter(
+														(w) =>
+															w.status === "enabled" &&
+															calculateSuccessRate(w) >= 70,
+													).length
+												}
+											</Badge>
+										</div>
+										<div className="flex-1 p-2 bg-emerald-50/50 rounded-b-sm border border-t-0 border-emerald-200 space-y-1.5 overflow-y-auto max-h-[50vh] md:max-h-[calc(100vh-400px)]">
+											{kanbanFilteredWorkflows
+												.filter(
+													(w) =>
+														w.status === "enabled" &&
+														calculateSuccessRate(w) >= 70,
+												)
+												.map((workflow) => (
 													<KanbanWorkflowCard
 														key={workflow.id}
 														workflow={workflow}
@@ -2339,190 +2317,332 @@ export default function SchedulerDashboardPage() {
 														isSelected={selectedWorkflow === workflow.id}
 													/>
 												))}
-											</div>
 										</div>
-									);
-								})}
-							</div>
-						) : (
-							/* Grouped by tags: Accordion list view */
-							<div className="space-y-4">
-								{WORKFLOW_GROUPS.filter((g) => g.id !== "all").map((group) => {
-									const workflows = workflowsByTag[group.id] || [];
-									if (workflows.length === 0) return null;
+									</div>
+									{/* Failed Column */}
+									<div className="flex flex-col w-[260px] md:w-[300px] shrink-0">
+										<div className="flex items-center gap-2 px-2 py-2 bg-red-50 rounded-t-sm border border-b-0 border-red-200">
+											<FailedIcon className="size-5" />
+											<span className="text-sm font-medium text-red-700">
+												Failed
+											</span>
+											<Badge variant="secondary" className="text-xs ml-auto">
+												{
+													kanbanFilteredWorkflows.filter(
+														(w) =>
+															w.status === "enabled" &&
+															calculateSuccessRate(w) < 70,
+													).length
+												}
+											</Badge>
+										</div>
+										<div className="flex-1 p-2 bg-red-50/50 rounded-b-sm border border-t-0 border-red-200 space-y-1.5 overflow-y-auto max-h-[50vh] md:max-h-[calc(100vh-400px)]">
+											{kanbanFilteredWorkflows
+												.filter(
+													(w) =>
+														w.status === "enabled" &&
+														calculateSuccessRate(w) < 70,
+												)
+												.map((workflow) => (
+													<KanbanWorkflowCard
+														key={workflow.id}
+														workflow={workflow}
+														onClick={() => setSelectedWorkflow(workflow.id)}
+														isSelected={selectedWorkflow === workflow.id}
+													/>
+												))}
+										</div>
+									</div>
+									{/* Scheduled/Paused Column */}
+									<div className="flex flex-col w-[260px] md:w-[300px] shrink-0">
+										<div className="flex items-center gap-2 px-2 py-2 bg-muted/50 rounded-t-sm border border-b-0">
+											<ScheduledIcon className="size-5" />
+											<span className="text-sm font-medium text-muted-foreground">
+												Scheduled
+											</span>
+											<Badge variant="secondary" className="text-xs ml-auto">
+												{
+													kanbanFilteredWorkflows.filter(
+														(w) => w.status === "disabled",
+													).length
+												}
+											</Badge>
+										</div>
+										<div className="flex-1 p-2 bg-muted/30 rounded-b-sm border border-t-0 space-y-1.5 overflow-y-auto max-h-[50vh] md:max-h-[calc(100vh-400px)]">
+											{kanbanFilteredWorkflows
+												.filter((w) => w.status === "disabled")
+												.map((workflow) => (
+													<KanbanWorkflowCard
+														key={workflow.id}
+														workflow={workflow}
+														onClick={() => setSelectedWorkflow(workflow.id)}
+														isSelected={selectedWorkflow === workflow.id}
+													/>
+												))}
+										</div>
+									</div>
+								</div>
+							) : kanbanDisplay === "kanban" ? (
+								/* Grouped by tags: Horizontal scroll kanban */
+								<div
+									className="flex gap-4 h-full pb-2"
+									style={{ minWidth: "max-content" }}
+								>
+									{WORKFLOW_GROUPS.filter((g) => g.id !== "all").map(
+										(group) => {
+											const workflows = workflowsByTag[group.id] || [];
+											if (workflows.length === 0) return null;
 
-									// Calculate group status
-									const failedCount = workflows.filter(
-										(w) =>
-											w.status === "enabled" && calculateSuccessRate(w) < 70,
-									).length;
-									const executingCount = workflows.filter((w) =>
-										EXECUTING_WORKFLOW_IDS.includes(w.id),
-									).length;
-									const isExpanded = expandedKanbanGroups.has(group.id);
+											// Calculate group status
+											const failedCount = workflows.filter(
+												(w) =>
+													w.status === "enabled" &&
+													calculateSuccessRate(w) < 70,
+											).length;
+											const executingCount = workflows.filter((w) =>
+												EXECUTING_WORKFLOW_IDS.includes(w.id),
+											).length;
+											const scheduledCount = workflows.filter(
+												(w) => w.status === "disabled",
+											).length;
 
-									return (
-										<div
-											key={group.id}
-											className={cn(
-												"border rounded-sm overflow-hidden",
-												failedCount > 0 && "border-b-2 border-b-red-400",
-											)}
-										>
-											{/* Accordion Header */}
-											<button
-												onClick={() => {
-													setExpandedKanbanGroups((prev) => {
-														const next = new Set(prev);
-														if (next.has(group.id)) {
-															next.delete(group.id);
-														} else {
-															next.add(group.id);
-														}
-														return next;
-													});
-												}}
-												className="w-full flex items-center gap-2 px-4 py-3 bg-muted/30 hover:bg-muted/50 transition-colors"
-											>
-												<ChevronRight
-													className={cn(
-														"size-4 transition-transform",
-														isExpanded && "rotate-90",
-													)}
-												/>
-												<span className="text-sm font-medium">
-													{group.name}
-												</span>
-												<Badge variant="secondary" className="text-xs">
-													{workflows.length}
-												</Badge>
-												{/* Status indicator */}
-												{executingCount > 0 && (
-													<span className="inline-flex items-center gap-1 text-xs text-amber-600 ml-2">
-														<Clock className="size-3 animate-pulse" />
-														Processing...
-													</span>
-												)}
-												{failedCount > 0 && (
-													<span className="inline-flex items-center gap-1 text-xs text-red-600 ml-auto">
-														<FailedIcon className="size-4" />
-														{failedCount} failed
-													</span>
-												)}
-											</button>
+											return (
+												<div
+													key={group.id}
+													className="flex flex-col w-[260px] md:w-[300px] shrink-0"
+												>
+													{/* Column Header */}
+													<div className="flex items-center gap-2 px-2 py-2 bg-muted/30 rounded-t-sm border border-b-0">
+														<span className="text-sm font-medium truncate flex-1">
+															{group.name}
+														</span>
+														<Badge
+															variant="secondary"
+															className="text-xs shrink-0"
+														>
+															{workflows.length}
+														</Badge>
+														{/* Status indicator */}
+														{executingCount > 0 ? (
+															<span className="inline-flex items-center gap-1 text-xs text-amber-600">
+																<Clock className="size-3 animate-pulse" />
+																Processing...
+															</span>
+														) : failedCount > 0 ? (
+															<span className="inline-flex items-center gap-1 text-xs text-red-600">
+																<FailedIcon className="size-4" />
+																{failedCount} failed
+															</span>
+														) : scheduledCount > 0 &&
+															scheduledCount === workflows.length ? (
+															<span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+																<ScheduledIcon className="size-4" />
+																Scheduled
+															</span>
+														) : null}
+													</div>
 
-											{/* Accordion Content */}
-											{isExpanded && (
-												<div className="divide-y">
-													{workflows.map((workflow) => {
-														const rate = calculateSuccessRate(workflow);
-														const isDisabled = workflow.status === "disabled";
-														const isFailed =
-															workflow.status === "enabled" && rate < 70;
-
-														return (
-															<div
+													{/* Column Cards */}
+													<div className="flex-1 p-2 bg-muted/30 rounded-b-sm border border-t-0 space-y-1.5 overflow-y-auto max-h-[50vh] md:max-h-[calc(100vh-320px)]">
+														{workflows.map((workflow) => (
+															<KanbanWorkflowCard
 																key={workflow.id}
-																role="button"
-																tabIndex={0}
+																workflow={workflow}
 																onClick={() => setSelectedWorkflow(workflow.id)}
-																onKeyDown={(e) =>
-																	e.key === "Enter" &&
-																	setSelectedWorkflow(workflow.id)
-																}
-																className="flex items-center gap-4 px-4 py-3 hover:bg-muted/30 cursor-pointer"
-															>
-																{/* Status icon */}
-																{isDisabled ? (
-																	<ScheduledIcon className="size-5 shrink-0" />
-																) : isFailed ? (
-																	<FailedIcon className="size-5 shrink-0" />
-																) : (
-																	<SuccessIcon className="size-5 shrink-0" />
-																)}
-
-																{/* Name */}
-																<span
-																	className={cn(
-																		"flex-1 text-sm",
-																		isDisabled && "text-muted-foreground",
-																	)}
-																>
-																	{workflow.name}
-																</span>
-
-																{/* Last run */}
-																<div className="text-xs text-muted-foreground w-48">
-																	<span className="text-foreground">
-																		Last run:
-																	</span>{" "}
-																	{formatDate(workflow.lastRunTime)}
-																</div>
-
-																{/* Next run */}
-																<div className="text-xs text-muted-foreground w-52">
-																	<span className="text-foreground">
-																		Next run:
-																	</span>{" "}
-																	{formatDate(workflow.nextRunTime)}
-																</div>
-
-																{/* Sparkline + Rate */}
-																<div className="flex items-center gap-2 w-24 justify-end">
-																	<div className="flex items-end gap-px h-3">
-																		{workflow.recentExecutions
-																			.slice(-8)
-																			.map((status, i) => (
-																				<div
-																					key={i}
-																					className={cn(
-																						"w-1 rounded-sm h-full",
-																						isDisabled
-																							? "bg-muted-foreground/40"
-																							: status === "success"
-																								? "bg-emerald-500"
-																								: "bg-red-400",
-																					)}
-																				/>
-																			))}
-																	</div>
-																	<span
-																		className={cn(
-																			"text-sm tabular-nums",
-																			isDisabled && "text-muted-foreground",
-																		)}
-																	>
-																		{rate}%
-																	</span>
-																</div>
-															</div>
-														);
-													})}
+																isSelected={selectedWorkflow === workflow.id}
+															/>
+														))}
+													</div>
 												</div>
-											)}
-										</div>
-									);
-								})}
-							</div>
-						)}
-					</div>
+											);
+										},
+									)}
+								</div>
+							) : (
+								/* Grouped by tags: Accordion list view */
+								<div className="space-y-4">
+									{WORKFLOW_GROUPS.filter((g) => g.id !== "all").map(
+										(group) => {
+											const workflows = workflowsByTag[group.id] || [];
+											if (workflows.length === 0) return null;
 
-					{/* Detail Sheet */}
-					<Sheet
-						open={!!selectedWorkflow}
-						onOpenChange={(open) => !open && setSelectedWorkflow(null)}
-					>
-						<SheetContent className="w-full sm:!w-[640px] sm:!max-w-[640px] p-0 overflow-auto">
-							{selectedDetail && (
-								<WorkflowDetailPanel
-									detail={selectedDetail}
-									onClose={() => setSelectedWorkflow(null)}
-								/>
+											// Calculate group status
+											const failedCount = workflows.filter(
+												(w) =>
+													w.status === "enabled" &&
+													calculateSuccessRate(w) < 70,
+											).length;
+											const executingCount = workflows.filter((w) =>
+												EXECUTING_WORKFLOW_IDS.includes(w.id),
+											).length;
+											const isExpanded = expandedKanbanGroups.has(group.id);
+
+											return (
+												<div
+													key={group.id}
+													className={cn(
+														"border rounded-sm overflow-hidden",
+														failedCount > 0 && "border-b-2 border-b-red-400",
+													)}
+												>
+													{/* Accordion Header */}
+													<button
+														onClick={() => {
+															setExpandedKanbanGroups((prev) => {
+																const next = new Set(prev);
+																if (next.has(group.id)) {
+																	next.delete(group.id);
+																} else {
+																	next.add(group.id);
+																}
+																return next;
+															});
+														}}
+														className="w-full flex items-center gap-2 px-4 py-3 bg-muted/30 hover:bg-muted/50 transition-colors"
+													>
+														<ChevronRight
+															className={cn(
+																"size-4 transition-transform",
+																isExpanded && "rotate-90",
+															)}
+														/>
+														<span className="text-sm font-medium">
+															{group.name}
+														</span>
+														<Badge variant="secondary" className="text-xs">
+															{workflows.length}
+														</Badge>
+														{/* Status indicator */}
+														{executingCount > 0 && (
+															<span className="inline-flex items-center gap-1 text-xs text-amber-600 ml-2">
+																<Clock className="size-3 animate-pulse" />
+																Processing...
+															</span>
+														)}
+														{failedCount > 0 && (
+															<span className="inline-flex items-center gap-1 text-xs text-red-600 ml-auto">
+																<FailedIcon className="size-4" />
+																{failedCount} failed
+															</span>
+														)}
+													</button>
+
+													{/* Accordion Content */}
+													{isExpanded && (
+														<div className="divide-y">
+															{workflows.map((workflow) => {
+																const rate = calculateSuccessRate(workflow);
+																const isDisabled =
+																	workflow.status === "disabled";
+																const isFailed =
+																	workflow.status === "enabled" && rate < 70;
+
+																return (
+																	<div
+																		key={workflow.id}
+																		role="button"
+																		tabIndex={0}
+																		onClick={() =>
+																			setSelectedWorkflow(workflow.id)
+																		}
+																		onKeyDown={(e) =>
+																			e.key === "Enter" &&
+																			setSelectedWorkflow(workflow.id)
+																		}
+																		className="flex items-center gap-4 px-4 py-3 hover:bg-muted/30 cursor-pointer"
+																	>
+																		{/* Status icon */}
+																		{isDisabled ? (
+																			<ScheduledIcon className="size-5 shrink-0" />
+																		) : isFailed ? (
+																			<FailedIcon className="size-5 shrink-0" />
+																		) : (
+																			<SuccessIcon className="size-5 shrink-0" />
+																		)}
+
+																		{/* Name */}
+																		<span
+																			className={cn(
+																				"flex-1 text-sm",
+																				isDisabled && "text-muted-foreground",
+																			)}
+																		>
+																			{workflow.name}
+																		</span>
+
+																		{/* Last run */}
+																		<div className="text-xs text-muted-foreground w-48">
+																			<span className="text-foreground">
+																				Last run:
+																			</span>{" "}
+																			{formatDate(workflow.lastRunTime)}
+																		</div>
+
+																		{/* Next run */}
+																		<div className="text-xs text-muted-foreground w-52">
+																			<span className="text-foreground">
+																				Next run:
+																			</span>{" "}
+																			{formatDate(workflow.nextRunTime)}
+																		</div>
+
+																		{/* Sparkline + Rate */}
+																		<div className="flex items-center gap-2 w-24 justify-end">
+																			<div className="flex items-end gap-px h-3">
+																				{workflow.recentExecutions
+																					.slice(-8)
+																					.map((status, i) => (
+																						<div
+																							key={i}
+																							className={cn(
+																								"w-1 rounded-sm h-full",
+																								isDisabled
+																									? "bg-muted-foreground/40"
+																									: status === "success"
+																										? "bg-emerald-500"
+																										: "bg-red-400",
+																							)}
+																						/>
+																					))}
+																			</div>
+																			<span
+																				className={cn(
+																					"text-sm tabular-nums",
+																					isDisabled && "text-muted-foreground",
+																				)}
+																			>
+																				{rate}%
+																			</span>
+																		</div>
+																	</div>
+																);
+															})}
+														</div>
+													)}
+												</div>
+											);
+										},
+									)}
+								</div>
 							)}
-						</SheetContent>
-					</Sheet>
-				</div>
-			)}
+						</div>
+
+						{/* Detail Sheet */}
+						<Sheet
+							open={!!selectedWorkflow}
+							onOpenChange={(open) => !open && setSelectedWorkflow(null)}
+						>
+							<SheetContent className="w-full sm:!w-[640px] sm:!max-w-[640px] p-0 overflow-auto">
+								{selectedDetail && (
+									<WorkflowDetailPanel
+										detail={selectedDetail}
+										onClose={() => setSelectedWorkflow(null)}
+									/>
+								)}
+							</SheetContent>
+						</Sheet>
+					</div>
+				)}
 			</div>
 		</Layout>
 	);
