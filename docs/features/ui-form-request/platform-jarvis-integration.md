@@ -32,11 +32,11 @@ Generic form request system where Actions Platform triggers **any UI form** in J
 │  ACTIONS PLATFORM    │
 │  (Temporal Activity) │
 └──────────┬───────────┘
-           │ 1. Publish to ui_form.requests
+           │ 1. Publish to chat.responses
            ▼
 ┌──────────────────────┐
 │     RABBITMQ         │
-│  ui_form.requests    │
+│  chat.responses      │
 └──────────┬───────────┘
            │ 2. Consume message
            ▼
@@ -73,7 +73,6 @@ Generic form request system where Actions Platform triggers **any UI form** in J
 ┌──────────────────────┐
 │  ACTIONS PLATFORM    │
 │  (Webhook endpoint)  │
-│  └─ Match correlation│
 │  └─ Signal activity  │
 └──────────────────────┘
 ```
@@ -83,7 +82,6 @@ Generic form request system where Actions Platform triggers **any UI form** in J
 - **Response via HTTP Webhook** - API server has Valkey credentials
 - **API Server bridges** RabbitMQ ↔ SSE (browser can't speak AMQP)
 - **Valkey provides** `actionsApiBaseUrl`, `clientId`, `clientKey` for webhook auth
-- **Correlation** via `correlation_id` to match request ↔ response
 
 ---
 
@@ -92,7 +90,7 @@ Generic form request system where Actions Platform triggers **any UI form** in J
 ### Resolve Activity: `RequestUIForm`
 
 Platform needs to create a Temporal activity that:
-1. Publishes form request to `ui_form.requests` queue
+1. Publishes form request to `chat.responses` queue
 2. Waits for response (async signal or polling)
 3. Returns form data or timeout/cancellation
 
@@ -109,9 +107,6 @@ interface RequestUIFormInput {
   // Optional context
   conversationId?: string;
 
-  // Timeout
-  timeoutSeconds?: number;  // default: 300
-  priority?: 'low' | 'normal' | 'high';
 }
 
 interface RequestUIFormOutput {
@@ -123,23 +118,16 @@ interface RequestUIFormOutput {
 
 // Activity sends to RabbitMQ, waits for webhook response
 async function requestUIForm(input: RequestUIFormInput): Promise<RequestUIFormOutput> {
-  const correlationId = generateUUID();
-
   // Publish to queue
-  await publishToQueue('ui_form.requests', {
+  await publishToQueue('chat.responses', {
     tenant_id: input.tenantId,
     user_id: input.userGuid,
-    correlation_id: correlationId,
     ui_schema: input.uiSchema,
     conversation_id: input.conversationId,
-    timeout_seconds: input.timeoutSeconds ?? 300,
-    priority: input.priority ?? 'normal',
-    workflow_id: getWorkflowId(),  // From Temporal context
-    activity_id: getActivityId(),
   });
 
   // Wait for response via webhook (Jarvis calls postEvent endpoint)
-  return await waitForFormResponse(correlationId, input.timeoutSeconds);
+  return await waitForFormResponse();
 }
 ```
 
@@ -147,19 +135,14 @@ async function requestUIForm(input: RequestUIFormInput): Promise<RequestUIFormOu
 
 ## 4. RabbitMQ Message Schema
 
-### Request Queue: `ui_form.requests`
+### Request Queue: `chat.responses`
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | `tenant_id` | string | Yes | Organization ID (UUID format) |
 | `user_id` | string | Yes | User GUID from Valkey session |
-| `correlation_id` | string | Yes | Unique request ID for matching response |
 | `ui_schema` | object | Yes | Form definition (see Section 6) |
 | `conversation_id` | string | No | Link to chat conversation |
-| `workflow_id` | string | No | Parent workflow ID |
-| `activity_id` | string | No | Specific activity step |
-| `timeout_seconds` | number | No | Expiration (default: 300) |
-| `priority` | string | No | `low` \| `normal` \| `high` |
 
 > **Note**: Response webhook credentials come from Valkey session (`actionsApiBaseUrl`, `clientId`, `clientKey`), not from this message.
 
@@ -171,7 +154,6 @@ const examplePayload = {
   tenant_id: '00F4F67D-3B92-4FD2-A574-7BE22C6BE796',  // Organization
   user_id: '275fb79d-0a6f-4336-bc05-1f6fcbaf775b',    // User GUID
   conversation_id: 'b18c9d56-7c26-42d0-87ff-07cd7dabb171',
-  correlation_id: '2b6a2b62-86ef-4bcd-893b-6b6d55c7f7f9',
 };
 
 // Validation regex
@@ -184,11 +166,6 @@ const UUID_PATTERN = /^[0-9a-f-]{36}$/i;
 {
   "tenant_id": "00F4F67D-3B92-4FD2-A574-7BE22C6BE796",
   "user_id": "275fb79d-0a6f-4336-bc05-1f6fcbaf775b",
-  "correlation_id": "req-abc-123-def-456",
-  "workflow_id": "wf-servicenow-setup",
-  "activity_id": "collect-credentials",
-  "timeout_seconds": 300,
-  "priority": "high",
   "ui_schema": {
     "root": "main",
     "elements": {
@@ -215,11 +192,8 @@ ui_form_request
 
 ```typescript
 interface UIFormRequestSSEPayload {
-  correlationId: string;
   uiSchema: UISchema;
-  priority: 'low' | 'normal' | 'high';
   conversationId?: string;
-  expiresAt: number;  // Unix timestamp (ms)
 }
 ```
 
@@ -229,11 +203,8 @@ interface UIFormRequestSSEPayload {
 {
   "type": "ui_form_request",
   "data": {
-    "correlationId": "req-abc-123-def-456",
     "uiSchema": { ... },
-    "priority": "high",
-    "conversationId": "conv-xyz-789",
-    "expiresAt": 1706900000000
+    "conversationId": "conv-xyz-789"
   }
 }
 ```
@@ -288,27 +259,24 @@ interface UIElement {
 
 ### Pre-Populating Values
 
-Use `defaultValue` on input/select components:
+Use `defaultValue` on Input/Select components:
 
 ```json
-{
-  "type": "input",
-  "name": "instance_url",
-  "label": "Instance URL",
-  "defaultValue": "https://acme.service-now.com"
-}
+{ "type": "Input", "props": { "name": "instance_url", "label": "Instance URL", "defaultValue": "https://acme.service-now.com" } }
 ```
 
 ```json
 {
-  "type": "select",
-  "name": "environment",
-  "label": "Environment",
-  "defaultValue": "production",
-  "options": [
-    { "label": "Production", "value": "production" },
-    { "label": "Sandbox", "value": "sandbox" }
-  ]
+  "type": "Select",
+  "props": {
+    "name": "environment",
+    "label": "Environment",
+    "defaultValue": "production",
+    "options": [
+      { "label": "Production", "value": "production" },
+      { "label": "Sandbox", "value": "sandbox" }
+    ]
+  }
 }
 ```
 
@@ -331,7 +299,6 @@ POST /api/iframe/ui-form-response
 Content-Type: application/json
 
 {
-  "correlationId": "req-abc-123-def-456",
   "status": "submitted",
   "action": "submit_credentials",
   "data": {
@@ -367,9 +334,6 @@ Content-Type: application/json
 {
   "source": "rita-chat-iframe",
   "action": "ui_form_response",
-  "correlation_id": "req-abc-123-def-456",
-  "workflow_id": "wf-servicenow-setup",
-  "activity_id": "collect-credentials",
   "tenant_id": "00F4F67D-3B92-4FD2-A574-7BE22C6BE796",
   "user_id": "275fb79d-0a6f-4336-bc05-1f6fcbaf775b",
   "conversation_id": "conv-xyz-789",
@@ -389,9 +353,8 @@ Content-Type: application/json
 ### Step 3: Platform Receives Webhook
 
 Platform webhook handler:
-1. Matches `correlation_id` to waiting activity
-2. Signals Temporal workflow with response data
-3. Activity resumes with form data or timeout/cancellation
+1. Signals Temporal workflow with response data
+2. Activity resumes with form data or timeout/cancellation
 
 ### Response Status Values
 
@@ -410,44 +373,34 @@ Platform webhook handler:
 
 If required fields missing, consumer rejects message (nack, no requeue).
 
-Required: `tenant_id`, `user_id`, `correlation_id`, `ui_schema`
+Required: `tenant_id`, `user_id`, `ui_schema`
 
 ### User Offline
 
 - Request stored in `PendingUIFormRequestStore`
-- Timeout checker runs every 10 seconds
-- After `timeout_seconds`, sends `timeout` response to platform
+- Timeout checker runs periodically
+- After expiration, sends `timeout` response to platform
 
 ### Callback Failure
 
-If HTTP callback fails (5xx, timeout), falls back to `ui_form.responses` queue.
+If HTTP callback fails (5xx, timeout), retries or logs error.
 
 ---
 
-## 9. Environment Variables
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `UI_FORM_REQUEST_QUEUE` | `ui_form.requests` | Incoming request queue |
-| `UI_FORM_RESPONSE_QUEUE` | `ui_form.responses` | Fallback response queue |
-
----
-
-## 10. Implementation Checklist
+## 9. Implementation Checklist
 
 ### Platform Team
 
 - [ ] Create `RequestUIForm` Temporal activity
-- [ ] Implement RabbitMQ publisher for `ui_form.requests`
+- [ ] Publish form requests to `chat.responses` queue
 - [ ] Create callback endpoint to receive HTTP responses
-- [ ] OR implement consumer for `ui_form.responses` queue
 - [ ] Handle response statuses in workflow logic
 - [ ] Document activity in Resolve Actions docs
 
 ### Jarvis Team
 
 - [ ] Create `UIFormRequestConsumer` (RabbitMQ consumer)
-- [ ] Create `PendingUIFormRequestStore` (in-memory correlation)
+- [ ] Create `PendingUIFormRequestStore` (in-memory request tracking)
 - [ ] Create `UIFormCallbackService` (HTTP + queue response)
 - [ ] Add `ui_form_request` SSE event type to `sse.ts`
 - [ ] Wire consumer in `rabbitmq.ts`
@@ -467,8 +420,6 @@ Workflow: Setup ServiceNow Connection
   ├─ Activity: ValidateUserPermissions
   ├─ Activity: RequestUIForm
   │     └─ ui_schema: credential form
-  │     └─ timeout: 300s
-  │     └─ priority: high
   ├─ (User fills form in Jarvis iframe)
   ├─ Activity: ValidateCredentials
   │     └─ input: form.data.instance_url, username, password
@@ -482,8 +433,6 @@ Workflow: Change Request Approval
   ├─ Activity: NotifyApprover (email)
   ├─ Activity: RequestUIForm
   │     └─ ui_schema: approval form (approve/reject + comments)
-  │     └─ timeout: 86400s (24h)
-  │     └─ priority: normal
   ├─ (Approver responds in Jarvis iframe)
   └─ Activity: ProcessDecision
         └─ if approved: proceed with change

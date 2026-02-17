@@ -28,7 +28,7 @@ This pattern allows modularity between the chatbot app (Jarvis) and Resolve Plat
 ```
                          REQUEST PATH
 ┌─────────────────┐                      ┌──────────────────┐
-│ Actions Platform│  ui_form.requests    │  Jarvis API      │     SSE      ┌─────────────┐
+│ Actions Platform│  chat.responses      │  Jarvis API      │     SSE      ┌─────────────┐
 │ (Temporal       │ ──────────────────►  │  Server          │ ───────────► │   Iframe    │
 │  Activity)      │      RabbitMQ        │  (Consumer)      │              │  (React)    │
 └─────────────────┘                      └──────────────────┘              └──────┬──────┘
@@ -44,14 +44,11 @@ This pattern allows modularity between the chatbot app (Jarvis) and Resolve Plat
 
 ## 1. Request Message (Platform → RabbitMQ)
 
-Publish to existing `chat.requests` queue with type `ui_form_request`.
+Publish to existing `chat.responses` queue.
 
 **Required fields:**
-- `type` — `"ui_form_request"`
 - `tenant_id` — Organization UUID
 - `user_id` — Target user's Valkey userGuid
-- `workflow_id` — Temporal workflow ID (echoed in response)
-- `activity_id` — Temporal activity ID (echoed in response)
 - `ui_schema` — Form definition (see Section 3)
 
 **Optional fields:**
@@ -61,17 +58,14 @@ Publish to existing `chat.requests` queue with type `ui_form_request`.
 **Example:**
 ```
 {
-  "type": "ui_form_request",
   "tenant_id": "00F4F67D-3B92-4FD2-A574-7BE22C6BE796",
   "user_id": "275fb79d-0a6f-4336-bc05-1f6fcbaf775b",
-  "workflow_id": "wf-servicenow-setup",
-  "activity_id": "collect-credentials",
   "interrupt": true,
   "ui_schema": { ... }
 }
 ```
 
-Jarvis routes on `type` field. Response webhook uses `workflow_id` + `activity_id` to signal the waiting Temporal activity.
+Jarvis detects `ui_schema` field and renders the form.
 
 ---
 
@@ -105,10 +99,6 @@ interface UIFormResponsePayload {
   tenant_id: string;
   user_id: string;
 
-  // Correlation (echoed from request)
-  correlation_id: string;
-  workflow_id?: string;
-  activity_id?: string;
   conversation_id?: string;
 
   // Result
@@ -141,10 +131,11 @@ The UI schema uses a nested tree format with a single `root` element. All compon
 ### Root Schema
 
 ```typescript
-interface UISchemaV2 {
-  root: UIElement;                         // Root element tree
-  dialogs?: Record<string, UIElement>;     // Named dialog trees (opened by Button.opensDialog)
-  autoOpenDialog?: string;                 // Dialog ID to auto-open
+interface UISchema {
+  root: string;                            // ID of root element in elements map
+  elements: Record<string, UIElement>;     // Flat map of element ID → definition
+  dialogs?: Record<string, string>;        // Dialog name → element ID
+  autoOpenDialog?: string;                 // Dialog name to auto-open
 }
 ```
 
@@ -154,7 +145,7 @@ interface UISchemaV2 {
 interface UIElement {
   type: string;                            // PascalCase component name
   props?: Record<string, unknown>;         // Component-specific properties
-  children?: UIElement[];                  // Nested child elements
+  children?: string[];                     // IDs of child elements in elements map
 }
 ```
 
@@ -235,15 +226,12 @@ interface ConditionalRule {
 
 ### Row Layout
 
+`children` references element IDs from the `elements` map:
+
 ```json
-{
-  "type": "Row",
-  "props": { "gap": 12 },
-  "children": [
-    { "type": "Input", "props": { "name": "first_name", "label": "First Name" } },
-    { "type": "Input", "props": { "name": "last_name", "label": "Last Name" } }
-  ]
-}
+"nameRow": { "type": "Row", "props": { "gap": 12 }, "children": ["firstName", "lastName"] },
+"firstName": { "type": "Input", "props": { "name": "first_name", "label": "First Name" } },
+"lastName": { "type": "Input", "props": { "name": "last_name", "label": "Last Name" } }
 ```
 
 ### Conditional Field
@@ -272,25 +260,25 @@ interface ConditionalRule {
 {
   "tenant_id": "00F4F67D-3B92-4FD2-A574-7BE22C6BE796",
   "user_id": "275fb79d-0a6f-4336-bc05-1f6fcbaf775b",
-  "correlation_id": "cred-req-001",
-  "workflow_id": "wf-servicenow-setup",
-  "timeout_seconds": 300,
-  "priority": "high",
   "ui_schema": {
-    "root": {
-      "type": "Form",
-      "props": {
-        "title": "ServiceNow Credentials",
-        "description": "Enter your ServiceNow instance credentials to connect.",
-        "submitAction": "submit_credentials",
-        "submitLabel": "Connect"
+    "root": "main",
+    "elements": {
+      "main": {
+        "type": "Form",
+        "props": {
+          "title": "ServiceNow Credentials",
+          "description": "Enter your ServiceNow instance credentials to connect.",
+          "submitAction": "submit_credentials",
+          "submitLabel": "Connect"
+        },
+        "children": ["instanceUrl", "username", "password"]
       },
-      "children": [
-        { "type": "Input", "props": { "name": "instance_url", "label": "Instance URL", "placeholder": "https://your-instance.service-now.com", "required": true } },
-        { "type": "Input", "props": { "name": "username", "label": "Username", "required": true } },
-        { "type": "Input", "props": { "name": "password", "label": "Password", "inputType": "password", "required": true } }
-      ]
-    }
+      "instanceUrl": { "type": "Input", "props": { "name": "instance_url", "label": "Instance URL", "placeholder": "https://your-instance.service-now.com", "required": true } },
+      "username": { "type": "Input", "props": { "name": "username", "label": "Username", "required": true } },
+      "password": { "type": "Input", "props": { "name": "password", "label": "Password", "inputType": "password", "required": true } }
+    },
+    "dialogs": { "credentials": "main" },
+    "autoOpenDialog": "credentials"
   }
 }
 ```
@@ -303,8 +291,6 @@ interface ConditionalRule {
   "action": "ui_form_response",
   "tenant_id": "00F4F67D-3B92-4FD2-A574-7BE22C6BE796",
   "user_id": "275fb79d-0a6f-4336-bc05-1f6fcbaf775b",
-  "correlation_id": "cred-req-001",
-  "workflow_id": "wf-servicenow-setup",
   "status": "submitted",
   "form_action": "submit_credentials",
   "data": {
@@ -326,45 +312,45 @@ interface ConditionalRule {
 {
   "tenant_id": "00F4F67D-3B92-4FD2-A574-7BE22C6BE796",
   "user_id": "approver-user-guid",
-  "correlation_id": "approval-req-456",
-  "workflow_id": "wf-change-request-123",
-  "timeout_seconds": 86400,
-  "priority": "high",
   "ui_schema": {
-    "root": {
-      "type": "Form",
-      "props": {
-        "title": "Approve Change Request",
-        "description": "CR-12345: Production database migration scheduled for tonight.",
-        "submitAction": "submit_decision",
-        "submitLabel": "Submit Decision"
+    "root": "main",
+    "elements": {
+      "main": {
+        "type": "Form",
+        "props": {
+          "title": "Approve Change Request",
+          "description": "CR-12345: Production database migration scheduled for tonight.",
+          "submitAction": "submit_decision",
+          "submitLabel": "Submit Decision"
+        },
+        "children": ["decision", "reason", "comments"]
       },
-      "children": [
-        {
-          "type": "Select",
-          "props": {
-            "name": "decision",
-            "label": "Your Decision",
-            "required": true,
-            "options": [
-              { "label": "Approve", "value": "approve" },
-              { "label": "Reject", "value": "reject" },
-              { "label": "Request More Information", "value": "more_info" }
-            ]
-          }
-        },
-        {
-          "type": "Input",
-          "props": {
-            "name": "reason",
-            "label": "Reason (required for rejection)",
-            "inputType": "textarea",
-            "if": { "field": "decision", "operator": "eq", "value": "reject" }
-          }
-        },
-        { "type": "Input", "props": { "name": "comments", "label": "Additional Comments", "inputType": "textarea" } }
-      ]
-    }
+      "decision": {
+        "type": "Select",
+        "props": {
+          "name": "decision",
+          "label": "Your Decision",
+          "required": true,
+          "options": [
+            { "label": "Approve", "value": "approve" },
+            { "label": "Reject", "value": "reject" },
+            { "label": "Request More Information", "value": "more_info" }
+          ]
+        }
+      },
+      "reason": {
+        "type": "Input",
+        "props": {
+          "name": "reason",
+          "label": "Reason (required for rejection)",
+          "inputType": "textarea",
+          "if": { "field": "decision", "operator": "eq", "value": "reject" }
+        }
+      },
+      "comments": { "type": "Input", "props": { "name": "comments", "label": "Additional Comments", "inputType": "textarea" } }
+    },
+    "dialogs": { "approval": "main" },
+    "autoOpenDialog": "approval"
   }
 }
 ```
@@ -377,8 +363,6 @@ interface ConditionalRule {
   "action": "ui_form_response",
   "tenant_id": "00F4F67D-3B92-4FD2-A574-7BE22C6BE796",
   "user_id": "approver-user-guid",
-  "correlation_id": "approval-req-456",
-  "workflow_id": "wf-change-request-123",
   "status": "submitted",
   "form_action": "submit_decision",
   "data": {
@@ -399,40 +383,41 @@ interface ConditionalRule {
 {
   "tenant_id": "00F4F67D-3B92-4FD2-A574-7BE22C6BE796",
   "user_id": "275fb79d-0a6f-4336-bc05-1f6fcbaf775b",
-  "correlation_id": "config-req-789",
-  "workflow_id": "wf-automation-setup",
   "ui_schema": {
-    "root": {
-      "type": "Form",
-      "props": {
-        "title": "Configure Automation Trigger",
-        "submitAction": "save_config",
-        "submitLabel": "Save"
-      },
-      "children": [
-        { "type": "Input", "props": { "name": "automation_name", "label": "Automation Name", "placeholder": "My Automation", "required": true } },
-        {
-          "type": "Select",
-          "props": {
-            "name": "trigger_event",
-            "label": "Trigger When",
-            "required": true,
-            "options": [
-              { "label": "Ticket Created", "value": "ticket_created" },
-              { "label": "Ticket Updated", "value": "ticket_updated" },
-              { "label": "SLA Breached", "value": "sla_breach" }
-            ]
-          }
+    "root": "main",
+    "elements": {
+      "main": {
+        "type": "Form",
+        "props": {
+          "title": "Configure Automation Trigger",
+          "submitAction": "save_config",
+          "submitLabel": "Save"
         },
-        {
-          "type": "Row",
-          "children": [
-            { "type": "Select", "props": { "name": "priority_filter", "label": "Priority", "options": [{ "label": "Any", "value": "any" }, { "label": "Critical", "value": "critical" }, { "label": "High", "value": "high" }] } },
-            { "type": "Select", "props": { "name": "category_filter", "label": "Category", "options": [{ "label": "Any", "value": "any" }, { "label": "Hardware", "value": "hardware" }, { "label": "Software", "value": "software" }] } }
+        "children": ["automationName", "triggerEvent", "filterRow"]
+      },
+      "automationName": { "type": "Input", "props": { "name": "automation_name", "label": "Automation Name", "placeholder": "My Automation", "required": true } },
+      "triggerEvent": {
+        "type": "Select",
+        "props": {
+          "name": "trigger_event",
+          "label": "Trigger When",
+          "required": true,
+          "options": [
+            { "label": "Ticket Created", "value": "ticket_created" },
+            { "label": "Ticket Updated", "value": "ticket_updated" },
+            { "label": "SLA Breached", "value": "sla_breach" }
           ]
         }
-      ]
-    }
+      },
+      "filterRow": {
+        "type": "Row",
+        "children": ["priorityFilter", "categoryFilter"]
+      },
+      "priorityFilter": { "type": "Select", "props": { "name": "priority_filter", "label": "Priority", "options": [{ "label": "Any", "value": "any" }, { "label": "Critical", "value": "critical" }, { "label": "High", "value": "high" }] } },
+      "categoryFilter": { "type": "Select", "props": { "name": "category_filter", "label": "Category", "options": [{ "label": "Any", "value": "any" }, { "label": "Hardware", "value": "hardware" }, { "label": "Software", "value": "software" }] } }
+    },
+    "dialogs": { "config": "main" },
+    "autoOpenDialog": "config"
   }
 }
 ```
@@ -443,11 +428,11 @@ interface ConditionalRule {
 
 | Scenario | Behavior | Response Status |
 |----------|----------|-----------------|
-| User offline | Form stored, timeout after `timeout_seconds` | `timeout` |
+| User offline | Form stored, timeout after expiration | `timeout` |
 | User cancels | Modal closed by user | `cancelled` |
 | Form expires | Countdown timer ends | `timeout` |
 | Invalid schema | Consumer rejects message | No response |
-| Webhook failure | Falls back to `ui_form.responses` queue | N/A |
+| Webhook failure | Retries or logs error | N/A |
 
 ---
 
@@ -462,21 +447,11 @@ const UUID_PATTERN = /^[0-9a-f-]{36}$/i;
 // Examples
 tenant_id: '00F4F67D-3B92-4FD2-A574-7BE22C6BE796'
 user_id: '275fb79d-0a6f-4336-bc05-1f6fcbaf775b'
-correlation_id: '2b6a2b62-86ef-4bcd-893b-6b6d55c7f7f9'
 ```
 
 ---
 
-## 8. Environment Variables
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `UI_FORM_REQUEST_QUEUE` | `ui_form.requests` | Incoming request queue |
-| `UI_FORM_RESPONSE_QUEUE` | `ui_form.responses` | Fallback response queue |
-
----
-
-## 9. Open Questions
+## 8. Open Questions
 
 - Password field encryption in transit?
 - Multi-step form workflows (wizard)?
