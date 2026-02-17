@@ -208,34 +208,7 @@ export default function TicketGroups({ period }: TicketGroupsProps) {
 					</div>
 				</div>
 
-				{hasNoModel ? (
-					// No model: show connect source empty state
-					<div className="flex min-h-[300px] flex-col items-center justify-center gap-4">
-						<p className="text-muted-foreground">
-							{t("groups.noSourceConnected")}
-						</p>
-						<Button asChild variant="outline" size="sm">
-							<Link to="/settings/connections/itsm">
-								{t("groups.connectSource")}
-							</Link>
-						</Button>
-					</div>
-				) : isFailed ? (
-					// Training failed: show error banner + empty state
-					<div className="flex flex-col gap-6">
-						<StatusAlert variant="error" title={t("groups.trainingFailed")}>
-							<p className="mb-3">{t("groups.trainingFailedDescription")}</p>
-							<Button asChild variant="outline" size="sm">
-								<Link to="/settings/connections/itsm">
-									{t("groups.goToItsmConnections")}
-								</Link>
-							</Button>
-						</StatusAlert>
-						<div className="flex min-h-[200px] items-center justify-center">
-							<p className="text-muted-foreground">{t("groups.noGroups")}</p>
-						</div>
-					</div>
-				) : isFirstImport ? (
+				{isFirstImport ? (
 					// First-time import: show banner + progress + skeleton grid
 					<div className="flex flex-col gap-6">
 						<StatusAlert variant="info" title={t("groups.importingTickets")}>
@@ -275,6 +248,33 @@ export default function TicketGroups({ period }: TicketGroupsProps) {
 							{[...Array(6)].map((_, i) => (
 								<TicketGroupSkeleton key={i} />
 							))}
+						</div>
+					</div>
+				) : hasNoModel ? (
+					// No model: show connect source empty state
+					<div className="flex min-h-[300px] flex-col items-center justify-center gap-4">
+						<p className="text-muted-foreground">
+							{t("groups.noSourceConnected")}
+						</p>
+						<Button asChild variant="outline" size="sm">
+							<Link to="/settings/connections/itsm">
+								{t("groups.connectSource")}
+							</Link>
+						</Button>
+					</div>
+				) : isFailed ? (
+					// Training failed: show error banner + empty state
+					<div className="flex flex-col gap-6">
+						<StatusAlert variant="error" title={t("groups.trainingFailed")}>
+							<p className="mb-3">{t("groups.trainingFailedDescription")}</p>
+							<Button asChild variant="outline" size="sm">
+								<Link to="/settings/connections/itsm">
+									{t("groups.goToItsmConnections")}
+								</Link>
+							</Button>
+						</StatusAlert>
+						<div className="flex min-h-[200px] items-center justify-center">
+							<p className="text-muted-foreground">{t("groups.noGroups")}</p>
 						</div>
 					</div>
 				) : clusters.length > 0 ? (
