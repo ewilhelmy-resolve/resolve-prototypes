@@ -573,9 +573,10 @@ export default function CredentialSetupPage() {
 		url: string;
 		email: string;
 	} | null>(null);
-	const [countdown, setCountdown] = useState(90);
+	const [countdown, setCountdown] = useState(15);
 	const [verifiedAt, setVerifiedAt] = useState<Date | null>(null);
 	const [applyToRelated, setApplyToRelated] = useState(false);
+	const [closeFailed, setCloseFailed] = useState(false);
 
 	// Verify token on load
 	const {
@@ -665,6 +666,8 @@ export default function CredentialSetupPage() {
 				if (prev <= 1) {
 					clearInterval(timer);
 					window.close();
+					// Browser blocks close for windows not opened via window.open()
+					setTimeout(() => setCloseFailed(true), 300);
 					return 0;
 				}
 				return prev - 1;
@@ -859,6 +862,8 @@ export default function CredentialSetupPage() {
 
 		const handleExitSession = () => {
 			window.close();
+			// Browser blocks close for windows not opened via window.open()
+			setTimeout(() => setCloseFailed(true), 300);
 		};
 
 		// Create mock ConnectionSource for ConnectionStatusCard
@@ -898,7 +903,9 @@ export default function CredentialSetupPage() {
 				/>
 				<div className="flex-1 flex flex-col items-center justify-center p-4 gap-6">
 					<p className="text-lg text-muted-foreground">
-						{t("success.windowCloses", { seconds: countdown })}
+						{closeFailed
+							? t("success.canCloseTab")
+							: t("success.windowCloses", { seconds: countdown })}
 					</p>
 
 					<div className="w-3/5 max-w-lg">
