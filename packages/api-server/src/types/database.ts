@@ -31,6 +31,13 @@ export interface ActivityContexts {
 	organization_id: string;
 }
 
+export interface Agents {
+	created_at: Generated<Timestamp>;
+	id: Generated<string>;
+	name: string;
+	updated_at: Generated<Timestamp>;
+}
+
 export interface AuditLogs {
 	action: string;
 	created_at: Generated<Timestamp | null>;
@@ -496,6 +503,27 @@ export interface Tickets {
 	updated_at: Generated<Timestamp | null>;
 }
 
+export interface TicketsLog {
+	agent_id: string | null;
+	created_at: Generated<Timestamp>;
+	/**
+	 * When event occurred in external ITSM platform
+	 */
+	event_date: Timestamp;
+	/**
+	 * Event types: ingested, clustered, agent_start, agent_end, agent_fail, user_recluster
+	 */
+	event_type: Generated<string>;
+	id: Generated<string>;
+	metadata: Generated<Json | null>;
+	/**
+	 * Denormalized from tickets for RLS org isolation
+	 */
+	organization_id: string;
+	ticket_id: string;
+	updated_at: Generated<Timestamp>;
+}
+
 export interface UserProfiles {
 	active_organization_id: string | null;
 	created_at: Generated<Timestamp | null>;
@@ -521,6 +549,7 @@ export interface UserProfiles {
 
 export interface DB {
 	activity_contexts: ActivityContexts;
+	agents: Agents;
 	audit_logs: AuditLogs;
 	blob_metadata: BlobMetadata;
 	blobs: Blobs;
@@ -542,5 +571,6 @@ export interface DB {
 	rag_webhook_failures: RagWebhookFailures;
 	sync_cancellation_requests: SyncCancellationRequests;
 	tickets: Tickets;
+	tickets_log: TicketsLog;
 	user_profiles: UserProfiles;
 }
