@@ -121,7 +121,7 @@ export class SessionService {
 	}> {
 		// biome-ignore lint/style/noNonNullAssertion: must be non-null
 		const keycloakId = tokenPayload.sub!;
-		const email = tokenPayload.email as string; // validated non-null on L49
+		const email = tokenPayload.email as string; // validated non-null in createSessionFromKeycloak
 		const firstName = (tokenPayload.given_name as string) || null;
 		const lastName = (tokenPayload.family_name as string) || null;
 
