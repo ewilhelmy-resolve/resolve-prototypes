@@ -280,4 +280,5 @@ export function destroySessionStore(): void {
 	if (sessionStore && sessionStore instanceof InMemorySessionStore) {
 		sessionStore.destroy();
 	}
+	sessionStore = undefined as unknown as SessionStore;
 }
