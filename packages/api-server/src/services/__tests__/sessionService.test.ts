@@ -937,6 +937,90 @@ describe("sessionService", () => {
 		});
 	});
 
+	// ── Bug: KEYCLOAK_ISSUER not injectable via DI ─────────────
+	describe("Bug: expectedIssuer should be injectable via constructor", () => {
+		it("should pass injected issuer to jwtVerify instead of module-level constant", async () => {
+			const customIssuer = "https://custom-keycloak.example.com/realms/test";
+			const mockJwks = vi.fn();
+
+			mockJwtVerify.mockResolvedValueOnce({
+				payload: {
+					sub: "kc-issuer-test",
+					email: "issuer@example.com",
+					iss: customIssuer,
+					azp: "rita-chat-client",
+				},
+				protectedHeader: { alg: "RS256" },
+			});
+
+			const service = new SessionService({
+				sessionStore: createMockSessionStore(),
+				db: createMockDb({
+					selectResult: {
+						user_id: "user-123",
+						email: "issuer@example.com",
+						active_organization_id: "org-456",
+						first_name: "Test",
+						last_name: "User",
+					},
+				}) as any,
+				expectedAudience: "rita-chat-client",
+				jwks: mockJwks as any,
+				expectedIssuer: customIssuer,
+			});
+
+			await service.createSessionFromKeycloak("test-token");
+
+			// The issuer passed to jwtVerify should be the injected one, not the module constant
+			expect(mockJwtVerify).toHaveBeenCalledWith(
+				"test-token",
+				mockJwks,
+				expect.objectContaining({ issuer: customIssuer }),
+			);
+		});
+
+		it("should fall back to module-level KEYCLOAK_ISSUER when not injected", async () => {
+			const mockJwks = vi.fn();
+
+			mockJwtVerify.mockResolvedValueOnce({
+				payload: {
+					sub: "kc-default-issuer",
+					email: "default-issuer@example.com",
+					iss: "http://localhost:8080/realms/rita-chat-realm",
+					azp: "rita-chat-client",
+				},
+				protectedHeader: { alg: "RS256" },
+			});
+
+			const service = new SessionService({
+				sessionStore: createMockSessionStore(),
+				db: createMockDb({
+					selectResult: {
+						user_id: "user-789",
+						email: "default-issuer@example.com",
+						active_organization_id: "org-abc",
+						first_name: "Test",
+						last_name: "User",
+					},
+				}) as any,
+				expectedAudience: "rita-chat-client",
+				jwks: mockJwks as any,
+				// No expectedIssuer provided — should use module-level KEYCLOAK_ISSUER
+			});
+
+			await service.createSessionFromKeycloak("test-token-default");
+
+			// Should use the default issuer from env/module constant
+			expect(mockJwtVerify).toHaveBeenCalledWith(
+				"test-token-default",
+				mockJwks,
+				expect.objectContaining({
+					issuer: "http://localhost:8080/realms/rita-chat-realm",
+				}),
+			);
+		});
+	});
+
 	// ── Security Issue 4: findOrCreateUser should be private ────
 	describe("Security Issue 4: findOrCreateUser access control", () => {
 		it("should not expose findOrCreateUser as a public method", () => {

@@ -38,17 +38,20 @@ export class SessionService {
 	private sessionStore: SessionStore;
 	private db: Kysely<DB>;
 	private expectedAudience: string;
+	private expectedIssuer: string;
 	private jwks: ReturnType<typeof jose.createRemoteJWKSet>;
 
 	constructor(deps?: {
 		sessionStore?: SessionStore;
 		db?: Kysely<DB>;
 		expectedAudience?: string;
+		expectedIssuer?: string;
 		jwks?: ReturnType<typeof jose.createRemoteJWKSet>;
 	}) {
 		this.sessionStore = deps?.sessionStore ?? getSessionStore();
 		this.db = deps?.db ?? db;
 		this.expectedAudience = deps?.expectedAudience ?? KEYCLOAK_CLIENT_ID;
+		this.expectedIssuer = deps?.expectedIssuer ?? KEYCLOAK_ISSUER;
 		this.jwks = deps?.jwks ?? JWKS;
 	}
 
@@ -62,7 +65,7 @@ export class SessionService {
 	): Promise<{ session: Session; cookie: string }> {
 		try {
 			const { payload } = await jose.jwtVerify(keycloakAccessToken, this.jwks, {
-				issuer: KEYCLOAK_ISSUER,
+				issuer: this.expectedIssuer,
 			});
 
 			// Keycloak sets azp (authorized party) to the client ID, not aud.
