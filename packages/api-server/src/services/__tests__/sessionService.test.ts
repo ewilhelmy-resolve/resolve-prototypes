@@ -345,6 +345,192 @@ describe("sessionService", () => {
 		});
 	});
 
+	// ── Bug: backfillUserNames overwrites existing names with null ──
+	describe("backfillUserNames should not overwrite existing names with null", () => {
+		it("should only fill missing last_name without overwriting existing first_name", async () => {
+			// DB has first_name="John", last_name=null
+			// Token has firstName=null, lastName="Doe"
+			// Expected: UPDATE sets only last_name="Doe", first_name stays "John"
+			const setCalls: Record<string, unknown>[] = [];
+			const captureSetMock = () => {
+				const builder: Record<string, unknown> = {};
+				const self: Record<string, unknown> = new Proxy(builder, {
+					get(_target, prop) {
+						if (prop === "set")
+							return (val: Record<string, unknown>) => {
+								setCalls.push(val);
+								return self;
+							};
+						if (prop === "executeTakeFirst")
+							return () => Promise.resolve(undefined);
+						if (prop === "executeTakeFirstOrThrow")
+							return () => Promise.resolve(undefined);
+						if (prop === "execute") return () => Promise.resolve([]);
+						return () => self;
+					},
+				});
+				return self;
+			};
+
+			const mockDb = {
+				selectFrom: vi.fn(() =>
+					mockQueryBuilder({
+						user_id: "user-123",
+						email: "john@example.com",
+						active_organization_id: "org-456",
+						first_name: "John",
+						last_name: null,
+					}),
+				),
+				updateTable: vi.fn(() => captureSetMock()),
+			};
+
+			const service = new SessionService({
+				db: mockDb as any,
+				sessionStore: createMockSessionStore(),
+			});
+
+			await service.findOrCreateUser({
+				sub: "kc-123",
+				email: "john@example.com",
+				given_name: undefined, // token has no first name
+				family_name: "Doe",
+				iss: "",
+				aud: "",
+			});
+
+			// backfill should have been called
+			expect(mockDb.updateTable).toHaveBeenCalled();
+			// The SET should NOT contain first_name: null (would overwrite "John")
+			expect(setCalls).toHaveLength(1);
+			expect(setCalls[0]).not.toHaveProperty("first_name");
+			expect(setCalls[0]).toEqual({ last_name: "Doe" });
+		});
+
+		it("should only fill missing first_name without overwriting existing last_name", async () => {
+			// DB has first_name=null, last_name="Smith"
+			// Token has firstName="Jane", lastName=null
+			const setCalls: Record<string, unknown>[] = [];
+			const captureSetMock = () => {
+				const builder: Record<string, unknown> = {};
+				const self: Record<string, unknown> = new Proxy(builder, {
+					get(_target, prop) {
+						if (prop === "set")
+							return (val: Record<string, unknown>) => {
+								setCalls.push(val);
+								return self;
+							};
+						if (prop === "executeTakeFirst")
+							return () => Promise.resolve(undefined);
+						if (prop === "executeTakeFirstOrThrow")
+							return () => Promise.resolve(undefined);
+						if (prop === "execute") return () => Promise.resolve([]);
+						return () => self;
+					},
+				});
+				return self;
+			};
+
+			const mockDb = {
+				selectFrom: vi.fn(() =>
+					mockQueryBuilder({
+						user_id: "user-456",
+						email: "jane@example.com",
+						active_organization_id: "org-789",
+						first_name: null,
+						last_name: "Smith",
+					}),
+				),
+				updateTable: vi.fn(() => captureSetMock()),
+			};
+
+			const service = new SessionService({
+				db: mockDb as any,
+				sessionStore: createMockSessionStore(),
+			});
+
+			await service.findOrCreateUser({
+				sub: "kc-456",
+				email: "jane@example.com",
+				given_name: "Jane",
+				family_name: undefined,
+				iss: "",
+				aud: "",
+			});
+
+			expect(mockDb.updateTable).toHaveBeenCalled();
+			expect(setCalls).toHaveLength(1);
+			expect(setCalls[0]).not.toHaveProperty("last_name");
+			expect(setCalls[0]).toEqual({ first_name: "Jane" });
+		});
+	});
+
+	// ── Bug: stale data returned after backfill ─────────────────
+	describe("findOrCreateUser should return fresh names after backfill", () => {
+		it("should return backfilled names, not stale DB values", async () => {
+			// DB has first_name=null, last_name=null
+			// Token has firstName="Alice", lastName="Wonder"
+			// After backfill, return should show "Alice"/"Wonder", not null/null
+			const mockDb = createMockDb({
+				selectResult: {
+					user_id: "user-789",
+					email: "alice@example.com",
+					active_organization_id: "org-abc",
+					first_name: null,
+					last_name: null,
+				},
+			});
+
+			const service = new SessionService({
+				db: mockDb as any,
+				sessionStore: createMockSessionStore(),
+			});
+
+			const result = await service.findOrCreateUser({
+				sub: "kc-789",
+				email: "alice@example.com",
+				given_name: "Alice",
+				family_name: "Wonder",
+				iss: "",
+				aud: "",
+			});
+
+			// Bug: currently returns null/null (stale existingUser values)
+			expect(result.firstName).toBe("Alice");
+			expect(result.lastName).toBe("Wonder");
+		});
+
+		it("should preserve existing DB names when token has no names", async () => {
+			// DB has both names, token has none → no backfill, return DB values
+			const mockDb = createMockDb({
+				selectResult: {
+					user_id: "user-aaa",
+					email: "bob@example.com",
+					active_organization_id: "org-bbb",
+					first_name: "Bob",
+					last_name: "Builder",
+				},
+			});
+
+			const service = new SessionService({
+				db: mockDb as any,
+				sessionStore: createMockSessionStore(),
+			});
+
+			const result = await service.findOrCreateUser({
+				sub: "kc-aaa",
+				email: "bob@example.com",
+				given_name: undefined,
+				family_name: undefined,
+				iss: "",
+				aud: "",
+			});
+
+			expect(result.firstName).toBe("Bob");
+			expect(result.lastName).toBe("Builder");
+		});
+	});
+
 	// ── Issue 3: Error wrapping in findOrCreateUser ─────────────
 	describe("Issue 3: error wrapping in provisioning", () => {
 		it("should wrap transaction errors in UserProvisioningError with cause", async () => {

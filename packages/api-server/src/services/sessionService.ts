@@ -124,8 +124,8 @@ export class SessionService {
 				// biome-ignore lint/style/noNonNullAssertion: email is NOT NULL in DB
 				email: existingUser.email!,
 				activeOrganizationId: existingUser.active_organization_id,
-				firstName: existingUser.first_name ?? null,
-				lastName: existingUser.last_name ?? null,
+				firstName: existingUser.first_name ?? firstName ?? null,
+				lastName: existingUser.last_name ?? lastName ?? null,
 			};
 		}
 
@@ -161,11 +161,15 @@ export class SessionService {
 		lastName: string | null,
 	): Promise<void> {
 		if (user.first_name && user.last_name) return;
-		if (!firstName && !lastName) return;
+
+		const updates: Record<string, string> = {};
+		if (!user.first_name && firstName) updates.first_name = firstName;
+		if (!user.last_name && lastName) updates.last_name = lastName;
+		if (Object.keys(updates).length === 0) return;
 
 		await executor
 			.updateTable("user_profiles")
-			.set({ first_name: firstName, last_name: lastName })
+			.set(updates)
 			.where("user_id", "=", user.user_id)
 			.execute();
 
