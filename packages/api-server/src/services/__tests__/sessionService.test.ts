@@ -662,6 +662,124 @@ describe("sessionService", () => {
 		});
 	});
 
+	// ── Bug 2: Race-loser throws unrecoverable error (no retry) ──
+	describe("Bug 2: race-loser should retry instead of failing with 500", () => {
+		it("should retry and succeed when race loser finds null active_organization_id", async () => {
+			let mainSelectCall = 0;
+
+			// Main db.selectFrom: 1st call → no user, 2nd call (retry) → winner committed
+			const mainSelectFrom = vi.fn(() => {
+				mainSelectCall++;
+				if (mainSelectCall === 1) {
+					return mockQueryBuilder(undefined);
+				}
+				// Retry: winner has committed, user visible with org id
+				return mockQueryBuilder({
+					user_id: "winner-id",
+					email: "race@example.com",
+					active_organization_id: "org-winner",
+					first_name: "Winner",
+					last_name: "User",
+				});
+			});
+
+			const mockDb = {
+				selectFrom: mainSelectFrom,
+				updateTable: vi.fn(() => mockQueryBuilder()), // for backfill on retry
+				transaction: vi.fn(() => ({
+					execute: vi.fn(async (fn: any) => {
+						const trxSelectFrom = vi
+							.fn()
+							.mockReturnValueOnce(mockQueryBuilder(undefined)) // pending_users
+							.mockReturnValueOnce(mockQueryBuilder(undefined)) // pending_invitations
+							.mockReturnValueOnce(
+								mockQueryBuilder({
+									user_id: "winner-id",
+									email: "race@example.com",
+									active_organization_id: null, // winner not committed yet
+									first_name: null,
+									last_name: null,
+								}),
+							);
+
+						const trx = {
+							selectFrom: trxSelectFrom,
+							insertInto: vi.fn(() => mockQueryBuilder(undefined)), // race lost
+							updateTable: vi.fn(() => mockQueryBuilder()),
+							deleteFrom: vi.fn(() => mockQueryBuilder()),
+						};
+						return fn(trx);
+					}),
+				})),
+			};
+
+			const service = new SessionService({
+				db: mockDb as any,
+				sessionStore: createMockSessionStore(),
+			});
+
+			// Current code: throws UserProvisioningError (500)
+			// Fixed code: retries, finds committed user, succeeds
+			const result = await internals(service).findOrCreateUser({
+				sub: "kc-race",
+				email: "race@example.com",
+				iss: "",
+				aud: "",
+			});
+
+			expect(result.id).toBe("winner-id");
+			expect(result.activeOrganizationId).toBe("org-winner");
+			// Verify retry happened: selectFrom called twice
+			expect(mainSelectFrom).toHaveBeenCalledTimes(2);
+		});
+
+		it("should eventually throw after exhausting retries if winner never commits", async () => {
+			// All retries fail: selectFrom always returns no user, transaction always race-lost
+			const mockDb = {
+				selectFrom: vi.fn(() => mockQueryBuilder(undefined)),
+				transaction: vi.fn(() => ({
+					execute: vi.fn(async (fn: any) => {
+						const trxSelectFrom = vi
+							.fn()
+							.mockReturnValueOnce(mockQueryBuilder(undefined))
+							.mockReturnValueOnce(mockQueryBuilder(undefined))
+							.mockReturnValueOnce(
+								mockQueryBuilder({
+									user_id: "winner-id",
+									email: "stuck@example.com",
+									active_organization_id: null,
+									first_name: null,
+									last_name: null,
+								}),
+							);
+
+						const trx = {
+							selectFrom: trxSelectFrom,
+							insertInto: vi.fn(() => mockQueryBuilder(undefined)),
+							updateTable: vi.fn(() => mockQueryBuilder()),
+							deleteFrom: vi.fn(() => mockQueryBuilder()),
+						};
+						return fn(trx);
+					}),
+				})),
+			};
+
+			const service = new SessionService({
+				db: mockDb as any,
+				sessionStore: createMockSessionStore(),
+			});
+
+			await expect(
+				internals(service).findOrCreateUser({
+					sub: "kc-stuck",
+					email: "stuck@example.com",
+					iss: "",
+					aud: "",
+				}),
+			).rejects.toThrow(UserProvisioningError);
+		});
+	});
+
 	// ── Issue 3: Error wrapping in findOrCreateUser ─────────────
 	describe("Issue 3: error wrapping in provisioning", () => {
 		it("should wrap transaction errors in UserProvisioningError with cause", async () => {

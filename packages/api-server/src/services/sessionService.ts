@@ -125,51 +125,82 @@ export class SessionService {
 		const firstName = (tokenPayload.given_name as string) || null;
 		const lastName = (tokenPayload.family_name as string) || null;
 
-		const existingUser = await this.db
-			.selectFrom("user_profiles")
-			.select([
-				"user_id",
-				"active_organization_id",
-				"email",
-				"first_name",
-				"last_name",
-			])
-			.where("keycloak_id", "=", keycloakId)
-			.executeTakeFirst();
+		const MAX_RACE_RETRIES = 3;
+		const RETRY_DELAY_MS = 100;
 
-		if (existingUser) {
-			await this.backfillUserNames(this.db, existingUser, firstName, lastName);
-			if (!existingUser.active_organization_id) {
-				throw new Error("User has no active organization");
-			}
-			return {
-				id: existingUser.user_id,
-				// biome-ignore lint/style/noNonNullAssertion: email is NOT NULL in DB
-				email: existingUser.email!,
-				activeOrganizationId: existingUser.active_organization_id,
-				firstName: existingUser.first_name ?? firstName ?? null,
-				lastName: existingUser.last_name ?? lastName ?? null,
-			};
-		}
+		for (let attempt = 0; attempt < MAX_RACE_RETRIES; attempt++) {
+			const existingUser = await this.db
+				.selectFrom("user_profiles")
+				.select([
+					"user_id",
+					"active_organization_id",
+					"email",
+					"first_name",
+					"last_name",
+				])
+				.where("keycloak_id", "=", keycloakId)
+				.executeTakeFirst();
 
-		logger.info(
-			{ keycloakId, email },
-			"New user detected. Starting provisioning...",
-		);
-
-		try {
-			return await this.db.transaction().execute((trx) =>
-				this.provisionNewUser(trx, {
-					email,
-					keycloakId,
+			if (existingUser) {
+				await this.backfillUserNames(
+					this.db,
+					existingUser,
 					firstName,
 					lastName,
-				}),
+				);
+				if (!existingUser.active_organization_id) {
+					throw new Error("User has no active organization");
+				}
+				return {
+					id: existingUser.user_id,
+					// biome-ignore lint/style/noNonNullAssertion: email is NOT NULL in DB
+					email: existingUser.email!,
+					activeOrganizationId: existingUser.active_organization_id,
+					firstName: existingUser.first_name ?? firstName ?? null,
+					lastName: existingUser.last_name ?? lastName ?? null,
+				};
+			}
+
+			logger.info(
+				{ keycloakId, email },
+				attempt > 0
+					? "Retrying user provisioning after race condition"
+					: "New user detected. Starting provisioning...",
 			);
-		} catch (error) {
-			logger.error({ error, keycloakId }, "Failed to provision new user");
-			throw new UserProvisioningError("Failed to provision new user.", error);
+
+			try {
+				return await this.db.transaction().execute((trx) =>
+					this.provisionNewUser(trx, {
+						email,
+						keycloakId,
+						firstName,
+						lastName,
+					}),
+				);
+			} catch (error) {
+				const isRaceLost =
+					error instanceof Error && error.message.includes("Race-lost");
+
+				if (isRaceLost && attempt < MAX_RACE_RETRIES - 1) {
+					logger.warn(
+						{ keycloakId, attempt },
+						"Race condition in user provisioning, retrying",
+					);
+					await new Promise((resolve) =>
+						setTimeout(resolve, RETRY_DELAY_MS * (attempt + 1)),
+					);
+					continue;
+				}
+
+				logger.error({ error, keycloakId }, "Failed to provision new user");
+				throw new UserProvisioningError("Failed to provision new user.", error);
+			}
 		}
+
+		throw new UserProvisioningError(
+			"Failed to provision new user.",
+			new Error("Exhausted race-condition retries"),
+		);
 	}
 
 	private async backfillUserNames(
