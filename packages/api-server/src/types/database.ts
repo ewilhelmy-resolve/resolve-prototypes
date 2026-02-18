@@ -66,7 +66,7 @@ export interface AutopilotSettings {
 	/**
 	 * Overflow JSONB for future settings (freeform, no schema validation)
 	 */
-	settings_json: Generated<Json | null>;
+	settings_json: Generated<Json>;
 	updated_at: Generated<Timestamp | null>;
 	/**
 	 * Last user who modified settings
