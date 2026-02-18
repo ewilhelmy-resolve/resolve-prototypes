@@ -63,11 +63,11 @@ export class SessionService {
 			});
 
 			// Keycloak sets azp (authorized party) to the client ID, not aud.
-			// Validate azp to ensure token was issued for this specific application.
+			// Fail-closed: reject if azp is missing or doesn't match expected client.
 			const azp = payload.azp as string | undefined;
-			if (azp && azp !== this.expectedAudience) {
+			if (!azp || azp !== this.expectedAudience) {
 				throw new Error(
-					`Token azp "${azp}" does not match expected client "${this.expectedAudience}"`,
+					`Token azp "${azp ?? "missing"}" does not match expected client "${this.expectedAudience}"`,
 				);
 			}
 
@@ -435,7 +435,11 @@ export class SessionService {
 	parseSessionIdFromCookie(cookieHeader: string | undefined): string | null {
 		if (!cookieHeader) return null;
 		const match = cookieHeader.match(/rita_session=([^;]+)/);
-		return match ? match[1] : null;
+		if (!match) return null;
+		// Validate session ID is a 64-char hex string (randomBytes(32).toString("hex"))
+		const sessionId = match[1];
+		if (!/^[0-9a-f]{64}$/.test(sessionId)) return null;
+		return sessionId;
 	}
 
 	async cleanupExpiredSessions(): Promise<number> {

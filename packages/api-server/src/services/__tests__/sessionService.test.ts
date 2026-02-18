@@ -13,6 +13,15 @@ vi.mock("../../config/logger.js", () => ({
 	logger: { info: vi.fn(), error: vi.fn(), warn: vi.fn(), debug: vi.fn() },
 }));
 
+// Mock jose — keep real types, mock jwtVerify for azp tests
+const { mockJwtVerify } = vi.hoisted(() => ({
+	mockJwtVerify: vi.fn(),
+}));
+vi.mock("jose", async (importOriginal) => {
+	const actual = await importOriginal<typeof import("jose")>();
+	return { ...actual, jwtVerify: mockJwtVerify };
+});
+
 import type { JWTPayload } from "jose";
 import {
 	destroySessionService,
@@ -711,6 +720,150 @@ describe("sessionService", () => {
 			// The service should have a configured audience from KEYCLOAK_CLIENT_ID
 			expect(internals(service).expectedAudience).toBeDefined();
 			expect(typeof internals(service).expectedAudience).toBe("string");
+		});
+	});
+
+	// ── Security: azp validation must fail-closed ───────────────
+	describe("Security: azp validation must fail-closed when absent", () => {
+		it("should reject token with no azp claim (fail-closed)", async () => {
+			mockJwtVerify.mockResolvedValueOnce({
+				payload: {
+					sub: "kc-no-azp",
+					email: "noazp@example.com",
+					iss: "http://localhost:8080/realms/rita-chat-realm",
+					// azp is intentionally missing
+				},
+				protectedHeader: { alg: "RS256" },
+			});
+
+			const service = new SessionService({
+				sessionStore: createMockSessionStore(),
+				db: createMockDb({
+					selectResult: {
+						user_id: "user-123",
+						email: "noazp@example.com",
+						active_organization_id: "org-456",
+						first_name: "Test",
+						last_name: "User",
+					},
+				}) as any,
+				expectedAudience: "rita-chat-client",
+			});
+
+			await expect(
+				service.createSessionFromKeycloak("fake-token"),
+			).rejects.toThrow(/azp/i);
+		});
+
+		it("should reject token with wrong azp claim", async () => {
+			mockJwtVerify.mockResolvedValueOnce({
+				payload: {
+					sub: "kc-wrong-azp",
+					email: "wrongazp@example.com",
+					iss: "http://localhost:8080/realms/rita-chat-realm",
+					azp: "some-other-client",
+				},
+				protectedHeader: { alg: "RS256" },
+			});
+
+			const service = new SessionService({
+				sessionStore: createMockSessionStore(),
+				db: createMockDb() as any,
+				expectedAudience: "rita-chat-client",
+			});
+
+			await expect(
+				service.createSessionFromKeycloak("fake-token"),
+			).rejects.toThrow(/azp/i);
+		});
+
+		it("should accept token with correct azp claim", async () => {
+			mockJwtVerify.mockResolvedValueOnce({
+				payload: {
+					sub: "kc-good-azp",
+					email: "goodazp@example.com",
+					iss: "http://localhost:8080/realms/rita-chat-realm",
+					azp: "rita-chat-client",
+				},
+				protectedHeader: { alg: "RS256" },
+			});
+
+			const service = new SessionService({
+				sessionStore: createMockSessionStore(),
+				db: createMockDb({
+					selectResult: {
+						user_id: "user-123",
+						email: "goodazp@example.com",
+						active_organization_id: "org-456",
+						first_name: "Test",
+						last_name: "User",
+					},
+				}) as any,
+				expectedAudience: "rita-chat-client",
+			});
+
+			const result = await service.createSessionFromKeycloak("fake-token");
+			expect(result.session).toBeDefined();
+			expect(result.cookie).toContain("rita_session=");
+		});
+	});
+
+	// ── Security: parseSessionIdFromCookie format validation ────
+	describe("Security: parseSessionIdFromCookie validates session ID format", () => {
+		it("should return valid 64-char hex session ID", () => {
+			const service = new SessionService({
+				sessionStore: createMockSessionStore(),
+			});
+			const validHex = "a".repeat(64);
+			const cookie = `rita_session=${validHex}; Path=/; HttpOnly`;
+			expect(service.parseSessionIdFromCookie(cookie)).toBe(validHex);
+		});
+
+		it("should reject session ID containing path traversal", () => {
+			const service = new SessionService({
+				sessionStore: createMockSessionStore(),
+			});
+			const cookie = "rita_session=../../etc/passwd; Path=/";
+			expect(service.parseSessionIdFromCookie(cookie)).toBeNull();
+		});
+
+		it("should reject session ID with SQL injection attempt", () => {
+			const service = new SessionService({
+				sessionStore: createMockSessionStore(),
+			});
+			const cookie = "rita_session=abc' OR '1'='1; Path=/";
+			expect(service.parseSessionIdFromCookie(cookie)).toBeNull();
+		});
+
+		it("should reject session ID with non-hex characters", () => {
+			const service = new SessionService({
+				sessionStore: createMockSessionStore(),
+			});
+			const cookie = "rita_session=xyz_not_valid_hex_string!@#$; Path=/";
+			expect(service.parseSessionIdFromCookie(cookie)).toBeNull();
+		});
+
+		it("should reject session ID with wrong length", () => {
+			const service = new SessionService({
+				sessionStore: createMockSessionStore(),
+			});
+			// Too short (32 chars instead of 64)
+			const cookie = `rita_session=${"a".repeat(32)}; Path=/`;
+			expect(service.parseSessionIdFromCookie(cookie)).toBeNull();
+		});
+
+		it("should return null for missing cookie header", () => {
+			const service = new SessionService({
+				sessionStore: createMockSessionStore(),
+			});
+			expect(service.parseSessionIdFromCookie(undefined)).toBeNull();
+		});
+
+		it("should return null for cookie without rita_session", () => {
+			const service = new SessionService({
+				sessionStore: createMockSessionStore(),
+			});
+			expect(service.parseSessionIdFromCookie("other_cookie=value")).toBeNull();
 		});
 	});
 
