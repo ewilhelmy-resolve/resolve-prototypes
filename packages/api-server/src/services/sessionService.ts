@@ -38,15 +38,18 @@ export class SessionService {
 	private sessionStore: SessionStore;
 	private db: Kysely<DB>;
 	private expectedAudience: string;
+	private jwks: ReturnType<typeof jose.createRemoteJWKSet>;
 
 	constructor(deps?: {
 		sessionStore?: SessionStore;
 		db?: Kysely<DB>;
 		expectedAudience?: string;
+		jwks?: ReturnType<typeof jose.createRemoteJWKSet>;
 	}) {
 		this.sessionStore = deps?.sessionStore ?? getSessionStore();
 		this.db = deps?.db ?? db;
 		this.expectedAudience = deps?.expectedAudience ?? KEYCLOAK_CLIENT_ID;
+		this.jwks = deps?.jwks ?? JWKS;
 	}
 
 	/**
@@ -58,7 +61,7 @@ export class SessionService {
 		sessionDurationMs?: number,
 	): Promise<{ session: Session; cookie: string }> {
 		try {
-			const { payload } = await jose.jwtVerify(keycloakAccessToken, JWKS, {
+			const { payload } = await jose.jwtVerify(keycloakAccessToken, this.jwks, {
 				issuer: KEYCLOAK_ISSUER,
 			});
 

@@ -861,6 +861,82 @@ describe("sessionService", () => {
 		});
 	});
 
+	// ── Issue 7: JWKS injectable via constructor ────────────────
+	describe("Issue 7: JWKS injectable via constructor DI", () => {
+		it("should pass injected jwks to jwtVerify instead of module-level singleton", async () => {
+			const mockJwks = vi.fn();
+
+			mockJwtVerify.mockResolvedValueOnce({
+				payload: {
+					sub: "kc-jwks-test",
+					email: "jwks@example.com",
+					iss: "http://localhost:8080/realms/rita-chat-realm",
+					azp: "rita-chat-client",
+				},
+				protectedHeader: { alg: "RS256" },
+			});
+
+			const service = new SessionService({
+				sessionStore: createMockSessionStore(),
+				db: createMockDb({
+					selectResult: {
+						user_id: "user-123",
+						email: "jwks@example.com",
+						active_organization_id: "org-456",
+						first_name: "Test",
+						last_name: "User",
+					},
+				}) as any,
+				expectedAudience: "rita-chat-client",
+				jwks: mockJwks as any,
+			});
+
+			await service.createSessionFromKeycloak("test-token");
+
+			expect(mockJwtVerify).toHaveBeenCalledWith(
+				"test-token",
+				mockJwks,
+				expect.objectContaining({ issuer: expect.any(String) }),
+			);
+		});
+
+		it("should fall back to module-level JWKS when not injected", async () => {
+			mockJwtVerify.mockResolvedValueOnce({
+				payload: {
+					sub: "kc-default-jwks",
+					email: "default@example.com",
+					iss: "http://localhost:8080/realms/rita-chat-realm",
+					azp: "rita-chat-client",
+				},
+				protectedHeader: { alg: "RS256" },
+			});
+
+			const service = new SessionService({
+				sessionStore: createMockSessionStore(),
+				db: createMockDb({
+					selectResult: {
+						user_id: "user-456",
+						email: "default@example.com",
+						active_organization_id: "org-789",
+						first_name: "Test",
+						last_name: "User",
+					},
+				}) as any,
+				expectedAudience: "rita-chat-client",
+				// No jwks provided — should use module-level JWKS
+			});
+
+			await service.createSessionFromKeycloak("test-token-2");
+
+			// Should still call jwtVerify with some JWKS (the module-level one)
+			expect(mockJwtVerify).toHaveBeenCalledWith(
+				"test-token-2",
+				expect.any(Function),
+				expect.objectContaining({ issuer: expect.any(String) }),
+			);
+		});
+	});
+
 	// ── Security Issue 4: findOrCreateUser should be private ────
 	describe("Security Issue 4: findOrCreateUser access control", () => {
 		it("should not expose findOrCreateUser as a public method", () => {
