@@ -8,7 +8,7 @@
  * Route: /credential-setup?token=xxx
  */
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { Trans, useTranslation } from "react-i18next";
 import { Navigate, useSearchParams } from "react-router-dom";
@@ -577,6 +577,19 @@ export default function CredentialSetupPage() {
 	const [verifiedAt, setVerifiedAt] = useState<Date | null>(null);
 	const [applyToRelated, setApplyToRelated] = useState(false);
 	const [closeFailed, setCloseFailed] = useState(false);
+	const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+	const tryCloseWindow = useCallback(() => {
+		if (countdownRef.current) {
+			clearInterval(countdownRef.current);
+			countdownRef.current = null;
+		}
+		window.close();
+		// Check if browser blocked the close
+		requestAnimationFrame(() => {
+			if (!window.closed) setCloseFailed(true);
+		});
+	}, []);
 
 	// Verify token on load
 	const {
@@ -657,25 +670,34 @@ export default function CredentialSetupPage() {
 		// Keep polling for "pending" status
 	}, [statusData, pageState, lastSubmissionTime, t]);
 
+	// Reset closeFailed when re-entering success state
+	useEffect(() => {
+		if (pageState === "success") setCloseFailed(false);
+	}, [pageState]);
+
 	// Countdown timer for success state
 	useEffect(() => {
 		if (pageState !== "success") return;
 
-		const timer = setInterval(() => {
+		countdownRef.current = setInterval(() => {
 			setCountdown((prev) => {
-				if (prev <= 1) {
-					clearInterval(timer);
-					window.close();
-					// Browser blocks close for windows not opened via window.open()
-					setTimeout(() => setCloseFailed(true), 300);
-					return 0;
-				}
+				if (prev <= 1) return 0;
 				return prev - 1;
 			});
 		}, 1000);
 
-		return () => clearInterval(timer);
+		return () => {
+			if (countdownRef.current) {
+				clearInterval(countdownRef.current);
+				countdownRef.current = null;
+			}
+		};
 	}, [pageState]);
+
+	// Attempt window close when countdown reaches 0
+	useEffect(() => {
+		if (countdown === 0 && pageState === "success") tryCloseWindow();
+	}, [countdown, pageState, tryCloseWindow]);
 
 	// Handle ServiceNow form submission
 	const handleServiceNowSubmit = async (data: ServiceNowFormData) => {
@@ -860,11 +882,7 @@ export default function CredentialSetupPage() {
 				})
 			: "";
 
-		const handleExitSession = () => {
-			window.close();
-			// Browser blocks close for windows not opened via window.open()
-			setTimeout(() => setCloseFailed(true), 300);
-		};
+		const handleExitSession = () => tryCloseWindow();
 
 		// Create mock ConnectionSource for ConnectionStatusCard
 		let settings: Record<string, string>;
@@ -902,7 +920,11 @@ export default function CredentialSetupPage() {
 					delegatedBy={verifyData.delegated_by || ""}
 				/>
 				<div className="flex-1 flex flex-col items-center justify-center p-4 gap-6">
-					<p className="text-lg text-muted-foreground">
+					<p
+						className="text-lg text-muted-foreground"
+						role="status"
+						aria-live="polite"
+					>
 						{closeFailed
 							? t("success.canCloseTab")
 							: t("success.windowCloses", { seconds: countdown })}
