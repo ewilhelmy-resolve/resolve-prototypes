@@ -1,5 +1,12 @@
 import type { Meta, StoryObj } from "@storybook/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AutomationMetricsCard } from "./AutomationMetricsCard";
+
+const queryClient = new QueryClient({
+	defaultOptions: {
+		queries: { retry: false, gcTime: 0 },
+	},
+});
 
 const meta: Meta<typeof AutomationMetricsCard> = {
 	component: AutomationMetricsCard,
@@ -16,9 +23,11 @@ const meta: Meta<typeof AutomationMetricsCard> = {
 	},
 	decorators: [
 		(Story) => (
-			<div className="w-80">
-				<Story />
-			</div>
+			<QueryClientProvider client={queryClient}>
+				<div className="w-80">
+					<Story />
+				</div>
+			</QueryClientProvider>
 		),
 	],
 };

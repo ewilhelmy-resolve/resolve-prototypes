@@ -1,7 +1,14 @@
 import type { Meta, StoryObj } from "@storybook/react";
 import { fn } from "@storybook/test";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import "../../i18n";
 import { ClustersPageHeader } from "./ClustersPageHeader";
+
+const queryClient = new QueryClient({
+	defaultOptions: {
+		queries: { retry: false, gcTime: 0 },
+	},
+});
 
 const meta = {
 	title: "Features/Tickets/ClustersPageHeader",
@@ -15,6 +22,13 @@ const meta = {
 		showSkeletons: false,
 		hasNoModel: false,
 	},
+	decorators: [
+		(Story) => (
+			<QueryClientProvider client={queryClient}>
+				<Story />
+			</QueryClientProvider>
+		),
+	],
 } satisfies Meta<typeof ClustersPageHeader>;
 
 export default meta;

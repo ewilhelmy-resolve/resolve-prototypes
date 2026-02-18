@@ -1,6 +1,13 @@
 import type { Meta, StoryObj } from "@storybook/react";
 import { fn } from "@storybook/test";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import TicketSettingsDialog from "./TicketSettingsDialog";
+
+const queryClient = new QueryClient({
+	defaultOptions: {
+		queries: { retry: false, gcTime: 0 },
+	},
+});
 
 const meta: Meta<typeof TicketSettingsDialog> = {
 	component: TicketSettingsDialog,
@@ -10,6 +17,13 @@ const meta: Meta<typeof TicketSettingsDialog> = {
 		open: true,
 		onOpenChange: fn(),
 	},
+	decorators: [
+		(Story) => (
+			<QueryClientProvider client={queryClient}>
+				<Story />
+			</QueryClientProvider>
+		),
+	],
 	parameters: {
 		layout: "fullscreen",
 		docs: {
