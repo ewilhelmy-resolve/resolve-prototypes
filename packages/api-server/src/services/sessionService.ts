@@ -25,6 +25,7 @@ const KEYCLOAK_URL = process.env.KEYCLOAK_URL || "http://localhost:8080";
 const KEYCLOAK_REALM = process.env.KEYCLOAK_REALM || "rita-chat-realm";
 const KEYCLOAK_ISSUER =
 	process.env.KEYCLOAK_ISSUER || `${KEYCLOAK_URL}/realms/${KEYCLOAK_REALM}`;
+const KEYCLOAK_CLIENT_ID = process.env.KEYCLOAK_CLIENT_ID || "rita-chat-client";
 // jose handles JWKS caching and auto-refresh internally.
 // Keys cached in memory; refreshed when unknown kid encountered or cache TTL expires.
 const JWKS = jose.createRemoteJWKSet(
@@ -36,10 +37,16 @@ const JWKS = jose.createRemoteJWKSet(
 export class SessionService {
 	private sessionStore: SessionStore;
 	private db: Kysely<DB>;
+	private expectedAudience: string;
 
-	constructor(deps?: { sessionStore?: SessionStore; db?: Kysely<DB> }) {
+	constructor(deps?: {
+		sessionStore?: SessionStore;
+		db?: Kysely<DB>;
+		expectedAudience?: string;
+	}) {
 		this.sessionStore = deps?.sessionStore ?? getSessionStore();
 		this.db = deps?.db ?? db;
+		this.expectedAudience = deps?.expectedAudience ?? KEYCLOAK_CLIENT_ID;
 	}
 
 	/**
@@ -53,6 +60,7 @@ export class SessionService {
 		try {
 			const { payload } = await jose.jwtVerify(keycloakAccessToken, JWKS, {
 				issuer: KEYCLOAK_ISSUER,
+				audience: this.expectedAudience,
 			});
 
 			if (!payload.sub || !payload.email) {
@@ -90,7 +98,7 @@ export class SessionService {
 		}
 	}
 
-	public async findOrCreateUser(tokenPayload: jose.JWTPayload): Promise<{
+	private async findOrCreateUser(tokenPayload: jose.JWTPayload): Promise<{
 		id: string;
 		email: string;
 		activeOrganizationId: string;
