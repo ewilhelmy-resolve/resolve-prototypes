@@ -352,18 +352,14 @@ describe("sessionService", () => {
 			});
 
 			// This calls findOrCreateUser which should use trx inside transaction
-			try {
-				await internals(service).findOrCreateUser({
-					sub: "kc-new",
-					email: "new@example.com",
-					given_name: "New",
-					family_name: "User",
-					iss: "",
-					aud: "",
-				});
-			} catch (e) {
-				expect(e).toBeInstanceOf(Error);
-			}
+			await internals(service).findOrCreateUser({
+				sub: "kc-new",
+				email: "new@example.com",
+				given_name: "New",
+				family_name: "User",
+				iss: "",
+				aud: "",
+			});
 
 			// Key assertion: transaction was called (reads happen inside it)
 			expect(mockDb.transaction).toHaveBeenCalled();
@@ -521,8 +517,6 @@ describe("sessionService", () => {
 				iss: "",
 				aud: "",
 			});
-
-			// Bug: currently returns null/null (stale existingUser values)
 			expect(result.firstName).toBe("Alice");
 			expect(result.lastName).toBe("Wonder");
 		});
