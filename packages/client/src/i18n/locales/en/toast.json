@@ -22,7 +22,8 @@
 		"accountActivated": "Your account has been activated",
 		"memberRoleUpdated": "Member role updated",
 		"ticketSyncComplete": "Ticket sync complete",
-		"settingsUpdated": "Organization settings updated"
+		"settingsUpdated": "Organization settings updated",
+		"autopilotSettingsUpdated": "Ticket settings saved"
 	},
 	"error": {
 		"profileUpdateFailed": "Failed to update profile",
@@ -51,7 +52,8 @@
 		"verificationFailed": "{{type}} verification failed",
 		"downloadFailed": "Download Failed",
 		"reprocessFailed": "Reprocess Failed",
-		"ticketSyncFailed": "Ticket sync failed"
+		"ticketSyncFailed": "Ticket sync failed",
+		"autopilotSettingsFailed": "Failed to save ticket settings"
 	},
 	"warning": {
 		"responseTimeout": "Response timeout",

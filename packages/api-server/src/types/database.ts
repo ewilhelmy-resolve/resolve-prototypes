@@ -21,6 +21,8 @@ export type JsonPrimitive = boolean | number | string | null;
 
 export type JsonValue = JsonArray | JsonObject | JsonPrimitive;
 
+export type Numeric = ColumnType<string, number | string, number | string>;
+
 export type Timestamp = ColumnType<Date, Date | string, Date | string>;
 
 export interface ActivityContexts {
@@ -47,6 +49,29 @@ export interface AuditLogs {
 	resource_id: string | null;
 	resource_type: string;
 	user_id: string | null;
+}
+
+export interface AutopilotSettings {
+	/**
+	 * Average time per ticket in minutes, used for time-saved calculations
+	 */
+	avg_time_per_ticket_minutes: Generated<number>;
+	/**
+	 * Average cost per ticket in USD, used for savings calculations
+	 */
+	cost_per_ticket: Generated<Numeric>;
+	created_at: Generated<Timestamp | null>;
+	id: Generated<string>;
+	organization_id: string;
+	/**
+	 * Overflow JSONB for future settings (freeform, no schema validation)
+	 */
+	settings_json: Generated<Json | null>;
+	updated_at: Generated<Timestamp | null>;
+	/**
+	 * Last user who modified settings
+	 */
+	updated_by: string | null;
 }
 
 export interface BlobMetadata {
@@ -457,9 +482,6 @@ export interface SyncCancellationRequests {
 }
 
 export interface Tickets {
-	/**
-	 * Assigned agent from ITSM (set by ingestion)
-	 */
 	assigned_to: string | null;
 	/**
 	 * NULL until classification workflow assigns cluster
@@ -486,13 +508,7 @@ export interface Tickets {
 	external_status: string;
 	id: Generated<string>;
 	organization_id: string;
-	/**
-	 * Ticket priority from ITSM (set by ingestion)
-	 */
 	priority: string | null;
-	/**
-	 * Ticket requester from ITSM (set by ingestion)
-	 */
 	requester: string | null;
 	/**
 	 * Rita processing status: NEEDS_RESPONSE or COMPLETED
@@ -551,6 +567,7 @@ export interface DB {
 	activity_contexts: ActivityContexts;
 	agents: Agents;
 	audit_logs: AuditLogs;
+	autopilot_settings: AutopilotSettings;
 	blob_metadata: BlobMetadata;
 	blobs: Blobs;
 	cluster_kb_links: ClusterKbLinks;
