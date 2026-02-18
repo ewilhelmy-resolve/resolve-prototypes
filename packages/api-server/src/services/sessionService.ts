@@ -60,8 +60,16 @@ export class SessionService {
 		try {
 			const { payload } = await jose.jwtVerify(keycloakAccessToken, JWKS, {
 				issuer: KEYCLOAK_ISSUER,
-				audience: this.expectedAudience,
 			});
+
+			// Keycloak sets azp (authorized party) to the client ID, not aud.
+			// Validate azp to ensure token was issued for this specific application.
+			const azp = payload.azp as string | undefined;
+			if (azp && azp !== this.expectedAudience) {
+				throw new Error(
+					`Token azp "${azp}" does not match expected client "${this.expectedAudience}"`,
+				);
+			}
 
 			if (!payload.sub || !payload.email) {
 				throw new Error(

@@ -678,7 +678,7 @@ describe("sessionService", () => {
 			});
 
 			try {
-				await (service as any).findOrCreateUser({
+				await internals(service).findOrCreateUser({
 					sub: "kc-fail",
 					email: "fail@example.com",
 					iss: "",
