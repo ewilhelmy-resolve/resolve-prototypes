@@ -76,7 +76,7 @@ describe("SessionService", () => {
 			const maxAgeMatch = cookie.match(/Max-Age=(\d+)/);
 
 			expect(maxAgeMatch).not.toBeNull();
-			const maxAge = Number(maxAgeMatch![1]);
+			const maxAge = Number(maxAgeMatch?.[1]);
 
 			// Max-Age should be 86400 seconds (24 hours), NOT 86400000 milliseconds
 			expect(maxAge).toBe(86400);
@@ -86,7 +86,7 @@ describe("SessionService", () => {
 		it("should produce a cookie that expires in ~24 hours, not ~1000 days", () => {
 			const cookie = service.generateSessionCookie("test-session-id");
 			const maxAgeMatch = cookie.match(/Max-Age=(\d+)/);
-			const maxAgeSeconds = Number(maxAgeMatch![1]);
+			const maxAgeSeconds = Number(maxAgeMatch?.[1]);
 
 			// 24 hours = 86400 seconds. Must be less than 7 days (604800s) at most.
 			expect(maxAgeSeconds).toBeLessThanOrEqual(604800);
@@ -292,7 +292,7 @@ describe("SessionService", () => {
 			);
 
 			const maxAgeMatch = result.cookie.match(/Max-Age=(\d+)/);
-			const maxAgeSeconds = Number(maxAgeMatch![1]);
+			const maxAgeSeconds = Number(maxAgeMatch?.[1]);
 
 			// Cookie should expire at the same time as the session (4 hours = 14400 seconds)
 			const fourHoursSeconds = 4 * 60 * 60;
@@ -302,7 +302,7 @@ describe("SessionService", () => {
 		it("should default to 24h when no custom duration provided", () => {
 			const cookie = service.generateSessionCookie("test-session-id");
 			const maxAgeMatch = cookie.match(/Max-Age=(\d+)/);
-			const maxAgeSeconds = Number(maxAgeMatch![1]);
+			const maxAgeSeconds = Number(maxAgeMatch?.[1]);
 			expect(maxAgeSeconds).toBe(86400);
 		});
 	});
