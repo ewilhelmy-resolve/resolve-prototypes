@@ -5,6 +5,7 @@ import { logger } from "../config/logger.js";
 import type { DB } from "../types/database.js";
 import {
 	type CreateSessionData,
+	destroySessionStore,
 	getSessionStore,
 	type Session,
 	type SessionStore,
@@ -259,12 +260,18 @@ export class SessionService {
 				])
 				.where("keycloak_id", "=", keycloakId)
 				.executeTakeFirstOrThrow();
+
+			if (!existing.active_organization_id) {
+				throw new Error(
+					"Race-lost user has no active_organization_id — winner transaction may not have committed yet",
+				);
+			}
+
 			return {
 				id: existing.user_id,
 				// biome-ignore lint/style/noNonNullAssertion: email is NOT NULL in DB
 				email: existing.email!,
-				// biome-ignore lint/style/noNonNullAssertion: winner txn guarantees org id is set
-				activeOrganizationId: existing.active_organization_id!,
+				activeOrganizationId: existing.active_organization_id,
 				firstName: existing.first_name ?? null,
 				lastName: existing.last_name ?? null,
 			};
@@ -430,4 +437,5 @@ export function getSessionService(): SessionService {
 
 export function destroySessionService(): void {
 	sessionService = undefined;
+	destroySessionStore();
 }

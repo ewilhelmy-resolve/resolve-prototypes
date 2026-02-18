@@ -531,6 +531,116 @@ describe("sessionService", () => {
 		});
 	});
 
+	// ── Issue 5: destroySessionService should clean up store ────
+	describe("Issue 5: destroySessionService cleans up store", () => {
+		it("should clear store cleanup interval on destroy", () => {
+			const clearIntervalSpy = vi.spyOn(global, "clearInterval");
+
+			// Create singleton (triggers InMemorySessionStore with setInterval)
+			getSessionService();
+			clearIntervalSpy.mockClear();
+
+			// Only destroySessionService — should also clean up the store
+			destroySessionService();
+			expect(clearIntervalSpy).toHaveBeenCalled();
+
+			clearIntervalSpy.mockRestore();
+		});
+	});
+
+	// ── Issue 6: Race-lost path null active_organization_id ─────
+	describe("Issue 6: race-lost path handles null active_organization_id", () => {
+		it("should throw when race loser finds null active_organization_id", async () => {
+			const trxSelectFrom = vi
+				.fn()
+				.mockReturnValueOnce(mockQueryBuilder(undefined)) // pending_users
+				.mockReturnValueOnce(mockQueryBuilder(undefined)) // pending_invitations
+				.mockReturnValueOnce(
+					mockQueryBuilder({
+						// user_profiles re-select
+						user_id: "winner-id",
+						email: "race@example.com",
+						active_organization_id: null,
+						first_name: null,
+						last_name: null,
+					}),
+				);
+
+			const trx = {
+				selectFrom: trxSelectFrom,
+				insertInto: vi.fn(() => mockQueryBuilder(undefined)), // race lost
+				updateTable: vi.fn(() => mockQueryBuilder()),
+				deleteFrom: vi.fn(() => mockQueryBuilder()),
+			};
+
+			const mockDb = {
+				selectFrom: vi.fn(() => mockQueryBuilder(undefined)),
+				transaction: vi.fn(() => ({
+					execute: vi.fn(async (fn: any) => fn(trx)),
+				})),
+			};
+
+			const service = new SessionService({
+				db: mockDb as any,
+				sessionStore: createMockSessionStore(),
+			});
+
+			await expect(
+				service.findOrCreateUser({
+					sub: "kc-race",
+					email: "race@example.com",
+					iss: "",
+					aud: "",
+				}),
+			).rejects.toThrow(UserProvisioningError);
+		});
+
+		it("should return winner data when race loser finds valid org id", async () => {
+			const trxSelectFrom = vi
+				.fn()
+				.mockReturnValueOnce(mockQueryBuilder(undefined))
+				.mockReturnValueOnce(mockQueryBuilder(undefined))
+				.mockReturnValueOnce(
+					mockQueryBuilder({
+						user_id: "winner-id",
+						email: "race@example.com",
+						active_organization_id: "org-winner",
+						first_name: "Winner",
+						last_name: "User",
+					}),
+				);
+
+			const trx = {
+				selectFrom: trxSelectFrom,
+				insertInto: vi.fn(() => mockQueryBuilder(undefined)),
+				updateTable: vi.fn(() => mockQueryBuilder()),
+				deleteFrom: vi.fn(() => mockQueryBuilder()),
+			};
+
+			const mockDb = {
+				selectFrom: vi.fn(() => mockQueryBuilder(undefined)),
+				transaction: vi.fn(() => ({
+					execute: vi.fn(async (fn: any) => fn(trx)),
+				})),
+			};
+
+			const service = new SessionService({
+				db: mockDb as any,
+				sessionStore: createMockSessionStore(),
+			});
+
+			const result = await service.findOrCreateUser({
+				sub: "kc-race",
+				email: "race@example.com",
+				iss: "",
+				aud: "",
+			});
+
+			expect(result.id).toBe("winner-id");
+			expect(result.activeOrganizationId).toBe("org-winner");
+		});
+	});
+
 	// ── Issue 3: Error wrapping in findOrCreateUser ─────────────
 	describe("Issue 3: error wrapping in provisioning", () => {
 		it("should wrap transaction errors in UserProvisioningError with cause", async () => {
