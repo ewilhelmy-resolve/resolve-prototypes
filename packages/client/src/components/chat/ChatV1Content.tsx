@@ -248,6 +248,7 @@ function GroupedMessage({
 
 	return (
 		<Message from={message.role} className={reasoningOnly ? "py-1" : ""}>
+			{/* biome-ignore lint/a11y/useSemanticElements: fieldset breaks flex layout */}
 			<div
 				role="group"
 				className="flex flex-col w-full"
@@ -396,6 +397,10 @@ function GroupedMessage({
 	);
 }
 
+/** Dev/mock test commands sent via iframe dev controls (not user-visible) */
+const isDevTestCommand = (msg: SimpleChatMessage) =>
+	msg.role === "user" && msg.message.startsWith("testcustom:");
+
 // Component for simple standalone messages
 function SimpleMessage({
 	message,
@@ -467,7 +472,7 @@ function SimpleMessage({
 				submitVariant:
 					submitVariant === "destructive" ? "destructive" : "default",
 				onSubmit: (data) => {
-					onFormSubmit?.(message.metadata!.request_id, submitAction, data);
+					onFormSubmit?.(message.metadata?.request_id, submitAction, data);
 				},
 				onCancel: () => {
 					// Just close — don't cancel the request so user can reopen
@@ -525,8 +530,11 @@ function SimpleMessage({
 		triggerHostModal();
 	}, [isInterruptForm, isFormAnswered, triggerHostModal]);
 
+	if (isDevTestCommand(message)) return null;
+
 	return (
 		<Message from={message.role}>
+			{/* biome-ignore lint/a11y/useSemanticElements: fieldset breaks flex layout */}
 			<div
 				role="group"
 				className="flex flex-col"
