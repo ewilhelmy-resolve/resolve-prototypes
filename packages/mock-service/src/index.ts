@@ -2676,7 +2676,7 @@ app.post("/webhook", async (req, res) => {
 				// Delete primary user from Keycloak
 				// NOTE: Only pass email - let deleteKeycloakUser search Keycloak by email
 				// deletePayload.user_id is Rita's database user_id, not Keycloak's user ID
-				await deleteKeycloakUser(deletePayload.user_email!);
+				await deleteKeycloakUser(deletePayload.user_email as string);
 
 				// Delete additional users if provided (for organization deletion)
 				const additionalEmails = deletePayload.additional_emails || [];
@@ -2861,7 +2861,7 @@ app.post("/webhook", async (req, res) => {
 
 						// Send success email directly to owner if verification succeeded
 						if (isSuccess && verifyPayload.settings?.owner_email) {
-							const { owner_email, delegated_success_url, organization_name } =
+							const { owner_email, delegated_success_url } =
 								verifyPayload.settings;
 							try {
 								await emailService.sendDelegationSuccess(
@@ -3077,6 +3077,45 @@ app.post("/webhook", async (req, res) => {
 			(async () => {
 				try {
 					const rabbitmqService = getRabbitMQService();
+
+					// Simulate tickets_below_threshold error
+					// Triggered deterministically by username "mock-threshold" or 10% random chance
+					const syncUsername = ticketsPayload.settings?.username
+						?.toString()
+						.toLowerCase();
+					const simulateBelowThreshold =
+						syncUsername === "mock-threshold" ||
+						(!syncUsername?.startsWith("mock-") && Math.random() < 0.4);
+
+					if (simulateBelowThreshold) {
+						await new Promise((resolve) => setTimeout(resolve, 1500));
+						const currentTickets = Math.floor(Math.random() * 80) + 5; // 5-84
+						const belowThresholdMessage = {
+							type: "ticket_ingestion",
+							tenant_id: ticketsPayload.tenant_id,
+							user_id: ticketsPayload.user_id,
+							ingestion_run_id: ticketsPayload.ingestion_run_id,
+							connection_id: ticketsPayload.connection_id,
+							status: "failed",
+							records_processed: 0,
+							records_failed: 0,
+							error_message: "tickets_below_threshold",
+							error_detail: {
+								current_total_tickets: currentTickets,
+								needed_total_tickets: 100,
+							},
+							timestamp: new Date().toISOString(),
+						};
+						await rabbitmqService.publishToQueue(
+							"data_source_status",
+							belowThresholdMessage,
+						);
+						contextLogger.info(
+							{ currentTickets, needed: 100 },
+							"Simulated tickets_below_threshold error",
+						);
+						return;
+					}
 
 					let totalTickets: number;
 					let ticketsCreated = 0;
@@ -3534,7 +3573,7 @@ app.post("/webhook", async (req, res) => {
 
 				// Send verification email via Mailpit
 				await emailService.sendSignupVerification(
-					signupPayload.user_email!,
+					signupPayload.user_email as string,
 					`${signupPayload.first_name} ${signupPayload.last_name}`,
 					signupPayload.verification_url,
 				);

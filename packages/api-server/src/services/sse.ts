@@ -130,6 +130,7 @@ export interface IngestionRunUpdateEvent {
 		records_failed?: number;
 		total_estimated?: number;
 		error_message?: string;
+		error_detail?: Record<string, any>;
 		timestamp: string;
 	};
 }
