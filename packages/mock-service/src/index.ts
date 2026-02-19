@@ -3085,7 +3085,7 @@ app.post("/webhook", async (req, res) => {
 						.toLowerCase();
 					const simulateBelowThreshold =
 						syncUsername === "mock-threshold" ||
-						(!syncUsername?.startsWith("mock-") && Math.random() < 0.4);
+						(!syncUsername?.startsWith("mock-") && Math.random() < 0.1); // 10% chance for non-mock usernames, modify as needed for testing
 
 					if (simulateBelowThreshold) {
 						await new Promise((resolve) => setTimeout(resolve, 1500));
