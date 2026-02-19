@@ -13,7 +13,10 @@ import type { SSEEvent } from "../services/EventSourceSSEClient";
 import type { Message } from "../stores/conversationStore";
 import { useConversationStore } from "../stores/conversationStore";
 import { useFeatureFlagsStore } from "../stores/feature-flags-store";
-import type { IngestionRun } from "../types/dataSource";
+import {
+	DEFAULT_MINIMUM_TICKETS,
+	type IngestionRun,
+} from "../types/dataSource";
 
 interface MessageUpdate {
 	messageId: string;
@@ -456,7 +459,9 @@ export const SSEProvider: React.FC<SSEProviderProps> = ({
 								}),
 								description: i18n.t("descriptions.ticketsBelowThreshold", {
 									count: event.data.error_detail?.current_total_tickets ?? 0,
-									minimum: event.data.error_detail?.needed_total_tickets ?? 100,
+									minimum:
+										event.data.error_detail?.needed_total_tickets ??
+										DEFAULT_MINIMUM_TICKETS,
 									ns: "toast",
 								}),
 							});

@@ -212,6 +212,9 @@ export interface IngestionRunUpdateEvent {
 	};
 }
 
+/** Default minimum tickets required to train a model (used as fallback) */
+export const DEFAULT_MINIMUM_TICKETS = 100;
+
 /**
  * Ingestion run status for ITSM ticket sync
  */

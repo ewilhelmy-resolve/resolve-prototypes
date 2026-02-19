@@ -24,6 +24,7 @@ import {
 	type KBStatus,
 	type PeriodFilter,
 } from "@/types/cluster";
+import { DEFAULT_MINIMUM_TICKETS } from "@/types/dataSource";
 import { TRAINING_STATES } from "@/types/mlModel";
 import { TicketGroupSkeleton } from "./TicketGroupSkeleton";
 import { TicketGroupStat } from "./TicketGroupStat";
@@ -224,7 +225,7 @@ export default function TicketGroups({ period }: TicketGroupsProps) {
 										0,
 									minimum:
 										latestRun?.metadata?.error_detail?.needed_total_tickets ??
-										100,
+										DEFAULT_MINIMUM_TICKETS,
 								})}
 							</p>
 							<Button asChild variant="outline" size="sm">
