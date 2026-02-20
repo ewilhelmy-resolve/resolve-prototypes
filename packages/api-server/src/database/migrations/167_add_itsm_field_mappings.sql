@@ -9,8 +9,8 @@ CREATE TABLE itsm_field_mappings (
     organization_id UUID NOT NULL,
     target_field TEXT NOT NULL,
     source_field TEXT NOT NULL,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     created_by UUID NULL,
     updated_by UUID NULL,
 
