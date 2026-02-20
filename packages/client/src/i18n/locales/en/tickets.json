@@ -176,14 +176,27 @@
 		"createArticle": "Create Knowledge Article"
 	},
 	"prioritization": {
-		"title": "Where to Invest",
-		"description": "Clusters by volume and automation readiness",
+		"title": "Cluster Prioritization",
+		"description": "Decide where to focus based on volume and knowledge coverage",
 		"quadrants": {
-			"quickWins": "Quick Wins",
-			"strategic": "Strategic",
-			"easyWins": "Easy Wins",
-			"deprioritize": "Deprioritize"
-		}
+			"createKnowledge": "Create knowledge first",
+			"automateFirst": "Automate first",
+			"lowerPriority": "Lower priority",
+			"ignoreForNow": "Ignore for now"
+		},
+		"axes": {
+			"noKnowledge": "No Knowledge",
+			"knowledgeExists": "Knowledge Exists",
+			"volume": "Volume"
+		},
+		"views": {
+			"scatter": "Scatter chart",
+			"bubbleStrip": "Bubble strip",
+			"divergingBars": "Diverging bars",
+			"rankedList": "Ranked list"
+		},
+		"viewSwitcherLabel": "Chart view",
+		"hiddenCount": "+{{count}} more clusters"
 	},
 	"gapBanner": {
 		"knowledgeGap": "Knowledge gap — no KB articles linked"
