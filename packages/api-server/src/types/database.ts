@@ -241,6 +241,27 @@ export interface IngestionRuns {
 	updated_at: Generated<Timestamp | null>;
 }
 
+export interface ItsmFieldMappings {
+	created_at: Generated<Timestamp>;
+	created_by: string | null;
+	data_source_connection_id: string;
+	id: Generated<string>;
+	/**
+	 * Denormalized from data_source_connections for RLS org isolation
+	 */
+	organization_id: string;
+	/**
+	 * Field name in external ITSM system that maps to target_field
+	 */
+	source_field: string;
+	/**
+	 * Rita target field: priority, status
+	 */
+	target_field: string;
+	updated_at: Generated<Timestamp>;
+	updated_by: string | null;
+}
+
 export interface MessageProcessingFailures {
 	created_at: Generated<Timestamp | null>;
 	/**
@@ -576,6 +597,7 @@ export interface DB {
 	credential_delegation_tokens: CredentialDelegationTokens;
 	data_source_connections: DataSourceConnections;
 	ingestion_runs: IngestionRuns;
+	itsm_field_mappings: ItsmFieldMappings;
 	message_processing_failures: MessageProcessingFailures;
 	messages: Messages;
 	migration_history: MigrationHistory;
