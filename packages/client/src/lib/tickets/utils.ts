@@ -1,5 +1,6 @@
 import { type LucideIcon, Network, Sparkles, Zap } from "lucide-react";
 import type { TicketPriority } from "@/components/tickets/ReviewAIResponseSheet";
+import type { KBStatus } from "@/types/cluster";
 
 /**
  * AI Response type constants
@@ -30,7 +31,7 @@ export interface AIResponseTypeConfig {
 
 /**
  * Centralized configuration for AI response types
- * Used by AIResponseSection and ClusterDetailOverviewTab
+ * Used by AIResponseSection
  */
 export const AI_RESPONSE_TYPES: Record<AIResponseType, AIResponseTypeConfig> = {
 	"auto-respond": {
@@ -39,6 +40,7 @@ export const AI_RESPONSE_TYPES: Record<AIResponseType, AIResponseTypeConfig> = {
 		icon: Sparkles,
 		color: "text-purple-500",
 		badgeClasses: "border-purple-500 bg-purple-50 text-purple-500",
+		comingSoon: true,
 	},
 	"auto-populate": {
 		type: "auto-populate",
@@ -46,6 +48,7 @@ export const AI_RESPONSE_TYPES: Record<AIResponseType, AIResponseTypeConfig> = {
 		icon: Zap,
 		color: "text-green-500",
 		badgeClasses: "border-green-500 bg-green-50 text-green-500",
+		comingSoon: true,
 	},
 	"auto-resolve": {
 		type: "auto-resolve",
@@ -129,4 +132,40 @@ export function getConfidenceLabel(score: number): string {
 export function formatPriority(priority: TicketPriority): string {
 	if (!priority) return "Unset";
 	return priority.charAt(0).toUpperCase() + priority.slice(1);
+}
+
+/**
+ * Gap types for knowledge readiness
+ */
+export type GapType = "knowledge" | null;
+
+/**
+ * Detect whether a cluster has a knowledge gap
+ */
+export function detectGapType(kbStatus?: KBStatus): GapType {
+	if (kbStatus === "GAP") return "knowledge";
+	return null;
+}
+
+/**
+ * Compute a value score for prioritizing clusters
+ * Score = (volumeNorm * 0.5 + easeScore * 0.5) * 100
+ */
+export function computeValueScore(
+	cluster: {
+		ticket_count: number;
+		kb_status: KBStatus;
+		needs_response_count: number;
+	},
+	maxTicketCount: number,
+): number {
+	if (maxTicketCount === 0) return 0;
+	const volumeNorm = cluster.ticket_count / maxTicketCount;
+	const hasKb = cluster.kb_status === "FOUND" ? 1 : 0;
+	const responseRatio =
+		cluster.ticket_count > 0
+			? cluster.needs_response_count / cluster.ticket_count
+			: 0;
+	const easeScore = hasKb * 0.6 + responseRatio * 0.4;
+	return Math.round((volumeNorm * 0.5 + easeScore * 0.5) * 100);
 }

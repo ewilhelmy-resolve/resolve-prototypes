@@ -1,5 +1,5 @@
-import { ChevronDown, Search } from "lucide-react";
-import { useEffect, useState } from "react";
+import { ArrowDownUp, ChevronDown, Search } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
@@ -18,17 +18,21 @@ import { useActiveModel } from "@/hooks/useActiveModel";
 import { useClusters } from "@/hooks/useClusters";
 import { useDebounce } from "@/hooks/useDebounce";
 import { useIsIngesting } from "@/hooks/useIsIngesting";
+import { computeValueScore } from "@/lib/tickets/utils";
 import {
+	type ClusterListItem,
 	KB_FILTER_ALL,
 	KB_STATUSES,
 	type KBStatus,
 	type PeriodFilter,
 } from "@/types/cluster";
 import { TRAINING_STATES } from "@/types/mlModel";
+import { PrioritizationChart } from "./PrioritizationChart";
 import { TicketGroupSkeleton } from "./TicketGroupSkeleton";
 import { TicketGroupStat } from "./TicketGroupStat";
 
 type KBFilterOption = KBStatus | typeof KB_FILTER_ALL;
+type SortOption = "volume" | "value";
 
 const PAGE_SIZE = 12;
 
@@ -39,6 +43,7 @@ interface TicketGroupsProps {
 export default function TicketGroups({ period }: TicketGroupsProps) {
 	const { t } = useTranslation("tickets");
 	const [kbFilter, setKbFilter] = useState<KBFilterOption>(KB_FILTER_ALL);
+	const [sortBy, setSortBy] = useState<SortOption>("volume");
 
 	// Search state with debounce
 	const [searchInput, setSearchInput] = useState("");
@@ -53,7 +58,7 @@ export default function TicketGroups({ period }: TicketGroupsProps) {
 	useEffect(() => {
 		setCursorHistory([]);
 		setCurrentCursor(undefined);
-	}, [period, kbFilter, debouncedSearch]);
+	}, [period, kbFilter, debouncedSearch, sortBy]);
 
 	// Fetch active model to check training state
 	const { data: activeModel, isLoading: isModelLoading } = useActiveModel();
@@ -67,7 +72,6 @@ export default function TicketGroups({ period }: TicketGroupsProps) {
 	const { isIngesting, latestRun } = useIsIngesting();
 	const isFirstImport = isIngesting && !canShowClusters;
 
-	// kb_status now goes to server (not client filtering)
 	const kbStatusParam = kbFilter === KB_FILTER_ALL ? undefined : kbFilter;
 
 	// Fetch clusters with server-side filters and pagination
@@ -85,11 +89,28 @@ export default function TicketGroups({ period }: TicketGroupsProps) {
 		sort: "volume",
 	});
 
-	const clusters = clustersResponse?.data ?? [];
+	const rawClusters = clustersResponse?.data ?? [];
 	const pagination = clustersResponse?.pagination;
 	const totals = clustersResponse?.totals;
 	const hasNextPage = pagination?.has_more ?? false;
 	const hasPrevPage = cursorHistory.length > 0;
+
+	// Client-side sort by value score
+	const maxTicketCount = useMemo(
+		() => Math.max(...rawClusters.map((c) => c.ticket_count), 1),
+		[rawClusters],
+	);
+
+	const clusters = useMemo(() => {
+		if (sortBy === "value") {
+			return [...rawClusters].sort(
+				(a, b) =>
+					computeValueScore(b, maxTicketCount) -
+					computeValueScore(a, maxTicketCount),
+			);
+		}
+		return rawClusters;
+	}, [rawClusters, sortBy, maxTicketCount]);
 
 	// KB filter display labels
 	const kbFilterLabels: Record<KBFilterOption, string> = {
@@ -97,6 +118,11 @@ export default function TicketGroups({ period }: TicketGroupsProps) {
 		[KB_STATUSES.FOUND]: t("groups.filterOptions.knowledgeFound"),
 		[KB_STATUSES.GAP]: t("groups.filterOptions.knowledgeGap"),
 		[KB_STATUSES.PENDING]: t("groups.filterOptions.pending"),
+	};
+
+	const sortLabels: Record<SortOption, string> = {
+		volume: t("groups.sortOptions.volume"),
+		value: t("groups.sortOptions.value"),
 	};
 
 	// Build display title from name + subcluster_name
@@ -119,6 +145,11 @@ export default function TicketGroups({ period }: TicketGroupsProps) {
 		const prevCursor = cursorHistory[cursorHistory.length - 1];
 		setCursorHistory((prev) => prev.slice(0, -1));
 		setCurrentCursor(prevCursor || undefined);
+	};
+
+	const getValueScore = (cluster: ClusterListItem) => {
+		if (sortBy !== "value") return undefined;
+		return computeValueScore(cluster, maxTicketCount);
 	};
 
 	// Show spinner while checking model state initially
@@ -182,7 +213,7 @@ export default function TicketGroups({ period }: TicketGroupsProps) {
 							/>
 						</div>
 
-						{/* KB Status dropdown */}
+						{/* KB Status / Gap filter dropdown */}
 						<DropdownMenu>
 							<DropdownMenuTrigger asChild>
 								<Button variant="outline" size="sm">
@@ -201,6 +232,24 @@ export default function TicketGroups({ period }: TicketGroupsProps) {
 								).map((k) => (
 									<DropdownMenuItem key={k} onClick={() => setKbFilter(k)}>
 										{kbFilterLabels[k]}
+									</DropdownMenuItem>
+								))}
+							</DropdownMenuContent>
+						</DropdownMenu>
+
+						{/* Sort dropdown */}
+						<DropdownMenu>
+							<DropdownMenuTrigger asChild>
+								<Button variant="outline" size="sm">
+									<ArrowDownUp className="mr-1 h-3.5 w-3.5" />
+									{t("groups.sortBy")}
+									<ChevronDown />
+								</Button>
+							</DropdownMenuTrigger>
+							<DropdownMenuContent>
+								{(["volume", "value"] as SortOption[]).map((s) => (
+									<DropdownMenuItem key={s} onClick={() => setSortBy(s)}>
+										{sortLabels[s]}
 									</DropdownMenuItem>
 								))}
 							</DropdownMenuContent>
@@ -279,6 +328,9 @@ export default function TicketGroups({ period }: TicketGroupsProps) {
 					</div>
 				) : clusters.length > 0 ? (
 					<>
+						{/* 2x2 Prioritization Chart */}
+						<PrioritizationChart clusters={clusters} />
+
 						{/* Re-import banner: show above existing clusters */}
 						{isIngesting && (
 							<StatusAlert variant="info" title={t("groups.importingTickets")}>
@@ -311,6 +363,7 @@ export default function TicketGroups({ period }: TicketGroupsProps) {
 									title={getDisplayTitle(cluster.name, cluster.subcluster_name)}
 									count={cluster.ticket_count}
 									knowledgeStatus={cluster.kb_status}
+									valueScore={getValueScore(cluster)}
 								/>
 							))}
 						</div>

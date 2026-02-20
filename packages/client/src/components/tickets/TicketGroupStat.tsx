@@ -1,6 +1,5 @@
 import { useNavigate } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
 import { KB_STATUS_BADGE_STYLES } from "@/lib/constants";
 import type { KBStatus } from "@/types/cluster";
 
@@ -13,10 +12,8 @@ interface TicketGroupStatProps {
 	count: number;
 	/** Knowledge base status */
 	knowledgeStatus: KBStatus;
-	/** Manual handling percentage (hardcoded for now) */
-	manualPercentage?: number;
-	/** Automated handling percentage (hardcoded for now) */
-	automatedPercentage?: number;
+	/** Value score (0-100), shown when sorting by value */
+	valueScore?: number;
 	/** Optional click handler - overrides default navigation */
 	onClick?: () => void;
 }
@@ -24,15 +21,15 @@ interface TicketGroupStatProps {
 /**
  * TicketGroupStat - Individual ticket group statistics card
  *
- * Displays a ticket category with count and knowledge status indicator.
- * Clickable to navigate to detail page.
+ * Displays a ticket category with count, knowledge status badge,
+ * and optional value score.
  */
 export function TicketGroupStat({
 	id,
 	title,
 	count,
 	knowledgeStatus,
-	automatedPercentage = 0,
+	valueScore,
 	onClick,
 }: TicketGroupStatProps) {
 	const navigate = useNavigate();
@@ -41,7 +38,7 @@ export function TicketGroupStat({
 		onClick ? onClick() : navigate(`/tickets/${id}`);
 	};
 
-	const getKnowledgeBadge = () => {
+	const getStatusBadge = () => {
 		const style = KB_STATUS_BADGE_STYLES[knowledgeStatus];
 		if (!style) return null;
 		return (
@@ -67,19 +64,15 @@ export function TicketGroupStat({
 				</div>
 			</div>
 
-			{/* Progress Bar */}
-			<div className="flex flex-col gap-2">
-				<Progress
-					value={automatedPercentage}
-					indicatorClassName="bg-rita-teal"
-				/>
-				<div className="text-xs text-muted-foreground">
-					<span>{automatedPercentage}% Automate</span>
-				</div>
+			{/* Status Badge + Value Score */}
+			<div className="flex items-center justify-between">
+				<div>{getStatusBadge()}</div>
+				{valueScore != null && (
+					<span className="text-xs font-medium text-muted-foreground">
+						Value: {valueScore}/100
+					</span>
+				)}
 			</div>
-
-			{/* Knowledge Status Badge */}
-			<div>{getKnowledgeBadge()}</div>
 		</button>
 	);
 }

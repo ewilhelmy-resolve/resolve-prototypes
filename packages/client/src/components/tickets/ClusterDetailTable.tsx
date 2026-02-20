@@ -1,11 +1,8 @@
-// TODO: Uncomment ChevronDown when source filter data is available
-import { /* ChevronDown, */ Loader2, MoreHorizontal } from "lucide-react";
-import { useState } from "react";
+import { ChevronDown, Loader2, Search } from "lucide-react";
+import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
-import { BulkActions } from "@/components/BulkActions";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
 import {
 	DropdownMenu,
 	DropdownMenuContent,
@@ -21,26 +18,18 @@ import {
 	TableHeader,
 	TableRow,
 } from "@/components/ui/table";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useClusterTickets } from "@/hooks/useClusters";
 import { useDebounce } from "@/hooks/useDebounce";
 import { renderSortIcon } from "@/lib/table-utils";
 import type {
 	ClusterTicketsQueryParams,
 	SortDirection,
-	Ticket,
 	TicketSortOption,
 } from "@/types/cluster";
-import ReviewAIResponseSheet, {
-	type ReviewStats,
-	type ReviewTicket,
-} from "./ReviewAIResponseSheet";
 
 interface ClusterDetailTableProps {
 	/** Cluster ID for fetching tickets */
 	clusterId?: string;
-	/** Called when AI review is completed with stats */
-	onReviewComplete?: (stats: ReviewStats) => void;
 }
 
 // Format date for display
@@ -65,67 +54,71 @@ const getSourceIcon = (source: string): string => {
 	return `/connections/icon_${source.toLowerCase()}.svg`;
 };
 
+// Capitalize first letter of a string
+const capitalize = (value: string): string => {
+	return value.charAt(0).toUpperCase() + value.slice(1);
+};
+
 /**
  * ClusterDetailTable - Table displaying tickets with filters and pagination
  */
-export function ClusterDetailTable({
-	clusterId,
-	onReviewComplete,
-}: ClusterDetailTableProps) {
+export function ClusterDetailTable({ clusterId }: ClusterDetailTableProps) {
 	const { t } = useTranslation("tickets");
-	const [activeTab, setActiveTab] = useState<"needs_response" | "completed">(
-		"needs_response",
-	);
 	const [cursor, setCursor] = useState<string | undefined>(undefined);
-	const [selectedTickets, setSelectedTickets] = useState<string[]>([]);
 	const [searchQuery, setSearchQuery] = useState("");
 	const [sortField, setSortField] = useState<TicketSortOption>("created_at");
 	const [sortDir, setSortDir] = useState<SortDirection>("desc");
-	// TODO: Uncomment when source filter data is available (tickets need data_source_connection_id populated)
-	// const [sourceFilter, setSourceFilter] = useState<string | undefined>(undefined);
+	const [priorityFilter, setPriorityFilter] = useState<string | undefined>();
+	const [statusFilter, setStatusFilter] = useState<string | undefined>();
 
 	// Debounce search to avoid excessive API calls
 	const debouncedSearch = useDebounce(searchQuery, 300);
 
 	const queryParams: ClusterTicketsQueryParams = {
-		tab: activeTab,
 		cursor,
 		limit: 20,
 		search: debouncedSearch || undefined,
 		sort: sortField,
 		sort_dir: sortDir,
-		// TODO: Uncomment when source filter data is available
-		// source: sourceFilter,
 	};
 
 	const { data, isLoading, error } = useClusterTickets(clusterId, queryParams);
-	const tickets = data?.data ?? [];
+	const rawTickets = data?.data ?? [];
 	const pagination = data?.pagination;
 
-	// Review sheet state
-	const [reviewSheetOpen, setReviewSheetOpen] = useState(false);
-	const [reviewTickets, setReviewTickets] = useState<ReviewTicket[]>([]);
-	const [currentReviewIndex, setCurrentReviewIndex] = useState(0);
+	// Client-side filters for priority and status
+	const tickets = useMemo(() => {
+		let filtered = rawTickets;
+		if (priorityFilter) {
+			filtered = filtered.filter((t) => t.priority === priorityFilter);
+		}
+		if (statusFilter) {
+			filtered = filtered.filter((t) => t.external_status === statusFilter);
+		}
+		return filtered;
+	}, [rawTickets, priorityFilter, statusFilter]);
 
-	// Handle tab change - reset cursor and search
-	const handleTabChange = (value: string) => {
-		setActiveTab(value as "needs_response" | "completed");
-		setCursor(undefined);
-		setSelectedTickets([]);
-		setSearchQuery("");
-	};
+	// Derive unique filter options from current data
+	const priorityOptions = useMemo(
+		() =>
+			[
+				...new Set(rawTickets.map((t) => t.priority).filter(Boolean)),
+			] as string[],
+		[rawTickets],
+	);
+	const statusOptions = useMemo(
+		() =>
+			[
+				...new Set(rawTickets.map((t) => t.external_status).filter(Boolean)),
+			] as string[],
+		[rawTickets],
+	);
 
 	// Handle search input
 	const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
 		setSearchQuery(e.target.value);
-		setCursor(undefined); // Reset pagination when searching
+		setCursor(undefined);
 	};
-
-	// TODO: Uncomment when source filter data is available
-	// const handleSourceChange = (value: string) => {
-	// 	setSourceFilter(value === "all" ? undefined : value);
-	// 	setCursor(undefined);
-	// };
 
 	// Generic sort handler for columns
 	const handleSort = (field: TicketSortOption) => {
@@ -136,75 +129,6 @@ export function ClusterDetailTable({
 			setSortDir(field === "created_at" ? "desc" : "asc");
 		}
 		setCursor(undefined);
-	};
-
-	// Selection handlers
-	const handleSelectAll = (checked: boolean) => {
-		if (checked) {
-			setSelectedTickets(tickets.map((t) => t.id));
-		} else {
-			setSelectedTickets([]);
-		}
-	};
-
-	const handleSelectTicket = (ticketId: string, checked: boolean) => {
-		if (checked) {
-			setSelectedTickets([...selectedTickets, ticketId]);
-		} else {
-			setSelectedTickets(selectedTickets.filter((id) => id !== ticketId));
-		}
-	};
-
-	// Convert Ticket to ReviewTicket format
-	const convertToReviewTicket = (ticket: Ticket): ReviewTicket => ({
-		id: ticket.id,
-		externalId: ticket.external_id,
-		title: ticket.subject,
-		description: ticket.description || "No description provided.",
-		priority: "medium",
-	});
-
-	// Single ticket review
-	const reviewAI = (ticketId: string) => {
-		const ticket = tickets.find((t) => t.id === ticketId);
-		if (ticket) {
-			setReviewTickets([convertToReviewTicket(ticket)]);
-			setCurrentReviewIndex(0);
-			setReviewSheetOpen(true);
-		}
-	};
-
-	// Bulk review handler
-	const handleBulkReviewAI = async () => {
-		const ticketsToReview = tickets
-			.filter((t) => selectedTickets.includes(t.id))
-			.map(convertToReviewTicket);
-
-		setReviewTickets(ticketsToReview);
-		setCurrentReviewIndex(0);
-		setReviewSheetOpen(true);
-	};
-
-	// Handle approve/reject actions
-	const handleApprove = (ticketId: string) => {
-		console.log(`Approved AI response for ticket: ${ticketId}`);
-		// TODO: Implement API call to approve response
-	};
-
-	const handleReject = (ticketId: string) => {
-		console.log(`Rejected AI response for ticket: ${ticketId}`);
-		// TODO: Implement API call to reject response or open editor
-	};
-
-	const handleNavigate = (index: number) => {
-		setCurrentReviewIndex(index);
-	};
-
-	const handleReviewSheetClose = (open: boolean) => {
-		setReviewSheetOpen(open);
-		if (!open) {
-			setSelectedTickets([]);
-		}
 	};
 
 	// Pagination handlers
@@ -232,91 +156,70 @@ export function ClusterDetailTable({
 
 	return (
 		<div className="flex flex-col gap-3">
-			{/* Filters or Bulk Actions */}
-			{selectedTickets.length === 0 ? (
-				<div className="flex flex-col gap-4 py-4 sm:flex-row sm:items-center sm:justify-between">
-					<div className="flex flex-col gap-4 sm:flex-row sm:items-center">
-						<Tabs
-							value={activeTab}
-							onValueChange={handleTabChange}
-							className="w-fit"
-						>
-							<TabsList>
-								<TabsTrigger value="needs_response">
-									{t("table.tabs.needsResponse")}
-								</TabsTrigger>
-								<TabsTrigger value="completed">
-									{t("table.tabs.completed")}
-								</TabsTrigger>
-							</TabsList>
-						</Tabs>
-					</div>
-
-					<div className="flex flex-col gap-4 sm:flex-row sm:items-center">
-						{/* TODO: Uncomment when source filter data is available (tickets need data_source_connection_id populated)
-						<DropdownMenu>
-							<DropdownMenuTrigger asChild>
-								<Button variant="outline" className="w-fit">
-									{sourceFilter
-										? sourceFilter.charAt(0).toUpperCase() +
-											sourceFilter.slice(1)
-										: "All Sources"}
-									<ChevronDown className="ml-2 h-4 w-4" />
-								</Button>
-							</DropdownMenuTrigger>
-							<DropdownMenuContent>
-								<DropdownMenuItem onClick={() => handleSourceChange("all")}>
-									All Sources
-								</DropdownMenuItem>
-								<DropdownMenuItem
-									onClick={() => handleSourceChange("servicenow")}
-								>
-									ServiceNow
-								</DropdownMenuItem>
-							</DropdownMenuContent>
-						</DropdownMenu>
-						*/}
-
-						<Input
-							placeholder={t("table.searchPlaceholder")}
-							className="md:w-64 w-full"
-							value={searchQuery}
-							onChange={handleSearchChange}
-						/>
-					</div>
+			{/* Filters */}
+			<div className="flex flex-wrap items-center gap-2">
+				<div className="relative flex-1 min-w-[200px] max-w-sm">
+					<Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+					<Input
+						placeholder={t("table.searchPlaceholder")}
+						className="pl-10"
+						value={searchQuery}
+						onChange={handleSearchChange}
+					/>
 				</div>
-			) : (
-				<BulkActions
-					selectedItems={selectedTickets.map(String)}
-					actions={[
-						{
-							key: "review",
-							label: t("table.actions.reviewAIResponses"),
-							variant: "default",
-							onClick: handleBulkReviewAI,
-						},
-					]}
-					onClose={() => setSelectedTickets([])}
-					itemLabel="tickets"
-				/>
-			)}
+
+				{/* Priority filter */}
+				{priorityOptions.length > 0 && (
+					<DropdownMenu>
+						<DropdownMenuTrigger asChild>
+							<Button variant="outline" size="sm">
+								{priorityFilter
+									? capitalize(priorityFilter)
+									: t("table.headers.priority")}
+								<ChevronDown className="ml-1 h-3.5 w-3.5" />
+							</Button>
+						</DropdownMenuTrigger>
+						<DropdownMenuContent>
+							<DropdownMenuItem onClick={() => setPriorityFilter(undefined)}>
+								All
+							</DropdownMenuItem>
+							{priorityOptions.map((p) => (
+								<DropdownMenuItem key={p} onClick={() => setPriorityFilter(p)}>
+									{capitalize(p)}
+								</DropdownMenuItem>
+							))}
+						</DropdownMenuContent>
+					</DropdownMenu>
+				)}
+
+				{/* Status filter */}
+				{statusOptions.length > 0 && (
+					<DropdownMenu>
+						<DropdownMenuTrigger asChild>
+							<Button variant="outline" size="sm">
+								{statusFilter || t("table.headers.status")}
+								<ChevronDown className="ml-1 h-3.5 w-3.5" />
+							</Button>
+						</DropdownMenuTrigger>
+						<DropdownMenuContent>
+							<DropdownMenuItem onClick={() => setStatusFilter(undefined)}>
+								All
+							</DropdownMenuItem>
+							{statusOptions.map((s) => (
+								<DropdownMenuItem key={s} onClick={() => setStatusFilter(s)}>
+									{s}
+								</DropdownMenuItem>
+							))}
+						</DropdownMenuContent>
+					</DropdownMenu>
+				)}
+			</div>
 
 			{/* Table */}
 			<div className="rounded-md border">
 				<Table>
 					<TableHeader>
 						<TableRow>
-							<TableHead className="w-8">
-								<Checkbox
-									checked={
-										tickets.length > 0 &&
-										selectedTickets.length === tickets.length
-									}
-									onCheckedChange={(checked) =>
-										handleSelectAll(checked as boolean)
-									}
-								/>
-							</TableHead>
 							<TableHead>
 								<Button
 									variant="ghost"
@@ -337,6 +240,10 @@ export function ClusterDetailTable({
 									{renderSortIcon(sortField, "external_id", sortDir)}
 								</Button>
 							</TableHead>
+							<TableHead>{t("table.headers.priority")}</TableHead>
+							<TableHead>{t("table.headers.status")}</TableHead>
+							<TableHead>{t("table.headers.requester")}</TableHead>
+							<TableHead>{t("table.headers.assignedTo")}</TableHead>
 							<TableHead>{t("table.headers.source")}</TableHead>
 							<TableHead className="text-right">
 								<Button
@@ -348,27 +255,18 @@ export function ClusterDetailTable({
 									{renderSortIcon(sortField, "created_at", sortDir)}
 								</Button>
 							</TableHead>
-							<TableHead className="w-16" />
 						</TableRow>
 					</TableHeader>
 					<TableBody>
 						{tickets.length === 0 ? (
 							<TableRow>
-								<TableCell colSpan={6} className="h-24 text-center">
+								<TableCell colSpan={8} className="h-24 text-center">
 									{t("table.noTickets")}
 								</TableCell>
 							</TableRow>
 						) : (
 							tickets.map((row) => (
 								<TableRow key={row.id}>
-									<TableCell>
-										<Checkbox
-											checked={selectedTickets.includes(row.id)}
-											onCheckedChange={(checked) =>
-												handleSelectTicket(row.id, checked as boolean)
-											}
-										/>
-									</TableCell>
 									<TableCell className="font-medium">
 										<Link
 											to={`/tickets/${clusterId}/${row.id}`}
@@ -378,6 +276,12 @@ export function ClusterDetailTable({
 										</Link>
 									</TableCell>
 									<TableCell>{row.external_id}</TableCell>
+									<TableCell>
+										{row.priority ? capitalize(row.priority) : "\u2014"}
+									</TableCell>
+									<TableCell>{row.external_status || "\u2014"}</TableCell>
+									<TableCell>{row.requester || "\u2014"}</TableCell>
+									<TableCell>{row.assigned_to || "\u2014"}</TableCell>
 									<TableCell>
 										{getTicketSource(row.source_metadata) && (
 											<img
@@ -391,20 +295,6 @@ export function ClusterDetailTable({
 									</TableCell>
 									<TableCell className="text-right text-sm">
 										{formatDate(row.created_at)}
-									</TableCell>
-									<TableCell>
-										<DropdownMenu>
-											<DropdownMenuTrigger asChild>
-												<Button variant="ghost" size="icon">
-													<MoreHorizontal />
-												</Button>
-											</DropdownMenuTrigger>
-											<DropdownMenuContent align="end">
-												<DropdownMenuItem onClick={() => reviewAI(row.id)}>
-													{t("table.actions.reviewAI")}
-												</DropdownMenuItem>
-											</DropdownMenuContent>
-										</DropdownMenu>
 									</TableCell>
 								</TableRow>
 							))
@@ -435,19 +325,6 @@ export function ClusterDetailTable({
 					</Button>
 				</div>
 			</div>
-
-			{/* Review AI Response Sheet */}
-			<ReviewAIResponseSheet
-				open={reviewSheetOpen}
-				onOpenChange={handleReviewSheetClose}
-				ticketGroupId={clusterId}
-				tickets={reviewTickets}
-				currentIndex={currentReviewIndex}
-				onNavigate={handleNavigate}
-				onApprove={handleApprove}
-				onReject={handleReject}
-				onReviewComplete={onReviewComplete}
-			/>
 		</div>
 	);
 }

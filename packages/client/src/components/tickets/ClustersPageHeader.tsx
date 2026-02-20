@@ -18,6 +18,11 @@ interface ClustersPageHeaderProps {
 	period: PeriodFilter;
 	onPeriodChange: (period: PeriodFilter) => void;
 	totalTickets: number;
+	totalClusters: number;
+	knowledgeGaps: number;
+	ticketsInGapClusters: number;
+	potentialCostSavings: number;
+	potentialTimeSaved: number;
 	showSkeletons: boolean;
 	hasNoModel: boolean;
 	onSettingsClick: () => void;
@@ -27,6 +32,11 @@ export function ClustersPageHeader({
 	period,
 	onPeriodChange,
 	totalTickets,
+	totalClusters,
+	knowledgeGaps,
+	ticketsInGapClusters,
+	potentialCostSavings,
+	potentialTimeSaved,
 	showSkeletons,
 	hasNoModel,
 	onSettingsClick,
@@ -102,23 +112,23 @@ export function ClustersPageHeader({
 						loading={showSkeletons}
 					/>
 					<StatCard
-						value="0"
-						label={t("header.stats.totalTicketsAutomated")}
+						value={totalClusters.toLocaleString()}
+						label={t("header.stats.totalClusters")}
 						loading={showSkeletons}
 					/>
 					<StatCard
-						value="0%"
-						label={t("header.stats.automationPercentage")}
+						value={knowledgeGaps.toLocaleString()}
+						label={t("header.stats.knowledgeGaps")}
 						loading={showSkeletons}
 					/>
 					<StatCard
-						value="$0"
-						label={t("header.stats.moneySaved")}
+						value={`$${potentialCostSavings.toLocaleString()}`}
+						label={t("header.stats.estMonthlySpend")}
 						loading={showSkeletons}
 					/>
 					<StatCard
-						value="0hr"
-						label={t("header.stats.timeSaved")}
+						value={`${potentialTimeSaved.toLocaleString()}hr`}
+						label={t("header.stats.estMonthlyHours")}
 						loading={showSkeletons}
 					/>
 				</StatGroup>

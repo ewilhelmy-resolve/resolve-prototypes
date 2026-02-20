@@ -3,11 +3,16 @@
 		"description": "RITA learned from <strong>{{ticketCount}}</strong> tickets for <strong>{{period}}</strong>",
 		"stats": {
 			"totalTickets": "Total tickets",
+			"totalClusters": "Total clusters",
+			"knowledgeGaps": "Knowledge gaps",
+			"ticketsNeedingKnowledge": "Tickets needing knowledge",
 			"ticketsLast7Days": "Tickets last 7 days",
 			"totalTicketsAutomated": "Total Tickets Automated",
 			"automationPercentage": "Automation %",
 			"moneySaved": "Money Saved",
-			"timeSaved": "Time Saved"
+			"timeSaved": "Time Saved",
+			"estMonthlySpend": "Est. Monthly Spend",
+			"estMonthlyHours": "Est. Monthly Hours"
 		}
 	},
 	"page": {
@@ -29,6 +34,11 @@
 		"trainingFailedDescription": "There was an issue analyzing your tickets. Please check your ITSM connection and try syncing again.",
 		"goToItsmConnections": "Go to ITSM Connections",
 		"filterBy": "Filter by",
+		"sortBy": "Sort by",
+		"sortOptions": {
+			"volume": "Volume",
+			"value": "Value"
+		},
 		"searchPlaceholder": "Search by topic name...",
 		"filterOptions": {
 			"all": "All",
@@ -165,6 +175,19 @@
 		"description": "No knowledge articles found for this cluster. Rita recommends creating one to enable Auto-Answer.",
 		"createArticle": "Create Knowledge Article"
 	},
+	"prioritization": {
+		"title": "Where to Invest",
+		"description": "Clusters by volume and automation readiness",
+		"quadrants": {
+			"quickWins": "Quick Wins",
+			"strategic": "Strategic",
+			"easyWins": "Easy Wins",
+			"deprioritize": "Deprioritize"
+		}
+	},
+	"gapBanner": {
+		"knowledgeGap": "Knowledge gap — no KB articles linked"
+	},
 	"comingSoon": {
 		"title": "Tickets coming soon",
 		"description": "Leverage your existing ITSM data for intelligent analysis.",
@@ -180,6 +203,13 @@
 			"tickets": "{{count}} tickets",
 			"open": "{{count}} open",
 			"kbArticles": "{{count}} KB articles"
+		},
+		"stats": {
+			"totalTickets": "Total Tickets",
+			"openTickets": "Open Tickets",
+			"kbArticles": "KB Articles",
+			"estMonthlyCost": "Est. Monthly Cost",
+			"estMonthlyHours": "Est. Monthly Hours"
 		},
 		"banners": {
 			"reviewSuccess": "Great job! You reviewed {{count}} responses.",
@@ -226,6 +256,10 @@
 		"headers": {
 			"subject": "Subject",
 			"externalId": "External ID",
+			"priority": "Priority",
+			"status": "Status",
+			"requester": "Requester",
+			"assignedTo": "Assigned To",
 			"source": "Source",
 			"created": "Created"
 		},
