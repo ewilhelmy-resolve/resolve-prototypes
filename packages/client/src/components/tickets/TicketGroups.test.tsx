@@ -29,6 +29,7 @@ beforeEach(() => {
 	mockUseIsIngesting.mockReturnValue({
 		isIngesting: false,
 		latestRun: null,
+		isBelowThreshold: false,
 	});
 	mockUseClusters.mockReturnValue({
 		data: undefined,
@@ -131,6 +132,33 @@ describe("TicketGroups conditional rendering", () => {
 		renderTicketGroups();
 
 		expect(screen.getByText("groups.trainingFailed")).toBeInTheDocument();
+	});
+
+	it("shows below-threshold error when latest run has tickets_below_threshold", () => {
+		mockUseIsIngesting.mockReturnValue({
+			isIngesting: false,
+			latestRun: {
+				status: "failed",
+				error_message: "tickets_below_threshold",
+				metadata: {
+					error_detail: {
+						current_total_tickets: 10,
+						needed_total_tickets: 100,
+					},
+				},
+			},
+			isBelowThreshold: true,
+		});
+
+		renderTicketGroups();
+
+		expect(
+			screen.getByText("groups.ticketsBelowThreshold"),
+		).toBeInTheDocument();
+		expect(
+			screen.queryByText("groups.noSourceConnected"),
+		).not.toBeInTheDocument();
+		expect(screen.getByText("groups.goToItsmConnections")).toBeInTheDocument();
 	});
 
 	it("shows spinner while model is loading", () => {

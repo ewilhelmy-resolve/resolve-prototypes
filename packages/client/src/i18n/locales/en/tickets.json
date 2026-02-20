@@ -25,6 +25,8 @@
 		"importingProgress": "{{processed}} of {{total}} tickets",
 		"trainingInProgress": "Model training in progress",
 		"trainingDescription": "Ticket groups will appear when training completes. This usually takes a few minutes.",
+		"ticketsBelowThreshold": "Not enough tickets",
+		"ticketsBelowThresholdDescription": "There are {{count}} tickets in your instance but at least {{minimum}} are required to train a model. Add more tickets and sync again.",
 		"trainingFailed": "Training failed",
 		"trainingFailedDescription": "There was an issue analyzing your tickets. Please check your ITSM connection and try syncing again.",
 		"goToItsmConnections": "Go to ITSM Connections",
