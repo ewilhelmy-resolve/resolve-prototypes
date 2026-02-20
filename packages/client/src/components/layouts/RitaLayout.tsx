@@ -13,7 +13,6 @@
 
 "use client";
 
-import { useTranslation } from "react-i18next";
 import {
 	ALargeSmall,
 	Bot,
@@ -30,9 +29,11 @@ import {
 	Upload,
 	Workflow,
 } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Loader } from "@/components/ai-elements/loader";
+import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { ConversationListItem } from "@/components/sidebar/ConversationListItem";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
@@ -69,7 +70,6 @@ import {
 	useSidebar,
 } from "@/components/ui/sidebar";
 import InviteUsersButton from "@/components/users/InviteUsersButton";
-import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import WelcomeDialog from "@/components/WelcomeDialog";
 import { SOURCE_METADATA } from "@/constants/connectionSources";
 import { useConversations } from "@/hooks/api/useConversations";
@@ -82,15 +82,20 @@ import { useKnowledgeBase } from "@/hooks/useKnowledgeBase";
 import { SUPPORTED_DOCUMENT_TYPES } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 import type { Conversation } from "@/stores/conversationStore";
-import type { DataSourceConnection } from "@/types/dataSource";
-import { memo } from "react";
 import { useUIStore } from "@/stores/uiStore";
+import type { DataSourceConnection } from "@/types/dataSource";
 import { ActionsLayout } from "./ActionsLayout";
 
 export interface RitaLayoutProps {
 	children: React.ReactNode;
 	/** Current active page for navigation highlighting */
-	activePage?: "chat" | "files" | "automations" | "tickets" | "users" | "scheduler";
+	activePage?:
+		| "chat"
+		| "files"
+		| "automations"
+		| "tickets"
+		| "users"
+		| "scheduler";
 }
 
 // Logo component memoized to prevent re-renders
@@ -183,8 +188,7 @@ function RitaLayoutContent({ children, activePage = "chat" }: RitaLayoutProps) {
 		const storageKey = `rita_welcome_seen_${userId}`;
 
 		// Check localStorage first (persists across sessions)
-		const hasSeenInLocalStorage =
-			localStorage.getItem(storageKey) === "true";
+		const hasSeenInLocalStorage = localStorage.getItem(storageKey) === "true";
 		// Check cookie as fallback
 		const hasSeenInCookie = document.cookie.includes(`${storageKey}=true`);
 		return hasSeenInLocalStorage || hasSeenInCookie;
@@ -204,12 +208,14 @@ function RitaLayoutContent({ children, activePage = "chat" }: RitaLayoutProps) {
 		// Set cookie to expire in 1 year (for cross-tab consistency)
 		const expiryDate = new Date();
 		expiryDate.setFullYear(expiryDate.getFullYear() + 1);
+		// biome-ignore lint/suspicious/noDocumentCookie: cross-tab persistence requires cookie
 		document.cookie = `${storageKey}=true; expires=${expiryDate.toUTCString()}; path=/; SameSite=Lax`;
 	}, [profile?.user?.id]);
 
 	// Show welcome modal on first load if user hasn't seen it, or if feature flag is manually enabled
 	// Skip in demo mode
-	const isDemoMode = import.meta.env.VITE_DEMO_MODE === 'true';
+	const isDemoMode = import.meta.env.VITE_DEMO_MODE === "true";
+	// biome-ignore lint/correctness/useExhaustiveDependencies: isDemoMode is a static env var, included for clarity
 	useEffect(() => {
 		// Skip modal in demo mode
 		if (isDemoMode) return;
@@ -226,7 +232,12 @@ function RitaLayoutContent({ children, activePage = "chat" }: RitaLayoutProps) {
 			// Mark as seen immediately to prevent showing on refresh
 			markWelcomeModalAsSeen();
 		}
-	}, [showWelcomeModal, hasSeenWelcomeModal, markWelcomeModalAsSeen, isDemoMode]);
+	}, [
+		showWelcomeModal,
+		hasSeenWelcomeModal,
+		markWelcomeModalAsSeen,
+		isDemoMode,
+	]);
 
 	// Handle modal close
 	const handleWelcomeModalClose = (open: boolean) => {
@@ -344,7 +355,7 @@ function RitaLayoutContent({ children, activePage = "chat" }: RitaLayoutProps) {
 										</span>
 									</SidebarMenuButton>
 								</SidebarMenuItem>
-								</SidebarMenu>
+							</SidebarMenu>
 						</SidebarGroup>
 					)}
 
@@ -354,12 +365,12 @@ function RitaLayoutContent({ children, activePage = "chat" }: RitaLayoutProps) {
 								<SidebarMenuItem>
 									<SidebarMenuButton
 										className="flex items-center gap-2 px-2 py-2 h-8 rounded-md"
-										onClick={() => navigate("/jirita")}
-										isActive={location.pathname === "/jirita"}
+										onClick={() => navigate("/workflow-designer")}
+										isActive={location.pathname === "/workflow-designer"}
 									>
 										<Workflow className="w-4 h-4" />
 										<span className="text-sm text-sidebar-foreground">
-											{t("nav.workflows")}
+											Workflow Designer
 										</span>
 									</SidebarMenuButton>
 								</SidebarMenuItem>
@@ -561,7 +572,9 @@ function RitaLayoutContent({ children, activePage = "chat" }: RitaLayoutProps) {
 												className="gap-2 h-9 px-3 text-sm"
 											>
 												<Plus className="w-4 h-4" />
-												<span className="hidden sm:inline">{t("nav.addArticles")}</span>
+												<span className="hidden sm:inline">
+													{t("nav.addArticles")}
+												</span>
 											</Button>
 										</DropdownMenuTrigger>
 										<DropdownMenuContent align="end">
@@ -650,7 +663,6 @@ function RitaLayoutContent({ children, activePage = "chat" }: RitaLayoutProps) {
 				multiple={enableMultiFileUpload}
 				disabled={uploadingFiles.size > 0}
 			/>
-
 
 			{/* Welcome Modal */}
 			<WelcomeDialog

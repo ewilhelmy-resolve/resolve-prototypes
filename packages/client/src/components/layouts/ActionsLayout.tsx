@@ -3,10 +3,22 @@
  * Used with ?nav=actions URL param
  */
 
-import { Bell, Bot, Calendar, ChevronDown, Home, Plus, Search, Ticket, User, X } from "lucide-react";
+import {
+	Bell,
+	Bot,
+	Calendar,
+	ChevronDown,
+	Home,
+	Plus,
+	Search,
+	Ticket,
+	User,
+	Workflow,
+	X,
+} from "lucide-react";
 import type { ReactNode } from "react";
 import { useState } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { useUIStore } from "@/stores/uiStore";
 
@@ -128,6 +140,7 @@ export function ActionsLayout({
 		{ path: "/agents", label: "Agents", icon: Bot },
 		{ path: "/scheduler", label: "Scheduler", icon: Calendar },
 		{ path: "/tickets", label: "Tickets", icon: Ticket },
+		{ path: "/workflow-designer", label: "Workflow Designer", icon: Workflow },
 	];
 
 	return (
@@ -158,7 +171,12 @@ export function ActionsLayout({
 							<div className="size-6 rounded-full bg-gray-200 flex items-center justify-center">
 								<User className="size-4 text-gray-500" />
 							</div>
-							<ChevronDown className={cn("size-4 text-gray-300 transition-transform", showNavDropdown && "rotate-180")} />
+							<ChevronDown
+								className={cn(
+									"size-4 text-gray-300 transition-transform",
+									showNavDropdown && "rotate-180",
+								)}
+							/>
 						</button>
 						{showNavDropdown && (
 							<div className="absolute right-0 top-full mt-2 w-48 bg-white rounded-md shadow-lg border border-gray-200 py-1 z-50">
@@ -174,7 +192,8 @@ export function ActionsLayout({
 										}}
 										className={cn(
 											"w-full px-3 py-2 text-left text-sm flex items-center gap-2 hover:bg-gray-50",
-											location.pathname.startsWith(item.path) && "bg-gray-100 text-blue-600"
+											location.pathname.startsWith(item.path) &&
+												"bg-gray-100 text-blue-600",
 										)}
 									>
 										<item.icon className="size-4" />

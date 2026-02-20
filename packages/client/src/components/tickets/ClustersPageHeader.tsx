@@ -34,7 +34,7 @@ export function ClustersPageHeader({
 	totalTickets,
 	totalClusters,
 	knowledgeGaps,
-	ticketsInGapClusters,
+	ticketsInGapClusters: _ticketsInGapClusters,
 	potentialCostSavings,
 	potentialTimeSaved,
 	showSkeletons,

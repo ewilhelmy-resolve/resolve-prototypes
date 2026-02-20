@@ -129,8 +129,8 @@ export const FEATURE_FLAGS: Record<FeatureFlagKey, FeatureFlagConfig> = {
 	ENABLE_WORKFLOWS: {
 		key: "ENABLE_WORKFLOWS",
 		label: "Workflows",
-		description: "Enable Workflow Generator dev tool",
-		defaultValue: false,
+		description: "Enable Workflow Designer",
+		defaultValue: true,
 		category: "experimental",
 	},
 	ENABLE_LANGUAGE_SWITCHER: {

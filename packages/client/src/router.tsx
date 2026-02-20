@@ -39,6 +39,7 @@ import TicketsPage from "./pages/TicketsPage";
 import UsersSettingsPage from "./pages/UsersSettingsPage";
 import { VerifyEmailPage } from "./pages/VerifyEmailPage";
 import { VerifyEmailSentPage } from "./pages/VerifyEmailSentPage";
+import WorkflowDesignerPage from "./pages/WorkflowDesignerPage";
 import WorkflowsPage from "./pages/WorkflowsPage";
 
 // Feature-flagged tickets page wrapper
@@ -92,6 +93,15 @@ const router = createBrowserRouter([
 		element: (
 			<ProtectedRoute>
 				<WorkflowsPage />
+			</ProtectedRoute>
+		),
+	},
+	// Workflow designer - visual workflow builder
+	{
+		path: "/workflow-designer",
+		element: (
+			<ProtectedRoute>
+				<WorkflowDesignerPage />
 			</ProtectedRoute>
 		),
 	},
