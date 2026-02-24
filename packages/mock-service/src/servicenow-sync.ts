@@ -226,7 +226,7 @@ const ASSIGNED_TO_AGENTS = [
 ];
 
 // Priority values matching ServiceNow convention
-const PRIORITIES = ["Low", "Medium", "High", "Critical"];
+const PRIORITIES = ["low", "medium", "high", "critical"];
 const PRIORITY_WEIGHTS = [0.2, 0.5, 0.2, 0.1]; // weighted distribution
 
 function getRandomRequester(): string {
@@ -239,6 +239,19 @@ function getRandomAssignedTo(): string {
 	];
 }
 
+const KB_STATUSES = ["PENDING", "FOUND", "GAP"] as const;
+const KB_STATUS_WEIGHTS = [0.2, 0.5, 0.3]; // 20% pending, 50% found, 30% gap
+
+function getRandomKBStatus(): string {
+	const rand = Math.random();
+	let cumulative = 0;
+	for (let i = 0; i < KB_STATUSES.length; i++) {
+		cumulative += KB_STATUS_WEIGHTS[i];
+		if (rand < cumulative) return KB_STATUSES[i];
+	}
+	return "PENDING";
+}
+
 function getRandomPriority(): string {
 	const rand = Math.random();
 	let cumulative = 0;
@@ -246,7 +259,7 @@ function getRandomPriority(): string {
 		cumulative += PRIORITY_WEIGHTS[i];
 		if (rand < cumulative) return PRIORITIES[i];
 	}
-	return "Medium";
+	return "medium";
 }
 
 function generateSourceMetadata(
@@ -526,13 +539,14 @@ export async function syncServiceNowData(
 		// 2. Create clusters
 		const clusterMap = new Map<string, string>();
 		for (const clusterName of CLUSTER_NAMES) {
+			const kbStatus = getRandomKBStatus();
 			const clusterResult = await client.query<{ id: string }>(
 				`INSERT INTO clusters (organization_id, model_id, name, subcluster_name, config, kb_status)
-         VALUES ($1, $2, $3, NULL, '{}', 'PENDING')
+         VALUES ($1, $2, $3, NULL, '{}', $4)
          ON CONFLICT (organization_id, model_id, name, COALESCE(subcluster_name, ''))
-         DO UPDATE SET updated_at = NOW()
+         DO UPDATE SET kb_status = $4, updated_at = NOW()
          RETURNING id`,
-				[organizationId, modelId, clusterName],
+				[organizationId, modelId, clusterName, kbStatus],
 			);
 			clusterMap.set(clusterName, clusterResult.rows[0].id);
 		}

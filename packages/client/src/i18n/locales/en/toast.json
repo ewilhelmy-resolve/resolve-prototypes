@@ -22,7 +22,8 @@
 		"accountActivated": "Your account has been activated",
 		"memberRoleUpdated": "Member role updated",
 		"ticketSyncComplete": "Ticket sync complete",
-		"settingsUpdated": "Organization settings updated"
+		"settingsUpdated": "Organization settings updated",
+		"autopilotSettingsUpdated": "Ticket settings saved"
 	},
 	"error": {
 		"profileUpdateFailed": "Failed to update profile",
@@ -51,7 +52,9 @@
 		"verificationFailed": "{{type}} verification failed",
 		"downloadFailed": "Download Failed",
 		"reprocessFailed": "Reprocess Failed",
-		"ticketSyncFailed": "Ticket sync failed"
+		"ticketSyncFailed": "Ticket sync failed",
+		"ticketsBelowThreshold": "Not enough tickets",
+		"autopilotSettingsFailed": "Failed to save ticket settings"
 	},
 	"warning": {
 		"responseTimeout": "Response timeout",
@@ -92,6 +95,7 @@
 		"partialDelete": "Deleted {{success}} document(s), {{failed}} failed",
 		"startingUpload": "Starting upload of {{count}} file(s)...",
 		"ticketsProcessed": "{{count}} tickets processed",
+		"ticketsBelowThreshold": "Found {{count}} tickets, minimum {{minimum}} required to train a model.",
 		"uploadFailedDesc": "Failed to upload \"{{name}}\": {{error}}",
 		"memberStatus": "{{email}} has been {{status}}",
 		"downloading": "Downloading {{name}}",

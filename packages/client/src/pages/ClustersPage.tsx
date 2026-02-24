@@ -27,7 +27,6 @@ export default function ClustersPage() {
 	const canShowData = trainingState === TRAINING_STATES.COMPLETE;
 
 	// Show skeletons for first-time import (no completed model yet)
-	// Re-imports keep existing clusters visible with just a banner
 	const isFirstImport = isIngesting && !canShowData;
 	const showSkeletons = isModelLoading || isTraining || isFirstImport;
 
@@ -38,20 +37,6 @@ export default function ClustersPage() {
 	});
 
 	const totalTickets = clustersResponse?.totals?.total_tickets ?? 0;
-	const totalClusters = clustersResponse?.totals?.total_clusters ?? 0;
-	const clusters = clustersResponse?.data ?? [];
-	const gapClusters = clusters.filter((c) => c.kb_status === "GAP");
-	const knowledgeGaps = gapClusters.length;
-	const ticketsInGapClusters = gapClusters.reduce(
-		(sum, c) => sum + c.ticket_count,
-		0,
-	);
-
-	// ROI metrics — potential savings based on settings defaults (cost=$30, time=12min)
-	const COST_PER_TICKET = 30;
-	const MINS_PER_TICKET = 12;
-	const potentialCostSavings = totalTickets * COST_PER_TICKET;
-	const potentialTimeSaved = Math.round((totalTickets * MINS_PER_TICKET) / 60);
 
 	return (
 		<RitaLayout activePage="tickets">
@@ -59,11 +44,6 @@ export default function ClustersPage() {
 				period={period}
 				onPeriodChange={setPeriod}
 				totalTickets={totalTickets}
-				totalClusters={totalClusters}
-				knowledgeGaps={knowledgeGaps}
-				ticketsInGapClusters={ticketsInGapClusters}
-				potentialCostSavings={potentialCostSavings}
-				potentialTimeSaved={potentialTimeSaved}
 				showSkeletons={showSkeletons}
 				hasNoModel={hasNoModel}
 				onSettingsClick={() => setSettingsOpen(true)}

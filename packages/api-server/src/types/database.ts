@@ -21,6 +21,8 @@ export type JsonPrimitive = boolean | number | string | null;
 
 export type JsonValue = JsonArray | JsonObject | JsonPrimitive;
 
+export type Numeric = ColumnType<string, number | string, number | string>;
+
 export type Timestamp = ColumnType<Date, Date | string, Date | string>;
 
 export interface ActivityContexts {
@@ -29,6 +31,13 @@ export interface ActivityContexts {
 	created_at: Generated<Timestamp | null>;
 	id: Generated<string>;
 	organization_id: string;
+}
+
+export interface Agents {
+	created_at: Generated<Timestamp>;
+	id: Generated<string>;
+	name: string;
+	updated_at: Generated<Timestamp>;
 }
 
 export interface AuditLogs {
@@ -40,6 +49,29 @@ export interface AuditLogs {
 	resource_id: string | null;
 	resource_type: string;
 	user_id: string | null;
+}
+
+export interface AutopilotSettings {
+	/**
+	 * Average time per ticket in minutes, used for time-saved calculations
+	 */
+	avg_time_per_ticket_minutes: Generated<number>;
+	/**
+	 * Average cost per ticket in USD, used for savings calculations
+	 */
+	cost_per_ticket: Generated<Numeric>;
+	created_at: Generated<Timestamp | null>;
+	id: Generated<string>;
+	organization_id: string;
+	/**
+	 * Overflow JSONB for future settings (freeform, no schema validation)
+	 */
+	settings_json: Generated<Json>;
+	updated_at: Generated<Timestamp | null>;
+	/**
+	 * Last user who modified settings
+	 */
+	updated_by: string | null;
 }
 
 export interface BlobMetadata {
@@ -207,6 +239,27 @@ export interface IngestionRuns {
 	started_by: string;
 	status: Generated<string | null>;
 	updated_at: Generated<Timestamp | null>;
+}
+
+export interface ItsmFieldMappings {
+	created_at: Generated<Timestamp>;
+	created_by: string | null;
+	data_source_connection_id: string;
+	id: Generated<string>;
+	/**
+	 * Denormalized from data_source_connections for RLS org isolation
+	 */
+	organization_id: string;
+	/**
+	 * Field name in external ITSM system that maps to target_field
+	 */
+	source_field: string;
+	/**
+	 * Rita target field: priority, status
+	 */
+	target_field: string;
+	updated_at: Generated<Timestamp>;
+	updated_by: string | null;
 }
 
 export interface MessageProcessingFailures {
@@ -487,6 +540,27 @@ export interface Tickets {
 	updated_at: Generated<Timestamp | null>;
 }
 
+export interface TicketsLog {
+	agent_id: string | null;
+	created_at: Generated<Timestamp>;
+	/**
+	 * When event occurred in external ITSM platform
+	 */
+	event_date: Timestamp;
+	/**
+	 * Event types: ingested, clustered, agent_start, agent_end, agent_fail, user_recluster
+	 */
+	event_type: Generated<string>;
+	id: Generated<string>;
+	metadata: Generated<Json | null>;
+	/**
+	 * Denormalized from tickets for RLS org isolation
+	 */
+	organization_id: string;
+	ticket_id: string;
+	updated_at: Generated<Timestamp>;
+}
+
 export interface UserProfiles {
 	active_organization_id: string | null;
 	created_at: Generated<Timestamp | null>;
@@ -512,7 +586,9 @@ export interface UserProfiles {
 
 export interface DB {
 	activity_contexts: ActivityContexts;
+	agents: Agents;
 	audit_logs: AuditLogs;
+	autopilot_settings: AutopilotSettings;
 	blob_metadata: BlobMetadata;
 	blobs: Blobs;
 	cluster_kb_links: ClusterKbLinks;
@@ -521,6 +597,7 @@ export interface DB {
 	credential_delegation_tokens: CredentialDelegationTokens;
 	data_source_connections: DataSourceConnections;
 	ingestion_runs: IngestionRuns;
+	itsm_field_mappings: ItsmFieldMappings;
 	message_processing_failures: MessageProcessingFailures;
 	messages: Messages;
 	migration_history: MigrationHistory;
@@ -533,5 +610,6 @@ export interface DB {
 	rag_webhook_failures: RagWebhookFailures;
 	sync_cancellation_requests: SyncCancellationRequests;
 	tickets: Tickets;
+	tickets_log: TicketsLog;
 	user_profiles: UserProfiles;
 }

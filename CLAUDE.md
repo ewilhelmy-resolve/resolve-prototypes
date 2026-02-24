@@ -1,165 +1,175 @@
-- In all interactions and commit messages, be extremely concise and sacrifice
-  grammar for the sake of concision.
-- **Always use `pnpm` instead of `npm` or `yarn` for all package management commands.**
-- **Never add Claude as author in git commit messages** (no `Co-authored-by: Claude`, no AI attribution).
-- **Commit messages must follow Conventional Commits**: `type(scope): message`
-  - Types: `feat`, `fix`, `docs`, `style`, `refactor`, `test`, `chore`
-  - Keep subject line under 50 chars, no period at end
-  - Examples: `feat(chat): add SSE reconnect`, `fix(auth): handle token expiry`
+# Rita
+
+AI chat assistant for IT service desk
+
+- Be extremely concise, sacrifice grammar for concision
+- **Always use `pnpm`** — never npm or yarn
+- **Never add Claude as author** in git commit messages (no Co-authored-by, no AI attribution)
 
 ## Plans
 
-- At the end of each plan, give me a list of unresolved questions to answer,
-  if any. Make the questions extremely concise. Sacrifice grammar for the sake
-  of concision.
+- List unresolved questions at end of each plan. Extremely concise.
 
-# Rita Project - Development Documentation
+## Commands
 
-This is the Rita project with modern TypeScript/React architecture that replaces the POC v0.01 code (now in `legacy/` folder).
+```bash
+# Development
+pnpm dev              # Full stack (docker + all services)
+pnpm dev:client       # Client dev server (port 5173)
+pnpm dev:api          # API server (port 3000)
+pnpm dev:mock         # Mock service
+pnpm dev:theme        # Keycloak theme dev
+pnpm dev:iframe-app   # Iframe host (port 5174)
+pnpm setup            # Initial project setup
+
+# Build
+pnpm build            # Build api-server + client
+pnpm build:theme      # Build Keycloak theme
+
+# Quality
+pnpm test             # Client unit tests (vitest)
+pnpm type-check       # TypeScript check (all packages)
+pnpm lint             # Lint all packages (biome)
+pnpm storybook        # Storybook (port 6006)
+
+# API Server
+pnpm --filter rita-api-server test:run       # API tests
+pnpm --filter rita-api-server migrate        # DB migrations
+pnpm --filter rita-api-server docs:generate  # Regenerate OpenAPI spec
+
+# Client
+pnpm --filter rita-client test:unit          # Client tests
+pnpm --filter rita-client check:fix          # Auto-fix lint+format
+
+# Infrastructure
+docker compose up -d  # Start all Docker services
+pnpm docker:stop      # Stop Docker services
+```
+
+## Documentation
+
+| Document | Purpose |
+|----------|---------|
+| [Architecture](docs/architecture.md) | System design, data flow, package responsibilities |
+| [Development](docs/development.md) | Prerequisites, setup, daily workflow |
+| [Coding Guidelines](docs/coding-guidelines.md) | Code style, error handling, naming conventions |
+| [Testing](docs/testing.md) | Test commands, conventions, patterns |
+| [PR Workflow](docs/pr-workflow.md) | Commits, PRs, branch naming, review process |
+| [docs/README.md](docs/README.md) | Full documentation index (61 docs) |
+
+## Core Principles
+
+1. **Platform-driven** — thin frontend, backend-heavy logic. RITA → Actions → Rabbit → RITA for all user actions.
+2. **SOC2 compliance** — audit all user actions, secure data handling, no PII in logs or webhooks.
+3. **Accessibility first** — WCAG 2.1 AA, ARIA labels on all forms, keyboard navigable.
+4. **Async messaging** — inter-service communication via RabbitMQ. Real-time updates via SSE.
+5. **Type safety** — strict TypeScript everywhere. Zod validation at all boundaries.
+
+## Commits
+
+Format: `<type>(<scope>): <description>`
+
+Types: feat, fix, docs, refactor, test, chore, perf
+
+Subject line under 50 chars, no period.
+
+Examples:
+- `feat(autopilot): add org-level settings`
+- `fix(session): cookie max-age handling`
+- `refactor(iframe): use Valkey IDs directly`
+
+## External Dependencies
+
+| Service | Purpose | Verify |
+|---------|---------|--------|
+| PostgreSQL (pgvector) | Primary DB | `docker compose ps postgres` |
+| RabbitMQ | Message broker | http://localhost:15672 (guest/guest) |
+| Valkey | Cache/sessions | `docker compose ps valkey` |
+| Keycloak | Identity/auth | http://localhost:8080 |
+| Mailpit | Dev email | http://localhost:8025 |
+
+All start via `docker compose up -d`.
+
+## Debugging
+
+- **Services not starting**: `docker compose ps` — all 5 must be healthy
+- **Auth errors**: verify Keycloak running, check `.env` realm/client IDs
+- **SSE not connecting**: check RabbitMQ management UI for queue bindings
+- **DB migration issues**: `pnpm migrate` — check `packages/api-server/src/database/`
+- **Build OOM**: client type-check runs separately from build (tsc needs ~4GB)
+- **Iframe issues**: check Valkey session data, verify `sessionKey`
+
+## Conventions
+
+- **Package manager**: pnpm only (`packageManager` enforced in package.json)
+- **Linter/formatter**: Biome — tab indentation, no ESLint/Prettier
+- **Pre-commit**: husky + lint-staged → `biome check --write` + `biome lint` + `type-check` + OpenAPI regen
+- **Client state**: Zustand (client), TanStack Query (server)
+- **Forms**: React Hook Form + Zod
+- **UI**: shadcn/ui + Radix + Tailwind CSS
+- **i18n**: i18next (`es-MX`, `en`)
+- **Frontend agent**: use fe-enterprise-agent for all `packages/client/` work
+
+---
 
 ## Project Architecture
 
-Rita is structured as a modern microservices architecture:
-- `packages/api-server/` - TypeScript API server with Express, RabbitMQ and PostgreSQL
-- `packages/client/` - **RITA** React/TypeScript/Shadcn/Tailwind/Zustand frontend with Keycloak authentication
-- `packages/mock-service/` - Mock external service for development
+Rita is a pnpm monorepo with 5 packages:
+- `packages/api-server/` — Express + Kysely + RabbitMQ + PostgreSQL (pgvector)
+- `packages/client/` — React 18 + Vite + shadcn/ui + Zustand + TanStack Query + Keycloak auth
+- `packages/mock-service/` — Mock external service for development
+- `packages/iframe-app/` — Vite host for embeddable chat iframe
+- `keycloak/` — Custom Keycloak login theme (Tailwind)
 
 ## Frontend Development Standards (RITA)
 
 ### Default Agent Usage
-The Rita project uses the **fe-enterprise-agent** as the default for ALL frontend development tasks in RITA (`packages/client/`). The agent enforces:
+Use **fe-enterprise-agent** for ALL frontend tasks in `packages/client/`. Enforces:
 
-- **SOC2 Type II compliance** - Security, availability, processing integrity, confidentiality, privacy
-- **WCAG 2.1 AA accessibility** - Full screen reader and keyboard navigation support
-- **Component-Based Architecture (CBA)** - Modular, reusable, independently deployable components
-- **Platform-Driven Architecture** - Thin frontend, backend-heavy business logic
-- **Server-Sent Events (SSE)** - Real-time updates via EventSource API
-- **RITA → Actions → Rabbit → RITA Pattern** - Asynchronous message flow for all user actions
+- **SOC2 Type II compliance** — security, availability, processing integrity, confidentiality, privacy
+- **WCAG 2.1 AA accessibility** — screen reader and keyboard navigation
+- **Component-Based Architecture** — modular, reusable, independently deployable
+- **Platform-Driven Architecture** — thin frontend, backend-heavy logic
+- **SSE** — real-time updates via EventSource API
+- **RITA → Actions → Rabbit → RITA** — async message flow for all actions
 
 ### Required Technical Stack
-- **React 18+** with **TypeScript 5+** (strict mode)
-- **TanStack Query v5** for server state management
-- **Zustand** for lightweight client state
-- **React Hook Form** with **Zod** validation
-- **Radix UI** for accessible component primitives
-- **Tailwind CSS** for utility-first styling
-- **shadcn/ui** for component library foundation
-- **Figma-to-shadcn** for design system implementation
+- React 18+ with TypeScript 5+ (strict)
+- TanStack Query v5 for server state
+- Zustand for client state
+- React Hook Form + Zod validation
+- Radix UI primitives
+- Tailwind CSS + shadcn/ui
+- Figma-to-shadcn for design system
 
 ### Code Standards
-- All components must include proper TypeScript interfaces
-- All forms must have ARIA labels and accessibility attributes
-- All user inputs must be validated with Zod schemas
-- All real-time features must use Server-Sent Events
-- All user actions must follow audit logging requirements
-- All components must be tested for accessibility compliance
-
-**Note**: These standards apply to all developers working on this project and are enforced automatically through the fe-enterprise-agent configuration.
+- All components must have TypeScript interfaces
+- All forms must have ARIA labels
+- All inputs validated with Zod
+- All real-time features use SSE
+- All user actions audit logged
 
 ## Development Workflow
 
-### For New Development (RITA)
-
-Both the client and server are run locally in development mode. The client runs on port 5173 and the server runs on port 3000, before trying to run them check that they are not already running.
-
-1. **RITA Frontend Development** (packages/client/)
-   ```bash
-   cd packages/client
-   pnpm install
-   pnpm dev
-   ```
-
-2. **Backend Development** (packages/api-server/)
-   ```bash
-   cd packages/api-server
-   pnpm install
-   pnpm dev
-   ```
-
-3. **Full Stack Development**
-   ```bash
-   docker compose up -d
-   # Runs all services together
-   ```
-
-### Important Rules
-- Focus development on the Rita project packages/ architecture
-- All new features go in RITA (packages/client/) and packages/api-server/
-- RITA components must follow fe-enterprise-agent standards
-- No commits until all tests pass
-
-### Environment Variables
-Check `.env.example` files in each package for required configuration.
-
-### Command Shortcuts
-- `pnpm dev:client` - Start client development server (port 5173)
-- `pnpm dev:api` - Start API server (port 3000)
-- `pnpm dev:mock` - Start mock service
-- `pnpm dev:theme` - Start Keycloak theme development
-- `pnpm dev:iframe-app` - Start iframe app host (port 5174)
-- `pnpm test` - Run test suite
-- `pnpm type-check` - Run TypeScript type checking across all packages
-- `pnpm build` - Build API server and client for production
-- `pnpm build:theme` - Build Keycloak theme
-- `pnpm lint` - Run linting across all packages
-- `docker compose up -d` - Start full stack with Docker
+Client runs on port 5173, server on port 3000. Check they're not already running before starting.
 
 ### Build Architecture Note
-Client build (`packages/client`) uses `vite build` without `tsc`. Type checking runs separately via `type-check` script in CI. This prevents OOM errors during build - tsc requires ~4GB heap for full type checking.
+Client build uses `vite build` without `tsc`. Type checking runs separately via `type-check` in CI. Prevents OOM — tsc needs ~4GB heap.
 
 ### Iframe Embeddable Chat (Public Guest Access)
 
-RITA includes an iframe-embeddable version for integration into host pages on the same domain.
+Iframe-embeddable version for host pages on same domain.
 
-**Key Features**:
-- Minimal UI (no sidebar, no navigation)
-- Public guest user access (no Keycloak login required)
-- Intent tracking via `intent-eid` parameter
-- Works without knowledge base files
-- Same-domain deployment provides security
-
-**Routes**:
-- `/iframe/chat` - New public conversation
-- `/iframe/chat/:conversationId` - Existing conversation
-- `/iframe/chat?intent-eid=<value>` - With intent tracking
-
-**How it Works**:
-- All iframe users share a single `public-guest-user` account
-- Session created automatically on page load
-- No authentication UI or login required
-- Conversations isolated by `conversationId`
-
-**Quick Start**:
-```bash
-# Terminal 1: Start API server
-npm run dev:api
-
-# Terminal 2: Start client
-npm run dev:client
-
-# Terminal 3: Start iframe app host
-npm run dev:iframe-app
-# Opens http://localhost:5174
-```
-
-**Documentation**: See `packages/client/IFRAME.md` for integration guide
-
-**Public User Restrictions** (future):
-- No file uploads
-- No data source connections
-- Limited conversation history
-- No org settings access
-
-### Style & Reminders
-- Prefer TypeScript strict mode for all new code
-- Follow enterprise security and accessibility standards
-- Use the fe-enterprise-agent for all frontend development
-- Document components with proper JSDoc comments
-- never add claude as author in git commit messages
+- Minimal UI (no sidebar/nav)
+- Public guest access (no Keycloak)
+- Intent tracking via `intent-eid` param
+- Routes: `/iframe/chat`, `/iframe/chat/:conversationId`
+- All iframe users share `public-guest-user` account
+- See `packages/client/IFRAME.md` for integration guide
 
 ## Documentation Strategy
 
-Project docs organized by topic in `docs/`:
+Project docs in `docs/`:
 
 | Folder | Purpose |
 |--------|---------|

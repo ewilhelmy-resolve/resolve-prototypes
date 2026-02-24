@@ -26,6 +26,7 @@ import {
 	type KBStatus,
 	type PeriodFilter,
 } from "@/types/cluster";
+import { DEFAULT_MINIMUM_TICKETS } from "@/types/dataSource";
 import { TRAINING_STATES } from "@/types/mlModel";
 import { PrioritizationChart } from "./PrioritizationChart";
 import { TicketGroupSkeleton } from "./TicketGroupSkeleton";
@@ -69,7 +70,7 @@ export default function TicketGroups({ period }: TicketGroupsProps) {
 	const canShowClusters = trainingState === TRAINING_STATES.COMPLETE;
 
 	// Check if ITSM source is actively importing tickets
-	const { isIngesting, latestRun } = useIsIngesting();
+	const { isIngesting, latestRun, isBelowThreshold } = useIsIngesting();
 	const isFirstImport = isIngesting && !canShowClusters;
 
 	const kbStatusParam = kbFilter === KB_FILTER_ALL ? undefined : kbFilter;
@@ -209,7 +210,9 @@ export default function TicketGroups({ period }: TicketGroupsProps) {
 								className="max-w-sm pl-10"
 								value={searchInput}
 								onChange={(e) => setSearchInput(e.target.value)}
-								disabled={hasNoModel || isTraining || isFirstImport}
+								disabled={
+									hasNoModel || isTraining || isFirstImport || isBelowThreshold
+								}
 							/>
 						</div>
 
@@ -257,23 +260,23 @@ export default function TicketGroups({ period }: TicketGroupsProps) {
 					</div>
 				</div>
 
-				{hasNoModel ? (
-					// No model: show connect source empty state
-					<div className="flex min-h-[300px] flex-col items-center justify-center gap-4">
-						<p className="text-muted-foreground">
-							{t("groups.noSourceConnected")}
-						</p>
-						<Button asChild variant="outline" size="sm">
-							<Link to="/settings/connections/itsm">
-								{t("groups.connectSource")}
-							</Link>
-						</Button>
-					</div>
-				) : isFailed ? (
-					// Training failed: show error banner + empty state
+				{isBelowThreshold ? (
+					// Not enough tickets: show error banner + empty state
 					<div className="flex flex-col gap-6">
-						<StatusAlert variant="error" title={t("groups.trainingFailed")}>
-							<p className="mb-3">{t("groups.trainingFailedDescription")}</p>
+						<StatusAlert
+							variant="error"
+							title={t("groups.ticketsBelowThreshold")}
+						>
+							<p className="mb-3">
+								{t("groups.ticketsBelowThresholdDescription", {
+									count:
+										latestRun?.metadata?.error_detail?.current_total_tickets ??
+										0,
+									minimum:
+										latestRun?.metadata?.error_detail?.needed_total_tickets ??
+										DEFAULT_MINIMUM_TICKETS,
+								})}
+							</p>
 							<Button asChild variant="outline" size="sm">
 								<Link to="/settings/connections/itsm">
 									{t("groups.goToItsmConnections")}
@@ -324,6 +327,33 @@ export default function TicketGroups({ period }: TicketGroupsProps) {
 							{[...Array(6)].map((_, i) => (
 								<TicketGroupSkeleton key={i} />
 							))}
+						</div>
+					</div>
+				) : hasNoModel ? (
+					// No model: show connect source empty state
+					<div className="flex min-h-[300px] flex-col items-center justify-center gap-4">
+						<p className="text-muted-foreground">
+							{t("groups.noSourceConnected")}
+						</p>
+						<Button asChild variant="outline" size="sm">
+							<Link to="/settings/connections/itsm">
+								{t("groups.connectSource")}
+							</Link>
+						</Button>
+					</div>
+				) : isFailed ? (
+					// Training failed: show error banner + empty state
+					<div className="flex flex-col gap-6">
+						<StatusAlert variant="error" title={t("groups.trainingFailed")}>
+							<p className="mb-3">{t("groups.trainingFailedDescription")}</p>
+							<Button asChild variant="outline" size="sm">
+								<Link to="/settings/connections/itsm">
+									{t("groups.goToItsmConnections")}
+								</Link>
+							</Button>
+						</StatusAlert>
+						<div className="flex min-h-[200px] items-center justify-center">
+							<p className="text-muted-foreground">{t("groups.noGroups")}</p>
 						</div>
 					</div>
 				) : clusters.length > 0 ? (

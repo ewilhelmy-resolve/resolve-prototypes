@@ -511,3 +511,36 @@ export const TrainingFailed: Story = {
 		},
 	},
 };
+
+/**
+ * Tickets below threshold - not enough tickets to train a model
+ */
+export const TicketsBelowThreshold: Story = {
+	render: () => (
+		<PageWrapper>
+			<Header count={0} searchDisabled />
+			<div className="flex flex-col gap-6">
+				<StatusAlert variant="error" title="Not enough tickets">
+					<p className="mb-3">
+						There are 10 tickets in your instance but at least 100 are required
+						to train a model. Add more tickets and sync again.
+					</p>
+					<Button asChild variant="outline" size="sm">
+						<Link to="/settings/connections/itsm">Go to ITSM Connections</Link>
+					</Button>
+				</StatusAlert>
+				<div className="flex min-h-[200px] items-center justify-center">
+					<p className="text-muted-foreground">No groups available</p>
+				</div>
+			</div>
+		</PageWrapper>
+	),
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"Shown when ITSM instance has fewer tickets than the minimum required (100) to train a model.",
+			},
+		},
+	},
+};

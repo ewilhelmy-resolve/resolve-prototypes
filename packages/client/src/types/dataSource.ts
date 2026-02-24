@@ -204,9 +204,16 @@ export interface IngestionRunUpdateEvent {
 		records_failed?: number;
 		total_estimated?: number;
 		error_message?: string;
+		error_detail?: {
+			current_total_tickets?: number;
+			needed_total_tickets?: number;
+		};
 		timestamp: string;
 	};
 }
+
+/** Default minimum tickets required to train a model (used as fallback) */
+export const DEFAULT_MINIMUM_TICKETS = 100;
 
 /**
  * Ingestion run status for ITSM ticket sync
@@ -233,6 +240,10 @@ export interface IngestionRun {
 	metadata: {
 		progress?: {
 			total_estimated: number;
+		};
+		error_detail?: {
+			current_total_tickets?: number;
+			needed_total_tickets?: number;
 		};
 		[key: string]: unknown;
 	};

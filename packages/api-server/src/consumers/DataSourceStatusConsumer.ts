@@ -373,6 +373,7 @@ export class DataSourceStatusConsumer {
 			records_failed,
 			total_estimated,
 			error_message,
+			error_detail,
 		} = payload;
 
 		// Validate required fields
@@ -418,10 +419,14 @@ export class DataSourceStatusConsumer {
 			}
 		} else {
 			// Final status (completed/failed) - update status and records
+			// Store error_detail in metadata when present (e.g. tickets_below_threshold)
+			const metadata = error_detail ? { error_detail } : undefined;
+
 			await this.dataSourceService.updateIngestionRunStatus(
 				ingestion_run_id,
 				status,
 				error_message,
+				metadata,
 			);
 
 			if (records_processed !== undefined || records_failed !== undefined) {
@@ -429,6 +434,19 @@ export class DataSourceStatusConsumer {
 					ingestion_run_id,
 					records_processed,
 					records_failed,
+				);
+			}
+
+			// Stop sync when tickets are below threshold
+			if (error_message === "tickets_below_threshold" && connection_id) {
+				await this.dataSourceService.updateDataSourceStatus(
+					connection_id,
+					tenant_id,
+					"idle",
+					"failed",
+				);
+				messageLogger.info(
+					"Data source sync stopped due to tickets below threshold",
 				);
 			}
 		}
@@ -456,6 +474,7 @@ export class DataSourceStatusConsumer {
 					records_failed: records_failed,
 					total_estimated: total_estimated,
 					error_message: error_message,
+					error_detail: error_detail,
 					timestamp: new Date().toISOString(),
 				},
 			});

@@ -621,4 +621,34 @@ export const mlModelsApi = {
 		),
 };
 
+// Autopilot Settings API
+export interface AutopilotSettingsData {
+	id: string;
+	organization_id: string;
+	cost_per_ticket: number;
+	avg_time_per_ticket_minutes: number;
+	updated_by: string | null;
+	created_at: string;
+	updated_at: string;
+}
+
+export interface AutopilotSettingsResponse {
+	data: AutopilotSettingsData;
+}
+
+export interface UpdateAutopilotSettingsPayload {
+	cost_per_ticket?: number;
+	avg_time_per_ticket_minutes?: number;
+}
+
+export const autopilotSettingsApi = {
+	get: () => apiRequest<AutopilotSettingsResponse>("/api/autopilot-settings"),
+
+	update: (data: UpdateAutopilotSettingsPayload) =>
+		apiRequest<AutopilotSettingsResponse>("/api/autopilot-settings", {
+			method: "PATCH",
+			body: data,
+		}),
+};
+
 export { ApiError };

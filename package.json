@@ -39,7 +39,8 @@
 	},
 	"lint-staged": {
 		"*.{js,ts,cjs,mjs,jsx,tsx,json,jsonc}": [
-			"biome check --write --no-errors-on-unmatched --files-ignore-unknown=true"
+			"biome check --write --no-errors-on-unmatched --files-ignore-unknown=true",
+			"biome lint --no-errors-on-unmatched --files-ignore-unknown=true --diagnostic-level=warn --error-on-warnings"
 		]
 	}
 }

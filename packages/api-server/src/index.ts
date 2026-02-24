@@ -13,6 +13,7 @@ import {
 } from "./middleware/logging.js";
 import { rollbarErrorMiddleware } from "./middleware/rollbar.js";
 import authRoutes from "./routes/auth.js";
+import autopilotSettingsRoutes from "./routes/autopilotSettings.js";
 import clusterRoutes from "./routes/clusters.js";
 import conversationRoutes from "./routes/conversations.js";
 import credentialDelegationRoutes from "./routes/credentialDelegations.js";
@@ -154,6 +155,12 @@ app.use(
 	authenticateUser,
 	addUserContextToLogs,
 	organizationRoutes,
+);
+app.use(
+	"/api/autopilot-settings",
+	authenticateUser,
+	addUserContextToLogs,
+	autopilotSettingsRoutes,
 );
 app.use("/api/clusters", authenticateUser, addUserContextToLogs, clusterRoutes);
 app.use(
