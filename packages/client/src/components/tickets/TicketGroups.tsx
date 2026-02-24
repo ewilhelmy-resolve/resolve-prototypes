@@ -1,4 +1,11 @@
-import { ArrowDownUp, ChevronDown, Search } from "lucide-react";
+import {
+	ArrowDownUp,
+	ChevronDown,
+	Grid2x2,
+	LayoutGrid,
+	LineChart,
+	Search,
+} from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
@@ -14,8 +21,13 @@ import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
 import { Spinner } from "@/components/ui/spinner";
 import { StatusAlert } from "@/components/ui/status-alert";
+import {
+	Tooltip,
+	TooltipContent,
+	TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { useActiveModel } from "@/hooks/useActiveModel";
-import { useClusters } from "@/hooks/useClusters";
+import { useClusters, useInfiniteClusters } from "@/hooks/useClusters";
 import { useDebounce } from "@/hooks/useDebounce";
 import { useIsIngesting } from "@/hooks/useIsIngesting";
 import { computeValueScore } from "@/lib/tickets/utils";
@@ -26,14 +38,15 @@ import {
 	type KBStatus,
 	type PeriodFilter,
 } from "@/types/cluster";
-import { DEFAULT_MINIMUM_TICKETS } from "@/types/dataSource";
 import { TRAINING_STATES } from "@/types/mlModel";
 import { PrioritizationChart } from "./PrioritizationChart";
+import { PrioritizationMatrix } from "./PrioritizationMatrix";
 import { TicketGroupSkeleton } from "./TicketGroupSkeleton";
 import { TicketGroupStat } from "./TicketGroupStat";
 
 type KBFilterOption = KBStatus | typeof KB_FILTER_ALL;
 type SortOption = "volume" | "value";
+type TopViewMode = "clusters" | "prioritization" | "charts";
 
 const PAGE_SIZE = 12;
 
@@ -43,6 +56,7 @@ interface TicketGroupsProps {
 
 export default function TicketGroups({ period }: TicketGroupsProps) {
 	const { t } = useTranslation("tickets");
+	const [viewMode, setViewMode] = useState<TopViewMode>("clusters");
 	const [kbFilter, setKbFilter] = useState<KBFilterOption>(KB_FILTER_ALL);
 	const [sortBy, setSortBy] = useState<SortOption>("volume");
 
@@ -50,7 +64,7 @@ export default function TicketGroups({ period }: TicketGroupsProps) {
 	const [searchInput, setSearchInput] = useState("");
 	const debouncedSearch = useDebounce(searchInput, 500);
 
-	// Cursor pagination state
+	// Cursor pagination state (only used in charts view)
 	const [cursorHistory, setCursorHistory] = useState<string[]>([]);
 	const [currentCursor, setCurrentCursor] = useState<string | undefined>();
 
@@ -70,48 +84,93 @@ export default function TicketGroups({ period }: TicketGroupsProps) {
 	const canShowClusters = trainingState === TRAINING_STATES.COMPLETE;
 
 	// Check if ITSM source is actively importing tickets
-	const { isIngesting, latestRun, isBelowThreshold } = useIsIngesting();
+	const { isIngesting, latestRun } = useIsIngesting();
 	const isFirstImport = isIngesting && !canShowClusters;
 
 	const kbStatusParam = kbFilter === KB_FILTER_ALL ? undefined : kbFilter;
+	const isClusters = viewMode === "clusters";
+	const isPrioritization = viewMode === "prioritization";
+	const isCharts = viewMode === "charts";
+	const needsAllClusters = isClusters || isPrioritization;
+	const needsPaginated = isCharts;
 
-	// Fetch clusters with server-side filters and pagination
+	// ManualWork view: fetch ALL clusters via infinite query (limit=100 per page, auto-fetch all)
+	const {
+		data: infiniteData,
+		isLoading: isInfiniteLoading,
+		error: infiniteError,
+		fetchNextPage,
+		hasNextPage: hasMorePages,
+		isFetchingNextPage,
+	} = useInfiniteClusters({
+		period,
+		limit: 100,
+		kb_status: kbStatusParam,
+		search: debouncedSearch || undefined,
+		enabled: canShowClusters && needsAllClusters,
+		sort: "volume",
+	});
+
+	// Auto-fetch remaining pages for manual work view
+	useEffect(() => {
+		if (needsAllClusters && hasMorePages && !isFetchingNextPage) {
+			fetchNextPage();
+		}
+	}, [needsAllClusters, hasMorePages, isFetchingNextPage, fetchNextPage]);
+
+	// Flatten infinite pages into a single array
+	const allClusters = useMemo(
+		() => infiniteData?.pages.flatMap((page) => page.data) ?? [],
+		[infiniteData],
+	);
+	const infiniteTotals = infiniteData?.pages[0]?.totals;
+
+	// Charts view: paginated fetch (existing behavior)
 	const {
 		data: clustersResponse,
 		isLoading: isClustersLoading,
-		error,
+		error: chartsError,
 	} = useClusters({
 		period,
 		limit: PAGE_SIZE,
 		cursor: currentCursor,
 		kb_status: kbStatusParam,
 		search: debouncedSearch || undefined,
-		enabled: canShowClusters,
+		enabled: canShowClusters && needsPaginated,
 		sort: "volume",
 	});
 
 	const rawClusters = clustersResponse?.data ?? [];
 	const pagination = clustersResponse?.pagination;
-	const totals = clustersResponse?.totals;
+	const chartsTotals = clustersResponse?.totals;
 	const hasNextPage = pagination?.has_more ?? false;
 	const hasPrevPage = cursorHistory.length > 0;
 
-	// Client-side sort by value score
+	// Pick the right data set based on view
+	const activeClusters = needsAllClusters ? allClusters : rawClusters;
+	const totals = needsAllClusters ? infiniteTotals : chartsTotals;
+	const error = needsAllClusters ? infiniteError : chartsError;
+	const isDataLoading = needsAllClusters
+		? isInfiniteLoading
+		: isClustersLoading;
+	const hasData = needsAllClusters ? !!infiniteData : !!clustersResponse;
+
+	// Client-side sort by value score (charts view only)
 	const maxTicketCount = useMemo(
-		() => Math.max(...rawClusters.map((c) => c.ticket_count), 1),
-		[rawClusters],
+		() => Math.max(...activeClusters.map((c) => c.ticket_count), 1),
+		[activeClusters],
 	);
 
 	const clusters = useMemo(() => {
-		if (sortBy === "value") {
-			return [...rawClusters].sort(
+		if (needsPaginated && sortBy === "value") {
+			return [...activeClusters].sort(
 				(a, b) =>
 					computeValueScore(b, maxTicketCount) -
 					computeValueScore(a, maxTicketCount),
 			);
 		}
-		return rawClusters;
-	}, [rawClusters, sortBy, maxTicketCount]);
+		return activeClusters;
+	}, [activeClusters, sortBy, maxTicketCount, needsPaginated]);
 
 	// KB filter display labels
 	const kbFilterLabels: Record<KBFilterOption, string> = {
@@ -163,9 +222,7 @@ export default function TicketGroups({ period }: TicketGroupsProps) {
 	}
 
 	// Show spinner only on initial load (no cached data)
-	// Don't show during refetches to avoid losing search input focus
-	const isInitialLoading =
-		canShowClusters && isClustersLoading && !clustersResponse;
+	const isInitialLoading = canShowClusters && isDataLoading && !hasData;
 	if (isInitialLoading) {
 		return (
 			<div className="flex min-h-[400px] w-full items-center justify-center">
@@ -210,9 +267,7 @@ export default function TicketGroups({ period }: TicketGroupsProps) {
 								className="max-w-sm pl-10"
 								value={searchInput}
 								onChange={(e) => setSearchInput(e.target.value)}
-								disabled={
-									hasNoModel || isTraining || isFirstImport || isBelowThreshold
-								}
+								disabled={hasNoModel || isTraining || isFirstImport}
 							/>
 						</div>
 
@@ -240,43 +295,101 @@ export default function TicketGroups({ period }: TicketGroupsProps) {
 							</DropdownMenuContent>
 						</DropdownMenu>
 
-						{/* Sort dropdown */}
-						<DropdownMenu>
-							<DropdownMenuTrigger asChild>
-								<Button variant="outline" size="sm">
-									<ArrowDownUp className="mr-1 h-3.5 w-3.5" />
-									{t("groups.sortBy")}
-									<ChevronDown />
-								</Button>
-							</DropdownMenuTrigger>
-							<DropdownMenuContent>
-								{(["volume", "value"] as SortOption[]).map((s) => (
-									<DropdownMenuItem key={s} onClick={() => setSortBy(s)}>
-										{sortLabels[s]}
-									</DropdownMenuItem>
-								))}
-							</DropdownMenuContent>
-						</DropdownMenu>
+						{/* Sort dropdown — only in prioritization/charts views */}
+						{needsPaginated && (
+							<DropdownMenu>
+								<DropdownMenuTrigger asChild>
+									<Button variant="outline" size="sm">
+										<ArrowDownUp className="mr-1 h-3.5 w-3.5" />
+										{t("groups.sortBy")}
+										<ChevronDown />
+									</Button>
+								</DropdownMenuTrigger>
+								<DropdownMenuContent>
+									{(["volume", "value"] as SortOption[]).map((s) => (
+										<DropdownMenuItem key={s} onClick={() => setSortBy(s)}>
+											{sortLabels[s]}
+										</DropdownMenuItem>
+									))}
+								</DropdownMenuContent>
+							</DropdownMenu>
+						)}
+
+						{/* View switcher */}
+						<div
+							role="radiogroup"
+							aria-label={t("manualWork.viewSwitcherLabel")}
+							className="flex gap-0.5"
+						>
+							<Tooltip>
+								<TooltipTrigger asChild>
+									<Button
+										variant={isClusters ? "secondary" : "ghost"}
+										size="icon"
+										role="radio"
+										aria-checked={isClusters}
+										aria-label={t("manualWork.viewClusters")}
+										onClick={() => setViewMode("clusters")}
+										className="size-8"
+									>
+										<LayoutGrid className="size-4" />
+									</Button>
+								</TooltipTrigger>
+								<TooltipContent>{t("manualWork.viewClusters")}</TooltipContent>
+							</Tooltip>
+							<Tooltip>
+								<TooltipTrigger asChild>
+									<Button
+										variant={isPrioritization ? "secondary" : "ghost"}
+										size="icon"
+										role="radio"
+										aria-checked={isPrioritization}
+										aria-label={t("manualWork.viewPrioritization")}
+										onClick={() => setViewMode("prioritization")}
+										className="size-8"
+									>
+										<Grid2x2 className="size-4" />
+									</Button>
+								</TooltipTrigger>
+								<TooltipContent>
+									{t("manualWork.viewPrioritization")}
+								</TooltipContent>
+							</Tooltip>
+							<Tooltip>
+								<TooltipTrigger asChild>
+									<Button
+										variant={isCharts ? "secondary" : "ghost"}
+										size="icon"
+										role="radio"
+										aria-checked={isCharts}
+										aria-label={t("manualWork.viewCharts")}
+										onClick={() => setViewMode("charts")}
+										className="size-8"
+									>
+										<LineChart className="size-4" />
+									</Button>
+								</TooltipTrigger>
+								<TooltipContent>{t("manualWork.viewCharts")}</TooltipContent>
+							</Tooltip>
+						</div>
 					</div>
 				</div>
 
-				{isBelowThreshold ? (
-					// Not enough tickets: show error banner + empty state
+				{hasNoModel ? (
+					<div className="flex min-h-[300px] flex-col items-center justify-center gap-4">
+						<p className="text-muted-foreground">
+							{t("groups.noSourceConnected")}
+						</p>
+						<Button asChild variant="outline" size="sm">
+							<Link to="/settings/connections/itsm">
+								{t("groups.connectSource")}
+							</Link>
+						</Button>
+					</div>
+				) : isFailed ? (
 					<div className="flex flex-col gap-6">
-						<StatusAlert
-							variant="error"
-							title={t("groups.ticketsBelowThreshold")}
-						>
-							<p className="mb-3">
-								{t("groups.ticketsBelowThresholdDescription", {
-									count:
-										latestRun?.metadata?.error_detail?.current_total_tickets ??
-										0,
-									minimum:
-										latestRun?.metadata?.error_detail?.needed_total_tickets ??
-										DEFAULT_MINIMUM_TICKETS,
-								})}
-							</p>
+						<StatusAlert variant="error" title={t("groups.trainingFailed")}>
+							<p className="mb-3">{t("groups.trainingFailedDescription")}</p>
 							<Button asChild variant="outline" size="sm">
 								<Link to="/settings/connections/itsm">
 									{t("groups.goToItsmConnections")}
@@ -288,7 +401,6 @@ export default function TicketGroups({ period }: TicketGroupsProps) {
 						</div>
 					</div>
 				) : isFirstImport ? (
-					// First-time import: show banner + progress + skeleton grid
 					<div className="flex flex-col gap-6">
 						<StatusAlert variant="info" title={t("groups.importingTickets")}>
 							<p>{t("groups.importingDescription")}</p>
@@ -318,7 +430,6 @@ export default function TicketGroups({ period }: TicketGroupsProps) {
 						</div>
 					</div>
 				) : isTraining ? (
-					// Training in progress: show banner + skeleton grid
 					<div className="flex flex-col gap-6">
 						<StatusAlert variant="info" title={t("groups.trainingInProgress")}>
 							<p>{t("groups.trainingDescription")}</p>
@@ -329,39 +440,9 @@ export default function TicketGroups({ period }: TicketGroupsProps) {
 							))}
 						</div>
 					</div>
-				) : hasNoModel ? (
-					// No model: show connect source empty state
-					<div className="flex min-h-[300px] flex-col items-center justify-center gap-4">
-						<p className="text-muted-foreground">
-							{t("groups.noSourceConnected")}
-						</p>
-						<Button asChild variant="outline" size="sm">
-							<Link to="/settings/connections/itsm">
-								{t("groups.connectSource")}
-							</Link>
-						</Button>
-					</div>
-				) : isFailed ? (
-					// Training failed: show error banner + empty state
-					<div className="flex flex-col gap-6">
-						<StatusAlert variant="error" title={t("groups.trainingFailed")}>
-							<p className="mb-3">{t("groups.trainingFailedDescription")}</p>
-							<Button asChild variant="outline" size="sm">
-								<Link to="/settings/connections/itsm">
-									{t("groups.goToItsmConnections")}
-								</Link>
-							</Button>
-						</StatusAlert>
-						<div className="flex min-h-[200px] items-center justify-center">
-							<p className="text-muted-foreground">{t("groups.noGroups")}</p>
-						</div>
-					</div>
 				) : clusters.length > 0 ? (
 					<>
-						{/* 2x2 Prioritization Chart */}
-						<PrioritizationChart clusters={clusters} />
-
-						{/* Re-import banner: show above existing clusters */}
+						{/* Re-import banner */}
 						{isIngesting && (
 							<StatusAlert variant="info" title={t("groups.importingTickets")}>
 								<p>{t("groups.importingDescription")}</p>
@@ -385,21 +466,50 @@ export default function TicketGroups({ period }: TicketGroupsProps) {
 								)}
 							</StatusAlert>
 						)}
-						<div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-5">
-							{clusters.map((cluster) => (
-								<TicketGroupStat
-									key={cluster.id}
-									id={cluster.id}
-									title={getDisplayTitle(cluster.name, cluster.subcluster_name)}
-									count={cluster.ticket_count}
-									knowledgeStatus={cluster.kb_status}
-									valueScore={getValueScore(cluster)}
-								/>
-							))}
-						</div>
 
-						{/* Pagination */}
-						{(hasPrevPage || hasNextPage) && (
+						{isClusters && (
+							<div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-5">
+								{clusters.map((cluster) => (
+									<TicketGroupStat
+										key={cluster.id}
+										id={cluster.id}
+										title={getDisplayTitle(
+											cluster.name,
+											cluster.subcluster_name,
+										)}
+										count={cluster.ticket_count}
+										knowledgeStatus={cluster.kb_status}
+									/>
+								))}
+							</div>
+						)}
+
+						{isPrioritization && <PrioritizationMatrix clusters={clusters} />}
+
+						{isCharts && (
+							<>
+								<PrioritizationChart clusters={clusters} />
+
+								<div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-5">
+									{clusters.map((cluster) => (
+										<TicketGroupStat
+											key={cluster.id}
+											id={cluster.id}
+											title={getDisplayTitle(
+												cluster.name,
+												cluster.subcluster_name,
+											)}
+											count={cluster.ticket_count}
+											knowledgeStatus={cluster.kb_status}
+											valueScore={getValueScore(cluster)}
+										/>
+									))}
+								</div>
+							</>
+						)}
+
+						{/* Pagination — prioritization/charts views only */}
+						{needsPaginated && (hasPrevPage || hasNextPage) && (
 							<div className="flex items-center justify-end py-4">
 								<div className="flex gap-2">
 									<Button

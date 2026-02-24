@@ -198,7 +198,30 @@
 			"rankedList": "Ranked list"
 		},
 		"viewSwitcherLabel": "Chart view",
-		"hiddenCount": "+{{count}} more clusters"
+		"hiddenCount": "+{{count}} more clusters",
+		"fixNow": {
+			"title": "Fix Now",
+			"description": "High volume, no knowledge"
+		},
+		"readyToAutomate": {
+			"title": "Ready to Automate",
+			"description": "High volume, knowledge exists"
+		},
+		"backlog": {
+			"title": "Backlog",
+			"description": "Low volume, no knowledge"
+		},
+		"monitor": {
+			"title": "Monitor",
+			"description": "Low volume, knowledge exists"
+		},
+		"axis": {
+			"noKnowledge": "No Knowledge",
+			"knowledgeExists": "Knowledge Exists",
+			"highVolume": "High Volume",
+			"lowVolume": "Low Volume"
+		},
+		"empty": "No clusters"
 	},
 	"gapBanner": {
 		"knowledgeGap": "Knowledge gap — no KB articles linked"
@@ -318,6 +341,27 @@
 	"knowledge": {
 		"failedToLoad": "Failed to load KB articles",
 		"noArticles": "No knowledge articles linked"
+	},
+	"manualWork": {
+		"summaryTitle": "Manual Work to Eliminate",
+		"summaryDescription": "{{tickets}} tickets needing response \u00b7 {{cost}}/mo \u00b7 {{hours}}/mo",
+		"summaryDescriptionSimple": "{{tickets}} tickets needing response",
+		"knowledgeCount": "{{found}} of {{total}} groups have knowledge",
+		"noManualWork": "$0 potential savings \u2014 no tickets needing response",
+		"ticketCount_one": "{{count}} ticket",
+		"ticketCount_other": "{{count}} tickets",
+		"manual": "manual",
+		"tickets": "tickets",
+		"rowLabel": "{{name}}",
+		"kb": {
+			"pending": "Analyzing...",
+			"gap": "Automation Gap",
+			"found": "Knowledge Found"
+		},
+		"viewSwitcherLabel": "View mode",
+		"viewClusters": "Clusters",
+		"viewPrioritization": "Prioritization",
+		"viewCharts": "Charts"
 	},
 	"ticketSettings": {
 		"title": "Ticket settings",

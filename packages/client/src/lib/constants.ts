@@ -138,15 +138,11 @@ export const MAX_FILE_SIZE_MB = 100;
  * Used in TicketGroupStat and ClusterDetailPage
  */
 export const KB_STATUS_BADGE_STYLES = {
-	FOUND: {
-		variant: "outline" as const,
-		className: "border-blue-500 text-blue-600",
-		text: "Knowledge found",
-	},
+	FOUND: null,
 	GAP: {
-		variant: "secondary" as const,
-		className: "bg-yellow-50 text-secondary-foreground border-yellow-500",
-		text: "Knowledge gap",
+		variant: "outline" as const,
+		className: "border-orange-500 text-orange-600",
+		text: "Automation Gap",
 	},
 	PENDING: {
 		variant: "outline" as const,
