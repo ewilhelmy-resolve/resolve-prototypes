@@ -1,3 +1,4 @@
+<!-- last-commit: f3c5f57f -->
 # Changelog
 
 All notable user-facing changes to this project will be documented in this file.
