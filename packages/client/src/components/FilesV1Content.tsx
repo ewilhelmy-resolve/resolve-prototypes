@@ -64,7 +64,8 @@ type SortField =
 	| "type"
 	| "status"
 	| "source"
-	| "created_at";
+	| "created_at"
+	| "updated_at";
 type SortOrder = "asc" | "desc";
 
 const PAGE_SIZE = 50;
@@ -79,7 +80,7 @@ export default function FilesV1Content() {
 	const [fileToDelete, setFileToDelete] = useState<FileDocument | null>(null);
 	const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 	const [bulkDeleteDialogOpen, setBulkDeleteDialogOpen] = useState(false);
-	const [sortField, setSortField] = useState<SortField>("created_at");
+	const [sortField, setSortField] = useState<SortField>("updated_at");
 	const [sortOrder, setSortOrder] = useState<SortOrder>("desc");
 	const [page, setPage] = useState(0);
 	const [uploadingFiles, setUploadingFiles] = useState<Set<string>>(new Set());
@@ -700,10 +701,10 @@ export default function FilesV1Content() {
 												variant="ghost"
 												size="sm"
 												className="text-muted-foreground hover:text-foreground -mr-3"
-												onClick={() => handleSort("created_at")}
+												onClick={() => handleSort("updated_at")}
 											>
 												{t("table.lastModified")}
-												{renderSortIcon(sortField, "created_at", sortOrder)}
+												{renderSortIcon(sortField, "updated_at", sortOrder)}
 											</Button>
 										</TableHead>
 										<TableHead className="w-16"></TableHead>

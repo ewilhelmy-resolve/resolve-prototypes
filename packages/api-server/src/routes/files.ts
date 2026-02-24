@@ -938,6 +938,7 @@ router.get("/", authenticateUser, async (req, res) => {
 			status: "bm.status",
 			source: "bm.source",
 			created_at: "bm.created_at",
+			updated_at: "bm.updated_at",
 		};
 
 		const sortField = sortFieldMap[sortBy] || "bm.created_at";
@@ -993,7 +994,7 @@ router.get("/", authenticateUser, async (req, res) => {
             END as content_type
           FROM blob_metadata bm
           WHERE ${whereClause}
-          ORDER BY ${sortField} ${sortOrder}
+          ORDER BY ${sortField} ${sortOrder}, bm.id ASC
           LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
         `,
 					[...queryParams, limit, offset],
