@@ -5922,7 +5922,8 @@
 								"type",
 								"status",
 								"source",
-								"created_at"
+								"created_at",
+								"updated_at"
 							],
 							"default": "created_at",
 							"description": "Sort field"
