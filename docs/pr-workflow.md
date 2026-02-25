@@ -51,6 +51,41 @@ refactor/CLIEN-42-session-service-audit
 
 Issue prefixes: `CLIEN-` (client tasks), `RG-` (general), `JAR-` (Jarvis/platform).
 
+## PR Description Template
+
+Use this structure for PR descriptions:
+
+```markdown
+<brief description of what the PR does>
+
+<why these changes are being made — the motivation>
+
+<alternative approaches considered, if any>
+
+<any additional context reviewers need>
+
+Refs <TICKET>
+```
+
+- Explain **what** and **why** — code shows the how
+- Include ticket reference (`Refs RG-101`) at end of body
+- Note areas that need careful review
+- Do **not** include checklists, test plans, or AI attribution
+
+### Example
+
+```markdown
+Add message reactions to chat
+
+Users can react to messages with emoji. Reactions display below
+the message with a count badge.
+
+Considered inline reactions but below-message placement better
+matches existing UI patterns.
+
+Refs CLIEN-89
+```
+
 ## PR Checklist
 
 - [ ] Code follows [Coding Guidelines](coding-guidelines.md)
