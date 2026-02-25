@@ -252,7 +252,13 @@
 			"openTickets": "Open Tickets",
 			"kbArticles": "KB Articles",
 			"estMonthlyCost": "Est. Monthly Cost",
-			"estMonthlyHours": "Est. Monthly Hours"
+			"estMonthlyHours": "Est. Monthly Hours",
+			"estImpact": "Est. Impact",
+			"mttr": "MTTR",
+			"mttrTooltip": "Connect your ITSM to track Mean Time to Resolution",
+			"avgReassignmentRate": "Avg. Reassignment Rate",
+			"reassignmentTooltip": "Connect your ITSM to track ticket reassignment rates",
+			"comingSoon": "Coming soon"
 		},
 		"banners": {
 			"reviewSuccess": "Great job! You reviewed {{count}} responses.",

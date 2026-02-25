@@ -12,12 +12,16 @@ import { ClusterDetailTable } from "@/components/tickets/ClusterDetailTable";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { FeedbackBanner } from "@/components/ui/feedback-banner";
+import {
+	Tooltip,
+	TooltipContent,
+	TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { clusterKeys, useClusterDetails } from "@/hooks/useClusters";
 import { KB_STATUS_BADGE_STYLES } from "@/lib/constants";
 
-/** Default cost/time settings (matches TicketSettingsDialog defaults) */
+/** Default cost setting (matches TicketSettingsDialog default) */
 const COST_PER_TICKET = 30;
-const MINS_PER_TICKET = 12;
 
 /** Fire confetti animation for success/enriched banners (stops after 2 sec) */
 const fireConfetti = () => {
@@ -194,20 +198,42 @@ export default function ClusterDetailPage() {
 								loading={false}
 							/>
 							<StatCard
-								value={cluster.kb_articles_count.toLocaleString()}
-								label={t("clusterDetail.stats.kbArticles")}
-								loading={false}
-							/>
-							<StatCard
 								value={`$${(cluster.ticket_count * COST_PER_TICKET).toLocaleString()}`}
-								label={t("clusterDetail.stats.estMonthlyCost")}
+								label={t("clusterDetail.stats.estImpact")}
 								loading={false}
 							/>
-							<StatCard
-								value={`${Math.round((cluster.ticket_count * MINS_PER_TICKET) / 60).toLocaleString()} hrs`}
-								label={t("clusterDetail.stats.estMonthlyHours")}
-								loading={false}
-							/>
+							<Tooltip>
+								<TooltipTrigger asChild>
+									<div>
+										<StatCard
+											value="--"
+											label={t("clusterDetail.stats.mttr")}
+											badge={
+												<Badge variant="secondary" className="text-[10px] px-1.5 py-0">
+													{t("clusterDetail.stats.comingSoon")}
+												</Badge>
+											}
+										/>
+									</div>
+								</TooltipTrigger>
+								<TooltipContent>{t("clusterDetail.stats.mttrTooltip")}</TooltipContent>
+							</Tooltip>
+							<Tooltip>
+								<TooltipTrigger asChild>
+									<div>
+										<StatCard
+											value="--"
+											label={t("clusterDetail.stats.avgReassignmentRate")}
+											badge={
+												<Badge variant="secondary" className="text-[10px] px-1.5 py-0">
+													{t("clusterDetail.stats.comingSoon")}
+												</Badge>
+											}
+										/>
+									</div>
+								</TooltipTrigger>
+								<TooltipContent>{t("clusterDetail.stats.reassignmentTooltip")}</TooltipContent>
+							</Tooltip>
 						</StatGroup>
 
 						{/* Table Section */}
