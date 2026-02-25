@@ -129,7 +129,7 @@ Husky runs automatically on `git commit`:
 2. `pnpm run type-check`
 3. If api-server files staged: auto-generates OpenAPI spec
 
-Do not manually run these checks before committing — the hooks handle it. If hooks fail, fix the issue and commit again.
+Do not manually run these checks before committing — the hooks handle it. If hooks fail, fix the issue and commit again. **Never use `--no-verify`.**
 
 ## Examples
 
