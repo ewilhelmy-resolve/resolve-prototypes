@@ -60,6 +60,8 @@ Use this structure for PR descriptions:
 
 <why these changes are being made — the motivation>
 
+<how — technical approach taken, when non-obvious (optional)>
+
 <alternative approaches considered, if any>
 
 <any additional context reviewers need>
@@ -67,7 +69,8 @@ Use this structure for PR descriptions:
 Refs <TICKET>
 ```
 
-- Explain **what** and **why** — code shows the how
+- Explain **what** and **why**
+- Include **how** when the technical approach isn't obvious from the diff
 - Include ticket reference (`Refs RG-101`) at end of body
 - Note areas that need careful review
 - Do **not** include checklists, test plans, or AI attribution
@@ -79,6 +82,10 @@ Add message reactions to chat
 
 Users can react to messages with emoji. Reactions display below
 the message with a count badge.
+
+Store reactions in a separate table with composite unique index
+on (message_id, user_id, emoji). SSE broadcasts changes to
+all participants.
 
 Considered inline reactions but below-message placement better
 matches existing UI patterns.

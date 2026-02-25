@@ -83,6 +83,8 @@ Use this structure:
 
 <why these changes are being made — the motivation>
 
+<how — technical approach taken, when non-obvious (optional)>
+
 <alternative approaches considered, if any>
 
 <any additional context reviewers need>
@@ -129,6 +131,10 @@ Add Slack-style message reactions to chat
 
 Users can now react to messages with emoji. Reactions display below
 the message with a count badge showing how many users reacted.
+
+Store reactions in a separate `message_reactions` table with a
+composite unique index on (message_id, user_id, emoji) to prevent
+duplicates. SSE broadcasts reaction changes to all participants.
 
 Previously considered inline reactions but threading-style reactions
 below the message better match the existing UI patterns.
