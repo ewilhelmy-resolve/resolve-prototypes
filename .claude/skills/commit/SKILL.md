@@ -123,7 +123,7 @@ Refs RG-101
 
 Husky runs automatically on `git commit`:
 1. `npx lint-staged` → `biome check --write` + `biome lint`
-2. `npm run type-check`
+2. `pnpm run type-check`
 3. If api-server files staged: auto-generates OpenAPI spec
 
 Do not manually run these checks before committing — the hooks handle it. If hooks fail, fix the issue and commit again.
