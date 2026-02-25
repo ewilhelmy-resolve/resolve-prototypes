@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/react";
 import { fn } from "@storybook/test";
+import { Archive, Download, Mail, Trash2 } from "lucide-react";
 import { BulkActions } from "./BulkActions";
-import { Trash2, Download, Archive, Mail } from "lucide-react";
 
 const meta: Meta<typeof BulkActions> = {
 	component: BulkActions,

@@ -29,7 +29,9 @@ export default function TicketProgressIndicator({
 		<div className={className}>
 			<div className="flex items-center gap-3 w-full">
 				<div className="flex items-center gap-1.5 shrink-0">
-					<p className="text-base text-accent-foreground">{t("details.ticketsCount")}</p>
+					<p className="text-base text-accent-foreground">
+						{t("details.ticketsCount")}
+					</p>
 					<p className="text-base font-bold text-accent-foreground">
 						{currentIndex + 1} of {total}
 					</p>

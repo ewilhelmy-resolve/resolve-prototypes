@@ -10,8 +10,8 @@ import {
 	DialogHeader,
 	DialogTitle,
 } from "@/components/ui/dialog";
-import { StatusAlert } from "@/components/ui/status-alert";
 import { Label } from "@/components/ui/label";
+import { StatusAlert } from "@/components/ui/status-alert";
 import { Textarea } from "@/components/ui/textarea";
 import { useSendInvitations } from "@/hooks/api/useInvitations";
 import { toast } from "@/lib/toast";
@@ -137,12 +137,9 @@ export default function InviteUsersDialog({
 			{
 				onSuccess: (data) => {
 					const count = data.invitations.length;
-					toast.success(
-						tToast("success.invitationsSent", { count }),
-						{
-							description: tToast("descriptions.invitationSentDesc"),
-						},
-					);
+					toast.success(tToast("success.invitationsSent", { count }), {
+						description: tToast("descriptions.invitationSentDesc"),
+					});
 					// Close dialog and reset form
 					setEmailInput("");
 					onOpenChange(false);
@@ -162,21 +159,19 @@ export default function InviteUsersDialog({
 			<DialogContent className="sm:max-w-[600px]">
 				<DialogHeader>
 					<DialogTitle>{t("invite.title")}</DialogTitle>
-					<DialogDescription>
-						{t("invite.description")}
-					</DialogDescription>
+					<DialogDescription>{t("invite.description")}</DialogDescription>
 				</DialogHeader>
 
 				<div className="grid gap-4 py-4">
 					<StatusAlert variant="info">
 						<p className="text-accent-foreground">
 							{t("invite.roleInfoPrefix")}{" "}
-							<span className="font-semibold inline">{t("invite.userRole")}</span>{" "}
+							<span className="font-semibold inline">
+								{t("invite.userRole")}
+							</span>{" "}
 							{t("invite.roleInfoSuffix")}
 						</p>
-						<p>
-							{t("invite.adminHint")}
-						</p>
+						<p>{t("invite.adminHint")}</p>
 					</StatusAlert>
 
 					<div className="grid gap-2">

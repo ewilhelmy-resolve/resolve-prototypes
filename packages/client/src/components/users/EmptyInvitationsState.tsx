@@ -5,7 +5,6 @@ export default function EmptyInvitationsState() {
 	return (
 		<div className="bg-background flex flex-col items-center w-full">
 			<div className="p-6 border border-border rounded-lg flex flex-col items-center gap-6 w-full">
- 				
 				<MailOpen className="w-12 h-12 text-foreground" />
 
 				<div className="flex flex-col items-center gap-2">

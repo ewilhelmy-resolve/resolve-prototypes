@@ -373,14 +373,18 @@ function AnimateIcon({
 	) as AnyProps;
 
 	const handleMouseEnter = composeEventHandlers<React.MouseEvent<HTMLElement>>(
-		childProps.onMouseEnter as ((event: React.MouseEvent<HTMLElement>) => void) | undefined,
+		childProps.onMouseEnter as
+			| ((event: React.MouseEvent<HTMLElement>) => void)
+			| undefined,
 		() => {
 			if (animateOnHover) startAnimation(animateOnHover);
 		},
 	);
 
 	const handleMouseLeave = composeEventHandlers<React.MouseEvent<HTMLElement>>(
-		childProps.onMouseLeave as ((event: React.MouseEvent<HTMLElement>) => void) | undefined,
+		childProps.onMouseLeave as
+			| ((event: React.MouseEvent<HTMLElement>) => void)
+			| undefined,
 		() => {
 			if (animateOnHover || animateOnTap) stopAnimation();
 		},
@@ -388,12 +392,19 @@ function AnimateIcon({
 
 	const handlePointerDown = composeEventHandlers<
 		React.PointerEvent<HTMLElement>
-	>(childProps.onPointerDown as ((event: React.PointerEvent<HTMLElement>) => void) | undefined, () => {
-		if (animateOnTap) startAnimation(animateOnTap);
-	});
+	>(
+		childProps.onPointerDown as
+			| ((event: React.PointerEvent<HTMLElement>) => void)
+			| undefined,
+		() => {
+			if (animateOnTap) startAnimation(animateOnTap);
+		},
+	);
 
 	const handlePointerUp = composeEventHandlers<React.PointerEvent<HTMLElement>>(
-		childProps.onPointerUp as ((event: React.PointerEvent<HTMLElement>) => void) | undefined,
+		childProps.onPointerUp as
+			| ((event: React.PointerEvent<HTMLElement>) => void)
+			| undefined,
 		() => {
 			if (animateOnTap) stopAnimation();
 		},
@@ -409,7 +420,7 @@ function AnimateIcon({
 			{...props}
 		>
 			{children}
-		 </Slot>
+		</Slot>
 	) : (
 		<motion.span
 			ref={inViewRef as any}

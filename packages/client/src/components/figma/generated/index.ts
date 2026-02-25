@@ -21,4 +21,4 @@
 // export { default as FigmaButton } from './FigmaButton'
 // export { default as FigmaCard } from './FigmaCard'
 
-export { default as NoArticlesCard } from './NoArticlesCard'
+export { default as NoArticlesCard } from "./NoArticlesCard";

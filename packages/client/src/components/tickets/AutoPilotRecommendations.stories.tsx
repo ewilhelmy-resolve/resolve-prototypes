@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react";
 import { fn } from "@storybook/test";
-import { Sparkles, Zap, Network, Bot } from "lucide-react";
+import { Bot, Network, Sparkles, Zap } from "lucide-react";
 import { AutoPilotRecommendations } from "./AutoPilotRecommendations";
 
 const meta: Meta<typeof AutoPilotRecommendations> = {

@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { Citations, type CitationSource } from "./Citations";
 import { CitationProvider } from "@/contexts/CitationContext";
+import { type CitationSource, Citations } from "./Citations";
 
 const queryClient = new QueryClient({
 	defaultOptions: {

@@ -44,7 +44,10 @@ export function WebSearchForm({ onCancel }: WebSearchFormProps = {}) {
 			});
 		} catch (error) {
 			toast.error(tToast("error.saveFailed"), {
-				description: error instanceof Error ? error.message : "Failed to save configuration",
+				description:
+					error instanceof Error
+						? error.message
+						: "Failed to save configuration",
 			});
 		}
 	};
@@ -66,20 +69,14 @@ export function WebSearchForm({ onCancel }: WebSearchFormProps = {}) {
 			{/* Enable Button with optional Cancel */}
 			<div className="flex justify-end gap-2">
 				{onCancel && (
-					<Button
-						type="button"
-						variant="outline"
-						onClick={onCancel}
-					>
+					<Button type="button" variant="outline" onClick={onCancel}>
 						{t("form.buttons.cancel")}
 					</Button>
 				)}
-				<Button
-					size="lg"
-					type="submit"
-					disabled={updateMutation.isPending}
-				>
-					{updateMutation.isPending ? t("form.buttons.connecting") : t("form.buttons.connect")}
+				<Button size="lg" type="submit" disabled={updateMutation.isPending}>
+					{updateMutation.isPending
+						? t("form.buttons.connecting")
+						: t("form.buttons.connect")}
 				</Button>
 			</div>
 		</ConnectionsForm>

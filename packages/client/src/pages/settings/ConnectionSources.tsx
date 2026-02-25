@@ -32,7 +32,13 @@ export default function ConnectionSources() {
 		if (!dataSources) return [];
 
 		// Define the desired order
-		const sourceOrder = ["confluence", "sharepoint", "servicenow", "jira", "websearch"];
+		const sourceOrder = [
+			"confluence",
+			"sharepoint",
+			"servicenow",
+			"jira",
+			"websearch",
+		];
 
 		// Map and sort data sources
 		const mapped = dataSources.map(mapDataSourceToUI);
@@ -52,7 +58,9 @@ export default function ConnectionSources() {
 						description={t("connectionSources.description")}
 					/>
 					<div className=" max-w-6xl">
-						<div className="text-center py-8">{t("connectionSources.loading")}</div>
+						<div className="text-center py-8">
+							{t("connectionSources.loading")}
+						</div>
 					</div>
 				</div>
 			</div>
@@ -106,7 +114,9 @@ export default function ConnectionSources() {
 
 										{source.lastSync && (
 											<p className="text-sm text-foreground mt-1">
-												{t("connectionSources.lastSync", { time: source.lastSync })}
+												{t("connectionSources.lastSync", {
+													time: source.lastSync,
+												})}
 											</p>
 										)}
 										{source.description && (
@@ -157,9 +167,9 @@ export default function ConnectionSources() {
 						);
 					}
 
-				// For other sources, just return the card without link
-				return <div key={source.id}>{cardContent}</div>;
-			})}
+					// For other sources, just return the card without link
+					return <div key={source.id}>{cardContent}</div>;
+				})}
 			</div>
 		</div>
 	);

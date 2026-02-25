@@ -1,6 +1,6 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import WelcomeDialog from "./WelcomeDialog";
 
 // Mock the profile hooks
@@ -52,13 +52,15 @@ describe("WelcomeDialog", () => {
 
 		it("renders Get Started button", () => {
 			render(<WelcomeDialog {...defaultProps} />);
-			expect(screen.getByRole("button", { name: /welcome\.getStarted/i })).toBeInTheDocument();
+			expect(
+				screen.getByRole("button", { name: /welcome\.getStarted/i }),
+			).toBeInTheDocument();
 		});
 
 		it("renders Learn how link", () => {
 			render(<WelcomeDialog {...defaultProps} />);
 			expect(
-				screen.getByRole("button", { name: /welcome\.learnMore/i })
+				screen.getByRole("button", { name: /welcome\.learnMore/i }),
 			).toBeInTheDocument();
 		});
 
@@ -98,25 +100,29 @@ describe("WelcomeDialog", () => {
 			const onOpenChange = vi.fn();
 			render(<WelcomeDialog {...defaultProps} onOpenChange={onOpenChange} />);
 
-			await user.click(screen.getByRole("button", { name: /welcome\.getStarted/i }));
+			await user.click(
+				screen.getByRole("button", { name: /welcome\.getStarted/i }),
+			);
 
 			expect(onOpenChange).toHaveBeenCalledWith(false);
 		});
 
 		it("opens external link when Learn how is clicked", async () => {
 			const user = userEvent.setup();
-			const windowOpen = vi.spyOn(window, "open").mockImplementation(() => null);
+			const windowOpen = vi
+				.spyOn(window, "open")
+				.mockImplementation(() => null);
 
 			render(<WelcomeDialog {...defaultProps} />);
 
 			await user.click(
-				screen.getByRole("button", { name: /welcome\.learnMore/i })
+				screen.getByRole("button", { name: /welcome\.learnMore/i }),
 			);
 
 			expect(windowOpen).toHaveBeenCalledWith(
 				expect.stringContaining("help.resolve.io"),
 				"_blank",
-				"noopener,noreferrer"
+				"noopener,noreferrer",
 			);
 
 			windowOpen.mockRestore();

@@ -5,30 +5,30 @@
  * Persists selection to localStorage.
  */
 
-import { Globe } from "lucide-react"
-import { useTranslation } from "react-i18next"
-import { Button } from "@/components/ui/button"
+import { Globe } from "lucide-react";
+import { useTranslation } from "react-i18next";
+import { Button } from "@/components/ui/button";
 import {
 	DropdownMenu,
 	DropdownMenuContent,
 	DropdownMenuItem,
 	DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import { SUPPORTED_LANGUAGES, type SupportedLanguage } from "@/i18n"
+} from "@/components/ui/dropdown-menu";
+import { SUPPORTED_LANGUAGES, type SupportedLanguage } from "@/i18n";
 
-const STORAGE_KEY = "rita_language"
+const STORAGE_KEY = "rita_language";
 
 export function LanguageSwitcher() {
-	const { i18n } = useTranslation()
+	const { i18n } = useTranslation();
 
 	const currentLanguage =
 		SUPPORTED_LANGUAGES.find((lang) => lang.code === i18n.language) ||
-		SUPPORTED_LANGUAGES[0]
+		SUPPORTED_LANGUAGES[0];
 
 	const handleLanguageChange = (code: SupportedLanguage) => {
-		i18n.changeLanguage(code)
-		localStorage.setItem(STORAGE_KEY, code)
-	}
+		i18n.changeLanguage(code);
+		localStorage.setItem(STORAGE_KEY, code);
+	};
 
 	return (
 		<DropdownMenu>
@@ -50,5 +50,5 @@ export function LanguageSwitcher() {
 				))}
 			</DropdownMenuContent>
 		</DropdownMenu>
-	)
+	);
 }

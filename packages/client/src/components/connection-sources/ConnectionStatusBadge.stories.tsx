@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react";
-import { ConnectionStatusBadge } from "./ConnectionStatusBadge";
 import { STATUS } from "@/constants/connectionSources";
+import { ConnectionStatusBadge } from "./ConnectionStatusBadge";
 
 const meta: Meta<typeof ConnectionStatusBadge> = {
 	component: ConnectionStatusBadge,
@@ -88,7 +88,9 @@ export const AllStatuses: Story = {
 				<ConnectionStatusBadge status={STATUS.CANCELLED} />
 			</div>
 			<div className="flex items-center gap-4">
-				<span className="text-sm text-muted-foreground w-28">Not connected</span>
+				<span className="text-sm text-muted-foreground w-28">
+					Not connected
+				</span>
 				<ConnectionStatusBadge status={STATUS.NOT_CONNECTED} />
 			</div>
 			<div className="flex items-center gap-4">

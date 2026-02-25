@@ -24,7 +24,10 @@ export function FreshdeskForm({ onCancel }: FreshdeskFormProps) {
 	const { t } = useTranslation("connections");
 
 	return (
-		<ConnectionsForm handleSubmit={(e) => e.preventDefault()} id="freshdesk-form">
+		<ConnectionsForm
+			handleSubmit={(e) => e.preventDefault()}
+			id="freshdesk-form"
+		>
 			<FormSection title={t("form.sections.authentication")}>
 				<StatusAlert variant="info" className="mb-4">
 					<p className="font-semibold">{t("form.alerts.comingSoon")}</p>
@@ -32,7 +35,12 @@ export function FreshdeskForm({ onCancel }: FreshdeskFormProps) {
 				</StatusAlert>
 
 				{/* Domain URL - placeholder field */}
-				<FormField label={t("form.labels.freshdeskDomain")} errors={{}} name="domain" required>
+				<FormField
+					label={t("form.labels.freshdeskDomain")}
+					errors={{}}
+					name="domain"
+					required
+				>
 					<Input
 						id="freshdesk-domain"
 						type="url"
@@ -42,7 +50,12 @@ export function FreshdeskForm({ onCancel }: FreshdeskFormProps) {
 				</FormField>
 
 				{/* API Key - placeholder field */}
-				<FormField label={t("form.labels.apiKey")} errors={{}} name="apiKey" required>
+				<FormField
+					label={t("form.labels.apiKey")}
+					errors={{}}
+					name="apiKey"
+					required
+				>
 					<Input
 						id="freshdesk-api-key"
 						type="password"

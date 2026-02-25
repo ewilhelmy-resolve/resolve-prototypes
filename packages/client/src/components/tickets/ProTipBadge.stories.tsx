@@ -27,13 +27,15 @@ export const Default: Story = {
 
 export const KnowledgeTip: Story = {
 	args: {
-		children: "Improving knowledge coverage often has the biggest impact on response quality.",
+		children:
+			"Improving knowledge coverage often has the biggest impact on response quality.",
 	},
 };
 
 export const AutomationTip: Story = {
 	args: {
-		children: "Consistent results contribute to automation readiness over time.",
+		children:
+			"Consistent results contribute to automation readiness over time.",
 	},
 };
 
@@ -45,7 +47,8 @@ export const ShortTip: Story = {
 
 export const LongTip: Story = {
 	args: {
-		children: "Early reviews help identify the most important gaps to address when creating knowledge articles for your team.",
+		children:
+			"Early reviews help identify the most important gaps to address when creating knowledge articles for your team.",
 	},
 	decorators: [
 		(Story) => (

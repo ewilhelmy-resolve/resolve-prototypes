@@ -1,5 +1,5 @@
-import { useProfilePermissions } from "@/hooks/api/useProfile";
 import { useTranslation } from "react-i18next";
+import { useProfilePermissions } from "@/hooks/api/useProfile";
 import InviteUsersButton from "./InviteUsersButton";
 
 /**

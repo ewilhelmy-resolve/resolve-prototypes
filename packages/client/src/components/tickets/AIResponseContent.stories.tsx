@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react";
-import AIResponseContent from "./AIResponseContent";
 import type { KBArticle } from "./AIResponseContent";
+import AIResponseContent from "./AIResponseContent";
 
 const meta: Meta<typeof AIResponseContent> = {
 	component: AIResponseContent,

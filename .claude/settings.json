@@ -19,6 +19,14 @@
 					{
 						"type": "command",
 						"command": "pnpm run lint"
+					},
+					{
+						"type": "command",
+						"command": "grep -r '<<<<<<<' packages/ && echo 'ERROR: Unresolved conflict markers found!' && exit 1 || true"
+					},
+					{
+						"type": "command",
+						"command": "pnpm type-check 2>&1 | tail -20 || echo 'TypeScript errors found — fix before committing'"
 					}
 				]
 			}

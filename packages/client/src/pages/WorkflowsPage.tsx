@@ -1,22 +1,28 @@
-import { useState, useRef, useEffect, useCallback } from "react";
-import { Code, Wand2, Send, FlaskConical, ChevronDown, ChevronUp } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { cn } from "@/lib/utils";
-import RitaLayout from "@/components/layouts/RitaLayout";
-import { workflowApi } from "@/services/workflowApi";
-import type { DynamicWorkflowEvent } from "@/services/EventSourceSSEClient";
 import {
-	type WorkflowResponse,
-	type WorkflowTask,
+	ChevronDown,
+	ChevronUp,
+	Code,
+	FlaskConical,
+	Send,
+	Wand2,
+} from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import RitaLayout from "@/components/layouts/RitaLayout";
+import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Textarea } from "@/components/ui/textarea";
+import { cn } from "@/lib/utils";
+import type { DynamicWorkflowEvent } from "@/services/EventSourceSSEClient";
+import { workflowApi } from "@/services/workflowApi";
+import { TEST_WORKFLOW_RESPONSE } from "./workflows/testWorkflowData";
+import {
 	type ChatMessage,
 	isWorkflowResponse,
 	parseInputKeys,
 	parseOutputKeys,
+	type WorkflowResponse,
+	type WorkflowTask,
 } from "./workflows/types";
-import { TEST_WORKFLOW_RESPONSE } from "./workflows/testWorkflowData";
-
 
 // Workflow Step Card Component
 function WorkflowStepCard({
@@ -43,7 +49,9 @@ function WorkflowStepCard({
 			{/* Header */}
 			<div className="flex items-center justify-between px-4 py-3 border-b bg-gray-50/50">
 				<span className="text-blue-600 font-semibold">Step {stepNumber}</span>
-				<span className={cn("text-xs font-medium px-2 py-1 rounded", actionColor)}>
+				<span
+					className={cn("text-xs font-medium px-2 py-1 rounded", actionColor)}
+				>
 					{actionLabel}
 				</span>
 			</div>
@@ -57,7 +65,10 @@ function WorkflowStepCard({
 						<div className="flex items-center gap-1">
 							<span>Reads:</span>
 							{inputKeys.map((key) => (
-								<code key={key} className="bg-gray-100 px-1.5 py-0.5 rounded text-gray-700">
+								<code
+									key={key}
+									className="bg-gray-100 px-1.5 py-0.5 rounded text-gray-700"
+								>
 									{key}
 								</code>
 							))}
@@ -67,7 +78,10 @@ function WorkflowStepCard({
 						<div className="flex items-center gap-1">
 							<span>Writes:</span>
 							{outputKeys.map((key) => (
-								<code key={key} className="bg-gray-100 px-1.5 py-0.5 rounded text-gray-700">
+								<code
+									key={key}
+									className="bg-gray-100 px-1.5 py-0.5 rounded text-gray-700"
+								>
 									{key}
 								</code>
 							))}
@@ -96,7 +110,11 @@ function WorkflowStepCard({
 }
 
 // Key Mapping Connector Component
-function KeyMappingConnector({ mappings }: { mappings: Record<string, string> }) {
+function KeyMappingConnector({
+	mappings,
+}: {
+	mappings: Record<string, string>;
+}) {
 	const entries = Object.entries(mappings);
 	if (entries.length === 0) return null;
 
@@ -144,14 +162,17 @@ function WorkflowRenderer({ data }: { data: WorkflowResponse }) {
 
 export default function WorkflowsPage() {
 	const [messages, setMessages] = useState<ChatMessage[]>([]);
-	const [currentWorkflow, setCurrentWorkflow] = useState<WorkflowResponse | null>(null);
+	const [currentWorkflow, setCurrentWorkflow] =
+		useState<WorkflowResponse | null>(null);
 	const [isLoading, setIsLoading] = useState(false);
 	const [queryInput, setQueryInput] = useState("");
 
 	// Dev panel state
 	const [showDevPanel, setShowDevPanel] = useState(false);
 	const [jsonInput, setJsonInput] = useState("");
-	const [rawEvents, setRawEvents] = useState<Array<{ timestamp: string; [key: string]: unknown }>>([]);
+	const [rawEvents, setRawEvents] = useState<
+		Array<{ timestamp: string; [key: string]: unknown }>
+	>([]);
 
 	const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -281,17 +302,28 @@ export default function WorkflowsPage() {
 								<FlaskConical className="w-4 h-4" />
 								Dev Tools
 							</span>
-							{showDevPanel ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+							{showDevPanel ? (
+								<ChevronUp className="w-4 h-4" />
+							) : (
+								<ChevronDown className="w-4 h-4" />
+							)}
 						</button>
 
 						{showDevPanel && (
 							<div className="px-4 pb-4">
 								<Tabs defaultValue="events" className="w-full">
 									<TabsList className="w-full">
-										<TabsTrigger value="events" className="flex-1 text-xs cursor-pointer">
-											Raw Events {rawEvents.length > 0 && `(${rawEvents.length})`}
+										<TabsTrigger
+											value="events"
+											className="flex-1 text-xs cursor-pointer"
+										>
+											Raw Events{" "}
+											{rawEvents.length > 0 && `(${rawEvents.length})`}
 										</TabsTrigger>
-										<TabsTrigger value="json" className="flex-1 text-xs cursor-pointer">
+										<TabsTrigger
+											value="json"
+											className="flex-1 text-xs cursor-pointer"
+										>
 											Paste JSON
 										</TabsTrigger>
 									</TabsList>
@@ -317,7 +349,9 @@ export default function WorkflowsPage() {
 
 									<TabsContent value="json" className="mt-2 space-y-2">
 										<div className="flex items-center justify-between">
-											<span className="text-xs text-muted-foreground">Paste workflow JSON</span>
+											<span className="text-xs text-muted-foreground">
+												Paste workflow JSON
+											</span>
 											<Button
 												variant="ghost"
 												size="sm"
@@ -363,7 +397,7 @@ export default function WorkflowsPage() {
 										key={message.id}
 										className={cn(
 											"flex",
-											message.role === "user" ? "justify-end" : "justify-start"
+											message.role === "user" ? "justify-end" : "justify-start",
 										)}
 									>
 										<div
@@ -373,13 +407,15 @@ export default function WorkflowsPage() {
 													? "bg-primary text-primary-foreground"
 													: message.isError
 														? "bg-destructive/10 border border-destructive/20"
-														: "bg-muted"
+														: "bg-muted",
 											)}
 										>
-											<p className={cn(
-												"text-sm",
-												message.isError && "text-destructive"
-											)}>
+											<p
+												className={cn(
+													"text-sm",
+													message.isError && "text-destructive",
+												)}
+											>
 												{message.content}
 											</p>
 										</div>
@@ -389,7 +425,9 @@ export default function WorkflowsPage() {
 							{isLoading && (
 								<div className="flex justify-start">
 									<div className="bg-muted rounded-lg px-3 py-2">
-										<span className="text-sm text-muted-foreground">Processing...</span>
+										<span className="text-sm text-muted-foreground">
+											Processing...
+										</span>
 									</div>
 								</div>
 							)}
@@ -428,7 +466,9 @@ export default function WorkflowsPage() {
 				{/* RIGHT COLUMN: Workflow Visualization */}
 				<div className="flex flex-col h-full overflow-hidden">
 					<div className="px-4 py-2 border-b bg-muted/30">
-						<h2 className="text-sm font-medium text-muted-foreground">Workflow Preview</h2>
+						<h2 className="text-sm font-medium text-muted-foreground">
+							Workflow Preview
+						</h2>
 					</div>
 					<div className="flex-1 overflow-y-auto p-4">
 						{currentWorkflow ? (
@@ -437,7 +477,9 @@ export default function WorkflowsPage() {
 							<div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground">
 								<Code className="w-8 h-8 mb-2 opacity-50" />
 								<p className="text-sm">No workflow loaded</p>
-								<p className="text-xs mt-1">Generate or load a workflow to see it here</p>
+								<p className="text-xs mt-1">
+									Generate or load a workflow to see it here
+								</p>
 							</div>
 						)}
 					</div>

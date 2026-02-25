@@ -3,11 +3,19 @@ import {
 	useInfiniteQuery,
 	useQuery,
 } from "@tanstack/react-query";
+import {
+	getMockClusterDetails,
+	getMockClusterKbArticles,
+	getMockClusterTickets,
+	MOCK_CLUSTERS_RESPONSE,
+} from "@/data/mock-clusters";
 import { clustersApi, ticketsApi } from "@/services/api";
 import type {
 	ClustersQueryParams,
 	ClusterTicketsQueryParams,
 } from "@/types/cluster";
+
+const IS_DEMO_MODE = import.meta.env.VITE_DEMO_MODE === "true";
 
 // Query Keys
 export const clusterKeys = {
@@ -58,6 +66,7 @@ export function useClusters(options?: UseClustersOptions) {
 	return useQuery({
 		queryKey: clusterKeys.list(params),
 		queryFn: async () => {
+			if (IS_DEMO_MODE) return MOCK_CLUSTERS_RESPONSE;
 			const response = await clustersApi.list(params);
 			return response; // Returns { data, pagination }
 		},
@@ -78,6 +87,7 @@ export function useInfiniteClusters(options?: UseInfiniteClustersOptions) {
 	return useInfiniteQuery({
 		queryKey: [...clusterKeys.lists(), "infinite", params],
 		queryFn: async ({ pageParam }) => {
+			if (IS_DEMO_MODE) return MOCK_CLUSTERS_RESPONSE;
 			const response = await clustersApi.list({
 				...params,
 				cursor: pageParam,
@@ -103,6 +113,11 @@ export function useClusterDetails(id: string | undefined) {
 	return useQuery({
 		queryKey: clusterKeys.detail(id!),
 		queryFn: async () => {
+			if (IS_DEMO_MODE) {
+				const mock = getMockClusterDetails(id!);
+				if (!mock) throw new Error(`Cluster ${id} not found`);
+				return mock;
+			}
 			const response = await clustersApi.getDetails(id!);
 			return response.data;
 		},
@@ -124,6 +139,7 @@ export function useClusterTickets(
 	return useQuery({
 		queryKey: clusterKeys.ticketList(id!, params),
 		queryFn: async () => {
+			if (IS_DEMO_MODE) return getMockClusterTickets(id!, params?.tab);
 			const response = await clustersApi.getTickets(id!, params);
 			return response;
 		},
@@ -141,6 +157,7 @@ export function useClusterKbArticles(id: string | undefined) {
 	return useQuery({
 		queryKey: clusterKeys.kbArticleList(id!),
 		queryFn: async () => {
+			if (IS_DEMO_MODE) return getMockClusterKbArticles(id!).data;
 			const response = await clustersApi.getKbArticles(id!);
 			return response.data;
 		},

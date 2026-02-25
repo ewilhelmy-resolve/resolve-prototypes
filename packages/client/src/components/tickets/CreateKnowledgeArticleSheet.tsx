@@ -1,4 +1,7 @@
+import { Check, Copy, Plus, WandSparkles } from "lucide-react";
 import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
 	Sheet,
 	SheetContent,
@@ -7,9 +10,6 @@ import {
 	SheetHeader,
 	SheetTitle,
 } from "@/components/ui/sheet";
-import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
-import { WandSparkles, Copy, Plus, Check } from "lucide-react";
 import { copyToClipboard } from "@/lib/utils";
 
 interface KnowledgeSource {
@@ -40,7 +40,8 @@ const INITIAL_SOURCES: KnowledgeSource[] = [
 	{
 		id: "web-search",
 		label: "Web Search",
-		description: "Include relevant information from web sources and documentation",
+		description:
+			"Include relevant information from web sources and documentation",
 		checked: true,
 	},
 ];
@@ -95,8 +96,8 @@ export function CreateKnowledgeArticleSheet({
 			prev.map((source) =>
 				source.id === sourceId
 					? { ...source, checked: !source.checked }
-					: source
-			)
+					: source,
+			),
 		);
 	};
 
@@ -138,7 +139,8 @@ export function CreateKnowledgeArticleSheet({
 						Create Knowledge Article
 					</SheetTitle>
 					<SheetDescription className="text-sm text-muted-foreground">
-						Generate a knowledge article for "{ticketGroupName}" to enable automation
+						Generate a knowledge article for "{ticketGroupName}" to enable
+						automation
 					</SheetDescription>
 				</SheetHeader>
 

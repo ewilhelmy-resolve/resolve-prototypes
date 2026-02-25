@@ -82,7 +82,9 @@ export default function EditUserSheet({
 			<SheetContent>
 				<SheetHeader>
 					<SheetTitle>{t("users.editSheet.title")}</SheetTitle>
-					<SheetDescription>{t("users.editSheet.description")}</SheetDescription>
+					<SheetDescription>
+						{t("users.editSheet.description")}
+					</SheetDescription>
 				</SheetHeader>
 
 				<div className="flex flex-col gap-4 px-4">

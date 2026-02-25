@@ -304,7 +304,8 @@ export const MessageWithSources: Story = {
 								{
 									title: "Company Announcement",
 									url: "https://example.com/announcement",
-									snippet: "We are excited to announce the organizational update...",
+									snippet:
+										"We are excited to announce the organizational update...",
 								},
 							],
 						},
@@ -763,7 +764,8 @@ export const ReasoningOnlyMessage: Story = {
 						metadata: {
 							reasoning: {
 								title: "Processing request",
-								content: "Analyzing your question and searching knowledge base...",
+								content:
+									"Analyzing your question and searching knowledge base...",
 							},
 						},
 					},
@@ -805,7 +807,8 @@ export const Conversation: Story = {
 							metadata: {
 								reasoning: {
 									title: "Done",
-									content: "Searched knowledge base for company FAQ information",
+									content:
+										"Searched knowledge base for company FAQ information",
 								},
 							},
 						},
@@ -861,7 +864,9 @@ export const Conversation: Story = {
 									},
 									{
 										title: "Will my employment terms change?",
-										items: ["No, your existing employment terms remain intact."],
+										items: [
+											"No, your existing employment terms remain intact.",
+										],
 									},
 									{
 										title: "Will payroll change?",

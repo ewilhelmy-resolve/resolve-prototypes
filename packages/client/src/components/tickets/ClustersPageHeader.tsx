@@ -4,6 +4,7 @@ import { Trans, useTranslation } from "react-i18next";
 import { MainHeader } from "@/components/MainHeader";
 import { StatCard } from "@/components/StatCard";
 import { StatGroup } from "@/components/StatGroup";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
 	DropdownMenu,
@@ -12,6 +13,11 @@ import {
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+	Tooltip,
+	TooltipContent,
+	TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { useAutopilotSettings } from "@/hooks/api/useAutopilotSettings";
 import type { PeriodFilter } from "@/types/cluster";
 
@@ -23,18 +29,6 @@ interface ClustersPageHeaderProps {
 	showSkeletons: boolean;
 	hasNoModel: boolean;
 	onSettingsClick: () => void;
-}
-
-/**
- * Format minutes into human-readable time string.
- * e.g. 90 → "1.5hr", 30 → "30min", 0 → "0min"
- */
-function formatTimeSaved(totalMinutes: number): string {
-	if (totalMinutes >= 60) {
-		const hours = totalMinutes / 60;
-		return `${Number.isInteger(hours) ? hours : hours.toFixed(1)}hr`;
-	}
-	return `${Math.round(totalMinutes)}min`;
 }
 
 /**
@@ -61,12 +55,8 @@ export function ClustersPageHeader({
 	const { data: settings } = useAutopilotSettings();
 
 	const costPerTicket = settings?.cost_per_ticket ?? 30;
-	const avgTimeMinutes = settings?.avg_time_per_ticket_minutes ?? 12;
 
-	const automationPct =
-		totalTickets > 0 ? Math.round((automatedTickets / totalTickets) * 100) : 0;
 	const moneySaved = automatedTickets * costPerTicket;
-	const timeSavedMinutes = automatedTickets * avgTimeMinutes;
 
 	const periodLabels: Record<PeriodFilter, string> = {
 		last30: t("groups.periods.last30Days"),
@@ -89,6 +79,12 @@ export function ClustersPageHeader({
 			}}
 			components={{ strong: <span className="font-semibold" /> }}
 		/>
+	);
+
+	const comingSoonBadge = (
+		<Badge variant="secondary" className="text-[10px] px-1.5 py-0">
+			{t("header.stats.comingSoon")}
+		</Badge>
 	);
 
 	return (
@@ -130,30 +126,41 @@ export function ClustersPageHeader({
 				</div>
 			}
 			stats={
-				<StatGroup columns={5}>
+				<StatGroup columns={4}>
 					<StatCard
 						value={totalTickets.toLocaleString()}
 						label={t("header.stats.totalTickets")}
 						loading={showSkeletons}
 					/>
-					<StatCard
-						value={automatedTickets.toLocaleString()}
-						label={t("header.stats.totalTicketsAutomated")}
-						loading={showSkeletons}
-					/>
-					<StatCard
-						value={`${automationPct}%`}
-						label={t("header.stats.automationPercentage")}
-						loading={showSkeletons}
-					/>
+					<Tooltip>
+						<TooltipTrigger asChild>
+							<div>
+								<StatCard
+									value="--"
+									label={t("header.stats.mttr")}
+									badge={comingSoonBadge}
+								/>
+							</div>
+						</TooltipTrigger>
+						<TooltipContent>{t("header.stats.mttrTooltip")}</TooltipContent>
+					</Tooltip>
+					<Tooltip>
+						<TooltipTrigger asChild>
+							<div>
+								<StatCard
+									value="--"
+									label={t("header.stats.avgReassignmentRate")}
+									badge={comingSoonBadge}
+								/>
+							</div>
+						</TooltipTrigger>
+						<TooltipContent>
+							{t("header.stats.reassignmentTooltip")}
+						</TooltipContent>
+					</Tooltip>
 					<StatCard
 						value={formatMoneySaved(moneySaved)}
 						label={t("header.stats.moneySaved")}
-						loading={showSkeletons}
-					/>
-					<StatCard
-						value={formatTimeSaved(timeSavedMinutes)}
-						label={t("header.stats.timeSaved")}
 						loading={showSkeletons}
 					/>
 				</StatGroup>

@@ -97,12 +97,15 @@ export default function PendingInvitationsTable() {
 			{
 				onSuccess: () => {
 					toast.success(t("users.invitations.toast.resendSuccess"), {
-						description: t("users.invitations.toast.resendSuccessDesc", { email: invitation.email }),
+						description: t("users.invitations.toast.resendSuccessDesc", {
+							email: invitation.email,
+						}),
 					});
 				},
 				onError: (error) => {
 					toast.error(t("users.invitations.toast.resendError"), {
-						description: error.message || t("users.invitations.toast.tryAgainLater"),
+						description:
+							error.message || t("users.invitations.toast.tryAgainLater"),
 					});
 				},
 			},
@@ -124,14 +127,17 @@ export default function PendingInvitationsTable() {
 			{
 				onSuccess: () => {
 					toast.success(t("users.invitations.toast.cancelSuccess"), {
-						description: t("users.invitations.toast.cancelSuccessDesc", { email: cancelingInvitation.email }),
+						description: t("users.invitations.toast.cancelSuccessDesc", {
+							email: cancelingInvitation.email,
+						}),
 					});
 					setCancelDialogOpen(false);
 					setCancelingInvitation(null);
 				},
 				onError: (error) => {
 					toast.error(t("users.invitations.toast.cancelError"), {
-						description: error.message || t("users.invitations.toast.tryAgainLater"),
+						description:
+							error.message || t("users.invitations.toast.tryAgainLater"),
 					});
 				},
 			},
@@ -177,15 +183,22 @@ export default function PendingInvitationsTable() {
 		// Show summary toast
 		if (successCount > 0 && failCount === 0) {
 			toast.success(t("users.invitations.toast.bulkCancelSuccess"), {
-				description: t("users.invitations.toast.bulkCancelSuccessDesc", { count: successCount }),
+				description: t("users.invitations.toast.bulkCancelSuccessDesc", {
+					count: successCount,
+				}),
 			});
 		} else if (failCount > 0 && successCount > 0) {
 			toast.warning(t("users.invitations.toast.bulkCancelPartial"), {
-				description: t("users.invitations.toast.bulkCancelPartialDesc", { success: successCount, failed: failCount }),
+				description: t("users.invitations.toast.bulkCancelPartialDesc", {
+					success: successCount,
+					failed: failCount,
+				}),
 			});
 		} else if (failCount > 0) {
 			toast.error(t("users.invitations.toast.bulkCancelError"), {
-				description: t("users.invitations.toast.bulkCancelErrorDesc", { count: failCount }),
+				description: t("users.invitations.toast.bulkCancelErrorDesc", {
+					count: failCount,
+				}),
 			});
 		}
 	};
@@ -249,9 +262,15 @@ export default function PendingInvitationsTable() {
 									/>
 								</TableHead>
 								<TableHead>{t("users.invitations.headers.email")}</TableHead>
-								<TableHead>{t("users.invitations.headers.invitedBy")}</TableHead>
-								<TableHead>{t("users.invitations.headers.invitedDate")}</TableHead>
-								<TableHead>{t("users.invitations.headers.expiresAt")}</TableHead>
+								<TableHead>
+									{t("users.invitations.headers.invitedBy")}
+								</TableHead>
+								<TableHead>
+									{t("users.invitations.headers.invitedDate")}
+								</TableHead>
+								<TableHead>
+									{t("users.invitations.headers.expiresAt")}
+								</TableHead>
 								<TableHead>{t("users.invitations.headers.status")}</TableHead>
 								<TableHead className="w-8"></TableHead>
 							</TableRow>
@@ -277,7 +296,8 @@ export default function PendingInvitationsTable() {
 									</TableCell>
 									<TableCell>
 										<span className="text-sm text-muted-foreground">
-											{invitation.invited_by_name || t("users.invitations.unknown")}
+											{invitation.invited_by_name ||
+												t("users.invitations.unknown")}
 										</span>
 									</TableCell>
 									<TableCell className="text-sm text-muted-foreground">
@@ -332,7 +352,10 @@ export default function PendingInvitationsTable() {
 				<div className="flex justify-between items-center py-4">
 					<p className="text-sm text-muted-foreground">
 						{t("users.invitations.count", { count: invitations.length })}
-						{searchQuery && t("users.invitations.countFiltered", { total: allInvitations.length })}
+						{searchQuery &&
+							t("users.invitations.countFiltered", {
+								total: allInvitations.length,
+							})}
 					</p>
 				</div>
 			</div>
@@ -342,7 +365,9 @@ export default function PendingInvitationsTable() {
 				open={cancelDialogOpen}
 				onOpenChange={setCancelDialogOpen}
 				title={t("users.invitations.dialogs.cancel.title")}
-				description={t("users.invitations.dialogs.cancel.description", { email: cancelingInvitation?.email })}
+				description={t("users.invitations.dialogs.cancel.description", {
+					email: cancelingInvitation?.email,
+				})}
 				onConfirm={handleConfirmCancel}
 				confirmLabel={t("users.invitations.dialogs.cancel.confirmLabel")}
 				cancelLabel={t("users.invitations.dialogs.cancel.cancelLabel")}
@@ -354,7 +379,9 @@ export default function PendingInvitationsTable() {
 				open={bulkCancelDialogOpen}
 				onOpenChange={setBulkCancelDialogOpen}
 				title={t("users.invitations.dialogs.bulkCancel.title")}
-				description={t("users.invitations.dialogs.bulkCancel.description", { count: selectedInvitations.length })}
+				description={t("users.invitations.dialogs.bulkCancel.description", {
+					count: selectedInvitations.length,
+				})}
 				onConfirm={handleConfirmBulkCancel}
 				confirmLabel={t("users.invitations.dialogs.bulkCancel.confirmLabel")}
 				cancelLabel={t("users.invitations.dialogs.bulkCancel.cancelLabel")}

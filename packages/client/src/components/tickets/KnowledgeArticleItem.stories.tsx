@@ -72,7 +72,8 @@ export const Text: Story = {
 export const LongFilename: Story = {
 	args: {
 		id: "5",
-		filename: "Very Long Filename That Should Be Truncated When It Exceeds The Available Width.pdf",
+		filename:
+			"Very Long Filename That Should Be Truncated When It Exceeds The Available Width.pdf",
 		fileType: "PDF",
 		createdAt: "Dec 5, 11:00 AM",
 	},

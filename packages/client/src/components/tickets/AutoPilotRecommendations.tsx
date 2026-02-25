@@ -1,8 +1,11 @@
-import { useTranslation } from "react-i18next";
 import { Crown, WandSparkles } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { getAllAIResponseTypes, type AIResponseType } from "@/lib/tickets/utils";
+import {
+	type AIResponseType,
+	getAllAIResponseTypes,
+} from "@/lib/tickets/utils";
 
 export interface AutoPilotRecommendationItem {
 	type: AIResponseType;

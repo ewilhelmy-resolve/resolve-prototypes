@@ -1,4 +1,9 @@
+import { ThumbsDown, ThumbsUp } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Progress } from "@/components/ui/progress";
+import { Separator } from "@/components/ui/separator";
 import {
 	Sheet,
 	SheetContent,
@@ -7,16 +12,16 @@ import {
 	SheetHeader,
 	SheetTitle,
 } from "@/components/ui/sheet";
-import { Button } from "@/components/ui/button";
-import { Progress } from "@/components/ui/progress";
-import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
-import { ThumbsDown, ThumbsUp } from "lucide-react";
+import {
+	AI_RESPONSE_TYPE,
+	type AIResponseType,
+	formatPriority,
+	getPriorityColor,
+} from "@/lib/tickets/utils";
 import { cn } from "@/lib/utils";
+import { type AIResponseData, AIResponseSection } from "./AIResponseSection";
 import { FeedbackSection } from "./FeedbackSection";
-import { AIResponseSection, type AIResponseData } from "./AIResponseSection";
 import type { ReviewTicket } from "./ReviewAIResponseSheet";
-import { getPriorityColor, formatPriority, type AIResponseType, AI_RESPONSE_TYPE } from "@/lib/tickets/utils";
 
 interface ReviewViewProps {
 	open: boolean;
@@ -36,14 +41,14 @@ interface ReviewViewProps {
 
 /**
  * Main review interface for a single ticket
- * 
+ *
  * Features:
  * - Progress indicator
  * - Ticket details display
  * - AI response preview
  * - Approve/Reject actions
  * - Feedback collection
- * 
+ *
  * @component
  */
 export function ReviewView({
@@ -78,7 +83,9 @@ export function ReviewView({
 				{/* Progress Indicator */}
 				<div className="flex items-center gap-3 w-full">
 					<div className="flex items-center gap-1.5 shrink-0">
-						<p className="text-base text-accent-foreground">{t("details.ticketsCount")}</p>
+						<p className="text-base text-accent-foreground">
+							{t("details.ticketsCount")}
+						</p>
 						<p className="text-base font-bold text-accent-foreground">
 							{currentIndex + 1} of {totalTickets}
 						</p>
@@ -91,14 +98,16 @@ export function ReviewView({
 					<div className="flex-1 flex flex-col gap-6 overflow-y-auto">
 						{/* Ticket Details Section */}
 						<div className="flex flex-col gap-2">
-							<p className="text-sm text-foreground">{t("review.ticketDetails")}</p>
+							<p className="text-sm text-foreground">
+								{t("review.ticketDetails")}
+							</p>
 							<div className="border rounded-lg p-4 flex flex-col gap-2.5">
 								<div className="flex items-center gap-2 w-full">
 									<p className="text-base flex-1">{ticket.externalId}</p>
 									<Badge
 										className={cn(
 											"px-2 py-0.5 border font-semibold",
-											getPriorityColor(ticket.priority)
+											getPriorityColor(ticket.priority),
 										)}
 									>
 										{formatPriority(ticket.priority)}
@@ -110,7 +119,9 @@ export function ReviewView({
 								<Separator className="h-[1px]" />
 
 								<div className="flex flex-col gap-2">
-									<p className="text-sm text-muted-foreground">{t("details.description")}</p>
+									<p className="text-sm text-muted-foreground">
+										{t("details.description")}
+									</p>
 									<p className="text-base">{ticket.description}</p>
 								</div>
 							</div>

@@ -1,6 +1,6 @@
-import { describe, it, expect, vi } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { describe, expect, it, vi } from "vitest";
 import { z } from "zod";
 import { ConfirmFormDialog } from "./ConfirmFormDialog";
 
@@ -21,7 +21,9 @@ describe("ConfirmFormDialog", () => {
 	describe("Rendering", () => {
 		it("renders trigger element", () => {
 			render(<ConfirmFormDialog {...defaultProps} />);
-			expect(screen.getByRole("button", { name: "Open Dialog" })).toBeInTheDocument();
+			expect(
+				screen.getByRole("button", { name: "Open Dialog" }),
+			).toBeInTheDocument();
 		});
 
 		it("opens dialog when trigger is clicked", async () => {
@@ -39,7 +41,7 @@ describe("ConfirmFormDialog", () => {
 			render(
 				<ConfirmFormDialog {...defaultProps}>
 					<input data-testid="form-input" />
-				</ConfirmFormDialog>
+				</ConfirmFormDialog>,
 			);
 
 			await user.click(screen.getByRole("button", { name: "Open Dialog" }));
@@ -53,7 +55,9 @@ describe("ConfirmFormDialog", () => {
 
 			await user.click(screen.getByRole("button", { name: "Open Dialog" }));
 
-			expect(screen.getByRole("button", { name: "actions.confirm" })).toBeInTheDocument();
+			expect(
+				screen.getByRole("button", { name: "actions.confirm" }),
+			).toBeInTheDocument();
 		});
 
 		it("renders custom action label", async () => {
@@ -62,7 +66,9 @@ describe("ConfirmFormDialog", () => {
 
 			await user.click(screen.getByRole("button", { name: "Open Dialog" }));
 
-			expect(screen.getByRole("button", { name: "Submit" })).toBeInTheDocument();
+			expect(
+				screen.getByRole("button", { name: "Submit" }),
+			).toBeInTheDocument();
 		});
 	});
 
@@ -73,7 +79,9 @@ describe("ConfirmFormDialog", () => {
 
 			await user.click(screen.getByRole("button", { name: "Open Dialog" }));
 
-			const confirmBtn = screen.getByRole("button", { name: "actions.confirm" });
+			const confirmBtn = screen.getByRole("button", {
+				name: "actions.confirm",
+			});
 			expect(confirmBtn).toBeDisabled();
 		});
 
@@ -88,7 +96,9 @@ describe("ConfirmFormDialog", () => {
 			await user.click(screen.getByRole("button", { name: "Open Dialog" }));
 
 			await waitFor(() => {
-				const confirmBtn = screen.getByRole("button", { name: "actions.confirm" });
+				const confirmBtn = screen.getByRole("button", {
+					name: "actions.confirm",
+				});
 				expect(confirmBtn).not.toBeDisabled();
 			});
 		});
@@ -108,7 +118,9 @@ describe("ConfirmFormDialog", () => {
 			await user.click(screen.getByRole("button", { name: "Open Dialog" }));
 
 			await waitFor(async () => {
-				const confirmBtn = screen.getByRole("button", { name: "actions.confirm" });
+				const confirmBtn = screen.getByRole("button", {
+					name: "actions.confirm",
+				});
 				await user.click(confirmBtn);
 			});
 
@@ -132,7 +144,9 @@ describe("ConfirmFormDialog", () => {
 		it("calls onOpenChange when dialog state changes", async () => {
 			const user = userEvent.setup();
 			const onOpenChange = vi.fn();
-			render(<ConfirmFormDialog {...defaultProps} onOpenChange={onOpenChange} />);
+			render(
+				<ConfirmFormDialog {...defaultProps} onOpenChange={onOpenChange} />,
+			);
 
 			await user.click(screen.getByRole("button", { name: "Open Dialog" }));
 
@@ -165,7 +179,9 @@ describe("ConfirmFormDialog", () => {
 			await user.click(screen.getByRole("button", { name: "Open Dialog" }));
 
 			await waitFor(() => {
-				const confirmBtn = screen.getByRole("button", { name: "actions.confirm" });
+				const confirmBtn = screen.getByRole("button", {
+					name: "actions.confirm",
+				});
 				expect(confirmBtn).toHaveClass("bg-destructive");
 			});
 		});

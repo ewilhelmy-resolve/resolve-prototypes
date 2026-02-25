@@ -25,11 +25,7 @@ interface MutationVariables {
 export function useUpdateOrganization() {
 	const queryClient = useQueryClient();
 
-	return useMutation<
-		UpdateOrganizationResponse,
-		Error,
-		MutationVariables
-	>({
+	return useMutation<UpdateOrganizationResponse, Error, MutationVariables>({
 		mutationFn: ({ organizationId, name }: MutationVariables) =>
 			organizationApi.updateOrganization(organizationId, { name }),
 

@@ -6,6 +6,29 @@ AI chat assistant for IT service desk
 - **Always use `pnpm`** — never npm or yarn
 - **Never add Claude as author** in git commit messages (no Co-authored-by, no AI attribution)
 
+## Dev Environment
+- Client (RITA) runs on **port 5173** (Vite). Port 3000 is the API server. Do NOT confuse them.
+- The iframe-app runs on port 5174 — this is NOT RITA. The main app is RITA on 5173.
+- Docker Desktop must be running before starting API server (PostgreSQL dependency).
+- Start API server first, then client.
+- Before starting servers, check if ports are already in use: `lsof -i :5173` and `lsof -i :3000`.
+
+## Git Workflow
+- Before merging branches, always verify build passes (`pnpm build`) AFTER resolving conflicts.
+- Never leave conflict markers — verify with `grep -r '<<<<<<<' packages/` after any merge.
+- For merge conflicts: keep feature branch changes for feature-specific code, keep main for infra/config. Ask if unclear.
+- Always use `pnpm` in commands, never `npm` or `yarn`.
+
+## UI Implementation Rules
+- Always use existing UI components from `packages/client/src/components/ui/` before creating custom ones.
+- When implementing from Figma, share the Figma link BEFORE starting implementation.
+- Do not add features or UI elements not explicitly requested — no scope creep.
+- Check existing feature pages for routing, layout, and nav patterns before building new pages.
+
+## Planning & Scope
+- When user describes a feature with specific dimensions (e.g. "2x2 matrix", "value/ROI axis"), confirm understanding of ALL named requirements before coding.
+- Stay in plan mode until user explicitly approves. Don't exit early.
+
 ## Plans
 
 - List unresolved questions at end of each plan. Extremely concise.

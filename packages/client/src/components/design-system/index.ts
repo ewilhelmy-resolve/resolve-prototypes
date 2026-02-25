@@ -11,4 +11,4 @@
 // export { default as ColorPalette } from './ColorPalette'
 // export { default as Typography } from './Typography'
 
-export {}
+export {};

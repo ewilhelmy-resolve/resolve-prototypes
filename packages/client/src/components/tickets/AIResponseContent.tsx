@@ -1,5 +1,5 @@
-import { Badge } from "@/components/ui/badge";
 import { FileText } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
 /**
@@ -45,7 +45,7 @@ export default function AIResponseContent({
 		<div
 			className={cn(
 				"bg-gray-50 border rounded-lg p-4 overflow-y-auto",
-				className
+				className,
 			)}
 		>
 			<div className="flex flex-col gap-2">
@@ -74,7 +74,7 @@ export default function AIResponseContent({
 					<Badge
 						className={cn(
 							"px-2 py-0.5 border border-transparent text-primary-foreground font-semibold",
-							getConfidenceColor(confidenceScore)
+							getConfidenceColor(confidenceScore),
 						)}
 					>
 						{confidenceScore}% strong

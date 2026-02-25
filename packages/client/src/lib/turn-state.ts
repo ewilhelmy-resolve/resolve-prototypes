@@ -6,7 +6,7 @@
  * for a given turn, enabling proper loading indicator management.
  */
 
-import type { Message, GroupedChatMessage } from '@/stores/conversationStore';
+import type { GroupedChatMessage, Message } from "@/stores/conversationStore";
 
 /**
  * Check if a message group is complete (no more messages coming)
@@ -22,10 +22,10 @@ import type { Message, GroupedChatMessage } from '@/stores/conversationStore';
  * }
  */
 export function isMessageGroupComplete(messages: Message[]): boolean {
-  if (messages.length === 0) return true;
+	if (messages.length === 0) return true;
 
-  const lastMessage = messages[messages.length - 1];
-  return lastMessage.metadata?.turn_complete ?? false;
+	const lastMessage = messages[messages.length - 1];
+	return lastMessage.metadata?.turn_complete ?? false;
 }
 
 /**
@@ -40,11 +40,13 @@ export function isMessageGroupComplete(messages: Message[]): boolean {
  *   // Show "AI is typing..." indicator
  * }
  */
-export function isGroupedMessageComplete(groupedMessage: GroupedChatMessage): boolean {
-  if (groupedMessage.parts.length === 0) return true;
+export function isGroupedMessageComplete(
+	groupedMessage: GroupedChatMessage,
+): boolean {
+	if (groupedMessage.parts.length === 0) return true;
 
-  const lastPart = groupedMessage.parts[groupedMessage.parts.length - 1];
-  return lastPart.metadata?.turn_complete ?? false;
+	const lastPart = groupedMessage.parts[groupedMessage.parts.length - 1];
+	return lastPart.metadata?.turn_complete ?? false;
 }
 
 /**
@@ -59,15 +61,15 @@ export function isGroupedMessageComplete(groupedMessage: GroupedChatMessage): bo
  * // Use to show global "AI is working..." state
  */
 export function isWaitingForMoreMessages(messages: Message[]): boolean {
-  if (messages.length === 0) return false;
+	if (messages.length === 0) return false;
 
-  const lastMessage = messages[messages.length - 1];
+	const lastMessage = messages[messages.length - 1];
 
-  // Only check assistant messages
-  if (lastMessage.role !== 'assistant') return false;
+	// Only check assistant messages
+	if (lastMessage.role !== "assistant") return false;
 
-  // If turn_complete is explicitly false or undefined, we're waiting
-  return !lastMessage.metadata?.turn_complete;
+	// If turn_complete is explicitly false or undefined, we're waiting
+	return !lastMessage.metadata?.turn_complete;
 }
 
 /**
@@ -84,17 +86,19 @@ export function isWaitingForMoreMessages(messages: Message[]): boolean {
  * }
  */
 export function getResponseGroupStatus(
-  messages: Message[],
-  responseGroupId: string
-): 'complete' | 'incomplete' | 'unknown' {
-  const groupMessages = messages.filter(m => m.response_group_id === responseGroupId);
+	messages: Message[],
+	responseGroupId: string,
+): "complete" | "incomplete" | "unknown" {
+	const groupMessages = messages.filter(
+		(m) => m.response_group_id === responseGroupId,
+	);
 
-  if (groupMessages.length === 0) return 'unknown';
+	if (groupMessages.length === 0) return "unknown";
 
-  const lastMessage = groupMessages[groupMessages.length - 1];
-  const turnComplete = lastMessage.metadata?.turn_complete;
+	const lastMessage = groupMessages[groupMessages.length - 1];
+	const turnComplete = lastMessage.metadata?.turn_complete;
 
-  if (turnComplete === true) return 'complete';
-  if (turnComplete === false) return 'incomplete';
-  return 'unknown';
+	if (turnComplete === true) return "complete";
+	if (turnComplete === false) return "incomplete";
+	return "unknown";
 }

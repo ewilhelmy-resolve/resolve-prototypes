@@ -1,3 +1,6 @@
+import { useRef } from "react";
+import { useTranslation } from "react-i18next";
+import { Button } from "@/components/ui/button";
 import {
 	Sheet,
 	SheetContent,
@@ -5,9 +8,6 @@ import {
 	SheetHeader,
 	SheetTitle,
 } from "@/components/ui/sheet";
-import { Button } from "@/components/ui/button";
-import { useRef } from "react";
-import { useTranslation } from "react-i18next";
 import type { ReviewStats } from "./ReviewAIResponseSheet";
 import {
 	ReviewCompletionStats,
@@ -33,15 +33,20 @@ interface CompletionViewProps {
 
 /**
  * Completion screen shown after all tickets are reviewed
- * 
+ *
  * Features:
  * - Confetti celebration effect
  * - Review statistics display
  * - CTA for enabling Auto-Respond or continuing review
- * 
+ *
  * @component
  */
-type ScenarioKey = "noKnowledge" | "firstGood" | "firstBad" | "subsequentGood" | "subsequentBad";
+type ScenarioKey =
+	| "noKnowledge"
+	| "firstGood"
+	| "firstBad"
+	| "subsequentGood"
+	| "subsequentBad";
 
 /**
  * Determine scenario key based on session state and results
@@ -49,26 +54,60 @@ type ScenarioKey = "noKnowledge" | "firstGood" | "firstBad" | "subsequentGood" |
 function getScenarioKey(
 	stats: ReviewStats,
 	isFirstSession: boolean,
-	hasKnowledge: boolean
-): { key: ScenarioKey; icon: string; showConfetti: boolean; primaryAction: "addKnowledge" | "reviewKnowledge" | "viewAutomationReadiness" | "keepReviewing" } {
+	hasKnowledge: boolean,
+): {
+	key: ScenarioKey;
+	icon: string;
+	showConfetti: boolean;
+	primaryAction:
+		| "addKnowledge"
+		| "reviewKnowledge"
+		| "viewAutomationReadiness"
+		| "keepReviewing";
+} {
 	const isGoodResults = stats.trusted >= stats.totalReviewed / 2;
 
 	if (!hasKnowledge) {
-		return { key: "noKnowledge", icon: "⚠️", showConfetti: false, primaryAction: "addKnowledge" };
+		return {
+			key: "noKnowledge",
+			icon: "⚠️",
+			showConfetti: false,
+			primaryAction: "addKnowledge",
+		};
 	}
 
 	if (isFirstSession) {
 		if (isGoodResults) {
-			return { key: "firstGood", icon: "🎇", showConfetti: true, primaryAction: "keepReviewing" };
+			return {
+				key: "firstGood",
+				icon: "🎇",
+				showConfetti: true,
+				primaryAction: "keepReviewing",
+			};
 		}
-		return { key: "firstBad", icon: "📚", showConfetti: false, primaryAction: "reviewKnowledge" };
+		return {
+			key: "firstBad",
+			icon: "📚",
+			showConfetti: false,
+			primaryAction: "reviewKnowledge",
+		};
 	}
 
 	if (isGoodResults) {
-		return { key: "subsequentGood", icon: "🙌", showConfetti: true, primaryAction: "viewAutomationReadiness" };
+		return {
+			key: "subsequentGood",
+			icon: "🙌",
+			showConfetti: true,
+			primaryAction: "viewAutomationReadiness",
+		};
 	}
 
-	return { key: "subsequentBad", icon: "🔧", showConfetti: false, primaryAction: "reviewKnowledge" };
+	return {
+		key: "subsequentBad",
+		icon: "🔧",
+		showConfetti: false,
+		primaryAction: "reviewKnowledge",
+	};
 }
 
 export function CompletionView({

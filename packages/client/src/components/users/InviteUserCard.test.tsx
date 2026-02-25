@@ -247,7 +247,9 @@ describe("InviteUserCard", () => {
 				</TestWrapper>,
 			);
 
-			const heading = screen.getByRole("heading", { name: /inviteCard.title/i });
+			const heading = screen.getByRole("heading", {
+				name: /inviteCard.title/i,
+			});
 			expect(heading.tagName).toBe("H3");
 		});
 
@@ -259,11 +261,7 @@ describe("InviteUserCard", () => {
 			);
 
 			// Text should be accessible
-			expect(
-				screen.getByText(
-					"inviteCard.description",
-				),
-			).toBeInTheDocument();
+			expect(screen.getByText("inviteCard.description")).toBeInTheDocument();
 		});
 
 		it("should have proper contrast with background", () => {
@@ -278,9 +276,7 @@ describe("InviteUserCard", () => {
 			expect(title).toHaveClass("text-foreground");
 
 			// Description should use muted foreground
-			const description = screen.getByText(
-				"inviteCard.description",
-			);
+			const description = screen.getByText("inviteCard.description");
 			expect(description).toHaveClass("text-muted-foreground");
 		});
 	});

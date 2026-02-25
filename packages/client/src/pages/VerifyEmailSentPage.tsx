@@ -86,7 +86,9 @@ export function VerifyEmailSentPage() {
 
 				{/* Resend Verification */}
 				<div className="flex items-center gap-2 text-sm">
-					<span className="text-white">{t("verifyEmailSent.didNotReceive")}</span>
+					<span className="text-white">
+						{t("verifyEmailSent.didNotReceive")}
+					</span>
 					<Button
 						onClick={handleResendVerification}
 						disabled={isResending || !email}

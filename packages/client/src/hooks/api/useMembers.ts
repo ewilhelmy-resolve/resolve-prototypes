@@ -1,12 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import i18n from "@/i18n";
 import { ritaToast } from "@/components/ui/rita-toast";
+import i18n from "@/i18n";
 import { memberApi } from "@/services/api";
 import { useAuthStore } from "@/stores/auth-store";
-import type {
-	MemberListParams,
-	OrganizationRole,
-} from "@/types/member";
+import type { MemberListParams, OrganizationRole } from "@/types/member";
 
 /**
  * Query Keys for Cache Management
@@ -113,7 +110,6 @@ export function useUpdateMemberStatus() {
 			queryClient.invalidateQueries({
 				queryKey: memberKeys.detail(variables.userId),
 			});
-
 		},
 		onError: (error: any) => {
 			const message = error.message || "Failed to update member status";

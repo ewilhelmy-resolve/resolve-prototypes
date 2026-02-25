@@ -94,7 +94,9 @@ export default function ConfluenceConfiguration({
 			ritaToast.error({
 				title: t("config.toast.syncFailed"),
 				description:
-					error instanceof Error ? error.message : t("config.toast.syncFailedDefault"),
+					error instanceof Error
+						? error.message
+						: t("config.toast.syncFailedDefault"),
 			});
 		}
 	};
@@ -119,7 +121,9 @@ export default function ConfluenceConfiguration({
 			ritaToast.error({
 				title: t("config.toast.cancelFailed"),
 				description:
-					error instanceof Error ? error.message : t("config.toast.cancelFailedDefault"),
+					error instanceof Error
+						? error.message
+						: t("config.toast.cancelFailedDefault"),
 			});
 		}
 	};
@@ -145,7 +149,9 @@ export default function ConfluenceConfiguration({
 									disabled={isCancelButtonDisabled}
 									variant="destructive"
 								>
-									{cancelMutation.isPending ? t("config.sync.cancelling") : t("config.sync.cancelSync")}
+									{cancelMutation.isPending
+										? t("config.sync.cancelling")
+										: t("config.sync.cancelSync")}
 								</Button>
 							</div>
 						</div>

@@ -25,6 +25,8 @@ import IframeChatPage from "./pages/IframeChatPage";
 import InviteAcceptPage from "./pages/InviteAcceptPage";
 import LinkExpiredPage from "./pages/LinkExpiredPage";
 import { NotFoundPage } from "./pages/NotFoundPage";
+import ProAgentBuilderPage from "./pages/ProAgentBuilderPage";
+import ProAgentsPage from "./pages/ProAgentsPage";
 import ProDashboardPage from "./pages/ProDashboardPage";
 import SchedulerDashboardPage from "./pages/SchedulerDashboardPage";
 import SchedulerDetailPage from "./pages/SchedulerDetailPage";
@@ -94,6 +96,30 @@ const router = createBrowserRouter([
 		element: (
 			<ProtectedRoute>
 				<ProDashboardPage />
+			</ProtectedRoute>
+		),
+	},
+	{
+		path: "/pro/agents",
+		element: (
+			<ProtectedRoute>
+				<ProAgentsPage />
+			</ProtectedRoute>
+		),
+	},
+	{
+		path: "/pro/agents/create",
+		element: (
+			<ProtectedRoute>
+				<ProAgentBuilderPage />
+			</ProtectedRoute>
+		),
+	},
+	{
+		path: "/pro/agents/:id",
+		element: (
+			<ProtectedRoute>
+				<ProAgentBuilderPage />
 			</ProtectedRoute>
 		),
 	},

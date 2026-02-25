@@ -1,9 +1,9 @@
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { cn } from "@/lib/utils";
+import { AnimatePresence, motion } from "motion/react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { AnimatePresence, motion } from "motion/react";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 interface FeedbackSectionProps {
 	show: boolean;
@@ -20,16 +20,20 @@ const FEEDBACK_REASON_KEYS = [
 
 /**
  * Floating feedback section for collecting user feedback on AI responses
- * 
+ *
  * Features:
  * - Multiple reason selection (optional)
  * - Required text feedback
  * - Animated entrance/exit
  * - Floating overlay positioning
- * 
+ *
  * @component
  */
-export function FeedbackSection({ show, onSubmit, onCancel }: FeedbackSectionProps) {
+export function FeedbackSection({
+	show,
+	onSubmit,
+	onCancel,
+}: FeedbackSectionProps) {
 	const { t } = useTranslation("tickets");
 	const [feedbackReasons, setFeedbackReasons] = useState<string[]>([]);
 	const [feedbackText, setFeedbackText] = useState("");
@@ -38,15 +42,15 @@ export function FeedbackSection({ show, onSubmit, onCancel }: FeedbackSectionPro
 		setFeedbackReasons((prev) =>
 			prev.includes(reason)
 				? prev.filter((r) => r !== reason)
-				: [...prev, reason]
+				: [...prev, reason],
 		);
 	};
 
 	const handleSubmit = () => {
 		if (!feedbackText.trim()) return;
-		
+
 		onSubmit(feedbackReasons, feedbackText);
-		
+
 		// Reset state
 		setFeedbackReasons([]);
 		setFeedbackText("");
@@ -54,7 +58,7 @@ export function FeedbackSection({ show, onSubmit, onCancel }: FeedbackSectionPro
 
 	const handleCancel = () => {
 		onCancel();
-		
+
 		// Reset state
 		setFeedbackReasons([]);
 		setFeedbackText("");
@@ -79,11 +83,14 @@ export function FeedbackSection({ show, onSubmit, onCancel }: FeedbackSectionPro
 								return (
 									<Badge
 										key={reasonKey}
-										variant={feedbackReasons.includes(reason) ? "default" : "outline"}
+										variant={
+											feedbackReasons.includes(reason) ? "default" : "outline"
+										}
 										onClick={() => handleToggleReason(reason)}
 										className={cn(
 											"cursor-pointer transition-colors hover:bg-accent",
-											feedbackReasons.includes(reason) && "bg-primary text-primary-foreground hover:bg-primary/90"
+											feedbackReasons.includes(reason) &&
+												"bg-primary text-primary-foreground hover:bg-primary/90",
 										)}
 									>
 										{reason}
@@ -106,11 +113,7 @@ export function FeedbackSection({ show, onSubmit, onCancel }: FeedbackSectionPro
 						</div>
 
 						<div className="flex justify-end gap-2">
-							<Button
-								variant="ghost"
-								size="sm"
-								onClick={handleCancel}
-							>
+							<Button variant="ghost" size="sm" onClick={handleCancel}>
 								{t("feedback.skip")}
 							</Button>
 							<Button

@@ -4,6 +4,8 @@ import { clusterKeys } from "@/hooks/useClusters";
 import { mlModelsApi } from "@/services/api";
 import type { TrainingState } from "@/types/mlModel";
 
+const IS_DEMO_MODE = import.meta.env.VITE_DEMO_MODE === "true";
+
 const POLLING_INTERVAL = 10000; // 10 seconds
 const SYNC_PENDING_POLL_INTERVAL = 2000; // 2 seconds - faster polling when sync just started
 const SYNC_PENDING_DURATION = 10000; // 10 seconds - how long to poll after sync starts
@@ -46,6 +48,15 @@ export function useActiveModel() {
 	const query = useQuery({
 		queryKey: mlModelKeys.active(),
 		queryFn: async () => {
+			if (IS_DEMO_MODE) {
+				return {
+					id: "demo-model",
+					organization_id: "demo-org",
+					metadata: { training_state: "complete" as const },
+					created_at: "2026-01-01T00:00:00Z",
+					updated_at: "2026-02-20T00:00:00Z",
+				};
+			}
 			const response = await mlModelsApi.getActive();
 			return response.data;
 		},

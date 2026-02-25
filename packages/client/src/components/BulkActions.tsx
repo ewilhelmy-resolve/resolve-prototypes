@@ -13,7 +13,13 @@ export interface BulkAction {
 	/** Icon component to display */
 	icon?: ReactNode;
 	/** Button variant */
-	variant?: "default" | "destructive" | "outline" | "secondary" | "ghost" | "link";
+	variant?:
+		| "default"
+		| "destructive"
+		| "outline"
+		| "secondary"
+		| "ghost"
+		| "link";
 	/** Click handler */
 	onClick: () => void;
 	/** Whether the action is disabled */
@@ -118,14 +124,24 @@ export const BulkActions: React.FC<BulkActionsProps> = ({
 	if (count === 0) return null;
 
 	// Use custom actions or default to delete action
-	const displayActions: BulkAction[] = actions || (onDelete ? [{
-		key: 'delete',
-		label: isLoading ? resolvedLoadingLabel : resolvedDeleteLabel,
-		icon: isLoading ? <Loader className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />,
-		variant: 'destructive' as const,
-		onClick: onDelete,
-		disabled: isLoading,
-	}] : []);
+	const displayActions: BulkAction[] =
+		actions ||
+		(onDelete
+			? [
+					{
+						key: "delete",
+						label: isLoading ? resolvedLoadingLabel : resolvedDeleteLabel,
+						icon: isLoading ? (
+							<Loader className="h-4 w-4 animate-spin" />
+						) : (
+							<Trash2 className="h-4 w-4" />
+						),
+						variant: "destructive" as const,
+						onClick: onDelete,
+						disabled: isLoading,
+					},
+				]
+			: []);
 
 	return (
 		<section
@@ -140,9 +156,20 @@ export const BulkActions: React.FC<BulkActionsProps> = ({
 			<div className="flex items-center gap-4">
 				<p className="text-base font-medium text-foreground">
 					{isLoading && remainingCount != null
-						? t("bulk.remaining", { count: remainingCount, label: remainingCount === 1 ? resolvedItemLabel.replace(/s$/, '') : resolvedItemLabel })
-						: t("bulk.selected", { count, label: count === 1 ? resolvedItemLabel.replace(/s$/, '') : resolvedItemLabel })
-					}
+						? t("bulk.remaining", {
+								count: remainingCount,
+								label:
+									remainingCount === 1
+										? resolvedItemLabel.replace(/s$/, "")
+										: resolvedItemLabel,
+							})
+						: t("bulk.selected", {
+								count,
+								label:
+									count === 1
+										? resolvedItemLabel.replace(/s$/, "")
+										: resolvedItemLabel,
+							})}
 				</p>
 
 				{displayActions.map((action) => (
@@ -165,7 +192,7 @@ export const BulkActions: React.FC<BulkActionsProps> = ({
 				disabled={isLoading}
 				className={cn(
 					"text-blue-600 hover:text-blue-800 dark:text-blue-400 transition-colors p-1 hover:bg-blue-100 dark:hover:bg-slate-700 rounded",
-					isLoading && "opacity-50 cursor-not-allowed"
+					isLoading && "opacity-50 cursor-not-allowed",
 				)}
 				aria-label={t("bulk.closeAriaLabel")}
 			>
