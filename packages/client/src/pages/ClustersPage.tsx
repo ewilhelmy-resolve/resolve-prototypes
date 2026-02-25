@@ -38,6 +38,8 @@ export default function ClustersPage() {
 	});
 
 	const totalTickets = clustersResponse?.totals?.total_tickets ?? 0;
+	const automatedTickets =
+		clustersResponse?.totals?.total_automated_tickets ?? 0;
 
 	return (
 		<RitaLayout activePage="tickets">
@@ -45,6 +47,7 @@ export default function ClustersPage() {
 				period={period}
 				onPeriodChange={setPeriod}
 				totalTickets={totalTickets}
+				automatedTickets={automatedTickets}
 				showSkeletons={showSkeletons}
 				hasNoModel={hasNoModel}
 				onSettingsClick={() => setSettingsOpen(true)}
