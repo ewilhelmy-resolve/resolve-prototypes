@@ -111,7 +111,7 @@ Refs CLIEN-89
 
 Husky runs automatically on commit:
 1. `npx lint-staged` — runs `biome check --write` + `biome lint` on staged files
-2. `npm run type-check` — TypeScript check all packages
+2. `pnpm run type-check` — TypeScript check all packages
 3. If api-server files staged: `pnpm --filter rita-api-server docs:generate` + auto-stage `openapi.json`
 
 If hooks fail, fix the issue and commit again (do NOT use `--no-verify`).
