@@ -1,14 +1,33 @@
-import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { useEffect } from 'react'
-import { organizationApi } from '@/services/api'
-import { useAuthStore } from '@/stores/auth-store'
-import type { UserProfile, OrganizationRole } from '@/types/profile'
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useEffect } from "react";
+import { organizationApi } from "@/services/api";
+import { useAuthStore } from "@/stores/auth-store";
+import type { OrganizationRole, UserProfile } from "@/types/profile";
+
+const IS_DEMO_MODE = import.meta.env.VITE_DEMO_MODE === "true";
+
+const DEMO_PROFILE: UserProfile = {
+	user: {
+		id: "demo-user",
+		email: "demo@resolve.io",
+		firstName: "Demo",
+		lastName: "User",
+		username: "demo",
+	},
+	organization: {
+		id: "demo-org",
+		name: "Demo Organization",
+		role: "owner" as OrganizationRole,
+		memberCount: 1,
+		createdAt: new Date().toISOString(),
+	},
+};
 
 // Query keys
 export const profileKeys = {
-  all: ['profile'] as const,
-  detail: () => [...profileKeys.all, 'detail'] as const,
-}
+	all: ["profile"] as const,
+	detail: () => [...profileKeys.all, "detail"] as const,
+};
 
 /**
  * Hook to fetch and access user profile (user + organization + role)
@@ -42,49 +61,51 @@ export const profileKeys = {
  * ```
  */
 export function useProfile() {
-  const { user: authUser, authenticated, sessionReady } = useAuthStore()
-  const queryClient = useQueryClient()
+	const { user: authUser, authenticated, sessionReady } = useAuthStore();
+	const queryClient = useQueryClient();
 
-  // Clear profile cache when user logs out
-  useEffect(() => {
-    if (!authenticated) {
-      queryClient.removeQueries({ queryKey: profileKeys.all })
-    }
-  }, [authenticated, queryClient])
+	// Clear profile cache when user logs out
+	useEffect(() => {
+		if (!authenticated) {
+			queryClient.removeQueries({ queryKey: profileKeys.all });
+		}
+	}, [authenticated, queryClient]);
 
-  return useQuery({
-    queryKey: profileKeys.detail(),
-    queryFn: async () => {
-      if (!authUser) {
-        throw new Error('User not authenticated')
-      }
+	return useQuery({
+		queryKey: profileKeys.detail(),
+		queryFn: async () => {
+			if (IS_DEMO_MODE) return DEMO_PROFILE;
 
-      const { organization } = await organizationApi.getCurrentOrganization()
+			if (!authUser) {
+				throw new Error("User not authenticated");
+			}
 
-      const profile: UserProfile = {
-        user: {
-          id: authUser.id || '',
-          email: authUser.email || '',
-          firstName: authUser.firstName,
-          lastName: authUser.lastName,
-          username: authUser.username,
-        },
-        organization: {
-          id: organization.id,
-          name: organization.name,
-          role: organization.user_role as OrganizationRole,
-          memberCount: organization.member_count,
-          createdAt: organization.created_at,
-        },
-      }
+			const { organization } = await organizationApi.getCurrentOrganization();
 
-      return profile
-    },
-    enabled: authenticated && sessionReady && !!authUser,
-    staleTime: 1000 * 60 * 5, // 5 minutes (profile data doesn't change often)
-    gcTime: 1000 * 60 * 10, // 10 minutes (formerly cacheTime)
-    retry: 2,
-  })
+			const profile: UserProfile = {
+				user: {
+					id: authUser.id || "",
+					email: authUser.email || "",
+					firstName: authUser.firstName,
+					lastName: authUser.lastName,
+					username: authUser.username,
+				},
+				organization: {
+					id: organization.id,
+					name: organization.name,
+					role: organization.user_role as OrganizationRole,
+					memberCount: organization.member_count,
+					createdAt: organization.created_at,
+				},
+			};
+
+			return profile;
+		},
+		enabled: authenticated && sessionReady && (!!authUser || IS_DEMO_MODE),
+		staleTime: 1000 * 60 * 5, // 5 minutes (profile data doesn't change often)
+		gcTime: 1000 * 60 * 10, // 10 minutes (formerly cacheTime)
+		retry: 2,
+	});
 }
 
 /**
@@ -111,30 +132,30 @@ export function useProfile() {
  * ```
  */
 export function useProfilePermissions() {
-  const { data: profile } = useProfile()
+	const { data: profile } = useProfile();
 
-  // Demo mode: grant full admin access
-  const isDemoMode = import.meta.env.VITE_DEMO_MODE === 'true'
+	// Demo mode: grant full admin access
+	const isDemoMode = import.meta.env.VITE_DEMO_MODE === "true";
 
-  const hasRole = (role: OrganizationRole | OrganizationRole[]) => {
-    // In demo mode, always return true for admin/owner checks
-    if (isDemoMode) return true
-    if (!profile?.organization.role) return false
-    const roles = Array.isArray(role) ? role : [role]
-    return roles.includes(profile.organization.role)
-  }
+	const hasRole = (role: OrganizationRole | OrganizationRole[]) => {
+		// In demo mode, always return true for admin/owner checks
+		if (isDemoMode) return true;
+		if (!profile?.organization.role) return false;
+		const roles = Array.isArray(role) ? role : [role];
+		return roles.includes(profile.organization.role);
+	};
 
-  return {
-    hasRole,
-    isOwner: () => isDemoMode || hasRole('owner'),
-    isAdmin: () => isDemoMode || hasRole('admin'),
-    isOwnerOrAdmin: () => isDemoMode || hasRole(['owner', 'admin']),
+	return {
+		hasRole,
+		isOwner: () => isDemoMode || hasRole("owner"),
+		isAdmin: () => isDemoMode || hasRole("admin"),
+		isOwnerOrAdmin: () => isDemoMode || hasRole(["owner", "admin"]),
 
-    // Feature permissions
-    canManageInvitations: () => isDemoMode || hasRole(['owner', 'admin']),
-    canManageMembers: () => isDemoMode || hasRole(['owner', 'admin']),
-    canManageOrganization: () => isDemoMode || hasRole('owner'),
-    canDeleteConversations: () => isDemoMode || hasRole(['owner', 'admin']),
-    canManageFiles: () => isDemoMode || hasRole(['owner', 'admin']),
-  }
+		// Feature permissions
+		canManageInvitations: () => isDemoMode || hasRole(["owner", "admin"]),
+		canManageMembers: () => isDemoMode || hasRole(["owner", "admin"]),
+		canManageOrganization: () => isDemoMode || hasRole("owner"),
+		canDeleteConversations: () => isDemoMode || hasRole(["owner", "admin"]),
+		canManageFiles: () => isDemoMode || hasRole(["owner", "admin"]),
+	};
 }

@@ -34,13 +34,9 @@ import { useTranslation } from "react-i18next";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Loader } from "@/components/ai-elements/loader";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
+import { ExperienceSwitcher } from "@/components/layouts/ExperienceSwitcher";
 import { ConversationListItem } from "@/components/sidebar/ConversationListItem";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import {
-	Breadcrumb,
-	BreadcrumbItem,
-	BreadcrumbList,
-} from "@/components/ui/breadcrumb";
 import { Button } from "@/components/ui/button";
 import {
 	DropdownMenu,
@@ -517,15 +513,7 @@ function RitaLayoutContent({ children, activePage = "chat" }: RitaLayoutProps) {
 				>
 					<div className="flex items-center gap-2 h-full pl-4">
 						<SidebarTrigger className="lg:flex" />
-						<Breadcrumb>
-							<BreadcrumbList>
-								<BreadcrumbItem>
-									<span className="text-sm text-foreground leading-none">
-										{t("nav.ritaGo")}
-									</span>
-								</BreadcrumbItem>
-							</BreadcrumbList>
-						</Breadcrumb>
+						<ExperienceSwitcher variant="light" />
 						{(indicatorState === "loading" || indicatorState === "success") && (
 							<div
 								className={cn(

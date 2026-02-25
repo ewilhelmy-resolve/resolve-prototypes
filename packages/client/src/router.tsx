@@ -25,6 +25,7 @@ import IframeChatPage from "./pages/IframeChatPage";
 import InviteAcceptPage from "./pages/InviteAcceptPage";
 import LinkExpiredPage from "./pages/LinkExpiredPage";
 import { NotFoundPage } from "./pages/NotFoundPage";
+import ProDashboardPage from "./pages/ProDashboardPage";
 import SchedulerDashboardPage from "./pages/SchedulerDashboardPage";
 import SchedulerDetailPage from "./pages/SchedulerDetailPage";
 import SchedulerGroupDetailPage from "./pages/SchedulerGroupDetailPage";
@@ -86,6 +87,15 @@ const router = createBrowserRouter([
 	{
 		path: "/iframe/chat/:conversationId",
 		element: <IframeChatPage />,
+	},
+	// Pro experience
+	{
+		path: "/pro",
+		element: (
+			<ProtectedRoute>
+				<ProDashboardPage />
+			</ProtectedRoute>
+		),
 	},
 	// JIRITA - Workflow builder (dev tool, feature-flagged)
 	{
