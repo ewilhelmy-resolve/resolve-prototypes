@@ -9,11 +9,14 @@ Follow these conventions when creating commits for RITA.
 
 ## Prerequisites
 
-### Step 1: Ask for Ticket Number
+### Step 1: Determine Ticket Number
 
-**Always ask the user for the ticket number** before proceeding. Accepted prefixes: `RG-`, `CLIEN-`, `JAR-`.
+**Ask for the ticket number if not already provided** in the conversation or branch name. Accepted prefixes: `RG-`, `CLIEN-`, `JAR-`.
 
-Example prompt: "What's the ticket number for this change? (e.g., RG-101)"
+Resolution order:
+1. Already mentioned by the user in the current conversation
+2. Extract from branch name (e.g., `feat/RG-101-update-profile` → `RG-101`)
+3. Ask the user: "What's the ticket number for this change? (e.g., RG-101)"
 
 ### Step 2: Check Current Branch
 
