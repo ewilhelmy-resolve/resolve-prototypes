@@ -94,6 +94,46 @@ describe("GET /api/files - Sorting", () => {
 		});
 	});
 
+	describe("case-insensitive sorting for text fields", () => {
+		it("should use LOWER() for filename sorting to avoid case-sensitive grouping", async () => {
+			setupMockQuery();
+
+			await request(app)
+				.get("/files")
+				.query({ sort_by: "filename", sort_order: "asc" })
+				.expect(200);
+
+			const selectQuery = mockClient.query.mock.calls[0][0];
+			// Must use LOWER(bm.filename) so "article_2" sorts near "AltoonaMinutes"
+			expect(selectQuery).toMatch(/ORDER BY\s+LOWER\(bm\.filename\)\s+ASC/i);
+		});
+
+		it("should use LOWER() for source sorting to avoid case-sensitive grouping", async () => {
+			setupMockQuery();
+
+			await request(app)
+				.get("/files")
+				.query({ sort_by: "source", sort_order: "asc" })
+				.expect(200);
+
+			const selectQuery = mockClient.query.mock.calls[0][0];
+			expect(selectQuery).toMatch(/ORDER BY\s+LOWER\(bm\.source\)\s+ASC/i);
+		});
+
+		it("should NOT use LOWER() for non-text fields like size", async () => {
+			setupMockQuery();
+
+			await request(app)
+				.get("/files")
+				.query({ sort_by: "size", sort_order: "asc" })
+				.expect(200);
+
+			const selectQuery = mockClient.query.mock.calls[0][0];
+			expect(selectQuery).toMatch(/ORDER BY\s+bm\.file_size\s+ASC/i);
+			expect(selectQuery).not.toMatch(/LOWER\(bm\.file_size\)/i);
+		});
+	});
+
 	describe("updated_at sort field", () => {
 		it("should accept updated_at as a valid sort field and not fallback to created_at", async () => {
 			setupMockQuery();
