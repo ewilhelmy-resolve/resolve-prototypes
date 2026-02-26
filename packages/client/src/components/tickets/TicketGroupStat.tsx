@@ -1,9 +1,10 @@
+import { BookX, ZapOff } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { Badge } from "@/components/ui/badge";
 import {
-	AUTOMATION_GAP_BADGE_STYLE,
-	KB_STATUS_BADGE_STYLES,
-} from "@/lib/constants";
+	Tooltip,
+	TooltipContent,
+	TooltipTrigger,
+} from "@/components/ui/tooltip";
 import type { KBStatus } from "@/types/cluster";
 
 interface TicketGroupStatProps {
@@ -13,29 +14,28 @@ interface TicketGroupStatProps {
 	title: string;
 	/** The total count of tickets in this group */
 	count: number;
+	/** Number of tickets needing response */
+	openCount: number;
 	/** Knowledge base status */
 	knowledgeStatus: KBStatus;
 	/** Whether a Resolve Action workflow is linked to this cluster */
 	hasAction?: boolean;
-	/** Value score (0-100), shown when sorting by value */
-	valueScore?: number;
 	/** Optional click handler - overrides default navigation */
 	onClick?: () => void;
 }
 
 /**
- * TicketGroupStat - Individual ticket group statistics card
+ * TicketGroupStat - Cluster card
  *
- * Displays a ticket category with count, knowledge status badge,
- * and optional value score.
+ * Displays cluster name, ticket count, open count, and gap icons.
  */
 export function TicketGroupStat({
 	id,
 	title,
 	count,
+	openCount,
 	knowledgeStatus,
 	hasAction,
-	valueScore,
 	onClick,
 }: TicketGroupStatProps) {
 	const navigate = useNavigate();
@@ -44,15 +44,8 @@ export function TicketGroupStat({
 		onClick ? onClick() : navigate(`/tickets/${id}`);
 	};
 
-	const getStatusBadge = () => {
-		const style = KB_STATUS_BADGE_STYLES[knowledgeStatus];
-		if (!style) return null;
-		return (
-			<Badge variant={style.variant} className={style.className}>
-				{style.text}
-			</Badge>
-		);
-	};
+	const hasKnowledgeGap = knowledgeStatus === "GAP";
+	const hasAutomationGap = hasAction === false;
 
 	return (
 		<button
@@ -60,33 +53,41 @@ export function TicketGroupStat({
 			onClick={handleClick}
 			className="flex flex-col gap-4 rounded-lg border border-border bg-card p-4 cursor-pointer hover:bg-accent/50 transition-colors text-left"
 		>
-			{/* Title and Count */}
-			<div className="flex flex-col gap-3.5">
-				<h2 className="text-base font-normal text-card-foreground leading-7">
-					{title}
-				</h2>
-				<div className="text-[38px] font-normal leading-6 text-card-foreground">
-					{count}
-				</div>
-			</div>
-
-			{/* Status Badge + Value Score */}
-			<div className="flex items-center justify-between">
-				<div className="flex flex-wrap items-center gap-1">
-					{getStatusBadge()}
-					{hasAction === false && (
-						<Badge
-							variant={AUTOMATION_GAP_BADGE_STYLE.variant}
-							className={AUTOMATION_GAP_BADGE_STYLE.className}
-						>
-							{AUTOMATION_GAP_BADGE_STYLE.text}
-						</Badge>
+			<h2 className="text-base font-normal text-card-foreground leading-7">
+				{title}
+			</h2>
+			<div className="flex items-end justify-between">
+				<div className="flex items-baseline gap-2">
+					<span className="text-[38px] font-normal leading-6 text-card-foreground">
+						{count.toLocaleString()}
+					</span>
+					{openCount > 0 && (
+						<span className="text-xs text-muted-foreground">{openCount} open</span>
 					)}
 				</div>
-				{valueScore != null && (
-					<span className="text-xs font-medium text-muted-foreground">
-						Value: {valueScore}/100
-					</span>
+				{(hasKnowledgeGap || hasAutomationGap) && (
+					<div className="flex items-center gap-1.5">
+						{hasKnowledgeGap && (
+							<Tooltip>
+								<TooltipTrigger asChild>
+									<span className="flex h-6 w-6 items-center justify-center rounded-full bg-yellow-100">
+										<BookX className="h-3.5 w-3.5 text-yellow-600" />
+									</span>
+								</TooltipTrigger>
+								<TooltipContent>Knowledge Gap</TooltipContent>
+							</Tooltip>
+						)}
+						{hasAutomationGap && (
+							<Tooltip>
+								<TooltipTrigger asChild>
+									<span className="flex h-6 w-6 items-center justify-center rounded-full bg-blue-100">
+										<ZapOff className="h-3.5 w-3.5 text-blue-500" />
+									</span>
+								</TooltipTrigger>
+								<TooltipContent>Automation Gap</TooltipContent>
+							</Tooltip>
+						)}
+					</div>
 				)}
 			</div>
 		</button>

@@ -144,7 +144,7 @@ export const KB_STATUS_BADGE_STYLES: Record<
 	FOUND: null,
 	GAP: {
 		variant: "outline" as const,
-		className: "border-orange-500 text-orange-600",
+		className: "border-yellow-400 bg-yellow-50 text-yellow-700",
 		text: "Knowledge Gap",
 	},
 	PENDING: null,

@@ -214,10 +214,6 @@ export default function TicketGroups({ period }: TicketGroupsProps) {
 		setCurrentCursor(prevCursor || undefined);
 	};
 
-	const getValueScore = (cluster: ClusterListItem) => {
-		if (sortBy !== "value") return undefined;
-		return computeValueScore(cluster, maxTicketCount);
-	};
 
 	// Show spinner while checking model state initially
 	if (isModelLoading) {
@@ -485,6 +481,7 @@ export default function TicketGroups({ period }: TicketGroupsProps) {
 											cluster.subcluster_name,
 										)}
 										count={cluster.ticket_count}
+										openCount={cluster.needs_response_count}
 										knowledgeStatus={cluster.kb_status}
 										hasAction={actionsMap?.[cluster.id] ?? false}
 									/>
@@ -508,9 +505,9 @@ export default function TicketGroups({ period }: TicketGroupsProps) {
 												cluster.subcluster_name,
 											)}
 											count={cluster.ticket_count}
+										openCount={cluster.needs_response_count}
 											knowledgeStatus={cluster.kb_status}
 											hasAction={actionsMap?.[cluster.id] ?? false}
-											valueScore={getValueScore(cluster)}
 										/>
 									))}
 								</div>

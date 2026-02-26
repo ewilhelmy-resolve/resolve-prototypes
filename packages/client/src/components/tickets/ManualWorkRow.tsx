@@ -24,7 +24,7 @@ function KBStatusBadge({ status }: { status: string }) {
 			return (
 				<Badge
 					variant="outline"
-					className="shrink-0 border-orange-500 text-orange-600"
+					className="shrink-0 border-yellow-400 bg-yellow-50 text-yellow-700"
 				>
 					{t("manualWork.kb.gap")}
 				</Badge>
