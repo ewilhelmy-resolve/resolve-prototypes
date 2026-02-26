@@ -12,7 +12,7 @@ const meta: Meta<typeof TicketDetailHeader> = {
 		docs: {
 			description: {
 				component:
-					"Full-width header for ticket detail pages. Includes back navigation, ticket ID display, up/down navigation between tickets, and Review AI response button.",
+					"Full-width header for ticket detail pages. Includes back navigation, ticket ID display, position indicator, up/down navigation between tickets, and Review AI response button.",
 			},
 		},
 	},
@@ -34,14 +34,16 @@ const meta: Meta<typeof TicketDetailHeader> = {
 export default meta;
 type Story = StoryObj<typeof TicketDetailHeader>;
 
-const ticketIds = ["ticket-1", "ticket-2", "ticket-3", "ticket-4", "ticket-5"];
-
 export const Default: Story = {
 	args: {
 		ticketId: "ticket-3",
 		externalId: "INC-1003",
 		clusterId: "cluster-123",
-		ticketIds,
+		prevTicketId: "ticket-2",
+		nextTicketId: "ticket-4",
+		currentPosition: 2,
+		totalTickets: 42,
+		searchParams: "sort=created_at&sort_dir=desc&tab=needs_response",
 	},
 };
 
@@ -50,7 +52,10 @@ export const FirstTicket: Story = {
 		ticketId: "ticket-1",
 		externalId: "INC-1001",
 		clusterId: "cluster-123",
-		ticketIds,
+		prevTicketId: null,
+		nextTicketId: "ticket-2",
+		currentPosition: 0,
+		totalTickets: 42,
 	},
 	parameters: {
 		docs: {
@@ -66,7 +71,10 @@ export const LastTicket: Story = {
 		ticketId: "ticket-5",
 		externalId: "INC-1005",
 		clusterId: "cluster-123",
-		ticketIds,
+		prevTicketId: "ticket-4",
+		nextTicketId: null,
+		currentPosition: 41,
+		totalTickets: 42,
 	},
 	parameters: {
 		docs: {
@@ -82,7 +90,10 @@ export const SingleTicket: Story = {
 		ticketId: "ticket-1",
 		externalId: "INC-1001",
 		clusterId: "cluster-123",
-		ticketIds: ["ticket-1"],
+		prevTicketId: null,
+		nextTicketId: null,
+		currentPosition: 0,
+		totalTickets: 1,
 	},
 	parameters: {
 		docs: {
@@ -97,7 +108,10 @@ export const NoCluster: Story = {
 	args: {
 		ticketId: "ticket-2",
 		externalId: "INC-1002",
-		ticketIds,
+		prevTicketId: "ticket-1",
+		nextTicketId: "ticket-3",
+		currentPosition: 1,
+		totalTickets: 5,
 	},
 	parameters: {
 		docs: {
@@ -108,11 +122,18 @@ export const NoCluster: Story = {
 	},
 };
 
-export const LongExternalId: Story = {
+export const NoNavigationContext: Story = {
 	args: {
 		ticketId: "ticket-3",
 		externalId: "SERVICENOW-REQ-2024-00001234",
 		clusterId: "cluster-123",
-		ticketIds,
+	},
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"Direct URL access without navigation context. No position indicator, both buttons disabled.",
+			},
+		},
 	},
 };
