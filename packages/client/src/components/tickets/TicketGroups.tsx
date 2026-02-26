@@ -27,7 +27,11 @@ import {
 	TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { useActiveModel } from "@/hooks/useActiveModel";
-import { useClusters, useInfiniteClusters } from "@/hooks/useClusters";
+import {
+	useClusterActions,
+	useClusters,
+	useInfiniteClusters,
+} from "@/hooks/useClusters";
 import { useDebounce } from "@/hooks/useDebounce";
 import { useIsIngesting } from "@/hooks/useIsIngesting";
 import { computeValueScore } from "@/lib/tickets/utils";
@@ -82,6 +86,9 @@ export default function TicketGroups({ period }: TicketGroupsProps) {
 	const isTraining = trainingState === TRAINING_STATES.IN_PROGRESS;
 	const isFailed = trainingState === TRAINING_STATES.FAILED;
 	const canShowClusters = trainingState === TRAINING_STATES.COMPLETE;
+
+	// Fetch cluster actions map (Resolve Action workflows)
+	const { data: actionsMap } = useClusterActions();
 
 	// Check if ITSM source is actively importing tickets
 	const { isIngesting, latestRun } = useIsIngesting();
@@ -479,6 +486,7 @@ export default function TicketGroups({ period }: TicketGroupsProps) {
 										)}
 										count={cluster.ticket_count}
 										knowledgeStatus={cluster.kb_status}
+										hasAction={actionsMap?.[cluster.id] ?? false}
 									/>
 								))}
 							</div>
@@ -501,6 +509,7 @@ export default function TicketGroups({ period }: TicketGroupsProps) {
 											)}
 											count={cluster.ticket_count}
 											knowledgeStatus={cluster.kb_status}
+											hasAction={actionsMap?.[cluster.id] ?? false}
 											valueScore={getValueScore(cluster)}
 										/>
 									))}

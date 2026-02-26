@@ -1,4 +1,11 @@
-import { FileText, Loader2, Plus, Upload, WandSparkles } from "lucide-react";
+import {
+	FileText,
+	Info,
+	Loader2,
+	Plus,
+	Upload,
+	WandSparkles,
+} from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
@@ -22,6 +29,8 @@ interface ClusterDetailSidebarProps {
 	kbArticlesCount?: number;
 	/** Knowledge base status from cluster API */
 	kbStatus?: KBStatus;
+	/** Whether a Resolve Action workflow is linked to this cluster */
+	hasAction?: boolean;
 	/** Called when knowledge article is added */
 	onKnowledgeAdded?: () => void;
 }
@@ -39,6 +48,7 @@ export function ClusterDetailSidebar({
 	clusterName = "Cluster",
 	kbArticlesCount = 0,
 	kbStatus,
+	hasAction = false,
 	onKnowledgeAdded,
 }: ClusterDetailSidebarProps) {
 	const { t } = useTranslation("tickets");
@@ -201,6 +211,19 @@ export function ClusterDetailSidebar({
 						onButtonClick={() => setCreateSheetOpen(true)}
 						variant="warning"
 					/>
+				)}
+
+				{/* Automation gap indicator — informational only */}
+				{!hasAction && (
+					<div className="rounded-lg border border-dashed border-gray-300 bg-gray-50 px-4 py-3">
+						<div className="flex items-center gap-2 text-sm text-gray-500">
+							<Info className="h-4 w-4" aria-hidden="true" />
+							<span>{t("gaps.noResolveAction")}</span>
+						</div>
+						<p className="mt-1 text-xs text-gray-400">
+							{t("gaps.automationComingSoon")}
+						</p>
+					</div>
 				)}
 			</div>
 

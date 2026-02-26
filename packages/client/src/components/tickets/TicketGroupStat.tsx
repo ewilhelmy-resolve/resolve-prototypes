@@ -1,6 +1,9 @@
 import { useNavigate } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
-import { KB_STATUS_BADGE_STYLES } from "@/lib/constants";
+import {
+	AUTOMATION_GAP_BADGE_STYLE,
+	KB_STATUS_BADGE_STYLES,
+} from "@/lib/constants";
 import type { KBStatus } from "@/types/cluster";
 
 interface TicketGroupStatProps {
@@ -12,6 +15,8 @@ interface TicketGroupStatProps {
 	count: number;
 	/** Knowledge base status */
 	knowledgeStatus: KBStatus;
+	/** Whether a Resolve Action workflow is linked to this cluster */
+	hasAction?: boolean;
 	/** Value score (0-100), shown when sorting by value */
 	valueScore?: number;
 	/** Optional click handler - overrides default navigation */
@@ -29,6 +34,7 @@ export function TicketGroupStat({
 	title,
 	count,
 	knowledgeStatus,
+	hasAction,
 	valueScore,
 	onClick,
 }: TicketGroupStatProps) {
@@ -66,7 +72,17 @@ export function TicketGroupStat({
 
 			{/* Status Badge + Value Score */}
 			<div className="flex items-center justify-between">
-				<div>{getStatusBadge()}</div>
+				<div className="flex flex-wrap items-center gap-1">
+					{getStatusBadge()}
+					{hasAction === false && (
+						<Badge
+							variant={AUTOMATION_GAP_BADGE_STYLE.variant}
+							className={AUTOMATION_GAP_BADGE_STYLE.className}
+						>
+							{AUTOMATION_GAP_BADGE_STYLE.text}
+						</Badge>
+					)}
+				</div>
 				{valueScore != null && (
 					<span className="text-xs font-medium text-muted-foreground">
 						Value: {valueScore}/100

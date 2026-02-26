@@ -90,7 +90,7 @@ export const MOCK_CLUSTERS: ClusterListItem[] = [
 		id: "cl-008",
 		name: "Printer Configuration",
 		subcluster_name: null,
-		kb_status: "PENDING",
+		kb_status: "GAP",
 		config: { auto_respond: false, auto_populate: false },
 		ticket_count: 45,
 		needs_response_count: 3,
@@ -244,4 +244,32 @@ export function getMockClusterKbArticles(
 	const cluster = MOCK_CLUSTER_DETAILS_MAP[id];
 	const articles = cluster?.kb_status === "FOUND" ? MOCK_KB_ARTICLES : [];
 	return { data: articles };
+}
+
+/**
+ * Mock map of cluster_id → whether a Resolve Action workflow exists.
+ *
+ * Distribution:
+ * - cl-001 (Email Signature Issues): FOUND + has action → clean
+ * - cl-002 (Password Reset Requests): FOUND + has action → clean
+ * - cl-003 (Network Connectivity): FOUND + NO action → Automation Gap only
+ * - cl-004 (VPN Connection Problems): FOUND + NO action → Automation Gap only
+ * - cl-005 (Application Crashes/Outlook): FOUND + has action → clean
+ * - cl-006 (System Performance Degradation): GAP + NO action → both gaps
+ * - cl-007 (MFA Setup Assistance): GAP + NO action → both gaps
+ * - cl-008 (Printer Configuration): GAP + NO action → both gaps
+ */
+export const MOCK_CLUSTER_ACTIONS: Record<string, boolean> = {
+	"cl-001": true,
+	"cl-002": true,
+	"cl-003": false,
+	"cl-004": false,
+	"cl-005": true,
+	"cl-006": false,
+	"cl-007": false,
+	"cl-008": false,
+};
+
+export function getMockClusterHasAction(id: string): boolean {
+	return MOCK_CLUSTER_ACTIONS[id] ?? false;
 }

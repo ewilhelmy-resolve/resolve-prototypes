@@ -5,8 +5,10 @@ import {
 } from "@tanstack/react-query";
 import {
 	getMockClusterDetails,
+	getMockClusterHasAction,
 	getMockClusterKbArticles,
 	getMockClusterTickets,
+	MOCK_CLUSTER_ACTIONS,
 	MOCK_CLUSTERS_RESPONSE,
 } from "@/data/mock-clusters";
 import { clustersApi, ticketsApi } from "@/services/api";
@@ -179,6 +181,40 @@ export function useTicket(id: string | undefined) {
 			return response.data;
 		},
 		enabled: !!id,
+		staleTime: 30000,
+	});
+}
+
+/**
+ * Check if a cluster has a Resolve Action workflow linked
+ * @param id - Cluster UUID
+ * @returns Query with boolean indicating action exists
+ */
+export function useClusterHasAction(id: string | undefined) {
+	return useQuery({
+		queryKey: ["cluster-actions", id],
+		queryFn: async () => {
+			if (IS_DEMO_MODE) return getMockClusterHasAction(id!);
+			// TODO: call actions API when available
+			return false;
+		},
+		enabled: !!id,
+		staleTime: 30000,
+	});
+}
+
+/**
+ * Get actions map for all clusters (list view)
+ * @returns Query with Record<string, boolean> of cluster_id → hasAction
+ */
+export function useClusterActions() {
+	return useQuery({
+		queryKey: ["cluster-actions"],
+		queryFn: async () => {
+			if (IS_DEMO_MODE) return MOCK_CLUSTER_ACTIONS;
+			// TODO: call actions API when available
+			return {} as Record<string, boolean>;
+		},
 		staleTime: 30000,
 	});
 }

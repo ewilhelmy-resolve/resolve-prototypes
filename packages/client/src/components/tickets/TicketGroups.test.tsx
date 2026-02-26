@@ -15,8 +15,13 @@ vi.mock("@/hooks/useIsIngesting", () => ({
 }));
 
 const mockUseClusters = vi.fn();
+const mockUseInfiniteClusters = vi.fn();
+const mockUseClusterActions = vi.fn();
 vi.mock("@/hooks/useClusters", () => ({
 	useClusters: (...args: unknown[]) => mockUseClusters(...args),
+	useInfiniteClusters: (...args: unknown[]) =>
+		mockUseInfiniteClusters(...args),
+	useClusterActions: (...args: unknown[]) => mockUseClusterActions(...args),
 	clusterKeys: { all: ["clusters"], lists: () => ["clusters", "list"] },
 }));
 
@@ -35,6 +40,18 @@ beforeEach(() => {
 		data: undefined,
 		isLoading: false,
 		error: null,
+	});
+	mockUseInfiniteClusters.mockReturnValue({
+		data: undefined,
+		isLoading: false,
+		error: null,
+		fetchNextPage: vi.fn(),
+		hasNextPage: false,
+		isFetchingNextPage: false,
+	});
+	mockUseClusterActions.mockReturnValue({
+		data: {},
+		isLoading: false,
 	});
 });
 

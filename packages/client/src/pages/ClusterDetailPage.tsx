@@ -17,8 +17,15 @@ import {
 	TooltipContent,
 	TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { clusterKeys, useClusterDetails } from "@/hooks/useClusters";
-import { KB_STATUS_BADGE_STYLES } from "@/lib/constants";
+import {
+	clusterKeys,
+	useClusterDetails,
+	useClusterHasAction,
+} from "@/hooks/useClusters";
+import {
+	AUTOMATION_GAP_BADGE_STYLE,
+	KB_STATUS_BADGE_STYLES,
+} from "@/lib/constants";
 
 /** Default cost setting (matches TicketSettingsDialog default) */
 const COST_PER_TICKET = 30;
@@ -59,6 +66,7 @@ export default function ClusterDetailPage() {
 	const navigate = useNavigate();
 	const queryClient = useQueryClient();
 	const { data: cluster, isLoading, error } = useClusterDetails(id);
+	const { data: hasAction } = useClusterHasAction(id);
 	const bannerRef = useRef<HTMLDivElement>(null);
 
 	// Banner state for review completion
@@ -183,6 +191,14 @@ export default function ClusterDetailPage() {
 									{KB_STATUS_BADGE_STYLES[cluster.kb_status].text}
 								</Badge>
 							)}
+							{hasAction === false && (
+								<Badge
+									variant={AUTOMATION_GAP_BADGE_STYLE.variant}
+									className={AUTOMATION_GAP_BADGE_STYLE.className}
+								>
+									{AUTOMATION_GAP_BADGE_STYLE.text}
+								</Badge>
+							)}
 						</div>
 
 						{/* Stats */}
@@ -209,14 +225,19 @@ export default function ClusterDetailPage() {
 											value="--"
 											label={t("clusterDetail.stats.mttr")}
 											badge={
-												<Badge variant="secondary" className="text-[10px] px-1.5 py-0">
+												<Badge
+													variant="secondary"
+													className="text-[10px] px-1.5 py-0"
+												>
 													{t("clusterDetail.stats.comingSoon")}
 												</Badge>
 											}
 										/>
 									</div>
 								</TooltipTrigger>
-								<TooltipContent>{t("clusterDetail.stats.mttrTooltip")}</TooltipContent>
+								<TooltipContent>
+									{t("clusterDetail.stats.mttrTooltip")}
+								</TooltipContent>
 							</Tooltip>
 							<Tooltip>
 								<TooltipTrigger asChild>
@@ -225,14 +246,19 @@ export default function ClusterDetailPage() {
 											value="--"
 											label={t("clusterDetail.stats.avgReassignmentRate")}
 											badge={
-												<Badge variant="secondary" className="text-[10px] px-1.5 py-0">
+												<Badge
+													variant="secondary"
+													className="text-[10px] px-1.5 py-0"
+												>
 													{t("clusterDetail.stats.comingSoon")}
 												</Badge>
 											}
 										/>
 									</div>
 								</TooltipTrigger>
-								<TooltipContent>{t("clusterDetail.stats.reassignmentTooltip")}</TooltipContent>
+								<TooltipContent>
+									{t("clusterDetail.stats.reassignmentTooltip")}
+								</TooltipContent>
 							</Tooltip>
 						</StatGroup>
 
@@ -247,6 +273,7 @@ export default function ClusterDetailPage() {
 					clusterName={title}
 					kbArticlesCount={cluster.kb_articles_count}
 					kbStatus={cluster.kb_status}
+					hasAction={hasAction ?? false}
 					onKnowledgeAdded={handleKnowledgeAdded}
 				/>
 			</div>

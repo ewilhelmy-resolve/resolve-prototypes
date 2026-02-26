@@ -137,16 +137,25 @@ export const MAX_FILE_SIZE_MB = 100;
  * Knowledge Base status badge styles
  * Used in TicketGroupStat and ClusterDetailPage
  */
-export const KB_STATUS_BADGE_STYLES = {
+export const KB_STATUS_BADGE_STYLES: Record<
+	string,
+	{ variant: "outline"; className: string; text: string } | null
+> = {
 	FOUND: null,
 	GAP: {
 		variant: "outline" as const,
 		className: "border-orange-500 text-orange-600",
-		text: "Automation Gap",
+		text: "Knowledge Gap",
 	},
-	PENDING: {
-		variant: "outline" as const,
-		className: "",
-		text: "Pending",
-	},
+	PENDING: null,
+};
+
+/**
+ * Automation Gap badge style
+ * Used when no Resolve Action workflow is linked to a cluster
+ */
+export const AUTOMATION_GAP_BADGE_STYLE = {
+	variant: "outline" as const,
+	className: "border-gray-400 text-gray-500",
+	text: "Automation Gap",
 } as const;

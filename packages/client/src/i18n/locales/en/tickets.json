@@ -228,6 +228,12 @@
 		},
 		"empty": "No clusters"
 	},
+	"gaps": {
+		"knowledgeGap": "Knowledge Gap",
+		"automationGap": "Automation Gap",
+		"noResolveAction": "No Resolve Action configured",
+		"automationComingSoon": "Automation workflows will be available in a future update."
+	},
 	"gapBanner": {
 		"knowledgeGap": "Knowledge gap — no KB articles linked"
 	},
