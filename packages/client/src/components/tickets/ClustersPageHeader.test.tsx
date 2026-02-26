@@ -1,4 +1,5 @@
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { QueryWrapper } from "@/test/mocks/providers";
 import { ClustersPageHeader } from "./ClustersPageHeader";
@@ -81,5 +82,27 @@ describe("ClustersPageHeader", () => {
 		});
 
 		expect(screen.queryAllByRole("heading", { level: 3 })).toHaveLength(0);
+	});
+
+	it("calls onSettingsClick when settings button is clicked", async () => {
+		const onSettingsClick = vi.fn();
+		const user = userEvent.setup();
+		renderHeader({ totalTickets: 100, onSettingsClick });
+
+		const btn = screen.getByRole("button", { name: "ticketSettings.title" });
+		await user.click(btn);
+		expect(onSettingsClick).toHaveBeenCalledTimes(1);
+	});
+
+	it("calls onPeriodChange with selected period", async () => {
+		const onPeriodChange = vi.fn();
+		const user = userEvent.setup();
+		renderHeader({ totalTickets: 100, period: "last30", onPeriodChange });
+
+		await user.click(
+			screen.getByRole("button", { name: "groups.periods.last30Days" }),
+		);
+		await user.click(screen.getByText("groups.periods.last90Days"));
+		expect(onPeriodChange).toHaveBeenCalledWith("last90");
 	});
 });
