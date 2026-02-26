@@ -934,8 +934,8 @@ router.get("/", authenticateUser, async (req, res) => {
 		const sortFieldMap: Record<string, string> = {
 			filename: "LOWER(bm.filename)",
 			size: "bm.file_size",
-			type: "bm.mime_type",
-			status: "bm.status",
+			type: "LOWER(bm.mime_type)",
+			status: "LOWER(bm.status)",
 			source: "LOWER(bm.source)",
 			created_at: "bm.created_at",
 			updated_at: "bm.updated_at",
