@@ -8,6 +8,7 @@ import {
 	getMockClusterHasAction,
 	getMockClusterKbArticles,
 	getMockClusterTickets,
+	getMockTicket,
 	MOCK_CLUSTER_ACTIONS,
 	MOCK_CLUSTERS_RESPONSE,
 } from "@/data/mock-clusters";
@@ -177,6 +178,11 @@ export function useTicket(id: string | undefined) {
 	return useQuery({
 		queryKey: ticketKeys.detail(id!),
 		queryFn: async () => {
+			if (IS_DEMO_MODE) {
+				const mock = getMockTicket(id!);
+				if (!mock) throw new Error(`Ticket ${id} not found`);
+				return mock;
+			}
 			const response = await ticketsApi.getById(id!);
 			return response.data;
 		},

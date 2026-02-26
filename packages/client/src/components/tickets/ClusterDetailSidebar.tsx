@@ -145,37 +145,35 @@ export function ClusterDetailSidebar({
 						</div>
 					)}
 
-					{/* + Add knowledge — dropdown when knowledge exists, generate sheet when GAP */}
-					{effectiveKbStatus === "GAP" ? (
-						<button
-							type="button"
-							onClick={() => setCreateSheetOpen(true)}
-							className="flex w-full items-center gap-2 border-t px-4 py-3 text-sm text-muted-foreground hover:text-foreground transition-colors"
-						>
-							<Plus className="h-4 w-4" />
-							Add knowledge
-						</button>
-					) : (
-						<DropdownMenu>
-							<DropdownMenuTrigger asChild>
-								<button
-									type="button"
-									className="flex w-full items-center gap-2 border-t px-4 py-3 text-sm text-muted-foreground hover:text-foreground transition-colors"
-								>
-									<Plus className="h-4 w-4" />
-									Add knowledge
-								</button>
-							</DropdownMenuTrigger>
-							<DropdownMenuContent align="start">
+					{/* + Add knowledge — always dropdown with consistent options */}
+					<DropdownMenu>
+						<DropdownMenuTrigger asChild>
+							<button
+								type="button"
+								className="flex w-full items-center gap-2 border-t px-4 py-3 text-sm text-muted-foreground hover:text-foreground transition-colors"
+							>
+								<Plus className="h-4 w-4" />
+								Add knowledge
+							</button>
+						</DropdownMenuTrigger>
+						<DropdownMenuContent align="start">
+							{effectiveKbStatus === "GAP" && (
 								<DropdownMenuItem
-									onClick={() => navigate("/knowledge-articles")}
+									onClick={() => setCreateSheetOpen(true)}
 								>
-									<Upload className="h-4 w-4 mr-2" />
-									Upload file
+									<WandSparkles className="h-4 w-4 mr-2" />
+									Generate article
 								</DropdownMenuItem>
-								<DropdownMenuItem
-									onClick={() => navigate("/settings/connections")}
-								>
+							)}
+							<DropdownMenuItem
+								onClick={() => navigate("/knowledge-articles")}
+							>
+								<Upload className="h-4 w-4 mr-2" />
+								Upload file
+							</DropdownMenuItem>
+							<DropdownMenuItem
+								onClick={() => navigate("/settings/connections")}
+							>
 									<Plus className="h-4 w-4 mr-2" />
 									Connect sources
 									<div className="ml-auto flex gap-1 pl-4">
@@ -198,7 +196,6 @@ export function ClusterDetailSidebar({
 								</DropdownMenuItem>
 							</DropdownMenuContent>
 						</DropdownMenu>
-					)}
 				</div>
 
 				{/* Knowledge gap CTA — hidden after article is generated */}
@@ -213,7 +210,7 @@ export function ClusterDetailSidebar({
 					/>
 				)}
 
-				{/* Automation gap indicator — informational only */}
+				{/* Automation gap indicator — links to workflow designer */}
 				{!hasAction && (
 					<div className="rounded-lg border border-dashed border-gray-300 bg-gray-50 px-4 py-3">
 						<div className="flex items-center gap-2 text-sm text-gray-500">
@@ -223,6 +220,13 @@ export function ClusterDetailSidebar({
 						<p className="mt-1 text-xs text-gray-400">
 							{t("gaps.automationComingSoon")}
 						</p>
+						<button
+							type="button"
+							onClick={() => navigate("/workflow-designer")}
+							className="mt-2 text-xs font-medium text-blue-600 hover:text-blue-700 transition-colors"
+						>
+							Go to Actions &rarr;
+						</button>
 					</div>
 				)}
 			</div>

@@ -193,6 +193,10 @@ const MOCK_TICKETS: Ticket[] = [
 	},
 ];
 
+export function getMockTicket(id: string): Ticket | undefined {
+	return MOCK_TICKETS.find((t) => t.id === id);
+}
+
 export function getMockClusterTickets(
 	_id: string,
 	tab?: "needs_response" | "completed",

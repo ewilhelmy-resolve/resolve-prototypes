@@ -231,8 +231,8 @@
 	"gaps": {
 		"knowledgeGap": "Knowledge Gap",
 		"automationGap": "Automation Gap",
-		"noResolveAction": "No Resolve Action configured",
-		"automationComingSoon": "Automation workflows will be available in a future update."
+		"noResolveAction": "No Resolve Action linked",
+		"automationComingSoon": "Create a workflow in Actions to automate this cluster."
 	},
 	"gapBanner": {
 		"knowledgeGap": "Knowledge gap — no KB articles linked"
