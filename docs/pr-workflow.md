@@ -51,6 +51,48 @@ refactor/CLIEN-42-session-service-audit
 
 Issue prefixes: `CLIEN-` (client tasks), `RG-` (general), `JAR-` (Jarvis/platform).
 
+## PR Description Template
+
+Use this structure for PR descriptions:
+
+```markdown
+<brief description of what the PR does>
+
+<why these changes are being made — the motivation>
+
+<how — technical approach taken, when non-obvious (optional)>
+
+<alternative approaches considered, if any>
+
+<any additional context reviewers need>
+
+Refs <TICKET>
+```
+
+- Explain **what** and **why**
+- Include **how** when the technical approach isn't obvious from the diff
+- Include ticket reference (`Refs RG-101`) at end of body
+- Note areas that need careful review
+- Do **not** include checklists, test plans, or AI attribution
+
+### Example
+
+```markdown
+Add message reactions to chat
+
+Users can react to messages with emoji. Reactions display below
+the message with a count badge.
+
+Store reactions in a separate table with composite unique index
+on (message_id, user_id, emoji). SSE broadcasts changes to
+all participants.
+
+Considered inline reactions but below-message placement better
+matches existing UI patterns.
+
+Refs CLIEN-89
+```
+
 ## PR Checklist
 
 - [ ] Code follows [Coding Guidelines](coding-guidelines.md)
@@ -69,7 +111,7 @@ Issue prefixes: `CLIEN-` (client tasks), `RG-` (general), `JAR-` (Jarvis/platfor
 
 Husky runs automatically on commit:
 1. `npx lint-staged` — runs `biome check --write` + `biome lint` on staged files
-2. `npm run type-check` — TypeScript check all packages
+2. `pnpm run type-check` — TypeScript check all packages
 3. If api-server files staged: `pnpm --filter rita-api-server docs:generate` + auto-stage `openapi.json`
 
 If hooks fail, fix the issue and commit again (do NOT use `--no-verify`).
