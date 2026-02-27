@@ -1,8 +1,8 @@
 // TODO: Uncomment ChevronDown when source filter data is available
 import { /* ChevronDown, */ Loader2, MoreHorizontal } from "lucide-react";
-import { useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { BulkActions } from "@/components/BulkActions";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -65,6 +65,8 @@ const getSourceIcon = (source: string): string => {
 	return `/connections/icon_${source.toLowerCase()}.svg`;
 };
 
+const PAGE_SIZE = 10;
+
 /**
  * ClusterDetailTable - Table displaying tickets with filters and pagination
  */
@@ -73,24 +75,72 @@ export function ClusterDetailTable({
 	onReviewComplete,
 }: ClusterDetailTableProps) {
 	const { t } = useTranslation("tickets");
-	const [activeTab, setActiveTab] = useState<"needs_response" | "completed">(
-		"needs_response",
+	const [searchParams, setSearchParams] = useSearchParams();
+
+	// Read table state from URL params (enables back-navigation restoration)
+	const activeTab =
+		(searchParams.get("tab") as "needs_response" | "completed") ||
+		"needs_response";
+	const page = Number(searchParams.get("page") || "0");
+	const sortField =
+		(searchParams.get("sort") as TicketSortOption) || "created_at";
+	const sortDir = (searchParams.get("sort_dir") as SortDirection) || "desc";
+
+	// Search stays in local state for responsive typing; debounced value syncs to URL
+	const [searchQuery, setSearchQuery] = useState(
+		searchParams.get("search") || "",
 	);
-	const [cursor, setCursor] = useState<string | undefined>(undefined);
 	const [selectedTickets, setSelectedTickets] = useState<string[]>([]);
-	const [searchQuery, setSearchQuery] = useState("");
-	const [sortField, setSortField] = useState<TicketSortOption>("created_at");
-	const [sortDir, setSortDir] = useState<SortDirection>("desc");
 	// TODO: Uncomment when source filter data is available (tickets need data_source_connection_id populated)
 	// const [sourceFilter, setSourceFilter] = useState<string | undefined>(undefined);
 
 	// Debounce search to avoid excessive API calls
 	const debouncedSearch = useDebounce(searchQuery, 300);
 
+	// Helper to update URL params without polluting browser history
+	const updateParams = useCallback(
+		(updates: Record<string, string | undefined>) => {
+			setSearchParams(
+				(prev) => {
+					const next = new URLSearchParams(prev);
+					for (const [key, value] of Object.entries(updates)) {
+						if (value !== undefined && value !== "") {
+							next.set(key, value);
+						} else {
+							next.delete(key);
+						}
+					}
+					return next;
+				},
+				{ replace: true },
+			);
+		},
+		[setSearchParams],
+	);
+
+	// Track previous debounced search to only sync when it actually changes
+	// (avoids resetting page when updateParams reference changes on URL updates)
+	const prevDebouncedSearch = useRef(debouncedSearch);
+
+	// Sync debounced search to URL params only when the search value changes
+	useEffect(() => {
+		if (prevDebouncedSearch.current === debouncedSearch) return;
+		prevDebouncedSearch.current = debouncedSearch;
+		updateParams({ search: debouncedSearch || undefined, page: "0" });
+	}, [debouncedSearch, updateParams]);
+
+	// Build ticket detail URL with current table state for navigation context
+	const buildTicketUrl = (ticketId: string, rowIndex: number) => {
+		const globalIdx = page * PAGE_SIZE + rowIndex;
+		const params = new URLSearchParams(searchParams);
+		params.set("idx", String(globalIdx));
+		return `/tickets/${clusterId}/${ticketId}?${params.toString()}`;
+	};
+
 	const queryParams: ClusterTicketsQueryParams = {
 		tab: activeTab,
-		cursor,
-		limit: 20,
+		offset: page * PAGE_SIZE,
+		limit: PAGE_SIZE,
 		search: debouncedSearch || undefined,
 		sort: sortField,
 		sort_dir: sortDir,
@@ -107,35 +157,34 @@ export function ClusterDetailTable({
 	const [reviewTickets, setReviewTickets] = useState<ReviewTicket[]>([]);
 	const [currentReviewIndex, setCurrentReviewIndex] = useState(0);
 
-	// Handle tab change - reset cursor and search
+	// Handle tab change - reset page and search
 	const handleTabChange = (value: string) => {
-		setActiveTab(value as "needs_response" | "completed");
-		setCursor(undefined);
+		updateParams({ tab: value, page: "0", search: undefined });
 		setSelectedTickets([]);
 		setSearchQuery("");
 	};
 
-	// Handle search input
+	// Handle search input (local state for responsive typing; debounce syncs to URL)
 	const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
 		setSearchQuery(e.target.value);
-		setCursor(undefined); // Reset pagination when searching
 	};
 
 	// TODO: Uncomment when source filter data is available
 	// const handleSourceChange = (value: string) => {
-	// 	setSourceFilter(value === "all" ? undefined : value);
-	// 	setCursor(undefined);
+	// 	updateParams({ source: value === "all" ? undefined : value, page: "0" });
 	// };
 
 	// Generic sort handler for columns
 	const handleSort = (field: TicketSortOption) => {
-		if (sortField === field) {
-			setSortDir(sortDir === "asc" ? "desc" : "asc");
-		} else {
-			setSortField(field);
-			setSortDir(field === "created_at" ? "desc" : "asc");
-		}
-		setCursor(undefined);
+		const newDir =
+			sortField === field
+				? sortDir === "asc"
+					? "desc"
+					: "asc"
+				: field === "created_at"
+					? "desc"
+					: "asc";
+		updateParams({ sort: field, sort_dir: newDir, page: "0" });
 	};
 
 	// Selection handlers
@@ -204,13 +253,6 @@ export function ClusterDetailTable({
 		setReviewSheetOpen(open);
 		if (!open) {
 			setSelectedTickets([]);
-		}
-	};
-
-	// Pagination handlers
-	const handleNextPage = () => {
-		if (pagination?.next_cursor) {
-			setCursor(pagination.next_cursor);
 		}
 	};
 
@@ -359,7 +401,7 @@ export function ClusterDetailTable({
 								</TableCell>
 							</TableRow>
 						) : (
-							tickets.map((row) => (
+							tickets.map((row, rowIndex) => (
 								<TableRow key={row.id}>
 									<TableCell>
 										<Checkbox
@@ -371,7 +413,7 @@ export function ClusterDetailTable({
 									</TableCell>
 									<TableCell className="font-medium">
 										<Link
-											to={`/tickets/${clusterId}/${row.id}`}
+											to={buildTicketUrl(row.id, rowIndex)}
 											className="text-primary hover:underline"
 										>
 											{row.subject}
@@ -416,20 +458,36 @@ export function ClusterDetailTable({
 			{/* Table Footer - Pagination */}
 			<div className="flex items-center justify-between py-4">
 				<p className="text-sm text-muted-foreground">
-					{t("table.pagination.ticketsCount", { count: tickets.length })}
+					{pagination
+						? t("table.pagination.showing", {
+								from: pagination.offset + 1,
+								to: Math.min(
+									pagination.offset + pagination.limit,
+									pagination.total,
+								),
+								total: pagination.total,
+							})
+						: t("table.pagination.ticketsCount", { count: tickets.length })}
 				</p>
 				<div className="flex gap-2">
 					<Button
 						variant="outline"
-						disabled={!cursor}
-						onClick={() => setCursor(undefined)}
+						disabled={page === 0}
+						onClick={() => updateParams({ page: "0" })}
 					>
 						{t("table.pagination.first")}
 					</Button>
 					<Button
 						variant="outline"
+						disabled={page === 0}
+						onClick={() => updateParams({ page: String(page - 1) })}
+					>
+						{t("table.pagination.previous")}
+					</Button>
+					<Button
+						variant="outline"
 						disabled={!pagination?.has_more}
-						onClick={handleNextPage}
+						onClick={() => updateParams({ page: String(page + 1) })}
 					>
 						{t("table.pagination.next")}
 					</Button>

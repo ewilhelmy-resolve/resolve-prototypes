@@ -1,17 +1,25 @@
+import { ArrowLeft, ChevronDown, ChevronUp } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, ChevronDown, ChevronUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface TicketDetailHeaderProps {
-	/** Current ticket ID for navigation */
+	/** Current ticket ID */
 	ticketId: string;
 	/** External ticket ID to display (e.g., INC-1001) */
 	externalId: string;
 	/** Cluster ID for back navigation */
 	clusterId?: string;
-	/** List of all ticket IDs for navigation */
-	ticketIds: string[];
+	/** ID of the previous ticket in sorted order */
+	prevTicketId?: string | null;
+	/** ID of the next ticket in sorted order */
+	nextTicketId?: string | null;
+	/** 0-based position of current ticket in sorted results */
+	currentPosition?: number;
+	/** Total tickets matching current filter */
+	totalTickets?: number;
+	/** URL search params string to preserve on navigation */
+	searchParams?: string;
 	/** Callback when Review AI response button is clicked */
 	onReviewAIResponse: () => void;
 	/** Optional callback for back navigation - overrides default */
@@ -27,15 +35,18 @@ interface TicketDetailHeaderProps {
  *
  * Features:
  * - Back arrow to return to cluster
- * - Current ticket ID display
- * - Up/Down navigation between tickets
+ * - Current ticket ID display with position indicator
+ * - Up/Down navigation between tickets (preserves sort/filter context)
  * - Review AI response button
  */
 export function TicketDetailHeader({
-	ticketId,
 	externalId,
 	clusterId,
-	ticketIds,
+	prevTicketId,
+	nextTicketId,
+	currentPosition,
+	totalTickets,
+	searchParams,
 	onReviewAIResponse,
 	onBack,
 	onPrevious,
@@ -44,9 +55,22 @@ export function TicketDetailHeader({
 	const { t } = useTranslation("tickets");
 	const navigate = useNavigate();
 
-	const currentIndex = ticketIds.indexOf(ticketId);
-	const hasPrevious = currentIndex > 0;
-	const hasNext = currentIndex < ticketIds.length - 1;
+	const hasPrevious = !!prevTicketId;
+	const hasNext = !!nextTicketId;
+
+	const positionText =
+		currentPosition !== undefined && totalTickets
+			? t("navigation.positionOf", {
+					current: currentPosition + 1,
+					total: totalTickets,
+				})
+			: undefined;
+
+	const buildNavUrl = (targetTicketId: string, targetIdx: number) => {
+		const base = `/tickets/${clusterId}/${targetTicketId}`;
+		if (!searchParams) return `${base}?idx=${targetIdx}`;
+		return `${base}?${searchParams}&idx=${targetIdx}`;
+	};
 
 	const handleBack = () => {
 		if (onBack) {
@@ -61,8 +85,7 @@ export function TicketDetailHeader({
 			if (onPrevious) {
 				onPrevious();
 			} else {
-				const prevTicketId = ticketIds[currentIndex - 1];
-				navigate(`/tickets/${clusterId}/${prevTicketId}`);
+				navigate(buildNavUrl(prevTicketId, (currentPosition ?? 1) - 1));
 			}
 		}
 	};
@@ -72,8 +95,7 @@ export function TicketDetailHeader({
 			if (onNext) {
 				onNext();
 			} else {
-				const nextTicketId = ticketIds[currentIndex + 1];
-				navigate(`/tickets/${clusterId}/${nextTicketId}`);
+				navigate(buildNavUrl(nextTicketId, (currentPosition ?? 0) + 1));
 			}
 		}
 	};
@@ -94,15 +116,11 @@ export function TicketDetailHeader({
 				<div className="flex items-center gap-2">
 					<span className="text-base">{externalId}</span>
 
-					<Button
-						variant="outline"
-						size="icon"
-						onClick={handleNext}
-						disabled={!hasNext}
-						aria-label={t("navigation.nextTicket")}
-					>
-						<ChevronDown className="h-4 w-4" />
-					</Button>
+					{positionText && (
+						<span className="text-sm text-muted-foreground">
+							{positionText}
+						</span>
+					)}
 
 					<Button
 						variant="outline"
@@ -113,13 +131,21 @@ export function TicketDetailHeader({
 					>
 						<ChevronUp className="h-4 w-4" />
 					</Button>
+
+					<Button
+						variant="outline"
+						size="icon"
+						onClick={handleNext}
+						disabled={!hasNext}
+						aria-label={t("navigation.nextTicket")}
+					>
+						<ChevronDown className="h-4 w-4" />
+					</Button>
 				</div>
 			</div>
 
 			{/* Right side - Review AI response button */}
-			<Button onClick={onReviewAIResponse}>
-				{t("review.title")}
-			</Button>
+			<Button onClick={onReviewAIResponse}>{t("review.title")}</Button>
 		</div>
 	);
 }

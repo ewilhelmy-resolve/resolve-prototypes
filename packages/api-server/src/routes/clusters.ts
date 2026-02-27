@@ -234,7 +234,7 @@ router.get("/:id/details", async (req, res) => {
  * Get paginated tickets for a cluster
  * Query params:
  *   - tab: needs_response | completed (filters by rita_status)
- *   - cursor: ISO timestamp for pagination
+ *   - offset: pagination offset (default 0)
  *   - limit: number of results (default 20, max 100)
  */
 router.get("/:id/tickets", async (req, res) => {
@@ -260,7 +260,7 @@ router.get("/:id/tickets", async (req, res) => {
 			authReq.user.activeOrganizationId,
 			{
 				tab: query.tab,
-				cursor: query.cursor,
+				offset: query.offset,
 				limit: query.limit,
 				search: query.search,
 				sort: query.sort,
