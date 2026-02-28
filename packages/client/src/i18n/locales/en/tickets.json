@@ -52,7 +52,8 @@
 	"navigation": {
 		"backToCluster": "Back to cluster",
 		"nextTicket": "Next ticket",
-		"previousTicket": "Previous ticket"
+		"previousTicket": "Previous ticket",
+		"positionOf": "{{current}} of {{total}}"
 	},
 	"details": {
 		"description": "Description",
@@ -237,7 +238,9 @@
 		},
 		"pagination": {
 			"ticketsCount": "{{count}} tickets",
+			"showing": "Showing {{from}}-{{to}} of {{total}} tickets",
 			"first": "First",
+			"previous": "Previous",
 			"next": "Next"
 		}
 	},

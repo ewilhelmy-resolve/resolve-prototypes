@@ -1,13 +1,18 @@
 import { ChevronLeft, Loader2 } from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Link, useParams } from "react-router-dom";
+import { Link, useParams, useSearchParams } from "react-router-dom";
 import RitaLayout from "@/components/layouts/RitaLayout";
 import ReviewAIResponseSheet from "@/components/tickets/ReviewAIResponseSheet";
 import { TicketDetailHeader } from "@/components/tickets/TicketDetailHeader";
 import TicketDetailsCard from "@/components/tickets/TicketDetailsCard";
 import { Button } from "@/components/ui/button";
 import { useClusterTickets, useTicket } from "@/hooks/useClusters";
+import type {
+	ClusterTicketsQueryParams,
+	SortDirection,
+	TicketSortOption,
+} from "@/types/cluster";
 
 export default function TicketDetailPage() {
 	const { t } = useTranslation("tickets");
@@ -15,14 +20,66 @@ export default function TicketDetailPage() {
 		clusterId: string;
 		ticketId: string;
 	}>();
+	const [searchParams] = useSearchParams();
 	const { data: ticket, isLoading, error } = useTicket(ticketId);
-	const { data: clusterTicketsData } = useClusterTickets(clusterId, {
-		limit: 100,
-	});
 	const [reviewSheetOpen, setReviewSheetOpen] = useState(false);
 
-	// Get ticket IDs from cluster for navigation
-	const ticketIds = clusterTicketsData?.data?.map((t) => t.id) ?? [];
+	// Read navigation context from URL search params (set by ClusterDetailTable)
+	const idxParam = searchParams.get("idx");
+	const idx = idxParam !== null ? Number(idxParam) : undefined;
+	const hasNavContext = idx !== undefined && !Number.isNaN(idx);
+
+	// Build neighbor query params (only when nav context exists)
+	const neighborParams: ClusterTicketsQueryParams | undefined = hasNavContext
+		? {
+				offset: Math.max(0, idx - 1),
+				limit: 3,
+				...(searchParams.get("sort") && {
+					sort: searchParams.get("sort") as TicketSortOption,
+				}),
+				...(searchParams.get("sort_dir") && {
+					sort_dir: searchParams.get("sort_dir") as SortDirection,
+				}),
+				...(searchParams.get("tab") && {
+					tab: searchParams.get("tab") as "needs_response" | "completed",
+				}),
+				...(searchParams.get("search") && {
+					search: searchParams.get("search") ?? undefined,
+				}),
+			}
+		: undefined;
+
+	const { data: neighborsData } = useClusterTickets(
+		hasNavContext ? clusterId : undefined,
+		neighborParams,
+		{ keepPrevious: true },
+	);
+
+	// Derive prev/next ticket IDs from the 3-ticket neighbor window
+	const results = neighborsData?.data ?? [];
+	const offset = hasNavContext ? Math.max(0, idx - 1) : 0;
+	const currentPosInResults = hasNavContext ? idx - offset : -1;
+
+	const prevTicketId =
+		hasNavContext && currentPosInResults > 0
+			? (results[currentPosInResults - 1]?.id ?? null)
+			: null;
+
+	const nextTicketId =
+		hasNavContext && currentPosInResults < results.length - 1
+			? (results[currentPosInResults + 1]?.id ?? null)
+			: null;
+
+	const totalTickets = neighborsData?.pagination?.total;
+
+	// Build search params string for header navigation (without idx — header adds it)
+	const headerSearchParams = hasNavContext
+		? (() => {
+				const params = new URLSearchParams(searchParams);
+				params.delete("idx");
+				return params.toString();
+			})()
+		: undefined;
 
 	if (isLoading) {
 		return (
@@ -81,7 +138,11 @@ export default function TicketDetailPage() {
 					ticketId={ticket.id}
 					externalId={ticket.external_id}
 					clusterId={clusterId}
-					ticketIds={ticketIds}
+					prevTicketId={prevTicketId}
+					nextTicketId={nextTicketId}
+					currentPosition={hasNavContext ? idx : undefined}
+					totalTickets={totalTickets}
+					searchParams={headerSearchParams}
 					onReviewAIResponse={() => setReviewSheetOpen(true)}
 				/>
 

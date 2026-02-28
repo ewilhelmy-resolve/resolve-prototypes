@@ -102,10 +102,20 @@ export interface KbArticle {
 }
 
 /**
- * Pagination cursor info
+ * Cursor-based pagination info (for cluster list)
+ */
+export interface CursorPaginationInfo {
+	next_cursor: string | null;
+	has_more: boolean;
+}
+
+/**
+ * Offset-based pagination info (for cluster tickets)
  */
 export interface PaginationInfo {
-	next_cursor: string | null;
+	total: number;
+	limit: number;
+	offset: number;
 	has_more: boolean;
 }
 
@@ -146,7 +156,7 @@ export type SortDirection = "asc" | "desc";
  */
 export interface ClusterTicketsQueryParams {
 	tab?: "needs_response" | "completed";
-	cursor?: string;
+	offset?: number;
 	limit?: number;
 	search?: string;
 	sort?: TicketSortOption;
@@ -167,7 +177,7 @@ export interface ClusterTotals {
  */
 export interface ClustersResponse {
 	data: ClusterListItem[];
-	pagination: PaginationInfo;
+	pagination: CursorPaginationInfo;
 	totals: ClusterTotals;
 }
 

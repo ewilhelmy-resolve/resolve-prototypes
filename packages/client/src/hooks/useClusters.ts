@@ -101,9 +101,9 @@ export function useInfiniteClusters(options?: UseInfiniteClustersOptions) {
  */
 export function useClusterDetails(id: string | undefined) {
 	return useQuery({
-		queryKey: clusterKeys.detail(id!),
+		queryKey: clusterKeys.detail(id as string),
 		queryFn: async () => {
-			const response = await clustersApi.getDetails(id!);
+			const response = await clustersApi.getDetails(id as string);
 			return response.data;
 		},
 		enabled: !!id,
@@ -111,24 +111,31 @@ export function useClusterDetails(id: string | undefined) {
 	});
 }
 
+interface UseClusterTicketsOptions {
+	keepPrevious?: boolean;
+}
+
 /**
  * Get paginated tickets for a cluster
  * @param id - Cluster UUID
- * @param params - Query params (tab, cursor, limit)
+ * @param params - Query params (tab, offset, limit, sort, sort_dir, search)
+ * @param options - Hook options (keepPrevious to retain data while refetching)
  * @returns Query with tickets and pagination info
  */
 export function useClusterTickets(
 	id: string | undefined,
 	params?: ClusterTicketsQueryParams,
+	options?: UseClusterTicketsOptions,
 ) {
 	return useQuery({
-		queryKey: clusterKeys.ticketList(id!, params),
+		queryKey: clusterKeys.ticketList(id as string, params),
 		queryFn: async () => {
-			const response = await clustersApi.getTickets(id!, params);
+			const response = await clustersApi.getTickets(id as string, params);
 			return response;
 		},
 		enabled: !!id,
 		staleTime: 30000,
+		...(options?.keepPrevious && { placeholderData: keepPreviousData }),
 	});
 }
 
@@ -139,9 +146,9 @@ export function useClusterTickets(
  */
 export function useClusterKbArticles(id: string | undefined) {
 	return useQuery({
-		queryKey: clusterKeys.kbArticleList(id!),
+		queryKey: clusterKeys.kbArticleList(id as string),
 		queryFn: async () => {
-			const response = await clustersApi.getKbArticles(id!);
+			const response = await clustersApi.getKbArticles(id as string);
 			return response.data;
 		},
 		enabled: !!id,
@@ -156,9 +163,9 @@ export function useClusterKbArticles(id: string | undefined) {
  */
 export function useTicket(id: string | undefined) {
 	return useQuery({
-		queryKey: ticketKeys.detail(id!),
+		queryKey: ticketKeys.detail(id as string),
 		queryFn: async () => {
-			const response = await ticketsApi.getById(id!);
+			const response = await ticketsApi.getById(id as string);
 			return response.data;
 		},
 		enabled: !!id,
