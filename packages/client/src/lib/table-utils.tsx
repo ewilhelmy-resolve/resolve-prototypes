@@ -32,8 +32,8 @@ export function renderSortIcon(
 		return <ArrowUpDown className="h-4 w-4" />;
 	}
 	return sortOrder === "asc" ? (
-		<MoveDown className="h-4 w-4" />
-	) : (
 		<MoveUp className="h-4 w-4" />
+	) : (
+		<MoveDown className="h-4 w-4" />
 	);
 }
