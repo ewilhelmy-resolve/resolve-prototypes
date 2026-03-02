@@ -1,204 +1,172 @@
-import type pg from "pg";
-import pino from "pino";
-import { withTransaction } from "./database.js";
+import {
+	generateDescription,
+	getTrainingScenarioFromConfig,
+	type ProviderConfig,
+	syncProviderData,
+	type TrainingScenario,
+} from "./sync-common.js";
 
-const logger = pino({
-	name: "freshdesk-sync",
-	level: process.env.LOG_LEVEL || "info",
-});
+export type { SyncResult } from "./sync-common.js";
 
-// Realistic IT cluster names for Freshdesk tickets
+export interface FreshdeskSyncSettings {
+	domain?: string;
+	time_range_days?: number;
+	[key: string]: unknown;
+}
+
+// --- Freshdesk-specific data ---
+
 const CLUSTER_NAMES = [
-	"Account Access Issues",
-	"Billing and Payment Inquiries",
-	"Software Installation Requests",
-	"Email Configuration Problems",
-	"Password Reset Requests",
-	"VPN Connection Issues",
-	"Hardware Replacement Requests",
-	"Network Connectivity Issues",
-	"Application Performance Issues",
-	"Data Recovery Requests",
-	"Security Incident Reports",
-	"New Employee Onboarding",
-	"Printer and Scanner Issues",
-	"Mobile Device Support",
-	"Cloud Storage Issues",
-	"Meeting Room Technology",
-	"Software License Requests",
-	"Browser Compatibility Issues",
-	"Backup and Restore Issues",
-	"IT Policy Questions",
-	"Remote Desktop Issues",
-	"File Sharing Problems",
-	"System Update Requests",
-	"Peripheral Device Issues",
-	"Database Access Requests",
-	"API Integration Issues",
-	"Monitoring Alert Triage",
+	"Subscription & Billing Disputes",
+	"Account Lockout & Recovery",
+	"Onboarding & Setup Assistance",
+	"Refund & Cancellation Requests",
+	"Product Feature Requests",
+	"SLA Breach Escalations",
+	"Integration & API Failures",
+	"Mobile App Crashes",
+	"Payment Gateway Errors",
+	"Data Export & Migration",
+	"User Permission Conflicts",
+	"Notification Delivery Failures",
+	"Single Sign-On Problems",
+	"Performance Degradation Reports",
+	"Compliance & Audit Requests",
+	"Multi-Tenant Configuration",
+	"Webhook Delivery Failures",
+	"Report Generation Errors",
+	"Bulk Import Failures",
+	"Custom Field Validation",
+	"Workflow Automation Bugs",
+	"Dashboard Loading Timeouts",
+	"Email Template Rendering",
+	"Third-Party Plugin Conflicts",
+	"Sandbox Environment Issues",
+	"Rate Limiting Complaints",
+	"Localization & Translation Bugs",
 ];
 
 const SUBJECT_TEMPLATES: Record<string, string[]> = {
-	"Account Access Issues": [
-		"Unable to log in to my account",
-		"Account locked after multiple attempts",
-		"Need access to a new application",
-		"Two-factor authentication not working",
-		"SSO login fails intermittently",
+	"Subscription & Billing Disputes": [
+		"Charged twice for annual plan",
+		"Pro features missing after upgrade",
+		"Invoice shows wrong tax amount",
+		"Cannot downgrade to free tier",
+		"Coupon code not applying at checkout",
 	],
-	"Billing and Payment Inquiries": [
-		"Invoice discrepancy for last month",
-		"Need updated billing information",
-		"Duplicate charge on subscription",
-		"Request for payment plan change",
-		"Missing receipt for recent purchase",
+	"Account Lockout & Recovery": [
+		"Locked out after password reset email expired",
+		"Recovery email goes to old address",
+		"MFA device lost, need backup codes",
+		"Account suspended without explanation",
+		"Cannot verify identity for recovery",
 	],
-	"Software Installation Requests": [
-		"Need Adobe Creative Suite installed",
-		"Request to install development tools",
-		"Python environment setup needed",
-		"Docker Desktop installation request",
-		"VS Code extensions not installing",
+	"Onboarding & Setup Assistance": [
+		"Need help importing data from competitor",
+		"Wizard stuck on team invitation step",
+		"Custom domain setup failing SSL check",
+		"Initial data sync taking over 24 hours",
+		"Welcome email never arrived",
 	],
-	"Email Configuration Problems": [
-		"Email not syncing on mobile device",
-		"Outlook keeps asking for password",
-		"Cannot send emails with attachments",
-		"Email signature not displaying correctly",
-		"Auto-reply not working as expected",
+	"Refund & Cancellation Requests": [
+		"Cancel subscription effective immediately",
+		"Partial refund for unused months",
+		"Trial auto-renewed without warning",
+		"Need prorated refund after downgrade",
+		"Cancellation confirmed but still being charged",
 	],
-	"Password Reset Requests": [
-		"Forgot my password",
-		"Password expired need reset",
-		"Cannot change password in portal",
-		"Need temporary password for new hire",
-		"Password policy clarification needed",
+	"Product Feature Requests": [
+		"Need bulk action support in list view",
+		"Custom role permissions for team leads",
+		"Dark mode for web dashboard",
+		"Scheduled report delivery via email",
+		"Keyboard shortcuts for common actions",
 	],
-	"VPN Connection Issues": [
-		"VPN disconnects every few minutes",
-		"Cannot connect to VPN from home",
-		"VPN extremely slow",
-		"Need VPN access for contractor",
-		"VPN client not starting",
+	"SLA Breach Escalations": [
+		"Response time exceeded 4-hour SLA",
+		"Critical ticket unresolved for 48 hours",
+		"Escalation rules not triggering correctly",
+		"SLA clock not pausing on customer reply",
+		"Priority override not reflecting in queue",
 	],
-	"Network Connectivity Issues": [
-		"Wi-Fi keeps dropping in building B",
-		"Cannot access internal sites",
-		"Slow internet speeds at desk",
-		"DNS resolution failures",
-		"Network drive not accessible",
+	"Integration & API Failures": [
+		"Slack integration stopped posting updates",
+		"REST API returning 503 intermittently",
+		"Zapier trigger not firing on new tickets",
+		"Salesforce sync duplicating contacts",
+		"GitHub issue linking broken after update",
 	],
-	"Application Performance Issues": [
-		"Salesforce loading very slowly",
-		"JIRA dashboard takes minutes to load",
-		"Slack messages delayed significantly",
-		"ERP system timing out",
-		"Web application throwing 504 errors",
+	"Mobile App Crashes": [
+		"App crashes on launch after iOS update",
+		"Push notifications not arriving on Android",
+		"Offline mode loses draft replies",
+		"Camera attachment upload hangs indefinitely",
+		"Biometric login fails after app update",
 	],
-	"Security Incident Reports": [
-		"Received suspicious phishing email",
-		"Unauthorized access attempt detected",
-		"USB drive found in parking lot",
-		"Possible malware on workstation",
-		"Sensitive data exposed in shared folder",
+	"Payment Gateway Errors": [
+		"Stripe webhook returning 422 errors",
+		"PayPal recurring payment declined",
+		"Credit card update form not loading",
+		"3D Secure verification loop",
+		"Currency conversion showing stale rates",
 	],
-	"Printer and Scanner Issues": [
-		"Printer showing offline status",
-		"Scan to email not working",
-		"Print jobs stuck in queue",
-		"Need new printer driver",
-		"Paper jam keeps recurring",
+	"Data Export & Migration": [
+		"CSV export truncating description field",
+		"JSON export missing custom field values",
+		"Migration from Zendesk lost ticket tags",
+		"Attachment URLs broken after export",
+		"Export job stuck at 99% for hours",
 	],
-	"Hardware Replacement Requests": [
-		"Laptop keyboard key broken",
-		"Monitor flickering needs replacement",
-		"Mouse scroll wheel not working",
-		"Laptop battery not holding charge",
-		"Headset microphone stopped working",
+	"User Permission Conflicts": [
+		"Agent can see tickets from other department",
+		"Admin role missing billing section access",
+		"Custom role lost permissions after update",
+		"Group restriction not filtering dashboard",
+		"Shared inbox visibility leaking to wrong team",
 	],
 };
 
-function getRandomSubject(clusterName: string): string {
-	const templates = SUBJECT_TEMPLATES[clusterName];
-	if (templates && templates.length > 0) {
-		return templates[Math.floor(Math.random() * templates.length)];
-	}
-	return `Support request: ${clusterName}`;
-}
-
 const DESCRIPTION_PREFIXES = [
-	"Hi team, ",
-	"Hello, I need assistance. ",
-	"Urgent: ",
+	"Hi support, ",
+	"We're experiencing an issue — ",
+	"URGENT: ",
 	"",
-	"Good morning, ",
-	"I'm having trouble with: ",
+	"Our team has noticed that ",
+	"Following up on this: ",
 ];
 
 const DESCRIPTION_SUFFIXES = [
-	" Please help.",
-	" This is affecting my work.",
-	" Thank you.",
+	" This is blocking our workflow.",
+	" Multiple users affected.",
+	" Thanks for looking into this.",
 	"",
-	" Can someone assist?",
-	" Appreciate the help.",
+	" Please prioritize.",
+	" Let me know if you need more details.",
 ];
 
-function generateDescription(subject: string): string {
-	const prefix =
-		DESCRIPTION_PREFIXES[
-			Math.floor(Math.random() * DESCRIPTION_PREFIXES.length)
-		];
-	const suffix =
-		DESCRIPTION_SUFFIXES[
-			Math.floor(Math.random() * DESCRIPTION_SUFFIXES.length)
-		];
-	return `${prefix}${subject}${suffix}`;
-}
-
 const REQUESTERS = [
-	"john.doe@acme.com",
-	"jane.smith@acme.com",
-	"carlos.garcia@acme.com",
-	"wei.zhang@acme.com",
-	"sarah.wilson@acme.com",
-	"mike.johnson@acme.com",
-	"anna.lee@acme.com",
-	"peter.brown@acme.com",
-	"maria.martinez@acme.com",
-	"tom.davis@acme.com",
+	"cto@startupco.io",
+	"ops.lead@retailchain.com",
+	"devops@fintech-corp.com",
+	"support.mgr@healthsys.org",
+	"admin@edtech-platform.com",
+	"infra@logisticsapp.io",
+	"product@saas-vendor.com",
+	"eng.director@mediagroup.net",
+	"it.manager@nonprofit.org",
+	"ciso@insurancetech.com",
 ];
 
 const AGENTS = [
-	"Support Team",
-	"Help Desk Agent",
-	"IT Support",
-	"Network Admin",
-	"Security Team",
+	"Tier 1 Support",
+	"Tier 2 Engineering",
+	"Billing Team",
+	"Customer Success",
+	"DevOps On-Call",
 	"",
 	"",
 	"",
 ];
-
-const PRIORITIES = ["low", "medium", "high", "urgent"];
-const PRIORITY_WEIGHTS = [0.2, 0.5, 0.2, 0.1];
-
-const KB_STATUSES = ["PENDING", "FOUND", "GAP"] as const;
-const KB_STATUS_WEIGHTS = [0.2, 0.5, 0.3];
-
-function getRandomFrom<T>(arr: T[]): T {
-	return arr[Math.floor(Math.random() * arr.length)];
-}
-
-function getWeightedRandom(values: string[], weights: number[]): string {
-	const rand = Math.random();
-	let cumulative = 0;
-	for (let i = 0; i < values.length; i++) {
-		cumulative += weights[i];
-		if (rand < cumulative) return values[i];
-	}
-	return values[0];
-}
 
 function generateFreshdeskMetadata(
 	ticketId: number,
@@ -219,11 +187,15 @@ function generateFreshdeskMetadata(
 	return {
 		id: ticketId,
 		subject,
-		description_text: generateDescription(subject),
+		description_text: generateDescription(
+			subject,
+			DESCRIPTION_PREFIXES,
+			DESCRIPTION_SUFFIXES,
+		),
 		type: "Incident",
 		status: statusMap.open,
 		priority: priorityMap[priority] || 2,
-		source: 2, // Portal
+		source: 2,
 		requester_id: Math.floor(Math.random() * 100000) + 1000,
 		responder_id: agent ? Math.floor(Math.random() * 100) + 1 : null,
 		group_id: Math.floor(Math.random() * 10) + 1,
@@ -254,180 +226,72 @@ function generateFreshdeskMetadata(
 	};
 }
 
-export interface SyncResult {
-	modelId: string | null;
-	clustersCreated: number;
-	ticketsCreated: number;
+function matchFreshdeskScenario(domain: string): TrainingScenario {
+	const lower = domain.toLowerCase();
+	if (lower.includes("mock-null")) return "null";
+	if (lower.includes("mock-failed")) return "failed";
+	if (lower.includes("mock-progress")) return "progress";
+	return "complete";
 }
 
-export interface FreshdeskSyncSettings {
-	domain?: string;
-	time_range_days?: number;
-	[key: string]: unknown;
+const freshdeskConfig: ProviderConfig = {
+	name: "freshdesk",
+	loggerName: "freshdesk-sync",
+	modelName: "Freshdesk ITSM Model",
+	externalModelIdPrefix: "mock-freshdesk-model-",
+	externalIdPrefix: "FD-",
+	externalStatus: "Open",
+	ticketNumStart: 50001,
+	clusterNames: CLUSTER_NAMES,
+	subjectTemplates: SUBJECT_TEMPLATES,
+	descriptionPrefixes: DESCRIPTION_PREFIXES,
+	descriptionSuffixes: DESCRIPTION_SUFFIXES,
+	requesters: REQUESTERS,
+	agents: AGENTS,
+	priorities: ["low", "medium", "high", "urgent"],
+	priorityWeights: [0.15, 0.45, 0.25, 0.15],
+	kbStatusWeights: [0.3, 0.4, 0.3],
+	dateDistribution: [0.25, 0.55, 0.8, 1.0],
+	dateRanges: [
+		[0, 14],
+		[14, 60],
+		[60, 120],
+		[120, 240],
+	],
+	generateMetadata: generateFreshdeskMetadata,
+	getScenarioKey: (settings) => (settings?.domain as string) || undefined,
+	matchScenario: matchFreshdeskScenario,
+};
+
+// --- Public API (backward-compatible signatures) ---
+
+/**
+ * Determine training scenario from domain
+ * - mock-null.freshdesk.com: Don't create ml_model
+ * - mock-failed.freshdesk.com: Create with training_state: "failed"
+ * - mock-progress.freshdesk.com: Create with training_state: "in_progress" (stays)
+ * - (default): Create with in_progress, transition to complete after delay
+ */
+export function getTrainingScenario(
+	domain: string | undefined,
+): TrainingScenario {
+	return getTrainingScenarioFromConfig(freshdeskConfig, { domain });
 }
 
 /**
  * Simulate Freshdesk ITSM sync by inserting realistic test data
- * Reuses the same DB schema (clusters + tickets + ml_model) as ServiceNow
  */
 export async function syncFreshdeskData(
 	organizationId: string,
 	connectionId: string,
 	ingestionRunId: string,
-	_settings?: FreshdeskSyncSettings,
-): Promise<SyncResult> {
-	logger.info(
-		{ organizationId, connectionId, ingestionRunId },
-		"Starting Freshdesk data sync",
+	settings?: FreshdeskSyncSettings,
+): Promise<import("./sync-common.js").SyncResult> {
+	return syncProviderData(
+		freshdeskConfig,
+		organizationId,
+		connectionId,
+		ingestionRunId,
+		settings,
 	);
-
-	return withTransaction(async (client: pg.PoolClient) => {
-		// Clean up existing tickets and clusters
-		await client.query(`DELETE FROM tickets WHERE organization_id = $1`, [
-			organizationId,
-		]);
-		await client.query(`DELETE FROM clusters WHERE organization_id = $1`, [
-			organizationId,
-		]);
-		logger.debug(
-			{ organizationId },
-			"Cleaned up existing tickets and clusters",
-		);
-
-		// Create/update ml_model
-		const externalModelId = `mock-freshdesk-model-${organizationId.substring(0, 8)}`;
-		const modelMetadata = JSON.stringify({ training_state: "in_progress" });
-		const modelResult = await client.query<{ id: string }>(
-			`INSERT INTO ml_models (organization_id, external_model_id, model_name, active, metadata)
-       VALUES ($1, $2, 'Freshdesk ITSM Model', true, $3::jsonb)
-       ON CONFLICT (organization_id, external_model_id)
-       DO UPDATE SET active = true, metadata = $3::jsonb, updated_at = NOW()
-       RETURNING id`,
-			[organizationId, externalModelId, modelMetadata],
-		);
-		const modelId = modelResult.rows[0].id;
-		logger.debug({ modelId }, "ML model created/updated");
-
-		// Create clusters
-		const clusterMap = new Map<string, string>();
-		for (const clusterName of CLUSTER_NAMES) {
-			const kbStatus = getWeightedRandom(
-				[...KB_STATUSES],
-				[...KB_STATUS_WEIGHTS],
-			);
-			const clusterResult = await client.query<{ id: string }>(
-				`INSERT INTO clusters (organization_id, model_id, name, subcluster_name, config, kb_status)
-         VALUES ($1, $2, $3, NULL, '{}', $4)
-         ON CONFLICT (organization_id, model_id, name, COALESCE(subcluster_name, ''))
-         DO UPDATE SET kb_status = $4, updated_at = NOW()
-         RETURNING id`,
-				[organizationId, modelId, clusterName, kbStatus],
-			);
-			clusterMap.set(clusterName, clusterResult.rows[0].id);
-		}
-		logger.debug({ clusterCount: clusterMap.size }, "Clusters created/updated");
-
-		// Create tickets (5-15 per cluster)
-		let ticketNum = 50001;
-		let ticketsCreated = 0;
-
-		const getRandomCreatedAt = (): Date => {
-			const now = new Date();
-			const rand = Math.random();
-			if (rand < 0.3) {
-				return new Date(
-					now.getTime() - Math.random() * 30 * 24 * 60 * 60 * 1000,
-				);
-			} else if (rand < 0.5) {
-				return new Date(
-					now.getTime() - (30 + Math.random() * 60) * 24 * 60 * 60 * 1000,
-				);
-			} else if (rand < 0.75) {
-				return new Date(
-					now.getTime() - (90 + Math.random() * 90) * 24 * 60 * 60 * 1000,
-				);
-			} else {
-				return new Date(
-					now.getTime() - (180 + Math.random() * 185) * 24 * 60 * 60 * 1000,
-				);
-			}
-		};
-
-		for (const [clusterName, clusterId] of clusterMap) {
-			const ticketsPerCluster = 5 + Math.floor(Math.random() * 11);
-
-			for (let i = 0; i < ticketsPerCluster; i++) {
-				const subject = getRandomSubject(clusterName);
-				const externalId = `FD-${ticketNum}`;
-				const requester = getRandomFrom(REQUESTERS);
-				const agent = getRandomFrom(AGENTS);
-				const priority = getWeightedRandom(PRIORITIES, PRIORITY_WEIGHTS);
-				const sourceMetadata = generateFreshdeskMetadata(
-					ticketNum,
-					subject,
-					requester,
-					agent,
-					priority,
-				);
-				const createdAt = getRandomCreatedAt();
-				const description = generateDescription(subject);
-
-				const insertResult = await client.query(
-					`INSERT INTO tickets (
-            organization_id, cluster_id, data_source_connection_id,
-            external_id, subject, description, external_status, rita_status, source_metadata, created_at,
-            requester, assigned_to, priority
-          ) VALUES ($1, $2, $3, $4, $5, $6, 'Open', 'NEEDS_RESPONSE', $7, $8, $9, $10, $11)
-          ON CONFLICT (organization_id, external_id) DO NOTHING`,
-					[
-						organizationId,
-						clusterId,
-						connectionId,
-						externalId,
-						subject,
-						description,
-						JSON.stringify(sourceMetadata),
-						createdAt,
-						requester,
-						agent || null,
-						priority,
-					],
-				);
-
-				if (insertResult.rowCount && insertResult.rowCount > 0) {
-					ticketsCreated++;
-				}
-				ticketNum++;
-			}
-		}
-
-		logger.info(
-			{
-				modelId,
-				clustersCreated: clusterMap.size,
-				ticketsCreated,
-			},
-			"Freshdesk data sync completed",
-		);
-
-		// Transition model to complete after delay
-		setTimeout(async () => {
-			try {
-				const { query } = await import("./database.js");
-				await query(
-					`UPDATE ml_models SET metadata = '{"training_state": "complete"}'::jsonb, updated_at = NOW() WHERE id = $1 AND organization_id = $2`,
-					[modelId, organizationId],
-				);
-				logger.info({ modelId }, "Training state transitioned to complete");
-			} catch (error) {
-				logger.error({ error, modelId }, "Failed to transition training state");
-			}
-		}, 15000);
-
-		return {
-			modelId,
-			clustersCreated: clusterMap.size,
-			ticketsCreated,
-		};
-	});
 }
