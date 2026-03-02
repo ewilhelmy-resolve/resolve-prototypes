@@ -56,7 +56,7 @@ import { ClusterDetailTable } from "./ClusterDetailTable";
 // ---------------------------------------------------------------------------
 // Shared test data
 // ---------------------------------------------------------------------------
-function makeTickets(count: number) {
+function makeTickets(count: number, overrides?: Record<string, unknown>) {
 	return Array.from({ length: count }, (_, i) => ({
 		id: `ticket-${i}`,
 		organization_id: "org-1",
@@ -74,6 +74,7 @@ function makeTickets(count: number) {
 		priority: "medium",
 		created_at: "2025-06-01T10:00:00Z",
 		updated_at: "2025-06-01T10:00:00Z",
+		...overrides,
 	}));
 }
 
@@ -197,7 +198,36 @@ describe("ClusterDetailTable pagination", () => {
 	});
 
 	// -------------------------------------------------------------------
-	// 3. Page does not reset when search has not changed
+	// 3. Does not crash when source_metadata.source is a number (Freshdesk)
+	// -------------------------------------------------------------------
+	it("does not crash when source_metadata.source is a non-string value", async () => {
+		// Freshdesk stores source as a number (e.g. 2), not a string
+		const freshdeskTickets = makeTickets(2, {
+			source_metadata: { source: 2, id: 12345 },
+		});
+
+		mockUseClusterTickets.mockReturnValue({
+			data: {
+				data: freshdeskTickets,
+				pagination: { total: 2, limit: 10, offset: 0, has_more: false },
+			},
+			isLoading: false,
+			error: null,
+		});
+
+		render(
+			<TestProviders initialEntries={["/clusters/cluster-1"]}>
+				<ClusterDetailTable clusterId="cluster-1" />
+			</TestProviders>,
+		);
+
+		// Should render ticket subjects without crashing
+		expect(screen.getByText("Ticket subject 0")).toBeInTheDocument();
+		expect(screen.getByText("Ticket subject 1")).toBeInTheDocument();
+	});
+
+	// -------------------------------------------------------------------
+	// 4. Page does not reset when search has not changed
 	// -------------------------------------------------------------------
 	it("page does not reset when search has not changed", async () => {
 		// Start at page 2 with no search

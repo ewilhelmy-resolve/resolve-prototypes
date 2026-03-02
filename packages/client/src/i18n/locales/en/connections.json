@@ -113,7 +113,9 @@
 			"tenantIdRequired": "Tenant ID is required",
 			"clientIdRequired": "Client ID is required",
 			"clientSecretRequired": "Client Secret is required",
-			"siteUrlRequired": "Site URL is required"
+			"siteUrlRequired": "Site URL is required",
+			"domainRequired": "Domain is required",
+			"apiKeyRequired": "API key is required"
 		},
 		"buttons": {
 			"connect": "Connect",
@@ -219,6 +221,7 @@
 			"syncStartedServiceNowKb": "Your ServiceNow knowledge articles are being synced",
 			"syncStartedServiceNowItsm": "Your ServiceNow tickets are being synced",
 			"syncStartedJiraItsm": "Your Jira tickets are being synced",
+			"syncStartedFreshdesk": "Your Freshdesk tickets are being synced",
 			"syncStartedIvantiItsm": "Your Ivanti tickets are being synced",
 			"syncFailed": "Sync Failed",
 			"syncFailedDefault": "Failed to start sync",
