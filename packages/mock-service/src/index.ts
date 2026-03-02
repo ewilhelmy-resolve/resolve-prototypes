@@ -17,6 +17,7 @@ import {
 } from "./config/logger.js";
 import { syncConfluenceData } from "./confluence-sync.js";
 import { emailService } from "./email-service.js";
+import { syncFreshdeskData } from "./freshdesk-sync.js";
 import { syncServiceNowData } from "./servicenow-sync.js";
 import { getRabbitMQService } from "./services/rabbitmq.js";
 
@@ -3136,10 +3137,11 @@ app.post("/webhook", async (req, res) => {
 				"Received sync_tickets webhook",
 			);
 
-			// For ServiceNow ITSM and Ivanti ITSM, insert actual test data into the database
+			// For ServiceNow ITSM, Ivanti ITSM, and Freshdesk, insert actual test data into the database
 			const isServiceNow = ticketsPayload.connection_type === "servicenow_itsm";
 			const isIvanti = ticketsPayload.connection_type === "ivanti_itsm";
-			const useRealData = isServiceNow || isIvanti;
+			const isFreshdesk = ticketsPayload.connection_type === "freshdesk";
+			const useRealData = isServiceNow || isIvanti || isFreshdesk;
 
 			// Start async data sync and progress reporting
 			(async () => {
@@ -3189,9 +3191,14 @@ app.post("/webhook", async (req, res) => {
 					let ticketsCreated = 0;
 
 					if (useRealData) {
-						// Insert actual data for ServiceNow/Ivanti ITSM
+						// Insert actual data for ServiceNow/Ivanti/Freshdesk ITSM
+						const providerName = isFreshdesk
+							? "Freshdesk"
+							: isServiceNow
+								? "ServiceNow"
+								: "Ivanti";
 						contextLogger.info(
-							`Inserting ${isServiceNow ? "ServiceNow" : "Ivanti"} test data into database...`,
+							`Inserting ${providerName} test data into database...`,
 						);
 
 						// Send initial progress message
@@ -3213,13 +3220,19 @@ app.post("/webhook", async (req, res) => {
 						);
 
 						// Perform actual data insertion
-						// Pass settings to enable username-based training state scenarios
-						const syncResult = await syncServiceNowData(
-							ticketsPayload.tenant_id,
-							ticketsPayload.connection_id,
-							ticketsPayload.ingestion_run_id,
-							ticketsPayload.settings,
-						);
+						const syncResult = isFreshdesk
+							? await syncFreshdeskData(
+									ticketsPayload.tenant_id,
+									ticketsPayload.connection_id,
+									ticketsPayload.ingestion_run_id,
+									ticketsPayload.settings,
+								)
+							: await syncServiceNowData(
+									ticketsPayload.tenant_id,
+									ticketsPayload.connection_id,
+									ticketsPayload.ingestion_run_id,
+									ticketsPayload.settings,
+								);
 
 						totalTickets = syncResult.ticketsCreated;
 						ticketsCreated = syncResult.ticketsCreated;
@@ -3230,7 +3243,7 @@ app.post("/webhook", async (req, res) => {
 								clustersCreated: syncResult.clustersCreated,
 								ticketsCreated: syncResult.ticketsCreated,
 							},
-							"ServiceNow data inserted successfully",
+							`${providerName} data inserted successfully`,
 						);
 
 						// Simulate realistic sync time with partial progress updates
