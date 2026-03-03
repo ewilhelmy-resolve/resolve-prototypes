@@ -1,5 +1,5 @@
 import { z } from "../docs/openapi.js";
-import { PaginationInfoSchema } from "./common.js";
+import { OffsetPaginationInfoSchema, PaginationInfoSchema } from "./common.js";
 
 // ============================================================================
 // Enums and Config
@@ -71,11 +71,12 @@ export const ClusterTicketsQuerySchema = z
 			.enum(["needs_response", "completed"])
 			.optional()
 			.openapi({ description: "Filter by ticket status" }),
-		cursor: z
-			.string()
-			.datetime()
+		offset: z.coerce
+			.number()
+			.int()
+			.min(0)
 			.optional()
-			.openapi({ description: "Pagination cursor (ISO timestamp)" }),
+			.openapi({ description: "Pagination offset", default: 0 }),
 		limit: z.coerce
 			.number()
 			.int()
@@ -243,7 +244,7 @@ export const ClusterDetailsResponseSchema = z
 export const ClusterTicketsResponseSchema = z
 	.object({
 		data: z.array(TicketSchema),
-		pagination: PaginationInfoSchema,
+		pagination: OffsetPaginationInfoSchema,
 	})
 	.openapi("ClusterTicketsResponse");
 

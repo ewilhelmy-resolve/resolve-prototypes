@@ -670,7 +670,7 @@
 						}
 					},
 					"pagination": {
-						"$ref": "#/components/schemas/PaginationInfo"
+						"$ref": "#/components/schemas/OffsetPaginationInfo"
 					}
 				},
 				"required": ["data", "pagination"]
@@ -753,6 +753,32 @@
 				"type": "string",
 				"enum": ["NEEDS_RESPONSE", "COMPLETED"],
 				"description": "Rita processing status for tickets"
+			},
+			"OffsetPaginationInfo": {
+				"type": "object",
+				"properties": {
+					"total": {
+						"type": "integer",
+						"description": "Total number of matching records",
+						"example": 42
+					},
+					"limit": {
+						"type": "integer",
+						"description": "Results per page",
+						"example": 20
+					},
+					"offset": {
+						"type": "integer",
+						"description": "Current offset",
+						"example": 0
+					},
+					"has_more": {
+						"type": "boolean",
+						"description": "Whether there are more results",
+						"example": true
+					}
+				},
+				"required": ["total", "limit", "offset", "has_more"]
 			},
 			"ClusterKbArticlesResponse": {
 				"type": "object",
@@ -3619,13 +3645,14 @@
 					},
 					{
 						"schema": {
-							"type": "string",
-							"format": "date-time",
-							"description": "Pagination cursor (ISO timestamp)"
+							"type": ["integer", "null"],
+							"minimum": 0,
+							"default": 0,
+							"description": "Pagination offset"
 						},
 						"required": false,
-						"description": "Pagination cursor (ISO timestamp)",
-						"name": "cursor",
+						"description": "Pagination offset",
+						"name": "offset",
 						"in": "query"
 					},
 					{

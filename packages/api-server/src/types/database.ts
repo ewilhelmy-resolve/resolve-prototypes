@@ -245,19 +245,23 @@ export interface ItsmFieldMappings {
 	created_at: Generated<Timestamp>;
 	created_by: string | null;
 	data_source_connection_id: string;
+	/**
+	 * Rita field being mapped: priority, status
+	 */
+	field_name: string;
 	id: Generated<string>;
 	/**
 	 * Denormalized from data_source_connections for RLS org isolation
 	 */
 	organization_id: string;
 	/**
-	 * Field name in external ITSM system that maps to target_field
+	 * Value from external ITSM system (e.g., 1 - Critical)
 	 */
-	source_field: string;
+	source_value: string;
 	/**
-	 * Rita target field: priority, status
+	 * Mapped Rita value (e.g., Critical)
 	 */
-	target_field: string;
+	target_value: string;
 	updated_at: Generated<Timestamp>;
 	updated_by: string | null;
 }

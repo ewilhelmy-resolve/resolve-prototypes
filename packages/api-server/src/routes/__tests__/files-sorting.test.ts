@@ -72,8 +72,10 @@ describe("GET /api/files - Sorting", () => {
 				.expect(200);
 
 			const selectQuery = mockClient.query.mock.calls[0][0];
-			// Should have tiebreaker: ORDER BY bm.status DESC, bm.id ASC
-			expect(selectQuery).toMatch(/ORDER BY\s+bm\.status\s+DESC\s*,\s*bm\.id/i);
+			// Should have tiebreaker: ORDER BY LOWER(bm.status) DESC, bm.id ASC
+			expect(selectQuery).toMatch(
+				/ORDER BY\s+LOWER\(bm\.status\)\s+DESC\s*,\s*bm\.id/i,
+			);
 		});
 
 		it("should include tiebreaker for all sort fields", async () => {
@@ -91,6 +93,70 @@ describe("GET /api/files - Sorting", () => {
 				const selectQuery = mockClient.query.mock.calls[0][0];
 				expect(selectQuery).toMatch(/,\s*bm\.id/i);
 			}
+		});
+	});
+
+	describe("case-insensitive sorting for text fields", () => {
+		it("should use LOWER() for filename sorting to avoid case-sensitive grouping", async () => {
+			setupMockQuery();
+
+			await request(app)
+				.get("/files")
+				.query({ sort_by: "filename", sort_order: "asc" })
+				.expect(200);
+
+			const selectQuery = mockClient.query.mock.calls[0][0];
+			// Must use LOWER(bm.filename) so "article_2" sorts near "AltoonaMinutes"
+			expect(selectQuery).toMatch(/ORDER BY\s+LOWER\(bm\.filename\)\s+ASC/i);
+		});
+
+		it("should use LOWER() for source sorting to avoid case-sensitive grouping", async () => {
+			setupMockQuery();
+
+			await request(app)
+				.get("/files")
+				.query({ sort_by: "source", sort_order: "asc" })
+				.expect(200);
+
+			const selectQuery = mockClient.query.mock.calls[0][0];
+			expect(selectQuery).toMatch(/ORDER BY\s+LOWER\(bm\.source\)\s+ASC/i);
+		});
+
+		it("should use LOWER() for type sorting to avoid case-sensitive grouping", async () => {
+			setupMockQuery();
+
+			await request(app)
+				.get("/files")
+				.query({ sort_by: "type", sort_order: "asc" })
+				.expect(200);
+
+			const selectQuery = mockClient.query.mock.calls[0][0];
+			expect(selectQuery).toMatch(/ORDER BY\s+LOWER\(bm\.mime_type\)\s+ASC/i);
+		});
+
+		it("should use LOWER() for status sorting to avoid case-sensitive grouping", async () => {
+			setupMockQuery();
+
+			await request(app)
+				.get("/files")
+				.query({ sort_by: "status", sort_order: "asc" })
+				.expect(200);
+
+			const selectQuery = mockClient.query.mock.calls[0][0];
+			expect(selectQuery).toMatch(/ORDER BY\s+LOWER\(bm\.status\)\s+ASC/i);
+		});
+
+		it("should NOT use LOWER() for non-text fields like size", async () => {
+			setupMockQuery();
+
+			await request(app)
+				.get("/files")
+				.query({ sort_by: "size", sort_order: "asc" })
+				.expect(200);
+
+			const selectQuery = mockClient.query.mock.calls[0][0];
+			expect(selectQuery).toMatch(/ORDER BY\s+bm\.file_size\s+ASC/i);
+			expect(selectQuery).not.toMatch(/LOWER\(bm\.file_size\)/i);
 		});
 	});
 

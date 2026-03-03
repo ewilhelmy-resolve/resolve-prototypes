@@ -932,11 +932,11 @@ router.get("/", authenticateUser, async (req, res) => {
 
 		// Validate and map sort fields to database columns
 		const sortFieldMap: Record<string, string> = {
-			filename: "bm.filename",
+			filename: "LOWER(bm.filename)",
 			size: "bm.file_size",
-			type: "bm.mime_type",
-			status: "bm.status",
-			source: "bm.source",
+			type: "LOWER(bm.mime_type)",
+			status: "LOWER(bm.status)",
+			source: "LOWER(bm.source)",
 			created_at: "bm.created_at",
 			updated_at: "bm.updated_at",
 		};
