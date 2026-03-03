@@ -228,6 +228,22 @@
 		},
 		"empty": "No clusters"
 	},
+	"prioritizationList": {
+		"presets": {
+			"highestCost": "Highest Cost Impact",
+			"longestMttr": "Longest MTTR",
+			"mostTime": "Most Time Taken"
+		},
+		"columns": {
+			"cluster": "Cluster",
+			"tickets": "Tickets",
+			"open": "Open",
+			"mttr": "MTTR",
+			"costImpact": "Cost Impact",
+			"timeTaken": "Time Taken",
+			"kbStatus": "KB"
+		}
+	},
 	"gaps": {
 		"knowledgeGap": "Knowledge Gap",
 		"automationGap": "Automation Gap",

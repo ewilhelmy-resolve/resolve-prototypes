@@ -44,7 +44,7 @@ import {
 } from "@/types/cluster";
 import { TRAINING_STATES } from "@/types/mlModel";
 import { PrioritizationChart } from "./PrioritizationChart";
-import { PrioritizationMatrix } from "./PrioritizationMatrix";
+import { PrioritizationRankedList } from "./PrioritizationRankedList";
 import { TicketGroupSkeleton } from "./TicketGroupSkeleton";
 import { TicketGroupStat } from "./TicketGroupStat";
 
@@ -489,7 +489,7 @@ export default function TicketGroups({ period }: TicketGroupsProps) {
 							</div>
 						)}
 
-						{isPrioritization && <PrioritizationMatrix clusters={clusters} />}
+						{isPrioritization && <PrioritizationRankedList clusters={clusters} />}
 
 						{isCharts && (
 							<>

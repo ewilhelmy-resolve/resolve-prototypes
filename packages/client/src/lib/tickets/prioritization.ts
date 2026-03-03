@@ -109,6 +109,65 @@ export function bucketIntoQuadrants(
 	return result;
 }
 
+/** Mock MTTR values per cluster (minutes) for demo mode */
+export const MOCK_MTTR_MINUTES: Record<string, number> = {
+	"cl-001": 18,
+	"cl-002": 6,
+	"cl-003": 42,
+	"cl-004": 25,
+	"cl-005": 55,
+	"cl-006": 35,
+	"cl-007": 12,
+	"cl-008": 30,
+};
+
+export interface RoiRankedCluster {
+	cluster: ClusterListItem;
+	rank: number;
+	displayName: string;
+	costImpact: number;
+	timeTaken: number;
+	mttr: number;
+	ctaState: CTAState;
+}
+
+export type RoiSortKey = "costImpact" | "mttr" | "timeTaken";
+
+export function rankClustersByRoi(
+	clusters: ClusterListItem[],
+	costPerTicket: number,
+	avgTimePerTicket: number,
+	sortKey: RoiSortKey = "costImpact",
+	sortDir: "asc" | "desc" = "desc",
+): RoiRankedCluster[] {
+	const items = clusters.map((cluster) => {
+		const displayName = cluster.subcluster_name
+			? `${cluster.name} - ${cluster.subcluster_name}`
+			: cluster.name;
+		const costImpact =
+			costPerTicket * (avgTimePerTicket / 60) * cluster.ticket_count;
+		const timeTaken = avgTimePerTicket * cluster.needs_response_count;
+		const mttr = MOCK_MTTR_MINUTES[cluster.id] ?? 20;
+
+		return {
+			cluster,
+			rank: 0,
+			displayName,
+			costImpact,
+			timeTaken,
+			mttr,
+			ctaState: deriveCTAState(cluster),
+		};
+	});
+
+	items.sort((a, b) => {
+		const mul = sortDir === "desc" ? -1 : 1;
+		return mul * (a[sortKey] - b[sortKey]);
+	});
+
+	return items.map((item, i) => ({ ...item, rank: i + 1 }));
+}
+
 export function computeAggregateSavings(
 	clusters: ClusterListItem[],
 	costPerTicket: number,
