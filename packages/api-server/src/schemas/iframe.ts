@@ -146,6 +146,18 @@ export const IframeDeleteConversationResponseSchema = z
 
 export const IframeSessionContextResponseSchema = z
 	.object({
+		tenantId: z
+			.string()
+			.optional()
+			.openapi({ description: "Tenant ID from Valkey session" }),
+		userGuid: z
+			.string()
+			.optional()
+			.openapi({ description: "User GUID from Valkey session" }),
+		context: z
+			.record(z.string(), z.unknown())
+			.optional()
+			.openapi({ description: "Session context (runId, activityId, etc.)" }),
 		accessToken: z
 			.string()
 			.optional()

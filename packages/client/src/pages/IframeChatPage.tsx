@@ -1088,7 +1088,7 @@ export default function IframeChatPage() {
 		if (sessionKey) {
 			try {
 				const resp = await fetch(
-					`${apiUrl}/api/iframe/session-context?sessionKey=${sessionKey}`,
+					`${apiUrl}/api/iframe/session-context?sessionKey=${encodeURIComponent(sessionKey)}`,
 				);
 				if (resp.ok) freshPayload = await resp.json();
 			} catch {
@@ -1119,7 +1119,7 @@ export default function IframeChatPage() {
 			})),
 		};
 		triggerDownload(data, `metadata-${conversationId}-${Date.now()}.json`);
-	}, [conversationId, sessionKey, valkeyPayload, debugLogs, triggerDownload, apiUrl]);
+	}, [conversationId, sessionKey, valkeyPayload, debugLogs, triggerDownload]);
 
 	// Clear chat handler - deletes conversation and creates a new one
 	const handleClearChat = useCallback(async () => {

@@ -319,7 +319,17 @@ describe('iframe.routes', () => {
         .get('/api/iframe/session-context')
         .expect(400);
 
-      expect(response.body.error).toBe('sessionKey required');
+      expect(response.body.error).toContain('sessionKey required');
+      expect(mockIframeService.fetchValkeyPayloadWithDebug).not.toHaveBeenCalled();
+    });
+
+    it('should return 400 when sessionKey exceeds max length', async () => {
+      const longKey = 'a'.repeat(257);
+      const response = await request(app)
+        .get(`/api/iframe/session-context?sessionKey=${longKey}`)
+        .expect(400);
+
+      expect(response.body.error).toContain('sessionKey required');
       expect(mockIframeService.fetchValkeyPayloadWithDebug).not.toHaveBeenCalled();
     });
 
@@ -334,7 +344,8 @@ describe('iframe.routes', () => {
         .expect(404);
 
       expect(response.body.error).toBe('Session not found');
-      expect(response.body.debug).toBeDefined();
+      // debug info should NOT be leaked to client
+      expect(response.body.debug).toBeUndefined();
     });
 
     it('should return 500 on unexpected error', async () => {

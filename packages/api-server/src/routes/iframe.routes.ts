@@ -156,6 +156,8 @@ registry.registerPath({
 		query: z.object({
 			sessionKey: z
 				.string()
+				.min(1)
+				.max(256)
 				.openapi({ description: "Valkey session key" }),
 		}),
 	},
@@ -167,11 +169,15 @@ registry.registerPath({
 			},
 		},
 		400: {
-			description: "Missing sessionKey",
+			description: "Missing or invalid sessionKey",
 			content: { "application/json": { schema: ErrorResponseSchema } },
 		},
 		404: {
 			description: "Session not found in Valkey",
+			content: { "application/json": { schema: ErrorResponseSchema } },
+		},
+		500: {
+			description: "Server error",
 			content: { "application/json": { schema: ErrorResponseSchema } },
 		},
 	},
@@ -308,19 +314,22 @@ router.get("/debug", async (_req, res) => {
  * updated runId/activityId mid-session). Sensitive fields redacted.
  */
 router.get("/session-context", async (req, res) => {
-	const sessionKey = req.query.sessionKey as string;
-	if (!sessionKey) {
-		res.status(400).json({ error: "sessionKey required" });
+	const parsed = z
+		.object({ sessionKey: z.string().min(1).max(256) })
+		.safeParse(req.query);
+	if (!parsed.success) {
+		res.status(400).json({ error: "sessionKey required (1-256 chars)" });
 		return;
 	}
+	const { sessionKey } = parsed.data;
 
 	try {
 		const iframeService = getIframeService();
-		const { config, debug } =
+		const { config } =
 			await iframeService.fetchValkeyPayloadWithDebug(sessionKey);
 
 		if (!config) {
-			res.status(404).json({ error: "Session not found", debug });
+			res.status(404).json({ error: "Session not found" });
 			return;
 		}
 
