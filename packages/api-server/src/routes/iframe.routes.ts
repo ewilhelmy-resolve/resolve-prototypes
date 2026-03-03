@@ -21,6 +21,7 @@ import {
 	IframeDeleteConversationResponseSchema,
 	IframeExecuteRequestSchema,
 	IframeExecuteResponseSchema,
+	IframeSessionContextResponseSchema,
 	IframeValidateRequestSchema,
 	IframeValidateResponseSchema,
 } from "../schemas/iframe.js";
@@ -139,6 +140,39 @@ registry.registerPath({
 			content: {
 				"application/json": { schema: IframeDeleteConversationResponseSchema },
 			},
+		},
+	},
+});
+
+registry.registerPath({
+	method: "get",
+	path: "/api/iframe/session-context",
+	tags: ["Iframe"],
+	summary: "Get fresh session context from Valkey",
+	description:
+		"Re-reads Valkey and returns fresh payload with sensitive fields redacted. Used before metadata download to get latest context (runId, activityId).",
+	security: [],
+	request: {
+		query: z.object({
+			sessionKey: z
+				.string()
+				.openapi({ description: "Valkey session key" }),
+		}),
+	},
+	responses: {
+		200: {
+			description: "Fresh session context",
+			content: {
+				"application/json": { schema: IframeSessionContextResponseSchema },
+			},
+		},
+		400: {
+			description: "Missing sessionKey",
+			content: { "application/json": { schema: ErrorResponseSchema } },
+		},
+		404: {
+			description: "Session not found in Valkey",
+			content: { "application/json": { schema: ErrorResponseSchema } },
 		},
 	},
 });
@@ -264,6 +298,47 @@ router.get("/debug", async (_req, res) => {
 		valkey: valkeyStatus,
 		environment: envVars,
 	});
+});
+
+/**
+ * Get fresh session context from Valkey
+ * GET /api/iframe/session-context
+ *
+ * Re-reads Valkey to get latest payload (Actions Platform may have
+ * updated runId/activityId mid-session). Sensitive fields redacted.
+ */
+router.get("/session-context", async (req, res) => {
+	const sessionKey = req.query.sessionKey as string;
+	if (!sessionKey) {
+		res.status(400).json({ error: "sessionKey required" });
+		return;
+	}
+
+	try {
+		const iframeService = getIframeService();
+		const { config, debug } =
+			await iframeService.fetchValkeyPayloadWithDebug(sessionKey);
+
+		if (!config) {
+			res.status(404).json({ error: "Session not found", debug });
+			return;
+		}
+
+		// Redact sensitive fields (same pattern as validate-instantiation)
+		res.json({
+			...config,
+			accessToken: config.accessToken ? "[REDACTED]" : undefined,
+			refreshToken: config.refreshToken ? "[REDACTED]" : undefined,
+			clientKey: config.clientKey ? "[REDACTED]" : undefined,
+		});
+	} catch (error) {
+		const err = error as Error;
+		logger.error(
+			{ sessionKey: sessionKey.substring(0, 8) + "...", error: err.message },
+			"Failed to fetch session context",
+		);
+		res.status(500).json({ error: "Failed to fetch session context" });
+	}
 });
 
 /**

@@ -5,6 +5,7 @@
  * - POST /api/iframe/validate-instantiation
  * - POST /api/iframe/execute
  * - GET /api/iframe/debug
+ * - GET /api/iframe/session-context
  *
  * /execute endpoint gets all IDs from Valkey config - no session lookup needed.
  */
@@ -18,6 +19,7 @@ const { mockIframeService, mockWorkflowService } =
   vi.hoisted(() => ({
     mockIframeService: {
       validateAndSetup: vi.fn(),
+      fetchValkeyPayloadWithDebug: vi.fn(),
     },
     mockWorkflowService: {
       executeFromHashkey: vi.fn(),
@@ -281,6 +283,87 @@ describe('iframe.routes', () => {
       expect(response.body.valkey).toBeDefined();
       expect(response.body.valkey.configured).toBe(true);
       expect(response.body.environment).toBeDefined();
+    });
+  });
+
+  describe('GET /api/iframe/session-context', () => {
+    it('should return fresh Valkey payload with sensitive fields redacted', async () => {
+      mockIframeService.fetchValkeyPayloadWithDebug.mockResolvedValue({
+        config: {
+          tenantId: 'tenant-123',
+          userGuid: 'user-456',
+          accessToken: 'secret-token',
+          refreshToken: 'secret-refresh',
+          clientKey: 'secret-key',
+          context: { runId: 'run-789', activityId: 'act-012' },
+        },
+        debug: { fullKey: 'rita:session:my-key' },
+      });
+
+      const response = await request(app)
+        .get('/api/iframe/session-context?sessionKey=my-session-key')
+        .expect(200);
+
+      expect(response.body.tenantId).toBe('tenant-123');
+      expect(response.body.userGuid).toBe('user-456');
+      expect(response.body.context).toEqual({ runId: 'run-789', activityId: 'act-012' });
+      // Sensitive fields redacted
+      expect(response.body.accessToken).toBe('[REDACTED]');
+      expect(response.body.refreshToken).toBe('[REDACTED]');
+      expect(response.body.clientKey).toBe('[REDACTED]');
+      expect(mockIframeService.fetchValkeyPayloadWithDebug).toHaveBeenCalledWith('my-session-key');
+    });
+
+    it('should return 400 when sessionKey is missing', async () => {
+      const response = await request(app)
+        .get('/api/iframe/session-context')
+        .expect(400);
+
+      expect(response.body.error).toBe('sessionKey required');
+      expect(mockIframeService.fetchValkeyPayloadWithDebug).not.toHaveBeenCalled();
+    });
+
+    it('should return 404 when session not found in Valkey', async () => {
+      mockIframeService.fetchValkeyPayloadWithDebug.mockResolvedValue({
+        config: null,
+        debug: { fullKey: 'rita:session:bad-key', error: 'KEY_NOT_FOUND' },
+      });
+
+      const response = await request(app)
+        .get('/api/iframe/session-context?sessionKey=bad-key')
+        .expect(404);
+
+      expect(response.body.error).toBe('Session not found');
+      expect(response.body.debug).toBeDefined();
+    });
+
+    it('should return 500 on unexpected error', async () => {
+      mockIframeService.fetchValkeyPayloadWithDebug.mockRejectedValue(new Error('Valkey connection lost'));
+
+      const response = await request(app)
+        .get('/api/iframe/session-context?sessionKey=any-key')
+        .expect(500);
+
+      expect(response.body.error).toBe('Failed to fetch session context');
+    });
+
+    it('should omit sensitive fields entirely when not present', async () => {
+      mockIframeService.fetchValkeyPayloadWithDebug.mockResolvedValue({
+        config: {
+          tenantId: 'tenant-123',
+          userGuid: 'user-456',
+        },
+        debug: { fullKey: 'rita:session:minimal-key' },
+      });
+
+      const response = await request(app)
+        .get('/api/iframe/session-context?sessionKey=minimal-key')
+        .expect(200);
+
+      expect(response.body.tenantId).toBe('tenant-123');
+      expect(response.body.accessToken).toBeUndefined();
+      expect(response.body.refreshToken).toBeUndefined();
+      expect(response.body.clientKey).toBeUndefined();
     });
   });
 });
