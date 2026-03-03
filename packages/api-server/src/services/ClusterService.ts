@@ -262,12 +262,15 @@ export class ClusterService {
 		// Build totals query (same filters, no pagination)
 		let totalsTicketSubquery = db
 			.selectFrom("tickets as t")
+			.leftJoin("tickets_log as tl", (join) =>
+				join
+					.onRef("tl.ticket_id", "=", "t.id")
+					.on("tl.event_type", "=", "agent_end"),
+			)
 			.select([
 				"t.cluster_id",
-				sql<number>`COUNT(*)`.as("cnt"),
-				sql<number>`COUNT(*) FILTER (WHERE EXISTS (SELECT 1 FROM tickets_log tl WHERE tl.ticket_id = t.id AND tl.event_type = 'agent_end'))`.as(
-					"automated_cnt",
-				),
+				sql<number>`COUNT(DISTINCT t.id)`.as("cnt"),
+				sql<number>`COUNT(DISTINCT tl.ticket_id)`.as("automated_cnt"),
 			]);
 
 		if (dateCutoff) {
