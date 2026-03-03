@@ -2086,6 +2086,37 @@
 				},
 				"required": ["success"]
 			},
+			"IframeSessionContextResponse": {
+				"type": "object",
+				"properties": {
+					"tenantId": {
+						"type": "string",
+						"description": "Tenant ID from Valkey session"
+					},
+					"userGuid": {
+						"type": "string",
+						"description": "User GUID from Valkey session"
+					},
+					"context": {
+						"type": "object",
+						"additionalProperties": {},
+						"description": "Session context (runId, activityId, etc.)"
+					},
+					"accessToken": {
+						"type": "string",
+						"description": "Access token (redacted)"
+					},
+					"refreshToken": {
+						"type": "string",
+						"description": "Refresh token (redacted)"
+					},
+					"clientKey": {
+						"type": "string",
+						"description": "Client key (redacted)"
+					}
+				},
+				"additionalProperties": {}
+			},
 			"SendInvitationsResponse": {
 				"type": "object",
 				"properties": {
@@ -6353,6 +6384,70 @@
 							"application/json": {
 								"schema": {
 									"$ref": "#/components/schemas/IframeDeleteConversationResponse"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/api/iframe/session-context": {
+			"get": {
+				"tags": ["Iframe"],
+				"summary": "Get fresh session context from Valkey",
+				"description": "Re-reads Valkey and returns fresh payload with sensitive fields redacted. Used before metadata download to get latest context (runId, activityId).",
+				"security": [],
+				"parameters": [
+					{
+						"schema": {
+							"type": "string",
+							"minLength": 1,
+							"maxLength": 256,
+							"description": "Valkey session key"
+						},
+						"required": true,
+						"description": "Valkey session key",
+						"name": "sessionKey",
+						"in": "query"
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "Fresh session context",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/IframeSessionContextResponse"
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "Missing or invalid sessionKey",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Session not found in Valkey",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "Server error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
 								}
 							}
 						}
