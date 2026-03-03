@@ -162,6 +162,7 @@ export interface ClusterTicketsQueryParams {
 export interface ClusterTotals {
 	total_clusters: number;
 	total_tickets: number;
+	total_automated_tickets: number;
 }
 
 /**

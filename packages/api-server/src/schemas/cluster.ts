@@ -222,6 +222,10 @@ export const ClusterTotalsSchema = z
 			description: "Total tickets across matching clusters",
 			example: 238,
 		}),
+		total_automated_tickets: z.number().int().openapi({
+			description: "Total automated tickets (with agent_end event)",
+			example: 42,
+		}),
 	})
 	.openapi("ClusterTotals");
 

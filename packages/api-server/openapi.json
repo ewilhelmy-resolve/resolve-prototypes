@@ -549,9 +549,18 @@
 						"type": "integer",
 						"description": "Total tickets across matching clusters",
 						"example": 238
+					},
+					"total_automated_tickets": {
+						"type": "integer",
+						"description": "Total automated tickets (with agent_end event)",
+						"example": 42
 					}
 				},
-				"required": ["total_clusters", "total_tickets"]
+				"required": [
+					"total_clusters",
+					"total_tickets",
+					"total_automated_tickets"
+				]
 			},
 			"ValidationError": {
 				"type": "object",
