@@ -1626,6 +1626,7 @@
 					},
 					"filename": {
 						"type": "string",
+						"maxLength": 255,
 						"description": "File name",
 						"example": "guide.pdf"
 					},
@@ -1721,6 +1722,7 @@
 					},
 					"filename": {
 						"type": "string",
+						"maxLength": 255,
 						"description": "File name for the content",
 						"example": "notes.txt"
 					},

@@ -20,6 +20,7 @@ import {
 } from "../schemas/file.js";
 import { WebhookService } from "../services/WebhookService.js";
 import type { AuthenticatedRequest } from "../types/express.js";
+import { safeContentDisposition, sanitizeFilename } from "../utils/filename.js";
 
 // ============================================================================
 // OpenAPI Documentation Registration
@@ -390,7 +391,7 @@ router.post(
 			const { content, filename } = req.body; // Optional text content and explicit filename
 
 			// Use the explicitly provided filename (UTF-8 encoded) or fallback to multer's originalname
-			const safeFilename = filename || file.originalname;
+			const safeFilename = sanitizeFilename(filename || file.originalname);
 
 			// Calculate SHA-256 hash of file content for deduplication
 			const digest = crypto
@@ -628,7 +629,7 @@ router.post(
 								blobId,
 								authReq.user.activeOrganizationId,
 								authReq.user.id,
-								filename,
+								sanitizeFilename(filename),
 								Buffer.byteLength(content, "utf8"),
 								JSON.stringify(metadata || {}),
 							],
@@ -884,7 +885,7 @@ router.get(
 			res.setHeader("Content-Type", result.mime_type);
 			res.setHeader(
 				"Content-Disposition",
-				`attachment; filename="${result.file_name}"`,
+				safeContentDisposition(result.file_name),
 			);
 
 			// Send blob data (works for both binary files and text content)
