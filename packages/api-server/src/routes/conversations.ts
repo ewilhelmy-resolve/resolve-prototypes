@@ -600,9 +600,17 @@ router.post("/:conversationId/messages", authenticateUser, async (req, res) => {
 
 		// Check if this is an iframe session with tenant-specific webhook config
 		const sessionStore = getSessionStore();
-		const fullSession = await sessionStore.getSession(
-			authReq.session.sessionId,
-		);
+		let fullSession = await sessionStore.getSession(authReq.session.sessionId);
+
+		// Re-read Valkey before webhook send (Actions Platform adds runId, activityId mid-session)
+		if (fullSession?.isIframeSession && fullSession.valkeySessionKey) {
+			const { getIframeService } = await import("../services/IframeService.js");
+			const refreshed = await getIframeService().refreshSessionFromValkey(
+				fullSession.sessionId,
+			);
+			if (refreshed) fullSession = refreshed;
+		}
+
 		const iframeConfig = fullSession?.iframeWebhookConfig;
 
 		// Validate userGuid exists for iframe sessions (required for message routing)
