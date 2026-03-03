@@ -1,0 +1,79 @@
+{{- if .Values.externalServices.postgres.host }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres-rita
+  namespace: {{ .Values.namespace }}
+  labels:
+    {{- include "api-server.labels" . | nindent 4 }}
+    app.kubernetes.io/component: external-service
+spec:
+  type: ExternalName
+  externalName: {{ .Values.externalServices.postgres.host }}
+  ports:
+  - port: {{ .Values.externalServices.postgres.port }}
+    targetPort: {{ .Values.externalServices.postgres.port }}
+    protocol: TCP
+    name: postgres
+{{- end }}
+
+{{- if .Values.externalServices.rabbitmq.host }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: rabbitmq-rita
+  namespace: {{ .Values.namespace }}
+  labels:
+    {{- include "api-server.labels" . | nindent 4 }}
+    app.kubernetes.io/component: external-service
+spec:
+  type: ExternalName
+  externalName: {{ .Values.externalServices.rabbitmq.host }}
+  ports:
+  - port: {{ .Values.externalServices.rabbitmq.port }}
+    targetPort: {{ .Values.externalServices.rabbitmq.port }}
+    protocol: TCP
+    name: rabbitmq
+{{- end }}
+
+{{- if .Values.externalServices.consul.host }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: consul-rita
+  namespace: {{ .Values.namespace }}
+  labels:
+    {{- include "api-server.labels" . | nindent 4 }}
+    app.kubernetes.io/component: external-service
+spec:
+  type: ExternalName
+  externalName: {{ .Values.externalServices.consul.host }}
+  ports:
+  - port: {{ .Values.externalServices.consul.port }}
+    targetPort: {{ .Values.externalServices.consul.port }}
+    protocol: TCP
+    name: consul
+{{- end }}
+
+{{- if .Values.externalServices.valkey.host }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: valkey-rita
+  namespace: {{ .Values.namespace }}
+  labels:
+    {{- include "api-server.labels" . | nindent 4 }}
+    app.kubernetes.io/component: external-service
+spec:
+  type: ExternalName
+  externalName: {{ .Values.externalServices.valkey.host }}
+  ports:
+  - port: {{ .Values.externalServices.valkey.port }}
+    targetPort: {{ .Values.externalServices.valkey.port }}
+    protocol: TCP
+    name: valkey
+{{- end }}

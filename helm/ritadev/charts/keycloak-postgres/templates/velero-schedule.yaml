@@ -1,0 +1,21 @@
+{{- if .Values.velero.enabled }}
+apiVersion: velero.io/v1
+kind: Schedule
+metadata:
+  name: {{ include "keycloak-postgres.fullname" . }}-backup
+  namespace: {{ .Values.namespace }}
+  labels:
+    {{- include "keycloak-postgres.labels" . | nindent 4 }}
+spec:
+  schedule: {{ .Values.velero.schedule | quote }}
+  template:
+    includedNamespaces:
+    - {{ .Values.namespace }}
+    includedResources:
+    - persistentvolumeclaims
+    - persistentvolumes
+    labelSelector:
+      matchLabels:
+        {{- include "keycloak-postgres.selectorLabels" . | nindent 8 }}
+    ttl: {{ .Values.velero.ttl }}
+{{- end }}

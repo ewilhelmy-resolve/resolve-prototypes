@@ -1,0 +1,85 @@
+{{- if .Values.backup.enabled }}
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ include "keycloak-postgres.fullname" . }}-backup
+  namespace: {{ .Values.namespace }}
+  labels:
+    {{- include "keycloak-postgres.labels" . | nindent 4 }}
+    app.kubernetes.io/component: backup
+spec:
+  schedule: {{ .Values.backup.schedule | quote }}
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 1
+  jobTemplate:
+    spec:
+      template:
+        metadata:
+          labels:
+            {{- include "keycloak-postgres.selectorLabels" . | nindent 12 }}
+            app.kubernetes.io/component: backup
+        spec:
+          restartPolicy: OnFailure
+          containers:
+          - name: backup
+            image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+            imagePullPolicy: {{ .Values.image.pullPolicy }}
+            env:
+            - name: PGHOST
+              value: {{ .Values.service.name }}
+            - name: PGDATABASE
+              value: {{ .Values.database.name }}
+            - name: PGUSER
+              value: {{ .Values.database.user }}
+            - name: PGPASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "keycloak-postgres.fullname" . }}-secret
+                  key: POSTGRES_PASSWORD
+            - name: AWS_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: s3-backup-credentials
+                  key: access-key-id
+            - name: AWS_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: s3-backup-credentials
+                  key: secret-access-key
+            - name: S3_BUCKET
+              value: {{ .Values.backup.s3Bucket }}
+            - name: NAMESPACE
+              value: {{ .Values.namespace }}
+            - name: RETENTION_DAYS
+              value: {{ .Values.backup.retentionDays | quote }}
+            command:
+            - /bin/bash
+            - -c
+            - |
+              set -e
+              BACKUP_FILE="/tmp/keycloak-backup-$(date +%Y%m%d-%H%M%S).sql.gz"
+              echo "Starting backup to $BACKUP_FILE"
+              pg_dump | gzip > $BACKUP_FILE
+              echo "Uploading to S3: s3://${S3_BUCKET}/${NAMESPACE}/"
+              aws s3 cp $BACKUP_FILE s3://${S3_BUCKET}/${NAMESPACE}/
+              echo "Deleting backups older than ${RETENTION_DAYS} days"
+              CUTOFF_DATE=$(date -d "${RETENTION_DAYS} days ago" +%Y%m%d)
+              aws s3 ls s3://${S3_BUCKET}/${NAMESPACE}/ | \
+                awk '{print $4}' | \
+                grep -E 'keycloak-backup-[0-9]{8}' | \
+                while read file; do
+                  FILE_DATE=$(echo $file | grep -oP '[0-9]{8}' | head -1)
+                  if [ "$FILE_DATE" -lt "$CUTOFF_DATE" ]; then
+                    echo "Deleting old backup: $file"
+                    aws s3 rm s3://${S3_BUCKET}/${NAMESPACE}/$file
+                  fi
+                done
+              echo "Backup completed successfully"
+            resources:
+              requests:
+                memory: "128Mi"
+                cpu: "50m"
+              limits:
+                memory: "256Mi"
+                cpu: "200m"
+{{- end }}
