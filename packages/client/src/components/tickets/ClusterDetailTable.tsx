@@ -30,6 +30,10 @@ import type {
 interface ClusterDetailTableProps {
 	/** Cluster ID for fetching tickets */
 	clusterId?: string;
+	/** Total ticket count from cluster details */
+	totalCount?: number;
+	/** Open ticket count from cluster details */
+	openCount?: number;
 }
 
 // Format date for display
@@ -62,8 +66,9 @@ const capitalize = (value: string): string => {
 /**
  * ClusterDetailTable - Table displaying tickets with filters and pagination
  */
-export function ClusterDetailTable({ clusterId }: ClusterDetailTableProps) {
+export function ClusterDetailTable({ clusterId, totalCount, openCount: clusterOpenCount }: ClusterDetailTableProps) {
 	const { t } = useTranslation("tickets");
+	const [activeTab, setActiveTab] = useState<"open" | "all">("open");
 	const [cursor, setCursor] = useState<string | undefined>(undefined);
 	const [searchQuery, setSearchQuery] = useState("");
 	const [sortField, setSortField] = useState<TicketSortOption>("created_at");
@@ -86,9 +91,12 @@ export function ClusterDetailTable({ clusterId }: ClusterDetailTableProps) {
 	const rawTickets = data?.data ?? [];
 	const pagination = data?.pagination;
 
-	// Client-side filters for priority and status
+	// Client-side filters for tab, priority and status
 	const tickets = useMemo(() => {
 		let filtered = rawTickets;
+		if (activeTab === "open") {
+			filtered = filtered.filter((t) => t.external_status === "Open");
+		}
 		if (priorityFilter) {
 			filtered = filtered.filter((t) => t.priority === priorityFilter);
 		}
@@ -96,7 +104,7 @@ export function ClusterDetailTable({ clusterId }: ClusterDetailTableProps) {
 			filtered = filtered.filter((t) => t.external_status === statusFilter);
 		}
 		return filtered;
-	}, [rawTickets, priorityFilter, statusFilter]);
+	}, [rawTickets, activeTab, priorityFilter, statusFilter]);
 
 	// Derive unique filter options from current data
 	const priorityOptions = useMemo(
@@ -154,8 +162,43 @@ export function ClusterDetailTable({ clusterId }: ClusterDetailTableProps) {
 		);
 	}
 
+	const openTabCount = clusterOpenCount ?? rawTickets.filter((t) => t.external_status === "Open").length;
+	const allTabCount = totalCount ?? rawTickets.length;
+
+	const handleTabChange = (tab: "open" | "all") => {
+		setActiveTab(tab);
+		setCursor(undefined);
+		setStatusFilter(undefined);
+	};
+
 	return (
 		<div className="flex flex-col gap-3">
+			{/* Tabs */}
+			<div className="flex gap-4 border-b">
+				<button
+					type="button"
+					onClick={() => handleTabChange("open")}
+					className={`pb-2 text-sm font-medium transition-colors ${
+						activeTab === "open"
+							? "border-b-2 border-foreground text-foreground"
+							: "text-muted-foreground hover:text-foreground"
+					}`}
+				>
+					Open ({openTabCount})
+				</button>
+				<button
+					type="button"
+					onClick={() => handleTabChange("all")}
+					className={`pb-2 text-sm font-medium transition-colors ${
+						activeTab === "all"
+							? "border-b-2 border-foreground text-foreground"
+							: "text-muted-foreground hover:text-foreground"
+					}`}
+				>
+					All ({allTabCount})
+				</button>
+			</div>
+
 			{/* Filters */}
 			<div className="flex flex-wrap items-center gap-2">
 				<div className="relative flex-1 min-w-[200px] max-w-sm">

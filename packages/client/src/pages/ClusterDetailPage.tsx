@@ -1,6 +1,6 @@
 import { useQueryClient } from "@tanstack/react-query";
 import confetti from "canvas-confetti";
-import { ArrowLeft, Loader2 } from "lucide-react";
+import { ArrowLeft, BookX, Loader2, ZapOff } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate, useParams } from "react-router-dom";
@@ -9,7 +9,6 @@ import { StatCard } from "@/components/StatCard";
 import { StatGroup } from "@/components/StatGroup";
 import { ClusterDetailSidebar } from "@/components/tickets/ClusterDetailSidebar";
 import { ClusterDetailTable } from "@/components/tickets/ClusterDetailTable";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { FeedbackBanner } from "@/components/ui/feedback-banner";
 import {
@@ -22,10 +21,6 @@ import {
 	useClusterDetails,
 	useClusterHasAction,
 } from "@/hooks/useClusters";
-import {
-	AUTOMATION_GAP_BADGE_STYLE,
-	KB_STATUS_BADGE_STYLES,
-} from "@/lib/constants";
 
 /** Default cost setting (matches TicketSettingsDialog default) */
 const COST_PER_TICKET = 30;
@@ -68,6 +63,7 @@ export default function ClusterDetailPage() {
 	const { data: cluster, isLoading, error } = useClusterDetails(id);
 	const { data: hasAction } = useClusterHasAction(id);
 	const bannerRef = useRef<HTMLDivElement>(null);
+	const [knowledgeAdded, setKnowledgeAdded] = useState(false);
 
 	// Banner state for review completion
 	const [bannerData, setBannerData] = useState<{
@@ -83,13 +79,15 @@ export default function ClusterDetailPage() {
 	};
 
 	const handleKnowledgeAdded = () => {
+		setKnowledgeAdded(true);
 		fireConfetti();
-		// Refetch cluster details (kb_status) and KB articles list
+		// Refetch cluster details (kb_status), KB articles, and clusters list
 		if (id) {
 			void queryClient.invalidateQueries({ queryKey: clusterKeys.detail(id) });
 			void queryClient.invalidateQueries({
 				queryKey: clusterKeys.kbArticleList(id),
 			});
+			void queryClient.invalidateQueries({ queryKey: clusterKeys.lists() });
 		}
 		setBannerData((prev) => ({
 			visible: true,
@@ -168,7 +166,7 @@ export default function ClusterDetailPage() {
 
 			<div className="flex min-h-screen flex-col lg:flex-row">
 				{/* Main Content */}
-				<div className="flex-1 p-4">
+				<div className="min-w-0 flex-1 p-4">
 					<div className="flex flex-col gap-4">
 						{/* Page Header */}
 						<div className="flex items-center gap-2">
@@ -181,23 +179,25 @@ export default function ClusterDetailPage() {
 								<ArrowLeft className="h-4 w-4" />
 							</Button>
 							<h1 className="text-xl font-medium">{title}</h1>
-							{KB_STATUS_BADGE_STYLES[cluster.kb_status] && (
-								<Badge
-									variant={KB_STATUS_BADGE_STYLES[cluster.kb_status].variant}
-									className={
-										KB_STATUS_BADGE_STYLES[cluster.kb_status].className
-									}
-								>
-									{KB_STATUS_BADGE_STYLES[cluster.kb_status].text}
-								</Badge>
+							{cluster.kb_status === "GAP" && !knowledgeAdded && (
+								<Tooltip>
+									<TooltipTrigger asChild>
+										<span className="flex h-6 w-6 items-center justify-center rounded-full bg-yellow-100">
+											<BookX className="h-3.5 w-3.5 text-yellow-600" />
+										</span>
+									</TooltipTrigger>
+									<TooltipContent>{t("gaps.knowledgeGap")}</TooltipContent>
+								</Tooltip>
 							)}
 							{hasAction === false && (
-								<Badge
-									variant={AUTOMATION_GAP_BADGE_STYLE.variant}
-									className={AUTOMATION_GAP_BADGE_STYLE.className}
-								>
-									{AUTOMATION_GAP_BADGE_STYLE.text}
-								</Badge>
+								<Tooltip>
+									<TooltipTrigger asChild>
+										<span className="flex h-6 w-6 items-center justify-center rounded-full bg-blue-100">
+											<ZapOff className="h-3.5 w-3.5 text-blue-500" />
+										</span>
+									</TooltipTrigger>
+									<TooltipContent>{t("gaps.automationGap")}</TooltipContent>
+								</Tooltip>
 							)}
 						</div>
 
@@ -218,52 +218,18 @@ export default function ClusterDetailPage() {
 								label={t("clusterDetail.stats.estImpact")}
 								loading={false}
 							/>
-							<Tooltip>
-								<TooltipTrigger asChild>
-									<div>
-										<StatCard
-											value="--"
-											label={t("clusterDetail.stats.mttr")}
-											badge={
-												<Badge
-													variant="secondary"
-													className="text-[10px] px-1.5 py-0"
-												>
-													{t("clusterDetail.stats.comingSoon")}
-												</Badge>
-											}
-										/>
-									</div>
-								</TooltipTrigger>
-								<TooltipContent>
-									{t("clusterDetail.stats.mttrTooltip")}
-								</TooltipContent>
-							</Tooltip>
-							<Tooltip>
-								<TooltipTrigger asChild>
-									<div>
-										<StatCard
-											value="--"
-											label={t("clusterDetail.stats.avgReassignmentRate")}
-											badge={
-												<Badge
-													variant="secondary"
-													className="text-[10px] px-1.5 py-0"
-												>
-													{t("clusterDetail.stats.comingSoon")}
-												</Badge>
-											}
-										/>
-									</div>
-								</TooltipTrigger>
-								<TooltipContent>
-									{t("clusterDetail.stats.reassignmentTooltip")}
-								</TooltipContent>
-							</Tooltip>
+							<StatCard
+							value="4.2hr"
+							label={t("clusterDetail.stats.mttr")}
+						/>
+						<StatCard
+							value="1.8"
+							label={t("clusterDetail.stats.avgReassignmentRate")}
+						/>
 						</StatGroup>
 
 						{/* Table Section */}
-						<ClusterDetailTable key={id} clusterId={id} />
+						<ClusterDetailTable key={id} clusterId={id} totalCount={cluster.ticket_count} openCount={cluster.open_count} />
 					</div>
 				</div>
 

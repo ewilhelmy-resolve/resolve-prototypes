@@ -9,7 +9,7 @@
 			"ticketsLast7Days": "Tickets last 7 days",
 			"totalTicketsAutomated": "Total Tickets Automated",
 			"automationPercentage": "Automation %",
-			"mttr": "MTTR",
+			"mttr": "Mean Time to Resolution",
 			"mttrTooltip": "Connect your ITSM to track Mean Time to Resolution",
 			"avgReassignmentRate": "Avg. Reassignment Rate",
 			"reassignmentTooltip": "Connect your ITSM to track ticket reassignment rates",
@@ -260,7 +260,7 @@
 			"estMonthlyCost": "Est. Monthly Cost",
 			"estMonthlyHours": "Est. Monthly Hours",
 			"estImpact": "Est. Impact",
-			"mttr": "MTTR",
+			"mttr": "Mean Time to Resolution",
 			"mttrTooltip": "Connect your ITSM to track Mean Time to Resolution",
 			"avgReassignmentRate": "Avg. Reassignment Rate",
 			"reassignmentTooltip": "Connect your ITSM to track ticket reassignment rates",
@@ -273,7 +273,7 @@
 			"reviewNeedsImprovementDesc": "{{count}} responses reviewed. Consider refining AI training data.",
 			"enrichedTickets": "You just enriched tickets for this group!",
 			"knowledgeAdded": "New knowledge added!",
-			"knowledgeAddedDesc": "You just improved your knowledge to better auto-respond to issues.",
+			"knowledgeAddedDesc": "This cluster is now better positioned for prioritization.",
 			"automatedWork": "You just automated {{percentage}}% of your work!",
 			"automatedWorkDesc": "Auto-respond is set to respond to all future tickets in \"{{groupName}}\""
 		}

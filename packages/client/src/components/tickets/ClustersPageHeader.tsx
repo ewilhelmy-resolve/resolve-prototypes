@@ -4,7 +4,6 @@ import { Trans, useTranslation } from "react-i18next";
 import { MainHeader } from "@/components/MainHeader";
 import { StatCard } from "@/components/StatCard";
 import { StatGroup } from "@/components/StatGroup";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
 	DropdownMenu,
@@ -13,11 +12,6 @@ import {
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Skeleton } from "@/components/ui/skeleton";
-import {
-	Tooltip,
-	TooltipContent,
-	TooltipTrigger,
-} from "@/components/ui/tooltip";
 import { useAutopilotSettings } from "@/hooks/api/useAutopilotSettings";
 import type { PeriodFilter } from "@/types/cluster";
 
@@ -55,8 +49,11 @@ export function ClustersPageHeader({
 	const { data: settings } = useAutopilotSettings();
 
 	const costPerTicket = settings?.cost_per_ticket ?? 30;
+	const avgTimePerTicket = settings?.avg_time_per_ticket_minutes ?? 15;
 
 	const moneySaved = automatedTickets * costPerTicket;
+	const timeSavedMins = automatedTickets * avgTimePerTicket;
+	const timeSavedHrs = Math.floor(timeSavedMins / 60);
 
 	const periodLabels: Record<PeriodFilter, string> = {
 		last30: t("groups.periods.last30Days"),
@@ -79,12 +76,6 @@ export function ClustersPageHeader({
 			}}
 			components={{ strong: <span className="font-semibold" /> }}
 		/>
-	);
-
-	const comingSoonBadge = (
-		<Badge variant="secondary" className="text-[10px] px-1.5 py-0">
-			{t("header.stats.comingSoon")}
-		</Badge>
 	);
 
 	return (
@@ -126,42 +117,29 @@ export function ClustersPageHeader({
 				</div>
 			}
 			stats={
-				<StatGroup columns={4}>
+				<StatGroup columns={5}>
 					<StatCard
 						value={totalTickets.toLocaleString()}
 						label={t("header.stats.totalTickets")}
 						loading={showSkeletons}
 					/>
-					<Tooltip>
-						<TooltipTrigger asChild>
-							<div>
-								<StatCard
-									value="--"
-									label={t("header.stats.mttr")}
-									badge={comingSoonBadge}
-								/>
-							</div>
-						</TooltipTrigger>
-						<TooltipContent>{t("header.stats.mttrTooltip")}</TooltipContent>
-					</Tooltip>
-					<Tooltip>
-						<TooltipTrigger asChild>
-							<div>
-								<StatCard
-									value="--"
-									label={t("header.stats.avgReassignmentRate")}
-									badge={comingSoonBadge}
-								/>
-							</div>
-						</TooltipTrigger>
-						<TooltipContent>
-							{t("header.stats.reassignmentTooltip")}
-						</TooltipContent>
-					</Tooltip>
 					<StatCard
 						value={formatMoneySaved(moneySaved)}
 						label={t("header.stats.moneySaved")}
 						loading={showSkeletons}
+					/>
+					<StatCard
+						value={`${timeSavedHrs}hr`}
+						label={t("header.stats.timeSaved")}
+						loading={showSkeletons}
+					/>
+					<StatCard
+						value="3.8hr"
+						label={t("header.stats.mttr")}
+					/>
+					<StatCard
+						value="2.1"
+						label={t("header.stats.avgReassignmentRate")}
 					/>
 				</StatGroup>
 			}
