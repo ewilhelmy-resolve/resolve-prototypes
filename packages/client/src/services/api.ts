@@ -563,7 +563,8 @@ export const clustersApi = {
 		if (params?.sort) searchParams.append("sort", params.sort);
 		if (params?.period) searchParams.append("period", params.period);
 		if (params?.limit) searchParams.append("limit", params.limit.toString());
-		if (params?.cursor) searchParams.append("cursor", params.cursor);
+		if (params?.offset !== undefined)
+			searchParams.append("offset", params.offset.toString());
 		if (params?.kb_status) searchParams.append("kb_status", params.kb_status);
 		if (params?.search) searchParams.append("search", params.search);
 

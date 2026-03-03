@@ -163,7 +163,7 @@ registry.registerPath({
  * Query params:
  *   - sort: volume | automation | recent (default: recent)
  *   - limit: number of results (default 25, max 100)
- *   - cursor: ISO timestamp for pagination
+ *   - offset: pagination offset (default 0)
  *   - kb_status: filter by KB status
  *   - search: search in name and subcluster_name
  */
@@ -180,7 +180,7 @@ router.get("/", async (req, res) => {
 				period: query.period,
 				includeInactive: query.include_inactive,
 				limit: query.limit,
-				cursor: query.cursor,
+				offset: query.offset,
 				kbStatus: query.kb_status,
 				search: query.search,
 			},

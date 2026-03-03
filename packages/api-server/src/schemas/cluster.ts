@@ -1,5 +1,5 @@
 import { z } from "../docs/openapi.js";
-import { OffsetPaginationInfoSchema, PaginationInfoSchema } from "./common.js";
+import { OffsetPaginationInfoSchema } from "./common.js";
 
 // ============================================================================
 // Enums and Config
@@ -51,10 +51,12 @@ export const ClusterListQuerySchema = z
 			.max(100)
 			.optional()
 			.openapi({ description: "Results per page", default: 25 }),
-		cursor: z
-			.string()
+		offset: z.coerce
+			.number()
+			.int()
+			.min(0)
 			.optional()
-			.openapi({ description: "Pagination cursor (timestamp_id format)" }),
+			.openapi({ description: "Pagination offset", default: 0 }),
 		kb_status: KBStatusSchema.optional().openapi({
 			description: "Filter by knowledge base status",
 		}),
@@ -226,7 +228,7 @@ export const ClusterTotalsSchema = z
 export const ClusterListResponseSchema = z
 	.object({
 		data: z.array(ClusterListItemSchema),
-		pagination: PaginationInfoSchema,
+		pagination: OffsetPaginationInfoSchema,
 		totals: ClusterTotalsSchema,
 	})
 	.openapi("ClusterListResponse");

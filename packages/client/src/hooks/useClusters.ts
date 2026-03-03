@@ -41,8 +41,7 @@ interface UseClustersOptions extends ClustersQueryParams {
 /**
  * Options for useInfiniteClusters hook
  */
-interface UseInfiniteClustersOptions
-	extends Omit<ClustersQueryParams, "cursor"> {
+interface UseInfiniteClustersOptions extends ClustersQueryParams {
 	/** Whether the query should be enabled (default: true) */
 	enabled?: boolean;
 }
@@ -80,14 +79,14 @@ export function useInfiniteClusters(options?: UseInfiniteClustersOptions) {
 		queryFn: async ({ pageParam }) => {
 			const response = await clustersApi.list({
 				...params,
-				cursor: pageParam,
+				offset: pageParam,
 			});
 			return response;
 		},
-		initialPageParam: undefined as string | undefined,
+		initialPageParam: 0,
 		getNextPageParam: (lastPage) =>
 			lastPage.pagination.has_more
-				? lastPage.pagination.next_cursor
+				? lastPage.pagination.offset + lastPage.pagination.limit
 				: undefined,
 		staleTime: 30000,
 		enabled,

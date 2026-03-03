@@ -45,15 +45,13 @@ export default function TicketGroups({ period }: TicketGroupsProps) {
 	const [searchInput, setSearchInput] = useState("");
 	const debouncedSearch = useDebounce(searchInput, 500);
 
-	// Cursor pagination state
-	const [cursorHistory, setCursorHistory] = useState<string[]>([]);
-	const [currentCursor, setCurrentCursor] = useState<string | undefined>();
+	// Offset pagination state
+	const [page, setPage] = useState(0);
 
-	// Reset cursors when filters change (including search)
+	// Reset page when filters change (including search)
 	// biome-ignore lint/correctness/useExhaustiveDependencies: intentionally reset on filter changes
 	useEffect(() => {
-		setCursorHistory([]);
-		setCurrentCursor(undefined);
+		setPage(0);
 	}, [period, kbFilter, debouncedSearch]);
 
 	// Fetch active model to check training state
@@ -79,7 +77,7 @@ export default function TicketGroups({ period }: TicketGroupsProps) {
 	} = useClusters({
 		period,
 		limit: PAGE_SIZE,
-		cursor: currentCursor,
+		offset: page * PAGE_SIZE,
 		kb_status: kbStatusParam,
 		search: debouncedSearch || undefined,
 		enabled: canShowClusters,
@@ -90,7 +88,7 @@ export default function TicketGroups({ period }: TicketGroupsProps) {
 	const pagination = clustersResponse?.pagination;
 	const totals = clustersResponse?.totals;
 	const hasNextPage = pagination?.has_more ?? false;
-	const hasPrevPage = cursorHistory.length > 0;
+	const hasPrevPage = page > 0;
 
 	// KB filter display labels
 	const kbFilterLabels: Record<KBFilterOption, string> = {
@@ -109,18 +107,8 @@ export default function TicketGroups({ period }: TicketGroupsProps) {
 	};
 
 	// Navigation handlers
-	const handleNextPage = () => {
-		if (pagination?.next_cursor) {
-			setCursorHistory((prev) => [...prev, currentCursor ?? ""]);
-			setCurrentCursor(pagination.next_cursor);
-		}
-	};
-
-	const handlePrevPage = () => {
-		const prevCursor = cursorHistory[cursorHistory.length - 1];
-		setCursorHistory((prev) => prev.slice(0, -1));
-		setCurrentCursor(prevCursor || undefined);
-	};
+	const handleNextPage = () => setPage((p) => p + 1);
+	const handlePrevPage = () => setPage((p) => Math.max(0, p - 1));
 
 	// Show spinner while checking model state initially
 	if (isModelLoading) {
