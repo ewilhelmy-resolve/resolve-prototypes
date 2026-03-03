@@ -102,15 +102,7 @@ export interface KbArticle {
 }
 
 /**
- * Cursor-based pagination info (for cluster list)
- */
-export interface CursorPaginationInfo {
-	next_cursor: string | null;
-	has_more: boolean;
-}
-
-/**
- * Offset-based pagination info (for cluster tickets)
+ * Offset-based pagination info (for clusters and cluster tickets)
  */
 export interface PaginationInfo {
 	total: number;
@@ -136,7 +128,7 @@ export interface ClustersQueryParams {
 	sort?: ClusterSortOption;
 	period?: PeriodFilter;
 	limit?: number;
-	cursor?: string;
+	offset?: number;
 	kb_status?: KBStatus;
 	search?: string;
 }
@@ -177,7 +169,7 @@ export interface ClusterTotals {
  */
 export interface ClustersResponse {
 	data: ClusterListItem[];
-	pagination: CursorPaginationInfo;
+	pagination: PaginationInfo;
 	totals: ClusterTotals;
 }
 

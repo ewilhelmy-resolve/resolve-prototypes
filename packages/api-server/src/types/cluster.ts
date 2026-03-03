@@ -78,7 +78,7 @@ export interface ClusterListQueryOptions {
 	period?: PeriodFilter;
 	includeInactive?: boolean;
 	limit?: number;
-	cursor?: string;
+	offset?: number;
 	kbStatus?: KBStatus;
 	search?: string;
 }

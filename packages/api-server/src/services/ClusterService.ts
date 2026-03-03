@@ -6,7 +6,6 @@ import type {
 	ClusterListQueryOptions,
 	ClusterTicketsQueryOptions,
 	ClusterTotals,
-	CursorPaginationInfo,
 	KBStatus,
 	KbArticle,
 	OffsetPaginationInfo,
@@ -81,14 +80,14 @@ export class ClusterService {
 		options: ClusterListQueryOptions = {},
 	): Promise<{
 		clusters: ClusterListItem[];
-		pagination: CursorPaginationInfo;
+		pagination: OffsetPaginationInfo;
 		totals: ClusterTotals;
 	}> {
 		const sort = options.sort || "recent";
 		const period = options.period;
 		const includeInactive = options.includeInactive || false;
 		const limit = Math.min(options.limit || DEFAULT_LIMIT, MAX_LIMIT);
-		const fetchLimit = limit + 1;
+		const offset = options.offset || 0;
 
 		// Calculate date cutoff for period filter
 		let dateCutoff: Date | null = null;
@@ -176,42 +175,6 @@ export class ClusterService {
 			);
 		}
 
-		// Cursor-based pagination with composite key (created_at + id)
-		// Format: "2024-01-15T10:00:00.000Z_uuid"
-		// Note: We truncate DB timestamp to milliseconds because JS Date loses microsecond precision
-		if (options.cursor) {
-			const separatorIndex = options.cursor.lastIndexOf("_");
-			if (separatorIndex > 0) {
-				const cursorTimestamp = options.cursor.substring(0, separatorIndex);
-				const cursorId = options.cursor.substring(separatorIndex + 1);
-				query = query.where((eb) =>
-					eb.or([
-						// Truncate both sides to milliseconds for accurate comparison
-						eb(
-							sql`date_trunc('milliseconds', c.created_at)`,
-							"<",
-							sql`${new Date(cursorTimestamp)}::timestamptz`,
-						),
-						eb.and([
-							eb(
-								sql`date_trunc('milliseconds', c.created_at)`,
-								"=",
-								sql`${new Date(cursorTimestamp)}::timestamptz`,
-							),
-							eb("c.id", "<", cursorId),
-						]),
-					]),
-				);
-			} else {
-				// Fallback for old cursor format (timestamp only)
-				query = query.where(
-					sql`date_trunc('milliseconds', c.created_at)`,
-					"<",
-					sql`${new Date(options.cursor)}::timestamptz`,
-				);
-			}
-		}
-
 		// Sorting - always include id as tiebreaker for stable pagination
 		switch (sort) {
 			case "volume":
@@ -231,22 +194,7 @@ export class ClusterService {
 				query = query.orderBy("c.created_at", "desc").orderBy("c.id", "desc");
 		}
 
-		const rows = await query.limit(fetchLimit).execute();
-
-		// Determine pagination
-		const hasMore = rows.length > limit;
-		if (hasMore) {
-			rows.pop();
-		}
-
-		// Composite cursor: timestamp_id for unique pagination
-		// Note: Use the raw timestamp string from DB to preserve microsecond precision
-		// (JS Date.toISOString() truncates to milliseconds which breaks equality comparison)
-		const lastRow = rows[rows.length - 1];
-		const nextCursor =
-			hasMore && rows.length > 0
-				? `${lastRow.created_at instanceof Date ? lastRow.created_at.toISOString() : String(lastRow.created_at)}_${lastRow.id}`
-				: null;
+		const rows = await query.limit(limit).offset(offset).execute();
 
 		const clusters: ClusterListItem[] = rows.map((row) => ({
 			id: row.id,
@@ -306,15 +254,18 @@ export class ClusterService {
 		}
 
 		const totalsResult = await totalsQuery.executeTakeFirst();
+		const total = Number(totalsResult?.total_clusters ?? 0);
 
 		return {
 			clusters,
 			pagination: {
-				next_cursor: nextCursor,
-				has_more: hasMore,
+				total,
+				limit,
+				offset,
+				has_more: offset + limit < total,
 			},
 			totals: {
-				total_clusters: Number(totalsResult?.total_clusters ?? 0),
+				total_clusters: total,
 				total_tickets: Number(totalsResult?.total_tickets ?? 0),
 			},
 		};

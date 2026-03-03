@@ -39,6 +39,77 @@ vi.mock("../../config/logger.js", () => ({
 
 import { ClusterService } from "../ClusterService.js";
 
+describe("ClusterService.getClusters - Offset Pagination", () => {
+	let service: ClusterService;
+
+	beforeEach(() => {
+		service = new ClusterService();
+		capturedQueries.length = 0;
+		vi.clearAllMocks();
+
+		mockPoolClient.query.mockImplementation(
+			(sql: string, params?: unknown[]) => {
+				capturedQueries.push({ sql, params: params || [] });
+				return Promise.resolve({ rows: [], rowCount: 0, command: "SELECT" });
+			},
+		);
+	});
+
+	afterEach(() => {
+		vi.restoreAllMocks();
+	});
+
+	const callGetClusters = async (
+		options: {
+			sort?: "volume" | "automation" | "recent";
+			limit?: number;
+			offset?: number;
+		} = {},
+	) => {
+		try {
+			await service.getClusters("org-1", options);
+		} catch {
+			// Ignore errors from mock db - we just need the SQL
+		}
+	};
+
+	// Helper to find the main clusters SELECT query (not COUNT/totals)
+	const getSelectQuery = (): string => {
+		const selectQuery = capturedQueries.find((q) => {
+			const lower = q.sql.toLowerCase();
+			return (
+				lower.includes("from") &&
+				lower.includes("clusters") &&
+				lower.includes("order by")
+			);
+		});
+		return selectQuery?.sql || "";
+	};
+
+	describe("offset-based pagination for volume sort", () => {
+		it("should use OFFSET when offset param is provided", async () => {
+			await callGetClusters({ sort: "volume", limit: 12, offset: 12 });
+			const sql = getSelectQuery();
+			expect(sql).toMatch(/offset/i);
+		});
+
+		it("should not use cursor-based date_trunc filtering", async () => {
+			await callGetClusters({ sort: "volume", limit: 12, offset: 24 });
+			const sql = getSelectQuery();
+			expect(sql).not.toMatch(/date_trunc/i);
+		});
+	});
+
+	describe("stable sort with tiebreaker", () => {
+		it("should include id as tiebreaker for volume sort", async () => {
+			await callGetClusters({ sort: "volume" });
+			const sql = getSelectQuery();
+			expect(sql).toMatch(/order by.*ticket_count/i);
+			expect(sql).toMatch(/order by.*"id"/i);
+		});
+	});
+});
+
 describe("ClusterService.getClusterTickets - Sorting", () => {
 	let service: ClusterService;
 
