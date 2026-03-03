@@ -55,9 +55,10 @@ const formatDate = (dateString: string): string => {
 	});
 };
 
-// Extract source from source_metadata or default to servicenow
+// Extract source from source_metadata (Freshdesk stores source as a number)
 const getTicketSource = (metadata: Record<string, unknown>): string => {
-	return (metadata?.source as string) || "";
+	const source = metadata?.source;
+	return typeof source === "string" ? source : "";
 };
 
 // Get source icon path
