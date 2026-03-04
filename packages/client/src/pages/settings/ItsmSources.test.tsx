@@ -1,9 +1,9 @@
 /**
  * ItsmSources.test.tsx - Unit tests for ITSM Sources page
  *
- * Focuses on status-based sorting behavior:
- *   Error (0) > Syncing (1) > Verifying (2) > Connected (3) > Cancelled (4) > Not connected (5)
- * Within the same status, sources maintain the fixed order from ITSM_SOURCES_ORDER.
+ * Focuses on status-based sorting behavior (4-tier hierarchy):
+ *   Error (0) > Syncing/Verifying (1) > Connected (2) > Cancelled/Not connected (3)
+ * Within the same priority, sources maintain the fixed order from ITSM_SOURCES_ORDER.
  */
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -201,7 +201,7 @@ describe("ItsmSources", () => {
 
 		it("should sort by full status hierarchy: Error, Verifying, Connected, Not connected", () => {
 			mockDataSourcesQuery.data = [
-				// ServiceNow: Connected (priority 3)
+				// ServiceNow: Connected (priority 2)
 				createMockDataSource({
 					id: "sn-1",
 					type: "servicenow_itsm",
@@ -211,7 +211,7 @@ describe("ItsmSources", () => {
 					last_verification_at: "2024-01-01T00:00:00Z",
 					last_verification_error: null,
 				}),
-				// Ivanti: Verifying (priority 2)
+				// Ivanti: Verifying (priority 1)
 				createMockDataSource({
 					id: "iv-1",
 					type: "ivanti_itsm",
@@ -231,17 +231,52 @@ describe("ItsmSources", () => {
 					last_verification_at: "2024-01-01T00:00:00Z",
 					last_verification_error: "Auth failed",
 				}),
-				// Jira: no backend entry -> placeholder Not connected (priority 5)
+				// Jira: no backend entry -> placeholder Not connected (priority 3)
 			];
 			renderWithRouter(<ItsmSources />);
 
 			const titles = getRenderedTitles();
 			expect(titles).toEqual([
 				"Freshdesk", // Error (0)
-				"Ivanti", // Verifying (2)
-				"ServiceNow ITSM", // Connected (3)
-				"Jira", // Not connected placeholder (5)
+				"Ivanti", // Verifying (1)
+				"ServiceNow ITSM", // Connected (2)
+				"Jira", // Not connected placeholder (3)
 			]);
+		});
+
+		it("should treat Syncing and Verifying as same priority", () => {
+			// Both priority 1; tiebreaker is ITSM_SOURCES_ORDER:
+			// servicenow_itsm (0), jira_itsm (1), ivanti_itsm (2), freshservice_itsm (3)
+			mockDataSourcesQuery.data = [
+				// Freshdesk: Verifying (priority 1, order index 3)
+				createMockDataSource({
+					id: "fd-1",
+					type: "freshservice_itsm",
+					name: "Freshdesk",
+					status: "verifying",
+					enabled: true,
+					last_verification_at: null,
+					last_verification_error: null,
+				}),
+				// ServiceNow: Syncing (priority 1, order index 0)
+				createMockDataSource({
+					id: "sn-1",
+					type: "servicenow_itsm",
+					name: "ServiceNow ITSM",
+					status: "syncing",
+					enabled: true,
+					last_verification_at: "2024-01-01T00:00:00Z",
+					last_verification_error: null,
+				}),
+			];
+			renderWithRouter(<ItsmSources />);
+
+			const titles = getRenderedTitles();
+			const snIndex = titles.indexOf("ServiceNow ITSM");
+			const fdIndex = titles.indexOf("Freshdesk");
+
+			// Same priority, so tiebreaker puts ServiceNow first
+			expect(snIndex).toBeLessThan(fdIndex);
 		});
 
 		it("should use ITSM_SOURCES_ORDER as tiebreaker when statuses match", () => {
@@ -308,9 +343,9 @@ describe("ItsmSources", () => {
 			const titles = getRenderedTitles();
 			expect(titles).toEqual([
 				"Freshdesk", // Syncing (1)
-				"ServiceNow ITSM", // Connected (3)
-				"Jira", // Not connected placeholder (5) - index 1
-				"Ivanti", // Not connected placeholder (5) - index 2
+				"ServiceNow ITSM", // Connected (2)
+				"Jira", // Not connected placeholder (3) - order index 1
+				"Ivanti", // Not connected placeholder (3) - order index 2
 			]);
 		});
 	});

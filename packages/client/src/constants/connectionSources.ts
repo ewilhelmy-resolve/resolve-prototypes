@@ -264,3 +264,36 @@ export function mapDataSourceToUI(
 		backendData: source, // Keep full backend data for detail view
 	};
 }
+
+/**
+ * Status priority for sorting source cards.
+ * Lower number = higher priority (appears first).
+ * Groups: Error (0), Syncing+Verifying (1), Connected (2), Cancelled+Not connected (3)
+ */
+const STATUS_PRIORITY: Record<string, number> = {
+	[STATUS.ERROR]: 0,
+	[STATUS.SYNCING]: 1,
+	[STATUS.VERIFYING]: 1,
+	[STATUS.CONNECTED]: 2,
+	[STATUS.CANCELLED]: 3,
+	[STATUS.NOT_CONNECTED]: 3,
+};
+
+/**
+ * Sort sources by status priority, with a type-order tiebreaker.
+ *
+ * @param sources - Array of ConnectionSource items to sort
+ * @param typeOrder - Ordered list of source types used as tiebreaker
+ * @returns New sorted array (does not mutate input)
+ */
+export function sortSourcesByStatus<T extends { status: string; type: string }>(
+	sources: T[],
+	typeOrder: string[],
+): T[] {
+	return [...sources].sort((a, b) => {
+		const priorityA = STATUS_PRIORITY[a.status] ?? 3;
+		const priorityB = STATUS_PRIORITY[b.status] ?? 3;
+		if (priorityA !== priorityB) return priorityA - priorityB;
+		return typeOrder.indexOf(a.type) - typeOrder.indexOf(b.type);
+	});
+}

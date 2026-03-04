@@ -13,6 +13,7 @@ import {
 	SOURCE_METADATA,
 	SOURCES,
 	STATUS,
+	sortSourcesByStatus,
 } from "@/constants/connectionSources";
 import { useActiveModel } from "@/hooks/useActiveModel";
 import { useDataSources, useSeedDataSources } from "@/hooks/useDataSources";
@@ -70,25 +71,8 @@ export default function ItsmSources() {
 			lastSync: undefined as string | undefined,
 		}));
 
-		// Sort by status priority (active first), then by defined order as tiebreaker
-		const STATUS_PRIORITY: Record<string, number> = {
-			[STATUS.ERROR]: 0,
-			[STATUS.SYNCING]: 1,
-			[STATUS.VERIFYING]: 2,
-			[STATUS.CONNECTED]: 3,
-			[STATUS.CANCELLED]: 4,
-			[STATUS.NOT_CONNECTED]: 5,
-		};
-
 		const allSources = [...existingSources, ...placeholders];
-		return allSources.sort((a, b) => {
-			const priorityA = STATUS_PRIORITY[a.status] ?? 5;
-			const priorityB = STATUS_PRIORITY[b.status] ?? 5;
-			if (priorityA !== priorityB) return priorityA - priorityB;
-			return (
-				ITSM_SOURCES_ORDER.indexOf(a.type) - ITSM_SOURCES_ORDER.indexOf(b.type)
-			);
-		});
+		return sortSourcesByStatus(allSources, ITSM_SOURCES_ORDER);
 	}, [dataSources]);
 
 	if (isLoading || isSeeding) {
