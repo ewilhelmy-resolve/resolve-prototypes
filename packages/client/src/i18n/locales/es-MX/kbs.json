@@ -1,0 +1,12 @@
+{
+	"errors": {
+		"unsupportedFileType": {
+			"title": "Tipo de archivo no soportado",
+			"description": "El tipo de archivo \"{{extension}}\" no es soportado. Sube archivos PDF, DOC, DOCX, MD o TXT."
+		},
+		"fileTooLarge": {
+			"title": "Archivo demasiado grande",
+			"description": "El archivo excede el límite máximo de {{maxSize}}."
+		}
+	}
+}

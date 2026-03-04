@@ -21,7 +21,7 @@
 	"errors": {
 		"unsupportedFileType": {
 			"title": "Unsupported File Type",
-			"description": "The file type you selected is not supported."
+			"description": "File type \"{{extension}}\" is not supported. Please upload PDF, DOC, DOCX, MD, or TXT files."
 		},
 		"fileTooLarge": {
 			"title": "File Too Large",

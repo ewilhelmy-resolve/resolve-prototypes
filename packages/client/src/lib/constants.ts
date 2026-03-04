@@ -13,12 +13,18 @@
  *
  * Note: Image files are NOT supported for knowledge base uploads
  */
-export const SUPPORTED_DOCUMENT_TYPES = '.pdf,.doc,.docx,.md,.txt' as const
+export const SUPPORTED_DOCUMENT_TYPES = ".pdf,.doc,.docx,.md,.txt" as const;
 
 /**
  * Array of supported file extensions for validation
  */
-export const SUPPORTED_EXTENSIONS = ['.pdf', '.doc', '.docx', '.md', '.txt'] as const
+export const SUPPORTED_EXTENSIONS = [
+	".pdf",
+	".doc",
+	".docx",
+	".md",
+	".txt",
+] as const;
 
 /**
  * Validates if a file has a supported extension
@@ -26,47 +32,53 @@ export const SUPPORTED_EXTENSIONS = ['.pdf', '.doc', '.docx', '.md', '.txt'] as 
  * @returns true if supported, false otherwise
  */
 export function isValidFileType(filename: string): boolean {
-	const extension = filename.toLowerCase().slice(filename.lastIndexOf('.'))
-	return SUPPORTED_EXTENSIONS.includes(extension as any)
+	const extension = filename.toLowerCase().slice(filename.lastIndexOf("."));
+	return SUPPORTED_EXTENSIONS.includes(extension as any);
 }
 
-/**
- * Gets a user-friendly error message for unsupported file types
- * @param filename - The name of the file
- * @returns Error message string
- */
-export function getFileTypeErrorMessage(filename: string): string {
-	const extension = filename.slice(filename.lastIndexOf('.'))
-	return `File type "${extension}" is not supported. Please upload PDF, DOC, DOCX, MD, or TXT files.`
-}
+export type FileValidationErrorCode = "unsupportedFileType" | "fileTooLarge";
 
 /**
  * Validates a file before upload and returns validation result
  * @param file - The file to validate
- * @returns Object with isValid flag and optional error
+ * @returns Object with isValid flag and optional error code
  */
 export function validateFileForUpload(file: File): {
-	isValid: boolean
-	error?: { title: string; description: string }
+	isValid: boolean;
+	errorCode?: FileValidationErrorCode;
+	errorParams?: Record<string, string>;
 } {
 	if (!isValidFileType(file.name)) {
+		const extension = file.name.slice(file.name.lastIndexOf("."));
 		return {
 			isValid: false,
-			error: {
-				title: 'Unsupported File Type',
-				description: getFileTypeErrorMessage(file.name),
-			}
-		}
+			errorCode: "unsupportedFileType",
+			errorParams: { extension },
+		};
 	}
 
-	return { isValid: true }
+	if (file.size > MAX_FILE_SIZE_MB * 1024 * 1024) {
+		return {
+			isValid: false,
+			errorCode: "fileTooLarge",
+			errorParams: { maxSize: `${MAX_FILE_SIZE_MB}MB` },
+		};
+	}
+
+	return { isValid: true };
 }
 
 /**
  * Array version of supported document extensions (without dots)
  * Useful for validation and display purposes
  */
-export const SUPPORTED_DOCUMENT_EXTENSIONS = ['pdf', 'doc', 'docx', 'md', 'txt'] as const
+export const SUPPORTED_DOCUMENT_EXTENSIONS = [
+	"pdf",
+	"doc",
+	"docx",
+	"md",
+	"txt",
+] as const;
 
 /**
  * File source types for Knowledge Articles
@@ -76,23 +88,23 @@ export const SUPPORTED_DOCUMENT_EXTENSIONS = ['pdf', 'doc', 'docx', 'md', 'txt']
  * - CONFLUENCE: Files synced from Jira Confluence
  */
 export const FILE_SOURCE = {
-	MANUAL: 'manual',
-	CONFLUENCE: 'confluence',
-} as const
+	MANUAL: "manual",
+	CONFLUENCE: "confluence",
+} as const;
 
 /**
  * Type definition for file source values
  */
-export type FileSourceType = typeof FILE_SOURCE[keyof typeof FILE_SOURCE]
+export type FileSourceType = (typeof FILE_SOURCE)[keyof typeof FILE_SOURCE];
 
 /**
  * Display names for file sources
  * Maps database values to user-friendly display names
  */
 export const FILE_SOURCE_DISPLAY_NAMES: Record<FileSourceType, string> = {
-	[FILE_SOURCE.MANUAL]: 'Manual',
-	[FILE_SOURCE.CONFLUENCE]: 'Jira Confluence',
-} as const
+	[FILE_SOURCE.MANUAL]: "Manual",
+	[FILE_SOURCE.CONFLUENCE]: "Jira Confluence",
+} as const;
 
 /**
  * File status types for Knowledge Articles
@@ -106,18 +118,18 @@ export const FILE_SOURCE_DISPLAY_NAMES: Record<FileSourceType, string> = {
  * - SYNCING: File is being synced from external source
  */
 export const FILE_STATUS = {
-	UPLOADED: 'uploaded',
-	PROCESSING: 'processing',
-	PROCESSED: 'processed',
-	FAILED: 'failed',
-	PENDING: 'pending',
-	SYNCING: 'syncing',
-} as const
+	UPLOADED: "uploaded",
+	PROCESSING: "processing",
+	PROCESSED: "processed",
+	FAILED: "failed",
+	PENDING: "pending",
+	SYNCING: "syncing",
+} as const;
 
 /**
  * Type definition for file status values
  */
-export type FileStatusType = typeof FILE_STATUS[keyof typeof FILE_STATUS]
+export type FileStatusType = (typeof FILE_STATUS)[keyof typeof FILE_STATUS];
 
 export const MAX_FILE_SIZE_MB = 100;
 

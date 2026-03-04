@@ -4,8 +4,8 @@
 
 import { describe, expect, it } from "vitest";
 import {
-	getFileTypeErrorMessage,
 	isValidFileType,
+	MAX_FILE_SIZE_MB,
 	validateFileForUpload,
 } from "./constants";
 
@@ -52,23 +52,6 @@ describe("File Validation Utilities", () => {
 		});
 	});
 
-	describe("getFileTypeErrorMessage", () => {
-		it("returns error message with file extension", () => {
-			const message = getFileTypeErrorMessage("photo.jpg");
-			expect(message).toContain(".jpg");
-			expect(message).toContain("not supported");
-		});
-
-		it("lists supported file types", () => {
-			const message = getFileTypeErrorMessage("photo.jpg");
-			expect(message).toContain("PDF");
-			expect(message).toContain("DOC");
-			expect(message).toContain("DOCX");
-			expect(message).toContain("MD");
-			expect(message).toContain("TXT");
-		});
-	});
-
 	describe("validateFileForUpload", () => {
 		it("returns valid for supported file types", () => {
 			const file = new File(["content"], "document.pdf", {
@@ -77,17 +60,16 @@ describe("File Validation Utilities", () => {
 			const result = validateFileForUpload(file);
 
 			expect(result.isValid).toBe(true);
-			expect(result.error).toBeUndefined();
+			expect(result.errorCode).toBeUndefined();
 		});
 
-		it("returns invalid with error for unsupported file types", () => {
+		it("returns errorCode 'unsupportedFileType' for unsupported files", () => {
 			const file = new File(["content"], "image.jpg", { type: "image/jpeg" });
 			const result = validateFileForUpload(file);
 
 			expect(result.isValid).toBe(false);
-			expect(result.error).toBeDefined();
-			expect(result.error?.title).toBe("Unsupported File Type");
-			expect(result.error?.description).toContain(".jpg");
+			expect(result.errorCode).toBe("unsupportedFileType");
+			expect(result.errorParams?.extension).toBe(".jpg");
 		});
 
 		it("validates all supported extensions", () => {
@@ -119,8 +101,44 @@ describe("File Validation Utilities", () => {
 			unsupportedFiles.forEach((file) => {
 				const result = validateFileForUpload(file);
 				expect(result.isValid).toBe(false);
-				expect(result.error).toBeDefined();
+				expect(result.errorCode).toBeDefined();
 			});
+		});
+
+		it("returns errorCode 'fileTooLarge' when file exceeds MAX_FILE_SIZE_MB", () => {
+			const oversizedContent = new ArrayBuffer(
+				MAX_FILE_SIZE_MB * 1024 * 1024 + 1,
+			);
+			const file = new File([oversizedContent], "large.pdf", {
+				type: "application/pdf",
+			});
+			const result = validateFileForUpload(file);
+
+			expect(result.isValid).toBe(false);
+			expect(result.errorCode).toBe("fileTooLarge");
+			expect(result.errorParams?.maxSize).toBe(`${MAX_FILE_SIZE_MB}MB`);
+		});
+
+		it("accepts file exactly at MAX_FILE_SIZE_MB", () => {
+			const exactContent = new ArrayBuffer(MAX_FILE_SIZE_MB * 1024 * 1024);
+			const file = new File([exactContent], "exact.pdf", {
+				type: "application/pdf",
+			});
+			const result = validateFileForUpload(file);
+
+			expect(result.isValid).toBe(true);
+		});
+
+		it("checks file type before file size", () => {
+			const oversizedContent = new ArrayBuffer(
+				MAX_FILE_SIZE_MB * 1024 * 1024 + 1,
+			);
+			const file = new File([oversizedContent], "large.jpg", {
+				type: "image/jpeg",
+			});
+			const result = validateFileForUpload(file);
+
+			expect(result.errorCode).toBe("unsupportedFileType");
 		});
 	});
 });
