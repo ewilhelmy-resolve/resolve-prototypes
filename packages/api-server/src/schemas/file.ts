@@ -17,6 +17,7 @@ export const DocumentSchema = z
 		id: z.string().uuid().openapi({ description: "Document ID" }),
 		filename: z
 			.string()
+			.max(255)
 			.openapi({ description: "File name", example: "guide.pdf" }),
 		size: z
 			.number()
@@ -59,7 +60,7 @@ export const FileConflictResponseSchema = z
 export const FileContentRequestSchema = z
 	.object({
 		content: z.string().openapi({ description: "Text content to store" }),
-		filename: z.string().openapi({
+		filename: z.string().max(255).openapi({
 			description: "File name for the content",
 			example: "notes.txt",
 		}),
