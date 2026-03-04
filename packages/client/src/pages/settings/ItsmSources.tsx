@@ -13,6 +13,7 @@ import {
 	SOURCE_METADATA,
 	SOURCES,
 	STATUS,
+	sortSourcesByStatus,
 } from "@/constants/connectionSources";
 import { useActiveModel } from "@/hooks/useActiveModel";
 import { useDataSources, useSeedDataSources } from "@/hooks/useDataSources";
@@ -70,13 +71,8 @@ export default function ItsmSources() {
 			lastSync: undefined as string | undefined,
 		}));
 
-		// Combine and sort by defined order
 		const allSources = [...existingSources, ...placeholders];
-		return allSources.sort((a, b) => {
-			const indexA = ITSM_SOURCES_ORDER.indexOf(a.type);
-			const indexB = ITSM_SOURCES_ORDER.indexOf(b.type);
-			return indexA - indexB;
-		});
+		return sortSourcesByStatus(allSources, ITSM_SOURCES_ORDER);
 	}, [dataSources]);
 
 	if (isLoading || isSeeding) {

@@ -3140,7 +3140,8 @@ app.post("/webhook", async (req, res) => {
 			// For ServiceNow ITSM, Ivanti ITSM, and Freshdesk, insert actual test data into the database
 			const isServiceNow = ticketsPayload.connection_type === "servicenow_itsm";
 			const isIvanti = ticketsPayload.connection_type === "ivanti_itsm";
-			const isFreshdesk = ticketsPayload.connection_type === "freshdesk";
+			const isFreshdesk =
+				ticketsPayload.connection_type === "freshservice_itsm";
 			const useRealData = isServiceNow || isIvanti || isFreshdesk;
 
 			// Start async data sync and progress reporting

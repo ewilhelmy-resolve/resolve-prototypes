@@ -235,7 +235,7 @@ function matchFreshdeskScenario(domain: string): TrainingScenario {
 }
 
 const freshdeskConfig: ProviderConfig = {
-	name: "freshdesk",
+	name: "freshservice_itsm",
 	loggerName: "freshdesk-sync",
 	modelName: "Freshdesk ITSM Model",
 	externalModelIdPrefix: "mock-freshdesk-model-",

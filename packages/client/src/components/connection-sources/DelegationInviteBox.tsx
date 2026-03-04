@@ -27,7 +27,7 @@ const emailSchema = z.object({
 const RELATED_CONNECTION_LABELS: Partial<Record<ItsmSystemType, string>> = {
 	servicenow_itsm: "Knowledge Base",
 	jira_itsm: "Confluence",
-	// freshservice, freshdesk, etc. - no related connections
+	// freshservice_itsm - no related connections
 };
 
 export default function DelegationInviteBox({

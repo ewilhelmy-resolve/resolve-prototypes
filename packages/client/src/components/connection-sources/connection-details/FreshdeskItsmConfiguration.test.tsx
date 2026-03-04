@@ -80,7 +80,7 @@ const createMockSource = (
 	overrides?: Partial<ConnectionSource>,
 ): ConnectionSource => ({
 	id: "source-123",
-	type: "freshdesk",
+	type: "freshservice_itsm",
 	title: "Freshdesk",
 	status: STATUS.CONNECTED,
 	lastSync: "2 hours ago",
@@ -88,7 +88,7 @@ const createMockSource = (
 	backendData: {
 		id: "source-123",
 		organization_id: "org-123",
-		type: "freshdesk",
+		type: "freshservice_itsm",
 		name: "Freshdesk",
 		description: null,
 		settings: {

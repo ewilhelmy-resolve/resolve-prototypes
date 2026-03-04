@@ -15,7 +15,7 @@ type DataSourceType =
 	| "sharepoint"
 	| "servicenow"
 	| "websearch"
-	| "freshdesk";
+	| "freshservice_itsm";
 
 type DataSourceConnection = {
 	id: string;
@@ -66,7 +66,7 @@ vi.mock("@/components/ui/rita-toast", () => ({
 const baseBackendData = {
 	id: "source-123",
 	organization_id: "org-123",
-	type: "freshdesk" as DataSourceType,
+	type: "freshservice_itsm" as DataSourceType,
 	name: "Freshdesk",
 	description: null,
 	settings: {},
@@ -89,7 +89,7 @@ const createMockSource = (
 	overrides?: Partial<ConnectionSource>,
 ): ConnectionSource => ({
 	id: "source-123",
-	type: "freshdesk",
+	type: "freshservice_itsm",
 	title: "Freshdesk",
 	status: STATUS.NOT_CONNECTED,
 	lastSync: undefined,

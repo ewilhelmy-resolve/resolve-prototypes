@@ -43,7 +43,7 @@ import {
 const RELATED_CONNECTION_LABELS: Partial<Record<ItsmSystemType, string>> = {
 	servicenow_itsm: "Knowledge Base",
 	jira_itsm: "Confluence",
-	// freshservice, freshdesk, etc. - no related connections
+	// freshservice_itsm - no related connections
 };
 
 /**
@@ -920,15 +920,14 @@ export default function CredentialSetupPage() {
 					delegatedBy={verifyData.delegated_by || ""}
 				/>
 				<div className="flex-1 flex flex-col items-center justify-center p-4 gap-6">
-					<p
-						className="text-lg text-muted-foreground"
-						role="status"
+					<output
+						className="text-lg text-muted-foreground block"
 						aria-live="polite"
 					>
 						{closeFailed
 							? t("success.canCloseTab")
 							: t("success.windowCloses", { seconds: countdown })}
-					</p>
+					</output>
 
 					<div className="w-3/5 max-w-lg">
 						<ConnectionStatusCard source={successSource} hideStatusMessage />
