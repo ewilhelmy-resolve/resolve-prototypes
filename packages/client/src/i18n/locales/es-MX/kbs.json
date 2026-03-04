@@ -8,5 +8,17 @@
 			"title": "Archivo demasiado grande",
 			"description": "El archivo excede el límite máximo de {{maxSize}}."
 		}
+	},
+	"uploadToast": {
+		"startTitle": "Subiendo archivos",
+		"startDescription": "Iniciando subida de {{count}} archivo(s)...",
+		"successTitle": "Subida completa",
+		"successDescription": "Se subieron {{count}} archivo(s) exitosamente",
+		"partialTitle": "Subida parcialmente completa",
+		"partialDescription": "{{successCount}} exitosos, {{errorCount}} fallidos. Revisa los detalles.",
+		"failedTitle": "Subida fallida",
+		"failedAllDescription": "Todas las subidas fallaron",
+		"duplicateError": "Ya existe como \"{{filename}}\"",
+		"genericError": "Error al subir"
 	}
 }
