@@ -56,7 +56,7 @@
 			"title": "Jira",
 			"description": "Import tickets from Jira for Autopilot clustering."
 		},
-		"freshdesk": {
+		"freshservice_itsm": {
 			"title": "Freshdesk",
 			"description": "Import tickets from Freshdesk for autopilot clustering."
 		},

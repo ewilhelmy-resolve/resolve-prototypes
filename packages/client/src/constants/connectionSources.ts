@@ -49,7 +49,7 @@ export const SOURCES = {
 	SERVICENOW_ITSM: "servicenow_itsm",
 	WEB_SEARCH: "websearch",
 	JIRA_ITSM: "jira_itsm",
-	FRESHDESK: "freshdesk",
+	FRESHDESK: "freshservice_itsm",
 	IVANTI_ITSM: "ivanti_itsm",
 } as const;
 
@@ -67,7 +67,7 @@ export const KNOWLEDGE_SOURCE_TYPES = [
 export const ITSM_SOURCE_TYPES = [
 	"servicenow_itsm",
 	"jira_itsm",
-	"freshdesk",
+	"freshservice_itsm",
 	"ivanti_itsm",
 ] as const;
 
@@ -82,7 +82,7 @@ export const ITSM_SOURCES_ORDER = [
 	"servicenow_itsm",
 	"jira_itsm",
 	"ivanti_itsm",
-	"freshdesk",
+	"freshservice_itsm",
 ];
 
 // Static metadata for each source type (icons, titles, descriptions)
@@ -115,7 +115,7 @@ export const SOURCE_METADATA: Record<
 		title: "Jira",
 		description: "Import tickets from Jira for Autopilot clustering.",
 	},
-	freshdesk: {
+	freshservice_itsm: {
 		title: "Freshdesk",
 		description: "Import tickets from Freshdesk for autopilot clustering.",
 	},

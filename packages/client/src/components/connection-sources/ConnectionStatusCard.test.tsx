@@ -369,7 +369,7 @@ describe("ConnectionStatusCard", () => {
 
 		it("should show domain instead of url for Freshdesk connection", () => {
 			const source = createMockSource({
-				type: "freshdesk",
+				type: "freshservice_itsm",
 				title: "Freshdesk",
 				settings: {
 					domain: "https://acme.freshdesk.com",
@@ -383,7 +383,7 @@ describe("ConnectionStatusCard", () => {
 
 		it("should not show email field for Freshdesk connection", () => {
 			const source = createMockSource({
-				type: "freshdesk",
+				type: "freshservice_itsm",
 				title: "Freshdesk",
 				settings: {
 					domain: "https://acme.freshdesk.com",
@@ -397,7 +397,7 @@ describe("ConnectionStatusCard", () => {
 
 		it("should show API Key label for Freshdesk connection", () => {
 			const source = createMockSource({
-				type: "freshdesk",
+				type: "freshservice_itsm",
 				title: "Freshdesk",
 				settings: {
 					domain: "https://acme.freshdesk.com",

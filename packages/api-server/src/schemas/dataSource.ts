@@ -12,7 +12,7 @@ export const DataSourceTypeSchema = z
 		"sharepoint",
 		"websearch",
 		"jira_itsm",
-		"freshdesk",
+		"freshservice_itsm",
 		"ivanti_itsm",
 	])
 	.openapi("DataSourceType", { description: "Type of data source connection" });

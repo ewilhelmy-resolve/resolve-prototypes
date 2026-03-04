@@ -41,7 +41,7 @@ import dataSourceWebhooksRouter from "../dataSourceWebhooks.js";
 const mockFreshdeskDataSource = {
 	id: "ds-123",
 	organization_id: "test-org-id",
-	type: "freshdesk",
+	type: "freshservice_itsm",
 	name: "Freshdesk",
 	enabled: true,
 	settings: { domain: "https://acme.freshdesk.com" },
@@ -107,7 +107,7 @@ describe("POST /api/data-sources/:id/sync-tickets", () => {
 			startedBy: "test-user-id",
 			metadata: {
 				time_range_days: 30,
-				connection_type: "freshdesk",
+				connection_type: "freshservice_itsm",
 			},
 		});
 		expect(mockUpdateIngestionRunStatus).toHaveBeenCalledWith(
@@ -264,7 +264,7 @@ describe("POST /api/data-sources/:id/sync-tickets", () => {
 			userId: "test-user-id",
 			userEmail: "test@example.com",
 			connectionId: "ds-123",
-			connectionType: "freshdesk",
+			connectionType: "freshservice_itsm",
 			ingestionRunId: "run-123",
 			settings: {
 				domain: "https://acme.freshdesk.com",

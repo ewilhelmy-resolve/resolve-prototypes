@@ -238,7 +238,7 @@ export async function syncProviderData(
 		};
 
 		const fallbackPrefix =
-			config.name === "freshdesk"
+			config.name === "freshservice_itsm"
 				? "Customer request: "
 				: "General support request for ";
 
