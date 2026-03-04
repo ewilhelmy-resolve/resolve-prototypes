@@ -52,7 +52,7 @@ jobs:
     - name: Type check client
       run: pnpm --filter rita-client type-check
       env:
-        NODE_OPTIONS: --max-old-space-size=4096
+        NODE_OPTIONS: --max-old-space-size=6144
 
     - name: Lint (all packages)
       run: pnpm -r run lint
