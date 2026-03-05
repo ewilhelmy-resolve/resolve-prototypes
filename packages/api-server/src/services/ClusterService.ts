@@ -1,5 +1,10 @@
 import { sql } from "kysely";
 import { db } from "../config/kysely.js";
+
+function escapeLike(value: string): string {
+	return value.replace(/[\\%_]/g, "\\$&");
+}
+
 import type {
 	ClusterDetails,
 	ClusterListItem,
@@ -99,12 +104,18 @@ export class ClusterService {
 				case "last90":
 					dateCutoff = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
 					break;
-				case "last6months":
-					dateCutoff = new Date(now.setMonth(now.getMonth() - 6));
+				case "last6months": {
+					const d = new Date(now);
+					d.setMonth(d.getMonth() - 6);
+					dateCutoff = d;
 					break;
-				case "lastyear":
-					dateCutoff = new Date(now.setFullYear(now.getFullYear() - 1));
+				}
+				case "lastyear": {
+					const d = new Date(now);
+					d.setFullYear(d.getFullYear() - 1);
+					dateCutoff = d;
 					break;
+				}
 			}
 		}
 
@@ -155,7 +166,7 @@ export class ClusterService {
 
 		// Search filter (name OR subcluster_name ILIKE %search%)
 		if (options.search) {
-			const searchPattern = `%${options.search}%`;
+			const searchPattern = `%${escapeLike(options.search)}%`;
 			query = query.where((eb) =>
 				eb.or([
 					eb("c.name", "ilike", searchPattern),
@@ -242,7 +253,7 @@ export class ClusterService {
 		}
 
 		if (options.search) {
-			const searchPattern = `%${options.search}%`;
+			const searchPattern = `%${escapeLike(options.search)}%`;
 			totalsQuery = totalsQuery.where((eb) =>
 				eb.or([
 					eb("c.name", "ilike", searchPattern),
@@ -306,7 +317,7 @@ export class ClusterService {
 
 		// Search filter (searches subject and external_id)
 		if (options.search) {
-			const searchPattern = `%${options.search}%`;
+			const searchPattern = `%${escapeLike(options.search)}%`;
 			query = query.where((eb) =>
 				eb.or([
 					eb("subject", "ilike", searchPattern),
@@ -342,7 +353,7 @@ export class ClusterService {
 					qb.where("rita_status", "=", ritaStatusFilter as RitaStatus),
 				)
 				.$if(!!options.search, (qb) => {
-					const searchPattern = `%${options.search}%`;
+					const searchPattern = `%${escapeLike(options.search as string)}%`;
 					return qb.where((eb) =>
 						eb.or([
 							eb("subject", "ilike", searchPattern),

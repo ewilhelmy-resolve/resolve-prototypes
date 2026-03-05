@@ -64,6 +64,8 @@ describe("ClusterService.getClusters - Offset Pagination", () => {
 			sort?: "volume" | "automation" | "recent";
 			limit?: number;
 			offset?: number;
+			search?: string;
+			period?: "last30" | "last90" | "last6months" | "lastyear";
 		} = {},
 	) => {
 		try {
@@ -148,6 +150,50 @@ describe("ClusterService.getClusters - Offset Pagination", () => {
 			expect(totalsQuery?.sql).toMatch(
 				/^select count\(\*\) as "total_clusters"/i,
 			);
+		});
+	});
+
+	describe("search pattern escaping", () => {
+		it("should escape % in search input for ILIKE", async () => {
+			await callGetClusters({ search: "100%" });
+			const allParams = capturedQueries.flatMap((q) => q.params);
+			const likeParam = allParams.find(
+				(p) => typeof p === "string" && p.includes("100"),
+			) as string | undefined;
+			expect(likeParam).toBeDefined();
+			// % in user input should be escaped so it doesn't act as wildcard
+			expect(likeParam).not.toBe("%100%%");
+			expect(likeParam).toMatch(/100\\%/);
+		});
+
+		it("should escape _ in search input for ILIKE", async () => {
+			await callGetClusters({ search: "foo_bar" });
+			const allParams = capturedQueries.flatMap((q) => q.params);
+			const likeParam = allParams.find(
+				(p) => typeof p === "string" && p.includes("foo"),
+			) as string | undefined;
+			expect(likeParam).toBeDefined();
+			expect(likeParam).toMatch(/foo\\_bar/);
+		});
+	});
+
+	describe("date cutoff calculation", () => {
+		it("should not mutate the reference date across period cases", async () => {
+			const before = new Date();
+			await callGetClusters({ period: "last6months" });
+
+			// Find the date param used in the WHERE clause
+			const dateParam = capturedQueries
+				.flatMap((q) => q.params)
+				.find((p) => p instanceof Date) as Date | undefined;
+			expect(dateParam).toBeInstanceOf(Date);
+
+			// The cutoff should be ~6 months before now using setMonth (matching impl)
+			const expected = new Date(before);
+			expected.setMonth(expected.getMonth() - 6);
+			const diff = Math.abs((dateParam as Date).getTime() - expected.getTime());
+			// Allow 5 seconds tolerance for test execution time
+			expect(diff).toBeLessThan(5000);
 		});
 	});
 });
