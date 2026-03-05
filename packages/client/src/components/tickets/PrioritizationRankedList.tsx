@@ -1,8 +1,7 @@
 import { BookX, ZapOff } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
-import { Badge } from "@/components/ui/badge";
 import {
 	Table,
 	TableBody,
@@ -11,6 +10,11 @@ import {
 	TableHeader,
 	TableRow,
 } from "@/components/ui/table";
+import {
+	Tooltip,
+	TooltipContent,
+	TooltipTrigger,
+} from "@/components/ui/tooltip";
 import {
 	type RoiSortKey,
 	rankClustersByRoi,
@@ -21,40 +25,47 @@ import type { ClusterListItem } from "@/types/cluster";
 
 interface PrioritizationRankedListProps {
 	clusters: ClusterListItem[];
+	/** Active preset sort key, controlled by parent (null = default volume) */
+	activePreset: RoiSortKey | null;
+	/** Callback when column sort overrides the preset */
+	onPresetChange?: (key: RoiSortKey) => void;
+	/** Map of cluster ID → has linked action */
+	actionsMap?: Record<string, boolean>;
 }
 
 type SortColumn = "tickets" | "open" | RoiSortKey;
 
-const PRESETS: { key: RoiSortKey; i18nKey: string }[] = [
-	{ key: "costImpact", i18nKey: "prioritizationList.presets.highestCost" },
-	{ key: "mttr", i18nKey: "prioritizationList.presets.longestMttr" },
-	{ key: "timeTaken", i18nKey: "prioritizationList.presets.mostTime" },
-];
-
 export function PrioritizationRankedList({
 	clusters,
+	activePreset,
+	onPresetChange,
+	actionsMap,
 }: PrioritizationRankedListProps) {
 	const { t } = useTranslation("tickets");
 	const navigate = useNavigate();
 	const { costPerTicket, avgTimePerTicket } = useTicketSettingsStore();
 
-	const [activePreset, setActivePreset] = useState<RoiSortKey>("costImpact");
-	const [sortCol, setSortCol] = useState<SortColumn>("costImpact");
+	const [sortCol, setSortCol] = useState<SortColumn>(activePreset ?? "costImpact");
 	const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
 
-	const handlePreset = (key: RoiSortKey) => {
-		setActivePreset(key);
-		setSortCol(key);
-		setSortDir("desc");
-	};
+	// Sync internal sort when parent preset changes
+	useEffect(() => {
+		if (activePreset) {
+			setSortCol(activePreset);
+			setSortDir("desc");
+		}
+	}, [activePreset]);
 
 	const handleColumnSort = (col: SortColumn) => {
-		setActivePreset(null as unknown as RoiSortKey);
 		if (sortCol === col) {
 			setSortDir((d) => (d === "desc" ? "asc" : "desc"));
 		} else {
 			setSortCol(col);
 			setSortDir("desc");
+			// Sync parent preset if column is a preset key
+			if (col !== "tickets" && col !== "open" && onPresetChange) {
+				onPresetChange(col);
+			}
 		}
 	};
 
@@ -103,34 +114,38 @@ export function PrioritizationRankedList({
 		return `${Math.round(val)}m`;
 	};
 
-	const kbIcon = (status: string) => {
-		if (status === "GAP")
-			return <BookX className="size-4 text-orange-500" aria-label="Knowledge gap" />;
-		if (status === "FOUND") return null;
-		return null;
+	const gapIcons = (cluster: ClusterListItem) => {
+		const hasKnowledgeGap = cluster.kb_status === "GAP";
+		const hasAutomationGap = actionsMap?.[cluster.id] === false;
+		if (!hasKnowledgeGap && !hasAutomationGap) return null;
+		return (
+			<div className="flex items-center gap-1.5">
+				{hasKnowledgeGap && (
+					<Tooltip>
+						<TooltipTrigger asChild>
+							<span className="flex h-6 w-6 items-center justify-center rounded-full bg-yellow-100">
+								<BookX className="h-3.5 w-3.5 text-yellow-600" />
+							</span>
+						</TooltipTrigger>
+						<TooltipContent>Knowledge Gap</TooltipContent>
+					</Tooltip>
+				)}
+				{hasAutomationGap && (
+					<Tooltip>
+						<TooltipTrigger asChild>
+							<span className="flex h-6 w-6 items-center justify-center rounded-full bg-blue-100">
+								<ZapOff className="h-3.5 w-3.5 text-blue-500" />
+							</span>
+						</TooltipTrigger>
+						<TooltipContent>Automation Gap</TooltipContent>
+					</Tooltip>
+				)}
+			</div>
+		);
 	};
 
 	return (
 		<div className="flex flex-col gap-4">
-			{/* Preset pills */}
-			<div className="flex gap-2">
-				{PRESETS.map(({ key, i18nKey }) => (
-					<button
-						key={key}
-						type="button"
-						onClick={() => handlePreset(key)}
-						className="focus:outline-none"
-					>
-						<Badge
-							variant={activePreset === key ? "default" : "outline"}
-							className="cursor-pointer"
-						>
-							{t(i18nKey)}
-						</Badge>
-					</button>
-				))}
-			</div>
-
 			<Table>
 				<TableHeader>
 					<TableRow>
@@ -146,16 +161,6 @@ export function PrioritizationRankedList({
 							>
 								{t("prioritizationList.columns.tickets")}
 								{renderSortIcon(sortCol, "tickets", sortDir)}
-							</button>
-						</TableHead>
-						<TableHead>
-							<button
-								type="button"
-								onClick={() => handleColumnSort("open")}
-								className="inline-flex items-center gap-1 cursor-pointer"
-							>
-								{t("prioritizationList.columns.open")}
-								{renderSortIcon(sortCol, "open", sortDir)}
 							</button>
 						</TableHead>
 						<TableHead>
@@ -209,13 +214,10 @@ export function PrioritizationRankedList({
 							<TableCell>
 								{row.cluster.ticket_count.toLocaleString()}
 							</TableCell>
-							<TableCell>
-								{row.cluster.needs_response_count.toLocaleString()}
-							</TableCell>
 							<TableCell>{formatMinutes(row.mttr)}</TableCell>
 							<TableCell>{formatCurrency(row.costImpact)}</TableCell>
 							<TableCell>{formatMinutes(row.timeTaken)}</TableCell>
-							<TableCell>{kbIcon(row.cluster.kb_status)}</TableCell>
+							<TableCell>{gapIcons(row.cluster)}</TableCell>
 						</TableRow>
 					))}
 				</TableBody>

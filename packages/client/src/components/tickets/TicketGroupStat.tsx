@@ -20,6 +20,10 @@ interface TicketGroupStatProps {
 	knowledgeStatus: KBStatus;
 	/** Whether a Resolve Action workflow is linked to this cluster */
 	hasAction?: boolean;
+	/** Estimated monthly cost impact */
+	costImpact?: number;
+	/** Mean time to resolve in minutes */
+	mttr?: number;
 	/** Optional click handler - overrides default navigation */
 	onClick?: () => void;
 }
@@ -36,6 +40,8 @@ export function TicketGroupStat({
 	openCount,
 	knowledgeStatus,
 	hasAction,
+	costImpact,
+	mttr,
 	onClick,
 }: TicketGroupStatProps) {
 	const navigate = useNavigate();
@@ -61,8 +67,26 @@ export function TicketGroupStat({
 					<span className="text-[38px] font-normal leading-6 text-card-foreground">
 						{count.toLocaleString()}
 					</span>
-					{openCount > 0 && (
-						<span className="text-xs text-muted-foreground">{openCount} open</span>
+					{(costImpact != null || mttr != null) && (
+						<div className="flex items-baseline gap-1.5 text-xs text-muted-foreground">
+							{costImpact != null && (
+								<Tooltip>
+									<TooltipTrigger asChild>
+										<span>${costImpact >= 1000 ? `${(costImpact / 1000).toFixed(1)}k` : Math.round(costImpact).toLocaleString()}</span>
+									</TooltipTrigger>
+									<TooltipContent>Cost Impact</TooltipContent>
+								</Tooltip>
+							)}
+							{costImpact != null && mttr != null && <span>·</span>}
+							{mttr != null && (
+								<Tooltip>
+									<TooltipTrigger asChild>
+										<span>{mttr}m</span>
+									</TooltipTrigger>
+									<TooltipContent>Mean Time to Resolve</TooltipContent>
+								</Tooltip>
+							)}
+						</div>
 					)}
 				</div>
 				{(hasKnowledgeGap || hasAutomationGap) && (

@@ -40,18 +40,22 @@
 		"trainingFailed": "Training failed",
 		"trainingFailedDescription": "There was an issue analyzing your tickets. Please check your ITSM connection and try syncing again.",
 		"goToItsmConnections": "Go to ITSM Connections",
+		"filter": "Filter",
 		"filterBy": "Filter by",
+		"prioritizedBy": "Prioritized by",
+		"clearFilters": "Clear",
 		"sortBy": "Sort by",
 		"sortOptions": {
-			"volume": "Volume",
-			"value": "Value"
+			"volume": "Highest Volume",
+			"cost": "Highest Cost",
+			"mttr": "Longest MTTR",
+			"time": "Most Time Taken"
 		},
-		"searchPlaceholder": "Search by topic name...",
+		"searchPlaceholder": "Search by ticket group...",
 		"filterOptions": {
 			"all": "All",
-			"knowledgeFound": "Knowledge found",
 			"knowledgeGap": "Knowledge gap",
-			"pending": "Pending"
+			"automationGap": "Automation gap"
 		},
 		"periods": {
 			"last30Days": "Last 30 days",
@@ -241,7 +245,7 @@
 			"mttr": "MTTR",
 			"costImpact": "Cost Impact",
 			"timeTaken": "Time Taken",
-			"kbStatus": "KB"
+			"kbStatus": "Gap"
 		}
 	},
 	"gaps": {
