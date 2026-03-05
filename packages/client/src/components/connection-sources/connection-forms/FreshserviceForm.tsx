@@ -14,22 +14,22 @@ import ConnectionsForm from "../form-elements/ConnectionsForm";
 import FormField from "../form-elements/FormField";
 import FormSection from "../form-elements/FormSection";
 
-export interface FreshdeskFormData {
+export interface FreshserviceFormData {
 	domain: string;
 	apiKey: string;
 }
 
-interface FreshdeskFormProps {
+interface FreshserviceFormProps {
 	onCancel?: () => void;
 	onSuccess?: () => void;
 	onFailure?: () => void;
 }
 
-export function FreshdeskForm({
+export function FreshserviceForm({
 	onCancel,
 	onSuccess,
 	onFailure,
-}: FreshdeskFormProps = {}) {
+}: FreshserviceFormProps = {}) {
 	const { t } = useTranslation("connections");
 	const { t: tToast } = useTranslation("toast");
 	const { source } = useConnectionSource();
@@ -45,7 +45,7 @@ export function FreshdeskForm({
 		formState: { errors },
 		getValues,
 		trigger,
-	} = useForm<FreshdeskFormData>({
+	} = useForm<FreshserviceFormData>({
 		mode: "onSubmit",
 		defaultValues: {
 			domain: source.backendData?.settings?.domain || "",
@@ -89,7 +89,7 @@ export function FreshdeskForm({
 
 			ritaToast.success({
 				title: tToast("success.connectionConfigured"),
-				description: tToast("descriptions.freshdeskConfigured"),
+				description: tToast("descriptions.freshserviceConfigured"),
 			});
 			onSuccess?.();
 		} catch (error) {
@@ -109,7 +109,10 @@ export function FreshdeskForm({
 	};
 
 	return (
-		<ConnectionsForm handleSubmit={handleSubmit(onSubmit)} id="freshdesk-form">
+		<ConnectionsForm
+			handleSubmit={handleSubmit(onSubmit)}
+			id="freshservice-form"
+		>
 			<FormSection title={t("form.sections.authentication")}>
 				{verificationFailed && (
 					<StatusAlert variant="error" className="mb-4">
@@ -122,15 +125,15 @@ export function FreshdeskForm({
 				)}
 
 				<FormField
-					label={t("form.labels.freshdeskDomain")}
+					label={t("form.labels.freshserviceDomain")}
 					errors={errors}
 					name="domain"
 					required
 				>
 					<Input
-						id="freshdesk-domain"
+						id="freshservice-domain"
 						type="url"
-						placeholder={t("form.placeholders.freshdeskDomain")}
+						placeholder={t("form.placeholders.freshserviceDomain")}
 						{...register("domain", {
 							required: t("form.validation.domainRequired"),
 							pattern: {
@@ -148,7 +151,7 @@ export function FreshdeskForm({
 					required
 				>
 					<Input
-						id="freshdesk-api-key"
+						id="freshservice-api-key"
 						type="password"
 						placeholder={t("form.placeholders.apiKey")}
 						{...register("apiKey", {

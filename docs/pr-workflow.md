@@ -16,7 +16,7 @@ fix(session): cookie max-age handling
 refactor(iframe): use Valkey IDs directly
 test(ui-schema): add Stack/Card schema tests
 docs(ui-form-request): add pipeline docs
-chore(itsm): reorder Ivanti above Freshdesk
+chore(itsm): reorder Ivanti above Freshservice
 ```
 
 ### Common Scopes

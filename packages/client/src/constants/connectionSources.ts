@@ -49,7 +49,7 @@ export const SOURCES = {
 	SERVICENOW_ITSM: "servicenow_itsm",
 	WEB_SEARCH: "websearch",
 	JIRA_ITSM: "jira_itsm",
-	FRESHDESK: "freshservice_itsm",
+	FRESHSERVICE: "freshservice_itsm",
 	IVANTI_ITSM: "ivanti_itsm",
 } as const;
 
@@ -116,8 +116,8 @@ export const SOURCE_METADATA: Record<
 		description: "Import tickets from Jira for Autopilot clustering.",
 	},
 	freshservice_itsm: {
-		title: "Freshdesk",
-		description: "Import tickets from Freshdesk for autopilot clustering.",
+		title: "Freshservice",
+		description: "Import tickets from Freshservice for autopilot clustering.",
 	},
 	ivanti_itsm: {
 		title: "Ivanti",

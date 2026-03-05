@@ -71,11 +71,11 @@ vi.mock(
 );
 
 vi.mock(
-	"@/components/connection-sources/connection-details/FreshdeskItsmConfiguration",
+	"@/components/connection-sources/connection-details/FreshserviceItsmConfiguration",
 	() => ({
 		default: ({ onEdit }: { onEdit: () => void }) => (
 			<div>
-				<div>Freshdesk ITSM Configuration</div>
+				<div>Freshservice ITSM Configuration</div>
 				<button onClick={onEdit}>Edit</button>
 			</div>
 		),
@@ -144,9 +144,9 @@ vi.mock("@/components/connection-sources/connection-forms", () => ({
 			{onCancel && <button onClick={onCancel}>Cancel</button>}
 		</div>
 	),
-	FreshdeskForm: ({ onCancel }: { onCancel?: () => void }) => (
+	FreshserviceForm: ({ onCancel }: { onCancel?: () => void }) => (
 		<div>
-			<div>Freshdesk Form</div>
+			<div>Freshservice Form</div>
 			{onCancel && <button onClick={onCancel}>Cancel</button>}
 		</div>
 	),

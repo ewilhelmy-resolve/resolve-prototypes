@@ -38,25 +38,25 @@ function getDisplayFields(source: ConnectionSource) {
 		source.type === SOURCES.SERVICENOW ||
 		source.type === SOURCES.SERVICENOW_ITSM;
 	const isIvanti = source.type === SOURCES.IVANTI_ITSM;
-	const isFreshdesk = source.type === SOURCES.FRESHDESK;
+	const isFreshservice = source.type === SOURCES.FRESHSERVICE;
 
 	// URL field
 	let urlValue = source.settings?.url || "—";
 	if (isServiceNow) {
 		urlValue = source.settings?.instanceUrl || "—";
-	} else if (isFreshdesk) {
+	} else if (isFreshservice) {
 		urlValue = source.settings?.domain || "—";
 	}
 
 	// User identifier field (username vs email)
-	// Ivanti and Freshdesk don't have a user field - only URL/Domain + API Key
+	// Ivanti and Freshservice don't have a user field - only URL/Domain + API Key
 	let userLabelKey:
 		| "statusCard.labels.username"
 		| "statusCard.labels.email"
 		| null;
 	let userValue: string | null;
 
-	if (isIvanti || isFreshdesk) {
+	if (isIvanti || isFreshservice) {
 		userLabelKey = null;
 		userValue = null;
 	} else if (isServiceNow) {
@@ -74,7 +74,7 @@ function getDisplayFields(source: ConnectionSource) {
 		| "statusCard.labels.apiKey";
 	if (isServiceNow) {
 		credentialLabelKey = "statusCard.labels.password";
-	} else if (isIvanti || isFreshdesk) {
+	} else if (isIvanti || isFreshservice) {
 		credentialLabelKey = "statusCard.labels.apiKey";
 	} else {
 		credentialLabelKey = "statusCard.labels.apiToken";

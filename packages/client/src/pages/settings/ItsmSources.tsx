@@ -27,7 +27,7 @@ export default function ItsmSources() {
 	const isServiceNowEnabled = useFeatureFlag("ENABLE_SERVICENOW");
 	const isJiraEnabled = useFeatureFlag("ENABLE_JIRA");
 	const isIvantiEnabled = useFeatureFlag("ENABLE_IVANTI");
-	const isFreshdeskEnabled = useFeatureFlag("ENABLE_FRESHDESK");
+	const isFreshserviceEnabled = useFeatureFlag("ENABLE_FRESHSERVICE");
 
 	// Check training state for banner
 	const { data: activeModel } = useActiveModel();
@@ -39,7 +39,7 @@ export default function ItsmSources() {
 		...(isServiceNowEnabled ? [SOURCES.SERVICENOW_ITSM] : []),
 		...(isJiraEnabled ? [SOURCES.JIRA_ITSM] : []),
 		...(isIvantiEnabled ? [SOURCES.IVANTI_ITSM] : []),
-		...(isFreshdeskEnabled ? [SOURCES.FRESHDESK] : []),
+		...(isFreshserviceEnabled ? [SOURCES.FRESHSERVICE] : []),
 	];
 
 	// Seed on mount (idempotent - safe to call multiple times)

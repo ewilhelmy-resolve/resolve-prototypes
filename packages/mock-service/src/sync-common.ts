@@ -43,7 +43,7 @@ export interface ProviderConfig {
 		agent: string,
 		priority: string,
 	) => object;
-	/** Extract the scenario key from settings (e.g. domain for Freshdesk, username for ServiceNow) */
+	/** Extract the scenario key from settings (e.g. domain for Freshservice, username for ServiceNow) */
 	getScenarioKey: (settings?: Record<string, unknown>) => string | undefined;
 	/** Map the scenario key to a TrainingScenario */
 	matchScenario: (key: string) => TrainingScenario;
