@@ -40,10 +40,6 @@ export const ClusterListQuerySchema = z
 			.enum(["last30", "last90", "last6months", "lastyear"])
 			.optional()
 			.openapi({ description: "Time period filter for ticket counts" }),
-		include_inactive: z.coerce
-			.boolean()
-			.optional()
-			.openapi({ description: "Include inactive clusters" }),
 		limit: z.coerce
 			.number()
 			.int()

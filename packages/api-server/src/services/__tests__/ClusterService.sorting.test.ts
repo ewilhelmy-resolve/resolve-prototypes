@@ -64,6 +64,8 @@ describe("ClusterService.getClusters - Offset Pagination", () => {
 			sort?: "volume" | "automation" | "recent";
 			limit?: number;
 			offset?: number;
+			search?: string;
+			period?: "last30" | "last90" | "last6months" | "lastyear";
 		} = {},
 	) => {
 		try {
@@ -106,6 +108,92 @@ describe("ClusterService.getClusters - Offset Pagination", () => {
 			const sql = getSelectQuery();
 			expect(sql).toMatch(/order by.*ticket_count/i);
 			expect(sql).toMatch(/order by.*"id"/i);
+		});
+	});
+
+	describe("tickets-first query approach", () => {
+		it("should not reference ml_models table", async () => {
+			await callGetClusters({ sort: "recent" });
+			const allSql = capturedQueries.map((q) => q.sql).join(" ");
+			expect(allSql).not.toMatch(/ml_models/i);
+		});
+
+		it("should start from tickets subquery joined to clusters", async () => {
+			await callGetClusters({ sort: "recent" });
+			const sql = getSelectQuery();
+			expect(sql).toMatch(/tickets/i);
+			expect(sql).toMatch(/join.*clusters/i);
+		});
+
+		it("should filter out NULL cluster_id in ticket stats subquery", async () => {
+			await callGetClusters({ sort: "recent" });
+			const sql = getSelectQuery();
+			expect(sql).toMatch(/cluster_id.*is not null/i);
+		});
+
+		it("should filter out NULL cluster_id in totals ticket subquery", async () => {
+			await callGetClusters({ sort: "recent" });
+			const totalsQuery = capturedQueries.find(
+				(q) =>
+					q.sql.toLowerCase().includes("automated_cnt") &&
+					q.sql.toLowerCase().includes("cluster_id"),
+			);
+			expect(totalsQuery?.sql).toMatch(/cluster_id.*is not null/i);
+		});
+
+		it("should use COUNT(*) instead of COUNT(DISTINCT) for total_clusters", async () => {
+			await callGetClusters({ sort: "recent" });
+			const totalsQuery = capturedQueries.find((q) =>
+				q.sql.toLowerCase().includes("total_clusters"),
+			);
+			// The outer SELECT should use COUNT(*) for total_clusters, not COUNT(DISTINCT ...)
+			expect(totalsQuery?.sql).toMatch(
+				/^select count\(\*\) as "total_clusters"/i,
+			);
+		});
+	});
+
+	describe("search pattern escaping", () => {
+		it("should escape % in search input for ILIKE", async () => {
+			await callGetClusters({ search: "100%" });
+			const allParams = capturedQueries.flatMap((q) => q.params);
+			const likeParam = allParams.find(
+				(p) => typeof p === "string" && p.includes("100"),
+			) as string | undefined;
+			expect(likeParam).toBeDefined();
+			// % in user input should be escaped so it doesn't act as wildcard
+			expect(likeParam).not.toBe("%100%%");
+			expect(likeParam).toMatch(/100\\%/);
+		});
+
+		it("should escape _ in search input for ILIKE", async () => {
+			await callGetClusters({ search: "foo_bar" });
+			const allParams = capturedQueries.flatMap((q) => q.params);
+			const likeParam = allParams.find(
+				(p) => typeof p === "string" && p.includes("foo"),
+			) as string | undefined;
+			expect(likeParam).toBeDefined();
+			expect(likeParam).toMatch(/foo\\_bar/);
+		});
+	});
+
+	describe("date cutoff calculation", () => {
+		it("should not mutate the reference date across period cases", async () => {
+			const before = new Date();
+			await callGetClusters({ period: "last6months" });
+
+			// Find the date param used in the WHERE clause
+			const dateParam = capturedQueries
+				.flatMap((q) => q.params)
+				.find((p) => p instanceof Date) as Date | undefined;
+			expect(dateParam).toBeInstanceOf(Date);
+
+			// The cutoff should be ~6 months before now using setMonth (matching impl)
+			const expected = new Date(before);
+			expected.setMonth(expected.getMonth() - 6);
+			const diff = Math.abs((dateParam as Date).getTime() - expected.getTime());
+			// Allow 5 seconds tolerance for test execution time
+			expect(diff).toBeLessThan(5000);
 		});
 	});
 });
