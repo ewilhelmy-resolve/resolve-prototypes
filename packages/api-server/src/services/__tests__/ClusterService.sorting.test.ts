@@ -108,6 +108,21 @@ describe("ClusterService.getClusters - Offset Pagination", () => {
 			expect(sql).toMatch(/order by.*"id"/i);
 		});
 	});
+
+	describe("tickets-first query approach", () => {
+		it("should not reference ml_models table", async () => {
+			await callGetClusters({ sort: "recent" });
+			const allSql = capturedQueries.map((q) => q.sql).join(" ");
+			expect(allSql).not.toMatch(/ml_models/i);
+		});
+
+		it("should start from tickets subquery joined to clusters", async () => {
+			await callGetClusters({ sort: "recent" });
+			const sql = getSelectQuery();
+			expect(sql).toMatch(/tickets/i);
+			expect(sql).toMatch(/join.*clusters/i);
+		});
+	});
 });
 
 describe("ClusterService.getClusterTickets - Sorting", () => {
