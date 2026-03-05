@@ -118,7 +118,8 @@ export class ClusterService {
 					"needs_response_count",
 				),
 			])
-			.where("t.organization_id", "=", organizationId);
+			.where("t.organization_id", "=", organizationId)
+			.where("t.cluster_id", "is not", null);
 
 		if (dateCutoff) {
 			ticketStatsQuery = ticketStatsQuery.where(
@@ -209,7 +210,8 @@ export class ClusterService {
 				sql<number>`COUNT(DISTINCT t.id)`.as("cnt"),
 				sql<number>`COUNT(DISTINCT tl.ticket_id)`.as("automated_cnt"),
 			])
-			.where("t.organization_id", "=", organizationId);
+			.where("t.organization_id", "=", organizationId)
+			.where("t.cluster_id", "is not", null);
 
 		if (dateCutoff) {
 			totalsTicketSubquery = totalsTicketSubquery.where(
@@ -227,7 +229,7 @@ export class ClusterService {
 			.selectFrom(totalsTicketCounts)
 			.innerJoin("clusters as c", "c.id", "ttc.cluster_id")
 			.select([
-				sql<number>`COUNT(DISTINCT ttc.cluster_id)`.as("total_clusters"),
+				sql<number>`COUNT(*)`.as("total_clusters"),
 				sql<number>`COALESCE(SUM(ttc.cnt), 0)`.as("total_tickets"),
 				sql<number>`COALESCE(SUM(ttc.automated_cnt), 0)`.as(
 					"total_automated_tickets",

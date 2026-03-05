@@ -122,6 +122,33 @@ describe("ClusterService.getClusters - Offset Pagination", () => {
 			expect(sql).toMatch(/tickets/i);
 			expect(sql).toMatch(/join.*clusters/i);
 		});
+
+		it("should filter out NULL cluster_id in ticket stats subquery", async () => {
+			await callGetClusters({ sort: "recent" });
+			const sql = getSelectQuery();
+			expect(sql).toMatch(/cluster_id.*is not null/i);
+		});
+
+		it("should filter out NULL cluster_id in totals ticket subquery", async () => {
+			await callGetClusters({ sort: "recent" });
+			const totalsQuery = capturedQueries.find(
+				(q) =>
+					q.sql.toLowerCase().includes("automated_cnt") &&
+					q.sql.toLowerCase().includes("cluster_id"),
+			);
+			expect(totalsQuery?.sql).toMatch(/cluster_id.*is not null/i);
+		});
+
+		it("should use COUNT(*) instead of COUNT(DISTINCT) for total_clusters", async () => {
+			await callGetClusters({ sort: "recent" });
+			const totalsQuery = capturedQueries.find((q) =>
+				q.sql.toLowerCase().includes("total_clusters"),
+			);
+			// The outer SELECT should use COUNT(*) for total_clusters, not COUNT(DISTINCT ...)
+			expect(totalsQuery?.sql).toMatch(
+				/^select count\(\*\) as "total_clusters"/i,
+			);
+		});
 	});
 });
 
