@@ -55,7 +55,7 @@ const formatDate = (dateString: string): string => {
 	});
 };
 
-// Extract source from source_metadata (Freshdesk stores source as a number)
+// Extract source from source_metadata (Freshservice stores source as a number)
 const getTicketSource = (metadata: Record<string, unknown>): string => {
 	const source = metadata?.source;
 	return typeof source === "string" ? source : "";

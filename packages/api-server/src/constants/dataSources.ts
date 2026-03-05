@@ -59,8 +59,8 @@ export const DEFAULT_DATA_SOURCES = [
 	},
 	{
 		type: "freshservice_itsm" as DataSourceType,
-		name: "Freshdesk",
-		description: "Import tickets from Freshdesk for Autopilot clustering",
+		name: "Freshservice",
+		description: "Import tickets from Freshservice for Autopilot clustering",
 	},
 	{
 		type: "ivanti_itsm" as DataSourceType,

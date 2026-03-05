@@ -367,26 +367,26 @@ describe("ConnectionStatusCard", () => {
 			expect(screen.getAllByText("Connected").length).toBeGreaterThan(0);
 		});
 
-		it("should show domain instead of url for Freshdesk connection", () => {
+		it("should show domain instead of url for Freshservice connection", () => {
 			const source = createMockSource({
 				type: "freshservice_itsm",
-				title: "Freshdesk",
+				title: "Freshservice",
 				settings: {
-					domain: "https://acme.freshdesk.com",
+					domain: "https://acme.freshservice.com",
 				},
 			});
 			renderWithRouter(<ConnectionStatusCard source={source} />);
 			expect(
-				screen.getByText("https://acme.freshdesk.com"),
+				screen.getByText("https://acme.freshservice.com"),
 			).toBeInTheDocument();
 		});
 
-		it("should not show email field for Freshdesk connection", () => {
+		it("should not show email field for Freshservice connection", () => {
 			const source = createMockSource({
 				type: "freshservice_itsm",
-				title: "Freshdesk",
+				title: "Freshservice",
 				settings: {
-					domain: "https://acme.freshdesk.com",
+					domain: "https://acme.freshservice.com",
 				},
 			});
 			renderWithRouter(<ConnectionStatusCard source={source} />);
@@ -395,12 +395,12 @@ describe("ConnectionStatusCard", () => {
 			).not.toBeInTheDocument();
 		});
 
-		it("should show API Key label for Freshdesk connection", () => {
+		it("should show API Key label for Freshservice connection", () => {
 			const source = createMockSource({
 				type: "freshservice_itsm",
-				title: "Freshdesk",
+				title: "Freshservice",
 				settings: {
-					domain: "https://acme.freshdesk.com",
+					domain: "https://acme.freshservice.com",
 				},
 			});
 			renderWithRouter(<ConnectionStatusCard source={source} />);

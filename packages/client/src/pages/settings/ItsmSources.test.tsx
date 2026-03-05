@@ -143,11 +143,11 @@ describe("ItsmSources", () => {
 					last_verification_at: "2024-01-01T00:00:00Z",
 					last_verification_error: null,
 				}),
-				// Freshdesk: Error (has verification error)
+				// Freshservice: Error (has verification error)
 				createMockDataSource({
 					id: "fd-1",
 					type: "freshservice_itsm",
-					name: "Freshdesk",
+					name: "Freshservice",
 					status: "idle",
 					enabled: true,
 					last_verification_at: "2024-01-01T00:00:00Z",
@@ -157,7 +157,7 @@ describe("ItsmSources", () => {
 			renderWithRouter(<ItsmSources />);
 
 			const titles = getRenderedTitles();
-			const fdIndex = titles.indexOf("Freshdesk");
+			const fdIndex = titles.indexOf("Freshservice");
 			const snIndex = titles.indexOf("ServiceNow ITSM");
 
 			expect(fdIndex).toBeGreaterThanOrEqual(0);
@@ -177,11 +177,11 @@ describe("ItsmSources", () => {
 					last_verification_at: "2024-01-01T00:00:00Z",
 					last_verification_error: null,
 				}),
-				// Freshdesk: Verifying
+				// Freshservice: Verifying
 				createMockDataSource({
 					id: "fd-1",
 					type: "freshservice_itsm",
-					name: "Freshdesk",
+					name: "Freshservice",
 					status: "verifying",
 					enabled: true,
 					last_verification_at: null,
@@ -191,7 +191,7 @@ describe("ItsmSources", () => {
 			renderWithRouter(<ItsmSources />);
 
 			const titles = getRenderedTitles();
-			const fdIndex = titles.indexOf("Freshdesk");
+			const fdIndex = titles.indexOf("Freshservice");
 			const snIndex = titles.indexOf("ServiceNow ITSM");
 
 			expect(fdIndex).toBeGreaterThanOrEqual(0);
@@ -221,11 +221,11 @@ describe("ItsmSources", () => {
 					last_verification_at: null,
 					last_verification_error: null,
 				}),
-				// Freshdesk: Error (priority 0)
+				// Freshservice: Error (priority 0)
 				createMockDataSource({
 					id: "fd-1",
 					type: "freshservice_itsm",
-					name: "Freshdesk",
+					name: "Freshservice",
 					status: "idle",
 					enabled: true,
 					last_verification_at: "2024-01-01T00:00:00Z",
@@ -237,7 +237,7 @@ describe("ItsmSources", () => {
 
 			const titles = getRenderedTitles();
 			expect(titles).toEqual([
-				"Freshdesk", // Error (0)
+				"Freshservice", // Error (0)
 				"Ivanti", // Verifying (1)
 				"ServiceNow ITSM", // Connected (2)
 				"Jira", // Not connected placeholder (3)
@@ -248,11 +248,11 @@ describe("ItsmSources", () => {
 			// Both priority 1; tiebreaker is ITSM_SOURCES_ORDER:
 			// servicenow_itsm (0), jira_itsm (1), ivanti_itsm (2), freshservice_itsm (3)
 			mockDataSourcesQuery.data = [
-				// Freshdesk: Verifying (priority 1, order index 3)
+				// Freshservice: Verifying (priority 1, order index 3)
 				createMockDataSource({
 					id: "fd-1",
 					type: "freshservice_itsm",
-					name: "Freshdesk",
+					name: "Freshservice",
 					status: "verifying",
 					enabled: true,
 					last_verification_at: null,
@@ -273,7 +273,7 @@ describe("ItsmSources", () => {
 
 			const titles = getRenderedTitles();
 			const snIndex = titles.indexOf("ServiceNow ITSM");
-			const fdIndex = titles.indexOf("Freshdesk");
+			const fdIndex = titles.indexOf("Freshservice");
 
 			// Same priority, so tiebreaker puts ServiceNow first
 			expect(snIndex).toBeLessThan(fdIndex);
@@ -314,14 +314,14 @@ describe("ItsmSources", () => {
 		});
 
 		it("should sort placeholders (Not connected) after all backend sources with active statuses", () => {
-			// Only ServiceNow and Freshdesk have backend entries.
+			// Only ServiceNow and Freshservice have backend entries.
 			// Jira and Ivanti are placeholders (Not connected).
 			mockDataSourcesQuery.data = [
-				// Freshdesk: Syncing (priority 1)
+				// Freshservice: Syncing (priority 1)
 				createMockDataSource({
 					id: "fd-1",
 					type: "freshservice_itsm",
-					name: "Freshdesk",
+					name: "Freshservice",
 					status: "syncing",
 					enabled: true,
 					last_verification_at: "2024-01-01T00:00:00Z",
@@ -342,7 +342,7 @@ describe("ItsmSources", () => {
 
 			const titles = getRenderedTitles();
 			expect(titles).toEqual([
-				"Freshdesk", // Syncing (1)
+				"Freshservice", // Syncing (1)
 				"ServiceNow ITSM", // Connected (2)
 				"Jira", // Not connected placeholder (3) - order index 1
 				"Ivanti", // Not connected placeholder (3) - order index 2

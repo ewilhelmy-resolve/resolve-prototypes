@@ -76,7 +76,7 @@
 		"serviceNowConfigured": "Your ServiceNow connection has been configured successfully",
 		"jiraConfigured": "Your Jira connection has been configured successfully",
 		"ivantiConfigured": "Your Ivanti connection has been configured successfully",
-		"freshdeskConfigured": "Your Freshdesk connection has been configured successfully",
+		"freshserviceConfigured": "Your Freshservice connection has been configured successfully",
 		"sharePointConfigured": "Your SharePoint connection has been configured successfully",
 		"webSearchEnabled": "Web Search has been enabled successfully",
 		"syncingSpaces": "Your Confluence spaces are being synced",

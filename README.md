@@ -34,7 +34,7 @@ Open http://localhost:5173
 
 - **AI Chat Interface** — conversational IT support with SSE streaming
 - **Multi-tenant Architecture** — org-level isolation with Keycloak auth
-- **ITSM Integrations** — ServiceNow, Jira, Ivanti, Freshdesk connections
+- **ITSM Integrations** — ServiceNow, Jira, Ivanti, Freshservice connections
 - **Autopilot** — autonomous ITSM source management and ticket clustering
 - **Knowledge Base** — Confluence and file-based knowledge ingestion
 - **Iframe Embeddable** — drop-in chat widget for host applications

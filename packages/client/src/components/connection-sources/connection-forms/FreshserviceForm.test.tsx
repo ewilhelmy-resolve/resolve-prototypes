@@ -1,5 +1,5 @@
 /**
- * FreshdeskForm.test.tsx - Unit tests for Freshdesk connection form
+ * FreshserviceForm.test.tsx - Unit tests for Freshservice connection form
  */
 
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
@@ -7,7 +7,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { ConnectionSource } from "@/constants/connectionSources";
 import { STATUS } from "@/constants/connectionSources";
 import { ConnectionSourceProvider } from "@/contexts/ConnectionSourceContext";
-import { FreshdeskForm } from "./FreshdeskForm";
+import { FreshserviceForm } from "./FreshserviceForm";
 
 // Define DataSourceConnection type locally for the test
 type DataSourceType =
@@ -67,7 +67,7 @@ const baseBackendData = {
 	id: "source-123",
 	organization_id: "org-123",
 	type: "freshservice_itsm" as DataSourceType,
-	name: "Freshdesk",
+	name: "Freshservice",
 	description: null,
 	settings: {},
 	latest_options: null,
@@ -90,7 +90,7 @@ const createMockSource = (
 ): ConnectionSource => ({
 	id: "source-123",
 	type: "freshservice_itsm",
-	title: "Freshdesk",
+	title: "Freshservice",
 	status: STATUS.NOT_CONNECTED,
 	lastSync: undefined,
 	badges: [],
@@ -106,7 +106,7 @@ const renderWithProvider = (
 ) => {
 	return render(
 		<ConnectionSourceProvider source={source}>
-			<FreshdeskForm
+			<FreshserviceForm
 				onCancel={onCancel}
 				onSuccess={onSuccess}
 				onFailure={onFailure}
@@ -115,7 +115,7 @@ const renderWithProvider = (
 	);
 };
 
-describe("FreshdeskForm", () => {
+describe("FreshserviceForm", () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
 	});
@@ -133,10 +133,10 @@ describe("FreshdeskForm", () => {
 			const source = createMockSource();
 			renderWithProvider(source);
 			expect(
-				screen.getByText(/form.labels.freshdeskDomain/i),
+				screen.getByText(/form.labels.freshserviceDomain/i),
 			).toBeInTheDocument();
 			expect(
-				screen.getByPlaceholderText("form.placeholders.freshdeskDomain"),
+				screen.getByPlaceholderText("form.placeholders.freshserviceDomain"),
 			).toBeInTheDocument();
 		});
 
@@ -181,15 +181,15 @@ describe("FreshdeskForm", () => {
 				backendData: {
 					...baseBackendData,
 					settings: {
-						domain: "https://company.freshdesk.com",
+						domain: "https://company.freshservice.com",
 					},
 				} as DataSourceConnection,
 			});
 			renderWithProvider(source);
 			const domainInput = screen.getByPlaceholderText(
-				"form.placeholders.freshdeskDomain",
+				"form.placeholders.freshserviceDomain",
 			) as HTMLInputElement;
-			expect(domainInput.value).toBe("https://company.freshdesk.com");
+			expect(domainInput.value).toBe("https://company.freshservice.com");
 		});
 
 		it("should not pre-fill apiKey (always empty for security)", () => {
@@ -197,7 +197,7 @@ describe("FreshdeskForm", () => {
 				backendData: {
 					...baseBackendData,
 					settings: {
-						domain: "https://company.freshdesk.com",
+						domain: "https://company.freshservice.com",
 						apiKey: "secret-key",
 					},
 				} as DataSourceConnection,
@@ -245,7 +245,7 @@ describe("FreshdeskForm", () => {
 			renderWithProvider(source);
 
 			const domainInput = screen.getByPlaceholderText(
-				"form.placeholders.freshdeskDomain",
+				"form.placeholders.freshserviceDomain",
 			);
 			const apiKeyInput = screen.getByPlaceholderText(
 				"form.placeholders.apiKey",
@@ -279,7 +279,7 @@ describe("FreshdeskForm", () => {
 			renderWithProvider(source);
 
 			const domainInput = screen.getByPlaceholderText(
-				"form.placeholders.freshdeskDomain",
+				"form.placeholders.freshserviceDomain",
 			);
 
 			// Type invalid values
@@ -297,14 +297,14 @@ describe("FreshdeskForm", () => {
 			renderWithProvider(source);
 
 			const domainInput = screen.getByPlaceholderText(
-				"form.placeholders.freshdeskDomain",
+				"form.placeholders.freshserviceDomain",
 			);
 			const apiKeyInput = screen.getByPlaceholderText(
 				"form.placeholders.apiKey",
 			);
 
 			fireEvent.change(domainInput, {
-				target: { value: "https://company.freshdesk.com" },
+				target: { value: "https://company.freshservice.com" },
 			});
 			fireEvent.change(apiKeyInput, { target: { value: "secret-key" } });
 
@@ -326,14 +326,14 @@ describe("FreshdeskForm", () => {
 			renderWithProvider(source);
 
 			const domainInput = screen.getByPlaceholderText(
-				"form.placeholders.freshdeskDomain",
+				"form.placeholders.freshserviceDomain",
 			);
 			const apiKeyInput = screen.getByPlaceholderText(
 				"form.placeholders.apiKey",
 			);
 
 			fireEvent.change(domainInput, {
-				target: { value: "https://company.freshdesk.com" },
+				target: { value: "https://company.freshservice.com" },
 			});
 			fireEvent.change(apiKeyInput, { target: { value: "secret-key" } });
 
@@ -347,7 +347,7 @@ describe("FreshdeskForm", () => {
 					id: "source-123",
 					payload: {
 						settings: {
-							domain: "https://company.freshdesk.com",
+							domain: "https://company.freshservice.com",
 						},
 						credentials: {
 							apiKey: "secret-key",
@@ -361,7 +361,7 @@ describe("FreshdeskForm", () => {
 					id: "source-123",
 					data: {
 						settings: {
-							domain: "https://company.freshdesk.com",
+							domain: "https://company.freshservice.com",
 						},
 						enabled: true,
 					},
@@ -375,14 +375,14 @@ describe("FreshdeskForm", () => {
 			renderWithProvider(source);
 
 			const domainInput = screen.getByPlaceholderText(
-				"form.placeholders.freshdeskDomain",
+				"form.placeholders.freshserviceDomain",
 			);
 			const apiKeyInput = screen.getByPlaceholderText(
 				"form.placeholders.apiKey",
 			);
 
 			fireEvent.change(domainInput, {
-				target: { value: "https://company.freshdesk.com" },
+				target: { value: "https://company.freshservice.com" },
 			});
 			fireEvent.change(apiKeyInput, { target: { value: "secret-key" } });
 
@@ -394,7 +394,7 @@ describe("FreshdeskForm", () => {
 			await waitFor(() => {
 				expect(ritaToast.success).toHaveBeenCalledWith({
 					title: "success.connectionConfigured",
-					description: "descriptions.freshdeskConfigured",
+					description: "descriptions.freshserviceConfigured",
 				});
 			});
 		});
@@ -409,14 +409,14 @@ describe("FreshdeskForm", () => {
 			renderWithProvider(source);
 
 			const domainInput = screen.getByPlaceholderText(
-				"form.placeholders.freshdeskDomain",
+				"form.placeholders.freshserviceDomain",
 			);
 			const apiKeyInput = screen.getByPlaceholderText(
 				"form.placeholders.apiKey",
 			);
 
 			fireEvent.change(domainInput, {
-				target: { value: "https://company.freshdesk.com" },
+				target: { value: "https://company.freshservice.com" },
 			});
 			fireEvent.change(apiKeyInput, { target: { value: "secret-key" } });
 
@@ -443,14 +443,14 @@ describe("FreshdeskForm", () => {
 			renderWithProvider(source);
 
 			const domainInput = screen.getByPlaceholderText(
-				"form.placeholders.freshdeskDomain",
+				"form.placeholders.freshserviceDomain",
 			);
 			const apiKeyInput = screen.getByPlaceholderText(
 				"form.placeholders.apiKey",
 			);
 
 			fireEvent.change(domainInput, {
-				target: { value: "https://company.freshdesk.com" },
+				target: { value: "https://company.freshservice.com" },
 			});
 			fireEvent.change(apiKeyInput, { target: { value: "secret-key" } });
 
@@ -579,14 +579,14 @@ describe("FreshdeskForm", () => {
 			renderWithProvider(source, undefined, mockOnSuccess);
 
 			const domainInput = screen.getByPlaceholderText(
-				"form.placeholders.freshdeskDomain",
+				"form.placeholders.freshserviceDomain",
 			);
 			const apiKeyInput = screen.getByPlaceholderText(
 				"form.placeholders.apiKey",
 			);
 
 			fireEvent.change(domainInput, {
-				target: { value: "https://company.freshdesk.com" },
+				target: { value: "https://company.freshservice.com" },
 			});
 			fireEvent.change(apiKeyInput, { target: { value: "secret-key" } });
 
@@ -611,14 +611,14 @@ describe("FreshdeskForm", () => {
 			renderWithProvider(source, undefined, mockOnSuccess);
 
 			const domainInput = screen.getByPlaceholderText(
-				"form.placeholders.freshdeskDomain",
+				"form.placeholders.freshserviceDomain",
 			);
 			const apiKeyInput = screen.getByPlaceholderText(
 				"form.placeholders.apiKey",
 			);
 
 			fireEvent.change(domainInput, {
-				target: { value: "https://company.freshdesk.com" },
+				target: { value: "https://company.freshservice.com" },
 			});
 			fireEvent.change(apiKeyInput, { target: { value: "secret-key" } });
 
@@ -646,14 +646,14 @@ describe("FreshdeskForm", () => {
 			renderWithProvider(source, undefined, undefined, mockOnFailure);
 
 			const domainInput = screen.getByPlaceholderText(
-				"form.placeholders.freshdeskDomain",
+				"form.placeholders.freshserviceDomain",
 			);
 			const apiKeyInput = screen.getByPlaceholderText(
 				"form.placeholders.apiKey",
 			);
 
 			fireEvent.change(domainInput, {
-				target: { value: "https://company.freshdesk.com" },
+				target: { value: "https://company.freshservice.com" },
 			});
 			fireEvent.change(apiKeyInput, { target: { value: "secret-key" } });
 
@@ -677,7 +677,7 @@ describe("FreshdeskForm", () => {
 			renderWithProvider(source);
 
 			const domainInput = screen.getByPlaceholderText(
-				"form.placeholders.freshdeskDomain",
+				"form.placeholders.freshserviceDomain",
 			);
 			expect(domainInput).toHaveAttribute("type", "url");
 		});

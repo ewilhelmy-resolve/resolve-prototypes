@@ -37,13 +37,13 @@ const TIME_RANGE_OPTIONS_KEYS = [
 	{ labelKey: "config.timeRanges.last90Days" as const, value: "90" },
 ];
 
-interface FreshdeskItsmConfigurationProps {
+interface FreshserviceItsmConfigurationProps {
 	onEdit?: () => void;
 }
 
-export default function FreshdeskItsmConfiguration({
+export default function FreshserviceItsmConfiguration({
 	onEdit,
-}: FreshdeskItsmConfigurationProps) {
+}: FreshserviceItsmConfigurationProps) {
 	const { t } = useTranslation("connections");
 	const { source } = useConnectionSource();
 	const syncTickets = useSyncTickets();
@@ -85,7 +85,7 @@ export default function FreshdeskItsmConfiguration({
 
 			ritaToast.success({
 				title: t("config.toast.syncStarted"),
-				description: t("config.toast.syncStartedFreshdesk"),
+				description: t("config.toast.syncStartedFreshservice"),
 			});
 		} catch (error) {
 			ritaToast.error({
@@ -129,7 +129,7 @@ export default function FreshdeskItsmConfiguration({
 		<div className="w-full flex flex-col gap-2">
 			<div className="flex flex-col gap-2.5">
 				<div className="flex justify-between items-start gap-2">
-					<FormSectionTitle title={t("config.titles.freshdeskItsm")} />
+					<FormSectionTitle title={t("config.titles.freshserviceItsm")} />
 					<ConnectionActionsMenu onEdit={onEdit} />
 				</div>
 

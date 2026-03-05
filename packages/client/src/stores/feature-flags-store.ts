@@ -21,6 +21,11 @@ import {
 
 const LOCAL_STORAGE_KEY = "rita_feature_flags";
 
+/** Renamed flags: old key → new key. Migrates localStorage on load. */
+const RENAMED_FLAGS: Record<string, FeatureFlagKey> = {
+	ENABLE_FRESHDESK: "ENABLE_FRESHSERVICE",
+};
+
 /** Platform-controlled flag keys */
 export const PLATFORM_CONTROLLED_FLAGS: FeatureFlagKey[] = [
 	"ENABLE_AUTO_PILOT",
@@ -71,7 +76,25 @@ function loadLocalOverrides(): Record<string, boolean> {
 
 	try {
 		const stored = localStorage.getItem(LOCAL_STORAGE_KEY);
-		return stored ? JSON.parse(stored) : {};
+		const overrides: Record<string, boolean> = stored ? JSON.parse(stored) : {};
+
+		// Migrate renamed flags
+		let migrated = false;
+		for (const [oldKey, newKey] of Object.entries(RENAMED_FLAGS)) {
+			if (oldKey in overrides && !(newKey in overrides)) {
+				overrides[newKey] = overrides[oldKey];
+				delete overrides[oldKey];
+				migrated = true;
+			} else if (oldKey in overrides) {
+				delete overrides[oldKey];
+				migrated = true;
+			}
+		}
+		if (migrated) {
+			saveLocalOverrides(overrides);
+		}
+
+		return overrides;
 	} catch {
 		return {};
 	}
