@@ -326,9 +326,11 @@ export default function FilesV1Content() {
 			}
 
 			const validation = validateFileForUpload(file);
-			if (!validation.isValid && validation.error) {
+			if (!validation.isValid && validation.errorCode) {
 				errorCount++;
-				errors.push(`${file.name}: ${validation.error.description}`);
+				errors.push(
+					`${file.name}: ${t(`kbs:errors.${validation.errorCode}.description`, validation.errorParams)}`,
+				);
 				continue;
 			}
 
