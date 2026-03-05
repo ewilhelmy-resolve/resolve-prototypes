@@ -26,7 +26,7 @@ const RATE_LIMIT_PER_ORG_PER_DAY = 10;
 const RELATED_CONNECTION_TYPES: Record<string, string | undefined> = {
 	servicenow_itsm: "servicenow", // ServiceNow ITSM → ServiceNow KB
 	jira_itsm: "confluence", // Jira ITSM → Confluence
-	// freshdesk, freshservice - no related connections
+	// freshservice_itsm - no related connections
 };
 
 /**

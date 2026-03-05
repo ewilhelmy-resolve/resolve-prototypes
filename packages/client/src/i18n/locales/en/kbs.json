@@ -21,7 +21,7 @@
 	"errors": {
 		"unsupportedFileType": {
 			"title": "Unsupported File Type",
-			"description": "The file type you selected is not supported."
+			"description": "File type \"{{extension}}\" is not supported. Please upload PDF, DOC, DOCX, MD, or TXT files."
 		},
 		"fileTooLarge": {
 			"title": "File Too Large",
@@ -93,5 +93,17 @@
 	"uploadProgress": {
 		"uploading": "Uploading files...",
 		"progress": "{{current}} of {{total}}"
+	},
+	"uploadToast": {
+		"startTitle": "Uploading Files",
+		"startDescription": "Starting upload of {{count}} file(s)...",
+		"successTitle": "Upload Complete",
+		"successDescription": "Successfully uploaded {{count}} file(s)",
+		"partialTitle": "Upload Partially Complete",
+		"partialDescription": "{{successCount}} succeeded, {{errorCount}} failed. Check details for errors.",
+		"failedTitle": "Upload Failed",
+		"failedAllDescription": "All uploads failed",
+		"duplicateError": "Already exists as \"{{filename}}\"",
+		"genericError": "Upload failed"
 	}
 }

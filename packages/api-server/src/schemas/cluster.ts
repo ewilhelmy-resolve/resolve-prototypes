@@ -1,5 +1,5 @@
 import { z } from "../docs/openapi.js";
-import { PaginationInfoSchema } from "./common.js";
+import { OffsetPaginationInfoSchema } from "./common.js";
 
 // ============================================================================
 // Enums and Config
@@ -51,10 +51,12 @@ export const ClusterListQuerySchema = z
 			.max(100)
 			.optional()
 			.openapi({ description: "Results per page", default: 25 }),
-		cursor: z
-			.string()
+		offset: z.coerce
+			.number()
+			.int()
+			.min(0)
 			.optional()
-			.openapi({ description: "Pagination cursor (timestamp_id format)" }),
+			.openapi({ description: "Pagination offset", default: 0 }),
 		kb_status: KBStatusSchema.optional().openapi({
 			description: "Filter by knowledge base status",
 		}),
@@ -71,11 +73,12 @@ export const ClusterTicketsQuerySchema = z
 			.enum(["needs_response", "completed"])
 			.optional()
 			.openapi({ description: "Filter by ticket status" }),
-		cursor: z
-			.string()
-			.datetime()
+		offset: z.coerce
+			.number()
+			.int()
+			.min(0)
 			.optional()
-			.openapi({ description: "Pagination cursor (ISO timestamp)" }),
+			.openapi({ description: "Pagination offset", default: 0 }),
 		limit: z.coerce
 			.number()
 			.int()
@@ -219,13 +222,17 @@ export const ClusterTotalsSchema = z
 			description: "Total tickets across matching clusters",
 			example: 238,
 		}),
+		total_automated_tickets: z.number().int().openapi({
+			description: "Total automated tickets (with agent_end event)",
+			example: 42,
+		}),
 	})
 	.openapi("ClusterTotals");
 
 export const ClusterListResponseSchema = z
 	.object({
 		data: z.array(ClusterListItemSchema),
-		pagination: PaginationInfoSchema,
+		pagination: OffsetPaginationInfoSchema,
 		totals: ClusterTotalsSchema,
 	})
 	.openapi("ClusterListResponse");
@@ -239,7 +246,7 @@ export const ClusterDetailsResponseSchema = z
 export const ClusterTicketsResponseSchema = z
 	.object({
 		data: z.array(TicketSchema),
-		pagination: PaginationInfoSchema,
+		pagination: OffsetPaginationInfoSchema,
 	})
 	.openapi("ClusterTicketsResponse");
 

@@ -509,9 +509,12 @@ router.post("/:id/sync-tickets", authenticateUser, async (req, res) => {
 
 		// Only allow ITSM-specific connection types
 		if (
-			!["servicenow_itsm", "jira_itsm", "freshdesk", "ivanti_itsm"].includes(
-				dataSource.type,
-			)
+			![
+				"servicenow_itsm",
+				"jira_itsm",
+				"freshservice_itsm",
+				"ivanti_itsm",
+			].includes(dataSource.type)
 		) {
 			return res.status(400).json({
 				error: "Invalid data source type",

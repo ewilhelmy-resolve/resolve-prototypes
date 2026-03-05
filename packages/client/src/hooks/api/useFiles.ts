@@ -20,7 +20,14 @@ export interface FileDocument {
 export interface FilesQueryParams {
 	limit?: number;
 	offset?: number;
-	sortBy?: "filename" | "size" | "type" | "status" | "source" | "created_at";
+	sortBy?:
+		| "filename"
+		| "size"
+		| "type"
+		| "status"
+		| "source"
+		| "created_at"
+		| "updated_at";
 	sortOrder?: "asc" | "desc";
 	search?: string;
 	status?: string;

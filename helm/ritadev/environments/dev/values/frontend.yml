@@ -1,0 +1,37 @@
+# Dev environment values for Frontend
+
+namespace: rita-dev
+
+replicaCount: 1
+
+resources:
+  requests:
+    memory: "64Mi"
+    cpu: "50m"
+  limits:
+    memory: "128Mi"
+    cpu: "200m"
+
+# Ingress configuration
+ingress:
+  enabled: true
+  className: alb
+  annotations:
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: instance
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}, {"HTTPS": 443}]'
+    alb.ingress.kubernetes.io/ssl-redirect: '443'
+    alb.ingress.kubernetes.io/certificate-arn: arn:aws:acm:us-east-1:432993365903:certificate/f6df4a9a-bcf8-4078-ae1d-f7eeb1307ed7
+
+# Autoscaling disabled for dev
+autoscaling:
+  enabled: false
+
+# Route53 DNS automation
+route53:
+  enabled: false  # Set to true to enable automated DNS creation
+  hostedZoneId: ""  # TODO: Set your Route53 hosted zone ID for resolve.io
+  serviceAccount:
+    annotations: {}
+      # TODO: Add IRSA role annotation for Route53 access if using IRSA
+      # eks.amazonaws.com/role-arn: arn:aws:iam::432993365903:role/route53-dns-role

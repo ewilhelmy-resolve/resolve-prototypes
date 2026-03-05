@@ -872,7 +872,7 @@ export default function ChatV1Content({
 	onFormSubmit: propsFormSubmit,
 	onFormCancel: propsFormCancel,
 }: ChatV1ContentProps) {
-	const { t } = useTranslation(["chat", "toast"]);
+	const { t } = useTranslation(["chat", "toast", "kbs"]);
 	// Copy state tracking for icon feedback
 	const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
 
@@ -919,12 +919,18 @@ export default function ChatV1Content({
 
 			// Upload each file to knowledge base
 			Array.from(files).forEach((file) => {
-				// Validate file type before upload
+				// Validate file before upload
 				const validation = validateFileForUpload(file);
-				if (!validation.isValid && validation.error) {
+				if (!validation.isValid && validation.errorCode) {
 					ritaToast.error({
-						title: validation.error.title,
-						description: validation.error.description,
+						title: t(
+							`kbs:errors.${validation.errorCode}.title`,
+							validation.errorParams,
+						),
+						description: t(
+							`kbs:errors.${validation.errorCode}.description`,
+							validation.errorParams,
+						),
 					});
 					return;
 				}

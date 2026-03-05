@@ -49,6 +49,21 @@ export interface MCPSkill {
 export type ProAgentStatus = "draft" | "active" | "disabled";
 
 /**
+ * Snapshot of agent config at a point in time
+ */
+export interface ProAgentVersion {
+	version: number;
+	name: string;
+	description: string;
+	endpointSlug: string;
+	workflowId: string | null;
+	skillIds: string[];
+	status: ProAgentStatus;
+	createdAt: string;
+	updatedAt: string;
+}
+
+/**
  * Pro agent configuration
  */
 export interface ProAgent {
@@ -60,6 +75,8 @@ export interface ProAgent {
 	skillIds: string[];
 	status: ProAgentStatus;
 	apiKey?: string;
+	versions: ProAgentVersion[];
+	activeVersion: number;
 	createdAt: string;
 	updatedAt: string;
 }

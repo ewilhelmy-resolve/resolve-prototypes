@@ -1,0 +1,46 @@
+# Dev environment values for API Server
+
+namespace: rita-dev
+
+replicaCount: 1
+
+resources:
+  requests:
+    memory: "512Mi"
+    cpu: "250m"
+  limits:
+    memory: "1Gi"
+    cpu: "1000m"
+
+# Non-sensitive configuration
+config:
+  nodeEnv: production
+  port: "3000"
+  keycloakUrl: "https://rita-dev-auth.resolve.io"
+  keycloakRealm: "rita"
+  consulAddr: ""  # Set to external Consul host
+
+# External services (shared infrastructure)
+externalServices:
+  postgres:
+    host: ""  # Set to external PostgreSQL host for Rita app DB
+    port: 5432
+  rabbitmq:
+    host: ""  # Set to external RabbitMQ host
+    port: 5672
+  consul:
+    host: ""  # Set to external Consul host
+    port: 8500
+  valkey:
+    host: ""  # Set to external Valkey host
+    port: 6379
+
+# Migration job
+migration:
+  enabled: false  # Disabled for initial deployment
+  backoffLimit: 0
+  ttlSecondsAfterFinished: 86400
+
+# Autoscaling disabled for dev
+autoscaling:
+  enabled: false

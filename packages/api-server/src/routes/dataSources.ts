@@ -305,7 +305,7 @@ registry.registerPath({
 	tags: ["Data Sources"],
 	summary: "Sync ITSM tickets",
 	description:
-		"Initiate ITSM ticket ingestion for Autopilot clustering. Only valid for ITSM data sources (servicenow_itsm, jira_itsm, freshdesk, ivanti_itsm). Returns HTTP 202 Accepted. Progress arrives via SSE event `ingestion_run_update`.",
+		"Initiate ITSM ticket ingestion for Autopilot clustering. Only valid for ITSM data sources (servicenow_itsm, jira_itsm, freshservice_itsm, ivanti_itsm). Returns HTTP 202 Accepted. Progress arrives via SSE event `ingestion_run_update`.",
 	security: [{ bearerAuth: [] }, { cookieAuth: [] }],
 	request: {
 		params: z.object({

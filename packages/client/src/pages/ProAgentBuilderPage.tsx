@@ -5,6 +5,7 @@ import { ProLayout } from "@/components/layouts/ProLayout";
 import { EndpointPreview } from "@/components/pro/EndpointPreview";
 import { MCPSkillSheet } from "@/components/pro/MCPSkillSheet";
 import { ProSubNav } from "@/components/pro/ProSubNav";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
@@ -22,7 +23,7 @@ import {
 	MOCK_PRO_AGENTS,
 	MOCK_PRO_WORKFLOWS,
 } from "@/data/mock-pro";
-import type { MCPSkill } from "@/types/pro";
+import type { MCPSkill, ProAgentVersion } from "@/types/pro";
 
 const NONE_WORKFLOW = "__none__";
 
@@ -40,18 +41,34 @@ export default function ProAgentBuilderPage() {
 		: undefined;
 	const isEdit = !!existingAgent;
 
-	const [name, setName] = useState(existingAgent?.name ?? "");
+	// Version state — latest version selected by default
+	const [versions, setVersions] = useState<ProAgentVersion[]>(
+		existingAgent?.versions ?? [],
+	);
+	const [activeVersion, setActiveVersion] = useState(
+		existingAgent?.activeVersion ?? 1,
+	);
+	const latestVersion = versions.length > 0 ? versions[versions.length - 1] : undefined;
+	const [selectedVersion, setSelectedVersion] = useState(
+		latestVersion?.version ?? 1,
+	);
+	const currentVersion = versions.find((v) => v.version === selectedVersion);
+
+	// Form state — initialized from latest version or agent
+	const [name, setName] = useState(
+		latestVersion?.name ?? existingAgent?.name ?? "",
+	);
 	const [description, setDescription] = useState(
-		existingAgent?.description ?? "",
+		latestVersion?.description ?? existingAgent?.description ?? "",
 	);
 	const [endpointSlug, setEndpointSlug] = useState(
-		existingAgent?.endpointSlug ?? "",
+		latestVersion?.endpointSlug ?? existingAgent?.endpointSlug ?? "",
 	);
 	const [workflowId, setWorkflowId] = useState(
-		existingAgent?.workflowId ?? NONE_WORKFLOW,
+		latestVersion?.workflowId ?? existingAgent?.workflowId ?? NONE_WORKFLOW,
 	);
 	const [selectedSkillIds, setSelectedSkillIds] = useState<string[]>(
-		existingAgent?.skillIds ?? [],
+		latestVersion?.skillIds ?? existingAgent?.skillIds ?? [],
 	);
 	const [skillSheetOpen, setSkillSheetOpen] = useState(false);
 	const [localSkills, setLocalSkills] = useState<MCPSkill[]>([
@@ -65,6 +82,21 @@ export default function ProAgentBuilderPage() {
 			setEndpointSlug(slugify(name));
 		}
 	}, [name]);
+
+	// Load version config when switching versions
+	const handleVersionChange = (versionNum: string) => {
+		const num = Number(versionNum);
+		setSelectedVersion(num);
+		const ver = versions.find((v) => v.version === num);
+		if (ver) {
+			setName(ver.name);
+			setDescription(ver.description);
+			setEndpointSlug(ver.endpointSlug);
+			setWorkflowId(ver.workflowId ?? NONE_WORKFLOW);
+			setSelectedSkillIds([...ver.skillIds]);
+			slugManuallyEdited.current = true;
+		}
+	};
 
 	const handleSlugChange = (value: string) => {
 		slugManuallyEdited.current = value !== "";
@@ -105,7 +137,25 @@ export default function ProAgentBuilderPage() {
 	};
 
 	const handlePublish = () => {
-		console.log("Publish:", assembleAgent());
+		const now = new Date().toISOString();
+		const nextVersion = versions.length > 0
+			? Math.max(...versions.map((v) => v.version)) + 1
+			: 1;
+		const newVersion: ProAgentVersion = {
+			version: nextVersion,
+			name,
+			description,
+			endpointSlug,
+			workflowId: workflowId === NONE_WORKFLOW ? null : workflowId,
+			skillIds: [...selectedSkillIds],
+			status: "active",
+			createdAt: now,
+			updatedAt: now,
+		};
+		setVersions((prev) => [...prev, newVersion]);
+		setActiveVersion(nextVersion);
+		setSelectedVersion(nextVersion);
+		console.log("Publish — new version:", newVersion);
 	};
 
 	const selectedSkills = localSkills.filter((s) =>
@@ -116,9 +166,35 @@ export default function ProAgentBuilderPage() {
 		<ProLayout>
 			<ProSubNav />
 			<div className="p-6">
-				<h1 className="text-2xl font-bold mb-6">
-					{isEdit ? "Edit Agent" : "Create Agent"}
-				</h1>
+				<div className="flex items-center gap-3 mb-6">
+					<h1 className="text-2xl font-bold">
+						{isEdit ? "Edit Agent" : "Create Agent"}
+					</h1>
+					{isEdit && versions.length > 0 && (
+						<Select
+							value={String(selectedVersion)}
+							onValueChange={handleVersionChange}
+						>
+							<SelectTrigger className="w-28" aria-label="Select version">
+								<SelectValue />
+							</SelectTrigger>
+							<SelectContent>
+								{versions.map((v) => (
+									<SelectItem key={v.version} value={String(v.version)}>
+										<span className="flex items-center gap-1.5">
+											v{v.version}
+											{v.version === activeVersion && (
+												<Badge variant="secondary" className="text-[10px] px-1 py-0 leading-tight">
+													Live
+												</Badge>
+											)}
+										</span>
+									</SelectItem>
+								))}
+							</SelectContent>
+						</Select>
+					)}
+				</div>
 
 				<div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
 					{/* Left: Agent Config */}

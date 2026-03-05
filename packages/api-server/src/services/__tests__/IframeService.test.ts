@@ -16,6 +16,8 @@ const { mockWithOrgContext, mockPool, mockSessionStore, mockValkeyClient } =
 		},
 		mockSessionStore: {
 			createSession: vi.fn(),
+			getSession: vi.fn(),
+			getSessionByConversationId: vi.fn(),
 			updateSession: vi.fn(),
 		},
 		mockValkeyClient: {
@@ -400,10 +402,13 @@ describe("IframeService", () => {
 
 			await iframeService.validateAndSetup("my-session-key");
 
-			// Verify updateSession was called with conversationId
+			// Verify updateSession was called with conversationId and valkeySessionKey
 			expect(mockSessionStore.updateSession).toHaveBeenCalledWith(
 				"mock-session-id",
-				{ conversationId: "created-conv-123" },
+				{
+					conversationId: "created-conv-123",
+					valkeySessionKey: "my-session-key",
+				},
 			);
 		});
 
@@ -1161,6 +1166,244 @@ describe("IframeService", () => {
 		});
 	});
 
-	// Note: sessionKey-based conversation reuse tests removed (JAR-71 deprecated)
-	// Conversation reuse is now via activityId in activity_contexts table
+	describe("refreshSessionFromValkey", () => {
+		it("should merge fresh Valkey context into session", async () => {
+			// Session has valkeySessionKey and existing context
+			mockSessionStore.getSession = vi.fn().mockResolvedValue({
+				sessionId: "sess-1",
+				valkeySessionKey: "valkey-key-123",
+				iframeWebhookConfig: {
+					tenantId: "tenant-1",
+					userGuid: "user-1",
+					context: { designer: "activity", activityId: 2209 },
+				},
+			});
+
+			// Valkey returns updated context with runId
+			mockValkeyClient.hget.mockResolvedValueOnce(
+				JSON.stringify({
+					tenantId: "tenant-1",
+					userGuid: "user-1",
+					context: {
+						designer: "activity",
+						activityId: 2209,
+						runId: 5001,
+					},
+				}),
+			);
+
+			mockSessionStore.updateSession.mockResolvedValue({
+				sessionId: "sess-1",
+				iframeWebhookConfig: {
+					tenantId: "tenant-1",
+					userGuid: "user-1",
+					context: { designer: "activity", activityId: 2209, runId: 5001 },
+				},
+			});
+
+			const result = await iframeService.refreshSessionFromValkey("sess-1");
+
+			expect(mockSessionStore.updateSession).toHaveBeenCalledWith("sess-1", {
+				iframeWebhookConfig: expect.objectContaining({
+					context: expect.objectContaining({
+						designer: "activity",
+						activityId: 2209,
+						runId: 5001,
+					}),
+				}),
+			});
+			expect(result?.iframeWebhookConfig?.context).toEqual({
+				designer: "activity",
+				activityId: 2209,
+				runId: 5001,
+			});
+		});
+
+		it("should return null when session not found", async () => {
+			mockSessionStore.getSession = vi.fn().mockResolvedValue(null);
+
+			const result = await iframeService.refreshSessionFromValkey("missing");
+
+			expect(result).toBeNull();
+			expect(mockSessionStore.updateSession).not.toHaveBeenCalled();
+		});
+
+		it("should return session unchanged when no valkeySessionKey", async () => {
+			const session = {
+				sessionId: "sess-2",
+				iframeWebhookConfig: { tenantId: "t", userGuid: "u" },
+			};
+			mockSessionStore.getSession = vi.fn().mockResolvedValue(session);
+
+			const result = await iframeService.refreshSessionFromValkey("sess-2");
+
+			expect(result).toBe(session);
+			expect(mockValkeyClient.hget).not.toHaveBeenCalled();
+		});
+
+		it("should return session unchanged when no iframeWebhookConfig", async () => {
+			const session = {
+				sessionId: "sess-3",
+				valkeySessionKey: "key-123",
+			};
+			mockSessionStore.getSession = vi.fn().mockResolvedValue(session);
+
+			const result = await iframeService.refreshSessionFromValkey("sess-3");
+
+			expect(result).toBe(session);
+			expect(mockValkeyClient.hget).not.toHaveBeenCalled();
+		});
+
+		it("should return session unchanged when Valkey returns null", async () => {
+			const session = {
+				sessionId: "sess-4",
+				valkeySessionKey: "expired-key",
+				iframeWebhookConfig: {
+					tenantId: "t",
+					userGuid: "u",
+					context: { existing: true },
+				},
+			};
+			mockSessionStore.getSession = vi.fn().mockResolvedValue(session);
+			mockValkeyClient.hget.mockResolvedValueOnce(null);
+
+			const result = await iframeService.refreshSessionFromValkey("sess-4");
+
+			expect(result).toBe(session);
+			expect(mockSessionStore.updateSession).not.toHaveBeenCalled();
+		});
+
+		it("should return session unchanged when Valkey context is empty", async () => {
+			const session = {
+				sessionId: "sess-5",
+				valkeySessionKey: "key-5",
+				iframeWebhookConfig: {
+					tenantId: "t",
+					userGuid: "u",
+					context: { existing: true },
+				},
+			};
+			mockSessionStore.getSession = vi.fn().mockResolvedValue(session);
+			mockValkeyClient.hget.mockResolvedValueOnce(
+				JSON.stringify({ tenantId: "t", userGuid: "u" }),
+			);
+
+			const result = await iframeService.refreshSessionFromValkey("sess-5");
+
+			expect(result).toBe(session);
+			expect(mockSessionStore.updateSession).not.toHaveBeenCalled();
+		});
+
+		it("should preserve existing context fields when merging", async () => {
+			mockSessionStore.getSession = vi.fn().mockResolvedValue({
+				sessionId: "sess-6",
+				valkeySessionKey: "key-6",
+				iframeWebhookConfig: {
+					tenantId: "t",
+					userGuid: "u",
+					actionsApiBaseUrl: "https://api.example.com",
+					context: {
+						designer: "activity",
+						activityId: 100,
+						existingField: "keep",
+					},
+				},
+			});
+
+			mockValkeyClient.hget.mockResolvedValueOnce(
+				JSON.stringify({
+					tenantId: "t",
+					userGuid: "u",
+					context: { activityId: 100, runId: 200, newField: "added" },
+				}),
+			);
+
+			mockSessionStore.updateSession.mockImplementation(
+				async (_id, updates) => ({
+					sessionId: "sess-6",
+					...updates,
+				}),
+			);
+
+			await iframeService.refreshSessionFromValkey("sess-6");
+
+			expect(mockSessionStore.updateSession).toHaveBeenCalledWith("sess-6", {
+				iframeWebhookConfig: expect.objectContaining({
+					tenantId: "t",
+					userGuid: "u",
+					actionsApiBaseUrl: "https://api.example.com",
+					context: {
+						designer: "activity",
+						activityId: 100,
+						existingField: "keep",
+						runId: 200,
+						newField: "added",
+					},
+				}),
+			});
+		});
+
+		it("should handle Valkey connection error gracefully", async () => {
+			const session = {
+				sessionId: "sess-7",
+				valkeySessionKey: "key-7",
+				iframeWebhookConfig: {
+					tenantId: "t",
+					userGuid: "u",
+					context: { existing: true },
+				},
+			};
+			mockSessionStore.getSession = vi.fn().mockResolvedValue(session);
+			mockValkeyClient.hget.mockRejectedValueOnce(
+				new Error("Connection refused"),
+			);
+
+			const result = await iframeService.refreshSessionFromValkey("sess-7");
+
+			expect(result).toBe(session);
+			expect(mockSessionStore.updateSession).not.toHaveBeenCalled();
+		});
+	});
+
+	describe("validateAndSetup - stores valkeySessionKey", () => {
+		it("should store valkeySessionKey in session during setup", async () => {
+			mockValkeyClient.hget.mockResolvedValueOnce(
+				JSON.stringify(validValkeyPayload),
+			);
+
+			// Org exists with same name
+			mockPool.query
+				.mockResolvedValueOnce({
+					rows: [{ id: validValkeyPayload.tenantId, name: "staging" }],
+				})
+				.mockResolvedValueOnce({ rows: [] }) // activity_contexts lookup
+				.mockResolvedValueOnce({
+					rows: [{ user_id: validValkeyPayload.userGuid }],
+				})
+				.mockResolvedValueOnce({ rows: [] }) // user update
+				.mockResolvedValueOnce({ rows: [] }); // membership
+
+			mockWithOrgContext.mockImplementation(
+				async (_userId, _orgId, callback) => {
+					const mockClient = {
+						query: vi.fn().mockResolvedValue({
+							rows: [{ id: "conv-id" }],
+						}),
+					};
+					return await callback(mockClient as any);
+				},
+			);
+
+			await iframeService.validateAndSetup("my-session-key-abc");
+
+			// Verify updateSession was called with valkeySessionKey
+			expect(mockSessionStore.updateSession).toHaveBeenCalledWith(
+				"mock-session-id",
+				expect.objectContaining({
+					conversationId: "conv-id",
+					valkeySessionKey: "my-session-key-abc",
+				}),
+			);
+		});
+	});
 });

@@ -1,0 +1,69 @@
+{
+  "realm": "rita",
+  "enabled": true,
+  "sslRequired": "external",
+  "registrationAllowed": false,
+  "loginWithEmailAllowed": true,
+  "duplicateEmailsAllowed": false,
+  "resetPasswordAllowed": true,
+  "editUsernameAllowed": false,
+  "loginTheme": "rita-theme-v2",
+  "accountTheme": "",
+  "adminTheme": "",
+  "emailTheme": "rita-theme-v2",
+  "smtpServer": {
+    "host": "SMTP_HOST",
+    "port": "SMTP_PORT",
+    "from": "SMTP_FROM",
+    "fromDisplayName": "SMTP_FROM_DISPLAY_NAME",
+    "auth": "SMTP_AUTH",
+    "user": "SMTP_USER",
+    "password": "SMTP_PASSWORD",
+    "starttls": "SMTP_STARTTLS",
+    "ssl": "SMTP_SSL"
+  },
+  "clients": [
+    {
+      "clientId": "onboarding-auth-client",
+      "name": "onboarding-auth-client",
+      "enabled": true,
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": false,
+      "frontchannelLogout": true,
+      "protocol": "openid-connect",
+      "redirectUris": [
+        "TENANT_URL",
+        "TENANT_URL/*"
+      ],
+      "webOrigins": [
+        "TENANT_URL"
+      ],
+      "attributes": {
+        "login_theme": "rita-theme-v2",
+        "frontchannel.logout.session.required": "true"
+      }
+    },
+    {
+      "clientId": "rita-go-auth-client",
+      "name": "Rita Go Auth Client",
+      "enabled": true,
+      "publicClient": false,
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": true,
+      "frontchannelLogout": true,
+      "protocol": "openid-connect",
+      "secret": "RITA_CLIENT_SECRET",
+      "redirectUris": [
+        "TENANT_URL/*"
+      ],
+      "webOrigins": [
+        "+"
+      ]
+    }
+  ]
+}

@@ -84,6 +84,8 @@ export interface Session {
 	conversationId?: string;
 	/** True if session created via iframe embed (determines webhook source) */
 	isIframeSession?: boolean;
+	/** Original Valkey hashkey for re-reading fresh payload */
+	valkeySessionKey?: string;
 }
 
 export interface CreateSessionData {
@@ -95,6 +97,7 @@ export interface CreateSessionData {
 	sessionDurationMs?: number; // Default: 24 hours
 	iframeWebhookConfig?: IframeWebhookConfig;
 	isIframeSession?: boolean;
+	valkeySessionKey?: string;
 }
 
 export interface SessionStore {

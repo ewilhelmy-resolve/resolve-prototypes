@@ -50,6 +50,27 @@ export const PaginationInfoSchema = z
 	})
 	.openapi("PaginationInfo");
 
+export const OffsetPaginationInfoSchema = z
+	.object({
+		total: z.number().int().openapi({
+			description: "Total number of matching records",
+			example: 42,
+		}),
+		limit: z.number().int().openapi({
+			description: "Results per page",
+			example: 20,
+		}),
+		offset: z.number().int().openapi({
+			description: "Current offset",
+			example: 0,
+		}),
+		has_more: z.boolean().openapi({
+			description: "Whether there are more results",
+			example: true,
+		}),
+	})
+	.openapi("OffsetPaginationInfo");
+
 export const CursorPaginationQuerySchema = z.object({
 	cursor: z.string().datetime().optional().openapi({
 		description: "Cursor for pagination (ISO timestamp)",

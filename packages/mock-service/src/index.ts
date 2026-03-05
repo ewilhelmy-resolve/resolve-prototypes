@@ -15,7 +15,9 @@ import {
 	PerformanceTimer,
 	webhookLogger,
 } from "./config/logger.js";
+import { syncConfluenceData } from "./confluence-sync.js";
 import { emailService } from "./email-service.js";
+import { syncFreshdeskData } from "./freshdesk-sync.js";
 import { syncServiceNowData } from "./servicenow-sync.js";
 import { getRabbitMQService } from "./services/rabbitmq.js";
 
@@ -2993,52 +2995,119 @@ app.post("/webhook", async (req, res) => {
 				"Received data source sync trigger webhook",
 			);
 
-			// Publish sync_completed message to RabbitMQ after 20 second delay
-			setTimeout(async () => {
-				try {
-					// Check if sync was cancelled before sending sync_completed
-					if (cancelledSyncConnections.has(syncPayload.connection_id)) {
+			if (syncPayload.connection_type === "confluence") {
+				// Confluence: insert actual document data into the database
+				(async () => {
+					try {
+						if (cancelledSyncConnections.has(syncPayload.connection_id)) {
+							contextLogger.info(
+								{ connectionId: syncPayload.connection_id },
+								"Sync was cancelled - skipping confluence sync",
+							);
+							cancelledSyncConnections.delete(syncPayload.connection_id);
+							return;
+						}
+
+						const userId =
+							syncPayload.user_id || "f046b616-a717-4bde-8bd9-517486b17c5d";
+						const syncResult = await syncConfluenceData(
+							syncPayload.tenant_id,
+							syncPayload.connection_id,
+							userId,
+						);
+
+						contextLogger.info(
+							{ documentsCreated: syncResult.documentsCreated },
+							"Confluence data sync completed",
+						);
+
+						if (cancelledSyncConnections.has(syncPayload.connection_id)) {
+							cancelledSyncConnections.delete(syncPayload.connection_id);
+							return;
+						}
+
+						const rabbitmqService = getRabbitMQService();
+						await rabbitmqService.publishToQueue("data_source_status", {
+							type: "sync",
+							connection_id: syncPayload.connection_id,
+							tenant_id: syncPayload.tenant_id,
+							status: "sync_completed",
+							documents_processed: syncResult.documentsCreated,
+							timestamp: new Date().toISOString(),
+						});
+
 						contextLogger.info(
 							{
 								connectionId: syncPayload.connection_id,
+								documentsProcessed: syncResult.documentsCreated,
 							},
-							"Sync was cancelled - skipping sync_completed message",
+							"Published sync_completed for Confluence",
 						);
-						// Remove from cancelled set after skipping
-						cancelledSyncConnections.delete(syncPayload.connection_id);
-						return;
+					} catch (error) {
+						contextLogger.error({ error }, "Failed Confluence sync");
+						try {
+							const rabbitmqService = getRabbitMQService();
+							await rabbitmqService.publishToQueue("data_source_status", {
+								type: "sync",
+								connection_id: syncPayload.connection_id,
+								tenant_id: syncPayload.tenant_id,
+								status: "sync_failed",
+								error_message:
+									error instanceof Error ? error.message : String(error),
+								timestamp: new Date().toISOString(),
+							});
+						} catch (publishError) {
+							contextLogger.error(
+								{ publishError },
+								"Failed to publish sync_failed",
+							);
+						}
 					}
+				})();
+			} else {
+				// Other data sources: generic 20-second delay with hardcoded count
+				setTimeout(async () => {
+					try {
+						if (cancelledSyncConnections.has(syncPayload.connection_id)) {
+							contextLogger.info(
+								{ connectionId: syncPayload.connection_id },
+								"Sync was cancelled - skipping sync_completed message",
+							);
+							cancelledSyncConnections.delete(syncPayload.connection_id);
+							return;
+						}
 
-					const rabbitmqService = getRabbitMQService();
+						const rabbitmqService = getRabbitMQService();
 
-					const syncMessage = {
-						type: "sync",
-						connection_id: syncPayload.connection_id,
-						tenant_id: syncPayload.tenant_id,
-						status: "sync_completed",
-						documents_processed: 42,
-						timestamp: new Date().toISOString(),
-					};
+						const syncMessage = {
+							type: "sync",
+							connection_id: syncPayload.connection_id,
+							tenant_id: syncPayload.tenant_id,
+							status: "sync_completed",
+							documents_processed: 42,
+							timestamp: new Date().toISOString(),
+						};
 
-					await rabbitmqService.publishToQueue(
-						"data_source_status",
-						syncMessage,
-					);
+						await rabbitmqService.publishToQueue(
+							"data_source_status",
+							syncMessage,
+						);
 
-					contextLogger.info(
-						{
-							connectionId: syncPayload.connection_id,
-							documentsProcessed: 42,
-						},
-						"Published sync_completed message to RabbitMQ",
-					);
-				} catch (error) {
-					contextLogger.error(
-						{ error },
-						"Failed to publish sync_completed message",
-					);
-				}
-			}, 20000);
+						contextLogger.info(
+							{
+								connectionId: syncPayload.connection_id,
+								documentsProcessed: 42,
+							},
+							"Published sync_completed message to RabbitMQ",
+						);
+					} catch (error) {
+						contextLogger.error(
+							{ error },
+							"Failed to publish sync_completed message",
+						);
+					}
+				}, 20000);
+			}
 
 			res.status(200).json({
 				success: true,
@@ -3068,10 +3137,12 @@ app.post("/webhook", async (req, res) => {
 				"Received sync_tickets webhook",
 			);
 
-			// For ServiceNow ITSM and Ivanti ITSM, insert actual test data into the database
+			// For ServiceNow ITSM, Ivanti ITSM, and Freshdesk, insert actual test data into the database
 			const isServiceNow = ticketsPayload.connection_type === "servicenow_itsm";
 			const isIvanti = ticketsPayload.connection_type === "ivanti_itsm";
-			const useRealData = isServiceNow || isIvanti;
+			const isFreshdesk =
+				ticketsPayload.connection_type === "freshservice_itsm";
+			const useRealData = isServiceNow || isIvanti || isFreshdesk;
 
 			// Start async data sync and progress reporting
 			(async () => {
@@ -3121,9 +3192,14 @@ app.post("/webhook", async (req, res) => {
 					let ticketsCreated = 0;
 
 					if (useRealData) {
-						// Insert actual data for ServiceNow/Ivanti ITSM
+						// Insert actual data for ServiceNow/Ivanti/Freshdesk ITSM
+						const providerName = isFreshdesk
+							? "Freshdesk"
+							: isServiceNow
+								? "ServiceNow"
+								: "Ivanti";
 						contextLogger.info(
-							`Inserting ${isServiceNow ? "ServiceNow" : "Ivanti"} test data into database...`,
+							`Inserting ${providerName} test data into database...`,
 						);
 
 						// Send initial progress message
@@ -3145,13 +3221,19 @@ app.post("/webhook", async (req, res) => {
 						);
 
 						// Perform actual data insertion
-						// Pass settings to enable username-based training state scenarios
-						const syncResult = await syncServiceNowData(
-							ticketsPayload.tenant_id,
-							ticketsPayload.connection_id,
-							ticketsPayload.ingestion_run_id,
-							ticketsPayload.settings,
-						);
+						const syncResult = isFreshdesk
+							? await syncFreshdeskData(
+									ticketsPayload.tenant_id,
+									ticketsPayload.connection_id,
+									ticketsPayload.ingestion_run_id,
+									ticketsPayload.settings,
+								)
+							: await syncServiceNowData(
+									ticketsPayload.tenant_id,
+									ticketsPayload.connection_id,
+									ticketsPayload.ingestion_run_id,
+									ticketsPayload.settings,
+								);
 
 						totalTickets = syncResult.ticketsCreated;
 						ticketsCreated = syncResult.ticketsCreated;
@@ -3162,7 +3244,7 @@ app.post("/webhook", async (req, res) => {
 								clustersCreated: syncResult.clustersCreated,
 								ticketsCreated: syncResult.ticketsCreated,
 							},
-							"ServiceNow data inserted successfully",
+							`${providerName} data inserted successfully`,
 						);
 
 						// Simulate realistic sync time with partial progress updates

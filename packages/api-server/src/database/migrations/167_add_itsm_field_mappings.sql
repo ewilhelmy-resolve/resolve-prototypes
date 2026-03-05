@@ -1,6 +1,6 @@
 -- Migration: 167_add_itsm_field_mappings.sql
--- Maps external ITSM field names to Rita's internal field names (e.g., ITSM 'urgency' → Rita 'priority')
--- One source field per target field per connection (1:1 mapping)
+-- Maps external ITSM field names to Rita's internal field names
+-- Original schema — incremental changes applied by migrations 168, 169
 
 CREATE TABLE itsm_field_mappings (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -33,12 +33,7 @@ CREATE TABLE itsm_field_mappings (
 
 CREATE INDEX idx_field_mappings_org ON itsm_field_mappings (organization_id);
 
--- Auto-update updated_at
-CREATE TRIGGER set_itsm_field_mappings_updated_at
-    BEFORE UPDATE ON itsm_field_mappings
-    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-
-COMMENT ON TABLE itsm_field_mappings IS 'Maps external ITSM field names to Rita internal field names (1:1 per connection)';
+COMMENT ON TABLE itsm_field_mappings IS 'Maps external ITSM field values to Rita internal values';
 COMMENT ON COLUMN itsm_field_mappings.organization_id IS 'Denormalized from data_source_connections for RLS org isolation';
 COMMENT ON COLUMN itsm_field_mappings.target_field IS 'Rita target field: priority, status';
 COMMENT ON COLUMN itsm_field_mappings.source_field IS 'Field name in external ITSM system that maps to target_field';
@@ -47,5 +42,4 @@ COMMENT ON COLUMN itsm_field_mappings.source_field IS 'Field name in external IT
 -- ROLLBACK
 -- =============================================================================
 --
--- DROP TRIGGER IF EXISTS set_itsm_field_mappings_updated_at ON itsm_field_mappings;
 -- DROP TABLE IF EXISTS itsm_field_mappings;

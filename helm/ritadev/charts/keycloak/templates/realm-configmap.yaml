@@ -1,0 +1,25 @@
+{{- if .Values.realm.enabled }}
+{{- $tenantUrl := printf "https://%s-rita.%s" .Values.namespace .Values.domain }}
+{{- $realmTemplate := .Files.Get "realm-template.json" }}
+{{- $realmJson := $realmTemplate | replace "TENANT_URL" $tenantUrl }}
+{{- $realmJson = $realmJson | replace "SMTP_HOST" (.Values.realm.smtp.host | default "mailpit") }}
+{{- $realmJson = $realmJson | replace "SMTP_PORT" (.Values.realm.smtp.port | default "1025") }}
+{{- $realmJson = $realmJson | replace "SMTP_FROM" (.Values.realm.smtp.from | default "noreply@rita.local") }}
+{{- $realmJson = $realmJson | replace "SMTP_FROM_DISPLAY_NAME" (.Values.realm.smtp.fromDisplayName | default "Rita") }}
+{{- $realmJson = $realmJson | replace "SMTP_AUTH" (.Values.realm.smtp.auth | default "false") }}
+{{- $realmJson = $realmJson | replace "SMTP_USER" (.Values.realm.smtp.user | default "") }}
+{{- $realmJson = $realmJson | replace "SMTP_PASSWORD" (.Values.realm.smtp.password | default "") }}
+{{- $realmJson = $realmJson | replace "SMTP_STARTTLS" (.Values.realm.smtp.starttls | default "false") }}
+{{- $realmJson = $realmJson | replace "SMTP_SSL" (.Values.realm.smtp.ssl | default "false") }}
+{{- $realmJson = $realmJson | replace "RITA_CLIENT_SECRET" (.Values.realm.clientSecret | default "change-me") }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "keycloak.fullname" . }}-realm-config
+  namespace: {{ .Values.namespace }}
+  labels:
+    {{- include "keycloak.labels" . | nindent 4 }}
+data:
+  realm.json: |
+    {{- $realmJson | nindent 4 }}
+{{- end }}

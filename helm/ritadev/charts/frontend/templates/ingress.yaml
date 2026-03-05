@@ -1,0 +1,26 @@
+{{- if .Values.ingress.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ include "frontend.fullname" . }}
+  namespace: {{ .Values.namespace }}
+  labels:
+    {{- include "frontend.labels" . | nindent 4 }}
+  annotations:
+    kubernetes.io/ingress.class: {{ .Values.ingress.className }}
+    alb.ingress.kubernetes.io/load-balancer-name: {{ printf "%s-fe" .Values.namespace | trunc 32 | trimSuffix "-" }}
+    {{- range $key, $value := .Values.ingress.annotations }}
+    {{ $key }}: {{ $value | quote }}
+    {{- end }}
+spec:
+  rules:
+  - http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: {{ .Values.service.name }}
+            port:
+              number: {{ .Values.service.port }}
+{{- end }}

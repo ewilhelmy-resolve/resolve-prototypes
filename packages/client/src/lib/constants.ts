@@ -36,32 +36,32 @@ export function isValidFileType(filename: string): boolean {
 	return SUPPORTED_EXTENSIONS.includes(extension as any);
 }
 
-/**
- * Gets a user-friendly error message for unsupported file types
- * @param filename - The name of the file
- * @returns Error message string
- */
-export function getFileTypeErrorMessage(filename: string): string {
-	const extension = filename.slice(filename.lastIndexOf("."));
-	return `File type "${extension}" is not supported. Please upload PDF, DOC, DOCX, MD, or TXT files.`;
-}
+export type FileValidationErrorCode = "unsupportedFileType" | "fileTooLarge";
 
 /**
  * Validates a file before upload and returns validation result
  * @param file - The file to validate
- * @returns Object with isValid flag and optional error
+ * @returns Object with isValid flag and optional error code
  */
 export function validateFileForUpload(file: File): {
 	isValid: boolean;
-	error?: { title: string; description: string };
+	errorCode?: FileValidationErrorCode;
+	errorParams?: Record<string, string>;
 } {
 	if (!isValidFileType(file.name)) {
+		const extension = file.name.slice(file.name.lastIndexOf("."));
 		return {
 			isValid: false,
-			error: {
-				title: "Unsupported File Type",
-				description: getFileTypeErrorMessage(file.name),
-			},
+			errorCode: "unsupportedFileType",
+			errorParams: { extension },
+		};
+	}
+
+	if (file.size > MAX_FILE_SIZE_MB * 1024 * 1024) {
+		return {
+			isValid: false,
+			errorCode: "fileTooLarge",
+			errorParams: { maxSize: `${MAX_FILE_SIZE_MB}MB` },
 		};
 	}
 
@@ -137,25 +137,20 @@ export const MAX_FILE_SIZE_MB = 100;
  * Knowledge Base status badge styles
  * Used in TicketGroupStat and ClusterDetailPage
  */
-export const KB_STATUS_BADGE_STYLES: Record<
-	string,
-	{ variant: "outline"; className: string; text: string } | null
-> = {
-	FOUND: null,
-	GAP: {
+export const KB_STATUS_BADGE_STYLES = {
+	FOUND: {
 		variant: "outline" as const,
-		className: "border-yellow-400 bg-yellow-50 text-yellow-700",
-		text: "Knowledge Gap",
+		className: "border-blue-500 text-blue-600",
+		text: "Knowledge found",
 	},
-	PENDING: null,
-};
-
-/**
- * Automation Gap badge style
- * Used when no Resolve Action workflow is linked to a cluster
- */
-export const AUTOMATION_GAP_BADGE_STYLE = {
-	variant: "outline" as const,
-	className: "border-gray-400 text-gray-500",
-	text: "Automation Gap",
+	GAP: {
+		variant: "secondary" as const,
+		className: "bg-yellow-50 text-secondary-foreground border-yellow-500",
+		text: "Knowledge gap",
+	},
+	PENDING: {
+		variant: "outline" as const,
+		className: "",
+		text: "Pending",
+	},
 } as const;

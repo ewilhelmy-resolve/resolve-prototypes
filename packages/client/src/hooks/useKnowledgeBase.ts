@@ -7,6 +7,7 @@
 
 import { useQueryClient } from "@tanstack/react-query";
 import { useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import { ritaToast } from "@/components/ui/rita-toast";
 import {
@@ -46,6 +47,7 @@ export interface KnowledgeBaseState {
  * Custom hook for handling knowledge base functionality
  */
 export const useKnowledgeBase = (): KnowledgeBaseState => {
+	const { t } = useTranslation(["kbs"]);
 	const documentInputRef = useRef<HTMLInputElement>(null);
 	const navigate = useNavigate();
 	const uploadFileMutation = useUploadFile();
@@ -67,17 +69,21 @@ export const useKnowledgeBase = (): KnowledgeBaseState => {
 
 		// Show initial toast
 		ritaToast.info({
-			title: "Uploading Files",
-			description: `Starting upload of ${filesToUpload.length} file${filesToUpload.length > 1 ? "s" : ""}...`,
+			title: t("kbs:uploadToast.startTitle"),
+			description: t("kbs:uploadToast.startDescription", {
+				count: filesToUpload.length,
+			}),
 		});
 
 		// Process each file
 		for (const file of filesToUpload) {
-			// Validate file type before upload
+			// Validate file before upload
 			const validation = validateFileForUpload(file);
-			if (!validation.isValid && validation.error) {
+			if (!validation.isValid && validation.errorCode) {
 				errorCount++;
-				errors.push(`${file.name}: ${validation.error.description}`);
+				errors.push(
+					`${file.name}: ${t(`kbs:errors.${validation.errorCode}.description`, validation.errorParams)}`,
+				);
 				continue;
 			}
 
@@ -99,10 +105,12 @@ export const useKnowledgeBase = (): KnowledgeBaseState => {
 				// Handle duplicate file (409 Conflict)
 				if (error.status === 409 && error.data?.existing_filename) {
 					errors.push(
-						`${file.name}: Already exists as "${error.data.existing_filename}"`,
+						`${file.name}: ${t("kbs:uploadToast.duplicateError", { filename: error.data.existing_filename })}`,
 					);
 				} else {
-					errors.push(`${file.name}: ${error.message || "Upload failed"}`);
+					errors.push(
+						`${file.name}: ${error.message || t("kbs:uploadToast.genericError")}`,
+					);
 				}
 			} finally {
 				// Remove from uploading state
@@ -141,18 +149,26 @@ export const useKnowledgeBase = (): KnowledgeBaseState => {
 		// Show final summary toast
 		if (successCount > 0 && errorCount === 0) {
 			ritaToast.success({
-				title: "Upload Complete",
-				description: `Successfully uploaded ${successCount} file${successCount > 1 ? "s" : ""}`,
+				title: t("kbs:uploadToast.successTitle"),
+				description: t("kbs:uploadToast.successDescription", {
+					count: successCount,
+				}),
 			});
 		} else if (successCount > 0 && errorCount > 0) {
 			ritaToast.warning({
-				title: "Upload Partially Complete",
-				description: `${successCount} succeeded, ${errorCount} failed. Check details for errors.`,
+				title: t("kbs:uploadToast.partialTitle"),
+				description: t("kbs:uploadToast.partialDescription", {
+					successCount,
+					errorCount,
+				}),
 			});
 		} else if (errorCount > 0) {
 			ritaToast.error({
-				title: "Upload Failed",
-				description: errors.length > 0 ? errors[0] : "All uploads failed",
+				title: t("kbs:uploadToast.failedTitle"),
+				description:
+					errors.length > 0
+						? errors[0]
+						: t("kbs:uploadToast.failedAllDescription"),
 			});
 		}
 	};

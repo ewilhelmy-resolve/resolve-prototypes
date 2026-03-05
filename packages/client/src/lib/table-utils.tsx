@@ -37,21 +37,3 @@ export function renderSortIcon(
 		<MoveDown className="h-4 w-4" />
 	);
 }
-
-/**
- * Get the sort icon type for a column
- * @param currentColumn - The column currently being sorted
- * @param targetColumn - The column to check
- * @param sortOrder - Current sort order ('asc' or 'desc')
- * @returns Icon type ('default', 'asc', or 'desc')
- */
-export function getSortIconType(
-	currentColumn: string,
-	targetColumn: string,
-	sortOrder: "asc" | "desc",
-): "default" | "asc" | "desc" {
-	if (currentColumn !== targetColumn) {
-		return "default";
-	}
-	return sortOrder;
-}

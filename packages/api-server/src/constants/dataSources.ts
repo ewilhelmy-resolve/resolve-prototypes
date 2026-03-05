@@ -10,7 +10,7 @@ export const ALLOWED_DATA_SOURCE_TYPES = [
 	"sharepoint",
 	"websearch",
 	"jira_itsm",
-	"freshdesk",
+	"freshservice_itsm",
 	"ivanti_itsm",
 ] as const;
 
@@ -58,7 +58,7 @@ export const DEFAULT_DATA_SOURCES = [
 		description: "Import tickets from Jira for Autopilot clustering",
 	},
 	{
-		type: "freshdesk" as DataSourceType,
+		type: "freshservice_itsm" as DataSourceType,
 		name: "Freshdesk",
 		description: "Import tickets from Freshdesk for Autopilot clustering",
 	},

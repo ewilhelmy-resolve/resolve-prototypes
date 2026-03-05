@@ -12,6 +12,7 @@ import {
 	mapDataSourceToUI,
 	SOURCES,
 	STATUS,
+	sortSourcesByStatus,
 } from "@/constants/connectionSources";
 import { useDataSources, useSeedDataSources } from "@/hooks/useDataSources";
 import { useFeatureFlag } from "@/hooks/useFeatureFlags";
@@ -37,17 +38,12 @@ export default function KnowledgeSources() {
 	const uiSources = useMemo(() => {
 		if (!dataSources) return [];
 
-		// Filter to knowledge source types and map
+		// Filter to knowledge source types, map, and sort by status priority
 		const mapped = dataSources
 			.filter((ds) => KNOWLEDGE_SOURCES_ORDER.includes(ds.type))
 			.map(mapDataSourceToUI);
 
-		// Sort by defined order
-		return mapped.sort((a, b) => {
-			const indexA = KNOWLEDGE_SOURCES_ORDER.indexOf(a.type);
-			const indexB = KNOWLEDGE_SOURCES_ORDER.indexOf(b.type);
-			return indexA - indexB;
-		});
+		return sortSourcesByStatus(mapped, KNOWLEDGE_SOURCES_ORDER);
 	}, [dataSources]);
 
 	if (isLoading || isSeeding) {

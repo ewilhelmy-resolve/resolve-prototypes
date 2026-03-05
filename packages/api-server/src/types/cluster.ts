@@ -78,7 +78,7 @@ export interface ClusterListQueryOptions {
 	period?: PeriodFilter;
 	includeInactive?: boolean;
 	limit?: number;
-	cursor?: string;
+	offset?: number;
 	kbStatus?: KBStatus;
 	search?: string;
 }
@@ -106,10 +106,20 @@ export interface Ticket {
 }
 
 /**
- * Pagination cursor info
+ * Cursor-based pagination info (for cluster list)
  */
-export interface PaginationInfo {
+export interface CursorPaginationInfo {
 	next_cursor: string | null;
+	has_more: boolean;
+}
+
+/**
+ * Offset-based pagination info (for cluster tickets)
+ */
+export interface OffsetPaginationInfo {
+	total: number;
+	limit: number;
+	offset: number;
 	has_more: boolean;
 }
 
@@ -119,6 +129,7 @@ export interface PaginationInfo {
 export interface ClusterTotals {
 	total_clusters: number;
 	total_tickets: number;
+	total_automated_tickets: number;
 }
 
 /**
@@ -136,7 +147,7 @@ export type SortDirection = "asc" | "desc";
  */
 export interface ClusterTicketsQueryOptions {
 	tab?: "needs_response" | "completed";
-	cursor?: string;
+	offset?: number;
 	limit?: number;
 	search?: string;
 	sort?: TicketSortOption;
@@ -156,7 +167,7 @@ export interface ClusterDetailsResponse {
  */
 export interface ClusterTicketsResponse {
 	data: Ticket[];
-	pagination: PaginationInfo;
+	pagination: OffsetPaginationInfo;
 }
 
 /**
