@@ -31,7 +31,7 @@ import { TicketGroupStat } from "./TicketGroupStat";
 
 type KBFilterOption = KBStatus | typeof KB_FILTER_ALL;
 
-const PAGE_SIZE = 12;
+const PAGE_SIZE = 20;
 
 interface TicketGroupsProps {
 	period: PeriodFilter;
@@ -90,6 +90,10 @@ export default function TicketGroups({ period }: TicketGroupsProps) {
 	const hasNextPage = pagination?.has_more ?? false;
 	const hasPrevPage = page > 0;
 
+	// Navigation handlers
+	const handleNextPage = () => setPage((p) => p + 1);
+	const handlePrevPage = () => setPage((p) => Math.max(0, p - 1));
+
 	// KB filter display labels
 	const kbFilterLabels: Record<KBFilterOption, string> = {
 		[KB_FILTER_ALL]: t("groups.filterOptions.all"),
@@ -105,10 +109,6 @@ export default function TicketGroups({ period }: TicketGroupsProps) {
 		}
 		return name;
 	};
-
-	// Navigation handlers
-	const handleNextPage = () => setPage((p) => p + 1);
-	const handlePrevPage = () => setPage((p) => Math.max(0, p - 1));
 
 	// Show spinner while checking model state initially
 	if (isModelLoading) {
@@ -250,7 +250,7 @@ export default function TicketGroups({ period }: TicketGroupsProps) {
 								</div>
 							)}
 						</StatusAlert>
-						<div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-5">
+						<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
 							{[...Array(6)].map((_, i) => (
 								<TicketGroupSkeleton key={i} />
 							))}
@@ -262,7 +262,7 @@ export default function TicketGroups({ period }: TicketGroupsProps) {
 						<StatusAlert variant="info" title={t("groups.trainingInProgress")}>
 							<p>{t("groups.trainingDescription")}</p>
 						</StatusAlert>
-						<div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-5">
+						<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
 							{[...Array(6)].map((_, i) => (
 								<TicketGroupSkeleton key={i} />
 							))}
@@ -321,7 +321,7 @@ export default function TicketGroups({ period }: TicketGroupsProps) {
 								)}
 							</StatusAlert>
 						)}
-						<div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-5">
+						<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
 							{clusters.map((cluster) => (
 								<TicketGroupStat
 									key={cluster.id}
@@ -335,7 +335,17 @@ export default function TicketGroups({ period }: TicketGroupsProps) {
 
 						{/* Pagination */}
 						{(hasPrevPage || hasNextPage) && (
-							<div className="flex items-center justify-end py-4">
+							<div className="flex items-center justify-between py-4">
+								<p className="text-sm text-muted-foreground">
+									{t("groups.pagination.showing", {
+										from: page * PAGE_SIZE + 1,
+										to: Math.min(
+											(page + 1) * PAGE_SIZE,
+											pagination?.total ?? 0,
+										),
+										total: pagination?.total ?? 0,
+									})}
+								</p>
 								<div className="flex gap-2">
 									<Button
 										variant="outline"
