@@ -8,7 +8,9 @@
 		"dev": "tsx watch src/index.ts",
 		"start": "tsx src/index.ts",
 		"build": "tsc",
-		"type-check": "tsc --noEmit --skipLibCheck --allowJs"
+		"type-check": "tsc --noEmit --skipLibCheck --allowJs",
+		"test": "vitest",
+		"test:run": "vitest run"
 	},
 	"dependencies": {
 		"@types/amqplib": "0.10.1",
@@ -30,6 +32,7 @@
 		"@types/nodemailer": "7.0.2",
 		"@types/pg": "8.10.9",
 		"tsx": "4.20.6",
-		"typescript": "5.2.2"
+		"typescript": "5.2.2",
+		"vitest": "4.0.9"
 	}
 }

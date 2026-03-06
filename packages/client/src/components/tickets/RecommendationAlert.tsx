@@ -75,13 +75,7 @@ export function RecommendationAlert({
 	const styles = variantStyles[variant];
 
 	return (
-		<div
-			className={cn(
-				"rounded-lg border p-4",
-				styles.container,
-				className
-			)}
-		>
+		<div className={cn("rounded-lg border p-4", styles.container, className)}>
 			<div className="flex flex-col gap-3">
 				<span className={cn("p-2 w-fit rounded-md", styles.iconBg)}>
 					<Icon className={cn("h-5 w-5", styles.iconColor)} />

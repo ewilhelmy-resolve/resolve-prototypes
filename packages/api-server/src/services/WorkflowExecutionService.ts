@@ -46,9 +46,7 @@ export class WorkflowExecutionService {
 	/**
 	 * Fetch webhook config from Valkey by hashkey
 	 */
-	async getConfigFromValkey(
-		hashkey: string,
-	): Promise<{
+	async getConfigFromValkey(hashkey: string): Promise<{
 		config: IframeWebhookConfig | null;
 		debug: ExecuteWorkflowResult["debug"];
 	}> {
@@ -62,7 +60,7 @@ export class WorkflowExecutionService {
 		};
 
 		logger.info(
-			{ hashkey: hashkey.substring(0, 8) + "...", fullKey, valkeyStatus },
+			{ hashkey: `${hashkey.substring(0, 8)}...`, fullKey, valkeyStatus },
 			"Fetching config from Valkey",
 		);
 

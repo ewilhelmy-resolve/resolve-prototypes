@@ -3,11 +3,21 @@
 		"description": "RITA learned from <strong>{{ticketCount}}</strong> tickets for <strong>{{period}}</strong>",
 		"stats": {
 			"totalTickets": "Total tickets",
+			"totalClusters": "Total clusters",
+			"knowledgeGaps": "Knowledge gaps",
+			"ticketsNeedingKnowledge": "Tickets needing knowledge",
 			"ticketsLast7Days": "Tickets last 7 days",
 			"totalTicketsAutomated": "Total Tickets Automated",
 			"automationPercentage": "Automation %",
+			"mttr": "Mean Time to Resolution",
+			"mttrTooltip": "Connect your ITSM to track Mean Time to Resolution",
+			"avgReassignmentRate": "Avg. Reassignment Rate",
+			"reassignmentTooltip": "Connect your ITSM to track ticket reassignment rates",
+			"comingSoon": "Coming soon",
 			"moneySaved": "Money Saved",
-			"timeSaved": "Time Saved"
+			"timeSaved": "Time Saved",
+			"estMonthlySpend": "Est. Monthly Spend",
+			"estMonthlyHours": "Est. Monthly Hours"
 		}
 	},
 	"page": {
@@ -25,16 +35,27 @@
 		"importingProgress": "{{processed}} of {{total}} tickets",
 		"trainingInProgress": "Model training in progress",
 		"trainingDescription": "Ticket groups will appear when training completes. This usually takes a few minutes.",
+		"ticketsBelowThreshold": "Not enough tickets",
+		"ticketsBelowThresholdDescription": "There are {{count}} tickets in your instance but at least {{minimum}} are required to train a model. Add more tickets and sync again.",
 		"trainingFailed": "Training failed",
 		"trainingFailedDescription": "There was an issue analyzing your tickets. Please check your ITSM connection and try syncing again.",
 		"goToItsmConnections": "Go to ITSM Connections",
+		"filter": "Filter",
 		"filterBy": "Filter by",
-		"searchPlaceholder": "Search by topic name...",
+		"prioritizedBy": "Prioritized by",
+		"clearFilters": "Clear",
+		"sortBy": "Sort by",
+		"sortOptions": {
+			"volume": "Highest Volume",
+			"cost": "Highest Cost",
+			"mttr": "Longest MTTR",
+			"time": "Most Time Taken"
+		},
+		"searchPlaceholder": "Search by ticket group...",
 		"filterOptions": {
 			"all": "All",
-			"knowledgeFound": "Knowledge found",
 			"knowledgeGap": "Knowledge gap",
-			"pending": "Pending"
+			"automationGap": "Automation gap"
 		},
 		"periods": {
 			"last30Days": "Last 30 days",
@@ -50,7 +71,8 @@
 	"navigation": {
 		"backToCluster": "Back to cluster",
 		"nextTicket": "Next ticket",
-		"previousTicket": "Previous ticket"
+		"previousTicket": "Previous ticket",
+		"positionOf": "{{current}} of {{total}}"
 	},
 	"details": {
 		"description": "Description",
@@ -165,6 +187,77 @@
 		"description": "No knowledge articles found for this cluster. Rita recommends creating one to enable Auto-Answer.",
 		"createArticle": "Create Knowledge Article"
 	},
+	"prioritization": {
+		"title": "Cluster Prioritization",
+		"description": "Decide where to focus based on volume and knowledge coverage",
+		"quadrants": {
+			"createKnowledge": "Create knowledge first",
+			"automateFirst": "Automate first",
+			"lowerPriority": "Lower priority",
+			"ignoreForNow": "Ignore for now"
+		},
+		"axes": {
+			"noKnowledge": "No Knowledge",
+			"knowledgeExists": "Knowledge Exists",
+			"volume": "Volume"
+		},
+		"views": {
+			"scatter": "Scatter chart",
+			"bubbleStrip": "Bubble strip",
+			"divergingBars": "Diverging bars",
+			"rankedList": "Ranked list"
+		},
+		"viewSwitcherLabel": "Chart view",
+		"hiddenCount": "+{{count}} more clusters",
+		"fixNow": {
+			"title": "Fix Now",
+			"description": "High volume, no knowledge"
+		},
+		"readyToAutomate": {
+			"title": "Ready to Automate",
+			"description": "High volume, knowledge exists"
+		},
+		"backlog": {
+			"title": "Backlog",
+			"description": "Low volume, no knowledge"
+		},
+		"monitor": {
+			"title": "Monitor",
+			"description": "Low volume, knowledge exists"
+		},
+		"axis": {
+			"noKnowledge": "No Knowledge",
+			"knowledgeExists": "Knowledge Exists",
+			"highVolume": "High Volume",
+			"lowVolume": "Low Volume"
+		},
+		"empty": "No clusters"
+	},
+	"prioritizationList": {
+		"presets": {
+			"highestCost": "Highest Cost Impact",
+			"longestMttr": "Longest MTTR",
+			"mostTime": "Most Time Taken"
+		},
+		"columns": {
+			"cluster": "Cluster",
+			"tickets": "Tickets",
+			"open": "Open",
+			"mttr": "MTTR",
+			"costImpact": "Cost Impact",
+			"timeTaken": "Time Taken",
+			"kbStatus": "Gap"
+		}
+	},
+	"gaps": {
+		"knowledgeGap": "Knowledge Gap",
+		"automationGap": "Automation Gap",
+		"noResolveAction": "No Resolve Action linked",
+		"automationComingSoon": "Create a workflow in Actions to automate this cluster."
+	},
+	"gapBanner": {
+		"knowledgeGap": "Knowledge gap — no KB articles linked"
+	},
 	"comingSoon": {
 		"title": "Tickets coming soon",
 		"description": "Leverage your existing ITSM data for intelligent analysis.",
@@ -181,6 +274,19 @@
 			"open": "{{count}} open",
 			"kbArticles": "{{count}} KB articles"
 		},
+		"stats": {
+			"totalTickets": "Total Tickets",
+			"openTickets": "Open Tickets",
+			"kbArticles": "KB Articles",
+			"estMonthlyCost": "Est. Monthly Cost",
+			"estMonthlyHours": "Est. Monthly Hours",
+			"estImpact": "Est. Impact",
+			"mttr": "Mean Time to Resolution",
+			"mttrTooltip": "Connect your ITSM to track Mean Time to Resolution",
+			"avgReassignmentRate": "Avg. Reassignment Rate",
+			"reassignmentTooltip": "Connect your ITSM to track ticket reassignment rates",
+			"comingSoon": "Coming soon"
+		},
 		"banners": {
 			"reviewSuccess": "Great job! You reviewed {{count}} responses.",
 			"reviewSuccessDesc": "{{trusted}} trusted ({{improvement}}% confidence)",
@@ -188,7 +294,7 @@
 			"reviewNeedsImprovementDesc": "{{count}} responses reviewed. Consider refining AI training data.",
 			"enrichedTickets": "You just enriched tickets for this group!",
 			"knowledgeAdded": "New knowledge added!",
-			"knowledgeAddedDesc": "You just improved your knowledge to better auto-respond to issues.",
+			"knowledgeAddedDesc": "This cluster is now better positioned for prioritization.",
 			"automatedWork": "You just automated {{percentage}}% of your work!",
 			"automatedWorkDesc": "Auto-respond is set to respond to all future tickets in \"{{groupName}}\""
 		}
@@ -226,6 +332,9 @@
 		"headers": {
 			"subject": "Subject",
 			"externalId": "External ID",
+			"priority": "Priority",
+			"status": "Status",
+			"assignmentGroup": "Assignment Group",
 			"source": "Source",
 			"created": "Created"
 		},
@@ -235,7 +344,9 @@
 		},
 		"pagination": {
 			"ticketsCount": "{{count}} tickets",
+			"showing": "Showing {{from}}-{{to}} of {{total}} tickets",
 			"first": "First",
+			"previous": "Previous",
 			"next": "Next"
 		}
 	},
@@ -269,6 +380,27 @@
 	"knowledge": {
 		"failedToLoad": "Failed to load KB articles",
 		"noArticles": "No knowledge articles linked"
+	},
+	"manualWork": {
+		"summaryTitle": "Manual Work to Eliminate",
+		"summaryDescription": "{{tickets}} tickets needing response \u00b7 {{cost}}/mo \u00b7 {{hours}}/mo",
+		"summaryDescriptionSimple": "{{tickets}} tickets needing response",
+		"knowledgeCount": "{{found}} of {{total}} groups have knowledge",
+		"noManualWork": "$0 potential savings \u2014 no tickets needing response",
+		"ticketCount_one": "{{count}} ticket",
+		"ticketCount_other": "{{count}} tickets",
+		"manual": "manual",
+		"tickets": "tickets",
+		"rowLabel": "{{name}}",
+		"kb": {
+			"pending": "Analyzing...",
+			"gap": "Automation Gap",
+			"found": "Knowledge Found"
+		},
+		"viewSwitcherLabel": "View mode",
+		"viewClusters": "Clusters",
+		"viewPrioritization": "Prioritization",
+		"viewCharts": "Charts"
 	},
 	"ticketSettings": {
 		"title": "Ticket settings",

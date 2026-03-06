@@ -1,5 +1,8 @@
 import { useTranslation } from "react-i18next";
-import { MAX_FILE_SIZE_MB, SUPPORTED_DOCUMENT_EXTENSIONS } from "@/lib/constants";
+import {
+	MAX_FILE_SIZE_MB,
+	SUPPORTED_DOCUMENT_EXTENSIONS,
+} from "@/lib/constants";
 
 /**
  * FileUploadRequirements

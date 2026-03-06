@@ -233,18 +233,31 @@ export function AutomationReadinessMeter({
 				{!isComingSoon && (
 					<div>
 						{isAutomationEnabled ? (
-							<Button variant="outline" size="sm" disabled className="bg-green-50 text-green-700 border-green-200">
+							<Button
+								variant="outline"
+								size="sm"
+								disabled
+								className="bg-green-50 text-green-700 border-green-200"
+							>
 								Auto-Respond Enabled
 							</Button>
 						) : (
 							<>
 								{state === "ready" && (
-									<Button variant="outline" size="sm" onClick={onEnableAutoRespond}>
+									<Button
+										variant="outline"
+										size="sm"
+										onClick={onEnableAutoRespond}
+									>
 										{t("readiness.buttons.enableAutoRespond")}
 									</Button>
 								)}
 								{(state === "partial" || state === "low") && (
-									<Button variant="outline" size="sm" onClick={onReviewKnowledge}>
+									<Button
+										variant="outline"
+										size="sm"
+										onClick={onReviewKnowledge}
+									>
 										{t("readiness.buttons.reviewKnowledge")}
 									</Button>
 								)}

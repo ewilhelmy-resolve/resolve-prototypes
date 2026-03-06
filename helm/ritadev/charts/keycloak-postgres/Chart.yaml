@@ -1,0 +1,13 @@
+apiVersion: v2
+name: keycloak-postgres
+description: PostgreSQL database for Keycloak (per-namespace deployment)
+type: application
+version: 1.0.0
+appVersion: "15"
+keywords:
+  - postgres
+  - postgresql
+  - database
+  - keycloak
+maintainers:
+  - name: Rita Team

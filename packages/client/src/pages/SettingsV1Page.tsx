@@ -5,15 +5,15 @@
  * and doesn't share the common RitaV1Layout used by other pages.
  */
 
-import RitaSettingsLayout from '../components/layouts/RitaSettingsLayout'
-import ConnectionSources from './settings/ConnectionSources'
+import RitaSettingsLayout from "../components/layouts/RitaSettingsLayout";
+import ConnectionSources from "./settings/ConnectionSources";
 
 const SettingsV1Page: React.FC = () => {
-  return (
-    <RitaSettingsLayout>
-      <ConnectionSources />
-    </RitaSettingsLayout>
-  )
-}
+	return (
+		<RitaSettingsLayout>
+			<ConnectionSources />
+		</RitaSettingsLayout>
+	);
+};
 
-export default SettingsV1Page
+export default SettingsV1Page;

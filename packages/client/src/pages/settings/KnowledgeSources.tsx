@@ -12,6 +12,7 @@ import {
 	mapDataSourceToUI,
 	SOURCES,
 	STATUS,
+	sortSourcesByStatus,
 } from "@/constants/connectionSources";
 import { useDataSources, useSeedDataSources } from "@/hooks/useDataSources";
 import { useFeatureFlag } from "@/hooks/useFeatureFlags";
@@ -37,17 +38,12 @@ export default function KnowledgeSources() {
 	const uiSources = useMemo(() => {
 		if (!dataSources) return [];
 
-		// Filter to knowledge source types and map
+		// Filter to knowledge source types, map, and sort by status priority
 		const mapped = dataSources
 			.filter((ds) => KNOWLEDGE_SOURCES_ORDER.includes(ds.type))
 			.map(mapDataSourceToUI);
 
-		// Sort by defined order
-		return mapped.sort((a, b) => {
-			const indexA = KNOWLEDGE_SOURCES_ORDER.indexOf(a.type);
-			const indexB = KNOWLEDGE_SOURCES_ORDER.indexOf(b.type);
-			return indexA - indexB;
-		});
+		return sortSourcesByStatus(mapped, KNOWLEDGE_SOURCES_ORDER);
 	}, [dataSources]);
 
 	if (isLoading || isSeeding) {
@@ -60,7 +56,9 @@ export default function KnowledgeSources() {
 							description={t("knowledgeSources.description")}
 						/>
 						<div className="max-w-6xl">
-							<div className="text-center py-8">{t("knowledgeSources.loading")}</div>
+							<div className="text-center py-8">
+								{t("knowledgeSources.loading")}
+							</div>
 						</div>
 					</div>
 				</div>
@@ -92,48 +90,50 @@ export default function KnowledgeSources() {
 				</div>
 
 				<div className="px-6 pb-8 max-w-2xl mx-auto w-full">
-				{uiSources.map((source) => {
-					const isEnabled = enabledKbSources.includes(source.type);
+					{uiSources.map((source) => {
+						const isEnabled = enabledKbSources.includes(source.type);
 
-					const cardContent = (
-						<SourceListCard
-							source={source}
-							isEnabled={isEnabled}
-							actionLabel={
-								source.status === STATUS.NOT_CONNECTED
-									? t("knowledgeSources.configure")
-									: t("knowledgeSources.manage")
-							}
-							disabledLabel={t("knowledgeSources.comingSoon")}
-							lastSyncLabel={t("knowledgeSources.lastSync", { time: "{time}" })}
-							icon={
-								source.type === SOURCES.WEB_SEARCH ? (
-									<Globe className="h-5 w-5 flex-shrink-0" />
-								) : undefined
-							}
-						/>
-					);
-
-					// Only wrap enabled sources with Link
-					if (isEnabled) {
-						return (
-							<Link
-								key={source.id}
-								to={`/settings/connections/knowledge/${source.id}`}
-								className="block mb-5"
-							>
-								{cardContent}
-							</Link>
+						const cardContent = (
+							<SourceListCard
+								source={source}
+								isEnabled={isEnabled}
+								actionLabel={
+									source.status === STATUS.NOT_CONNECTED
+										? t("knowledgeSources.configure")
+										: t("knowledgeSources.manage")
+								}
+								disabledLabel={t("knowledgeSources.comingSoon")}
+								lastSyncLabel={t("knowledgeSources.lastSync", {
+									time: "{time}",
+								})}
+								icon={
+									source.type === SOURCES.WEB_SEARCH ? (
+										<Globe className="h-5 w-5 flex-shrink-0" />
+									) : undefined
+								}
+							/>
 						);
-					}
 
-					// For other sources, just return the card without link
-					return (
-						<div key={source.id} className="mb-5">
-							{cardContent}
-						</div>
-					);
-				})}
+						// Only wrap enabled sources with Link
+						if (isEnabled) {
+							return (
+								<Link
+									key={source.id}
+									to={`/settings/connections/knowledge/${source.id}`}
+									className="block mb-5"
+								>
+									{cardContent}
+								</Link>
+							);
+						}
+
+						// For other sources, just return the card without link
+						return (
+							<div key={source.id} className="mb-5">
+								{cardContent}
+							</div>
+						);
+					})}
 				</div>
 			</div>
 		</RitaSettingsLayout>

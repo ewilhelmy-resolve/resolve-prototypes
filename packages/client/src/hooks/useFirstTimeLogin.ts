@@ -8,12 +8,12 @@
  * for proper per-user tracking across devices.
  */
 
-import { useFeatureFlag } from '@/hooks/useFeatureFlags'
-import { featureFlags } from '@/lib/featureFlags'
+import { useFeatureFlag } from "@/hooks/useFeatureFlags";
+import { featureFlags } from "@/lib/featureFlags";
 
 interface FirstTimeLoginState {
-  shouldShowModal: boolean
-  markModalAsShown: () => void
+	shouldShowModal: boolean;
+	markModalAsShown: () => void;
 }
 
 /**
@@ -22,17 +22,17 @@ interface FirstTimeLoginState {
  * @returns Object with shouldShowModal flag and markModalAsShown function
  */
 export const useFirstTimeLogin = (): FirstTimeLoginState => {
-  // Use feature flag to control modal display
-  const shouldShowModal = useFeatureFlag('SHOW_WELCOME_MODAL')
+	// Use feature flag to control modal display
+	const shouldShowModal = useFeatureFlag("SHOW_WELCOME_MODAL");
 
-  const markModalAsShown = () => {
-    // Disable the feature flag when user dismisses the modal
-    // This persists in localStorage until user re-enables it in DevTools
-    featureFlags.setFlag('SHOW_WELCOME_MODAL', false)
-  }
+	const markModalAsShown = () => {
+		// Disable the feature flag when user dismisses the modal
+		// This persists in localStorage until user re-enables it in DevTools
+		featureFlags.setFlag("SHOW_WELCOME_MODAL", false);
+	};
 
-  return {
-    shouldShowModal,
-    markModalAsShown
-  }
-}
+	return {
+		shouldShowModal,
+		markModalAsShown,
+	};
+};

@@ -467,6 +467,7 @@ export class DataSourceService {
 		ingestionRunId: string,
 		status: "pending" | "running" | "completed" | "failed" | "cancelled",
 		errorMessage?: string,
+		metadata?: Record<string, any>,
 	): Promise<void> {
 		const updates = ["status = $1", "updated_at = NOW()"];
 		const values: any[] = [status];
@@ -475,6 +476,13 @@ export class DataSourceService {
 		if (errorMessage) {
 			updates.push(`error_message = $${paramIndex++}`);
 			values.push(errorMessage);
+		}
+
+		if (metadata) {
+			updates.push(
+				`metadata = COALESCE(metadata, '{}'::jsonb) || $${paramIndex++}::jsonb`,
+			);
+			values.push(JSON.stringify(metadata));
 		}
 
 		if (

@@ -18,5 +18,9 @@ export function useIsIngesting() {
 	const isIngesting =
 		latestRun?.status === "pending" || latestRun?.status === "running";
 
-	return { isIngesting, latestRun };
+	const isBelowThreshold =
+		latestRun?.status === "failed" &&
+		latestRun?.error_message === "tickets_below_threshold";
+
+	return { isIngesting, latestRun, isBelowThreshold };
 }

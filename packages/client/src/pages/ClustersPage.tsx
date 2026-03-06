@@ -27,7 +27,6 @@ export default function ClustersPage() {
 	const canShowData = trainingState === TRAINING_STATES.COMPLETE;
 
 	// Show skeletons for first-time import (no completed model yet)
-	// Re-imports keep existing clusters visible with just a banner
 	const isFirstImport = isIngesting && !canShowData;
 	const showSkeletons = isModelLoading || isTraining || isFirstImport;
 
@@ -38,6 +37,8 @@ export default function ClustersPage() {
 	});
 
 	const totalTickets = clustersResponse?.totals?.total_tickets ?? 0;
+	const automatedTickets =
+		clustersResponse?.totals?.total_automated_tickets ?? 0;
 
 	return (
 		<RitaLayout activePage="tickets">
@@ -45,6 +46,7 @@ export default function ClustersPage() {
 				period={period}
 				onPeriodChange={setPeriod}
 				totalTickets={totalTickets}
+				automatedTickets={automatedTickets}
 				showSkeletons={showSkeletons}
 				hasNoModel={hasNoModel}
 				onSettingsClick={() => setSettingsOpen(true)}

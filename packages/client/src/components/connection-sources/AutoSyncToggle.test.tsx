@@ -138,7 +138,7 @@ describe("AutoSyncToggle", () => {
 			expect(toggle).not.toBeChecked();
 
 			// Resolve the mutation
-			resolveMutation!();
+			resolveMutation?.();
 			await waitFor(() => {
 				expect(mockUpdateMutation.mutateAsync).toHaveBeenCalled();
 			});

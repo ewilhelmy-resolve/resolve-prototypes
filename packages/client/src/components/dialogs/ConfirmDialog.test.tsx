@@ -1,6 +1,6 @@
-import { describe, it, expect, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { describe, expect, it, vi } from "vitest";
 import ConfirmDialog from "./ConfirmDialog";
 
 describe("ConfirmDialog", () => {
@@ -21,14 +21,18 @@ describe("ConfirmDialog", () => {
 		it("renders description", () => {
 			render(<ConfirmDialog {...defaultProps} />);
 			expect(
-				screen.getByText("Are you sure you want to proceed?")
+				screen.getByText("Are you sure you want to proceed?"),
 			).toBeInTheDocument();
 		});
 
 		it("renders default button labels", () => {
 			render(<ConfirmDialog {...defaultProps} />);
-			expect(screen.getByRole("button", { name: "actions.confirm" })).toBeInTheDocument();
-			expect(screen.getByRole("button", { name: "actions.cancel" })).toBeInTheDocument();
+			expect(
+				screen.getByRole("button", { name: "actions.confirm" }),
+			).toBeInTheDocument();
+			expect(
+				screen.getByRole("button", { name: "actions.cancel" }),
+			).toBeInTheDocument();
 		});
 
 		it("renders custom button labels", () => {
@@ -37,9 +41,11 @@ describe("ConfirmDialog", () => {
 					{...defaultProps}
 					confirmLabel="Delete"
 					cancelLabel="Keep"
-				/>
+				/>,
 			);
-			expect(screen.getByRole("button", { name: "Delete" })).toBeInTheDocument();
+			expect(
+				screen.getByRole("button", { name: "Delete" }),
+			).toBeInTheDocument();
 			expect(screen.getByRole("button", { name: "Keep" })).toBeInTheDocument();
 		});
 
@@ -52,13 +58,17 @@ describe("ConfirmDialog", () => {
 	describe("Variants", () => {
 		it("applies default variant styling", () => {
 			render(<ConfirmDialog {...defaultProps} variant="default" />);
-			const confirmBtn = screen.getByRole("button", { name: "actions.confirm" });
+			const confirmBtn = screen.getByRole("button", {
+				name: "actions.confirm",
+			});
 			expect(confirmBtn).toHaveClass("bg-primary");
 		});
 
 		it("applies destructive variant styling", () => {
 			render(<ConfirmDialog {...defaultProps} variant="destructive" />);
-			const confirmBtn = screen.getByRole("button", { name: "actions.confirm" });
+			const confirmBtn = screen.getByRole("button", {
+				name: "actions.confirm",
+			});
 			expect(confirmBtn).toHaveClass("bg-destructive");
 		});
 	});
@@ -74,7 +84,7 @@ describe("ConfirmDialog", () => {
 					{...defaultProps}
 					onConfirm={onConfirm}
 					onOpenChange={onOpenChange}
-				/>
+				/>,
 			);
 
 			await user.click(screen.getByRole("button", { name: "actions.confirm" }));

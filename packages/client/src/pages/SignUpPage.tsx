@@ -6,7 +6,11 @@ import { Button } from "../components/ui/button";
 import { Checkbox } from "../components/ui/checkbox";
 import { Input } from "../components/ui/input";
 import { useAuth } from "../hooks/useAuth";
-import { validateEmail, validatePassword, validateRequired } from "../lib/validation";
+import {
+	validateEmail,
+	validatePassword,
+	validateRequired,
+} from "../lib/validation";
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || "";
 
@@ -142,7 +146,9 @@ export function SignUpPage() {
 				headers: { "Content-Type": "application/json" },
 				body: JSON.stringify({
 					...signupForm,
-					tosAcceptedAt: signupForm.acceptedTos ? new Date().toISOString() : undefined,
+					tosAcceptedAt: signupForm.acceptedTos
+						? new Date().toISOString()
+						: undefined,
 				}),
 			});
 
@@ -192,14 +198,17 @@ export function SignUpPage() {
 					<div className="w-full max-w-md">
 						<div className="text-left space-y-2 mb-8">
 							<div className="flex justify-center mb-4">
-								<img src="/signup-logo-rita.svg" alt="RITA Logo" className="h-28 w-28 object-contain" loading="lazy" />
+								<img
+									src="/signup-logo-rita.svg"
+									alt="RITA Logo"
+									className="h-28 w-28 object-contain"
+									loading="lazy"
+								/>
 							</div>
 							<h1 className="text-4xl font-bold tracking-tighter">
 								{t("signup.title")}
 							</h1>
-							<p className="text-muted-foreground">
-								{t("signup.description")}
-							</p>
+							<p className="text-muted-foreground">{t("signup.description")}</p>
 						</div>
 
 						{/* Signup Form */}
@@ -229,7 +238,10 @@ export function SignUpPage() {
 												}));
 												// Mark as dirty if value is not empty
 												if (value.trim() !== "") {
-													setDirtyFields((prev) => ({ ...prev, firstName: true }));
+													setDirtyFields((prev) => ({
+														...prev,
+														firstName: true,
+													}));
 												}
 												// Clear error when user types
 												if (fieldErrors.firstName) {
@@ -242,9 +254,15 @@ export function SignUpPage() {
 											onBlur={() => {
 												// Only validate if field has been modified (is dirty)
 												if (dirtyFields.firstName) {
-													const error = validateRequired(signupForm.firstName, "First name");
+													const error = validateRequired(
+														signupForm.firstName,
+														"First name",
+													);
 													if (error) {
-														setFieldErrors((prev) => ({ ...prev, firstName: error }));
+														setFieldErrors((prev) => ({
+															...prev,
+															firstName: error,
+														}));
 													}
 												}
 											}}
@@ -275,7 +293,10 @@ export function SignUpPage() {
 												}));
 												// Mark as dirty if value is not empty
 												if (value.trim() !== "") {
-													setDirtyFields((prev) => ({ ...prev, lastName: true }));
+													setDirtyFields((prev) => ({
+														...prev,
+														lastName: true,
+													}));
 												}
 												// Clear error when user types
 												if (fieldErrors.lastName) {
@@ -288,9 +309,15 @@ export function SignUpPage() {
 											onBlur={() => {
 												// Only validate if field has been modified (is dirty)
 												if (dirtyFields.lastName) {
-													const error = validateRequired(signupForm.lastName, "Last name");
+													const error = validateRequired(
+														signupForm.lastName,
+														"Last name",
+													);
 													if (error) {
-														setFieldErrors((prev) => ({ ...prev, lastName: error }));
+														setFieldErrors((prev) => ({
+															...prev,
+															lastName: error,
+														}));
 													}
 												}
 											}}
@@ -379,9 +406,15 @@ export function SignUpPage() {
 										onBlur={() => {
 											// Only validate if field has been modified (is dirty)
 											if (dirtyFields.company) {
-												const error = validateRequired(signupForm.company, "Company name");
+												const error = validateRequired(
+													signupForm.company,
+													"Company name",
+												);
 												if (error) {
-													setFieldErrors((prev) => ({ ...prev, company: error }));
+													setFieldErrors((prev) => ({
+														...prev,
+														company: error,
+													}));
 												}
 											}
 										}}
@@ -390,7 +423,9 @@ export function SignUpPage() {
 										className="h-11 bg-black/20 text-white border-gray-700 focus:border-blue-500"
 									/>
 									{fieldErrors.company && (
-										<p className="text-sm text-red-400">{fieldErrors.company}</p>
+										<p className="text-sm text-red-400">
+											{fieldErrors.company}
+										</p>
 									)}
 								</div>
 								<div className="space-y-2">
@@ -425,7 +460,10 @@ export function SignUpPage() {
 											if (dirtyFields.password) {
 												const error = validatePassword(signupForm.password);
 												if (error) {
-													setFieldErrors((prev) => ({ ...prev, password: error }));
+													setFieldErrors((prev) => ({
+														...prev,
+														password: error,
+													}));
 												}
 											}
 										}}
@@ -434,7 +472,9 @@ export function SignUpPage() {
 										className="h-11 bg-black/20 text-white border-gray-700 focus:border-blue-500"
 									/>
 									{fieldErrors.password && (
-										<p className="text-sm text-red-400">{fieldErrors.password}</p>
+										<p className="text-sm text-red-400">
+											{fieldErrors.password}
+										</p>
 									)}
 								</div>
 

@@ -107,8 +107,7 @@ const DEMO_SCHEMAS: Record<string, { name: string; schema: object }> = {
 				subtext: {
 					type: "Text",
 					props: {
-						content:
-							"This UI was rendered from JSON schema sent via RabbitMQ.",
+						content: "This UI was rendered from JSON schema sent via RabbitMQ.",
 						variant: "muted",
 					},
 				},
@@ -517,9 +516,7 @@ function MockPlatformPanel({
 			// Log what platform is sending
 			onLog("info", "⬇️ SSE Event received (ui_schema)", {
 				root: schema.root,
-				elementCount: schema.elements
-					? Object.keys(schema.elements).length
-					: 0,
+				elementCount: schema.elements ? Object.keys(schema.elements).length : 0,
 			});
 
 			// Simulate Platform sending message via RabbitMQ → SSE → Client
@@ -1085,14 +1082,27 @@ export default function IframeChatPage() {
 
 	// Download full metadata (JAR-69)
 	// TODO: CLIEN-20 Clean up debugging payloads
-	const downloadMetadata = useCallback(() => {
+	const downloadMetadata = useCallback(async () => {
+		// Re-read Valkey for fresh context (Actions Platform may have updated runId/activityId)
+		let freshPayload = valkeyPayload;
+		if (sessionKey) {
+			try {
+				const resp = await fetch(
+					`${apiUrl}/api/iframe/session-context?sessionKey=${encodeURIComponent(sessionKey)}`,
+				);
+				if (resp.ok) freshPayload = await resp.json();
+			} catch {
+				/* fall back to cached payload */
+			}
+		}
+
 		const messages = useConversationStore.getState().messages;
 		const data = {
 			exportedAt: new Date().toISOString(),
 			conversationId,
 			sessionKey,
-			// Full Valkey payload from validate-instantiation (sensitive fields excluded by backend)
-			valkeyPayload,
+			// Fresh Valkey payload (sensitive fields excluded by backend)
+			valkeyPayload: freshPayload,
 			// Debug info
 			debug: {
 				apiUrl,

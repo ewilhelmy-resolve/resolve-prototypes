@@ -1,9 +1,7 @@
 import { ChevronLeft, Loader2 } from "lucide-react";
-import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, useParams } from "react-router-dom";
 import RitaLayout from "@/components/layouts/RitaLayout";
-import ReviewAIResponseSheet from "@/components/tickets/ReviewAIResponseSheet";
 import { TicketDetailHeader } from "@/components/tickets/TicketDetailHeader";
 import TicketDetailsCard from "@/components/tickets/TicketDetailsCard";
 import { Button } from "@/components/ui/button";
@@ -19,7 +17,6 @@ export default function TicketDetailPage() {
 	const { data: clusterTicketsData } = useClusterTickets(clusterId, {
 		limit: 100,
 	});
-	const [reviewSheetOpen, setReviewSheetOpen] = useState(false);
 
 	// Get ticket IDs from cluster for navigation
 	const ticketIds = clusterTicketsData?.data?.map((t) => t.id) ?? [];
@@ -63,16 +60,6 @@ export default function TicketDetailPage() {
 		createdAt: ticket.created_at,
 	};
 
-	const handleApprove = (id: string) => {
-		console.log(`Approved AI response for ticket: ${id}`);
-		// TODO: Implement API call
-	};
-
-	const handleReject = (id: string) => {
-		console.log(`Rejected AI response for ticket: ${id}`);
-		// TODO: Implement API call
-	};
-
 	return (
 		<RitaLayout activePage="tickets">
 			<div className="flex flex-col">
@@ -82,7 +69,6 @@ export default function TicketDetailPage() {
 					externalId={ticket.external_id}
 					clusterId={clusterId}
 					ticketIds={ticketIds}
-					onReviewAIResponse={() => setReviewSheetOpen(true)}
 				/>
 
 				{/* Content */}
@@ -93,26 +79,6 @@ export default function TicketDetailPage() {
 					{/* Ticket Details Card */}
 					<TicketDetailsCard ticket={ticketForCard} />
 				</div>
-
-				{/* Review AI Response Sheet */}
-				<ReviewAIResponseSheet
-					open={reviewSheetOpen}
-					onOpenChange={setReviewSheetOpen}
-					ticketGroupId={clusterId}
-					tickets={[
-						{
-							id: ticket.id,
-							externalId: ticket.external_id,
-							title: ticket.subject,
-							description: ticket.description || "No description available.",
-							priority: ticketForCard.priority,
-						},
-					]}
-					currentIndex={0}
-					onNavigate={() => {}}
-					onApprove={handleApprove}
-					onReject={handleReject}
-				/>
 			</div>
 		</RitaLayout>
 	);

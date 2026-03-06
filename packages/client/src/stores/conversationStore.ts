@@ -152,12 +152,12 @@ function mergeConsecutiveReasoning(
 
 		// Merge all reasoning content
 		const mergedReasoningContent = reasoningParts
-			.map((part) => part.metadata!.reasoning!.content)
+			.map((part) => part.metadata?.reasoning?.content)
 			.join("\n\n");
 
 		// Use last part's title and streaming state
 		const lastPart = reasoningParts[reasoningParts.length - 1];
-		const lastReasoning = lastPart.metadata!.reasoning!;
+		const lastReasoning = lastPart.metadata?.reasoning!;
 
 		// Determine which part to use as base:
 		// - If last part has text content or other metadata → use last part
@@ -205,7 +205,7 @@ export function groupMessages(flatMessages: Message[]): ChatMessage[] {
 			if (!groups.has(message.response_group_id)) {
 				groups.set(message.response_group_id, []);
 			}
-			groups.get(message.response_group_id)!.push(message);
+			groups.get(message.response_group_id)?.push(message);
 		}
 	}
 

@@ -153,10 +153,7 @@ export default function UsersTable() {
 		return (
 			<CrashPage
 				title={t("errors.loadDataSourcesFailed")}
-				description={
-					error.message ||
-					t("errors.loadDataSourcesDescription")
-				}
+				description={error.message || t("errors.loadDataSourcesDescription")}
 				actionLabel={t("errors.tryAgain")}
 				onAction={() => window.location.reload()}
 			/>
@@ -463,7 +460,9 @@ export default function UsersTable() {
 											) : (
 												<Ban className="h-3 w-3" />
 											)}
-											{member.isActive ? t("users.table.statusActive") : t("users.table.statusInactive")}
+											{member.isActive
+												? t("users.table.statusActive")
+												: t("users.table.statusInactive")}
 										</Badge>
 									</TableCell>
 									<TableCell>
@@ -531,15 +530,16 @@ export default function UsersTable() {
 				{!isLoading && members.length > 0 && (
 					<div className="flex flex-col sm:flex-row justify-between items-center gap-4 py-4">
 						<p className="text-sm text-muted-foreground">
-							{searchInput || statusFilter !== "All" ? (
-								<>
-									{t("users.table.pagination.showingFiltered", { count: members.length, total: totalMembers })}
-								</>
-							) : (
-								<>
-									{t("users.table.pagination.showingRange", { start: page * PAGE_SIZE + 1, end: Math.min((page + 1) * PAGE_SIZE, totalMembers), total: totalMembers })}
-								</>
-							)}
+							{searchInput || statusFilter !== "All"
+								? t("users.table.pagination.showingFiltered", {
+										count: members.length,
+										total: totalMembers,
+									})
+								: t("users.table.pagination.showingRange", {
+										start: page * PAGE_SIZE + 1,
+										end: Math.min((page + 1) * PAGE_SIZE, totalMembers),
+										total: totalMembers,
+									})}
 						</p>
 						<div className="flex items-center gap-2">
 							<Button
@@ -579,7 +579,9 @@ export default function UsersTable() {
 				open={deactivateDialogOpen}
 				onOpenChange={setDeactivateDialogOpen}
 				title={t("users.dialogs.deactivate.title")}
-				description={t("users.dialogs.deactivate.description", { email: deactivatingUser?.email })}
+				description={t("users.dialogs.deactivate.description", {
+					email: deactivatingUser?.email,
+				})}
 				onConfirm={handleConfirmDeactivate}
 				confirmLabel={t("users.table.actions.deactivate")}
 				cancelLabel={t("common:actions.cancel")}
@@ -603,7 +605,11 @@ export default function UsersTable() {
 				open={roleChangeDialogOpen}
 				onOpenChange={setRoleChangeDialogOpen}
 				title={t("users.dialogs.roleChange.title")}
-				description={t("users.dialogs.roleChange.description", { email: editingUser?.email, oldRole: pendingRoleChange?.oldRole, newRole: pendingRoleChange?.newRole })}
+				description={t("users.dialogs.roleChange.description", {
+					email: editingUser?.email,
+					oldRole: pendingRoleChange?.oldRole,
+					newRole: pendingRoleChange?.newRole,
+				})}
 				onConfirm={handleConfirmRoleChange}
 				confirmLabel={t("common:actions.confirm")}
 				cancelLabel={t("common:actions.cancel")}
@@ -614,7 +620,9 @@ export default function UsersTable() {
 				open={bulkDeleteDialogOpen}
 				onOpenChange={setBulkDeleteDialogOpen}
 				title={t("users.dialogs.bulkDelete.title")}
-				description={t("users.dialogs.bulkDelete.description", { count: selectedUsers.length })}
+				description={t("users.dialogs.bulkDelete.description", {
+					count: selectedUsers.length,
+				})}
 				onConfirm={handleConfirmBulkDelete}
 				confirmLabel={t("users.dialogs.bulkDelete.confirmLabel")}
 				cancelLabel={t("common:actions.cancel")}

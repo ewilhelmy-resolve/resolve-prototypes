@@ -17,6 +17,7 @@ export const DocumentSchema = z
 		id: z.string().uuid().openapi({ description: "Document ID" }),
 		filename: z
 			.string()
+			.max(255)
 			.openapi({ description: "File name", example: "guide.pdf" }),
 		size: z
 			.number()
@@ -59,7 +60,7 @@ export const FileConflictResponseSchema = z
 export const FileContentRequestSchema = z
 	.object({
 		content: z.string().openapi({ description: "Text content to store" }),
-		filename: z.string().openapi({
+		filename: z.string().max(255).openapi({
 			description: "File name for the content",
 			example: "notes.txt",
 		}),
@@ -143,7 +144,15 @@ export const FileListQuerySchema = z
 			.default(0)
 			.openapi({ description: "Pagination offset", example: 0 }),
 		sort_by: z
-			.enum(["filename", "size", "type", "status", "source", "created_at"])
+			.enum([
+				"filename",
+				"size",
+				"type",
+				"status",
+				"source",
+				"created_at",
+				"updated_at",
+			])
 			.default("created_at")
 			.openapi({ description: "Sort field" }),
 		sort_order: z

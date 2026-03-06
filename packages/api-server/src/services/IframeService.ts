@@ -6,6 +6,7 @@ import {
 	type CreateSessionData,
 	getSessionStore,
 	type IframeWebhookConfig,
+	type Session,
 } from "./sessionStore.js";
 
 // Valkey key prefix - keys stored as rita:session:{guid}
@@ -444,9 +445,7 @@ export class IframeService {
 			const existingMetadata = msg.metadata || {};
 
 			if (existingMetadata.status === "completed") {
-				throw new Error(
-					`Form request ${requestId} already completed`,
-				);
+				throw new Error(`Form request ${requestId} already completed`);
 			}
 
 			// 2. Update message metadata to mark form as answered
@@ -459,10 +458,10 @@ export class IframeService {
 				submitted_at: submittedAt,
 			};
 
-			await client.query(
-				`UPDATE messages SET metadata = $1 WHERE id = $2`,
-				[JSON.stringify(updatedMetadata), msg.id],
-			);
+			await client.query(`UPDATE messages SET metadata = $1 WHERE id = $2`, [
+				JSON.stringify(updatedMetadata),
+				msg.id,
+			]);
 
 			logger.info(
 				{
@@ -477,13 +476,21 @@ export class IframeService {
 				"UI form response stored in message metadata",
 			);
 
-			// 3. Get webhook config from session (lookup by conversation if available)
+			// 3. Get webhook config from session (re-read Valkey for Actions Platform updates)
 			let webhookConfig: IframeWebhookConfig | null = null;
 			if (msg.conversation_id) {
 				const session = await this.sessionStore.getSessionByConversationId(
 					msg.conversation_id,
 				);
-				webhookConfig = session?.iframeWebhookConfig || null;
+				if (session?.valkeySessionKey) {
+					await this.refreshSessionFromValkey(session.sessionId);
+					const refreshed = await this.sessionStore.getSessionByConversationId(
+						msg.conversation_id,
+					);
+					webhookConfig = refreshed?.iframeWebhookConfig || null;
+				} else {
+					webhookConfig = session?.iframeWebhookConfig || null;
+				}
 			}
 
 			// 4. Send webhook to Platform if we have config
@@ -600,6 +607,43 @@ export class IframeService {
 		);
 
 		return { conversationId: result.id, ritaOrgId, ritaUserId };
+	}
+
+	/**
+	 * Re-read Valkey payload and merge fresh context into session
+	 * Actions Platform updates Valkey mid-session (e.g. adds runId, activityId after workflow runs)
+	 * Rita re-reads before every webhook so payloads to Actions Platform contain latest context
+	 */
+	async refreshSessionFromValkey(sessionId: string): Promise<Session | null> {
+		const session = await this.sessionStore.getSession(sessionId);
+		if (!session?.valkeySessionKey || !session.iframeWebhookConfig) {
+			return session;
+		}
+
+		try {
+			const { config } = await this.fetchValkeyPayloadWithDebug(
+				session.valkeySessionKey,
+			);
+			if (!config?.context) return session;
+
+			const updatedConfig = {
+				...session.iframeWebhookConfig,
+				context: { ...session.iframeWebhookConfig.context, ...config.context },
+			};
+
+			return this.sessionStore.updateSession(sessionId, {
+				iframeWebhookConfig: updatedConfig,
+			});
+		} catch (error) {
+			logger.error(
+				{
+					sessionId,
+					error: (error as Error).message,
+				},
+				"Failed to refresh session from Valkey",
+			);
+			return session;
+		}
 	}
 
 	/**
@@ -753,9 +797,10 @@ export class IframeService {
 		const session = await this.sessionStore.createSession(sessionData);
 		const cookie = this.sessionService.generateSessionCookie(session.sessionId);
 
-		// Store conversationId in session for /execute endpoint to use
+		// Store conversationId and valkeySessionKey in session
 		await this.sessionStore.updateSession(session.sessionId, {
 			conversationId,
+			valkeySessionKey: sessionKey,
 		});
 
 		// Write conversationId back to Valkey for Platform Activity lookup (JAR-95)

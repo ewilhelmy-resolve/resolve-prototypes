@@ -21,6 +21,18 @@ export const authenticateUser = async (
 	next: NextFunction,
 ): Promise<void> => {
 	try {
+		// DEMO MODE: Bypass auth and use testuser
+		if (process.env.DEMO_MODE === "true") {
+			req.user = {
+				id: "810c6742-7a23-40c7-830a-c627a23514f1",
+				email: "testuser@example.com",
+				activeOrganizationId: "289440c3-30a3-4b6e-876e-cae80769bf61",
+			};
+			req.session = { sessionId: "demo-session" };
+			next();
+			return;
+		}
+
 		const sessionService = getSessionService();
 		const sessionId = sessionService.parseSessionIdFromCookie(
 			req.headers.cookie,

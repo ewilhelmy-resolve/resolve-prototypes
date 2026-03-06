@@ -162,6 +162,8 @@ interface SchemaRendererProps {
 	messageId: string;
 	conversationId: string;
 	onAction?: (payload: UIActionPayload) => void;
+	/** Force inline Dialog modals instead of host modal delegation (for embedded/Storybook contexts) */
+	forceInlineModals?: boolean;
 	disabled?: boolean;
 }
 
@@ -170,6 +172,7 @@ export function SchemaRenderer({
 	messageId,
 	conversationId,
 	onAction,
+	forceInlineModals,
 	disabled = false,
 }: SchemaRendererProps) {
 	const [formData, setFormData] = useState<Record<string, string>>({});
@@ -254,10 +257,7 @@ export function SchemaRenderer({
 		if (!dialogName || autoOpenedRef.current === dialogName) return;
 
 		const timer = setTimeout(() => {
-			if (
-				handleOpenDialogRef.current &&
-				autoOpenedRef.current !== dialogName
-			) {
+			if (handleOpenDialogRef.current && autoOpenedRef.current !== dialogName) {
 				autoOpenedRef.current = dialogName;
 				handleOpenDialogRef.current(dialogName, {
 					preventBackdropClose: true,
@@ -359,8 +359,8 @@ export function SchemaRenderer({
 		const cancelLabel = p<string>(dialog, "cancelLabel");
 		const submitVariant = p<string>(dialog, "submitVariant");
 
-		// In iframe context, open modal in host page
-		if (isInIframe()) {
+		// In iframe context, open modal in host page (unless forceInlineModals)
+		if (isInIframe() && !forceInlineModals) {
 			const fields = extractFieldsFromId(dialogElementId);
 
 			if (submitAction) {
@@ -641,9 +641,7 @@ export function SchemaRenderer({
 		<SchemaErrorBoundary>
 			<div className="schema-renderer space-y-3 w-full overflow-hidden">
 				{rootElement.type === "Column" && rootElement.children
-					? rootElement.children.map((childId, i) =>
-							renderElement(childId, i),
-						)
+					? rootElement.children.map((childId, i) => renderElement(childId, i))
 					: renderElement(parsed.root, 0)}
 			</div>
 
@@ -656,12 +654,7 @@ export function SchemaRenderer({
 					onClose={handleCloseDialog}
 					onSubmit={handleDialogSubmit}
 					renderElement={(childId, index) =>
-						renderElement(
-							childId,
-							index,
-							modalFormData,
-							handleModalInputChange,
-						)
+						renderElement(childId, index, modalFormData, handleModalInputChange)
 					}
 				/>
 			)}
@@ -869,11 +862,7 @@ function SelectRenderer({
 }) {
 	const label = p<string>(el, "label");
 	const placeholder = p<string>(el, "placeholder", "Select...");
-	const options = p<Array<{ label: string; value: string }>>(
-		el,
-		"options",
-		[],
-	);
+	const options = p<Array<{ label: string; value: string }>>(el, "options", []);
 	const className = p<string>(el, "className", "");
 
 	return (
@@ -1033,11 +1022,7 @@ function FormRenderer({
 }
 
 function TableRenderer({ el }: { el: UIElement }) {
-	const columns = p<Array<{ key: string; label: string }>>(
-		el,
-		"columns",
-		[],
-	);
+	const columns = p<Array<{ key: string; label: string }>>(el, "columns", []);
 	const rows = p<Array<Record<string, string | number>>>(el, "rows", []);
 	const className = p<string>(el, "className", "");
 
@@ -1122,7 +1107,10 @@ function ImageRenderer({ el }: { el: UIElement }) {
 
 function BadgeRenderer({ el }: { el: UIElement }) {
 	const text = p<string>(el, "text") || p<string>(el, "label", "");
-	const variantMap: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
+	const variantMap: Record<
+		string,
+		"default" | "secondary" | "destructive" | "outline"
+	> = {
 		success: "default",
 		warning: "secondary",
 		destructive: "destructive",
@@ -1143,9 +1131,10 @@ function AlertRenderer({ el }: { el: UIElement }) {
 	const title = p<string>(el, "title");
 	const message = p<string>(el, "message") || p<string>(el, "text", "");
 	const rawVariant = p<string>(el, "variant", "default");
-	const variant = rawVariant === "destructive" || rawVariant === "warning"
-		? "destructive"
-		: "default";
+	const variant =
+		rawVariant === "destructive" || rawVariant === "warning"
+			? "destructive"
+			: "default";
 	const className = p<string>(el, "className", "");
 
 	return (
@@ -1265,9 +1254,7 @@ function ModalRenderer({
 			>
 				<DialogHeader>
 					<DialogTitle>{title}</DialogTitle>
-					{description && (
-						<DialogDescription>{description}</DialogDescription>
-					)}
+					{description && <DialogDescription>{description}</DialogDescription>}
 				</DialogHeader>
 
 				<div className="flex-1 overflow-y-auto space-y-4 py-4">

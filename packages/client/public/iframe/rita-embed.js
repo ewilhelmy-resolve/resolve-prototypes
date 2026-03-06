@@ -59,7 +59,7 @@
 	}
 
 	// ---- Current modal state ----
-	var currentConfig = null;
+	var _currentConfig = null;
 	var escHandler = null;
 
 	// ---- Close modal ----
@@ -70,23 +70,21 @@
 			document.removeEventListener("keydown", escHandler);
 			escHandler = null;
 		}
-		currentConfig = null;
+		_currentConfig = null;
 	}
 
 	// ---- Send message back to iframe ----
 	function postToIframe(msg) {
 		var iframe = findRitaIframe();
-		if (iframe && iframe.contentWindow) {
+		if (iframe?.contentWindow) {
 			iframe.contentWindow.postMessage(msg, "*");
 		}
 	}
 
 	// ---- Render a form field ----
 	function renderField(field) {
-		var id = "rita-field-" + field.name;
-		var label = field.label
-			? '<label for="' + id + '">' + field.label + "</label>"
-			: "";
+		var id = `rita-field-${field.name}`;
+		var label = field.label ? `<label for="${id}">${field.label}</label>` : "";
 		var opts;
 
 		if (field.type === "select" && field.options) {
@@ -158,7 +156,7 @@
 	function openModal(config) {
 		injectStyles();
 		closeModal();
-		currentConfig = config;
+		_currentConfig = config;
 
 		var fieldsHtml = (config.fields || []).map(renderField).join("");
 		var submitClass =
@@ -176,7 +174,7 @@
 			"<h3>" +
 			(config.title || "Form") +
 			"</h3>" +
-			(config.description ? "<p>" + config.description + "</p>" : "") +
+			(config.description ? `<p>${config.description}</p>` : "") +
 			"</div>" +
 			'<button type="button" id="rita-form-modal-close">\u00d7</button>' +
 			"</div>" +
@@ -262,7 +260,7 @@
 		if (msg.type === "RITA_FORM_MODAL") {
 			// ACK immediately so iframe knows host will handle it
 			ackIframe = findRitaIframe();
-			if (ackIframe && ackIframe.contentWindow) {
+			if (ackIframe?.contentWindow) {
 				ackIframe.contentWindow.postMessage(
 					{ type: "RITA_FORM_MODAL_ACK" },
 					"*",

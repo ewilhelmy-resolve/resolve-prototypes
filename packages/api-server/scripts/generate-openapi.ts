@@ -3,9 +3,9 @@
  * Run: pnpm docs:generate
  */
 
-import { writeFileSync } from "fs";
-import { dirname, join } from "path";
-import { fileURLToPath } from "url";
+import { writeFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 
 // Import routes to register their OpenAPI docs
 import "../src/routes/auth.js";

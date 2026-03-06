@@ -1,0 +1,380 @@
+/**
+ * Mock data for Pro Agent Builder
+ */
+
+import type {
+	MCPSkill,
+	ProAgent,
+	ProDashboardStats,
+	ProRunbook,
+} from "@/types/pro";
+
+export const MOCK_MCP_SKILLS: MCPSkill[] = [
+	{
+		id: "skill-1",
+		name: "ServiceNow CMDB Query",
+		description:
+			"Queries ServiceNow CMDB for configuration items and relationships",
+		endpoint: "https://mcp.internal/skills/snow-cmdb-query",
+		authType: "bearer",
+		variables: [
+			{
+				name: "ci_class",
+				type: "string",
+				required: true,
+				description: "Configuration item class (e.g. cmdb_ci_server)",
+			},
+			{
+				name: "query_filter",
+				type: "string",
+				required: false,
+				description: "Encoded query string for filtering results",
+			},
+			{
+				name: "max_results",
+				type: "number",
+				required: false,
+				description: "Maximum records to return",
+				defaultValue: "100",
+			},
+		],
+		createdAt: "2025-08-10T14:00:00Z",
+		updatedAt: "2026-01-15T09:30:00Z",
+	},
+	{
+		id: "skill-2",
+		name: "Kubernetes Pod Manager",
+		description: "Scales, restarts, and inspects pods across namespaces",
+		endpoint: "https://mcp.internal/skills/k8s-pod-mgr",
+		authType: "bearer",
+		variables: [
+			{
+				name: "namespace",
+				type: "string",
+				required: true,
+				description: "Kubernetes namespace",
+			},
+			{
+				name: "action",
+				type: "string",
+				required: true,
+				description: "Action to perform (scale|restart|describe)",
+			},
+			{
+				name: "deployment",
+				type: "string",
+				required: false,
+				description: "Target deployment name",
+			},
+		],
+		createdAt: "2025-08-12T10:00:00Z",
+		updatedAt: "2026-01-18T11:00:00Z",
+	},
+	{
+		id: "skill-3",
+		name: "Jira Issue Triage",
+		description:
+			"Creates, updates, and transitions Jira issues with SLA tracking",
+		endpoint: "https://mcp.internal/skills/jira-triage",
+		authType: "api_key",
+		variables: [
+			{
+				name: "project_key",
+				type: "string",
+				required: true,
+				description: "Jira project key (e.g. OPS)",
+			},
+			{
+				name: "issue_type",
+				type: "string",
+				required: false,
+				description: "Issue type (Incident|Task|Change)",
+				defaultValue: "Incident",
+			},
+		],
+		createdAt: "2025-09-01T08:00:00Z",
+		updatedAt: "2026-01-20T14:00:00Z",
+	},
+	{
+		id: "skill-4",
+		name: "AWS CloudWatch Metrics",
+		description: "Pulls CloudWatch metrics and triggers alarm evaluations",
+		endpoint: "https://mcp.internal/skills/cw-metrics",
+		authType: "bearer",
+		variables: [
+			{
+				name: "metric_name",
+				type: "string",
+				required: true,
+				description: "CloudWatch metric name",
+			},
+			{
+				name: "namespace",
+				type: "string",
+				required: true,
+				description: "AWS metric namespace (e.g. AWS/EC2)",
+			},
+			{
+				name: "period",
+				type: "number",
+				required: false,
+				description: "Aggregation period in seconds",
+				defaultValue: "300",
+			},
+			{
+				name: "dimensions",
+				type: "object",
+				required: false,
+				description: "Dimension key-value pairs for filtering",
+			},
+		],
+		createdAt: "2025-09-15T12:00:00Z",
+		updatedAt: "2026-01-22T16:00:00Z",
+	},
+	{
+		id: "skill-5",
+		name: "Terraform State Inspector",
+		description:
+			"Reads Terraform state and compares drift against desired config",
+		endpoint: "https://mcp.internal/skills/tf-state",
+		authType: "api_key",
+		variables: [
+			{
+				name: "workspace",
+				type: "string",
+				required: true,
+				description: "Terraform workspace name",
+			},
+			{
+				name: "resource_address",
+				type: "string",
+				required: false,
+				description: "Specific resource address to inspect",
+			},
+		],
+		createdAt: "2025-10-01T09:00:00Z",
+		updatedAt: "2026-01-25T10:00:00Z",
+	},
+	{
+		id: "skill-6",
+		name: "PagerDuty Incident Bridge",
+		description: "Creates, acknowledges, and resolves PagerDuty incidents",
+		endpoint: "https://mcp.internal/skills/pd-incidents",
+		authType: "api_key",
+		variables: [
+			{
+				name: "service_id",
+				type: "string",
+				required: true,
+				description: "PagerDuty service ID",
+			},
+			{
+				name: "urgency",
+				type: "string",
+				required: false,
+				description: "Incident urgency (high|low)",
+				defaultValue: "high",
+			},
+			{
+				name: "title",
+				type: "string",
+				required: true,
+				description: "Incident title",
+			},
+		],
+		createdAt: "2025-10-10T07:00:00Z",
+		updatedAt: "2026-02-01T08:00:00Z",
+	},
+];
+
+export const MOCK_PRO_RUNBOOKS: ProRunbook[] = [
+	{
+		id: "rb-1",
+		name: "System.RSControlHealthCheck",
+		description: "Runs health checks across Resolve control nodes",
+	},
+	{
+		id: "rb-2",
+		name: "resolve.reports.RunbookExeSummaryPopulateTableGui",
+		description: "Populates execution summary table for GUI display",
+	},
+	{
+		id: "rb-3",
+		name: "resolve.reports.RunbookExeSummaryUpdateTable",
+		description: "Updates runbook execution summary records",
+	},
+	{
+		id: "rb-4",
+		name: "resolve.reports.RunbookUsageReport",
+		description: "Generates usage analytics for runbook executions",
+	},
+	{
+		id: "rb-5",
+		name: "System.GitPollAutomationChanges",
+		description: "Polls Git repositories for automation config changes",
+	},
+];
+
+export const MOCK_PRO_AGENTS: ProAgent[] = [
+	{
+		id: "agent-1",
+		name: "Incident Auto-Remediation",
+		description:
+			"Triages PagerDuty incidents, queries CMDB for affected CIs, and triggers runbook remediation",
+		endpointSlug: "incident-remediation",
+		runbookId: "rb-1",
+		authMethod: "oauth",
+		skillIds: ["skill-1", "skill-6", "skill-2"],
+		status: "active",
+		apiKey: "pk_live_abc123",
+		versions: [
+			{
+				version: 1,
+				name: "Incident Auto-Remediation",
+				description: "Basic CMDB lookup and PagerDuty bridge",
+				endpointSlug: "incident-remediation",
+				runbookId: "rb-1",
+				authMethod: "oauth",
+				skillIds: ["skill-1", "skill-6"],
+				status: "active",
+				createdAt: "2025-11-01T10:00:00Z",
+				updatedAt: "2025-11-01T10:00:00Z",
+			},
+			{
+				version: 2,
+				name: "Incident Auto-Remediation",
+				description: "Added K8s pod restart for container incidents",
+				endpointSlug: "incident-remediation",
+				runbookId: "rb-1",
+				authMethod: "oauth",
+				skillIds: ["skill-1", "skill-6", "skill-2"],
+				status: "active",
+				createdAt: "2025-12-15T09:00:00Z",
+				updatedAt: "2025-12-15T09:00:00Z",
+			},
+		],
+		activeVersion: 2,
+		createdAt: "2025-11-01T10:00:00Z",
+		updatedAt: "2025-12-15T09:00:00Z",
+	},
+	{
+		id: "agent-2",
+		name: "Infrastructure Drift Detector",
+		description:
+			"Compares Terraform state against live infra and files Jira tickets for drift",
+		endpointSlug: "infra-drift",
+		runbookId: "rb-5",
+		authMethod: "bearer",
+		skillIds: ["skill-5", "skill-3"],
+		status: "active",
+		apiKey: "pk_live_def456",
+		versions: [
+			{
+				version: 1,
+				name: "Infrastructure Drift Detector",
+				description: "Terraform state inspection with Jira triage",
+				endpointSlug: "infra-drift",
+				runbookId: "rb-5",
+				authMethod: "bearer",
+				skillIds: ["skill-5", "skill-3"],
+				status: "active",
+				createdAt: "2025-11-10T08:00:00Z",
+				updatedAt: "2025-11-10T08:00:00Z",
+			},
+		],
+		activeVersion: 1,
+		createdAt: "2025-11-10T08:00:00Z",
+		updatedAt: "2025-11-10T08:00:00Z",
+	},
+	{
+		id: "agent-3",
+		name: "CloudWatch SLA Monitor",
+		description:
+			"Monitors CloudWatch alarms and auto-scales K8s deployments when thresholds breach",
+		endpointSlug: "cw-sla-monitor",
+		runbookId: "rb-2",
+		authMethod: "api_key",
+		skillIds: ["skill-4", "skill-2", "skill-6"],
+		status: "active",
+		apiKey: "pk_live_ghi789",
+		versions: [
+			{
+				version: 1,
+				name: "CloudWatch SLA Monitor",
+				description: "Basic metric polling and alerting",
+				endpointSlug: "cw-sla-monitor",
+				runbookId: null,
+				authMethod: "api_key",
+				skillIds: ["skill-4"],
+				status: "active",
+				createdAt: "2025-12-01T09:00:00Z",
+				updatedAt: "2025-12-01T09:00:00Z",
+			},
+			{
+				version: 2,
+				name: "CloudWatch SLA Monitor",
+				description: "Added K8s auto-scaling and PagerDuty escalation",
+				endpointSlug: "cw-sla-monitor",
+				runbookId: "rb-2",
+				authMethod: "api_key",
+				skillIds: ["skill-4", "skill-2", "skill-6"],
+				status: "active",
+				createdAt: "2026-01-10T11:00:00Z",
+				updatedAt: "2026-01-10T11:00:00Z",
+			},
+		],
+		activeVersion: 2,
+		createdAt: "2025-12-01T09:00:00Z",
+		updatedAt: "2026-01-10T11:00:00Z",
+	},
+	{
+		id: "agent-4",
+		name: "Change Request Validator",
+		description:
+			"Validates change requests against CMDB dependencies and Terraform plans",
+		endpointSlug: "change-validator",
+		runbookId: null,
+		authMethod: "none",
+		skillIds: ["skill-1", "skill-5", "skill-3"],
+		status: "draft",
+		versions: [
+			{
+				version: 1,
+				name: "Change Request Validator",
+				description: "CMDB dependency check with Jira integration",
+				endpointSlug: "change-validator",
+				runbookId: null,
+				authMethod: "none",
+				skillIds: ["skill-1", "skill-5", "skill-3"],
+				status: "draft",
+				createdAt: "2026-01-15T14:00:00Z",
+				updatedAt: "2026-02-10T09:00:00Z",
+			},
+		],
+		activeVersion: 1,
+		createdAt: "2026-01-15T14:00:00Z",
+		updatedAt: "2026-02-10T09:00:00Z",
+	},
+];
+
+export const MOCK_PRO_DASHBOARD_STATS: ProDashboardStats = {
+	totalAgents: 4,
+	totalSkills: 6,
+	activeAgents: 3,
+	totalApiCalls: 1247,
+};
+
+/**
+ * Scoped skill access by tenant
+ */
+export const SCOPED_SKILLS: Record<string, string[]> = {
+	telecoms: ["skill-1", "skill-2", "skill-3", "skill-6"],
+	enterprise: [
+		"skill-1",
+		"skill-2",
+		"skill-3",
+		"skill-4",
+		"skill-5",
+		"skill-6",
+	],
+};

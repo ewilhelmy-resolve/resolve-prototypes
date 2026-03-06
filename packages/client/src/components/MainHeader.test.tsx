@@ -1,5 +1,5 @@
-import { describe, it, expect } from "vitest";
 import { render, screen } from "@testing-library/react";
+import { describe, expect, it } from "vitest";
 import { MainHeader } from "./MainHeader";
 
 describe("MainHeader", () => {
@@ -13,9 +13,7 @@ describe("MainHeader", () => {
 
 	describe("Description", () => {
 		it("renders description when provided", () => {
-			render(
-				<MainHeader title="Title" description="This is a description" />
-			);
+			render(<MainHeader title="Title" description="This is a description" />);
 			expect(screen.getByText("This is a description")).toBeInTheDocument();
 		});
 
@@ -30,7 +28,7 @@ describe("MainHeader", () => {
 				<MainHeader
 					title="Title"
 					description={<span data-testid="custom-desc">Custom content</span>}
-				/>
+				/>,
 			);
 			expect(screen.getByTestId("custom-desc")).toBeInTheDocument();
 		});
@@ -42,7 +40,7 @@ describe("MainHeader", () => {
 				<MainHeader
 					title="Title"
 					action={<button data-testid="action-btn">Action</button>}
-				/>
+				/>,
 			);
 			expect(screen.getByTestId("action-btn")).toBeInTheDocument();
 		});
@@ -50,7 +48,7 @@ describe("MainHeader", () => {
 		it("does not render action wrapper when not provided", () => {
 			const { container } = render(<MainHeader title="Title" />);
 			const flexContainer = container.querySelector(
-				".flex.justify-between.items-center"
+				".flex.justify-between.items-center",
 			);
 			expect(flexContainer?.children.length).toBe(1);
 		});
@@ -62,7 +60,7 @@ describe("MainHeader", () => {
 				<MainHeader
 					title="Title"
 					stats={<div data-testid="stats">Statistics</div>}
-				/>
+				/>,
 			);
 			expect(screen.getByTestId("stats")).toBeInTheDocument();
 		});
@@ -82,14 +80,18 @@ describe("MainHeader", () => {
 					description="Manage your knowledge base"
 					action={<button>Add Article</button>}
 					stats={<div>42 articles</div>}
-				/>
+				/>,
 			);
 
 			expect(
-				screen.getByRole("heading", { name: "Knowledge Articles" })
+				screen.getByRole("heading", { name: "Knowledge Articles" }),
 			).toBeInTheDocument();
-			expect(screen.getByText("Manage your knowledge base")).toBeInTheDocument();
-			expect(screen.getByRole("button", { name: "Add Article" })).toBeInTheDocument();
+			expect(
+				screen.getByText("Manage your knowledge base"),
+			).toBeInTheDocument();
+			expect(
+				screen.getByRole("button", { name: "Add Article" }),
+			).toBeInTheDocument();
 			expect(screen.getByText("42 articles")).toBeInTheDocument();
 		});
 	});

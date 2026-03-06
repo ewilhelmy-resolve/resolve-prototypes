@@ -1,127 +1,130 @@
-import { readFileSync, readdirSync } from 'fs';
-import { join, dirname } from 'path';
-import { fileURLToPath } from 'url';
-import pg from 'pg';
-import type { Pool as PoolType } from 'pg';
+import { readdirSync, readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+import type { Generated } from "kysely";
+import { Kysely, PostgresDialect, sql } from "kysely";
+import pg from "pg";
 
 const { Pool } = pg;
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
+interface MigrationHistoryTable {
+	id: Generated<number>;
+	migration_name: string;
+	executed_at: Generated<string>;
+}
+
+interface MigrationDB {
+	migration_history: MigrationHistoryTable;
+}
+
 export class DatabaseMigrator {
-  private pool: PoolType;
-  private migrationsDir: string;
+	private db: Kysely<MigrationDB>;
+	private migrationsDir: string;
 
-  constructor(pool: PoolType) {
-    this.pool = pool;
-    this.migrationsDir = join(__dirname, 'migrations');
-  }
+	constructor(db: Kysely<MigrationDB>) {
+		this.db = db;
+		this.migrationsDir = join(__dirname, "migrations");
+	}
 
-  async initialize(): Promise<void> {
-    // Create migrations tracking table if it doesn't exist
-    await this.pool.query(`
-      CREATE TABLE IF NOT EXISTS migration_history (
-        id SERIAL PRIMARY KEY,
-        migration_name TEXT UNIQUE NOT NULL,
-        executed_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-      );
-    `);
-  }
+	async initialize(): Promise<void> {
+		await this.db.schema
+			.createTable("migration_history")
+			.ifNotExists()
+			.addColumn("id", "serial", (col) => col.primaryKey())
+			.addColumn("migration_name", "text", (col) => col.unique().notNull())
+			.addColumn("executed_at", sql`TIMESTAMP WITH TIME ZONE`, (col) =>
+				col.defaultTo(sql`NOW()`),
+			)
+			.execute();
+	}
 
-  async getExecutedMigrations(): Promise<string[]> {
-    const result = await this.pool.query(
-      'SELECT migration_name FROM migration_history ORDER BY id'
-    );
-    return result.rows.map((row: any) => row.migration_name);
-  }
+	async getExecutedMigrations(): Promise<string[]> {
+		const result = await this.db
+			.selectFrom("migration_history")
+			.select("migration_name")
+			.orderBy("id")
+			.execute();
+		return result.map((row) => row.migration_name);
+	}
 
-  async getPendingMigrations(): Promise<string[]> {
-    const allMigrations = readdirSync(this.migrationsDir)
-      .filter(file => file.endsWith('.sql'))
-      .sort();
+	async getPendingMigrations(): Promise<string[]> {
+		const allMigrations = readdirSync(this.migrationsDir)
+			.filter((file) => file.endsWith(".sql"))
+			.sort();
 
-    const executedMigrations = await this.getExecutedMigrations();
+		const executedMigrations = await this.getExecutedMigrations();
 
-    return allMigrations.filter(migration =>
-      !executedMigrations.includes(migration)
-    );
-  }
+		return allMigrations.filter(
+			(migration) => !executedMigrations.includes(migration),
+		);
+	}
 
-  async runMigration(migrationFile: string): Promise<void> {
-    const migrationPath = join(this.migrationsDir, migrationFile);
-    const sql = readFileSync(migrationPath, 'utf8');
+	async runMigration(migrationFile: string): Promise<void> {
+		const migrationPath = join(this.migrationsDir, migrationFile);
+		const migrationSql = readFileSync(migrationPath, "utf8");
 
-    const client = await this.pool.connect();
+		await this.db.transaction().execute(async (trx) => {
+			await sql.raw(migrationSql).execute(trx);
 
-    try {
-      await client.query('BEGIN');
+			await trx
+				.insertInto("migration_history")
+				.values({ migration_name: migrationFile })
+				.execute();
+		});
 
-      // Execute the migration SQL
-      await client.query(sql);
+		console.log(`Executed migration: ${migrationFile}`);
+	}
 
-      // Record the migration as executed
-      await client.query(
-        'INSERT INTO migration_history (migration_name) VALUES ($1)',
-        [migrationFile]
-      );
+	async runPendingMigrations(): Promise<void> {
+		await this.initialize();
 
-      await client.query('COMMIT');
-      console.log(`✅ Executed migration: ${migrationFile}`);
-    } catch (error) {
-      await client.query('ROLLBACK');
-      console.error(`❌ Failed to execute migration: ${migrationFile}`, error);
-      throw error;
-    } finally {
-      client.release();
-    }
-  }
+		const pendingMigrations = await this.getPendingMigrations();
 
-  async runPendingMigrations(): Promise<void> {
-    await this.initialize();
+		if (pendingMigrations.length === 0) {
+			console.log("No pending migrations");
+			return;
+		}
 
-    const pendingMigrations = await this.getPendingMigrations();
+		console.log(`Running ${pendingMigrations.length} pending migrations...`);
 
-    if (pendingMigrations.length === 0) {
-      console.log('✅ No pending migrations');
-      return;
-    }
+		for (const migration of pendingMigrations) {
+			await this.runMigration(migration);
+		}
 
-    console.log(`🔄 Running ${pendingMigrations.length} pending migrations...`);
-
-    for (const migration of pendingMigrations) {
-      await this.runMigration(migration);
-    }
-
-    console.log('✅ All migrations completed successfully');
-  }
+		console.log("All migrations completed successfully");
+	}
 }
 
 // CLI script to run migrations
 const isMainModule = import.meta.url === `file://${process.argv[1]}`;
 if (isMainModule) {
-  async function runMigrations() {
-    const databaseUrl = process.env.DATABASE_URL;
+	async function runMigrations() {
+		const databaseUrl = process.env.DATABASE_URL;
 
-    if (!databaseUrl) {
-      console.error('❌ DATABASE_URL environment variable is required');
-      process.exit(1);
-    }
+		if (!databaseUrl) {
+			console.error("DATABASE_URL environment variable is required");
+			process.exit(1);
+		}
 
-    const pool = new Pool({
-      connectionString: databaseUrl,
-    });
+		const db = new Kysely<MigrationDB>({
+			dialect: new PostgresDialect({
+				pool: new Pool({ connectionString: databaseUrl }),
+			}),
+		});
 
-    try {
-      const migrator = new DatabaseMigrator(pool);
-      await migrator.runPendingMigrations();
-    } catch (error) {
-      console.error('❌ Migration failed:', error);
-      process.exit(1);
-    } finally {
-      await pool.end();
-    }
-  }
+		try {
+			const migrator = new DatabaseMigrator(db);
+			await migrator.runPendingMigrations();
+		} catch (error) {
+			console.error("Migration failed:", error);
+			process.exit(1);
+		} finally {
+			await db.destroy();
+		}
+	}
 
-  runMigrations();
+	runMigrations();
 }

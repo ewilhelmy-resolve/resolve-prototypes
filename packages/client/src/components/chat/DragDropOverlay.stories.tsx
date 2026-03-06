@@ -99,7 +99,8 @@ export const WithAllConstraints: Story = {
 	parameters: {
 		docs: {
 			description: {
-				story: "Shows all constraint badges: file types, max files, and max size",
+				story:
+					"Shows all constraint badges: file types, max files, and max size",
 			},
 		},
 	},

@@ -162,7 +162,7 @@ export class EventSourceSSEClient {
 		if (!this.listeners.has(event)) {
 			this.listeners.set(event, []);
 		}
-		this.listeners.get(event)!.push(callback);
+		this.listeners.get(event)?.push(callback);
 	}
 
 	off(event: string, callback: (data: any) => void): void {

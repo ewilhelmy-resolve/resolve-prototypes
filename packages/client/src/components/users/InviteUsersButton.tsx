@@ -4,7 +4,8 @@ import InviteUsersDialog from "@/components/dialogs/InviteUsersDialog";
 import { Button } from "@/components/ui/button";
 import { useProfilePermissions } from "@/hooks/api/useProfile";
 
-interface InviteUsersButtonProps extends Omit<ComponentProps<typeof Button>, "onClick"> {
+interface InviteUsersButtonProps
+	extends Omit<ComponentProps<typeof Button>, "onClick"> {
 	/** Button text (defaults to "Invite users") */
 	children?: React.ReactNode;
 	/** Optional icon to override the default Plus icon */

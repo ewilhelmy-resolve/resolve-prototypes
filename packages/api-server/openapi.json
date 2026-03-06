@@ -430,7 +430,7 @@
 						}
 					},
 					"pagination": {
-						"$ref": "#/components/schemas/PaginationInfo"
+						"$ref": "#/components/schemas/OffsetPaginationInfo"
 					},
 					"totals": {
 						"$ref": "#/components/schemas/ClusterTotals"
@@ -511,13 +511,23 @@
 					}
 				}
 			},
-			"PaginationInfo": {
+			"OffsetPaginationInfo": {
 				"type": "object",
 				"properties": {
-					"next_cursor": {
-						"type": ["string", "null"],
-						"description": "Cursor for next page, null if no more pages",
-						"example": "2024-01-15T10:30:00.000Z"
+					"total": {
+						"type": "integer",
+						"description": "Total number of matching records",
+						"example": 42
+					},
+					"limit": {
+						"type": "integer",
+						"description": "Results per page",
+						"example": 20
+					},
+					"offset": {
+						"type": "integer",
+						"description": "Current offset",
+						"example": 0
 					},
 					"has_more": {
 						"type": "boolean",
@@ -525,7 +535,7 @@
 						"example": true
 					}
 				},
-				"required": ["next_cursor", "has_more"]
+				"required": ["total", "limit", "offset", "has_more"]
 			},
 			"ClusterTotals": {
 				"type": "object",
@@ -539,9 +549,18 @@
 						"type": "integer",
 						"description": "Total tickets across matching clusters",
 						"example": 238
+					},
+					"total_automated_tickets": {
+						"type": "integer",
+						"description": "Total automated tickets (with agent_end event)",
+						"example": 42
 					}
 				},
-				"required": ["total_clusters", "total_tickets"]
+				"required": [
+					"total_clusters",
+					"total_tickets",
+					"total_automated_tickets"
+				]
 			},
 			"ValidationError": {
 				"type": "object",
@@ -661,7 +680,7 @@
 						}
 					},
 					"pagination": {
-						"$ref": "#/components/schemas/PaginationInfo"
+						"$ref": "#/components/schemas/OffsetPaginationInfo"
 					}
 				},
 				"required": ["data", "pagination"]
@@ -1366,7 +1385,7 @@
 					"sharepoint",
 					"websearch",
 					"jira_itsm",
-					"freshdesk",
+					"freshservice_itsm",
 					"ivanti_itsm"
 				],
 				"description": "Type of data source connection"
@@ -1616,6 +1635,7 @@
 					},
 					"filename": {
 						"type": "string",
+						"maxLength": 255,
 						"description": "File name",
 						"example": "guide.pdf"
 					},
@@ -1711,6 +1731,7 @@
 					},
 					"filename": {
 						"type": "string",
+						"maxLength": 255,
 						"description": "File name for the content",
 						"example": "notes.txt"
 					},
@@ -2085,6 +2106,37 @@
 					}
 				},
 				"required": ["success"]
+			},
+			"IframeSessionContextResponse": {
+				"type": "object",
+				"properties": {
+					"tenantId": {
+						"type": "string",
+						"description": "Tenant ID from Valkey session"
+					},
+					"userGuid": {
+						"type": "string",
+						"description": "User GUID from Valkey session"
+					},
+					"context": {
+						"type": "object",
+						"additionalProperties": {},
+						"description": "Session context (runId, activityId, etc.)"
+					},
+					"accessToken": {
+						"type": "string",
+						"description": "Access token (redacted)"
+					},
+					"refreshToken": {
+						"type": "string",
+						"description": "Refresh token (redacted)"
+					},
+					"clientKey": {
+						"type": "string",
+						"description": "Client key (redacted)"
+					}
+				},
+				"additionalProperties": {}
 			},
 			"SendInvitationsResponse": {
 				"type": "object",
@@ -3423,12 +3475,14 @@
 					},
 					{
 						"schema": {
-							"type": "string",
-							"description": "Pagination cursor (timestamp_id format)"
+							"type": ["integer", "null"],
+							"minimum": 0,
+							"default": 0,
+							"description": "Pagination offset"
 						},
 						"required": false,
-						"description": "Pagination cursor (timestamp_id format)",
-						"name": "cursor",
+						"description": "Pagination offset",
+						"name": "offset",
 						"in": "query"
 					},
 					{
@@ -3610,13 +3664,14 @@
 					},
 					{
 						"schema": {
-							"type": "string",
-							"format": "date-time",
-							"description": "Pagination cursor (ISO timestamp)"
+							"type": ["integer", "null"],
+							"minimum": 0,
+							"default": 0,
+							"description": "Pagination offset"
 						},
 						"required": false,
-						"description": "Pagination cursor (ISO timestamp)",
-						"name": "cursor",
+						"description": "Pagination offset",
+						"name": "offset",
 						"in": "query"
 					},
 					{
@@ -5261,7 +5316,7 @@
 			"post": {
 				"tags": ["Data Sources"],
 				"summary": "Sync ITSM tickets",
-				"description": "Initiate ITSM ticket ingestion for Autopilot clustering. Only valid for ITSM data sources (servicenow_itsm, jira_itsm, freshdesk, ivanti_itsm). Returns HTTP 202 Accepted. Progress arrives via SSE event `ingestion_run_update`.",
+				"description": "Initiate ITSM ticket ingestion for Autopilot clustering. Only valid for ITSM data sources (servicenow_itsm, jira_itsm, freshservice_itsm, ivanti_itsm). Returns HTTP 202 Accepted. Progress arrives via SSE event `ingestion_run_update`.",
 				"security": [
 					{
 						"bearerAuth": []
@@ -5922,7 +5977,8 @@
 								"type",
 								"status",
 								"source",
-								"created_at"
+								"created_at",
+								"updated_at"
 							],
 							"default": "created_at",
 							"description": "Sort field"
@@ -6352,6 +6408,70 @@
 							"application/json": {
 								"schema": {
 									"$ref": "#/components/schemas/IframeDeleteConversationResponse"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/api/iframe/session-context": {
+			"get": {
+				"tags": ["Iframe"],
+				"summary": "Get fresh session context from Valkey",
+				"description": "Re-reads Valkey and returns fresh payload with sensitive fields redacted. Used before metadata download to get latest context (runId, activityId).",
+				"security": [],
+				"parameters": [
+					{
+						"schema": {
+							"type": "string",
+							"minLength": 1,
+							"maxLength": 256,
+							"description": "Valkey session key"
+						},
+						"required": true,
+						"description": "Valkey session key",
+						"name": "sessionKey",
+						"in": "query"
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "Fresh session context",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/IframeSessionContextResponse"
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "Missing or invalid sessionKey",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Session not found in Valkey",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "Server error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
 								}
 							}
 						}

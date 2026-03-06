@@ -31,7 +31,9 @@ export function ConnectionActionsMenu({
 			</DropdownMenuTrigger>
 			<DropdownMenuContent>
 				{onEdit && (
-					<DropdownMenuItem onClick={onEdit}>{t("actions.edit")}</DropdownMenuItem>
+					<DropdownMenuItem onClick={onEdit}>
+						{t("actions.edit")}
+					</DropdownMenuItem>
 				)}
 				{onDisconnect && (
 					<DropdownMenuItem className="text-destructive" onClick={onDisconnect}>

@@ -13,7 +13,8 @@
  * - At least one special character (@$!%*?&#.)
  * - Only allows alphanumeric and special characters
  */
-export const PASSWORD_REGEX = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&#.])[A-Za-z\d@$!%*?&#.]+$/;
+export const PASSWORD_REGEX =
+	/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&#.])[A-Za-z\d@$!%*?&#.]+$/;
 
 /**
  * Minimum password length requirement
@@ -87,7 +88,10 @@ export function validateEmail(email: string): string | null {
  * validateRequired("", "First name") // Returns: "First name is required"
  * validateRequired("John", "First name") // Returns: null (valid)
  */
-export function validateRequired(value: string, fieldName: string): string | null {
+export function validateRequired(
+	value: string,
+	fieldName: string,
+): string | null {
 	if (!value.trim()) {
 		return `${fieldName} is required`;
 	}

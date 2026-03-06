@@ -13,7 +13,8 @@ interface KnowledgeTabProps {
 const getFileType = (mimeType: string): string => {
 	if (mimeType.includes("pdf")) return "PDF";
 	if (mimeType.includes("word") || mimeType.includes("doc")) return "Docx";
-	if (mimeType.includes("spreadsheet") || mimeType.includes("excel")) return "Excel";
+	if (mimeType.includes("spreadsheet") || mimeType.includes("excel"))
+		return "Excel";
 	if (mimeType.includes("text")) return "Text";
 	return "File";
 };
@@ -37,7 +38,11 @@ const formatDate = (dateString: string): string => {
  */
 export default function KnowledgeTab({ clusterId }: KnowledgeTabProps) {
 	const { t } = useTranslation("tickets");
-	const { data: kbArticles, isLoading, error } = useClusterKbArticles(clusterId);
+	const {
+		data: kbArticles,
+		isLoading,
+		error,
+	} = useClusterKbArticles(clusterId);
 
 	// Action handlers - currently log to console, will be replaced with API calls
 	const handleDownload = (id: string) => {
@@ -75,7 +80,9 @@ export default function KnowledgeTab({ clusterId }: KnowledgeTabProps) {
 	if (error) {
 		return (
 			<div className="flex min-h-[100px] items-center justify-center">
-				<p className="text-sm text-destructive">{t("knowledge.failedToLoad")}</p>
+				<p className="text-sm text-destructive">
+					{t("knowledge.failedToLoad")}
+				</p>
 			</div>
 		);
 	}
@@ -83,7 +90,9 @@ export default function KnowledgeTab({ clusterId }: KnowledgeTabProps) {
 	if (!kbArticles || kbArticles.length === 0) {
 		return (
 			<div className="flex min-h-[100px] items-center justify-center">
-				<p className="text-sm text-muted-foreground">{t("knowledge.noArticles")}</p>
+				<p className="text-sm text-muted-foreground">
+					{t("knowledge.noArticles")}
+				</p>
 			</div>
 		);
 	}

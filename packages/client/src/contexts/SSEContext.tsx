@@ -13,7 +13,10 @@ import type { SSEEvent } from "../services/EventSourceSSEClient";
 import type { Message } from "../stores/conversationStore";
 import { useConversationStore } from "../stores/conversationStore";
 import { useFeatureFlagsStore } from "../stores/feature-flags-store";
-import type { IngestionRun } from "../types/dataSource";
+import {
+	DEFAULT_MINIMUM_TICKETS,
+	type IngestionRun,
+} from "../types/dataSource";
 
 interface MessageUpdate {
 	messageId: string;
@@ -449,10 +452,27 @@ export const SSEProvider: React.FC<SSEProviderProps> = ({
 							}),
 						});
 					} else if (event.data.status === "failed") {
-						ritaToast.error({
-							title: i18n.t("error.ticketSyncFailed", { ns: "toast" }),
-							description: event.data.error_message || "An error occurred",
-						});
+						if (event.data.error_message === "tickets_below_threshold") {
+							ritaToast.error({
+								title: i18n.t("error.ticketsBelowThreshold", {
+									ns: "toast",
+								}),
+								description: i18n.t("descriptions.ticketsBelowThreshold", {
+									count: event.data.error_detail?.current_total_tickets ?? 0,
+									minimum:
+										event.data.error_detail?.needed_total_tickets ??
+										DEFAULT_MINIMUM_TICKETS,
+									ns: "toast",
+								}),
+							});
+						} else {
+							ritaToast.error({
+								title: i18n.t("error.ticketSyncFailed", {
+									ns: "toast",
+								}),
+								description: event.data.error_message || "An error occurred",
+							});
+						}
 					}
 				}
 			} else if (event.type === "feature_flag_update") {

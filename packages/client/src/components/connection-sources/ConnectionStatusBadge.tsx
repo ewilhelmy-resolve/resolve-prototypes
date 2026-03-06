@@ -1,4 +1,10 @@
-import { CircleCheck, CircleX, HelpCircle, Loader2, XCircle } from "lucide-react";
+import {
+	CircleCheck,
+	CircleX,
+	HelpCircle,
+	Loader2,
+	XCircle,
+} from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { STATUS, type Status } from "@/constants/connectionSources";
 

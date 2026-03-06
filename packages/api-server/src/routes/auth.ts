@@ -1,4 +1,4 @@
-import crypto from "crypto";
+import crypto from "node:crypto";
 import express from "express";
 import { logger } from "../config/logger.js";
 import { registry, z } from "../docs/openapi.js";

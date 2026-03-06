@@ -16,6 +16,7 @@ export type FeatureFlagKey =
 	| "ENABLE_SERVICENOW"
 	| "ENABLE_JIRA"
 	| "ENABLE_IVANTI"
+	| "ENABLE_FRESHDESK"
 	| "ENABLE_MULTI_FILE_UPLOAD"
 	| "ENABLE_TICKETS_V2"
 	| "ENABLE_WORKFLOWS"
@@ -112,6 +113,13 @@ export const FEATURE_FLAGS: Record<FeatureFlagKey, FeatureFlagConfig> = {
 		defaultValue: false,
 		category: "experimental",
 	},
+	ENABLE_FRESHDESK: {
+		key: "ENABLE_FRESHDESK",
+		label: "Freshdesk Integration",
+		description: "Enable Freshdesk ITSM ticket sync features",
+		defaultValue: false,
+		category: "experimental",
+	},
 	ENABLE_MULTI_FILE_UPLOAD: {
 		key: "ENABLE_MULTI_FILE_UPLOAD",
 		label: "Multi-File Upload",
@@ -129,8 +137,8 @@ export const FEATURE_FLAGS: Record<FeatureFlagKey, FeatureFlagConfig> = {
 	ENABLE_WORKFLOWS: {
 		key: "ENABLE_WORKFLOWS",
 		label: "Workflows",
-		description: "Enable Workflow Generator dev tool",
-		defaultValue: false,
+		description: "Enable Workflow Designer",
+		defaultValue: true,
 		category: "experimental",
 	},
 	ENABLE_LANGUAGE_SWITCHER: {

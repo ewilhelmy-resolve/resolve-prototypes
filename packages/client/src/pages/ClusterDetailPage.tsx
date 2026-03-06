@@ -1,19 +1,29 @@
+import { useQueryClient } from "@tanstack/react-query";
 import confetti from "canvas-confetti";
-import { ArrowLeft, Loader2 } from "lucide-react";
+import { ArrowLeft, BookX, Loader2, ZapOff } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate, useParams } from "react-router-dom";
 import RitaLayout from "@/components/layouts/RitaLayout";
+import { StatCard } from "@/components/StatCard";
+import { StatGroup } from "@/components/StatGroup";
 import { ClusterDetailSidebar } from "@/components/tickets/ClusterDetailSidebar";
 import { ClusterDetailTable } from "@/components/tickets/ClusterDetailTable";
-import type { ReviewStats } from "@/components/tickets/ReviewAIResponseSheet";
-import { TicketTrendsChart } from "@/components/tickets/TicketTrendsChart";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { FeedbackBanner } from "@/components/ui/feedback-banner";
-import { useClusterDetails } from "@/hooks/useClusters";
-import { KB_STATUS_BADGE_STYLES } from "@/lib/constants";
-import { useDemoStore } from "@/stores/demo-store";
+import {
+	Tooltip,
+	TooltipContent,
+	TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
+	clusterKeys,
+	useClusterDetails,
+	useClusterHasAction,
+} from "@/hooks/useClusters";
+
+/** Default cost setting (matches TicketSettingsDialog default) */
+const COST_PER_TICKET = 30;
 
 /** Fire confetti animation for success/enriched banners (stops after 2 sec) */
 const fireConfetti = () => {
@@ -49,11 +59,13 @@ export default function ClusterDetailPage() {
 	const { t } = useTranslation("tickets");
 	const { id } = useParams<{ id: string }>();
 	const navigate = useNavigate();
+	const queryClient = useQueryClient();
 	const { data: cluster, isLoading, error } = useClusterDetails(id);
+	const { data: hasAction } = useClusterHasAction(id);
 	const bannerRef = useRef<HTMLDivElement>(null);
+	const [knowledgeAdded, setKnowledgeAdded] = useState(false);
 
-	// Banner state for review completion and auto-populate
-	// key increments on each new banner to trigger scroll even when already visible
+	// Banner state for review completion
 	const [bannerData, setBannerData] = useState<{
 		visible: boolean;
 		variant: "success" | "destructive" | "enriched";
@@ -62,102 +74,26 @@ export default function ClusterDetailPage() {
 		key: number;
 	}>({ visible: false, variant: "success", title: "", key: 0 });
 
-	// Review stats for readiness meter (demo flow) - keeping setter for future use
-	const [_reviewStats, setReviewStats] = useState<{
-		reviewed: number;
-		trusted: number;
-		total: number;
-	}>({ reviewed: 0, trusted: 0, total: 16 });
-
 	const handleBack = () => {
 		navigate("/tickets");
 	};
 
-	const handleReviewComplete = (stats: ReviewStats) => {
-		const { trusted, totalReviewed, confidenceImprovement } = stats;
-
-		// Update review stats for readiness meter
-		setReviewStats((prev) => ({
-			reviewed: prev.reviewed + totalReviewed,
-			trusted: prev.trusted + trusted,
-			total: prev.total,
-		}));
-
-		if (confidenceImprovement > 0) {
-			fireConfetti();
-			setBannerData((prev) => ({
-				visible: true,
-				variant: "success",
-				title: t("clusterDetail.banners.reviewSuccess", {
-					count: totalReviewed,
-				}),
-				description: t("clusterDetail.banners.reviewSuccessDesc", {
-					trusted,
-					improvement: confidenceImprovement,
-				}),
-				key: prev.key + 1,
-			}));
-		} else {
-			setBannerData((prev) => ({
-				visible: true,
-				variant: "destructive",
-				title: t("clusterDetail.banners.reviewNeedsImprovement"),
-				description: t("clusterDetail.banners.reviewNeedsImprovementDesc", {
-					count: totalReviewed,
-				}),
-				key: prev.key + 1,
-			}));
-		}
-	};
-
-	const handleAutoPopulateEnabled = () => {
-		fireConfetti();
-		setBannerData((prev) => ({
-			visible: true,
-			variant: "enriched",
-			title: t("clusterDetail.banners.enrichedTickets"),
-			key: prev.key + 1,
-		}));
-	};
-
 	const handleKnowledgeAdded = () => {
+		setKnowledgeAdded(true);
 		fireConfetti();
+		// Refetch cluster details (kb_status), KB articles, and clusters list
+		if (id) {
+			void queryClient.invalidateQueries({ queryKey: clusterKeys.detail(id) });
+			void queryClient.invalidateQueries({
+				queryKey: clusterKeys.kbArticleList(id),
+			});
+			void queryClient.invalidateQueries({ queryKey: clusterKeys.lists() });
+		}
 		setBannerData((prev) => ({
 			visible: true,
 			variant: "success",
 			title: t("clusterDetail.banners.knowledgeAdded"),
 			description: t("clusterDetail.banners.knowledgeAddedDesc"),
-			key: prev.key + 1,
-		}));
-	};
-
-	const enableAutomation = useDemoStore((state) => state.enableAutomation);
-
-	const handleAutoRespondEnabled = (
-		ticketGroupName: string,
-		automatedPercentage: number,
-	) => {
-		// Update demo store with cluster ticket count (use 500 as fallback for demo)
-		const ticketCount = cluster?.ticket_count || 500;
-		console.log(
-			"[Demo] Auto-Respond enabled for",
-			ticketGroupName,
-			"- updating store with",
-			ticketCount,
-			"tickets",
-		);
-		enableAutomation(ticketCount);
-
-		fireConfetti();
-		setBannerData((prev) => ({
-			visible: true,
-			variant: "enriched",
-			title: t("clusterDetail.banners.automatedWork", {
-				percentage: automatedPercentage,
-			}),
-			description: t("clusterDetail.banners.automatedWorkDesc", {
-				groupName: ticketGroupName,
-			}),
 			key: prev.key + 1,
 		}));
 	};
@@ -172,10 +108,9 @@ export default function ClusterDetailPage() {
 	};
 
 	// Scroll banner into view when it becomes visible or changes
-	// bannerData.key changes trigger re-scroll even if visible stays true
 	const bannerKey = bannerData.key;
 	useEffect(() => {
-		void bannerKey; // Reference key to trigger effect on banner changes
+		void bannerKey;
 		if (bannerData.visible && bannerRef.current) {
 			bannerRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
 		}
@@ -188,13 +123,6 @@ export default function ClusterDetailPage() {
 			return `${cluster.name} - ${cluster.subcluster_name}`;
 		}
 		return cluster.name;
-	};
-
-	const getKnowledgeStatusBadge = () => {
-		if (!cluster) return null;
-		const style = KB_STATUS_BADGE_STYLES[cluster.kb_status];
-		if (!style) return null;
-		return style;
 	};
 
 	if (isLoading) {
@@ -221,28 +149,6 @@ export default function ClusterDetailPage() {
 	}
 
 	const title = getDisplayTitle();
-	const knowledgeStatusBadge = getKnowledgeStatusBadge();
-
-	const badges = [
-		{
-			text: t("clusterDetail.badges.tickets", { count: cluster.ticket_count }),
-			variant: "secondary" as const,
-			className: "",
-		},
-		{
-			text: t("clusterDetail.badges.open", { count: cluster.open_count }),
-			variant: "secondary" as const,
-			className: "",
-		},
-		{
-			text: t("clusterDetail.badges.kbArticles", {
-				count: cluster.kb_articles_count,
-			}),
-			variant: "secondary" as const,
-			className: "",
-		},
-		...(knowledgeStatusBadge ? [knowledgeStatusBadge] : []),
-	];
 
 	return (
 		<RitaLayout activePage="tickets">
@@ -260,42 +166,71 @@ export default function ClusterDetailPage() {
 
 			<div className="flex min-h-screen flex-col lg:flex-row">
 				{/* Main Content */}
-				<div className="flex-1 p-4">
+				<div className="min-w-0 flex-1 p-4">
 					<div className="flex flex-col gap-4">
 						{/* Page Header */}
-						<div className="flex flex-col gap-4 lg:flex-row lg:items-center">
-							<div className="flex items-center gap-2">
-								<Button
-									variant="ghost"
-									size="icon"
-									onClick={handleBack}
-									aria-label={t("clusterDetail.backToTickets")}
-								>
-									<ArrowLeft className="h-4 w-4" />
-								</Button>
-								<h1 className="text-xl font-medium">{title}</h1>
-							</div>
-							<div className="flex flex-wrap gap-2">
-								{badges.map((badge, index) => (
-									<Badge
-										key={index}
-										variant={badge.variant}
-										className={badge.className}
-									>
-										{badge.text}
-									</Badge>
-								))}
-							</div>
+						<div className="flex items-center gap-2">
+							<Button
+								variant="ghost"
+								size="icon"
+								onClick={handleBack}
+								aria-label={t("clusterDetail.backToTickets")}
+							>
+								<ArrowLeft className="h-4 w-4" />
+							</Button>
+							<h1 className="text-xl font-medium">{title}</h1>
+							{cluster.kb_status === "GAP" && !knowledgeAdded && (
+								<Tooltip>
+									<TooltipTrigger asChild>
+										<span className="flex h-6 w-6 items-center justify-center rounded-full bg-yellow-100">
+											<BookX className="h-3.5 w-3.5 text-yellow-600" />
+										</span>
+									</TooltipTrigger>
+									<TooltipContent>{t("gaps.knowledgeGap")}</TooltipContent>
+								</Tooltip>
+							)}
+							{hasAction === false && (
+								<Tooltip>
+									<TooltipTrigger asChild>
+										<span className="flex h-6 w-6 items-center justify-center rounded-full bg-blue-100">
+											<ZapOff className="h-3.5 w-3.5 text-blue-500" />
+										</span>
+									</TooltipTrigger>
+									<TooltipContent>{t("gaps.automationGap")}</TooltipContent>
+								</Tooltip>
+							)}
 						</div>
 
-						{/* Ticket Trends Chart */}
-						<TicketTrendsChart />
+						{/* Stats */}
+						<StatGroup columns={5}>
+							<StatCard
+								value={cluster.ticket_count.toLocaleString()}
+								label={t("clusterDetail.stats.totalTickets")}
+								loading={false}
+							/>
+							<StatCard
+								value={cluster.open_count.toLocaleString()}
+								label={t("clusterDetail.stats.openTickets")}
+								loading={false}
+							/>
+							<StatCard
+								value={`$${(cluster.ticket_count * COST_PER_TICKET).toLocaleString()}`}
+								label={t("clusterDetail.stats.estImpact")}
+								loading={false}
+							/>
+							<StatCard value="4.2hr" label={t("clusterDetail.stats.mttr")} />
+							<StatCard
+								value="1.8"
+								label={t("clusterDetail.stats.avgReassignmentRate")}
+							/>
+						</StatGroup>
 
 						{/* Table Section */}
 						<ClusterDetailTable
 							key={id}
 							clusterId={id}
-							onReviewComplete={handleReviewComplete}
+							totalCount={cluster.ticket_count}
+							openCount={cluster.open_count}
 						/>
 					</div>
 				</div>
@@ -304,11 +239,10 @@ export default function ClusterDetailPage() {
 				<ClusterDetailSidebar
 					clusterId={id}
 					clusterName={title}
-					knowledgeCount={cluster.kb_articles_count}
+					kbArticlesCount={cluster.kb_articles_count}
 					kbStatus={cluster.kb_status}
-					onAutoPopulateEnabled={handleAutoPopulateEnabled}
+					hasAction={hasAction ?? false}
 					onKnowledgeAdded={handleKnowledgeAdded}
-					onAutoRespondEnabled={handleAutoRespondEnabled}
 				/>
 			</div>
 		</RitaLayout>

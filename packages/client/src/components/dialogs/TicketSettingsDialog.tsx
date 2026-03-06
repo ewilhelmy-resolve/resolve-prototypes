@@ -22,6 +22,7 @@ import {
 	SelectValue,
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
+import { useTicketSettingsStore } from "@/stores/ticketSettingsStore";
 
 interface TicketSettingsDialogProps {
 	open: boolean;
@@ -30,9 +31,7 @@ interface TicketSettingsDialogProps {
 
 const FORM_ID = "ticket-settings-form";
 
-const defaultValues = {
-	costPerTicket: 30,
-	avgTimePerTicket: 12,
+const FORM_DEFAULTS = {
 	timeUnit: "minutes" as const,
 };
 
@@ -42,6 +41,7 @@ export default function TicketSettingsDialog({
 }: TicketSettingsDialogProps) {
 	const { t } = useTranslation("tickets");
 	const { t: tCommon } = useTranslation("common");
+	const settingsStore = useTicketSettingsStore();
 
 	const ticketSettingsSchema = z.object({
 		costPerTicket: z.number().positive({
@@ -64,21 +64,37 @@ export default function TicketSettingsDialog({
 		formState: { errors, isDirty },
 	} = useForm<TicketSettingsForm>({
 		resolver: zodResolver(ticketSettingsSchema),
-		defaultValues,
+		defaultValues: {
+			costPerTicket: settingsStore.costPerTicket,
+			avgTimePerTicket: settingsStore.avgTimePerTicket,
+			timeUnit: FORM_DEFAULTS.timeUnit,
+		},
 		mode: "onChange",
 	});
 
 	useEffect(() => {
 		if (!open) {
 			const timeout = setTimeout(() => {
-				reset(defaultValues);
+				reset({
+					costPerTicket: settingsStore.costPerTicket,
+					avgTimePerTicket: settingsStore.avgTimePerTicket,
+					timeUnit: FORM_DEFAULTS.timeUnit,
+				});
 			}, 300);
 			return () => clearTimeout(timeout);
 		}
-	}, [open, reset]);
+	}, [
+		open,
+		reset,
+		settingsStore.costPerTicket,
+		settingsStore.avgTimePerTicket,
+	]);
 
 	const onSubmit = (data: TicketSettingsForm) => {
-		console.log("Ticket settings saved:", data);
+		settingsStore.setSettings({
+			costPerTicket: data.costPerTicket,
+			avgTimePerTicket: data.avgTimePerTicket,
+		});
 		onOpenChange(false);
 	};
 

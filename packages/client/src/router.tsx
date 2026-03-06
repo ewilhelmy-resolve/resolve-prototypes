@@ -25,6 +25,9 @@ import IframeChatPage from "./pages/IframeChatPage";
 import InviteAcceptPage from "./pages/InviteAcceptPage";
 import LinkExpiredPage from "./pages/LinkExpiredPage";
 import { NotFoundPage } from "./pages/NotFoundPage";
+import ProAgentBuilderPage from "./pages/ProAgentBuilderPage";
+import ProAgentsPage from "./pages/ProAgentsPage";
+import ProDashboardPage from "./pages/ProDashboardPage";
 import SchedulerDashboardPage from "./pages/SchedulerDashboardPage";
 import SchedulerDetailPage from "./pages/SchedulerDetailPage";
 import SchedulerGroupDetailPage from "./pages/SchedulerGroupDetailPage";
@@ -39,6 +42,7 @@ import TicketsPage from "./pages/TicketsPage";
 import UsersSettingsPage from "./pages/UsersSettingsPage";
 import { VerifyEmailPage } from "./pages/VerifyEmailPage";
 import { VerifyEmailSentPage } from "./pages/VerifyEmailSentPage";
+import WorkflowDesignerPage from "./pages/WorkflowDesignerPage";
 import WorkflowsPage from "./pages/WorkflowsPage";
 
 // Feature-flagged tickets page wrapper
@@ -86,12 +90,54 @@ const router = createBrowserRouter([
 		path: "/iframe/chat/:conversationId",
 		element: <IframeChatPage />,
 	},
+	// Pro experience
+	{
+		path: "/pro",
+		element: (
+			<ProtectedRoute>
+				<ProDashboardPage />
+			</ProtectedRoute>
+		),
+	},
+	{
+		path: "/pro/agents",
+		element: (
+			<ProtectedRoute>
+				<ProAgentsPage />
+			</ProtectedRoute>
+		),
+	},
+	{
+		path: "/pro/agents/create",
+		element: (
+			<ProtectedRoute>
+				<ProAgentBuilderPage />
+			</ProtectedRoute>
+		),
+	},
+	{
+		path: "/pro/agents/:id",
+		element: (
+			<ProtectedRoute>
+				<ProAgentBuilderPage />
+			</ProtectedRoute>
+		),
+	},
 	// JIRITA - Workflow builder (dev tool, feature-flagged)
 	{
 		path: "/jirita",
 		element: (
 			<ProtectedRoute>
 				<WorkflowsPage />
+			</ProtectedRoute>
+		),
+	},
+	// Workflow designer - visual workflow builder
+	{
+		path: "/workflow-designer",
+		element: (
+			<ProtectedRoute>
+				<WorkflowDesignerPage />
 			</ProtectedRoute>
 		),
 	},

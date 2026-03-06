@@ -12,7 +12,6 @@ Inputs:
   queue_name: chat.responses
   message: |
     {
-      "type": "ui_form_request",
       "user_id": "${workflow.userGuid}",
       "ui_schema": {
         "root": "form",
@@ -47,7 +46,6 @@ The activity constructs this JSON and passes it to RabbitMQ Push Activity's `mes
 
 ```json
 {
-  "type": "ui_form_request",
   "user_id": "user-guid-here",
   "interrupt": true,
   "ui_schema": {
@@ -177,7 +175,6 @@ The `message` field must be a JSON string:
 
 ```
 {
-  "type": "ui_form_request",
   "user_id": "<target user's Valkey userGuid>",
   "ui_schema": {
     "root": "<root-element-id>",
@@ -194,9 +191,7 @@ The `message` field must be a JSON string:
 
 | Field | Required | Description |
 |-------|----------|-------------|
-| `type` | Yes | Must be `"ui_form_request"` |
 | `user_id` | Yes | Target user's Valkey userGuid |
-| `workflow_id` | No | Optional, for webhook response correlation |
 | `ui_schema` | Yes | Form definition (see schema spec) |
 | `interrupt` | No | If `true`, modal opens immediately (default: `true`) |
 | `conversation_id` | No | Link to specific chat conversation |
@@ -238,7 +233,6 @@ Content-Type: application/json
   "action": "ui_form_response",
   "tenant_id": "tenant-123",
   "user_id": "user-guid",
-  "workflow_id": "workflow-456",
   "status": "submitted",
   "form_action": "submit_credentials",
   "data": {
@@ -256,11 +250,6 @@ Content-Type: application/json
 | `submitted` | User completed and submitted form |
 | `cancelled` | User dismissed modal without submitting |
 
-### Correlation
-
-Match response to waiting workflow using:
-- `workflow_id` - Identifies the workflow instance (Valkey session contains additional correlation context)
-
 ---
 
 ## Examples
@@ -269,9 +258,7 @@ Match response to waiting workflow using:
 
 ```json
 {
-  "type": "ui_form_request",
   "user_id": "${workflow.userGuid}",
-  "workflow_id": "${workflow.id}",
   "interrupt": true,
   "ui_schema": {
     "root": "main",
@@ -300,9 +287,7 @@ Match response to waiting workflow using:
 
 ```json
 {
-  "type": "ui_form_request",
   "user_id": "${workflow.approverGuid}",
-  "workflow_id": "${workflow.id}",
   "ui_schema": {
     "root": "main",
     "elements": {
@@ -332,9 +317,7 @@ Match response to waiting workflow using:
 
 ```json
 {
-  "type": "ui_form_request",
   "user_id": "${workflow.userGuid}",
-  "workflow_id": "${workflow.id}",
   "ui_schema": {
     "root": "main",
     "elements": {
@@ -448,7 +431,7 @@ For complete schema spec, see `docs/features/ui-form-request/platform-developer-
 | No modal shown | Wrong `user_id` | Verify user's Valkey userGuid matches |
 | No modal shown | User not connected | User must have active SSE connection |
 | No modal shown | Invalid JSON | Validate `message` field is valid JSON |
-| No modal shown | Missing `type` field | Ensure `type: "ui_form_request"` present |
+| No modal shown | Missing `ui_schema` | Ensure `ui_schema` is present and valid |
 
 ### Webhook Not Received
 
@@ -457,13 +440,6 @@ For complete schema spec, see `docs/features/ui-form-request/platform-developer-
 | No webhook | Wrong endpoint | Verify `actionsApiBaseUrl` config |
 | 401 error | Auth failed | Check `clientId`/`clientKey` credentials |
 | 404 error | Wrong tenant | Verify `tenantId` in URL |
-
-### Response Correlation Failed
-
-| Symptom | Cause | Solution |
-|---------|-------|----------|
-| Can't match response | Missing workflow_id | Ensure `workflow_id` in message |
-| Wrong workflow resumed | Duplicate IDs | Use unique `workflow_id` per form step |
 
 ### Form Validation Errors
 
@@ -487,12 +463,10 @@ For complete schema spec, see `docs/features/ui-form-request/platform-developer-
 ### Platform Side
 
 - [ ] RabbitMQ Push Activity configured with `queue_name: chat.responses`
-- [ ] Message JSON includes `type: "ui_form_request"`
 - [ ] Message includes `user_id`
 - [ ] Valid `ui_schema` with root/elements (and dialogs if modal needed)
 - [ ] Webhook handler at `/api/Webhooks/postEvent/{tenantId}`
 - [ ] Workflow can receive and process webhook response
-- [ ] Correlation logic matches `workflow_id`
 
 ### Testing
 

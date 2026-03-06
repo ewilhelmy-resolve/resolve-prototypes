@@ -2,25 +2,25 @@
 // Stores full document content that can be fetched by blob_id
 
 export interface BlobContent {
-  blob_id: string;
-  content: string;
-  content_type: 'markdown' | 'text' | 'html';
-  metadata?: {
-    title?: string;
-    author?: string;
-    created_at?: string;
-    updated_at?: string;
-  };
+	blob_id: string;
+	content: string;
+	content_type: "markdown" | "text" | "html";
+	metadata?: {
+		title?: string;
+		author?: string;
+		created_at?: string;
+		updated_at?: string;
+	};
 }
 
 // Mock blob storage database
 export const BLOB_STORAGE: Map<string, BlobContent> = new Map([
-  [
-    'blob_automation_guide_v2024',
-    {
-      blob_id: 'blob_automation_guide_v2024',
-      content_type: 'markdown',
-      content: `# Rita Automation System - Complete Implementation Guide
+	[
+		"blob_automation_guide_v2024",
+		{
+			blob_id: "blob_automation_guide_v2024",
+			content_type: "markdown",
+			content: `# Rita Automation System - Complete Implementation Guide
 
 ## Executive Summary
 
@@ -844,20 +844,20 @@ eventSource.addEventListener('message.completed', (event) => {
 **Last Updated**: October 2, 2024
 **Maintained By**: Resolve Engineering Team
 **Contact**: engineering@resolve.com`,
-      metadata: {
-        title: 'Rita Automation Implementation Guide',
-        author: 'Resolve Engineering Team',
-        created_at: '2024-01-15',
-        updated_at: '2024-10-01'
-      }
-    }
-  ],
-  [
-    'blob_architecture_patterns_2024',
-    {
-      blob_id: 'blob_architecture_patterns_2024',
-      content_type: 'markdown',
-      content: `# Enterprise Automation Patterns
+			metadata: {
+				title: "Rita Automation Implementation Guide",
+				author: "Resolve Engineering Team",
+				created_at: "2024-01-15",
+				updated_at: "2024-10-01",
+			},
+		},
+	],
+	[
+		"blob_architecture_patterns_2024",
+		{
+			blob_id: "blob_architecture_patterns_2024",
+			content_type: "markdown",
+			content: `# Enterprise Automation Patterns
 
 ## Executive Summary
 
@@ -976,20 +976,20 @@ Enterprise automation requires careful pattern selection based on:
 - **Operational complexity tolerance**
 
 The most successful implementations combine multiple patterns adapted to specific use cases rather than applying a one-size-fits-all approach.`,
-      metadata: {
-        title: 'Enterprise Architecture Patterns',
-        author: 'Research Team',
-        created_at: '2024-01-20',
-        updated_at: '2024-09-15'
-      }
-    }
-  ],
-  [
-    'blob_security_hardening_2024',
-    {
-      blob_id: 'blob_security_hardening_2024',
-      content_type: 'markdown',
-      content: `# Production Security Hardening Guide
+			metadata: {
+				title: "Enterprise Architecture Patterns",
+				author: "Research Team",
+				created_at: "2024-01-20",
+				updated_at: "2024-09-15",
+			},
+		},
+	],
+	[
+		"blob_security_hardening_2024",
+		{
+			blob_id: "blob_security_hardening_2024",
+			content_type: "markdown",
+			content: `# Production Security Hardening Guide
 
 ## Overview
 
@@ -1092,20 +1092,20 @@ class SecurityMiddleware {
 - NIST Cybersecurity Framework
 - OWASP Top 10
 - CIS Benchmarks`,
-      metadata: {
-        title: 'Production Security Hardening Guide',
-        author: 'Security Team',
-        created_at: '2024-02-01',
-        updated_at: '2024-09-30'
-      }
-    }
-  ],
-  [
-    'blob_monitoring_guide_2024',
-    {
-      blob_id: 'blob_monitoring_guide_2024',
-      content_type: 'markdown',
-      content: `# Production Monitoring and Observability
+			metadata: {
+				title: "Production Security Hardening Guide",
+				author: "Security Team",
+				created_at: "2024-02-01",
+				updated_at: "2024-09-30",
+			},
+		},
+	],
+	[
+		"blob_monitoring_guide_2024",
+		{
+			blob_id: "blob_monitoring_guide_2024",
+			content_type: "markdown",
+			content: `# Production Monitoring and Observability
 
 ## Introduction
 
@@ -1212,20 +1212,20 @@ Good alerts are:
 3. **Test alerts**: Regularly verify alert firing and routing
 4. **Document runbooks**: Clear instructions for each alert
 5. **Review regularly**: Tune alerts based on feedback`,
-      metadata: {
-        title: 'Production Monitoring and Observability',
-        author: 'DevOps Team',
-        created_at: '2024-03-01',
-        updated_at: '2024-09-25'
-      }
-    }
-  ],
-  [
-    'blob_wcag_guide_2024',
-    {
-      blob_id: 'blob_wcag_guide_2024',
-      content_type: 'markdown',
-      content: `# WCAG 2.1 AA Implementation Guide
+			metadata: {
+				title: "Production Monitoring and Observability",
+				author: "DevOps Team",
+				created_at: "2024-03-01",
+				updated_at: "2024-09-25",
+			},
+		},
+	],
+	[
+		"blob_wcag_guide_2024",
+		{
+			blob_id: "blob_wcag_guide_2024",
+			content_type: "markdown",
+			content: `# WCAG 2.1 AA Implementation Guide
 
 ## Introduction
 
@@ -1354,20 +1354,20 @@ Every form input must have:
 - **W3C WCAG 2.1**: https://www.w3.org/WAI/WCAG21/quickref/
 - **MDN Accessibility**: https://developer.mozilla.org/en-US/docs/Web/Accessibility
 - **WebAIM**: https://webaim.org/resources/`,
-      metadata: {
-        title: 'WCAG 2.1 AA Implementation Guide',
-        author: 'Accessibility Team',
-        created_at: '2024-04-01',
-        updated_at: '2024-09-20'
-      }
-    }
-  ],
-  [
-    'blob_soc2_guide_2024',
-    {
-      blob_id: 'blob_soc2_guide_2024',
-      content_type: 'markdown',
-      content: `# SOC 2 Type II Compliance
+			metadata: {
+				title: "WCAG 2.1 AA Implementation Guide",
+				author: "Accessibility Team",
+				created_at: "2024-04-01",
+				updated_at: "2024-09-20",
+			},
+		},
+	],
+	[
+		"blob_soc2_guide_2024",
+		{
+			blob_id: "blob_soc2_guide_2024",
+			content_type: "markdown",
+			content: `# SOC 2 Type II Compliance
 
 ## Overview
 
@@ -1492,33 +1492,33 @@ SOC 2 Type II Timeline:
 \`\`\`
 
 Total timeline: **12-18 months** from initiation to report`,
-      metadata: {
-        title: 'SOC 2 Type II Requirements & Implementation',
-        author: 'Compliance Team',
-        created_at: '2024-05-01',
-        updated_at: '2024-09-15'
-      }
-    }
-  ]
+			metadata: {
+				title: "SOC 2 Type II Requirements & Implementation",
+				author: "Compliance Team",
+				created_at: "2024-05-01",
+				updated_at: "2024-09-15",
+			},
+		},
+	],
 ]);
 
 /**
  * Get blob content by ID
  */
 export function getBlobContent(blobId: string): BlobContent | null {
-  return BLOB_STORAGE.get(blobId) || null;
+	return BLOB_STORAGE.get(blobId) || null;
 }
 
 /**
  * Check if blob exists
  */
 export function blobExists(blobId: string): boolean {
-  return BLOB_STORAGE.has(blobId);
+	return BLOB_STORAGE.has(blobId);
 }
 
 /**
  * List all available blob IDs
  */
 export function listBlobIds(): string[] {
-  return Array.from(BLOB_STORAGE.keys());
+	return Array.from(BLOB_STORAGE.keys());
 }

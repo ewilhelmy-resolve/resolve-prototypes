@@ -17,7 +17,10 @@ export default function SharePointConfiguration({
 	return (
 		<div className="flex flex-col gap-2">
 			<div className="flex flex-col gap-2.5">
-				<ConfigurationHeader title={t("config.titles.sharepoint")} onEdit={onEdit} />
+				<ConfigurationHeader
+					title={t("config.titles.sharepoint")}
+					onEdit={onEdit}
+				/>
 				<ConnectionStatusCard source={source} />
 			</div>
 		</div>

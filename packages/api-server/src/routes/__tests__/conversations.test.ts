@@ -299,12 +299,7 @@ describe("Conversations Router - Automatic Cleanup", () => {
 
 			vi.mocked(withOrgContext).mockImplementation(
 				async (_userId, _orgId, callback) => {
-					try {
-						return await callback(mockClient);
-					} catch (error) {
-						// withOrgContext handles rollback on error
-						throw error;
-					}
+					return await callback(mockClient);
 				},
 			);
 

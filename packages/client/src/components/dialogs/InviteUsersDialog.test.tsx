@@ -377,7 +377,9 @@ describe("InviteUsersDialog", () => {
 			expect(
 				screen.getByRole("button", { name: /invite\.sending/i }),
 			).toBeInTheDocument();
-			expect(screen.getByRole("button", { name: /invite\.sending/i })).toBeDisabled();
+			expect(
+				screen.getByRole("button", { name: /invite\.sending/i }),
+			).toBeDisabled();
 		});
 
 		it("should disable textarea during submission", () => {
@@ -410,7 +412,9 @@ describe("InviteUsersDialog", () => {
 				</TestWrapper>,
 			);
 
-			const cancelButton = screen.getByRole("button", { name: /actions\.cancel/i });
+			const cancelButton = screen.getByRole("button", {
+				name: /actions\.cancel/i,
+			});
 			expect(cancelButton).toBeDisabled();
 		});
 	});
@@ -431,7 +435,9 @@ describe("InviteUsersDialog", () => {
 				</TestWrapper>,
 			);
 
-			const cancelButton = screen.getByRole("button", { name: /actions\.cancel/i });
+			const cancelButton = screen.getByRole("button", {
+				name: /actions\.cancel/i,
+			});
 			await user.click(cancelButton);
 
 			expect(mockOnOpenChange).toHaveBeenCalledWith(false);

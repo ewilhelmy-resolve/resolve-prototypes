@@ -1,14 +1,14 @@
+import { FileText } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Badge } from "@/components/ui/badge";
-import { FileText } from "lucide-react";
-import { cn } from "@/lib/utils";
 import {
+	AI_RESPONSE_TYPE,
+	type AIResponseType,
+	getAIResponseTypeConfig,
 	getConfidenceColor,
 	getConfidenceLabel,
-	getAIResponseTypeConfig,
-	type AIResponseType,
-	AI_RESPONSE_TYPE,
 } from "@/lib/tickets/utils";
+import { cn } from "@/lib/utils";
 
 /**
  * Knowledge base article reference
@@ -77,7 +77,12 @@ export function AIResponseSection({
 			{/* Header with label and badge */}
 			<div className="flex items-center gap-2">
 				<p className="text-sm text-foreground">{t("review.aiResponse")}</p>
-				<Badge className={cn("px-2 py-0.5 border font-semibold gap-1", typeConfig.badgeClasses)}>
+				<Badge
+					className={cn(
+						"px-2 py-0.5 border font-semibold gap-1",
+						typeConfig.badgeClasses,
+					)}
+				>
 					<TypeIcon className="size-3" />
 					{typeConfig.title}
 				</Badge>
@@ -120,10 +125,11 @@ export function AIResponseSection({
 							<Badge
 								className={cn(
 									"px-2 py-0.5 border border-transparent text-primary-foreground font-semibold",
-									getConfidenceColor(response.confidenceScore)
+									getConfidenceColor(response.confidenceScore),
 								)}
 							>
-								{response.confidenceScore}% {getConfidenceLabel(response.confidenceScore)}
+								{response.confidenceScore}%{" "}
+								{getConfidenceLabel(response.confidenceScore)}
 							</Badge>
 						</div>
 					</div>

@@ -1,5 +1,5 @@
-import type { StorybookConfig } from "@storybook/react-vite";
 import path from "node:path";
+import type { StorybookConfig } from "@storybook/react-vite";
 
 const config: StorybookConfig = {
 	stories: ["../src/**/*.stories.@(js|jsx|mjs|ts|tsx)"],
@@ -17,9 +17,8 @@ const config: StorybookConfig = {
 			"@": path.resolve(__dirname, "../src"),
 		};
 		// Set base path for GitHub Pages deployment
-		const base = process.env.NODE_ENV === "production"
-			? "/resolve-onboarding/"
-			: "/";
+		const base =
+			process.env.NODE_ENV === "production" ? "/resolve-onboarding/" : "/";
 		viteConfig.base = base;
 
 		// CRITICAL: Set experimental.renderBuiltUrl to handle dynamic imports

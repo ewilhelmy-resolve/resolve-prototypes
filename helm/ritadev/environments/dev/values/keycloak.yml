@@ -1,0 +1,65 @@
+# Dev environment values for Keycloak
+
+namespace: rita-dev
+
+replicaCount: 1
+
+resources:
+  requests:
+    memory: "512Mi"
+    cpu: "250m"
+  limits:
+    memory: "1Gi"
+    cpu: "1000m"
+
+# Admin user (password set via helmfile secret)
+adminUser: admin
+adminPassword: admin
+
+# Database configuration (connects to keycloak-postgres StatefulSet)
+database:
+  vendor: postgres
+  host: keycloak-postgres
+  port: 5432
+  name: keycloak
+  user: keycloak
+  password: keycloak
+
+# Realm configuration (tenant-specific)
+realm:
+  enabled: true
+  import: true
+  clientSecret: ""  # Set via helmfile from secret
+  smtp:
+    host: "outbound-us1.ppe-hosted.com"
+    port: "587"
+    from: "rita@resolve.io"
+    fromDisplayName: "Rita-Go-Dev"
+    auth: "true"
+    user: "platform@resolve.io"
+    password: ""  # Set via helmfile from secret
+    starttls: "true"
+    ssl: "false"
+
+# Domain for tenant-specific URLs
+domain: resolve.io
+
+# Ingress configuration
+ingress:
+  enabled: true
+  className: alb
+  annotations:
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: instance
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}, {"HTTPS": 443}]'
+    alb.ingress.kubernetes.io/certificate-arn: arn:aws:acm:us-east-1:432993365903:certificate/f6df4a9a-bcf8-4078-ae1d-f7eeb1307ed7
+    alb.ingress.kubernetes.io/ssl-redirect: '443'
+
+# Keycloak configuration
+config:
+  httpEnabled: true
+  httpPort: 8080
+  hostname: "rita-dev-auth.resolve.io"
+  hostnameStrict: false
+  hostnameStrictHttps: false
+  proxyHeaders: xforwarded

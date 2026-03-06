@@ -29,7 +29,7 @@ export function getDevMockPayload(sessionKey: string): string | null {
 
 	// Parse activityId from session key: dev-activity-1001 or demo-activity-1001-A
 	const activityMatch = sessionKey.match(/(?:dev|demo)-activity-(\d+)/);
-	const activityId = activityMatch ? parseInt(activityMatch[1]) : undefined;
+	const activityId = activityMatch ? parseInt(activityMatch[1], 10) : undefined;
 	const activityName = activityId ? `Activity ${activityId}` : undefined;
 
 	const mockPayload = {

@@ -42,8 +42,17 @@ type UsersTableAction =
 	| { type: "SET_SEARCH_QUERY"; payload: string }
 	| { type: "SET_STATUS_FILTER"; payload: "All" | "active" | "inactive" }
 	| { type: "SET_PAGE"; payload: number }
-	| { type: "SET_SORT"; payload: { sortBy: "name" | "role" | "status" | "joinedAt" | "conversationsCount"; sortOrder: "asc" | "desc" } }
-	| { type: "TOGGLE_SORT"; payload: "name" | "role" | "status" | "joinedAt" | "conversationsCount" }
+	| {
+			type: "SET_SORT";
+			payload: {
+				sortBy: "name" | "role" | "status" | "joinedAt" | "conversationsCount";
+				sortOrder: "asc" | "desc";
+			};
+	  }
+	| {
+			type: "TOGGLE_SORT";
+			payload: "name" | "role" | "status" | "joinedAt" | "conversationsCount";
+	  }
 	| { type: "OPEN_EDIT_SHEET"; payload: Member }
 	| { type: "CLOSE_EDIT_SHEET" }
 	| { type: "OPEN_DEACTIVATE_DIALOG"; payload: Member }
@@ -52,7 +61,14 @@ type UsersTableAction =
 	| { type: "CLOSE_DELETE_DIALOG" }
 	| { type: "OPEN_BULK_DELETE_DIALOG" }
 	| { type: "CLOSE_BULK_DELETE_DIALOG" }
-	| { type: "OPEN_ROLE_CHANGE_DIALOG"; payload: { userId: string; newRole: OrganizationRole; oldRole: OrganizationRole } }
+	| {
+			type: "OPEN_ROLE_CHANGE_DIALOG";
+			payload: {
+				userId: string;
+				newRole: OrganizationRole;
+				oldRole: OrganizationRole;
+			};
+	  }
 	| { type: "CLOSE_ROLE_CHANGE_DIALOG" };
 
 /**
@@ -92,15 +108,29 @@ function usersTableReducer(
 		case "SET_SEARCH_QUERY":
 			return { ...state, searchQuery: action.payload, page: 0 };
 		case "SET_STATUS_FILTER":
-			return { ...state, statusFilter: action.payload, page: 0, selectedUsers: [] };
+			return {
+				...state,
+				statusFilter: action.payload,
+				page: 0,
+				selectedUsers: [],
+			};
 		case "SET_PAGE":
 			return { ...state, page: action.payload, selectedUsers: [] };
 		case "SET_SORT":
-			return { ...state, sortBy: action.payload.sortBy, sortOrder: action.payload.sortOrder, page: 0 };
+			return {
+				...state,
+				sortBy: action.payload.sortBy,
+				sortOrder: action.payload.sortOrder,
+				page: 0,
+			};
 		case "TOGGLE_SORT":
 			if (state.sortBy === action.payload) {
 				// Toggle order if clicking same column
-				return { ...state, sortOrder: state.sortOrder === "asc" ? "desc" : "asc", page: 0 };
+				return {
+					...state,
+					sortOrder: state.sortOrder === "asc" ? "desc" : "asc",
+					page: 0,
+				};
 			}
 			// Set new column with default desc order
 			return { ...state, sortBy: action.payload, sortOrder: "desc", page: 0 };
@@ -109,7 +139,11 @@ function usersTableReducer(
 		case "CLOSE_EDIT_SHEET":
 			return { ...state, editSheetOpen: false };
 		case "OPEN_DEACTIVATE_DIALOG":
-			return { ...state, deactivatingUser: action.payload, deactivateDialogOpen: true };
+			return {
+				...state,
+				deactivatingUser: action.payload,
+				deactivateDialogOpen: true,
+			};
 		case "CLOSE_DEACTIVATE_DIALOG":
 			return { ...state, deactivateDialogOpen: false, deactivatingUser: null };
 		case "OPEN_DELETE_DIALOG":
@@ -121,7 +155,11 @@ function usersTableReducer(
 		case "CLOSE_BULK_DELETE_DIALOG":
 			return { ...state, bulkDeleteDialogOpen: false };
 		case "OPEN_ROLE_CHANGE_DIALOG":
-			return { ...state, pendingRoleChange: action.payload, roleChangeDialogOpen: true };
+			return {
+				...state,
+				pendingRoleChange: action.payload,
+				roleChangeDialogOpen: true,
+			};
 		case "CLOSE_ROLE_CHANGE_DIALOG":
 			return { ...state, roleChangeDialogOpen: false, pendingRoleChange: null };
 		default:
@@ -167,7 +205,9 @@ export function useUsersTableState() {
 	};
 
 	// Handler - Sorting
-	const handleSort = (column: "name" | "role" | "status" | "joinedAt" | "conversationsCount") => {
+	const handleSort = (
+		column: "name" | "role" | "status" | "joinedAt" | "conversationsCount",
+	) => {
 		dispatch({ type: "TOGGLE_SORT", payload: column });
 	};
 

@@ -30,7 +30,11 @@ export const useDemoStore = create<DemoState>((set) => ({
 			const newRate = Math.round((newAutomated / totalTickets) * 100);
 			// Assume 2 min saved per automated ticket
 			const newHours = Math.round((newAutomated * 2) / 60);
-			console.log("[Demo Store] Updating:", { newAutomated, newRate, newHours });
+			console.log("[Demo Store] Updating:", {
+				newAutomated,
+				newRate,
+				newHours,
+			});
 			return {
 				ticketsAutomated: newAutomated,
 				automationRate: newRate,

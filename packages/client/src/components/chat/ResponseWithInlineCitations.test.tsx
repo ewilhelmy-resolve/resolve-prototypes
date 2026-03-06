@@ -299,7 +299,6 @@ describe("ResponseWithInlineCitations", () => {
 				expect(link).toHaveAttribute("rel", "noopener noreferrer");
 			});
 		});
-
 	});
 
 	describe("Blob ID Support (Legacy & New Formats)", () => {
@@ -313,7 +312,9 @@ describe("ResponseWithInlineCitations", () => {
 			);
 
 			await waitFor(() => {
-				expect(screen.getByText("citations.viewFullDocument")).toBeInTheDocument();
+				expect(
+					screen.getByText("citations.viewFullDocument"),
+				).toBeInTheDocument();
 			});
 		});
 
@@ -334,7 +335,9 @@ describe("ResponseWithInlineCitations", () => {
 			);
 
 			await waitFor(() => {
-				expect(screen.getByText("citations.viewFullDocument")).toBeInTheDocument();
+				expect(
+					screen.getByText("citations.viewFullDocument"),
+				).toBeInTheDocument();
 				expect(screen.getByText("New Format Document")).toBeInTheDocument();
 			});
 		});
@@ -373,7 +376,9 @@ describe("ResponseWithInlineCitations", () => {
 			await waitFor(() => {
 				// Should fetch metadata using blob_metadata_id (new format)
 				expect(mockMetadataFn).toHaveBeenCalledWith("metadata-999");
-				expect(screen.getByText("Fetched via blob_metadata_id")).toBeInTheDocument();
+				expect(
+					screen.getByText("Fetched via blob_metadata_id"),
+				).toBeInTheDocument();
 			});
 		});
 
@@ -406,7 +411,9 @@ describe("ResponseWithInlineCitations", () => {
 			);
 
 			await waitFor(() => {
-				expect(screen.getByText("Fetched New Format Title")).toBeInTheDocument();
+				expect(
+					screen.getByText("Fetched New Format Title"),
+				).toBeInTheDocument();
 			});
 		});
 
@@ -427,8 +434,12 @@ describe("ResponseWithInlineCitations", () => {
 			);
 
 			await waitFor(() => {
-				expect(screen.queryByText("citations.viewSource")).not.toBeInTheDocument();
-				expect(screen.getByText("citations.fullDocumentAvailable")).toBeInTheDocument();
+				expect(
+					screen.queryByText("citations.viewSource"),
+				).not.toBeInTheDocument();
+				expect(
+					screen.getByText("citations.fullDocumentAvailable"),
+				).toBeInTheDocument();
 			});
 		});
 
@@ -554,7 +565,9 @@ describe("ResponseWithInlineCitations", () => {
 			});
 
 			await waitFor(() => {
-				expect(screen.getByText("citations.fullDocumentContent")).toBeInTheDocument();
+				expect(
+					screen.getByText("citations.fullDocumentContent"),
+				).toBeInTheDocument();
 			});
 		});
 
@@ -590,7 +603,9 @@ describe("ResponseWithInlineCitations", () => {
 
 			await waitFor(() => {
 				// Should call API with blob_metadata_id
-				expect(fileApi.getDocumentMetadata).toHaveBeenCalledWith("metadata-789");
+				expect(fileApi.getDocumentMetadata).toHaveBeenCalledWith(
+					"metadata-789",
+				);
 				expect(screen.getByText("New Format Document")).toBeInTheDocument();
 			});
 		});
@@ -626,8 +641,12 @@ describe("ResponseWithInlineCitations", () => {
 
 			await waitFor(() => {
 				// Should prefer blob_metadata_id over blob_id
-				expect(fileApi.getDocumentMetadata).toHaveBeenCalledWith("metadata-prefer-this");
-				expect(fileApi.getDocumentMetadata).not.toHaveBeenCalledWith("blob-ignore-this");
+				expect(fileApi.getDocumentMetadata).toHaveBeenCalledWith(
+					"metadata-prefer-this",
+				);
+				expect(fileApi.getDocumentMetadata).not.toHaveBeenCalledWith(
+					"blob-ignore-this",
+				);
 			});
 		});
 
@@ -728,14 +747,11 @@ describe("ResponseWithInlineCitations", () => {
 			});
 
 			await waitFor(() => {
-				expect(
-					screen.getByText("citations.errorLoading"),
-				).toBeInTheDocument();
+				expect(screen.getByText("citations.errorLoading")).toBeInTheDocument();
 			});
 
 			consoleSpy.mockRestore();
 		});
-
 	});
 
 	describe("Edge Cases", () => {
@@ -790,7 +806,9 @@ describe("ResponseWithInlineCitations", () => {
 			await waitFor(() => {
 				// Should show both view source link and full document button
 				expect(screen.getByText("citations.viewSource")).toBeInTheDocument();
-				expect(screen.getByText("citations.viewFullDocument")).toBeInTheDocument();
+				expect(
+					screen.getByText("citations.viewFullDocument"),
+				).toBeInTheDocument();
 			});
 		});
 

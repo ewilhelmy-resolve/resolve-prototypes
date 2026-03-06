@@ -8,12 +8,12 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import keycloak from "@/services/keycloak";
 import {
-	InvitationErrorCode,
 	type AcceptInvitationRequest,
 	type AcceptInvitationResponse,
 	type CancelInvitationRequest,
 	type CancelInvitationResponse,
 	type InvitationAPIError,
+	InvitationErrorCode,
 	type ListInvitationsParams,
 	type ListInvitationsResponse,
 	type SendInvitationsRequest,
@@ -141,13 +141,10 @@ export function useSendInvitations() {
 		SendInvitationsRequest
 	>({
 		mutationFn: async (data: SendInvitationsRequest) => {
-			return fetchWithAuth<SendInvitationsResponse>(
-				"/api/invitations/send",
-				{
-					method: "POST",
-					body: JSON.stringify(data),
-				},
-			);
+			return fetchWithAuth<SendInvitationsResponse>("/api/invitations/send", {
+				method: "POST",
+				body: JSON.stringify(data),
+			});
 		},
 		onSuccess: () => {
 			// Invalidate invitation lists to refetch with new data
@@ -213,13 +210,10 @@ export function useAcceptInvitation() {
 		AcceptInvitationRequest
 	>({
 		mutationFn: async (data: AcceptInvitationRequest) => {
-			return fetchPublic<AcceptInvitationResponse>(
-				"/api/invitations/accept",
-				{
-					method: "POST",
-					body: JSON.stringify(data),
-				},
-			);
+			return fetchPublic<AcceptInvitationResponse>("/api/invitations/accept", {
+				method: "POST",
+				body: JSON.stringify(data),
+			});
 		},
 		meta: {
 			errorMessage: "Failed to accept invitation",
@@ -325,13 +319,10 @@ export function useResendInvitation() {
 		SendInvitationsRequest
 	>({
 		mutationFn: async (data: SendInvitationsRequest) => {
-			return fetchWithAuth<SendInvitationsResponse>(
-				"/api/invitations/send",
-				{
-					method: "POST",
-					body: JSON.stringify(data),
-				},
-			);
+			return fetchWithAuth<SendInvitationsResponse>("/api/invitations/send", {
+				method: "POST",
+				body: JSON.stringify(data),
+			});
 		},
 		onSuccess: () => {
 			queryClient.invalidateQueries({ queryKey: invitationKeys.lists() });

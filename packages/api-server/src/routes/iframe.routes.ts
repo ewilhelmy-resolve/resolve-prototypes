@@ -21,6 +21,7 @@ import {
 	IframeDeleteConversationResponseSchema,
 	IframeExecuteRequestSchema,
 	IframeExecuteResponseSchema,
+	IframeSessionContextResponseSchema,
 	IframeValidateRequestSchema,
 	IframeValidateResponseSchema,
 } from "../schemas/iframe.js";
@@ -143,6 +144,45 @@ registry.registerPath({
 	},
 });
 
+registry.registerPath({
+	method: "get",
+	path: "/api/iframe/session-context",
+	tags: ["Iframe"],
+	summary: "Get fresh session context from Valkey",
+	description:
+		"Re-reads Valkey and returns fresh payload with sensitive fields redacted. Used before metadata download to get latest context (runId, activityId).",
+	security: [],
+	request: {
+		query: z.object({
+			sessionKey: z
+				.string()
+				.min(1)
+				.max(256)
+				.openapi({ description: "Valkey session key" }),
+		}),
+	},
+	responses: {
+		200: {
+			description: "Fresh session context",
+			content: {
+				"application/json": { schema: IframeSessionContextResponseSchema },
+			},
+		},
+		400: {
+			description: "Missing or invalid sessionKey",
+			content: { "application/json": { schema: ErrorResponseSchema } },
+		},
+		404: {
+			description: "Session not found in Valkey",
+			content: { "application/json": { schema: ErrorResponseSchema } },
+		},
+		500: {
+			description: "Server error",
+			content: { "application/json": { schema: ErrorResponseSchema } },
+		},
+	},
+});
+
 const router = express.Router();
 
 /**
@@ -179,7 +219,7 @@ router.post("/validate-instantiation", async (req, res) => {
 			logger.warn(
 				{
 					error: result.error,
-					sessionKey: sessionKey?.substring(0, 8) + "...",
+					sessionKey: `${sessionKey?.substring(0, 8)}...`,
 				},
 				"Iframe validation failed",
 			);
@@ -267,6 +307,50 @@ router.get("/debug", async (_req, res) => {
 });
 
 /**
+ * Get fresh session context from Valkey
+ * GET /api/iframe/session-context
+ *
+ * Re-reads Valkey to get latest payload (Actions Platform may have
+ * updated runId/activityId mid-session). Sensitive fields redacted.
+ */
+router.get("/session-context", async (req, res) => {
+	const parsed = z
+		.object({ sessionKey: z.string().min(1).max(256) })
+		.safeParse(req.query);
+	if (!parsed.success) {
+		res.status(400).json({ error: "sessionKey required (1-256 chars)" });
+		return;
+	}
+	const { sessionKey } = parsed.data;
+
+	try {
+		const iframeService = getIframeService();
+		const { config } =
+			await iframeService.fetchValkeyPayloadWithDebug(sessionKey);
+
+		if (!config) {
+			res.status(404).json({ error: "Session not found" });
+			return;
+		}
+
+		// Redact sensitive fields (same pattern as validate-instantiation)
+		res.json({
+			...config,
+			accessToken: config.accessToken ? "[REDACTED]" : undefined,
+			refreshToken: config.refreshToken ? "[REDACTED]" : undefined,
+			clientKey: config.clientKey ? "[REDACTED]" : undefined,
+		});
+	} catch (error) {
+		const err = error as Error;
+		logger.error(
+			{ sessionKey: `${sessionKey.substring(0, 8)}...`, error: err.message },
+			"Failed to fetch session context",
+		);
+		res.status(500).json({ error: "Failed to fetch session context" });
+	}
+});
+
+/**
  * Execute workflow from Valkey hashkey
  * POST /api/iframe/execute
  *
@@ -298,7 +382,7 @@ router.post("/execute", async (req, res) => {
 
 		logger.info(
 			{
-				hashkey: resolvedHashkey.substring(0, 8) + "...",
+				hashkey: `${resolvedHashkey.substring(0, 8)}...`,
 			},
 			"Executing workflow from hashkey",
 		);
@@ -310,7 +394,7 @@ router.post("/execute", async (req, res) => {
 		if (!result.success) {
 			logger.warn(
 				{
-					hashkey: resolvedHashkey.substring(0, 8) + "...",
+					hashkey: `${resolvedHashkey.substring(0, 8)}...`,
 					error: result.error,
 					debug: result.debug,
 				},
@@ -322,7 +406,7 @@ router.post("/execute", async (req, res) => {
 
 		logger.info(
 			{
-				hashkey: resolvedHashkey.substring(0, 8) + "...",
+				hashkey: `${resolvedHashkey.substring(0, 8)}...`,
 				eventId: result.eventId,
 				durationMs: result.debug.totalDurationMs,
 			},

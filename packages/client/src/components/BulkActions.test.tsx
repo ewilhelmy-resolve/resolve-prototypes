@@ -12,7 +12,7 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { Download, Trash2 } from "lucide-react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { BulkActions, type BulkAction } from "./BulkActions";
+import { type BulkAction, BulkActions } from "./BulkActions";
 
 describe("BulkActions", () => {
 	const mockOnClose = vi.fn();
@@ -148,7 +148,9 @@ describe("BulkActions", () => {
 				/>,
 			);
 
-			expect(screen.getByRole("button", { name: /Removing.../i })).toBeInTheDocument();
+			expect(
+				screen.getByRole("button", { name: /Removing.../i }),
+			).toBeInTheDocument();
 		});
 
 		it("shows default loading label when loading", () => {
@@ -194,7 +196,9 @@ describe("BulkActions", () => {
 				/>,
 			);
 
-			const deleteButton = screen.getByText("bulk.defaultLoadingLabel").closest("button");
+			const deleteButton = screen
+				.getByText("bulk.defaultLoadingLabel")
+				.closest("button");
 			expect(deleteButton).toBeDisabled();
 		});
 
@@ -210,7 +214,9 @@ describe("BulkActions", () => {
 				/>,
 			);
 
-			const closeButton = screen.getByRole("button", { name: "bulk.closeAriaLabel" });
+			const closeButton = screen.getByRole("button", {
+				name: "bulk.closeAriaLabel",
+			});
 			expect(closeButton).toBeDisabled();
 		});
 	});
@@ -240,7 +246,9 @@ describe("BulkActions", () => {
 				/>,
 			);
 
-			expect(screen.getByRole("button", { name: /Cancel Invitation/i })).toBeInTheDocument();
+			expect(
+				screen.getByRole("button", { name: /Cancel Invitation/i }),
+			).toBeInTheDocument();
 		});
 
 		it("calls onDelete when delete button is clicked", async () => {
@@ -255,7 +263,9 @@ describe("BulkActions", () => {
 				/>,
 			);
 
-			const deleteButton = screen.getByText("bulk.defaultDeleteLabel").closest("button");
+			const deleteButton = screen
+				.getByText("bulk.defaultDeleteLabel")
+				.closest("button");
 			expect(deleteButton).not.toBeNull();
 			await user.click(deleteButton as HTMLButtonElement);
 			expect(mockOnDelete).toHaveBeenCalledTimes(1);
@@ -290,8 +300,12 @@ describe("BulkActions", () => {
 				/>,
 			);
 
-			expect(screen.getByRole("button", { name: /Download/i })).toBeInTheDocument();
-			expect(screen.getByRole("button", { name: /Delete/i })).toBeInTheDocument();
+			expect(
+				screen.getByRole("button", { name: /Download/i }),
+			).toBeInTheDocument();
+			expect(
+				screen.getByRole("button", { name: /Delete/i }),
+			).toBeInTheDocument();
 		});
 
 		it("calls custom action onClick when clicked", async () => {
@@ -343,7 +357,9 @@ describe("BulkActions", () => {
 				/>,
 			);
 
-			expect(screen.getByRole("button", { name: "bulk.closeAriaLabel" })).toBeInTheDocument();
+			expect(
+				screen.getByRole("button", { name: "bulk.closeAriaLabel" }),
+			).toBeInTheDocument();
 		});
 
 		it("calls onClose when close button is clicked", async () => {
@@ -358,7 +374,9 @@ describe("BulkActions", () => {
 				/>,
 			);
 
-			await user.click(screen.getByRole("button", { name: "bulk.closeAriaLabel" }));
+			await user.click(
+				screen.getByRole("button", { name: "bulk.closeAriaLabel" }),
+			);
 			expect(mockOnClose).toHaveBeenCalledTimes(1);
 		});
 	});
@@ -374,7 +392,9 @@ describe("BulkActions", () => {
 				/>,
 			);
 
-			expect(screen.getByRole("region", { name: "bulk.ariaLabel" })).toBeInTheDocument();
+			expect(
+				screen.getByRole("region", { name: "bulk.ariaLabel" }),
+			).toBeInTheDocument();
 		});
 
 		it("has proper aria-label on close button", () => {
@@ -387,7 +407,9 @@ describe("BulkActions", () => {
 				/>,
 			);
 
-			expect(screen.getByRole("button", { name: "bulk.closeAriaLabel" })).toBeInTheDocument();
+			expect(
+				screen.getByRole("button", { name: "bulk.closeAriaLabel" }),
+			).toBeInTheDocument();
 		});
 	});
 
@@ -419,7 +441,9 @@ describe("BulkActions", () => {
 				/>,
 			);
 
-			const closeButton = screen.getByRole("button", { name: "bulk.closeAriaLabel" });
+			const closeButton = screen.getByRole("button", {
+				name: "bulk.closeAriaLabel",
+			});
 			expect(closeButton).toHaveClass("opacity-50");
 			expect(closeButton).toHaveClass("cursor-not-allowed");
 		});

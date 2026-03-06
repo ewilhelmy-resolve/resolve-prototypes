@@ -23,7 +23,9 @@ export default function EmptyFilesState({
 
 				<div className="flex flex-col items-center gap-2">
 					<h2 className="text-xl font-normal text-foreground text-center leading-7">
-						{hasActiveFilters ? t("empty.noArticlesFound") : t("empty.noArticlesYet")}
+						{hasActiveFilters
+							? t("empty.noArticlesFound")
+							: t("empty.noArticlesYet")}
 					</h2>
 					<p className="text-sm text-muted-foreground text-center">
 						{hasActiveFilters
@@ -36,7 +38,11 @@ export default function EmptyFilesState({
 					<div className="flex justify-center items-center gap-3">
 						<div className="space-y-4">
 							<div className="text-center">
-								<Button variant={"secondary"} onClick={onUploadClick} className="shadow-sm">
+								<Button
+									variant={"secondary"}
+									onClick={onUploadClick}
+									className="shadow-sm"
+								>
 									<Plus className="h-4 w-4" />
 									{t("empty.addArticle")}
 								</Button>

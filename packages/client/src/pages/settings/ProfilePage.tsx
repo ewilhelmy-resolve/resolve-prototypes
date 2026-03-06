@@ -10,14 +10,14 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { useUIStore } from "@/stores/uiStore";
-import i18n from "@/i18n";
 import { useDeleteOwnAccount } from "@/hooks/api/useMembers";
 import { useProfile, useProfilePermissions } from "@/hooks/api/useProfile";
 import { useUpdateOrganization } from "@/hooks/api/useUpdateOrganization";
 import { useUpdateProfile } from "@/hooks/api/useUpdateProfile";
+import i18n from "@/i18n";
 import { toast } from "@/lib/toast";
 import SettingsHeader from "@/pages/settings/SettingsHeader";
+import { useUIStore } from "@/stores/uiStore";
 
 /**
  * ProfilePage - Unified profile settings page
@@ -30,12 +30,20 @@ const profileSchema = z.object({
 	firstName: z
 		.string()
 		.min(1, i18n.t("profile.validation.firstNameRequired", { ns: "settings" }))
-		.max(100, i18n.t("profile.validation.firstNameTooLong", { ns: "settings" })),
+		.max(
+			100,
+			i18n.t("profile.validation.firstNameTooLong", { ns: "settings" }),
+		),
 	lastName: z
 		.string()
 		.min(1, i18n.t("profile.validation.lastNameRequired", { ns: "settings" }))
 		.max(100, i18n.t("profile.validation.lastNameTooLong", { ns: "settings" })),
-	organization: z.string().min(1, i18n.t("profile.validation.organizationRequired", { ns: "settings" })),
+	organization: z
+		.string()
+		.min(
+			1,
+			i18n.t("profile.validation.organizationRequired", { ns: "settings" }),
+		),
 });
 
 type ProfileFormData = z.infer<typeof profileSchema>;
@@ -169,7 +177,9 @@ export default function ProfilePage() {
 				</div>
 
 				<div className="px-6 pb-8 max-w-2xl mx-auto w-full flex flex-col gap-6">
-					<h4 className="text-xl font-normal text-foreground">{t("profile.general")}</h4>
+					<h4 className="text-xl font-normal text-foreground">
+						{t("profile.general")}
+					</h4>
 
 					<form
 						onSubmit={handleSubmit(handleUpdateProfile)}
@@ -285,9 +295,9 @@ export default function ProfilePage() {
 								</p>
 							</div>
 							<Switch
-								checked={headerStyle === 'resolve'}
+								checked={headerStyle === "resolve"}
 								onCheckedChange={(checked) =>
-									setHeaderStyle(checked ? 'resolve' : 'rita')
+									setHeaderStyle(checked ? "resolve" : "rita")
 								}
 							/>
 						</div>
@@ -323,13 +333,17 @@ export default function ProfilePage() {
 												variant="destructive"
 												disabled={isDeletingAccount}
 											>
-												{isDeletingAccount ? t("profile.deleting") : t("profile.deleteAccountBtn")}
+												{isDeletingAccount
+													? t("profile.deleting")
+													: t("profile.deleteAccountBtn")}
 											</Button>
 										}
 										title={t("profile.deleteAccount.title")}
-										description={isAdmin
-											? t("profile.deleteAccount.dialogDescriptionAdmin")
-											: t("profile.deleteAccount.dialogDescription")}
+										description={
+											isAdmin
+												? t("profile.deleteAccount.dialogDescriptionAdmin")
+												: t("profile.deleteAccount.dialogDescription")
+										}
 										validationSchema={deleteAccountSchema}
 										defaultValues={{
 											permanent: false,
@@ -416,9 +430,19 @@ export default function ProfilePage() {
 
 												<div className="flex flex-col gap-2">
 													<Label htmlFor="confirmText" className="text-sm">
-														{t("profile.deleteAccount.typeDelete").split("<strong>")[0]}
-														<span className="font-mono font-semibold">delete</span>
-														{t("profile.deleteAccount.typeDelete").split("</strong>")[1]}
+														{
+															t("profile.deleteAccount.typeDelete").split(
+																"<strong>",
+															)[0]
+														}
+														<span className="font-mono font-semibold">
+															delete
+														</span>
+														{
+															t("profile.deleteAccount.typeDelete").split(
+																"</strong>",
+															)[1]
+														}
 													</Label>
 													<Input
 														id="confirmText"

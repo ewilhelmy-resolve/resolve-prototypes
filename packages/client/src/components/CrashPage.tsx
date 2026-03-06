@@ -9,24 +9,24 @@
  * - Added accessibility attributes
  */
 
-import type React from "react"
-import { Button } from "@/components/ui/button"
+import type React from "react";
+import { Button } from "@/components/ui/button";
 
 export interface CrashPageProps {
 	/** Main heading/title of the error */
-	title: string
+	title: string;
 	/** Descriptive message explaining the error */
-	description: string
+	description: string;
 	/** Label for the action button */
-	actionLabel: string
+	actionLabel: string;
 	/** Callback when action button is clicked */
-	onAction: () => void
+	onAction: () => void;
 	/** Optional icon/image element to display (defaults to none) */
-	icon?: React.ReactNode
+	icon?: React.ReactNode;
 	/** Optional custom icon/image URL */
-	iconSrc?: string
+	iconSrc?: string;
 	/** Optional alt text for icon image */
-	iconAlt?: string
+	iconAlt?: string;
 }
 
 export function CrashPage({
@@ -70,7 +70,7 @@ export function CrashPage({
 				</Button>
 			</div>
 		</div>
-	)
+	);
 }
 
-export default CrashPage
+export default CrashPage;

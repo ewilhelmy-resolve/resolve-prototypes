@@ -1,17 +1,23 @@
+import type { KeycloakProfile } from "keycloak-js";
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 import { immer } from "zustand/middleware/immer";
 import { authManager } from "../services/auth-manager";
-import { AuthError, type AuthStore, type User, keycloakProfileToUser } from "../types/auth";
-import type { KeycloakProfile } from "keycloak-js";
+import {
+	AuthError,
+	type AuthStore,
+	keycloakProfileToUser,
+	type User,
+} from "../types/auth";
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || "";
+const IS_DEMO_MODE = import.meta.env.VITE_DEMO_MODE === "true";
 
 // Helper to ensure user is always User type
 const normalizeUser = (user: User | KeycloakProfile | null): User | null => {
 	if (!user) return null;
 	// If it's already a User (has required 'id' as string), return as is
-	if ('id' in user && typeof user.id === 'string') return user as User;
+	if ("id" in user && typeof user.id === "string") return user as User;
 	// Otherwise convert KeycloakProfile to User
 	return keycloakProfileToUser(user as KeycloakProfile);
 };
@@ -105,6 +111,26 @@ const useAuthStore = create<AuthStore>()(
 						state.error = null;
 					});
 
+					// Demo mode: skip Keycloak, use mock user
+					if (IS_DEMO_MODE) {
+						console.log("AuthStore: DEMO_MODE — bypassing Keycloak");
+						set((state) => {
+							state.authenticated = true;
+							state.user = {
+								id: "demo-user",
+								email: "demo@resolve.io",
+								firstName: "Demo",
+								lastName: "User",
+								username: "demo",
+							};
+							state.token = "demo-token";
+							state.sessionReady = true;
+							state.initialized = true;
+							state.loading = false;
+						});
+						return;
+					}
+
 					try {
 						const result = await authManager.initialize();
 
@@ -121,7 +147,6 @@ const useAuthStore = create<AuthStore>()(
 								state.sessionReady = true;
 							}
 						});
-
 					} catch (error) {
 						console.error("AuthStore: Initialization failed:", error);
 						set((state) => {
@@ -177,6 +202,12 @@ const useAuthStore = create<AuthStore>()(
 
 				logout: async (redirectUri) => {
 					console.log("AuthStore: Starting logout");
+
+					if (IS_DEMO_MODE) {
+						console.log("AuthStore: DEMO_MODE — skipping logout");
+						return;
+					}
+
 					set((state) => {
 						state.sessionReady = false;
 						state.loading = true;
@@ -203,9 +234,10 @@ const useAuthStore = create<AuthStore>()(
 					// Clear returning user flag
 					const key = "rita_returning_user";
 					localStorage.removeItem(key);
+					// biome-ignore lint/suspicious/noDocumentCookie: clearing auth cookie requires direct assignment
 					document.cookie = `${key}=; Max-Age=0; path=/; SameSite=Lax`;
 
-				// Clear all auth state
+					// Clear all auth state
 					set((state) => {
 						state.authenticated = false;
 						state.user = null;

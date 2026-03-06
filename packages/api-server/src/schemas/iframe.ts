@@ -140,5 +140,39 @@ export const IframeDeleteConversationResponseSchema = z
 	})
 	.openapi("IframeDeleteConversationResponse");
 
+// ============================================================================
+// GET /api/iframe/session-context
+// ============================================================================
+
+export const IframeSessionContextResponseSchema = z
+	.object({
+		tenantId: z
+			.string()
+			.optional()
+			.openapi({ description: "Tenant ID from Valkey session" }),
+		userGuid: z
+			.string()
+			.optional()
+			.openapi({ description: "User GUID from Valkey session" }),
+		context: z
+			.record(z.string(), z.unknown())
+			.optional()
+			.openapi({ description: "Session context (runId, activityId, etc.)" }),
+		accessToken: z
+			.string()
+			.optional()
+			.openapi({ description: "Access token (redacted)" }),
+		refreshToken: z
+			.string()
+			.optional()
+			.openapi({ description: "Refresh token (redacted)" }),
+		clientKey: z
+			.string()
+			.optional()
+			.openapi({ description: "Client key (redacted)" }),
+	})
+	.catchall(z.unknown())
+	.openapi("IframeSessionContextResponse");
+
 // Re-export for convenience
 export { ErrorResponseSchema };

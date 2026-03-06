@@ -1,0 +1,42 @@
+# Dev environment values for Keycloak PostgreSQL
+
+namespace: rita-dev
+
+image:
+  repository: "pgvector/pgvector"
+  tag: "pg15"
+  pullPolicy: IfNotPresent
+
+# Database configuration
+database:
+  name: keycloak
+  user: keycloak
+  password: keycloak
+
+# Storage configuration (kops-csi-1-21 for kops cluster)
+persistence:
+  enabled: true
+  storageClassName: kops-csi-1-21
+  accessMode: ReadWriteOnce
+  size: 10Gi
+
+resources:
+  requests:
+    memory: "256Mi"
+    cpu: "100m"
+  limits:
+    memory: "512Mi"
+    cpu: "500m"
+
+# Backup disabled for dev (optional pg_dump backup)
+backup:
+  enabled: false
+  schedule: "0 2 * * *"
+  s3Bucket: "rita-keycloak-backups"
+  retentionDays: 30
+
+# Velero backup disabled for dev (recommended for production)
+velero:
+  enabled: false
+  schedule: "0 2 * * *"
+  ttl: 720h

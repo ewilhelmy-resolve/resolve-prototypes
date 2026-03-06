@@ -349,9 +349,9 @@ describe("parseSchema", () => {
 		};
 		const result = parseSchema(schema);
 		expect(result).not.toBeNull();
-		expect(result!.root).toBe("main");
-		expect(result!.elements.main.type).toBe("Text");
-		expect(result!.elements.main.props?.text).toBe("Hi");
+		expect(result?.root).toBe("main");
+		expect(result?.elements.main.type).toBe("Text");
+		expect(result?.elements.main.props?.text).toBe("Hi");
 	});
 
 	it("parses schema with dialogs", () => {
@@ -376,7 +376,7 @@ describe("parseSchema", () => {
 		};
 		const result = parseSchema(schema);
 		expect(result).not.toBeNull();
-		expect(result!.dialogs?.dlg).toBe("form");
+		expect(result?.dialogs?.dlg).toBe("form");
 	});
 
 	it("returns null for invalid schema (missing elements)", () => {

@@ -5,7 +5,6 @@ export default function TicketsComingSoon() {
 
 	return (
 		<div className="flex flex-col items-center gap-6 w-full max-w-[1120px] mx-auto">
-
 			<img
 				src="/images/ticketcomingsoon.png"
 				className="w-[338px] h-[231px] object-fill"
@@ -18,9 +17,7 @@ export default function TicketsComingSoon() {
 
 			<div className="text-center text-base font-normal leading-6 max-w-2xl space-y-2">
 				<p>{t("comingSoon.description")}</p>
-				<p className="text-muted-foreground">
-					{t("comingSoon.details")}
-				</p>
+				<p className="text-muted-foreground">{t("comingSoon.details")}</p>
 			</div>
 		</div>
 	);

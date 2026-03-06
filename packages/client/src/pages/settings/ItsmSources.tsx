@@ -13,6 +13,7 @@ import {
 	SOURCE_METADATA,
 	SOURCES,
 	STATUS,
+	sortSourcesByStatus,
 } from "@/constants/connectionSources";
 import { useActiveModel } from "@/hooks/useActiveModel";
 import { useDataSources, useSeedDataSources } from "@/hooks/useDataSources";
@@ -26,6 +27,7 @@ export default function ItsmSources() {
 	const isServiceNowEnabled = useFeatureFlag("ENABLE_SERVICENOW");
 	const isJiraEnabled = useFeatureFlag("ENABLE_JIRA");
 	const isIvantiEnabled = useFeatureFlag("ENABLE_IVANTI");
+	const isFreshdeskEnabled = useFeatureFlag("ENABLE_FRESHDESK");
 
 	// Check training state for banner
 	const { data: activeModel } = useActiveModel();
@@ -37,6 +39,7 @@ export default function ItsmSources() {
 		...(isServiceNowEnabled ? [SOURCES.SERVICENOW_ITSM] : []),
 		...(isJiraEnabled ? [SOURCES.JIRA_ITSM] : []),
 		...(isIvantiEnabled ? [SOURCES.IVANTI_ITSM] : []),
+		...(isFreshdeskEnabled ? [SOURCES.FRESHDESK] : []),
 	];
 
 	// Seed on mount (idempotent - safe to call multiple times)
@@ -68,13 +71,8 @@ export default function ItsmSources() {
 			lastSync: undefined as string | undefined,
 		}));
 
-		// Combine and sort by defined order
 		const allSources = [...existingSources, ...placeholders];
-		return allSources.sort((a, b) => {
-			const indexA = ITSM_SOURCES_ORDER.indexOf(a.type);
-			const indexB = ITSM_SOURCES_ORDER.indexOf(b.type);
-			return indexA - indexB;
-		});
+		return sortSourcesByStatus(allSources, ITSM_SOURCES_ORDER);
 	}, [dataSources]);
 
 	if (isLoading || isSeeding) {

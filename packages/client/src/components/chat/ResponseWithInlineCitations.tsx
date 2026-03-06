@@ -43,7 +43,7 @@ import { cn } from "@/lib/utils";
  * Prefers blob_metadata_id (new), falls back to blob_id (legacy)
  */
 function getDocumentId(source: CitationSource): string | undefined {
-  return source.blob_metadata_id || source.blob_id
+	return source.blob_metadata_id || source.blob_id;
 }
 
 export interface ResponseWithInlineCitationsProps {
@@ -144,22 +144,24 @@ function InlineCitationItem({
 	onViewDocument: (source: CitationSource) => void;
 }) {
 	const { t } = useTranslation("chat");
-  const documentId = getDocumentId(source)
-  // Fetch document metadata if source has document ID but no title
-  const { data: metadata, isError, isLoading } = useDocumentMetadata(
-    documentId && !source.title ? documentId : undefined
-  )
+	const documentId = getDocumentId(source);
+	// Fetch document metadata if source has document ID but no title
+	const {
+		data: metadata,
+		isError,
+		isLoading,
+	} = useDocumentMetadata(documentId && !source.title ? documentId : undefined);
 
-  // If metadata fetch failed, hide this inline citation and log warning
-  if (isError) {
-    console.warn('Inline citation source not found:', {
-      blob_metadata_id: source.blob_metadata_id,
-      blob_id: source.blob_id,
-      messageId,
-      index,
-    })
-    return null
-  }
+	// If metadata fetch failed, hide this inline citation and log warning
+	if (isError) {
+		console.warn("Inline citation source not found:", {
+			blob_metadata_id: source.blob_metadata_id,
+			blob_id: source.blob_id,
+			messageId,
+			index,
+		});
+		return null;
+	}
 
 	// Get display title - prefer fetched metadata, then source.title, then loading state
 	const displayTitle =
@@ -167,16 +169,16 @@ function InlineCitationItem({
 		source.title ||
 		(isLoading ? t("citations.loading") : undefined);
 
-  // If no title can be determined (shouldn't happen after loading), hide the citation
-  if (!displayTitle) {
-    console.warn('Inline citation source has no title:', {
-      blob_metadata_id: source.blob_metadata_id,
-      blob_id: source.blob_id,
-      messageId,
-      index,
-    })
-    return null
-  }
+	// If no title can be determined (shouldn't happen after loading), hide the citation
+	if (!displayTitle) {
+		console.warn("Inline citation source has no title:", {
+			blob_metadata_id: source.blob_metadata_id,
+			blob_id: source.blob_id,
+			messageId,
+			index,
+		});
+		return null;
+	}
 
 	return (
 		<InlineCitation key={index}>
@@ -189,20 +191,20 @@ function InlineCitationItem({
 							{displayTitle}
 						</h4>
 
-            {/* Show snippet if present, otherwise show URL or blob info */}
-            {source.snippet ? (
-              <blockquote className="text-sm text-muted-foreground italic border-l-2 border-muted pl-3 py-1">
-                {source.snippet}
-              </blockquote>
-            ) : source.url ? (
-              <p className="text-xs text-muted-foreground break-all">
-                {source.url}
-              </p>
-            ) : documentId ? (
-              <p className="text-xs text-muted-foreground">
-                {t("citations.fullDocumentAvailable")}
-              </p>
-            ) : null}
+						{/* Show snippet if present, otherwise show URL or blob info */}
+						{source.snippet ? (
+							<blockquote className="text-sm text-muted-foreground italic border-l-2 border-muted pl-3 py-1">
+								{source.snippet}
+							</blockquote>
+						) : source.url ? (
+							<p className="text-xs text-muted-foreground break-all">
+								{source.url}
+							</p>
+						) : documentId ? (
+							<p className="text-xs text-muted-foreground">
+								{t("citations.fullDocumentAvailable")}
+							</p>
+						) : null}
 
 						{/* Action links */}
 						<div className="flex flex-col gap-2 pt-2">
@@ -229,22 +231,22 @@ function InlineCitationItem({
 								</a>
 							)}
 
-              {/* View full document button if document ID exists */}
-              {documentId && (
-                <button
-                  type="button"
-                  onClick={() => onViewDocument(source)}
-                  className="text-xs text-primary hover:underline inline-flex items-center gap-1 text-left"
-                >
-                  {t("citations.viewFullDocument")}
-                </button>
-              )}
-            </div>
-          </div>
-        </InlineCitationCardBody>
-      </InlineCitationCard>
-    </InlineCitation>
-  )
+							{/* View full document button if document ID exists */}
+							{documentId && (
+								<button
+									type="button"
+									onClick={() => onViewDocument(source)}
+									className="text-xs text-primary hover:underline inline-flex items-center gap-1 text-left"
+								>
+									{t("citations.viewFullDocument")}
+								</button>
+							)}
+						</div>
+					</div>
+				</InlineCitationCardBody>
+			</InlineCitationCard>
+		</InlineCitation>
+	);
 }
 
 export function ResponseWithInlineCitations({
@@ -274,30 +276,32 @@ export function ResponseWithInlineCitations({
 		return <Response className={className}>{children}</Response>;
 	}
 
-  // Handle "View full document" click
-  const handleViewFullDocument = async (source: CitationSource) => {
-    const documentId = getDocumentId(source)
-    if (!documentId) return
+	// Handle "View full document" click
+	const handleViewFullDocument = async (source: CitationSource) => {
+		const documentId = getDocumentId(source);
+		if (!documentId) return;
 
 		setIsLoadingDocument(true);
 
-    // Get cached metadata or fetch it
-    const cachedMetadata = queryClient.getQueryData(documentMetadataKeys.detail(documentId))
-    const displayTitle = (cachedMetadata as any)?.filename || source.title || 'Document'
+		// Get cached metadata or fetch it
+		const cachedMetadata = queryClient.getQueryData(
+			documentMetadataKeys.detail(documentId),
+		);
+		const displayTitle =
+			(cachedMetadata as any)?.filename || source.title || "Document";
 
-    try {
-      // Fetch/use cached metadata
-      const metadata = await queryClient.ensureQueryData({
-        queryKey: documentMetadataKeys.detail(documentId),
-        queryFn: async () => {
-          const { fileApi } = await import('@/services/api')
-          return await fileApi.getDocumentMetadata(documentId)
-        },
-      })
+		try {
+			// Fetch/use cached metadata
+			const metadata = await queryClient.ensureQueryData({
+				queryKey: documentMetadataKeys.detail(documentId),
+				queryFn: async () => {
+					const { fileApi } = await import("@/services/api");
+					return await fileApi.getDocumentMetadata(documentId);
+				},
+			});
 
 			const content =
-				metadata.metadata?.content ||
-				t("citations.documentProcessing");
+				metadata.metadata?.content || t("citations.documentProcessing");
 
 			setModalContent({
 				title: metadata.filename,
@@ -315,16 +319,16 @@ export function ResponseWithInlineCitations({
 			setModalOpen(true);
 		}
 
-    // Audit logging
-    console.log('Full document requested:', {
-      messageId,
-      sourceTitle: displayTitle,
-      documentId: documentId,
-      blob_metadata_id: source.blob_metadata_id,
-      blob_id: source.blob_id,
-      timestamp: new Date().toISOString(),
-    })
-  }
+		// Audit logging
+		console.log("Full document requested:", {
+			messageId,
+			sourceTitle: displayTitle,
+			documentId: documentId,
+			blob_metadata_id: source.blob_metadata_id,
+			blob_id: source.blob_id,
+			timestamp: new Date().toISOString(),
+		});
+	};
 
 	// Render text and citations inline together
 	return (
@@ -372,8 +376,12 @@ export function ResponseWithInlineCitations({
 			<Dialog open={modalOpen} onOpenChange={setModalOpen}>
 				<DialogContent className="sm:max-w-5xl max-h-[80vh] overflow-y-auto">
 					<DialogHeader>
-						<DialogTitle>{modalContent?.title || t("citations.documentTitle")}</DialogTitle>
-						<DialogDescription>{t("citations.fullDocumentContent")}</DialogDescription>
+						<DialogTitle>
+							{modalContent?.title || t("citations.documentTitle")}
+						</DialogTitle>
+						<DialogDescription>
+							{t("citations.fullDocumentContent")}
+						</DialogDescription>
 					</DialogHeader>
 					<div className="prose dark:prose-invert max-w-none">
 						{isLoadingDocument ? (
@@ -383,7 +391,9 @@ export function ResponseWithInlineCitations({
 						) : modalContent?.content ? (
 							<Streamdown>{modalContent.content}</Streamdown>
 						) : (
-							<p className="text-muted-foreground">{t("citations.noContent")}</p>
+							<p className="text-muted-foreground">
+								{t("citations.noContent")}
+							</p>
 						)}
 					</div>
 				</DialogContent>

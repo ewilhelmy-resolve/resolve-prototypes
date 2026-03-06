@@ -5,9 +5,9 @@
  * Response comes back via SSE 'dynamic_workflow' event with action='workflow_created'.
  */
 
-import keycloak from './keycloak';
+import keycloak from "./keycloak";
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || '';
+const API_BASE_URL = import.meta.env.VITE_API_URL || "";
 
 export interface GenerateWorkflowPayload {
 	query: string;
@@ -25,22 +25,24 @@ export const workflowApi = {
 			try {
 				await keycloak.updateToken(5);
 			} catch (error) {
-				console.error('Failed to refresh Keycloak token', error);
+				console.error("Failed to refresh Keycloak token", error);
 				keycloak.logout();
-				throw new Error('Authentication expired');
+				throw new Error("Authentication expired");
 			}
 		}
 
 		const response = await fetch(`${API_BASE_URL}/api/workflows/generate`, {
-			method: 'POST',
-			headers: { 'Content-Type': 'application/json' },
-			credentials: 'include',
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			credentials: "include",
 			body: JSON.stringify(payload),
 		});
 
 		if (!response.ok) {
 			const errorData = await response.json().catch(() => ({}));
-			throw new Error(errorData.error || `Workflow generation failed: ${response.status}`);
+			throw new Error(
+				errorData.error || `Workflow generation failed: ${response.status}`,
+			);
 		}
 	},
 };

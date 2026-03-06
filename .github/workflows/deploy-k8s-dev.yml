@@ -1,0 +1,293 @@
+name: Deploy to K8s Dev
+
+on:
+  workflow_dispatch:
+    inputs:
+      services:
+        description: 'Services to deploy (all, api-server, frontend)'
+        required: false
+        type: choice
+        default: 'all'
+        options:
+          - all
+          - api-server
+          - frontend
+  push:
+    branches-ignore:
+      - main
+env:
+  AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID || secrets.DEVOPS_AWS_ACCESS_KEY_ID }}
+  AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY || secrets.DEVOPS_AWS_SECRET_ACCESS_KEY }}
+
+jobs:
+  call_match_tenant:
+    uses: resolve-io/actions-deploy/.github/workflows/match_user_tenant_rita.yml@main
+    with:
+      TRIGGERING_ACTOR: ${{ github.triggering_actor }}
+      TARGET_REF: main
+    secrets:
+      MP_GHA_TOKEN: ${{ secrets.MP_GHA_TOKEN }}
+
+  build-and-push:
+    runs-on: ubuntu-latest
+    needs: call_match_tenant
+    outputs:
+      short-sha: ${{ steps.meta.outputs.short-sha }}
+      ecr-registry: ${{ steps.ecr-login.outputs.registry }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Generate metadata
+        id: meta
+        run: |
+          SHORT_SHA=${GITHUB_SHA::7}
+          echo "short-sha=${SHORT_SHA}" >> $GITHUB_OUTPUT
+
+      - uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build API Server
+        run: pnpm --filter rita-api-server build
+
+      - name: Patch Frontend for Runtime Config
+        run: |
+          # Overwrite keycloak.ts to inject runtime config check
+          cat > packages/client/src/services/keycloak.ts << 'EOF'
+          import Keycloak from 'keycloak-js';
+
+          // Runtime config from env-config.js (injected via Helm ConfigMap)
+          const envConfig = (window as any).ENV_CONFIG || {};
+
+          const keycloak = new Keycloak({
+            url: envConfig.KEYCLOAK_URL || import.meta.env.VITE_KEYCLOAK_URL || 'http://localhost:8080',
+            realm: envConfig.KEYCLOAK_REALM || import.meta.env.VITE_KEYCLOAK_REALM || 'rita',
+            clientId: envConfig.KEYCLOAK_CLIENT_ID || import.meta.env.VITE_KEYCLOAK_CLIENT_ID || 'onboarding-auth-client',
+          });
+
+          export default keycloak;
+          EOF
+
+      - name: Build Frontend
+        run: pnpm --filter rita-client build
+        env:
+          # Keycloak config injected at runtime - these are fallbacks
+          VITE_API_URL: ""
+
+      - name: Configure AWS Credentials
+        run: |
+          aws configure set aws_access_key_id $AWS_ACCESS_KEY_ID
+          aws configure set aws_secret_access_key $AWS_SECRET_ACCESS_KEY
+          aws configure set region us-east-1
+
+      - name: Login to Amazon ECR
+        id: ecr-login
+        run: |
+          aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin 432993365903.dkr.ecr.us-east-1.amazonaws.com
+          echo "registry=432993365903.dkr.ecr.us-east-1.amazonaws.com" >> $GITHUB_OUTPUT
+
+      - name: Build and push images
+        env:
+          ECR_REGISTRY: ${{ steps.ecr-login.outputs.registry }}
+          SHORT_SHA: ${{ steps.meta.outputs.short-sha }}
+        run: |
+          # API Server
+          docker build -t ${ECR_REGISTRY}/rita-api-server:${SHORT_SHA} -f packages/api-server/Dockerfile.prod .
+          docker push ${ECR_REGISTRY}/rita-api-server:${SHORT_SHA}
+
+          # Frontend
+          docker build -t ${ECR_REGISTRY}/rita-frontend:${SHORT_SHA} -f packages/client/Dockerfile.prod packages/client
+          docker push ${ECR_REGISTRY}/rita-frontend:${SHORT_SHA}
+
+  deploy-k8s:
+    runs-on: ubuntu-latest
+    needs: [build-and-push, call_match_tenant]
+    steps:
+      - name: Set tenant name variable
+        id: get-tenant
+        run: |
+          TENANT_TO_DEPLOY_TO=${{ needs.call_match_tenant.outputs.dev_tenant_name || 'rita-dev' }}
+          echo "deploy-tenant=$TENANT_TO_DEPLOY_TO" >> $GITHUB_OUTPUT
+
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS Credentials
+        run: |
+          aws configure set aws_access_key_id $AWS_ACCESS_KEY_ID
+          aws configure set aws_secret_access_key $AWS_SECRET_ACCESS_KEY
+          aws configure set region us-east-1
+
+      - name: Install Kops and Kubectl
+        run: |
+          KOPS_VERSION=$(curl -s https://api.github.com/repos/kubernetes/kops/releases/latest | jq -r .tag_name)
+          curl -LO https://github.com/kubernetes/kops/releases/download/${KOPS_VERSION}/kops-linux-amd64
+          chmod +x kops-linux-amd64
+          sudo mv kops-linux-amd64 /usr/local/bin/kops
+          sudo chmod +x /usr/local/bin/kops
+          curl -LO "https://dl.k8s.io/release/v1.31.2/bin/linux/amd64/kubectl"
+          sudo chmod +x kubectl
+          sudo mv kubectl /usr/local/bin/
+          sleep 5
+
+      - name: Verify Kops Installation
+        run: |
+          if [ -e /usr/local/bin/kops ]; then echo "File found"; else echo "kops not found"; fi
+          sudo chmod +x /usr/local/bin/kops
+          /usr/local/bin/kops version
+
+      - name: Set K8s Context
+        run: |
+          export NAME=resolve-actions-k8s.local
+          export KOPS_STATE_STORE=s3://devops-k8s-state-store
+          kops export kubeconfig --name ${NAME} --state ${KOPS_STATE_STORE} --admin
+
+      - name: Install Helm and Helmfile
+        run: |
+          curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+
+          # Install Helmfile
+          HELMFILE_VERSION=$(curl -s https://api.github.com/repos/helmfile/helmfile/releases/latest | jq -r .tag_name)
+          wget -q https://github.com/helmfile/helmfile/releases/download/${HELMFILE_VERSION}/helmfile_${HELMFILE_VERSION#v}_linux_amd64.tar.gz
+          tar -xzf helmfile_${HELMFILE_VERSION#v}_linux_amd64.tar.gz
+          sudo mv helmfile /usr/local/bin/helmfile
+          sudo chmod +x /usr/local/bin/helmfile
+
+          helm plugin install https://github.com/databus23/helm-diff
+
+      - name: Verify cluster connectivity
+        run: |
+          echo "Testing cluster connectivity with retry..."
+
+          # Retry function for kubectl commands
+          retry_kubectl() {
+            local max_attempts=5
+            local timeout=2
+            local attempt=1
+
+            while [ $attempt -le $max_attempts ]; do
+              echo "Attempt $attempt of $max_attempts..."
+              if "$@"; then
+                return 0
+              fi
+
+              if [ $attempt -lt $max_attempts ]; then
+                echo "Command failed, retrying in ${timeout}s..."
+                sleep $timeout
+                timeout=$((timeout * 2))
+              fi
+              attempt=$((attempt + 1))
+            done
+
+            echo "Command failed after $max_attempts attempts"
+            return 1
+          }
+
+          retry_kubectl kubectl cluster-info
+          retry_kubectl kubectl get nodes
+          retry_kubectl kubectl get namespaces
+
+      - name: Clean up stuck Helm releases
+        run: |
+          NAMESPACE=${{ steps.get-tenant.outputs.deploy-tenant }}
+          echo "Checking for stuck releases in namespace: $NAMESPACE"
+
+          # List all releases in pending states
+          for release in $(helm list -n $NAMESPACE -a --output json | jq -r '.[] | select(.status | test("pending|failed")) | .name'); do
+            echo "Found stuck release: $release"
+            helm rollback $release 0 -n $NAMESPACE --force || helm uninstall $release -n $NAMESPACE || true
+          done
+
+      - name: Deploy via helmfile (multi-tenant with selectors)
+        working-directory: helm/ritadev/ops
+        env:
+          IMAGE_TAG: ${{ needs.build-and-push.outputs.short-sha }}
+          ECR_REGISTRY: ${{ needs.build-and-push.outputs.ecr-registry }}
+          DATABASE_URL: ${{ secrets.DEV_DATABASE_URL }}
+          RABBITMQ_URL: ${{ secrets.DEV_RABBITMQ_URL }}
+          KEYCLOAK_ISSUER: ${{ secrets.DEV_KEYCLOAK_ISSUER }}
+          DEV_KEYCLOAK_ADMIN: "admin-dev"
+          DEV_KEYCLOAK_ADMIN_PASS: ${{ secrets.DEV_KEYCLOAK_ADMIN_PASS }}
+          KEYCLOAK_DB_PASSWORD: ${{ secrets.DEV_KEYCLOAK_DB_PASSWORD }}
+          CONSUL_HTTP_TOKEN: ${{ secrets.DEV_CONSUL_HTTP_TOKEN }}
+          CONSUL_HTTP_ADDR: ${{ secrets.DEV_CONSUL_HTTP_ADDR }}
+          VALKEY_URL: ${{ secrets.VALKEY_URL_DEV }}
+          AUTOMATION_WEBHOOK_URL: ${{ secrets.DEV_AUTOMATION_WEBHOOK_URL }}
+          AUTOMATION_AUTH: ${{ secrets.DEV_AUTOMATION_AUTH }}
+          ROUTE53_ENABLED: ${{ secrets.ROUTE53_ENABLED || 'false' }}
+          ROUTE53_HOSTED_ZONE_ID: ${{ secrets.ROUTE53_HOSTED_ZONE_ID || '' }}
+          DEV_RITA_CLIENT_SECRET: ${{ secrets.DEV_RITA_CLIENT_SECRET }}
+        run: |
+          # Retry function for helmfile commands
+          retry_helmfile() {
+            local max_attempts=3
+            local timeout=5
+            local attempt=1
+
+            while [ $attempt -le $max_attempts ]; do
+              echo "Helmfile attempt $attempt of $max_attempts..."
+              if "$@"; then
+                return 0
+              fi
+
+              if [ $attempt -lt $max_attempts ]; then
+                echo "Helmfile command failed, retrying in ${timeout}s..."
+                sleep $timeout
+                timeout=$((timeout + 2))
+              fi
+              attempt=$((attempt + 1))
+            done
+
+            echo "Helmfile command failed after $max_attempts attempts"
+            return 1
+          }
+
+          # Determine which services to deploy
+          SERVICES="${{ github.event.inputs.services || 'all' }}"
+
+          if [ "$SERVICES" = "all" ]; then
+            # Deploy all services with retry
+            retry_helmfile helmfile -e dev \
+              --state-values-set namespace=${{ steps.get-tenant.outputs.deploy-tenant }} \
+              apply --concurrency 3
+          else
+            # Deploy specific services via selectors with retry
+            IFS=',' read -ra SERVICE_ARRAY <<< "$SERVICES"
+            SELECTORS=""
+            for service in "${SERVICE_ARRAY[@]}"; do
+              SELECTORS="$SELECTORS --selector app=$service"
+            done
+
+            retry_helmfile helmfile -e dev \
+              --state-values-set namespace=${{ steps.get-tenant.outputs.deploy-tenant }} \
+              $SELECTORS \
+              apply --concurrency 3
+          fi
+
+      - name: Verify deployment
+        run: |
+          NAMESPACE=${{ steps.get-tenant.outputs.deploy-tenant }}
+
+          # Wait for deployments to be ready
+          kubectl rollout status deployment/api-server -n $NAMESPACE --timeout=5m || true
+          kubectl rollout status deployment/frontend -n $NAMESPACE --timeout=5m || true
+
+          # Show pod statuses
+          echo "=== Pod Status ==="
+          kubectl get pods -n $NAMESPACE
+
+          # Show services
+          echo "=== Services ==="
+          kubectl get svc -n $NAMESPACE
+
+          # Show ingress
+          echo "=== Ingress ==="
+          kubectl get ingress -n $NAMESPACE

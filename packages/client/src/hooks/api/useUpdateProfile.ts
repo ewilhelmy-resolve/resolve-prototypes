@@ -4,12 +4,12 @@
  */
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useAuthStore } from "@/stores/auth-store";
 import {
 	profileApi,
 	type UpdateProfileRequest,
 	type UpdateProfileResponse,
 } from "@/services/api/profile";
+import { useAuthStore } from "@/stores/auth-store";
 import type { User } from "@/types/auth";
 import { profileKeys } from "./useProfile";
 

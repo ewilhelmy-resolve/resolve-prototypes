@@ -1,9 +1,15 @@
-import { useTranslation } from "react-i18next";
 import { ThumbsDown, ThumbsUp } from "lucide-react";
+import {
+	forwardRef,
+	useCallback,
+	useEffect,
+	useImperativeHandle,
+	useRef,
+} from "react";
+import { useTranslation } from "react-i18next";
 import { Confetti, type ConfettiRef } from "@/components/ui/confetti";
-import { ProTipBadge } from "./ProTipBadge";
 import { cn } from "@/lib/utils";
-import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef } from "react";
+import { ProTipBadge } from "./ProTipBadge";
 
 export interface ReviewCompletionStatsRef {
 	fireConfetti: () => void;
@@ -63,7 +69,7 @@ export const ReviewCompletionStats = forwardRef<
 		showConfetti = false,
 		className,
 	},
-	ref
+	ref,
 ) {
 	const { t } = useTranslation("tickets");
 	const confettiRef = useRef<ConfettiRef>(null);
@@ -76,9 +82,13 @@ export const ReviewCompletionStats = forwardRef<
 		});
 	}, []);
 
-	useImperativeHandle(ref, () => ({
-		fireConfetti,
-	}), [fireConfetti]);
+	useImperativeHandle(
+		ref,
+		() => ({
+			fireConfetti,
+		}),
+		[fireConfetti],
+	);
 
 	// Auto-fire confetti on mount when showConfetti is true
 	useEffect(() => {
@@ -92,7 +102,7 @@ export const ReviewCompletionStats = forwardRef<
 		<div
 			className={cn(
 				"flex flex-col items-center justify-center gap-6 text-center relative",
-				className
+				className,
 			)}
 		>
 			{/* Confetti Canvas */}
@@ -116,19 +126,25 @@ export const ReviewCompletionStats = forwardRef<
 				<p className="text-7xl font-serif font-light text-foreground">
 					{trusted} / {totalReviewed}
 				</p>
-				<p className="text-sm text-muted-foreground">{t("completion.stats.trustedResponses")}</p>
+				<p className="text-sm text-muted-foreground">
+					{t("completion.stats.trustedResponses")}
+				</p>
 			</div>
 
 			{/* Stats Row */}
 			<div className="flex items-center justify-center gap-6">
 				<div className="flex items-center gap-1.5">
 					<ThumbsDown className="size-4 text-destructive" />
-					<span className="text-sm text-muted-foreground">{t("completion.stats.needImprovement")}</span>
+					<span className="text-sm text-muted-foreground">
+						{t("completion.stats.needImprovement")}
+					</span>
 					<span className="text-sm font-semibold">{needsImprovement}</span>
 				</div>
 				<div className="flex items-center gap-1.5">
 					<ThumbsUp className="size-4 text-emerald-500" />
-					<span className="text-sm text-muted-foreground">{t("completion.stats.trusted")}</span>
+					<span className="text-sm text-muted-foreground">
+						{t("completion.stats.trusted")}
+					</span>
 					<span className="text-sm font-semibold">{trusted}</span>
 				</div>
 			</div>
@@ -136,9 +152,7 @@ export const ReviewCompletionStats = forwardRef<
 			{/* Message + Pro-tip */}
 			{(message || proTip) && (
 				<div className="flex flex-col items-center gap-3 mt-2">
-					{message && (
-						<p className="text-sm text-foreground">{message}</p>
-					)}
+					{message && <p className="text-sm text-foreground">{message}</p>}
 					{proTip && <ProTipBadge>{proTip}</ProTipBadge>}
 				</div>
 			)}

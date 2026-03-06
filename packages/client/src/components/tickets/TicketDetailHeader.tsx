@@ -1,6 +1,6 @@
+import { ArrowLeft, ChevronDown, ChevronUp } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, ChevronDown, ChevronUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface TicketDetailHeaderProps {
@@ -12,8 +12,6 @@ interface TicketDetailHeaderProps {
 	clusterId?: string;
 	/** List of all ticket IDs for navigation */
 	ticketIds: string[];
-	/** Callback when Review AI response button is clicked */
-	onReviewAIResponse: () => void;
 	/** Optional callback for back navigation - overrides default */
 	onBack?: () => void;
 	/** Optional callback for previous ticket - overrides default */
@@ -29,14 +27,12 @@ interface TicketDetailHeaderProps {
  * - Back arrow to return to cluster
  * - Current ticket ID display
  * - Up/Down navigation between tickets
- * - Review AI response button
  */
 export function TicketDetailHeader({
 	ticketId,
 	externalId,
 	clusterId,
 	ticketIds,
-	onReviewAIResponse,
 	onBack,
 	onPrevious,
 	onNext,
@@ -115,11 +111,6 @@ export function TicketDetailHeader({
 					</Button>
 				</div>
 			</div>
-
-			{/* Right side - Review AI response button */}
-			<Button onClick={onReviewAIResponse}>
-				{t("review.title")}
-			</Button>
 		</div>
 	);
 }

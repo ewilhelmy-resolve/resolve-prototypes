@@ -102,10 +102,12 @@ export interface KbArticle {
 }
 
 /**
- * Pagination cursor info
+ * Offset-based pagination info (for clusters and cluster tickets)
  */
 export interface PaginationInfo {
-	next_cursor: string | null;
+	total: number;
+	limit: number;
+	offset: number;
 	has_more: boolean;
 }
 
@@ -126,7 +128,7 @@ export interface ClustersQueryParams {
 	sort?: ClusterSortOption;
 	period?: PeriodFilter;
 	limit?: number;
-	cursor?: string;
+	offset?: number;
 	kb_status?: KBStatus;
 	search?: string;
 }
@@ -146,7 +148,7 @@ export type SortDirection = "asc" | "desc";
  */
 export interface ClusterTicketsQueryParams {
 	tab?: "needs_response" | "completed";
-	cursor?: string;
+	offset?: number;
 	limit?: number;
 	search?: string;
 	sort?: TicketSortOption;
@@ -160,6 +162,7 @@ export interface ClusterTicketsQueryParams {
 export interface ClusterTotals {
 	total_clusters: number;
 	total_tickets: number;
+	total_automated_tickets: number;
 }
 
 /**
