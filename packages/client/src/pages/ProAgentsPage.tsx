@@ -51,10 +51,10 @@ export default function ProAgentsPage() {
 			<ProSubNav />
 			<div className="p-6 space-y-4">
 				<div className="flex items-center justify-between">
-					<h1 className="text-2xl font-bold">Agents</h1>
+					<h1 className="text-2xl font-bold">Dynamic MCPs</h1>
 					<Button onClick={() => navigate("/pro/agents/create")}>
 						<Plus className="size-4" />
-						New Agent
+						New Dynamic MCP
 					</Button>
 				</div>
 
@@ -65,11 +65,11 @@ export default function ProAgentsPage() {
 							aria-hidden="true"
 						/>
 						<Input
-							placeholder="Search agents..."
+							placeholder="Search dynamic MCPs..."
 							value={searchQuery}
 							onChange={(e) => setSearchQuery(e.target.value)}
 							className="pl-9"
-							aria-label="Search agents"
+							aria-label="Search dynamic MCPs"
 						/>
 					</div>
 					<Select

@@ -78,7 +78,7 @@ export function ProAgentTable({
 							</TableCell>
 							<TableCell>
 								<code className="rounded bg-muted px-1.5 py-0.5 font-mono text-xs">
-									/api/v1/agents/{agent.endpointSlug}/run
+									/api/v1/mcp/{agent.endpointSlug}/run
 								</code>
 							</TableCell>
 							<TableCell>

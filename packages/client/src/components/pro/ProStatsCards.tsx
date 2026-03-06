@@ -7,9 +7,9 @@ interface ProStatsCardsProps {
 }
 
 const statConfig = [
-	{ key: "totalAgents", label: "Total Agents", icon: Bot },
+	{ key: "totalAgents", label: "Total Dynamic MCPs", icon: Bot },
 	{ key: "totalSkills", label: "Total Skills", icon: Puzzle },
-	{ key: "activeAgents", label: "Active Agents", icon: Activity },
+	{ key: "activeAgents", label: "Active Dynamic MCPs", icon: Activity },
 	{ key: "totalApiCalls", label: "API Calls", icon: BarChart3 },
 ] as const;
 

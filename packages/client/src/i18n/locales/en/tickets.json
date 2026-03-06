@@ -334,8 +334,7 @@
 			"externalId": "External ID",
 			"priority": "Priority",
 			"status": "Status",
-			"requester": "Requester",
-			"assignedTo": "Assigned To",
+			"assignmentGroup": "Assignment Group",
 			"source": "Source",
 			"created": "Created"
 		},

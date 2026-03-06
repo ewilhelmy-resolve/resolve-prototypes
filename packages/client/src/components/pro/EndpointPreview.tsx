@@ -78,7 +78,7 @@ function buildCurlExample(slug: string, skills: MCPSkill[]): string {
 
 	return [
 		"curl -X POST \\",
-		`  https://api.resolve.ai/v1/agents/${path}/run \\`,
+		`  https://api.resolve.ai/v1/mcp/${path}/run \\`,
 		'  -H "Authorization: Bearer <api-key>" \\',
 		'  -H "Content-Type: application/json" \\',
 		`  -d '${body}'`,
@@ -95,8 +95,8 @@ export function EndpointPreview({
 	const curlExample = buildCurlExample(endpointSlug, selectedSkills);
 	const variableGroups = getVariablesBySkill(selectedSkills);
 	const displayPath = endpointSlug
-		? `/api/v1/agents/${endpointSlug}/run`
-		: "/api/v1/agents/.../run";
+		? `/api/v1/mcp/${endpointSlug}/run`
+		: "/api/v1/mcp/.../run";
 
 	const handleCopy = useCallback(async () => {
 		await copyToClipboard(curlExample);

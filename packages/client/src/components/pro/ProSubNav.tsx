@@ -36,7 +36,7 @@ export function ProSubNav() {
 						value="agents"
 						className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none"
 					>
-						Agents
+						Dynamic MCPs
 					</TabsTrigger>
 				</TabsList>
 			</Tabs>

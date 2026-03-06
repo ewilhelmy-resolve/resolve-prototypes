@@ -30,6 +30,11 @@ export interface MCPVariable {
 export type MCPAuthType = "none" | "bearer" | "api_key";
 
 /**
+ * Authentication methods for dynamic MCP endpoints
+ */
+export type MCPAuthMethod = "none" | "oauth" | "api_key" | "bearer";
+
+/**
  * MCP skill configuration
  */
 export interface MCPSkill {
@@ -56,7 +61,8 @@ export interface ProAgentVersion {
 	name: string;
 	description: string;
 	endpointSlug: string;
-	workflowId: string | null;
+	runbookId: string | null;
+	authMethod: MCPAuthMethod;
 	skillIds: string[];
 	status: ProAgentStatus;
 	createdAt: string;
@@ -71,7 +77,8 @@ export interface ProAgent {
 	name: string;
 	description: string;
 	endpointSlug: string;
-	workflowId: string | null;
+	runbookId: string | null;
+	authMethod: MCPAuthMethod;
 	skillIds: string[];
 	status: ProAgentStatus;
 	apiKey?: string;
@@ -84,7 +91,7 @@ export interface ProAgent {
 /**
  * Workflow reference for agent assignment
  */
-export interface ProWorkflow {
+export interface ProRunbook {
 	id: string;
 	name: string;
 	description: string;

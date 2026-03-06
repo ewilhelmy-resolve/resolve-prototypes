@@ -21,11 +21,11 @@ import { Textarea } from "@/components/ui/textarea";
 import {
 	MOCK_MCP_SKILLS,
 	MOCK_PRO_AGENTS,
-	MOCK_PRO_WORKFLOWS,
+	MOCK_PRO_RUNBOOKS,
 } from "@/data/mock-pro";
-import type { MCPSkill, ProAgentVersion } from "@/types/pro";
+import type { MCPAuthMethod, MCPSkill, ProAgentVersion } from "@/types/pro";
 
-const NONE_WORKFLOW = "__none__";
+const NONE_RUNBOOK = "__none__";
 
 function slugify(value: string): string {
 	return value
@@ -64,8 +64,11 @@ export default function ProAgentBuilderPage() {
 	const [endpointSlug, setEndpointSlug] = useState(
 		latestVersion?.endpointSlug ?? existingAgent?.endpointSlug ?? "",
 	);
-	const [workflowId, setWorkflowId] = useState(
-		latestVersion?.workflowId ?? existingAgent?.workflowId ?? NONE_WORKFLOW,
+	const [runbookId, setRunbookId] = useState(
+		latestVersion?.runbookId ?? existingAgent?.runbookId ?? NONE_RUNBOOK,
+	);
+	const [authMethod, setAuthMethod] = useState<MCPAuthMethod>(
+		latestVersion?.authMethod ?? existingAgent?.authMethod ?? "none",
 	);
 	const [selectedSkillIds, setSelectedSkillIds] = useState<string[]>(
 		latestVersion?.skillIds ?? existingAgent?.skillIds ?? [],
@@ -92,7 +95,8 @@ export default function ProAgentBuilderPage() {
 			setName(ver.name);
 			setDescription(ver.description);
 			setEndpointSlug(ver.endpointSlug);
-			setWorkflowId(ver.workflowId ?? NONE_WORKFLOW);
+			setRunbookId(ver.runbookId ?? NONE_RUNBOOK);
+			setAuthMethod(ver.authMethod ?? "none");
 			setSelectedSkillIds([...ver.skillIds]);
 			slugManuallyEdited.current = true;
 		}
@@ -128,7 +132,8 @@ export default function ProAgentBuilderPage() {
 		name,
 		description,
 		endpointSlug,
-		workflowId: workflowId === NONE_WORKFLOW ? null : workflowId,
+		runbookId: runbookId === NONE_RUNBOOK ? null : runbookId,
+		authMethod,
 		skillIds: selectedSkillIds,
 	});
 
@@ -146,7 +151,8 @@ export default function ProAgentBuilderPage() {
 			name,
 			description,
 			endpointSlug,
-			workflowId: workflowId === NONE_WORKFLOW ? null : workflowId,
+			runbookId: runbookId === NONE_RUNBOOK ? null : runbookId,
+			authMethod,
 			skillIds: [...selectedSkillIds],
 			status: "active",
 			createdAt: now,
@@ -168,7 +174,7 @@ export default function ProAgentBuilderPage() {
 			<div className="p-6">
 				<div className="flex items-center gap-3 mb-6">
 					<h1 className="text-2xl font-bold">
-						{isEdit ? "Edit Agent" : "Create Agent"}
+						{isEdit ? "Edit Dynamic MCP" : "Create Dynamic MCP"}
 					</h1>
 					{isEdit && versions.length > 0 && (
 						<Select
@@ -197,11 +203,11 @@ export default function ProAgentBuilderPage() {
 				</div>
 
 				<div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-					{/* Left: Agent Config */}
+					{/* Left: MCP Config */}
 					<form
 						className="space-y-5"
 						onSubmit={(e) => e.preventDefault()}
-						aria-label={isEdit ? "Edit agent" : "Create agent"}
+						aria-label={isEdit ? "Edit dynamic MCP" : "Create dynamic MCP"}
 					>
 						<div className="space-y-1.5">
 							<Label htmlFor="agent-name">
@@ -239,21 +245,66 @@ export default function ProAgentBuilderPage() {
 						</div>
 
 						<div className="space-y-1.5">
-							<Label htmlFor="agent-workflow">Workflow</Label>
-							<Select value={workflowId} onValueChange={setWorkflowId}>
-								<SelectTrigger id="agent-workflow">
-									<SelectValue placeholder="Select a workflow" />
+							<Label htmlFor="agent-runbook">Runbook</Label>
+							<Select value={runbookId} onValueChange={setRunbookId}>
+								<SelectTrigger id="agent-runbook">
+									<SelectValue placeholder="Select a runbook" />
 								</SelectTrigger>
 								<SelectContent>
-									<SelectItem value={NONE_WORKFLOW}>None</SelectItem>
-									{MOCK_PRO_WORKFLOWS.map((wf) => (
-										<SelectItem key={wf.id} value={wf.id}>
-											{wf.name}
+									<SelectItem value={NONE_RUNBOOK}>None</SelectItem>
+									{MOCK_PRO_RUNBOOKS.map((rb) => (
+										<SelectItem key={rb.id} value={rb.id}>
+											{rb.name}
 										</SelectItem>
 									))}
 								</SelectContent>
 							</Select>
 						</div>
+
+						<div className="space-y-1.5">
+							<Label htmlFor="agent-auth">Authentication</Label>
+							<Select
+								value={authMethod}
+								onValueChange={(v) => setAuthMethod(v as MCPAuthMethod)}
+							>
+								<SelectTrigger id="agent-auth">
+									<SelectValue placeholder="Select authentication" />
+								</SelectTrigger>
+								<SelectContent>
+									<SelectItem value="none">None</SelectItem>
+									<SelectItem value="oauth">OAuth</SelectItem>
+									<SelectItem value="api_key">API Key</SelectItem>
+									<SelectItem value="bearer">Bearer Token</SelectItem>
+								</SelectContent>
+							</Select>
+						</div>
+
+						{authMethod === "oauth" && (
+							<div className="space-y-3 rounded-md border p-4">
+								<div className="space-y-1.5">
+									<Label htmlFor="oauth-client-id">Client ID</Label>
+									<Input id="oauth-client-id" placeholder="Enter client ID" />
+								</div>
+								<div className="space-y-1.5">
+									<Label htmlFor="oauth-client-secret">Client Secret</Label>
+									<Input id="oauth-client-secret" type="password" placeholder="Enter client secret" />
+								</div>
+							</div>
+						)}
+
+						{authMethod === "api_key" && (
+							<div className="space-y-1.5 rounded-md border p-4">
+								<Label htmlFor="auth-api-key">API Key</Label>
+								<Input id="auth-api-key" type="password" placeholder="Enter API key" />
+							</div>
+						)}
+
+						{authMethod === "bearer" && (
+							<div className="space-y-1.5 rounded-md border p-4">
+								<Label htmlFor="auth-bearer-token">Bearer Token</Label>
+								<Input id="auth-bearer-token" type="password" placeholder="Enter bearer token" />
+							</div>
+						)}
 
 						<div className="space-y-3">
 							<Label>MCP Skills</Label>

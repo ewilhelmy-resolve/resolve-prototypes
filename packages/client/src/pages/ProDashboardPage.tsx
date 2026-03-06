@@ -29,7 +29,7 @@ export default function ProDashboardPage() {
 
 				<section>
 					<div className="flex items-center justify-between mb-4">
-						<h2 className="text-lg font-semibold">Recent Agents</h2>
+						<h2 className="text-lg font-semibold">Recent Dynamic MCPs</h2>
 						<Link
 							to="/pro/agents"
 							className="text-sm text-primary hover:underline"

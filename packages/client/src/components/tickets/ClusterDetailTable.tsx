@@ -285,8 +285,7 @@ export function ClusterDetailTable({ clusterId, totalCount, openCount: clusterOp
 							</TableHead>
 							<TableHead>{t("table.headers.priority")}</TableHead>
 							<TableHead>{t("table.headers.status")}</TableHead>
-							<TableHead>{t("table.headers.requester")}</TableHead>
-							<TableHead>{t("table.headers.assignedTo")}</TableHead>
+							<TableHead>{t("table.headers.assignmentGroup")}</TableHead>
 							<TableHead>{t("table.headers.source")}</TableHead>
 							<TableHead className="text-right">
 								<Button
@@ -303,7 +302,7 @@ export function ClusterDetailTable({ clusterId, totalCount, openCount: clusterOp
 					<TableBody>
 						{tickets.length === 0 ? (
 							<TableRow>
-								<TableCell colSpan={8} className="h-24 text-center">
+								<TableCell colSpan={7} className="h-24 text-center">
 									{t("table.noTickets")}
 								</TableCell>
 							</TableRow>
@@ -323,7 +322,6 @@ export function ClusterDetailTable({ clusterId, totalCount, openCount: clusterOp
 										{row.priority ? capitalize(row.priority) : "\u2014"}
 									</TableCell>
 									<TableCell>{row.external_status || "\u2014"}</TableCell>
-									<TableCell>{row.requester || "\u2014"}</TableCell>
 									<TableCell>{row.assigned_to || "\u2014"}</TableCell>
 									<TableCell>
 										{getTicketSource(row.source_metadata) && (
