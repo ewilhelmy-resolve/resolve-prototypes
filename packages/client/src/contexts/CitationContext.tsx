@@ -64,8 +64,8 @@ function getInitialVariant(
 	defaultVariant: CitationVariant = "collapsible-list",
 ): CitationVariant {
 	// 1. Check environment variable (build-time configuration)
-	if (process?.env.VITE_CITATION_VARIANT) {
-		const envVariant = process.env.VITE_CITATION_VARIANT as CitationVariant;
+	if (import.meta.env.VITE_CITATION_VARIANT) {
+		const envVariant = import.meta.env.VITE_CITATION_VARIANT as CitationVariant;
 		if (isValidVariant(envVariant)) {
 			return envVariant;
 		}
