@@ -198,17 +198,17 @@ describe("ClusterDetailTable pagination", () => {
 	});
 
 	// -------------------------------------------------------------------
-	// 3. Does not crash when source_metadata.source is a number (Freshdesk)
+	// 3. Does not crash when source_metadata.source is a number (Freshservice)
 	// -------------------------------------------------------------------
 	it("does not crash when source_metadata.source is a non-string value", async () => {
-		// Freshdesk stores source as a number (e.g. 2), not a string
-		const freshdeskTickets = makeTickets(2, {
+		// Freshservice stores source as a number (e.g. 2), not a string
+		const freshserviceTickets = makeTickets(2, {
 			source_metadata: { source: 2, id: 12345 },
 		});
 
 		mockUseClusterTickets.mockReturnValue({
 			data: {
-				data: freshdeskTickets,
+				data: freshserviceTickets,
 				pagination: { total: 2, limit: 10, offset: 0, has_more: false },
 			},
 			isLoading: false,

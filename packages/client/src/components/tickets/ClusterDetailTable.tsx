@@ -48,7 +48,7 @@ const formatDate = (dateString: string): string => {
 	});
 };
 
-// Extract source from source_metadata or default to servicenow
+// Extract source from source_metadata (Freshservice stores source as a number)
 const getTicketSource = (metadata: Record<string, unknown>): string => {
 	return (metadata?.source as string) || "";
 };
@@ -66,7 +66,11 @@ const capitalize = (value: string): string => {
 /**
  * ClusterDetailTable - Table displaying tickets with filters and pagination
  */
-export function ClusterDetailTable({ clusterId, totalCount, openCount: clusterOpenCount }: ClusterDetailTableProps) {
+export function ClusterDetailTable({
+	clusterId,
+	totalCount,
+	openCount: clusterOpenCount,
+}: ClusterDetailTableProps) {
 	const { t } = useTranslation("tickets");
 	const [activeTab, setActiveTab] = useState<"open" | "all">("open");
 	const [cursor, setCursor] = useState<string | undefined>(undefined);
@@ -162,7 +166,9 @@ export function ClusterDetailTable({ clusterId, totalCount, openCount: clusterOp
 		);
 	}
 
-	const openTabCount = clusterOpenCount ?? rawTickets.filter((t) => t.external_status === "Open").length;
+	const openTabCount =
+		clusterOpenCount ??
+		rawTickets.filter((t) => t.external_status === "Open").length;
 	const allTabCount = totalCount ?? rawTickets.length;
 
 	const handleTabChange = (tab: "open" | "all") => {

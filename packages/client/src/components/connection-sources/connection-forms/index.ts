@@ -1,5 +1,5 @@
 export { ConfluenceForm } from "./ConfluenceForm";
-export { FreshdeskForm } from "./FreshdeskForm";
+export { FreshserviceForm } from "./FreshserviceForm";
 export { IvantiForm } from "./IvantiForm";
 export { JiraForm } from "./JiraForm";
 export { ServiceNowForm } from "./ServiceNowForm";

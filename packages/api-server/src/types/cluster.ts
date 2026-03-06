@@ -76,7 +76,6 @@ export type PeriodFilter = "last30" | "last90" | "last6months" | "lastyear";
 export interface ClusterListQueryOptions {
 	sort?: ClusterSortOption;
 	period?: PeriodFilter;
-	includeInactive?: boolean;
 	limit?: number;
 	offset?: number;
 	kbStatus?: KBStatus;

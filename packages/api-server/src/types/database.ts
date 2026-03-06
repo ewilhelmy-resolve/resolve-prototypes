@@ -507,6 +507,9 @@ export interface SyncCancellationRequests {
 }
 
 export interface Tickets {
+	/**
+	 * Assigned agent from ITSM (set by ingestion)
+	 */
 	assigned_to: string | null;
 	/**
 	 * NULL until classification workflow assigns cluster
@@ -533,7 +536,13 @@ export interface Tickets {
 	external_status: string;
 	id: Generated<string>;
 	organization_id: string;
+	/**
+	 * Ticket priority from ITSM (set by ingestion)
+	 */
 	priority: string | null;
+	/**
+	 * Ticket requester from ITSM (set by ingestion)
+	 */
 	requester: string | null;
 	/**
 	 * Rita processing status: NEEDS_RESPONSE or COMPLETED

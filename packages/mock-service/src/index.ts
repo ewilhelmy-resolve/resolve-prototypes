@@ -17,7 +17,7 @@ import {
 } from "./config/logger.js";
 import { syncConfluenceData } from "./confluence-sync.js";
 import { emailService } from "./email-service.js";
-import { syncFreshdeskData } from "./freshdesk-sync.js";
+import { syncFreshserviceData } from "./freshservice-sync.js";
 import { syncServiceNowData } from "./servicenow-sync.js";
 import { getRabbitMQService } from "./services/rabbitmq.js";
 
@@ -3137,12 +3137,12 @@ app.post("/webhook", async (req, res) => {
 				"Received sync_tickets webhook",
 			);
 
-			// For ServiceNow ITSM, Ivanti ITSM, and Freshdesk, insert actual test data into the database
+			// For ServiceNow ITSM, Ivanti ITSM, and Freshservice, insert actual test data into the database
 			const isServiceNow = ticketsPayload.connection_type === "servicenow_itsm";
 			const isIvanti = ticketsPayload.connection_type === "ivanti_itsm";
-			const isFreshdesk =
+			const isFreshservice =
 				ticketsPayload.connection_type === "freshservice_itsm";
-			const useRealData = isServiceNow || isIvanti || isFreshdesk;
+			const useRealData = isServiceNow || isIvanti || isFreshservice;
 
 			// Start async data sync and progress reporting
 			(async () => {
@@ -3192,9 +3192,9 @@ app.post("/webhook", async (req, res) => {
 					let ticketsCreated = 0;
 
 					if (useRealData) {
-						// Insert actual data for ServiceNow/Ivanti/Freshdesk ITSM
-						const providerName = isFreshdesk
-							? "Freshdesk"
+						// Insert actual data for ServiceNow/Ivanti/Freshservice ITSM
+						const providerName = isFreshservice
+							? "Freshservice"
 							: isServiceNow
 								? "ServiceNow"
 								: "Ivanti";
@@ -3221,8 +3221,8 @@ app.post("/webhook", async (req, res) => {
 						);
 
 						// Perform actual data insertion
-						const syncResult = isFreshdesk
-							? await syncFreshdeskData(
+						const syncResult = isFreshservice
+							? await syncFreshserviceData(
 									ticketsPayload.tenant_id,
 									ticketsPayload.connection_id,
 									ticketsPayload.ingestion_run_id,

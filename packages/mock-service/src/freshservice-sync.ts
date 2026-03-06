@@ -8,13 +8,13 @@ import {
 
 export type { SyncResult } from "./sync-common.js";
 
-export interface FreshdeskSyncSettings {
+export interface FreshserviceSyncSettings {
 	domain?: string;
 	time_range_days?: number;
 	[key: string]: unknown;
 }
 
-// --- Freshdesk-specific data ---
+// --- Freshservice-specific data ---
 
 const CLUSTER_NAMES = [
 	"Subscription & Billing Disputes",
@@ -168,7 +168,7 @@ const AGENTS = [
 	"",
 ];
 
-function generateFreshdeskMetadata(
+function generateFreshserviceMetadata(
 	ticketId: number,
 	subject: string,
 	requester: string,
@@ -226,7 +226,7 @@ function generateFreshdeskMetadata(
 	};
 }
 
-function matchFreshdeskScenario(domain: string): TrainingScenario {
+function matchFreshserviceScenario(domain: string): TrainingScenario {
 	const lower = domain.toLowerCase();
 	if (lower.includes("mock-null")) return "null";
 	if (lower.includes("mock-failed")) return "failed";
@@ -234,11 +234,11 @@ function matchFreshdeskScenario(domain: string): TrainingScenario {
 	return "complete";
 }
 
-const freshdeskConfig: ProviderConfig = {
+const freshserviceConfig: ProviderConfig = {
 	name: "freshservice_itsm",
-	loggerName: "freshdesk-sync",
-	modelName: "Freshdesk ITSM Model",
-	externalModelIdPrefix: "mock-freshdesk-model-",
+	loggerName: "freshservice-sync",
+	modelName: "Freshservice ITSM Model",
+	externalModelIdPrefix: "mock-freshservice-model-",
 	externalIdPrefix: "FD-",
 	externalStatus: "Open",
 	ticketNumStart: 50001,
@@ -258,37 +258,37 @@ const freshdeskConfig: ProviderConfig = {
 		[60, 120],
 		[120, 240],
 	],
-	generateMetadata: generateFreshdeskMetadata,
+	generateMetadata: generateFreshserviceMetadata,
 	getScenarioKey: (settings) => (settings?.domain as string) || undefined,
-	matchScenario: matchFreshdeskScenario,
+	matchScenario: matchFreshserviceScenario,
 };
 
 // --- Public API (backward-compatible signatures) ---
 
 /**
  * Determine training scenario from domain
- * - mock-null.freshdesk.com: Don't create ml_model
- * - mock-failed.freshdesk.com: Create with training_state: "failed"
- * - mock-progress.freshdesk.com: Create with training_state: "in_progress" (stays)
+ * - mock-null.freshservice.com: Don't create ml_model
+ * - mock-failed.freshservice.com: Create with training_state: "failed"
+ * - mock-progress.freshservice.com: Create with training_state: "in_progress" (stays)
  * - (default): Create with in_progress, transition to complete after delay
  */
 export function getTrainingScenario(
 	domain: string | undefined,
 ): TrainingScenario {
-	return getTrainingScenarioFromConfig(freshdeskConfig, { domain });
+	return getTrainingScenarioFromConfig(freshserviceConfig, { domain });
 }
 
 /**
- * Simulate Freshdesk ITSM sync by inserting realistic test data
+ * Simulate Freshservice ITSM sync by inserting realistic test data
  */
-export async function syncFreshdeskData(
+export async function syncFreshserviceData(
 	organizationId: string,
 	connectionId: string,
 	ingestionRunId: string,
-	settings?: FreshdeskSyncSettings,
+	settings?: FreshserviceSyncSettings,
 ): Promise<import("./sync-common.js").SyncResult> {
 	return syncProviderData(
-		freshdeskConfig,
+		freshserviceConfig,
 		organizationId,
 		connectionId,
 		ingestionRunId,
