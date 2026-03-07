@@ -4,7 +4,7 @@ import { useParams } from "react-router-dom";
 import { ProLayout } from "@/components/layouts/ProLayout";
 import { EndpointPreview } from "@/components/pro/EndpointPreview";
 import { MCPSkillSheet } from "@/components/pro/MCPSkillSheet";
-import { ProSubNav } from "@/components/pro/ProSubNav";
+
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -170,7 +170,6 @@ export default function ProAgentBuilderPage() {
 
 	return (
 		<ProLayout>
-			<ProSubNav />
 			<div className="p-6">
 				<div className="flex items-center gap-3 mb-6">
 					<h1 className="text-2xl font-bold">

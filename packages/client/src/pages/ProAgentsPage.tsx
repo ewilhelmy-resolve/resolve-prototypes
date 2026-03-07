@@ -3,7 +3,7 @@ import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ProLayout } from "@/components/layouts/ProLayout";
 import { ProAgentTable } from "@/components/pro/ProAgentTable";
-import { ProSubNav } from "@/components/pro/ProSubNav";
+
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -35,11 +35,11 @@ export default function ProAgentsPage() {
 	}, [searchQuery, statusFilter]);
 
 	const handleAgentClick = (agent: ProAgent) => {
-		navigate(`/pro/agents/${agent.id}`);
+		navigate(`/pro/mcp/${agent.id}`);
 	};
 
 	const handleEdit = (agent: ProAgent) => {
-		navigate(`/pro/agents/${agent.id}`);
+		navigate(`/pro/mcp/${agent.id}`);
 	};
 
 	const handleDelete = (agent: ProAgent) => {
@@ -48,11 +48,10 @@ export default function ProAgentsPage() {
 
 	return (
 		<ProLayout>
-			<ProSubNav />
 			<div className="p-6 space-y-4">
 				<div className="flex items-center justify-between">
 					<h1 className="text-2xl font-bold">Dynamic MCPs</h1>
-					<Button onClick={() => navigate("/pro/agents/create")}>
+					<Button onClick={() => navigate("/pro/mcp/create")}>
 						<Plus className="size-4" />
 						New Dynamic MCP
 					</Button>

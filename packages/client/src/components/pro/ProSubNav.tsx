@@ -2,7 +2,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 function getTabFromPath(pathname: string): string {
-	if (pathname.startsWith("/pro/agents")) return "agents";
+	if (pathname.startsWith("/pro/mcp")) return "mcp";
 	return "dashboard";
 }
 
@@ -16,8 +16,8 @@ export function ProSubNav() {
 			case "dashboard":
 				navigate("/pro");
 				break;
-			case "agents":
-				navigate("/pro/agents");
+			case "mcp":
+				navigate("/pro/mcp");
 				break;
 		}
 	};
@@ -33,7 +33,7 @@ export function ProSubNav() {
 						Dashboard
 					</TabsTrigger>
 					<TabsTrigger
-						value="agents"
+						value="mcp"
 						className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none"
 					>
 						Dynamic MCPs
