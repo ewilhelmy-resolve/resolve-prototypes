@@ -72,7 +72,7 @@ Changes are grouped by release date and category. Only user-facing changes are i
 - Split ServiceNow KB and ITSM into separate connection records
 - Consolidated chat sources with rita-chat-* prefix
 - Migrated from npm to pnpm across all packages
-- Freshdesk ITSM entry added to connection sources
+- Freshservice ITSM entry added to connection sources
 - Removed 'Jira' label, standardized to 'jira_itsm' throughout codebase
 - Caching switched from Redis to lru-cache for feature flags
 

@@ -178,7 +178,6 @@ router.get("/", async (req, res) => {
 			{
 				sort: query.sort,
 				period: query.period,
-				includeInactive: query.include_inactive,
 				limit: query.limit,
 				offset: query.offset,
 				kbStatus: query.kb_status,

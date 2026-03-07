@@ -13,6 +13,11 @@ import {
 
 const STORAGE_KEY = "rita_feature_flags";
 
+/** Renamed flags: old key → new key. Migrates localStorage on load. */
+const RENAMED_FLAGS: Record<string, FeatureFlagKey> = {
+	ENABLE_FRESHDESK: "ENABLE_FRESHSERVICE",
+};
+
 /**
  * Feature flags manager singleton
  */
@@ -27,7 +32,25 @@ class FeatureFlagsManager {
 
 		try {
 			const stored = localStorage.getItem(STORAGE_KEY);
-			return stored ? JSON.parse(stored) : {};
+			const state: FeatureFlagState = stored ? JSON.parse(stored) : {};
+
+			// Migrate renamed flags
+			let migrated = false;
+			for (const [oldKey, newKey] of Object.entries(RENAMED_FLAGS)) {
+				if (oldKey in state && !(newKey in state)) {
+					state[newKey] = state[oldKey];
+					delete state[oldKey];
+					migrated = true;
+				} else if (oldKey in state) {
+					delete state[oldKey];
+					migrated = true;
+				}
+			}
+			if (migrated) {
+				this.setState(state);
+			}
+
+			return state;
 		} catch (error) {
 			console.error("Failed to parse feature flags from localStorage:", error);
 			return {};

@@ -164,14 +164,14 @@ export const ErrorStatus: Story = {
 	},
 };
 
-export const Freshdesk: Story = {
+export const Freshservice: Story = {
 	args: {
 		source: createMockSource({
-			id: "placeholder-freshdesk",
-			type: SOURCES.FRESHDESK,
-			title: "Freshdesk",
+			id: "placeholder-freshservice",
+			type: SOURCES.FRESHSERVICE,
+			title: "Freshservice",
 			status: STATUS.NOT_CONNECTED,
-			description: "Import tickets from Freshdesk for autopilot clustering.",
+			description: "Import tickets from Freshservice for autopilot clustering.",
 		}),
 		isEnabled: false,
 		isPlaceholder: true,
@@ -248,16 +248,16 @@ export const AllVariants: Story = {
 			</div>
 			<div>
 				<p className="text-sm text-muted-foreground mb-2">
-					Placeholder (Freshdesk)
+					Placeholder (Freshservice)
 				</p>
 				<SourceListCard
 					source={createMockSource({
-						id: "placeholder-freshdesk",
-						type: SOURCES.FRESHDESK,
-						title: "Freshdesk",
+						id: "placeholder-freshservice",
+						type: SOURCES.FRESHSERVICE,
+						title: "Freshservice",
 						status: STATUS.NOT_CONNECTED,
 						description:
-							"Import tickets from Freshdesk for autopilot clustering.",
+							"Import tickets from Freshservice for autopilot clustering.",
 					})}
 					isEnabled={false}
 					isPlaceholder={true}

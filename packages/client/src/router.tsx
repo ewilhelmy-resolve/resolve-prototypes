@@ -28,6 +28,8 @@ import { NotFoundPage } from "./pages/NotFoundPage";
 import ProAgentBuilderPage from "./pages/ProAgentBuilderPage";
 import ProAgentsPage from "./pages/ProAgentsPage";
 import ProDashboardPage from "./pages/ProDashboardPage";
+import RunbookDesignerPage from "./pages/RunbookDesignerPage";
+import RunbooksPage from "./pages/RunbooksPage";
 import SchedulerDashboardPage from "./pages/SchedulerDashboardPage";
 import SchedulerDetailPage from "./pages/SchedulerDetailPage";
 import SchedulerGroupDetailPage from "./pages/SchedulerGroupDetailPage";
@@ -100,7 +102,7 @@ const router = createBrowserRouter([
 		),
 	},
 	{
-		path: "/pro/agents",
+		path: "/pro/mcp",
 		element: (
 			<ProtectedRoute>
 				<ProAgentsPage />
@@ -108,7 +110,7 @@ const router = createBrowserRouter([
 		),
 	},
 	{
-		path: "/pro/agents/create",
+		path: "/pro/mcp/create",
 		element: (
 			<ProtectedRoute>
 				<ProAgentBuilderPage />
@@ -116,10 +118,26 @@ const router = createBrowserRouter([
 		),
 	},
 	{
-		path: "/pro/agents/:id",
+		path: "/pro/mcp/:id",
 		element: (
 			<ProtectedRoute>
 				<ProAgentBuilderPage />
+			</ProtectedRoute>
+		),
+	},
+	{
+		path: "/pro/runbooks",
+		element: (
+			<ProtectedRoute>
+				<RunbooksPage />
+			</ProtectedRoute>
+		),
+	},
+	{
+		path: "/pro/runbooks/:id",
+		element: (
+			<ProtectedRoute>
+				<RunbookDesignerPage />
 			</ProtectedRoute>
 		),
 	},

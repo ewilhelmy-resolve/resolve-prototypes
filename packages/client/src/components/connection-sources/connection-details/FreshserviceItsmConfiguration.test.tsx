@@ -1,5 +1,5 @@
 /**
- * FreshdeskItsmConfiguration.test.tsx - Unit tests for Freshdesk ITSM ticket sync configuration
+ * FreshserviceItsmConfiguration.test.tsx - Unit tests for Freshservice ITSM ticket sync configuration
  */
 
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
@@ -7,7 +7,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { ConnectionSource } from "@/constants/connectionSources";
 import { STATUS } from "@/constants/connectionSources";
 import { ConnectionSourceProvider } from "@/contexts/ConnectionSourceContext";
-import FreshdeskItsmConfiguration from "./FreshdeskItsmConfiguration";
+import FreshserviceItsmConfiguration from "./FreshserviceItsmConfiguration";
 
 // Mock react-router-dom (needed by ConnectionStatusCard)
 const mockNavigate = vi.fn();
@@ -81,7 +81,7 @@ const createMockSource = (
 ): ConnectionSource => ({
 	id: "source-123",
 	type: "freshservice_itsm",
-	title: "Freshdesk",
+	title: "Freshservice",
 	status: STATUS.CONNECTED,
 	lastSync: "2 hours ago",
 	badges: [],
@@ -89,10 +89,10 @@ const createMockSource = (
 		id: "source-123",
 		organization_id: "org-123",
 		type: "freshservice_itsm",
-		name: "Freshdesk",
+		name: "Freshservice",
 		description: null,
 		settings: {
-			url: "https://company.freshdesk.com",
+			url: "https://company.freshservice.com",
 			email: "user@company.com",
 		},
 		latest_options: null,
@@ -115,12 +115,12 @@ const createMockSource = (
 const renderWithProvider = (source: ConnectionSource, onEdit?: () => void) => {
 	return render(
 		<ConnectionSourceProvider source={source}>
-			<FreshdeskItsmConfiguration onEdit={onEdit} />
+			<FreshserviceItsmConfiguration onEdit={onEdit} />
 		</ConnectionSourceProvider>,
 	);
 };
 
-describe("FreshdeskItsmConfiguration", () => {
+describe("FreshserviceItsmConfiguration", () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
 		mockSyncTicketsMutation.mutateAsync = vi.fn().mockResolvedValue({});
@@ -134,7 +134,9 @@ describe("FreshdeskItsmConfiguration", () => {
 	it("should render configuration title", () => {
 		const source = createMockSource();
 		renderWithProvider(source);
-		expect(screen.getByText("config.titles.freshdeskItsm")).toBeInTheDocument();
+		expect(
+			screen.getByText("config.titles.freshserviceItsm"),
+		).toBeInTheDocument();
 	});
 
 	it("should render ConnectionStatusCard", () => {
@@ -376,7 +378,7 @@ describe("FreshdeskItsmConfiguration", () => {
 			renderWithProvider(source);
 
 			expect(
-				screen.getByText("config.titles.freshdeskItsm"),
+				screen.getByText("config.titles.freshserviceItsm"),
 			).toBeInTheDocument();
 		});
 	});
@@ -429,7 +431,7 @@ describe("FreshdeskItsmConfiguration", () => {
 			await waitFor(() => {
 				expect(ritaToast.success).toHaveBeenCalledWith({
 					title: "config.toast.syncStarted",
-					description: "config.toast.syncStartedFreshdesk",
+					description: "config.toast.syncStartedFreshservice",
 				});
 			});
 		});

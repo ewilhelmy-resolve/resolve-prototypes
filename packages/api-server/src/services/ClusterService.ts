@@ -1,5 +1,10 @@
 import { sql } from "kysely";
 import { db } from "../config/kysely.js";
+
+function escapeLike(value: string): string {
+	return value.replace(/[\\%_]/g, "\\$&");
+}
+
 import type {
 	ClusterDetails,
 	ClusterListItem,
@@ -85,7 +90,6 @@ export class ClusterService {
 	}> {
 		const sort = options.sort || "recent";
 		const period = options.period;
-		const includeInactive = options.includeInactive || false;
 		const limit = Math.min(options.limit || DEFAULT_LIMIT, MAX_LIMIT);
 		const offset = options.offset || 0;
 
@@ -100,17 +104,23 @@ export class ClusterService {
 				case "last90":
 					dateCutoff = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
 					break;
-				case "last6months":
-					dateCutoff = new Date(now.setMonth(now.getMonth() - 6));
+				case "last6months": {
+					const d = new Date(now);
+					d.setMonth(d.getMonth() - 6);
+					dateCutoff = d;
 					break;
-				case "lastyear":
-					dateCutoff = new Date(now.setFullYear(now.getFullYear() - 1));
+				}
+				case "lastyear": {
+					const d = new Date(now);
+					d.setFullYear(d.getFullYear() - 1);
+					dateCutoff = d;
 					break;
+				}
 			}
 		}
 
-		// Build subquery for ticket counts with optional date filter
-		let ticketCountQuery = db
+		// Build tickets-first subquery: aggregate ticket stats per cluster
+		let ticketStatsQuery = db
 			.selectFrom("tickets as t")
 			.select((eb) => [
 				"t.cluster_id",
@@ -118,25 +128,24 @@ export class ClusterService {
 				sql<number>`COUNT(*) FILTER (WHERE t.rita_status = 'NEEDS_RESPONSE')`.as(
 					"needs_response_count",
 				),
-			]);
+			])
+			.where("t.organization_id", "=", organizationId)
+			.where("t.cluster_id", "is not", null);
 
 		if (dateCutoff) {
-			ticketCountQuery = ticketCountQuery.where(
+			ticketStatsQuery = ticketStatsQuery.where(
 				"t.created_at",
 				">=",
 				dateCutoff,
 			);
 		}
 
-		const ticketCountSubquery = ticketCountQuery
-			.groupBy("t.cluster_id")
-			.as("tc");
+		const ticketStats = ticketStatsQuery.groupBy("t.cluster_id").as("ts");
 
-		// Build main query
+		// Build main query: start from ticket stats, join clusters for metadata
 		let query = db
-			.selectFrom("clusters as c")
-			.innerJoin("ml_models as m", "m.id", "c.model_id")
-			.leftJoin(ticketCountSubquery, "tc.cluster_id", "c.id")
+			.selectFrom(ticketStats)
+			.innerJoin("clusters as c", "c.id", "ts.cluster_id")
 			.select([
 				"c.id",
 				"c.name",
@@ -145,28 +154,19 @@ export class ClusterService {
 				"c.config",
 				"c.created_at",
 				"c.updated_at",
-			])
-			.select((eb) => [
-				eb.fn.coalesce("tc.ticket_count", sql`0`).as("ticket_count"),
-				eb.fn
-					.coalesce("tc.needs_response_count", sql`0`)
-					.as("needs_response_count"),
+				"ts.ticket_count",
+				"ts.needs_response_count",
 			])
 			.where("c.organization_id", "=", organizationId);
 
-		// Active model filter
-		if (!includeInactive) {
-			query = query.where("m.active", "=", true);
-		}
-
-		// kb_status filter (server-side)
+		// kb_status filter
 		if (options.kbStatus) {
 			query = query.where("c.kb_status", "=", options.kbStatus);
 		}
 
 		// Search filter (name OR subcluster_name ILIKE %search%)
 		if (options.search) {
-			const searchPattern = `%${options.search}%`;
+			const searchPattern = `%${escapeLike(options.search)}%`;
 			query = query.where((eb) =>
 				eb.or([
 					eb("c.name", "ilike", searchPattern),
@@ -179,14 +179,14 @@ export class ClusterService {
 		switch (sort) {
 			case "volume":
 				query = query
-					.orderBy(sql`tc.ticket_count`, "desc")
+					.orderBy(sql`ts.ticket_count`, "desc")
 					.orderBy("c.created_at", "desc")
 					.orderBy("c.id", "desc");
 				break;
 			case "automation":
 				query = query
 					.orderBy(sql`(c.config->>'auto_respond')::boolean desc nulls last`)
-					.orderBy(sql`tc.ticket_count`, "desc")
+					.orderBy(sql`ts.ticket_count`, "desc")
 					.orderBy("c.id", "desc");
 				break;
 			default:
@@ -219,7 +219,9 @@ export class ClusterService {
 				"t.cluster_id",
 				sql<number>`COUNT(DISTINCT t.id)`.as("cnt"),
 				sql<number>`COUNT(DISTINCT tl.ticket_id)`.as("automated_cnt"),
-			]);
+			])
+			.where("t.organization_id", "=", organizationId)
+			.where("t.cluster_id", "is not", null);
 
 		if (dateCutoff) {
 			totalsTicketSubquery = totalsTicketSubquery.where(
@@ -234,11 +236,10 @@ export class ClusterService {
 			.as("ttc");
 
 		let totalsQuery = db
-			.selectFrom("clusters as c")
-			.innerJoin("ml_models as m", "m.id", "c.model_id")
-			.leftJoin(totalsTicketCounts, "ttc.cluster_id", "c.id")
+			.selectFrom(totalsTicketCounts)
+			.innerJoin("clusters as c", "c.id", "ttc.cluster_id")
 			.select([
-				sql<number>`COUNT(DISTINCT c.id)`.as("total_clusters"),
+				sql<number>`COUNT(*)`.as("total_clusters"),
 				sql<number>`COALESCE(SUM(ttc.cnt), 0)`.as("total_tickets"),
 				sql<number>`COALESCE(SUM(ttc.automated_cnt), 0)`.as(
 					"total_automated_tickets",
@@ -246,16 +247,12 @@ export class ClusterService {
 			])
 			.where("c.organization_id", "=", organizationId);
 
-		if (!includeInactive) {
-			totalsQuery = totalsQuery.where("m.active", "=", true);
-		}
-
 		if (options.kbStatus) {
 			totalsQuery = totalsQuery.where("c.kb_status", "=", options.kbStatus);
 		}
 
 		if (options.search) {
-			const searchPattern = `%${options.search}%`;
+			const searchPattern = `%${escapeLike(options.search)}%`;
 			totalsQuery = totalsQuery.where((eb) =>
 				eb.or([
 					eb("c.name", "ilike", searchPattern),
@@ -319,7 +316,7 @@ export class ClusterService {
 
 		// Search filter (searches subject and external_id)
 		if (options.search) {
-			const searchPattern = `%${options.search}%`;
+			const searchPattern = `%${escapeLike(options.search)}%`;
 			query = query.where((eb) =>
 				eb.or([
 					eb("subject", "ilike", searchPattern),
@@ -355,7 +352,7 @@ export class ClusterService {
 					qb.where("rita_status", "=", ritaStatusFilter as RitaStatus),
 				)
 				.$if(!!options.search, (qb) => {
-					const searchPattern = `%${options.search}%`;
+					const searchPattern = `%${escapeLike(options.search as string)}%`;
 					return qb.where((eb) =>
 						eb.or([
 							eb("subject", "ilike", searchPattern),
