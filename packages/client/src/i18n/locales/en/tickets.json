@@ -65,7 +65,8 @@
 		},
 		"pagination": {
 			"previous": "Previous",
-			"next": "Next"
+			"next": "Next",
+			"showing": "Showing {{from}}–{{to}} of {{total}}"
 		}
 	},
 	"navigation": {

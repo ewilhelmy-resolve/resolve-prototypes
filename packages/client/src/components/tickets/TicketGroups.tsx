@@ -6,10 +6,12 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
 	DropdownMenu,
-	DropdownMenuContent,
 	DropdownMenuCheckboxItem,
+	DropdownMenuContent,
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Input } from "@/components/ui/input";
+import { Progress } from "@/components/ui/progress";
 import {
 	Select,
 	SelectContent,
@@ -17,8 +19,6 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select";
-import { Input } from "@/components/ui/input";
-import { Progress } from "@/components/ui/progress";
 import { Spinner } from "@/components/ui/spinner";
 import { StatusAlert } from "@/components/ui/status-alert";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -30,9 +30,9 @@ import {
 	type RoiSortKey,
 	rankClustersByRoi,
 } from "@/lib/tickets/prioritization";
-import { type PeriodFilter } from "@/types/cluster";
-import { TRAINING_STATES } from "@/types/mlModel";
 import { useTicketSettingsStore } from "@/stores/ticketSettingsStore";
+import type { PeriodFilter } from "@/types/cluster";
+import { TRAINING_STATES } from "@/types/mlModel";
 import { PrioritizationRankedList } from "./PrioritizationRankedList";
 import { TicketGroupSkeleton } from "./TicketGroupSkeleton";
 import { TicketGroupStat } from "./TicketGroupStat";
@@ -60,7 +60,9 @@ interface TicketGroupsProps {
 export default function TicketGroups({ period }: TicketGroupsProps) {
 	const { t } = useTranslation("tickets");
 	const [viewMode, setViewMode] = useState<TopViewMode>("cards");
-	const [activeGapFilters, setActiveGapFilters] = useState<Set<GapFilterKey>>(new Set());
+	const [activeGapFilters, setActiveGapFilters] = useState<Set<GapFilterKey>>(
+		new Set(),
+	);
 	const [activeSort, setActiveSort] = useState<SortOption>("volume");
 
 	// Search state with debounce
@@ -91,7 +93,8 @@ export default function TicketGroups({ period }: TicketGroupsProps) {
 	const kbStatusParam = hasKnowledgeGapFilter ? "GAP" : undefined;
 	const isCards = viewMode === "cards";
 	const isList = viewMode === "list";
-	const activePreset: RoiSortKey | null = activeSort === "volume" ? null : activeSort;
+	const activePreset: RoiSortKey | null =
+		activeSort === "volume" ? null : activeSort;
 
 	// Fetch ALL clusters via infinite query (both views use all data)
 	const {
@@ -122,9 +125,10 @@ export default function TicketGroups({ period }: TicketGroupsProps) {
 		let filtered = infiniteData?.pages.flatMap((page) => page.data) ?? [];
 		if (debouncedSearch) {
 			const q = debouncedSearch.toLowerCase();
-			filtered = filtered.filter((c) =>
-				c.name.toLowerCase().includes(q) ||
-				c.subcluster_name?.toLowerCase().includes(q),
+			filtered = filtered.filter(
+				(c) =>
+					c.name.toLowerCase().includes(q) ||
+					c.subcluster_name?.toLowerCase().includes(q),
 			);
 		}
 		if (hasKnowledgeGapFilter) {
@@ -134,20 +138,37 @@ export default function TicketGroups({ period }: TicketGroupsProps) {
 			filtered = filtered.filter((c) => actionsMap?.[c.id] === false);
 		}
 		return filtered;
-	}, [infiniteData, debouncedSearch, hasKnowledgeGapFilter, hasAutomationGapFilter, actionsMap]);
-	const totals = infiniteData?.pages[0]?.totals;
+	}, [
+		infiniteData,
+		debouncedSearch,
+		hasKnowledgeGapFilter,
+		hasAutomationGapFilter,
+		actionsMap,
+	]);
+	const _totals = infiniteData?.pages[0]?.totals;
 	const isDataLoading = isInfiniteLoading;
 	const hasData = !!infiniteData;
 
 	// Compute ROI data (needed for card metrics + list view)
 	const roiRanked = useMemo(() => {
 		if (clusters.length === 0) return [];
-		return rankClustersByRoi(clusters, costPerTicket, avgTimePerTicket, activePreset ?? "costImpact", "desc");
+		return rankClustersByRoi(
+			clusters,
+			costPerTicket,
+			avgTimePerTicket,
+			activePreset ?? "costImpact",
+			"desc",
+		);
 	}, [clusters, costPerTicket, avgTimePerTicket, activePreset]);
 
 	// ROI lookup for card view metrics
 	const roiMap = useMemo(() => {
-		return new Map(roiRanked.map((r) => [r.cluster.id, { costImpact: r.costImpact, mttr: r.mttr }]));
+		return new Map(
+			roiRanked.map((r) => [
+				r.cluster.id,
+				{ costImpact: r.costImpact, mttr: r.mttr },
+			]),
+		);
 	}, [roiRanked]);
 
 	// Sort: default = volume (ticket count desc), preset = ROI ranked
@@ -188,7 +209,6 @@ export default function TicketGroups({ period }: TicketGroupsProps) {
 		}
 		return name;
 	};
-
 
 	// Show spinner while checking model state initially
 	if (isModelLoading) {
@@ -239,9 +259,14 @@ export default function TicketGroups({ period }: TicketGroupsProps) {
 							/>
 						</div>
 
-						<Select value={activeSort} onValueChange={(v) => setActiveSort(v as SortOption)}>
+						<Select
+							value={activeSort}
+							onValueChange={(v) => setActiveSort(v as SortOption)}
+						>
 							<SelectTrigger className="w-auto h-8 text-sm">
-								<span className="text-muted-foreground mr-1">{t("groups.sortBy")}:</span>
+								<span className="text-muted-foreground mr-1">
+									{t("groups.sortBy")}:
+								</span>
 								<SelectValue />
 							</SelectTrigger>
 							<SelectContent>
@@ -259,7 +284,10 @@ export default function TicketGroups({ period }: TicketGroupsProps) {
 									<Filter className="size-3.5" />
 									{t("groups.filter")}
 									{activeGapFilters.size > 0 && (
-										<Badge variant="secondary" className="ml-1 h-5 min-w-[20px] px-1.5 text-xs">
+										<Badge
+											variant="secondary"
+											className="ml-1 h-5 min-w-[20px] px-1.5 text-xs"
+										>
 											{activeGapFilters.size}
 										</Badge>
 									)}
@@ -370,7 +398,7 @@ export default function TicketGroups({ period }: TicketGroupsProps) {
 								</div>
 							)}
 						</StatusAlert>
-						<div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-5">
+						<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
 							{[...Array(6)].map((_, i) => (
 								<TicketGroupSkeleton key={i} />
 							))}
@@ -381,7 +409,7 @@ export default function TicketGroups({ period }: TicketGroupsProps) {
 						<StatusAlert variant="info" title={t("groups.trainingInProgress")}>
 							<p>{t("groups.trainingDescription")}</p>
 						</StatusAlert>
-						<div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-5">
+						<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
 							{[...Array(6)].map((_, i) => (
 								<TicketGroupSkeleton key={i} />
 							))}
