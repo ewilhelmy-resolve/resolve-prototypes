@@ -460,6 +460,16 @@ export default function TicketGroups({ period }: TicketGroupsProps) {
 											hasAction={actionsMap?.[cluster.id] ?? false}
 											costImpact={roi?.costImpact}
 											mttr={roi?.mttr}
+											updatedAt={cluster.updated_at}
+											newTicketCount={
+												Math.floor(
+													cluster.needs_response_count * 0.3,
+												) > 0
+													? Math.floor(
+															cluster.needs_response_count * 0.3,
+														)
+													: undefined
+											}
 										/>
 									);
 								})}

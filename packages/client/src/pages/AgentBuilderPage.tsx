@@ -87,6 +87,7 @@ import { WizardAgentBuilder } from "@/components/agents/WizardAgentBuilder";
 import { WizardFloatBuilder } from "@/components/agents/WizardFloatBuilder";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
 	DropdownMenu,
 	DropdownMenuContent,
@@ -2986,7 +2987,7 @@ ${skillNames.map((name) => `- ${name}`).join("\n")}
 											</p>
 										</div>
 										<Button
-											variant="secondary"
+											variant="outline"
 											size="sm"
 											className="h-8 gap-1.5"
 											onClick={() => setShowAddSkillModal(true)}
@@ -3154,13 +3155,157 @@ ${skillNames.map((name) => `- ${name}`).join("\n")}
 									)}
 								</div>
 
-								{/* Knowledge Section */}
+								{/* Conversation Starters Section */}
 								<div className="space-y-2">
 									<div>
-										<Label className="text-sm font-medium">Knowledge</Label>
-										<p className="text-sm text-muted-foreground mt-1">
-											Give your agent general knowledge around its topic
+										<label className="text-sm font-medium text-foreground">
+											Conversation starters
+										</label>
+										<p className="text-sm text-muted-foreground mt-0.5">
+											Suggested prompts shown to users when starting a conversation
 										</p>
+									</div>
+									{/* Input with inline tags */}
+									<div className="border rounded-md min-h-9 px-3 py-1.5 flex items-center gap-1 flex-wrap">
+										{/* Added starters as solid badges */}
+										{config.conversationStarters.map((starter, index) => (
+											<div
+												key={index}
+												className="flex items-center gap-1 px-2 py-0.5 border border-dashed rounded-md text-xs text-muted-foreground whitespace-nowrap"
+											>
+												<span>{starter}</span>
+												<button
+													onClick={() => {
+														const updated = config.conversationStarters.filter(
+															(_, i) => i !== index,
+														);
+														setConfig((prev) => ({
+															...prev,
+															conversationStarters: updated,
+														}));
+													}}
+													className="text-muted-foreground hover:text-destructive"
+												>
+													<Plus className="size-3" />
+												</button>
+											</div>
+										))}
+										{/* Input for typing new starters */}
+										{config.conversationStarters.length < 6 && (
+											<input
+												type="text"
+												placeholder="Type and press Enter to add..."
+												className="flex-1 min-w-[150px] text-sm bg-transparent outline-none placeholder:text-muted-foreground"
+												onKeyDown={(e) => {
+													if (
+														e.key === "Enter" &&
+														e.currentTarget.value.trim()
+													) {
+														e.preventDefault();
+														setConfig((prev) => ({
+															...prev,
+															conversationStarters: [
+																...prev.conversationStarters,
+																e.currentTarget.value.trim(),
+															],
+														}));
+														e.currentTarget.value = "";
+													}
+												}}
+											/>
+										)}
+									</div>
+								</div>
+
+								{/* Guardrails Section */}
+								<div className="space-y-2">
+									<div className="flex items-start justify-between">
+										<div>
+											<label className="text-sm font-medium text-foreground">
+												Guardrails
+											</label>
+											<p className="text-xs text-muted-foreground mt-0.5">
+												Topics or requests the agent should NOT handle
+											</p>
+										</div>
+										<Button
+											variant="outline"
+											size="sm"
+											className="h-8 gap-1.5"
+											onClick={() => {
+												setConfig((prev) => ({
+													...prev,
+													guardrails: [...prev.guardrails, ""],
+												}));
+											}}
+										>
+											<Plus className="size-4" />
+											Add guardrail
+										</Button>
+									</div>
+
+									{config.guardrails.length > 0 && (
+										<div className="space-y-2">
+											{config.guardrails.map((guardrail, index) => (
+												<div key={index} className="flex items-center gap-2">
+													<Input
+														value={guardrail}
+														onChange={(e) => {
+															const updated = [...config.guardrails];
+															updated[index] = e.target.value;
+															setConfig((prev) => ({
+																...prev,
+																guardrails: updated,
+															}));
+														}}
+														placeholder="e.g., HR policy questions"
+														className="flex-1"
+													/>
+													<Button
+														variant="ghost"
+														size="icon"
+														className="size-9 text-muted-foreground hover:text-foreground"
+														onClick={() => {
+															const updated = config.guardrails.filter(
+																(_, i) => i !== index,
+															);
+															setConfig((prev) => ({
+																...prev,
+																guardrails: updated,
+															}));
+														}}
+													>
+														<Trash2 className="size-4" />
+													</Button>
+												</div>
+											))}
+										</div>
+									)}
+								</div>
+
+								{/* Knowledge Section */}
+								<div className="space-y-2">
+									<div className="flex items-start justify-between">
+										<div>
+											<Label className="text-sm font-medium">Knowledge</Label>
+											<p className="text-sm text-muted-foreground mt-1">
+												Give your agent general knowledge to answer best
+											</p>
+										</div>
+										<Button
+											variant="outline"
+											size="sm"
+											className="h-8 gap-1.5"
+											onClick={() => {
+												const input = document.getElementById(
+													"knowledge-search-input",
+												);
+												input?.focus();
+											}}
+										>
+											<Plus className="size-4" />
+											Add knowledge
+										</Button>
 									</div>
 
 									{/* Search input */}
@@ -3342,17 +3487,8 @@ ${skillNames.map((name) => `- ${name}`).join("\n")}
 
 										{/* Toggle options */}
 										<div className="px-4">
-											<div className="flex items-start justify-between py-3 gap-3">
-												<div className="flex-1">
-													<p className="text-sm font-medium">
-														Search the web for information
-													</p>
-													<p className="text-sm text-muted-foreground mt-1">
-														Let the agent search and reference information found
-														on the websites
-													</p>
-												</div>
-												<Switch
+											<div className="flex items-start gap-3 py-3">
+												<Checkbox
 													checked={config.capabilities.webSearch}
 													onCheckedChange={(checked) =>
 														setConfig((prev) => ({
@@ -3363,20 +3499,21 @@ ${skillNames.map((name) => `- ${name}`).join("\n")}
 															},
 														}))
 													}
+													className="mt-0.5"
 												/>
-											</div>
-											<div className="border-t" />
-											<div className="flex items-start justify-between py-3 gap-3">
 												<div className="flex-1">
 													<p className="text-sm font-medium">
-														Enable all workspace knowledge
+														Search the web for information
 													</p>
 													<p className="text-sm text-muted-foreground mt-1">
-														Let the agent use all shared integrations, files,
-														and other assets in this workspace
+														Let the agent search and reference information found
+														on the websites
 													</p>
 												</div>
-												<Switch
+											</div>
+											<div className="border-t" />
+											<div className="flex items-start gap-3 py-3">
+												<Checkbox
 													checked={config.capabilities.useAllWorkspaceContent}
 													onCheckedChange={(checked) => {
 														setConfig((prev) => ({
@@ -3390,138 +3527,20 @@ ${skillNames.map((name) => `- ${name}`).join("\n")}
 															setKnowledgeSearchQuery("");
 														}
 													}}
+													className="mt-0.5"
 												/>
-											</div>
-										</div>
-									</div>
-								</div>
-
-								{/* Conversation Starters Section */}
-								<div className="space-y-2">
-									<div>
-										<label className="text-sm font-medium text-foreground">
-											Conversation starters
-										</label>
-										<p className="text-xs text-muted-foreground mt-0.5">
-											By default, starters are generated from skills. Add custom
-											ones below.
-										</p>
-									</div>
-									{/* Input with inline tags */}
-									<div className="border rounded-md min-h-9 px-3 py-1.5 flex items-center gap-1 flex-wrap">
-										{/* Added starters as solid badges */}
-										{config.conversationStarters.map((starter, index) => (
-											<div
-												key={index}
-												className="flex items-center gap-1 px-2 py-0.5 bg-blue-50 rounded-md text-xs whitespace-nowrap"
-											>
-												<span>{starter}</span>
-												<button
-													onClick={() => {
-														const updated = config.conversationStarters.filter(
-															(_, i) => i !== index,
-														);
-														setConfig((prev) => ({
-															...prev,
-															conversationStarters: updated,
-														}));
-													}}
-													className="text-foreground hover:text-destructive"
-												>
-													<X className="size-3" />
-												</button>
-											</div>
-										))}
-										{/* Input for typing new starters */}
-										{config.conversationStarters.length < 6 && (
-											<input
-												type="text"
-												placeholder="Type and press Enter to add..."
-												className="flex-1 min-w-[150px] text-sm bg-transparent outline-none placeholder:text-muted-foreground"
-												onKeyDown={(e) => {
-													if (
-														e.key === "Enter" &&
-														e.currentTarget.value.trim()
-													) {
-														e.preventDefault();
-														setConfig((prev) => ({
-															...prev,
-															conversationStarters: [
-																...prev.conversationStarters,
-																e.currentTarget.value.trim(),
-															],
-														}));
-														e.currentTarget.value = "";
-													}
-												}}
-											/>
-										)}
-									</div>
-								</div>
-
-								{/* Guardrails Section */}
-								<div className="space-y-2">
-									<div>
-										<label className="text-sm font-medium text-foreground">
-											Guardrails
-										</label>
-										<p className="text-xs text-muted-foreground mt-0.5">
-											Topics or requests the agent should NOT handle
-										</p>
-									</div>
-
-									{config.guardrails.length > 0 && (
-										<div className="space-y-2">
-											{config.guardrails.map((guardrail, index) => (
-												<div key={index} className="flex items-center gap-2">
-													<Input
-														value={guardrail}
-														onChange={(e) => {
-															const updated = [...config.guardrails];
-															updated[index] = e.target.value;
-															setConfig((prev) => ({
-																...prev,
-																guardrails: updated,
-															}));
-														}}
-														placeholder="e.g., HR policy questions"
-														className="flex-1"
-													/>
-													<Button
-														variant="ghost"
-														size="icon"
-														className="size-9 text-muted-foreground hover:text-foreground"
-														onClick={() => {
-															const updated = config.guardrails.filter(
-																(_, i) => i !== index,
-															);
-															setConfig((prev) => ({
-																...prev,
-																guardrails: updated,
-															}));
-														}}
-													>
-														<Trash2 className="size-4" />
-													</Button>
+												<div className="flex-1">
+													<p className="text-sm font-medium">
+														Enable all workspace knowledge
+													</p>
+													<p className="text-sm text-muted-foreground mt-1">
+														Let the agent use all shared integrations, files,
+														and other assets in this workspace
+													</p>
 												</div>
-											))}
+											</div>
 										</div>
-									)}
-
-									<Button
-										variant="outline"
-										size="sm"
-										className="h-8 gap-1.5"
-										onClick={() => {
-											setConfig((prev) => ({
-												...prev,
-												guardrails: [...prev.guardrails, ""],
-											}));
-										}}
-									>
-										<Plus className="size-4" />
-										Add guardrail
-									</Button>
+									</div>
 								</div>
 							</div>
 						</div>

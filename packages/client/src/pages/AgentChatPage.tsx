@@ -20,8 +20,7 @@ import {
 	ClipboardList,
 	Coffee,
 	Database,
-	Edit,
-	FileText,
+	FileSpreadsheet,
 	Folder,
 	Globe,
 	GraduationCap,
@@ -39,12 +38,14 @@ import {
 	Package,
 	PanelRightOpen,
 	Phone,
+	FilePen,
 	Plus,
 	Rocket,
 	Search,
-	Send,
+	SendHorizontal,
 	Settings,
 	ShieldCheck,
+	ShieldEllipsis,
 	ShoppingCart,
 	Squirrel,
 	Star,
@@ -411,139 +412,129 @@ export default function AgentChatPage() {
 					</DropdownMenu>
 
 					{/* Edit button - right side of chat header */}
-					<button
+					<Button
+						variant="ghost"
+						size="sm"
 						onClick={() => navigate(`/agents/${config.id}`)}
-						className="flex items-center gap-1.5 px-2 py-1 text-sm text-muted-foreground hover:text-foreground transition-colors rounded hover:bg-muted"
+						className="gap-1.5 text-muted-foreground"
 					>
-						<Edit className="size-3.5" />
+						<FilePen className="size-4" />
 						Edit
-					</button>
+					</Button>
 				</header>
 
-				{/* Chat content */}
-				<div className="flex-1 overflow-y-auto">
-					<div className="max-w-2xl mx-auto py-6 px-4 space-y-4">
-						{/* Welcome state */}
-						{messages.length === 0 && (
-							<div className="text-center py-16 space-y-4">
-								<div
-									className={cn(
-										"size-16 rounded-xl flex items-center justify-center mx-auto",
-										color.bg,
-									)}
-								>
-									<Icon className={cn("size-8", color.text)} />
-								</div>
-								<div>
-									<h2 className="text-xl font-semibold">{config.name}</h2>
-									<p className="text-muted-foreground mt-1">
-										{config.description}
-									</p>
-								</div>
+				{/* Chat content — neutral bg with white rounded panel */}
+				<div className="flex-1 overflow-y-auto bg-neutral-50 p-4">
+					<div className="bg-white rounded-lg border border-neutral-100 h-full flex flex-col items-center px-5">
+						<div className="flex flex-1 flex-col items-center justify-between max-w-[640px] w-full">
+							<div className="flex flex-1 flex-col items-center justify-between w-full">
+								{/* Welcome state or messages */}
+								<div className="flex flex-1 flex-col gap-4 items-center justify-center w-full">
+									{messages.length === 0 ? (
+										<>
+											{/* Icon + name side by side */}
+											<div className="flex items-center justify-center gap-2 w-full">
+												<div className="size-[38px] rounded-lg bg-violet-200 flex items-center justify-center shrink-0">
+													<Icon className="size-6 text-violet-700" />
+												</div>
+												<h2 className="text-xl font-bold">{config.name}</h2>
+											</div>
 
-								{/* Conversation starters - max 3 */}
-								{config.conversationStarters.length > 0 && (
-									<div className="pt-6">
-										<div className="flex flex-wrap justify-center gap-2">
-											{config.conversationStarters
-												.slice(0, 3)
-												.map((starter, idx) => (
-													<button
-														key={idx}
-														onClick={() => handleStarterClick(starter)}
-														className="px-4 py-2 text-sm border rounded-full hover:bg-muted transition-colors"
+											{/* Description */}
+											<p className="text-sm text-muted-foreground text-center w-full">
+												{config.description}
+											</p>
+
+											{/* Conversation starters — bordered cards in a row */}
+											{config.conversationStarters.length > 0 && (
+												<div className="flex gap-2 w-full">
+													{config.conversationStarters
+														.slice(0, 3)
+														.map((starter, idx) => (
+															<button
+																key={idx}
+																onClick={() => handleStarterClick(starter)}
+																className="flex-1 rounded-md border p-2 text-sm text-center hover:bg-muted/50 transition-colors"
+															>
+																{starter}
+															</button>
+														))}
+												</div>
+											)}
+										</>
+									) : (
+										<div className="w-full py-6 space-y-4">
+											{messages.map((msg) => (
+												<div
+													key={msg.id}
+													className={cn(
+														"flex gap-3",
+														msg.role === "user" ? "justify-end" : "justify-start",
+													)}
+												>
+													{msg.role === "assistant" && (
+														<div className="size-8 rounded-lg bg-violet-200 flex items-center justify-center flex-shrink-0">
+															<Icon className="size-4 text-violet-700" />
+														</div>
+													)}
+													<div
+														className={cn(
+															"max-w-[75%] px-4 py-3 rounded-2xl",
+															msg.role === "user"
+																? "bg-primary text-primary-foreground rounded-br-md"
+																: "bg-muted rounded-bl-md",
+														)}
 													>
-														{starter}
-													</button>
-												))}
+														<p className="text-sm whitespace-pre-wrap">{msg.content}</p>
+													</div>
+												</div>
+											))}
+
+											{isLoading && (
+												<div className="flex gap-3">
+													<div className="size-8 rounded-lg bg-violet-200 flex items-center justify-center flex-shrink-0">
+														<Icon className="size-4 text-violet-700" />
+													</div>
+													<div className="bg-muted px-4 py-3 rounded-2xl rounded-bl-md">
+														<Loader2 className="size-4 animate-spin text-muted-foreground" />
+													</div>
+												</div>
+											)}
+
+											<div ref={chatEndRef} />
 										</div>
-									</div>
-								)}
-							</div>
-						)}
-
-						{/* Messages */}
-						{messages.map((msg) => (
-							<div
-								key={msg.id}
-								className={cn(
-									"flex gap-3",
-									msg.role === "user" ? "justify-end" : "justify-start",
-								)}
-							>
-								{msg.role === "assistant" && (
-									<div
-										className={cn(
-											"size-8 rounded-lg flex items-center justify-center flex-shrink-0",
-											color.bg,
-										)}
-									>
-										<Icon className={cn("size-4", color.text)} />
-									</div>
-								)}
-								<div
-									className={cn(
-										"max-w-[75%] px-4 py-3 rounded-2xl",
-										msg.role === "user"
-											? "bg-primary text-primary-foreground rounded-br-md"
-											: "bg-muted rounded-bl-md",
 									)}
-								>
-									<p className="text-sm whitespace-pre-wrap">{msg.content}</p>
+								</div>
+
+								{/* Input — inside the white panel, pinned to bottom */}
+								<div className="w-full pb-4">
+									<div className="flex items-center gap-0 rounded-md border p-3">
+										<input
+											ref={inputRef}
+											type="text"
+											value={input}
+											onChange={(e) => setInput(e.target.value)}
+											onKeyDown={(e) => {
+												if (e.key === "Enter" && !e.shiftKey) {
+													e.preventDefault();
+													handleSend();
+												}
+											}}
+											placeholder="Ask anything"
+											className="flex-1 bg-transparent text-base outline-none placeholder:text-muted-foreground"
+											disabled={isLoading}
+										/>
+										<Button
+											onClick={handleSend}
+											disabled={!input.trim() || isLoading}
+											size="icon"
+											className="size-9 rounded-md shrink-0"
+										>
+											<SendHorizontal className="size-4" />
+										</Button>
+									</div>
 								</div>
 							</div>
-						))}
-
-						{/* Loading indicator */}
-						{isLoading && (
-							<div className="flex gap-3">
-								<div
-									className={cn(
-										"size-8 rounded-lg flex items-center justify-center flex-shrink-0",
-										color.bg,
-									)}
-								>
-									<Icon className={cn("size-4", color.text)} />
-								</div>
-								<div className="bg-muted px-4 py-3 rounded-2xl rounded-bl-md">
-									<Loader2 className="size-4 animate-spin text-muted-foreground" />
-								</div>
-							</div>
-						)}
-
-						<div ref={chatEndRef} />
-					</div>
-				</div>
-
-				{/* Input area */}
-				<div className="border-t bg-white px-4 py-4">
-					<div className="max-w-2xl mx-auto">
-						<div className="flex gap-2">
-							<div className="flex-1 relative">
-								<Zap className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
-								<input
-									ref={inputRef}
-									type="text"
-									value={input}
-									onChange={(e) => setInput(e.target.value)}
-									onKeyDown={(e) => {
-										if (e.key === "Enter" && !e.shiftKey) {
-											e.preventDefault();
-											handleSend();
-										}
-									}}
-									placeholder="What would you like to do?"
-									className="w-full pl-10 pr-4 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
-									disabled={isLoading}
-								/>
-							</div>
-							<Button
-								onClick={handleSend}
-								disabled={!input.trim() || isLoading}
-								size="icon"
-							>
-								<Send className="size-4" />
-							</Button>
 						</div>
 					</div>
 				</div>
@@ -560,95 +551,104 @@ export default function AgentChatPage() {
 				)}
 			</div>
 
-			{/* Right panel - Overview (full height) */}
+			{/* Right panel - Overview (full height, matches Figma) */}
 			<div
 				className={cn(
 					"bg-white overflow-hidden transition-all duration-300 ease-in-out flex flex-col border-l",
-					showOverview ? "w-80" : "w-0 border-l-0",
+					showOverview ? "w-[467px]" : "w-0 border-l-0",
 				)}
 			>
-				{/* Panel header */}
-				<div className="flex items-center justify-between px-4 py-3 flex-shrink-0 min-w-80">
-					<span className="font-medium">Overview</span>
-					{/* Close button */}
-					<button
-						onClick={() => setShowOverview(false)}
-						className="p-1.5 rounded hover:bg-muted transition-colors"
-					>
-						<X className="size-4 text-muted-foreground" />
-					</button>
-				</div>
-
-				{/* Panel content */}
-				<div className="flex-1 overflow-y-auto p-4 space-y-4 min-w-80">
-					{/* Knowledge section */}
-					<div className="bg-muted/30 rounded-xl p-4">
-						<div className="flex items-center gap-2 mb-3">
-							<Search className="size-4 text-muted-foreground" />
-							<span className="text-sm text-muted-foreground">
-								{config.name} knowledge
-							</span>
-						</div>
-
-						{config.knowledgeSources.length > 0 ? (
-							<div className="space-y-2">
-								{config.knowledgeSources.slice(0, 3).map((source) => (
-									<div
-										key={source.id}
-										className="flex items-center gap-3 p-2 rounded-lg hover:bg-white/50 transition-colors"
-									>
-										<div className="size-8 rounded bg-muted flex items-center justify-center flex-shrink-0">
-											<FileText className="size-4 text-muted-foreground" />
-										</div>
-										<span className="text-sm truncate">{source.name}</span>
-									</div>
-								))}
-								{config.knowledgeSources.length > 3 && (
-									<button className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors pl-2">
-										<span className="size-1.5 rounded-full bg-muted-foreground/50" />
-										<span>{config.knowledgeSources.length - 3} more files</span>
-									</button>
-								)}
-							</div>
-						) : (
-							<p className="text-sm text-muted-foreground">
-								No knowledge sources
-							</p>
-						)}
+				<div className="flex flex-col gap-8 p-5 min-w-[467px] h-full">
+					{/* Panel header */}
+					<div className="flex items-center justify-between">
+						<h2 className="text-lg font-medium leading-none">Overview</h2>
+						<Button
+							variant="ghost"
+							size="icon"
+							onClick={() => setShowOverview(false)}
+							aria-label="Close overview panel"
+						>
+							<X className="size-4" />
+						</Button>
 					</div>
 
-					{/* Skills section */}
-					<div className="bg-muted/30 rounded-xl p-4">
-						<div className="flex items-center gap-2 mb-3">
-							<Zap className="size-4 text-amber-500" />
-							<span className="text-sm font-medium">Skills</span>
+					{/* Panel content */}
+					<div className="flex-1 overflow-y-auto flex flex-col gap-4">
+						{/* Knowledge section */}
+						<p className="text-sm text-muted-foreground">
+							{config.name} knowledge
+						</p>
+						<div className="rounded-md border">
+							{config.knowledgeSources.length > 0 ? (
+								<ul className="list-none">
+									{config.knowledgeSources.map((source) => (
+										<li
+											key={source.id}
+											className="flex items-center gap-[10px] px-[15px] py-[10px]"
+										>
+											<div className="flex size-5 shrink-0 items-center justify-center rounded-sm bg-violet-200">
+												<ShieldEllipsis className="size-3" />
+											</div>
+											<span className="text-base">{source.name}</span>
+										</li>
+									))}
+								</ul>
+							) : (
+								<p className="px-[15px] py-[10px] text-sm text-muted-foreground">
+									No knowledge sources
+								</p>
+							)}
+							<div className="px-[15px] py-[10px]">
+								<Button
+									variant="ghost"
+									size="sm"
+									className="h-auto p-0 text-sm"
+								>
+									<Plus className="mr-1 size-3.5" />
+									Add knowledge
+								</Button>
+							</div>
 						</div>
 
-						{config.skills.length > 0 ? (
-							<div className="space-y-3">
-								{config.skills.map((skill, idx) => (
-									<div key={idx} className="space-y-0.5">
-										<p className="text-sm font-medium">{skill}</p>
-										<p className="text-xs text-muted-foreground">
-											Workflow task
-										</p>
-									</div>
-								))}
+						{/* Skills section */}
+						<p className="text-sm text-muted-foreground">Skills applied</p>
+						<div className="rounded-md border">
+							{config.skills.length > 0 ? (
+								<ul className="list-none">
+									{config.skills.map((skill, idx) => (
+										<li
+											key={idx}
+											className="flex items-center gap-[10px] px-[15px] py-[10px]"
+										>
+											<div
+												className={cn(
+													"flex size-5 shrink-0 items-center justify-center rounded-sm",
+													idx % 2 === 0 ? "bg-amber-100" : "bg-blue-100",
+												)}
+											>
+												<FileSpreadsheet className="size-3" />
+											</div>
+											<span className="text-base">{skill}</span>
+										</li>
+									))}
+								</ul>
+							) : (
+								<p className="px-[15px] py-[10px] text-sm text-muted-foreground">
+									No skills configured
+								</p>
+							)}
+							<div className="px-[15px] py-[10px]">
+								<Button
+									variant="ghost"
+									size="sm"
+									className="h-auto p-0 text-sm"
+									onClick={() => navigate(`/agents/${config.id}`)}
+								>
+									<Plus className="mr-1 size-3.5" />
+									Add skills
+								</Button>
 							</div>
-						) : (
-							<p className="text-sm text-muted-foreground">
-								No skills configured
-							</p>
-						)}
-
-						{/* Add skill button */}
-						<button
-							onClick={() => navigate(`/agents/${config.id}`)}
-							className="flex items-center justify-center gap-2 w-full mt-4 p-2 rounded-lg border border-dashed border-muted-foreground/30 text-sm text-muted-foreground hover:text-foreground hover:border-muted-foreground/50 transition-colors"
-						>
-							<Plus className="size-4" />
-							Add skill
-						</button>
+						</div>
 					</div>
 				</div>
 			</div>

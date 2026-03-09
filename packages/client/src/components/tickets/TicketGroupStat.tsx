@@ -7,6 +7,20 @@ import {
 } from "@/components/ui/tooltip";
 import type { KBStatus } from "@/types/cluster";
 
+export function formatRelativeTime(iso: string): string {
+	const diff = Date.now() - new Date(iso).getTime();
+	const seconds = Math.floor(diff / 1000);
+	if (seconds < 60) return "just now";
+	const minutes = Math.floor(seconds / 60);
+	if (minutes < 60) return `${minutes}m ago`;
+	const hours = Math.floor(minutes / 60);
+	if (hours < 24) return `${hours}h ago`;
+	const days = Math.floor(hours / 24);
+	if (days < 7) return `${days}d ago`;
+	const weeks = Math.floor(days / 7);
+	return `${weeks}w ago`;
+}
+
 interface TicketGroupStatProps {
 	/** Unique identifier for the ticket group (UUID) */
 	id: string;
@@ -26,6 +40,10 @@ interface TicketGroupStatProps {
 	mttr?: number;
 	/** Optional click handler - overrides default navigation */
 	onClick?: () => void;
+	/** Number of new tickets since last check */
+	newTicketCount?: number;
+	/** ISO date string of last update */
+	updatedAt?: string;
 }
 
 /**
@@ -43,6 +61,8 @@ export function TicketGroupStat({
 	costImpact,
 	mttr,
 	onClick,
+	newTicketCount,
+	updatedAt,
 }: TicketGroupStatProps) {
 	const navigate = useNavigate();
 
@@ -114,6 +134,17 @@ export function TicketGroupStat({
 					</div>
 				)}
 			</div>
+			{(newTicketCount != null && newTicketCount > 0) || updatedAt ? (
+				<div className="border-t border-border pt-3 mt-auto text-xs text-muted-foreground">
+					{newTicketCount != null && newTicketCount > 0 && updatedAt
+						? `${newTicketCount} new ticket${newTicketCount === 1 ? "" : "s"} \u00b7 ${formatRelativeTime(updatedAt)}`
+						: newTicketCount != null && newTicketCount > 0
+							? `${newTicketCount} new ticket${newTicketCount === 1 ? "" : "s"}`
+							: updatedAt
+								? `Updated ${formatRelativeTime(updatedAt)}`
+								: null}
+				</div>
+			) : null}
 		</button>
 	);
 }

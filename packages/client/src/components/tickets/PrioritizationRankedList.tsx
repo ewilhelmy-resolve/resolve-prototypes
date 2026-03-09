@@ -1,4 +1,5 @@
 import { BookX, ZapOff } from "lucide-react";
+import { formatRelativeTime } from "./TicketGroupStat";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
@@ -196,6 +197,7 @@ export function PrioritizationRankedList({
 						<TableHead>
 							{t("prioritizationList.columns.kbStatus")}
 						</TableHead>
+						<TableHead>Updated</TableHead>
 					</TableRow>
 				</TableHeader>
 				<TableBody>
@@ -218,6 +220,15 @@ export function PrioritizationRankedList({
 							<TableCell>{formatCurrency(row.costImpact)}</TableCell>
 							<TableCell>{formatMinutes(row.timeTaken)}</TableCell>
 							<TableCell>{gapIcons(row.cluster)}</TableCell>
+							<TableCell className="text-muted-foreground text-xs">
+								{(() => {
+									const newCount = Math.floor(row.cluster.needs_response_count * 0.3);
+									const time = formatRelativeTime(row.cluster.updated_at);
+									return newCount > 0
+										? `${newCount} new \u00b7 ${time}`
+										: time;
+								})()}
+							</TableCell>
 						</TableRow>
 					))}
 				</TableBody>
