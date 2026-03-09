@@ -235,6 +235,7 @@ export class DataSourceService {
 		lastSyncStatus?: "completed" | "failed" | null,
 		updateLastSyncAt: boolean = false,
 		requireSyncingStatus: boolean = false,
+		lastSyncError?: string | null,
 	): Promise<DataSourceConnection | null> {
 		const updates = ["status = $1"];
 		const values: any[] = [status];
@@ -243,6 +244,11 @@ export class DataSourceService {
 		if (lastSyncStatus !== undefined) {
 			updates.push(`last_sync_status = $${paramIndex++}`);
 			values.push(lastSyncStatus);
+		}
+
+		if (lastSyncError !== undefined) {
+			updates.push(`last_sync_error = $${paramIndex++}`);
+			values.push(lastSyncError);
 		}
 
 		if (updateLastSyncAt) {

@@ -45,6 +45,8 @@ import { AutoSyncToggle } from "../AutoSyncToggle";
 import { ConnectionActionsMenu } from "../ConnectionActionsMenu";
 import { ConnectionStatusCard } from "../ConnectionStatusCard";
 import FormSectionTitle from "../form-elements/FormSectionTitle";
+import { IngestionErrorAlert } from "../IngestionErrorAlert";
+import { SyncErrorAlert } from "../SyncErrorAlert";
 
 const TIME_RANGE_OPTIONS_KEYS = [
 	{ labelKey: "config.timeRanges.last30Days" as const, value: "30" },
@@ -235,6 +237,13 @@ export default function JiraItsmConfiguration({
 					source={source}
 					onRetry={handleSyncTickets}
 					hideStatusMessage
+				/>
+
+				{/* Sync error/warning alert */}
+				<SyncErrorAlert backendData={source.backendData} onReVerify={onEdit} />
+				<IngestionErrorAlert
+					latestRun={latestIngestionRun}
+					onReVerify={onEdit}
 				/>
 
 				{/* Training in progress banner */}

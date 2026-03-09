@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
+import { ritaToast } from "@/components/ui/rita-toast";
 import { STATUS } from "@/constants/connectionSources";
 import { useConnectionSource } from "@/contexts/ConnectionSourceContext";
 import {
@@ -10,12 +11,12 @@ import {
 	useTriggerSync,
 	useUpdateDataSource,
 } from "@/hooks/useDataSources";
-import { ritaToast } from "@/components/ui/rita-toast";
 import { Label } from "../../ui/label";
 import { MultiSelect, type MultiSelectOption } from "../../ui/multi-select";
 import { ConnectionActionsMenu } from "../ConnectionActionsMenu";
 import { ConnectionStatusCard } from "../ConnectionStatusCard";
 import FormSectionTitle from "../form-elements/FormSectionTitle";
+import { SyncErrorAlert } from "../SyncErrorAlert";
 
 interface KnowledgeBase {
 	title: string;
@@ -107,7 +108,9 @@ export default function ServiceNowKBConfiguration({
 			ritaToast.error({
 				title: t("config.toast.syncFailed"),
 				description:
-					error instanceof Error ? error.message : t("config.toast.syncFailedDefault"),
+					error instanceof Error
+						? error.message
+						: t("config.toast.syncFailedDefault"),
 			});
 		}
 	};
@@ -132,7 +135,9 @@ export default function ServiceNowKBConfiguration({
 			ritaToast.error({
 				title: t("config.toast.cancelFailed"),
 				description:
-					error instanceof Error ? error.message : t("config.toast.cancelFailedDefault"),
+					error instanceof Error
+						? error.message
+						: t("config.toast.cancelFailedDefault"),
 			});
 		}
 	};
@@ -147,6 +152,9 @@ export default function ServiceNowKBConfiguration({
 
 				<ConnectionStatusCard source={source} onRetry={handleSync} />
 
+				{/* Sync error/warning alert */}
+				<SyncErrorAlert backendData={source.backendData} onReVerify={onEdit} />
+
 				{/* Show cancel button when syncing */}
 				{isSyncing && (
 					<div className="flex flex-col gap-1">
@@ -158,7 +166,9 @@ export default function ServiceNowKBConfiguration({
 									disabled={isCancelButtonDisabled}
 									variant="destructive"
 								>
-									{cancelMutation.isPending ? t("config.sync.cancelling") : t("config.sync.cancelSync")}
+									{cancelMutation.isPending
+										? t("config.sync.cancelling")
+										: t("config.sync.cancelSync")}
 								</Button>
 							</div>
 						</div>

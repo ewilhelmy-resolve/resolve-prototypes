@@ -147,7 +147,13 @@ export class DataSourceStatusConsumer {
 				messageLogger.info("Data source status updated to syncing");
 				break;
 
-			case "sync_completed":
+			case "sync_completed": {
+				// Detect zero-document sync as a warning
+				const syncWarning =
+					payload.documents_processed === 0
+						? "warning:no_documents_found"
+						: null;
+
 				updatedDataSource = await this.dataSourceService.updateDataSourceStatus(
 					connection_id,
 					tenant_id,
@@ -155,6 +161,7 @@ export class DataSourceStatusConsumer {
 					"completed",
 					true, // Update last_sync_at
 					true, // Require status to be 'syncing' to prevent race condition
+					syncWarning, // Store warning for zero-document sync, clear otherwise
 				);
 
 				// If update failed (returned null), the sync was likely cancelled
@@ -169,13 +176,23 @@ export class DataSourceStatusConsumer {
 					return; // Don't send SSE notification
 				}
 
-				messageLogger.info(
-					{
-						documentsProcessed: payload.documents_processed,
-					},
-					"Data source sync completed successfully",
-				);
+				if (syncWarning) {
+					messageLogger.warn(
+						{
+							documentsProcessed: payload.documents_processed,
+						},
+						"Data source sync completed with zero documents",
+					);
+				} else {
+					messageLogger.info(
+						{
+							documentsProcessed: payload.documents_processed,
+						},
+						"Data source sync completed successfully",
+					);
+				}
 				break;
+			}
 
 			case "sync_failed":
 				updatedDataSource = await this.dataSourceService.updateDataSourceStatus(
@@ -184,6 +201,8 @@ export class DataSourceStatusConsumer {
 					"idle",
 					"failed",
 					true, // Update last_sync_at
+					false, // Don't require syncing status
+					error_message || "Sync failed",
 				);
 				messageLogger.error(
 					{
@@ -234,7 +253,7 @@ export class DataSourceStatusConsumer {
 					status: updatedDataSource.status,
 					last_sync_status: updatedDataSource.last_sync_status,
 					last_sync_at: updatedDataSource.last_sync_at,
-					last_sync_error: error_message,
+					last_sync_error: updatedDataSource.last_sync_error || error_message,
 					documents_processed: payload.documents_processed,
 					timestamp: new Date().toISOString(),
 				},

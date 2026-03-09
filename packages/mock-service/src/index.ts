@@ -2995,6 +2995,67 @@ app.post("/webhook", async (req, res) => {
 				"Received data source sync trigger webhook",
 			);
 
+			// Simulate credential/permission errors during sync
+			// Triggered by magic username/email values in settings (same pattern as mock-threshold for sync_tickets)
+			// Confluence uses settings.email, ITSM types use settings.username
+			const syncIdentity = (
+				syncPayload.settings?.username ||
+				syncPayload.settings?.email ||
+				""
+			)
+				.toString()
+				.toLowerCase();
+			const isAuthError = syncIdentity.startsWith("mock-auth-error");
+			const isPermissionError = syncIdentity.startsWith(
+				"mock-permission-denied",
+			);
+
+			if (isAuthError || isPermissionError) {
+				const errorType = isAuthError
+					? "authentication_failed"
+					: "permission_denied";
+				const errorMessage = isAuthError
+					? "Authentication failed: invalid or expired credentials. Please re-verify your connection credentials."
+					: "Permission denied: the service account does not have sufficient permissions to read the requested resources.";
+
+				(async () => {
+					try {
+						// Short delay to simulate connection attempt
+						await new Promise((resolve) => setTimeout(resolve, 2000));
+
+						const rabbitmqService = getRabbitMQService();
+						await rabbitmqService.publishToQueue("data_source_status", {
+							type: "sync",
+							connection_id: syncPayload.connection_id,
+							tenant_id: syncPayload.tenant_id,
+							status: "sync_failed",
+							error_message: errorMessage,
+							error_code: errorType,
+							timestamp: new Date().toISOString(),
+						});
+
+						contextLogger.info(
+							{
+								connectionId: syncPayload.connection_id,
+								errorType,
+							},
+							"Published sync_failed for credential/permission error simulation",
+						);
+					} catch (error) {
+						contextLogger.error(
+							{ error },
+							"Failed to publish sync_failed for credential error",
+						);
+					}
+				})();
+
+				res.status(200).json({
+					success: true,
+					message: "Sync triggered successfully",
+				});
+				return;
+			}
+
 			if (syncPayload.connection_type === "confluence") {
 				// Confluence: insert actual document data into the database
 				(async () => {
@@ -3149,11 +3210,52 @@ app.post("/webhook", async (req, res) => {
 				try {
 					const rabbitmqService = getRabbitMQService();
 
-					// Simulate tickets_below_threshold error
-					// Triggered deterministically by username "mock-threshold" or 10% random chance
+					// Simulate credential/permission errors during ticket sync
+					// Uses same magic username pattern as trigger_sync
 					const syncUsername = ticketsPayload.settings?.username
 						?.toString()
 						.toLowerCase();
+					const isTicketAuthError = syncUsername?.startsWith("mock-auth-error");
+					const isTicketPermError = syncUsername?.startsWith(
+						"mock-permission-denied",
+					);
+
+					if (isTicketAuthError || isTicketPermError) {
+						await new Promise((resolve) => setTimeout(resolve, 2000));
+						const errorType = isTicketAuthError
+							? "authentication_failed"
+							: "permission_denied";
+						const errorMsg = isTicketAuthError
+							? "Authentication failed: invalid or expired credentials. Please re-verify your connection credentials."
+							: "Permission denied: the service account does not have sufficient permissions to read tickets.";
+						const authErrorMessage = {
+							type: "ticket_ingestion",
+							tenant_id: ticketsPayload.tenant_id,
+							user_id: ticketsPayload.user_id,
+							ingestion_run_id: ticketsPayload.ingestion_run_id,
+							connection_id: ticketsPayload.connection_id,
+							status: "failed",
+							records_processed: 0,
+							records_failed: 0,
+							error_message: errorMsg,
+							error_detail: {
+								error_code: errorType,
+							},
+							timestamp: new Date().toISOString(),
+						};
+						await rabbitmqService.publishToQueue(
+							"data_source_status",
+							authErrorMessage,
+						);
+						contextLogger.info(
+							{ errorType },
+							"Simulated credential/permission error for ticket sync",
+						);
+						return;
+					}
+
+					// Simulate tickets_below_threshold error
+					// Triggered deterministically by username "mock-threshold" or 10% random chance
 					const simulateBelowThreshold =
 						syncUsername === "mock-threshold" ||
 						(!syncUsername?.startsWith("mock-") && Math.random() < 0.1); // 10% chance for non-mock usernames, modify as needed for testing

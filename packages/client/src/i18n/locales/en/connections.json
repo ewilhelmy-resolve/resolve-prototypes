@@ -231,6 +231,14 @@
 			"cancelFailedDefault": "Failed to cancel sync"
 		}
 	},
+	"syncError": {
+		"credentialFailedTitle": "Sync failed due to credential issue",
+		"reVerifyCredentials": "Re-verify credentials",
+		"syncFailedTitle": "Sync failed",
+		"ingestionFailedTitle": "Ticket import failed",
+		"noDocumentsTitle": "No documents found",
+		"noDocumentsDescription": "Sync completed successfully, but no documents were found. Check your source configuration and ensure there is content available to sync."
+	},
 	"servicenow": {
 		"applyToRelated": "Apply credentials to {{target}} connection",
 		"knowledgeBase": "Knowledge Base",

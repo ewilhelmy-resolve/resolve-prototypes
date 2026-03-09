@@ -20,6 +20,7 @@ import { MultiSelect, type MultiSelectOption } from "../../ui/multi-select";
 import { ConnectionActionsMenu } from "../ConnectionActionsMenu";
 import { ConnectionStatusCard } from "../ConnectionStatusCard";
 import FormSectionTitle from "../form-elements/FormSectionTitle";
+import { SyncErrorAlert } from "../SyncErrorAlert";
 
 interface ConfluenceConfigurationProps {
 	onEdit?: () => void;
@@ -94,7 +95,9 @@ export default function ConfluenceConfiguration({
 			ritaToast.error({
 				title: t("config.toast.syncFailed"),
 				description:
-					error instanceof Error ? error.message : t("config.toast.syncFailedDefault"),
+					error instanceof Error
+						? error.message
+						: t("config.toast.syncFailedDefault"),
 			});
 		}
 	};
@@ -119,7 +122,9 @@ export default function ConfluenceConfiguration({
 			ritaToast.error({
 				title: t("config.toast.cancelFailed"),
 				description:
-					error instanceof Error ? error.message : t("config.toast.cancelFailedDefault"),
+					error instanceof Error
+						? error.message
+						: t("config.toast.cancelFailedDefault"),
 			});
 		}
 	};
@@ -134,6 +139,9 @@ export default function ConfluenceConfiguration({
 
 				<ConnectionStatusCard source={source} onRetry={handleSync} />
 
+				{/* Sync error/warning alert */}
+				<SyncErrorAlert backendData={source.backendData} onReVerify={onEdit} />
+
 				{/* Show cancel button when syncing */}
 				{isSyncing && (
 					<div className="flex flex-col gap-1">
@@ -145,7 +153,9 @@ export default function ConfluenceConfiguration({
 									disabled={isCancelButtonDisabled}
 									variant="destructive"
 								>
-									{cancelMutation.isPending ? t("config.sync.cancelling") : t("config.sync.cancelSync")}
+									{cancelMutation.isPending
+										? t("config.sync.cancelling")
+										: t("config.sync.cancelSync")}
 								</Button>
 							</div>
 						</div>
