@@ -2,20 +2,13 @@ import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { StatusAlert } from "@/components/ui/status-alert";
 import type { DataSourceConnection } from "@/types/dataSource";
+import { isCredentialError } from "./utils";
 
 interface SyncErrorAlertProps {
 	/** Backend data source connection with sync status fields */
 	backendData: DataSourceConnection | undefined;
 	/** Callback to trigger re-verification (switches to credential form) */
 	onReVerify?: () => void;
-}
-
-/**
- * Check if error message indicates a credential/permission issue
- */
-function isCredentialError(error: string): boolean {
-	const lower = error.toLowerCase();
-	return lower.includes("authentication") || lower.includes("permission");
 }
 
 /**

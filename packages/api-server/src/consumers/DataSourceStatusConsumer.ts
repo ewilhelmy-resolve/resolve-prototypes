@@ -202,7 +202,7 @@ export class DataSourceStatusConsumer {
 					"failed",
 					true, // Update last_sync_at
 					false, // Don't require syncing status
-					error_message || "Sync failed",
+					error_message || null,
 				);
 				messageLogger.error(
 					{

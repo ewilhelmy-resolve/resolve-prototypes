@@ -2,17 +2,13 @@ import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { StatusAlert } from "@/components/ui/status-alert";
 import type { IngestionRun } from "@/types/dataSource";
+import { isCredentialIngestionError } from "./utils";
 
 interface IngestionErrorAlertProps {
 	/** Latest ingestion run with status and error fields */
 	latestRun: IngestionRun | undefined | null;
 	/** Callback to trigger re-verification (switches to credential form) */
 	onReVerify?: () => void;
-}
-
-function isCredentialError(error: string): boolean {
-	const lower = error.toLowerCase();
-	return lower.includes("authentication") || lower.includes("permission");
 }
 
 /**
@@ -37,8 +33,8 @@ export function IngestionErrorAlert({
 	// Skip tickets_below_threshold — handled by TicketGroups component
 	if (latestRun.error_message === "tickets_below_threshold") return null;
 
-	// Credential/permission error
-	if (isCredentialError(latestRun.error_message)) {
+	// Credential/permission error (checks error_code first, then string matching)
+	if (isCredentialIngestionError(latestRun)) {
 		return (
 			<StatusAlert
 				variant="error"
