@@ -1,0 +1,147 @@
+Data Source Ticket Ingestion Status
+=====================================
+
+Sends ticket ingestion status updates to Rita via RabbitMQ.
+Used by ITSM integrations (ServiceNow, Jira, Ivanti, Freshdesk) to report
+ticket sync progress, completion, or failure.
+
+PREREQUISITES
+-------------
+Set these workflow variables before using:
+• %rita_rabbitmq_url%
+• %rita_data_source_status_queue_name%
+• %tenant_id%
+• %connection_id%
+• %user_id%
+• %ingestion_run_id% (returned by Rita when sync is initiated)
+
+OPTIONAL VARIABLES
+------------------
+• %records_processed% - Number of tickets processed so far
+• %records_failed% - Number of tickets that failed to process
+• %total_estimated% - Estimated total tickets (for progress calculation)
+• %error_message% - Error description (for status = failed)
+• %error_detail% - JSON object with additional error context
+
+HOW IT WORKS
+------------
+Message type is always "ticket_ingestion". Status determines behavior:
+
+• "running" — Progress update. Rita updates the ingestion run with
+  records_processed, records_failed, and total_estimated. Triggers a
+  progress bar update in the UI.
+
+• "completed" — Sync finished successfully. Rita marks the run as complete,
+  updates the connection status to "idle" with last_sync_status = "completed".
+
+• "failed" — Sync failed. Rita marks the run as failed, stores the
+  error_message, and shows an inline error in the UI. The connection
+  status returns to "idle" with last_sync_status = "failed".
+
+FIELDS
+------
+• Status: One of running, completed, failed
+• Records Processed: Count of tickets processed (for running/completed)
+• Records Failed: Count of tickets that failed (for running/completed)
+• Total Estimated: Estimated total for progress bar (for running)
+• Error Message: Error description (for failed)
+• Error Detail: JSON object with error context (for failed)
+
+ERROR HANDLING — CREDENTIAL/PERMISSION FAILURES
+------------------------------------------------
+When ticket sync fails due to credential or permission issues, the platform
+MUST send a "failed" status with a descriptive error_message.
+
+Rita detects credential errors by checking if error_message contains
+"authentication" or "permission" (case-insensitive). When detected, the UI
+shows a specific "Re-verify credentials" action button.
+
+Recommended error messages:
+• Authentication: "Authentication failed: invalid or expired credentials.
+  Please re-verify your connection credentials."
+• Permission: "Permission denied: the service account does not have
+  sufficient permissions to read tickets."
+
+The error_detail field can optionally include an error_code:
+• "authentication_failed" — for credential issues
+• "permission_denied" — for insufficient permissions
+
+EXAMPLES
+--------
+Progress update:
+- Status: "running"
+- Records Processed: 150
+- Records Failed: 2
+- Total Estimated: 500
+
+Completed:
+- Status: "completed"
+- Records Processed: 498
+- Records Failed: 2
+
+Failed (credential error):
+- Status: "failed"
+- Records Processed: 0
+- Records Failed: 0
+- Error Message: "Authentication failed: invalid or expired credentials. Please re-verify your connection credentials."
+- Error Detail: {"error_code": "authentication_failed"}
+
+Failed (permission error):
+- Status: "failed"
+- Records Processed: 0
+- Records Failed: 0
+- Error Message: "Permission denied: the service account does not have sufficient permissions to read tickets."
+- Error Detail: {"error_code": "permission_denied"}
+
+Failed (tickets below threshold):
+- Status: "failed"
+- Records Processed: 0
+- Records Failed: 0
+- Error Message: "tickets_below_threshold"
+- Error Detail: {"current_total_tickets": 10, "needed_total_tickets": 100}
+
+RABBITMQ MESSAGE FORMAT
+-----------------------
+All messages go to the "data_source_status" queue with type "ticket_ingestion".
+
+Progress:
+{
+  "type": "ticket_ingestion",
+  "tenant_id": "<tenant-id>",
+  "user_id": "<user-id>",
+  "ingestion_run_id": "<run-id>",
+  "connection_id": "<connection-id>",
+  "status": "running",
+  "records_processed": 150,
+  "records_failed": 2,
+  "total_estimated": 500,
+  "timestamp": "2026-03-09T00:00:00.000Z"
+}
+
+Completed:
+{
+  "type": "ticket_ingestion",
+  "tenant_id": "<tenant-id>",
+  "user_id": "<user-id>",
+  "ingestion_run_id": "<run-id>",
+  "connection_id": "<connection-id>",
+  "status": "completed",
+  "records_processed": 498,
+  "records_failed": 2,
+  "timestamp": "2026-03-09T00:00:00.000Z"
+}
+
+Failed (credential):
+{
+  "type": "ticket_ingestion",
+  "tenant_id": "<tenant-id>",
+  "user_id": "<user-id>",
+  "ingestion_run_id": "<run-id>",
+  "connection_id": "<connection-id>",
+  "status": "failed",
+  "records_processed": 0,
+  "records_failed": 0,
+  "error_message": "Authentication failed: invalid or expired credentials. Please re-verify your connection credentials.",
+  "error_detail": {"error_code": "authentication_failed"},
+  "timestamp": "2026-03-09T00:00:00.000Z"
+}
