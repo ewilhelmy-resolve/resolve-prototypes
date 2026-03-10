@@ -2,6 +2,7 @@ import { Kysely, PostgresDialect, sql } from "kysely";
 import pg from "pg";
 import type { DB } from "../types/database.js";
 import { dbLogger, logError, PerformanceTimer } from "./logger.js";
+import { assertUuid } from "./validateUuid.js";
 
 const { Pool } = pg;
 
@@ -46,7 +47,10 @@ export async function withKyselyOrgContext<T>(
 	try {
 		await sql`BEGIN`.execute(trxDb);
 
-		// Set session variables for RLS policies
+		// Validate UUIDs to prevent SQL injection (SET commands don't support parameters)
+		assertUuid(userId, "userId");
+		assertUuid(organizationId, "organizationId");
+
 		await sql.raw(`SET LOCAL app.current_user_id = '${userId}'`).execute(trxDb);
 		await sql
 			.raw(`SET LOCAL app.current_organization_id = '${organizationId}'`)
