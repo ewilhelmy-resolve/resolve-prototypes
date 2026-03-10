@@ -12,7 +12,10 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { FeedbackBanner } from "@/components/ui/feedback-banner";
 import { useClusterDetails } from "@/hooks/useClusters";
-import { KB_STATUS_BADGE_STYLES } from "@/lib/constants";
+import {
+	getClusterDisplayTitle,
+	getKnowledgeStatusBadge,
+} from "@/lib/cluster-utils";
 
 /** Fire confetti animation for success/enriched banners */
 const fireConfetti = () => {
@@ -70,60 +73,52 @@ export default function ClusterDetailPage() {
 
 	const handleReviewComplete = (stats: ReviewStats) => {
 		const { trusted, totalReviewed, confidenceImprovement } = stats;
-
 		if (confidenceImprovement > 0) {
-			fireConfetti();
-			setBannerData((prev) => ({
-				visible: true,
-				variant: "success",
-				title: t("clusterDetail.banners.reviewSuccess", { count: totalReviewed }),
-				description: t("clusterDetail.banners.reviewSuccessDesc", { trusted, improvement: confidenceImprovement }),
-				key: prev.key + 1,
-			}));
+			showBanner(
+				"success",
+				t("clusterDetail.banners.reviewSuccess", { count: totalReviewed }),
+				t("clusterDetail.banners.reviewSuccessDesc", {
+					trusted,
+					improvement: confidenceImprovement,
+				}),
+			);
 		} else {
-			setBannerData((prev) => ({
-				visible: true,
-				variant: "destructive",
-				title: t("clusterDetail.banners.reviewNeedsImprovement"),
-				description: t("clusterDetail.banners.reviewNeedsImprovementDesc", { count: totalReviewed }),
-				key: prev.key + 1,
-			}));
+			showBanner(
+				"destructive",
+				t("clusterDetail.banners.reviewNeedsImprovement"),
+				t("clusterDetail.banners.reviewNeedsImprovementDesc", {
+					count: totalReviewed,
+				}),
+				false,
+			);
 		}
 	};
 
 	const handleAutoPopulateEnabled = () => {
-		fireConfetti();
-		setBannerData((prev) => ({
-			visible: true,
-			variant: "enriched",
-			title: t("clusterDetail.banners.enrichedTickets"),
-			key: prev.key + 1,
-		}));
+		showBanner("enriched", t("clusterDetail.banners.enrichedTickets"));
 	};
 
 	const handleKnowledgeAdded = () => {
-		fireConfetti();
-		setBannerData((prev) => ({
-			visible: true,
-			variant: "success",
-			title: t("clusterDetail.banners.knowledgeAdded"),
-			description: t("clusterDetail.banners.knowledgeAddedDesc"),
-			key: prev.key + 1,
-		}));
+		showBanner(
+			"success",
+			t("clusterDetail.banners.knowledgeAdded"),
+			t("clusterDetail.banners.knowledgeAddedDesc"),
+		);
 	};
 
 	const handleAutoRespondEnabled = (
 		ticketGroupName: string,
 		automatedPercentage: number,
 	) => {
-		fireConfetti();
-		setBannerData((prev) => ({
-			visible: true,
-			variant: "enriched",
-			title: t("clusterDetail.banners.automatedWork", { percentage: automatedPercentage }),
-			description: t("clusterDetail.banners.automatedWorkDesc", { groupName: ticketGroupName }),
-			key: prev.key + 1,
-		}));
+		showBanner(
+			"enriched",
+			t("clusterDetail.banners.automatedWork", {
+				percentage: automatedPercentage,
+			}),
+			t("clusterDetail.banners.automatedWorkDesc", {
+				groupName: ticketGroupName,
+			}),
+		);
 	};
 
 	const handleDismissBanner = () => {
@@ -145,20 +140,20 @@ export default function ClusterDetailPage() {
 		}
 	}, [bannerKey, bannerData.visible]);
 
-	// Build display title from name + subcluster_name
-	const getDisplayTitle = () => {
-		if (!cluster) return "Cluster";
-		if (cluster.subcluster_name) {
-			return `${cluster.name} - ${cluster.subcluster_name}`;
-		}
-		return cluster.name;
-	};
-
-	const getKnowledgeStatusBadge = () => {
-		if (!cluster) return null;
-		const style = KB_STATUS_BADGE_STYLES[cluster.kb_status];
-		if (!style) return null;
-		return style;
+	const showBanner = (
+		variant: "success" | "destructive" | "enriched",
+		title: string,
+		description?: string,
+		withConfetti = true,
+	) => {
+		if (withConfetti) fireConfetti();
+		setBannerData((prev) => ({
+			visible: true,
+			variant,
+			title,
+			description,
+			key: prev.key + 1,
+		}));
 	};
 
 	if (isLoading) {
@@ -184,8 +179,12 @@ export default function ClusterDetailPage() {
 		);
 	}
 
-	const title = getDisplayTitle();
-	const knowledgeStatusBadge = getKnowledgeStatusBadge();
+	const title = cluster
+		? getClusterDisplayTitle(cluster.name, cluster.subcluster_name)
+		: "Cluster";
+	const knowledgeStatusBadge = cluster
+		? getKnowledgeStatusBadge(cluster.kb_status)
+		: null;
 
 	const badges = [
 		{
@@ -199,7 +198,9 @@ export default function ClusterDetailPage() {
 			className: "",
 		},
 		{
-			text: t("clusterDetail.badges.kbArticles", { count: cluster.kb_articles_count }),
+			text: t("clusterDetail.badges.kbArticles", {
+				count: cluster.kb_articles_count,
+			}),
 			variant: "secondary" as const,
 			className: "",
 		},
