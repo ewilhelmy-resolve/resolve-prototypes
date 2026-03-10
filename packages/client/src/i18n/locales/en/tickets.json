@@ -1,6 +1,7 @@
 {
 	"header": {
 		"description": "RITA learned from <strong>{{ticketCount}}</strong> tickets for <strong>{{period}}</strong>",
+		"lastSynced": "Last synced {{time}}",
 		"stats": {
 			"totalTickets": "Total tickets",
 			"ticketsLast7Days": "Tickets last 7 days",

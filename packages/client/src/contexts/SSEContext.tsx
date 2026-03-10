@@ -7,6 +7,8 @@ import { ritaToast } from "../components/ui/rita-toast";
 import { type FileDocument, fileKeys } from "../hooks/api/useFiles";
 import { memberKeys } from "../hooks/api/useMembers";
 import { profileKeys } from "../hooks/api/useProfile";
+import { mlModelKeys } from "../hooks/useActiveModel";
+import { clusterKeys } from "../hooks/useClusters";
 import { dataSourceKeys, ingestionRunKeys } from "../hooks/useDataSources";
 import { useSSE } from "../hooks/useSSE";
 import type { SSEEvent } from "../services/EventSourceSSEClient";
@@ -444,11 +446,29 @@ export const SSEProvider: React.FC<SSEProviderProps> = ({
 					});
 
 					if (event.data.status === "completed") {
+						// Refresh ticket dashboard data (clusters, totals, counts)
+						queryClient.invalidateQueries({
+							queryKey: clusterKeys.all,
+						});
+						// New tickets may trigger model retraining
+						queryClient.invalidateQueries({
+							queryKey: mlModelKeys.active(),
+						});
+
+						const isOnTicketsPage =
+							window.location.pathname.startsWith("/tickets");
+
 						ritaToast.success({
 							title: i18n.t("success.ticketSyncComplete", { ns: "toast" }),
 							description: i18n.t("descriptions.ticketsProcessed", {
 								count: event.data.records_processed ?? 0,
 								ns: "toast",
+							}),
+							...(!isOnTicketsPage && {
+								action: {
+									label: i18n.t("actions.viewTickets", { ns: "toast" }),
+									onClick: () => navigate("/tickets"),
+								},
 							}),
 						});
 					} else if (event.data.status === "failed") {
