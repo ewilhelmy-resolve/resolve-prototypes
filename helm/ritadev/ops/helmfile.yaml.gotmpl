@@ -41,6 +41,10 @@ releases:
     value: {{ requiredEnv "AUTOMATION_WEBHOOK_URL" }}
   - name: secrets.automationAuth
     value: {{ requiredEnv "AUTOMATION_AUTH" }}
+  - name: secrets.rollbarAccessToken
+    value: {{ env "ROLLBAR_ACCESS_TOKEN" | default "" }}
+  - name: secrets.rollbarHashSalt
+    value: {{ env "ROLLBAR_HASH_SALT" | default "" }}
   - name: config.keycloakUrl
     value: https://auth.dev.{{ .Values.domain }}
   - name: config.keycloakRealm

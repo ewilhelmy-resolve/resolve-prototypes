@@ -71,6 +71,9 @@
 		"featureFlagUpdated": "Feature flag updated",
 		"memberRemoved": "Member removed"
 	},
+	"actions": {
+		"viewTickets": "View tickets"
+	},
 	"descriptions": {
 		"confluenceConfigured": "Your Confluence connection has been configured successfully",
 		"serviceNowConfigured": "Your ServiceNow connection has been configured successfully",

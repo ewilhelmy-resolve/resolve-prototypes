@@ -89,6 +89,16 @@ spec:
             secretKeyRef:
               name: {{ include "api-server.fullname" . }}-secret
               key: AUTOMATION_AUTH
+        - name: ROLLBAR_ACCESS_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: {{ include "api-server.fullname" . }}-secret
+              key: ROLLBAR_ACCESS_TOKEN
+        - name: ROLLBAR_HASH_SALT
+          valueFrom:
+            secretKeyRef:
+              name: {{ include "api-server.fullname" . }}-secret
+              key: ROLLBAR_HASH_SALT
         {{- if .Values.healthCheck.liveness.enabled }}
         livenessProbe:
           httpGet:

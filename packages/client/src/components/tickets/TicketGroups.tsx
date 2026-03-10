@@ -18,6 +18,7 @@ import { useActiveModel } from "@/hooks/useActiveModel";
 import { useClusters } from "@/hooks/useClusters";
 import { useDebounce } from "@/hooks/useDebounce";
 import { useIsIngesting } from "@/hooks/useIsIngesting";
+import { getClusterDisplayTitle } from "@/lib/cluster-utils";
 import {
 	KB_FILTER_ALL,
 	KB_STATUSES,
@@ -32,6 +33,37 @@ import { TicketGroupStat } from "./TicketGroupStat";
 type KBFilterOption = KBStatus | typeof KB_FILTER_ALL;
 
 const PAGE_SIZE = 20;
+
+function ImportProgressBanner({
+	latestRun,
+}: {
+	latestRun: ReturnType<typeof useIsIngesting>["latestRun"];
+}) {
+	const { t } = useTranslation("tickets");
+	return (
+		<StatusAlert variant="info" title={t("groups.importingTickets")}>
+			<p>{t("groups.importingDescription")}</p>
+			{latestRun?.metadata?.progress?.total_estimated && (
+				<div className="w-full">
+					<Progress
+						value={
+							(latestRun.records_processed /
+								latestRun.metadata.progress.total_estimated) *
+							100
+						}
+						className="bg-white"
+					/>
+					<span className="text-sm text-muted-foreground whitespace-nowrap">
+						{t("groups.importingProgress", {
+							processed: latestRun.records_processed,
+							total: latestRun.metadata.progress.total_estimated,
+						})}
+					</span>
+				</div>
+			)}
+		</StatusAlert>
+	);
+}
 
 interface TicketGroupsProps {
 	period: PeriodFilter;
@@ -102,14 +134,6 @@ export default function TicketGroups({ period }: TicketGroupsProps) {
 		[KB_STATUSES.PENDING]: t("groups.filterOptions.pending"),
 	};
 
-	// Build display title from name + subcluster_name
-	const getDisplayTitle = (name: string, subclusterName: string | null) => {
-		if (subclusterName) {
-			return `${name} - ${subclusterName}`;
-		}
-		return name;
-	};
-
 	// Show spinner while checking model state initially
 	if (isModelLoading) {
 		return (
@@ -138,6 +162,14 @@ export default function TicketGroups({ period }: TicketGroupsProps) {
 			</div>
 		);
 	}
+
+	const skeletonGrid = (
+		<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+			{[...Array(6)].map((_, i) => (
+				<TicketGroupSkeleton key={i} />
+			))}
+		</div>
+	);
 
 	return (
 		<div className="flex w-full flex-col">
@@ -229,32 +261,8 @@ export default function TicketGroups({ period }: TicketGroupsProps) {
 				) : isFirstImport ? (
 					// First-time import: show banner + progress + skeleton grid
 					<div className="flex flex-col gap-6">
-						<StatusAlert variant="info" title={t("groups.importingTickets")}>
-							<p>{t("groups.importingDescription")}</p>
-							{latestRun?.metadata?.progress?.total_estimated && (
-								<div className="w-full">
-									<Progress
-										value={
-											(latestRun.records_processed /
-												latestRun.metadata.progress.total_estimated) *
-											100
-										}
-										className="bg-white"
-									/>
-									<span className="text-sm text-muted-foreground whitespace-nowrap">
-										{t("groups.importingProgress", {
-											processed: latestRun.records_processed,
-											total: latestRun.metadata.progress.total_estimated,
-										})}
-									</span>
-								</div>
-							)}
-						</StatusAlert>
-						<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
-							{[...Array(6)].map((_, i) => (
-								<TicketGroupSkeleton key={i} />
-							))}
-						</div>
+						<ImportProgressBanner latestRun={latestRun} />
+						{skeletonGrid}
 					</div>
 				) : isTraining ? (
 					// Training in progress: show banner + skeleton grid
@@ -262,11 +270,7 @@ export default function TicketGroups({ period }: TicketGroupsProps) {
 						<StatusAlert variant="info" title={t("groups.trainingInProgress")}>
 							<p>{t("groups.trainingDescription")}</p>
 						</StatusAlert>
-						<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
-							{[...Array(6)].map((_, i) => (
-								<TicketGroupSkeleton key={i} />
-							))}
-						</div>
+						{skeletonGrid}
 					</div>
 				) : hasNoModel ? (
 					// No model: show connect source empty state
@@ -298,35 +302,16 @@ export default function TicketGroups({ period }: TicketGroupsProps) {
 				) : clusters.length > 0 ? (
 					<>
 						{/* Re-import banner: show above existing clusters */}
-						{isIngesting && (
-							<StatusAlert variant="info" title={t("groups.importingTickets")}>
-								<p>{t("groups.importingDescription")}</p>
-								{latestRun?.metadata?.progress?.total_estimated && (
-									<div className="w-full">
-										<Progress
-											value={
-												(latestRun.records_processed /
-													latestRun.metadata.progress.total_estimated) *
-												100
-											}
-											className="bg-white"
-										/>
-										<span className="text-sm text-muted-foreground whitespace-nowrap">
-											{t("groups.importingProgress", {
-												processed: latestRun.records_processed,
-												total: latestRun.metadata.progress.total_estimated,
-											})}
-										</span>
-									</div>
-								)}
-							</StatusAlert>
-						)}
+						{isIngesting && <ImportProgressBanner latestRun={latestRun} />}
 						<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
 							{clusters.map((cluster) => (
 								<TicketGroupStat
 									key={cluster.id}
 									id={cluster.id}
-									title={getDisplayTitle(cluster.name, cluster.subcluster_name)}
+									title={getClusterDisplayTitle(
+										cluster.name,
+										cluster.subcluster_name,
+									)}
 									count={cluster.ticket_count}
 									knowledgeStatus={cluster.kb_status}
 								/>

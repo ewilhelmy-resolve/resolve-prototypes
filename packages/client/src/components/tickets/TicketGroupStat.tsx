@@ -1,7 +1,7 @@
 import { useNavigate } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { KB_STATUS_BADGE_STYLES } from "@/lib/constants";
+import { getKnowledgeStatusBadge } from "@/lib/cluster-utils";
 import type { KBStatus } from "@/types/cluster";
 
 interface TicketGroupStatProps {
@@ -41,16 +41,6 @@ export function TicketGroupStat({
 		onClick ? onClick() : navigate(`/tickets/${id}`);
 	};
 
-	const getKnowledgeBadge = () => {
-		const style = KB_STATUS_BADGE_STYLES[knowledgeStatus];
-		if (!style) return null;
-		return (
-			<Badge variant={style.variant} className={style.className}>
-				{style.text}
-			</Badge>
-		);
-	};
-
 	return (
 		<button
 			type="button"
@@ -79,7 +69,16 @@ export function TicketGroupStat({
 			</div>
 
 			{/* Knowledge Status Badge */}
-			<div>{getKnowledgeBadge()}</div>
+			<div>
+				{(() => {
+					const style = getKnowledgeStatusBadge(knowledgeStatus);
+					return style ? (
+						<Badge variant={style.variant} className={style.className}>
+							{style.text}
+						</Badge>
+					) : null;
+				})()}
+			</div>
 		</button>
 	);
 }
