@@ -321,8 +321,9 @@ export class DataSourceService {
 		let paramIndex = 2;
 
 		if (status === "success") {
-			// On success: clear error, store options
+			// On success: clear error, store options, clear stale sync error
 			updates.push(`last_verification_error = NULL`);
+			updates.push(`last_sync_error = NULL`);
 
 			if (options) {
 				updates.push(`latest_options = $${paramIndex++}`);
