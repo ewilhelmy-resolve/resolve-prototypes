@@ -118,7 +118,11 @@ export function useVerifyDataSource() {
 				dataSourceKeys.detail(id),
 				(old) => {
 					if (!old) return old;
-					return { ...old, status: "verifying" as const };
+					return {
+						...old,
+						status: "verifying" as const,
+						last_sync_error: null,
+					};
 				},
 			);
 
@@ -221,7 +225,7 @@ export function useSyncTickets() {
  */
 export function useLatestIngestionRun(connectionId: string | undefined) {
 	return useQuery({
-		queryKey: ingestionRunKeys.latest(connectionId!),
+		queryKey: ingestionRunKeys.latest(connectionId ?? ""),
 		queryFn: async () => {
 			if (!connectionId) throw new Error("Connection ID is required");
 			const response = await dataSourcesApi.getLatestIngestionRun(connectionId);

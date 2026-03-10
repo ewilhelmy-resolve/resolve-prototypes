@@ -9,6 +9,8 @@ interface IngestionErrorAlertProps {
 	latestRun: IngestionRun | undefined | null;
 	/** Callback to trigger re-verification (switches to credential form) */
 	onReVerify?: () => void;
+	/** Last successful verification timestamp — suppresses stale credential errors */
+	lastVerificationAt?: string | null;
 }
 
 /**
@@ -22,6 +24,7 @@ interface IngestionErrorAlertProps {
 export function IngestionErrorAlert({
 	latestRun,
 	onReVerify,
+	lastVerificationAt,
 }: IngestionErrorAlertProps) {
 	const { t } = useTranslation("connections");
 
@@ -35,6 +38,15 @@ export function IngestionErrorAlert({
 
 	// Credential/permission error (checks error_code first, then string matching)
 	if (isCredentialIngestionError(latestRun)) {
+		// Suppress stale credential errors if credentials were re-verified after the failure
+		if (
+			lastVerificationAt &&
+			latestRun.updated_at &&
+			new Date(lastVerificationAt) > new Date(latestRun.updated_at)
+		) {
+			return null;
+		}
+
 		return (
 			<StatusAlert
 				variant="error"

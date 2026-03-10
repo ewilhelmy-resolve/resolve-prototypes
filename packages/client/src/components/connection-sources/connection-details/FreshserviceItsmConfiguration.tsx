@@ -146,6 +146,7 @@ export default function FreshserviceItsmConfiguration({
 				<IngestionErrorAlert
 					latestRun={latestIngestionRun}
 					onReVerify={onEdit}
+					lastVerificationAt={source.backendData?.last_verification_at}
 				/>
 
 				{isTraining && (

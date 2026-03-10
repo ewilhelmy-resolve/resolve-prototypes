@@ -95,10 +95,15 @@ router.post("/:id/verify", authenticateUser, async (req, res) => {
 		}
 
 		// Update status to 'verifying' before sending webhook
+		// Clear stale sync errors so they don't persist during re-verification
 		await dataSourceService.updateDataSourceStatus(
 			id,
 			authReq.user.activeOrganizationId,
 			"verifying" as any,
+			undefined,
+			false,
+			false,
+			null,
 		);
 
 		// Also update related connection status if apply_to_related
@@ -107,6 +112,10 @@ router.post("/:id/verify", authenticateUser, async (req, res) => {
 				relatedDataSource.id,
 				authReq.user.activeOrganizationId,
 				"verifying" as any,
+				undefined,
+				false,
+				false,
+				null,
 			);
 		}
 

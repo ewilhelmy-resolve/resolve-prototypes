@@ -150,6 +150,7 @@ export default function IvantiItsmConfiguration({
 				<IngestionErrorAlert
 					latestRun={latestIngestionRun}
 					onReVerify={onEdit}
+					lastVerificationAt={source.backendData?.last_verification_at}
 				/>
 
 				{/* Training in progress banner */}
