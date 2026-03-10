@@ -51,6 +51,46 @@ describe("scrubSensitiveFields", () => {
 		const scrubbed = scrubSensitiveFields(payload);
 		expect(scrubbed).toEqual(payload);
 	});
+
+	it("should scrub nested sensitive fields recursively", () => {
+		const payload = {
+			source: "rita-signup",
+			data: {
+				password: "nested-secret",
+				user: { name: "Test" },
+			},
+			name: "safe",
+		};
+		const scrubbed = scrubSensitiveFields(payload);
+		expect(scrubbed.data.password).toBe("[REDACTED]");
+		expect(scrubbed.data.user.name).toBe("Test");
+		expect(scrubbed.name).toBe("safe");
+	});
+
+	it("should scrub sensitive fields inside arrays of objects", () => {
+		const payload = {
+			items: [
+				{ password: "secret1", id: 1 },
+				{ password: "secret2", id: 2 },
+			],
+		};
+		const scrubbed = scrubSensitiveFields(payload);
+		expect(scrubbed.items[0].password).toBe("[REDACTED]");
+		expect(scrubbed.items[1].password).toBe("[REDACTED]");
+		expect(scrubbed.items[0].id).toBe(1);
+	});
+
+	it("should scrub verification_token and verification_url", () => {
+		const payload = {
+			first_name: "Test",
+			verification_token: "abc123hex",
+			verification_url: "https://example.com/verify?token=abc123hex",
+		};
+		const scrubbed = scrubSensitiveFields(payload);
+		expect(scrubbed.verification_token).toBe("[REDACTED]");
+		expect(scrubbed.verification_url).toBe("[REDACTED]");
+		expect(scrubbed.first_name).toBe("Test");
+	});
 });
 
 describe("WebhookService – sensitive data scrubbing", () => {
@@ -105,11 +145,11 @@ describe("WebhookService – sensitive data scrubbing", () => {
 			const storedPayloadJson = insertCall?.[1][2] as string;
 			const storedPayload = JSON.parse(storedPayloadJson);
 
-			// password must be redacted, not stored as plaintext/base64
+			// sensitive fields must be redacted
 			expect(storedPayload.password).toBe("[REDACTED]");
+			expect(storedPayload.verification_token).toBe("[REDACTED]");
 			// non-sensitive data should still be present
 			expect(storedPayload.first_name).toBe("Test");
-			expect(storedPayload.verification_token).toBe("abc123");
 		});
 
 		it("should scrub clientKey from iframe webhook failures", async () => {
