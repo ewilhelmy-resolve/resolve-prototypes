@@ -94,7 +94,7 @@ const createModalHTML = (iframeSrc: string, title: string) => `
             <path d="M21 3H3c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h18c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H3V5h18v14z"/>
             <path d="M5 15h14v2H5z"/>
           </svg>
-          ${title}
+          ${escapeHtml(title)}
         </h3>
         <button id="rita-injected-modal-close" onclick="window.__ritaCloseModal?.()">×</button>
       </div>
@@ -104,6 +104,18 @@ const createModalHTML = (iframeSrc: string, title: string) => `
     </div>
   </div>
 `;
+
+/**
+ * Escape a string for safe HTML injection, preventing XSS.
+ */
+export function escapeHtml(str: string): string {
+	return str
+		.replace(/&/g, "&amp;")
+		.replace(/</g, "&lt;")
+		.replace(/>/g, "&gt;")
+		.replace(/"/g, "&quot;")
+		.replace(/'/g, "&#039;");
+}
 
 /**
  * Check if we can access the parent document (same-origin)
@@ -410,7 +422,7 @@ export function openFullscreenContent(
 		overlay.innerHTML = `
 			<div id="rita-fullscreen-modal">
 				<div id="rita-fullscreen-header">
-					<h3>${title}</h3>
+					<h3>${escapeHtml(title)}</h3>
 					<button id="rita-fullscreen-close">×</button>
 				</div>
 				<div id="rita-fullscreen-body">
@@ -734,23 +746,24 @@ function closeFormModalInHost(): void {
 	}
 }
 
-function renderFormField(field: FormModalField): string {
+export function renderFormField(field: FormModalField): string {
+	const safeName = escapeHtml(field.name);
 	const labelHtml = field.label
-		? `<label for="rita-field-${field.name}">${field.label}</label>`
+		? `<label for="rita-field-${safeName}">${escapeHtml(field.label)}</label>`
 		: "";
 
 	if (field.type === "select" && field.options) {
 		const optionsHtml = field.options
 			.map(
 				(opt) =>
-					`<option value="${opt.value}" ${opt.value === field.defaultValue ? "selected" : ""}>${opt.label}</option>`,
+					`<option value="${escapeHtml(opt.value)}" ${opt.value === field.defaultValue ? "selected" : ""}>${escapeHtml(opt.label)}</option>`,
 			)
 			.join("");
 		return `
 			<div class="rita-form-field">
 				${labelHtml}
-				<select id="rita-field-${field.name}" name="${field.name}">
-					<option value="">${field.placeholder || "Select..."}</option>
+				<select id="rita-field-${safeName}" name="${safeName}">
+					<option value="">${escapeHtml(field.placeholder || "Select...")}</option>
 					${optionsHtml}
 				</select>
 			</div>
@@ -762,10 +775,10 @@ function renderFormField(field: FormModalField): string {
 			<div class="rita-form-field">
 				${labelHtml}
 				<textarea
-					id="rita-field-${field.name}"
-					name="${field.name}"
-					placeholder="${field.placeholder || ""}"
-				>${field.defaultValue || ""}</textarea>
+					id="rita-field-${safeName}"
+					name="${safeName}"
+					placeholder="${escapeHtml(field.placeholder || "")}"
+				>${escapeHtml(field.defaultValue || "")}</textarea>
 			</div>
 		`;
 	}
@@ -774,11 +787,11 @@ function renderFormField(field: FormModalField): string {
 		<div class="rita-form-field">
 			${labelHtml}
 			<input
-				type="${field.inputType || "text"}"
-				id="rita-field-${field.name}"
-				name="${field.name}"
-				placeholder="${field.placeholder || ""}"
-				value="${field.defaultValue || ""}"
+				type="${escapeHtml(field.inputType || "text")}"
+				id="rita-field-${safeName}"
+				name="${safeName}"
+				placeholder="${escapeHtml(field.placeholder || "")}"
+				value="${escapeHtml(field.defaultValue || "")}"
 			/>
 		</div>
 	`;
@@ -847,8 +860,8 @@ export function openFormModal(config: FormModalConfig): boolean {
 		<div id="rita-form-modal" class="size-${config.size || "full"}">
 			<div id="rita-form-modal-header">
 				<div id="rita-form-modal-header-text">
-					<h3>${config.title}</h3>
-					${config.description ? `<p>${config.description}</p>` : ""}
+					<h3>${escapeHtml(config.title)}</h3>
+					${config.description ? `<p>${escapeHtml(config.description)}</p>` : ""}
 				</div>
 				<button type="button" id="rita-form-modal-close">×</button>
 			</div>
@@ -858,10 +871,10 @@ export function openFormModal(config: FormModalConfig): boolean {
 				</div>
 				<div id="rita-form-modal-footer">
 					<button type="button" class="rita-form-btn rita-form-btn-cancel" id="rita-form-cancel">
-						${config.cancelLabel || "Cancel"}
+						${escapeHtml(config.cancelLabel || "Cancel")}
 					</button>
 					<button type="submit" class="${submitBtnClass}">
-						${config.submitLabel || "Submit"}
+						${escapeHtml(config.submitLabel || "Submit")}
 					</button>
 				</div>
 			</form>
