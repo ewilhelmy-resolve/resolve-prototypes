@@ -175,6 +175,7 @@ export default function ItsmConfigurationBase({
 				<IngestionErrorAlert
 					latestRun={latestIngestionRun}
 					onReVerify={onEdit}
+					lastVerificationAt={source.backendData?.last_verification_at}
 				/>
 
 				{isTraining && (
