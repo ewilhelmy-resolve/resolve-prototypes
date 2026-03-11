@@ -297,3 +297,10 @@ export function sortSourcesByStatus<T extends { status: string; type: string }>(
 		return typeOrder.indexOf(a.type) - typeOrder.indexOf(b.type);
 	});
 }
+
+// ITSM time range options for ticket import
+export const TIME_RANGE_OPTIONS_KEYS = [
+	{ labelKey: "config.timeRanges.last30Days" as const, value: "30" },
+	{ labelKey: "config.timeRanges.last60Days" as const, value: "60" },
+	{ labelKey: "config.timeRanges.last90Days" as const, value: "90" },
+];
