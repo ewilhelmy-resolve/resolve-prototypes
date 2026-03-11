@@ -3011,12 +3011,9 @@ app.post("/webhook", async (req, res) => {
 			);
 
 			if (isAuthError || isPermissionError) {
-				const errorType = isAuthError
+				const errorCode = isAuthError
 					? "authentication_failed"
 					: "permission_denied";
-				const errorMessage = isAuthError
-					? "Authentication failed: invalid or expired credentials. Please re-verify your connection credentials."
-					: "Permission denied: the service account does not have sufficient permissions to read the requested resources.";
 
 				(async () => {
 					try {
@@ -3029,15 +3026,14 @@ app.post("/webhook", async (req, res) => {
 							connection_id: syncPayload.connection_id,
 							tenant_id: syncPayload.tenant_id,
 							status: "sync_failed",
-							error_message: errorMessage,
-							error_code: errorType,
+							error_message: errorCode,
 							timestamp: new Date().toISOString(),
 						});
 
 						contextLogger.info(
 							{
 								connectionId: syncPayload.connection_id,
-								errorType,
+								errorCode,
 							},
 							"Published sync_failed for credential/permission error simulation",
 						);
@@ -3222,12 +3218,9 @@ app.post("/webhook", async (req, res) => {
 
 					if (isTicketAuthError || isTicketPermError) {
 						await new Promise((resolve) => setTimeout(resolve, 2000));
-						const errorType = isTicketAuthError
+						const errorCode = isTicketAuthError
 							? "authentication_failed"
 							: "permission_denied";
-						const errorMsg = isTicketAuthError
-							? "Authentication failed: invalid or expired credentials. Please re-verify your connection credentials."
-							: "Permission denied: the service account does not have sufficient permissions to read tickets.";
 						const authErrorMessage = {
 							type: "ticket_ingestion",
 							tenant_id: ticketsPayload.tenant_id,
@@ -3237,10 +3230,7 @@ app.post("/webhook", async (req, res) => {
 							status: "failed",
 							records_processed: 0,
 							records_failed: 0,
-							error_message: errorMsg,
-							error_detail: {
-								error_code: errorType,
-							},
+							error_message: errorCode,
 							timestamp: new Date().toISOString(),
 						};
 						await rabbitmqService.publishToQueue(
@@ -3248,7 +3238,7 @@ app.post("/webhook", async (req, res) => {
 							authErrorMessage,
 						);
 						contextLogger.info(
-							{ errorType },
+							{ errorCode },
 							"Simulated credential/permission error for ticket sync",
 						);
 						return;

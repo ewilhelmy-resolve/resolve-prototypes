@@ -244,7 +244,6 @@ export interface IngestionRun {
 		error_detail?: {
 			current_total_tickets?: number;
 			needed_total_tickets?: number;
-			error_code?: string;
 		};
 		[key: string]: unknown;
 	};
