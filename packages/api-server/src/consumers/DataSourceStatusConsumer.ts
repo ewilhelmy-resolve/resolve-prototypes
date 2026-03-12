@@ -456,8 +456,13 @@ export class DataSourceStatusConsumer {
 				);
 			}
 
-			// Stop sync when tickets are below threshold
-			if (error_message === "tickets_below_threshold" && connection_id) {
+			// Stop sync when tickets are below threshold or credentials are invalid
+			if (
+				(error_message === "tickets_below_threshold" ||
+					error_message === "authentication_failed" ||
+					error_message === "permission_denied") &&
+				connection_id
+			) {
 				await this.dataSourceService.updateDataSourceStatus(
 					connection_id,
 					tenant_id,
@@ -465,7 +470,8 @@ export class DataSourceStatusConsumer {
 					"failed",
 				);
 				messageLogger.info(
-					"Data source sync stopped due to tickets below threshold",
+					{ errorMessage: error_message },
+					"Data source sync stopped due to ingestion error",
 				);
 			}
 		}
