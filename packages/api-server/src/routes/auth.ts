@@ -52,6 +52,10 @@ registry.registerPath({
 			description: "Validation error or email already exists",
 			content: { "application/json": { schema: ErrorResponseSchema } },
 		},
+		429: {
+			description: "Rate limited - too many signup attempts",
+			content: { "application/json": { schema: ErrorResponseSchema } },
+		},
 		500: {
 			description: "Server error",
 			content: { "application/json": { schema: ErrorResponseSchema } },
@@ -292,26 +296,28 @@ const router = express.Router();
 const sessionService = getSessionService();
 const webhookService = new WebhookService();
 
-// Simple in-memory rate limiter for resend verification (5 minutes)
-const resendRateLimiter = new Map<string, number>();
-const RESEND_COOLDOWN_MS = 5 * 60 * 1000; // 5 minutes
+// Simple in-memory rate limiter (fixed-window counter)
+const rateLimiter = new Map<string, { count: number; resetAt: number }>();
 
-function checkResendRateLimit(email: string): boolean {
-	const lastResend = resendRateLimiter.get(email);
-	if (lastResend && Date.now() - lastResend < RESEND_COOLDOWN_MS) {
-		return false; // Rate limited
-	}
-	resendRateLimiter.set(email, Date.now());
+function checkRateLimit(
+	key: string,
+	maxRequests: number,
+	windowMs: number,
+): boolean {
+	const now = Date.now();
+	const limit = rateLimiter.get(key);
 
-	// Cleanup old entries (older than cooldown period)
-	const cutoff = Date.now() - RESEND_COOLDOWN_MS;
-	for (const [key, timestamp] of resendRateLimiter.entries()) {
-		if (timestamp < cutoff) {
-			resendRateLimiter.delete(key);
-		}
+	if (!limit || now > limit.resetAt) {
+		rateLimiter.set(key, { count: 1, resetAt: now + windowMs });
+		return true;
 	}
 
-	return true; // Allowed
+	if (limit.count >= maxRequests) {
+		return false;
+	}
+
+	limit.count++;
+	return true;
 }
 
 /**
@@ -321,6 +327,14 @@ function checkResendRateLimit(email: string): boolean {
  */
 router.post("/signup", async (req, res) => {
 	try {
+		const clientIp = req.ip || req.socket.remoteAddress;
+		if (clientIp && !checkRateLimit(`signup:${clientIp}`, 5, 15 * 60 * 1000)) {
+			logger.warn({ ip: clientIp }, "Signup rate limit exceeded");
+			return res.status(429).json({
+				error: "Too many signup attempts. Please try again later.",
+			});
+		}
+
 		const validation = SignupRequestSchema.safeParse(req.body);
 		if (!validation.success) {
 			return res.status(400).json({
@@ -441,8 +455,8 @@ router.post("/resend-verification", async (req, res) => {
 			});
 		}
 
-		// Check rate limit
-		if (!checkResendRateLimit(email)) {
+		// Check rate limit (1 per 5 minutes per email)
+		if (!checkRateLimit(`resend:${email}`, 1, 5 * 60 * 1000)) {
 			return res.status(429).json({
 				error:
 					"Please wait 5 minutes before requesting another verification email",
