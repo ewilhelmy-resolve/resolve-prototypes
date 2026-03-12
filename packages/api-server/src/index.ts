@@ -92,6 +92,14 @@ app.use("/api-docs", docsRoutes);
 // Authentication routes (no auth required)
 app.use("/auth", authRoutes);
 
+// Test-only routes (dev/test only — feature flag overrides, etc.)
+if (process.env.NODE_ENV !== "production") {
+	import("./routes/testRoutes.js").then((mod) => {
+		app.use("/test", mod.default);
+		logger.info("Test routes registered at /test/*");
+	});
+}
+
 // Iframe routes (no auth required - public access)
 app.use("/api/iframe", iframeRoutes);
 

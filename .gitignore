@@ -43,6 +43,7 @@ coverage/
 
 # Test artifacts
 playwright-report/
+.playwright-cli/
 test-results/
 
 # Dependency directories

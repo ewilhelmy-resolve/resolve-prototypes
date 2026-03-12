@@ -22,6 +22,13 @@ pnpm dev:theme        # Keycloak theme dev
 pnpm dev:iframe-app   # Iframe host (port 5174)
 pnpm setup            # Initial project setup
 
+# E2E Validation (agent-driven)
+pnpm e2e:check        # Verify all services running
+pnpm db:reset         # Reset DB to deterministic seed
+pnpm e2e:login        # Get session cookie for playwright-cli
+pnpm e2e:login testmember test  # Login as member
+pnpm e2e:reset-keycloak  # Re-import Keycloak realm
+
 # Build
 pnpm build            # Build api-server + client
 pnpm build:theme      # Build Keycloak theme

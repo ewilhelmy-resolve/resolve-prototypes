@@ -116,6 +116,25 @@ pnpm deploy-storybook # Deploy to GitHub Pages
 
 Story files: `*.stories.tsx` alongside components.
 
+## E2E Validation (Agent-Driven)
+
+Agents validate UI changes by navigating the running app with `playwright-cli`.
+
+```bash
+pnpm e2e:check        # Verify all services are running
+pnpm db:reset         # Reset DB to deterministic seed state
+pnpm e2e:login        # Get session cookie for playwright-cli
+```
+
+Key resources:
+- **Skill**: `.claude/skills/e2e-validate/SKILL.md` — full instructions for agents
+- **Scripts**: `scripts/e2e/` — health check, login, flag overrides
+- **Cheatsheet**: `scripts/e2e/CHEATSHEET.md` — quick reference
+- **Seed constants**: `packages/api-server/src/database/seed/constants.ts` — all deterministic IDs
+- **Test accounts**: `testuser/test` (owner), `testmember/test` (member)
+
+See `scripts/e2e/README.md` for detailed architecture.
+
 ## CI Testing
 
 GitHub Actions (`test.yml`) runs on every push/PR to main:

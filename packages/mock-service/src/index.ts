@@ -38,8 +38,14 @@ const MOCK_CONFIG = {
 	defaultScenario: process.env.MOCK_SCENARIO || "success",
 	// Response delays in milliseconds
 	responseDelay: parseInt(process.env.MOCK_DELAY || "2000", 10),
-	// Success rate (0-100)
-	successRate: parseInt(process.env.MOCK_SUCCESS_RATE || "90", 10),
+	// Success rate (0-100) — defaults to 100 in deterministic mode
+	successRate: parseInt(
+		process.env.MOCK_SUCCESS_RATE ||
+			(process.env.MOCK_DETERMINISTIC === "true" ? "100" : "90"),
+		10,
+	),
+	// Deterministic mode: no random values, consistent responses
+	deterministic: process.env.MOCK_DETERMINISTIC === "true",
 	// RabbitMQ configuration
 	queueName: process.env.QUEUE_NAME || "chat.responses",
 	rabbitUrl: process.env.RABBITMQ_URL || "amqp://guest:guest@localhost:5672",
@@ -1617,7 +1623,9 @@ The system is performing well overall but requires attention to the identified s
 	} else {
 		// Default scenario - fall back to original logic
 		const useScenario = scenario || MOCK_CONFIG.defaultScenario;
-		const isSuccess = Math.random() * 100 < MOCK_CONFIG.successRate;
+		const isSuccess = MOCK_CONFIG.deterministic
+			? true
+			: Math.random() * 100 < MOCK_CONFIG.successRate;
 
 		switch (useScenario) {
 			case "success":
@@ -1638,7 +1646,7 @@ I've successfully processed your request: **"${content}"**
 ### Summary
 - **Documents processed**: ${documentCount}
 - **Status**: ✅ Completed successfully
-- **Response time**: ~${Math.floor(Math.random() * 3) + 1} seconds
+- **Response time**: ~${MOCK_CONFIG.deterministic ? 1 : Math.floor(Math.random() * 3) + 1} seconds
 
 ### Key Findings
 1. **System health check** passed
@@ -2000,6 +2008,20 @@ app.get("/health", (_req, res) => {
 		service: "rita-mock-automation",
 		timestamp: new Date().toISOString(),
 		config: MOCK_CONFIG,
+	});
+});
+
+// Test reset endpoint — clears all in-memory state
+app.post("/test/reset", (_req, res) => {
+	cancelledSyncConnections.clear();
+	keycloakAdminToken = null;
+	tokenExpiresAt = 0;
+
+	logger.info("Mock service state reset via /test/reset");
+
+	res.json({
+		success: true,
+		message: "Mock service state reset",
 	});
 });
 
