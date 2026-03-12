@@ -5,6 +5,8 @@
  * Uses DOM injection when same-origin, falls back to postMessage when cross-origin.
  */
 
+import DOMPurify from "dompurify";
+
 const MODAL_STYLES = `
   #rita-injected-modal-overlay {
     position: fixed;
@@ -99,7 +101,7 @@ const createModalHTML = (iframeSrc: string, title: string) => `
         <button id="rita-injected-modal-close" onclick="window.__ritaCloseModal?.()">×</button>
       </div>
       <div id="rita-injected-modal-body">
-        <iframe src="${iframeSrc}"></iframe>
+        <iframe src="${escapeHtml(iframeSrc)}"></iframe>
       </div>
     </div>
   </div>
@@ -426,7 +428,7 @@ export function openFullscreenContent(
 					<button id="rita-fullscreen-close">×</button>
 				</div>
 				<div id="rita-fullscreen-body">
-					${content}
+					${DOMPurify.sanitize(content, { USE_PROFILES: { svg: true, html: true } })}
 				</div>
 			</div>
 		`;
@@ -857,7 +859,7 @@ export function openFormModal(config: FormModalConfig): boolean {
 	const overlay = parentDoc.createElement("div");
 	overlay.id = "rita-form-modal-overlay";
 	overlay.innerHTML = `
-		<div id="rita-form-modal" class="size-${config.size || "full"}">
+		<div id="rita-form-modal" class="size-${escapeHtml(config.size || "full")}">
 			<div id="rita-form-modal-header">
 				<div id="rita-form-modal-header-text">
 					<h3>${escapeHtml(config.title)}</h3>
