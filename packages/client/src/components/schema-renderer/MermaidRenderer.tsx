@@ -5,6 +5,7 @@
  * Uses generic hostModal utilities for fullscreen in iframe context.
  */
 
+import DOMPurify from "dompurify";
 import { Check, Copy, Maximize2, Minimize2 } from "lucide-react";
 import mermaid from "mermaid";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -45,7 +46,10 @@ export function MermaidRenderer({
 			try {
 				const id = `mermaid-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 				const { svg } = await mermaid.render(id, code);
-				setSvgContent(svg);
+				const sanitizedSvg = DOMPurify.sanitize(svg, {
+					USE_PROFILES: { svg: true },
+				});
+				setSvgContent(sanitizedSvg);
 				setError(null);
 			} catch (err) {
 				console.error("[MermaidRenderer] Render error:", err);
@@ -170,7 +174,7 @@ export function MermaidRenderer({
 				{/* Diagram content */}
 				<div
 					className="p-4 overflow-x-auto flex justify-center"
-					// biome-ignore lint/security/noDangerouslySetInnerHtml: sanitized svg from mermaid
+					// biome-ignore lint/security/noDangerouslySetInnerHtml: SVG sanitized with DOMPurify
 					dangerouslySetInnerHTML={{ __html: svgContent }}
 				/>
 			</div>
@@ -199,7 +203,7 @@ export function MermaidRenderer({
 						</div>
 						<div
 							className="flex-1 overflow-auto p-6 flex items-center justify-center"
-							// biome-ignore lint/security/noDangerouslySetInnerHtml: sanitized svg from mermaid
+							// biome-ignore lint/security/noDangerouslySetInnerHtml: SVG sanitized with DOMPurify
 							dangerouslySetInnerHTML={{ __html: svgContent }}
 						/>
 					</div>
