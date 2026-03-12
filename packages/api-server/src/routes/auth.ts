@@ -296,6 +296,12 @@ const router = express.Router();
 const sessionService = getSessionService();
 const webhookService = new WebhookService();
 
+// Rate limit constants
+const SIGNUP_MAX_REQUESTS = 5;
+const SIGNUP_WINDOW_MS = 15 * 60 * 1000; // 15 minutes
+const RESEND_MAX_REQUESTS = 1;
+const RESEND_WINDOW_MS = 5 * 60 * 1000; // 5 minutes
+
 // Simple in-memory rate limiter (fixed-window counter)
 const rateLimiter = new Map<string, { count: number; resetAt: number }>();
 
@@ -328,7 +334,14 @@ function checkRateLimit(
 router.post("/signup", async (req, res) => {
 	try {
 		const clientIp = req.ip || req.socket.remoteAddress;
-		if (clientIp && !checkRateLimit(`signup:${clientIp}`, 5, 15 * 60 * 1000)) {
+		if (
+			clientIp &&
+			!checkRateLimit(
+				`signup:${clientIp}`,
+				SIGNUP_MAX_REQUESTS,
+				SIGNUP_WINDOW_MS,
+			)
+		) {
 			logger.warn({ ip: clientIp }, "Signup rate limit exceeded");
 			return res.status(429).json({
 				error: "Too many signup attempts. Please try again later.",
@@ -456,7 +469,9 @@ router.post("/resend-verification", async (req, res) => {
 		}
 
 		// Check rate limit (1 per 5 minutes per email)
-		if (!checkRateLimit(`resend:${email}`, 1, 5 * 60 * 1000)) {
+		if (
+			!checkRateLimit(`resend:${email}`, RESEND_MAX_REQUESTS, RESEND_WINDOW_MS)
+		) {
 			return res.status(429).json({
 				error:
 					"Please wait 5 minutes before requesting another verification email",
