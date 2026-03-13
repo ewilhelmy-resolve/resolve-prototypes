@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/table";
 import { useClusterTickets } from "@/hooks/useClusters";
 import { useDebounce } from "@/hooks/useDebounce";
+import { formatDate } from "@/lib/date-utils";
 import { renderSortIcon } from "@/lib/table-utils";
 import type {
 	ClusterTicketsQueryParams,
@@ -35,18 +36,6 @@ interface ClusterDetailTableProps {
 	/** Open ticket count from cluster details */
 	openCount?: number;
 }
-
-// Format date for display
-const formatDate = (dateString: string): string => {
-	const date = new Date(dateString);
-	return date.toLocaleDateString("en-US", {
-		day: "2-digit",
-		month: "short",
-		year: "numeric",
-		hour: "2-digit",
-		minute: "2-digit",
-	});
-};
 
 // Extract source from source_metadata (Freshservice stores source as a number)
 const getTicketSource = (metadata: Record<string, unknown>): string => {

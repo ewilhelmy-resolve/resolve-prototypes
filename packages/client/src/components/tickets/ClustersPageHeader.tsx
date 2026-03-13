@@ -23,6 +23,7 @@ interface ClustersPageHeaderProps {
 	showSkeletons: boolean;
 	hasNoModel: boolean;
 	onSettingsClick: () => void;
+	lastSynced?: string;
 }
 
 /**
@@ -44,6 +45,7 @@ export function ClustersPageHeader({
 	showSkeletons,
 	hasNoModel,
 	onSettingsClick,
+	lastSynced,
 }: ClustersPageHeaderProps) {
 	const { t } = useTranslation("tickets");
 	const { data: settings } = useAutopilotSettings();
@@ -67,15 +69,25 @@ export function ClustersPageHeader({
 	) : hasNoModel ? (
 		""
 	) : (
-		<Trans
-			i18nKey="header.description"
-			ns="tickets"
-			values={{
-				ticketCount: totalTickets.toLocaleString(),
-				period: periodLabels[period].toLowerCase(),
-			}}
-			components={{ strong: <span className="font-semibold" /> }}
-		/>
+		<span className="flex items-center gap-2">
+			<Trans
+				i18nKey="header.description"
+				ns="tickets"
+				values={{
+					ticketCount: totalTickets.toLocaleString(),
+					period: periodLabels[period].toLowerCase(),
+				}}
+				components={{ strong: <span className="font-semibold" /> }}
+			/>
+			{lastSynced && (
+				<>
+					<span className="text-muted-foreground">·</span>
+					<span className="text-muted-foreground text-xs">
+						{t("header.lastSynced", { time: lastSynced })}
+					</span>
+				</>
+			)}
+		</span>
 	);
 
 	return (

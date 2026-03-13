@@ -1,4 +1,4 @@
-import { BookX, ZapOff } from "lucide-react";
+import { BookX } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import {
 	Tooltip,
@@ -55,9 +55,9 @@ export function TicketGroupStat({
 	id,
 	title,
 	count,
-	openCount,
+	_openCount,
 	knowledgeStatus,
-	hasAction,
+	_hasAction,
 	costImpact,
 	mttr,
 	onClick,
@@ -71,7 +71,6 @@ export function TicketGroupStat({
 	};
 
 	const hasKnowledgeGap = knowledgeStatus === "GAP";
-	const hasAutomationGap = hasAction === false;
 
 	return (
 		<button
@@ -109,28 +108,16 @@ export function TicketGroupStat({
 						</div>
 					)}
 				</div>
-				{(hasKnowledgeGap || hasAutomationGap) && (
+				{hasKnowledgeGap && (
 					<div className="flex items-center gap-1.5">
-						{hasKnowledgeGap && (
-							<Tooltip>
-								<TooltipTrigger asChild>
-									<span className="flex h-6 w-6 items-center justify-center rounded-full bg-yellow-100">
-										<BookX className="h-3.5 w-3.5 text-yellow-600" />
-									</span>
-								</TooltipTrigger>
-								<TooltipContent>Knowledge Gap</TooltipContent>
-							</Tooltip>
-						)}
-						{hasAutomationGap && (
-							<Tooltip>
-								<TooltipTrigger asChild>
-									<span className="flex h-6 w-6 items-center justify-center rounded-full bg-blue-100">
-										<ZapOff className="h-3.5 w-3.5 text-blue-500" />
-									</span>
-								</TooltipTrigger>
-								<TooltipContent>Automation Gap</TooltipContent>
-							</Tooltip>
-						)}
+						<Tooltip>
+							<TooltipTrigger asChild>
+								<span className="flex h-6 w-6 items-center justify-center rounded-full bg-yellow-100">
+									<BookX className="h-3.5 w-3.5 text-yellow-600" />
+								</span>
+							</TooltipTrigger>
+							<TooltipContent>Knowledge Gap</TooltipContent>
+						</Tooltip>
 					</div>
 				)}
 			</div>

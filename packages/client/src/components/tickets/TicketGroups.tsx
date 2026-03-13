@@ -26,6 +26,7 @@ import { useActiveModel } from "@/hooks/useActiveModel";
 import { useClusterActions, useInfiniteClusters } from "@/hooks/useClusters";
 import { useDebounce } from "@/hooks/useDebounce";
 import { useIsIngesting } from "@/hooks/useIsIngesting";
+import { getClusterDisplayTitle } from "@/lib/cluster-utils";
 import {
 	type RoiSortKey,
 	rankClustersByRoi,
@@ -37,7 +38,7 @@ import { PrioritizationRankedList } from "./PrioritizationRankedList";
 import { TicketGroupSkeleton } from "./TicketGroupSkeleton";
 import { TicketGroupStat } from "./TicketGroupStat";
 
-type GapFilterKey = "knowledge_gap" | "automation_gap";
+type GapFilterKey = "knowledge_gap";
 type TopViewMode = "cards" | "list";
 type SortOption = "volume" | RoiSortKey;
 
@@ -50,8 +51,38 @@ const SORT_OPTIONS: { key: SortOption; i18nKey: string }[] = [
 
 const GAP_FILTER_OPTIONS: { key: GapFilterKey; i18nKey: string }[] = [
 	{ key: "knowledge_gap", i18nKey: "groups.filterOptions.knowledgeGap" },
-	{ key: "automation_gap", i18nKey: "groups.filterOptions.automationGap" },
 ];
+
+function ImportProgressBanner({
+	latestRun,
+}: {
+	latestRun: ReturnType<typeof useIsIngesting>["latestRun"];
+}) {
+	const { t } = useTranslation("tickets");
+	return (
+		<StatusAlert variant="info" title={t("groups.importingTickets")}>
+			<p>{t("groups.importingDescription")}</p>
+			{latestRun?.metadata?.progress?.total_estimated && (
+				<div className="w-full">
+					<Progress
+						value={
+							(latestRun.records_processed /
+								latestRun.metadata.progress.total_estimated) *
+							100
+						}
+						className="bg-white"
+					/>
+					<span className="text-sm text-muted-foreground whitespace-nowrap">
+						{t("groups.importingProgress", {
+							processed: latestRun.records_processed,
+							total: latestRun.metadata.progress.total_estimated,
+						})}
+					</span>
+				</div>
+			)}
+		</StatusAlert>
+	);
+}
 
 interface TicketGroupsProps {
 	period: PeriodFilter;
@@ -87,9 +118,8 @@ export default function TicketGroups({ period }: TicketGroupsProps) {
 	const { isIngesting, latestRun } = useIsIngesting();
 	const isFirstImport = isIngesting && !canShowClusters;
 
-	// Knowledge gap uses server-side kb_status filter; automation gap is client-side
+	// Knowledge gap uses server-side kb_status filter
 	const hasKnowledgeGapFilter = activeGapFilters.has("knowledge_gap");
-	const hasAutomationGapFilter = activeGapFilters.has("automation_gap");
 	const kbStatusParam = hasKnowledgeGapFilter ? "GAP" : undefined;
 	const isCards = viewMode === "cards";
 	const isList = viewMode === "list";
@@ -134,16 +164,11 @@ export default function TicketGroups({ period }: TicketGroupsProps) {
 		if (hasKnowledgeGapFilter) {
 			filtered = filtered.filter((c) => c.kb_status === "GAP");
 		}
-		if (hasAutomationGapFilter) {
-			filtered = filtered.filter((c) => actionsMap?.[c.id] === false);
-		}
 		return filtered;
 	}, [
 		infiniteData,
 		debouncedSearch,
 		hasKnowledgeGapFilter,
-		hasAutomationGapFilter,
-		actionsMap,
 	]);
 	const _totals = infiniteData?.pages[0]?.totals;
 	const isDataLoading = isInfiniteLoading;
@@ -179,7 +204,6 @@ export default function TicketGroups({ period }: TicketGroupsProps) {
 
 	const gapFilterLabels: Record<GapFilterKey, string> = {
 		knowledge_gap: t("groups.filterOptions.knowledgeGap"),
-		automation_gap: t("groups.filterOptions.automationGap"),
 	};
 
 	const toggleGapFilter = (key: GapFilterKey) => {
@@ -200,14 +224,6 @@ export default function TicketGroups({ period }: TicketGroupsProps) {
 			next.delete(key);
 			return next;
 		});
-	};
-
-	// Build display title from name + subcluster_name
-	const getDisplayTitle = (name: string, subclusterName: string | null) => {
-		if (subclusterName) {
-			return `${name} - ${subclusterName}`;
-		}
-		return name;
 	};
 
 	// Show spinner while checking model state initially
@@ -236,6 +252,14 @@ export default function TicketGroups({ period }: TicketGroupsProps) {
 			</div>
 		);
 	}
+
+	const skeletonGrid = (
+		<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+			{[...Array(6)].map((_, i) => (
+				<TicketGroupSkeleton key={i} />
+			))}
+		</div>
+	);
 
 	return (
 		<div className="flex w-full flex-col">
@@ -377,70 +401,20 @@ export default function TicketGroups({ period }: TicketGroupsProps) {
 					</div>
 				) : isFirstImport ? (
 					<div className="flex flex-col gap-6">
-						<StatusAlert variant="info" title={t("groups.importingTickets")}>
-							<p>{t("groups.importingDescription")}</p>
-							{latestRun?.metadata?.progress?.total_estimated && (
-								<div className="w-full">
-									<Progress
-										value={
-											(latestRun.records_processed /
-												latestRun.metadata.progress.total_estimated) *
-											100
-										}
-										className="bg-white"
-									/>
-									<span className="text-sm text-muted-foreground whitespace-nowrap">
-										{t("groups.importingProgress", {
-											processed: latestRun.records_processed,
-											total: latestRun.metadata.progress.total_estimated,
-										})}
-									</span>
-								</div>
-							)}
-						</StatusAlert>
-						<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
-							{[...Array(6)].map((_, i) => (
-								<TicketGroupSkeleton key={i} />
-							))}
-						</div>
+						<ImportProgressBanner latestRun={latestRun} />
+						{skeletonGrid}
 					</div>
 				) : isTraining ? (
 					<div className="flex flex-col gap-6">
 						<StatusAlert variant="info" title={t("groups.trainingInProgress")}>
 							<p>{t("groups.trainingDescription")}</p>
 						</StatusAlert>
-						<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
-							{[...Array(6)].map((_, i) => (
-								<TicketGroupSkeleton key={i} />
-							))}
-						</div>
+						{skeletonGrid}
 					</div>
 				) : clusters.length > 0 ? (
 					<>
-						{/* Re-import banner */}
-						{isIngesting && (
-							<StatusAlert variant="info" title={t("groups.importingTickets")}>
-								<p>{t("groups.importingDescription")}</p>
-								{latestRun?.metadata?.progress?.total_estimated && (
-									<div className="w-full">
-										<Progress
-											value={
-												(latestRun.records_processed /
-													latestRun.metadata.progress.total_estimated) *
-												100
-											}
-											className="bg-white"
-										/>
-										<span className="text-sm text-muted-foreground whitespace-nowrap">
-											{t("groups.importingProgress", {
-												processed: latestRun.records_processed,
-												total: latestRun.metadata.progress.total_estimated,
-											})}
-										</span>
-									</div>
-								)}
-							</StatusAlert>
-						)}
+						{/* Re-import banner: show above existing clusters */}
+						{isIngesting && <ImportProgressBanner latestRun={latestRun} />}
 
 						{isCards && (
 							<div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-5">
@@ -450,7 +424,7 @@ export default function TicketGroups({ period }: TicketGroupsProps) {
 										<TicketGroupStat
 											key={cluster.id}
 											id={cluster.id}
-											title={getDisplayTitle(
+											title={getClusterDisplayTitle(
 												cluster.name,
 												cluster.subcluster_name,
 											)}

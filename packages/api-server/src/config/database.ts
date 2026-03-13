@@ -3,6 +3,7 @@ import pg from "pg";
 const { Pool } = pg;
 
 import { dbLogger, logError, PerformanceTimer } from "./logger.js";
+import { assertUuid } from "./validateUuid.js";
 
 const databaseUrl = process.env.DATABASE_URL;
 
@@ -64,7 +65,10 @@ export const withOrgContext = async <T>(
 	try {
 		await client.query("BEGIN");
 
-		// Set session variables for RLS policies (SET commands don't support parameters)
+		// Validate UUIDs to prevent SQL injection (SET commands don't support parameters)
+		assertUuid(userId, "userId");
+		assertUuid(organizationId, "organizationId");
+
 		await client.query(`SET LOCAL app.current_user_id = '${userId}'`);
 		await client.query(
 			`SET LOCAL app.current_organization_id = '${organizationId}'`,

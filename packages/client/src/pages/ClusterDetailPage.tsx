@@ -1,6 +1,6 @@
 import { useQueryClient } from "@tanstack/react-query";
 import confetti from "canvas-confetti";
-import { ArrowLeft, BookX, Loader2, ZapOff } from "lucide-react";
+import { ArrowLeft, BookX, Loader2 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate, useParams } from "react-router-dom";
@@ -21,6 +21,7 @@ import {
 	useClusterDetails,
 	useClusterHasAction,
 } from "@/hooks/useClusters";
+import { getClusterDisplayTitle } from "@/lib/cluster-utils";
 
 /** Default cost setting (matches TicketSettingsDialog default) */
 const COST_PER_TICKET = 30;
@@ -55,6 +56,12 @@ const fireConfetti = () => {
 	}, 2000);
 };
 
+interface ReviewStats {
+	trusted: number;
+	totalReviewed: number;
+	confidenceImprovement: number;
+}
+
 export default function ClusterDetailPage() {
 	const { t } = useTranslation("tickets");
 	const { id } = useParams<{ id: string }>();
@@ -78,9 +85,51 @@ export default function ClusterDetailPage() {
 		navigate("/tickets");
 	};
 
+	const showBanner = (
+		variant: "success" | "destructive" | "enriched",
+		title: string,
+		description?: string,
+		withConfetti = true,
+	) => {
+		if (withConfetti) fireConfetti();
+		setBannerData((prev) => ({
+			visible: true,
+			variant,
+			title,
+			description,
+			key: prev.key + 1,
+		}));
+	};
+
+	const handleReviewComplete = (stats: ReviewStats) => {
+		const { trusted, totalReviewed, confidenceImprovement } = stats;
+		if (confidenceImprovement > 0) {
+			showBanner(
+				"success",
+				t("clusterDetail.banners.reviewSuccess", { count: totalReviewed }),
+				t("clusterDetail.banners.reviewSuccessDesc", {
+					trusted,
+					improvement: confidenceImprovement,
+				}),
+			);
+		} else {
+			showBanner(
+				"destructive",
+				t("clusterDetail.banners.reviewNeedsImprovement"),
+				t("clusterDetail.banners.reviewNeedsImprovementDesc", {
+					count: totalReviewed,
+				}),
+				false,
+			);
+		}
+	};
+
+	const handleAutoPopulateEnabled = () => {
+		showBanner("enriched", t("clusterDetail.banners.enrichedTickets"));
+	};
+
 	const handleKnowledgeAdded = () => {
 		setKnowledgeAdded(true);
-		fireConfetti();
 		// Refetch cluster details (kb_status), KB articles, and clusters list
 		if (id) {
 			void queryClient.invalidateQueries({ queryKey: clusterKeys.detail(id) });
@@ -89,13 +138,26 @@ export default function ClusterDetailPage() {
 			});
 			void queryClient.invalidateQueries({ queryKey: clusterKeys.lists() });
 		}
-		setBannerData((prev) => ({
-			visible: true,
-			variant: "success",
-			title: t("clusterDetail.banners.knowledgeAdded"),
-			description: t("clusterDetail.banners.knowledgeAddedDesc"),
-			key: prev.key + 1,
-		}));
+		showBanner(
+			"success",
+			t("clusterDetail.banners.knowledgeAdded"),
+			t("clusterDetail.banners.knowledgeAddedDesc"),
+		);
+	};
+
+	const handleAutoRespondEnabled = (
+		ticketGroupName: string,
+		automatedPercentage: number,
+	) => {
+		showBanner(
+			"enriched",
+			t("clusterDetail.banners.automatedWork", {
+				percentage: automatedPercentage,
+			}),
+			t("clusterDetail.banners.automatedWorkDesc", {
+				groupName: ticketGroupName,
+			}),
+		);
 	};
 
 	const handleDismissBanner = () => {
@@ -115,15 +177,6 @@ export default function ClusterDetailPage() {
 			bannerRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
 		}
 	}, [bannerKey, bannerData.visible]);
-
-	// Build display title from name + subcluster_name
-	const getDisplayTitle = () => {
-		if (!cluster) return "Cluster";
-		if (cluster.subcluster_name) {
-			return `${cluster.name} - ${cluster.subcluster_name}`;
-		}
-		return cluster.name;
-	};
 
 	if (isLoading) {
 		return (
@@ -148,7 +201,7 @@ export default function ClusterDetailPage() {
 		);
 	}
 
-	const title = getDisplayTitle();
+	const title = getClusterDisplayTitle(cluster.name, cluster.subcluster_name);
 
 	return (
 		<RitaLayout activePage="tickets">
@@ -189,16 +242,6 @@ export default function ClusterDetailPage() {
 									<TooltipContent>{t("gaps.knowledgeGap")}</TooltipContent>
 								</Tooltip>
 							)}
-							{hasAction === false && (
-								<Tooltip>
-									<TooltipTrigger asChild>
-										<span className="flex h-6 w-6 items-center justify-center rounded-full bg-blue-100">
-											<ZapOff className="h-3.5 w-3.5 text-blue-500" />
-										</span>
-									</TooltipTrigger>
-									<TooltipContent>{t("gaps.automationGap")}</TooltipContent>
-								</Tooltip>
-							)}
 						</div>
 
 						{/* Stats */}
@@ -219,13 +262,13 @@ export default function ClusterDetailPage() {
 								loading={false}
 							/>
 							<StatCard
-							value="4.2hr"
-							label={t("clusterDetail.stats.mttr")}
-						/>
-						<StatCard
-							value="1.8"
-							label={t("clusterDetail.stats.avgReassignmentRate")}
-						/>
+								value="4.2hr"
+								label={t("clusterDetail.stats.mttr")}
+							/>
+							<StatCard
+								value="1.8"
+								label={t("clusterDetail.stats.avgReassignmentRate")}
+							/>
 						</StatGroup>
 
 						{/* Table Section */}

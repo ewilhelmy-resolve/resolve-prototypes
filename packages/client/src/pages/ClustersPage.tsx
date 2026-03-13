@@ -4,6 +4,7 @@ import TicketSettingsDialog from "@/components/dialogs/TicketSettingsDialog";
 import RitaLayout from "@/components/layouts/RitaLayout";
 import { ClustersPageHeader } from "@/components/tickets/ClustersPageHeader";
 import TicketGroups from "@/components/tickets/TicketGroups";
+import { formatRelativeTime } from "@/constants/connectionSources";
 import { useActiveModel } from "@/hooks/useActiveModel";
 import { useClusters } from "@/hooks/useClusters";
 import { useIsIngesting } from "@/hooks/useIsIngesting";
@@ -19,7 +20,7 @@ export default function ClustersPage() {
 	const trainingState = activeModel?.metadata?.training_state;
 
 	// Check if any ITSM source is actively importing tickets
-	const { isIngesting } = useIsIngesting();
+	const { isIngesting, latestRun } = useIsIngesting();
 
 	// Determine loading states
 	const hasNoModel = !isModelLoading && activeModel === null;
@@ -50,6 +51,11 @@ export default function ClustersPage() {
 				showSkeletons={showSkeletons}
 				hasNoModel={hasNoModel}
 				onSettingsClick={() => setSettingsOpen(true)}
+				lastSynced={
+					latestRun?.completed_at
+						? formatRelativeTime(latestRun.completed_at)
+						: undefined
+				}
 			/>
 			<TicketGroups period={period} />
 			<TicketSettingsDialog

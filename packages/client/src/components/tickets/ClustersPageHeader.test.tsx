@@ -94,6 +94,18 @@ describe("ClustersPageHeader", () => {
 		expect(onSettingsClick).toHaveBeenCalledTimes(1);
 	});
 
+	it("shows last synced label when provided", () => {
+		renderHeader({ totalTickets: 100, lastSynced: "5 minutes ago" });
+
+		expect(screen.getByText("header.lastSynced")).toBeInTheDocument();
+	});
+
+	it("does not show last synced label when not provided", () => {
+		renderHeader({ totalTickets: 100 });
+
+		expect(screen.queryByText("header.lastSynced")).not.toBeInTheDocument();
+	});
+
 	it("calls onPeriodChange with selected period", async () => {
 		const onPeriodChange = vi.fn();
 		const user = userEvent.setup();

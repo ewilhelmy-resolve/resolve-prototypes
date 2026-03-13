@@ -1,20 +1,6 @@
 import { ArrowUpDown, MoveDown, MoveUp } from "lucide-react";
 
-/**
- * Format a date string into a human-readable format
- * @param dateString - ISO 8601 date string
- * @returns Formatted date string (e.g., "03 Sep, 2025 18:07")
- */
-export function formatDate(dateString: string): string {
-	const date = new Date(dateString);
-	return date.toLocaleDateString("en-US", {
-		day: "2-digit",
-		month: "short",
-		year: "numeric",
-		hour: "2-digit",
-		minute: "2-digit",
-	});
-}
+export { formatDate } from "@/lib/date-utils";
 
 /**
  * Render a sort icon based on the sort state
