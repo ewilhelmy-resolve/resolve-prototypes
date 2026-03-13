@@ -122,14 +122,14 @@ export function PrioritizationChart({
 									size="icon"
 									role="radio"
 									aria-checked={view === mode}
-									aria-label={t(labelKey)}
+									aria-label={t(labelKey as any)}
 									onClick={() => setView(mode)}
 									className="size-8"
 								>
 									<Icon className="size-4" />
 								</Button>
 							</TooltipTrigger>
-							<TooltipContent>{t(labelKey)}</TooltipContent>
+							<TooltipContent>{t(labelKey as any)}</TooltipContent>
 						</Tooltip>
 					))}
 				</div>

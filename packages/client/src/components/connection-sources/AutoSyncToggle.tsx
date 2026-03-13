@@ -30,7 +30,7 @@ export function AutoSyncToggle({
 	const [optimisticValue, setOptimisticValue] = useState(currentValue);
 
 	// Only show when ML model is active
-	if (!activeModel?.active) {
+	if (!activeModel) {
 		return null;
 	}
 

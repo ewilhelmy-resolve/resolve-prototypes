@@ -61,12 +61,6 @@ const fireConfetti = () => {
 	}, 2000);
 };
 
-interface ReviewStats {
-	trusted: number;
-	totalReviewed: number;
-	confidenceImprovement: number;
-}
-
 export default function ClusterDetailPage() {
 	const { t } = useTranslation("tickets");
 	const { id } = useParams<{ id: string }>();
@@ -111,33 +105,6 @@ export default function ClusterDetailPage() {
 		}));
 	};
 
-	const _handleReviewComplete = (stats: ReviewStats) => {
-		const { trusted, totalReviewed, confidenceImprovement } = stats;
-		if (confidenceImprovement > 0) {
-			showBanner(
-				"success",
-				t("clusterDetail.banners.reviewSuccess", { count: totalReviewed }),
-				t("clusterDetail.banners.reviewSuccessDesc", {
-					trusted,
-					improvement: confidenceImprovement,
-				}),
-			);
-		} else {
-			showBanner(
-				"destructive",
-				t("clusterDetail.banners.reviewNeedsImprovement"),
-				t("clusterDetail.banners.reviewNeedsImprovementDesc", {
-					count: totalReviewed,
-				}),
-				false,
-			);
-		}
-	};
-
-	const _handleAutoPopulateEnabled = () => {
-		showBanner("enriched", t("clusterDetail.banners.enrichedTickets"));
-	};
-
 	const handleKnowledgeAdded = () => {
 		setKnowledgeAdded(true);
 		// Refetch cluster details (kb_status), KB articles, and clusters list
@@ -152,21 +119,6 @@ export default function ClusterDetailPage() {
 			"success",
 			t("clusterDetail.banners.knowledgeAdded"),
 			t("clusterDetail.banners.knowledgeAddedDesc"),
-		);
-	};
-
-	const _handleAutoRespondEnabled = (
-		ticketGroupName: string,
-		automatedPercentage: number,
-	) => {
-		showBanner(
-			"enriched",
-			t("clusterDetail.banners.automatedWork", {
-				percentage: automatedPercentage,
-			}),
-			t("clusterDetail.banners.automatedWorkDesc", {
-				groupName: ticketGroupName,
-			}),
 		);
 	};
 

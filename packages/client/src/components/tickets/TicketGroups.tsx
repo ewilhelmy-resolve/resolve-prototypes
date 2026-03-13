@@ -166,7 +166,6 @@ export default function TicketGroups({ period }: TicketGroupsProps) {
 		}
 		return filtered;
 	}, [infiniteData, debouncedSearch, hasKnowledgeGapFilter]);
-	const _totals = infiniteData?.pages[0]?.totals;
 	const isDataLoading = isInfiniteLoading;
 	const hasData = !!infiniteData;
 
@@ -292,7 +291,7 @@ export default function TicketGroups({ period }: TicketGroupsProps) {
 							<SelectContent>
 								{SORT_OPTIONS.map(({ key, i18nKey }) => (
 									<SelectItem key={key} value={key}>
-										{t(i18nKey)}
+										{t(i18nKey as any)}
 									</SelectItem>
 								))}
 							</SelectContent>
@@ -323,7 +322,7 @@ export default function TicketGroups({ period }: TicketGroupsProps) {
 										<span className="flex h-5 w-5 items-center justify-center rounded-full bg-yellow-100">
 											<BookX className="h-3 w-3 text-yellow-600" />
 										</span>
-										{t(i18nKey)}
+										{t(i18nKey as any)}
 									</DropdownMenuItem>
 								))}
 							</DropdownMenuContent>

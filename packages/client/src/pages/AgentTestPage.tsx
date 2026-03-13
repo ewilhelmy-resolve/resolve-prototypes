@@ -265,6 +265,7 @@ export default function AgentTestPage() {
 			);
 			if (suggestionIndex !== -1) {
 				const suggestion = messages[suggestionIndex].suggestion;
+				if (!suggestion) return;
 				setConfig((prev) =>
 					prev
 						? {

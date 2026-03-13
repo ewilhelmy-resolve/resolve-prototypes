@@ -105,10 +105,11 @@ export interface KbArticle {
  * Offset-based pagination info (for clusters and cluster tickets)
  */
 export interface PaginationInfo {
-	total: number;
-	limit: number;
-	offset: number;
+	total?: number;
+	limit?: number;
+	offset?: number;
 	has_more: boolean;
+	next_cursor?: string | null;
 }
 
 /**
@@ -129,6 +130,7 @@ export interface ClustersQueryParams {
 	period?: PeriodFilter;
 	limit?: number;
 	offset?: number;
+	cursor?: string;
 	kb_status?: KBStatus;
 	search?: string;
 }
@@ -148,6 +150,7 @@ export type SortDirection = "asc" | "desc";
  */
 export interface ClusterTicketsQueryParams {
 	tab?: "needs_response" | "completed";
+	cursor?: string;
 	offset?: number;
 	limit?: number;
 	search?: string;

@@ -142,13 +142,6 @@ export function ChatDrivenBuilder({ initialAgent }: ChatDrivenBuilderProps) {
 		chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
 	}, []);
 
-	// Start conversation when agent type is selected
-	useEffect(() => {
-		if (agent.type && messages.length === 0) {
-			startDescribePhase();
-		}
-	}, [agent.type, messages.length, startDescribePhase]);
-
 	const addMessage = (msg: Omit<ChatMessage, "id">) => {
 		setMessages((prev) => [
 			...prev,
@@ -181,6 +174,14 @@ export function ChatDrivenBuilder({ initialAgent }: ChatDrivenBuilderProps) {
 			});
 		}, 300);
 	};
+
+	// Start conversation when agent type is selected
+	// biome-ignore lint/correctness/useExhaustiveDependencies: startDescribePhase uses component state
+	useEffect(() => {
+		if (agent.type && messages.length === 0) {
+			startDescribePhase();
+		}
+	}, [agent.type, messages.length]);
 
 	const handlePersonaSubmit = async () => {
 		if (!persona.role || !persona.purpose || !persona.completionCriteria)

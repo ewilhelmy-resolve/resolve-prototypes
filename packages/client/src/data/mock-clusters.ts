@@ -105,6 +105,7 @@ export const MOCK_CLUSTERS_RESPONSE: ClustersResponse = {
 	totals: {
 		total_clusters: MOCK_CLUSTERS.length,
 		total_tickets: MOCK_CLUSTERS.reduce((sum, c) => sum + c.ticket_count, 0),
+		total_automated_tickets: 0,
 	},
 };
 

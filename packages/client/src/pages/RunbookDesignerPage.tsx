@@ -42,26 +42,6 @@ type ViewTab = "page" | "automation" | "decision-tree";
 type PropsTab = "configure" | "view" | "jarvis";
 type ParamsTab = "input" | "output";
 
-interface FlowNode {
-	id: string;
-	type: "start" | "task" | "decision" | "comment";
-	label: string;
-	sublabel?: string;
-	x: number;
-	y: number;
-	selected?: boolean;
-}
-
-interface _FlowGroup {
-	id: string;
-	label: string;
-	x: number;
-	y: number;
-	width: number;
-	height: number;
-	nodes: FlowNode[];
-}
-
 interface TaskParam {
 	name: string;
 	source: string;

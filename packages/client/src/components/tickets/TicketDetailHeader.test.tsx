@@ -33,7 +33,7 @@ describe("TicketDetailHeader", () => {
 		currentPosition: 1,
 		totalTickets: 5,
 		onReviewAIResponse: vi.fn(),
-	};
+	} as any;
 
 	beforeEach(() => {
 		vi.clearAllMocks();

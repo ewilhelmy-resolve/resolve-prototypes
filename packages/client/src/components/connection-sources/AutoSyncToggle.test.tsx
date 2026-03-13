@@ -119,7 +119,7 @@ describe("AutoSyncToggle", () => {
 
 		it("should update UI optimistically before mutation resolves", async () => {
 			// Use a promise we control to delay mutation resolution
-			let resolveMutation: () => void;
+			let resolveMutation: (() => void) | undefined;
 			mockUpdateMutation.mutateAsync = vi.fn(
 				() =>
 					new Promise<void>((resolve) => {

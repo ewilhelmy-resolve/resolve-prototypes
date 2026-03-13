@@ -53,8 +53,6 @@ export default function ProAgentBuilderPage() {
 	const [selectedVersion, setSelectedVersion] = useState(
 		latestVersion?.version ?? 1,
 	);
-	const _currentVersion = versions.find((v) => v.version === selectedVersion);
-
 	// Form state — initialized from latest version or agent
 	const [name, setName] = useState(
 		latestVersion?.name ?? existingAgent?.name ?? "",
