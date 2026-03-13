@@ -32,7 +32,7 @@ export type MCPAuthType = "none" | "bearer" | "api_key";
 /**
  * Authentication methods for dynamic MCP endpoints
  */
-export type MCPAuthMethod = "none" | "oauth" | "api_key" | "bearer";
+export type MCPAuthMethod = "none" | "oauth" | "basic";
 
 /**
  * MCP skill configuration

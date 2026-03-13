@@ -18,14 +18,11 @@ import {
 	SheetTitle,
 } from "@/components/ui/sheet";
 import { Textarea } from "@/components/ui/textarea";
-import type { MCPAuthType, MCPSkill, MCPVariable } from "@/types/pro";
+import { MOCK_PRO_RUNBOOKS } from "@/data/mock-pro";
+import type { MCPSkill, MCPVariable } from "@/types/pro";
 import { MCPVariableEditor } from "./MCPVariableEditor";
 
-const AUTH_TYPE_OPTIONS: { value: MCPAuthType; label: string }[] = [
-	{ value: "none", label: "None" },
-	{ value: "bearer", label: "Bearer Token" },
-	{ value: "api_key", label: "API Key" },
-];
+const NONE_WORKFLOW = "__none__";
 
 interface MCPSkillSheetProps {
 	open: boolean;
@@ -36,10 +33,9 @@ interface MCPSkillSheetProps {
 
 function getInitialState(skill?: MCPSkill | null) {
 	return {
+		workflowId: NONE_WORKFLOW,
 		name: skill?.name ?? "",
 		description: skill?.description ?? "",
-		endpoint: skill?.endpoint ?? "",
-		authType: skill?.authType ?? ("none" as MCPAuthType),
 		variables: skill?.variables ?? ([] as MCPVariable[]),
 	};
 }
@@ -67,26 +63,26 @@ export function MCPSkillSheet({
 		onSave({
 			name: form.name,
 			description: form.description,
-			endpoint: form.endpoint,
-			authType: form.authType,
+			endpoint: form.workflowId === NONE_WORKFLOW ? "" : form.workflowId,
+			authType: "none",
 			variables: form.variables,
 		});
 		handleClose();
 	};
 
-	const canSave = form.name.trim() !== "" && form.endpoint.trim() !== "";
+	const canSave = form.name.trim() !== "";
 
 	return (
 		<Sheet open={open} onOpenChange={onOpenChange}>
 			<SheetContent side="right" className="sm:max-w-lg overflow-y-auto">
 				<SheetHeader>
 					<SheetTitle>
-						{isEdit ? "Edit MCP Skill" : "Create MCP Skill"}
+						{isEdit ? "Edit MCP Skill" : "Add MCP Skill"}
 					</SheetTitle>
 					<SheetDescription>
 						{isEdit
 							? "Update the skill configuration below."
-							: "Define a new MCP skill with its endpoint and variables."}
+							: "Select a workflow and configure the MCP skill."}
 					</SheetDescription>
 				</SheetHeader>
 
@@ -96,8 +92,30 @@ export function MCPSkillSheet({
 						e.preventDefault();
 						handleSave();
 					}}
-					aria-label={isEdit ? "Edit MCP skill" : "Create MCP skill"}
+					aria-label={isEdit ? "Edit MCP skill" : "Add MCP skill"}
 				>
+					<div className="space-y-1.5">
+						<Label htmlFor="skill-workflow">Select a Workflow</Label>
+						<Select
+							value={form.workflowId}
+							onValueChange={(val) =>
+								setForm((f) => ({ ...f, workflowId: val }))
+							}
+						>
+							<SelectTrigger id="skill-workflow">
+								<SelectValue placeholder="Select a workflow" />
+							</SelectTrigger>
+							<SelectContent>
+								<SelectItem value={NONE_WORKFLOW}>None</SelectItem>
+								{MOCK_PRO_RUNBOOKS.map((rb) => (
+									<SelectItem key={rb.id} value={rb.id}>
+										{rb.name}
+									</SelectItem>
+								))}
+							</SelectContent>
+						</Select>
+					</div>
+
 					<div className="space-y-1.5">
 						<Label htmlFor="skill-name">
 							Name <span aria-hidden="true">*</span>
@@ -128,50 +146,6 @@ export function MCPSkillSheet({
 						/>
 					</div>
 
-					<div className="space-y-1.5">
-						<Label htmlFor="skill-endpoint">
-							Endpoint <span aria-hidden="true">*</span>
-						</Label>
-						<Input
-							id="skill-endpoint"
-							type="url"
-							placeholder="https://mcp.internal/skills/..."
-							value={form.endpoint}
-							onChange={(e) =>
-								setForm((f) => ({
-									...f,
-									endpoint: e.target.value,
-								}))
-							}
-							required
-							aria-required="true"
-						/>
-					</div>
-
-					<div className="space-y-1.5">
-						<Label htmlFor="skill-auth-type">Auth Type</Label>
-						<Select
-							value={form.authType}
-							onValueChange={(val) =>
-								setForm((f) => ({
-									...f,
-									authType: val as MCPAuthType,
-								}))
-							}
-						>
-							<SelectTrigger id="skill-auth-type">
-								<SelectValue />
-							</SelectTrigger>
-							<SelectContent>
-								{AUTH_TYPE_OPTIONS.map((opt) => (
-									<SelectItem key={opt.value} value={opt.value}>
-										{opt.label}
-									</SelectItem>
-								))}
-							</SelectContent>
-						</Select>
-					</div>
-
 					<MCPVariableEditor
 						variables={form.variables}
 						onChange={(variables) => setForm((f) => ({ ...f, variables }))}
@@ -183,7 +157,7 @@ export function MCPSkillSheet({
 						Cancel
 					</Button>
 					<Button type="button" onClick={handleSave} disabled={!canSave}>
-						{isEdit ? "Save Changes" : "Save Skill"}
+						Save
 					</Button>
 				</SheetFooter>
 			</SheetContent>

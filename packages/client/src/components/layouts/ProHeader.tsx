@@ -1,4 +1,5 @@
 import {
+	BrainCircuit,
 	ChevronDown,
 	Grid3X3,
 	LayoutDashboard,
@@ -25,6 +26,7 @@ const MENU_ITEMS = [
 	{ label: "Dashboard", path: "/pro", icon: LayoutDashboard },
 	{ label: "Dynamic MCPs", path: "/pro/mcp", icon: Settings2 },
 	{ label: "Runbooks", path: "/pro/runbooks", icon: Play },
+	{ label: "LLM Config", path: "/pro/llm", icon: BrainCircuit },
 ] as const;
 
 export function ProHeader() {
