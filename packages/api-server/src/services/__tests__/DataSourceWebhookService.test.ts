@@ -224,6 +224,36 @@ describe("DataSourceWebhookService", () => {
 			expect(result.error).toBe("Internal Server Error");
 		});
 
+		it("should scrub credentials from stored failure payload", async () => {
+			mockedAxios.post.mockRejectedValueOnce({
+				response: { status: 400, data: { error: "Bad request" } },
+				message: "Bad request",
+			});
+
+			await service.sendVerifyEvent({
+				...defaultParams,
+				credentials: {
+					apiKey: "sk-super-secret-key",
+					username: "admin",
+					password: "hunter2",
+				},
+			});
+
+			const insertCall = mockQuery.mock.calls.find(
+				(call: unknown[]) =>
+					typeof call[0] === "string" &&
+					call[0].includes("INSERT INTO rag_webhook_failures"),
+			);
+			expect(insertCall).toBeDefined();
+
+			const storedPayload = JSON.parse(insertCall?.[1][2] as string);
+			// credentials object must be redacted entirely
+			expect(storedPayload.credentials).toBe("[REDACTED]");
+			// non-sensitive fields preserved
+			expect(storedPayload.connection_id).toBe("conn-789");
+			expect(storedPayload.action).toBe("verify_credentials");
+		});
+
 		it("should retry on network errors (ECONNABORTED) and succeed", async () => {
 			mockedAxios.post
 				.mockRejectedValueOnce({

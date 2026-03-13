@@ -80,6 +80,17 @@ describe("scrubSensitiveFields", () => {
 		expect(scrubbed.items[0].id).toBe(1);
 	});
 
+	it("should scrub credentials object from data source payloads", () => {
+		const payload = {
+			action: "verify_credentials",
+			credentials: { apiKey: "sk-secret", password: "hunter2" },
+			connection_id: "conn-123",
+		};
+		const scrubbed = scrubSensitiveFields(payload);
+		expect(scrubbed.credentials).toBe("[REDACTED]");
+		expect(scrubbed.connection_id).toBe("conn-123");
+	});
+
 	it("should scrub verification_token and verification_url", () => {
 		const payload = {
 			first_name: "Test",
